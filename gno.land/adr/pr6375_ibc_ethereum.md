@@ -2,7 +2,7 @@
 
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
-  `feat/ibc-controls` (ba5ffef, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
+  `feat/ibc-controls` (0da0088, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
   the Ethereum side in gno-eth-ibc `feat/ibc-controls` (6623203,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
@@ -166,7 +166,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ba5ffef; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 0da0088; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -959,6 +959,14 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   blocked by a closed route or an open emergency recovery, on either chain: it is an exit, whose refund, if the
   packet fails, waits for the reopening. Escrowed sends of Ethereum-native tokens, and gno-native sends, are refused
   on a closed route.
+- **Send-side client status differs per chain** (§8.5 19k). On gno.land the core refuses every send unless the local
+  Ethereum client is **Active**, and transfers, voucher returns and `ibcgov`'s governance dispatches all use that
+  path: a Frozen or Expired local Ethereum client stops gno-originated transfers, voucher returns **and** governance
+  dispatches until it is repaired (recovered in place, `NewRecoverClientRequest`, or the route replaced), so repairing
+  it comes before any Ethereum-bound decision. On Ethereum neither the router's `sendPacket` nor `GnoICS20Transfer`
+  checks the `GnoLightClient`'s status: a Frozen or Expired verifier does not by itself stop outbound token sends,
+  which would then commit packets no relay can complete through it, so guardians set the route flags to contain new
+  escrowed sends (voucher burns still exit, their outcome left to the route replacement's reconciliation).
 - **gno.land.**
   - The incident tool is the per-client flags of the transfer impl (R17): `credits`, `payouts`, and `sends` of
     gno-native tokens. Burns of returning vouchers are never paused by route flags or a closed route.
@@ -1261,7 +1269,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 ### 7.7 Governor and one-way yield — R9/R11
 
 - The realms compile a governor key, which decides through the same builders, checks and delays as GovDAO.
-  **As shipped (ab794ba through ba5ffef), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
+  **As shipped (ab794ba through 0da0088), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
   real key in the deployed source, and GovDAO members verify it before the immutable realm is deployed. The
   supported alternative is an empty key (`""`): then no governor exists, `Yield` is refused, and GovDAO decides
   from the first block.
@@ -2125,6 +2133,8 @@ Further trust assumptions of the built controls, each stated where its rule is:
 | Situation | Behaviour |
 |---|---|
 | gno.land halts | gno → Eth stops; Eth → gno packets wait; their timeouts need a gno.land proof after the timeout, so refunds on Ethereum wait until gno.land resumes |
+| gno.land's local Ethereum client Frozen or Expired | every gno.land send over it is refused by the core — transfers, voucher returns and governance dispatches — until it is recovered in place or the route replaced; Ethereum-bound governance waits for that repair |
+| Ethereum's `GnoLightClient` Frozen or Expired, outbound sends | not refused by the router or the transfer app: guardians set the route flags to stop new escrowed sends; burns still go out and are settled by the replacement's reconciliation |
 | Ethereum finality stalls | Eth → gno stops (only finalized state is provable); monitors go blind and alarm |
 | Ethereum fork changes light-client containers | the Gno client must be upgraded before the fork; otherwise Eth → gno stops until it is |
 | Validator set changes | quarantine of gno → Eth receives (if enabled): they error-ack and are refunded on gno.land |
@@ -2223,6 +2233,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 19f | gno.land | **The address blocklist stops exits**: a blocked sender cannot send, voucher returns included (refunds still reach it); blocking is immediate, unblocking a 7-day decision | A deliberate exception to "a pause never stops burning" (§7.3); the blocklist is a compliance tool, not a pause |
 | 19g | Both, differing | **Reopening during new losses**: gno.land lets a loss be booked during a reopening and restarts the incident scan; Ethereum seals the reopening (no settlement on its incidents, no loss on the route) | Recorded as built; both end with every loss accepted or resolved |
 | 19i | Both, differing | **Candidate flags at replacement**: gno.land folds flags standing under the new client's id into the route's; Ethereum does not — the new client aliases the existing route, whose flags, limits and quarantine govern, and flags set under the candidate's own id do not carry over | Recorded as built; on Ethereum operators flag the existing route |
+| 19k | Both, differing | **Send-side client status**: gno.land's core refuses every send (transfers, voucher returns, governance dispatches) unless the local Ethereum client is Active; Ethereum's router and transfer app send over a Frozen or Expired `GnoLightClient` without a status check | gno.land: repair the local client before any Ethereum-bound decision; Ethereum: route flags contain new escrowed sends |
 | 19j | Both, differing | **Who bears an accepted deficit after reopening**: on gno.land `ClaimRefunds` pays queued refunds FIFO against the lock less `ProvenOwed`, so an accepted deficit can fall on a later genuine refund rather than the one whose backing a forged success released; Ethereum's sibling-reservation guard holds every refund until backing is restored | Documented, no code change; operators recapitalize before accepting a deficit, or accept FIFO assignment |
 | 19h | Both, differing | **Seat swaps**: gno.land checks only the final seat arrangement, so a decision may move a key between seats; Ethereum refuses any new key already holding any seat at execution | Recorded as built; on Ethereum a swap takes two decisions |
 | 20 | gno.land | **Ethereum-bound decisions are not deferred by gno-side holds** | Their delay and deferral run on Ethereum |
@@ -2394,7 +2405,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
      sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
      cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, ba5ffef, ADR 0004).
+3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 0da0088, ADR 0004).
    - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
      route-scoped flags and voids per client.
    - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
@@ -2902,6 +2913,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   per packet (§7.4, §7.5, §7.9); Ethereum's refund-payment starvation floor, `GnoPaymentStarved` rolling back
   rather than parking (§8.4, §9); a proof height above the observed source head is unresolved, and only a different
   canonical root at that height or a send-record forgery test flags at once (§7.11, §7.12).
+- 2026-10-20, fourteenth review of the alignment with Codex (gno-realms 0da0088). Folded: the send-side
+  client-status asymmetry — gno.land refuses every send (transfers, voucher returns, governance dispatches) over a
+  local Ethereum client that is not Active, so it is repaired before any Ethereum-bound decision; Ethereum sends over
+  a Frozen or Expired `GnoLightClient` unchecked, so route flags contain new escrowed sends (§7.3, §8.3, §8.5 19k).
 
 ## 15. References
 
@@ -2912,7 +2927,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - gno-realms:
   - [branch `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client)
   - ADRs [0001](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0001-proxy-realm-for-core-upgrades.md), [0002](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0002-proxy-realm-for-transfer-upgrades.md), [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md)
-  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (ba5ffef): ADR
+  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (0da0088): ADR
     [0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
