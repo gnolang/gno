@@ -2,8 +2,8 @@
 
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
-  `feat/ibc-controls` (2823194, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
-  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (e9b5e65,
+  `feat/ibc-controls` (1353ab5, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
+  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (7366bc1,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
@@ -166,7 +166,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 2823194; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 1353ab5; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -252,7 +252,7 @@ oversize governance envelope within the window and spends it (§5.4).
 | T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. Implement conflicting-header detection for the GnoLightClient (unsupported today, `src/clients/ethereum/host.ts`) and bounded `eth_getLogs` scans instead of scanning from block 0. Fixed in review: an update revealing the next committee that already finalizes the fetched finality update's slot is no longer followed by that stale update, which the client refuses (catch-up planned by the tested `planUpdates`, [`675ad9f`](https://github.com/allinbits/ibc-v2-ts-relayer/commit/675ad9f)). |
 | T3 | Local testnet (N secp256k1 validators, realms at genesis), local e2e with anvil, Sepolia scripts | ✅ | gno-eth-ibc [`testnet/`](https://github.com/allinbits/gno-eth-ibc/tree/main/testnet), [`scripts/e2e-local.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/e2e-local.sh), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | — |
 | T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: accounted escrow per client against voucher supply plus in-flight packets, reconstructed from packet records at causally closed heights (§7.11), not read from commitments; actual escrow balances must cover the accounted backing, and surplus only alarms. |
-| T5 | **Watch tool** for guardians and GovDAO members: state, pending decisions, flags, `check` of upgrade targets (code-hash, reproducible build, append-only storage layout) | ❌ (♻️) | bridges: [`ethereum/bridge/cmd/hlwatch`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/cmd/hlwatch) | Port. Until it exists, the Ethereum build verification (`scripts/verify-codehashes.sh`, §7.6) is run by hand with operator-supplied pending lists, after every deployment and executed decision and for every recorded kind 5, 6, 7 or 9 and opened emergency recovery within its delay; only non-`GnoLightClient` verifiers are checked by hand (§7.6). |
+| T5 | **Watch tool** for guardians and GovDAO members: state, pending decisions, flags, `check` of upgrade targets (code-hash, reproducible build, append-only storage layout) | ❌ (♻️) | bridges: [`ethereum/bridge/cmd/hlwatch`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/cmd/hlwatch) | Port. Until it exists, the Ethereum build verification (`scripts/verify-codehashes.sh`, §7.6) is run by hand with operator-supplied pending lists, after every deployment and executed decision and for every recorded kind 5, 6, 7 or 9 and opened emergency recovery within its delay; of the bytecode build verification only non-`GnoLightClient` verifiers are checked by hand, while the other manual checks of §7.6 stay manual (the append-only storage-layout review and the repair-critical `gnoBusy()` review of kind 7 and 9 candidates, the deployment manifest) |
 | T6 | Setup audit tool (reads every authority and setting back, byte-for-byte creation checks) | ❌ (♻️) | bridges: `ethereum/bridge/cmd/hleth` (`audit`) | Port. |
 
 ## 5. Protocol design
@@ -368,9 +368,12 @@ oversize governance envelope within the window and spends it (§5.4).
   binding is always over the route's **original** client, the pair Ethereum's epoch 1 uses (gno.land's client of the
   router and the router's launch client `client-0`), and the launch checklist verifies that pair. Until Ethereum
   records its first governance decision, no value moves on either chain, by these gates:
-  - **gno.land (manual operating gate):** the route starts with no enabled denom; operators execute the first
-    `NewSetDenomRequest` only after checking on Ethereum that `epoch()` is 1 and `lastSeq() ≥ 1` (runbook §7 step
-    5). No code on gno.land enforces this Ethereum-state condition.
+  - **gno.land (manual operating gate, checked before recording):** the route starts with no enabled denom. Since
+    `Execute` is permissionless once a decision is due, the gate cannot wait for execution: operators check on
+    Ethereum that `epoch()` is 1 and `lastSeq() ≥ 1` **before the first `NewSetDenomRequest` is recorded** — before
+    the governor records it, or before GovDAO approves the proposal that records it — and its 7-day delay starts
+    only then. A denom enablement recorded before the check is cancelled (`NewCancelRequest`) and recorded again
+    after it (runbook §7 step 5, gno-realms 1353ab5). No code on gno.land enforces this Ethereum-state condition.
   - **Ethereum:** the deployment registers ugnot with zero limits, and the deploy script reads the installed limits
     back exactly (`finishSetup` checks only that limits exist); its output carries `activationKind4Params`, and
     governance activates the route with that kind 4 only after `IBCAdmin` has recorded gno.land's first decision
@@ -659,6 +662,10 @@ stateDiagram-v2
   Recorded --> Queued: loosening gno-side kind → due = now + 7d
   Recorded --> Dispatched: Ethereum-side kind → sent at once (delay runs on Ethereum)<br/>kind 10 also queues its own 7-day expect-transition decision
   Queued --> Cancelled: cancel decision (immediate)
+  note right of Queued
+    anyone may execute once due, so a launch gate
+    (the first denom enablement) is checked before recording
+  end note
   Queued --> Applied: anyone executes after due, no gno-side hold<br/>(re-checked against live state)
   Queued --> Spent: re-check fails at execution
   Dispatched --> RecordedEth: received in order (or buffered until the gap fills)
@@ -763,7 +770,7 @@ sequenceDiagram
   D->>E: finishSetup(launch): check list + the launch record against the chain
   G->>GNO: create Ethereum client (checkpoint authenticated independently), register counterparty
   G->>GNO: decisions (7 d each): enroll the route, seat guardians, bind governance over the route's original client, set denoms
-  Note over G,E: no route replacement before binding (recover in place, or restart the deployment);<br/>checklist: the bound pair is Ethereum's epoch-1 pair; ugnot deployed with zero limits,<br/>activated by the kind 4 in activationKind4Params only after IBCAdmin records gno's first decision
+  Note over G,E: no route replacement before binding (recover in place, or restart the deployment);<br/>checklist: the bound pair is Ethereum's epoch-1 pair; first gno denom enablement recorded only after<br/>Ethereum shows epoch 1 and lastSeq ≥ 1 (anyone executes it once due); ugnot deployed with zero limits,<br/>activated by the kind 4 in activationKind4Params only after IBCAdmin records gno's first decision
   M->>E: audit tool reads every authority back (RoleGranted log); build verification
   G->>GNO: Launch (meters start empty, small caps)
   Note over G,GNO: testing phase: small lock, governor decides with every delay in force
@@ -1188,7 +1195,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 ### 7.7 Governor and one-way yield — R9/R11
 
 - The realms compile a governor key, which decides through the same builders, checks and delays as GovDAO.
-  **As shipped (ab794ba through 2823194), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
+  **As shipped (ab794ba through 1353ab5), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
   real key in the deployed source, and GovDAO members verify it before the immutable realm is deployed. The
   supported alternative is an empty key (`""`): then no governor exists, `Yield` is refused, and GovDAO decides
   from the first block.
@@ -2211,7 +2218,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | `MaxOpenRecaps` (unpaid recapitalizations per incident and denom) / `ReopenBatch` | 64 / 64 | constant |
 | controls page size (`PageLines`) | 100 | constant |
 | settlement items per decision | gno.land 64; Ethereum kind 12: 8 (6M inner `settleRecords` budget) | constant |
-| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording runs in a fixed 1M frame | constant |
+| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`_atRecording`) runs in a fixed 1M frame with its starvation floor, while bad or unknown envelopes, cancels, tombstoned decisions and kind 9 (`handoverParams`) are recorded inline in `IBCAdmin` | constant |
 | packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, on gno.land enforced by the core for every packet (an oversize receive refused before the app, leaving the packet pending), on Ethereum by the transfer app for ICS20 payloads on send and receive (an oversize receive error-acked; a readable oversize governance envelope is instead consumed and spent by `IBCAdmin`, §5.4); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
 | Ethereum receive / send amount | at most 2^96 − 1 | constant |
@@ -2292,14 +2299,16 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
    BLS natives; write the gnoland-1 key-migration plan (C2).
 2. **Controls, Ethereum (E5–E9, E11, E12)** — built (gno-eth-ibc `feat/ibc-controls`, `docs/controls.md`).
    The build verification covers live code, the current epoch verifier and its ugnot voucher, pending kinds 5, 6, 7 and 9,
-   further vouchers and light clients, and recovery candidates (0c673ad, ad7f3e3); only non-`GnoLightClient`
-   verifiers and running the tool remain manual (§7.6, Code pinning).
+   further vouchers and light clients, and recovery candidates (0c673ad, ad7f3e3); of the bytecode build
+   verification only non-`GnoLightClient` verifiers and running the tool remain manual, and the other manual checks
+   stay so: the storage-layout review, the repair-critical `gnoBusy()` review and the deployment manifest (§7.6,
+   Code pinning).
    - `GnoICS20Transfer` (minimal fork, or an upstream extensibility PR to eureka), limits and default-deny denoms
      in its receive path, `Guardians` library, the `gov` dispatcher and `IBCAdmin` with kinds 1–9, the buffered
      sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
      cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 2823194, ADR 0004).
+3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 1353ab5, ADR 0004).
    - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
      route-scoped flags and voids per client.
    - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
@@ -2748,6 +2757,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     recovery to restore one (§5.4, §7.6, §8.1, §8.5 R13).
   - Ethereum's 262,144-byte bound scoped to ICS20 payloads; `IBCAdmin` consumes and spends a readable oversize
     envelope; gno.land's bound is the core's (§4.3, §9). Ethereum reference updated to e9b5e65.
+- 2026-10-20, ninth review of the alignment with Codex. Folded:
+  - The gno.land launch value gate is checked **before recording** the first `NewSetDenomRequest` (or approving
+    the proposal that records it), since anyone executes a due decision; an early enablement is cancelled and
+    recorded again after the check (§5.4, §6.6, §6.10; gno-realms 1353ab5).
+  - "Only non-`GnoLightClient` verifiers stay manual" scoped to bytecode build verification; the storage-layout and
+    `gnoBusy()` reviews and the manifest stay manual (T5, §13).
+  - The 1M recording frame applies to recording through the executor; bad or unknown envelopes, cancels,
+    tombstoned decisions and kind 9 are recorded inline (§9).
+  - References: gno-realms 1353ab5 (docs only since 2823194), gno-eth-ibc 7366bc1 (comments only since e9b5e65).
 
 ## 15. References
 
@@ -2758,7 +2776,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - gno-realms:
   - [branch `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client)
   - ADRs [0001](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0001-proxy-realm-for-core-upgrades.md), [0002](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0002-proxy-realm-for-transfer-upgrades.md), [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md)
-  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (2823194): ADR
+  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (1353ab5): ADR
     [0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
