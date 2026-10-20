@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/apd/v3"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/holiman/uint256"
 )
 
 func assertNoPlusPrefix(s string) {
@@ -150,6 +152,10 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			}
 			tv.SetUint64(u64)
 			return
+		case gno.Int256Type, gno.Uint256Type:
+			bits := convertInt256Arg(arg, bt == gno.Int256Type)
+			tv.SetBits256(nil, &bits)
+			return
 		case gno.Float32Type:
 			value := convertFloat(arg, 32)
 			tv.SetFloat32(math.Float32bits(float32(value)))
@@ -226,6 +232,61 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 		panic(fmt.Sprintf("unexpected type in contract arg: %v", argT))
 	}
 }
+
+// maxInt256ArgLen is the longest canonical int256/uint256 argument: the 78
+// digits of 2^256-1, or a sign and the 77 digits of -2^255.
+const maxInt256ArgLen = 78
+
+// convertInt256Arg parses an int256 (signed) or uint256 argument. Only the
+// canonical decimal form is accepted: an optional "-" for int256, then digits
+// with no leading zero (except "0" itself), so each value has exactly one
+// spelling. The value must be in the type's range.
+func convertInt256Arg(arg string, signed bool) uint256.Int {
+	name := "uint256"
+	if signed {
+		name = "int256"
+	}
+	if len(arg) > maxInt256ArgLen {
+		panic(fmt.Sprintf("error parsing %s %q: too long", name, arg))
+	}
+	digits := arg
+	if signed && strings.HasPrefix(digits, "-") {
+		digits = digits[1:]
+		if digits == "0" {
+			panic(fmt.Sprintf("error parsing %s %q: negative zero", name, arg))
+		}
+	}
+	if digits == "" {
+		panic(fmt.Sprintf("error parsing %s %q: empty", name, arg))
+	}
+	for i := 0; i < len(digits); i++ {
+		if c := digits[i]; c < '0' || c > '9' {
+			panic(fmt.Sprintf("error parsing %s %q: invalid digit %q", name, arg, c))
+		}
+	}
+	if len(digits) > 1 && digits[0] == '0' {
+		panic(fmt.Sprintf("error parsing %s %q: leading zero", name, arg))
+	}
+	b, ok := new(big.Int).SetString(arg, 10)
+	if !ok {
+		panic(fmt.Sprintf("error parsing %s %q", name, arg))
+	}
+	if signed {
+		if b.Cmp(minInt256) < 0 || b.Cmp(maxInt256) > 0 {
+			panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
+		}
+	} else if b.BitLen() > 256 {
+		panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
+	}
+	var z uint256.Int
+	z.SetFromBig(b) // two's complement for negative int256 values
+	return z
+}
+
+var (
+	maxInt256 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 255), big.NewInt(1))
+	minInt256 = new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), 255))
+)
 
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)

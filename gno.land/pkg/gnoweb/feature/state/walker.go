@@ -536,6 +536,13 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 			Name: "(string)", Type: "string", Kind: KindPrimitive,
 			Value: quoteString(string(cv)),
 		}}
+	case gno.Bits256Value:
+		// Reached without the static type, so the signedness is unknown:
+		// show the raw bits as an unsigned number.
+		return []StateNode{{
+			Name: "(uint256)", Type: "uint256", Kind: KindPrimitive,
+			Value: cv.String(),
+		}}
 	}
 	return nil
 }
@@ -970,6 +977,10 @@ func primitiveTypeName(pt gno.PrimitiveType) string {
 		return "uint32"
 	case gno.Uint64Type:
 		return "uint64"
+	case gno.Int256Type:
+		return "int256"
+	case gno.Uint256Type:
+		return "uint256"
 	case gno.Float32Type:
 		return "float32"
 	case gno.Float64Type:
@@ -1011,6 +1022,9 @@ func primitiveDisplay(pt gno.PrimitiveType, tv gno.TypedValue) string {
 		return strconv.FormatUint(uint64(tv.GetUint16()), 10)
 	case gno.Uint32Type:
 		return strconv.FormatUint(uint64(tv.GetUint32()), 10)
+	case gno.Int256Type, gno.Uint256Type:
+		// int256/uint256 live in V (Bits256Value); a nil V is zero.
+		return tv.GetBig256().String()
 	case gno.Float32Type:
 		return strconv.FormatFloat(float64(math.Float32frombits(tv.GetFloat32())), 'g', -1, 32)
 	case gno.Float64Type:
