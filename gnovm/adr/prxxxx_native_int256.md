@@ -82,8 +82,9 @@ pitfalls of bytes (padding, a signed reading of a minimal payload that turns
 `int256(128)` into -128) and of JSON numbers (precision loss in JavaScript).
 It also stores typical amounts compactly (a 10^24 balance is 25 bytes).
 
-**Client contract change:** for every other numeric primitive a client reads
-the value from `N`. For these two types `N` is always empty and the value is
+**Client contract change:** every other fixed-width, typed numeric
+primitive stores its value in `N`, and a client reads it there (the untyped
+bigint and bigdec constant types already use `V`). For these two types `N` is always empty and the value is
 in `V`, as for strings. A client that reads only `N` for numeric primitives
 shows 0; such clients must handle the two new value types. Pinned by
 `TestBits256AminoJSON` and `int256_args.txtar`.
@@ -148,7 +149,9 @@ shows 0; such clients must handle the two new value types. Pinned by
   signedness. The test `fmt` supports `%v` and `%d` (decimal), `%b`, `%o`,
   `%O`, `%x`, `%X` (with width, precision and the `+ - # 0` and space
   flags), and `%#v` (hex with `0x` for `uint256`, decimal for `int256`, as
-  for the 64-bit integers). `%c`, `%q` and `%U` are refused.
+  for the 64-bit integers). `%c`, `%q` and `%U` are refused. A 256-bit
+  value is accepted as a `*` width or precision argument when it fits an
+  `int`.
 
 ### go/types
 
@@ -254,25 +257,43 @@ M-series development machine.
 | `&^` | 41.0 | 95.0 | 71 | 165 |
 | `<<` | 40.5 | 83.4 | 80 | 165 |
 | `>>` | 39.8 | 82.4 | 79 | 164 |
-| `==`, `!=` | 51.4 | 59.4 | 93 | 108 |
+| `==` (`!=`: 83 + 15) | 51.4 | 59.4 | 93 | 108 |
 | `<`, `<=`, `>`, `>=` | 40.0 | 59.8 | 73 | 110 |
 | unary `-` | 44.1 | 63.6 | 69 | 100 |
 | unary `^` | 43.2 | 63.9 | 69 | 103 |
 | convert, integer | 30.2 | 54.7 | 151 | 274 |
 | convert, float | 32.5 | 135.9 | 151 | 632 |
 
-Each non-zero value also pays alloc gas for its box. Accounting is logical,
-per occurrence: every slot holding a non-zero value is charged one box,
-whether the box was built for it or is shared with the value it was copied
-from (`TypedValue.Copy` charges it, and so does a method value formed
-through an interface, which saves its operand without a copy), because the GC recount counts one box
-per slot and a reload from the store builds, and charges in
-`internalRefSize`, one box per slot. `TestBits256CopyAccounting` and
-`TestBits256BoundReceiverAccounting` check allocation, recount and reload
-against each other.
+Allocation is accounted for exactly as for strings, the other immutable
+value held in `V` and shared by its copies:
 
-`TestGasInt256Ops` pins the difference from `int` for `+ - * / % | == <`,
-unary `-`, `<<` and the zero-result case.
+- a box is charged once, when an operation, conversion or native binding
+  builds a non-zero value (`SetBits256`); a constant's box is built at
+  preprocessing, uncharged, as a string constant's is;
+- copying a value into another slot shares the box and charges nothing,
+  whatever the path (assignment, `TypedValue.Copy`, a method value formed
+  through an interface, a saved method's receiver copied into its call
+  block, a named result filled on return), and so do the temporary aliases
+  on the operand stack;
+- the GC recount visits every slot and counts one box per non-zero value,
+  as it counts one string per slot;
+- a reload from the store charges the object's shallow size, which, as for
+  strings, does not include the inline values.
+
+So the recount can exceed what a copy-heavy program was charged, as it can
+for strings; the GC's limit check bounds both the same way.
+`TestBits256AccountingMatchesStrings` checks, for one value copied into many
+slots, retained interface method values, a saved method called repeatedly
+and a retained named result, that a 256-bit value is allocated and recounted
+in exactly as many slots as a string in the same program.
+
+The equality surcharge is charged by the 256-bit comparison itself (in
+`isEql`), so comparisons of arrays, structs and interface fields pay it per
+256-bit element compared, as do switch cases; `!=` costs `OpCPUNeq` plus the
+same surcharge. `TestGasInt256Ops` pins the difference from `int` for
+`+ - * / % | == <`, unary `-`, `<<` and the zero-result case, and
+`TestGasInt256Equality` pins equality in arrays (including an early
+mismatch), structs, interface fields, switches and `!=`.
 `gnovm/tests/files/gas/int256_ops.gno` and `int_ops_baseline.gno` pin the
 gas of the same 100-iteration loop on both types.
 

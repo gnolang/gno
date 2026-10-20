@@ -264,17 +264,6 @@ func (tv *TypedValue) SetBits256(alloc *Allocator, z *uint256.Int) {
 	}
 }
 
-// chargeBits256Slot charges one box when tv, a non-zero 256-bit value, is
-// stored in a new slot that shares its box (a copy). The GC recount and a
-// reload from the store count one box per slot (logical, per-occurrence
-// accounting), so every slot must be charged one.
-func chargeBits256Slot(alloc *Allocator, tv *TypedValue) {
-	switch tv.V.(type) {
-	case Int256Value, Uint256Value:
-		alloc.Allocate(allocBits256)
-	}
-}
-
 // GetBig256 returns the mathematical value of an int256 or uint256 value.
 func (tv *TypedValue) GetBig256() *big.Int {
 	z := tv.GetBits256()

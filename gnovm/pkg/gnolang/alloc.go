@@ -910,27 +910,12 @@ func (tv TypeValue) GetShallowSize() int64 {
 	return 0
 }
 
-// inlineSlotSize is the allocation size of a TypedValue.V that is serialized
-// inline in its parent object and is not counted by the parent's
-// GetShallowSize: a RefValue slot, or an Int256Value/Uint256Value (whose GetShallowSize
-// the GC recount adds, so a loaded object must be charged for it too).
-func inlineSlotSize(v Value) int64 {
-	switch v.(type) {
-	case RefValue:
-		return allocRefValue
-	case Int256Value, Uint256Value:
-		return allocBits256
-	}
-	return 0
-}
-
 // internalRefSize computes the allocation size for RefValue slots stored
 // within an object's amino-serialized form. During copyValueWithRefs, child
 // Objects are replaced with RefValue{ObjectID, Hash} placeholders. These
 // RefValue slots are not counted by GetShallowSize (which only counts the
 // object's own structure), so we must account for them here to keep the
-// allocator consistent with the store's memory usage. 256-bit value slots are
-// counted for the same reason (see inlineSlotSize).
+// allocator consistent with the store's memory usage.
 func internalRefSize(val Value) int64 {
 	var size int64
 	switch v := val.(type) {
@@ -947,7 +932,9 @@ func internalRefSize(val Value) int64 {
 		}
 	case *Block:
 		for _, v := range v.Values {
-			size += inlineSlotSize(v.V)
+			if _, ok := v.V.(RefValue); ok {
+				size += allocRefValue
+			}
 		}
 		if _, ok := v.Parent.(RefValue); ok {
 			size += allocRefValue
@@ -955,22 +942,34 @@ func internalRefSize(val Value) int64 {
 	case *ArrayValue:
 		if v.Data == nil {
 			for _, tv := range v.List {
-				size += inlineSlotSize(tv.V)
+				if _, ok := tv.V.(RefValue); ok {
+					size += allocRefValue
+				}
 			}
 		}
 	case *StructValue:
 		for _, tv := range v.Fields {
-			size += inlineSlotSize(tv.V)
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
 		}
 	case *MapValue:
 		for cur := v.List.Head; cur != nil; cur = cur.Next {
-			size += inlineSlotSize(cur.Key.V)
-			size += inlineSlotSize(cur.Value.V)
+			if _, ok := cur.Key.V.(RefValue); ok {
+				size += allocRefValue
+			}
+			if _, ok := cur.Value.V.(RefValue); ok {
+				size += allocRefValue
+			}
 		}
 	case *BoundMethodValue:
-		size += inlineSlotSize(v.Receiver.V)
+		if _, ok := v.Receiver.V.(RefValue); ok {
+			size += allocRefValue
+		}
 	case *HeapItemValue:
-		size += inlineSlotSize(v.Value.V)
+		if _, ok := v.Value.V.(RefValue); ok {
+			size += allocRefValue
+		}
 	case RefValue:
 		// do nothing
 	case *PointerValue:
@@ -983,7 +982,9 @@ func internalRefSize(val Value) int64 {
 		}
 	case *FuncValue:
 		for _, tv := range v.Captures {
-			size += inlineSlotSize(tv.V)
+			if _, ok := tv.V.(RefValue); ok {
+				size += allocRefValue
+			}
 		}
 		if _, ok := v.Parent.(RefValue); ok {
 			size += allocRefValue
