@@ -434,3 +434,47 @@ func testfunc() {
 		})
 	}
 }
+
+// TestTranspileOmits256 checks that declarations using int256 or uint256,
+// which Go lacks, are left out of the Go output, transitively, along with
+// imports only they used, and that the rest of the file is kept.
+func TestTranspileOmits256(t *testing.T) {
+	t.Parallel()
+
+	source := `package foo
+
+import (
+	"strconv"
+
+	u "gno.land/p/demo/ufmt"
+)
+
+type Amount uint256
+
+func (a Amount) Double() Amount { return a * 2 }
+
+func Format(a Amount) string { return u.Sprintf("%s", strconv.FormatUint256(uint256(a), 10)) }
+
+var max int256 = 1
+
+const small = 1 << 255
+
+func Keep(x int) string { return strconv.Itoa(x) }
+`
+	res, err := Transpile(source, "", "foo.gno")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Amount", "Amount.Double", "Format", "max"}, res.Omitted256)
+	assert.Contains(t, res.Translated, "// Declarations using int256 or uint256, which Go lacks, are left out:\n// Amount, Amount.Double, Format, max\n")
+	assert.Contains(t, res.Translated, "func Keep(x int) string")
+	assert.Contains(t, res.Translated, "const small = 1 << 255")
+	assert.Contains(t, res.Translated, "stdlibs/strconv\"", "an import kept code uses is kept")
+	assert.NotContains(t, res.Translated, "ufmt", "an import only omitted code used is removed")
+	_, code, _ := strings.Cut(res.Translated, "//line ")
+	assert.NotContains(t, code, "int256")
+
+	// A file without 256-bit types is unchanged.
+	res, err = Transpile("package foo\n\nfunc F() int { return 1 }\n", "", "foo.gno")
+	require.NoError(t, err)
+	assert.Empty(t, res.Omitted256)
+	assert.NotContains(t, res.Translated, "left out")
+}
