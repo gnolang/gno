@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -1690,14 +1691,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
-							if arg0.isBigUntypedRune() {
-								// An untyped rune beyond int32 has no
-								// rune default (string(r) is then "\uFFFD"):
-								// take the untyped int default instead.
-								convertConst(store, last, n, arg0, IntType)
-							} else {
-								convertConst(store, last, n, arg0, nil)
+							if ct.Kind() == StringKind {
+								foldStringOfLargeIntConst(arg0)
 							}
+							convertConst(store, last, n, arg0, nil)
 						}
 
 						// check legal type for nil
@@ -2745,7 +2742,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
-						cx := evalConst(store, last, n)
+						cx := importedConst(store, last, pn, n)
 						return cx, TRANS_CONTINUE
 					}
 				case *TypeType:
@@ -4658,6 +4655,50 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	setPreprocessed(cx)
 	setConstAttrs(cx)
 	return cx
+}
+
+// foldStringOfLargeIntConst prepares string(cx), for an untyped integer or
+// rune constant cx: a value outside the int32 range is no Unicode code
+// point, so string(cx) is "\uFFFD" (Go spec, conversions to string). cx
+// becomes the rune '\uFFFD', so its default type no longer overflows.
+// Values within int32, valid or not, are left to the regular conversion.
+func foldStringOfLargeIntConst(cx *ConstExpr) {
+	var bi *big.Int
+	switch cx.T {
+	case UntypedRuneType:
+		bi = cx.GetUntypedRune()
+	case UntypedBigintType:
+		bi = cx.GetBigInt()
+	default:
+		return
+	}
+	if bi.IsInt64() && int64(int32(bi.Int64())) == bi.Int64() {
+		return
+	}
+	cx.TypedValue = TypedValue{T: UntypedRuneType}
+	cx.SetInt32(utf8.RuneError)
+	setConstAttrs(cx)
+}
+
+// importedConst returns the value of the constant pkg.Name selected by n,
+// where pn is the package node of pkg.
+//
+// The value is read from pn's static block, which every node recomputes
+// when it preprocesses the package (at deploy and again at startup, see
+// PreprocessAllFilesAndSaveBlockNodes), and not from the package value's
+// block, which is persisted once at deploy. The two agree unless the
+// constant folding of the running VM differs from the one that deployed
+// the package; then the importer must see the current folding, as the
+// package itself does.
+func importedConst(store Store, last BlockNode, pn *PackageNode, n *SelectorExpr) *ConstExpr {
+	if n.Path.Type == VPBlock && n.Path.Depth == 1 && int(n.Path.Index) < len(pn.Values) {
+		if tv := pn.Values[n.Path.Index]; tv.T != nil {
+			cx := toConstExpr(n, tv)
+			setConstAttrs(cx)
+			return cx
+		}
+	}
+	return evalConst(store, last, n)
 }
 
 // isUntypedRuneConst reports whether x is an untyped rune *ConstExpr.

@@ -22,11 +22,11 @@ func main() {
 	println([]rune{r}[0])
 	// with an untyped float the result is an untyped float.
 	var f float64 = 'a' + 0.5
-	println(f)
+	println(f == 97.5, int64(f*2))
 }
 
 // Output:
 // 98 98 194 194
 // 1099511627873 1099511627873
 // 97
-// 97.5
+// true 195

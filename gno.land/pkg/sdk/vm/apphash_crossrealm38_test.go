@@ -228,7 +228,16 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped by exact untyped rune constants: untyped int now ranks below untyped
+// rune, so unicode.UpperLower (MaxRune + 1) is folded to an untyped rune, as
+// in Go, instead of an untyped bigint. That constant sits in the unicode
+// package block that setupTestEnv commits, so the root moves. Attributed by
+// dumping every untyped rune/bigint package-block constant of the stdlibs on
+// master and on this branch: UpperLower is the only difference, and
+// restoring the old Specificity order alone restores acd1f9ce. crossrealm38
+// does not use it; the zrealm_crossrealm38.gno filetest still passes.
+const expectedCrossrealm38Hash = "2a5d13bf49f66526469233bf5143f40ad8f1026a6c3125cd6c0342c7e2b4181d"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

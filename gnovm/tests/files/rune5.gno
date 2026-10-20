@@ -21,8 +21,8 @@ func main() {
 	var y int64 = big / c / c
 	println(y)
 
-	// string of an out-of-range rune constant is "�".
-	println(string(c) == "�")
+	// string of an out-of-range rune constant is "\uFFFD".
+	println(string(c) == "\uFFFD")
 }
 
 // Output:

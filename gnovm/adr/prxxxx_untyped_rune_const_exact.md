@@ -19,12 +19,20 @@ var w int64 = '\U0010ffff' * '\U0010ffff' // Go: 1241243320321, Gno: -2228223
 go/types accepts such a program (the value fits int64), so it deployed and
 computed the wrong value. Related defects found on the same path:
 
-- `'a' + 1`, `1 + 'a'`, `'a' << 1` were typed as untyped int, not untyped
-  rune, so `[]rune{'a' + 1}` was rejected (#6339).
+- `'a' + 1` and `1 + 'a'` were untyped int, not untyped rune, so
+  `r := 'a' + 1` defaulted to `int` and `[]rune{r}` was rejected (#6339).
 - `'a' << 40` failed with "constant overflows"; `-'a'` and `^'a'` failed with
   "unexpected type <untyped> int32 in operation".
 - `var f float64 = 'a'` failed: `ConvertUntypedRuneTo` had no float case.
-- `var u uint64 = -'a'` wrapped instead of failing (go/types rejects it).
+- `var u uint64 = 'b' - 'c'` wrapped to 18446744073709551615 instead of
+  failing (go/types rejects it).
+
+Found while fixing it, on the shared untyped-integer conversion path:
+
+- An integer constant converted to float32 was rounded twice (first to 53
+  bits, then to 24), so `float32(1<<54 + 1<<30 + 1)` lost the round-up.
+- `string(x)` of an integer constant beyond int64 (`string(1<<64)`) failed,
+  where Go gives "\uFFFD".
 
 ## Decision
 
@@ -73,9 +81,41 @@ conversion" shortcut in `ConvertUntypedTo` (same kind, retag only) is
 skipped for a big-form untyped rune. Messages keep the existing
 "rune overflows target kind" / "rune underflows target kind" wording.
 
-Two conversion-call cases in the preprocessor follow: `float64(r)` of an
-untyped rune converts the exact value directly, and `string(r)` of a rune
-beyond int32 goes through the untyped-int path, yielding "�".
+Integer to float conversion rounds once, from the exact value: the
+`big.Float` gets the target precision before `SetInt`.
+
+Two conversion-call cases in the preprocessor follow. `float64(r)` of an
+untyped rune converts the exact value directly. `string(x)` of an untyped
+integer or rune constant outside the int32 range is folded to the rune
+'\uFFFD' first (`foldStringOfLargeIntConst`), since no value there is a code
+point; this holds for any size and for named string types. Other conversion
+targets keep normal defaulting, so `interface{}('a' << 40)` still fails, as
+the constant cannot default to `rune`.
+
+### Imported constants: read the recomputed value
+
+A package constant is folded at deploy and its value is copied into the
+package block, which is persisted. On every node start the keeper
+re-preprocesses all packages (`PreprocessAllFilesAndSaveBlockNodes`), so a
+package's static block, from which the package's own code folds its
+constants, always reflects the running VM. Importers, however, folded
+`pkg.C` by evaluating the selector against the persisted package block. A
+package deployed before this fix would keep exporting the wrapped value to
+its importers (`int64(p.C)` = -2228223) while its own code saw the exact one.
+
+The preprocessor now resolves an imported constant from the imported
+package node's static block (`importedConst`), falling back to the old
+evaluation when that slot is not set. Importers and the package itself thus
+agree, on fresh deploys and after an upgrade alike. The persisted slot is
+left as is: nothing folds from it any more, but state exports still show it.
+
+How such a change reaches a live chain is a chain-level decision outside
+this PR. The VM change alters results, so it ships with a coordinated
+upgrade. A hardfork with genesis replay (`gno.land/adr/pr5511`) re-executes
+every deployment and recomputes all persisted slots. An in-place binary
+upgrade keeps them, and then `importedConst` is what keeps importers
+correct. Earlier constant-folding fixes (e.g. #5741, signed zero) changed
+folded values without any migration of persisted slots.
 
 ## Alternatives considered
 
@@ -96,6 +136,13 @@ beyond int32 goes through the untyped-int path, yielding "�".
 - Out-of-range defaults (`var r = big`, `println(big)`, `rune(big)`) fail
   at preprocess, as gc does.
 - Typed rune arithmetic is unchanged and still wraps at runtime.
+- Importers see the constant folding of the running VM, not that of the VM
+  that deployed the imported package.
+- Consensus-breaking for genesis state: the stdlib constant
+  `unicode.UpperLower` (`MaxRune + 1`) is now an untyped rune, as in Go,
+  rather than an untyped bigint. It is the only package-block constant of
+  the stdlibs whose stored value changes, and it moves the pinned app hash
+  in `gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go`.
 - #6339 is resolved; the gocorpus `rune.go` entry carrying
   `KnownIssue compile: #6339` (draft #6340) would flip to `Clean compile`.
 
@@ -103,8 +150,9 @@ beyond int32 goes through the untyped-int path, yielding "�".
 
 | File | Role |
 |------|------|
-| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `float64`/`string` conversion calls |
+| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
 | `gnovm/pkg/gnolang/values.go` | `GetUntypedRune`, `SetUntypedRune`, `Sign` |
 | `gnovm/pkg/gnolang/values_conversions.go` | `ConvertUntypedRuneTo`, `convertUntypedIntegerTo` |
 | `gnovm/pkg/gnolang/types.go` | `Specificity` ordering |
-| `gnovm/tests/files/rune4.gno`–`rune16.gno` | filetests |
+| `gnovm/pkg/gnolang/preprocess_import_const_test.go` | reload test for imported constants |
+| `gnovm/tests/files/rune4.gno`–`rune19.gno` | filetests |

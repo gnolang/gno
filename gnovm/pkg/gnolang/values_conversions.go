@@ -1267,7 +1267,7 @@ func convertUntypedIntegerTo(dst *TypedValue, bi *big.Int, t Type, what string) 
 		dst.T = t
 		dst.V = nil
 		// 24 for float32
-		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
+		bf := new(big.Float).SetPrec(24).SetInt(bi) // one rounding, to 24 bits
 		f32, acc := bf.Float32()
 		// A big.Float made from a big.Int is never Inf; overflow shows
 		// up in the rounded result.
@@ -1283,7 +1283,7 @@ func convertUntypedIntegerTo(dst *TypedValue, bi *big.Int, t Type, what string) 
 		dst.T = t
 		dst.V = nil
 		// 53 for float64
-		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
+		bf := new(big.Float).SetPrec(53).SetInt(bi)
 		f64, acc := bf.Float64()
 		if math.IsInf(f64, 0) {
 			panic(what + " overflows float64")
