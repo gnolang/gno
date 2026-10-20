@@ -142,7 +142,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger) http.H
 		// if its an empty request (like from a browser),
 		// just display a list of functions
 		if len(b) == 0 {
-			writeListOfEndpoints(w, r, funcMap)
+			writeListOfEndpoints(w, funcMap)
 			return
 		}
 
@@ -1027,8 +1027,10 @@ func unreflectResult(returns []reflect.Value) (any, error) {
 	}
 }
 
-// writes a list of available rpc endpoints as an html page
-func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[string]*RPCFunc) {
+// writes a list of available rpc endpoints as an html page. The links are
+// path-absolute, so nothing from the request, its Host header included,
+// reaches the page.
+func writeListOfEndpoints(w http.ResponseWriter, funcMap map[string]*RPCFunc) {
 	noArgNames := []string{}
 	argNames := []string{}
 	for name, funcData := range funcMap {
@@ -1045,14 +1047,14 @@ func writeListOfEndpoints(w http.ResponseWriter, r *http.Request, funcMap map[st
 	buf.WriteString("<br>Available endpoints:<br>")
 
 	for _, name := range noArgNames {
-		link := fmt.Sprintf("//%s/%s", r.Host, name)
+		link := "/" + name
 		fmt.Fprintf(buf, "<a href=\"%s\">%s</a></br>", link, link)
 	}
 
 	buf.WriteString("<br>Endpoints that require arguments:<br>")
 	for _, name := range argNames {
 		var link strings.Builder
-		link.WriteString(fmt.Sprintf("//%s/%s?", r.Host, name))
+		link.WriteString("/" + name + "?")
 		funcData := funcMap[name]
 		for i, argName := range funcData.argNames {
 			link.WriteString(argName + "=_")
