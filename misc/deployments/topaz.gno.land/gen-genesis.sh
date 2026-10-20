@@ -62,8 +62,7 @@ GENESIS_TIME=1783868400 # Sunday, July 12th 2026 17:00 CEST (15:00 UTC)
 #   - r/sys/validators/v0: the valset realm. The node's EndBlocker reads
 #     valset state from this realm's params; without it on chain,
 #     post-genesis valset changes can't happen.
-#   - r/nt/grc20reg/v0 and v1: GRC20 token registries (v1 holds the
-#     uint256 grc20 v1 tokens, including wugnot).
+#   - r/nt/grc20reg/v0: GRC20 token registry.
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
   ./gno.land/r/gov/...
@@ -77,8 +76,6 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/json
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
-  ./gno.land/r/nt/grc20reg/v1
-  ./gno.land/p/nt/treasury/v1
 )
 
 # Initial topaz validator set. Format: "name power address pub_key".

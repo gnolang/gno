@@ -64,8 +64,7 @@ GENESIS_TIME=1787817600 # Thursday, August 27th 2026 10:00 CEST (08:00 UTC)
 #     bearing: the node's EndBlocker reads valset state from this realm's
 #     params; without it on chain, post-genesis valset changes can't
 #     happen.
-#   - r/nt/grc20reg/v0 and v1: GRC20 token registries (v1 holds the
-#     uint256 grc20 v1 tokens, including wugnot).
+#   - r/nt/grc20reg/v0: GRC20 token registry.
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
   ./gno.land/r/gov/...
@@ -79,8 +78,6 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/json
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
-  ./gno.land/r/nt/grc20reg/v1
-  ./gno.land/p/nt/treasury/v1
 )
 
 # Initial pearl validator set. Format: "name power address pub_key".
