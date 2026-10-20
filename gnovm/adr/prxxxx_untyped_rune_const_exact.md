@@ -40,10 +40,14 @@ Found while fixing it, on the shared untyped-integer conversion path:
 
 An `UntypedRuneType` value is held in `N` as an int32 when it fits, exactly
 as a rune literal is, and in `V` as a `BigintValue` otherwise
-(`TypedValue.GetUntypedRune`/`SetUntypedRune`). The form is canonical, so
-every in-range value, and every value already persisted (package-level
-constants live in package blocks), keeps its existing layout. Only values
-that used to wrap take the new form.
+(`TypedValue.GetUntypedRune`/`SetUntypedRune`). The form is canonical: an
+untyped rune value that fits in int32 has the same bytes as before (rune
+literals, in-range results, and runes already persisted in package blocks
+decode unchanged). Only values that used to wrap take the new form.
+
+This holds for untyped rune values themselves. Some constants derived from
+them get different `N` bytes with the same value and type; see
+Consequences.
 
 ### Folding: evaluate as untyped bigint, keep the rune kind
 
@@ -138,13 +142,42 @@ folded values without any migration of persisted slots.
 - Typed rune arithmetic is unchanged and still wraps at runtime.
 - Importers see the constant folding of the running VM, not that of the VM
   that deployed the imported package.
-- Consensus-breaking for genesis state: the stdlib constant
-  `unicode.UpperLower` (`MaxRune + 1`) is now an untyped rune, as in Go,
-  rather than an untyped bigint. It is the only package-block constant of
-  the stdlibs whose stored value changes, and it moves the pinned app hash
-  in `gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go`.
+- Consensus-breaking. Package blocks are amino-encoded with all eight
+  bytes of `N`, so a deployment (or a replay) of a package holding any of
+  these constants stores different bytes:
+  - a result that used to wrap now has its exact value;
+  - a mixed rune/int constant (`'a' + 1`) is an untyped rune, not an
+    untyped bigint (`N` holds the int32, `V` is nil);
+  - a comparison of two untyped runes whose left operand does not fit in
+    one byte or is negative (`'\u0100' == '\u0100'`) has `N` zeroed past
+    the boolean; it used to keep the operand's upper bytes
+    (`01 01 00 …` → `01 00 00 …`);
+  - a negative untyped rune narrowed to `int8` or `int16`
+    (`const C int8 = 'a' - 'b'`) has `N` zeroed past the value; it used to
+    keep the int32 sign extension (`ff ff ff ff 00 …` → `ff 00 …`).
+  The values and types of the last two are unchanged.
+  `TestUntypedRuneConstLayout` pins these bytes.
+- In the genesis set, a byte-for-byte dump of every package-block value of
+  the stdlibs (and of the example packages the test store loads) on master
+  and on this branch differs in one slot only: `unicode.UpperLower`
+  (`MaxRune + 1`), now an untyped rune as in Go. It moves the pinned app
+  hash in `gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go`.
 - #6339 is resolved; the gocorpus `rune.go` entry carrying
   `KnownIssue compile: #6339` (draft #6340) would flip to `Clean compile`.
+
+## Related, not fixed here
+
+Typed constant arithmetic still folds with the runtime (wrapping)
+arithmetic, for every typed integer kind:
+
+```go
+const a rune = '\U0010ffff'
+const b = a * a // gc: overflows rune; Gno: -2228223
+```
+
+go/types rejects it at deployment, so it is a VM divergence, not a
+deployable bug. Making typed folding exact with a range check is a
+separate change.
 
 ## Key files
 
@@ -154,5 +187,5 @@ folded values without any migration of persisted slots.
 | `gnovm/pkg/gnolang/values.go` | `GetUntypedRune`, `SetUntypedRune`, `Sign` |
 | `gnovm/pkg/gnolang/values_conversions.go` | `ConvertUntypedRuneTo`, `convertUntypedIntegerTo` |
 | `gnovm/pkg/gnolang/types.go` | `Specificity` ordering |
-| `gnovm/pkg/gnolang/preprocess_import_const_test.go` | reload test for imported constants |
+| `gnovm/pkg/gnolang/preprocess_import_const_test.go` | persisted-layout test and reload test for imported constants |
 | `gnovm/tests/files/rune4.gno`–`rune19.gno` | filetests |
