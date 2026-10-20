@@ -52,8 +52,12 @@ restriction applies to `int256` constants (see "go/types").
   signedness.
 - Zero is a nil `V`. Every operation stores a zero result as nil, and a boxed
   zero is neither produced nor accepted: `MarshalAmino` refuses it and
-  `UnmarshalAmino` rejects it, so zero has exactly one encoding, also inside
-  interfaces and composites (`TestBits256CanonicalZero`,
+  `UnmarshalAmino` rejects it. Amino can still build one without calling
+  `UnmarshalAmino`, from a JSON `null` payload or an absent binary payload,
+  so `CheckCanonical256` checks the enclosing value, recursively through
+  inline slots, interfaces and composites, and the store runs it on every
+  object it loads. Zero therefore has exactly one encoding
+  (`TestBits256CanonicalZero`, `TestBits256CanonicalZeroJSONNull`,
   `TestBits256Amino`).
 - Values are immutable: an operation builds a new value and never writes
   through an existing one. Copying a `TypedValue` shares the boxed array,
@@ -97,6 +101,11 @@ shows 0; such clients must handle the two new value types. Pinned by
   not converted to `uint` (that would truncate it), and a count that does
   not fit a `uint64` saturates. A negative count panics.
 - Comparisons, `++`/`--`, and every compound assignment.
+- Map keys: a key is encoded as its type ID prefix followed by the 32-byte
+  big-endian two's complement bits (fixed width, zero included). Because the
+  type ID is part of the key, `int256(1)` and `uint256(1)`, or `int256(-1)`
+  and `uint256(MaxUint256)`, which have the same bits, are distinct keys in a
+  `map[any]V`.
 - Conversions:
   - between integer kinds: truncation to the low bits, sign extension from
     signed sources, zero extension from unsigned ones;
@@ -111,17 +120,27 @@ shows 0; such clients must handle the two new value types. Pinned by
     [-2^255, 2^256) gives 0;
   - `string(x)` follows Go's rune rule (out of range gives `"�"`);
     `int256("1")` is refused.
-- Indexing, `make` and slicing accept 256-bit integers like any integer
-  type. A value outside the int64 range saturates (to -1 or `MaxInt64`) so
-  that the bounds check rejects it. A 3-index slice always checks its max,
+- Indexes, slice expressions, and slice lengths and capacities in `make`
+  accept 256-bit integers like any integer type. A value outside the int64
+  range saturates (to -1 or `MaxInt64`) so that the bounds check rejects it.
+  A size hint in `make(map[K]V, n)` is accepted and ignored, as for every
+  integer type. A 3-index slice always checks its max,
   also when it is -1; this also fixes a pre-existing case where a max of -1
   was taken for "no max".
-- Constant errors in the preprocessor: an untyped constant out of range is
-  `bigint overflows target kind` or `bigint underflows target kind`, as for
-  the other kinds. A typed integer constant conversion out of range is
-  `constant X overflows Uint256Kind` (pr5269); a typed float constant that
-  is not a whole number in range is `cannot convert constant of type
-  Float64Kind to Int256Kind`. On chain, go/types reports these first.
+- Constant errors in the preprocessor (on chain, go/types reports these
+  first):
+  - an untyped integer constant out of range: `bigint overflows target
+    kind` or `bigint underflows target kind`; an untyped float constant
+    goes through the same check once it is a whole number, and otherwise
+    gives `cannot convert untyped bigdec to integer -- X not an exact
+    integer`;
+  - a negative untyped rune converted to `uint256`: `rune underflows target
+    kind`;
+  - a typed integer constant converted out of range: `constant X overflows
+    <Target>Kind` (pr5269), e.g. `constant -1 overflows Uint256Kind`;
+  - a typed float constant that is not a whole number in range, or a
+    256-bit constant that overflows a float32: `cannot convert constant of
+    type <Source>Kind to <Target>Kind`.
 - Printing: `println`/`print`, `values_string_stream`, bounded strings and
   frame traces print the signed or unsigned decimal value. gnoweb's state
   view does too; when it reaches a value without its static type it uses
@@ -206,7 +225,10 @@ checker, such as an editor's language server, must use the shims from
 
 Each 256-bit operator has an `OpCPU*Int256` constant (`machine.go`). Every
 handler charges the operator's 64-bit cost as for any integer, then
-`incrCPU256` adds the difference. A conversion between a 256-bit kind and
+`incrCPU256` adds the difference. Unary `+` is a no-op and costs the same as
+for any type. A compound assignment is charged its flat `OpCPU*Assign` cost
+plus the operator's surcharge: `x += y` on `uint256` costs
+`OpCPUAddAssign` + (221 − 81), that is 97 + 140. A conversion between a 256-bit kind and
 another kind is charged `OpCPUConvertInt256` or, when a float is involved,
 `OpCPUConvertInt256Float`, instead of `OpCPUConvertNumeric`; retyping within
 the same kind keeps the ordinary cost.
@@ -242,10 +264,12 @@ M-series development machine.
 Each non-zero value also pays alloc gas for its box. Accounting is logical,
 per occurrence: every slot holding a non-zero value is charged one box,
 whether the box was built for it or is shared with the value it was copied
-from (`TypedValue.Copy` charges it), because the GC recount counts one box
+from (`TypedValue.Copy` charges it, and so does a method value formed
+through an interface, which saves its operand without a copy), because the GC recount counts one box
 per slot and a reload from the store builds, and charges in
-`internalRefSize`, one box per slot. `TestBits256CopyAccounting` checks
-allocation, recount and reload against each other.
+`internalRefSize`, one box per slot. `TestBits256CopyAccounting` and
+`TestBits256BoundReceiverAccounting` check allocation, recount and reload
+against each other.
 
 `TestGasInt256Ops` pins the difference from `int` for `+ - * / % | == <`,
 unary `-`, `<<` and the zero-result case.
@@ -274,13 +298,29 @@ reference median of its worst case, and is then frozen for the launch.
   - `strconv.FormatInt256`, `FormatUint256`, `AppendInt256`,
     `AppendUint256`, `ParseInt256`, `ParseUint256`, like their 64-bit
     counterparts without the bit-size argument, including their error
-    precedence (the first failure while reading left to right wins);
+    precedence: syntax and unsigned overflow are checked digit by digit, left
+    to right, and the first failure is returned; then underscores (base 0
+    only); then, for `ParseInt256`, the signed range;
   - `math/overflow`: `Add256`, `Sub256`, `Mul256`, `Div256` and the
     unsigned `Addu256` ... `Divu256`, returning `(result, ok)`, with the
     panicking `...p` variants. On overflow they return the wrapped result
     and false; `Div` returns 0 and false for a zero divisor.
 - Existing GRC20 interfaces are unchanged; a uint256-based token standard is
-  separate work (`p/nt/grc20/v1`).
+  separate work (`p/nt/grc20/v1`, on the `feat/grc20-uint256` branch).
+
+### Production helpers
+
+Which helpers outside the VM support the new types:
+
+- `strconv`, `math` and `math/overflow` (above): supported.
+- The test `fmt`: supported (above); it is not available on chain.
+- `p/nt/ufmt`: support is being added on the `feat/grc20-uint256` branch,
+  with `p/nt/grc20/v1`; not part of this change.
+- `p/onbloc/json`: exposes numbers as `float64`, which is lossy beyond 2^53
+  for these types. The lossless route is a decimal string, written and read
+  with `strconv.FormatUint256`/`ParseUint256` (and the `Int256` pair).
+- Follow-up (tracked): native int256/uint256 number support in
+  `p/onbloc/json`, or a documented string convention for JSON APIs.
 
 ### Reserved identifiers
 
@@ -306,6 +346,14 @@ declaration of `int256` or `uint256`, or an unaliased import of a package
 with either name. The scan is part of the genesis checks run by the team
 preparing the genesis, and a conflict blocks the launch until the package is
 fixed.
+
+## Known issues
+
+- Untyped rune constant arithmetic is computed in int32 and wraps before the
+  result is converted, so `var w int64 = '\U0010ffff' * '\U0010ffff'` is
+  -2228223 instead of 1241243320321. This is an existing bug on master
+  (`mulAssign` groups `UntypedRuneType` with `Int32Type`), unchanged here; it
+  affects `int256` targets the same way.
 
 ## Alternatives considered
 
