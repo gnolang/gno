@@ -1286,13 +1286,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.X != nil {
 					n.X = Preprocess(store, last, n.X).(Expr)
 					convertIfConst(store, last, n, n.X)
-					// A non-constant untyped tag ('a' << s) takes its
-					// default type too, before the cases are typed
-					// against it: the cases must not stay untyped.
-					if _, ok := n.X.(*ConstExpr); !ok &&
-						isUntyped(evalStaticTypeOf(store, last, n.X)) {
-						checkOrConvertType(store, last, n, &n.X, nil)
-					}
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -1553,7 +1546,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// If either is interface type no conversion is required.
 						if (lt == nil || lt.Kind() != InterfaceKind) &&
 							(rt == nil || rt.Kind() != InterfaceKind) {
-							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
+							if keepBigUntypedRuneKind(lcx, rcx) {
+								// done: both are untyped runes now.
+							} else if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, n, &n.Left, rt)
 							} else {
@@ -4704,6 +4699,34 @@ func foldStringOfLargeIntConst(cx *ConstExpr) {
 	setConstAttrs(cx)
 }
 
+// keepBigUntypedRuneKind handles a constant operation between an untyped
+// rune beyond int32 and an untyped integer, e.g. big + 0. Go gives it the
+// rune kind; Gno's kind order would give it the int kind, and the result,
+// still beyond int32 but now an untyped bigint, would escape
+// rejectBigUntypedRune. Master wrapped such a rune, so no result of such
+// an operation was right before. The integer operand becomes an untyped
+// rune of the same value, and the operation folds exactly as an untyped
+// rune (untypedRuneOperands). It reports whether it did so.
+//
+// Runes within int32 keep Gno's kind order (see #6339).
+func keepBigUntypedRuneKind(lcx, rcx *ConstExpr) bool {
+	toRune := func(cx *ConstExpr) {
+		bi := cx.GetBigInt()
+		cx.TypedValue = TypedValue{T: UntypedRuneType}
+		cx.SetUntypedRune(bi)
+		setConstAttrs(cx)
+	}
+	switch {
+	case lcx.isBigUntypedRune() && rcx.T == UntypedBigintType:
+		toRune(rcx)
+	case rcx.isBigUntypedRune() && lcx.T == UntypedBigintType:
+		toRune(lcx)
+	default:
+		return false
+	}
+	return true
+}
+
 // rejectBigUntypedRune rejects cx, with the usual "rune overflows target
 // kind" error, if it is an untyped rune constant beyond int32 (e.g.
 // '\U0010ffff' * '\U0010ffff'); it does nothing for any other cx, nil
@@ -5213,9 +5236,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					t = defaultTypeOf(xt)
 				}
 				checkOrConvertType(store, last, n, &ux.X, t)
-				// The unary expression now has type t too: keep its
-				// cached type in step (e.g. for a switch tag).
-				ux.SetAttribute(ATTR_TYPEOF_VALUE, t)
 				return
 			}
 		}
