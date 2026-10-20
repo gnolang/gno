@@ -38,3 +38,9 @@ This repository explores different upgrade patterns for Gno smart contracts.
 
 - Similar to `upgrade_e`.
 - Replaces self-registration with manual registration by an admin.
+
+## `upgrade_g` -- versioned redeploy
+
+- The same path is redeployed with `version` stepped by one; globals and
+  type identity are carried, `migrate(from int)` runs in place of `init()`.
+- Needs the VM support of PR #6253; see `upgrade_g/README.md`.

@@ -8,6 +8,8 @@
 # redeploy may only append; moving a declaration is refused. An immutable
 # realm may not import an upgradeable one. Dropping the authority freezes the
 # realm for good.
+#
+# Readable as examples_ignored/r/x/manfred_upgrade_patterns/upgrade_g.
 
 adduser stranger
 

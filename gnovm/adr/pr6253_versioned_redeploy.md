@@ -8,8 +8,9 @@ A gno.land path is permanent. The one exception, a `private = true`
 realm, may be redeployed by its creator, but the redeploy reruns `init`
 over fresh globals and abandons the old object graph (#4949). So every
 upgrade pattern in use (proxy + registry as in `r/gov/dao`, lazy copies,
-clockworkgr/gno-upgradeable) moves state by copying it into a realm at a
-new path, and pays for it twice: storage for both copies, and a new type
+clockworkgr/gno-upgradeable, patterns a to f in
+`examples_ignored/r/x/manfred_upgrade_patterns`) moves state by copying
+it into a realm at a new path, and pays for it twice: storage for both copies, and a new type
 identity for every declared type, since `DeclaredTypeID` is pkgpath +
 name.
 
@@ -85,7 +86,9 @@ Version unset on both sides is the old redeploy, unchanged.
 
 - Axioms 1 and 2 of the design note are demonstrated end to end
   (`redeploy_versioned_state.txtar`): same path, state carried, typed
-  migration, new methods on old objects, survives restart.
+  migration, new methods on old objects, survives restart. The public
+  case reads as `manfred_upgrade_patterns/upgrade_g`; a redeploy stage
+  in the filetest runner would let it run there too.
 - Not enforced: the Constitution's second rule, that an immutable realm
   may not persist values of an upgradeable realm's types (reachable
   through `any`). Enforcing it at finalize needs a mutability flag on

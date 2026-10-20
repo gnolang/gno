@@ -1,0 +1,6 @@
+module = "gno.land/r/x/manfred_upgrade_patterns/upgrade_g/client"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
