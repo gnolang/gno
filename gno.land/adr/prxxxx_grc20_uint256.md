@@ -120,6 +120,28 @@ convention; v0 is not changed.
   a proposal's votes or deny it.
 - Its own `NewUpgradeDaoImplRequest` grants `[impl/v1, <new>]`, as v0's grants
   `[impl/v0, <new>]`.
+- **Proposal filters fail closed.** impl/v0 stays in AllowedDAOs after the
+  install, and its builders (`NewAddMemberRequest`,
+  `NewPromoteMemberRequest`) tag proposals with impl/v0's `FilterByTier`, a
+  distinct type from impl/v1's. A type switch that knew only v1's type read a
+  v0 T1 proposal as unfiltered, so T2 and T3 votes could carry a T1
+  membership change. `voterTiers` enforces both types with v0's rules (T1 →
+  T1 only; T2 → T1 and T2; T3 → every tier). It refuses any other non-nil
+  filter, and any filter tier that is not T1, T2 or T3, with
+  `ErrUnsupportedFilter` in `PreCreateProposal`, so such a proposal never
+  exists. `PostCreateProposal` panics on the same condition rather than
+  default to "everyone votes". That filter is the only place impl/v1 type
+  switches on a value another realm may build. Executors go through the
+  proxy's `Executor` interface.
+- **The law is not carried over.** impl/v0 keeps its law in an unexported
+  variable with no accessor, and v0 is not changed, so impl/v1 cannot read
+  it. impl/v1 starts with its own default, Supermajority 66.66%.
+  `NewInstallRequest` appends a warning to the proposal text naming that
+  value and telling the DAO to restore a changed law with
+  `impl/v1.NewChangeLawRequest` after the install.
+  `govdao_impl_v1_law_reset.txtar` raises v0's law to 80%, installs v1, shows
+  the warning, shows two of three votes passing under the reset law, restores
+  80% and shows two of three failing again.
 
 **Migration path.**
 
@@ -137,11 +159,17 @@ convention; v0 is not changed.
 4. Once nothing is left at `treasury/v0`, a later `UpdateImpl` can drop
    `impl/v0` from `AllowedDAOs`.
 
+A DAO whose law differs from the default should vote the
+`impl/v1.NewChangeLawRequest` restoring it right after step 1.
+
 Proposal statuses live on the implementation instance. A proposal still open
 under `impl/v0` when the install executes cannot be voted on or executed
 afterwards, as for any implementation change. So open proposals should be
 closed before the install.
 
+`govdao_impl_v1_tier_filters.txtar` checks the filters after the install: a
+v0-built T1 membership proposal refuses T2 and T3 votes, cannot be executed
+until T1 votes, and a proposal with an unknown filter is refused at creation.
 `govdao_treasury_v1_upgrade.txtar` runs steps 1 to 3 end to end. After the
 funds move, it pays 2^64 of a grc20 v1 token and 1200 ugnot from
 `treasury/v1`, and has an ugnot amount above MaxInt64 refused when the payment
