@@ -121,7 +121,14 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out := ufmt.Sprintf("## Prop #%v - %v\n", pid, md.EscapeText(clampField(p.Title(), maxRenderedTitle)))
 	out += "Author: " + tryResolveAddr(p.Author()) + "\n\n"
 
-	out += p.Description()
+	// The description and the executor metadata are proposer-supplied
+	// markdown (any realm can build a ProposalRequest, and impl/v0's builders
+	// stay usable under impl/v1). BlockRich keeps their markdown but escapes
+	// HTML-block openers and the other cross-paragraph constructs, so neither
+	// can swallow the realm chrome that follows: the metadata, the executor
+	// realm, the vote stats. A reason ending in "<!--" would otherwise hide
+	// all of it.
+	out += sanitize.BlockRich(p.Description())
 	out += "\n\n"
 
 	// Add executor metadata if available
@@ -130,7 +137,7 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 
 %s
 
-`, p.ExecutorString())
+`, sanitize.BlockRich(p.ExecutorString()))
 	}
 
 	// Disclosed independently of the description: this names the realm whose

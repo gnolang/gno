@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Builds on `gnovm/adr/prxxxx_native_int256.md` (the native
+Proposed. Builds on `gnovm/adr/pr6387_native_int256.md` (the native
 `int256`/`uint256` types).
 
 ## Context
@@ -146,13 +146,35 @@ convention; v0 is not changed.
   - `installedDAO.PreExecuteProposal` applies the carried law on its first
     proxy-validated call. That is the only place a law is read, so impl/v1's
     first decision already uses it. There is no window at the default law.
-  - Each install proposal has its own id, so a later
-    `impl/v1.NewChangeLawRequest` stands until another install proposal
-    executes.
+  - A later `impl/v1.NewChangeLawRequest` stands until the implementation
+    changes again. The proxy keeps a request's executor, so an install
+    request can be submitted twice. Therefore every successful
+    implementation change executed under an `installedDAO` clears the
+    applied marker (re-application, rather than refusing resubmission). An
+    implementation change is an executor built in impl/v0 or impl/v1 whose
+    description starts "Replaces the govDAO implementation". The next
+    decision then applies the carried law of whichever `installedDAO` is
+    current, so a resubmitted request re-applies its law.
+    `govdao_impl_v1_install_reuse.txtar` installs at 80%, lowers the law to
+    66.66%, executes the kept request again, and shows two of three votes
+    refused at 80%. Without the reset that last proposal passes.
   - The proposer's `reason` is escaped with `sanitize.InlineText` before the
     law line is appended. impl/v0 renders proposal descriptions raw, and Codex
     showed that a reason ending in `\n\n<!--` opened an HTML comment that hid
     everything after it, the law line included.
+  - impl/v1's own renderers (`renderProposalPage`, `StringifyProposal`)
+    pass every proposal description and executor description through
+    `sanitize.BlockRich`, and titles through `InlineText`. Any realm can
+    build a `ProposalRequest`, and impl/v0's builders stay usable under v1,
+    so per-builder escaping is not enough. BlockRich keeps the markdown but
+    escapes HTML-block openers, so a description cannot hide the metadata,
+    executor realm and vote stats after it. v1's `NewUpgradeDaoImplRequest`
+    and `NewWithdrawMemberRequest` also escape their reasons. While impl/v0
+    is still active, its renderer stays raw (v0 is unchanged), which is why
+    `NewInstallRequest` escapes its own reason. The gnoweb golden
+    `blockrich-proposal-description-cannot-hide-grant.txtar` renders a full
+    upgrade proposal page, and `govdao_impl_v1_install_reuse.txtar` checks a
+    hostile v1 upgrade proposal on chain.
   - Tests: `govdao_impl_v1_install_law.txtar` covers v0 raised to 80%, a
     weaker install refused, and an install carrying 80% with that hostile
     reason, whose law line is still visible and whose reason is escaped. v1's

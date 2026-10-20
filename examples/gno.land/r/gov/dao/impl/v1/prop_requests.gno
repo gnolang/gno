@@ -74,7 +74,9 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 			"as a value and is not verified to belong to the realm named above.",
 		sanitize.InlineCode(realmPkg)))
 
-	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
+	// reason is caller-supplied and rendered above the grant disclosure; it is
+	// escaped so it cannot hide it (renderers also sanitize descriptions).
+	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+sanitize.InlineText(reason), e)
 }
 
 func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
@@ -153,7 +155,7 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, reason))
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("Member with address %v will be withdrawn.\n\n REASON: %v.", addr, sanitize.InlineText(reason)))
 
 	return dao.NewProposalRequest(
 		"Member Withdrawal Proposal",

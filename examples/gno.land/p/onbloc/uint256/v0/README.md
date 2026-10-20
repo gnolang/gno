@@ -11,5 +11,5 @@ original repository: [uint256](<https://github.com/holiman/uint256/tree/master>)
 > is copied on assignment, cannot be aliased and carries no ownership, and each
 > operator is one VM operation, where this library's `*Uint` is a mutable
 > object in realm state. This package keeps working for existing code. See
-> `gnovm/adr/prxxxx_native_int256.md`, and `gno.land/p/nt/grc20/v1` for a token
+> `gnovm/adr/pr6387_native_int256.md`, and `gno.land/p/nt/grc20/v1` for a token
 > built on the native type.

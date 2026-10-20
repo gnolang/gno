@@ -222,14 +222,14 @@ func StringifyProposal(p *dao.Proposal) string {
 ### Proposed by: %s
 
 %s
-`, p.Title(), p.Author(), p.Description())
+`, sanitize.InlineText(p.Title()), p.Author(), sanitize.BlockRich(p.Description()))
 
 	if p.ExecutorString() != "" {
 		out += ufmt.Sprintf(`
 This proposal contains the following metadata:
 
 %s
-`, p.ExecutorString())
+`, sanitize.BlockRich(p.ExecutorString()))
 	}
 
 	// Disclosed independently of the metadata string, and escaped, for the

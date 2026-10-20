@@ -104,11 +104,19 @@ func main(cur realm) {
 //
 // ### Proposed by: g1w3jhxazlta047h6lta047h6lta047h6lwmjv0n
 //
+//
+//
 // This is a test proposal description to verify StringifyProposal works correctly.
+//
+//
 //
 // This proposal contains the following metadata:
 //
+//
+//
 // Test executor description
+//
+//
 //
 // Executor created in: `gno.land/r/template/contract`
 //

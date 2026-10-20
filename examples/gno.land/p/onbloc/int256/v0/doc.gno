@@ -11,7 +11,7 @@
 // time through a uint256 variable). Prefer them in new code: they are plain
 // values (copied on assignment, never aliased, no ownership), and each
 // operator is one VM operation. This package keeps working for existing code.
-// See gnovm/adr/prxxxx_native_int256.md.
+// See gnovm/adr/pr6387_native_int256.md.
 //
 // ## Features
 //
