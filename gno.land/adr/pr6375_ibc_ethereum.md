@@ -21,6 +21,8 @@
 
 ## Contents
 
+New to the design? Start with [In plain terms (ELI-5)](#in-plain-terms-eli-5), an unnumbered overview before §1.
+
 1. [Context](#1-context)
 2. [Decision](#2-decision)
 3. [Architecture](#3-architecture)
@@ -39,6 +41,160 @@
 
 Status legend used throughout: **✅ implemented** · **🟡 implemented, needs changes** · **♻️ exists in
 gnolang/bridges, to be ported** · **❌ not implemented**.
+
+---
+
+## In plain terms (ELI-5)
+
+For readers new to the design, in the names the detailed sections use. It adds no rule; where it is simpler than
+§5–§8, those sections are right.
+
+### What standard IBC token transfer does
+
+Each chain runs a **light client** of the other: a small program that checks the other chain's block headers and the
+signatures behind them, so a proof can show "this really happened over there" without trusting anyone. IBC token
+transfer (ICS20) sits on top. To move GNOT to Ethereum, you lock it in an escrow on gno.land; a relayer carries a
+proof of the lock to Ethereum, the light client checks it, and a **voucher** (a `GnoVoucher`) is minted to you. To go
+back, you burn the voucher and gno.land unlocks your GNOT on proof of the burn. An undelivered or refused packet is
+refunded to the sender, again on proof. Relayers carry messages but cannot forge them (§5.3, §6.1–§6.3).
+
+### What can go wrong
+
+All of that is only as good as the two light clients. The ADR plans for:
+
+- **A forged or poisoned light client.** If more than a third of gno.land's validator power colludes, or its keys
+  leak, Ethereum's `GnoLightClient` can be fed headers the honest chain never had. Forged proofs can then mint
+  vouchers nothing backs, "deliver" packets nobody sent, or fake an error ack so a delivered transfer is refunded
+  twice (§7.13). The other direction fails the same way if Ethereum's sync committee colludes (§8.1, §8.2).
+- **A compromised governance channel.** GovDAO steers the Ethereum contracts through packets proven by that same light
+  client. A forgery could push hostile decisions or occupy the decision sequence; if the client simply expires or
+  freezes, governance cannot send the repair.
+- **A broken contract or upgrade**, on either chain.
+- **Stuck refunds.** The escrow is reserved for other claims, a token refuses the transfer, or the route is closed for
+  an incident. Refunds may be delayed, never cancelled.
+
+Standard ICS20 has none of the controls below: it is all or nothing on the light client.
+
+### The controls, one by one
+
+**Route.** Everything is scoped to one **route**, the pair of light clients transfers flow through; one governance
+channel serves exactly one Ethereum route (§7.6, Scope).
+
+**Limits and meters.** A bucket with a small hole: value leaves only as fast as the bucket refills. On gno.land,
+incoming value is booked as a **claim**, and anyone calls `Claim` to pay claims out within a **meter** refilling at
+about a tenth of the escrow per day (a quarter of that per recipient). On Ethereum each token has a per-message
+maximum and a day cap (a **leaky bucket**). A forged light client can take at most about two day caps in any 24 hours,
+not the whole escrow (§7.1, §7.2; send limits and the route fee, §7.8).
+
+**Quarantine.** After a gno.land validator-set change, Ethereum refuses token receives from gno.land for 7 days (they
+are refunded at the source), so a hostile set installed in one block cannot drain anything before people have had a
+week to react. Governance packets are not quarantined (§7.10).
+
+**Claims and refunds, including parked refunds.** A refund that cannot be paid at once is **queued** on the packet's
+**send record** and paid later by a permissionless `claim`, under a **refund meter** (another bucket, so forged
+refunds are rate-limited too). On Ethereum a refund the token refuses, or that would use escrow another refund is
+owed, is **parked**: still owed and reserved, retried by `claimParked`. A refund is never cut short, only delayed
+(§6.3, §7.3, §7.13).
+
+**Guardians, flags and holds.** Each chain has six **seats**: four **guardians** (two of them outsiders) and two
+**watch** keys for the monitors. Any one seat can set a **flag**, which pauses one function at once: on gno.land a
+route's `sends`, `credits`, `payouts` or `refunds`; on Ethereum a route's receives and escrowed sends, its refunds, or
+`IBCAdmin`'s 7-day decisions. Flags never stop exits (voucher burns, acks, timeouts). Two guardian flags make a
+**hold**: 7-day decisions wait and unpauses are spent. A smoke alarm, not a veto: the owner can clear a flag, GovDAO
+can unpause (at once on gno.land, after 24 h on Ethereum), and a decision replacing a guardian's seat becomes
+executable about 21 days after the start of the hold that first deferred it, however often the hold is cleared and set
+again (§6.7, §7.4).
+
+**The governance channel.** A governance realm, `ibcgov`, sends numbered **decisions** over IBC to `IBCAdmin`, an
+immutable Ethereum contract holding every authority. Each has a **kind**: 1 cancel, 2 unpause, 3 seats, 4 limits, 5
+voucher, 6 client, 7 upgrade, 8 role, 9 hand-over, 10 route replacement, 11 route settings, 12 settle, 13 reopen.
+Anything that loosens waits **7 days** after Ethereum records it (an unpause 24 h; tightening and cancels at once), so
+a bad decision is visible for a week and can be **cancelled** (kind 1). Decisions are numbered in **sequence** within
+an **epoch**; a forged packet taking a number shows up as a **conflict** and flags `IBCAdmin`. A new epoch begins only
+with a route replacement; Ethereum then sends an **epoch notice** back, which gno.land accepts only along a transition
+GovDAO approved in advance (§5.4, §6.6, §7.5, §7.6, §7.12).
+
+**Incidents and reconciliation.** After a light client is replaced, every packet that went through the old client
+during the suspect period is in doubt. Each send has an immutable **send record**, and anyone can prove what the
+destination really did with it (`proveOutcome`) through the new, healthy client: delivered, refundable, or a
+**collision** (a forgery took that sequence). Governance then **settles** the record (kind 12 on Ethereum,
+`NewSettleRequest` on gno.land): pay a refund still owed, reject one that should not be paid, or book a **loss** where
+a forged payment already happened. Once every record is settled and every loss is recapitalized, reduced or accepted,
+the route **reopens** (kind 13; `NewReopenRouteRequest`) (§7.9, §7.12).
+
+**Route replacement.** A poisoned client leaves forged receipts and governance numbers behind, so it is not repaired
+in place: the route moves to a fresh client id that a kind 6 enrolled beforehand (kind 10 on Ethereum,
+`NewReplaceRouteRequest` on gno.land, 7 days each). The old id is retired (frozen on Ethereum), a new epoch starts,
+and a constant-work `migrateRoute` re-points the route's escrows and vouchers. The route stays closed until
+reconciliation is done (§7.12).
+
+**Emergency recovery and the kind 9 hand-over.** The governance channel runs over the very light client it would have
+to repair, so there are two escape hatches. An optional **emergency recovery**, fixed at deployment and off by
+default: when the route's client is frozen or expired, governance has been silent 30 days, or a hold has stood 14
+days, three of the four guardians can propose a new client from a checkpoint they vouch for; it executes after a
+public delay of at least 30 days, during which three guardians can cancel it. It is a declared extra trust assumption.
+And `IBCAdmin`'s logic lives in a replaceable **executor** (`IBCAdminExec`): a **kind 9 hand-over** moves the pointer
+to a new executor, recorded and run by `IBCAdmin` on its own code path, never through the executor, so a broken
+executor can be replaced. A decision the broken executor cannot answer is **halted**, not lost (§5.4, §7.6, §7.12).
+
+**Code pinning and build verification.** Code governance installs (kinds 5, 6, 7, 9 and recovery candidates) is named
+by its **code hash**, and each contract records the hashes of the modules it delegates to. A hash says nothing about
+the source, so operators run a **build verification** that rebuilds each contract and compares the bytes, after every
+deployment and executed decision and for every pending candidate before its 7 days are up; a failing candidate is
+cancelled (§6.12, §7.6).
+
+**The launch gate.** Nothing moves until the launch is proven: the route starts with no enabled denom on gno.land and
+zero limits on Ethereum; `IBCAdmin` refuses every delivery until `finishSetup` has checked the deployment; the first
+denom is enabled only once Ethereum has recorded gno.land's first decision; and a **governor** key may run the testing
+phase, with every delay in force, before it **yields** once and for ever to GovDAO (§5.4, §6.10, §7.7).
+
+### How they fit together: four scenarios
+
+**A normal transfer, each way** (§6.1, §6.2). gno.land → Ethereum: `Transfer` checks the send limits and the `sends`
+flag and escrows the GNOT; a relayer proves the packet to Ethereum's `GnoLightClient`; the Ethereum app checks flags,
+quarantine, the registered voucher and the mint limits, then mints. Ethereum → gno.land: you burn the voucher (or
+escrow an Ethereum token); a relayer updates gno.land's Ethereum client and proves the packet; the gno.land app checks
+the `credits` flag and books a claim; anyone calls `Claim` and you are paid within the meters. The ack travels back; a
+success keeps the escrow or the burn.
+
+**A light client is compromised and forges deliveries** (§6.11, §7.1, §7.2, §7.11–§7.13). Forged proofs mint vouchers
+on Ethereum; the day cap and per-message maximum bound that to about two caps in any 24 hours. The monitors see that
+the escrow no longer matches the supply (the **supply identity**) and the watch keys flag at once: receives and
+escrowed sends stop, and a **refunds hold** suspends refunds. Two guardian flags make a hold; exits stay open. GovDAO
+records a kind 10 with a `suspectFrom` boundary, and `NewReplaceRouteRequest` on gno.land; after 7 days the old client
+is frozen, the new one takes over, a new epoch opens, and the route is closed. Preparation reserves every refund the
+old records might owe; anyone proves each record's real outcome through the new client; kind 12 settlements pay
+genuine refunds, reject forged ones and book forged receives as losses, while gno.land voids forged claims. Once every
+loss is covered or accepted, kind 13 and `NewReopenRouteRequest` reopen the route.
+
+**The governance channel is lost, or the executor breaks** (§7.6, §7.12). If the `GnoLightClient` expires or freezes,
+no governance packet can be proven, but guardians can still flag and hold: those are plain Ethereum transactions. A
+repair recorded before the failure (a kind 6 migration when the old history is trusted, or a kind 10 to an enrolled
+target) still executes. Otherwise the emergency recovery, if enabled at deployment, lets three guardians install a new
+client after 30 days or more; its epoch notice is accepted on gno.land because GovDAO recorded
+`NewExpectRecoveryRequest` for that transition. Without the emergency path, the Ethereum side's backing is stranded
+(residual R10). If instead the **executor** is broken while the channel works, GovDAO sends a kind 9: `IBCAdmin`
+records it on its own path, decisions the broken executor cannot answer halt behind it, and after 7 days, bounded at
+21 days under any hold or flag, the new executor is pinned and records the rest.
+
+**A refund cannot be paid right away** (§6.3, §7.13). If the whole refund fits the refund meter, the backing is free,
+no older refund is queued and no `refunds` hold stands, it is paid at once. Otherwise it is queued on the send record
+and paid, oldest first, by anyone calling `claim` (`ClaimRefunds` on gno.land) as the meter refills. A payment
+Ethereum cannot make now is parked (above); on gno.land a failed payment rolls the transaction back and is retried.
+While the route is closed for an incident, no refund is paid outside the governed settlements: it waits, owed and
+reserved, for a kind 12 or the reopening.
+
+### What this does NOT protect against
+
+The controls bound and delay; they do not make the light clients unbreakable (§8.5, "Accepted residuals"; trust
+assumptions in §8.1). A settlement is final, so a forged proof found only after its settlement applied has no
+compensation path inside the bridge (R1); a compromised gno-side verifier can move gno.land's governance epoch
+wrongly, which only Ethereum's emergency recovery can undo (R2); `ibcgov` and `IBCAdmin` cannot be replaced, only
+redeployed (R4); the reopening does not itself check forged receive claims, which operators must void first (R5);
+without the emergency path a lost channel strands Ethereum's backing (R10); token issuers' powers to pause, seize or
+rebase are trusted (R11); and Ethereum repairs depend on the transfer app's `gnoBusy()` view and the recovery
+components working (R14, R15). The monitors and the watch tool (T4–T6) are not yet built; until they are, the build
+verification is run by hand.
 
 ---
 
@@ -2945,6 +3101,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   then corrected the epoch-notice resend description (its packet sequence is only reported in `EpochNoticeSent`)
   and the `GnoTransferStorage.openRoute` reference; 72a41de (docs only) documents that a relayer-role revocation
   held back by an open recovery executes at once after its cancellation.
+- 2026-10-20, a plain-language overview added ("In plain terms (ELI-5)", unnumbered, before §1, with a pointer in
+  the contents): what ICS20 does, what the controls add and why, four walked-through scenarios and the accepted
+  residuals in plain words. Summary only; no rule changed.
 
 ## 15. References
 
