@@ -10,7 +10,7 @@ func main() {
 }
 
 // Error:
-// main/rune22.gno:8:2-41: rune overflows target kind
+// main/rune22.gno:8:7-41: rune overflows target kind
 
 // TypeCheckError:
 // main/rune22.gno:8:8: '\U0010ffff' * '\U0010ffff' (untyped rune constant 1241243320321) overflows rune; main/rune22.gno:8:7: ('\U0010ffff' * '\U0010ffff') (untyped rune constant 1241243320321) overflows rune

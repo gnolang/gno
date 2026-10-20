@@ -48,12 +48,19 @@ produced new wrong results or rejections for non-constant shift expressions
 that master handles. Both are left to a follow-up (see "Related, not fixed
 here").
 
-For non-constant expressions the rule is: no program master accepted is
-rejected, and none produces a value different from master's, unless
-master's value was wrong and the new value is gc's. The exception is an
-untyped rune constant beyond int32 that would otherwise reach runtime: that
-is rejected (with the usual overflow error, as gc does), since runtime
-arithmetic reads untyped runes as int32.
+For non-constant expressions the rule is: no program that master accepted
+and gc also accepts is newly rejected, and none produces a value different
+from master's, unless master's value was wrong and the new value is gc's.
+The exception is an untyped rune constant beyond int32 next to a
+non-constant operand, which is always rejected (see "No big-form untyped
+rune at runtime"); in a wider explicit context gc accepts some of these.
+
+Programs that master accepted and gc rejects may now be rejected too. The
+ones found: `x := +('a' << s); var y int64 = x`,
+`x := +(1 << s); var y int64 = x` and
+`x := +('a' << s); println(x + (1 << 40))`. A unary expression on a
+non-constant shift now keeps the type its operand gets (rune, int), as in
+Go, where master left it untyped.
 
 ## Decision
 
@@ -109,25 +116,43 @@ constant cannot default to `rune`.
 
 ### No big-form untyped rune at runtime
 
-A big-form untyped rune is valid only until it takes a type. Non-constant
-shift expressions can leave a constant operand untyped into runtime, where
-it would be read as int32. Three places now make sure that never happens
-for a big-form rune, each without changing anything else:
+A big-form untyped rune is exact only while it stays a constant. Next to a
+non-constant operand it takes the type of the expression, which Gno does
+not always resolve as Go does (non-constant shifts are typed eagerly, and
+a mixed comparison defaults to int), and runtime arithmetic reads untyped
+runes as int32. Checks at particular call sites kept missing compound
+paths (a nested operand, a compound switch tag, a mixed equality that
+widens the constant before the check), so there is one rule, applied before
+any defaulting, independent of context:
 
-- `rejectBigUntypedRune` converts such an operand to rune (and so fails with
-  "rune overflows target kind") where an untyped binary expression without
-  context is typed in `checkOrConvertType`
-  (`x := big + ('a' << s)`), and on both operands of a comparison
-  (`('a' << s) < big`), which passes no type to its operands.
-- A non-constant untyped switch tag (`switch '\x00' << s`) gets its default
-  type before its cases are typed against it, so a case such as
-  `'\x01' << 40` is converted and range checked instead of being compared as
-  an untyped value. For a unary tag (`switch +('a' << s)`), the unary
-  expression's cached type is updated together with its operand's.
+> An untyped rune constant beyond int32 that meets a non-constant operand
+> is rejected with "rune overflows target kind".
 
-An interface context pushes the interface into each operand, which defaults
-a constant operand to rune, so `var x interface{} = ('a' << s) + big` fails
-too.
+`rejectBigUntypedRune` applies it at the two places where a constant meets
+a non-constant operand:
+
+- the start of the `BinaryExpr` `TRANS_LEAVE`, when exactly one operand is
+  a `*ConstExpr` (every arithmetic, comparison and shift expression, at any
+  nesting depth, passes there before its operands are converted);
+- the switch case loop, when the tag is not constant.
+
+Unary expressions cannot combine a constant with a non-constant operand,
+and an assignment, argument or interface conversion of a lone constant is
+an ordinary constant conversion, range checked as above. Purely constant
+expressions are unaffected.
+
+The cost: gc accepts some of these in a wider explicit context and they
+are rejected here, e.g. `var y int64 = ('a' << s) + big`,
+`var y int64 = big << s`, `var x int64; _ = x + big`. Master accepted them
+and computed wrapped values.
+
+A non-constant untyped switch tag (`switch '\x00' << s`) gets its default
+type before its cases are typed, and a unary expression's cached type is
+updated along with its operand's (`switch +('a' << s)`). The cached type
+of an arithmetic binary expression is *not* updated: its operands can keep
+untyped runtime types (master converts one operand to the other's untyped
+type), so giving the cases a concrete type broke
+`switch ('a' << s) + 'a' { case 'a' + 'a': }` (no match) when tried.
 
 ### Guard: debug-only
 
@@ -193,6 +218,10 @@ folded values without any migration of persisted slots.
   defaults (`var r = big`, `println(big)`, `rune(big)`) fail at preprocess,
   as gc does.
 - Typed rune arithmetic is unchanged and still wraps at runtime.
+- New rejections of programs master accepted: every untyped rune constant
+  beyond int32 next to a non-constant operand (master wrapped it; gc
+  accepts it only in a wider explicit context), and the unary-shift
+  variable cases listed under Scope (gc rejects them too).
 - Importers see the constant folding of the running VM, not that of the VM
   that deployed the imported package.
 - Every filetest present on master passes with master's golden output, and
@@ -245,8 +274,8 @@ separate change.
 
 | File | Role |
 |------|------|
-| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `rejectBigUntypedRune`, switch tag defaulting, unary cached type, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
+| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `rejectBigUntypedRune` (binary expressions, switch cases), switch tag defaulting, unary cached type, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
 | `gnovm/pkg/gnolang/values.go` | `GetUntypedRune`, `SetUntypedRune`, `Sign` |
 | `gnovm/pkg/gnolang/values_conversions.go` | `ConvertUntypedRuneTo`, `convertUntypedIntegerTo` |
 | `gnovm/pkg/gnolang/preprocess_import_const_test.go` | persisted-layout test, reload tests for imported constants and variables |
-| `gnovm/tests/files/rune4.gno`–`rune26.gno` | filetests |
+| `gnovm/tests/files/rune4.gno`–`rune34.gno` | filetests |

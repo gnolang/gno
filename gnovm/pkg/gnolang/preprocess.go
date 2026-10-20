@@ -1123,9 +1123,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// evaluate tag type
 					tt := evalStaticTypeOf(store, last, ss.X)
 					// check or convert case types to tt.
+					_, tagConst := ss.X.(*ConstExpr)
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
+						if !tagConst {
+							// A case is compared with the non-constant
+							// tag: see rejectBigUntypedRune.
+							ccx, _ := cx.(*ConstExpr)
+							rejectBigUntypedRune(ccx)
+						}
 						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
 						n.Cases[i] = cx
 					}
@@ -1498,6 +1505,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 
+				// An untyped rune constant beyond int32 never meets a
+				// non-constant operand.
+				if lic != ric {
+					rejectBigUntypedRune(lcx)
+					rejectBigUntypedRune(rcx)
+				}
+
 				if debug {
 					debug.Printf("TRANS_LEAVE, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				}
@@ -1619,13 +1633,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, n, &n.Right, lt)
 						}
 					}
-				}
-				if isComparison(n.Op) {
-					// A comparison passes no type to its operands, so
-					// a constant left untyped here is compared as is
-					// at runtime: it must not be a rune beyond int32.
-					rejectBigUntypedRune(&n.Left)
-					rejectBigUntypedRune(&n.Right)
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
@@ -4697,14 +4704,23 @@ func foldStringOfLargeIntConst(cx *ConstExpr) {
 	setConstAttrs(cx)
 }
 
-// rejectBigUntypedRune converts *x to rune, its default type, if *x is an
-// untyped rune constant beyond int32, which then fails with the usual
-// overflow error. Such a constant (e.g. '\U0010ffff' * '\U0010ffff') is
-// valid only until it takes a type; it must never be an operand of runtime
-// arithmetic, which reads untyped runes as int32. Every other *x is left
-// as is.
-func rejectBigUntypedRune(x *Expr) {
-	if cx, ok := (*x).(*ConstExpr); ok && cx.isBigUntypedRune() {
+// rejectBigUntypedRune rejects cx, with the usual "rune overflows target
+// kind" error, if it is an untyped rune constant beyond int32 (e.g.
+// '\U0010ffff' * '\U0010ffff'); it does nothing for any other cx, nil
+// included.
+//
+// It is called for every constant that meets a non-constant operand: either
+// side of a binary expression (a comparison or a shift included) whose other
+// side is not constant, and a switch case whose tag is not constant. Such a
+// constant is exact only while it stays a constant. Next to a non-constant
+// operand it takes the type of the expression, which Gno does not always
+// resolve as Go does (non-constant shifts are typed eagerly), and runtime
+// arithmetic reads untyped runes as int32. Rejecting it there, whatever the
+// context, keeps a big-form rune from ever reaching runtime. Go rejects it
+// too unless the context is a wider integer type (var y int64 = ('a' << s) +
+// big), which is then rejected here although gc accepts it.
+func rejectBigUntypedRune(cx *ConstExpr) {
+	if cx != nil && cx.isBigUntypedRune() {
 		ConvertUntypedTo(&cx.TypedValue, nil) // panics: overflows rune.
 	}
 }
@@ -5179,10 +5195,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 							checkOrConvertType(store, last, n, &bx.Left, rt)
 							checkOrConvertType(store, last, n, &bx.Right, nil)
 						}
-						// Neither operand may reach runtime as an
-						// untyped rune beyond int32.
-						rejectBigUntypedRune(&bx.Left)
-						rejectBigUntypedRune(&bx.Right)
 					}
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:

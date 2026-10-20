@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/rune7.gno:11:6-38: rune overflows target kind
+// main/rune7.gno:11:22-38: rune overflows target kind
 
 // TypeCheckError:
 // main/rune7.gno:11:35: big (untyped rune constant 1241243320321) overflows rune
