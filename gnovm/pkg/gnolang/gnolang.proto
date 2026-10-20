@@ -25,6 +25,10 @@ message BigdecValue {
 	string value = 1;
 }
 
+message Bits256Value {
+	bytes value = 1;
+}
+
 message PointerValue {
 	TypedValue tv = 1 [json_name = "TV"];
 	google.protobuf.Any base = 2 [json_name = "Base"];

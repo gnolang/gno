@@ -63,6 +63,10 @@ func X_valueOfInternal(v gnolang.TypedValue) (
 		kind, bytes = "uint32", uint64(v.GetUint32())
 	case gnolang.Uint64Kind:
 		kind, bytes = "uint64", v.GetUint64()
+	case gnolang.Int256Kind:
+		kind = "int256" // the value is read from base
+	case gnolang.Uint256Kind:
+		kind = "uint256" // the value is read from base
 	case gnolang.Float32Kind:
 		kind, bytes = "float32", uint64(v.GetFloat32())
 	case gnolang.Float64Kind:
@@ -205,6 +209,8 @@ func compareKeys(ki, kj gnolang.TypedValue) bool {
 		gnolang.Uint32Kind,
 		gnolang.Uint64Kind:
 		return uint64(ki.ConvertGetInt()) < uint64(kj.ConvertGetInt())
+	case gnolang.Int256Kind, gnolang.Uint256Kind:
+		return ki.GetBig256().Cmp(kj.GetBig256()) < 0
 	default:
 		return false
 	}

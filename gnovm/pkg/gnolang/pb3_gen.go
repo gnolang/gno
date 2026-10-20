@@ -20,6 +20,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*StringValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*BigintValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*BigdecValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Bits256Value)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*PointerValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ArrayValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SliceValue)(nil)).Elem())
@@ -407,6 +408,66 @@ func (goo *BigdecValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 	}
 	if len(bz) != 0 {
 		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+	}
+	return goo.UnmarshalAmino(repr)
+}
+
+func (goo Bits256Value) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
+	if len(repr) > 0 {
+		before := offset
+		for i := len(repr) - 1; i >= 0; i-- {
+			elem := repr[i]
+			offset = amino.PrependByte(buf, offset, uint8(elem))
+		}
+		dataLen := before - offset
+		offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+	}
+	return offset, err
+}
+
+func (goo Bits256Value) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
+	if len(repr) > 0 {
+		var cs int
+		cs = len(repr)
+		s += 1 + amino.UvarintSize(uint64(cs)) + cs
+	}
+	return s, nil
+}
+
+func (goo *Bits256Value) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var repr []uint8
+	if len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected ByteLength, got num=%v typ=%v", fnum, typ3)
+		}
+		bz = bz[n:]
+		fbz, n, err := amino.DecodeByteSlice(bz)
+		if err != nil {
+			return err
+		}
+		bz = bz[n:]
+		for _, b := range fbz {
+			elem := uint8(b)
+			repr = append(repr, elem)
+		}
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
 	}
 	return goo.UnmarshalAmino(repr)
 }

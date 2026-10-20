@@ -47,3 +47,17 @@ func TestMaxInt(t *testing.T) {
 		t.Errorf("MaxInt64 should wrap around to MinInt64: %d", v+1)
 	}
 }
+
+func TestMax256(t *testing.T) {
+	var u uint256 = math.MaxUint256
+	if u+1 != 0 {
+		t.Errorf("MaxUint256 should wrap around to zero: %d", u+1)
+	}
+	var i int256 = math.MaxInt256
+	if i+1 != math.MinInt256 {
+		t.Errorf("MaxInt256 should wrap around to MinInt256: %d", i+1)
+	}
+	if uint256(i)+1 != 1<<255 {
+		t.Errorf("MaxInt256+1 should be 1<<255 as uint256: %d", uint256(i)+1)
+	}
+}

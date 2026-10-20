@@ -1,0 +1,23 @@
+// MAXALLOC: 2000000
+package main
+
+import "runtime"
+
+// Each non-zero int256/uint256 result is a 64-byte allocation (a boxed
+// Bits256Value); zero is stored as nil and allocates nothing. The GC recount
+// must agree with what was charged, so that repeated collections under a
+// small limit never report an overrun.
+func main() {
+	var keep [100]uint256
+	var acc uint256 = 1
+	for i := 0; i < 100000; i++ {
+		acc = acc*3 + 1
+		keep[i%100] = acc
+	}
+	zeros := make([]int256, 1000)
+	runtime.GC()
+	println(keep[0] != 0, len(zeros), runtime.MemStats())
+}
+
+// Output:
+// true 1000 Allocator{maxBytes:2000000, bytes:58232}

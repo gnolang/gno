@@ -5,7 +5,28 @@ import (
 	"math"
 	"reflect"
 
+	"github.com/holiman/uint256"
+
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
+)
+
+// Uint256 and Int256 are the Go types of Gno's uint256 and int256 in native
+// bindings: a native function declared in Gno with a uint256 parameter takes
+// a gno.Uint256 in Go (see misc/genstd).
+//
+// Both hold the 256 bits by value, like the VM's Bits256Value, so a native
+// function cannot alias a Gno value. Uint256 is holiman/uint256's Int, so
+// natives get its arithmetic directly. Int256 is a distinct type over the
+// same bits, read as two's complement; use (*uint256.Int)(&x) to reach the
+// signed operations (SDiv, SMod, Slt, Sign, ...).
+type (
+	Uint256 = uint256.Int
+	Int256  uint256.Int
+)
+
+var (
+	goUint256Type = reflect.TypeFor[Uint256]()
+	goInt256Type  = reflect.TypeFor[Int256]()
 )
 
 // This file contains functions to convert values and types from Go to Gno, and
@@ -22,6 +43,12 @@ import (
 // also used for untyped gno -> native conversion intermediary.
 // XXX support unary conversions as we did for binary.
 func go2GnoType(rt reflect.Type) Type {
+	switch rt {
+	case goUint256Type:
+		return Uint256Type
+	case goInt256Type:
+		return Int256Type
+	}
 	switch rk := rt.Kind(); rk {
 	case reflect.Bool:
 		return BoolType
@@ -85,6 +112,16 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		}
 	}
 	tv.T = go2GnoType(rv.Type())
+	switch rv.Type() {
+	case goUint256Type:
+		bits := rv.Interface().(Uint256)
+		tv.SetBits256(alloc, &bits)
+		return
+	case goInt256Type:
+		bits := uint256.Int(rv.Interface().(Int256))
+		tv.SetBits256(alloc, &bits)
+		return
+	}
 	switch rk := rv.Kind(); rk {
 	case reflect.Bool:
 		tv.SetBool(rv.Bool())
@@ -196,6 +233,10 @@ func gno2GoType(t Type) reflect.Type {
 			return reflect.TypeFor[float32]()
 		case Float64Type:
 			return reflect.TypeFor[float64]()
+		case Uint256Type:
+			return goUint256Type
+		case Int256Type:
+			return goInt256Type
 		case UntypedBigintType:
 			panic("not yet implemented")
 		case UntypedBigdecType:
@@ -294,6 +335,10 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 			rv.SetFloat(math.Float64frombits(softfloat.F32to64(tv.GetFloat32())))
 		case Float64Type:
 			rv.SetFloat(math.Float64frombits(tv.GetFloat64()))
+		case Uint256Type:
+			rv.Set(reflect.ValueOf(tv.GetBits256()))
+		case Int256Type:
+			rv.Set(reflect.ValueOf(Int256(tv.GetBits256())))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type %s",

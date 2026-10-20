@@ -19,8 +19,8 @@ func main() {
 		panic(err)
 	}
 	defer file.Close()
-	types := make([]Type, 0, 10)
-	for _, bs := range [...]int{0, 8, 16, 32, 64} {
+	types := make([]Type, 0, 12)
+	for _, bs := range [...]int{0, 8, 16, 32, 64, 256} {
 		var s string
 		if bs != 0 {
 			s = strconv.Itoa(bs)
@@ -33,7 +33,7 @@ func main() {
 				Name:   "int" + s,
 				Short:  s,
 				Signed: true,
-				Min:    -(1 << (bs - 1)),
+				Min:    minOf(bs),
 			},
 			Type{
 				Name:  "uint" + s,
@@ -50,7 +50,14 @@ type Type struct {
 	Name   string
 	Short  string
 	Signed bool
-	Min    int64
+	Min    string // the smallest value, as a Gno constant expression
+}
+
+func minOf(bits int) string {
+	if bits > 64 {
+		return "-1<<" + strconv.Itoa(bits-1)
+	}
+	return strconv.FormatInt(-1<<(bits-1), 10)
 }
 
 var parsedTmpl = template.Must(template.New("").Parse(tmpl))

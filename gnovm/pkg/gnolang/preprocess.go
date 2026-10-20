@@ -1496,7 +1496,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Shift case.
 				if n.Op == SHL || n.Op == SHR {
 					n.assertShiftExprCompatible1(store, last, lt, rt)
-					if baseOf(rt) != UintType {
+					// A 256-bit count is kept as is: converting it to uint
+					// would truncate it (see shiftCount).
+					if baseOf(rt) != UintType && !is256Type(rt) {
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
 						// reset/create n2 to preprocess right child.
@@ -2995,7 +2997,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						switch n.Op {
 						case SHL_ASSIGN, SHR_ASSIGN:
 							// Special case if shift assign <<= or >>=.
-							convertType(store, last, n, &n.Rhs[0], UintType)
+							// A 256-bit count is kept as is (see shiftCount).
+							if !is256Type(evalStaticTypeOf(store, last, n.Rhs[0])) {
+								convertType(store, last, n, &n.Rhs[0], UintType)
+							}
 						case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN:
 							// e.g. a += b, single value for lhs and rhs,
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
@@ -4613,6 +4618,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		})
 		cv := m.EvalStatic(last, x)
 		m.Release()
+		checkConstFoldOverflow(x, &cv)
 		// The machine computes with runtime (IEEE) semantics, but a folded
 		// expression is a constant, and constants have no signed zero: a
 		// float -0 result (e.g. from negation) becomes +0.
@@ -4641,6 +4647,90 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	setPreprocessed(cx)
 	setConstAttrs(cx)
 	return cx
+}
+
+// checkConstFoldOverflow panics if the typed constant cv, folded from x, is not
+// representable in its type. The machine computes typed constants with the
+// type's runtime (wrapping) arithmetic, but Go requires a typed constant
+// expression to be representable: `const c int8 = 100; c * 2` is an error,
+// not -56. The exact result is recomputed with math/big from the operands.
+//
+// This is the only constant-range check for typed operations: the go/types
+// pass drops its numeric-overflow errors (see isDeferredOverflowError), so
+// it must reject everything go/types used to. Integer kinds get the exact
+// check; a float result is rejected if it overflowed to ±Inf (constants have
+// no infinities).
+func checkConstFoldOverflow(x Expr, cv *TypedValue) {
+	if cv.T == nil || isUntyped(cv.T) {
+		return
+	}
+	k := cv.T.Kind()
+	switch k {
+	case Float32Kind:
+		if f := cv.GetFloat32(); f&^softfloat.NegZero32 >= softfloat.Inf32 {
+			panic(fmt.Sprintf("constant overflows %s", k))
+		}
+		return
+	case Float64Kind:
+		if f := cv.GetFloat64(); f&^softfloat.NegZero64 >= softfloat.Inf64 {
+			panic(fmt.Sprintf("constant overflows %s", k))
+		}
+		return
+	}
+	if !isIntegerKind(k) {
+		return
+	}
+	var exact *big.Int
+	switch x := x.(type) {
+	case *BinaryExpr:
+		lcx, lok := x.Left.(*ConstExpr)
+		rcx, rok := x.Right.(*ConstExpr)
+		if !lok || !rok || lcx.T == nil || rcx.T == nil ||
+			!isIntegerKind(lcx.T.Kind()) && lcx.T.Kind() != BigintKind ||
+			!isIntegerKind(rcx.T.Kind()) && rcx.T.Kind() != BigintKind {
+			return
+		}
+		a := exactIntegerValue(&lcx.TypedValue)
+		b := exactIntegerValue(&rcx.TypedValue)
+		switch x.Op {
+		case ADD:
+			exact = new(big.Int).Add(a, b)
+		case SUB:
+			exact = new(big.Int).Sub(a, b)
+		case MUL:
+			exact = new(big.Int).Mul(a, b)
+		case QUO:
+			if b.Sign() == 0 {
+				return // the machine has already reported it
+			}
+			exact = new(big.Int).Quo(a, b)
+		case SHL:
+			if a.Sign() == 0 {
+				return
+			}
+			// Any non-zero value shifted by more than 256 bits overflows
+			// every integer type; do not build the huge number.
+			if !b.IsUint64() || b.Uint64() > 256 {
+				panic(fmt.Sprintf("constant %s << %s overflows %s", a, b, k))
+			}
+			exact = new(big.Int).Lsh(a, uint(b.Uint64()))
+		default:
+			// %, &, |, ^, &^ and >> of representable operands are
+			// representable.
+			return
+		}
+	case *UnaryExpr:
+		xcx, ok := x.X.(*ConstExpr)
+		if !ok || x.Op != SUB || xcx.T == nil || !isIntegerKind(xcx.T.Kind()) {
+			return
+		}
+		exact = new(big.Int).Neg(exactIntegerValue(&xcx.TypedValue))
+	default:
+		return
+	}
+	if !integerKindFits(exact, k) {
+		panic(fmt.Sprintf("constant %s overflows %s", exact, k))
+	}
 }
 
 func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {
@@ -5510,7 +5600,7 @@ func checkIntegerKind(xt Type) {
 	switch xt.Kind() {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
-		BigintKind:
+		Int256Kind, Uint256Kind, BigintKind:
 		return // ok
 	default:
 		panic(fmt.Sprintf(

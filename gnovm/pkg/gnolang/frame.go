@@ -244,6 +244,8 @@ func toConstExpTrace(cte *ConstExpr) string {
 			return fmt.Sprintf("%d", tv.GetUint32())
 		case Uint64Type:
 			return fmt.Sprintf("%d", tv.GetUint64())
+		case Int256Type, Uint256Type:
+			return tv.GetBig256().String()
 		case Float32Type:
 			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
 		case Float64Type:
