@@ -3,7 +3,7 @@
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
   `feat/ibc-controls` (ea785ec, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
-  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (b053a83,
+  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (0cfd41f,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
@@ -2941,7 +2941,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   shared route, code-check and recovery-close helpers; on gno.land ics20/abi encodes with encoding/abi, one
   `ibcgov.BridgeRealm` predicate, `assertGovernance(cur realm, op)` without an `IsCurrent` guard, a `holdBounded`
   ledger interface for the kind-3 hold rule, dead state removed. Names updated (E8, §5.4, §7.4, §8.5 R13);
-  references updated to gno-eth-ibc b053a83 and gno-realms ea785ec.
+  references updated to gno-eth-ibc b053a83 and gno-realms ea785ec. gno-eth-ibc 0cfd41f (comments and docs only)
+  then corrected the epoch-notice resend description (its packet sequence is only reported in `EpochNoticeSent`)
+  and the `GnoTransferStorage.openRoute` reference.
 
 ## 15. References
 
