@@ -174,7 +174,11 @@ Empirically verified across 60+ probe filetests:
 ## 4. The Encapsulation Pattern (GRC20 Reference)
 
 `gno.land/p/nt/grc20/v0` is the canonical example of *safe*
-`/p/`-declared data. It violates (A) — `Token`, `PrivateLedger`, and
+`/p/`-declared data. `gno.land/p/nt/grc20/v1` has the same design with
+`uint256` amounts; everything below applies to it unchanged. Since `uint256`
+arithmetic wraps, v1 also performs every balance, allowance and supply update
+through `math/overflow`'s checked helpers — token code must never use a bare
+`+`/`-` on amounts. It violates (A) — `Token`, `PrivateLedger`, and
 `fnTeller` are all `/p/`-declared — but compensates with airtight
 encapsulation:
 
