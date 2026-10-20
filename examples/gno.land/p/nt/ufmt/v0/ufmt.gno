@@ -77,11 +77,7 @@ func (p *printer) doPrint(args []any) {
 		case nil:
 			p.buf.writeString("<nil>")
 		default:
-			if digits, _, ok := format256(v); ok {
-				p.buf.writeString(digits)
-			} else {
-				p.buf.writeString("(unhandled)")
-			}
+			p.buf.writeString("(unhandled)")
 		}
 	}
 }
@@ -105,7 +101,7 @@ func (p *printer) doPrintln(a []any) {
 //	    string.
 //	%c: Formats the character represented by Unicode code point
 //	%d: Formats an integer value using package "strconv".
-//	    Supports every integer type, including int256 and uint256.
+//	    Currently supports only uint, uint64, int, int64.
 //	%f: Formats a float value, with a default precision of 6.
 //	%e: Formats a float with scientific notation; 1.23456e+78
 //	%E: Formats a float with scientific notation; 1.23456E+78
@@ -277,7 +273,7 @@ func writeValue(p *printer, verb rune, arg any) {
 	case error:
 		p.buf.writeString(v.Error())
 	default:
-		writeIntOrFallback(p, verb, v)
+		p.buf.writeString(fallback(verb, v))
 	}
 }
 
@@ -348,16 +344,6 @@ func writeInt(p *printer, verb rune, arg any) {
 	case uint64:
 		p.buf.writeString(strconv.FormatUint(v, 10))
 	default:
-		writeIntOrFallback(p, verb, v)
-	}
-}
-
-// writeIntOrFallback writes a 256-bit integer in decimal, or the fallback
-// text for any other value.
-func writeIntOrFallback(p *printer, verb rune, v any) {
-	if digits, _, ok := format256(v); ok {
-		p.buf.writeString(digits)
-	} else {
 		p.buf.writeString(fallback(verb, v))
 	}
 }
@@ -450,11 +436,7 @@ func writeType(p *printer, arg any) {
 	case []rune:
 		p.buf.writeString("[]rune")
 	default:
-		if _, name, ok := format256(arg); ok {
-			p.buf.writeString(name)
-		} else {
-			p.buf.writeString("unknown")
-		}
+		p.buf.writeString("unknown")
 	}
 }
 
@@ -583,11 +565,7 @@ func fallback(verb rune, arg any) string {
 	case nil:
 		s = "<nil>"
 	default:
-		if digits, name, ok := format256(v); ok {
-			s = name + "=" + digits
-		} else {
-			s = "(unhandled)"
-		}
+		s = "(unhandled)"
 	}
 	return "%!" + string(verb) + "(" + s + ")"
 }
@@ -624,9 +602,6 @@ func typeToString(v any) (string, error) {
 	case bool:
 		return "bool", nil
 	default:
-		if _, name, ok := format256(v); ok {
-			return name, nil
-		}
 		return "", errors.New("unsupported type")
 	}
 }
@@ -645,16 +620,4 @@ func (e *errMsg) Error() string {
 // Supports the same verbs as Sprintf. See Sprintf documentation for details.
 func Errorf(format string, args ...any) error {
 	return &errMsg{Sprintf(format, args...)}
-}
-
-// format256Hook is installed by int256.gno; see there.
-var format256Hook func(v any) (digits, name string, ok bool)
-
-// format256 returns v in decimal and its type name if v is an int256 or a
-// uint256.
-func format256(v any) (digits, name string, ok bool) {
-	if format256Hook == nil {
-		return "", "", false
-	}
-	return format256Hook(v)
 }

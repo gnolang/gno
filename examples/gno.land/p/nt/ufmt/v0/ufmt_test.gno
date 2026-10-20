@@ -13,10 +13,6 @@ func (stringer) String() string {
 	return "I'm a stringer"
 }
 
-// big200 is 2^200. A typed int256 constant must fit an int64 at type-check
-// time, so large int256 values are built at run time from a uint256 variable.
-var big200 uint256 = 1 << 200
-
 func TestSprintf(t *testing.T) {
 	tru := true
 	cases := []struct {
@@ -49,12 +45,6 @@ func TestSprintf(t *testing.T) {
 		{"uint32 [%v]", []any{uint32(32)}, "uint32 [32]"},
 		{"uint64 [%d]", []any{uint64(64)}, "uint64 [64]"},
 		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
-		{"uint256 [%d]", []any{uint256(1<<256 - 1)}, "uint256 [115792089237316195423570985008687907853269984665640564039457584007913129639935]"},
-		{"uint256 [%v]", []any{uint256(1 << 64)}, "uint256 [18446744073709551616]"},
-		{"int256 [%d]", []any{-int256(big200)}, "int256 [-1606938044258990275541962092341162602522202993782792835301376]"},
-		{"int256 [%v]", []any{int256(-1)}, "int256 [-1]"},
-		{"%T %T", []any{uint256(0), int256(0)}, "uint256 int256"},
-		{"%s", []any{uint256(7)}, "%!s(uint256=7)"},
 		{"float64 [%e]", []any{float64(64.1)}, "float64 [6.41e+01]"},
 		{"float64 [%E]", []any{float64(64.1)}, "float64 [6.41E+01]"},
 		{"float64 [%f]", []any{float64(64.1)}, "float64 [64.100000]"},
@@ -376,49 +366,5 @@ func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-
-// The plain (non-format) entry points share doPrint; each must print 256-bit
-// values in decimal, including a large unsigned and a negative signed one.
-func TestPrint256(t *testing.T) {
-	const (
-		bigU = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-		negS = "-57896044618658097711785492504343953926634992332820282019728792003956564819968"
-	)
-	u := uint256(1<<256 - 1)
-	var bits uint256 = 1 << 255
-	s := int256(bits) // -2^255; a typed int256 constant must fit an int64
-	want := "x " + bigU + " " + negS
-
-	if got := Sprint("x", u, s); got != want {
-		t.Errorf("Sprint: got %q", got)
-	}
-	if got := Sprintln("x", u, s); got != want+"\n" {
-		t.Errorf("Sprintln: got %q", got)
-	}
-	if got := string(Append([]byte("> "), "x", u, s)); got != "> "+want {
-		t.Errorf("Append: got %q", got)
-	}
-	if got := string(Appendln(nil, "x", u, s)); got != want+"\n" {
-		t.Errorf("Appendln: got %q", got)
-	}
-
-	var buf bytes.Buffer
-	if _, err := Fprint(&buf, "x", u, s); err != nil || buf.String() != want {
-		t.Errorf("Fprint: got %q, %v", buf.String(), err)
-	}
-	buf.Reset()
-	if _, err := Fprintln(&buf, "x", u, s); err != nil || buf.String() != want+"\n" {
-		t.Errorf("Fprintln: got %q, %v", buf.String(), err)
-	}
-
-	// Print and Println write to stdout; their byte counts show the values
-	// were formatted rather than replaced by "(unhandled)".
-	if n, err := Print("x", u, s); err != nil || n != len(want) {
-		t.Errorf("Print: wrote %d bytes, %v", n, err)
-	}
-	if n, err := Println("x", u, s); err != nil || n != len(want)+1 {
-		t.Errorf("Println: wrote %d bytes, %v", n, err)
 	}
 }

@@ -251,11 +251,6 @@ func TestNotPanics(cur realm, t *testing.T) {
 	mockT.equals(t, "error: func should not panic\n\tPanic value:\tPanic!")
 }
 
-// big200 is 2^200. A typed int256 constant must fit an int64 at type-check
-// time, so large int256 values in these tables are built at run time from a
-// uint256 variable.
-var big200 uint256 = 1 << 200
-
 func TestEqual(t *testing.T) {
 	mockT := new(mockTestingT)
 
@@ -272,8 +267,6 @@ func TestEqual(t *testing.T) {
 		{nil, nil, true, ""},
 		{int32(123), int32(123), true, ""},
 		{uint64(123), uint64(123), true, ""},
-		{uint256(1<<256 - 1), uint256(1<<256 - 1), true, ""},
-		{-int256(big200), -int256(big200), true, ""},
 		{address("g12345"), address("g12345"), true, ""},
 		// XXX: continue
 
@@ -281,9 +274,6 @@ func TestEqual(t *testing.T) {
 		{"Hello World", 42, false, ""},
 		{41, 42, false, ""},
 		{10, uint(10), false, ""},
-		{uint256(1 << 64), uint256(1<<64 + 1), false, ""},
-		{uint256(10), uint64(10), false, "different types"},
-		{int256(10), uint256(10), false, "different types"},
 		// XXX: continue
 
 		// expected to raise errors
@@ -318,8 +308,6 @@ func TestNotEqual(t *testing.T) {
 		{nil, 123, true, ""},
 		{int32(123), int32(124), true, ""},
 		{uint64(123), uint64(124), true, ""},
-		{uint256(1 << 255), uint256(1<<255 + 1), true, ""},
-		{int256(-5), int256(5), true, ""},
 		{address("g12345"), address("g67890"), true, ""},
 		// XXX: continue
 
@@ -330,7 +318,6 @@ func TestNotEqual(t *testing.T) {
 		{nil, nil, false, ""},
 		{int32(123), int32(123), false, ""},
 		{uint64(123), uint64(123), false, ""},
-		{uint256(1 << 255), uint256(1 << 255), false, ""},
 		{address("g12345"), address("g12345"), false, ""},
 		// XXX: continue
 
@@ -369,8 +356,6 @@ func TestEmpty(t *testing.T) {
 		{int32(0), true},
 		{int64(0), true},
 		{uint(0), true},
-		{uint256(0), true},
-		{int256(0), true},
 		// XXX: continue
 
 		// not expected to be empty
@@ -378,7 +363,6 @@ func TestEmpty(t *testing.T) {
 		{1, false},
 		{int32(1), false},
 		{uint64(1), false},
-		{uint256(1 << 100), false},
 		{address("g12345"), false},
 
 		// unsupported

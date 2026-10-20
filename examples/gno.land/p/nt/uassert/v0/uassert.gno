@@ -395,16 +395,7 @@ func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 		}
 	default:
-		ed, ename, eok := format256(expected)
-		if !eok {
-			return fail(t, msgs, "uassert.Equal: unsupported type")
-		}
-		if ad, aname, aok := format256(actual); aok && aname == ename {
-			// Same 256-bit type: canonical decimals are equal iff the values are.
-			equal = ed == ad
-			ok_ = true
-			es, as = ed, ad
-		}
+		return fail(t, msgs, "uassert.Equal: unsupported type")
 	}
 
 	/*
@@ -538,16 +529,7 @@ func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 		}
 	default:
-		ed, ename, eok := format256(expected)
-		if !eok {
-			return fail(t, msgs, "uassert.NotEqual: unsupported type")
-		}
-		if ad, aname, aok := format256(actual); aok && aname == ename {
-			// Same 256-bit type: canonical decimals are equal iff the values are.
-			notEqual = ed != ad
-			ok_ = true
-			es, as = ed, ad
-		}
+		return fail(t, msgs, "uassert.NotEqual: unsupported type")
 	}
 
 	/*
@@ -600,9 +582,6 @@ func isNumberEmpty(n any) (isNumber, isEmpty bool) {
 		return true, n == 0
 	case float64:
 		return true, n == 0
-	}
-	if digits, _, ok := format256(n); ok {
-		return true, digits == "0"
 	}
 	return false, false
 }
@@ -695,16 +674,4 @@ func NotTypedNil(t TestingT, value any, msgs ...string) bool {
 		return fail(t, msgs, "should not be typed-nil")
 	}
 	return true
-}
-
-// format256Hook is installed by int256.gno; see there.
-var format256Hook func(v any) (digits, name string, ok bool)
-
-// format256 returns v in canonical decimal and its type name if v is an
-// int256 or a uint256.
-func format256(v any) (digits, name string, ok bool) {
-	if format256Hook == nil {
-		return "", "", false
-	}
-	return format256Hook(v)
 }
