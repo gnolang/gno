@@ -1,11 +1,13 @@
 package main
 
-// As rune8, for unary minus: -(-1 << 31) is 2147483648.
+// Unary operators on untyped rune constants are rejected, as before:
+// here in a comparison with a non-constant shift (gc: false).
+
+var s uint
 
 func main() {
-	var x int64 = -(-'\x01' << 31)
-	println(x)
+	println((-'a' << s) < -100)
 }
 
 // Error:
-// main/rune14.gno:6:16-32: untyped rune constant -((-'\x01') << 31) overflows int32 (value 2147483648); convert an operand to a wider integer type, e.g. int64((-'\x01') << 31)
+// main/rune14.gno:9:11-15: unexpected type <untyped> int32 in operation

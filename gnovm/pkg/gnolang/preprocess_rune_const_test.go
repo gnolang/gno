@@ -36,7 +36,7 @@ const (
 	Lit  = 'a'
 	Sum  = 'a' + 1
 	Mul  = '\U0010ffff' * 'Ā'
-	Neg  = -'a'
+	Neg  = '\x00' - 'a'
 	Eq   = 'Ā' == 'Ā'
 	Neg8 int8 = 'a' - 'b'
 	U16 uint16 = 'Ł'

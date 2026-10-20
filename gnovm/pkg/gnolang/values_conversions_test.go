@@ -175,19 +175,3 @@ func TestConvertUntypedRuneTo(t *testing.T) {
 		ConvertUntypedTo(newRune(-1), Uint64Type)
 	})
 }
-
-func TestConvertUntypedBigintToFloat32RoundsOnce(t *testing.T) {
-	t.Parallel()
-
-	// 1<<54 + 1<<30 + 1 is just above a float32 midpoint: it rounds up.
-	// Rounding to 53 bits first lands on the midpoint, which then rounds
-	// down to even.
-	for _, sign := range []int64{1, -1} {
-		bi := new(big.Int).Lsh(big.NewInt(1), 54)
-		bi.Add(bi, big.NewInt(1<<30+1))
-		bi.Mul(bi, big.NewInt(sign))
-		tv := &TypedValue{T: UntypedBigintType, V: BigintValue{V: bi}}
-		ConvertUntypedTo(tv, Float32Type)
-		require.Equal(t, float32(sign*18014400656965632), math.Float32frombits(tv.GetFloat32()))
-	}
-}

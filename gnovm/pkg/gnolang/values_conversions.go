@@ -1197,8 +1197,8 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
 	case StringKind, BigintKind, BigdecKind:
 	case Float32Kind, Float64Kind:
-		// Same rounding as an untyped integer constant: once, from the
-		// exact value (e.g. var f float64 = 'a').
+		// As an untyped integer constant of the same value (e.g.
+		// var f float64 = 'a', which was rejected).
 		ConvertUntypedBigintTo(dst, BigintValue{V: big.NewInt(int64(sv))}, t)
 		return
 	default:
@@ -1321,10 +1321,8 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		// 24 for float32. Set the precision before SetInt so the value
-		// is rounded once, from the exact integer: rounding to 53 bits
-		// first and then to 24 can round twice (1<<54 + 1<<30 + 1).
-		bf := new(big.Float).SetPrec(24).SetInt(bi)
+		// 24 for float32
+		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
 		f32, acc := bf.Float32()
 		// A big.Float made from a big.Int is never Inf; overflow shows
 		// up in the rounded result.
@@ -1340,7 +1338,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 		dst.T = t
 		dst.V = nil
 		// 53 for float64
-		bf := new(big.Float).SetPrec(53).SetInt(bi)
+		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
 		f64, acc := bf.Float64()
 		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")

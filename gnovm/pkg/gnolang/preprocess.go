@@ -4651,16 +4651,13 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 }
 
 // foldStringOfLargeIntConst prepares string(cx), for an untyped integer
-// constant cx: a value outside the int32 range is no Unicode code point,
-// so string(cx) is "\uFFFD" (Go spec, conversions to string). cx becomes
-// the rune '\uFFFD', so its default type no longer overflows (string(1<<64)
-// was rejected). Values within int32, valid or not, are left to the regular
-// conversion.
+// constant cx beyond the int64 range: no such value is a Unicode code
+// point, so string(cx) is "\uFFFD" (Go spec, conversions to string). cx
+// becomes the rune '\uFFFD', so its default type, int, no longer overflows
+// (string(1<<64) was rejected). Values within int64 are left to the regular
+// conversion, which already gives "\uFFFD" for them.
 func foldStringOfLargeIntConst(cx *ConstExpr) {
-	if cx.T != UntypedBigintType {
-		return
-	}
-	if bi := cx.GetBigInt(); bi.IsInt64() && int64(int32(bi.Int64())) == bi.Int64() {
+	if cx.T != UntypedBigintType || cx.GetBigInt().IsInt64() {
 		return
 	}
 	cx.TypedValue = TypedValue{T: UntypedRuneType}
@@ -4676,9 +4673,11 @@ func isUntypedRuneConst(x Expr) bool {
 
 // untypedRuneOperands returns the operands of x that evalConst must
 // evaluate exactly: both operands of an arithmetic or bitwise operation on
-// two untyped rune constants, the left operand of a shift of one, or the
-// operand of a unary operation on one. It returns nil otherwise, for
-// comparisons too, whose int32 evaluation of two int32 runes is exact.
+// two untyped rune constants, or the left operand of a shift of one. It
+// returns nil otherwise: for comparisons, whose int32 evaluation of two
+// int32 runes is exact, and for unary operations, which the machine does
+// not define on untyped runes (-'a' is rejected, as before; +'a' cannot
+// overflow).
 func untypedRuneOperands(x Expr) []*Expr {
 	switch x := x.(type) {
 	case *BinaryExpr:
@@ -4690,13 +4689,6 @@ func untypedRuneOperands(x Expr) []*Expr {
 		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR, BAND_NOT:
 			if isUntypedRuneConst(x.Left) && isUntypedRuneConst(x.Right) {
 				return []*Expr{&x.Left, &x.Right}
-			}
-		}
-	case *UnaryExpr:
-		switch x.Op {
-		case ADD, SUB, XOR:
-			if isUntypedRuneConst(x.X) {
-				return []*Expr{&x.X}
 			}
 		}
 	}
@@ -4715,10 +4707,14 @@ func constSource(x Expr) string {
 		return constSourceOperand(x.Left) + " " + x.Op.TokenString() + " " + constSourceOperand(x.Right)
 	case *UnaryExpr:
 		return x.Op.TokenString() + constSourceOperand(x.X)
+	case *NameExpr:
+		return string(x.Name)
+	case *SelectorExpr:
+		return constSource(x.X) + "." + string(x.Sel)
 	case *CallExpr:
 		// The uint() conversion preprocessing wraps a shift count in.
 		if x.GetAttribute(ATTR_SHIFT_RHS) == true && len(x.Args) == 1 {
-			return constSource(x.Args[0])
+			return constSourceOperand(x.Args[0])
 		}
 	}
 	return x.String()
@@ -4750,6 +4746,15 @@ func constSourceOperand(x Expr) string {
 // default type, and the type of everything derived from it). The fix for
 // the program is a typed operand, e.g. int64('\U0010ffff') * '\U0010ffff'.
 func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *ConstExpr {
+	if bx, ok := x.(*BinaryExpr); ok && bx.Op == SHL &&
+		(*xs[0]).(*ConstExpr).GetInt32() == 0 {
+		// 0 << n is 0 for any count: fold it as the int32 folding did,
+		// without the bigint shift (and its shift cap).
+		cx := toConstExpr(x, TypedValue{T: UntypedRuneType})
+		cx.SetInt32(0)
+		setConstAttrs(cx)
+		return cx
+	}
 	src := constSource(x)
 	operand := constSource(*xs[0])
 	for _, px := range xs {
