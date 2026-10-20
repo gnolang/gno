@@ -305,7 +305,7 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 		case Uint64Type:
 			w.WriteUint(tv.GetUint64())
 		case Int256Type, Uint256Type:
-			w.WriteString(tv.GetBig256().String())
+			w.WriteString(sprint256(&tv))
 		case Float32Type:
 			w.WriteFloat(float64(math.Float32frombits(tv.GetFloat32())), 32)
 		case Float64Type:
@@ -620,7 +620,7 @@ func (tv TypedValue) WriteProtected(w *meteredWriter, seen *seenValues) {
 		case Uint64Type:
 			w.WriteUint(tv.GetUint64())
 		case Int256Type, Uint256Type:
-			w.WriteString(tv.GetBig256().String())
+			w.WriteString(sprint256(&tv))
 		case Float32Type:
 			w.WriteFloat(float64(math.Float32frombits(tv.GetFloat32())), 32)
 		case Float64Type:

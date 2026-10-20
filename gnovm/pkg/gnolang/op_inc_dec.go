@@ -18,11 +18,10 @@ func (m *Machine) doOpInc() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUIncFloat)
-	case Int256Kind, Uint256Kind:
-		m.incrCPU(OpCPUIncInt256)
 	default:
 		m.incrCPU(OpCPUIncInt)
 	}
+	m.incrCPU256(lv.T, OpCPUIncInt256, OpCPUIncInt)
 
 	// Per-N gas for BigInt/BigDec.
 	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntInc)
@@ -102,11 +101,10 @@ func (m *Machine) doOpDec() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUDecFloat)
-	case Int256Kind, Uint256Kind:
-		m.incrCPU(OpCPUDecInt256)
 	default:
 		m.incrCPU(OpCPUDecInt)
 	}
+	m.incrCPU256(lv.T, OpCPUDecInt256, OpCPUDecInt)
 
 	// Per-N gas for BigInt/BigDec.
 	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntDec)

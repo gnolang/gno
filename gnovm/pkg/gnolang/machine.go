@@ -1377,9 +1377,9 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 }
 
 // incrCPU256 charges the extra CPU of a 256-bit operation on a value of type
-// t, when the 64-bit cost of the operator, cost64, is already charged: at
-// dispatch for most operators, and by the flat OpCPU*Assign cost for
-// compound assignments.
+// t, when the 64-bit cost of the operator, cost64, is already charged: by the
+// handler's per-kind charge, at dispatch, or by the flat OpCPU*Assign cost
+// for compound assignments.
 func (m *Machine) incrCPU256(t Type, cost256, cost64 int64) {
 	if is256Type(t) {
 		m.incrCPU(cost256 - cost64)
@@ -1575,10 +1575,8 @@ const (
 	OpCPUBandn     = 71
 
 	// int256/uint256 operators: the full cost of the 256-bit operation.
-	// For operators whose 64-bit cost is charged at dispatch (Bor, Rem,
-	// Eql, ...), the handler adds the difference (see incrCPU256); for the
-	// others (Add, Sub, Mul, Quo, Inc, Dec) the handler charges this
-	// instead of the 64-bit cost.
+	// Every handler charges the 64-bit cost as for any integer, then
+	// incrCPU256 adds the difference.
 	//
 	// Ratio-scaled, like OpCPULazyBoundResolve: each 256-bit handler was
 	// benchmarked next to the same handler on int (bench_int256_test.go,
@@ -1589,26 +1587,26 @@ const (
 	// variants. The measured time includes boxing the result (one 32-byte
 	// heap allocation), which alloc gas also charges, so these round up.
 	// TODO(calibration): measure directly on the reference hardware.
-	OpCPUAddInt256   = 221 // 81 x 99.8/36.7 ns
-	OpCPUSubInt256   = 170 // 70 x 100.0/41.2 ns
-	OpCPUMulInt256   = 167 // 71 x 95.6/40.7 ns
-	OpCPUQuoInt256   = 386 // 138 x 144.0/51.6 ns (signed, 128-bit divisor)
-	OpCPURemInt256   = 360 // 142 x 152.6/60.2 ns (signed, 128-bit divisor)
-	OpCPUBandInt256  = 141 // 71 x 82.2/41.4 ns
-	OpCPUBorInt256   = 159 // 71 x 93.4/41.9 ns
-	OpCPUXorInt256   = 171 // 71 x 94.2/39.2 ns
-	OpCPUBandnInt256 = 165 // 71 x 95.0/41.0 ns
-	OpCPUShlInt256   = 165 // 80 x 83.4/40.5 ns
-	OpCPUShrInt256   = 164 // 79 x 82.4/39.8 ns
-	OpCPUEqlInt256   = 108 // 93 x 59.4/51.4 ns (also Neq)
-	OpCPULssInt256   = 99  // 73 x 54.0/39.8 ns (also Leq, Gtr, Geq)
-	OpCPUUnegInt256  = 100 // 69 x 63.6/44.1 ns
-	OpCPUUxorInt256  = 103 // 69 x 63.9/43.2 ns
-	OpCPUIncInt256   = 221 // as Add: x+1 runs the same addition
-	OpCPUDecInt256   = 221 // as Add (Sub's carry chain measured no slower)
+	OpCPUAddInt256   = 221            // 81 x 99.8/36.7 ns
+	OpCPUSubInt256   = 170            // 70 x 100.0/41.2 ns
+	OpCPUMulInt256   = 167            // 71 x 95.6/40.7 ns
+	OpCPUQuoInt256   = 386            // 138 x 144.0/51.6 ns (signed, 128-bit divisor)
+	OpCPURemInt256   = 360            // 142 x 152.6/60.2 ns (signed, 128-bit divisor)
+	OpCPUBandInt256  = 141            // 71 x 82.2/41.4 ns
+	OpCPUBorInt256   = 159            // 71 x 93.4/41.9 ns
+	OpCPUXorInt256   = 171            // 71 x 94.2/39.2 ns
+	OpCPUBandnInt256 = 165            // 71 x 95.0/41.0 ns
+	OpCPUShlInt256   = 165            // 80 x 83.4/40.5 ns
+	OpCPUShrInt256   = 164            // 79 x 82.4/39.8 ns
+	OpCPUEqlInt256   = 108            // 93 x 59.4/51.4 ns (also Neq)
+	OpCPULssInt256   = 110            // 73 x 59.8/40.0 ns (also Leq, Gtr, Geq)
+	OpCPUUnegInt256  = 100            // 69 x 63.6/44.1 ns
+	OpCPUUxorInt256  = 103            // 69 x 63.9/43.2 ns
+	OpCPUIncInt256   = OpCPUAddInt256 // x+1 runs the same addition
+	OpCPUDecInt256   = OpCPUAddInt256 // as Add (Sub's carry chain measured no slower)
 	// Conversions to or from a 256-bit kind, charged instead of
 	// OpCPUConvertNumeric. Float conversions go through math/big.
-	OpCPUConvertInt256      = 339 // 151 x 73.0/32.5 ns (int -> int256; int256 -> int is 65.2 ns)
+	OpCPUConvertInt256      = 274 // 151 x 54.7/30.2 ns (int -> int256; int256 -> int is 42.1 ns)
 	OpCPUConvertInt256Float = 632 // 151 x 135.9/32.5 ns (int256 -> float64; float64 -> int256 is 97.9 ns)
 
 	/* Other expression operators */

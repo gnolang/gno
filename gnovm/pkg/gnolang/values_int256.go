@@ -235,6 +235,35 @@ func runeStrFromBig(b *big.Int) string {
 	return runeStrFromInt64(b.Int64())
 }
 
+// exactIntegerValue64 returns the value of a 64-bit-or-narrower integer tv,
+// as an int64 for signed kinds and as the uint64 bits for unsigned ones.
+func exactIntegerValue64(tv *TypedValue) int64 {
+	switch tv.T.Kind() {
+	case IntKind:
+		return tv.GetInt()
+	case Int8Kind:
+		return int64(tv.GetInt8())
+	case Int16Kind:
+		return int64(tv.GetInt16())
+	case Int32Kind:
+		return int64(tv.GetInt32())
+	case Int64Kind:
+		return tv.GetInt64()
+	case UintKind:
+		return int64(tv.GetUint())
+	case Uint8Kind:
+		return int64(tv.GetUint8())
+	case Uint16Kind:
+		return int64(tv.GetUint16())
+	case Uint32Kind:
+		return int64(tv.GetUint32())
+	case Uint64Kind:
+		return int64(tv.GetUint64())
+	default:
+		panic(fmt.Sprintf("exactIntegerValue64: unexpected kind %s", tv.T.Kind()))
+	}
+}
+
 // exactIntegerValue returns the mathematical value of an integer-kinded tv.
 func exactIntegerValue(tv *TypedValue) *big.Int {
 	switch tv.T.Kind() {
@@ -312,15 +341,12 @@ func convert256(alloc *Allocator, tv *TypedValue, t Type, isConst bool) {
 	var bits uint256.Int
 	var exact *big.Int // nil for a non-integral or non-finite float source
 	switch tvk {
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
-		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		exact = exactIntegerValue(tv)
-		bits = bigToBits256(exact)
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
+		bits = bits256FromInt64(exactIntegerValue64(tv))
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		bits.SetUint64(uint64(exactIntegerValue64(tv)))
 	case Int256Kind, Uint256Kind:
 		bits = tv.GetBits256()
-		if isConst || !is256Kind(k) {
-			exact = bits256ToBig(&bits, tvk == Int256Kind)
-		}
 	case Float32Kind, Float64Kind:
 		if !is256Kind(k) {
 			failCannot()
@@ -338,54 +364,52 @@ func convert256(alloc *Allocator, tv *TypedValue, t Type, isConst bool) {
 		failCannot()
 	}
 
+	// The exact value is needed only for the constant range check and for
+	// the string conversion; runtime integer conversions stay on the bits.
+	if isConst || k == StringKind {
+		exact = exactIntegerValue(tv)
+	}
 	if isConst && isIntegerKind(k) && !integerKindFits(exact, k) {
 		panic(fmt.Sprintf("constant %s overflows %s", exact.String(), k))
 	}
 
-	switch k {
-	case Int256Kind, Uint256Kind:
+	if is256Kind(k) {
 		tv.T = t
 		tv.SetBits256(alloc, &bits)
-	case IntKind:
+		return
+	}
+	if k != StringKind {
 		tv.T, tv.V = t, nil
+	}
+	switch k {
+	case IntKind:
 		tv.SetInt(int64(bits[0]))
 	case Int8Kind:
-		tv.T, tv.V = t, nil
 		tv.SetInt8(int8(bits[0]))
 	case Int16Kind:
-		tv.T, tv.V = t, nil
 		tv.SetInt16(int16(bits[0]))
 	case Int32Kind:
-		tv.T, tv.V = t, nil
 		tv.SetInt32(int32(bits[0]))
 	case Int64Kind:
-		tv.T, tv.V = t, nil
 		tv.SetInt64(int64(bits[0]))
 	case UintKind:
-		tv.T, tv.V = t, nil
 		tv.SetUint(bits[0])
 	case Uint8Kind:
-		tv.T, tv.V = t, nil
 		tv.SetUint8(uint8(bits[0]))
 	case Uint16Kind:
-		tv.T, tv.V = t, nil
 		tv.SetUint16(uint16(bits[0]))
 	case Uint32Kind:
-		tv.T, tv.V = t, nil
 		tv.SetUint32(uint32(bits[0]))
 	case Uint64Kind:
-		tv.T, tv.V = t, nil
 		tv.SetUint64(bits[0])
 	case Float32Kind:
 		f := bits256ToFloat32(&bits, tvk == Int256Kind)
 		if isConst && f&^softfloat.NegZero32 == softfloat.Inf32 {
 			panic(fmt.Sprintf("cannot convert constant of type %s to %s", tvk, k))
 		}
-		tv.T, tv.V = t, nil
 		tv.SetFloat32(f)
 	case Float64Kind:
 		f := bits256ToFloat64(&bits, tvk == Int256Kind)
-		tv.T, tv.V = t, nil
 		tv.SetFloat64(f)
 	case StringKind:
 		tv.V = alloc.NewString(runeStrFromBig(exact))
@@ -490,19 +514,17 @@ func bits256Shr(alloc *Allocator, lv *TypedValue, shift uint64) {
 // bits256Cmp compares two values of the same 256-bit kind.
 func bits256Cmp(lv, rv *TypedValue) int {
 	x, y := lv.GetBits256(), rv.GetBits256()
-	if x.Eq(&y) {
-		return 0
+	if lv.T.Kind() != Int256Kind {
+		return x.Cmp(&y)
 	}
-	if lv.T.Kind() == Int256Kind {
-		if x.Slt(&y) {
-			return -1
-		}
+	switch {
+	case x.Eq(&y):
+		return 0
+	case x.Slt(&y):
+		return -1
+	default:
 		return 1
 	}
-	if x.Lt(&y) {
-		return -1
-	}
-	return 1
 }
 
 // shiftCount returns the shift count held by rv, which is a uint or, for a
@@ -523,12 +545,26 @@ func shiftCount(rv *TypedValue) uint64 {
 // outside the int64 range saturates, so that bounds checks reject it instead
 // of silently using its truncated low bits.
 func convertGetInt256(tv *TypedValue) int64 {
-	b := tv.GetBig256()
-	if b.IsInt64() {
-		return b.Int64()
-	}
-	if b.Sign() < 0 {
+	z := tv.GetBits256()
+	if tv.T.Kind() == Int256Kind && z.Sign() < 0 {
+		if z[1]&z[2]&z[3] == math.MaxUint64 && int64(z[0]) < 0 {
+			return int64(z[0]) // in the int64 range
+		}
 		return -1
 	}
-	return math.MaxInt64
+	if !z.IsUint64() || z.Uint64() > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	return int64(z.Uint64())
+}
+
+// sprint256 formats an int256 or uint256 value in decimal.
+func sprint256(tv *TypedValue) string {
+	z := tv.GetBits256()
+	if tv.T.Kind() == Int256Kind && z.Sign() < 0 {
+		var abs uint256.Int
+		abs.Neg(&z)
+		return "-" + abs.Dec()
+	}
+	return z.Dec()
 }

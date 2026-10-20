@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/big"
 	"strconv"
 	"strings"
 
@@ -267,26 +266,24 @@ func convertInt256Arg(arg string, signed bool) uint256.Int {
 	if len(digits) > 1 && digits[0] == '0' {
 		panic(fmt.Sprintf("error parsing %s %q: leading zero", name, arg))
 	}
-	b, ok := new(big.Int).SetString(arg, 10)
-	if !ok {
-		panic(fmt.Sprintf("error parsing %s %q", name, arg))
-	}
-	if signed {
-		if b.Cmp(minInt256) < 0 || b.Cmp(maxInt256) > 0 {
-			panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
-		}
-	} else if b.BitLen() > 256 {
+	var z uint256.Int
+	if err := z.SetFromDecimal(digits); err != nil {
 		panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
 	}
-	var z uint256.Int
-	z.SetFromBig(b) // two's complement for negative int256 values
+	if signed {
+		// The magnitude may reach 2^255 for a negative value only.
+		var limit uint256.Int
+		limit.Lsh(uint256.NewInt(1), 255)
+		neg := len(digits) < len(arg)
+		if z.Gt(&limit) || (!neg && z.Eq(&limit)) {
+			panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
+		}
+		if neg {
+			z.Neg(&z) // two's complement
+		}
+	}
 	return z
 }
-
-var (
-	maxInt256 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 255), big.NewInt(1))
-	minInt256 = new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), 255))
-)
 
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)

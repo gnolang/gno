@@ -234,11 +234,10 @@ func (m *Machine) doOpAdd() {
 		m.incrCPU(OpCPUAddString)
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUAddFloat)
-	case Int256Kind, Uint256Kind:
-		m.incrCPU(OpCPUAddInt256)
 	default:
 		m.incrCPU(OpCPUAddInt)
 	}
+	m.incrCPU256(lv.T, OpCPUAddInt256, OpCPUAddInt)
 
 	// Per-N gas for BigInt/BigDec.
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntAdd)
@@ -262,11 +261,10 @@ func (m *Machine) doOpSub() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUSubFloat)
-	case Int256Kind, Uint256Kind:
-		m.incrCPU(OpCPUSubInt256)
 	default:
 		m.incrCPU(OpCPUSubInt)
 	}
+	m.incrCPU256(lv.T, OpCPUSubInt256, OpCPUSubInt)
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntSub)
 	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
@@ -323,11 +321,10 @@ func (m *Machine) doOpMul() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUMulFloat)
-	case Int256Kind, Uint256Kind:
-		m.incrCPU(OpCPUMulInt256)
 	default:
 		m.incrCPU(OpCPUMulInt)
 	}
+	m.incrCPU256(lv.T, OpCPUMulInt256, OpCPUMulInt)
 
 	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntMulQ)
 	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecMulQ)
@@ -350,11 +347,10 @@ func (m *Machine) doOpQuo() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUQuoFloat)
-	case Int256Kind, Uint256Kind:
-		m.incrCPU(OpCPUQuoInt256)
 	default:
 		m.incrCPU(OpCPUQuoInt)
 	}
+	m.incrCPU256(lv.T, OpCPUQuoInt256, OpCPUQuoInt)
 
 	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntQuoQ)
 	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecQuoQ)

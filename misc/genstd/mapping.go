@@ -113,11 +113,7 @@ func (m *mapping) loadParamsResults(gnof, gof funcDecl) {
 
 func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field) {
 	iterFields(gnol, gol, func(gnoe, goe ast.Expr) error {
-		if m.isTypedValue(goe) {
-			*dst = append(*dst, mappingType{Type: gnoe, GoType: goe, IsTypedValue: true})
-		} else {
-			*dst = append(*dst, mappingType{Type: gnoe, GoType: goe})
-		}
+		*dst = append(*dst, mappingType{Type: gnoe, GoType: goe, IsTypedValue: m.isTypedValue(goe)})
 		return nil
 	})
 }
