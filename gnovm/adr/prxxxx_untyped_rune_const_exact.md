@@ -19,8 +19,6 @@ var w int64 = '\U0010ffff' * '\U0010ffff' // Go: 1241243320321, Gno: -2228223
 go/types accepts such a program (the value fits int64), so it deployed and
 computed the wrong value. Related defects found on the same path:
 
-- `'a' + 1` and `1 + 'a'` were untyped int, not untyped rune, so
-  `r := 'a' + 1` defaulted to `int` and `[]rune{r}` was rejected (#6339).
 - `'a' << 40` failed with "constant overflows"; `-'a'` and `^'a'` failed with
   "unexpected type <untyped> int32 in operation".
 - `var f float64 = 'a'` failed: `ConvertUntypedRuneTo` had no float case.
@@ -32,7 +30,30 @@ Found while fixing it, on the shared untyped-integer conversion path:
 - An integer constant converted to float32 was rounded twice (first to 53
   bits, then to 24), so `float32(1<<54 + 1<<30 + 1)` lost the round-up.
 - `string(x)` of an integer constant beyond int64 (`string(1<<64)`) failed,
-  where Go gives "\uFFFD".
+  where Go gives "�".
+
+## Scope
+
+This change makes **untyped rune constant arithmetic exact**: an operation
+whose operands are untyped rune constants (`'\U0010ffff' * '\U0010ffff'`,
+`-'a'`, `'a' << 40`, `'a' < 'b'`) is folded without wrapping, and every
+conversion of an untyped integer or rune constant range checks the exact
+value.
+
+It does **not** change the kind of a mixed operation: an untyped rune and an
+untyped int still give an untyped int, as on master. Go gives an untyped
+rune (#6339). Fixing that interacts with Gno's non-conformant typing of
+non-constant shifts (`'a' << s`): every attempt to change the kind order
+produced new wrong results or rejections for non-constant shift expressions
+that master handles. Both are left to a follow-up (see "Related, not fixed
+here").
+
+For non-constant expressions the rule is: no program master accepted is
+rejected, and none produces a value different from master's, unless
+master's value was wrong and the new value is gc's. The exception is an
+untyped rune constant beyond int32 that would otherwise reach runtime: that
+is rejected (with the usual overflow error, as gc does), since runtime
+arithmetic reads untyped runes as int32.
 
 ## Decision
 
@@ -58,22 +79,10 @@ one, or a unary operation on one (`untypedRuneOperands`) and hands it to
 of the same value, the expression is evaluated by the machine's existing
 bigint arithmetic (with its gas charges and shift cap), and an integer
 result becomes an untyped rune again. Comparisons return their untyped bool
-unchanged. Doing this inside `evalConst` covers every folding caller, not
-only the binary, shift and unary cases of `preprocess`.
+unchanged. Doing this inside `evalConst` covers every folding caller.
 
-The machine's int32 path for `UntypedRuneType` is left in place but no
-longer reached by constant folding of rune operands; in debug builds
-`GetInt32` panics on a big-form untyped rune so a missed path fails loudly.
-
-### Kind ordering: integer < rune
-
-`PrimitiveType.Specificity` now orders untyped bigint after untyped rune,
-matching the spec ("integer, rune, floating-point, complex"). In
-`'a' + 1` the untyped int is converted to an untyped rune;
-`ConvertUntypedBigintTo` keeps the exact value for that target
-(`'a' + 1<<40` is a valid untyped rune). Untyped string keeps its place
-before rune, so the only changed diagnostic is `"a" + 1`, which now reads
-"cannot use untyped Bigint as StringKind" (as `1 + "a"` already did).
+The machine's int32 path for `UntypedRuneType` is left in place; it is no
+longer reached by constant folding of rune operands.
 
 ### Conversion: one range check, against the exact value
 
@@ -83,7 +92,9 @@ integer target (int32 included), converts to float32/float64, bigint and
 bigdec, and clears `N` before writing a narrower result. The "simple
 conversion" shortcut in `ConvertUntypedTo` (same kind, retag only) is
 skipped for a big-form untyped rune. Messages keep the existing
-"rune overflows target kind" / "rune underflows target kind" wording.
+"rune overflows target kind" / "rune underflows target kind" wording. An
+untyped bigint converted to an untyped rune is range checked against int32,
+as before: only folding produces big-form runes.
 
 Integer to float conversion rounds once, from the exact value: the
 `big.Float` gets the target precision before `SetInt`.
@@ -91,47 +102,32 @@ Integer to float conversion rounds once, from the exact value: the
 Two conversion-call cases in the preprocessor follow. `float64(r)` of an
 untyped rune converts the exact value directly. `string(x)` of an untyped
 integer or rune constant outside the int32 range is folded to the rune
-'\uFFFD' first (`foldStringOfLargeIntConst`), since no value there is a code
+'�' first (`foldStringOfLargeIntConst`), since no value there is a code
 point; this holds for any size and for named string types. Other conversion
-targets keep normal defaulting, so `interface{}('a' << 40)` still fails, as
-the constant cannot default to `rune`.
+targets keep normal defaulting, so `interface{}('a' << 40)` fails, as the
+constant cannot default to `rune`.
 
-### Non-constant shifts: scope boundary
+### No big-form untyped rune at runtime
 
-This change is about exact constant arithmetic. Go types a non-constant
-shift of an untyped constant (`'a' << s`) from the context of the whole
-expression it sits in; Gno's preprocessor does not implement that rule in
-general, before or after this change (see "Related, not fixed here"). The
-rule kept here for non-constant expressions is narrower: **never produce a
-value different from gc's, and never let an untyped rune beyond int32
-reach runtime.** Where the type cannot be resolved correctly, the
-expression is rejected, as master already does.
+A big-form untyped rune is valid only until it takes a type. Non-constant
+shift expressions can leave a constant operand untyped into runtime, where
+it would be read as int32. Three places now make sure that never happens
+for a big-form rune, each without changing anything else:
 
-With rune now ranking above int, the old operand handling would have let a
-big-form untyped rune reach runtime int32 arithmetic
-(`('a' << s) + (1 << 40)` printed 97), so the context-free cases are
-resolved: both operands take one type, `untypedOperandsDefault`, the default
-type of the later kind of the two, and the constant operand is range
-checked against it before runtime. This applies to:
+- `rejectBigUntypedRune` converts such an operand to rune (and so fails with
+  "rune overflows target kind") where an untyped binary expression without
+  context is typed in `checkOrConvertType`
+  (`x := big + ('a' << s)`), and on both operands of a comparison
+  (`('a' << s) < big`), which passes no type to its operands.
+- A non-constant untyped switch tag (`switch '\x00' << s`) gets its default
+  type before its cases are typed against it, so a case such as
+  `'\x01' << 40` is converted and range checked instead of being compared as
+  an untyped value. For a unary tag (`switch +('a' << s)`), the unary
+  expression's cached type is updated together with its operand's.
 
-- an untyped binary expression with no context (`x := 1 + ('a' << s)`);
-- an interface context (`var x interface{} = 1 + ('a' << s)`, interface
-  arguments and map keys), where the expression is defaulted as a whole
-  rather than each operand pushed the interface separately;
-- every comparison of two untyped operands (before, only `==` and `!=`);
-- a non-constant untyped switch tag, which is defaulted before the cases are
-  typed against it (`switch '\x00' << s { case '\x01' << 40: }` is
-  rejected, as in gc).
-
-Two untyped non-constant operands of *different* kinds in arithmetic
-(`('a' << s) + (1 << s)`) take their type from an enclosing context that is
-not known where they are combined, so they keep master's rejection
-("incompatible types in binary expression"), even where gc accepts them
-(`int64(('a' << s) + (1 << s))`, `var x int64 = ...`). Two of the same kind
-keep master's eager defaulting.
-
-A float shift such as `1<<s + 1.0` now fails as a `float64` shift, as in
-Go, instead of a bigdec one.
+An interface context pushes the interface into each operand, which defaults
+a constant operand to rune, so `var x interface{} = ('a' << s) + big` fails
+too.
 
 ### Guard: debug-only
 
@@ -140,11 +136,11 @@ Made unconditional in production, the check (one `V != nil` test, with the
 panic kept out of line so `GetInt32` stays inlinable) costs about 1%: an
 isolated int32 `doOpAdd` went from 21.61 ns to 21.80 ns (+0.9%, p=0.003,
 n=10), and a 3,000,000-iteration int32 loop under `gno run` from 0.82 s to
-0.83-0.84 s. Gas is not affected, since gas does not depend on this code.
-Because the cost is measurable on every int32 operation, the guard stays
-debug-only. Instead, the guard was made unconditional temporarily and the
-gnolang tests (filetests included), `gnovm/pkg/test`, `gnovm/cmd/gno` and the
-examples suite were run with it: it never fired.
+0.83-0.84 s. Gas is not affected. Because the cost is measurable on every
+int32 operation, the guard stays debug-only. Instead, the guard was made
+unconditional temporarily and the gnolang tests (filetests included),
+`gnovm/pkg/test`, `gnovm/cmd/gno` and the examples suite were run with it:
+it never fired.
 
 ### Imported constants: read the recomputed value
 
@@ -157,10 +153,12 @@ constants, always reflects the running VM. Importers, however, folded
 package deployed before this fix would keep exporting the wrapped value to
 its importers (`int64(p.C)` = -2228223) while its own code saw the exact one.
 
-The preprocessor now resolves an imported constant from the imported
-package node's static block (`importedConst`), falling back to the old
-evaluation when that slot is not set. Importers and the package itself thus
-agree, on fresh deploys and after an upgrade alike. The persisted slot is
+The preprocessor now resolves an imported **constant** (per the package
+node's constant metadata, `GetIsConstAt`) from the imported package node's
+static block (`importedConst`), falling back to the old evaluation when that
+slot is not set. A package variable is never read from its static slot,
+which holds only a placeholder for its type; it keeps the old evaluation
+even when its static type is untyped. The persisted slot of a constant is
 left as is: nothing folds from it any more, but state exports still show it.
 
 How such a change reaches a live chain is a chain-level decision outside
@@ -183,23 +181,30 @@ folded values without any migration of persisted slots.
   `var r = '\U0010ffff' * '\U0010ffff'` would silently default to `int`
   instead of failing, and `const c = ...; r := c / '\U0010ffff'` would not
   be a rune.
+- **Also fix the kind order (#6339).** Tried; it changes the type of every
+  mixed rune/int constant, and with Gno's non-constant shift typing that
+  produced wrong values (`int64((('a'+1)<<s) + (('b'+1)<<s))` gave 0) and
+  new rejections of programs master accepts. Deferred to the non-constant
+  shift follow-up.
 
 ## Consequences
 
-- Untyped rune constant expressions match Go's values and types.
-- Out-of-range defaults (`var r = big`, `println(big)`, `rune(big)`) fail
-  at preprocess, as gc does.
+- Untyped rune constant expressions match Go's values; out-of-range
+  defaults (`var r = big`, `println(big)`, `rune(big)`) fail at preprocess,
+  as gc does.
 - Typed rune arithmetic is unchanged and still wraps at runtime.
 - Importers see the constant folding of the running VM, not that of the VM
   that deployed the imported package.
-- Consensus-breaking. Package blocks are amino-encoded with all eight
-  bytes of `N`, so a deployment (or a replay) of a package holding any of
-  these constants stores different bytes:
+- Every filetest present on master passes with master's golden output, and
+  a byte-for-byte dump of every package-block value of the stdlibs and of
+  the example packages the test store loads is identical on master and on
+  this branch, so the pinned app hash is unchanged.
+- Consensus-breaking for affected code. Package blocks are amino-encoded
+  with all eight bytes of `N`, so a deployment (or a replay) of a package
+  holding any of these constants stores different bytes:
   - a result that used to wrap now has its exact value;
-  - a mixed rune/int constant (`'a' + 1`) is an untyped rune, not an
-    untyped bigint (`N` holds the int32, `V` is nil);
   - a comparison of two untyped runes whose left operand does not fit in
-    one byte or is negative (`'\u0100' == '\u0100'`) has `N` zeroed past
+    one byte or is negative (`'Ā' == 'Ā'`) has `N` zeroed past
     the boolean; it used to keep the operand's upper bytes
     (`01 01 00 …` → `01 00 00 …`);
   - a negative untyped rune narrowed to `int8` or `int16`
@@ -207,28 +212,24 @@ folded values without any migration of persisted slots.
     keep the int32 sign extension (`ff ff ff ff 00 …` → `ff 00 …`).
   The values and types of the last two are unchanged.
   `TestUntypedRuneConstLayout` pins these bytes.
-- In the genesis set, a byte-for-byte dump of every package-block value of
-  the stdlibs (and of the example packages the test store loads) on master
-  and on this branch differs in one slot only: `unicode.UpperLower`
-  (`MaxRune + 1`), now an untyped rune as in Go. It moves the pinned app
-  hash in `gno.land/pkg/sdk/vm/apphash_crossrealm38_test.go`.
-- #6339 is resolved; the gocorpus `rune.go` entry carrying
-  `KnownIssue compile: #6339` (draft #6340) would flip to `Clean compile`.
 
 ## Related, not fixed here
 
-Non-constant shifts are not typed from their context (Go spec, Operators).
+**Kind of mixed rune/int constants (#6339)** and **context typing of
+non-constant shifts.** `'a' + 1` is still an untyped int (Go: untyped rune),
+and non-constant shift operands are still not typed from their context.
 Divergences that remain, all present on master:
 
-- `int64(('a' << s) + ('b' << s))` with `s = 32`: gc 837518622720, Gno 0
-  (two non-constant operands of the same kind default to rune before the
-  conversion applies);
-- `var x int64 = ('a' << s) + ('b' << s)`: gc accepts, Gno rejects
-  (`cannot use int32 as int64`);
+- `r := 'a' + 1; _ = []rune{r}`: gc accepts, Gno rejects
+  (`cannot use int as int32`);
+- `x := 1 + ('a' << s)`: gc 98 (rune), Gno 1;
+- `println(('a' << s) < 100)`: gc true, Gno false;
+- `var x interface{} = ('a' << s) + (1 << 40)`: gc rejects, Gno 97;
+- `int64(('a' << s) + ('b' << s))` with `s = 32`: gc 837518622720, Gno 0;
 - `int64(('a' << s) + (1 << s))`, `var x int64 = ('a' << s) + (1 << s)`: gc
   accepts, Gno rejects (`incompatible types`).
 
-Typed constant arithmetic still folds with the runtime (wrapping)
+**Typed constant arithmetic** still folds with the runtime (wrapping)
 arithmetic, for every typed integer kind:
 
 ```go
@@ -244,10 +245,8 @@ separate change.
 
 | File | Role |
 |------|------|
-| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `untypedOperandsDefault`, switch tag defaulting, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
+| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `rejectBigUntypedRune`, switch tag defaulting, unary cached type, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
 | `gnovm/pkg/gnolang/values.go` | `GetUntypedRune`, `SetUntypedRune`, `Sign` |
 | `gnovm/pkg/gnolang/values_conversions.go` | `ConvertUntypedRuneTo`, `convertUntypedIntegerTo` |
-| `gnovm/pkg/gnolang/types.go` | `Specificity` ordering |
-| `gnovm/pkg/gnolang/preprocess_import_const_test.go` | persisted-layout test and reload test for imported constants |
-| `gnovm/tests/files/rune4.gno`–`rune31.gno` | filetests |
-| `gnovm/tests/files/types/shift_f2d.gno`, `shift_f3.gno`, `shift_f3b.gno`, `shift_f4c.gno` | float shift diagnostics now name `float64` |
+| `gnovm/pkg/gnolang/preprocess_import_const_test.go` | persisted-layout test, reload tests for imported constants and variables |
+| `gnovm/tests/files/rune4.gno`–`rune26.gno` | filetests |

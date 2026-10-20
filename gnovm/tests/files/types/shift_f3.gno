@@ -7,7 +7,7 @@ func main() {
 }
 
 // Error:
-// main/shift_f3.gno:5:6-21: operator << not defined on: Float64Kind
+// main/shift_f3.gno:5:6-21: operator << not defined on: BigdecKind
 
 // TypeCheckError:
 // main/shift_f3.gno:5:11: invalid operation: shifted operand 1 (type float64) must be integer

@@ -1,32 +1,19 @@
 package main
 
-// An operation between an untyped rune and an untyped integer constant
-// yields an untyped rune (gnolang/gno#6339).
+// In an interface context, the untyped rune constant beyond int32 takes
+// its default type, rune, which it overflows.
 
-var (
-	r1 = 'a' + 1
-	r2 = 1 + 'a'
-	r3 = 'a' * 2
-	r4 = 'a' << 1
-	rs = []rune{r1, r2, r3, r4}
-)
+var s uint
 
-const big = 'a' + 1<<40 // untyped rune beyond int32
+const big = '\U0010ffff' * '\U0010ffff'
 
 func main() {
-	println(rs[0], rs[1], rs[2], rs[3])
-	var x int64 = big
-	var y int64 = 1<<40 + 'a'
-	println(x, y)
-	r := big - 1<<40 // back in range, defaults to rune
-	println([]rune{r}[0])
-	// with an untyped float the result is an untyped float.
-	var f float64 = 'a' + 0.5
-	println(f == 97.5, int64(f*2))
+	var x interface{} = ('a' << s) + big
+	println(x)
 }
 
-// Output:
-// 98 98 194 194
-// 1099511627873 1099511627873
-// 97
-// true 195
+// Error:
+// main/rune7.gno:11:6-38: rune overflows target kind
+
+// TypeCheckError:
+// main/rune7.gno:11:35: big (untyped rune constant 1241243320321) overflows rune

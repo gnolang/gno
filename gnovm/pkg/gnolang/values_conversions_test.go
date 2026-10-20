@@ -207,11 +207,15 @@ func TestConvertUntypedRuneTo(t *testing.T) {
 	ConvertUntypedTo(tv, UntypedBigintType)
 	require.Equal(t, 0, big1.Cmp(tv.GetBigInt()))
 
-	// An untyped bigint becomes an untyped rune without an int32 bound.
-	tv = &TypedValue{T: UntypedBigintType, V: BigintValue{V: big1}}
+	// An untyped bigint converted to an untyped rune is range checked
+	// against int32, as before: only folding produces big-form runes.
+	tv = &TypedValue{T: UntypedBigintType, V: BigintValue{V: big.NewInt('a')}}
 	ConvertUntypedTo(tv, UntypedRuneType)
-	require.True(t, tv.isBigUntypedRune())
-	require.Equal(t, 0, big1.Cmp(tv.GetUntypedRune()))
+	require.False(t, tv.isBigUntypedRune())
+	require.Equal(t, int32('a'), tv.GetInt32())
+	require.PanicsWithValue(t, "bigint overflows target kind", func() {
+		ConvertUntypedTo(&TypedValue{T: UntypedBigintType, V: BigintValue{V: big1}}, UntypedRuneType)
+	})
 
 	// An in-range rune to a narrower type leaves no stale bytes behind.
 	tv = newRune(big.NewInt(0x141))

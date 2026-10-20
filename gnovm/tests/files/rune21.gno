@@ -1,16 +1,19 @@
 package main
 
-// ('a' << s) + (1 << 40) is a rune: the constant 1<<40 overflows it.
+// An untyped rune constant beyond int32 cannot be an operand of a
+// non-constant shift expression of type rune.
 
 var s uint
 
+const big = '\U0010ffff' * '\U0010ffff'
+
 func main() {
-	x := ('a' << s) + (1 << 40)
+	x := big + ('a' << s)
 	println(x)
 }
 
 // Error:
-// main/rune21.gno:8:2-29: bigint overflows target kind
+// main/rune21.gno:11:2-23: rune overflows target kind
 
 // TypeCheckError:
-// main/rune21.gno:8:21: 1 << 40 (untyped rune constant 1099511627776) overflows rune; main/rune21.gno:8:20: (1 << 40) (untyped rune constant 1099511627776) overflows rune
+// main/rune21.gno:11:7: big (untyped rune constant 1241243320321) overflows rune

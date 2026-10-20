@@ -128,7 +128,7 @@ const (
 		n    [8]byte
 	}{
 		{"Lit", UntypedRuneType, [8]byte{0x61}},
-		{"Sum", UntypedRuneType, [8]byte{0x62}},
+		{"Sum", UntypedBigintType, [8]byte{}}, // rune op int stays an untyped int, as before
 		{"Big", UntypedRuneType, [8]byte{}},
 		{"Eq", UntypedBoolType, [8]byte{0x01}}, // was 01 01 00 ...
 		{"Neg8", Int8Type, [8]byte{0xff}},      // was ff ff ff ff 00 ...
@@ -150,4 +150,76 @@ const (
 	var big2 TypedValue
 	amino.MustUnmarshal(amino.MustMarshal(big), &big2)
 	require.Equal(t, int64(1241243320321), big2.V.(BigintValue).V.Int64())
+}
+
+// TestImportedVarNotFolded checks that a package variable with an untyped
+// initializer is read from the package value, not folded from its static
+// slot (which holds only a placeholder for its type), both at deploy and
+// after a restart.
+func TestImportedVarNotFolded(t *testing.T) {
+	const (
+		pPath = "gno.land/p/demo/runevar"
+		qPath = "gno.land/p/demo/runevaruser"
+	)
+	db := memdb.NewMemDB()
+	tm2 := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	mod := func(path string) *std.MemFile {
+		return &std.MemFile{Name: "gnomod.toml", Body: "module = \"" + path + "\"\ngno = \"0.9\"\n"}
+	}
+	run := func(st Store, mpkg *std.MemPackage) *PackageValue {
+		m := NewMachineWithOptions(MachineOptions{Store: st, Output: io.Discard})
+		defer m.Release()
+		_, pv := m.RunMemPackage(mpkg, true)
+		return pv
+	}
+	user := func(path, name string) *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserProd, Name: name, Path: path,
+			Files: []*std.MemFile{
+				mod(path),
+				{Name: "q.gno", Body: "package " + name + "\n\nimport \"" + pPath + "\"\n\n" +
+					"var (\n\tA = runevar.X\n\tB = runevar.Y\n\tC = runevar.Z\n)\n"},
+			},
+		}
+	}
+	check := func(st Store, qv *PackageValue) {
+		t.Helper()
+		qpn := qv.GetPackageNode(st)
+		blk := qv.GetBlock(st)
+		for name, want := range map[Name]int64{"A": 97, "B": 1, "C": 'a'} {
+			idx, ok := qpn.GetLocalIndex(name)
+			require.True(t, ok, name)
+			tv := blk.Values[idx]
+			if hi, ok := tv.V.(*HeapItemValue); ok {
+				tv = hi.Value
+			}
+			var got int64
+			switch tv.T.Kind() {
+			case Int32Kind:
+				got = int64(tv.GetInt32())
+			case IntKind:
+				got = tv.GetInt()
+			default:
+				t.Fatalf("%s: unexpected type %v", name, tv.T)
+			}
+			require.Equal(t, want, got, name)
+		}
+	}
+
+	st := NewStore(nil, tm2, tm2)
+	run(st, &std.MemPackage{
+		Type: MPUserProd, Name: "runevar", Path: pPath,
+		Files: []*std.MemFile{
+			mod(pPath),
+			{Name: "v.gno", Body: "package runevar\n\nvar s uint\n\nvar (\n\tX = +('a' << s)\n\tY = +(1 << s)\n\tZ = 'a' << s\n)\n"},
+		},
+	})
+	check(st, run(st, user(qPath, "runevaruser")))
+
+	// Restart, as the keeper does, and import again.
+	st2 := NewStore(nil, tm2, tm2)
+	m := NewMachineWithOptions(MachineOptions{Store: st2, Output: io.Discard})
+	m.PreprocessAllFilesAndSaveBlockNodes()
+	m.Release()
+	check(st2, run(st2, user(qPath+"2", "runevaruser2")))
 }

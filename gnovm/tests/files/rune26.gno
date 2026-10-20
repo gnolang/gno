@@ -1,15 +1,19 @@
 package main
 
-// gc accepts this: the int64 conversion types both shifts, giving
-// 420906795008 for s = 32. Gno does not resolve the type of two
-// non-constant operands of different untyped kinds from their context,
-// and rejects the expression rather than compute it in another type.
+// A unary switch tag has the type of its operand, rune, which the
+// non-constant case overflows.
 
-var s uint = 32
+var s uint
 
 func main() {
-	println(int64(('a' << s) + (1 << s)))
+	switch +('\x00' << s) {
+	case ('\x01' << 40) << s:
+		println("bad")
+	}
 }
 
 // Error:
-// main/rune26.gno:11:16-37: incompatible types in binary expression: <untyped> rune ADD <untyped> bigint
+// main/rune26.gno:10:2-11:17: rune overflows target kind
+
+// TypeCheckError:
+// main/rune26.gno:10:8: '\x01' << 40 (untyped rune constant 1099511627776) overflows rune; main/rune26.gno:10:7: ('\x01' << 40) (untyped rune constant 1099511627776) overflows rune

@@ -176,12 +176,12 @@ func (pt PrimitiveType) Specificity() int {
 		return 1
 	case UntypedStringType:
 		return 2
+	case UntypedBigintType:
+		return 2
 	case UntypedRuneType:
 		return 3
-	case UntypedBigintType:
-		return 4 // less specific than rune: 'a' + 1 is an untyped rune.
 	case UntypedBoolType:
-		return 5
+		return 4
 	default:
 		panic(fmt.Sprintf("unexpected primitive type %v", pt))
 	}

@@ -1214,13 +1214,6 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 }
 
 func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
-	if t == UntypedRuneType {
-		// An untyped rune keeps the exact value: Go's untyped rune
-		// constants have no int32 bound (e.g. 'a' + 1<<40).
-		dst.T = t
-		dst.SetUntypedRune(biv.V)
-		return
-	}
 	convertUntypedIntegerTo(dst, biv.V, t, "bigint")
 }
 

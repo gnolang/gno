@@ -1,15 +1,18 @@
 package main
 
-// In a comparison with a rune shift, 1<<40 is a rune and overflows.
+// A comparison with a non-constant rune shift gives the constant the type
+// rune, which it overflows.
 
 var s uint
 
+const big = '\U0010ffff' * '\U0010ffff'
+
 func main() {
-	println(('a' << s) > 1<<40)
+	println(('a' << s) < big)
 }
 
 // Error:
-// main/rune23.gno:8:10-28: bigint overflows target kind
+// main/rune23.gno:11:10-26: rune overflows target kind
 
 // TypeCheckError:
-// main/rune23.gno:8:23: 1 << 40 (untyped rune constant 1099511627776) overflows rune
+// main/rune23.gno:11:23: big (untyped rune constant 1241243320321) overflows rune
