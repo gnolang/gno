@@ -22,7 +22,7 @@
 # Options:
 #   --chain <name>       chain branch to cut from       (default: mainnet)
 #   --commit <ref>       commit to tag                  (default: the branch tip)
-#   --previous <version> previous release, for the range (default: newest v* tag)
+#   --previous <version> previous release, for the range (default: newest final v* tag reachable from the commit)
 #   --halt-height <H>    also print the GovDAO halt proposal for a coordinated upgrade
 #   --push               push the tag to origin (otherwise: dry run)
 #   --allow-dirty        skip the clean-worktree check (local rehearsal only)
@@ -32,8 +32,9 @@
 #   # what the mainnet launch should have been tagged with
 #   misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 #
-#   # a consensus-breaking upgrade, with the halt proposal to go with it
-#   misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+#   # a consensus-breaking upgrade, with the halt proposal to go with it; the
+#   # commit is the code commit the ledger entry names, not the branch tip
+#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --halt-height 120000 --push
 
 set -euo pipefail
 
@@ -232,13 +233,49 @@ check_on_master() {
 
 # The ledger is what operators read to know which version to run and what a
 # replaying node follows; a final release without an entry is invisible to
-# both, so it is refused. A release candidate only warns: it rehearses the
-# final version's entry, which may not be written yet.
+# both, so it is refused, and so is one whose ledger fails `upgrades check`, the
+# check CI runs: a supervisor or the daily ledger job reads the whole file, not
+# one row, and operators read the UPGRADES.md rendered from it. The entry is
+# written before the cut, its image digest and binaries null until CI has built
+# them. A release candidate only warns: it rehearses the final version's entry,
+# which may not be written yet.
 check_ledger_entry() {
 	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
 	[[ -f ${dir}/upgrades.json ]] || return 0
-	if (cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades has "${dir}" "${VERSION}" >/dev/null 2>&1); then
+	local out
+	if out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades check "${dir}" 2>&1)"; then
+		ok "upgrades.json validates and UPGRADES.md is current"
+	else
+		# go run appends its own "exit status N"; the tool's message says it all.
+		out="$(printf '%s\n' "${out}" | sed -e '/^exit status [0-9]*$/d' -e 's/^/       /')"
+		if [[ ${VERSION} != *-* ]]; then
+			die "could not check the ledger in misc/deployments/${CHAIN}.gno.land:
+${out}"
+		fi
+		warn "could not check the ledger in misc/deployments/${CHAIN}.gno.land:"
+		printf '%s\n' "${out}" >&2
+		# The entry lookup below would trip on the same problem and add a
+		# misleading "no entry" warning.
+		return
+	fi
+	# The ledger validated above, so `upgrades commit` fails only when it has no
+	# entry for the version: one call finds the entry and the commit it names.
+	local named
+	if named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)"; then
 		ok "upgrades.json has an entry for ${VERSION}"
+		# The entry is committed on top of the code it names, so the branch tip
+		# is the ledger commit: cutting without --commit would tag that one
+		# while the entry names the code.
+		if [[ ${named} == "${COMMIT}" ]]; then
+			ok "the entry names the commit being tagged"
+			return
+		fi
+		local msg="the entry for ${VERSION%%-*} names ${named:0:9}, but the tag would land on ${COMMIT:0:9}: cut with --commit ${named:0:9}, or correct the entry's commit"
+		if [[ ${VERSION} == *-* ]]; then
+			warn "${msg}"
+		else
+			die "${msg}"
+		fi
 		return
 	fi
 	local hint="add the entry to misc/deployments/${CHAIN}.gno.land/upgrades.json and run
