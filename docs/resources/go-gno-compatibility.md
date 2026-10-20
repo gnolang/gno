@@ -77,7 +77,7 @@ iota := 5           // same error
 | `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
 | `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
 | `float32`, `float64`                          | full                   | full                                                       |
-| `int256`, `uint256` (not in Go)               | full                   | full                                                       |
+| `int256`, `uint256` (not in Go)               | full\*\*               | full                                                       |
 | `complex64`, `complex128`                     | missing (TBD)          | missing                                                    |
 | `uintptr`, `unsafe.Pointer`                   | missing                | missing                                                    |
 | `string`                                      | full                   | full                                                       |
@@ -91,6 +91,13 @@ iota := 5           // same error
 | `chan T` (channels)                           | missing (after launch) | missing (after launch)                                     |
 
 **\*:** depends on `T`/`T1`/`T2`
+
+**\*\*:** `int256` constants must fit in an int64: `const c int256 = 1 << 100` and
+`int256(f)` for a float constant `f` beyond that range are rejected. Build
+wider values at run time, for example `var bits uint256 = 1 << 255;
+x := int256(bits)`, or `var one int256 = 1; x := one << 100`. `uint256`
+constants have the full range. `int256` and `uint256` are reserved
+identifiers, like every builtin.
 
 Note: for determinism, converting a `string` to `[]byte` or `[]rune` produces a slice with `cap == len`.
 

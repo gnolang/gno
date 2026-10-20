@@ -5,7 +5,8 @@ package main
 // same loop on int.
 func main() {
 	var a, b uint256 = 1<<200 + 12345, 1<<100 + 7
-	var s int256 = -1 << 150
+	var s int256 = -1
+	s <<= 150
 	for i := 0; i < 100; i++ {
 		a = a*3 + b
 		b = a/b + a%b
@@ -15,4 +16,4 @@ func main() {
 }
 
 // Gas:
-// 619248
+// 634134

@@ -10,8 +10,11 @@ func main() {
 	println(max/3, max%10, (max-1)/max, max&^one)
 
 	// int256 is two's complement.
-	var imax int256 = math.MaxInt256
-	var imin int256 = math.MinInt256
+	// An int256 constant must fit in an int64: wider int256 values are
+	// converted from uint256 values at run time.
+	var maxBits uint256 = math.MaxInt256
+	imax := int256(maxBits)
+	imin := int256(maxBits + 1)
 	var m1 int256 = -1
 	println(imax+1 == imin, imin-1 == imax, -imin == imin, imin*m1 == imin)
 	println(imin/m1 == imin, imin%m1, imax/m1, imin/2)

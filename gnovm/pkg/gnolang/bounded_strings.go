@@ -421,8 +421,8 @@ func boundedSprintValue(w *boundedBuf, v Value, depth int) {
 		boundedSprintStringValue(w, x)
 	case BigintValue:
 		boundedSprintBigInt(w, x.V)
-	case Bits256Value:
-		w.WriteString(x.V.Dec())
+	case Uint256Value, Int256Value:
+		w.WriteString(x.String())
 	case BigdecValue:
 		boundedSprintBigDecValue(w, x)
 	case *ArrayValue:

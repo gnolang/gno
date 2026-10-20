@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -371,42 +370,82 @@ func TestBits256MapKey(t *testing.T) {
 			require.Equal(t, k, k2)
 		}
 	}
-	// A zero value stored as nil and the zero default have the same key.
-	zero := TypedValue{T: Uint256Type}
-	kz, _ := zero.ComputeMapKey(nil, nil, true)
-	z := uint256.Int{}
-	explicit := TypedValue{T: Uint256Type, V: Bits256Value{V: z}}
-	ke, _ := explicit.ComputeMapKey(nil, nil, true)
-	require.Equal(t, kz, ke)
 }
 
 func TestBits256Amino(t *testing.T) {
-	for _, a := range int256TestValues(false) {
-		z := bigToBits256(a)
-		v := Bits256Value{V: z}
-		bz := amino.MustMarshal(v)
-		var v2 Bits256Value
-		amino.MustUnmarshal(bz, &v2)
-		require.Equal(t, v, v2)
-
-		// Inside a TypedValue, as realm state stores it.
-		tv := TypedValue{T: Uint256Type, V: v}
-		if a.Sign() == 0 {
-			tv.V = nil
+	for _, typ := range []Type{Int256Type, Uint256Type} {
+		for _, a := range int256TestValues(typ == Int256Type) {
+			// Inside a TypedValue, as realm state stores it.
+			tv := tv256(typ, a)
+			bz := amino.MustMarshal(tv)
+			var tv2 TypedValue
+			amino.MustUnmarshal(bz, &tv2)
+			require.Equal(t, a.String(), tv2.GetBig256().String())
+			require.Equal(t, tv, tv2)
+			// Inside an interface and a composite.
+			av := &ArrayValue{List: []TypedValue{tv, {T: typ}}}
+			bz = amino.MustMarshalAny(av)
+			var back Value
+			amino.MustUnmarshalAny(bz, &back)
+			require.Equal(t, av.List, back.(*ArrayValue).List)
 		}
-		bz = amino.MustMarshal(tv)
-		var tv2 TypedValue
-		amino.MustUnmarshal(bz, &tv2)
-		require.Equal(t, a.String(), tv2.GetBig256().String())
 	}
-	var v Bits256Value
-	require.Error(t, v.UnmarshalAmino([]byte{0, 1}), "leading zero byte")
-	require.Error(t, v.UnmarshalAmino(make([]byte, 33)), "too long")
-	require.NoError(t, v.UnmarshalAmino(nil))
-	require.True(t, v.V.IsZero())
-	bz, err := Bits256Value{}.MarshalAmino()
-	require.NoError(t, err)
-	require.Empty(t, bz)
+}
+
+// TestBits256AminoJSON pins the external contract: the value is a decimal
+// string, signed for int256, in a type of its own; zero has no V.
+func TestBits256AminoJSON(t *testing.T) {
+	cases := []struct {
+		typ  Type
+		v    *big.Int
+		json string
+	}{
+		{Int256Type, big.NewInt(128), `{"T":{"@type":"/gno.PrimitiveType","value":"2097152"},"V":{"@type":"/gno.Int256Value","value":"128"}}`},
+		{Int256Type, big.NewInt(-128), `{"T":{"@type":"/gno.PrimitiveType","value":"2097152"},"V":{"@type":"/gno.Int256Value","value":"-128"}}`},
+		{Int256Type, bigMinInt256, `{"T":{"@type":"/gno.PrimitiveType","value":"2097152"},"V":{"@type":"/gno.Int256Value","value":"` + bigMinInt256.String() + `"}}`},
+		{Uint256Type, bigMaxUint256, `{"T":{"@type":"/gno.PrimitiveType","value":"4194304"},"V":{"@type":"/gno.Uint256Value","value":"` + bigMaxUint256.String() + `"}}`},
+		{Uint256Type, big.NewInt(0), `{"T":{"@type":"/gno.PrimitiveType","value":"4194304"}}`},
+	}
+	for _, c := range cases {
+		tv := tv256(c.typ, c.v)
+		bz := amino.MustMarshalJSON(tv)
+		require.Equal(t, c.json, string(bz))
+		var tv2 TypedValue
+		amino.MustUnmarshalJSON(bz, &tv2)
+		require.Equal(t, c.v.String(), tv2.GetBig256().String())
+	}
+}
+
+// TestBits256CanonicalZero checks that zero has one encoding: a boxed zero is
+// neither produced nor accepted, nor is any non-canonical decimal.
+func TestBits256CanonicalZero(t *testing.T) {
+	_, err := amino.Marshal(TypedValue{T: Uint256Type, V: Uint256Value{}})
+	require.Error(t, err)
+	_, err = Int256Value{}.MarshalAmino()
+	require.Error(t, err)
+
+	// An empty payload, which is how a boxed zero would encode, is refused
+	// on decode, so it cannot appear inside a TypedValue, an interface or a
+	// composite.
+	require.Error(t, (&Uint256Value{}).UnmarshalBinary2(amino.NewCodec(), nil, 0))
+	require.Error(t, (&Int256Value{}).UnmarshalBinary2(amino.NewCodec(), nil, 0))
+	for _, s := range []string{"", "0", "00", "05", "-5", "+5", "1x"} {
+		var v Uint256Value
+		require.Error(t, v.UnmarshalAmino(s), "uint256 %q", s)
+	}
+	for _, s := range []string{"", "0", "-0", "05", "+5", "57896044618658097711785492504343953926634992332820282019728792003956564819968"} {
+		var v Int256Value
+		require.Error(t, v.UnmarshalAmino(s), "int256 %q", s)
+	}
+	var v Int256Value
+	require.NoError(t, v.UnmarshalAmino("-57896044618658097711785492504343953926634992332820282019728792003956564819968"))
+
+	// A zero default and the result of arithmetic share one key and encoding.
+	zero := TypedValue{T: Uint256Type}
+	a, b := tv256(Uint256Type, big.NewInt(9)), tv256(Uint256Type, big.NewInt(9))
+	subAssign(nil, &a, &b)
+	require.Nil(t, a.V)
+	require.Equal(t, amino.MustMarshal(zero), amino.MustMarshal(a))
 }
 
 func TestBits256ConvertGetInt(t *testing.T) {
@@ -426,46 +465,9 @@ func TestBits256ConvertGetInt(t *testing.T) {
 	}
 }
 
-// TestDeferredOverflowErrorCodes pins the go/types error codes and messages
-// that isDeferredOverflowError relies on, for the toolchain in use.
-func TestDeferredOverflowErrorCodes(t *testing.T) {
-	cases := []struct {
-		src      string
-		deferred bool
-	}{
-		{`var x int8 = 1000`, true},                     // NumericOverflow, implicit conversion
-		{`const c int8 = 100; var y = c * 2`, true},     // NumericOverflow, typed constant arithmetic
-		{`var x = int8(1000)`, true},                    // InvalidConversion "constant 1000 overflows int8"
-		{`var f float32 = 1e39`, true},                  // NumericOverflow, float target
-		{`var x int = 1.5`, false},                      // TruncatedFloat: kept
-		{`var x = int(1.5)`, false},                     // InvalidConversion, not an overflow: kept
-		{`var x int = "a"`, false},                      // IncompatibleAssign: kept
-		{`var a [3]int; var x = a[1<<70]`, true},        // NumericOverflow converting the index to int
-		{`const c = 1 << 600; var x = c >> 590`, false}, // untyped constant overflow: kept
-		{`var x = uintptr(1) << 300`, true},             // uintptr (as uint256) overflows past 256 bits
-	}
-	for _, c := range cases {
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "f.go", "package p\n"+c.src, 0)
-		require.NoError(t, err)
-		var errs []error
-		conf := types.Config{
-			Sizes: gnoTypesSizes{types.SizesFor("gc", "amd64")},
-			Error: func(err error) { errs = append(errs, err) },
-		}
-		conf.Check("p", fset, []*ast.File{f}, nil)
-		require.NotEmpty(t, errs, "%s: expected a go/types error", c.src)
-		_, ok := goTypesErrorCode(errs[0].(types.Error))
-		require.True(t, ok, "go/types error code not readable by reflection")
-		assert.Equal(t, c.deferred, isDeferredOverflowError(errs[0]), "%s: %v", c.src, errs[0])
-	}
-}
-
 // TestGoTypesSizes pins what go/types accepts for the uint256 and int256
-// universe shims: uint256 constants in [0, 2^256-1], and int256 constants in
-// the int64 range only (the rest is left to the preprocessor). It also checks
-// that the shims behave as universe types: a package or file declaration of
-// the same name shadows them.
+// shims: uint256 constants in [0, 2^256-1], and int256 constants in the int64
+// range only, which is a language restriction.
 func TestGoTypesSizes(t *testing.T) {
 	cases := []struct {
 		src string
@@ -481,17 +483,18 @@ func TestGoTypesSizes(t *testing.T) {
 		{`var x int = 9223372036854775807`, true},
 		{`var x int = 9223372036854775808`, false},
 		{`var x int8 = -128`, true},
-		{`var x = uint256(1) + int256(1)`, false}, // distinct types
-		{`type uint256 struct{ hi, lo uint64 }; var x = uint256{1, 2}`, true},
-		{`func int256() {}; var _ = int256`, true},
+		{`var x = uint256(1) + int256(1)`, false},             // distinct types
+		{`const c int256 = 1 << 100`, false},                  // the int256 restriction
+		{`const f = 1e30; var x = int256(f)`, false},          // also for float constants
+		{`var u uint256 = 1 << 200; var x = int256(u)`, true}, // the workaround
 	}
 	for _, c := range cases {
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "f.go", "package p\n"+c.src, 0)
+		f, err := parser.ParseFile(fset, "f.go", "package p\ntype uint256 uintptr\ntype int256 int\n"+c.src, 0)
 		require.NoError(t, err)
 		var errs []error
 		conf := types.Config{
-			Sizes: gnoTypesSizes{types.SizesFor("gc", "amd64")},
+			Sizes: GoTypesSizes,
 			Error: func(err error) { errs = append(errs, err) },
 		}
 		conf.Check("p", fset, []*ast.File{f}, nil)
@@ -522,4 +525,66 @@ func TestBits256Gonative(t *testing.T) {
 	require.Equal(t, Int256Type, go2GnoType(reflect.TypeFor[Int256]()))
 	require.Equal(t, goUint256Type, gno2GoType(Uint256Type))
 	require.Equal(t, goInt256Type, gno2GoType(Int256Type))
+}
+
+// TestBits256CopyAccounting checks the logical, per-occurrence accounting:
+// every slot holding a non-zero 256-bit value is charged one box, whether
+// the box was built for it or shared by a copy, so allocation, the GC
+// recount and the charge on reload agree.
+func TestBits256CopyAccounting(t *testing.T) {
+	const n = 1000
+	alloc := NewAllocator(math.MaxInt64)
+	x := tv256(Uint256Type, bigMaxUint256)
+	av := &ArrayValue{List: make([]TypedValue, n)}
+	_, before := alloc.Status()
+	for i := range av.List {
+		av.List[i] = x.Copy(alloc)
+	}
+	_, after := alloc.Status()
+	require.Equal(t, int64(n*allocBits256), after-before, "allocation")
+
+	var recount int64
+	for i := range av.List {
+		recount += av.List[i].V.GetShallowSize()
+	}
+	require.Equal(t, int64(n*allocBits256), recount, "GC recount")
+	require.Equal(t, int64(n*allocBits256), internalRefSize(av), "charge on reload")
+
+	// Persisted and reloaded, each slot holds its own value.
+	bz := amino.MustMarshalAny(av)
+	var back Value
+	amino.MustUnmarshalAny(bz, &back)
+	for _, tv := range back.(*ArrayValue).List {
+		require.Equal(t, bigMaxUint256.String(), tv.GetBig256().String())
+	}
+}
+
+// TestBits256CanonicalZeroJSONNull checks that a typed JSON null payload,
+// which amino decodes as a boxed zero without calling UnmarshalAmino, is
+// rejected at the enclosing value, also nested in interface slots and inline
+// composites.
+func TestBits256CanonicalZeroJSONNull(t *testing.T) {
+	for _, c := range []struct {
+		name, at string
+	}{{"Int256Value", "2097152"}, {"Uint256Value", "4194304"}} {
+		slot := `{"T":{"@type":"/gno.PrimitiveType","value":"` + c.at + `"},"V":{"@type":"/gno.` + c.name + `","value":null}}`
+		var tv TypedValue
+		require.NoError(t, amino.UnmarshalJSON([]byte(slot), &tv))
+		require.NotNil(t, tv.V, "amino builds a boxed zero from null")
+
+		// In an array slot, and in an interface-typed slot of a struct
+		// held inline by an array.
+		for _, js := range []string{
+			`{"@type":"/gno.ArrayValue","List":[` + slot + `]}`,
+			`{"@type":"/gno.ArrayValue","List":[{"T":{"@type":"/gno.InterfaceType"},"V":{"@type":"/gno.StructValue","Fields":[` + slot + `]}}]}`,
+		} {
+			var v Value
+			require.NoError(t, amino.UnmarshalJSON([]byte(js), &v), js)
+			require.Error(t, CheckCanonical256(v), js)
+			require.Panics(t, func() { mustBeCanonical256(v) })
+		}
+	}
+	// A canonical value passes.
+	av := &ArrayValue{List: []TypedValue{tv256(Int256Type, big.NewInt(-1)), {T: Uint256Type}}}
+	require.NoError(t, CheckCanonical256(av))
 }

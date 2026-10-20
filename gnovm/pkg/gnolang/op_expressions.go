@@ -123,8 +123,10 @@ func (m *Machine) doOpSlice() {
 	if sx.High == nil {
 		highVal = xv.GetLength()
 	}
-	// all low:high:max cases
-	if maxVal == -1 {
+	// all low:high:max cases. The 2-index form is chosen by the syntax, not
+	// by a sentinel max: a supplied max of -1 (or a 256-bit value below
+	// MinInt64, which converts to -1) must reach GetSlice2's bounds check.
+	if sx.Max == nil {
 		sv := xv.GetSlice(m.Alloc, lowVal, highVal)
 		m.PushValue(sv)
 	} else {

@@ -22,7 +22,8 @@ func main() {
 
 	// Out of the 256-bit kinds: truncation to the low bits.
 	var big uint256 = 1<<200 + 1<<64 + 0x1ff
-	var neg int256 = -(1 << 70) - 2
+	var one int256 = 1
+	neg := -(one << 70) - 2
 	println(int8(big), int16(big), int32(big), int64(big), int(big))
 	println(uint8(big), uint16(big), uint32(big), uint64(big), uint(big))
 	println(int8(neg), int16(neg), int32(neg), int64(neg), int(neg))
@@ -32,7 +33,7 @@ func main() {
 	var allOnes uint256 = math.MaxUint256
 	var half uint256 = 1 << 255
 	var m1 int256 = -1
-	var imin int256 = math.MinInt256
+	imin := int256(half)
 	println(int256(allOnes), uint256(m1) == math.MaxUint256)
 	println(int256(half), uint256(imin))
 

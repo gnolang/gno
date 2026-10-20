@@ -2,221 +2,248 @@
 
 ## Status
 
-Proposed.
+Proposed. Ships with a new chain (see "Deployment").
 
 ## Context
 
 Amounts coming from Ethereum (token balances, `uint256` event fields, IBC
 packet data from EVM chains) are 256-bit unsigned integers. Gno's widest
-integer is 64 bits, so realms that handle such amounts use
-`gno.land/p/onbloc/uint256`, a struct-based library type. That works, but:
+integer is 64 bits, so realms that handle such amounts use the library
+`gno.land/p/onbloc/uint256/v0` (and `p/onbloc/int256/v0`). Its `Uint` is a
+struct of four `uint64` limbs; the constructors return `*Uint`, and the
+arithmetic is a mutating pointer-receiver API (`z.Add(x, y)` writes `z`).
+That works, but:
 
-- every value is a `*Uint` pointing at a `/p/`-typed struct. Arithmetic
-  mutates the receiver in place (`z.Add(x, y)`), so a value held in realm
-  state is a mutable object that other code can reach and change, the
-  pattern AGENTS.md and the security guide warn about;
-- the values carry ownership stamps like any `/p/` object. Cross-realm
-  in-place arithmetic on them hit the taint and ownership rules
-  (issue #5736, fixed by #5747's type-driven copy stamping), and every
-  caller has to reason about pointer aliasing and readonly taint for what is
-  conceptually a number;
-- each operation is many interpreted Gno operations on four `uint64` limbs,
-  and each value costs a struct object in storage.
+- a value reached through a pointer is a mutable `/p/`-typed object, the
+  pattern AGENTS.md and the security guide warn about, and cross-realm
+  in-place arithmetic hit the taint and ownership rules (issue #5736, fixed
+  by #5747's type-driven copy stamping); callers have to reason about
+  aliasing for what is conceptually a number;
+- each operation is many interpreted Gno operations, and there are no
+  operators (`z.Add(x, y)` instead of `x + y`);
+- each stored value is a struct object.
 
 A primitive type has none of these problems: values are copied by
-assignment, cannot be aliased, carry no ownership, and each operator is one
-VM operation.
+assignment, cannot be aliased, carry no ownership, have operators, and each
+operator is one VM operation.
 
 ## Decision
 
 Add two typed primitive types, `int256` and `uint256`, defined in the
-universe like `int64` and `uint64`. They follow Go's integer rules exactly,
-generalised to 256 bits. `int256` is two's complement.
+universe like `int64` and `uint64`. Run-time semantics follow Go's integer
+rules generalised to 256 bits. `int256` is two's complement. One language
+restriction applies to `int256` constants (see "go/types").
 
 ### Representation
 
-- `PrimitiveType`: `Int256Type` and `Uint256Type` are appended after
-  `UntypedBigdecType` (bits 21 and 22). `PrimitiveType` values are
-  amino-persisted as varints, so they must not renumber existing types.
-- `Kind`: `Int256Kind` and `Uint256Kind` are inserted after `Uint64Kind`.
-  `Kind` values are never persisted (no amino-registered struct has a `Kind`
-  field) and never compared numerically, so the position is free; the
-  stringer is regenerated.
-- Uverse: `int256` and `uint256` are defined last, so the block indices of
-  the existing uverse names, which persisted code refers to, do not move.
-- Values do not fit `TypedValue.N` (8 bytes), so they live in `TypedValue.V`
-  as `Bits256Value{V uint256.Int}`: the 256 raw bits, by value. The
-  signedness comes from `T`. One Value type serves both kinds.
-  - `github.com/holiman/uint256` (BSD-3-Clause, the go-ethereum 256-bit
-    library) provides the arithmetic. It is a fixed `[4]uint64`, with no
-    hidden allocation, and implements the signed operations (`SDiv`,
-    `SMod`, `SRsh`, `Slt`) with Go's truncating semantics.
-  - A nil `V` is zero. Every operation stores a zero result as nil, so each
-    value has one representation and default values cost nothing.
-  - Values are immutable: an operation builds a new `Bits256Value`, it never
-    writes through an existing one. Copying a `TypedValue` shares the boxed
-    array, which is safe because nothing mutates it; `Copy` returns the value
-    as is.
-- Amino: `Bits256Value` marshals to minimal big-endian bytes (empty for
-  zero, at most 32). Unmarshal accepts only that canonical form (no leading
-  zero byte), so a value has one encoding in realm state. JSON shows it as
-  base64. The type is registered in `package.go` and its genproto2 code
+- `PrimitiveType`: `Int256Type` (1<<21) and `Uint256Type` (1<<22) are
+  appended after `UntypedBigdecType`. `PrimitiveType` values are
+  amino-persisted, so existing ones must not be renumbered.
+- `Kind`: `Int256Kind` and `Uint256Kind` sit after `Uint64Kind`. `Kind`
+  values are never persisted or compared numerically; the stringer is
   regenerated.
-- Map keys: the 32 big-endian bytes, behind the usual type prefix, so
-  `int256(1)` and `uint256(1)` are distinct keys inside `map[any]...`.
-- Allocation: a non-zero result charges `allocBits256` (32-byte box plus
-  heap overhead); `GetShallowSize` returns the same, and loading an object
-  from the store charges for the `Bits256Value`s it holds inline (in
-  `internalRefSize`, next to the RefValue slots it already counted), so the
-  GC recount agrees with what was allocated.
+- Uverse: `int256` and `uint256` are defined last, so the block indices of
+  the existing uverse names do not move.
+- Values do not fit `TypedValue.N` (8 bytes), so they live in `TypedValue.V`
+  as `Int256Value` or `Uint256Value`, each `struct{ V uint256.Int }`: the
+  256 bits by value (`github.com/holiman/uint256`, BSD-3-Clause, the
+  go-ethereum library, which provides Go's truncating signed operations).
+  Two Value types, rather than one, let the amino encoding carry the
+  signedness.
+- Zero is a nil `V`. Every operation stores a zero result as nil, and a boxed
+  zero is neither produced nor accepted: `MarshalAmino` refuses it and
+  `UnmarshalAmino` rejects it. Amino can still build one without calling
+  `UnmarshalAmino`, from a JSON `null` payload or an absent binary payload,
+  so `CheckCanonical256` checks the enclosing value, recursively through
+  inline slots, interfaces and composites, and the store runs it on every
+  object it loads. Zero therefore has exactly one encoding
+  (`TestBits256CanonicalZero`, `TestBits256CanonicalZeroJSONNull`,
+  `TestBits256Amino`).
+- Values are immutable: an operation builds a new value and never writes
+  through an existing one. Copying a `TypedValue` shares the boxed array,
+  which is safe because nothing mutates it.
+
+### Amino and JSON
+
+The amino representation is a canonical decimal string, in binary and JSON
+alike: digits with no leading zero, `-` for a negative `int256`, nothing
+else. The decoder rejects any other spelling, and values out of range. In
+JSON, as returned by `qeval_json` and `qobject_json`:
+
+```json
+{"T":{"@type":"/gno.PrimitiveType","value":"2097152"},"V":{"@type":"/gno.Int256Value","value":"128"}}
+{"T":{"@type":"/gno.PrimitiveType","value":"2097152"},"V":{"@type":"/gno.Int256Value","value":"-128"}}
+{"T":{"@type":"/gno.PrimitiveType","value":"4194304"},"V":{"@type":"/gno.Uint256Value","value":"115792089237316195423570985008687907853269984665640564039457584007913129639935"}}
+{"T":{"@type":"/gno.PrimitiveType","value":"4194304"}}
+```
+
+The last line is zero: no `V`, and no `N` either. A decimal string avoids the
+pitfalls of bytes (padding, a signed reading of a minimal payload that turns
+`int256(128)` into -128) and of JSON numbers (precision loss in JavaScript).
+It also stores typical amounts compactly (a 10^24 balance is 25 bytes).
+
+**Client contract change:** for every other numeric primitive a client reads
+the value from `N`. For these two types `N` is always empty and the value is
+in `V`, as for strings. A client that reads only `N` for numeric primitives
+shows 0; such clients must handle the two new value types. Pinned by
+`TestBits256AminoJSON` and `int256_args.txtar`.
 
 ### Semantics
 
 - `+`, `-`, `*` and unary `-` wrap modulo 2^256.
 - `/` and `%` truncate toward zero; the remainder has the sign of the
-  dividend. Division by zero panics with Go's runtime error.
+  dividend. Division by zero panics with `runtime error: division by zero`
+  (Gno's text for every integer type; Go's is `integer divide by zero`).
   `MinInt256 / -1` wraps to `MinInt256` and `MinInt256 % -1` is 0, as in Go.
 - `&`, `|`, `^`, `&^`, unary `^`. `>>` is arithmetic for `int256`, logical
-  for `uint256`; `<<` and `>>` by 256 or more give 0 (or -1 for a negative
-  `int256` shifted right). The shift count may itself be a 256-bit value: it
-  is not converted to `uint` (which would truncate it), and a count that does
+  for `uint256`; shifting by 256 or more gives 0 (or -1 for a negative
+  `int256` shifted right). The count may itself be a 256-bit value; it is
+  not converted to `uint` (that would truncate it), and a count that does
   not fit a `uint64` saturates. A negative count panics.
 - Comparisons, `++`/`--`, and every compound assignment.
+- Map keys: a key is encoded as its type ID prefix followed by the 32-byte
+  big-endian two's complement bits (fixed width, zero included). Because the
+  type ID is part of the key, `int256(1)` and `uint256(1)`, or `int256(-1)`
+  and `uint256(MaxUint256)`, which have the same bits, are distinct keys in a
+  `map[any]V`.
 - Conversions:
   - between integer kinds: truncation to the low bits, sign extension from
     signed sources, zero extension from unsigned ones;
-  - to floats: rounding to nearest, ties to even (through `math/big`, which
-    is software and deterministic); a `uint256` beyond float32's range
-    becomes `+Inf`, as in Go;
+  - to floats: rounding to nearest, ties to even, through `math/big`
+    (software, deterministic); a `uint256` beyond float32's range becomes
+    `+Inf`;
   - from floats: truncation toward zero. Go leaves out-of-range float to
-    integer conversion implementation-defined; Gno defines it, in the spirit
+    integer conversion implementation-defined; Gno defines it in the spirit
     of softfloat's 64-bit conversions: NaN and ±Inf give 0; for `int256` a
     value outside [-2^255, 2^255) gives 0; for `uint256` a value in
-    [-2^255, 0) wraps modulo 2^256 (as `uint64(-1.0)` does) and one outside
+    [-2^255, 0) wraps modulo 2^256 (as `uint64(-1.0)` does), and one outside
     [-2^255, 2^256) gives 0;
-  - `string(x)` follows Go's rune rule (out of the code point range gives
-    `"�"`); `int256("1")` is refused, as for every integer type.
-- Indexing, `make` and slicing accept 256-bit integers like any integer
-  type; a value outside the int64 range saturates so the bounds check
-  rejects it, instead of using its truncated low bits.
-- Constants: an untyped constant converts with an exact range check,
-  [0, 2^256-1] for `uint256` and [-2^255, 2^255-1] for `int256`
-  ("bigint overflows target kind", as for the other kinds). Typed constant
-  conversions use the error of `gnovm/adr/pr5269_const_conversion_overflow.md`
-  ("constant X overflows Uint256Kind"). Constant folding works.
-- `println`/`print`, `values_string_stream`, bounded strings, frame traces,
-  gnoweb's state view and the test `fmt` (`%d %v %b %o %O %x %X` with width,
-  precision and flags) print the decimal value.
+  - `string(x)` follows Go's rune rule (out of range gives `"�"`);
+    `int256("1")` is refused.
+- Indexes, slice expressions, and slice lengths and capacities in `make`
+  accept 256-bit integers like any integer type. A value outside the int64
+  range saturates (to -1 or `MaxInt64`) so that the bounds check rejects it.
+  A size hint in `make(map[K]V, n)` is accepted and ignored, as for every
+  integer type. A 3-index slice always checks its max,
+  also when it is -1; this also fixes a pre-existing case where a max of -1
+  was taken for "no max".
+- Constant errors in the preprocessor (on chain, go/types reports these
+  first):
+  - an untyped integer constant out of range: `bigint overflows target
+    kind` or `bigint underflows target kind`; an untyped float constant
+    goes through the same check once it is a whole number, and otherwise
+    gives `cannot convert untyped bigdec to integer -- X not an exact
+    integer`;
+  - a negative untyped rune converted to `uint256`: `rune underflows target
+    kind`;
+  - a typed integer constant converted out of range: `constant X overflows
+    <Target>Kind` (pr5269), e.g. `constant -1 overflows Uint256Kind`;
+  - a typed float constant that is not a whole number in range, or a
+    256-bit constant that overflows a float32: `cannot convert constant of
+    type <Source>Kind to <Target>Kind`.
+- Printing: `println`/`print`, `values_string_stream`, bounded strings and
+  frame traces print the signed or unsigned decimal value. gnoweb's state
+  view does too; when it reaches a value without its static type it uses
+  the value type (`Int256Value` or `Uint256Value`), which carries the
+  signedness. The test `fmt` supports `%v` and `%d` (decimal), `%b`, `%o`,
+  `%O`, `%x`, `%X` (with width, precision and the `+ - # 0` and space
+  flags), and `%#v` (hex with `0x` for `uint256`, decimal for `int256`, as
+  for the 64-bit integers). `%c`, `%q` and `%U` are refused.
 
 ### go/types
 
-Gno type-checks every package with go/types on chain
-(`gotypecheck.go`), and go/types knows no 256-bit type. The shims are
+Gno type-checks every package with go/types (`gotypecheck.go`) in every
+transaction that adds or runs code, and go/types knows no 256-bit type. The
+shims, declared in the central `gnobuiltins/gno0p9` package next to `realm`
+and `address` so that the types are identical across packages, are
 
 ```go
 type int256 int
 type uint256 uintptr
 ```
 
-declared in go/types' universe scope (`types.Universe`, extended once in
-`init`, before any type-check can run), with a `types.Sizes`
-(`gnoTypesSizes`) that returns 32 for `uintptr` only.
-
-They are universe types rather than declarations in the injected
-`.gnobuiltins` file, as `realm` and `address` are, because a `.gnobuiltins`
-declaration lives in the package scope: go/types then reports
-"uint256 already declared" for a file that imports a package named
-`uint256` (`gno.land/p/onbloc/uint256`), before Gno can give its own error.
-A universe object is also the same type in every package, as Gno's
-builtins are. The cost is a process-global change to go/types: any Go code
-type-checked in the same process also sees the two names (as shadowable
-builtins), which no Gno binary does today.
+with `GoTypesSizes`, a `types.Sizes` that returns 32 for `uintptr` only.
 go/types sizes `uint`/`uintptr` through `Config.Sizes` when it checks
-constant representability, so it accepts every `uint256` constant up to
-2^256-1 and rejects larger or negative ones. Gno has no `uintptr` (it is not
-in the uverse), so user code cannot name it: the preprocessor rejects it
-("name uintptr not declared"), whatever go/types thinks.
+constant representability, so it accepts exactly the `uint256` constants in
+[0, 2^256-1]. Gno has no `uintptr` (it is not in the uverse), so user code
+cannot name it: the preprocessor rejects it. Nothing mutates go/types'
+process-global universe scope.
 
 `int`'s size is not changed: go/types computes a sized `int`'s bounds as
-`int64(-1)<<(s-1)`, which is wrong for `s > 64` and makes small negative
-constants fail. So go/types accepts `int256` constants only in the int64
-range.
+`int64(-1)<<(s-1)`, which is wrong for `s > 64`. **Language restriction: an
+`int256` constant must fit in an int64.** go/types rejects, with its usual
+overflow errors, a typed `int256` constant outside the int64 range, an
+untyped constant assigned to `int256` outside it, a float constant
+converted to `int256` outside it, and typed `int256` constant arithmetic
+whose result leaves it:
 
-**Overflow deferral (owner decision).** go/types' numeric-overflow errors
-are dropped, and Gno's preprocessor is the only constant-range check, for
-every numeric kind. `isDeferredOverflowError` identifies them by error code,
-read from `types.Error`'s unexported `go116code` field, which go/types
-documents as readable by reflection:
+```go
+const c int256 = 1 << 100 // rejected
+const f float64 = 1 << 100
+var x = int256(f)         // rejected
+const k int256 = 1 << 62
+var y = k * 4             // rejected
+```
 
-- `NumericOverflow` (44): an untyped constant that does not fit its target
-  (assignment, argument, return, operand, index), or a typed constant
-  operation whose result does not fit its type;
-- `InvalidConversion` (96) whose message is `constant X overflows T`: the
-  concise form go/types gives integer-to-integer constant conversions
-  (go.dev/issue/63563). Other invalid conversions keep their error, hence
-  the narrow message match on top of the code.
+Wider `int256` values come from run-time arithmetic or from converting a
+non-constant value, typically a `uint256`:
 
-The codes are internal to the toolchain (`internal/types/errors`), so
-`TestDeferredOverflowErrorCodes` pins both the values and the reflection on
-the toolchain in use (Go 1.25), and `TestGoTypesSizes` pins what the shims
-accept: a toolchain that changes either fails the tests instead of silently
-changing what is dropped. If the field cannot be read, nothing is dropped,
-which only rejects more programs.
+```go
+var bits uint256 = 1 << 255 // uint256 constants have the full range
+min := int256(bits)         // -2^255
+var one int256 = 1
+wide := one << 100          // run-time shift
+```
 
-**Safety argument.** Dropping an error cannot let an invalid program through
-only if the preprocessor rejects every constant overflow go/types reported.
-Before this change it did not: it computed typed constant expressions with
-the type's wrapping arithmetic, so `const c int8 = 100; c * 2` folded to -56
-(go/types was the only check). `checkConstFoldOverflow` now recomputes every
-folded typed integer `+`, `-`, `*`, `/`, `<<` and unary `-` exactly with
-`math/big` from its constant operands and rejects a result outside the type;
-`%`, `&`, `|`, `^`, `&^` and `>>` of representable operands are
-representable. A typed float result that overflowed to ±Inf is rejected too
-(constants have no infinities), since `NumericOverflow` also covers floats.
-The other paths already checked: untyped constants (`ConvertUntypedBigintTo`,
-`ConvertUntypedBigdecTo`) and typed constant conversions (`ConvertTo`'s
-`validate`).
+For the same reason `math.MaxInt256` and `math.MinInt256` are untyped
+constants that cannot be used where an `int256` constant is expected; the
+stdlib computes its int256 limits as variables (`strconv`, `math/overflow`).
+Pinned by `TestGoTypesSizes` and the `err_restrict_*` filetests.
 
-`gnovm/tests/files/constoverflow/` holds one filetest per integer kind
-(`int`, `int8` ... `int64`, `uint` ... `uint64`, `int256`, `uint256`) per
-context: var declaration (over and under), const declaration, assignment,
-compound assignment, function argument, return value, binary operation with
-an untyped constant, typed constant folding (`+` and `*`), unary minus and
-shift. All 144 are rejected by the preprocessor. For the 120 non-256 ones,
-go/types alone (standard sizes) reports an error in every file, with codes
-44 or 96 only, so the set that go/types used to reject is exactly the set
-the preprocessor now rejects. The 31 existing filetests that showed both a
-Gno `Error:` and a go/types `TypeCheckError:` for an overflow lose the
-latter; none lost its `Error:`.
+go/types' errors are kept as they are: no diagnostic is filtered. An
+earlier draft dropped go/types' numeric-overflow errors to lift the
+restriction, leaving range checks to the preprocessor. That was unsound: an
+error invalidates the operand inside go/types, and the checks that depend
+on it are then skipped, so dropping the diagnostic dropped those checks too
+(for instance `var u uint64 = 'a' - 'b'` and `var r = '\U0010ffff' *
+'\U0010ffff'` were accepted). It also read an unexported go/types field by
+reflection, which made acceptance depend on the toolchain build. Both
+programs are regression tests (`rune_overflow0.gno`, `rune_overflow1.gno`),
+rejected by go/types.
 
-A known limitation: go/types reports `var x int256 = 1e30` (a float
-literal that is a whole number beyond int64) as `TruncatedFloat`, which is
-not dropped, so such constants must be written as integers (`1 << 100`,
-`1000...000`). This only rejects valid programs; it does not affect
-`uint256`.
+With go/types' errors kept, the preprocessor's constant folding is
+unchanged for every existing kind: no constant check was added there, so
+query paths that preprocess without go/types keep their current behaviour.
+
+**Tooling.** `gno lint`, `gno test` and the node all type-check through
+`TypeCheckMemPackage`, so they use the same shims and sizes. An external
+checker, such as an editor's language server, must use the shims from
+`gnoBuiltinsGno0p9` and `gnolang.GoTypesSizes`, exported for that purpose.
+`gno fmt` needs no change: the names are ordinary identifiers to the parser.
 
 ### Gas
 
-Each 256-bit operator has an `OpCPU*Int256` constant (`machine.go`), and the
-handlers charge it instead of the 64-bit cost (Add, Sub, Mul, Quo, Inc, Dec)
-or charge its difference from the 64-bit cost already charged at dispatch
-(the other operators, and compound assignments). Conversions to or from a
-256-bit kind have their own costs, higher when a float is involved.
+Each 256-bit operator has an `OpCPU*Int256` constant (`machine.go`). Every
+handler charges the operator's 64-bit cost as for any integer, then
+`incrCPU256` adds the difference. Unary `+` is a no-op and costs the same as
+for any type. A compound assignment is charged its flat `OpCPU*Assign` cost
+plus the operator's surcharge: `x += y` on `uint256` costs
+`OpCPUAddAssign` + (221 − 81), that is 97 + 140. A conversion between a 256-bit kind and
+another kind is charged `OpCPUConvertInt256` or, when a float is involved,
+`OpCPUConvertInt256Float`, instead of `OpCPUConvertNumeric`; retyping within
+the same kind keeps the ordinary cost.
 
 The values are ratio-scaled, as `OpCPULazyBoundResolve` is: each 256-bit
 handler is benchmarked next to the same handler on `int` in one run
 (`bench_int256_test.go`, median of 10 runs of 2e6 operations, full-width
 operands, the slowest divisor size and sign for `/` and `%`), and the
 existing reference constant is multiplied by the measured ratio, so the
-machine-speed factor cancels (`<` and integer conversions were re-measured
-after their implementation was made allocation-free). The measurements were taken on an Apple
-M-series development machine; they include boxing the result, which alloc
-gas also charges, so they err on the high side. They should be re-measured
-on the reference hardware with the rest of the table.
+machine-speed factor cancels. The measurements were taken on an Apple
+M-series development machine.
 
 | op | int (ns) | 256 (ns) | 64-bit gas | 256-bit gas |
 |----|---------:|---------:|-----------:|------------:|
-| `+` | 36.7 | 99.8 | 81 | 221 |
+| `+`, `++`, `--` | 36.7 | 99.8 | 81 | 221 |
 | `-` | 41.2 | 100.0 | 70 | 170 |
 | `*` | 40.7 | 95.6 | 71 | 167 |
 | `/` | 51.6 | 144.0 | 138 | 386 |
@@ -227,100 +254,161 @@ on the reference hardware with the rest of the table.
 | `&^` | 41.0 | 95.0 | 71 | 165 |
 | `<<` | 40.5 | 83.4 | 80 | 165 |
 | `>>` | 39.8 | 82.4 | 79 | 164 |
-| `==` | 51.4 | 59.4 | 93 | 108 |
-| `<` | 40.0 | 59.8 | 73 | 110 |
+| `==`, `!=` | 51.4 | 59.4 | 93 | 108 |
+| `<`, `<=`, `>`, `>=` | 40.0 | 59.8 | 73 | 110 |
 | unary `-` | 44.1 | 63.6 | 69 | 100 |
 | unary `^` | 43.2 | 63.9 | 69 | 103 |
 | convert, integer | 30.2 | 54.7 | 151 | 274 |
 | convert, float | 32.5 | 135.9 | 151 | 632 |
 
-`TestGasInt256Ops` pins the difference against `int` per operator, and
-`gnovm/tests/files/gas/int256_ops.gno` with `int_ops_baseline.gno` pin the
-gas of the same 100-iteration loop on both types (619248 against 471747).
+Each non-zero value also pays alloc gas for its box. Accounting is logical,
+per occurrence: every slot holding a non-zero value is charged one box,
+whether the box was built for it or is shared with the value it was copied
+from (`TypedValue.Copy` charges it, and so does a method value formed
+through an interface, which saves its operand without a copy), because the GC recount counts one box
+per slot and a reload from the store builds, and charges in
+`internalRefSize`, one box per slot. `TestBits256CopyAccounting` and
+`TestBits256BoundReceiverAccounting` check allocation, recount and reload
+against each other.
+
+`TestGasInt256Ops` pins the difference from `int` for `+ - * / % | == <`,
+unary `-`, `<<` and the zero-result case.
+`gnovm/tests/files/gas/int256_ops.gno` and `int_ops_baseline.gno` pin the
+gas of the same 100-iteration loop on both types.
+
+**Follow-up before activation (tracked):** re-measure the table on the
+reference hardware used for the rest of the gas table (Xeon 8168), with
+worst-case operands for every operator: full-width values, every divisor
+size and sign combination for `/` and `%`, float conversions at the range
+limits. The table is accepted when every 256-bit constant is at least the
+reference median of its worst case, and is then frozen for the launch.
 
 ### Native bindings and the rest of the node
 
 - Natives: a Gno `uint256` maps to `gnolang.Uint256` (an alias of
   `uint256.Int`) and `int256` to `gnolang.Int256` (a distinct type over the
-  same bits), both by value, in `Gno2GoValue`/`Go2GnoValue` and in
-  `misc/genstd`, so stdlib natives can take and return them.
+  same bits), by value, in `Gno2GoValue`/`Go2GnoValue` and in
+  `misc/genstd`.
 - `gno.land/pkg/sdk/vm/convert.go`: `maketx call` arguments are parsed from
   canonical decimal strings only (no `+`, no leading zero, no `-0`, at most
-  78 characters), so each value has one spelling, and checked against the
-  type's range.
-- Stdlib (all in Gno, no natives):
-  - `math.MaxInt256`, `math.MinInt256`, `math.MaxUint256`;
+  78 characters) and range-checked.
+- Stdlib, all in Gno:
+  - `math.MaxInt256`, `math.MinInt256`, `math.MaxUint256` (untyped; see the
+    restriction above);
   - `strconv.FormatInt256`, `FormatUint256`, `AppendInt256`,
-    `AppendUint256`, `ParseInt256`, `ParseUint256`, which behave like their
-    64-bit counterparts without the bit-size argument. Formatting peels off
-    the largest power of the base that fits a `uint64`, so a 78-digit number
-    costs a handful of 256-bit divisions;
+    `AppendUint256`, `ParseInt256`, `ParseUint256`, like their 64-bit
+    counterparts without the bit-size argument, including their error
+    precedence: syntax and unsigned overflow are checked digit by digit, left
+    to right, and the first failure is returned; then underscores (base 0
+    only); then, for `ParseInt256`, the signed range;
   - `math/overflow`: `Add256`, `Sub256`, `Mul256`, `Div256` and the
     unsigned `Addu256` ... `Divu256`, returning `(result, ok)`, with the
-    panicking `...p` variants, generated from the existing template.
+    panicking `...p` variants. On overflow they return the wrapped result
+    and false; `Div` returns 0 and false for a zero divisor.
+- Existing GRC20 interfaces are unchanged; a uint256-based token standard is
+  separate work (`p/nt/grc20/v1`, on the `feat/grc20-uint256` branch).
+
+### Production helpers
+
+Which helpers outside the VM support the new types:
+
+- `strconv`, `math` and `math/overflow` (above): supported.
+- The test `fmt`: supported (above); it is not available on chain.
+- `p/nt/ufmt`: support is being added on the `feat/grc20-uint256` branch,
+  with `p/nt/grc20/v1`; not part of this change.
+- `p/onbloc/json`: exposes numbers as `float64`, which is lossy beyond 2^53
+  for these types. The lossless route is a decimal string, written and read
+  with `strconv.FormatUint256`/`ParseUint256` (and the `Int256` pair).
+- Follow-up (tracked): native int256/uint256 number support in
+  `p/onbloc/json`, or a documented string convention for JSON APIs.
+
+### Reserved identifiers
+
+Gno does not let any declaration shadow a builtin identifier (#1779),
+imports included. `int256` and `uint256` are therefore reserved: code that
+declares them, or imports a package named `int256` or `uint256` without an
+alias, does not compile. In `examples/`, `p/onbloc/int256/v0` imported
+`p/onbloc/uint256/v0` under its default name; it now uses the alias `u256`,
+as the library's other users do.
+
+## Deployment
+
+This change ships with a new chain or genesis, as `gnoland-1` does.
+Existing chains are not upgraded in place, and there is no migration
+machinery. The change alters the VM (types, operators, gas, new amino
+types), adds stdlib code (which changes the object IDs of stdlib objects,
+see `zrealm_stdlib_ref.gno`), and reserves two identifiers, so state and
+history produced by an older binary are not compatible with it. Historical
+replay of existing chains with this binary is out of scope.
+
+Before launch, the genesis packages are scanned for the reserved names: a
+declaration of `int256` or `uint256`, or an unaliased import of a package
+with either name. The scan is part of the genesis checks run by the team
+preparing the genesis, and a conflict blocks the launch until the package is
+fixed.
+
+## Known issues
+
+- Untyped rune constant arithmetic is computed in int32 and wraps before the
+  result is converted, so `var w int64 = '\U0010ffff' * '\U0010ffff'` is
+  -2228223 instead of 1241243320321. This is an existing bug on master
+  (`mulAssign` groups `UntypedRuneType` with `Int32Type`), unchanged here; it
+  affects `int256` targets the same way.
 
 ## Alternatives considered
 
-1. **Widen `TypedValue.N` to 32 bytes.** Keeps the values out of the heap,
-   but grows every `TypedValue` (blocks, arrays, struct fields, the operand
+1. **Widen `TypedValue.N` to 32 bytes.** Keeps values off the heap, but
+   grows every `TypedValue` (blocks, arrays, struct fields, the operand
    stack) by 24 bytes for a type most code never uses, and changes the
    persisted layout of every value.
-2. **Keep the library type** (`p/onbloc/uint256`) and fix its ergonomics.
-   It stays a mutable pointer-shaped object: aliasing, readonly taint and
-   ownership stamps remain the caller's problem (#5736), and each operation
-   stays a few dozen interpreted operations.
-3. **Fork go/types**, or patch it, to know 256-bit types. Exact, but Gno
-   would carry a fork of a large toolchain package on chain and track
-   upstream by hand. The shims plus the overflow deferral need no fork.
-4. **`uint256` only.** Covers token amounts, but signed deltas (balance
-   changes, price ticks, `int256` fields in Ethereum ABIs) would need ad hoc
-   encodings. The signed type costs little once the unsigned one exists,
-   since both share the representation.
-5. **Panicking arithmetic** (overflow aborts the transaction). Safer for
-   amounts, but not Go's integer semantics, and it would make `int256`
-   differ from every other integer type. Checked arithmetic is provided
-   explicitly in `math/overflow` instead.
+2. **A library type with an immutable value API**, possibly with native
+   acceleration. Returning fresh values instead of mutating receivers removes
+   the aliasing problem, needs no checker shims, reserves no identifiers, has
+   no constant restriction, and natives would make each operation cheap. It
+   still has no operators (`a.Add(b)` everywhere, no `<`, no `+=`), still
+   stores each value as a struct object with its ownership metadata. The
+   primitive gives arithmetic its usual syntax and cost; that is the
+   decision.
+3. **A pinned, bounded patch to go/types** that knows 256-bit sizes, which
+   would lift the `int256` constant restriction. It is the exact solution,
+   but go/types would become a vendored, patched dependency on the consensus
+   path, rebased on every toolchain upgrade and reviewed as consensus code
+   each time. The restriction costs a documented workaround instead. The
+   patch remains an option if the restriction proves costly.
+4. **Dropping go/types' overflow errors**, leaving range checks to the
+   preprocessor, to lift the restriction without a patch. Rejected as
+   unsound (see "go/types").
+5. **`uint256` only.** Covers token amounts, but signed deltas would need ad
+   hoc encodings; the signed type costs little given the shared
+   representation.
+6. **Panicking arithmetic.** Safer for amounts, but not Go's integer
+   semantics; checked arithmetic is provided in `math/overflow` instead.
 
 ## Consequences
 
-- This is a consensus-breaking VM change: new types, new op semantics and
-  gas, a new amino type, new stdlib functions (which also shift the object
-  IDs of stdlib objects, see `zrealm_stdlib_ref.gno`), and a preprocessor
-  that rejects typed constant overflows go/types used to catch. It needs a
-  chain upgrade; it cannot be enabled on a running chain by a code update
-  alone.
-- `int256` and `uint256` become reserved identifiers. Gno does not let any
-  declaration shadow a builtin (#1779), imports included, so code that
-  declares those names, or imports a package named `int256` or `uint256`
-  without an alias, no longer compiles. In `examples/`, only
-  `p/onbloc/int256` was affected: it now imports `p/onbloc/uint256` as
-  `u256`, the alias its other users already use. Packages deployed on a
-  chain that use those names would fail to load after the upgrade, so the
-  upgrade must check deployed code for them.
-- Otherwise, every program accepted before is still accepted: the
-  preprocessor's new checks reject only programs go/types already
-  rejected. Error messages for constant overflow now come from the
-  preprocessor only.
-- Adding functions to `strconv` grows that package, so code that imports
-  it pays slightly more gas to load it (`stdlib_restart_compare.txtar`:
-  1985078 to 1992634 for the same call).
+- A new chain is required (see "Deployment").
+- `int256` and `uint256` are reserved identifiers.
+- `int256` constants are limited to the int64 range.
+- Clients that decode `qeval_json`/`qobject_json` values must read `V` for
+  the two new types.
+- Adding code to `strconv` grows that package, so code that imports it pays
+  slightly more gas to load it (`stdlib_restart_compare.txtar`: 1985078 to
+  1993542 for the same call).
 - Chain coins (`std.Coin`, the banker) stay `int64`. A realm that holds
-  256-bit token balances keeps them in its own state; converting to coins
-  needs an explicit range check.
-- `p/onbloc/uint256` keeps working; new code can use the native types.
+  256-bit balances keeps them in its own state; converting to coins needs an
+  explicit range check.
 
 ## Key files
 
 | File | Role |
 |------|------|
-| `gnovm/pkg/gnolang/values_int256.go` | `Bits256Value`, accessors, conversions, arithmetic helpers |
+| `gnovm/pkg/gnolang/values_int256.go` | value types, accessors, conversions, arithmetic helpers |
 | `gnovm/pkg/gnolang/types.go`, `uverse.go` | the types and kinds; uverse names |
 | `gnovm/pkg/gnolang/op_binary.go`, `op_unary.go`, `op_inc_dec.go`, `op_assign.go` | operators |
 | `gnovm/pkg/gnolang/values_conversions.go` | conversion dispatch, untyped constants |
-| `gnovm/pkg/gnolang/preprocess.go` | `checkConstFoldOverflow`, 256-bit shift counts |
-| `gnovm/pkg/gnolang/gotypecheck.go` | universe shims, `gnoTypesSizes`, `isDeferredOverflowError` |
+| `gnovm/pkg/gnolang/gotypecheck.go` | shims, `GoTypesSizes` |
 | `gnovm/pkg/gnolang/machine.go` | `OpCPU*Int256`, `incrCPU256` |
 | `gnovm/pkg/gnolang/gonative.go`, `misc/genstd/mapping.go` | native bindings |
 | `gno.land/pkg/sdk/vm/convert.go` | transaction arguments |
-| `gnovm/tests/files/int256/`, `gnovm/tests/files/constoverflow/` | filetests |
-| `gno.land/pkg/integration/testdata/int256_args.txtar` | arguments, results, persistence across a restart |
+| `gnovm/tests/files/int256/` | filetests |
+| `gno.land/pkg/integration/testdata/int256_args.txtar` | arguments, results, JSON, persistence across a restart |

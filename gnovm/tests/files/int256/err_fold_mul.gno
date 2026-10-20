@@ -6,5 +6,8 @@ func main() {
 	println(c * c)
 }
 
-// Error:
-// main/err_fold_mul.gno:6:10-15: constant 2582249878086908589655919172003011874329705792829223512830659356540647622016841194629645353280137831435903171972747493376 overflows Int256Kind
+// Output:
+// 0
+
+// TypeCheckError:
+// main/err_fold_mul.gno:3:18: cannot use 1 << 200 (untyped int constant 1606938044258990275541962092341162602522202993782792835301376) as int256 value in constant declaration (overflows)

@@ -31,7 +31,8 @@ func main() {
 	mp := map[pair]bool{}
 	mp[pair{1, -1}] = true
 	mp[pair{1, -1}] = true
-	mp[pair{math.MaxUint256, math.MinInt256}] = true
+	var minBits uint256 = 1 << 255
+	mp[pair{math.MaxUint256, int256(minBits)}] = true
 	println(len(mp), mp[pair{1, -1}], mp[pair{1, 1}])
 	ma := map[[2]int256]int{{-1, 1}: 1}
 	println(ma[[2]int256{-1, 1}], ma[[2]int256{1, -1}])

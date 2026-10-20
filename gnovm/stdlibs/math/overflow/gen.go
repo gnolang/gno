@@ -55,7 +55,8 @@ type Type struct {
 
 func minOf(bits int) string {
 	if bits > 64 {
-		return "-1<<" + strconv.Itoa(bits-1)
+		// An int256 constant must fit an int64: see minInt256 in doc.gno.
+		return "minInt256"
 	}
 	return strconv.FormatInt(-1<<(bits-1), 10)
 }

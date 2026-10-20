@@ -399,7 +399,17 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 // the uint64 range is a code point.
 func (p *pp) fmtInteger256(v uint256, isSigned bool, verb rune) {
 	switch verb {
-	case 'v', 'd':
+	case 'v':
+		if p.fmt.sharpV && !isSigned {
+			// As fmt0x64: %#v prints an unsigned integer in hex.
+			sharp := p.fmt.sharp
+			p.fmt.sharp = true
+			p.fmt.fmtInteger256(v, 16, isSigned, 'v', ldigits)
+			p.fmt.sharp = sharp
+		} else {
+			p.fmt.fmtInteger256(v, 10, isSigned, verb, ldigits)
+		}
+	case 'd':
 		p.fmt.fmtInteger256(v, 10, isSigned, verb, ldigits)
 	case 'b':
 		p.fmt.fmtInteger256(v, 2, isSigned, verb, ldigits)

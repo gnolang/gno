@@ -2,13 +2,12 @@ package gnolang
 
 // Native 256-bit integers: int256 and uint256.
 //
-// Both kinds share one runtime representation, Bits256Value, which holds the
-// raw 256 bits in TypedValue.V. The static type (TypedValue.T) decides how the
-// bits are read: as an unsigned number for uint256, as a two's complement
-// number for int256. A nil V is the zero value, and every operation stores a
-// zero result as nil, so each value has exactly one representation.
+// A value lives in TypedValue.V as an Int256Value or a Uint256Value, each
+// holding the 256 bits (two's complement for int256). A nil V is the zero
+// value, and every operation stores a zero result as nil, so each value has
+// exactly one representation; the amino encoding rejects a boxed zero.
 //
-// Bits256Value is a fixed-size array held by value. Copying a TypedValue
+// The values are fixed-size arrays held by value. Copying a TypedValue
 // copies the interface, which shares the boxed array, but nothing ever writes
 // through it: every operation builds a new value. Assignment can therefore
 // never alias. See gnovm/adr/prxxxx_native_int256.md.
@@ -25,53 +24,179 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
-// Bits256Value is the value of an int256 or uint256.
-type Bits256Value struct {
+// Uint256Value is the value of a non-zero uint256.
+type Uint256Value struct {
 	V uint256.Int
 }
 
-func (Bits256Value) assertValue() {}
-
-var _ Value = Bits256Value{}
-
-// String prints the bits as an unsigned decimal; the value alone does not
-// know whether it is signed. Use TypedValue printing for the typed form.
-func (bv Bits256Value) String() string {
-	return bv.V.Dec()
+// Int256Value is the value of a non-zero int256, in two's complement.
+type Int256Value struct {
+	V uint256.Int
 }
 
-func (bv Bits256Value) DeepFill(store Store) Value {
-	return bv
-}
+func (Uint256Value) assertValue() {}
+func (Int256Value) assertValue()  {}
 
-func (bv Bits256Value) GetShallowSize() int64 {
-	return allocBits256
-}
+var (
+	_ Value = Uint256Value{}
+	_ Value = Int256Value{}
+)
 
-func (bv Bits256Value) VisitAssociated(vis Visitor) (stop bool) {
-	return false
-}
+func (v Uint256Value) String() string { return v.V.Dec() }
+func (v Int256Value) String() string  { return dec256(&v.V, true) }
 
-// MarshalAmino encodes the bits as minimal big-endian bytes: no leading zero
-// byte, and the empty slice for zero. At most 32 bytes.
-func (bv Bits256Value) MarshalAmino() ([]byte, error) {
-	if bv.V.IsZero() {
-		return []byte{}, nil
+func (v Uint256Value) DeepFill(store Store) Value { return v }
+func (v Int256Value) DeepFill(store Store) Value  { return v }
+
+func (v Uint256Value) GetShallowSize() int64 { return allocBits256 }
+func (v Int256Value) GetShallowSize() int64  { return allocBits256 }
+
+func (v Uint256Value) VisitAssociated(vis Visitor) (stop bool) { return false }
+func (v Int256Value) VisitAssociated(vis Visitor) (stop bool)  { return false }
+
+// MarshalAmino encodes the value as a canonical decimal string, in binary and
+// in JSON alike: digits with no leading zero, and a "-" for a negative int256.
+// Zero is never boxed (it is a nil V), so a boxed zero is refused.
+func (v Uint256Value) MarshalAmino() (string, error) {
+	if v.V.IsZero() {
+		return "", errBoxedZero
 	}
-	return bv.V.Bytes(), nil
+	return v.V.Dec(), nil
 }
 
-// UnmarshalAmino accepts only the canonical form MarshalAmino produces, so a
-// value has a single encoding in realm state.
-func (bv *Bits256Value) UnmarshalAmino(bz []byte) error {
-	if len(bz) > 32 {
-		return fmt.Errorf("Bits256Value: %d bytes exceeds 32", len(bz))
+func (v Int256Value) MarshalAmino() (string, error) {
+	if v.V.IsZero() {
+		return "", errBoxedZero
 	}
-	if len(bz) > 0 && bz[0] == 0 {
-		return errors.New("Bits256Value: non-canonical encoding with leading zero byte")
+	return dec256(&v.V, true), nil
+}
+
+// UnmarshalAmino accepts only the form MarshalAmino produces, so a value has a
+// single encoding in realm state.
+func (v *Uint256Value) UnmarshalAmino(s string) error {
+	z, err := parseCanonical256(s, false)
+	v.V = z
+	return err
+}
+
+func (v *Int256Value) UnmarshalAmino(s string) error {
+	z, err := parseCanonical256(s, true)
+	v.V = z
+	return err
+}
+
+var errBoxedZero = errors.New("int256/uint256: zero must be a nil value, not a boxed zero")
+
+// CheckCanonical256 returns an error if v, a decoded value, holds a boxed
+// zero 256-bit value in any of its inline slots, recursively through inline
+// composites. The binary decoder already rejects one (UnmarshalAmino refuses
+// an empty payload), but amino builds a JSON null, or an absent Any payload,
+// as the zero value without calling UnmarshalAmino; this check closes that
+// path at the enclosing value. Objects are checked as the store loads them.
+func CheckCanonical256(v Value) error {
+	var err error
+	var walk func(v Value)
+	slot := func(tv *TypedValue) {
+		switch x := tv.V.(type) {
+		case Int256Value:
+			if x.V.IsZero() {
+				err = errBoxedZero
+			}
+		case Uint256Value:
+			if x.V.IsZero() {
+				err = errBoxedZero
+			}
+		default:
+			walk(x)
+		}
 	}
-	bv.V.SetBytes(bz)
-	return nil
+	walk = func(v Value) {
+		if err != nil {
+			return
+		}
+		switch v := v.(type) {
+		case *Block:
+			for i := range v.Values {
+				slot(&v.Values[i])
+			}
+		case *ArrayValue:
+			for i := range v.List {
+				slot(&v.List[i])
+			}
+		case *StructValue:
+			for i := range v.Fields {
+				slot(&v.Fields[i])
+			}
+		case *MapValue:
+			for cur := v.List.Head; cur != nil; cur = cur.Next {
+				slot(&cur.Key)
+				slot(&cur.Value)
+			}
+		case *BoundMethodValue:
+			slot(&v.Receiver)
+		case *HeapItemValue:
+			slot(&v.Value)
+		case *FuncValue:
+			for i := range v.Captures {
+				slot(&v.Captures[i])
+			}
+		case PointerValue:
+			if v.TV != nil {
+				slot(v.TV)
+			}
+		}
+	}
+	walk(v)
+	return err
+}
+
+func mustBeCanonical256(v Value) {
+	if err := CheckCanonical256(v); err != nil {
+		panic(err)
+	}
+}
+
+// dec256 formats z in decimal, as signed two's complement if signed.
+func dec256(z *uint256.Int, signed bool) string {
+	if signed && z.Sign() < 0 {
+		var abs uint256.Int
+		abs.Neg(z)
+		return "-" + abs.Dec()
+	}
+	return z.Dec()
+}
+
+// parseCanonical256 parses the canonical non-zero decimal form of an int256
+// (signed) or uint256: an optional "-" (int256 only), then digits with no
+// leading zero, within the type's range.
+func parseCanonical256(s string, signed bool) (z uint256.Int, err error) {
+	digits := s
+	neg := signed && len(s) > 0 && s[0] == '-'
+	if neg {
+		digits = s[1:]
+	}
+	if digits == "" || digits[0] == '0' {
+		return z, fmt.Errorf("int256/uint256: non-canonical decimal %q", s)
+	}
+	for i := 0; i < len(digits); i++ {
+		if c := digits[i]; c < '0' || c > '9' {
+			return z, fmt.Errorf("int256/uint256: invalid decimal %q", s)
+		}
+	}
+	if err := z.SetFromDecimal(digits); err != nil {
+		return z, fmt.Errorf("int256/uint256: %q out of range", s)
+	}
+	if signed {
+		var limit uint256.Int
+		limit.Lsh(uint256.NewInt(1), 255)
+		if z.Gt(&limit) || (!neg && z.Eq(&limit)) {
+			return z, fmt.Errorf("int256: %q out of range", s)
+		}
+		if neg {
+			z.Neg(&z)
+		}
+	}
+	return z, nil
 }
 
 // ----------------------------------------
@@ -105,10 +230,14 @@ func (tv *TypedValue) GetBits256() (z uint256.Int) {
 			))
 		}
 	}
-	if tv.V == nil {
+	switch v := tv.V.(type) {
+	case nil:
 		return z
+	case Uint256Value:
+		return v.V
+	default:
+		return v.(Int256Value).V
 	}
-	return tv.V.(Bits256Value).V
 }
 
 // SetBits256 stores z, charging alloc for the boxed value. Zero is stored as
@@ -127,18 +256,29 @@ func (tv *TypedValue) SetBits256(alloc *Allocator, z *uint256.Int) {
 		tv.V = nil
 		return
 	}
-	tv.V = alloc.NewBits256(z)
+	alloc.Allocate(allocBits256)
+	if tv.T.Kind() == Int256Kind {
+		tv.V = Int256Value{V: *z}
+	} else {
+		tv.V = Uint256Value{V: *z}
+	}
+}
+
+// chargeBits256Slot charges one box when tv, a non-zero 256-bit value, is
+// stored in a new slot that shares its box (a copy). The GC recount and a
+// reload from the store count one box per slot (logical, per-occurrence
+// accounting), so every slot must be charged one.
+func chargeBits256Slot(alloc *Allocator, tv *TypedValue) {
+	switch tv.V.(type) {
+	case Int256Value, Uint256Value:
+		alloc.Allocate(allocBits256)
+	}
 }
 
 // GetBig256 returns the mathematical value of an int256 or uint256 value.
 func (tv *TypedValue) GetBig256() *big.Int {
 	z := tv.GetBits256()
 	return bits256ToBig(&z, tv.T.Kind() == Int256Kind)
-}
-
-func (alloc *Allocator) NewBits256(z *uint256.Int) Bits256Value {
-	alloc.Allocate(allocBits256)
-	return Bits256Value{V: *z}
 }
 
 // ----------------------------------------
@@ -561,10 +701,5 @@ func convertGetInt256(tv *TypedValue) int64 {
 // sprint256 formats an int256 or uint256 value in decimal.
 func sprint256(tv *TypedValue) string {
 	z := tv.GetBits256()
-	if tv.T.Kind() == Int256Kind && z.Sign() < 0 {
-		var abs uint256.Int
-		abs.Neg(&z)
-		return "-" + abs.Dec()
-	}
-	return z.Dec()
+	return dec256(&z, tv.T.Kind() == Int256Kind)
 }

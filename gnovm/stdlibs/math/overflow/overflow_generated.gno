@@ -690,7 +690,7 @@ func Div256(a, b int256) (int256, bool) {
 	}
 	// Only the smallest int256 divided by -1 can overflow, as its absolute
 	// value cannot be represented as a positive integer.
-	return a / b, !(b == -1 && a == -1<<255)
+	return a / b, !(b == -1 && a == minInt256)
 }
 
 // Add256p returns the sum of two int256s, panicking on overflow.
