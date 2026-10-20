@@ -25,7 +25,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # `gno test` worker count for the stdlibs; each worker holds a full GnoVM store.
 # See examples/Makefile: 4.4 GiB over sixteen workers against 1.3 GiB over four,
 # for the same wall time.
-GNOTEST_JOBS ?= $(or $(filter-out 0,$(GNO_TEST_MAX_PARALLEL)),4)
+GNOTEST_JOBS ?= $(or $(shell echo '$(GNO_TEST_MAX_PARALLEL)' | grep -xE '0*[1-9][0-9]*' | sed 's/^0*//'),4)
 # used to set the default GNOROOT. This helps on local development, as it sets
 # up GNOROOT to the supposed path of the Gno repository clone.
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)

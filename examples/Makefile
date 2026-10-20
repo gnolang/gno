@@ -25,9 +25,10 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # at the default (GOMAXPROCS) makes peak memory track the host's core count:
 # ~8 GiB over sixteen workers against ~4 GiB over four, for the same wall time —
 # this suite is bound by memory, not CPU. 4 as in testutils.MaxParallel, and
-# overridable by GNO_TEST_MAX_PARALLEL as there; `gno test` itself lowers -p to
-# GOMAXPROCS on smaller machines.
-GNOTEST_JOBS ?= $(or $(filter-out 0,$(GNO_TEST_MAX_PARALLEL)),4)
+# overridable by GNO_TEST_MAX_PARALLEL as there, which likewise ignores anything
+# but a positive integer; `gno test` itself lowers -p to GOMAXPROCS on smaller
+# machines.
+GNOTEST_JOBS ?= $(or $(shell echo '$(GNO_TEST_MAX_PARALLEL)' | grep -xE '0*[1-9][0-9]*' | sed 's/^0*//'),4)
 
 ########################################
 # Dev tools
