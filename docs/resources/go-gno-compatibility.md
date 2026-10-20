@@ -77,6 +77,7 @@ iota := 5           // same error
 | `int`, `int8`, `int16`, `int32`, `int64`      | full                   | full                                                       |
 | `uint`, `uint8`, `uint16`, `uint32`, `uint64` | full                   | full                                                       |
 | `float32`, `float64`                          | full                   | full                                                       |
+| `int256`, `uint256` (not in Go)               | full                   | full                                                       |
 | `complex64`, `complex128`                     | missing (TBD)          | missing                                                    |
 | `uintptr`, `unsafe.Pointer`                   | missing                | missing                                                    |
 | `string`                                      | full                   | full                                                       |
