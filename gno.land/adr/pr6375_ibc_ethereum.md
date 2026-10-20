@@ -2,8 +2,8 @@
 
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
-  `feat/ibc-controls` (0da0088, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
-  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (6623203,
+  `feat/ibc-controls` (ebc55e5, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
+  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (82528e1,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
@@ -166,7 +166,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 0da0088; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ebc55e5; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -477,7 +477,11 @@ oversize governance envelope within the window and spends it (§5.4).
   refusal** (gno-eth-ibc 8be14ad): with less gas than the recording frame needs, the **delivered** decision reverts
   with empty data, so eureka raises `IBCFailedCallback`, the whole transaction reverts and no receipt or ack is
   kept, and the same packet can be relayed again; a starved **drain** stops without reverting, so what the delivery
-  recorded stands (a kind 9 included) and the rest stays buffered for `drain()`. `ExecutionStarved` is no longer
+  recorded stands (a kind 9 included) and the rest stays buffered for `drain()`. Each drain step — after a delivery
+  or through `drain()` — first checks a reserve, `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000`, before its writes
+  and its parameter copy, and stops with its decision buffered below it (gno-eth-ibc 82528e1); the 100,000 margin
+  also covers `_close`'s worst-case parameter clear after a full-frame executor. The reserve and the recording
+  floor's own margin are each sufficient alone: defence in depth. `ExecutionStarved` is no longer
   raised. (Before, a starved decision got an error ack, which a public relayer could front-run with too little gas
   to consume governance packets.) Refusable calls and self-steps at execution keep their fixed budgets and floors.
   `IBCAdmin` **orders recording, not delivery**:
@@ -1230,7 +1234,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
      executor (refused `Suspended` while an emergency recovery is open, so the guardians first cancel it with
      `cancelRecovery`, `IBCAdmin`'s own path that works with a broken executor; its deferral bounded under holds and
      flags at anchor + 21 days, §7.4, a conflict flag counting from the first execution attempt once the decision is
-     due, so attempt execution as soon as it is due; its delivery records it even when the failed executor cannot answer the decisions buffered behind
+     due, so attempt execution as soon as it is due; its 7-day delay runs from Ethereum's `recordedTime`, not from
+     the dispatch on gno.land, so repeat `drain()` until `IBCAdmin` shows the hand-over pending before counting it
+     (gno-realms ebc55e5); its delivery records it even when the failed executor cannot answer the decisions buffered behind
      it, which halt, stay buffered and drain through the new executor afterwards — `drain()` records at most eight per
      call and stops early at a halting decision or when gas runs short, so repeat adequately funded calls until
      `lastSeq()` stops advancing and nothing is buffered next; first cancel by kind 1 every
@@ -1269,7 +1275,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 ### 7.7 Governor and one-way yield — R9/R11
 
 - The realms compile a governor key, which decides through the same builders, checks and delays as GovDAO.
-  **As shipped (ab794ba through 0da0088), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
+  **As shipped (ab794ba through ebc55e5), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
   real key in the deployed source, and GovDAO members verify it before the immutable realm is deployed. The
   supported alternative is an empty key (`""`): then no governor exists, `Yield` is refused, and GovDAO decides
   from the first block.
@@ -2314,7 +2320,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | `MaxOpenRecaps` (unpaid recapitalizations per incident and denom) / `ReopenBatch` | 64 / 64 | constant |
 | controls page size (`PageLines`) | 100 | constant |
 | settlement items per decision | gno.land 64; Ethereum kind 12: 8 (6M inner `settleRecords` budget) | constant |
-| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
+| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting, each drain step first requiring `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000` gas before its writes and parameter copy (82528e1) — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
 | packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, on gno.land enforced by the core for every packet (an oversize receive refused before the app, leaving the packet pending), on Ethereum by the transfer app for ICS20 payloads on send and receive (an oversize receive error-acked; a readable oversize governance envelope is instead consumed and spent by `IBCAdmin`, §5.4); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
 | Ethereum receive / send amount | at most 2^96 − 1 | constant |
@@ -2405,7 +2411,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
      sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
      cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 0da0088, ADR 0004).
+3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, ebc55e5, ADR 0004).
    - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
      route-scoped flags and voids per client.
    - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
@@ -2917,6 +2923,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   client-status asymmetry — gno.land refuses every send (transfers, voucher returns, governance dispatches) over a
   local Ethereum client that is not Active, so it is repaired before any Ethereum-bound decision; Ethereum sends over
   a Frozen or Expired `GnoLightClient` unchecked, so route flags contain new escrowed sends (§7.3, §8.3, §8.5 19k).
+- 2026-10-20, gno-eth-ibc 82528e1 and gno-realms ebc55e5: each drain step checks `DRAIN_RESERVE =
+  RECORD_FLOOR·64/63 + 100,000` before its writes and parameter copy and stops, its decision buffered, below it
+  (defence in depth with the recording floor's own margin; §5.4, §9); a hand-over's 7-day delay counts from
+  Ethereum's `recordedTime`, so `drain()` is repeated until it is pending (§7.6). References updated.
 
 ## 15. References
 
@@ -2927,7 +2937,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - gno-realms:
   - [branch `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client)
   - ADRs [0001](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0001-proxy-realm-for-core-upgrades.md), [0002](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0002-proxy-realm-for-transfer-upgrades.md), [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md)
-  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (0da0088): ADR
+  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (ebc55e5): ADR
     [0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
