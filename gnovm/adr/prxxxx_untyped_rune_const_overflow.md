@@ -206,4 +206,4 @@ persisted package block, need no special handling.
 | `gnovm/pkg/gnolang/values_conversions.go` | float targets and the `uint64` check in `ConvertUntypedRuneTo` |
 | `gnovm/pkg/gnolang/preprocess_rune_const_test.go` | persisted layout of folded rune constants; fold gas |
 | `gnovm/pkg/gnolang/values_conversions_test.go` | conversion unit test |
-| `gnovm/tests/files/rune4.gno`–`rune23.gno`, `switch52.gno` | filetests |
+| `gnovm/tests/files/rune4.gno`–`rune24.gno`, `switch52.gno` | filetests |
