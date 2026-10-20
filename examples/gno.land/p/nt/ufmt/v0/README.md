@@ -55,7 +55,7 @@ func Errorf(format string, args ...any) error
 | Verb | Meaning                                                                |
 |------|------------------------------------------------------------------------|
 | `%s` | String. Uses `String()` or `Error()` if implemented.                   |
-| `%d` | Integer (signed and unsigned, all widths).                             |
+| `%d` | Integer (signed and unsigned, all widths, including int256/uint256).   |
 | `%c` | Unicode character from rune/int code point.                            |
 | `%t` | Boolean: `true` or `false`.                                            |
 | `%q` | Double-quoted, escaped string.                                         |

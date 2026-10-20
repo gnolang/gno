@@ -260,6 +260,10 @@ func writeValue(p *printer, verb rune, arg any) {
 		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 	case uint64:
 		p.buf.writeString(strconv.FormatUint(v, 10))
+	case int256:
+		p.buf.writeString(strconv.FormatInt256(v, 10))
+	case uint256:
+		p.buf.writeString(strconv.FormatUint256(v, 10))
 	case float64:
 		p.buf.writeString(strconv.FormatFloat(v, 'g', -1, 64))
 	case string:
@@ -343,6 +347,10 @@ func writeInt(p *printer, verb rune, arg any) {
 		p.buf.writeString(strconv.FormatUint(uint64(v), 10))
 	case uint64:
 		p.buf.writeString(strconv.FormatUint(v, 10))
+	case int256:
+		p.buf.writeString(strconv.FormatInt256(v, 10))
+	case uint256:
+		p.buf.writeString(strconv.FormatUint256(v, 10))
 	default:
 		p.buf.writeString(fallback(verb, v))
 	}
@@ -429,6 +437,10 @@ func writeType(p *printer, arg any) {
 		p.buf.writeString("uint32")
 	case uint64:
 		p.buf.writeString("uint64")
+	case int256:
+		p.buf.writeString("int256")
+	case uint256:
+		p.buf.writeString("uint256")
 	case string:
 		p.buf.writeString("string")
 	case []byte:
@@ -553,7 +565,7 @@ func fallback(verb rune, arg any) string {
 		s = "string=" + v.Error()
 	case float64:
 		s = "float64=" + Sprintf("%f", v)
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, int256, uint256:
 		// note: rune, byte would be dups, being aliases
 		if typename, e := typeToString(v); e == nil {
 			s = typename + "=" + Sprintf("%d", v)
@@ -595,6 +607,10 @@ func typeToString(v any) (string, error) {
 		return "uint32", nil
 	case uint64:
 		return "uint64", nil
+	case int256:
+		return "int256", nil
+	case uint256:
+		return "uint256", nil
 	case float32:
 		return "float32", nil
 	case float64:

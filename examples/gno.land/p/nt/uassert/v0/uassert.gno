@@ -374,6 +374,18 @@ func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 			es, as = strconv.FormatUint(ev, 10), strconv.FormatUint(av, 10)
 		}
+	case int256:
+		if av, ok := actual.(int256); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatInt256(ev, 10), strconv.FormatInt256(av, 10)
+		}
+	case uint256:
+		if av, ok := actual.(uint256); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatUint256(ev, 10), strconv.FormatUint256(av, 10)
+		}
 	case bool:
 		if av, ok := actual.(bool); ok {
 			equal = ev == av
@@ -508,6 +520,18 @@ func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 			es, as = strconv.FormatUint(ev, 10), strconv.FormatUint(av, 10)
 		}
+	case int256:
+		if av, ok := actual.(int256); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatInt256(ev, 10), strconv.FormatInt256(av, 10)
+		}
+	case uint256:
+		if av, ok := actual.(uint256); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatUint256(ev, 10), strconv.FormatUint256(av, 10)
+		}
 	case bool:
 		if av, ok := actual.(bool); ok {
 			notEqual = ev != av
@@ -577,6 +601,10 @@ func isNumberEmpty(n any) (isNumber, isEmpty bool) {
 	case uint32:
 		return true, n == 0
 	case uint64:
+		return true, n == 0
+	case int256:
+		return true, n == 0
+	case uint256:
 		return true, n == 0
 	case float32:
 		return true, n == 0
