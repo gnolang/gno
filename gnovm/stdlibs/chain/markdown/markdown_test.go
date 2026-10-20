@@ -271,6 +271,17 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
 		{"link-across-fence-then-lrd", "[a\n```\n](u)\n```\n[home]: https://evil.example\n", "\\[a\n```\n](u)\n```\n"},
 		{"link-text-across-line-kept", "[a\nb](u)\n", "[a\nb](u)\n"},
+		// CM §4.7: text after a definition's destination makes it no
+		// definition, so none of it is deleted.
+		{"lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n", "\\[a\\]: u ```\n```\n- y\n  ```\n~~~\n~~~\n"},
+		{"lrd-text-after-destination-kept", "[a]: u text\n", "\\[a\\]: u text\n"},
+		{"html-close-tag-with-space-over-fence", "</ div>\n```\n\nfoo", "\\</ div>\n```\n\nfoo\n```\n"},
+		{"html-block-type-1-form-feed", "<script\f\nhello", "\\<script\f\nhello"},
+		// An empty list item cannot interrupt a paragraph; after a fence or
+		// indented code it starts a list.
+		{"empty-item-in-paragraph-kept", "[](\n1)", "[](\n1)"},
+		{"empty-item-after-fence", "```\n```\n-\n", "```\n```\n\\-\n"},
+		{"empty-item-after-indented-code", "\n    code\n-\n", "\n    code\n\\-\n"},
 		// Empty list items are list items too.
 		{"empty-bullet-item", "-\n  ```\n<gno-form path=\"x\">\n```\n", "\\-\n  ```\n\\<gno-form path=\"x\">\n```\n"},
 		{"empty-star-item", "*\n", "\\*\n"},
@@ -424,6 +435,13 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"lrd-indent-deleted", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n", "- x\n```\n\\<gno-form path=\"x\">\n```\n"},
 		{"fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n", "- ```\n  ```\n  \\<gno-form path=\"x\">\n  ```\n"},
 		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
+		{"lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n", "\\[a\\]: u ```\n```\n- y\n  ```\n~~~\n~~~\n"},
+		{"html-close-tag-with-space-over-fence", "</ div>\n```\n\nfoo", "\\</ div>\n```\n\nfoo\n```\n"},
+		// sanitize.BlockRich escapes a leading setext line before this
+		// native; a deleted definition can put a new one first.
+		{"leading-setext-after-deleted-lrd", "[a]: u\n===", "\\==="},
+		{"leading-setext-after-deleted-indented-lrd", " []: x\n   =", "   \\="},
+		{"leading-thematic-break-kept", "---\n", "---\n"},
 		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
 		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
 		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n ~~~\n\\<gno-columns>\n"},

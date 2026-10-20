@@ -168,7 +168,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
 - `p/nt/markdown/sanitize` escapes a line-leading `<gno-…` (any case, 1-3
   space indent), and after a `>` or list marker a frame tag stays an inert
   comment (goldens `blockrich-gno-frame-*`, `block-gno-frame-escaped`). No
-  sanitizer change in this PR. Known gap on master, tracked in #6300: a
+  sanitizer change in this PR. *(Since PR #6304 a frame tag after a `>` or
+  list marker is escaped to text, which those goldens now show.)* Known gap on master, tracked in #6300: a
   fence indented under a list item makes the sanitizer
   skip the escape on the next unindented line, which goldmark parses at
   document level, so user content can open or close a frame there (the same

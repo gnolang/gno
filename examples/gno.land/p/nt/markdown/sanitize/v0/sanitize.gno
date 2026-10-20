@@ -361,7 +361,8 @@ func InlineText(s string) string {
 // to occupy its own paragraph(s), isolated from any realm chrome that
 // precedes OR follows it. This bounds CM §4.6 HTML block types 6 and
 // 7 (`<div>`, `<table>`, `<form>`, arbitrary `<foo>` tags) which
-// close on a blank line and are NOT escaped in any mode, and it
+// close on a blank line and are escaped only when a fence line follows
+// them before that blank line, and it
 // defeats first-line setext promotion (`===`/`---`) that strict-mode
 // escapes miss when the previous line is blank in the user input but
 // non-blank in the concatenated realm output. Empty input (or input
@@ -450,8 +451,9 @@ func Block(s string) string {
 	// hazards remain that only a blank-line break can close:
 	//
 	//   - CM §4.6 HTML block types 6 and 7 (`<div>`, `<table>`,
-	//     `<form>`, arbitrary `<foo>` tags) are NOT escaped in any mode
-	//     — they close on a blank line per CM. Without a trailing
+	//     `<form>`, arbitrary `<foo>` tags) are escaped only when a fence
+	//     line follows them before a blank line — they close on a blank
+	//     line per CM. Without a trailing
 	//     "\n\n", a `<div>` at the end of user content extends into
 	//     appended realm chrome.
 	//
@@ -913,6 +915,8 @@ func Blockquote(text string) string {
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — CM §4.6 Types 1-5
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   don't close on blank lines; without escape
 //	  at line-start                               |   they would swallow chrome past the `> ` quote
+//	any tag at line-start with a fence line       | escaped (\<…) [SAME]
+//	  before the next blank line                  |
 //	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
 //	[^name] footnote-ref                          | both brackets escaped [SAME]
 //	[label] bare shortcut-ref                     | both brackets escaped [SAME]

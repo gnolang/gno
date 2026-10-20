@@ -407,7 +407,11 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	// spans on the whole input, then escapes any unescaped `[` / `]`
 	// outside those spans, and deletes LRD spans entirely. Subsumes the
 	// previous per-line LRD strip and ref-link-use escape.
-	s = escapeBracketsOutsideLinks(s)
+	walked := escapeBracketsOutsideLinks(s)
+	if !escapeLeader && walked != s && leadingContent(walked) != leadingContent(s) {
+		walked = escapeLeadingSetext(walked)
+	}
+	s = walked
 
 	var out strings.Builder
 	out.Grow(len(s) + 16)
@@ -424,6 +428,11 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		fenceLen     int
 		fenceOpen    string // the opener's indent and fence run, reused as its closer
 		prevNonBlank bool
+		// prevParagraph: the previous line is paragraph text, which an
+		// empty list item cannot interrupt. A fence or indented code is
+		// not, so strict mode still escapes `-` alone after one: a list
+		// there would let a fence end, unseen, at a dedented line.
+		prevParagraph bool
 	)
 	// HTML blocks of CM §4.6 types 6 and 7 run to the next blank line,
 	// so a fence line inside one is HTML to goldmark and a fence opener
@@ -432,12 +441,20 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	// opener is escaped like types 1-5, so goldmark reads the fence too.
 	// Openers with no fence line before the next blank line are left
 	// alone: gnoweb drops their HTML, and escaping would show it.
-	var ahead []bool // built on first use
+	// htmlBlockHidesFence reports whether a fence line follows lines[idx]
+	// before the next blank line. Callers ask about increasing idx, so
+	// each run of non-blank lines is scanned once for its last fence line.
+	scanEnd, lastFence := 0, -1
 	htmlBlockHidesFence := func(idx int) bool {
-		if ahead == nil {
-			ahead = fenceBeforeBlankLine(lines)
+		if idx >= scanEnd {
+			lastFence = -1
+			for scanEnd = idx + 1; scanEnd < len(lines) && strings.TrimLeft(lines[scanEnd], " \t") != ""; scanEnd++ {
+				if _, _, _, ok := parseFenceOpener(lines[scanEnd]); ok {
+					lastFence = scanEnd
+				}
+			}
 		}
-		return ahead[idx]
+		return lastFence > idx
 	}
 
 	for idx, line := range lines {
@@ -465,6 +482,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 				inFence = false
 			}
 			prevNonBlank = line != ""
+			prevParagraph = false
 			continue
 		}
 
@@ -488,7 +506,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			if writeNL {
 				out.WriteByte('\n')
 			}
-			prevNonBlank = true
+			prevNonBlank, prevParagraph = true, true
 			continue
 		}
 
@@ -500,7 +518,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			if writeNL {
 				out.WriteByte('\n')
 			}
-			prevNonBlank = true
+			prevNonBlank, prevParagraph = true, true
 			continue
 		}
 
@@ -508,15 +526,20 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		// `escapeLeader` gates the doc-spoof markers (#, >, list, HR)
 		// and `escapePipe` gates the GFM table-row `|` escape; both are
 		// on in strict mode and off in Rich.
-		out.WriteString(escapeLineLeader(line, escapeLeader, escapePipe))
+		out.WriteString(escapeLineLeader(line, escapeLeader, escapePipe, !prevParagraph))
 		if writeNL {
 			out.WriteByte('\n')
 		}
-		if fc, fl, indent, ok := parseFenceOpener(line); ok {
+		fc, fl, indent, opens := parseFenceOpener(line)
+		if opens {
 			inFence, fenceChar, fenceLen = true, fc, fl
 			fenceOpen = line[:indent+fl]
 		}
 		prevNonBlank = line != ""
+		// An indented line continues a paragraph; after anything else it
+		// is indented code.
+		prevParagraph = !opens && strings.TrimLeft(line, " \t") != "" &&
+			(prevParagraph || !isIndentedCode(line))
 	}
 
 	// Auto-close any open code fence at end-of-input, at the opener's
@@ -548,24 +571,11 @@ func mayOpenHTMLBlock(line string) bool {
 	i++
 	if i < len(line) && line[i] == '/' {
 		i++
-	}
-	return i < len(line) && isASCIIAlpha(line[i])
-}
-
-// fenceBeforeBlankLine reports, for each line, whether a fence opener
-// follows it before the next blank line.
-func fenceBeforeBlankLine(lines []string) []bool {
-	ahead := make([]bool, len(lines))
-	seen := false
-	for i := len(lines) - 1; i >= 0; i-- {
-		ahead[i] = seen
-		if strings.TrimLeft(lines[i], " \t") == "" {
-			seen = false
-		} else if _, _, _, ok := parseFenceOpener(lines[i]); ok {
-			seen = true
+		for i < len(line) && line[i] == ' ' { // goldmark's `</[ ]*`
+			i++
 		}
 	}
-	return ahead
+	return i < len(line) && isASCIIAlpha(line[i])
 }
 
 // foldUnicodeSeparators replaces U+2028, U+2029 (3-byte UTF-8 starting
@@ -792,7 +802,7 @@ func isHTMLBlockType1to5Opener(line string) bool {
 				return true
 			}
 			c := after[0]
-			if c == ' ' || c == '\t' || c == '>' || c == '/' {
+			if c == ' ' || c == '\t' || c == '\f' || c == '>' || c == '/' { // goldmark's `\s`
 				return true
 			}
 		}
@@ -803,9 +813,8 @@ func isHTMLBlockType1to5Opener(line string) bool {
 // hasBacktickBeforeNewline reports whether s[from:] contains a `
 // before the next `\n` or EOF. Used to enforce CM §4.5: a backtick
 // fence opener whose info string contains another backtick does NOT
-// open a fence. Three call sites in this file share this predicate
-// (escapeLineLeader, isBlockInterrupt, findBracketSpans); keeping
-// them on one helper prevents drift if the rule ever evolves.
+// open a fence. parseFenceOpener, which every fence check in this file
+// goes through, is its only caller.
 func hasBacktickBeforeNewline(s string, from int) bool {
 	for i := from; i < len(s) && s[i] != '\n'; i++ {
 		if s[i] == '`' {
@@ -914,6 +923,82 @@ func isNonBlankIndentedLess(line string, minIndent int) bool {
 	return false
 }
 
+// nextAt returns the index of the first pat in s at or after from, or
+// len(s). at is the previous answer, kept while it is not behind from,
+// so a caller moving forward searches each byte once.
+func nextAt(s, pat string, at, from int) int {
+	if at >= from {
+		return at
+	}
+	if i := strings.Index(s[from:], pat); i >= 0 {
+		return from + i
+	}
+	return len(s)
+}
+
+// isIndentedCode reports whether line is non-blank and indented 4 or
+// more columns, a tab advancing to the next multiple of 4 (CM §2.2).
+func isIndentedCode(line string) bool {
+	col := 0
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case ' ':
+			col++
+		case '\t':
+			col += 4 - col%4
+		default:
+			return col >= 4
+		}
+	}
+	return false
+}
+
+// leadingContent returns the first non-blank line of s without its
+// indentation, or "".
+func leadingContent(s string) string {
+	s = strings.TrimLeft(s, " \t\n")
+	if nl := strings.IndexByte(s, '\n'); nl >= 0 {
+		return s[:nl]
+	}
+	return s
+}
+
+// escapeLeadingSetext escapes a setext underline that is the first
+// non-blank line, by the rule sanitize.BlockRich applies before calling
+// this native. A definition the bracket walker deletes can leave such a
+// line first, which that rule would otherwise only catch on a second
+// pass, so it runs only when the walker changed the first line.
+func escapeLeadingSetext(s string) string {
+	for pos := 0; pos < len(s); {
+		i := pos
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
+		if i >= len(s) {
+			return s
+		}
+		if s[i] == '\n' {
+			pos = i + 1
+			continue
+		}
+		if i-pos > 3 || s[i] != '=' && s[i] != '-' {
+			return s
+		}
+		j := i + 1
+		for j < len(s) && s[j] == s[i] {
+			j++
+		}
+		for j < len(s) && (s[j] == ' ' || s[j] == '\t') {
+			j++
+		}
+		if j < len(s) && s[j] != '\n' {
+			return s
+		}
+		return s[:i] + "\\" + s[i:]
+	}
+	return s
+}
+
 // closeFencesAtDedent ends every fence at the first non-blank line
 // indented less than its opener, by writing a closer at the opener's
 // column before that line. In a list item goldmark ends the fence there
@@ -926,32 +1011,45 @@ func closeFencesAtDedent(s string) string {
 	if !strings.Contains(s, "```") && !strings.Contains(s, "~~~") {
 		return s
 	}
-	var out strings.Builder
-	out.Grow(len(s) + 16)
 	var (
+		out       strings.Builder // holds s[:copied] once something changes
+		copied    int
 		inFence   bool
 		fenceChar byte
 		fenceLen  int
-		fenceOpen string // the opener's indent and fence run
+		fenceOpen string   // the opener's indent and fence run
+		bt, tl    = -1, -1 // next "```" and "~~~" found so far
 	)
-	first := true
-	for line := range strings.SplitSeq(s, "\n") {
-		if !first {
-			out.WriteByte('\n')
+	for ls, next := 0, 0; ls < len(s); ls = next {
+		if !inFence || len(fenceOpen) == fenceLen {
+			// Only a line holding a fence run can open a fence, or close
+			// one opened at column 0, which no line sits left of: jump to
+			// the next one. Each pattern is searched forward only once.
+			bt, tl = nextAt(s, "```", bt, ls), nextAt(s, "~~~", tl, ls)
+			run := min(bt, tl)
+			if run == len(s) {
+				break
+			}
+			ls += strings.LastIndexByte(s[ls:run], '\n') + 1
 		}
-		first = false
+		next = nextLineStart(s, ls, len(s))
+		line := s[ls:next]
+		if next > ls && s[next-1] == '\n' {
+			line = s[ls : next-1]
+		}
 		if inFence {
 			indent := len(fenceOpen) - fenceLen
 			closes := isCloseFence(line, fenceChar, fenceLen)
 			if !isNonBlankIndentedLess(line, indent) {
-				out.WriteString(line)
 				inFence = !closes
 				continue
 			}
 			inFence = false
+			out.WriteString(s[copied:ls])
+			copied = ls
 			if closes {
 				out.WriteString(fenceOpen[:indent])
-				out.WriteString(strings.TrimLeft(line, " "))
+				copied += len(line) - len(strings.TrimLeft(line, " "))
 				continue
 			}
 			out.WriteString(fenceOpen)
@@ -961,8 +1059,11 @@ func closeFencesAtDedent(s string) string {
 			inFence, fenceChar, fenceLen = true, fc, fl
 			fenceOpen = line[:indent+fl]
 		}
-		out.WriteString(line)
 	}
+	if out.Len() == 0 {
+		return s
+	}
+	out.WriteString(s[copied:])
 	return out.String()
 }
 
@@ -975,7 +1076,12 @@ func closeFencesAtDedent(s string) string {
 // line-leading `|` is preserved so user content can render as a
 // table. Code fences are legitimate user content and are never
 // escaped; the caller tracks them with parseFenceOpener.
-func escapeLineLeader(line string, escapeLeader, escapePipe bool) string {
+//
+// emptyItemStarts reports whether an empty list item on this line would
+// start a list, which it cannot do in the middle of a paragraph.
+// Escaping one there would change paragraph text such as the `1)` that
+// ends a link destination on the line before.
+func escapeLineLeader(line string, escapeLeader, escapePipe, emptyItemStarts bool) string {
 	i := 0
 	for i < len(line) && i < 3 && line[i] == ' ' {
 		i++
@@ -986,7 +1092,7 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) string {
 	if escapeLeader {
 		// List marker: the backslash goes before a bullet, or between
 		// an ordered marker's digits and its delimiter.
-		if end, ok := listMarkerEnd(line, i); ok {
+		if end, ok := listMarkerEnd(line, i); ok && (emptyItemStarts || strings.TrimLeft(line[end:], " \t") != "") {
 			return line[:end-1] + "\\" + line[end-1:]
 		}
 	}
@@ -1568,6 +1674,12 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	for end < len(s) && (s[end] == ' ' || s[end] == '\t') {
 		end++
 	}
+	if end < len(s) && s[end] != '\n' {
+		// CM §4.7: only whitespace may follow a definition on its line.
+		// Deleting up to the text would also leave that text, a fence
+		// say, at a column the fence trackers never saw it at.
+		return 0, false
+	}
 	if end < len(s) && s[end] == '\n' {
 		end++
 	}
@@ -1635,23 +1747,9 @@ func isBlockInterrupt(s string, lineStart int) bool {
 		}
 		return false
 	case '`', '~':
-		// Fenced code: three or more of the same fence char. Mirror
-		// CM §4.5: backtick fences with a backtick in the info string
-		// do NOT open (goldmark rejects them). Without this check, the
-		// bracket walker's LRD-title scan would terminate on a line
-		// goldmark treats as paragraph text — a parser-state mismatch
-		// of the same shape that drove the escapeLineLeader fix.
-		j := i
-		for j < len(s) && s[j] == c {
-			j++
-		}
-		if j-i < 3 {
-			return false
-		}
-		if c == '`' && hasBacktickBeforeNewline(s, j) {
-			return false
-		}
-		return true
+		// Fenced code, by the rule the fence trackers use.
+		_, _, _, ok := parseFenceOpener(s[lineStart:])
+		return ok
 	}
 	// Ordered list: 1–9 digits then `.` or `)` then space/tab.
 	if c >= '0' && c <= '9' {

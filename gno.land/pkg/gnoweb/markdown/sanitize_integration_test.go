@@ -601,7 +601,13 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 		{"repro-opener-at-4-spaces-lrd", "- a\n    ```\n  ```\n  [home]: https://evil.example\n"},
 		{"repro-html-block-hides-fence", "<div>\n```\n\n<gno-form path=\"x\">\n"},
 		{"repro-hard-break-before-fence", "a\\\n```\nx\n```\n[home]: https://evil.example\n"},
-		{"repro-tab-after-quote-prefix", "1. a\n   ```\n\t<gno-form path=\"x\">\n"},
+		{"repro-tab-indented-line-in-list-fence", "1. a\n   ```\n\t<gno-form path=\"x\">\n"},
+		{"repro-lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n"},
+		{"repro-lrd-text-after-destination-html", "[a]: u ```\n```\n- y\n  ```\n<script>\n"},
+		{"repro-html-close-tag-space-over-fence", "</ div>\n```\n\nfoo"},
+		{"repro-html-block-type-1-form-feed", "<script\f\nhello"},
+		{"idempotent-empty-item-in-link", "[](\n1)"},
+		{"idempotent-leading-setext-after-lrd", " []: x\n   ="},
 	}
 
 	for _, helper := range []string{"Block", "BlockRich", "Blockquote", "BlockquoteRich"} {

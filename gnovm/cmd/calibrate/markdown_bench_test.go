@@ -314,9 +314,8 @@ func BenchmarkNative_Markdown_EscapeBlockHazards_100000(b *testing.B) {
 // Worst case: "  ```\nx\n" repeated. Rich mode closes a fence before
 // the first line indented less than its opener, so every pair of lines
 // gains a closer that the bracket walker and the line loop then walk
-// too. Since #6304 this and nested definition candidates (see
-// BenchmarkEscapeBlockHazardsRichPathological) are the slowest Rich
-// shapes, a little above the strict variant's `[a]: u\n(x\n`.
+// too. Since #6304 this is the slowest Rich shape, about 1.7x per byte
+// what the strict variant's `[a]: u\n(x\n` cost on the old native.
 func benchMarkdownEscapeBlockHazardsRich(b *testing.B, n int) {
 	b.Helper()
 	s := fillWorstCase(n, "  ```\nx\n")
