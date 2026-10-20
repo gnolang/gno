@@ -8,7 +8,7 @@
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
   residual.
-- **Date:** 2026-10-16; amended 2026-10-18 and 2026-10-19 to match the implementations (§14).
+- **Date:** 2026-10-16; amended 2026-10-18, 2026-10-19 and 2026-10-20 to match the implementations (§14).
 - **Scope:** tm2, gnovm, gno.land, the IBC realms (allinbits/gno-realms), the Ethereum contracts, the relayers and
   the off-chain tooling.
 - **Related ADRs:** [`tm2/adr/pr6375_secp256k1_validator_keys.md`](../../tm2/adr/pr6375_secp256k1_validator_keys.md),
@@ -53,22 +53,22 @@ For readers new to the design, in the names the detailed sections use. It adds n
 
 Each chain runs a **light client** of the other: a small program that checks the other chain's block headers and the
 signatures behind them, so a proof can show "this really happened over there" without trusting anyone. IBC token
-transfer (ICS20) sits on top. To move GNOT to Ethereum, you lock it in an escrow on gno.land; a relayer carries a
-proof of the lock to Ethereum, the light client checks it, and a **voucher** (a `GnoVoucher`) is minted to you. To go
-back, you burn the voucher and gno.land unlocks your GNOT on proof of the burn. An undelivered or refused packet is
-refunded to the sender, again on proof. Relayers carry messages but cannot forge them (§5.3, §6.1–§6.3).
+transfer (ICS20) sits on top: lock GNOT in an escrow on gno.land, a relayer carries the proof to Ethereum, and a
+**voucher** (a `GnoVoucher`) is minted to you; burn the voucher, and gno.land unlocks your GNOT on proof of the burn.
+An undelivered or refused packet is refunded on proof. Relayers carry messages but cannot forge them (§5.3,
+§6.1–§6.3).
 
 ### What can go wrong
 
 All of that is only as good as the two light clients. The ADR plans for:
 
 - **A forged or poisoned light client.** If more than a third of gno.land's validator power colludes, or its keys
-  leak, Ethereum's `GnoLightClient` can be fed headers the honest chain never had. Forged proofs can then mint
-  vouchers nothing backs, "deliver" packets nobody sent, or fake an error ack so a delivered transfer is refunded
-  twice (§7.13). The other direction fails the same way if Ethereum's sync committee colludes (§8.1, §8.2).
+  leak, Ethereum's `GnoLightClient` can be fed headers the honest chain never had: forged proofs can mint vouchers
+  nothing backs, "deliver" packets nobody sent, or fake an error ack so a delivered transfer is refunded twice
+  (§7.13). Ethereum's sync committee colluding does the same the other way (§8.1, §8.2).
 - **A compromised governance channel.** GovDAO steers the Ethereum contracts through packets proven by that same light
-  client. A forgery could push hostile decisions or occupy the decision sequence; if the client simply expires or
-  freezes, governance cannot send the repair.
+  client. A forgery could push hostile decisions or occupy the decision sequence; if the client expires or freezes,
+  governance cannot send the repair.
 - **A broken contract or upgrade**, on either chain.
 - **Stuck refunds.** The escrow is reserved for other claims, a token refuses the transfer, or the route is closed for
   an incident. Refunds may be delayed, never cancelled.
@@ -81,38 +81,43 @@ Standard ICS20 has none of the controls below: it is all or nothing on the light
 channel serves exactly one Ethereum route (§7.6, Scope).
 
 **Limits and meters.** A bucket with a small hole: value leaves only as fast as the bucket refills. On gno.land,
-incoming value is booked as a **claim**, and anyone calls `Claim` to pay claims out within a **meter** refilling at
-about a tenth of the escrow per day (a quarter of that per recipient). On Ethereum each token has a per-message
-maximum and a day cap (a **leaky bucket**). A forged light client can take at most about two day caps in any 24 hours,
-not the whole escrow (§7.1, §7.2; send limits and the route fee, §7.8).
+incoming value is booked as a **claim**, and anyone calls `Claim` to pay claims out within a **meter**: for gno-native
+tokens coming home, about a tenth of their escrow per day; for Ethereum tokens, which have no gno.land escrow, a fixed
+per-denom cap set by governance; each recipient gets a quarter of that. On Ethereum each token has a per-message
+maximum and a day cap (a **leaky bucket**). At unchanged caps, forged receives are bounded to about two day caps in
+any 24 hours; forged refunds have a separate bound under the refund meter (below), and the total exposure is the sum
+of the two (§7.1, §7.2, §7.13; send limits and the route fee, §7.8).
 
-**Quarantine.** After a gno.land validator-set change, Ethereum refuses token receives from gno.land for 7 days (they
-are refunded at the source), so a hostile set installed in one block cannot drain anything before people have had a
-week to react. Governance packets are not quarantined (§7.10).
+**Quarantine.** With the launch settings, a live change of gno.land's validator set blocks token receives on Ethereum
+for 7 days (they are refunded at the source), so a hostile set installed in one block cannot mint anything before
+people have had a week to react. It does not touch refunds or governance, which have their own controls (§7.10).
 
 **Claims and refunds, including parked refunds.** A refund that cannot be paid at once is **queued** on the packet's
-**send record** and paid later by a permissionless `claim`, under a **refund meter** (another bucket, so forged
-refunds are rate-limited too). On Ethereum a refund the token refuses, or that would use escrow another refund is
-owed, is **parked**: still owed and reserved, retried by `claimParked`. A refund is never cut short, only delayed
-(§6.3, §7.3, §7.13).
+**send record** and paid later by a permissionless `claim` under a **refund meter** (another bucket); on Ethereum one
+the token refuses, or that would use escrow another refund is owed, is **parked** (owed, reserved, retried by
+`claimParked`). A refund is never cut short, only delayed (§6.3, §7.3, §7.13).
 
 **Guardians, flags and holds.** Each chain has six **seats**: four **guardians** (two of them outsiders) and two
 **watch** keys for the monitors. Any one seat can set a **flag**, which pauses one function at once: on gno.land a
 route's `sends`, `credits`, `payouts` or `refunds`; on Ethereum a route's receives and escrowed sends, its refunds, or
-`IBCAdmin`'s 7-day decisions. Flags never stop exits (voucher burns, acks, timeouts). Two guardian flags make a
-**hold**: 7-day decisions wait and unpauses are spent. A smoke alarm, not a veto: the owner can clear a flag, GovDAO
-can unpause (at once on gno.land, after 24 h on Ethereum), and a decision replacing a guardian's seat becomes
-executable about 21 days after the start of the hold that first deferred it, however often the hold is cleared and set
-again (§6.7, §7.4).
+`IBCAdmin`'s decisions. Flags never stop exits (voucher burns, acks, timeouts). Two guardian flags make a **hold**,
+whose reach differs per chain: gno.land's hold is global and defers every queued gno-side 7-day decision; on Ethereum
+a hold is per flag set, so a route's pause or `refunds` hold only stops that route's receives and escrowed sends, or
+its refunds, and only `IBCAdmin`'s own flags or hold defer its 7-day kinds (only that hold also counts for the
+emergency recovery below). Under a hold unpauses are spent. Not a veto: the owner can clear a flag, GovDAO can unpause
+(at once on gno.land, after 24 h on Ethereum), and a decision replacing a guardian's seat lands 21 days after its
+anchoring hold began — gno.land anchors at the hold standing at its first deferring `Execute`, Ethereum at the first
+eligible hold in its history (compressed intervals excluded) — and a later hold never resets a pinned anchor (§6.7,
+§7.4).
 
 **The governance channel.** A governance realm, `ibcgov`, sends numbered **decisions** over IBC to `IBCAdmin`, an
 immutable Ethereum contract holding every authority. Each has a **kind**: 1 cancel, 2 unpause, 3 seats, 4 limits, 5
 voucher, 6 client, 7 upgrade, 8 role, 9 hand-over, 10 route replacement, 11 route settings, 12 settle, 13 reopen.
-Anything that loosens waits **7 days** after Ethereum records it (an unpause 24 h; tightening and cancels at once), so
-a bad decision is visible for a week and can be **cancelled** (kind 1). Decisions are numbered in **sequence** within
-an **epoch**; a forged packet taking a number shows up as a **conflict** and flags `IBCAdmin`. A new epoch begins only
-with a route replacement; Ethereum then sends an **epoch notice** back, which gno.land accepts only along a transition
-GovDAO approved in advance (§5.4, §6.6, §7.5, §7.6, §7.12).
+Anything that loosens waits **7 days** after Ethereum records it (an unpause 24 h; tightening and cancels at once),
+visible for a week and **cancellable** (kind 1). Decisions are numbered in **sequence** within an **epoch**; a later
+packet carrying different bytes for a number already taken is a **conflict** and flags `IBCAdmin`. A new epoch begins
+only with a route replacement; Ethereum then sends an **epoch notice** back, which gno.land accepts only along a
+transition GovDAO approved in advance (§5.4, §6.6, §7.5, §7.6, §7.12).
 
 **Incidents and reconciliation.** After a light client is replaced, every packet that went through the old client
 during the suspect period is in doubt. Each send has an immutable **send record**, and anyone can prove what the
@@ -130,59 +135,75 @@ reconciliation is done (§7.12).
 
 **Emergency recovery and the kind 9 hand-over.** The governance channel runs over the very light client it would have
 to repair, so there are two escape hatches. An optional **emergency recovery**, fixed at deployment and off by
-default: when the route's client is frozen or expired, governance has been silent 30 days, or a hold has stood 14
-days, three of the four guardians can propose a new client from a checkpoint they vouch for; it executes after a
-public delay of at least 30 days, during which three guardians can cancel it. It is a declared extra trust assumption.
+default: when the route's client is frozen or expired, governance has been silent 30 days, or `IBCAdmin`'s hold has
+stood 14 days, three of the four guardians can propose a new client from a checkpoint they vouch for; it executes
+after a public delay of at least 30 days, during which the configured cancellation quorum (three or four seats) can
+cancel it. The candidate is not yet the route's client, so operators update it directly, at least daily, throughout
+the delay; if it expires or freezes, the guardians cancel and propose afresh. It is a declared extra trust assumption.
 And `IBCAdmin`'s logic lives in a replaceable **executor** (`IBCAdminExec`): a **kind 9 hand-over** moves the pointer
 to a new executor, recorded and run by `IBCAdmin` on its own code path, never through the executor, so a broken
-executor can be replaced. A decision the broken executor cannot answer is **halted**, not lost (§5.4, §7.6, §7.12).
+executor can be replaced. Two failure shapes differ: a foreign executor or a malformed answer **halts** recording (the
+decision stays buffered, unspent, and records later through the new executor), while an executor that reverts
+**spends** the decision, and a spent action needs a new decision with a fresh number (§5.4, §7.6, §7.12).
 
 **Code pinning and build verification.** Code governance installs (kinds 5, 6, 7, 9 and recovery candidates) is named
 by its **code hash**, and each contract records the hashes of the modules it delegates to. A hash says nothing about
 the source, so operators run a **build verification** that rebuilds each contract and compares the bytes, after every
-deployment and executed decision and for every pending candidate before its 7 days are up; a failing candidate is
-cancelled (§6.12, §7.6).
+deployment and executed decision and for every pending candidate within its own delay (7 days for kinds 5, 6, 7 and 9;
+at least 30 days for an emergency recovery); a failing candidate is cancelled (§6.12, §7.6).
 
 **The launch gate.** Nothing moves until the launch is proven: the route starts with no enabled denom on gno.land and
-zero limits on Ethereum; `IBCAdmin` refuses every delivery until `finishSetup` has checked the deployment; the first
-denom is enabled only once Ethereum has recorded gno.land's first decision; and a **governor** key may run the testing
-phase, with every delay in force, before it **yields** once and for ever to GovDAO (§5.4, §6.10, §7.7).
+zero limits on Ethereum, and `IBCAdmin` refuses every delivery until `finishSetup` has checked the deployment. Before
+the first denom enablement is **recorded** (its 7-day delay starts then, and anyone may execute it once due),
+operators check on Ethereum that `epoch()` is 1 and `lastSeq() ≥ 1`; one recorded early is cancelled and recorded
+again, since gno.land itself does not enforce this check. A **governor** key may run the testing phase, with every
+delay in force, before it **yields** once and for ever to GovDAO (§5.4, §6.10, §7.7).
 
 ### How they fit together: four scenarios
 
 **A normal transfer, each way** (§6.1, §6.2). gno.land → Ethereum: `Transfer` checks the send limits and the `sends`
 flag and escrows the GNOT; a relayer proves the packet to Ethereum's `GnoLightClient`; the Ethereum app checks flags,
 quarantine, the registered voucher and the mint limits, then mints. Ethereum → gno.land: you burn the voucher (or
-escrow an Ethereum token); a relayer updates gno.land's Ethereum client and proves the packet; the gno.land app checks
-the `credits` flag and books a claim; anyone calls `Claim` and you are paid within the meters. The ack travels back; a
-success keeps the escrow or the burn.
+escrow an Ethereum token); a relayer proves the packet to gno.land's Ethereum client; the app checks the `credits`
+flag and books a claim; anyone calls `Claim` and you are paid within the meters. The ack travels back; a success keeps
+the escrow or the burn.
 
-**A light client is compromised and forges deliveries** (§6.11, §7.1, §7.2, §7.11–§7.13). Forged proofs mint vouchers
-on Ethereum; the day cap and per-message maximum bound that to about two caps in any 24 hours. The monitors see that
-the escrow no longer matches the supply (the **supply identity**) and the watch keys flag at once: receives and
-escrowed sends stop, and a **refunds hold** suspends refunds. Two guardian flags make a hold; exits stay open. GovDAO
-records a kind 10 with a `suspectFrom` boundary, and `NewReplaceRouteRequest` on gno.land; after 7 days the old client
-is frozen, the new one takes over, a new epoch opens, and the route is closed. Preparation reserves every refund the
-old records might owe; anyone proves each record's real outcome through the new client; kind 12 settlements pay
-genuine refunds, reject forged ones and book forged receives as losses, while gno.land voids forged claims. Once every
-loss is covered or accepted, kind 13 and `NewReopenRouteRequest` reopen the route.
+**A light client is compromised and forges deliveries** (§6.11, §7.1, §7.2, §7.6, §7.11–§7.13; the full drill is the
+gno-realms runbook §8). Forged proofs mint vouchers on Ethereum, within the day cap and per-message maximum. The
+monitors see that the escrow no longer matches the supply (the **supply identity**) and the watch keys flag at once,
+on both chains: receives and escrowed sends on Ethereum, `credits` and `payouts` on gno.land (forged vouchers can
+still be burned into genuine gno.land claims), and a **refunds hold** on both. Guardians confirm; exits stay open.
+Then, in order: cancel every pending decision the incident makes unsafe (kind 1 on Ethereum, `NewCancelRequest` on
+gno.land); since a hold also defers the replacement, the guardians clear the flags that make it and wait out the
+24-hour grace, while the watch keys keep `sends`, `credits` and `payouts` set (they pause without making a hold) and a
+`refunds` flag stays until the replacement has executed; GovDAO records a kind 10 with a `suspectFrom` boundary and
+`NewReplaceRouteRequest` on gno.land; after 7 days the old client is retired, the new one takes over, a new epoch
+opens, and the route is closed. Preparation reserves every refund the old records might owe; anyone proves each
+record's real outcome through the new client; the `refunds` flags are cleared, since a refund-paying settlement waits
+under them; kind 12 settlements pay genuine refunds, reject forged ones and book forged receives as losses, while
+gno.land voids forged claims — `payouts` stays set until the voucher supply has been audited against its backing (a
+matching send record alone proves nothing) and every forged entitlement is voided. Once every loss is covered or
+accepted, kind 13 and `NewReopenRouteRequest` reopen the route, and only then is the remaining containment cleared.
 
 **The governance channel is lost, or the executor breaks** (§7.6, §7.12). If the `GnoLightClient` expires or freezes,
 no governance packet can be proven, but guardians can still flag and hold: those are plain Ethereum transactions. A
 repair recorded before the failure (a kind 6 migration when the old history is trusted, or a kind 10 to an enrolled
 target) still executes. Otherwise the emergency recovery, if enabled at deployment, lets three guardians install a new
-client after 30 days or more; its epoch notice is accepted on gno.land because GovDAO recorded
-`NewExpectRecoveryRequest` for that transition. Without the emergency path, the Ethereum side's backing is stranded
-(residual R10). If instead the **executor** is broken while the channel works, GovDAO sends a kind 9: `IBCAdmin`
-records it on its own path, decisions the broken executor cannot answer halt behind it, and after 7 days, bounded at
-21 days under any hold or flag, the new executor is pinned and records the rest.
+client after 30 days or more, the candidate kept fresh meanwhile; its epoch notice is accepted on gno.land because
+GovDAO recorded `NewExpectRecoveryRequest` for that transition. Without the emergency path, the Ethereum side's
+backing is stranded (residual R10). If instead the **executor** is broken while the channel works, GovDAO sends a kind
+9. A halted decision ahead of it is cancelled by kind 1 first, so the kind 9 can record; it matures 7 days after
+Ethereum records it; a standing hold or flag defers it to that hold's or flag's anchor plus 21 days, a conflict flag
+counting from the first execution attempt once due; and an open emergency recovery must be cancelled first through the
+guardians' native path. Then the new executor is pinned and the buffered decisions behind it drain through it.
 
-**A refund cannot be paid right away** (§6.3, §7.13). If the whole refund fits the refund meter, the backing is free,
-no older refund is queued and no `refunds` hold stands, it is paid at once. Otherwise it is queued on the send record
-and paid, oldest first, by anyone calling `claim` (`ClaimRefunds` on gno.land) as the meter refills. A payment
-Ethereum cannot make now is parked (above); on gno.land a failed payment rolls the transaction back and is retried.
-While the route is closed for an incident, no refund is paid outside the governed settlements: it waits, owed and
-reserved, for a kind 12 or the reopening.
+**A refund cannot be paid right away** (§6.3, §7.13). If the whole refund fits the refund meter, the source chain's
+backing check passes (Ethereum keeps every other record's reservation backed; gno.land checks its gross escrow), no
+older refund is queued and no `refunds` hold stands, it is paid at once. Otherwise it is queued on the send record and
+paid, oldest first, by anyone calling `claim` (`ClaimRefunds` on gno.land) as the meter refills. A payment Ethereum
+cannot make now is parked (above); on gno.land a failed payment rolls the transaction back and is retried. While the
+route is closed for an incident, no refund is paid outside the governed settlements: it waits, owed and reserved, for
+a kind 12 or the reopening.
 
 ### What this does NOT protect against
 
@@ -193,8 +214,8 @@ wrongly, which only Ethereum's emergency recovery can undo (R2); `ibcgov` and `I
 redeployed (R4); the reopening does not itself check forged receive claims, which operators must void first (R5);
 without the emergency path a lost channel strands Ethereum's backing (R10); token issuers' powers to pause, seize or
 rebase are trusted (R11); and Ethereum repairs depend on the transfer app's `gnoBusy()` view and the recovery
-components working (R14, R15). The monitors and the watch tool (T4–T6) are not yet built; until they are, the build
-verification is run by hand.
+components working (R14, R15). The monitors (T4), the watch tool (T5) and the setup audit tool (T6) are not yet built;
+until they are, the build verification is run by hand.
 
 ---
 
@@ -321,7 +342,7 @@ Repositories and branches:
 
 | Short name | Location |
 |---|---|
-| **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
+| **gno** | this branch, `feat/secp256k1-validators-ibc` (gnolang/gno, `origin`) |
 | **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ea785ec; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
@@ -872,7 +893,8 @@ The delay is applied once per side:
 - **Ethereum kinds** are dispatched at once from gno.land and wait in `IBCAdmin` after they are recorded (7 days;
   unpause 24 h). Guardians on either side have the full window. Every 7-day Ethereum kind is deferred while a flag
   or hold stands on `IBCAdmin`, **except** the guardian replacement, which lands through holds from day 21 after
-  the first hold standing at or after its due time (a deadline later holds cannot reset, §7.4), and the executor
+  its anchoring hold (gno.land: the hold standing at the first deferring `Execute`; Ethereum: the first eligible
+  hold in its history, compressed intervals excluded; a later hold never resets a pinned anchor, §7.4), and the executor
   hand-over (kind 9), whose hold and flag deferrals are each bounded at their anchor + 21 days (§7.4). Holds on gno.land (deferring gno-side decisions) are built in `ibcgov` (bridges' realms have
   none). A gno-side hold defers every queued gno-side decision (a seat change too, until its day-21 deadline,
   §7.4) but never an Ethereum-bound one, whose delay and deferral run on Ethereum. A gno-side `payouts` or
@@ -891,7 +913,7 @@ stateDiagram-v2
   Paused --> Hold: 2 guardian seats flagged together
   Hold --> Paused: < 2 guardian flags for ≥ 24h
   Hold --> Hold: unpause decisions are spent<br/>7-day kinds deferred (gno.land: any hold;<br/>Ethereum: only IBCAdmin's flags or hold)
-  Hold --> Paused: guardian replacement lands<br/>(day 21 of the first hold standing at or after its due time,<br/>a deadline later holds cannot reset; ≥ 7d after recording)
+  Hold --> Paused: guardian replacement lands<br/>(day 21 of its anchoring hold, on gno.land the hold standing at the first deferring Execute,<br/>on Ethereum the first eligible hold in its history, compressed intervals excluded;<br/>a later hold never resets a pinned anchor; ≥ 7d after recording)
 ```
 
 What a flag stops: deliveries/mints and escrowed sends (Ethereum, per route), `credits`/`payouts`/`sends`
@@ -1109,7 +1131,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 
 ### 7.3 Pausing that never traps exits — E6, R1
 
-- **Rule: a pause stops minting and crediting, never burning, acks, timeouts or refunds.** The single exception is
+- **Rule: a pause stops minting and crediting, never burning, acks, timeouts or refunds.** The first exception is
   the refund controls of §7.13 — a **refund meter** that queues refunds beyond its daily budget, and the guardian
   **refunds hold** for a suspected compromise of the verifier that proves them; both delay refunds, neither cancels
   them. Sends and returns themselves are never capped by these controls. **A second, deliberate exception (built
@@ -1694,7 +1716,8 @@ reconciliation.
      opening; `holdPeriod` is non-zero and a hold on `IBCAdmin` has stood for at least `holdPeriod`.
   3. *Delay and cancellation.* It executes after a long public delay (at least 30 days). From its opening every
      token receive **and every escrowed send** on the route is refused (returning-voucher burns stay available),
-     the monitors alarm, and only a guardian majority (`cancelThreshold`) can cancel it — governance packets over
+     the monitors alarm, and only the configured guardian cancellation quorum (`cancelThreshold`, three or four
+     seats) can cancel it — governance packets over
      the old client cannot, since that client may be the compromised party; before opening, a guardian may withdraw
      its approval. **Cancellation is native to `IBCAdmin`** (gno-eth-ibc e7a299f): `IBCAdmin.cancelRecovery()`
      delegatecalls its immutable `IBCAdminNative` helper — deployed by `IBCAdmin`'s constructor after the launch
@@ -3104,6 +3127,13 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - 2026-10-20, a plain-language overview added ("In plain terms (ELI-5)", unnumbered, before §1, with a pointer in
   the contents): what ICS20 does, what the controls add and why, four walked-through scenarios and the accepted
   residuals in plain words. Summary only; no rule changed.
+- 2026-10-20, the overview corrected after an accuracy review (the gno.land meter's two caps, separate receive and
+  refund bounds, the quarantine's scope, the hold scopes per chain, what a conflict is, the recovery candidate's
+  upkeep through its delay, each kind's own verification window, the launch gate's check before recording, gno.land
+  containment and the incident order, halted versus spent decisions, kind 9's maturity and anchors, the per-chain
+  backing check, T4–T6 named), and five body wording fixes: the Date line; §4's remote (gnolang/gno, `origin`); the
+  seat-change anchor summaries of §6.6 and §6.7 made chain-specific; §7.3 "first exception"; §7.12's cancellation
+  quorum named as `cancelThreshold`.
 
 ## 15. References
 
