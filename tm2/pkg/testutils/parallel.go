@@ -11,8 +11,9 @@ import (
 // profiling or bisecting a memory problem.
 const MaxParallelEnv = "GNO_TEST_MAX_PARALLEL"
 
-// defaultMaxParallel is the worker count used when the machine's memory can't
-// be read. It matches the CPU count of the GitHub-hosted runners the suites are
+// defaultMaxParallel caps the suites that size their workers up front, and is
+// where a ramping budget starts, or stays when the machine's memory can't be
+// read. It matches the CPU count of the GitHub-hosted runners the suites are
 // tuned on, which is why CI stays within its memory budget while a workstation
 // with four times the cores does not.
 const defaultMaxParallel = 4

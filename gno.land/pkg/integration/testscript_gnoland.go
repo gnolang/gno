@@ -149,9 +149,6 @@ func newNodeBudget() *nodeBudget {
 		max: max(runtime.GOMAXPROCS(0), nodeMinParallel),
 		// Start where the static cap would have: the count CI validates, and
 		// therefore the one worth assuming before any reading has been taken.
-		// Starting at the floor instead would leave any platform with a
-		// pessimistic reading — darwin, counting only wholly free pages —
-		// permanently slower than the fixed cap it replaced.
 		limit:   max(testutils.MaxParallel(), nodeMinParallel),
 		reserve: mi.Total / nodeMemReserveDiv,
 		readMem: testutils.ReadMemInfo,
@@ -194,8 +191,9 @@ func (b *nodeBudget) resize() {
 		return
 	}
 	// Pace the reading itself and not merely changes to the limit: blocked
-	// scripts poll five times a second, and on darwin every reading costs a
-	// vm_stat subprocess. Sitting inside the hysteresis band must be cheap.
+	// scripts poll five times a second each, and on Linux a reading opens a
+	// few files for every cgroup above the process. Sitting inside the
+	// hysteresis band must be cheap.
 	b.lastCheck = time.Now()
 	switch {
 	case mi.Available < b.reserve && b.limit > b.min:

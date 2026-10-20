@@ -179,6 +179,12 @@ func TestStdlibs(t *testing.T) {
 		opts.Verbose = true
 		return
 	}
+	// Each package below gets a fresh store, bounded as TestFiles bounds its
+	// fresh stores rather than by -parallel, and so by GOMAXPROCS: ~3.8 GiB
+	// over sixteen packages against ~1.1 GiB over four on a 16-core host, for
+	// the same wall time.
+	freshStore := make(chan struct{}, testutils.MaxParallel())
+
 	dir := "../../stdlibs/"
 	fsys := os.DirFS(dir)
 	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
@@ -223,6 +229,8 @@ func TestStdlibs(t *testing.T) {
 
 			// Run in parallel, each package using its own store.
 			t.Parallel()
+			freshStore <- struct{}{}
+			defer func() { <-freshStore }()
 			capture, opts := newOpts()
 
 			err := test.Test(mpkg, "", opts)

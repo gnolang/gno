@@ -160,9 +160,8 @@ func TestNewNodeBudgetDefaults(t *testing.T) {
 func TestNodeBudgetPacesReadings(t *testing.T) {
 	t.Parallel()
 
-	// Sitting inside the hysteresis band must not re-read on every poll: a
-	// blocked script polls five times a second, and reading costs a subprocess
-	// on darwin.
+	// Sitting inside the hysteresis band must not re-read on every poll; see
+	// resize.
 	var reads int
 	b := &nodeBudget{
 		min: 1, max: 8, limit: 1,
