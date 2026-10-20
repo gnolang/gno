@@ -12,7 +12,6 @@ import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 	"math"
-	"strconv"
 	"strings"
 
 	"gno.land/p/nt/grc20/v1"
@@ -53,16 +52,16 @@ func Deposit(cur realm) {
 
 func Withdraw(cur realm, amount uint256) {
 	runtime.AssertOriginCall()
-	require(amount >= wugnotMinDeposit, "Deposit below minimum: "+fmtAmount(amount)+"/"+fmtAmount(wugnotMinDeposit)+" wugnot.")
+	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
 
 	caller := cur.Previous().Address()
 	pkgaddr := cur.Address()
 	callerBal := Token.BalanceOf(caller)
-	require(amount <= callerBal, "Insufficient balance: "+fmtAmount(callerBal)+" available, "+fmtAmount(amount)+" needed.")
+	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 	// Every wugnot was minted from deposited ugnot, so the supply, and with it
 	// any balance, fits an int64. Checked anyway: the conversion below must
 	// never truncate.
-	require(amount <= math.MaxInt64, "Withdrawal exceeds the ugnot range: "+fmtAmount(amount)+" wugnot.")
+	require(amount <= math.MaxInt64, ufmt.Sprintf("Withdrawal exceeds the ugnot range: %d wugnot.", amount))
 
 	// send swapped ugnots to qcaller
 	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend, cur)
@@ -81,7 +80,7 @@ func Render(path string) string {
 	case c == 2 && parts[0] == "balance":
 		owner := address(parts[1])
 		balance := Token.BalanceOf(owner)
-		return fmtAmount(balance)
+		return ufmt.Sprintf("%d", balance)
 	default:
 		return "404"
 	}
@@ -112,10 +111,6 @@ func Approve(cur realm, spender address, amount uint256) {
 func TransferFrom(cur realm, from, to address, amount uint256) {
 	userTeller := adm.CallerTeller()
 	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
-}
-
-func fmtAmount(amount uint256) string {
-	return strconv.FormatUint256(amount, 10)
 }
 
 func require(condition bool, msg string) {

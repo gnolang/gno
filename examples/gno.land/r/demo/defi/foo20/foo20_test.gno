@@ -37,7 +37,7 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 		}
 		for _, tc := range tests {
 			got := tc.fn()
-			uassert.True(t, got == tc.balance, tc.name)
+			uassert.Equal(t, tc.balance, got, tc.name)
 		}
 	}
 
@@ -56,7 +56,7 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 		}
 		for _, tc := range tests {
 			got := tc.fn()
-			uassert.True(t, got == tc.balance, tc.name)
+			uassert.Equal(t, tc.balance, got, tc.name)
 		}
 	}
 }
@@ -65,7 +65,7 @@ func TestAbove2Pow63(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	big := uint256(1) << 128
 	privateLedger.Mint(alice, big)
-	uassert.True(t, BalanceOf(alice) == big)
+	uassert.Equal(t, big, BalanceOf(alice))
 	uassert.Equal(t, "340282366920938463463374607431768211456\n", Render("balance/"+alice.String()))
 }
 

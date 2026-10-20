@@ -4,8 +4,6 @@
 package grc20factory
 
 import (
-	"strconv"
-
 	"gno.land/p/moul/md/v0"
 	p "gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/rotree/v0"
@@ -208,7 +206,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render the balance information.
 	out := md.Paragraph(
-		md.Bold(addr) + " balance: " + strconv.FormatUint256(balance, 10),
+		ufmt.Sprintf("%s balance: %d", md.Bold(addr), balance),
 	)
 
 	res.Write(out)

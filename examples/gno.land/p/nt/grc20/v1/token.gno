@@ -184,7 +184,7 @@ func (tok Token) RenderHome() string {
 	str := ""
 	str += ufmt.Sprintf("# %s ($%s)\n\n", tok.name, tok.symbol)
 	str += ufmt.Sprintf("* **Decimals**: %d\n", tok.decimals)
-	str += "* **Total supply**: " + strconv.FormatUint256(tok.ledger.totalSupply, 10) + "\n"
+	str += ufmt.Sprintf("* **Total supply**: %d\n", tok.ledger.totalSupply)
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", tok.KnownAccounts())
 	return str
 }

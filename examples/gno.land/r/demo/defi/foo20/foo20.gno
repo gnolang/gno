@@ -6,11 +6,11 @@
 package foo20
 
 import (
-	"strconv"
 	"strings"
 
 	"gno.land/p/nt/grc20/v1"
 	"gno.land/p/nt/ownable/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/nt/grc20reg/v1"
 )
 
@@ -81,7 +81,7 @@ func Render(path string) string {
 	case c == 2 && parts[0] == "balance":
 		owner := address(parts[1])
 		balance := userTeller.BalanceOf(owner)
-		return strconv.FormatUint256(balance, 10) + "\n"
+		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
 	}

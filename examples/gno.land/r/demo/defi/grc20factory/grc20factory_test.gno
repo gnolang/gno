@@ -29,7 +29,7 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 		}
 		for _, tc := range tests {
 			reason := ufmt.Sprintf("%s.%s - %s", step, tc.name, "balances do not match")
-			uassert.True(t, tc.balance == tc.fn(), reason)
+			uassert.Equal(t, tc.balance, tc.fn(), reason)
 		}
 	}
 
@@ -73,15 +73,15 @@ func TestAbove2Pow63(cur realm, t *testing.T) {
 
 	testing.SetOriginCaller(admin)
 	NewWithAdmin(cross(cur), "Big", "BIG", 18, big, big, admin)
-	uassert.True(t, TotalSupply("BIG") == big)
+	uassert.Equal(t, big, TotalSupply("BIG"))
 
 	testing.SetOriginCaller(bob)
 	Faucet(cross(cur), "BIG")
-	uassert.True(t, BalanceOf("BIG", bob) == big)
-	uassert.True(t, TotalSupply("BIG") == 2*big)
+	uassert.Equal(t, big, BalanceOf("BIG", bob))
+	uassert.Equal(t, 2*big, TotalSupply("BIG"))
 
 	testing.SetOriginCaller(bob)
 	Transfer(cross(cur), "BIG", admin, big)
-	uassert.True(t, BalanceOf("BIG", admin) == 2*big)
+	uassert.Equal(t, 2*big, BalanceOf("BIG", admin))
 	uassert.Equal(t, "**"+admin.String()+"** balance: 36893488147419103232\n\n", Render("BIG/balance/"+admin.String()))
 }

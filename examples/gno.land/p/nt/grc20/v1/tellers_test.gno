@@ -2,11 +2,11 @@ package grc20
 
 import (
 	"math"
-	"strconv"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
@@ -52,14 +52,14 @@ func TestTeller(cur realm, t *testing.T) {
 
 	checkBalances := func(aliceEB, bobEB, carlEB uint256) {
 		t.Helper()
-		exp := fmtBalances(aliceEB, bobEB, carlEB)
-		got := fmtBalances(token.BalanceOf(alice), token.BalanceOf(bob), token.BalanceOf(carl))
+		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
+		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", token.BalanceOf(alice), token.BalanceOf(bob), token.BalanceOf(carl))
 		uassert.Equal(t, got, exp, "invalid balances")
 	}
 	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB uint256) {
 		t.Helper()
-		exp := fmtAllowances(abEB, acEB, baEB, bcEB, caEB, cbEB)
-		got := fmtAllowances(
+		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%d", abEB, acEB, baEB, bcEB, caEB, cbEB)
+		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%d",
 			token.Allowance(alice, bob), token.Allowance(alice, carl),
 			token.Allowance(bob, alice), token.Allowance(bob, carl),
 			token.Allowance(carl, alice), token.Allowance(carl, bob),
@@ -110,14 +110,14 @@ func TestCallerTeller(cur realm, t *testing.T) {
 
 	checkBalances := func(aliceEB, bobEB, carlEB uint256) {
 		t.Helper()
-		exp := fmtBalances(aliceEB, bobEB, carlEB)
-		got := fmtBalances(token.BalanceOf(alice), token.BalanceOf(bob), token.BalanceOf(carl))
+		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
+		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", token.BalanceOf(alice), token.BalanceOf(bob), token.BalanceOf(carl))
 		uassert.Equal(t, got, exp, "invalid balances")
 	}
 	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB uint256) {
 		t.Helper()
-		exp := fmtAllowances(abEB, acEB, baEB, bcEB, caEB, cbEB)
-		got := fmtAllowances(
+		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%d", abEB, acEB, baEB, bcEB, caEB, cbEB)
+		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%d",
 			token.Allowance(alice, bob), token.Allowance(alice, carl),
 			token.Allowance(bob, alice), token.Allowance(bob, carl),
 			token.Allowance(carl, alice), token.Allowance(carl, bob),
@@ -151,8 +151,8 @@ func TestReadonlyTeller(cur realm, t *testing.T) {
 	urequire.NoError(t, ledger.Mint(alice, math.MaxUint256))
 	ro := token.ReadonlyTeller()
 
-	uassert.True(t, ro.TotalSupply() == math.MaxUint256, "readonly TotalSupply")
-	uassert.True(t, ro.BalanceOf(alice) == math.MaxUint256, "readonly BalanceOf")
+	uassert.Equal(t, uint256(math.MaxUint256), ro.TotalSupply(), "readonly TotalSupply")
+	uassert.Equal(t, uint256(math.MaxUint256), ro.BalanceOf(alice), "readonly BalanceOf")
 
 	testing.SetRealm(testing.NewUserRealm(alice))
 	func(cur realm) {
@@ -160,7 +160,7 @@ func TestReadonlyTeller(cur realm, t *testing.T) {
 		uassert.ErrorIs(t, ro.Approve(0, cur, bob, 1), ErrReadonly)
 		uassert.ErrorIs(t, ro.TransferFrom(0, cur, alice, bob, 1), ErrReadonly)
 	}(cross(cur))
-	uassert.True(t, token.BalanceOf(bob) == 0, "readonly teller moved funds")
+	uassert.Equal(t, uint256(0), token.BalanceOf(bob), "readonly teller moved funds")
 }
 
 // TestCallerTellerAbove2Pow63 drives the frame-relative teller with amounts
@@ -181,15 +181,9 @@ func TestCallerTellerAbove2Pow63(cur realm, t *testing.T) {
 		urequire.NoError(t, teller.Transfer(0, cur, bob, big/2))
 		urequire.NoError(t, teller.Approve(0, cur, bob, math.MaxUint256))
 	}(cross(cur))
-	checkEq := func(want, got uint256, msg string) {
-		t.Helper()
-		if want != got {
-			t.Fatalf("%s: want %s, got %s", msg, strconv.FormatUint256(want, 10), strconv.FormatUint256(got, 10))
-		}
-	}
-	checkEq(big/2, token.BalanceOf(alice), "alice")
-	checkEq(big/2, token.BalanceOf(bob), "bob")
-	checkEq(math.MaxUint256, token.Allowance(alice, bob), "allowance")
+	urequire.Equal(t, uint256(big/2), token.BalanceOf(alice), "alice")
+	urequire.Equal(t, uint256(big/2), token.BalanceOf(bob), "bob")
+	urequire.Equal(t, uint256(math.MaxUint256), token.Allowance(alice, bob), "allowance")
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	func(cur realm) {
@@ -197,7 +191,7 @@ func TestCallerTellerAbove2Pow63(cur realm, t *testing.T) {
 		uassert.ErrorIs(t, teller.TransferFrom(0, cur, alice, carl, big/2+1), ErrInsufficientBalance)
 		urequire.NoError(t, teller.TransferFrom(0, cur, alice, carl, big/2))
 	}(cross(cur))
-	checkEq(0, token.BalanceOf(alice), "alice drained")
-	checkEq(big/2, token.BalanceOf(carl), "carl")
-	checkEq(math.MaxUint256-big/2, token.Allowance(alice, bob), "allowance decreased")
+	urequire.Equal(t, uint256(0), token.BalanceOf(alice), "alice drained")
+	urequire.Equal(t, uint256(big/2), token.BalanceOf(carl), "carl")
+	urequire.Equal(t, uint256(math.MaxUint256-big/2), token.Allowance(alice, bob), "allowance decreased")
 }
