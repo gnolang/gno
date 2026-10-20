@@ -22,6 +22,7 @@ func (m *Machine) doOpUneg() {
 	}
 	xv := m.PeekValue(1)
 	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUneg)
+	m.incrCPU256(xv.T, OpCPUUnegInt256, OpCPUUneg)
 	m.incrCPUBigDecUnary(xv, OpCPUSlopeBigDecUneg)
 
 	// Switch on the base type.
@@ -99,6 +100,7 @@ func (m *Machine) doOpUxor() {
 	}
 	xv := m.PeekValue(1)
 	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUxor)
+	m.incrCPU256(xv.T, OpCPUUxorInt256, OpCPUUxor)
 
 	// Switch on the base type.
 	switch baseOf(xv.T) {

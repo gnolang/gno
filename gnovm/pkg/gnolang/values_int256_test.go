@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"reflect"
 	"testing"
 
 	"github.com/holiman/uint256"
@@ -491,4 +492,29 @@ func TestGoTypesSizes(t *testing.T) {
 		conf.Check("p", fset, []*ast.File{f}, nil)
 		assert.Equal(t, c.ok, len(errs) == 0, "%s: %v", c.src, errs)
 	}
+}
+
+func TestBits256Gonative(t *testing.T) {
+	for _, typ := range []Type{Int256Type, Uint256Type} {
+		for _, a := range int256TestValues(typ == Int256Type) {
+			tv := tv256(typ, a)
+			rv := Gno2GoValue(&tv, reflect.Value{})
+			if typ == Int256Type {
+				require.Equal(t, goInt256Type, rv.Type())
+			} else {
+				require.Equal(t, goUint256Type, rv.Type())
+			}
+			back := Go2GnoValue(nil, nil, rv)
+			require.Equal(t, typ, back.T)
+			require.Equal(t, a.String(), back.GetBig256().String())
+			if a.Sign() == 0 {
+				require.Nil(t, back.V)
+			}
+		}
+	}
+	// Distinct Go types, although both are [4]uint64 underneath.
+	require.Equal(t, Uint256Type, go2GnoType(reflect.TypeFor[Uint256]()))
+	require.Equal(t, Int256Type, go2GnoType(reflect.TypeFor[Int256]()))
+	require.Equal(t, goUint256Type, gno2GoType(Uint256Type))
+	require.Equal(t, goInt256Type, gno2GoType(Int256Type))
 }

@@ -806,6 +806,14 @@ func (m *Machine) doOpConvert() {
 		m.incrCPU(OpCPUConvertStrBytes) // string -> []byte
 	} else if xv.T != nil && xv.T.Kind() == SliceKind && t.Kind() == StringKind {
 		m.incrCPU(OpCPUConvertStrBytes) // []byte -> string
+	} else if xv.T != nil && (is256Type(xv.T) || is256Type(t)) && xv.T.Kind() != t.Kind() {
+		// To or from int256/uint256; floats go through math/big.
+		if k := xv.T.Kind(); k == Float32Kind || k == Float64Kind ||
+			t.Kind() == Float32Kind || t.Kind() == Float64Kind {
+			m.incrCPU(OpCPUConvertInt256Float)
+		} else {
+			m.incrCPU(OpCPUConvertInt256)
+		}
 	} else {
 		m.incrCPU(OpCPUConvertNumeric)
 	}

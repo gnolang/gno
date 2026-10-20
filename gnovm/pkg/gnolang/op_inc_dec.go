@@ -18,6 +18,8 @@ func (m *Machine) doOpInc() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUIncFloat)
+	case Int256Kind, Uint256Kind:
+		m.incrCPU(OpCPUIncInt256)
 	default:
 		m.incrCPU(OpCPUIncInt)
 	}
@@ -100,6 +102,8 @@ func (m *Machine) doOpDec() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUDecFloat)
+	case Int256Kind, Uint256Kind:
+		m.incrCPU(OpCPUDecInt256)
 	default:
 		m.incrCPU(OpCPUDecInt)
 	}

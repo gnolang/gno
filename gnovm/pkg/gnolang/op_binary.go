@@ -86,6 +86,7 @@ func (m *Machine) doOpEql() {
 	if lv.T != nil && lv.T.Kind() == BigintKind {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
+	m.incrCPU256(lv.T, OpCPUEqlInt256, OpCPUEql)
 	// set result in lv.
 	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
@@ -102,6 +103,8 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
+
+	m.incrCPU256(lv.T, OpCPUEqlInt256, OpCPUNeq)
 
 	// set result in lv.
 	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
@@ -141,6 +144,8 @@ func (m *Machine) doOpLss() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPU256(lv.T, OpCPULssInt256, OpCPULss)
+
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
@@ -160,6 +165,8 @@ func (m *Machine) doOpLeq() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPU256(lv.T, OpCPULssInt256, OpCPULeq)
+
 	// set the result in lv.
 	res := isLeq(m, lv, rv)
 	lv.T = UntypedBoolType
@@ -177,6 +184,8 @@ func (m *Machine) doOpGtr() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
+	m.incrCPU256(lv.T, OpCPULssInt256, OpCPUGtr)
+
 	// set the result in lv.
 	res := isGtr(m, lv, rv)
 	lv.T = UntypedBoolType
@@ -193,6 +202,8 @@ func (m *Machine) doOpGeq() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
+
+	m.incrCPU256(lv.T, OpCPULssInt256, OpCPUGeq)
 
 	// set the result in lv.
 	res := isGeq(m, lv, rv)
@@ -223,6 +234,8 @@ func (m *Machine) doOpAdd() {
 		m.incrCPU(OpCPUAddString)
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUAddFloat)
+	case Int256Kind, Uint256Kind:
+		m.incrCPU(OpCPUAddInt256)
 	default:
 		m.incrCPU(OpCPUAddInt)
 	}
@@ -249,6 +262,8 @@ func (m *Machine) doOpSub() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUSubFloat)
+	case Int256Kind, Uint256Kind:
+		m.incrCPU(OpCPUSubInt256)
 	default:
 		m.incrCPU(OpCPUSubInt)
 	}
@@ -271,6 +286,7 @@ func (m *Machine) doOpBor() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBor)
+	m.incrCPU256(lv.T, OpCPUBorInt256, OpCPUBor)
 
 	// lv | rv
 	borAssign(m.Alloc, lv, rv)
@@ -287,6 +303,7 @@ func (m *Machine) doOpXor() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntXor)
+	m.incrCPU256(lv.T, OpCPUXorInt256, OpCPUXor)
 
 	// lv ^ rv
 	xorAssign(m.Alloc, lv, rv)
@@ -306,6 +323,8 @@ func (m *Machine) doOpMul() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUMulFloat)
+	case Int256Kind, Uint256Kind:
+		m.incrCPU(OpCPUMulInt256)
 	default:
 		m.incrCPU(OpCPUMulInt)
 	}
@@ -331,6 +350,8 @@ func (m *Machine) doOpQuo() {
 	switch lv.T.Kind() {
 	case Float32Kind, Float64Kind:
 		m.incrCPU(OpCPUQuoFloat)
+	case Int256Kind, Uint256Kind:
+		m.incrCPU(OpCPUQuoInt256)
 	default:
 		m.incrCPU(OpCPUQuoInt)
 	}
@@ -357,6 +378,7 @@ func (m *Machine) doOpRem() {
 
 	// Per-N gas for BigInt (quadratic, similar to Quo).
 	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntRemQ)
+	m.incrCPU256(lv.T, OpCPURemInt256, OpCPURem)
 
 	// lv % rv
 	err := remAssign(m.Alloc, lv, rv)
@@ -397,6 +419,8 @@ func (m *Machine) doOpShl() {
 		m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShl)
 	}
 
+	m.incrCPU256(lv.T, OpCPUShlInt256, OpCPUShl)
+
 	// lv << rv
 	shlAssign(m, lv, rv)
 }
@@ -415,6 +439,7 @@ func (m *Machine) doOpShr() {
 
 	// Per-N gas for BigInt Shr: charge per-kilobit of input bit width.
 	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShr)
+	m.incrCPU256(lv.T, OpCPUShrInt256, OpCPUShr)
 
 	// lv >> rv
 	shrAssign(m, lv, rv)
@@ -431,6 +456,7 @@ func (m *Machine) doOpBand() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBand)
+	m.incrCPU256(lv.T, OpCPUBandInt256, OpCPUBand)
 
 	// lv & rv
 	bandAssign(m.Alloc, lv, rv)
@@ -447,6 +473,7 @@ func (m *Machine) doOpBandn() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBandn)
+	m.incrCPU256(lv.T, OpCPUBandnInt256, OpCPUBandn)
 
 	// lv &^ rv
 	bandnAssign(m.Alloc, lv, rv)
