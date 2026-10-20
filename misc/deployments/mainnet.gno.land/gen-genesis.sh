@@ -90,8 +90,9 @@ GENESIS_TIME=1789225200 # 2026-09-12T15:00:00Z — decided 2026-09-12
 #     bearing: the node's EndBlocker reads valset state from this realm's
 #     params; without it on chain, post-genesis valset changes can't
 #     happen.
-#   - r/nt/grc20reg/v0: GRC20 token registry.
-#   - p/nt/grc20/v0 and p/nt/grc721/...: the token standards, listed
+#   - r/nt/grc20reg/v0 and v1: GRC20 token registries (v1 holds the
+#     uint256 grc20 v1 tokens, including wugnot).
+#   - p/nt/grc20/{v0,v1} and p/nt/grc721/...: the token standards, listed
 #     explicitly instead of being left to arrive as transitive deps — see
 #     the namespace note below. Checked with `gno tool deplist -test-dep`
 #     on the set above: grc20 already arrives (via r/nt/grc20reg/v0), but
@@ -118,7 +119,9 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/json/v0
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
+  ./gno.land/r/nt/grc20reg/v1
   ./gno.land/p/nt/grc20/v0
+  ./gno.land/p/nt/grc20/v1
   ./gno.land/p/nt/grc721/...
 )
 

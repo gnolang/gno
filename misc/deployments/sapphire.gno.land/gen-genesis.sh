@@ -62,7 +62,8 @@ GENESIS_TIME=1786104000 # Friday, August 7th 2026 14:00 CEST (12:00 UTC)
 #     bearing: the node's EndBlocker reads valset state from this realm's
 #     params; without it on chain, post-genesis valset changes can't
 #     happen.
-#   - r/nt/grc20reg/v0: GRC20 token registry.
+#   - r/nt/grc20reg/v0 and v1: GRC20 token registries (v1 holds the
+#     uint256 grc20 v1 tokens, including wugnot).
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
   ./gno.land/r/gov/...
@@ -76,6 +77,7 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/json
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
+  ./gno.land/r/nt/grc20reg/v1
 )
 
 # Initial sapphire validator set. Format: "name power address pub_key".

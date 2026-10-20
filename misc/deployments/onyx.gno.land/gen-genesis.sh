@@ -94,7 +94,9 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/json/v0
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
+  ./gno.land/r/nt/grc20reg/v1
   ./gno.land/p/nt/grc20/v0
+  ./gno.land/p/nt/grc20/v1
   ./gno.land/p/nt/grc721/...
 )
 

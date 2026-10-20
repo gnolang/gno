@@ -124,6 +124,7 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/json
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
+  ./gno.land/r/nt/grc20reg/v1
 )
 
 # Initial test-13 validator set. Format: "name power address pub_key".
