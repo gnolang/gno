@@ -1670,6 +1670,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
+							case Int32Kind:
+								// Likewise an untyped rune, which may
+								// exceed int32 (e.g. float64('\U0010ffff'*'\U0010ffff')).
+								if at == UntypedRuneType {
+									convertConst(store, last, n, arg0, ct)
+									constConverted = true
+								}
 							}
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
@@ -1683,7 +1690,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
-							convertConst(store, last, n, arg0, nil)
+							if arg0.isBigUntypedRune() {
+								// An untyped rune beyond int32 has no
+								// rune default (string(r) is then "\uFFFD"):
+								// take the untyped int default instead.
+								convertConst(store, last, n, arg0, IntType)
+							} else {
+								convertConst(store, last, n, arg0, nil)
+							}
 						}
 
 						// check legal type for nil
@@ -4605,6 +4619,9 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		if rx := untypedRuneOperands(x); rx != nil {
+			return evalUntypedRuneConst(store, last, x, rx...)
+		}
 		// is constant?  From the machine?
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath:            ".dontcare",
@@ -4640,6 +4657,66 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// cx.SetSpan(x.GetSpan())
 	setPreprocessed(cx)
 	setConstAttrs(cx)
+	return cx
+}
+
+// isUntypedRuneConst reports whether x is an untyped rune *ConstExpr.
+func isUntypedRuneConst(x Expr) bool {
+	cx, ok := x.(*ConstExpr)
+	return ok && cx.T == UntypedRuneType
+}
+
+// untypedRuneOperands returns the operands of x that evalConst must
+// evaluate exactly as untyped runes: both operands of a binary operation on
+// two untyped rune constants, the left operand of a shift of one, or the
+// operand of a unary operation on one. It returns nil otherwise.
+func untypedRuneOperands(x Expr) []*Expr {
+	switch x := x.(type) {
+	case *BinaryExpr:
+		switch x.Op {
+		case SHL, SHR:
+			if isUntypedRuneConst(x.Left) {
+				return []*Expr{&x.Left}
+			}
+		case LAND, LOR:
+		default:
+			if isUntypedRuneConst(x.Left) && isUntypedRuneConst(x.Right) {
+				return []*Expr{&x.Left, &x.Right}
+			}
+		}
+	case *UnaryExpr:
+		if isUntypedRuneConst(x.X) {
+			return []*Expr{&x.X}
+		}
+	}
+	return nil
+}
+
+// evalUntypedRuneConst evaluates the constant operation x exactly, where
+// the operands *xs are untyped rune constants.
+//
+// Untyped constant arithmetic in Go is exact, while the machine computes
+// rune values in int32 and wraps. So each operand *xs is replaced by an
+// untyped bigint of the same value, x is evaluated with the machine's
+// exact bigint arithmetic, and an integer result becomes an untyped rune
+// again: it keeps rune as its default type, and the range check happens
+// once the value is converted to its destination type. A comparison
+// result (untyped bool) is returned as is.
+func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *ConstExpr {
+	for _, px := range xs {
+		cx := (*px).(*ConstExpr)
+		*px = toConstExpr(cx, TypedValue{
+			T: UntypedBigintType,
+			V: BigintValue{V: cx.GetUntypedRune()},
+		})
+	}
+	cx := evalConst(store, last, x) // the operands are no longer runes.
+	if cx.T == UntypedBigintType {
+		bi := cx.GetBigInt()
+		cx.T = UntypedRuneType
+		cx.SetUntypedRune(bi)
+		setConstAttrs(cx)
+	}
 	return cx
 }
 

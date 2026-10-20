@@ -365,7 +365,11 @@ func boundedSprintPrimitiveTV(w *boundedBuf, tv TypedValue) {
 	case Int16Type:
 		fmt.Fprintf(w, "%d", tv.GetInt16())
 	case Int32Type, UntypedRuneType:
-		fmt.Fprintf(w, "%d", tv.GetInt32())
+		if tv.isBigUntypedRune() {
+			boundedSprintBigInt(w, tv.GetUntypedRune())
+		} else {
+			fmt.Fprintf(w, "%d", tv.GetInt32())
+		}
 	case Int64Type:
 		fmt.Fprintf(w, "%d", tv.GetInt64())
 	case UintType:

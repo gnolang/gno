@@ -1594,6 +1594,9 @@ func (tv *TypedValue) GetInt32() int32 {
 				tv.T.String(),
 			))
 		}
+		if tv.isBigUntypedRune() {
+			panic("TypedValue.GetInt32() on an untyped rune beyond int32; use GetUntypedRune")
+		}
 	}
 	return *(*int32)(unsafe.Pointer(&tv.N))
 }
@@ -1834,6 +1837,61 @@ func (tv *TypedValue) GetBigInt() *big.Int {
 	return tv.V.(BigintValue).V
 }
 
+// GetUntypedRune returns the exact value of an untyped rune constant.
+//
+// Untyped constants are exact, so an untyped rune need not fit in int32
+// ('\U0010ffff' * '\U0010ffff' is a valid untyped rune constant). A value
+// that fits in int32 is held in N, like a rune; one that does not is held
+// in V as a BigintValue. See SetUntypedRune.
+func (tv *TypedValue) GetUntypedRune() *big.Int {
+	if debug {
+		if tv.T != UntypedRuneType {
+			panic(fmt.Sprintf(
+				"TypedValue.GetUntypedRune() on type %s",
+				tv.T.String(),
+			))
+		}
+	}
+	if bv, ok := tv.V.(BigintValue); ok {
+		return bv.V
+	}
+	return big.NewInt(int64(tv.GetInt32()))
+}
+
+// SetUntypedRune sets the exact value of an untyped rune constant, holding
+// it in N when it fits in int32 and in V as a BigintValue otherwise. The
+// form is canonical: an in-range value is laid out exactly as a rune
+// literal is. tv.T must already be UntypedRuneType.
+func (tv *TypedValue) SetUntypedRune(bi *big.Int) {
+	if debug {
+		if tv.T != UntypedRuneType {
+			panic(fmt.Sprintf(
+				"TypedValue.SetUntypedRune() on type %s",
+				tv.T.String(),
+			))
+		}
+	}
+	tv.ClearNum()
+	if bi.IsInt64() {
+		if i64 := bi.Int64(); int64(int32(i64)) == i64 {
+			tv.V = nil
+			tv.SetInt32(int32(i64))
+			return
+		}
+	}
+	tv.V = BigintValue{V: bi}
+}
+
+// isBigUntypedRune reports whether tv is an untyped rune constant held in
+// its big form, outside the int32 range.
+func (tv *TypedValue) isBigUntypedRune() bool {
+	if tv.T != UntypedRuneType {
+		return false
+	}
+	_, ok := tv.V.(BigintValue)
+	return ok
+}
+
 func (tv *TypedValue) GetBigDec() BigdecValue {
 	if debug {
 		if tv.T != nil && tv.T.Kind() != BigdecKind {
@@ -1851,7 +1909,6 @@ func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
-
 	switch tv.T.Kind() {
 	case IntKind:
 		return signOfInteger(tv.GetInt())
@@ -1860,6 +1917,9 @@ func (tv *TypedValue) Sign() int {
 	case Int16Kind:
 		return signOfInteger(int64(tv.GetInt16()))
 	case Int32Kind:
+		if bv, ok := tv.V.(BigintValue); ok { // untyped rune beyond int32
+			return bv.V.Sign()
+		}
 		return signOfInteger(int64(tv.GetInt32()))
 	case Int64Kind:
 		return signOfInteger(tv.GetInt64())
