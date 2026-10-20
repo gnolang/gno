@@ -4683,7 +4683,9 @@ func untypedRuneOperands(x Expr) []*Expr {
 	case *BinaryExpr:
 		switch x.Op {
 		case SHL, SHR:
-			if isUntypedRuneConst(x.Left) {
+			// A zero left operand cannot overflow: it stays with the
+			// int32 folding, which accepts any count ('\x00' << 10001).
+			if isUntypedRuneConst(x.Left) && x.Left.(*ConstExpr).GetInt32() != 0 {
 				return []*Expr{&x.Left}
 			}
 		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR, BAND_NOT:
@@ -4716,6 +4718,15 @@ func constSource(x Expr) string {
 		if x.GetAttribute(ATTR_SHIFT_RHS) == true && len(x.Args) == 1 {
 			return constSourceOperand(x.Args[0])
 		}
+		args := make([]string, len(x.Args))
+		for i, arg := range x.Args {
+			args[i] = constSource(arg)
+		}
+		return constSource(x.Func) + "(" + strings.Join(args, ", ") + ")"
+	case *constTypeExpr:
+		if x.Source != nil {
+			return constSource(x.Source)
+		}
 	}
 	return x.String()
 }
@@ -4746,15 +4757,6 @@ func constSourceOperand(x Expr) string {
 // default type, and the type of everything derived from it). The fix for
 // the program is a typed operand, e.g. int64('\U0010ffff') * '\U0010ffff'.
 func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *ConstExpr {
-	if bx, ok := x.(*BinaryExpr); ok && bx.Op == SHL &&
-		(*xs[0]).(*ConstExpr).GetInt32() == 0 {
-		// 0 << n is 0 for any count: fold it as the int32 folding did,
-		// without the bigint shift (and its shift cap).
-		cx := toConstExpr(x, TypedValue{T: UntypedRuneType})
-		cx.SetInt32(0)
-		setConstAttrs(cx)
-		return cx
-	}
 	src := constSource(x)
 	operand := constSource(*xs[0])
 	for _, px := range xs {

@@ -77,3 +77,39 @@ const (
 		require.Equal(t, tt.n, tv2.N, tt.name)
 	}
 }
+
+// runeConstDeployGas returns the gas of deploying a package declaring
+// decl, with one meter for the machine and the preprocess allocator, as
+// the keeper wires them.
+func runeConstDeployGas(t *testing.T, decl string) int64 {
+	t.Helper()
+	const path = "gno.land/p/demo/runegas"
+	gm := stypes.NewInfiniteGasMeter()
+	tm2 := dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{})
+	st := NewStore(nil, tm2, tm2)
+	pa := NewAllocator(500 * 1024 * 1024)
+	pa.SetGasMeter(gm)
+	st.SetPreprocessAllocator(pa)
+	m := NewMachineWithOptions(MachineOptions{Store: st, Output: io.Discard, GasMeter: gm})
+	defer m.Release()
+	m.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd, Name: "runegas", Path: path,
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: "module = \"" + path + "\"\ngno = \"0.9\"\n"},
+			{Name: "c.gno", Body: "package runegas\n\n" + decl + "\n"},
+		},
+	}, true)
+	return gm.GasConsumed()
+}
+
+// TestRuneConstShiftGas checks that a zero untyped rune shifted by any
+// count is folded like any other in-range rune shift, by evaluating the
+// expression, so it is charged the same gas. (At 8580ae38e all three
+// deployments cost 2074 gas.)
+func TestRuneConstShiftGas(t *testing.T) {
+	small := runeConstDeployGas(t, `const C = '\x00' << 1`)
+	large := runeConstDeployGas(t, `const C = '\x00' << 10001`)
+	other := runeConstDeployGas(t, `const C = 'a' << 20`)
+	require.Equal(t, other, small)
+	require.Equal(t, other, large)
+}

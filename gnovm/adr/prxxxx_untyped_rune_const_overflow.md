@@ -21,7 +21,7 @@ silently computed the wrong value. On the same path:
 - `var f float64 = 'a'` failed: `ConvertUntypedRuneTo` had no float case;
 - `var u uint64 = 'b' - 'c'` wrapped to 18446744073709551615 (Go rejects
   it);
-- `string(1<<64)` failed, where Go gives "�".
+- `string(1<<64)` failed, where Go gives "\uFFFD".
 
 ## Scope
 
@@ -32,8 +32,10 @@ an error. Concretely:
 - a binary operation on untyped rune constants whose exact result fits in
   int32 folds to exactly master's result (kind and bytes);
 - one whose exact result does not fit is rejected, where master wrapped it;
-- programs master rejected stay rejected, except the three conversions
-  below, each of which master rejected outright, never folded to a value.
+- programs master rejected stay rejected, except two conversions master
+  rejected outright (float targets for runes, `string()` beyond int64);
+- one conversion master accepted becomes an error, as in Go: a negative
+  rune constant converted to `uint64`, which master wrapped.
 
 Unary operators on untyped rune constants (`-'a'`, `^'a'`) keep master's
 behaviour: the machine does not define them on untyped runes, so they are
@@ -47,7 +49,8 @@ Go's (`1 + ((-'a') << s)` would print 4294967200, gc -96).
 
 `evalConst`, the preprocessor's constant-folding entry point, recognises an
 arithmetic or bitwise operation on two untyped rune constants and a shift
-of one (`untypedRuneOperands`), and folds it with `evalUntypedRuneConst`:
+of one (`untypedRuneOperands`; a shift of a zero rune excepted), and folds it with
+`evalUntypedRuneConst`:
 each rune operand becomes an untyped bigint of the same value, and the
 expression is evaluated with the machine's existing bigint arithmetic (its
 gas charges and shift cap included).
@@ -55,15 +58,17 @@ gas charges and shift cap included).
 - A result that fits in int32 is an untyped rune, laid out exactly as the
   int32 folding laid it out (kind and bytes).
 - A result beyond int32 is a preprocess error that names the expression as
-  written (`constSource`: constants, imported selectors, `iota`) and
+  written (`constSource`: constants, imported selectors, `iota`, conversions such
+as `uint(N)`) and
   suggests a typed operand:
 
   ```
   untyped rune constant '\U0010ffff' * '\U0010ffff' overflows int32 (value 1241243320321); convert an operand to a wider integer type, e.g. int64('\U0010ffff')
   ```
 
-- `0 << n` folds to 0 for any count, as the int32 folding did, without the
-  bigint shift (whose 10000-bit cap would reject `'\x00' << 10001`).
+- A shift of a zero rune is left to the int32 folding, which cannot
+  overflow on it and accepts any count (`'\x00' << 10001` is 0, as before;
+  the bigint shift caps counts at 10000), with master's gas.
 
 Comparisons of two untyped runes keep the int32 folding: both operands are
 within int32, so it is exact.
@@ -77,8 +82,8 @@ The typed workaround the message suggests gives gc's exact value:
 
 ### Conversions
 
-Each of these was rejected on master, so none changes a value master
-computed:
+The first two were rejected on master, so they change no value master
+computed; the third rejects code master accepted:
 
 - `ConvertUntypedRuneTo` gains float32/float64 targets
   (`var f float64 = 'a'` failed with "cannot convert untyped rune type to
@@ -86,11 +91,11 @@ computed:
 - it range checks a negative rune converted to `uint64`, as it already did
   for the other unsigned kinds (master wrapped; Go rejects);
 - `string(x)` of an untyped integer constant beyond the int64 range is
-  folded to `"�"` first (`foldStringOfLargeIntConst`); master rejected
+  folded to `"\uFFFD"` first (`foldStringOfLargeIntConst`); master rejected
   it ("bigint overflows target kind"). Values within int64 keep their path.
 
-The `uint64` check is the one that turns an accepted program into an
-error; it belongs with the overflow rejections below.
+The `uint64` check turns an accepted program into an error; it belongs
+with the overflow rejections below, and with the upgrade risk.
 
 ## The divergence
 
@@ -133,8 +138,9 @@ see Consequences. This is a chain-level decision outside this PR.
 
 Otherwise, a stored package preprocesses to exactly the constant values
 and bytes master persisted: every fold that master completed, this change
-completes identically (or rejects), and every conversion that changed was
-rejected on master. So a persisted constant cannot differ from what the
+completes identically or rejects; the float and `string()` conversions
+that changed were rejected on master; and the `uint64` conversion that
+changed now rejects. So a persisted constant cannot differ from what the
 running VM folds, and imported constants, which importers read from the
 persisted package block, need no special handling.
 
@@ -171,8 +177,10 @@ persisted package block, need no special handling.
   arithmetic, whose CPU gas grows with operand bit length. Small runes cost
   the same; `const C = ('\U0010ffff' * 'Ā') + '\x00'` costs one more
   gas unit (1738 against 1737 for the whole deployment, measured with a
-  metered `RunMemPackage` on master and on this branch). Imported
-  constants cost the same as on master.
+  metered `RunMemPackage` on master and on this branch). Zero shifts
+  (`'\x00' << 1`, `'\x00' << 10001`: 2074), in-range shifts and imported
+  constants cost the same as on master; `TestRuneConstShiftGas` checks the
+  zero shifts against an in-range shift.
 
 ## Related, not fixed here
 
@@ -191,6 +199,6 @@ persisted package block, need no special handling.
 |------|------|
 | `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `constSource`, `foldStringOfLargeIntConst` |
 | `gnovm/pkg/gnolang/values_conversions.go` | float targets and the `uint64` check in `ConvertUntypedRuneTo` |
-| `gnovm/pkg/gnolang/preprocess_rune_const_test.go` | persisted layout of folded rune constants |
+| `gnovm/pkg/gnolang/preprocess_rune_const_test.go` | persisted layout of folded rune constants; shift gas |
 | `gnovm/pkg/gnolang/values_conversions_test.go` | conversion unit test |
-| `gnovm/tests/files/rune4.gno`–`rune22.gno`, `switch52.gno` | filetests |
+| `gnovm/tests/files/rune4.gno`–`rune23.gno`, `switch52.gno` | filetests |
