@@ -1,15 +1,25 @@
 package main
 
-// An explicit rune conversion checks the exact value.
+// string(x) of an integer constant outside the int32 range is "\uFFFD",
+// however large the constant.
 
-const c = '\U0010ffff' * '\U0010ffff'
+type S string
+
+const r = string('\x01' << 64)
 
 func main() {
-	println(rune(c))
+	println(r == "\uFFFD")
+	println(string(-'\x01'<<64) == "\uFFFD")
+	println(S('\x01'<<64) == "\uFFFD")
+	println(string(1<<64) == "\uFFFD", string(-1<<70) == "\uFFFD")
+	println(string('\x01'<<40) == "\uFFFD", string('\x01'<<31) == "\uFFFD")
+	println(string('a'+1), string(S('a'*2-'a')))
 }
 
-// Error:
-// main/rune15.gno:8:10-17: rune overflows target kind
-
-// TypeCheckError:
-// main/rune15.gno:8:15: constant 1241243320321 overflows rune
+// Output:
+// true
+// true
+// true
+// true true
+// true true
+// b a

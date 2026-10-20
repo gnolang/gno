@@ -1,19 +1,20 @@
 package main
 
-// In an interface context, the untyped rune constant beyond int32 takes
-// its default type, rune, which it overflows.
+// Unary operators on untyped rune constants are exact.
 
-var s uint
-
-const big = '\U0010ffff' * '\U0010ffff'
+const c = '\U0010ffff' * '\U0010ffff'
 
 func main() {
-	var x interface{} = ('a' << s) + big
-	println(x)
+	var a int64 = -c
+	var b int64 = -'\U0010ffff' * '\U0010ffff'
+	var x int64 = ^c
+	var p int64 = +c
+	var m int64 = -(-2147483647 - 'a') // -(untyped rune -2147483744)
+	println(a, b, x, p, m)
+	r := -'a' // in range, defaults to rune
+	println([]rune{r}[0], ^'a')
 }
 
-// Error:
-// main/rune7.gno:11:22-38: rune overflows target kind
-
-// TypeCheckError:
-// main/rune7.gno:11:35: big (untyped rune constant 1241243320321) overflows rune
+// Output:
+// -1241243320321 -1241243320321 -1241243320322 1241243320321 2147483744
+// -97 -98

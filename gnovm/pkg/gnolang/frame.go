@@ -231,9 +231,6 @@ func toConstExpTrace(cte *ConstExpr) string {
 		case Int16Type:
 			return fmt.Sprintf("%d", tv.GetInt16())
 		case UntypedRuneType, Int32Type:
-			if tv.isBigUntypedRune() {
-				return tv.GetUntypedRune().String()
-			}
 			return fmt.Sprintf("%d", tv.GetInt32())
 		case Int64Type:
 			return fmt.Sprintf("%d", tv.GetInt64())

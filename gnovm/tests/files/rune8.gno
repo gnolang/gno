@@ -1,19 +1,16 @@
 package main
 
-// Shifts of an untyped rune constant are exact.
+// Comparisons of untyped rune constants use the exact values.
 
-const shl = 'a' << 40
+const c = '\U0010ffff' * '\U0010ffff'
 
 func main() {
-	var a int64 = 'a' << 40
-	var b int64 = shl
-	var c uint64 = '\U0010ffff' << 43
-	r := shl >> 38 // back in range, defaults to rune
-	println(a, b, c, []rune{r}[0])
-	var d int64 = ('\U0010ffff' * '\U0010ffff') >> 1
-	println(d)
+	println(c > 0, c == '\U0010ffff'*'\U0010ffff', c != c+1, c < c*2)
+	println(c == -2228223, '\U0010ffff'*'\U0010ffff' > 2147483647)
+	println(c > 1<<40, 'a'+1 == 'b')
 }
 
 // Output:
-// 106652627894272 106652627894272 9799823993065177088 388
-// 620621660160
+// true true true true
+// false true
+// true true

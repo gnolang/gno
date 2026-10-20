@@ -51,7 +51,8 @@ func TestImportedConstAfterReload(t *testing.T) {
 	idx, ok := pn.GetLocalIndex("C")
 	require.True(t, ok)
 	blk := pv.GetBlock(st)
-	require.Equal(t, int64(1241243320321), blk.Values[idx].GetUntypedRune().Int64())
+	require.Equal(t, UntypedBigintType, blk.Values[idx].T)
+	require.Equal(t, int64(1241243320321), blk.Values[idx].GetBigInt().Int64())
 	wrapped := TypedValue{T: UntypedRuneType}
 	wrapped.SetInt32(-2228223)
 	blk.Values[idx] = wrapped
@@ -85,11 +86,10 @@ func TestImportedConstAfterReload(t *testing.T) {
 // folded from untyped rune operations. A package block is amino-encoded
 // with all eight bytes of N, so these bytes are part of the state hash.
 //
-// Two forms differ from the int32 folding this replaced, although the
-// values do not: a comparison of two untyped runes used to leave the
-// operand's upper bytes in N under the boolean, and a narrowing conversion
-// of an untyped rune used to leave the rune's upper bytes under the
-// narrow value. Both now leave N zeroed past the value.
+// A result within int32 is laid out exactly as the int32 folding laid it
+// out, including the bytes a comparison or a narrowing conversion leaves
+// in N; only a result beyond int32 changes: it is an untyped bigint with
+// its exact value, where the int32 folding stored the wrapped rune.
 func TestUntypedRuneConstLayout(t *testing.T) {
 	const path = "gno.land/p/demo/runelayout"
 	db := memdb.NewMemDB()
@@ -128,10 +128,10 @@ const (
 		n    [8]byte
 	}{
 		{"Lit", UntypedRuneType, [8]byte{0x61}},
-		{"Sum", UntypedBigintType, [8]byte{}}, // rune op int stays an untyped int, as before
-		{"Big", UntypedRuneType, [8]byte{}},
-		{"Eq", UntypedBoolType, [8]byte{0x01}}, // was 01 01 00 ...
-		{"Neg8", Int8Type, [8]byte{0xff}},      // was ff ff ff ff 00 ...
+		{"Sum", UntypedBigintType, [8]byte{}}, // rune op int is an untyped int, as before
+		{"Big", UntypedBigintType, [8]byte{}}, // was the wrapped rune -2228223
+		{"Eq", UntypedBoolType, [8]byte{0x01, 0x01}},
+		{"Neg8", Int8Type, [8]byte{0xff, 0xff, 0xff, 0xff}},
 		{"U16", Uint16Type, [8]byte{0x41, 0x01}},
 	}
 	for _, tt := range tests {
@@ -146,7 +146,7 @@ const (
 		require.Equal(t, tt.n, tv2.N, tt.name)
 	}
 	big := get("Big")
-	require.Equal(t, int64(1241243320321), big.GetUntypedRune().Int64())
+	require.Equal(t, int64(1241243320321), big.GetBigInt().Int64())
 	var big2 TypedValue
 	amino.MustUnmarshal(amino.MustMarshal(big), &big2)
 	require.Equal(t, int64(1241243320321), big2.V.(BigintValue).V.Int64())

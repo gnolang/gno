@@ -1123,16 +1123,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// evaluate tag type
 					tt := evalStaticTypeOf(store, last, ss.X)
 					// check or convert case types to tt.
-					_, tagConst := ss.X.(*ConstExpr)
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
-						if !tagConst {
-							// A case is compared with the non-constant
-							// tag: see rejectBigUntypedRune.
-							ccx, _ := cx.(*ConstExpr)
-							rejectBigUntypedRune(ccx)
-						}
 						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
 						n.Cases[i] = cx
 					}
@@ -1498,13 +1491,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				lcx, lic := n.Left.(*ConstExpr)
 				rcx, ric := n.Right.(*ConstExpr)
 
-				// An untyped rune constant beyond int32 never meets a
-				// non-constant operand.
-				if lic != ric {
-					rejectBigUntypedRune(lcx)
-					rejectBigUntypedRune(rcx)
-				}
-
 				if debug {
 					debug.Printf("TRANS_LEAVE, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				}
@@ -1546,9 +1532,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// If either is interface type no conversion is required.
 						if (lt == nil || lt.Kind() != InterfaceKind) &&
 							(rt == nil || rt.Kind() != InterfaceKind) {
-							if keepBigUntypedRuneKind(lcx, rcx) {
-								// done: both are untyped runes now.
-							} else if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
+							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, n, &n.Left, rt)
 							} else {
@@ -1687,13 +1671,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
-							case Int32Kind:
-								// Likewise an untyped rune, which may
-								// exceed int32 (e.g. float64('\U0010ffff'*'\U0010ffff')).
-								if at == UntypedRuneType {
-									convertConst(store, last, n, arg0, ct)
-									constConverted = true
-								}
 							}
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
@@ -4676,76 +4653,22 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	return cx
 }
 
-// foldStringOfLargeIntConst prepares string(cx), for an untyped integer or
-// rune constant cx: a value outside the int32 range is no Unicode code
-// point, so string(cx) is "\uFFFD" (Go spec, conversions to string). cx
-// becomes the rune '\uFFFD', so its default type no longer overflows.
-// Values within int32, valid or not, are left to the regular conversion.
+// foldStringOfLargeIntConst prepares string(cx), for an untyped integer
+// constant cx: a value outside the int32 range is no Unicode code point,
+// so string(cx) is "\uFFFD" (Go spec, conversions to string). cx becomes
+// the rune '\uFFFD', so its default type no longer overflows (string(1<<64)
+// was rejected). Values within int32, valid or not, are left to the regular
+// conversion.
 func foldStringOfLargeIntConst(cx *ConstExpr) {
-	var bi *big.Int
-	switch cx.T {
-	case UntypedRuneType:
-		bi = cx.GetUntypedRune()
-	case UntypedBigintType:
-		bi = cx.GetBigInt()
-	default:
+	if cx.T != UntypedBigintType {
 		return
 	}
-	if bi.IsInt64() && int64(int32(bi.Int64())) == bi.Int64() {
+	if bi := cx.GetBigInt(); bi.IsInt64() && int64(int32(bi.Int64())) == bi.Int64() {
 		return
 	}
 	cx.TypedValue = TypedValue{T: UntypedRuneType}
 	cx.SetInt32(utf8.RuneError)
 	setConstAttrs(cx)
-}
-
-// keepBigUntypedRuneKind handles a constant operation between an untyped
-// rune beyond int32 and an untyped integer, e.g. big + 0. Go gives it the
-// rune kind; Gno's kind order would give it the int kind, and the result,
-// still beyond int32 but now an untyped bigint, would escape
-// rejectBigUntypedRune. Master wrapped such a rune, so no result of such
-// an operation was right before. The integer operand becomes an untyped
-// rune of the same value, and the operation folds exactly as an untyped
-// rune (untypedRuneOperands). It reports whether it did so.
-//
-// Runes within int32 keep Gno's kind order (see #6339).
-func keepBigUntypedRuneKind(lcx, rcx *ConstExpr) bool {
-	toRune := func(cx *ConstExpr) {
-		bi := cx.GetBigInt()
-		cx.TypedValue = TypedValue{T: UntypedRuneType}
-		cx.SetUntypedRune(bi)
-		setConstAttrs(cx)
-	}
-	switch {
-	case lcx.isBigUntypedRune() && rcx.T == UntypedBigintType:
-		toRune(rcx)
-	case rcx.isBigUntypedRune() && lcx.T == UntypedBigintType:
-		toRune(lcx)
-	default:
-		return false
-	}
-	return true
-}
-
-// rejectBigUntypedRune rejects cx, with the usual "rune overflows target
-// kind" error, if it is an untyped rune constant beyond int32 (e.g.
-// '\U0010ffff' * '\U0010ffff'); it does nothing for any other cx, nil
-// included.
-//
-// It is called for every constant that meets a non-constant operand: either
-// side of a binary expression (a comparison or a shift included) whose other
-// side is not constant, and a switch case whose tag is not constant. Such a
-// constant is exact only while it stays a constant. Next to a non-constant
-// operand it takes the type of the expression, which Gno does not always
-// resolve as Go does (non-constant shifts are typed eagerly), and runtime
-// arithmetic reads untyped runes as int32. Rejecting it there, whatever the
-// context, keeps a big-form rune from ever reaching runtime. Go rejects it
-// too unless the context is a wider integer type (var y int64 = ('a' << s) +
-// big), which is then rejected here although gc accepts it.
-func rejectBigUntypedRune(cx *ConstExpr) {
-	if cx != nil && cx.isBigUntypedRune() {
-		ConvertUntypedTo(&cx.TypedValue, nil) // panics: overflows rune.
-	}
 }
 
 // importedConst returns the value of the constant pkg.Name selected by n,
@@ -4777,9 +4700,10 @@ func isUntypedRuneConst(x Expr) bool {
 }
 
 // untypedRuneOperands returns the operands of x that evalConst must
-// evaluate exactly as untyped runes: both operands of a binary operation on
+// evaluate exactly: both operands of an arithmetic or bitwise operation on
 // two untyped rune constants, the left operand of a shift of one, or the
-// operand of a unary operation on one. It returns nil otherwise.
+// operand of a unary operation on one. It returns nil otherwise, for
+// comparisons too, whose int32 evaluation of two int32 runes is exact.
 func untypedRuneOperands(x Expr) []*Expr {
 	switch x := x.(type) {
 	case *BinaryExpr:
@@ -4788,15 +4712,17 @@ func untypedRuneOperands(x Expr) []*Expr {
 			if isUntypedRuneConst(x.Left) {
 				return []*Expr{&x.Left}
 			}
-		case LAND, LOR:
-		default:
+		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR, BAND_NOT:
 			if isUntypedRuneConst(x.Left) && isUntypedRuneConst(x.Right) {
 				return []*Expr{&x.Left, &x.Right}
 			}
 		}
 	case *UnaryExpr:
-		if isUntypedRuneConst(x.X) {
-			return []*Expr{&x.X}
+		switch x.Op {
+		case ADD, SUB, XOR:
+			if isUntypedRuneConst(x.X) {
+				return []*Expr{&x.X}
+			}
 		}
 	}
 	return nil
@@ -4806,25 +4732,25 @@ func untypedRuneOperands(x Expr) []*Expr {
 // the operands *xs are untyped rune constants.
 //
 // Untyped constant arithmetic in Go is exact, while the machine computes
-// rune values in int32 and wraps. So each operand *xs is replaced by an
-// untyped bigint of the same value, x is evaluated with the machine's
-// exact bigint arithmetic, and an integer result becomes an untyped rune
-// again: it keeps rune as its default type, and the range check happens
-// once the value is converted to its destination type. A comparison
-// result (untyped bool) is returned as is.
+// untyped rune values in int32 and wraps ('\U0010ffff' * '\U0010ffff' gave
+// -2228223). So each operand *xs is replaced by an untyped bigint of the
+// same value and x is evaluated with the machine's exact bigint arithmetic
+// (with its gas charges and shift cap). A result that fits in int32 is an
+// untyped rune again, laid out exactly as before. A result beyond int32
+// stays an untyped bigint, Gno's untyped integer kind, so it never needs a
+// new representation; Go would keep it an untyped rune (see the ADR).
 func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *ConstExpr {
 	for _, px := range xs {
 		cx := (*px).(*ConstExpr)
 		*px = toConstExpr(cx, TypedValue{
 			T: UntypedBigintType,
-			V: BigintValue{V: cx.GetUntypedRune()},
+			V: BigintValue{V: big.NewInt(int64(cx.GetInt32()))},
 		})
 	}
 	cx := evalConst(store, last, x) // the operands are no longer runes.
-	if cx.T == UntypedBigintType {
-		bi := cx.GetBigInt()
-		cx.T = UntypedRuneType
-		cx.SetUntypedRune(bi)
+	if bi := cx.GetBigInt(); bi.IsInt64() && int64(int32(bi.Int64())) == bi.Int64() {
+		cx.TypedValue = TypedValue{T: UntypedRuneType}
+		cx.SetInt32(int32(bi.Int64()))
 		setConstAttrs(cx)
 	}
 	return cx

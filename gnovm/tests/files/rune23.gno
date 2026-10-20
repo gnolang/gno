@@ -1,18 +1,17 @@
 package main
 
-// A comparison with a non-constant rune shift gives the constant the type
-// rune, which it overflows.
+// Untyped rune constants beyond int32 combined with untyped integer
+// constants stay exact in constant contexts.
 
-var s uint
-
-const big = '\U0010ffff' * '\U0010ffff'
+const big = 'Ā' * 'Ā' * 'Ā' * 'Ā' // 4294967296
 
 func main() {
-	println(('a' << s) < big)
+	var x int64 = big + 1
+	var y int64 = (big+0)*2 + 1
+	const c = big - 4294967296 + 'a' // back in range
+	var r rune = c
+	println(x, y, r, big+0 == 4294967296, 0+big > 1<<31)
 }
 
-// Error:
-// main/rune23.gno:11:10-26: rune overflows target kind
-
-// TypeCheckError:
-// main/rune23.gno:11:23: big (untyped rune constant 1241243320321) overflows rune
+// Output:
+// 4294967297 8589934593 97 true true

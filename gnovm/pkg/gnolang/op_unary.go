@@ -33,10 +33,7 @@ func (m *Machine) doOpUneg() {
 		xv.SetInt8(-xv.GetInt8())
 	case Int16Type:
 		xv.SetInt16(-xv.GetInt16())
-	case Int32Type, UntypedRuneType:
-		// An untyped rune here is a non-constant shift (-('a' << s)),
-		// which has int32 semantics like the binary operators'; untyped
-		// rune constants are folded exactly in preprocessing.
+	case Int32Type:
 		xv.SetInt32(-xv.GetInt32())
 	case Int64Type:
 		xv.SetInt64(-xv.GetInt64())
@@ -107,7 +104,7 @@ func (m *Machine) doOpUxor() {
 		xv.SetInt8(^xv.GetInt8())
 	case Int16Type:
 		xv.SetInt16(^xv.GetInt16())
-	case Int32Type, UntypedRuneType: // see doOpUneg
+	case Int32Type:
 		xv.SetInt32(^xv.GetInt32())
 	case Int64Type:
 		xv.SetInt64(^xv.GetInt64())

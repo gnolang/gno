@@ -1,15 +1,22 @@
 package main
 
-// An explicit conversion to an interface gives an untyped rune constant
-// its default type, rune, so the value must fit in int32.
+// As rune17, for a compound tag.
+
+var s uint
+
+const big = '\U0010ffff' * '\U0010ffff'
 
 func main() {
-	var x = interface{}('a' << 40)
-	println(x)
+	switch ('\x00' << s) + '\x00' {
+	case big:
+		println("bad")
+	default:
+		println("miss")
+	}
 }
 
 // Error:
-// main/rune19.gno:7:10-32: rune overflows target kind
+// main/rune19.gno:11:2-12:17: bigint overflows target kind
 
 // TypeCheckError:
-// main/rune19.gno:7:22: 'a' << 40 (untyped rune constant 106652627894272) overflows rune
+// main/rune19.gno:11:7: big (untyped rune constant 1241243320321) overflows rune

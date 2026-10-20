@@ -1,14 +1,14 @@
 package main
 
-// A negative untyped rune constant does not fit an unsigned integer.
+// An untyped rune constant may exceed int64 but not when converted to it.
 
 func main() {
-	var u uint64 = -'a'
-	println(u)
+	var x int64 = '\U0010ffff' * '\U0010ffff' * '\U0010ffff' * '\U0010ffff'
+	println(x)
 }
 
 // Error:
-// main/rune13.gno:6:6-21: rune underflows target kind
+// main/rune13.gno:6:6-73: bigint overflows target kind
 
 // TypeCheckError:
-// main/rune13.gno:6:17: cannot use -'a' (untyped rune constant -97) as uint64 value in variable declaration (overflows)
+// main/rune13.gno:6:16: cannot use '\U0010ffff' * '\U0010ffff' * '\U0010ffff' * '\U0010ffff' (untyped rune constant 1540684980241500611543041) as int64 value in variable declaration (overflows)

@@ -1,21 +1,14 @@
 package main
 
-// Typed rune arithmetic keeps int32 semantics: it wraps at runtime.
+// A negative untyped rune constant does not fit an unsigned integer.
 
 func main() {
-	var a rune = '\U0010ffff'
-	println(a * a)
-	var b int32 = 2147483647
-	b++
-	println(b, -b)
-	var c rune = 'a'
-	println(c<<30, c<<40)
-	x := 'a' // defaults to rune
-	println(x * 1000000000)
+	var u uint64 = -'a'
+	println(u)
 }
 
-// Output:
-// -2228223
-// -2147483648 -2147483648
-// 1073741824 0
-// -1784247808
+// Error:
+// main/rune11.gno:6:6-21: rune underflows target kind
+
+// TypeCheckError:
+// main/rune11.gno:6:17: cannot use -'a' (untyped rune constant -97) as uint64 value in variable declaration (overflows)
