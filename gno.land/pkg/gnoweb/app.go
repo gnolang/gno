@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/connect"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
@@ -291,6 +292,22 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Handle realm/package discovery search (browser fetches the list once and filters locally)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
+
+	// Handle the wallet install page (gnoweb-native, not a realm alias, so it
+	// stays accurate to the gnoweb version and works on any chain)
+	mux.Handle("/wallets", connect.New(connect.Deps{
+		Logger: logger,
+		Meta: connect.PageMeta{
+			AssetsPath:        staticMeta.AssetsPath,
+			ChromaPath:        staticMeta.ChromaPath,
+			ChainId:           staticMeta.ChainId,
+			Remote:            staticMeta.RemoteHelp,
+			AssetsVersion:     staticMeta.AssetsVersion,
+			AnalyticsHostname: staticMeta.AnalyticsHostname,
+			Analytics:         staticMeta.Analytics,
+			Banner:            staticMeta.Banner,
+		},
+	}))
 
 	// The sitemap needs an origin for absolute URLs and is never served under
 	// -no-index; robots.txt names it only when it is.

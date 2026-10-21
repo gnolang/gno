@@ -378,5 +378,6 @@ input:where([type="button"], [type="reset"], [type="submit"]),
 */
 
 [hidden]:where(:not([hidden="until-found"])) {
+	/* purgecss ignore current: "until-found" never appears in scanned content */
 	display: none !important;
 }

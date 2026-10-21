@@ -173,6 +173,57 @@ LAYOUT - Header component
         {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
       </div>
       {{ end }}
+
+      {{/* Identity control; filled in by controller-connect.ts from localStorage. */}}
+      <div class="b-identity" data-controller="connect">
+        <button type="button" class="b-btn b-btn--secondary b-identity__connect"
+          data-connect-target="connect-btn">Connect</button>
+        <div data-connect-target="account" class="b-identity__account" hidden>
+          <button type="button" class="b-identity__toggle" data-connect-target="toggle" aria-haspopup="true"
+            aria-expanded="false" aria-controls="identity-menu">
+            <span class="b-identity__avatar" data-connect-target="avatar"></span>
+            <span class="b-identity__address u-font-mono" data-connect-target="address"></span>
+          </button>
+          <div class="b-identity__menu" id="identity-menu" data-connect-target="menu" hidden>
+            <div class="b-identity__details" role="group" aria-label="Account">
+              <div class="b-identity__who">
+                <span class="b-identity__avatar b-identity__avatar--large" data-connect-target="menu-avatar"></span>
+                <div class="b-identity__names">
+                  <a class="b-identity__username" data-connect-target="username-link" hidden></a>
+                  <span class="b-identity__address-row">
+                    <span class="b-identity__short u-font-mono" data-connect-target="short-address"></span>
+                    <button type="button" class="b-inline-btn b-identity__copy" data-controller="copy"
+                      data-action="click->copy#copy" data-connect-target="copy" aria-label="Copy address"
+                      title="Copy address">{{ template "ui/copy" }}</button>
+                  </span>
+                  <span class="b-identity__via" data-connect-target="via"></span>
+                </div>
+              </div>
+              <div class="b-identity__balance" data-connect-target="balance-block" hidden>
+                <span class="b-identity__label">Balance</span>
+                <span class="b-identity__amount"><span data-connect-target="amount"></span>
+                  <span class="b-identity__unit">GNOT</span></span>
+                <span class="b-identity__extra" data-connect-target="extra" hidden></span>
+              </div>
+              <dl class="b-identity__meta" data-connect-target="account-rows" hidden>
+                <div>
+                  <dt class="b-identity__label">Account</dt>
+                  <dd class="u-font-mono" data-connect-target="account-number"></dd>
+                </div>
+                <div>
+                  <dt class="b-identity__label">Sequence</dt>
+                  <dd class="u-font-mono" data-connect-target="sequence"></dd>
+                </div>
+              </dl>
+            </div>
+            <div class="b-identity__actions" role="menu" aria-label="Identity">
+              <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
+              <button type="button" role="menuitem" class="b-identity__danger"
+                data-connect-target="disconnect">Disconnect</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </nav>
   {{- if .Notice.Enabled }}
@@ -190,6 +241,27 @@ LAYOUT - Header component
     </p>
   </div>
   {{- end }}
+  {{- /* Wallet registry and chooser, shared by controller-wallet-launch and
+       controller-connect; both read them through their own target attribute. */}}
+  <script type="application/json" data-wallet-launch-target="wallet-registry"
+    data-connect-target="wallet-registry">{{ .WalletsJSON }}</script>
+  <dialog class="b-wallet-chooser" data-wallet-launch-target="chooser" data-connect-target="chooser">
+    <div class="b-wallet-chooser__inner">
+      <h3 class="b-wallet-chooser__title" data-wallet-launch-target="chooser-title"
+        data-connect-target="chooser-title">Open with a wallet</h3>
+      <ul class="b-wallet-chooser__list" data-wallet-launch-target="chooser-list"
+        data-connect-target="chooser-list"></ul>
+      <a class="b-wallet-chooser__install" href="/wallets" data-wallet-launch-target="chooser-install">Install a compatible wallet</a>
+      <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-browser"
+        data-connect-target="chooser-browser" hidden>
+        Continue in browser
+      </button>
+      <button type="button" class="b-btn b-btn--secondary" data-wallet-launch-target="chooser-cancel"
+        data-connect-target="chooser-cancel">
+        Cancel
+      </button>
+    </div>
+  </dialog>
 </header>
 {{ end }}
 

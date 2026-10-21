@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSourceView(t *testing.T) {
@@ -433,4 +435,16 @@ func TestUserData_LongName(t *testing.T) {
 	assert.True(t, UserData{Username: strings.Repeat("a", 17)}.LongName())
 	// Counted in runes, not bytes.
 	assert.False(t, UserData{Username: strings.Repeat("é", 16)}.LongName())
+}
+
+func TestRealmView_MountsYouBadge(t *testing.T) {
+	t.Parallel()
+
+	view := RealmView(RealmData{
+		ComponentContent: NewReaderComponent(strings.NewReader("content")),
+		TocItems:         &RealmTOCData{},
+	})
+	var buf bytes.Buffer
+	require.NoError(t, view.Render(&buf))
+	assert.Contains(t, buf.String(), `data-controller="you-badge"`)
 }
