@@ -172,6 +172,32 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/banker",
+		"bankerCallSend",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("[]string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("[]int64")},
+		},
+		true,
+		func(m *gno.Machine) {
+			r0, r1 := libs_chain_banker.X_bankerCallSend(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"chain/banker",
 		"bankerGetCoins",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("uint8")},

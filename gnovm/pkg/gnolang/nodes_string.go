@@ -127,10 +127,16 @@ func (x BinaryExpr) String() string {
 }
 
 func (x CallExpr) String() string {
-	if x.Varg {
-		return fmt.Sprintf("%s(%s...)", x.Func, x.Args.String())
+	args := x.Args.String()
+	if x.Send != nil { // print cross(rlm, coins) as written
+		cross := *x.Args[0].(*CallExpr)
+		cross.Args = append(cross.Args[:1:1], x.Send)
+		args = append(Exprs{&cross}, x.Args[1:]...).String()
 	}
-	return fmt.Sprintf("%s(%s)", x.Func, x.Args.String())
+	if x.Varg {
+		return fmt.Sprintf("%s(%s...)", x.Func, args)
+	}
+	return fmt.Sprintf("%s(%s)", x.Func, args)
 }
 
 func (x IndexExpr) String() string {
