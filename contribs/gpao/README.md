@@ -102,8 +102,11 @@ many packages a run can activate just as `--max-spend` does, and gpao reports it
 at startup:
 
 ```
-gpao: approver g1... holds 4900000000ugnot, 4900 approvals at 1000000ugnot each
+gpao: approver g1... holds 4900000000ugnot, 100 approvals at 1000000ugnot each (bound by -max-spend)
 ```
+
+The count is whichever of the two runs out first, the balance or what is left
+of `--max-spend`, and the line names it.
 
 When the key cannot cover one more fee, gpao stops rather than walking past the
 packages it cannot approve. The one in hand is recorded `blocked`, keeps its

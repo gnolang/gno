@@ -211,6 +211,32 @@ func TestWouldExceedSpend(t *testing.T) {
 	}
 }
 
+// TestAffordance pins that the reported count is the lesser of the two bounds,
+// and names it: counting the balance alone overstated a default run 49 times.
+func TestAffordance(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		balance  int64
+		spent    int64
+		maxSpend int64
+		want     string
+	}{
+		{"no bound set", 4900, 0, 0, "49 approvals at 100ugnot each (bound by balance)"},
+		{"bound below balance", 4900, 0, 1000, "10 approvals at 100ugnot each (bound by -max-spend)"},
+		{"bound partly spent", 4900, 700, 1000, "3 approvals at 100ugnot each (bound by -max-spend)"},
+		{"balance below bound", 250, 0, 1000, "2 approvals at 100ugnot each (bound by balance)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			o := &oracle{spent: tt.spent, gasFee: std.NewCoin(ugnotDenom, 100), maxSpend: tt.maxSpend}
+			assert.Contains(t, o.affordance(tt.balance), tt.want)
+		})
+	}
+}
+
 // baseConfig is what the constructor tests start from and override one field
 // of. It carries more than newOracle reads, since the same config goes on to
 // sign, and it sets both child budgets: a zero one is unset rather than a

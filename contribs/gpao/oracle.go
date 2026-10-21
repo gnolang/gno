@@ -772,12 +772,20 @@ func (o *oracle) approverGasBalance() (balance int64, answered bool) {
 	return coins.AmountOf(o.gasFee.Denom), true
 }
 
-// affordance renders a balance as the number of approvals it buys, the one
-// quantity an operator needs. Shared so the startup line, the reminder and the
-// resume line cannot drift apart -- the README quotes one of them verbatim.
+// affordance renders a balance as the number of approvals this run can still
+// pay for, the one quantity an operator needs: the lesser of what the balance
+// and -max-spend leave, named so they know which one to raise. Shared so the
+// startup line, the reminder and the resume line cannot drift apart -- the
+// README quotes one of them verbatim.
 func (o *oracle) affordance(balance int64) string {
-	return fmt.Sprintf("approver %s holds %d%s, %d approvals at %s each",
-		o.approver, balance, o.gasFee.Denom, balance/o.gasFee.Amount, o.gasFee)
+	approvals, bound := balance/o.gasFee.Amount, "balance"
+	if o.maxSpend > 0 {
+		if left := (o.maxSpend - o.spent) / o.gasFee.Amount; left < approvals {
+			approvals, bound = left, "-max-spend"
+		}
+	}
+	return fmt.Sprintf("approver %s holds %d%s, %d approvals at %s each (bound by %s)",
+		o.approver, balance, o.gasFee.Denom, approvals, o.gasFee, bound)
 }
 
 // waitForFunds blocks until the approver can pay for one approval; false means
