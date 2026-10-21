@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm/utils"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/stretchr/testify/assert"
@@ -1223,45 +1224,10 @@ func TestWalkerDepthBound(t *testing.T) {
 func capturedIntTV(t *testing.T) gno.TypedValue {
 	t.Helper()
 	const wrapper = `{"names":["x"],"values":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}`
-	var resp pkgResponse
+	var resp utils.PkgResponse
 	require.NoError(t, amino.UnmarshalJSON([]byte(wrapper), &resp))
 	require.Len(t, resp.Values, 1)
 	return resp.Values[0]
-}
-
-// TestSliceWindowClampNegative exhaustively covers the chain-supplied edge
-// cases the slice/array windows guard against: negative or out-of-range
-// Offset/Length and offset+length overflow. The pre-clamp code would panic
-// on av.List[offset:end] when offset > len.
-func TestSliceWindowClampNegative(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name                    string
-		offset, length, listLen int
-		wantOffset, wantEnd     int
-	}{
-		{"happy_path", 1, 2, 5, 1, 3},
-		{"length_zero", 0, 0, 5, 0, 0},
-		{"empty_list", 0, 3, 0, 0, 0},
-		{"negative_offset", -1, 2, 5, 0, 2},
-		{"negative_length", 0, -1, 5, 0, 0},
-		{"offset_past_end", 10, 2, 5, 5, 5},
-		{"length_past_end", 2, 100, 5, 2, 5},
-		{"overflow_offset_plus_length", 2, math.MaxInt - 1, 5, 2, 5},
-		{"both_negative", -10, -10, 5, 0, 0},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			offset, end := clampSliceWindow(tc.offset, tc.length, tc.listLen)
-			assert.Equal(t, tc.wantOffset, offset, "offset")
-			assert.Equal(t, tc.wantEnd, end, "end")
-			assert.LessOrEqual(t, offset, end, "offset must never exceed end")
-			assert.LessOrEqual(t, end, tc.listLen, "end must never exceed listLen")
-		})
-	}
 }
 
 // TestDecodeStruct_FieldCap asserts the same maxChildrenPerNode bound already
@@ -1304,7 +1270,7 @@ func TestDecodeStruct_FieldCap(t *testing.T) {
 
 // TestDecodeSliceHostileLength feeds a SliceValue with chain-supplied
 // negative Length/Offset end-to-end through DecodePackage. The walker must
-// not panic on av.List[offset:end] — clampSliceWindow is the unit-level
+// not panic on av.List[offset:end] — utils.ClampSliceWindow is the unit-level
 // guard, this test pins the live decode pipeline against the same payload.
 func TestDecodeSliceHostileLength(t *testing.T) {
 	t.Parallel()
@@ -1439,7 +1405,7 @@ func TestStructTypeIDForwarding(t *testing.T) {
 		}
 	}`
 
-	// Type: an anonymous StructType — getTypeID returns "" for it, so the
+	// Type: an anonymous StructType — utils.GetTypeIDQueryString returns "" for it, so the
 	// ref node has no intrinsic TypeID and must inherit the response tid.
 	const typeJSON = `{
 		"typeid": "gno.land/r/demo/x.User",

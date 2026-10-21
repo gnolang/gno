@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm/utils"
 )
 
 // recoverFetcher is deferred in fetch goroutines whose panic must be
@@ -226,7 +227,7 @@ func buildPagination(pkgPath, viewMode, search string, total, offset, limit int)
 	if total <= limit && offset <= 0 {
 		return nil
 	}
-	start, end := clampSliceWindow(offset, limit, total)
+	start, end := utils.ClampSliceWindow(offset, limit, total)
 	p := &Pagination{
 		Total:       total,
 		StartNumber: start + 1,
