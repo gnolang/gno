@@ -189,12 +189,12 @@ persisted package block, need no special handling.
 
 ## Related, not fixed here
 
-- **#6339 and non-constant shift typing** (one follow-up): `'a' + 1` is an
+- **#6339 and non-constant shift typing (#6393)** (one follow-up): `'a' + 1` is an
   untyped int; non-constant shifts are not typed from their context;
   unary operators on untyped rune constants; and the divergence above.
-- **Double rounding to float32** of untyped integer constants, with its
-  upgrade hazard (own issue).
-- **Typed constant arithmetic** still folds with the runtime (wrapping)
+- **Double rounding to float32 (#6394)** of untyped integer constants,
+  with its upgrade hazard.
+- **Typed constant arithmetic (#6392)** still folds with the runtime (wrapping)
   arithmetic: `const a rune = '\U0010ffff'; const b = a * a` gives
   -2228223 (gc: overflows rune). go/types rejects it at deployment.
 
