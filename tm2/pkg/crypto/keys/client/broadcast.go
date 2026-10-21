@@ -130,12 +130,12 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	// However, DryRun always returns here, while in case of success
 	// testSimulate continues onto broadcasting the transaction.
 	if cfg.DryRun || cfg.testSimulate {
-		simBz, rewritten, err := buildSimulationTxBytes(cfg.tx, bz, cfg.simulateMaxGas)
-		if cfg.simTxBytes != nil {
-			simBz, rewritten, err = cfg.simTxBytes, true, nil
-		}
-		if err != nil {
-			return nil, err
+		simBz, rewritten := cfg.simTxBytes, true
+		if simBz == nil {
+			simBz, rewritten, err = buildSimulationTxBytes(cfg.tx, bz, cfg.simulateMaxGas)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		originalGasWanted := cfg.tx.Fee.GasWanted
@@ -160,7 +160,10 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 			return res, err
 		}
 		if hasError {
-			appendSuggestedGasWanted(res)
+			// Run at its own GasWanted and using all of it, gas used is a floor.
+			if rewritten || res.DeliverTx.GasUsed < originalGasWanted {
+				appendSuggestedGasWanted(res)
+			}
 			return res, err
 		}
 	}
