@@ -8,9 +8,9 @@
   gno.land every amount is a native `uint256` (gno-realms `feat/ibc-uint256`, 9a77cc2,
   [ADR 0005](https://github.com/allinbits/gno-realms/blob/feat/ibc-uint256/docs/adrs/0005-uint256-amounts.md)),
   which depends on the VM's `int256`/`uint256` types (gnolang/gno#6387) and on grc20 v1 (gnolang/gno#6388), both for
-  new chains only. The monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document
-  describes the design as built; where the implementations depart from the design as reviewed, §8.5 lists each
-  departure and each accepted residual.
+  new chains only; the bridge launches on a fresh chain whose genesis carries them (§13). The monitors, the watch
+  tool and the setup audit tool (T4–T6) are not built. This document describes the design as built; where the
+  implementations depart from the design as reviewed, §8.5 lists each departure and each accepted residual.
 - **Date:** 2026-10-16; amended 2026-10-18, 2026-10-19 and 2026-10-20 to match the implementations, and 2026-10-21
   for the `uint256` amounts (§14).
 - **Scope:** tm2, gnovm, gno.land, the IBC realms (allinbits/gno-realms), the Ethereum contracts, the relayers and
@@ -166,6 +166,10 @@ by its **code hash**, and each contract records the hashes of the modules it del
 the source, so operators run a **build verification** that rebuilds each contract and compares the bytes, after every
 deployment and executed decision and for every pending candidate within its own delay (7 days for kinds 5, 6, 7 and 9;
 at least 30 days for an emergency recovery); a failing candidate is cancelled (§6.12, §7.6).
+
+**A fresh chain.** The bridge launches on a new gno.land chain whose genesis already carries what it needs: the
+256-bit integer types and the grc20 v1 token packages, and validators signing with secp256k1 from the first block.
+The existing chain is not upgraded in place (§13).
 
 **The launch gate.** Nothing moves until the launch is proven: the route starts with no enabled denom on gno.land and
 zero limits on Ethereum, and `IBCAdmin` refuses every delivery until `finishSetup` has checked the deployment. Before
@@ -373,7 +377,7 @@ Repositories and branches:
 | # | Component | Status | Where | Changes needed |
 |---|---|---|---|---|
 | C1 | secp256k1 validator consensus keys: params accept both key types; `gnoland secrets init -validator-key-type`; new keys default to secp256k1 | ✅ | gno: [`tm2/pkg/bft/types/params.go`](../../tm2/pkg/bft/types/params.go), [`tm2/pkg/bft/privval/signer/local/key.go`](../../tm2/pkg/bft/privval/signer/local/key.go), [`gno.land/cmd/gnoland/secrets_init.go`](../../gno.land/cmd/gnoland/secrets_init.go); ADR [`pr6375_secp256k1_validator_keys`](../../tm2/adr/pr6375_secp256k1_validator_keys.md); test `TestReactorBasicSecp256k1` | Upstream PR. It reverses [`pr5949_remove_secp256k1_validators`](../../tm2/adr/pr5949_remove_secp256k1_validators.md), so the PR must answer that ADR's reasons. Signatures are 64-byte `r‖s` over `sha256(signBytes)`, low-S. |
-| C2 | **Migration of gnoland-1's validators to secp256k1** | ❌ | — | A chain-upgrade plan: set `Validator.PubKeyTypeURLs` to allow both types, have each validator rotate its consensus key (valset change through GovDAO), then optionally restrict to secp256k1. Coordinate with operators. While the set is mixed, `GnoLightClient` refuses ed25519 signers (C1 is secp256k1-only on the Ethereum side). |
+| C2 | **Validator keys at launch**: secp256k1 consensus keys from genesis (C1's default for new keys) | ✅ by the launch path (§13) | gno: C1 | No live migration: the bridge launches on a fresh chain, not by upgrading gnoland-1 in place (§13 milestone 7). *Separate note, not this bridge's launch path:* should the existing chain ever need secp256k1 validators for other reasons, the plan was to set `Validator.PubKeyTypeURLs` to allow both types, have each validator rotate its consensus key (valset change through GovDAO), then optionally restrict to secp256k1, coordinating with operators; while the set is mixed, `GnoLightClient` refuses ed25519 signers (it is secp256k1-only). |
 | C3 | Colons in realm param names (IBC keys contain `:`) | ✅ | gno: [`gnovm/stdlibs/chain/params/params.go`](../../gnovm/stdlibs/chain/params/params.go), [`gno.land/pkg/sdk/vm/params_deposit.go`](../../gno.land/pkg/sdk/vm/params_deposit.go); ADR [`pr6358_param_key_colons`](../../gnovm/adr/pr6358_param_key_colons.md); upstream as [gnolang/gno#6358](https://github.com/gnolang/gno/pull/6358) | Needs a maintainer review. |
 | C4 | `vm/qrender` ignores the requested height | ❌ (nice to have) | — | Relayers and monitors cannot read render history at a height. Not blocking: proofs use `.store` queries. |
 | C5 | Lossless `block_results` (non-UTF-8 event bytes become U+FFFD in JSON) | n/a | — | Not needed for IBC: we prove state (ICS23), not results leaves. Relevant only if results-leaf proofs are ever used (the Hyperlane design depends on them). |
@@ -2590,12 +2594,13 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Losses bounded by meters and limits.
   - GovDAO governs both chains, with delays and guardians.
 - **Negative.**
-  - Requires a chain-level validator key migration (C2) and new natives (N1, N2).
+  - Requires a fresh chain (§13): secp256k1 validator keys from genesis (C1), the param change (C3), the natives
+    (N1, N2) and the native `int256`/`uint256` and grc20 v1 changes (#6387, #6388), all in the launch release.
   - Ethereum fork maintenance in Gno (each relevant fork needs a client upgrade first).
   - Heavy gno-side gas and storage per message type.
   - The governance channel depends on the light client.
-  - Depends on the native `int256`/`uint256` VM change (#6387) and grc20 v1 (#6388), both for new chains only;
-    integrations on gno.land read amounts as decimal strings in renders and events and pass `uint256` to the realms.
+  - Integrations on gno.land read amounts as decimal strings in renders and events and pass `uint256` to the
+    realms (#6387, #6388).
   - The ported controls (from model-only audits) and all our custom pieces need a human review and an outside audit
     before real value moves.
   - A closed route defers every refund to its reopening, so refund liveness during an incident rests on governance
@@ -2615,8 +2620,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 
 ### Milestones
 
-1. **Chain (C1–C3, N1–N2).** Upstream the secp256k1, BLS and param PRs (#6358 first); calibrate gas rows; audit the
-   BLS natives; write the gnoland-1 key-migration plan (C2).
+1. **Chain (C1–C3, N1–N2, #6387, #6388).** Upstream the secp256k1, BLS and param PRs (#6358 first) and the native
+   `int256`/`uint256` and grc20 v1 changes; calibrate gas rows; audit the BLS natives; write the genesis recipe
+   (milestone 7).
 2. **Controls, Ethereum (E5–E9, E11, E12)** — built (gno-eth-ibc `feat/ibc-controls`, `docs/controls.md`).
    The build verification covers live code, the current epoch verifier and its ugnot voucher, pending kinds 5, 6, 7 and 9,
    further vouchers and light clients, and recovery candidates (0c673ad, ad7f3e3); of the bytecode build
@@ -2643,13 +2649,17 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
      a validator-set change with quarantine, an Ethereum fork rehearsal.
 6. **Audit.** Outside audit of `GnoLightClient`, `IBCAdmin`/`IBCAdminExec`, the ICS20 fork, the Gno Ethereum client, the BLS
    natives and the meter/claim realm.
-7. **Mainnet.** gnoland-1 upgrade (C1–C3, N1–N2); validators migrate keys (C2); deploy; testing phase under the
-   governor with a small lock; then the yield.
-
-   > **Open question (owner's decision, 2026-10-21).** The `uint256` bridge (R15) runs only on a chain launched
-   > with gnolang/gno#6387 and #6388 at genesis: #6387 is a new-chains-only change that excludes an in-place
-   > upgrade. The launch path — a fresh genesis, or an in-place upgrade of gnoland-1 as this plan and C2's live key
-   > migration assume — is still to be decided; the plan above is kept as written until it is.
+7. **Mainnet: a fresh chain.** The bridge launches on a new gno.land chain, not by upgrading gnoland-1 in place
+   (the owner's decision, 2026-10-21). Its genesis is built from a release carrying C1, C3, N1–N2 and
+   gnolang/gno#6387 and #6388 (#6387 is a new-chains-only change with no in-place migration; #6388's `p/nt`
+   packages cannot be added after genesis); its validators run secp256k1 consensus keys from the first block (C1's
+   default, so no live key migration: C2); its genesis packages list `p/nt/grc20/v1`, `r/nt/grc20reg/v1` and
+   `p/nt/treasury/v1` with the IBC realms; and the #6387 rollout's reserved-name scan passes before launch (no
+   genesis package declares `int256` or `uint256`, or imports a package of either name unaliased; a conflict blocks
+   the launch until the package is fixed). Then: deploy the Ethereum side against the new chain id and genesis
+   validators root; testing phase under the governor with a small lock; then the yield. A note on migrating
+   gnoland-1's validators, should that chain ever need secp256k1 keys for other reasons, sits under C2; it is not
+   this bridge's launch path.
 
 ### Open questions
 
@@ -2664,8 +2674,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 5. ~~18-decimal Ethereum tokens: wrapper (E10) or cap~~ — decided and built: native `uint256` amounts on gno.land
    (R15; gno #6387, #6388; gno-realms ADR 0005). Still open there: bridging grc20 v0 tokens (a v1 wrapper for now),
    and whether the 2^96 − 1 bound stays a constant of the transfer app or becomes a route parameter.
-6. Mixed ed25519/secp256k1 validator sets during the migration: support both in `GnoLightClient` (costly for the
-   ed25519 part), or migrate before launch.
+6. ~~Mixed ed25519/secp256k1 validator sets during the migration~~ — moot: the chain launches with secp256k1 keys
+   from genesis (§13 milestone 7), so `GnoLightClient` stays secp256k1-only.
 7. Pruning policy for the Gno Ethereum client's consensus states, and for the controls' records on gno.land (send
    records, claims, sweep entries, losses: none is pruned today).
 8. ~~Reuse `p/decisions` from the bridge operator's namespace on gnoland-1, or vendor it under ours~~ — vendored as
@@ -3198,8 +3208,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   `GovApply` (§7.9, §9); the losses a forged void or a settlement derives checked whole against the ledger's
   balances before anything changes, and §7.1's overflow outcomes stated separately (a settlement's overflowing
   escrowed refunds park); §7.12 and §8.5 19 qualify the escrow condition to escrowed denoms; the runbook's step 9
-  drops the minted parking; the e2e allowance test moved to grc20reg v1; and §13's launch path left as an open
-  question for the owner (a chain launched with #6387/#6388 at genesis is required).
+  drops the minted parking; the e2e allowance test moved to grc20reg v1; and, by the owner's decision, the launch
+  rewritten around a fresh chain whose genesis carries #6387/#6388 (overview, status, C2, §12, §13 milestones 1
+  and 7, open question 6), C2's live key migration kept only as a note for the existing chain.
 
 ## 15. References
 
