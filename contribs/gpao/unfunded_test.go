@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -290,4 +293,51 @@ func TestAnUnderpricedFeePausesRatherThanRetiringPackages(t *testing.T) {
 	assert.NotContains(t, o.seen, key)
 	assert.NotContains(t, o.failedEnable, key)
 	assert.Zero(t, o.spent, "a CheckTx refusal charges nothing")
+}
+
+// TestReachingMaxSpendPausesRatherThanDroppingPackages: the bound only moves on
+// a restart, and heights only move forward, so skipping past the package in
+// hand would lose it and everything behind. It holds like an empty purse.
+func TestReachingMaxSpendPausesRatherThanDroppingPackages(t *testing.T) {
+	f := newPurseFixture(t, 10)
+
+	one, two, three := f.pkg("one"), f.pkg("two"), f.pkg("three")
+	f.park(t, one)
+	twoHeight := f.park(t, two)
+	f.park(t, three)
+
+	o := f.oracle(t, 1)
+	// Room for exactly one approval, with the balance for ten.
+	o.maxSpend = purseFee
+	// Read only after the run has returned.
+	var stderr bytes.Buffer
+	tio := testIO(t)
+	tio.SetErr(commands.WriteNopCloser(&stderr))
+	o.io = tio
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = o.run(ctx)
+	}()
+
+	awaitStatus(t, o, one.Path, statusApproved)
+	awaitStatus(t, o, two.Path, statusBlocked)
+	// Long enough for a walk past the held package to show.
+	time.Sleep(time.Second)
+	cancel()
+	<-done
+
+	status := o.status.get(two.Path)
+	assert.Contains(t, status.Reason, "spending limit")
+	assert.Zero(t, status.Attempt, "reaching the bound must not be counted as an attempt")
+	assert.Equal(t, statusUnknown, o.status.get(three.Path).Status,
+		"the package behind has to wait, not be dropped the same way")
+	key := candidateKey(two)
+	assert.NotContains(t, o.seen, key)
+	assert.NotContains(t, o.failedEnable, key)
+	assert.Equal(t, purseFee, o.spent, "only the one approval inside the bound was sent")
+	assert.Contains(t, stderr.String(), fmt.Sprintf("-start-height %d", twoHeight),
+		"a restart from anywhere later would lose the held package")
 }

@@ -486,7 +486,7 @@ func (o *oracle) enqueue(ctx context.Context, c candidate) error {
 	default:
 	}
 	o.errf(
-		"gpao: verify queue full (%d), pausing block reads; the oracle is CPU-saturated or paused for funds",
+		"gpao: verify queue full (%d), pausing block reads; the oracle is CPU-saturated or paused",
 		cap(o.candidates),
 	)
 	select {
@@ -583,18 +583,20 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	// Stop before spending past the bound rather than after. The fee is charged
 	// whether or not the message succeeds, so the check has to come first.
 	//
-	// Left UNSEEN. The message tells the operator to raise the bound or restart,
-	// and both are no-ops if the package has been retired -- the whole point is
-	// that it should be approved once there is budget for it.
+	// Held, not dropped, until shutdown: skipping on would lose this package and
+	// every one behind it, since heights only move forward. Only a restart
+	// fixes it, so the message names the height that restart has to start at.
 	if o.wouldExceedSpend() {
 		// Nothing is wrong with the package; the oracle is out of allowance.
 		// Saying so is the difference between "your code is bad" and "ask the
 		// operator", which the submitter cannot otherwise tell apart.
 		o.status.record(path, statusBlocked,
-			"the oracle has reached its spending limit for this run", 0)
-		o.errf("gpao: not approving %q: it would take this run past its "+
-			"-max-spend of %d%s (already spent %d). Raise the bound or restart.",
-			path, o.maxSpend, o.gasFee.Denom, o.spent)
+			"the oracle has reached its spending limit for this run; the oracle is paused", 0)
+		o.errf("gpao: paused on %q: it would take this run past its "+
+			"-max-spend of %d%s (already spent %d). Restart, raising the bound "+
+			"if needed, with -start-height %d to pick this package up.",
+			path, o.maxSpend, o.gasFee.Denom, o.spent, c.height)
+		<-ctx.Done()
 		return
 	}
 

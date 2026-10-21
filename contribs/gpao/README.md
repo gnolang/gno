@@ -303,8 +303,10 @@ skips it if so, which is the common case when catching up with `--start-height`
 over blocks that were already approved. And it ignores transactions that
 failed on chain, so a submission the chain rejected never leads to an approval.
 
-When the bound is reached the daemon says so and stops approving. It keeps
-watching blocks. Raise the bound or restart to continue.
+When the bound is reached the daemon pauses on the package in hand, recorded
+`blocked`, and the rest stay queued; block reads stop once the queue fills.
+Only a restart continues, raising the bound if needed, with the
+`--start-height` the log names so the held package is picked up again.
 
 ## Limitations
 
