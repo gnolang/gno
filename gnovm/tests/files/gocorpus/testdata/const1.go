@@ -93,4 +93,6 @@ const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
 const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type|is not a constant|not constant"
 const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a constant|not constant"
 
-// Verdict: Unsupported unsafe: unknown import path unsafe
+// GnoTrim: lines 12, 92-93
+
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

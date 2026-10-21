@@ -30,4 +30,6 @@ func main() {
 	f(time.Wednesday) // ERROR "time.Wednesday|incompatible type"
 }
 
-// Verdict: Unsupported unsafe: unknown import path unsafe
+// GnoTrim: lines 23, 29
+
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
