@@ -26,13 +26,13 @@ func (ledger *PrivateLedger) CallerTeller() Teller {
 		panic("Ledger cannot be nil")
 	}
 
-	return &fnTeller{
+	return mutable(&fnTeller{
 		accountFn: func(_ int, rlm realm) address {
 			return rlm.Previous().Address()
 		},
 		homeGuard: true,
 		Token:     ledger.token,
-	}
+	})
 }
 
 // ReadonlyTeller is a GRC20 compatible teller that panics for any write operation.
@@ -66,12 +66,12 @@ func (tok *Token) RealmTeller(_ int, rlm realm) Teller {
 
 	caller := rlm.Address()
 
-	return &fnTeller{
+	return mutable(&fnTeller{
 		accountFn: func(_ int, _ realm) address {
 			return caller
 		},
 		Token: tok,
-	}
+	})
 }
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
@@ -89,12 +89,12 @@ func (tok *Token) RealmSubTeller(_ int, rlm realm, slug string) Teller {
 
 	account := accountSlugAddr(rlm.Address(), slug)
 
-	return &fnTeller{
+	return mutable(&fnTeller{
 		accountFn: func(_ int, _ realm) address {
 			return account
 		},
 		Token: tok,
-	}
+	})
 }
 
 // ImpersonateTeller returns a GRC20 compatible teller that impersonates as a
@@ -115,12 +115,12 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 		panic("Ledger cannot be nil")
 	}
 
-	return &fnTeller{
+	return mutable(&fnTeller{
 		accountFn: func(_ int, _ realm) address {
 			return addr
 		},
 		Token: ledger.token,
-	}
+	})
 }
 
 // generic tellers methods.

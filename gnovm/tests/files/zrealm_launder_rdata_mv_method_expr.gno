@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_mv_method_expr
 package launderrh_mv_method_expr
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Method-EXPRESSION laundering probe (unbound).
 //
 // `me := (*launderpkg.Immutable).Apply` is the unbound method value
@@ -36,4 +41,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,0)>.Field

@@ -50,7 +50,7 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 	}
 	instances.Set(symbol, &inst)
 
-	grc20reg.Register(cross(cur), token, symbol)
+	grc20reg.Register(cross(cur), mutable(token), symbol)
 }
 
 func Bank(symbol string) *grc20.Token {
