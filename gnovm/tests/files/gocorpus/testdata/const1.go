@@ -98,19 +98,26 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // GnoTrimmed: lines 92, 93
 
 // GnoError:
-// line 10: constant overflows
+// line 33: Int8 * 100 (constant 10100 of type int8) overflows int8
 // line 35: bigint overflows target kind
 // line 36: bigint overflows target kind
 // line 37: bigint overflows target kind
 // line 38: bigint overflows target kind
+// line 39: 2 * Int8 (constant 202 of type int8) overflows int8
+// line 40: Int8 * Const (constant 10403 of type int8) overflows int8
+// line 43: Uint8 * Uint8 (constant 10404 of type uint8) overflows uint8
 // line 44: bigint underflows target kind
+// line 46: Uint8 - Uint8 - Uint8 (constant -102 of type uint8) overflows uint8
 // line 47: bigint underflows target kind
 // line 51: constant -1 overflows Uint8Kind
 // line 52: constant -1 overflows Uint8Kind
 // line 53: bigint underflows target kind
 // line 55: bigint overflows target kind
+// line 56: constant overflows
 // line 57: bigint overflows target kind
 // line 58: bigint overflows target kind
+// line 59: (const-type uint8)(100) * (const-type uint8)(100) (constant 10000 of type uint8) overflows uint8
+// line 60: (const-type uint8)(100) * 100 (constant 10000 of type uint8) overflows uint8
 // line 61: bigint overflows target kind
 // line 63: bigint overflows target kind
 // line 64: invalid operation: division by zero
