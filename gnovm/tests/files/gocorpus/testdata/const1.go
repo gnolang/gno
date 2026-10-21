@@ -136,4 +136,4 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 90: use of untyped nil in variable declaration
 // line 94: (const (nil *int)) (variable of type *int) is not constant
 
-// Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 33, 39, 40, 43, 46, 59, 60, 67, 68, 69; #6344 uncaught markers: lines 56, 91; over-strict: lines 10 (the shift overflow of line 56, reported at the package line)
+// Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 67, 68, 69; #6344 uncaught markers: lines 91
