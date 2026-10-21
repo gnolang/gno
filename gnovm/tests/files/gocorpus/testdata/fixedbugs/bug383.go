@@ -12,4 +12,14 @@ func main() {
 	if 3.14+1i { }  // ERROR "3.14 . 1i|expected bool|non-boolean condition in if statement"
 }
 
-// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno
+// GnoTrim: lines 12
+
+// GnoTrimmed: lines 12
+
+// GnoError:
+// line 11: cannot convert untyped bigdec to bool
+
+// GnoWordingDiffers:
+// line 11: gc expects: 2e.09|expected bool|non-boolean condition in if statement; gno: cannot convert untyped bigdec to bool
+
+// Verdict: Clean errorcheck

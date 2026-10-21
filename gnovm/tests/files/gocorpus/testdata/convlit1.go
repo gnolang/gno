@@ -19,4 +19,13 @@ func main() {
 	if f < 1 { }	// ERROR "conver|incompatible|invalid"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 12: cannot use untyped string as IntKind
+// line 13: unexpected composite lit type int
+// line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 19: operator < not defined on: FuncKind
+
+// GnoWordingDiffers:
+// line 19: gc expects: conver|incompatible|invalid; gno: operator < not defined on: FuncKind
+
+// Verdict: Clean errorcheck
