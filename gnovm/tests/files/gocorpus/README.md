@@ -15,6 +15,7 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
 | `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode). Compile mode runs no `main`, but it does run package initialisers (`var` initialisers, `init`), which gc never runs for a `// compile` file: Gno has no init-free load, and an initialiser that panics or loops is a finding, not a mode bug |
 | `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
+| `GnoTrim:` / `GnoTrimmed:` | hand-written: body lines blanked before checking (see "Trimming an incidental construct"); auto-written: the trimmed lines that carried a marker, dropped from the expected set |
 
 | verdict | meaning |
 |---|---|
@@ -52,6 +53,33 @@ go in the verdict's reason. Directive parsing is line-based: a column-0
 `// Verdict:` or `// GnoOutput: x` line inside an upstream body (a raw string,
 a comment) is read as a directive, verify fails the file for carrying two
 verdicts, and a sync would drop the line, which the manifest then catches.
+
+## Trimming an incidental construct
+
+A file skipped for one construct Gno lacks, while the rest of it is
+checkable, can carry a hand-written tail line
+
+    // GnoTrim: lines 12, 92-93
+
+The harness blanks the listed body lines (1-based, ranges inclusive)
+before parsing and classifying, so the Gno side never sees them and
+the rest of the file gets a real verdict. Line numbers do not move:
+markers keep their lines. A trimmed line that carried a marker is
+dropped from the expected set and listed as `// GnoTrimmed: lines …`.
+Sync keeps the directive as written and rewrites the evidence; verify
+refuses a directive that names a line outside the body or a line
+without a trimmable construct, a trim that blanks every marker line,
+and a trim on a run file (the trimmed program is not the upstream one).
+
+Use it for an incidental `import "unsafe"` plus its few (≤3) uses, a
+stray complex, imaginary or `uintptr` line; those four constructs are
+the only ones it may remove. Never trim a line to hide a checkable one,
+and never trim a declaration another line uses: a `var z complex128`
+whose `z` a marker line reads would turn that marker into a
+`name not defined` credit, and an unmarked use into an over-strict
+artefact; such a file stays `Unsupported` with no directive. If the
+trimmed file still hits a gap, sync keeps the directive and writes the
+new `Unsupported` tag, which is the honest bucket for it.
 
 ## Re-sync
 
