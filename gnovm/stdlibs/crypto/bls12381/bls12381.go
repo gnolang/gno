@@ -31,8 +31,9 @@ func g1Generator() bls.G1Affine {
 // X_fastAggregateVerify implements FastAggregateVerify of the IETF BLS
 // signature draft (POP ciphersuite, minimal-pubkey-size: public keys in G1,
 // signatures in G2), as used by Ethereum sync committees. Every key passed in
-// MUST have passed PopVerify, which this package does not provide; the
-// obligation is stated on the Gno API in bls12381.gno.
+// MUST have had its possession proven (the draft's PopVerify, which this
+// package does not provide, or an equivalent such as Ethereum's deposit
+// signature check); the obligation is stated on the Gno API in bls12381.gno.
 //
 // pubkeys is the concatenation of n >= 1 compressed 48-byte G1 public keys;
 // sig is a compressed 96-byte G2 signature. Every point is decoded with its
@@ -69,7 +70,8 @@ func X_fastAggregateVerify(pubkeys, msg, sig []byte) bool {
 //
 // The caller MUST have verified that every key in excluded is a member of the
 // committee behind aggregate, for example by a Merkle proof against the
-// committee's pubkeys root, and that every member passed PopVerify; nothing
+// committee's pubkeys root, and that every member's possession was proven
+// (for an Ethereum sync committee, at deposit); nothing
 // here can check either. FastAggregateVerifyExcluding in bls12381.gno states
 // both obligations and the forgery an unchecked excluded set allows.
 //

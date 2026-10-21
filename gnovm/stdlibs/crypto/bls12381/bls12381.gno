@@ -5,13 +5,16 @@
 // signatures in G2, both in compressed (ZCash) encoding.
 //
 // The proof-of-possession ciphersuite is only secure against rogue-key
-// attacks when every public key has passed PopVerify. This package does not
-// provide PopVerify. Every public key passed to FastAggregateVerify or
-// FastAggregateVerifyExcluding MUST have had its proof of possession
-// verified, or come from a source that guarantees it: Ethereum sync
-// committee keys qualify, since each passed PopVerify at deposit. Keys
-// supplied by a relayer or any other untrusted party do not, and a realm
-// aggregating them is forgeable however carefully it checks the rest.
+// attacks when every individual public key comes with a proof that its
+// holder knows the secret key. This package does not provide the draft's
+// PopVerify. Every public key passed to FastAggregateVerify, and every
+// member key of the committee behind FastAggregateVerifyExcluding's
+// aggregate, MUST have had its possession proven, or come from a source that
+// guarantees it. Ethereum sync committee keys qualify through a different
+// operation than PopVerify: each validator signed a deposit message bound to
+// its own key, which the beacon chain checked (bls.Verify) before admitting
+// it. Keys supplied by a relayer or any other untrusted party do not, and a
+// realm aggregating them is forgeable however carefully it checks the rest.
 package bls12381
 
 const (

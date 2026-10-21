@@ -3270,7 +3270,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     identity (`pk`, `-pk`) with the identity signature verified any message, since `e(0, H(m)) == e(-G1, 0)`; the
     native now KeyValidates the aggregate as CoreVerify does (the `Excluding` variant already did), with Go and Gno
     regression tests, and the Gno-facing docs state in the imperative the two obligations the native cannot check:
-    proof of possession for every key (no `PopVerify` here; sync committee keys passed it at deposit) and, for
+    proven possession of every individual key (no `PopVerify` here; sync committee keys qualify through the
+    deposit signature check, a different operation with the same assurance) and, for
     `FastAggregateVerifyExcluding`, verified committee membership of every excluded key (N1, N2;
     `gnovm/adr/pr6375_bls12381_native.md`). `gnoland secrets init` validates `-validator-key-type` before writing
     any file (a rejected type left two secrets behind). The end-to-end rejection of a disallowed consensus key at

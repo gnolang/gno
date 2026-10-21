@@ -237,7 +237,7 @@ import (
 // Bumped again by the bls12381 review fixes: the caller-obligation doc text in
 // bls12381.gno and the identity-aggregate test in bls12381_test.gno are source
 // bytes in the root; the identity check itself is in bls12381.go, which is not.
-const expectedCrossrealm38Hash = "dda12cfdcfcd6952b872e7c68440eacead27c174da77ec6168eef7de9bbc6def"
+const expectedCrossrealm38Hash = "6c71bc7cc8d2108a152bf00966693e7051a35ed68e2332337bc15cc369b9342e"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

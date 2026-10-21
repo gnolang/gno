@@ -25,9 +25,13 @@ two-pairing product. The signature is subgroup-checked only, as CoreVerify
 specifies: with a non-identity key the identity signature cannot pass.
 
 Two obligations the native cannot check fall on the caller, stated in the
-imperative in the package doc: every key must have passed proof of possession
-(the POP ciphersuite is rogue-key forgeable otherwise, and there is no
-`PopVerify` here; Ethereum sync committee keys passed it at deposit), and for
+imperative in the package doc: every individual key must have had its possession
+proven (the POP ciphersuite is rogue-key forgeable otherwise, and there is no
+`PopVerify` here; for `FastAggregateVerifyExcluding` this applies to the
+committee's member keys, not the aggregate itself; Ethereum sync committee
+keys qualify because each validator's deposit signature over a message bound
+to its key was checked with `bls.Verify`, a different operation than the
+draft's `PopVerify` with the same assurance), and for
 `FastAggregateVerifyExcluding` every excluded key must be a verified member
 of the committee behind the aggregate (otherwise `excluded` can be chosen so
 that the aggregate minus it is the attacker's own key).
