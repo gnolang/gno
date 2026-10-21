@@ -55,4 +55,15 @@ func g() {
 	_ = t
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 36: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 39: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 40: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 41: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 43: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
+// line 45: gno.land/p/filetest/p.T4 does not implement gno.land/p/filetest/p.I (method M has pointer receiver)
+// line 46: should not happen
+// line 54: cannot use interface {M func(int)} as *gno.land/p/filetest/p.T4
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 46, 48, 49, 50, 51; internal errors: lines 46
