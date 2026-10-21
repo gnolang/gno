@@ -201,8 +201,8 @@ func assertConstRepresentable(gm store.GasMeter, x Expr) {
 	if exact.Cmp(min) >= 0 && exact.Cmp(max) <= 0 {
 		return
 	}
-	panicAt(fmt.Sprintf("%s (constant %s of type %s) overflows %s",
-		constExprString(x), exact, t, t), x)
+	failf(CodeConstOverflow, []Node{x}, "%s (constant %s of type %s) overflows %s",
+		constExprString(x), exact, t, t)
 }
 
 // typedIntConst returns the value of x when it is a typed constant of an
