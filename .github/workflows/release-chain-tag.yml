@@ -3,8 +3,10 @@
 # Only vX.Y.Z tags reach this workflow (see RELEASING.md). A chain/<name>
 # launch tag builds nothing: its release is the genesis record and carries no
 # binaries, and a binary reporting "chain/<name>" would satisfy no governance
-# halt_min_version anyway. The dispatch input still accepts any tag, for
-# rebuilding a historical one.
+# halt_min_version anyway.
+#
+# Tag pushes only, with no manual trigger, and a published release is never
+# replaced (RELEASING.md, "Cutting a release").
 #
 # The tag is compiled into the binaries VERBATIM. That matters: the node parses
 # its own version to decide whether it satisfies a governance halt_min_version.
@@ -16,21 +18,17 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to build (e.g. v1.2.0)"
-        required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 permissions: {}
 
+env:
+  TAG: ${{ github.ref_name }}
+
 jobs:
   binaries:
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     strategy:
       matrix:
         include:
@@ -52,12 +50,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: false # zizmor: cache-poisoning — this job publishes artifacts
@@ -116,14 +113,16 @@ jobs:
               exit 1
             fi
             got="$(echo "${out}" | awk -v n="$name" '$1 == n && $2 == "version:" {print $3}')"
-            if [ "$got" != "$TAG" ]; then
-              echo "::error::${name} reports '${got}', expected '${TAG}' — the -ldflags did not apply"
+            # Against the ref that started the run rather than TAG, so a TAG
+            # that drifted from it fails here instead of passing its own test.
+            if [ "$got" != "$GITHUB_REF_NAME" ]; then
+              echo "::error::${name} reports '${got}', expected '${GITHUB_REF_NAME}' — the -ldflags did not apply"
               exit 1
             fi
             echo "${name}: ${got}"
           done
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
@@ -131,21 +130,20 @@ jobs:
   release:
     needs: binaries
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: write # to create/upload release assets
+      id-token: write # to sign the provenance attestation (keyless, sigstore)
+      attestations: write # to store it on the repository
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
           # Full history, so the notes step can ask which tag precedes this one.
           # blob:none keeps that cheap: commits and tags, no file contents.
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
           merge-multiple: true
@@ -155,6 +153,50 @@ jobs:
           cd dist
           cat checksums_*.txt | sort > CHECKSUMS.txt
           rm -f checksums_*.txt
+
+      # A published release is never replaced: its assets are what the upgrade
+      # ledgers record (RELEASING.md, "Cutting a release"). A draft is what a
+      # run that failed before publishing leaves behind, and this run finishes
+      # it. Placed before the attestation, so a refused run attests nothing.
+      - name: Refuse a published release
+        id: release_state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # One GraphQL query, whose release(tagName:) also returns drafts. Not
+          # gh release view: it answers "release not found" whenever its lookup
+          # of a published release fails, whatever the reason, which would
+          # read as "go on" for a release that is in fact published.
+          # shellcheck disable=SC2016 # $owner, $name, $tag are GraphQL variables
+          state="$(gh api graphql \
+            -f owner="${GITHUB_REPOSITORY_OWNER}" -f name="${GITHUB_REPOSITORY#*/}" -f tag="${TAG}" \
+            -f query='query($owner: String!, $name: String!, $tag: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { isDraft } } }' \
+            --jq '.data.repository.release | if . == null then "none" elif .isDraft then "draft" else "published" end')" \
+            || { echo "::error::cannot read the release for ${TAG} (gh's error is above)"; exit 1; }
+          case "${state}" in
+          none) echo "no release for ${TAG} yet" ;;
+          draft) echo "${TAG} has a draft release from an earlier run; this run finishes it" ;;
+          published)
+            echo "::error::${TAG} is already published, and a published release is never replaced (RELEASING.md, \"Cutting a release\")"
+            exit 1
+            ;;
+          *)
+            echo "::error::unexpected release state for ${TAG}: ${state}"
+            exit 1
+            ;;
+          esac
+          echo "state=${state}" >> "$GITHUB_OUTPUT"
+
+      # Provenance: which workflow built every asset, from which commit and
+      # tag. Attested here, once CHECKSUMS.txt exists, so the checksum file is
+      # covered along with the binaries, and before the release is created, so
+      # nothing is published unattested. The release binaries are not
+      # reproducible from the tag (no -trimpath, see the build step), so this
+      # attestation is the operator's anchor besides the checksums; the verify
+      # command is in RELEASING.md, "Signing and provenance".
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
 
       # Notes are generated here rather than with `gh release create
       # --generate-notes`, which picks the range itself and picked wrong: it
@@ -179,20 +221,12 @@ jobs:
           # would name the final release as its own predecessor.
           tags() { git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname; }
 
-          case "${TAG}" in
-          v*)
-            # TAG is itself in this list (the workflow only runs for a tag that
-            # exists), so the next final release below it is the predecessor.
-            # Pre-releases are skipped: v1.3.0 follows v1.2.0, not v1.3.0-rc.1.
-            PREV="$(tags | awk -v t="${TAG}" '
-              $0 == t { seen = 1; next }
-              seen && $0 !~ /-/ { print; exit }')"
-            ;;
-          *)
-            # A chain/<name> launch tag: baseline against the newest release.
-            PREV="$(tags | awk '!/-/ { print; exit }')"
-            ;;
-          esac
+          # TAG is itself in this list (the workflow only runs for a tag that
+          # exists), so the next final release below it is the predecessor.
+          # Pre-releases are skipped: v1.3.0 follows v1.2.0, not v1.3.0-rc.1.
+          PREV="$(tags | awk -v t="${TAG}" '
+            $0 == t { seen = 1; next }
+            seen && $0 !~ /-/ { print; exit }')"
 
           # Every branch below writes notes.raw, so the release is never blocked
           # on note generation. generate-notes rejects a previous_tag_name that
@@ -226,34 +260,49 @@ jobs:
           fi
           echo "release body: $(wc -c <notes.md) characters"
 
-      - name: Ensure release exists
+      # Draft first, assets next, publication last: a release is never visible
+      # without its assets, and none is added once it is published, which is
+      # also the order GitHub's immutable releases require.
+      - name: Create the draft release
+        if: steps.release_state.outputs.state == 'none'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
           # "Latest" — the page misc/deployments/*/VALIDATOR.md sends operators
           # to. Mark pre-releases as such, matching goreleaser's `prerelease:
-          # auto`. "Latest" may only move forward, too: GitHub would otherwise
-          # give it to whichever release was created last, so a backport cut
-          # after a newer line would take it. Only the highest final tag gets it.
+          # auto`.
           PRERELEASE=""
           case "${TAG}" in
             v*-*) PRERELEASE="--prerelease" ;;
           esac
-          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
-          LATEST="--latest=false"
-          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
-          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
-            gh release create "${TAG}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "${TAG}" \
-              --notes-file notes.md \
-              --verify-tag \
-              ${LATEST} \
-              ${PRERELEASE}
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --draft \
+            --title "${TAG}" \
+            --notes-file notes.md \
+            --verify-tag \
+            ${PRERELEASE}
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # --clobber only ever replaces assets on the draft: a published
+          # release was refused before the attestation.
           gh release upload "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # "Latest" may only move forward: GitHub would otherwise give it to
+          # whichever release was published last, so a backport cut after a
+          # newer line would take it. Only the highest final tag gets it. The
+          # tags are fetched again: the checkout's are minutes old by now, and
+          # a final tag pushed meanwhile must keep Latest from this one.
+          git fetch --quiet --force --tags origin
+          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
+          LATEST="--latest=false"
+          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false ${LATEST}
