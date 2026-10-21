@@ -197,8 +197,8 @@ func assertConstRepresentable(gm store.GasMeter, x Expr) {
 	}
 	// One big operation on operands of at most 64 bits: bounded cost.
 	chargeCPUGas(gm, OpCPUSlopeCheckNode)
-	min, max := intKindRange(baseOf(t).Kind())
-	if exact.Cmp(min) >= 0 && exact.Cmp(max) <= 0 {
+	lo, hi := intKindRange(baseOf(t).Kind())
+	if exact.Cmp(lo) >= 0 && exact.Cmp(hi) <= 0 {
 		return
 	}
 	panicAt(fmt.Sprintf("%s (constant %s of type %s) overflows %s",
@@ -239,7 +239,7 @@ func typedIntConst(x Expr) (*big.Int, bool) {
 }
 
 // intKindRange is the range of values an integer kind represents.
-func intKindRange(k Kind) (min, max *big.Int) {
+func intKindRange(k Kind) (lo, hi *big.Int) {
 	switch k {
 	case Int8Kind:
 		return big.NewInt(math.MinInt8), big.NewInt(math.MaxInt8)
