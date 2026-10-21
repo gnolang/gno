@@ -2489,18 +2489,26 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
 					}
 
-					// kset tracks seen const keys for duplicate detection.
-					// checkOrConvertType must be called before the check so that
-					// values are stored in N (not V), making TypedValue comparable.
-					kset := make(map[TypedValue]struct{})
+					// kset tracks seen const keys for duplicate detection,
+					// keyed the way the runtime map keys them (by content,
+					// not Go == on TypedValue). checkOrConvertType runs first
+					// so each key already has its final type.
+					kset := make(map[MapKey]struct{})
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
-							if _, ok := kset[cx.TypedValue]; ok {
+						// A typed nil slice/map/func folds to a ConstExpr but is
+						// no Go constant: Go skips it, and ComputeMapKey would panic.
+						cx, ok := elt.Key.(*ConstExpr)
+						if ok && !cx.TypedValue.IsUndefined() && (cx.T == nil || isComparable(cx.T)) {
+							mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
+							if isNaN {
+								continue // NaN never equals itself
+							}
+							if _, ok := kset[mk]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
 							}
-							kset[cx.TypedValue] = struct{}{}
+							kset[mk] = struct{}{}
 						}
 					}
 				default:
@@ -4627,6 +4635,12 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 					cv.SetFloat64(0)
 				}
 			}
+		}
+		// A folded string owns its backing: the ConstExpr outlives the
+		// tx (see OpEval *ConstExpr), so inheriting one from a cached
+		// PackageValue would tie GC dedup to node cache history.
+		if sv, ok := cv.V.(StringValue); ok {
+			cv.V = mintString(sv.Str)
 		}
 		cx = &ConstExpr{
 			Source:     x,

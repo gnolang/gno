@@ -308,7 +308,7 @@ func TestStringifyJSON_MarshalAvoided(t *testing.T) {
 	const n = 2 << 20 // 2MB: enough for a decisive ratio, small enough to be cheap
 	tvs := []gnolang.TypedValue{{
 		T: gnolang.StringType,
-		V: gnolang.StringValue(strings.Repeat("A", n)),
+		V: gnolang.StringValue{Str: strings.Repeat("A", n)},
 	}}
 	// A plain string never triggers error extraction, so the nil machine is
 	// unused on this path.

@@ -29,7 +29,12 @@ const maxFloatArgLen = 1024
 // in FunctionSignature{}.
 // String representation of arg must be deterministic.
 // NOTE: very important that there is no malleability.
-func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
+//
+// alloc is the tx machine's allocator: string args are minted through
+// NewString so they are charged and tracked (untracked strings are
+// invisible to the GC's byte recount). A nil alloc (tests) charges
+// nothing.
+func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.TypedValue) {
 	tv.T = argT
 	switch bt := gno.BaseOf(argT).(type) {
 	case gno.PrimitiveType:
@@ -48,7 +53,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					arg))
 			}
 		case gno.StringType:
-			tv.SetString(gno.StringValue(arg))
+			tv.V = alloc.NewString(arg)
 			return
 		case gno.IntType:
 			assertNoPlusPrefix(arg)
@@ -195,9 +200,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"array length mismatch: declared [%d]byte, got %d bytes",
 					bt.Len, len(bz)))
 			}
-			tv.V = &gno.ArrayValue{
-				Data: bz,
-			}
+			tv.V = alloc.NewArrayFromData(bt, bz)
 			return
 		} else {
 			panic("unexpected array type in contract arg")
@@ -210,14 +213,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 					"error parsing byte array %q: %v",
 					arg, err))
 			}
-			tv.V = &gno.SliceValue{
-				Base: &gno.ArrayValue{
-					Data: bz,
-				},
-				Offset: 0,
-				Length: len(bz),
-				Maxcap: len(bz),
-			}
+			tv.V = alloc.NewSliceFromData(bz)
 			return
 		} else {
 			panic("unexpected slice type in contract arg")
