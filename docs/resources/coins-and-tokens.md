@@ -6,7 +6,8 @@ tokens, which are contracts.
 ## Choosing between Coins and GRC20 tokens
 
 Pick Coins when a token only needs to be held and sent. The chain moves them
-with no contract code, and a user attaches them to any call with `-send`.
+with no contract code, and a user pays a realm by attaching them with `-send`
+to a function that reads `unsafe.OriginSend()`.
 
 Pick GRC20 when a token needs rules of its own: an allowance a spender draws
 on, a fee or a cap on transfers, or balances a DAO counts as votes. Those rules
@@ -26,13 +27,30 @@ parameter can be sent only from whitelisted accounts.
 
 ## Verifying inbound Coin payments
 
-A user pays your realm by attaching coins to a
-`maketx call` with `-send`.
+A user pays your realm by attaching coins to a `maketx call` with `-send`.
 In the called function, first check that the user called you directly with
-`cur.Previous().IsUserCall()`, then read the amount sent with
-[`unsafe.OriginSend()`](./gno-stdlibs.md#originsend). The
-[security guide](./gno-security-guide.md#55-isuser-for-payment-guards) explains
-why the first check matters.
+`cur.Previous().IsUserCall()`, then compare the amount sent, read with
+[`unsafe.OriginSend()`](./gno-stdlibs.md#originsend), to your price:
+
+```go
+import "chain/runtime/unsafe"
+
+const price = 1_000_000 // ugnot
+
+func Buy(cur realm) {
+	if !cur.Previous().IsUserCall() {
+		panic("must be called directly by a user")
+	}
+	if unsafe.OriginSend().AmountOf("ugnot") != price {
+		panic("wrong payment amount")
+	}
+	// ...
+}
+```
+
+The [security guide](./gno-security-guide.md#55-isuser-for-payment-guards)
+explains why the first check matters. Without the second, a call that attaches
+no coins succeeds.
 
 ## GRC20 tokens
 
@@ -50,7 +68,8 @@ import "gno.land/p/nt/grc20/v0"
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
-	// Unexported: whoever holds a teller can spend from the ledger.
+	// Keep the teller unexported: it is a spend capability. It is built from
+	// the ledger, which never leaves this realm, and it only works here.
 	userTeller grc20.Teller
 )
 

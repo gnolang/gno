@@ -404,14 +404,16 @@ func Set(cur realm, key, value string) {
 }
 ```
 
-Any import of `chain/runtime/unsafe` in a realm that also declares
-crossing functions (`func F(cur realm, ...)`) is a red flag. The
-`unsafe` package is appropriate only in non-crossing helpers or
-in realms that have not yet been migrated to the `cur realm` API.
+A `chain/runtime/unsafe.PreviousRealm()` call in a realm that also
+declares crossing functions (`func F(cur realm, ...)`) is a red flag. It
+is appropriate only in non-crossing helpers or in realms that have not
+yet been migrated to the `cur realm` API. The import itself stays where
+a payment is read with `unsafe.OriginSend()`, as in
+[§5.5](#55-isuser-for-payment-guards).
 
 **Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
-`chain/runtime/unsafe` import.
+`cur.Previous()` under a `cur.IsCurrent()` guard. Delete a
+`chain/runtime/unsafe` import that only `PreviousRealm()` uses.
 
 ---
 
@@ -610,7 +612,7 @@ Attackers cannot:
 - `gno-security.md` — numbered threat-class taxonomy (Class 1a/1b/2/3/4).
 - `gno-interrealm.md` — original interrealm specification.
 - `gno-interrealm-v2.md` — updated specification reflecting current HEAD.
-- `effective-gno.md` — pattern-level guidance including payment guards.
+- `coins-and-tokens.md` — Coins, GRC20 tokens and payment guards.
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
   corpus referenced throughout this guide. Each test is annotated
   with the attack mechanism and why it succeeds or fails.
