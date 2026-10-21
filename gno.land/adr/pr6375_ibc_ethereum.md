@@ -4,18 +4,25 @@
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
   `feat/ibc-controls` (ea785ec, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
   the Ethereum side in gno-eth-ibc `feat/ibc-controls` (72a41de,
-  [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
-  monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
-  built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
-  residual.
-- **Date:** 2026-10-16; amended 2026-10-18, 2026-10-19 and 2026-10-20 to match the implementations (§14).
+  [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). On
+  gno.land every amount is a native `uint256` (gno-realms `feat/ibc-uint256`, 9a77cc2,
+  [ADR 0005](https://github.com/allinbits/gno-realms/blob/feat/ibc-uint256/docs/adrs/0005-uint256-amounts.md)),
+  which depends on the VM's `int256`/`uint256` types (gnolang/gno#6387) and on grc20 v1 (gnolang/gno#6388), both for
+  new chains only. The monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document
+  describes the design as built; where the implementations depart from the design as reviewed, §8.5 lists each
+  departure and each accepted residual.
+- **Date:** 2026-10-16; amended 2026-10-18, 2026-10-19 and 2026-10-20 to match the implementations, and 2026-10-21
+  for the `uint256` amounts (§14).
 - **Scope:** tm2, gnovm, gno.land, the IBC realms (allinbits/gno-realms), the Ethereum contracts, the relayers and
   the off-chain tooling.
 - **Related ADRs:** [`tm2/adr/pr6375_secp256k1_validator_keys.md`](../../tm2/adr/pr6375_secp256k1_validator_keys.md),
   [`gnovm/adr/pr6375_bls12381_native.md`](../../gnovm/adr/pr6375_bls12381_native.md),
   [`gnovm/adr/pr6358_param_key_colons.md`](../../gnovm/adr/pr6358_param_key_colons.md),
+  [`gnovm/adr/pr6387_native_int256.md`](../../gnovm/adr/pr6387_native_int256.md) (native `int256`/`uint256`),
+  [`gno.land/adr/pr6388_grc20_uint256.md`](pr6388_grc20_uint256.md) (grc20 v1 with `uint256` amounts),
   [gno-realms ADR 0003 — Ethereum light client](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0003-ethereum-light-client.md),
   [gno-realms ADR 0004 — Ethereum route controls](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md),
+  [gno-realms ADR 0005 — uint256 amounts on the Ethereum route](https://github.com/allinbits/gno-realms/blob/feat/ibc-uint256/docs/adrs/0005-uint256-amounts.md),
   [gno-realms upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md),
   [gno-eth-ibc `docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md).
 
@@ -84,7 +91,10 @@ channel serves exactly one Ethereum route (§7.6, Scope).
 incoming value is booked as a **claim**, and anyone calls `Claim` to pay claims out within a **meter**: for gno-native
 tokens coming home, the larger of a configured floor and a tenth of their escrow per day; for Ethereum tokens, which
 have no gno.land escrow, a fixed per-denom cap set by governance; each recipient gets a quarter of that. On Ethereum
-each token has a per-message maximum and a day cap (a **leaky bucket**). At unchanged caps, forged receives are
+each token has a per-message maximum and a day cap (a **leaky bucket**). Amounts are counted in full 256-bit
+precision on both chains (gno.land's vouchers are grc20 v1 tokens), so an 18-decimal Ethereum token bridges
+whole; Ethereum's transfer app takes at most 2^96 − 1 per packet, and gno.land applies the same bound on the
+route. At unchanged caps, forged receives are
 bounded to about two day caps in any 24 hours; forged refunds have a separate bound under the refund meter (below),
 and the total exposure is the sum of the two (§7.1, §7.2, §7.13; send limits and the route fee, §7.8).
 
@@ -352,7 +362,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (gnolang/gno, `origin`) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ea785ec; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ea785ec; ADR 0004); [`feat/ibc-uint256`](https://github.com/allinbits/gno-realms/tree/feat/ibc-uint256) (`uint256` amounts, 9a77cc2; ADR 0005, on top of the controls) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -394,7 +404,7 @@ Repositories and branches:
 | R12 | Send-side limits: per-message max/min, route fee with floor and ceiling, recipient filters (§7.8) | ✅ (`controls.DenomConfig`, `impl/v1/send.gno`) | bridges: `hlroute.CheckSend`, [`ethereum/realm/hlgnot/hlgnot.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlgnot/hlgnot.gno) `TransferRemote` (`RefusedEthRecipient`) | Transfer impl v1, per client. The same send path writes the per-packet send record that the ack and timeout callbacks complete (§7.13). |
 | R13 | Voids / restores / credit-by-vote (§7.9) | ✅ (`controls/voids.gno`) | bridges: `hlroute.DraftVoid`, `Decide` | Only with the claim queue. Needs IBC terminal-state rules: claims are keyed by packet and created atomically with the receipt; a manual credit only for a packet with a receipt; never both a credit and a source refund (§7.9). |
 | R14 | Existing admin surface: `p/aib/authority` (deployer + GovDAO), relayer allow-list, global and per-app pause, address blocklist, GovDAO builders, `UpdateImpl` | ✅ (no deployer member; loosening powers `ibcgov` only, ADR 0004 Authorities) | [`r/aib/ibc/core/admin.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/admin.gno), [`core/upgrade.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/upgrade.gno), [`app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/app.gno), [`apps/transfer/admin.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/apps/transfer/admin.gno), [`p/aib/authority`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/authority/v0/authority.gno) | *Before the controls (pre-controls background):* authority members (the deployer and GovDAO) acted **immediately**, including `UpdateImpl` and adding members, which would bypass every delay. Every loosening power over the Ethereum route — impl upgrades, membership, relayer list, recovery, legacy proposal callbacks — must move exclusively to `ibcgov` (R11) and the deployer must be removed; immediate authority remains only for tightening. **Built:** membership starts as GovDAO and `ibcgov`; `ibcgov` is **permanently** protected from removal on both proxies, while GovDAO is removable by the immediate removal builders, so GovDAO's direct tightening powers last only while it remains a member. `core.Pause`, `PauseApp`, `RejectApp` and `transfer.BlockAddress` stay with the authority members (GovDAO and `ibcgov`); every other administrative call is `ibcgov`'s only. Implementation code reaches the live store only through an authorized installation: each implementation registers a manifest of plain values (`RegisterImpl(cur, ctor, version, over[, keepsControls])`), the governed preflight `CheckUpdateImpl` builds the candidate against an empty store, and every realm address a proxy ever registered stays indexed as a realm of the bridge (`IsImplAddress`, one keyed lookup). Neither proxy registers an implementation at the address of a route's current fee collector. **Publishing prerequisites**, separate from the 7-day activation decision: each proxy registers only packages under its own `/impl/` namespace (the governance builders also require `/impl/v`); deploying one needs deployment authority over that namespace, and on a chain with an inert code-submission policy the package's enablement, since registration runs at enablement. |
-| R15 | 18-decimal Ethereum tokens on gno (GRC20 and amounts are int64: about 9.22 tokens max) | ❌ | — | A 6-decimal wrapper on Ethereum (factory, `wrap` takes whole multiples of 10^(d−6), refunds dust, `wrapAndSend`), or accept the cap (§12). |
+| R15 | **256-bit amounts on gno.land**: ICS20 amounts parsed as `uint256`, vouchers as grc20 v1 tokens, the escrow accounting and every control total in `uint256`; native coins stay `int64` | ✅ (gno-realms `feat/ibc-uint256`, ADR 0005; depends on gno #6387 and #6388) | `p/aib/ibc/ics20/v0` (`Token.AmountUint256`), `p/aib/ibc/ics20/controls/v0` (`arith.gno`), `apps/transfer` (`store.gno`), `impl/v0`, `impl/v1`, `ibcgov` | *Before:* GRC20 and amounts were `int64`, so an 18-decimal ERC20 was capped at about 9.22 tokens, and the controls carried three workarounds for aggregates that could pass 2^63 (wide two-limb counters, a minted supply "headroom" that cut and parked payouts, an int64 liability bound). **Built:** the ICS20 amount is parsed strictly (`strconv.ParseUint256`, digits only); vouchers are `p/nt/grc20/v1` tokens registered in `r/nt/grc20reg/v1`, on every route; the escrow accounting holds `uint256` per (client, denom); `Transfer`, `VoucherSend`, `VoucherApprove` and the governance builders take `uint256`; every total is exact, checked with `math/overflow` (§7.1); the workarounds are gone (§7.1, §7.12, §7.13). Native coins stay `int64` (an owner decision of #6388): a native send's amount plus the route fee must fit 2^63 − 1 and a native release is range-checked at the one boundary where a `uint256` meets a `chain.Coin`. On an Ethereum route every amount is at most 2^96 − 1, Ethereum's own bound (E6): a send above it is refused, a receive above it error-acked. Renders and events carry amounts as decimal strings (a 256-bit value is lossy as a JSON number). Open: bridging grc20 v0 tokens (a v1 wrapper for now). |
 | R16 | **Ethereum light-client fork migration**: replacing the verifier of a live `ethereum-N` client (new fork parameters, new container indices) while keeping its client id, commitments and consensus states | ✅ (core `impl/v1`, `MigrateClient`; ADR 0004 R16) | [`p/aib/ibc/lightclient/ethereum/v0/ethereum.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0/ethereum.gno) (client upgrade/recovery refuse differing fork parameters) | A core impl change: a governed `SetLightClient`-style conversion from the old client state to a new package version, rehearsed before each relevant Ethereum fork (§6.12). A new package alone changes no stored client. **Built, two kinds:** a **fork-schedule migration** (`ethereum-fork-schedule`: the client Active, genesis fork and every fork at or before the current epoch unchanged, every changed fork activating later, epochs in order); and a **verifier replacement** (`ethereum-verifier`, `NewReplaceVerifierRequest`, 7 days), whose conversion is code of a core implementation installed beforehand by a governed upgrade and declared as plain values; it runs on a read-only view of the live verifier inside a recovered boundary, converts an Active or Expired client (a Frozen one is recovered first) whose live verifier exposes `Ethereum() *ethereum.EthLightClient` — the conversion reads that state, so a verifier keeping its state otherwise is refused and the decision spent (an opaque verifier can be installed, but no conversion out of it applies: it needs migration support of its own; transfer filetest z9zs) — and every check on its result (version, status, latest height, and, for a converted verifier exposing that state, the trusted-from slot) runs before anything is installed. The new verifier reads the retired history through a flat, persistent index of the retired stores, O(log replacements), copying none of it. Either migration advances the client's trust generation and empties its route's payout meters. A recovered Ethereum client trusts no consensus state below the slot the recovery copied (`TrustedFromSlot`). |
 | R17 | **Route-scoped flags on gno** that keep returns open, and **public relaying for the Ethereum route** | ✅ (transfer `impl/v1`; core `ensureRelayerFor`) | [`core/app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/app.gno) `PauseApp` pauses the whole `transfer` port (sends included, so voucher returns too); [`core/core.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/core.gno) and [`core/client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/client.gno) apply the relayer allow-list to `UpdateClient`, `RecvPacket`, `Acknowledgement` and `Timeout` | Per-client flags in the transfer impl that stop credits/payouts and sends of gno-native tokens, never burns of returning vouchers; plus the refund meter and the guardian `refunds` hold of §7.13 (the only controls that delay refunds, never cancel them). Refunds need fresh client updates as well as the ack/timeout itself, so exempting acks and timeouts alone is not enough: make every relaying entry point for the Ethereum client permissionless (they are proof-checked), or keep the allow-list with at least two independent relayers and a documented fail-over. Decide before deploying the core proxy. **Decided and built:** every relaying entry point for an Ethereum client is permissionless on gno.land, and relaying is public in production on Ethereum (§7.3). One deliberate exception to "only the refund meter and the `refunds` hold delay refunds": **a closed route pays no refund until it reopens**, the healthy replacement client's refunds included (§7.12, §8.5). |
 | R18 | **Route replacement on gno.land** (§7.12): new Ethereum client and counterparty, `ibcgov` epoch, re-pointing the transfer realm's route alias (registries keyed by route key, translated to the current client id on the wire), freezing the old client, reconciliation of in-flight packets | ✅ | ADR 0004 R18, §7.12 gno side; `controls.Registry.Replace`, ibcgov `NewReplaceRouteRequest` | Built as §7.12 specifies. The route key is the route's first client id; the old client is **marked retired** in the core rather than frozen (its verifier keeps its status), for the transfer port at once and for the `gov` port only by the governance retirement rule (§7.12). |
@@ -405,9 +415,11 @@ client, Tendermint ones included, each deliberate and tested against the base be
 every route"): identifying receipts (R19); governance-only relayer and membership administration (R14); client
 retirement and trust generations (R1); the core's own copies of counterparty prefixes, of packets awaiting
 asynchronous acks and of everything a Tendermint light client trusts; canonical addresses in `VoucherSend`,
-`VoucherApprove` and membership calls; voucher symbols and grc20reg keys allocated from a counter (`IBC-1`, `IBC-2`,
-…) so no ground denom can take another's registry key; no caller-supplied implementation of a proof, state or
-message type; the fee-collector registration bar (R14); Markdown-inert JSON renders. Identifier validation and the
+`VoucherApprove` and membership calls; vouchers as grc20 v1 tokens and `uint256` amounts on every route, a native
+coin's amount range-checked at the coin boundary (R15, ADR 0005); voucher symbols and grc20reg keys allocated from
+a counter (`IBC-1`, `IBC-2`, …) so no ground denom can take another's registry key; no caller-supplied
+implementation of a proof, state or message type; the fee-collector registration bar (R14); Markdown-inert JSON
+renders. Identifier validation and the
 SDK packet limits (262,144 bytes of payload data, a send timeout after now and at most 24 hours ahead) are unchanged; an Ethereum route's packets carry exactly one payload (gno.land `ValidateBasicRouter`, as eureka's router); an oversized receive is refused by the core before
 the app runs, so it stays pending at the source until it times out. Ethereum's transfer app bounds ICS20 payloads at the same
 262,144 bytes on send and receive, and error-acks an oversize receive; `IBCAdmin` instead consumes a readable
@@ -426,7 +438,7 @@ oversize governance envelope within the window and spends it (§5.4).
 | E7 | **Guardians, flags and holds** on Ethereum (4 guardian + 2 watch seats; hold = two guardian flags; unpause after 24 h clears only earlier flags; replacement under a hold no sooner than day 21) | ✅ (`lib/Guardians.sol`, with seat generations; vacancies refused, §8.5) | bridges: [`lib/Guardians.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/lib/Guardians.sol) | Reuse nearly as is, in E6/E3 (deliveries) and E8 (decisions). |
 | E8 | **`IBCAdmin`** (permanent) + **`IBCAdminExec`** (replaceable executor). `IBCAdmin` is a small immutable IBC app on port `ibcgov` (accepting only source port `gov`) (router ports can never be re-registered, [`ICS26Router._addIBCApp`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol)) that owns the ledger state (sequence, buffer, decision hashes, cancellations, maturity times, flags, hold history, recovery proposals) and **holds every authority** (`ADMIN_ROLE`, every proxy, `migrateClient`). It accepts packets only from the router, from `ibcgov` over the paired client, and delegatecalls an executor whose code hash it pins; decision kinds with delays, deferred by flags and holds; code-hash-pinned upgrades with after-checks. A hand-over (kind 9) only moves the executor pin, atomically, on a path `IBCAdmin` records and executes itself, never through the installed executor (gno-eth-ibc af6259d); no migration call, and no state or authority moves | ✅ (`IBCAdmin`, `IBCAdminExec`; `IBCAdminNative`, an immutable helper `IBCAdmin` deploys in its constructor (after the launch check) and exposes as `native()`, holding the recording verdict (`atRecording`: kind 9's parameter check, pin check, starvation floor, executor call, bounded canonical answer check, a refused answer reverting its frame with `Halted()` so the executor's own effects are undone), kind 3's and kind 9's deferral (`due(ep, seq, matureAt, flags)`, flags off for kind 3) and kind 9's execution, the guardians' recovery cancellation and `clearRecoveryBlock`; the executor itself handles kinds 2–8 and 10–13 (kind 1 and kind 9 are `IBCAdmin`'s own); a starved delivered decision reverts empty and is relayed again; `IBCAdminRecovery`, `IBCAdminChecks` and `IBCAdminSetupCheck` deployed by the executor and pinned with it; `FrozenLightClient` for retired ids) | pattern: bridges [`HlAdmin.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/HlAdmin.sol), [`admin/HlAdminExec.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/admin/HlAdminExec.sol) (there the executor is fixed and hand-over moves authorities to a successor) | Replace Hyperlane's `handle`/ISM plumbing with `IIBCApp` callbacks and implement the delivery protocol of §5.4 (refuse with non-empty errors (busy-hook deliveries and recording starvation of the delivered decision revert empty, so the packet stays relayable); expected refusals revert with custom errors; out-of-window packets error-ack for redispatch). Kinds remapped (§7.6). Keep each contract under EIP-170. |
 | E9 | **Quarantine** after a validator-set transition | ✅ (`GnoLightClient._isLiveTransition`; durations per route, §7.10) | bridges: [`GnoLightClient.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/GnoLightClient.sol) (`quarantineEnd`) | The client keeps a **live epoch**: the `(validatorsHash, nextValidatorsHash)` pair of its latest accepted header. A newly accepted update (not a no-op, not misbehaviour checking) starts a quarantine only for a **live transition**: its `nextValidatorsHash` differs from the live epoch's (a new set announced), or its `validatorsHash` is neither the live set nor the live announced next set (a set the chain never announced: the > 1/3 skip). The verification anchor the relayer chooses plays no part, so an older anchor cannot restart it. Each transition sets its own deadline once (`quarantineEnd = max(quarantineEnd, transitionTime + duration)`); later headers of the established epoch do not extend it. `_verifyHeader` is `view`: it returns the transition data and `update` applies it (`contracts/src/GnoLightClient.sol`). E6 refuses token receives until `quarantineEnd`; `IBCAdmin` ignores it. |
-| E10 | 6-decimal wrapper for 18-decimal Ethereum tokens | ❌ | — | See R15. |
+| E10 | 6-decimal wrapper for 18-decimal Ethereum tokens | n/a (superseded) | — | Not needed: gno.land counts in `uint256` (R15). The Ethereum side changes nothing; its 2^96 − 1 amount bound (E6) stands and gno.land mirrors it. |
 | E11 | **Bootstrap role cleanup**: *before the controls* the deployment granted the deployer `ID_CUSTOMIZER_ROLE` and `ERC20_CUSTOMIZER_ROLE` besides the AccessManager admin; as built it grants neither ([`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol)) | ✅ (the deployer never holds the customizer roles; `ADMIN_ROLE` renounced; `IBCAdminSetupCheck`) | gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol) | `finishSetup` must enumerate and revoke every bootstrap role and admin, renounce the deployer, and check the result on chain (♻️ bridges `finishSetup`'s check list). **Built, with one limit:** `finishSetup` checks `IBCAdmin`'s and the deployer's roles only, since the AccessManager cannot list a role's members, so exclusive ownership needs an external audit of its `RoleGranted` log; its function list also omits the roles of `settleRecords`, `reopenRoute`, `checkpointForReplacement` (unassigned, so `ADMIN_ROLE` by default) and `sendTransferWithSender` (`DELEGATE_SENDER_ROLE`, granted to nobody), which the audit must confirm (§8.4). |
 | E12 | **Route replacement** (§7.12): retire and freeze an old client id, add a new one, open a new governance epoch (§5.4 envelope) dropping the old epoch's unexecuted state, `migrateRoute` re-pointing the route alias (constant work); the optional guardian-attested emergency path | ✅ | `IBCAdminExec._route`, `IBCAdminRecovery`, `GnoICS20Controls.migrateRoute`, the reconciliation state machine of `docs/controls.md` | New, in `IBCAdmin`/`IBCAdminExec` and the ICS20 fork (E6), whose registries and escrows are keyed by route key with a client-id alias. |
 
@@ -527,12 +539,13 @@ oversize governance envelope within the window and spends it (§5.4).
 
 - **ICS20 payload.** `application/x-solidity-abi` encoded `FungibleTokenPacketData` both ways.
 - **Denoms.** gno-native denoms on Ethereum are `transfer/<client>/<denom>` → `GnoVoucher` (E3). Ethereum
-  tokens on gno are GRC20 vouchers of the transfer realm.
+  tokens on gno are grc20 v1 vouchers of the transfer realm (R15).
 - **Acks.** The Ethereum app writes `{"result":"AQ=="}` (JSON) on success. The gno app writes the protobuf
   `Acknowledgement`; relayers decode it to the app ack before `ackPacket`. A refused receive on either chain is
   answered with the IBC v2 **universal error acknowledgement** (eureka's router, gno core), never an app-specific
   error ack; reconciliation relies on that (§5.4, Proven outcomes).
-- **Amounts** are raw base units, never scaled.
+- **Amounts** are raw base units, never scaled: a decimal of up to 2^256 − 1 on the wire, parsed as a `uint256` on
+  gno.land (digits only, zero refused), and on an Ethereum route at most 2^96 − 1 in either direction (E6, R15).
 
 ### 5.4 Governance channel (new)
 
@@ -952,7 +965,7 @@ flowchart TD
   CLAIM --> PF{"flags payouts?<br/>route closed? unresolved loss?"}
   PF -- yes --> STOP[skip]
   PF -- "recipient became a bridge realm" --> SWEEP
-  PF -- open --> PAY[pay min of bridge level, recipient level,<br/>and lock less queued refunds and proven reservations for unescrow;<br/>mint vouchers within the supply headroom otherwise<br/>fee = first installment; no slivers]
+  PF -- open --> PAY[pay min of bridge level, recipient level,<br/>and lock less queued refunds and proven reservations for unescrow;<br/>mint vouchers otherwise<br/>fee = first installment; no slivers]
   PAY --> REF[meters refill continuously:<br/>unescrow cap = max floor, lock/10 per day<br/>mint cap = configured per denom<br/>recipient cap = cap/4]
 ```
 
@@ -1060,14 +1073,13 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     then, and keeps a cut once seen, so a later fee raise never strands a claim and a cut always applies.
   - Nothing is paid while a `payouts` flag stands, the route is closed (§7.12) or any denom of the route has an
     unresolved loss (§7.9). An `unescrow` payout is bounded by the lock less what queued refunds and proven
-    reservations hold; a `mint` payout by the supply's int64 headroom (an installment is cut to it, the remainder
-    kept).
+    reservations hold; a `mint` payout by the meters alone (the supply cap bounds admission, not payouts).
 - **Sweep queue.** Amounts below the fee, above the **free escrow** (the lock less `Reserved()`: open and withheld
   claims, queued refunds and proven reservations; so an amount the total escrow covers can still be swept), or to a
   bridge realm, a blank or an undecodable or invalid
   address are booked as owed (with a success ack) and paid only by a 7-day decision (`NewSweepRequest`: live
   entries of one denom, each paid whole to the decision's payee, no claim fee, outside the payout meters, for an `unescrow` denom within
-  the free escrow, for a `mint` denom only within the int64 supply headroom (the entries' supply is already booked),
+  the free escrow, for a `mint` denom with no further bound (the entries' supply is already booked),
   deferred under a `payouts` flag). A **bridge realm** is the core and transfer proxies, `ibcgov`,
   `ethrelay`, transfer `impl/v0` (never registered) and every implementation either proxy ever registered, read at each receive through each proxy's
   permanent index of registered implementation addresses (`IsImplAddress`, one keyed lookup). The recipient is
@@ -1083,18 +1095,21 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 - **Two accountings.** Gno-native assets returning from Ethereum are unescrowed: `lock` is their escrow and caps
   payouts. Ethereum assets arriving on gno are **minted** as vouchers: there is no gno lock, so they get their own
   day cap (absolute, per denom) and their own outstanding-supply accounting; `amount > lock` sweeping applies only
-  to unescrow. A minted denom's supply cap bounds what is booked against it, `Outstanding + Returning + Parked +
-  ProvenOwed + Owed + Withheld + Swept` (vouchers in circulation, in-flight burns, settled refunds parked for want
-  of supply, refunds reserved by a replacement's preparation or a proof, claims and sweep entries owed), the terms
+  to unescrow. A minted denom's supply cap bounds what is booked against it, `Outstanding + Returning +
+  ProvenOwed + Owed + Withheld + Swept` (vouchers in circulation, in-flight burns, refunds reserved by a
+  replacement's preparation or a proof, claims and sweep entries owed), the terms
   never overlapping; a credit is admitted only within it (and, for every denom, unescrow included, a receive is
-  refused when `Owed + Withheld + Swept + amount` would pass int64), and lowering the cap stops admission without touching
+  refused when `Owed + Withheld + Swept + amount` would pass 2^256 − 1, which no genuine receive reaches: every amount
+  on the route is at most 2^96 − 1), and lowering the cap stops admission without touching
   what is booked. A denom's accounting never changes once enabled, and its cap floor never goes below its launch
   value.
-- **Aggregates are exact.** Every int64 aggregate goes through one checked-arithmetic set: liability, reservation
-  and loss totals that can genuinely pass 2^63 (`InFlight`, `Returning`, `QueuedRefunds`, `Parked`, `ProvenOwed`,
-  the outstanding loss balances) are kept **wide** (two limbs, exact beyond int64, their int64 views saturating) so
-  no send, acknowledgement, timeout, settlement, proof or loss is ever refused for their size; checks that read a
-  saturated view can only refuse more; statistics saturate.
+- **Aggregates are exact.** Every amount, total and meter level is a `uint256` (R15; gno-realms ADR 0005), and
+  every aggregate goes through one checked-arithmetic set (`math/overflow`): a credit, a loss recorded by decision, a
+  sweep payment or a settlement batch that would pass 2^256 − 1 is refused before anything changes; a move within a
+  bound an earlier check established aborts on overflow (a broken invariant); sums used only as upper bounds of what
+  is reserved or booked, and statistics, saturate. No total is kept wide and no payout is cut or parked for the
+  integer range any more; since every packet on the route carries at most 2^96 − 1, no total reaches 2^256 in any
+  chain's lifetime.
 - **What it bounds.** A bucket starts at most full and refills over time, so within any 24 hours at most **two**
   day caps can leave (a full bucket plus one day of refill), and within `t` hours of an exploit at most
   `level₀ + Δ⁺ + ∫ cap(τ)/24 dτ ≤ cap_max + Δ⁺ + cap_max·t/24`, where `cap_max` is the largest cap over the interval
@@ -1128,7 +1143,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 - **Escrow reservation:** a receive may not release escrow below the route's reservation for that token — owed
   refunds (queued, parked, decided but unpaid) and **outstanding escrowed sends**, whose refund could still be owed
   — and is error-acked otherwise (`GnoEscrowReserved`); vouchers reserve nothing.
-- **Amounts:** a receive or send above 2^96 − 1 is refused (a receive record fits one slot), whatever the limits.
+- **Amounts:** a receive or send above 2^96 − 1 is refused (a receive record fits one slot), whatever the limits;
+  gno.land applies the same bound on the route, refusing such a send and error-acking such a receive (R15).
 - **Launch values:** `maxPerMessage = min(25,000, dayCap)`, `dayCap = min(100,000, expectedLock/10)`, refund cap the
   day cap, applied by the activating kind 4 (`activationKind4Params` from the deploy output) after `IBCAdmin`
   records gno.land's first decision; the deployment itself registers ugnot with zero limits (§5.4). Overrides may only lower them, and a zero override means "use the default" (not a zero cap,
@@ -1535,7 +1551,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   new exposure until resolved (`LossClosed`), but the loss's authoritative record is Ethereum's (§7.12, Cross-chain
   loss ownership). A mirror is resolved only by an accepted deficit: a reduction, a recapitalization or a forged
   void into a mirror incident is refused and the decision spent. An incident never mixes mirror and authoritative
-  losses. Loss balances are wide (§7.1). The ledger's
+  losses. Loss balances are exact `uint256`s (§7.1). The ledger's
   **unrecovered** total enters the supply identity (§7.11), so a reconciled incident stops reading as a break while
   any further deficit still does.
 - **Restoring solvency.** Recording a loss does not restore the backing. Before a route that lost funds reopens
@@ -2022,11 +2038,11 @@ reconciliation.
     other reservation of the route's token, computed net of what the batch itself releases. A refund it cannot pay
     now is **parked**: owed and fully reserved, its record settled (so it never blocks the reopening), never
     failing or reverting the batch, whatever the item order. On gno.land an escrowed denom's batch refunds are paid
-    only all together, when the free escrow backs all of them, and otherwise all park; a minted denom's take the
-    supply's int64 headroom in item order; a parked refund is paid by `ClaimRefunds` once the route reopens, under
-    the refund meter and any `refunds` hold, in installments: the refund meter must hold the minimum installment (and, escrowed, the escrow must cover it), so
-    an escrowed refund can wait although some backing is free; only a minted installment is then cut to the
-    supply's headroom, below the minimum if need be. On Ethereum a settlement's parked refund is retried by `claimParked` on an open route
+    only all together, when the free escrow backs all of them, and otherwise all park; a minted denom's are always
+    paid at once, since nothing bounds the vouchers they mint again (R15); a parked refund is paid by `ClaimRefunds`
+    once the route reopens, under the refund meter and any `refunds` hold, in installments: the refund meter must
+    hold the minimum installment and the escrow must cover it, so an escrowed refund can wait although some backing
+    is free. On Ethereum a settlement's parked refund is retried by `claimParked` on an open route
     without a `refunds` hold, for its whole remainder outside the meter; a refund a token refuses is parked the
     same way. The only permitted shortfall is the one reconciliation recognizes: refunds owed again for packets a
     forged success released, whose backing the compromise consumed, and only while they are unpaid. **Scope:** on
@@ -2164,7 +2180,7 @@ same packet: a double spend that receive limits, flags and the quarantine do not
   `ProvenOwed` only, not every sibling reservation or claim liability. Otherwise it is booked as owed on the packet's **send record** (below), with the acknowledgement
   or timeout that triggered it, with no first installment, and paid by a permissionless `claim` as the bucket
   refills: first in, first out, stopping at a head it cannot pay (gno.land `ClaimRefunds`, in installments of at
-  least `min(remainder, max(1, refundCap/24))`, a minted installment then cut to the supply's headroom; Ethereum
+  least `min(remainder, max(1, refundCap/24))`; Ethereum
   `claim(clientId, token, maxCount ≤ 20)`, paying the head as far as the meter allows). The record outlives the
   source commitment, which processing the ack deletes, so route replacement reconciles it (§7.12): a genuine
   refund is never cancelled, a forged one is rejected there. On gno.land refund meters start empty when a denom is enabled; on Ethereum a
@@ -2270,7 +2286,8 @@ Further trust assumptions of the built controls, each stated where its rule is:
   router configuration are authenticated independently before creation and again before voting on the enrolment
   or a replacement (runbook §7 step 0); on Ethereum, `finishSetup` checks the launch client against the
   deployment's own record, and later clients (kind 6, recovery) are attested by governance or the guardians.
-- **GRC20s on gno.land.** An enrolled GRC20 must behave exactly: a transfer moves exactly the stated amount (no
+- **GRC20s on gno.land.** An enrolled GRC20 is a grc20 v1 token registered in `r/nt/grc20reg/v1` (a v0 token is
+  bridged through a v1 wrapper; R15). It must behave exactly: a transfer moves exactly the stated amount (no
   fee, tax or rounding), balance queries are truthful, and no balance changes on its own (no rebasing, interest or
   decay) or by a hook; the escrow records stated amounts, never a measured balance change, so a token without these
   properties leaves the escrow short with no packet loss to remedy. Its **issuer's powers** — pausing,
@@ -2344,8 +2361,9 @@ Further trust assumptions of the built controls, each stated where its rule is:
 
 ### 8.4 Known limits
 
-- gno amounts and GRC20 vouchers are int64. An 18-decimal ERC20 is capped at about 9.22 tokens (per transfer and in
-  supply) unless wrapped to 6 decimals on Ethereum (R15/E10).
+- Amounts on gno.land are `uint256` (vouchers are grc20 v1 tokens; R15, gno #6387, #6388), so an 18-decimal ERC20
+  bridges whole; native coins stay `int64`, so a native send (amount plus route fee) or release must fit 2^63 − 1.
+  On an Ethereum route every amount is at most 2^96 − 1, Ethereum's transfer app's bound (E6), applied on both chains.
 - Each gno-side Ethereum client update stores about 6 KB, never refunded (pruning: R3).
 - A first transfer of a denom on Ethereum must use a registered `GnoVoucher`. `setCustomERC20` refuses a denom that
   already has a token.
@@ -2406,7 +2424,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 1 | Both | **A closed route pays no refund until it reopens**, the healthy replacement client's included; only the governed settlements pay on a closed route (R17, §6.7, §7.3, §7.13 said only the refund meter and the `refunds` hold delay a refund) | While closed, the retired client's records are not yet told apart; a refund paid from the route's backing could pay a forged one with what a genuine one needs. One rule keeps the backing whole without a per-client refund path; liveness rests on the bounded, governed reconciliation (project-owner decision) |
 | 2 | Both | **Suspect height** = the earliest verification operation that may have been compromised, default 0 (clamped to the client's activation), later only with both a safe state prefix (every retained earlier consensus state genuine) and evidence that no affected verifier version verified a proof before it, at the earliest potentially compromised operation (a possibly forged root's installation, or an update or proof verification by affected code), 0 when uncertain; a newer genuine head never advances it (§7.12 said "from the last height the replacement clients confirm as honest"); no "first update after the last authenticated root" shortcut | An authenticated root proves the root, not every proof checked against it, and a newer genuine head says nothing about older stored roots; one record too many costs a proof, one too few keeps a forged refund |
 | 3 | Both | **Preparation at suspicion**: a replacement reserves every refund its retired clients' records may owe before any payment; reservations are released **only** by a settlement applying an outcome valid at execution, never by a proof | Otherwise a refund proven and paid first could take a sibling's backing, and a proof that later goes void could release backing a refund needs |
-| 4 | Both | **Settlement refunds park** when the free backing is short (owed, reserved, record settled), instead of failing the settlement | A drained escrow must not block the reconciliation or the reopening; the refund is paid once the backing returns |
+| 4 | Both | **Settlement refunds park** when the free backing is short (owed, reserved, record settled), instead of failing the settlement; on gno.land only an escrowed refund can be short, a minted one mints without bound (R15) | A drained escrow must not block the reconciliation or the reopening; the refund is paid once the backing returns |
 | 5 | Both | **Voucher returns exit a closed route** over its current client; their refunds wait for the reopening | An exit is never trapped (§7.3's rule), while the closed-route refund rule (1) still holds |
 | 6 | Both | **Refund-paying settlements are deferred under a `refunds` hold** (Ethereum: action 1 with non-zero amount) | The hold exists for a suspected verifier; a settlement resting on its proofs must wait as well |
 | 7 | Both | **Exactly one Ethereum transfer route per governance channel**, enforced at enrolment request and execution | `IBCAdmin` replaces, recovers, settles and reopens only the route of the client it governs over; a second route would have no Ethereum repair path (project-owner decision) |
@@ -2421,7 +2439,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 16 | gno.land | **Any clearing of a `payouts` flag starts a new payouts epoch** (owner's own clear included): meters restart empty more often than in bridges | Conservative |
 | 17 | gno.land | **Route key = first client id**; a route is enrolled by a decision naming an existing Ethereum client; `CreateClient` needs a listed relayer while the list names any | Pre-existing escrow carries over; governance vets the client it names |
 | 18 | gno.land | **The route fee is not refunded** with a refunded send; a refund pays the packet's amount | The fee paid for the attempt |
-| 19 | gno.land | **Refund meters start empty**; a refund is paid at once only if the whole of it fits; installments of at least `min(remainder, max(1, refundCap/24))`, which the meter (and, escrowed, the escrow) must hold; a settled parked refund is paid under the meter, and only a minted installment may then be cut below the minimum by the supply's headroom (Ethereum pays a settled refund outside the meter) | Conservative; a parked minted refund larger than any headroom a return frees is still paid |
+| 19 | gno.land | **Refund meters start empty**; a refund is paid at once only if the whole of it fits; installments of at least `min(remainder, max(1, refundCap/24))`, which the meter and the escrow must hold; a settled parked (escrowed) refund is paid under the meter (Ethereum pays a settled refund outside the meter); a minted settlement refund is never parked | Conservative |
 | 19a | Both, differing | **Refund meter starting state**: gno.land starts empty; Ethereum starts with the whole `refundCap` available (`used = 0`) | Each chain's port of the bucket; recorded so operators size the launch refund cap for an immediately full Ethereum budget |
 | 19c | Both, differing | **Ordinary refund availability**: Ethereum pays at once (or on a claim) only if every other record's reservation stays backed, else parks; gno.land checks gross escrow for an immediate refund and the lock less `ProvenOwed` for a queued one, not every sibling reservation or claim liability | Recorded as built; gno.land's settlement payments (§7.12) do check free escrow net of every reservation |
 | 19d | Both, differing | **Failed refund payments**: Ethereum parks a refund its token refuses; gno.land has no parking outside settlements, so a failed payout panics and the ack, timeout or claim is retried after the payment problem is repaired | Recorded as built; on gno.land nothing is withheld or parked for a failed payout, and the transport completion rolls back with it |
@@ -2513,7 +2531,8 @@ Proposed launch values, following gnolang/bridges where applicable.
 | Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting, each drain step first requiring `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000` gas before its writes and parameter copy (82528e1), which guards entry into the step while the floor's margin covers completion after the executor call — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
 | packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, on gno.land enforced by the core for every packet (an oversize receive refused before the app, leaving the packet pending), on Ethereum by the transfer app for ICS20 payloads on send and receive (an oversize receive error-acked; a readable oversize governance envelope is instead consumed and spent by `IBCAdmin`, §5.4); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
-| Ethereum receive / send amount | at most 2^96 − 1 | constant |
+| receive / send amount on the Ethereum route (both chains) | at most 2^96 − 1 (`abi.MaxAmount` on gno.land) | constant |
+| native coin amounts on gno.land (a native send plus its fee, a native release) | at most 2^63 − 1 | the chain's coin type |
 | Ethereum `dayCap`, `refundCap` / quarantine | at most 2^128 − 1 / at most 365 days | kind 4 / kind 11 |
 | emergency recovery: delay / approvals / cancellations / silence / hold period | 0 (off) or ≥ 30 d / 3 of 4 / 3 of 4 / 30 d / 14 d | deployment (`RecoveryConfig`), fixed |
 | Ethereum hold history | 8 holds (a ninth merges the two oldest into a marked compressed interval); execution reads it to choose guardian-replacement anchors and never anchors on a compressed interval, so compression can add delay | constant |
@@ -2553,6 +2572,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 | **Error ack instead of claim queue when meters are empty** | Simpler, but honest transfers bounce under attack; kept as a fallback option. |
 | **AccessManager guardians + execution delays alone** | AccessManager's guardian cancels (a veto), and its admin is a key; no cross-chain governance. |
 | **Scaling amounts for 18-decimal tokens inside ICS20** | Breaks escrow accounting and ICS20 conservation; touches audited code. |
+| **A 6-decimal wrapper on Ethereum for 18-decimal tokens (E10)** | Superseded by native `uint256` amounts on gno.land (R15): a second contract, dust refunds and a cap on every such token, for a limit the VM no longer has. |
 
 ## 12. Consequences
 
@@ -2567,7 +2587,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Ethereum fork maintenance in Gno (each relevant fork needs a client upgrade first).
   - Heavy gno-side gas and storage per message type.
   - The governance channel depends on the light client.
-  - 18-decimal tokens need a wrapper.
+  - Depends on the native `int256`/`uint256` VM change (#6387) and grc20 v1 (#6388), both for new chains only;
+    integrations on gno.land read amounts as decimal strings in renders and events and pass `uint256` to the realms.
   - The ported controls (from model-only audits) and all our custom pieces need a human review and an outside audit
     before real value moves.
   - A closed route defers every refund to its reopening, so refund liveness during an incident rests on governance
@@ -2628,7 +2649,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
    fixed at deployment — required if Ethereum backing must survive the loss of
    the governance channel — and its guardian threshold, eligibility periods and delay.
 4. Quarantine duration and whether to enable it at launch (a 7-day gno → Eth outage per validator-set change).
-5. 18-decimal Ethereum tokens: wrapper (E10) or cap.
+5. ~~18-decimal Ethereum tokens: wrapper (E10) or cap~~ — decided and built: native `uint256` amounts on gno.land
+   (R15; gno #6387, #6388; gno-realms ADR 0005). Still open there: bridging grc20 v0 tokens (a v1 wrapper for now),
+   and whether the 2^96 − 1 bound stays a constant of the transfer app or becomes a route parameter.
 6. Mixed ed25519/secp256k1 validator sets during the migration: support both in `GnoLightClient` (costly for the
    ed25519 part), or migrate before launch.
 7. Pruning policy for the Gno Ethereum client's consensus states, and for the controls' records on gno.land (send
@@ -3152,6 +3175,14 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   sends at once and suspends kinds 3 and 6–10, guardian replacement and kind 9 included, until it executes or is
   cancelled, which qualifies the day-21 seat-change rule.
 
+- 2026-10-21, `uint256` amounts on gno.land (gno-realms `feat/ibc-uint256`, 9a77cc2, ADR 0005; depends on gno
+  #6387 and #6388, new chains only): R15 built and E10 superseded; the ICS20 amount parsed strictly as a `uint256`,
+  vouchers as grc20 v1 tokens on every route, the escrow accounting and every control total exact in `uint256` with
+  checked arithmetic (§7.1), the wide counters, the minted supply's int64 headroom, the `Parked` total and the
+  parking of minted settlement refunds removed (§6.8, §7.1, §7.9, §7.12, §7.13, §8.5 4 and 19), native coins kept
+  `int64` with a range-checked boundary, the 2^96 − 1 Ethereum bound applied on gno.land's routes (§5.3, §7.2, §9),
+  amounts as decimal strings in renders and events, and the overview, §4.3, §8.4, §11, §12 and §13 updated.
+
 ## 15. References
 
 - This branch:
@@ -3166,6 +3197,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
     (§7 Ethereum routes, §8 incident drill)
+  - [branch `feat/ibc-uint256`](https://github.com/allinbits/gno-realms/tree/feat/ibc-uint256) (9a77cc2): ADR
+    [0005](https://github.com/allinbits/gno-realms/blob/feat/ibc-uint256/docs/adrs/0005-uint256-amounts.md)
+    (`uint256` amounts on the Ethereum route)
 - TypeScript relayer: [allinbits/ibc-v2-ts-relayer#40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40)
 - gnolang/bridges:
   - [README](https://github.com/gnolang/bridges/blob/main/README.md)
