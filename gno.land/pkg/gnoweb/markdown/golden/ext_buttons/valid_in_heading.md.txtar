@@ -1,0 +1,4 @@
+-- input.md --
+## Title <gno-button href="/r/test" label="Heading" />
+-- output.html --
+<h2 id="title-gno-button-hrefrtest-labelheading-">Title <a href="/r/test" class="gno-button">Heading</a><a href="#title-gno-button-hrefrtest-labelheading-" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>

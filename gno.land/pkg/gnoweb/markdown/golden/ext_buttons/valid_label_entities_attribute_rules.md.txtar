@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button href="/r/test?a=1&not=2" label="x&not=y &amp; z&#33;" />
+-- output.html --
+<p><a href="/r/test?a=1&amp;not=2" class="gno-button">x&amp;not=y &amp; z!</a></p>
