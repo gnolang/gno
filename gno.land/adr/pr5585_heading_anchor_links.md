@@ -26,6 +26,7 @@ The icon is hidden at rest and shown when the heading is hovered or the anchor h
 - Link-only headings get a permalink too. Each heading grows by one anchor repeating its id, so the output stays linear in the heading's length.
 - The heading text is left untouched: it stays selectable, and inline links, footnote refs and raw HTML inside it render as before.
 - The heading's accessible name ends with "Permalink", since the anchor sits inside the heading.
+- Inside a heading a link is inline and its tooltip badge draws its circle and icon out of the text flow, since Chromium breaks a line after an `inline-block` or `inline-flex` box whatever the joiner.
 - The doc view does not load this extension, so godoc headings get no anchor.
 - The golden test setup gained `parser.WithAutoHeadingID()` to match production; existing fixtures gained `id` attributes and the anchor markup.
 - No new external dependencies.
