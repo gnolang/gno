@@ -55,10 +55,14 @@ compiler cannot prove that, and each iterator would heap-allocate its 192
 bytes. `iteratorRange` returns its `util.Range` by value for the same reason:
 goleveldb copies the range.
 
-LMDB rejects an empty key with `MDB_BAD_VALSIZE`, and lmdbdb already stores
-the empty key under a `0x00` sentinel. Its iterators seek an empty bound
-through the same sentinel. Every stored key sorts at or after it, so an empty
-start reads every key and an empty end none, as on the other backends.
+lmdbdb and mdbxdb store the empty key under a `0x00` sentinel, since LMDB
+rejects an empty key with `MDB_BAD_VALSIZE`. lmdbdb seeks an empty bound
+through the same sentinel, and both iterators read the sentinel back as the
+empty key. Iteration then returns the keys a caller wrote, and an empty bound
+behaves as on goleveldb, pebble and memdb. A stored `{0x00}` key shares the
+sentinel's slot, as it already did for `Get` and `Set`, and reads back as the
+empty key. boltdb stores the empty key as `"nil"`, which sorts among the other
+keys; only a change to its on-disk format would make it iterate first.
 
 ## Alternatives considered
 
@@ -106,6 +110,9 @@ and after.
   invalid and reads no key.
 - `TestDBIteratorEmptyBounds`: empty start and end bounds on every backend.
   Without the sentinel, lmdbdb fails it with `MDB_BAD_VALSIZE`.
+- `TestDBIteratorEmptyKey`: a stored empty key, under nil, empty and `{0x00}`
+  bounds, iterates on lmdbdb and mdbxdb as on goleveldb, pebble and memdb.
+  boltdb is skipped for its `"nil"` sentinel.
 - `TestPebbleIteratorAllocatesOnlyItsWrapper`: each pebble iterator allocates
   at most one object more than pebble's own iterator over the same range. The
   test is excluded under `-race`, which drops `sync.Pool` items at random.

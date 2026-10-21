@@ -407,24 +407,24 @@ func newLMDBIterator(l *LMDB, start, end []byte, isReverse bool) (*lmdbIterator,
 	// Position cursor.
 	if isReverse {
 		if end == nil {
-			itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.Last)
+			err = itr.get(nil, lmdb.Last)
 		} else {
-			itr.currentKey, itr.currentValue, err = cur.Get(nonEmptyKey(end), nil, lmdb.SetRange)
+			err = itr.get(nonEmptyKey(end), lmdb.SetRange)
 			if lmdb.IsNotFound(err) {
 				// end is past all keys, go to last.
-				itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.Last)
+				err = itr.get(nil, lmdb.Last)
 			} else if err == nil {
 				// SetRange lands on >= end, we want < end.
 				if bytes.Compare(itr.currentKey, end) >= 0 {
-					itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.Prev)
+					err = itr.get(nil, lmdb.Prev)
 				}
 			}
 		}
 	} else {
 		if start == nil {
-			itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.First)
+			err = itr.get(nil, lmdb.First)
 		} else {
-			itr.currentKey, itr.currentValue, err = cur.Get(nonEmptyKey(start), nil, lmdb.SetRange)
+			err = itr.get(nonEmptyKey(start), lmdb.SetRange)
 		}
 	}
 
@@ -438,6 +438,17 @@ func newLMDBIterator(l *LMDB, start, end []byte, isReverse bool) (*lmdbIterator,
 	}
 
 	return itr, nil
+}
+
+// get runs the cursor operation op and keeps the entry it lands on, reading the
+// sentinel nonEmptyKey stores the empty key under back as the empty key.
+func (itr *lmdbIterator) get(key []byte, op uint) error {
+	k, v, err := itr.cur.Get(key, nil, op)
+	if len(k) == 1 && k[0] == 0x00 {
+		k = k[:0]
+	}
+	itr.currentKey, itr.currentValue = k, v
+	return err
 }
 
 func (itr *lmdbIterator) Domain() ([]byte, []byte) {
@@ -472,9 +483,9 @@ func (itr *lmdbIterator) Next() {
 	}
 	var err error
 	if itr.isReverse {
-		itr.currentKey, itr.currentValue, err = itr.cur.Get(nil, nil, lmdb.Prev)
+		err = itr.get(nil, lmdb.Prev)
 	} else {
-		itr.currentKey, itr.currentValue, err = itr.cur.Get(nil, nil, lmdb.Next)
+		err = itr.get(nil, lmdb.Next)
 	}
 	if lmdb.IsNotFound(err) {
 		itr.isInvalid = true
