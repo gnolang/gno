@@ -12,6 +12,10 @@ import (
 
 var ErrMemberNotFound = errors.New("member not found")
 
+// ProposalFeeAmount is the fee, in ugnot, a non-member pays to propose a
+// member through ProposeAddMember. Zero makes it free.
+var ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
+
 type GovDAO struct {
 	pss    ProposalsStatuses
 	render *render
@@ -38,6 +42,12 @@ func NewGovDAO() *GovDAO {
 var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
+	// Only ProposeAddMember creates a proposal from this realm, after checking
+	// its caller and taking the fee: the one route open to non-members.
+	if rlm.IsCurrent() && rlm.PkgPath() == "gno.land/r/gov/dao" && rlm.Previous().PkgPath() == "gno.land/r/gov/dao/impl/v0" {
+		return unsafe.OriginCaller(), nil
+	}
+
 	if !g.isValidCall(0, rlm) {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. caller realm: %v; caller's previous: %v",
 			rlm, rlm.Previous()))
@@ -47,7 +57,7 @@ func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (add
 	caller := unsafe.OriginCaller()
 	mem, _ := getMembers(cross(rlm)).GetMember(caller)
 	if mem == nil {
-		return caller, errors.New("only members can create new proposals")
+		return caller, errors.New("only members can create new proposals; a non-member can propose a member with ProposeAddMember")
 	}
 
 	return caller, nil
