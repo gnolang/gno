@@ -81,21 +81,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
 		}
 	}
-	// Unsupported short-circuit: declared via the file's
-	// `// Verdict: Unsupported <tag>: <reason>` line. Surfaces as a SkipError
-	// the walker turns into t.Skip. Checked before any dispatch /
-	// rescue / machine construction so unsupported files cost nothing.
-	// Corpus vocabulary only: in a .gno file the line stays a comment.
-	if v, ok := verdictIn(dirs); isGoFile && ok && v.Kind == VerdictUnsupported {
-		if opts.Sync {
-			// Normalise: tag the reason, drop goldens from before the
-			// file was marked (they are never read again).
-			if nc := writeUnsupportedDirective(source, v.Mode+": "+v.Reason); nc != string(source) {
-				return nc, 0, diffs, nil
-			}
-		}
-		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
-	}
 	// Strip the trailing golden region (`// GnoError:` /
 	// `// GoBuildError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
@@ -108,9 +93,40 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// without a golden (first sync) and the same file with the golden
 	// stripped (later verify) must be byte-identical, or the synthetic
 	// `func main(){}` the rescue appends lands on a different line.
+	// A `// GnoTrim:` directive (trim.go) is checked here, before any
+	// skip, so a bad one fails verify and sync alike; the trimmed body
+	// replaces source once originalSource has been captured below.
+	var trim *gnoTrim
+	var trimmed []byte
 	if isGoFile {
 		source = []byte(stripTrailingGoldenRegion(string(source)))
 		source = append(bytes.TrimRight(source, "\n"), '\n')
+		if d := dirs.First(DirectiveGnoTrim); d != nil {
+			t, err := parseGnoTrim(d.Content)
+			if err != nil {
+				return "", 0, diffs, err
+			}
+			if trimmed, err = t.apply(source); err != nil {
+				return "", 0, diffs, err
+			}
+			trim = &t
+		}
+	}
+	// Unsupported short-circuit: declared via the file's
+	// `// Verdict: Unsupported <tag>: <reason>` line. Surfaces as a SkipError
+	// the walker turns into t.Skip. Checked before any dispatch /
+	// rescue / machine construction so unsupported files cost nothing.
+	// Corpus vocabulary only: in a .gno file the line stays a comment.
+	// Sync re-evaluates a trimmed file: the trim may have removed the gap.
+	if v, ok := verdictIn(dirs); isGoFile && ok && v.Kind == VerdictUnsupported && (trim == nil || !opts.Sync) {
+		if opts.Sync {
+			// Normalise: tag the reason, drop goldens from before the
+			// file was marked (they are never read again).
+			if nc := writeUnsupportedDirective(rawSource, trim, v.Mode+": "+v.Reason); nc != string(rawSource) {
+				return nc, 0, diffs, nil
+			}
+		}
+		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
 	}
 
 	// .go filetests under tests/files/gocorpus/testdata/ are files lifted
@@ -124,6 +140,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// THIS, never the rescued source — the rescue transforms must
 	// not be persisted (gocorpus files stay upstream-verbatim).
 	originalSource := source
+	if trimmed != nil {
+		source = trimmed
+	}
 	// Capture the golden region now, before the compile-mode rescue
 	// re-parses dirs from the rescued source.
 	origDirs := dirs
@@ -165,7 +184,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				// fixedbugs/issue18882.go) is not checkable.
 				reason := "errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness"
 				if opts.Sync {
-					return writeUnsupportedDirective(originalSource, reason), 0, diffs, nil
+					return writeUnsupportedDirective(originalSource, trim, reason), 0, diffs, nil
 				}
 				return "", 0, diffs, &SkipError{Reason: reason}
 			}
@@ -191,6 +210,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		default:
 			// Runnable .go corpus file: symmetric Gno-vs-Go.
 			isGoRunMode = true
+		}
+		if isGoRunMode && trim != nil {
+			return "", 0, diffs, fmt.Errorf("`// GnoTrim:` is for errorcheck and compile files; a trimmed run file is not the upstream program")
 		}
 	} else if hasGoOptIn && IsRunnable(source) {
 		// .gno run-mode opt-in: harness ALSO runs Go and compares.
@@ -324,7 +346,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// never skips here: a file that reaches this point carries a Clean or
 	// Known* verdict, so a gap message now is a regression, not a gap.
 	if isGoFile {
-		reason := UnsupportedFeatureError(result.Error)
+		reason := fileGapReason(result, len(errorcheckMarkers) > 0)
 		// Gno's preprocess may surface an unrelated error before the
 		// "unknown import path" (alias2.go imports `reflect` and gets a
 		// redeclaration error first), so also look at the import list:
@@ -360,7 +382,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		if reason != "" {
 			if opts.Sync {
-				return writeUnsupportedDirective(originalSource, reason), m.GasMeter.GasConsumed(), diffs, nil
+				return writeUnsupportedDirective(originalSource, trim, reason), m.GasMeter.GasConsumed(), diffs, nil
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, fmt.Errorf(
 				"stale verdict: Gno now hits a feature gap (%s) — re-run with --update-golden-tests to mark the file `// Verdict: Unsupported`:\n%s",
@@ -379,7 +401,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		gas := m.GasMeter.GasConsumed()
 		if reason := gcOnlyErrorcheckReason(originalSource, errorcheckMarkers); reason != "" {
 			if opts.Sync {
-				return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
+				return writeUnsupportedDirective(originalSource, trim, reason), gas, diffs, nil
 			}
 			return "", gas, diffs, &SkipError{Reason: reason}
 		}
@@ -423,10 +445,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				}
 			}
 		}
-		sections := []goldenSection{
-			{name: DirectiveGnoError, block: FormatGnoErrorBlock(cov.gnoErr)},
-			{name: DirectiveVerdict, block: v.String(), inline: true},
-		}
+		sections := append(trimSections(trim, originalSource),
+			goldenSection{name: DirectiveGnoError, block: FormatGnoErrorBlock(cov.gnoErr)},
+			goldenSection{name: DirectiveVerdict, block: v.String(), inline: true},
+		)
 		newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
 		return newContent, gas, diffs, err
 	}
@@ -442,10 +464,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		gnoErr := PerLineErrors(result.Error, prependedLines)
 		if len(gnoErr) == 0 {
 			// Gno accepts, as gc does upstream: no `go build` needed.
-			sections := []goldenSection{
-				{name: DirectiveGnoError}, {name: DirectiveGoBuildError},
-				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
-			}
+			sections := append(trimSections(trim, originalSource),
+				goldenSection{name: DirectiveGnoError}, goldenSection{name: DirectiveGoBuildError},
+				goldenSection{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
+			)
 			newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
 			return newContent, gas, diffs, err
 		}
@@ -464,11 +486,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		prev, hasPrev := verdictIn(origDirs)
 		v := compileVerdict(goBuildErr, prev, hasPrev)
-		sections := []goldenSection{
-			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
-			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
-			{name: DirectiveVerdict, block: v.String(), inline: true},
-		}
+		sections := append(trimSections(trim, originalSource),
+			goldenSection{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
+			goldenSection{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
+			goldenSection{name: DirectiveVerdict, block: v.String(), inline: true},
+		)
 		newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
 		return newContent, gas, diffs, err
 	}
@@ -710,12 +732,13 @@ func strayGoldenBlocks(src string, allowed []string) []string {
 }
 
 // writeUnsupportedDirective returns originalSource (golden region
-// stripped) with a trailing `// Unsupported: <reason>` directive, so a
-// file that fails on a Gno-unsupported import is skipped on future
-// runs (the directive is detected pre-dispatch) and self-documents why.
-func writeUnsupportedDirective(originalSource []byte, reason string) string {
-	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
-	return body + "\n\n// " + DirectiveVerdict + ": " + VerdictUnsupported + " " + TagUnsupportedReason(reason) + "\n"
+// stripped) with a trailing `// Verdict: Unsupported <reason>` line (and
+// the file's `// GnoTrim:` line, if any), so a file that fails on a
+// Gno-unsupported construct is skipped on future runs (the verdict is
+// detected pre-dispatch) and self-documents why.
+func writeUnsupportedDirective(originalSource []byte, trim *gnoTrim, reason string) string {
+	return writeStaticGolden(originalSource, append(trimSections(trim, nil),
+		goldenSection{name: DirectiveVerdict, block: VerdictUnsupported + " " + TagUnsupportedReason(reason), inline: true}))
 }
 
 // writeStaticGolden returns the file content for a compile-mode golden
@@ -755,7 +778,7 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoError, DirectiveGoBuildError,
+	DirectiveGnoTrim, DirectiveGnoTrimmed, DirectiveGnoError, DirectiveGoBuildError,
 	// .go corpus files only: the run-mode goldens and the verdict line,
 	// so a rewrite leaves no stale block behind.
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveTypeCheckError,
@@ -1340,6 +1363,8 @@ var nativeDirectives = []string{
 
 var corpusDirectives = []string{
 	DirectiveVerdict,
+	DirectiveGnoTrim,
+	DirectiveGnoTrimmed,
 	DirectiveGnoOutput,
 	DirectiveGoOutput,
 	DirectiveGnoError,
@@ -1360,7 +1385,9 @@ var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
 // file. Corpus directives also accept the inline `// Name: foo` form
 // — see ParseDirectives.
 var singleLinePascalDirectives = map[string]bool{
-	DirectiveVerdict: true,
+	DirectiveVerdict:    true,
+	DirectiveGnoTrim:    true,
+	DirectiveGnoTrimmed: true,
 }
 
 // pinnedGoldenDirectives lists PascalCase directives whose empty
@@ -1865,6 +1892,30 @@ func stripPreprocessStack(msg string) string {
 	return msg
 }
 
+// bodilessFuncGap is Gno's message for a function declared without a
+// body (gc allows it: the body is assembly). In errorcheck mode it is a
+// per-line gap, not a file gap: the error stays in the GnoError block
+// and the function stays declared, so calls to it still type-check.
+const bodilessFuncGap = "does not have a body but is not natively defined"
+
+// fileGapReason is the feature-gap reason that routes a file to
+// Unsupported, or "". An errorcheck file is judged per error, with the
+// bodiless-function message exempt.
+func fileGapReason(result runResult, errorcheck bool) string {
+	if !errorcheck {
+		return UnsupportedFeatureError(result.Error)
+	}
+	for _, e := range result.gnoErrors {
+		if strings.Contains(e, bodilessFuncGap) {
+			continue
+		}
+		if r := UnsupportedFeatureError(e); r != "" {
+			return r
+		}
+	}
+	return ""
+}
+
 // errorcheckCoverage is the attribution of accumulate-mode errors to the
 // file's markers, by line.
 type errorcheckCoverage struct {
@@ -1962,13 +2013,7 @@ func errorSpan(msg string) (lo, hi int) {
 // the unmarked lines it rejected, the lines where it failed internally,
 // and how the on-chain path disagrees with accumulate mode.
 func errorcheckGapReason(uncaught, overStrict, internal []int, onChain string) string {
-	lines := func(ns []int) string {
-		ss := make([]string, len(ns))
-		for i, n := range ns {
-			ss[i] = strconv.Itoa(n)
-		}
-		return strings.Join(ss, ", ")
-	}
+	lines := lineList
 	var parts []string
 	if len(uncaught) > 0 {
 		parts = append(parts, "uncaught markers: lines "+lines(uncaught))
