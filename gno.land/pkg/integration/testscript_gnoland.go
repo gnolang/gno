@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/metrics"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,12 +67,6 @@ type nodeSlot struct{ held bool }
 // 16-core host: peak RSS goes 3.9 GiB at two nodes, 7.2 at six, 12.0 at
 // sixteen, while wall time goes 145s, 54s, 43s.
 const (
-	// nodeMinParallel is the floor the allowance never shrinks below, so that a
-	// machine under memory pressure still makes progress. One node stretches
-	// the suite to ~240s against ~54s at six, and a machine that cannot hold
-	// two nodes cannot build this repo either.
-	nodeMinParallel = 2
-
 	// nodeMemCost is the peak RSS one more concurrent node adds: ~580 MiB
 	// measured over the range above, rounded up.
 	nodeMemCost = 640 << 20
@@ -83,11 +79,17 @@ const (
 	// still growing into theirs: the reserve is what absorbs that overshoot.
 	nodeMemReserveDiv = 4
 
-	// nodeStartSettle paces changes of allowance, so that the memory claimed by
-	// the node the last change let in is reflected in the reading behind the
-	// next one — rather than a burst of scripts all deciding against the same
-	// stale figure. Node startup measures p50 320ms, p90 1.2s.
-	nodeStartSettle = time.Second
+	// nodeCutSettle is how long the memory of a node cut from the allowance
+	// takes to come back to the reading: its script has to finish, the
+	// collector to free what it held, and the runtime to return that to the
+	// OS. On the testdata suite the reading began to recover ~5s after the
+	// first cut.
+	nodeCutSettle = 5 * time.Second
+
+	// nodeReadInterval paces readings, so that a burst of scripts deciding at
+	// once see one figure between them rather than each taking a node against
+	// it.
+	nodeReadInterval = time.Second
 
 	// nodeBudgetPoll is how often a blocked script re-checks. The conditions
 	// are time- and memory-based, so there is nothing to signal on.
@@ -107,10 +109,12 @@ var traceNodeBudget = os.Getenv("GNO_TEST_TRACE_BUDGET") != ""
 // never notice.
 //
 // Rather than pin a single number, start at the count CI validates and move
-// from there: up towards max while the machine reports room to spare, down
-// towards [nodeMinParallel] when it stops doing so. That spends the memory
-// actually going free, on the machine at hand, without anyone having to tune a
-// flag — and gives it back when something else needs it.
+// from there: up towards max while the machine reports room to spare, back
+// down when it stops doing so. That spends the memory actually going free, on
+// the machine at hand, without anyone having to tune a flag — and gives it back
+// when something else needs it. The count CI validates is also the floor: the
+// ramp only ever spends memory on top of it, so a busy machine is never worse
+// off than with the static cap.
 type nodeBudget struct {
 	mu      sync.Mutex
 	running int
@@ -122,6 +126,10 @@ type nodeBudget struct {
 	limit     int
 	lastCheck time.Time
 
+	// cuts holds when each cut of the last [nodeCutSettle] was made, its memory
+	// still being on its way back.
+	cuts []time.Time
+
 	min, max int
 
 	// reserve is the memory left to the rest of the system. Zero means this
@@ -129,29 +137,41 @@ type nodeBudget struct {
 	// budget never ramps.
 	reserve uint64
 
-	// readMem is [testutils.ReadMemInfo], swapped out by tests.
-	readMem func() (testutils.MemInfo, bool)
+	// readMem is [testutils.ReadMemInfo] and readHeld is [heldMemory], swapped
+	// out by tests.
+	readMem  func() (testutils.MemInfo, bool)
+	readHeld func() uint64
+}
+
+// heldMemory reports the memory the Go runtime holds from the OS: everything
+// it has mapped, less what it has returned.
+func heldMemory() uint64 {
+	s := []metrics.Sample{
+		{Name: "/memory/classes/total:bytes"},
+		{Name: "/memory/classes/heap/released:bytes"},
+	}
+	metrics.Read(s)
+	return s[0].Value.Uint64() - s[1].Value.Uint64()
 }
 
 func newNodeBudget() *nodeBudget {
+	n := testutils.MaxParallel()
 	// An explicit override pins the count, as does a platform whose free
 	// memory we cannot read.
-	if n, ok := testutils.MaxParallelOverride(); ok {
-		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
-	}
+	_, pinned := testutils.MaxParallelOverride()
 	mi, ok := testutils.ReadMemInfo()
-	if !ok {
-		n := testutils.MaxParallel()
+	if pinned || !ok {
 		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
 	}
 	return &nodeBudget{
-		min: nodeMinParallel,
-		max: max(runtime.GOMAXPROCS(0), nodeMinParallel),
+		min: n,
+		max: runtime.GOMAXPROCS(0),
 		// Start where the static cap would have: the count CI validates, and
 		// therefore the one worth assuming before any reading has been taken.
-		limit:   max(testutils.MaxParallel(), nodeMinParallel),
-		reserve: mi.Total / nodeMemReserveDiv,
-		readMem: testutils.ReadMemInfo,
+		limit:    n,
+		reserve:  mi.Total / nodeMemReserveDiv,
+		readMem:  testutils.ReadMemInfo,
+		readHeld: heldMemory,
 	}
 }
 
@@ -182,8 +202,14 @@ func (b *nodeBudget) tryAcquire() bool {
 // reserve to shrink, and nothing in between. Shrinking matters because the
 // memory being measured is shared — a second suite, or a browser, starting
 // midway through should cost this one its ramp rather than the machine.
+//
+// The reading lags the nodes both ways, so neither threshold is taken against
+// it alone. Growing against it would go on letting in nodes while the ones
+// already in have yet to show; shrinking against it would go on cutting while
+// the memory of the nodes already cut is on its way back — one step a second,
+// all the way to the floor.
 func (b *nodeBudget) resize() {
-	if b.reserve == 0 || time.Since(b.lastCheck) < nodeStartSettle {
+	if b.reserve == 0 || time.Since(b.lastCheck) < nodeReadInterval {
 		return
 	}
 	mi, ok := b.readMem()
@@ -194,11 +220,33 @@ func (b *nodeBudget) resize() {
 	// scripts poll five times a second each, and on Linux a reading opens a
 	// few files for every cgroup above the process. Sitting inside the
 	// hysteresis band must be cheap.
-	b.lastCheck = time.Now()
+	now := time.Now()
+	b.lastCheck = now
+
+	// To grow, also count what the running nodes have yet to take. A node goes
+	// on growing for as long as its script runs, and the heap the collector
+	// sizes around it later still, so whatever of [nodeMemCost] a node the
+	// process does not hold yet is still to come out of the reading. That bites
+	// at the start of a run, when every node is new; once the process holds
+	// more than its nodes' share, the reading is the whole story.
+	need := uint64(b.running) * nodeMemCost
+	owed := need - min(need, b.readHeld())
+
+	// To shrink, also count what cut nodes have yet to give back.
+	b.cuts = slices.DeleteFunc(b.cuts, func(at time.Time) bool {
+		return now.Sub(at) >= nodeCutSettle
+	})
+	returning := uint64(len(b.cuts)) * nodeMemCost
+
 	switch {
-	case mi.Available < b.reserve && b.limit > b.min:
+	case mi.Available+returning < b.reserve && b.limit > b.min:
 		b.limit--
-	case mi.Available >= b.reserve+nodeMemCost && b.limit < b.max && b.running >= b.limit:
+		// Only a cut that leaves a running node unreplaced gives memory back;
+		// one that merely lowers the ceiling over free slots does not.
+		if b.running > b.limit {
+			b.cuts = append(b.cuts, now)
+		}
+	case mi.Available >= b.reserve+nodeMemCost+owed && b.limit < b.max && b.running >= b.limit:
 		// Only when the current allowance is actually saturated. Raising it
 		// while slots sit free buys nothing and overshoots, the nodes already
 		// admitted still being on their way up to full size.
@@ -207,8 +255,9 @@ func (b *nodeBudget) resize() {
 		return
 	}
 	if traceNodeBudget {
-		fmt.Fprintf(os.Stderr, "nodeBudget: limit=%d running=%d max=%d avail=%.2fGiB reserve=%.2fGiB\n",
-			b.limit, b.running, b.max, float64(mi.Available)/(1<<30), float64(b.reserve)/(1<<30))
+		gib := func(n uint64) float64 { return float64(n) / (1 << 30) }
+		fmt.Fprintf(os.Stderr, "nodeBudget: limit=%d running=%d max=%d avail=%.2fGiB owed=%.2fGiB returning=%.2fGiB reserve=%.2fGiB\n",
+			b.limit, b.running, b.max, gib(mi.Available), gib(owed), gib(returning), gib(b.reserve))
 	}
 }
 
