@@ -330,7 +330,9 @@ func NormalizeBreaks(s string) string {
 // folds every newline to a single space (so paragraph structure is
 // erased) and escapes inline-active CommonMark punctuation:
 //
-//	\ * _ [ ] ( ) ~ > - + . ! ` # < &
+//	\ * _ [ ] ( ) ~ > - + . ! ` # < & $
+//
+// ($ is gnoweb's math delimiter: unescaped, it could open a formula.)
 //
 // Two characters are intentionally NOT escaped:
 //
