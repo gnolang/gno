@@ -346,7 +346,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// never skips here: a file that reaches this point carries a Clean or
 	// Known* verdict, so a gap message now is a regression, not a gap.
 	if isGoFile {
-		reason := UnsupportedFeatureError(result.Error)
+		reason := fileGapReason(result, len(errorcheckMarkers) > 0)
 		// Gno's preprocess may surface an unrelated error before the
 		// "unknown import path" (alias2.go imports `reflect` and gets a
 		// redeclaration error first), so also look at the import list:
@@ -1890,6 +1890,30 @@ func stripPreprocessStack(msg string) string {
 		return strings.TrimSuffix(msg[:i], ":")
 	}
 	return msg
+}
+
+// bodilessFuncGap is Gno's message for a function declared without a
+// body (gc allows it: the body is assembly). In errorcheck mode it is a
+// per-line gap, not a file gap: the error stays in the GnoError block
+// and the function stays declared, so calls to it still type-check.
+const bodilessFuncGap = "does not have a body but is not natively defined"
+
+// fileGapReason is the feature-gap reason that routes a file to
+// Unsupported, or "". An errorcheck file is judged per error, with the
+// bodiless-function message exempt.
+func fileGapReason(result runResult, errorcheck bool) string {
+	if !errorcheck {
+		return UnsupportedFeatureError(result.Error)
+	}
+	for _, e := range result.gnoErrors {
+		if strings.Contains(e, bodilessFuncGap) {
+			continue
+		}
+		if r := UnsupportedFeatureError(e); r != "" {
+			return r
+		}
+	}
+	return ""
 }
 
 // errorcheckCoverage is the attribution of accumulate-mode errors to the

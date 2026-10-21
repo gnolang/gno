@@ -100,7 +100,11 @@ directly, since every such gap is a preprocess conformance gap in that
 umbrella issue's scope (a per-cause `#NNNN` written by hand survives re-sync).
 An over-strict line whose Gno message is a feature gap (the `unsupportedTags`
 needles: a stdlib symbol Gno lacks, a newer language feature) does not count;
-the `GnoError:` block still shows it. An internal error (`should not happen`
+the `GnoError:` block still shows it. A bodiless function declaration (gc
+accepts it, the body being assembly) is such a line-level gap in errorcheck
+mode only: Gno reports it, keeps the function declared, and the calls on
+marker lines are still checked; a `// compile` file with one stays
+`Unsupported bodiless-func`. An internal error (`should not happen`
 and kin) covers no marker: it is a VM bug, listed as `internal errors: lines …`.
 Every errorcheck file is also run through the on-chain path (plain
 `Preprocess`, first error): it must reject the file iff accumulate mode did,
