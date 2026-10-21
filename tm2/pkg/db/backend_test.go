@@ -263,9 +263,11 @@ func TestDBIteratorEmptyBounds(t *testing.T) {
 				{"reverse from empty to empty", tdb.ReverseIterator, []byte{}, []byte{}, nil},
 			}
 			for _, tc := range cases {
-				itr, err := tc.open(tc.start, tc.end)
-				require.NoError(t, err, tc.name)
-				verifyIterator(t, itr, tc.want, tc.name)
+				t.Run(tc.name, func(t *testing.T) {
+					itr, err := tc.open(tc.start, tc.end)
+					require.NoError(t, err)
+					verifyIterator(t, itr, tc.want, tc.name)
+				})
 			}
 		})
 	}

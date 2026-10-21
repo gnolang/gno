@@ -35,6 +35,10 @@ func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
 	return NewGoLevelDBWithOpts(name, dir, nil)
 }
 
+// NewGoLevelDBWithOpts opens the database name in dir with options o. A
+// Comparer set in o must order keys as bytes.Compare does: iterators clamp an
+// inverted range with bytes.Compare, and goleveldb panics on one its own
+// Comparer sees as inverted.
 func NewGoLevelDBWithOpts(name string, dir string, o *opt.Options) (*GoLevelDB, error) {
 	dbPath := filepath.Join(dir, name+".db")
 	db, err := leveldb.OpenFile(dbPath, o)
@@ -198,21 +202,17 @@ func (mBatch *goLevelDBBatch) GetByteSize() (int, error) {
 
 // ----------------------------------------
 // Iterator
-// NOTE This is almost identical to db/c_level_db.Iterator
+// NOTE This is almost identical to the pebbledb iterator.
 // Before creating a third version, refactor.
 
 // Implements DB.
 func (db *GoLevelDB) Iterator(start, end []byte) (db.Iterator, error) {
-	rng := iteratorRange(start, end)
-	itr := db.db.NewIterator(&rng, nil)
-	return newGoLevelDBIterator(itr, start, end, false), nil
+	return newGoLevelDBIterator(db.db, start, end, false), nil
 }
 
 // Implements DB.
 func (db *GoLevelDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	rng := iteratorRange(start, end)
-	itr := db.db.NewIterator(&rng, nil)
-	return newGoLevelDBIterator(itr, start, end, true), nil
+	return newGoLevelDBIterator(db.db, start, end, true), nil
 }
 
 // iteratorRange bounds a goleveldb iterator to [start, end), or to the empty
@@ -229,12 +229,13 @@ type goLevelDBIterator struct {
 	start     []byte
 	end       []byte
 	isReverse bool
-	isInvalid bool
 }
 
 var _ db.Iterator = (*goLevelDBIterator)(nil)
 
-func newGoLevelDBIterator(source iterator.Iterator, start, end []byte, isReverse bool) *goLevelDBIterator {
+func newGoLevelDBIterator(ldb *leveldb.DB, start, end []byte, isReverse bool) *goLevelDBIterator {
+	rng := iteratorRange(start, end)
+	source := ldb.NewIterator(&rng, nil)
 	if isReverse {
 		source.Last()
 	} else {
@@ -245,7 +246,6 @@ func newGoLevelDBIterator(source iterator.Iterator, start, end []byte, isReverse
 		start:     start,
 		end:       end,
 		isReverse: isReverse,
-		isInvalid: false,
 	}
 }
 
@@ -256,22 +256,10 @@ func (itr *goLevelDBIterator) Domain() ([]byte, []byte) {
 
 // Implements Iterator.
 func (itr *goLevelDBIterator) Valid() bool {
-	// Once invalid, forever invalid.
-	if itr.isInvalid {
-		return false
-	}
-
 	// Panic on DB error.  No way to recover.
 	itr.assertNoError()
 
-	// If source is invalid, invalid.
-	if !itr.source.Valid() {
-		itr.isInvalid = true
-		return false
-	}
-
-	// Valid
-	return true
+	return itr.source.Valid()
 }
 
 // Implements Iterator.

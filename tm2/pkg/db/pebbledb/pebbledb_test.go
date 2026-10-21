@@ -115,6 +115,8 @@ func TestPebbleEmptyEndYieldsNothing(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, itr.Close()) })
 			require.False(t, itr.Valid(), "no key sorts before an empty end")
+			points := itr.(*pebbleDBIterator).source.Stats().InternalStats.PointCount
+			require.Zero(t, points, "an iterator with an empty end read keys")
 		})
 	}
 }

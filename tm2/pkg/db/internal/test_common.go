@@ -120,8 +120,7 @@ type PrunedRange struct {
 }
 
 // WritePrunedRange writes a PrunedRange followed by the given number of deleted
-// keys. Held as tombstones in the backend's tables, they cost an iterator that
-// runs past End a step each, and a reverse one two.
+// keys.
 func WritePrunedRange(tb testing.TB, store db.DB, deleted int) PrunedRange {
 	tb.Helper()
 
@@ -179,7 +178,7 @@ func BenchmarkPrunedRange(b *testing.B, newStore func(tb testing.TB, deleted int
 						if err != nil {
 							b.Fatal(err)
 						}
-						n := 0
+						var n int
 						for ; itr.Valid(); itr.Next() {
 							n++
 						}

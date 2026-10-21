@@ -44,14 +44,16 @@ behaviours shape this:
   invalid iterator, so `iteratorRange` clamps it to the empty `[start, start)`.
 - pebble copies its bounds into a buffer of the iterator's pooled allocation.
   An empty `UpperBound` copies to nil while that buffer is still nil, and
-  pebble reads nil as no upper bound. No key sorts before an empty end, so a
-  pebble iterator given one starts invalid.
+  pebble reads nil as no upper bound, so a seek would walk the whole store. No
+  key sorts before an empty end, so a pebble iterator given one starts invalid
+  without seeking.
 
-Each of the four pebble iterators calls `NewIter` on the concrete `*pebble.DB`
-or `*pebble.Snapshot`, so its `IterOptions` stay on the stack. Through the
-`pebble.Reader` interface the compiler cannot prove that, and each iterator
-would heap-allocate its 192 bytes. `iteratorRange` returns its `util.Range` by
-value for the same reason: goleveldb copies the range.
+pebble's DB and its snapshots each open both directions through one method
+that calls `NewIter` on the concrete `*pebble.DB` or `*pebble.Snapshot`, so the
+`IterOptions` stay on the stack. Through the `pebble.Reader` interface the
+compiler cannot prove that, and each iterator would heap-allocate its 192
+bytes. `iteratorRange` returns its `util.Range` by value for the same reason:
+goleveldb copies the range.
 
 LMDB rejects an empty key with `MDB_BAD_VALSIZE`, and lmdbdb already stores
 the empty key under a `0x00` sentinel. Its iterators seek an empty bound
@@ -60,7 +62,7 @@ start reads every key and an empty end none, as on the other backends.
 
 ## Alternatives considered
 
-- One constructor taking a `pebble.Reader` for the four pebble iterators: a
+- One constructor taking a `pebble.Reader` for the DB and its snapshots: a
   192-byte heap allocation on every pebble iterator, forward ones included.
 - Leaving an inverted range to goleveldb: a panic where the contract asks for an
   invalid iterator.
@@ -76,7 +78,10 @@ changes. Gas is charged per iterator and per returned item at the store layer
 A pebble reverse iteration and a goleveldb iteration in either direction cost
 what a pebble forward one does, whatever follows their range. boltdb, lmdb and
 mdbx are B+trees and memdb holds only live keys, so an unbounded seek on them
-steps over no deleted keys; they are unchanged.
+steps over no deleted keys and they need no bounds.
+
+`NewGoLevelDBWithOpts` requires a `Comparer` that orders keys as
+`bytes.Compare` does, since the clamp detects an inverted range with it.
 
 Bounds cost goleveldb a fixed amount per iterator: it copies the range into
 internal keys, a net two allocations. With no deleted keys after the range, a
@@ -98,7 +103,7 @@ and after.
   nothing, on the DB and on a snapshot for pebble. Without the clamp goleveldb
   panics with `slice bounds out of range [3:1]`.
 - `TestPebbleEmptyEndYieldsNothing`: an iterator with an empty end starts
-  invalid.
+  invalid and reads no key.
 - `TestDBIteratorEmptyBounds`: empty start and end bounds on every backend.
   Without the sentinel, lmdbdb fails it with `MDB_BAD_VALSIZE`.
 - `TestPebbleIteratorAllocatesOnlyItsWrapper`: each pebble iterator allocates
