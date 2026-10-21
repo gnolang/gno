@@ -52,4 +52,20 @@ func foo6() (T, string) {
 	return "T", true, true // ERROR "too many return values\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many arguments to return"
 }
 
-// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno
+// GnoTrim: lines 48
+
+// GnoTrimmed: lines 48
+
+// GnoError:
+// line 10: expected 2 return values; got 1
+// line 14: expected 0 return values; got 2
+// line 19: expected 4 return values; got 1
+// line 21: expected 4 return values; got 2
+// line 27: expected 2 return values; got 1
+// line 29: expected 2 return values; got 3
+// line 31: expected 2 return values; got 1
+// line 43: expected 3 return values; got 1
+// line 46: expected 3 return values; got 1
+// line 52: expected 2 return values; got 3
+
+// Verdict: Clean errorcheck

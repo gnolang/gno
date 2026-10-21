@@ -15,4 +15,9 @@ type T struct { // ERROR "recursive type"
 	f T
 }
 
-// Verdict: Unsupported unsafe: unknown import path unsafe
+// GnoTrim: lines 9, 13
+
+// GnoError:
+// line 11: invalid recursive type: T -> T
+
+// Verdict: Clean errorcheck

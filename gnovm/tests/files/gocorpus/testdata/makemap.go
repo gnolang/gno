@@ -33,4 +33,15 @@ func main() {
 	sink = make(T, complex128(1+0i)) // ERROR "non-integer size argument in make.*|must be integer"
 }
 
-// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno
+// GnoTrim: lines 31-33
+
+// GnoTrimmed: lines 32, 33
+
+// GnoError:
+// line 18: invalid argument: index (-1 <untyped> bigint) must not be negative
+// line 23: invalid argument: index (-1 <untyped> bigint) must not be negative
+// line 27: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
+// line 29: invalid argument: index (const (1 float32)) (variable of type float32) must be integer
+// line 30: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19, 25

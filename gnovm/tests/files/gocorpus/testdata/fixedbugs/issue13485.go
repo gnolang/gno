@@ -17,4 +17,8 @@ var (
 	_ [rune(65)]int
 )
 
-// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno
+// GnoTrim: lines 13-15
+
+// GnoTrimmed: lines 15
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12
