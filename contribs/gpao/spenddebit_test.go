@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -127,7 +128,7 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 	// Control arm: a broadcast approval costs exactly one fee, counted at the
 	// send.
 	o.handleCandidate(t.Context(), candidate{mpkg: good})
-	assert.Equal(t, o.enableFee, o.spent,
+	assert.Equal(t, o.gasFee.Amount, o.spent,
 		"a broadcast approval must be counted, whether or not it succeeds -- the ante charges for it")
 	assert.Equal(t, statusApproved, o.status.get(goodPath).Status)
 }
@@ -218,12 +219,21 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 	before, _, err := client.QueryBalance(who)
 	require.NoError(t, err)
 
-	o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
+	// An underpriced fee holds the candidate, so it is stopped by cancelling.
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		o.handleCandidate(ctx, candidate{mpkg: mpkg})
+	}()
+	// Only CheckTx raises InsufficientFeeError (simulate skips the fee check),
+	// so blocked here means the arm reached BroadcastTxCommit.
+	awaitStatus(t, o, pkgPath, statusBlocked)
+	cancel()
+	<-done
 
 	status := o.status.get(pkgPath)
-	require.Equal(t, statusPending, status.Status)
-	require.Contains(t, status.Reason, "broadcast:",
-		"the arm has to reach BroadcastTxCommit; an earlier return leaves the counter alone for another reason")
+	require.Contains(t, status.Reason, "below the chain's gas price")
 
 	after, _, err := client.QueryBalance(who)
 	require.NoError(t, err)
