@@ -11,6 +11,7 @@ import (
 	libs_chain_banker "github.com/gnolang/gno/gnovm/stdlibs/chain/banker"
 	libs_chain_markdown "github.com/gnolang/gno/gnovm/stdlibs/chain/markdown"
 	libs_chain_params "github.com/gnolang/gno/gnovm/stdlibs/chain/params"
+	libs_chain_reflect "github.com/gnolang/gno/gnovm/stdlibs/chain/reflect"
 	libs_chain_runtime "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime"
 	libs_chain_runtime_unsafe "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
 	libs_crypto_bn254 "github.com/gnolang/gno/gnovm/stdlibs/crypto/bn254"
@@ -1199,6 +1200,61 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"chain/reflect",
+		"objectInfo",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r4"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r5"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0, r1, r2, r3, r4, r5 := libs_chain_reflect.X_objectInfo(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r4).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r5).Elem(),
 			))
 		},
 	},
@@ -2636,6 +2692,7 @@ var initOrder = [...]string{
 	"chain/banker",
 	"chain/markdown",
 	"chain/params",
+	"chain/reflect",
 	"chain/runtime",
 	"chain/runtime/unsafe",
 	"crypto/bech32",
