@@ -114,11 +114,14 @@ block slot.
   `copyValueWithRefs` / `getChildObjects` / `fillTypesOfValue` stop at object
   boundaries, `incRefCreatedDescendants` and `decRefDeletedDescendants` have
   explicit recurse guards, the GC stamps `LastGCCycle`, and the string renderers
-  cap depth. Two stop for weaker reasons and are worth naming rather than
-  counting as guarded: `saveUnsavedObjectRecursively` terminates because a cycle
-  drives the refcount above 1 and the escape branch then skips the object, and
-  `Value.DeepFill` has no guard at all, reached today only by generated native
-  bindings whose parameters are all primitives.
+  cap depth. `Value.DeepFill` stops for a weaker reason and is worth naming
+  rather than counting as guarded: it has no guard at all, reached today only by
+  generated native bindings whose parameters are all primitives.
+  `saveUnsavedObjectRecursively` was counted here as stopping because a cycle
+  drives the refcount above 1 and the escape branch then skips the object. A
+  deletion in the same transaction can leave a cycle with no escaped node, so
+  that does not hold; `prxxxx_save_walk_cycle_guard.md` gives the walk its own
+  guard.
 - The walk is still bounded by the Go stack rather than by a depth limit, so an
   acyclic chain of about a million pointer-holding slots aborts the process as it
   did before. Gas meters the transaction paths and not the query paths, so that
