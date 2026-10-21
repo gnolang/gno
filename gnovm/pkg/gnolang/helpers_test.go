@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsRealmPath(t *testing.T) {
@@ -14,6 +15,8 @@ func TestIsRealmPath(t *testing.T) {
 	}{
 		{"gno.land/r/demo/users", true},
 		{"gno.land/r/hello", true},
+		{"gno.land/r/demo/users_test", false},
+		{"gno.land/r/hello_test", false},
 		{"gno.land/p/demo/users", false},
 		{"gno.land/p/hello", false},
 		{"gno.land/x", false},
@@ -27,6 +30,81 @@ func TestIsRealmPath(t *testing.T) {
 			IsRealmPath(tc.input),
 			"unexpected IsRealmPath(%q) result", tc.input,
 		)
+	}
+}
+
+// The PkgID immutable bit must agree with the path predicates for every
+// shape: ownsItsStorage reads the bit, the loaders read the predicates.
+func TestPkgIDOwnsStorage(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		input string
+		realm bool
+	}{
+		{"gno.land/r/demo/users", true},
+		{"gno.land/r/hello", true},
+		{"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", true},
+		{"gno.land/p/demo/users", false},
+		{"gno.land/p/hello_test", false},
+		{"gno.land/r/demo/users_test", false},
+		{"gno.land/r/hello_test", false},
+		{"std", false},
+		{"strings_test", false},
+		{".uverse", false},
+		{".dontcare", false},
+		{"main", false},
+		{"", false}, // the keeper's message-entry package
+	}
+	for _, tc := range tt {
+		require.True(t, isRecognizedPkgPath(tc.input), "%q must be a recognized shape", tc.input)
+		pid := PkgIDFromPkgPath(tc.input)
+		assert.Equal(t, tc.realm, pid.IsRealmPkg(), "unexpected IsRealmPkg(%q)", tc.input)
+		assert.Equal(t, tc.realm, IsRealmPath(tc.input) || IsEphemeralPath(tc.input),
+			"path predicates disagree with the PkgID bit for %q", tc.input)
+	}
+}
+
+// A path no predicate recognizes is a missed validation upstream. Under
+// debugAssert it panics; otherwise it fails closed as immutable, never as a
+// storage-owning realm.
+func TestPkgIDUnrecognizedPath(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{
+		"gno.land/r/x_test_test", // overlay of a path that is itself no realm
+		"gno.land/t/main",        // unknown letter
+		"github.com/foo/bar",     // foreign domain shape
+		"gno.vm/t/hello",
+	} {
+		require.False(t, isRecognizedPkgPath(input), "%q should not be recognized", input)
+		if debugAssert {
+			assert.Panics(t, func() { PkgIDFromPkgPath(input) }, "PkgIDFromPkgPath(%q)", input)
+			continue
+		}
+		assert.False(t, PkgIDFromPkgPath(input).IsRealmPkg(), "unrecognized %q must fail closed", input)
+	}
+}
+
+// IsUserlib is the loaders' admission check: a user path whose letter names a
+// kind the VM knows. An unknown letter must be refused here, before any
+// predicate or PkgIDFromPkgPath sees the path.
+func TestIsUserlib(t *testing.T) {
+	t.Parallel()
+	tt := []struct {
+		input string
+		want  bool
+	}{
+		{"gno.land/r/demo/users", true},
+		{"gno.land/p/demo/avl", true},
+		{"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", true},
+		{"gno.test/p/integ/valid", true},
+		{"gno.land/t/main", false},
+		{"gno.land/x/foo", false},
+		{"gno.land/r", false},
+		{"std", false},
+		{"", false},
+	}
+	for _, tc := range tt {
+		assert.Equal(t, tc.want, IsUserlib(tc.input), "IsUserlib(%q)", tc.input)
 	}
 }
 

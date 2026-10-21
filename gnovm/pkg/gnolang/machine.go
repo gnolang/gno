@@ -2882,24 +2882,45 @@ func (m *Machine) NumCallFrames() int {
 	count := 0
 	for i := range m.Frames {
 		fr := &m.Frames[i]
-		if fr.Func != nil && !fr.Func.IsClosure {
+		if fr.IsCall() && !fr.Func.IsClosure {
 			count++
 		}
 	}
 	return count
 }
 
-// NumCallBoundaryFrames returns the number of frames that stand for a call
-// boundary: every named function call, plus every func literal that was
-// entered from outside its own realm. Control-flow basic frames (for/range/
-// switch, where Func is nil) never count.
+// ownsItsStorage reports whether r is a realm that has storage of its own. A
+// /p/ package does not: the Machine names it as the current realm while its
+// code runs, but the borrow rule puts its writes in whoever called it, so it
+// is the caller's code and a call into it is not a realm boundary. The answer
+// is the PkgID flag the finalizer reads, not a path match, so the two cannot
+// drift apart. The ID is always set: NewRealm derives it from the path, and a
+// realm loaded from the store carries it on the wire and asserts it on load.
+func ownsItsStorage(r *Realm) bool {
+	return r != nil && r.ID.IsRealmPkg()
+}
+
+// NumCallBoundaryFrames returns the number of realm boundaries in
+// m.Frames[start:]: the frame that entered the first storage-owning realm,
+// plus every frame whose body runs in a storage-owning realm other than the
+// nearest one below it, plus every frame above the entry that runs a function
+// the realm itself declared, named or literal. /p/ and stdlib frames are
+// looked through in both directions, and control-flow basic frames
+// (for/range/switch, where Func is nil) never count. This is not
+// isRealmBoundary, which serves finalization and fires on /p/ and stdlib
+// frozen realms too.
 //
-// A func literal is part of its caller's body for as long as it runs with its
-// caller's storage authority, which is what lets a realm factor its own code
-// into closures without changing how the call looks from outside. It stops
-// being that the moment it runs with someone else's, because then it is a call
-// made by another party, and counting it is the only thing that keeps the realm
-// boundary visible in the count.
+// The own-function rule exists because code a realm declared is the only code
+// an outsider can hand back to it: a named function by naming it
+// (`SetHook(cross, rlm.Withdraw)`), a closure through an exported variable or
+// a return value. A /p/ body cannot name realm code, so a /p/ declaration
+// borrowed into the realm (a method on an object the realm stamped) stays
+// transparent. So an origin call is asserted from the entry function itself.
+//
+// start is where the program begins: 0 on chain, where the message sits below
+// Frames[0]; the test runtime passes the index after the test function, whose
+// frame is the message's own script, so the first realm entered after it is
+// the entry.
 //
 // The test is the storage realm on each side of the call, NOT the crossing
 // flags and NOT the declaring package, both of which were tried and are wrong:
@@ -2914,46 +2935,45 @@ func (m *Machine) NumCallFrames() int {
 //   - The declaring package is wrong for a func literal in a /p/ package: it
 //     has no storage of its own and borrows the caller's, so it is the
 //     caller's code however different the two paths look.
-//
-// Walking outwards from the innermost frame, calleeRealm is the realm the
-// frame's body ran in, and fr.LastRealm is the realm of whoever called it. A
-// nil LastRealm means the call came from the message rather than from Gno
-// code, so the frame is the one the message entered and counts like any other
-// entry point.
-// ownsItsStorage reports whether r is a realm that has storage of its own. A
-// /p/ package does not: the Machine names it as the current realm while its
-// code runs, but the borrow rule puts its writes in whoever called it, so it
-// is the caller's code and a call into it is not a realm boundary. Without
-// this, every func literal in a pure package reads as a foreign realm.
-func ownsItsStorage(r *Realm) bool {
-	return r != nil && (IsRealmPath(r.Path) || IsEphemeralPath(r.Path))
-}
-
-// sameRealm compares two realms by identity, tolerating either being nil. Paths
-// rather than pointers: a realm can be reloaded from the store, and two values
-// for one path have to read as one realm here or a frame looks like a boundary
-// for no reason.
-func sameRealm(a, b *Realm) bool {
-	if a == nil || b == nil {
-		return a == b
+func (m *Machine) NumCallBoundaryFrames(start int) int {
+	first := start
+	for first < len(m.Frames) && !m.Frames[first].IsCall() {
+		first++
 	}
-	return a.Path == b.Path
-}
-
-func (m *Machine) NumCallBoundaryFrames() int {
+	if first == len(m.Frames) {
+		return 0
+	}
+	// A frame's body realm is the next call frame's LastRealm, m.Realm for the
+	// innermost. Realms are compared by ID, since one can be reloaded from the
+	// store; a storage-owning ID is never zero, so zero means no caller yet.
 	count := 0
-	calleeRealm := m.Realm
-	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := &m.Frames[i]
-		if fr.Func == nil {
-			continue
+	var callerID PkgID
+	fn := m.Frames[first].Func // the function whose body realm is read next
+	for i := first + 1; i <= len(m.Frames); i++ {
+		body := m.Realm
+		if i < len(m.Frames) {
+			if !m.Frames[i].IsCall() {
+				continue
+			}
+			body = m.Frames[i].LastRealm
 		}
-		if !fr.Func.IsClosure || fr.LastRealm == nil || ownsItsStorage(calleeRealm) && !sameRealm(fr.LastRealm, calleeRealm) {
-			count++
+		if ownsItsStorage(body) {
+			if body.ID != callerID || isOwnFunc(fn, body) {
+				count++
+			}
+			callerID = body.ID
 		}
-		calleeRealm = fr.LastRealm
+		if i < len(m.Frames) {
+			fn = m.Frames[i].Func
+		}
 	}
 	return count
+}
+
+// isOwnFunc reports whether fv was declared in the realm whose storage its
+// body runs in. See NumCallBoundaryFrames.
+func isOwnFunc(fv *FuncValue, body *Realm) bool {
+	return fv.PkgPath == body.Path
 }
 
 // Returns the current frame.

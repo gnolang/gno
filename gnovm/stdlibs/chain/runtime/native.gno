@@ -1,10 +1,10 @@
 package runtime
 
-// AssertOriginCall panics if the calling method is not invoked via a direct
-// MsgCall. It panics for other cases, like if the calling method
-// is invoked by another method (even from the same realm or package).
-// It also panic every time when the transaction is broadcasted via
-// MsgRun.
+// AssertOriginCall panics unless called from the function a MsgCall named,
+// with nothing of this realm's own, named or literal, between that function
+// and this call; /p/ and stdlib helpers are transparent. Panics under MsgRun.
+// Not a re-entrancy lock nor a caller check: use cur.Previous(). Keep the
+// line count: persisted native FuncValues below hash their source position.
 func AssertOriginCall()   // injected
 func ChainID() string     // injected
 func ChainDomain() string // injected
