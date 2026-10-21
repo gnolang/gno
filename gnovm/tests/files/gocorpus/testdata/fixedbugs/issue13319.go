@@ -22,4 +22,4 @@ func f(int, int) {
 // line 12: unexpected newline in argument list; possibly missing comma or )
 // line 16: unexpected newline in argument list; possibly missing comma or )
 
-// Verdict: KnownIssue errorcheck: #6344: line 10 is a type error gc never reaches (it stops at the syntax errors) while the harness checks the partial tree
+// Verdict: KnownIssue errorcheck: #6344: line 10 is a type error gc never reaches (it stops at the syntax errors) while the harness checks the partial tree; over-strict: lines 10

@@ -31,4 +31,4 @@ func i() {
 // line 24: unexpected newline in composite literal; possibly missing comma or }
 // line 26: expected '(', found main
 
-// Verdict: KnownIssue errorcheck: #6344: line 26 is the harness's appended main parsed inside i, whose '}' the comma recovery took as the literal's close (gc hides the same follow-up at EOF)
+// Verdict: KnownIssue errorcheck: #6344: line 26 is the harness's appended main parsed inside i, whose '}' the comma recovery took as the literal's close (gc hides the same follow-up at EOF); over-strict: lines 26
