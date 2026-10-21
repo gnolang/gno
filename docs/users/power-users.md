@@ -37,7 +37,8 @@ Power up your Gno.land journey with these tools:
 ## Monitoring & Analytics
 
 - [Block Explorer](https://gnoscan.io/) - Transaction history and block details
-- [Network Status](https://status.gnoteam.com/) - Health and status of Gno.land networks
+- [Network Status](https://status.gno.land/) - Service health, incidents and scheduled maintenance
+- [Gnockpit](https://gnockpit.gno.land/) - Live mainnet dashboard: chain state, recent blocks, validators and peers
 
 ## Educational Resources
 

@@ -43,8 +43,8 @@ func main(cur realm) {
 
 // Output:
 // # [Boards](/r/gnoland/boards2/v0) › test-board
-// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
-// ↳ [Create Thread](/r/gnoland/boards2/v0:test-board/create-thread) • [Request Invite](/r/gnoland/boards2/v0$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #2
+// ↳ [Create Thread](/r/gnoland/boards2/v0:test-board/create-thread) • [Request Invite](/r/gnoland/boards2/v0$help&func=RequestInvite&boardID=2) • [Manage Board](?menu=manageBoard)
 //
 // ---
 // ### This board doesn't have any threads

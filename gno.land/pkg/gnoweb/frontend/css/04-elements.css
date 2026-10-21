@@ -60,7 +60,7 @@ main {
 	flex-grow: 2;
 	background-color: var(--s-color-bg-base);
 
-	&.dev-mode {
+	&.is-dev-mode {
 		background-color: var(--s-color-bg-base-dev);
 	}
 
@@ -95,7 +95,7 @@ form {
 }
 
 code {
-	font-family: var(--g-font-mono);
+	font-family: var(--g-font-family-mono);
 }
 
 summary {
