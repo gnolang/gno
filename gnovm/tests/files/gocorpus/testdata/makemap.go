@@ -44,4 +44,7 @@ func main() {
 // line 29: invalid argument: index (const (1 float32)) (variable of type float32) must be integer
 // line 30: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
 
+// GnoWordingDiffers:
+// line 27: gc expects: constant 0.5 truncated to integer|truncated to int; gno: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
+
 // Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19, 25

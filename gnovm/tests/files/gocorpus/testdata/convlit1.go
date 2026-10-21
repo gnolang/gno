@@ -25,4 +25,7 @@ func main() {
 // line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 19: operator < not defined on: FuncKind
 
+// GnoWordingDiffers:
+// line 19: gc expects: conver|incompatible|invalid; gno: operator < not defined on: FuncKind
+
 // Verdict: Clean errorcheck

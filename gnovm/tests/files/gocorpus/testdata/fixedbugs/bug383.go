@@ -19,4 +19,7 @@ func main() {
 // GnoError:
 // line 11: cannot convert untyped bigdec to bool
 
+// GnoWordingDiffers:
+// line 11: gc expects: 2e.09|expected bool|non-boolean condition in if statement; gno: cannot convert untyped bigdec to bool
+
 // Verdict: Clean errorcheck

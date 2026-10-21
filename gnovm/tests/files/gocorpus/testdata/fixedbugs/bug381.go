@@ -38,4 +38,7 @@ func main() {
 // line 26: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 30: cannot use time.Weekday as int without explicit conversion
 
+// GnoWordingDiffers:
+// line 30: gc expects: time.Wednesday|incompatible type; gno: cannot use time.Weekday as int without explicit conversion
+
 // Verdict: Clean errorcheck

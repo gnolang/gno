@@ -116,4 +116,28 @@ func _() {
 // line 83: typleType has no property called named
 // line 84: assignment mismatch: 3 variables but 2 values
 
+// GnoWordingDiffers:
+// line 14: gc expects: assignment mismatch: 2 variables but 1 value; gno: RHS should not be a<VPBlock(1,0)> when len(Lhs) > len(Rhs)
+// line 18: gc expects: assignment mismatch: 3 variables but 1 value; gno: RHS should not be a<VPBlock(1,0)> when len(Lhs) > len(Rhs)
+// line 29: gc expects: assignment mismatch: 1 variable but f2 returns 2 values; gno: typleType has no property called named
+// line 30: gc expects: assignment mismatch: 1 variable but f3 returns 3 values; gno: typleType has no property called named
+// line 32: gc expects: assignment mismatch: 2 variables but f1 returns 1 value; gno: assignment mismatch: 2 variables but f1<VPBlock(3,1)> returns 1 values
+// line 34: gc expects: assignment mismatch: 2 variables but f3 returns 3 values; gno: assignment mismatch: 2 variables but f3<VPBlock(3,3)> returns 3 values
+// line 36: gc expects: assignment mismatch: 3 variables but f1 returns 1 value; gno: assignment mismatch: 3 variables but f1<VPBlock(3,1)> returns 1 values
+// line 37: gc expects: assignment mismatch: 3 variables but f2 returns 2 values; gno: assignment mismatch: 3 variables but f2<VPBlock(3,2)> returns 2 values
+// line 41: gc expects: assignment mismatch: 1 variable but f3 returns 3 values; gno: multiple-value f3<VPBlock(3,3)> (value of type [int int int]) in single-value context
+// line 42: gc expects: assignment mismatch: 2 variables but f1 returns 1 value; gno: assignment mismatch: 2 variables but f1<VPBlock(3,1)> returns 1 values
+// line 43: gc expects: assignment mismatch: 3 variables but f2 returns 2 values; gno: assignment mismatch: 3 variables but f2<VPBlock(3,2)> returns 2 values
+// line 58: gc expects: assignment mismatch: 1 variable but .\.f2 returns 2 values; gno: typleType has no property called named
+// line 59: gc expects: assignment mismatch: 1 variable but .\.f3 returns 3 values; gno: typleType has no property called named
+// line 61: gc expects: assignment mismatch: 2 variables but .\.f1 returns 1 value; gno: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f1 returns 1 values
+// line 63: gc expects: assignment mismatch: 2 variables but .\.f3 returns 3 values; gno: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f3 returns 3 values
+// line 65: gc expects: assignment mismatch: 3 variables but .\.f1 returns 1 value; gno: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f1 returns 1 values
+// line 66: gc expects: assignment mismatch: 3 variables but .\.f2 returns 2 values; gno: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f2 returns 2 values
+// line 70: gc expects: assignment mismatch: 1 variable but .\.f3 returns 3 values; gno: multiple-value x<VPBlock(1,0)>.f3 (value of type [int int int]) in single-value context
+// line 71: gc expects: assignment mismatch: 2 variables but .\.f1 returns 1 value; gno: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f1 returns 1 values
+// line 72: gc expects: assignment mismatch: 3 variables but .\.f2 returns 2 values; gno: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f2 returns 2 values
+// line 82: gc expects: assignment mismatch: 1 variable but 2 values; gno: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: 2
+// line 83: gc expects: multiple-value f2\(\) .*in single-value context; gno: typleType has no property called named
+
 // Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 12, 16; internal errors: lines 11, 12, 16

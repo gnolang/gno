@@ -18,4 +18,7 @@ type X struct{}
 // line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 13: impossible type assertion: *gno.land/p/filetest/p.X does not implement gno.land/p/filetest/p.T (missing method M)
 
+// GnoWordingDiffers:
+// line 13: gc expects: impossible type assertion:( F\(\).\(\*X\))?\n\t\*X does not implement T \(missing method M\); gno: impossible type assertion: *gno.land/p/filetest/p.X does not implement gno.land/p/filetest/p.T (missing method M)
+
 // Verdict: Clean errorcheck

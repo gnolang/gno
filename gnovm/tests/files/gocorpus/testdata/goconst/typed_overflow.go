@@ -46,7 +46,15 @@ func main() {
 }
 
 // GnoError:
+// line 11: a * a (constant 1241243320321 of type int32) overflows int32
+// line 14: c * 2 (constant 200 of type int8) overflows int8
+// line 17: d - 1 (constant -1 of type uint8) overflows uint8
+// line 20: e * 4 (constant 18446744073709551616 of type int64) overflows int64
+// line 23: f + f (constant 18446744073709551616 of type uint64) overflows uint64
+// line 26: -g (constant 2147483648 of type int32) overflows int32
 // line 29: constant overflows
+// line 32: h + h (constant 60000 of type int16) overflows int16
+// line 35: i * 2 (constant 4294967296 of type uint32) overflows uint32
 // line 42: bigint overflows target kind
 // line 45: bigint overflows target kind
 

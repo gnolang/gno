@@ -25,4 +25,7 @@ func three() (int, int, int)
 // line 15: multiple-value three<VPBlock(3,2)> (value of type [int int int]) in single-value context
 // line 19: function three does not have a body but is not natively defined (did you build after pulling from the repository?)
 
+// GnoWordingDiffers:
+// line 15: gc expects: assignment mismatch: 1 variable but three returns 3 values|single variable set to multiple-value|multiple-value function call in single-value context|cannot initialize; gno: multiple-value three<VPBlock(3,2)> (value of type [int int int]) in single-value context
+
 // Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14
