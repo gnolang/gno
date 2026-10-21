@@ -41,4 +41,15 @@ func main() {
 	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 30: unknown *DeclaredType method named Foo
+// line 35: wrong argument count in call to g<VPBlock(3,4)>(); want 1 got 0
+// line 36: wrong argument count in call to f<VPBlock(3,1)>; want 1 got 0
+// line 37: wrong argument count in call to i<VPBlock(1,0)>.M; want 1 got 0
+// line 38: unknown *DeclaredType method named M
+// line 39: wrong argument count in call to t<VPBlock(1,1)>.M; want 1 got 0
+// line 40: wrong argument count in call to typeval{main.T}.M; want 2 got 0
+// line 41: wrong argument count in call to *(typeval{main.T}).M; want 2 got 0
+
+// Verdict: Clean errorcheck
