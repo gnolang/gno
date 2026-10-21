@@ -90,6 +90,7 @@ FLAGS
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
   -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
+  -faucet ...	staging: amount the faucet at /faucet sends per claim, empty to disable
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -log-format console	log output format, can be `json` or `console`
@@ -128,6 +129,11 @@ Interactive mode and unsafe API access are disabled to ensure a secure environme
 The log format is set to JSON, facilitating integration with logging systems.
 Staging eager-loads the workspace, every -extra-root, and $GNOROOT/examples by default (use -no-examples to skip).
 
+The web listener is the one port meant for the network. Next to gnoweb it serves
+the node's RPC under /rpc, and JSON-RPC posted to /, limited to public routes, so
+'gnokey -remote https://<host>' needs nothing else; and a faucet at /faucet. The
+node's own RPC listener stays on the loopback.
+
 Additionally, you can specify an additional package directory to load.
 
 
@@ -140,6 +146,7 @@ FLAGS
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
   -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
+  -faucet 10000000ugnot	staging: amount the faucet at /faucet sends per claim, empty to disable
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -log-format json	log output format, can be `json` or `console`
@@ -160,7 +167,7 @@ FLAGS
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-listener 0.0.0.0:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
