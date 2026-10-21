@@ -19,4 +19,9 @@ func groot()
 func hey() { // ERROR "can only use //go:noescape with external func implementations"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 10: function foo does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: function bar does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: function groot does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19
