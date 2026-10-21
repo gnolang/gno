@@ -88,23 +88,34 @@ func TestDetailsReleasedBeforeOpener(t *testing.T) {
 	require.Zero(t, depth)
 }
 
+// bestParseTime returns the fastest of three parses of src.
+func bestParseTime(t *testing.T, src string) time.Duration {
+	t.Helper()
+	d := time.Duration(1<<63 - 1)
+	for range 3 {
+		runtime.GC()
+		start := time.Now()
+		parseDetails(t, src)
+		d = min(d, time.Since(start))
+	}
+	return d
+}
+
 // A line of `>` markers below an unclosed block costs about what it costs
 // without one: the release walks the quote chain once per line, not once
 // per marker.
 func TestDetailsQuoteMarkersLinear(t *testing.T) {
-	best := func(src string) time.Duration {
-		d := time.Duration(1<<63 - 1)
-		for range 3 {
-			runtime.GC()
-			start := time.Now()
-			parseDetails(t, src)
-			d = min(d, time.Since(start))
-		}
-		return d
-	}
 	line := strings.Repeat(">", 20000) + "\n"
-	ratio := float64(best("<gno-details>\n"+line)) / float64(best(line))
+	ratio := float64(bestParseTime(t, "<gno-details>\n"+line)) / float64(bestParseTime(t, line))
 	assert.Less(t, ratio, 3.0, "the opener took %.1fx the time", ratio)
+}
+
+// Trailing whitespace after a line of `>` markers costs about what a
+// trailing text byte costs: no marker rescans the rest of the line.
+func TestDetailsQuoteMarkersTrailingSpaceLinear(t *testing.T) {
+	line := strings.Repeat(">", 2000) + strings.Repeat(" ", 100000)
+	ratio := float64(bestParseTime(t, line+"\n")) / float64(bestParseTime(t, line+"x\n"))
+	assert.Less(t, ratio, 3.0, "the trailing spaces took %.1fx the time", ratio)
 }
 
 // A `<` line continuing a paragraph lazily keeps its container open, so the

@@ -187,12 +187,19 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	// Goldmark never offers a line indented 4 columns or more; a tab after a
 	// container prefix counts to its next stop.
 	_, pos := util.IndentWidth(line, reader.LineOffset())
+	if line[pos] == '>' {
+		// Open runs once per `>` marker, so it returns before scanning the rest
+		// of the line; a `>` line opens a blockquote, never a lazy continuation.
+		lineNum, _ := reader.Position()
+		releaseDetails(pc, parent, lineNum)
+		return nil, parser.NoChildren
+	}
 	tag := util.TrimRightSpace(line[pos:])
 	kind, valid, open, summary := parseDetailsLineTag(tag)
 	// After a paragraph, goldmark may still take the line as its lazy
 	// continuation, which keeps the paragraph's container open; a details tag
-	// line yields a leaf and a `>` line opens a blockquote, so neither is one.
-	if kind != detailsTagNone || tag[0] == '>' || !ast.IsParagraph(pc.LastOpenedBlock().Node) {
+	// line yields a leaf, so it is not one.
+	if kind != detailsTagNone || !ast.IsParagraph(pc.LastOpenedBlock().Node) {
 		lineNum, _ := reader.Position()
 		releaseDetails(pc, parent, lineNum)
 	}
