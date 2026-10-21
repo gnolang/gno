@@ -21,6 +21,7 @@ type secretsInitCfg struct {
 	commonAllCfg
 
 	forceOverwrite bool
+	keyType        string
 }
 
 // newSecretsInitCmd creates the secrets init command
@@ -54,6 +55,14 @@ func (c *secretsInitCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"overwrite existing secrets, if any",
 	)
+
+	fs.StringVar(
+		&c.keyType,
+		"key-type",
+		string(signer.DefaultKeyType),
+		fmt.Sprintf("validator key signing scheme (%q or %q)",
+			signer.KeyTypeEd25519, signer.KeyTypeSecp256k1),
+	)
 }
 
 func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
@@ -65,6 +74,20 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	// Verify the secrets key
 	if err := verifySecretsKey(args); err != nil {
 		return err
+	}
+
+	// Parse the validator key type up-front so the user gets an early
+	// error on a typo before we touch the filesystem. An empty string
+	// means "use the default scheme" — programmatic callers (e.g. the
+	// lazy-init path in gnoland start) construct secretsInitCfg directly
+	// without going through flag registration.
+	keyType := signer.DefaultKeyType
+	if cfg.keyType != "" {
+		parsed, err := signer.ParseKeyType(cfg.keyType)
+		if err != nil {
+			return err
+		}
+		keyType = parsed
 	}
 
 	var key string
@@ -85,6 +108,10 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
 	)
 
+	initValidatorKey := func(path string, io commands.IO) error {
+		return initAndSaveValidatorKeyOfType(path, keyType, io)
+	}
+
 	switch key {
 	case validatorPrivateKeyKey:
 		if osm.FileExists(validatorKeyPath) && !cfg.forceOverwrite {
@@ -92,7 +119,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 		}
 
 		// Initialize and save the validator's private key
-		return initAndSaveValidatorKey(validatorKeyPath, io)
+		return initValidatorKey(validatorKeyPath, io)
 	case nodeIDKey:
 		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite the node' p2p key, %w", errOverwriteNotEnabled)
@@ -110,7 +137,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	default:
 		// No key provided, initialize everything
 		return errors.Join(
-			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey, cfg.forceOverwrite, io),
+			overwriteGuard(validatorKeyPath, initValidatorKey, cfg.forceOverwrite, io),
 			overwriteGuard(validatorStatePath, initAndSaveValidatorState, cfg.forceOverwrite, io),
 			overwriteGuard(nodeKeyPath, initAndSaveNodeKey, cfg.forceOverwrite, io),
 		)
@@ -138,14 +165,14 @@ func overwriteGuard(
 	return initFn(path, io)
 }
 
-// initAndSaveValidatorKey generates a validator private key and saves it to the given path
-func initAndSaveValidatorKey(path string, io commands.IO) error {
-	// Initialize the validator's private key
-	if _, err := signer.GeneratePersistedFileKey(path); err != nil {
+// initAndSaveValidatorKeyOfType generates a validator private key of the
+// given scheme and saves it to the given path.
+func initAndSaveValidatorKeyOfType(path string, keyType signer.KeyType, io commands.IO) error {
+	if _, err := signer.GeneratePersistedFileKeyOfType(path, keyType); err != nil {
 		return fmt.Errorf("unable to save validator key, %w", err)
 	}
 
-	io.Printfln("Validator private key saved at %s", path)
+	io.Printfln("Validator private key (%s) saved at %s", keyType, path)
 
 	return nil
 }
