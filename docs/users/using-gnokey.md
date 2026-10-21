@@ -29,7 +29,7 @@ gnokey maketx send -to <g1-address> -send 1000000ugnot \
 
 # 6. Call a realm function: turn 1000ugnot into wugnot tokens
 gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 1000ugnot \
-  -gas-fee 8000ugnot -gas-wanted 8000000 \
+  -gas-fee 15000ugnot -gas-wanted 15000000 \
   -chainid gnoland-1 -remote https://rpc.gno.land:443 mykey
 ```
 
@@ -156,9 +156,17 @@ gnokey maketx call \
   -pkgpath gno.land/r/gnoland/wugnot \
   -func Deposit \
   -send 1000ugnot \
-  -gas-fee 8000ugnot -gas-wanted 8000000 \
+  -gas-fee 15000ugnot -gas-wanted 15000000 \
   -chainid gnoland-1 -remote https://rpc.gno.land:443 \
   mykey
+```
+
+Your first `Deposit` also stores a `wugnot` balance for your address, so it
+locks a [storage deposit](../resources/storage-deposit.md) for about 2,100
+bytes on top of the gas fee. Read the price of one byte with:
+
+```bash
+gnokey query params/vm:p:storage_price -remote https://rpc.gno.land:443
 ```
 
 :::tip Let gnoweb write the command for you

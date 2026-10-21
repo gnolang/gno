@@ -415,8 +415,9 @@ gnokey query vm/qrender \
 
 This returns the `Render` output ("Count: 1"), a free, read-only
 view of your realm's state. `-data` takes `<pkgpath>:<render path>`,
-where the trailing colon means the empty path. For the full `maketx call` and `gnokey`
-reference, see [Using the `gnokey` wallet](../users/using-gnokey.md).
+where the trailing colon means the empty path. For the full `maketx call`
+and `gnokey` reference, see
+[`Call` in the `gnokey` command reference](../resources/gnokey.md#call).
 
 ## Next steps
 

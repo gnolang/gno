@@ -357,8 +357,8 @@ automatically:
 ```bash
 git clone https://github.com/gnolang/gno.git && cd gno/gno.land
 git checkout <commit>
-make build.gnokey
-./build/gnokey version   # sanity-check
+CGO_ENABLED=1 make build.gnokey   # Ledger support; drop CGO_ENABLED=1 for a static binary without it
+file build/gnokey                 # confirm the OS and arch
 ```
 
 Record what you built, checksum it, and bundle it for transfer:

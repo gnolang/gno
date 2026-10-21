@@ -124,6 +124,8 @@ writing the package and declaring that path, see
 `Call` invokes an exported realm function with `gnokey maketx call`: `-pkgpath`
 names the realm, `-func` the function, and each `-args` one argument, in order.
 `-send` attaches coins to the call, and `-max-deposit` caps the storage deposit.
+A non-zero `-send` fails the call with `UnobservedSendError` when the function
+never reads the coins it was sent.
 
 `-func` must name an exported crossing function, one declared with a leading
 `cur realm` parameter. Non-crossing functions are rejected; read them with
@@ -137,7 +139,7 @@ gnokey maketx call \
   -pkgpath gno.land/r/gnoland/wugnot \
   -func Deposit \
   -send 1000ugnot \
-  -gas-fee 8000ugnot -gas-wanted 8000000 \
+  -gas-fee 15000ugnot -gas-wanted 15000000 \
   -chainid gnoland-1 -remote https://rpc.gno.land:443 \
   mykey
 ```
@@ -224,7 +226,9 @@ The printed value comes first, above the usual summary:
 OK!
 ```
 
-`-send` and `-max-deposit` work as for `Call`.
+`-max-deposit` works as for `Call`. `-send` does not pay a realm here: under
+`Run` the coins go from your address back to it. To pay a realm, use
+`maketx call -send`.
 
 #### When to use `Run` over `Call`
 
