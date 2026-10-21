@@ -14,4 +14,8 @@ var _ = F().(*X) // ERROR "impossible type assertion:( F\(\).\(\*X\))?\n\t\*X do
 
 type X struct{}
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: impossible type assertion: *gno.land/p/filetest/p.X does not implement gno.land/p/filetest/p.T (missing method M)
+
+// Verdict: Clean errorcheck

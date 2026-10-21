@@ -24,4 +24,17 @@ func f() {
 	f2ddd(1, 2, 3)
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 9: function f0 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 10: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 11: function f2 does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 12: function f2ddd does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: wrong argument count in call to f0<VPBlock(3,0)>; want 0 got 1
+// line 17: wrong argument count in call to f0<VPBlock(3,0)>; want 0 got 1
+// line 18: wrong argument count in call to f1<VPBlock(3,1)>; want 1 got 0
+// line 19: wrong argument count in call to f1<VPBlock(3,1)>; want 1 got 2
+// line 20: wrong argument count in call to f2<VPBlock(3,2)>; want 2 got 1
+// line 21: wrong argument count in call to f2<VPBlock(3,2)>; want 2 got 3
+// line 22: not enough arguments in call to f2ddd<VPBlock(3,3)>; want 2 (besides variadic) got 1
+
+// Verdict: Clean errorcheck
