@@ -3,17 +3,17 @@ package int256
 import (
 	"errors"
 
-	"gno.land/p/onbloc/uint256/v0"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 var (
 	int1  = NewInt(1)
-	uint0 = uint256.NewUint(0)
-	uint1 = uint256.NewUint(1)
+	uint0 = u256.NewUint(0)
+	uint1 = u256.NewUint(1)
 )
 
 type Int struct {
-	value uint256.Uint
+	value u256.Uint
 }
 
 // New creates and returns a new Int initialized to zero.
@@ -38,7 +38,7 @@ func Zero() *Int { return &Int{} }
 // such as incrementing or serving as an identity element in multiplication.
 func One() *Int {
 	return &Int{
-		value: *uint256.NewUint(1),
+		value: *u256.NewUint(1),
 	}
 }
 
@@ -64,7 +64,7 @@ func (z *Int) Sign() int {
 	// Additionally, this method will work correctly for all values,
 	// including the minimum possible negative number (which in two's complement
 	// doesn't have a positive counterpart in the same bit range).
-	var temp uint256.Uint
+	var temp u256.Uint
 	if temp.Rsh(&z.value, 255).IsZero() {
 		return 1
 	}
@@ -105,7 +105,7 @@ func (z *Int) SetString(s string) (*Int, error) {
 	}
 
 	// Convert string to uint256
-	temp, err := uint256.FromDecimal(s)
+	temp, err := u256.FromDecimal(s)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (z *Int) SetString(s string) (*Int, error) {
 //
 // This method allows for conversion from unsigned 256-bit integers
 // to signed integers.
-func (z *Int) FromUint256(v *uint256.Uint) *Int {
+func (z *Int) FromUint256(v *u256.Uint) *Int {
 	z.value.Set(v)
 	return z
 }

@@ -1,0 +1,337 @@
+# The proxy keeps a request's executor, so an install request can be
+# submitted again. Executing it again must re-apply the law it carries, not
+# keep a law voted since the first install.
+#
+# Three T1 members: two YES votes are 66.67%, which passes a 66.66% law and
+# fails an 80% one.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/impl/v1
+loadpkg gno.land/r/gov/dao/loader/v0
+loadpkg gno.land/r/test/setup $WORK/setup
+
+adduser alice
+adduser bob
+adduser carol
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/setup -func Bootstrap -args $alice_user_addr -args $bob_user_addr -args $carol_user_addr -args '' -args '' -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## Install impl/v1 carrying 80%, keeping the request (proposal 0).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/install80_keep.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 0 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## The DAO lowers its law to 66.66% (proposal 1), which then lets two of three
+## pass (proposal 2).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law6666.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law6666.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## The kept install request is submitted again and executed (proposal 3).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/resubmit.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## Its 80% law applies again: two of three is refused (proposal 4).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law6666.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 4 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 80'
+
+## A v1 implementation-change proposal with a reason that tries to hide the
+## grant behind an HTML comment (proposal 5): the reason is escaped and the
+## grant and executor realm stay visible.
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/upgrade_hostile.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:5'
+stdout 'Reason: routine upgrade +\\<\\!\\-\\-'
+! stdout '<!--'
+stdout 'may replace the implementation, mutate the member store, or move treasury funds'
+stdout 'Executor created in: `gno.land/r/gov/dao/impl/v1`'
+
+## Only an actual installation re-applies a carried law. The DAO raises its
+## law to 90% (proposal 6); the proposal shows the threshold it sets.
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law90.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:6'
+stdout 'Supermajority: 90%'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 6 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 6 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 6 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 6 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## A forged executor that reports itself, after running, as an impl/v0
+## implementation change (proposal 7) does not reset the law: 90% stands
+## (proposal 8).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/forged.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:7'
+stdout 'harmless'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 7 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 7 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 7 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 7 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/setup.ForgedExecuted()'
+stdout 'true bool'
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law6666.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 8 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 8 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 8 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 90'
+
+## An allowlist-only update (nil DAO, proposal 9) is not an installation:
+## 90% still stands (proposal 10).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/allowlist_only.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 9 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 9 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 9 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 9 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law6666.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 10 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 10 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 10 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 90'
+
+## A genuine re-install of the kept request (proposal 11) re-applies its 80%:
+## two of three is now refused at 80, not 90 (proposal 12).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/resubmit.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 11 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 11 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 11 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 11 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law6666.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 12 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 12 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 12 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 80'
+
+-- setup/gnomod.toml --
+module = "gno.land/r/test/setup"
+gno = "0.9"
+
+-- setup/setup.gno --
+package setup
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+// Bootstrap seeds the member set while AllowedDAOs is still empty (the
+// genesis window r/gov/dao/loader/v0 leaves open), then locks it to impl/v0.
+func Bootstrap(cur realm, t1a, t1b, t1c, t2, t3 address) {
+	ms := memberstore.Get(0, cur)
+	for _, a := range []address{t1a, t1b, t1c} {
+		if a != "" {
+			ms.SetMember(memberstore.T1, a, memberstore.NewMember(3))
+		}
+	}
+	if t2 != "" {
+		ms.SetMember(memberstore.T2, t2, memberstore.NewMember(2))
+	}
+	if t3 != "" {
+		ms.SetMember(memberstore.T3, t3, memberstore.NewMember(0))
+	}
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, []string{"gno.land/r/gov/dao/impl/v0"}))
+}
+
+type myFilter struct{ OnlyMe bool }
+
+// NewUnknownFilterRequest builds a proposal whose filter no impl knows.
+func NewUnknownFilterRequest(cur realm) dao.ProposalRequest {
+	e := dao.NewSimpleExecutor(0, cur, func(cur realm) error { return nil }, "does nothing")
+	return dao.NewProposalRequestWithFilter("Filtered", "a filter impl/v1 does not know", e, myFilter{OnlyMe: true})
+}
+
+var (
+	kept   dao.ProposalRequest
+	forged bool
+)
+
+// forgedExecutor executes nothing, then reports itself as an impl/v0
+// implementation change: metadata that depends on whether it has run.
+type forgedExecutor struct{}
+
+func (forgedExecutor) Execute(cur realm) error {
+	forged = true
+	return nil
+}
+
+func (forgedExecutor) String() string {
+	if forged {
+		return "Replaces the govDAO implementation with the DAO carried by this proposal."
+	}
+	return "harmless"
+}
+
+func (forgedExecutor) CreationRealm() string {
+	if forged {
+		return "gno.land/r/gov/dao/impl/v0"
+	}
+	return "gno.land/r/test/setup"
+}
+
+func NewForgedRequest(cur realm) dao.ProposalRequest {
+	return dao.NewProposalRequest("Harmless", "nothing to see", forgedExecutor{})
+}
+
+func ForgedExecuted() bool { return forged }
+
+// Keep retains a proposal request so that it can be submitted again later.
+func Keep(cur realm, r dao.ProposalRequest) { kept = r }
+
+func Kept() dao.ProposalRequest { return kept }
+
+-- run/install80_keep.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+	"gno.land/r/test/setup"
+)
+
+func main(cur realm) {
+	req := impl.NewInstallRequest(cross(cur), "install impl/v1", impl.NewLaw(80))
+	setup.Keep(cross(cur), req)
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/resubmit.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/test/setup"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), setup.Kept())
+}
+
+-- run/v1_law6666.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), impl.NewChangeLawRequest(cross(cur), impl.NewLaw(66.66)))
+}
+
+-- run/upgrade_hostile.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	req := impl.NewUpgradeDaoImplRequest(cross(cur), nil, "gno.land/r/some/realm", "routine upgrade\n\n<!--")
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/v1_law90.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), impl.NewChangeLawRequest(cross(cur), impl.NewLaw(90)))
+}
+
+-- run/forged.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/test/setup"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), setup.NewForgedRequest(cross(cur)))
+}
+
+-- run/allowlist_only.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	// nil DAO: only AllowedDAOs changes, to [impl/v1, impl/v0].
+	req := impl.NewUpgradeDaoImplRequest(cross(cur), nil, "gno.land/r/gov/dao/impl/v0", "allowlist cleanup")
+	dao.MustCreateProposal(cross(cur), req)
+}

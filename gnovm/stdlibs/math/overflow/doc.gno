@@ -7,9 +7,15 @@
 // code generation in place of generics. All functions are named matching the
 // following regex:
 //
-//	(Add|Sub|Mul|Div)(u)?(8|16|32|64)?(p)?
+//	(Add|Sub|Mul|Div)(u)?(8|16|32|64|256)?(p)?
 //
 // The "u" identifies a function which works on an unsigned value. The number
-// identifies the bit size, and can be omitted for the int and uint types.
+// identifies the bit size, and can be omitted for the int and uint types;
+// 256 is for the int256 and uint256 types.
 // The trailing "p" identifies the panicking versions of each function.
+//
+// The boolean is true when the operation did not overflow. When it is false,
+// Add, Sub and Mul return the wrapped result, Div returns 0 for a zero
+// divisor and the wrapped quotient (the smallest value) for the smallest
+// value divided by -1. The "p" versions panic instead of returning false.
 package overflow

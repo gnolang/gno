@@ -21,6 +21,7 @@ func (m *Machine) doOpInc() {
 	default:
 		m.incrCPU(OpCPUIncInt)
 	}
+	m.incrCPU256(lv.T, OpCPUIncInt256, OpCPUIncInt)
 
 	// Per-N gas for BigInt/BigDec.
 	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntInc)
@@ -34,7 +35,7 @@ func (m *Machine) doOpInc() {
 	// as the type should be the same, and thus .V is
 	// expected to be nil.
 	if debug {
-		if lv.V != nil {
+		if lv.V != nil && !is256Type(lv.T) {
 			panic("expected lv.V to be nil for primitive type for OpInc")
 		}
 	}
@@ -65,6 +66,10 @@ func (m *Machine) doOpInc() {
 		lv.SetUint32(lv.GetUint32() + 1)
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + 1)
+	case Int256Type, Uint256Type:
+		x := lv.GetBits256()
+		x.AddUint64(&x, 1)
+		lv.SetBits256(m.Alloc, &x)
 	case Float32Type:
 		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), softfloat.Fintto32(1)))
 	case Float64Type:
@@ -99,6 +104,7 @@ func (m *Machine) doOpDec() {
 	default:
 		m.incrCPU(OpCPUDecInt)
 	}
+	m.incrCPU256(lv.T, OpCPUDecInt256, OpCPUDecInt)
 
 	// Per-N gas for BigInt/BigDec.
 	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntDec)
@@ -112,7 +118,7 @@ func (m *Machine) doOpDec() {
 	// as the type should be the same, and thus .V is
 	// expected to be nil.
 	if debug {
-		if lv.V != nil {
+		if lv.V != nil && !is256Type(lv.T) {
 			panic("expected lv.V to be nil for primitive type for OpDec")
 		}
 	}
@@ -139,6 +145,10 @@ func (m *Machine) doOpDec() {
 		lv.SetUint32(lv.GetUint32() - 1)
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - 1)
+	case Int256Type, Uint256Type:
+		x := lv.GetBits256()
+		x.SubUint64(&x, 1)
+		lv.SetBits256(m.Alloc, &x)
 	case Float32Type:
 		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), softfloat.Fintto32(1)))
 	case Float64Type:

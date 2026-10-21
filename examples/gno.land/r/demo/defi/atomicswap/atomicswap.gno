@@ -45,9 +45,9 @@ import (
 	"time"
 
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/grc20/v1"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/r/nt/grc20reg/v1"
 )
 
 const defaultTimelockDuration = 7 * 24 * time.Hour // 1w
@@ -65,7 +65,8 @@ func NewCoinSwap(cur realm, recipient address, hashlock string) (int, *Swap) {
 }
 
 // NewGRC20Swap creates a new atomic swap contract for grc20 tokens.
-// It uses gno.land/r/nt/grc20reg/v0 to lookup for a registered token.
+// It uses gno.land/r/nt/grc20reg/v1 to lookup for a registered token, so the
+// token must be a gno.land/p/nt/grc20/v1 (uint256) token.
 func NewGRC20Swap(cur realm, recipient address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	token := grc20reg.MustGet(tokenRegistryKey)
@@ -117,7 +118,7 @@ func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock 
 	err := userTeller.TransferFrom(0, cur, sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
 
-	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
+	amountStr := strconv.FormatUint256(allowance, 10) + token.GetSymbol()
 	sendFn := func(cur realm, to address) {
 		err := userTeller.Transfer(0, cur, to, allowance)
 		require(err == nil, "cannot transfer tokens")

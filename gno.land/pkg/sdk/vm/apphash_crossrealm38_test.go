@@ -229,11 +229,14 @@ import (
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
 //
-// Bumped by the crypto/bls12381 stdlib, and again by its
-// FastAggregateVerifyExcluding: its .gno sources (and its _test.gno, see above)
-// are committed into genesis state like every stdlib's, so the root moves.
-// crossrealm38 does not import it.
-const expectedCrossrealm38Hash = "9c883b9746e7d374a2eadfd4e02bc79b3af3e547206c11c9202e30df50cfdd16"
+// Bumped by the crypto/bls12381 stdlib and its FastAggregateVerifyExcluding,
+// and again by native int256/uint256 (gnovm/adr/pr6387_native_int256.md): the
+// stdlib gained strconv/int256.gno and its test, 256-bit functions in
+// math/overflow (overflow256_generated.gno and its test) and the
+// math.MaxInt256, MinInt256 and MaxUint256 constants (math/const256.gno).
+// Every stdlib's .gno sources (and _test.gno, see above) are committed into
+// genesis state, so the root moves; crossrealm38 imports none of them.
+const expectedCrossrealm38Hash = "9622d091abc7473ea2177d16f61da401e6f6e2e71ab079cde377cec611cb1247"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

@@ -219,7 +219,23 @@ func UpdateImpl(cur realm, r UpdateRequest) {
 
 	if r.DAO != nil {
 		dao = r.DAO
+		installGeneration++
 	}
+}
+
+// installGeneration counts implementation installations: UpdateImpl
+// increments it on every non-nil DAO assignment, including one that assigns
+// the implementation already installed. An allowlist-only update (nil DAO)
+// leaves it unchanged.
+var installGeneration uint64
+
+// InstallGeneration returns the number of implementation installations so
+// far. An implementation that must act once per installation (impl/v1 applies
+// the law its install proposal carried) compares it with the generation it
+// last acted on: it is a structural signal that UpdateImpl just installed a
+// DAO, which no proposal or executor can fake.
+func InstallGeneration() uint64 {
+	return installGeneration
 }
 
 func AllowedDAOs() []string {

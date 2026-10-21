@@ -1,0 +1,104 @@
+# int256 and uint256: transaction arguments, results, and realm state that
+# survives a node restart.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$test1_user_addr/bank -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+## uint256 arguments are parsed from decimal strings, up to 2^256-1.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Credit -args alice -args 115792089237316195423570985008687907853269984665640564039457584007913129639934 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stdout '\(115792089237316195423570985008687907853269984665640564039457584007913129639934 uint256\)'
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Credit -args alice -args 1 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stdout '\(115792089237316195423570985008687907853269984665640564039457584007913129639935 uint256\)'
+stdout OK!
+
+## int256 arguments may be negative, down to -2^255.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Adjust -args -57896044618658097711785492504343953926634992332820282019728792003956564819968 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stdout '\(-57896044618658097711785492504343953926634992332820282019728792003956564819968 int256\)'
+stdout OK!
+
+## Non-canonical or out-of-range arguments are refused.
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Credit -args alice -args 115792089237316195423570985008687907853269984665640564039457584007913129639936 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'error parsing uint256 .*: value out of range'
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Credit -args alice -args -1 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'error parsing uint256 .*: invalid digit'
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Credit -args alice -args 01 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'error parsing uint256 .*: leading zero'
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Adjust -args +1 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'error parsing int256 .*: invalid digit'
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Adjust -args -0 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'error parsing int256 .*: negative zero'
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Adjust -args -57896044618658097711785492504343953926634992332820282019728792003956564819969 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'error parsing int256 .*: value out of range'
+
+## State is persisted: restart the node and read it back.
+gnoland restart
+
+gnokey query vm/qeval --data "gno.land/r/$test1_user_addr/bank.Balance(\"alice\")"
+stdout '"115792089237316195423570985008687907853269984665640564039457584007913129639935" string'
+
+gnokey query vm/qeval --data "gno.land/r/$test1_user_addr/bank.Net()"
+stdout '"-57896044618658097711785492504343953926634992332820282019728792003956564819968" string'
+
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func Adjust -args 1 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stdout '\(-57896044618658097711785492504343953926634992332820282019728792003956564819967 int256\)'
+stdout OK!
+
+## JSON results: a decimal string, signed for int256, in a value type of its
+## own (/gno.Int256Value or /gno.Uint256Value); zero has no V at all.
+gnokey query vm/qeval_json --data "gno.land/r/$test1_user_addr/bank.Raw()"
+stdout '"V":\{"@type":"/gno.Int256Value","value":"128"\}'
+stdout '"V":\{"@type":"/gno.Int256Value","value":"-128"\}'
+stdout '"V":\{"@type":"/gno.Uint256Value","value":"115792089237316195423570985008687907853269984665640564039457584007913129639935"\}'
+stdout '\{"T":\{"@type":"/gno.PrimitiveType","value":"4194304"\}\}'
+
+## uint256 arithmetic wraps; checked arithmetic is in math/overflow.
+! gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/bank -func CreditChecked -args alice -args 1 -gas-fee 1000000ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+stderr 'addition overflow'
+
+-- gnomod.toml --
+module = "gno.land/r/test/bank"
+gno = "0.9"
+
+-- bank.gno --
+package bank
+
+import (
+	"math/overflow"
+	"strconv"
+)
+
+var (
+	balances = map[string]uint256{}
+	net      int256
+)
+
+func Credit(cur realm, who string, amount uint256) uint256 {
+	balances[who] += amount
+	return balances[who]
+}
+
+func CreditChecked(cur realm, who string, amount uint256) uint256 {
+	balances[who] = overflow.Addu256p(balances[who], amount)
+	return balances[who]
+}
+
+func Adjust(cur realm, d int256) int256 {
+	net += d
+	return net
+}
+
+func Balance(who string) string {
+	return strconv.FormatUint256(balances[who], 10)
+}
+
+func Raw() (int256, int256, uint256, uint256) {
+	return 128, -128, balances["alice"], 0
+}
+
+func Net() string {
+	return strconv.FormatInt256(net, 10)
+}

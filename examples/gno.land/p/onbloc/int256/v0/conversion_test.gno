@@ -3,7 +3,7 @@ package int256
 import (
 	"testing"
 
-	"gno.land/p/onbloc/uint256/v0"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 func TestSetInt64(t *testing.T) {
@@ -171,7 +171,7 @@ func TestSetUint256(t *testing.T) {
 	for _, tt := range tests {
 		got := New()
 
-		z := uint256.MustFromDecimal(tt.x)
+		z := u256.MustFromDecimal(tt.x)
 		got.SetUint256(z)
 
 		if got.String() != tt.want {

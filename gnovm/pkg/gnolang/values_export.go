@@ -340,6 +340,10 @@ func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
 			lim.add(int64(cv.V.BitLen())/3 + 1)
 		}
 		return cv
+	case Int256Value, Uint256Value:
+		// Amino emits a decimal string: at most 78 digits and a sign.
+		lim.add(80)
+		return cv
 	case BigdecValue:
 		// Amino emits RatString() (rat form) or a hex-float text (float form),
 		// not a small constant: a rat component runs up to ratOverflowBits and a

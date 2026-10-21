@@ -55,7 +55,7 @@ func Errorf(format string, args ...any) error
 | Verb | Meaning                                                                |
 |------|------------------------------------------------------------------------|
 | `%s` | String. Uses `String()` or `Error()` if implemented.                   |
-| `%d` | Integer (signed and unsigned, all widths).                             |
+| `%d` | Integer (signed and unsigned, up to 64 bits; see below).              |
 | `%c` | Unicode character from rune/int code point.                            |
 | `%t` | Boolean: `true` or `false`.                                            |
 | `%q` | Double-quoted, escaped string.                                         |
@@ -68,6 +68,13 @@ func Errorf(format string, args ...any) error
 | `%%` | Literal `%`.                                                           |
 
 Width (`%5s`) and precision (`%.2f`) are supported for the relevant verbs.
+
+`int256` and `uint256` are not supported by any verb (`%d`, `%v`, ...) or by
+`Sprint`/`Println`: they print as unhandled values. Format them with
+`strconv.FormatUint256(v, 10)` / `strconv.FormatInt256(v, 10)`. Keeping the
+256-bit types out of ufmt keeps ufmt, and the packages that import it,
+buildable by `gno tool transpile --gobuild`, which skips any package using a
+type Go does not have.
 
 ## Notes
 
