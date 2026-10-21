@@ -81,6 +81,18 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 		key = args[0]
 	}
 
+	// Resolve and check the validator key type before anything is written:
+	// the all-keys path below initializes every secret it can even when one
+	// fails, so a rejected type must not leave the other two files behind.
+	keyType := signer.KeyType(cfg.validatorKeyType)
+	if keyType == "" {
+		keyType = signer.DefaultKeyType
+	}
+
+	if err := keyType.Validate(); err != nil {
+		return fmt.Errorf("invalid validator key type, %w", err)
+	}
+
 	// Make sure the directory is there
 	if err := os.MkdirAll(cfg.dataDir, 0o755); err != nil {
 		return fmt.Errorf("unable to create secrets dir, %w", err)
@@ -100,7 +112,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 		}
 
 		// Initialize and save the validator's private key
-		return initAndSaveValidatorKey(signer.KeyType(cfg.validatorKeyType))(validatorKeyPath, io)
+		return initAndSaveValidatorKey(keyType)(validatorKeyPath, io)
 	case nodeIDKey:
 		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite the node' p2p key, %w", errOverwriteNotEnabled)
@@ -118,7 +130,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	default:
 		// No key provided, initialize everything
 		return errors.Join(
-			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey(signer.KeyType(cfg.validatorKeyType)), cfg.forceOverwrite, io),
+			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey(keyType), cfg.forceOverwrite, io),
 			overwriteGuard(validatorStatePath, initAndSaveValidatorState, cfg.forceOverwrite, io),
 			overwriteGuard(nodeKeyPath, initAndSaveNodeKey, cfg.forceOverwrite, io),
 		)
@@ -147,12 +159,9 @@ func overwriteGuard(
 }
 
 // initAndSaveValidatorKey returns a function that generates a validator
-// private key of the given type and saves it to the given path
+// private key of the given, already validated, type and saves it to the
+// given path
 func initAndSaveValidatorKey(keyType signer.KeyType) func(string, commands.IO) error {
-	if keyType == "" {
-		keyType = signer.DefaultKeyType
-	}
-
 	return func(path string, io commands.IO) error {
 		// Initialize the validator's private key
 		if _, err := signer.GeneratePersistedFileKeyOfType(path, keyType); err != nil {

@@ -199,8 +199,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	// excluded keys, plus the aggregate's decoding; priced from the same fit,
 	// draft until benchmarked on its own.
 	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerifyExcluding", Base: 2116000, Slope: 1962000, SlopeIdx: 1, SlopeKind: SizeLenBytes}, // draft, base=2.02ms+one key, slope on excluded bytes
-	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                              // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
-	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},                   // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                                       // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},                            // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
 	// innerHash hashes 0x01||left||right, so its cost is O(len(left)+len(right))
 	// — leafHash's shape over two operands instead of one, and nothing bounds
 	// either. Both operands therefore carry leafHash's per-byte rate, which

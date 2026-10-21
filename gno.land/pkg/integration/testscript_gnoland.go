@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -269,6 +270,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
 			maxGas := fs.Int64("max-gas", 0, "override block max gas (0 = use default)")
+			validatorPubKeyTypes := fs.String("validator-pubkey-types", "", "restrict the validator consensus key types the genesis allows, as comma-separated amino type URLs; must include /tm.PubKeyEd25519, the harness's own validator key type (empty = chain default)")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -283,6 +285,13 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			cfg := TestingMinimalNodeConfig(gnoRootDir)
 			if *maxGas > 0 {
 				cfg.Genesis.ConsensusParams.Block.MaxGas = *maxGas
+			}
+			if *validatorPubKeyTypes != "" {
+				// Passed through verbatim: the node's own ValidateConsensusParams
+				// rejects an unknown type URL at start.
+				cfg.Genesis.ConsensusParams.Validator = &abci.ValidatorParams{
+					PubKeyTypeURLs: strings.Split(*validatorPubKeyTypes, ","),
+				}
 			}
 			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
