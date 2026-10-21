@@ -18,6 +18,7 @@ const (
 	protoHTTP  = "http"
 	protoHTTPS = "https"
 	protoTCP   = "tcp"
+	protoUnix  = "unix"
 
 	portHTTP  = "80"
 	portHTTPS = "443"
@@ -188,6 +189,15 @@ func makeHTTPDialer(remoteAddr string) (net.Conn, error) {
 		protocol = protoTCP
 	}
 
+	// A URL path is part of the request, not of the dial target: net.Dial on
+	// "127.0.0.1:26657/rpc" reads "/rpc" as the port and fails. Unix keeps its
+	// path, which is the socket itself.
+	if protocol == protoTCP {
+		if host, _, found := strings.Cut(address, "/"); found {
+			address = host
+		}
+	}
+
 	return net.Dial(protocol, address)
 }
 
@@ -206,10 +216,19 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 		clientProtocol = protoHTTP
 	}
 
-	// replace / with . for http requests (kvstore domain)
-	trimmedAddress := strings.ReplaceAll(address, "/", ".")
+	// A unix socket's address is a filesystem path, which has to survive as a
+	// hostname for the dialer in makeHTTPDialer to reconstruct; "/" is encoded
+	// as "." for that trip.
+	//
+	// Only for unix sockets. Doing it to a tcp/http address destroys any URL
+	// path, so an RPC published behind a prefix ("https://host/rpc", the usual
+	// way to serve a chain and its web UI on one hostname) turned into
+	// "https://host.rpc" and failed to parse.
+	if protocol == protoUnix {
+		address = strings.ReplaceAll(address, "/", ".")
+	}
 
-	return clientProtocol, trimmedAddress
+	return clientProtocol, address
 }
 
 func toClientAddress(remoteAddr string) (string, error) {
@@ -233,14 +252,25 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 		protocol, address = parts[0], parts[1]
 	}
 
-	// Append default ports if not specified
-	if !strings.Contains(address, ":") {
-		switch protocol {
-		case protoHTTPS:
-			address += ":" + portHTTPS
-		case protoHTTP, protoTCP:
-			address += ":" + portHTTP
-		default: // noop
+	// Append default ports if not specified. Split the path off first: the
+	// port belongs to the host, and appending it to the whole string turned
+	// "https://host/rpc" into "https://host/rpc:443".
+	//
+	// Unix is excluded because its address is a path, not a host.
+	if protocol != protoUnix {
+		host, path, hasPath := strings.Cut(address, "/")
+		if !strings.Contains(host, ":") {
+			switch protocol {
+			case protoHTTPS:
+				host += ":" + portHTTPS
+			case protoHTTP, protoTCP:
+				host += ":" + portHTTP
+			default: // noop
+			}
+		}
+		address = host
+		if hasPath {
+			address += "/" + path
 		}
 	}
 
