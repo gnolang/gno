@@ -271,17 +271,17 @@ func constExprString(x Expr) string {
 			return constExprString(x.Source)
 		}
 	case *BinaryExpr:
-		return constOperandString(x.Left, x.Op, false) + " " +
-			x.Op.TokenString() + " " + constOperandString(x.Right, x.Op, true)
+		return typedConstOperandString(x.Left, x.Op, false) + " " +
+			x.Op.TokenString() + " " + typedConstOperandString(x.Right, x.Op, true)
 	case *UnaryExpr:
-		return x.Op.TokenString() + constOperandString(x.X, x.Op, false)
+		return x.Op.TokenString() + typedConstOperandString(x.X, x.Op, false)
 	}
 	return exprString(x)
 }
 
-// constOperandString is constExprString, parenthesized when x binds
+// typedConstOperandString is constExprString, parenthesized when x binds
 // looser than the operation it is an operand of (as go/printer does).
-func constOperandString(x Expr, op Word, right bool) string {
+func typedConstOperandString(x Expr, op Word, right bool) string {
 	if cx, ok := x.(*ConstExpr); ok {
 		x = cx.Source
 	}
