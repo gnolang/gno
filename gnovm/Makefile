@@ -63,7 +63,9 @@ lint:
 fmt:
 	go fmt ./...
 	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/... ./tests/files/...
-	$(rundep) golang.org/x/tools/cmd/goimports -w .
+	# gocorpus/testdata holds Go's corpus files verbatim: reformatting them
+	# would shift the line numbers their goldens pin.
+	$(rundep) golang.org/x/tools/cmd/goimports -w $$(find . -name '*.go' -not -path './tests/files/gocorpus/testdata/*')
 
 ########################################
 # Gas calibration analysis
@@ -156,10 +158,28 @@ _test.stdlibs:
 	cd stdlibs && go run ../cmd/gno test -v -p $(GNOTEST_JOBS) ./...
 
 
+# Run filetests, optionally filtered to a subtree or single file via FILES=...
+# FILES is a path under gnovm/tests/files/; matched against TestFiles' subtest
+# names. Examples:
+#   make _test.filetest                                       # all filetests
+#   make _test.filetest FILES=types                           # a native subtree
+#   make _test.filetest FILES=switch13.gno                    # a native single file
+#   make _test.filetest FILES=gocorpus                        # everything under gocorpus/
+#   make _test.filetest FILES=gocorpus/testdata/run           # whole run/ subtree
+#   make _test.filetest FILES=gocorpus/testdata/run/canary.go # single file
+# Each path element is anchored (`^elem$`), since `go test -run` matches the
+# elements as unanchored regexps: a bare `types` would also pick typeswitch*.gno.
 .PHONY: _test.filetest
+_test.filetest: FILES_RE = $(if $(FILES),/^$(subst /,$$/^,$(FILES))$$,/)
 _test.filetest:
-	@echo "use 'go test pkg/gnolang/files_test.go -test.short --update-golden-tests' to update filetest expectations"
-	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
+	@echo "use 'make _test.filetest GOTEST_FLAGS=--update-golden-tests' to update filetest expectations"
+	go test pkg/gnolang/files_test.go -test.short -run 'TestFiles$$$(FILES_RE)' $(GOTEST_FLAGS)
+
+# gocorpus is a subtree of the filetests, so `make test` already covers it;
+# this entry only makes `make _test.filetest FILES=gocorpus` discoverable.
+.PHONY: _test.filetest.gocorpus
+_test.filetest.gocorpus:
+	$(MAKE) _test.filetest FILES=gocorpus
 
 ########################################
 # Code gen

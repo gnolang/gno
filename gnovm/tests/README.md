@@ -21,6 +21,20 @@ Tests with the `_long` suffix are skipped when the `-short` flag is passed.
 
 These tests are largely derived from Yaegi, licensed under Apache 2.0.
 
+### `files/gocorpus/testdata`: filetests with the `.go` extension
+
+`TestFiles` also accepts `.go` files under `files/gocorpus/testdata/`,
+verbatim copies of Go's own test corpus (`$GOROOT/test`). The harness picks
+a mode from the file's content (runnable → run; compile-only files and files
+with inline `// ERROR` markers are refused until their modes land),
+pins both Gno's and Go's behaviour as
+trailing `//` blocks, and ends every file with exactly one `// Verdict:` line
+(`Clean`, `Unsupported`, `KnownIssue` or `KnownDivergence` as its first word). The contract,
+the block vocabulary and the re-sync command are in
+[`files/gocorpus/README.md`](files/gocorpus/README.md). The corpus files are
+copyright The Go Authors, BSD-3-Clause (`files/gocorpus/LICENSE`); their
+headers are kept verbatim.
+
 ## `stdlibs`: testing standard libraries
 
 These contain standard libraries which are only available in testing, and
