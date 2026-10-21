@@ -100,7 +100,13 @@ error with its span, no execution, no Go side. The markers are gc's verdict.
 on it and no Gno error starts on an unmarked line; otherwise sync writes
 `KnownIssue errorcheck: #6344 uncaught markers: lines …; over-strict: lines …`
 directly, since every such gap is a preprocess conformance gap in that
-umbrella issue's scope (a per-cause `#NNNN` written by hand survives re-sync).
+umbrella issue's scope. A reason written by hand is `;`-separated parts; a
+gap group is `[#NNNN ]<kind>: lines a, b, c-d[ (note)]` with kind `uncaught
+markers`, `over-strict` or `internal errors`, owned by the last `#NNNN` in
+force; other parts are prose, kept as written. Every run reconciles the
+groups with the gaps: a group keeps the lines still gaps of its kind (its
+note with it, an emptied group is dropped), unowned gap lines go to `#6344`,
+and verify fails on a listed line no longer a gap or a gap listed nowhere.
 An over-strict line whose Gno message is a feature gap (the `unsupportedTags`
 needles: a stdlib symbol Gno lacks, a newer language feature) does not count;
 the `GnoError:` block still shows it. An internal error (`should not happen`
