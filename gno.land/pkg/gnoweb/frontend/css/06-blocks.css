@@ -3345,13 +3345,13 @@ main.is-dev-mode .b-toc a {
 		border-radius: var(--s-rounded-sm);
 		background-color: var(--s-color-bg-surface-primary);
 		margin-block: var(--g-space-5);
-		overflow: hidden;
 
 		& > summary {
 			display: flex;
 			align-items: center;
 			gap: var(--g-space-2);
 			padding: var(--g-space-3) var(--g-space-4);
+			border-radius: inherit;
 
 			& > svg {
 				width: var(--g-space-4);
@@ -3367,8 +3367,13 @@ main.is-dev-mode .b-toc a {
 			}
 		}
 
-		&[open] > summary > svg {
-			transform: rotate(0);
+		&[open] > summary {
+			border-end-start-radius: 0;
+			border-end-end-radius: 0;
+
+			& > svg {
+				transform: rotate(0);
+			}
 		}
 
 		& > div {

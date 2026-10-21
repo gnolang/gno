@@ -1,0 +1,18 @@
+-- input.md --
+<gno-details summary="Outer">
+body
+</gno-details x>
+after
+</gno-details>
+
+footer
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>Outer</span></summary>
+<div>
+<p>body</p>
+<!-- unexpected/invalid details tag omitted -->
+<p>after</p>
+</div>
+</details>
+<p>footer</p>

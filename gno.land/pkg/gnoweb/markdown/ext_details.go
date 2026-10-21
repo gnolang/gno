@@ -7,6 +7,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -33,7 +34,8 @@ type GnoDetailsNode struct {
 	tag detailsTagKind
 	// Open renders the block expanded.
 	Open bool
-	// Summary is the raw `summary` attribute, escaped when rendered.
+	// Summary is the raw `summary` attribute, written with its character
+	// references resolved and escaped, like a gno-icon label.
 	Summary []byte
 	// close is an open marker's close marker, set when the close tag pairs
 	// with it during parsing.
@@ -66,11 +68,12 @@ var (
 
 // parseDetailsLineTag classifies a trimmed line and returns an opener's
 // attributes. The opener takes `summary="…"` and a bare `open`; any other
-// attribute, a valued `open`, a repeated attribute, an attribute on the
-// close tag or a self-closing form makes the tag invalid rather than
-// silently ignored, valid reporting false. Text after the tag makes it no
-// tag line at all, so the text stays in a paragraph, as with gno-frame. Tag
-// names are case-insensitive, like the other gno-* tags.
+// attribute, a valued `open`, a repeated attribute or an attribute on the
+// close tag makes the tag invalid rather than silently ignored, valid
+// reporting false. A self-closing form is detailsTagInvalid: it opens no
+// block, so it must not take an outer block's close tag. Text after the tag
+// makes it no tag line at all, so the text stays in a paragraph, as with
+// gno-frame. Tag names are case-insensitive, like the other gno-* tags.
 func parseDetailsLineTag(line []byte) (kind detailsTagKind, valid, open bool, summary []byte) {
 	kind, prefix := detailsTagOpen, detailsOpenPrefix
 	if len(line) > 1 && line[1] == '/' {
@@ -91,7 +94,7 @@ func parseDetailsLineTag(line []byte) (kind detailsTagKind, valid, open bool, su
 	case size == 0, size < len(line):
 		return detailsTagNone, false, false, nil
 	case selfClosing:
-		return kind, false, false, nil
+		return detailsTagInvalid, false, false, nil
 	}
 	return kind, valid, seenOpen, summary
 }
@@ -125,16 +128,22 @@ func endDetails(pc parser.Context, stack *[]detailsEntry, i int) {
 	*stack = (*stack)[:i]
 }
 
+// detailsReleasedKey holds the source line releaseDetails last ran on.
+var detailsReleasedKey = parser.NewContextKey()
+
 // releaseDetails ends the openers whose container a block opening under
 // parent no longer sits in: a block left unclosed in a list item or a
 // blockquote ends with it. Goldmark opens a line's new blocks before it
 // closes the containers that line ends, so the parent it hands Open is the
-// one measure of which containers are still open.
-func releaseDetails(pc parser.Context, parent ast.Node) {
+// one measure of which containers are still open. It runs once per line:
+// each later `>` marker on the line opens under a blockquote the line just
+// opened, which holds no opener.
+func releaseDetails(pc parser.Context, parent ast.Node, line int) {
 	stack := detailsStack(pc)
-	if stack == nil {
+	if stack == nil || pc.Get(detailsReleasedKey) == line {
 		return
 	}
+	pc.Set(detailsReleasedKey, line)
 	i := len(*stack)
 	for i > 0 && !holds((*stack)[i-1].parent, parent) {
 		i--
@@ -184,7 +193,8 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	// continuation, which keeps the paragraph's container open; a details tag
 	// line yields a leaf and a `>` line opens a blockquote, so neither is one.
 	if kind != detailsTagNone || tag[0] == '>' || !ast.IsParagraph(pc.LastOpenedBlock().Node) {
-		releaseDetails(pc, parent)
+		lineNum, _ := reader.Position()
+		releaseDetails(pc, parent, lineNum)
 	}
 	if kind == detailsTagNone {
 		if stack := detailsStack(pc); stack != nil && len(*stack) > 0 && parent.Kind() == ast.KindDocument &&
@@ -319,7 +329,7 @@ func renderGnoDetails(w util.BufWriter, _ []byte, node ast.Node, entering bool) 
 		if len(n.Summary) == 0 {
 			w.WriteString("Details")
 		} else {
-			w.Write(util.EscapeHTML(n.Summary))
+			html.DefaultWriter.Write(w, n.Summary)
 		}
 		w.WriteString("</span></summary>\n<div>\n")
 	default:

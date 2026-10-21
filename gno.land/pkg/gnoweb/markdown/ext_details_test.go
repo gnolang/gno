@@ -2,9 +2,12 @@ package markdown
 
 import (
 	"bytes"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -73,6 +76,35 @@ func TestDetailsReleasedWithContainer(t *testing.T) {
 			require.Zero(t, depth)
 		})
 	}
+}
+
+// An opener straight after a paragraph in an ended list item releases the
+// blocks left in it, so it opens rather than being refused at the cap.
+func TestDetailsReleasedBeforeOpener(t *testing.T) {
+	src := "- <gno-details>\n" + strings.Repeat("  <gno-details>\n", 3) + "  p\n" +
+		"<gno-details summary=\"After\">\nb\n</gno-details>\n"
+	out, depth := parseDetails(t, src)
+	require.Contains(t, out, "<span>After</span>")
+	require.Zero(t, depth)
+}
+
+// A line of `>` markers below an unclosed block costs about what it costs
+// without one: the release walks the quote chain once per line, not once
+// per marker.
+func TestDetailsQuoteMarkersLinear(t *testing.T) {
+	best := func(src string) time.Duration {
+		d := time.Duration(1<<63 - 1)
+		for range 3 {
+			runtime.GC()
+			start := time.Now()
+			parseDetails(t, src)
+			d = min(d, time.Since(start))
+		}
+		return d
+	}
+	line := strings.Repeat(">", 20000) + "\n"
+	ratio := float64(best("<gno-details>\n"+line)) / float64(best(line))
+	assert.Less(t, ratio, 3.0, "the opener took %.1fx the time", ratio)
 }
 
 // A `<` line continuing a paragraph lazily keeps its container open, so the
