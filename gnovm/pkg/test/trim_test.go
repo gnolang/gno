@@ -125,7 +125,7 @@ func TestGnoTrim_VerifyRejectsBadDirective(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			src := body + "\n" + tc.tail
-			_, _, _, err := opts.RunFiletest("testdata/errorcheck/bad.go", []byte(src), opts.TestStore)
+			_, err := runFiletest(opts, "testdata/errorcheck/bad.go", src)
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("err = %v, want %q", err, tc.want)
 			}
@@ -138,7 +138,7 @@ func TestGnoTrim_RunFileRefused(t *testing.T) {
 	opts, m := errorcheckMachine(t, io.Discard)
 	m.Release()
 	src := "package main\n\nimport \"unsafe\"\n\nvar _ = unsafe.Sizeof(0)\n\nfunc main() {}\n\n// GnoTrim: lines 3, 5\n\n// Verdict: Clean run\n"
-	_, _, _, err := opts.RunFiletest("testdata/run/trim.go", []byte(src), opts.TestStore)
+	_, err := runFiletest(opts, "testdata/run/trim.go", src)
 	if err == nil || !strings.Contains(err.Error(), "errorcheck and compile files") {
 		t.Fatalf("err = %v", err)
 	}
