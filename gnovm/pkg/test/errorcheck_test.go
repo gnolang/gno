@@ -253,3 +253,102 @@ func TestErrorcheck_BodilessFuncIsPerLineGap(t *testing.T) {
 		t.Fatalf("compile file: err=%v out:\n%s", err, out)
 	}
 }
+
+func TestParseGapGroups(t *testing.T) {
+	reason := "fixed by #1234; #6392 uncaught markers: lines 3, 5-7 (see the note; it has a semicolon); over-strict: lines 9; #6344 uncaught markers: lines 11; on-chain path accepts the file"
+	got := parseGapGroups(reason)
+	want := []gapGroup{
+		{prose: "fixed by #1234"},
+		{issue: "#6392", kind: "uncaught markers", lines: []int{3, 5, 6, 7}, note: "(see the note; it has a semicolon)"},
+		{issue: "#6392", kind: "over-strict", lines: []int{9}},
+		{issue: "#6344", kind: "uncaught markers", lines: []int{11}},
+		{issue: "#6344", kind: onChainKind, note: "accepts the file"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d parts %+v, want %d", len(got), got, len(want))
+	}
+	for i := range want {
+		if got[i].issue != want[i].issue || got[i].kind != want[i].kind || got[i].note != want[i].note || got[i].prose != want[i].prose || !slices.Equal(got[i].lines, want[i].lines) {
+			t.Errorf("part %d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	// A round trip keeps the text (ranges expanded); a group names its
+	// ref only when it differs from the one in force.
+	if s := formatGapGroups(got); s != strings.Replace(reason, "5-7", "5, 6, 7", 1) {
+		t.Errorf("format: %q", s)
+	}
+	// A hand-written group of the umbrella issue, a note or prose is not
+	// the sync-written form, which is recomputed wholesale.
+	for r, sync := range map[string]bool{
+		"#6344 uncaught markers: lines 3; #6392 uncaught markers: lines 5": false,
+		"#6344 uncaught markers: lines 3 (why)":                            false,
+		"#6344 uncaught markers: lines 3; on-chain path accepts the file":  true,
+		"#6344 on-chain path accepts the file":                             true,
+		"#63440":                                                           false,
+	} {
+		if isSyncWrittenReason(r) != sync {
+			t.Errorf("isSyncWrittenReason(%q) = %v", r, !sync)
+		}
+	}
+}
+
+func TestReconcileGapReason(t *testing.T) {
+	prev := "#6392 uncaught markers: lines 11, 14, 17 (typed overflow); #6344 uncaught markers: lines 38"
+	// Verify: a listed line no longer a gap, and a gap listed nowhere.
+	reason, stale := reconcileGapReason(prev, []int{17, 38, 40}, []int{5}, nil, "")
+	wantStale := []string{"lines 11, 14 are no longer uncaught", "lines 40 are uncaught but unlisted", "lines 5 are over-strict but unlisted"}
+	if !slices.Equal(stale, wantStale) {
+		t.Errorf("stale = %q, want %q", stale, wantStale)
+	}
+	// Sync: the group is pruned, its note kept; the unowned uncaught line
+	// joins the umbrella group of that kind, the over-strict one is appended.
+	if want := "#6392 uncaught markers: lines 17 (typed overflow); #6344 uncaught markers: lines 38, 40; over-strict: lines 5"; reason != want {
+		t.Errorf("reason = %q, want %q", reason, want)
+	}
+	// An emptied group is dropped and the umbrella form appended; prose
+	// stays, and the on-chain part is recomputed.
+	reason, stale = reconcileGapReason("#1234 wrong receiver; #6392 uncaught markers: lines 11; on-chain path accepts the file", []int{3}, nil, []int{7}, "")
+	if want := "#1234 wrong receiver; #6344 uncaught markers: lines 3; internal errors: lines 7"; reason != want {
+		t.Errorf("reason = %q, want %q", reason, want)
+	}
+	if len(stale) != 4 || stale[3] != "the on-chain path part changed" {
+		t.Errorf("stale = %q", stale)
+	}
+	// Up to date: nothing stale, text unchanged.
+	if reason, stale = reconcileGapReason(prev, []int{11, 14, 17, 38}, nil, nil, ""); len(stale) != 0 || reason != prev {
+		t.Errorf("up to date: reason = %q, stale = %q", reason, stale)
+	}
+}
+
+// A hand-written verdict's line lists are reconciled with the gaps: verify
+// refuses a stale list, sync rewrites it, and the verdict is Clean once
+// every marker is caught.
+func TestErrorcheck_HandWrittenVerdictReconciled(t *testing.T) {
+	o := errorcheckOpts(t)
+	o.Sync = false
+	// Line 3 is caught now, line 4 is a gap no group lists.
+	body := "package p\n\nvar x = undeclared // ERROR \"undeclared\"\nvar y = 1 // ERROR \"nope\"\n\n// GnoError:\n// line 3: name not defined: undeclared\n\n"
+	stale := body + "// Verdict: KnownIssue errorcheck: #1234 uncaught markers: lines 3 (why)\n"
+	_, err := runFiletest(o, "testdata/errorcheck/hand.go", stale)
+	if err == nil || !strings.Contains(err.Error(), "hand-written verdict is stale: lines 3 are no longer uncaught; lines 4 are uncaught but unlisted") {
+		t.Fatalf("stale list accepted: %v", err)
+	}
+	o.Sync = true
+	out, err := runFiletest(o, "testdata/errorcheck/hand.go", stale)
+	if err != nil || !strings.HasSuffix(out, "// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 4\n") {
+		t.Fatalf("sync: err=%v out:\n%s", err, out)
+	}
+	// Every marker caught: Clean, whatever the hand-written lists said.
+	clean := "package p\n\nvar x = undeclared // ERROR \"undeclared\"\n\n// GnoError:\n// line 3: name not defined: undeclared\n\n// Verdict: KnownIssue errorcheck: #1234 uncaught markers: lines 3 (why)\n"
+	out, err = runFiletest(o, "testdata/errorcheck/hand.go", clean)
+	if err != nil || !strings.HasSuffix(out, "// Verdict: Clean errorcheck\n") {
+		t.Fatalf("clean: err=%v out:\n%s", err, out)
+	}
+}
+
+// runFiletest runs one in-memory corpus file and returns the content sync
+// would write (empty when verify passes) and the error.
+func runFiletest(opts *TestOptions, name, src string) (string, error) {
+	out, _, _, err := opts.RunFiletest(name, []byte(src), opts.TestStore)
+	return out, err
+}
