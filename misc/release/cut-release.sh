@@ -7,9 +7,9 @@
 #   * The tag name does not parse as a version, so a halt proposal naming it
 #     gates on byte equality instead of ordering — which refuses the very binary
 #     the upgrade was cut for, and the chain cannot restart.
-#   * The binaries do not carry the tag. `chain/mainnet`'s published gnoland
-#     reports `develop`, because it was built without the ldflags; a node built
-#     that way satisfies no halt_min_version at all.
+#   * The binaries do not carry the tag. Mainnet's launch-day gnoland was
+#     hand-built without the ldflags and reported `develop`; a node built that
+#     way satisfies no halt_min_version at all.
 #   * The tag lands on a commit that is not on master, so the chain is running
 #     code that the development tree has never seen.
 #
@@ -22,17 +22,19 @@
 # Options:
 #   --chain <name>       chain branch to cut from       (default: mainnet)
 #   --commit <ref>       commit to tag                  (default: the branch tip)
-#   --previous <version> previous release, for the range (default: newest v* tag)
+#   --previous <version> previous release, for the range (default: newest final v* tag reachable from the commit)
 #   --halt-height <H>    also print the GovDAO halt proposal for a coordinated upgrade
 #   --push               push the tag to origin (otherwise: dry run)
 #   --allow-dirty        skip the clean-worktree check (local rehearsal only)
+#   --allow-merge        cut a range that merges master and touches consensus code
 #
 # Examples:
 #   # what the mainnet launch should have been tagged with
 #   misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 #
-#   # a consensus-breaking upgrade, with the halt proposal to go with it
-#   misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+#   # a consensus-breaking upgrade, with the halt proposal to go with it; the
+#   # commit is the code commit the ledger entry names, not the branch tip
+#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --halt-height 120000 --push
 
 set -euo pipefail
 
@@ -57,6 +59,7 @@ PREVIOUS=""
 HALT_HEIGHT=""
 PUSH=0
 ALLOW_DIRTY=0
+ALLOW_MERGE=0
 VERSION=""
 # A checkout of the commit being tagged, shared by every preflight check that
 # has to inspect that tree rather than the one the operator is standing on. A
@@ -124,6 +127,10 @@ parse_args() {
 			;;
 		--allow-dirty)
 			ALLOW_DIRTY=1
+			shift
+			;;
+		--allow-merge)
+			ALLOW_MERGE=1
 			shift
 			;;
 		-*) die "unknown option $1 (try --help)" ;;
@@ -222,6 +229,62 @@ check_on_master() {
 	warn "check each one: a commit squash-merged to master shows up here even"
 	warn "though its content landed. Anything genuinely missing should be ported"
 	warn "to master first, or the chain runs code the development tree never saw."
+}
+
+# The ledger is what operators read to know which version to run and what a
+# replaying node follows; a final release without an entry is invisible to
+# both, so it is refused, and so is one whose ledger fails `upgrades check`, the
+# check CI runs: a supervisor or the daily ledger job reads the whole file, not
+# one row, and operators read the UPGRADES.md rendered from it. The entry is
+# written before the cut, its image digest and binaries null until CI has built
+# them. A release candidate only warns: it rehearses the final version's entry,
+# which may not be written yet.
+check_ledger_entry() {
+	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
+	[[ -f ${dir}/upgrades.json ]] || return 0
+	local out
+	if out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades check "${dir}" 2>&1)"; then
+		ok "upgrades.json validates and UPGRADES.md is current"
+	else
+		# go run appends its own "exit status N"; the tool's message says it all.
+		out="$(printf '%s\n' "${out}" | sed -e '/^exit status [0-9]*$/d' -e 's/^/       /')"
+		if [[ ${VERSION} != *-* ]]; then
+			die "could not check the ledger in misc/deployments/${CHAIN}.gno.land:
+${out}"
+		fi
+		warn "could not check the ledger in misc/deployments/${CHAIN}.gno.land:"
+		printf '%s\n' "${out}" >&2
+		# The entry lookup below would trip on the same problem and add a
+		# misleading "no entry" warning.
+		return
+	fi
+	# The ledger validated above, so `upgrades commit` fails only when it has no
+	# entry for the version: one call finds the entry and the commit it names.
+	local named
+	if named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)"; then
+		ok "upgrades.json has an entry for ${VERSION}"
+		# The entry is committed on top of the code it names, so the branch tip
+		# is the ledger commit: cutting without --commit would tag that one
+		# while the entry names the code.
+		if [[ ${named} == "${COMMIT}" ]]; then
+			ok "the entry names the commit being tagged"
+			return
+		fi
+		local msg="the entry for ${VERSION%%-*} names ${named:0:9}, but the tag would land on ${COMMIT:0:9}: cut with --commit ${named:0:9}, or correct the entry's commit"
+		if [[ ${VERSION} == *-* ]]; then
+			warn "${msg}"
+		else
+			die "${msg}"
+		fi
+		return
+	fi
+	local hint="add the entry to misc/deployments/${CHAIN}.gno.land/upgrades.json and run
+       go run ./misc/deployments/upgrades render misc/deployments/${CHAIN}.gno.land"
+	if [[ ${VERSION} == *-* ]]; then
+		warn "upgrades.json has no entry for ${VERSION%%-*} yet; ${hint}"
+	else
+		die "upgrades.json has no entry for ${VERSION}. ${hint}"
+	fi
 }
 
 # Everything below inspects the commit being tagged, which is usually not the
@@ -351,11 +414,72 @@ classify() {
 	else
 		info "PATCH: no validator coordination needed."
 		if [[ ${breaking} -gt 0 ]]; then
-			warn "...but ${breaking} commit(s) in this range are marked breaking (feat!:/BREAKING)."
-			warn "   A consensus change is a MINOR bump, not a patch. Re-check the number."
+			die "${breaking} commit(s) in this range are marked breaking (feat!:/BREAKING).
+       A consensus change is a MINOR bump, not a patch: validators must halt
+       together. Cut the next MINOR instead."
 		fi
 	fi
 	printf '\n'
+
+	check_merge_ships_consensus
+}
+
+# A merge of master ships everything master had, agreed or not. When such a
+# range touches the code nodes agree on, the operator says so explicitly with
+# --allow-merge; otherwise the release is cherry-picked (RELEASING.md).
+#
+# "The code nodes agree on" is everything under the node's trees minus a short
+# list of directories that provably cannot fork a chain — not a list of the
+# directories that can. A directory forgotten from an allowlist is a consensus
+# change waved through silently; one forgotten from this denylist costs one
+# --allow-merge with a human looking. gno.land/pkg holds gnoweb, gnoclient and
+# the CLI helpers next to the node, so only its two consensus packages are
+# roots — plus the node's own command, which wires the app (genesis signer
+# funding, the skip flags, app options) and can change InitChain. go.mod and
+# go.sum are in: a dependency bump or a toolchain directive changes behaviour
+# inside these packages without touching a listed file.
+readonly CONSENSUS_ROOTS=(
+	gnovm
+	tm2
+	gno.land/pkg/gnoland
+	gno.land/pkg/sdk
+	gno.land/cmd/gnoland
+	go.mod
+	go.sum
+)
+# Under the roots, but unable to fork a chain: the RPC server, CLI plumbing,
+# logging, telemetry, and the gno tool's own command line.
+readonly NON_CONSENSUS_DIRS=(
+	tm2/pkg/bft/rpc
+	tm2/pkg/commands
+	tm2/pkg/colors
+	tm2/pkg/log
+	tm2/pkg/telemetry
+	tm2/pkg/testutils
+	tm2/pkg/iavl/cmd
+	gnovm/cmd
+)
+check_merge_ships_consensus() {
+	[[ -n ${PREVIOUS} ]] || return 0
+	local merges consensus excludes=() dir
+	merges="$(git -C "${REPO_ROOT}" log --merges --first-parent --format=%h "${PREVIOUS}..${COMMIT}")"
+	[[ -n ${merges} ]] || return 0
+	for dir in "${NON_CONSENSUS_DIRS[@]}"; do
+		excludes+=(":!${dir}")
+	done
+	consensus="$(git -C "${REPO_ROOT}" diff --name-only "${PREVIOUS}" "${COMMIT}" -- \
+		"${CONSENSUS_ROOTS[@]}" "${excludes[@]}" ':!*_test.go' ':!*.md' ':!*/testdata/*' ':!*/tests/*')"
+	[[ -n ${consensus} ]] || return 0
+	if [[ ${ALLOW_MERGE} -eq 1 ]]; then
+		warn "the range merges master ($(printf '%s\n' "${merges}" | head -1)) and touches consensus code; --allow-merge given"
+		return 0
+	fi
+	die "the range ${PREVIOUS}..${COMMIT:0:9} merges master ($(printf '%s\n' "${merges}" | head -1)) and touches consensus code:
+
+$(printf '%s\n' "${consensus}" | head -10 | sed 's/^/       /')
+
+       A merge ships everything master had, agreed or not. Re-run with
+       --allow-merge to acknowledge that, or cherry-pick the upgrade's PRs."
 }
 
 # ------------------------------------------------------------------- output
@@ -428,6 +552,7 @@ main() {
 	check_tag_free
 	resolve_commit
 	check_on_master
+	check_ledger_entry
 	prepare_worktree
 	check_protocol_constants
 	check_build_reports_tag
