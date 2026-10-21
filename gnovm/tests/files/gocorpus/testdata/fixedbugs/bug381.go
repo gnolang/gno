@@ -30,4 +30,12 @@ func main() {
 	f(time.Wednesday) // ERROR "time.Wednesday|incompatible type"
 }
 
-// Verdict: Unsupported unsafe: unknown import path unsafe
+// GnoTrim: lines 23, 29
+
+// GnoTrimmed: lines 29
+
+// GnoError:
+// line 26: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 30: cannot use time.Weekday as int without explicit conversion
+
+// Verdict: Clean errorcheck

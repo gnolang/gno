@@ -21,4 +21,7 @@ func Recursive() (x interface{}, y int) {
 	return Recursive(), 0 // ERROR "single-value context|2\-valued"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 21
