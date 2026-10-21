@@ -145,10 +145,11 @@ curl http://127.0.0.1:8546/status/gno.land/r/you/yours   # one package
 
 `status` is one of `rejected` (the code did not pass), `pending` (will be
 retried), `gave_up` (retried to the cap, needs a human), `blocked` (nothing
-wrong with the package -- the oracle has hit `--max-spend`, or cannot pay the
-fee at all; see [Funding the approver](#funding-the-approver)), `approved`, or
-`unknown` (never seen). `blocked` is the one worth separating: it means to go
-and ask the operator, not to go and fix your code.
+wrong with the package -- the oracle has hit `--max-spend`, cannot pay the
+fee at all, or its `--gas-fee` is below the chain's gas price; see
+[Funding the approver](#funding-the-approver)), `approved`, or `unknown` (never
+seen). `blocked` is the one worth separating: it means to go and ask the
+operator, not to go and fix your code.
 
 Off by default, and unauthenticated when on. Everything it reports concerns a
 package submitted in a public transaction, so there is nothing here its

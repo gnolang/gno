@@ -632,6 +632,17 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		}
 		err = o.enable(path, pkgHash, c.height)
 	}
+	// An underpriced -gas-fee, refused at CheckTx for free. Held like an empty
+	// purse, since every package behind would fail the same way, but until
+	// shutdown: a balance cannot fix a ratio, only a restart with a higher fee.
+	if errors.As(err, &std.InsufficientFeeError{}) {
+		o.status.record(path, statusBlocked,
+			"the oracle's gas fee is below the chain's gas price; the oracle is paused", 0)
+		o.errf("gpao: paused on %q: -gas-fee %s is below the chain's gas price. "+
+			"Raise it and restart: %v", path, o.gasFee, err)
+		<-ctx.Done()
+		return
+	}
 	if err != nil {
 		// Left unseen until the count runs out, for the reason at
 		// maxEnableAttempts: the package verified, so the failure is about the

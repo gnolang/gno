@@ -252,3 +252,42 @@ func TestAnEmptyPursePausesRatherThanRetiringPackages(t *testing.T) {
 	awaitStatus(t, o, three.Path, statusApproved)
 	awaitStatus(t, o, later.Path, statusApproved)
 }
+
+// TestAnUnderpricedFeePausesRatherThanRetiringPackages: a -gas-fee below the
+// chain's gas price is refused at CheckTx, and every package behind would be
+// refused the same way. So it holds like an empty purse: blocked on the package
+// in hand, no attempt, nothing seen, nothing spent, and the queue left unread.
+func TestAnUnderpricedFeePausesRatherThanRetiringPackages(t *testing.T) {
+	f := newPurseFixture(t, 1)
+
+	first, second := f.pkg("first"), f.pkg("second")
+	f.park(t, first)
+	f.park(t, second)
+
+	o := f.oracle(t, 1)
+	// The test chain prices gas at 1ugnot per 1000, so this covers 1000 gas.
+	o.gasFee = std.NewCoin(ugnotDenom, 1)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = o.run(ctx)
+	}()
+
+	awaitStatus(t, o, first.Path, statusBlocked)
+	// Long enough for a walk past the held package to show.
+	time.Sleep(time.Second)
+	cancel()
+	<-done
+
+	status := o.status.get(first.Path)
+	assert.Contains(t, status.Reason, "below the chain's gas price")
+	assert.Zero(t, status.Attempt, "an underpriced fee must not be counted as an attempt")
+	assert.Equal(t, statusUnknown, o.status.get(second.Path).Status,
+		"the package behind has to wait, not be refused the same way")
+	key := candidateKey(first)
+	assert.NotContains(t, o.seen, key)
+	assert.NotContains(t, o.failedEnable, key)
+	assert.Zero(t, o.spent, "a CheckTx refusal charges nothing")
+}
