@@ -1,0 +1,42 @@
+# gnomod.toml [source] survives the keeper re-encoding the file on AddPackage
+# (stampGnomod), so explorers can link a deployed package to its repository.
+# A chain whose gnomod.File does not know the section drops it silently, which
+# is what this guards.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/ok -pkgpath gno.land/r/$test1_user_addr/withsource -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qfile --data 'gno.land/r/'$test1_user_addr'/withsource/gnomod.toml'
+stdout '\[source\]'
+stdout 'repository = "https://github.com/gnolang/gno"'
+stdout 'path = "examples/gno.land/r/demo/withsource"'
+stdout '\[addpkg\]'
+
+# An invalid section is refused, not stored half-way.
+! gnokey maketx addpkg -pkgdir $WORK/bad -pkgpath gno.land/r/$test1_user_addr/badsource -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'must be an https URL'
+
+-- ok/gnomod.toml --
+module = "gno.land/r/test1/withsource"
+gno = "0.9"
+
+[source]
+  repository = "https://github.com/gnolang/gno"
+  path = "examples/gno.land/r/demo/withsource"
+
+-- ok/withsource.gno --
+package withsource
+
+func Render(string) string { return "ok" }
+
+-- bad/gnomod.toml --
+module = "gno.land/r/test1/badsource"
+gno = "0.9"
+
+[source]
+  repository = "javascript:alert(1)"
+
+-- bad/badsource.gno --
+package badsource
