@@ -5800,6 +5800,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		assertConstRepresentable(preprocessGasMeterOf(store), x)
 		// is constant?  From the machine?
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath:            ".dontcare",
