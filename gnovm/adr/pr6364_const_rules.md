@@ -25,6 +25,11 @@ tree:
   operation's result is not representable.
 - A labeled `break` or `continue` must name an enclosing loop (`break`
   also a switch or select).
+- A typed integer constant operation (`+ - * /`, negation) is checked
+  exactly before the fold and rejected when the result is not
+  representable in the type, as gc does (#6392); the machine's fold
+  wraps. Shifts keep the fold's own check; runtime arithmetic is
+  unchanged. Untyped rune results are #6390's rule.
 
 ## Alternatives considered
 

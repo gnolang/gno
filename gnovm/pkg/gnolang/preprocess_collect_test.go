@@ -2268,6 +2268,110 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectConstRepresentable(t *testing.T) {
+	// A typed constant operation is folded exactly and must stay
+	// representable in its type (#6392); the machine's fold wraps.
+	msgs := collectErrors(t, `package main
+
+type T int8
+
+const a rune = '\U0010ffff'
+const b = a * a
+const c int8 = 100
+const _ = c * 2
+const d uint8 = 0
+const _ = d - 1
+const e int64 = 1 << 62
+const _ = e * 4
+const f uint64 = 1 << 63
+const _ = f + f
+const g int32 = -2147483648
+const _ = -g
+const k uint = 3
+const _ = k << 63 // a shift keeps the fold's check
+const h int16 = 32767
+const _ = h + 1
+const i uint32 = 1 << 31
+const _ = i * 2
+const j int = 1 << 62
+const _ = j + j
+const m int8 = -128
+const _ = m / -1
+const _ = -m
+const _ = (c + 1) * 2 // the folded operand prints as written
+const _ = c + 1 + 100
+const n T = 100
+const _ = n + n
+const u uint8 = 1
+const _ = -u
+const _ = m / 0 // division by zero keeps its error
+
+func main() {}
+`)
+	want := []string{
+		"a * a (constant 1241243320321 of type int32) overflows int32",
+		"c * 2 (constant 200 of type int8) overflows int8",
+		"d - 1 (constant -1 of type uint8) overflows uint8",
+		"e * 4 (constant 18446744073709551616 of type int64) overflows int64",
+		"f + f (constant 18446744073709551616 of type uint64) overflows uint64",
+		"-g (constant 2147483648 of type int32) overflows int32",
+		"constant overflows",
+		"h + 1 (constant 32768 of type int16) overflows int16",
+		"i * 2 (constant 4294967296 of type uint32) overflows uint32",
+		"j + j (constant 9223372036854775808 of type int) overflows int",
+		"m / -1 (constant 128 of type int8) overflows int8",
+		"-m (constant 128 of type int8) overflows int8",
+		"(c + 1) * 2 (constant 202 of type int8) overflows int8",
+		"c + 1 + 100 (constant 201 of type int8) overflows int8",
+		"n + n (constant 200 of type main.T) overflows main.T",
+		"-u (constant -1 of type uint8) overflows uint8",
+		"invalid operation: division by zero",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors %v, got %d: %v", len(want), want, len(msgs), msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+
+	// Boundary results are representable: not rejected.
+	msgs = collectErrors(t, `package main
+
+const _ int8 = 127
+const _ = int8(127)
+const _ int8 = -128
+const _ uint8 = 255
+const _ int64 = 1<<63 - 1
+const c int8 = 100
+const _ = c + 27
+const _ = -(c + 27)
+const m int8 = -128
+const _ = -(m + 1)
+const _ = m / 1
+const _ = m % -1
+const u uint8 = 200
+const _ = u + 55
+const _ = u * 1
+const z uint8 = 0
+const _ = -z
+const e int64 = 1 << 62
+const _ = e + (e - 1)
+const f uint64 = 1 << 63
+const _ = f + (f - 1)
+const _ = f * 2 / 2 // folded left to right: the first operation overflows
+
+func main() {}
+`)
+	want = []string{
+		"f * 2 (constant 18446744073709551616 of type uint64) overflows uint64",
+	}
+	if len(msgs) != len(want) || msgs[0] != want[0] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectExprStmts(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
