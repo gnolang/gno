@@ -28,5 +28,6 @@ func ReadMemInfo() (MemInfo, bool) {
 		Total:     total,
 		Available: uint64(pageSize) * (uint64(free) + uint64(fileBacked)),
 	}
-	return mi, mi.Total > 0 && mi.Available > 0
+	// Nothing available is a reading like any other.
+	return mi, mi.Total > 0
 }

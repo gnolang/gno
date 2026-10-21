@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -239,14 +240,32 @@ func TestNewNodeBudgetDefaults(t *testing.T) {
 	if _, ok := testutils.ReadMemInfo(); !ok {
 		t.Skip("no memory reading on this platform")
 	}
-	b := newNodeBudget()
-	assert.GreaterOrEqual(t, b.max, b.min)
-	assert.NotZero(t, b.reserve, "should ramp where memory can be read")
-	assert.NotNil(t, b.readHeld)
-	// Starts at the static cap, and never shrinks below it: a busy machine is
-	// never worse off than without the ramp.
-	assert.Equal(t, testutils.MaxParallel(), b.limit)
-	assert.Equal(t, testutils.MaxParallel(), b.min)
+	// The budget sizes itself off GOMAXPROCS, so set it rather than depend on
+	// the machine running the test. Safe: as a sequential test, which
+	// t.Setenv requires, this one never runs alongside a parallel one.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(0))
+
+	t.Run("room to ramp", func(t *testing.T) {
+		runtime.GOMAXPROCS(16)
+		b := newNodeBudget()
+		assert.Equal(t, 16, b.max)
+		assert.NotZero(t, b.reserve, "should ramp where memory can be read")
+		assert.NotNil(t, b.readHeld)
+		// Starts at the static cap, and never shrinks below it: a busy machine
+		// is never worse off than without the ramp.
+		assert.Equal(t, testutils.MaxParallel(), b.limit)
+		assert.Equal(t, testutils.MaxParallel(), b.min)
+	})
+
+	t.Run("no room to ramp", func(t *testing.T) {
+		// No more cores than the static cap: nowhere to ramp to, so nothing
+		// worth reading memory every second for.
+		runtime.GOMAXPROCS(2)
+		b := newNodeBudget()
+		assert.Equal(t, 2, b.min)
+		assert.Equal(t, 2, b.max)
+		assert.Zero(t, b.reserve, "reads memory for a limit that cannot move")
+	})
 }
 
 func TestNodeBudgetPacesReadings(t *testing.T) {

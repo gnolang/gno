@@ -155,17 +155,18 @@ func heldMemory() uint64 {
 }
 
 func newNodeBudget() *nodeBudget {
-	n := testutils.MaxParallel()
+	n, most := testutils.MaxParallel(), runtime.GOMAXPROCS(0)
 	// An explicit override pins the count, as does a platform whose free
-	// memory we cannot read.
+	// memory we cannot read, or a machine with no more cores than the count
+	// itself: there is nothing to ramp to, so no reading worth taking.
 	_, pinned := testutils.MaxParallelOverride()
 	mi, ok := testutils.ReadMemInfo()
-	if pinned || !ok {
+	if pinned || !ok || n >= most {
 		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
 	}
 	return &nodeBudget{
 		min: n,
-		max: runtime.GOMAXPROCS(0),
+		max: most,
 		// Start where the static cap would have: the count CI validates, and
 		// therefore the one worth assuming before any reading has been taken.
 		limit:    n,

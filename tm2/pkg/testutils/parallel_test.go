@@ -53,9 +53,8 @@ func TestReadMemInfo(t *testing.T) {
 	if !ok {
 		t.Skip("not implemented on this platform")
 	}
+	// No floor on Total: a cgroup can hold it to a few hundred MiB, or less.
+	// The units are checked against fixed input instead, in TestParseMemInfo.
 	require.NotZero(t, mi.Total)
 	assert.LessOrEqual(t, mi.Available, mi.Total, "more available than exists")
-	// A machine running this test has some memory going spare, and the units
-	// had better be bytes: a kB/byte mix-up would show up as an absurd total.
-	assert.Greater(t, mi.Total, uint64(256<<20), "total looks like it is not in bytes")
 }

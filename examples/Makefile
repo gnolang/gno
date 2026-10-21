@@ -28,7 +28,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # overridable by GNO_TEST_MAX_PARALLEL as there, which likewise ignores anything
 # but a positive integer; `gno test` itself lowers -p to GOMAXPROCS on smaller
 # machines.
-GNOTEST_JOBS ?= $(or $(shell echo '$(GNO_TEST_MAX_PARALLEL)' | grep -xE '0*[1-9][0-9]*' | sed 's/^0*//'),4)
+GNOTEST_JOBS ?= $(or $(shell echo '$(GNO_TEST_MAX_PARALLEL)' | grep -xE '\+?0*[1-9][0-9]{0,17}' | sed 's/^+//; s/^0*//'),4)
 
 ########################################
 # Dev tools

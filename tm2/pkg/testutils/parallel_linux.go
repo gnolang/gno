@@ -13,18 +13,42 @@ const cgroupMount = "/sys/fs/cgroup"
 
 // ReadMemInfo reports the memory this process may use, from /proc/meminfo
 // narrowed by the memory limits of its cgroup and of every cgroup above it. It
-// returns false if neither figure could be read, or if memory is under a
-// cgroup v1 controller: its limits are not read here, and the host figures can
-// sit far beyond them.
+// returns false if either figure is missing from /proc/meminfo, or if memory is
+// under a cgroup v1 controller: its limits are not read here, and the host
+// figures can sit far beyond them.
 func ReadMemInfo() (MemInfo, bool) {
 	// A few kB of virtual file; read it whole rather than scanning it.
 	bz, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		return MemInfo{}, false
 	}
+	mi, ok := parseMemInfo(string(bz))
+	if !ok {
+		return MemInfo{}, false
+	}
 
+	// Unreadable, this parses as no cgroup at all, and the host figures stand.
+	cg, _ := os.ReadFile("/proc/self/cgroup")
+	rel, v1memory := parseProcCgroup(string(cg))
+	if v1memory {
+		return MemInfo{}, false
+	}
+	for _, dir := range cgroupDirs(cgroupMount, rel) {
+		if limit, used, ok := cgroupMemory(dir); ok {
+			mi = clampToCgroup(mi, limit, used)
+		}
+	}
+	// Nothing available is a reading like any other: a cgroup at its limit,
+	// which is when a caller most needs one.
+	return mi, mi.Total > 0
+}
+
+// parseMemInfo reads MemTotal and MemAvailable out of the contents of
+// /proc/meminfo, reporting false unless both are there.
+func parseMemInfo(s string) (MemInfo, bool) {
 	var mi MemInfo
-	for line := range strings.Lines(string(bz)) {
+	var found int
+	for line := range strings.Lines(s) {
 		key, rest, ok := strings.Cut(line, ":")
 		if !ok {
 			continue
@@ -45,21 +69,10 @@ func ReadMemInfo() (MemInfo, bool) {
 		}
 		if kb, err := strconv.ParseUint(fields[0], 10, 64); err == nil {
 			*dst = kb * 1024
+			found++
 		}
 	}
-
-	// Unreadable, this parses as no cgroup at all, and the host figures stand.
-	cg, _ := os.ReadFile("/proc/self/cgroup")
-	rel, v1memory := parseProcCgroup(string(cg))
-	if v1memory {
-		return MemInfo{}, false
-	}
-	for _, dir := range cgroupDirs(cgroupMount, rel) {
-		if limit, used, ok := cgroupMemory(dir); ok {
-			mi = clampToCgroup(mi, limit, used)
-		}
-	}
-	return mi, mi.Total > 0 && mi.Available > 0
+	return mi, found == 2
 }
 
 // clampToCgroup narrows a host reading to what a cgroup memory limit allows.

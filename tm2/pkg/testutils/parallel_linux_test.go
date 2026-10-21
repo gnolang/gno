@@ -9,6 +9,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseMemInfo(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		in   string
+		want MemInfo
+		ok   bool
+	}{
+		{
+			name: "both present",
+			in:   "MemTotal:       32950272 kB\nMemFree:         1048576 kB\nMemAvailable:   20971520 kB\n",
+			// kB, not bytes: a mix-up would be off by 1024 either way.
+			want: MemInfo{Total: 32950272 << 10, Available: 20 << 30},
+			ok:   true,
+		},
+		{
+			// A reading, not a failure: a machine with nothing to spare is
+			// when a caller most needs to know.
+			name: "nothing available",
+			in:   "MemTotal:       32950272 kB\nMemAvailable:          0 kB\n",
+			want: MemInfo{Total: 32950272 << 10},
+			ok:   true,
+		},
+		{
+			// Kernels before 3.14 have no MemAvailable.
+			name: "no MemAvailable",
+			in:   "MemTotal:       32950272 kB\nMemFree:         1048576 kB\n",
+			ok:   false,
+		},
+		{
+			name: "unparsable value",
+			in:   "MemTotal:       32950272 kB\nMemAvailable:   lots kB\n",
+			ok:   false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := parseMemInfo(tt.in)
+			require.Equal(t, tt.ok, ok)
+			if ok {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
 func TestClampToCgroup(t *testing.T) {
 	t.Parallel()
 
