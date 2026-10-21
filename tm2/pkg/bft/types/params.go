@@ -80,6 +80,15 @@ func DefaultBlockParams() *abci.BlockParams {
 // DefaultValidatorParams allows both secp256k1 and ed25519 consensus keys.
 // A chain whose headers must be verified on Ethereum (ecrecover) should
 // restrict this to secp256k1 in its genesis.
+//
+// GenesisDoc.ValidateAndComplete fills this in for a genesis without an
+// explicit consensus_params.validator, and the result feeds
+// ConsensusParams.Hash and so every block's ConsensusHash. A node started
+// from such a genesis by this binary therefore computes a different
+// ConsensusHash from one started by a binary whose default was ed25519 only,
+// and rejects (or produces) blocks the other side will not accept. A genesis
+// written by gnogenesis carries the list explicitly and is unaffected;
+// hand-written genesis files that omit it are the ones that change meaning.
 func DefaultValidatorParams() *abci.ValidatorParams {
 	return &abci.ValidatorParams{PubKeyTypeURLs: []string{
 		amino.GetTypeURL(secp256k1.PubKeySecp256k1{}),
