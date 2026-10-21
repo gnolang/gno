@@ -61,8 +61,11 @@ gnokey maketx addpkg \
   -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 
 # 8. Call a realm function. The testnet enables a new package a few seconds
-#    after addpkg: if the call fails, wait and retry; a refused one's
-#    reason is at https://gpao.latest.testnets.gno.land/status/<pkgpath>
+#    after addpkg: if the call fails, wait and retry. A refused one's
+#    reason is at https://gpao.latest.testnets.gno.land/status/<pkgpath>,
+#    which only knows packages submitted since its service last restarted;
+#    if it still reads "unknown" after a minute, ask on Discord at
+#    https://discord.com/invite/gnoland
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
