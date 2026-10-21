@@ -19,6 +19,21 @@ as caught only when Gno rejects the line for its own reason, which
 its line is refused for these files: go/types attributes it to the
 previous line's token, which line-based attribution cannot follow.
 
+## goconst: constant folding
+
+`testdata/goconst/` is a hand-transcribed third corpus: Go's constant
+arithmetic is exact (`go/constant` over `math/big`), but its evidence is
+table tests (`go/constant/value_test.go`) and go/types' `const*.go`,
+`conversions*.go` and `shifts.go`, which `gotypes/` skips as `Unsupported`
+for `unsafe` and complex numbers. Each file is a `// run` program (one
+`// errorcheck`) covering one theme: untyped rune arithmetic, typed
+overflow, non-constant shifts in context, float32 rounding, integer to
+float conversion, comparisons of big constants, unary operators; the
+rows of #6389, #6392, #6393 and #6394 are all in. `GoOutput:` comes from
+`go run` as for any run file. The files are not upstream, so the manifest
+skips them like the canary dirs; the provenance header names the sources
+and the Go release the output was recorded with.
+
 ## Per-file contract
 
 Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:

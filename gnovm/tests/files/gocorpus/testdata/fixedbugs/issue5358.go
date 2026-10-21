@@ -16,4 +16,11 @@ func main() {
 	f(g()) // ERROR "as int value in|incompatible type"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: cannot use []int as int
+
+// GnoWordingDiffers:
+// line 16: gc expects: as int value in|incompatible type; gno: cannot use []int as int
+
+// Verdict: Clean errorcheck
