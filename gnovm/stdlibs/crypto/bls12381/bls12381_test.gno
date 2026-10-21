@@ -46,6 +46,31 @@ func TestFastAggregateVerify(t *testing.T) {
 	}
 }
 
+// The G1 generator and its negation, each a valid non-identity public key
+// whose sum is the identity, and the identity (infinity) signature.
+const (
+	vecG1     = "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+	vecNegG1  = "b7f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
+	vecInfSig = "c0" +
+		"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
+		"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+)
+
+// Keys summing to the identity must not verify the identity signature over
+// an arbitrary message: e(0, H(m)) == e(-G1, 0) holds for every m.
+func TestFastAggregateVerifyIdentityAggregate(t *testing.T) {
+	pks := mustDecode(vecG1 + vecNegG1)
+	infSig := mustDecode(vecInfSig)
+
+	if bls12381.FastAggregateVerify(pks, []byte("any message"), infSig) {
+		t.Fatal("identity aggregate with the identity signature accepted")
+	}
+	// The identity signature alone, under a real aggregate, fails too.
+	if bls12381.FastAggregateVerify(mustDecode(vecPubKeys), []byte(vecMsg), infSig) {
+		t.Fatal("identity signature accepted")
+	}
+}
+
 // A committee of four (secret keys 0x1234567, 0x89abcdef, 0x7654321, 0x5555)
 // whose second and fourth members did not sign msg.
 const (

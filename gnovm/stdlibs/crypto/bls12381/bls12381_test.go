@@ -11,20 +11,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// g1Bytes returns the compressed G1 generator, a valid public key.
+func g1Bytes() []byte {
+	g1 := g1Generator()
+	b := g1.Bytes()
+	return b[:]
+}
+
 // signers returns n random secret keys, their concatenated compressed public
 // keys, and the compressed aggregate signature of msg by all of them.
-func signers(t testing.TB, n int, msg []byte) (pubkeys, sig []byte) {
-	t.Helper()
+func signers(tb testing.TB, n int, msg []byte) (pubkeys, sig []byte) {
+	tb.Helper()
 
-	_, _, g1, _ := bls.Generators()
+	g1 := g1Generator()
 	h, err := bls.HashToG2(msg, ethDST)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	var aggSig bls.G2Jac
 	for range n {
 		var sk fr.Element
 		_, err := sk.SetRandom()
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		var skInt big.Int
 		sk.BigInt(&skInt)
 
@@ -49,26 +56,53 @@ func TestFastAggregateVerify(t *testing.T) {
 	msg := make([]byte, 32)
 	_, _ = rand.Read(msg)
 	pubkeys, sig := signers(t, 8, msg)
+	var infSig bls.G2Affine
+	infSigBytes := infSig.Bytes()
 
 	require.True(t, X_fastAggregateVerify(pubkeys, msg, sig))
 
 	t.Run("wrong message", func(t *testing.T) {
+		t.Parallel()
 		require.False(t, X_fastAggregateVerify(pubkeys, []byte("other"), sig))
 	})
 	t.Run("missing signer", func(t *testing.T) {
+		t.Parallel()
 		require.False(t, X_fastAggregateVerify(pubkeys[pubKeySize:], msg, sig))
 	})
 	t.Run("malformed lengths", func(t *testing.T) {
+		t.Parallel()
 		require.False(t, X_fastAggregateVerify(nil, msg, sig))
 		require.False(t, X_fastAggregateVerify(pubkeys[1:], msg, sig))
 		require.False(t, X_fastAggregateVerify(pubkeys, msg, sig[1:]))
 	})
 	t.Run("infinity pubkey", func(t *testing.T) {
+		t.Parallel()
 		var inf bls.G1Affine
 		ib := inf.Bytes()
 		require.False(t, X_fastAggregateVerify(append(append([]byte{}, pubkeys...), ib[:]...), msg, sig))
 	})
+	t.Run("identity aggregate", func(t *testing.T) {
+		t.Parallel()
+		// Keys that sum to the identity, each a valid non-identity point,
+		// with the identity signature: e(0, H(m)) == e(-G1, 0) for every m.
+		// Once with a random key, once with the generator.
+		for _, key := range [][]byte{pubkeys[:pubKeySize], g1Bytes()} {
+			var p, neg bls.G1Affine
+			_, err := p.SetBytes(key)
+			require.NoError(t, err)
+			neg.Neg(&p)
+			nb := neg.Bytes()
+			pair := append(append([]byte{}, key...), nb[:]...)
+			require.False(t, X_fastAggregateVerify(pair, msg, infSigBytes[:]))
+			require.False(t, X_fastAggregateVerify(pair, []byte("any message"), infSigBytes[:]))
+		}
+	})
+	t.Run("infinity signature", func(t *testing.T) {
+		t.Parallel()
+		require.False(t, X_fastAggregateVerify(pubkeys, msg, infSigBytes[:]))
+	})
 	t.Run("garbage signature", func(t *testing.T) {
+		t.Parallel()
 		bad := append([]byte{}, sig...)
 		bad[10] ^= 0xff
 		require.False(t, X_fastAggregateVerify(pubkeys, msg, bad))
@@ -93,17 +127,17 @@ func BenchmarkFastAggregateVerify(b *testing.B) {
 // committee returns n random secret keys' compressed public keys, their
 // compressed aggregate, and the aggregate signature of msg by the members
 // for which signs(i) is true.
-func committee(t testing.TB, n int, msg []byte, signs func(int) bool) (pubkeys [][]byte, aggregate, sig []byte) {
-	t.Helper()
-	_, _, g1, _ := bls.Generators()
+func committee(tb testing.TB, n int, msg []byte, signs func(int) bool) (pubkeys [][]byte, aggregate, sig []byte) {
+	tb.Helper()
+	g1 := g1Generator()
 	h, err := bls.HashToG2(msg, ethDST)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	var aggPk bls.G1Jac
 	var aggSig bls.G2Jac
 	for i := range n {
 		var sk fr.Element
 		_, err := sk.SetRandom()
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		var skInt big.Int
 		sk.BigInt(&skInt)
 		var pk bls.G1Affine
@@ -146,13 +180,16 @@ func TestFastAggregateVerifyExcluding(t *testing.T) {
 	require.True(t, X_fastAggregateVerify(signers, msg, sig))
 
 	t.Run("wrong excluded set", func(t *testing.T) {
+		t.Parallel()
 		require.False(t, X_fastAggregateVerifyExcluding(aggregate, excluded[pubKeySize:], msg, sig))
 		require.False(t, X_fastAggregateVerifyExcluding(aggregate, append(append([]byte{}, excluded...), pubkeys[0]...), msg, sig))
 	})
 	t.Run("wrong message", func(t *testing.T) {
+		t.Parallel()
 		require.False(t, X_fastAggregateVerifyExcluding(aggregate, excluded, []byte("other"), sig))
 	})
 	t.Run("nobody signed", func(t *testing.T) {
+		t.Parallel()
 		var all []byte
 		for _, pk := range pubkeys {
 			all = append(all, pk...)
@@ -160,6 +197,7 @@ func TestFastAggregateVerifyExcluding(t *testing.T) {
 		require.False(t, X_fastAggregateVerifyExcluding(aggregate, all, msg, sig))
 	})
 	t.Run("malformed", func(t *testing.T) {
+		t.Parallel()
 		require.False(t, X_fastAggregateVerifyExcluding(aggregate[1:], excluded, msg, sig))
 		require.False(t, X_fastAggregateVerifyExcluding(aggregate, excluded[1:], msg, sig))
 		var inf bls.G1Affine

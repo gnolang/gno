@@ -233,7 +233,11 @@ import (
 // FastAggregateVerifyExcluding: its .gno sources (and its _test.gno, see above)
 // are committed into genesis state like every stdlib's, so the root moves.
 // crossrealm38 does not import it.
-const expectedCrossrealm38Hash = "9c883b9746e7d374a2eadfd4e02bc79b3af3e547206c11c9202e30df50cfdd16"
+//
+// Bumped again by the bls12381 review fixes: the caller-obligation doc text in
+// bls12381.gno and the identity-aggregate test in bls12381_test.gno are source
+// bytes in the root; the identity check itself is in bls12381.go, which is not.
+const expectedCrossrealm38Hash = "dda12cfdcfcd6952b872e7c68440eacead27c174da77ec6168eef7de9bbc6def"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

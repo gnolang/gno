@@ -17,8 +17,20 @@ sig []byte) bool`, implementing the IETF draft's FastAggregateVerify for the
 proof-of-possession ciphersuite Ethereum uses
 (`BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_`): compressed 48-byte G1 public
 keys concatenated, a compressed 96-byte G2 signature. Every point is decoded
-with its subgroup check, the identity is rejected as a public key, and the
-check is a single two-pairing product.
+with its subgroup check, the identity is rejected as a public key and as the
+aggregate of the public keys (KeyValidate applies to the key CoreVerify is
+handed: keys summing to the identity, `pk` and `-pk`, would otherwise verify
+the identity signature over any message), and the check is a single
+two-pairing product. The signature is subgroup-checked only, as CoreVerify
+specifies: with a non-identity key the identity signature cannot pass.
+
+Two obligations the native cannot check fall on the caller, stated in the
+imperative in the package doc: every key must have passed proof of possession
+(the POP ciphersuite is rogue-key forgeable otherwise, and there is no
+`PopVerify` here; Ethereum sync committee keys passed it at deposit), and for
+`FastAggregateVerifyExcluding` every excluded key must be a verified member
+of the committee behind the aggregate (otherwise `excluded` can be chosen so
+that the aggregate minus it is the attacker's own key).
 
 The Gno wrapper rejects wrong lengths before calling the native, so malformed
 input is not copied into Go first (see `native_input_bounds.md`).
