@@ -147,11 +147,6 @@ code to improve your understanding of the Gno language. You can share your code,
 run unit tests, deploy your realms and packages, and execute functions.
 Try out [Gno Playground](https://play.gno.land/).
 
-### Gno Studio Connect
-A tool that provides seamless access to realms, making it simple to explore,
-interact, and engage with Gno.land's smart contracts through function calls.
-Try out [Gno Studio Connect](https://gno.studio/connect).
-
 ### Gno Test
 Gno.land's built-in testing framework that enables developers to write and
 execute unit tests for their Gno smart contracts (realms). It provides a
