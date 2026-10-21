@@ -41,4 +41,25 @@ func main() {
 	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 30: wrong argument count in call to func func(.recv (const-type main.Fooer), .arg0 (const-type int), .arg1 (const-type int)){ .recv<VPBlock(1,0)>.Foo(.arg0<VPBlock(1,1)>, .arg1<VPBlock(1,2)>) }; want 3 got 2
+// line 35: wrong argument count in call to g<VPBlock(3,4)>(); want 1 got 0
+// line 36: wrong argument count in call to f<VPBlock(3,1)>; want 1 got 0
+// line 37: wrong argument count in call to i<VPBlock(1,0)>.M; want 1 got 0
+// line 38: wrong argument count in call to func func(.recv (const-type main.I), .arg0 (const-type int)){ .recv<VPBlock(1,0)>.M(.arg0<VPBlock(1,1)>) }; want 2 got 0
+// line 39: wrong argument count in call to t<VPBlock(1,1)>.M; want 1 got 0
+// line 40: wrong argument count in call to typeval{main.T}.M; want 2 got 0
+// line 41: wrong argument count in call to func func(.recv (const-type *main.T), .arg0 (const-type int)){ .recv<VPBlock(1,0)>.M(.arg0<VPBlock(1,1)>) }; want 2 got 0
+
+// GnoWordingDiffers:
+// line 30: gc expects: not enough arguments in call to method expression Fooer.Foo|incompatible type|not enough arguments; gno: wrong argument count in call to func func(.recv (const-type main.Fooer), .arg0 (const-type int), .arg1 (const-type int)){ .recv<VPBlock(1,0)>.Foo(.arg0<VPBlock(1,1)>, .arg1<VPBlock(1,2)>) }; want 3 got 2
+// line 35: gc expects: not enough arguments in call to g\(\)|not enough arguments; gno: wrong argument count in call to g<VPBlock(3,4)>(); want 1 got 0
+// line 36: gc expects: not enough arguments in call to f|not enough arguments; gno: wrong argument count in call to f<VPBlock(3,1)>; want 1 got 0
+// line 37: gc expects: not enough arguments in call to i\.M|not enough arguments; gno: wrong argument count in call to i<VPBlock(1,0)>.M; want 1 got 0
+// line 38: gc expects: not enough arguments in call to method expression I\.M|not enough arguments; gno: wrong argument count in call to func func(.recv (const-type main.I), .arg0 (const-type int)){ .recv<VPBlock(1,0)>.M(.arg0<VPBlock(1,1)>) }; want 2 got 0
+// line 39: gc expects: not enough arguments in call to t\.M|not enough arguments; gno: wrong argument count in call to t<VPBlock(1,1)>.M; want 1 got 0
+// line 40: gc expects: not enough arguments in call to method expression T\.M|not enough arguments; gno: wrong argument count in call to typeval{main.T}.M; want 2 got 0
+// line 41: gc expects: not enough arguments in call to method expression \(\*T\)\.M|not enough arguments; gno: wrong argument count in call to func func(.recv (const-type *main.T), .arg0 (const-type int)){ .recv<VPBlock(1,0)>.M(.arg0<VPBlock(1,1)>) }; want 2 got 0
+
+// Verdict: Clean errorcheck

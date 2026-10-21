@@ -1253,11 +1253,12 @@ func defineInvalid(sb *StaticBlock, name Name) bool {
 		return false
 	}
 	if old := sb.Types[idx]; old != nil && !isInvalid(old) {
-		if _, isFunc := old.(*FuncType); !isFunc {
+		if ft, isFunc := old.(*FuncType); !isFunc || !ft.IsZero() {
 			return false
 		}
 		// a function placeholder: callers would check the arity of a
-		// signature that never completed.
+		// signature that never completed. A completed one (a bodiless
+		// function) is kept, so its callers still check.
 	}
 	sb.Types[idx] = invalidType{}
 	sb.Block.Values[idx] = anyValue(invalidType{})
@@ -5763,6 +5764,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		assertConstRepresentable(preprocessGasMeterOf(store), x)
 		// is constant?  From the machine?
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath:            ".dontcare",
@@ -7292,13 +7294,15 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			fv.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
 			// NOTE: fv.body == nil means no body (ie. not even curly braces)
 			// len(fv.body) == 0 could mean also {} (ie. no statements inside)
+			missingBody := false
 			if fv.body == nil && store != nil {
 				fv.nativeBody = store.GetNative(pkg.PkgPath, d.Name)
 				if fv.nativeBody == nil {
-					panic(fmt.Sprintf("function %s does not have a body but is not natively defined (did you build after pulling from the repository?)", d.Name))
+					missingBody = true
+				} else {
+					fv.NativePkg = pkg.PkgPath
+					fv.NativeName = d.Name
 				}
-				fv.NativePkg = pkg.PkgPath
-				fv.NativeName = d.Name
 			}
 			// Set placeholder ft and fv.
 			pkg.Define(d.Name, TypedValue{
@@ -7320,6 +7324,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				*ft = *ft2
 			}
 			fv.Crossing = ft.IsCrossing()
+			if missingBody {
+				// Reported once the signature is complete, so accumulate
+				// mode keeps the declaration and its callers still check.
+				panic(fmt.Sprintf("function %s does not have a body but is not natively defined (did you build after pulling from the repository?)", d.Name))
+			}
 		}
 	default:
 		panic(fmt.Sprintf(

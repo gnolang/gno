@@ -64,4 +64,19 @@ type M1 map[S]int
 
 var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: function fp does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 25: cannot slice variable of type <untyped> bigint
+// line 26: cannot slice variable of type <untyped> bigdec
+// line 27: cannot slice variable of type <untyped> bool
+// line 47: missing type in composite literal
+// line 48: missing type in composite literal
+// line 49: unexpected composite lit type *main.T
+// line 50: unexpected composite lit type int
+
+// GnoWordingDiffers:
+// line 49: gc expects: invalid composite literal type TP; gno: unexpected composite lit type *main.T
+// line 50: gc expects: invalid composite literal type Ti|expected.*type for composite literal; gno: unexpected composite lit type int
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21, 22, 23

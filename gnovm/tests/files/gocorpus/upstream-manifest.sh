@@ -6,7 +6,7 @@
 #
 # testdata/<p> comes from $GOROOT/test/<p>; testdata/gotypes/<p> from
 # $GOROOT/src/internal/types/testdata/<p>. Canary dirs (run, compile,
-# errorcheck, gno) are not upstream and are skipped.
+# errorcheck, gno) and the hand-written goconst dir are not upstream and skipped.
 set -eu
 src=${1:?go source tree}
 cd "$(dirname "$0")"
@@ -16,7 +16,7 @@ if command -v shasum >/dev/null 2>&1; then sha='shasum -a 256'; else sha=sha256s
 : > "$out.tmp"
 find testdata -name '*.go' | LC_ALL=C sort | while read -r f; do
 	rel=${f#testdata/}
-	case $rel in run/*|compile/*|errorcheck/*|gno/*) continue ;; esac
+	case $rel in run/*|compile/*|errorcheck/*|gno/*|goconst/*) continue ;; esac
 	case $rel in gotypes/*) up="$src/src/internal/types/testdata/${rel#gotypes/}" ;; *) up="$src/test/$rel" ;; esac
 	[ -f "$up" ] || { echo "no upstream file for $rel" >&2; exit 1; }
 	# CRLF becomes LF (one upstream file is a CRLF test); $(cat) drops every

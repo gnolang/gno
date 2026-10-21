@@ -351,3 +351,26 @@ var _ = undefined
 		t.Fatalf("want a line-leading marker error, got %v", err)
 	}
 }
+
+// A bodiless function (gc: assembly-backed) is a per-line gap in
+// errorcheck mode: its error is evidence, not over-strictness, and the
+// function stays declared, so the call on the marker line is checked
+// (its argument folded). A compile file still routes to Unsupported.
+func TestErrorcheck_BodilessFuncIsPerLineGap(t *testing.T) {
+	o := errorcheckOpts(t)
+	src := []byte("package p\n\nfunc f(int)\n\nconst c = 1.5\n\nfunc g() {\n\tf(c) // ERROR \"truncated\"\n\tf(\"s\") // ERROR \"cannot use\"\n}\n")
+	out, _, _, err := o.RunFiletest("testdata/errorcheck/bodiless.go", src, o.TestStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"// line 3: function f does not have a body", "// line 8: ", "// line 9: ", "// Verdict: Clean errorcheck\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	compile := []byte("// compile\n\npackage p\n\nfunc f(int)\n")
+	out, _, _, err = o.RunFiletest("testdata/compile/bodiless.go", compile, o.TestStore)
+	if err != nil || !strings.Contains(out, "// Verdict: Unsupported bodiless-func:") {
+		t.Fatalf("compile file: err=%v out:\n%s", err, out)
+	}
+}
