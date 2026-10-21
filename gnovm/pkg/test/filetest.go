@@ -403,7 +403,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Gno error starting on it (see creditLines) and no Gno error starts
 	// on an unmarked line; otherwise a KnownIssue that cites the
 	// preprocess-conformance umbrella issue, since every such gap is in
-	// its scope (a per-cause issue written by hand survives re-sync).
+	// its scope (per-cause issues written by hand keep their line lists,
+	// reconciled with the gaps on every run: reconcileGapReason).
 	if len(errorcheckMarkers) > 0 {
 		gas := m.GasMeter.GasConsumed()
 		if reason := gcOnlyErrorcheckReason(originalSource, errorcheckMarkers); reason != "" {
@@ -457,9 +458,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		v := verdict{Kind: VerdictClean, Mode: "errorcheck"}
 		if len(uncaught) > 0 || len(overStrict) > 0 || len(internal) > 0 || onChain != "" {
 			v = verdict{Kind: VerdictKnownIssue, Mode: "errorcheck", Reason: errorcheckGapReason(uncaught, overStrict, internal, onChain)}
-			// A reason written by hand (a per-cause issue) survives re-sync;
-			// the sync-written umbrella form is recomputed every time, and
-			// verify accepts its legacy `#6344; …` spelling until the next sync.
+			// A reason written by hand (per-cause issues) owns its line
+			// lists: sync reconciles them with the gaps, verify refuses a
+			// stale one. The sync-written umbrella form is recomputed every
+			// time, and verify accepts its legacy `#6344; …` spelling.
 			if prev, ok := verdictIn(origDirs); ok && prev.check() == nil {
 				switch {
 				case prev.Kind == VerdictKnownDivergence:
@@ -468,7 +470,17 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					v = prev
 				case prev.Kind != VerdictKnownIssue:
 				case !isSyncWrittenReason(prev.Reason):
-					v.Reason = prev.Reason
+					reason, stale := reconcileGapReason(prev.Reason, uncaught, overStrict, internal, onChain)
+					switch {
+					case opts.Sync:
+						v.Reason = reason
+					case len(stale) > 0:
+						return "", gas, diffs, fmt.Errorf(
+							"hand-written verdict is stale: %s; re-run with --update-golden-tests to reconcile its line lists",
+							strings.Join(stale, "; "))
+					default:
+						v.Reason = prev.Reason
+					}
 				case !opts.Sync && legacySyncReason(prev.Reason) == v.Reason:
 					v.Reason = prev.Reason
 				}
@@ -2091,27 +2103,25 @@ func errorcheckGapReason(uncaught, overStrict, internal []int, onChain string) s
 	return preprocessUmbrella + " " + strings.Join(parts, "; ")
 }
 
-// syncReasonParts are the heads of the gap parts errorcheckGapReason writes.
-var syncReasonParts = []string{"uncaught markers:", "over-strict:", "internal errors:", "on-chain path "}
-
 // isSyncWrittenReason reports whether r is a reason errorcheckGapReason
-// wrote (the umbrella alone, or followed by its parts), in the current
-// spelling or the legacy `#6344; …` one; anything else was written by hand.
+// wrote (the umbrella alone, or only its own groups and on-chain part),
+// in the current spelling or the legacy `#6344; …` one; a reason with
+// prose, a note or another issue's group was written by hand.
 func isSyncWrittenReason(r string) bool {
+	r = legacySyncReason(r)
 	rest, ok := strings.CutPrefix(r, preprocessUmbrella)
-	if !ok {
+	if !ok || (rest != "" && !strings.HasPrefix(rest, " ")) {
 		return false
 	}
-	rest = strings.TrimSpace(strings.TrimPrefix(rest, ";"))
-	if rest == "" {
+	if strings.TrimSpace(rest) == "" {
 		return true
 	}
-	for _, p := range syncReasonParts {
-		if strings.HasPrefix(rest, p) {
-			return true
+	for _, g := range parseGapGroups(r) {
+		if g.prose != "" || g.issue != preprocessUmbrella || (g.note != "" && g.kind != onChainKind) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // legacySyncReason rewrites the legacy `#6344; …` spelling to the current
