@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -200,4 +201,261 @@ func TestPathRemainder(t *testing.T) {
 	} {
 		require.Equal(t, tc.want, pathRemainder(tc.path, 2), "path %q", tc.path)
 	}
+}
+
+// envAt is a test environment whose block clock reads blockTime. Each caller
+// builds its own: the handler writes nothing, but the store behind the keeper
+// is not safe for concurrent use and these tests run in parallel.
+func envAt(t *testing.T, blockTime int64) (testEnv, sdk.Context) {
+	t.Helper()
+
+	env := setupTestEnv()
+	return env, env.ctx.WithBlockHeader(&bft.Header{
+		Height:  1,
+		ChainID: "test-chain-id",
+		Time:    time.Unix(blockTime, 0),
+	})
+}
+
+// spendableEnv is an account holding total, with schedule applied, queried at
+// blockTime. total goes through SetCoins so split-tier denoms land in the tier
+// the keeper would put them in, not all in the account object.
+func spendableEnv(t *testing.T, total std.Coins, schedule std.VestingSchedule, blockTime int64) (
+	bankHandler, sdk.Context, crypto.Address,
+) {
+	t.Helper()
+
+	env, ctx := envAt(t, blockTime)
+
+	_, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetVesting(schedule)
+	env.acck.SetAccount(ctx, acc)
+	require.NoError(t, env.bankk.SetCoins(ctx, addr, total))
+
+	return NewHandler(env.bankk), ctx, addr
+}
+
+func querySpendableAt(t *testing.T, h bankHandler, ctx sdk.Context, addr crypto.Address) AccountSpendable {
+	t.Helper()
+
+	res := h.Query(ctx, abci.RequestQuery{
+		Path: fmt.Sprintf("bank/%s/%s", QuerySpendable, addr),
+	})
+	require.Nil(t, res.Error)
+
+	var got AccountSpendable
+	require.NoError(t, amino.UnmarshalJSON(res.Data, &got))
+	return got
+}
+
+// The point of the endpoint: it evaluates the curve, rather than handing back
+// the schedule for the caller to evaluate. Mid-schedule is the only case where
+// a wrong implementation is visibly wrong -- at either end every implementation
+// agrees.
+func TestQuerySpendableMidSchedule(t *testing.T) {
+	t.Parallel()
+
+	const start, end = 1_000_000, 1_000_000 + 1000
+	h, ctx, addr := spendableEnv(t,
+		std.NewCoins(std.NewCoin(testAccountDenom, 10_000)),
+		std.VestingSchedule{
+			OriginalVesting: std.NewCoins(std.NewCoin(testAccountDenom, 8_000)),
+			StartTime:       start,
+			EndTime:         end,
+		},
+		start+250, // a quarter through
+	)
+
+	got := querySpendableAt(t, h, ctx, addr)
+
+	// 8000 granted, a quarter vested = 2000; 6000 still locked; the 2000 that
+	// was never part of the grant is spendable throughout.
+	require.Equal(t, int64(10_000), got.Coins.AmountOf(testAccountDenom))
+	require.Equal(t, int64(6_000), got.Locked.AmountOf(testAccountDenom))
+	require.Equal(t, int64(4_000), got.Spendable.AmountOf(testAccountDenom))
+	require.Equal(t, int64(start+250), got.BlockTime)
+}
+
+// THE REASON THIS LIVES IN bank. A schedule may name a denom that lives outside
+// the account object -- gno.land accepts one from a genesis balances file, and
+// SubtractCoins is deliberately tier-agnostic about enforcing it. Reading only
+// the account tier would report the split-tier denom as locked and omit it from
+// spendable, telling a caller nothing can move while a transfer would be allowed.
+func TestQuerySpendableCoversSplitTierDenoms(t *testing.T) {
+	t.Parallel()
+
+	const start, end = 7_000_000, 7_000_000 + 1000
+	const otherDenom = "ibc/atom" // not in accountTierTestDenoms
+
+	h, ctx, addr := spendableEnv(t,
+		std.NewCoins(
+			std.NewCoin(testAccountDenom, 500),
+			std.NewCoin(otherDenom, 1_000),
+		),
+		std.VestingSchedule{
+			OriginalVesting: std.NewCoins(std.NewCoin(otherDenom, 800)),
+			StartTime:       start,
+			EndTime:         end,
+		},
+		start+250, // a quarter of the 800 vested = 200; 600 locked
+	)
+
+	got := querySpendableAt(t, h, ctx, addr)
+
+	// Guard the guard: if the denom were account-tier this would prove nothing.
+	require.NotContains(t, accountTierTestDenoms, otherDenom)
+
+	require.Equal(t, int64(1_000), got.Coins.AmountOf(otherDenom),
+		"the split-tier balance must be reported, not silently zero")
+	require.Equal(t, int64(600), got.Locked.AmountOf(otherDenom))
+	require.Equal(t, int64(400), got.Spendable.AmountOf(otherDenom),
+		"a split-tier denom must appear in spendable, not be omitted as if fully locked")
+
+	// The untouched gas denom rides along unaffected.
+	require.Equal(t, int64(500), got.Spendable.AmountOf(testAccountDenom))
+}
+
+// The endpoint must agree with the transfer path, or it is worse than useless:
+// a caller would size a transfer by it and have the transfer rejected. This
+// pins them to the same function rather than to each other's arithmetic.
+func TestQuerySpendableMatchesLockedCoins(t *testing.T) {
+	t.Parallel()
+
+	const start, end = 2_000_000, 2_000_000 + 3600
+	total := std.NewCoins(std.NewCoin(testAccountDenom, 1_000_000))
+	schedule := std.VestingSchedule{
+		OriginalVesting: std.NewCoins(std.NewCoin(testAccountDenom, 900_000)),
+		StartTime:       start,
+		EndTime:         end,
+	}
+
+	for _, offset := range []int64{-1, 0, 1, 900, 1800, 3599, 3600, 7200} {
+		h, ctx, addr := spendableEnv(t, total, schedule, start+offset)
+		got := querySpendableAt(t, h, ctx, addr)
+
+		want := schedule.LockedCoins(time.Unix(start+offset, 0))
+		require.Equal(t, want.AmountOf(testAccountDenom), got.Locked.AmountOf(testAccountDenom),
+			"offset %d: locked disagrees with std.VestingSchedule.LockedCoins", offset)
+		require.Equal(t, total.AmountOf(testAccountDenom)-want.AmountOf(testAccountDenom),
+			got.Spendable.AmountOf(testAccountDenom), "offset %d: spendable", offset)
+	}
+}
+
+// A delayed schedule vests nothing until EndTime and everything after, so it
+// separates the two curves: a continuous implementation would report a
+// partially-vested amount at the same instant.
+func TestQuerySpendableDelayedIsACliff(t *testing.T) {
+	t.Parallel()
+
+	const start, end = 3_000_000, 3_000_000 + 1000
+	schedule := std.VestingSchedule{
+		OriginalVesting: std.NewCoins(std.NewCoin(testAccountDenom, 500)),
+		EndTime:         end,
+		Type:            std.VestingDelayed,
+	}
+
+	for _, tc := range []struct {
+		name              string
+		at                int64
+		locked, spendable int64
+	}{
+		{"just before the cliff", end - 1, 500, 100},
+		{"at the cliff", end, 0, 600},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h, ctx, addr := spendableEnv(t,
+				std.NewCoins(std.NewCoin(testAccountDenom, 600)), schedule, tc.at)
+			got := querySpendableAt(t, h, ctx, addr)
+
+			require.Equal(t, tc.locked, got.Locked.AmountOf(testAccountDenom))
+			require.Equal(t, tc.spendable, got.Spendable.AmountOf(testAccountDenom))
+		})
+	}
+
+	// Guard the guard, AT THE INSTANT THE SUBTESTS ASSERT: one tick before the
+	// cliff a continuous schedule has all but released the grant while the
+	// delayed one still locks every unit of it. Compared anywhere else this
+	// would not protect the assertions above.
+	continuous := schedule
+	continuous.StartTime = start
+	continuous.Type = std.VestingContinuous
+	require.NotEqual(t,
+		schedule.LockedCoins(time.Unix(end-1, 0)).AmountOf(testAccountDenom),
+		continuous.LockedCoins(time.Unix(end-1, 0)).AmountOf(testAccountDenom),
+		"the two curves agree at end-1, so the delayed assertions prove nothing")
+}
+
+// A schedule can lock more than the account still holds; see querySpendable for
+// why, and why an unclamped result reaches the client rather than erroring.
+func TestQuerySpendableClampsWhenLockedExceedsBalance(t *testing.T) {
+	t.Parallel()
+
+	const start, end = 4_000_000, 4_000_000 + 1000
+	h, ctx, addr := spendableEnv(t,
+		std.NewCoins(std.NewCoin(testAccountDenom, 10)), // far less than the grant
+		std.VestingSchedule{
+			OriginalVesting: std.NewCoins(std.NewCoin(testAccountDenom, 1_000)),
+			StartTime:       start,
+			EndTime:         end,
+		},
+		start, // nothing vested yet: 1000 locked against a balance of 10
+	)
+
+	got := querySpendableAt(t, h, ctx, addr)
+
+	require.Equal(t, int64(1_000), got.Locked.AmountOf(testAccountDenom))
+	require.Equal(t, int64(0), got.Spendable.AmountOf(testAccountDenom))
+	require.Empty(t, got.Spendable, "Coins carries no zero entries")
+}
+
+// An account with no schedule locks nothing. This is almost every account, so
+// the endpoint has to be correct and cheap for it.
+func TestQuerySpendableWithoutVesting(t *testing.T) {
+	t.Parallel()
+
+	h, ctx, addr := spendableEnv(t,
+		std.NewCoins(std.NewCoin(testAccountDenom, 42)), std.VestingSchedule{}, 5_000_000)
+
+	got := querySpendableAt(t, h, ctx, addr)
+
+	require.Empty(t, got.Locked)
+	require.Equal(t, int64(42), got.Spendable.AmountOf(testAccountDenom))
+}
+
+// An address that has never transacted has no account at all. Answering with
+// zeros rather than an error spares every caller a special case, and is true.
+func TestQuerySpendableUnknownAccount(t *testing.T) {
+	t.Parallel()
+
+	env, ctx := envAt(t, 6_000_000)
+	h := NewHandler(env.bankk)
+	_, _, addr := tu.KeyTestPubAddr()
+
+	got := querySpendableAt(t, h, ctx, addr)
+
+	require.Empty(t, got.Coins)
+	require.Empty(t, got.Locked)
+	require.Empty(t, got.Spendable)
+	require.Equal(t, int64(6_000_000), got.BlockTime)
+}
+
+// A malformed address is an error, not an empty answer that reads as "this
+// address holds nothing". Data must be empty too, for the reason
+// TestBalancesRejectsMalformedAddress spells out: the error alone would still be
+// set if execution fell through to the success path.
+func TestQuerySpendableRejectsBadAddress(t *testing.T) {
+	t.Parallel()
+
+	env, ctx := envAt(t, 6_000_000)
+	h := NewHandler(env.bankk)
+
+	res := h.Query(ctx, abci.RequestQuery{
+		Path: fmt.Sprintf("bank/%s/not-a-bech32-address", QuerySpendable),
+	})
+	require.NotNil(t, res.Error, "a malformed address must report an error")
+	require.Empty(t, res.Data,
+		"a malformed address must not also carry a spendable set in Data")
 }
