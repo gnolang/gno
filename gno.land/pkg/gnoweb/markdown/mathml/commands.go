@@ -324,14 +324,11 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 			// A colour model, as in \color[RGB]{255,0,0}, gives a value
 			// that is not a theme colour: the content keeps the text colour.
 			switchExpressions.GetOptions()
-			expr, err := switchExpressions.GetNextExpr()
-			if err == nil {
-				setColor(n, expr.Expr)
-				converter.ParseTex(switchExpressions, withVariant(context, sw), n)
-				return n
-			}
-			b.Unget()
-			return NewMMLNode("merror", name).SetAttr("title", fmt.Sprintf("%s expects an argument", name))
+			// colorArgMissing has already checked the {argument} is there.
+			expr, _ := switchExpressions.GetNextExpr()
+			setColor(n, expr.Expr)
+			converter.ParseTex(switchExpressions, withVariant(context, sw), n)
+			return n
 		}
 		if size, ok := sizeSwitches[name]; ok {
 			converter.parseSized(switchExpressions, withVariant(context, sw), n, size)

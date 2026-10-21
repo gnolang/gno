@@ -1,6 +1,7 @@
 package mathml
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -148,6 +149,38 @@ func TestBareColorRunIsLinear(t *testing.T) {
 	}
 	convertErrWithin(t, strings.Repeat(`\color[`, 1<<15)+"x"+strings.Repeat("]", 1<<15))
 	convertErrWithin(t, strings.Repeat(`\color`, 1<<17)+strings.Repeat("%\n", 1<<17))
+}
+
+// A run of switches before a group allocates about what the group does alone:
+// a switch costs no copy of what follows it.
+func TestSwitchRunAllocations(t *testing.T) {
+	alloc := func(tex string) uint64 {
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		_, err := NewMathMLConverter().ConvertInline(tex)
+		require.NoError(t, err)
+		runtime.ReadMemStats(&after)
+		return after.TotalAlloc - before.TotalAlloc
+	}
+	group := "{" + strings.Repeat("a+", 3600) + "a}"
+	alone := alloc(group)
+	assert.Less(t, alloc(strings.Repeat(`\rm`, maxSwitchDepth)+group), 2*alone)
+}
+
+// A switch in a matrix that follows another switch still ends at its cell.
+func TestSwitchInSwitchEndsAtItsCell(t *testing.T) {
+	out := mathBody(t, `\rm\begin{matrix}\bf a & b\end{matrix}`)
+	assert.Equal(t, 2, strings.Count(out, "<mtd>"), out)
+}
+
+// A command that draws nothing in a script slot fills it as {} does, so the
+// next atom stays out of the script.
+func TestEmptyCommandFillsScript(t *testing.T) {
+	for _, slot := range []string{`\class{a}{}`, `\mathrm{}`, `\kern`, `\bigl\mathrm{}`, `\middle\class{a}{}`} {
+		for _, op := range []string{"^", "_"} {
+			assert.Equal(t, mathBody(t, "x"+op+"{} y"), mathBody(t, "x"+op+slot+" y"), slot)
+		}
+	}
 }
 
 // A switch reached through an infix inside \left...\right still ends at the

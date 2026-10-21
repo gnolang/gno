@@ -276,7 +276,8 @@ type TokenBuffer struct {
 	// last is one past the last token that is not a space or a comment;
 	// Expr is never written after NewTokenBuffer.
 	last int
-	// cellEnds[i] is cellEnd's answer at position i, filled on first use.
+	// cellEnds[i] is how far cellEnd's answer at position i lies past i, built
+	// once per formula: a sub-buffer shares its part of the parent's.
 	cellEnds []int
 }
 
@@ -319,22 +320,36 @@ func NewTokenBuffer(t []Token) *TokenBuffer {
 // cellEnd returns the index of the first & or line break from b's position on
 // outside a group, or len(b.Expr). A run of switches asks it once per switch.
 func (b *TokenBuffer) cellEnd() int {
-	n := len(b.Expr)
+	i := min(b.idx, len(b.Expr))
+	return min(i+b.cellTable()[i], len(b.Expr))
+}
+
+// cellTable returns b.cellEnds, building it on the first call.
+func (b *TokenBuffer) cellTable() []int {
 	if b.cellEnds == nil {
+		n := len(b.Expr)
 		b.cellEnds = make([]int, n+1)
-		b.cellEnds[n] = n
 		for i := n - 1; i >= 0; i-- {
 			switch t := b.Expr[i]; {
 			case opensGroup(t):
-				b.cellEnds[i] = b.cellEnds[min(i+t.MatchOffset+1, n)]
+				j := min(i+t.MatchOffset+1, n)
+				b.cellEnds[i] = j - i + b.cellEnds[j]
 			case isCellEnd(t):
-				b.cellEnds[i] = i
+				b.cellEnds[i] = 0
 			default:
-				b.cellEnds[i] = b.cellEnds[i+1]
+				b.cellEnds[i] = 1 + b.cellEnds[i+1]
 			}
 		}
 	}
-	return b.cellEnds[min(b.idx, n)]
+	return b.cellEnds
+}
+
+// sub returns a buffer over b.Expr[start:end], with its capacity set to its
+// length so that no offset read inside it reaches the tokens around it.
+func (b *TokenBuffer) sub(start, end int) *TokenBuffer {
+	s := NewTokenBuffer(b.Expr[start:end:end])
+	s.cellEnds = b.cellTable()[start : end+1]
+	return s
 }
 
 // matched reports whether the token at i opens a group of value v whose content
@@ -399,7 +414,7 @@ func (b *TokenBuffer) GetNextExpr() (*TokenBuffer, error) {
 	}
 	if b.matched(b.idx, "{") {
 		end := b.idx + b.Expr[b.idx].MatchOffset
-		result = NewTokenBuffer(b.Expr[b.idx+1 : end : end])
+		result = b.sub(b.idx+1, end)
 		b.idx = min(end+1, len(b.Expr))
 	} else {
 		b.idx = temp
@@ -425,7 +440,7 @@ func (b *TokenBuffer) GetOptions(skipWhitespace ...bool) (*TokenBuffer, error) {
 	}
 	if b.matched(b.idx, "[") {
 		end := b.idx + b.Expr[b.idx].MatchOffset
-		result = NewTokenBuffer(b.Expr[b.idx+1 : end : end])
+		result = b.sub(b.idx+1, end)
 		b.idx = min(end+1, len(b.Expr)) // Don't parse closing "]"
 	} else {
 		b.idx = temp
@@ -442,7 +457,7 @@ func (b *TokenBuffer) GetUntil(f func(Token) bool) *TokenBuffer {
 		b.idx++
 	}
 	b.jump = b.idx - start
-	return NewTokenBuffer(b.Expr[start:b.idx:b.idx])
+	return b.sub(start, b.idx)
 }
 
 // Get the next n tokens. Past the end of the buffer, it returns the rest of
@@ -450,10 +465,6 @@ func (b *TokenBuffer) GetUntil(f func(Token) bool) *TokenBuffer {
 // that ungets after the error rewinds to where it was, not before it. With
 // skipWhitespace, the whitespace and comments before the tokens are skipped;
 // without it, n counts every token, as a MatchOffset does.
-//
-// Sub-buffers are cut with their capacity set to their length, here and in
-// GetNextExpr, GetOptions and GetUntil, so that no offset read inside one
-// can reach the tokens of the buffer around it.
 func (b *TokenBuffer) GetNextN(n int, skipWhitespace ...bool) (*TokenBuffer, error) {
 	temp := b.idx
 	if skipWhitespace != nil && skipWhitespace[0] {
@@ -470,7 +481,7 @@ func (b *TokenBuffer) GetNextN(n int, skipWhitespace ...bool) (*TokenBuffer, err
 	}
 	b.idx = end
 	b.jump = end - temp
-	return NewTokenBuffer(b.Expr[start:end:end]), err
+	return b.sub(start, end), err
 }
 
 // Unget the last n tokens

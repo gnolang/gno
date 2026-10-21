@@ -296,6 +296,14 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			child = NewMMLNode("mo", tok.Value)
 		}
 		if child == nil {
+			if promotedProperties != 0 {
+				// A command that draws nothing still fills a pending script, as
+				// {} does, so the next atom stays out of it.
+				empty := NewMMLNode("mrow")
+				empty.Properties |= promotedProperties
+				promotedProperties = 0
+				siblings = append(siblings, empty)
+			}
 			continue
 		}
 		child.Tok = tok
