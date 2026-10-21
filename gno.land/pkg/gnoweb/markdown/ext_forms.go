@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/token"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -38,6 +39,7 @@ var (
 	ErrFormDuplicateName    = errors.New("name already used")
 	ErrFormInvalidAttribute = errors.New("invalid attribute for input type")
 	ErrFormMissingValue     = errors.New("missing 'value' attribute")
+	ErrFormInvalidExec      = errors.New("'exec' attribute is not an exported function name")
 )
 
 var (
@@ -240,9 +242,16 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 		node.Domain = domain
 	}
 
-	// Handle exec attribute
-	if exec, ok := ExtractAttr(tok.Attr, "exec"); ok {
+	// The exec name is printed into the gnokey command the page offers to
+	// copy, so only a name MsgCall can reach is accepted: an exported
+	// identifier. Anything else would never run on chain anyway.
+	exec, _ := ExtractAttr(tok.Attr, "exec")
+	switch {
+	case exec == "":
+	case token.IsIdentifier(exec) && token.IsExported(exec):
 		node.ExecFunc = exec
+	default:
+		node.Error = fmt.Errorf("%q: %w", exec, ErrFormInvalidExec)
 	}
 
 	return node, parser.Continue
