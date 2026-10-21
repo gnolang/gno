@@ -129,12 +129,14 @@ validator restart 3
 eventually gnokey -remote $RPC_ADDR_3 query vm/qrender -data 'tour.gno.land/r/tour/outage:x'
 stdout 'outage'
 
-# ---- The oracle restarts and resumes from the tip.
+# ---- The oracle restarts and resumes from its own cursor.
 
 # restart is stop then start, and the flags belong to the new start. No
-# -start-height: with none, gpao asks the node for its tip and resumes past it,
-# which is sound here only because the package below is submitted after this
-# line has returned.
+# -start-height needed: the oracle records the last height it finished under
+# -data-dir, which the harness puts in this script's $WORK, so the restarted
+# run picks up where the stopped one left off rather than at the node's tip.
+# The package below is therefore covered whichever side of this line it lands
+# on.
 gpao restart
 
 gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/rescan -pkgpath tour.gno.land/r/tour/rescan $USER_NAME
@@ -149,6 +151,12 @@ stdout 'rescan'
 # path has to be absent from each read.
 repeat 3 gnokey query vm/qinertpaths -data ''
 ! stdout 'tour.gno.land/r/tour/'
+
+# The cursor the restart above resumed from, in the directory the harness
+# assigns. A scenario may not name -data-dir itself, so this path is the one
+# place to look for it.
+exists $WORK/gpao-data/state.json
+grep '"last_verified_height"' $WORK/gpao-data/state.json
 
 # ---- No oracle running, and the approver's key used by hand.
 
