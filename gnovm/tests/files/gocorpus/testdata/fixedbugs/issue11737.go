@@ -18,5 +18,6 @@ func s(x interface{}) {
 
 // GnoError:
 // line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 15: func() can only be compared to nil
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15
+// Verdict: Clean errorcheck
