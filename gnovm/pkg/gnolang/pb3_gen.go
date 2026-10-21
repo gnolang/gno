@@ -12404,15 +12404,6 @@ func (goo StaticBlock) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) 
 		}
 		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
 	}
-	for i := len(goo.UnassignableNames) - 1; i >= 0; i-- {
-		elem := goo.UnassignableNames[i]
-		if elem != "" {
-			offset = amino.PrependString(buf, offset, string(elem))
-		} else {
-			offset = amino.PrependByte(buf, offset, 0x00)
-		}
-		offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3ByteLength)
-	}
 	if len(goo.HeapItems) != 0 {
 		{
 			before := offset
@@ -12554,10 +12545,6 @@ func (goo StaticBlock) SizeBinary2(cdc *amino.Codec) (int, error) {
 			cs = len(goo.HeapItems) * (1)
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
-	}
-	for _, elem := range goo.UnassignableNames {
-		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
-		s += 1 + vs
 	}
 	for _, elem := range goo.Consts {
 		vs := amino.UvarintSize(uint64(len(elem))) + len(elem)
@@ -12764,41 +12751,6 @@ func (goo *StaticBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 				ev = bool(v)
 				goo.HeapItems = append(goo.HeapItems, ev)
 			}
-		case 8:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 8: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
-			}
-			var ev Name
-			v, n, err := amino.DecodeString(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			ev = Name(v)
-			goo.UnassignableNames = append(goo.UnassignableNames, ev)
-			for len(bz) > 0 {
-				var nextFnum uint32
-				var nextTyp3 amino.Typ3
-				nextFnum, nextTyp3, n, err = amino.DecodeFieldNumberAndTyp3(bz)
-				if err != nil {
-					return err
-				}
-				if nextFnum != 8 {
-					break
-				}
-				if nextTyp3 != amino.Typ3ByteLength {
-					return fmt.Errorf("field 8: expected typ3 %v, got %v", amino.Typ3ByteLength, nextTyp3)
-				}
-				bz = bz[n:]
-				var ev Name
-				v, n, err := amino.DecodeString(bz)
-				if err != nil {
-					return err
-				}
-				bz = bz[n:]
-				ev = Name(v)
-				goo.UnassignableNames = append(goo.UnassignableNames, ev)
-			}
 		case 9:
 			if typ3 != amino.Typ3ByteLength {
 				return fmt.Errorf("field 9: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
@@ -12847,6 +12799,35 @@ func (goo *StaticBlock) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 				if err := cdc.UnmarshalAnyBinary2(fbz, &goo.Parent, anyDepth); err != nil {
 					return err
 				}
+			}
+		case 8:
+			switch typ3 {
+			case amino.Typ3Varint:
+				_, n, err := amino.DecodeVarint(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			case amino.Typ38Byte:
+				_, n, err := amino.DecodeInt64(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			case amino.Typ3ByteLength:
+				_, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			case amino.Typ34Byte:
+				_, n, err := amino.DecodeInt32(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+			default:
+				return fmt.Errorf("invalid typ3 %v for reserved field 8", typ3)
 			}
 		case 10:
 			switch typ3 {

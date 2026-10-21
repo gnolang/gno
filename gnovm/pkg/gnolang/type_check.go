@@ -1052,6 +1052,10 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
 		} else if last.GetIsConst(store, clx.Name) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else if _, _, nsrc := last.GetNameSourceForPath(store, clx.Path); nsrc.Type == NSFuncDecl {
+			// Path-keyed, not name-keyed: an assignment before a shadowing
+			// declaration in the same block targets the outer binding.
+			panic(fmt.Sprintf("cannot assign to func %v", clx.Name))
 		} else {
 			shouldPanic = false
 		}
