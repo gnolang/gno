@@ -151,3 +151,80 @@ func TestDeepCopyInterface2(t *testing.T) {
 	dci2 := amino.DeepCopy(dci1).(DCInterface1)
 	assert.Equal(t, "foo", dci2.Foo)
 }
+
+func TestDeepCopySlice(t *testing.T) {
+	t.Parallel()
+
+	src := []int{1, 2, 3}
+	cpy := amino.DeepCopy(src).([]int)
+	src[0] = 999
+	assert.Equal(t, 1, cpy[0])
+
+	type dcItem struct {
+		N int
+	}
+	srcStruct := []dcItem{{N: 1}, {N: 2}}
+	cpyStruct := amino.DeepCopy(srcStruct).([]dcItem)
+	srcStruct[0].N = 999
+	assert.Equal(t, 1, cpyStruct[0].N)
+
+	var nilInts []int
+	assert.Nil(t, amino.DeepCopy(nilInts))
+
+	nilBz := []byte(nil)
+	ptr := &nilBz
+	cpyPtr := amino.DeepCopy(ptr).(*[]byte)
+	assert.Nil(t, *cpyPtr)
+}
+
+// TestDeepCopyPointerToStruct covers the pointer -> struct -> slice path.
+func TestDeepCopyPointerToStruct(t *testing.T) {
+	t.Parallel()
+
+	type dcInner struct {
+		Ints []int
+		Bz   *[]byte
+	}
+	type dcOuter struct {
+		Inner *dcInner
+	}
+
+	nilBz := []byte(nil)
+	src := &dcOuter{Inner: &dcInner{Ints: []int{1, 2, 3}, Bz: &nilBz}}
+	cpy := amino.DeepCopy(src).(*dcOuter)
+
+	src.Inner.Ints[0] = 999
+	assert.Equal(t, 1, cpy.Inner.Ints[0])
+	assert.Nil(t, *cpy.Inner.Bz)
+}
+
+// TestDeepCopyNilBehindPointer covers nil slice, map, pointer and interface
+// values reached through a pointer, which must be copied as nil rather than
+// panic or turn into an empty value.
+func TestDeepCopyNilBehindPointer(t *testing.T) {
+	t.Parallel()
+
+	var nilSlice []int
+	assert.Nil(t, *amino.DeepCopy(&nilSlice).(*[]int))
+
+	var nilMap map[string]int
+	assert.Nil(t, *amino.DeepCopy(&nilMap).(*map[string]int))
+
+	var nilPtr *int
+	assert.Nil(t, *amino.DeepCopy(&nilPtr).(**int))
+
+	var nilIface any
+	assert.Nil(t, *amino.DeepCopy(&nilIface).(*any))
+}
+
+// TestDeepCopyMap covers the map branch, asserting that map values are
+// deep-copied rather than shared with the source.
+func TestDeepCopyMap(t *testing.T) {
+	t.Parallel()
+
+	src := map[string][]int{"a": {1, 2, 3}}
+	cpy := amino.DeepCopy(src).(map[string][]int)
+
+	src["a"][0] = 999
+	assert.Equal(t, 1, cpy["a"][0])
+}
