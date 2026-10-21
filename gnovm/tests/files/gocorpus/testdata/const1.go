@@ -116,8 +116,8 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 56: constant overflows
 // line 57: bigint overflows target kind
 // line 58: bigint overflows target kind
-// line 59: (const-type uint8)(100) * (const-type uint8)(100) (constant 10000 of type uint8) overflows uint8
-// line 60: (const-type uint8)(100) * 100 (constant 10000 of type uint8) overflows uint8
+// line 59: uint8(100) * uint8(100) (constant 10000 of type uint8) overflows uint8
+// line 60: uint8(100) * 100 (constant 10000 of type uint8) overflows uint8
 // line 61: bigint overflows target kind
 // line 63: bigint overflows target kind
 // line 64: invalid operation: division by zero

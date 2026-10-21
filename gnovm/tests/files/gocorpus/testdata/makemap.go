@@ -38,8 +38,8 @@ func main() {
 // GnoTrimmed: lines 32, 33
 
 // GnoError:
-// line 18: invalid argument: index (-1 <untyped> bigint) must not be negative
-// line 23: invalid argument: index (-1 <untyped> bigint) must not be negative
+// line 18: invalid argument: index -1 (constant of type int) must not be negative
+// line 23: invalid argument: index x (constant -1 of type int) must not be negative
 // line 27: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
 // line 29: invalid argument: index (const (1 float32)) (variable of type float32) must be integer
 // line 30: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
