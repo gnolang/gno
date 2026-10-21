@@ -16,4 +16,8 @@ func s(x interface{}) {
 	}
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 15: func() can only be compared to nil
+
+// Verdict: Clean errorcheck

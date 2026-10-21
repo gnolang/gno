@@ -23,4 +23,18 @@ func main() {
 	g(1, 0.5, "hello", 4, []int{5, 6}...) // ERROR "too many arguments|truncated to integer"
 }
 
-// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// GnoError:
+// line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: wrong argument count in call to f<VPBlock(3,0)>; want 4 got 3
+// line 18: wrong argument count in call to f<VPBlock(3,0)>; want 4 got 5
+// line 19: not enough arguments in call to g<VPBlock(3,1)>; want 3 (besides variadic) got 2
+// line 21: not enough arguments in call to g<VPBlock(3,1)>; want 4 (including variadic) got 3
+// line 23: not enough arguments in call to g<VPBlock(3,1)>; want 4 (including variadic) got 5
+
+// GnoWordingDiffers:
+// line 16: gc expects: not enough arguments|incompatible type; gno: wrong argument count in call to f<VPBlock(3,0)>; want 4 got 3
+// line 18: gc expects: too many arguments|incompatible type; gno: wrong argument count in call to f<VPBlock(3,0)>; want 4 got 5
+// line 23: gc expects: too many arguments|truncated to integer; gno: not enough arguments in call to g<VPBlock(3,1)>; want 4 (including variadic) got 5
+
+// Verdict: Clean errorcheck
