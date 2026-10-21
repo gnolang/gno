@@ -63,7 +63,11 @@ func g() {
 // line 41: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
 // line 43: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
 // line 45: gno.land/p/filetest/p.T4 does not implement gno.land/p/filetest/p.I (method M has pointer receiver)
-// line 46: should not happen
+// line 46: *gno.land/p/filetest/p.I does not implement gno.land/p/filetest/p.I (type *gno.land/p/filetest/p.I is pointer to interface, not interface)
+// line 48: impossible type assertion: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 49: impossible type assertion: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
+// line 50: impossible type assertion: gno.land/p/filetest/p.T5 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 51: impossible type assertion: gno.land/p/filetest/p.T6 does not implement gno.land/p/filetest/p.I (missing method M)
 // line 54: cannot use interface {M func(int)} as *gno.land/p/filetest/p.T4
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 46, 48, 49, 50, 51; internal errors: lines 46
+// Verdict: Clean errorcheck
