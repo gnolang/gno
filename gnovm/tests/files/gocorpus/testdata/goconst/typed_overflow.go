@@ -58,4 +58,4 @@ func main() {
 // line 42: bigint overflows target kind
 // line 45: bigint overflows target kind
 
-// Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 11, 14, 17, 20, 23, 26, 32, 35 (typed constant folding wraps); line 38 is #6389 (untyped rune result not range checked against uint64)
+// Verdict: KnownIssue errorcheck: line 38 is #6389 (untyped rune result not range checked against uint64); #6344 uncaught markers: lines 38
