@@ -42,16 +42,30 @@ const (
 	DefaultKeyType = KeyTypeSecp256k1
 )
 
+// keyGenerators maps each supported key type to its random key generator.
+var keyGenerators = map[KeyType]func() crypto.PrivKey{
+	KeyTypeSecp256k1: func() crypto.PrivKey { return secp256k1.GenPrivKey() },
+	KeyTypeEd25519:   func() crypto.PrivKey { return ed25519.GenPrivKey() },
+}
+
+// Validate returns an error if k is not a supported key type. Callers that
+// write files should call it before touching the disk, so a mistyped type
+// leaves nothing behind.
+func (k KeyType) Validate() error {
+	if _, ok := keyGenerators[k]; !ok {
+		return fmt.Errorf("%w: %q", errUnknownKeyType, k)
+	}
+
+	return nil
+}
+
 // genPrivKey generates a random private key of the given type.
 func genPrivKey(keyType KeyType) (crypto.PrivKey, error) {
-	switch keyType {
-	case KeyTypeSecp256k1:
-		return secp256k1.GenPrivKey(), nil
-	case KeyTypeEd25519:
-		return ed25519.GenPrivKey(), nil
-	default:
-		return nil, fmt.Errorf("%w: %q", errUnknownKeyType, keyType)
+	if err := keyType.Validate(); err != nil {
+		return nil, err
 	}
+
+	return keyGenerators[keyType](), nil
 }
 
 // validate validates the FileKey.
