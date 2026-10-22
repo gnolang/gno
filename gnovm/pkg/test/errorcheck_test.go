@@ -76,12 +76,12 @@ func TestStripPreprocessStack(t *testing.T) {
 }
 
 func TestErrorcheckGapReason(t *testing.T) {
-	got := errorcheckGapReason([]int{3, 9}, []int{5}, []int{7}, "accepts the file")
+	got := errorcheckGapReason([]int{3, 9}, []int{5}, []int{7}, nil, "accepts the file")
 	want := "#6344 uncaught markers: lines 3, 9; over-strict: lines 5; internal errors: lines 7; on-chain path accepts the file"
 	if got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
-	if got := errorcheckGapReason(nil, nil, nil, ""); got != "#6344" {
+	if got := errorcheckGapReason(nil, nil, nil, nil, ""); got != "#6344" {
 		t.Errorf("got %q", got)
 	}
 	for r, sync := range map[string]bool{
@@ -315,7 +315,7 @@ func TestParseGapGroups(t *testing.T) {
 func TestReconcileGapReason(t *testing.T) {
 	prev := "#6392 uncaught markers: lines 11, 14, 17 (typed overflow); #6344 uncaught markers: lines 38"
 	// Verify: a listed line no longer a gap, and a gap listed nowhere.
-	reason, stale := reconcileGapReason(prev, []int{17, 38, 40}, []int{5}, nil, "")
+	reason, stale := reconcileGapReason(prev, []int{17, 38, 40}, []int{5}, nil, nil, "")
 	wantStale := []string{"lines 11, 14 are no longer uncaught", "lines 40 are uncaught but unlisted", "lines 5 are over-strict but unlisted"}
 	if !slices.Equal(stale, wantStale) {
 		t.Errorf("stale = %q, want %q", stale, wantStale)
@@ -327,7 +327,7 @@ func TestReconcileGapReason(t *testing.T) {
 	}
 	// An emptied group is dropped and the umbrella form appended; prose
 	// stays, and the on-chain part is recomputed.
-	reason, stale = reconcileGapReason("#1234 wrong receiver; #6392 uncaught markers: lines 11; on-chain path accepts the file", []int{3}, nil, []int{7}, "")
+	reason, stale = reconcileGapReason("#1234 wrong receiver; #6392 uncaught markers: lines 11; on-chain path accepts the file", []int{3}, nil, []int{7}, nil, "")
 	if want := "#1234 wrong receiver; #6344 uncaught markers: lines 3; internal errors: lines 7"; reason != want {
 		t.Errorf("reason = %q, want %q", reason, want)
 	}
@@ -335,7 +335,7 @@ func TestReconcileGapReason(t *testing.T) {
 		t.Errorf("stale = %q", stale)
 	}
 	// Up to date: nothing stale, text unchanged.
-	if reason, stale = reconcileGapReason(prev, []int{11, 14, 17, 38}, nil, nil, ""); len(stale) != 0 || reason != prev {
+	if reason, stale = reconcileGapReason(prev, []int{11, 14, 17, 38}, nil, nil, nil, ""); len(stale) != 0 || reason != prev {
 		t.Errorf("up to date: reason = %q, stale = %q", reason, stale)
 	}
 }
