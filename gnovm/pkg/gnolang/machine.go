@@ -1482,6 +1482,15 @@ func preprocessGasMeterOf(st Store) store.GasMeter {
 	return pa.GetGasMeter()
 }
 
+// preprocessAllocOf returns st's preprocess allocator, or nil (no budget)
+// when there is none.
+func preprocessAllocOf(st Store) *Allocator {
+	if st == nil {
+		return nil
+	}
+	return st.GetPreprocessAllocator()
+}
+
 const (
 	// CPU gas costs: 1 gas = 1 nanosecond of wall time on reference hardware.
 	// Reference: Intel Xeon Platinum 8168 @ 2.70GHz (DigitalOcean Dedicated).
@@ -1667,6 +1676,13 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
+	// foldConst (constfold.go): per constant operation folded with
+	// go/constant, on top of the operand-size terms the machine charges
+	// (OpCPUSlopeBigInt*, OpCPUSlopeBigDec*). Covers a 512-bit integer
+	// operation (64 word products, a division ~180 ns on an M-series
+	// laptop, BenchmarkConstFold; ~350 ns on the Xeon reference) and the
+	// value conversions around it.
+	OpCPUSlopeConstFold = 600
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 

@@ -289,7 +289,11 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 		case Int16Type:
 			w.WriteInt(int64(tv.GetInt16()))
 		case UntypedRuneType, Int32Type:
-			w.WriteInt(int64(tv.GetInt32()))
+			if biv, ok := tv.V.(BigintValue); ok {
+				w.WriteString(biv.V.String())
+			} else {
+				w.WriteInt(int64(tv.GetInt32()))
+			}
 		case Int64Type:
 			w.WriteInt(tv.GetInt64())
 		case UintType:
@@ -602,7 +606,11 @@ func (tv TypedValue) WriteProtected(w *meteredWriter, seen *seenValues) {
 		case Int16Type:
 			w.WriteInt(int64(tv.GetInt16()))
 		case Int32Type, UntypedRuneType:
-			w.WriteInt(int64(tv.GetInt32()))
+			if biv, ok := tv.V.(BigintValue); ok {
+				w.WriteString(biv.V.String())
+			} else {
+				w.WriteInt(int64(tv.GetInt32()))
+			}
 		case Int64Type:
 			w.WriteInt(tv.GetInt64())
 		case UintType:

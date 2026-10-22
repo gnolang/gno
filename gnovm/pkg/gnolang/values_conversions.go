@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"go/constant"
 	"math"
 	"math/big"
 	"strings"
@@ -1156,8 +1157,9 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 			}
 		}
 	}
-	// special case: simple conversion
-	if t != nil && tv.T.Kind() == t.Kind() {
+	// special case: simple conversion (not for an untyped rune past
+	// int32, which must be range checked)
+	if t != nil && tv.T.Kind() == t.Kind() && (tv.T != UntypedRuneType || tv.V == nil) {
 		tv.T = t
 		return
 	}
@@ -1188,90 +1190,61 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 }
 
-// All fields may be modified to complete the conversion.
+// ConvertUntypedRuneTo converts an untyped rune constant, exact in either
+// form (int32 in N, or a BigintValue past int32), to t: range checked for
+// an integer target, rounded once for a float one.
 func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
-	sv := dst.GetInt32()
+	if t == UntypedRuneType {
+		return
+	}
+	bi := runeConstInt(dst)
 	k := t.Kind()
 	switch k {
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
-	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-	case StringKind, BigintKind, BigdecKind:
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		if lo, hi := intKindRange(k); bi.Cmp(lo) < 0 || bi.Cmp(hi) > 0 {
+			name := t.String()
+			if t == Int32Type {
+				name = "rune" // the default type, as gc names it
+			}
+			panic(fmt.Sprintf("constant %s overflows %s", bi, name))
+		}
+		dst.T = t
+		dst.ClearNum()
+		dst.V = nil
+		setIntKind(dst, k, bi)
+	case Float32Kind:
+		f, _ := constant.Float32Val(constant.Make(bi))
+		if math.IsInf(float64(f), 0) {
+			panic(fmt.Sprintf("constant %s overflows float32", bi))
+		}
+		dst.T = t
+		dst.ClearNum()
+		dst.V = nil
+		dst.SetFloat32(math.Float32bits(f))
+	case Float64Kind:
+		f, _ := constant.Float64Val(constant.Make(bi))
+		if math.IsInf(f, 0) {
+			panic(fmt.Sprintf("constant %s overflows float64", bi))
+		}
+		dst.T = t
+		dst.ClearNum()
+		dst.V = nil
+		dst.SetFloat64(math.Float64bits(f))
+	case StringKind:
+		panic("not yet implemented")
+	case BigintKind:
+		dst.T = t
+		dst.ClearNum()
+		dst.V = BigintValue{V: new(big.Int).Set(bi)}
+	case BigdecKind:
+		dst.T = t
+		dst.ClearNum()
+		dst.V = BigdecValue{V: new(big.Rat).SetInt(bi)}
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert untyped rune type to %s",
 			k.String()))
-	}
-	// Set .T exactly to t, and set .V to nil
-	// since the result is only primitive (unless string)
-	dst.T = t
-	if debug {
-		if dst.V != nil {
-			panic("should not happen")
-		}
-	}
-	// Check the bounds of sv or uv, given that
-	// the value is within int64 or uint64.
-	switch k {
-	case IntKind:
-		dst.SetInt(int64(sv))
-	case Int8Kind:
-		if math.MaxInt8 < sv {
-			panic("rune overflows target kind")
-		}
-		if sv < math.MinInt8 {
-			panic("rune underflows target kind")
-		}
-		dst.SetInt8(int8(sv))
-	case Int16Kind:
-		if math.MaxInt16 < sv {
-			panic("rune overflows target kind")
-		}
-		if sv < math.MinInt16 {
-			panic("rune underflows target kind")
-		}
-		dst.SetInt16(int16(sv))
-	case Int32Kind:
-		dst.SetInt32(sv)
-	case Int64Kind:
-		dst.SetInt64(int64(sv))
-	case UintKind:
-		if sv < 0 {
-			panic("rune underflows target kind")
-		}
-		dst.SetUint(uint64(sv))
-	case Uint8Kind:
-		if sv < 0 {
-			panic("rune underflows target kind")
-		}
-		if math.MaxUint8 < sv {
-			panic("rune overflows target kind")
-		}
-		dst.SetUint8(uint8(sv))
-	case Uint16Kind:
-		if sv < 0 {
-			panic("rune underflows target kind")
-		}
-		if math.MaxUint16 < sv {
-			panic("rune overflows target kind")
-		}
-		dst.SetUint16(uint16(sv))
-	case Uint32Kind:
-		if sv < 0 {
-			panic("rune underflows target kind")
-		}
-		dst.SetUint32(uint32(sv))
-	case Uint64Kind:
-		dst.SetUint64(uint64(sv))
-	case StringKind:
-		panic("not yet implemented")
-	case BigintKind:
-		dst.ClearNum()
-		dst.V = BigintValue{V: big.NewInt(int64(sv))}
-	case BigdecKind:
-		dst.ClearNum()
-		dst.V = BigdecValue{V: new(big.Rat).SetInt64(int64(sv))}
-	default:
-		panic(fmt.Sprintf("unexpected target %v", k))
 	}
 }
 
@@ -1313,30 +1286,19 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		// 24 for float32
-		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(24)
-		f32, acc := bf.Float32()
-		// A big.Float made from a big.Int is never Inf; overflow shows
-		// up in the rounded result.
+		// Rounded once, from the exact value (#6394).
+		f32, _ := constant.Float32Val(constant.Make(bi))
 		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
-		}
-		if f32 == 0 && (acc == big.Below || acc == big.Above) {
-			panic("bigint underflows float32 (too close to zero)")
 		}
 		dst.SetFloat32(math.Float32bits(f32))
 		return // done
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		// 53 for float64
-		bf := big.NewFloat(0.0).SetInt(bi).SetPrec(53)
-		f64, acc := bf.Float64()
+		f64, _ := constant.Float64Val(constant.Make(bi))
 		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")
-		}
-		if f64 == 0 && (acc == big.Below || acc == big.Above) {
-			panic("bigint underflows float64 (too close to zero)")
 		}
 		dst.SetFloat64(math.Float64bits(f64))
 		return // done
