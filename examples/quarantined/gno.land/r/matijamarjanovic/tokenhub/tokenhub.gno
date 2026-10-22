@@ -1,12 +1,12 @@
 package tokenhub
 
 import (
-	"gno.land/p/demo/tokens/grc20"
-	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/r/nt/grc20reg/v0"
 
-	"gno.land/p/demo/tokens/grc1155"
-	"gno.land/p/demo/tokens/grc721"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/grc1155/v0"
+	"gno.land/p/nt/grc721/v0"
 
 	"gno.land/r/leon/hor"
 )

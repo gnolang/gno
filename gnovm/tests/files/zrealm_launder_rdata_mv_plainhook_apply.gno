@@ -26,7 +26,7 @@ package launderrh_mv_plainhook_apply
 // that storage doesn't help safety.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

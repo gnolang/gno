@@ -35,6 +35,7 @@ message m_enable_pkg {
 	string approver = 1;
 	string pkg_path = 2;
 	string pkg_hash = 3;
+	sint64 pkg_height = 4;
 }
 
 message m_reject_pkg {

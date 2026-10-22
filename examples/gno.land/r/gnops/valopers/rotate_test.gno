@@ -133,7 +133,7 @@ func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testi
 	// already an active validator must be rejected. Mirrors the same
 	// guard in Register (valopers.gno: ErrFrontrunValidator). Without
 	// this, any valoper could rotate onto an unregistered (e.g.
-	// genesis-seeded) validator slot — v3's executor would overwrite
+	// genesis-seeded) validator slot — v0's executor would overwrite
 	// the active validator's entry in the effective valset with this
 	// operator's claim, then a subsequent govDAO remove-op proposal
 	// would delete it. signingRegistry uniqueness alone doesn't catch
@@ -142,7 +142,7 @@ func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testi
 	// from signingRegistry.
 	info := registerForRotation(t, cur)
 
-	// Seed v3's valset:current with the address that rotateTargetPubKey
+	// Seed v0's valset:current with the address that rotateTargetPubKey
 	// derives to. ValsetEffective is read from valset:current when the
 	// dirty flag is unset, which is the default.
 	testing.SetSysParamStrings("node", "valset", "current",
