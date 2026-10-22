@@ -86,12 +86,12 @@ type gapGroup struct {
 	prose string // set instead of the fields above for a non-group part
 }
 
-var gapKinds = []string{"uncaught markers", "over-strict", "internal errors"}
+var gapKinds = []string{"uncaught markers", "over-strict", "internal errors", "types differ"}
 
 const onChainKind = "on-chain path"
 
 var (
-	reGapGroup     = regexp.MustCompile(`^(?:(#\d+) )?(uncaught markers|over-strict|internal errors): lines (\d+(?:\s*-\s*\d+)?(?:\s*,\s*\d+(?:\s*-\s*\d+)?)*)\s*(\(.*\))?$`)
+	reGapGroup     = regexp.MustCompile(`^(?:(#\d+) )?(uncaught markers|over-strict|internal errors|types differ): lines (\d+(?:\s*-\s*\d+)?(?:\s*,\s*\d+(?:\s*-\s*\d+)?)*)\s*(\(.*\))?$`)
 	reOnChainPart  = regexp.MustCompile(`^(?:(#\d+) )?on-chain path (.+)$`)
 	reLeadingIssue = regexp.MustCompile(`^#\d+`)
 )
@@ -207,9 +207,13 @@ func gapLabel(kind string) string {
 // lines still gaps of its kind (an emptied group is dropped, a note stays),
 // gives unowned gap lines to the umbrella issue and rewrites the on-chain
 // part; stale lists what verify must refuse (lines no longer gaps, gaps
-// unlisted, an on-chain part that changed).
-func reconcileGapReason(prev string, uncaught, overStrict, internal []int, onChain string) (reason string, stale []string) {
-	gaps := map[string][]int{gapKinds[0]: slices.Sorted(slices.Values(uncaught)), gapKinds[1]: slices.Sorted(slices.Values(overStrict)), gapKinds[2]: slices.Sorted(slices.Values(internal))}
+// unlisted, an on-chain part that changed). The `types differ` kind is the
+// types check's (typediff.go), reconciled in every mode.
+func reconcileGapReason(prev string, uncaught, overStrict, internal, typesDiffer []int, onChain string) (reason string, stale []string) {
+	gaps := map[string][]int{
+		gapKinds[0]: slices.Sorted(slices.Values(uncaught)), gapKinds[1]: slices.Sorted(slices.Values(overStrict)),
+		gapKinds[2]: slices.Sorted(slices.Values(internal)), gapKinds[3]: slices.Sorted(slices.Values(typesDiffer)),
+	}
 	listed := map[string]map[int]bool{}
 	noLonger := map[string][]int{}
 	prevOnChain, hadOnChain := "", false
@@ -274,6 +278,29 @@ func reconcileGapReason(prev string, uncaught, overStrict, internal []int, onCha
 		stale = append(stale, "the on-chain path part changed")
 	}
 	return formatGapGroups(out), stale
+}
+
+// typesVerdict folds the types check into v, the verdict a run or compile
+// file reached from its own evidence: a Clean file with mismatches becomes
+// the umbrella KnownIssue, a KnownIssue reason gets its `types differ`
+// group reconciled (sync rewrites it, verify reports it stale) and a
+// KnownDivergence stands as decided.
+func typesVerdict(v verdict, typesDiffer []int, sync bool) (verdict, []string) {
+	switch {
+	case v.Kind == VerdictClean && len(typesDiffer) > 0:
+		v = verdict{Kind: VerdictKnownIssue, Mode: v.Mode, Reason: errorcheckGapReason(nil, nil, nil, typesDiffer, "")}
+	case v.Kind == VerdictKnownIssue && isSyncWrittenReason(v.Reason):
+		if want := errorcheckGapReason(nil, nil, nil, typesDiffer, ""); sync || legacySyncReason(v.Reason) != want {
+			v.Reason = want
+		}
+	case v.Kind == VerdictKnownIssue:
+		reason, stale := reconcileGapReason(v.Reason, nil, nil, nil, typesDiffer, "")
+		if sync {
+			v.Reason = reason
+		}
+		return v, stale
+	}
+	return v, nil
 }
 
 var (
