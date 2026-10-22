@@ -96,7 +96,7 @@ func TestFinalizeGoRunDivergence_Verify(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			newDirs, err := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, nil, false, true)
+			newDirs, err := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, "", nil, nil, false, true)
 			if newDirs != nil {
 				t.Fatalf("verify must not rewrite directives, got %v", newDirs)
 			}
@@ -135,7 +135,7 @@ func TestFinalizeGoRunDivergence_Sync(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, _ := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, nil, true, tc.isGoFile)
+			out, _ := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, "", nil, nil, true, tc.isGoFile)
 			if got := verdictOf(out); got != tc.wantVerdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.wantVerdict)
 			}
