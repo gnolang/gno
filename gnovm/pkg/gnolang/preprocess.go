@@ -1767,14 +1767,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
+				// anything declared in the parent if statement is copied.
 				pushInitBlockAndCopy(n, &last, &stack)
-				// parent if statement.
-				ifs := ns[len(ns)-1].(*IfStmt)
-				// anything declared in ifs are copied.
-				for _, n := range ifs.GetBlockNames() {
-					tv := ifs.GetSlot(nil, n, false)
-					last.Define(n, *tv)
-				}
 
 			// TRANS_BLOCK -----------------------
 			case *RangeStmt:
@@ -1924,14 +1918,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
+				// anything declared in ss.Init is copied.
 				pushInitBlockAndCopy(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
-				// anything declared in ss.Init are copied.
-				for _, n := range ss.GetBlockNames() {
-					tv := ss.GetSlot(nil, n, false)
-					last.Define(n, *tv)
-				}
 				if ss.IsTypeSwitch {
 					if len(n.Cases) == 0 {
 						// evaluate default case.
@@ -5309,11 +5299,15 @@ func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	copyFromFauxBlock(bn, orig)
 }
 
-// anything declared in orig are copied.
+// anything declared in orig are copied, with orig's static type: the slot
+// value of a name defined from a constant is the constant's type, which
+// differs from the static type when the constant was converted to an
+// interface (`if i := any(0); ...`).
 func copyFromFauxBlock(bn BlockNode, orig BlockNode) {
-	for _, n := range orig.GetBlockNames() {
+	osb := orig.GetStaticBlock()
+	for i, n := range osb.GetBlockNames() {
 		tv := orig.GetSlot(nil, n, false)
-		bn.Define(n, *tv)
+		bn.Define2(false, n, osb.Types[i], *tv, NameSource{})
 	}
 }
 
