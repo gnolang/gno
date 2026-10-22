@@ -39,6 +39,18 @@ preprocessor (`PreprocessFilesCollect`) gives every error with its span.
   the file is rejected, with its first error on a reported line; the
   ledger vouches for the path deploys take, not only for the measuring one.
 
+- Types. Acceptance, error lines and output never show the static type
+  Gno assigns, so the ledger also compares each declared name's type with
+  go/types' object type on the same file (canonical spelling; one
+  `// GnoTypeDiffers:` block, a `types differ` gap group). Go pins this
+  with type assertions in its own tests; this is the Gno equivalent.
+- Hand-written reasons. A `KnownIssue` reason's `#NNNN <kind>: lines …`
+  groups are reconciled with the recomputed gaps on every run: verify
+  fails a stale list, sync prunes emptied groups and appends the umbrella.
+- Incidental gaps. `// GnoTrim: lines …` blanks an incidental unsupported
+  construct so the rest of a file is measured; a bodiless function is a
+  per-line gap in errorcheck mode (the function stays declared).
+
 ## Alternatives considered
 
 - Counting a marker as covered when the go/types guard flags it (the
