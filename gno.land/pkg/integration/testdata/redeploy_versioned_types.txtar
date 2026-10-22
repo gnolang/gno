@@ -3,9 +3,9 @@
 #
 # The carry keys globals by name and static type and declared types by name
 # and underlying shape, because the realm's own persisted objects still carry
-# both. So a redeploy may add types, add globals, change or drop methods, and
-# drop globals; it may not drop or reshape a type, retype a global, or turn a
-# global into something that is not a variable. A carried global ignores its
+# both. So a redeploy may add types, add globals, change or drop methods, drop
+# globals, and reorder any declaration; it may not drop or reshape a type,
+# retype a global, or turn a global into something that is not a variable. A carried global ignores its
 # new initializer, init() does not run, every migrate() does. Each refusal
 # leaves the realm as the previous version wrote it.
 
@@ -56,8 +56,8 @@ gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Count()'
 stdout '2 int'
 
 # Permitted, all at once: a new type and a new global; a method changed and a
-# method dropped on a carried type; a carried global with an initializer; an
-# init() and two migrate() functions.
+# method dropped on a carried type; a carried global with an initializer; the
+# globals and funcs reordered; an init() and two migrate() functions.
 gnokey maketx addpkg -pkgdir $WORK/v2_ok -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Tag()'
@@ -309,10 +309,10 @@ type Store interface{ Get() int }
 type Note string // new type
 
 var (
-	counter = 100 // carried: the initializer is skipped
+	kind    Kind // the carried globals, in another order: carried by name
 	entries []*Entry
-	kind    Kind
 	hits    int    // new: starts at zero
+	counter = 100  // carried: the initializer is skipped
 	log     string // new
 )
 
@@ -326,11 +326,11 @@ func Add(cur realm, name string) {
 	entries = append(entries, &Entry{Name: name, N: counter})
 }
 
-func Count() int       { return counter }
-func Hits() int        { return hits }
-func Log() string      { return log }
+func Tag() string      { return "v2" } // moved ahead: a private realm has no importers
 func Describe() string { return entries[len(entries)-1].Describe() }
-func Tag() string      { return "v2" }
+func Log() string      { return log }
+func Hits() int        { return hits }
+func Count() int       { return counter }
 
 -- v3_unversioned/gnomod.toml --
 module = "gno.land/r/demo/shapes"
