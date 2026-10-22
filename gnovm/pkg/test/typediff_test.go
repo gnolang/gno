@@ -100,7 +100,9 @@ func TestTypeDiff_ShiftContext(t *testing.T) {
 	o := errorcheckOpts(t)
 	src := "// compile\n\npackage p\n\nvar s uint\n\nfunc f() {\n\tx := 1 + ('a' << s)\n\t_ = x\n}\n"
 	out, err := runFiletest(o, "testdata/compile/shift.go", src)
-	if err != nil || !strings.Contains(out, "\n// GnoTypeDiffers:\n// line 8: x gno untyped int, go int32\n") ||
+	// Gno spells its side `untyped int` or `int` depending on the rule
+	// level; either way it is not go/types' int32.
+	if err != nil || !strings.Contains(out, "\n// GnoTypeDiffers:\n// line 8: x gno ") || !strings.Contains(out, ", go int32\n") ||
 		!strings.HasSuffix(out, "// Verdict: KnownIssue compile: #6344 types differ: lines 8\n") {
 		t.Fatalf("err=%v out:\n%s", err, out)
 	}
