@@ -21,6 +21,7 @@ import (
 	"go/build/constraint"
 	"go/scanner"
 	"go/token"
+	"maps"
 	"strings"
 )
 
@@ -270,6 +271,12 @@ func (p *parser) error(pos token.Pos, msg string) {
 
 	epos := p.file.Position(pos)
 
+	// An error at EOF after another is a follow-up of it (an unclosed
+	// list or block); gc drops it and so does this parser.
+	if pos == p.pos && p.tok == token.EOF && len(p.errors) > 0 {
+		return
+	}
+
 	// If AllErrors is not set, discard errors reported on the same line
 	// as the last recorded error and stop parsing if there are more than
 	// 10 errors.
@@ -325,12 +332,33 @@ func (p *parser) expect2(tok token.Token) (pos token.Pos) {
 	return
 }
 
+// expectLbrace is expect(LBRACE) with gc's recovery for a block that
+// does not open: skip to a block or statement, and leave a '}' found
+// there for the block's close (go.dev/issue/22581).
+func (p *parser) expectLbrace() token.Pos {
+	if p.tok != token.LBRACE {
+		p.errorExpected(p.pos, "'{'")
+		p.advance(blockStart)
+		if p.tok != token.LBRACE {
+			return p.pos
+		}
+	}
+	pos := p.pos
+	p.next()
+	return pos
+}
+
 // expectClosing is like expect but provides a better error message
-// for the common case of a missing comma before a newline.
+// for the common case of a missing comma before a newline. As gc does,
+// it then skips to a closing token or statement start and, unless that
+// is tok, leaves the list unclosed: one error, no cascade.
 func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 	if p.tok != tok && p.tok == token.SEMICOLON && p.lit == "\n" {
-		p.error(p.pos, "missing ',' before newline in "+context)
-		p.next()
+		p.error(p.pos, "unexpected newline in "+context+"; possibly missing comma or "+tok.String())
+		p.advance(exprClose)
+		if p.tok != tok {
+			return p.pos
+		}
 	}
 	return p.expect(tok)
 }
@@ -368,11 +396,10 @@ func (p *parser) atComma(context string, follow token.Token) bool {
 		return true
 	}
 	if p.tok != follow {
-		msg := "missing ','"
 		if p.tok == token.SEMICOLON && p.lit == "\n" {
-			msg += " before newline"
+			return false // expectClosing reports the missing comma and resynchronises
 		}
-		p.error(p.pos, msg+" in "+context)
+		p.error(p.pos, "missing ',' in "+context)
 		return true // "insert" comma and continue
 	}
 	return false
@@ -431,11 +458,33 @@ var stmtStart = map[token.Token]bool{
 	token.VAR:         true,
 }
 
+// The sync sets below are stmtStart plus the tokens gc's parser stops
+// at in the same situation, so a recovery never skips a closing token.
+var (
+	// stmtEnd: where an unparsable statement ends.
+	stmtEnd = union(stmtStart, token.SEMICOLON, token.RBRACE, token.CASE, token.DEFAULT)
+	// exprClose: where a broken expression or list ends (issue 33386).
+	exprClose = union(stmtStart, token.RPAREN, token.RBRACK, token.RBRACE)
+	// blockStart: where a broken statement header ends (go.dev/issue/22581).
+	blockStart = union(stmtStart, token.LBRACE, token.RBRACE)
+	// caseStart: where a broken switch header ends.
+	caseStart = union(stmtStart, token.CASE, token.DEFAULT, token.RBRACE)
+)
+
+func union(set map[token.Token]bool, toks ...token.Token) map[token.Token]bool {
+	m := maps.Clone(set)
+	for _, tok := range toks {
+		m[tok] = true
+	}
+	return m
+}
+
 var declStart = map[token.Token]bool{
 	token.IMPORT: true,
 	token.CONST:  true,
 	token.TYPE:   true,
 	token.VAR:    true,
+	token.FUNC:   true,
 }
 
 var exprEnd = map[token.Token]bool{
@@ -1058,7 +1107,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		p.next()
 		// [T any](params) syntax
 		list := p.parseParameterList(nil, nil, token.RBRACK)
-		rbrack := p.expect(token.RBRACK)
+		rbrack := p.expectClosing(token.RBRACK, "type parameter list")
 		tparams = &ast.FieldList{Opening: opening, List: list, Closing: rbrack}
 		// Type parameter lists must not be empty.
 		if tparams.NumFields() == 0 {
@@ -1074,7 +1123,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		fields = p.parseParameterList(nil, nil, token.RPAREN)
 	}
 
-	rparen := p.expect(token.RPAREN)
+	rparen := p.expectClosing(token.RPAREN, "parameter list")
 	params = &ast.FieldList{Opening: opening, List: fields, Closing: rparen}
 
 	return
@@ -1429,7 +1478,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 		defer un(trace(p, "BlockStmt"))
 	}
 
-	lbrace := p.expect(token.LBRACE)
+	lbrace := p.expectLbrace()
 	list := p.parseStmtList()
 	rbrace := p.expect2(token.RBRACE)
 
@@ -1497,7 +1546,7 @@ func (p *parser) parseOperand() ast.Expr {
 	// we have an error
 	pos := p.pos
 	p.errorExpected(pos, "operand")
-	p.advance(stmtStart)
+	p.advance(exprClose)
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
 
@@ -1957,7 +2006,18 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 			// Go spec: The scope of a label is the body of the function
 			// in which it is declared and excludes the body of any nested
 			// function.
-			stmt := &ast.LabeledStmt{Label: label, Colon: colon, Stmt: p.parseStmt()}
+			stmt := &ast.LabeledStmt{Label: label, Colon: colon}
+			switch p.tok {
+			case token.CASE, token.DEFAULT:
+				// gc: reported at the label, nothing skipped (bug274).
+				p.error(colon, "missing statement after label")
+				fallthrough
+			case token.RBRACE:
+				// a semicolon may be omitted before a closing "}"
+				stmt.Stmt = &ast.EmptyStmt{Semicolon: colon + 1, Implicit: true}
+			default:
+				stmt.Stmt = p.parseStmt()
+			}
 			return stmt, false
 		}
 		// The label declaration typically starts at x[0].Pos(), but the label
@@ -2114,6 +2174,9 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 			p.next()
 		} else {
 			p.expect(token.SEMICOLON)
+			if p.tok != token.LBRACE {
+				p.advance(blockStart) // for better synchronization (go.dev/issue/22581)
+			}
 		}
 		if p.tok != token.LBRACE {
 			condStmt, _ = p.parseSimpleStmt(basic)
@@ -2258,7 +2321,14 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	}
 
 	typeSwitch := p.isTypeSwitchGuard(s2)
-	lbrace := p.expect(token.LBRACE)
+	lbrace := p.pos
+	if p.tok == token.LBRACE {
+		p.next()
+	} else {
+		// gc: "missing { after switch clause", then on to the clauses
+		p.errorExpected(p.pos, "'{'")
+		p.advance(caseStart)
+	}
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
 		list = append(list, p.parseCaseClause())
@@ -2445,7 +2515,16 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		// because of the required look-ahead, labeled statements are
 		// parsed by parseSimpleStmt - don't expect a semicolon after
 		// them
-		if _, isLabeledStmt := s.(*ast.LabeledStmt); !isLabeledStmt {
+		switch s.(type) {
+		case *ast.LabeledStmt:
+		case *ast.BadStmt:
+			// an illegal label declaration, already reported: skip to
+			// the end of the statement, as gc does
+			p.advance(stmtEnd)
+			if p.tok == token.SEMICOLON {
+				p.next()
+			}
+		default:
 			p.expectSemi()
 		}
 	case token.GO:
@@ -2843,8 +2922,10 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 		return p.parseFuncDecl()
 
 	default:
+		// gc: "non-declaration statement outside function body", then on
+		// to the next declaration, func included, so each one is reported
 		pos := p.pos
-		p.errorExpected(pos, "declaration")
+		p.error(pos, "non-declaration statement outside function body")
 		p.advance(sync)
 		return &ast.BadDecl{From: pos, To: p.pos}
 	}

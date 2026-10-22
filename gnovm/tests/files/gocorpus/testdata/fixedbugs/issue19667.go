@@ -13,7 +13,7 @@ func f() {
 } // ERROR "unexpected }, expected expression|expected operand|missing .*\)|expected .*;|expected .*{"
 
 // GnoError:
-// line 12: name http not declared
+// line 12: expected boolean expression, found assignment (missing parentheses around composite literal?)
 // line 13: expected operand, found '}'
 
 // Verdict: Clean errorcheck

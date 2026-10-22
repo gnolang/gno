@@ -28,19 +28,18 @@ func f() {
 
 // GnoError:
 // line 10: expected ';', found ')'
-// line 13: expected '{', found 'if'
+// line 13: expected ';', found ']'
 // line 16: expected switch expression, found assignment (missing parentheses around composite literal?)
 // line 19: expected '{', found ']'
 // line 22: expected boolean or range expression, found assignment (missing parentheses around composite literal?)
 // line 25: expected '{', found ']'
-// line 27: expected '(', found main
 
 // GnoWordingDiffers:
 // line 10: gc expects: unexpected \); gno: expected ';', found ')'
-// line 13: gc expects: unexpected \]; gno: expected '{', found 'if'
+// line 13: gc expects: unexpected \]; gno: expected ';', found ']'
 // line 16: gc expects: unexpected \); gno: expected switch expression, found assignment (missing parentheses around composite literal?)
 // line 19: gc expects: unexpected \]; gno: expected '{', found ']'
 // line 22: gc expects: unexpected \); gno: expected boolean or range expression, found assignment (missing parentheses around composite literal?)
 // line 25: gc expects: unexpected \]; gno: expected '{', found ']'
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 27
+// Verdict: Clean errorcheck

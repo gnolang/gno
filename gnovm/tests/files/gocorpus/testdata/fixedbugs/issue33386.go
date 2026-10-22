@@ -28,10 +28,4 @@ func _() {
 	_ = []int{1, 2, 3 + } // ERROR "expected expression|expected operand"
 }
 
-// GnoError:
-// line 16: expected operand, found '}'
-// line 20: expected ';', found 'defer'
-// line 22: expected operand, found '}'
-// line 29: expected ';', found 'EOF'
-
-// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a missing operand is reported at the closing token, and the resynchronisation errors on lines 20 and 29 are its cascades
+// Verdict: Unsupported goroutine: goroutines not supported in Gno

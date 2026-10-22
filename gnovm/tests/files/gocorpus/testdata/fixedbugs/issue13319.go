@@ -19,11 +19,7 @@ func f(int, int) {
 
 // GnoError:
 // line 10: name x not declared
-// line 12: missing ',' before newline in argument list
-// line 13: expected operand, found 'case'
-// line 18: expected ')', found 'EOF'
+// line 12: unexpected newline in argument list; possibly missing comma or )
+// line 16: unexpected newline in argument list; possibly missing comma or )
 
-// GnoWordingDiffers:
-// line 12: gc expects: expecting \)|possibly missing comma or \); gno: missing ',' before newline in argument list
-
-// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): the missing comma is reported on the next line, with cascades on lines 10, 13 and 18
+// Verdict: KnownIssue errorcheck: #6344: line 10 is a type error gc never reaches (it stops at the syntax errors) while the harness checks the partial tree; over-strict: lines 10

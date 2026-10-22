@@ -8,12 +8,12 @@
 package p
 
 var _ = []int{
-	0/* ERROR AFTER "missing ','" */
+	0/* ERROR AFTER "possibly missing comma" */
 }
 
 var _ = []int{
 	0,
 	1,
 	2,
-	3/* ERROR AFTER "missing ','" */
+	3/* ERROR AFTER "possibly missing comma" */
 }

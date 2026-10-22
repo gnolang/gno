@@ -31,6 +31,7 @@ func main() {
 }
 
 // GnoError:
-// line 24: expected statement, found 'case'
+// line 23: missing statement after label
+// line 25: missing statement after label
 
-// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a label before `case` is reported at the `case` line, not the label line
+// Verdict: Clean errorcheck
