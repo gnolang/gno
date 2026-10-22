@@ -498,6 +498,9 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	if _, done := o.seen[key]; done {
 		return
 	}
+	if o.recordIfSettled(ctx, path, key) {
+		return
+	}
 
 	o.logf("gpao: verifying %q (budget %s)", path, o.cfg.verifyBudget)
 	err := o.verify(ctx, mpkg)
@@ -551,14 +554,8 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 
-	// Live with nothing waiting to be enabled? Then there is nothing to enable,
-	// and sending the message anyway costs the full fee to be told so. This is
-	// the common case when catching up with -start-height over blocks that were
-	// already approved. Terminal, so recorded.
-	if o.isSettled(ctx, path) {
-		o.status.record(path, statusApproved, "already active on-chain", 0)
-		o.seen[key] = struct{}{}
-		o.logf("gpao: %q is already active, nothing to approve", path)
+	// Asked again: the package may have gone live while it was being verified.
+	if o.recordIfSettled(ctx, path, key) {
 		return
 	}
 
@@ -712,6 +709,22 @@ func (o *oracle) wouldExceedSpend() bool {
 }
 
 const ugnotDenom = "ugnot"
+
+// recordIfSettled records the candidate as already active when its path is
+// live with nothing waiting to be enabled, and reports whether it did.
+//
+// There is nothing to enable then, and sending the message anyway costs the
+// full fee to be told so. This is the common case when catching up with
+// -start-height over blocks that were already approved. Terminal, so recorded.
+func (o *oracle) recordIfSettled(ctx context.Context, path, key string) bool {
+	if !o.isSettled(ctx, path) {
+		return false
+	}
+	o.status.record(path, statusApproved, "already active on-chain", 0)
+	o.seen[key] = struct{}{}
+	o.logf("gpao: %q is already active, nothing to approve", path)
+	return true
+}
 
 // isSettled reports whether a package is live at this path with nothing left to
 // enable.

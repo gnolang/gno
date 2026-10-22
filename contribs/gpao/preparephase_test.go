@@ -192,6 +192,19 @@ func rewriting(t *testing.T, remote string, rewrite func(body []byte) []byte) ht
 	})
 }
 
+// countingQuery proxies every request to remote and counts the ABCI queries
+// among them whose path starts with pathPrefix.
+func countingQuery(t *testing.T, remote, pathPrefix string, n *atomic.Int64) http.Handler {
+	t.Helper()
+	asked := []byte(`"path":"` + pathPrefix)
+	return rewriting(t, remote, func(body []byte) []byte {
+		if bytes.Contains(body, asked) {
+			n.Add(1)
+		}
+		return body
+	})
+}
+
 // nodeProxy forwards to the node at remote, which advertises tcp:// while the
 // proxy speaks HTTP to it.
 func nodeProxy(t *testing.T, remote string) *httputil.ReverseProxy {

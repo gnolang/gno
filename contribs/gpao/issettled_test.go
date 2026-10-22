@@ -2,6 +2,8 @@ package main
 
 import (
 	"io"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -158,6 +160,54 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 	require.Nil(t, res.Response.Error)
 	assert.Contains(t, string(res.Response.Data), "v2",
 		"the live blob must be the redeploy, not the original")
+}
+
+// TestSettledPackageIsNotVerified: a package live with nothing pending has
+// nothing to enable, so it is recorded as already active without a verifier
+// being spawned for it. A restart catching up with -start-height over blocks
+// already approved hands the oracle every such package again, and each
+// verification costs a child process plus a fetch of the import closure.
+//
+// The oracle and the child it spawns reach the node through a proxy counting
+// vm/qfile queries: fetching sources sends those and the settled check never
+// does, so one counted is a verification.
+func TestSettledPackageIsNotVerified(t *testing.T) {
+	chain := newInertChain(t)
+	const depPath = "gno.land/p/test/livedep"
+	dep := chainPackage(depPath, "package livedep\n\nfunc Answer() int { return 42 }\n")
+	const appPath = "gno.land/r/test/useslivedep"
+	app := chainPackage(appPath,
+		"package useslivedep\n\nimport \""+depPath+"\"\n\nfunc N(cur realm) int { return livedep.Answer() }\n")
+
+	var qfiles atomic.Int64
+	counted := httptest.NewServer(countingQuery(t, chain.remote, "vm/qfile", &qfiles))
+	t.Cleanup(counted.Close)
+	chain.remote = counted.URL
+
+	first := chain.oracle(t)
+	chain.park(t, dep)
+	first.handleCandidate(t.Context(), candidate{mpkg: dep})
+	chain.park(t, app)
+	qfiles.Store(0)
+	first.handleCandidate(t.Context(), candidate{mpkg: app})
+	firstSt := first.status.get(appPath)
+	require.Equal(t, statusApproved, firstSt.Status,
+		"premise: the first run must enable the package -- recorded reason: %s", firstSt.Reason)
+	require.Positive(t, qfiles.Load(),
+		"premise: verifying the package fetches its import, or the zero below proves nothing")
+
+	// A restart: same bytes, fresh oracle, nothing in seen.
+	replay := chain.oracle(t)
+	qfiles.Store(0)
+	replay.handleCandidate(t.Context(), candidate{mpkg: app})
+
+	st := replay.status.get(appPath)
+	require.Equal(t, statusApproved, st.Status, "recorded reason: %s", st.Reason)
+	assert.Equal(t, "already active on-chain", st.Reason)
+	assert.Contains(t, replay.seen, candidateKey(app),
+		"a settled package is terminal for these bytes")
+	assert.Zero(t, qfiles.Load(),
+		"a settled package has nothing to enable, so no verifier may run for it")
 }
 
 // TestPkgMetaSettled covers the three answers vm/qpkgmeta_json can give and

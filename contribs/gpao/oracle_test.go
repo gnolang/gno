@@ -101,7 +101,8 @@ func newTestVerifier(t *testing.T) *verifier {
 }
 
 // newTestOracle builds an oracle on closedRemote, so a fixture that grew a /p/
-// or /r/ import fails on a refused connection rather than reaching a local node.
+// or /r/ import fails on a refused connection rather than reaching a local node,
+// and handleCandidate finds nothing settled and verifies.
 func newTestOracle(t *testing.T) *oracle {
 	t.Helper()
 	return newTestOracleAt(t, closedRemote)
