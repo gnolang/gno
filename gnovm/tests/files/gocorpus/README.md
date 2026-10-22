@@ -16,6 +16,7 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode). Compile mode runs no `main`, but it does run package initialisers (`var` initialisers, `init`), which gc never runs for a `// compile` file: Gno has no init-free load, and an initialiser that panics or loops is a finding, not a mode bug |
 | `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
 | `GnoTrim:` / `GnoTrimmed:` | hand-written: body lines blanked before checking (see "Trimming an incidental construct"); auto-written: the trimmed lines that carried a marker, dropped from the expected set |
+| `GnoTypeDiffers:` | the declared names (variables, constants, functions, parameters, results) whose static type Gno's preprocess records differs from go/types' on the same source, one `line N: x gno int, go int32` per name, every mode (see "The types check") |
 
 | verdict | meaning |
 |---|---|
@@ -47,12 +48,25 @@ holds the sha256 of each file's upstream body, and `TestCorpusBodiesMatchUpstrea
 fails any file whose body (golden region stripped) drifts from it. After adding
 files, regenerate the manifest with `./upstream-manifest.sh <go source tree>`.
 The region is the trailing comment blocks that open with a golden directive
-(`GnoOutput:`, `GnoError:`, `GoOutput:`, `TypeCheckError:`, `Verdict:`); any
+(`GnoOutput:`, `GnoError:`, `GoOutput:`, `GnoTypeDiffers:`, `TypeCheckError:`, `Verdict:`); any
 other trailing comment is body and the manifest guards it, so triage notes
 go in the verdict's reason. Directive parsing is line-based: a column-0
 `// Verdict:` or `// GnoOutput: x` line inside an upstream body (a raw string,
 a comment) is read as a directive, verify fails the file for carrying two
 verdicts, and a sync would drop the line, which the manifest then catches.
+
+## The types check
+
+Acceptance, error lines and output never show the static type Gno gives
+a declaration, so every mode also compares it with go/types' (`typediff.go`):
+both are spelt one way (rune/byte by kind, `untyped int|rune|float|string|bool`,
+a declared type by its bare name, functions by signature, structs and
+interfaces by their literal) and each mismatch is a `GnoTypeDiffers:` line.
+A file with mismatches is `KnownIssue <mode>: #6344 types differ: lines …`;
+a reason written by hand keeps its own `[#NNNN ]types differ: lines …`
+group, reconciled like the errorcheck gap groups below (a stale block or
+list fails verify). An errorcheck file is checked for the declarations
+Gno accepted; a name go/types could not type is skipped.
 
 ## Trimming an incidental construct
 
@@ -99,8 +113,8 @@ on it and no Gno error starts on an unmarked line; otherwise sync writes
 directly, since every such gap is a preprocess conformance gap in that
 umbrella issue's scope. A reason written by hand is `;`-separated parts; a
 gap group is `[#NNNN ]<kind>: lines a, b, c-d[ (note)]` with kind `uncaught
-markers`, `over-strict` or `internal errors`, owned by the last `#NNNN` in
-force; other parts are prose, kept as written. Every run reconciles the
+markers`, `over-strict`, `internal errors` or `types differ`, owned by the
+last `#NNNN` in force; other parts are prose, kept as written. Every run reconciles the
 groups with the gaps: a group keeps the lines still gaps of its kind (its
 note with it, an emptied group is dropped), unowned gap lines go to `#6344`,
 and verify fails on a listed line no longer a gap or a gap listed nowhere.
