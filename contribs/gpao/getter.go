@@ -247,41 +247,17 @@ func (g *rpcGetter) query(filepath string) ([]byte, error) {
 	return body, err
 }
 
-// packageName derives the package name the way the chain derives it in
-// ReadMemPackageFromList: the first production .gno file whose package clause
-// parses names the package, with a _test suffix trimmed. Filetests carry
-// arbitrary clauses, so they name a package only when it holds nothing else --
-// their own clause where they agree on one, and the literal "filetests" where
-// they do not.
-//
-// The order matters here because the file list comes from vm/qfile sorted, and
-// ReadMemPackage flattens a package's filetests/ directory into it, so a
-// filetest carrying a package clause of its own routinely sorts ahead of the
-// production files. The fallback matters because the name is what
-// typeCheckMemPackage writes .gnobuiltins.gno under, and an empty one makes
-// that file unparseable.
+// packageName is the package clause of the first .gno file that parses. fetch
+// hands it production files only, so that clause is the package's own name,
+// which typeCheckMemPackage writes .gnobuiltins.gno under.
 func packageName(files []*std.MemFile) string {
-	var filetestName string
-	filetestsDiffer := false
 	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
-		name, err := gno.PackageNameFromFileBody(f.Name, f.Body)
-		if err != nil {
-			continue
-		}
-		if !strings.HasSuffix(f.Name, "_filetest.gno") {
-			return strings.TrimSuffix(string(name), "_test")
-		}
-		if filetestName == "" {
-			filetestName = string(name)
-		} else if filetestName != string(name) {
-			filetestsDiffer = true
+		if name, err := gno.PackageNameFromFileBody(f.Name, f.Body); err == nil {
+			return string(name)
 		}
 	}
-	if filetestsDiffer {
-		return "filetests"
-	}
-	return filetestName
+	return ""
 }

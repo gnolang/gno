@@ -43,11 +43,9 @@ func TestVerifierResolvesChainOnlyImport(t *testing.T) {
 
 // Same property with a realistic dependency: one that ships tests.
 //
-// vm/qfile lists every stored file, so a dependency rebuilt from it carries its
-// _test.gno and its flattened _filetest.gno. Stamping that MPUserProd -- as the
-// getter did -- makes AddMemPackage reject it ("unexpected file given type
-// MPUserProd"), which surfaces as a rejection of the IMPORTING package for
-// files that are not even its own.
+// vm/qfile lists every stored file, the dependency's _test.gno and flattened
+// _filetest.gno included, and none of them may decide the verdict on the
+// IMPORTING package, whose files they are not.
 func TestVerifierResolvesChainOnlyImportWithTestFiles(t *testing.T) {
 	dep := chainPackage("gno.land/p/test/tested", "package tested\n\nfunc Add(a, b int) int { return a + b }\n")
 	dep.Files = append(dep.Files,

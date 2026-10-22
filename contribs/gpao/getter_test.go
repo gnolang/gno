@@ -39,42 +39,6 @@ func TestPackageName(t *testing.T) {
 			files: []*std.MemFile{{Name: "gnomod.toml", Body: "module = \"x\""}},
 			want:  "",
 		},
-		{
-			// vm/qfile serves a package's files sorted, and ReadMemPackage
-			// flattens filetests/ into the same list, so a filetest routinely
-			// sorts ahead of the production files. Its package clause is
-			// arbitrary and unrelated to the package's own.
-			name: "ignores a filetest sorting ahead of the production files",
-			files: []*std.MemFile{
-				{Name: "caller_teller_sub_realm_filetest.gno", Body: "package grc20subrealm\n"},
-				{Name: "token.gno", Body: "package grc20\n\nfunc F() {}"},
-			},
-			want: "grc20",
-		},
-		{
-			name: "strips the _test suffix an external test file carries",
-			files: []*std.MemFile{
-				{Name: "grc20_test.gno", Body: "package grc20_test\n"},
-				{Name: "token.gno", Body: "package grc20\n"},
-			},
-			want: "grc20",
-		},
-		{
-			name: "filetests agreeing on a clause name the package",
-			files: []*std.MemFile{
-				{Name: "a_filetest.gno", Body: "package anything\n"},
-				{Name: "b_filetest.gno", Body: "package anything\n"},
-			},
-			want: "anything",
-		},
-		{
-			name: "filetests disagreeing fall back to the chain's default",
-			files: []*std.MemFile{
-				{Name: "a_filetest.gno", Body: "package anything\n"},
-				{Name: "b_filetest.gno", Body: "package something\n"},
-			},
-			want: "filetests",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
