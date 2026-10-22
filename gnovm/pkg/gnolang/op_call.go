@@ -909,6 +909,9 @@ func (m *Machine) doOpDefer() {
 		m.PopValues(numArgs)
 		cfr.PushDefer(Defer{Source: ds})
 	default:
+		// Returns before the pop below, so discard the func value and its
+		// arguments here.
+		m.PopValues(numArgs + 1)
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
