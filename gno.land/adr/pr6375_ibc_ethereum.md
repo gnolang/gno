@@ -619,12 +619,12 @@ oversize governance envelope within the window and spends it (§5.4).
   each Ethereum client, so `ibcgov`'s builders check every `clientId` against it, when the request is built and
   when the decision is recorded: a kind naming the route (2, 4, 5, 11, 13) takes the epoch client's counterparty,
   the router's current client of the route; kind 12 any router client of the route gno.land has a record of, every
-  one its governance epoch ran over or Ethereum may have passed on its way to one (at each switch, every router
-  client of the expected graph on a path from the old epoch's router client to the new one, all governance
-  named: a notice proves the client it came from, not the path, so the one its applier names is not assumed to be
-  Ethereum's; kept apart from its transfer route's replacements, which may skip one Ethereum retired) and its
-  current and replaced clients' counterparties, Ethereum refusing one it has not retired; kind 6 op 2 any router
-  client paired with a governed client, a successor once its kind 10
+  one governance named (the epoch clients' counterparties at the binding and each switch, a dispatched kind 10's
+  old and new clients, a recorded recovery expectation's, a dispatched kind 6 op 1's: a cumulative history kept
+  apart from the transfer route's replacements, which may skip one Ethereum retired, and from the expected
+  graph, whose paths a notice does not prove and which an emergency recovery of Ethereum's own may bypass) and
+  its current and replaced clients' counterparties, Ethereum refusing one it has not retired; kind 6 op 2 any
+  router client paired with a governed client, a successor from the dispatch of the kind 6 op 1
   is dispatched; kind 6 op 1 the custom id its gno client is paired with; kind 10 and a recovery expectation an
   old client the epoch reaches (§7.12). A gno.land client id is refused with the router client it is paired with
   (gno-realms ADR 0004, z2f). A client id added by governance (kind 6 op 1, kind 10, recovery) is a custom
