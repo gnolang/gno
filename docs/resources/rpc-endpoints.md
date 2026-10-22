@@ -219,8 +219,11 @@ timeout it returns an error while the transaction may still commit later.
 
 The first takes an optional `limit` and returns `n_txs`, `total`, `total_bytes`
 and `txs`.
-`limit` defaults to 30 and is capped at 100. The second takes nothing and
-returns the same shape with `txs` left null.
+`limit` defaults to 30 and is capped at 100. The response also stops before
+the tx that would take `txs` past 2,000,000 bytes of raw tx data, though it
+always carries the first; `total` and `total_bytes` still count the whole
+mempool. The second takes nothing and returns the same shape with `txs` left
+null.
 
 ## Application
 
