@@ -233,6 +233,9 @@ well, so the stages the budget measures never ask the node again. A transport
 fault is not cached. A missed import the chain reports live is fetched once
 more before the typecheck, since it may have been enabled after the miss.
 
+Only a dependency's production files and `gnomod.toml` are fetched: neither
+stage reads its `_test.gno` or `_filetest.gno` files.
+
 ### About `--gas-wanted`
 
 Each approval is sized by simulating it first: the measured gas plus 20%,

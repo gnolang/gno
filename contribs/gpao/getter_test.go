@@ -87,7 +87,8 @@ func TestPackageName(t *testing.T) {
 // vm/qfile carries. The listing is what a node serves for a package holding
 // filetests: production files, stored _test.gno, and flattened _filetest.gno,
 // sorted, so the filetest comes first and its package clause is not the
-// package's own.
+// package's own. Neither test file's body is queried: both stages read only an
+// import's production files.
 func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 	const pkgPath = "gno.land/p/nt/grc20/v0"
 	files := map[string]string{
@@ -98,9 +99,11 @@ func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 		path.Join(pkgPath, "token_test.gno"):                       "package grc20_test\n",
 	}
 
+	var queried []string
 	g := &rpcGetter{
 		cache: make(map[string]*std.MemPackage),
 		qfile: func(fp string) ([]byte, error) {
+			queried = append(queried, fp)
 			body, ok := files[fp]
 			if !ok {
 				return nil, errors.New("file is not available")
@@ -114,6 +117,9 @@ func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 	assert.Equal(t, "grc20", mpkg.Name,
 		"the typechecker emits .gnobuiltins.gno under this name, so a filetest's "+
 			"clause here rejects the importing package for a name its author never wrote")
+	assert.Equal(t, []string{pkgPath, path.Join(pkgPath, "gnomod.toml"), path.Join(pkgPath, "token.gno")},
+		queried)
+	assert.Equal(t, []string{"gnomod.toml", "token.gno"}, mpkg.FileNames())
 }
 
 // TestRPCGetterCaching verifies the getter caches what the node ANSWERED --

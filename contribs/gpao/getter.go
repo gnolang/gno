@@ -187,6 +187,12 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		if name == "" {
 			continue
 		}
+		// Neither stage reads an import's test files, so their bodies are not
+		// fetched. Every live package keeps a production file (AddPackage
+		// refuses one without), so the package still has a name to carry.
+		if gno.IsTestFile(name) {
+			continue
+		}
 		body, err := g.query(path.Join(pkgPath, name))
 		if err != nil {
 			return nil, err
@@ -197,13 +203,8 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, nil
 	}
 
-	// MPUserAll, matching what AddPackage stamps on the stored package and
-	// therefore what a node serves here. Not MPUserProd: qfile lists every
-	// stored file, _test.gno and flattened _filetest.gno included (see
-	// TestRPCGetterNamesReconstructedPackage), and MPUserProd's validation
-	// rejects those outright -- so stamping it made AddMemPackage panic on any
-	// dependency that ships tests, which is most of them. Restricting to
-	// production files is the fileset's job at each point of use.
+	// MPUserAll, the type AddPackage stamps on the stored package, of which
+	// this is the production subset.
 	return &std.MemPackage{
 		Name:  packageName(files),
 		Path:  pkgPath,
