@@ -18,4 +18,7 @@ func main() {
 	}
 }
 
-// Verdict: Clean compile
+// GnoTypeDiffers:
+// line 16: i gno int, go interface{}
+
+// Verdict: KnownIssue compile: #6344 types differ: lines 16
