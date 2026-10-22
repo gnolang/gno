@@ -87,9 +87,14 @@ Custom getter methods tailored to the specifics of the realm can be built instea
 
 ### Images and IPFS content
 
-Rendered pages load images only from gnoweb's own assets, `data:` SVG images and
-a short list of hosts such as imgur and GitHub (`cspImgHost` in
-`gno.land/cmd/gnoweb/main.go`).
+Rendered pages load images only from gnoweb's own assets, `data:` SVG images,
+the IPFS gateway described below (with its `*.ipfs.` and `*.ipns.` subdomains
+when it is named by a DNS host) and these hosts (`cspImgHost` in
+`gno.land/cmd/gnoweb/main.go`):
+
+- `gnolang.github.io` and `sa.gno.services`
+- `imgur.com` and its subdomains
+- `github.com`, `*.github.io` and `*.githubusercontent.com`
 
 To show content stored on IPFS, use an `ipfs://<cid>/<path>` or
 `ipns://<name>/<path>` URL as the target of a markdown link or image. gnoweb

@@ -116,11 +116,19 @@ dedicated or self-hosted gateway.
   `-ipfs-gateway` elsewhere.
 - A gateway only serves content some IPFS node provides. One sampled CID had no
   provider on any gateway.
-- The rewrite and the CSP must ship together. On 2026-10-06, gno.land still
-  served the old `img-src` (`ipfs.io`, `cloudflare-ipfs.com`,
-  `assets.gnoteam.com`). Rewritten images stay blocked there until the
-  deployed header allows the gateway, whether gnoweb `-strict` sets that
-  header or the proxy in front of it does.
+- gno.land and onyx serve gnoweb's own CSP (`-strict`), so the new `img-src`
+  ships with the gnoweb release that carries this change rather than as an
+  ops change. A proxy that sets its own CSP must be updated with it, as
+  `misc/loop`'s traefik config is here. `docs/users/explore-with-gnoweb.md`
+  lists the image hosts gnoweb allows, in one place.
+- Moderation moves with the gateway. ipfs.io applies the public Bad Bits
+  denylist and answers blocked content with `410`. Filebase's public gateway
+  also refuses that list's test entry (a `404` "Content Blocked" page,
+  checked 2026-10-22), but documents neither which lists it applies nor how
+  to report content to it. The default suits development and small
+  deployments. gno.land should run its own gateway, such as Rainbow
+  subscribed to the Bad Bits list with `--denylists`, so that moderation,
+  like the rate limit above, is under its own control.
 - Not rewritten: the documentation renderer, the site banner, and raw HTML under
   `-html`.
 - `md.Link` and `md.Image` (through `sanitize`) still drop `ipfs://` URLs.

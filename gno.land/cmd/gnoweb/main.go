@@ -21,7 +21,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Authorized external image host providers.
+// Authorized external image host providers. docs/users/explore-with-gnoweb.md
+// lists them for users: keep the two in sync.
 var cspImgHost = []string{
 	// Gno-related hosts
 	"https://gnolang.github.io",
