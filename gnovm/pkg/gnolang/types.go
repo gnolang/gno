@@ -136,12 +136,13 @@ const (
 )
 
 // Used for converting constant binary expressions.
-// Smaller number means more specific.
+// Smaller number means more specific: an operand converts to the operand
+// type with the smaller number.
 // Spec: "If the untyped operands of a binary operation (other than a shift) are
 // of different kinds, the result is of the operand's kind that appears later
 // in this list: integer, rune, floating-point, complex. For example, an
 // untyped integer constant divided by an untyped complex constant yields an
-// untyped complex constant."
+// untyped complex constant." So among untyped numerics float < rune < int.
 func (pt PrimitiveType) Specificity() int {
 	switch pt {
 	case InvalidType:
@@ -176,11 +177,11 @@ func (pt PrimitiveType) Specificity() int {
 		return 0
 	case UntypedBigdecType:
 		return 1
-	case UntypedStringType:
-		return 2
-	case UntypedBigintType:
-		return 2
 	case UntypedRuneType:
+		return 2
+	case UntypedStringType:
+		return 3
+	case UntypedBigintType:
 		return 3
 	case UntypedBoolType:
 		return 4

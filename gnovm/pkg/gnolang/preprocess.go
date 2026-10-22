@@ -2160,7 +2160,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Preprocess and convert tag if const.
 				if n.X != nil {
 					n.X = Preprocess(store, last, n.X).(Expr)
-					convertIfConst(store, last, n, n.X)
+					if isUntypedNumeric(evalStaticTypeOf(store, last, n.X)) {
+						checkOrConvertType(store, last, n, &n.X, nil)
+					} else {
+						convertIfConst(store, last, n, n.X)
+					}
 				}
 				if !n.IsTypeSwitch && n.X != nil {
 					// The tag must be comparable even with no case to
@@ -2454,7 +2458,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// If either is interface type no conversion is required.
 						if (lt == nil || lt.Kind() != InterfaceKind) &&
 							(rt == nil || rt.Kind() != InterfaceKind) {
-							if !shouldSwapOnSpecificity(lcx.T, rcx.T) {
+							swap := shouldSwapOnSpecificity(lcx.T, rcx.T)
+							if runeIntConstOverflows(lcx, rcx) {
+								swap = rcx.T == UntypedRuneType
+							}
+							if !swap {
 								// convert n.Left to right type.
 								checkOrConvertType(store, last, n, &n.Left, rt)
 							} else {
@@ -2468,16 +2476,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					} else if isUntyped(lcx.T) {
 						if !isUntyped(rt) { // right is typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
-						} else if n.Op == EQL || n.Op == NEQ {
-							// both untyped.
-							// no push context type to == != expr.
-							// fall through to default type of left or right.
-							dt := defaultTypeOf(rt)
-							if shouldSwapOnSpecificity(lt, rt) {
-								dt = defaultTypeOf(lt)
-							}
-							checkOrConvertType(store, last, n, &n.Right, dt)
-							checkOrConvertType(store, last, n, &n.Left, dt)
+						} else {
+							bindUntypedOperands(store, last, n, lt, rt)
 						}
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
@@ -2491,16 +2491,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					if isUntyped(rcx.T) {
 						if !isUntyped(lt) { // left is typed non-const, right is untyped const.
 							checkOrConvertType(store, last, n, &n.Right, lt)
-						} else if n.Op == EQL || n.Op == NEQ { // both untyped.
-							// both untyped.
-							// no push context type to == != expr.
-							// fall through to default type of left or right.
-							dt := defaultTypeOf(rt)
-							if shouldSwapOnSpecificity(lt, rt) {
-								dt = defaultTypeOf(lt)
-							}
-							checkOrConvertType(store, last, n, &n.Right, dt)
-							checkOrConvertType(store, last, n, &n.Left, dt)
+						} else {
+							bindUntypedOperands(store, last, n, lt, rt)
 						}
 					} else if rcx.T == nil { // RHS is nil
 						// refer to tests/files/types/eql_0f20.gno
@@ -2514,17 +2506,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					liu, riu := isUntyped(lt), isUntyped(rt)
 					if liu {
 						if riu {
-							if lt.TypeID() != rt.TypeID() {
-								panic(fmt.Sprintf(
-									"incompatible types in binary expression: %v %v %v",
-									lt.TypeID(), n.Op, rt.TypeID()))
-							}
-							// convert untyped to typed; && and || of untyped
-							// bools stay untyped for the context to decide.
-							if n.Op != LAND && n.Op != LOR {
-								checkOrConvertType(store, last, n, &n.Left, defaultTypeOf(lt))
-								checkOrConvertType(store, last, n, &n.Right, defaultTypeOf(rt))
-							}
+							bindUntypedOperands(store, last, n, lt, rt)
 						} else { // left untyped, right typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
 						}
@@ -6129,84 +6111,40 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// e.g. int(1) == int8(1)
 			mustAssignableTo(store, n, cx.T, t)
 		}
-	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
-		xt := evalStaticTypeOf(store, last, *x)
-		if debug {
-			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
-		}
-
-		if isUntyped(xt) {
-			if t == nil || t.Kind() == InterfaceKind {
-				if t != nil {
-					// An untyped shift assigned to an interface target takes
-					// its default type below, which drops the target on the
-					// floor — so assert satisfaction before doing that, or
-					// `var r R = 1 << 2` for a non-empty R is only caught at
-					// runtime. Checked against xt, not defaultTypeOf(xt), so
-					// the diagnostic names the untyped operand.
-					mustAssignableTo(store, n, xt, t)
-				}
-				t = defaultTypeOf(xt)
-			}
-			// t is the type from context or default.
-			bx.assertShiftExprCompatible2(t)
-
-			// Convert untyped to typed.
-			checkOrConvertType(store, last, n, &bx.Left, t)
-			bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // propagate converted type from left operand to shift expr.
-		} else if t != nil {
-			mustAssignableTo(store, n, xt, t)
-		}
-		return
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
+			// Checked against xt, not its default, so the diagnostic names
+			// the untyped operand (`var r R = 1 << s` for a non-empty R).
 			mustAssignableTo(store, n, xt, t)
 		}
+		if isUntypedNumeric(xt) {
+			// A non-constant shift with an untyped constant operand, or
+			// arithmetic over such shifts: the context type, or the kind's
+			// default when there is none or it is an interface, is the type
+			// of the whole tree (spec, Operators).
+			if t == nil || t.Kind() == InterfaceKind {
+				t = defaultTypeOf(xt)
+			}
+			pushUntypedType(store, last, n, *x, t)
+			return
+		}
 		if isUntyped(xt) {
-			// Push type into expr if qualifying binary expr.
+			// Untyped bool: a comparison, whose operands were typed at its
+			// own TRANS_LEAVE, `&&`/`||` over such, or `!` over one. It
+			// takes the context's boolean type; without one, bool.
 			if bx, ok := (*x).(*BinaryExpr); ok {
 				switch bx.Op {
-				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
-					BAND_NOT, LAND, LOR:
-					lt := evalStaticTypeOf(store, last, bx.Left)
-					rt := evalStaticTypeOf(store, last, bx.Right)
-					if t != nil {
-						// An interface target gives the whole expression
-						// its default type, which both operands take (the
-						// shift in `1.0 + 1<<s` is then a float64 shift).
-						if t.Kind() == InterfaceKind {
-							t = defaultTypeOf(xt)
-						}
-						// push t into bx.Left and bx.Right
-						checkOrConvertType(store, last, n, &bx.Left, t)
-						checkOrConvertType(store, last, n, &bx.Right, t)
-						// Cache the converted operand's type, not t: t may be
-						// untyped (a recursive call) or an interface.
-						bx.SetAttribute(ATTR_TYPEOF_VALUE, evalStaticTypeOf(store, last, bx.Left))
-						return
-					} else { // t is nil, and bx is untyped binary expr.
-						if shouldSwapOnSpecificity(lt, rt) {
-							// e.g. 1.0<<s + 1
-							// The expression '1.0<<s' does not trigger assertions of
-							// incompatible types when evaluated alone.
-							// However, when evaluating the full expression '1.0<<s + 1'
-							// without a specific context type, '1.0<<s' is checked against
-							// its default type, the BigDecKind, will trigger assertion failure.
-							// so here in checkOrConvertType, shift expression is "finally" checked.
-							checkOrConvertType(store, last, n, &bx.Left, nil)
-							checkOrConvertType(store, last, n, &bx.Right, lt)
-						} else {
-							checkOrConvertType(store, last, n, &bx.Left, rt)
-							checkOrConvertType(store, last, n, &bx.Right, nil)
-						}
-						// The operands have their default types now.
-						bx.SetAttribute(ATTR_TYPEOF_VALUE, evalStaticTypeOf(store, last, bx.Left))
+				case LAND, LOR:
+					if t == nil || isUntyped(t) || t.Kind() == InterfaceKind {
+						t = BoolType
 					}
+					// push t into bx.Left and bx.Right
+					checkOrConvertType(store, last, n, &bx.Left, t)
+					checkOrConvertType(store, last, n, &bx.Right, t)
+					bx.SetAttribute(ATTR_TYPEOF_VALUE, t)
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					// An untyped bool result takes the context's boolean
-					// type; only without one does it default to bool.
 					if t == nil || isUntyped(t) || t.Kind() == InterfaceKind {
 						t = BoolType
 					}
@@ -6214,12 +6152,6 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					// do nothing
 				}
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
-				xt := evalStaticTypeOf(store, last, *x)
-				// check assignable first
-				if t != nil {
-					mustAssignableTo(store, n, xt, t)
-				}
-
 				if t == nil || t.Kind() == InterfaceKind {
 					t = defaultTypeOf(xt)
 				}
@@ -6230,6 +6162,96 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	}
 	// convert recursively
 	convertType(store, last, n, x, t)
+}
+
+// runeIntConstOverflows reports whether a and b are an untyped rune and an
+// untyped int constant that does not fit int32. Gno's untyped runes hold
+// int32, so such a pair folds in untyped int instead of untyped rune: gc's
+// value in a typed context (`var x int64 = 'a' + 1<<40`), and int where gc
+// rejects the rune overflow.
+func runeIntConstOverflows(a, b *ConstExpr) bool {
+	if a.T == UntypedBigintType {
+		a, b = b, a
+	}
+	if a.T != UntypedRuneType || b.T != UntypedBigintType {
+		return false
+	}
+	bi := b.V.(BigintValue).V
+	return !bi.IsInt64() || bi.Int64() < math.MinInt32 || bi.Int64() > math.MaxInt32
+}
+
+// isUntypedNumeric reports whether t is an untyped int, rune or float.
+// A non-constant expression of such a type is a shift with an untyped constant
+// operand, or `+ - * / % & | ^ &^`, unary `+ - ^` built over such shifts.
+func isUntypedNumeric(t Type) bool {
+	switch t {
+	case UntypedBigintType, UntypedRuneType, UntypedBigdecType:
+		return true
+	default:
+		return false
+	}
+}
+
+// bindUntypedOperands handles a binary expression whose operands are both
+// untyped and not both constant. Spec, Constant expressions: the result's
+// kind is the later of integer < rune < floating-point. A comparison types
+// both operands to that kind's default now, since its result is independent
+// of them; any other operation (`&&`/`||` of untyped bools included) stays
+// untyped with the combined kind until its context is known
+// (see pushUntypedType, and checkOrConvertType for the bools).
+func bindUntypedOperands(store Store, last BlockNode, n *BinaryExpr, lt, rt Type) {
+	ut := lt
+	if lt != rt {
+		if !isUntypedNumeric(lt) || !isUntypedNumeric(rt) {
+			panic(fmt.Sprintf(
+				"incompatible types in binary expression: %v %v %v",
+				lt.TypeID(), n.Op, rt.TypeID()))
+		}
+		if shouldSwapOnSpecificity(lt, rt) {
+			ut = lt
+		} else {
+			ut = rt
+		}
+	}
+	if isComparison(n.Op) {
+		dt := defaultTypeOf(ut)
+		checkOrConvertType(store, last, n, &n.Left, dt)
+		checkOrConvertType(store, last, n, &n.Right, dt)
+		return
+	}
+	n.SetAttribute(ATTR_TYPEOF_VALUE, ut)
+}
+
+// pushUntypedType gives the non-constant untyped numeric expression x its
+// final type t: each constant leaf is converted to t (with the usual range
+// check) and each node's static type becomes t, so the shifts and arithmetic
+// run typed. Go's updateExprType, applied once the context is known.
+func pushUntypedType(store Store, last BlockNode, n Node, x Expr, t Type) {
+	if isInvalid(t) || isInvalidExpr(x) {
+		return // accumulate mode: already reported.
+	}
+	chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeCheckNode)
+	switch x := x.(type) {
+	case *ConstExpr:
+		convertConst(store, last, n, x, t)
+	case *BinaryExpr:
+		switch x.Op {
+		case SHL, SHR:
+			x.assertShiftExprCompatible2(t)
+			pushUntypedType(store, last, n, x.Left, t)
+		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR, BAND_NOT:
+			pushUntypedType(store, last, n, x.Left, t)
+			pushUntypedType(store, last, n, x.Right, t)
+		default:
+			panic(fmt.Sprintf("unexpected untyped %v expression: %v", x.Op.TokenString(), x))
+		}
+		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
+	case *UnaryExpr:
+		pushUntypedType(store, last, n, x.X, t)
+		x.SetAttribute(ATTR_TYPEOF_VALUE, t)
+	default:
+		panic(fmt.Sprintf("unexpected untyped expression: %v", x))
+	}
 }
 
 // 1. convert x to t if x is *ConstExpr.
@@ -6247,8 +6269,12 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if isUntyped(xt) {
-			if t == nil {
+			if t == nil || (isUntypedNumeric(xt) && t.Kind() == InterfaceKind) {
 				t = defaultTypeOf(xt)
+			}
+			if isUntypedNumeric(xt) {
+				pushUntypedType(store, last, n, *x, t)
+				return
 			}
 			// convert x to destination type t
 			doConvertType(store, last, x, t)

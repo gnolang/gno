@@ -58,12 +58,13 @@ func (t T) M() {}
 	}
 }
 
-// `'a' + 1` is an untyped rune in Go; Gno types it int (#6339): one
-// block line, the umbrella KnownIssue, and a hand-written per-issue ref
-// is reconciled like an errorcheck gap group.
+// `'a' + 1<<31 - 1<<31` is an untyped rune in Go; Gno folds a rune and
+// an int beyond int32 as int (#6389): one block line, the umbrella
+// KnownIssue, and a hand-written per-issue ref is reconciled like an
+// errorcheck gap group.
 func TestTypeDiff_RuneArithmetic(t *testing.T) {
 	o := errorcheckOpts(t)
-	src := "// compile\n\npackage p\n\nvar x = 'a' + 1\nconst k = 'a' + 1\n"
+	src := "// compile\n\npackage p\n\nvar x = 'a' + 1<<31 - 1<<31\nconst k = 'a' + 1<<31 - 1<<31\n"
 	out, err := runFiletest(o, "testdata/compile/rune.go", src)
 	if err != nil {
 		t.Fatal(err)
@@ -78,14 +79,14 @@ func TestTypeDiff_RuneArithmetic(t *testing.T) {
 	}
 	// A per-issue ref written by hand owns its lines; an unlisted line is
 	// stale for verify and goes to the umbrella under sync.
-	hand := strings.Replace(out, "#6344 types differ: lines 5, 6", "#6339 rune arithmetic; types differ: lines 5", 1)
+	hand := strings.Replace(out, "#6344 types differ: lines 5, 6", "#6389 rune arithmetic; types differ: lines 5", 1)
 	_, err = runFiletest(o, "testdata/compile/rune.go", hand)
 	if err == nil || !strings.Contains(err.Error(), "hand-written verdict is stale: lines 6 are types differ but unlisted") {
 		t.Fatalf("stale hand-written list accepted: %v", err)
 	}
 	o.Sync = true
 	out, err = runFiletest(o, "testdata/compile/rune.go", hand)
-	if err != nil || !strings.HasSuffix(out, "// Verdict: KnownIssue compile: #6339 rune arithmetic; types differ: lines 5; #6344 types differ: lines 6\n") {
+	if err != nil || !strings.HasSuffix(out, "// Verdict: KnownIssue compile: #6389 rune arithmetic; types differ: lines 5; #6344 types differ: lines 6\n") {
 		t.Fatalf("sync of the hand-written verdict: err=%v out:\n%s", err, out)
 	}
 	o.Sync = false
@@ -95,15 +96,12 @@ func TestTypeDiff_RuneArithmetic(t *testing.T) {
 }
 
 // A non-constant shift's untyped operand takes the type of its context
-// (#6393): Gno leaves `1 + ('a' << s)` untyped where Go makes it a rune.
+// (#6393) and `'a' + 1` is a rune (#6339): both sides agree, no block.
 func TestTypeDiff_ShiftContext(t *testing.T) {
 	o := errorcheckOpts(t)
-	src := "// compile\n\npackage p\n\nvar s uint\n\nfunc f() {\n\tx := 1 + ('a' << s)\n\t_ = x\n}\n"
+	src := "// compile\n\npackage p\n\nvar s uint\nvar r = 'a' + 1\n\nfunc f() {\n\tx := 1 + ('a' << s)\n\tvar y uint8 = 1 + ('a' << s)\n\t_, _ = x, y\n}\n"
 	out, err := runFiletest(o, "testdata/compile/shift.go", src)
-	// Gno spells its side `untyped int` or `int` depending on the rule
-	// level; either way it is not go/types' int32.
-	if err != nil || !strings.Contains(out, "\n// GnoTypeDiffers:\n// line 8: x gno ") || !strings.Contains(out, ", go int32\n") ||
-		!strings.HasSuffix(out, "// Verdict: KnownIssue compile: #6344 types differ: lines 8\n") {
+	if err != nil || strings.Contains(out, "GnoTypeDiffers") || !strings.HasSuffix(out, "\n// Verdict: Clean compile\n") {
 		t.Fatalf("err=%v out:\n%s", err, out)
 	}
 }
@@ -116,7 +114,7 @@ func TestTypeDiff_StaleBlockFailsVerify(t *testing.T) {
 	for _, tc := range []struct{ name, src, want string }{
 		{"compile", "// compile\n\npackage p\n\nvar x = 1\n\n// GnoTypeDiffers:\n// line 5: x gno int, go int32\n\n// Verdict: KnownIssue compile: #6344 types differ: lines 5\n", "stale `// GnoTypeDiffers:` block"},
 		{"run", "package main\n\nvar x = 1\n\nfunc main() { println(x) }\n\n// GnoOutput:\n// 1\n\n// GoOutput:\n// 1\n\n// GnoTypeDiffers:\n// line 3: x gno int, go int32\n\n// Verdict: KnownIssue run: #6344 types differ: lines 3\n", "stale `// GnoTypeDiffers:` block"},
-		{"run clean over a mismatch", "package main\n\nvar x = 'a' + 1\n\nfunc main() { println(x) }\n\n// GnoOutput:\n// 98\n\n// GoOutput:\n// 98\n\n// Verdict: Clean run\n", "missing `// GnoTypeDiffers:` golden"},
+		{"run clean over a mismatch", "package main\n\nvar x = 'a' + 1<<31 - 1<<31\n\nfunc main() { println(x) }\n\n// GnoOutput:\n// 97\n\n// GoOutput:\n// 97\n\n// Verdict: Clean run\n", "missing `// GnoTypeDiffers:` golden"},
 		{"errorcheck", "package p\n\nvar x = 1\nvar y int = \"s\" // ERROR \"cannot\"\n\n// GnoError:\n// line 4: cannot use untyped string as IntKind\n\n// GnoTypeDiffers:\n// line 3: x gno int, go int32\n\n// Verdict: KnownIssue errorcheck: #6344 types differ: lines 3\n", "stale `// GnoTypeDiffers:` block"},
 	} {
 		_, err := runFiletest(o, "testdata/"+tc.name+"/stale.go", tc.src)
@@ -130,12 +128,12 @@ func TestTypeDiff_StaleBlockFailsVerify(t *testing.T) {
 // is a KnownIssue, written by sync and accepted by verify.
 func TestTypeDiff_RunMode(t *testing.T) {
 	o := errorcheckOpts(t)
-	src := "package main\n\nvar x = 'a' + 1\n\nfunc main() {\n\ty := 'b' + 1\n\tprintln(x, y)\n}\n"
+	src := "package main\n\nvar x = 'a' + 1<<31 - 1<<31\n\nfunc main() {\n\ty := 'b' + 1<<31 - 1<<31\n\tprintln(x, y)\n}\n"
 	out, err := runFiletest(o, "testdata/run/r.go", src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := src + "\n// GnoOutput:\n// 98 99\n\n// GoOutput:\n// 98 99\n\n// GnoTypeDiffers:\n// line 3: x gno int, go int32\n// line 6: y gno int, go int32\n\n// Verdict: KnownIssue run: #6344 types differ: lines 3, 6\n"
+	want := src + "\n// GnoOutput:\n// 97 98\n\n// GoOutput:\n// 97 98\n\n// GnoTypeDiffers:\n// line 3: x gno int, go int32\n// line 6: y gno int, go int32\n\n// Verdict: KnownIssue run: #6344 types differ: lines 3, 6\n"
 	if out != want {
 		t.Fatalf("sync wrote:\n%s\nwant:\n%s", out, want)
 	}
