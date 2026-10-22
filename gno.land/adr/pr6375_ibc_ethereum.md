@@ -613,7 +613,16 @@ oversize governance envelope within the window and spends it (§5.4).
   encoding of the tuple (trailing data, other offsets or padding) are spent at recording. The app
   acknowledgement's `status` is 1 recorded, 2 buffered, 3 duplicate, 4 conflict, 5 spent. A `token` is the
   Ethereum ERC20 address; a `clientId` is the Ethereum router's client id, in eureka's grammar (`client-N`, or a
-  custom id of up to 128 characters). A client id added by governance (kind 6 op 1, kind 10, recovery) is a custom
+  custom id of up to 128 characters), never gno.land's own client id (`ethereum-1`), which the grammar admits all
+  the same and which `IBCAdmin` would record under a route key nothing uses (seen on a test network: a kind 4 for
+  `ethereum-1` left the route unconfigured). gno.land knows the pairing, the counterparty its core registered for
+  each Ethereum client, so `ibcgov`'s builders check every `clientId` against it, when the request is built and
+  when the decision is recorded: a kind naming the route (2, 4, 5, 11, 13) takes the epoch client's counterparty,
+  the router's current client of the route; kind 12 any router client of the route's lineage (current or retired
+  by a replacement); kind 6 op 2 any router client paired with a governed client, a successor once its kind 10
+  is dispatched; kind 6 op 1 the custom id its gno client is paired with; kind 10 and a recovery expectation an
+  old client the epoch reaches (§7.12). A gno.land client id is refused with the router client it is paired with
+  (gno-realms ADR 0004, z2f). A client id added by governance (kind 6 op 1, kind 10, recovery) is a custom
   id of 4 to 128 characters of eureka's alphabet not starting with `client-` or `channel-` (eureka reserves
   those). A gov packet's timeout is 6 hours. Byte-equality vectors for every kind, every ack status (a duplicate, a
   conflict, a buffered decision, a spent unknown kind, a cancel beyond the window acked `status 2, redispatch 1`)
