@@ -258,9 +258,7 @@ func TestPrepareReportsTheTransportFaultUnderABuildFailure(t *testing.T) {
 	}
 
 	// There is a build failure to outrank, asserted on the walk itself because
-	// prepare returns the fault instead. Without this the test below passes
-	// against a buildChainImports that does nothing: prepare's own LoadImports
-	// reaches low first and sets transportErr before the walk ever runs.
+	// prepare returns the fault instead.
 	buildErr := faulting().buildChainImports(mpkg)
 	require.Error(t, buildErr, "the walk must produce the failure being outranked")
 	assert.Contains(t, buildErr.Error(), "could not prebuild")
@@ -305,6 +303,38 @@ func TestPrepareCachesAnImportTheNodeDoesNotServe(t *testing.T) {
 	require.Error(t, v.verifyPackage(mpkg), "the unresolved import must still be refused")
 	assert.Equal(t, onPrepare, calls,
 		"the typecheck and the preprocess must not reach the node on the budget")
+}
+
+// An import only the candidate's tests name is never asked for. Both stages
+// read production files alone, as the validator does at enable, so fetching it
+// is a round trip that informs nothing.
+func TestVerifierFetchesNoImportOnlyItsTestsName(t *testing.T) {
+	dep := chainPackage("gno.land/p/test/dep", "package dep\n\nfunc Add(a, b int) int { return a + b }\n")
+	testOnly := chainPackage("gno.land/p/test/testonly", "package testonly\n\nfunc Want() int { return 3 }\n")
+	xtestOnly := chainPackage("gno.land/p/test/xtestonly", "package xtestonly\n\nfunc Want() int { return 3 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/dep\"\n\nfunc Use() int { return dep.Add(1, 2) }\n")
+	mpkg.Files = append(mpkg.Files,
+		&std.MemFile{Name: "user_test.gno", Body: "package user\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/test/testonly\"\n)\n\n" +
+			"func TestUse(t *testing.T) {\n\tif Use() != testonly.Want() {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+		&std.MemFile{Name: "z_test.gno", Body: "package user_test\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/test/user\"\n\t\"gno.land/p/test/xtestonly\"\n)\n\n" +
+			"func TestUse(t *testing.T) {\n\tif user.Use() != xtestonly.Want() {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+	)
+	mpkg.Sort()
+
+	v := newRPCVerifier(t, dep, testOnly, xtestOnly)
+	var asked []string
+	served := v.rpc.qfile
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		asked = append(asked, fpath)
+		return served(fpath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg))
+	require.Contains(t, asked, dep.Path, "premise: the production import must have been fetched, or this proves nothing")
+	assert.NotContains(t, asked, testOnly.Path, "a _test.gno import is not the validator's to resolve")
+	assert.NotContains(t, asked, xtestOnly.Path, "nor is an external test's")
 }
 
 // A live dependency vm/qfile missed once is fetched again, before the budget.
@@ -453,7 +483,7 @@ func TestPrepareReportsTheFaultUnderALateBuild(t *testing.T) {
 // pending, whether it is imported directly or through a chain dependency.
 //
 // The asymmetry this pins out: buildChainImports used to skip non-userlib
-// paths, and LoadImports is called with abortOnError=false, which recovers the
+// paths, and LoadImports was called with abortOnError=false, which recovers the
 // disk getter's panic and prints it -- so prepare returned nil and the
 // typecheck's own panic became the answer. A candidate importing a broken
 // stdlib directly was rejected and marked seen; one importing a /p/ package

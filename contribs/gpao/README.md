@@ -145,11 +145,13 @@ means a package that crashes the typechecker takes down only its own child, and
 that the approver key is never loaded in the process handling untrusted code.
 
 The budget starts once the child has everything the compile needs: the standard
-library and examples from disk, and every chain package the candidate imports,
-fetched from the node. Fetching is the oracle's cost, not the package's, so a
-slow node cannot turn a fast package into an overrun. That phase has a budget
-of its own, `--prepare-budget`, a minute by default; its expiry leaves the
-package pending as unavailable rather than counting against it.
+library and examples from disk, and every chain package the candidate's
+production files import, fetched from the node. An import that only its test
+files name is never fetched, because neither stage compiles a test file.
+Fetching is the oracle's cost, not the package's, so a slow node cannot turn a
+fast package into an overrun. That phase has a budget of its own,
+`--prepare-budget`, a minute by default; its expiry leaves the package pending
+as unavailable rather than counting against it.
 
 The child's type-check options mirror `MsgEnablePackage`'s exactly (production
 files only, no test-file evaluation), because the whole point is to predict what
