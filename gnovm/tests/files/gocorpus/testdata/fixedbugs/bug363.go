@@ -21,11 +21,11 @@ func main() {
 }
 
 // GnoError:
-// line 13: operator << not defined on: BigdecKind
-// line 16: operator << not defined on: BigdecKind
+// line 13: operator << not defined on: Float64Kind
+// line 16: operator << not defined on: Float64Kind
 
 // GnoWordingDiffers:
-// line 13: gc expects: shift of type float64|invalid.*shift; gno: operator << not defined on: BigdecKind
-// line 16: gc expects: shift of type float64|invalid.*shift; gno: operator << not defined on: BigdecKind
+// line 13: gc expects: shift of type float64|invalid.*shift; gno: operator << not defined on: Float64Kind
+// line 16: gc expects: shift of type float64|invalid.*shift; gno: operator << not defined on: Float64Kind
 
 // Verdict: Clean errorcheck
