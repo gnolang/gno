@@ -41,7 +41,8 @@ import (
 )
 
 func main(cur realm) {
-    // Halt at block 704052; require binary >= chain/gnoland1.1 to resume.
+    // Betanet's halt: block 704052, binary >= chain/gnoland1.1 to resume.
+    // A new halt names a vX.Y.Z release instead.
     preq := params.NewSetHaltRequest(cross(cur), 704052, "chain/gnoland1.1")
     dao.MustCreateProposal(cross(cur), preq)
 }
@@ -205,18 +206,20 @@ config or chain state, so it is fixed the moment the binary is produced:
 | How it was built | Reported version |
 |---|---|
 | `go build ./gno.land/cmd/gnoland` | `develop` — the hardcoded default, since nothing overrides it |
-| `make build.gnoland` on a release tag | the tag, e.g. `v1.2.0` |
+| `make build.gnoland` on a release tag | the tag, e.g. `v1.2.0`; on a candidate whose final shares its commit, the final, unless `VERSION=vX.Y.Z-rc.N` names the candidate |
 | `make build.gnoland` off a tag | `<branch>.<commits>+<hash>`, e.g. `master.3335+bc43a5fb7` |
 | `go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=..."` | whatever you pass |
 
 The Makefile injects it with `-ldflags -X`, deriving the value from
 `git describe --tags --exact-match --match 'v*'` and falling back to the
-branch/count/hash form when the commit is not tagged. The `--match` is
-load-bearing: a release commit also carries the chain's launch tag
-(`chain/mainnet` sits on the same commit as `v1.2.0`), and an unfiltered
-`describe` answers that one — a string the comparison below refuses. The release
-workflow injects the tag verbatim for the same reason: a binary built on a
-release tag has to report exactly the shape the comparison understands.
+branch/count/hash form when the commit is not tagged. The `--match` keeps a
+launch tag out of the answer: one can sit on a release commit (`chain/mainnet`
+is on the same commit as `v1.2.0`), and its name is a string the comparison
+below refuses. `chain/mainnet` is lightweight, so `describe` prefers the
+annotated `v1.2.0` anyway, as it would an annotated launch tag tagged before
+`v1.2.0`; one tagged after would win. The release workflow injects the tag
+verbatim for the same reason: a binary built on a release tag has to report
+exactly the shape the comparison understands.
 
 Two shapes parse (`meetsMinVersion`, and see [RELEASING.md](../../../RELEASING.md)):
 
@@ -313,8 +316,10 @@ migration files, and from patches, and why.
 
 - Fork genesis files are large — roughly 192 MB for a chain halted at height
   ~704k, since they carry the whole transaction history.
-- The RPC source has no retry or resume; a single transient error aborts the
-  fetch. Prefer `--source-txs-data-dir` against a halted data directory.
+- The RPC source retries each height across its endpoints for up to three
+  cycles, 500 ms apart, and has no resume: an error that outlasts the retries
+  aborts the fetch. Prefer `--source-txs-data-dir` against a halted data
+  directory.
 - All transactions are held in memory during generation, so very large chains
   can exhaust RAM.
 
@@ -325,7 +330,6 @@ detailed than this page:
 
 - [`misc/deployments/test13.gno.land/gen-genesis.sh`](../../../misc/deployments/test13.gno.land/gen-genesis.sh)
   — the fullest example, including `--migration-tx` for valoper seeding
-- [`misc/deployments/pearl.gno.land/gen-genesis.sh`](../../../misc/deployments/pearl.gno.land/gen-genesis.sh)
 
 ## What does not exist
 

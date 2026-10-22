@@ -25,6 +25,27 @@
       },
       "ran_as": null,
       "release": "https://github.com/gnolang/gno/releases/tag/v1.5.0"
+    },
+    {
+      "kind": "rolling",
+      "version": "v1.5.1-rc.1",
+      "commit": "07e44776c26187830b7dcbd2454991b5a1960378",
+      "halt_height": null,
+      "halt_time": null,
+      "halt_min_version": null,
+      "proposal": null,
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.5.1-rc.1",
+        "digest": "sha256:231eedbda83b527a900ecbbd79d634dbea3150d3acc93da0c41e1cb63c48e606"
+      },
+      "binaries": {
+        "darwin/amd64": "https://github.com/gnolang/gno/releases/download/v1.5.1-rc.1/gnoland_darwin_amd64?checksum=sha256:52654e99485e925c730b299ab3745781ab82e0e6925b746211160cfbf6c7ce6c",
+        "darwin/arm64": "https://github.com/gnolang/gno/releases/download/v1.5.1-rc.1/gnoland_darwin_arm64?checksum=sha256:110d9a9c5558051eb29f1e530ec2e3119bc36a20e4650fbf6d25d1ecad3cca1e",
+        "linux/amd64": "https://github.com/gnolang/gno/releases/download/v1.5.1-rc.1/gnoland_linux_amd64?checksum=sha256:a1d98c07a3762e5c6c04f873f3d589ad72f1fd32306637834d1ef67c7db797b1",
+        "linux/arm64": "https://github.com/gnolang/gno/releases/download/v1.5.1-rc.1/gnoland_linux_arm64?checksum=sha256:e0edb4fdc9203ed3ab486154dbb67f5fdafdcb1afaf70edabab8aecb0646bd74"
+      },
+      "ran_as": null,
+      "release": "https://github.com/gnolang/gno/releases/tag/v1.5.1-rc.1"
     }
   ]
 }
