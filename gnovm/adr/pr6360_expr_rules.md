@@ -40,6 +40,10 @@ already visited, so no other charge moves:
 - An array or slice literal may not repeat an index or, for an array,
   reach its length; a struct literal may not repeat a field name; a map
   literal needs every key.
+- An if/switch clause block copies the init's names with the init block's
+  static type, not the slot value's: a name defined from a constant
+  converted to an interface (`if i := any(0); ...`) is the interface in
+  the clause too (gocorpus `fixedbugs/gcc61244.go` flips to `Clean`).
 
 Ten native filetests that reached a runtime error now fail at preprocess
 with the positioned message; their goldens follow.
