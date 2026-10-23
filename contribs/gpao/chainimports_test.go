@@ -61,6 +61,46 @@ func TestVerifierResolvesChainOnlyImportWithTestFiles(t *testing.T) {
 		"a dependency's own test files are not the importing package's problem")
 }
 
+// A dependency whose module file is the legacy gno.mod carries it to the
+// typecheck, which refuses a dependency with no module file at all.
+func TestVerifierResolvesChainOnlyImportWithLegacyGnoMod(t *testing.T) {
+	const depPath = "gno.land/p/test/legacy"
+	dep := chainPackage(depPath, "package legacy\n\nfunc Add(a, b int) int { return a + b }\n")
+	for _, f := range dep.Files {
+		if f.Name == "gnomod.toml" {
+			f.Name, f.Body = "gno.mod", "module "+depPath+"\n"
+		}
+	}
+	dep.Sort()
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/legacy\"\n\nfunc Use() int { return legacy.Add(1, 2) }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg),
+		"a dependency's gno.mod must reach the typecheck")
+}
+
+// A dependency holding tests alone, which AddPackage has refused since #5892
+// but a package stored before it may be, is empty to the validator's
+// typecheck: its importer is rejected, not left pending on a dependency the
+// oracle could not build. The test is an xtest, whose clause does not name the
+// package.
+func TestVerifierRejectsAnImportHoldingOnlyTests(t *testing.T) {
+	const depPath = "gno.land/p/test/onlytests"
+	dep := chainPackage(depPath, "")
+	dep.Files[1] = &std.MemFile{Name: "onlytests_test.gno", Body: "package onlytests_test\n\nconst X = 1\n"}
+	dep.Sort()
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/onlytests\"\n\nfunc Use() int { return onlytests.X }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg), "the dependency is the chain's, not a reason to wait")
+	err := v.verifyPackage(mpkg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "undefined: onlytests.X")
+}
+
 // A diamond: user imports low and mid, and mid also imports low. So a
 // dependency is reached both directly and through another chain-only package,
 // and low must be resolved before mid can be.

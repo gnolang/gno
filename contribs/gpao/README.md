@@ -186,8 +186,10 @@ rejection whatever else is parked. When none is absent and one is parked, a
 failed type check leaves the package pending, and an error in its own code is
 reported once the import is live. An import the chain reports live but would
 not serve is fetched once more: a package enabled during the fetch resolves,
-and one whose files `vm/qfile` cannot serve leaves the package pending as
-unavailable, which is the oracle's limit and not a verdict.
+and one whose sources or gnomod `vm/qfile` cannot serve leaves the package
+pending as unavailable, which is the oracle's limit and not a verdict. A file
+the verification never reads, such as a license, is not fetched, so the node
+refusing one holds nothing up.
 
 ### Stranded packages
 
