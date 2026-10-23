@@ -714,9 +714,8 @@ three, along with the text. Use `-data-path` instead of `-data` to sign the
 contents of a file, as they are, a final newline included. Without
 `-output-document`, the proof is printed.
 
-The proof holds the signed text, your public key and the signature, in the same
-format as Adena's `SignArbitrary` answer. It is not a transaction and can never
-be broadcast as one.
+The proof holds the signed text, your public key and the signature. It is not a
+transaction and can never be broadcast as one.
 
 To check a proof, give `gnokey verify-data` the chain, the service, the use,
 the text and the address you expect (here `mykey`'s):
