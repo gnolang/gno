@@ -8,8 +8,5 @@ type Notifier interface {
 var notifier Notifier
 
 func SetNotifier(cur realm, next Notifier) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	notifier = next
 }

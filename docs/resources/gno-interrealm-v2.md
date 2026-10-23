@@ -771,6 +771,22 @@ package-level variable during init.
 The same flow applies to `/p/` package init, except after init
 completes the `/p/`'s realm is frozen.
 
+Under the `inert` package policy the timing splits. `MsgAddPackage`
+parks the package without running it, and `init()` runs in the
+transaction that enables it, observing enable-time height and
+timestamp. The identities above do not move with it: the previous
+realm during that `init()` is the creator who submitted the code, not
+the approver who enabled it.
+
+### 12.4 Package lifecycle messages
+
+Two further messages act on a parked package. Under the `inert`
+policy `MsgEnablePackage` runs its `init()` and makes it callable.
+`MsgRejectPackage` discards the parked submission; it is not gated on
+the policy still being `inert`, and an approver, the package's own
+creator, or the owner of the live package at that path may send it.
+Nothing returns an active package to the parked state.
+
 ## 13. Implementation References
 
 - Borrow rules: `gnovm/pkg/gnolang/machine.go` PushFrameCall

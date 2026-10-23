@@ -38,8 +38,23 @@ path is attacker-controlled.
 
 ## 2. Four Structural Defenses
 
-The VM provides four independent defenses. A realm becomes
-exploitable when an API design defeats all of them at once.
+The VM provides four defenses. A realm becomes exploitable when an API
+design defeats all of them at once.
+
+Two scoping facts about the first three, both from `PushFrameCall`
+itself, because reasoning about them without these gets the wrong
+answer:
+
+**They govern ordinary calls, not boundary crossings.** A `cross(...)`
+call sets `m.Realm` to the callee's realm and returns before any of
+them; a non-crossing call of a crossing function (`Public(cur, ...)`)
+returns too, after checking the target is not an external realm. The
+three rules below decide what a call that is *neither* borrows.
+
+**They are a priority chain, not three separate tests.** The first
+applicable rule fires and the others do not. So "rule #2 protects this
+receiver" only holds where rule #1 does not already apply. Readonly
+taint (2.4) is genuinely independent of all three.
 
 ### 2.1 Declaration-Site Rule (borrow rule #1 of PushFrameCall)
 
@@ -358,15 +373,18 @@ the address inside:
 
 ```go
 func DoThing(cur realm) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     addr := cur.Previous().Address()
     log[addr] = ...
 }
 ```
 
 This is class **2 (designation-forgery)** from `gno-security.md`.
+
+The VM enters a crossing function or method only with a `cur` that is current,
+so `cur.IsCurrent()` there is always true and proves nothing (see
+[`gnovm/tests/files/zrealm_cur_method_backstop.gno`](../../gnovm/tests/files/zrealm_cur_method_backstop.gno)).
+The check is required on any *other* realm value a function receives, such as
+a secondary `rlm realm` parameter.
 
 ### 5.7 Stored `realm`-typed values
 
@@ -383,22 +401,21 @@ the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
 `chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
 obtaining the previous realm. Using it in a crossing function that already
-receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
-verification that makes `cur.Previous()` safe, and silently ignores the
-`cur` capability token the runtime minted for exactly this purpose.
+receives `cur realm` is always wrong: it silently ignores the `cur` capability
+token the runtime minted for exactly this purpose, the per-frame guarantee
+that makes `cur.Previous()` safe.
 
 ```go
-// WRONG: cur is accepted but never used; no IsCurrent() guard
+// WRONG: cur is accepted but never used; identity comes from a stack walk
 import "chain/runtime/unsafe"
 
 func Set(cur realm, key, value string) {
-    caller := unsafe.PreviousRealm().Address()  // skips frame check
+    caller := unsafe.PreviousRealm().Address()  // ignores the cur token
     ...
 }
 
 // RIGHT
 func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     caller := cur.Previous().Address()
     ...
 }
@@ -406,12 +423,90 @@ func Set(cur realm, key, value string) {
 
 Any import of `chain/runtime/unsafe` in a realm that also declares
 crossing functions (`func F(cur realm, ...)`) is a red flag. The
-`unsafe` package is appropriate only in non-crossing helpers or
-in realms that have not yet been migrated to the `cur realm` API.
+`unsafe` package is appropriate only in non-crossing helpers that
+make no authorization decision with it, or in realms that have not
+yet been migrated to the `cur realm` API.
 
-**Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
+**Rule**: in crossing functions and methods, derive caller identity
+from `cur.Previous()`, with no `cur.IsCurrent()` guard. Delete the
 `chain/runtime/unsafe` import.
+
+### 5.9 `OriginCaller()` as authorization identity
+
+`unsafe.OriginCaller()` names the transaction origin, not necessarily the
+immediate realm that crossed into your function. If a realm uses it as
+an admin or ownership check, an intermediate realm can become a confused
+deputy path unless the API is intentionally EOA-only and documents that
+constraint.
+
+```go
+import "chain/runtime/unsafe"
+
+func SetPaused(cur realm, next bool) {
+    if unsafe.OriginCaller() != owner {
+        panic("owner only")
+    }
+    paused = next
+}
+```
+
+Prefer authenticating the realm that crossed into this frame:
+
+```go
+func SetPaused(cur realm, next bool) {
+    if cur.Previous().Address() != owner {
+        panic("owner only")
+    }
+    paused = next
+}
+```
+
+Choose the caller identity primitive that matches the boundary you are
+protecting:
+
+| Context | Prefer | Why |
+|---------|--------|-----|
+| Realm API authorization | `cur.Previous()` | Authorizes the realm that crossed into this frame. |
+| Payment-gated user action | `cur.Previous().IsUserCall()` plus the payment check | Rejects realm-mediated calls when the product requires a direct user call. |
+| Explicit EOA-origin policy | `unsafe.OriginCaller()` | Only when the API intentionally follows the transaction signer through intermediate realms. Document this. |
+| Remembering a caller for later | `cur.Previous().Address()` or `.PkgPath()` | Realm values are frame-local and must not be persisted. |
+| Caller-supplied address parameter | Avoid for auth; derive inside the function | A parameter is only data supplied by the caller. |
+
+**Rule**: use `cur.Previous()` for ordinary realm API authorization. Use
+direct-user and origin-caller checks only when that is the actual product
+policy, and make the tradeoff explicit.
+
+### 5.10 Raw public text in `Render`
+
+`Render(path string) string` is a public display surface. The `path`
+argument and any user-authored state are attacker-controlled text. Do
+not concatenate them directly into markdown links, tables, headings, or
+HTML-like text.
+
+```go
+func Render(path string) string {
+    return "# Echo\n\n" + path // raw markdown injection surface
+}
+```
+
+Escape user text before display, or keep it in a format where the renderer
+treats it as plain text. Prefer the official Gno markdown sanitizer for your
+target Gno version over open-coded replacers.
+
+```go
+import "gno.land/p/nt/markdown/sanitize/v0"
+
+func Render(path string) string {
+    return "# Echo\n\n" + sanitize.InlineText(path)
+}
+```
+
+This is not a cross-realm authority bug by itself, but it is a common
+way to turn harmless stored text or URL path data into misleading UI.
+Opinionated rendering libraries and frameworks can help keep this consistent,
+but check whether each helper sanitizes internally or expects sanitized input.
+See [Community Packages](./community-packages.md) for non-official markdown
+builders and their review checklist.
 
 ---
 
@@ -510,7 +605,10 @@ Before deploying a realm:
 
 - [ ] Every exported function/method I expose does one of:
   - Pure read (returns primitives or values, no internal pointers).
-  - Takes `cur realm` and authenticates via `cur.IsCurrent()`.
+  - Takes `cur realm` and derives the caller from `cur.Previous()`;
+    any secondary `rlm realm` parameter is checked with
+    `rlm.IsCurrent()` first. The first `cur` needs no check, because
+    the VM enters the function only with a `cur` that is current.
   - Documented intentionally permissive (faucet, public mint).
 
 - [ ] No exported var or function returns a pointer aliasing
@@ -535,8 +633,17 @@ Before deploying a realm:
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.
 
+- [ ] Authorization checks do not use `unsafe.OriginCaller()` unless the
+  function is intentionally EOA-origin-only and documents why immediate
+  caller identity is not required.
+
 - [ ] No `realm`-typed value is stored in package state, struct
   fields, maps, slices, or closure captures.
+
+- [ ] `Render(path)` and any markdown helper output escape
+  user-controlled path, profile, title, description, or message text
+  before returning it, using the official Gno markdown sanitizer where
+  practical.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).
@@ -572,19 +679,14 @@ func Value() int {
     return gCounter.value
 }
 
-// Authenticated mutator. cur realm + IsCurrent() check.
+// Public mutator. The crossing entrypoint's cur is minted per frame
+// by the runtime, so no IsCurrent() check is needed on it.
 func Increment(cur realm) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     gCounter.value++
 }
 
 // Authenticated owner-gated mutator.
 func SetOwner(cur realm, newOwner address) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     if gCounter.owner != "" && cur.Previous().Address() != gCounter.owner {
         panic("not the owner")
     }
@@ -614,7 +716,13 @@ Attackers cannot:
 - Write `gCounter.value` directly (unexported field).
 - Get `gCounter` and Apply-launder it (no Apply method, no exported
   pointer).
-- Forge a `cur realm` (the `IsCurrent()` check fails).
+- Forge a `cur realm`. The VM enters `Increment` and `SetOwner` only
+  with a `cur` that is current, so an `IsCurrent()` check inside them
+  would be true by construction (5.6). The forge is refused before the
+  callee runs: a non-crossing `Increment(cur)` from another realm
+  panics with `cannot cur-call to external realm function`, and on the
+  only other route, `Increment(cross(cur))`, `cross` rejects a stale or
+  forwarded token.
 - Spoof `cur.Previous().Address()` (it's the live crossing frame).
 
 ---
@@ -628,6 +736,9 @@ Attackers cannot:
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
   corpus referenced throughout this guide. Each test is annotated
   with the attack mechanism and why it succeeds or fails.
-- `examples/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno` —
+- [`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md) —
+  audit pattern harness fixtures, expected records, and run instructions that
+  keep recurring audit lessons executable.
+- `examples/quarantined/gno.land/p/test/seal/filetests/z_seal_*_filetest.gno`:
   the four bypass tests demonstrating why seal is documentation, not
   defense.

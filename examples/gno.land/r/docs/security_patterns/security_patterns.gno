@@ -32,12 +32,13 @@ func Render(path string) string {
 	out := "# Security Patterns\n\n"
 	out += "This realm demonstrates three defensive patterns; read the source " +
 		"alongside this page:\n\n"
-	out += "1. **Live-realm guard** — `assertAdmin` panics unless " +
-		"`cur.IsCurrent()` holds, which checks the realm token against the " +
-		"live call frame before any authority is read from it.\n"
-	out += "2. **Caller identity via `cur.Previous().Address()`** — the admin " +
-		"check reads the immediate caller, not `OriginCaller()`, so an " +
-		"intermediary realm cannot pass itself off as the user.\n"
+	out += "1. **Caller identity via `cur.Previous().Address()`** — the admin " +
+		"check reads the realm that called in, not `OriginCaller()`, so an " +
+		"intermediary realm cannot pass itself off as the user. The runtime " +
+		"enters a crossing function only with a `cur` that is current, so " +
+		"no extra check on `cur` is needed.\n"
+	out += "2. **Validated input** — `TransferAdmin` refuses an address that " +
+		"is not valid, so a typo or a crafted string cannot become the admin.\n"
 	out += "3. **Sanitized render output** — every value echoed below is run " +
 		"through `p/nt/markdown/sanitize` first, so caller-controlled text " +
 		"cannot inject markdown or break out of a code span.\n\n"
@@ -53,15 +54,9 @@ func Render(path string) string {
 }
 
 // assertAdmin guards a state-mutating call. Callers pass their own cur rather
-// than cross(cur) — a non-crossing call of a crossing function, so
-// PreviousRealm does not shift and still names whoever called SetMessage or
-// TransferAdmin. The cur realm first parameter is what makes it a crossing
-// function: the compiler refuses any other first argument, so the token
-// reaching IsCurrent below is live by construction.
+// than cross(cur), so cur.Previous() still names whoever called SetMessage or
+// TransferAdmin.
 func assertAdmin(cur realm) {
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	if cur.Previous().Address() != admin {
 		panic("admin only")
 	}

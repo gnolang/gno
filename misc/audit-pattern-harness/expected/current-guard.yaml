@@ -1,5 +1,5 @@
 id: current-guard
-title: cur.Previous without cur.IsCurrent
+title: secondary realm parameter trusted without IsCurrent
 rule: current_guard
 fixtures:
   - name: vulnerable

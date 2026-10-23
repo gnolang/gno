@@ -25,6 +25,24 @@ var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 // method) whose first parameter is the realm capability token `cur realm`.
 var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm\b`)
 
+// funcSigRE captures a func or method declaration's parameter list. A
+// signature that wraps across lines is not matched: the scanner is line-based.
+// The capture also stops at the first `)`, so a parameter whose type holds
+// parentheses, such as `cb func()`, hides every parameter after it.
+var funcSigRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(([^)]*)\)`)
+
+var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)
+
+// funcLitRE captures the parameter list of a func literal, and of a func type
+// in a parameter or field position. A realm parameter is the crossing token
+// only in first position, so a callback that must stay non-crossing puts a
+// filler such as `_ int` ahead of it.
+var funcLitRE = regexp.MustCompile(`func\(([^)]*)\)`)
+
+// realmSelectorRE matches a selector on an identifier: the receiver in group 1,
+// the member in group 2.
+var realmSelectorRE = regexp.MustCompile(`\b([A-Za-z_]\w*)\.(\w+)`)
+
 // pkgMutablePointerTypeRE matches known /p/ types whose exported methods mutate
 // the receiver, so a pointer to one is a live mutator handle. avl.Tree is the
 // canonical example (Set/Remove/ReverseIterate); extend as more are documented.
@@ -166,9 +184,10 @@ func RunRule(rule, dir string) ([]Hit, error) {
 
 // unsafePreviousRealmHits flags any PreviousRealm() call in a file that also
 // declares a crossing function (`func F(cur realm, ...)`). In a crossing
-// function the caller must be derived from cur.Previous() under a
-// cur.IsCurrent() guard; reaching for chain/runtime/unsafe.PreviousRealm()
-// instead skips the frame check and ignores the cur token (guide §5.8).
+// function the caller must be derived from cur.Previous(); reaching for
+// chain/runtime/unsafe.PreviousRealm() instead ignores the cur token, and in a
+// non-crossing helper it names whatever realm crossed into the nearest
+// enclosing crossing function rather than the immediate caller (guide §5.8).
 func unsafePreviousRealmHits(dir string) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {
@@ -236,6 +255,58 @@ func pkgMutablePointerHits(dir string) ([]Hit, error) {
 	return hits, nil
 }
 
+// realmParamsNeedingGuard returns the realm-typed names in a parameter list
+// that require an IsCurrent() check. A leading `cur realm` is exempt: the VM
+// enters a crossing function or method only with a cur that is current, so
+// IsCurrent() on it cannot fail. Any later realm parameter arrives as an
+// ordinary argument and can carry a forwarded or derived value such as
+// cur.Previous().
+func realmParamsNeedingGuard(params string) []string {
+	var names []string
+	for i, p := range strings.Split(params, ",") {
+		pm := realmParamRE.FindStringSubmatch(strings.TrimSpace(p))
+		if pm == nil {
+			continue
+		}
+		if i == 0 && pm[1] == "cur" {
+			continue
+		}
+		names = append(names, pm[1])
+	}
+	return names
+}
+
+func guardedRealmParams(line string) []string {
+	m := funcSigRE.FindStringSubmatch(line)
+	if m == nil {
+		return nil
+	}
+	return realmParamsNeedingGuard(m[1])
+}
+
+// literalRealmParams returns the realm-typed parameters of every func literal
+// on the line.
+func literalRealmParams(line string) []string {
+	var names []string
+	for _, m := range funcLitRE.FindAllStringSubmatch(line, -1) {
+		names = append(names, realmParamsNeedingGuard(m[1])...)
+	}
+	return names
+}
+
+// realmValueRead reports whether line reads realm value name through anything
+// other than the IsCurrent() guard itself. Every other member derives identity
+// or authority from the value, so matching by exclusion keeps the rule correct
+// as the realm type gains members.
+func realmValueRead(line, name string) bool {
+	for _, m := range realmSelectorRE.FindAllStringSubmatch(line, -1) {
+		if m[1] == name && m[2] != "IsCurrent" {
+			return true
+		}
+	}
+	return false
+}
+
 func currentGuardHits(dir string) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {
@@ -250,27 +321,41 @@ func currentGuardHits(dir string) ([]Hit, error) {
 		}
 		inFunc := false
 		braceDepth := 0
-		seenIsCurrent := false
+		var guarded []string
+		seen := map[string]bool{}
 		for i, line := range src.code {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "func ") {
 				inFunc = true
 				braceDepth = 0
-				seenIsCurrent = false
+				guarded = guardedRealmParams(trimmed)
+				seen = map[string]bool{}
+			} else if lit := literalRealmParams(trimmed); len(lit) > 0 {
+				// A literal nests inside the enclosing function, so its
+				// parameters join the set rather than replacing it.
+				inFunc = true
+				guarded = append(guarded, lit...)
 			}
 			if inFunc {
 				braceDepth += strings.Count(line, "{")
 				braceDepth -= strings.Count(line, "}")
-			}
-			if strings.Contains(line, ".IsCurrent()") {
-				seenIsCurrent = true
-			}
-			if strings.Contains(line, ".Previous()") && !seenIsCurrent {
-				hits = append(hits, src.hit(dir, file, i))
+				for _, name := range guarded {
+					if strings.Contains(line, name+".IsCurrent()") {
+						seen[name] = true
+						continue
+					}
+					if seen[name] {
+						continue
+					}
+					if realmValueRead(line, name) {
+						hits = append(hits, src.hit(dir, file, i))
+						break
+					}
+				}
 			}
 			if inFunc && braceDepth <= 0 {
 				inFunc = false
-				seenIsCurrent = false
+				guarded = nil
 			}
 		}
 	}

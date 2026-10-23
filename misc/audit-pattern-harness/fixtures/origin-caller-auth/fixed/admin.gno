@@ -5,9 +5,6 @@ var paused bool
 
 func SetPaused(cur realm, next bool) {
 	// Fixed: authorize the immediate caller, not the transaction origin.
-	if !cur.IsCurrent() {
-		panic("invalid realm")
-	}
 	if cur.Previous().Address() != owner {
 		panic("owner only")
 	}

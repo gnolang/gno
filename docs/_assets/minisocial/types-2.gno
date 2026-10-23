@@ -3,6 +3,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -15,7 +16,7 @@ type Post struct {
 
 // String stringifies a Post
 func (p Post) String() string {
-	out := p.text + "\n\n"
+	out := sanitize.Block(p.text)
 
 	// We can use `ufmt` to format strings, and the built-in time library formatting function
 	out += ufmt.Sprintf("_by %s on %s_\n\n", p.author, p.createdAt.Format("02 Jan 2006, 15:04"))
