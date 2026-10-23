@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testProof is the proof of "hello" on gnoland-1, for testURL and testPurpose,
+// testProof is the proof of "hello" on gnoland-1, for testOrigin and testPurpose,
 // by the test1 key, signed by @cosmjs/amino (see tm2/pkg/std/signdata_test.go).
 const testProof = `{
   "signed": {
     "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
     "fee": {"amount": [], "gas": "0"},
     "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-      "data": "aGVsbG8=", "url": "https://gno.land", "purpose": "auth/SignIn"}}],
+      "data": "aGVsbG8=", "origin": "https://gno.land", "purpose": "auth/SignIn"}}],
     "memo": ""
   },
   "signature": {
     "pubKey": {"typeUrl": "/tm.PubKeySecp256k1", "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"},
-    "signature": "gquasFDi6ZQesFU2xD1xrKKuABlpDf4sylnYBMAbgpEGQQoQ2OgkpHxyvOkX5qZJrdpApTg4Ga+1SdHqeV2YPQ=="
+    "signature": "vMP1JVJNOW752KNjFSVfdRK86kgFwVSw2mFsjwmOHwEc2+J9MwmG6CcJuaU/5U311t9QgomlmxjiCahx3O7HqQ=="
   }
 }`
 
@@ -113,9 +113,9 @@ func TestVerifyData(t *testing.T) {
 			wantErr: "no data",
 		},
 		{
-			name:    "no url",
-			args:    []string{"--chainid", "gnoland-1", "--url", "", "--data", "hello", testProofSigner},
-			wantErr: "-url",
+			name:    "no origin",
+			args:    []string{"--chainid", "gnoland-1", "--origin", "", "--data", "hello", testProofSigner},
+			wantErr: "-origin",
 		},
 		{
 			name:    "no purpose",
@@ -123,9 +123,14 @@ func TestVerifyData(t *testing.T) {
 			wantErr: "-purpose",
 		},
 		{
-			name:    "another url",
-			args:    []string{"--chainid", "gnoland-1", "--url", "https://evil.example", "--data", "hello", testProofSigner},
-			wantErr: `for url "https://gno.land", not "https://evil.example"`,
+			name:    "another origin",
+			args:    []string{"--chainid", "gnoland-1", "--origin", "https://evil.example", "--data", "hello", testProofSigner},
+			wantErr: `for origin "https://gno.land", not "https://evil.example"`,
+		},
+		{
+			name:    "an expected origin that is not one",
+			args:    []string{"--chainid", "gnoland-1", "--origin", "https://gno.land/", "--data", "hello", testProofSigner},
+			wantErr: "is not scheme://host[:port]",
 		},
 		{
 			name:    "another purpose",
@@ -155,7 +160,7 @@ func TestVerifyData(t *testing.T) {
 		{
 			name:    "tampered signature",
 			args:    []string{"--chainid", "gnoland-1", "--data", "hello", testProofSigner},
-			proof:   strings.Replace(testProof, "gquasF", "hquasF", 1),
+			proof:   strings.Replace(testProof, "vMP1JV", "wMP1JV", 1),
 			wantErr: "invalid sign-data signature",
 		},
 		{

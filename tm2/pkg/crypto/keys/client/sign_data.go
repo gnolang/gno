@@ -18,7 +18,7 @@ type SignDataCfg struct {
 	RootCfg *BaseCfg
 
 	ChainID        string
-	URL            string
+	Origin         string
 	Purpose        string
 	Data           string
 	DataPath       string
@@ -37,7 +37,7 @@ func NewSignDataCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			ShortHelp:  "signs a text to prove control of the key's address, off-chain",
 			LongHelp: `Signs a text, typically a challenge handed out by a service, to prove that the
 key's address is yours. The signed document is ADR-036's sign/MsgSignData,
-bound to -chainid, -url and -purpose: it is not a transaction, and can never be
+bound to -chainid, -origin and -purpose: it is not a transaction, and can never be
 broadcast as one.
 
 The output is the proof, as JSON: the signed document, the public key and the
@@ -60,10 +60,10 @@ func (c *SignDataCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.URL,
-		"url",
+		&c.Origin,
+		"origin",
 		"",
-		"the service the proof is for, a website's origin such as https://gno.land (required)",
+		"the service the proof is for, as scheme://host[:port] such as https://gno.land (required)",
 	)
 
 	fs.StringVar(
@@ -97,12 +97,12 @@ func (c *SignDataCfg) RegisterFlags(fs *flag.FlagSet) {
 
 // checkProofScope checks that the chain, the service and the use a proof is for
 // are all given.
-func checkProofScope(chainID, url, purpose string) error {
+func checkProofScope(chainID, origin, purpose string) error {
 	switch {
 	case chainID == "":
 		return errors.New("-chainid is required: a proof is only good on the chain it names")
-	case url == "" || purpose == "":
-		return errors.New("-url and -purpose are required: a proof is only good for the service and the use it names")
+	case origin == "" || purpose == "":
+		return errors.New("-origin and -purpose are required: a proof is only good for the service and the use it names")
 	}
 
 	return nil
@@ -133,7 +133,7 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if err := checkProofScope(cfg.ChainID, cfg.URL, cfg.Purpose); err != nil {
+	if err := checkProofScope(cfg.ChainID, cfg.Origin, cfg.Purpose); err != nil {
 		return err
 	}
 
@@ -161,7 +161,7 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 
 	payload, err := std.SignDataPayload(std.SignedData{
 		ChainID: cfg.ChainID,
-		URL:     cfg.URL,
+		Origin:  cfg.Origin,
 		Purpose: cfg.Purpose,
 		Signer:  info.GetAddress(),
 		Data:    data,

@@ -22,9 +22,9 @@ type LookalikeMsg struct {
 
 type LookalikeData struct {
 	Data    string `json:"data"`
+	Origin  string `json:"origin"`
 	Purpose string `json:"purpose"`
 	Signer  string `json:"signer"`
-	URL     string `json:"url"`
 }
 
 func (LookalikeMsg) Route() string                { return "sign" }
@@ -52,7 +52,7 @@ func TestSignDataPayloadIsNoTransactionPayload(t *testing.T) {
 
 	d := std.SignedData{
 		ChainID: "dev",
-		URL:     "https://example.com",
+		Origin:  "https://example.com",
 		Purpose: "test",
 		Signer:  crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
 		Data:    "hello",
@@ -68,9 +68,9 @@ func TestSignDataPayloadIsNoTransactionPayload(t *testing.T) {
 		MsgType: std.SignDataMsgType,
 		Value: LookalikeData{
 			Data:    base64.StdEncoding.EncodeToString([]byte(d.Data)),
+			Origin:  d.Origin,
 			Purpose: d.Purpose,
 			Signer:  d.Signer.String(),
-			URL:     d.URL,
 		},
 	}
 	msgSets := map[string][]std.Msg{

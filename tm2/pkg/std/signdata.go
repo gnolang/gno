@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -40,24 +43,25 @@ type signDataMsg struct {
 	Value signDataValue `json:"value"`
 }
 
-// signDataValue is ADR-036's {signer, data}, plus the url and the purpose that
-// bind a proof to one service and one use.
+// signDataValue is ADR-036's {signer, data}, plus the origin and the purpose
+// that bind a proof to one service and one use.
 type signDataValue struct {
 	Signer  string `json:"signer"`
 	Data    string `json:"data"` // base64 of the UTF-8 text
-	URL     string `json:"url"`
+	Origin  string `json:"origin"`
 	Purpose string `json:"purpose"`
 }
 
 // SignedData is what a sign-data document says: on ChainID, Signer answers the
-// service at URL, for Purpose, with Data.
+// service at Origin, for Purpose, with Data.
 type SignedData struct {
 	ChainID string
-	// URL names the service the proof is for: a website's origin, which a wallet
-	// takes from the requesting page, never from the request.
-	URL string
+	// Origin names the service the proof is for, as scheme://host[:port] (see
+	// checkSignDataOrigin). A wallet takes it from the requester, never from the
+	// request.
+	Origin string
 	// Purpose is what the proof is for, as the service names it, such as
-	// "username/Reserve".
+	// "username/Reserve" (see checkSignDataPurpose).
 	Purpose string
 	Signer  crypto.Address
 	// Data is a text the user reads before signing, typically the service's
@@ -71,16 +75,18 @@ func SignDataPayload(d SignedData) ([]byte, error) {
 	switch {
 	case d.ChainID == "":
 		return nil, errors.New("a sign-data document needs a chain id")
-	case d.URL == "":
-		return nil, errors.New("a sign-data document needs a url")
-	case d.Purpose == "":
-		return nil, errors.New("a sign-data document needs a purpose")
 	case d.Signer.IsZero():
 		return nil, errors.New("a sign-data document needs a signer")
 	case d.Data == "":
 		return nil, errors.New("a sign-data document needs data")
-	case !utf8.ValidString(d.URL), !utf8.ValidString(d.Purpose), !utf8.ValidString(d.Data):
-		return nil, errors.New("sign-data url, purpose and data must be UTF-8 text")
+	case !utf8.ValidString(d.Data):
+		return nil, errors.New("sign-data data must be UTF-8 text")
+	}
+	if err := checkSignDataOrigin(d.Origin); err != nil {
+		return nil, err
+	}
+	if err := checkSignDataPurpose(d.Purpose); err != nil {
+		return nil, err
 	}
 
 	return signaturePayload(signDataPayload{
@@ -91,11 +97,133 @@ func SignDataPayload(d SignedData) ([]byte, error) {
 			Value: signDataValue{
 				Signer:  d.Signer.String(),
 				Data:    base64.StdEncoding.EncodeToString([]byte(d.Data)),
-				URL:     d.URL,
+				Origin:  d.Origin,
 				Purpose: d.Purpose,
 			},
 		}},
 	})
+}
+
+// maxSignDataOrigin and maxSignDataPurpose bound what a wallet shows the user.
+const (
+	maxSignDataOrigin  = 256
+	maxSignDataPurpose = 64
+)
+
+// checkSignDataOrigin checks that origin is written as a browser serializes a
+// page's origin: scheme://host[:port], lowercase, the host a DNS name in ASCII
+// (an internationalized one in its xn-- form) or an IP address, the port only
+// when it is not the scheme's default, and nothing after. One service then has
+// one origin, and a verifier compares it as a string.
+func checkSignDataOrigin(origin string) error {
+	switch {
+	case origin == "":
+		return errors.New("a sign-data document needs an origin")
+	case len(origin) > maxSignDataOrigin:
+		return fmt.Errorf("sign-data origin is over %d bytes", maxSignDataOrigin)
+	}
+
+	invalid := func(why string) error {
+		return fmt.Errorf("sign-data origin %q is not scheme://host[:port]: %s", origin, why)
+	}
+
+	scheme, hostport, ok := strings.Cut(origin, "://")
+	if !ok || !isOriginScheme(scheme) {
+		return invalid("it must start with a lowercase scheme and ://")
+	}
+
+	// The port follows the last colon, unless that colon is inside an IPv6 host.
+	host, port, hasPort := hostport, "", false
+	if i := strings.LastIndexByte(hostport, ':'); i > strings.LastIndexByte(hostport, ']') {
+		host, port, hasPort = hostport[:i], hostport[i+1:], true
+	}
+
+	if !isOriginHost(host) {
+		return invalid("the host must be a lowercase ASCII name or an IP address, with no path, query or fragment after it")
+	}
+
+	if hasPort {
+		n, err := strconv.ParseUint(port, 10, 16)
+		switch {
+		case err != nil || port[0] == '0':
+			return invalid("the port must be a number from 1 to 65535, without leading zeros")
+		case (scheme == "http" && n == 80) || (scheme == "https" && n == 443):
+			return invalid("the scheme's default port is left out")
+		}
+	}
+
+	return nil
+}
+
+// isOriginScheme reports whether s is a URI scheme (RFC 3986) in lowercase.
+func isOriginScheme(s string) bool {
+	if s == "" || s[0] < 'a' || s[0] > 'z' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.') {
+			return false
+		}
+	}
+
+	return true
+}
+
+// isOriginHost reports whether host is a lowercase DNS name, an IPv4 address,
+// or a bracketed IPv6 address, each as a browser writes it.
+func isOriginHost(host string) bool {
+	if strings.HasPrefix(host, "[") {
+		if !strings.HasSuffix(host, "]") {
+			return false
+		}
+		ip, err := netip.ParseAddr(host[1 : len(host)-1])
+		return err == nil && ip.Is6() && !ip.Is4In6() && ip.Zone() == "" && ip.String() == host[1:len(host)-1]
+	}
+
+	labels := strings.Split(host, ".")
+	for _, label := range labels {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for i := 0; i < len(label); i++ {
+			c := label[i]
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+				return false
+			}
+		}
+	}
+
+	// A browser reads a name whose last label is a number as an IPv4 address,
+	// and ParseAddr takes only its dotted-decimal form.
+	if strings.Trim(labels[len(labels)-1], "0123456789") == "" {
+		_, err := netip.ParseAddr(host)
+		return err == nil
+	}
+
+	return true
+}
+
+// checkSignDataPurpose checks that purpose is a name of ASCII letters, digits
+// and . _ / -, at most maxSignDataPurpose bytes. A wallet shows it as it is, so
+// it holds no space, line break, control or look-alike character to reshape
+// the approval screen with.
+func checkSignDataPurpose(purpose string) error {
+	switch {
+	case purpose == "":
+		return errors.New("a sign-data document needs a purpose")
+	case len(purpose) > maxSignDataPurpose:
+		return fmt.Errorf("sign-data purpose is over %d bytes", maxSignDataPurpose)
+	}
+
+	for i := 0; i < len(purpose); i++ {
+		c := purpose[i]
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("._/-", c) >= 0) {
+			return fmt.Errorf("sign-data purpose %q may only hold ASCII letters, digits and . _ / -", purpose)
+		}
+	}
+
+	return nil
 }
 
 // signDataDoc reads the values of a sign-data document; VerifySignData checks
@@ -108,7 +236,7 @@ type signDataDoc struct {
 // VerifySignData checks that sig, by pubKey, signs the sign-data document doc,
 // and that pubKey is the key of the document's signer. Only a secp256k1 key
 // signs a proof. It returns what the document says; the caller still checks the
-// chain id, url, purpose and data it expects.
+// chain id, origin, purpose and data it expects.
 //
 // doc may come in any JSON rendering (key order, spacing, string escapes), but
 // must otherwise be the canonical document: re-encoded sorted by key and
@@ -136,7 +264,7 @@ func VerifySignData(doc []byte, pubKey secp256k1.PubKeySecp256k1, sig []byte) (S
 
 	signed := SignedData{
 		ChainID: d.ChainID,
-		URL:     d.Msgs[0].Value.URL,
+		Origin:  d.Msgs[0].Value.Origin,
 		Purpose: d.Msgs[0].Value.Purpose,
 		Signer:  signer,
 		Data:    string(data),
@@ -196,8 +324,8 @@ func NewSignDataProof(payload []byte, pubKey secp256k1.PubKeySecp256k1, sig []by
 }
 
 // VerifySignDataProof checks a proof in SignDataProof's JSON with
-// VerifySignData; the caller still checks the chain id, url, purpose and data it
-// expects.
+// VerifySignData; the caller still checks the chain id, origin, purpose and data
+// it expects.
 // Its cost grows with the proof's size, so a service bounds what it accepts
 // (a proof of a short challenge is under 1 KiB).
 //
@@ -205,7 +333,7 @@ func NewSignDataProof(payload []byte, pubKey secp256k1.PubKeySecp256k1, sig []by
 // forms (the document's rendering, the envelope's base64 and key spelling). A
 // service therefore refuses a replay by its challenge, never by the proof's
 // bytes: it hands out a fresh, unpredictable challenge naming the session,
-// gives it an expiry, and accepts it once. The url and the purpose keep a proof
+// gives it an expiry, and accepts it once. The origin and the purpose keep a proof
 // made for one service, or one use, from passing at another.
 func VerifySignDataProof(proof []byte) (SignedData, error) {
 	var p SignDataProof

@@ -18,7 +18,7 @@ type VerifyDataCfg struct {
 	RootCfg *BaseCfg
 
 	ChainID   string
-	URL       string
+	Origin    string
 	Purpose   string
 	Data      string
 	DataPath  string
@@ -40,7 +40,7 @@ proof holds the public key, so the address needs no key in the keybase; a key
 name is looked up in it.
 
 The proof passes only if it is signed by the address's key and signs exactly
--data on -chainid, for -url and -purpose: a valid signature over another chain,
+-data on -chainid, for -origin and -purpose: a valid signature over another chain,
 service, purpose or text is refused. A proof stays valid forever: a service
 hands out each challenge once, with an expiry, and accepts it once.`,
 		},
@@ -60,8 +60,8 @@ func (c *VerifyDataCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.URL,
-		"url",
+		&c.Origin,
+		"origin",
 		"",
 		"the service the proof must be for (required)",
 	)
@@ -100,7 +100,7 @@ func execVerifyData(cfg *VerifyDataCfg, args []string, cio commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if err := checkProofScope(cfg.ChainID, cfg.URL, cfg.Purpose); err != nil {
+	if err := checkProofScope(cfg.ChainID, cfg.Origin, cfg.Purpose); err != nil {
 		return err
 	}
 
@@ -115,6 +115,18 @@ func execVerifyData(cfg *VerifyDataCfg, args []string, cio commands.IO) error {
 
 	signer, err := resolveSigner(cfg.RootCfg.Home, args[0])
 	if err != nil {
+		return err
+	}
+
+	// No proof matches expectations that make no document, such as an origin
+	// with a trailing slash: say so, rather than report a mismatch.
+	if _, err := std.SignDataPayload(std.SignedData{
+		ChainID: cfg.ChainID,
+		Origin:  cfg.Origin,
+		Purpose: cfg.Purpose,
+		Signer:  signer,
+		Data:    data,
+	}); err != nil {
 		return err
 	}
 
@@ -136,8 +148,8 @@ func execVerifyData(cfg *VerifyDataCfg, args []string, cio commands.IO) error {
 	switch {
 	case signed.ChainID != cfg.ChainID:
 		return fmt.Errorf("the proof is for chain %q, not %q", signed.ChainID, cfg.ChainID)
-	case signed.URL != cfg.URL:
-		return fmt.Errorf("the proof is for url %q, not %q", signed.URL, cfg.URL)
+	case signed.Origin != cfg.Origin:
+		return fmt.Errorf("the proof is for origin %q, not %q", signed.Origin, cfg.Origin)
 	case signed.Purpose != cfg.Purpose:
 		return fmt.Errorf("the proof is for purpose %q, not %q", signed.Purpose, cfg.Purpose)
 	case signed.Signer != signer:
@@ -146,7 +158,7 @@ func execVerifyData(cfg *VerifyDataCfg, args []string, cio commands.IO) error {
 		return fmt.Errorf("the proof signs other data: %q", signed.Data)
 	}
 
-	cio.Printf("Valid proof: %s signed the data for %s (%s) on %s\n", signed.Signer, signed.URL, signed.Purpose, signed.ChainID)
+	cio.Printf("Valid proof: %s signed the data for %s (%s) on %s\n", signed.Signer, signed.Origin, signed.Purpose, signed.ChainID)
 
 	return nil
 }

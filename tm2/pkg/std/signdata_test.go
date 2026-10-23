@@ -28,17 +28,17 @@ var signDataVectors = []struct {
 		name: "ascii",
 		data: "hello",
 		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","purpose":"auth/SignIn",` +
-			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","url":"https://gno.land"}}],"sequence":"0"}`,
-		sig: "gquasFDi6ZQesFU2xD1xrKKuABlpDf4sylnYBMAbgpEGQQoQ2OgkpHxyvOkX5qZJrdpApTg4Ga+1SdHqeV2YPQ==",
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","origin":"https://gno.land",` +
+			`"purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
+		sig: "vMP1JVJNOW752KNjFSVfdRK86kgFwVSw2mFsjwmOHwEc2+J9MwmG6CcJuaU/5U311t9QgomlmxjiCahx3O7HqQ==",
 	},
 	{
 		name: "non-ascii",
 		data: "Sign in to Gnoland · 서명 · 🔑",
 		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
 			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"U2lnbiBpbiB0byBHbm9sYW5kIMK3IOyEnOuqhSDCtyDwn5SR",` +
-			`"purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","url":"https://gno.land"}}],"sequence":"0"}`,
-		sig: "yu7MT7Cdjw7hvbHhFW5zWIncExD+uQ80dMraWBSOvAkONgfvOPSCXENCGuldYm9J5+sIfA5RBg/mYcTIbZ5LoQ==",
+			`"origin":"https://gno.land","purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
+		sig: "bdfc8wLsFy2lL3Uk6Lbms0FMOjTeaFdGXpkqCmF2lpoXZ1lqa6UQex7MoZ3ACpCqDZjKC+Qb6tHelHXT4cAQWA==",
 	},
 }
 
@@ -46,7 +46,7 @@ var signDataVectors = []struct {
 func signDataVectorDoc(data string) SignedData {
 	return SignedData{
 		ChainID: "gnoland-1",
-		URL:     "https://gno.land",
+		Origin:  "https://gno.land",
 		Purpose: "auth/SignIn",
 		Signer:  crypto.MustAddressFromString(signDataTestSigner),
 		Data:    data,
@@ -89,15 +89,14 @@ func TestSignDataPayload_EscapesHTMLCharacters(t *testing.T) {
 
 	d := signDataVectorDoc("hello")
 	d.ChainID = "a<b>c&d"
-	d.URL = "https://gno.land/?a=<b>&c"
 	payload, err := SignDataPayload(d)
 	require.NoError(t, err)
 
 	// From cosmjs serializeSignDoc.
 	assert.Equal(t,
 		`{"account_number":"0","chain_id":"a\u003cb\u003ec\u0026d","fee":{"amount":[],"gas":"0"},"memo":"",`+
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","purpose":"auth/SignIn",`+
-			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","url":"https://gno.land/?a=\u003cb\u003e\u0026c"}}],"sequence":"0"}`,
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","origin":"https://gno.land",`+
+			`"purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
 		string(payload),
 	)
 }
@@ -111,16 +110,14 @@ func TestSignDataPayload_Rejects(t *testing.T) {
 	}{
 		// Without a chain id a proof made for one network is a proof on all.
 		{"empty chain id", func(d *SignedData) { d.ChainID = "" }},
-		// Without a url or a purpose, a proof made for one service or one use
-		// passes at another.
-		{"empty url", func(d *SignedData) { d.URL = "" }},
+		// Without an origin or a purpose, a proof made for one service or one
+		// use passes at another.
+		{"empty origin", func(d *SignedData) { d.Origin = "" }},
 		{"empty purpose", func(d *SignedData) { d.Purpose = "" }},
 		{"zero signer", func(d *SignedData) { d.Signer = crypto.Address{} }},
 		{"empty data", func(d *SignedData) { d.Data = "" }},
-		// They are texts a user reads before signing, not bytes.
+		// It is a text a user reads before signing, not bytes.
 		{"invalid UTF-8 data", func(d *SignedData) { d.Data = "\xff\xfe" }},
-		{"invalid UTF-8 url", func(d *SignedData) { d.URL = "\xff\xfe" }},
-		{"invalid UTF-8 purpose", func(d *SignedData) { d.Purpose = "\xff\xfe" }},
 	}
 
 	for _, testCase := range testTable {
@@ -132,6 +129,104 @@ func TestSignDataPayload_Rejects(t *testing.T) {
 			_, err := SignDataPayload(d)
 			assert.Error(t, err)
 		})
+	}
+}
+
+// One service has one origin, so a verifier compares it as a string: only the
+// form a browser writes for a page's origin is signed.
+func TestSignDataPayload_Origin(t *testing.T) {
+	t.Parallel()
+
+	valid := []string{
+		"https://gno.land",
+		"https://xn--bcher-kva.example",
+		"http://localhost:8888",
+		"https://127.0.0.1:8443",
+		"http://[::1]:26657",
+		"https://[2001:db8::1]",
+		"com.example.game://callback",
+	}
+	invalid := []string{
+		"gno.land",
+		"https://",
+		"//gno.land",
+		"HTTPS://gno.land",
+		"https://Gno.land",
+		"https://gno.land/",
+		"https://gno.land/r/demo",
+		"https://gno.land?x=1",
+		"https://gno.land#x",
+		"https://user@gno.land",
+		"https://gno.land.",
+		"https://gno..land",
+		"https://-gno.land",
+		"https://bücher.example",
+		"https://gno_land.example",
+		"https://gno.land:443",
+		"http://gno.land:80",
+		"https://gno.land:",
+		"https://gno.land:0",
+		"https://gno.land:08443",
+		"https://gno.land:65536",
+		"https://127.1",
+		"https://[::ffff:127.0.0.1]",
+		"https://[2001:DB8::1]",
+		"https://[2001:db8:0:0:0:0:0:1]",
+		"https://[fe80::1%25en0]",
+		"https://[::1",
+		"https://[::1]x",
+		"1https://gno.land",
+		"https://" + strings.Repeat("a.", 130) + "land",
+	}
+
+	testSignDataField(t, "origin", func(d *SignedData, v string) { d.Origin = v }, valid, invalid)
+}
+
+// A wallet shows the purpose as it is, so it holds nothing that could reshape
+// the approval screen.
+func TestSignDataPayload_Purpose(t *testing.T) {
+	t.Parallel()
+
+	valid := []string{"auth/SignIn", "username/Reserve", "v1.link-account_2", strings.Repeat("a", 64)}
+	invalid := []string{
+		"sign in",
+		"auth/SignIn\nApprove: safe",
+		"auth\tSignIn",
+		"auth/SignIn\u202e",
+		"аuth/SignIn", // a Cyrillic а
+		"auth:SignIn",
+		"<b>auth</b>",
+		"\xff\xfe",
+		strings.Repeat("a", 65),
+	}
+
+	testSignDataField(t, "purpose", func(d *SignedData, v string) { d.Purpose = v }, valid, invalid)
+}
+
+// testSignDataField checks that SignDataPayload signs the vector with each of
+// valid set into it, and refuses it, naming field, with each of invalid.
+func testSignDataField(t *testing.T, field string, set func(*SignedData, string), valid, invalid []string) {
+	t.Helper()
+
+	run := func(v string, ok bool) {
+		t.Run(v, func(t *testing.T) {
+			t.Parallel()
+
+			d := signDataVectorDoc("hello")
+			set(&d, v)
+			_, err := SignDataPayload(d)
+			if ok {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, field)
+			}
+		})
+	}
+	for _, v := range valid {
+		run(v, true)
+	}
+	for _, v := range invalid {
+		run(v, false)
 	}
 }
 
@@ -169,7 +264,7 @@ func TestVerifySignData_AcceptsAnyRenderingOfTheDocument(t *testing.T) {
 	  "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
 	  "fee": {"amount": [], "gas": "0"},
 	  "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-	    "data": "aGVsbG8=", "url": "https://gno.land", "purpose": "auth/SignIn"}}],
+	    "data": "aGVsbG8=", "origin": "https://gno.land", "purpose": "auth/SignIn"}}],
 	  "memo": ""
 	}`
 
@@ -225,7 +320,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		{"a key that is not the signer's", v.payload, other, sig},
 		{"tampered data", replace(`"aGVsbG8="`, `"aGVsbG8h"`), pub, sig},
 		{"another chain", replace(`"gnoland-1"`, `"dev"`), pub, sig},
-		{"another url", replace(`"https://gno.land"`, `"https://evil.example"`), pub, sig},
+		{"another origin", replace(`"https://gno.land"`, `"https://evil.example"`), pub, sig},
 		{"another purpose", replace(`"auth/SignIn"`, `"auth/Other"`), pub, sig},
 		{"a corrupted signature", v.payload, pub, append([]byte{sig[0] ^ 1}, sig[1:]...)},
 		// The shape is fixed, so that nothing but this document can pass for it.
@@ -243,7 +338,9 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		// Beyond its JSON rendering, a document must be the canonical one,
 		// even where Go would read the same values from it.
 		{"a missing memo", replace(`"memo":"",`, ``), pub, sig},
-		{"a missing url", replace(`,"url":"https://gno.land"`, ``), pub, sig},
+		{"a missing origin", replace(`"origin":"https://gno.land",`, ``), pub, sig},
+		// ADR-036's {signer, data}, which binds a proof to no service or use.
+		{"no origin and no purpose", replace(`"origin":"https://gno.land","purpose":"auth/SignIn",`, ``), pub, sig},
 		{"a null fee amount", replace(`"amount":[]`, `"amount":null`), pub, sig},
 		{"a number for a string", replace(`"account_number":"0"`, `"account_number":0`), pub, sig},
 		{"a key in another case", replace(`"chain_id"`, `"Chain_ID"`), pub, sig},

@@ -27,11 +27,11 @@ import (
 // The service and the use the test proofs are for, which runKeysCmd passes
 // unless a test overrides them.
 const (
-	testURL     = "https://gno.land"
+	testOrigin  = "https://gno.land"
 	testPurpose = "auth/SignIn"
 )
 
-var proofScopeArgs = []string{"--url", testURL, "--purpose", testPurpose}
+var proofScopeArgs = []string{"--origin", testOrigin, "--purpose", testPurpose}
 
 // verifySignDataOutput checks out with std.VerifySignDataProof and returns what
 // the document says.
@@ -129,13 +129,22 @@ func TestSignData(t *testing.T) {
 	})
 
 	// Without them a proof made for one service, or one use, passes at another.
-	t.Run("no url", func(t *testing.T) {
+	t.Run("no origin", func(t *testing.T) {
 		t.Parallel()
 
 		st := newSignDataTest(t)
 
-		_, err := st.run(t, "--chainid", "dev", "--url", "", "--data", "hello", st.keyName)
-		assert.ErrorContains(t, err, "-url")
+		_, err := st.run(t, "--chainid", "dev", "--origin", "", "--data", "hello", st.keyName)
+		assert.ErrorContains(t, err, "-origin")
+	})
+
+	t.Run("an origin with a path", func(t *testing.T) {
+		t.Parallel()
+
+		st := newSignDataTest(t)
+
+		_, err := st.run(t, "--chainid", "dev", "--origin", "https://gno.land/", "--data", "hello", st.keyName)
+		assert.ErrorContains(t, err, "scheme://host[:port]")
 	})
 
 	t.Run("no purpose", func(t *testing.T) {
@@ -188,7 +197,7 @@ func TestSignData(t *testing.T) {
 
 		assert.Equal(t, std.SignedData{
 			ChainID: "gnoland-1",
-			URL:     testURL,
+			Origin:  testOrigin,
 			Purpose: testPurpose,
 			Signer:  st.address,
 			Data:    "prove this wallet is yours",
