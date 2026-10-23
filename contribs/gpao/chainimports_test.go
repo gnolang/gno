@@ -482,13 +482,8 @@ func TestPrepareReportsTheFaultUnderALateBuild(t *testing.T) {
 // A stdlib that will not build in the operator's tree leaves the candidate
 // pending, whether it is imported directly or through a chain dependency.
 //
-// The asymmetry this pins out: buildChainImports used to skip non-userlib
-// paths, and LoadImports was called with abortOnError=false, which recovers the
-// disk getter's panic and prints it -- so prepare returned nil and the
-// typecheck's own panic became the answer. A candidate importing a broken
-// stdlib directly was rejected and marked seen; one importing a /p/ package
-// that imports it stayed pending. One level of indirection decided whether the
-// operator's checkout settled a stranger's bytes, terminally.
+// Both routes must give the same answer: the operator's checkout must never
+// settle a stranger's bytes, whatever level of indirection reaches it.
 func TestPrepareRefusesABrokenStdlibWhereverItIsImported(t *testing.T) {
 	// A tree that will not build, simulated at the seam a corrupt source file
 	// panics through. The real fault was NUL bytes in a stdlib .gno file.

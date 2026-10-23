@@ -253,22 +253,14 @@ func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
 // a file the package does not have: a node listing a file and not serving it.
 func refusingFile(t *testing.T, remote, fp string, n *atomic.Int64) http.Handler {
 	t.Helper()
-	proxy := nodeProxy(t, remote)
 	asked := []byte(base64.StdEncoding.EncodeToString([]byte(fp)))
 	missing := []byte(base64.StdEncoding.EncodeToString([]byte(path.Join(path.Dir(fp), "missing.gno"))))
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+	return rewriting(t, remote, func(body []byte) []byte {
+		if !bytes.Contains(body, asked) {
+			return body
 		}
-		if bytes.Contains(body, asked) {
-			n.Add(1)
-			body = bytes.ReplaceAll(body, asked, missing)
-		}
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		r.ContentLength = int64(len(body))
-		proxy.ServeHTTP(w, r)
+		n.Add(1)
+		return bytes.ReplaceAll(body, asked, missing)
 	})
 }
 
