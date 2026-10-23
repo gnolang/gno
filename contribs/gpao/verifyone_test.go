@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +33,33 @@ func TestVerifyOneTakesABareMemPackage(t *testing.T) {
 
 	require.NoError(t, cmd.Run(), "stderr: %s", stderr.String())
 	assert.Contains(t, stdout.String(), childReadyMarker)
+}
+
+// TestVerifyOneUnreadableInputIsNotAVerdict: the parent writes verify-one's
+// stdin, so input the child cannot read is this oracle's fault, never the
+// candidate's. Exit 1 is a rejection, so it must not be what reports it.
+func TestVerifyOneUnreadableInputIsNotAVerdict(t *testing.T) {
+	candidate, err := amino.MarshalJSON(packageImporting("gno.land/p/nt/ufmt/v0"))
+	require.NoError(t, err)
+	cases := map[string][]byte{
+		"unreadable candidate":  []byte("not json"),
+		"undecodable candidate": []byte(`{"files":5}`),
+		"unreadable seed":       append(slices.Clone(candidate), []byte(" not json")...),
+		"undecodable seed":      append(slices.Clone(candidate), []byte(` {"imports":5}`)...),
+	}
+	self, err := os.Executable()
+	require.NoError(t, err)
+	for name, stdin := range cases {
+		t.Run(name, func(t *testing.T) {
+			cmd := exec.CommandContext(t.Context(), self,
+				verifyOneCmdName, "-gno-root", gnoenv.RootDir(), "-remote", "http://127.0.0.1:1")
+			cmd.Stdin = bytes.NewReader(stdin)
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+
+			var exit *exec.ExitError
+			require.ErrorAs(t, cmd.Run(), &exit)
+			assert.Equal(t, exitResolverUnavailable, exit.ExitCode(), "stderr: %s", stderr.String())
+		})
+	}
 }

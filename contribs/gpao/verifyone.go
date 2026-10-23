@@ -104,24 +104,11 @@ type importSeed struct {
 }
 
 func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) error {
-	dec := json.NewDecoder(cio.In())
-	var raw json.RawMessage
-	if err := dec.Decode(&raw); err != nil {
-		return fmt.Errorf("read candidate: %w", err)
-	}
-	var mpkg std.MemPackage
-	if err := amino.UnmarshalJSON(raw, &mpkg); err != nil {
-		return fmt.Errorf("decode mempackage: %w", err)
-	}
-	var seed importSeed
-	switch err := dec.Decode(&raw); {
-	case errors.Is(err, io.EOF):
-	case err != nil:
-		return fmt.Errorf("read import seed: %w", err)
-	default:
-		if err := amino.UnmarshalJSON(raw, &seed); err != nil {
-			return fmt.Errorf("decode import seed: %w", err)
-		}
+	mpkg, seed, err := readVerifyRequest(cio.In())
+	if err != nil {
+		// Whoever drives verify-one wrote this input, so what the child cannot
+		// read says nothing about the candidate.
+		exitNoVerdict(cio.Err(), err)
 	}
 	// Restate Type, which arrives nil — and load-bearing, not defensive.
 	//
@@ -170,6 +157,29 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 		return err
 	}
 	return nil
+}
+
+// readVerifyRequest reads the candidate from r and, when one follows it, the
+// import seed.
+func readVerifyRequest(r io.Reader) (mpkg std.MemPackage, seed importSeed, err error) {
+	dec := json.NewDecoder(r)
+	var raw json.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return mpkg, seed, fmt.Errorf("read candidate: %w", err)
+	}
+	if err := amino.UnmarshalJSON(raw, &mpkg); err != nil {
+		return mpkg, seed, fmt.Errorf("decode mempackage: %w", err)
+	}
+	switch err := dec.Decode(&raw); {
+	case errors.Is(err, io.EOF):
+	case err != nil:
+		return mpkg, seed, fmt.Errorf("read import seed: %w", err)
+	default:
+		if err := amino.UnmarshalJSON(raw, &seed); err != nil {
+			return mpkg, seed, fmt.Errorf("decode import seed: %w", err)
+		}
+	}
+	return mpkg, seed, nil
 }
 
 // exitNoVerdict reports err and leaves with the status that says verification
