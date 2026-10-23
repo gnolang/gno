@@ -95,8 +95,19 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int) {
 	vals.RescalePriorities(diffMax)
 	vals.shiftByAvgProposerPriority()
 
+	vals.AdvanceProposerPriority(times)
+}
+
+// AdvanceProposerPriority runs `times` rounds of proposer selection and sets
+// the proposer, without the rescaling IncrementProposerPriority does first.
+func (vals *ValidatorSet) AdvanceProposerPriority(times int) {
+	if vals.IsNilOrEmpty() {
+		panic("empty validator set")
+	}
+	if times <= 0 {
+		panic("Cannot call AdvanceProposerPriority with non-positive times")
+	}
 	var proposer *Validator
-	// Call IncrementProposerPriority(1) times times.
 	for range times {
 		proposer = vals.incrementProposerPriority()
 	}

@@ -673,6 +673,7 @@ func TestEmptySet(t *testing.T) {
 	var valList []*Validator
 	valSet := NewValidatorSet(valList)
 	assert.Panics(t, func() { valSet.IncrementProposerPriority(1) })
+	assert.PanicsWithValue(t, "empty validator set", func() { valSet.AdvanceProposerPriority(1) })
 	assert.Panics(t, func() { valSet.RescalePriorities(100) })
 	assert.Panics(t, func() { valSet.shiftByAvgProposerPriority() })
 	assert.Panics(t, func() { assert.Zero(t, computeMaxMinPriorityDiff(valSet)) })
