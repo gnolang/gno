@@ -55,7 +55,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
 		switch t.Kind() {
-		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
+		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Int256Kind, Uint256Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
 			panic(fmt.Sprintf("cannot convert %v to %v", tv, t))
 		}
 		tv.T = t
@@ -66,6 +66,10 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 	k := t.Kind()
 	if tvk == k {
 		tv.T = t // simple conversion.
+		return
+	}
+	if is256Kind(tvk) || is256Kind(k) {
+		convert256(alloc, tv, t, isConst)
 		return
 	}
 
@@ -1195,6 +1199,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	switch k {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+	case Int256Kind, Uint256Kind:
 	case StringKind, BigintKind, BigdecKind:
 	default:
 		panic(fmt.Sprintf(
@@ -1262,6 +1267,12 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.SetUint32(uint32(sv))
 	case Uint64Kind:
 		dst.SetUint64(uint64(sv))
+	case Int256Kind, Uint256Kind:
+		if sv < 0 && k == Uint256Kind {
+			panic("rune underflows target kind")
+		}
+		bits := bits256FromInt64(int64(sv))
+		dst.SetBits256(nil, &bits)
 	case StringKind:
 		panic("not yet implemented")
 	case BigintKind:
@@ -1284,6 +1295,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case BigintKind:
 		dst.T = t
 		dst.V = biv
+		return // done
+	case Int256Kind, Uint256Kind:
+		convertUntypedBigintTo256(dst, bi, t)
 		return // done
 	case BoolKind:
 		panic("not yet implemented")
@@ -1446,6 +1460,8 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 		fallthrough
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		fallthrough
+	case Int256Kind, Uint256Kind:
 		if !bdv.IsInt() {
 			panic(fmt.Sprintf(
 				"cannot convert untyped bigdec to integer -- %s not an exact integer",

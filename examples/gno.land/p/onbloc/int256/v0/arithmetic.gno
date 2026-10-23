@@ -1,7 +1,7 @@
 package int256
 
 import (
-	"gno.land/p/onbloc/uint256/v0"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 const divisionByZeroError = "division by zero"
@@ -13,7 +13,7 @@ func (z *Int) Add(x, y *Int) *Int {
 }
 
 // AddUint256 adds int256 and uint256 values and saves the result in z.
-func (z *Int) AddUint256(x *Int, y *uint256.Uint) *Int {
+func (z *Int) AddUint256(x *Int, y *u256.Uint) *Int {
 	z.value.Add(&x.value, y)
 	return z
 }
@@ -25,7 +25,7 @@ func (z *Int) Sub(x, y *Int) *Int {
 }
 
 // SubUint256 subtracts uint256 and int256 values and saves the result in z.
-func (z *Int) SubUint256(x *Int, y *uint256.Uint) *Int {
+func (z *Int) SubUint256(x *Int, y *u256.Uint) *Int {
 	z.value.Sub(&x.value, y)
 	return z
 }
@@ -47,12 +47,12 @@ func (z *Int) Mul(x, y *Int) *Int {
 }
 
 // Abs returns the absolute value of z.
-func (z *Int) Abs() *uint256.Uint {
+func (z *Int) Abs() *u256.Uint {
 	if z.Sign() >= 0 {
 		return &z.value
 	}
 
-	var absValue uint256.Uint
+	var absValue u256.Uint
 	absValue.Sub(uint0, &z.value).Neg(&z.value)
 
 	return &absValue
@@ -220,7 +220,7 @@ func (z *Int) Rem(x, y *Int) *Int {
 	yAbs := y.Abs()
 
 	// Step 4: Perform unsigned division and get the remainder
-	var q, r uint256.Uint
+	var q, r u256.Uint
 	q.DivMod(xAbs, yAbs, &r)
 
 	// Step 5: Adjust the sign of the remainder
@@ -325,7 +325,7 @@ func (z *Int) ModE(x, y *Int) *Int {
 // Sets z to the sum x + y, where z and x are uint256s and y is an int256.
 //
 // If the y is positive, it adds y.value to x. otherwise, it subtracts y.Abs() from x.
-func AddDelta(z, x *uint256.Uint, y *Int) {
+func AddDelta(z, x *u256.Uint, y *Int) {
 	if y.Sign() >= 0 {
 		z.Add(x, &y.value)
 	} else {
@@ -336,12 +336,12 @@ func AddDelta(z, x *uint256.Uint, y *Int) {
 // Sets z to the sum x + y, where z and x are uint256s and y is an int256.
 //
 // This function returns true if the addition overflows, false otherwise.
-func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
+func AddDeltaOverflow(z, x *u256.Uint, y *Int) bool {
 	var overflow bool
 	if y.Sign() >= 0 {
 		_, overflow = z.AddOverflow(x, &y.value)
 	} else {
-		var absY uint256.Uint
+		var absY u256.Uint
 		absY.Sub(uint0, &y.value) // absY = -y.value
 		_, overflow = z.SubOverflow(x, &absY)
 	}

@@ -1496,7 +1496,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Shift case.
 				if n.Op == SHL || n.Op == SHR {
 					n.assertShiftExprCompatible1(store, last, lt, rt)
-					if baseOf(rt) != UintType {
+					// A 256-bit count is kept as is: converting it to uint
+					// would truncate it (see shiftCount).
+					if baseOf(rt) != UintType && !is256Type(rt) {
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
 						// reset/create n2 to preprocess right child.
@@ -2995,7 +2997,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						switch n.Op {
 						case SHL_ASSIGN, SHR_ASSIGN:
 							// Special case if shift assign <<= or >>=.
-							convertType(store, last, n, &n.Rhs[0], UintType)
+							// A 256-bit count is kept as is (see shiftCount).
+							if !is256Type(evalStaticTypeOf(store, last, n.Rhs[0])) {
+								convertType(store, last, n, &n.Rhs[0], UintType)
+							}
 						case ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN:
 							// e.g. a += b, single value for lhs and rhs,
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
@@ -5160,8 +5165,13 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		}
 		t = nil // signifies to convert to default type.
 	}
+	var srcKind Kind
+	if cx.T != nil {
+		srcKind = cx.T.Kind()
+	}
 	if isUntyped(cx.T) {
 		ConvertUntypedTo(&cx.TypedValue, t)
+		chargeConstBits256(store, srcKind, &cx.TypedValue)
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
@@ -5170,6 +5180,7 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		// conversion lands in a ConstExpr that isn't persisted directly,
 		// so use a nil (no-op) allocator: no stamping needed.
 		ConvertTo(nil, store, &cx.TypedValue, t, true)
+		chargeConstBits256(store, srcKind, &cx.TypedValue)
 		setConstAttrs(cx)
 	}
 }
@@ -5510,7 +5521,7 @@ func checkIntegerKind(xt Type) {
 	switch xt.Kind() {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
-		BigintKind:
+		Int256Kind, Uint256Kind, BigintKind:
 		return // ok
 	default:
 		panic(fmt.Sprintf(

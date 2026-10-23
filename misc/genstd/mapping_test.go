@@ -143,6 +143,27 @@ func Test_linkFunctions_TypedValue(t *testing.T) {
 	assert.Len(t, mappings[2].Results, 1)
 }
 
+func Test_linkFunctions_int256(t *testing.T) {
+	chdir(t, "testdata/linkFunctions_int256")
+
+	pkgs, err := walkStdlibs(".")
+	require.NoError(t, err)
+
+	mappings := linkFunctions(pkgs)
+	require.Len(t, mappings, 1)
+	m := mappings[0]
+	require.Len(t, m.Params, 2)
+	require.Len(t, m.Results, 2)
+	// The Gno side keeps its builtin names; the Go side uses the gnolang
+	// types, under the name the generated file imports gnolang as.
+	assert.Equal(t, `gno.X("uint256")`, m.Params[0].GnoTypeExpression())
+	assert.Equal(t, "vm_pkg_gnolang.Uint256", m.Params[0].GoQualifiedName())
+	assert.Equal(t, `gno.X("int256")`, m.Params[1].GnoTypeExpression())
+	assert.Equal(t, "vm_pkg_gnolang.Int256", m.Params[1].GoQualifiedName())
+	assert.Equal(t, `gno.X("uint256")`, m.Results[0].GnoTypeExpression())
+	assert.Equal(t, `gno.X("int256")`, m.Results[1].GnoTypeExpression())
+}
+
 func Test_linkFunctions_noMatch(t *testing.T) {
 	chdir(t, "testdata/linkFunctions_noMatch")
 

@@ -20,6 +20,8 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*StringValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*BigintValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*BigdecValue)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Int256Value)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*Uint256Value)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*PointerValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*ArrayValue)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SliceValue)(nil)).Elem())
@@ -388,6 +390,116 @@ func (goo BigdecValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *BigdecValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var repr string
+	if len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
+		}
+		bz = bz[n:]
+		v, n, err := amino.DecodeString(bz)
+		if err != nil {
+			return err
+		}
+		bz = bz[n:]
+		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+	}
+	return goo.UnmarshalAmino(repr)
+}
+
+func (goo Int256Value) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
+	{
+		before := offset
+		offset = amino.PrependString(buf, offset, string(repr))
+		valueLen := before - offset
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo Int256Value) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	return s, nil
+}
+
+func (goo *Int256Value) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	var repr string
+	if len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		if err != nil {
+			return err
+		}
+		if fnum != 1 || typ3 != amino.Typ3ByteLength {
+			return fmt.Errorf("repr field 1: expected typ3 %v, got num=%v typ=%v", amino.Typ3ByteLength, fnum, typ3)
+		}
+		bz = bz[n:]
+		v, n, err := amino.DecodeString(bz)
+		if err != nil {
+			return err
+		}
+		bz = bz[n:]
+		repr = string(v)
+	}
+	if len(bz) != 0 {
+		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+	}
+	return goo.UnmarshalAmino(repr)
+}
+
+func (goo Uint256Value) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return offset, err
+	}
+	{
+		before := offset
+		offset = amino.PrependString(buf, offset, string(repr))
+		valueLen := before - offset
+		if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+		} else {
+			offset = before
+		}
+	}
+	return offset, err
+}
+
+func (goo Uint256Value) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	repr, err := goo.MarshalAmino()
+	if err != nil {
+		return 0, err
+	}
+	if repr != "" {
+		s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	}
+	return s, nil
+}
+
+func (goo *Uint256Value) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
 	var repr string
 	if len(bz) > 0 {
 		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
