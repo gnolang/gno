@@ -106,6 +106,41 @@ The `make fuzz` target runs the 3-way comparison and native Go fuzzer
 sequentially. The `gofuzz_binary` and `gofuzz_json` targets require the
 external `go-fuzz` tool and test the older amino reflect codec only.
 
+## Field tags
+
+| Tag | Effect |
+|-----|--------|
+| `json:"name"` | The field's JSON name. |
+| `json:",omitempty"` | JSON leaves out an empty value: zero, or an empty string, slice or array. Binary is unaffected. |
+| `json:"-"` | The field is not encoded at all, in binary or JSON. |
+| `binary:"fixed64"`, `binary:"fixed32"` | An integer is written as 8 or 4 fixed bytes instead of a varint. |
+| `binary:"varint"` | A signed integer is written as a plain varint instead of zigzag. |
+| `amino:"unsafe"` | Allows a floating point field. |
+| `amino:"write_empty"` | An empty or zero value is written instead of left out. |
+| `amino:"nil_elements"` | Nil elements of a list of pointers are kept, and decode as nil. |
+| `amino:"skip_zero"` | The field is left out of binary and JSON whenever its Go value is zero. |
+| `amino:"reserved"` | On a blank `_` field: keeps a removed field's number from being reused. |
+
+Several `amino` tags go in one comma-separated list, as in `amino:"unsafe,skip_zero"`.
+
+Binary leaves out a field whose value encodes to nothing, which covers the zero
+value of integers, strings, slices, nil pointers and interfaces. A zero value
+that encodes to bytes is written: a zero float or fixed-size array, a struct
+holding one, or a value whose `MarshalAmino` repr is not empty, such as a zero
+`crypto.Address`, written as its bech32 string in 42 bytes.
+`amino:"skip_zero"` leaves such a field out by testing the Go value itself, as
+`reflect.Value.IsZero` does, which since Go 1.22 agrees with `==` (a float
+`-0.0` is zero). A missing field decodes back to the zero value, and an
+explicitly encoded zero value still decodes too, so data written before a
+field took the tag stays readable. Registration refuses the tag together with
+`amino:"write_empty"`, and wherever a missing field decodes to something other
+than the zero value: on `time.Time` (1970-01-01) and on a pointer to anything
+but a struct (a pointer to the zero value).
+
+Adding `amino:"skip_zero"` to an existing field changes the bytes written for
+its zero value, in binary and JSON. Where those bytes are hashed or signed,
+that is a protocol change.
+
 ## Unsupported types
 
 ### Floating points

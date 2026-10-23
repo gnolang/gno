@@ -1019,6 +1019,33 @@ var fuzzFuncs = []any{
 			c.Fuzz(&(*sl)[i])
 		}
 	},
+	func(v *tests.FuzzSkipZero, c fuzz.Continue) {
+		c.FuzzNoCustom(v)
+		zeroHalf(v, c)
+		if c.RandBool() {
+			v.Inners[0] = tests.SkipZeroInner{} // an array with one zero element
+		}
+	},
+	func(v *tests.SkipZeroHolder, c fuzz.Continue) {
+		c.FuzzNoCustom(v)
+		zeroHalf(v, c)
+	},
+	func(v *tests.SkipZeroElem, c fuzz.Continue) {
+		c.FuzzNoCustom(v)
+		zeroHalf(v, c)
+	},
+}
+
+// zeroHalf zeroes each field of the struct *v half the time. Random values
+// are almost never zero, so without it the amino:"skip_zero" paths, and the
+// untagged fields at zero beside them, would hardly run.
+func zeroHalf(v any, c fuzz.Continue) {
+	rv := reflect.ValueOf(v).Elem()
+	for i := range rv.NumField() {
+		if c.RandBool() {
+			rv.Field(i).SetZero()
+		}
+	}
 }
 
 func getTypeFromPointer(ptr any) reflect.Type {
