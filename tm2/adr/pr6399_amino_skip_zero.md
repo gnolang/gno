@@ -83,6 +83,14 @@ why instead of only "panic parsing struct".
 
 ## Alternatives considered
 
+- Honor Go's `json:",omitzero"` instead of adding a tag. Amino ignores it
+  today, which is why `go fix`'s omitzero modernizer is off (pr5877). It is
+  a `json` option, and amino's `json` options shape JSON alone, except
+  `json:"-"`, which drops a field from both encodings; here binary is what
+  must change. And encoding/json's `omitzero` asks a type's `IsZero` method
+  when it has one, so a value that method calls zero but that is not the Go
+  zero value would be left out and decode as something else. `skip_zero`
+  judges the Go zero value, in both encodings.
 - Correct the comment and keep the bytes: every master-signed transaction
   keeps paying for them.
 - Make `crypto.Address.MarshalAmino` return "" for the zero address: it
