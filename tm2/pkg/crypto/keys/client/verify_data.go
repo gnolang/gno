@@ -34,10 +34,10 @@ func NewVerifyDataCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "verify-data",
 			ShortUsage: "verify-data [flags] <address or key-name>",
-			ShortHelp:  "verifies a proof made by sign-data or Adena's SignArbitrary",
-			LongHelp: `Verifies a proof of control of an address, as gnokey sign-data or Adena's
-SignArbitrary makes it. The proof holds the public key, so the address needs no
-key in the keybase; a key name is looked up in it.
+			ShortHelp:  "verifies a proof made by sign-data",
+			LongHelp: `Verifies a proof of control of an address, as gnokey sign-data makes it. The
+proof holds the public key, so the address needs no key in the keybase; a key
+name is looked up in it.
 
 The proof passes only if it is signed by the address's key and signs exactly
 -data on -chainid, for -url and -purpose: a valid signature over another chain,

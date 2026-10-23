@@ -36,12 +36,12 @@ func NewSignDataCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			ShortUsage: "sign-data [flags] <key-name or address>",
 			ShortHelp:  "signs a text to prove control of the key's address, off-chain",
 			LongHelp: `Signs a text, typically a challenge handed out by a service, to prove that the
-key's address is yours. The signed document is the one Adena's SignArbitrary
-signs (ADR-036's sign/MsgSignData, bound to -chainid, -url and -purpose): it is
-not a transaction, and can never be broadcast as one.
+key's address is yours. The signed document is ADR-036's sign/MsgSignData,
+bound to -chainid, -url and -purpose: it is not a transaction, and can never be
+broadcast as one.
 
-The output is Adena's SignArbitrary answer, as JSON: the signed document, the
-public key and the signature. Check it with gnokey verify-data, or with
+The output is the proof, as JSON: the signed document, the public key and the
+signature. Check it with gnokey verify-data, or with
 std.VerifySignDataProof.`,
 		},
 		cfg,

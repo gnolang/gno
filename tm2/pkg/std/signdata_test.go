@@ -12,13 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The test1 key (gnoland's default test mnemonic), which Adena's
-// sign-arbitrary spec also uses.
+// The test1 key (gnoland's default test mnemonic).
 const signDataTestSigner = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
-// Signatures made by @cosmjs/crypto, the stack Adena signs with, from the test1
-// mnemonic at m/44'/118'/0'/0/0 over the payloads below. They come from another
-// implementation on purpose: agreeing with ourselves would prove nothing.
+// Signatures made by @cosmjs/amino from the test1 mnemonic at m/44'/118'/0'/0/0
+// over the payloads below. They come from another implementation on purpose:
+// agreeing with ourselves would prove nothing.
 var signDataVectors = []struct {
 	name    string
 	data    string
@@ -155,9 +154,9 @@ func TestVerifySignData_AcceptsOtherImplementations(t *testing.T) {
 	}
 }
 
-// A verifier gets the document back as an object (Adena's `signed`) and may
-// serialize it in any key order, spacing or escaping; the signature is over the canonical
-// bytes, which the verifier rebuilds.
+// A verifier gets the document back as an object (the proof's `signed`) and may
+// serialize it in any key order, spacing or escaping; the signature is over the
+// canonical bytes, which the verifier rebuilds.
 func TestVerifySignData_AcceptsAnyRenderingOfTheDocument(t *testing.T) {
 	t.Parallel()
 
@@ -165,7 +164,7 @@ func TestVerifySignData_AcceptsAnyRenderingOfTheDocument(t *testing.T) {
 	sig, err := base64.StdEncoding.DecodeString(v.sig)
 	require.NoError(t, err)
 
-	// JSON.stringify of Adena's makeArbitraryMessageDoc, in its own key order.
+	// The document as a JavaScript client would stringify it, in its own key order.
 	doc := `{
 	  "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
 	  "fee": {"amount": [], "gas": "0"},
@@ -268,7 +267,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 	}
 }
 
-// signDataTestProof is Adena's SignArbitrary answer for the first vector.
+// signDataTestProof is the proof for the first vector.
 var signDataTestProof = `{
   "signed": ` + signDataVectors[0].payload + `,
   "signature": {
@@ -277,7 +276,7 @@ var signDataTestProof = `{
   }
 }`
 
-func TestVerifySignDataProof_AcceptsAdenasAnswer(t *testing.T) {
+func TestVerifySignDataProof_AcceptsOtherImplementations(t *testing.T) {
 	t.Parallel()
 
 	signed, err := VerifySignDataProof([]byte(signDataTestProof))

@@ -21,7 +21,7 @@ import (
 const SignDataMsgType = "sign/MsgSignData"
 
 // A sign-data document is a transaction sign document with every field fixed
-// but the chain id and the message, as Adena's SignArbitrary builds it.
+// but the chain id and the message.
 // The chain id stays (ADR-036 wants it empty): a proof made on one network is
 // then no proof on another.
 type signDataPayload struct {
@@ -65,9 +65,8 @@ type SignedData struct {
 	Data string
 }
 
-// SignDataPayload returns the bytes a key signs to state d. The bytes are those
-// of Adena's SignArbitrary: the sign document sorted by key, its fee an empty
-// coin list (see signDocFee).
+// SignDataPayload returns the bytes a key signs to state d: the sign document
+// sorted by key, its fee an empty coin list (see signDocFee).
 func SignDataPayload(d SignedData) ([]byte, error) {
 	switch {
 	case d.ChainID == "":
@@ -108,9 +107,8 @@ type signDataDoc struct {
 
 // VerifySignData checks that sig, by pubKey, signs the sign-data document doc,
 // and that pubKey is the key of the document's signer. Only a secp256k1 key
-// signs a proof: Adena and gnokey sign with no other. It returns what
-// the document says; the caller still checks the chain id, url, purpose and data
-// it expects.
+// signs a proof. It returns what the document says; the caller still checks the
+// chain id, url, purpose and data it expects.
 //
 // doc may come in any JSON rendering (key order, spacing, string escapes), but
 // must otherwise be the canonical document: re-encoded sorted by key and
@@ -166,8 +164,8 @@ func VerifySignData(doc []byte, pubKey secp256k1.PubKeySecp256k1, sig []byte) (S
 // SignDataPubKeyType is the type URL of a sign-data proof's public key.
 const SignDataPubKeyType = "/tm.PubKeySecp256k1"
 
-// SignDataProof is a sign-data proof as Adena's SignArbitrary answers it: the
-// signed document, the public key and the signature.
+// SignDataProof is a sign-data proof: the signed document, the public key and
+// the signature.
 type SignDataProof struct {
 	Signed    json.RawMessage   `json:"signed"`
 	Signature SignDataSignature `json:"signature"`
