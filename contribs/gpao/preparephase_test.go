@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -170,6 +171,24 @@ func counting(t *testing.T, remote string, n *atomic.Int64) http.Handler {
 	proxy := nodeProxy(t, remote)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n.Add(1)
+		proxy.ServeHTTP(w, r)
+	})
+}
+
+// rewriting proxies every request to remote with its body passed through
+// rewrite first: the node answers whatever rewrite turns the request into.
+func rewriting(t *testing.T, remote string, rewrite func(body []byte) []byte) http.Handler {
+	t.Helper()
+	proxy := nodeProxy(t, remote)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		body = rewrite(body)
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
 		proxy.ServeHTTP(w, r)
 	})
 }

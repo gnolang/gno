@@ -145,11 +145,13 @@ means a package that crashes the typechecker takes down only its own child, and
 that the approver key is never loaded in the process handling untrusted code.
 
 The budget starts once the child has everything the compile needs: the standard
-library and examples from disk, and every chain package the candidate imports,
-fetched from the node. Fetching is the oracle's cost, not the package's, so a
-slow node cannot turn a fast package into an overrun. That phase has a budget
-of its own, `--prepare-budget`, a minute by default; its expiry leaves the
-package pending as unavailable rather than counting against it.
+library and examples from disk, and every chain package the candidate's
+production files import, fetched from the node. An import that only its test
+files name is never fetched, because neither stage compiles a test file.
+Fetching is the oracle's cost, not the package's, so a slow node cannot turn a
+fast package into an overrun. That phase has a budget of its own,
+`--prepare-budget`, a minute by default; its expiry leaves the package pending
+as unavailable rather than counting against it.
 
 The child's type-check options mirror `MsgEnablePackage`'s exactly (production
 files only, no test-file evaluation), because the whole point is to predict what
@@ -185,9 +187,11 @@ rejection whatever else is parked. When none is absent and one is parked, a
 failed type check leaves the package pending, and an error in its own code is
 reported once the import is live. An import the chain reports live but would
 not serve is fetched once more: a package enabled during the fetch resolves,
-and one whose files `vm/qfile` cannot serve leaves the package pending as
-unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
-pending package by itself: resubmit it, or restart, once the import is live.
+and one whose sources or gnomod `vm/qfile` cannot serve leaves the package
+pending as unavailable, which is the oracle's limit and not a verdict. A file
+the verification never reads, such as a license, is not fetched, so the node
+refusing one holds nothing up. Nothing re-offers a pending package by itself:
+resubmit it, or restart, once the import is live.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
@@ -232,6 +236,9 @@ write-once (re-adding an existing path fails), and an answered "not found" as
 well, so the stages the budget measures never ask the node again. A transport
 fault is not cached. A missed import the chain reports live is fetched once
 more before the typecheck, since it may have been enabled after the miss.
+
+Only a dependency's production `.gno` files and `gnomod.toml` are fetched:
+neither stage reads its tests, docs or licenses.
 
 ### About `--gas-wanted`
 

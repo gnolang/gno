@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -170,7 +171,8 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	return mpkg
 }
 
-// fetch queries vm/qfile for the package's file list, then each file's body,
+// fetch queries vm/qfile for the package's file list, then the body of each
+// file readByVerify keeps (every .gno file, for a package holding tests alone),
 // and assembles a MemPackage. A nil package with a nil error is the node
 // answering that nothing is stored at the path (the typechecker then reports
 // the import as unresolved); the error is returned so the caller can tell that
@@ -182,9 +184,16 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, err
 	}
 	names := strings.Split(string(list), "\n")
+	// A package holding tests alone, which AddPackage has refused since #5892
+	// but one stored before it may be, is empty to the validator's typecheck,
+	// which rejects its importers. Its tests are read too: with no .gno file
+	// it would not build here, and those importers would sit pending instead.
+	testsOnly := !slices.ContainsFunc(names, func(name string) bool {
+		return strings.HasSuffix(name, ".gno") && readByVerify(name)
+	})
 	files := make([]*std.MemFile, 0, len(names))
 	for _, name := range names {
-		if name == "" {
+		if !readByVerify(name) && !(testsOnly && strings.HasSuffix(name, ".gno")) {
 			continue
 		}
 		body, err := g.query(path.Join(pkgPath, name))
@@ -197,19 +206,32 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, nil
 	}
 
-	// MPUserAll, matching what AddPackage stamps on the stored package and
-	// therefore what a node serves here. Not MPUserProd: qfile lists every
-	// stored file, _test.gno and flattened _filetest.gno included (see
-	// TestRPCGetterNamesReconstructedPackage), and MPUserProd's validation
-	// rejects those outright -- so stamping it made AddMemPackage panic on any
-	// dependency that ships tests, which is most of them. Restricting to
-	// production files is the fileset's job at each point of use.
+	// A test file's clause may carry _test, and AddMemPackage wants the name
+	// the path gives.
+	name := gno.LastPathElement(pkgPath)
+	if !testsOnly {
+		name = packageName(files)
+	}
+
+	// MPUserAll, the type AddPackage stamps on the stored package, of which
+	// this is the production subset.
 	return &std.MemPackage{
-		Name:  packageName(files),
+		Name:  name,
 		Path:  pkgPath,
 		Files: files,
 		Type:  gno.MPUserAll,
 	}, nil
+}
+
+// readByVerify reports whether the typecheck or the preprocess reads this file
+// of an import: its production sources and the gnomod setting their version.
+// Tests, docs and licenses are listed by the node but never read.
+func readByVerify(name string) bool {
+	switch name {
+	case "gnomod.toml", "gno.mod":
+		return true
+	}
+	return strings.HasSuffix(name, ".gno") && !gno.IsTestFile(name)
 }
 
 // status asks what the chain holds at a path vm/qfile would not serve: live,
@@ -236,41 +258,17 @@ func (g *rpcGetter) query(filepath string) ([]byte, error) {
 	return body, err
 }
 
-// packageName derives the package name the way the chain derives it in
-// ReadMemPackageFromList: the first production .gno file whose package clause
-// parses names the package, with a _test suffix trimmed. Filetests carry
-// arbitrary clauses, so they name a package only when it holds nothing else --
-// their own clause where they agree on one, and the literal "filetests" where
-// they do not.
-//
-// The order matters here because the file list comes from vm/qfile sorted, and
-// ReadMemPackage flattens a package's filetests/ directory into it, so a
-// filetest carrying a package clause of its own routinely sorts ahead of the
-// production files. The fallback matters because the name is what
-// typeCheckMemPackage writes .gnobuiltins.gno under, and an empty one makes
-// that file unparseable.
+// packageName is the package clause of the first .gno file that parses. fetch
+// hands it production files only, so that clause is the package's own name,
+// which typeCheckMemPackage writes .gnobuiltins.gno under.
 func packageName(files []*std.MemFile) string {
-	var filetestName string
-	filetestsDiffer := false
 	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
-		name, err := gno.PackageNameFromFileBody(f.Name, f.Body)
-		if err != nil {
-			continue
-		}
-		if !strings.HasSuffix(f.Name, "_filetest.gno") {
-			return strings.TrimSuffix(string(name), "_test")
-		}
-		if filetestName == "" {
-			filetestName = string(name)
-		} else if filetestName != string(name) {
-			filetestsDiffer = true
+		if name, err := gno.PackageNameFromFileBody(f.Name, f.Body); err == nil {
+			return string(name)
 		}
 	}
-	if filetestsDiffer {
-		return "filetests"
-	}
-	return filetestName
+	return ""
 }

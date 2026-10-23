@@ -149,13 +149,6 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 		}
 	}()
 
-	// Best-effort preload, through the getter injectChainGetter installed, so
-	// where each import comes from is that getter's split here too; anything
-	// unresolvable surfaces as a typecheck error. Inlined rather than left as a
-	// separate step a caller has to remember: two of the tests used to omit it
-	// and so exercised a sequence the child never runs.
-	_ = test.LoadImports(v.prodgs, mpkg, false)
-
 	// Fresh transactions isolate each typecheck from the persistent base stores.
 	newProdGnoStore := func() gno.Store {
 		cw := v.prodbs.CacheWrap()
@@ -255,7 +248,6 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 // node lists but will not serve. An import that nothing serves is none of
 // them; the typecheck judges that, against what classifyUnserved recorded.
 func (v *verifier) prepare(mpkg *std.MemPackage) error {
-	_ = test.LoadImports(v.prodgs, mpkg, false)
 	buildErr := v.buildChainImports(mpkg)
 	// Transport first, even when a build also failed: an unfetchable
 	// transitive import makes the package importing it unbuildable, so the
@@ -341,13 +333,10 @@ func (v *verifier) classifyUnserved() error {
 // the same point already costs.
 //
 // Stdlibs are why the walk does not stop at userlib paths. They are built
-// through the same seam even though nothing fetches them, because the
-// alternative is the asymmetry that shipped: LoadImports recovers the disk
-// getter's panic and prints it, so a candidate importing a broken stdlib
-// DIRECTLY was rejected terminally, while the same breakage one level down --
-// under a /p/ dependency -- came back here and left the package pending. One
-// level of indirection decided whether the operator's tree settled a
-// stranger's bytes.
+// through the same seam even though nothing fetches them: left to the
+// typecheck, a broken stdlib the candidate imports DIRECTLY would panic there
+// and be rejected terminally, while the same breakage under a /p/ dependency
+// fails that dependency's build here and leaves the package pending.
 //
 // A path nothing serves is skipped rather than ending the walk: it is the
 // typecheck's verdict to give, and the rest of the closure still has to be
