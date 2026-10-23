@@ -92,7 +92,8 @@ func TestPackageName(t *testing.T) {
 func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 	const pkgPath = "gno.land/p/nt/grc20/v0"
 	files := map[string]string{
-		pkgPath: "caller_teller_sub_realm_filetest.gno\ngnomod.toml\ntoken.gno\ntoken_test.gno",
+		pkgPath:                         "README.md\ncaller_teller_sub_realm_filetest.gno\ngnomod.toml\ntoken.gno\ntoken_test.gno",
+		path.Join(pkgPath, "README.md"): "# grc20\n",
 		path.Join(pkgPath, "caller_teller_sub_realm_filetest.gno"): "package grc20subrealm\n",
 		path.Join(pkgPath, "gnomod.toml"):                          "module = \"" + pkgPath + "\"\n",
 		path.Join(pkgPath, "token.gno"):                            "package grc20\n\nfunc F() {}\n",

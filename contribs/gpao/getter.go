@@ -187,10 +187,9 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		if name == "" {
 			continue
 		}
-		// Neither stage reads an import's test files, so their bodies are not
-		// fetched. Every live package keeps a production file (AddPackage
-		// refuses one without), so the package still has a name to carry.
-		if gno.IsTestFile(name) {
+		// Every live package keeps a production file (AddPackage refuses one
+		// without), so the package still has a name to carry.
+		if !readByVerify(name) {
 			continue
 		}
 		body, err := g.query(path.Join(pkgPath, name))
@@ -211,6 +210,17 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		Files: files,
 		Type:  gno.MPUserAll,
 	}, nil
+}
+
+// readByVerify reports whether the typecheck or the preprocess reads this file
+// of an import: its production sources and the gnomod setting their version.
+// Tests, docs and licenses are listed by the node but never read.
+func readByVerify(name string) bool {
+	switch name {
+	case "gnomod.toml", "gno.mod":
+		return true
+	}
+	return strings.HasSuffix(name, ".gno") && !gno.IsTestFile(name)
 }
 
 // status asks what the chain holds at a path vm/qfile would not serve: live,
