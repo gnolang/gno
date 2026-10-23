@@ -97,7 +97,7 @@ make fuzz FUZZTIME=30m     # customize fuzz duration (default: 1h)
 
 | Target | Tool | What it tests | Codec |
 |--------|------|---------------|-------|
-| `make fuzz` (3-way comparison) | `go test -count=999999` | Roundtrip equality: amino reflect, pbbindings, and genproto2 produce identical bytes for random valid structs | All three |
+| `make fuzz` (3-way comparison) | `go test -count=999999` | Roundtrip equality: amino reflect and genproto2, and pbbindings where `make -C misc/genproto` generated them, produce identical bytes for random valid structs | All three |
 | `make fuzz` (native Go fuzzer) | `go test -fuzz` (Go 1.18+) | `UnmarshalBinary2` doesn't panic on random bytes (coverage-guided) | genproto2 |
 | `make gofuzz_binary` | `go-fuzz` (external tool) | amino reflect `Unmarshal` doesn't panic on random bytes | amino reflect |
 | `make gofuzz_json` | `go-fuzz` (external tool) | amino reflect `JSONUnmarshal` doesn't panic on random JSON | amino reflect |

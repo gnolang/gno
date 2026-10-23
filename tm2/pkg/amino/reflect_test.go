@@ -233,14 +233,11 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			"end to end failed.\nstart: %v\nend: %v\nbytes: %X\nstring(bytes): %s\n",
 			spw(ptr), spw(ptr2), bz, bz)
 
-		if codecType == "binary" {
+		// Typedefs that are not structs are not PBMessagers, and neither is
+		// any type without generated pbbindings, which CI does not generate.
+		// Such types skip this check but not the genproto2 one below.
+		if pbm, ok := rv.Interface().(amino.PBMessager); ok && codecType == "binary" {
 			// Get pbo from rv. (go -> p3go)
-			pbm, ok := rv.Interface().(amino.PBMessager)
-			if !ok {
-				// typedefs that are not structs, for example,
-				// are not pbMessanger.
-				continue
-			}
 			pbo, err := pbm.ToPBMessage(cdc)
 			require.NoError(t, err)
 
@@ -421,21 +418,20 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyD
 
 		// ToPBMessage + FromPBMessage. In strict mode we also check struct
 		// equality; in lossy mode ToPBMessage/FromPBMessage may share the
-		// same lossy decode path, so we only verify it doesn't error.
-		pbm, ok := rv.Interface().(amino.PBMessager)
-		if !ok {
-			continue
-		}
-		pbo, err := pbm.ToPBMessage(cdc)
-		require.NoError(t, err)
-		rv3 := reflect.New(rt)
-		ptr3 := rv3.Interface()
-		err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
-		require.NoError(t, err)
-		if !lossyDecode {
-			require.Equal(t, ptr, ptr3,
-				"ToPBMessage/FromPBMessage roundtrip failed.\nstart: %v\nend: %v\nmid(pbo): %v\n",
-				spw(ptr), spw(ptr3), spw(pbo))
+		// same lossy decode path, so we only verify it doesn't error. A type
+		// without generated pbbindings skips this, not the genproto2 check.
+		if pbm, ok := rv.Interface().(amino.PBMessager); ok {
+			pbo, err := pbm.ToPBMessage(cdc)
+			require.NoError(t, err)
+			rv3 := reflect.New(rt)
+			ptr3 := rv3.Interface()
+			err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
+			require.NoError(t, err)
+			if !lossyDecode {
+				require.Equal(t, ptr, ptr3,
+					"ToPBMessage/FromPBMessage roundtrip failed.\nstart: %v\nend: %v\nmid(pbo): %v\n",
+					spw(ptr), spw(ptr3), spw(pbo))
+			}
 		}
 
 		// genproto2 byte equality (cross-encoder) + roundtrip.
