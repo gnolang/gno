@@ -230,12 +230,33 @@ remove.
 
 ## Import cache
 
-Each verification runs in its own child process, and the node's answers are
-cached for that run: a fetched package, because on-chain package paths are
-write-once (re-adding an existing path fails), and an answered "not found" as
-well, so the stages the budget measures never ask the node again. A transport
-fault is not cached. A missed import the chain reports live is fetched once
-more before the typecheck, since it may have been enabled after the miss.
+A package the chain deployed at genesis is fetched once per run, not once per
+verification. Before it spawns the child, gpao walks the candidate's import
+closure, takes what it already holds and fetches the rest, and hands the child
+the packages it found and the paths the node said it does not serve. It keeps
+every public genesis package it fetches for as long as it runs: a public
+package path is write-once (re-adding an existing path fails), and the genesis
+set is a size no submitter controls. A package added after genesis is fetched
+again for every verification, since anyone can get one approved and imported,
+and keeping those would let a submitter grow the daemon's memory without
+bound. A private package can be redeployed under its path, so it is fetched
+again too. Genesis is read from the `[addpkg]` height the keeper stamps into
+every stored package's `gnomod.toml`: 0 for a package deployed at genesis. A
+hard fork that replays transactions in its genesis runs each at its original
+height, so the packages it replays carry that height and are fetched every
+verification, as on a chain without this cache.
+
+The cache belongs to the chain it was filled from. Before each verification
+gpao reads block 1, and drops the cache when its hash is not the one the cache
+was filled under, or when the node does not give it. A chain started again
+under the same ID is caught whatever its tip did, and a node that lags keeps
+block 1 and the cache with it.
+
+Within one verification the node's answers are cached for that run: a fetched
+package, and an answered "not found" as well, so the stages the budget measures
+never ask the node again. A transport fault is not cached. A missed import the
+chain reports live is fetched once more before the typecheck, since it may have
+been enabled after the miss.
 
 Only a dependency's production `.gno` files and `gnomod.toml` are fetched:
 neither stage reads its tests, docs or licenses.
@@ -274,11 +295,15 @@ message succeeds. The daemon decides on its own when to send one, so anything
 that makes approvals fail repeatedly will drain the approver key. The bound
 stops that.
 
-Two things reduce how often it is reached. Before approving, the daemon checks
-whether the package is already live with nothing waiting to be enabled, and
-skips it if so, which is the common case when catching up with `--start-height`
-over blocks that were already approved. And it ignores transactions that
-failed on chain, so a submission the chain rejected never leads to an approval.
+Two things reduce how often it is reached. The daemon checks whether the
+package is already live with nothing waiting to be enabled, and skips it if so,
+which is the common case when catching up with `--start-height` over blocks
+that were already approved. It asks before verifying, so a skipped package
+costs one query rather than a verification, and again before approving, in case
+the package went live meanwhile. A skipped package is reported `approved`, even
+when its submitted bytes would not have verified: the live package is what the
+chain runs. And it ignores transactions that failed on chain, so a submission
+the chain rejected never leads to an approval.
 
 When the bound is reached the daemon says so and stops approving. It keeps
 watching blocks. Raise the bound or restart to continue.

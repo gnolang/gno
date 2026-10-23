@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/token"
@@ -77,7 +78,9 @@ func newVerifier(cfg verifyOneConfig, errw io.Writer) (*verifier, error) {
 
 	v := &verifier{
 		prodbs: prodbs, prodgs: prodgs,
-		rpc:      newRPCGetter(c),
+		// The child lives for one verification and is killed by the parent's
+		// clock, so its queries need no deadline of their own.
+		rpc:      newRPCGetter(context.Background(), c),
 		unserved: make(map[string]string),
 		parked:   make(map[string]bool),
 	}
@@ -342,6 +345,40 @@ func (v *verifier) classifyUnserved() error {
 // typecheck's verdict to give, and the rest of the closure still has to be
 // fetched, or the typecheck goes to the network on the clock.
 func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
+	return walkImports(mpkg, func(path, importedBy string) (*std.MemPackage, error) {
+		// A stdlib: nothing to fetch, since the store resolves it from disk.
+		// Built anyway, so that a disk tree which will not build reaches
+		// prepare's error rather than the typecheck's verdict -- see buildOne.
+		// A path merely absent returns nil without panicking, so a typo stays
+		// the typecheck's to judge.
+		if !gno.IsUserlib(path) {
+			return nil, v.buildOne(path, importedBy)
+		}
+
+		// IsUserlib is what hybridGetter routes the typecheck on and what the
+		// preprocess getter asks too, so what is fetched here is exactly what
+		// they will ask for -- a path either stage would fetch but this walk
+		// skipped would reach the network inside the budget.
+		//
+		// Fetch first: the source is what the walk descends through, and a
+		// transport fault lands on the getter for prepare to read.
+		dep := v.rpc.GetMemPackage(path)
+		if dep == nil {
+			v.unserved[path] = importedBy
+			return nil, nil
+		}
+		if err := v.buildOne(path, importedBy); err != nil {
+			return nil, err
+		}
+		return dep, nil
+	})
+}
+
+// walkImports calls visit once for each path in mpkg's production import
+// closure, breadth-first, with the package that first imported it. visit
+// returns the package to descend into, nil to go no further down that path,
+// or an error, which ends the walk and is returned.
+func walkImports(mpkg *std.MemPackage, visit func(path, importedBy string) (*std.MemPackage, error)) error {
 	seen := map[string]bool{mpkg.Path: true}
 	queue := []*std.MemPackage{mpkg}
 
@@ -351,46 +388,22 @@ func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
 
 		imports, err := packages.Imports(cur, token.NewFileSet())
 		if err != nil {
-			// Unparseable source is the typecheck's verdict to give, not ours.
-			// Skipped rather than ending the walk, for the same reason a path
-			// nothing serves is.
+			// Unparseable source is the typecheck's verdict to give, not the
+			// walk's, so the walk goes on.
 			continue
 		}
 		for _, imp := range imports.Merge(packages.FileKindPackageSource) {
-			path := imp.PkgPath
-			if seen[path] {
+			if seen[imp.PkgPath] {
 				continue
 			}
-			seen[path] = true
-
-			// A stdlib: nothing to fetch, since the store resolves it from
-			// disk. Built anyway, so that a disk tree which will not build
-			// reaches prepare's error rather than the typecheck's verdict --
-			// see buildOne. A path merely absent returns nil without panicking,
-			// so a typo stays the typecheck's to judge.
-			if !gno.IsUserlib(path) {
-				if err := v.buildOne(path, cur.Path); err != nil {
-					return err
-				}
-				continue
-			}
-
-			// IsUserlib is what hybridGetter routes the typecheck on and what
-			// the preprocess getter asks too, so what is fetched here is
-			// exactly what they will ask for -- a path either stage would fetch
-			// but this walk skipped would reach the network inside the budget.
-			//
-			// Fetch first: the source is what the walk descends through, and a
-			// transport fault lands on the getter for prepare to read.
-			dep := v.rpc.GetMemPackage(path)
-			if dep == nil {
-				v.unserved[path] = cur.Path
-				continue
-			}
-			if err := v.buildOne(path, cur.Path); err != nil {
+			seen[imp.PkgPath] = true
+			dep, err := visit(imp.PkgPath, cur.Path)
+			if err != nil {
 				return err
 			}
-			queue = append(queue, dep)
+			if dep != nil {
+				queue = append(queue, dep)
+			}
 		}
 	}
 	return nil
