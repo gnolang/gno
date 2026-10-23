@@ -106,10 +106,12 @@ type Signature struct {
 }
 ```
 
-`crypto.Address` with `json:",omitempty"`. Amino skips the field in
-both binary and JSON when the address is zero (`[20]byte{}`), so
-master-signed txs pay no wire-size overhead. The AnteHandler checks
-`!SessionAddr.IsZero()`.
+`crypto.Address` with `json:",omitempty" amino:"skip_zero"`. Amino skips
+the field in both binary and JSON when the address is zero (`[20]byte{}`),
+so master-signed txs pay no wire-size overhead. `omitempty` covers JSON
+only; binary needs `skip_zero`, added after binary had been writing the
+zero address's bech32 string (see `prxxxx_amino_skip_zero.md`). The
+AnteHandler checks `!SessionAddr.IsZero()`.
 
 ### AnteHandler flow
 
@@ -253,8 +255,8 @@ isSession)` using a local `pathRestricted` interface to read
   paths + msg types.
 - O(1) session lookup by (master, session) key.
 - Replay protection is free via `AccountNumber`.
-- Session signatures are the same size as master signatures when
-  `SessionAddr` is zero (field is omitted via amino `omitempty`).
+- Master signatures, whose `SessionAddr` is zero, pay nothing for the
+  field (it is omitted via amino `skip_zero` and JSON `omitempty`).
 
 ### Negative
 
