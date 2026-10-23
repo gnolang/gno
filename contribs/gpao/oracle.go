@@ -71,8 +71,9 @@ type oracle struct {
 	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
 
-	// settledTimeout bounds each settled check (settledCheckTimeout). A field,
-	// so a test can wait out a stalled node in less than that.
+	// settledTimeout bounds the settled check before verifying
+	// (settledCheckTimeout). A field, so a test can wait out a stalled node in
+	// less than that.
 	settledTimeout time.Duration
 
 	// imports keeps the chain packages fetched for earlier verifications, and
@@ -504,7 +505,12 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	if _, done := o.seen[key]; done {
 		return
 	}
-	if o.recordIfSettled(ctx, path, key) {
+	// Bounded on its own clock: a node that stops answering here only means
+	// the package is verified, and verifying reports the node as unavailable.
+	settleCtx, cancel := context.WithTimeout(ctx, o.settledTimeout)
+	settled := o.recordIfSettled(settleCtx, path, key)
+	cancel()
+	if settled {
 		return
 	}
 
@@ -752,15 +758,15 @@ func (o *oracle) recordIfSettled(ctx context.Context, path, key string) bool {
 // silently stop the oracle approving. The spend bound is what limits the damage
 // if the node is wrong.
 func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
-	ctx, cancel := context.WithTimeout(ctx, o.settledTimeout)
-	defer cancel()
 	meta, err := queryPkgMeta(ctx, o.client.RPCClient, pkgPath)
 	return err == nil && metaSettled(meta)
 }
 
-// settledCheckTimeout bounds one settled check. A healthy node answers that
-// query in well under a second, so a node that stops answering holds the
-// verifier this long, not for the RPC client's minute.
+// settledCheckTimeout bounds the settled check before verifying. A healthy
+// node answers that query in well under a second, so a node that stops
+// answering holds the verifier this long, not for the RPC client's minute. The
+// check after verifying keeps the client's deadline: giving up there sends an
+// enable, which costs a fee.
 const settledCheckTimeout = 10 * time.Second
 
 // metaSettled reports "live with no submission pending" -- the one state where
