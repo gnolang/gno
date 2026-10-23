@@ -20,6 +20,7 @@ type (
 
 	BankerInterface = execctx.BankerInterface
 	ParamsInterface = execctx.ParamsInterface
+	PayStorageInfo  = execctx.PayStorageInfo
 )
 
 // GetContext returns the execution context.
