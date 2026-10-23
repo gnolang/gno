@@ -694,6 +694,50 @@ To verify against a separate signature file:
 gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
+## Proving you control an address
+
+Some services, such as a website reserving a name for your address, ask you to
+sign a short text, its challenge, to prove that the address is yours. The
+`gnokey sign-data` subcommand signs it without making a transaction: nothing is
+sent to the chain and it costs nothing.
+
+```bash
+gnokey sign-data -chainid gnoland-1 \
+  -origin https://example.com -purpose auth/SignIn \
+  -data "prove this wallet is yours · 9UQVko4o" \
+  -output-document proof.json mykey
+```
+
+`-chainid`, `-origin` and `-purpose` are required: the proof is only good on the
+chain, for the service and for the use it names. The service tells you all
+three, along with the text. The origin is the service's website, its scheme
+and host only, such as `https://example.com`: no path, not even a trailing `/`. Use `-data-path` instead of `-data` to sign the
+contents of a file, as they are, a final newline included. Without
+`-output-document`, the proof is printed.
+
+The proof holds the signed text, your public key and the signature. It is not a
+transaction and can never be broadcast as one.
+
+To check a proof, give `gnokey verify-data` the chain, the service, the use,
+the text and the address you expect (here `mykey`'s):
+
+```bash
+gnokey verify-data -chainid gnoland-1 \
+  -origin https://example.com -purpose auth/SignIn \
+  -data "prove this wallet is yours · 9UQVko4o" \
+  -proof-path proof.json g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+```
+
+It fails unless the proof is signed by that address's key and signs exactly
+that text on that chain, for that service and use. The address needs no key in your keybase, and
+`-proof-path -` reads the proof from stdin.
+
+A proof stays valid forever and anyone holding it can present it again, so
+only give it to the service that asked for it.
+
+The [sign-data specification](../resources/sign-data.md) describes the signed
+document and what a service checks.
+
 ## Using a k-of-n multisig
 
 The multisig being created for this section is a 2-of-3 multisig, with Alice / Bob / Charlie.
