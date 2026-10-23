@@ -19,8 +19,8 @@ The whitelist check in `RegisterUser` (and the sibling
 
 ```go
 // store.gno
-if runtime.ChainHeight() > 0 && !controllers.Has(runtime.PreviousRealm().Address()) {
-    return NewErrNotWhitelisted()
+if runtime.ChainHeight() > 0 && !controllers.Has(cur.Previous().Address()) {
+    return NewErrNotWhitelisted(0, cur.Previous())
 }
 ```
 
