@@ -72,6 +72,10 @@ type oracle struct {
 	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
 
+	// settledTimeout bounds each settled check (settledCheckTimeout). A field,
+	// so a test can wait out a stalled node in less than that.
+	settledTimeout time.Duration
+
 	// imports keeps the chain packages fetched for earlier verifications.
 	// Touched only by the verifier goroutine, through genesisImports.
 	imports importCache
@@ -183,18 +187,19 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	}
 
 	return &oracle{
-		cfg:          cfg,
-		io:           io,
-		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
-		approver:     info.GetAddress(),
-		candidates:   make(chan candidate, candidateQueueSize),
-		seen:         make(map[string]struct{}),
-		overBudget:   make(map[string]int),
-		failedEnable: make(map[string]int),
-		imports:      importCache{},
-		status:       newStatusBoard(),
-		enableFee:    gasFee.Amount,
-		maxSpend:     maxSpend.Amount,
+		cfg:            cfg,
+		io:             io,
+		client:         gnoclient.Client{Signer: signer, RPCClient: rpc},
+		approver:       info.GetAddress(),
+		candidates:     make(chan candidate, candidateQueueSize),
+		seen:           make(map[string]struct{}),
+		overBudget:     make(map[string]int),
+		failedEnable:   make(map[string]int),
+		settledTimeout: settledCheckTimeout,
+		imports:        importCache{},
+		status:         newStatusBoard(),
+		enableFee:      gasFee.Amount,
+		maxSpend:       maxSpend.Amount,
 	}, nil
 }
 
@@ -758,9 +763,16 @@ func (o *oracle) recordIfSettled(ctx context.Context, path, key string) bool {
 // silently stop the oracle approving. The spend bound is what limits the damage
 // if the node is wrong.
 func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
+	ctx, cancel := context.WithTimeout(ctx, o.settledTimeout)
+	defer cancel()
 	meta, err := queryPkgMeta(ctx, o.client.RPCClient, pkgPath)
 	return err == nil && metaSettled(meta)
 }
+
+// settledCheckTimeout bounds one settled check. A healthy node answers that
+// query in well under a second, so a node that stops answering holds the
+// verifier this long, not for the RPC client's minute.
+const settledCheckTimeout = 10 * time.Second
 
 // metaSettled reports "live with no submission pending" -- the one state where
 // an enable has nothing to do.

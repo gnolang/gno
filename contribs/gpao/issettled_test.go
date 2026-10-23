@@ -230,6 +230,24 @@ func TestSettledCheckEndsWithItsContext(t *testing.T) {
 	}
 }
 
+// TestSettledCheckEndsOnItsOwnClock: handleCandidate runs the check under the
+// daemon's context, which has no deadline, so the check bounds itself rather
+// than waiting out the RPC client's minute.
+func TestSettledCheckEndsOnItsOwnClock(t *testing.T) {
+	o := newTestOracleAt(t, stalledNode(t))
+	o.settledTimeout = 200 * time.Millisecond
+
+	answered := make(chan bool, 1)
+	go func() { answered <- o.isSettled(t.Context(), "gno.land/r/test/anything") }()
+
+	select {
+	case settled := <-answered:
+		assert.False(t, settled, "a node that did not answer settles nothing")
+	case <-time.After(5 * time.Second):
+		t.Fatal("isSettled waited past its own timeout")
+	}
+}
+
 // TestPkgMetaSettled covers the three answers vm/qpkgmeta_json can give and
 // the failure shapes, without a node.
 func TestPkgMetaSettled(t *testing.T) {
