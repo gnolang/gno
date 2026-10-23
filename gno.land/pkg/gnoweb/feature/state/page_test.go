@@ -195,6 +195,15 @@ func TestServePageObjectHappyPath(t *testing.T) {
 	if !strings.Contains(body, "test") {
 		t.Errorf("body missing struct field value\n%s", head(body, 800))
 	}
+
+	// A pointer to field 0 of the object (&idx=0) shows only that field.
+	rec = servePageReq(t, h, url.Values{"oid": {validOID}, "idx": {"0"}}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("idx=0: status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "test") {
+		t.Errorf("idx=0: body shows field 1, not only the pointee field 0\n%s", head(rec.Body.String(), 800))
+	}
 }
 
 func TestServePageInvalidOID400(t *testing.T) {

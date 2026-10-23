@@ -31,6 +31,7 @@ var (
 	ErrInvalidOffset = errors.New("invalid offset")
 	ErrInvalidLimit  = errors.New("invalid limit")
 	ErrInvalidSearch = errors.New("invalid search")
+	ErrInvalidIndex  = errors.New("invalid pointer index")
 )
 
 func ValidateOID(s string) error {
@@ -48,6 +49,20 @@ func ValidateTID(s string) error {
 		return ErrInvalidTID
 	}
 	return nil
+}
+
+// ValidatePointerIndex parses the attacker-controlled &idx= param: the
+// Index of a pointer into the object &oid=. Empty input → nil (the whole
+// object). The decoder checks the index against the object.
+func ValidatePointerIndex(s string) (*int, error) {
+	if s == "" {
+		return nil, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return nil, ErrInvalidIndex
+	}
+	return &n, nil
 }
 
 func ValidateFile(s string) error {
