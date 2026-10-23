@@ -903,8 +903,15 @@ func (m *Machine) doOpDefer() {
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
+		// The other branches consume the argument values via popCopyArgs; do
+		// the same here (discarding them) so the value stack stays balanced.
+		// The func value itself is popped below.
+		m.PopValues(numArgs)
 		cfr.PushDefer(Defer{Source: ds})
 	default:
+		// Returns before the pop below, so discard the func value and its
+		// arguments here.
+		m.PopValues(numArgs + 1)
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
