@@ -6,8 +6,8 @@ gpao asked `vm/qpkgmeta_json` whether a candidate's path was already live with n
 
 ## Decision
 
-1. `handleCandidate` asks `isSettled` right after the `seen` check, before spawning the verifier, and records a settled package exactly as the later check did: `approved`, "already active on-chain", its bytes marked seen.
-2. The check after verification stays, since the package may go live while it is being verified.
+1. `handleCandidate` asks `isSettled` right after the `seen` check, before spawning the verifier, and records a settled package exactly as the later check did: `approved`, "already active on-chain", its bytes marked seen. It waits at most 10 seconds for the node: giving up only means the package is verified, and verifying reports a stalled node as unavailable.
+2. The check after verification stays, since the package may go live while it is being verified. It keeps the RPC client's deadline, since giving up there sends an enable, which costs a fee.
 3. A live package with a redeploy parked over it is not settled, so it is still verified and enabled.
 
 ## Alternatives considered

@@ -15,6 +15,7 @@ What may be cached safely is not the same as what should be: under the inert pol
 3. The child's stdin carries the candidate's amino JSON, as before, then an `importSeed` as a second JSON document: the packages found and the paths the node answered it does not serve. Other drivers of `verify-one` write the candidate alone and keep working: the child then fetches every import itself. The child seeds its per-verification getter with them, so a warm genesis closure costs it no `vm/qfile` query. Anything it is not handed it still asks the node for, and it still classifies every miss (`classifyUnserved`), so the verdict logic is unchanged.
 4. The walk runs after the child's clock starts, under `--prepare-budget`, and its queries run under that context, so a stalled node ends in unavailability rather than a hung daemon.
 5. The parent queries through `o.client.RPCClient`, which `newOracle` builds from the same `cfg.remote` the child receives as `-remote`.
+6. The cache belongs to the chain whose block 1 it was filled under. Before each walk the daemon reads block 1's hash (`blockchain` from 1 to 1) and empties the cache when the hash differs, or when the node does not give it. A chain started again under the same ID changes block 1 whatever its tip did; a lagging node does not.
 
 ## Alternatives considered
 
@@ -22,6 +23,7 @@ What may be cached safely is not the same as what should be: under the inert pol
 - **Cache a fixed list of core namespaces.** The list differs per chain and a namespace owner can still publish without bound; genesis is a property the chain records for every package.
 - **An LRU bound over every public package.** It caps memory but lets a submitter evict the genesis libraries every candidate needs.
 - **A disk cache shared by children.** It survives restarts, but the process that compiles untrusted code would write state that later verifications trust, and a dev chain reset under the same chain ID would serve stale packages unless every hit were re-checked against `vm/qpkgmeta_json`.
+- **Drop the cache when the tip falls below a height already read.** A restart whose first tip read is already past that height goes unseen, and the stale genesis then gives wrong verdicts; a node lagging a block behind drops the cache for nothing.
 - **Children report what they fetched back to the parent.** Data would flow from the untrusted process into the trusted one.
 - **JSON-RPC batching without a cache.** It cuts round trips, not queries, and composes with this design for the cold misses.
 - **A new RPC client per verification built from `cfg.remote`.** tm2's HTTP client creates its own `http.Transport` with no idle timeout, so the daemon would accumulate idle connections.
@@ -30,7 +32,8 @@ What may be cached safely is not the same as what should be: under the inert pol
 ## Consequences
 
 - A cold closure costs the same number of queries as before, made by the parent instead of the child. A closure of genesis packages costs none once fetched: for `gno.land/r/sys/names` on a chain that deployed it at genesis, 141 cold and 0 warm, and 0 for another candidate sharing part of the closure.
-- A package added after genesis costs what it does on master, every verification.
+- A package added after genesis costs what it does on master, every verification. So does one a hard fork replays in its genesis: replayed transactions run at their original heights (`metadata.BlockHeight`), which the keeper stamps as the package's `[addpkg]` height.
+- Every verification costs one more query, for block 1.
 - The cache is bounded by the chain's genesis: all of `examples/` is about 2.6 MB of production source.
 - The parent now parses import blocks of candidate and dependency source (`parser.ImportsOnly`).
 - Tests that change an oracle's remote build it with `newTestOracleAt`, and `newTestOracle` defaults to a closed port, so no test can reach a node on the developer's machine.

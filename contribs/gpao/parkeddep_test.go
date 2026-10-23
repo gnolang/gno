@@ -71,16 +71,31 @@ func newInertChain(t *testing.T) *inertChain {
 // park submits mpkg, which the policy stores without enabling.
 func (c *inertChain) park(t *testing.T, mpkg *std.MemPackage) {
 	t.Helper()
-	tx := std.Tx{
-		Msgs: []std.Msg{vm.MsgAddPackage{Creator: c.who, Package: mpkg}},
-		Fee:  std.NewFee(defaultGasWanted, std.MustParseCoin(defaultGasFee)),
+	require.NoError(t, c.broadcast(vm.MsgAddPackage{Creator: c.who, Package: mpkg}), "park")
+}
+
+// enable approves mpkg as the trusted key, outside any oracle. It returns its
+// failure rather than failing the test, so a proxy handler can call it.
+func (c *inertChain) enable(mpkg *std.MemPackage) error {
+	hash, err := vm.PackageContentHash(mpkg)
+	if err != nil {
+		return err
 	}
-	signed, err := c.client.SignTx(tx, 0, 0)
-	require.NoError(t, err)
-	res, err := c.client.BroadcastTxCommit(signed)
-	require.NoError(t, err)
-	require.True(t, res.CheckTx.IsOK(), "park checkTx: %v", res.CheckTx.Error)
-	require.True(t, res.DeliverTx.IsOK(), "park deliverTx: %v", res.DeliverTx.Error)
+	return c.broadcast(vm.MsgEnablePackage{Approver: c.who, PkgPath: mpkg.Path, PkgHash: hash})
+}
+
+// broadcast signs msg as the trusted key and commits it. BroadcastTxCommit
+// fails on a CheckTx or DeliverTx error as well as on a transport one.
+func (c *inertChain) broadcast(msg std.Msg) error {
+	signed, err := c.client.SignTx(std.Tx{
+		Msgs: []std.Msg{msg},
+		Fee:  std.NewFee(defaultGasWanted, std.MustParseCoin(defaultGasFee)),
+	}, 0, 0)
+	if err != nil {
+		return err
+	}
+	_, err = c.client.BroadcastTxCommit(signed)
+	return err
 }
 
 // oracle builds an oracle approving on the chain, with the gas ceiling settled

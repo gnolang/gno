@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"context"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -19,13 +22,27 @@ import (
 // path, and an absent one, which can be enabled.
 type importCache map[string]*std.MemPackage
 
-// genesisImports returns the import cache, emptied first when the block reader
-// saw the chain start again (importsStale). Verifier goroutine only.
+// genesisImports returns the import cache as the last verification left it.
+// Verifier goroutine only.
 func (o *oracle) genesisImports() importCache {
-	if o.importsStale.Swap(false) {
+	return o.imports
+}
+
+// dropImportsFromAnotherChain empties the import cache when block 1 is not the
+// one it was filled under: a chain started again under the same ID has a
+// genesis of its own, whatever its tip did meanwhile. A node that does not give
+// block 1 empties it too, since nothing then says which chain it came from.
+// Verifier goroutine only.
+func (o *oracle) dropImportsFromAnotherChain(ctx context.Context) {
+	var first []byte
+	if res, err := o.client.RPCClient.BlockchainInfo(ctx, 1, 1); err == nil &&
+		len(res.BlockMetas) == 1 && res.BlockMetas[0] != nil {
+		first = res.BlockMetas[0].BlockID.Hash
+	}
+	if first == nil || !bytes.Equal(first, o.importsChain) {
 		o.imports = importCache{}
 	}
-	return o.imports
+	o.importsChain = first
 }
 
 // closure walks mpkg's chain import closure, from the cache where it holds a

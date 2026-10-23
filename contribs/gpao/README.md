@@ -258,7 +258,16 @@ again for every verification, since anyone can get one approved and imported,
 and keeping those would let a submitter grow the daemon's memory without
 bound. A private package can be redeployed under its path, so it is fetched
 again too. Genesis is read from the `[addpkg]` height the keeper stamps into
-every stored package's `gnomod.toml`: 0 for a package deployed at genesis.
+every stored package's `gnomod.toml`: 0 for a package deployed at genesis. A
+hard fork that replays transactions in its genesis runs each at its original
+height, so the packages it replays carry that height and are fetched every
+verification, as on a chain without this cache.
+
+The cache belongs to the chain it was filled from. Before each verification
+gpao reads block 1, and drops the cache when its hash is not the one the cache
+was filled under, or when the node does not give it. A chain started again
+under the same ID is caught whatever its tip did, and a node that lags keeps
+block 1 and the cache with it.
 
 Within one verification the node's answers are cached for that run: a fetched
 package, and an answered "not found" as well, so the stages the budget measures

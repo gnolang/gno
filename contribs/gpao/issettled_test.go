@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"io"
 	"net/http/httptest"
 	"sync/atomic"
@@ -211,22 +211,76 @@ func TestSettledPackageIsNotVerified(t *testing.T) {
 		"a settled package has nothing to enable, so no verifier may run for it")
 }
 
-// TestSettledCheckEndsWithItsContext: the check runs before every verification,
-// so a node that accepts the connection and never answers must hold the
-// verifier no longer than the caller's context, not the RPC client's timeout.
-func TestSettledCheckEndsWithItsContext(t *testing.T) {
-	o := newTestOracleAt(t, stalledNode(t))
+// TestPackageEnabledDuringVerificationIsNotEnabledAgain: the settled check is
+// asked again once verification is done, since the package may have gone live
+// meanwhile, and an enable sent then only pays a fee to be refused. That check
+// waits for the node past the first one's timeout, since giving up on it sends
+// the enable.
+func TestPackageEnabledDuringVerificationIsNotEnabledAgain(t *testing.T) {
+	for name, slow := range map[string]time.Duration{
+		"answered at once":                         0,
+		"answered after the first check's timeout": time.Second,
+	} {
+		t.Run(name, func(t *testing.T) {
+			chain := newInertChain(t)
+			const path = "gno.land/r/test/racing"
+			pkg := chainPackage(path, "package racing\n\nfunc N(cur realm) int { return 1 }\n")
+			chain.park(t, pkg)
 
-	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-	defer cancel()
-	answered := make(chan bool, 1)
-	go func() { answered <- o.isSettled(ctx, "gno.land/r/test/anything") }()
+			var metaQueries, broadcasts atomic.Int64
+			enabled := make(chan error, 1)
+			proxy := httptest.NewServer(rewriting(t, chain.remote, func(body []byte) []byte {
+				if bytes.Contains(body, []byte(`"broadcast_tx`)) {
+					broadcasts.Add(1)
+				}
+				// The first query is the check before verifying; the package
+				// goes live just before the second one is answered.
+				if bytes.Contains(body, []byte(`"path":"vm/qpkgmeta_json"`)) && metaQueries.Add(1) == 2 {
+					enabled <- chain.enable(pkg)
+					time.Sleep(slow)
+				}
+				return body
+			}))
+			t.Cleanup(proxy.Close)
+			chain.remote = proxy.URL
+
+			o := chain.oracle(t)
+			o.settledTimeout = 200 * time.Millisecond
+			o.handleCandidate(t.Context(), candidate{mpkg: pkg})
+
+			require.Equal(t, int64(2), metaQueries.Load(), "premise: the package is checked before and after verifying")
+			require.NoError(t, <-enabled)
+			st := o.status.get(path)
+			assert.Equal(t, statusApproved, st.Status, "recorded reason: %s", st.Reason)
+			assert.Equal(t, "already active on-chain", st.Reason)
+			assert.Zero(t, broadcasts.Load(), "an enable for a package already live only pays a fee")
+		})
+	}
+}
+
+// TestSettledCheckEndsInTime: the check runs before every verification, so a
+// node that accepts the connection and never answers holds a candidate for the
+// check's own timeout and the prepare budget, never the RPC client's minute.
+// handleCandidate passes the daemon's context, which has no deadline.
+func TestSettledCheckEndsInTime(t *testing.T) {
+	o := newTestOracleAt(t, stalledNode(t))
+	o.settledTimeout = 200 * time.Millisecond
+	o.cfg.prepareBudget = 200 * time.Millisecond
+	const path = "gno.land/r/test/anything"
+	pkg := chainPackage(path, "package anything\n\nfunc N(cur realm) int { return 1 }\n")
+
+	handled := make(chan struct{})
+	go func() {
+		o.handleCandidate(t.Context(), candidate{mpkg: pkg})
+		close(handled)
+	}()
 
 	select {
-	case settled := <-answered:
-		assert.False(t, settled, "a node that did not answer settles nothing")
+	case <-handled:
+		st := o.status.get(path)
+		assert.Equal(t, statusPending, st.Status, "a node that did not answer settles nothing; recorded reason: %s", st.Reason)
 	case <-time.After(5 * time.Second):
-		t.Fatal("isSettled outlived its context")
+		t.Fatal("handleCandidate outlived the settled check's timeout and the prepare budget")
 	}
 }
 

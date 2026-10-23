@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
@@ -77,14 +76,16 @@ type oracle struct {
 	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
 
-	// imports keeps the chain packages fetched for earlier verifications.
-	// Touched only by the verifier goroutine, through genesisImports.
-	imports importCache
+	// settledTimeout bounds the settled check before verifying
+	// (settledCheckTimeout). A field, so a test can wait out a stalled node in
+	// less than that.
+	settledTimeout time.Duration
 
-	// importsStale is set by the block reader when the chain's tip falls below
-	// a height it already read: the chain started again, and its genesis need
-	// not be the one imports holds.
-	importsStale atomic.Bool
+	// imports keeps the chain packages fetched for earlier verifications, and
+	// importsChain is block 1's hash on the chain they were fetched from.
+	// Touched only by the verifier goroutine.
+	imports      importCache
+	importsChain []byte
 
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
@@ -188,19 +189,20 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	}
 
 	return &oracle{
-		cfg:          cfg,
-		io:           io,
-		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
-		approver:     info.GetAddress(),
-		candidates:   make(chan candidate, candidateQueueSize),
-		seen:         make(map[string]struct{}),
-		overBudget:   make(map[string]int),
-		failedEnable: make(map[string]int),
-		imports:      importCache{},
-		stranded:     make(map[string]strandedSubmission),
-		status:       newStatusBoard(),
-		enableFee:    gasFee.Amount,
-		maxSpend:     maxSpend.Amount,
+		cfg:            cfg,
+		io:             io,
+		client:         gnoclient.Client{Signer: signer, RPCClient: rpc},
+		approver:       info.GetAddress(),
+		candidates:     make(chan candidate, candidateQueueSize),
+		seen:           make(map[string]struct{}),
+		overBudget:     make(map[string]int),
+		failedEnable:   make(map[string]int),
+		settledTimeout: settledCheckTimeout,
+		imports:        importCache{},
+		stranded:       make(map[string]strandedSubmission),
+		status:         newStatusBoard(),
+		enableFee:      gasFee.Amount,
+		maxSpend:       maxSpend.Amount,
 	}, nil
 }
 
@@ -337,7 +339,6 @@ func (o *oracle) run(ctx context.Context) error {
 	defer reoffer.Stop()
 	go o.runVerifier(ctx, reoffer.C)
 
-	reset := false // the tip is below a height already read
 	for {
 		select {
 		case <-ctx.Done():
@@ -350,12 +351,6 @@ func (o *oracle) run(ctx context.Context) error {
 		if !answered {
 			continue
 		}
-		if latest < height-1 && !reset {
-			o.importsStale.Store(true)
-			o.errf("gpao: the chain's tip %d is below height %d, already read; "+
-				"dropping the genesis import cache", latest, height-1)
-		}
-		reset = latest < height-1
 
 		for ; height <= latest; height++ {
 			// Catching up can span many blocks, and enqueue blocks when the
@@ -536,7 +531,12 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 	defer o.track(path, c.height)
-	if o.recordIfSettled(ctx, path, key) {
+	// Bounded on its own clock: a node that stops answering here only means
+	// the package is verified, and verifying reports the node as unavailable.
+	settleCtx, cancel := context.WithTimeout(ctx, o.settledTimeout)
+	settled := o.recordIfSettled(settleCtx, path, key)
+	cancel()
+	if settled {
 		return
 	}
 
@@ -781,6 +781,13 @@ func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
 	meta, err := queryPkgMeta(ctx, o.client.RPCClient, pkgPath)
 	return err == nil && metaSettled(meta)
 }
+
+// settledCheckTimeout bounds the settled check before verifying. A healthy
+// node answers that query in well under a second, so a node that stops
+// answering holds the verifier this long, not for the RPC client's minute. The
+// check after verifying keeps the client's deadline: giving up there sends an
+// enable, which costs a fee.
+const settledCheckTimeout = 10 * time.Second
 
 // metaSettled reports "live with no submission pending" -- the one state where
 // an enable has nothing to do.
