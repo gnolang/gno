@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	gnostdlibs "github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
@@ -228,9 +229,10 @@ func StoreWithOptions(
 		}
 
 		if opts.WithExamples {
-			// if examples package...
-			examplePath := filepath.Join(rootDir, "examples", pkgPath)
-			if osm.DirExists(examplePath) {
+			// if examples package... resolved by module path, which a
+			// package's directory does not have to repeat.
+			examplePath := gnomod.FindModuleDir(filepath.Join(rootDir, "examples"), pkgPath)
+			if examplePath != "" {
 				return loadFromDir(examplePath)
 			}
 		}
