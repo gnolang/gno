@@ -703,14 +703,15 @@ sent to the chain and it costs nothing.
 
 ```bash
 gnokey sign-data -chainid gnoland-1 \
-  -url https://example.com -purpose auth/SignIn \
+  -origin https://example.com -purpose auth/SignIn \
   -data "prove this wallet is yours · 9UQVko4o" \
   -output-document proof.json mykey
 ```
 
-`-chainid`, `-url` and `-purpose` are required: the proof is only good on the
+`-chainid`, `-origin` and `-purpose` are required: the proof is only good on the
 chain, for the service and for the use it names. The service tells you all
-three, along with the text. Use `-data-path` instead of `-data` to sign the
+three, along with the text. The origin is the service's website, its scheme
+and host only, such as `https://example.com`: no path, not even a trailing `/`. Use `-data-path` instead of `-data` to sign the
 contents of a file, as they are, a final newline included. Without
 `-output-document`, the proof is printed.
 
@@ -722,7 +723,7 @@ the text and the address you expect (here `mykey`'s):
 
 ```bash
 gnokey verify-data -chainid gnoland-1 \
-  -url https://example.com -purpose auth/SignIn \
+  -origin https://example.com -purpose auth/SignIn \
   -data "prove this wallet is yours · 9UQVko4o" \
   -proof-path proof.json g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
@@ -733,6 +734,9 @@ that text on that chain, for that service and use. The address needs no key in y
 
 A proof stays valid forever and anyone holding it can present it again, so
 only give it to the service that asked for it.
+
+The [sign-data specification](../resources/sign-data.md) describes the signed
+document and what a service checks.
 
 ## Using a k-of-n multisig
 
