@@ -1,6 +1,7 @@
 package mathml
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -110,6 +111,12 @@ func TestCommentKeepsTheWindow(t *testing.T) {
 		{"\\left( \\begin{matrix}%c\na & b\\end{matrix}\\right)", "\\left( \\begin{matrix}a & b\\end{matrix}\\right)"},
 		{"\\begin{matrix}%c\na\\end{matrix}", "\\begin{matrix}a\\end{matrix}"},
 		{"\\left(%c\nx\\right)", "\\left(x\\right)"},
+		// A comment between \left, \middle, \right or \big and its delimiter.
+		{"\\left%c\n(x\\right)", "\\left(x\\right)"},
+		{"\\left(x\\middle%c\n|y\\right)", "\\left(x\\middle|y\\right)"},
+		{"\\left(x\\right%c\n)", "\\left(x\\right)"},
+		{"\\big%c\n(x\\big)", "\\big(x\\big)"},
+		{"\\left %c\n  ( x \\right)", "\\left(x\\right)"},
 		// A comment after a style switch in a cell.
 		{"\\begin{matrix}\\bf %c\na & b\\end{matrix}", "\\begin{matrix}\\bf a & b\\end{matrix}"},
 		{"\\begin{matrix}a\\color{red}%c\n & b\\end{matrix}", "\\begin{matrix}a\\color{red} & b\\end{matrix}"},
@@ -126,6 +133,77 @@ func TestDelimiterAfterSpace(t *testing.T) {
 	assert.Equal(t, mathBody(t, `\left(x\right)`), mathBody(t, `\left ( x \right )`))
 	assert.Equal(t, mathBody(t, `\big(x\big)`), mathBody(t, `\big ( x \big )`))
 	assert.Equal(t, mathBody(t, `\left.x\middle|y\right.`), mathBody(t, `\left . x \middle | y \right .`))
+}
+
+// A run of comments costs its length, indented or not.
+func TestCommentRunIsLinear(t *testing.T) {
+	for _, line := range []string{"%\n", "  %\n"} {
+		mathBody(t, "x"+strings.Repeat(line, (1<<18)/len(line))+"y")
+	}
+}
+
+// A run of \color with no argument costs its length.
+func TestBareColorRunIsLinear(t *testing.T) {
+	for _, unit := range []string{`\color`, `\color[RGB]`, `\color[{&}]`} {
+		convertErrWithin(t, strings.Repeat(unit, 1<<16)+"x")
+	}
+	convertErrWithin(t, strings.Repeat(`\color[`, 1<<15)+"x"+strings.Repeat("]", 1<<15))
+	convertErrWithin(t, strings.Repeat(`\color`, 1<<17)+strings.Repeat("%\n", 1<<17))
+}
+
+// A run of switches before a group allocates about what the group does alone:
+// a switch costs no copy of what follows it.
+func TestSwitchRunAllocations(t *testing.T) {
+	alloc := func(tex string) uint64 {
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		_, err := NewMathMLConverter().ConvertInline(tex)
+		require.NoError(t, err)
+		runtime.ReadMemStats(&after)
+		return after.TotalAlloc - before.TotalAlloc
+	}
+	group := "{" + strings.Repeat("a+", 3600) + "a}"
+	alone := alloc(group)
+	assert.Less(t, alloc(strings.Repeat(`\rm`, maxSwitchDepth)+group), 2*alone)
+}
+
+// A switch in a matrix that follows another switch still ends at its cell.
+func TestSwitchInSwitchEndsAtItsCell(t *testing.T) {
+	out := mathBody(t, `\rm\begin{matrix}\bf a & b\end{matrix}`)
+	assert.Equal(t, 2, strings.Count(out, "<mtd>"), out)
+}
+
+// A command that draws nothing in a script slot fills it as {} does, so the
+// next atom stays out of the script.
+func TestEmptyCommandFillsScript(t *testing.T) {
+	for _, slot := range []string{`\class{a}{}`, `\mathrm{}`, `\kern`, `\bigl\mathrm{}`, `\middle\class{a}{}`} {
+		for _, op := range []string{"^", "_"} {
+			assert.Equal(t, mathBody(t, "x"+op+"{} y"), mathBody(t, "x"+op+slot+" y"), slot)
+		}
+	}
+}
+
+// A switch reached through an infix inside \left...\right still ends at the
+// line break after the pair.
+func TestSwitchEndsAtItsCell(t *testing.T) {
+	out := mathBody(t, `\color[RGB]\left\over\bf)\right\cr`)
+	assert.Less(t, strings.Index(out, "</mstyle>"), strings.Index(out, `\cr`))
+}
+
+// Input the parser cannot read converts without a crash, which would replace
+// the whole formula with an error.
+func TestMalformedInputDoesNotCrash(t *testing.T) {
+	for _, tex := range []string{
+		`\bf\sqrt[a&b]x`,
+		`x\bigl\mathrm`,
+		`x\bigr\mathrm`,
+		`\middle\mathrm`,
+		`\class{a}{}`,
+		"\\cr%c\n\\color\\{cr\\left\\sqrt|\t(\\Bigl}}\\middle",
+	} {
+		_, err := convertErrWithin(t, tex)
+		assert.NoError(t, err, tex)
+	}
 }
 
 // \left. and \right. draw nothing.
