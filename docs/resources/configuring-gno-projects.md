@@ -62,6 +62,33 @@ Marks the package as private and **unimportable** by any other package. Addition
 - *This flag _does not_ provide any sort of privacy. All code is still fully
   open-source and visible to everyone, including the transactions that were used for deployments.
 
+#### `version`
+
+An integer, for private or upgradeable realms; see
+[Upgrading a realm](./realm-upgrades.md) for the walkthrough. A redeploy that steps it by
+exactly one (`version = 2` over a live `version = 1`) keeps the realm's globals
+instead of starting them over: every global is carried by name, declared types
+keep their identity, and `migrate(from int)` runs in place of `init()`, handed the
+version it replaces. It runs on every versioned redeploy that declares it, so
+guard it on `from`, or remove it in the next version.
+A global that changes type, or a version that does not step by one, is refused;
+a private realm may drop a global it no longer needs.
+
+#### `[upgrade] authority`
+
+An address that may redeploy a **public** realm, with `version` stepping as
+above. Without it a public realm is permanent, and it cannot be added later;
+removing it in a redeploy freezes the realm for good. Importers compile against
+the realm's declaration order, so an upgradeable realm may only append
+declarations and methods. A redeploy also rebuilds every importer's compiled
+code against the new version, and the authority pays preprocessing gas for each
+importer. An immutable realm cannot import an upgradeable one.
+
+```toml
+[upgrade]
+authority = "g1..."
+```
+
 #### `ignore`
 
 Marks the module to be **ignored by the Gno toolchain** while still being usable

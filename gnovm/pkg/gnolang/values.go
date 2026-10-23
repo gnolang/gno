@@ -653,6 +653,12 @@ type FuncValue struct {
 	NativePkg  string       // for native bindings through NativeResolver
 	NativeName Name         // not redundant with Name; this cannot be changed in userspace
 	Crossing   bool         // true if .body's first statement is crossing().
+	// Version of PkgPath whose source this value points into. A persisted
+	// value outlives a versioned redeploy, and its Source location is
+	// meaningful only in the version that compiled it; see
+	// Store.GetBlockNodeOfVersion. int32 fits the padding after Crossing,
+	// so the allocator's size of a FuncValue is unchanged.
+	Version int32 `json:",omitempty"`
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
@@ -690,6 +696,7 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		NativePkg:  fv.NativePkg,
 		NativeName: fv.NativeName,
 		Crossing:   fv.Crossing,
+		Version:    fv.Version,
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
@@ -737,11 +744,23 @@ func (fv *FuncValue) UpdateBodyFromSource() {
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
 	if rn, ok := fv.Source.(RefNode); ok {
-		source := store.GetBlockNode(rn.GetLocation())
+		source := store.GetBlockNodeOfVersion(fv.PkgPath, int(fv.Version), rn.GetLocation())
 		fv.Source = source
 		return source
 	}
 	return fv.Source
+}
+
+// packageVersionOf is the Version of the package node bn sits under, 0 when
+// bn is not under one.
+func packageVersionOf(bn BlockNode) int32 {
+	for bn != nil {
+		if pn, ok := bn.(*PackageNode); ok {
+			return int32(pn.Version)
+		}
+		bn = bn.GetParentNode(nil)
+	}
+	return 0
 }
 
 func (fv *FuncValue) GetPackage(store Store) *PackageValue {
