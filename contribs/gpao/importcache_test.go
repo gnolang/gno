@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"path/filepath"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,9 +19,9 @@ import (
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -143,9 +144,10 @@ func TestChildTakesTheParentsAbsences(t *testing.T) {
 }
 
 // The parent hands the child every genesis import it holds, so a second
-// verification of a package importing one reaches the node not at all, in the
-// parent or in the child. The same package added in a later block is fetched
-// again, with the keeper's own height stamp deciding.
+// verification of a package importing one queries the node for nothing, in the
+// parent or in the child; it reads block 1 alone, to tell the chain is the same.
+// The same package added in a later block is fetched again, with the keeper's
+// own height stamp deciding.
 func TestOnlyGenesisImportsOutliveAVerification(t *testing.T) {
 	const dep = "gno.land/p/nt/ufmt/v0"
 	cases := map[string]struct {
@@ -157,33 +159,67 @@ func TestOnlyGenesisImportsOutliveAVerification(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			var requests atomic.Int64
-			counted := httptest.NewServer(counting(t, tc.node(t, dep), &requests))
+			var queries atomic.Int64
+			counted := httptest.NewServer(countingBody(t, tc.node(t, dep), `"method":"abci_query"`, &queries))
 			t.Cleanup(counted.Close)
 
 			o := newTestOracleAt(t, counted.URL)
 			o.cfg.verifyBudget = time.Minute
 
 			require.NoError(t, o.verify(context.Background(), packageImporting(dep)))
-			afterFirst := requests.Load()
+			afterFirst := queries.Load()
 			require.Positive(t, afterFirst, "premise: the first verification must fetch the import")
 
 			require.NoError(t, o.verify(context.Background(), packageImporting(dep)))
-			assert.Equal(t, tc.fetched, requests.Load() > afterFirst)
+			assert.Equal(t, tc.fetched, queries.Load() > afterFirst)
 		})
 	}
+}
+
+// TestRestartedChainIsVerifiedAgainstItsOwnGenesis: a chain started again under
+// the same ID has a genesis of its own, so what the cache holds from the last
+// one must not decide a verification on it, whatever the tip did meanwhile.
+func TestRestartedChainIsVerifiedAgainstItsOwnGenesis(t *testing.T) {
+	const lib = "gno.land/p/test/lib"
+	first := nodeWithGenesis(t, chainPackage(lib, "package lib\n\nfunc One() int { return 1 }\n"))
+	second := nodeWithGenesis(t, chainPackage(lib,
+		"package lib\n\nfunc One() int { return 1 }\n\nfunc Two() int { return 2 }\n"))
+	var node atomic.Pointer[httputil.ReverseProxy]
+	node.Store(nodeProxy(t, first))
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		node.Load().ServeHTTP(w, r)
+	}))
+	t.Cleanup(proxy.Close)
+	calling := func(fn string) *std.MemPackage {
+		return chainPackage("gno.land/r/test/user",
+			"package user\n\nimport \""+lib+"\"\n\nfunc N(cur realm) int { return lib."+fn+"() }\n")
+	}
+
+	o := newTestOracleAt(t, proxy.URL)
+	o.cfg.verifyBudget = time.Minute
+	require.NoError(t, o.verify(t.Context(), calling("One")))
+	require.Contains(t, o.genesisImports(), lib, "premise: the first chain's lib is cached")
+
+	node.Store(nodeProxy(t, second))
+	assert.NoError(t, o.verify(t.Context(), calling("Two")))
 }
 
 // nodeWithGenesisPackage starts a node whose genesis deploys pkgPath from
 // examples/, as a chain deploys its own packages, and returns its RPC address.
 func nodeWithGenesisPackage(t *testing.T, pkgPath string) string {
 	t.Helper()
-	gnoroot := gnoenv.RootDir()
-	cfg := integration.TestingMinimalNodeConfig(gnoroot)
+	mpkg, err := gno.ReadMemPackage(filepath.Join(gnoenv.RootDir(), "examples", pkgPath), pkgPath, gno.MPUserAll)
+	require.NoError(t, err)
+	return nodeWithGenesis(t, mpkg)
+}
+
+// nodeWithGenesis starts a node whose genesis deploys mpkg and returns its RPC
+// address.
+func nodeWithGenesis(t *testing.T, mpkg *std.MemPackage) string {
+	t.Helper()
+	cfg := integration.TestingMinimalNodeConfig(gnoenv.RootDir())
 	cfg.SkipGenesisSigVerification = true
 
-	mpkg, err := gno.ReadMemPackage(filepath.Join(gnoroot, "examples", pkgPath), pkgPath, gno.MPUserAll)
-	require.NoError(t, err)
 	tx, err := gnoland.LoadPackage(mpkg, crypto.MustAddressFromString(integration.DefaultAccount_Address),
 		std.NewFee(50_000_000, std.MustParseCoin("1000000ugnot")), nil)
 	require.NoError(t, err)
@@ -204,59 +240,40 @@ func pkgPaths(pkgs []*std.MemPackage) []string {
 	return paths
 }
 
-// resetRPC is a node whose tip moves through tips, one per status query, and
-// ends the run when they run out. Blocks are empty. The embedded interface is
-// nil on purpose, as in stubRPC.
-type resetRPC struct {
+// firstBlockRPC is a node whose block 1 has hash, or that will not give it
+// when hash is nil. The embedded interface is nil on purpose, as in stubRPC.
+type firstBlockRPC struct {
 	rpcclient.Client
-	mu     sync.Mutex
-	tips   []int64
-	cancel context.CancelFunc
+	hash []byte
 }
 
-func (s *resetRPC) Status(context.Context, *int64) (*ctypes.ResultStatus, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.tips) == 0 {
-		s.cancel()
-		return nil, errors.New("no more tips")
+func (s firstBlockRPC) BlockchainInfo(context.Context, int64, int64) (*ctypes.ResultBlockchainInfo, error) {
+	if s.hash == nil {
+		return nil, errors.New("blockchain refused")
 	}
-	res := &ctypes.ResultStatus{}
-	res.SyncInfo.LatestBlockHeight = s.tips[0]
-	s.tips = s.tips[1:]
-	return res, nil
-}
-
-func (s *resetRPC) ConsensusParams(context.Context, *int64) (*ctypes.ResultConsensusParams, error) {
-	return &ctypes.ResultConsensusParams{
-		ConsensusParams: abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 500_000}},
+	return &ctypes.ResultBlockchainInfo{
+		BlockMetas: []*bfttypes.BlockMeta{{BlockID: bfttypes.BlockID{Hash: s.hash}}},
 	}, nil
 }
 
-func (s *resetRPC) Block(context.Context, *int64) (*ctypes.ResultBlock, error) {
-	return blockWith(), nil
-}
-
-// TestGenesisImportsFollowTheChain: a tip below a height already read is a
-// chain started again, whose genesis need not be the one cached; a tip that
-// only moves forward keeps the cache.
-func TestGenesisImportsFollowTheChain(t *testing.T) {
+// TestImportsFollowBlockOne: the cache belongs to the chain whose block 1 it
+// was filled under. It is kept while block 1 stays the same, and dropped when
+// block 1 changes or the node will not say what it is.
+func TestImportsFollowBlockOne(t *testing.T) {
 	for name, tc := range map[string]struct {
-		tips []int64
-		kept int
+		first []byte
+		kept  int
 	}{
-		"reset below a read height": {tips: []int64{6, 6, 2}, kept: 0},
-		"growing chain":             {tips: []int64{6, 7, 8}, kept: 1},
+		"same chain":          {first: []byte("a"), kept: 1},
+		"chain started again": {first: []byte("b"), kept: 0},
+		"block 1 refused":     {first: nil, kept: 0},
 	} {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			o := newStubOracle(&resetRPC{tips: tc.tips, cancel: cancel})
-			o.cfg.pollInterval = time.Millisecond
-			o.cfg.startHeight = 1
+			o := newStubOracle(firstBlockRPC{hash: tc.first})
 			o.imports = importCache{"gno.land/p/test/lib": chainPackage("gno.land/p/test/lib", "package lib\n")}
+			o.importsChain = []byte("a")
 
-			require.NoError(t, o.run(ctx))
+			o.dropImportsFromAnotherChain(t.Context())
 			assert.Len(t, o.genesisImports(), tc.kept)
 		})
 	}

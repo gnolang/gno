@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
@@ -76,14 +75,11 @@ type oracle struct {
 	// so a test can wait out a stalled node in less than that.
 	settledTimeout time.Duration
 
-	// imports keeps the chain packages fetched for earlier verifications.
-	// Touched only by the verifier goroutine, through genesisImports.
-	imports importCache
-
-	// importsStale is set by the block reader when the chain's tip falls below
-	// a height it already read: the chain started again, and its genesis need
-	// not be the one imports holds.
-	importsStale atomic.Bool
+	// imports keeps the chain packages fetched for earlier verifications, and
+	// importsChain is block 1's hash on the chain they were fetched from.
+	// Touched only by the verifier goroutine.
+	imports      importCache
+	importsChain []byte
 
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
@@ -334,7 +330,6 @@ func (o *oracle) run(ctx context.Context) error {
 	// each slower and the budget harder to interpret.
 	go o.runVerifier(ctx)
 
-	reset := false // the tip is below a height already read
 	for {
 		select {
 		case <-ctx.Done():
@@ -347,12 +342,6 @@ func (o *oracle) run(ctx context.Context) error {
 		if !answered {
 			continue
 		}
-		if latest < height-1 && !reset {
-			o.importsStale.Store(true)
-			o.errf("gpao: the chain's tip %d is below height %d, already read; "+
-				"dropping the genesis import cache", latest, height-1)
-		}
-		reset = latest < height-1
 
 		for ; height <= latest; height++ {
 			// Catching up can span many blocks, and enqueue blocks when the
