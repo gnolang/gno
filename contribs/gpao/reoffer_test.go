@@ -160,9 +160,8 @@ func TestLaterStrandedPathIsReachedUnderTraffic(t *testing.T) {
 
 	// A new candidate arrives while a pass reads a submission's block.
 	var o *oracle
-	var traffic atomic.Bool
 	proxy := httptest.NewServer(rewriting(t, chain.remote, func(body []byte) []byte {
-		if traffic.Load() && bytes.Contains(body, []byte(`"method":"block"`)) {
+		if bytes.Contains(body, []byte(`"method":"block"`)) {
 			select {
 			case o.candidates <- candidate{mpkg: early, height: earlyAt}:
 			default:
@@ -177,7 +176,6 @@ func TestLaterStrandedPathIsReachedUnderTraffic(t *testing.T) {
 	o.cfg.prepareBudget = time.Nanosecond // every verification comes back pending
 	o.handleCandidate(t.Context(), candidate{mpkg: early, height: earlyAt})
 	o.handleCandidate(t.Context(), candidate{mpkg: late, height: lateAt})
-	traffic.Store(true)
 
 	for range 2 {
 		o.reofferStranded(t.Context())
@@ -215,20 +213,12 @@ func TestCutPassResumesOnceTheQueueDrains(t *testing.T) {
 	o.handleCandidate(t.Context(), candidate{mpkg: early, height: earlyAt})
 	o.handleCandidate(t.Context(), candidate{mpkg: late, height: lateAt})
 
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	tick := make(chan time.Time)
-	stopped := make(chan struct{})
-	go func() {
-		o.runVerifier(ctx, tick)
-		close(stopped)
-	}()
+	tick, stop := startVerifier(t, o)
 	tick <- time.Now() // the only tick
 
 	require.Eventually(t, func() bool { return blockReads.Load() >= 2 }, 10*time.Second, 50*time.Millisecond,
 		"the cut pass must read the later submission's block without waiting for another tick")
-	cancel()
-	<-stopped
+	stop()
 	assert.Positive(t, o.stranded[late.Path].offers)
 	assert.Equal(t, 1, o.stranded[early.Path].offers, "the resumed pass goes on from where it stopped, not round again")
 }
@@ -274,21 +264,32 @@ func TestVerifierReoffersOnItsTick(t *testing.T) {
 	o.handleCandidate(t.Context(), candidate{mpkg: dep, height: chain.submittedAt(t, dep.Path)})
 	require.Equal(t, statusApproved, o.status.get(dep.Path).Status, "premise: the import is live")
 
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	tick := make(chan time.Time)
-	stopped := make(chan struct{})
-	go func() {
-		o.runVerifier(ctx, tick)
-		close(stopped)
-	}()
+	tick, stop := startVerifier(t, o)
 	tick <- time.Now()
 
 	require.Eventually(t, func() bool { return o.status.get(app.Path).Status == statusApproved },
 		30*time.Second, 50*time.Millisecond)
-	cancel()
-	<-stopped
+	stop()
 	assert.NotContains(t, o.stranded, app.Path, "a verdict ends the tracking")
+}
+
+// startVerifier runs o's verifier on a tick the test sends. stop returns once
+// the verifier has, so o can be read after it; the test's end calls it too.
+func startVerifier(t *testing.T, o *oracle) (tick chan<- time.Time, stop func()) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	ticks := make(chan time.Time)
+	stopped := make(chan struct{})
+	go func() {
+		o.runVerifier(ctx, ticks)
+		close(stopped)
+	}()
+	stop = func() {
+		cancel()
+		<-stopped
+	}
+	t.Cleanup(stop)
+	return ticks, stop
 }
 
 // depAndImporter returns a package and a realm whose only chain import is it.
