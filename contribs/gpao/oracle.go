@@ -72,6 +72,10 @@ type oracle struct {
 	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
 
+	// imports keeps the chain packages fetched for earlier verifications.
+	// Touched only by the verifier goroutine.
+	imports importCache
+
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
 	status *statusBoard
@@ -182,6 +186,7 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 		seen:         make(map[string]struct{}),
 		overBudget:   make(map[string]int),
 		failedEnable: make(map[string]int),
+		imports:      importCache{},
 		status:       newStatusBoard(),
 		enableFee:    gasFee.Amount,
 		maxSpend:     maxSpend.Amount,

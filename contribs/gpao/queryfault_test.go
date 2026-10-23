@@ -49,7 +49,7 @@ func TestNodeAnswersAboutItselfAreNotAMiss(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			g := newRPCGetter(answeringClient{resp: abci.ResponseQuery{
+			g := newRPCGetter(t.Context(), answeringClient{resp: abci.ResponseQuery{
 				ResponseBase: abci.ResponseBase{Error: tc.answer},
 			}})
 
@@ -114,7 +114,7 @@ func TestPackageStatusIsAnAnswerOrAFault(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			g := newRPCGetter(answeringClient{resp: tc.resp})
+			g := newRPCGetter(t.Context(), answeringClient{resp: tc.resp})
 
 			status, err := g.status("gno.land/p/x/y")
 			if tc.wantStatus != "" {
@@ -142,7 +142,7 @@ func TestGenuineMissFromARealNode(t *testing.T) {
 
 	rpc, err := rpcclient.NewHTTPClient(remote)
 	require.NoError(t, err)
-	g := newRPCGetter(rpc)
+	g := newRPCGetter(t.Context(), rpc)
 
 	const path = "gno.land/p/nobody/nothing"
 	body, err := g.query(path)
@@ -156,7 +156,8 @@ func TestGenuineMissFromARealNode(t *testing.T) {
 
 // TestStalledRemoteIsNotABudgetOverrun: a node that accepts the connection and
 // never answers must be reported as unavailable, not as a package that ran out
-// of verification time.
+// of verification time -- whether the parent's import walk or the child is the
+// one waiting on it.
 func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
 	stall := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
@@ -168,16 +169,31 @@ func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
 	t.Cleanup(srv.Close)
 	t.Cleanup(func() { close(stall) })
 
-	o := newTestOracle(t)
-	o.cfg.remote = srv.URL
-	// The stall is ended by the prepare budget alone: the child has no
-	// per-request timeout of its own.
-	o.cfg.prepareBudget = 3 * time.Second
-	o.cfg.verifyBudget = 10 * time.Second
+	cases := map[string]func(t *testing.T) *oracle{
+		"in the parent": func(t *testing.T) *oracle {
+			return newTestOracleAt(t, srv.URL)
+		},
+		"in the child": func(t *testing.T) *oracle {
+			// The parent's walk is refused at once and hands over nothing, so
+			// the child is the one left waiting.
+			o := newTestOracle(t)
+			o.cfg.remote = srv.URL
+			return o
+		},
+	}
+	for name, newOracle := range cases {
+		t.Run(name, func(t *testing.T) {
+			o := newOracle(t)
+			// The stall is ended by the prepare budget alone: neither side has
+			// a per-request timeout shorter than it.
+			o.cfg.prepareBudget = 3 * time.Second
+			o.cfg.verifyBudget = 10 * time.Second
 
-	err := o.verify(context.Background(), packageImportingChainOnly())
-	require.ErrorIs(t, err, errVerifyUnavailable,
-		"the network under the resolver stalled; that says nothing about the package")
-	assert.NotErrorIs(t, err, errVerifyBudget,
-		"a stall must not count against the package's budget allowance, which gives up after %d", maxOverBudgetAttempts)
+			err := o.verify(context.Background(), packageImportingChainOnly())
+			require.ErrorIs(t, err, errVerifyUnavailable,
+				"the network under the resolver stalled; that says nothing about the package")
+			assert.NotErrorIs(t, err, errVerifyBudget,
+				"a stall must not count against the package's budget allowance, which gives up after %d", maxOverBudgetAttempts)
+		})
+	}
 }

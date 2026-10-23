@@ -228,12 +228,24 @@ remove.
 
 ## Import cache
 
-Each verification runs in its own child process, and the node's answers are
-cached for that run: a fetched package, because on-chain package paths are
-write-once (re-adding an existing path fails), and an answered "not found" as
-well, so the stages the budget measures never ask the node again. A transport
-fault is not cached. A missed import the chain reports live is fetched once
-more before the typecheck, since it may have been enabled after the miss.
+A package the chain deployed at genesis is fetched once per run, not once per
+verification. Before it spawns the child, gpao walks the candidate's import
+closure, takes what it already holds and fetches the rest, and hands the child
+the packages it found and the paths the node said it does not serve. It keeps
+every public genesis package it fetches for as long as it runs: a public
+package path is write-once (re-adding an existing path fails), and the genesis
+set is a size no submitter controls. A package added after genesis is fetched
+again for every verification, since anyone can get one approved and imported,
+and keeping those would let a submitter grow the daemon's memory without
+bound. A private package can be redeployed under its path, so it is fetched
+again too. Genesis is read from the `[addpkg]` height the keeper stamps into
+every stored package's `gnomod.toml`: 0 for a package deployed at genesis.
+
+Within one verification the node's answers are cached for that run: a fetched
+package, and an answered "not found" as well, so the stages the budget measures
+never ask the node again. A transport fault is not cached. A missed import the
+chain reports live is fetched once more before the typecheck, since it may have
+been enabled after the miss.
 
 Only a dependency's production `.gno` files and `gnomod.toml` are fetched:
 neither stage reads its tests, docs or licenses.

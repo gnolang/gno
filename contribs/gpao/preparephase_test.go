@@ -42,8 +42,7 @@ func TestFetchingSourcesDoesNotSpendTheBudget(t *testing.T) {
 	slow := httptest.NewServer(delaying(t, remote, perRequest))
 	t.Cleanup(slow.Close)
 
-	o := newTestOracle(t)
-	o.cfg.remote = slow.URL
+	o := newTestOracleAt(t, slow.URL)
 	o.cfg.verifyBudget = 2 * time.Second
 
 	start := time.Now()

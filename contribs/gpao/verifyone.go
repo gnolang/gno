@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -78,8 +79,9 @@ func newVerifyOneCmd(io commands.IO) *commands.Command {
 			// not have those: it handles untrusted input and cannot approve
 			// anything, so the approver key has no business in its process.
 			NoParentFlags: true,
-			LongHelp: "Reads an amino-JSON MemPackage from stdin, type-checks and preprocesses " +
-				"it, and exits zero if it passes or non-zero with the reason on stderr. gpao " +
+			LongHelp: "Reads an amino-JSON MemPackage from stdin, optionally followed by the chain " +
+				"imports already fetched for it, type-checks and preprocesses the package, and " +
+				"exits zero if it passes or non-zero with the reason on stderr. gpao " +
 				"invokes this on itself so that the verification budget can be enforced by " +
 				"killing the process; it is not meant to be run by hand.",
 		},
@@ -90,14 +92,36 @@ func newVerifyOneCmd(io commands.IO) *commands.Command {
 	)
 }
 
+// importSeed is what the parent learned of a candidate's chain import closure
+// (see importCache), which the child takes as answers the node already gave.
+//
+// Stdin carries the candidate's amino JSON, then optionally this as a second
+// document. The candidate alone stays a complete request: other drivers of
+// verify-one write only that, and the child then fetches every import itself.
+type importSeed struct {
+	Imports []*std.MemPackage
+	Absent  []string
+}
+
 func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) error {
-	raw, err := io.ReadAll(cio.In())
-	if err != nil {
-		return fmt.Errorf("read stdin: %w", err)
+	dec := json.NewDecoder(cio.In())
+	var raw json.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return fmt.Errorf("read candidate: %w", err)
 	}
 	var mpkg std.MemPackage
 	if err := amino.UnmarshalJSON(raw, &mpkg); err != nil {
 		return fmt.Errorf("decode mempackage: %w", err)
+	}
+	var seed importSeed
+	switch err := dec.Decode(&raw); {
+	case errors.Is(err, io.EOF):
+	case err != nil:
+		return fmt.Errorf("read import seed: %w", err)
+	default:
+		if err := amino.UnmarshalJSON(raw, &seed); err != nil {
+			return fmt.Errorf("decode import seed: %w", err)
+		}
 	}
 	// Restate Type, which arrives nil — and load-bearing, not defensive.
 	//
@@ -122,6 +146,7 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 		// way nothing judged the package.
 		exitNoVerdict(cio.Err(), err)
 	}
+	v.rpc.seed(seed.Imports, seed.Absent)
 	if err := v.prepare(&mpkg); err != nil {
 		// Setting up for the compile failed: the network under the resolver, a
 		// dependency the chain is already running that this tree cannot build,
@@ -193,12 +218,12 @@ const childReadyMarker = "gpao: ready"
 // approval here.
 //
 // The child runs in two phases and the parent times them apart. Until the
-// child reports ready it is fetching what the compile needs, from disk and
-// from the node; that is bounded by the prepare budget and its expiry is
-// unavailability. From ready onward it is compiling, which is what the
-// validator will pay for; that is bounded by the verify budget and its expiry
-// is an overrun. Timing the two together made a slow node read as a slow
-// package.
+// child reports ready, the parent and then the child are fetching what the
+// compile needs, from the node and from disk; that is bounded by the prepare
+// budget and its expiry is unavailability. From ready onward it is compiling,
+// which is what the validator will pay for; that is bounded by the verify
+// budget and its expiry is an overrun. Timing the two together made a slow
+// node read as a slow package.
 //
 // Exit status is the verdict: a clean exit passes, and a non-zero exit from a
 // child that ran to completion is a rejection carrying the child's stderr as
@@ -215,10 +240,6 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	if err != nil {
 		return fmt.Errorf("cannot locate own binary to spawn a verifier: %w", err)
 	}
-	payload, err := amino.MarshalJSON(mpkg)
-	if err != nil {
-		return fmt.Errorf("encode mempackage: %w", err)
-	}
 
 	// Both deadlines cancel the CHILD's context, so expiry kills the process
 	// rather than merely returning from the wait and leaving it running.
@@ -226,6 +247,20 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	defer cancel()
 	clock := newChildClock(cancel, o.cfg.prepareBudget, o.cfg.verifyBudget)
 	defer clock.stop()
+
+	// The imports are fetched under the prepare budget, as the child's are:
+	// both are the oracle's cost. The parent's client asks the node the child
+	// is pointed at, since both are built from cfg.remote.
+	imports, absent := o.imports.closure(newRPCGetter(runCtx, o.client.RPCClient), mpkg)
+	candidate, err := amino.MarshalJSON(mpkg)
+	if err != nil {
+		return fmt.Errorf("encode candidate: %w", err)
+	}
+	seed, err := amino.MarshalJSON(importSeed{Imports: imports, Absent: absent})
+	if err != nil {
+		return fmt.Errorf("encode import seed: %w", err)
+	}
+	payload := append(candidate, seed...)
 
 	args := []string{
 		verifyOneCmdName,

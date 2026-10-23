@@ -88,13 +88,13 @@ func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 }
 
 // TestRPCGetterCaching verifies the getter caches what the node ANSWERED --
-// a fetched package, because on-chain paths are immutable, and an absence --
-// and does not cache a fault.
+// a fetched package and an absence -- and does not cache a fault.
 //
 // An absence used to be re-queried, on the rationale that a package absent now
 // may be enabled later in the run. That rationale belonged to a getter hanging
-// off the long-lived daemon. This one is built per verification in a child that
-// exits with it (newVerifier), so nothing can enable a package under it, and
+// off the long-lived daemon. This one serves a single verification (newVerifier
+// in the child, oracle.verify in the parent), so nothing can enable a package
+// under it, and
 // re-asking only moves the same answer out of prepare -- which is off the
 // budget -- into the typecheck and the preprocess, which are on it. Against a
 // slow node that turns a rejection the typecheck was going to give into an

@@ -62,23 +62,23 @@ type qfileFunc func(filepath string) ([]byte, error)
 type qmetaFunc func(pkgPath string) (vm.PackageMeta, error)
 
 // rpcGetter fetches package sources from a node via the vm/qfile ABCI query and
-// reconstructs them into MemPackages. Whatever the node ANSWERS is cached for
-// the getter's lifetime: a fetched package because on-chain paths are immutable
-// (a path is write-once — re-adding fails), and an absence because the getter
-// serves exactly one verification and chain state cannot move under it.
+// reconstructs them into MemPackages. Whatever the node ANSWERS, a fetched
+// package or an absence, is cached for the getter's lifetime: it serves exactly
+// one verification, and chain state cannot move under it.
 type rpcGetter struct {
 	qfile qfileFunc
 	qmeta qmetaFunc
 	cache map[string]*std.MemPackage
 
-	// transportErr is the first transport fault seen this verification; the
-	// child makes exactly one.
+	// transportErr is the first transport fault seen this verification.
 	transportErr error
 }
 
-func newRPCGetter(client rpcclient.Client) *rpcGetter {
+// newRPCGetter returns a getter that runs every query under ctx, for as long as
+// the getter is used.
+func newRPCGetter(ctx context.Context, client rpcclient.Client) *rpcGetter {
 	qfile := func(filepath string) ([]byte, error) {
-		qres, err := client.ABCIQuery(context.Background(), "vm/qfile", []byte(filepath))
+		qres, err := client.ABCIQuery(ctx, "vm/qfile", []byte(filepath))
 		if err != nil {
 			// The node could not be reached at all.
 			return nil, fmt.Errorf("%w: %w", errResolverUnavailable, err)
@@ -93,7 +93,7 @@ func newRPCGetter(client rpcclient.Client) *rpcGetter {
 		return qres.Response.Data, nil
 	}
 	qmeta := func(pkgPath string) (vm.PackageMeta, error) {
-		qres, err := client.ABCIQuery(context.Background(), "vm/qpkgmeta_json", []byte(pkgPath))
+		qres, err := client.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(pkgPath))
 		if err != nil {
 			return vm.PackageMeta{}, fmt.Errorf("%w: %w", errResolverUnavailable, err)
 		}
@@ -154,12 +154,12 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	mpkg, err := g.fetch(pkgPath)
 	// Cache what the chain answered, an absence included. A miss used to be
 	// re-queried, for a getter that hung off the long-lived daemon and could
-	// outlive a package's activation; this one is built per verification in a
-	// child that exits with it (newVerifier), so nothing enables a package
-	// under it and the answer cannot change. Re-asking only moves the same
-	// answer out of prepare, which is off the budget, into the two stages that
-	// are on it -- where against a slow node it arrives as an overrun instead
-	// of as the rejection the typecheck was going to give.
+	// outlive a package's activation; this one serves a single verification
+	// (newVerifier in the child, oracle.verify in the parent), so nothing
+	// enables a package under it and the answer cannot change. Re-asking only
+	// moves the same answer out of prepare, which is off the budget, into the
+	// two stages that are on it -- where against a slow node it arrives as an
+	// overrun instead of as the rejection the typecheck was going to give.
 	//
 	// A fault is not an answer, so it is not cached: a node that could not be
 	// ASKED has said nothing about the path, and asking again costs less than
@@ -168,6 +168,17 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 		g.cache[pkgPath] = mpkg
 	}
 	return mpkg
+}
+
+// seed takes the answers the parent already got from the node for this
+// verification as this getter's own.
+func (g *rpcGetter) seed(found []*std.MemPackage, absent []string) {
+	for _, dep := range found {
+		g.cache[dep.Path] = dep
+	}
+	for _, path := range absent {
+		g.cache[path] = nil
+	}
 }
 
 // fetch queries vm/qfile for the package's file list, then each file's body,
