@@ -109,22 +109,41 @@ func TestStrandedReasonNamesTheParkedImport(t *testing.T) {
 // nowhere is a rejection whatever else is parked, so a pass offers its
 // importer, whose verification rejects it, instead of waiting on the import.
 func TestStrandedImporterOfAnAbsentImportIsRejected(t *testing.T) {
-	chain := newInertChain(t)
-	const path = "gno.land/r/test/wantsmissing"
-	pkg := chainPackage(path, "package wantsmissing\n\nimport \"gno.land/p/test/neversubmitted\"\n\n"+
-		"func N(cur realm) int { return neversubmitted.Answer() }\n")
-	chain.park(t, pkg)
+	dep, _ := depAndImporter()
+	cases := map[string]struct {
+		imports string
+		uses    string
+	}{
+		"alone": {
+			imports: `"gno.land/p/test/neversubmitted"`,
+			uses:    "neversubmitted.Answer()",
+		},
+		"beside a parked import": {
+			imports: "(\n\t\"" + dep.Path + "\"\n\t\"gno.land/p/test/neversubmitted\"\n)",
+			uses:    "parkeddep.Answer() + neversubmitted.Answer()",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			chain := newInertChain(t)
+			chain.park(t, dep)
+			const path = "gno.land/r/test/wantsmissing"
+			pkg := chainPackage(path, "package wantsmissing\n\nimport "+tc.imports+"\n\n"+
+				"func N(cur realm) int { return "+tc.uses+" }\n")
+			chain.park(t, pkg)
 
-	o := chain.oracle(t)
-	o.cfg.prepareBudget = time.Nanosecond // the first look cannot finish
-	o.handleCandidate(t.Context(), candidate{mpkg: pkg, height: chain.submittedAt(t, path)})
-	require.Contains(t, o.stranded, path, "premise: the submission is stranded")
-	o.cfg.prepareBudget = defaultPrepareBudget
-	o.reofferStranded(t.Context())
+			o := chain.oracle(t)
+			o.cfg.prepareBudget = time.Nanosecond // the first look cannot finish
+			o.handleCandidate(t.Context(), candidate{mpkg: pkg, height: chain.submittedAt(t, path)})
+			require.Contains(t, o.stranded, path, "premise: the submission is stranded")
+			o.cfg.prepareBudget = defaultPrepareBudget
+			o.reofferStranded(t.Context())
 
-	st := o.status.get(path)
-	assert.Equal(t, statusRejected, st.Status, "recorded reason: %s", st.Reason)
-	assert.NotContains(t, o.stranded, path)
+			st := o.status.get(path)
+			assert.Equal(t, statusRejected, st.Status, "recorded reason: %s", st.Reason)
+			assert.NotContains(t, o.stranded, path)
+		})
+	}
 }
 
 // TestLaterStrandedPathIsReachedUnderTraffic: a pass stops for every queued

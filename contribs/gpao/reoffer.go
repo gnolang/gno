@@ -136,18 +136,27 @@ func (o *oracle) submissionAt(ctx context.Context, height int64, path string) (*
 
 // firstImportHoldingBack returns the first chain package mpkg imports that
 // would leave it pending again, or "" when a verification can reach a verdict.
-// A live package's own imports are live, so only mpkg's are asked about.
+// One absent import is that verdict whatever else is parked, as the verifier
+// judges it. A live package's own imports are live, so only mpkg's are asked
+// about.
 func (o *oracle) firstImportHoldingBack(ctx context.Context, mpkg *std.MemPackage, statuses map[string]string) string {
 	imports, err := packages.Imports(mpkg, token.NewFileSet())
 	if err != nil {
 		return "" // unparseable source is the verification's verdict to give
 	}
+	held := ""
 	for _, imp := range imports.Merge(packages.FileKindPackageSource) {
-		if gno.IsUserlib(imp.PkgPath) && holdsBack(o.importStatus(ctx, imp.PkgPath, statuses)) {
-			return imp.PkgPath
+		if !gno.IsUserlib(imp.PkgPath) {
+			continue
+		}
+		switch status := o.importStatus(ctx, imp.PkgPath, statuses); {
+		case status == vm.PackageStatusAbsent:
+			return ""
+		case held == "" && holdsBack(status):
+			held = imp.PkgPath
 		}
 	}
-	return ""
+	return held
 }
 
 // holdsBack reports whether an import the chain holds in this state leaves its
