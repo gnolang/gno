@@ -965,7 +965,14 @@ func (m *Machine) runFileDecls(withOverrides bool, plan *upgradePlan, fns ...*Fi
 	for ready.Len() > 0 {
 		idx := heap.Pop(ready).(int)
 		decl := pending[idx]
-		if !isCarriedDecl(decl, plan) {
+		carried := false
+		if plan != nil {
+			var err error
+			if carried, err = carriedDecl(decl, plan.shape.vars); err != nil {
+				panic(err.Error())
+			}
+		}
+		if !carried {
 			fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
 			m.PushBlock(fb)
 			m.runDeclaration(decl)
@@ -1063,7 +1070,7 @@ func (m *Machine) saveDeclaredTypes(pv *PackageValue, replace bool) {
 	if !ok {
 		return
 	}
-	for _, dt := range ownDeclaredTypes(bv, pv.PkgPath) {
+	for _, dt := range ownDeclaredTypes(bv.Values, pv.PkgPath) {
 		if replace {
 			m.Store.ReplaceType(dt)
 		} else {

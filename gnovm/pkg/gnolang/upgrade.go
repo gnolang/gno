@@ -7,33 +7,37 @@ import (
 	"strings"
 )
 
-// upgradePlan is what a versioned redeploy carries over from the package live
-// at the path: every global, keyed to the heap item that persists it, and the
-// shape of every declared type. Built while the prior package is still what
-// the store serves; applied once the new one has replaced it.
-type upgradePlan struct {
-	vars  map[Name]carriedVar
-	types map[Name]TypeID // declared type name -> TypeID of its underlying type
-	prior *Block          // the prior package block, which still names the heap items
-
-	// Importers compile package selectors to block slots and method selectors
-	// to method indices, so a public realm may only append. These record the
-	// prior layout: every referenceable name with its static type, and each
-	// declared type's methods, in order. Unset for a private realm.
-	public  bool
-	layout  []slotSig
+// upgradeShape is what a versioned redeploy compares between two versions of
+// a package: every global with its static type, every declared type with its
+// underlying type and its methods in order, and the referenceable layout.
+// Built from a PackageNode alone, so the chain and `gno upgrade check` share
+// it.
+type upgradeShape struct {
+	names   map[Name]int     // every package-level name -> block slot
+	vars    map[Name]slotSig // the globals among them
+	types   map[Name]TypeID  // declared type -> TypeID of its underlying type
 	methods map[Name][]slotSig
+	// Importers compile package selectors to block slots and method
+	// selectors to method indices, so a public realm may only append: the
+	// layout is every referenceable name with its static type, in slot order.
+	layout []slotSig
 }
 
 type slotSig struct {
-	name Name
-	tid  TypeID
+	name  Name
+	tid   TypeID
+	index int
 }
 
-type carriedVar struct {
-	oid   ObjectID // the *HeapItemValue holding the variable
-	tid   TypeID   // the variable's static type
-	index int      // its slot in the prior package block
+// upgradePlan is what a versioned redeploy carries over from the package live
+// at the path: the prior shape, and the heap item persisting each global.
+// Built while the prior package is still what the store serves; applied once
+// the new one has replaced it.
+type upgradePlan struct {
+	shape  *upgradeShape
+	vars   map[Name]ObjectID // the *HeapItemValue holding each global
+	prior  *Block            // the prior package block, which still names the heap items
+	public bool
 }
 
 // IsPkgInitFunc reports whether name is a package initializer: init, or
@@ -52,6 +56,55 @@ func isUnreferenceableName(n Name) bool {
 	return dotted && (IsPkgInitFunc(Name(base)) || (base == "" && strings.HasPrefix(rest, "_")))
 }
 
+// shapeOf reads a package's shape off its static block.
+func shapeOf(pn *PackageNode) *upgradeShape {
+	sb := pn.GetStaticBlock()
+	s := &upgradeShape{
+		names:   map[Name]int{},
+		vars:    map[Name]slotSig{},
+		types:   map[Name]TypeID{},
+		methods: map[Name][]slotSig{},
+	}
+	heap := pn.GetHeapItems()
+	for i, name := range pn.GetBlockNames() {
+		sig := slotSig{name: name, tid: sb.Types[i].TypeID(), index: i}
+		s.names[name] = i
+		if heap[i] {
+			s.vars[name] = sig
+		}
+		if !isUnreferenceableName(name) {
+			s.layout = append(s.layout, sig)
+		}
+	}
+	for _, dt := range ownDeclaredTypes(sb.Values, pn.PkgPath) {
+		s.types[dt.Name] = dt.Base.TypeID()
+		s.methods[dt.Name] = methodSigs(dt)
+	}
+	return s
+}
+
+func methodSigs(dt *DeclaredType) []slotSig {
+	sigs := make([]slotSig, 0, len(dt.Methods))
+	for i, m := range dt.Methods {
+		sigs = append(sigs, slotSig{name: m.V.(*FuncValue).Name, tid: m.T.TypeID(), index: i})
+	}
+	return sigs
+}
+
+// ownDeclaredTypes returns the types among values declared by pkgPath.
+// Aliases to uverse or other packages' types are left to their owner.
+func ownDeclaredTypes(values []TypedValue, pkgPath string) []*DeclaredType {
+	var dts []*DeclaredType
+	for _, tv := range values {
+		if tvv, ok := tv.V.(TypeValue); ok {
+			if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pkgPath {
+				dts = append(dts, dt)
+			}
+		}
+	}
+	return dts
+}
+
 // planUpgrade reads the package live at pkgPath.
 func planUpgrade(store Store, pkgPath string) *upgradePlan {
 	pv := store.GetPackage(pkgPath, false)
@@ -61,83 +114,87 @@ func planUpgrade(store Store, pkgPath string) *upgradePlan {
 	pn := store.GetPackageNode(pkgPath)
 	pb := pv.GetBlock(store)
 	plan := &upgradePlan{
-		vars:   map[Name]carriedVar{},
-		types:  map[Name]TypeID{},
+		shape:  shapeOf(pn),
+		vars:   map[Name]ObjectID{},
 		prior:  pb,
 		public: !pv.Private,
 	}
-	heap := pn.GetHeapItems()
-	stypes := pn.GetStaticBlock().Types
-	for i, name := range pn.GetBlockNames() {
-		if heap[i] {
-			plan.vars[name] = carriedVar{
-				oid:   pb.Values[i].V.(ObjectIDer).GetObjectID(),
-				tid:   stypes[i].TypeID(),
-				index: i,
-			}
-		}
-	}
-	if plan.public {
-		plan.layout = layoutSigs(pn)
-		plan.methods = map[Name][]slotSig{}
-	}
-	for _, dt := range ownDeclaredTypes(pb, pkgPath) {
-		plan.types[dt.Name] = dt.Base.TypeID()
-		if plan.public {
-			plan.methods[dt.Name] = methodSigs(dt)
-		}
+	for name, sig := range plan.shape.vars {
+		plan.vars[name] = pb.Values[sig.index].V.(ObjectIDer).GetObjectID()
 	}
 	return plan
 }
 
-// layoutSigs is the layout an importer compiles against: every referenceable
-// name of the package block with its static type, in slot order.
-func layoutSigs(pn *PackageNode) []slotSig {
-	stypes := pn.GetStaticBlock().Types
-	var sigs []slotSig
-	for i, name := range pn.GetBlockNames() {
-		if !isUnreferenceableName(name) {
-			sigs = append(sigs, slotSig{name: name, tid: stypes[i].TypeID()})
+// CheckUpgrade reports what a versioned redeploy of next over prior would
+// refuse, with the chain's message; nil when the carry would take it. public
+// applies the append-only layout rule of a realm others may import.
+func CheckUpgrade(prior, next *PackageNode, public bool) error {
+	ps := shapeOf(prior)
+	if err := compareUpgrade(ps, shapeOf(next), public); err != nil {
+		return err
+	}
+	for _, fn := range next.FileSet.Files {
+		for _, d := range fn.Decls {
+			if _, err := carriedDecl(d, ps.vars); err != nil {
+				return err
+			}
 		}
 	}
-	return sigs
+	return nil
 }
 
-func methodSigs(dt *DeclaredType) []slotSig {
-	sigs := make([]slotSig, 0, len(dt.Methods))
-	for _, m := range dt.Methods {
-		sigs = append(sigs, slotSig{name: m.V.(*FuncValue).Name, tid: m.T.TypeID()})
+// compareUpgrade refuses any change from prior to next the carry cannot take.
+func compareUpgrade(prior, next *upgradeShape, public bool) error {
+	if public {
+		if err := assertPrefix(prior.layout, next.layout, "declaration"); err != nil {
+			return err
+		}
+		for _, name := range slices.Sorted(maps.Keys(next.types)) {
+			if err := assertPrefix(prior.methods[name], next.methods[name], "method"); err != nil {
+				return err
+			}
+		}
 	}
-	return sigs
+	for _, name := range slices.Sorted(maps.Keys(next.types)) {
+		if old, ok := prior.types[name]; ok && old != next.types[name] {
+			return fmt.Errorf("upgrade: type %s changed its underlying type; "+
+				"a versioned redeploy may change methods, not a type's shape", name)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(prior.types)) {
+		if _, ok := next.types[name]; !ok {
+			return fmt.Errorf("upgrade: type %s was removed; persisted values may still have it", name)
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(prior.vars)) {
+		nv, isVar := next.vars[name]
+		if _, ok := next.names[name]; ok && !isVar {
+			return fmt.Errorf("upgrade: %s is no longer a variable", name)
+		}
+		if isVar && nv.tid != prior.vars[name].tid {
+			return fmt.Errorf("upgrade: variable %s changed type from %s to %s; "+
+				"declare the new one under another name and migrate", name, prior.vars[name].tid, nv.tid)
+		}
+		// Absent: dropped, which a private realm may do; assertPrefix refused
+		// it for a public one above.
+	}
+	return nil
 }
 
 // assertPrefix refuses a redeploy whose have does not start with prior: what
 // names the layout in the message.
-func assertPrefix(prior, have []slotSig, what string) {
+func assertPrefix(prior, have []slotSig, what string) error {
 	for i, ps := range prior {
 		if i >= len(have) || have[i].name != ps.name {
-			panic(fmt.Sprintf("upgrade: %s %s moved or was removed; importers compiled "+
-				"against the %s order, so a public realm may only append", what, ps.name, what))
+			return fmt.Errorf("upgrade: %s %s moved or was removed; importers compiled "+
+				"against the %s order, so a public realm may only append", what, ps.name, what)
 		}
 		if have[i].tid != ps.tid {
-			panic(fmt.Sprintf("upgrade: %s %s changed type from %s to %s; importers compiled against it",
-				what, ps.name, ps.tid, have[i].tid))
+			return fmt.Errorf("upgrade: %s %s changed type from %s to %s; importers compiled against it",
+				what, ps.name, ps.tid, have[i].tid)
 		}
 	}
-}
-
-// ownDeclaredTypes returns the types pb declares for pkgPath. Aliases to
-// uverse or other packages' types are left to their owner.
-func ownDeclaredTypes(pb *Block, pkgPath string) []*DeclaredType {
-	var dts []*DeclaredType
-	for _, tv := range pb.Values {
-		if tvv, ok := tv.V.(TypeValue); ok {
-			if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pkgPath {
-				dts = append(dts, dt)
-			}
-		}
-	}
-	return dts
+	return nil
 }
 
 // applyUpgradePlan points the new package block at the heap items the prior
@@ -151,97 +208,50 @@ func ownDeclaredTypes(pb *Block, pkgPath string) []*DeclaredType {
 func (m *Machine) applyUpgradePlan(pn *PackageNode, pv *PackageValue, plan *upgradePlan) {
 	store := m.Store
 	pb := pv.GetBlock(store)
-	own := ownDeclaredTypes(pb, pv.PkgPath)
-
-	if plan.public {
-		assertPrefix(plan.layout, layoutSigs(pn), "declaration")
-		for _, dt := range own {
-			assertPrefix(plan.methods[dt.Name], methodSigs(dt), "method")
-		}
+	next := shapeOf(pn)
+	if err := compareUpgrade(plan.shape, next, plan.public); err != nil {
+		panic(err.Error())
 	}
-
 	// Types first: the heap items loaded below resolve their TypeIDs through
 	// the store and must see this version's definitions, methods included.
-	seen := map[Name]struct{}{}
-	for _, dt := range own {
-		seen[dt.Name] = struct{}{}
-		if old, ok := plan.types[dt.Name]; ok && old != dt.Base.TypeID() {
-			panic(fmt.Sprintf("upgrade: type %s changed its underlying type; "+
-				"a versioned redeploy may change methods, not a type's shape", dt.Name))
-		}
-	}
-	if name, ok := missingName(plan.types, seen); ok {
-		panic(fmt.Sprintf("upgrade: type %s was removed; persisted values may still have it", name))
-	}
 	m.saveDeclaredTypes(pv, true)
 
-	clear(seen)
-	heap := pn.GetHeapItems()
-	for i, name := range pn.GetBlockNames() {
-		cv, ok := plan.vars[name]
-		if !ok {
-			continue
-		}
-		seen[name] = struct{}{}
-		if !heap[i] {
-			panic(fmt.Sprintf("upgrade: %s is no longer a variable", name))
-		}
-		if tid := pn.GetStaticBlock().Types[i].TypeID(); tid != cv.tid {
-			panic(fmt.Sprintf("upgrade: variable %s changed type from %s to %s; "+
-				"declare the new one under another name and migrate", name, cv.tid, tid))
-		}
-		hiv := store.GetObject(cv.oid).(*HeapItemValue)
-		// Detach from the prior block; finalize re-adopts it under the new one.
-		hiv.DecRefCount()
-		hiv.SetOwner(nil)
-		pb.Values[i] = TypedValue{T: heapItemType{}, V: hiv}
-		plan.prior.Values[cv.index] = TypedValue{}
-	}
-	// A private realm may drop a global: its heap item is released with what
-	// it owns. A public one cannot; assertPrefix refused that above.
 	rlm := pv.GetRealm()
 	for _, name := range slices.Sorted(maps.Keys(plan.vars)) {
-		if _, ok := seen[name]; ok {
-			continue
-		}
-		cv := plan.vars[name]
-		hiv := store.GetObject(cv.oid).(*HeapItemValue)
+		hiv := store.GetObject(plan.vars[name]).(*HeapItemValue)
+		// Detach from the prior block; finalize re-adopts a carried item
+		// under the new one, and releases a dropped one with what it owns.
 		hiv.DecRefCount()
-		rlm.MarkNewDeleted(hiv)
-		plan.prior.Values[cv.index] = TypedValue{}
+		plan.prior.Values[plan.shape.vars[name].index] = TypedValue{}
+		if nv, ok := next.vars[name]; ok {
+			hiv.SetOwner(nil)
+			pb.Values[nv.index] = TypedValue{T: heapItemType{}, V: hiv}
+		} else {
+			rlm.MarkNewDeleted(hiv)
+		}
 	}
 	rlm.MarkDirty(plan.prior)
 }
 
-// missingName returns the smallest name in want that have lacks.
-func missingName[V any](want map[Name]V, have map[Name]struct{}) (Name, bool) {
-	for _, n := range slices.Sorted(maps.Keys(want)) {
-		if _, ok := have[n]; !ok {
-			return n, true
-		}
-	}
-	return "", false
-}
-
-// isCarriedDecl reports whether decl declares carried globals, refusing a
+// carriedDecl reports whether decl declares carried globals, refusing a
 // declaration that mixes carried and new names.
-func isCarriedDecl(decl Decl, plan *upgradePlan) bool {
+func carriedDecl(decl Decl, vars map[Name]slotSig) (bool, error) {
 	vd, ok := decl.(*ValueDecl)
-	if !ok || plan == nil {
-		return false
+	if !ok {
+		return false, nil
 	}
 	n := 0
 	for _, nx := range vd.NameExprs {
-		if _, ok := plan.vars[nx.Name]; ok {
+		if _, ok := vars[nx.Name]; ok {
 			n++
 		}
 	}
 	switch n {
 	case 0:
-		return false
+		return false, nil
 	case len(vd.NameExprs):
-		return true
+		return true, nil
 	default:
-		panic(fmt.Sprintf("upgrade: declaration %v mixes carried and new globals", vd.GetDeclNames()))
+		return false, fmt.Errorf("upgrade: declaration %v mixes carried and new globals", vd.GetDeclNames())
 	}
 }

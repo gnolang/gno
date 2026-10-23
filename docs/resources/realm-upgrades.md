@@ -305,6 +305,20 @@ carries them, with `migrate(0)`.
 
 Executed by `redeploy_gnomod_rules.txtar`.
 
+## Check before you deploy
+
+The rules above are the chain's; two ways to run them first:
+
+```sh
+gno upgrade check ./v1 ./v2            # no node: the two directories, same module path
+gnokey maketx addpkg ... -simulate only  # a node: the redeploy against the live version
+```
+
+`gno upgrade check` type-checks both versions, preprocesses them and runs the
+same comparison the chain runs, printing the same refusal. `-simulate only`
+runs the real transaction on the node without broadcasting it, so it also
+covers the authority, the live version number and the importers.
+
 ## `migrate(from int)`
 
 - Declared as `migrate(from int)` or `migrate(cur realm, from int)`; any

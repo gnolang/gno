@@ -63,6 +63,10 @@ the version by exactly one keeps the realm's state:
   Upgrading.
 - Node restart preprocesses a package after its imports, not in
   package-index order, which a redeploy of an imported realm breaks.
+- The comparison is built from package nodes alone (`upgradeShape`), and
+  the gnomod rules live in `gnomod.File.CheckUpgradeFields`, so
+  `gno upgrade check <prior> <next>` runs exactly what the chain runs,
+  with its messages, on two directories and no node.
 - Refused by the shared gnomod rules, on all three deploy paths, with
   the realm left as it was: a version that does not step by one,
   without `private` or an authority, or an authority without a version;
@@ -95,8 +99,10 @@ Version unset on both sides is the old redeploy, unchanged.
   existing govdao txtar out of gas.
 - Follow-ups: a realm-path authority (governance), a typed `path@N`
   import for reading removed or retyped globals from `migrate`, appended
-  struct fields, gnoweb showing the upgradeable flag, and refusing a
-  redeploy over persisted func-lit closures whose source moved.
+  struct fields, gnoweb showing the upgradeable flag, refusing a
+  redeploy over persisted func-lit closures whose source moved, and
+  running the checker automatically: `gno lint` against a prior
+  directory, gnodev on reload, CI on a version step.
 - Consensus-breaking: reserving hidden funcs last changes package
   block slot order, so ObjectIDs, hashes and storage bytes shift, and
   every deploy writes the import index (realm goldens, an apphash pin,

@@ -654,39 +654,9 @@ func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath strin
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
-	if gm.Mutable() && !gno.IsRealmPath(pkgPath) {
-		return ErrInvalidPackage("private or upgradeable packages must be realm packages")
-	}
-	if gm.Version < 0 {
-		return ErrInvalidPackage("version in gnomod.toml must not be negative")
-	}
-	// A version needs a way to redeploy, except on the redeploy that drops
-	// the authority: that one carries the state and freezes the realm.
-	if gm.Version > 0 && !gm.Mutable() && liveGm == nil {
-		return ErrInvalidPackage("version in gnomod.toml requires private = true or an [upgrade] authority")
-	}
-	if gm.Upgradeable() {
-		if gm.Version == 0 {
-			return ErrInvalidPackage("an [upgrade] authority in gnomod.toml requires version")
-		}
-		if _, err := crypto.AddressFromBech32(gm.Upgrade.Authority); err != nil {
-			return ErrInvalidPackage("invalid [upgrade] authority in gnomod.toml: " + err.Error())
-		}
-	}
-	if liveGm != nil {
-		if liveGm.Private && !gm.Private {
-			return ErrInvalidPackage("a private package cannot be overridden by a public package")
-		}
-		if !liveGm.Private && gm.Private {
-			return ErrInvalidPackage("an upgradeable package cannot become private")
-		}
-		// Version unset on both sides is the old private redeploy, which
-		// starts the globals over; stepping it by exactly one carries them.
-		if (gm.Version != 0 || liveGm.Version != 0) && gm.Version != liveGm.Version+1 {
-			return ErrInvalidPackage(fmt.Sprintf(
-				"redeploying %s needs version = %d in gnomod.toml, got %d",
-				pkgPath, liveGm.Version+1, gm.Version))
-		}
+	// The version and [upgrade] rules, shared with `gno upgrade check`.
+	if err := gm.CheckUpgradeFields(liveGm, gno.IsRealmPath(pkgPath)); err != nil {
+		return ErrInvalidPackage(err.Error())
 	}
 	if gm.Draft && height > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
