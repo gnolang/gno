@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -81,6 +82,33 @@ func (c *inertChain) park(t *testing.T, mpkg *std.MemPackage) {
 	require.NoError(t, err)
 	require.True(t, res.CheckTx.IsOK(), "park checkTx: %v", res.CheckTx.Error)
 	require.True(t, res.DeliverTx.IsOK(), "park deliverTx: %v", res.DeliverTx.Error)
+}
+
+// enable approves mpkg as the trusted key, outside any oracle. It returns its
+// failure rather than failing the test, so a proxy handler can call it.
+func (c *inertChain) enable(mpkg *std.MemPackage) error {
+	hash, err := vm.PackageContentHash(mpkg)
+	if err != nil {
+		return err
+	}
+	signed, err := c.client.SignTx(std.Tx{
+		Msgs: []std.Msg{vm.MsgEnablePackage{Approver: c.who, PkgPath: mpkg.Path, PkgHash: hash}},
+		Fee:  std.NewFee(defaultGasWanted, std.MustParseCoin(defaultGasFee)),
+	}, 0, 0)
+	if err != nil {
+		return err
+	}
+	res, err := c.client.BroadcastTxCommit(signed)
+	if err != nil {
+		return err
+	}
+	if !res.CheckTx.IsOK() {
+		return fmt.Errorf("enable checkTx: %w", res.CheckTx.Error)
+	}
+	if !res.DeliverTx.IsOK() {
+		return fmt.Errorf("enable deliverTx: %w", res.DeliverTx.Error)
+	}
+	return nil
 }
 
 // oracle builds an oracle approving on the chain, with the gas ceiling settled
