@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -71,6 +70,17 @@ type oracle struct {
 	// only by that goroutine afterwards. Starting the goroutine is what
 	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
+
+	// settledTimeout bounds the settled check before verifying
+	// (settledCheckTimeout). A field, so a test can wait out a stalled node in
+	// less than that.
+	settledTimeout time.Duration
+
+	// imports keeps the chain packages fetched for earlier verifications, and
+	// importsChain is block 1's hash on the chain they were fetched from.
+	// Touched only by the verifier goroutine.
+	imports      importCache
+	importsChain []byte
 
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
@@ -174,17 +184,19 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	}
 
 	return &oracle{
-		cfg:          cfg,
-		io:           io,
-		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
-		approver:     info.GetAddress(),
-		candidates:   make(chan candidate, candidateQueueSize),
-		seen:         make(map[string]struct{}),
-		overBudget:   make(map[string]int),
-		failedEnable: make(map[string]int),
-		status:       newStatusBoard(),
-		enableFee:    gasFee.Amount,
-		maxSpend:     maxSpend.Amount,
+		cfg:            cfg,
+		io:             io,
+		client:         gnoclient.Client{Signer: signer, RPCClient: rpc},
+		approver:       info.GetAddress(),
+		candidates:     make(chan candidate, candidateQueueSize),
+		seen:           make(map[string]struct{}),
+		overBudget:     make(map[string]int),
+		failedEnable:   make(map[string]int),
+		settledTimeout: settledCheckTimeout,
+		imports:        importCache{},
+		status:         newStatusBoard(),
+		enableFee:      gasFee.Amount,
+		maxSpend:       maxSpend.Amount,
 	}, nil
 }
 
@@ -493,6 +505,14 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	if _, done := o.seen[key]; done {
 		return
 	}
+	// Bounded on its own clock: a node that stops answering here only means
+	// the package is verified, and verifying reports the node as unavailable.
+	settleCtx, cancel := context.WithTimeout(ctx, o.settledTimeout)
+	settled := o.recordIfSettled(settleCtx, path, key)
+	cancel()
+	if settled {
+		return
+	}
 
 	o.logf("gpao: verifying %q (budget %s)", path, o.cfg.verifyBudget)
 	err := o.verify(ctx, mpkg)
@@ -546,14 +566,8 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 
-	// Live with nothing waiting to be enabled? Then there is nothing to enable,
-	// and sending the message anyway costs the full fee to be told so. This is
-	// the common case when catching up with -start-height over blocks that were
-	// already approved. Terminal, so recorded.
-	if o.isSettled(ctx, path) {
-		o.status.record(path, statusApproved, "already active on-chain", 0)
-		o.seen[key] = struct{}{}
-		o.logf("gpao: %q is already active, nothing to approve", path)
+	// Asked again: the package may have gone live while it was being verified.
+	if o.recordIfSettled(ctx, path, key) {
 		return
 	}
 
@@ -708,6 +722,22 @@ func (o *oracle) wouldExceedSpend() bool {
 
 const ugnotDenom = "ugnot"
 
+// recordIfSettled records the candidate as already active when its path is
+// live with nothing waiting to be enabled, and reports whether it did.
+//
+// There is nothing to enable then, and sending the message anyway costs the
+// full fee to be told so. This is the common case when catching up with
+// -start-height over blocks that were already approved. Terminal, so recorded.
+func (o *oracle) recordIfSettled(ctx context.Context, path, key string) bool {
+	if !o.isSettled(ctx, path) {
+		return false
+	}
+	o.status.record(path, statusApproved, "already active on-chain", 0)
+	o.seen[key] = struct{}{}
+	o.logf("gpao: %q is already active, nothing to approve", path)
+	return true
+}
+
 // isSettled reports whether a package is live at this path with nothing left to
 // enable.
 //
@@ -728,25 +758,20 @@ const ugnotDenom = "ugnot"
 // silently stop the oracle approving. The spend bound is what limits the damage
 // if the node is wrong.
 func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
-	res, err := o.client.Query(gnoclient.QueryCfg{
-		Path: "vm/qpkgmeta_json",
-		Data: []byte(pkgPath),
-	})
-	if err != nil || res == nil || res.Response.Error != nil {
-		return false
-	}
-	return pkgMetaSettled(res.Response.Data)
+	meta, err := queryPkgMeta(ctx, o.client.RPCClient, pkgPath)
+	return err == nil && metaSettled(meta)
 }
 
-// pkgMetaSettled reads a vm/qpkgmeta_json response and reports "live with no
-// submission pending" -- the one state where an enable has nothing to do.
-// Split out from the query so it can be tested without a node, like
-// blockMaxGasFrom.
-func pkgMetaSettled(data []byte) bool {
-	var meta vm.PackageMeta
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return false
-	}
+// settledCheckTimeout bounds the settled check before verifying. A healthy
+// node answers that query in well under a second, so a node that stops
+// answering holds the verifier this long, not for the RPC client's minute. The
+// check after verifying keeps the client's deadline: giving up there sends an
+// enable, which costs a fee.
+const settledCheckTimeout = 10 * time.Second
+
+// metaSettled reports "live with no submission pending" -- the one state where
+// an enable has nothing to do.
+func metaSettled(meta vm.PackageMeta) bool {
 	return meta.Status == vm.PackageStatusLive && !meta.Pending
 }
 
