@@ -135,7 +135,7 @@ jobs:
 
       - name: Bake build and push
         id: bake
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         env:
           # The tag that triggered the run, verbatim, never a version derived
           # from the checkout: a final release shares its last candidate's
