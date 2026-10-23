@@ -1,28 +1,51 @@
 # Upgrading a realm
 
 A gno.land path is permanent: once a package is deployed, nobody can replace
-its code. This page is about the two exceptions, and how to use the second
-one: a **versioned redeploy**, which replaces a realm's code in place and
-keeps its state.
+its code. There are two ways around that. The **manual** way deploys the new
+version at a new path and moves or proxies the state by hand; the patterns
+are in `examples_ignored/r/x/manfred_upgrade_patterns/`. The **versioned
+redeploy** replaces a realm's code in place and keeps its state. This page
+says which fits which case, and how to use the second one.
 
 > Status: the versioned redeploy is a proof of concept (PR #6253). It is
 > consensus-breaking and ships only with a chain upgrade. Everything on this
 > page is exercised by the `redeploy_*.txtar` files in
 > `gno.land/pkg/integration/testdata/`; each section names its file.
 
-## Which upgrade do you need
+## Two ways to upgrade
 
-| You want | Use | State |
+| | Manual: a new path per version | Versioned redeploy: the same path |
 |---|---|---|
-| A new version beside the old one | A new path (`.../v2`), as `r/docs/minisocial` does | Starts empty; copy or proxy by hand |
-| To restart a realm of your own | `private = true`, redeploy without a `version` | Wiped: `init()` runs again over fresh globals |
-| To change the code and keep the state, realm only you use | `private = true` and `version = N` | Carried |
-| To change the code and keep the state, realm others import | `version = N` and `[upgrade] authority` | Carried; importers rebuilt |
-| To close an upgradeable realm for good | Redeploy without the `[upgrade]` section | Carried once, then permanent |
+| Path and address | New (`.../v2`); callers and importers must move | Unchanged |
+| State | Starts empty; copied, proxied or read through from v1 | Carried: same objects, same ObjectIDs, same deposit |
+| Type identity | New (`pkgpath.Name` changes); v1 objects are foreign to v2 | Kept; v1 objects dispatch v2's methods |
+| Importers | Keep calling v1 until each redeploys against v2 | Follow automatically; rebuilt in the redeploy transaction |
+| Old version | Stays live, can be locked (`SetNextVersion`) | Gone, except for the func values it persisted |
+| Who may do it | Anyone, at their own path | The creator (private) or the `[upgrade] authority` (public) |
+| Needs | Nothing new | A chain running this VM; `version` and, for a public realm, an authority declared at the first deployment |
+| Costs | Storage for two copies; a proxy or copy to write and audit | Preprocess gas for every importer, paid by the authority |
 
 A private realm can be redeployed by its creator only, and nobody can import
 it. A public realm is redeployable only if it named an `[upgrade] authority`
-in its very first deployment; the authority cannot be added later.
+in its very first deployment; the authority cannot be added later, and
+dropping it in a redeploy freezes the realm for good.
+
+## Which fits: case by case
+
+| Case | Fits | Why |
+|---|---|---|
+| Fix a bug or change logic in a realm nobody imports | Versioned, `private = true` | Any change to code, order or dropped globals is accepted; state kept |
+| Add a feature to a realm others import | Versioned, public | Append-only keeps every importer compiling; they follow in the same transaction |
+| Change a data shape (field added, type retyped) | Versioned | New type or global under a new name, converted in `migrate(from)`; manual needs a lazy copy (`upgrade_d`) and loses type identity |
+| Breaking API change, importers you control | Versioned, two steps | v2 appends the new API, importers move, a later version drops the old one once nothing uses it (drop on a public realm is a follow-up) |
+| Breaking API change, importers you do not control | Manual | A public redeploy is refused while any importer fails to recompile; a new path leaves them on v1 |
+| Two versions live at once: A/B, a fork, independent evolution | Manual (`upgrade_a`) | A versioned redeploy has one live version per path |
+| Clients should move at their own pace, then v1 locks | Manual (`upgrade_b`) | `SetNextVersion` pauses v1 when you decide; in place, every caller moves at the redeploy |
+| Logic and storage in separate realms, swappable logic | Manual (`upgrade_c`, `upgrade_e`, `upgrade_f`) or versioned | Versioned removes the need for the split for one author; the split still fits pluggable implementations by different authors |
+| The realm stores callbacks or closures | Either | In place they keep running the version that created them until reassigned; at a new path v1 simply stays live |
+| The realm was deployed without an authority | Manual | An immutable path cannot become upgradeable |
+| Upgrades decided by governance | Manual today, or a multisig as the authority | The authority must sign the `addpkg` transaction, which a realm cannot; a realm-path authority that a DAO proposal can execute is a listed follow-up |
+| Today, before this ships | Manual | The versioned redeploy needs a chain upgrade |
 
 ## Walkthrough: a private ledger
 
@@ -259,28 +282,42 @@ Executed by `redeploy_public_authority.txtar` (authority, append rule,
 freezing) and `redeploy_public_importers.txtar` (importers rebuilt, before
 and after a restart).
 
-## What a redeploy may change
+## Every kind of change
 
-The carry keys globals by name and static type, and declared types by name
-and underlying type, because the realm's own persisted objects still carry
-both. Each refusal leaves the realm as the previous version wrote it, and
-names the offender.
+What each way does with each change. "yes" means accepted and carried;
+"append" means accepted only after every existing declaration; the quoted
+text is the refusal the chain and `gno upgrade check` print.
 
-| Change | Private | Public | Refusal |
+| Change | Versioned, private | Versioned, public | Manual |
 |---|---|---|---|
-| Add a global, type, func, method | yes | yes, appended | |
-| Change a func or method body | yes | yes | |
-| Change or drop a method | yes | change yes, drop no | `method Len moved or was removed` |
-| Drop a global | yes | no | `declaration hits moved or was removed` |
-| Reorder declarations | yes | no | `declaration Receipt moved or was removed` |
-| Change a func signature or const type | yes | no | `declaration Count changed type from ...` |
-| Retype a global | no | no | `variable counter changed type from int to string` |
-| Turn a global into a const or func | no | no | `counter is no longer a variable` |
-| Drop or rename a declared type | no | no | `type Kind was removed; persisted values may still have it` |
-| Change a type's fields or interface methods | no | no | `type Entry changed its underlying type` |
-| One `var (...)` naming a carried and a new global | no | no | `mixes carried and new globals` |
+| Add a global, const, type, func | yes | append | yes, in the new path |
+| Add a method | yes | append, after the type's existing methods | yes |
+| Change a func or method body | yes | yes | yes |
+| Change a func signature | yes | no: `declaration Count changed type from ...` | yes; importers rewrite their calls |
+| Change a const value | yes | yes; importers see it after the rebuild | yes |
+| Change a const type | yes | no: `declaration Limit changed type from ...` | yes |
+| Reorder declarations or methods | yes | no: `declaration X moved or was removed` | yes |
+| Add a new file | yes | only if it sorts after the existing files | yes |
+| Rename a func or method | yes | no: a rename is a drop | yes |
+| Drop a func, method or const | yes | no: `... moved or was removed` | yes |
+| Drop a global | yes; it stays in the old package block until that is cleaned up | no: `declaration hits moved or was removed` | yes |
+| Retype a global | no: `variable counter changed type from int to string`; new name + `migrate` | same | yes; copy by hand |
+| Turn a global into a const or func | no: `counter is no longer a variable` | same | yes |
+| Add a struct field or interface method | no: `type Entry changed its underlying type`; new type name + `migrate` | same | yes, as a new type; lazy copy (`upgrade_d`) |
+| Drop or rename a type | no: `type Kind was removed; persisted values may still have it` | same | yes; old objects stay v1's |
+| One `var (...)` mixing a carried and a new global | no: `mixes carried and new globals` | same | n/a |
+| A global's initializer | skipped: the carried value wins | same | runs: the new path starts empty |
+| `init()` | not run; runs on a fresh deploy of the same source | same | runs |
+| `migrate(from int)` | runs once, after the carry | same | n/a; write the copy yourself |
+| Add or drop an import | yes; the index follows | yes | yes |
+| A stored closure or func value | keeps running the version that created it until reassigned | same | v1 stays live; nothing to do |
+| Objects persisted under a type | keep their identity and get the new methods | same | foreign to the new path; convert on read |
+| Importers | none (private is unimportable) | rebuilt in the transaction; one that no longer compiles refuses the redeploy | untouched; each moves when it redeploys |
+| Realm address, deposit, ObjectIDs | kept | kept | new |
+| The old version afterwards | code gone, archived for stored func values | same | live, lockable |
 
-Executed by `redeploy_versioned_types.txtar` and `redeploy_public_layout.txtar`.
+Executed by `redeploy_versioned_types.txtar`, `redeploy_public_layout.txtar`
+and `redeploy_closures.txtar`.
 
 A global is carried whole: its initializer in the new source is skipped.
 Give a changed shape a new name and fill it in `migrate`, then drop the old
