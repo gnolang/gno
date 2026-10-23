@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"go/token"
 	"maps"
 	"slices"
@@ -26,7 +27,7 @@ const reofferInterval = 10 * time.Minute
 type strandedSubmission struct {
 	height    int64
 	offers    int
-	blockedOn string // the import found not live by the last look, if any
+	blockedOn string // the import that held it back at the last look, if any
 }
 
 // track records how handleCandidate left path. Pending keeps the submission
@@ -44,27 +45,36 @@ func (o *oracle) track(path string, height int64) {
 	o.stranded[path] = s
 }
 
-// reofferStranded verifies again each submission this run left pending whose
-// chain imports are all live now. Heights are read once, so nothing else
+// reofferStranded verifies again each submission this run left pending that
+// no import holds back any more. Heights are read once, so nothing else
 // reaches it again. It runs on the verifier between candidates and stops as
-// soon as one is queued, so new blocks go first.
+// soon as one is queued, so new blocks go first. The next pass resumes where
+// it stopped, so on a chain that keeps receiving candidates a path late in
+// order is still reached.
 //
 // What it keeps grows with the submissions this run left pending, as the
 // status board does: one is dropped once the chain no longer holds it parked
 // at its height, or after maxReoffers offers.
 func (o *oracle) reofferStranded(ctx context.Context) {
-	live := make(map[string]bool)
-	for _, path := range slices.Sorted(maps.Keys(o.stranded)) {
-		if ctx.Err() != nil || len(o.candidates) > 0 {
+	statuses := make(map[string]string)
+	paths := slices.Sorted(maps.Keys(o.stranded))
+	start, _ := slices.BinarySearch(paths, o.reofferNext)
+	o.reofferNext = ""
+	for _, path := range slices.Concat(paths[start:], paths[:start]) {
+		if ctx.Err() != nil {
 			return
 		}
-		o.reoffer(ctx, path, live)
+		if len(o.candidates) > 0 {
+			o.reofferNext = path
+			return
+		}
+		o.reoffer(ctx, path, statuses)
 	}
 }
 
-func (o *oracle) reoffer(ctx context.Context, path string, live map[string]bool) {
+func (o *oracle) reoffer(ctx context.Context, path string, statuses map[string]string) {
 	s := o.stranded[path]
-	if s.blockedOn != "" && !o.isLive(ctx, s.blockedOn, live) {
+	if s.blockedOn != "" && holdsBack(o.importStatus(ctx, s.blockedOn, statuses)) {
 		return
 	}
 	meta, err := queryPkgMeta(ctx, o.client.RPCClient, path)
@@ -81,8 +91,9 @@ func (o *oracle) reoffer(ctx context.Context, path string, live map[string]bool)
 	}
 	if s.offers >= maxReoffers {
 		delete(o.stranded, path)
-		o.errf("gpao: %q is still pending after %d more attempts, not offering it again this run",
-			path, s.offers)
+		reason := fmt.Sprintf("still pending after %d more attempts, not offered again this run", s.offers)
+		o.status.record(path, statusGaveUp, reason, s.offers)
+		o.errf("gpao: %q is %s", path, reason)
 		return
 	}
 	c, err := o.submissionAt(ctx, s.height, path)
@@ -94,9 +105,11 @@ func (o *oracle) reoffer(ctx context.Context, path string, live map[string]bool)
 		delete(o.stranded, path)
 		return
 	}
-	if blocked := o.firstImportNotLive(ctx, c.mpkg, live); blocked != "" {
+	if blocked := o.firstImportHoldingBack(ctx, c.mpkg, statuses); blocked != "" {
 		s.blockedOn = blocked
 		o.stranded[path] = s
+		o.status.record(path, statusPending,
+			fmt.Sprintf("waits on %q, which is not live; offered again once it is", blocked), s.offers)
 		return
 	}
 	s.offers++
@@ -121,36 +134,44 @@ func (o *oracle) submissionAt(ctx context.Context, height int64, path string) (*
 	return nil, nil
 }
 
-// firstImportNotLive returns the first chain package mpkg imports that is not
-// live, or "" when a verification can reach a verdict. A live package's own
-// imports are live, so only mpkg's are asked about.
-func (o *oracle) firstImportNotLive(ctx context.Context, mpkg *std.MemPackage, live map[string]bool) string {
+// firstImportHoldingBack returns the first chain package mpkg imports that
+// would leave it pending again, or "" when a verification can reach a verdict.
+// A live package's own imports are live, so only mpkg's are asked about.
+func (o *oracle) firstImportHoldingBack(ctx context.Context, mpkg *std.MemPackage, statuses map[string]string) string {
 	imports, err := packages.Imports(mpkg, token.NewFileSet())
 	if err != nil {
 		return "" // unparseable source is the verification's verdict to give
 	}
 	for _, imp := range imports.Merge(packages.FileKindPackageSource) {
-		if gno.IsUserlib(imp.PkgPath) && !o.isLive(ctx, imp.PkgPath, live) {
+		if gno.IsUserlib(imp.PkgPath) && holdsBack(o.importStatus(ctx, imp.PkgPath, statuses)) {
 			return imp.PkgPath
 		}
 	}
 	return ""
 }
 
-// isLive reports whether the chain runs a package at path, a live one with a
-// submission parked over it included, and keeps the answer in live for the
-// rest of the pass. A genesis package the import cache holds is live without
-// asking. A path the node does not answer for counts as not live until the
-// next pass.
-func (o *oracle) isLive(ctx context.Context, path string, live map[string]bool) bool {
+// holdsBack reports whether an import the chain holds in this state leaves its
+// importer pending: parked, or not answered for. A live import resolves, and
+// an absent one is a rejection, which a verification gives.
+func holdsBack(status string) bool {
+	return status != vm.PackageStatusLive && status != vm.PackageStatusAbsent
+}
+
+// importStatus is what the chain holds at path, one of the vm.PackageStatus
+// constants, or "" when the node did not answer, kept in statuses for the rest
+// of the pass. A live package with a submission parked over it is live. A
+// genesis package the import cache holds is live without asking.
+func (o *oracle) importStatus(ctx context.Context, path string, statuses map[string]string) string {
 	if _, genesis := o.genesisImports()[path]; genesis {
-		return true
+		return vm.PackageStatusLive
 	}
-	if v, asked := live[path]; asked {
-		return v
+	if status, asked := statuses[path]; asked {
+		return status
 	}
-	meta, err := queryPkgMeta(ctx, o.client.RPCClient, path)
-	v := err == nil && meta.Status == vm.PackageStatusLive
-	live[path] = v
-	return v
+	var status string
+	if meta, err := queryPkgMeta(ctx, o.client.RPCClient, path); err == nil {
+		status = meta.Status
+	}
+	statuses[path] = status
+	return status
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"net/http/httptest"
 	"sync/atomic"
@@ -56,7 +57,7 @@ func TestCachedGenesisImportIsLiveWithoutAsking(t *testing.T) {
 	require.Contains(t, o.genesisImports(), dep, "premise: the verification cached the import")
 	metaQueries.Store(0)
 
-	assert.Empty(t, o.firstImportNotLive(t.Context(), packageImporting(dep), map[string]bool{}))
+	assert.Empty(t, o.firstImportHoldingBack(t.Context(), packageImporting(dep), map[string]string{}))
 	assert.Zero(t, metaQueries.Load())
 }
 
@@ -79,6 +80,137 @@ func TestReoffersOfOneSubmissionAreCapped(t *testing.T) {
 	}
 	o.reofferStranded(t.Context())
 	assert.NotContains(t, o.stranded, path)
+	assert.Equal(t, statusGaveUp, o.status.get(path).Status,
+		"nothing offers it again this run, so the board must not say it will be")
+}
+
+// TestStrandedReasonNamesTheParkedImport: a submission whose first look could
+// not finish, and which a later pass finds held back by a parked import, says
+// so on the status board.
+func TestStrandedReasonNamesTheParkedImport(t *testing.T) {
+	chain := newInertChain(t)
+	dep, app := depAndImporter()
+	chain.park(t, dep)
+	chain.park(t, app)
+
+	o := chain.oracle(t)
+	o.cfg.prepareBudget = time.Nanosecond // the first look cannot finish
+	o.handleCandidate(t.Context(), candidate{mpkg: app, height: chain.submittedAt(t, app.Path)})
+	o.cfg.prepareBudget = defaultPrepareBudget
+	o.reofferStranded(t.Context())
+
+	require.Equal(t, dep.Path, o.stranded[app.Path].blockedOn, "premise: the pass found the parked import")
+	st := o.status.get(app.Path)
+	assert.Equal(t, statusPending, st.Status)
+	assert.Contains(t, st.Reason, dep.Path)
+}
+
+// TestStrandedImporterOfAnAbsentImportIsRejected: an import the chain holds
+// nowhere is a rejection whatever else is parked, so a pass offers its
+// importer, whose verification rejects it, instead of waiting on the import.
+func TestStrandedImporterOfAnAbsentImportIsRejected(t *testing.T) {
+	chain := newInertChain(t)
+	const path = "gno.land/r/test/wantsmissing"
+	pkg := chainPackage(path, "package wantsmissing\n\nimport \"gno.land/p/test/neversubmitted\"\n\n"+
+		"func N(cur realm) int { return neversubmitted.Answer() }\n")
+	chain.park(t, pkg)
+
+	o := chain.oracle(t)
+	o.cfg.prepareBudget = time.Nanosecond // the first look cannot finish
+	o.handleCandidate(t.Context(), candidate{mpkg: pkg, height: chain.submittedAt(t, path)})
+	require.Contains(t, o.stranded, path, "premise: the submission is stranded")
+	o.cfg.prepareBudget = defaultPrepareBudget
+	o.reofferStranded(t.Context())
+
+	st := o.status.get(path)
+	assert.Equal(t, statusRejected, st.Status, "recorded reason: %s", st.Reason)
+	assert.NotContains(t, o.stranded, path)
+}
+
+// TestLaterStrandedPathIsReachedUnderTraffic: a pass stops for every queued
+// candidate, so on a chain that keeps receiving them each pass is cut short.
+// The next one resumes where it stopped, or a path late in order would wait
+// behind every earlier one for the whole run.
+func TestLaterStrandedPathIsReachedUnderTraffic(t *testing.T) {
+	chain := newInertChain(t)
+	early := chainPackage("gno.land/r/test/aaa", "package aaa\n\nfunc N(cur realm) int { return 1 }\n")
+	late := chainPackage("gno.land/r/test/zzz", "package zzz\n\nfunc N(cur realm) int { return 1 }\n")
+	chain.park(t, early)
+	chain.park(t, late)
+	earlyAt, lateAt := chain.submittedAt(t, early.Path), chain.submittedAt(t, late.Path)
+
+	// A new candidate arrives while a pass reads a submission's block.
+	var o *oracle
+	var traffic atomic.Bool
+	proxy := httptest.NewServer(rewriting(t, chain.remote, func(body []byte) []byte {
+		if traffic.Load() && bytes.Contains(body, []byte(`"method":"block"`)) {
+			select {
+			case o.candidates <- candidate{mpkg: early, height: earlyAt}:
+			default:
+			}
+		}
+		return body
+	}))
+	t.Cleanup(proxy.Close)
+	chain.remote = proxy.URL
+
+	o = chain.oracle(t)
+	o.cfg.prepareBudget = time.Nanosecond // every verification comes back pending
+	o.handleCandidate(t.Context(), candidate{mpkg: early, height: earlyAt})
+	o.handleCandidate(t.Context(), candidate{mpkg: late, height: lateAt})
+	traffic.Store(true)
+
+	for range 2 {
+		o.reofferStranded(t.Context())
+		for len(o.candidates) > 0 {
+			<-o.candidates // the verifier takes the new block's candidate
+		}
+	}
+	assert.Equal(t, 1, o.stranded[late.Path].offers, "the second pass resumes at the path the first stopped at")
+}
+
+// TestCutPassResumesOnceTheQueueDrains: a pass cut short for a new candidate
+// goes on as soon as the verifier has handled it, not a whole interval later.
+func TestCutPassResumesOnceTheQueueDrains(t *testing.T) {
+	chain := newInertChain(t)
+	early := chainPackage("gno.land/r/test/aaa", "package aaa\n\nfunc N(cur realm) int { return 1 }\n")
+	late := chainPackage("gno.land/r/test/zzz", "package zzz\n\nfunc N(cur realm) int { return 1 }\n")
+	chain.park(t, early)
+	chain.park(t, late)
+	earlyAt, lateAt := chain.submittedAt(t, early.Path), chain.submittedAt(t, late.Path)
+
+	// One new candidate arrives while the first pass reads its first block.
+	var o *oracle
+	var blockReads atomic.Int64
+	proxy := httptest.NewServer(rewriting(t, chain.remote, func(body []byte) []byte {
+		if bytes.Contains(body, []byte(`"method":"block"`)) && blockReads.Add(1) == 1 {
+			o.candidates <- candidate{mpkg: early, height: earlyAt}
+		}
+		return body
+	}))
+	t.Cleanup(proxy.Close)
+	chain.remote = proxy.URL
+
+	o = chain.oracle(t)
+	o.cfg.prepareBudget = time.Nanosecond
+	o.handleCandidate(t.Context(), candidate{mpkg: early, height: earlyAt})
+	o.handleCandidate(t.Context(), candidate{mpkg: late, height: lateAt})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	tick := make(chan time.Time)
+	stopped := make(chan struct{})
+	go func() {
+		o.runVerifier(ctx, tick)
+		close(stopped)
+	}()
+	tick <- time.Now() // the only tick
+
+	require.Eventually(t, func() bool { return blockReads.Load() >= 2 }, 10*time.Second, 50*time.Millisecond,
+		"the cut pass must read the later submission's block without waiting for another tick")
+	cancel()
+	<-stopped
+	assert.Positive(t, o.stranded[late.Path].offers)
 }
 
 // TestStrandedSubmissionLeavesWhenTheChainMovesOn: once the chain no longer

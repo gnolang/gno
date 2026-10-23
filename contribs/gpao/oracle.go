@@ -59,6 +59,10 @@ type oracle struct {
 	// goroutine.
 	stranded map[string]strandedSubmission
 
+	// reofferNext is the path where a pass cut short by a queued candidate
+	// resumes, "" once a pass ran to its end. Verifier goroutine only.
+	reofferNext string
+
 	// spent is the gas fees paid for approvals so far this run, and maxSpend the
 	// bound from -max-spend. Touched only by the verifier goroutine, which is
 	// the only thing that approves.
@@ -469,6 +473,11 @@ func (o *oracle) runVerifier(ctx context.Context, reoffer <-chan time.Time) {
 			return
 		case c := <-o.candidates:
 			o.handleCandidate(ctx, c)
+			// A pass cut short for a candidate goes on once the queue is empty,
+			// not a whole interval later.
+			if o.reofferNext != "" && len(o.candidates) == 0 {
+				o.reofferStranded(ctx)
+			}
 		case <-reoffer:
 			o.reofferStranded(ctx)
 		}

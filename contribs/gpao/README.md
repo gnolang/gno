@@ -196,11 +196,17 @@ refusing one holds nothing up.
 Block heights are read once and only move forward, so a package left pending
 is not reached again from its block. gpao remembers each submission it leaves
 pending, by path and height, and every 10 minutes, between candidates, looks at
-them again: one the chain still holds parked at that height, and whose imports
-are all live, is verified again with its bytes read from its block. A package
-waiting on a parked import is verified once the import goes live, whoever
-enabled it; one whose verification could not finish is verified again. Each
-submission is verified again at most 3 times per run, and new blocks go first.
+them again: one the chain still holds parked at that height, and which no
+parked import holds back, is verified again with its bytes read from its block.
+A package waiting on a parked import is verified once the import goes live,
+whoever enabled it, and its status names that import meanwhile; one whose
+verification could not finish is verified again, and one importing a path the
+chain holds nowhere is verified and rejected. Each submission is verified again
+at most 3 times per run, after which its status says `gave_up`.
+
+New blocks go first: a look stops as soon as a candidate is queued, and resumes
+where it stopped once the verifier has handled it, so a path late in order is
+reached even while blocks keep arriving.
 
 What is remembered lives in memory, so a restarted gpao does not know what an
 earlier run left pending: restart with `--start-height` at or below the oldest
