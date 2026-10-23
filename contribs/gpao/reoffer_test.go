@@ -211,6 +211,7 @@ func TestCutPassResumesOnceTheQueueDrains(t *testing.T) {
 	cancel()
 	<-stopped
 	assert.Positive(t, o.stranded[late.Path].offers)
+	assert.Equal(t, 1, o.stranded[early.Path].offers, "the resumed pass goes on from where it stopped, not round again")
 }
 
 // TestStrandedSubmissionLeavesWhenTheChainMovesOn: once the chain no longer

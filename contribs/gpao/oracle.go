@@ -475,7 +475,7 @@ func (o *oracle) runVerifier(ctx context.Context, reoffer <-chan time.Time) {
 			o.handleCandidate(ctx, c)
 			// A pass cut short for a candidate goes on once the queue is empty,
 			// not a whole interval later.
-			if o.reofferNext != "" && len(o.candidates) == 0 {
+			if o.reofferNext != "" {
 				o.reofferStranded(ctx)
 			}
 		case <-reoffer:

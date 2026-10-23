@@ -60,7 +60,7 @@ func (o *oracle) reofferStranded(ctx context.Context) {
 	paths := slices.Sorted(maps.Keys(o.stranded))
 	start, _ := slices.BinarySearch(paths, o.reofferNext)
 	o.reofferNext = ""
-	for _, path := range slices.Concat(paths[start:], paths[:start]) {
+	for _, path := range paths[start:] {
 		if ctx.Err() != nil {
 			return
 		}
