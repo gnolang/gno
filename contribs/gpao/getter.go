@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -170,7 +171,8 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	return mpkg
 }
 
-// fetch queries vm/qfile for the package's file list, then each file's body,
+// fetch queries vm/qfile for the package's file list, then the body of each
+// file readByVerify keeps (every .gno file, for a package holding tests alone),
 // and assembles a MemPackage. A nil package with a nil error is the node
 // answering that nothing is stored at the path (the typechecker then reports
 // the import as unresolved); the error is returned so the caller can tell that
@@ -182,14 +184,16 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, err
 	}
 	names := strings.Split(string(list), "\n")
+	// A package holding tests alone, which AddPackage has refused since #5892
+	// but one stored before it may be, is empty to the validator's typecheck,
+	// which rejects its importers. Its tests are read too: with no .gno file
+	// it would not build here, and those importers would sit pending instead.
+	testsOnly := !slices.ContainsFunc(names, func(name string) bool {
+		return strings.HasSuffix(name, ".gno") && readByVerify(name)
+	})
 	files := make([]*std.MemFile, 0, len(names))
 	for _, name := range names {
-		if name == "" {
-			continue
-		}
-		// Every live package keeps a production file (AddPackage refuses one
-		// without), so the package still has a name to carry.
-		if !readByVerify(name) {
+		if !readByVerify(name) && !(testsOnly && strings.HasSuffix(name, ".gno")) {
 			continue
 		}
 		body, err := g.query(path.Join(pkgPath, name))
@@ -202,10 +206,17 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, nil
 	}
 
+	// A test file's clause may carry _test, and AddMemPackage wants the name
+	// the path gives.
+	name := gno.LastPathElement(pkgPath)
+	if !testsOnly {
+		name = packageName(files)
+	}
+
 	// MPUserAll, the type AddPackage stamps on the stored package, of which
 	// this is the production subset.
 	return &std.MemPackage{
-		Name:  packageName(files),
+		Name:  name,
 		Path:  pkgPath,
 		Files: files,
 		Type:  gno.MPUserAll,
