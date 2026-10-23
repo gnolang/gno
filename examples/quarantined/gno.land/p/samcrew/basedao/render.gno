@@ -85,9 +85,9 @@ func (d *DAOPrivate) ProposalHistoryPageView() string {
 		d.ProposalHistoryView()
 }
 
-func (d *DAOPrivate) MemberDetailPageView(address string) string {
+func (d *DAOPrivate) MemberDetailPageView(addr string) string {
 	return d.MemberDetailHeaderView() +
-		d.MemberDetailView(address)
+		d.MemberDetailView(addr)
 }
 
 func (d *DAOPrivate) ProposalDetailPageView(idu uint64) string {

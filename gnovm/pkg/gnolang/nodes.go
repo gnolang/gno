@@ -2323,11 +2323,13 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
-	// iota is a non-shadowable builtin. A three-clause for init reaches here
-	// renamed to "iota.loopvar"; uverse's own registration goes through
-	// Define2, bypassing Reserve, so it is unaffected.
-	if nx.Name == iotaIdentifier || nx.Name == iotaIdentifier+".loopvar" {
-		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", iotaIdentifier))
+	// Every source binding is reserved here, so reserved names are refused
+	// here: builtins including iota (a for-init arrives as "<name>.loopvar",
+	// which checkDeclName strips), and `cur`. The one `cur` allowed is a
+	// first parameter, carved out by position; checkCurParamType requires
+	// it to be realm-typed. Uverse registers through Define2, not here.
+	if !(nstype == NSFuncParam && index == 0 && nx.Name == "cur") {
+		checkDeclName(nx.Name)
 	}
 	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {

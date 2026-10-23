@@ -99,19 +99,19 @@ func (p Position) maxHashCount() int {
 	}
 	sort.Sort(uintSlice(p.Hashes))
 	var last uint64
-	var cur, max int
+	var run, max int
 	for _, v := range p.Hashes {
 		if last != v {
 			last = v
-			if cur >= max {
-				max = cur
+			if run >= max {
+				max = run
 			}
-			cur = 0
+			run = 0
 		}
-		cur++
+		run++
 	}
-	if cur >= max {
-		max = cur
+	if run >= max {
+		max = run
 	}
 	return max
 }

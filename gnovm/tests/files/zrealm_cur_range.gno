@@ -22,4 +22,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/currange/zrealm_cur_range.gno:19:2-20:3: cannot assign to a realm-typed `cur` in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame
+// gno.land/r/demo/currange/zrealm_cur_range.gno:19:2-20:3: cannot assign to the crossing `cur` parameter in a range clause: it names the realm this frame is executing as, and that binding is fixed for the life of the frame
