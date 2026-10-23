@@ -75,6 +75,14 @@ type FieldOptions struct {
 	WriteEmpty     bool // write empty structs and lists (default false except for pointers)
 	NilElements    bool // Empty list elements are decoded as nil iff set, otherwise are never nil.
 	UseGoogleTypes bool // If true, decodes Any timestamp and duration to google types.
+	// SkipZero leaves the field out of the binary and JSON encodings whenever
+	// its Go value is the zero value of its type, as reflect.Value.IsZero
+	// decides, even where the repr would encode to something (a zero
+	// crypto.Address has a non-empty bech32 repr). A missing field decodes
+	// back to that zero value. IsZero agrees with ==, so a float -0.0 counts
+	// as zero and decodes as 0. ValidateBasic refuses the tag where a
+	// missing field would decode to anything else.
+	SkipZero bool // (Binary, JSON) amino:"skip_zero"
 }
 
 // ----------------------------------------
@@ -228,6 +236,18 @@ func (finfo *FieldInfo) ValidateBasic() {
 		switch finfo.TypeInfo.GetUltimateElem().Type.Kind() {
 		case reflect.Float32, reflect.Float64:
 			panic("floating point types are unsafe for go-amino, even for repr types")
+		}
+	}
+	if finfo.SkipZero {
+		if finfo.WriteEmpty {
+			panic("amino:\"skip_zero\" and amino:\"write_empty\" are mutually exclusive")
+		}
+		// A field skip_zero leaves out must decode back to the zero value
+		// it left out, and a missing field decodes to defaultValue. That is
+		// not the zero value for time.Time (1970-01-01), nor for a pointer
+		// to anything but a struct (a pointer to the zero value).
+		if !defaultValue(finfo.Type).IsZero() {
+			panic(fmt.Sprintf("amino:\"skip_zero\" is not allowed on a %v field, which decodes to a non-zero value when missing", finfo.Type))
 		}
 	}
 }
@@ -739,8 +759,8 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	defer func() {
 		if ex := recover(); ex != nil {
-			panic(fmt.Sprintf("panic parsing struct %v",
-				rt))
+			panic(fmt.Sprintf("panic parsing struct %v: %v",
+				rt, ex))
 		}
 	}()
 	if rt.Kind() != reflect.Struct {
@@ -883,6 +903,9 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 		}
 		if aminoTag == "nil_elements" {
 			fopts.NilElements = true
+		}
+		if aminoTag == "skip_zero" {
+			fopts.SkipZero = true
 		}
 	}
 

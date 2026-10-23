@@ -564,6 +564,65 @@ message FuzzNilEmptyRepr {
 	repeated string vals = 1 [json_name = "Vals"];
 }
 
+message SkipZeroInner {
+	string addr = 1 [json_name = "Addr"];
+	sint32 n = 2 [json_name = "N"];
+}
+
+message SkipZeroList {
+	string addr = 1 [json_name = "Addr"];
+	repeated sint32 ns = 2 [json_name = "Ns"];
+}
+
+message FuzzSkipZero {
+	string addr = 1 [json_name = "Addr"];
+	bytes bytes = 2 [json_name = "Bytes"];
+	repeated sint64 ints = 3 [json_name = "Ints"];
+	repeated SkipZeroInner inners = 4 [json_name = "Inners"];
+	SkipZeroInner inner = 5 [json_name = "Inner"];
+	SkipZeroList list = 6 [json_name = "List"];
+	double score = 7 [json_name = "Score"];
+	sfixed64 fixed = 8 [json_name = "Fixed"];
+	string name = 9;
+	repeated sint32 nums = 10 [json_name = "Nums"];
+	string plain_addr = 11 [json_name = "PlainAddr"];
+	SkipZeroInner plain_inner = 12 [json_name = "PlainInner"];
+}
+
+message SkipZeroInterface {
+	google.protobuf.Any i = 1 [json_name = "I"];
+}
+
+message SkipZeroNilElements {
+	repeated GnoVMPos slice = 1 [json_name = "Slice"];
+	repeated GnoVMPos array = 2 [json_name = "Array"];
+}
+
+message SkipZeroOnly {
+	string addr = 1 [json_name = "Addr"];
+}
+
+message SkipZeroHolder {
+	SkipZeroOnly only = 1 [json_name = "Only"];
+	sint32 n = 2 [json_name = "N"];
+}
+
+message SkipZeroElemRepr {
+	sint32 n = 1 [json_name = "N"];
+	repeated sint32 arr = 2 [json_name = "Arr"];
+	SkipZeroInner inner = 3 [json_name = "Inner"];
+}
+
+message SkipZeroElem {
+	sint32 n = 1 [json_name = "N"];
+	repeated sint32 arr = 2 [json_name = "Arr"];
+	SkipZeroInner inner = 3 [json_name = "Inner"];
+}
+
+message SkipZeroElems {
+	repeated SkipZeroElem value = 1;
+}
+
 message SimpleAddress {
 	string value = 1;
 }

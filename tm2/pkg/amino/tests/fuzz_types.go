@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 )
@@ -356,6 +357,134 @@ func (e *EmptyReprOnZero) UnmarshalAmino(s string) error {
 // parity, (2) size correctness, and (3) cross-decoder agreement.
 type FuzzNilEmptyRepr struct {
 	Vals []*EmptyReprOnZero `amino:"nil_elements"`
+}
+
+// ========================================
+// Types for amino:"skip_zero".
+
+// SkipZeroAddr is a byte array whose repr is never empty, like
+// crypto.Address: even its zero value marshals to a non-empty string, so
+// amino writes it unless the field is tagged amino:"skip_zero". It is not
+// registered, so it encodes inline as its string repr, as crypto.Address
+// does in std.Signature.
+type SkipZeroAddr [4]byte
+
+func (a SkipZeroAddr) MarshalAmino() (string, error) {
+	return "a" + hex.EncodeToString(a[:]), nil
+}
+
+func (a *SkipZeroAddr) UnmarshalAmino(s string) error {
+	if s == "" { // as crypto.Address reads ""
+		*a = SkipZeroAddr{}
+		return nil
+	}
+	if len(s) != 1+2*len(a) || s[0] != 'a' {
+		return fmt.Errorf("invalid SkipZeroAddr %q", s)
+	}
+	_, err := hex.Decode(a[:], []byte(s[1:]))
+	return err
+}
+
+// SkipZeroInner is a struct whose zero value still encodes to bytes,
+// through its untagged SkipZeroAddr.
+type SkipZeroInner struct {
+	Addr SkipZeroAddr
+	N    int32
+}
+
+// SkipZeroList cannot be compared with ==, so generated code asks reflect
+// whether it is zero.
+type SkipZeroList struct {
+	Addr SkipZeroAddr
+	Ns   []int32
+}
+
+// FuzzSkipZero exercises amino:"skip_zero" on the kinds where it changes
+// the encoding (an AminoMarshaler with a non-empty zero repr, byte and int
+// arrays, an array of structs, structs whose zero value encodes, a float),
+// on kinds amino already leaves out at zero (ints, strings, slices), next
+// to the other tags, and against untagged controls.
+type FuzzSkipZero struct {
+	Addr       SkipZeroAddr     `amino:"skip_zero"`
+	Bytes      [4]byte          `amino:"skip_zero"`
+	Ints       [2]int64         `amino:"skip_zero"`
+	Inners     [2]SkipZeroInner `amino:"skip_zero"`
+	Inner      SkipZeroInner    `amino:"skip_zero"`
+	List       SkipZeroList     `amino:"skip_zero"`
+	Score      float64          `amino:"unsafe,skip_zero"`
+	Fixed      int64            `binary:"fixed64" amino:"skip_zero"`
+	Name       string           `json:"name,omitempty" amino:"skip_zero"`
+	Nums       []int32          `amino:"skip_zero"`
+	PlainAddr  SkipZeroAddr     // control: written even when zero
+	PlainInner SkipZeroInner    // control: written even when zero
+}
+
+// SkipZeroInterface: amino:"skip_zero" on an interface field. A nil
+// interface is zero and was left out already; a non-nil one holding a zero
+// value is not zero, so it is written.
+type SkipZeroInterface struct {
+	I Interface1 `amino:"skip_zero"`
+}
+
+// SkipZeroNilElements: amino:"skip_zero" next to amino:"nil_elements". On
+// a slice it changes nothing; on an array it leaves out the all-nil array,
+// which nil_elements alone writes as nil elements.
+type SkipZeroNilElements struct {
+	Slice []*GnoVMPos  `amino:"nil_elements,skip_zero"`
+	Array [2]*GnoVMPos `amino:"skip_zero,nil_elements"`
+}
+
+// SkipZeroOnly encodes to nothing at zero only because of its tag, so a
+// field of this type is empty at zero, and genproto's Is*ReprEmpty must
+// say so too.
+type SkipZeroOnly struct {
+	Addr SkipZeroAddr `amino:"skip_zero"`
+}
+
+// SkipZeroHolder holds a SkipZeroOnly, untagged.
+type SkipZeroHolder struct {
+	Only SkipZeroOnly
+	N    int32
+}
+
+// SkipZeroElemRepr is SkipZeroElem's repr. Listed as the elements of
+// SkipZeroElems's repr, its fields are written by genproto2's inline field
+// writer, which does not convert a field to its repr, so none here is an
+// AminoMarshaler; Inner holds one.
+type SkipZeroElemRepr struct {
+	N     int32
+	Arr   [2]int32      `amino:"skip_zero"`
+	Inner SkipZeroInner `amino:"skip_zero"`
+}
+
+// SkipZeroElem is a struct AminoMarshaler with a struct repr.
+type SkipZeroElem struct {
+	N     int32
+	Arr   [2]int32
+	Inner SkipZeroInner
+}
+
+func (e SkipZeroElem) MarshalAmino() (SkipZeroElemRepr, error) {
+	return SkipZeroElemRepr(e), nil
+}
+
+func (e *SkipZeroElem) UnmarshalAmino(r SkipZeroElemRepr) error {
+	*e = SkipZeroElem(r)
+	return nil
+}
+
+// SkipZeroElems has a list repr of SkipZeroElem.
+type SkipZeroElems struct {
+	Items []SkipZeroElem
+}
+
+func (l SkipZeroElems) MarshalAmino() ([]SkipZeroElem, error) {
+	return l.Items, nil
+}
+
+func (l *SkipZeroElems) UnmarshalAmino(r []SkipZeroElem) error {
+	l.Items = r
+	return nil
 }
 
 // InterfaceHeavy: benchmarks MarshalAnyBinary2 with multiple interface fields.
