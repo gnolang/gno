@@ -5905,6 +5905,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
 				Crossing:   ft.IsCrossing(),
+				Version:    int32(pkg.Version),
 				body:       d.Body,
 				nativeBody: nil,
 			}
@@ -5936,6 +5937,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				FileName:   fileNameOf(last),
 				PkgPath:    pkg.PkgPath,
 				Crossing:   false, // gets set after evalStaticType(d.Type)
+				Version:    int32(pkg.Version),
 				body:       d.Body,
 				nativeBody: nil,
 			}

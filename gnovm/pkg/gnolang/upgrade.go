@@ -201,10 +201,10 @@ func assertPrefix(prior, have []slotSig, what string) error {
 // version persisted, refusing any change the plan cannot carry. It runs after
 // PrepareNewValues and before any declaration executes.
 //
-// The prior blocks are not deleted: their reference counts include every
-// function and file block parented under them, which is the cleanup #4949
-// is about. The prior block's slots for the carried heap items are cleared,
-// so that cleanup cannot later count the live items as its own.
+// The prior block keeps every slot: the func values persisted under the
+// prior version still resolve globals through it, so a carried heap item is
+// shared by both blocks (finalize marks it escaped) and a dropped one stays
+// in the prior block, released with it (#4949, #6249).
 func (m *Machine) applyUpgradePlan(pn *PackageNode, pv *PackageValue, plan *upgradePlan) {
 	store := m.Store
 	pb := pv.GetBlock(store)
@@ -216,21 +216,14 @@ func (m *Machine) applyUpgradePlan(pn *PackageNode, pv *PackageValue, plan *upgr
 	// the store and must see this version's definitions, methods included.
 	m.saveDeclaredTypes(pv, true)
 
-	rlm := pv.GetRealm()
 	for _, name := range slices.Sorted(maps.Keys(plan.vars)) {
-		hiv := store.GetObject(plan.vars[name]).(*HeapItemValue)
-		// Detach from the prior block; finalize re-adopts a carried item
-		// under the new one, and releases a dropped one with what it owns.
-		hiv.DecRefCount()
-		plan.prior.Values[plan.shape.vars[name].index] = TypedValue{}
 		if nv, ok := next.vars[name]; ok {
-			hiv.SetOwner(nil)
+			hiv := store.GetObject(plan.vars[name]).(*HeapItemValue)
 			pb.Values[nv.index] = TypedValue{T: heapItemType{}, V: hiv}
-		} else {
-			rlm.MarkNewDeleted(hiv)
 		}
 	}
-	rlm.MarkDirty(plan.prior)
+	// Re-saved so its references record the shared items as escaped.
+	pv.GetRealm().MarkDirty(plan.prior)
 }
 
 // carriedDecl reports whether decl declares carried globals, refusing a

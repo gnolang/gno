@@ -139,8 +139,9 @@ is version 2, and the signer is the creator. `init()` did not run;
 `migrate(1)` did. The objects are the same objects, with the same ObjectIDs
 and the same storage deposit; nothing was copied.
 
-Version 3 can drop `counter`, which `total` replaced. Its heap item is
-released, and whatever it owned with it:
+Version 3 can drop `counter`, which `total` replaced. It leaves the new
+code; version 1's package block still holds it for the functions that
+version stored, until the old package is cleaned up:
 
 ```go
 var (
@@ -329,10 +330,24 @@ covers the authority, the live version number and the importers.
 - A migration left in the source runs again on the next version. Guard it
   on `from`, or remove it when it has done its job.
 
+## Stored functions
+
+A func value the realm persisted, a callback in a slice, a method value, a
+closure in a struct field, keeps running the code of the version that
+created it: the redeploy archives the replaced source, and the stored value
+resolves there, on every node alike. It reads the realm's live globals, so
+old code and new code share state. To move a stored value to the new code,
+reassign it, in `migrate` or later:
+
+```go
+var hooks []func() string          // carried; hooks[0] still runs v1's closure
+func migrate(from int) { hooks[0] = v3hook }   // now runs v3's
+```
+
+Executed by `redeploy_closures.txtar`.
+
 ## Known gaps
 
-- A persisted func value, method value or closure still runs the code of
-  the version that created it.
 - Appending a struct field is refused; it is a planned follow-up, as is a
   typed way to read a dropped global from `migrate`.
 - The Constitution's rule that an immutable realm may not persist values of

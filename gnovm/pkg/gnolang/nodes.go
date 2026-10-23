@@ -1333,6 +1333,10 @@ type PackageNode struct {
 	// Not serialized.
 	pkgID PkgID
 
+	// Version is the package's gnomod.toml version, stamped on the
+	// FuncValues its code creates (see FuncValue.Version). Not serialized.
+	Version int
+
 	// pendingHidden are the init, migrate and blank func decls
 	// initStaticBlocks met, named and reserved by reserveHiddenFuncs after
 	// every other name. Not serialized.

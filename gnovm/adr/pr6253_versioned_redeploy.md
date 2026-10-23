@@ -35,8 +35,18 @@ the version by exactly one keeps the realm's state:
 - The plan is applied after preprocessing and before any declaration
   runs. Each carried slot of the new package block is pointed at the
   prior heap item, whose declaration is then skipped. The prior block
-  keeps its other slots but drops the carried ones, so the cleanup
-  #4949 asks for cannot later count the live items as its own.
+  keeps every slot: the items it shares with the new block are marked
+  escaped, a dropped global stays with it, and #6249's release of the
+  prior package decrements rather than deletes what is still shared.
+- Stored code is versioned like stored data. A `FuncValue` carries the
+  `Version` of the source it points into (wire field 14, stamped from
+  `PackageNode.Version`); a versioned redeploy archives the replaced
+  prod source as `pkgver:<path>@N` and preprocesses it into a node
+  space of its own (a store fork kept for the process, rebuilt at boot),
+  so a closure persisted under N keeps running N's code on every node,
+  reading the realm's live globals through N's package block. A stored
+  named function is captured the same way; reassigning the global
+  points it at the new code (`redeploy_closures.txtar`).
 - Declared types are re-persisted with `Store.ReplaceType` on every
   redeploy, versioned or not: `SetType` keeps the cached definition,
   so the old redeploy served stale methods to objects it created.
@@ -99,8 +109,8 @@ Version unset on both sides is the old redeploy, unchanged.
   existing govdao txtar out of gas.
 - Follow-ups: a realm-path authority (governance), a typed `path@N`
   import for reading removed or retyped globals from `migrate`, appended
-  struct fields, gnoweb showing the upgradeable flag, refusing a
-  redeploy over persisted func-lit closures whose source moved, and
+  struct fields, gnoweb showing the upgradeable flag, loading archived
+  versions lazily under a flat gas charge instead of at boot, and
   running the checker automatically: `gno lint` against a prior
   directory, gnodev on reload, CI on a version step.
 - Consensus-breaking: reserving hidden funcs last changes package
@@ -108,7 +118,8 @@ Version unset on both sides is the old redeploy, unchanged.
   every deploy writes the import index (realm goldens, an apphash pin,
   a genesis balance line re-derived). Ships only with a chain upgrade.
 - The prior blocks are not deleted; that leak predates this change
-  (#4949). The carried objects are re-adopted, not re-charged.
+  (#4949), and the archived versions' code now depends on them. The
+  carried objects are shared, not re-charged.
 - The inert path takes the same run and rules, untested by the txtars.
 - The parser and go/types treat `migrate` as `init`; the transpiler and
   `gno fix` still special-case `init` by name.

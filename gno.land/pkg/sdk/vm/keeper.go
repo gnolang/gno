@@ -701,10 +701,26 @@ func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error)
 	return gm, nil
 }
 
-// reprocessImporters re-preprocesses the importers of a redeployed public
-// realm (see Machine.ReprocessImporters), the redeployer paying preprocess
-// gas for each as for a deploy.
-func reprocessImporters(ctx sdk.Context, params Params, m *gno.Machine, pkgPath string, liveGm *gnomod.File) {
+// archiveReplaced keeps the live package's source when a versioned redeploy
+// replaces it, for the func values persisted under it; nil otherwise. Called
+// before the live blob is deleted.
+func archiveReplaced(gnostore gno.Store, pkgPath string, gm, liveGm *gnomod.File) *std.MemPackage {
+	if liveGm == nil || gm.Version == 0 {
+		return nil
+	}
+	return gnostore.ArchiveMemPackage(pkgPath, liveGm.Version)
+}
+
+// finishRedeploy does what a redeploy owes beyond running the new package:
+// the replaced version's code is preprocessed into its archive, and the
+// importers of a public realm are re-preprocessed (see
+// Machine.ReprocessImporters). The redeployer pays preprocess gas for each
+// as for a deploy.
+func finishRedeploy(ctx sdk.Context, params Params, gnostore gno.Store, m *gno.Machine, pkgPath string, liveGm *gnomod.File, archived *std.MemPackage) {
+	if archived != nil {
+		chargePreprocessGas(ctx, params, archived, "RedeployArchivePreprocess")
+		gnostore.LoadArchivedVersion(archived, liveGm.Version)
+	}
 	if liveGm == nil || !liveGm.Upgradeable() {
 		return
 	}
@@ -821,6 +837,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// redeployable when its live package is private or names an upgrade
 	// authority; anything else is permanent.
 	var liveGm *gnomod.File
+	var archived *std.MemPackage // the replaced version's source, on a versioned redeploy
 	if pv != nil {
 		liveGm, err = parseLiveGnomod(gnostore.GetMemPackage(pkgPath), pkgPath)
 		if err != nil {
@@ -1097,6 +1114,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// silently, so a restarted node rebuilds no PackageNode and panics on
 		// call, while a node that has not restarted still answers from
 		// cacheNodes. That is a consensus split keyed on restart history.
+		archived = archiveReplaced(gnostore, pkgPath, gm, liveGm)
 		gnostore.DeleteMemPackage(pkgPath)
 	}
 
@@ -1219,7 +1237,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		priorRealm = gnostore.GetPackageRealm(pkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
-	reprocessImporters(ctx, params, m2, pkgPath, liveGm)
+	finishRedeploy(ctx, params, gnostore, m2, pkgPath, liveGm, archived)
 
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {

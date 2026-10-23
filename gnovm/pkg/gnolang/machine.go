@@ -342,6 +342,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		// prod-less packages before sending.
 		m.preprocessSavedPackage(mpkg, done)
 	}
+	// The replaced versions, for the func values persisted under them;
+	// after the live packages, which they import.
+	for mpkg, version := range m.Store.IterArchivedMemPackages() {
+		m.Store.LoadArchivedVersion(mpkg, version)
+	}
 }
 
 // ReprocessImporters preprocesses again every package that imports pkgPath,
@@ -367,7 +372,7 @@ func (m *Machine) ReprocessImporters(pkgPath string, before func(*std.MemPackage
 		if mpkg := m.Store.GetMemPackage(post[i]); mpkg != nil {
 			before(mpkg)
 			mpkg = MPFProd.FilterMemPackage(mpkg)
-			m.preprocessFileSet(mpkg, m.ParseMemPackage(mpkg))
+			m.preprocessFileSet(mpkg, m.ParseMemPackage(mpkg), gnomodVersion(mpkg))
 		}
 	}
 }
@@ -428,13 +433,22 @@ func (m *Machine) preprocessSavedPackage(mpkg *std.MemPackage, done map[string]b
 			m.preprocessSavedPackage(dep, done)
 		}
 	}
-	m.preprocessFileSet(mpkg, fset)
+	m.preprocessFileSet(mpkg, fset, gnomodVersion(mpkg))
 }
 
-// preprocessFileSet preprocesses a stored package's parsed files and saves
-// their block nodes, without running them.
-func (m *Machine) preprocessFileSet(mpkg *std.MemPackage, fset *FileSet) {
+// gnomodVersion is the version in mpkg's gnomod.toml, 0 without one.
+func gnomodVersion(mpkg *std.MemPackage) int {
+	if mod, err := gnomod.ParseMemPackage(mpkg); err == nil && mod != nil {
+		return mod.Version
+	}
+	return 0
+}
+
+// preprocessFileSet preprocesses a stored package's parsed files at the
+// given version and saves their block nodes, without running them.
+func (m *Machine) preprocessFileSet(mpkg *std.MemPackage, fset *FileSet, version int) {
 	pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
+	pn.Version = version
 	m.Store.SetBlockNode(pn)
 	PredefineFileSet(m.Store, pn, fset)
 	for _, fn := range fset.Files {
@@ -571,6 +585,10 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 		}
 	}
 	m.SetActivePackage(pv)
+	// The version the func values this run creates point into.
+	if mod != nil {
+		pn.Version = mod.Version
+	}
 	// run files.
 	updates := m.runFileDecls(overrides, plan, files.Files...)
 	// populate pv.fBlocksMap.

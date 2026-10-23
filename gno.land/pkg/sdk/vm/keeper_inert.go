@@ -355,13 +355,15 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// unconditionally would charge a first deployment for a key that cannot
 	// be there.
 	var priorRealm *gno.Realm
+	var archived *std.MemPackage
 	if liveBlob != nil {
-		// Private redeploy: clear the prior blobs, as the normal path does.
+		// Redeploy: archive and clear the prior blobs, as the normal path does.
+		archived = archiveReplaced(gnostore, msg.PkgPath, gm, liveGm)
 		gnostore.DeleteMemPackage(msg.PkgPath)
 		priorRealm = gnostore.GetPackageRealm(msg.PkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
-	reprocessImporters(ctx, params, m2, msg.PkgPath, liveGm)
+	finishRedeploy(ctx, params, gnostore, m2, msg.PkgPath, liveGm, archived)
 
 	// Take the storage deposit for the realm objects this enable just created.
 	//
