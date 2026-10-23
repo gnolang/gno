@@ -60,11 +60,16 @@ func oidTagSlotID(oid string) string {
 // dispatch, and htmx swaps the full page into a fragment slot.
 
 // stateObjectHref builds a `<pkgPath>$state&oid=...` permalink. tid keeps
-// the destination page type-aware; viewMode keeps a tree-view hop in tree.
-func stateObjectHref(pkgPath, oid, typeID, viewMode string) template.URL {
+// the destination page type-aware; ptrIndex (a pointer node's PointerIndex)
+// selects the value it points to in the object; viewMode keeps a tree-view
+// hop in tree.
+func stateObjectHref(pkgPath, oid, typeID string, ptrIndex *int, viewMode string) template.URL {
 	wq := url.Values{"state": {""}, "oid": {oid}}
 	if typeID != "" {
 		wq.Set("tid", typeID)
+	}
+	if ptrIndex != nil {
+		wq.Set("idx", strconv.Itoa(*ptrIndex))
 	}
 	if viewMode == "tree" {
 		wq.Set("view", "tree")
@@ -78,11 +83,15 @@ func stateObjectHref(pkgPath, oid, typeID, viewMode string) template.URL {
 // children at depth+1 so they step in under the parent via the same
 // --depth mechanism as the server-rendered tree (purely presentational).
 // viewMode keeps a tree-view expansion in tree format; pretty (default)
-// stays unstamped so the nginx cache key stays minimal.
-func stateFragNodeHref(pkgPath, oid, typeID string, depth int, viewMode string) template.URL {
+// stays unstamped so the nginx cache key stays minimal. ptrIndex is as in
+// stateObjectHref.
+func stateFragNodeHref(pkgPath, oid, typeID string, ptrIndex *int, depth int, viewMode string) template.URL {
 	wq := url.Values{"state": {""}, "frag": {"node"}, "oid": {oid}}
 	if typeID != "" {
 		wq.Set("tid", typeID)
+	}
+	if ptrIndex != nil {
+		wq.Set("idx", strconv.Itoa(*ptrIndex))
 	}
 	if depth > 0 {
 		wq.Set("depth", strconv.Itoa(depth))
@@ -283,10 +292,10 @@ func EnrichLinks(nodes []StateNode, pkgPath, viewMode string) {
 	for i := range nodes {
 		n := &nodes[i]
 		if n.ObjectID != "" {
-			n.Href = stateObjectHref(pkgPath, n.ObjectID, n.TypeID, viewMode)
+			n.Href = stateObjectHref(pkgPath, n.ObjectID, n.TypeID, n.PointerIndex, viewMode)
 		}
 		if n.OwnerID != "" {
-			n.OwnerHref = stateObjectHref(pkgPath, n.OwnerID, "", viewMode)
+			n.OwnerHref = stateObjectHref(pkgPath, n.OwnerID, "", nil, viewMode)
 		}
 		if len(n.Children) > 0 {
 			EnrichLinks(n.Children, pkgPath, viewMode)

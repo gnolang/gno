@@ -138,9 +138,10 @@ func TestHandleRejectsHeightPin(t *testing.T) {
 // through ParseFromURL, then assert the response is a fragment (small
 // HTML body, no `<!doctype>`), not a full page.
 func TestHandleEndToEndFragmentFromTemplateURL(t *testing.T) {
-	// Build the URL the way the template does (stateFragNodeHref).
+	// Build the URL the way the template does (stateFragNodeHref), for a
+	// pointer at Index 0 of the object.
 	oid := "abcdef0123456789abcdef0123456789abcdef01:1"
-	href := string(stateFragNodeHref("/r/demo", oid, "", 0, ""))
+	href := string(stateFragNodeHref("/r/demo", oid, "", intPtr(0), 0, ""))
 	// Round-trip through net/url and ParseFromURL like a real request would.
 	stdURL, err := url.Parse(href)
 	if err != nil {
@@ -153,6 +154,10 @@ func TestHandleEndToEndFragmentFromTemplateURL(t *testing.T) {
 	// Sanity: the parser placed `frag` into WebQuery (not Query).
 	if u.WebQuery.Get("frag") != "node" {
 		t.Fatalf("frag not in WebQuery: WebQuery=%v Query=%v", u.WebQuery, u.Query)
+	}
+	// The pointer's Index reaches the handler, including 0.
+	if u.WebQuery.Get("idx") != "0" {
+		t.Fatalf("idx=0 not in WebQuery: WebQuery=%v Query=%v", u.WebQuery, u.Query)
 	}
 
 	h := newTestHandler()

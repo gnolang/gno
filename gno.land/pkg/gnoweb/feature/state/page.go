@@ -215,6 +215,11 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 			return http.StatusBadRequest, components.StatusErrorComponent("invalid type id")
 		}
 	}
+	// &idx= is set for a pointer into the object: decode only its pointee.
+	ptrIndex, err := ValidatePointerIndex(u.WebQuery.Get("idx"))
+	if err != nil {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid pointer index")
+	}
 
 	var raw, typeRaw []byte
 	// One-way fail-fast (mirrors servePackagePage): a fatal StateObject
@@ -250,7 +255,7 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 
 	// DecodeObjectFull keeps positional parity with the legacy path so
 	// sidebar Info fields (Hash, OwnerID, RefCount, ...) still surface.
-	decoded, err := DecodeObjectFull(raw, typeRaw, DefaultPageRenderConfig())
+	decoded, err := DecodeObjectFull(raw, typeRaw, ptrIndex, DefaultPageRenderConfig())
 	if err != nil {
 		h.deps.Logger.Error("unable to decode state object JSON", "error", err, "path", u.EncodeURL(), "oid", oid)
 		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state object")
