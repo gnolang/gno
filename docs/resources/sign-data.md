@@ -24,14 +24,14 @@ chain id and its single message, `sign/MsgSignData`:
 ```
 
 The bytes signed are that JSON with its keys sorted, no spaces, and `<`, `>`
-and `&` escaped as `<`, `>` and `&`. No other field may appear,
+and `&` escaped as `\u003c`, `\u003e` and `\u0026`. No other field may appear,
 and none may be left out.
 
 | Field | Holds |
 |-------|-------|
 | `chain_id` | the chain the proof is for: a proof made on one network is none on another |
 | `signer` | the address, in bech32 |
-| `data` | the text, standard base64 with padding: non-empty UTF-8 |
+| `data` | the text, standard base64 with padding: non-empty UTF-8 (see below) |
 | `origin` | the service the proof is for (see below) |
 | `purpose` | what the proof is for, as the service names it (see below) |
 
@@ -42,6 +42,19 @@ root keys are a transaction sign document's on purpose: a hardware wallet that
 signs transactions in this JSON signs a proof the same way, and `origin` and
 `purpose` sit inside the message rather than at the root so that such a device
 does not refuse the document.
+
+### `data`
+
+The data is the text the user reads before signing, typically the service's
+challenge, and only text: a proof is over words the user can read, never over
+bytes a requester chose. A service that needs a nonce or a hash in it writes
+them as text, in hex for instance.
+
+It is carried in base64 rather than as a JSON string so that every
+implementation signs the same bytes. JSON encoders escape a string differently:
+Go writes `<` and U+2028 as `\u003c` and `\u2028`, JavaScript leaves them as
+they are. Base64 holds no character an encoder escapes, and neither do an
+origin or a purpose.
 
 ### `origin`
 
