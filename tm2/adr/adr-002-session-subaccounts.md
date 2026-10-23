@@ -110,7 +110,7 @@ type Signature struct {
 the field in both binary and JSON when the address is zero (`[20]byte{}`),
 so master-signed txs pay no wire-size overhead. `omitempty` covers JSON
 only; binary needs `skip_zero`, added after binary had been writing the
-zero address's bech32 string (see `prxxxx_amino_skip_zero.md`). The
+zero address's bech32 string (see `pr6399_amino_skip_zero.md`). The
 AnteHandler checks `!SessionAddr.IsZero()`.
 
 ### AnteHandler flow

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed, in PR #xxxx.
+Proposed, in PR #6399.
 
 ## Context
 
