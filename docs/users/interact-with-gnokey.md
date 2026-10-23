@@ -703,29 +703,33 @@ sent to the chain and it costs nothing.
 
 ```bash
 gnokey sign-data -chainid gnoland-1 \
-  -data "example.com: prove this wallet is yours · 9UQVko4o" \
+  -url https://example.com -purpose auth/SignIn \
+  -data "prove this wallet is yours · 9UQVko4o" \
   -output-document proof.json mykey
 ```
 
-`-chainid` is required: the proof is only good on the chain it names. Use
-`-data-path` instead of `-data` to sign the contents of a file, as they are,
-a final newline included. Without `-output-document`, the proof is printed.
+`-chainid`, `-url` and `-purpose` are required: the proof is only good on the
+chain, for the service and for the use it names. The service tells you all
+three, along with the text. Use `-data-path` instead of `-data` to sign the
+contents of a file, as they are, a final newline included. Without
+`-output-document`, the proof is printed.
 
 The proof holds the signed text, your public key and the signature, in the same
 format as Adena's `SignArbitrary` answer. It is not a transaction and can never
 be broadcast as one.
 
-To check a proof, give `gnokey verify-data` the chain, the text and the address
-you expect (here `mykey`'s):
+To check a proof, give `gnokey verify-data` the chain, the service, the use,
+the text and the address you expect (here `mykey`'s):
 
 ```bash
 gnokey verify-data -chainid gnoland-1 \
-  -data "example.com: prove this wallet is yours · 9UQVko4o" \
+  -url https://example.com -purpose auth/SignIn \
+  -data "prove this wallet is yours · 9UQVko4o" \
   -proof-path proof.json g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
 
 It fails unless the proof is signed by that address's key and signs exactly
-that text on that chain. The address needs no key in your keybase, and
+that text on that chain, for that service and use. The address needs no key in your keybase, and
 `-proof-path -` reads the proof from stdin.
 
 A proof stays valid forever and anyone holding it can present it again, so

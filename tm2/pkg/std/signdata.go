@@ -17,11 +17,11 @@ import (
 // decoded transaction, and amino writes every message there as {"@type": ...}:
 // a document whose message is {"type", "value"} is no transaction's sign
 // document, so a signature over it proves control of an address and can never
-// be broadcast.
+// be broadcast. TestSignDataPayloadIsNoTransactionPayload pins this.
 const SignDataMsgType = "sign/MsgSignData"
 
 // A sign-data document is a transaction sign document with every field fixed
-// but the chain id, the signer and the data, as Adena's SignArbitrary builds it.
+// but the chain id and the message, as Adena's SignArbitrary builds it.
 // The chain id stays (ADR-036 wants it empty): a proof made on one network is
 // then no proof on another.
 type signDataPayload struct {
@@ -40,44 +40,60 @@ type signDataMsg struct {
 	Value signDataValue `json:"value"`
 }
 
+// signDataValue is ADR-036's {signer, data}, plus the url and the purpose that
+// bind a proof to one service and one use.
 type signDataValue struct {
-	Signer string `json:"signer"`
-	Data   string `json:"data"` // base64 of the UTF-8 text
+	Signer  string `json:"signer"`
+	Data    string `json:"data"` // base64 of the UTF-8 text
+	URL     string `json:"url"`
+	Purpose string `json:"purpose"`
 }
 
-// SignedData is what a verified sign-data document says.
+// SignedData is what a sign-data document says: on ChainID, Signer answers the
+// service at URL, for Purpose, with Data.
 type SignedData struct {
 	ChainID string
+	// URL names the service the proof is for: a website's origin, which a wallet
+	// takes from the requesting page, never from the request.
+	URL string
+	// Purpose is what the proof is for, as the service names it, such as
+	// "username/Reserve".
+	Purpose string
 	Signer  crypto.Address
-	Data    string
+	// Data is a text the user reads before signing, typically the service's
+	// challenge.
+	Data string
 }
 
-// SignDataPayload returns the bytes a key signs to prove, on chainID, that it
-// controls signer, with data (a text the user reads before signing, typically a
-// verifier's challenge). The bytes are those of Adena's SignArbitrary: the sign
-// document sorted by key, its fee an empty coin list (see signDocFee).
-func SignDataPayload(chainID string, signer crypto.Address, data string) ([]byte, error) {
-	if chainID == "" {
+// SignDataPayload returns the bytes a key signs to state d. The bytes are those
+// of Adena's SignArbitrary: the sign document sorted by key, its fee an empty
+// coin list (see signDocFee).
+func SignDataPayload(d SignedData) ([]byte, error) {
+	switch {
+	case d.ChainID == "":
 		return nil, errors.New("a sign-data document needs a chain id")
-	}
-	if signer.IsZero() {
+	case d.URL == "":
+		return nil, errors.New("a sign-data document needs a url")
+	case d.Purpose == "":
+		return nil, errors.New("a sign-data document needs a purpose")
+	case d.Signer.IsZero():
 		return nil, errors.New("a sign-data document needs a signer")
-	}
-	if data == "" {
+	case d.Data == "":
 		return nil, errors.New("a sign-data document needs data")
-	}
-	if !utf8.ValidString(data) {
-		return nil, errors.New("sign-data data must be UTF-8 text")
+	case !utf8.ValidString(d.URL), !utf8.ValidString(d.Purpose), !utf8.ValidString(d.Data):
+		return nil, errors.New("sign-data url, purpose and data must be UTF-8 text")
 	}
 
 	return signaturePayload(signDataPayload{
-		ChainID: chainID,
+		ChainID: d.ChainID,
 		Fee:     signDocFee{Amount: []signDocCoin{}, Gas: "0"},
 		Msgs: []signDataMsg{{
 			Type: SignDataMsgType,
 			Value: signDataValue{
-				Signer: signer.String(),
-				Data:   base64.StdEncoding.EncodeToString([]byte(data)),
+				Signer:  d.Signer.String(),
+				Data:    base64.StdEncoding.EncodeToString([]byte(d.Data)),
+				URL:     d.URL,
+				Purpose: d.Purpose,
 			},
 		}},
 	})
@@ -91,8 +107,10 @@ type signDataDoc struct {
 }
 
 // VerifySignData checks that sig, by pubKey, signs the sign-data document doc,
-// and that pubKey is the key of the document's signer. It returns what the
-// document says; the caller still checks the chain id and the data it expects.
+// and that pubKey is the key of the document's signer. Only a secp256k1 key
+// signs a proof: Adena and gnokey sign with no other. It returns what
+// the document says; the caller still checks the chain id, url, purpose and data
+// it expects.
 //
 // doc may come in any JSON rendering (key order, spacing, string escapes), but
 // must otherwise be the canonical document: re-encoded sorted by key and
@@ -100,7 +118,7 @@ type signDataDoc struct {
 // repeat a key. Missing or extra fields, numbers for strings, a null for the
 // empty fee, non-canonical base64 in the data and a duplicate key are refused,
 // so no other document passes for one, whatever parser reads it.
-func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, error) {
+func VerifySignData(doc []byte, pubKey secp256k1.PubKeySecp256k1, sig []byte) (SignedData, error) {
 	var d signDataDoc
 	if err := unmarshalStrict(doc, &d); err != nil {
 		return SignedData{}, fmt.Errorf("unable to read sign-data document, %w", err)
@@ -118,7 +136,14 @@ func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, e
 		return SignedData{}, fmt.Errorf("invalid sign-data data, %w", err)
 	}
 
-	payload, err := SignDataPayload(d.ChainID, signer, string(data))
+	signed := SignedData{
+		ChainID: d.ChainID,
+		URL:     d.Msgs[0].Value.URL,
+		Purpose: d.Msgs[0].Value.Purpose,
+		Signer:  signer,
+		Data:    string(data),
+	}
+	payload, err := SignDataPayload(signed)
 	if err != nil {
 		return SignedData{}, err
 	}
@@ -128,9 +153,6 @@ func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, e
 		return SignedData{}, errors.New("not a sign-data document")
 	}
 
-	if pubKey == nil {
-		return SignedData{}, errors.New("no public key to verify the sign-data document with")
-	}
 	if pubKey.Address() != signer {
 		return SignedData{}, fmt.Errorf("the key belongs to %s, not to the signer %s", pubKey.Address(), signer)
 	}
@@ -138,7 +160,7 @@ func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, e
 		return SignedData{}, errors.New("invalid sign-data signature")
 	}
 
-	return SignedData{ChainID: d.ChainID, Signer: signer, Data: string(data)}, nil
+	return signed, nil
 }
 
 // SignDataPubKeyType is the type URL of a sign-data proof's public key.
@@ -176,15 +198,17 @@ func NewSignDataProof(payload []byte, pubKey secp256k1.PubKeySecp256k1, sig []by
 }
 
 // VerifySignDataProof checks a proof in SignDataProof's JSON with
-// VerifySignData; the caller still checks the chain id and the data it expects.
+// VerifySignData; the caller still checks the chain id, url, purpose and data it
+// expects.
 // Its cost grows with the proof's size, so a service bounds what it accepts
 // (a proof of a short challenge is under 1 KiB).
 //
 // A proof stays valid forever, and the same proof can be written in many byte
 // forms (the document's rendering, the envelope's base64 and key spelling). A
 // service therefore refuses a replay by its challenge, never by the proof's
-// bytes: it hands out a fresh, unpredictable challenge naming the service and
-// the session, gives it an expiry, and accepts it once.
+// bytes: it hands out a fresh, unpredictable challenge naming the session,
+// gives it an expiry, and accepts it once. The url and the purpose keep a proof
+// made for one service, or one use, from passing at another.
 func VerifySignDataProof(proof []byte) (SignedData, error) {
 	var p SignDataProof
 	if err := unmarshalStrict(proof, &p); err != nil {

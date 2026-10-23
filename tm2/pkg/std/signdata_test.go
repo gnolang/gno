@@ -21,36 +21,43 @@ const signDataTestSigner = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 // implementation on purpose: agreeing with ourselves would prove nothing.
 var signDataVectors = []struct {
 	name    string
-	chainID string
 	data    string
 	payload string
 	sig     string // base64, 64 bytes R||S
 }{
 	{
-		name:    "ascii",
-		chainID: "gnoland-1",
-		data:    "hello",
-		// Pinned in Adena's sign-arbitrary.spec.ts as well.
+		name: "ascii",
+		data: "hello",
 		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=",` +
-			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
-		sig: "8hpjD4/il8opyBcDRI3Uax7RawxfahpY7agfp3fbv8V0OI1lPGBmIJ7epkRjGfFbyl57udqJHErR3q79qmwEZg==",
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","purpose":"auth/SignIn",` +
+			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","url":"https://gno.land"}}],"sequence":"0"}`,
+		sig: "gquasFDi6ZQesFU2xD1xrKKuABlpDf4sylnYBMAbgpEGQQoQ2OgkpHxyvOkX5qZJrdpApTg4Ga+1SdHqeV2YPQ==",
 	},
 	{
-		name:    "non-ascii",
-		chainID: "gnoland-1",
-		data:    "Sign in to Gnoland · 서명 · 🔑",
+		name: "non-ascii",
+		data: "Sign in to Gnoland · 서명 · 🔑",
 		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
 			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"U2lnbiBpbiB0byBHbm9sYW5kIMK3IOyEnOuqhSDCtyDwn5SR",` +
-			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
-		sig: "mHvGbtC4bLtA55GZao2b6qBKGh8cNnAgGQHaNSIbdkEAWT83TbuBbeL9dF4tc2lODsHirfx7aW/PGtjg5Z+nfg==",
+			`"purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","url":"https://gno.land"}}],"sequence":"0"}`,
+		sig: "yu7MT7Cdjw7hvbHhFW5zWIncExD+uQ80dMraWBSOvAkONgfvOPSCXENCGuldYm9J5+sIfA5RBg/mYcTIbZ5LoQ==",
 	},
+}
+
+// signDataVectorDoc returns what the vector with data says.
+func signDataVectorDoc(data string) SignedData {
+	return SignedData{
+		ChainID: "gnoland-1",
+		URL:     "https://gno.land",
+		Purpose: "auth/SignIn",
+		Signer:  crypto.MustAddressFromString(signDataTestSigner),
+		Data:    data,
+	}
 }
 
 // The compressed public key of signDataTestSigner, base64.
 const signDataTestPubKey = "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"
 
-func signDataTestKey(t *testing.T) crypto.PubKey {
+func signDataTestKey(t *testing.T) secp256k1.PubKeySecp256k1 {
 	t.Helper()
 
 	raw, err := base64.StdEncoding.DecodeString(signDataTestPubKey)
@@ -65,13 +72,11 @@ func signDataTestKey(t *testing.T) crypto.PubKey {
 func TestSignDataPayload_MatchesOtherImplementations(t *testing.T) {
 	t.Parallel()
 
-	signer := crypto.MustAddressFromString(signDataTestSigner)
-
 	for _, v := range signDataVectors {
 		t.Run(v.name, func(t *testing.T) {
 			t.Parallel()
 
-			payload, err := SignDataPayload(v.chainID, signer, v.data)
+			payload, err := SignDataPayload(signDataVectorDoc(v.data))
 			require.NoError(t, err)
 			assert.Equal(t, v.payload, string(payload))
 		})
@@ -83,14 +88,17 @@ func TestSignDataPayload_MatchesOtherImplementations(t *testing.T) {
 func TestSignDataPayload_EscapesHTMLCharacters(t *testing.T) {
 	t.Parallel()
 
-	payload, err := SignDataPayload("a<b>c&d", crypto.MustAddressFromString(signDataTestSigner), "hello")
+	d := signDataVectorDoc("hello")
+	d.ChainID = "a<b>c&d"
+	d.URL = "https://gno.land/?a=<b>&c"
+	payload, err := SignDataPayload(d)
 	require.NoError(t, err)
 
 	// From cosmjs serializeSignDoc.
 	assert.Equal(t,
 		`{"account_number":"0","chain_id":"a\u003cb\u003ec\u0026d","fee":{"amount":[],"gas":"0"},"memo":"",`+
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=",`+
-			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","purpose":"auth/SignIn",`+
+			`"signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","url":"https://gno.land/?a=\u003cb\u003e\u0026c"}}],"sequence":"0"}`,
 		string(payload),
 	)
 }
@@ -98,27 +106,31 @@ func TestSignDataPayload_EscapesHTMLCharacters(t *testing.T) {
 func TestSignDataPayload_Rejects(t *testing.T) {
 	t.Parallel()
 
-	signer := crypto.MustAddressFromString(signDataTestSigner)
-
 	testTable := []struct {
-		name    string
-		chainID string
-		signer  crypto.Address
-		data    string
+		name   string
+		change func(*SignedData)
 	}{
 		// Without a chain id a proof made for one network is a proof on all.
-		{"empty chain id", "", signer, "hello"},
-		{"zero signer", "gnoland-1", crypto.Address{}, "hello"},
-		{"empty data", "gnoland-1", signer, ""},
-		// The data is text a user reads before signing, not bytes.
-		{"invalid UTF-8", "gnoland-1", signer, "\xff\xfe"},
+		{"empty chain id", func(d *SignedData) { d.ChainID = "" }},
+		// Without a url or a purpose, a proof made for one service or one use
+		// passes at another.
+		{"empty url", func(d *SignedData) { d.URL = "" }},
+		{"empty purpose", func(d *SignedData) { d.Purpose = "" }},
+		{"zero signer", func(d *SignedData) { d.Signer = crypto.Address{} }},
+		{"empty data", func(d *SignedData) { d.Data = "" }},
+		// They are texts a user reads before signing, not bytes.
+		{"invalid UTF-8 data", func(d *SignedData) { d.Data = "\xff\xfe" }},
+		{"invalid UTF-8 url", func(d *SignedData) { d.URL = "\xff\xfe" }},
+		{"invalid UTF-8 purpose", func(d *SignedData) { d.Purpose = "\xff\xfe" }},
 	}
 
 	for _, testCase := range testTable {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := SignDataPayload(testCase.chainID, testCase.signer, testCase.data)
+			d := signDataVectorDoc("hello")
+			testCase.change(&d)
+			_, err := SignDataPayload(d)
 			assert.Error(t, err)
 		})
 	}
@@ -138,10 +150,7 @@ func TestVerifySignData_AcceptsOtherImplementations(t *testing.T) {
 
 			signed, err := VerifySignData([]byte(v.payload), pub, sig)
 			require.NoError(t, err)
-
-			assert.Equal(t, v.chainID, signed.ChainID)
-			assert.Equal(t, signDataTestSigner, signed.Signer.String())
-			assert.Equal(t, v.data, signed.Data)
+			assert.Equal(t, signDataVectorDoc(v.data), signed)
 		})
 	}
 }
@@ -160,7 +169,8 @@ func TestVerifySignData_AcceptsAnyRenderingOfTheDocument(t *testing.T) {
 	doc := `{
 	  "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
 	  "fee": {"amount": [], "gas": "0"},
-	  "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "data": "aGVsbG8="}}],
+	  "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+	    "data": "aGVsbG8=", "url": "https://gno.land", "purpose": "auth/SignIn"}}],
 	  "memo": ""
 	}`
 
@@ -173,20 +183,19 @@ func TestVerifySignData_RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	priv := secp256k1.GenPrivKey()
-	signer := priv.PubKey().Address()
+	pub := priv.PubKey().(secp256k1.PubKeySecp256k1)
+	d := signDataVectorDoc("prove it")
+	d.Signer = pub.Address()
 
-	payload, err := SignDataPayload("dev", signer, "prove it")
+	payload, err := SignDataPayload(d)
 	require.NoError(t, err)
 
 	sig, err := priv.Sign(payload)
 	require.NoError(t, err)
 
-	signed, err := VerifySignData(payload, priv.PubKey(), sig)
+	signed, err := VerifySignData(payload, pub, sig)
 	require.NoError(t, err)
-
-	assert.Equal(t, "dev", signed.ChainID)
-	assert.Equal(t, signer, signed.Signer)
-	assert.Equal(t, "prove it", signed.Data)
+	assert.Equal(t, d, signed)
 }
 
 func TestVerifySignData_Rejects(t *testing.T) {
@@ -197,7 +206,9 @@ func TestVerifySignData_Rejects(t *testing.T) {
 	require.NoError(t, err)
 
 	pub := signDataTestKey(t)
-	other := secp256k1.GenPrivKey().PubKey()
+	other := secp256k1.GenPrivKey().PubKey().(secp256k1.PubKeySecp256k1)
+	// msg is the vector's one message.
+	msg := v.payload[strings.Index(v.payload, `{"type"`) : strings.Index(v.payload, `}}]`)+2]
 
 	// replace returns the pinned payload with one substring changed.
 	replace := func(from, to string) string {
@@ -208,13 +219,15 @@ func TestVerifySignData_Rejects(t *testing.T) {
 	testTable := []struct {
 		name string
 		doc  string
-		pub  crypto.PubKey
+		pub  secp256k1.PubKeySecp256k1
 		sig  []byte
 	}{
 		// The claim a verifier relies on: the key it is handed is the signer's.
 		{"a key that is not the signer's", v.payload, other, sig},
 		{"tampered data", replace(`"aGVsbG8="`, `"aGVsbG8h"`), pub, sig},
 		{"another chain", replace(`"gnoland-1"`, `"dev"`), pub, sig},
+		{"another url", replace(`"https://gno.land"`, `"https://evil.example"`), pub, sig},
+		{"another purpose", replace(`"auth/SignIn"`, `"auth/Other"`), pub, sig},
 		{"a corrupted signature", v.payload, pub, append([]byte{sig[0] ^ 1}, sig[1:]...)},
 		// The shape is fixed, so that nothing but this document can pass for it.
 		{"an account number", replace(`"account_number":"0"`, `"account_number":"1"`), pub, sig},
@@ -223,7 +236,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		{"a fee coin", replace(`"amount":[]`, `"amount":[{"amount":"1","denom":"ugnot"}]`), pub, sig},
 		{"a memo", replace(`"memo":""`, `"memo":"x"`), pub, sig},
 		{"another message type", replace(`"sign/MsgSignData"`, `"bank/MsgSend"`), pub, sig},
-		{"two messages", replace(`"msgs":[{`, `"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}},{`), pub, sig},
+		{"two messages", replace(`"msgs":[`, `"msgs":[`+msg+`,`), pub, sig},
 		{"an unknown field", replace(`"memo":""`, `"memo":"","extra":1`), pub, sig},
 		{"data that is not base64", replace(`"aGVsbG8="`, `"not base64!"`), pub, sig},
 		{"a signer that is not an address", replace(signDataTestSigner, "g1nope"), pub, sig},
@@ -231,6 +244,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		// Beyond its JSON rendering, a document must be the canonical one,
 		// even where Go would read the same values from it.
 		{"a missing memo", replace(`"memo":"",`, ``), pub, sig},
+		{"a missing url", replace(`,"url":"https://gno.land"`, ``), pub, sig},
 		{"a null fee amount", replace(`"amount":[]`, `"amount":null`), pub, sig},
 		{"a number for a string", replace(`"account_number":"0"`, `"account_number":0`), pub, sig},
 		{"a key in another case", replace(`"chain_id"`, `"Chain_ID"`), pub, sig},
@@ -268,9 +282,7 @@ func TestVerifySignDataProof_AcceptsAdenasAnswer(t *testing.T) {
 
 	signed, err := VerifySignDataProof([]byte(signDataTestProof))
 	require.NoError(t, err)
-	assert.Equal(t, "gnoland-1", signed.ChainID)
-	assert.Equal(t, signDataTestSigner, signed.Signer.String())
-	assert.Equal(t, "hello", signed.Data)
+	assert.Equal(t, signDataVectorDoc("hello"), signed)
 }
 
 func TestVerifySignDataProof_RoundTrip(t *testing.T) {
@@ -279,7 +291,9 @@ func TestVerifySignDataProof_RoundTrip(t *testing.T) {
 	priv := secp256k1.GenPrivKey()
 	pub := priv.PubKey().(secp256k1.PubKeySecp256k1)
 
-	payload, err := SignDataPayload("dev", pub.Address(), "prove it")
+	d := signDataVectorDoc("prove it")
+	d.Signer = pub.Address()
+	payload, err := SignDataPayload(d)
 	require.NoError(t, err)
 	sig, err := priv.Sign(payload)
 	require.NoError(t, err)
@@ -289,8 +303,7 @@ func TestVerifySignDataProof_RoundTrip(t *testing.T) {
 
 	signed, err := VerifySignDataProof(proof)
 	require.NoError(t, err)
-	assert.Equal(t, pub.Address(), signed.Signer)
-	assert.Equal(t, "prove it", signed.Data)
+	assert.Equal(t, d, signed)
 }
 
 func TestVerifySignDataProof_Rejects(t *testing.T) {

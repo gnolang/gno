@@ -18,6 +18,8 @@ type SignDataCfg struct {
 	RootCfg *BaseCfg
 
 	ChainID        string
+	URL            string
+	Purpose        string
 	Data           string
 	DataPath       string
 	OutputDocument string
@@ -35,8 +37,8 @@ func NewSignDataCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			ShortHelp:  "signs a text to prove control of the key's address, off-chain",
 			LongHelp: `Signs a text, typically a challenge handed out by a service, to prove that the
 key's address is yours. The signed document is the one Adena's SignArbitrary
-signs (ADR-036's sign/MsgSignData, bound to -chainid): it is not a transaction,
-and can never be broadcast as one.
+signs (ADR-036's sign/MsgSignData, bound to -chainid, -url and -purpose): it is
+not a transaction, and can never be broadcast as one.
 
 The output is Adena's SignArbitrary answer, as JSON: the signed document, the
 public key and the signature. Check it with gnokey verify-data, or with
@@ -55,6 +57,20 @@ func (c *SignDataCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"",
 		"the ID of the chain the proof is for (required)",
+	)
+
+	fs.StringVar(
+		&c.URL,
+		"url",
+		"",
+		"the service the proof is for, a website's origin such as https://gno.land (required)",
+	)
+
+	fs.StringVar(
+		&c.Purpose,
+		"purpose",
+		"",
+		"what the proof is for, as the service names it (required)",
 	)
 
 	fs.StringVar(
@@ -77,6 +93,19 @@ func (c *SignDataCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"the file to save the proof to. If empty, prints it",
 	)
+}
+
+// checkProofScope checks that the chain, the service and the use a proof is for
+// are all given.
+func checkProofScope(chainID, url, purpose string) error {
+	switch {
+	case chainID == "":
+		return errors.New("-chainid is required: a proof is only good on the chain it names")
+	case url == "" || purpose == "":
+		return errors.New("-url and -purpose are required: a proof is only good for the service and the use it names")
+	}
+
+	return nil
 }
 
 // readSignDataText returns the text given with -data, or read as it is from
@@ -104,8 +133,8 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if cfg.ChainID == "" {
-		return errors.New("-chainid is required: a proof is only good on the chain it names")
+	if err := checkProofScope(cfg.ChainID, cfg.URL, cfg.Purpose); err != nil {
+		return err
 	}
 
 	data, err := readSignDataText(cfg.Data, cfg.DataPath)
@@ -130,7 +159,13 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("sign-data needs a secp256k1 key, %s is a %T", args[0], info.GetPubKey())
 	}
 
-	payload, err := std.SignDataPayload(cfg.ChainID, info.GetAddress(), data)
+	payload, err := std.SignDataPayload(std.SignedData{
+		ChainID: cfg.ChainID,
+		URL:     cfg.URL,
+		Purpose: cfg.Purpose,
+		Signer:  info.GetAddress(),
+		Data:    data,
+	})
 	if err != nil {
 		return err
 	}

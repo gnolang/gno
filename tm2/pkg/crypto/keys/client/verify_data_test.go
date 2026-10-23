@@ -11,18 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// adenaProof is Adena's SignArbitrary answer for "hello" on gnoland-1, by the
-// test1 key, signed by @cosmjs/crypto (see tm2/pkg/std/signdata_test.go).
+// adenaProof is Adena's SignArbitrary answer for "hello" on gnoland-1, for
+// testURL and testPurpose, by the test1 key, signed by @cosmjs/crypto (see
+// tm2/pkg/std/signdata_test.go).
 const adenaProof = `{
   "signed": {
     "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
     "fee": {"amount": [], "gas": "0"},
-    "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "data": "aGVsbG8="}}],
+    "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+      "data": "aGVsbG8=", "url": "https://gno.land", "purpose": "auth/SignIn"}}],
     "memo": ""
   },
   "signature": {
     "pubKey": {"typeUrl": "/tm.PubKeySecp256k1", "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"},
-    "signature": "8hpjD4/il8opyBcDRI3Uax7RawxfahpY7agfp3fbv8V0OI1lPGBmIJ7epkRjGfFbyl57udqJHErR3q79qmwEZg=="
+    "signature": "gquasFDi6ZQesFU2xD1xrKKuABlpDf4sylnYBMAbgpEGQQoQ2OgkpHxyvOkX5qZJrdpApTg4Ga+1SdHqeV2YPQ=="
   }
 }`
 
@@ -112,6 +114,26 @@ func TestVerifyData(t *testing.T) {
 			wantErr: "no data",
 		},
 		{
+			name:    "no url",
+			args:    []string{"--chainid", "gnoland-1", "--url", "", "--data", "hello", adenaProofSigner},
+			wantErr: "-url",
+		},
+		{
+			name:    "no purpose",
+			args:    []string{"--chainid", "gnoland-1", "--purpose", "", "--data", "hello", adenaProofSigner},
+			wantErr: "-purpose",
+		},
+		{
+			name:    "another url",
+			args:    []string{"--chainid", "gnoland-1", "--url", "https://evil.example", "--data", "hello", adenaProofSigner},
+			wantErr: `for url "https://gno.land", not "https://evil.example"`,
+		},
+		{
+			name:    "another purpose",
+			args:    []string{"--chainid", "gnoland-1", "--purpose", "auth/Other", "--data", "hello", adenaProofSigner},
+			wantErr: `for purpose "auth/SignIn", not "auth/Other"`,
+		},
+		{
 			name:    "unknown key name",
 			args:    []string{"--chainid", "gnoland-1", "--data", "hello", "TotallyExistingKey"},
 			wantErr: "TotallyExistingKey",
@@ -134,7 +156,7 @@ func TestVerifyData(t *testing.T) {
 		{
 			name:    "tampered signature",
 			args:    []string{"--chainid", "gnoland-1", "--data", "hello", adenaProofSigner},
-			proof:   strings.Replace(adenaProof, "8hpjD4", "9hpjD4", 1),
+			proof:   strings.Replace(adenaProof, "gquasF", "hquasF", 1),
 			wantErr: "invalid sign-data signature",
 		},
 		{

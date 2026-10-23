@@ -24,6 +24,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The service and the use the test proofs are for, which runKeysCmd passes
+// unless a test overrides them.
+const (
+	testURL     = "https://gno.land"
+	testPurpose = "auth/SignIn"
+)
+
+var proofScopeArgs = []string{"--url", testURL, "--purpose", testPurpose}
+
 // verifySignDataOutput checks out with std.VerifySignDataProof and returns what
 // the document says.
 func verifySignDataOutput(t *testing.T, out []byte) std.SignedData {
@@ -57,8 +66,9 @@ func newSignDataTest(t *testing.T) signDataTest {
 	return st
 }
 
-// runKeysCmd runs the subcommand args[0] with the rest of args, on the keybase
-// in home and with stdin as its input, and returns its standard output.
+// runKeysCmd runs the subcommand args[0] with proofScopeArgs and the rest of
+// args, on the keybase in home and with stdin as its input, and returns its
+// standard output.
 func runKeysCmd(t *testing.T, home, stdin string, args ...string) ([]byte, error) {
 	t.Helper()
 
@@ -72,7 +82,8 @@ func runKeysCmd(t *testing.T, home, stdin string, args ...string) ([]byte, error
 
 	cmd := NewRootCmdWithBaseConfig(io, BaseOptions{Home: home})
 
-	err := cmd.ParseAndRun(ctx, append([]string{args[0], "--home", home}, args[1:]...))
+	cmdArgs := append([]string{args[0], "--home", home}, proofScopeArgs...)
+	err := cmd.ParseAndRun(ctx, append(cmdArgs, args[1:]...))
 
 	return out.Bytes(), err
 }
@@ -117,6 +128,25 @@ func TestSignData(t *testing.T) {
 		assert.ErrorContains(t, err, "chainid")
 	})
 
+	// Without them a proof made for one service, or one use, passes at another.
+	t.Run("no url", func(t *testing.T) {
+		t.Parallel()
+
+		st := newSignDataTest(t)
+
+		_, err := st.run(t, "--chainid", "dev", "--url", "", "--data", "hello", st.keyName)
+		assert.ErrorContains(t, err, "-url")
+	})
+
+	t.Run("no purpose", func(t *testing.T) {
+		t.Parallel()
+
+		st := newSignDataTest(t)
+
+		_, err := st.run(t, "--chainid", "dev", "--purpose", "", "--data", "hello", st.keyName)
+		assert.ErrorContains(t, err, "-purpose")
+	})
+
 	t.Run("no data", func(t *testing.T) {
 		t.Parallel()
 
@@ -156,10 +186,13 @@ func TestSignData(t *testing.T) {
 		out, err := st.run(t, "--chainid", "gnoland-1", "--data", "prove this wallet is yours", st.keyName)
 		require.NoError(t, err)
 
-		signed := verifySignDataOutput(t, out)
-		assert.Equal(t, "gnoland-1", signed.ChainID)
-		assert.Equal(t, st.address, signed.Signer)
-		assert.Equal(t, "prove this wallet is yours", signed.Data)
+		assert.Equal(t, std.SignedData{
+			ChainID: "gnoland-1",
+			URL:     testURL,
+			Purpose: testPurpose,
+			Signer:  st.address,
+			Data:    "prove this wallet is yours",
+		}, verifySignDataOutput(t, out))
 	})
 
 	// The file is signed as it is, a final newline included: a verifier

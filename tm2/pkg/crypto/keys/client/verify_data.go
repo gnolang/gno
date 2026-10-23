@@ -18,6 +18,8 @@ type VerifyDataCfg struct {
 	RootCfg *BaseCfg
 
 	ChainID   string
+	URL       string
+	Purpose   string
 	Data      string
 	DataPath  string
 	ProofPath string
@@ -38,9 +40,9 @@ SignArbitrary makes it. The proof holds the public key, so the address needs no
 key in the keybase; a key name is looked up in it.
 
 The proof passes only if it is signed by the address's key and signs exactly
--data on -chainid: a valid signature over another chain or another text is
-refused. A proof stays valid forever: a service hands out each challenge once,
-with an expiry, and accepts it once.`,
+-data on -chainid, for -url and -purpose: a valid signature over another chain,
+service, purpose or text is refused. A proof stays valid forever: a service
+hands out each challenge once, with an expiry, and accepts it once.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -55,6 +57,20 @@ func (c *VerifyDataCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"",
 		"the ID of the chain the proof must be for (required)",
+	)
+
+	fs.StringVar(
+		&c.URL,
+		"url",
+		"",
+		"the service the proof must be for (required)",
+	)
+
+	fs.StringVar(
+		&c.Purpose,
+		"purpose",
+		"",
+		"what the proof must be for (required)",
 	)
 
 	fs.StringVar(
@@ -84,8 +100,8 @@ func execVerifyData(cfg *VerifyDataCfg, args []string, cio commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	if cfg.ChainID == "" {
-		return errors.New("-chainid is required: a proof is only good on the chain it names")
+	if err := checkProofScope(cfg.ChainID, cfg.URL, cfg.Purpose); err != nil {
+		return err
 	}
 
 	if cfg.ProofPath == "" {
@@ -120,13 +136,17 @@ func execVerifyData(cfg *VerifyDataCfg, args []string, cio commands.IO) error {
 	switch {
 	case signed.ChainID != cfg.ChainID:
 		return fmt.Errorf("the proof is for chain %q, not %q", signed.ChainID, cfg.ChainID)
+	case signed.URL != cfg.URL:
+		return fmt.Errorf("the proof is for url %q, not %q", signed.URL, cfg.URL)
+	case signed.Purpose != cfg.Purpose:
+		return fmt.Errorf("the proof is for purpose %q, not %q", signed.Purpose, cfg.Purpose)
 	case signed.Signer != signer:
 		return fmt.Errorf("the proof is signed by %s, not %s", signed.Signer, signer)
 	case signed.Data != data:
 		return fmt.Errorf("the proof signs other data: %q", signed.Data)
 	}
 
-	cio.Printf("Valid proof: %s signed the data on %s\n", signed.Signer, signed.ChainID)
+	cio.Printf("Valid proof: %s signed the data for %s (%s) on %s\n", signed.Signer, signed.URL, signed.Purpose, signed.ChainID)
 
 	return nil
 }

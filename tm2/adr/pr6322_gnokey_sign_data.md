@@ -20,30 +20,53 @@ bytes a service supplies can be made to sign a transaction's sign document.
 ### 1. Sign the document Adena's SignArbitrary signs
 
 `std.SignDataPayload` builds ADR-036's off-chain document: a transaction sign
-document whose single message is `sign/MsgSignData {signer, data}`, with
-`account_number`, `sequence` and `gas` at `"0"`, an empty fee and an empty memo,
-sorted by key. These are the bytes Adena signs, pinned against signatures from
-`@cosmjs/crypto` (Adena's signing stack) and in Adena's `sign-arbitrary.spec.ts`,
-so a service handles a proof from either the same way.
+document whose single message is `sign/MsgSignData {signer, data, url, purpose}`,
+with `account_number`, `sequence` and `gas` at `"0"`, an empty fee and an empty
+memo, sorted by key. ADR-036's message is `{signer, data}`; `url` and `purpose`
+are added (see 2). The payload is pinned against signatures from
+`@cosmjs/crypto`, Adena's signing stack, so a service handles a proof from
+gnokey or Adena the same way.
 
 A node rebuilds a transaction's sign bytes from the decoded transaction, and
 amino writes every message there as `{"@type": …}`. A document whose message is
 `{"type", "value"}` is no transaction's sign document, so a proof can never be
-broadcast.
+broadcast. With a zero fee, that `"@type"` is the only difference between a
+proof's bytes and a transaction's, so `TestSignDataPayloadIsNoTransactionPayload`
+pins it from both sides. A transaction's messages all carry `"@type"`, even one
+shaped exactly like the sign-data message. The sign-data message carries none.
 
-### 2. Keep the chain id
+### 2. Bind a proof to a service and a use
+
+ADR-036 and Keplr's `signArbitrary` sign `{chain, signer, data}` only. If two
+services both hand out a bare random nonce as the challenge, a proof made for
+one passes at the other. The message therefore also carries:
+
+- `url`, the service the proof is for: a website's origin. A wallet takes it
+  from the requesting page, as Adena takes the chain id from the connected
+  network, never from the request.
+- `purpose`, what the proof is for, as the service names it, such as
+  `username/Reserve`.
+
+Both are required, plain UTF-8 text, and returned in `SignedData` for the
+service to compare. They sit inside the message, not at the document's root.
+The root's keys are fixed: the Ledger Cosmos app checks them against an
+allowlist (see `signDocFee`). Adena already ships the document without them, so
+adding them is a format change now. After the Ledger app and more wallets ship
+it, the same change would cost more.
+
+### 3. Keep the chain id
 
 ADR-036 leaves `chain_id` empty. Here it is required and signed, as Adena does,
 so a proof made on one network is refused on another.
 
-### 3. Verify against rebuilt bytes, and only the canonical document
+### 4. Verify against rebuilt bytes, and only the canonical document
 
 A verifier gets the document back as a JSON object and may reserialize it in any
 key order, spacing or string escaping. `std.VerifySignData` reads its values,
 rebuilds the canonical bytes with `SignDataPayload`, and checks the signature
-over those. It also checks that the public key is the signer's, and returns
-`{ChainID, Signer, Data}`, leaving the comparison with what it expects to the
-caller.
+over those. It takes only a secp256k1 key, checks that it is the signer's, and
+returns `{ChainID, URL, Purpose, Signer, Data}`, leaving the comparison with
+what it expects to the caller.
 
 Only the JSON rendering may differ: key order, spacing and string escapes. The
 document, re-encoded sorted by key and compacted as the payload is, must equal
@@ -54,7 +77,7 @@ around it may repeat a key either: Go keeps a repeated key's last value and
 other parsers its first, so a service reading the document with another parser
 would see other values than the ones verified.
 
-### 4. The proof's JSON lives in std
+### 5. The proof's JSON lives in std
 
 The proof is Adena's `SignArbitrary` answer:
 `{signed, signature: {pubKey: {typeUrl, value}, signature}}`.
@@ -63,16 +86,18 @@ reader accepts only a `/tm.PubKeySecp256k1` key of the right size and then calls
 `VerifySignData`. A Go service checks a proof in one call, and the writer and
 the reader cannot drift apart.
 
-### 5. Two gnokey commands
+### 6. Two gnokey commands
 
-- `gnokey sign-data -chainid <id> (-data <text> | -data-path <file>) <key>`
-  prints the proof, or writes it with `-output-document`. `-chainid` is
-  required: the network is never assumed. A file is signed as it is, a final
+- `gnokey sign-data -chainid <id> -url <url> -purpose <purpose>
+  (-data <text> | -data-path <file>) <key>` prints the proof, or writes it with
+  `-output-document`. `-chainid`, `-url` and `-purpose` are required: none is
+  assumed. A file is signed as it is, a final
   newline included. Only secp256k1 keys can sign. A Ledger signs with whichever
   device is plugged in, so the signature is checked against the key's public
   key before the proof is written.
-- `gnokey verify-data -chainid <id> (-data <text> | -data-path <file>)
-  -proof-path <file|-> <address or key-name>` requires every expectation and
+- `gnokey verify-data -chainid <id> -url <url> -purpose <purpose>
+  (-data <text> | -data-path <file>) -proof-path <file|-> <address or key-name>`
+  requires every expectation and
   fails unless the proof matches all of them. The proof holds the public key, so
   an address needs no key in the keybase.
 
@@ -83,6 +108,14 @@ the reader cannot drift apart.
   have to handle two formats.
 - **An empty chain id, as ADR-036 specifies.** A proof would be good on every
   network.
+- **ADR-036's `{signer, data}` alone**, as Adena's first `SignArbitrary` and
+  Keplr do. Binding a proof to a service would rest on every service writing
+  its name into the challenge, which nothing checks.
+- **`url` and `purpose` as optional fields.** A service that leaves them out is
+  back to the case above.
+- **EIP-712-style typed data**, with a domain and a schema per message. It
+  binds proofs as well, but every wallet and the Ledger app would need to hash
+  and display typed structs. Two flat text fields give the same binding.
 - **Accepting any document that decodes to the right values.** It is what the
   first version did. No signer or text could be forged, but the documented
   shape was not enforced, and a repeated key could be read differently by
@@ -105,17 +138,21 @@ the reader cannot drift apart.
 
 ## Consequences
 
-- A proof is not bound to a time or a use. Replay protection is the service's
-  job: a challenge carries its own nonce, expiry, service and session, and the
-  service accepts each one once. It keys on the challenge, not on the proof's
+- A proof is bound to a chain, a service and a use, not to a time or a session.
+  Replay protection is the service's job: a challenge carries its own nonce,
+  expiry and session, and the service accepts each one once. It keys on the challenge, not on the proof's
   bytes: the envelope around the document is read leniently (its base64 skips
   newlines, its keys match in any case), so one proof has many byte forms.
   `VerifySignDataProof`'s doc says so.
 - Verifying costs time and memory in proportion to the proof's size; a service
   bounds what it accepts.
-- Multisig and non-secp256k1 keys cannot make a proof.
-- The format follows Adena's. A change on either side must be made on both; the
-  pinned vectors catch a divergence.
+- Multisig and non-secp256k1 keys cannot make a proof. `VerifySignData` takes a
+  `secp256k1.PubKeySecp256k1`, not a `crypto.PubKey`, so a service cannot hand
+  it one either: a multisig address would otherwise verify.
+- The format is shared with Adena. Adena's released `SignArbitrary` signs the
+  document without `url` and `purpose`. Its proofs are refused here until it
+  signs the new one. From then on, a change on either side must be made on both,
+  and the pinned vectors catch a divergence.
 - `std` gains `SignDataPayload`, `VerifySignData`, `SignedData`, `SignDataProof`
   (with `SignDataSignature` and `SignDataPubKey`), `SignDataPubKeyType`,
   `NewSignDataProof` and `VerifySignDataProof`.
