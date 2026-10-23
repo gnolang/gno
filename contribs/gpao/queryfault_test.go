@@ -154,11 +154,11 @@ func TestGenuineMissFromARealNode(t *testing.T) {
 	assert.Nil(t, g.GetMemPackage(path))
 }
 
-// TestStalledRemoteIsNotABudgetOverrun: a node that accepts the connection and
-// never answers must be reported as unavailable, not as a package that ran out
-// of verification time -- whether the parent's import walk or the child is the
-// one waiting on it.
-func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
+// stalledNode starts a node that accepts the connection and never answers, and
+// returns its address. Its handlers are released before the server closes,
+// since Close waits on them.
+func stalledNode(t *testing.T) string {
+	t.Helper()
 	stall := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		select {
@@ -168,16 +168,27 @@ func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	t.Cleanup(func() { close(stall) })
+	return srv.URL
+}
+
+// TestStalledRemoteIsNotABudgetOverrun: a node that accepts the connection and
+// never answers must be reported as unavailable, not as a package that ran out
+// of verification time -- whether the parent's import walk or the child is the
+// one waiting on it.
+func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
+	stalled := stalledNode(t)
 
 	cases := map[string]func(t *testing.T) *oracle{
 		"in the parent": func(t *testing.T) *oracle {
-			return newTestOracleAt(t, srv.URL)
+			t.Helper()
+			return newTestOracleAt(t, stalled)
 		},
 		"in the child": func(t *testing.T) *oracle {
+			t.Helper()
 			// The parent's walk is refused at once and hands over nothing, so
 			// the child is the one left waiting.
 			o := newTestOracle(t)
-			o.cfg.remote = srv.URL
+			o.cfg.remote = stalled
 			return o
 		},
 	}

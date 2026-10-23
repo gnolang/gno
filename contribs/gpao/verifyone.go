@@ -251,7 +251,7 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	// The imports are fetched under the prepare budget, as the child's are:
 	// both are the oracle's cost. The parent's client asks the node the child
 	// is pointed at, since both are built from cfg.remote.
-	imports, absent := o.imports.closure(newRPCGetter(runCtx, o.client.RPCClient), mpkg)
+	imports, absent := o.genesisImports().closure(newRPCGetter(runCtx, o.client.RPCClient), mpkg)
 	candidate, err := amino.MarshalJSON(mpkg)
 	if err != nil {
 		return fmt.Errorf("encode candidate: %w", err)

@@ -93,22 +93,26 @@ func newRPCGetter(ctx context.Context, client rpcclient.Client) *rpcGetter {
 		return qres.Response.Data, nil
 	}
 	qmeta := func(pkgPath string) (vm.PackageMeta, error) {
-		qres, err := client.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(pkgPath))
-		if err != nil {
-			return vm.PackageMeta{}, fmt.Errorf("%w: %w", errResolverUnavailable, err)
-		}
-		// An unknown path is a successful "absent" (VMKeeper.QueryPackageMeta),
-		// so an error here is the node describing itself.
-		if qerr := qres.Response.Error; qerr != nil {
-			return vm.PackageMeta{}, fmt.Errorf("%w: vm/qpkgmeta_json: %w", errResolverUnavailable, qerr)
-		}
-		meta, err := decodePkgMeta(qres.Response.Data)
-		if err != nil {
-			return meta, fmt.Errorf("%w: %w", errResolverUnavailable, err)
-		}
-		return meta, nil
+		return queryPkgMeta(ctx, client, pkgPath)
 	}
 	return &rpcGetter{qfile: qfile, qmeta: qmeta, cache: make(map[string]*std.MemPackage)}
+}
+
+// queryPkgMeta asks the node what it holds at pkgPath. Every error wraps
+// errResolverUnavailable: an unknown path is answered "absent", not refused.
+func queryPkgMeta(ctx context.Context, client rpcclient.Client, pkgPath string) (vm.PackageMeta, error) {
+	qres, err := client.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(pkgPath))
+	if err != nil {
+		return vm.PackageMeta{}, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+	}
+	if qerr := qres.Response.Error; qerr != nil {
+		return vm.PackageMeta{}, fmt.Errorf("%w: vm/qpkgmeta_json: %w", errResolverUnavailable, qerr)
+	}
+	meta, err := decodePkgMeta(qres.Response.Data)
+	if err != nil {
+		return meta, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+	}
+	return meta, nil
 }
 
 // decodePkgMeta reads a vm/qpkgmeta_json answer, refusing a body that does not
@@ -152,14 +156,13 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 		return mpkg
 	}
 	mpkg, err := g.fetch(pkgPath)
-	// Cache what the chain answered, an absence included. A miss used to be
-	// re-queried, for a getter that hung off the long-lived daemon and could
-	// outlive a package's activation; this one serves a single verification
-	// (newVerifier in the child, oracle.verify in the parent), so nothing
-	// enables a package under it and the answer cannot change. Re-asking only
-	// moves the same answer out of prepare, which is off the budget, into the
-	// two stages that are on it -- where against a slow node it arrives as an
-	// overrun instead of as the rejection the typecheck was going to give.
+	// Cache what the chain answered, an absence included. The getter serves a
+	// single verification (newVerifier in the child, oracle.verify in the
+	// parent), so nothing enables a package under it and the answer cannot
+	// change. Re-asking only moves the same answer out of prepare, which is
+	// off the budget, into the two stages that are on it -- where against a
+	// slow node it arrives as an overrun instead of as the rejection the
+	// typecheck was going to give.
 	//
 	// A fault is not an answer, so it is not cached: a node that could not be
 	// ASKED has said nothing about the path, and asking again costs less than

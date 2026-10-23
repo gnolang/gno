@@ -196,9 +196,15 @@ func rewriting(t *testing.T, remote string, rewrite func(body []byte) []byte) ht
 // among them whose path starts with pathPrefix.
 func countingQuery(t *testing.T, remote, pathPrefix string, n *atomic.Int64) http.Handler {
 	t.Helper()
-	asked := []byte(`"path":"` + pathPrefix)
+	return countingBody(t, remote, `"path":"`+pathPrefix, n)
+}
+
+// countingBody proxies every request to remote and counts those whose body
+// holds match.
+func countingBody(t *testing.T, remote, match string, n *atomic.Int64) http.Handler {
+	t.Helper()
 	return rewriting(t, remote, func(body []byte) []byte {
-		if bytes.Contains(body, asked) {
+		if bytes.Contains(body, []byte(match)) {
 			n.Add(1)
 		}
 		return body

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"net/http/httptest"
 	"sync/atomic"
@@ -210,8 +211,27 @@ func TestSettledPackageIsNotVerified(t *testing.T) {
 		"a settled package has nothing to enable, so no verifier may run for it")
 }
 
+// TestSettledCheckEndsWithItsContext: the check runs before every verification,
+// so a node that accepts the connection and never answers must hold the
+// verifier no longer than the caller's context, not the RPC client's timeout.
+func TestSettledCheckEndsWithItsContext(t *testing.T) {
+	o := newTestOracleAt(t, stalledNode(t))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	answered := make(chan bool, 1)
+	go func() { answered <- o.isSettled(ctx, "gno.land/r/test/anything") }()
+
+	select {
+	case settled := <-answered:
+		assert.False(t, settled, "a node that did not answer settles nothing")
+	case <-time.After(5 * time.Second):
+		t.Fatal("isSettled outlived its context")
+	}
+}
+
 // TestPkgMetaSettled covers the three answers vm/qpkgmeta_json can give and
-// the two failure shapes, without a node.
+// the failure shapes, without a node.
 func TestPkgMetaSettled(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -223,9 +243,11 @@ func TestPkgMetaSettled(t *testing.T) {
 		{"inert: not settled", `{"path":"p","status":"inert","pending":true}`, false},
 		{"absent: not settled", `{"path":"p","status":"absent"}`, false},
 		{"garbage: not settled, so the oracle still tries", `{`, false},
+		{"unknown status: not settled", `{"path":"p","status":"frozen"}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, pkgMetaSettled([]byte(tc.data)))
+			meta, err := decodePkgMeta([]byte(tc.data))
+			assert.Equal(t, tc.want, err == nil && metaSettled(meta))
 		})
 	}
 }

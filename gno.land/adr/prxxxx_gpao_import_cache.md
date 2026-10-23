@@ -2,7 +2,7 @@
 
 ## Context
 
-gpao verifies each submitted package in a fresh `verify-one` child process, so the budget can be enforced by killing it and nothing survives between attempts. The child resolves every `/p/` and `/r/` import from the node over `vm/qfile`: one query for a package's file list and one per file. Its cache lives and dies with the process, so every verification fetched its whole import closure again. A candidate importing `gno.land/r/sys/names` costs 228 queries over a 33-package closure, and the next candidate importing the same libraries pays the same again.
+gpao verifies each submitted package in a fresh `verify-one` child process, so the budget can be enforced by killing it and nothing survives between attempts. The child resolves every `/p/` and `/r/` import from the node over `vm/qfile`: one query for a package's file list and one per production file. Its cache lives and dies with the process, so every verification fetched its whole import closure again. A candidate importing `gno.land/r/sys/names` costs 141 queries over a 33-package closure, and the next candidate importing the same libraries pays the same again.
 
 The chain bounds what may be cached. `AddPackage` refuses a path that holds a live public package, so a public package the node served once is the package it serves for the life of the chain. A live private package can be redeployed under its path, and a path the node does not serve may be enabled later.
 
@@ -29,7 +29,7 @@ What may be cached safely is not the same as what should be: under the inert pol
 
 ## Consequences
 
-- A cold closure costs the same number of queries as before, made by the parent instead of the child. A closure of genesis packages costs none once fetched: for `gno.land/r/sys/names` on a chain that deployed it at genesis, 228 cold and 0 warm, and 0 for another candidate sharing part of the closure.
+- A cold closure costs the same number of queries as before, made by the parent instead of the child. A closure of genesis packages costs none once fetched: for `gno.land/r/sys/names` on a chain that deployed it at genesis, 141 cold and 0 warm, and 0 for another candidate sharing part of the closure.
 - A package added after genesis costs what it does on master, every verification.
 - The cache is bounded by the chain's genesis: all of `examples/` is about 2.6 MB of production source.
 - The parent now parses import blocks of candidate and dependency source (`parser.ImportsOnly`).

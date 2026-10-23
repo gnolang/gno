@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +18,9 @@ import (
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -51,34 +55,46 @@ func TestImportCacheServesLaterVerifications(t *testing.T) {
 	assert.Zero(t, queried, "every import was fetched for the first verification")
 }
 
-// A live private package can be redeployed under the same path, so what was
-// fetched once may not be what the chain holds next time.
-func TestImportCacheRefetchesPrivatePackages(t *testing.T) {
-	const privPath = "gno.land/r/test/priv"
-	priv := chainPackage(privPath, "package priv\n\nfunc V(cur realm) string { return \"v1\" }\n")
-	priv.Files[0].Body = privateGnoMod(privPath)
-	mpkg := chainPackage("gno.land/r/test/user",
-		"package user\n\nimport \"gno.land/r/test/priv\"\n\nfunc F(cur realm) string { return priv.V(cross) }\n")
+// A package the cache does not keep is fetched again every verification. A
+// live private package can be redeployed under the same path, so what was
+// fetched once may not be what the chain holds next time. A package added
+// after genesis is one anyone can get approved and then imported, so keeping
+// it would let a submitter grow the cache without bound.
+func TestImportCacheRefetchesWhatItDoesNotKeep(t *testing.T) {
+	for name, gnomod := range map[string]func(path string) string{
+		"private package": privateGnoMod,
+		"package added after genesis": func(path string) string {
+			return gno.GenGnoModLatest(path) + "\n[addpkg]\nheight = 42\n"
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			const depPath = "gno.land/r/test/dep"
+			dep := chainPackage(depPath, "package dep\n\nfunc V(cur realm) string { return \"v1\" }\n")
+			dep.SetFile("gnomod.toml", gnomod(depPath))
+			mpkg := chainPackage("gno.land/r/test/user",
+				"package user\n\nimport \""+depPath+"\"\n\nfunc F(cur realm) string { return dep.V(cross) }\n")
 
-	cache := importCache{}
-	queried := 0
-	serve := fakeQFile(priv)
-	g := func() *rpcGetter {
-		return &rpcGetter{
-			cache: map[string]*std.MemPackage{},
-			qfile: func(fp string) ([]byte, error) {
-				queried++
-				return serve(fp)
-			},
-		}
+			cache := importCache{}
+			queried := 0
+			serve := fakeQFile(dep)
+			g := func() *rpcGetter {
+				return &rpcGetter{
+					cache: map[string]*std.MemPackage{},
+					qfile: func(fp string) ([]byte, error) {
+						queried++
+						return serve(fp)
+					},
+				}
+			}
+
+			found, _ := cache.closure(g(), mpkg)
+			require.Equal(t, []string{depPath}, pkgPaths(found))
+			afterFirst := queried
+			found, _ = cache.closure(g(), mpkg)
+			assert.Equal(t, []string{depPath}, pkgPaths(found))
+			assert.Greater(t, queried, afterFirst, "it must be asked for again")
+		})
 	}
-
-	found, _ := cache.closure(g(), mpkg)
-	require.Equal(t, []string{privPath}, pkgPaths(found))
-	afterFirst := queried
-	found, _ = cache.closure(g(), mpkg)
-	assert.Equal(t, []string{privPath}, pkgPaths(found))
-	assert.Greater(t, queried, afterFirst, "a private package must be asked for again")
 }
 
 // An absence answered for one verification says nothing about the next: the
@@ -124,37 +140,6 @@ func TestChildTakesTheParentsAbsences(t *testing.T) {
 	require.NoError(t, v.prepare(mpkg))
 	assert.Zero(t, queried)
 	assert.True(t, v.parked[parked], "the absence is still classified")
-}
-
-// Anyone can get a package approved and then imported, so a package added
-// after genesis is fetched again every verification: keeping it would let a
-// submitter grow the cache without bound.
-func TestImportCacheRefetchesPackagesAddedAfterGenesis(t *testing.T) {
-	const depPath = "gno.land/p/test/later"
-	dep := chainPackage(depPath, "package later\n\nfunc One() int { return 1 }\n")
-	dep.SetFile("gnomod.toml", gno.GenGnoModLatest(depPath)+"\n[addpkg]\nheight = 42\n")
-	mpkg := chainPackage("gno.land/r/test/user",
-		"package user\n\nimport \""+depPath+"\"\n\nfunc F(cur realm) int { return later.One() }\n")
-
-	cache := importCache{}
-	queried := 0
-	serve := fakeQFile(dep)
-	g := func() *rpcGetter {
-		return &rpcGetter{
-			cache: map[string]*std.MemPackage{},
-			qfile: func(fp string) ([]byte, error) {
-				queried++
-				return serve(fp)
-			},
-		}
-	}
-
-	found, _ := cache.closure(g(), mpkg)
-	require.Equal(t, []string{depPath}, pkgPaths(found))
-	afterFirst := queried
-	found, _ = cache.closure(g(), mpkg)
-	assert.Equal(t, []string{depPath}, pkgPaths(found))
-	assert.Greater(t, queried, afterFirst, "a package added after genesis must be asked for again")
 }
 
 // The parent hands the child every genesis import it holds, so a second
@@ -217,4 +202,62 @@ func pkgPaths(pkgs []*std.MemPackage) []string {
 		paths = append(paths, mpkg.Path)
 	}
 	return paths
+}
+
+// resetRPC is a node whose tip moves through tips, one per status query, and
+// ends the run when they run out. Blocks are empty. The embedded interface is
+// nil on purpose, as in stubRPC.
+type resetRPC struct {
+	rpcclient.Client
+	mu     sync.Mutex
+	tips   []int64
+	cancel context.CancelFunc
+}
+
+func (s *resetRPC) Status(context.Context, *int64) (*ctypes.ResultStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.tips) == 0 {
+		s.cancel()
+		return nil, errors.New("no more tips")
+	}
+	res := &ctypes.ResultStatus{}
+	res.SyncInfo.LatestBlockHeight = s.tips[0]
+	s.tips = s.tips[1:]
+	return res, nil
+}
+
+func (s *resetRPC) ConsensusParams(context.Context, *int64) (*ctypes.ResultConsensusParams, error) {
+	return &ctypes.ResultConsensusParams{
+		ConsensusParams: abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 500_000}},
+	}, nil
+}
+
+func (s *resetRPC) Block(context.Context, *int64) (*ctypes.ResultBlock, error) {
+	return blockWith(), nil
+}
+
+// TestGenesisImportsFollowTheChain: a tip below a height already read is a
+// chain started again, whose genesis need not be the one cached; a tip that
+// only moves forward keeps the cache.
+func TestGenesisImportsFollowTheChain(t *testing.T) {
+	for name, tc := range map[string]struct {
+		tips []int64
+		kept int
+	}{
+		"reset below a read height": {tips: []int64{6, 6, 2}, kept: 0},
+		"growing chain":             {tips: []int64{6, 7, 8}, kept: 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			o := newStubOracle(&resetRPC{tips: tc.tips, cancel: cancel})
+			o.cfg.pollInterval = time.Millisecond
+			o.cfg.startHeight = 1
+			o.imports = importCache{"gno.land/p/test/lib": chainPackage("gno.land/p/test/lib", "package lib\n")}
+
+			require.NoError(t, o.run(ctx))
+			assert.Len(t, o.genesisImports(), tc.kept)
+		})
+	}
 }

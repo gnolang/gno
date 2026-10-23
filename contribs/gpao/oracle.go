@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
@@ -73,8 +73,13 @@ type oracle struct {
 	blockMaxGas int64
 
 	// imports keeps the chain packages fetched for earlier verifications.
-	// Touched only by the verifier goroutine.
+	// Touched only by the verifier goroutine, through genesisImports.
 	imports importCache
+
+	// importsStale is set by the block reader when the chain's tip falls below
+	// a height it already read: the chain started again, and its genesis need
+	// not be the one imports holds.
+	importsStale atomic.Bool
 
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
@@ -324,6 +329,7 @@ func (o *oracle) run(ctx context.Context) error {
 	// each slower and the budget harder to interpret.
 	go o.runVerifier(ctx)
 
+	reset := false // the tip is below a height already read
 	for {
 		select {
 		case <-ctx.Done():
@@ -336,6 +342,12 @@ func (o *oracle) run(ctx context.Context) error {
 		if !answered {
 			continue
 		}
+		if latest < height-1 && !reset {
+			o.importsStale.Store(true)
+			o.errf("gpao: the chain's tip %d is below height %d, already read; "+
+				"dropping the genesis import cache", latest, height-1)
+		}
+		reset = latest < height-1
 
 		for ; height <= latest; height++ {
 			// Catching up can span many blocks, and enqueue blocks when the
@@ -746,25 +758,13 @@ func (o *oracle) recordIfSettled(ctx context.Context, path, key string) bool {
 // silently stop the oracle approving. The spend bound is what limits the damage
 // if the node is wrong.
 func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
-	res, err := o.client.Query(gnoclient.QueryCfg{
-		Path: "vm/qpkgmeta_json",
-		Data: []byte(pkgPath),
-	})
-	if err != nil || res == nil || res.Response.Error != nil {
-		return false
-	}
-	return pkgMetaSettled(res.Response.Data)
+	meta, err := queryPkgMeta(ctx, o.client.RPCClient, pkgPath)
+	return err == nil && metaSettled(meta)
 }
 
-// pkgMetaSettled reads a vm/qpkgmeta_json response and reports "live with no
-// submission pending" -- the one state where an enable has nothing to do.
-// Split out from the query so it can be tested without a node, like
-// blockMaxGasFrom.
-func pkgMetaSettled(data []byte) bool {
-	var meta vm.PackageMeta
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return false
-	}
+// metaSettled reports "live with no submission pending" -- the one state where
+// an enable has nothing to do.
+func metaSettled(meta vm.PackageMeta) bool {
 	return meta.Status == vm.PackageStatusLive && !meta.Pending
 }
 
