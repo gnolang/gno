@@ -166,9 +166,8 @@ and a borderline one should pass rather than lose a race with whatever else the
 machine is doing.
 
 Exceeding the budget is **not** a rejection. The package is left pending and
-neither approved nor recorded as bad. Nothing re-offers it automatically — block
-heights are read once and only move forward — so retrying it means restarting
-with `--start-height` at or below the block that submitted it.
+neither approved nor recorded as bad, and is offered again later (see
+[Stranded packages](#stranded-packages)).
 
 A failed **enable** works the same way. A package that verified but whose
 approval failed on chain is left pending through a bounded number of attempts,
@@ -188,8 +187,26 @@ failed type check leaves the package pending, and an error in its own code is
 reported once the import is live. An import the chain reports live but would
 not serve is fetched once more: a package enabled during the fetch resolves,
 and one whose files `vm/qfile` cannot serve leaves the package pending as
-unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
-pending package by itself: resubmit it, or restart, once the import is live.
+unavailable, which is the oracle's limit and not a verdict.
+
+### Stranded packages
+
+Block heights are read once and only move forward, so a package left pending
+is not reached again from its block. gpao remembers each submission it leaves
+pending, by path and height, and every 10 minutes, between candidates, looks at
+them again: one the chain still holds parked at that height, and whose imports
+are all live, is verified again with its bytes read from its block. A package
+waiting on a parked import is verified once the import goes live, whoever
+enabled it; one whose verification could not finish is verified again. Each
+submission is verified again at most 3 times per run, and new blocks go first.
+
+What is remembered lives in memory, so a restarted gpao does not know what an
+earlier run left pending: restart with `--start-height` at or below the oldest
+such block. Replaying is cheap, since a package already live is skipped without
+being fetched.
+
+A redeploy parked over a live private realm is not verified again: the chain
+reports the live package for that path.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
