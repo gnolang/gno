@@ -248,40 +248,38 @@ func TestPackageEnabledDuringVerificationIsNotEnabledAgain(t *testing.T) {
 	assert.Zero(t, broadcasts.Load(), "an enable for a package already live only pays a fee")
 }
 
-// TestSettledCheckEndsWithItsContext: the check runs before every verification,
-// so a node that accepts the connection and never answers must hold the
-// verifier no longer than the caller's context, not the RPC client's timeout.
-func TestSettledCheckEndsWithItsContext(t *testing.T) {
-	o := newTestOracleAt(t, stalledNode(t))
+// TestSettledCheckEndsInTime: the check runs before every verification, so a
+// node that accepts the connection and never answers holds the verifier no
+// longer than the caller's context or the check's own timeout, whichever ends
+// first, never the RPC client's minute. handleCandidate passes the daemon's
+// context, which has no deadline.
+func TestSettledCheckEndsInTime(t *testing.T) {
+	for name, tc := range map[string]struct {
+		callerDeadline, settledTimeout time.Duration
+	}{
+		"the caller's context ends first":    {callerDeadline: 200 * time.Millisecond, settledTimeout: settledCheckTimeout},
+		"the check's own timeout ends first": {settledTimeout: 200 * time.Millisecond},
+	} {
+		t.Run(name, func(t *testing.T) {
+			o := newTestOracleAt(t, stalledNode(t))
+			o.settledTimeout = tc.settledTimeout
+			ctx := t.Context()
+			if tc.callerDeadline > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, tc.callerDeadline)
+				defer cancel()
+			}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-	defer cancel()
-	answered := make(chan bool, 1)
-	go func() { answered <- o.isSettled(ctx, "gno.land/r/test/anything") }()
+			answered := make(chan bool, 1)
+			go func() { answered <- o.isSettled(ctx, "gno.land/r/test/anything") }()
 
-	select {
-	case settled := <-answered:
-		assert.False(t, settled, "a node that did not answer settles nothing")
-	case <-time.After(5 * time.Second):
-		t.Fatal("isSettled outlived its context")
-	}
-}
-
-// TestSettledCheckEndsOnItsOwnClock: handleCandidate runs the check under the
-// daemon's context, which has no deadline, so the check bounds itself rather
-// than waiting out the RPC client's minute.
-func TestSettledCheckEndsOnItsOwnClock(t *testing.T) {
-	o := newTestOracleAt(t, stalledNode(t))
-	o.settledTimeout = 200 * time.Millisecond
-
-	answered := make(chan bool, 1)
-	go func() { answered <- o.isSettled(t.Context(), "gno.land/r/test/anything") }()
-
-	select {
-	case settled := <-answered:
-		assert.False(t, settled, "a node that did not answer settles nothing")
-	case <-time.After(5 * time.Second):
-		t.Fatal("isSettled waited past its own timeout")
+			select {
+			case settled := <-answered:
+				assert.False(t, settled, "a node that did not answer settles nothing")
+			case <-time.After(5 * time.Second):
+				t.Fatal("isSettled outlived both its context and its timeout")
+			}
+		})
 	}
 }
 

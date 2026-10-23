@@ -23,11 +23,7 @@ func TestVerifyOneTakesABareMemPackage(t *testing.T) {
 	payload, err := amino.MarshalJSON(packageImporting(dep))
 	require.NoError(t, err)
 
-	self, err := os.Executable()
-	require.NoError(t, err)
-	cmd := exec.CommandContext(t.Context(), self,
-		verifyOneCmdName, "-gno-root", gnoenv.RootDir(), "-remote", remote)
-	cmd.Stdin = bytes.NewReader(payload)
+	cmd := verifyOneCmd(t, remote, payload)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
@@ -44,16 +40,12 @@ func TestVerifyOneUnreadableInputIsNotAVerdict(t *testing.T) {
 	cases := map[string][]byte{
 		"unreadable candidate":  []byte("not json"),
 		"undecodable candidate": []byte(`{"files":5}`),
-		"unreadable seed":       append(slices.Clone(candidate), []byte(" not json")...),
-		"undecodable seed":      append(slices.Clone(candidate), []byte(` {"imports":5}`)...),
+		"unreadable seed":       slices.Concat(candidate, []byte(" not json")),
+		"undecodable seed":      slices.Concat(candidate, []byte(` {"imports":5}`)),
 	}
-	self, err := os.Executable()
-	require.NoError(t, err)
 	for name, stdin := range cases {
 		t.Run(name, func(t *testing.T) {
-			cmd := exec.CommandContext(t.Context(), self,
-				verifyOneCmdName, "-gno-root", gnoenv.RootDir(), "-remote", "http://127.0.0.1:1")
-			cmd.Stdin = bytes.NewReader(stdin)
+			cmd := verifyOneCmd(t, closedRemote, stdin)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 
@@ -62,4 +54,16 @@ func TestVerifyOneUnreadableInputIsNotAVerdict(t *testing.T) {
 			assert.Equal(t, exitResolverUnavailable, exit.ExitCode(), "stderr: %s", stderr.String())
 		})
 	}
+}
+
+// verifyOneCmd runs this test binary as verify-one against remote, with stdin
+// as its input.
+func verifyOneCmd(t *testing.T, remote string, stdin []byte) *exec.Cmd {
+	t.Helper()
+	self, err := os.Executable()
+	require.NoError(t, err)
+	cmd := exec.CommandContext(t.Context(), self,
+		verifyOneCmdName, "-gno-root", gnoenv.RootDir(), "-remote", remote)
+	cmd.Stdin = bytes.NewReader(stdin)
+	return cmd
 }
