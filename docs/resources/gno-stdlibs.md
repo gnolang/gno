@@ -107,7 +107,7 @@ The `Coins` slice can be included in a transaction made by a user addresses or a
 Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
-Read more about coins in the [Effective Gno](./effective-gno.md) section.
+[Coins and tokens](./coins-and-tokens.md) compares Coins with GRC20 tokens.
 
 ### Banker
 

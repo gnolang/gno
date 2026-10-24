@@ -543,7 +543,7 @@ func checkErr(err error) {
 // unsafe.OriginSend() to verify payment. IsUser() lets a maketx-run script
 // consume the origin-send envelope before calling us, bypassing the check.
 // For payment paths, use IsUserCall() (EOA only) — see
-// docs/resources/effective-gno.md#verifying-inbound-coin-payments.
+// docs/resources/coins-and-tokens.md#verifying-inbound-coin-payments.
 func assertOriginCall(_ int, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic("unauthorized: rlm is not the caller's live cur")

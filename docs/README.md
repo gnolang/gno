@@ -46,6 +46,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Networks](resources/gnoland-networks.md) - Mainnet, the current testnet, staging and devnets — their purposes, chain ids, RPC endpoints and deployment files.
 - [JSON-RPC endpoints](resources/rpc-endpoints.md) - Transport-level reference for the node RPC interface: the available methods, Amino JSON encoding, and what the interface does not provide.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
+- [Coins and tokens](resources/coins-and-tokens.md) - Native Coins, GRC20 tokens, and when to use each.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.

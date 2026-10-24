@@ -258,7 +258,7 @@ Two cases where the swap is **wrong**, both found by making it:
 | [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, borrow rules, and anti-patterns |
 | [`gno-security.md`](./gno-security.md) | Numbered threat-class taxonomy |
 | [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, borrow rules) |
-| [`effective-gno.md`](./effective-gno.md) | Idiomatic Gno patterns including payment guards |
+| [`coins-and-tokens.md`](./coins-and-tokens.md) | Coins, GRC20 tokens and payment guards |
 | `misc/audit-pattern-harness/` | Automated pattern detection tooling with sanitized fixtures |
 
 This guide distills the above into the shortest checklist that catches the most critical issues.
