@@ -181,8 +181,8 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "PercentEncodeURL", Base: 77, Slope: 4281, SlopeIdx: 0, SlopeKind: SizeLenString},         // fit base=77.0ns slope=4.1804ns/N (=4281/1024) R²=0.998
 	{Pkg: "chain/markdown", Fn: "MatchCharsetN", Base: 172, Slope: 685, SlopeIdx: 0, SlopeKind: SizeLenString},            // fit base=172.4ns slope=0.6685ns/N (=685/1024) R²=1.000
 	{Pkg: "chain/markdown", Fn: "CodeFence", Base: 99, Slope: 1032, SlopeIdx: 0, SlopeKind: SizeLenString},                // fit base=98.9ns slope=1.0076ns/N (=1032/1024) R²=0.998
-	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
-	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 41042, SlopeIdx: 0, SlopeKind: SizeLenString},     // 27361×1.50 (#6304: slowest shape vs the old native, interleaved in one process, 100KB; not re-fit). Fit on the old native: base=136ns slope=26.72ns/N R²=1.000 on `[a]: u\n(x\n` (bracket-walker worst case, scanLRDTail paren-title budget exhausts)
+	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 46915, SlopeIdx: 0, SlopeKind: SizeLenString}, // 27597×1.70 (#6304, as above; slowest shape now `  ```\nx\n`, which the calibration bench runs). Fit on the old native: base=136ns slope=26.95ns/N R²=1.000 on `[a]: u\n(x\n`
 	{Pkg: "chain/markdown", Fn: "MaxForeignBlocksPerConvert", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                // flat: returns a compile-time constant, no input
 
 	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---

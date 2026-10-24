@@ -238,11 +238,74 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"}, // case-insensitive
 		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
+		{"ext-delimiter-dash-list", "- <gno-card>\n", "\\- \\<gno-card>\n"},
+		{"ext-delimiter-star-list", "* <gno-card>\n", "\\* \\<gno-card>\n"},
+		{"ext-delimiter-blockquote", "> <gno-card>\n", "\\> \\<gno-card>\n"},
+		{"ext-delimiter-ordered-list-dot", "1. <gno-card>\n", "1\\. \\<gno-card>\n"},
+		{"ext-delimiter-ordered-list-paren", "1) <gno-card>\n", "1\\) \\<gno-card>\n"},
+		{"ext-delimiter-close-tag", "- </gno-card>\n", "\\- \\</gno-card>\n"},
+		{"ext-delimiter-mixed-case-list", "- <Gno-Card>\n", "\\- \\<Gno-Card>\n"},
+		{"ext-delimiter-already-escaped", "- \\<gno-card>\n", "\\- \\<gno-card>\n"},
+		{"ext-delimiter-plus-list", "+ <gno-card>\n", "\\+ \\<gno-card>\n"},
+		{"ext-delimiter-inline", "hello <gno-card>\n", "hello <gno-card>\n"},
+		{"ext-delimiter-multiple", "<gno-card> x </gno-card>\n", "\\<gno-card> x </gno-card>\n"},
+		{"ext-delimiter-nested-container", "> - <gno-card>\n", "\\> - \\<gno-card>\n"},
+		{"ext-delimiter-single-escaped", "\\<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-double-escaped-backslash", "\\\\<gno-card>\n", "\\\\<gno-card>\n"},
+		{"mid-line-gno-icon", "mid line <gno-icon name=\"star\" /> here\n", "mid line <gno-icon name=\"star\" /> here\n"},
+		{"inline-code-with-tag", "Use `<gno-columns>` for layout\n", "Use `<gno-columns>` for layout\n"},
+		{"email-like-text", "contact <gno-support@gno.land> today\n", "contact <gno-support@gno.land> today\n"},
+		{"angle-bracket-link-dest", "[home](<gno-a b>)\n", "[home](<gno-a b>)\n"},
+		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n  ```\n\\<gno-form path=\"x\">\n```\n"},
+		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n\n  ```\n\\<gno-form path=\"x\">\n```\n"},
+		{"fence-dedented-line-stays-fenced", "- a\n  ```\n[home]: https://evil.example\n```\n", "\\- a\n  ```\n\\[home]: https://evil.example\n```\n"},
+		{"fence-autoclose-at-opener-indent", " ```\nfoo\n", " ```\nfoo\n ```\n"},
+		{"fence-walker-4-space-indent-not-fence", "    ```\n[home]: https://evil.example\n", "    ```\n"},
+		{"fence-walker-tab-indent-not-fence", "\t```\n[home]: https://evil.example\n", "\t```\n"},
+		// A definition is deleted with its indent, and never across a line
+		// that opens a block: either would reshape the lines after it.
+		{"lrd-destination-line-opens-fence", "- x\n[foo]:\n  ```\n<gno-form path=\"x\">\n", "\\- x\n\\[foo\\]:\n  ```\n\\<gno-form path=\"x\">\n  ```\n"},
+		{"lrd-indent-deleted", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n", "\\- x\n```\n\\<gno-form path=\"x\">\n```\n"},
+		{"lrd-indent-deleted-before-fence", " [x]: u\n   ```\n[home]: https://evil.example\n", "   ```\n\\[home]: https://evil.example\n   ```\n"},
+		{"link-label-across-fence", "[a\n```\n]: /u\n", "\\[a\n```\n]: /u\n```\n"},
+		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
+		{"link-across-fence-then-lrd", "[a\n```\n](u)\n```\n[home]: https://evil.example\n", "\\[a\n```\n](u)\n```\n"},
+		{"link-text-across-line-kept", "[a\nb](u)\n", "[a\nb](u)\n"},
+		// CM §4.7: text after a definition's destination makes it no
+		// definition, so none of it is deleted.
+		{"lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n", "\\[a\\]: u ```\n```\n- y\n  ```\n~~~\n~~~\n"},
+		{"lrd-text-after-destination-kept", "[a]: u text\n", "\\[a\\]: u text\n"},
+		{"html-close-tag-with-space-over-fence", "</ div>\n```\n\nfoo", "\\</ div>\n```\n\nfoo\n```\n"},
+		{"html-block-type-1-form-feed", "<script\f\nhello", "\\<script\f\nhello"},
+		// An empty list item cannot interrupt a paragraph; after a fence or
+		// indented code it starts a list.
+		{"empty-item-in-paragraph-kept", "[](\n1)", "[](\n1)"},
+		{"empty-item-after-fence", "```\n```\n-\n", "```\n```\n\\-\n"},
+		{"empty-item-after-indented-code", "\n    code\n-\n", "\n    code\n\\-\n"},
+		// Empty list items are list items too.
+		{"empty-bullet-item", "-\n  ```\n<gno-form path=\"x\">\n```\n", "\\-\n  ```\n\\<gno-form path=\"x\">\n```\n"},
+		{"empty-star-item", "*\n", "\\*\n"},
+		{"empty-ordered-item", "1.\n", "1\\.\n"},
+		// The fence tracker can count a line as code that goldmark reads
+		// at block start, so tags and definitions are escaped in code too.
+		{"fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n", "\\- ```\n  ```\n  \\<gno-form path=\"x\">\n  ```\n"},
+		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "\\- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
+		{"fenced-multiline-label-escaped", "```\n[ho\n[home]: https://evil.example\n```\n", "```\n[ho\n\\[home]: https://evil.example\n```\n"},
+		{"fenced-toml-section-kept", "```\n[package]\nname = \"x\"\n```\n", "```\n[package]\nname = \"x\"\n```\n"},
+		// An HTML block hides a fence line from goldmark; its opener is
+		// escaped only when a fence line follows before a blank line.
+		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
+		{"html-block-without-fence", "<div>\nhello\n", "<div>\nhello\n"},
+		// A backslash before a newline is a hard break: the walker still
+		// reads the next line as a line start.
+		{"hard-break-before-fence", "a\\\n```\nx\n```\n[home]: https://evil.example\n", "a\\\n```\nx\n```\n"},
+		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n~~~\n\\<gno-columns>\n"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\nx\n```\n\\<gno-columns>\n"},
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
 		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
-		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\\\t</gno-columns>\n"}, // tab = 4 columns: line-start backslash
+		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\t\\</gno-columns>\n"},
 		{"ext-delimiter-2-spaces", "  <gno-card>\n", "  \\<gno-card>\n"},
-		{"ext-delimiter-4-spaces", "    <gno-card>\n", "\\    <gno-card>\n"},
+		{"ext-delimiter-4-spaces", "    <gno-card>\n", "    \\<gno-card>\n"},
 		{"gno-button-mid-line", "hi <gno-button href=\"/r/x\" label=\"x\" />\n", "hi \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
 		{"gno-button-after-list-marker", "- <GNO-BUTTON href=\"/r/x\" label=\"x\" />\n", "\\- \\<GNO-BUTTON href=\"/r/x\" label=\"x\" />\n"},
 		{"gno-button-after-nbsp", "\u00a0<gno-button />\n", "\u00a0\\<gno-button />\n"},
@@ -325,8 +388,66 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
 		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
+		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
-		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"ext-delimiter-dash-list", "- <gno-card>\n", "- \\<gno-card>\n"},
+		{"ext-delimiter-star-list", "* <gno-card>\n", "* \\<gno-card>\n"},
+		{"ext-delimiter-blockquote", "> <gno-card>\n", "> \\<gno-card>\n"},
+		{"ext-delimiter-ordered-list-dot", "1. <gno-card>\n", "1. \\<gno-card>\n"},
+		{"ext-delimiter-ordered-list-paren", "1) <gno-card>\n", "1) \\<gno-card>\n"},
+		{"ext-delimiter-close-tag", "- </gno-card>\n", "- \\</gno-card>\n"},
+		{"ext-delimiter-mixed-case-list", "- <Gno-Card>\n", "- \\<Gno-Card>\n"},
+		{"ext-delimiter-already-escaped", "- \\<gno-card>\n", "- \\<gno-card>\n"},
+		{"ext-delimiter-plus-list", "+ <gno-card>\n", "+ \\<gno-card>\n"},
+		{"ext-delimiter-indented", "    <gno-card>\n", "    \\<gno-card>\n"},
+		{"ext-delimiter-inline", "hello <gno-card>\n", "hello <gno-card>\n"},
+		{"ext-delimiter-multiple", "<gno-card> x </gno-card>\n", "\\<gno-card> x </gno-card>\n"},
+		{"ext-delimiter-nested-container", "> - <gno-card>\n", "> - \\<gno-card>\n"},
+		{"ext-delimiter-single-escaped", "\\<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-double-escaped-backslash", "\\\\<gno-card>\n", "\\\\<gno-card>\n"},
+		{"mid-line-gno-icon", "mid line <gno-icon name=\"star\" /> here\n", "mid line <gno-icon name=\"star\" /> here\n"},
+		{"gno-icon-list-marker", "- <gno-icon name=\"check\" /> Done\n", "- <gno-icon name=\"check\" /> Done\n"},
+		{"gno-icon-blockquote", "> <gno-icon name=\"check\" /> Done\n", "> <gno-icon name=\"check\" /> Done\n"},
+		{"inline-code-with-tag", "Use `<gno-columns>` for layout\n", "Use `<gno-columns>` for layout\n"},
+		{"email-like-text", "contact <gno-support@gno.land> today\n", "contact <gno-support@gno.land> today\n"},
+		{"angle-bracket-link-dest", "[home](<gno-a b>)\n", "[home](<gno-a b>)\n"},
+		{"nested-blockquote-fence", "> ```\n> <gno-columns>\n> ```\n", "> ```\n> \\<gno-columns>\n> ```\n"},
+		// A line indented less than its fence's opener gets a closer at the
+		// opener's column before it, so it parses outside the fence whether
+		// or not the fence sits in a list item.
+		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n  ```\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
+		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n\n  ```\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
+		{"fence-in-list-lazy-continuation", "- a\nb\n  ```\n<gno-columns>\n```\n", "- a\nb\n  ```\n  ```\n\\<gno-columns>\n```\n```\n"},
+		{"fence-in-list-dedented-closer", "- a\n  ```\n```\n<gno-columns>\n", "- a\n  ```\n  ```\n\\<gno-columns>\n"},
+		{"fence-in-list-autoclose-at-opener-indent", "- a\n  ```\n  code\n", "- a\n  ```\n  code\n  ```\n"},
+		{"fence-in-list-lrd-stripped", "- a\n  ```\n[home]: https://evil.example\n```\n", "- a\n  ```\n  ```\n```\n```\n"},
+		// The walker deletes the first definition; the fence must still end
+		// where it ended before the deletion, so the second stays code.
+		{"fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", "- a\n  ```\n  ```\n```\n\\[home]: https://evil.example\n```\n"},
+		// Lines shaped like list markers that goldmark does not open a list
+		// for: the fence is document-level, so only a written closer ends it.
+		{"fence-after-thematic-break", "para\n* * *\n  ```\n  x\ntext\n", "para\n* * *\n  ```\n  x\n  ```\ntext\n"},
+		{"fence-after-non-interrupting-ordered-marker", "para\n2. item\n   ```\n   x\n<gno-columns>\n", "para\n2. item\n   ```\n   x\n   ```\n\\<gno-columns>\n"},
+		{"fence-in-list-content-kept", "- step\n\n  ```sh\n  make\n  ```\n", "- step\n\n  ```sh\n  make\n  ```\n"},
+		{"fence-walker-4-space-indent-not-fence", "    ```\n[home]: https://evil.example\n", "    ```\n"},
+		{"fence-walker-tab-indent-not-fence", "\t```\n[home]: https://evil.example\n", "\t```\n"},
+		{"lrd-destination-line-opens-fence", "- x\n[foo]:\n  ```\n<gno-form path=\"x\">\n", "- x\n\\[foo\\]:\n  ```\n  ```\n\\<gno-form path=\"x\">\n"},
+		{"lrd-indent-deleted", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n", "- x\n```\n\\<gno-form path=\"x\">\n```\n"},
+		{"fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n", "- ```\n  ```\n  \\<gno-form path=\"x\">\n  ```\n"},
+		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
+		{"lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n", "\\[a\\]: u ```\n```\n- y\n  ```\n~~~\n~~~\n"},
+		{"html-close-tag-with-space-over-fence", "</ div>\n```\n\nfoo", "\\</ div>\n```\n\nfoo\n```\n"},
+		// sanitize.BlockRich escapes a leading setext line before this
+		// native; a deleted definition can put a new one first.
+		{"leading-setext-after-deleted-lrd", "[a]: u\n===", "\\==="},
+		{"leading-setext-after-deleted-indented-lrd", " []: x\n   =", "   \\="},
+		{"leading-thematic-break-kept", "---\n", "---\n"},
+		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
+		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
+		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n ~~~\n\\<gno-columns>\n"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\n ```\nx\n```\n\\<gno-columns>\n```\n"},
+		{"repro-fence-indented-columns", "- item\n\n  ```\n    <gno-columns>\n  ```\n", "- item\n\n  ```\n    \\<gno-columns>\n  ```\n"},
+		{"ext-delimiter-indented-button", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
 		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
 		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
 		{"gno-button-in-heading", "# <gno-button />\n", "# \\<gno-button />\n"},
@@ -395,6 +516,13 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 	links := strings.Repeat("[a](b)", 1000)
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
+	// One line of indentation: the walker's fence check must run once
+	// per line, not once per leading space.
+	indent := strings.Repeat(" ", 1<<16) + "x"
+	// Nested definition candidates whose labels share filler lines before
+	// a fence line: each fence-shaped line must be parsed once, not once
+	// per rejected candidate.
+	nested := strings.Repeat("[\n", 20) + strings.Repeat("\\\n", 5000) + "```\n" + strings.Repeat("]:\n", 20) + "u"
 	cases := []struct {
 		name string
 		in   string
@@ -402,6 +530,8 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 		{"links-x1000", links},
 		{"unclosed-x1000", unclosed},
 		{"multiline-lrd-label", mlLRD},
+		{"indent-run-64k", indent},
+		{"nested-lrd-candidates", nested},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
@@ -428,6 +558,9 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
 	parenTitle := strings.Repeat("[a]: u\n(x\n", 100) // calibration shape
+	indent := strings.Repeat(" ", 1<<16) + "x"
+	nested := strings.Repeat("[\n", 20) + strings.Repeat("\\\n", 5000) + "```\n" + strings.Repeat("]:\n", 20) + "u"
+	dedent := strings.Repeat("  ```\nx\n", 1000) // a closer inserted per fence
 	cases := []struct {
 		name string
 		in   string
@@ -436,6 +569,9 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 		{"unclosed-x1000", unclosed},
 		{"multiline-lrd-label", mlLRD},
 		{"paren-title-x100", parenTitle},
+		{"indent-run-64k", indent},
+		{"nested-lrd-candidates", nested},
+		{"dedent-fences-x1000", dedent},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
