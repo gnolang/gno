@@ -30,12 +30,12 @@ c & d
 $$
 
 -- output.html --
-<h1>Math Test</h1>
-<h2>Inline Math</h2>
+<h1 id="math-test">Math Test<a href="#math-test" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h1>
+<h2 id="inline-math">Inline Math<a href="#inline-math" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <p>Simple inline math: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">x = 1</annotation></semantics></math></p>
 <p>Complex inline math: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mfrac><mrow><mo>−</mo><mi>b</mi><mo>±</mo><msqrt><mrow><msup><mi>b</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>a</mi><mi>c</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>a</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}</annotation></semantics></math></p>
 <p>LaTeX delimiters: (A = \pi r^2)</p>
-<h2>Display Math</h2>
+<h2 id="display-math">Display Math<a href="#display-math" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <p>Simple display math:</p>
 <math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">
 E = mc^2
