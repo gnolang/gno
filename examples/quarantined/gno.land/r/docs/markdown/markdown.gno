@@ -1012,6 +1012,48 @@ Inside a table cell, write a ±|± in an attribute as ±&#124;± (for example ±
 
 A tag that is not self-closing (±<gno-button ...>±), that misses ±href± or ±label±, or that is split over several lines is not a button: it is treated as raw HTML and removed. Buttons are not rendered inside ±<gno-foreign>± content.
 
+### Collapsible blocks
+
+For neutral collapsible content (logs, JSON dumps, long changelogs) that should not carry alert styling, wrap the markdown in ±<gno-details>± and ±</gno-details>±, each on its own line. It renders as a bare expandable section.
+
+The ±summary± attribute sets the plain-text label, ±Details± when it is left out. The block starts closed; add ±open± to start it open.
+
+±±±markdown
+<gno-details summary="Summary text">
+arbitrary **markdown**
+</gno-details>
+±±±
+
+<gno-details summary="Summary text">
+arbitrary **markdown**
+</gno-details>
+
+±±±markdown
+<gno-details summary="Open by default" open>
+You can see me without clicking.
+</gno-details>
+±±±
+
+<gno-details summary="Open by default" open>
+You can see me without clicking.
+</gno-details>
+
+Blocks nest, and a close tag inside a code block stays part of the code:
+
+±±±markdown
+<gno-details summary="Outer">
+<gno-details summary="Inner">
+Nested content.
+</gno-details>
+</gno-details>
+±±±
+
+<gno-details summary="Outer">
+<gno-details summary="Inner">
+Nested content.
+</gno-details>
+</gno-details>
+
 ### User Mentions and Bech32 Addresses
 
 Gno markdown automatically recognizes and renders user mentions and Bech32 addresses as clickable links.

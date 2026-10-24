@@ -1,0 +1,8 @@
+-- input.md --
+<gno-details summary="Summary"> trailing text
+Body line.
+</gno-details>
+-- output.html --
+<p><!-- raw HTML omitted --> trailing text
+Body line.</p>
+<!-- unexpected/invalid details tag omitted -->
