@@ -13,11 +13,21 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
+// repoPath returns the absolute path of a file given by its path relative to
+// the repository root.
+func repoPath(t *testing.T, rel string) string {
+	t.Helper()
+
+	p, err := filepath.Abs(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	require.NoError(t, err)
+	return p
+}
+
 // repoFile reads a file by its path relative to the repository root.
 func repoFile(t *testing.T, rel string) string {
 	t.Helper()
 
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	b, err := os.ReadFile(repoPath(t, rel))
 	require.NoError(t, err, "%s — has it moved? The release tooling is checked against this package.", rel)
 	return string(b)
 }

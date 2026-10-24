@@ -168,11 +168,9 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 	}
 }
 
-// A release's binaries exist only once CI has built it, and its entry is
-// written before that: cut-release.sh refuses a final release without one.
-// null says "not built yet", as it does for the image digest; an empty object
-// is refused, so a pending entry cannot pass for a built one with no
-// downloads.
+// A release's binaries exist only once CI has built it. null says "not built
+// yet", as it does for the image digest; an empty object is refused, so a
+// pending entry cannot pass for a built one with no downloads.
 func TestValidate_binariesArePendingUntilTheBuild(t *testing.T) {
 	t.Parallel()
 
