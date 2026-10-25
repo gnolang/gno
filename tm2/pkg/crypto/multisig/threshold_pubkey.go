@@ -128,8 +128,9 @@ func (pk PubKeyMultisigThreshold) validate() error {
 		if slices.ContainsFunc(leaves[:i], leaf.Equals) {
 			return errors.New("threshold k of n multisignature: duplicate pubkey")
 		}
-		// A small-order ed25519 key verifies forged signatures, so it would
-		// count as a signer nobody has to be.
+		// A small-order ed25519 key identifies no signer. VerifyBytes stops it
+		// from contributing a signature, but leaves are only verified for set
+		// bits, so a key containing one would still verify through the others.
 		if edKey, ok := leaf.(ed25519.PubKeyEd25519); ok && edKey.IsSmallOrder() {
 			return errors.New("threshold k of n multisignature: small-order ed25519 pubkey")
 		}

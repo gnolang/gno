@@ -3,6 +3,7 @@ module github.com/gnolang/gno
 go 1.25.9
 
 require (
+	filippo.io/edwards25519 v1.2.0
 	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/bendory/conway-hebrew-calendar v0.0.0-20210829020739-dcc34210ce9b
 	github.com/bmatsuo/lmdb-go v1.8.0

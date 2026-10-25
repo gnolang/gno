@@ -7,6 +7,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -90,8 +91,19 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if len(entries) > maxValsetEntries {
 			panic(fmt.Sprintf("valset:proposed too long: %d > %d", len(entries), maxValsetEntries))
 		}
-		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
+		updates, err := abci.ParseValidatorUpdates(entries)
+		if err != nil {
 			panic(fmt.Sprintf("invalid valset:proposed: %v", err))
+		}
+		// A small-order key can never sign (VerifyBytes rejects it); with
+		// enough power it would halt the chain. Removal (power 0) stays
+		// allowed, so one already in the set can still be dropped. Not in
+		// ParseValidatorUpdate: valset:current and EndBlocker parse with it
+		// too, and must still read a set that already holds such a key.
+		for i, u := range updates {
+			if ed, ok := u.PubKey.(ed25519.PubKeyEd25519); ok && u.Power > 0 && ed.IsSmallOrder() {
+				panic(fmt.Sprintf("invalid valset:proposed: entry %d has a small-order ed25519 pubkey", i))
+			}
 		}
 	case "valset:current":
 		// Chain-only key. Use type-assertion idiom (codebase

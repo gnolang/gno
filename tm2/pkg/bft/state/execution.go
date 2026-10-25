@@ -12,6 +12,7 @@ import (
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	tmver "github.com/gnolang/gno/tm2/pkg/bft/version"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 )
@@ -391,6 +392,11 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		if !params.IsValidPubKeyTypeURL(pubkeyTypeURL) {
 			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pubkeyTypeURL)
+		}
+		// A small-order ed25519 key can never sign (VerifyBytes rejects it), so
+		// with enough power it would halt the chain.
+		if ed, ok := valUpdate.PubKey.(ed25519.PubKeyEd25519); ok && ed.IsSmallOrder() {
+			return fmt.Errorf("validator %v is using a small-order ed25519 pubkey, which can never sign", valUpdate)
 		}
 	}
 	return nil

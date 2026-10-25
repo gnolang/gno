@@ -2611,6 +2611,19 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 		})
 	})
 
+	t.Run("valset:proposed small-order pubkey panics, removal passes", func(t *testing.T) {
+		t.Parallel()
+		var identity ed25519.PubKeyEd25519
+		identity[0] = 1
+		small := identity.String()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":10"})
+		})
+		assert.NotPanics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":0"})
+		})
+	})
+
 	t.Run("valset:proposed valid passes", func(t *testing.T) {
 		t.Parallel()
 		assert.NotPanics(t, func() {

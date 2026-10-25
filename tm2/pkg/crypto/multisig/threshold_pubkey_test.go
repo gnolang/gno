@@ -1,6 +1,7 @@
 package multisig
 
 import (
+	stded25519 "crypto/ed25519"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -371,7 +372,10 @@ func TestValidateRejectsSmallOrderEd25519Leaf(t *testing.T) {
 	msg := []byte("any sign bytes")
 	forged := make([]byte, ed25519.SignatureSize)
 	forged[0] = 1 // R = identity, S = 0
-	require.True(t, id.VerifyBytes(msg, forged), "premise: ed25519 accepts the forgery")
+	require.True(t, stded25519.Verify(id[:], msg, forged),
+		"premise: crypto/ed25519 accepts the forgery")
+	require.False(t, id.VerifyBytes(msg, forged),
+		"premise: PubKeyEd25519.VerifyBytes rejects small-order keys")
 
 	privA := ed25519.GenPrivKey()
 	pk := PubKeyMultisigThreshold{K: 3, PubKeys: []crypto.PubKey{privA.PubKey(), id, idNeg}}

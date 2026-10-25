@@ -132,6 +132,17 @@ func (pubKey PubKeyEd25519) VerifyBytes(msg []byte, sig []byte) bool {
 	if len(sig) != SignatureSize {
 		return false
 	}
+	// A small-order pubkey identifies no signer: crypto/ed25519.Verify accepts
+	// it, and a signature with S = 0 and a small-order R verifies under it (for
+	// the identity, for every message). Rejecting it here covers every caller:
+	// tx signatures, consensus votes and commits, evidence, p2p and the remote
+	// signer, multisig leaves, and realms through the gno crypto/ed25519.Verify
+	// native, so a change here also changes realm results. A key derived from
+	// a private key has prime order, so no honest key is affected. See
+	// adr/prxxxx_ed25519_small_order_keys.md.
+	if pubKey.IsSmallOrder() {
+		return false
+	}
 	return ed25519.Verify(pubKey[:], msg, sig)
 }
 
