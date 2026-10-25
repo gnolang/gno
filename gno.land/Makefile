@@ -17,10 +17,9 @@ CGO_ENABLED ?= 0
 export CGO_ENABLED
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
-# Used for the binaries' `version` output. --match 'v*' is load-bearing: a
-# release commit carries both chain/<name> and v<X.Y.Z>, and an unfiltered
-# describe answers the chain/ one, which gno.land/pkg/gnoland.parseReleaseVersion
-# refuses. The [branch].[N]+[hash] fallback is unparseable on purpose — an
+# Used for the binaries' `version` output. --match 'v*' keeps a chain/<name>
+# launch tag, which can sit on a release commit and which
+# gno.land/pkg/gnoland.parseReleaseVersion refuses, out of the answer. The [branch].[N]+[hash] fallback is unparseable on purpose — an
 # off-tag build must not satisfy a governance halt_min_version.
 VERSION ?= $(shell git describe --tags --exact-match --match 'v*' 2>/dev/null || echo "$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 

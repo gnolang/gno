@@ -102,6 +102,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	appOpts = append(appOpts, sdk.SetPruningOptions(cfg.PruneStrategy.Options()))
 
+	// Block sync may hold the app's commits in memory between flush points:
+	// gno.land's stores, the bptree and the plain store, never iterate their
+	// database inside a block. nodeParamsKeeper below asks for a flush point
+	// when a block writes a halt param.
+	appOpts = append(appOpts, sdk.AllowDeferredCommits())
+
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
@@ -140,7 +146,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
-	prmk.Register("node", nodeParamsKeeper{})
+	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig

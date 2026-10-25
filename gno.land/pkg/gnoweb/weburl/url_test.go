@@ -752,3 +752,31 @@ func TestEncodeFormURL(t *testing.T) {
 		})
 	}
 }
+
+// A one-character namespace puts the separator at index 1, which the old
+// `idx > 1` guard skipped — so /r/a/b reported "a/b" as its namespace.
+func TestNamespaceWithSingleCharacterOwner(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"/r/a/b", "a"},
+		{"/p/a/b", "a"},
+		{"/r/ab/c", "ab"},
+		{"/r/demo/boards", "demo"},
+		{"/r/demo", "demo"},
+		{"/u/alice", "alice"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			if got := (GnoURL{Path: tt.path}).Namespace(); got != tt.want {
+				t.Fatalf("Namespace(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}

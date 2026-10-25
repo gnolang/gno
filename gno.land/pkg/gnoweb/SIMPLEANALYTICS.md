@@ -123,7 +123,7 @@ Two layers fire in parallel.
 | `github` | github.com/gnolang/* |
 | `twitter` | twitter.com/_gnoland |
 | `discord` | discord.com/invite/gnoland |
-| `bubblerumble` | bubblerumble.net |
+| `gnoworld` | gno.world |
 | `youtube` | youtube.com/@_gnoland |
 | `claude` | claude.ai ("Ask AI" menus) |
 | `chatgpt` | chatgpt.com ("Ask AI" menus) |

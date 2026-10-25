@@ -106,7 +106,7 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
     {{ if or .Consts .Vars }}<a href="#{{ if .Consts }}constants{{ else }}variables{{ end }}">Values <span class="b-tag--tertiary">{{ add (len .Consts) (len .Vars) }}</span></a>{{ end }}
     {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
-    {{ with .Imports }}<a href="#imports">Imports <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    {{ if .Graph.Shown }}<a href="#imports">Dependencies <span class="b-tag--tertiary">{{ len .Graph.Imports }}</span></a>{{ end }}
     <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
     {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
   </div>
@@ -214,30 +214,13 @@ UI - Overview body
 </section>
 {{ end }}
 
-{{/* --- Imports --- */}}
-{{ with .Imports }}
+{{/* --- Dependencies --- */}}
+{{ if .Graph.Shown }}
 <section class="b-pkg-section" id="imports">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Imports</span></span>
-    <span class="count">{{ len . }}</span>
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Dependencies</span></span>
   </h2>
-  <ul class="b-pkg-list b-pkg-section__body">
-    {{ range . }}
-    <li class="b-pkg-list__item">
-      {{ if .Link }}
-      <a href="{{ .Link }}" class="b-pkg-list__link"{{ if .External }} rel="noopener noreferrer" title="External link"{{ end }}>
-        <span class="c-with-icon u-font-mono">{{ .Path }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </a>
-      {{ else }}
-      <span class="b-pkg-list__link b-pkg-list__link--disabled">
-        <span class="u-font-mono">{{ .Path }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </span>
-      {{ end }}
-    </li>
-    {{ end }}
-  </ul>
+  <div class="b-pkg-section__body">{{ template "ui/pkg_graph" .Graph }}</div>
 </section>
 {{ end }}
 

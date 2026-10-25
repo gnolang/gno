@@ -145,11 +145,13 @@ means a package that crashes the typechecker takes down only its own child, and
 that the approver key is never loaded in the process handling untrusted code.
 
 The budget starts once the child has everything the compile needs: the standard
-library and examples from disk, and every chain package the candidate imports,
-fetched from the node. Fetching is the oracle's cost, not the package's, so a
-slow node cannot turn a fast package into an overrun. That phase has a budget
-of its own, `--prepare-budget`, a minute by default; its expiry leaves the
-package pending as unavailable rather than counting against it.
+library and examples from disk, and every chain package the candidate's
+production files import, fetched from the node. An import that only its test
+files name is never fetched, because neither stage compiles a test file.
+Fetching is the oracle's cost, not the package's, so a slow node cannot turn a
+fast package into an overrun. That phase has a budget of its own,
+`--prepare-budget`, a minute by default; its expiry leaves the package pending
+as unavailable rather than counting against it.
 
 The child's type-check options mirror `MsgEnablePackage`'s exactly (production
 files only, no test-file evaluation), because the whole point is to predict what
@@ -164,9 +166,8 @@ and a borderline one should pass rather than lose a race with whatever else the
 machine is doing.
 
 Exceeding the budget is **not** a rejection. The package is left pending and
-neither approved nor recorded as bad. Nothing re-offers it automatically — block
-heights are read once and only move forward — so retrying it means restarting
-with `--start-height` at or below the block that submitted it.
+neither approved nor recorded as bad, and is offered again later (see
+[Stranded packages](#stranded-packages)).
 
 A failed **enable** works the same way. A package that verified but whose
 approval failed on chain is left pending through a bounded number of attempts,
@@ -185,9 +186,35 @@ rejection whatever else is parked. When none is absent and one is parked, a
 failed type check leaves the package pending, and an error in its own code is
 reported once the import is live. An import the chain reports live but would
 not serve is fetched once more: a package enabled during the fetch resolves,
-and one whose files `vm/qfile` cannot serve leaves the package pending as
-unavailable, which is the oracle's limit and not a verdict. Nothing re-offers a
-pending package by itself: resubmit it, or restart, once the import is live.
+and one whose sources or gnomod `vm/qfile` cannot serve leaves the package
+pending as unavailable, which is the oracle's limit and not a verdict. A file
+the verification never reads, such as a license, is not fetched, so the node
+refusing one holds nothing up.
+
+### Stranded packages
+
+Block heights are read once and only move forward, so a package left pending
+is not reached again from its block. gpao remembers each submission it leaves
+pending, by path and height, and every 10 minutes, between candidates, looks at
+them again: one the chain still holds parked at that height, and which no
+parked import holds back, is verified again with its bytes read from its block.
+A package waiting on a parked import is verified once the import goes live,
+whoever enabled it, and its status names that import meanwhile; one whose
+verification could not finish is verified again, and one importing a path the
+chain holds nowhere is verified and rejected. Each submission is verified again
+at most 3 times per run, after which its status says `gave_up`.
+
+New blocks go first: a look stops as soon as a candidate is queued, and resumes
+where it stopped once the verifier has handled it, so a path late in order is
+reached even while blocks keep arriving.
+
+What is remembered lives in memory, so a restarted gpao does not know what an
+earlier run left pending: restart with `--start-height` at or below the oldest
+such block. Replaying is cheap, since a package already live is skipped without
+being fetched.
+
+A redeploy parked over a live private realm is not verified again: the chain
+reports the live package for that path.
 
 The key's address **must** be listed in the chain's vm `PkgApprovers` param, and
 `code_submission_policy` must be `inert`, otherwise the `MsgEnablePackage`
@@ -226,12 +253,36 @@ remove.
 
 ## Import cache
 
-Each verification runs in its own child process, and the node's answers are
-cached for that run: a fetched package, because on-chain package paths are
-write-once (re-adding an existing path fails), and an answered "not found" as
-well, so the stages the budget measures never ask the node again. A transport
-fault is not cached. A missed import the chain reports live is fetched once
-more before the typecheck, since it may have been enabled after the miss.
+A package the chain deployed at genesis is fetched once per run, not once per
+verification. Before it spawns the child, gpao walks the candidate's import
+closure, takes what it already holds and fetches the rest, and hands the child
+the packages it found and the paths the node said it does not serve. It keeps
+every public genesis package it fetches for as long as it runs: a public
+package path is write-once (re-adding an existing path fails), and the genesis
+set is a size no submitter controls. A package added after genesis is fetched
+again for every verification, since anyone can get one approved and imported,
+and keeping those would let a submitter grow the daemon's memory without
+bound. A private package can be redeployed under its path, so it is fetched
+again too. Genesis is read from the `[addpkg]` height the keeper stamps into
+every stored package's `gnomod.toml`: 0 for a package deployed at genesis. A
+hard fork that replays transactions in its genesis runs each at its original
+height, so the packages it replays carry that height and are fetched every
+verification, as on a chain without this cache.
+
+The cache belongs to the chain it was filled from. Before each verification
+gpao reads block 1, and drops the cache when its hash is not the one the cache
+was filled under, or when the node does not give it. A chain started again
+under the same ID is caught whatever its tip did, and a node that lags keeps
+block 1 and the cache with it.
+
+Within one verification the node's answers are cached for that run: a fetched
+package, and an answered "not found" as well, so the stages the budget measures
+never ask the node again. A transport fault is not cached. A missed import the
+chain reports live is fetched once more before the typecheck, since it may have
+been enabled after the miss.
+
+Only a dependency's production `.gno` files and `gnomod.toml` are fetched:
+neither stage reads its tests, docs or licenses.
 
 ### About `--gas-wanted`
 
@@ -267,11 +318,15 @@ message succeeds. The daemon decides on its own when to send one, so anything
 that makes approvals fail repeatedly will drain the approver key. The bound
 stops that.
 
-Two things reduce how often it is reached. Before approving, the daemon checks
-whether the package is already live with nothing waiting to be enabled, and
-skips it if so, which is the common case when catching up with `--start-height`
-over blocks that were already approved. And it ignores transactions that
-failed on chain, so a submission the chain rejected never leads to an approval.
+Two things reduce how often it is reached. The daemon checks whether the
+package is already live with nothing waiting to be enabled, and skips it if so,
+which is the common case when catching up with `--start-height` over blocks
+that were already approved. It asks before verifying, so a skipped package
+costs one query rather than a verification, and again before approving, in case
+the package went live meanwhile. A skipped package is reported `approved`, even
+when its submitted bytes would not have verified: the live package is what the
+chain runs. And it ignores transactions that failed on chain, so a submission
+the chain rejected never leads to an approval.
 
 When the bound is reached the daemon says so and stops approving. It keeps
 watching blocks. Raise the bound or restart to continue.

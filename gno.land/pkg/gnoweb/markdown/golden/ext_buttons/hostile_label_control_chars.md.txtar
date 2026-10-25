@@ -1,0 +1,13 @@
+-- input.md --
+Newline: <gno-button href="/r/test" label="a&#10;b" />
+
+Tab and CR: <gno-button href="/r/test" label="a&#9;b&#13;c" />
+
+NUL: <gno-button href="/r/test" label="&#0;" />
+
+C1 and DEL: <gno-button href="/r/test" label="a&#x85;b&#127;c" />
+-- output.html --
+<p>Newline: <a href="/r/test" class="gno-button">a b</a></p>
+<p>Tab and CR: <a href="/r/test" class="gno-button">a b c</a></p>
+<p>NUL: <a href="/r/test" class="gno-button">�</a></p>
+<p>C1 and DEL: <a href="/r/test" class="gno-button">a bc</a></p>

@@ -40,6 +40,8 @@ func gnoWebAppConfig(cfg *AppConfig, remoteAddr string) *gnoweb.AppConfig {
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
+	// A dev or staging chain is never the canonical site.
+	appcfg.NoIndex = true
 	// Every package on a local gnodev chain is the developer's own. A
 	// staging server hosts other deployers' realms on a chain that reserves
 	// no namespace (gnodev never enables r/sys/names), so it trusts and indexes

@@ -71,7 +71,7 @@ func TestCanonicalURLArgs(t *testing.T) {
 
 	h := &HTTPHandler{
 		Static: StaticMetadata{CanonicalOrigin: "https://gno.land"},
-		policy: newPagePolicy(nil, DefaultAliases, IndexNoCommunity),
+		policy: newPagePolicy(nil, DefaultAliases, IndexNoCommunity, false),
 	}
 	for in, want := range map[string]string{
 		"/r/:Official_GNOT_airdrop_claim_at_evil.example":              "/r/",

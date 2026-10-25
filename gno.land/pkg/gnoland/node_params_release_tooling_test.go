@@ -219,6 +219,15 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		}
 		image := repoFile(t, docker)
 
+		// A final release is cut on its last candidate's commit, so an image tag
+		// named after the commit would move from the candidate's images to the
+		// final's. Images carry their version tag only (and latest for the CLIs):
+		// the whole tag list is pinned, so no rule of any form can add one.
+		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
+		assert.Equal(t, "            type=ref,event=tag\n"+
+			"            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}\n",
+			tags, "%s must tag images by version only, and latest for the CLIs, never by commit", docker)
+
 		// Every line naming BUILD_VERSION, so a second env scope, a comment
 		// or a bake --set override cannot leave the pinned line inert; and
 		// that line in the bake step's env, where bake reads it.

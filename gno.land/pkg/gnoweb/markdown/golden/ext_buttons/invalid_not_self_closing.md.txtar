@@ -1,0 +1,10 @@
+-- input.md --
+<gno-button href="/r/test" label="Open tag">
+
+Inline <gno-button href="/r/test" label="Open tag"> too.
+
+<gno-button href="/r/test">Body text</gno-button>
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --> too.</p>
+<p><!-- raw HTML omitted -->Body text<!-- raw HTML omitted --></p>

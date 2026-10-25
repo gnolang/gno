@@ -6,9 +6,8 @@
 // relies on, the rendering, and the check that the two files agree. The rules
 // live in Go, tested, rather than in a shell script forked per chain.
 //
-// The contract: a version runs the blocks from the previous entry's
-// halt_height + 1 (1 for genesis) up to and including its own successor's
-// halt_height. Entries are in chain order: strictly increasing versions and
+// The contract: a version runs the blocks from its own halt_height + 1 (1 for
+// genesis) up to and including its successor's halt_height. Entries are in chain order: strictly increasing versions and
 // strictly increasing halt heights. A rolling release — a PATCH that changes
 // no consensus code, switched to whenever an operator likes — has no halt and
 // bounds no range: it can serve the same blocks as the entry before it.

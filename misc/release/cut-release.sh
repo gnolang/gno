@@ -22,7 +22,7 @@
 # Options:
 #   --chain <name>       chain branch to cut from       (default: mainnet)
 #   --commit <ref>       commit to tag                  (default: the branch tip)
-#   --previous <version> previous release, for the range (default: newest v* tag)
+#   --previous <version> previous release, for the range (default: newest final v* tag reachable from the commit)
 #   --halt-height <H>    also print the GovDAO halt proposal for a coordinated upgrade
 #   --push               push the tag to origin (otherwise: dry run)
 #   --allow-dirty        skip the clean-worktree check (local rehearsal only)

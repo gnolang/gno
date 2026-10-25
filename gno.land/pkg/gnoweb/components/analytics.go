@@ -11,17 +11,17 @@ import (
 // must stay in sync with the enum in frontend/js/analytics.ts and the values
 // documented in SIMPLEANALYTICS.md.
 const (
-	OutboundDocs         = "docs"
-	OutboundFaucet       = "faucet"
-	OutboundStatus       = "status"
-	OutboundGitHub       = "github"
-	OutboundTwitter      = "twitter"
-	OutboundDiscord      = "discord"
-	OutboundYouTube      = "youtube"
-	OutboundBubbleRumble = "bubblerumble"
-	OutboundClaude       = "claude"
-	OutboundChatGPT      = "chatgpt"
-	OutboundGnoMCP       = "gnomcp"
+	OutboundDocs     = "docs"
+	OutboundFaucet   = "faucet"
+	OutboundStatus   = "status"
+	OutboundGitHub   = "github"
+	OutboundTwitter  = "twitter"
+	OutboundDiscord  = "discord"
+	OutboundYouTube  = "youtube"
+	OutboundGnoWorld = "gnoworld"
+	OutboundClaude   = "claude"
+	OutboundChatGPT  = "chatgpt"
+	OutboundGnoMCP   = "gnomcp"
 )
 
 // AnalyticsData holds the SimpleAnalytics metadata rendered into the page.
@@ -54,6 +54,8 @@ func ClassifyPageType(mode ViewMode, view ViewType) string {
 		return "help"
 	case DirectoryViewType:
 		return "directory"
+	case DepsViewType:
+		return "deps"
 	case StatusViewType:
 		return "status"
 	case RedirectViewType:
