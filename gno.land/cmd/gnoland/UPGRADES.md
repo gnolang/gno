@@ -376,3 +376,20 @@ implements:
 | `InitialHeight` in consensus and the block store | [`tm2/adr/pr5511_initial_height.md`](../../../tm2/adr/pr5511_initial_height.md) |
 | Manual test plan for the halt mechanism | [Testing the halt height feature](UPGRADES-TESTING.md) |
 | Node configuration and operation | [`README.md`](README.md) |
+
+## Canonical transaction encoding
+
+A transaction is identified by the hash of its bytes while its signatures
+cover the sign doc, so a node that accepts more than one amino encoding of a
+transaction accepts the same transaction under more than one hash
+(gnolang/gno#6404). Releases that include the enforcement accept only the
+canonical encoding, in `CheckTx` and `DeliverTx` alike.
+
+This is state-breaking and ships as a coordinated upgrade. Blocks produced
+before its halt height may hold other encodings of the same transactions and
+are replayed by the earlier binaries, per the ledger contract above; the
+enforcing release only ever runs its own block range. Schedule the halt only
+once the clients in use emit the canonical form: Go tools built after #6404,
+`amino-ts` from the release carrying gnolang/amino-ts#2 (the ts-proto clients
+already do). Every master-key transaction from an older Go client carries a
+written-out zero session address and is refused.

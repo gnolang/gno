@@ -916,9 +916,13 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		}
 	}()
 
+	// A tx is identified by the hash of its bytes while its signatures cover
+	// the sign doc, so only the canonical encoding of a tx is accepted: any
+	// other byte string decoding to the same tx is the same tx under another
+	// hash. See tm2/adr/prxxxx_canonical_tx_enforcement.md.
 	var tx Tx
-	if err := amino.Unmarshal(txBytes, &tx); err != nil {
-		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+	if err := amino.UnmarshalCanonical(txBytes, &tx); err != nil {
+		result = ABCIResultFromError(std.ErrTxDecode(err.Error()))
 		return
 	}
 

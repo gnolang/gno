@@ -1,0 +1,68 @@
+# Canonical transaction encoding, enforced
+
+## Status
+
+Proposed. Follows `tm2/adr/pr6404_tx_canonical_encoding.md`, which shipped
+the backward-compatible wire format and `amino.UnmarshalCanonical`.
+
+## Context
+
+#6404 established that any re-encoding of a signed transaction was accepted
+under a different hash, because the hash covers the raw amino bytes while the
+signatures cover the JSON sign doc, and that the fix is to accept only the
+canonical encoding in `runTx`. It also established why that could not ship
+with the encoding change: on gnoland-1 about 81% of historical transactions
+and about 85% of then-live traffic carried the written-out zero session
+address of the old Go encoder.
+
+How gno.land replays history settles the remaining question. The upgrades
+ledger (`gno.land/pkg/upgrades`) binds each released version to one block
+range, from its own halt height to its successor's, and a node replaying
+history switches binaries at those heights. A release is never asked to
+execute blocks produced under an earlier rule set.
+
+## Decision
+
+`BaseApp.runTx` decodes every tx, in every mode, with
+`amino.UnmarshalCanonical`, and returns `std.ErrTxDecode` with the first
+differing byte in `Log` when the bytes are not the canonical encoding. There
+is no height gate and no new parameter.
+
+The rule reaches a chain as a coordinated upgrade: a GovDAO halt with
+`halt_min_version` set to the enforcing release, recorded in the chain's
+upgrades ledger. From the halt height on, every included tx is canonical by
+construction; blocks before it are replayed by the binaries that produced
+them.
+
+## Alternatives considered
+
+- **A height gate on a governance param** (`node:p:canonical_tx_height`,
+  seeded from a genesis field for fresh chains). Implemented and set aside:
+  the ledger already confines each binary to its own block range, so the gate
+  would duplicate in state what replay enforces by switching binaries, and it
+  adds a genesis field and a param to every fresh chain.
+- **`CheckTx` only.** No consensus change, but a byzantine proposer can still
+  include a mutated tx, and the mempool refuses old clients' txs just as early.
+- **A height in `config.toml`**, like the per-node `halt_height` fallback.
+  Every operator would set the same value by hand, and a mismatch is a
+  consensus failure.
+
+## Consequences
+
+- **State-breaking.** Ships as a coordinated upgrade, never as a rolling
+  release, and only after the written-out zero session address has drained
+  from traffic: Go tools rebuilt from #6404, `amino-ts` with
+  gnolang/amino-ts#2; the ts-proto clients already emit the canonical form.
+  Every master-key tx from an older Go client is refused from the first block
+  of the enforcing release.
+- **Replay needs the earlier binaries.** A node that syncs history from
+  genesis on the enforcing release alone fails at the first non-canonical
+  block; it has to switch binaries at the ledger's heights, as it does for
+  every other state-breaking release.
+- **Fresh chains are strict from block 1.** The whole txtar suite runs that
+  way; gnokey emits canonical bytes.
+- **Clients** must emit canonical amino: coins strings in Go's rendering
+  (sorted by denom, no whitespace), lowercase bech32, no explicit defaults,
+  no padded varints. The decode error names the first differing byte.
+- One extra `Marshal` per tx in `runTx`, about 2 µs against 80 to 100 µs of
+  signature verification.
