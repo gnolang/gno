@@ -1,0 +1,80 @@
+# A value that points at the slot holding it (`root = &root`, `s.a = &s.a`,
+# `arr[0] = &arr[0]`) must survive a save/load round trip: filling the loaded
+# value walks the pointer back into that slot, which used to recurse until the
+# stack overflowed and took the node down with it.
+
+loadpkg gno.land/r/demo/selfref $WORK
+
+gnoland start
+
+# tx 1: build the cycles in realm state.
+gnokey maketx call -pkgpath gno.land/r/demo/selfref -func Set -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+# tx 2: read them back from the store, in a fresh machine.
+gnokey query vm/qeval --data "gno.land/r/demo/selfref.Deref()"
+stdout 'block: cycle intact'
+
+gnokey query vm/qeval --data "gno.land/r/demo/selfref.DerefField()"
+stdout 'field: cycle intact'
+
+gnokey query vm/qeval --data "gno.land/r/demo/selfref.DerefElem()"
+stdout 'elem: cycle intact'
+
+# tx 3: write through the cycle. Set and the deref write happen in one call, so
+# nothing is reloaded and fillValueTV is never on the stack: this reaches
+# doOpAssign -> PopAsPointer2 -> resolvePointer -> IsReadonly -> IsReadonlyBy,
+# which descends from a heap item into its own value.
+gnokey maketx call -pkgpath gno.land/r/demo/selfref -func WriteThrough -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- gnomod.toml --
+module = "gno.land/r/demo/selfref"
+gno = "0.9"
+
+-- selfref.gno --
+package selfref
+
+type S struct{ a any }
+
+var (
+	root any            // block slot
+	s    = &S{}         // struct field
+	arr  = &[1]any{}    // array element
+)
+
+func Set(cur realm) {
+	root = &root
+	s.a = &s.a
+	arr[0] = &arr[0]
+}
+
+// check reports whether p still points at the slot it was stored in: that slot
+// holds p, so dereferencing p once must yield p again.
+func check(label string, slot any) string {
+	p, ok := slot.(*any)
+	if !ok {
+		return label + ": not a pointer"
+	}
+	q, ok := (*p).(*any)
+	if !ok {
+		return label + ": does not point at itself"
+	}
+	if p != q {
+		return label + ": pointer identity lost"
+	}
+	return label + ": cycle intact"
+}
+
+// WriteThrough closes a cycle and assigns through it in one call, which is the
+// shape that descends from a heap item into the value naming that same item.
+func WriteThrough(cur realm) {
+	var local any
+	local = &local
+	p := local.(*any)
+	*p = 42
+}
+
+func Deref() string      { return check("block", root) }
+func DerefField() string { return check("field", s.a) }
+func DerefElem() string  { return check("elem", arr[0]) }

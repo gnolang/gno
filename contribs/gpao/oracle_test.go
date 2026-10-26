@@ -100,10 +100,19 @@ func newTestVerifier(t *testing.T) *verifier {
 	return v
 }
 
+// newTestOracle builds an oracle on closedRemote, so a fixture that grew a /p/
+// or /r/ import fails on a refused connection rather than reaching a local node,
+// and handleCandidate finds nothing settled and verifies.
 func newTestOracle(t *testing.T) *oracle {
 	t.Helper()
+	return newTestOracleAt(t, closedRemote)
+}
+
+// newTestOracleAt builds an oracle whose parent and child both ask remote.
+func newTestOracleAt(t *testing.T, remote string) *oracle {
+	t.Helper()
 	cfg := config{
-		remote:    "http://127.0.0.1:26657", // not contacted in these tests
+		remote:    remote,
 		chainID:   "test",
 		mnemonic:  testMnemonic,
 		gnoRoot:   gnoenv.RootDir(),
@@ -386,7 +395,6 @@ func TestChildWithoutARemoteIsNotAVerdict(t *testing.T) {
 // No chain anywhere: an unreachable remote is the whole reproduction.
 func TestUnreachableRemoteIsNotAVerdict(t *testing.T) {
 	o := newTestOracle(t)
-	o.cfg.remote = closedRemote
 	o.cfg.verifyBudget = time.Minute
 
 	mpkg := packageImportingChainOnly()
