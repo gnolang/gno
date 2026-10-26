@@ -35,7 +35,8 @@ type GnoDetailsNode struct {
 	// Open renders the block expanded.
 	Open bool
 	// Summary is the raw `summary` attribute, written with its character
-	// references resolved and escaped, like a gno-icon label.
+	// references and backslash escapes resolved and the rest escaped, like a
+	// gno-icon label.
 	Summary []byte
 	// close is an open marker's close marker, set when the close tag pairs
 	// with it during parsing.
@@ -138,8 +139,9 @@ var detailsReleasedKey = parser.NewContextKey()
 // one measure of which containers are still open. It runs once per line:
 // each later `>` marker on the line opens under a blockquote the line just
 // opened, which holds no opener.
-func releaseDetails(pc parser.Context, parent ast.Node, line int) {
+func releaseDetails(pc parser.Context, parent ast.Node, reader text.Reader) {
 	stack := detailsStack(pc)
+	line, _ := reader.Position()
 	if stack == nil || pc.Get(detailsReleasedKey) == line {
 		return
 	}
@@ -190,8 +192,7 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	if line[pos] == '>' {
 		// Open runs once per `>` marker, so it returns before scanning the rest
 		// of the line; a `>` line opens a blockquote, never a lazy continuation.
-		lineNum, _ := reader.Position()
-		releaseDetails(pc, parent, lineNum)
+		releaseDetails(pc, parent, reader)
 		return nil, parser.NoChildren
 	}
 	tag := util.TrimRightSpace(line[pos:])
@@ -200,8 +201,7 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	// continuation, which keeps the paragraph's container open; a details tag
 	// line yields a leaf, so it is not one.
 	if kind != detailsTagNone || !ast.IsParagraph(pc.LastOpenedBlock().Node) {
-		lineNum, _ := reader.Position()
-		releaseDetails(pc, parent, lineNum)
+		releaseDetails(pc, parent, reader)
 	}
 	if kind == detailsTagNone {
 		if stack := detailsStack(pc); stack != nil && len(*stack) > 0 && parent.Kind() == ast.KindDocument &&

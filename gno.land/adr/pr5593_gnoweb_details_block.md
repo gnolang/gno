@@ -26,9 +26,12 @@ arbitrary **markdown**
   expanded. Any other attribute, a valued `open`, a repeated attribute, an
   attribute on the close tag or a self-closing form makes the line an invalid
   tag, rendered as an HTML comment. A missing `summary` renders as `Details`.
-- **Plain-text summary.** The summary is escaped and written inside a
-  `<span>`, so no markup in it reaches the page and the summary row's flex
-  layout treats it as one item beside the chevron.
+- **Plain-text summary.** The summary goes through goldmark's
+  `html.DefaultWriter.Write`, which resolves character references and
+  backslash escapes, `&amp;` to `&` and `\*` to `*`, before escaping the
+  result. It is written inside a `<span>`, so no markup in it reaches the
+  page and the summary row's flex layout treats it as one item beside the
+  chevron.
 - **Flat markers, like `ext_frame`.** Each tag is a one-line leaf. An AST
   transformer moves the blocks between an open marker and its close marker
   under the open one. A line therefore belongs to the innermost block that
