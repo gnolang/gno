@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -620,40 +619,6 @@ func TestCheckTxMalformedTypeURL(t *testing.T) {
 
 	res := app.CheckTx(abci.RequestCheckTx{Tx: mutated})
 	require.False(t, res.IsOK(), "expected a decode error, got OK")
-}
-
-// TestRunTxRejectsNonCanonicalEncoding: runTx must reject, in CheckTx and
-// DeliverTx alike, bytes that decode to a tx but are not its canonical
-// encoding. The encoding classes are covered in amino; one is enough here.
-func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
-	t.Parallel()
-
-	app := setupBaseApp(t)
-	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
-	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
-
-	canonical, err := amino.Marshal(newTxCounter(0, 0))
-	require.NoError(t, err)
-	require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: canonical}).IsOK())
-
-	// The first tag as a two-byte varint: the same tx under another hash.
-	require.Less(t, canonical[0], byte(0x80))
-	padded := slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
-	var decoded std.Tx
-	require.NoError(t, amino.Unmarshal(padded, &decoded))
-	reencoded, err := amino.Marshal(decoded)
-	require.NoError(t, err)
-	require.Equal(t, canonical, reencoded)
-
-	check := app.CheckTx(abci.RequestCheckTx{Tx: padded})
-	require.False(t, check.IsOK())
-	assert.Equal(t, std.TxDecodeError{}, check.Error)
-	assert.Contains(t, check.Log, "non-canonical encoding")
-
-	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: padded})
-	require.False(t, deliver.IsOK())
-	assert.Equal(t, std.TxDecodeError{}, deliver.Error)
-	assert.Contains(t, deliver.Log, "non-canonical encoding")
 }
 
 // Test that successive DeliverTx can see each others' effects

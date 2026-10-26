@@ -916,11 +916,9 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		}
 	}()
 
-	// Reject non-canonical encodings of the tx: the same tx under another
-	// hash. See tm2/adr/pr6404_tx_canonical_encoding.md.
 	var tx Tx
-	if err := amino.UnmarshalCanonical(txBytes, &tx); err != nil {
-		result = ABCIResultFromError(std.ErrTxDecode(err.Error()))
+	if err := amino.Unmarshal(txBytes, &tx); err != nil {
+		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	}
 
