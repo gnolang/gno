@@ -64,10 +64,14 @@ break block replay and refuse most live traffic until clients upgrade.
    `""` both decode to the zero address, so nodes keep accepting the old form.
 
 2. **`amino.UnmarshalCanonical(bz, ptr)`**: `Unmarshal`, then `Marshal` the
-   decoded value and require the result to equal `bz` byte for byte. It is
-   complete by construction: any encoding the encoder would not have produced
-   is rejected, whatever the mechanism. It ships here as a library function
-   with its tests; nothing calls it yet.
+   decoded value and require the result to equal `bz` byte for byte. It
+   rejects any encoding this encoder would not produce for the decoded value,
+   whatever the mechanism. The converse does not hold: `Marshal` can emit
+   bytes the check then rejects where a repr type's producer is laxer than its
+   consumer (an unsorted `std.Coins` string round-trips sorted), and bytes
+   the check accepts can still be invalid (`0a 00`, a nil message, is the
+   canonical encoding of `Tx{Msgs: {nil}}`). It ships here as a library
+   function with its tests; nothing calls it yet.
 
 ### Follow-up PR: enforcement, unconditional in the enforcing binary
 
@@ -132,8 +136,9 @@ every included tx is canonical by construction.
 - **Tx bytes and hashes change for Go clients.** Master-key txs shrink by
   43 bytes (the field plus one byte of the signature length prefix), so at
   `TxSizeCostPerByte` 10 every single-signature tx costs 430 gas less; the
-  eight txtar gas pins in `gno.land/pkg/integration/testdata` move by exactly
-  that.
+  12 pinned `GAS USED` values in 8 txtar files under
+  `gno.land/pkg/integration/testdata`, and the two gas-estimate lines in
+  `gnokey_gasfee.txtar`, move by exactly that.
 - **Go API.** `Signature.SessionAddr` changes type; the few call sites convert.
 - **Sibling repositories**, checked by encoding nine txs (`send`, memo,
   multi-denom, `m_call` with and without args/send, `m_addpkg`, `m_run`,

@@ -111,6 +111,14 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 
 			if tc.wantMasterSig {
 				assert.Equal(t, []byte{0x12, 0x03, 's', 'i', 'g'}, bz, "a zero SessionAddr must have no wire presence")
+
+				// Chains produced before this change wrote the zero address out as
+				// its bech32 string; those bytes must keep decoding to a master
+				// signature.
+				written := append([]byte{0x12, 0x03, 's', 'i', 'g', 0x1a, 0x28}, []byte(crypto.Address{}.String())...)
+				var legacy std.Signature
+				require.NoError(t, amino.Unmarshal(written, &legacy))
+				assert.True(t, legacy.SessionAddr.IsZero(), "the written-out zero address must still decode as a master signature")
 			}
 
 			var got std.Signature
