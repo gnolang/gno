@@ -69,14 +69,15 @@ break block replay and refuse most live traffic until clients upgrade.
    is rejected, whatever the mechanism. It ships here as a library function
    with its tests; nothing calls it yet.
 
-### Follow-up PR: enforcement behind a governance height
+### Follow-up PR: enforcement, unconditional in the enforcing binary
 
-`BaseApp.runTx` decodes with `UnmarshalCanonical` once a node param
-`node:p:canonical_tx_height` is set and the block height has reached it. The
-param follows `node:p:halt_height`: set by a GovDAO proposal through the
-generic int64 param factory, validated in the node params keeper, read from
-state in every mode so block sync of history before the height stays lenient.
-Fresh chains seed it at genesis so they enforce from their first block.
+`BaseApp.runTx` decodes with `UnmarshalCanonical` in every mode, with no
+height gate. History that predates the rule is not replayed by that binary:
+the upgrades ledger (`gno.land/pkg/upgrades`) binds each released version to
+the block range from its own halt height to its successor's, and a node
+replaying history switches binaries at those heights. The enforcing release
+therefore only ever executes blocks produced after its halt height, where
+every included tx is canonical by construction.
 
 ## Rollout
 
@@ -84,14 +85,20 @@ Fresh chains seed it at genesis so they enforce from their first block.
 2. Release the clients: Go tools rebuilt from this module, `amino-ts`
    (gnolang/amino-ts#2); the ts-proto clients already emit the canonical form.
 3. Wait for the written-out zero session address to drain from chain traffic.
-4. Ship the follow-up and have governance set `canonical_tx_height` at or
-   after the coordinated upgrade's halt height.
+4. Ship the follow-up as a coordinated upgrade: a GovDAO halt with
+   `halt_min_version` set to the enforcing release, recorded in the upgrades
+   ledger so replay switches binaries at that height.
 
 ## Alternatives considered
 
 - **Enforce in this PR.** Rejected on the reviewer's data above: replay of
   gnoland-1 fails from the first non-canonical block, and `CheckTx`
   enforcement alone refuses most live traffic until clients upgrade.
+- **A height gate on a governance param** (`node:p:canonical_tx_height`,
+  seeded from genesis for fresh chains). Implemented and set aside: the
+  upgrades ledger already confines each binary to its own block range, so the
+  gate would duplicate in state what replay enforces by switching binaries,
+  at the cost of a genesis field and a param on every fresh chain.
 - **A strict amino decoder** that rejects explicit defaults and non-minimal
   varints everywhere. It would apply to persisted state, p2p and consensus
   messages as well as txs, has to be implemented twice (reflection and
