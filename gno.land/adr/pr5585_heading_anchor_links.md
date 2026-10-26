@@ -12,7 +12,7 @@ Replace goldmark's heading renderer in `GnoExtension` with one that closes every
 <h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 ```
 
-The icon is hidden at rest and shown when the heading is hovered or the anchor has keyboard focus. On devices with no hover (`@media (hover: none)`) it is always shown. A word joiner (U+2060) opens the anchor and the anchor does not wrap, so on a narrow screen the icon moves to the next line with the heading's last word rather than alone. The anchor is excluded from text selection, so copying a heading copies no joiner.
+The icon is hidden at rest and shown when the heading is hovered or the anchor has keyboard focus. On devices with no hover (`@media (hover: none)`) it is always shown. A word joiner (U+2060) opens the anchor and the anchor does not wrap, so on a narrow screen the icon moves to the next line with the heading's last word rather than alone, unless the heading ends with a `<gno-button>` or a `<gno-icon>`. The anchor is excluded from text selection, so copying a heading copies no joiner.
 
 ## Alternatives Considered
 
@@ -24,9 +24,10 @@ The icon is hidden at rest and shown when the heading is hovered or the anchor h
 ## Consequences
 
 - Link-only headings get a permalink too. Each heading grows by one anchor repeating its id, so the output stays linear in the heading's length.
-- The heading text is left untouched: it stays selectable, and inline links, footnote refs and raw HTML inside it render as before.
+- The heading text is left untouched: it stays selectable, and footnote refs and raw HTML inside it keep their markup.
 - The heading's accessible name ends with "Permalink", since the anchor sits inside the heading.
-- Inside a heading a link is inline and its tooltip badge draws its circle and icon out of the text flow, since Chromium breaks a line after an `inline-block` or `inline-flex` box whatever the joiner.
+- Inside a heading a text link is inline rather than `inline-block`, and its tooltip badge draws its circle and icon out of the text flow, since Chromium breaks a line after an `inline-block` or `inline-flex` box whatever the joiner.
+- A `<gno-button>` in a heading keeps its `inline-flex` box and its badge, and a `<gno-icon>` its `inline-block` box, so a line can break between either and the permalink.
 - The doc view does not load this extension, so godoc headings get no anchor.
 - The golden test setup gained `parser.WithAutoHeadingID()` to match production; existing fixtures gained `id` attributes and the anchor markup.
 - No new external dependencies.
