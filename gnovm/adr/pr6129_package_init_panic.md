@@ -39,3 +39,7 @@ continues to link the previous frame exception and pushes
 - Ordinary function panics, defer unwinding, and `recover` behavior remain on
   the existing call-frame path.
 - No gas constants, package initialization order, or public API are changed.
+- State-breaking: a tx whose package var initializer panics now stores the
+  runtime error in its DeliverTx `abci.Error` instead of
+  `<error: runtime.errorString>`. `LastResultsHash` hashes that error, so the
+  change needs a coordinated upgrade.

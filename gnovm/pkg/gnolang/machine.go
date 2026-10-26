@@ -3269,20 +3269,18 @@ func (m *Machine) pushPanic(etv TypedValue) {
 	}
 	// Pop after capturing stacktrace.
 	fr := m.PopUntilLastCallFrame()
+	if fr == nil {
+		// No call frame during package var init: nothing to unwind.
+		m.Exception = ex.WithPrevious(m.Exception)
+		panic(m.makeUnhandledPanicError())
+	}
 	// Link ex.Previous.
 	if m.Exception == nil {
-		if fr == nil {
-			m.Exception = ex
-		} else {
-			// Recall the last m.Exception before frame.
-			m.Exception = ex.WithPrevious(fr.LastException)
-		}
+		// Recall the last m.Exception before frame.
+		m.Exception = ex.WithPrevious(fr.LastException)
 	} else {
 		// Replace existing m.Exception with new.
 		m.Exception = ex.WithPrevious(m.Exception)
-	}
-	if fr == nil {
-		panic(m.makeUnhandledPanicError())
 	}
 
 	m.PushOp(OpPanic2)
