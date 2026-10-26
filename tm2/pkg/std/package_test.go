@@ -104,10 +104,14 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name+"/binary", func(t *testing.T) {
 			t.Parallel()
-			orig := std.Signature{Signature: []byte("sig"), SessionAddr: tc.sessionAddr}
+			orig := std.Signature{Signature: []byte("sig"), SessionAddr: std.SessionAddress(tc.sessionAddr)}
 
 			bz, err := amino.Marshal(orig)
 			require.NoError(t, err)
+
+			if tc.wantMasterSig {
+				assert.Equal(t, []byte{0x12, 0x03, 's', 'i', 'g'}, bz, "a zero SessionAddr must have no wire presence")
+			}
 
 			var got std.Signature
 			require.NoError(t, amino.Unmarshal(bz, &got))
@@ -115,13 +119,13 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 			assert.Equal(t, tc.wantMasterSig, got.SessionAddr.IsZero(),
 				"round-tripped Signature SessionAddr classification mismatch: got=%v", got.SessionAddr)
 			if !tc.wantMasterSig {
-				assert.Equal(t, tc.sessionAddr, got.SessionAddr)
+				assert.Equal(t, tc.sessionAddr, got.SessionAddr.Address())
 			}
 		})
 
 		t.Run(tc.name+"/json", func(t *testing.T) {
 			t.Parallel()
-			orig := std.Signature{Signature: []byte("sig"), SessionAddr: tc.sessionAddr}
+			orig := std.Signature{Signature: []byte("sig"), SessionAddr: std.SessionAddress(tc.sessionAddr)}
 
 			bz, err := amino.MarshalJSON(orig)
 			require.NoError(t, err)
@@ -132,7 +136,7 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 			assert.Equal(t, tc.wantMasterSig, got.SessionAddr.IsZero(),
 				"round-tripped Signature SessionAddr classification mismatch: got=%v", got.SessionAddr)
 			if !tc.wantMasterSig {
-				assert.Equal(t, tc.sessionAddr, got.SessionAddr)
+				assert.Equal(t, tc.sessionAddr, got.SessionAddr.Address())
 			}
 		})
 	}

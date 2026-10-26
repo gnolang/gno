@@ -172,6 +172,10 @@ func MustUnmarshal(bz []byte, ptr any) {
 	gcdc.MustUnmarshal(bz, ptr)
 }
 
+func UnmarshalCanonical(bz []byte, ptr any) error {
+	return gcdc.UnmarshalCanonical(bz, ptr)
+}
+
 func UnmarshalSized(bz []byte, ptr any) error {
 	return gcdc.UnmarshalSized(bz, ptr)
 }
@@ -1138,6 +1142,38 @@ func (cdc *Codec) MustUnmarshal(bz []byte, ptr any) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// UnmarshalCanonical decodes bz into ptr like Unmarshal, then rejects bz
+// unless it is byte-for-byte what Marshal produces for the decoded value.
+//
+// Amino, like protobuf, accepts several encodings of one value: a default
+// field written out (an empty string as `tag 0x00`) instead of omitted, a
+// non-minimal varint for a tag, a length or a number, and so on. Anything
+// that identifies a message by hashing its wire bytes, such as a transaction
+// in a block, must decode it with this function, or the same message
+// circulates under as many hashes as it has encodings.
+func (cdc *Codec) UnmarshalCanonical(bz []byte, ptr any) error {
+	if err := cdc.Unmarshal(bz, ptr); err != nil {
+		return err
+	}
+	// Unmarshal accepts **T as well as *T; Marshal takes one pointer level.
+	if rv := reflect.ValueOf(ptr); rv.Elem().Kind() == reflect.Pointer {
+		ptr = rv.Elem().Interface()
+	}
+	canonical, err := cdc.Marshal(ptr)
+	if err != nil {
+		return fmt.Errorf("re-encoding %v: %w", reflect.TypeOf(ptr).Elem(), err)
+	}
+	if !bytes.Equal(bz, canonical) {
+		i := 0
+		for i < len(bz) && i < len(canonical) && bz[i] == canonical[i] {
+			i++
+		}
+		return fmt.Errorf("non-canonical encoding of %v: first difference at byte %d (%d bytes given, %d canonical)",
+			reflect.TypeOf(ptr).Elem(), i, len(bz), len(canonical))
+	}
+	return nil
 }
 
 // UnmarshalAny decodes the registered object
