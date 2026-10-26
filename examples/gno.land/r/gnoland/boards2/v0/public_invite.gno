@@ -48,7 +48,7 @@ func RequestInvite(cur realm, boardID boards.ID) {
 	//   must be tightened to IsUserCall() — IsUser() accepts maketx-run
 	//   ephemeral realms which can consume the origin-send envelope before
 	//   calling us, bypassing the fee. See
-	//   docs/resources/effective-gno.md#verifying-inbound-coin-payments.
+	//   docs/resources/coins-and-tokens.md#verifying-inbound-coin-payments.
 	// TODO: Make open invite requests optional (per board)
 
 	board := mustGetBoard(boardID)
