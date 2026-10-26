@@ -1,0 +1,25 @@
+-- input.md --
+<gno-frame>
+<gno-columns>
+<gno-frame x="1">
+card
+<gno-columns-sep>
+b
+</gno-columns>
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<!-- unexpected/invalid frame tag omitted -->
+<p>card</p>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>b</p>
+</div>
+</div> <!-- </gno-columns> -->
+</section>
+<p>after</p>

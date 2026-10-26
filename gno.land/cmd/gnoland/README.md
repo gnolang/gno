@@ -96,7 +96,7 @@ network. Set them with `gnoland config set <key> <value>`.
 | `p2p.persistent_peers` | Comma-separated `<node-id>@<host>:26656` list to stay connected to |
 | `p2p.pex` | Peer exchange: `true` to discover peers, `false` on a validator behind sentries |
 | `p2p.private_peer_ids` | Peer IDs never gossiped to others — a sentry's validator |
-| `p2p.max_num_outbound_peers` | Outbound peer cap, excluding persistent peers |
+| `p2p.max_num_outbound_peers` | Outbound peer cap. Persistent peers count toward it, but are dialed even when it is reached |
 | `rpc.laddr` | RPC listen address (default `tcp://127.0.0.1:26657`) — keep off the public internet |
 | `mempool.size` | Max transactions held in the mempool |
 | `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
@@ -216,7 +216,7 @@ means waiting twice.
 2. **Sync a full node** on the target network, following its
    [deployment directory](../../../misc/deployments). Wait until
    `/status` reports `catching_up: false`.
-3. **Start onboarding on [Discord](https://discord.gg/YFtMjWwUN7).** Run
+3. **Start onboarding on [Discord](https://discord.com/invite/gnoland).** Run
    `/candidate-testnet` in `#general-chat`. The bot assigns you the *Testnet
    Validator Candidate* role and opens access to `#testnet-onboarding`.
 4. **Follow the pinned instructions** in `#testnet-onboarding`, which include
@@ -253,7 +253,7 @@ the halt mechanism, useful for rehearsing an upgrade before doing it for real.
 
 ## Getting help
 
-Ask on [Discord](https://discord.gg/YFtMjWwUN7) — `#general-chat` if you don't
+Ask on [Discord](https://discord.com/invite/gnoland) — `#general-chat` if you don't
 hold a testnet role yet, the `#testnet-*` channels once you do. Say which
 network you're on and paste your `config.toml` diff from that network's default;
 that is usually enough to answer in one round-trip.

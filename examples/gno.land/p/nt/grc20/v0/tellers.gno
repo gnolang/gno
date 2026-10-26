@@ -141,7 +141,7 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // whoever you call can act as you — and neither is reachable once the teller
 // only works at home.
 //
-// The host is compared after stripping any ":subpath" synthesized by
+// The host is compared after stripping any "#subpath" synthesized by
 // realm.Sub, so the token's own sub-realms are not falsely rejected.
 //
 // A foreign realm that needs to move a user's funds uses the ordinary route:

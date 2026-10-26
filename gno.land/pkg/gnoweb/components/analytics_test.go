@@ -17,6 +17,7 @@ func TestClassifyPageType(t *testing.T) {
 		{"source view wins over realm mode", ViewModeRealm, SourceViewType, "source"},
 		{"help view wins over realm mode", ViewModeRealm, HelpViewType, "help"},
 		{"directory view", ViewModeExplorer, DirectoryViewType, "directory"},
+		{"deps view wins over realm mode", ViewModeRealm, DepsViewType, "deps"},
 		{"status view", ViewModeExplorer, StatusViewType, "status"},
 		{"redirect view", ViewModeExplorer, RedirectViewType, "redirect"},
 		{"realm view falls through to mode", ViewModeRealm, RealmViewType, "realm"},

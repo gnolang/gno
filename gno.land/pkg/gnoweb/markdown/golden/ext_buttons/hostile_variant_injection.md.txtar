@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button href="/r/test" label="x" variant="info&quot; style=&quot;x" />
+
+<gno-button href="/r/test" label="x" variant="gno-button-info x"/>
+-- output.html --
+<p><a href="/r/test" class="gno-button">x</a></p>
+<p><a href="/r/test" class="gno-button">x</a></p>
