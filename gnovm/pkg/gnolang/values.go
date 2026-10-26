@@ -472,12 +472,23 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 			// sealed: every write into an interface slot copies on
 			// entry, interface-held values are not addressable (see
 			// isAddressable), and extracting one (type assertion)
-			// copies again. Share them
-			// instead of deep-copying — mirroring Go, where copying an
-			// array of interfaces copies the boxes' headers. This also
-			// keeps chains like `x = [1]any{x}` linear instead of
-			// quadratic.
-			copy(cp.List, av.List)
+			// copies again. Share them instead of deep-copying —
+			// mirroring Go, where copying an array of interfaces copies
+			// the boxes' headers. This also keeps chains like
+			// `x = [1]any{x}` linear instead of quadratic.
+			//
+			// An element stamped with another realm than the copy is
+			// still deep-copied: shared, it would be persisted (and its
+			// storage deposit charged) as an object of the realm that
+			// allocated it, which a private realm refuses outright.
+			pid := cp.GetObjectID().PkgID
+			for i, tv := range av.List {
+				if o, ok := tv.V.(Object); ok && o.GetObjectID().PkgID != pid {
+					cp.List[i] = tv.Copy(alloc)
+				} else {
+					cp.List[i] = tv
+				}
+			}
 		} else {
 			for i, tv := range av.List {
 				cp.List[i] = tv.Copy(alloc)
