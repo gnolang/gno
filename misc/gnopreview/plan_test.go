@@ -547,3 +547,37 @@ func TestTrustedPlanRederivesPairPaths(t *testing.T) {
 		t.Errorf("pairs = %+v; want %+v (the before image is not in the snapshot, the duplicate is dropped)", got.Pairs, want)
 	}
 }
+
+func TestLoadPkgsRealmIsByPrefix(t *testing.T) {
+	t.Parallel()
+	// A /p/ package with an "r" segment is not a realm.
+	root := fakeRepo(t)
+	dir := filepath.Join(root, "examples", "gno.land", "p", "x", "r", "util")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{
+		"gnomod.toml": "module = \"gno.land/p/x/r/util\"\n",
+		"util.gno":    "package util\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pkgs, err := LoadPkgs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]bool{
+		"gno.land/p/x/r/util":  false,
+		"gno.land/p/x/base/v0": false,
+		"gno.land/r/x/leaf":    true,
+	} {
+		if pkgs[path] == nil {
+			t.Fatalf("LoadPkgs did not find %s", path)
+		}
+		if got := pkgs[path].Realm; got != want {
+			t.Errorf("%s: Realm = %v; want %v", path, got, want)
+		}
+	}
+}

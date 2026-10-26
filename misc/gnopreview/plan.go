@@ -141,7 +141,7 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
 		pkg := &Pkg{
 			Path:  strings.TrimPrefix(rel, examplesRel+"/"),
 			Dir:   rel,
-			Realm: strings.Contains(rel, "/r/"),
+			Realm: strings.HasPrefix(rel, pkgRoot+"/r/"),
 		}
 		pkg.Ignore = modIgnored(filepath.Join(p, "gnomod.toml"))
 		pkg.Imports = gnoImports(files)
