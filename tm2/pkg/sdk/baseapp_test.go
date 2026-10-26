@@ -655,6 +655,28 @@ func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
 	}
 }
 
+// TestRunTxRejectsNilMsg: an empty Any is the canonical encoding of a nil
+// message, so UnmarshalCanonical passes it; it must fail as a bad request,
+// not as a recovered nil-pointer panic.
+func TestRunTxRejectsNilMsg(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	canonical, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	for name, bz := range map[string][]byte{
+		"only a nil message":            {0x0a, 0x00},
+		"nil message before a real one": slices.Concat([]byte{0x0a, 0x00}, canonical),
+	} {
+		res := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+		require.False(t, res.IsOK(), name)
+		assert.Equal(t, std.UnknownRequestError{}, res.Error, name)
+		assert.NotContains(t, res.Log, "recovered", name)
+	}
+}
+
 // Test that successive DeliverTx can see each others' effects
 // on the store, both within and across blocks.
 func TestDeliverTx(t *testing.T) {

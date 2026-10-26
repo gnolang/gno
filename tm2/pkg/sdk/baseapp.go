@@ -684,6 +684,12 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	for _, msg := range msgs {
+		// An empty Any (0a 00) decodes to a nil message, and is canonical, so
+		// it reaches here; reject it instead of letting ValidateBasic
+		// dereference it and the recover in runTx report an internal error.
+		if msg == nil {
+			return std.ErrUnknownRequest("nil message in tx")
+		}
 		// Validate the Msg.
 		if err := msg.ValidateBasic(); err != nil {
 			return err
