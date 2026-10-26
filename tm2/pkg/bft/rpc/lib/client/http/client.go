@@ -191,8 +191,8 @@ func makeHTTPDialer(remoteAddr string) (net.Conn, error) {
 
 	// A URL path is part of the request, not of the dial target: net.Dial on
 	// "127.0.0.1:26657/rpc" reads "/rpc" as the port and fails. Unix keeps its
-	// path, which is the socket itself.
-	if protocol == protoTCP {
+	// path, which is the socket itself. tcp4 and tcp6 are tcp too.
+	if strings.HasPrefix(protocol, protoTCP) {
 		if host, _, found := strings.Cut(address, "/"); found {
 			address = host
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -380,4 +381,36 @@ func TestClient_makeHTTPDialer_stripsPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.NoError(t, conn.Close())
+}
+
+// TestClient_makeHTTPDialer_stripsPathFamilies: tcp4 and tcp6 are dialed as
+// tcp, so they need the same strip; without it "tcp4://127.0.0.1:26657/rpc"
+// fails with "lookup tcp4/26657/rpc: unknown port".
+func TestClient_makeHTTPDialer_stripsPathFamilies(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		network string
+		addr    string
+	}{
+		{"tcp", "127.0.0.1:0"},
+		{"tcp4", "127.0.0.1:0"},
+		{"tcp6", "[::1]:0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.network, func(t *testing.T) {
+			t.Parallel()
+
+			ln, err := net.Listen(tt.network, tt.addr)
+			if err != nil {
+				t.Skipf("cannot listen on %s: %v", tt.network, err)
+			}
+			t.Cleanup(func() { ln.Close() })
+
+			conn, err := makeHTTPDialer(tt.network + "://" + ln.Addr().String() + "/rpc")
+			require.NoError(t, err)
+			require.NoError(t, conn.Close())
+		})
+	}
 }
