@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -506,4 +508,50 @@ func TestWaitReadyWantsGnowebsAnswer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestURLToFileIsInjective(t *testing.T) {
+	t.Parallel()
+	// Each group holds distinct URLs that once shared a file. The second form
+	// in the first pair is a safe segment spelled exactly like the first's
+	// digested slug, so returning safe segments verbatim let a render argument
+	// overwrite another's page.
+	groups := [][]string{
+		{"/r/x/y:p/hello", "/r/x/y:p-hello-13cc55eb"},
+		{"/r/x/y$file=a.gno&source", "/r/x/y$file-a.gno-source-" + digest("file=a.gno&source")},
+		{"/r/x/y:..", "/r/x/y:" + digest("..")},
+		{"/r/x/y:" + strings.Repeat("z", 400), "/r/x/y:" + strings.Repeat("z", 401)},
+		// Base paths are not slugged; a crawl only ever captures valid realm
+		// paths, but urlToFile must not rely on that.
+		{"/r/x/y:foo", "/r/x/y/_a/foo"},
+		{"/r/x/y$source", "/r/x/y/_t/source"},
+		{"/r/x/y/", "/r/x/y/_dir"},
+		{"/", "/_root"},
+		{"/r/x", "/r//x", "/r/x/."},
+		{"/r/x/y", "/r/x/y/z/.."},
+		{"/r/a&b", "/r/a-b", "/r/a%26b"},
+	}
+	for _, g := range groups {
+		seen := map[string]string{}
+		for _, u := range g {
+			f := urlToFile(u)
+			if prev, dup := seen[f]; dup {
+				t.Errorf("urlToFile(%q) and urlToFile(%q) are both %q", prev, u, f)
+			}
+			seen[f] = u
+			if strings.ContainsAny(f, "$:&%") {
+				t.Errorf("urlToFile(%q) = %q, which a static host may not serve", u, f)
+			}
+			for seg := range strings.SplitSeq(f, "/") {
+				if seg == "" || seg == "." || seg == ".." {
+					t.Errorf("urlToFile(%q) = %q has segment %q", u, f, seg)
+				}
+			}
+		}
+	}
+}
+
+func digest(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:4])
 }

@@ -519,7 +519,16 @@ func urlOf(pkgPath string) string {
 	return "/" + rest
 }
 
-var unsafeSeg = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+var (
+	unsafeSeg = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+	// A segment urlToFile and slug may emit verbatim. Starting with a letter or
+	// digit keeps it clear of ".", "..", the empty segment and the "_" markers.
+	plainSeg = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+	// The shape of a digested slug. Reserved: an input that already looks like
+	// one is digested too, so a verbatim segment can never equal another
+	// input's digested form.
+	digestShaped = regexp.MustCompile(`(^|-)[0-9a-f]{8}$`)
+)
 
 // urlToFile maps a gnoweb path to a static file. The render page keeps its
 // natural path (/r/x/y -> r/x/y/index.html); render arguments go under _a/ and
@@ -527,16 +536,31 @@ var unsafeSeg = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 // or & — characters that survive a URL but not every static host.
 //
 //	/r/x/y:p/about$source  ->  r/x/y/_a/p-about-e71ffeb2/_t/source/index.html
+//
+// Distinct URLs get distinct files. The markers (_root, _dir, _a, _t) start
+// with "_", which no verbatim segment does; a base segment that is not plain —
+// empty, ".", "..", "_a", "a&b" — is escaped to "_" plus its digested slug,
+// which no marker is; and the argument and tab slugs sit in fixed slots after
+// their markers. Short of a 32-bit digest collision, the output parses back to
+// one URL.
 func urlToFile(u string) string {
 	base, args, query := splitURL(strings.TrimPrefix(u, "/"))
 	// A trailing slash is gnoweb's listing view, a different page from the
 	// render; give it its own file so the two can never overwrite each other.
-	listing := strings.HasSuffix(base, "/") && base != "/"
-	base = strings.Trim(base, "/")
+	listing := strings.HasSuffix(base, "/")
+	base = strings.TrimSuffix(base, "/")
+	var parts []string
 	if base == "" {
-		base = "_root"
+		parts = append(parts, "_root")
+	} else {
+		for seg := range strings.SplitSeq(base, "/") {
+			if plainSeg.MatchString(seg) && len(seg) <= maxSlugLen {
+				parts = append(parts, seg)
+			} else {
+				parts = append(parts, "_"+digested(seg))
+			}
+		}
 	}
-	parts := []string{base}
 	if listing {
 		parts = append(parts, "_dir")
 	}
@@ -546,7 +570,9 @@ func urlToFile(u string) string {
 	if query != "" {
 		parts = append(parts, "_t", slug(query))
 	}
-	return path.Join(append(parts, "index.html")...)
+	// strings.Join, not path.Join: Clean would fold "." and "" segments, which
+	// is the collision this function exists to prevent.
+	return strings.Join(append(parts, "index.html"), "/")
 }
 
 // maxSlugLen keeps a long render argument from producing a path the filesystem
@@ -560,14 +586,23 @@ const maxSlugLen = 64
 // silently overwriting the realm's own render page. And it must not map two
 // different URLs onto one file: ":p/a-b", ":p/a/b" and ":p/a&b" all reduce to
 // "p-a-b" once the unsafe characters collapse. So anything that is not already
-// a safe segment carries a short digest of the input it came from.
+// a safe segment carries a short digest of the input it came from — and so
+// does anything that merely looks like it does, or ":p-hello-13cc55eb" would
+// land on the file of ":p/hello".
 func slug(s string) string {
+	if plainSeg.MatchString(s) && !strings.HasSuffix(s, ".") && !strings.HasSuffix(s, "-") &&
+		len(s) <= maxSlugLen && !digestShaped.MatchString(s) {
+		return s
+	}
+	return digested(s)
+}
+
+// digested is s made safe, trimmed and capped, then suffixed with a digest of
+// s itself; always digestShaped.
+func digested(s string) string {
 	out := strings.Trim(unsafeSeg.ReplaceAllString(s, "-"), "-.")
 	if len(out) > maxSlugLen {
-		out = out[:maxSlugLen]
-	}
-	if out == s && out != "" {
-		return out
+		out = strings.TrimRight(out[:maxSlugLen], "-.")
 	}
 	sum := sha256.Sum256([]byte(s))
 	if out == "" {
