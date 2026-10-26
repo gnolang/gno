@@ -1,6 +1,7 @@
 package std_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -134,6 +135,19 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 		t.Run(tc.name+"/json", func(t *testing.T) {
 			t.Parallel()
 			orig := std.Signature{Signature: []byte("sig"), SessionAddr: std.SessionAddress(tc.sessionAddr)}
+
+			// encoding/json, used by tools that import std, must agree with the
+			// amino form: a bech32 string, "" when zero.
+			plain, err := json.Marshal(orig.SessionAddr)
+			require.NoError(t, err)
+			wantJSON := `"` + tc.sessionAddr.String() + `"`
+			if tc.wantMasterSig {
+				wantJSON = `""`
+			}
+			assert.Equal(t, wantJSON, string(plain))
+			var back std.SessionAddress
+			require.NoError(t, json.Unmarshal(plain, &back))
+			assert.Equal(t, tc.sessionAddr, back.Address())
 
 			bz, err := amino.MarshalJSON(orig)
 			require.NoError(t, err)
