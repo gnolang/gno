@@ -572,7 +572,7 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 	)
 
 	// A live structural extension, or a link bound to the attacker's URL.
-	liveExtension := regexp.MustCompile(`class="gno-(?:form|columns|column|frame|foreign)"`)
+	liveExtension := regexp.MustCompile(`class="gno-(?:form|columns|column|frame|foreign|button|alert)[" ]`)
 	const rebound = `href="https://evil.example`
 
 	reproCases := []struct{ name, input string }{
@@ -596,6 +596,10 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 		{"repro-lrd-indent-before-fence", " [x]: u\n   ```\n[home]: https://evil.example\n"},
 		{"repro-empty-list-item", "-\n  ```\n<gno-form path=\"x\">\n```\n"},
 		{"repro-empty-list-item-lrd", "*\n  ```\n[home]: https://evil.example\n```\n"},
+		{"repro-empty-item-after-fence-footer", "```\n```\n*\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-alert-quote-tab-fence", "\t````\n````\n> [!WARNING] x"},
+		{"repro-alert-rich-list-fence", "- x\n    ```\n  ```\n  > [!WARNING] x"},
+		{"repro-alert-quote-tab-closer", "```\n\t```\n> [!WARNING] x"},
 		{"repro-fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n"},
 		{"repro-closer-at-5-spaces", "- a\n  ```\n     ```\n  <gno-form path=\"x\">\n"},
 		{"repro-opener-at-4-spaces-lrd", "- a\n    ```\n  ```\n  [home]: https://evil.example\n"},
@@ -624,6 +628,9 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 						helper, rc.input, html)
 					require.NotContains(t, html, rebound,
 						"helper %s let input %q rebind [home]\nrendered: %s",
+						helper, rc.input, html)
+					require.Contains(t, html, `href="https://realm.example/home"`,
+						"helper %s let input %q drop or corrupt realm link [home]\nrendered: %s",
 						helper, rc.input, html)
 
 					// The footer must render as markdown: inside a code

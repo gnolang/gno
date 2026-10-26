@@ -280,8 +280,9 @@ func TestEscapeBlockHazards(t *testing.T) {
 		// An empty list item cannot interrupt a paragraph; after a fence or
 		// indented code it starts a list.
 		{"empty-item-in-paragraph-kept", "[](\n1)", "[](\n1)"},
-		{"empty-item-after-fence", "```\n```\n-\n", "```\n```\n\\-\n"},
-		{"empty-item-after-indented-code", "\n    code\n-\n", "\n    code\n\\-\n"},
+		{"empty-item-after-fence", "```\n```\n*\n", "```\n```\n\\*\n"},
+		{"empty-item-after-indented-code", "\n    code\n*\n", "\n    code\n\\*\n"},
+		{"empty-item-after-fence-footer-loss", "```\n```\n*\n  ```\n<gno-form path=\"x\">\n```\n", "```\n```\n\\*\n  ```\n\\<gno-form path=\"x\">\n```\n"},
 		// Empty list items are list items too.
 		{"empty-bullet-item", "-\n  ```\n<gno-form path=\"x\">\n```\n", "\\-\n  ```\n\\<gno-form path=\"x\">\n```\n"},
 		{"empty-star-item", "*\n", "\\*\n"},
@@ -292,6 +293,8 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "\\- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
 		{"fenced-multiline-label-escaped", "```\n[ho\n[home]: https://evil.example\n```\n", "```\n[ho\n\\[home]: https://evil.example\n```\n"},
 		{"fenced-toml-section-kept", "```\n[package]\nname = \"x\"\n```\n", "```\n[package]\nname = \"x\"\n```\n"},
+		{"fenced-alert-tab-indent-quote", "\t````\n````\n> [!WARNING] x\n", "\t````\n````\n> \\[!WARNING] x\n````\n"},
+		{"fenced-alert-tab-closer-quote", "```\n\t```\n> [!WARNING] x\n", "```\n\t```\n> \\[!WARNING] x\n```\n"},
 		// An HTML block hides a fence line from goldmark; its opener is
 		// escaped only when a fence line follows before a blank line.
 		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
@@ -437,6 +440,9 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
 		{"lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n", "\\[a\\]: u ```\n```\n- y\n  ```\n~~~\n~~~\n"},
 		{"html-close-tag-with-space-over-fence", "</ div>\n```\n\nfoo", "\\</ div>\n```\n\nfoo\n```\n"},
+		{"fenced-alert-in-list", "- x\n    ```\n  ```\n  > [!WARNING] x\n", "- x\n    ```\n  ```\n  > \\[!WARNING] x\n  ```\n"},
+		{"fenced-alert-tab-indent-quote", "\t````\n````\n> [!WARNING] x\n", "\t````\n````\n> \\[!WARNING] x\n````\n"},
+		{"fenced-alert-tab-closer-quote", "```\n\t```\n> [!WARNING] x\n", "```\n\t```\n> \\[!WARNING] x\n```\n"},
 		// sanitize.BlockRich escapes a leading setext line before this
 		// native; a deleted definition can put a new one first.
 		{"leading-setext-after-deleted-lrd", "[a]: u\n===", "\\==="},
@@ -523,6 +529,9 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 	// a fence line: each fence-shaped line must be parsed once, not once
 	// per rejected candidate.
 	nested := strings.Repeat("[\n", 20) + strings.Repeat("\\\n", 5000) + "```\n" + strings.Repeat("]:\n", 20) + "u"
+	// Slow shape identified in PR #6304 review: 16× `[a]: u\n(x\n` followed
+	// by `\n to the end (repeated title-scan block interruption checks).
+	lrdTitleWalk := strings.Repeat("[a]: u\n(x\n", 16) + strings.Repeat("`\n", 5000)
 	cases := []struct {
 		name string
 		in   string
@@ -532,6 +541,7 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 		{"multiline-lrd-label", mlLRD},
 		{"indent-run-64k", indent},
 		{"nested-lrd-candidates", nested},
+		{"slow-lrd-title-walk", lrdTitleWalk},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
@@ -561,6 +571,9 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 	indent := strings.Repeat(" ", 1<<16) + "x"
 	nested := strings.Repeat("[\n", 20) + strings.Repeat("\\\n", 5000) + "```\n" + strings.Repeat("]:\n", 20) + "u"
 	dedent := strings.Repeat("  ```\nx\n", 1000) // a closer inserted per fence
+	// Slow Rich shape: ~75% `  ```\nx\n` (expands on dedent), then 64× LRD candidates,
+	// followed by `\n tail (larger budget spent on title scan interruptions).
+	richSlow := strings.Repeat("  ```\nx\n", 750) + strings.Repeat("[a]: u\n(x\n", 64) + strings.Repeat("`\n", 2000)
 	cases := []struct {
 		name string
 		in   string
@@ -572,6 +585,7 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 		{"indent-run-64k", indent},
 		{"nested-lrd-candidates", nested},
 		{"dedent-fences-x1000", dedent},
+		{"slow-rich-dedent-lrd-title-walk", richSlow},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {

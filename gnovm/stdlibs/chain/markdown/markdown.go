@@ -1851,19 +1851,22 @@ func (f *fenceLineFinder) after(p int) int {
 
 // appendFenceSpans adds the fence span [start, end) to spans, whose body
 // begins at bodyStart, leaving out the `[` that opens a line shaped like a
-// link reference definition so pass 2 escapes it. The fence tracker cannot
-// follow goldmark into every container, and a line it counts as code may
-// be read as list item text, where such a line would define a link for
-// the whole page, the realm's own labels included.
+// link reference definition or an alert marker so pass 2 escapes it. The fence
+// tracker cannot follow goldmark into every container, and a line it counts
+// as code may be read as list item text, where such a line would define a link
+// for the whole page, the realm's own labels included, or as a blockquote
+// containing an alert extension.
 //
 // A line qualifies when its content, past indentation and container
-// markers, starts with a `[` that opensLinkLabel accepts.
+// markers, starts with a `[` that opensLinkLabel accepts, or starts with
+// `[!` after a blockquote marker (`>`).
 func appendFenceSpans(spans []bracketSpan, s string, start, bodyStart, end int) []bracketSpan {
 	from := start
 	if strings.IndexByte(s[bodyStart:end], '[') >= 0 {
 		for ls := bodyStart; ls < end; ls = nextLineStart(s, ls, end) {
 			pos, _ := parseContainerPrefix(s[ls:end])
-			if q := ls + pos; q < end && s[q] == '[' && opensLinkLabel(s, q, end) {
+			if q := ls + pos; q < end && s[q] == '[' && (opensLinkLabel(s, q, end) ||
+				q+1 < end && s[q+1] == '!' && strings.IndexByte(s[ls:q], '>') >= 0) {
 				spans = append(spans, bracketSpan{start: from, end: q, kind: spanFence})
 				from = q + 1
 			}
