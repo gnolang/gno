@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/gnolang/gno/misc/deployments/upgrades/upgrades.schema.json",
   "title": "gno.land upgrade ledger",
-  "description": "Every binary a gno.land network has run, in chain order. A version runs the blocks from the previous entry's halt_height + 1 (1 for genesis) up to and including the next entry's halt_height; a rolling release bounds no range and can serve the same blocks as the entry before it. The authoritative rules are in gno.land/pkg/upgrades (Go); this schema documents the shape for third-party readers.",
+  "description": "Every binary a gno.land network has run, in chain order. A version runs the blocks from its own halt_height + 1 (1 for genesis) up to and including the next entry's halt_height; a rolling release bounds no range and can serve the same blocks as the entry before it. The authoritative rules are in gno.land/pkg/upgrades (Go); this schema documents the shape for third-party readers.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "chain_id", "genesis_sha256", "genesis_time", "upgrades"],
@@ -41,11 +41,11 @@
           }
         },
         "binaries": {
-          "type": "object",
+          "type": ["object", "null"],
           "minProperties": 1,
           "propertyNames": { "pattern": "^[a-z0-9]+/[a-z0-9]+$" },
           "additionalProperties": { "type": "string", "pattern": "[?&]checksum=sha256:[0-9a-f]{64}$" },
-          "description": "os/arch → download URL with a ?checksum=sha256:<hex> suffix (the cosmovisor convention)"
+          "description": "os/arch → download URL with a ?checksum=sha256:<hex> suffix (the cosmovisor convention); null until CI has built the release, on the last entry only, never an empty object"
         },
         "ran_as": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$", "description": "the image digest the network actually ran when it differs from image.digest (versions tagged after the fact)" },
         "release": { "type": "string", "format": "uri", "description": "the vX.Y.Z release page: binaries, checksums, changelog" }
