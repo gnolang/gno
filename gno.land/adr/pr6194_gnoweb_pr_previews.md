@@ -44,10 +44,14 @@ site shares. A fork can also drop any gate from its own copy of
 `pr-preview.yml`, or add a second workflow with the same `name:`. So publishing
 is gated on who is asking, decided in a job that holds no secret:
 
-- **Both the author and the run's triggering actor can write to the
-  repository** → environment `gno-previews`, no reviewers. Both, because either
-  can put code in the snapshot (a maintainer's "Update branch" on an outsider's
-  pull request makes the maintainer the actor).
+- **The author, the run's actor and its triggering actor can all write to the
+  repository, and the head branch lives in this repository or in the author's
+  own fork** → environment `gno-previews`, no reviewers. All three, because any
+  of them can put code in the snapshot (a maintainer's "Update branch" on an
+  outsider's pull request makes the maintainer the actor; a re-run makes the
+  re-runner the triggering actor while the actor stays whoever pushed). The
+  head check, because a maintainer opening a pull request from an outsider's
+  fork branch is both author and actor while the code is the outsider's.
 - **Anyone else, forks included** → environment `gno-previews-review`, with
   required reviewers. Approving the deployment is the review; approving a fork's
   CI run only lets the untrusted half render. If that environment has no
@@ -55,7 +59,14 @@ is gated on who is asking, decided in a job that holds no secret:
   missing environment unprotected on first use.
 - The deploy key exists **only** as a secret of those two environments.
 - The run must come from `.github/workflows/pr-preview.yml`, checked on
-  `workflow_run.path`, so a same-named look-alike is ignored.
+  `workflow_run.path`, so a same-named look-alike is ignored; and it must be a
+  `pull_request` run in this repository.
+- The pull request is the single open one whose head is the run's
+  `owner:branch` at the run's head SHA, whose base repository is this one and
+  whose head repository is the one the run checked out. Anything else — none,
+  several, a moved head, a deleted fork — publishes nothing.
+- A run that uploaded no `pr-preview` artifact (an empty plan) stands down in
+  the secretless job, so no maintainer is asked to approve nothing.
 
 Four consequences of that split are easy to get wrong, and were:
 
@@ -100,7 +111,8 @@ be squashed freely.
 Write access is a deploy key rather than a fine-grained token: it cannot reach
 another repository, does not expire, and carries no personal identity.
 
-Configuration, on `gnolang/gno`:
+Configuration, on `gnolang/gno` — the only variable and secrets the workflows
+read besides each job's own `GITHUB_TOKEN`:
 
 - `GNOWEB_PREVIEW_BASE_URL`, a repository variable: where the previews site is
   served from, `https://gnolang.github.io/gno-previews`. Unset means publishing
@@ -136,8 +148,11 @@ previews. So:
 - `gno-previews` evicts daily: closed pull requests, then previews quiet for 21
   days, then a 700 MiB budget least-recently-updated first. Between two sweeps,
   publishing refuses to take the whole site past 900 MiB.
-- Every job has a timeout, and each browser run a 60 s deadline, so a hung
-  gnodev or Chrome costs minutes, not the six-hour default.
+- Every job has a timeout — render 20 min, resolve 5 min, publish 15 min,
+  cleanup 5 min — gnodev gets 5 min to answer `/ready` and 10 s to exit on
+  SIGTERM before its process group is killed, and each browser run has a 60 s
+  deadline, so a hung gnodev or Chrome costs minutes, not the six-hour default.
+- A push to `gno-previews` that loses a race is replayed at most 5 times.
 
 ## Details worth knowing
 
@@ -145,7 +160,10 @@ previews. So:
   render arguments in the path (`$source&file=x`, `:p/about`); those are slugged
   under `_t/` and `_a/`. A slug that is not already a safe path segment carries a
   digest of its input, because otherwise `:p/a-b`, `:p/a/b` and `:p/a&b` collapse
-  onto one file — and `:..` would fold onto the realm's own render page.
+  onto one file — and `:..` would fold onto the realm's own render page. An input
+  that merely looks digested is digested too, and a base segment that is not
+  plain (empty, `.`, `_a`, `a&b`) is escaped behind `_`, so distinct URLs never
+  share a file short of a 32-bit digest collision.
 - **The trailing slash is semantic.** `/r/x/y` renders and `/r/x/y/` lists; they
   are different pages (62,174 vs 48,642 bytes for `r/gnoland/home`). The listing
   is left to the live site rather than aliased onto the render.
