@@ -10,10 +10,12 @@
 # site shares. So publishing is split on who is asking:
 #
 #   resolve  holds no secret. Works out which pull request this is from the run
-#            metadata, and whether both its author and whoever triggered the run can
-#            write to this repository.
+#            metadata, checks the run really is this repository's pr-preview.yml on
+#            that pull request's head, and whether its author and whoever started or
+#            re-ran it can all write to this repository, with the head branch living
+#            here or in the author's own fork.
 #   publish  holds the deploy key, which lives only in two environments:
-#              gno-previews         no reviewers; used when both can write
+#              gno-previews         no reviewers; used when all of the above hold
 #              gno-previews-review  required reviewers; everyone else, forks included
 #            A maintainer approving the deployment is the review. It is separate from
 #            approving a fork's CI run, which only lets the untrusted half render.
@@ -47,17 +49,20 @@ jobs:
   resolve:
     # workflow_run matches on the workflow's name, and a pull request can add a workflow
     # of its own called "pr / preview". The path is where the run's definition came from;
-    # a look-alike has a different one. (A pull request can still edit pr-preview.yml
-    # itself, which is why the gate below exists and this is not it.)
+    # a look-alike has a different one. The event and repository pin it to a
+    # pull_request run in this repository. (A pull request can still edit
+    # pr-preview.yml itself, which is why the trust step below exists and this is not it.)
     if: >
       vars.GNOWEB_PREVIEW_BASE_URL != '' &&
       github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.repository.full_name == github.repository &&
       github.event.workflow_run.path == '.github/workflows/pr-preview.yml'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       pull-requests: read # to find the pull request behind the run
-      actions: read # to read the review environment's protection rules
+      actions: read # to list the run's artifacts and read the review environment's rules
     outputs:
       pr: ${{ steps.meta.outputs.pr }}
       environment: ${{ steps.trust.outputs.environment }}
@@ -73,6 +78,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
           HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -89,7 +96,7 @@ jobs:
           # forks are the case this whole split exists for.
           prs=$(gh api -X GET "repos/$REPO/pulls" \
                   -f state=open -f per_page=100 -f "head=$HEAD_OWNER:$HEAD_BRANCH" \
-                  --jq '.[] | "\(.number) \(.head.sha) \(.user.login)"')
+                  --jq '.[] | "\(.number) \(.head.sha) \(.user.login) \(.head.repo.full_name) \(.base.repo.full_name)"')
           n=$(printf '%s\n' "$prs" | grep -c . || true)
           if [ "$n" -eq 0 ]; then
             echo "no open pull request for $HEAD_OWNER:$HEAD_BRANCH — closed while rendering; nothing to publish"
@@ -99,19 +106,39 @@ jobs:
             echo "::error::$n open pull requests share head $HEAD_OWNER:$HEAD_BRANCH; refusing to guess"
             exit 1
           fi
-          read -r pr sha author <<< "$prs"
+          read -r pr sha author head_repo base_repo <<< "$prs"
           if [ "$sha" != "$HEAD_SHA" ]; then
             echo "PR #$pr has moved to $sha since this run ($HEAD_SHA) — a newer run will publish"
+            exit 0
+          fi
+          # The head= filter is by owner, not repository. Say exactly which
+          # pull request this is: into this repository, from the repository
+          # the run checked out. A deleted fork reads "null" and stops here.
+          if [ "$base_repo" != "$REPO" ] || [ "$head_repo" != "$HEAD_REPO" ]; then
+            echo "::error::PR #$pr is $head_repo -> $base_repo, but the run was $HEAD_REPO -> $REPO; refusing to publish"
+            exit 1
+          fi
+          # An empty plan (only tests, docs or the tooling changed) ends the
+          # render green with no artifact. Stand down here, before a review
+          # environment asks a maintainer to approve nothing.
+          artifacts=$(gh api -X GET "repos/$REPO/actions/runs/$RUN_ID/artifacts" -f name=pr-preview \
+                        --jq '[.artifacts[] | select(.expired | not)] | length')
+          if [ "$artifacts" -eq 0 ]; then
+            echo "run $RUN_ID uploaded no preview — nothing to publish"
             exit 0
           fi
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           echo "author=$author" >> "$GITHUB_OUTPUT"
 
-      # Both the author and the triggering actor, because either can put code in
-      # the snapshot: a maintainer's "Update branch" on an outsider's pull request
-      # makes the maintainer the actor, and an outsider pushing to a maintainer's
-      # fork makes the outsider the actor. Any doubt, an API error included,
-      # lands on the side that asks a human.
+      # The author, the actor and the triggering actor, because any of them can put
+      # code in the snapshot: a maintainer's "Update branch" on an outsider's pull
+      # request makes the maintainer the actor, an outsider pushing to a
+      # maintainer's fork makes the outsider the actor, and a re-run is triggered
+      # by whoever clicked it while the actor stays whoever pushed. And the head
+      # branch must live here or in the author's own fork: a maintainer opening a
+      # pull request from an outsider's fork branch is both author and actor, yet
+      # the code is the outsider's. Any doubt, an API error included, lands on the
+      # side that asks a human.
       - name: Decide whether publishing needs a maintainer's approval
         id: trust
         if: steps.meta.outputs.pr
@@ -120,7 +147,10 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ steps.meta.outputs.pr }}
           AUTHOR: ${{ steps.meta.outputs.author }}
-          ACTOR: ${{ github.event.workflow_run.triggering_actor.login }}
+          ACTOR: ${{ github.event.workflow_run.actor.login }}
+          TRIGGERING_ACTOR: ${{ github.event.workflow_run.triggering_actor.login }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
         run: |
           # "permission" folds maintain into write and triage into read.
           can_write() {
@@ -128,7 +158,8 @@ jobs:
             echo "$1: $p" >&2
             [ "$p" = admin ] || [ "$p" = write ]
           }
-          if can_write "$AUTHOR" && can_write "$ACTOR"; then
+          own_head() { [ "$HEAD_REPO" = "$REPO" ] || [ "$HEAD_OWNER" = "$AUTHOR" ]; }
+          if own_head && can_write "$AUTHOR" && can_write "$ACTOR" && can_write "$TRIGGERING_ACTOR"; then
             env=gno-previews
           else
             env=gno-previews-review
@@ -143,7 +174,7 @@ jobs:
           fi
           echo "environment=$env" >> "$GITHUB_OUTPUT"
           {
-            echo "PR #$PR by @$AUTHOR, run triggered by @$ACTOR → \`$env\`"
+            echo "PR #$PR by @$AUTHOR from \`$HEAD_REPO\`, run by @$ACTOR, triggered by @$TRIGGERING_ACTOR → \`$env\`"
             [ "$env" = gno-previews ] || echo "Approving publishes this pull request's rendered pages, script included, on gnolang.github.io."
           } >> "$GITHUB_STEP_SUMMARY"
 
