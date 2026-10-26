@@ -467,11 +467,12 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	var cp *ArrayValue
 	if av.Data == nil {
 		cp = alloc.NewListArray(t, len(av.List))
-		if at, ok := baseOf(t).(*ArrayType); ok && at.Elt != nil && at.Elt.Kind() == InterfaceKind {
+		if t.Elem().Kind() == InterfaceKind {
 			// The elements are interface slots, whose contents are
 			// sealed: every write into an interface slot copies on
-			// entry, interface-held values are not addressable, and
-			// extracting one (type assertion) copies again. Share them
+			// entry, interface-held values are not addressable (see
+			// isAddressable), and extracting one (type assertion)
+			// copies again. Share them
 			// instead of deep-copying — mirroring Go, where copying an
 			// array of interfaces copies the boxes' headers. This also
 			// keeps chains like `x = [1]any{x}` linear instead of
@@ -1361,10 +1362,8 @@ func (tv *TypedValue) ClearNum() {
 }
 
 // Copy returns a value copy of tv, deep-copying array, struct and bigint
-// values. Contents held in interface-kind slots are shared rather than
-// deep-copied (see ArrayValue.Copy): they are sealed, since every write into
-// an interface slot copies on entry, interface-held values are not
-// addressable, and extraction (type assertion) copies again.
+// values, except that the elements of an array of interface type are shared
+// (see ArrayValue.Copy).
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	switch cv := tv.V.(type) {
 	case BigintValue:

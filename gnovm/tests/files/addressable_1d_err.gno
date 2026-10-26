@@ -10,3 +10,6 @@ func getArr() [1]int {
 
 // TypeCheckError:
 // main/addressable_1d_err.gno:4:6: cannot slice unaddressable value getArr() (value of type [1]int)
+
+// Error:
+// main/addressable_1d_err.gno:4:6-17: cannot slice unaddressable value getArr<VPBlock(3,1)>()

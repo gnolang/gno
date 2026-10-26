@@ -23,23 +23,25 @@ the element `TypedValue`s as-is (`copy(cp.List, av.List)`) instead of calling
 Sharing is sound only if a value held in an interface slot can never be
 written in place (see below). Go guarantees that statically, and so did
 `go/types` here, but the VM did not: `x.(S).F = 9`, `x.(S).F++`,
-`&x.(S).F`, `x.(S).T.PtrMethod()` and `get().F = 9` all preprocessed and
-executed, writing into the held value. With sharing, such a write lands in
-every array that shares the element.
+`&x.(S).F`, `x.(S).T.PtrMethod()`, `get().F = 9` and `x.([2]int)[:]` all
+preprocessed and executed, writing into (or handing out a writable view of)
+the held value. With sharing, such a write lands in every array that shares
+the element.
 
 `isAddressable` (type_check.go) implements the Go spec rule — a variable, a
 pointer indirection, a slice index, or a field selector or array index of an
 addressable operand — from information the preprocessor already has: the
 selector's `ValuePath` type (`VPField` recurses into `X`; `VPDerefField`,
 `VPSubrefField` and package-qualified `VPBlock` are addressable) and the
-static type of an index's operand. It is enforced at the three places that
-take an address:
+static type of an index's operand. It is enforced at the four places that
+need an address:
 
 | site | rejects | message |
 |---|---|---|
 | `assertValidAssignLhs` (`=`, `op=`, `++`/`--`, `for k = range`) | a non-addressable selector or index target; a map index stays assignable | `cannot assign to …` |
 | `RefExpr` TRANS_LEAVE (`&x`) | a non-addressable operand, except a composite literal | `invalid operation: cannot take address of …` |
 | pointer-receiver auto-ref (`x.m()` → `(&x).m()`, method values too) | a non-addressable `x` | `cannot call pointer method … on …` |
+| `SliceExpr` TRANS_LEAVE (`a[lo:hi]` on an array) | a non-addressable array operand | `cannot slice unaddressable value …` |
 
 ## Why sharing is sound
 
@@ -54,7 +56,7 @@ reachable through an interface slot:
 
 So two arrays sharing an element cannot observe each other's writes: a write
 to either array's slot replaces that slot's `TypedValue` and leaves the other
-alone. This was checked with 39 throwaway `gno run` programs: every shape Go
+alone. This was checked with 42 throwaway `gno run` programs: every shape Go
 rejects as non-addressable aliases without decision 2 and is refused with it,
 and every legal extract-then-mutate shape (define, `var`, parameter,
 variadic, method receiver, composite literal, `append`, `copy`, closure
@@ -110,7 +112,7 @@ A VM-side addressability check existed before and was removed in #4053,
 which moved the filetests onto `go/types` (`TypeCheckError`). That version
 added an `addressability()` method to every `Expr` and addressability fields
 to several AST nodes. This one is a single function over existing
-preprocessor state, called from the three sites above.
+preprocessor state, called from the four sites above.
 
 ## Alternatives considered
 

@@ -1055,9 +1055,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		} else {
 			shouldPanic = false
 		}
-	case *StarExpr:
-		shouldPanic = false
-	case *SelectorExpr:
+	case *StarExpr, *SelectorExpr:
 		shouldPanic = !isAddressable(store, last, clx)
 	case *IndexExpr:
 		// a map index expression is assignable without being addressable.
@@ -1073,10 +1071,11 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 
 // isAddressable reports whether x is addressable per the Go spec: a variable,
 // a pointer indirection, a slice indexing operation, or a field selector or
-// array indexing operation of an addressable operand. go/types enforces this
-// too, but the VM must not rely on it: values held in interface slots are
-// shared rather than deep-copied (see ArrayValue.Copy), which is only sound
-// if nothing can write through them.
+// array indexing operation of an addressable operand. Assigning to, taking
+// the address of, slicing (if an array) and auto-referencing x for a pointer
+// method all require it. go/types enforces this too, but the VM must not rely
+// on it: ArrayValue.Copy shares interface-held values, which is only sound if
+// nothing can write through them.
 func isAddressable(store Store, last BlockNode, x Expr) bool {
 	switch cx := x.(type) {
 	case *NameExpr, *StarExpr:
@@ -1093,8 +1092,9 @@ func isAddressable(store Store, last BlockNode, x Expr) bool {
 			return false
 		}
 	case *IndexExpr:
+		// p[i] on a pointer to array is already rewritten to (*p)[i].
 		switch baseOf(evalStaticTypeOf(store, last, cx.X)).(type) {
-		case *SliceType, *PointerType: // slice, or pointer to array
+		case *SliceType:
 			return true
 		case *ArrayType:
 			return isAddressable(store, last, cx.X)
