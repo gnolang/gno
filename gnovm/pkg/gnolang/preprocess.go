@@ -2591,6 +2591,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						"cannot take address of multi-value call (results: %s)",
 						tt.String()))
 				}
+				// &T{} is the one non-addressable operand & accepts.
+				if _, ok := n.X.(*CompositeLitExpr); !ok && !isAddressable(store, last, n.X) {
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s",
+						n.X.String()))
+				}
 				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
@@ -2649,7 +2655,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// receiver using an addressable value will
 						// automatically take the address of that
 						// value: t.Mp is equivalent to (&t).Mp."
-						//
+						if !isAddressable(store, last, n.X) {
+							panic(fmt.Sprintf(
+								"cannot call pointer method %s on %s",
+								n.Sel, nxt2.String()))
+						}
 						// convert to (&x).m, but leave xt as is.
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
