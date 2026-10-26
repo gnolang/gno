@@ -71,6 +71,12 @@ func runApp(cfg *AppConfig, cio commands.IO, dirs ...string) (err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Before the terminal goes raw and before any log line reaches it: the
+	// premined account cannot sign until its key is in the keybase.
+	if cfg.interactive {
+		askDevKey(cio, cfg.home)
+	}
+
 	var rt *rawterm.RawTerm
 	var out io.Writer
 	if cfg.interactive {
@@ -589,6 +595,7 @@ P           Previous TX  - Go to the previous tx
 N           Next TX      - Go to the next tx
 E           Export       - Export the current state as genesis doc
 A           Accounts     - Display known accounts and balances
+I           Import Key   - Import the dev account into your local keybase
 H           Help         - Display this message
 R           Reload       - Reload all packages to take change into account.
 Ctrl+S      Save State   - Save the current state
@@ -605,6 +612,16 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 
 	case rawterm.KeyA: // Accounts
 		logAccounts(ctx, ds.logger.WithGroup(AccountsLogName), ds.book, ds.devNode)
+
+	case rawterm.KeyI: // Import the dev key into the user's keybase
+		accounts := ds.logger.WithGroup(AccountsLogName)
+		switch created, err := importDevKey(ds.cfg.home); {
+		case err != nil:
+			accounts.Warn("dev key not added", "err", err)
+		case created:
+			ds.book.Add(defaultDeployerAddress, DevKeyName)
+			accounts.Info("dev key added", "name", DevKeyName, "addr", defaultDeployerAddress.String())
+		}
 
 	case rawterm.KeyR: // Reload
 		ds.logger.WithGroup(NodeLogName).Info("reloading...")
