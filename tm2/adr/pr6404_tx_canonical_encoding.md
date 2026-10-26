@@ -64,10 +64,14 @@ break block replay and refuse most live traffic until clients upgrade.
    `""` both decode to the zero address, so nodes keep accepting the old form.
 
 2. **`amino.UnmarshalCanonical(bz, ptr)`**: `Unmarshal`, then `Marshal` the
-   decoded value and require the result to equal `bz` byte for byte. It is
-   complete by construction: any encoding the encoder would not have produced
-   is rejected, whatever the mechanism. It ships here as a library function
-   with its tests; nothing calls it yet.
+   decoded value and require the result to equal `bz` byte for byte. It
+   rejects any encoding this encoder would not produce for the decoded value,
+   whatever the mechanism. The converse does not hold: `Marshal` can emit
+   bytes the check then rejects where a repr type's producer is laxer than its
+   consumer (an unsorted `std.Coins` string round-trips sorted), and bytes
+   the check accepts can still be invalid (`0a 00`, a nil message, is the
+   canonical encoding of `Tx{Msgs: {nil}}`). It ships here as a library
+   function with its tests; nothing calls it yet.
 
 ### Follow-up PR: enforcement, unconditional in the enforcing binary
 
@@ -85,20 +89,27 @@ every included tx is canonical by construction.
 2. Release the clients: Go tools rebuilt from this module, `amino-ts`
    (gnolang/amino-ts#2); the ts-proto clients already emit the canonical form.
 3. Wait for the written-out zero session address to drain from chain traffic.
-4. Ship the follow-up as a coordinated upgrade: a GovDAO halt with
-   `halt_min_version` set to the enforcing release, recorded in the upgrades
-   ledger so replay switches binaries at that height.
+4. Ship the follow-up (#6406) as a coordinated upgrade, the mechanism from
+   #5368 that gnoland-1 already runs: a GovDAO halt with `halt_min_version`
+   set to the enforcing release, so an old binary cannot restart past the
+   halt and a new one cannot start early, and an entry in
+   `misc/deployments/mainnet.gno.land/upgrades.json` so replay switches
+   binaries at that height. The release it rides is the next coordinated
+   release on the mainnet line after `v1.5.1`, the current rolling release;
+   the ledger entry names it when the halt is scheduled.
 
 ## Alternatives considered
 
 - **Enforce in this PR.** Rejected on the reviewer's data above: replay of
   gnoland-1 fails from the first non-canonical block, and `CheckTx`
   enforcement alone refuses most live traffic until clients upgrade.
-- **A height gate on a governance param** (`node:p:canonical_tx_height`,
-  seeded from genesis for fresh chains). Implemented and set aside: the
-  upgrades ledger already confines each binary to its own block range, so the
-  gate would duplicate in state what replay enforces by switching binaries,
-  at the cost of a genesis field and a param on every fresh chain.
+- **A height gate in `runTx`** (a governance param `node:p:canonical_tx_height`,
+  seeded from genesis for fresh chains). Implemented and dropped: the house
+  mechanism for a state-breaking change is the coordinated halt followed by a
+  binary switch, and the upgrades ledger already confines each binary to its
+  own block range, so a gate would duplicate in state what replay enforces by
+  switching binaries, at the cost of a genesis field and a param on every
+  fresh chain. There is deliberately no gate to look for.
 - **A strict amino decoder** that rejects explicit defaults and non-minimal
   varints everywhere. It would apply to persisted state, p2p and consensus
   messages as well as txs, has to be implemented twice (reflection and
@@ -132,8 +143,9 @@ every included tx is canonical by construction.
 - **Tx bytes and hashes change for Go clients.** Master-key txs shrink by
   43 bytes (the field plus one byte of the signature length prefix), so at
   `TxSizeCostPerByte` 10 every single-signature tx costs 430 gas less; the
-  eight txtar gas pins in `gno.land/pkg/integration/testdata` move by exactly
-  that.
+  12 pinned `GAS USED` values in 8 txtar files under
+  `gno.land/pkg/integration/testdata`, and the two gas-estimate lines in
+  `gnokey_gasfee.txtar`, move by exactly that.
 - **Go API.** `Signature.SessionAddr` changes type; the few call sites convert.
 - **Sibling repositories**, checked by encoding nine txs (`send`, memo,
   multi-denom, `m_call` with and without args/send, `m_addpkg`, `m_run`,

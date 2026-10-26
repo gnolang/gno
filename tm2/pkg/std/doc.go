@@ -1,6 +1,7 @@
 package std
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -222,4 +223,19 @@ func (a SessionAddress) MarshalAmino() (string, error) {
 
 func (a *SessionAddress) UnmarshalAmino(b32str string) error {
 	return (*crypto.Address)(a).UnmarshalAmino(b32str)
+}
+
+// MarshalJSON keeps encoding/json in step with crypto.Address and the amino
+// form: a bech32 string, "" for the zero value. A defined type inherits no
+// methods, so without these a plain json.Marshal would emit twenty numbers.
+func (a SessionAddress) MarshalJSON() ([]byte, error) {
+	s, err := a.MarshalAmino()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(s)
+}
+
+func (a *SessionAddress) UnmarshalJSON(b []byte) error {
+	return (*crypto.Address)(a).UnmarshalJSON(b)
 }

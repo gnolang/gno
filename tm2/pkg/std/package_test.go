@@ -1,6 +1,7 @@
 package std_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -111,6 +112,14 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 
 			if tc.wantMasterSig {
 				assert.Equal(t, []byte{0x12, 0x03, 's', 'i', 'g'}, bz, "a zero SessionAddr must have no wire presence")
+
+				// Chains produced before this change wrote the zero address out as
+				// its bech32 string; those bytes must keep decoding to a master
+				// signature.
+				written := append([]byte{0x12, 0x03, 's', 'i', 'g', 0x1a, 0x28}, []byte(crypto.Address{}.String())...)
+				var legacy std.Signature
+				require.NoError(t, amino.Unmarshal(written, &legacy))
+				assert.True(t, legacy.SessionAddr.IsZero(), "the written-out zero address must still decode as a master signature")
 			}
 
 			var got std.Signature
@@ -126,6 +135,19 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 		t.Run(tc.name+"/json", func(t *testing.T) {
 			t.Parallel()
 			orig := std.Signature{Signature: []byte("sig"), SessionAddr: std.SessionAddress(tc.sessionAddr)}
+
+			// encoding/json, used by tools that import std, must agree with the
+			// amino form: a bech32 string, "" when zero.
+			plain, err := json.Marshal(orig.SessionAddr)
+			require.NoError(t, err)
+			wantJSON := `"` + tc.sessionAddr.String() + `"`
+			if tc.wantMasterSig {
+				wantJSON = `""`
+			}
+			assert.Equal(t, wantJSON, string(plain))
+			var back std.SessionAddress
+			require.NoError(t, json.Unmarshal(plain, &back))
+			assert.Equal(t, tc.sessionAddr, back.Address())
 
 			bz, err := amino.MarshalJSON(orig)
 			require.NoError(t, err)
