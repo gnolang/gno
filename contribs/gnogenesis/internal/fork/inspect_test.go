@@ -25,7 +25,7 @@ func TestInspectReport_GroupsByCategoryAndCounts(t *testing.T) {
 				Note:        "API drift on unrestrict.gno",
 				SignerInfo:  []gnoland.SignerAccountInfo{{Address: manfred, Sequence: 42}},
 			}},
-			{Tx: sampleTx("mig-1"), Metadata: &gnoland.GnoTxMetadata{Source: gnoland.SourceMigration, Note: "addpkg: gno.land/r/sys/validators/v3"}},
+			{Tx: sampleTx("mig-1"), Metadata: &gnoland.GnoTxMetadata{Source: gnoland.SourceMigration, Note: "addpkg: gno.land/r/sys/validators/v0"}},
 			{Tx: sampleTx("mig-2"), Metadata: &gnoland.GnoTxMetadata{Source: gnoland.SourceMigration, Note: "valoper-seed: register g1abc"}},
 		},
 	}
@@ -45,7 +45,7 @@ func TestInspectReport_GroupsByCategoryAndCounts(t *testing.T) {
 	assert.Contains(t, report, "API drift on unrestrict.gno")
 
 	// migration detail: shows the Note text
-	assert.Contains(t, report, "addpkg: gno.land/r/sys/validators/v3")
+	assert.Contains(t, report, "addpkg: gno.land/r/sys/validators/v0")
 	assert.Contains(t, report, "valoper-seed: register g1abc")
 }
 

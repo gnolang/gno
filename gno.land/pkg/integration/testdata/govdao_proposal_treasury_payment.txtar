@@ -6,10 +6,10 @@ adduserfrom receiver 'smooth crawl poverty trumpet glare useful curtain annual p
 stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
+loadpkg gno.land/r/gov/dao/impl/v0
 
 # load specific govDAO implementation and needed users for your integration test
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
@@ -19,16 +19,16 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:'
 # 1/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000000ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
 stdout 'data: ""'
 
 # member send 42 ugnot to treasury realm
-gnokey maketx send -send 42ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test member
+gnokey maketx send -send 42ugnot -to g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid tendermint_test member
 
 # 2/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000000ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
 stdout 'data: "42ugnot"'
 
 # add the proposal
@@ -49,14 +49,14 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 29
 stdout OK!
 
 # check output
-gnokey query vm/qrender --data 'gno.land/r/gov/dao/v3/treasury:Coins/history'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v0:Coins/history'
 stdout '1 payment:'
 stdout '- 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 # 3/3 verify receiver and treasury balances
 gnokey query bank/balances/${receiver_user_addr}
 stdout 'data: "1000000042ugnot"'
-gnokey query bank/balances/g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
 stdout 'data: ""'
 
 -- proposer/create_proposal.gno --
@@ -68,7 +68,7 @@ import (
 	"gno.land/p/nt/treasury/v0"
 
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/impl/v0"
 )
 
 func main(cur realm) {
@@ -88,8 +88,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -103,5 +103,5 @@ func init(cur realm) {
 		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

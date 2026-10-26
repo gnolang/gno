@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
@@ -111,16 +113,23 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 				)
 			}
 
-			// Grab the signature bytes of the tx.
-			// Genesis transactions are signed with
-			// account number and sequence set to 0
-			signBytes, err := tx.Tx.GetSignBytes(genesis.ChainID, 0, 0)
+			// Verify the signature using the public key. Genesis
+			// transactions are signed with account number and sequence
+			// set to 0.
+			//
+			// Either payload rendering counts (see std.VerifySignaturePayload):
+			// a genesis file is signed once and cannot be re-signed, so the
+			// verifier has to accept whichever rendering its signer produced,
+			// as the node does.
+			rendering, err := std.VerifySignaturePayload(
+				signer.PubKey,
+				tx.Tx.SignDoc(genesis.ChainID, 0, 0),
+				signer.Signature,
+			)
 			if err != nil {
 				return fmt.Errorf("unable to get tx signature payload, %w", err)
 			}
-
-			// Verify the signature using the public key
-			if !signer.PubKey.VerifyBytes(signBytes, signer.Signature) {
+			if rendering == std.PayloadRenderingNone {
 				return fmt.Errorf(
 					"%w #%d, by signer %s",
 					errInvalidTxSignature,
@@ -137,6 +146,10 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 			}
 		}
 
+		// Only once every balance is well formed, so a rejected file does not
+		// also produce advice about its times.
+		warnOnImplausibleVestingTimes(io, genesis.GenesisTime, state.Balances)
+
 		// Hardfork-mode genesis valoper coverage: every entry in
 		// GenesisDoc.Validators must have a matching valopers.Register
 		// migration tx in state.Txs. See checkGenesisValoperCoverage
@@ -149,6 +162,54 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 	io.Printfln("Genesis at %s is valid", cfg.GenesisPath)
 
 	return nil
+}
+
+// vestingHorizonSecs is how far past genesis a vesting schedule may end before
+// it is called out. A hundred years is well beyond any real token schedule and
+// well short of what a milliseconds-for-seconds mistake produces, which lands
+// tens of thousands of years out.
+const vestingHorizonSecs = 100 * 365 * 24 * 60 * 60
+
+// warnOnImplausibleVestingTimes flags vesting schedules whose end time does not
+// fit this genesis. Both directions come from the same kind of mistake -- a
+// timestamp in milliseconds, or a date carried over from an earlier plan -- and
+// both are silent once the chain runs. A schedule that already ended vests
+// everything the moment the chain starts, and one pushed centuries out never
+// vests at all. Neither looks wrong in the file.
+//
+// A warning and not an error, because both shapes are also legitimate: replaying
+// an old genesis onto a fork carries schedules that are correctly in the past.
+// The operator is the one who can tell the cases apart, so this tells them.
+func warnOnImplausibleVestingTimes(io commands.IO, genesisTime time.Time, balances []gnoland.Balance) {
+	genesisSecs := genesisTime.Unix()
+	// Computed rather than subtracted from EndTime: EndTime is an operator-supplied
+	// int64 that can sit anywhere in the range, and genesisSecs is a real date, so
+	// adding to it cannot overflow while subtracting from EndTime could.
+	horizon := genesisSecs + vestingHorizonSecs
+
+	for _, balance := range balances {
+		if !balance.IsVesting() {
+			continue
+		}
+		endTime := balance.Vesting.EndTime
+		switch {
+		case endTime <= genesisSecs:
+			io.Printfln(
+				"WARNING: %s vests fully at genesis: its schedule ends %s, "+
+					"at or before the genesis time of %s",
+				balance.Address,
+				time.Unix(endTime, 0).UTC().Format(time.RFC3339),
+				genesisTime.UTC().Format(time.RFC3339),
+			)
+		case endTime > horizon:
+			io.Printfln(
+				"WARNING: %s vests more than 100 years after genesis: its schedule ends %s. "+
+					"Check whether the time is in milliseconds instead of seconds",
+				balance.Address,
+				time.Unix(endTime, 0).UTC().Format(time.RFC3339),
+			)
+		}
+	}
 }
 
 // checkGenesisValoperCoverage pre-flights the same invariant gnoland's

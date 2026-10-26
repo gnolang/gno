@@ -48,7 +48,7 @@
 </footer>
 
 <!-- javascript module src -->
-<script type="module" src="{{ .Analytics.AssetsPath }}js/controller.js?v={{ .Analytics.BuildTime }}"></script>
-<script type="module" src="{{ .Analytics.AssetsPath }}js/index.js?v={{ .Analytics.BuildTime }}"></script>
+<script type="module" src="{{ .Analytics.AssetsPath }}js/controller.js?v={{ .Analytics.AssetsVersion }}"></script>
+<script type="module" src="{{ .Analytics.AssetsPath }}js/index.js?v={{ .Analytics.AssetsVersion }}"></script>
 
 {{- if .Analytics.Enabled -}} {{- template "layout/analytics" .Analytics }}{{- end -}} {{ end }}

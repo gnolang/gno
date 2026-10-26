@@ -369,6 +369,62 @@ func SetNil(cur realm)   { params_.SetBytes("k", nil) }
 	})
 }
 
+func TestParamsDepositNetZeroFlushesBaseline(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/nz"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "nz.gno", Body: `
+package nz
+import params_ "chain/params"
+var blob = make([]byte, 200)
+func NetZero(cur realm, val string) {
+	blob = nil
+	params_.SetBytes("k", []byte(val))
+}
+func DelP(cur realm) { params_.SetBytes("k", nil) }
+`},
+	}
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+
+	info, err := env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageBefore, depositBefore := parseStorageInfo(t, info)
+	depositAddr := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	balanceBefore := env.bankk.GetCoins(ctx, depositAddr).AmountOf(ugnot.Denom)
+
+	call := NewMsgCall(addr, std.Coins{}, pkgPath, "NetZero", []string{strings.Repeat("A", 484)})
+	call.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err = env.vmk.Call(ctx, call)
+	require.NoError(t, err)
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageAfterNetZero, depositAfterNetZero := parseStorageInfo(t, info)
+	assert.Equal(t, storageBefore, storageAfterNetZero)
+	assert.Equal(t, depositBefore, depositAfterNetZero)
+	assert.Equal(t, int64(502), readMetaKey(t, env, ctx, pkgPath))
+	assert.Equal(t, balanceBefore, env.bankk.GetCoins(ctx, depositAddr).AmountOf(ugnot.Denom))
+
+	call = NewMsgCall(addr, std.Coins{}, pkgPath, "DelP", nil)
+	call.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err = env.vmk.Call(ctx, call)
+	require.NoError(t, err)
+
+	info, err = env.vmk.QueryStorage(ctx, pkgPath)
+	require.NoError(t, err)
+	storageAfterDelete, depositAfterDelete := parseStorageInfo(t, info)
+	assert.Equal(t, storageBefore-502, storageAfterDelete)
+	assert.Equal(t, depositBefore-50_200, depositAfterDelete)
+	assert.Equal(t, balanceBefore-50_200, env.bankk.GetCoins(ctx, depositAddr).AmountOf(ugnot.Denom))
+}
+
 // ---- helpers ----
 
 // setupParamsDepRealm provisions an addr with funds and deploys a small

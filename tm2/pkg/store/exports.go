@@ -20,6 +20,7 @@ type (
 	StoreOptions           = types.StoreOptions
 	Queryable              = types.Queryable
 	ImmutableQueryer       = types.ImmutableQueryer
+	CommitHolder           = types.CommitHolder
 	Gas                    = types.Gas
 	GasMeter               = types.GasMeter
 	GasConfig              = types.GasConfig

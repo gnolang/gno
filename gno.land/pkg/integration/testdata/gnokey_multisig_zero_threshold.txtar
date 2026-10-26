@@ -1,0 +1,25 @@
+# A multisig public key with a threshold of 0 must not authorize a transaction.
+#
+# K is not carried on the wire when it is zero, so anyone can name the address
+# below without holding any key at all. Verification used to accept it against
+# an empty signature list, letting anyone spend whatever had been sent there.
+
+gnoland start
+
+# Fund the K=0 multisig address, creating the account.
+gnokey maketx send -to g1za9xj64gcc8mlnwxkg4qahya2rnu465eae6k49 -send 2000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query bank/balances/g1za9xj64gcc8mlnwxkg4qahya2rnu465eae6k49
+stdout '2000000ugnot'
+
+# Spend from it with the K=0 pubkey and no signature at all.
+! gnokey broadcast $WORK/zero_threshold_tx.json
+stderr 'signature verification failed'
+
+# The funds are untouched: no transfer, and no fee deducted.
+gnokey query bank/balances/g1za9xj64gcc8mlnwxkg4qahya2rnu465eae6k49
+stdout '2000000ugnot'
+
+-- zero_threshold_tx.json --
+{"msg":[{"@type":"/bank.MsgSend","from_address":"g1za9xj64gcc8mlnwxkg4qahya2rnu465eae6k49","to_address":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","amount":"500000ugnot"}],"fee":{"gas_wanted":"10000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeyMultisig","threshold":"0","pubkeys":[]},"signature":null}],"memo":""}

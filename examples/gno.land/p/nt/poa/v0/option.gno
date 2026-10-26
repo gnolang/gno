@@ -1,6 +1,6 @@
 package poa
 
-import "gno.land/p/sys/validators"
+import "gno.land/p/sys/validators/v0"
 
 type Option func(*PoA)
 
