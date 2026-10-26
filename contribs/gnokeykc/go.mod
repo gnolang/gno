@@ -12,6 +12,7 @@ require (
 require (
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/alessio/shellescape v1.4.1 // indirect
+	github.com/allinbits/usbhid v0.1.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
 	github.com/btcsuite/btcd/btcutil v1.2.0 // indirect
@@ -78,5 +79,4 @@ require (
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	rafaelmartins.com/p/usbhid v0.0.0-20261005212024-9e34b6c698d7 // indirect
 )

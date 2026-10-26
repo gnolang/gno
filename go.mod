@@ -57,11 +57,11 @@ require (
 	golang.org/x/text v0.38.0
 	golang.org/x/tools v0.47.0
 	google.golang.org/protobuf v1.36.11
-	rafaelmartins.com/p/usbhid v0.0.0-20261005212024-9e34b6c698d7
 )
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/allinbits/usbhid v0.1.0
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect

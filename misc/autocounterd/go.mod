@@ -6,6 +6,7 @@ require github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/allinbits/usbhid v0.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bmatsuo/lmdb-go v1.8.0 // indirect
@@ -91,7 +92,6 @@ require (
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	rafaelmartins.com/p/usbhid v0.0.0-20261005212024-9e34b6c698d7 // indirect
 )
 
 replace github.com/gnolang/gno => ../..

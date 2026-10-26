@@ -36,10 +36,17 @@ Drop `ledger-cosmos-go`, `ledger-go` and `zondax/hid`. `tm2/pkg/crypto/internal/
 talks to the device itself:
 
 - **HID backend** (`hid_usbhid.go`, Linux, macOS and Windows):
-  `rafaelmartins.com/p/usbhid`, which needs no CGO (it uses `purego` on macOS
-  and system calls elsewhere). The APDU interface is chosen by its usage page,
-  `0xffa0`, so interface numbers are not needed. Other platforms build a stub
-  (`hid_unsupported.go`) and report that Ledger devices are not supported.
+  [`github.com/allinbits/usbhid`](https://github.com/allinbits/usbhid), a fork
+  of `rafaelmartins.com/p/usbhid` (see below), which needs no CGO (it uses
+  `purego` on macOS and system calls elsewhere). The APDU interface is chosen
+  by its usage page, `0xffa0`, so interface numbers are not needed. Other
+  platforms build a stub (`hid_unsupported.go`) and report that Ledger devices
+  are not supported.
+- **Exclusive access**: the device is opened exclusively, because every
+  connection uses the same HID channel and their responses could not be told
+  apart; a second gnokey, or Ledger Wallet, gets a clear "in use" error. This is
+  enforced on macOS and Windows; on Linux `usbhid` takes an advisory `flock`,
+  which applications using hidapi, such as Ledger Wallet, ignore.
 - **Framing** (`hid.go`): Ledger's HID framing (channel `0x0101`, tag `0x05`,
   sequence numbers, length in the first report), with one report per write.
   Status words other than `0x9000` are returned as a typed `*statusError`
@@ -52,6 +59,24 @@ talks to the device itself:
   asked for its name, then the Cosmos app for its version, on that same
   connection. Another app or the dashboard gives "open the Gno.land or the
   Cosmos app"; a locked device or a transport failure is reported as such.
+
+### HID dependency
+
+The library is used through a fork,
+[`github.com/allinbits/usbhid`](https://github.com/allinbits/usbhid), taken at
+upstream commit `9e34b6c698d7` and changed only in its module path (v0.1.0).
+Upstream has a single maintainer, no tagged releases, and is served from the
+maintainer's own domain and git server; its GitHub repository is archived. The
+fork keeps a dependency in the signing path off a personal domain. It has its
+own module path rather than a `replace`, for the reasons above: a `replace`
+would break `go install` and apply to the main module only.
+
+The fork has been audited
+([allinbits/usbhid#1](https://github.com/allinbits/usbhid/issues/1)): no
+memory-safety defect was found on the Ledger path on any platform. The open
+items are a DLL-loading fix on Windows, timeouts, error-path lifecycle on macOS,
+and the `purego` version, tracked in that issue to be fixed in the fork. Changes
+to the fork are reviewed as security-relevant.
 
 ## Alternatives considered
 
@@ -69,8 +94,11 @@ talks to the device itself:
 - Every `gnokey` built for Linux, macOS or Windows, including the release
   binaries and `go install` builds, supports the Gno.land and Cosmos apps.
 - The dependency graph loses `ledger-cosmos-go`, `ledger-go`, `zondax/hid` and
-  `zondax/golem`, and gains `rafaelmartins.com/p/usbhid` and `purego`. `go.mod`
+  `zondax/golem`, and gains `github.com/allinbits/usbhid` and `purego`. `go.mod`
   needs no `replace`.
+- The HID library is a young, single-maintainer module, and its macOS backend
+  calls IOKit and CoreFoundation through `purego`. Through the fork, its
+  maintenance, audit and updates are on us.
 - The Cosmos client is now maintained here. It is about 200 lines, and the
   Cosmos app's protocol has been stable for years.
 - Tests cover the framing, the transport, both clients against fake devices

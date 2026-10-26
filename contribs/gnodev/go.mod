@@ -20,6 +20,7 @@ require (
 require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/alecthomas/chroma/v2 v2.26.1 // indirect
+	github.com/allinbits/usbhid v0.1.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
@@ -116,5 +117,4 @@ require (
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	rafaelmartins.com/p/usbhid v0.0.0-20261005212024-9e34b6c698d7 // indirect
 )
