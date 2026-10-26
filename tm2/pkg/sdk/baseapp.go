@@ -928,7 +928,9 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	// hash. See tm2/adr/pr6406_canonical_tx_enforcement.md.
 	var tx Tx
 	if err := amino.UnmarshalCanonical(txBytes, &tx); err != nil {
-		result = ABCIResultFromError(std.ErrTxDecode(err.Error()))
+		// Field by field, so nothing already set on result is lost.
+		decodeErr := ABCIResultFromError(std.ErrTxDecode(err.Error()))
+		result.Error, result.Log = decodeErr.Error, decodeErr.Log
 		return
 	}
 

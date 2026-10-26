@@ -35,19 +35,28 @@ dereferenced it and the recover in `runTx` reported an internal error, at
 about sixteen times the CPU of a decode error and charged no gas. The
 explicit check closes that path (found in review of #6404).
 
-The rule reaches a chain as a coordinated upgrade: a GovDAO halt with
-`halt_min_version` set to the enforcing release, recorded in the chain's
-upgrades ledger. From the halt height on, every included tx is canonical by
-construction; blocks before it are replayed by the binaries that produced
-them.
+The rule reaches a chain through the coordinated halt mechanism from #5368,
+which gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to
+the enforcing release, so an old binary cannot restart past the halt and a
+new one cannot start early, and an entry in the chain's upgrades ledger
+(`misc/deployments/mainnet.gno.land/upgrades.json`). From the halt height on,
+every included tx is canonical by construction; blocks before it are replayed
+by the binaries that produced them. The release it rides is the next
+coordinated release on the mainnet line after `v1.5.1`, the current rolling
+release; the ledger entry names it when the halt is scheduled. Merge order:
+#6404, then this change, then the related `runTx` tx-encoding change queued
+behind it, so the interaction is settled before merge rather than discovered
+at it.
 
 ## Alternatives considered
 
-- **A height gate on a governance param** (`node:p:canonical_tx_height`,
-  seeded from a genesis field for fresh chains). Implemented and set aside:
-  the ledger already confines each binary to its own block range, so the gate
-  would duplicate in state what replay enforces by switching binaries, and it
-  adds a genesis field and a param to every fresh chain.
+- **A height gate in `runTx`** (a governance param `node:p:canonical_tx_height`,
+  seeded from a genesis field for fresh chains). Implemented and dropped: the
+  house mechanism for a state-breaking change is the coordinated halt followed
+  by a binary switch, and the ledger already confines each binary to its own
+  block range, so a gate would duplicate in state what replay enforces by
+  switching binaries, and it adds a genesis field and a param to every fresh
+  chain. There is deliberately no gate to look for.
 - **`CheckTx` only.** No consensus change, but a byzantine proposer can still
   include a mutated tx, and the mempool refuses old clients' txs just as early.
 - **A height in `config.toml`**, like the per-node `halt_height` fallback.
