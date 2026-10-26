@@ -131,7 +131,8 @@ hold never resets a pinned anchor (§6.7, §7.4).
 
 **The governance channel.** A governance realm, `ibcgov`, sends numbered **decisions** over IBC to `IBCAdmin`, an
 immutable Ethereum contract holding every authority. Each has a **kind**: 1 cancel, 2 unpause, 3 seats, 4 limits, 5
-voucher, 6 client, 7 upgrade, 8 role, 9 hand-over, 10 route replacement, 11 route settings, 12 settle, 13 reopen.
+voucher, 6 client, 7 upgrade, 8 role, 9 hand-over, 10 route replacement, 11 route settings, 12 settle, 13 reopen,
+14 disable the emergency recovery for good.
 Anything that loosens waits **7 days** after Ethereum records it (an unpause 24 h; tightening and cancels at once),
 visible for a week and **cancellable** (kind 1). Decisions are numbered in **sequence** within an **epoch**; a later
 packet carrying different bytes for a number already taken is a **conflict** and flags `IBCAdmin`. A new epoch begins
@@ -653,7 +654,7 @@ oversize governance envelope within the window and spends it (§5.4).
   | 11 route settings | `(string clientId, uint64 quarantineSeconds)`, at most 365 days, per route; a duration applies to transitions accepted after it; one already started keeps its deadline; an older decision maturing later never overwrites a newer setting | lengthening at recording, shortening 7 d |
   | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the send records of a client a replacement retired; at most 8 items (more is spent at recording), all or nothing, a fixed 6M gas budget. Action 1 genuine refund: pay its remainder — `amount` must equal the entitlement minus what was already refunded, **zero** for a genuine refund already paid in full, which then only marks the record settled and moves no funds (a refund is never cut short, §7.9); a refund the free escrow cannot pay now is **parked**, owed and reserved, never failing the batch (§7.12). 2 reject an owed refund of a delivered packet, queued **or parked** (refused if any of it was paid: use 4). 3 settled as delivered (refused if any refund was paid: use 4). 4 forged refund: the record's transport outcome an error ack or timeout, its proven outcome delivered; reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid). Ethereum's receiver also accepts action 4 with zero and ignores `amount` for actions 2–3, but `ibcgov`'s `NewEthSettleRequest` (like gno.land's own settlement) refuses zero for action 4 and requires zero for actions 2–3, so end to end an entirely unpaid refund of a delivered packet is settled by action 2. 5 forged receive: `sequence` is an **inbound** sequence on the retired client whose receive released or minted `amount` (recorded per receive), booked as a loss once; it needs no destination-outcome proof, so it runs even while the replacement verifier is frozen or expired. Each send record is settled at most once. Actions 1–4 require the record's **proven outcome** (below) to match: 1 refundable (proven non-receipt or error ack, or a collision), 2–3 delivered (proven success ack and matching receipt), 4 delivered. Two passes: the first validates and settles every item and restores every action 1 refund's reservation, the second pays them against the batch's complete reservations, so the item order never matters. A kind 12 with an action 1 item of non-zero amount is **deferred** (stays pending) while the route's `refunds` hold stands; one paying nothing is not held. While any incident of the route is unprepared (§7.12) kind 12 pays no refund: the refunds stay parked | 7 d |
   | 13 reopen | `(string clientId)`, which must be the route's **current** client (a retired alias is refused and the decision spent): reopen a route closed by kind 10, the emergency recovery or a late loss. Refused while any **retired** client of an unresolved replacement incident still has an open send record (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12) or an unsettled record whose ack or timeout was processed at or after its replacement's `suspectFrom`; the live client's records never count. Every recorded loss becomes an **accepted deficit** (Ethereum has no recapitalization decision, §8.5): 16 tokens in the decision, the rest in bounded batches by a permissionless `continueReopen`; the route stays closed until the last batch, which checks the preconditions again and aborts the reopening if a record opened meanwhile. While a route reopens, no kind 12 runs on a client whose incident is reopening and no loss is booked on the route | 7 d |
-  | 14 disable recovery | `(string clientId)`, the route's **current** client (the epoch's): disables the §7.12 emergency recovery **for good**. `IBCAdmin`'s own kind, like 9: recorded and executed through `IBCAdminNative`, never the executor. At recording and again at execution, spent if the params are not exactly the canonical encoding (`params`), if `clientId` is not the epoch's client (`client`), or if the recovery is already off (`disabled`: a second disable, or one sent to a deployment without the recovery, is refused, never a silent no-op). Deferred by flags and holds like every 7-day kind; **suspended while a recovery is open**: it waits, and applies after the guardians cancel the recovery, while an executed recovery's epoch switch abandons it with the old epoch. Once executed: `IBCAdmin`'s `recoveryDisabled` bit set (its storage, the layout's last field), every pending approval cleared, `EmergencyRecoveryDisabled`; `approveRecovery` and `executeRecovery` revert `RecoveryPermanentlyDisabled`; nothing clears the bit (§7.12) | 7 d |
+  | 14 disable recovery | `(string clientId)`, the route's **current** client (the epoch's): disables the §7.12 emergency recovery **for good**. `IBCAdmin`'s own kind, like 9: recorded and executed through `IBCAdminNative`, never the executor. At recording and again at execution, spent if the params are not exactly the canonical encoding (`params`), if `clientId` is not the epoch's client (`client`), or if the recovery is already off (`disabled`: a second disable, or one sent to a deployment without the recovery, is refused, never a silent no-op). Deferred by flags and holds like every 7-day kind; **suspended while a recovery is open**: it waits, and applies after the guardians cancel the recovery, while an executed recovery's epoch switch abandons it with the old epoch. Once executed: the latch in `IBCAdminNative`'s **own** storage set (no executor can write it), every pending approval cleared, `EmergencyRecoveryDisabled`; `approveRecovery` and `executeRecovery` revert `RecoveryPermanentlyDisabled`; nothing clears the latch (§7.12) | 7 d |
 
   **Proven outcomes.** Before kind 12 (or gno.land's settlement) settles a record, anyone submits the destination's
   state for it through the route's **current** (replacement) client — a permissionless `proveOutcome` taking the
@@ -1321,7 +1322,11 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   replaces the list). A void is immediate when **every** packet it voids is named, at recording, by at least one
   standing guardian `payouts` flag; different guardians may cover different packets.
 - **No veto.** Guardians delay, they never veto. Unlike AccessManager's guardian role, they cannot cancel a
-  decision.
+  decision. One exception, while the emergency recovery is enabled (§7.12): a guardian supermajority can defeat a
+  pending kind 14 — a hold standing `holdPeriod` (14 days) makes the route eligible before a seat replacement can
+  land (day 21 of the hold), the recovery it opens suspends the disable and kind 3, and the recovery's execution
+  abandons the disable with the old epoch. The owner accepted this (2026-10-26): the disable respects holds and an
+  open recovery like the other kinds.
 
 ### 7.5 Decisions with delays — R9
 
@@ -1877,33 +1882,36 @@ reconciliation.
     opened recovery cannot spend a governed disable. If the recovery executes instead, its epoch switch abandons
     the disable with the rest of the old epoch, and gno.land sends it again over the new client (the recovery was
     then used, which the decision could not prevent: it needs its 7 days, and an open recovery precedes it).
-  - *Once applied:* `IBCAdmin`'s `recoveryDisabled` bit is set, every pending approval is cleared, and
+  - *Once applied:* the latch is set (below), every pending approval is cleared, and
     `EmergencyRecoveryDisabled(epoch, seq)` is emitted; `approveRecovery` and `executeRecovery` revert
     `RecoveryPermanentlyDisabled` before anything reaches the executor's recovery module; `cancelRecovery` (a
-    no-op then: nothing is open) and `clearRecoveryBlock` stay available, the latter still lifting a block a
-    cancellation left standing. `recoveryDisabled()` reads the bit; a deployment with `delay` 0 starts with it set,
-    as if a kind 14 had applied, and its entry points keep their own error (`RecoveryDisabled`). A second kind 14
-    is **spent** (`disabled`), at recording or, if two were pending, at execution.
-  - *One-way across upgrades.* The bit lives in `IBCAdmin`'s own storage (the `IBCAdminStorage` layout, appended
-    last: slot `SLOT + 42`), and `IBCAdmin` and its immutable `IBCAdminNative` read it before any recovery call
-    reaches the replaceable executor or its recovery module. Kind 14 itself is `IBCAdmin`'s own (recorded and
-    executed through `IBCAdminNative`), so no executor can refuse, spend or block it. No kind writes the bit back.
-    The executor runs by `delegatecall` with `IBCAdmin`'s storage, so an executor installed by kind 9 (a
-    malicious one, or one whose layout misplaces a field over the slot) could write it; therefore every frame of
-    executor code `IBCAdmin` runs — execution through `selfDelegate`, the recovery module, `finishSetup`'s check,
-    nested frames — passes one after-check in `IBCAdmin`'s immutable code (`keepRecoveryOff`): with the recovery
-    off before the frame, a frame that leaves it on, or leaves a proposal open, reverts whole (an execution is
-    spent `reverted`; at recording, `IBCAdminNative` reverts the frame as `Halted`, the decision buffered as for
-    any malformed answer, and kind 1 plus kind 9 replace the executor). An executor already holds all of
-    `IBCAdmin`'s authority while it runs, so the check adds no power and removes none: what it guarantees is that
-    the guardian-run recovery never becomes usable again, whatever kind 9 installs. Kind 7 upgrades only the
-    router, the transfer app and its beacons, never `IBCAdmin` (plain, immutable code), and kind 9's own path runs
-    no executor code (a `bindings()` staticcall). Regression tests: an executor that clears the bit at recording,
-    one that clears it at execution, one that opens a proposal, and a recovery module that would switch it on
-    (gno-eth-ibc `RecoveryDisable.t.sol`).
-  - *gno.land* keeps no record of the disable: Ethereum is authoritative (`IBCAdmin.recoveryDisabled()`), and a
-    recovery expectation recorded after it only holds a place in the expected graph, since no recovery notice can
-    follow (gno-realms ADR 0004). Operators check the view before recording one.
+    no-op then: nothing is open) and `clearRecoveryBlock` stay available, and the latter may still be needed: a
+    recovery block a cancellation left standing (`RecoveryBlockKept`) survives a later kind 14. `recoveryDisabled()`
+    reads the latch; a deployment with `delay` 0 starts latched, as if a kind 14 had applied, and its entry points
+    keep their own error (`RecoveryDisabled`). A second kind 14 is **spent** (`disabled`), at recording or, if two
+    were pending, at execution.
+  - *One-way across upgrades: a latch outside `IBCAdmin`'s storage.* The executor runs by `delegatecall` in
+    `IBCAdmin`'s storage, so no rule kept in that storage can bind it: an executor frame could apply a pending kind
+    14 itself and clear a storage bit before returning, or clear the bit, re-enter `executeRecovery` and restore it
+    (gno-eth-ibc review of 1b6bc16; a final-state check catches neither). So the authority is a **latch in
+    `IBCAdminNative`'s own storage**: `IBCAdminNative.latch()`, callable only directly by `IBCAdmin`
+    (`msg.sender`, never by delegatecall), with **no reset path**; kind 14's execution (on `IBCAdminNative`'s
+    native path) sets it by a call from `IBCAdmin`, and `IBCAdmin`'s immutable `approveRecovery` and
+    `executeRecovery`, `recoveryDisabled()` and kind 14's own checks ask it by a staticcall
+    (`recoveryDisabledLatched()`). Executor code runs only in `IBCAdmin`'s storage and can never write
+    `IBCAdminNative`'s; it can call `latch()` with `IBCAdmin`'s authority, which only disables. Kind 7 upgrades only
+    the router, the transfer app and its beacons, never `IBCAdmin` or `IBCAdminNative` (plain, immutable code), and
+    kind 14 itself is recorded and executed natively, so no executor can refuse, spend or block it.
+    **Scope:** a kind 9 hand-over installs governance's code with `IBCAdmin`'s full authority, so governance can
+    always do anything, including a route replacement of its own; the guarantee is that the **guardians'**
+    emergency recovery entry points stay closed forever, whatever code is installed later. Regression tests: an
+    executor that applies the pending kind 14 from inside its frame and then zeroes `IBCAdmin`'s storage, and one
+    that clears storage and re-enters the guardians' entry points with a faked open proposal, each at recording and
+    at execution, and a recovery module that would open a proposal (gno-eth-ibc `RecoveryDisable.t.sol`).
+  - *gno.land* records the disable's dispatch and its acknowledgement status like any Ethereum-bound decision, but
+    keeps no authoritative flag of its own and never learns whether it executed: Ethereum is authoritative
+    (`IBCAdmin.recoveryDisabled()`), and a recovery expectation recorded after it only holds a place in the expected
+    graph, since no recovery notice can follow (gno-realms ADR 0004). Operators check the view before recording one.
   - *After it,* the channel-loss failure modes the recovery covered are permanent again: a lost governance channel
     strands the Ethereum side's backing unless a repair was recorded before the loss (R10), a forged epoch switch on
     gno.land ends Ethereum-bound governance for good (R2), and a defective transfer app or executor after a channel
@@ -2265,7 +2273,8 @@ reconciliation.
   recapitalization authorizations). Unlike Ethereum, which seals a reopening incident against settlements and
   losses, gno.land lets a loss be booked during a reopening and then restarts the reopening's incident scan, so the
   new loss is accepted too (§8.5). The whole procedure is the gno-realms upgrade runbook §8.
-- **Without the emergency path** (the default), the route replacement can only be done through governance, which
+- **Without the emergency path** (after a kind 14, or on a deployment without it; check `IBCAdmin.recoveryDisabled()`),
+  the route replacement can only be done through governance, which
   needs a working governance channel. If the channel is lost (client expired, frozen or poisoned), **the Ethereum
   side's backing is stranded** — unless a suitable repair was **already recorded** on `IBCAdmin` before the
   failure, which executes with no new delivery: a kind 6 migration when the history is trusted, or a kind 10 to an
@@ -2452,7 +2461,7 @@ Further trust assumptions of the built controls, each stated where its rule is:
 | A controlling GovDAO quorum after the yield (§7.7) | every decision on both chains, each with its delay: replace the validator set (above; after the quarantine it holds the gno → Eth direction); replace the guardians (kind 3: at most two seats a decision, so four seats take two decisions, which may run in parallel; 7 days with no hold standing; under a hold, from day 21 of the first hold standing at or after the decision's due time — anchored at that hold, not at the capture); raise every cap (kind 4, 7 days, within the setters' numeric bounds: `dayCap` and `refundCap` at most 2^128 − 1, amounts at most 2^96 − 1); upgrade every proxy and the executor (kinds 7, 9); replace the route (kind 10); disable the emergency recovery for good (kind 14, 7 days, deferred by holds, suspended while a recovery is open) | skip a delay; re-enable or invoke the emergency recovery; act on seats before day 21 while a hold stands; change seats while an emergency recovery is open (suspended until it executes or is cancelled, §7.12); cancel an open emergency recovery (only the guardians' `cancelThreshold` can) | the delays and the guardians' holds, which give **reaction time, not a veto**: once the guardians are replaced (at least 7 days with no hold, from day 21 of the first hold under one) nothing on Ethereum refuses the quorum. The emergency recovery, enabled at launch, is the one authority it cannot use from gno.land; it can only end it, for good (kind 14). GovDAO is a trusted actor (§8.1): this row states the reach of that trust, not a bypass of it; the launch quorum and membership therefore need specifying with the fresh genesis (§13) |
 | Sync committee (≥ 2/3 colluding) | forge Eth → gno credits | mint on Ethereum | gno meters, flags, voids |
 | Relayers | delay, withhold, grief with permissionless calls (re-sends, batches, notices) | move funds, forge, keep `IBCAdmin` flagged by re-sending a conflict (a conflict is re-sent only on a governed `NewRetransmitRequest`) | anyone can relay; work per call bounded (claims ≤ 20, pages ≤ 100, gno.land preparation ≤ 64 budgeted steps plus possibly one move to the next client, Ethereum preparation a caller-chosen `n`, reopening calls ≤ 64 incident entries plus ≤ 64 recapitalization authorizations on gno.land and 16 tokens per kind 13 on Ethereum, prune ≤ 64) |
-| Guardians | pause, hold (delay decisions, a kind 14 included, up to their lifting); while §7.12 is enabled (from launch until a kind 14), a supermajority can install a client checkpoint after a long delay, and by opening one suspend a pending kind 14 | veto, unpause others' flags; move funds directly; disable the emergency recovery (only gno.land's kind 14 does) or enable it again | GovDAO replacement (kind 3: two seats a decision; 7 days with no hold, from day 21 of the first hold under one); §7.12's delay, constraints and cancellation; kind 14, which ends their recovery custody for good |
+| Guardians | pause, hold (delay decisions, a kind 14 included, up to their lifting); while §7.12 is enabled (from launch until a kind 14), a supermajority can install a client checkpoint after a long delay, and by opening one suspend a pending kind 14 | veto, unpause others' flags (one exception while the recovery is enabled: a supermajority's hold of `holdPeriod`, then an opened recovery, suspends a pending kind 14 and, if executed, abandons it; §7.4); move funds directly; disable the emergency recovery (only gno.land's kind 14 does) or enable it again | GovDAO replacement (kind 3: two seats a decision; 7 days with no hold, from day 21 of the first hold under one); §7.12's delay, constraints and cancellation; kind 14, which ends their recovery custody for good |
 | An approved gno-side Ethereum verifier, compromised | authenticate a forged epoch notice and move gno.land's governance epoch; forge a success or conflict ack of a governance dispatch | change gno-side governance, which does not depend on the epoch | redispatch after any answer; governed retransmit after a conflict; Ethereum's emergency recovery, until a kind 14 disables it (§8.5 R2) |
 | Token issuers (Ethereum tokens and gno.land GRC20s) | seize, burn, pause, blacklist, rebase or upgrade their token | — | trusted for the tokens governance enrolls (§8.1); a shortfall they cause is outside every packet-loss remedy |
 | Governor (before yield) | every decision, with delays, a kind 14 included | skip delays; end a hold by vacating the flagging seats (a vacancy waits for day 21 too, and Ethereum refuses vacancies) | small lock, cancel window |
@@ -2647,7 +2656,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | `MaxOpenRecaps` (unpaid recapitalizations per incident and denom) / `ReopenBatch` | 64 / 64 | constant |
 | controls page size (`PageLines`) | 100 | constant |
 | settlement items per decision | gno.land 64; Ethereum kind 12: 8 (6M inner `settleRecords` budget) | constant |
-| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting, each drain step first requiring `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000` gas before its writes and parameter copy (82528e1), which guards entry into the step while the floor's margin covers completion after the executor call — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
+| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kind 14 on `IBCAdminNative`'s native path, with no executor pin check and no fixed frame (bounded checks and one `latch()` call); kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting, each drain step first requiring `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000` gas before its writes and parameter copy (82528e1), which guards entry into the step while the floor's margin covers completion after the executor call — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
 | packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, on gno.land enforced by the core for every packet (an oversize receive refused before the app, leaving the packet pending), on Ethereum by the transfer app for ICS20 payloads on send and receive (an oversize receive error-acked; a readable oversize governance envelope is instead consumed and spent by `IBCAdmin`, §5.4); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
 | receive / send amount on the Ethereum route (both chains) | at most 2^96 − 1 (`abi.MaxAmount` on gno.land) | constant |
@@ -3388,15 +3397,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - **Launch enabled.** The recovery launches on by default with the production `RecoveryConfig` (a 30-day delay,
     3 of 4 to open, 3 of 4 to cancel, 30 days of silence, a 14-day hold); `DeployGnoIBC.s.sol` defaults to it and
     refuses a mainnet deployment with `delay` 0, the env overrides kept for test networks. A deployment with
-    `delay` 0 starts with the disabled bit set. Overview, §7.12, §9, §13 milestone 7 and open question 3 updated.
+    `delay` 0 starts latched. Overview, §7.12, §9, §13 milestone 7 and open question 3 updated.
   - **Kind 14, disable for good.** A new Ethereum-bound kind, `(string clientId)` naming the route's current router
     client (`ibcgov`'s `NewEthDisableRecoveryRequest`, `currentRouterClient`), decided by the governor before the
     yield or GovDAO after it; 7 days at Ethereum, deferred by flags and holds; suspended (not refused) while a
     recovery is open, so an opened recovery cannot spend it; a second disable is spent (`disabled`). Once applied:
-    the bit set, approvals cleared, `approveRecovery` and `executeRecovery` reverting
+    the recovery latched, approvals cleared, `approveRecovery` and `executeRecovery` reverting
     `RecoveryPermanentlyDisabled`, `cancelRecovery` and `clearRecoveryBlock` unchanged, `recoveryDisabled()` the
     view (§5.4 and §7.6 tables, §7.12, divergence 28).
-  - **One-way across upgrades.** The bit is `IBCAdmin`'s own storage (the layout's last field, `SLOT + 42`); kind
+  - **One-way across upgrades** (as first built; superseded the same day, below). The bit is `IBCAdmin`'s own storage (the layout's last field, `SLOT + 42`); kind
     14 is recorded and executed by `IBCAdminNative`, never the executor; every frame of executor code `IBCAdmin`
     runs is refused if it leaves a disabled recovery on or a proposal open, so no executor installed by kind 9
     can re-enable it (regression tests with malicious executors at recording and at execution). Kind 7 never
@@ -3406,6 +3415,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     plainly that after a kind 14 those channel-loss failure modes are permanent again (§8.1, §8.2, §8.3, §8.5).
   - **gno.land keeps no record** of the disable: Ethereum is authoritative (gno-realms ADR 0004 and runbook §7).
     Byte vectors: gno-eth-ibc `gov-vectors.json` `kind14-disable-recovery`, gno-realms filetest `z2j`.
+  - **Review of 1b6bc16/4d9d3cc (P1 and docs), folded the same day.** A storage bit with an after-check cannot bind
+    code that writes `IBCAdmin`'s storage: an executor frame could execute the pending kind 14 itself and then clear
+    the bit, or clear it, re-enter `executeRecovery` and restore it. The authority moved to a latch in
+    `IBCAdminNative`'s own storage, set only by a direct call from `IBCAdmin`, never reset, consulted by staticcall;
+    the storage bit and the after-check were removed. The scope is stated: governance-installed code can always do
+    anything; the guardians' entry points stay closed forever (§7.12). Docs: the post-disable state replaces "the
+    default" (§7.12), the guardians' no-veto rule names its recovery exception (§7.4, §8.2), kind 14's native path
+    in §9's execution frames, `clearRecoveryBlock` possibly still needed after a disable, gno.land's record of the
+    dispatch and ack stated, and kind 14 in the overview's kind list.
 
 ## 15. References
 
