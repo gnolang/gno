@@ -332,7 +332,7 @@ func TestClient_SendBatchRequest(t *testing.T) {
 // TestClient_toClientAddress_preservesPath covers serving an RPC behind a URL
 // prefix, which is how a chain and its web UI share one hostname and one
 // certificate. The "/" to "." encoding exists for unix sockets, whose address
-// is a filesystem path that has to survive as a hostname; applying it to a
+// is a filesystem path and so gives the request URL no host; applying it to a
 // tcp/http address turned "http://host:26657/rpc" into "http://host:26657.rpc",
 // which does not parse.
 func TestClient_toClientAddress_preservesPath(t *testing.T) {
@@ -348,8 +348,8 @@ func TestClient_toClientAddress_preservesPath(t *testing.T) {
 		{"http with a nested path", "http://127.0.0.1:8888/gno/rpc", "http://127.0.0.1:8888/gno/rpc"},
 		{"plain host is unchanged", "http://127.0.0.1:26657", "http://127.0.0.1:26657"},
 		{"tcp is unchanged", "tcp://127.0.0.1:26657", "http://127.0.0.1:26657"},
-		// A unix socket still gets its path encoded into the hostname, which
-		// is what makeHTTPDialer reverses.
+		// A unix socket still gets its path encoded into the hostname, only
+		// so the URL has a host; makeHTTPDialer dials the raw remote.
 		{"unix socket keeps the encoding", "unix:///var/run/gno.sock", "http://.var.run.gno.sock"},
 	}
 

@@ -216,9 +216,9 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 		clientProtocol = protoHTTP
 	}
 
-	// A unix socket's address is a filesystem path, which has to survive as a
-	// hostname for the dialer in makeHTTPDialer to reconstruct; "/" is encoded
-	// as "." for that trip.
+	// A unix socket's address is a filesystem path, so "/" is encoded as "."
+	// to give the request URL a host. makeHTTPDialer ignores that host and
+	// dials the socket from the raw remote.
 	//
 	// Only for unix sockets. Doing it to a tcp/http address destroys any URL
 	// path, so an RPC published behind a prefix ("https://host/rpc", the usual
