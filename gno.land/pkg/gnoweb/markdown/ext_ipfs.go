@@ -11,21 +11,28 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// ipfsKnownGateway describes a public IPFS gateway in ipfsRewrittenGateways.
+type ipfsKnownGateway struct {
+	subdomains bool // it also served the subdomain form <cid>.ipfs.<host>
+	imagesOnly bool // it still serves links, so only its images are moved
+}
+
 // ipfsRewrittenGateways are public IPFS gateways whose URLs are rewritten to
 // the configured gateway: the ones that no longer serve hotlinked content
-// (see gno.land/adr/pr6270_gnoweb_ipfs_gateway.md), and the host of gnoweb's
-// default gateway, so a URL stored while it was the default keeps working
-// after an operator moves to another one. The value reports whether the
-// gateway also served the subdomain form <cid>.ipfs.<host>.
-var ipfsRewrittenGateways = map[string]bool{
-	"ipfs.io":             false,
-	"gateway.ipfs.io":     false,
-	"cloudflare-ipfs.com": false,
-	"cf-ipfs.com":         true,
-	"dweb.link":           true,
-	"nftstorage.link":     true,
-	"w3s.link":            true,
-	"ipfs.filebase.io":    false, // gnoweb.DefaultIPFSGateway
+// (see gno.land/adr/pr6270_gnoweb_ipfs_gateway.md), links and images alike,
+// and the host of gnoweb's default gateway. Its images move so that one
+// stored while it was the default keeps working, under the CSP, after an
+// operator moves to another gateway. Its links still work, and a restricted
+// gateway might not serve them, so they stay as written.
+var ipfsRewrittenGateways = map[string]ipfsKnownGateway{
+	"ipfs.io":             {},
+	"gateway.ipfs.io":     {},
+	"cloudflare-ipfs.com": {},
+	"cf-ipfs.com":         {subdomains: true},
+	"dweb.link":           {subdomains: true},
+	"nftstorage.link":     {subdomains: true},
+	"w3s.link":            {subdomains: true},
+	"ipfs.filebase.io":    {imagesOnly: true}, // gnoweb.DefaultIPFSGateway
 }
 
 // dnsLinkLabelDecoder reverses how subdomain gateways inline a DNSLink name
@@ -56,11 +63,11 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 
 		switch n := node.(type) {
 		case *ast.Link:
-			if u, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
+			if u, ok := rewriteIPFSDestination(gateway, n.Destination, false); ok {
 				n.Destination = escapeDestination(u)
 			}
 		case *ast.Image:
-			if u, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
+			if u, ok := rewriteIPFSDestination(gateway, n.Destination, true); ok {
 				n.Destination = escapeDestination(u)
 				// An image no IPFS node provides can otherwise hold the
 				// page's load event for close to a minute.
@@ -70,7 +77,7 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			if n.AutoLinkType != ast.AutoLinkURL {
 				break
 			}
-			if u, ok := rewriteIPFSDestination(gateway, n.URL(source)); ok {
+			if u, ok := rewriteIPFSDestination(gateway, n.URL(source), false); ok {
 				autolinks = append(autolinks, autolinkRewrite{n, u})
 			}
 		}
@@ -89,15 +96,15 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	}
 }
 
-// rewriteIPFSDestination rewrites a raw markdown destination and returns
-// the gateway URL, which callers escape for markdown again (see
-// escapeDestination) before storing it as a destination.
-func rewriteIPFSDestination(gateway string, dest []byte) (string, bool) {
+// rewriteIPFSDestination rewrites a raw markdown destination, an image's
+// when image is set, and returns the gateway URL, which callers escape for
+// markdown again (see escapeDestination) before storing it as a destination.
+func rewriteIPFSDestination(gateway string, dest []byte, image bool) (string, bool) {
 	resolved := trimLeadingControlAndSpace(resolveDestination(dest))
 	if !mayBeIPFSURL(resolved) {
 		return "", false
 	}
-	return rewriteIPFSURL(gateway, string(resolved))
+	return rewriteIPFSURL(gateway, string(resolved), image)
 }
 
 // mayBeIPFSURL is a cheap filter that spares url.Parse on the common,
@@ -125,12 +132,13 @@ func mayBeIPFSURL(b []byte) bool {
 //	https://<cid>.ipfs.dweb.link/<path>     -> <gateway>/ipfs/<cid>/<path>
 //	https://<label>.ipns.dweb.link/<path>   -> <gateway>/ipns/<name>/<path>
 //
-// Protocol-relative URLs (//ipfs.io/ipfs/...) are handled like https ones.
+// Protocol-relative URLs (//ipfs.io/ipfs/...) are handled like https ones,
+// and a gateway marked imagesOnly is rewritten only when image is set.
 // Query and fragment are kept. It reports false, and leaves the URL alone,
 // for anything else: other hosts, userinfo, explicit ports, a CID or name
 // that is not plain alphanumerics (plus dots and hyphens for IPNS), a path
 // with a "." or ".." segment, or a "uri" query parameter.
-func rewriteIPFSURL(gateway, raw string) (string, bool) {
+func rewriteIPFSURL(gateway, raw string, image bool) (string, bool) {
 	u, err := url.Parse(raw)
 	if err != nil || u.User != nil {
 		return "", false
@@ -142,7 +150,10 @@ func rewriteIPFSURL(gateway, raw string) (string, bool) {
 		namespace, name, rest = u.Scheme, u.Host, u.EscapedPath()
 	case "http", "https", "": // "" with a host: protocol-relative //host/...
 		host := strings.ToLower(u.Host) // keeps any port, so ported hosts never match
-		if _, known := ipfsRewrittenGateways[host]; known {
+		if known, ok := ipfsRewrittenGateways[host]; ok {
+			if known.imagesOnly && !image {
+				return "", false
+			}
 			namespace, name, rest = splitGatewayPath(u.EscapedPath())
 			// EscapedPath decodes the whole path when the raw one is not a
 			// valid encoding (a space anywhere), which would turn %41<cid>
@@ -208,7 +219,7 @@ func splitGatewayPath(p string) (namespace, name, rest string) {
 func splitGatewaySubdomain(host string) (namespace, name string) {
 	label, suffix, _ := strings.Cut(host, ".")
 	namespace, gateway, _ := strings.Cut(suffix, ".")
-	if !ipfsRewrittenGateways[gateway] {
+	if !ipfsRewrittenGateways[gateway].subdomains {
 		return "", ""
 	}
 

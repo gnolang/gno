@@ -43,7 +43,6 @@ func TestRewriteIPFSURL(t *testing.T) {
 		{"https://cf-ipfs.com/ipfs/" + testCIDv1, gwIPFS + testCIDv1},
 		{"https://nftstorage.link/ipfs/" + testCIDv1, gwIPFS + testCIDv1},
 		{"https://w3s.link/ipfs/" + testCIDv1, gwIPFS + testCIDv1},
-		{"https://ipfs.filebase.io/ipfs/" + testCIDv1, gwIPFS + testCIDv1}, // the default, once the operator moves
 		{"https://ipfs.io/ipfs/" + testCIDv1 + "/a b.png", gwIPFS + testCIDv1 + "/a%20b.png"},
 
 		// Retired subdomain gateways.
@@ -59,11 +58,22 @@ func TestRewriteIPFSURL(t *testing.T) {
 		{"//" + testCIDv1 + ".ipfs.dweb.link/x", gwIPFS + testCIDv1 + "/x"},
 	}
 	for _, tc := range rewritten {
-		got, ok := rewriteIPFSURL(testGateway, tc.in)
-		assert.True(t, ok, "expected %q to be rewritten", tc.in)
-		assert.Equal(t, tc.want, got, "input %q", tc.in)
+		for _, image := range []bool{false, true} {
+			got, ok := rewriteIPFSURL(testGateway, tc.in, image)
+			assert.True(t, ok, "expected %q to be rewritten (image: %v)", tc.in, image)
+			assert.Equal(t, tc.want, got, "input %q", tc.in)
+		}
 		assert.True(t, mayBeIPFSURL([]byte(tc.in)), "the pre-check must let %q through", tc.in)
 	}
+
+	// The default gateway still serves links, so only its images move: they
+	// need the CSP, which allows just the configured gateway.
+	filebase := "https://ipfs.filebase.io/ipfs/" + testCIDv1
+	got, ok := rewriteIPFSURL(testGateway, filebase, true)
+	assert.True(t, ok)
+	assert.Equal(t, gwIPFS+testCIDv1, got)
+	_, ok = rewriteIPFSURL(testGateway, filebase, false)
+	assert.False(t, ok, "a link to the default gateway stays as written")
 
 	untouched := []string{
 		"https://gateway.pinata.cloud/ipfs/" + testCIDv1, // a gateway that still works
@@ -114,8 +124,10 @@ func TestRewriteIPFSURL(t *testing.T) {
 		"",
 	}
 	for _, in := range untouched {
-		got, ok := rewriteIPFSURL(testGateway, in)
-		assert.False(t, ok, "expected %q to be left alone, got %q", in, got)
+		for _, image := range []bool{false, true} {
+			got, ok := rewriteIPFSURL(testGateway, in, image)
+			assert.False(t, ok, "expected %q to be left alone (image: %v), got %q", in, image, got)
+		}
 	}
 }
 
@@ -191,6 +203,22 @@ func TestIPFSRenderAttributes(t *testing.T) {
 		t.Parallel()
 		assert.Contains(t, renderIPFS(t, "![x](ipfs://"+testCIDv1+")", testGateway), ` loading="lazy"`)
 		assert.NotContains(t, renderIPFS(t, "![x](https://example.com/a.png)", testGateway), "loading=")
+		// Also on the default gateway while it is the configured one.
+		assert.Contains(t, renderIPFS(t, "![x](https://ipfs.filebase.io/ipfs/"+testCIDv1+")", "https://ipfs.filebase.io"),
+			` loading="lazy"`)
+	})
+
+	t.Run("default gateway host", func(t *testing.T) {
+		t.Parallel()
+		filebase := "https://ipfs.filebase.io/ipfs/" + testCIDv1
+		out := renderIPFS(t, "[x]("+filebase+") ![y]("+filebase+")", testGateway)
+		assert.Contains(t, out, `href="`+filebase+`"`, "a link stays as written")
+		assert.Contains(t, out, `src="`+testGateway+"/ipfs/"+testCIDv1+`"`, "an image moves")
+
+		// Links there are never rewritten, so an autolink keeps its text even
+		// while Filebase is the configured gateway.
+		out = renderIPFS(t, "<"+filebase+"/café.png>", "https://ipfs.filebase.io")
+		assert.Contains(t, out, ">"+filebase+"/café.png<")
 	})
 
 	t.Run("autolink label", func(t *testing.T) {

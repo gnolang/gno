@@ -149,7 +149,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.webIPFSGateway,
 		"web-ipfs-gateway",
 		defaultCfg.webIPFSGateway,
-		"gnoweb: IPFS gateway origin that ipfs:// URLs and URLs on retired gateways or on ipfs.filebase.io are rewritten to; empty disables the rewrite",
+		"gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
 	)
 
 	fs.BoolVar(

@@ -37,9 +37,11 @@ cannot open, and images were blocked by the CSP.
     protocol-relative form (`//host/...`) or subdomain form
     (`<cid>.ipfs.<host>`, `<label>.ipns.<host>` with DNSLink labels decoded),
     become the same path on the gateway.
-  - So do URLs on `ipfs.filebase.io`, the default gateway, in path form. A
-    URL stored while it was the default then follows an operator who moves
-    to another gateway, and the CSP never has to keep the old default.
+  - So do images on `ipfs.filebase.io`, the default gateway, in path form. One
+    stored while it was the default then follows an operator who moves to
+    another gateway, and the CSP never has to keep the old default. Links to
+    it still work, and a restricted gateway might not serve them, so they
+    stay as written.
   - Only an alphanumeric CID, or an IPNS key or DNS name, is rewritten. Other
     hosts, userinfo, ports and anything unparsable are left as written.
   - So is a path with a `.` or `..` segment, also percent-encoded or split by

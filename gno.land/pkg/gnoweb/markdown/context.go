@@ -21,8 +21,8 @@ type GnoContext struct {
 	Remote  string
 	Domain  string
 	// IPFSGateway is the gateway origin (e.g. "https://ipfs.filebase.io")
-	// that ipfs:// URLs and retired gateway URLs are rewritten to. Empty
-	// disables the rewrite.
+	// that ipfs:// URLs and URLs on the gateways in ipfsRewrittenGateways are
+	// rewritten to. Empty disables the rewrite.
 	IPFSGateway string
 	// Links says which links search engines may follow; see LinkPolicy.
 	Links LinkPolicy

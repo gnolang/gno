@@ -11,8 +11,8 @@ import (
 )
 
 // DefaultIPFSGateway is the default of the gnoweb and gnodev gateway flags:
-// the public gateway that ipfs:// URLs and URLs on retired public gateways
-// (ipfs.io, dweb.link, ...) are rewritten to. See
+// the public gateway that ipfs:// URLs and URLs on the gateways in
+// markdown's ipfsRewrittenGateways are rewritten to. See
 // gno.land/adr/pr6270_gnoweb_ipfs_gateway.md for how it was chosen.
 const DefaultIPFSGateway = "https://ipfs.filebase.io"
 

@@ -110,7 +110,7 @@ FLAGS
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs and URLs on retired gateways or on ipfs.filebase.io are rewritten to; empty disables the rewrite
+  -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=false 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
@@ -161,7 +161,7 @@ FLAGS
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
   -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
-  -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs and URLs on retired gateways or on ipfs.filebase.io are rewritten to; empty disables the rewrite
+  -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
