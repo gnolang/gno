@@ -220,11 +220,12 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 	// to give the request URL a host. makeHTTPDialer ignores that host and
 	// dials the socket from the raw remote.
 	//
-	// Only for unix sockets. Doing it to a tcp/http address destroys any URL
+	// Only for unix sockets (unix and unixpacket, both accepted by the
+	// server's Listen). Doing it to a tcp/http address destroys any URL
 	// path, so an RPC published behind a prefix ("https://host/rpc", the usual
 	// way to serve a chain and its web UI on one hostname) turned into
 	// "https://host.rpc" and failed to parse.
-	if protocol == protoUnix {
+	if strings.HasPrefix(protocol, protoUnix) {
 		address = strings.ReplaceAll(address, "/", ".")
 	}
 
@@ -256,8 +257,8 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	// port belongs to the host, and appending it to the whole string turned
 	// "https://host/rpc" into "https://host/rpc:443".
 	//
-	// Unix is excluded because its address is a path, not a host.
-	if protocol != protoUnix {
+	// Unix sockets are excluded because their address is a path, not a host.
+	if !strings.HasPrefix(protocol, protoUnix) {
 		host, path, hasPath := strings.Cut(address, "/")
 		if !strings.Contains(host, ":") {
 			switch protocol {

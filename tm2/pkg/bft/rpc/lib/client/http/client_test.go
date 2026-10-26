@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -351,6 +353,7 @@ func TestClient_toClientAddress_preservesPath(t *testing.T) {
 		// A unix socket still gets its path encoded into the hostname, only
 		// so the URL has a host; makeHTTPDialer dials the raw remote.
 		{"unix socket keeps the encoding", "unix:///var/run/gno.sock", "http://.var.run.gno.sock"},
+		{"unixpacket socket keeps the encoding", "unixpacket:///tmp/node.sock", "http://.tmp.node.sock"},
 	}
 
 	for _, tt := range tests {
@@ -411,6 +414,46 @@ func TestClient_makeHTTPDialer_stripsPathFamilies(t *testing.T) {
 			conn, err := makeHTTPDialer(tt.network + "://" + ln.Addr().String() + "/rpc")
 			require.NoError(t, err)
 			require.NoError(t, conn.Close())
+		})
+	}
+}
+
+// TestClient_unixSocket sends a request end to end over each unix socket
+// family the server's Listen accepts.
+func TestClient_unixSocket(t *testing.T) {
+	t.Parallel()
+
+	for _, network := range []string{"unix", "unixpacket"} {
+		t.Run(network, func(t *testing.T) {
+			t.Parallel()
+
+			// t.TempDir can exceed the ~104 byte sun_path limit on macOS.
+			dir, err := os.MkdirTemp("", "rpc")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(dir) })
+			sock := filepath.Join(dir, "node.sock")
+
+			ln, err := net.Listen(network, sock)
+			if err != nil {
+				t.Skipf("cannot listen on %s: %v", network, err)
+			}
+
+			request := types.RPCRequest{JSONRPC: "2.0", ID: types.JSONRPCIntID(1)}
+			srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				assert.NoError(t, json.NewEncoder(w).Encode(types.RPCResponse{JSONRPC: "2.0", ID: request.ID}))
+			})}
+			go srv.Serve(ln)
+			t.Cleanup(func() { srv.Close() })
+
+			c, err := NewClient(network + "://" + sock)
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			resp, err := c.SendRequest(ctx, request)
+			require.NoError(t, err)
+			assert.Equal(t, request.ID, resp.ID)
 		})
 	}
 }
