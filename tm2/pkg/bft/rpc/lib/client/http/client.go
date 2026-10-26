@@ -233,6 +233,13 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 }
 
 func toClientAddress(remoteAddr string) (string, error) {
+	// Only a unix socket may have no host: a scheme-less "/var/run/gno.sock"
+	// or "http:///rpc" would otherwise be sent to whatever listens locally.
+	protocol, address := parseRemoteAddr(remoteAddr)
+	if host, _, _ := strings.Cut(address, "/"); host == "" && !strings.HasPrefix(protocol, protoUnix) {
+		return "", fmt.Errorf("no host in %q", remoteAddr)
+	}
+
 	clientProtocol, trimmedAddress := toClientAddrAndParse(remoteAddr)
 
 	return clientProtocol + "://" + trimmedAddress, nil
@@ -258,9 +265,11 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	// "https://host/rpc" into "https://host/rpc:443".
 	//
 	// Unix sockets are excluded because their address is a path, not a host.
+	// An empty host gets no port either, so toClientAddress can reject it
+	// instead of it becoming ":80", which is localhost.
 	if !strings.HasPrefix(protocol, protoUnix) {
 		host, path, hasPath := strings.Cut(address, "/")
-		if !strings.Contains(host, ":") {
+		if host != "" && !strings.Contains(host, ":") {
 			switch protocol {
 			case protoHTTPS:
 				host += ":" + portHTTPS

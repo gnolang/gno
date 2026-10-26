@@ -457,3 +457,50 @@ func TestClient_unixSocket(t *testing.T) {
 		})
 	}
 }
+
+// TestClient_toClientAddress_schemes covers each scheme family, and that a
+// remote with no host is rejected rather than sent to localhost:80.
+func TestClient_toClientAddress_schemes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		remoteAddr string
+		want       string
+		wantErr    bool
+	}{
+		{"tcp", "tcp://127.0.0.1:26657/rpc", "http://127.0.0.1:26657/rpc", false},
+		{"tcp4", "tcp4://127.0.0.1:26657/rpc", "http://127.0.0.1:26657/rpc", false},
+		{"tcp6", "tcp6://[::1]:26657/rpc", "http://[::1]:26657/rpc", false},
+		{"unix", "unix:///var/run/gno.sock", "http://.var.run.gno.sock", false},
+		{"unixpacket", "unixpacket:///var/run/gno.sock", "http://.var.run.gno.sock", false},
+		{"scheme-less host", "127.0.0.1:26657", "http://127.0.0.1:26657", false},
+		{"scheme-less port only", ":26657", "http://:26657", false},
+		{"scheme-less path", "/var/run/gno.sock", "", true},
+		{"http without host", "http:///rpc", "", true},
+		{"https without host", "https://", "", true},
+		{"tcp without host", "tcp:///rpc", "", true},
+		{"tcp4 without host", "tcp4:///rpc", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := toClientAddress(tt.remoteAddr)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestClient_NewClient_noHost(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewClient("/var/run/gno.sock")
+	require.ErrorContains(t, err, "invalid RPC URL")
+}
