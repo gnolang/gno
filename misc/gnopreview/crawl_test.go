@@ -4,12 +4,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -554,4 +557,62 @@ func TestURLToFileIsInjective(t *testing.T) {
 func digest(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:4])
+}
+
+func TestStopKillsGnodevIgnoringSIGTERM(t *testing.T) {
+	// Not parallel: it lowers the package-wide stopGrace.
+	old := stopGrace
+	stopGrace = 200 * time.Millisecond
+	defer func() { stopGrace = old }()
+
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "child.pid")
+	fake := filepath.Join(dir, "gnodev")
+	// Ignores SIGTERM, and so does the child it leaves behind, as a node
+	// spawned by gnodev might.
+	script := "#!/bin/sh\ntrap '' TERM\nsleep 300 &\necho $! > " + pidFile + "\nwait\n"
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+	if port+10000 > 65535 {
+		t.Skip("no room for the derived RPC port")
+	}
+
+	stop, _, err := startGnodev(config{gnodev: fake, out: dir}, dir, nil, port, "gnodev.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var child int
+	for deadline := time.Now().Add(5 * time.Second); child == 0 && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if b, err := os.ReadFile(pidFile); err == nil && len(b) > 1 {
+			_, _ = fmt.Sscan(string(b), &child)
+		}
+	}
+	if child == 0 {
+		t.Fatal("fake gnodev never started its child")
+	}
+
+	done := make(chan struct{})
+	go func() { stop(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("stop() is still waiting on a gnodev that ignores SIGTERM")
+	}
+	// Reaped by init by now or about to be; it must at least not be running.
+	for deadline := time.Now().Add(2 * time.Second); ; time.Sleep(20 * time.Millisecond) {
+		if err := syscall.Kill(child, 0); err != nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			_ = syscall.Kill(child, syscall.SIGKILL)
+			t.Fatalf("child %d outlived stop()", child)
+		}
+	}
 }

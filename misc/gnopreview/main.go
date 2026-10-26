@@ -264,12 +264,24 @@ func startGnodev(cfg config, root string, dirs []string, port int, logName strin
 		close(waited)
 	}()
 	return func() {
-		// gnodev spawns a node; kill the whole process group.
+		// gnodev spawns a node; signal the whole process group. One that
+		// ignores SIGTERM would otherwise hold the job until its timeout.
+		// SIGKILL only before the leader is reaped, while the group id
+		// cannot yet belong to anything else.
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-		<-waited
+		select {
+		case <-waited:
+		case <-time.After(stopGrace):
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			<-waited
+		}
 		log.Close()
 	}, died, nil
 }
+
+// stopGrace is how long gnodev gets to exit on SIGTERM before its process
+// group is killed.
+var stopGrace = 10 * time.Second
 
 // fileBudget allows a couple of per-file source pages for realms nothing
 // changed in, but only when the pull request changed gnoweb: that is the case
