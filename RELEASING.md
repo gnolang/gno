@@ -265,7 +265,7 @@ go run ./misc/deployments/upgrades render misc/deployments/mainnet.gno.land   # 
 go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # what CI runs
 ```
 
-Add the entry once the chain runs the release — after the halt for a coordinated upgrade, once validators run it for a rolling one — when everything it records is known: the halt height and the proposal once the proposal has executed, the halt time once the chain has halted, the image digest and binaries once CI has built the release. A complete entry renders no *(pending)* cell. Render, and port both files to `master`. A testnet's ledger names what it ran, release candidates included. Every halt proposal names the version being released — `set-halt.sh` refuses a value the node cannot parse and an empty one, which would leave the restart gate off.
+Add the entry once the chain runs the release — after the halt for a coordinated upgrade, once validators run it for a rolling one — when everything it records is known: the halt height and the proposal once the proposal has executed, the halt time once the chain has halted, the image digest and binaries once CI has built the release. A complete entry renders no *(pending)* cell. Render, and port both files to `master`. A testnet's ledger names what it ran, release candidates included. Every halt proposal names the version being released — `set-halt.sh` refuses a value the node cannot parse and an empty one, which would leave the restart gate off, and a floor the version `REMOTE` runs already meets, which would refuse that version's restarts before the halt and gate nothing after it.
 
 ### Coordinated upgrades
 

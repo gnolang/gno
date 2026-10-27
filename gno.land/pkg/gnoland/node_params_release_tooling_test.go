@@ -56,7 +56,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 	const (
 		cutRelease = "misc/release/cut-release.sh"
 		bumpProto  = "misc/release/bump-protocol-version.sh"
-		setHalt    = "misc/govdao-scripts/set-halt.sh"
+		setHalt    = setHaltScript
 		workflow   = ".github/workflows/release-chain-tag.yml"
 	)
 
@@ -118,9 +118,24 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// set-halt.sh is the one a human runs to set the floor, so a looser
 		// shape there reaches the chain without passing the other two at all.
-		haltRE := grepOne(t, setHalt, `(?m)^  VERSION_RE='(.+)'$`)
+		// It defines the shape at the top, readonly, as cut-release.sh does:
+		// the script runs without set -u, and on Linux an unset VERSION_RE in
+		// [[ =~ ]] matches every version.
+		haltRE := grepOne(t, setHalt, `(?m)^readonly VERSION_RE='(.+)'$`)
 		assert.Equal(t, shapeRE, haltRE,
 			"%s accepts a different shape than %s; it writes halt_min_version directly", setHalt, cutRelease)
+
+		// The shape's bracket ranges follow the locale's collation: under
+		// en_US.UTF-8 on glibc, [A-Za-z] also matches letters such as é, which
+		// parseReleaseVersion refuses. Each script checks in the C locale.
+		export := regexp.MustCompile(`(?m)^export LC_ALL=C$`)
+		for _, script := range []string{cutRelease, bumpProto, setHalt} {
+			src := repoFile(t, script)
+			if loc := export.FindStringIndex(src); assert.NotNil(t, loc, "%s must export LC_ALL=C", script) {
+				assert.Less(t, loc[0], strings.Index(src, "=~"),
+					"%s must export LC_ALL=C before its first regex match", script)
+			}
+		}
 	})
 
 	// cut-release.sh's build check earns its place only by building the way the
