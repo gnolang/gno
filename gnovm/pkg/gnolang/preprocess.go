@@ -3868,7 +3868,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	}
 
 	tv := dbn.GetSlot(nil, name, true)
-	fle.Define("~"+name, tv.Copy(nil))
+	fle.Define("~"+name, tv.Copy(nil, nil))
 
 	// add name to fle.HeapCaptures.
 	// NOTE: this doesn't work with shadowing, see define1.gno.

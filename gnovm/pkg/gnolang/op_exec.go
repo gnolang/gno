@@ -211,7 +211,10 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			} else {
 				dv = xv
-				*xv = xv.Copy(m.Alloc)
+				// A key-only range reads no element, so it needs no copy.
+				if bs.Value != nil && !isBlankIdentifier(bs.Value) {
+					*xv = xv.Copy(m.Alloc, m.Store)
+				}
 				ll = dv.GetLength()
 			}
 			if ll == 0 { // early termination
@@ -236,7 +239,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, iv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -260,7 +263,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, ev, false)
+					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
 				default:
 					panic("should not happen")
 				}
@@ -342,7 +345,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, iv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -355,7 +358,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, ev, false)
+					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
 				default:
 					panic("should not happen")
 				}
@@ -439,7 +442,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, kv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, kv, false)
 				default:
 					panic("should not happen")
 				}
@@ -452,7 +455,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, vv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, vv, false)
 				default:
 					panic("should not happen")
 				}
@@ -967,7 +970,7 @@ matchLoop:
 		// NOTE: GetPointerToMaybeHeapDefine not needed,
 		// because this type is in new type switch clause block.
 		ptr := b.GetPointerTo(m.Store, vp)
-		ptr.TV.Assign(m.Alloc, *xv, false)
+		ptr.TV.Assign(m.Alloc, m.Store, *xv, false)
 	}
 	// exec clause body
 	b.bodyStmt = bodyStmt{

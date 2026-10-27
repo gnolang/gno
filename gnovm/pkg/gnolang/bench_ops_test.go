@@ -5532,7 +5532,7 @@ func benchOpRangeIterMap(b *testing.B, n int) {
 		k := TypedValue{T: IntType, N: i2n(int64(i))}
 		v := TypedValue{T: IntType, N: i2n(int64(i * 10))}
 		ptr := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, k)
-		ptr.TV.Assign(m.Alloc, v, false)
+		ptr.TV.Assign(m.Alloc, m.Store, v, false)
 	}
 	mapTV := TypedValue{T: mt, V: mv}
 
@@ -5946,7 +5946,7 @@ func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000)
 //   copyDataToList, copyListToData, raw memcpy, and Assign2 DataByteType path.
 //   Calibrated via BenchmarkOpCopyDataToList_* (slower helper).
 //
-// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for unrefCopy
+// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for Copy
 //   and Assign2 general path. Calibrated via BenchmarkOpUnrefCopy_Int_*
 //   (non-RefValue case); under-charges worst-case RefValue store-hit.
 //
@@ -6004,7 +6004,7 @@ func BenchmarkOpCopyListToData_10k(b *testing.B)  { benchOpCopyListToData(b, 10*
 func BenchmarkOpCopyListToData_100k(b *testing.B) { benchOpCopyListToData(b, 100*1024) }
 func BenchmarkOpCopyListToData_1m(b *testing.B)   { benchOpCopyListToData(b, 1024*1024) }
 
-// UnrefCopy on non-RefValue (common case: IntType primitive). RefValue case
+// Copy on non-RefValue (common case: IntType primitive). RefValue case
 // is more expensive due to store hit, but charged via store gas downstream.
 func benchOpUnrefCopyInt(b *testing.B, n int) {
 	b.Helper()
@@ -6019,7 +6019,7 @@ func benchOpUnrefCopyInt(b *testing.B, n int) {
 	for range b.N {
 		bm.SwitchOpCode(bmTarget)
 		for i := range src {
-			_ = src[i].unrefCopy(m.Alloc, nil)
+			_ = src[i].Copy(m.Alloc, nil)
 		}
 		bm.SwitchOpCode(bmSetup)
 	}

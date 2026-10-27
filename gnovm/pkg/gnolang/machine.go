@@ -1676,9 +1676,9 @@ const (
 	// 8168).
 	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element
 	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
-	// copy path — unrefCopy and Assign2 general case. Under-charges the
-	// RefValue case where unrefCopy hits the store; that worst-case is
-	// paid via store gas when GetObject is called.
+	// copy path — Copy in append and Assign2 general case. Under-charges
+	// the RefValue case where Copy hits the store; that worst-case is
+	// paid via store gas when the store loads the object.
 	OpCPUSlopeCopyElement = 40 // per element
 	// OpCPUSlopeEnterCrossing: per call frame visited by the
 	// doOpEnterCrossing ancestor walk. gas = depth * slope.
@@ -2348,7 +2348,7 @@ func (m *Machine) PopCopyValues(res []TypedValue) {
 	n := len(res)
 	ptvs := m.PopValues(n)
 	for i := range n {
-		res[i] = ptvs[i].Copy(m.Alloc)
+		res[i] = ptvs[i].Copy(m.Alloc, m.Store)
 	}
 }
 

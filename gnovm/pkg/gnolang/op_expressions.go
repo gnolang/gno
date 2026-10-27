@@ -464,7 +464,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[k] = v.GetUint8()
 				} else {
-					al[k] = v.Copy(m.Alloc)
+					al[k] = v.Copy(m.Alloc, m.Store)
 				}
 				idx = k + 1
 			} else {
@@ -476,7 +476,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[idx] = v.GetUint8()
 				} else {
-					al[idx] = v.Copy(m.Alloc)
+					al[idx] = v.Copy(m.Alloc, m.Store)
 				}
 				idx++
 			}
@@ -597,7 +597,7 @@ func (m *Machine) doOpSliceLit2() {
 				// slice index has already been assigned
 				panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
 			}
-			es[idx] = vtv.Copy(m.Alloc)
+			es[idx] = vtv.Copy(m.Alloc, m.Store)
 		}
 		// fill in empty values.
 		ste := st.Elem()
@@ -647,10 +647,10 @@ func (m *Machine) doOpMapLit() {
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
-			ktv := kvs[i*2].Copy(m.Alloc)
+			ktv := kvs[i*2].Copy(m.Alloc, m.Store)
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, ktv)
-			*ptr.TV = vtv.Copy(m.Alloc)
+			*ptr.TV = vtv.Copy(m.Alloc, m.Store)
 		}
 	}
 	// pop map type.
@@ -729,7 +729,7 @@ func (m *Machine) doOpStructLit() {
 				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
 			}
 			fsset[fnx.Path.Index] = true
-			fs[fnx.Path.Index] = ftv.Copy(m.Alloc)
+			fs[fnx.Path.Index] = ftv.Copy(m.Alloc, m.Store)
 		}
 	}
 	// construct and push value.
@@ -796,7 +796,7 @@ func (m *Machine) doOpFuncLit() {
 }
 
 func (m *Machine) doOpConvert() {
-	xv := m.PopValue().Copy(m.Alloc)
+	xv := m.PopValue().Copy(m.Alloc, m.Store)
 	t := m.PopValue().GetType()
 
 	// Gas based on conversion variant. Both directions allocate and copy,

@@ -881,7 +881,7 @@ func makeUverseNode() {
 						if arg1Length > 0 {
 							m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 							for i := range arg1Length {
-								arrayValue.List[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+								arrayValue.List[i] = arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
 							}
 						}
 						m.PushValue(TypedValue{
@@ -954,9 +954,7 @@ func makeUverseNode() {
 									}
 									for i := start; i != end; i += step {
 										oldElem := list[dstStart+i]
-										// unrefCopy will resolve references and copy their values
-										// to copy by value rather than by reference.
-										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+										newElem := arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
 										list[dstStart+i] = newElem
 
 										m.Realm.DidUpdate(m,
@@ -1047,7 +1045,7 @@ func makeUverseNode() {
 							if arg0Base.Data == nil {
 								m.incrCPU(OpCPUSlopeCopyElement * int64(arg0Length))
 								for i := range arg0Length {
-									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+									arrayValue.List[i] = arg0Base.List[arg0Offset+i].Copy(m.Alloc, m.Store)
 								}
 							} else {
 								panic("should not happen")
@@ -1058,7 +1056,7 @@ func makeUverseNode() {
 							if arg1Base.Data == nil {
 								m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 								for i := range arg1Length {
-									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
 								}
 							} else {
 								m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
@@ -1515,7 +1513,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
-			ex := arg0.TV.Copy(m.Alloc)
+			ex := arg0.TV.Copy(m.Alloc, m.Store)
 			// m.Panic(ex) also works, but after return will immediately OpPanic2.
 			// This should be the only place .pushPanic() is called
 			// outside of op_*.go doOp*() functions.

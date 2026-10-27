@@ -1,0 +1,188 @@
+# A copy of a stored struct or array owns its nested arrays and structs. Each
+# call below runs in a transaction of its own, so a nested value of G or S
+# reaches the copy straight from the store, before anything has read it, and a
+# write to the copy must leave G and S as they were.
+
+loadpkg gno.land/r/test/stored $WORK/stored
+loadpkg gno.land/r/test/caller $WORK/caller
+
+gnoland start
+
+# a struct nested in a stored struct
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteCopyStruct -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# an array nested in a stored struct
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteCopyArray -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# a struct two levels down
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteCopyDeep -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# the elements append copies out of a stored slice
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteAppended -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# another realm calling a value-receiver method on G
+gnokey maketx call -pkgpath gno.land/r/test/caller -func SetThroughMethod -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# append into spare capacity
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteAppendInPlace -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# append growing the stored slice
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteAppendGrow -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# append copying the stored slice after another element
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteAppendTail -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# a call argument
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteArgument -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# a deferred call writing the result a function returns
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteDeferredReturn -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# the copy builtin out of a stored slice
+gnokey maketx call -pkgpath gno.land/r/test/stored -func WriteCopied -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/test/stored.Get()'
+stdout '\("1 2 3 4" string\)'
+
+# a key-only range, len and cap over a stored array read no element, so they
+# load none: copying B would load 200 objects and run out of gas
+gnokey maketx call -pkgpath gno.land/r/test/stored -func LengthOnly -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- stored/gnomod.toml --
+module = "gno.land/r/test/stored"
+gno = "0.9"
+-- stored/stored.gno --
+package stored
+
+import "strconv"
+
+type Deep struct{ X int }
+
+type Inner struct {
+	X int
+	D Deep
+}
+
+type Outer struct {
+	I Inner
+	A [1]int
+}
+
+var G = Outer{I: Inner{X: 1, D: Deep{X: 3}}, A: [1]int{2}}
+
+var S = []Inner{{D: Deep{X: 4}}}
+
+var B [100]Inner
+
+func (o Outer) Set(x int) { o.I.X = x }
+
+func WriteCopyStruct(cur realm) {
+	tmp := G
+	tmp.I.X = 99
+}
+
+func WriteCopyArray(cur realm) {
+	tmp := G
+	tmp.A[0] = 99
+}
+
+func WriteCopyDeep(cur realm) {
+	tmp := G
+	tmp.I.D.X = 99
+}
+
+func WriteAppended(cur realm) {
+	tmp := append([]Inner(nil), S...)
+	tmp[0].D.X = 99
+}
+
+func WriteAppendInPlace(cur realm) {
+	tmp := make([]Inner, 0, 2)
+	tmp = append(tmp, S...)
+	tmp[0].D.X = 99
+}
+
+func WriteAppendGrow(cur realm) {
+	tmp := append(S, Inner{})
+	tmp[0].D.X = 99
+}
+
+func WriteAppendTail(cur realm) {
+	tmp := append([]Inner{{}}, S...)
+	tmp[1].D.X = 99
+}
+
+func WriteCopied(cur realm) {
+	tmp := make([]Inner, 1)
+	copy(tmp, S)
+	tmp[0].D.X = 99
+}
+
+func set(o Outer) { o.I.X = 99 }
+
+func WriteArgument(cur realm) { set(G) }
+
+func returned() (r Outer) {
+	defer func() { r.I.D.X = 99 }()
+	return G
+}
+
+func WriteDeferredReturn(cur realm) { _ = returned() }
+
+func LengthOnly(cur realm) {
+	for i := range B {
+		_ = i
+	}
+	for i, _ := range B {
+		_ = i
+	}
+	_ = len(B)
+	_ = cap(B)
+}
+
+func Get() string {
+	return strconv.Itoa(G.I.X) + " " + strconv.Itoa(G.A[0]) + " " +
+		strconv.Itoa(G.I.D.X) + " " + strconv.Itoa(S[0].D.X)
+}
+-- caller/gnomod.toml --
+module = "gno.land/r/test/caller"
+gno = "0.9"
+-- caller/caller.gno --
+package caller
+
+import "gno.land/r/test/stored"
+
+func SetThroughMethod(cur realm) {
+	stored.G.Set(77)
+}
