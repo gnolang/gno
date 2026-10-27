@@ -7,7 +7,7 @@
 | Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
 | Onyx / Test17     | https://rpc.onyx.testnets.gno.land:443  | `onyx-1`    | [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)       |
 | Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                                                               |
-| Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
+| Staging (down)    | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
 | Pearl / Test16 (retired) | — | `pearl-1` | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)   |
 
 Mainnet (`gnoland-1`) launched at `2026-09-12T15:00:00Z` as a fresh chain — not
@@ -74,6 +74,15 @@ Related infrastructure directories in the monorepo:
 | [`gnolang/tx-exports`](https://github.com/gnolang/tx-exports) | Archived transaction data of past testnets |
 
 ## Staging Environments
+
+:::warning Staging is down
+
+Staging has not produced a block since 2026-07-10, and its endpoints answer
+`503`. Its replacement, running staging on gnodev instead of the portal loop, is
+tracked in [#6258](https://github.com/gnolang/gno/issues/6258). The docs use the
+current testnet, which runs mainnet's code: `https://rpc.latest.testnets.gno.land:443`.
+
+:::
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker

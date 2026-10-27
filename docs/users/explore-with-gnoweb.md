@@ -6,7 +6,7 @@ to explore the blockchain ecosystem.
 
 ## Networks
 
-The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Betanet (`gnoland1`). The Staging network is accessible at [staging.gno.land](https://staging.gno.land).
+The main gnoweb instance is available at [gno.land](https://gno.land), which serves mainnet (`gnoland-1`). The current testnet is at [latest.testnets.gno.land](https://latest.testnets.gno.land).
 
 For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
 
@@ -74,7 +74,7 @@ func Render(path string) string {
 Based on the provided path, `gnoweb` queries the Gno.land network using the
 `qrender` ABCI query. It then renders the response data as Markdown.
 
-The realm above can be found on the Staging network at [`gno.land/r/docs/hello`](https://staging.gno.land/r/docs/hello).
+The source of the realm above is in the examples, at [`gno.land/r/docs/hello`](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/hello). It is not deployed on a public chain yet.
 
 While JS/TS clients for Gno exist and developers can create custom websites for their
 Gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`
@@ -122,7 +122,7 @@ Build the alt text or link label with `sanitize.InlineText`, as `md.Image` and
 All code uploaded to Gno.land is open-source and available for everyone to see,
 by design.
 
-Visit the [`gno.land/r/docs/source`](https://staging.gno.land/r/docs/source) realm to learn
+Read the [`gno.land/r/docs/source`](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/source) example realm to learn
 how you can do this.
 
 ## Alternative: Terminal UI with gnobro

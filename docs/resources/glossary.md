@@ -61,8 +61,8 @@ functionality. See [Example Boards](../users/example-boards.md).
 ## C
 
 ### Chain ID
-A unique identifier for a blockchain network (e.g., "staging" for the main
-Gno.land testnet).
+A unique identifier for a blockchain network (e.g., "gnoland-1" for mainnet,
+"onyx-1" for the current testnet).
 
 ### Coins vs Tokens
 In Gno.land, coins are native assets created by the Banker, such as `ugnot`. On
@@ -269,7 +269,8 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main Gno.land chain for testing, accessible at [staging.gno.land](https://staging.gno.land).
+A Gno.land chain that runs the latest `master`, at [staging.gno.land](https://staging.gno.land).
+It has been down since 2026-07-10; see [Networks](./gnoland-networks.md).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without

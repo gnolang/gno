@@ -291,7 +291,7 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://staging.gno.land/p/nt/grc20/v0$source&file=types.gno)
+Here's an example from [grc20](https://gno.land/p/nt/grc20/v0$source&file=types.gno)
 to illustrate the concept:
 
 ```go
@@ -961,7 +961,7 @@ func MyBalance(cur realm) int64 {
 }
 ```
 
-See also: https://staging.gno.land/r/demo/defi/foo20
+See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/defi/foo20
 
 #### Wrapping Coins
 
