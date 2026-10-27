@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -22,6 +23,7 @@ var defaultStagingOptions = AppConfig{
 	maxGas:                     10_000_000_000,
 	webHome:                    ":none:",
 	webListenerAddr:            "127.0.0.1:8888",
+	webIPFSGateway:             gnoweb.DefaultIPFSGateway,
 	nodeRPCListenerAddr:        "127.0.0.1:26657",
 	deployKey:                  defaultDeployerAddress.String(),
 	home:                       gnoenv.HomeDir(),
