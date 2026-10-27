@@ -548,6 +548,14 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 }
 
 func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// A query is free to send, so a panic in its handler, such as a store key
+	// over the cap, answers as an error and leaves nothing in the node's log.
+	defer func() {
+		if r := recover(); r != nil {
+			res = ABCIResponseQueryFromError(std.ErrInternal(clipLog(fmt.Sprintf("recovered: %v", r))))
+		}
+	}()
+
 	if len(path) < 1 || path[0] == "" {
 		res.Error = ABCIError(std.ErrUnknownRequest("No route for custom query specified"))
 		return
