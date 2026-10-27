@@ -1,6 +1,6 @@
 # onyx-1 upgrades
 
-Every binary onyx has run, one row per version. Onyx runs mainnet's code and takes every mainnet release first, as a release candidate on the same commit, so each row here mirrors a row of [mainnet's ledger](../mainnet.gno.land/UPGRADES.md). The source of truth is [`upgrades.json`](./upgrades.json) (format: [`misc/deployments/upgrades/upgrades.schema.json`](../upgrades/upgrades.schema.json), rules in `gno.land/pkg/upgrades`); the table below is generated from it and never edited by hand:
+Every binary onyx has run, one row per version. Onyx runs mainnet's code and takes every mainnet release first, as a release candidate on the same commit, so each row here mirrors a row of [mainnet's ledger](../mainnet.gno.land/UPGRADES.md), except a candidate whose release mainnet skips (see Notes). The source of truth is [`upgrades.json`](./upgrades.json) (format: [`misc/deployments/upgrades/upgrades.schema.json`](../upgrades/upgrades.schema.json), rules in `gno.land/pkg/upgrades`); the table below is generated from it and never edited by hand:
 
 ```shell
 go run ./misc/deployments/upgrades render misc/deployments/onyx.gno.land   # after editing upgrades.json
@@ -25,3 +25,4 @@ An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEA
 Notes
 
 - Onyx launched on `v1.5.0`, the version mainnet was running on launch day, with no release candidate: there was no new code to rehearse. Since `v1.5.1`, the row here names the candidate onyx actually ran (`v1.5.1-rc.1`), and mainnet's names the final tag on the same commit.
+- `v1.6.0-rc.1` has no counterpart in mainnet's ledger: mainnet skips `v1.6.0` and takes its changes with `v1.7.0`.
