@@ -19,19 +19,22 @@ chain id and its single message, `sign/MsgSignData`:
 
 ```json
 {"account_number":"0","chain_id":"<chain id>","fee":{"amount":[],"gas":"0"},"memo":"",
- "msgs":[{"type":"sign/MsgSignData","value":{"data":"<base64 of the text>",
+ "msgs":[{"type":"sign/MsgSignData","value":{"data":"<the text>",
   "origin":"<origin>","purpose":"<purpose>","signer":"<address>"}}],"sequence":"0"}
 ```
 
-The bytes signed are that JSON with its keys sorted, no spaces, and `<`, `>`
-and `&` escaped as `\u003c`, `\u003e` and `\u0026`. No other field may appear,
-and none may be left out.
+The bytes signed are that JSON with its keys sorted and no spaces. In its
+strings, `"`, `\` and the line feed are written `\"`, `\\` and `\n`, `<`, `>`
+and `&` are written `\u003c`, `\u003e` and `\u0026`, and every other character
+is written as itself, in UTF-8. (A chain id holding other characters is written
+as Go's `encoding/json` writes it; chain ids are ASCII in practice.) No other
+field may appear, and none may be left out.
 
 | Field | Holds |
 |-------|-------|
 | `chain_id` | the chain the proof is for: a proof made on one network is none on another |
 | `signer` | the address, in bech32 |
-| `data` | the text, standard base64 with padding: non-empty UTF-8 (see below) |
+| `data` | the text the user reads (see below) |
 | `origin` | the service the proof is for (see below) |
 | `purpose` | what the proof is for, as the service names it (see below) |
 
@@ -50,11 +53,14 @@ challenge, and only text: a proof is over words the user can read, never over
 bytes a requester chose. A service that needs a nonce or a hash in it writes
 them as text, in hex for instance.
 
-It is carried in base64 rather than as a JSON string so that every
-implementation signs the same bytes. JSON encoders escape a string differently:
-Go writes `<` and U+2028 as `\u003c` and `\u2028`, JavaScript leaves them as
-they are. Base64 holds no character an encoder escapes, and neither do an
-origin or a purpose.
+It is non-empty UTF-8 with no control character other than the line feed
+(U+000A), and neither U+2028 nor U+2029. JSON encoders disagree on how to write
+those: Go writes U+2028 as `\u2028` where JavaScript leaves it as it is, and
+encoders do not all write control characters alike. Without them, every
+encoder that escapes `<`, `>` and `&` as above writes the same bytes, and a
+wallet shows the text as it is, with no control character acting on the
+screen. A text holding a tab or a carriage return, such as one with Windows
+line endings, is refused rather than rewritten.
 
 ### `origin`
 
@@ -111,11 +117,10 @@ Only a secp256k1 key signs a proof.
 ## Signing
 
 Before signing, a wallet shows the user the origin, the purpose, the chain, the
-signing address, and the whole text decoded as UTF-8 (not its base64), and
-says that nothing goes on chain. The text is the requester's, so the wallet
-shows its control and bidirectional-override characters visibly rather than
-letting them act. It signs only a document built from those
-values, with the origin it established itself.
+signing address, and the whole text, and says that nothing goes on chain. The
+text is the requester's, so the wallet shows its bidirectional-override
+characters visibly rather than letting them act. It signs only a document built
+from those values, with the origin it established itself.
 
 ## Verifying
 
@@ -141,9 +146,9 @@ accepts it once.
 ## The earlier format
 
 An earlier version of this format signed ADR-036's `{signer, data}` with the
-chain id, and nothing else, in the message. Its proofs are refused by
-`std.VerifySignDataProof`, since a proof without `origin` and `purpose` binds
-neither the service nor the use.
+chain id, and nothing else, in the message, the data in base64. Its proofs are
+refused by `std.VerifySignDataProof`, since a proof without `origin` and
+`purpose` binds neither the service nor the use.
 
 The two can be told apart: only the current document's message carries
 `origin`. While wallets still produce the earlier one, a service that has to
@@ -153,8 +158,9 @@ moved on.
 
 ## Test vectors
 
-`tm2/pkg/std/signdata_test.go` pins the bytes and the signatures of a
-`gnoland-1` proof, for the origin `https://gno.land` and the purpose
-`auth/SignIn`, from the key of gnoland's default test mnemonic. The signatures
+`tm2/pkg/std/signdata_test.go` pins the bytes and the signatures of
+`gnoland-1` proofs, for the origin `https://gno.land` and the purpose
+`auth/SignIn`, from the key of gnoland's default test mnemonic. One of their
+texts holds every character the document escapes. The signatures
 come from another implementation, `@cosmjs/amino`, so that an implementation
 checked against them agrees with more than itself.

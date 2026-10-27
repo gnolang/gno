@@ -22,8 +22,9 @@ bytes a service supplies can be made to sign a transaction's sign document.
 `std.SignDataPayload` builds ADR-036's off-chain document: a transaction sign
 document whose single message is `sign/MsgSignData {signer, data, origin, purpose}`,
 with `account_number`, `sequence` and `gas` at `"0"`, an empty fee and an empty
-memo, sorted by key. ADR-036's message is `{signer, data}`; `origin` and
-`purpose` are added (see 2). The format is specified in
+memo, sorted by key. ADR-036's message is `{signer, data}`, the data in
+base64; here `data` is the text itself (see 3), and `origin` and `purpose` are
+added (see 2). The format is specified in
 `docs/resources/sign-data.md`. The payload is pinned against signatures from
 `@cosmjs/crypto`, Adena's signing stack, so a service handles a proof from
 gnokey or Adena the same way.
@@ -71,18 +72,34 @@ signing and verifying enforce the same rule:
   screen in all of them. Loosening the set later is compatible, tightening it
   is not.
 
-Both rules keep the document ASCII outside `data`, which is base64. They sit inside the message, not at the document's root.
-The root's keys are fixed: the Ledger Cosmos app checks them against an
-allowlist (see `signDocFee`). Adena already ships the document without them, so
-adding them is a format change now. After the Ledger app and more wallets ship
-it, the same change would cost more.
+Both rules keep the two fields ASCII. They sit inside the message, not at the
+document's root. The root's keys are fixed: the Ledger Cosmos app checks them
+against an allowlist (see `signDocFee`). Adena already ships the document
+without them, so adding them is a format change now. After the Ledger app and
+more wallets ship it, the same change would cost more.
 
-### 3. Keep the chain id
+### 3. Carry the data as text
+
+`data` is the text the user reads, written into the document as a JSON string.
+It is non-empty UTF-8 with no control character but the line feed, and neither
+U+2028 nor U+2029. JSON encoders disagree on how to write exactly those: Go
+writes U+2028 as `\u2028`, JavaScript and `@cosmjs/amino` leave it as it is.
+Without them, Go and `serializeSignDoc` write the same bytes, which the pinned
+vectors check, `"`, `\`, a line break and `<`, `>`, `&` included.
+
+Refusing the other control characters, which encoders do write alike, keeps
+them off the approval screen too.
+
+The field's type then says what the format allows: text, not any bytes. The
+Ledger Cosmos app, which shows values without decoding them, shows an ASCII
+challenge as it is rather than its base64, and other characters as `\uXXXX`.
+
+### 4. Keep the chain id
 
 ADR-036 leaves `chain_id` empty. Here it is required and signed, as Adena does,
 so a proof made on one network is refused on another.
 
-### 4. Verify against rebuilt bytes, and only the canonical document
+### 5. Verify against rebuilt bytes, and only the canonical document
 
 A verifier gets the document back as a JSON object and may reserialize it in any
 key order, spacing or string escaping. `std.VerifySignData` reads its values,
@@ -94,13 +111,12 @@ what it expects to the caller.
 Only the JSON rendering may differ: key order, spacing and string escapes. The
 document, re-encoded sorted by key and compacted as the payload is, must equal
 the rebuilt bytes, so a missing or extra field, a key in another case, a number
-for a string, a null for the empty fee or non-canonical base64 in the data is
-refused. No object in the document or in the proof
-around it may repeat a key either: Go keeps a repeated key's last value and
-other parsers its first, so a service reading the document with another parser
-would see other values than the ones verified.
+for a string or a null for the empty fee is refused. No object in the
+document or in the proof around it may repeat a key either: Go keeps a repeated
+key's last value and other parsers its first, so a service reading the document
+with another parser would see other values than the ones verified.
 
-### 5. The proof's JSON lives in std
+### 6. The proof's JSON lives in std
 
 The proof is Adena's `SignArbitrary` answer:
 `{signed, signature: {pubKey: {typeUrl, value}, signature}}`.
@@ -109,7 +125,7 @@ reader accepts only a `/tm.PubKeySecp256k1` key of the right size and then calls
 `VerifySignData`. A Go service checks a proof in one call, and the writer and
 the reader cannot drift apart.
 
-### 6. Two gnokey commands
+### 7. Two gnokey commands
 
 - `gnokey sign-data -chainid <id> -origin <origin> -purpose <purpose>
   (-data <text> | -data-path <file>) <key>` prints the proof, or writes it with
@@ -142,6 +158,13 @@ the reader cannot drift apart.
   on the wallet, which already has the browser's serialization.
 - **A full URL in `origin`, path included.** A page's path is not who the
   service is: one service signs users in from many pages.
+- **`data` in base64, as ADR-036 and an earlier version of this PR do.** Every
+  encoder writes base64 the same way, so no character needs refusing. But the
+  field then reads as any bytes while the format allows only text, and a device
+  that does not decode it shows base64 instead of the challenge.
+- **Any UTF-8 text in `data`.** A wallet whose encoder writes U+2028 or a
+  control character differently from Go would sign bytes no verifier rebuilds,
+  and only for some texts.
 - **Printable ASCII, or any text without control characters, in `purpose`.**
   Either still lets a requester write a sentence into the approval screen. A
   name is what a service needs; the text the user reads goes in `data`.
@@ -172,22 +195,24 @@ the reader cannot drift apart.
 
 - A proof is bound to a chain, a service and a use, not to a time or a session.
   Replay protection is the service's job: a challenge carries its own nonce,
-  expiry and session, and the service accepts each one once. It keys on the challenge, not on the proof's
-  bytes: the envelope around the document is read leniently (its base64 skips
-  newlines, its keys match in any case), so one proof has many byte forms.
-  `VerifySignDataProof`'s doc says so.
+  expiry and session, and the service accepts each one once. It keys on the
+  challenge, not on the proof's bytes: the envelope around the document is read
+  leniently (its base64 skips newlines, its keys match in any case), so one
+  proof has many byte forms. `VerifySignDataProof`'s doc says so.
 - Verifying costs time and memory in proportion to the proof's size; a service
   bounds what it accepts.
 - Multisig and non-secp256k1 keys cannot make a proof. `VerifySignData` takes a
   `secp256k1.PubKeySecp256k1`, not a `crypto.PubKey`, so a service cannot hand
   it one either: a multisig address would otherwise verify.
+- A challenge holds no tab or carriage return: a service writes its line breaks
+  as line feeds, and gnokey refuses a file with Windows line endings.
 - The format is shared with Adena. Adena's released `SignArbitrary` signs the
-  document without `origin` and `purpose`. Its proofs are refused here until it
-  signs the new one. From then on, a change on either side must be made on both,
-  and the pinned vectors catch a divergence.
-- Both shapes will be in use while wallet releases roll out. They are told
-  apart by `origin`, which only the new message carries, and the docs say so:
-  a service that has to accept the old one binds it through its challenge text,
+  document without `origin` and `purpose`, its data in base64. Its proofs are
+  refused here until it signs the new one. From then on, a change on either side
+  must be made on both, and the pinned vectors catch a divergence.
+- Both shapes will be in use while wallet releases roll out. They are told apart
+  by `origin`, which only the new message carries, and the docs say so: a
+  service that has to accept the old one binds it through its challenge text,
   and stops once its users have moved on.
 - `std` gains `SignDataPayload`, `VerifySignData`, `SignedData`, `SignDataProof`
   (with `SignDataSignature` and `SignDataPubKey`), `SignDataPubKeyType`,

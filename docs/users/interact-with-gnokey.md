@@ -712,8 +712,10 @@ gnokey sign-data -chainid gnoland-1 \
 chain, for the service and for the use it names. The service tells you all
 three, along with the text. The origin is the service's website, its scheme
 and host only, such as `https://example.com`: no path, not even a trailing `/`. Use `-data-path` instead of `-data` to sign the
-contents of a file, as they are, a final newline included. Without
-`-output-document`, the proof is printed.
+contents of a file, as they are, a final newline included. The text may hold
+line breaks, but no tab, carriage return or other control character, so a file
+with Windows line endings is refused. Without `-output-document`, the proof is
+printed.
 
 The proof holds the signed text, your public key and the signature. It is not a
 transaction and can never be broadcast as one.
