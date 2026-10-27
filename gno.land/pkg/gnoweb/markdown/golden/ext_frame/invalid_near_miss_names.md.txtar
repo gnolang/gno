@@ -1,0 +1,12 @@
+-- input.md --
+<gno-framex>
+swallowed
+
+<gno-frame-foo>
+swallowed
+
+after
+-- output.html --
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>after</p>

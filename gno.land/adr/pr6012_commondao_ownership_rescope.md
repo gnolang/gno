@@ -69,6 +69,11 @@ presents a DAO in its own UI*.
   a latent vector in the prior caller-keyed skip, where any realm that created
   one DAO became an unlimited DAO factory for un-invited origins.
 
+  **Superseded.** Keying the invite on the origin while the council seat came
+  from `cur.Previous()` meant the two could name different identities. `New`
+  now keys both on the caller and requires that caller to be a user, which
+  bounds DAO creation without the split.
+
 ## Alternatives considered
 
 - **Keep a slim per-DAO owner for listing** (+ `RenounceOwnership`): rejected —
@@ -84,6 +89,8 @@ presents a DAO in its own UI*.
   behavior): rejected — it preserves the unlimited-factory vector; origin-keying
   is more spam-resistant and was verified not to break the multi-DAO
   builder-realm test (its origin is a constant EOA across creations).
+  **Superseded:** caller-keying was adopted, with `assertCallerIsUser`
+  bounding DAO creation instead.
 
 ## Consequences
 

@@ -15,10 +15,11 @@ import (
 )
 
 type MakeEnablePkgCfg struct {
-	RootCfg *client.MakeTxCfg
-	PkgPath string
-	PkgDir  string
-	PkgHash string
+	RootCfg   *client.MakeTxCfg
+	PkgPath   string
+	PkgDir    string
+	PkgHash   string
+	PkgHeight int64
 }
 
 func NewMakeEnablePkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command {
@@ -41,7 +42,14 @@ could be made to activate something the approver never read.
 Give the source with -pkgdir, which hashes a local copy of what you reviewed.
 Do not take the hash from the chain -- that would approve whatever is parked
 right now, which is the thing this guards against. -pkg-hash is for the case
-where the hash was computed elsewhere.`,
+where the hash was computed elsewhere.
+
+The hash covers what the author's directory declares, which is everything you
+can read locally. It cannot cover the [addpkg] section the chain writes at
+submit, so a re-submission of the same sources keeps the same hash while
+changing the storage-deposit ceiling that YOUR transaction pays against. Pass
+-pkg-height with the block the submission you reviewed landed in to pin that
+too; any re-submission then invalidates the approval.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -70,6 +78,13 @@ func (c *MakeEnablePkgCfg) RegisterFlags(fs *flag.FlagSet) {
 		"pkg-hash",
 		"",
 		"the content hash to approve, if computed elsewhere; alternative to -pkgdir",
+	)
+
+	fs.Int64Var(
+		&c.PkgHeight,
+		"pkg-height",
+		0,
+		"block height of the submission being approved; pins it so a re-submission invalidates this approval",
 	)
 }
 
@@ -117,7 +132,15 @@ func execMakeEnablePkg(cfg *MakeEnablePkgCfg, args []string, io commands.IO) err
 		if memPkg.IsEmpty() {
 			return errors.New("found an empty package at " + cfg.PkgDir)
 		}
-		pkgHash = vm.PackageContentHash(memPkg)
+		// Checked, not assigned: PackageContentHash fails on a directory with
+		// no gnomod.toml, a malformed one, or one over gnomod's size limit, and
+		// swallowing that would produce a signed approval naming no source at
+		// all -- exactly what the -pkgdir/-pkg-hash guard above exists to
+		// prevent, except discovered on chain after the fee is paid.
+		pkgHash, err = vm.PackageContentHash(memPkg)
+		if err != nil {
+			return errors.Wrap(err, "hashing the reviewed source")
+		}
 	}
 
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -126,9 +149,10 @@ func execMakeEnablePkg(cfg *MakeEnablePkgCfg, args []string, io commands.IO) err
 	}
 
 	msg := vm.MsgEnablePackage{
-		Approver: approver,
-		PkgPath:  cfg.PkgPath,
-		PkgHash:  pkgHash,
+		Approver:  approver,
+		PkgPath:   cfg.PkgPath,
+		PkgHash:   pkgHash,
+		PkgHeight: cfg.PkgHeight,
 	}
 	tx := std.Tx{
 		Msgs:       []std.Msg{msg},

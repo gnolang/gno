@@ -3,7 +3,7 @@ package lplist
 import (
 	"testing"
 
-	"gno.land/p/moul/ulist"
+	"gno.land/p/moul/ulist/v0"
 )
 
 // TestLayeredProxyListBasicOperations tests the basic operations of LayeredProxyList

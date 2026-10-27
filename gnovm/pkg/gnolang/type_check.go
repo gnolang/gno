@@ -177,8 +177,11 @@ func checkSame(at, bt Type, msg string) error {
 	return nil
 }
 
-func mustAssignableTo(n Node, xt, dt Type) {
-	err := checkAssignableTo(n, xt, dt)
+// mustAssignableTo panics if xt is not assignable to dt. store supplies the
+// per-tx preprocess gas meter that bills the interface-satisfaction walk when
+// dt is an interface (see checkAssignableTo).
+func mustAssignableTo(store Store, n Node, xt, dt Type) {
+	err := checkAssignableTo(store, n, xt, dt)
 	if err != nil {
 		if debug {
 			debug.Printf("checkAssignableTo fail: %v\n", err)
@@ -381,7 +384,10 @@ func checkValDefineMismatch(n Node) {
 }
 
 // Assert that xt can be assigned as dt (dest type).
-func checkAssignableTo(n Node, xt, dt Type) (err error) {
+// store supplies the per-tx preprocess gas meter (preprocessGasMeterOf) that
+// bills the interface-satisfaction walk when dt is an interface; a nil store
+// (tests) leaves it unmetered.
+func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
@@ -421,10 +427,10 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	// case3
 	if dt.Kind() == InterfaceKind { // note native interface
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
-			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
+			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.VerifyImplementedBy(xt); err == nil {
+			} else if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
@@ -561,7 +567,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			return checkAssignableTo(n, pt.Elt, cdt.Elt)
+			return checkAssignableTo(store, n, pt.Elt, cdt.Elt)
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
@@ -583,7 +589,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
 			if cdt.Vrd {
-				return checkAssignableTo(n, st.Elt, cdt.Elt)
+				return checkAssignableTo(store, n, st.Elt, cdt.Elt)
 			} else {
 				err := checkSame(st.Elt, cdt.Elt, "")
 				if err != nil {
@@ -709,7 +715,9 @@ func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 // e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
-func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
+// store supplies the preprocess gas meter for the EQL/NEQ operand check
+// (`S{} == i` runs the same interface-satisfaction walk as an assignment).
+func (x *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 	xt, dt, swapped := lt, rt, false
 	if shouldSwapOnSpecificity(lt, rt) {
 		xt, dt, swapped = dt, xt, true
@@ -729,7 +737,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 					panic(fmt.Sprintf("%v is not comparable", dt))
 				}
 			}
-			err := checkAssignableTo(x, xt, dt)
+			err := checkAssignableTo(store, x, xt, dt)
 			if err != nil {
 				if debug {
 					debug.Printf("checkAssignableTo fail: %v\n", err)
@@ -738,7 +746,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
-				x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString(), swapped)
+				x.checkCompatibility(store, x, xt, dt, checker, x.Op.TokenString(), swapped)
 			} else {
 				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
@@ -747,7 +755,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[x.Op]; ok {
-			x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString(), swapped)
+			x.checkCompatibility(store, x, xt, dt, checker, x.Op.TokenString(), swapped)
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
@@ -775,7 +783,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 // The function checkOrConvertType will be invoked after this check.
 // NOTE: dt is established based on a specificity check between xt and dt,
 // confirming dt as the appropriate destination type for this context.
-func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type) bool, OpStr string, swapped bool) {
+func (x *BinaryExpr) checkCompatibility(store Store, n Node, xt, dt Type, checker func(t Type) bool, OpStr string, swapped bool) {
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
@@ -791,7 +799,7 @@ func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type
 
 	// if both typed
 	if !isUntyped(xt) && !isUntyped(dt) {
-		err := checkAssignableTo(n, xt, dt)
+		err := checkAssignableTo(store, n, xt, dt)
 		if err != nil {
 			if debug {
 				debug.Printf("checkAssignableTo fail: %v\n", err)
@@ -863,24 +871,24 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if kt != nil {
 		switch cxt := xt.(type) {
 		case *MapType:
-			mustAssignableTo(x, cxt.Key, kt)
+			mustAssignableTo(store, x, cxt.Key, kt)
 		case *SliceType, *ArrayType:
-			mustAssignableTo(x, IntType, kt)
+			mustAssignableTo(store, x, IntType, kt)
 		case PrimitiveType:
 			if cxt.Kind() == StringKind {
-				mustAssignableTo(x, IntType, kt)
+				mustAssignableTo(store, x, IntType, kt)
 			}
 		}
 	}
 	if vt != nil {
 		switch cxt := xt.(type) {
 		case *MapType:
-			mustAssignableTo(x, cxt.Value, vt)
+			mustAssignableTo(store, x, cxt.Value, vt)
 		case *SliceType, *ArrayType:
-			mustAssignableTo(x, cxt.Elem(), vt)
+			mustAssignableTo(store, x, cxt.Elem(), vt)
 		case PrimitiveType:
 			if cxt.Kind() == StringKind {
-				mustAssignableTo(x, Int32Type, vt) // rune
+				mustAssignableTo(store, x, Int32Type, vt) // rune
 			}
 		}
 	}
@@ -908,7 +916,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					// check assignable
 					for i, lx := range x.Lhs {
 						if lxt := evalAssignLhsType(store, last, lx); lxt != nil {
-							mustAssignableTo(x, cft.Results[i].Type, lxt)
+							mustAssignableTo(store, x, cft.Results[i].Type, lxt)
 						}
 					}
 				}
@@ -921,7 +929,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					// check first value
 					if dt := evalAssignLhsType(store, last, x.Lhs[0]); dt != nil { // see composite3.gno
 						ift := evalStaticTypeOf(store, last, cx)
-						mustAssignableTo(x, ift, dt)
+						mustAssignableTo(store, x, ift, dt)
 					}
 					// check second value
 					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil { // see composite3.gno
@@ -940,12 +948,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := baseOf(evalStaticTypeOf(store, last, cx.X))
 							if mt, ok := rt.(*MapType); ok {
-								mustAssignableTo(x, mt.Value, lt)
+								mustAssignableTo(store, x, mt.Value, lt)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
 							cpt := baseOf(evalStaticTypeOf(store, last, cx.X))
 							if mt, ok := cpt.(*MapType); ok {
-								mustAssignableTo(x, mt.Value, lt)
+								mustAssignableTo(store, x, mt.Value, lt)
 							} else {
 								panic("should not happen")
 							}
@@ -965,13 +973,17 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else { // len(Lhs) == len(Rhs)
 			if x.Op == ASSIGN {
 				// assert valid left value
-				for i, lx := range x.Lhs {
-					lt := evalAssignLhsType(store, last, lx)
-					if lt == nil {
-						continue // blank: nothing to check
-					}
-					rt := evalStaticTypeOf(store, last, x.Rhs[i])
-					mustAssignableTo(x, rt, lt)
+				//
+				// Only the left values are validated here. The rt-to-lt
+				// assignability of each pair is checked by the
+				// checkOrConvertType that preprocess runs over every Rhs[i]
+				// right after this call (the ASSIGN/len(Lhs)==len(Rhs)
+				// default branch), against the same lt — and this is the
+				// walk-bearing check: for an interface lt it runs the whole
+				// embedding-graph satisfaction walk, so doing it in both
+				// places billed it (and ran it) twice per assignment.
+				for _, lx := range x.Lhs {
+					evalAssignLhsType(store, last, lx)
 				}
 			}
 		}

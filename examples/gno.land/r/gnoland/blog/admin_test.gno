@@ -3,7 +3,7 @@ package blog
 import (
 	"testing"
 
-	"gno.land/p/demo/blog"
+	"gno.land/p/gnoland/blog/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"

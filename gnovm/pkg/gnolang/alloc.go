@@ -38,6 +38,35 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
+
+	// anchors holds destinations that have been allocated but are not yet
+	// reachable from any GC root: composite-literal element buffers,
+	// struct field buffers, default-value fills and call argument lists,
+	// while they are being filled. GarbageCollect visits them alongside
+	// the machine's own roots.
+	//
+	// An anchor is either a TypedValue buffer (the common case: a Go-local
+	// []TypedValue filled one entry at a time) or a whole object, for a
+	// destination whose entries are not a flat slice — doOpMapLit fills a
+	// MapValue's linked list, which cannot be expressed as a buffer.
+	//
+	// Without this, a fill that trips the cap part-way through is a cap
+	// bypass rather than a refusal: Reset()+Recount() cannot see the
+	// buffer, so the elements written so far vanish from the tally, the
+	// retried Allocate succeeds against the freed headroom, and the next
+	// element repeats it. The literal keeps growing while bytes stays
+	// flat.
+	//
+	// Strict LIFO and never spans an op boundary: Machine.runOnce
+	// truncates back to its entry depth when it catches a panic.
+	anchors []anchor
+}
+
+// anchor is one entry of Allocator.anchors: exactly one of tvs and obj is
+// set. See the anchors field.
+type anchor struct {
+	tvs []TypedValue
+	obj Value
 }
 
 // Allocation size constants for gas metering.
@@ -234,6 +263,53 @@ func NewAllocator(maxBytes int64) *Allocator {
 	return &Allocator{
 		maxBytes: maxBytes,
 	}
+}
+
+// PushAnchor marks tvs as under construction; see Allocator.anchors.
+// Pair every PushAnchor with a PopAnchor, and only pop once the object
+// that owns tvs is reachable from another GC root — with no allocation
+// between the pop and that point, since GC can only run from Allocate.
+func (alloc *Allocator) PushAnchor(tvs []TypedValue) {
+	if alloc == nil {
+		return
+	}
+	alloc.anchors = append(alloc.anchors, anchor{tvs: tvs})
+}
+
+// PushAnchorValue marks a whole object as under construction, for a
+// destination whose entries are not a flat []TypedValue and so cannot be
+// anchored with PushAnchor — a MapValue's linked list, for instance. GC
+// visits obj through the ordinary visitor, so everything already written
+// into it is counted. Same pairing rule as PushAnchor.
+func (alloc *Allocator) PushAnchorValue(obj Value) {
+	if alloc == nil {
+		return
+	}
+	alloc.anchors = append(alloc.anchors, anchor{obj: obj})
+}
+
+func (alloc *Allocator) PopAnchor() {
+	if alloc == nil {
+		return
+	}
+	alloc.anchors = alloc.anchors[:len(alloc.anchors)-1]
+}
+
+// AnchorDepth and TruncateAnchors let the op loop drop anchors left
+// behind by an op that panicked part-way through a fill.
+func (alloc *Allocator) AnchorDepth() int {
+	if alloc == nil {
+		return 0
+	}
+	return len(alloc.anchors)
+}
+
+func (alloc *Allocator) TruncateAnchors(depth int) {
+	if alloc == nil || len(alloc.anchors) <= depth {
+		return
+	}
+	clear(alloc.anchors[depth:])
+	alloc.anchors = alloc.anchors[:depth]
 }
 
 func (alloc *Allocator) SetGCFn(f func() (int64, bool)) {
