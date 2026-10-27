@@ -435,7 +435,7 @@ func (c *Client) SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.T
 		found := false
 		for i := range signedTx.Signatures {
 			if signedTx.Signatures[i].PubKey != nil && signedTx.Signatures[i].PubKey.Address() == signerInfo.GetAddress() {
-				signedTx.Signatures[i].SessionAddr = std.SessionAddress(signerInfo.GetAddress())
+				signedTx.Signatures[i].SessionAddr = signerInfo.GetAddress()
 				found = true
 			}
 		}
