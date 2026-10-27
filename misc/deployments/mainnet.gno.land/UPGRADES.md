@@ -27,4 +27,4 @@ An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEA
 Notes
 
 - `v1.3.0`, `v1.4.0` and `v1.5.0` were tagged after the fact, on 2026-09-22. At each halt, validators pulled the `chain-mainnet` image current at the time (`ran_as` in `upgrades.json`): the same code as the `:v1.x.0` images, reporting an unparseable version.
-- `halt_min_version` is *(not set)* for those three halts: the proposals set no floor. From `v1.6.0` on, every halt proposal names the version.
+- `halt_min_version` is *(not set)* for those three halts: the proposals set no floor. From `v1.7.0` on, every halt proposal names the version.
