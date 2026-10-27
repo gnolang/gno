@@ -2,8 +2,9 @@
 
 ## Status
 
-Proposed. Follows `tm2/adr/pr6404_tx_canonical_encoding.md`, which shipped
-the backward-compatible wire format and `amino.UnmarshalCanonical`.
+Proposed. Follows `tm2/adr/pr6404_tx_canonical_encoding.md`, which analysed
+the problem and added `amino.UnmarshalCanonical`, and #6399, which takes the
+zero session address off the wire with `amino:"skip_zero"`.
 
 ## Context
 
@@ -44,9 +45,9 @@ every included tx is canonical by construction; blocks before it are replayed
 by the binaries that produced them. The release it rides is the next
 coordinated release on the mainnet line after `v1.5.1`, the current rolling
 release; the ledger entry names it when the halt is scheduled. Merge order:
-#6404, then this change, then the related `runTx` tx-encoding change queued
-behind it, so the interaction is settled before merge rather than discovered
-at it.
+#6399, then #6404, then this change, then the related `runTx` tx-encoding
+change queued behind it, so the interaction is settled before merge rather
+than discovered at it.
 
 ## Alternatives considered
 
@@ -67,7 +68,7 @@ at it.
 
 - **State-breaking.** Ships as a coordinated upgrade, never as a rolling
   release, and only after the written-out zero session address has drained
-  from traffic: Go tools rebuilt from #6404, `amino-ts` with
+  from traffic: Go tools rebuilt from the module after #6399, `amino-ts` with
   gnolang/amino-ts#2; the ts-proto clients already emit the canonical form.
   Every master-key tx from an older Go client is refused from the first block
   of the enforcing release.
@@ -97,5 +98,9 @@ at it.
   padded tag and a nil message through `runTx` (baseapp), and on a real app
   with a signed tx: an explicit empty memo, a padded tag, a padded value
   inside the fee, a padded length inside the message `Any`, and the
-  written-out zero session address every Go client produced before #6404,
-  each decoding to the same signed tx and each rejected.
+  written-out zero session address every Go client produced before #6399,
+  each decoding to the same signed tx and each rejected. The last case is a
+  test of its own that stands down while the encoder still writes that
+  address, that is until #6399 is in the tree; before it the written-out form
+  is the canonical one and the omitted form is not, the reverse of what the
+  clients emit.

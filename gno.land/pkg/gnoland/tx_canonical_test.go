@@ -81,14 +81,11 @@ func joinFields(fields []wireField, pad int) []byte {
 	return out
 }
 
-// A signed tx re-encoded non-canonically decodes to the same tx, so its
-// signatures still verify, but it hashes differently; before the canonical
-// check the chain included it under a hash the sender never computed. Every
-// variant must now fail to decode in CheckTx and DeliverTx, at every nesting
-// level, while the sender's own bytes still deliver. The written-out zero
-// session address is the form every Go client produced before #6404.
-func TestTxNonCanonicalEncodingRejected(t *testing.T) {
-	t.Parallel()
+// canonicalSendApp boots an app at height 1 with a funded signer and returns
+// it with the canonical bytes of one signed bank send, split into its three
+// top-level fields: Msgs[0] as an Any, Fee, Signatures[0].
+func canonicalSendApp(t *testing.T) (abci.Application, []byte, []wireField) {
+	t.Helper()
 
 	const chainID = "test-chain"
 	key := getDummyKey(t)
@@ -117,10 +114,44 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 	canonical, err := amino.Marshal(tx)
 	require.NoError(t, err)
 
-	// Msgs[0] as an Any, Fee, Signatures[0].
 	top := splitFields(t, canonical)
 	require.Len(t, top, 3)
 	require.Equal(t, canonical, joinFields(top, -1), "the wire helpers must round-trip the canonical bytes")
+	return app, canonical, top
+}
+
+// requireSameTxRejected checks that bz decodes to the very tx canonical
+// encodes, then that both CheckTx and DeliverTx refuse it as non-canonical.
+func requireSameTxRejected(t *testing.T, app abci.Application, canonical, bz []byte, name string) {
+	t.Helper()
+
+	require.NotEqual(t, canonical, bz, name)
+	var decoded std.Tx
+	require.NoError(t, amino.Unmarshal(bz, &decoded), name)
+	reencoded, err := amino.Marshal(decoded)
+	require.NoError(t, err)
+	require.Equal(t, canonical, reencoded, "%s: mutation must decode to the same signed tx", name)
+
+	check := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+	require.False(t, check.IsOK(), name)
+	assert.Equal(t, std.TxDecodeError{}, check.Error, name)
+	assert.Contains(t, check.Log, "non-canonical encoding", name)
+
+	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: bz})
+	require.False(t, deliver.IsOK(), name)
+	assert.Equal(t, std.TxDecodeError{}, deliver.Error, name)
+	assert.Contains(t, deliver.Log, "non-canonical encoding", name)
+}
+
+// A signed tx re-encoded non-canonically decodes to the same tx, so its
+// signatures still verify, but it hashes differently; before the canonical
+// check the chain included it under a hash the sender never computed. Every
+// variant must now fail to decode in CheckTx and DeliverTx, at every nesting
+// level, while the sender's own bytes still deliver.
+func TestTxNonCanonicalEncodingRejected(t *testing.T) {
+	t.Parallel()
+
+	app, canonical, top := canonicalSendApp(t)
 	withTop := func(i int, raw []byte) []byte {
 		fields := slices.Clone(top)
 		fields[i].raw = raw
@@ -128,40 +159,43 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 	}
 	msgAny := splitFields(t, top[0].raw) // type_url, value
 	fee := splitFields(t, top[1].raw)    // gas_wanted, gas_fee
-	sig := splitFields(t, top[2].raw)    // pub_key, signature
-	require.Len(t, sig, 2, "a zero session address has no wire presence")
-	writtenSessionAddr := wireField{3, amino.Typ3ByteLength, []byte(crypto.Address{}.String())}
+	require.Less(t, canonical[0], byte(0x80))
 
 	mutations := map[string][]byte{
 		// Memo is field 4 and empty, so the encoder omitted it; write it out.
-		"explicit empty memo":                         slices.Concat(canonical, []byte{0x22, 0x00}),
-		"fee: gas_wanted value padded":                withTop(1, joinFields(fee, 0)),
-		"message: type_url length padded":             withTop(0, joinFields(msgAny, 0)),
-		"signature: zero session address written out": withTop(2, joinFields(append(slices.Clone(sig), writtenSessionAddr), -1)),
+		"explicit empty memo": slices.Concat(canonical, []byte{0x22, 0x00}),
+		// The first tag as a two-byte varint.
+		"fee: gas_wanted value padded":    withTop(1, joinFields(fee, 0)),
+		"message: type_url length padded": withTop(0, joinFields(msgAny, 0)),
 	}
-	// The first tag as a two-byte varint.
-	require.Less(t, canonical[0], byte(0x80))
 	mutations["padded first tag"] = slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
 
 	for name, bz := range mutations {
-		require.NotEqual(t, canonical, bz, name)
-		var decoded std.Tx
-		require.NoError(t, amino.Unmarshal(bz, &decoded), name)
-		reencoded, err := amino.Marshal(decoded)
-		require.NoError(t, err)
-		require.Equal(t, canonical, reencoded, "%s: mutation must decode to the same signed tx", name)
-
-		check := app.CheckTx(abci.RequestCheckTx{Tx: bz})
-		require.False(t, check.IsOK(), name)
-		assert.Equal(t, std.TxDecodeError{}, check.Error, name)
-		assert.Contains(t, check.Log, "non-canonical encoding", name)
-
-		deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: bz})
-		require.False(t, deliver.IsOK(), name)
-		assert.Equal(t, std.TxDecodeError{}, deliver.Error, name)
-		assert.Contains(t, deliver.Log, "non-canonical encoding", name)
+		requireSameTxRejected(t, app, canonical, bz, name)
 	}
 
 	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: canonical})
 	require.True(t, deliver.IsOK(), deliver.Log)
+}
+
+// TestTxLegacyZeroSessionAddrRejected: before #6399, every Go client wrote a
+// master-key signature's zero SessionAddr as its bech32 string, 42 bytes in
+// field 3. #6399 leaves it out, which makes those bytes another encoding of
+// the same signed tx, under another hash, and so refused here. Until #6399
+// is in this tree the written-out form is still what the encoder produces,
+// so there is nothing to reject and the test stands down.
+func TestTxLegacyZeroSessionAddrRejected(t *testing.T) {
+	t.Parallel()
+
+	app, canonical, top := canonicalSendApp(t)
+	sig := splitFields(t, top[2].raw) // pub_key, signature[, session_addr before #6399]
+	if len(sig) == 3 {
+		t.Skip("the encoder still writes the zero session address (before #6399): the legacy form is the canonical one")
+	}
+	require.Len(t, sig, 2, "a zero session address has no wire presence")
+
+	written := wireField{3, amino.Typ3ByteLength, []byte(crypto.Address{}.String())}
+	fields := slices.Clone(top)
+	fields[2].raw = joinFields(append(slices.Clone(sig), written), -1)
+	requireSameTxRejected(t, app, canonical, joinFields(fields, -1), "legacy written-out zero session address")
 }
