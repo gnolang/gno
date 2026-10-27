@@ -390,6 +390,6 @@ before its halt height may hold other encodings of the same transactions and
 are replayed by the earlier binaries, per the ledger contract above; the
 enforcing release only ever runs its own block range. Schedule the halt only
 once the clients in use emit the canonical form: Go tools built after #6399,
-`amino-ts` from the release carrying gnolang/amino-ts#2 (the ts-proto clients
-already do). Every master-key transaction from an older Go client carries a
+`amino-ts` 0.2.1 or later (gnolang/amino-ts#2, #4); the ts-proto clients
+already do. Every master-key transaction from an older Go client carries a
 written-out zero session address and is refused.

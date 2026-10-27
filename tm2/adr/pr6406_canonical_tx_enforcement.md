@@ -68,8 +68,8 @@ than discovered at it.
 
 - **State-breaking.** Ships as a coordinated upgrade, never as a rolling
   release, and only after the written-out zero session address has drained
-  from traffic: Go tools rebuilt from the module after #6399, `amino-ts` with
-  gnolang/amino-ts#2; the ts-proto clients already emit the canonical form.
+  from traffic: Go tools rebuilt from the module after #6399, `amino-ts`
+  0.2.1 or later (gnolang/amino-ts#2, #4); the ts-proto clients already emit the canonical form.
   Every master-key tx from an older Go client is refused from the first block
   of the enforcing release.
 - **Replay needs the earlier binaries.** A node that syncs history from
