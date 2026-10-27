@@ -18,12 +18,12 @@ const testProof = `{
     "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
     "fee": {"amount": [], "gas": "0"},
     "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-      "data": "aGVsbG8=", "origin": "https://gno.land", "purpose": "auth/SignIn"}}],
+      "data": "hello", "origin": "https://gno.land", "purpose": "auth/SignIn"}}],
     "memo": ""
   },
   "signature": {
     "pubKey": {"typeUrl": "/tm.PubKeySecp256k1", "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"},
-    "signature": "vMP1JVJNOW752KNjFSVfdRK86kgFwVSw2mFsjwmOHwEc2+J9MwmG6CcJuaU/5U311t9QgomlmxjiCahx3O7HqQ=="
+    "signature": "/MurcSWJpSzxdBDx+lwL4Ldo/n2J7NQ7vywYD1/qj7MSZ0Ms5QJ1E/xami0mU/EETYdC5BQDGJCUf/EhHJSAdw=="
   }
 }`
 
@@ -160,7 +160,7 @@ func TestVerifyData(t *testing.T) {
 		{
 			name:    "tampered signature",
 			args:    []string{"--chainid", "gnoland-1", "--data", "hello", testProofSigner},
-			proof:   strings.Replace(testProof, "vMP1JV", "wMP1JV", 1),
+			proof:   strings.Replace(testProof, `"/MurcS`, `"AMurcS`, 1),
 			wantErr: "invalid sign-data signature",
 		},
 		{

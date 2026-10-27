@@ -2,7 +2,6 @@ package std_test
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"testing"
 
@@ -67,7 +66,7 @@ func TestSignDataPayloadIsNoTransactionPayload(t *testing.T) {
 	lookalike := LookalikeMsg{
 		MsgType: std.SignDataMsgType,
 		Value: LookalikeData{
-			Data:    base64.StdEncoding.EncodeToString([]byte(d.Data)),
+			Data:    d.Data,
 			Origin:  d.Origin,
 			Purpose: d.Purpose,
 			Signer:  d.Signer.String(),

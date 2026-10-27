@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -47,7 +48,7 @@ type signDataMsg struct {
 // that bind a proof to one service and one use.
 type signDataValue struct {
 	Signer  string `json:"signer"`
-	Data    string `json:"data"` // base64 of the UTF-8 text
+	Data    string `json:"data"`
 	Origin  string `json:"origin"`
 	Purpose string `json:"purpose"`
 }
@@ -65,7 +66,8 @@ type SignedData struct {
 	Purpose string
 	Signer  crypto.Address
 	// Data is a text the user reads before signing, typically the service's
-	// challenge.
+	// challenge: non-empty UTF-8 with no control character but the line feed,
+	// and no U+2028 or U+2029 (see checkSignDataData).
 	Data string
 }
 
@@ -77,10 +79,9 @@ func SignDataPayload(d SignedData) ([]byte, error) {
 		return nil, errors.New("a sign-data document needs a chain id")
 	case d.Signer.IsZero():
 		return nil, errors.New("a sign-data document needs a signer")
-	case d.Data == "":
-		return nil, errors.New("a sign-data document needs data")
-	case !utf8.ValidString(d.Data):
-		return nil, errors.New("sign-data data must be UTF-8 text")
+	}
+	if err := checkSignDataData(d.Data); err != nil {
+		return nil, err
 	}
 	if err := checkSignDataOrigin(d.Origin); err != nil {
 		return nil, err
@@ -96,12 +97,33 @@ func SignDataPayload(d SignedData) ([]byte, error) {
 			Type: SignDataMsgType,
 			Value: signDataValue{
 				Signer:  d.Signer.String(),
-				Data:    base64.StdEncoding.EncodeToString([]byte(d.Data)),
+				Data:    d.Data,
 				Origin:  d.Origin,
 				Purpose: d.Purpose,
 			},
 		}},
 	})
+}
+
+// checkSignDataData checks that data is non-empty UTF-8 text with no control
+// character but the line feed, and no U+2028 or U+2029. Every JSON encoder then
+// writes it the same way (Go escapes those two, JavaScript does not), and a
+// wallet shows it as it is, with no control character acting on the screen.
+func checkSignDataData(data string) error {
+	switch {
+	case data == "":
+		return errors.New("a sign-data document needs data")
+	case !utf8.ValidString(data):
+		return errors.New("sign-data data must be UTF-8 text")
+	}
+
+	for _, r := range data {
+		if (unicode.IsControl(r) && r != '\n') || r == '\u2028' || r == '\u2029' {
+			return fmt.Errorf("sign-data data holds %U: no control character but the line feed, and no U+2028 or U+2029", r)
+		}
+	}
+
+	return nil
 }
 
 // maxSignDataOrigin and maxSignDataPurpose bound what a wallet shows the user.
@@ -242,8 +264,8 @@ type signDataDoc struct {
 // must otherwise be the canonical document: re-encoded sorted by key and
 // compacted, it must equal the bytes rebuilt from its values, and no object may
 // repeat a key. Missing or extra fields, numbers for strings, a null for the
-// empty fee, non-canonical base64 in the data and a duplicate key are refused,
-// so no other document passes for one, whatever parser reads it.
+// empty fee and a duplicate key are refused, so no other document passes for
+// one, whatever parser reads it.
 func VerifySignData(doc []byte, pubKey secp256k1.PubKeySecp256k1, sig []byte) (SignedData, error) {
 	var d signDataDoc
 	if err := unmarshalStrict(doc, &d); err != nil {
@@ -257,17 +279,13 @@ func VerifySignData(doc []byte, pubKey secp256k1.PubKeySecp256k1, sig []byte) (S
 	if err != nil {
 		return SignedData{}, fmt.Errorf("invalid sign-data signer, %w", err)
 	}
-	data, err := base64.StdEncoding.DecodeString(d.Msgs[0].Value.Data)
-	if err != nil {
-		return SignedData{}, fmt.Errorf("invalid sign-data data, %w", err)
-	}
 
 	signed := SignedData{
 		ChainID: d.ChainID,
 		Origin:  d.Msgs[0].Value.Origin,
 		Purpose: d.Msgs[0].Value.Purpose,
 		Signer:  signer,
-		Data:    string(data),
+		Data:    d.Msgs[0].Value.Data,
 	}
 	payload, err := SignDataPayload(signed)
 	if err != nil {

@@ -28,17 +28,26 @@ var signDataVectors = []struct {
 		name: "ascii",
 		data: "hello",
 		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","origin":"https://gno.land",` +
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"hello","origin":"https://gno.land",` +
 			`"purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
-		sig: "vMP1JVJNOW752KNjFSVfdRK86kgFwVSw2mFsjwmOHwEc2+J9MwmG6CcJuaU/5U311t9QgomlmxjiCahx3O7HqQ==",
+		sig: "/MurcSWJpSzxdBDx+lwL4Ldo/n2J7NQ7vywYD1/qj7MSZ0Ms5QJ1E/xami0mU/EETYdC5BQDGJCUf/EhHJSAdw==",
 	},
 	{
 		name: "non-ascii",
 		data: "Sign in to Gnoland · 서명 · 🔑",
 		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"U2lnbiBpbiB0byBHbm9sYW5kIMK3IOyEnOuqhSDCtyDwn5SR",` +
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"Sign in to Gnoland · 서명 · 🔑",` +
 			`"origin":"https://gno.land","purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
-		sig: "bdfc8wLsFy2lL3Uk6Lbms0FMOjTeaFdGXpkqCmF2lpoXZ1lqa6UQex7MoZ3ACpCqDZjKC+Qb6tHelHXT4cAQWA==",
+		sig: "qU9OIY0id/n22g621wUo3iyrrBtrgk28AGFii7jQrUU+/YwPWcajzX12ZuyL2CUmY62606/1cT7Gs4K+tnx/Ug==",
+	},
+	{
+		// Every character an encoder escapes in a text the data may hold.
+		name: "escapes",
+		data: "Sign in to <gno.land> & \"Gnoland\"\npath: C:\\gno\nnonce: 9UQVko4o",
+		payload: `{"account_number":"0","chain_id":"gnoland-1","fee":{"amount":[],"gas":"0"},"memo":"",` +
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"Sign in to \u003cgno.land\u003e \u0026 \"Gnoland\"\npath: C:\\gno\nnonce: 9UQVko4o",` +
+			`"origin":"https://gno.land","purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
+		sig: "hcquZkFbTSN9W0whGiNUA5ZRBVbpkYa+BmEUN08dpvdo7atfbCagVaNCZvZ9595xmtuM3fCntIwg+aAGBvTXFw==",
 	},
 }
 
@@ -95,7 +104,7 @@ func TestSignDataPayload_EscapesHTMLCharacters(t *testing.T) {
 	// From cosmjs serializeSignDoc.
 	assert.Equal(t,
 		`{"account_number":"0","chain_id":"a\u003cb\u003ec\u0026d","fee":{"amount":[],"gas":"0"},"memo":"",`+
-			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"aGVsbG8=","origin":"https://gno.land",`+
+			`"msgs":[{"type":"sign/MsgSignData","value":{"data":"hello","origin":"https://gno.land",`+
 			`"purpose":"auth/SignIn","signer":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}}],"sequence":"0"}`,
 		string(payload),
 	)
@@ -116,8 +125,6 @@ func TestSignDataPayload_Rejects(t *testing.T) {
 		{"empty purpose", func(d *SignedData) { d.Purpose = "" }},
 		{"zero signer", func(d *SignedData) { d.Signer = crypto.Address{} }},
 		{"empty data", func(d *SignedData) { d.Data = "" }},
-		// It is a text a user reads before signing, not bytes.
-		{"invalid UTF-8 data", func(d *SignedData) { d.Data = "\xff\xfe" }},
 	}
 
 	for _, testCase := range testTable {
@@ -180,6 +187,34 @@ func TestSignDataPayload_Origin(t *testing.T) {
 	}
 
 	testSignDataField(t, "origin", func(d *SignedData, v string) { d.Origin = v }, valid, invalid)
+}
+
+// The data is a text a user reads before signing, and every JSON encoder writes
+// it the same way.
+func TestSignDataPayload_Data(t *testing.T) {
+	t.Parallel()
+
+	valid := []string{
+		"hello",
+		"line one\nline two",
+		`a "quote" and a \ backslash`,
+		"<b>&amp;</b>",
+		"서명 · 🔑",
+		"\u202e", // a wallet shows it visibly
+	}
+	invalid := []string{
+		"\xff\xfe",
+		"a\tb",
+		"line one\r\nline two",
+		"a\x00b",
+		"\x1b[31mred",
+		"a\x7fb",
+		"a\u0085b",
+		"a\u2028b",
+		"a\u2029b",
+	}
+
+	testSignDataField(t, "sign-data data", func(d *SignedData, v string) { d.Data = v }, valid, invalid)
 }
 
 // A wallet shows the purpose as it is, so it holds nothing that could reshape
@@ -259,12 +294,13 @@ func TestVerifySignData_AcceptsAnyRenderingOfTheDocument(t *testing.T) {
 	sig, err := base64.StdEncoding.DecodeString(v.sig)
 	require.NoError(t, err)
 
-	// The document as a JavaScript client would stringify it, in its own key order.
+	// The document as a JavaScript client would stringify it, in its own key order
+	// and with an escape of its own.
 	doc := `{
 	  "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
 	  "fee": {"amount": [], "gas": "0"},
 	  "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-	    "data": "aGVsbG8=", "origin": "https://gno.land", "purpose": "auth/SignIn"}}],
+	    "data": "h\u0065llo", "origin": "https://gno.land", "purpose": "auth/SignIn"}}],
 	  "memo": ""
 	}`
 
@@ -318,7 +354,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 	}{
 		// The claim a verifier relies on: the key it is handed is the signer's.
 		{"a key that is not the signer's", v.payload, other, sig},
-		{"tampered data", replace(`"aGVsbG8="`, `"aGVsbG8h"`), pub, sig},
+		{"tampered data", replace(`"data":"hello"`, `"data":"hellp"`), pub, sig},
 		{"another chain", replace(`"gnoland-1"`, `"dev"`), pub, sig},
 		{"another origin", replace(`"https://gno.land"`, `"https://evil.example"`), pub, sig},
 		{"another purpose", replace(`"auth/SignIn"`, `"auth/Other"`), pub, sig},
@@ -332,7 +368,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		{"another message type", replace(`"sign/MsgSignData"`, `"bank/MsgSend"`), pub, sig},
 		{"two messages", replace(`"msgs":[`, `"msgs":[`+msg+`,`), pub, sig},
 		{"an unknown field", replace(`"memo":""`, `"memo":"","extra":1`), pub, sig},
-		{"data that is not base64", replace(`"aGVsbG8="`, `"not base64!"`), pub, sig},
+		{"data with a line separator", replace(`"data":"hello"`, `"data":"hel\u2028lo"`), pub, sig},
 		{"a signer that is not an address", replace(signDataTestSigner, "g1nope"), pub, sig},
 		{"not JSON", "hello", pub, sig},
 		// Beyond its JSON rendering, a document must be the canonical one,
@@ -344,11 +380,10 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		{"a null fee amount", replace(`"amount":[]`, `"amount":null`), pub, sig},
 		{"a number for a string", replace(`"account_number":"0"`, `"account_number":0`), pub, sig},
 		{"a key in another case", replace(`"chain_id"`, `"Chain_ID"`), pub, sig},
-		{"non-canonical base64", replace(`"aGVsbG8="`, `"aGVsbG9="`), pub, sig},
 		{"data after the document", v.payload + "{}", pub, sig},
 		// Parsers disagree on which value a repeated key holds.
 		{"a repeated chain id", replace(`"chain_id":"gnoland-1"`, `"chain_id":"evil","chain_id":"gnoland-1"`), pub, sig},
-		{"repeated data", replace(`"data":"aGVsbG8="`, `"data":"ZXZpbA==","data":"aGVsbG8="`), pub, sig},
+		{"repeated data", replace(`"data":"hello"`, `"data":"evil","data":"hello"`), pub, sig},
 		// Nested past Unmarshal's depth limit, so the duplicate-key walk never
 		// recurses that deep.
 		{"deep nesting", strings.Repeat("[", 3_000_000) + strings.Repeat("]", 3_000_000), pub, sig},
@@ -421,7 +456,7 @@ func TestVerifySignDataProof_Rejects(t *testing.T) {
 		{"a truncated key", replace(signDataTestPubKey, signDataTestPubKey[:40]), "public key"},
 		{"a signature that is not base64", replace(signDataVectors[0].sig, "not base64!"), "signature is not base64"},
 		{"a corrupted signature", replace(signDataVectors[0].sig, "9"+signDataVectors[0].sig[1:]), "invalid sign-data signature"},
-		{"tampered data", replace(`"aGVsbG8="`, `"aGVsbG8h"`), "invalid sign-data signature"},
+		{"tampered data", replace(`"data":"hello"`, `"data":"hellp"`), "invalid sign-data signature"},
 		{"not JSON", "hello", "unable to read sign-data proof"},
 		{"a repeated signed document", replace(`"signed": `, `"signed": {}, "signed": `), `duplicate key "signed"`},
 	}
