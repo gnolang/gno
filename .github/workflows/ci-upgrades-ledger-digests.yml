@@ -35,6 +35,7 @@ jobs:
           # A tool's stderr goes here, not into the value it is compared on:
           # a warning from a call that succeeds must not read as drift.
           err="$(mktemp)"
+          trap 'rm -f "${err}"' EXIT
           for ledger in misc/deployments/*/upgrades.json; do
             echo "== ${ledger}"
             # One line per recorded value: what it is, the reference to look
