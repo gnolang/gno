@@ -103,16 +103,7 @@ runs, and the two are not the same thing:
   that change no node code (the ledger, `VALIDATOR.md`, the release workflows,
   `cut-release.sh`). Operators still run the tag, never the tip: a build of
   anything but the tag reports a version no `halt_min_version` accepts.
-- **The commits a release is cut from reach the chain branch through a pull
-  request that is never merged.** They are a subset of `master` on an older
-  base, a tree no CI run has seen as a whole. Push them, with the ledger entry
-  on top, to a branch `chain-upgrade/vX.Y.Z-rc.N`, open a pull request into the
-  chain branch labelled `don't merge`, and once CI is green fast-forward the
-  chain branch to it with a plain push; GitHub then marks the pull request
-  merged. Never squash-merge it: that folds the cherry-picks into one commit
-  and changes the commit the ledger entry names. A fix for a failed candidate
-  goes the same way, on its own `chain-upgrade/vX.Y.Z-rc.N+1` branch and pull
-  request.
+- **The commits a release is cut from reach the chain branch through a pull request that is never merged.** They are a subset of `master` on an older base, a tree no CI run has seen as a whole. Push them to a branch `chain-upgrade/vX.Y.Z-rc.N`, open a pull request into the chain branch labelled `don't merge`, and once CI is green fast-forward the chain branch to it with a plain push; GitHub then marks the pull request merged. Never squash-merge it: that folds the cherry-picks into one commit, so the chain branch no longer shows which `master` commits it carries. A fix for a failed candidate goes the same way, on its own `chain-upgrade/vX.Y.Z-rc.N+1` branch and pull request.
 - **Where this ends up.** Merging `master` is the natural default while mainnet
   tracks it closely. The day `master` carries work mainnet must not ship yet,
   the default flips to cherry-picking and the branch becomes a maintained
@@ -124,12 +115,12 @@ runs, and the two are not the same thing:
 ## Cutting a release
 
 ```sh
-# dry run: every check, no push. Once the ledger entry is pushed on top of the
-# code, the branch tip is the ledger commit, so every cut names the code commit
+# dry run: every check, no push. The branch tip may carry deployment docs on
+# top of the code, so every cut names the code commit
 misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
-# --commit names the code commit, the one the ledger entry names (item 6)
+# The tag records no height: it can change until the proposal executes
 misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
   --halt-height 120000 --push
 ```
@@ -153,18 +144,7 @@ corresponds to something that has gone wrong before. All but one are refusals:
    reported `develop`, satisfied no `halt_min_version`, and were not
    reproducible from the tag, until the `v1.2.0` release replaced them; this
    check is what catches that class of mistake before validators download it.
-6. **The upgrade ledger passes `upgrades check` and has an entry for the
-   version, naming the commit being tagged**
-   (`misc/deployments/<chain>.gno.land/upgrades.json`). The check is the one CI
-   runs: the ledger validates and its `UPGRADES.md` is current. The entry is
-   written before the release is cut, with its image digest and binaries null
-   until CI has built them. The script reads the ledger from the checkout it
-   runs in, not from the commit it tags: commit the entry on top of the code
-   being released, and cut from that checkout with `--commit` naming the code
-   commit, which is the commit the entry names. A release candidate only warns,
-   since it rehearses the final version's entry; a final release without one,
-   with a ledger that fails the check, or whose entry names another commit, is
-   refused. A chain with no `upgrades.json` skips this check.
+6. **The upgrade ledger passes `upgrades check`, and an entry it has for the version names the commit being tagged** (`misc/deployments/<chain>.gno.land/upgrades.json`). The check is the one CI runs: the ledger validates and its `UPGRADES.md` is current. The entry is written once the chain runs the release (see [Release pages and the upgrade ledger](#release-pages-and-the-upgrade-ledger)), so a version without one only warns. The script reads the ledger from the checkout it runs in, not from the commit it tags. A release candidate only warns, since the final release cut after it, on its commit, is checked the same way; a final release with a ledger that fails the check, or whose entry names another commit, is refused. A chain with no `upgrades.json` skips this check.
 
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
@@ -223,14 +203,7 @@ cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
   --certificate-identity https://github.com/gnolang/gno/.github/workflows/release-docker.yml@refs/tags/v1.6.0
 ```
 
-The release binaries are not reproducible from the tag (they are built
-without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the
-attestation, the checksums and the ledger's recorded digests are the
-operator's anchors. `ci / upgrades-ledger-digests` checks, daily, the digests
-and checksums the ledgers record for each version: each image digest against
-the registry, each `ran_as` image still resolving, each binary checksum
-against its release asset. It reports every difference and fails at the end;
-a value still pending the build is listed, not checked.
+The release binaries are not reproducible from the tag (they are built without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the attestation, the checksums and the ledger's recorded digests are the operator's anchors. `ci / upgrades-ledger-digests` checks, daily, what the ledgers record for each version: its commit against the commit its version's tag points to, each image digest against the registry, each `ran_as` image still resolving, each binary checksum against its release asset. It reports every difference and fails at the end; a value still pending the build is listed, not checked.
 
 ### Rehearse on the testnet first
 
@@ -273,10 +246,7 @@ Two kinds of release page, one job each:
 
 - `chain/<name>` is the genesis record: `genesis.json`, its `.gz`, their
   checksums, and a description of the chain at birth. Frozen; no binaries.
-- `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`,
-  for a coordinated upgrade the halt height and `halt_min_version` that made it
-  live, the eight image URLs, and the changelog. The workflow attaches the
-  binaries with generated notes; the rest is written by hand.
+- `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`, for a coordinated upgrade the `halt_min_version` and, once the halt proposal has executed, the halt height that made it live, the eight image URLs, and the changelog. The workflow attaches the binaries with generated notes; the rest is written by hand.
 
 `misc/deployments/<chain>.gno.land/upgrades.json` is the ledger: one entry per
 version the network has run — the genesis, one per coordinated halt, and one
@@ -295,15 +265,7 @@ go run ./misc/deployments/upgrades render misc/deployments/mainnet.gno.land   # 
 go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # what CI runs
 ```
 
-Add the entry before cutting the release, with the image digest and the
-binaries null; fill both in, together, once CI has built the release, the
-proposal once it exists, and the halt time as soon as the halt has happened;
-render, and port both files to `master`. Only the last entry may still have
-null binaries, so they are filled in before the next release's entry is added.
-A testnet's ledger names what it ran, release candidates included.
-Every halt proposal names the version being released — `set-halt.sh` refuses a
-value the node cannot parse and an empty one, which would leave the restart
-gate off.
+Add the entry once the chain runs the release — after the halt for a coordinated upgrade, once validators run it for a rolling one — when everything it records is known: the halt height and the proposal once the proposal has executed, the halt time once the chain has halted, the image digest and binaries once CI has built the release. A complete entry renders no *(pending)* cell. Render, and port both files to `master`. A testnet's ledger names what it ran, release candidates included. Every halt proposal names the version being released — `set-halt.sh` refuses a value the node cannot parse and an empty one, which would leave the restart gate off.
 
 ### Coordinated upgrades
 
