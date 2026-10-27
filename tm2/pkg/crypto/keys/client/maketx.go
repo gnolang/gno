@@ -269,7 +269,7 @@ func SignAndBroadcastHandler(
 	}
 
 	if cfg.Master != "" {
-		signature.SessionAddr = std.SessionAddress(info.GetAddress())
+		signature.SessionAddr = info.GetAddress()
 	}
 
 	// Add the signature to the tx
@@ -293,7 +293,7 @@ func SignAndBroadcastHandler(
 				return nil, fmt.Errorf("unable to sign simulation transaction: %w", err)
 			}
 			if cfg.Master != "" {
-				simSig.SessionAddr = std.SessionAddress(info.GetAddress())
+				simSig.SessionAddr = info.GetAddress()
 			}
 			if err = addSignature(simTx, simSig); err != nil {
 				return nil, fmt.Errorf("unable to add simulation signature: %w", err)

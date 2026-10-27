@@ -192,7 +192,7 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.Session {
-		signature.SessionAddr = std.SessionAddress(info.GetAddress())
+		signature.SessionAddr = info.GetAddress()
 	}
 
 	if cfg.OutputDocument != "" {

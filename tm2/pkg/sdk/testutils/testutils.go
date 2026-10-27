@@ -317,7 +317,7 @@ func NewSessionTestSignature(
 
 	return std.Signature{
 		// PubKey omitted — stored on session account at creation.
-		SessionAddr: std.SessionAddress(sessionAddr),
+		SessionAddr: sessionAddr,
 		Signature:   sig,
 	}
 }
