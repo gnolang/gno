@@ -731,7 +731,11 @@ func (m *Machine) doOpFuncLit() {
 }
 
 func (m *Machine) doOpConvert() {
-	xv := m.PopValue().Copy(m.Alloc)
+	// Work on a machine-owned scratch slot: ConvertTo and IsReadonly take
+	// the value's address, which would otherwise make a local escape to
+	// the heap once per conversion executed.
+	m.convertScratch = m.PopValue().Copy(m.Alloc)
+	xv := &m.convertScratch
 	t := m.PopValue().GetType()
 
 	// Gas based on conversion variant.
@@ -757,7 +761,7 @@ func (m *Machine) doOpConvert() {
 	// victim authority. Blocking the conversion here (m.IsReadonly is
 	// the cross-realm ownership check) stops the launder before any
 	// method dispatch. See zrealm_launder_g_typepun.gno.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow conversion when xv.T is m.Realm's own
@@ -800,6 +804,7 @@ func (m *Machine) doOpConvert() {
 		}
 	}
 
-	ConvertTo(m.Alloc, m.Store, &xv, t, false)
-	m.PushValue(xv)
+	ConvertTo(m.Alloc, m.Store, xv, t, false)
+	m.PushValue(*xv)
+	m.convertScratch = TypedValue{}
 }

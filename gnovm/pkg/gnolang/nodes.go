@@ -752,6 +752,13 @@ type constTypeExpr struct {
 	Last   BlockNode // for GetTypeExprForExpr to resolve a *NameExpr.
 	Source Expr      // (preprocessed) source of this value.
 	Type   Type      // (jae) just `Type`? ConstExpr does it...
+
+	// cachedValue is the boxed TypedValue form of Type, filled by
+	// toConstTypeExpr so that evaluating the node doesn't re-box the
+	// type on every evaluation. Not persisted; nodes loaded from the
+	// store fall back to boxing in doOpEval (read-only there — no lazy
+	// fill, as nodes can be shared across machines).
+	cachedValue TypedValue
 }
 
 // ----------------------------------------

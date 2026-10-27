@@ -330,7 +330,14 @@ func (m *Machine) doOpEval() {
 	case *constTypeExpr:
 		m.PopExpr()
 		// push preprocessed type as value
-		m.PushValue(asValue(x.Type))
+		tv := x.cachedValue
+		if tv.T == nil {
+			// Node loaded from the store: the cache is not persisted.
+			// Read-only fallback (no lazy fill — nodes can be shared
+			// across machines).
+			tv = asValue(x.Type)
+		}
+		m.PushValue(tv)
 	case *FieldTypeExpr:
 		m.PushOp(OpFieldType)
 		// evaluate field type
