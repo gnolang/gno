@@ -22,6 +22,12 @@ set -eo pipefail
 # parser refuses. In the C locale the shape checks match the parser.
 export LC_ALL=C
 
+# The shape gno.land/pkg/gnoland.parseReleaseVersion accepts, spelled as an
+# ERE; kept identical to misc/release/cut-release.sh's VERSION_RE, and held to
+# the Go parser by gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
+# Keep it on one line.
+readonly VERSION_RE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+
 HEIGHT="${1?Usage: $0 HEIGHT MIN_VERSION (HEIGHT 0 cancels)}"
 MIN_VERSION="${2-}"
 
@@ -45,11 +51,7 @@ case "$HEIGHT" in
     echo "error: MIN_VERSION is required for a halt (height 0 is the cancel form)" >&2
     exit 1
   }
-  # The shape gno.land/pkg/gnoland.parseReleaseVersion accepts, spelled as an
-  # ERE; kept identical to misc/release/cut-release.sh's VERSION_RE, and held to
-  # the Go parser by gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
-  # Keep it on one line. The legacy alternative is betanet's two retired tags.
-  VERSION_RE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+  # The legacy alternative is betanet's two retired tags.
   if ! [[ $MIN_VERSION =~ $VERSION_RE || $MIN_VERSION =~ ^chain/gnoland(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
     echo "error: MIN_VERSION must be vMAJOR.MINOR.PATCH (got '$MIN_VERSION')." >&2
     echo "       A floor the node cannot parse degrades to byte equality and refuses" >&2

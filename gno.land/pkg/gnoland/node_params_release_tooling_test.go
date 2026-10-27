@@ -114,7 +114,10 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// set-halt.sh is the one a human runs to set the floor, so a looser
 		// shape there reaches the chain without passing the other two at all.
-		haltRE := grepOne(t, setHalt, `(?m)^  VERSION_RE='(.+)'$`)
+		// It defines the shape at the top, readonly, as cut-release.sh does:
+		// the script runs without set -u, and on Linux an unset VERSION_RE in
+		// [[ =~ ]] matches every version.
+		haltRE := grepOne(t, setHalt, `(?m)^readonly VERSION_RE='(.+)'$`)
 		assert.Equal(t, shapeRE, haltRE,
 			"%s accepts a different shape than %s; it writes halt_min_version directly", setHalt, cutRelease)
 
