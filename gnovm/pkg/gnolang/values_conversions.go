@@ -1232,7 +1232,15 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = nil
 		dst.SetFloat64(math.Float64bits(f))
 	case StringKind:
-		panic("not yet implemented")
+		// The code point's UTF-8, "\uFFFD" when it is not one (Go spec,
+		// Conversions).
+		s := "\uFFFD"
+		if bi.IsInt64() && bi.Int64() >= math.MinInt32 && bi.Int64() <= math.MaxInt32 {
+			s = string(rune(bi.Int64()))
+		}
+		dst.T = t
+		dst.ClearNum()
+		dst.V = StringValue(s)
 	case BigintKind:
 		dst.T = t
 		dst.ClearNum()

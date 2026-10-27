@@ -1678,6 +1678,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									constConverted = true
 								}
 							}
+						} else if ct.Kind() == StringKind && at == UntypedRuneType && arg0.V != nil {
+							// An untyped rune past int32 is not a code point:
+							// "\uFFFD" as gc, not the default type it overflows.
+							convertConst(store, last, n, arg0, ct)
+							constConverted = true
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
 							case Uint8Kind, Int32Kind:

@@ -1875,7 +1875,10 @@ func (tv *TypedValue) Sign() int {
 	case Int16Kind:
 		return signOfInteger(int64(tv.GetInt16()))
 	case Int32Kind:
-		return runeConstInt(tv).Sign()
+		if biv, ok := tv.V.(BigintValue); ok { // untyped rune past int32
+			return biv.V.Sign()
+		}
+		return signOfInteger(int64(tv.GetInt32()))
 	case Int64Kind:
 		return signOfInteger(tv.GetInt64())
 	case UintKind:

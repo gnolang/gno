@@ -64,6 +64,12 @@ kind, as the machine bounded untyped shifts; rationals promote to the
 past big.Float's range is `constant result is not representable`. An
 untyped integer result has no width cap, as before.
 
+go/constant's representation choices (rational until a component passes
+4096 bits, 512-bit float past that, the `%s` form of a value in an error)
+come from the Go toolchain the node is built with, as `math/big`'s did;
+the exact-value pins in `constfold_test.go` fail at a toolchain bump that
+moves one.
+
 ## Behaviour changes vs master
 
 - Untyped rune arithmetic, shifts and unary operators are exact (values
@@ -76,8 +82,10 @@ untyped integer result has no width cap, as before.
   wrapped or gave ±Inf).
 - `int64(float32(1<<54 + 1<<30 + 1))` is 18014400656965632.
 - Shift overflow of a typed constant uses gc's wording.
-
-Non-constant shift context typing (#6393) is out of scope.
+- `string(c)` of an untyped rune past int32 is `"\uFFFD"`, as gc.
+- A non-constant shift whose untyped rune operand is typed from its
+  context (`var x int64 = c << s`, `int64(c << s)`) shifts the exact
+  value. The contexts #6393 lists are unchanged.
 
 ## Upgrade hazard
 
