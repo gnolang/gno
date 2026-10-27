@@ -234,6 +234,24 @@ func TestRender_pendingCellsNeverShowNull(t *testing.T) {
 	assert.Contains(t, rolling, "*(pending)*", "its image digest is pending like any other entry's")
 }
 
+// A proposal id is only meaningful on the chain that made it, so its link goes
+// to that chain's gnoweb, and a chain with no known gnoweb gets no link.
+func TestRender_proposalLinksToItsChain(t *testing.T) {
+	t.Parallel()
+	for chainID, want := range map[string]string{
+		"gnoland-1": "| [#0](https://gno.land/r/gov/dao:0) |",
+		"onyx-1":    "| [#0](https://onyx.testnets.gno.land/r/gov/dao:0) |",
+		"test-1":    "| #0 |",
+	} {
+		t.Run(chainID, func(t *testing.T) {
+			t.Parallel()
+			l := parseValid(t)
+			l.ChainID = chainID
+			assert.Contains(t, l.RenderTable(), want)
+		})
+	}
+}
+
 func TestSplice_replacesOnlyTheGeneratedBlock(t *testing.T) {
 	t.Parallel()
 	doc := "# title\n\nprose before\n\n" + BeginMarker + "\n| old |\n" + EndMarker + "\n\nprose after\n"
@@ -345,6 +363,9 @@ func TestRepositoryLedgers(t *testing.T) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			t.Parallel()
 			assert.NoError(t, Check(dir))
+			l, err := Load(dir)
+			require.NoError(t, err)
+			assert.Contains(t, govdaoURLs, l.ChainID, "%s: its proposals render without links until govdaoURLs names its gnoweb", dir)
 		})
 	}
 }

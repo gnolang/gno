@@ -43,9 +43,16 @@ const (
 	notSetCell  = "*(not set)*"
 	noneCell    = "—"
 	repoURL     = "https://github.com/gnolang/gno"
-	govdaoURL   = "https://gno.land/r/gov/dao"
 	imagePrefix = "ghcr.io/gnolang/gno/gnoland:"
 )
+
+// govdaoURLs is where each chain's gnoweb renders its GovDAO proposals, by
+// chain id: a proposal id means nothing on another chain. A chain missing here
+// renders the id without a link.
+var govdaoURLs = map[string]string{
+	"gnoland-1": "https://gno.land/r/gov/dao",
+	"onyx-1":    "https://onyx.testnets.gno.land/r/gov/dao",
+}
 
 // Kind says what an entry is: the genesis the chain started on, a
 // coordinated upgrade that changed the binary at a halt height, or a rolling
@@ -392,7 +399,10 @@ func (l *Ledger) RenderTable() string {
 				minVersion = "`" + *e.HaltMinVersion + "`"
 			}
 			if e.Proposal != nil {
-				proposal = fmt.Sprintf("[#%d](%s:%d)", *e.Proposal, govdaoURL, *e.Proposal)
+				proposal = fmt.Sprintf("#%d", *e.Proposal)
+				if url, ok := govdaoURLs[l.ChainID]; ok {
+					proposal = fmt.Sprintf("[%s](%s:%d)", proposal, url, *e.Proposal)
+				}
 			}
 		}
 		digest := pendingCell
