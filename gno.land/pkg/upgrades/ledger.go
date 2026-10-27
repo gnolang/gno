@@ -304,8 +304,8 @@ func (l *Ledger) Validate() error {
 		if e.RanAs != nil && !digestRE.MatchString(*e.RanAs) {
 			fail("%s: ran_as %q is not sha256: followed by 64 hex characters", at, *e.RanAs)
 		}
-		if e.Release == "" {
-			fail("%s: release link is empty", at)
+		if want := repoURL + "/releases/tag/" + e.Version; e.Release != want {
+			fail("%s: release %q is not %s", at, e.Release, want)
 		}
 	}
 	if genesisSeen != 1 {
