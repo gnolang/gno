@@ -92,7 +92,8 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 
 // assertNotImported: a package-level declaration may not take the name an
 // import gives any file of the package (go/types: DuplicateDecl, reported
-// at the declaration). Charged per file.
+// at the declaration). Charged per file as one name lookup
+// (OpCPUSlopeEmbedScan; BenchmarkCheckGas: 7 reference-ns/file).
 func assertNotImported(store Store, last BlockNode, nx *NameExpr) {
 	if nx.Name == blankIdentifier {
 		return
@@ -101,7 +102,7 @@ func assertNotImported(store Store, last BlockNode, nx *NameExpr) {
 	if !ok || pn.FileSet == nil {
 		return
 	}
-	chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeCheckNode*int64(len(pn.FileSet.Files)))
+	chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeEmbedScan*int64(len(pn.FileSet.Files)))
 	for _, fn := range pn.FileSet.Files {
 		idx, exists := fn.GetLocalIndex(nx.Name)
 		if !exists {
