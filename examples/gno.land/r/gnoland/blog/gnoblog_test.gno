@@ -139,7 +139,7 @@ Published by g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx to Gno.land's blog
 		oldTitle := "title2"
 		oldDate := "2022-05-20T13:17:23Z"
 
-		ModEditPost(cur, "slug2", oldTitle, "body2++", oldDate, "manfred", "tag1,tag4")
+		ModEditPost(cross(cur), "slug2", oldTitle, "body2++", oldDate, "manfred", "tag1,tag4")
 		got := Render("p/slug2")
 		expected := `<main class='gno-tmpl-page'>
 
@@ -202,7 +202,7 @@ Published by g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx to Gno.land's blog
 			t.Errorf("post not rendered properly")
 		}
 
-		ModRemovePost(cur, slug)
+		ModRemovePost(cross(cur), slug)
 		got = Render("")
 
 		if strings.Contains(got, title) {

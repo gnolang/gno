@@ -1,21 +1,17 @@
 package blog
 
-import (
-	"chain/runtime/unsafe"
-
-	"gno.land/p/gnoland/blog/v0"
-)
+import "gno.land/p/gnoland/blog/v0"
 
 var b = &blog.Blog{
 	Title:  "Gno.land's blog",
 	Prefix: "/r/gnoland/blog:",
 }
 
-func AddComment(_ realm, postSlug, comment string) {
-	assertIsCommenter()
+func AddComment(cur realm, postSlug, comment string) {
+	caller := cur.Previous().Address()
+	assertIsCommenter(caller)
 	assertNotInPause()
 
-	caller := unsafe.OriginCaller()
 	err := b.GetPost(postSlug).AddComment(caller, comment)
 	checkErr(err)
 }

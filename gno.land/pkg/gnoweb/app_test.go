@@ -81,7 +81,9 @@ func TestRoutes(t *testing.T) {
 		}{
 			{"/", ok, "Welcome"}, // Check if / returns 200 (OK) and contains "Welcome".
 			{"/about", ok, "blockchain"},
-			{"/r/gnoland/blog", ok, ""}, // Any content
+			// Titles posted by the two genesis ModAddPost txs.
+			{"/r/gnoland/blog", ok, "First post"},
+			{"/r/gnoland/blog", ok, "Second post"},
 			{"/r/gnoland/blog$help", ok, "AdminSetAdminAddr"},
 			{"/r/gnoland/blog/", ok, "admin.gno"},
 			{"/r/gnoland/blog/admin.gno", ok, ">func<"},
