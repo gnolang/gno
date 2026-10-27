@@ -19,11 +19,11 @@ import (
 // X_ work + return push); no separate dispatch overhead constant.
 //
 // Two-slope (Slope2/PostSlope2) is supported by the runtime for natives
-// whose cost depends on two independent dimensions. Only
-// crypto/merkle.innerHash uses it today: it hashes two unbounded byte
-// slices, so each one carries its own per-byte slope. Every other row
-// uses a single slope — for the store-backed natives the per-byte work
-// happens inside the metered KVStore (gctx), so the empirical per-byte
+// whose cost depends on two independent dimensions: crypto/merkle.innerHash
+// and verifySimpleProof each hash two unbounded byte slices, and
+// crypto/modexp prices its work and its modulus apart. Every other row
+// uses a single slope — for the store-backed natives the per-byte
+// work happens inside the metered KVStore (gctx), so the empirical per-byte
 // CPU cost in the dispatcher is negligible.
 
 // Re-export the gnolang SizeKind constants for readable table literals.
@@ -205,7 +205,11 @@ var calibratedNativeGas = []nativeGasEntry{
 	// on each of len(left) and len(right).
 	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes, Slope2: 32911, Slope2Idx: 1, Slope2Kind: SizeLenBytes},
 	{Pkg: "crypto/merkle", Fn: "hashFromByteSlices", Base: 4839, Slope: 188621, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=4839ns slope=184.2ns/N (=188621/1024) on encoded 1..512 items
-	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes},   // draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes
+	// The leaf is hashed twice, so Slope2 is twice leafHash's rate on it.
+	// rootHash has no slope: X_verifySimpleProof copies it only at 32 bytes.
+	//
+	// Draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes.
+	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes, Slope2: 65822, Slope2Idx: 1, Slope2Kind: SizeLenBytes},
 	// modExp is charged on two independent components, because it has two:
 	//
 	//   - Slope, on SizeModExpWork at SlopeIdx=1: the exponentiation itself. The

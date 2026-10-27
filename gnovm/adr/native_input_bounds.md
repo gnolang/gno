@@ -49,7 +49,9 @@ Bounded, when the native cannot use the excess: the length check moves into the
 unchanged — only the point at which the excess is discarded moves. The Go-side
 checks stay for direct Go callers and as defence in depth. This is what
 `crypto/cometblszk` already does: it validates every length in `.gno` before
-touching a native.
+touching a native. Later bounds sit in the Go native instead, which takes the
+operand as a `gno.TypedValue`, since a `.gno` wrapper reaches only the chains
+started from a genesis that carries it.
 
 Metered, when the native genuinely consumes the input: the gas row carries a
 per-byte slope for each such parameter. `crypto/merkle.innerHash` hashes
@@ -74,13 +76,15 @@ payload would just move to the unmetered operand.
 - Rejecting oversized native input at the dispatcher with a global byte cap. One
   cap cannot serve both a 96-byte precompile and `keccak256.sum256`, and it
   would not help `innerHash`, whose input is legitimately unbounded.
-- Enforcing the bounds in the `X_` functions. Too late: the copy happens before
-  the native body runs.
+- Enforcing the bounds in the `X_` functions on a `[]byte` parameter. Too late:
+  the copy happens before the native body runs. A `gno.TypedValue` parameter
+  reaches the native uncopied, which is how later fixes bound an operand in Go.
 
 ## Consequences
 
-- Native authors get one rule: a variable-length parameter is bounded in the
-  `.gno` wrapper or sloped in `gnovm/stdlibs/native_gas.go`. Where the bound
+- Native authors get one rule: a variable-length parameter is bounded before
+  the copy, in the `.gno` wrapper or in a native taking it as a
+  `gno.TypedValue`, or sloped in `gnovm/stdlibs/native_gas.go`. Where the bound
   lives in the wrapper, the native's doc comment says so, because deleting it
   reopens an unpriced copy rather than merely duplicating a check.
 - Honest callers pay a little more, and no result changes. `innerHash` costs
@@ -101,17 +105,29 @@ payload would just move to the unmetered operand.
   conservative; the pending reference recalibration (the whole IBC block is
   draft, measured on a Xeon Silver 4114) resolves it, and the new sweep gives it
   the data points to do so.
+- A later fix applied both rules to `crypto/merkle.verifySimpleProof`, which
+  sloped on `aunts` only. `leaf` is hashed twice, so it is metered at twice
+  `leafHash`'s rate on `Slope2`. `rootHash` is only compared against the
+  32-byte digest the proof computes, so `X_verifySimpleProof` takes it as a
+  `gno.TypedValue`, which the dispatcher hands over uncopied, and returns false
+  for any other length before copying it. The bound sits in Go rather than in
+  `merkle.gno` because stdlib source enters state only at genesis: a chain
+  upgraded in place keeps the `merkle.gno` it stored, while every node runs the
+  natives its binary carries. The native fills `rootHash` from the store before
+  the check, as the dispatcher fills every other operand: a root kept in realm
+  state arrives holding its bytes by reference, which the copy cannot follow
+  unfilled, and filling first moves no call's gas. A regeneration keeps both
+  slopes: `gen_native_table.py` emits the leaf slope at no less than twice
+  `leafHash`'s emitted slope, and fits the aunts in bytes from a sweep starting
+  at none. `genstd` records which parameters a native takes as a
+  `gno.TypedValue`, so the transpiler converts the `[]byte` a transpiled caller
+  passes into one.
 
 ## Not covered
 
 Same class, left as separate work — all measured through the dispatcher as
 above, all reachable from any realm:
 
-- `crypto/merkle.verifySimpleProof` slopes on `aunts` only. `leaf` is hashed
-  twice and unmetered (157x at 1 MiB, 2708x at 16 MiB); `rootHash` is only
-  compared against a 32-byte digest, so it is pure unpriced copy (248x at
-  16 MiB). Partially reported elsewhere, covering `leaf` but not
-  `rootHash`.
 - `crypto/cometbls.verifyZKP` is flat at 2.63 ms with one `string` and three
   `[]byte` parameters, all length-validated after conversion. The large base
   makes the ratio small (~4x at 64 MiB), and the schema's two slopes cannot
