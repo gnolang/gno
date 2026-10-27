@@ -158,5 +158,5 @@ func BenchmarkInitCycleWalk(b *testing.B) {
 	for range b.N {
 		checkInitCycles(gm, pn, fset)
 	}
-	b.ReportMetric(float64(gm.GasConsumed())/float64(b.N)/OpCPUSlopeInitCycleVisit, "visits/op")
+	b.ReportMetric(float64(gm.GasConsumed())/float64(b.N)/OpCPUSlopeInitCycleVisit, "charges/op")
 }
