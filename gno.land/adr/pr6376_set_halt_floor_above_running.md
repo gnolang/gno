@@ -24,5 +24,6 @@ A rehearsal on a two-validator scratch chain (v1.5.1, 2026-10-16) showed both ha
 ## Consequences
 
 - `set-halt.sh` needs network access to `REMOTE` before broadcasting (which broadcasting needs anyway) and `curl` or `wget`.
+- The check runs when the proposal is created, and once the vote passes, any account can execute the proposal. A network that moves to a newer version during the vote can meet the floor by then; `misc/govdao-scripts/README.md` says to read `/status` again before casting the vote that passes it.
 - The mirror can drift from the node; the test runs in the `gno.land` CI job, which triggers on changes to both `gno.land/**` and `set-halt.sh` (`.github/workflows/ci-dir-gnoland.yml`).
 - `gno.land/cmd/gnoland/UPGRADES.md` states the rule (the floor is the version operators switch to, above every version the network runs) and points to the check.
