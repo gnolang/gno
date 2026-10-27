@@ -43,7 +43,6 @@ type Indexer interface {
 	SourceContains(ctx context.Context, text, author string, limit int) ([]indexer.Tx, error)
 	DeploysImporting(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
 	Block(ctx context.Context, height int) (*indexer.Block, error)
-	URL() string
 }
 
 // Limiter is the admission check applied before any fetch. It takes the

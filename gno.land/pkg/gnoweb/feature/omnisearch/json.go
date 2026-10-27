@@ -37,7 +37,6 @@ type jsonSelector struct {
 }
 
 type jsonIndexer struct {
-	URL       string `json:"url"`
 	LastBlock int    `json:"last_block,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
@@ -90,7 +89,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		resp.Groups = append(resp.Groups, jg)
 	}
 	if data.Indexer != nil {
-		ji := &jsonIndexer{URL: data.Indexer.URL, LastBlock: data.Indexer.LastBlock}
+		ji := &jsonIndexer{LastBlock: data.Indexer.LastBlock}
 		if data.Indexer.Err != nil {
 			ji.Error = data.Indexer.Err.Error()
 		}

@@ -67,12 +67,6 @@ func queryTerm(u *weburl.GnoURL) string {
 // scope resolves which package the query runs against: `in:` when given,
 // otherwise the URL's path. Only realm and pure paths carry one.
 func (h *Handler) scope(q *Query, u *weburl.GnoURL) {
-	base := u.Path
-	if base == "" {
-		base = "/"
-	}
-	q.formAction = base + "$search"
-
 	rel := ""
 	if in, ok := q.Get(FilterIn); ok {
 		rel = normalizePkgPath(in, h.deps.Domain)
@@ -107,7 +101,6 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		PkgPath:   q.PkgPath,
 		Selectors: h.selectors,
 	}
-	data.FormAction = q.formAction
 	if sel, _ := h.selectorFor(q); sel == nil {
 		// A discovery search ignores the page it was typed on, so the header
 		// must not claim that scope, nor on the empty page, where most
@@ -274,7 +267,7 @@ func (h *Handler) indexerStatus(ctx context.Context, groups []Group) *IndexerSta
 		return nil
 	}
 
-	st := &IndexerStatus{URL: h.deps.Indexer.URL()}
+	st := &IndexerStatus{}
 	height, err := h.deps.Indexer.LatestBlockHeight(ctx)
 	if err != nil {
 		h.deps.Logger.Warn("omnisearch: indexer tip failed", "error", err)

@@ -111,7 +111,7 @@ func TestServePageRendersWithoutJavaScript(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := body.String()
-	for _, want := range []string{"b-omni", "/r/alice/blog", "Qualifiers"} {
+	for _, want := range []string{"b-omni", "/r/alice/blog", "Search keywords"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("rendered page missing %q", want)
 		}
@@ -144,7 +144,7 @@ func TestIndexerResultsAreMarkedInTheMarkup(t *testing.T) {
 	if !strings.Contains(out, "not consensus data") {
 		t.Error("provenance footer missing from the markup")
 	}
-	if !strings.Contains(out, "last indexed block 185214") {
+	if !strings.Contains(out, "Last indexed block 185214") {
 		t.Error("freshness stamp missing from the markup")
 	}
 }
@@ -222,24 +222,6 @@ func TestQueryTermAcceptsBothGrammars(t *testing.T) {
 				t.Fatalf("queryTerm(%q) = %q, want %q", tt.url, got, "blog")
 			}
 		})
-	}
-}
-
-// The results page's form must target the bare path plus `$search`. With
-// action="" the browser re-submits the webargs already in the path, so each
-// search would append another `q` to the URL.
-func TestFormActionDoesNotAccumulateWebargs(t *testing.T) {
-	t.Parallel()
-
-	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
-	q, err := ParseQuery("blog")
-	if err != nil {
-		t.Fatalf("ParseQuery: %v", err)
-	}
-	h.scope(q, parseURL(t, "/r/alice/blog$search&q=blog"))
-
-	if q.formAction != "/r/alice/blog$search" {
-		t.Fatalf("formAction = %q, want /r/alice/blog$search", q.formAction)
 	}
 }
 
@@ -372,7 +354,9 @@ func TestIndexerCredentialsNeverPublished(t *testing.T) {
 		if !strings.Contains(out, "9f2a") {
 			t.Fatalf("%s: the authenticated indexer did not answer:\n%s", raw, out)
 		}
-		for _, secret := range []string{"hunter2", "gnoweb:", "k3y"} {
+		// Not even the host: a deployment's indexer is often an internal
+		// address the reader cannot reach.
+		for _, secret := range []string{"hunter2", "gnoweb:", "k3y", pu.Host} {
 			if strings.Contains(out, secret) {
 				t.Errorf("%s: response carries %q", raw, secret)
 			}

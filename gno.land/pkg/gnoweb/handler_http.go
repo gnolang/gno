@@ -464,6 +464,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			u.Query = maps.Clone(u.Query)
 			u.Query.Del("q")
 		}
+		indexData.HeaderData.SearchQuery = gnourl.WebQuery.Get("q")
+		if indexData.HeaderData.SearchQuery == "" {
+			indexData.HeaderData.SearchQuery = gnourl.Query.Get("q")
+		}
 		// An unbounded URL space where each URL costs a path listing: not
 		// something to invite crawlers into, and cheap to cache briefly.
 		// finalRobots keeps a page that asked for less at noindex, nofollow.

@@ -282,7 +282,7 @@ func TestRecentStopsOnceItHasEnough(t *testing.T) {
 			return
 		}
 		queries++
-		respond(w, `{"data":{"getTransactions":[{"hash":"abc"}]}}`)
+		respond(w, `{"data":{"getTransactions":[{"hash":"abc","messages":[{"value":{"__typename":"MsgCall","pkg_path":"gno.land/r/demo/boards"}}]}]}}`)
 	})
 
 	txs, err := c.RecentByPackage(context.Background(), "gno.land/r/demo/boards", 1)
@@ -404,7 +404,7 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 		}
 		bands++
 		if bands == 1 {
-			respond(w, `{"data":{"getTransactions":[{"hash":"newest"}]}}`)
+			respond(w, `{"data":{"getTransactions":[{"hash":"newest","messages":[{"value":{"__typename":"MsgCall","pkg_path":"gno.land/r/demo/boards"}}]}]}}`)
 			return
 		}
 		w.WriteHeader(http.StatusBadGateway)
@@ -420,6 +420,78 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	// The cause travels with it, for the log.
 	if !strings.Contains(err.Error(), "502") {
 		t.Fatalf("err = %v, want the band's failure named", err)
+	}
+}
+
+// tx-indexer lets a message it could not decode through any filter. Those
+// rows must neither reach the reader nor use up the walk's budget: the walk
+// goes on to the next band for the real deploy.
+func TestRecentDropsRowsTheFilterDidNotMatch(t *testing.T) {
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":100000}}`)
+			return
+		}
+		bands++
+		if bands == 1 {
+			respond(w, `{"data":{"getTransactions":[
+				{"hash":"session","messages":[{"value":{"__typename":"UnexpectedMessage"}}]},
+				{"hash":"other","messages":[{"value":{"__typename":"MsgAddPackage","package":{"path":"gno.land/r/demo/other"}}}]}
+			]}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[
+			{"hash":"deploy","messages":[{"value":{"__typename":"MsgAddPackage","package":{"path":"gno.land/r/demo/boards"}}}]}
+		]}}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/demo/boards", 1)
+	if err != nil {
+		t.Fatalf("Deploys: %v", err)
+	}
+	if len(txs) != 1 || txs[0].Hash != "deploy" {
+		t.Fatalf("txs = %+v, want only the deploy of the package", txs)
+	}
+	if bands != 2 {
+		t.Fatalf("bands = %d, want 2: rows the filter did not match must not count", bands)
+	}
+}
+
+// Each kind of message names the address in its own field.
+func TestRecentByAddressKeepsRowsNamingTheAddress(t *testing.T) {
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":10}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[
+			{"hash":"call","messages":[{"value":{"__typename":"MsgCall","caller":"g1a"}}]},
+			{"hash":"run","messages":[{"value":{"__typename":"MsgRun","caller":"g1a"}}]},
+			{"hash":"deploy","messages":[{"value":{"__typename":"MsgAddPackage","creator":"g1a"}}]},
+			{"hash":"received","messages":[{"value":{"__typename":"BankMsgSend","from_address":"g1b","to_address":"g1a"}}]},
+			{"hash":"someone-else","messages":[{"value":{"__typename":"MsgCall","caller":"g1b"}}]},
+			{"hash":"session","messages":[{"value":{"__typename":"UnexpectedMessage"}}]}
+		]}}`)
+	})
+
+	txs, err := c.RecentByAddress(context.Background(), "g1a", 10)
+	if err != nil {
+		t.Fatalf("RecentByAddress: %v", err)
+	}
+	var got []string
+	for _, tx := range txs {
+		got = append(got, tx.Hash)
+	}
+	if want := "call run deploy received"; strings.Join(got, " ") != want {
+		t.Fatalf("hashes = %q, want %q", strings.Join(got, " "), want)
 	}
 }
 

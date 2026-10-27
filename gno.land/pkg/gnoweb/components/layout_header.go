@@ -32,6 +32,10 @@ type HeaderLinks struct {
 
 type HeaderData struct {
 	RealmPath string
+	// SearchQuery, set on a results page, is what the header input holds
+	// there instead of the path: the page has no form of its own, so refining
+	// a search is one edit, and Enter searches again.
+	SearchQuery string
 	// SearchAction is the omnibar form's target. It exists so the bar works
 	// with JavaScript disabled: the form submits here and the reader gets
 	// the server-rendered results page. With JavaScript the controller
@@ -206,6 +210,9 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	// The root has no path: an empty value shows the placeholder
 	if data.RealmURL.Path != "/" {
 		data.RealmPath = data.RealmURL.EncodeURL()
+	}
+	if data.SearchQuery != "" {
+		data.RealmPath = data.SearchQuery
 	}
 	// A page that names no package still searches — chain-wide.
 	searchBase := data.RealmURL.Path

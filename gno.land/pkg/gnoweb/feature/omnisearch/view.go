@@ -4,9 +4,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
-// OmnisearchViewType tags the body view. Local because nothing in components
-// renders this feature.
-const OmnisearchViewType components.ViewType = "omnisearch-view"
+// OmnisearchViewType tags the body view.
+const OmnisearchViewType = components.SearchViewType
 
 // SearchData is the render payload for templates/page.html — field names must
 // match the template.
@@ -20,10 +19,6 @@ type SearchData struct {
 	// WholeChainHref, set on a scoped discovery search, repeats it without
 	// the scope.
 	WholeChainHref string
-
-	// FormAction is explicit rather than `action=""`, which would re-submit
-	// the webargs already in the path and grow the URL on every search.
-	FormAction string
 
 	Groups []Group
 
@@ -40,9 +35,9 @@ type SearchData struct {
 }
 
 // IndexerStatus is the provenance footer: indexer results are not consensus
-// data, so the reader gets the endpoint and how far behind it is.
+// data, so the reader gets how far behind it is. Not the endpoint, which is
+// often a host the reader cannot reach.
 type IndexerStatus struct {
-	URL       string
 	LastBlock int
 	// Err makes the footer say the freshness is unknown rather than omit it.
 	Err error

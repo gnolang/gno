@@ -1,40 +1,41 @@
 {{/* ===================================================================================
 LAYOUT - Omnisearch results page
 
-Server-rendered so the omnibar stays purely additive: with JavaScript off the
-header form submits here and the reader still gets every answer.
+Laid out as a directory listing is: the rail on the right, the header and the
+rows in the content columns. No form of its own: the omnibar is one, and with
+JavaScript off it submits here, so the reader still gets every answer.
 =================================================================================== */}}
 {{ define "renderSearch" }}
-<article class="b-omni u-grid-full">
-  <header class="b-content-header">
-    <h1 class="title b-content-h1">
-      {{ if .Query }}Search results{{ else }}Search{{ end }}
-    </h1>
-    <div class="header-info">
-      {{ if .PkgPath }}
-      <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
-      {{ with .WholeChainHref }}<span><a href="{{ . }}">Search the whole chain</a></span>{{ end }}
-      {{ else }}
-      <span>Whole chain</span>
-      {{ end }}
-    </div>
-  </header>
-
-  {{/* The form is the no-JavaScript entry point, and it stays present with
-       JavaScript on so a reader can refine a query from the results page. */}}
-  <form method="GET" action="{{ .FormAction }}" class="b-omni-form" role="search">
-    <label for="omni-q" class="u-sr-only">Search query</label>
-    <input id="omni-q" type="search" name="q" value="{{ .Query }}"
-           placeholder="Search, or type a qualifier such as func: or author:"
-           autocomplete="off" />
-    <button type="submit" class="b-btn">Search</button>
-  </form>
-
+{{ if gt (len .Groups) 1 }}{{ template "omnisearch/rail" . }}{{ end }}
+<header id="main-content" tabindex="-1" class="b-content-header">
+  <h1 class="title b-content-h1">Search{{ with .Query }} <code class="b-omni-query" title="{{ . }}">{{ shortQuery . }}</code>{{ end }}</h1>
+  <div class="header-info b-omni-info">
+    {{ if .PkgPath }}
+    <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
+    {{ with .WholeChainHref }}<span><a href="{{ . }}">Search the whole chain</a></span>{{ end }}
+    {{ else }}
+    <span>Whole chain</span>
+    {{ end }}
+  </div>
+  {{/* The keywords are help, not results: a native popover keeps them one
+       click away without JavaScript, and out of the answer. An action, so it
+       sits apart from the facts, at the header's end. */}}
+  <button type="button" class="b-inline-btn c-with-icon b-omni-keywords-btn" popovertarget="omni-keywords" aria-label="Search keywords">
+    <svg class="c-icon" aria-hidden="true"><use href="#ico-helper"></use></svg>
+    <span>Search keywords</span>
+  </button>
+  <div id="omni-keywords" popover class="b-omni-keywords">{{ template "omnisearch/hints" . }}</div>
+</header>
+<md-renderer class="c-listing-view b-omni">
   {{ with .UnknownFilter }}
   <p class="b-omni-notice" role="status">
     <strong>{{ . }}:</strong> is not a search qualifier on this deployment.
-    The ones it accepts are listed below.
+    See "Search keywords" for the ones it accepts.
   </p>
+  {{ end }}
+
+  {{ if not .Query }}
+  <p class="b-omni-notice">Type in the search bar above: a path, a name, or one of the search keywords.</p>
   {{ end }}
 
   {{ range .Groups }}{{ template "omnisearch/group" . }}{{ end }}
@@ -43,59 +44,96 @@ header form submits here and the reader still gets every answer.
   <p class="b-omni-notice" role="status">Nothing matched.</p>
   {{ end }}
 
+  {{/* Under the answer it qualifies, not in the rail: a phone keeps the rail
+       folded, and this must be read with the rows. */}}
   {{ with .Indexer }}{{ template "omnisearch/provenance" . }}{{ end }}
-
-  {{ template "omnisearch/hints" .Selectors }}
-</article>
+</md-renderer>
 {{ end }}
 
 
 {{/* ===================================================================================
-UI - Provenance footer
+UI - Rail
 
-Indexer results are not consensus data. Which endpoint answered and how far
-behind it is are part of the answer, not a detail: the same gnoweb binary may
-point at a community indexer, a self-hosted one, or none at all.
+What the answer holds, kind by kind like a listing's summary. Rendered only
+for an answer of several kinds: with one, the group's own header says it all.
+=================================================================================== */}}
+{{ define "omnisearch/rail" }}
+<aside class="b-sidebar sidebar">
+  <div>
+    <div class="inner u-no-scrollbar">
+      {{ template "ui/expend_label" "Search" }}
+      <nav aria-labelledby="rail-heading">
+        <h2 id="rail-heading" class="b-sidebar-heading">Search</h2>
+        <div class="b-listing-rail">
+          <dl class="b-pkg-meta" aria-label="Results by kind">
+            {{ range .Groups }}
+            <div class="row"><dt class="label">{{ .Label }}</dt><dd class="value">{{ len .Results }}</dd></div>
+            {{ end }}
+          </dl>
+        </div>
+      </nav>
+    </div>
+  </div>
+</aside>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Provenance note
+
+Indexer results are not consensus data, and how far behind the indexer is
+belongs to the answer. Its endpoint does not: it is often a host the reader
+cannot reach.
 =================================================================================== */}}
 {{ define "omnisearch/provenance" }}
-<footer class="b-omni-provenance" role="note">
+<p class="b-omni-provenance" role="note">
   <svg class="c-icon" aria-hidden="true"><use href="#ico-info"></use></svg>
   <span>
-    This answer comes from an indexer, not from the chain.
-    It is best-effort and not consensus data.
-    Indexed by <span class="u-font-mono">{{ .URL }}</span> ·
+    Each group marked <span class="b-tag b-tag--indexer">indexer</span> comes from an indexer,
+    not from the chain: best-effort, not consensus data.
     {{ if .Err }}
-      last indexed block unknown ({{ errText .Err }})
+      Last indexed block unknown ({{ errText .Err }}).
     {{ else }}
-      last indexed block {{ .LastBlock }}
+      Last indexed block {{ .LastBlock }}.
     {{ end }}
   </span>
-</footer>
+</p>
 {{ end }}
 
 
 {{/* ===================================================================================
-UI - Qualifier hints
+UI - Search keywords
 
-The honest inventory of what this deployment can answer. Indexer-backed
-qualifiers are absent from this list when no indexer is configured, so the
-list never offers something the server will refuse.
+What the search bar understands besides a plain word, split by where it works:
+anywhere, or on a package page, where the package is the subject. The honest
+inventory of this deployment: indexer keywords are absent when no indexer is
+configured, so the rail never offers something the server will refuse. On a
+package page, a keyword that takes no argument is a link that runs it.
 =================================================================================== */}}
 {{ define "omnisearch/hints" }}
-<section class="b-omni-hints">
-  <h2 class="b-omni-hints__title">Qualifiers</h2>
+<section class="b-omni-hints" aria-labelledby="omni-hints-heading">
+  <h2 id="omni-hints-heading" class="b-sidebar-heading">Search keywords</h2>
+  <p class="b-omni-hints__intro">Type a keyword in the search bar, followed by what you look for.</p>
+
+  <h3 class="b-omni-hints__title">Anywhere</h3>
   <ul>
-    {{ range . }}
-    <li>
-      <code>{{ .Hint }}</code>
-      <span class="b-omni-hints__label">{{ .Label }}</span>
-      {{ if isIndexer .Source }}<span class="b-tag b-tag--indexer">indexer</span>{{ end }}
-      {{ if eq .Scope "package" }}<span class="b-tag--tertiary">needs a package</span>{{ end }}
-    </li>
-    {{ end }}
-    <li><code>author:&lt;name&gt;</code><span class="b-omni-hints__label">Narrow to a namespace or deployer</span></li>
-    <li><code>in:/r/&lt;path&gt;</code><span class="b-omni-hints__label">Narrow to a package</span></li>
-    <li><code>is:realm</code><span class="b-omni-hints__label">Narrow to one kind</span></li>
+    {{ range .Selectors }}{{ if ne .Scope "package" }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}{{ end }}
+    <li><code>author:&lt;name&gt;</code><span class="b-omni-hints__label">only this namespace or deployer</span></li>
+    <li><code>in:/r/&lt;path&gt;</code><span class="b-omni-hints__label">only this package</span></li>
+    <li><code>is:realm</code><span class="b-omni-hints__label">only realms, or <code>is:package</code></span></li>
+  </ul>
+
+  <h3 class="b-omni-hints__title">On a package page</h3>
+  <ul>
+    {{ range .Selectors }}{{ if eq .Scope "package" }}{{ template "omnisearch/hint" (hintRow . $.PkgPath) }}{{ end }}{{ end }}
   </ul>
 </section>
+{{ end }}
+
+{{ define "omnisearch/hint" }}
+<li>
+  {{ with .Href }}<a href="{{ . }}"><code>{{ $.Hint }}</code></a>{{ else }}<code>{{ .Hint }}</code>{{ end }}
+  <span class="b-omni-hints__label">{{ .Label }}</span>
+  {{ if .Indexer }}<span class="b-omni-hints__src" title="Answered by an indexer, not by the chain">indexer</span>{{ end }}
+</li>
 {{ end }}

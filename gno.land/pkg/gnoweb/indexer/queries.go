@@ -163,7 +163,9 @@ func (c *Client) RecentByPackage(ctx context.Context, pkgPath string, limit int)
 			{ messages: { value: { MsgCall: { pkg_path: { eq: %s } } } } }
 			{ messages: { value: { MsgAddPackage: { package: { path: { eq: %s } } } } } }
 		]`, p, p)
-	return c.recent(ctx, where, limit)
+	return c.recent(ctx, where, limit, func(m Message) bool {
+		return (m.Type() == "MsgCall" || m.Type() == "MsgAddPackage") && m.Path() == pkgPath
+	})
 }
 
 // RecentByAddress returns the most recent transactions an address took part
@@ -177,14 +179,27 @@ func (c *Client) RecentByAddress(ctx context.Context, addr string, limit int) ([
 			{ messages: { value: { BankMsgSend: { from_address: { eq: %s } } } } }
 			{ messages: { value: { BankMsgSend: { to_address: { eq: %s } } } } }
 		]`, a, a, a, a, a)
-	return c.recent(ctx, where, limit)
+	return c.recent(ctx, where, limit, func(m Message) bool {
+		v := m.Value
+		switch m.Type() {
+		case "MsgCall", "MsgRun":
+			return v.Caller == addr
+		case "MsgAddPackage":
+			return v.Creator == addr
+		case "BankMsgSend":
+			return v.From == addr || v.To == addr
+		}
+		return false
+	})
 }
 
 // Deploys returns the deploy history of a package, newest first.
 func (c *Client) Deploys(ctx context.Context, pkgPath string, limit int) ([]Tx, error) {
 	where := fmt.Sprintf(`messages: { value: { MsgAddPackage: { package: { path: { eq: %s } } } } }`,
 		gqlString(pkgPath))
-	return c.recent(ctx, where, limit)
+	return c.recent(ctx, where, limit, func(m Message) bool {
+		return m.Type() == "MsgAddPackage" && m.Path() == pkgPath
+	})
 }
 
 // SourceContains matches a substring over every deployed file body — the
@@ -211,7 +226,7 @@ func (c *Client) SourceContains(ctx context.Context, text, author string, limit 
 			gqlString(`(?i)^[^/]+/[^/]+/`+a+`(/|$)`))
 	}
 	where := fmt.Sprintf(`messages: { value: { MsgAddPackage: { %s } } }`, filter)
-	return c.recent(ctx, where, limit)
+	return c.recent(ctx, where, limit, isDeploy)
 }
 
 // DeploysImporting returns the newest deploys whose source holds pkgPath as
@@ -226,8 +241,12 @@ func (c *Client) DeploysImporting(ctx context.Context, pkgPath string, limit int
 	literal := "[\"`]" + regexp.QuoteMeta(pkgPath) + "[\"`]"
 	where := fmt.Sprintf(`messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }`,
 		gqlString(literal))
-	return c.recent(ctx, where, limit)
+	return c.recent(ctx, where, limit, isDeploy)
 }
+
+// isDeploy matches a deploy whose source the indexer filtered on: the body is
+// not selected, so the type is all a row can be checked against.
+func isDeploy(m Message) bool { return m.Type() == "MsgAddPackage" }
 
 // Block returns one block's header fields.
 func (c *Client) Block(ctx context.Context, height int) (*Block, error) {
@@ -285,7 +304,13 @@ var ErrPartial = errors.New("searched the most recent blocks only")
 // re-serialized the rows they had already returned. Each band picks up where
 // the previous one stopped, and since bands walk from the tip downwards the
 // concatenation is still DESC.
-func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, error) {
+//
+// match re-checks each row against the filter in where, which tx-indexer does
+// not apply to a message it could not decode (see aggregates.go): on onyx in
+// October 2026, every row of one package's deploy history was a session
+// message. Rows are dropped before they count towards need, so the walk goes
+// on until it has real ones.
+func (c *Client) recent(ctx context.Context, where string, need int, match func(Message) bool) ([]Tx, error) {
 	if need <= 0 {
 		return nil, nil
 	}
@@ -343,7 +368,7 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			// before the cap are the newest in this band. The band held
 			// more than the cap, so its lower part was not searched.
 			lower = max(upper-1, 1)
-			return partial(append(found, out.Txs...))
+			return partial(append(found, keepMatching(out.Txs, match)...))
 		default:
 			// A wide band timing out costs the rows the narrower ones
 			// already found; those are still the newest, so keep them.
@@ -354,7 +379,7 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			return nil, err
 		}
 
-		found = append(found, out.Txs...)
+		found = append(found, keepMatching(out.Txs, match)...)
 		lower = bandLower
 		if len(found) >= need || lower == 0 {
 			break
