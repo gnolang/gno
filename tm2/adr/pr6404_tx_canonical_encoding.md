@@ -76,9 +76,10 @@ emit and of what #6399 makes canonical.
 1. #6399 merges and ships as a rolling release: the zero session address
    leaves the wire, nodes accept both encodings as they do today.
 2. This PR merges; it changes no behaviour.
-3. Clients release: Go tools rebuilt from the module after #6399, `amino-ts`
-   (gnolang/amino-ts#2, which mirrors `skip_zero` as a field option); the
-   ts-proto clients already emit the canonical form.
+3. Clients release: Go tools rebuilt from the module after #6399; `amino-ts`
+   0.2.1 (gnolang/amino-ts#2) already emits the canonical bytes through an
+   interim repr, and gnolang/amino-ts#4 mirrors `skip_zero` as a field
+   option; the ts-proto clients already emit the canonical form.
 4. The written-out zero session address drains from chain traffic.
 5. #6406 ships as a coordinated upgrade, the mechanism from #5368 that
    gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to the
@@ -128,8 +129,8 @@ emit and of what #6399 makes canonical.
   session-signed, two msgs and two sigs) and diffing bytes against an encoder
   that omits the zero session address: `tm2-js-client` 3.3.0,
   `gno-js-client` 3.1.0 and `gno-types` 1.1.1 are identical on all nine;
-  `amino-ts` 0.2.0 differed only by the zero session address and is fixed in
-  gnolang/amino-ts#2; `gnonative` and `tx-indexer` (pinned after #5307) write
+  `amino-ts` 0.2.0 differed only by the zero session address, fixed in 0.2.1
+  (gnolang/amino-ts#2) with the tag mirrored in gnolang/amino-ts#4; `gnonative` and `tx-indexer` (pinned after #5307) write
   the old form until they bump this module; `supernova` and `faucet` (pinned
   before #5307) already omit it; `ledger-ts`/`ledger-app-gno` sign the JSON
   sign doc only.
