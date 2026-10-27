@@ -4,7 +4,7 @@ We will create a MiniSocial [realm](../resources/realms.md),
 a minimalist social media application. This tutorial showcases the full local
 development flow for Gno.
 
-Find the full app at [staging.gno.land/r/docs/minisocial/v1](https://staging.gno.land/r/docs/minisocial/v1).
+Find the full app in [`r/docs/minisocial/v1`](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/minisocial/v1).
 
 ## Prerequisites
 
@@ -344,13 +344,13 @@ ok      .       0.87s
 You've built a multi-file realm with persistent state, markdown rendering,
 and unit tests. Congratulations!
 
-Full code of this app can be found on the Staging network, at
-[staging.gno.land/r/docs/minisocial](https://staging.gno.land/r/docs/minisocial).
+Full code of this app is in
+[`r/docs/minisocial`](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/minisocial).
 
 ## Bonus - resolving usernames
 
 Let's make our MiniSocial app even better by resolving addresses to potential usernames
-registered in the [Gno.land User Registry](https://staging.gno.land/r/sys/users).
+registered in the [Gno.land User Registry](https://gno.land/r/sys/users).
 
 The `gno.land/r/sys/users` realm provides user data. Update `types.gno` to use
 it when resolving addresses:
