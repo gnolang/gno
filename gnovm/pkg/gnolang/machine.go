@@ -1676,13 +1676,18 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
-	// Checker walks at preprocess (check_*.go): per node visited. Same
-	// work per step as an embedWalk scan (a type switch and a map
-	// lookup); an estimate, not yet fitted.
-	OpCPUSlopeCheckNode = 25
-	// checkInitCycles: per declaration and per dependency edge visited
-	// (map lookups, a name resolution, a sorted-name walk twice).
-	// BenchmarkInitCycleWalk: 130-210 ns per visit on an M-series laptop.
+	// Checker walks at preprocess (check_*.go): per node visited by a
+	// type-shape, type-expression, unused-name or identity walk, and per
+	// literal element or switch case examined. BenchmarkCheckGas over 14
+	// example packages (M5, factor 2.1): unused 118, unused-import 100,
+	// duplicate-case 114, type-shape 90 reference-ns/node; a floor for the
+	// lighter Transcribe-only walks (type-expression shape 51).
+	OpCPUSlopeCheckNode = 100
+	// checkInitCycles: per declaration indexed, then per declaration and
+	// per dependency edge visited (map lookups, a name resolution, a
+	// sorted-name walk twice). BenchmarkInitCycleWalk + BenchmarkCheckGas
+	// two-point fit: ~113 ns/visit and ~114 ns/declaration on an M5,
+	// ~240 reference-ns each at factor 2.1.
 	OpCPUSlopeInitCycleVisit = 200
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
