@@ -13,6 +13,7 @@ An entry written early also takes one follow-up commit per fact that arrives lat
 1. An entry is written once the chain runs the release, after the halt for a coordinated upgrade and once validators run it for a rolling one, with nothing pending.
 2. `cut-release.sh` warns, instead of refusing, when the ledger has no entry for a final release. It still refuses a final release whose ledger fails `upgrades check`, or whose entry names another commit than the one being tagged. A release candidate still only warns: the final release cut after it, on its commit, is checked the same way.
 3. The tag message of a coordinated upgrade records `halt_min_version` and no height. `--halt-height` still prints the GovDAO proposal to go with the release. A release page carries the halt height once the proposal has executed.
+4. The daily `ci / upgrades-ledger-digests` job checks every entry's commit against the commit its version's tag in gnolang/gno points to, read through the GitHub API. `upgrades check` requires an entry's release link to be that version's release page, so the release a row links to is the tag whose commit is checked.
 
 ## Alternatives considered
 
@@ -24,7 +25,7 @@ An entry written early also takes one follow-up commit per fact that arrives lat
 
 ## Consequences
 
-- #6228's refusal of a final release without an entry, which #6321 kept, rested on the cut being the last point at which a missing entry can be stopped. That does not hold here: the entry is written after the cut by design. Nothing in CI catches an entry that is never written; the release's tracking issue does.
+- #6228's refusal of a final release without an entry, which #6321 kept, rested on the cut being the last point at which a missing entry can be stopped. That does not hold here: the entry is written after the cut by design. Nothing in CI catches an entry that is never written; the release's tracking issue does. Nor does `cut-release.sh`'s commit check see an entry written after the cut, as Decision 1 has it: an entry that names another commit, which `upgrades check` accepts as long as it is a 40-character lowercase sha, fails the daily job instead (Decision 4).
 - The ledger format is unchanged. A complete entry has no *(pending)* cell, so the last row with none, which `UPGRADES.md` and `VALIDATOR.md` point operators at, is the last row.
 - Before a coordinated halt, `UPGRADES.md` has no row for it. Operators learn of it from the release page and the announcement, which name the height once the proposal has executed.
 - Tags already pushed keep their messages, v1.6.0's estimated height included; its release page says so.
