@@ -75,6 +75,10 @@ type RPCConfig struct {
 	// Maximum size of request header, in bytes
 	MaxHeaderBytes int `json:"max_header_bytes" toml:"max_header_bytes" comment:"Maximum size of request header, in bytes"`
 
+	// Whether abci_query serves the paths that run code on the node, such as
+	// ".app/simulate" and "vm/qeval". false refuses them; every other path stays open.
+	AllowCodeExecution bool `json:"allow_code_execution" toml:"allow_code_execution" comment:"Whether abci_query serves the paths that run code on the node, such as\n \".app/simulate\" and \"vm/qeval\". false refuses them; every other path stays open."`
+
 	// The path to a file containing certificate that is used to create the HTTPS server.
 	// Might be either absolute path or path related to tendermint's config directory.
 	//
@@ -111,6 +115,8 @@ func DefaultRPCConfig() *RPCConfig {
 
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
+
+		AllowCodeExecution: true,
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",

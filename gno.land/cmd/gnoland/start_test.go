@@ -115,6 +115,11 @@ func TestStart_Lazy(t *testing.T) {
 
 			// Prepare the config
 			prepareNodeRPC(t, nodeDir, sockAddr)
+			require.NoError(t, newRootCmd(commands.NewTestIO()).ParseAndRun(context.Background(), []string{
+				"config", "set",
+				"--config-path", constructConfigPath(nodeDir),
+				"rpc.allow_code_execution", "false",
+			}))
 
 			args := []string{
 				"start",
@@ -183,6 +188,10 @@ func TestStart_Lazy(t *testing.T) {
 				paths := strings.Split(string(qres.Response.Data), "\n")
 				require.Greater(c, len(paths), 1, "query qpaths: no package has been loaded")
 			}, time.Until(deadline), time.Millisecond*500, "rpc: unable to call rpc vm/qpaths")
+
+			// vm/qpaths runs no code and is served; vm/qrender runs code and is refused.
+			_, err = cli.ABCIQuery(gCtx, "vm/qrender", []byte("gno.land/r/none:"))
+			require.ErrorContains(t, err, "rpc.allow_code_execution = false")
 
 			t.Logf("node: stopping - time left %s", time.Until(deadline))
 

@@ -266,6 +266,20 @@ key in `data`: `path=".store/main/key"&data="<base64 key>"`. The module paths â€
 at height 1 or below is an error, and a `height` of `0` is rewritten to the
 chain tip before that check.
 
+A node whose `rpc.allow_code_execution` is `false` refuses the paths that run
+code on it: `.app/simulate`, which runs a whole transaction, and `vm/qeval`,
+`vm/qeval_json` and `vm/qrender`, which evaluate an expression in a package. It
+refuses every spelling that reaches them, with a top-level `error` and, on the
+URI transport, HTTP 403. Every other path stays open. A query pays no fee, so
+the code it runs costs only the node that serves it. The default is `true`.
+
+`false` suits a node meant for transaction submission: accepting a transaction
+through `broadcast_tx_*` runs none of its messages, since `CheckTx` skips the
+message handlers. `gnokey maketx` simulates through `.app/simulate` before
+broadcasting, so it needs `-simulate skip` against such a node. gnoweb renders
+realm pages through `vm/qrender` and resolves user names through `vm/qeval`, so
+a node behind gnoweb keeps the setting `true`.
+
 ### `abci_info`
 
 Takes nothing. Returns `response`, with the last block height at
