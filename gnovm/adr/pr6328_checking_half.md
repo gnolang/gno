@@ -40,6 +40,15 @@ consensus path (kept off-chain as referee).
    poisoned; a dropped dependency poisons its names on the way up; a rule
    that finds several faults in one statement (duplicate cases) reports
    them all through `report`.
+6. **Gas**: `BenchmarkCheckGas` (`check_gas_bench_test.go`) times each
+   metered walk over 14 example packages and reports ns per charged node.
+   M5 dev box, factor 2.1 to the Xeon 8168 reference (flat ops measured
+   1.6-2.3x that day): unused 56 ns, unused-import 48, duplicate-case 55,
+   type-shape 43, type-expression shape 25, import-name lookup 3.4/file;
+   `OpCPUSlopeCheckNode` 25 → 100 (the lookup bills `OpCPUSlopeEmbedScan`).
+   Init cycles: ~113 ns/visit and ~114 ns per declaration of unmetered
+   setup (two-point fit with `BenchmarkInitCycleWalk`), so the setup now
+   bills `OpCPUSlopeInitCycleVisit` (200, kept) per declaration.
 
 ## Verification
 
