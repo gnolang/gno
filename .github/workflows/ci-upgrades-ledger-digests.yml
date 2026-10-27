@@ -1,6 +1,6 @@
-# Checks the digests and checksums the upgrade ledgers record against the
-# registry and the releases (RELEASING.md, "Signing and provenance").
-# Read-only, public data.
+# Checks the commits, digests and checksums the upgrade ledgers record against
+# the release tags, the registry and the releases (RELEASING.md, "Signing and
+# provenance"). Read-only, public data.
 name: ci / upgrades-ledger-digests
 
 on:
@@ -24,7 +24,7 @@ jobs:
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Recorded values still match the registry and the releases
+      - name: Recorded values still match the tags, the registry and the releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -44,11 +44,15 @@ jobs:
             # shows, but not checked. ran_as is checked by its own digest:
             # untagged or on a mutable sha- tag, it is what a registry
             # clean-up takes, and the ledger is the only record of what ran.
+            # Every entry's commit is checked against its version's tag:
+            # cut-release.sh's own commit check does not see an entry written
+            # after the cut.
             # Read in full first: a jq error inside a process substitution
             # would be swallowed and the ledger skipped as if it were empty.
             values="$(jq -r '
               .upgrades[]
-              | (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
+              | "commit \(.version) \(.commit)",
+                (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
                 (select(.ran_as != null) | "ran_as \(.image.ref | sub(":[^:]*$"; ""))@\(.ran_as) \(.ran_as)"),
                 (select(.binaries != null) | .binaries | to_entries[] | "binary \(.value)"),
                 (select(.image.digest == null) | "pending \(.version) image.digest"),
@@ -62,6 +66,32 @@ jobs:
               fi
               checked=$((checked + 1))
               case "${kind}" in
+              commit)
+                # The version's tag in gnolang/gno, where `upgrades check`
+                # requires the release link to point and UPGRADES.md links
+                # the commit. The ref of an annotated tag, which
+                # cut-release.sh pushes, names a tag object, which names the
+                # commit; the ref of a lightweight tag names the commit itself.
+                if ! target="$(gh api "repos/gnolang/gno/git/ref/tags/${a}" \
+                  --jq '"\(.object.type) \(.object.sha)"' 2>"${err}")"; then
+                  fail "${ledger}: cannot read tag ${a}: $(cat "${err}")"
+                  continue
+                fi
+                read -r type sha <<<"${target}"
+                if [ "${type}" = tag ]; then
+                  if ! target="$(gh api "repos/gnolang/gno/git/tags/${sha}" \
+                    --jq '"\(.object.type) \(.object.sha)"' 2>"${err}")"; then
+                    fail "${ledger}: cannot read tag ${a}: $(cat "${err}")"
+                    continue
+                  fi
+                  read -r type sha <<<"${target}"
+                fi
+                if [ "${type}" = commit ] && [ "${sha}" = "${b}" ]; then
+                  printf '   ok  %-7s %s\n' "${kind}" "${a} ${b:0:9}"
+                else
+                  fail "${ledger}: ${a} points to ${type} ${sha}, but the ledger records commit ${b}"
+                fi
+                ;;
               image | ran_as)
                 if ! actual="$(docker buildx imagetools inspect "${a}" --format '{{.Manifest.Digest}}' 2>"${err}")"; then
                   fail "${ledger}: cannot resolve ${a}: $(cat "${err}")"
