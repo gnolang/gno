@@ -139,6 +139,17 @@ Amino objects are a subset of Go.
 * Pointers are automatically supported in go-amino but it is an extension of
   the theoretical Amino spec.
 
+## Field tags and consensus
+
+A field tag changes the bytes a value encodes to, so on any type that reaches
+consensus a tag is part of the protocol. Once nodes accept only the canonical
+encoding of a transaction (`tm2/adr/pr6404_tx_canonical_encoding.md`), every
+field inside a transaction type is hashed, and a tag that changes which bytes a
+zero value produces, `amino:"skip_zero"` (#6399) first of all, rejects every
+older client's bytes: a struct tag becomes a hardfork. No new `skip_zero` on a
+type that reaches consensus without a coordinated upgrade, and the same for
+removing one.
+
 ## Limitations
 
 * Pointer types in arrays and slices lose pointer information.
