@@ -221,7 +221,7 @@ func runSetHalt(t *testing.T, gnokeyDir, remote, height, floor string, env ...st
 	t.Helper()
 
 	marker := filepath.Join(t.TempDir(), "gnokey-reached")
-	cmd := exec.Command("bash", repoPath(setHaltScript), height, floor)
+	cmd := exec.Command("bash", repoPath(t, setHaltScript), height, floor)
 	cmd.Env = append(os.Environ(),
 		"PATH="+gnokeyDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"GNOKEY_NAME=test", "CHAIN_ID=test-1", "REMOTE="+remote, "GNOKEY_REACHED="+marker,
