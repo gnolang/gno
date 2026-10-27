@@ -203,14 +203,7 @@ cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
   --certificate-identity https://github.com/gnolang/gno/.github/workflows/release-docker.yml@refs/tags/v1.6.0
 ```
 
-The release binaries are not reproducible from the tag (they are built
-without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the
-attestation, the checksums and the ledger's recorded digests are the
-operator's anchors. `ci / upgrades-ledger-digests` checks, daily, the digests
-and checksums the ledgers record for each version: each image digest against
-the registry, each `ran_as` image still resolving, each binary checksum
-against its release asset. It reports every difference and fails at the end;
-a value still pending the build is listed, not checked.
+The release binaries are not reproducible from the tag (they are built without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the attestation, the checksums and the ledger's recorded digests are the operator's anchors. `ci / upgrades-ledger-digests` checks, daily, what the ledgers record for each version: its commit against the commit its version's tag points to, each image digest against the registry, each `ran_as` image still resolving, each binary checksum against its release asset. It reports every difference and fails at the end; a value still pending the build is listed, not checked.
 
 ### Rehearse on the testnet first
 
