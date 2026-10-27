@@ -1112,6 +1112,7 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 					Tag:      toExpr(fs, f.Tag),
 				}
 				setSpan(fs, f, &ftx)
+				setSpan(fs, n, &ftx.NameExpr) // its own line, for a name in a group
 				ftxs = append(ftxs, ftx)
 			}
 		}

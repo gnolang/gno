@@ -52,4 +52,4 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // line 27: i redeclared in this block
 // 	previous declaration at funcdup.go:28:12
 
-// Verdict: KnownIssue errorcheck: #6344 internal errors: lines 21, 22
+// Verdict: Clean errorcheck

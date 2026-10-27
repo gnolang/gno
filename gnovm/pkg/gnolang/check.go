@@ -26,6 +26,7 @@ const (
 	CodeImpossibleCase   ErrCode = "impossible-case"
 	CodeTypeSwitchTag    ErrCode = "type-switch-tag"
 	CodeNotAType         ErrCode = "not-a-type"
+	CodeMissingField     ErrCode = "missing-field"
 	CodeCopyArgs         ErrCode = "copy-args"
 	CodeRecursiveType    ErrCode = "recursive-type"
 	CodeRecursiveValue   ErrCode = "recursive-value"
@@ -50,6 +51,7 @@ const (
 
 	// Declarations and statements.
 	CodeMissingConstInit   ErrCode = "missing-const-init"
+	CodeRedeclared         ErrCode = "redeclared"
 	CodeVariadicLast       ErrCode = "variadic-last"
 	CodeStructLiteralCount ErrCode = "struct-literal-count"
 	CodeStructFieldName    ErrCode = "struct-field-name"

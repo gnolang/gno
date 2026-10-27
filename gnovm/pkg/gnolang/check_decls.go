@@ -6,6 +6,82 @@ import "fmt"
 // "Short variable declarations", "Function types", "Composite literals",
 // "For statements", "Type switches").
 
+// checkNotRedeclared rejects a second declaration of nx.Name in the block
+// of last (Go spec, "Declarations and scope"). The block keeps the first
+// declaration's name source: the same source, or one at the same position
+// (a split multi-value declaration), is not a redeclaration; a range or
+// type-switch variable, or a name copied in from an if or switch header,
+// belongs to an enclosing implicit block and may be shadowed; a package
+// name declared by another file is an override (checkDuplicates' domain).
+func checkNotRedeclared(last BlockNode, nx *NameExpr, origin Node, nstype NSType, index int) {
+	bn := skipFile(last)
+	src := definedBy(bn, nx.Name)
+	if src == nil || src.NameExpr == nil || src.NameExpr == nx {
+		return
+	}
+	if src.Origin == origin && src.Type == nstype && src.Index == index {
+		return
+	}
+	switch src.Type {
+	case NSRangeKey, NSRangeValue, NSTypeSwitch:
+		return
+	}
+	if fn, ok := last.(*FileNode); ok && !declaredIn(fn, src.Origin) {
+		return
+	}
+	first, at := src.NameExpr.GetSpan(), nx.GetSpan()
+	if src.Origin != origin && !first.IsZero() && !at.IsZero() && first == at {
+		return
+	}
+	switch bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		if !first.IsZero() && first.Pos.Compare(bn.GetSpan().Pos) < 0 {
+			return
+		}
+	}
+	failf(CodeRedeclared, []Node{nx}, "%s redeclared in this block", nx.Name)
+}
+
+// declaredIn reports whether origin is one of fn's declarations.
+func declaredIn(fn *FileNode, origin Node) bool {
+	for _, d := range fn.Decls {
+		if Node(d) == origin {
+			return true
+		}
+	}
+	return false
+}
+
+// duplicateDeclName returns the second occurrence of a name declared
+// twice in one declaration, or nil.
+func duplicateDeclName(nxs NameExprs) *NameExpr {
+	for i := range nxs {
+		if nxs[i].Name == blankIdentifier {
+			continue
+		}
+		for j := range nxs[:i] {
+			if nxs[j].Name == nxs[i].Name {
+				return &nxs[i]
+			}
+		}
+	}
+	return nil
+}
+
+// checkSignatureNames: the receiver, parameters and results of a function
+// share its body's block, so no two may bear the same name.
+func checkSignatureNames(bn BlockNode, fn Node, recv *FieldTypeExpr, ft *FuncTypeExpr) {
+	if recv != nil {
+		checkNotRedeclared(bn, &recv.NameExpr, fn, NSFuncReceiver, -1)
+	}
+	for i := range ft.Params {
+		checkNotRedeclared(bn, &ft.Params[i].NameExpr, ft, NSFuncParam, i)
+	}
+	for i := range ft.Results {
+		checkNotRedeclared(bn, &ft.Results[i].NameExpr, ft, NSFuncResult, i)
+	}
+}
+
 // checkRedefinedTargets: a name on the left of := that this block already
 // declares is assigned, not redeclared, so the value must be assignable
 // to its type; an untyped constant converts to it. Runs before the
