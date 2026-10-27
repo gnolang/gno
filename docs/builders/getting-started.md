@@ -406,7 +406,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
-1. [r/docs](https://staging.gno.land/r/docs): on-chain tour
+1. [r/docs](https://staging.gno.land/docs): on-chain tour
 2. [Effective Gno](../resources/effective-gno.md): idiomatic patterns
 3. [Example: the `minisocial` dApp](./tutorial-minisocial.md): end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md): pricing, estimation, and the "out of gas" fix
