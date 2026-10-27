@@ -60,32 +60,33 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 // algorithm finds the strongly connected components; a component is a
 // cycle when it holds a variable (functions are edges, not roots), and is
 // reported once, at the variable the cycle closes on (see initCycleOf),
-// in source order. Each declaration and edge visited bills
-// OpCPUSlopeInitCycleVisit on gm. On chain CheckInitCycles panics with
-// the first one, where runFileDecls would otherwise fail later and
-// unpositioned.
+// in source order. Each declaration indexed, and each declaration and
+// edge visited, bills OpCPUSlopeInitCycleVisit on gm. On chain
+// CheckInitCycles panics with the first one, where runFileDecls would
+// otherwise fail later and unpositioned.
 func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
-	// Names resolve to the declaration predefine selected (the last
-	// file's wins), and only those are roots: a shadowed declaration is
-	// neither, or it would close a false cycle.
-	index := newPredefineDeclIndex(fset)
 	w := &initCycleWalk{
 		gm:    gm,
 		order: map[Decl]int{},
 		file:  map[Decl]*FileNode{},
 		nodes: map[Decl]*initCycleNode{},
 	}
+	for _, fn := range fset.Files {
+		chargeCPUGas(gm, OpCPUSlopeInitCycleVisit*int64(len(fn.Decls)))
+		for _, d := range fn.Decls {
+			w.order[d] = len(w.order)
+			w.file[d] = fn
+		}
+	}
+	// Names resolve to the declaration predefine selected (the last
+	// file's wins), and only those are roots: a shadowed declaration is
+	// neither, or it would close a false cycle.
+	index := newPredefineDeclIndex(fset)
 	w.resolve = func(name Name) (Decl, bool) {
 		if e, ok := index.entries[name]; ok {
 			return e.decl, true
 		}
 		return resolveDeclDepSafe(name, pn)
-	}
-	for _, fn := range fset.Files {
-		for _, d := range fn.Decls {
-			w.order[d] = len(w.order)
-			w.file[d] = fn
-		}
 	}
 	for _, fn := range fset.Files {
 		for _, d := range fn.Decls {
