@@ -576,7 +576,8 @@ oversize governance envelope within the window and spends it (§5.4).
   Gloas flag each other-fork generalized index lands on a value no relayer chooses (Electra's 169 on a Gloas
   state's `fork.current_version`, its 87 under `latest_block_header`, where only a zero aggregate key could
   match; 25 and 812 under a Gloas body's active-fields leaf; Gloas' 735, 2946 and 2856 on Electra or Fulu uint64
-  leaves, length mix-ins or the empty deposits list), an analysis a container-changing fork must redo in a new
+  leaves, length mix-ins or, in a body, the deposits list, empty since the EIP-6110 transition and otherwise a deposit
+  hash node that still needs a preimage), an analysis a container-changing fork must redo in a new
   package. A governed recovery instead adopts a trusted substitute. A wrong schedule can only stop verification,
   which another governed action repairs. Every comparison rule tried
   left some client unrepairable, not least because the signature slot it would rest on is untrusted and can be
