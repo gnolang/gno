@@ -3143,3 +3143,137 @@ func main() {
 		t.Errorf("want %v, got %v", want, msgs)
 	}
 }
+
+func TestPreprocessCollectDiagnosticsNotCrashes(t *testing.T) {
+	// Each of these used to be an internal panic; now a positioned error.
+	for src, want := range map[string]string{
+		"package main\n\nfunc main() {\n\tvar i interface{}\n\tif x, ok := i.(type); ok {\n\t\t_ = x\n\t}\n}\n":   "use of .(type) outside type switch",
+		"package main\n\nconst c = 3\nvar x = c.String()\n\nfunc main() {}\n":                                     "c.String undefined (type",
+		"package main\n\nfunc main() {\n\tx := 1\n\tfor range x.m() {\n\t}\n}\n":                                  "x.m undefined (type int has no field or method m)",
+		"package main\n\ntype I interface{ M() }\n\nfunc Add(i I) {}\n\nfunc main() {\n\tvar p *I\n\tAdd(p)\n}\n": "*main.I is pointer to interface, not interface",
+		"package main\n\nfunc main() {\n\tvar a, b = 1\n\t_, _ = a, b\n}\n":                                       "missing init expr for b",
+	} {
+		msgs := collectErrors(t, src)
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, want) {
+				found = true
+			}
+			if IsInternalMessage(m) {
+				t.Errorf("internal error for %q: %s", want, m)
+			}
+		}
+		if !found {
+			t.Errorf("want %q, got %v", want, msgs)
+		}
+	}
+}
+
+// IsInternalMessage mirrors the harness's internal-error filter.
+func IsInternalMessage(m string) bool {
+	for _, s := range []string{"should not happen", "unexpected selector expression type", "VPInvalid", "StaticBlock.Define"} {
+		if strings.Contains(m, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// collectErrorsPartial is collectErrors on the tree the parser builds
+// past its own errors, as the errorcheck ledger runs: a declaration error
+// the parser pins is still the checker's to report.
+func collectErrorsPartial(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, _ := m.ParseFileCollect("main.gno", src)
+	if fn == nil {
+		t.Fatal("no file node")
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msg := e.Unwrap().Error()
+		if i := strings.Index(msg, ": "); i >= 0 {
+			msg = msg[i+2:]
+		}
+		msgs = append(msgs, msg)
+	}
+	return msgs
+}
+
+func TestPreprocessCollectRedeclared(t *testing.T) {
+	// A name declared twice in one block used to crash Define2 when the
+	// types differed and pass silently when they matched.
+	for _, tc := range []struct{ src, want string }{
+		{"package main\n\ntype R struct{}\n\nfunc (i *R) F1(i int) {}\n", "i redeclared in this block"},
+		{"package main\n\nfunc f(i int, i string) {}\n", "i redeclared in this block"},
+		{"package main\n\nfunc f(i int) (i string) { return \"\" }\n", "i redeclared in this block"},
+		{"package main\n\nfunc f(x int) { var x = 1; _ = x }\n", "x redeclared in this block"},
+		{"package main\n\nfunc f() { v := func(p int, p string) {}; _ = v }\n", "p redeclared in this block"},
+		{"package main\n\nvar f byte\nvar f interface{}\n", "f redeclared in this block"},
+		{"package main\n\nconst none = 0\nconst none = 1\n", "none redeclared in this block"},
+		{"package main\n\nvar a, a = 1, \"s\"\n", "a redeclared in this block"},
+		{"package main\n\nvar f int\n\nfunc f() {}\n", "f redeclared in this block"},
+		{"package main\n\ntype T int\ntype T string\n", "T redeclared in this block"},
+		{"package main\n\nfunc f() {\n\tvar x int\n\tvar x string\n\t_ = x\n}\n", "x redeclared in this block"},
+		{"package main\n\nfunc f() {\n\tvar b, b = 1, \"s\"\n\t_ = b\n}\n", "b redeclared in this block"},
+	} {
+		msgs := collectErrorsPartial(t, tc.src)
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, tc.want) {
+				found = true
+			}
+			if IsInternalMessage(m) {
+				t.Errorf("internal error for %q: %s", tc.src, m)
+			}
+		}
+		if !found {
+			t.Errorf("want %q for %q, got %v", tc.want, tc.src, msgs)
+		}
+	}
+	// A declaration in a nested block shadows an if, switch or range
+	// variable; a split multi-value declaration declares each name once.
+	for _, src := range []string{
+		"package main\n\nfunc f(xs []int) {\n\tif x := 1; x > 0 {\n\t\tvar x = 2\n\t\t_ = x\n\t} else {\n\t\tvar x = 3\n\t\t_ = x\n\t}\n}\n",
+		"package main\n\nfunc f(xs []int) {\n\tfor k, v := range xs {\n\t\tvar k, v = 1, 2\n\t\t_, _ = k, v\n\t}\n}\n",
+		"package main\n\nfunc f() {\n\tswitch y := 1; y {\n\tcase 1:\n\t\tvar y = 2\n\t\t_ = y\n\t}\n}\n",
+		"package main\n\nvar a, b = func(x int) int { return x }, func(x int) int { return x }\n\nfunc f() {\n\tvar c, d = 1, 2\n\t_, _ = c, d\n\t_, _ = a, b\n}\n",
+		"package main\n\nfunc f(_, _ int) (_, _ int) { return 1, 2 }\n\nvar _, _ = 1, 2\n",
+	} {
+		for _, m := range collectErrorsPartial(t, src) {
+			if strings.Contains(m, "redeclared") {
+				t.Errorf("unexpected for %q: %s", src, m)
+			}
+		}
+	}
+}
+
+func TestPreprocessCollectNameCycle(t *testing.T) {
+	// A cycle through type names alone used to crash the predefine
+	// sanity check; it is the cycle, at the declaration that starts it.
+	for _, src := range []string{
+		"package main\n\ntype a b\ntype b c\ntype c b\n",
+		"package main\n\ntype b = c\ntype c b\n",
+	} {
+		msgs := collectErrors(t, src)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "invalid recursive type: b -> c -> b") {
+			t.Errorf("want the b -> c -> b cycle for %q, got %v", src, msgs)
+		}
+	}
+	m := NewMachine("main", nil)
+	defer m.Release()
+	func() {
+		defer func() {
+			r := recover()
+			pe, ok := r.(*PreprocessError)
+			if !ok || !strings.Contains(pe.Error(), "main.gno:4:6-9: invalid recursive type: b -> c -> b") {
+				t.Errorf("on-chain path: want the cycle at b, got %v", r)
+			}
+		}()
+		fn := m.MustParseFile("main.gno", "package main\n\ntype a b\ntype b c\ntype c b\n")
+		m.PreprocessFiles("main", "main", &FileSet{Files: []*FileNode{fn}}, false, false)
+	}()
+}
