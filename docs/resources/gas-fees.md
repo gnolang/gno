@@ -136,11 +136,14 @@ gnokey maketx addpkg \
   -pkgpath gno.land/p/examplenamespace/hello_world \
   -gas-wanted 4000000 \
   -gas-fee 4000ugnot \
-  -remote https://rpc.staging.gno.land:443 \
-  -chainid staging \
+  -remote https://rpc.latest.testnets.gno.land:443 \
+  -chainid <chain-id> \
   -simulate only \
   YOUR_KEY_NAME
 ```
+
+Put the current testnet's chain ID, listed in [Networks](gnoland-networks.md),
+in place of `<chain-id>`.
 
 Simulation output, so nothing reached a block:
 ```
