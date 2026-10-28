@@ -405,14 +405,14 @@ var ExtIcons = &iconExtension{}
 
 // Extend registers the icon parser just ahead of goldmark's raw-HTML inline
 // parser (400), and the shared line parser ahead of the HTML block parser
-// (900).
+// (900) and of the frame's HTML block wrapper (899).
 func (e *iconExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
 			util.Prioritized(&iconParser{}, 399),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(newGnoTagLineParser(iconTagPrefix), 899),
+			util.Prioritized(newGnoTagLineParser(iconTagPrefix), 898),
 		),
 		parser.WithASTTransformers(
 			util.Prioritized(&iconHeadingIDTransformer{}, 500),
