@@ -52,6 +52,9 @@ var FallbackGasPrice = std.GasPrice{Gas: 1_000, Price: std.NewCoin("ugnot", 1)}
 // minTxGasWanted is the least gas a command sized from recent calls asks for.
 const minTxGasWanted = 1_000_000
 
+// gasWantedStep is what gas sized from recent calls is rounded up to.
+const gasWantedStep = 100_000
+
 // minGasUseCalls is how many recent calls it takes to size the gas from them.
 const minGasUseCalls = 3
 
@@ -62,37 +65,50 @@ type GasUse struct {
 	Calls int
 }
 
-// TxGas is the gas and fee a copied gnokey command offers, and the price the
-// fee was worked out from.
-type TxGas struct {
+// GasFee is the gas a gnokey command asks for and the fee it offers.
+type GasFee struct {
 	Wanted int64
 	Fee    std.Coin
-	Price  std.GasPrice
+}
+
+// TxGas is the gas and fee the copied gnokey commands offer, and the price
+// the fees were worked out from.
+type TxGas struct {
+	// Secure is what the secure-mode commands offer: TxGasWanted, since they
+	// broadcast without simulating.
+	Secure GasFee
+	// Fast is what the fast-mode command offers: Secure, or less when Used
+	// sized it. gnokey simulates it first, so too little gas costs nothing.
+	Fast  GasFee
+	Price std.GasPrice
 	// Estimated is set when Price is FallbackGasPrice, not the chain's.
 	Estimated bool
-	// Used is what Wanted was sized from, zero when Wanted is TxGasWanted.
+	// Used is what Fast was sized from, zero when Fast is Secure.
 	Used GasUse
 }
 
-// NewTxGas asks for twice the most gas a recent call used, within
-// [minTxGasWanted, TxGasWanted], or for TxGasWanted with fewer than
-// minGasUseCalls calls. It prices that at price times txFeeHeadroom, rounded
-// up; a zero, invalid, overflowing or too costly price falls back to
-// FallbackGasPrice.
+// NewTxGas prices TxGasWanted at price times txFeeHeadroom, rounded up; a
+// zero, invalid, overflowing or too costly price falls back to
+// FallbackGasPrice. With minGasUseCalls recent calls or more, the fast-mode
+// command asks for twice the most gas one used, rounded up to gasWantedStep
+// and at least minTxGasWanted, at the same price.
 func NewTxGas(price std.GasPrice, use GasUse) TxGas {
-	g := TxGas{Wanted: TxGasWanted, Price: price}
-	// Indexer data is not consensus data: it may lower the gas, never raise it.
-	if use.Calls >= minGasUseCalls {
-		if w := 2 * min(max(use.Max, minTxGasWanted/2), TxGasWanted/2); w < TxGasWanted {
-			g.Wanted, g.Used = w, use
-		}
-	}
-	fee, ok := txFee(price, g.Wanted)
+	g := TxGas{Price: price}
+	fee, ok := txFee(price, TxGasWanted)
 	if !ok {
-		fee, _ = txFee(FallbackGasPrice, g.Wanted)
+		fee, _ = txFee(FallbackGasPrice, TxGasWanted)
 		g.Price, g.Estimated = FallbackGasPrice, true
 	}
-	g.Fee = fee
+	g.Secure = GasFee{Wanted: TxGasWanted, Fee: fee}
+	g.Fast = g.Secure
+	// Indexer data is not consensus data: it may lower the gas, never raise it.
+	if use.Calls >= minGasUseCalls && use.Max < TxGasWanted/2 {
+		w := max((2*use.Max+gasWantedStep-1)/gasWantedStep*gasWantedStep, minTxGasWanted)
+		if w < TxGasWanted {
+			fee, _ := txFee(g.Price, w) // below TxGasWanted's, which was usable
+			g.Fast, g.Used = GasFee{Wanted: w, Fee: fee}, use
+		}
+	}
 	return g
 }
 
@@ -112,7 +128,7 @@ func txFee(p std.GasPrice, wanted int64) (std.Coin, bool) {
 }
 
 // WantedFlag is the -gas-wanted value, grouped like Go literals: 10_000_000.
-func (g TxGas) WantedFlag() string {
+func (g GasFee) WantedFlag() string {
 	s := strconv.FormatInt(g.Wanted, 10)
 	for i := len(s) - 3; i > 0; i -= 3 {
 		s = s[:i] + "_" + s[i:]
@@ -121,7 +137,7 @@ func (g TxGas) WantedFlag() string {
 }
 
 // FeeText is the fee for a reader: GNOT for ugnot, else the raw coin.
-func (g TxGas) FeeText() string {
+func (g GasFee) FeeText() string {
 	if g.Fee.Denom != "ugnot" {
 		return g.Fee.String()
 	}

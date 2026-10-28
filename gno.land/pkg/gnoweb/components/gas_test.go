@@ -51,7 +51,7 @@ func TestNewTxGas(t *testing.T) {
 		"fee overflows":       {price(math.MaxInt64, 1, "ugnot"), "30000ugnot", true},
 	} {
 		got := NewTxGas(tc.price, GasUse{})
-		if got.Fee.String() != tc.fee || got.Estimated != tc.estimated || got.Wanted != TxGasWanted {
+		if got.Secure.Fee.String() != tc.fee || got.Estimated != tc.estimated || got.Secure.Wanted != TxGasWanted || got.Fast != got.Secure {
 			t.Errorf("%s: NewTxGas(%v) = %+v, want fee %s, estimated %v", name, tc.price, got, tc.fee, tc.estimated)
 		}
 		if tc.estimated && got.Price != FallbackGasPrice {
@@ -60,45 +60,45 @@ func TestNewTxGas(t *testing.T) {
 	}
 }
 
-// Recent calls size the gas at twice the most one used, within 1 M and
-// TxGasWanted; the fee follows the gas. Too few calls, or a size at the
-// ceiling, keep TxGasWanted and say nothing about them.
+// Recent calls size the fast-mode gas at twice the most one used, rounded up
+// to 100 k, within 1 M and TxGasWanted, priced like the secure-mode gas. Too
+// few calls, or a size at the ceiling, keep TxGasWanted and say nothing about
+// them; the secure-mode gas is always TxGasWanted.
 func TestNewTxGasFromUse(t *testing.T) {
 	t.Parallel()
 
 	use := func(most int64, calls int) GasUse { return GasUse{Max: most, Calls: calls} }
+	ugnot := func(wanted, fee int64) GasFee { return GasFee{Wanted: wanted, Fee: std.NewCoin("ugnot", fee)} }
+	secure := ugnot(TxGasWanted, 30_000)
 	for name, tc := range map[string]struct {
-		use    GasUse
-		wanted int64
-		fee    string
-		used   bool
+		use  GasUse
+		fast GasFee
+		used bool
 	}{
-		"none":             {GasUse{}, TxGasWanted, "30000ugnot", false},
-		"too few":          {use(1_380_000, 2), TxGasWanted, "30000ugnot", false},
-		"twice the most":   {use(1_380_000, 3), 2_760_000, "8280ugnot", true},
-		"odd max":          {use(1_234_567, 20), 2_469_134, "7408ugnot", true}, // 7,407.402
-		"floor":            {use(100_000, 5), 1_000_000, "3000ugnot", true},
-		"negative":         {use(-5, 5), 1_000_000, "3000ugnot", true},
-		"just below cap":   {use(4_999_999, 5), 9_999_998, "30000ugnot", true}, // 29,999.994
-		"at the ceiling":   {use(5_000_000, 5), TxGasWanted, "30000ugnot", false},
-		"over the ceiling": {use(9_100_000, 20), TxGasWanted, "30000ugnot", false},
-		"would overflow":   {use(math.MaxInt64, 20), TxGasWanted, "30000ugnot", false},
+		"none":                  {GasUse{}, secure, false},
+		"too few":               {use(1_380_000, 2), secure, false},
+		"twice the most":        {use(1_380_000, 3), ugnot(2_800_000, 8_400), true},
+		"rounds up":             {use(1_234_567, 20), ugnot(2_500_000, 7_500), true},
+		"floor":                 {use(100_000, 5), ugnot(1_000_000, 3_000), true},
+		"below the ceiling":     {use(4_950_000, 5), ugnot(9_900_000, 29_700), true},
+		"rounds to the ceiling": {use(4_950_001, 5), secure, false},
+		"would overflow":        {use(math.MaxInt64, 20), secure, false},
 	} {
-		var used GasUse
+		want := TxGas{Secure: secure, Fast: tc.fast, Price: FallbackGasPrice}
 		if tc.used {
-			used = tc.use
+			want.Used = tc.use
 		}
-		got := NewTxGas(FallbackGasPrice, tc.use)
-		if got.Wanted != tc.wanted || got.Fee.String() != tc.fee || got.Used != used {
-			t.Errorf("%s: NewTxGas(%+v) = %+v, want %d gas for %s, used %v", name, tc.use, got, tc.wanted, tc.fee, tc.used)
+		if got := NewTxGas(FallbackGasPrice, tc.use); got != want {
+			t.Errorf("%s: NewTxGas(%+v) = %+v, want %+v", name, tc.use, got, want)
 		}
 	}
 
-	// The 1 GNOT cap applies to the fee asked for: a price too costly for
-	// TxGasWanted can still price a measured call.
+	// A price too costly for TxGasWanted falls back for both modes, so a page
+	// shows one price and no fee above the secure one.
 	steep := std.GasPrice{Gas: 29, Price: std.NewCoin("ugnot", 1)}
-	if got := NewTxGas(steep, use(1_380_000, 3)); got.Estimated || got.Fee.String() != "285518ugnot" {
-		t.Errorf("steep price: %+v, want 285518ugnot at the chain's price", got)
+	want := TxGas{Secure: secure, Fast: ugnot(2_800_000, 8_400), Price: FallbackGasPrice, Estimated: true, Used: use(1_380_000, 3)}
+	if got := NewTxGas(steep, use(1_380_000, 3)); got != want {
+		t.Errorf("steep price: %+v, want %+v", got, want)
 	}
 }
 
@@ -107,10 +107,10 @@ func TestTxGasText(t *testing.T) {
 	t.Parallel()
 
 	g := NewTxGas(FallbackGasPrice, GasUse{})
-	fee := func(c std.Coin) string { return TxGas{Fee: c}.FeeText() }
+	fee := func(c std.Coin) string { return GasFee{Fee: c}.FeeText() }
 	for _, tc := range []struct{ name, got, want string }{
-		{"flag", g.WantedFlag(), "10_000_000"},
-		{"fee", g.FeeText(), "0.03 GNOT"},
+		{"flag", g.Secure.WantedFlag(), "10_000_000"},
+		{"fee", g.Secure.FeeText(), "0.03 GNOT"},
 		{"price", g.Price.String(), "1ugnot/1000gas"},
 		{"zero", fee(std.NewCoin("ugnot", 0)), "0 GNOT"},
 		{"one ugnot", fee(std.NewCoin("ugnot", 1)), "0.000001 GNOT"},

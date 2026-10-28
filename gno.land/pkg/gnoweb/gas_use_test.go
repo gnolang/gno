@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testPkg = "gno.land/r/gnoland/wugnot"
@@ -26,8 +30,9 @@ func callTx(gas int, ok bool, msgs ...[3]string) indexer.Tx {
 
 func call(fn string) [3]string { return [3]string{"MsgCall", testPkg, fn} }
 
-// Only successful single-call transactions into the package are measured,
-// at most gasUseCalls per function, newest first.
+// Only successful single-call transactions into the package, with a gas
+// use and a Go identifier for a function, are measured, at most gasUseCalls
+// per function, newest first.
 func TestGasUses(t *testing.T) {
 	t.Parallel()
 
@@ -38,29 +43,28 @@ func TestGasUses(t *testing.T) {
 		callTx(9_000_003, true, [3]string{"MsgRun", testPkg, "Deposit"}),        // not a call
 		callTx(9_000_004, true, [3]string{"UnexpectedMessage", "", ""}),         // what the filter let through (#6411)
 		callTx(9_000_005, true), // no message
+		callTx(9_000_006, true, call("")),
+		callTx(9_000_007, true, call("Deposit<script>")),
+		callTx(9_000_008, true, call("1Deposit")),
+		callTx(9_000_009, true, call(strings.Repeat("D", maxGasUseFunc+1))),
+		callTx(0, true, call("Deposit")),
+		callTx(-1, true, call("Deposit")),
 		callTx(1_400_000, true, call("Deposit")),
 		callTx(1_300_000, true, call("Withdraw")),
 		callTx(1_380_000, true, call("Deposit")),
+		callTx(1_000, true, call(strings.Repeat("D", maxGasUseFunc))),
 	}
 	for i := range gasUseCalls {
 		txs = append(txs, callTx(1_000_000+i, true, call("Transfer")))
 	}
 	txs = append(txs, callTx(5_000_000, true, call("Transfer"))) // the 21st: too old
 
-	got := gasUses(txs, testPkg)
-	want := map[string]components.GasUse{
-		"Deposit":  {Max: 1_400_000, Calls: 2},
-		"Withdraw": {Max: 1_300_000, Calls: 1},
-		"Transfer": {Max: 1_000_000 + gasUseCalls - 1, Calls: gasUseCalls},
-	}
-	if len(got) != len(want) {
-		t.Fatalf("gasUses = %v, want %v", got, want)
-	}
-	for fn, w := range want {
-		if got[fn] != w {
-			t.Errorf("%s: %+v, want %+v", fn, got[fn], w)
-		}
-	}
+	require.Equal(t, map[string]components.GasUse{
+		"Deposit":                          {Max: 1_400_000, Calls: 2},
+		"Withdraw":                         {Max: 1_300_000, Calls: 1},
+		"Transfer":                         {Max: 1_000_000 + gasUseCalls - 1, Calls: gasUseCalls},
+		strings.Repeat("D", maxGasUseFunc): {Max: 1_000, Calls: 1},
+	}, gasUses(txs, testPkg))
 }
 
 // stubRecent answers RecentByPackage with txs or err, counting calls; when
@@ -107,127 +111,148 @@ func deposits(gas ...int) []indexer.Tx {
 	return txs
 }
 
-// expire ages pkgPath's entry past gasUseTTL.
-func (c *gasUseCache) expire(pkgPath string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.entries[pkgPath].at = c.entries[pkgPath].at.Add(-gasUseTTL)
+// fakeClock is a gasUseCache clock the test moves.
+type fakeClock struct{ ns atomic.Int64 }
+
+func (f *fakeClock) now() time.Time      { return time.Unix(0, f.ns.Load()) }
+func (f *fakeClock) add(d time.Duration) { f.ns.Add(int64(d)) }
+func newGasUseCache(idx *stubRecent, clock *fakeClock) *gasUseCache {
+	return &gasUseCache{recent: idx.recent, logger: newDiscardLogger(), now: clock.now}
 }
 
-// settle waits for pkgPath's read to finish.
+// settle waits until pkgPath's entry is fresh.
 func (c *gasUseCache) settle(t *testing.T, pkgPath string) {
 	t.Helper()
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
-		c.mu.Lock()
-		busy := c.entries[pkgPath].busy
-		c.mu.Unlock()
-		if !busy {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("read did not finish")
-		}
-	}
+	require.Eventually(t, func() bool {
+		_, ok := c.lookup(pkgPath)
+		return ok
+	}, 5*time.Second, time.Millisecond)
 }
 
-// The first read is waited for; within gasUseTTL the answer is reused; past
-// it, callers get the stale answer at once while one read refreshes it. A
-// failed read keeps the last answer, and a partial one is used.
+// A page never waits: the first gets nothing while the read runs, the next
+// get its answer, reused within gasUseTTL; past it, callers get the stale
+// answer at once while one read refreshes it. A partial read is used.
 func TestGasUseCache(t *testing.T) {
 	t.Parallel()
 
-	idx := &stubRecent{txs: deposits(1_400_000, 1_380_000, 1_360_000)}
-	c := &gasUseCache{recent: idx.recent, logger: newDiscardLogger()}
+	gate := make(chan struct{})
+	idx := &stubRecent{txs: deposits(1_400_000, 1_380_000, 1_360_000), gate: gate}
+	clock := &fakeClock{}
+	c := newGasUseCache(idx, clock)
 	ctx := context.Background()
 	first := components.GasUse{Max: 1_400_000, Calls: 3}
 
-	if got := c.get(ctx, testPkg)["Deposit"]; got != first {
-		t.Fatalf("first read: %+v, want %+v", got, first)
-	}
-	if got := c.get(ctx, testPkg)["Deposit"]; got != first || idx.count() != 1 {
-		t.Fatalf("within the TTL: %+v after %d reads, want %+v after 1", got, idx.count(), first)
-	}
+	require.Nil(t, c.get(ctx, testPkg), "first read in flight")
+	close(gate)
+	c.settle(t, testPkg)
+	require.Equal(t, first, c.get(ctx, testPkg)["Deposit"])
+	clock.add(gasUseTTL - time.Second)
+	require.Equal(t, first, c.get(ctx, testPkg)["Deposit"])
+	require.Equal(t, 1, idx.count(), "reads within the TTL")
 
 	// Stale: every caller gets the old answer at once while one read hangs.
-	gate := make(chan struct{})
+	gate = make(chan struct{})
 	idx.set(deposits(2_000_000, 2_000_000, 2_000_000), nil, gate)
-	c.expire(testPkg)
+	clock.add(time.Second)
 	var wg sync.WaitGroup
 	for range 20 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if got := c.get(ctx, testPkg)["Deposit"]; got != first {
-				t.Errorf("during a refresh: %+v, want the stale %+v", got, first)
-			}
+			assert.Equal(t, first, c.get(ctx, testPkg)["Deposit"], "during a refresh")
 		}()
 	}
 	wg.Wait()
 	close(gate)
 	c.settle(t, testPkg)
-	if n := idx.count(); n != 2 {
-		t.Fatalf("%d reads, want 2: one refresh for all stale callers", n)
-	}
-	if got := c.get(ctx, testPkg)["Deposit"]; got.Max != 2_000_000 {
-		t.Fatalf("after the refresh: %+v, want 2 M", got)
-	}
+	require.Equal(t, 2, idx.count(), "one refresh for all stale callers")
+	require.Equal(t, int64(2_000_000), c.get(ctx, testPkg)["Deposit"].Max)
 
-	// A failed read keeps the last answer; a partial one replaces it.
-	idx.set(nil, errors.New("indexer down"), nil)
-	c.expire(testPkg)
-	c.get(ctx, testPkg)
-	c.settle(t, testPkg)
-	if got := c.get(ctx, testPkg)["Deposit"]; got.Max != 2_000_000 || idx.count() != 3 {
-		t.Fatalf("after a failure: %+v after %d reads, want the last answer after 3", got, idx.count())
-	}
 	idx.set(deposits(1_000_000), indexer.ErrPartial, nil)
-	c.expire(testPkg)
+	clock.add(gasUseTTL)
 	c.get(ctx, testPkg)
 	c.settle(t, testPkg)
-	if got := c.get(ctx, testPkg)["Deposit"]; got != (components.GasUse{Max: 1_000_000, Calls: 1}) {
-		t.Fatalf("after a partial read: %+v, want its one call", got)
-	}
+	require.Equal(t, components.GasUse{Max: 1_000_000, Calls: 1}, c.get(ctx, testPkg)["Deposit"])
 }
 
-// A reader whose request is gone does not wait for a slow first read, which
-// still fills the cache for the next one.
-func TestGasUseCacheSlowFirstRead(t *testing.T) {
+// A failed read is kept, as nothing, for gasUseRetry, then read again.
+func TestGasUseCacheRetry(t *testing.T) {
+	t.Parallel()
+
+	idx := &stubRecent{err: errors.New("indexer down")}
+	clock := &fakeClock{}
+	c := newGasUseCache(idx, clock)
+	ctx := context.Background()
+
+	c.get(ctx, testPkg)
+	c.settle(t, testPkg)
+	clock.add(gasUseRetry - time.Second)
+	require.Nil(t, c.get(ctx, testPkg))
+	require.Equal(t, 1, idx.count())
+
+	idx.set(deposits(1_400_000, 1_400_000, 1_400_000), nil, nil)
+	clock.add(time.Second)
+	c.get(ctx, testPkg)
+	c.settle(t, testPkg)
+	require.Equal(t, 2, idx.count())
+	require.Equal(t, components.GasUse{Max: 1_400_000, Calls: 3}, c.get(ctx, testPkg)["Deposit"])
+}
+
+// At most maxGasUseReads run at once; a page past the cap skips its read
+// without marking the package, so a later page reads it.
+func TestGasUseCacheReadCap(t *testing.T) {
 	t.Parallel()
 
 	gate := make(chan struct{})
-	idx := &stubRecent{txs: deposits(1_400_000, 1_400_000, 1_400_000), gate: gate}
-	c := &gasUseCache{recent: idx.recent, logger: newDiscardLogger()}
+	idx := &stubRecent{gate: gate}
+	c := newGasUseCache(idx, &fakeClock{})
+	ctx := context.Background()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if got := c.get(ctx, testPkg); got != nil {
-		t.Fatalf("cancelled reader got %v, want nothing yet", got)
+	for i := range maxGasUseReads {
+		c.get(ctx, testPkg+strconv.Itoa(i))
 	}
+	require.Eventually(t, func() bool { return idx.count() == maxGasUseReads }, 5*time.Second, time.Millisecond)
+	extra := testPkg + "x"
+	c.get(ctx, extra)
+	<-c.sf.DoChan(extra, func() (any, error) { return nil, nil }) // joins the skipped read until it returns
 	close(gate)
-	c.settle(t, testPkg)
-	if got := c.get(context.Background(), testPkg)["Deposit"]; got.Calls != 3 || idx.count() != 1 {
-		t.Fatalf("next reader: %+v after %d reads, want 3 calls after 1", got, idx.count())
+	for i := range maxGasUseReads {
+		c.settle(t, testPkg+strconv.Itoa(i))
 	}
+	_, ok := c.lookup(extra)
+	require.False(t, ok, "skipped package marked")
+	require.Equal(t, maxGasUseReads, idx.count())
+
+	c.get(ctx, extra)
+	c.settle(t, extra)
+	require.Equal(t, maxGasUseReads+1, idx.count())
 }
 
-// Without an indexer nothing is read; with one, the cache holds at most
-// maxGasUsePkgs packages.
+// Without an indexer nothing is read; with one, a full cache is cleared for
+// a new package, not for a refresh.
 func TestGasUseCacheBounds(t *testing.T) {
 	t.Parallel()
 
-	if got := (&gasUseCache{}).get(context.Background(), testPkg); got != nil {
-		t.Fatalf("no indexer: %v, want nil", got)
-	}
+	require.Nil(t, (&gasUseCache{}).get(context.Background(), testPkg), "no indexer")
 
-	idx := &stubRecent{}
-	c := &gasUseCache{recent: idx.recent, logger: newDiscardLogger()}
-	for i := range maxGasUsePkgs + 10 {
-		c.get(context.Background(), testPkg+strconv.Itoa(i))
+	clock := &fakeClock{}
+	c := newGasUseCache(&stubRecent{}, clock)
+	c.entries = make(map[string]gasUseEntry)
+	for i := range maxGasUsePkgs - 1 {
+		c.entries[testPkg+strconv.Itoa(i)] = gasUseEntry{expires: clock.now().Add(time.Hour)}
 	}
+	c.get(context.Background(), testPkg)
+	c.settle(t, testPkg)
+	require.Len(t, c.entries, maxGasUsePkgs, "full, not over")
+
+	clock.add(gasUseTTL)
+	c.get(context.Background(), testPkg)
+	c.settle(t, testPkg)
+	require.Len(t, c.entries, maxGasUsePkgs, "a refresh clears nothing")
+
+	c.get(context.Background(), testPkg+"x")
+	c.settle(t, testPkg+"x")
 	c.mu.Lock()
-	n := len(c.entries)
-	c.mu.Unlock()
-	if n != maxGasUsePkgs {
-		t.Fatalf("%d packages cached, want %d", n, maxGasUsePkgs)
-	}
+	defer c.mu.Unlock()
+	require.Len(t, c.entries, 1, "cleared for a new package")
 }

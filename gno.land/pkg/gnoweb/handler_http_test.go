@@ -1117,32 +1117,77 @@ func TestHTTPHandler_ContextCancellation(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
+// gasIndexer answers RecentByPackage with txs or err, recording the paths
+// it was asked about.
+type gasIndexer struct {
+	stubIndexer
+	txs   []indexer.Tx
+	mu    sync.Mutex
+	asked []string
+}
+
+func (g *gasIndexer) RecentByPackage(_ context.Context, pkgPath string, _ int) ([]indexer.Tx, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.asked = append(g.asked, pkgPath)
+	return g.txs, nil
+}
+
+func (g *gasIndexer) askedPaths() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.asked
+}
+
 // The Actions page and a <gno-form exec> price their commands at the
 // chain's gas price, or the fallback when the node cannot say; a page with
-// no command to price never asks for it.
+// no command to price never asks for it, nor the indexer. With an indexer,
+// a page first shows 10 M, and once the function's recent calls are read,
+// the fast-mode command asks for twice the most one used and says so, while
+// the secure-mode commands keep 10 M.
 func TestHTTPHandler_CommandGas(t *testing.T) {
 	t.Parallel()
 
+	const pkg = "gno.land/r/test/path"
+	bump := func(gas int) indexer.Tx {
+		tx := indexer.Tx{Success: true, GasUsed: gas, Messages: make([]indexer.Message, 1)}
+		tx.Messages[0].Value.Type, tx.Messages[0].Value.PkgPath, tx.Messages[0].Value.Func = "MsgCall", pkg, "Bump"
+		return tx
+	}
+	calls := []indexer.Tx{bump(1_380_000), bump(1_360_000), bump(1_370_000)}
+	measured := []string{
+		"Fee <strong>0.0168 GNOT</strong> for up to 2.8 M gas:",
+		"its last 3 successful calls seen by the indexer used at most 1.4 M.",
+		"they keep 10 M gas for 0.06 GNOT.",
+	}
+	execForm := "<gno-form exec=\"Bump\">\n</gno-form>\n"
+	queryForm := "<gno-form>\n<input name=\"q\" />\n</gno-form>\n"
 	chainPrice := std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)}
 	for _, tc := range []struct {
-		name  string
-		url   string
-		funcs bool // the realm has a crossing function
-		realm string
-		err   error
-		calls int32
-		want  string
+		name     string
+		url      string
+		funcs    bool // the realm has a crossing function
+		realm    string
+		err      error
+		indexer  bool
+		calls    int32
+		want     string
+		measured []string // once the indexer was read
 	}{
 		{name: "help, chain price", url: "/r/test/path$help", funcs: true, calls: 1, want: "-gas-fee 60000ugnot"},
 		{name: "help, node down", url: "/r/test/path$help", funcs: true, err: gnoweb.ErrClientTimeout, calls: 1, want: "-gas-fee 30000ugnot"},
 		{name: "help, no functions", url: "/r/test/path$help", calls: 0},
-		{name: "exec form", url: "/r/test/path", realm: "<gno-form exec=\"Bump\">\n</gno-form>\n", calls: 1, want: "-gas-fee 60000ugnot"},
-		{name: "no exec form", url: "/r/test/path", realm: "<gno-form>\n<input name=\"q\" />\n</gno-form>\n", calls: 0},
+		{name: "exec form", url: "/r/test/path", realm: execForm, calls: 1, want: "-gas-fee 60000ugnot"},
+		{name: "no exec form", url: "/r/test/path", realm: queryForm, calls: 0},
+		{name: "help, measured", url: "/r/test/path$help", funcs: true, indexer: true, calls: 1, want: "-gas-wanted 10_000_000", measured: measured},
+		{name: "exec form, measured", url: "/r/test/path", realm: execForm, indexer: true, calls: 1, want: "-gas-wanted 10_000_000", measured: measured},
+		{name: "no exec form, indexer", url: "/r/test/path", realm: queryForm, indexer: true, calls: 0},
+		{name: "source, indexer", url: "/r/test/path$source", funcs: true, indexer: true, calls: 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			var calls atomic.Int32
+			var priced atomic.Int32
 			cl := &stubClient{
 				docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
 					jdoc := &doc.JSONDocumentation{}
@@ -1154,91 +1199,8 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 				},
 				realmFunc: func(context.Context, string, string) ([]byte, error) { return []byte(tc.realm), nil },
 				gasPriceFunc: func(context.Context) (std.GasPrice, error) {
-					calls.Add(1)
+					priced.Add(1)
 					return chainPrice, tc.err
-				},
-			}
-			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			cfg := newTestHandlerConfig(t, cl)
-			cfg.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), cl)
-			handler, err := gnoweb.NewHTTPHandler(logger, cfg)
-			require.NoError(t, err)
-
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
-			require.Equal(t, http.StatusOK, rr.Code)
-			assert.Equal(t, tc.calls, calls.Load())
-			assert.Contains(t, rr.Body.String(), tc.want)
-		})
-	}
-}
-
-// gasIndexer answers RecentByPackage with txs or err, recording the paths
-// it was asked about.
-type gasIndexer struct {
-	stubIndexer
-	txs   []indexer.Tx
-	err   error
-	mu    sync.Mutex
-	asked []string
-}
-
-func (g *gasIndexer) RecentByPackage(_ context.Context, pkgPath string, _ int) ([]indexer.Tx, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.asked = append(g.asked, pkgPath)
-	return g.txs, g.err
-}
-
-// With an indexer, a command asks for twice the most gas its function's
-// recent calls used and says so; a function without enough calls, a page
-// without an indexer or a failing indexer keep 10 M. Pages without a command
-// never ask the indexer.
-func TestHTTPHandler_CommandGasFromIndexer(t *testing.T) {
-	t.Parallel()
-
-	const pkg = "gno.land/r/test/path"
-	deposit := func(gas int) indexer.Tx {
-		tx := indexer.Tx{Success: true, GasUsed: gas, Messages: make([]indexer.Message, 1)}
-		tx.Messages[0].Value.Type, tx.Messages[0].Value.PkgPath, tx.Messages[0].Value.Func = "MsgCall", pkg, "Bump"
-		return tx
-	}
-	txs := []indexer.Tx{deposit(1_380_000), deposit(1_360_000), deposit(1_370_000)}
-	measured := []string{"-gas-wanted 2_760_000", "-gas-fee 16560ugnot", "for up to 2.8 M gas (its last 3 calls used at most 1.4 M):"}
-	flat := []string{"-gas-wanted 10_000_000", "-gas-fee 60000ugnot", "for up to 10 M gas:"}
-	form := "<gno-form exec=\"Bump\">\n</gno-form>\n"
-
-	for _, tc := range []struct {
-		name    string
-		url     string
-		realm   string
-		indexer *gasIndexer
-		asked   []string
-		want    []string
-	}{
-		{name: "help, measured", url: "/r/test/path$help", indexer: &gasIndexer{txs: txs}, asked: []string{pkg}, want: append(measured, flat[0])},
-		{name: "help, no indexer", url: "/r/test/path$help", want: flat},
-		{name: "help, indexer down", url: "/r/test/path$help", indexer: &gasIndexer{err: errors.New("down")}, asked: []string{pkg}, want: flat},
-		{name: "help, too few calls", url: "/r/test/path$help", indexer: &gasIndexer{txs: txs[:2]}, asked: []string{pkg}, want: flat},
-		{name: "exec form, measured", url: "/r/test/path", realm: form, indexer: &gasIndexer{txs: txs}, asked: []string{pkg}, want: measured},
-		{name: "exec form, no indexer", url: "/r/test/path", realm: form, want: flat},
-		{name: "no exec form", url: "/r/test/path", realm: "<gno-form>\n<input name=\"q\" />\n</gno-form>\n", indexer: &gasIndexer{txs: txs}},
-		{name: "source", url: "/r/test/path$source", indexer: &gasIndexer{txs: txs}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			cl := &stubClient{
-				docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
-					cross := []*doc.JSONField{{Name: "cur", Type: "realm"}}
-					return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{
-						{Name: "Bump", Crossing: true, Params: cross},
-						{Name: "Reset", Crossing: true, Params: cross},
-					}}, nil
-				},
-				realmFunc: func(context.Context, string, string) ([]byte, error) { return []byte(tc.realm), nil },
-				gasPriceFunc: func(context.Context) (std.GasPrice, error) {
-					return std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)}, nil
 				},
 				listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"a.gno"}, nil },
 			}
@@ -1246,22 +1208,43 @@ func TestHTTPHandler_CommandGasFromIndexer(t *testing.T) {
 			cfg := newTestHandlerConfig(t, cl)
 			cfg.Meta.Domain = "gno.land"
 			cfg.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), cl)
-			if tc.indexer != nil {
-				cfg.Indexer = tc.indexer
+			idx := &gasIndexer{txs: calls}
+			if tc.indexer {
+				cfg.Indexer = idx
 			}
 			handler, err := gnoweb.NewHTTPHandler(logger, cfg)
 			require.NoError(t, err)
-
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
-			require.Equal(t, http.StatusOK, rr.Code)
-			for _, w := range tc.want {
-				assert.Contains(t, rr.Body.String(), w)
+			serve := func() string {
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+				require.Equal(t, http.StatusOK, rr.Code)
+				return rr.Body.String()
 			}
-			if tc.indexer != nil {
-				tc.indexer.mu.Lock()
-				assert.Equal(t, tc.asked, tc.indexer.asked)
-				tc.indexer.mu.Unlock()
+
+			// The first page does not wait for the indexer.
+			body := serve()
+			assert.Equal(t, tc.calls, priced.Load())
+			assert.Contains(t, body, tc.want)
+			assert.NotContains(t, body, "seen by the indexer")
+			if !tc.indexer {
+				return
+			}
+			if tc.calls == 0 {
+				assert.Empty(t, idx.askedPaths())
+				return
+			}
+			require.Eventually(t, func() bool {
+				body = serve()
+				return strings.Contains(body, tc.measured[0])
+			}, 5*time.Second, 5*time.Millisecond)
+			assert.Equal(t, []string{pkg}, idx.askedPaths())
+			fast, secure, ok := strings.Cut(body, `data-action-function-mode-value="secure"`)
+			require.True(t, ok)
+			assert.Contains(t, fast, "-gas-fee 16800ugnot -gas-wanted 2_800_000")
+			assert.Contains(t, secure, "-gas-fee 60000ugnot -gas-wanted 10_000_000")
+			assert.NotContains(t, secure, "2_800_000")
+			for _, w := range tc.measured {
+				assert.Contains(t, body, w)
 			}
 		})
 	}
