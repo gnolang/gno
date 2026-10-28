@@ -930,3 +930,65 @@ func TestGlobalSelectorDoesNotClaimThePageAsScope(t *testing.T) {
 		}
 	}
 }
+
+// The listing is alphabetical; the answer is not. A package named after the
+// needle comes first, a deploy under a raw address or a test package last.
+func TestDiscoveryRanksByRelevance(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1a9g8nu3m0xgx58hh36fph49e2xkqm9axlxuf5z"
+	got := []string{
+		"/p/" + addr + "/avl",
+		"/p/demo/avl_test",
+		"/p/nt/avl/pager/v0",
+		"/p/nt/avl/v0",
+		"/p/samcrew/avl",
+		"/r/x/latest/avl",
+		"/r/nym-moultest123/avl",
+	}
+	sortByRelevance(got, "avl")
+	want := []string{
+		"/p/nt/avl/v0",
+		"/p/samcrew/avl",
+		"/r/x/latest/avl",
+		"/p/nt/avl/pager/v0",
+		"/r/nym-moultest123/avl", // throwaways, named after the needle
+		"/p/" + addr + "/avl",
+		"/p/demo/avl_test",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("order:\n got %v\nwant %v", got, want)
+	}
+
+	// Asking for tests, or for that address, does not push them down.
+	if isThrowaway("/p/demo/avl_test", "avl_test") || isThrowaway("/p/"+addr+"/avl", addr) {
+		t.Error("a throwaway the needle asks for is still ranked last")
+	}
+}
+
+// A pasted address asks for that account: the account selector when an
+// indexer is configured, a link to the user's page otherwise.
+func TestPastedAddress(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	if sel, term := h.selectorFor(mustQuery(t, h, " "+addr+" ", "")); sel == nil || sel.Name != "account" || term != addr {
+		t.Errorf("with an indexer: selector = %v %q, want account %q", sel, term, addr)
+	}
+	if sel, _ := h.selectorFor(mustQuery(t, h, "is:realm "+addr, "")); sel != nil {
+		t.Errorf("an address beside a qualifier is not a pasted address: got %s", sel.Name)
+	}
+
+	h = newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, addr, ""))
+	for _, g := range groups {
+		for _, r := range g.Results {
+			if g.Label == "Users" && string(r.Href) == "/u/"+addr {
+				return
+			}
+		}
+	}
+	t.Errorf("without an indexer: no link to /u/%s in %+v", addr, groups)
+}

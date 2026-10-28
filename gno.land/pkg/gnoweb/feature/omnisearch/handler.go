@@ -269,6 +269,11 @@ func (h *Handler) selectorFor(q *Query) (*Selector, string) {
 			return sel, ""
 		}
 	}
+	// A pasted address asks for that account, which `account:` answers when
+	// an indexer is there. Without one, discovery links the user's page.
+	if sel, ok := h.byName["account"]; ok && len(q.Filters) == 0 && isAddress(q.Text) {
+		return sel, strings.TrimSpace(q.Text)
+	}
 	return nil, ""
 }
 

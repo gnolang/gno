@@ -44,6 +44,15 @@ the list of search keywords printed under the results as if it were one.
   (`20 · indexer`), the overview's `.count` pill in the indexer tag's colour.
 - The title repeats the query only when the group heading does not already
   name it: a bare keyword alone (`deploys`) is not repeated.
+- A pasted address is a search for that account: `account:` when an indexer
+  is configured, otherwise a Users row linking `/u/<address>`. Before, it
+  matched only paths deployed under that address, and said nothing.
+- Discovery ranks its matches before keeping ten: a package named after the
+  query first (its last segment, before any `/vN`), a throwaway last (a raw
+  address namespace, a namespace with "test" in it, a segment starting with
+  "test" or ending in `_test`), then the shortest path. The listing is
+  alphabetical, which put `/p/g1…/avl` ahead of `/p/nt/avl/v0`. There is no
+  list of official namespaces to keep up to date.
 - A row is named and linked by its first decoded message. Opaque details (an
   address, a hash) are cut in their middle; prose is left to the stylesheet.
 
@@ -57,6 +66,14 @@ the list of search keywords printed under the results as if it were one.
 - Keep the keyword list on the page, restyled. It is help, not an answer.
   Suggesting keywords in the omnibar as one types would serve better still;
   it touches the omnibar on every page, so it is left to its own change.
+- Rank with a list of official namespaces (`nt`, `gnoland`, `sys`…). It
+  would need upkeep and would bury a new team's packages; the throwaway
+  signals are in the paths themselves.
+- Scope a plain word typed on a realm page to that realm. The omnibar sends
+  every query from the page path, so `author:` or a word on a realm page
+  would stop finding anything else. A group of the package's own matches
+  beside the chain-wide ones is the better answer, and costs node queries
+  per search, so it is left to its own change.
 - Make the results full width when there is no rail. Every other page keeps
   that column (table of contents, listing rail, file list), and rows that
   wide set a name 1200px away from its details.
