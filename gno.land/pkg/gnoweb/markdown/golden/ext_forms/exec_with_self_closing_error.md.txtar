@@ -51,9 +51,10 @@ gnokey maketx call -pkgpath "/r/test" -func "CreatePost" -args $'<span data-acti
 gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "127.0.0.1:26657" call.tx
   </span></code></pre>
-    <p class="note">Fee <strong>0.03 GNOT</strong> for up to 10 M gas:
-        estimated at 1ugnot/1000gas (the chain's price was unavailable), times 3 in case it rises.
-        Unused gas is not refunded. In fast mode gnokey simulates first and stops a call that would run out of gas before anything is charged.</p>
+    <p class="note u-hidden" data-action-function-target="note" data-action-function-mode-value="fast">Fee <strong>0.03 GNOT</strong> for up to 10 M gas, at an estimated 1ugnot/1000gas (the chain's price was unavailable), times 3 in case it rises.
+        Unused gas is not refunded; gnokey simulates first, so running out of gas charges nothing.</p>
+    <p class="note" data-action-function-target="note" data-action-function-mode-value="secure">Fee <strong>0.03 GNOT</strong> for up to 10 M gas, at an estimated 1ugnot/1000gas (the chain's price was unavailable), times 3 in case it rises.
+        Unused gas is not refunded, and these commands don't simulate: a call that runs out of gas is still charged.</p>
 </div>
 </div>
 </div>

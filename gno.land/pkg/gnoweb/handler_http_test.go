@@ -1156,9 +1156,8 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 	}
 	calls := []indexer.Tx{bump(1_380_000), bump(1_360_000), bump(1_370_000)}
 	measured := []string{
-		"Fee <strong>0.0168 GNOT</strong> for up to 2.8 M gas:",
-		"its last 3 successful calls seen by the indexer used at most 1.4 M.",
-		"they keep 10 M gas for 0.06 GNOT.",
+		"Fee <strong>0.0168 GNOT</strong> for up to 2.8 M gas (its last 3 successful calls used at most 1.4 M, per the indexer)",
+		"Fee <strong>0.06 GNOT</strong> for up to 10 M gas, at",
 	}
 	execForm := "<gno-form exec=\"Bump\">\n</gno-form>\n"
 	queryForm := "<gno-form>\n<input name=\"q\" />\n</gno-form>\n"
@@ -1225,7 +1224,7 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 			body := serve()
 			assert.Equal(t, tc.calls, priced.Load())
 			assert.Contains(t, body, tc.want)
-			assert.NotContains(t, body, "seen by the indexer")
+			assert.NotContains(t, body, "per the indexer")
 			if !tc.indexer {
 				return
 			}

@@ -69,6 +69,10 @@ export class ActionFunctionController extends BaseController {
 			modeElement.dataset.copyTarget =
 				isVisible && this._funcName ? `action-function-${this._funcName}` : "";
 		});
+		// The fee note follows the mode too, but is never copied.
+		this.getTargets("note").forEach((note) => {
+			note.classList.toggle("u-hidden", this.getValue("mode", note) !== mode);
+		});
 	}
 
 	// update all functions address
