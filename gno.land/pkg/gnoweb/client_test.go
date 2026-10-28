@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -119,7 +120,6 @@ func TestStateErrorSentinelPact(t *testing.T) {
 type pathsCaller struct {
 	gotPath string
 	listing string
-	calls   int
 }
 
 func (p *pathsCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rpctypes.RPCResponse, error) {
@@ -130,7 +130,6 @@ func (p *pathsCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*
 		return nil, err
 	}
 	p.gotPath = params.Path
-	p.calls++
 
 	result, err := amino.MarshalJSON(&ctypes.ResultABCIQuery{
 		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(p.listing)}},
@@ -216,45 +215,148 @@ func TestValidFileName(t *testing.T) {
 	}
 }
 
-// GasPrice reads auth/gasprice as the node writes it, reuses the answer for
-// gasPriceTTL, a failure included, and asks again once it expires.
-func TestGasPriceCached(t *testing.T) {
+// gasCaller answers auth/gasprice with price, or fails when price is empty.
+// When gate is set, each query waits on it.
+type gasCaller struct {
+	mu    sync.Mutex
+	path  string
+	price string
+	calls int
+	gate  chan struct{}
+}
+
+func (g *gasCaller) set(price string, gate chan struct{}) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.price, g.gate = price, gate
+}
+
+func (g *gasCaller) count() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.calls
+}
+
+func (g *gasCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rpctypes.RPCResponse, error) {
+	var params struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return nil, err
+	}
+	g.mu.Lock()
+	g.calls++
+	g.path = params.Path
+	price, gate := g.price, g.gate
+	g.mu.Unlock()
+	if gate != nil {
+		<-gate
+	}
+	if price == "" {
+		return nil, errors.New("node down")
+	}
+	result, err := amino.MarshalJSON(&ctypes.ResultABCIQuery{
+		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(price)}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &rpctypes.RPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}, nil
+}
+
+func (g *gasCaller) SendBatch(context.Context, rpctypes.RPCRequests) (rpctypes.RPCResponses, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (g *gasCaller) Close() error { return nil }
+
+func newGasClient(caller *gasCaller) *rpcClient {
+	return NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0).(*rpcClient)
+}
+
+// expire ages the cached gas price past gasPriceTTL.
+func (c *rpcClient) expire() {
+	c.gasMu.Lock()
+	defer c.gasMu.Unlock()
+	c.gasAt = c.gasAt.Add(-gasPriceTTL)
+}
+
+// waitRefresh waits for a background gas price refresh to finish.
+func waitRefresh(t *testing.T, c *rpcClient) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); c.gasBusy.Load(); time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("refresh did not finish")
+		}
+	}
+}
+
+// GasPrice reads auth/gasprice as the node writes it, then serves it for
+// gasPriceTTL; past that, callers get the stale price at once while one
+// background query refreshes it.
+func TestGasPriceStaleWhileRevalidate(t *testing.T) {
 	t.Parallel()
 
-	caller := &pathsCaller{listing: "{\n  \"gas\": \"1000\",\n  \"price\": \"1ugnot\"\n}"}
-	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0).(*rpcClient)
+	caller := &gasCaller{price: "{\n  \"gas\": \"1000\",\n  \"price\": \"1ugnot\"\n}"}
+	c := newGasClient(caller)
 	ctx := context.Background()
+	one := std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 1)}
 
 	gp, err := c.GasPrice(ctx)
-	if err != nil {
-		t.Fatalf("GasPrice: %v", err)
+	if err != nil || gp != one || caller.path != "auth/gasprice" {
+		t.Fatalf("GasPrice = %v, %v from %q; want 1ugnot/1000gas from auth/gasprice", gp, err, caller.path)
 	}
-	if caller.gotPath != "auth/gasprice" {
-		t.Fatalf("query path = %q, want auth/gasprice", caller.gotPath)
-	}
-	if want := std.NewCoin("ugnot", 1); gp.Gas != 1000 || gp.Price != want {
-		t.Fatalf("gas price = %v, want 1ugnot/1000gas", gp)
+	if gp, _ = c.GasPrice(ctx); gp != one || caller.count() != 1 {
+		t.Fatalf("within the TTL: %v after %d queries; want the cached price, 1 query", gp, caller.count())
 	}
 
-	caller.listing = "{\"gas\":\"1000\",\"price\":\"2ugnot\"}"
-	if gp, _ = c.GasPrice(ctx); caller.calls != 1 || gp.Price.Amount != 1 {
-		t.Fatalf("within the TTL: %d queries, price %v; want 1 query, the cached price", caller.calls, gp)
+	// Stale: every caller gets the old price at once while one refresh hangs.
+	gate := make(chan struct{})
+	caller.set(`{"gas":"1000","price":"2ugnot"}`, gate)
+	c.expire()
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if gp, err := c.GasPrice(ctx); err != nil || gp != one {
+				t.Errorf("during a refresh: %v, %v; want the stale price", gp, err)
+			}
+		}()
+	}
+	wg.Wait()
+	close(gate)
+	waitRefresh(t, c)
+	if n := caller.count(); n != 2 {
+		t.Fatalf("%d queries, want 2: one refresh for all stale callers", n)
+	}
+	if gp, _ = c.GasPrice(ctx); gp.Price.Amount != 2 {
+		t.Fatalf("after the refresh: %v, want 2ugnot", gp)
 	}
 
-	c.gasAt = c.gasAt.Add(-gasPriceTTL)
-	if gp, _ = c.GasPrice(ctx); caller.calls != 2 || gp.Price.Amount != 2 {
-		t.Fatalf("after the TTL: %d queries, price %v; want 2 queries, the new price", caller.calls, gp)
+	// A failed refresh keeps the last good price and waits a TTL to retry.
+	caller.set("", nil)
+	c.expire()
+	c.GasPrice(ctx)
+	waitRefresh(t, c)
+	if gp, err = c.GasPrice(ctx); err != nil || gp.Price.Amount != 2 || caller.count() != 3 {
+		t.Fatalf("after a failed refresh: %v, %v, %d queries; want 2ugnot, 3 queries", gp, err, caller.count())
 	}
+}
 
-	// A failure is cached like an answer, so a down node is asked once per TTL.
-	caller.listing = "not json"
-	c.gasAt = c.gasAt.Add(-gasPriceTTL)
+// With no price read yet, the first caller waits for the query; a failure
+// is an error, retried after gasPriceTTL, not on every call.
+func TestGasPriceFirstReadFails(t *testing.T) {
+	t.Parallel()
+
+	caller := &gasCaller{}
+	c := newGasClient(caller)
 	for range 2 {
-		if gp, err = c.GasPrice(ctx); err == nil || gp != (std.GasPrice{}) {
+		if gp, err := c.GasPrice(context.Background()); err == nil || gp != (std.GasPrice{}) {
 			t.Fatalf("GasPrice = %v, %v; want the zero price and an error", gp, err)
 		}
 	}
-	if caller.calls != 3 {
-		t.Fatalf("%d queries, want 3", caller.calls)
+	if n := caller.count(); n != 1 {
+		t.Fatalf("%d queries, want 1", n)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -132,19 +133,20 @@ type rpcClient struct {
 	client   *client.RPCClient
 	rpcSlots chan struct{}
 
-	// gasMu guards the cached gas price answer, error included.
+	// gasMu guards the cached gas price; it is never held across the query.
 	gasMu    sync.Mutex
-	gasAt    time.Time
 	gasPrice std.GasPrice
-	gasErr   error
+	gasOK    bool      // gasPrice was read at least once
+	gasAt    time.Time // last query, failed or not
+	// gasBusy is set while a gas price query is in flight.
+	gasBusy atomic.Bool
 }
 
-// gasPriceTTL is how long a gas price answer is reused. The price moves per
-// block, and the fee carries a margin over it, so a slightly stale price is
-// fine; a failure is cached too, so a down node costs one query per TTL.
+// gasPriceTTL is how long a gas price is served before it is refreshed. The
+// price moves per block and the fee carries a margin, so a stale one is fine.
 const gasPriceTTL = 30 * time.Second
 
-// gasPriceTimeout bounds the query, which every realm page waits on.
+// gasPriceTimeout bounds the query.
 const gasPriceTimeout = 2 * time.Second
 
 var _ ClientAdapter = (*rpcClient)(nil)
@@ -186,17 +188,35 @@ func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, err
 	return c.query(ctx, qpath, []byte(data), 0)
 }
 
-// GasPrice queries auth/gasprice, at most once per gasPriceTTL.
-// ponytail: one lock serializes callers during a refresh; fine at one query per TTL.
+// GasPrice answers the last price read from auth/gasprice. Once one exists
+// it is returned at once, and a stale one is refreshed in the background;
+// only the first read waits, bounded by gasPriceTimeout. A failed query
+// keeps the last price and is retried after gasPriceTTL.
 func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
 	c.gasMu.Lock()
-	defer c.gasMu.Unlock()
-	if time.Since(c.gasAt) < gasPriceTTL {
-		return c.gasPrice, c.gasErr
-	}
+	gp, ok, at := c.gasPrice, c.gasOK, c.gasAt
+	c.gasMu.Unlock()
 
-	// Detached from the caller's cancellation: the answer is shared, so one
-	// abandoned request must not cache a failure for everyone.
+	if time.Since(at) >= gasPriceTTL && c.gasBusy.CompareAndSwap(false, true) {
+		if !ok {
+			defer c.gasBusy.Store(false)
+			return c.queryGasPrice(ctx)
+		}
+		go func() {
+			defer c.gasBusy.Store(false)
+			c.queryGasPrice(ctx)
+		}()
+	}
+	if !ok {
+		return std.GasPrice{}, errors.New("gas price unavailable")
+	}
+	return gp, nil
+}
+
+// queryGasPrice reads auth/gasprice and caches it. The query is detached from
+// the caller's cancellation: its answer is shared, and a refresh outlives
+// the request that started it.
+func (c *rpcClient) queryGasPrice(ctx context.Context) (std.GasPrice, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gasPriceTimeout)
 	defer cancel()
 	var gp std.GasPrice
@@ -204,12 +224,16 @@ func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
 	if err == nil {
 		err = amino.UnmarshalJSON(res, &gp)
 	}
+
+	c.gasMu.Lock()
+	defer c.gasMu.Unlock()
+	c.gasAt = time.Now()
 	if err != nil {
-		gp, err = std.GasPrice{}, fmt.Errorf("unable to query gas price: %w", err)
-		c.logger.Warn("gas price unavailable, commands use the fallback", "error", err)
+		c.logger.Warn("gas price unavailable", "error", err)
+		return std.GasPrice{}, fmt.Errorf("unable to query gas price: %w", err)
 	}
-	c.gasPrice, c.gasErr, c.gasAt = gp, err, time.Now()
-	return c.gasPrice, c.gasErr
+	c.gasPrice, c.gasOK = gp, true
+	return gp, nil
 }
 
 // validFileName reports whether vm/qfile reads name as a file of the package

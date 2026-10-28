@@ -50,15 +50,14 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-# gnokey simulates first: out of gas charges nothing and prints the gas to ask for.
 gnokey maketx call -pkgpath "/r/test" -func "Transfer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="to"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="amount"></span>' -gas-fee 15000ugnot -gas-wanted 10_000_000 -send "<span data-action-function-target="send-code"></span>" -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Transfer" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
 gnokey maketx call -pkgpath "/r/test" -func "Transfer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="to"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="amount"></span>' -gas-fee 15000ugnot -gas-wanted 10_000_000 -send "<span data-action-function-target="send-code"></span>" -broadcast=false <span data-action-function-target="address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "127.0.0.1:26657" call.tx
   </span></code></pre>
-    <p class="note">Fee <strong>0.015 GNOT</strong> for up to 10,000,000 gas:
-        an estimated price of 1 ugnot per 1,000 gas (the chain did not answer), plus 50%.
-        Unused gas is not refunded. In fast mode gnokey simulates first, so running out of gas charges nothing.</p>
+    <p class="note">Fee <strong>0.015 GNOT</strong> for up to 10 M gas:
+        estimated at 1ugnot/1000gas (the chain's price was unavailable), plus 50%.
+        Unused gas is not refunded. In fast mode gnokey simulates first and stops a call that would run out of gas before anything is charged.</p>
 </div>
 </div>
 </div>

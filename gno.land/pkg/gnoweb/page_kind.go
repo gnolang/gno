@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
@@ -245,7 +246,7 @@ func (h *HTTPHandler) renderContext(ctx context.Context, pr *pageRender) RealmRe
 	return RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
-		Gas:     h.txGas(ctx),
+		Gas:     sync.OnceValue(func() components.TxGas { return h.txGas(ctx) }),
 		Domain:  h.Static.Domain,
 		Links:   pr.links,
 	}

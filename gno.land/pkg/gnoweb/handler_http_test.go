@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1115,46 +1116,58 @@ func TestHTTPHandler_ContextCancellation(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "internal error")
 }
 
-// The Actions page prices a crossing function's command at the chain's gas
-// price, and at the fallback, said to be estimated, when the node cannot say.
-func TestHTTPHandler_HelpCommandGas(t *testing.T) {
+// The Actions page and a <gno-form exec> price their commands at the
+// chain's gas price, or the fallback when the node cannot say; a page with
+// no command to price never asks for it.
+func TestHTTPHandler_CommandGas(t *testing.T) {
 	t.Parallel()
 
-	for name, tc := range map[string]struct {
-		price std.GasPrice
+	chainPrice := std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)}
+	for _, tc := range []struct {
+		name  string
+		url   string
+		funcs bool // the realm has a crossing function
+		realm string
 		err   error
-		want  []string
+		calls int32
+		want  string
 	}{
-		"chain price": {
-			price: std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)},
-			want:  []string{"-gas-fee 30000ugnot -gas-wanted 10_000_000", "<strong>0.03 GNOT</strong>", "current price of 2 ugnot per 1,000 gas"},
-		},
-		"node down": {
-			err:  gnoweb.ErrClientTimeout,
-			want: []string{"-gas-fee 15000ugnot -gas-wanted 10_000_000", "<strong>0.015 GNOT</strong>", "an estimated price of 1 ugnot per 1,000 gas"},
-		},
+		{name: "help, chain price", url: "/r/test/path$help", funcs: true, calls: 1, want: "-gas-fee 30000ugnot"},
+		{name: "help, node down", url: "/r/test/path$help", funcs: true, err: gnoweb.ErrClientTimeout, calls: 1, want: "-gas-fee 15000ugnot"},
+		{name: "help, no functions", url: "/r/test/path$help", calls: 0},
+		{name: "exec form", url: "/r/test/path", realm: "<gno-form exec=\"Bump\">\n</gno-form>\n", calls: 1, want: "-gas-fee 30000ugnot"},
+		{name: "no exec form", url: "/r/test/path", realm: "<gno-form>\n<input name=\"q\" />\n</gno-form>\n", calls: 0},
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			var calls atomic.Int32
 			cl := &stubClient{
 				docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
-					return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{
-						Name: "Bump", Crossing: true,
-						Params: []*doc.JSONField{{Name: "cur", Type: "realm"}},
-					}}}, nil
+					jdoc := &doc.JSONDocumentation{}
+					if tc.funcs {
+						// Built per request: the handler annotates the funcs it is given.
+						jdoc.Funcs = []*doc.JSONFunc{{Name: "Bump", Crossing: true, Params: []*doc.JSONField{{Name: "cur", Type: "realm"}}}}
+					}
+					return jdoc, nil
 				},
-				gasPriceFunc: func(context.Context) (std.GasPrice, error) { return tc.price, tc.err },
+				realmFunc: func(context.Context, string, string) ([]byte, error) { return []byte(tc.realm), nil },
+				gasPriceFunc: func(context.Context) (std.GasPrice, error) {
+					calls.Add(1)
+					return chainPrice, tc.err
+				},
 			}
-			handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), newTestHandlerConfig(t, cl))
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			cfg := newTestHandlerConfig(t, cl)
+			cfg.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), cl)
+			handler, err := gnoweb.NewHTTPHandler(logger, cfg)
 			require.NoError(t, err)
 
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/test/path$help", nil))
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
 			require.Equal(t, http.StatusOK, rr.Code)
-			for _, want := range tc.want {
-				assert.Contains(t, rr.Body.String(), want)
-			}
+			assert.Equal(t, tc.calls, calls.Load())
+			assert.Contains(t, rr.Body.String(), tc.want)
 		})
 	}
 }

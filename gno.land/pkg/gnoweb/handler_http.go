@@ -1179,6 +1179,12 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		})
 	}
 
+	// Only a page with commands to price asks the node for the gas price.
+	var gas components.TxGas
+	if len(functions) > 0 {
+		gas = h.txGas(ctx)
+	}
+
 	realmName := displayPackageName(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
@@ -1189,7 +1195,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Gas:       h.txGas(ctx),
+		Gas:       gas,
 		Functions: functions,
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,

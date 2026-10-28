@@ -12,14 +12,13 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-# gnokey simulates first: out of gas charges nothing and prints the gas to ask for.
 gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee {{.Gas.Fee}} -gas-wanted {{.Gas.WantedFlag}} -send "<span data-action-function-target="send-code"></span>" -chainid "{{.ChainId}}" -remote "{{.Remote}}" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-{{.FuncName}}" class="u-inline">gnokey query -remote "{{.Remote}}" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
 gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee {{.Gas.Fee}} -gas-wanted {{.Gas.WantedFlag}} -send "<span data-action-function-target="send-code"></span>" -broadcast=false <span data-action-function-target="address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{.ChainId}}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "{{.Remote}}" call.tx
   </span></code></pre>
-    <p class="note">Fee <strong>{{ .Gas.FeeText }}</strong> for up to {{ .Gas.WantedText }} gas:
-        {{ if .Gas.Estimated }}an estimated price of {{ .Gas.PriceText }} (the chain did not answer){{ else }}the chain's current price of {{ .Gas.PriceText }}{{ end }}, plus {{ .Gas.Margin }}%.
-        Unused gas is not refunded. In fast mode gnokey simulates first, so running out of gas charges nothing.</p>
+    <p class="note">Fee <strong>{{ .Gas.FeeText }}</strong> for up to {{ FormatGas .Gas.Wanted }} gas:
+        {{ if .Gas.Estimated }}estimated at {{ .Gas.Price }} (the chain's price was unavailable){{ else }}the chain's current price of {{ .Gas.Price }}{{ end }}, plus {{ .Gas.Margin }}%.
+        Unused gas is not refunded. In fast mode gnokey simulates first and stops a call that would run out of gas before anything is charged.</p>
 </div>
 {{ end }}

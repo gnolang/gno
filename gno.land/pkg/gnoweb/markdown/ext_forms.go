@@ -237,7 +237,6 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	if remote, ok := getRemoteFromContext(pc); ok {
 		node.Remote = remote
 	}
-	node.Gas = getGasFromContext(pc)
 	if domain, ok := getDomainFromContext(pc); ok {
 		node.Domain = domain
 	}
@@ -245,6 +244,7 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	// Handle exec attribute
 	if exec, ok := ExtractAttr(tok.Attr, "exec"); ok {
 		node.ExecFunc = exec
+		node.Gas = getGasFromContext(pc)
 	}
 
 	return node, parser.Continue

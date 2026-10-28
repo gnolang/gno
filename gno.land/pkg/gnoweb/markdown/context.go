@@ -22,9 +22,9 @@ type GnoContext struct {
 	GnoURL  *weburl.GnoURL
 	ChainId string
 	Remote  string
-	// Gas is what copied gnokey commands ask for; the zero value prices
-	// them at components.FallbackGasPrice.
-	Gas    components.TxGas
+	// Gas prices copied gnokey commands; it is called only by a page that
+	// shows one. nil prices them at components.FallbackGasPrice.
+	Gas    func() components.TxGas
 	Domain string
 	// IPFSGateway is the gateway origin (e.g. "https://ipfs.filebase.io")
 	// that ipfs:// URLs and URLs on the gateways in ipfsRewrittenGateways are
@@ -57,8 +57,9 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	remote, _ := getRemoteFromContext(ctx)
 	domain, _ := getDomainFromContext(ctx)
 	gateway, _ := getIPFSGatewayFromContext(ctx)
+	gas, _ := ctx.Get(gGasContextKey).(func() components.TxGas)
 	return GnoContext{
-		GnoURL: url, ChainId: chainId, Remote: remote, Gas: getGasFromContext(ctx), Domain: domain,
+		GnoURL: url, ChainId: chainId, Remote: remote, Gas: gas, Domain: domain,
 		IPFSGateway: gateway, Links: getLinkPolicyFromContext(ctx),
 	}
 }
@@ -88,11 +89,11 @@ func getRemoteFromContext(ctx parser.Context) (remote string, ok bool) {
 	return
 }
 
-// getGasFromContext retrieves the TxGas from the parser context, priced at
+// getGasFromContext calls the context's gas lookup, or prices at
 // components.FallbackGasPrice when the context carries none.
 func getGasFromContext(ctx parser.Context) components.TxGas {
-	if gas, _ := ctx.Get(gGasContextKey).(components.TxGas); gas.Wanted > 0 {
-		return gas
+	if gas, _ := ctx.Get(gGasContextKey).(func() components.TxGas); gas != nil {
+		return gas()
 	}
 	return components.NewTxGas(std.GasPrice{})
 }
