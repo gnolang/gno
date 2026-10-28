@@ -333,8 +333,8 @@ func TestMathNoLinkDestinationsAreLinear(t *testing.T) {
 
 // Backtick runs of 1, 2, 3... backticks are all left unclosed. Searching for
 // each one's closing run used to read the rest of the line every time,
-// O(n^1.5): 16 times the input took about 60 times as long. The search must
-// now take about 16 times as long, well under 32.
+// O(n^1.5): 64 times the input took about 512 times as long. The search must
+// now take about 64 times as long, well under 160.
 func TestMathUnclosedBacktickRunsAreLinear(t *testing.T) {
 	line := func(n int) []byte {
 		var b strings.Builder
@@ -354,7 +354,9 @@ func TestMathUnclosedBacktickRunsAreLinear(t *testing.T) {
 		}
 		return best
 	}
-	small, large := line(64<<10), line(1<<20)
+	// 64x the input: linear costs about 64x, the quadratic search it guards
+	// against about 512x, so the bound sits far from both under CI load.
+	small, large := line(16<<10), line(1<<20)
 	for name, find := range map[string]closeFinder{
 		"$":   findDollarClose,
 		"$$":  findDelimClose(_dollarDisplay),
@@ -362,7 +364,7 @@ func TestMathUnclosedBacktickRunsAreLinear(t *testing.T) {
 		`\\[`: findDelimClose(_displayclose),
 	} {
 		ratio := float64(fastest(find, large)) / float64(fastest(find, small))
-		assert.Less(t, ratio, 32.0, "%s: 16x the input took %.0fx as long", name, ratio)
+		assert.Less(t, ratio, 160.0, "%s: 64x the input took %.0fx as long", name, ratio)
 	}
 }
 
