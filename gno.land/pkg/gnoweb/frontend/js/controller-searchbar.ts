@@ -617,7 +617,7 @@ export class SearchbarController extends BaseController {
 		const users: string[] = [];
 		const seen = new Set<string>();
 		// A pasted address names a user even with nothing deployed under it.
-		if (ADDRESS_PATTERN.test(needle)) {
+		if (SearchbarController.isAddress(needle)) {
 			seen.add(needle);
 			users.push(`/u/${needle}`);
 		}
@@ -668,6 +668,29 @@ export class SearchbarController extends BaseController {
 				(a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
 		);
 		return scored.map((s) => s.path);
+	}
+
+	// isAddress checks a bech32 address's checksum (BIP-173), as the server
+	// does before linking /u/<address>: the shape alone lets a typo through.
+	static isAddress(s: string): boolean {
+		if (!ADDRESS_PATTERN.test(s)) return false;
+		const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+		const sep = s.lastIndexOf("1");
+		const hrp = [...s.slice(0, sep)].map((c) => c.charCodeAt(0));
+		const values = [
+			...hrp.map((c) => c >> 5),
+			0,
+			...hrp.map((c) => c & 31),
+			...[...s.slice(sep + 1)].map((c) => charset.indexOf(c)),
+		];
+		const gen = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+		let chk = 1;
+		for (const v of values) {
+			const top = chk >>> 25;
+			chk = ((chk & 0x1ffffff) << 5) ^ v;
+			for (let i = 0; i < 5; i++) if ((top >>> i) & 1) chk ^= gen[i];
+		}
+		return chk === 1;
 	}
 
 	// isThrowaway mirrors omnisearch isThrowaway: a raw address namespace, a
