@@ -15,6 +15,9 @@ type Selector = {
 	scope: string;
 	source: string;
 	bare?: boolean;
+	// A value this selector answers typed alone (a pasted address), as a
+	// pattern. The server matches the same one.
+	accepts?: string;
 };
 
 type SearchResult = {
@@ -90,6 +93,13 @@ const QUALIFIED_SEARCH_DELAY = 220;
 // Anchored to {40} to mirror the server's ValidateOID; shorter inputs fall
 // through to a normal text search.
 const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
+
+// A bech32 account address, as a namespace: ranked as a throwaway deploy.
+// Same shape as omnisearch addressPattern.
+const ADDRESS_PATTERN = /^g1[02-9ac-hj-np-z]{38}$/;
+
+// A version segment such as v0 or v12, skipped for a package's name.
+const VERSION_SEGMENT = /^v\d+$/;
 
 // A leading `gno.land` host, with or without scheme.
 const GNO_LAND_HOST = /^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i;
@@ -295,7 +305,11 @@ export class SearchbarController extends BaseController {
 		// that does not exist".
 		if (q.split(/\s+/).some(SearchbarController.isQualifierToken)) return true;
 		const word = q.trim().toLowerCase();
-		return this.selectors.some((s) => s.bare && s.name === word);
+		return this.selectors.some(
+			(s) =>
+				(s.bare && s.name === word) ||
+				(s.accepts !== undefined && new RegExp(s.accepts).test(q.trim())),
+		);
 	}
 
 	// highlightTerm is what a server-answered row can contain: the free text,
@@ -625,17 +639,25 @@ export class SearchbarController extends BaseController {
 		].filter((g) => (g.results?.length ?? 0) > 0);
 	}
 
-	// rank returns the paths matching needle, most-relevant first: a match in the
-	// realm name (last segment) outranks one in the namespace/address, and a
-	// shallower path edges out a deeper one.
+	// rank returns the paths matching needle, most-relevant first: throwaway
+	// deploys last, then a match in the package name outranks one in the
+	// namespace/address, and a shallower path edges out a deeper one. The
+	// results page ranks with the same rules (omnisearch sortByRelevance).
 	static rank(paths: string[], needle: string): string[] {
-		const scored: Array<{ path: string; score: number }> = [];
+		const scored: Array<{ path: string; score: number; throwaway: boolean }> =
+			[];
 		for (const p of paths) {
 			const score = SearchbarController.relevance(p, needle);
-			if (score > 0) scored.push({ path: p, score });
+			if (score > 0)
+				scored.push({
+					path: p,
+					score,
+					throwaway: SearchbarController.isThrowaway(p, needle),
+				});
 		}
 		scored.sort(
 			(a, b) =>
+				Number(a.throwaway) - Number(b.throwaway) ||
 				b.score - a.score ||
 				a.path.length - b.path.length ||
 				a.path.localeCompare(b.path),
@@ -643,11 +665,29 @@ export class SearchbarController extends BaseController {
 		return scored.map((s) => s.path);
 	}
 
+	// isThrowaway mirrors omnisearch isThrowaway: a raw address namespace, a
+	// namespace with "test" in it, or a test package; not when asked for.
+	static isThrowaway(path: string, needle: string): boolean {
+		const segs = path.toLowerCase().split("/").filter(Boolean);
+		const ns = segs[1] ?? "";
+		if (ADDRESS_PATTERN.test(ns) && !ns.includes(needle)) return true;
+		if (needle.includes("test")) return false;
+		if (ns.includes("test")) return true;
+		// Not "latest" or "attestation".
+		return segs.some(
+			(s) => s.startsWith("test") || s.endsWith("_test") || s.endsWith("-test"),
+		);
+	}
+
 	// relevance scores how well a path matches needle; 0 means no match.
 	static relevance(path: string, needle: string): number {
 		const lower = path.toLowerCase();
 		if (!lower.includes(needle)) return 0;
 		const segs = lower.split("/").filter(Boolean);
+		// A version segment (`/v0`) is not depth: the name is the one before.
+		if (segs.length > 1 && VERSION_SEGMENT.test(segs[segs.length - 1])) {
+			segs.pop();
+		}
 		const name = segs[segs.length - 1] ?? "";
 		let score: number;
 		if (name === needle) score = 100;

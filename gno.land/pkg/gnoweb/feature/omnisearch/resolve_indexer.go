@@ -34,10 +34,11 @@ func indexerSelectors() []*Selector {
 			},
 		},
 		{
-			Name:  "account",
-			Hint:  "account:<address>",
-			Label: "Account activity",
-			Scope: ScopeGlobal,
+			Name:    "account",
+			Hint:    "account:<address>",
+			Label:   "Account activity",
+			Scope:   ScopeGlobal,
+			Accepts: addressPattern,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				// A partial address never matches, yet walks every height
 				// band: one per debounced keystroke while it is typed.

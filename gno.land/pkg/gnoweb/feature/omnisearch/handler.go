@@ -269,10 +269,15 @@ func (h *Handler) selectorFor(q *Query) (*Selector, string) {
 			return sel, ""
 		}
 	}
-	// A pasted address asks for that account, which `account:` answers when
-	// an indexer is there. Without one, discovery links the user's page.
-	if sel, ok := h.byName["account"]; ok && len(q.Filters) == 0 && isAddress(q.Text) {
-		return sel, strings.TrimSpace(q.Text)
+	// A value typed alone that a selector accepts is that selector's search:
+	// a pasted address asks for its account. Without an indexer there is no
+	// such selector, and discovery links the user's page instead.
+	if len(q.Filters) == 0 {
+		for _, sel := range h.selectors {
+			if sel.Accepts != nil && sel.Accepts.MatchString(q.Text) {
+				return sel, q.Text
+			}
+		}
 	}
 	return nil, ""
 }

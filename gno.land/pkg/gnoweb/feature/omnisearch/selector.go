@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"context"
 	"html/template"
+	"regexp"
 	"slices"
 )
 
@@ -69,6 +70,11 @@ type Selector struct {
 
 	// PageOnly keeps a fan-out selector off the per-keystroke JSON path.
 	PageOnly bool
+
+	// Accepts matches a value this selector answers when it is typed alone,
+	// without its key: a pasted address is an `account:` search. The JSON
+	// answer carries it, so the omnibar asks the server for the same input.
+	Accepts *regexp.Regexp
 
 	// resolve answers the query; term is the selector's own value.
 	resolve func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error)

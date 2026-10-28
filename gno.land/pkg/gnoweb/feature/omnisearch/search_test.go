@@ -2,11 +2,15 @@ package omnisearch
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -974,11 +978,25 @@ func TestPastedAddress(t *testing.T) {
 	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
 
 	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
-	if sel, term := h.selectorFor(mustQuery(t, h, " "+addr+" ", "")); sel == nil || sel.Name != "account" || term != addr {
+	if sel, term := h.selectorFor(mustQuery(t, h, addr, "")); sel == nil || sel.Name != "account" || term != addr {
 		t.Errorf("with an indexer: selector = %v %q, want account %q", sel, term, addr)
 	}
 	if sel, _ := h.selectorFor(mustQuery(t, h, "is:realm "+addr, "")); sel != nil {
 		t.Errorf("an address beside a qualifier is not a pasted address: got %s", sel.Name)
+	}
+
+	// The omnibar tests the same pattern to ask the server, not its path list.
+	w := httptest.NewRecorder()
+	h.Handle(context.Background(), w, httptest.NewRequest(http.MethodGet, "/", nil), parseURL(t, "/$search&q=x&json"))
+	var resp struct {
+		Selectors []struct{ Name, Accepts string }
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(resp.Selectors, func(s struct{ Name, Accepts string }) bool { return s.Name == "account" })
+	if i < 0 || !regexp.MustCompile(resp.Selectors[i].Accepts).MatchString(addr) {
+		t.Errorf("JSON selectors %+v: no account pattern matching %s", resp.Selectors, addr)
 	}
 
 	h = newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)

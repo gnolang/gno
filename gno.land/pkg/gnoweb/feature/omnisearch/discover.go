@@ -1,12 +1,15 @@
 package omnisearch
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
@@ -102,7 +105,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 
 	// A pasted address names a user even with nothing deployed under it.
 	if isAddress(q.Text) {
-		namespaces[strings.ToLower(strings.TrimSpace(q.Text))] = true
+		namespaces[needle] = true
 	}
 	if g := usersGroup(namespaces); len(g.Results) > 0 {
 		groups = append(groups, g)
@@ -203,77 +206,53 @@ func matchesAuthor(chainPath, signer, author, domain string) bool {
 	return strings.EqualFold(namespaceOf(strings.TrimPrefix(chainPath, domain)), author)
 }
 
-// isAddress reports whether s, trimmed, is a bech32 account address.
-func isAddress(s string) bool {
-	_, err := crypto.AddressFromBech32(strings.TrimSpace(s))
-	return err == nil
-}
+// addressPattern is a bech32 account address. It checks the shape only: the
+// account search validates the checksum before asking the indexer.
+var addressPattern = regexp.MustCompile(`^` + crypto.Bech32AddrPrefix() + `1[02-9ac-hj-np-z]{38}$`)
 
-// sortByRelevance orders matched paths: a path named after the needle first,
-// a throwaway deploy last, then the shortest. A throwaway is one under a raw
-// address namespace or with a "test" segment, unless the needle asks for it.
-// No list of official namespaces: what ranks first follows from the paths.
+func isAddress(s string) bool { return addressPattern.MatchString(s) }
+
+// sortByRelevance orders matched paths: throwaway deploys last (see
+// isThrowaway), within each a package named after the needle first, then
+// the shortest path. No list of official namespaces: the rank follows from
+// the paths. The omnibar's rank (controller-searchbar.ts) mirrors it.
 func sortByRelevance(paths []string, needle string) {
-	// Each key once: a throwaway check decodes a bech32 namespace.
-	ranks := make(map[string][3]int, len(paths))
+	// Each rank once, not once per comparison.
+	ranks := make(map[string]int, len(paths))
 	for _, rel := range paths {
-		r := [3]int{0, 0, len(rel)}
+		r := 0
 		if isThrowaway(rel, needle) {
-			r[0] = 1
+			r += 2
 		}
-		if !namedAfter(rel, needle) {
-			r[1] = 1
+		if needle == "" || !strings.EqualFold(gnolang.LastPathElement(rel), needle) {
+			r++
 		}
 		ranks[rel] = r
 	}
 	slices.SortFunc(paths, func(a, b string) int {
-		ra, rb := ranks[a], ranks[b]
-		if c := slices.Compare(ra[:], rb[:]); c != 0 {
-			return c
-		}
-		return strings.Compare(a, b)
+		return cmp.Or(
+			cmp.Compare(ranks[a], ranks[b]),
+			cmp.Compare(len(a), len(b)),
+			strings.Compare(a, b),
+		)
 	})
 }
 
-// namedAfter reports whether the package's own name, its last segment before
-// any version (`/v0`), is the needle.
-func namedAfter(rel, needle string) bool {
-	segs := strings.Split(strings.Trim(rel, "/"), "/")
-	last := segs[len(segs)-1]
-	if isVersion(last) && len(segs) > 1 {
-		last = segs[len(segs)-2]
-	}
-	return needle != "" && strings.EqualFold(last, needle)
-}
-
-// isVersion matches a version segment such as v0 or v12.
-func isVersion(seg string) bool {
-	if len(seg) < 2 || seg[0] != 'v' {
-		return false
-	}
-	for _, c := range seg[1:] {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// isThrowaway: a deploy under a raw address namespace, or a test package.
+// isThrowaway: a deploy under a raw address namespace or a namespace with
+// "test" in it, or a package segment that starts with "test" or ends in
+// "_test" or "-test". Not when the needle asks for it.
 func isThrowaway(rel, needle string) bool {
-	ns := namespaceOf(rel)
+	ns := strings.ToLower(namespaceOf(rel))
 	if isAddress(ns) && !strings.Contains(ns, needle) {
 		return true
 	}
 	if strings.Contains(needle, "test") {
 		return false
 	}
-	// A namespace is a name someone picked: "moultest123" is a test one.
-	if strings.Contains(strings.ToLower(ns), "test") {
+	if strings.Contains(ns, "test") {
 		return true
 	}
-	// A package segment: "test", "testing", "foo_test", not "latest" or
-	// "attestation".
+	// Not "latest" or "attestation".
 	for _, seg := range strings.Split(strings.ToLower(rel), "/") {
 		if strings.HasPrefix(seg, "test") || strings.HasSuffix(seg, "_test") || strings.HasSuffix(seg, "-test") {
 			return true
