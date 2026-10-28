@@ -9,8 +9,8 @@ Mainnet and the testnets do not list the same links. Copy the matching file as
 
 | File | Network | Differs by |
 |------|---------|-----------|
-| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | Akkadia link |
-| [home.testnet.md](home.testnet.md) | testnets (onyx) | Faucet Hub link, testnet notice |
+| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | "Live on mainnet" projects, faucet labeled testnet-only |
+| [home.testnet.md](home.testnet.md) | testnets (onyx) | Faucet as the first "use" link, "On this testnet" realms, testnet notice |
 
 Staging is not concerned: it serves `r/gnoland/home` from the chain, with no alias.
 

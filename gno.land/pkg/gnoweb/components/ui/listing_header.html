@@ -1,0 +1,14 @@
+{{/* ===================================================================================
+UI - Listing header
+
+Heads a directory listing in either rendering, list or map, so the two name and
+count it exactly alike.
+=================================================================================== */}}
+{{ define "ui/listing_header" }}
+<header id="main-content" tabindex="-1" class="b-content-header">
+  <h1 class="title b-content-h1">{{ .PkgPath }}</h1>
+  <div class="header-info">
+    <span>{{ .FileCounter }} {{ if eq .FileCounter 1 }}Package{{ else }}Packages{{ end }}</span>
+  </div>
+</header>
+{{ end }}

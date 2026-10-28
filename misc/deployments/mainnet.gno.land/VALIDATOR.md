@@ -14,26 +14,26 @@ The flow:
 
 ## 1. Binaries
 
-Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.5.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.5.1` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
 
-**Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.0), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
+**Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.1), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
 
 ```shell
-curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_linux_amd64
-curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.0/CHECKSUMS.txt
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.1/gnoland_linux_amd64
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.1/CHECKSUMS.txt
 shasum -a 256 gnoland_linux_amd64                   # must match the line in CHECKSUMS.txt
-git clone --branch v1.5.0 --depth 1 https://github.com/gnolang/gno.git ~/gno
+git clone --branch v1.5.1 --depth 1 https://github.com/gnolang/gno.git ~/gno
 export GNOROOT=~/gno
-chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.5.0
+chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.5.1
 ```
 
-Or build it from the tag (`git checkout v1.5.0 && make -C gno.land install.gnoland install.gnokey`; `gnoland version` must print `v1.5.0`). Never from `master` or from the branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
+Or build it from the tag (`git checkout v1.5.1 && make -C gno.land install.gnoland install.gnokey`; `gnoland version` must print `v1.5.1`). Never from `master` or from the branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
 
-**Container image.** `ghcr.io/gnolang/gno/gnoland:v1.5.0` is the same binary with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount `secrets/` read-only.
+**Container image.** `ghcr.io/gnolang/gno/gnoland:v1.5.1` is the same release, built in the image with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount the two key files (`secrets/priv_validator_key.json` and `secrets/node_key.json`) read-only. Keep `secrets/` itself writable and on persistent storage: the node rewrites `secrets/priv_validator_state.json` there every time it signs, so a read-only `secrets/` stops it signing, and a node that starts without that file has lost its record of what it already signed.
 
 ```shell
-docker pull ghcr.io/gnolang/gno/gnoland:v1.5.0
-docker run --rm ghcr.io/gnolang/gno/gnoland:v1.5.0 version   # must print v1.5.0
+docker pull ghcr.io/gnolang/gno/gnoland:v1.5.1
+docker run --rm ghcr.io/gnolang/gno/gnoland:v1.5.1 version   # must print v1.5.1
 ```
 
 ## 2. Genesis
@@ -111,7 +111,7 @@ gnoland start \
 
 Let the node sync, and wait until it has caught up to the chain tip before the next step.
 
-**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. Verified on 2026-09-22: a `v1.5.0` node with this configuration replayed the chain from genesis to the tip (height 251,330) in about two hours, stopping at 36300, 113000 and 162200 and resuming after a plain restart each time, with block ids and app hashes identical to the network's. Whether a single binary can replay everything after a future upgrade depends on that upgrade; `UPGRADES.md` says which version to use if it cannot. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height.
+**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. Verified on 2026-09-22: a `v1.5.0` node with this configuration replayed the chain from genesis to the tip (height 251,330) in about two hours, stopping at 36300, 113000 and 162200 and resuming after a plain restart each time, with block ids and app hashes identical to the network's. Whether a single binary can replay everything after a future upgrade depends on that upgrade; `UPGRADES.md` says which version to use if it cannot. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height. Set it back to `0` once the node is past that height: it bypasses both upgrade gates, so left in place it also lets a binary below that row's `halt_min_version` resume.
 
 ## 5. Register as a validator candidate
 
@@ -121,11 +121,11 @@ Get your node's consensus public key:
 gnoland secrets get validator_key   # note the validator public key (gpub1...)
 ```
 
-The registration transaction costs a gas fee, so your operator account needs GNOT. There is **no faucet on mainnet**, and transfers are **locked at launch** per Constitution §126 — you cannot move GNOT from one of your addresses to another unless the sender is whitelisted.
+The registration transaction costs a gas fee, so your operator account needs GNOT. There is **no faucet on mainnet**. Transfers were **locked at launch** per Constitution §126, and GovDAO has since unlocked them (`bank:p:restricted_denoms` is empty), so any address with unlocked GNOT can fund your operator address (a vesting balance moves only as it unlocks).
 
 **Founding validators are funded at genesis**: both your signing address and your operator address hold 1,000 GNOT from the §122 Validator Services Treasury, which covers registration and ordinary management txs. Gas fees are payable from a locked balance — fee collection bypasses both the transfer restriction and the vesting schedule — so the §132 schedule on those rows does not get in your way.
 
-If you join *after* genesis, your operator address will not be in the allocation. Use an address that already holds GNOT in the genesis allocation as your operator address. <!-- TODO(mainnet): confirm the recommended funding path for post-genesis operators with no allocation (whitelisted-treasury transfer?). -->
+If you join *after* genesis, your operator address will not be in the allocation: fund it with a transfer from any address that holds unlocked GNOT.
 
 Register your profile on the valoper realm, **signed by your operator key** (the `gnokey` account whose `g1...` address you pass as the operator address — the realm rejects the call if the signer doesn't control that address):
 
