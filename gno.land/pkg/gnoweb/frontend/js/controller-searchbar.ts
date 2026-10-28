@@ -20,6 +20,38 @@ type Selector = {
 	accepts?: string;
 };
 
+// A narrowing qualifier (`author:`, `is:`), also listed by the server. It
+// names where its values come from, so the controller needs no list of its
+// own: a fixed set, or one the bar already holds.
+type Filter = {
+	name: string;
+	hint: string;
+	label: string;
+	values?: string[];
+	complete?: string;
+};
+
+// Keyword is what the omnibar suggests: a selector, or a filter, which works
+// anywhere and is answered by the chain.
+type Keyword = Selector & Pick<Filter, "values" | "complete">;
+
+// Choice is a suggestion row. Picking it inserts `complete` rather than
+// following a link, or with `run` searches for it at once; Tab only inserts.
+type Choice = {
+	title: string;
+	detail?: string;
+	source?: string;
+	complete: string;
+	run?: boolean;
+};
+
+type ChoiceSection = {
+	label: string;
+	choices: Choice[];
+	notice?: string;
+	highlight?: string;
+};
+
 type SearchResult = {
 	title: string;
 	detail?: string;
@@ -39,6 +71,7 @@ type SearchGroup = {
 
 type SearchResponse = {
 	selectors?: Selector[];
+	filters?: Filter[];
 	groups?: SearchGroup[];
 	unknown_filter?: string;
 	// error is the server refusing the query (429, 400), not a group's.
@@ -55,7 +88,18 @@ function isSearchResponse(v: unknown): v is SearchResponse {
 		x === undefined || (Array.isArray(x) && x.every(ok));
 	return (
 		obj(v) &&
-		list(v.selectors, (s) => obj(s) && typeof s.name === "string") &&
+		list(
+			v.selectors,
+			(s) => obj(s) && typeof s.name === "string" && typeof s.hint === "string",
+		) &&
+		list(
+			v.filters,
+			(f) =>
+				obj(f) &&
+				typeof f.name === "string" &&
+				typeof f.hint === "string" &&
+				list(f.values, (x) => typeof x === "string"),
+		) &&
 		list(
 			v.groups,
 			(g) =>
@@ -82,6 +126,8 @@ const CONTENT_SELECTOR = "md-renderer, .b-source-code";
 const SEARCH_ENDPOINT = "/search.json";
 const MIN_QUERY_LENGTH = 2;
 const RESULTS_PER_GROUP = 5;
+// Keyword rows sit above the results while typing: a hint, not the answer.
+const MAX_KEYWORD_ROWS = 4;
 const MAX_PAGE_MATCHES = 10;
 const SNIPPET_RADIUS = 32;
 const SEARCH_DELAY = 120;
@@ -115,6 +161,10 @@ export class SearchbarController extends BaseController {
 	private highlightEl: HTMLElement | null = null;
 	private runId = 0;
 	private selectors: Selector[] = [];
+	private filters: Filter[] = [];
+	// The open list is the keyword help, not an answer to typing: Tab must
+	// leave the bar there, not run the first keyword.
+	private helping = false;
 	private selectorsLoaded = false;
 	// null until the first probe answers. false means this deployment serves
 	// no `$search` endpoint, and the controller stops asking.
@@ -137,6 +187,11 @@ export class SearchbarController extends BaseController {
 		(input as HTMLInputElement | null)?.form?.addEventListener(
 			"mousedown",
 			this.focusFromForm.bind(this),
+		);
+		// Focus stays in the input, as the combobox pattern wants, so a choice
+		// can edit it and leave the caret where the reader types next.
+		this.getDOMElement("results")?.addEventListener("mousedown", (e) =>
+			e.preventDefault(),
 		);
 		document.addEventListener("click", this.onOutsideClick.bind(this));
 		document.addEventListener("keydown", this.onKeyShortcut.bind(this));
@@ -228,6 +283,19 @@ export class SearchbarController extends BaseController {
 					this.items[this.activeIndex]?.click();
 				}
 				break;
+			case "Tab": {
+				// Tab completes, as in a shell: the highlighted choice, else
+				// the first one typing produced.
+				const item =
+					this.items[this.activeIndex] ??
+					(this.helping ? undefined : this.items[0]);
+				const text = item?.dataset.complete;
+				if (text !== undefined && !e.shiftKey) {
+					e.preventDefault();
+					this.complete(text);
+				}
+				break;
+			}
 			case "Escape":
 				this.close();
 				break;
@@ -246,7 +314,8 @@ export class SearchbarController extends BaseController {
 				const input = this.getDOMElement("input") as HTMLInputElement | null;
 				const current = input?.value.trim() ?? "";
 				if (current.length < MIN_QUERY_LENGTH) {
-					this.close();
+					if (current) this.close();
+					else this.showKeywords();
 					return;
 				}
 				void this.run(current);
@@ -257,6 +326,14 @@ export class SearchbarController extends BaseController {
 
 	private async run(q: string): Promise<void> {
 		const id = ++this.runId;
+		const { lead, waiting } = await this.suggest();
+		if (id !== this.runId) return;
+		// A keyword still waiting for its value is not a query yet: the
+		// server would refuse `is:` and match nothing on `author:`.
+		if (waiting) {
+			this.render(q, [], [], { lead });
+			return;
+		}
 		const pageMatches = this.scanPage(q);
 
 		if (this.isQualified(q)) {
@@ -272,6 +349,7 @@ export class SearchbarController extends BaseController {
 					error: res.error,
 					fullPage: true,
 					highlight: this.highlightTerm(q),
+					lead,
 				});
 				return;
 			}
@@ -282,7 +360,180 @@ export class SearchbarController extends BaseController {
 		await this.ensureLoaded();
 		if (id !== this.runId) return;
 		this.pageMatches = pageMatches;
-		this.render(q, this.filter(q), pageMatches);
+		this.render(q, this.filter(q), pageMatches, { lead });
+	}
+
+	// keywords are the selectors and filters the reader can use here: those
+	// about a package only on its page, or once `in:` names one.
+	private keywords(): Keyword[] {
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		const scoped =
+			this.packagePath() !== "" ||
+			(input?.value ?? "")
+				.split(/\s+/)
+				.some(
+					(t) => SearchbarController.isQualifierToken(t) && /^in:./i.test(t),
+				);
+		return [
+			...this.selectors,
+			...this.filters.map((f) => ({ ...f, scope: "global", source: "chain" })),
+		].filter((k) => scoped || k.scope !== "package");
+	}
+
+	// packagePath reads the form's action, which the server points at
+	// `<path>$search` on a realm or package page.
+	private packagePath(): string {
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		const action = input?.form?.getAttribute("action") ?? "";
+		return /^(\/[rp]\/.+)\$search$/.exec(action)?.[1] ?? "";
+	}
+
+	// showKeywords opens an untouched bar on what it can do: on a package
+	// page the keywords about it, those that run alone first; then a few
+	// that work anywhere, and the page that lists them all with examples.
+	private showKeywords(): void {
+		const all = this.keywords();
+		if (all.length === 0) return;
+		const local = all.filter((k) => k.scope === "package");
+		const global = all.filter((k) => k.scope !== "package");
+		const sections: ChoiceSection[] = [];
+		if (this.packagePath() && local.length > 0) {
+			local.sort((a, b) => Number(!!b.bare) - Number(!!a.bare));
+			sections.push({
+				label: "On this package",
+				choices: local.map((k) => this.keywordChoice(k)),
+			});
+			global.splice(MAX_KEYWORD_ROWS);
+		}
+		sections.push({
+			label: sections.length > 0 ? "Anywhere" : "Search keywords",
+			choices: global.map((k) => this.keywordChoice(k)),
+		});
+
+		// A run still waiting on the network must not draw over the help.
+		this.runId++;
+		const results = this.beginDraw();
+		if (!results) return;
+		for (const s of sections) results.appendChild(this.buildChoiceSection(s));
+		results.appendChild(
+			this.buildLinkSection("Help", "All keywords and examples", "/$search"),
+		);
+		this.helping = true;
+		this.endDraw(results);
+	}
+
+	// suggest reads the token under the caret: the start of a keyword's name
+	// offers the keyword; a keyword and its colon, the value it takes.
+	// waiting marks a keyword typed with no value yet.
+	private async suggest(): Promise<{
+		lead: ChoiceSection[];
+		waiting?: boolean;
+	}> {
+		const none = { lead: [] };
+		const { text } = this.caretToken();
+		const at = text.indexOf(":");
+		if (at < 0) {
+			if (!text || SearchbarController.isPathLike(text)) return none;
+			const word = text.toLowerCase();
+			const hits = this.keywords()
+				// A keyword typed whole and running alone is already the query.
+				.filter((k) => k.name.startsWith(word) && !(k.bare && k.name === word))
+				.slice(0, MAX_KEYWORD_ROWS);
+			if (hits.length === 0) return none;
+			const choices = hits.map((k) => this.keywordChoice(k));
+			return { lead: [{ label: "Keywords", choices, highlight: word }] };
+		}
+
+		const key = text.slice(0, at).toLowerCase();
+		const k = this.keywords().find((s) => s.name === key);
+		if (!SearchbarController.isQualifierToken(text) || !k) return none;
+		const value = text.slice(at + 1);
+		const choices = (await this.valuesFor(k, value))
+			.slice(0, RESULTS_PER_GROUP)
+			.map((v) => ({ title: v, complete: `${k.name}:${v} ` }));
+		// What the value is, from the hint: `account:<address>`.
+		const expected = /<([^>]+)>/.exec(k.hint)?.[1];
+		const notice = !value && expected ? `Type the ${expected}` : undefined;
+		if (choices.length === 0 && !notice) return none;
+		const label = k.source === "indexer" ? `${k.label}, from indexer` : k.label;
+		return {
+			lead: [{ label, choices, notice, highlight: value }],
+			waiting: !value,
+		};
+	}
+
+	// valuesFor lists the values a keyword takes that start with value, from
+	// what the bar already holds: no request of its own beyond the path list.
+	private async valuesFor(k: Keyword, value: string): Promise<string[]> {
+		const v = value.toLowerCase();
+		if (k.values) return k.values.filter((x) => x.startsWith(v));
+		if (k.complete !== "namespace" && k.complete !== "path") return [];
+		await this.ensureLoaded();
+		const paths = this.realms.concat(this.packages);
+		let out: string[];
+		if (k.complete === "namespace") {
+			out = [...new Set(paths.map(SearchbarController.firstSegment))].filter(
+				(n) => n !== "" && n.toLowerCase().startsWith(v),
+			);
+		} else {
+			const prefix = v.startsWith("/") ? v : `/${v}`;
+			out = paths.filter((p) => p.toLowerCase().startsWith(prefix));
+		}
+		// Shortest first: a name before the addresses deployed under it.
+		return out.sort((a, b) => a.length - b.length || a.localeCompare(b));
+	}
+
+	private keywordChoice(k: Keyword): Choice {
+		return {
+			title: k.hint,
+			detail: k.label,
+			source: k.source,
+			complete: k.bare ? k.name : `${k.name}:`,
+			run: k.bare,
+		};
+	}
+
+	// caretToken is what a choice replaces: the selection, or else the word
+	// under the caret.
+	private caretToken(): { start: number; end: number; text: string } {
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		const v = input?.value ?? "";
+		let start = input?.selectionStart ?? v.length;
+		let end = input?.selectionEnd ?? v.length;
+		if (start === end) {
+			start -= /\S*$/.exec(v.slice(0, start))?.[0].length ?? 0;
+			end += /^\S*/.exec(v.slice(end))?.[0].length ?? 0;
+		}
+		return { start, end, text: v.slice(start, end) };
+	}
+
+	// replaceToken puts text in place of the token, the caret after it.
+	private replaceToken(text: string): string {
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		if (!input) return "";
+		const { start, end } = this.caretToken();
+		const rest = input.value.slice(end);
+		input.value =
+			input.value.slice(0, start) +
+			text +
+			(text.endsWith(" ") ? rest.trimStart() : rest);
+		const caret = start + text.length;
+		input.setSelectionRange(caret, caret);
+		return input.value;
+	}
+
+	// complete edits the input and searches again: a keyword then shows the
+	// value it takes, a value the answer.
+	private complete(text: string): void {
+		this.replaceToken(text);
+		this.search();
+	}
+
+	// runKeyword runs a keyword that takes no value, as Enter on it would.
+	private runKeyword(name: string): void {
+		const q = this.replaceToken(name).trim();
+		clearTimeout(this.timer);
+		window.location.href = this.searchHref(q);
 	}
 
 	// searchHref builds on the form's action, the server's `SearchAction`, so
@@ -376,6 +627,7 @@ export class SearchbarController extends BaseController {
 				this.selectors = data.selectors;
 				this.selectorsLoaded = true;
 			}
+			if (data.filters) this.filters = data.filters;
 			return data;
 		} catch {
 			return null;
@@ -409,6 +661,7 @@ export class SearchbarController extends BaseController {
 		results.textContent = "";
 		this.items = [];
 		this.activeIndex = -1;
+		this.helping = false;
 		return results;
 	}
 
@@ -432,10 +685,15 @@ export class SearchbarController extends BaseController {
 			error?: string;
 			fullPage?: boolean;
 			highlight?: string;
+			lead?: ChoiceSection[];
 		} = {},
 	): void {
 		const results = this.beginDraw();
 		if (!results) return;
+
+		// Suggestions lead: they change what is typed, so they come first.
+		const lead = opts.lead ?? [];
+		for (const s of lead) results.appendChild(this.buildChoiceSection(s));
 
 		// A query that could not be answered is not one that found nothing.
 		let unanswered = false;
@@ -476,14 +734,23 @@ export class SearchbarController extends BaseController {
 		// qualified query and would otherwise hide that nothing matched.
 		const answered =
 			groups.some((g) => (g.results?.length ?? 0) > 0) ||
-			pageMatches.length > 0;
+			pageMatches.length > 0 ||
+			lead.length > 0;
 		if (!answered && !unanswered) {
 			results.appendChild(this.buildNotice("No results"));
 		}
 
 		// A qualified query always offers its own results page, the only view
 		// that works without JavaScript.
-		if (opts.fullPage) results.appendChild(this.buildFullPageItem(q));
+		if (opts.fullPage) {
+			results.appendChild(
+				this.buildLinkSection(
+					"All results",
+					`Open the full results page for "${q}"`,
+					this.searchHref(q),
+				),
+			);
+		}
 
 		if (pageMatches.length > 0) {
 			results.appendChild(this.buildPageSection(q, pageMatches));
@@ -497,14 +764,25 @@ export class SearchbarController extends BaseController {
 		r: SearchResult,
 		q: string,
 		group: SearchGroup,
+		choice?: Choice,
 	): HTMLElement {
 		const linkable = r.href?.startsWith("/") ?? false;
-		const item = document.createElement(linkable ? "a" : "div");
+		const item = document.createElement(
+			linkable ? "a" : choice ? "button" : "div",
+		);
 		item.className = "b-omnisearch-item";
 		item.setAttribute("role", "option");
 
 		if (linkable && r.href) {
 			(item as HTMLAnchorElement).href = r.href;
+		} else if (choice) {
+			(item as HTMLButtonElement).type = "button";
+			item.dataset.complete = choice.complete;
+			item.addEventListener("click", () =>
+				choice.run
+					? this.runKeyword(choice.complete)
+					: this.complete(choice.complete),
+			);
 		} else {
 			// Announced but unreachable by the arrow keys — a transaction has
 			// no page in gnoweb — so it must not inflate the option count.
@@ -531,8 +809,19 @@ export class SearchbarController extends BaseController {
 		}
 		item.appendChild(text);
 
-		if (linkable) this.items.push(item);
+		if (linkable || choice) this.items.push(item);
 		return item;
+	}
+
+	private buildChoiceSection(s: ChoiceSection): HTMLElement {
+		const section = this.sectionWithLabel(s.label);
+		if (s.notice) section.appendChild(this.buildNotice(s.notice));
+		for (const c of s.choices) {
+			const r = { title: c.title, detail: c.detail };
+			const group = { label: s.label, source: c.source ?? "chain" };
+			section.appendChild(this.buildItem(r, s.highlight ?? "", group, c));
+		}
+		return section;
 	}
 
 	// buildTag marks provenance for an indexer row, or the on-chain kind
@@ -565,15 +854,19 @@ export class SearchbarController extends BaseController {
 		return el;
 	}
 
-	private buildFullPageItem(q: string): HTMLElement {
-		const section = this.sectionWithLabel("All results");
+	private buildLinkSection(
+		label: string,
+		title: string,
+		href: string,
+	): HTMLElement {
+		const section = this.sectionWithLabel(label);
 		const item = document.createElement("a");
 		item.className = "b-omnisearch-item";
 		item.setAttribute("role", "option");
-		item.href = this.searchHref(q);
+		item.href = href;
 		const text = document.createElement("span");
 		text.className = "b-omnisearch-text";
-		text.textContent = `Open the full results page for "${q}"`;
+		text.textContent = title;
 		item.appendChild(text);
 		section.appendChild(item);
 		this.items.push(item);
@@ -793,8 +1086,8 @@ export class SearchbarController extends BaseController {
 	}
 
 	// onKeyShortcut focuses the search bar when "/" is pressed outside any
-	// editable element, then opens the dropdown against the prefilled path so
-	// the action has visible feedback (a bare select() reads as a no-op).
+	// editable element; the focus opens the keyword help, so the action has
+	// visible feedback (a bare select() reads as a no-op).
 	// Skips when modifiers are held or during IME composition so chorded
 	// shortcuts and CJK input keep working.
 	//
@@ -807,7 +1100,6 @@ export class SearchbarController extends BaseController {
 		if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
 		e.preventDefault();
 		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
-		this.search();
 	}
 
 	// focusFromForm focuses the input when a press lands elsewhere in the bar,
@@ -827,8 +1119,12 @@ export class SearchbarController extends BaseController {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		requestAnimationFrame(() => input?.select());
 		// Learn the qualifier list on first focus, not on page load: a reader
-		// who never opens the bar costs no request.
-		void this.loadSelectors();
+		// who never opens the bar costs no request. A bar not yet typed in
+		// opens on the keywords: nothing else says they exist.
+		void this.loadSelectors().then(() => {
+			const untouched = !input?.value || input.value === input.defaultValue;
+			if (document.activeElement === input && untouched) this.showKeywords();
+		});
 	}
 
 	// scanPage collects up to MAX_PAGE_MATCHES occurrences of q in the page
