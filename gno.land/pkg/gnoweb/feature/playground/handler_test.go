@@ -58,7 +58,7 @@ func (s *stubClient) Doc(context.Context, string) (*doc.JSONDocumentation, error
 	return s.docResult, s.docErr
 }
 
-func (s *stubClient) Eval(context.Context, string) ([]byte, error) {
+func (s *stubClient) Eval(context.Context, string, string) ([]byte, error) {
 	return s.evalResult, s.evalErr
 }
 

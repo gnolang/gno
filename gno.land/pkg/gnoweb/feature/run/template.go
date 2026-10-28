@@ -21,7 +21,7 @@ func mustParse(paths ...string) *template.Template {
 	}
 
 	// Reuse component UI partials
-	if t, err = t.ParseFS(components.TemplatesFS(), "ui/btn_copy.html"); err != nil {
+	if t, err = t.ParseFS(components.SharedPartialsFS(), "btn_copy.html"); err != nil {
 		panic("run: parse shared partials: " + err.Error())
 	}
 	return t

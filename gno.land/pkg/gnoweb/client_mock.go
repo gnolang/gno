@@ -22,6 +22,8 @@ type MockPackage struct {
 	ChainId   string
 	Files     map[string]string // filename -> body
 	Functions []*doc.JSONFunc
+	// Imports are what vm/qdoc reports the package imports.
+	Imports []string
 	// Inert stages a package that was submitted but not yet approved. The
 	// other methods still refuse it the way the chain does -- Render and the
 	// file queries read the live key space -- so a test gets the real shape.
@@ -184,12 +186,7 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		// read, so the chain answers not-found for them too.
 		return nil, ErrClientPackageNotFound
 	}
-	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
-}
-
-// Eval evaluates a Gno expression (mock implementation).
-func (m *MockClient) Eval(_ context.Context, data string) ([]byte, error) {
-	return []byte("(mock eval: " + data + ")"), nil
+	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports}, nil
 }
 
 // Simulate simulates running the transaction with the address (mock implementation).
@@ -233,4 +230,12 @@ func pkgHasRender(pkg *MockPackage) bool {
 		}
 	}
 	return false
+}
+
+// Eval answers like a chain that does not deploy the realm.
+func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+	return nil, ErrClientPackageNotFound
 }

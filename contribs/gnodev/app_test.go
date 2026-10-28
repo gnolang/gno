@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -252,4 +253,49 @@ func TestGnodev_Reload_AfterProxyHit(t *testing.T) {
 	paths := importPaths(out)
 	assert.Contains(t, paths, "gno.land/p/ws/only")
 	assert.Contains(t, paths, "gno.land/p/ext/proxy")
+}
+
+// ---- -validator-key-file: the node validates with the provided key
+
+func TestGnodev_ValidatorKeyFile_ReachesGenesis(t *testing.T) {
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(workspace)
+
+	keyFile := filepath.Join(t.TempDir(), "priv_validator_key.json")
+	key, err := signer.GeneratePersistedFileKey(keyFile)
+	require.NoError(t, err)
+
+	cfg := defaultLocalAppConfig
+	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
+	cfg.nodeRPCListenerAddr = "127.0.0.1:0"
+	cfg.noWatch = true
+	cfg.validatorKeyFile = keyFile
+
+	app := NewApp(discardLogger(), &cfg, commands.NewTestIO())
+	require.NoError(t, app.Setup(context.Background()))
+	t.Cleanup(app.Close)
+
+	validators := app.devNode.GenesisDoc().Validators
+	require.Len(t, validators, 1)
+	assert.Equal(t, key.PubKey, validators[0].PubKey,
+		"the provided key must be the node's genesis validator")
+}
+
+func TestGnodev_ValidatorKeyFile_Unreadable(t *testing.T) {
+	workspace := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, "gnowork.toml"), []byte(""), 0o644))
+	t.Chdir(workspace)
+
+	cfg := defaultLocalAppConfig
+	cfg.home = filepath.Join(t.TempDir(), "nokeybase")
+	cfg.nodeRPCListenerAddr = "127.0.0.1:0"
+	cfg.noWatch = true
+	// A missing file must fail the startup, not fall back to a generated key.
+	cfg.validatorKeyFile = filepath.Join(t.TempDir(), "missing.json")
+
+	app := NewApp(discardLogger(), &cfg, commands.NewTestIO())
+	err := app.Setup(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unable to load validator key")
 }

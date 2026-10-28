@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -277,13 +276,12 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 	pkgPath = strings.TrimPrefix(pkgPath, h.deps.Domain)
 	pkgPath = strings.TrimPrefix(pkgPath, "/")
 
-	// Build the qeval data string: "gno.land/r/demo/boards.Render("")".
-	data := fmt.Sprintf("%s/%s.%s", h.deps.Domain, pkgPath, req.Expression)
-
-	h.deps.Logger.Debug("playground eval", "data", data)
+	h.deps.Logger.Debug("playground eval", "pkg_path", pkgPath)
 
 	start := time.Now()
-	result, err := h.deps.Client.Eval(r.Context(), data)
+	// The client adds the chain domain and joins pkgPath and the expression
+	// as vm/qeval expects: "gno.land/r/demo/boards.Render("")".
+	result, err := h.deps.Client.Eval(r.Context(), pkgPath, req.Expression)
 	took := time.Since(start)
 
 	h.deps.Logger.Debug("playground eval result", "took", took, "error", err)

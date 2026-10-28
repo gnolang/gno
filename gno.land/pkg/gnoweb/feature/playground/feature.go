@@ -25,9 +25,9 @@ type ClientAdapter interface {
 	// specified package path.
 	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
 
-	// Eval evaluates a Gno expression via vm/qeval query.
-	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
-	Eval(ctx context.Context, data string) ([]byte, error)
+	// Eval evaluates expr inside pkgPath through vm/qeval. pkgPath carries
+	// no domain: the client adds its own.
+	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 
 	// Simulate simulates running the transaction with the address.
 	Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error)

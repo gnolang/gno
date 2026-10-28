@@ -509,13 +509,13 @@ func (t *MutableTree) Load() (int64, error) {
 
 // LoadReadonly loads the latest version WITHOUT fast-index maintenance
 // (Load's ensureFastIndex can rebuild the index, i.e. WRITE). For read-only
-// consumers — the store layer's immutable/query views, which may sit on a
-// snapshot or read-only DB and may run concurrently with the live writer —
-// loading must never mutate shared persistent state. Fast-index READS remain
-// available for snapshots taken via getImmutable, which gates them on the
-// stamp covering the snapshot version and on fastGet's per-entry version guard;
-// a bare working-tree read after LoadReadonly is outside the trust contract
-// (see fast_index.go).
+// consumers — the store layer's immutable view of the latest version, which
+// may sit on a snapshot or read-only DB and may run concurrently with the live
+// writer — loading must never mutate shared persistent state. Fast-index
+// READS remain available for snapshots taken via getImmutable, which gates
+// them on the stamp covering the snapshot version and on fastGet's per-entry
+// version guard; a bare working-tree read after LoadReadonly is outside the
+// trust contract (see fast_index.go).
 func (t *MutableTree) LoadReadonly() (int64, error) {
 	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
@@ -553,8 +553,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 // loads version using the already-refreshed first/latest counters. Split out
 // so LoadReadonly — which has just discovered versions to FIND the latest —
 // doesn't pay a second full PrefixRoot scan. The scan is O(retained versions)
-// (~700k at gno.land's default syncable retention) and sits on the per-query
-// store-construction path, so the duplication was the dominant per-query cost.
+// (~700k at gno.land's default syncable retention).
 func (t *MutableTree) loadVersionDiscovered(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 

@@ -23,4 +23,6 @@
 @import "../../feature/state/frontend/state.css";
 @import "../../feature/playground/frontend/playground.css";
 @import "../../feature/run/frontend/run.css";
+@import "../../feature/omnisearch/frontend/omnisearch.css";
+@import "../../feature/chainmap/frontend/chainmap.css";
 @import "./07-utilities.css";

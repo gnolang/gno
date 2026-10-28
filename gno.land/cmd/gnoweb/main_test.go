@@ -1,6 +1,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -75,6 +79,85 @@ func TestSetupWeb(t *testing.T) {
 
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
+
+	opts.trustedProxies = "10.0.0.0/8, 192.0.2.1"
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
+
+	// A bad entry fails at startup instead of quietly trusting less.
+	opts.trustedProxies = "10.0.0.0/8,not-an-ip"
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "not-an-ip")
+}
+
+// A realm notice text that renders to nothing must refuse to start, unless the
+// notice is disabled.
+func TestSetupWeb_RealmNoticeText(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "# heading only")
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+
+	opts := defaultWebOptions
+	opts.bind = "127.0.0.1:0"
+	_, err := setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "invalid GNOWEB_REALM_NOTICE_TEXT")
+
+	opts.noRealmNotice = true
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
+}
+
+// TestSetupTrust checks that the trusted paths reach the app with the realm
+// notice on or off: they also decide what a page's head may repeat.
+func TestSetupTrust(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "")
+
+	for _, noNotice := range []bool{false, true} {
+		t.Run(fmt.Sprintf("no-realm-notice=%v", noNotice), func(t *testing.T) {
+			cfg := defaultWebOptions
+			cfg.noRealmNotice = noNotice
+			appcfg := gnoweb.NewDefaultAppConfig()
+
+			require.NoError(t, setupTrust(&cfg, appcfg, slog.New(slog.DiscardHandler)))
+			assert.Equal(t, strings.Split(gnoweb.DefaultTrustedPaths, ","), appcfg.TrustedPaths)
+			assert.Equal(t, !noNotice, appcfg.RealmNotice.Enabled())
+		})
+	}
+}
+
+// TestIndexCommunityFlag checks the flag reaches the config and defaults to
+// none; the values themselves are TestCommunityIndexText's.
+func TestIndexCommunityFlag(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultWebOptions
+	fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	require.NoError(t, fs.Parse(nil))
+	assert.Equal(t, gnoweb.IndexNoCommunity, cfg.indexCommunity, "names are free: community pages stay out of search by default")
+	require.NoError(t, fs.Parse([]string{"-index-community=registered"}))
+	assert.Equal(t, gnoweb.IndexRegisteredCommunity, cfg.indexCommunity)
+}
+
+// TestNoIndexFlag checks -no-index reaches the app: a testnet that loses it
+// silently stays in search. The startup log reports the policy in effect.
+func TestNoIndexFlag(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "")
+
+	for _, args := range [][]string{nil, {"-no-index"}} {
+		cfg := defaultWebOptions
+		fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+		cfg.RegisterFlags(fs)
+		require.NoError(t, fs.Parse(args))
+		cfg.bind = "127.0.0.1:0"
+
+		var out strings.Builder
+		stdio := commands.NewDefaultIO()
+		stdio.SetOut(commands.WriteNopCloser(&out))
+		_, err := setupWeb(&cfg, nil, stdio)
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), fmt.Sprintf(`"noindex": %v`, args != nil), args)
+	}
 }
 
 // Dummy handler to simulate the processing chain.
@@ -83,8 +166,30 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func TestSecureHeadersMiddlewareIPFSGateway(t *testing.T) {
+	cspFor := func(gateway string) string {
+		handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com", gateway)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest("GET", "http://example.com", nil))
+		return rec.Result().Header.Get("Content-Security-Policy")
+	}
+
+	csp := cspFor("https://ipfs.filebase.io")
+	assert.Contains(t, csp, " https://ipfs.filebase.io ")
+	assert.NotContains(t, csp, "https://ipfs.io")
+	assert.NotContains(t, csp, "cloudflare-ipfs.com")
+	assert.NotContains(t, cspFor(""), "filebase")
+
+	// A subdomain gateway (Kubo, by default on localhost) redirects
+	// /ipfs/<cid> to <cid>.ipfs.<host>, so those subdomains are allowed too.
+	assert.Contains(t, cspFor("http://localhost:8080"),
+		" http://localhost:8080 http://*.ipfs.localhost:8080 http://*.ipns.localhost:8080;")
+	// An IP address has no subdomains.
+	assert.Contains(t, cspFor("http://127.0.0.1:8080"), " http://127.0.0.1:8080;")
+}
+
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com", "https://ipfs.filebase.io")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -140,7 +245,7 @@ func TestSecureHeadersMiddlewareNonceMatchesContext(t *testing.T) {
 	handler := SecureHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = append(seen, gnoweb.CSPNonceFromContext(r.Context()))
 		w.Write([]byte("OK"))
-	}), true, "http://example.com")
+	}), true, "http://example.com", "")
 
 	do := func() string {
 		rec := httptest.NewRecorder()
@@ -165,7 +270,7 @@ func TestSecureHeadersMiddlewareNonceMatchesContext(t *testing.T) {
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com", "https://ipfs.filebase.io")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()

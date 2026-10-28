@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	gopath "path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -99,10 +100,6 @@ type ClientAdapter interface {
 	// any positive value pins the query to that historical height.
 	Doc(ctx context.Context, path string, height int64) (*doc.JSONDocumentation, error)
 
-	// Eval evaluates a Gno expression via vm/qeval query.
-	// The data string should be in the format "gno.land/r/pkg.Expression(args)".
-	Eval(ctx context.Context, data string) ([]byte, error)
-
 	// Simulate simulates running the transaction with the address.
 	Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error)
 
@@ -124,6 +121,12 @@ type ClientAdapter interface {
 	// status "absent", not ErrClientPackageNotFound: the caller needs to tell
 	// "nothing here" from "the node did not answer".
 	PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error)
+
+	// Eval evaluates a read-only Gno expression (`vm/qeval`) and returns the
+	// raw result, one line per return value. pkgPath carries no domain, since
+	// the client adds its own, and no dot: the node splits pkgPath from expr on
+	// the first dot after the first slash. expr is the caller's to keep safe.
+	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -162,6 +165,24 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 	return c.query(ctx, qpath, []byte(data), 0)
 }
 
+// Eval evaluates expr inside pkgPath through vm/qeval.
+func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	const qpath = "vm/qeval"
+
+	pkgPath = strings.Trim(pkgPath, "/")
+	data := fmt.Sprintf("%s/%s.%s", c.domain, pkgPath, expr)
+
+	return c.query(ctx, qpath, []byte(data), 0)
+}
+
+// validFileName reports whether vm/qfile reads name as a file of the package
+// itself. vm/qfile splits paths with std.SplitFilepath, where a separator, a
+// dot segment or a name without a dot resolves to another path.
+func validFileName(name string) bool {
+	_, file := std.SplitFilepath(gopath.Join("pkg", name))
+	return file == name
+}
+
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
 // Chroma for syntax highlighting or Raw style source.
@@ -169,8 +190,8 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
-	if fileName == "" {
-		return nil, meta, errors.New("empty filename given") // XXX: Consider creating a specific error variable
+	if fileName == "" || !validFileName(fileName) {
+		return nil, meta, ErrClientFileNotFound
 	}
 
 	// XXX: Consider moving this into gnoclient
@@ -216,7 +237,14 @@ func (c *rpcClient) ListFiles(ctx context.Context, path string, height int64) ([
 // Sources lists all source files available in a specified
 // package path by querying the RPC client.
 func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
-	const qpath = "vm/qpaths"
+	qpath := "vm/qpaths"
+	// The node reads the cap off the query string and silently applies its
+	// own default (1000) when none is given. Not forwarding it meant `limit`
+	// was a dead parameter and every caller saw the lexicographically first
+	// 1000 paths, with nothing to say the rest existed.
+	if limit > 0 {
+		qpath += "?limit=" + strconv.Itoa(limit)
+	}
 
 	// XXX: Consider moving this into gnoclient
 	res, err := c.query(ctx, qpath, []byte(prefix), 0)
@@ -251,12 +279,6 @@ func (c *rpcClient) Doc(ctx context.Context, pkgPath string, height int64) (*doc
 	}
 
 	return jdoc, nil
-}
-
-// Eval evaluates a Gno expression via the vm/qeval ABCI query.
-func (c *rpcClient) Eval(ctx context.Context, data string) ([]byte, error) {
-	const qpath = "vm/qeval"
-	return c.query(ctx, qpath, []byte(data), 0)
 }
 
 // Simulate simulates running the transaction with the address.
