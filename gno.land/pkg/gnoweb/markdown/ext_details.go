@@ -283,16 +283,22 @@ func wrapDetails(n ast.Node) {
 
 // takeBlocks moves d's following siblings under d up to its close marker,
 // which it removes, or up to a grid or frame marker, which a details block
-// must not split, leaving the close marker to render as a stray one. A
+// must not split, leaving the close marker to render as a stray one. Such a
+// marker stops d only where its tag sat at document level: under the
+// document, or under a frame, where the frame transformer moves it. The
+// parser ends the open blocks at those tags alone; one in a list item or a
+// blockquote is inert. A
 // tight list renders its paragraphs as bare text blocks; one moved under d
 // becomes a paragraph again.
 func takeBlocks(parent ast.Node, d *GnoDetailsNode) {
+	pk := parent.Kind()
+	stops := pk == ast.KindDocument || pk == KindGnoFrame
 	for c := d.NextSibling(); c != nil; c = d.NextSibling() {
 		if c == d.close {
 			parent.RemoveChild(parent, c)
 			return
 		}
-		if k := c.Kind(); k == KindGnoColumn || k == KindGnoFrame {
+		if k := c.Kind(); stops && (k == KindGnoColumn || k == KindGnoFrame) {
 			break
 		}
 		if tb, ok := c.(*ast.TextBlock); ok {

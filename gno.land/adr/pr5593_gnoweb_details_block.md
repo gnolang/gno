@@ -50,6 +50,10 @@ arbitrary **markdown**
 - **Sanitizer.** `sanitize.Block` and `sanitize.BlockRich` already escape any
   line opening on `<gno-` or `</gno-`, so user content can neither open a
   block around the realm's own content nor close the realm's block early.
+  `BlockRich` still has the gap tracked in #6300: a fence indented under a
+  list item makes it skip the escape on the next unindented line, so a
+  `</gno-details>` there closes the realm's block early, and the realm's
+  content after it renders in a code block. #6304 closes the gap.
 - **Registration.** The extension is registered in `GnoExtension.Extend` and
   in `buildInnerForeignMarkdown`, so a block also renders inside
   `<gno-foreign>`.
