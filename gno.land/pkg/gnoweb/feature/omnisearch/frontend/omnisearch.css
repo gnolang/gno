@@ -203,7 +203,7 @@
 
 /* Same eyebrow as the rail's other sub-headings. */
 .b-omni-hints__title {
-	margin-block-end: var(--g-space-2);
+	margin-block-end: var(--g-space-1);
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
 	font-weight: var(--g-font-semibold);

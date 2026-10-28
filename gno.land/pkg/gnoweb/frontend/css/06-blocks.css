@@ -4371,9 +4371,10 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 
 	/* Secondary, not tertiary: at 12px tertiary is under 4.5:1 on the
 	   light dropdown. */
+	/* Closer to its rows than to the group above, so it reads as their title. */
 	.b-omnisearch-label {
 		display: block;
-		padding: var(--g-space-1) var(--g-space-2);
+		padding: var(--g-space-2) var(--g-space-2) var(--g-space-0-5);
 		font-size: var(--g-font-size-50);
 		font-weight: var(--g-font-semibold);
 		text-transform: uppercase;
