@@ -25,6 +25,12 @@ import (
 // the caller evaluates it on a machine. alloc accounts the bytes of a
 // string result; gm is charged once per call.
 func foldConst(gm store.GasMeter, alloc *Allocator, x Expr) (TypedValue, bool) {
+	return foldConstWith(func() goconst.Meter { return chargeConstFold(gm) }, alloc, x)
+}
+
+// foldConstWith is foldConst with the Meter made by meter once the
+// operands are known to fold (tests pass one that records the work).
+func foldConstWith(meter func() goconst.Meter, alloc *Allocator, x Expr) (TypedValue, bool) {
 	switch x := x.(type) {
 	case *BinaryExpr:
 		l, lok := foldOperand(x.Left)
@@ -32,7 +38,7 @@ func foldConst(gm store.GasMeter, alloc *Allocator, x Expr) (TypedValue, bool) {
 		if !lok || !rok {
 			return TypedValue{}, false
 		}
-		return foldBinary(chargeConstFold(gm), alloc, x, l, r), true
+		return foldBinary(meter(), alloc, x, l, r), true
 	case *UnaryExpr:
 		switch x.Op {
 		case ADD, SUB, XOR, NOT:
@@ -43,28 +49,7 @@ func foldConst(gm store.GasMeter, alloc *Allocator, x Expr) (TypedValue, bool) {
 		if !ok {
 			return TypedValue{}, false
 		}
-		return foldUnary(chargeConstFold(gm), x, v), true
-	}
-	return TypedValue{}, false
-}
-
-// foldConstWith is foldConst with an explicit Meter and no flat charge,
-// for tests of the work reported.
-func foldConstWith(m goconst.Meter, x Expr) (TypedValue, bool) {
-	switch x := x.(type) {
-	case *BinaryExpr:
-		l, lok := foldOperand(x.Left)
-		r, rok := foldOperand(x.Right)
-		if !lok || !rok {
-			return TypedValue{}, false
-		}
-		return foldBinary(m, nil, x, l, r), true
-	case *UnaryExpr:
-		v, ok := foldOperand(x.X)
-		if !ok {
-			return TypedValue{}, false
-		}
-		return foldUnary(m, x, v), true
+		return foldUnary(meter(), x, v), true
 	}
 	return TypedValue{}, false
 }
@@ -117,16 +102,18 @@ func (m constMeter) Charge(w goconst.Work) {
 			gas = int64(min(w.Shift, maxConstShift))*OpCPUSlopeBigIntShl/1024 + lb*OpCPUSlopeBigIntShl/1024
 		case w.Op == token.SHR:
 			gas = lb * OpCPUSlopeBigIntShr / 1024
-		case w.Op == token.MUL || w.Op == token.QUO || w.Op == token.QUO_ASSIGN || w.Op == token.REM:
-			gas = overflow.Mulp(overflow.Mulp(lb/32, lb/32), bigIntQuadSlope(w.Op)) / 32
 		default:
-			gas = lb * bigIntSlope(w.Op) / 1024
+			if slope, quadratic := bigIntQuadSlope(w.Op); quadratic {
+				gas = overflow.Mulp(overflow.Mulp(lb/32, lb/32), slope) / 32
+			} else {
+				gas = lb * bigIntSlope(w.Op) / 1024
+			}
 		}
 	case goconst.RepRat:
 		d := int64(w.Bits) / 3 // decimal digits, as ratDigits
 		q := overflow.Mulp(d/10, d/10)
 		switch {
-		case w.Conv != goconst.ConvNone, isCompareToken(w.Op): // a cross-multiplication or a division, no gcd
+		case w.Conv != goconst.ConvNone, isComparison(toWord(w.Op)): // a cross-multiplication or a division, no gcd
 			gas = OpCPUSlopeConstRatConv + d*OpCPUSlopeConstRatCmp/100 + overflow.Mulp(q, OpCPUSlopeConstRatCmpQ)/10
 		case w.Unary: // -, +: a copy
 			gas = OpCPUSlopeConstRatBase + d*OpCPUSlopeConstRatNeg/100
@@ -139,19 +126,11 @@ func (m constMeter) Charge(w goconst.Work) {
 			gas += OpCPUSlopeConstFloatQuo
 		}
 	case goconst.RepString:
-		if isCompareToken(w.Op) {
+		if isComparison(toWord(w.Op)) {
 			gas = int64(w.Bits) * OpCPUSlopeBytesCmp
 		}
 	}
 	chargeCPUGas(m.gm, gas)
-}
-
-func isCompareToken(op token.Token) bool {
-	switch op {
-	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
-		return true
-	}
-	return false
 }
 
 func bigIntSlope(op token.Token) int64 {
@@ -174,14 +153,18 @@ func bigIntSlope(op token.Token) int64 {
 	return OpCPUSlopeBigIntLss // <, <=, >, >=
 }
 
-func bigIntQuadSlope(op token.Token) int64 {
+// bigIntQuadSlope is the slope of an operation quadratic in its operands'
+// width, and whether op is one.
+func bigIntQuadSlope(op token.Token) (slope int64, quadratic bool) {
 	switch op {
 	case token.MUL:
-		return OpCPUSlopeBigIntMulQ
+		return OpCPUSlopeBigIntMulQ, true
 	case token.QUO, token.QUO_ASSIGN:
-		return OpCPUSlopeBigIntQuoQ
+		return OpCPUSlopeBigIntQuoQ, true
+	case token.REM:
+		return OpCPUSlopeBigIntRemQ, true
 	}
-	return OpCPUSlopeBigIntRemQ
+	return 0, false
 }
 
 func foldBinary(m goconst.Meter, alloc *Allocator, x *BinaryExpr, l, r *TypedValue) TypedValue {
@@ -197,12 +180,11 @@ func foldBinary(m goconst.Meter, alloc *Allocator, x *BinaryExpr, l, r *TypedVal
 		return foldShift(m, x, l, lv, rv)
 	}
 	tok := binaryToken(x.Op)
-	switch x.Op {
-	case QUO, REM:
+	if x.Op == QUO || x.Op == REM {
 		if goconst.Sign(rv) == 0 {
 			panic("invalid operation: division by zero")
 		}
-		if x.Op == QUO && isIntegerConst(l.T) {
+		if x.Op == QUO && isWhole(l.T) {
 			tok = token.QUO_ASSIGN // integer division
 		}
 	}
@@ -266,20 +248,9 @@ func foldUnary(m goconst.Meter, x *UnaryExpr, v *TypedValue) TypedValue {
 // rune past int32) wider than maxUntypedIntBits, with go/types' wording:
 // "constant shift overflow", "constant overflow" for a literal.
 func checkUntypedIntWidth(x Expr, tv *TypedValue) {
-	var bi *big.Int
-	switch tv.T {
-	case UntypedBigintType:
-		bi = tv.GetBigInt()
-	case UntypedRuneType:
-		biv, ok := tv.V.(BigintValue)
-		if !ok {
-			return
-		}
-		bi = biv.V
-	default:
-		return
-	}
-	if bi.BitLen() <= maxUntypedIntBits {
+	// A BigintValue is an untyped bigint, or an untyped rune past int32.
+	biv, ok := tv.V.(BigintValue)
+	if !ok || biv.V.BitLen() <= maxUntypedIntBits {
 		return
 	}
 	op := ""
@@ -305,57 +276,19 @@ func checkUntypedIntWidth(x Expr, tv *TypedValue) {
 	panic(fmt.Sprintf("constant %soverflow", op))
 }
 
-// isIntegerConst reports whether constants of type t are integers:
-// typed integer kinds, untyped bigint and untyped rune.
-func isIntegerConst(t Type) bool {
-	switch baseOf(t).Kind() {
-	case BigintKind:
-		return true
-	default:
-		return isIntegerKind(baseOf(t).Kind())
+// word2token is token2word (go2gno.go) inverted.
+var word2token = func() map[Word]token.Token {
+	m := make(map[Word]token.Token, len(token2word))
+	for tok, w := range token2word {
+		m[w] = tok
 	}
-}
+	return m
+}()
 
+// binaryToken is the go/token operator of a binary operator Word.
 func binaryToken(op Word) token.Token {
-	switch op {
-	case ADD:
-		return token.ADD
-	case SUB:
-		return token.SUB
-	case MUL:
-		return token.MUL
-	case QUO:
-		return token.QUO
-	case REM:
-		return token.REM
-	case BAND:
-		return token.AND
-	case BOR:
-		return token.OR
-	case XOR:
-		return token.XOR
-	case BAND_NOT:
-		return token.AND_NOT
-	case LAND:
-		return token.LAND
-	case LOR:
-		return token.LOR
-	case SHL:
-		return token.SHL
-	case SHR:
-		return token.SHR
-	case EQL:
-		return token.EQL
-	case NEQ:
-		return token.NEQ
-	case LSS:
-		return token.LSS
-	case LEQ:
-		return token.LEQ
-	case GTR:
-		return token.GTR
-	case GEQ:
-		return token.GEQ
+	if tok, ok := word2token[op]; ok && tok.IsOperator() {
+		return tok
 	}
 	panic(fmt.Sprintf("not a constant operator: %s", op.TokenString()))
 }
@@ -375,8 +308,8 @@ func constValueOf(m goconst.Meter, tv *TypedValue) goconst.Value {
 	case Int16Kind:
 		return goconst.MakeInt64(int64(tv.GetInt16()))
 	case Int32Kind:
-		if tv.T == UntypedRuneType {
-			return goconst.Make(m, runeConstInt(tv))
+		if bi, ok := tv.bigRune(); ok {
+			return goconst.Make(m, bi)
 		}
 		return goconst.MakeInt64(int64(tv.GetInt32()))
 	case Int64Kind:
@@ -497,12 +430,16 @@ func constBigdec(v goconst.Value) BigdecValue {
 // the exact BigintValue otherwise.
 func setRuneConst(tv *TypedValue, bi *big.Int) {
 	tv.V = nil
-	if bi.IsInt64() && bi.Int64() >= math.MinInt32 && bi.Int64() <= math.MaxInt32 {
+	if fitsInt32(bi) {
 		tv.SetInt32(int32(bi.Int64()))
 		return
 	}
 	tv.ClearNum()
 	tv.V = BigintValue{V: bi}
+}
+
+func fitsInt32(bi *big.Int) bool {
+	return bi.IsInt64() && bi.Int64() >= math.MinInt32 && bi.Int64() <= math.MaxInt32
 }
 
 // setIntKind stores bi, known to be in range, in a typed integer of kind k.
@@ -535,25 +472,23 @@ func setIntKind(tv *TypedValue, k Kind, bi *big.Int) {
 
 // intKindRange is the range of values an integer kind represents.
 func intKindRange(k Kind) (lo, hi *big.Int) {
-	switch k {
-	case Int8Kind:
-		return big.NewInt(math.MinInt8), big.NewInt(math.MaxInt8)
-	case Int16Kind:
-		return big.NewInt(math.MinInt16), big.NewInt(math.MaxInt16)
-	case Int32Kind:
-		return big.NewInt(math.MinInt32), big.NewInt(math.MaxInt32)
-	case IntKind, Int64Kind:
-		return big.NewInt(math.MinInt64), big.NewInt(math.MaxInt64)
-	case Uint8Kind:
-		return big.NewInt(0), big.NewInt(math.MaxUint8)
-	case Uint16Kind:
-		return big.NewInt(0), big.NewInt(math.MaxUint16)
-	case Uint32Kind:
-		return big.NewInt(0), big.NewInt(math.MaxUint32)
-	case UintKind, Uint64Kind:
-		return big.NewInt(0), new(big.Int).SetUint64(math.MaxUint64)
+	if r, ok := intKindBounds[k]; ok {
+		return r[0], r[1]
 	}
 	panic(fmt.Sprintf("not an integer kind: %s", k))
+}
+
+var intKindBounds = map[Kind][2]*big.Int{
+	Int8Kind:   {big.NewInt(math.MinInt8), big.NewInt(math.MaxInt8)},
+	Int16Kind:  {big.NewInt(math.MinInt16), big.NewInt(math.MaxInt16)},
+	Int32Kind:  {big.NewInt(math.MinInt32), big.NewInt(math.MaxInt32)},
+	IntKind:    {big.NewInt(math.MinInt64), big.NewInt(math.MaxInt64)},
+	Int64Kind:  {big.NewInt(math.MinInt64), big.NewInt(math.MaxInt64)},
+	Uint8Kind:  {big.NewInt(0), big.NewInt(math.MaxUint8)},
+	Uint16Kind: {big.NewInt(0), big.NewInt(math.MaxUint16)},
+	Uint32Kind: {big.NewInt(0), big.NewInt(math.MaxUint32)},
+	UintKind:   {big.NewInt(0), new(big.Int).SetUint64(math.MaxUint64)},
+	Uint64Kind: {big.NewInt(0), new(big.Int).SetUint64(math.MaxUint64)},
 }
 
 // constExprString prints a constant operation as written (as gc does),

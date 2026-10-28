@@ -1595,20 +1595,35 @@ func (tv *TypedValue) GetInt32() int32 {
 			))
 		}
 	}
-	if tv.V != nil { // an untyped rune constant past int32 (see runeConstInt)
-		if biv, ok := tv.V.(BigintValue); ok {
-			panic(fmt.Sprintf("constant %s overflows rune", biv.V))
-		}
+	if tv.V != nil { // an untyped rune constant past int32 (see bigRune)
+		panicBigRune(tv)
 	}
 	return *(*int32)(unsafe.Pointer(&tv.N))
 }
 
+// panicBigRune is GetInt32's rejection of an untyped rune constant past
+// int32, kept out of line so GetInt32 stays inlinable.
+//
+//go:noinline
+func panicBigRune(tv *TypedValue) {
+	if bi, ok := tv.bigRune(); ok {
+		panic(fmt.Sprintf("constant %s overflows rune", bi))
+	}
+}
+
+// bigRune is the value of an untyped rune constant past int32, which
+// constant folding stores as a BigintValue (Go's untyped rune constants
+// are exact; see constfold.go); an in-range rune keeps its int32 in N.
+func (tv *TypedValue) bigRune() (*big.Int, bool) {
+	biv, ok := tv.V.(BigintValue)
+	return biv.V, ok
+}
+
 // runeConstInt is the exact value of an untyped rune constant (or any
-// int32): int32 in N when it fits, else the BigintValue constant folding
-// stored (Go's untyped rune constants are exact; see constfold.go).
+// int32), in either form.
 func runeConstInt(tv *TypedValue) *big.Int {
-	if biv, ok := tv.V.(BigintValue); ok {
-		return biv.V
+	if bi, ok := tv.bigRune(); ok {
+		return bi
 	}
 	return big.NewInt(int64(tv.GetInt32()))
 }
@@ -1875,8 +1890,8 @@ func (tv *TypedValue) Sign() int {
 	case Int16Kind:
 		return signOfInteger(int64(tv.GetInt16()))
 	case Int32Kind:
-		if biv, ok := tv.V.(BigintValue); ok { // untyped rune past int32
-			return biv.V.Sign()
+		if bi, ok := tv.bigRune(); ok {
+			return bi.Sign()
 		}
 		return signOfInteger(int64(tv.GetInt32()))
 	case Int64Kind:

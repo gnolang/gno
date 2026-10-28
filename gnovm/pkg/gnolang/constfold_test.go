@@ -106,7 +106,7 @@ func constText(tv TypedValue) string {
 		ConvertTo(nil, nil, &tv2, Uint64Type, false)
 		v = fmt.Sprint(tv2.GetUint64())
 	default:
-		tv2 := tv
+		tv2 := tv // ConvertGetInt converts in place
 		v = fmt.Sprint(tv2.ConvertGetInt())
 	}
 	return v + " " + tv.T.String()
@@ -585,7 +585,7 @@ func TestConstFoldWorkReported(t *testing.T) {
 		{bin(cRune('a'), ADD, cRune('b')), []goconst.Work{{Op: token.ADD, Rep: goconst.RepInt64}}},
 	} {
 		got = got[:0]
-		_, ok := foldConstWith(m, tc.x)
+		_, ok := foldConstWith(func() goconst.Meter { return m }, nil, tc.x)
 		require.True(t, ok)
 		require.Equal(t, tc.want, got, "%v", tc.x)
 	}

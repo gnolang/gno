@@ -1681,6 +1681,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						} else if ct.Kind() == StringKind && at == UntypedRuneType && arg0.V != nil {
 							// An untyped rune past int32 is not a code point:
 							// "\uFFFD" as gc, not the default type it overflows.
+							// An in-range rune keeps the machine path (its gas
+							// and allocation are pinned).
 							convertConst(store, last, n, arg0, ct)
 							constConverted = true
 						} else if ct.Kind() == SliceKind {
@@ -4619,7 +4621,8 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	if cx == nil {
 		// An operation on constants folds exactly (constfold.go); anything
 		// else (a literal, a name, a conversion) is evaluated by a machine.
-		cv, folded := foldConst(preprocessGasMeterOf(store), preprocessAllocOf(store), x)
+		alloc := preprocessAllocOf(store)
+		cv, folded := foldConst(alloc.GetGasMeter(), alloc, x)
 		if !folded {
 			m := NewMachineWithOptions(MachineOptions{
 				PkgPath:            ".dontcare",

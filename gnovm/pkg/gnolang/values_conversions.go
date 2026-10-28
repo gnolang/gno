@@ -1199,6 +1199,9 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	}
 	bi := runeConstInt(dst)
 	k := t.Kind()
+	dst.T = t
+	dst.ClearNum()
+	dst.V = nil
 	switch k {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
@@ -1209,47 +1212,32 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 			}
 			panic(fmt.Sprintf("constant %s overflows %s", bi, name))
 		}
-		dst.T = t
-		dst.ClearNum()
-		dst.V = nil
 		setIntKind(dst, k, bi)
 	case Float32Kind:
-		// Unmetered: an untyped integer is at most 512 bits
-		// (maxUntypedIntBits), a fixed cost.
+		// Unmetered: one conversion, linear in bits that were paid for
+		// when the constant was parsed or folded.
 		f, _ := goconst.Float32Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(float64(f), 0) {
 			panic(fmt.Sprintf("constant %s overflows float32", bi))
 		}
-		dst.T = t
-		dst.ClearNum()
-		dst.V = nil
 		dst.SetFloat32(math.Float32bits(f))
 	case Float64Kind:
 		f, _ := goconst.Float64Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(f, 0) {
 			panic(fmt.Sprintf("constant %s overflows float64", bi))
 		}
-		dst.T = t
-		dst.ClearNum()
-		dst.V = nil
 		dst.SetFloat64(math.Float64bits(f))
 	case StringKind:
 		// The code point's UTF-8, "\uFFFD" when it is not one (Go spec,
 		// Conversions).
 		s := "\uFFFD"
-		if bi.IsInt64() && bi.Int64() >= math.MinInt32 && bi.Int64() <= math.MaxInt32 {
+		if fitsInt32(bi) {
 			s = string(rune(bi.Int64()))
 		}
-		dst.T = t
-		dst.ClearNum()
 		dst.V = StringValue(s)
 	case BigintKind:
-		dst.T = t
-		dst.ClearNum()
 		dst.V = BigintValue{V: new(big.Int).Set(bi)}
 	case BigdecKind:
-		dst.T = t
-		dst.ClearNum()
 		dst.V = BigdecValue{V: new(big.Rat).SetInt(bi)}
 	default:
 		panic(fmt.Sprintf(
@@ -1296,8 +1284,8 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		// Rounded once, from the exact value (#6394). Unmetered: at most
-		// 512 bits (maxUntypedIntBits), a fixed cost.
+		// Rounded once, from the exact value (#6394). Unmetered: one
+		// conversion, linear in bits paid for at parse or fold.
 		f32, _ := goconst.Float32Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
