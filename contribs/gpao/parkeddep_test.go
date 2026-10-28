@@ -1,7 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"path"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,16 +71,31 @@ func newInertChain(t *testing.T) *inertChain {
 // park submits mpkg, which the policy stores without enabling.
 func (c *inertChain) park(t *testing.T, mpkg *std.MemPackage) {
 	t.Helper()
-	tx := std.Tx{
-		Msgs: []std.Msg{vm.MsgAddPackage{Creator: c.who, Package: mpkg}},
-		Fee:  std.NewFee(defaultGasWanted, std.MustParseCoin(defaultGasFee)),
+	require.NoError(t, c.broadcast(vm.MsgAddPackage{Creator: c.who, Package: mpkg}), "park")
+}
+
+// enable approves mpkg as the trusted key, outside any oracle. It returns its
+// failure rather than failing the test, so a proxy handler can call it.
+func (c *inertChain) enable(mpkg *std.MemPackage) error {
+	hash, err := vm.PackageContentHash(mpkg)
+	if err != nil {
+		return err
 	}
-	signed, err := c.client.SignTx(tx, 0, 0)
-	require.NoError(t, err)
-	res, err := c.client.BroadcastTxCommit(signed)
-	require.NoError(t, err)
-	require.True(t, res.CheckTx.IsOK(), "park checkTx: %v", res.CheckTx.Error)
-	require.True(t, res.DeliverTx.IsOK(), "park deliverTx: %v", res.DeliverTx.Error)
+	return c.broadcast(vm.MsgEnablePackage{Approver: c.who, PkgPath: mpkg.Path, PkgHash: hash})
+}
+
+// broadcast signs msg as the trusted key and commits it. BroadcastTxCommit
+// fails on a CheckTx or DeliverTx error as well as on a transport one.
+func (c *inertChain) broadcast(msg std.Msg) error {
+	signed, err := c.client.SignTx(std.Tx{
+		Msgs: []std.Msg{msg},
+		Fee:  std.NewFee(defaultGasWanted, std.MustParseCoin(defaultGasFee)),
+	}, 0, 0)
+	if err != nil {
+		return err
+	}
+	_, err = c.client.BroadcastTxCommit(signed)
+	return err
 }
 
 // oracle builds an oracle approving on the chain, with the gas ceiling settled
@@ -196,19 +217,75 @@ func TestParkedDependencyIsNotAPermanentVerdict(t *testing.T) {
 			"not their fault -- recorded reason: %s", st.Reason)
 }
 
-// TestLiveImportTheNodeWillNotServeIsNotAVerdict: a live dependency vm/qfile
-// lists but cannot serve leaves the importer pending as the oracle's limit,
-// named as such.
+// TestLiveImportTheNodeWillNotServeIsNotAVerdict: when vm/qfile lists a source
+// of a live dependency and will not serve it, the importer is left pending as
+// the oracle's limit, named as such.
+//
+// The node here refuses one production file of the dependency, which the
+// typecheck reads. The getter records the dependency absent, vm/qpkgmeta_json
+// says live, and one more fetch says the same. That is neither a verdict nor a
+// parked import: the chain enables the importer as it is, and no approval of
+// the dependency is pending, so "resubmit once the import is live" would wait
+// on an event that has already happened.
+func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
+	chain := newInertChain(t)
+	const depPath = "gno.land/p/test/refused"
+	dep := chainPackage(depPath, "package refused\n\nfunc Answer() int { return 42 }\n")
+	chain.park(t, dep)
+
+	var refused atomic.Int64
+	refusing := httptest.NewServer(refusingFile(t, chain.remote, depPath+"/refused.gno", &refused))
+	t.Cleanup(refusing.Close)
+	chain.remote = refusing.URL
+
+	// The oracle enables the dependency itself, so it is live and the fixture
+	// is a package the approver has already accepted.
+	o := chain.oracle(t)
+	o.handleCandidate(t.Context(), candidate{mpkg: dep})
+	depSt := o.status.get(depPath)
+	require.Equal(t, statusApproved, depSt.Status,
+		"premise: the dependency must be live -- recorded reason: %s", depSt.Reason)
+
+	const appPath = "gno.land/r/test/wantsrefused"
+	app := chainPackage(appPath,
+		"package wantsrefused\n\nimport \""+depPath+"\"\n\nfunc N(cur realm) int { return refused.Answer() }\n")
+	chain.park(t, app)
+
+	o.handleCandidate(t.Context(), candidate{mpkg: app})
+	require.Positive(t, refused.Load(), "premise: the node must have refused the file, or this tests nothing")
+
+	st := o.status.get(appPath)
+	require.Equal(t, statusPending, st.Status,
+		"a dependency this oracle cannot fetch is its own limit, not a verdict -- recorded reason: %s", st.Reason)
+	assert.Contains(t, st.Reason, depPath, "the reason must name the import")
+	assert.Contains(t, st.Reason, "would not serve", "the reason must say the node is what failed")
+	assert.NotContains(t, st.Reason, "parked", "the dependency is live; nothing about it is awaited")
+	assert.NotContains(t, o.seen, candidateKey(app),
+		"the bytes were never judged, so a restart or resubmission must get a fresh look")
+}
+
+// refusingFile proxies to remote, except that a query for fp asks the node for
+// a file the package does not have: a node listing a file and not serving it.
+func refusingFile(t *testing.T, remote, fp string, n *atomic.Int64) http.Handler {
+	t.Helper()
+	asked := []byte(base64.StdEncoding.EncodeToString([]byte(fp)))
+	missing := []byte(base64.StdEncoding.EncodeToString([]byte(path.Join(path.Dir(fp), "missing.gno"))))
+	return rewriting(t, remote, func(body []byte) []byte {
+		if !bytes.Contains(body, asked) {
+			return body
+		}
+		n.Add(1)
+		return bytes.ReplaceAll(body, asked, missing)
+	})
+}
+
+// TestUnservedLicenceDoesNotHoldUpImporters: a file vm/qfile lists and will not
+// serve is no obstacle when the verification never reads it.
 //
 // A dotless LICENCE file makes such a package: ValidateMemPackage accepts the
 // name, but std.SplitFilepath treats only LICENSE and README as files, so
-// vm/qfile lists it and then answers "not found" for it. The getter records
-// the dependency absent, vm/qpkgmeta_json says live, and one more fetch says
-// the same. That is neither a verdict nor a parked import: the chain enables
-// the importer as it is, and no approval of the dependency is pending, so
-// "resubmit once the import is live" would wait on an event that has already
-// happened.
-func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
+// vm/qfile lists it and then answers "not found" for it.
+func TestUnservedLicenceDoesNotHoldUpImporters(t *testing.T) {
 	chain := newInertChain(t)
 	const depPath = "gno.land/p/test/licenced"
 	dep := chainPackage(depPath, "package licenced\n\nfunc Answer() int { return 42 }\n")
@@ -216,8 +293,6 @@ func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
 	dep.Sort()
 	chain.park(t, dep)
 
-	// The oracle enables the dependency itself, so it is live and the fixture
-	// is a package the approver has already accepted.
 	o := chain.oracle(t)
 	o.handleCandidate(t.Context(), candidate{mpkg: dep})
 	depSt := o.status.get(depPath)
@@ -239,13 +314,7 @@ func TestLiveImportTheNodeWillNotServeIsNotAVerdict(t *testing.T) {
 	o.handleCandidate(t.Context(), candidate{mpkg: app})
 
 	st := o.status.get(appPath)
-	require.Equal(t, statusPending, st.Status,
-		"a dependency this oracle cannot fetch is its own limit, not a verdict -- recorded reason: %s", st.Reason)
-	assert.Contains(t, st.Reason, depPath, "the reason must name the import")
-	assert.Contains(t, st.Reason, "would not serve", "the reason must say the node is what failed")
-	assert.NotContains(t, st.Reason, "parked", "the dependency is live; nothing about it is awaited")
-	assert.NotContains(t, o.seen, candidateKey(app),
-		"the bytes were never judged, so a restart or resubmission must get a fresh look")
+	assert.Equal(t, statusApproved, st.Status, "recorded reason: %s", st.Reason)
 }
 
 // TestAnAbsentImportIsAVerdictWhateverIsParked: an import submitted nowhere is
