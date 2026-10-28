@@ -74,7 +74,7 @@ func Render(path string) string {
 Based on the provided path, `gnoweb` queries the Gno.land network using the
 `qrender` ABCI query. It then renders the response data as Markdown.
 
-The source of the realm above is in the examples, at [`gno.land/r/docs/hello`](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/hello). It is not deployed on a public chain yet.
+The source of the realm above is in the examples, at [`gno.land/r/docs/hello`](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs/hello). It is not deployed on a public chain.
 
 While JS/TS clients for Gno exist and developers can create custom websites for their
 Gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`

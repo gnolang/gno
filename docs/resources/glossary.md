@@ -34,7 +34,7 @@ for large or growing sorted indexes. The package is deployed under
 `gno.land/p/nt/avl/v0`; other tree-backed indexes, such as B+ trees, may fit
 different workloads.
 
-See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for usage guidance
+See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance
 and the [package README](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
@@ -120,12 +120,13 @@ spam.
 See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
-The amount paid per unit of gas, denominated in ugnot. For example,
-"1000000ugnot" means 1 GNOT per unit of gas.
+The whole fee paid for a transaction, one flat amount in ugnot. See
+[Gas Fee](./gas-fees.md#gas-fee).
 
 ### Gas Wanted
-The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit, it fails without changing state.
+The maximum amount of gas a transaction is allowed to consume. A transaction
+that exceeds it fails and its effects are rolled back. See
+[Gas Wanted](./gas-fees.md#gas-wanted).
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.
@@ -209,7 +210,7 @@ Maps provide O(1) lookup time and type safety, but store all entries in a single
 object which can be inefficient for large datasets. For scalable storage in
 realms, consider a tree-backed index or purpose-built helper instead.
 See [Data Structures](./gno-data-structures.md) and
-[Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern).
+[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
 
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient
