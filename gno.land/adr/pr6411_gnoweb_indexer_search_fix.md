@@ -44,15 +44,21 @@ the list of search keywords printed under the results as if it were one.
   (`20 · indexer`), the overview's `.count` pill in the indexer tag's colour.
 - The title repeats the query only when the group heading does not already
   name it: a bare keyword alone (`deploys`) is not repeated.
-- A pasted address is a search for that account: `account:` when an indexer
-  is configured, otherwise a Users row linking `/u/<address>`. Before, it
-  matched only paths deployed under that address, and said nothing.
-- Discovery ranks its matches before keeping ten: a package named after the
-  query first (its last segment, before any `/vN`), a throwaway last (a raw
-  address namespace, a namespace with "test" in it, a segment starting with
-  "test" or ending in `_test`), then the shortest path. The listing is
-  alphabetical, which put `/p/g1…/avl` ahead of `/p/nt/avl/v0`. There is no
-  list of official namespaces to keep up to date.
+- A pasted address is a search for that account: with an indexer, its
+  activity, followed by what discovery finds for it (its packages and a
+  Users row linking `/u/<address>`); without one, discovery alone. Before,
+  only the paths deployed under that address showed, and nothing pointed to
+  `account:`. A bad checksum gets no user link.
+- Discovery ranks its matches before keeping ten, and the omnibar ranks its
+  local matches with the same rules, so both show the same order. Throwaway
+  deploys go last: a raw address namespace (unless it is the query), a
+  namespace with "test" in it, a segment starting with "test" or ending in
+  `_test` or `-test`. Then by relevance: the package's name (last segment
+  before any `/vN`) equal to the query, a segment equal to it (a namespace
+  typed whole), the name starting with it, containing it, a segment starting
+  with it, anywhere; a shallower path first. Then the shortest path. The
+  listing is alphabetical, which put `/p/g1…/avl` ahead of `/p/nt/avl/v0`.
+  There is no list of official namespaces to keep up to date.
 - A row is named and linked by its first decoded message. Opaque details (an
   address, a hash) are cut in their middle; prose is left to the stylesheet.
 

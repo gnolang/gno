@@ -104,7 +104,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	}
 
 	// A pasted address names a user even with nothing deployed under it.
-	if isAddress(q.Text) {
+	if _, err := crypto.AddressFromBech32(q.Text); err == nil {
 		namespaces[needle] = true
 	}
 	if g := usersGroup(namespaces); len(g.Results) > 0 {
@@ -213,29 +213,57 @@ var addressPattern = regexp.MustCompile(`^` + crypto.Bech32AddrPrefix() + `1[02-
 func isAddress(s string) bool { return addressPattern.MatchString(s) }
 
 // sortByRelevance orders matched paths: throwaway deploys last (see
-// isThrowaway), within each a package named after the needle first, then
-// the shortest path. No list of official namespaces: the rank follows from
-// the paths. The omnibar's rank (controller-searchbar.ts) mirrors it.
+// isThrowaway), then by relevance, then the shortest path. No list of
+// official namespaces: the rank follows from the paths. The omnibar ranks its
+// local matches with the same rules (controller-searchbar.ts rank).
 func sortByRelevance(paths []string, needle string) {
-	// Each rank once, not once per comparison.
-	ranks := make(map[string]int, len(paths))
+	// Each key once, not once per comparison.
+	type key struct{ throwaway, score int }
+	keys := make(map[string]key, len(paths))
 	for _, rel := range paths {
-		r := 0
+		k := key{score: -relevance(rel, needle)}
 		if isThrowaway(rel, needle) {
-			r += 2
+			k.throwaway = 1
 		}
-		if needle == "" || !strings.EqualFold(gnolang.LastPathElement(rel), needle) {
-			r++
-		}
-		ranks[rel] = r
+		keys[rel] = k
 	}
 	slices.SortFunc(paths, func(a, b string) int {
+		ka, kb := keys[a], keys[b]
 		return cmp.Or(
-			cmp.Compare(ranks[a], ranks[b]),
+			cmp.Compare(ka.throwaway, kb.throwaway),
+			cmp.Compare(ka.score, kb.score),
 			cmp.Compare(len(a), len(b)),
 			strings.Compare(a, b),
 		)
 	})
+}
+
+// relevance scores how well rel matches needle: the package's name (its last
+// segment before any /vN) first, then a segment that is the needle (a
+// namespace typed whole), then a match in the name, at the start of a
+// segment, anywhere; a shallower path edges out a deeper one.
+func relevance(rel, needle string) int {
+	lower := strings.ToLower(rel)
+	segs := strings.FieldsFunc(lower, func(r rune) bool { return r == '/' })
+	name := gnolang.LastPathElement(lower)
+	depth := len(segs)
+	if depth > 1 && name != segs[depth-1] {
+		depth-- // a version segment is not depth
+	}
+	score := 20
+	switch {
+	case name == needle:
+		score = 100
+	case slices.Contains(segs, needle):
+		score = 90
+	case strings.HasPrefix(name, needle):
+		score = 80
+	case strings.Contains(name, needle):
+		score = 60
+	case slices.ContainsFunc(segs, func(s string) bool { return strings.HasPrefix(s, needle) }):
+		score = 40
+	}
+	return score - depth
 }
 
 // isThrowaway: a deploy under a raw address namespace or a namespace with
@@ -243,7 +271,8 @@ func sortByRelevance(paths []string, needle string) {
 // "_test" or "-test". Not when the needle asks for it.
 func isThrowaway(rel, needle string) bool {
 	ns := strings.ToLower(namespaceOf(rel))
-	if isAddress(ns) && !strings.Contains(ns, needle) {
+	// A pasted address asks for that namespace; a needle inside it does not.
+	if isAddress(ns) && ns != needle {
 		return true
 	}
 	if strings.Contains(needle, "test") {
