@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"embed"
 	"html/template"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -24,28 +25,8 @@ var funcMap = template.FuncMap{
 	},
 	// groupAt hands a group its position, which anchors the rail's links.
 	"groupAt": func(i int, g Group) groupRow { return groupRow{Index: i, Group: g} },
-	// hintRow is one keyword of the rail. On a package page, a keyword that
-	// takes no argument links to its own answer there.
-	"hintRow": func(sel *Selector, pkgPath string) hintRow {
-		row := hintRow{Hint: sel.Hint, Label: sel.Help, Indexer: sel.Source == SourceIndexer}
-		if sel.Bare {
-			row.Href = keywordHref(pkgPath, sel.Name)
-		}
-		return row
-	},
-	// inGroup is the keywords that work anywhere listed under one heading,
-	// as the omnibar lists them.
-	"inGroup": func(sels []*Selector, group string) []*Selector {
-		var out []*Selector
-		for _, s := range sels {
-			if s.Scope != ScopePackage && s.Group == group {
-				out = append(out, s)
-			}
-		}
-		return out
-	},
-	// filterRow is one narrowing keyword of the rail: chain-answered, no link.
-	"filterRow": func(f FilterKeyword) hintRow { return hintRow{Hint: f.Hint, Label: f.Help} },
+	// keywordLists is the keywords popover's content.
+	"keywordLists": keywordLists,
 	// shortDetail cuts an opaque detail (an address, a hash) in its middle,
 	// where neither end a reader recognizes it by is lost. Prose (a synopsis,
 	// a render snippet) is left whole; the stylesheet ellipsizes it.
@@ -96,9 +77,69 @@ type groupRow struct {
 
 // hintRow is the payload of omnisearch/hint.
 type hintRow struct {
-	Hint, Label string
-	Indexer     bool
-	Href        template.URL
+	Hint, Help string
+	Indexer    bool
+	Href       template.URL
+}
+
+// hintList is one heading of the keywords popover and its rows. Indexer
+// says once, in the heading, that every row under it is from the indexer.
+type hintList struct {
+	Label   string
+	Indexer bool
+	Rows    []hintRow
+}
+
+// angles sets a hint's placeholder as the omnibar does: `in:‹path›`.
+var angles = strings.NewReplacer("<", "‹", ">", "›")
+
+// keywordLists groups the keywords as the omnibar does: those that work
+// anywhere under keywordGroups, then those about a package. On a package
+// page, a keyword that takes no argument links to its own answer there.
+func keywordLists(d SearchData) []hintList {
+	selRow := func(s *Selector, pkgPath string) hintRow {
+		row := hintRow{Hint: angles.Replace(s.Hint), Help: s.Help, Indexer: s.Source == SourceIndexer}
+		if s.Bare {
+			row.Href = keywordHref(pkgPath, s.Name)
+		}
+		return row
+	}
+	var lists []hintList
+	add := func(label string, rows []hintRow) {
+		if len(rows) == 0 {
+			return
+		}
+		l := hintList{Label: label, Rows: rows}
+		l.Indexer = !slices.ContainsFunc(rows, func(r hintRow) bool { return !r.Indexer })
+		if l.Indexer {
+			for i := range rows {
+				rows[i].Indexer = false
+			}
+		}
+		lists = append(lists, l)
+	}
+	for _, g := range keywordGroups {
+		var rows []hintRow
+		for _, s := range d.Selectors {
+			if s.Scope != ScopePackage && s.Group == g.Key {
+				rows = append(rows, selRow(s, ""))
+			}
+		}
+		for _, f := range d.Filters {
+			if f.Group == g.Key {
+				rows = append(rows, hintRow{Hint: angles.Replace(f.Hint), Help: f.Help})
+			}
+		}
+		add(g.Label, rows)
+	}
+	var pkg []hintRow
+	for _, s := range d.Selectors {
+		if s.Scope == ScopePackage {
+			pkg = append(pkg, selRow(s, d.PkgPath))
+		}
+	}
+	add("On a package page", pkg)
+	return lists
 }
 
 // pageTemplate is parsed once at init: a malformed template surfaces

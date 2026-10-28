@@ -127,36 +127,18 @@ takes no argument is a link that runs it.
   <h2 id="omni-hints-heading" class="b-sidebar-heading">Search keywords</h2>
   <p class="b-omni-hints__intro">Type a keyword in the search bar, followed by what you look for.</p>
 
-  {{ with inGroup .Selectors "text" }}
-  <h3 class="b-omni-hints__title">Find text</h3>
+  {{ range keywordLists . }}
+  <h3 class="b-omni-hints__title">{{ .Label }}{{ if .Indexer }} <span class="b-omni-hints__from">· from the indexer</span>{{ end }}</h3>
   <ul>
-    {{ range . }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}
+    {{ range .Rows }}{{ template "omnisearch/hint" . }}{{ end }}
   </ul>
   {{ end }}
-
-  {{ with inGroup .Selectors "lookup" }}
-  <h3 class="b-omni-hints__title">Look up</h3>
-  <ul>
-    {{ range . }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}
-  </ul>
-  {{ end }}
-
-  <h3 class="b-omni-hints__title">Narrow results</h3>
-  <ul>
-    {{ range .Filters }}{{ template "omnisearch/hint" (filterRow .) }}{{ end }}
-  </ul>
-
-  <h3 class="b-omni-hints__title">On a package page</h3>
-  <ul>
-    {{ range .Selectors }}{{ if eq .Scope "package" }}{{ template "omnisearch/hint" (hintRow . $.PkgPath) }}{{ end }}{{ end }}
-  </ul>
 </section>
 {{ end }}
 
 {{ define "omnisearch/hint" }}
 <li>
   {{ with .Href }}<a href="{{ . }}"><code>{{ $.Hint }}</code></a>{{ else }}<code>{{ .Hint }}</code>{{ end }}
-  <span class="b-omni-hints__label">{{ .Label }}</span>
-  {{ if .Indexer }}<span class="b-omni-hints__src" title="Answered by an indexer, not by the chain">indexer</span>{{ end }}
+  <span class="b-omni-hints__label">{{ .Help }}{{ if .Indexer }} <span class="b-omni-hints__src" title="Answered by an indexer, not by the chain">indexer</span>{{ end }}</span>
 </li>
 {{ end }}

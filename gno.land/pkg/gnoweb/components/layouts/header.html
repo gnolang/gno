@@ -33,7 +33,7 @@ LAYOUT - Header component
           {{ if or .Breadcrumb.Parts .Breadcrumb.ArgParts .Breadcrumb.Queries }}{{ template "ui/breadcrumb" .Breadcrumb }}{{ end }}
         </div>
 
-        <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" hidden></div>
+        <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" aria-label="Search suggestions" hidden></div>
 
         <!-- Search icon, Network Info and Ask AI toggles -->
         <div class="searchbar-actions">

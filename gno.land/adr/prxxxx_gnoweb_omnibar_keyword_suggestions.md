@@ -4,108 +4,53 @@
 
 The omnibar understands search keywords: selectors such as `account:`,
 `func:` or `deploys`, and the narrowing qualifiers `author:`, `in:` and
-`is:`. The server owns the selector list and sends it with every `$search`
-JSON answer, and the omnibar loaded it on first focus, but only used it to
-decide what to send to the server. Nothing in the bar said keywords exist.
-The only list was the "Keywords" popover on the results page, which a reader
-reaches after a search, not before.
-
-The narrowing qualifiers were not in the JSON answer at all: the popover
-printed them from three hardcoded lines of its template.
+`is:`. The server sends the selector list with every `$search` JSON answer,
+but the omnibar only used it to decide what to send. Nothing in the bar said
+keywords exist; the only list was the results page's "Keywords" popover, and
+it printed the qualifiers from three hardcoded template lines.
 
 ## Decision
 
-- Each selector gains `Help`, what it does in a few words ("Packages that
-  import it"), sent in the JSON and shown in the keyword lists. `Label`
-  stays the results group heading and the rail's name.
-- The narrowing qualifiers become one Go table, `filterKeywords`, with a
-  hint, a help, and where their values come from: a fixed set (`is:` takes
-  `realm` or `package`) or a list the omnibar already holds (`namespace` for
-  `author:`, `path` for `in:`). `isNarrowing` reads that table, the popover
-  ranges over it, and the JSON answer carries it as `filters`. The omnibar
-  names no keyword and no value source in its own code; a deployment without
-  an indexer advertises fewer keywords, and the bar offers fewer.
-- Focusing an untouched bar (empty, or still holding the prefilled path)
-  opens the keyword help: on a realm or package page, the package's keywords,
-  those that run alone first, under "On this package"; then up to four that
-  work anywhere; elsewhere, every keyword that works anywhere. Those are
-  grouped by what they do: "Find text" (`render:`, `content:`), "Look up"
-  (`tx:`, `account:`, `block:`) and "Narrow results" (the filters). The
-  group comes from the server, a `group` field on each selector ("text" or
-  "lookup"; filters are "narrow"), so the controller still names no keyword;
-  the results page's popover groups the same way. A header row titles the
-  panel and gives the keys (↑↓, Tab, ↵); a quiet last row links `/$search`,
-  whose popover lists them all and whose rail has examples.
-  The `/` shortcut now opens the same help instead of a path search for the
-  prefilled path.
-- Typing: when the word under the caret starts a keyword name, up to four
-  keywords lead the dropdown under "Keywords", the typed part marked, indexer
-  ones tagged and spoken as the indexer groups' rows are. A path-like word
-  (`isPathLike`) offers none. Package keywords appear only on a package page
-  or once `in:` is typed, where they can answer.
-- After `key:`: the keyword's label heads a section that says what to type,
-  read from the hint (`account:<address>` gives "Type the address"), and the
-  values the bar knows locally, by prefix: `is:` from the fixed set,
-  `author:` from the namespaces of the path list it already fetches, `in:`
-  from that list's paths. A keyword with an empty value is not sent to the
-  server: `is:` alone is refused there, `author:` alone matches nothing.
-- Choosing (click, Enter on the highlighted row): a keyword that takes a
-  value replaces the word under the caret with `name:` and keeps the caret
-  there; a keyword that runs alone goes to the results page, as Enter on a
-  qualified query does; a value completes `key:value ` and searches. Tab
-  inserts the highlighted choice, or the first one typing produced, and for
-  a keyword that runs alone it inserts the name rather than running it. Tab
-  leaves the bar as before when the help is open and nothing is highlighted.
-- Tab completes only from a list drawn for the token under the caret, and
-  not while a keystroke still waits for its search: a list drawn for `acc`
-  must not complete `accx`, nor the word the caret moved to.
-- Suggestions are `<button role="option">` rows (`buildChoice`), so they
-  join the arrow-key list and `aria-activedescendant`. A row is the keyword,
-  in monospace at the body's size, its name in the primary colour and the
-  value it takes (`:‹text›`) muted, then what it does. From 480px the rows
-  share the dropdown's columns through CSS subgrid, so every description
-  starts at the same edge; below, the description goes under the keyword.
-  Marks trail: a `b-tag--indexer` pill for indexer provenance, and a `↵`
-  for a keyword that runs at once, each spoken by sr-only text. When every
-  row of a group is from the indexer, its label says so once ("Look up ·
-  from the indexer") and the rows drop the pill; the spoken text stays on
-  each row. In the dropdown the pill takes the tertiary surface: the note
-  tint it has on the results page is the dropdown's own colour in dark. Indexer
-  result rows trade their leading `i` square for the same pill, which read
-  as a bar and shifted those rows; the r/p/u squares stay, they lead to
-  a page of that kind. A `mousedown` on the listbox no longer
-  takes focus from the input, which keeps the caret where the next keystroke
-  goes and is what the combobox pattern asks for.
+- Each selector gains `Help` (what it does) and, when it works anywhere, a
+  `Group`. The qualifiers become one Go table, `filterKeywords`, with hint,
+  help, group and where their values come from: a fixed set (`is:`) or a
+  list the bar already holds (namespaces for `author:`, paths for `in:`).
+  `isNarrowing` reads it. The group headings are one Go list,
+  `keywordGroups` ("Find text", "Look up", "Narrow results"). The JSON
+  answer carries all three, and the popover is built from the same ones, so
+  the omnibar holds no keyword, value source or heading of its own.
+- Focusing an untouched bar (empty, or the prefilled path) opens the keyword
+  help: on a package page its keywords first, those that run alone on top,
+  then up to four that work anywhere; elsewhere every keyword that works
+  anywhere, under its heading. A header gives the keys, a last row links
+  `/$search`. `/` opens the same help, or a search of what the bar holds.
+- Typing the start of a keyword offers up to four keywords; after `key:`,
+  what to type and the values known locally. Choosing a keyword that takes a
+  value inserts `name:`; one that runs alone runs; a value completes and
+  searches. Tab inserts. A choice replaces the token its list was drawn for;
+  Tab completes only from a list drawn for the token under the caret, and
+  not while a keystroke waits for its search.
+- A query the server must refuse is not sent: a keyword with no value, or,
+  with no selector to run, neither two characters of text, nor of `author:`,
+  nor an `in:` package (discover's floor, mirrored). The dropdown says what
+  to add. This rule names `author:` and `in:` in the controller.
+- Rows are `<button role="option">`s on a shared grid (keyword, description,
+  marks), so descriptions align. Indexer provenance is said once in a
+  group's label when the whole group shares it, else per row, pill and
+  spoken text together. The pointer moves the same highlight as the arrows.
 
 ## Alternatives considered
 
-- Add the narrowing qualifiers to `selectors`. A selector chooses what is
-  searched and exactly one runs; a filter narrows any of them. Mixing them
-  would make the omnibar's `isQualified` and `highlightTerm` reason about
-  rows that never run.
-- Hardcode `author`, `in` and `is` in the controller, which is shorter. The
-  popover and the omnibar would then be two lists that can drift, which is
-  what the selector list was sent to the browser to prevent.
-- A server endpoint for value suggestions (functions of a package for
-  `func:`, recent accounts for `account:`). It costs a request per keystroke
-  for what the results already show; the local lists cover the qualifiers
-  whose values are names a reader has to guess.
-- Show the help on every empty input rather than on focus only. Clearing
-  the input does reopen it; opening it on page load would cover the page.
+- Add the qualifiers to `selectors`: a selector chooses what is searched and
+  one runs; a filter narrows any of them.
+- Hardcode the keywords in the controller: two lists that drift.
+- A value-suggestion endpoint: a request per keystroke for what results show.
+- Show the help on page load: it would cover the page.
 
 ## Consequences
 
-- The JSON answer gains `filters`, and each selector a `group`; the `is:`
-  label changes from "only realms, or is:package" to "Only realms, or only
-  packages", and the filter labels are capitalised like the selectors'.
-- The hints say what they take: `is:<realm|package>`, `in:<path>` (with "One
-  package (/r/… or /p/…)"), and the lookups' help drops what the hint and
-  the group already say ("A transaction", "A block").
-- The dropdown's section labels move from the tertiary to the secondary text
-  colour: tertiary at 12px is under 4.5:1 on the light dropdown.
-- `in:` value suggestions repeat the scoped discovery rows below them: the
-  first completes the query, the second navigates.
-- The `/` shortcut runs a path search for the prefilled path only when there
-  is no keyword to show (no `$search` on the deployment).
-- No JS test harness exists for the omnibar; the behaviour is covered by a
-  Playwright script run against onyx, with and without an indexer.
+- The JSON answer gains `filters`, `keyword_groups`, and each selector
+  `help` and `group`.
+- No JS test harness exists for the omnibar, so the controller is not
+  covered in CI; it was checked in a headless browser against onyx, with and
+  without an indexer.

@@ -40,14 +40,6 @@ type jsonSelector struct {
 	Accepts string `json:"accepts,omitempty"`
 }
 
-type jsonFilter struct {
-	Name     string   `json:"name"`
-	Hint     string   `json:"hint"`
-	Help     string   `json:"help"`
-	Values   []string `json:"values,omitempty"`
-	Complete string   `json:"complete,omitempty"`
-}
-
 type jsonIndexer struct {
 	LastBlock int    `json:"last_block,omitempty"`
 	Error     string `json:"error,omitempty"`
@@ -61,13 +53,15 @@ type jsonResponse struct {
 	// Selectors is returned on every response, not just on discovery: it is
 	// how the omnibar learns which qualifiers this deployment can answer, and
 	// a stale hint list is what produces a search box that offers something
-	// the server will refuse. Filters, the narrowing qualifiers, travel with
-	// it for the same reason.
-	Selectors     []jsonSelector `json:"selectors"`
-	Filters       []jsonFilter   `json:"filters"`
-	Groups        []jsonGroup    `json:"groups,omitempty"`
-	UnknownFilter string         `json:"unknown_filter,omitempty"`
-	Indexer       *jsonIndexer   `json:"indexer,omitempty"`
+	// the server will refuse. Filters, the narrowing qualifiers, and the
+	// headings the keyword lists group them under travel with it for the
+	// same reason.
+	Selectors     []jsonSelector  `json:"selectors"`
+	Filters       []FilterKeyword `json:"filters"`
+	KeywordGroups []KeywordGroup  `json:"keyword_groups"`
+	Groups        []jsonGroup     `json:"groups,omitempty"`
+	UnknownFilter string          `json:"unknown_filter,omitempty"`
+	Indexer       *jsonIndexer    `json:"indexer,omitempty"`
 }
 
 // serveJSON answers the omnibar. The body is written here; the caller wraps
@@ -79,6 +73,8 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		Query:         data.Query,
 		PkgPath:       data.PkgPath,
 		Selectors:     make([]jsonSelector, 0, len(data.Selectors)),
+		Filters:       data.Filters,
+		KeywordGroups: keywordGroups,
 		UnknownFilter: data.UnknownFilter,
 	}
 	for _, s := range data.Selectors {
@@ -90,10 +86,6 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 			js.Accepts = s.Accepts.String()
 		}
 		resp.Selectors = append(resp.Selectors, js)
-	}
-	resp.Filters = make([]jsonFilter, len(data.Filters))
-	for i, f := range data.Filters {
-		resp.Filters[i] = jsonFilter(f)
 	}
 	for _, g := range data.Groups {
 		jg := jsonGroup{

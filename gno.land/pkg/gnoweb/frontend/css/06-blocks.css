@@ -4297,15 +4297,13 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 
 	/* From sm, suggestion rows share the dropdown's columns (a subgrid), so
 	   every description starts where the longest keyword ends: syntax,
-	   description, provenance pill, "runs at once". Everything else spans
-	   the whole width. Below sm the description goes under its keyword. */
+	   description, marks. Everything else spans the whole width. Below sm
+	   the description goes under its keyword. */
 	@media (--sm) {
-		&:not([hidden]) {
-			display: grid;
-			grid-template-columns: max-content minmax(0, 1fr) auto auto;
-			column-gap: var(--g-space-4);
-			align-content: start;
-		}
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr) auto;
+		column-gap: var(--g-space-4);
+		align-content: start;
 
 		& > *,
 		.b-omnisearch-section > * {
@@ -4323,16 +4321,13 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 			grid-column: 1 / 3;
 		}
 
-		.b-omnisearch-choice > .b-tag {
+		.b-omnisearch-choice > .b-omnisearch-marks {
 			grid-column: 3;
-		}
-
-		.b-omnisearch-choice > .b-omnisearch-run {
-			grid-column: 4;
 		}
 	}
 
-	/* Titles the keyword panel; the keys say how to use it. */
+	/* Titles the keyword panel; the keys say how to use it. No keyboard
+	   on a phone. */
 	.b-omnisearch-head {
 		display: flex;
 		flex-wrap: wrap;
@@ -4342,6 +4337,10 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		margin-block-end: var(--g-space-1);
 		padding: var(--g-space-1-5) var(--g-space-2);
 		border-block-end: var(--s-border);
+
+		@media not all and (--md) {
+			display: none;
+		}
 	}
 
 	.b-omnisearch-title {
@@ -4349,17 +4348,18 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		font-weight: var(--g-font-semibold);
 	}
 
-	/* No keyboard on a phone. */
+	/* Keycaps: small rounded rectangles, not the pill of a tag. */
 	.b-omnisearch-keys {
 		color: var(--s-color-text-secondary);
 		font-size: var(--g-font-size-50);
 
 		& kbd {
-			padding-inline: var(--g-space-1);
-		}
-
-		@media not all and (--md) {
-			display: none;
+			justify-content: center;
+			min-width: 1.75em;
+			padding: 0 var(--g-space-1);
+			border-color: var(--s-color-border-tertiary);
+			border-radius: var(--s-rounded-sm);
+			font-family: inherit;
 		}
 	}
 
@@ -4378,6 +4378,12 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		font-weight: var(--g-font-semibold);
 		text-transform: uppercase;
 		color: var(--s-color-text-secondary);
+	}
+
+	/* Provenance beside a group's name, as a remark. */
+	.b-omnisearch-from {
+		font-weight: var(--g-font-normal);
+		text-transform: none;
 	}
 
 	/* Carries errors as well as "No results": secondary, not tertiary, so it
@@ -4405,15 +4411,13 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 			font-weight: var(--g-font-semibold);
 		}
 
-		&:hover,
+		/* The pointer moves this highlight too (see the controller), so
+		   there is one at a time. Options stay out of the tab order, so the
+		   outline is the only focus cue: the background alone is ~1.2:1 and
+		   vanishes in forced colors. */
 		&[aria-selected="true"] {
 			background-color: var(--s-color-bg-base);
 			color: var(--s-color-text-primary);
-		}
-
-		/* Options stay out of the tab order, so this is the only focus cue:
-		   the background alone is ~1.2:1 and vanishes in forced colors. */
-		&[aria-selected="true"] {
 			outline: 2px solid var(--s-color-border-focus);
 			outline-offset: -2px;
 		}
@@ -4433,7 +4437,7 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	   keyword. */
 	.b-omnisearch-choice {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto auto;
+		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: baseline;
 		/* The dropdown's own gap: a subgrid with another one shifts its
 		   cells off the shared columns. */
@@ -4451,50 +4455,63 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 
 	/* Set as typed, at the body's size: the keyword's name reads first, the
-	   value it takes is a placeholder. */
+	   value it takes is a placeholder. Colour, not weight, tells them apart:
+	   the mono face has one weight. */
 	.b-omnisearch-syntax {
 		overflow-wrap: anywhere;
 		color: var(--s-color-text-primary);
-		font-size: 0.9em;
-		font-weight: var(--g-font-medium);
+		font-size: 1em;
 	}
 
 	.b-omnisearch-arg {
 		color: var(--s-color-text-secondary);
-		font-weight: var(--g-font-normal);
 	}
 
 	.b-omnisearch-detail {
 		min-width: 0;
 		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-90);
 	}
 
-	/* The note tint the results page uses is the dropdown's own surface in
-	   dark. A step darker, with .b-tag's border back, reads as a pill in
-	   both themes. */
+	/* A quiet outline: the note tint the results page uses is the
+	   dropdown's own surface in dark. */
 	.b-tag--indexer {
+		padding-block: 0;
 		border-color: var(--s-color-border-tertiary);
-		background-color: var(--s-color-bg-surface-tertiary);
-		color: var(--s-color-text-primary);
+		background-color: transparent;
+		color: var(--s-color-text-secondary);
+		font-family: inherit;
 	}
 
-	/* The way to everything else, quiet, under a rule. */
+	/* The way to everything else, quiet, under a rule, and kept in reach
+	   at the bottom of a long list (a phone's). */
 	.b-omnisearch-foot {
+		position: sticky;
+		bottom: calc(-1 * var(--g-space-1));
 		margin-block-start: var(--g-space-1);
 		border-block-start: var(--s-border);
 		border-radius: 0 0 var(--s-rounded-sm) var(--s-rounded-sm);
+		background-color: var(--s-color-bg-surface-secondary);
 	}
 
-	/* Trailing marks: provenance (.b-tag--indexer) and "runs at once". */
+	/* A result row's provenance pill. */
 	.b-omnisearch-item > .b-tag {
 		flex-shrink: 0;
 	}
 
+	/* A slot each, so pills and ↵ line up down the column. */
+	.b-omnisearch-marks {
+		display: grid;
+		grid-template-columns: auto 1em;
+		justify-content: end;
+		align-items: baseline;
+		column-gap: var(--g-space-2);
+	}
+
 	.b-omnisearch-run {
-		flex-shrink: 0;
-		min-width: 1em;
+		grid-column: 2;
 		text-align: center;
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 	}
 
 	.b-omnisearch-tag {

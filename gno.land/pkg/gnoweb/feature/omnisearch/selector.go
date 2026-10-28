@@ -42,37 +42,55 @@ const (
 // FilterKeyword describes a narrowing qualifier for the keyword lists: the
 // results page's and the omnibar's, so both offer the same ones.
 type FilterKeyword struct {
-	Name, Hint, Help string
+	Name  string `json:"name"`
+	Hint  string `json:"hint"`
+	Help  string `json:"help"`
+	Group string `json:"group"`
 
 	// Values is every value the filter takes, when there are few.
-	Values []string
+	Values []string `json:"values,omitempty"`
 
 	// Complete names the list the omnibar suggests values from, one it
 	// already holds: "namespace" or "path".
-	Complete string
+	Complete string `json:"complete,omitempty"`
 }
 
 // filterKeywords is the one list of narrowing qualifiers: isNarrowing reads
 // it, so a keyword cannot be offered without being accepted.
 var filterKeywords = []FilterKeyword{
-	{Name: FilterAuthor, Hint: "author:<name>", Help: "One namespace or deployer", Complete: "namespace"},
-	{Name: FilterIn, Hint: "in:<path>", Help: "One package (/r/… or /p/…)", Complete: "path"},
-	{Name: FilterIs, Hint: "is:<realm|package>", Help: "Only realms, or only packages", Values: []string{"realm", "package"}},
+	{Name: FilterAuthor, Hint: "author:<name>", Help: "One namespace or deployer", Group: GroupNarrow, Complete: "namespace"},
+	{Name: FilterIn, Hint: "in:<path>", Help: "One package (/r/… or /p/…)", Group: GroupNarrow, Complete: "path"},
+	{Name: FilterIs, Hint: "is:<realm|package>", Help: "Only realms, or only packages", Group: GroupNarrow, Values: []string{"realm", "package"}},
 }
 
 func isNarrowing(key string) bool {
 	return slices.ContainsFunc(filterKeywords, func(f FilterKeyword) bool { return f.Name == key })
 }
 
-// The keyword lists group the keywords that work anywhere by what they do;
-// narrowing qualifiers are a group of their own. The scope already groups
-// those about a package.
+// The keyword lists group the keywords that work anywhere by what they do.
+// The scope already groups those about a package.
 const (
 	// GroupText searches text: rendered pages, deployed source.
 	GroupText = "text"
 	// GroupLookup finds one thing by its key: a transaction, a block.
 	GroupLookup = "lookup"
+	// GroupNarrow is the narrowing qualifiers.
+	GroupNarrow = "narrow"
 )
+
+// KeywordGroup heads one group of the keyword lists.
+type KeywordGroup struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+}
+
+// keywordGroups is the one list of headings, in the order shown: the results
+// page's popover ranges over it and the omnibar receives it.
+var keywordGroups = []KeywordGroup{
+	{GroupText, "Find text"},
+	{GroupLookup, "Look up"},
+	{GroupNarrow, "Narrow results"},
+}
 
 // Selector chooses what a query searches. Exactly one runs per query —
 // running all of them would turn one keystroke into a dozen queries.
