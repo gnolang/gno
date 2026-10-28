@@ -61,11 +61,11 @@ func foldOperand(x Expr) (*TypedValue, bool) {
 	return &cx.TypedValue, true
 }
 
-// chargeConstFold charges one fold: OpCPUSlopeConstFold, plus the size
-// terms the machine charged for the same operation (incrCPUBig*: untyped
-// integers per kilobit, quadratic for * / %, bigdecs per hundred digits)
-// and the per-byte term of a string comparison (a concatenation is paid
-// by its allocation).
+// chargeConstFold charges one fold: OpCPUSlopeConstFold, plus size terms
+// for the operands whose cost is not fixed: untyped integers per kilobit
+// as the machine charged (quadratic for * / %), rationals by their digits
+// (OpCPUSlopeConstRat*), and a string comparison per byte (a concatenation
+// is paid by its allocation).
 func chargeConstFold(gm store.GasMeter, op Word, l, r *TypedValue) {
 	if gm == nil {
 		return
@@ -96,22 +96,38 @@ func chargeConstFold(gm store.GasMeter, op Word, l, r *TypedValue) {
 		default:
 			gas += max(lb, constIntBits(r)) * bigIntSlope(op) / 1024
 		}
+	case Float32Kind, Float64Kind:
+		gas += OpCPUSlopeConstFloat
+		if op == QUO {
+			gas += OpCPUSlopeConstFloatQuo
+		}
 	case BigdecKind:
-		ld := bigdecDigits(l.GetBigDec())
-		if r == nil {
-			gas += ld * OpCPUSlopeBigDecUneg / 100
+		// Only the rational form has size-dependent cost; the 512-bit float
+		// form is a fixed-width operation.
+		lb, rb := l.GetBigDec(), BigdecValue{}
+		if r != nil {
+			rb = r.GetBigDec()
+		}
+		if lb.IsFloat() || rb.IsFloat() {
+			gas += OpCPUSlopeConstFloat
+			if op == QUO {
+				gas += OpCPUSlopeConstFloatQuo
+			}
 			break
 		}
-		rd := bigdecDigits(r.GetBigDec())
+		d := bigdecDigits(lb)
+		if r == nil {
+			gas += d * OpCPUSlopeConstRatNeg / 100
+			break
+		}
+		d = max(d, bigdecDigits(rb))
 		switch op {
-		case MUL:
-			gas += overflow.Mulp(overflow.Mulp(ld/10, rd/10), OpCPUSlopeBigDecMulQ) / 10
-		case QUO:
-			gas += overflow.Mulp(overflow.Mulp(ld/10, rd/10), OpCPUSlopeBigDecQuoQ) / 10
-		case ADD:
-			gas += max(ld, rd) * OpCPUSlopeBigDecAdd / 100
-		default: // -, comparisons: a subtraction
-			gas += max(ld, rd) * OpCPUSlopeBigDecSub / 100
+		case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+			gas += d * OpCPUSlopeConstRatCmp / 100
+			gas += overflow.Mulp(overflow.Mulp(d/10, d/10), OpCPUSlopeConstRatCmpQ) / 10
+		default: // + - * /: cross-multiplication and a gcd
+			gas += d * OpCPUSlopeConstRat / 100
+			gas += overflow.Mulp(overflow.Mulp(d/10, d/10), OpCPUSlopeConstRatQ) / 10
 		}
 	}
 	chargeCPUGas(gm, gas)

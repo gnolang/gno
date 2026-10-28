@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -237,7 +239,8 @@ func TestFoldConstGas(t *testing.T) {
 	// One flat charge per operation on word-sized operands.
 	require.Equal(t, flat, gas(bin(cRune('a'), ADD, cRune('b'))))
 	require.Equal(t, flat, gas(un(SUB, cTyped(Int8Type, 1))))
-	require.Equal(t, flat, gas(bin(cFloat64(1), QUO, cFloat64(3))))
+	require.Equal(t, flat+(OpCPUSlopeConstFloat+OpCPUSlopeConstFloatQuo)*GasFactorCPU, gas(bin(cFloat64(1), QUO, cFloat64(3))))
+	require.Equal(t, flat+OpCPUSlopeConstFloat*GasFactorCPU, gas(bin(cFloat32(1), ADD, cFloat32(3))))
 	require.Equal(t, flat, gas(bin(cTyped(Int64Type, 1), SHL, cTyped(UintType, 60))))
 	// The machine's size terms: a bigint shift by its amount and width, a
 	// bigint product quadratically, a rational by its digits, a string
@@ -250,12 +253,119 @@ func TestFoldConstGas(t *testing.T) {
 	require.Equal(t, flat+10001*OpCPUSlopeBigIntAdd/1024, gas(bin(wide, ADD, cBigint("1"))))
 	require.Equal(t, flat+10001*OpCPUSlopeBigIntUneg/1024, gas(un(SUB, wide)))
 	r := cBigdec("1/3")
-	require.Equal(t, flat+OpCPUSlopeBigDecAdd/100, gas(bin(r, ADD, r)))
+	require.Equal(t, flat+OpCPUSlopeConstRat/100, gas(bin(r, ADD, r)))        // 1 digit
+	require.Equal(t, flat+OpCPUSlopeConstRatCmp/100, gas(bin(r, LSS, r)))     // 1 digit: no quadratic term
+	wideRat := cBigdec("1/" + new(big.Int).Lsh(big.NewInt(1), 4000).String()) // 1334 digits
+	require.Equal(t, flat+1334*OpCPUSlopeConstRat/100+133*133*OpCPUSlopeConstRatQ/10, gas(bin(wideRat, MUL, wideRat)))
+	require.Equal(t, flat+1334*OpCPUSlopeConstRatCmp/100+133*133*OpCPUSlopeConstRatCmpQ/10, gas(bin(wideRat, LSS, wideRat)))
+	bigFloat := &ConstExpr{TypedValue: TypedValue{T: UntypedBigdecType, V: BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).SetMantExp(big.NewFloat(1), 100000)}}}
+	require.Equal(t, flat+OpCPUSlopeConstFloat*GasFactorCPU, gas(bin(bigFloat, MUL, bigFloat))) // float form: fixed width
+	require.Equal(t, flat+(OpCPUSlopeConstFloat+OpCPUSlopeConstFloatQuo)*GasFactorCPU, gas(bin(bigFloat, QUO, bigFloat)))
 	require.Equal(t, flat+6*OpCPUSlopeBytesCmp*GasFactorCPU, gas(bin(cStr("foo"), LSS, cStr("bar"))))
 	require.Equal(t, flat, gas(bin(cStr("foo"), ADD, cStr("bar")))) // paid by its allocation
 	// A nil meter charges nothing and still folds.
 	_, err := fold(nil, bin(cBigint("1"), ADD, cBigint("2")))
 	require.Empty(t, err)
+}
+
+// TestConstFoldGasCoversTime: at every operand size the fold allows, the
+// gas charged covers the time taken, on reference hardware. Times are
+// measured in-process and scaled by the reference operation, a 512-bit
+// integer division (~350 ns on the Xeon reference, OpCPUSlopeConstFold),
+// so the check does not depend on the speed of the machine running it.
+func TestConstFoldGasCoversTime(t *testing.T) {
+	if testing.Short() {
+		t.Skip("timing")
+	}
+	r := rand.New(rand.NewSource(1))
+	randInt := func(bits int) *big.Int {
+		n := new(big.Int).Rand(r, new(big.Int).Lsh(big.NewInt(1), uint(bits)))
+		return n.SetBit(n, bits-1, 1)
+	}
+	bigint := func(bits int) *ConstExpr {
+		return &ConstExpr{TypedValue: TypedValue{T: UntypedBigintType, V: BigintValue{V: randInt(bits)}}}
+	}
+	rat := func(bits int) *ConstExpr {
+		d := randInt(bits)
+		d.SetBit(d, 0, 1)
+		return &ConstExpr{TypedValue: TypedValue{T: UntypedBigdecType, V: BigdecValue{V: new(big.Rat).SetFrac(randInt(bits), d)}}}
+	}
+	decimal := func(digits int) *ConstExpr { // a literal: denominator a power of ten
+		n := new(big.Int).Rand(r, new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(digits)), nil))
+		d := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(digits/2)), nil)
+		return &ConstExpr{TypedValue: TypedValue{T: UntypedBigdecType, V: BigdecValue{V: new(big.Rat).SetFrac(n, d)}}}
+	}
+	float := func() *ConstExpr {
+		f := new(big.Float).SetPrec(BigdecFloatPrec).SetInt(randInt(512))
+		return &ConstExpr{TypedValue: TypedValue{T: UntypedBigdecType, V: BigdecValue{F: f.SetMantExp(f, 3000)}}}
+	}
+	str := func(n int) *ConstExpr { return cStr(strings.Repeat("a", n)) }
+	ns := func(x Expr) float64 { // the best of five runs: robust to pauses
+		best := math.MaxFloat64
+		for range 5 {
+			const n = 200
+			start := time.Now()
+			for range n {
+				foldConst(nil, nil, x)
+			}
+			best = min(best, float64(time.Since(start).Nanoseconds())/n)
+		}
+		return best
+	}
+	charged := func(x Expr) float64 {
+		gm := stypes.NewGasMeter(math.MaxInt64)
+		foldConst(gm, nil, x)
+		return float64(gm.GasConsumed() / GasFactorCPU)
+	}
+	// 1 gas = 1 ns on the reference; the flat charge covers the reference
+	// operation at ~350 ns there.
+	const refNs = 350
+	ref := bin(bigint(512), QUO, bigint(500))
+	scale := refNs / ns(ref)
+
+	type tc struct {
+		name string
+		x    Expr
+	}
+	var cases []tc
+	for _, bits := range []int{64, 256, 512, 1024, 2048, 3000, 4095} {
+		for _, op := range []Word{ADD, SUB, MUL, QUO, LSS, EQL} {
+			cases = append(cases, tc{fmt.Sprintf("rat%d %s", bits, op.TokenString()), bin(rat(bits), op, rat(bits))})
+		}
+		cases = append(cases, tc{fmt.Sprintf("rat%d neg", bits), un(SUB, rat(bits))})
+		cases = append(cases, tc{fmt.Sprintf("rat%d op 1/3", bits), bin(rat(bits), ADD, cBigdec("1/3"))})
+	}
+	for _, digits := range []int{10, 100, 1000, 2400} {
+		for _, op := range []Word{ADD, MUL, QUO, LSS} {
+			cases = append(cases, tc{fmt.Sprintf("decimal%d %s", digits, op.TokenString()), bin(decimal(digits), op, decimal(digits))})
+		}
+	}
+	for _, op := range []Word{ADD, MUL, QUO, LSS} {
+		cases = append(cases, tc{"float512 " + op.TokenString(), bin(float(), op, float())})
+	}
+	for _, bits := range []int{64, 512} {
+		for _, op := range []Word{ADD, SUB, MUL, QUO, REM, BAND, XOR, LSS} {
+			cases = append(cases, tc{fmt.Sprintf("int%d %s", bits, op.TokenString()), bin(bigint(bits), op, bigint(bits))})
+		}
+		cases = append(cases, tc{fmt.Sprintf("int%d neg", bits), un(SUB, bigint(bits))},
+			tc{fmt.Sprintf("int%d not", bits), un(XOR, bigint(bits))},
+			tc{fmt.Sprintf("int%d shl 1074", bits), bin(bigint(bits), SHL, cTyped(UintType, maxConstShift))},
+			tc{fmt.Sprintf("int%d shr 500", bits), bin(bigint(bits), SHR, cTyped(UintType, 500))})
+	}
+	cases = append(cases,
+		tc{"rune mul", bin(cRune(maxRune), MUL, cRune(maxRune))},
+		tc{"typed float64 quo", bin(cFloat64(1), QUO, cFloat64(3))},
+		tc{"typed int64 mul", bin(cTyped(Int64Type, 1<<30), MUL, cTyped(Int64Type, 1<<30))},
+		tc{"string 1MB eql", bin(str(1<<20), EQL, str(1<<20))},
+		tc{"string 1MB lss", bin(str(1<<20), LSS, str(1<<20))},
+	)
+	// Charges carry margins of 1.5x and more; 10% is allowed for noise.
+	for _, c := range cases {
+		got, want := charged(c.x), ns(c.x)*scale*0.9
+		if got < want {
+			t.Errorf("%s: charged %.0f gas, took %.0f ns (%.0f on the reference)", c.name, got, want/scale, want)
+		}
+	}
 }
 
 func TestFoldConstDeterminism(t *testing.T) {

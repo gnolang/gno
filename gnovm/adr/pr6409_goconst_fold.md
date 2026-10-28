@@ -2,14 +2,12 @@
 
 ## Context
 
-`evalConst` folded a constant operation by running it on a machine, with
-runtime arithmetic. An untyped rune operation was computed in int32 and
-wrapped (#6389: `'\U0010ffff' * '\U0010ffff'` gave -2228223, go/types
-accepts the program with 1241243320321); typed integer and float
-operations wrapped or went to infinity where gc rejects them (#6392);
-unary `-` `^` on an untyped rune were rejected; an untyped integer
-converted to float32 was rounded twice (#6394:
-`int64(float32(1<<54 + 1<<30 + 1))`).
+`evalConst` folded a constant operation on a machine, with runtime
+arithmetic: an untyped rune operation wrapped at int32 (#6389, go/types
+accepts `'\U0010ffff' * '\U0010ffff'` as 1241243320321); typed integer
+and float operations wrapped or went to infinity where gc rejects them
+(#6392); unary `-` `^` on an untyped rune were rejected; an untyped
+integer converted to float32 was rounded twice (#6394).
 
 ## Decision
 
@@ -46,15 +44,19 @@ Runtime arithmetic (`op_binary.go`, `op_unary.go`) is untouched.
 ## Metering
 
 `foldConst` charges `OpCPUSlopeConstFold` (600) once per operation on the
-preprocess meter (a 512-bit integer division is ~180 ns on an M-series
-laptop, `BenchmarkConstFold`), plus the operand-size terms the machine
-charged for the same operation: untyped integers per kilobit, quadratic
-for `*` `/` `%`, a shift by its amount and the operand's width, bigdecs
-per hundred digits (`OpCPUSlopeBigInt*`, `OpCPUSlopeBigDec*`). A string
-comparison adds `OpCPUSlopeBytesCmp` per byte; a concatenation is paid by
-its allocation, as before. The old path charged VM opcodes; the four
-addpkg gas pins and the stdlib `EXACT_GAS` pins do not move, since those
-packages fold no constant operation under the tx meter.
+preprocess meter, before computing, plus size terms for the operands
+whose cost is not fixed: untyped integers per kilobit as the machine
+charged (quadratic for `*` `/` `%`, a shift by its amount and width);
+rationals linearly and quadratically in their digits (`big.Rat`
+cross-multiplies and normalizes by a gcd; `OpCPUSlopeConstRat*`, fitted
+at 2.5x the M-series times up to 4095-bit components); a string
+comparison per byte; a float operand (512-bit form or typed, an exact
+rational in go/constant) a fixed term, doubled for a division.
+`TestConstFoldGasCoversTime` measures
+every operation at every size the limits allow and requires the charge
+to cover the time, scaled by a reference operation so it holds on any
+machine. The four addpkg gas pins and the stdlib `EXACT_GAS` pins do not
+move, since those packages fold no constant operation under the tx meter.
 
 ## Limits
 
@@ -69,10 +71,9 @@ past 4096 bits (`ratOverflowBits`); a float result past big.Float's range
 is `constant result is not representable`.
 
 go/constant's representation choices (rational until a component passes
-4096 bits, 512-bit float past that, the `%s` form of a value in an error)
-come from the Go toolchain the node is built with, as `math/big`'s did;
-the exact-value pins in `constfold_test.go` fail at a toolchain bump that
-moves one.
+4096 bits, 512-bit float past that, `%s` of a value in an error) come
+from the Go toolchain, as `math/big`'s do; the exact-value pins in
+`constfold_test.go` fail at a toolchain bump that moves one.
 
 ## Behaviour changes vs master
 
@@ -95,7 +96,6 @@ moves one.
 
 ## Upgrade hazard
 
-The value of an already-persisted constant may change at an upgrade: a
-package deployed with a wrapped rune constant keeps the old slot until
-re-preprocessed, while importers fold from the persisted slot. A
-migration of persisted constant slots is a separate decision.
+A package deployed with a wrapped rune constant keeps the old slot until
+re-preprocessed, while importers fold from the persisted slot; migrating
+persisted constant slots is a separate decision.

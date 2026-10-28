@@ -1683,6 +1683,23 @@ const (
 	// laptop, BenchmarkConstFold; ~350 ns on the Xeon reference) and the
 	// value conversions around it.
 	OpCPUSlopeConstFold = 600
+	// A rational constant operation (+ - * /) in foldConst: big.Rat cross-
+	// multiplies and normalizes with a gcd, so the cost has a linear and a
+	// quadratic term in the digits of the wider operand (bigdecDigits).
+	// Fitted at 2.5x the M-series times of TestConstFoldGasCoversTime
+	// (components up to 4095 bits, past which go/constant uses a 512-bit
+	// float): 52 ns/bit linear, 0.0053 ns/bit² quadratic, bits = 1.5 digits.
+	OpCPUSlopeConstRat     = 7800 // per 100 digits
+	OpCPUSlopeConstRatQ    = 12   // per (digits/10)² / 10
+	OpCPUSlopeConstRatCmp  = 200  // per 100 digits: a comparison cross-multiplies, no gcd
+	OpCPUSlopeConstRatCmpQ = 1    // per (digits/10)² / 10: the products, and the
+	// 512-bit division go/constant makes of a component past 4096 bits
+	OpCPUSlopeConstRatNeg = 300 // per 100 digits: a negation copies both components
+	// A float operand (the 512-bit bigdec form, or a typed float, which
+	// go/constant holds as an exact rational): the fixed-width operation and
+	// the conversions on either side; a division costs the same again.
+	OpCPUSlopeConstFloat    = 600
+	OpCPUSlopeConstFloatQuo = 600
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
