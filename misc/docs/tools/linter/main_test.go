@@ -336,3 +336,23 @@ func removeDir(t *testing.T, dirPath string) func() {
 		require.NoError(t, os.RemoveAll(dirPath))
 	}
 }
+
+func TestLintLocalLinksOutsideRoot(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs", "sub"), os.ModePerm))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "ok.md"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "outside.md"), nil, 0o644))
+
+	docs := filepath.Join(root, "docs")
+	file := filepath.Join(docs, "sub", "page.md")
+
+	res, err := lintLocalLinks(docs, map[string][]string{file: {"../ok.md"}})
+	require.NoError(t, err, res)
+
+	// The target exists on disk, but outside the docs folder.
+	res, err = lintLocalLinks(docs, map[string][]string{file: {"../../outside.md"}})
+	assert.ErrorIs(t, err, errFoundLinksOutsideDocs)
+	assert.Contains(t, res, "../../outside.md")
+}

@@ -8,5 +8,6 @@ var (
 	errFound404Links              = errors.New("found links resulting in a 404 response status")
 	errFoundUnescapedJSXTags      = errors.New("found unescaped JSX tags")
 	errFoundUnreachableLocalLinks = errors.New("found local links that stat fails on")
+	errFoundLinksOutsideDocs      = errors.New("found local links outside the docs folder")
 	errFoundLintItems             = errors.New("found items that need linting")
 )

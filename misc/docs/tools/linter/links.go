@@ -69,15 +69,29 @@ func extractLocalLinks(fileContent []byte) []string {
 	return links
 }
 
-func lintLocalLinks(filepathToLinks map[string][]string) (string, error) {
+// lintLocalLinks reports local links that do not resolve to a file, and links
+// that climb out of root: docs.gno.land is built from root alone, so such a
+// link works on GitHub but is a 404 on the site.
+func lintLocalLinks(root string, filepathToLinks map[string][]string) (string, error) {
 	var (
-		found  bool
-		output bytes.Buffer
+		found, outside bool
+		output, outBuf bytes.Buffer
 	)
 
 	for filePath, links := range filepathToLinks {
 		for _, link := range links {
 			path := filepath.Join(filepath.Dir(filePath), link)
+			if abs, err := filepath.Abs(path); err == nil {
+				if rel, err := filepath.Rel(root, abs); err == nil && (rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+					if !outside {
+						outBuf.WriteString("Local links outside the docs folder (404 on the docs site, link to GitHub instead):\n")
+						outside = true
+					}
+					outBuf.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", link, filePath))
+					continue
+				}
+			}
+
 			if _, err := os.Stat(path); err != nil {
 				if !found {
 					output.WriteString("Could not find files with the following paths:\n")
@@ -92,8 +106,14 @@ func lintLocalLinks(filepathToLinks map[string][]string) (string, error) {
 		}
 	}
 
+	output.Write(outBuf.Bytes())
+
 	if found {
 		return output.String(), errFoundUnreachableLocalLinks
+	}
+
+	if outside {
+		return output.String(), errFoundLinksOutsideDocs
 	}
 
 	return "", nil
