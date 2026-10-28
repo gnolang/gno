@@ -964,6 +964,17 @@ func TestDiscoveryRanksByRelevance(t *testing.T) {
 		t.Errorf("order:\n got %v\nwant %v", got, want)
 	}
 
+	// A needle that only appears inside an address namespace does not
+	// lift it: "dug" is in g1edq4dug…, not the namespace asked for.
+	if !isThrowaway("/r/g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p/smoke/counter", "dug") {
+		t.Error("an address namespace that merely contains the needle is not ranked last")
+	}
+	byName := []string{"/p/onbloc/int256/v0", "/p/nt/avl/v0"}
+	sortByRelevance(byName, "nt")
+	if byName[0] != "/p/nt/avl/v0" {
+		t.Errorf("nt: a segment named nt should lead a name that contains it, got %v", byName)
+	}
+
 	// Asking for tests, or for that address, does not push them down.
 	if isThrowaway("/p/demo/avl_test", "avl_test") || isThrowaway("/p/"+addr+"/avl", addr) {
 		t.Error("a throwaway the needle asks for is still ranked last")
@@ -999,8 +1010,29 @@ func TestPastedAddress(t *testing.T) {
 		t.Errorf("JSON selectors %+v: no account pattern matching %s", resp.Selectors, addr)
 	}
 
-	h = newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	// With an indexer, the account's activity comes with discovery's answer:
+	// the user row is still there.
 	groups, _ := h.Search(context.Background(), mustQuery(t, h, addr, ""))
+	if len(groups) < 2 || groups[0].Label != "Account activity" {
+		t.Errorf("with an indexer: groups %+v, want account activity then discovery", groups)
+	}
+
+	// A bad checksum names no user.
+	bad := addr[:len(addr)-1] + "q"
+	if bad == addr {
+		bad = addr[:len(addr)-1] + "p"
+	}
+	h = newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, bad, ""))
+	for _, g := range groups {
+		for _, r := range g.Results {
+			if string(r.Href) == "/u/"+bad {
+				t.Errorf("a bad checksum got a user link: %+v", r)
+			}
+		}
+	}
+
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, addr, ""))
 	for _, g := range groups {
 		for _, r := range g.Results {
 			if g.Label == "Users" && string(r.Href) == "/u/"+addr {

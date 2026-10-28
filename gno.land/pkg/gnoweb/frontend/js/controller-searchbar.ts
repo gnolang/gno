@@ -99,7 +99,7 @@ const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
 const ADDRESS_PATTERN = /^g1[02-9ac-hj-np-z]{38}$/;
 
 // A version segment such as v0 or v12, skipped for a package's name.
-const VERSION_SEGMENT = /^v\d+$/;
+const VERSION_SEGMENT = /^v(0|[1-9]\d*)$/;
 
 // A leading `gno.land` host, with or without scheme.
 const GNO_LAND_HOST = /^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i;
@@ -616,6 +616,11 @@ export class SearchbarController extends BaseController {
 
 		const users: string[] = [];
 		const seen = new Set<string>();
+		// A pasted address names a user even with nothing deployed under it.
+		if (ADDRESS_PATTERN.test(needle)) {
+			seen.add(needle);
+			users.push(`/u/${needle}`);
+		}
 		for (const p of apps.concat(packages)) {
 			const name = SearchbarController.firstSegment(p);
 			if (name && !seen.has(name)) {
@@ -660,7 +665,7 @@ export class SearchbarController extends BaseController {
 				Number(a.throwaway) - Number(b.throwaway) ||
 				b.score - a.score ||
 				a.path.length - b.path.length ||
-				a.path.localeCompare(b.path),
+				(a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
 		);
 		return scored.map((s) => s.path);
 	}
@@ -670,7 +675,8 @@ export class SearchbarController extends BaseController {
 	static isThrowaway(path: string, needle: string): boolean {
 		const segs = path.toLowerCase().split("/").filter(Boolean);
 		const ns = segs[1] ?? "";
-		if (ADDRESS_PATTERN.test(ns) && !ns.includes(needle)) return true;
+		// A pasted address asks for that namespace; a needle inside it does not.
+		if (ADDRESS_PATTERN.test(ns) && ns !== needle) return true;
 		if (needle.includes("test")) return false;
 		if (ns.includes("test")) return true;
 		// Not "latest" or "attestation".
@@ -691,6 +697,7 @@ export class SearchbarController extends BaseController {
 		const name = segs[segs.length - 1] ?? "";
 		let score: number;
 		if (name === needle) score = 100;
+		else if (segs.includes(needle)) score = 90;
 		else if (name.startsWith(needle)) score = 80;
 		else if (name.includes(needle)) score = 60;
 		else if (segs.some((s) => s.startsWith(needle))) score = 40;

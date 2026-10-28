@@ -249,7 +249,13 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 	if g.Results, cut = capResults(results); cut && !g.Truncated {
 		g.Truncated, g.Notice = true, fmt.Sprintf("Showing the first %d matches.", MaxResults)
 	}
-	return []Group{g}, ""
+	groups = []Group{g}
+	// A value a selector accepted alone (a pasted address) may also name
+	// paths and a user: keep discovery's answer beside the selector's.
+	if sel.Accepts != nil && term == q.Text {
+		groups = append(groups, h.discover(ctx, q)...)
+	}
+	return groups, ""
 }
 
 // selectorFor picks the one selector a query names.
