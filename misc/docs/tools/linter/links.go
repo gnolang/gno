@@ -74,22 +74,23 @@ func extractLocalLinks(fileContent []byte) []string {
 // link works on GitHub but is a 404 on the site.
 func lintLocalLinks(root string, filepathToLinks map[string][]string) (string, error) {
 	var (
-		found, outside bool
-		output, outBuf bytes.Buffer
+		found, outside     bool
+		output, outsideBuf bytes.Buffer
 	)
 
 	for filePath, links := range filepathToLinks {
 		for _, link := range links {
 			path := filepath.Join(filepath.Dir(filePath), link)
-			if abs, err := filepath.Abs(path); err == nil {
-				if rel, err := filepath.Rel(root, abs); err == nil && (rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
-					if !outside {
-						outBuf.WriteString("Local links outside the docs folder (404 on the docs site, link to GitHub instead):\n")
-						outside = true
-					}
-					outBuf.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", link, filePath))
-					continue
+			absSourcePath, _ := filepath.Abs(filePath)
+
+			abs, _ := filepath.Abs(path)
+			if rel, err := filepath.Rel(root, abs); err == nil && !filepath.IsLocal(rel) {
+				if !outside {
+					outsideBuf.WriteString("Local links outside the docs folder (404 on the docs site, link to GitHub instead):\n")
+					outside = true
 				}
+				outsideBuf.WriteString(fmt.Sprintf(">>> %s (found in file: file://%s)\n", link, absSourcePath))
+				continue
 			}
 
 			if _, err := os.Stat(path); err != nil {
@@ -98,7 +99,6 @@ func lintLocalLinks(root string, filepathToLinks map[string][]string) (string, e
 					found = true
 				}
 
-				absSourcePath, _ := filepath.Abs(filePath)
 				output.WriteString(
 					fmt.Sprintf(">>> %s (found in file: file://%s)\n", link, absSourcePath),
 				)
@@ -106,7 +106,7 @@ func lintLocalLinks(root string, filepathToLinks map[string][]string) (string, e
 		}
 	}
 
-	output.Write(outBuf.Bytes())
+	output.Write(outsideBuf.Bytes())
 
 	if found {
 		return output.String(), errFoundUnreachableLocalLinks

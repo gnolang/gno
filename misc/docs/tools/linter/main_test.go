@@ -351,6 +351,10 @@ func TestLintLocalLinksOutsideRoot(t *testing.T) {
 	res, err := lintLocalLinks(docs, map[string][]string{file: {"../ok.md"}})
 	require.NoError(t, err, res)
 
+	res, err = lintLocalLinks(docs, map[string][]string{file: {"../missing.md"}})
+	assert.ErrorIs(t, err, errFoundUnreachableLocalLinks)
+	assert.Contains(t, res, "../missing.md")
+
 	// The target exists on disk, but outside the docs folder.
 	res, err = lintLocalLinks(docs, map[string][]string{file: {"../../outside.md"}})
 	assert.ErrorIs(t, err, errFoundLinksOutsideDocs)
