@@ -282,7 +282,7 @@ func isThrowaway(rel, needle string) bool {
 		return true
 	}
 	// Not "latest" or "attestation".
-	for _, seg := range strings.Split(strings.ToLower(rel), "/") {
+	for seg := range strings.SplitSeq(strings.ToLower(rel), "/") {
 		if strings.HasPrefix(seg, "test") || strings.HasSuffix(seg, "_test") || strings.HasSuffix(seg, "-test") {
 			return true
 		}
