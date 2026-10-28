@@ -4349,11 +4349,36 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		}
 	}
 
+	/* Takes the free width, so the marks after it line up on the right. */
 	.b-omnisearch-text {
+		flex: 1;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		min-width: 0;
+	}
+
+	/* A suggestion is something to type: set in the face the bar shows it
+	   in once typed, and wrapping on a phone rather than cut. */
+	.b-omnisearch-choice .b-omnisearch-text {
+		white-space: normal;
+
+		& code {
+			overflow-wrap: anywhere;
+			color: var(--s-color-text-primary);
+		}
+	}
+
+	/* Trailing marks: provenance (.b-tag--indexer) and "runs at once". */
+	.b-omnisearch-item > .b-tag {
+		flex-shrink: 0;
+	}
+
+	.b-omnisearch-run {
+		flex-shrink: 0;
+		min-width: 1em;
+		text-align: center;
+		color: var(--s-color-text-tertiary);
 	}
 
 	.b-omnisearch-tag {
@@ -4384,11 +4409,6 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		&[data-type="p"] {
 			background-color: var(--s-color-bg-info-default);
 			color: var(--s-color-text-base);
-		}
-
-		/* Indexer provenance: secondary on the tertiary surface is 3.8:1. */
-		&[data-type="i"] {
-			color: var(--s-color-text-primary);
 		}
 	}
 }

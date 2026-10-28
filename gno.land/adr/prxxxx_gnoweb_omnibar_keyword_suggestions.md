@@ -15,8 +15,11 @@ printed them from three hardcoded lines of its template.
 
 ## Decision
 
+- Each selector gains `Help`, what it does in a few words ("Packages that
+  import it"), sent in the JSON and shown in the keyword lists. `Label`
+  stays the results group heading and the rail's name.
 - The narrowing qualifiers become one Go table, `filterKeywords`, with a
-  hint, a label, and where their values come from: a fixed set (`is:` takes
+  hint, a help, and where their values come from: a fixed set (`is:` takes
   `realm` or `package`) or a list the omnibar already holds (`namespace` for
   `author:`, `path` for `in:`). `isNarrowing` reads that table, the popover
   ranges over it, and the JSON answer carries it as `filters`. The omnibar
@@ -27,6 +30,7 @@ printed them from three hardcoded lines of its template.
   those that run alone first, under "On this package"; then up to four that
   work anywhere; elsewhere, every keyword that works anywhere. A last row
   links `/$search`, whose popover lists them all and whose rail has examples.
+  One line above says what keywords are for.
   The `/` shortcut now opens the same help instead of a path search for the
   prefilled path.
 - Typing: when the word under the caret starts a keyword name, up to four
@@ -47,9 +51,18 @@ printed them from three hardcoded lines of its template.
   inserts the highlighted choice, or the first one typing produced, and for
   a keyword that runs alone it inserts the name rather than running it. Tab
   leaves the bar as before when the help is open and nothing is highlighted.
+- Tab completes only from a list drawn for the token under the caret, and
+  not while a keystroke still waits for its search: a list drawn for `acc`
+  must not complete `accx`, nor the word the caret moved to.
 - Suggestions are `<button role="option">` rows built by the existing
-  `buildItem`, so they join the arrow-key list, `aria-activedescendant` and
-  the provenance tags unchanged. A `mousedown` on the listbox no longer
+  `buildItem`, so they join the arrow-key list and `aria-activedescendant`.
+  A row starts with the keyword, in monospace as it will read once typed,
+  then what it does; every row starts at the same edge. Marks trail: a
+  `b-tag--indexer` pill, the results page's, for indexer provenance, and a
+  `↵` for a keyword that runs at once, each spoken by sr-only text. Indexer
+  result rows trade their leading `i` square for the same pill, which read
+  as a bar and shifted those rows; the r/p/u squares stay, they lead to
+  a page of that kind. A `mousedown` on the listbox no longer
   takes focus from the input, which keeps the caret where the next keystroke
   goes and is what the combobox pattern asks for.
 
@@ -76,6 +89,7 @@ printed them from three hardcoded lines of its template.
   labels are capitalised like the selectors'.
 - `in:` value suggestions repeat the scoped discovery rows below them: the
   first completes the query, the second navigates.
-- The `/` shortcut no longer runs a path search for the prefilled path.
+- The `/` shortcut runs a path search for the prefilled path only when there
+  is no keyword to show (no `$search` on the deployment).
 - No JS test harness exists for the omnibar; the behaviour is covered by a
   Playwright script run against onyx, with and without an indexer.
