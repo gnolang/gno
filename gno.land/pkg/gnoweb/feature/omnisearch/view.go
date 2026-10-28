@@ -30,6 +30,9 @@ type SearchData struct {
 	// Selectors is the honest inventory of what this deployment can answer.
 	Selectors []*Selector
 
+	// Filters are the narrowing qualifiers, listed after the selectors.
+	Filters []FilterKeyword
+
 	// UnknownFilter names a qualifier that is neither a selector nor a
 	// narrowing keyword, so the page can say so instead of showing nothing.
 	UnknownFilter string

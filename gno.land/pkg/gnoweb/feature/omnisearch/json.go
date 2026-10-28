@@ -38,6 +38,14 @@ type jsonSelector struct {
 	Accepts string `json:"accepts,omitempty"`
 }
 
+type jsonFilter struct {
+	Name     string   `json:"name"`
+	Hint     string   `json:"hint"`
+	Label    string   `json:"label"`
+	Values   []string `json:"values,omitempty"`
+	Complete string   `json:"complete,omitempty"`
+}
+
 type jsonIndexer struct {
 	LastBlock int    `json:"last_block,omitempty"`
 	Error     string `json:"error,omitempty"`
@@ -51,8 +59,10 @@ type jsonResponse struct {
 	// Selectors is returned on every response, not just on discovery: it is
 	// how the omnibar learns which qualifiers this deployment can answer, and
 	// a stale hint list is what produces a search box that offers something
-	// the server will refuse.
+	// the server will refuse. Filters, the narrowing qualifiers, travel with
+	// it for the same reason.
 	Selectors     []jsonSelector `json:"selectors"`
+	Filters       []jsonFilter   `json:"filters"`
 	Groups        []jsonGroup    `json:"groups,omitempty"`
 	UnknownFilter string         `json:"unknown_filter,omitempty"`
 	Indexer       *jsonIndexer   `json:"indexer,omitempty"`
@@ -78,6 +88,10 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 			js.Accepts = s.Accepts.String()
 		}
 		resp.Selectors = append(resp.Selectors, js)
+	}
+	resp.Filters = make([]jsonFilter, len(data.Filters))
+	for i, f := range data.Filters {
+		resp.Filters[i] = jsonFilter(f)
 	}
 	for _, g := range data.Groups {
 		jg := jsonGroup{

@@ -66,6 +66,16 @@ func TestServeJSONShape(t *testing.T) {
 			t.Errorf("selector %q advertised without an indexer", s.Name)
 		}
 	}
+	// So do the narrowing qualifiers, so the omnibar suggests them without
+	// a list of its own.
+	if len(resp.Filters) != len(filterKeywords) {
+		t.Fatalf("filters = %d, want %d", len(resp.Filters), len(filterKeywords))
+	}
+	for _, f := range resp.Filters {
+		if f.Hint == "" || f.Label == "" {
+			t.Errorf("filter %+v: no hint or label to show", f)
+		}
+	}
 }
 
 func TestServeJSONRejectsAHostileQuery(t *testing.T) {
@@ -111,7 +121,9 @@ func TestServePageRendersWithoutJavaScript(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := body.String()
-	for _, want := range []string{"b-omni", "/r/alice/blog", "Search keywords"} {
+	// The keywords popover lists the filters from the same table as the
+	// JSON answer, so the page and the omnibar cannot disagree.
+	for _, want := range []string{"b-omni", "/r/alice/blog", "Search keywords", "author:&lt;name&gt;", "Only realms, or only packages"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("rendered page missing %q", want)
 		}

@@ -100,6 +100,7 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		Query:     q.Raw,
 		PkgPath:   q.PkgPath,
 		Selectors: h.selectors,
+		Filters:   filterKeywords,
 	}
 	sel, term := h.selectorFor(q)
 	// A bare keyword (`deploys`) is already named by its group's heading.

@@ -39,12 +39,29 @@ const (
 	FilterIs     = "is"
 )
 
+// FilterKeyword describes a narrowing qualifier for the keyword lists: the
+// results page's and the omnibar's, so both offer the same ones.
+type FilterKeyword struct {
+	Name, Hint, Label string
+
+	// Values is every value the filter takes, when there are few.
+	Values []string
+
+	// Complete names the list the omnibar suggests values from, one it
+	// already holds: "namespace" or "path".
+	Complete string
+}
+
+// filterKeywords is the one list of narrowing qualifiers: isNarrowing reads
+// it, so a keyword cannot be offered without being accepted.
+var filterKeywords = []FilterKeyword{
+	{Name: FilterAuthor, Hint: "author:<name>", Label: "Only this namespace or deployer", Complete: "namespace"},
+	{Name: FilterIn, Hint: "in:/r/<path>", Label: "Only this package", Complete: "path"},
+	{Name: FilterIs, Hint: "is:realm", Label: "Only realms, or only packages", Values: []string{"realm", "package"}},
+}
+
 func isNarrowing(key string) bool {
-	switch key {
-	case FilterAuthor, FilterIn, FilterIs:
-		return true
-	}
-	return false
+	return slices.ContainsFunc(filterKeywords, func(f FilterKeyword) bool { return f.Name == key })
 }
 
 // Selector chooses what a query searches. Exactly one runs per query —

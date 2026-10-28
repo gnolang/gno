@@ -129,9 +129,7 @@ package page, a keyword that takes no argument is a link that runs it.
   <h3 class="b-omni-hints__title">Anywhere</h3>
   <ul>
     {{ range .Selectors }}{{ if ne .Scope "package" }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}{{ end }}
-    <li><code>author:&lt;name&gt;</code><span class="b-omni-hints__label">only this namespace or deployer</span></li>
-    <li><code>in:/r/&lt;path&gt;</code><span class="b-omni-hints__label">only this package</span></li>
-    <li><code>is:realm</code><span class="b-omni-hints__label">only realms, or <code>is:package</code></span></li>
+    {{ range .Filters }}{{ template "omnisearch/hint" (filterRow .) }}{{ end }}
   </ul>
 
   <h3 class="b-omni-hints__title">On a package page</h3>

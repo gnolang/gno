@@ -33,6 +33,8 @@ var funcMap = template.FuncMap{
 		}
 		return row
 	},
+	// filterRow is one narrowing keyword of the rail: chain-answered, no link.
+	"filterRow": func(f FilterKeyword) hintRow { return hintRow{Hint: f.Hint, Label: f.Label} },
 	// shortDetail cuts an opaque detail (an address, a hash) in its middle,
 	// where neither end a reader recognizes it by is lost. Prose (a synopsis,
 	// a render snippet) is left whole; the stylesheet ellipsizes it.
