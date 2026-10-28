@@ -33,12 +33,13 @@ func FormatGas(g int64) string {
 // default simulation stops a call that needs more before anything is charged.
 const TxGasWanted = 10_000_000
 
-// txFeeMargin is added to the fee, in percent, so the command still pays
-// enough if the gas price rises between page load and broadcast.
-const txFeeMargin = 50
+// txFeeHeadroom multiplies the fee so the command still pays enough if the
+// gas price rises between page load and broadcast. tm2 moves the price by at
+// least one unit per busy block, so at 1ugnot/1000gas one block doubles it.
+const txFeeHeadroom = 3
 
-// Margin is the percent added to the fee over the price.
-func (g TxGas) Margin() int { return txFeeMargin }
+// Headroom is the factor the fee is multiplied by over the current price.
+func (g TxGas) Headroom() int { return txFeeHeadroom }
 
 // maxUgnotFee is the old hardcoded fee, 1 GNOT; a price asking more is unusable.
 const maxUgnotFee = 1_000_000
@@ -57,7 +58,7 @@ type TxGas struct {
 	Estimated bool
 }
 
-// NewTxGas prices TxGasWanted at price plus txFeeMargin, rounded up. A zero,
+// NewTxGas prices TxGasWanted at price times txFeeHeadroom, rounded up. A zero,
 // invalid, overflowing or too costly price falls back to FallbackGasPrice.
 func NewTxGas(price std.GasPrice) TxGas {
 	if fee, ok := txFee(price); ok {
@@ -67,14 +68,14 @@ func NewTxGas(price std.GasPrice) TxGas {
 	return TxGas{Wanted: TxGasWanted, Fee: fee, Price: FallbackGasPrice, Estimated: true}
 }
 
-// txFee is ceil(TxGasWanted × amount / gas × (100+txFeeMargin) / 100).
+// txFee is ceil(TxGasWanted × amount × txFeeHeadroom / gas).
 func txFee(p std.GasPrice) (std.Coin, bool) {
 	if p.Gas <= 0 || p.Price.Amount <= 0 || !p.Price.IsValid() {
 		return std.Coin{}, false
 	}
-	num := big.NewInt(TxGasWanted * (100 + txFeeMargin))
+	num := big.NewInt(TxGasWanted * txFeeHeadroom)
 	num.Mul(num, big.NewInt(p.Price.Amount))
-	den := new(big.Int).Mul(big.NewInt(p.Gas), big.NewInt(100))
+	den := big.NewInt(p.Gas)
 	fee := num.Add(num, den).Sub(num, big.NewInt(1)).Quo(num, den)
 	if !fee.IsInt64() || (p.Price.Denom == "ugnot" && fee.Int64() > maxUgnotFee) {
 		return std.Coin{}, false

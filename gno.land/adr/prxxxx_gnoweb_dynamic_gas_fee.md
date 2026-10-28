@@ -15,12 +15,12 @@ wugnot Deposit uses ~1.4 M gas, a small addpkg ~2.6 M.
 
 - `-gas-wanted` is a constant 10,000,000: several times what common calls use,
   and a call that needs more is stopped by the simulation for free.
-- `-gas-fee` is `ceil(10M × price.Amount / price.Gas × 1.5)` in the price's
-  denom: 15,000 ugnot (0.015 GNOT) today. With default params (compressor 10,
-  target 70%) a full block raises the price ~4.3%, so the 1.5× margin covers
-  about 10 consecutive full blocks: a short burst, not a busy chain. While the
-  price amount is small, tm2's "move at least 1 unit" rule makes the first
-  over-target block a bigger step (1 → 2 ugnot doubles it today).
+- `-gas-fee` is `ceil(10M × price.Amount × 3 / price.Gas)` in the price's
+  denom: 30,000 ugnot (0.03 GNOT) today. tm2 moves the price by at least one
+  unit per busy block, so at 1 ugnot per 1,000 gas the first busy block
+  doubles it; ×3 covers two in a row. Once the amount is large, a full block
+  raises it about 4.3% (compressor 10, target 70%), and ×3 covers a burst of
+  about 26 full blocks. A fee that is too low is rejected at CheckTx, for free.
 - A ugnot fee above 1 GNOT (the old hardcoded fee) means the price is
   unusable, like a zero, invalid or overflowing one. The command then uses the
   fallback, 1 ugnot per 1,000 gas, and the note says "estimated … (the chain's
@@ -33,7 +33,7 @@ wugnot Deposit uses ~1.4 M gas, a small addpkg ~2.6 M.
   it is returned at once, and after 30 s one background query refreshes it. A
   failed query keeps the last good price and is retried after 30 s. Only the
   first read waits, bounded at 2 s. No caller holds a lock across the query.
-- A quiet note under the command gives the fee, gas, price, margin, that unused
+- A quiet note under the command gives the fee, gas, price, the ×3 headroom, that unused
   gas is not refunded, and that fast mode simulates first.
 
 ## Alternatives considered

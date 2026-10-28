@@ -117,7 +117,7 @@ func TestRenderRealm_FormCommandGas(t *testing.T) {
 		calls int
 		want  string
 	}{
-		{"<gno-form exec=\"Bump\">\n</gno-form>\n", 1, "-gas-fee 30000ugnot"},
+		{"<gno-form exec=\"Bump\">\n</gno-form>\n", 1, "-gas-fee 60000ugnot"},
 		{"<gno-form>\n<input name=\"q\" />\n</gno-form>\n", 0, ""},
 	} {
 		calls := 0

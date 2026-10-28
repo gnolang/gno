@@ -51,13 +51,13 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-gnokey maketx call -pkgpath "/r/test" -func "Outer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="field1"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="field2"></span>' -gas-fee 15000ugnot -gas-wanted 10_000_000 -send "<span data-action-function-target="send-code"></span>" -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Outer" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
-gnokey maketx call -pkgpath "/r/test" -func "Outer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="field1"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="field2"></span>' -gas-fee 15000ugnot -gas-wanted 10_000_000 -send "<span data-action-function-target="send-code"></span>" -broadcast=false <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey maketx call -pkgpath "/r/test" -func "Outer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="field1"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="field2"></span>' -gas-fee 30000ugnot -gas-wanted 10_000_000 -send "<span data-action-function-target="send-code"></span>" -chainid "dev" -remote "127.0.0.1:26657" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-Outer" class="u-inline">gnokey query -remote "127.0.0.1:26657" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "/r/test" -func "Outer" -args $'<span data-action-function-target="arg" data-action-function-arg-value="field1"></span>' -args $'<span data-action-function-target="arg" data-action-function-arg-value="field2"></span>' -gas-fee 30000ugnot -gas-wanted 10_000_000 -send "<span data-action-function-target="send-code"></span>" -broadcast=false <span data-action-function-target="address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "dev" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "127.0.0.1:26657" call.tx
   </span></code></pre>
-    <p class="note">Fee <strong>0.015 GNOT</strong> for up to 10 M gas:
-        estimated at 1ugnot/1000gas (the chain's price was unavailable), plus 50%.
+    <p class="note">Fee <strong>0.03 GNOT</strong> for up to 10 M gas:
+        estimated at 1ugnot/1000gas (the chain's price was unavailable), times 3 in case it rises.
         Unused gas is not refunded. In fast mode gnokey simulates first and stops a call that would run out of gas before anything is charged.</p>
 </div>
 </div>

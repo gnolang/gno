@@ -1132,10 +1132,10 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 		calls int32
 		want  string
 	}{
-		{name: "help, chain price", url: "/r/test/path$help", funcs: true, calls: 1, want: "-gas-fee 30000ugnot"},
-		{name: "help, node down", url: "/r/test/path$help", funcs: true, err: gnoweb.ErrClientTimeout, calls: 1, want: "-gas-fee 15000ugnot"},
+		{name: "help, chain price", url: "/r/test/path$help", funcs: true, calls: 1, want: "-gas-fee 60000ugnot"},
+		{name: "help, node down", url: "/r/test/path$help", funcs: true, err: gnoweb.ErrClientTimeout, calls: 1, want: "-gas-fee 30000ugnot"},
 		{name: "help, no functions", url: "/r/test/path$help", calls: 0},
-		{name: "exec form", url: "/r/test/path", realm: "<gno-form exec=\"Bump\">\n</gno-form>\n", calls: 1, want: "-gas-fee 30000ugnot"},
+		{name: "exec form", url: "/r/test/path", realm: "<gno-form exec=\"Bump\">\n</gno-form>\n", calls: 1, want: "-gas-fee 60000ugnot"},
 		{name: "no exec form", url: "/r/test/path", realm: "<gno-form>\n<input name=\"q\" />\n</gno-form>\n", calls: 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -22,7 +22,7 @@ func TestFormatGas(t *testing.T) {
 	}
 }
 
-// The fee is TxGasWanted at the price plus the margin, rounded up, in the
+// The fee is TxGasWanted at the price times the headroom, rounded up, in the
 // price's denom; a price that cannot be used falls back and says so.
 func TestNewTxGas(t *testing.T) {
 	t.Parallel()
@@ -35,20 +35,20 @@ func TestNewTxGas(t *testing.T) {
 		fee       string
 		estimated bool
 	}{
-		"chain default":       {price(1, 1000, "ugnot"), "15000ugnot", false},
-		"rounds up":           {price(1, 700, "ugnot"), "21429ugnot", false}, // 21,428.57
-		"at the cap":          {price(1, 15, "ugnot"), "1000000ugnot", false},
-		"over the cap":        {price(1, 14, "ugnot"), "15000ugnot", true},
-		"other denom, no cap": {price(1000, 1, "foo"), "15000000000foo", false},
-		"risen price":         {price(3, 1000, "ugnot"), "45000ugnot", false},
-		"other denom":         {price(2, 1000, "foo"), "30000foo", false},
+		"chain default":       {price(1, 1000, "ugnot"), "30000ugnot", false},
+		"rounds up":           {price(1, 700, "ugnot"), "42858ugnot", false}, // 42,857.14
+		"at the cap":          {price(1, 30, "ugnot"), "1000000ugnot", false},
+		"over the cap":        {price(1, 29, "ugnot"), "30000ugnot", true},
+		"other denom, no cap": {price(1000, 1, "foo"), "30000000000foo", false},
+		"risen price":         {price(3, 1000, "ugnot"), "90000ugnot", false},
+		"other denom":         {price(2, 1000, "foo"), "60000foo", false},
 		"huge gas, cheap":     {price(1, math.MaxInt64, "ugnot"), "1ugnot", false},
-		"zero value":          {std.GasPrice{}, "15000ugnot", true},
-		"zero amount":         {price(0, 1000, "ugnot"), "15000ugnot", true},
-		"zero gas":            {price(1, 0, "ugnot"), "15000ugnot", true},
-		"negative gas":        {price(1, -1000, "ugnot"), "15000ugnot", true},
-		"invalid denom":       {price(1, 1000, "u gnot"), "15000ugnot", true},
-		"fee overflows":       {price(math.MaxInt64, 1, "ugnot"), "15000ugnot", true},
+		"zero value":          {std.GasPrice{}, "30000ugnot", true},
+		"zero amount":         {price(0, 1000, "ugnot"), "30000ugnot", true},
+		"zero gas":            {price(1, 0, "ugnot"), "30000ugnot", true},
+		"negative gas":        {price(1, -1000, "ugnot"), "30000ugnot", true},
+		"invalid denom":       {price(1, 1000, "u gnot"), "30000ugnot", true},
+		"fee overflows":       {price(math.MaxInt64, 1, "ugnot"), "30000ugnot", true},
 	} {
 		got := NewTxGas(tc.price)
 		if got.Fee.String() != tc.fee || got.Estimated != tc.estimated || got.Wanted != TxGasWanted {
@@ -68,7 +68,7 @@ func TestTxGasText(t *testing.T) {
 	fee := func(c std.Coin) string { return TxGas{Fee: c}.FeeText() }
 	for _, tc := range []struct{ name, got, want string }{
 		{"flag", g.WantedFlag(), "10_000_000"},
-		{"fee", g.FeeText(), "0.015 GNOT"},
+		{"fee", g.FeeText(), "0.03 GNOT"},
 		{"price", g.Price.String(), "1ugnot/1000gas"},
 		{"zero", fee(std.NewCoin("ugnot", 0)), "0 GNOT"},
 		{"one ugnot", fee(std.NewCoin("ugnot", 1)), "0.000001 GNOT"},
