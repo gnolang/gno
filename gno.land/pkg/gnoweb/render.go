@@ -12,6 +12,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -73,6 +74,7 @@ type Renderer interface {
 type RealmRenderContext struct {
 	ChainId string
 	Remote  string
+	Gas     components.TxGas
 	Domain  string
 	// Links says which links of the document search engines may follow.
 	Links md.LinkPolicy
@@ -140,6 +142,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.GnoURL = u
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
+	mdctx.Gas = ctx.Gas
 	mdctx.Domain = ctx.Domain
 	mdctx.Links = ctx.Links
 	mdctx.IPFSGateway = r.cfg.IPFSGateway

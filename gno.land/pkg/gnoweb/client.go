@@ -9,6 +9,7 @@ import (
 	gopath "path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -119,6 +120,10 @@ type ClientAdapter interface {
 	// the client adds its own, and no dot: the node splits pkgPath from expr on
 	// the first dot after the first slash. expr is the caller's to keep safe.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
+
+	// GasPrice returns the chain's current gas price (`auth/gasprice`),
+	// which the chain adjusts every block.
+	GasPrice(ctx context.Context) (std.GasPrice, error)
 }
 
 type rpcClient struct {
@@ -126,7 +131,21 @@ type rpcClient struct {
 	logger   *slog.Logger
 	client   *client.RPCClient
 	rpcSlots chan struct{}
+
+	// gasMu guards the cached gas price answer, error included.
+	gasMu    sync.Mutex
+	gasAt    time.Time
+	gasPrice std.GasPrice
+	gasErr   error
 }
+
+// gasPriceTTL is how long a gas price answer is reused. The price moves per
+// block, and the fee carries a margin over it, so a slightly stale price is
+// fine; a failure is cached too, so a down node costs one query per TTL.
+const gasPriceTTL = 30 * time.Second
+
+// gasPriceTimeout bounds the query, which every realm page waits on.
+const gasPriceTimeout = 2 * time.Second
 
 var _ ClientAdapter = (*rpcClient)(nil)
 
@@ -165,6 +184,32 @@ func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, err
 	data := fmt.Sprintf("%s/%s.%s", c.domain, pkgPath, expr)
 
 	return c.query(ctx, qpath, []byte(data), 0)
+}
+
+// GasPrice queries auth/gasprice, at most once per gasPriceTTL.
+// ponytail: one lock serializes callers during a refresh; fine at one query per TTL.
+func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
+	c.gasMu.Lock()
+	defer c.gasMu.Unlock()
+	if time.Since(c.gasAt) < gasPriceTTL {
+		return c.gasPrice, c.gasErr
+	}
+
+	// Detached from the caller's cancellation: the answer is shared, so one
+	// abandoned request must not cache a failure for everyone.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gasPriceTimeout)
+	defer cancel()
+	var gp std.GasPrice
+	res, err := c.query(ctx, "auth/gasprice", nil, 0)
+	if err == nil {
+		err = amino.UnmarshalJSON(res, &gp)
+	}
+	if err != nil {
+		gp, err = std.GasPrice{}, fmt.Errorf("unable to query gas price: %w", err)
+		c.logger.Warn("gas price unavailable, commands use the fallback", "error", err)
+	}
+	c.gasPrice, c.gasErr, c.gasAt = gp, err, time.Now()
+	return c.gasPrice, c.gasErr
 }
 
 // validFileName reports whether vm/qfile reads name as a file of the package

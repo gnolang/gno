@@ -2103,6 +2103,19 @@ main.is-dev-mode .b-toc a {
 			color: var(--s-color-text-primary);
 		}
 	}
+
+	/* Quiet line under a command: what it costs (ui/command) */
+	.note {
+		padding: 0 var(--g-space-4) var(--g-space-4);
+		font-size: var(--g-font-size-50);
+		line-height: 1.5;
+		color: var(--s-color-text-tertiary);
+
+		strong {
+			font-weight: var(--g-font-semibold);
+			color: var(--s-color-text-secondary);
+		}
+	}
 }
 
 /* ===== PACKAGES LIST COMPONENT ===== */

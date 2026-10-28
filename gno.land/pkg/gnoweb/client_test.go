@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // TestCheckResponseSizeRejectsOversized — defense in depth against a
@@ -118,6 +119,7 @@ func TestStateErrorSentinelPact(t *testing.T) {
 type pathsCaller struct {
 	gotPath string
 	listing string
+	calls   int
 }
 
 func (p *pathsCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rpctypes.RPCResponse, error) {
@@ -128,6 +130,7 @@ func (p *pathsCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*
 		return nil, err
 	}
 	p.gotPath = params.Path
+	p.calls++
 
 	result, err := amino.MarshalJSON(&ctypes.ResultABCIQuery{
 		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(p.listing)}},
@@ -210,5 +213,48 @@ func TestValidFileName(t *testing.T) {
 		if got := validFileName(name); got != want {
 			t.Errorf("validFileName(%q) = %v, want %v", name, got, want)
 		}
+	}
+}
+
+// GasPrice reads auth/gasprice as the node writes it, reuses the answer for
+// gasPriceTTL, a failure included, and asks again once it expires.
+func TestGasPriceCached(t *testing.T) {
+	t.Parallel()
+
+	caller := &pathsCaller{listing: "{\n  \"gas\": \"1000\",\n  \"price\": \"1ugnot\"\n}"}
+	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0).(*rpcClient)
+	ctx := context.Background()
+
+	gp, err := c.GasPrice(ctx)
+	if err != nil {
+		t.Fatalf("GasPrice: %v", err)
+	}
+	if caller.gotPath != "auth/gasprice" {
+		t.Fatalf("query path = %q, want auth/gasprice", caller.gotPath)
+	}
+	if want := std.NewCoin("ugnot", 1); gp.Gas != 1000 || gp.Price != want {
+		t.Fatalf("gas price = %v, want 1ugnot/1000gas", gp)
+	}
+
+	caller.listing = "{\"gas\":\"1000\",\"price\":\"2ugnot\"}"
+	if gp, _ = c.GasPrice(ctx); caller.calls != 1 || gp.Price.Amount != 1 {
+		t.Fatalf("within the TTL: %d queries, price %v; want 1 query, the cached price", caller.calls, gp)
+	}
+
+	c.gasAt = c.gasAt.Add(-gasPriceTTL)
+	if gp, _ = c.GasPrice(ctx); caller.calls != 2 || gp.Price.Amount != 2 {
+		t.Fatalf("after the TTL: %d queries, price %v; want 2 queries, the new price", caller.calls, gp)
+	}
+
+	// A failure is cached like an answer, so a down node is asked once per TTL.
+	caller.listing = "not json"
+	c.gasAt = c.gasAt.Add(-gasPriceTTL)
+	for range 2 {
+		if gp, err = c.GasPrice(ctx); err == nil || gp != (std.GasPrice{}) {
+			t.Fatalf("GasPrice = %v, %v; want the zero price and an error", gp, err)
+		}
+	}
+	if caller.calls != 3 {
+		t.Fatalf("%d queries, want 3", caller.calls)
 	}
 }

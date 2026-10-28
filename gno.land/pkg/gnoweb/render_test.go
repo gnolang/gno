@@ -7,8 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -104,6 +106,18 @@ func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	assert.Regexp(t, "<h1[^>]*>.*Hello.*</h1>", w.String())
 	assert.Contains(t, w.String(), "<strong>test</strong>")
 	assert.NotNil(t, toc)
+}
+
+// A form's gnokey command offers the gas the render context carries.
+func TestRenderRealm_FormCommandGas(t *testing.T) {
+	r := newTestRenderer()
+	w := &bytes.Buffer{}
+	src := []byte("<gno-form exec=\"Bump\">\n</gno-form>\n")
+	gas := components.NewTxGas(std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)})
+	_, err := r.RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, src, RealmRenderContext{ChainId: "dev", Gas: gas})
+	require.NoError(t, err)
+	assert.Contains(t, w.String(), "-gas-fee 30000ugnot -gas-wanted 10_000_000")
+	assert.Contains(t, w.String(), "current price of 2 ugnot per 1,000 gas")
 }
 
 // Display math ends at any line that would interrupt a paragraph, footnote

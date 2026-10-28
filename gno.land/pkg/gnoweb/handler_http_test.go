@@ -24,6 +24,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,6 +47,14 @@ type stubClient struct {
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
 	evalFunc      func(ctx context.Context, pkgPath, expr string) ([]byte, error)
+	gasPriceFunc  func(ctx context.Context) (std.GasPrice, error)
+}
+
+func (s *stubClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
+	if s.gasPriceFunc != nil {
+		return s.gasPriceFunc(ctx)
+	}
+	return components.FallbackGasPrice, nil
 }
 
 func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
@@ -1104,6 +1113,50 @@ func TestHTTPHandler_ContextCancellation(t *testing.T) {
 	// Should return an error status due to cancelled context
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 	assert.Contains(t, rr.Body.String(), "internal error")
+}
+
+// The Actions page prices a crossing function's command at the chain's gas
+// price, and at the fallback, said to be estimated, when the node cannot say.
+func TestHTTPHandler_HelpCommandGas(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		price std.GasPrice
+		err   error
+		want  []string
+	}{
+		"chain price": {
+			price: std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)},
+			want:  []string{"-gas-fee 30000ugnot -gas-wanted 10_000_000", "<strong>0.03 GNOT</strong>", "current price of 2 ugnot per 1,000 gas"},
+		},
+		"node down": {
+			err:  gnoweb.ErrClientTimeout,
+			want: []string{"-gas-fee 15000ugnot -gas-wanted 10_000_000", "<strong>0.015 GNOT</strong>", "an estimated price of 1 ugnot per 1,000 gas"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			cl := &stubClient{
+				docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+					return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{
+						Name: "Bump", Crossing: true,
+						Params: []*doc.JSONField{{Name: "cur", Type: "realm"}},
+					}}}, nil
+				},
+				gasPriceFunc: func(context.Context) (std.GasPrice, error) { return tc.price, tc.err },
+			}
+			handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), newTestHandlerConfig(t, cl))
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/test/path$help", nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+			for _, want := range tc.want {
+				assert.Contains(t, rr.Body.String(), want)
+			}
+		})
+	}
 }
 
 func TestHTTPHandler_ContextPropagation(t *testing.T) {

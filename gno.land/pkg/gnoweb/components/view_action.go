@@ -6,6 +6,7 @@ import (
 
 	// for error types
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const HelpViewType ViewType = "help-view"
@@ -27,6 +28,7 @@ type HelpData struct {
 	Functions   []HelpFunction
 	ChainId     string
 	Remote      string
+	Gas         TxGas
 	PkgPath     string
 	PkgFullPath string
 	Doc         Component
@@ -53,6 +55,7 @@ type CommandData struct {
 	ParamNames []string
 	ChainId    string
 	Remote     string
+	Gas        TxGas
 }
 
 type helpViewParams struct {
@@ -101,12 +104,18 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			paramNames[i] = param.Name
 		}
 
+		gas := data.Gas
+		if gas.Wanted == 0 {
+			gas = NewTxGas(std.GasPrice{})
+		}
+
 		return CommandData{
 			FuncName:   fn.Name,
 			PkgPath:    data.PkgPath,
 			ParamNames: paramNames,
 			ChainId:    data.ChainId,
 			Remote:     data.Remote,
+			Gas:        gas,
 		}
 	}
 }
