@@ -4488,6 +4488,13 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		border-block-start: var(--s-border);
 		border-radius: 0 0 var(--s-rounded-sm) var(--s-rounded-sm);
 		background-color: var(--s-color-bg-surface-secondary);
+
+		/* The arrow icon on the text's line. */
+		.b-omnisearch-text {
+			display: inline-flex;
+			align-items: center;
+			gap: var(--g-space-1);
+		}
 	}
 
 	/* A result row's provenance pill. */

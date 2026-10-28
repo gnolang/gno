@@ -500,7 +500,6 @@ export class SearchbarController extends BaseController {
 			this.buildIcon("ico-arrow-right"),
 		);
 		foot.classList.add("b-omnisearch-foot");
-		foot.firstElementChild?.classList.add("c-with-icon--inline");
 		results.appendChild(foot);
 		this.helping = true;
 		this.endDraw(results);
