@@ -1032,8 +1032,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// deliberately does not: skipping the charge costs nothing, while paying
 		// the zero address would burn it.
 		//
-		// SendCoins rather than SendCoinsUnrestricted, because this is a one-way
-		// transfer and not the refundable escrow the storage deposit uses -- a
+		// SendCoins rather than the storage deposit's SendCoinsVestingChecked,
+		// because this is a one-way transfer and not a refundable escrow -- a
 		// token lock should refuse it, not be bypassed. It also does the
 		// session-spend check itself, so one call cannot get the order wrong.
 		//
@@ -2502,17 +2502,22 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
 
 	// Count storage deposit against a session's SpendLimit. The transfer
-	// itself uses SendCoinsUnrestricted (deposits must bypass
-	// restricted-denom checks), so we perform the session deduction
-	// explicitly here. Refunds via refundStorageDeposit do NOT reverse
-	// SpendUsed — once budget is consumed, it stays consumed, so that
+	// below skips the restricted-denom and session checks, so we perform the
+	// session deduction explicitly here. Refunds via refundStorageDeposit do
+	// NOT reverse SpendUsed — once budget is consumed, it stays consumed, so that
 	// a compromised session cannot churn state (allocate → free →
 	// allocate) to drain master beyond SpendLimit.
 	if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, caller, d); err != nil {
 		return fmt.Errorf("unable to lock deposit %s, %w", rlm.Path, err)
 	}
 
-	err := vm.bank.SendCoinsUnrestricted(ctx, caller, storageDepositAddr, d)
+	// Replayed history keeps the outcome its chain gave it, as the redeploy
+	// rule does: a deposit paid from locked coins before this check must replay.
+	send := vm.bank.SendCoinsVestingChecked
+	if auth.IsGenesisReplay(ctx) {
+		send = vm.bank.SendCoinsUnrestricted
+	}
+	err := send(ctx, caller, storageDepositAddr, d)
 	if err != nil {
 		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)
 	}

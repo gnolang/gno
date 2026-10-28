@@ -2139,6 +2139,108 @@ func Grow(cur realm, s string) {
 	assert.Equal(t, int64(0), reloadedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("ugnot"))
 }
 
+// TestStorageDepositRespectsVesting pins the vesting check on the storage
+// deposit, whose refund goes to whoever frees the storage, and its waiver
+// under genesis replay.
+func TestStorageDepositRespectsVesting(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	deployer := crypto.AddressFromPreimage([]byte("vesting-deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, deployer))
+	env.bankk.SetCoins(ctx, deployer, initialBalance)
+
+	const pkgPath = "gno.land/r/vestgrow"
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(deployer, pkgPath, storageRealmFiles("vestgrow", pkgPath))))
+
+	// Every coin the vester holds stays locked until the cliff.
+	const cliff = int64(2_000_000_000)
+	vester := crypto.AddressFromPreimage([]byte("vesting-caller"))
+	acc := env.acck.NewAccountWithAddress(ctx, vester)
+	acc.SetVesting(std.VestingSchedule{
+		OriginalVesting: initialBalance,
+		EndTime:         cliff,
+		Type:            std.VestingDelayed,
+	})
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, vester, initialBalance)
+
+	escrow := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	escrowBefore := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom)
+
+	allocate := func(ctx sdk.Context, size string) error {
+		msg := NewMsgCall(vester, std.Coins{}, pkgPath, "Allocate", []string{size})
+		msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+		_, err := env.vmk.Call(ctx, msg)
+		return err
+	}
+
+	err := allocate(ctx, "256")
+	require.Error(t, err, "a deposit must not be paid from locked coins")
+	require.Contains(t, err.Error(), "vesting locked coins")
+	assert.Equal(t, initialBalance, env.bankk.GetCoins(ctx, vester))
+	assert.Equal(t, escrowBefore, env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom))
+
+	// Genesis replay keeps the outcome the replayed chain gave the deposit.
+	// Each call grows the bytes, since a refused one still leaves its bytes in
+	// this test store.
+	replay := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	require.NoError(t, allocate(replay, "512"), "a replayed deposit must not be refused")
+	escrowReplayed := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom)
+	assert.Greater(t, escrowReplayed, escrowBefore)
+
+	// Once the cliff passes, the same coins pay the deposit.
+	vested := ctx.WithBlockHeader(&bft.Header{
+		ChainID: ctx.ChainID(), Height: ctx.BlockHeight(), Time: time.Unix(cliff, 0),
+	})
+	require.NoError(t, allocate(vested, "1024"))
+	assert.Greater(t, env.bankk.GetCoins(vested, escrow).AmountOf(ugnot.Denom), escrowReplayed)
+}
+
+// TestStorageDepositSkipsRestrictionAndChargesSessionOnce pins the two checks
+// the deposit charge skips: a restricted denom must not refuse it, and the
+// session limit is charged once, by lockStorageDeposit itself.
+func TestStorageDepositSkipsRestrictionAndChargesSessionOnce(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	master := crypto.AddressFromPreimage([]byte("restricted-master"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, master))
+	env.bankk.SetCoins(ctx, master, initialBalance)
+
+	const pkgPath = "gno.land/r/restrictgrow"
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(master, pkgPath, storageRealmFiles("restrictgrow", pkgPath))))
+
+	// ugnot restricted, master not on the token-lock whitelist.
+	env.bankk.SetRestrictedDenoms(ctx, []string{ugnot.Denom})
+
+	_, sessionPub, sessionPubAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(ctx, master, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(0)
+	da.SetSpendLimit(std.Coins{std.NewCoin(ugnot.Denom, 10_000_000)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(ctx, master, sa)
+	sessionCtx := ctx.WithValue(std.SessionAccountsContextKey{},
+		map[crypto.Address]std.DelegatedAccount{master: da})
+
+	escrow := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	escrowBefore := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom)
+
+	msg := NewMsgCall(master, std.Coins{}, pkgPath, "Allocate", []string{"256"})
+	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err := env.vmk.Call(sessionCtx, msg)
+	require.NoError(t, err, "a restricted denom must not refuse the storage deposit")
+
+	paid := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom) - escrowBefore
+	require.Positive(t, paid)
+	reloaded := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr).(std.DelegatedAccount)
+	used := reloaded.GetSpendUsed().AmountOf(ugnot.Denom)
+	assert.Equal(t, paid, used, "the session limit must be charged the deposit once")
+}
+
 func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
