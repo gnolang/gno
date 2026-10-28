@@ -3,7 +3,6 @@ package omnisearch
 import (
 	"embed"
 	"html/template"
-	"net/url"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -23,12 +22,14 @@ var funcMap = template.FuncMap{
 		}
 		return err.Error()
 	},
+	// groupAt hands a group its position, which anchors the rail's links.
+	"groupAt": func(i int, g Group) groupRow { return groupRow{Index: i, Group: g} },
 	// hintRow is one keyword of the rail. On a package page, a keyword that
 	// takes no argument links to its own answer there.
 	"hintRow": func(sel *Selector, pkgPath string) hintRow {
 		row := hintRow{Hint: sel.Hint, Label: sel.Label, Indexer: sel.Source == SourceIndexer}
-		if base := safePathHref(pkgPath); sel.Bare && base != "" {
-			row.Href = base + template.URL("$search&q="+url.QueryEscape(sel.Name)) //nolint:gosec // G203: a validated path and an escaped keyword.
+		if sel.Bare {
+			row.Href = keywordHref(pkgPath, sel.Name)
 		}
 		return row
 	},
@@ -72,6 +73,12 @@ var funcMap = template.FuncMap{
 		}
 		return "ico-file"
 	},
+}
+
+// groupRow is the payload of omnisearch/group.
+type groupRow struct {
+	Index int
+	Group Group
 }
 
 // hintRow is the payload of omnisearch/hint.

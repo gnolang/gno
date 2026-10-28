@@ -6,9 +6,9 @@ rows in the content columns. No form of its own: the omnibar is one, and with
 JavaScript off it submits here, so the reader still gets every answer.
 =================================================================================== */}}
 {{ define "renderSearch" }}
-{{ if gt (len .Groups) 1 }}{{ template "omnisearch/rail" . }}{{ end }}
+{{ template "omnisearch/rail" . }}
 <header id="main-content" tabindex="-1" class="b-content-header">
-  <h1 class="title b-content-h1">Search{{ with .Query }} <code class="b-omni-query" title="{{ . }}">{{ shortQuery . }}</code>{{ end }}</h1>
+  <h1 class="title b-content-h1">Search{{ if not .QueryIsLabel }}{{ with .Query }} <code class="b-omni-query" title="{{ . }}">{{ shortQuery . }}</code>{{ end }}{{ end }}</h1>
   <div class="header-info b-omni-info">
     {{ if .PkgPath }}
     <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
@@ -16,21 +16,20 @@ JavaScript off it submits here, so the reader still gets every answer.
     {{ else }}
     <span>Whole chain</span>
     {{ end }}
+    {{/* Help, not results: a native popover, no JavaScript needed. In
+         header-info like the source page's Copy and Download. */}}
+    <button type="button" class="b-inline-btn c-with-icon b-omni-keywords-btn" popovertarget="omni-keywords" aria-label="Search keywords" title="Search keywords">
+      <svg class="c-icon" aria-hidden="true"><use href="#ico-question"></use></svg>
+      <span>Keywords</span>
+    </button>
   </div>
-  {{/* The keywords are help, not results: a native popover keeps them one
-       click away without JavaScript, and out of the answer. An action, so it
-       sits apart from the facts, at the header's end. */}}
-  <button type="button" class="b-inline-btn c-with-icon b-omni-keywords-btn" popovertarget="omni-keywords" aria-label="Search keywords">
-    <svg class="c-icon" aria-hidden="true"><use href="#ico-helper"></use></svg>
-    <span>Search keywords</span>
-  </button>
   <div id="omni-keywords" popover class="b-omni-keywords">{{ template "omnisearch/hints" . }}</div>
 </header>
 <md-renderer class="c-listing-view b-omni">
   {{ with .UnknownFilter }}
   <p class="b-omni-notice" role="status">
     <strong>{{ . }}:</strong> is not a search qualifier on this deployment.
-    See "Search keywords" for the ones it accepts.
+    See "Keywords" for the ones it accepts.
   </p>
   {{ end }}
 
@@ -38,7 +37,7 @@ JavaScript off it submits here, so the reader still gets every answer.
   <p class="b-omni-notice">Type in the search bar above: a path, a name, or one of the search keywords.</p>
   {{ end }}
 
-  {{ range .Groups }}{{ template "omnisearch/group" . }}{{ end }}
+  {{ range $i, $g := .Groups }}{{ template "omnisearch/group" (groupAt $i $g) }}{{ end }}
 
   {{ if and .Query (not .HasResults) (not .HasErrors) (not .UnknownFilter) }}
   <p class="b-omni-notice" role="status">Nothing matched.</p>
@@ -54,23 +53,35 @@ JavaScript off it submits here, so the reader still gets every answer.
 {{/* ===================================================================================
 UI - Rail
 
-What the answer holds, kind by kind like a listing's summary. Rendered only
-for an answer of several kinds: with one, the group's own header says it all.
+Always there, as a listing's is: what the answer holds, kind by kind, each a
+link to its group; then the searches one click away (see railLinks).
 =================================================================================== */}}
 {{ define "omnisearch/rail" }}
 <aside class="b-sidebar sidebar">
   <div>
     <div class="inner u-no-scrollbar">
       {{ template "ui/expend_label" "Search" }}
-      <nav aria-labelledby="rail-heading">
-        <h2 id="rail-heading" class="b-sidebar-heading">Search</h2>
+      <nav aria-label="Search">
+        {{ with .Groups }}
+        <h2 class="b-sidebar-heading">Results</h2>
         <div class="b-listing-rail">
           <dl class="b-pkg-meta" aria-label="Results by kind">
-            {{ range .Groups }}
-            <div class="row"><dt class="label">{{ .Label }}</dt><dd class="value">{{ len .Results }}</dd></div>
+            {{ range $i, $g := . }}
+            <div class="row"><dt class="label"><a href="#results-{{ $i }}">{{ .Label }}</a></dt><dd class="value">{{ len .Results }}</dd></div>
             {{ end }}
           </dl>
         </div>
+        {{ end }}
+        {{ with .RailLinks }}
+        <h2 class="b-sidebar-heading">{{ $.RailTitle }}</h2>
+        <div class="b-listing-rail">
+          <dl class="b-pkg-meta">
+            {{ range . }}
+            <div class="row"><dt class="label">{{ .Label }}</dt><dd class="value"><a href="{{ .Href }}"><code>{{ .Query }}</code></a></dd></div>
+            {{ end }}
+          </dl>
+        </div>
+        {{ end }}
       </nav>
     </div>
   </div>
@@ -89,7 +100,7 @@ cannot reach.
 <p class="b-omni-provenance" role="note">
   <svg class="c-icon" aria-hidden="true"><use href="#ico-info"></use></svg>
   <span>
-    Each group marked <span class="b-tag b-tag--indexer">indexer</span> comes from an indexer,
+    Each group whose count reads <span class="b-tag b-tag--indexer">indexer</span> comes from an indexer,
     not from the chain: best-effort, not consensus data.
     {{ if .Err }}
       Last indexed block unknown ({{ errText .Err }}).

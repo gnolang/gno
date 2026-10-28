@@ -1,6 +1,8 @@
 package omnisearch
 
 import (
+	"html/template"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
@@ -11,6 +13,9 @@ const OmnisearchViewType = components.SearchViewType
 // match the template.
 type SearchData struct {
 	Query string
+	// QueryIsLabel: the query is a bare keyword its group's heading already
+	// names, so the title does not repeat it.
+	QueryIsLabel bool
 
 	// PkgPath is the scoped package, gnoweb-relative; empty when the URL
 	// names none.
@@ -32,6 +37,19 @@ type SearchData struct {
 	// Indexer is set only when an indexer-backed group ran; nil drops the
 	// provenance footer entirely.
 	Indexer *IndexerStatus
+
+	// RailTitle and RailLinks are what the rail offers under the counts: the
+	// package's keywords on a package page, a few queries to try when there
+	// is no answer. Empty otherwise: the counts are enough.
+	RailTitle string
+	RailLinks []RailLink
+}
+
+// RailLink is one search the rail runs in a click.
+type RailLink struct {
+	Label string
+	Query string
+	Href  template.URL
 }
 
 // IndexerStatus is the provenance footer: indexer results are not consensus

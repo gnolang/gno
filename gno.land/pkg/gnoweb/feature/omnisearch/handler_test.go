@@ -138,7 +138,7 @@ func TestIndexerResultsAreMarkedInTheMarkup(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := body.String()
-	if !strings.Contains(out, "b-tag--indexer") {
+	if !strings.Contains(out, "b-omni-count--indexer") {
 		t.Error("indexer group is not tagged in the markup")
 	}
 	if !strings.Contains(out, "not consensus data") {
@@ -360,6 +360,62 @@ func TestIndexerCredentialsNeverPublished(t *testing.T) {
 			if strings.Contains(out, secret) {
 				t.Errorf("%s: response carries %q", raw, secret)
 			}
+		}
+	}
+}
+
+// The rail always has something under the counts: on a package page the
+// other keywords that need no argument, without an answer a few queries to
+// try, and nothing more once there is an answer elsewhere.
+func TestRailLinks(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+
+	title, links := h.railLinks(SearchData{PkgPath: "/r/alice/blog"}, h.byName["imports"])
+	if title != "On this package" || len(links) == 0 {
+		t.Fatalf("package page: rail = %q %v, want its keywords", title, links)
+	}
+	for _, l := range links {
+		if l.Query == "imports" {
+			t.Error("the running keyword is listed again in the rail")
+		}
+		if !strings.HasPrefix(string(l.Href), "/r/alice/blog$search&q=") {
+			t.Errorf("keyword link %q leaves the package", l.Href)
+		}
+	}
+
+	// A path that is not a package gets no keyword links built on it.
+	if title, _ := h.railLinks(SearchData{PkgPath: "/u/alice"}, nil); title == "On this package" {
+		t.Error("keyword links built on a path that is not a package")
+	}
+
+	if title, links := h.railLinks(SearchData{}, nil); title != "Try" || len(links) != len(railExamples) {
+		t.Errorf("no answer: rail = %q %v, want the examples", title, links)
+	}
+
+	answered := SearchData{Groups: []Group{{Label: "Packages", Results: []Result{{Title: "x"}}}}}
+	if title, links := h.railLinks(answered, nil); title != "" || links != nil {
+		t.Errorf("answered search: rail = %q %v, want nothing", title, links)
+	}
+}
+
+// The title drops the query only when it is the bare keyword alone: then the
+// group heading names it. Anything more, and the title must still show it.
+func TestQueryIsLabel(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	for raw, want := range map[string]bool{
+		"deploys":          true,
+		"is:realm deploys": false,
+		"deploys foo:bar":  false,
+		"deploys:x":        false,
+		"blog":             false,
+	} {
+		data := h.build(context.Background(), mustQuery(t, h, raw, "/r/demo/boards"))
+		if data.QueryIsLabel != want {
+			t.Errorf("%q: QueryIsLabel = %v, want %v", raw, data.QueryIsLabel, want)
 		}
 	}
 }

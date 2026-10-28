@@ -7,15 +7,14 @@ overview's sections do, and its rows are a listing's rows.
 {{ define "omnisearch/group" }}
 {{/* No aria-label: it would promote each group to a landmark and
      make a screen reader read the heading twice. The h2 titles it. */}}
-<section class="b-pkg-section b-omni-group">
+{{ $i := .Index }}{{ with .Group }}
+<section class="b-pkg-section b-omni-group" id="results-{{ $i }}">
   <h2 class="b-pkg-section__header">
-    <span class="c-inline">
-      <span>{{ .Label }}</span>
-      {{ if isIndexer .Source }}
-      <span class="b-tag b-tag--indexer" title="From an indexer, not from the chain">indexer</span>
-      {{ end }}
-    </span>
-    <span class="count">{{ len .Results }}</span>
+    <span>{{ .Label }}</span>
+    {{/* One pill per heading: an indexer group says so inside its count. */}}
+    {{ if isIndexer .Source }}
+    <span class="count b-omni-count--indexer" title="From an indexer, not from the chain">{{ len .Results }} · indexer</span>
+    {{ else }}<span class="count">{{ len .Results }}</span>{{ end }}
   </h2>
 
   {{ with .Err }}
@@ -34,6 +33,7 @@ overview's sections do, and its rows are a listing's rows.
   </ul>
   {{ end }}
 </section>
+{{ end }}
 {{ end }}
 
 

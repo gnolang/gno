@@ -101,7 +101,10 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		PkgPath:   q.PkgPath,
 		Selectors: h.selectors,
 	}
-	if sel, _ := h.selectorFor(q); sel == nil {
+	sel, term := h.selectorFor(q)
+	// A bare keyword (`deploys`) is already named by its group's heading.
+	data.QueryIsLabel = sel != nil && sel.Bare && term == "" && q.HasBareWord(sel.Name) && len(q.Filters) == 0
+	if sel == nil {
 		// A discovery search ignores the page it was typed on, so the header
 		// must not claim that scope, nor on the empty page, where most
 		// queries typed are discovery ones. An `in:` scope is the one answer
@@ -120,7 +123,44 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 	}
 	data.Groups, data.UnknownFilter = h.Search(ctx, q)
 	data.Indexer = h.indexerStatus(ctx, data.Groups)
+	data.RailTitle, data.RailLinks = h.railLinks(data, sel)
 	return data
+}
+
+// railExamples are queries any chain answers: a name, a namespace, and a
+// namespace's realms.
+var railExamples = []RailLink{
+	{Label: "A name", Query: "avl"},
+	{Label: "A namespace", Query: "author:gnoland"},
+	{Label: "Its realms", Query: "is:realm author:gnoland"},
+}
+
+// railLinks fills the rail under the counts. On a package page, the keywords
+// that need no argument, so moving from deploys to activity is one click.
+// Without an answer, a few queries to try. Otherwise nothing.
+func (h *Handler) railLinks(data SearchData, current *Selector) (string, []RailLink) {
+	if safePathHref(data.PkgPath) != "" {
+		var links []RailLink
+		for _, sel := range h.selectors {
+			// The one running already heads the results.
+			if sel.Scope != ScopePackage || !sel.Bare || sel == current {
+				continue
+			}
+			links = append(links, RailLink{Label: sel.Label, Query: sel.Name, Href: keywordHref(data.PkgPath, sel.Name)})
+		}
+		if len(links) > 0 {
+			return "On this package", links
+		}
+	}
+	if data.HasResults() {
+		return "", nil
+	}
+	links := make([]RailLink, len(railExamples))
+	for i, ex := range railExamples {
+		ex.Href = template.URL("/$search?q=" + url.QueryEscape(ex.Query)) //nolint:gosec // G203: a fixed path and an escaped query.
+		links[i] = ex
+	}
+	return "Try", links
 }
 
 // wholeChainHref is the same discovery search without its scope: `in:`
@@ -337,6 +377,16 @@ func writeRateLimited(w http.ResponseWriter, isJSON bool) int {
 func isSafeRelPath(rel string) bool {
 	u := weburl.GnoURL{Path: rel}
 	return u.IsRealm() || u.IsPure()
+}
+
+// keywordHref runs a keyword on a package page, or is empty when pkgPath is
+// not a package.
+func keywordHref(pkgPath, keyword string) template.URL {
+	base := safePathHref(pkgPath)
+	if base == "" {
+		return ""
+	}
+	return base + template.URL("$search&q="+url.QueryEscape(keyword)) //nolint:gosec // G203: a validated path and an escaped keyword.
 }
 
 // safePathHref links a chain-listed package path, or nothing.

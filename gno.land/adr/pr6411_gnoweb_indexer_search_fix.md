@@ -29,12 +29,21 @@ the list of search keywords printed under the results as if it were one.
   answer (`indexer.url`). The freshness stays.
 - The results page is laid out as a directory listing: the same grid
   (`SearchViewType`, registered like `DepsViewType`), `.b-pkg-section` headers
-  and `.b-list` rows with an icon per kind of page, and a rail with the count
-  per kind when the answer has several. The provenance note stays under the
-  rows, where a phone shows it. The page's own form goes: the omnibar is a
-  form and submits here without JavaScript, and on this page it holds the
-  query instead of the path. The keywords move to a native popover behind a
-  "Search keywords" button at the header's end.
+  and `.b-list` rows with an icon per kind of page. The provenance note stays
+  under the rows, where a phone shows it. The page's own form goes: the
+  omnibar is a form and submits here without JavaScript, and on this page it
+  holds the query instead of the path. The keywords move to a native popover
+  behind a "Keywords" button in `.header-info`, where the source page puts
+  Copy and Download.
+- The rail is always there, as a listing's is: the count per kind, each a
+  link to its group, then the searches one click away. On a package page
+  those are the package's other keywords that need no argument; without an
+  answer, a few queries any chain answers. Without an indexer, only `imports`
+  is such a keyword, and the rail falls back to the examples.
+- One pill per group heading: an indexer group says so inside its count
+  (`20 · indexer`), the overview's `.count` pill in the indexer tag's colour.
+- The title repeats the query only when the group heading does not already
+  name it: a bare keyword alone (`deploys`) is not repeated.
 - A row is named and linked by its first decoded message. Opaque details (an
   address, a hash) are cut in their middle; prose is left to the stylesheet.
 
@@ -45,8 +54,12 @@ the list of search keywords printed under the results as if it were one.
   already concluded.
 - Drop only `UnexpectedMessage` rows. A transaction carrying a session message
   and a call to another realm would still pass.
-- Keep the keyword list on the page, restyled. It is help, not an answer, and
-  the omnibar already suggests the keywords as one types.
+- Keep the keyword list on the page, restyled. It is help, not an answer.
+  Suggesting keywords in the omnibar as one types would serve better still;
+  it touches the omnibar on every page, so it is left to its own change.
+- Make the results full width when there is no rail. Every other page keeps
+  that column (table of contents, listing rail, file list), and rows that
+  wide set a name 1200px away from its details.
 
 ## Consequences
 
