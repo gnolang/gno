@@ -2,12 +2,12 @@ package gnolang
 
 import (
 	"fmt"
-	"go/constant"
 	"math"
 	"math/big"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/goconst"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
@@ -1214,7 +1214,9 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = nil
 		setIntKind(dst, k, bi)
 	case Float32Kind:
-		f, _ := constant.Float32Val(constant.Make(bi))
+		// Unmetered: an untyped integer is at most 512 bits
+		// (maxUntypedIntBits), a fixed cost.
+		f, _ := goconst.Float32Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(float64(f), 0) {
 			panic(fmt.Sprintf("constant %s overflows float32", bi))
 		}
@@ -1223,7 +1225,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		dst.V = nil
 		dst.SetFloat32(math.Float32bits(f))
 	case Float64Kind:
-		f, _ := constant.Float64Val(constant.Make(bi))
+		f, _ := goconst.Float64Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(f, 0) {
 			panic(fmt.Sprintf("constant %s overflows float64", bi))
 		}
@@ -1294,8 +1296,9 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		// Rounded once, from the exact value (#6394).
-		f32, _ := constant.Float32Val(constant.Make(bi))
+		// Rounded once, from the exact value (#6394). Unmetered: at most
+		// 512 bits (maxUntypedIntBits), a fixed cost.
+		f32, _ := goconst.Float32Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
 		}
@@ -1304,7 +1307,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := constant.Float64Val(constant.Make(bi))
+		f64, _ := goconst.Float64Val(nil, goconst.Make(nil, bi))
 		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")
 		}

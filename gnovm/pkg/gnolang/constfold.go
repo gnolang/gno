@@ -2,21 +2,23 @@ package gnolang
 
 import (
 	"fmt"
-	"go/constant"
 	"go/token"
 	"math"
 	"math/big"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/goconst"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
-// Constant folding (Go spec, "Constant expressions") with go/constant:
-// exact on untyped constants, representable in the type for typed ones.
-// Runtime arithmetic (op_binary.go, op_unary.go) is untouched. Gno's
-// untyped kinds (bigint, rune, bigdec, string, bool) are carried beside
-// the go/constant value, which has no rune kind.
+// Constant folding (Go spec, "Constant expressions") with go/constant,
+// forked as internal/goconst so its representation choices do not follow
+// the toolchain and so every operation reports its work to a Meter
+// before running: exact on untyped constants, representable in the type
+// for typed ones. Runtime arithmetic (op_binary.go, op_unary.go) is
+// untouched. Gno's untyped kinds (bigint, rune, bigdec, string, bool) are
+// carried beside the go/constant value, which has no rune kind.
 
 // foldConst folds x, a binary, unary or shift operation on constant
 // operands of primitive kinds, and reports false for any other shape so
@@ -30,8 +32,7 @@ func foldConst(gm store.GasMeter, alloc *Allocator, x Expr) (TypedValue, bool) {
 		if !lok || !rok {
 			return TypedValue{}, false
 		}
-		chargeConstFold(gm, x.Op, l, r)
-		return foldBinary(alloc, x, l, r), true
+		return foldBinary(chargeConstFold(gm), alloc, x, l, r), true
 	case *UnaryExpr:
 		switch x.Op {
 		case ADD, SUB, XOR, NOT:
@@ -42,8 +43,28 @@ func foldConst(gm store.GasMeter, alloc *Allocator, x Expr) (TypedValue, bool) {
 		if !ok {
 			return TypedValue{}, false
 		}
-		chargeConstFold(gm, x.Op, v, nil)
-		return foldUnary(x, v), true
+		return foldUnary(chargeConstFold(gm), x, v), true
+	}
+	return TypedValue{}, false
+}
+
+// foldConstWith is foldConst with an explicit Meter and no flat charge,
+// for tests of the work reported.
+func foldConstWith(m goconst.Meter, x Expr) (TypedValue, bool) {
+	switch x := x.(type) {
+	case *BinaryExpr:
+		l, lok := foldOperand(x.Left)
+		r, rok := foldOperand(x.Right)
+		if !lok || !rok {
+			return TypedValue{}, false
+		}
+		return foldBinary(m, nil, x, l, r), true
+	case *UnaryExpr:
+		v, ok := foldOperand(x.X)
+		if !ok {
+			return TypedValue{}, false
+		}
+		return foldUnary(m, x, v), true
 	}
 	return TypedValue{}, false
 }
@@ -61,151 +82,131 @@ func foldOperand(x Expr) (*TypedValue, bool) {
 	return &cx.TypedValue, true
 }
 
-// chargeConstFold charges one fold: OpCPUSlopeConstFold, plus size terms
-// for the operands whose cost is not fixed: untyped integers per kilobit
-// as the machine charged (quadratic for * / %), rationals by their digits
-// (OpCPUSlopeConstRat*), and a string comparison per byte (a concatenation
-// is paid by its allocation).
-func chargeConstFold(gm store.GasMeter, op Word, l, r *TypedValue) {
+// chargeConstFold charges the flat cost of one fold, OpCPUSlopeConstFold,
+// and returns the Meter that prices each unit of work the fold's
+// operations report before running (goconst.Work): nil when gm is.
+func chargeConstFold(gm store.GasMeter) goconst.Meter {
 	if gm == nil {
-		return
+		return nil
 	}
-	gas := int64(OpCPUSlopeConstFold)
-	switch baseOf(l.T).Kind() {
-	case StringKind:
-		if op != ADD {
-			gas += int64(len(l.GetString())) * OpCPUSlopeBytesCmp
-			gas += int64(len(r.GetString())) * OpCPUSlopeBytesCmp
-		}
-	case BigintKind, Int32Kind:
-		lb := constIntBits(l)
-		if r == nil {
-			gas += lb * bigIntUnarySlope(op) / 1024
-			break
-		}
-		switch op {
-		case MUL, QUO, REM:
-			rb := constIntBits(r)
-			gas += overflow.Mulp(overflow.Mulp(lb/32, rb/32), bigIntQuadSlope(op)) / 32
-		case SHL:
-			s, _ := constant.Uint64Val(constant.ToInt(constValueOf(r)))
-			gas += int64(min(s, maxConstShift)) * OpCPUSlopeBigIntShl / 1024
-			gas += lb * OpCPUSlopeBigIntShl / 1024
-		case SHR:
-			gas += lb * OpCPUSlopeBigIntShr / 1024
+	chargeCPUGas(gm, OpCPUSlopeConstFold)
+	return constMeter{gm}
+}
+
+// constMeter prices the work goconst reports. Word-sized and 512-bit
+// float operations are fixed cost; untyped integers are charged per
+// kilobit as the machine did (quadratic for * / %, a shift by its count
+// and width); rationals linearly and quadratically in their digits, as
+// big.Rat cross-multiplies and normalizes by a gcd; a string comparison
+// per byte (a concatenation is paid by its allocation).
+type constMeter struct{ gm store.GasMeter }
+
+func (m constMeter) Charge(w goconst.Work) {
+	var gas int64
+	switch w.Rep {
+	case goconst.RepInt:
+		lb := int64(w.Bits)
+		switch {
+		case w.Conv != goconst.ConvNone:
+			gas = lb * OpCPUSlopeBigIntAdd / 1024
+		case w.Unary && w.Op == token.XOR:
+			gas = lb * OpCPUSlopeBigIntUxor / 1024
+		case w.Unary:
+			gas = lb * OpCPUSlopeBigIntUneg / 1024
+		case w.Op == token.SHL:
+			gas = int64(min(w.Shift, maxConstShift))*OpCPUSlopeBigIntShl/1024 + lb*OpCPUSlopeBigIntShl/1024
+		case w.Op == token.SHR:
+			gas = lb * OpCPUSlopeBigIntShr / 1024
+		case w.Op == token.MUL || w.Op == token.QUO || w.Op == token.QUO_ASSIGN || w.Op == token.REM:
+			gas = overflow.Mulp(overflow.Mulp(lb/32, lb/32), bigIntQuadSlope(w.Op)) / 32
 		default:
-			gas += max(lb, constIntBits(r)) * bigIntSlope(op) / 1024
+			gas = lb * bigIntSlope(w.Op) / 1024
 		}
-	case Float32Kind, Float64Kind:
-		gas += OpCPUSlopeConstFloat
-		if op == QUO {
+	case goconst.RepRat:
+		d := int64(w.Bits) / 3 // decimal digits, as ratDigits
+		q := overflow.Mulp(d/10, d/10)
+		switch {
+		case w.Conv != goconst.ConvNone, isCompareToken(w.Op): // a cross-multiplication or a division, no gcd
+			gas = OpCPUSlopeConstRatConv + d*OpCPUSlopeConstRatCmp/100 + overflow.Mulp(q, OpCPUSlopeConstRatCmpQ)/10
+		case w.Unary: // -, +: a copy
+			gas = OpCPUSlopeConstRatBase + d*OpCPUSlopeConstRatNeg/100
+		default: // + - * /
+			gas = OpCPUSlopeConstRatBase + d*OpCPUSlopeConstRat/100 + overflow.Mulp(q, OpCPUSlopeConstRatQ)/10
+		}
+	case goconst.RepFloat:
+		gas = OpCPUSlopeConstFloat
+		if w.Op == token.QUO {
 			gas += OpCPUSlopeConstFloatQuo
 		}
-	case BigdecKind:
-		// Only the rational form has size-dependent cost; the 512-bit float
-		// form is a fixed-width operation.
-		lb, rb := l.GetBigDec(), BigdecValue{}
-		if r != nil {
-			rb = r.GetBigDec()
-		}
-		if lb.IsFloat() || rb.IsFloat() {
-			gas += OpCPUSlopeConstFloat
-			if op == QUO {
-				gas += OpCPUSlopeConstFloatQuo
-			}
-			break
-		}
-		d := bigdecDigits(lb)
-		if r == nil {
-			gas += d * OpCPUSlopeConstRatNeg / 100
-			break
-		}
-		d = max(d, bigdecDigits(rb))
-		switch op {
-		case EQL, NEQ, LSS, LEQ, GTR, GEQ:
-			gas += d * OpCPUSlopeConstRatCmp / 100
-			gas += overflow.Mulp(overflow.Mulp(d/10, d/10), OpCPUSlopeConstRatCmpQ) / 10
-		default: // + - * /: cross-multiplication and a gcd
-			gas += d * OpCPUSlopeConstRat / 100
-			gas += overflow.Mulp(overflow.Mulp(d/10, d/10), OpCPUSlopeConstRatQ) / 10
+	case goconst.RepString:
+		if isCompareToken(w.Op) {
+			gas = int64(w.Bits) * OpCPUSlopeBytesCmp
 		}
 	}
-	chargeCPUGas(gm, gas)
+	chargeCPUGas(m.gm, gas)
 }
 
-// constIntBits is the width of an untyped integer constant held as a
-// BigintValue (a bigint, or a rune past int32); a typed or in-range
-// operand folds in a word, paid by the flat charge.
-func constIntBits(tv *TypedValue) int64 {
-	if biv, ok := tv.V.(BigintValue); ok {
-		return int64(biv.V.BitLen())
-	}
-	return 0
-}
-
-func bigIntSlope(op Word) int64 {
+func isCompareToken(op token.Token) bool {
 	switch op {
-	case ADD:
+	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+		return true
+	}
+	return false
+}
+
+func bigIntSlope(op token.Token) int64 {
+	switch op {
+	case token.ADD:
 		return OpCPUSlopeBigIntAdd
-	case SUB:
+	case token.SUB:
 		return OpCPUSlopeBigIntSub
-	case BAND:
+	case token.AND:
 		return OpCPUSlopeBigIntBand
-	case BOR:
+	case token.OR:
 		return OpCPUSlopeBigIntBor
-	case XOR:
+	case token.XOR:
 		return OpCPUSlopeBigIntXor
-	case BAND_NOT:
+	case token.AND_NOT:
 		return OpCPUSlopeBigIntBandn
-	case EQL, NEQ:
+	case token.EQL, token.NEQ:
 		return OpCPUSlopeBigIntEql
 	}
 	return OpCPUSlopeBigIntLss // <, <=, >, >=
 }
 
-func bigIntQuadSlope(op Word) int64 {
+func bigIntQuadSlope(op token.Token) int64 {
 	switch op {
-	case MUL:
+	case token.MUL:
 		return OpCPUSlopeBigIntMulQ
-	case QUO:
+	case token.QUO, token.QUO_ASSIGN:
 		return OpCPUSlopeBigIntQuoQ
 	}
 	return OpCPUSlopeBigIntRemQ
 }
 
-func bigIntUnarySlope(op Word) int64 {
-	switch op {
-	case SUB:
-		return OpCPUSlopeBigIntUneg
-	case XOR:
-		return OpCPUSlopeBigIntUxor
-	}
-	return 0 // unary +
-}
-
-func foldBinary(alloc *Allocator, x *BinaryExpr, l, r *TypedValue) TypedValue {
-	lv, rv := constValueOf(l), constValueOf(r)
+func foldBinary(m goconst.Meter, alloc *Allocator, x *BinaryExpr, l, r *TypedValue) TypedValue {
+	lv, rv := constValueOf(m, l), constValueOf(m, r)
 	switch x.Op {
 	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
 		tv := *l // the machine folded in place; same bytes (see constTypedValue)
 		tv.T = UntypedBoolType
 		tv.V = nil
-		tv.SetBool(constant.Compare(lv, binaryToken(x.Op), rv))
+		tv.SetBool(goconst.Compare(m, lv, binaryToken(x.Op), rv))
 		return tv
 	case SHL, SHR:
-		return foldShift(x, l, lv, rv)
+		return foldShift(m, x, l, lv, rv)
 	}
 	tok := binaryToken(x.Op)
 	switch x.Op {
 	case QUO, REM:
-		if constant.Sign(rv) == 0 {
+		if goconst.Sign(rv) == 0 {
 			panic("invalid operation: division by zero")
 		}
 		if x.Op == QUO && isIntegerConst(l.T) {
 			tok = token.QUO_ASSIGN // integer division
 		}
 	}
-	return constTypedValue(alloc, x, constant.BinaryOp(lv, tok, rv), l)
+	return constTypedValue(m, alloc, x, goconst.BinaryOp(m, lv, tok, rv), l)
 }
 
 // maxConstShift is the largest constant shift count, as go/types
@@ -220,27 +221,27 @@ const (
 // foldShift folds a constant shift: the count is a non-negative typed uint
 // (assertShiftExprCompatible1), bounded by maxConstShift; an untyped
 // float operand must be integral.
-func foldShift(x *BinaryExpr, l *TypedValue, lv, rv constant.Value) TypedValue {
-	lv = constant.ToInt(lv)
-	if lv.Kind() != constant.Int {
+func foldShift(m goconst.Meter, x *BinaryExpr, l *TypedValue, lv, rv goconst.Value) TypedValue {
+	lv = goconst.ToInt(m, lv)
+	if lv.Kind() != goconst.Int {
 		panic(fmt.Sprintf("invalid operation: shifted operand %s (type %s) must be integer",
 			constExprString(x.Left), l.T))
 	}
-	s, ok := constant.Uint64Val(constant.ToInt(rv))
+	s, ok := goconst.Uint64Val(goconst.ToInt(m, rv))
 	if !ok || s > maxConstShift {
 		panic(fmt.Sprintf("invalid operation: invalid shift count %s", rv))
 	}
-	return constTypedValue(nil, x, constant.Shift(lv, binaryToken(x.Op), uint(s)), l)
+	return constTypedValue(m, nil, x, goconst.Shift(m, lv, binaryToken(x.Op), uint(s)), l)
 }
 
-func foldUnary(x *UnaryExpr, v *TypedValue) TypedValue {
-	cv := constValueOf(v)
-	var res constant.Value
+func foldUnary(m goconst.Meter, x *UnaryExpr, v *TypedValue) TypedValue {
+	cv := constValueOf(m, v)
+	var res goconst.Value
 	switch x.Op {
 	case ADD:
 		res = cv
 	case SUB:
-		res = constant.UnaryOp(token.SUB, cv, 0)
+		res = goconst.UnaryOp(m, token.SUB, cv, 0)
 	case XOR:
 		// An unsigned complement is taken at the type's width.
 		var prec uint
@@ -254,11 +255,11 @@ func foldUnary(x *UnaryExpr, v *TypedValue) TypedValue {
 		case UintKind, Uint64Kind:
 			prec = 64
 		}
-		res = constant.UnaryOp(token.XOR, cv, prec)
+		res = goconst.UnaryOp(m, token.XOR, cv, prec)
 	case NOT:
-		res = constant.UnaryOp(token.NOT, cv, 0)
+		res = goconst.UnaryOp(m, token.NOT, cv, 0)
 	}
-	return constTypedValue(nil, x, res, v)
+	return constTypedValue(m, nil, x, res, v)
 }
 
 // checkUntypedIntWidth rejects an untyped integer constant (bigint, or a
@@ -361,50 +362,50 @@ func binaryToken(op Word) token.Token {
 
 // constValueOf is the go/constant value of a constant of primitive kind.
 // Typed floats are exact (a float32 is a float64 is a rational).
-func constValueOf(tv *TypedValue) constant.Value {
+func constValueOf(m goconst.Meter, tv *TypedValue) goconst.Value {
 	switch baseOf(tv.T).Kind() {
 	case BoolKind:
-		return constant.MakeBool(tv.GetBool())
+		return goconst.MakeBool(tv.GetBool())
 	case StringKind:
-		return constant.MakeString(tv.GetString())
+		return goconst.MakeString(tv.GetString())
 	case IntKind:
-		return constant.MakeInt64(tv.GetInt())
+		return goconst.MakeInt64(tv.GetInt())
 	case Int8Kind:
-		return constant.MakeInt64(int64(tv.GetInt8()))
+		return goconst.MakeInt64(int64(tv.GetInt8()))
 	case Int16Kind:
-		return constant.MakeInt64(int64(tv.GetInt16()))
+		return goconst.MakeInt64(int64(tv.GetInt16()))
 	case Int32Kind:
 		if tv.T == UntypedRuneType {
-			return constant.Make(runeConstInt(tv))
+			return goconst.Make(m, runeConstInt(tv))
 		}
-		return constant.MakeInt64(int64(tv.GetInt32()))
+		return goconst.MakeInt64(int64(tv.GetInt32()))
 	case Int64Kind:
-		return constant.MakeInt64(tv.GetInt64())
+		return goconst.MakeInt64(tv.GetInt64())
 	case UintKind:
-		return constant.MakeUint64(tv.GetUint())
+		return goconst.MakeUint64(tv.GetUint())
 	case Uint8Kind:
-		return constant.MakeUint64(uint64(tv.GetUint8()))
+		return goconst.MakeUint64(uint64(tv.GetUint8()))
 	case Uint16Kind:
-		return constant.MakeUint64(uint64(tv.GetUint16()))
+		return goconst.MakeUint64(uint64(tv.GetUint16()))
 	case Uint32Kind:
-		return constant.MakeUint64(uint64(tv.GetUint32()))
+		return goconst.MakeUint64(uint64(tv.GetUint32()))
 	case Uint64Kind:
-		return constant.MakeUint64(tv.GetUint64())
+		return goconst.MakeUint64(tv.GetUint64())
 	case Float32Kind:
-		return constant.MakeFloat64(float64(math.Float32frombits(tv.GetFloat32())))
+		return goconst.MakeFloat64(float64(math.Float32frombits(tv.GetFloat32())))
 	case Float64Kind:
-		return constant.MakeFloat64(math.Float64frombits(tv.GetFloat64()))
+		return goconst.MakeFloat64(math.Float64frombits(tv.GetFloat64()))
 	case BigintKind:
-		return constant.Make(tv.GetBigInt())
+		return goconst.Make(m, tv.GetBigInt())
 	case BigdecKind:
 		bd := tv.GetBigDec()
 		switch {
 		case bd.IsFloat():
-			return constant.Make(bd.F)
+			return goconst.Make(m, bd.F)
 		case bd.V == nil:
-			return constant.Make(new(big.Rat))
+			return goconst.Make(m, new(big.Rat))
 		default:
-			return constant.Make(bd.V)
+			return goconst.Make(m, bd.V)
 		}
 	}
 	panic(fmt.Sprintf("not a constant kind: %s", tv.T))
@@ -415,8 +416,8 @@ func constValueOf(tv *TypedValue) constant.Value {
 // must be representable in its type. The result starts as a copy of l and
 // only the kind's bytes of N are written, as the machine's in-place fold
 // did, so the persisted bytes of a constant are unchanged.
-func constTypedValue(alloc *Allocator, x Expr, v constant.Value, l *TypedValue) TypedValue {
-	if v.Kind() == constant.Unknown {
+func constTypedValue(m goconst.Meter, alloc *Allocator, x Expr, v goconst.Value, l *TypedValue) TypedValue {
+	if v.Kind() == goconst.Unknown {
 		panic("constant result is not representable")
 	}
 	tv := *l
@@ -424,27 +425,27 @@ func constTypedValue(alloc *Allocator, x Expr, v constant.Value, l *TypedValue) 
 	k := baseOf(t).Kind()
 	switch k {
 	case BoolKind:
-		tv.SetBool(constant.BoolVal(v))
+		tv.SetBool(goconst.BoolVal(v))
 	case StringKind:
-		tv.V = alloc.NewString(constant.StringVal(v))
+		tv.V = alloc.NewString(goconst.StringVal(m, v))
 	case BigintKind:
-		tv.V = BigintValue{V: constBigInt(v)}
+		tv.V = BigintValue{V: constBigInt(m, v)}
 	case BigdecKind:
 		tv.V = constBigdec(v)
 	case Float32Kind:
-		f, _ := constant.Float32Val(v)
+		f, _ := goconst.Float32Val(m, v)
 		if math.IsInf(float64(f), 0) {
 			panicTypedConstOverflow(x, v, t)
 		}
 		tv.SetFloat32(math.Float32bits(posZero(f)))
 	case Float64Kind:
-		f, _ := constant.Float64Val(v)
+		f, _ := goconst.Float64Val(m, v)
 		if math.IsInf(f, 0) {
 			panicTypedConstOverflow(x, v, t)
 		}
 		tv.SetFloat64(math.Float64bits(posZero(f)))
 	default:
-		bi := constBigInt(v)
+		bi := constBigInt(m, v)
 		if t == UntypedRuneType {
 			setRuneConst(&tv, bi)
 			return tv
@@ -460,14 +461,14 @@ func constTypedValue(alloc *Allocator, x Expr, v constant.Value, l *TypedValue) 
 
 // panicTypedConstOverflow is gc's rejection of a typed constant operation
 // whose result is not representable in its type.
-func panicTypedConstOverflow(x Expr, v constant.Value, t Type) {
+func panicTypedConstOverflow(x Expr, v goconst.Value, t Type) {
 	panic(fmt.Sprintf("%s (constant %s of type %s) overflows %s",
 		constExprString(x), v, t, t))
 }
 
 // constBigInt is the integer value of v, which must be integral.
-func constBigInt(v constant.Value) *big.Int {
-	switch val := constant.Val(constant.ToInt(v)).(type) {
+func constBigInt(m goconst.Meter, v goconst.Value) *big.Int {
+	switch val := goconst.Val(goconst.ToInt(m, v)).(type) {
 	case int64:
 		return big.NewInt(val)
 	case *big.Int:
@@ -477,9 +478,9 @@ func constBigInt(v constant.Value) *big.Int {
 }
 
 // constBigdec is v as an untyped bigdec: rational while both components
-// fit ratOverflowBits, else the 512-bit float form, as go/constant.
-func constBigdec(v constant.Value) BigdecValue {
-	switch val := constant.Val(v).(type) {
+// fit ratOverflowBits, else the 512-bit float form, as go/goconst.
+func constBigdec(v goconst.Value) BigdecValue {
+	switch val := goconst.Val(v).(type) {
 	case int64:
 		return BigdecValue{V: new(big.Rat).SetInt64(val)}
 	case *big.Int:

@@ -1692,9 +1692,11 @@ const (
 	OpCPUSlopeConstRat     = 7800 // per 100 digits
 	OpCPUSlopeConstRatQ    = 12   // per (digits/10)² / 10
 	OpCPUSlopeConstRatCmp  = 200  // per 100 digits: a comparison cross-multiplies, no gcd
-	OpCPUSlopeConstRatCmpQ = 1    // per (digits/10)² / 10: the products, and the
+	OpCPUSlopeConstRatCmpQ = 2    // per (digits/10)² / 10: the products, and the
 	// 512-bit division go/constant makes of a component past 4096 bits
-	OpCPUSlopeConstRatNeg = 300 // per 100 digits: a negation copies both components
+	OpCPUSlopeConstRatNeg  = 300 // per 100 digits: a negation copies both components
+	OpCPUSlopeConstRatBase = 800 // per rational operation of any size: allocation, normalization
+	OpCPUSlopeConstRatConv = 300 // per conversion of a rational of any size (to a float, or promoted)
 	// A float operand (the 512-bit bigdec form, or a typed float, which
 	// go/constant holds as an exact rational): the fixed-width operation and
 	// the conversions on either side; a division costs the same again.

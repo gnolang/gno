@@ -2,15 +2,18 @@ package gnolang
 
 import (
 	"fmt"
+	"go/token"
 	"math"
 	"math/big"
 	"math/rand"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/goconst"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -233,36 +236,47 @@ func TestFoldConstGas(t *testing.T) {
 		gm := stypes.NewGasMeter(1_000_000_000)
 		_, err := fold(gm, x)
 		require.Empty(t, err)
-		return gm.GasConsumed()
+		return gm.GasConsumed() / GasFactorCPU
 	}
-	flat := int64(OpCPUSlopeConstFold) * GasFactorCPU
+	flat := int64(OpCPUSlopeConstFold)
 	// One flat charge per operation on word-sized operands.
 	require.Equal(t, flat, gas(bin(cRune('a'), ADD, cRune('b'))))
 	require.Equal(t, flat, gas(un(SUB, cTyped(Int8Type, 1))))
-	require.Equal(t, flat+(OpCPUSlopeConstFloat+OpCPUSlopeConstFloatQuo)*GasFactorCPU, gas(bin(cFloat64(1), QUO, cFloat64(3))))
-	require.Equal(t, flat+OpCPUSlopeConstFloat*GasFactorCPU, gas(bin(cFloat32(1), ADD, cFloat32(3))))
 	require.Equal(t, flat, gas(bin(cTyped(Int64Type, 1), SHL, cTyped(UintType, 60))))
-	// The machine's size terms: a bigint shift by its amount and width, a
-	// bigint product quadratically, a rational by its digits, a string
-	// comparison by its bytes.
-	require.Equal(t, flat+500*OpCPUSlopeBigIntShl/1024, gas(bin(cBigint("1"), SHL, cTyped(UintType, 500))))
+	require.Equal(t, flat, gas(bin(cBigint("1"), SHL, cTyped(UintType, 500)))) // a word shifted
+	// Untyped integers: the machine's size terms, a shift by its count and
+	// the operand's width, a product quadratically.
 	wide := cBigint(new(big.Int).Lsh(big.NewInt(1), 10000).String()) // 10001 bits
 	require.Equal(t, flat+1023*OpCPUSlopeBigIntShl/1024+10001*OpCPUSlopeBigIntShl/1024,
 		gas(bin(wide, SHL, cTyped(UintType, 1023))))
 	require.Equal(t, flat+(10001/32)*(10001/32)*OpCPUSlopeBigIntMulQ/32, gas(bin(wide, MUL, wide)))
 	require.Equal(t, flat+10001*OpCPUSlopeBigIntAdd/1024, gas(bin(wide, ADD, cBigint("1"))))
 	require.Equal(t, flat+10001*OpCPUSlopeBigIntUneg/1024, gas(un(SUB, wide)))
-	r := cBigdec("1/3")
-	require.Equal(t, flat+OpCPUSlopeConstRat/100, gas(bin(r, ADD, r)))        // 1 digit
-	require.Equal(t, flat+OpCPUSlopeConstRatCmp/100, gas(bin(r, LSS, r)))     // 1 digit: no quadratic term
-	wideRat := cBigdec("1/" + new(big.Int).Lsh(big.NewInt(1), 4000).String()) // 1334 digits
-	require.Equal(t, flat+1334*OpCPUSlopeConstRat/100+133*133*OpCPUSlopeConstRatQ/10, gas(bin(wideRat, MUL, wideRat)))
-	require.Equal(t, flat+1334*OpCPUSlopeConstRatCmp/100+133*133*OpCPUSlopeConstRatCmpQ/10, gas(bin(wideRat, LSS, wideRat)))
+	require.Equal(t, flat+10001*OpCPUSlopeBigIntUxor/1024, gas(un(XOR, wide)))
+	// Rationals: a base per operation, linear and quadratic terms in the
+	// digits (bits/3 of numerator plus denominator); a comparison or a
+	// conversion a smaller base and the cross-multiplication terms.
+	r := cBigdec("1/3") // 3 bits: 1 digit
+	require.Equal(t, flat+OpCPUSlopeConstRatBase+OpCPUSlopeConstRat/100, gas(bin(r, ADD, r)))
+	require.Equal(t, flat+OpCPUSlopeConstRatConv+OpCPUSlopeConstRatCmp/100, gas(bin(r, LSS, r)))
+	require.Equal(t, flat+OpCPUSlopeConstRatBase+OpCPUSlopeConstRatNeg/100, gas(un(SUB, r)))
+	wideRat := cBigdec("1/" + new(big.Int).Lsh(big.NewInt(1), 4000).String()) // 4002 bits: 1334 digits
+	require.Equal(t, flat+OpCPUSlopeConstRatBase+1334*OpCPUSlopeConstRat/100+133*133*OpCPUSlopeConstRatQ/10,
+		gas(bin(wideRat, MUL, wideRat)))
+	require.Equal(t, flat+OpCPUSlopeConstRatConv+1334*OpCPUSlopeConstRatCmp/100+133*133*OpCPUSlopeConstRatCmpQ/10,
+		gas(bin(wideRat, LSS, wideRat)))
+	// A typed float is a small rational: the operation, then the rounding
+	// to the type (a conversion).
+	require.Equal(t, flat+OpCPUSlopeConstRatBase+OpCPUSlopeConstRat/100+OpCPUSlopeConstRatConv+OpCPUSlopeConstRatCmp/100,
+		gas(bin(cFloat64(1), QUO, cFloat64(3))))
+	// The 512-bit float form: fixed width, a division costs the same again.
 	bigFloat := &ConstExpr{TypedValue: TypedValue{T: UntypedBigdecType, V: BigdecValue{F: new(big.Float).SetPrec(BigdecFloatPrec).SetMantExp(big.NewFloat(1), 100000)}}}
-	require.Equal(t, flat+OpCPUSlopeConstFloat*GasFactorCPU, gas(bin(bigFloat, MUL, bigFloat))) // float form: fixed width
-	require.Equal(t, flat+(OpCPUSlopeConstFloat+OpCPUSlopeConstFloatQuo)*GasFactorCPU, gas(bin(bigFloat, QUO, bigFloat)))
-	require.Equal(t, flat+6*OpCPUSlopeBytesCmp*GasFactorCPU, gas(bin(cStr("foo"), LSS, cStr("bar"))))
-	require.Equal(t, flat, gas(bin(cStr("foo"), ADD, cStr("bar")))) // paid by its allocation
+	require.Equal(t, flat+OpCPUSlopeConstFloat, gas(bin(bigFloat, MUL, bigFloat)))
+	require.Equal(t, flat+OpCPUSlopeConstFloat+OpCPUSlopeConstFloatQuo, gas(bin(bigFloat, QUO, bigFloat)))
+	// Strings: a comparison per byte of the longer; a concatenation is paid
+	// by its allocation.
+	require.Equal(t, flat+3*OpCPUSlopeBytesCmp, gas(bin(cStr("foo"), LSS, cStr("bar"))))
+	require.Equal(t, flat, gas(bin(cStr("foo"), ADD, cStr("bar"))))
 	// A nil meter charges nothing and still folds.
 	_, err := fold(nil, bin(cBigint("1"), ADD, cBigint("2")))
 	require.Empty(t, err)
@@ -531,3 +545,52 @@ func BenchmarkConstFold(b *testing.B) {
 		}
 	})
 }
+
+// TestConstFoldMetered: every goconst operation the fold calls is given
+// its Meter; a nil Meter is allowed only in the constant conversions of
+// values_conversions.go, whose operands are bounded by maxUntypedIntBits.
+func TestConstFoldMetered(t *testing.T) {
+	src, err := os.ReadFile("constfold.go")
+	require.NoError(t, err)
+	for i, line := range strings.Split(string(src), "\n") {
+		require.NotRegexp(t, `goconst\.\w+\(nil\b`, line, "constfold.go:%d", i+1)
+	}
+}
+
+// TestConstFoldWorkReported: each representation reports its work with
+// the sizes the meter prices on, before the operation runs.
+func TestConstFoldWorkReported(t *testing.T) {
+	var got []goconst.Work
+	m := workRecorder{&got}
+	wide := cBigint(new(big.Int).Lsh(big.NewInt(1), 300).String())
+	wideRat := cBigdec("1/" + new(big.Int).Lsh(big.NewInt(1), 4000).String())
+	for _, tc := range []struct {
+		x    Expr
+		want []goconst.Work
+	}{
+		{bin(wide, MUL, wide), []goconst.Work{{Op: token.MUL, Rep: goconst.RepInt, Bits: 301}}},
+		{bin(wide, SHL, cTyped(UintType, 100)), []goconst.Work{{Op: token.SHL, Rep: goconst.RepInt, Bits: 301, Shift: 100}}},
+		{bin(wideRat, ADD, cBigdec("1/3")), []goconst.Work{{Op: token.ADD, Rep: goconst.RepRat, Bits: 4002}}},
+		{bin(wideRat, LSS, wideRat), []goconst.Work{{Op: token.LSS, Rep: goconst.RepRat, Bits: 4002}}},
+		{un(SUB, wideRat), []goconst.Work{{Op: token.SUB, Rep: goconst.RepRat, Bits: 4002, Unary: true}}},
+		{bin(cFloat64(1), QUO, cFloat64(3)), []goconst.Work{
+			{Op: token.QUO, Rep: goconst.RepRat, Bits: 3},
+			{Conv: goconst.ConvFloat64, Rep: goconst.RepRat, Bits: 3},
+		}},
+		{bin(cStr("foo"), LSS, cStr("bar")), []goconst.Work{{Op: token.LSS, Rep: goconst.RepString, Bits: 3}}},
+		{bin(cStr("foo"), ADD, cStr("bar")), []goconst.Work{
+			{Op: token.ADD, Rep: goconst.RepString, Bits: 3},
+			{Conv: goconst.ConvString, Rep: goconst.RepString, Bits: 6},
+		}},
+		{bin(cRune('a'), ADD, cRune('b')), []goconst.Work{{Op: token.ADD, Rep: goconst.RepInt64}}},
+	} {
+		got = got[:0]
+		_, ok := foldConstWith(m, tc.x)
+		require.True(t, ok)
+		require.Equal(t, tc.want, got, "%v", tc.x)
+	}
+}
+
+type workRecorder struct{ ws *[]goconst.Work }
+
+func (r workRecorder) Charge(w goconst.Work) { *r.ws = append(*r.ws, w) }
