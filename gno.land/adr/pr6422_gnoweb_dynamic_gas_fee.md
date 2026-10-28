@@ -8,8 +8,8 @@ The gnokey commands gnoweb offers for copy-paste (the Actions page and the
 gas it used. The gas price is not a constant: tm2 moves it every block and
 the node answers it on `auth/gasprice` (`1ugnot/1000gas` on mainnet and onyx
 today). gnokey's default fast mode simulates before broadcasting and stops a
-call that would run out of gas, charging nothing (#6313). Measured on onyx: a
-wugnot Deposit uses ~1.4 M gas, a small addpkg ~2.6 M.
+call that would run out of gas, charging nothing (#6313). A
+wugnot Deposit uses 7 to 9 M gas on onyx; a small addpkg ~2.6 M on a local chain.
 
 ## Decision
 

@@ -29,8 +29,9 @@ func FormatGas(g int64) string {
 }
 
 // TxGasWanted is the gas a copied gnokey command asks for. It covers most
-// calls (a wugnot Deposit uses ~1.4 M, a small addpkg ~2.6 M); gnokey's
-// default simulation stops a call that needs more before anything is charged.
+// calls (a wugnot Deposit uses 7 to 9 M on onyx, a small addpkg ~2.6 M);
+// gnokey's default simulation stops a call that needs more before anything
+// is charged.
 const TxGasWanted = 10_000_000
 
 // txFeeHeadroom multiplies the fee so the command still pays enough if the
