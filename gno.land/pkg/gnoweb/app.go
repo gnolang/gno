@@ -159,6 +159,15 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	}
 	logger.Info("crawl policy", "noindex", cfg.NoIndex, "canonical_origin", canonicalOrigin)
 
+	// Normalize the IPFS gateway in place: callers building the CSP
+	// (cmd/gnoweb) read the validated origin back from cfg.
+	ipfsGateway, err := normalizeIPFSGateway(cfg.RenderConfig.IPFSGateway, cfg.Domain, originHost(canonicalOrigin))
+	if err != nil {
+		// The value is not echoed: it may carry a credential or token.
+		return nil, fmt.Errorf("invalid IPFS gateway: %w", err)
+	}
+	cfg.RenderConfig.IPFSGateway = ipfsGateway
+
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
 		client.WithRequestTimeout(cfg.NodeRequestTimeout),

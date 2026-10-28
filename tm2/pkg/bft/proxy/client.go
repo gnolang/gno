@@ -52,6 +52,9 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 	return abcicli.NewLocalClient(&l.mtx, l.app), nil
 }
 
+// LocalApp returns the in-process application the clients call.
+func (l *localClientCreator) LocalApp() abci.Application { return l.app }
+
 // NewReadOnlyABCIClient returns a client whose calls do not contend with
 // consensus or mempool, and do not serialise against each other: up to
 // maxConcurrentQueries of them may be inside the application at once.
