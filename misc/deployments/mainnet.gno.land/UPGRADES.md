@@ -7,7 +7,7 @@ go run ./misc/deployments/upgrades render misc/deployments/mainnet.gno.land   # 
 go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # what CI runs
 ```
 
-An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEASING.md)); the image digest and the binaries are filled in together once CI has built the release, the proposal once it exists, the halt time once the halt has happened. Until then they are null, and the table shows the digest, proposal and halt time as *(pending)*.
+An entry is added once the chain runs the release — after the halt for a coordinated upgrade, once validators run it for a rolling one (see [`RELEASING.md`](../../../RELEASING.md)) — when everything it records is known: the halt height and the proposal once the proposal has executed, the halt time once the chain has halted, the image digest and binaries once CI has built the release. A cell reads *(pending)* only for a fact that has not happened yet.
 
 - **To run a node today:** the version in the last row with no *(pending)* cell, pinned — the native binary from its release page (checksums in `binaries`), or `ghcr.io/gnolang/gno/gnoland:<version>`. Never a floating tag. Configuration: [`VALIDATOR.md`](./VALIDATOR.md).
 - **Joining from genesis:** the node stops at every halt height below (the historical governance halts fire during replay too); restart it with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version. Verified on 2026-09-22 with `v1.5.0` alone, genesis to tip.

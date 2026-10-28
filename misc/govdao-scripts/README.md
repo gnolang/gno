@@ -2,6 +2,8 @@
 
 Shared scripts for govDAO governance operations. These scripts require `GNOKEY_NAME`, `CHAIN_ID`, and `REMOTE` to be set.
 
+`set-halt.sh` also reads the version the node at `REMOTE` runs from its `/status` (with `curl`, or `wget` when `curl` is missing) and refuses a `MIN_VERSION` that version already meets: such a floor gates nothing after the halt and refuses every restart of the running binary before it (see [Restart gates](../../gno.land/cmd/gnoland/UPGRADES.md#restart-gates)). It reads one node, directly as `gnokey` does (proxy variables are ignored), and prints the version it compared: behind a load balancer, check the other nodes when the network runs mixed versions. It checks when the proposal is created, and once the vote passes, any account can execute the proposal: if nodes may move to a newer version during the vote, read their `/status` again before casting the vote that passes it, and vote no if one already meets `MIN_VERSION`. A `REMOTE` it cannot read stops the script; cancelling (height `0`) reads nothing.
+
 **Don't call these scripts directly** — use the deployment wrapper instead:
 
 ```bash

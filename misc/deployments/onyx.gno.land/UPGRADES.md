@@ -7,7 +7,7 @@ go run ./misc/deployments/upgrades render misc/deployments/onyx.gno.land   # aft
 go run ./misc/deployments/upgrades check  misc/deployments/onyx.gno.land   # what CI runs
 ```
 
-An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEASING.md)); the image digest and the binaries are filled in together once CI has built the release, the proposal once it exists, the halt time once the halt has happened. Until then they are null, and the table shows the digest, proposal and halt time as *(pending)*.
+An entry is added once the chain runs the release — after the halt for a coordinated upgrade, once validators run it for a rolling one (see [`RELEASING.md`](../../../RELEASING.md)) — when everything it records is known: the halt height and the proposal once the proposal has executed, the halt time once the chain has halted, the image digest and binaries once CI has built the release. A cell reads *(pending)* only for a fact that has not happened yet.
 
 - **To run a node today:** the version in the last row with no *(pending)* cell, pinned — the native binary from its release page (checksums in `binaries`), or `ghcr.io/gnolang/gno/gnoland:<version>`. Never a floating tag. Configuration: [`VALIDATOR.md`](./VALIDATOR.md).
 - **Joining from genesis:** the node stops at every halt height below (the historical governance halts fire during replay too); restart it with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version.
@@ -19,7 +19,7 @@ An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEA
 |---|---|---|---|---|---|---|
 | [v1.5.0](https://github.com/gnolang/gno/releases/tag/v1.5.0) | [e75fef82c](https://github.com/gnolang/gno/commit/e75fef82c02876a4df92ad6e325c5479b9532168) | genesis | 2026-09-28T00:00:00Z | — | — | `sha256:6ae099c2828c…` |
 | [v1.5.1-rc.1](https://github.com/gnolang/gno/releases/tag/v1.5.1-rc.1) | [07e44776c](https://github.com/gnolang/gno/commit/07e44776c26187830b7dcbd2454991b5a1960378) | rolling | — | — | — | `sha256:231eedbda83b…` |
-| [v1.6.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.6.0-rc.1) | [c868ccab1](https://github.com/gnolang/gno/commit/c868ccab1f93f0542a4c10a9d9b49b6fabcc0d98) | 445000 | 2026-10-16T12:51:52Z | `v1.6.0-rc.1` | [#33](https://gno.land/r/gov/dao:33) | `sha256:4286ffcd805f…` |
+| [v1.6.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.6.0-rc.1) | [c868ccab1](https://github.com/gnolang/gno/commit/c868ccab1f93f0542a4c10a9d9b49b6fabcc0d98) | 445000 | 2026-10-16T12:51:52Z | `v1.6.0-rc.1` | [#33](https://onyx.testnets.gno.land/r/gov/dao:33) | `sha256:4286ffcd805f…` |
 <!-- END GENERATED -->
 
 Notes
