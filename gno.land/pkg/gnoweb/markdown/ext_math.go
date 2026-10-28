@@ -279,15 +279,53 @@ var (
 // at source offset stop: searching from offset from, the first close is at
 // offset found, or, if found is -1, there is none before offset end (the
 // line end, or a point no expression crosses, see findDollarClose). ticks and
-// open are the search's code span state (see closeFinder).
-type closeScan struct{ stop, from, found, end, ticks, open int }
+// open are the search's code span state (see closeFinder), and runs indexes
+// the line's backtick runs for every search of it.
+type closeScan struct {
+	stop, from, found, end, ticks, open int
+	runs                                *tickRuns
+}
 
 // closeFinder searches b, which starts inside a code span opened by a run of
 // ticks backticks if ticks > 0, for a closing delimiter. It returns its index,
 // or -1 and the index where the search ended: len(b), or a point no
 // expression crosses. open is the length of the first backtick run b leaves
-// unclosed, a code span the next line may close.
-type closeFinder func(b []byte, ticks int) (idx, end, open int)
+// unclosed, a code span the next line may close. runs, which may be nil, is
+// the index of b's line, kept across the searches of that line.
+type closeFinder func(b []byte, ticks int, runs *tickRuns) (idx, end, open int)
+
+// tickRuns indexes the backtick runs of a line: last[n] is the distance from
+// the line end to the start of its last run of exactly n backticks. Every
+// search reads a suffix of its line, so one index, built once over the
+// longest, answers them all. Without it, each run left unclosed rescans the
+// rest of the line for a closing run: a line of runs of 1, 2, 3... backticks
+// is read once per run, O(n^1.5).
+type tickRuns struct {
+	size int // the length of the suffix indexed
+	last map[int]int
+}
+
+// closes reports whether the run of n backticks at b[i] is closed by a later
+// run of as many on b's line, indexing b first if needed.
+func (r *tickRuns) closes(b []byte, i, n int) bool {
+	if r.last == nil || r.size < len(b) {
+		r.size, r.last = len(b), map[int]int{}
+		for j := 0; j < len(b); {
+			k := bytes.IndexByte(b[j:], '`')
+			if k < 0 {
+				break
+			}
+			j += k
+			start := j
+			for j < len(b) && b[j] == '`' {
+				j++
+			}
+			r.last[j-start] = len(b) - start
+		}
+	}
+	d, ok := r.last[n]
+	return ok && d < len(b)-i
+}
 
 // findCloseCached returns find(b), where b is the part of a line starting at
 // source offset base and ending at stop, reusing an earlier search of the same
@@ -333,12 +371,16 @@ func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, s
 			slot = 1
 		}
 	}
-	idx, end, open = find(b, ticks)
+	runs := new(tickRuns)
+	if cache[slot].stop == stop && cache[slot].runs != nil {
+		runs = cache[slot].runs
+	}
+	idx, end, open = find(b, ticks, runs)
 	found := -1
 	if idx >= 0 {
 		found = base + idx
 	}
-	cache[slot] = closeScan{stop: stop, from: base, found: found, end: base + end, ticks: ticks, open: open}
+	cache[slot] = closeScan{stop: stop, from: base, found: found, end: base + end, ticks: ticks, open: open, runs: runs}
 	return idx, end, open
 }
 
@@ -356,8 +398,8 @@ func isEscaped(b []byte, i int) bool {
 // the code span state described in closeFinder. Following pandoc, a closing $
 // must not be preceded by a space or an escaping backslash nor followed by a
 // digit, so "$5 and $10" stays plain text.
-func findDollarClose(b []byte, ticks int) (int, int, int) {
-	return findClose(b, ticks, true, func(b []byte, i int) bool {
+func findDollarClose(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+	return findClose(b, ticks, runs, true, func(b []byte, i int) bool {
 		return b[i] == '$' && i > 0 && !util.IsSpace(b[i-1]) && !isEscaped(b, i) &&
 			!(i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9')
 	})
@@ -368,8 +410,8 @@ func findDollarClose(b []byte, ticks int) (int, int, int) {
 // findDollarClose, does not end the expression at a "](" it did not open:
 // "$$ (0,1](x) $$" is a half-open interval, not the end of a link label.
 func findDelimClose(end []byte) closeFinder {
-	return func(b []byte, ticks int) (int, int, int) {
-		return findClose(b, ticks, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
+	return func(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+		return findClose(b, ticks, runs, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
 	}
 }
 
@@ -387,7 +429,7 @@ func findDelimClose(end []byte) closeFinder {
 // Code spans are kept whole the same way: in "Costs $5: see `foo$bar`", the
 // $ in the code span does not close the price. stopAtLabel ends the
 // expression at a "](" that closes a label opened before it.
-func findClose(b []byte, ticks int, stopAtLabel bool, closes func(b []byte, i int) bool) (idx, end, open int) {
+func findClose(b []byte, ticks int, runs *tickRuns, stopAtLabel bool, closes func(b []byte, i int) bool) (idx, end, open int) {
 	i := 0
 	if ticks > 0 {
 		// Past the code span, if it closes on this line.
@@ -440,8 +482,11 @@ func findClose(b []byte, ticks int, stopAtLabel bool, closes func(b []byte, i in
 			for i+n < len(b) && b[i+n] == '`' {
 				n++
 			}
-			if e := runEnd(b[i+n:], n); e >= 0 {
-				i += n + e - 1
+			if runs == nil {
+				runs = new(tickRuns)
+			}
+			if runs.closes(b, i, n) {
+				i += n + runEnd(b[i+n:], n) - 1
 			} else {
 				i += n - 1
 				if open == 0 {
@@ -578,7 +623,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	// A closing delimiter on the same line is an inline-level expression,
 	// handled by the inline parser, which finds it the same way.
 	if rest := line[len(open):]; bytes.Contains(rest, closeTag) {
-		if idx, _, _ := findDelimClose(closeTag)(rest, 0); idx >= 0 {
+		if idx, _, _ := findDelimClose(closeTag)(rest, 0, nil); idx >= 0 {
 			return nil, parser.NoChildren
 		}
 	}

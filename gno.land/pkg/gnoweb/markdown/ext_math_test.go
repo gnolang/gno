@@ -331,6 +331,41 @@ func TestMathNoLinkDestinationsAreLinear(t *testing.T) {
 	}
 }
 
+// Backtick runs of 1, 2, 3... backticks are all left unclosed. Searching for
+// each one's closing run used to read the rest of the line every time,
+// O(n^1.5): 16 times the input took about 60 times as long. The search must
+// now take about 16 times as long, well under 32.
+func TestMathUnclosedBacktickRunsAreLinear(t *testing.T) {
+	line := func(n int) []byte {
+		var b strings.Builder
+		for k := 1; b.Len() < n; k++ {
+			b.WriteString(strings.Repeat("`", k) + "a ")
+		}
+		return []byte(b.String())
+	}
+	fastest := func(find closeFinder, b []byte) time.Duration {
+		best := time.Hour
+		for range 5 {
+			start := time.Now()
+			if idx, _, _ := find(b, 0, nil); idx >= 0 {
+				t.Fatal("unexpected close")
+			}
+			best = min(best, time.Since(start))
+		}
+		return best
+	}
+	small, large := line(64<<10), line(1<<20)
+	for name, find := range map[string]closeFinder{
+		"$":   findDollarClose,
+		"$$":  findDelimClose(_dollarDisplay),
+		`\\(`: findDelimClose(_inlineclose),
+		`\\[`: findDelimClose(_displayclose),
+	} {
+		ratio := float64(fastest(find, large)) / float64(fastest(find, small))
+		assert.Less(t, ratio, 32.0, "%s: 16x the input took %.0fx as long", name, ratio)
+	}
+}
+
 func TestMathStillRenders(t *testing.T) {
 	for _, src := range []string{
 		`$E=mc^2$`,
@@ -416,8 +451,8 @@ func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
 		next := []byte("no closer on the next line either\n")
 		pc := parser.NewContext()
 		scanned := 0
-		counting := func(b []byte, ticks int) (int, int, int) {
-			idx, end, open := tc.find(b, ticks)
+		counting := func(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+			idx, end, open := tc.find(b, ticks, runs)
 			scanned += max(idx+1, end) // the bytes read
 			return idx, end, open
 		}
