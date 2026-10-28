@@ -13,11 +13,21 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
+// repoPath returns the absolute path of a file given by its path relative to
+// the repository root.
+func repoPath(t *testing.T, rel string) string {
+	t.Helper()
+
+	p, err := filepath.Abs(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	require.NoError(t, err)
+	return p
+}
+
 // repoFile reads a file by its path relative to the repository root.
 func repoFile(t *testing.T, rel string) string {
 	t.Helper()
 
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	b, err := os.ReadFile(repoPath(t, rel))
 	require.NoError(t, err, "%s — has it moved? The release tooling is checked against this package.", rel)
 	return string(b)
 }
@@ -46,7 +56,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 	const (
 		cutRelease = "misc/release/cut-release.sh"
 		bumpProto  = "misc/release/bump-protocol-version.sh"
-		setHalt    = "misc/govdao-scripts/set-halt.sh"
+		setHalt    = setHaltScript
 		workflow   = ".github/workflows/release-chain-tag.yml"
 	)
 
@@ -108,9 +118,24 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// set-halt.sh is the one a human runs to set the floor, so a looser
 		// shape there reaches the chain without passing the other two at all.
-		haltRE := grepOne(t, setHalt, `(?m)^  VERSION_RE='(.+)'$`)
+		// It defines the shape at the top, readonly, as cut-release.sh does:
+		// the script runs without set -u, and on Linux an unset VERSION_RE in
+		// [[ =~ ]] matches every version.
+		haltRE := grepOne(t, setHalt, `(?m)^readonly VERSION_RE='(.+)'$`)
 		assert.Equal(t, shapeRE, haltRE,
 			"%s accepts a different shape than %s; it writes halt_min_version directly", setHalt, cutRelease)
+
+		// The shape's bracket ranges follow the locale's collation: under
+		// en_US.UTF-8 on glibc, [A-Za-z] also matches letters such as é, which
+		// parseReleaseVersion refuses. Each script checks in the C locale.
+		export := regexp.MustCompile(`(?m)^export LC_ALL=C$`)
+		for _, script := range []string{cutRelease, bumpProto, setHalt} {
+			src := repoFile(t, script)
+			if loc := export.FindStringIndex(src); assert.NotNil(t, loc, "%s must export LC_ALL=C", script) {
+				assert.Less(t, loc[0], strings.Index(src, "=~"),
+					"%s must export LC_ALL=C before its first regex match", script)
+			}
+		}
 	})
 
 	// cut-release.sh's build check earns its place only by building the way the
@@ -121,8 +146,9 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		t.Parallel()
 
 		pkg := grepOne(t, cutRelease, `(?m)^readonly VERSION_PKG="(.+)"$`)
-		assert.True(t, strings.Contains(repoFile(t, workflow), "-X "+pkg+"="),
-			"%s injects a different symbol than %s's VERSION_PKG (%s)", workflow, cutRelease, pkg)
+		assert.Equal(t, []string{`          LDFLAGS="-w -s -X ` + pkg + `=${TAG}"`},
+			regexp.MustCompile(`(?m)^.*\bLDFLAGS=.*$`).FindAllString(repoFile(t, workflow), -1),
+			"%s must set LDFLAGS once, compiling TAG into %s's VERSION_PKG (%s)", workflow, cutRelease, pkg)
 
 		// And the symbol has to be the one the node actually reports.
 		assert.True(t, strings.HasPrefix(pkg, "github.com/gnolang/gno/tm2/pkg/version."),
@@ -131,22 +157,20 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 	// Every build that is not a release compiles in a version that must not
 	// parse, or it would satisfy a governance halt_min_version — the goreleaser
-	// nightlies once shipped v0.0.0, which does. Three files compute that
-	// fallback; this pins them to one shell expression and checks the result.
+	// nightlies once shipped v0.0.0, which does. Two files compute that
+	// fallback; this pins them to one expression and checks the result.
 	t.Run("off-tag builds agree on one unparseable shape", func(t *testing.T) {
 		t.Parallel()
 
 		const (
 			makefile   = "gno.land/Makefile"
-			docker     = ".github/workflows/release-docker.yml"
 			nightly    = ".github/workflows/release-goreleaser.yml"
 			goreleaser = ".github/goreleaser.yaml"
-			// What the two workflows evaluate when no v* tag matches.
+			// What the nightly workflow evaluates.
 			shellExpr = `${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)`
 			// The same thing in make syntax.
 			makeExpr = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
 		)
-		assert.Contains(t, repoFile(t, docker), `echo "`+shellExpr+`"`, "%s computes a different fallback", docker)
 		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
 		assert.Contains(t, repoFile(t, makefile), makeExpr, "%s computes a different fallback", makefile)
 
@@ -163,6 +187,61 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			_, parses := parseReleaseVersion(v)
 			assert.False(t, parses, "%q must not satisfy a halt_min_version", v)
 		}
+	})
+
+	// Both release workflows run on v* tag pushes only and stamp the tag that
+	// triggered the run, verbatim. Never a version derived from the checkout:
+	// a final release is tagged on its last candidate's commit, git describe
+	// answers with whichever of the two tags is newer, and a re-run of the
+	// candidate's build would then compile the final's version into an rc
+	// artifact — one that satisfies the final's halt_min_version.
+	t.Run("release builds carry the tag that triggered them", func(t *testing.T) {
+		t.Parallel()
+
+		const docker = ".github/workflows/release-docker.yml"
+		chain, image := repoFile(t, workflow), repoFile(t, docker)
+
+		// github.ref_name is the tag only when nothing but a tag push can
+		// start the run: a dispatch or a branch push names a branch. The block
+		// ends at the next top-level key, not at a comment line inside it.
+		for _, path := range []string{workflow, docker} {
+			on := grepOne(t, path, `(?ms)^on:\n(.*?)^[^\s#]`)
+			assert.Regexp(t, `\A  push:\n    tags:\n      - ["']?v\*["']?\n+\z`, on, "%s must run on v* tag pushes only", path)
+		}
+
+		// A final release is cut on its last candidate's commit, so an image tag
+		// named after the commit would move from the candidate's images to the
+		// final's. Images carry their version tag only (and latest for the CLIs):
+		// the whole tag list is pinned, so no rule of any form can add one.
+		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
+		assert.Equal(t, "            type=ref,event=tag\n"+
+			"            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}\n",
+			tags, "%s must tag images by version only, and latest for the CLIs, never by commit", docker)
+
+		// Every line that names TAG other than to expand it, comments aside:
+		// an env key in any YAML style, an assignment, a read, a loop variable
+		// or a GITHUB_ENV line could each shadow the workflow-level value.
+		expansion := regexp.MustCompile(`\$\{TAG[^}]*\}|\$TAG\b|env\.TAG\b`)
+		bare := regexp.MustCompile(`\bTAG\b`)
+		var sets []string
+		for line := range strings.SplitSeq(chain, "\n") {
+			if !strings.HasPrefix(strings.TrimSpace(line), "#") && bare.MatchString(expansion.ReplaceAllString(line, "")) {
+				sets = append(sets, line)
+			}
+		}
+		assert.Equal(t, []string{"  TAG: ${{ github.ref_name }}"}, sets,
+			"%s must set TAG once, for every job, to the tag that triggered the run", workflow)
+		assert.True(t, strings.Contains(chain, `if [ "$got" != "$GITHUB_REF_NAME" ]`),
+			"%s must check the binaries against the ref that started the run, not against TAG", workflow)
+
+		// Every line naming BUILD_VERSION, so a second env scope, a comment
+		// or a bake --set override cannot leave the pinned line inert; and
+		// that line in the bake step's env, where bake reads it.
+		assert.Equal(t, []string{"          BUILD_VERSION: ${{ github.ref_name }}"},
+			regexp.MustCompile(`(?m)^.*BUILD_VERSION.*$`).FindAllString(image, -1),
+			"%s must stamp the tag that triggered the run, and nothing else", docker)
+		assert.True(t, regexp.MustCompile(`(?m)^        uses: docker/bake-action@.*\n        env:\n(?:          #.*\n)*          BUILD_VERSION: `).MatchString(image),
+			"%s must set BUILD_VERSION in the bake step's env, where bake reads it", docker)
 	})
 
 	// The upgrade ledger records versions the node has to order against

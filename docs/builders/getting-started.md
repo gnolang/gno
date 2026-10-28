@@ -237,7 +237,7 @@ at least 2000ugnot. [Gas fees](../resources/gas-fees.md) explains both flags and
 how `-simulate only` sizes them.
 
 The signer at the end is the `alice` key you just created. You'll
-reuse it in the staging and testnet sections below.
+reuse it when you deploy to a shared network below.
 
 On success you'll see:
 
@@ -274,7 +274,7 @@ explicit `addpkg` transaction instead of hot-reload on file save.
 
 Pick a target network now and use it consistently. The faucet's
 network dropdown and every `gnokey` command's `-remote` and
-`-chainid` flags must match:
+[`-chainid`](../resources/gnoland-networks.md#network-configurations) flags must match:
 
 | Network    | `-chainid`   | `-remote`                                     |
 |------------|--------------|-----------------------------------------------|
@@ -283,31 +283,34 @@ network dropdown and every `gnokey` command's `-remote` and
 | Testnet    | `onyx-1`     | `https://rpc.onyx.testnets.gno.land:443`      |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
-Onyx is the current testnet: it runs mainnet's code (one release candidate ahead) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
+Onyx is the current testnet: it runs mainnet's code (each mainnet release first, as its release candidate) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
-Examples below use **staging** because it resets on a short cadence,
-fine for a throwaway first deploy. For anything you want to keep around,
-use the current **testnet** instead; staging wipes regularly and your
-realm will disappear with it. **Mainnet** (`gnoland-1`) is the production
-network: no faucet, and token transfers start locked per Constitution
-§126 — deploying there means holding GNOT from the genesis allocation.
+Examples below use the **testnet** through its `latest` endpoint, which
+always points at the current testnet. Its chain ID changes with each
+testnet, so put the current one in place of `<chain-id>`. The testnet
+upgrades in place with each release, so a realm you deploy there carries
+over from one release to the next.
+
+**Mainnet** (`gnoland-1`) is the production
+network: no faucet, and token transfers, locked at launch per Constitution
+§126, have since been unlocked by GovDAO: deploying there means holding
+unlocked GNOT, from the genesis allocation or a transfer.
 
 ### 1. Get test tokens
 
 Deploys cost [gas](../resources/gas-fees.md) and lock a
 [storage deposit](../resources/storage-deposit.md), both paid in `ugnot`. Get
 tokens from the faucet: go to **[faucet.gno.land](https://faucet.gno.land)**,
-paste your `g1…` address, pick a network, and submit. Tokens arrive in
-seconds. The
-faucet is rate-limited per address; wait out the cooldown if a
-re-request is rejected.
+paste your `g1…` address, pick the current testnet, and submit. Tokens
+arrive in seconds. The faucet is rate-limited per address; wait out the
+cooldown if a re-request is rejected.
 
 ### 2. Query on-chain
 
 Confirm the funds landed before spending them on a deploy:
 
 ```sh
-gnokey query bank/balances/<your-g1-addr> -remote https://rpc.staging.gno.land:443
+gnokey query bank/balances/<your-g1-addr> -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 Response shows your balance as `<amount>ugnot`. Read-only queries like this
@@ -326,9 +329,9 @@ on-chain first. See [Users and Teams](../resources/users-and-teams.md).
 **CLA.** Some networks require contributors to acknowledge and sign a
 [Contributor License Agreement](https://github.com/gnolang/gno/blob/master/CLA.md)
 before deploying. It is currently off on every network; check
-[betanet](https://gno.land/r/sys/cla) or
-[staging](https://staging.gno.land/r/sys/cla) to confirm. If `addpkg` ever
-fails with `has not signed the required CLA`, sign once at
+[mainnet](https://gno.land/r/sys/cla) or
+[the testnet](https://latest.testnets.gno.land/r/sys/cla) to confirm. If
+`addpkg` ever fails with `has not signed the required CLA`, sign once at
 [`r/sys/cla`](https://gno.land/r/sys/cla) and retry.
 
 ### 4. Deploy your package
@@ -341,7 +344,7 @@ gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
   -gas-fee 5000ugnot -gas-wanted 5000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 \
+  -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 \
   alice
 ```
 
@@ -367,12 +370,16 @@ The deposit is far bigger than the fee here, and that is normal for a deploy:
 every byte of code and state your package adds locks 100ugnot, 318700ugnot for
 the 3187 bytes above.
 
-The package is now live and browsable at
-**`https://staging.gno.land/r/<your-g1-addr>/myrealm`**. On the current
-testnet the URL is `https://onyx.testnets.gno.land/r/...` instead.
+The testnet enables a new package a few seconds after `addpkg`; if `call`
+fails right after a deploy, wait and retry.
+`https://gpao.latest.testnets.gno.land/status/<pkgpath>` says why a package
+was refused. It only knows packages submitted since its service last
+restarted, so if it still reads `unknown` after a minute, ask on
+[Discord](https://discord.com/invite/gnoland). Once enabled, the package is
+browsable at
+**`https://latest.testnets.gno.land/r/<your-g1-addr>/myrealm`**.
 
-Two optional flags are worth knowing about:
-- `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
+One optional flag is worth knowing about:
 - `-max-deposit <amount>ugnot`: cap the [storage deposit](../resources/storage-deposit.md)
   the chain may lock; a transaction needing more than the cap is refused. This
   deploy locked 318700ugnot, so `-max-deposit 400000ugnot` leaves room to
@@ -393,7 +400,7 @@ gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -func "Increment" \
   -gas-fee 2000ugnot -gas-wanted 2000000 \
-  -chainid staging -remote https://rpc.staging.gno.land:443 \
+  -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 \
   alice
 ```
 
@@ -418,8 +425,8 @@ To read the state without spending gas, query the realm's render:
 
 ```sh
 gnokey query vm/qrender \
-  -pkgpath "gno.land/r/<your-g1-addr>/myrealm" -data "" \
-  -remote https://rpc.staging.gno.land:443
+  -data "gno.land/r/<your-g1-addr>/myrealm:" \
+  -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 This returns the `Render` output ("Count: 1"), a free, read-only
@@ -428,7 +435,7 @@ reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
 
 ## Next steps
 
-1. [r/docs](https://staging.gno.land/r/docs): on-chain tour
+1. [r/docs](https://github.com/gnolang/gno/tree/master/examples/quarantined/gno.land/r/docs): example realms, one per concept
 2. [Effective Gno](../resources/effective-gno.md): idiomatic patterns
 3. [Example: the `minisocial` dApp](./tutorial-minisocial.md): end-to-end with deploy
 4. [Gas fees](../resources/gas-fees.md): pricing, estimation, and the "out of gas" fix

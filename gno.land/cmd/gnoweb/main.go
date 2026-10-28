@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -19,7 +21,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Authorized external image host providers.
+// Authorized external image host providers. docs/users/explore-with-gnoweb.md
+// lists them for users: keep the two in sync.
 var cspImgHost = []string{
 	// Gno-related hosts
 	"https://gnolang.github.io",
@@ -37,18 +40,19 @@ var cspImgHost = []string{
 	"https://github.com",
 	"https://*.githubusercontent.com",
 
-	// IPFS
-	"https://ipfs.io",
-	"https://cloudflare-ipfs.com",
+	// IPFS: the configured -ipfs-gateway is added at startup.
 }
 
 type webCfg struct {
+	canonicalOrigin  string
 	chainid          string
 	remote           string
 	remoteTimeout    time.Duration
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	ipfsGateway      string
+	indexerURL       string
 	aliases          string
 	trustedProxies   string
 	noDefaultAliases bool
@@ -60,12 +64,10 @@ type webCfg struct {
 	noStrict         bool
 	verbose          bool
 	noRealmNotice    bool
+	indexCommunity   gnoweb.CommunityIndex
+	noIndex          bool
 	trustedPaths     string
 }
-
-// defaultTrustedPaths are namespaces whose code the gno.land team reviews or
-// whose deploy key belongs to a party it vouches for; see the realm notice ADR.
-const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
 
 // The default realm notice, and the short variant shown below the lg
 // breakpoint. Each fits one line of the header row from 320px up where it is
@@ -77,12 +79,14 @@ const (
 )
 
 var defaultWebOptions = webCfg{
-	chainid:       "dev",
-	remote:        "127.0.0.1:26657",
-	bind:          ":8888",
-	remoteTimeout: time.Minute,
-	timeout:       time.Minute,
-	trustedPaths:  defaultTrustedPaths,
+	chainid:        "dev",
+	remote:         "127.0.0.1:26657",
+	bind:           ":8888",
+	remoteTimeout:  time.Minute,
+	timeout:        time.Minute,
+	trustedPaths:   gnoweb.DefaultTrustedPaths,
+	indexCommunity: gnoweb.NewDefaultAppConfig().IndexCommunity,
+	ipfsGateway:    gnoweb.DefaultIPFSGateway,
 }
 
 func main() {
@@ -99,6 +103,7 @@ func main() {
 Environment variables:
   GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
   GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_INDEXER_TOKEN      Optional bearer token sent to -indexer-url. Only needed for an endpoint behind authentication.
   GNOWEB_REALM_NOTICE_TEXT  Notice shown on package and user pages outside -trusted-paths (inline markdown,
                             no images). Max 400 chars, shown on up to two lines.
                             Unset or empty keeps the built-in text; a value with no visible text
@@ -140,6 +145,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.indexerURL,
+		"indexer-url",
+		defaultWebOptions.indexerURL,
+		"tx-indexer GraphQL endpoint enabling indexer-backed search qualifiers (transactions, account activity, source search). Empty (the default) keeps gnoweb talking only to its RPC node; indexer results are never consensus data.",
+	)
+
+	fs.StringVar(
 		&c.aliases,
 		"aliases",
 		defaultWebOptions.aliases,
@@ -150,7 +162,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedProxies,
 		"trusted-proxies",
 		defaultWebOptions.trustedProxies,
-		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins",
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins. Empty (the default) trusts nothing, which is correct when gnoweb is exposed directly and wrong behind a proxy — there every visitor resolves to the proxy and shares one rate-limit bucket.",
 	)
 
 	fs.BoolVar(
@@ -171,8 +183,28 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice; "+
-			"the default list assumes namespace enforcement as on mainnet (r/sys/names enabled), set it on other chains",
+		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official; only as safe as the chain's namespace enforcement (r/sys/names)",
+	)
+
+	fs.TextVar(
+		&c.indexCommunity,
+		"index-community",
+		defaultWebOptions.indexCommunity,
+		"which pages outside -trusted-paths search engines may index: none, registered (bare pages under a registered name) or all",
+	)
+
+	fs.StringVar(
+		&c.canonicalOrigin,
+		"canonical-origin",
+		defaultWebOptions.canonicalOrigin,
+		"public origin of this deployment, scheme included; empty emits no canonical, og:url, share image or sitemap",
+	)
+
+	fs.BoolVar(
+		&c.noIndex,
+		"no-index",
+		defaultWebOptions.noIndex,
+		"keep this deployment out of search engines (testnets, staging); never on mainnet",
 	)
 
 	fs.StringVar(
@@ -201,6 +233,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"faucet-url",
 		defaultWebOptions.faucetURL,
 		"The faucet URL will redirect the user when they access `/faucet`.",
+	)
+
+	fs.StringVar(
+		&c.ipfsGateway,
+		"ipfs-gateway",
+		defaultWebOptions.ipfsGateway,
+		"IPFS gateway origin that ipfs:// URLs, URLs on retired gateways (ipfs.io, dweb.link, ...) and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
 	)
 
 	fs.BoolVar(
@@ -253,6 +292,29 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+// setupTrust passes appcfg the trusted paths and, unless -no-realm-notice is
+// set, the realm notice. The trusted list also decides what a page's <head>
+// may repeat, so it applies with the notice off.
+func setupTrust(cfg *webCfg, appcfg *gnoweb.AppConfig, logger *slog.Logger) error {
+	appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
+	if cfg.noRealmNotice {
+		return nil
+	}
+	text, short := defaultRealmNoticeText, defaultRealmNoticeShort
+	if env := os.Getenv("GNOWEB_REALM_NOTICE_TEXT"); env != "" {
+		text, short = env, ""
+	}
+	notice, err := components.NewRealmNotice(text, short)
+	if err != nil {
+		return fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
+	}
+	if cfg.html {
+		logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
+	}
+	appcfg.RealmNotice = notice
+	return nil
+}
+
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup logger
 	level := zapcore.InfoLevel
@@ -272,6 +334,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
+	appcfg.CanonicalOrigin = cfg.canonicalOrigin
+	appcfg.IndexCommunity = cfg.indexCommunity
+	appcfg.NoIndex = cfg.noIndex
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
@@ -281,9 +346,15 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.IndexerURL = cfg.indexerURL
+	// Read from the environment only, so the credential never shows up in
+	// the process arguments (ps, /proc/<pid>/cmdline, container specs).
+	appcfg.IndexerToken = os.Getenv("GNOWEB_INDEXER_TOKEN")
 	if cfg.trustedProxies != "" {
+		// ParseTrustedProxies trims and skips empty entries itself.
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
+	appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
@@ -298,20 +369,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
 	}
 
-	if !cfg.noRealmNotice {
-		text, short := defaultRealmNoticeText, defaultRealmNoticeShort
-		if env := os.Getenv("GNOWEB_REALM_NOTICE_TEXT"); env != "" {
-			text, short = env, ""
-		}
-		notice, err := components.NewRealmNotice(text, short)
-		if err != nil {
-			return nil, fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
-		}
-		if cfg.html {
-			logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
-		}
-		appcfg.RealmNotice = notice
-		appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
+	if err := setupTrust(cfg, appcfg, logger); err != nil {
+		return nil, err
 	}
 
 	if cfg.noDefaultAliases {
@@ -340,8 +399,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
-	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	// Setup security headers. NewRouter normalized the IPFS gateway in place.
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.RenderConfig.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -390,7 +449,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
 			}
 
-			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+			aliases[parts[0]] = gnoweb.NewStaticAlias(string(content))
 		} else { // Otherwise, treat it as a normal alias.
 			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
 		}
@@ -399,13 +458,35 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+// ipfsGatewayImgSources returns the img-src sources an IPFS gateway origin
+// needs: the origin itself and, for a DNS name, the subdomains a subdomain
+// gateway redirects /ipfs/<cid> and /ipns/<name> to (<cid>.ipfs.<host>,
+// <name>.ipns.<host>), as Kubo does by default on localhost.
+func ipfsGatewayImgSources(origin string) []string {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	sources := []string{origin}
+	if net.ParseIP(u.Hostname()) == nil {
+		sources = append(sources, u.Scheme+"://*.ipfs."+u.Host, u.Scheme+"://*.ipns."+u.Host)
+	}
+	return sources
+}
+
+// SecureHeadersMiddleware sets the security headers. ipfsGateway is the
+// normalized IPFS gateway origin (empty if disabled); it is allowed as an
+// image source because rendered ipfs:// images point at it.
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
+	}
+	for _, src := range ipfsGatewayImgSources(ipfsGateway) {
+		imgSrc.WriteString(" " + src)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of
