@@ -38,15 +38,19 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
   hiding it until the link's `)`. A destination that may continue on the
   next line, or holds a title or `<…>`, is still skipped to its balanced
   `)` or the line end. A `(` left open in a destination read as no link
-  opens no link either (its destination ends at the same space), which
-  keeps the scan linear when such destinations nest.
+  opens no link either, its destination ending at the same space, unless
+  `<` follows it (after optional spaces): a `<…>` destination may hold
+  spaces, so the outer destination is then skipped whole, as before.
+  Remembering those `(` keeps the scan linear when destinations nest.
 - A search stopped at the `](` of the label the expression opened in does
   not go on to the next line: `[Send $10](…)` then `Balance: 100$` stays a
   link and text.
 - Carry a code span the opener's line leaves open into the next line's
   search, and look for a same-line closer of a display block with the
   inline parser's finder, so a code span hides a closer from the block
-  parser too (``$$ a `$$` b`` opens a block).
+  parser too (``$$ a `$$` b`` opens a block). So does a link destination:
+  `$$ [l](/r/x$$y) b`, then `c`, then `$$` now opens a display block that
+  holds the link as TeX; nothing is cut.
 - Keep the escape set's explanation in `markdown.go` only: stdlib `.gno`
   files are part of genesis, and even a comment change there moves the app
   hash pinned by `TestAppHashCrossrealm38`.
@@ -84,7 +88,11 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
   line to the next only. One opened on the opener's line and closed on the
   next does not hide a closer that follows it on the opener's line
   (``\\(a `x\\)`` then ``b` c\\)``): telling would need the next line
-  for every opener, outside the search cache.
+  for every opener, outside the search cache. And only the first backtick
+  run the opener's line leaves open is carried: when it stays literal and a
+  later one closes on the next line, the code span is cut, as on master
+  (``\\(a ``x `y`` then ``b\\) c` d\\)`` reads `a ``x `y⏎b`). Carrying
+  every open run would cost a set of run lengths in the search cache.
 - Known limit: `EscapeInline` turns a trailing `\` into `\\`, so a realm
   that writes `(` or `[` right after a sanitized value
   (`sanitize.InlineText(name) + "("`) can form a `\\(` or `\\[` opener; a
