@@ -13,11 +13,21 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
+// repoPath returns the absolute path of a file given by its path relative to
+// the repository root.
+func repoPath(t *testing.T, rel string) string {
+	t.Helper()
+
+	p, err := filepath.Abs(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	require.NoError(t, err)
+	return p
+}
+
 // repoFile reads a file by its path relative to the repository root.
 func repoFile(t *testing.T, rel string) string {
 	t.Helper()
 
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	b, err := os.ReadFile(repoPath(t, rel))
 	require.NoError(t, err, "%s — has it moved? The release tooling is checked against this package.", rel)
 	return string(b)
 }
@@ -46,7 +56,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 	const (
 		cutRelease = "misc/release/cut-release.sh"
 		bumpProto  = "misc/release/bump-protocol-version.sh"
-		setHalt    = "misc/govdao-scripts/set-halt.sh"
+		setHalt    = setHaltScript
 		workflow   = ".github/workflows/release-chain-tag.yml"
 	)
 
@@ -108,9 +118,24 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// set-halt.sh is the one a human runs to set the floor, so a looser
 		// shape there reaches the chain without passing the other two at all.
-		haltRE := grepOne(t, setHalt, `(?m)^  VERSION_RE='(.+)'$`)
+		// It defines the shape at the top, readonly, as cut-release.sh does:
+		// the script runs without set -u, and on Linux an unset VERSION_RE in
+		// [[ =~ ]] matches every version.
+		haltRE := grepOne(t, setHalt, `(?m)^readonly VERSION_RE='(.+)'$`)
 		assert.Equal(t, shapeRE, haltRE,
 			"%s accepts a different shape than %s; it writes halt_min_version directly", setHalt, cutRelease)
+
+		// The shape's bracket ranges follow the locale's collation: under
+		// en_US.UTF-8 on glibc, [A-Za-z] also matches letters such as é, which
+		// parseReleaseVersion refuses. Each script checks in the C locale.
+		export := regexp.MustCompile(`(?m)^export LC_ALL=C$`)
+		for _, script := range []string{cutRelease, bumpProto, setHalt} {
+			src := repoFile(t, script)
+			if loc := export.FindStringIndex(src); assert.NotNil(t, loc, "%s must export LC_ALL=C", script) {
+				assert.Less(t, loc[0], strings.Index(src, "=~"),
+					"%s must export LC_ALL=C before its first regex match", script)
+			}
+		}
 	})
 
 	// cut-release.sh's build check earns its place only by building the way the
@@ -183,6 +208,15 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			on := grepOne(t, path, `(?ms)^on:\n(.*?)^[^\s#]`)
 			assert.Regexp(t, `\A  push:\n    tags:\n      - ["']?v\*["']?\n+\z`, on, "%s must run on v* tag pushes only", path)
 		}
+
+		// A final release is cut on its last candidate's commit, so an image tag
+		// named after the commit would move from the candidate's images to the
+		// final's. Images carry their version tag only (and latest for the CLIs):
+		// the whole tag list is pinned, so no rule of any form can add one.
+		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
+		assert.Equal(t, "            type=ref,event=tag\n"+
+			"            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}\n",
+			tags, "%s must tag images by version only, and latest for the CLIs, never by commit", docker)
 
 		// Every line that names TAG other than to expand it, comments aside:
 		// an env key in any YAML style, an assignment, a read, a loop variable

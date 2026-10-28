@@ -35,7 +35,7 @@ Gno targets the Go 1.17 language specification. Concretely, this means:
 | go          | missing (after launch) |
 | goto        | full                   |
 | if          | full                   |
-| import      | full                   |
+| import      | full (except `.`)      |
 | interface   | full                   |
 | package     | full                   |
 | range       | full                   |
@@ -47,6 +47,13 @@ Gno targets the Go 1.17 language specification. Concretely, this means:
 | var         | full                   |
 
 Generics are currently not implemented.
+
+Note that Gno does not support [dot imports](https://go.dev/ref/spec#Import_declarations)
+(`import . "pkg"`). An ordinary import contributes one package name to file scope;
+a dot import would inject the dependency's entire exported surface into that scope.
+Deployed packages are immutable while dependencies can gain exports, so a newly
+exported name could later shadow or collide with a name in an already-deployed
+importer.
 
 ## Reserved identifiers
 
@@ -337,10 +344,8 @@ Legend:
   `ReadUvarint`) plus the `ByteOrder`/`AppendByteOrder` interfaces and the
   `BigEndian`/`LittleEndian` values. The reflection-based helpers (`Read`,
   `Write`, `Size`) depend on `reflect` (see [^9]).
-[^8]: `errors` currently ships `New` only. `Is`, `As`, `Unwrap`, and `Join`
-  are not yet available; tracked by issue
-  [#486](https://github.com/gnolang/gno/issues/486) and PR
-  [#5385](https://github.com/gnolang/gno/pull/5385) (`Is`, `Unwrap`, `Join`).
+[^8]: `errors` ships `New`, `Is`, `Unwrap`, and `Join`. `As` is not yet
+  available, since it needs `reflect` (see [^9]).
 [^9]: like many other encoding packages, `fmt` depends on `reflect` to be added.
   For now, package `gno.land/p/nt/ufmt/v0` may do what you need. In test
   functions, `fmt` works.

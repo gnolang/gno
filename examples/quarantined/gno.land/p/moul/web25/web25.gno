@@ -26,7 +26,7 @@ func (c *Config) SetRemoteFrontendByCID(cid string) {
 
 func (c Config) GetLink() string {
 	if c.CID != "" {
-		return "https://ipfs.io/ipfs/" + c.CID
+		return "ipfs://" + c.CID // gnoweb resolves it through its IPFS gateway
 	}
 	return c.URL
 }
