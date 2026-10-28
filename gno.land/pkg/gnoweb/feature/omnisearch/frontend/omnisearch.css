@@ -177,8 +177,14 @@
 	& ul {
 		row-gap: var(--g-space-1-5);
 		list-style: none;
-		margin: 0 0 var(--g-space-4);
+		margin: 0 0 var(--g-space-3);
 		padding: 0;
+	}
+
+	/* A rule between groups, as in the omnibar. */
+	& ul + .b-omni-hints__title {
+		padding-block-start: var(--g-space-3);
+		border-block-start: var(--s-border);
 	}
 
 	& li {
@@ -216,7 +222,12 @@
 }
 
 /* Flat, as in the omnibar: a pill does not make its row taller. */
+/* The omnibar's quiet outline, not the results' filled pill. */
 .b-omni-hints li > .b-tag--indexer {
 	grid-column: 3;
 	padding-block: 0;
+	border-color: var(--s-color-border-tertiary);
+	background-color: transparent;
+	color: var(--s-color-text-secondary);
+	font-family: inherit;
 }
