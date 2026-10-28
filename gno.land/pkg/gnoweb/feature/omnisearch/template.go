@@ -27,14 +27,14 @@ var funcMap = template.FuncMap{
 	// hintRow is one keyword of the rail. On a package page, a keyword that
 	// takes no argument links to its own answer there.
 	"hintRow": func(sel *Selector, pkgPath string) hintRow {
-		row := hintRow{Hint: sel.Hint, Label: sel.Label, Indexer: sel.Source == SourceIndexer}
+		row := hintRow{Hint: sel.Hint, Label: sel.Help, Indexer: sel.Source == SourceIndexer}
 		if sel.Bare {
 			row.Href = keywordHref(pkgPath, sel.Name)
 		}
 		return row
 	},
 	// filterRow is one narrowing keyword of the rail: chain-answered, no link.
-	"filterRow": func(f FilterKeyword) hintRow { return hintRow{Hint: f.Hint, Label: f.Label} },
+	"filterRow": func(f FilterKeyword) hintRow { return hintRow{Hint: f.Hint, Label: f.Help} },
 	// shortDetail cuts an opaque detail (an address, a hash) in its middle,
 	// where neither end a reader recognizes it by is lost. Prose (a synopsis,
 	// a render snippet) is left whole; the stylesheet ellipsizes it.

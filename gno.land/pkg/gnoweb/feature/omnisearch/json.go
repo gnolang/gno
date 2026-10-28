@@ -31,6 +31,7 @@ type jsonSelector struct {
 	Name   string `json:"name"`
 	Hint   string `json:"hint"`
 	Label  string `json:"label"`
+	Help   string `json:"help"`
 	Scope  Scope  `json:"scope"`
 	Source Source `json:"source"`
 	Bare   bool   `json:"bare,omitempty"`
@@ -41,7 +42,7 @@ type jsonSelector struct {
 type jsonFilter struct {
 	Name     string   `json:"name"`
 	Hint     string   `json:"hint"`
-	Label    string   `json:"label"`
+	Help     string   `json:"help"`
 	Values   []string `json:"values,omitempty"`
 	Complete string   `json:"complete,omitempty"`
 }
@@ -81,7 +82,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	for _, s := range data.Selectors {
 		js := jsonSelector{
-			Name: s.Name, Hint: s.Hint, Label: s.Label,
+			Name: s.Name, Hint: s.Hint, Label: s.Label, Help: s.Help,
 			Scope: s.Scope, Source: s.Source, Bare: s.Bare,
 		}
 		if s.Accepts != nil {

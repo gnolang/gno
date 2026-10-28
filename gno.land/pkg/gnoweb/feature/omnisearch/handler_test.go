@@ -72,8 +72,14 @@ func TestServeJSONShape(t *testing.T) {
 		t.Fatalf("filters = %d, want %d", len(resp.Filters), len(filterKeywords))
 	}
 	for _, f := range resp.Filters {
-		if f.Hint == "" || f.Label == "" {
-			t.Errorf("filter %+v: no hint or label to show", f)
+		if f.Hint == "" || f.Help == "" {
+			t.Errorf("filter %+v: no hint or help to show", f)
+		}
+	}
+	// Each keyword says what it does: the omnibar shows nothing else.
+	for _, s := range append(chainSelectors(), indexerSelectors()...) {
+		if s.Help == "" {
+			t.Errorf("selector %q has no help", s.Name)
 		}
 	}
 }

@@ -42,7 +42,7 @@ const (
 // FilterKeyword describes a narrowing qualifier for the keyword lists: the
 // results page's and the omnibar's, so both offer the same ones.
 type FilterKeyword struct {
-	Name, Hint, Label string
+	Name, Hint, Help string
 
 	// Values is every value the filter takes, when there are few.
 	Values []string
@@ -55,9 +55,9 @@ type FilterKeyword struct {
 // filterKeywords is the one list of narrowing qualifiers: isNarrowing reads
 // it, so a keyword cannot be offered without being accepted.
 var filterKeywords = []FilterKeyword{
-	{Name: FilterAuthor, Hint: "author:<name>", Label: "Only this namespace or deployer", Complete: "namespace"},
-	{Name: FilterIn, Hint: "in:/r/<path>", Label: "Only this package", Complete: "path"},
-	{Name: FilterIs, Hint: "is:realm", Label: "Only realms, or only packages", Values: []string{"realm", "package"}},
+	{Name: FilterAuthor, Hint: "author:<name>", Help: "Only this namespace or deployer", Complete: "namespace"},
+	{Name: FilterIn, Hint: "in:/r/<path>", Help: "Only this package", Complete: "path"},
+	{Name: FilterIs, Hint: "is:realm", Help: "Only realms, or only packages", Values: []string{"realm", "package"}},
 }
 
 func isNarrowing(key string) bool {
@@ -71,8 +71,11 @@ type Selector struct {
 	Name string
 
 	// Hint is the form shown in the omnibar's suggestion list.
-	Hint  string
+	Hint string
+	// Label heads the selector's results group; Help says what it does,
+	// beside the hint in the keyword lists.
 	Label string
+	Help  string
 	Scope Scope
 
 	// Source is stamped by register from the table the selector is in, not
