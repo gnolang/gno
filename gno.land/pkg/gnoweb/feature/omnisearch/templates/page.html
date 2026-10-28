@@ -115,20 +115,34 @@ cannot reach.
 {{/* ===================================================================================
 UI - Search keywords
 
-What the search bar understands besides a plain word, split by where it works:
-anywhere, or on a package page, where the package is the subject. The honest
-inventory of this deployment: indexer keywords are absent when no indexer is
-configured, so the rail never offers something the server will refuse. On a
-package page, a keyword that takes no argument is a link that runs it.
+What the search bar understands besides a plain word, grouped as the omnibar
+groups it: by what a keyword does, then those that work on a package page,
+where the package is the subject. The honest inventory of this deployment:
+indexer keywords are absent when no indexer is configured, so the rail never
+offers something the server will refuse. On a package page, a keyword that
+takes no argument is a link that runs it.
 =================================================================================== */}}
 {{ define "omnisearch/hints" }}
 <section class="b-omni-hints" aria-labelledby="omni-hints-heading">
   <h2 id="omni-hints-heading" class="b-sidebar-heading">Search keywords</h2>
   <p class="b-omni-hints__intro">Type a keyword in the search bar, followed by what you look for.</p>
 
-  <h3 class="b-omni-hints__title">Anywhere</h3>
+  {{ with inGroup .Selectors "text" }}
+  <h3 class="b-omni-hints__title">Find text</h3>
   <ul>
-    {{ range .Selectors }}{{ if ne .Scope "package" }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}{{ end }}
+    {{ range . }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}
+  </ul>
+  {{ end }}
+
+  {{ with inGroup .Selectors "lookup" }}
+  <h3 class="b-omni-hints__title">Look up</h3>
+  <ul>
+    {{ range . }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}
+  </ul>
+  {{ end }}
+
+  <h3 class="b-omni-hints__title">Narrow results</h3>
+  <ul>
     {{ range .Filters }}{{ template "omnisearch/hint" (filterRow .) }}{{ end }}
   </ul>
 

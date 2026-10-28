@@ -15,6 +15,9 @@ type Selector = {
 	// What the keyword does, shown beside its hint.
 	help?: string;
 	scope: string;
+	// The keyword lists' heading for one that works anywhere: a key of
+	// KEYWORD_GROUPS. Filters are "narrow".
+	group?: string;
 	source: string;
 	bare?: boolean;
 	// A value this selector answers typed alone (a pasted address), as a
@@ -130,6 +133,13 @@ const MIN_QUERY_LENGTH = 2;
 const RESULTS_PER_GROUP = 5;
 // Keyword rows sit above the results while typing: a hint, not the answer.
 const MAX_KEYWORD_ROWS = 4;
+// The headings of the keywords that work anywhere, in the order shown. The
+// server says which group a keyword is in; the results page uses the same.
+const KEYWORD_GROUPS: Record<string, string> = {
+	text: "Find text",
+	lookup: "Look up",
+	narrow: "Narrow results",
+};
 const MAX_PAGE_MATCHES = 10;
 const SNIPPET_RADIUS = 32;
 const SEARCH_DELAY = 120;
@@ -394,6 +404,7 @@ export class SearchbarController extends BaseController {
 				...f,
 				label: f.help,
 				scope: "global",
+				group: "narrow",
 				source: "chain",
 			})),
 		].filter((k) => scoped || k.scope !== "package");
@@ -409,13 +420,20 @@ export class SearchbarController extends BaseController {
 
 	// showKeywords opens an untouched bar on what it can do: on a package
 	// page the keywords about it, those that run alone first; then a few
-	// that work anywhere, and the page that lists them all with examples.
-	// It reports whether there was anything to show.
+	// that work anywhere, under what they do, and the page that lists them
+	// all with examples. It reports whether there was anything to show.
 	private showKeywords(): boolean {
 		const all = this.keywords();
 		if (all.length === 0) return false;
 		const local = all.filter((k) => k.scope === "package");
-		const global = all.filter((k) => k.scope !== "package");
+		const order = Object.keys(KEYWORD_GROUPS);
+		const rank = (k: Keyword): number => {
+			const i = order.indexOf(k.group ?? "");
+			return i < 0 ? order.length : i;
+		};
+		const global = all
+			.filter((k) => k.scope !== "package")
+			.sort((a, b) => rank(a) - rank(b));
 		const sections: ChoiceSection[] = [];
 		if (this.packagePath() && local.length > 0) {
 			local.sort((a, b) => Number(!!b.bare) - Number(!!a.bare));
@@ -425,23 +443,21 @@ export class SearchbarController extends BaseController {
 			});
 			global.splice(MAX_KEYWORD_ROWS);
 		}
-		sections.push({
-			label: sections.length > 0 ? "Anywhere" : "Search keywords",
-			choices: global.map((k) => this.keywordChoice(k)),
-		});
+		for (const k of global) {
+			const label = KEYWORD_GROUPS[k.group ?? ""] ?? "Anywhere";
+			const last = sections[sections.length - 1];
+			if (last?.label === label) last.choices.push(this.keywordChoice(k));
+			else sections.push({ label, choices: [this.keywordChoice(k)] });
+		}
 
 		// A run still waiting on the network must not draw over the help.
 		this.runId++;
 		this.inflight?.abort();
 		const results = this.beginDraw();
 		if (!results) return false;
-		results.appendChild(
-			this.buildNotice("Keywords narrow the search. Pick one or type it."),
-		);
+		results.appendChild(this.buildKeywordsHead());
 		for (const s of sections) results.appendChild(this.buildChoiceSection(s));
-		results.appendChild(
-			this.buildLinkSection("Help", "All keywords and examples", "/$search"),
-		);
+		results.appendChild(this.buildKeywordsFoot());
 		this.helping = true;
 		this.listToken = this.caretToken().text;
 		this.endDraw(results);
@@ -479,7 +495,9 @@ export class SearchbarController extends BaseController {
 			.map((v) => ({ title: v, complete: `${k.name}:${v} ` }));
 		// What the value is, from the hint: `account:<address>`.
 		const expected = /<([^>]+)>/.exec(k.hint)?.[1];
-		const notice = !value && expected ? `Type the ${expected}` : undefined;
+		// A fixed set of values is listed instead: `is:` says realm or package.
+		const notice =
+			!value && expected && !k.values ? `Type the ${expected}` : undefined;
 		if (choices.length === 0 && !notice) return none;
 		const label = k.source === "indexer" ? `${k.label}, from indexer` : k.label;
 		return {
@@ -792,26 +810,14 @@ export class SearchbarController extends BaseController {
 		r: SearchResult,
 		q: string,
 		group: SearchGroup,
-		choice?: Choice,
 	): HTMLElement {
 		const linkable = r.href?.startsWith("/") ?? false;
-		const item = document.createElement(
-			linkable ? "a" : choice ? "button" : "div",
-		);
+		const item = document.createElement(linkable ? "a" : "div");
 		item.className = "b-omnisearch-item";
 		item.setAttribute("role", "option");
 
 		if (linkable && r.href) {
 			(item as HTMLAnchorElement).href = r.href;
-		} else if (choice) {
-			(item as HTMLButtonElement).type = "button";
-			item.classList.add("b-omnisearch-choice");
-			item.dataset.complete = choice.complete;
-			item.addEventListener("click", () =>
-				choice.run
-					? this.runKeyword(choice.complete)
-					: this.complete(choice.complete),
-			);
 		} else {
 			// Announced but unreachable by the arrow keys — a transaction has
 			// no page in gnoweb — so it must not inflate the option count.
@@ -827,10 +833,7 @@ export class SearchbarController extends BaseController {
 
 		const text = document.createElement("span");
 		text.className = "b-omnisearch-text";
-		// What a choice inserts is set as typed: monospace.
-		const title = choice ? document.createElement("code") : text;
-		this.fillHighlighted(title, r.title, q);
-		if (title !== text) text.appendChild(title);
+		this.fillHighlighted(text, r.title, q);
 		if (r.detail) {
 			const detail = document.createElement("small");
 			detail.textContent = ` ${r.detail}`;
@@ -838,40 +841,127 @@ export class SearchbarController extends BaseController {
 		}
 		item.appendChild(text);
 
-		if (indexer) {
-			const pill = document.createElement("span");
-			pill.className = "b-tag b-tag--indexer";
-			pill.textContent = "indexer";
-			pill.title = "From an indexer, not from the chain";
-			pill.setAttribute("aria-hidden", "true");
-			item.appendChild(pill);
-		}
-		// Every choice keeps the slot, so the provenance pills line up.
-		if (choice) {
-			const run = document.createElement("kbd");
-			run.className = "b-omnisearch-run";
-			run.setAttribute("aria-hidden", "true");
-			item.appendChild(run);
-			if (choice.run) {
-				run.textContent = "↵";
-				run.title = "Runs the search at once";
-				item.appendChild(this.srOnly(", runs at once"));
-			}
-		}
+		if (indexer) item.appendChild(this.buildIndexerPill());
 
-		if (linkable || choice) this.items.push(item);
+		if (linkable) this.items.push(item);
 		return item;
 	}
 
+	// buildChoice renders a suggestion: what it inserts, set as typed, in a
+	// column the panel shares so the descriptions line up beside it. pill
+	// marks an indexer row whose group does not already say so.
+	private buildChoice(c: Choice, q: string, pill: boolean): HTMLElement {
+		const item = document.createElement("button");
+		item.type = "button";
+		item.className = "b-omnisearch-item b-omnisearch-choice";
+		item.setAttribute("role", "option");
+		item.dataset.complete = c.complete;
+		item.addEventListener("click", () =>
+			c.run ? this.runKeyword(c.complete) : this.complete(c.complete),
+		);
+		const indexer = c.source === "indexer";
+		if (indexer) item.appendChild(this.srOnly("from indexer: "));
+
+		// The keyword's name is what to read; the value it takes, muted.
+		const syntax = document.createElement("code");
+		syntax.className = "b-omnisearch-syntax";
+		const at = c.title.indexOf(":");
+		this.fillHighlighted(syntax, at < 0 ? c.title : c.title.slice(0, at), q);
+		if (at >= 0) {
+			const arg = document.createElement("span");
+			arg.className = "b-omnisearch-arg";
+			arg.textContent = c.title.slice(at).replace(/<([^>]*)>/g, "‹$1›");
+			syntax.appendChild(arg);
+		}
+		item.appendChild(syntax);
+		if (c.detail) {
+			const detail = document.createElement("span");
+			detail.className = "b-omnisearch-detail";
+			detail.textContent = ` ${c.detail}`;
+			item.appendChild(detail);
+		}
+
+		if (indexer && pill) item.appendChild(this.buildIndexerPill());
+		if (c.run) {
+			const run = document.createElement("kbd");
+			run.className = "b-omnisearch-run";
+			run.setAttribute("aria-hidden", "true");
+			run.textContent = "↵";
+			run.title = "Runs the search at once";
+			item.appendChild(run);
+			item.appendChild(this.srOnly(", runs at once"));
+		}
+
+		this.items.push(item);
+		return item;
+	}
+
+	// buildChoiceSection says once, in its label, that a group comes from
+	// the indexer when all of it does; a mixed one marks its indexer rows.
 	private buildChoiceSection(s: ChoiceSection): HTMLElement {
-		const section = this.sectionWithLabel(s.label);
+		const shared =
+			s.choices.length > 0 && s.choices.every((c) => c.source === "indexer");
+		const section = this.sectionWithLabel(
+			shared ? `${s.label} · from the indexer` : s.label,
+		);
 		if (s.notice) section.appendChild(this.buildNotice(s.notice));
 		for (const c of s.choices) {
-			const r = { title: c.title, detail: c.detail };
-			const group = { label: s.label, source: c.source ?? "chain" };
-			section.appendChild(this.buildItem(r, s.highlight ?? "", group, c));
+			section.appendChild(this.buildChoice(c, s.highlight ?? "", !shared));
 		}
 		return section;
+	}
+
+	// buildKeywordsHead titles the keyword panel and says how to use it. The
+	// keys are what the combobox pattern already announces, so it is hidden
+	// from assistive technology, as the group labels are.
+	private buildKeywordsHead(): HTMLElement {
+		const head = document.createElement("div");
+		head.className = "b-omnisearch-head";
+		head.setAttribute("aria-hidden", "true");
+		const title = document.createElement("span");
+		title.className = "b-omnisearch-title";
+		title.textContent = "Search keywords";
+		const keys = document.createElement("span");
+		keys.className = "b-omnisearch-keys";
+		[
+			["↑↓", " move · "],
+			["Tab", " insert · "],
+			["↵", " search"],
+		].forEach(([key, what]) => {
+			const kbd = document.createElement("kbd");
+			kbd.className = "b-tag";
+			kbd.textContent = key;
+			keys.append(kbd, what);
+		});
+		head.append(title, keys);
+		return head;
+	}
+
+	// buildKeywordsFoot links the page that lists every keyword with
+	// examples: one quiet row, an option the arrow keys reach.
+	private buildKeywordsFoot(): HTMLElement {
+		const item = document.createElement("a");
+		item.className = "b-omnisearch-item b-omnisearch-foot";
+		item.setAttribute("role", "option");
+		item.href = "/$search";
+		item.textContent = "All keywords and examples ";
+		const arrow = document.createElement("span");
+		arrow.setAttribute("aria-hidden", "true");
+		arrow.textContent = "→";
+		item.appendChild(arrow);
+		this.items.push(item);
+		return item;
+	}
+
+	// buildIndexerPill is the visible half of a row's provenance; the
+	// "from indexer:" text before the row's name is the spoken half.
+	private buildIndexerPill(): HTMLElement {
+		const pill = document.createElement("span");
+		pill.className = "b-tag b-tag--indexer";
+		pill.textContent = "indexer";
+		pill.title = "From an indexer, not from the chain";
+		pill.setAttribute("aria-hidden", "true");
+		return pill;
 	}
 
 	// buildTag marks the on-chain kind (r/p/u) a row leads to. The path

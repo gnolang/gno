@@ -33,6 +33,7 @@ type jsonSelector struct {
 	Label  string `json:"label"`
 	Help   string `json:"help"`
 	Scope  Scope  `json:"scope"`
+	Group  string `json:"group,omitempty"`
 	Source Source `json:"source"`
 	Bare   bool   `json:"bare,omitempty"`
 	// Accepts is Selector.Accepts as a pattern the omnibar can test.
@@ -83,7 +84,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 	for _, s := range data.Selectors {
 		js := jsonSelector{
 			Name: s.Name, Hint: s.Hint, Label: s.Label, Help: s.Help,
-			Scope: s.Scope, Source: s.Source, Bare: s.Bare,
+			Scope: s.Scope, Group: s.Group, Source: s.Source, Bare: s.Bare,
 		}
 		if s.Accepts != nil {
 			js.Accepts = s.Accepts.String()

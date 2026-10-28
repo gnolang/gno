@@ -28,9 +28,14 @@ printed them from three hardcoded lines of its template.
 - Focusing an untouched bar (empty, or still holding the prefilled path)
   opens the keyword help: on a realm or package page, the package's keywords,
   those that run alone first, under "On this package"; then up to four that
-  work anywhere; elsewhere, every keyword that works anywhere. A last row
-  links `/$search`, whose popover lists them all and whose rail has examples.
-  One line above says what keywords are for.
+  work anywhere; elsewhere, every keyword that works anywhere. Those are
+  grouped by what they do: "Find text" (`render:`, `content:`), "Look up"
+  (`tx:`, `account:`, `block:`) and "Narrow results" (the filters). The
+  group comes from the server, a `group` field on each selector ("text" or
+  "lookup"; filters are "narrow"), so the controller still names no keyword;
+  the results page's popover groups the same way. A header row titles the
+  panel and gives the keys (↑↓, Tab, ↵); a quiet last row links `/$search`,
+  whose popover lists them all and whose rail has examples.
   The `/` shortcut now opens the same help instead of a path search for the
   prefilled path.
 - Typing: when the word under the caret starts a keyword name, up to four
@@ -54,12 +59,18 @@ printed them from three hardcoded lines of its template.
 - Tab completes only from a list drawn for the token under the caret, and
   not while a keystroke still waits for its search: a list drawn for `acc`
   must not complete `accx`, nor the word the caret moved to.
-- Suggestions are `<button role="option">` rows built by the existing
-  `buildItem`, so they join the arrow-key list and `aria-activedescendant`.
-  A row starts with the keyword, in monospace as it will read once typed,
-  then what it does; every row starts at the same edge. Marks trail: a
-  `b-tag--indexer` pill, the results page's, for indexer provenance, and a
-  `↵` for a keyword that runs at once, each spoken by sr-only text. Indexer
+- Suggestions are `<button role="option">` rows (`buildChoice`), so they
+  join the arrow-key list and `aria-activedescendant`. A row is the keyword,
+  in monospace at the body's size, its name in the primary colour and the
+  value it takes (`:‹text›`) muted, then what it does. From 480px the rows
+  share the dropdown's columns through CSS subgrid, so every description
+  starts at the same edge; below, the description goes under the keyword.
+  Marks trail: a `b-tag--indexer` pill for indexer provenance, and a `↵`
+  for a keyword that runs at once, each spoken by sr-only text. When every
+  row of a group is from the indexer, its label says so once ("Look up ·
+  from the indexer") and the rows drop the pill; the spoken text stays on
+  each row. In the dropdown the pill takes the tertiary surface: the note
+  tint it has on the results page is the dropdown's own colour in dark. Indexer
   result rows trade their leading `i` square for the same pill, which read
   as a bar and shifted those rows; the r/p/u squares stay, they lead to
   a page of that kind. A `mousedown` on the listbox no longer
@@ -84,9 +95,14 @@ printed them from three hardcoded lines of its template.
 
 ## Consequences
 
-- The JSON answer gains `filters`; the `is:` label changes from "only
-  realms, or is:package" to "Only realms, or only packages", and the filter
-  labels are capitalised like the selectors'.
+- The JSON answer gains `filters`, and each selector a `group`; the `is:`
+  label changes from "only realms, or is:package" to "Only realms, or only
+  packages", and the filter labels are capitalised like the selectors'.
+- The hints say what they take: `is:<realm|package>`, `in:<path>` (with "One
+  package (/r/… or /p/…)"), and the lookups' help drops what the hint and
+  the group already say ("A transaction", "A block").
+- The dropdown's section labels move from the tertiary to the secondary text
+  colour: tertiary at 12px is under 4.5:1 on the light dropdown.
 - `in:` value suggestions repeat the scoped discovery rows below them: the
   first completes the query, the second navigates.
 - The `/` shortcut runs a path search for the prefilled path only when there

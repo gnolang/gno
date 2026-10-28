@@ -24,8 +24,9 @@ func indexerSelectors() []*Selector {
 			Name:  "tx",
 			Hint:  "tx:<hash>",
 			Label: "Transaction",
-			Help:  "A transaction by hash",
+			Help:  "A transaction",
 			Scope: ScopeGlobal,
+			Group: GroupLookup,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				tx, err := h.deps.Indexer.TxByHash(ctx, term)
 				if err != nil {
@@ -40,6 +41,7 @@ func indexerSelectors() []*Selector {
 			Label:   "Account activity",
 			Help:    "An account's activity",
 			Scope:   ScopeGlobal,
+			Group:   GroupLookup,
 			Accepts: addressPattern,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				// A partial address never matches, yet walks every height
@@ -56,8 +58,9 @@ func indexerSelectors() []*Selector {
 			Name:  "block",
 			Hint:  "block:<height>",
 			Label: "Block",
-			Help:  "A block by height",
+			Help:  "A block",
 			Scope: ScopeGlobal,
+			Group: GroupLookup,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				height, err := strconv.Atoi(term)
 				if err != nil || height < 0 {
@@ -112,6 +115,7 @@ func indexerSelectors() []*Selector {
 			Label: "Source code",
 			Help:  "Text in deployed source code",
 			Scope: ScopeGlobal,
+			Group: GroupText,
 			// A short term scans every deployed file body on the chain. The
 			// CPU is the indexer's, but gnoweb is the amplifier.
 			MinTerm:  4,

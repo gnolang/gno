@@ -33,6 +33,17 @@ var funcMap = template.FuncMap{
 		}
 		return row
 	},
+	// inGroup is the keywords that work anywhere listed under one heading,
+	// as the omnibar lists them.
+	"inGroup": func(sels []*Selector, group string) []*Selector {
+		var out []*Selector
+		for _, s := range sels {
+			if s.Scope != ScopePackage && s.Group == group {
+				out = append(out, s)
+			}
+		}
+		return out
+	},
 	// filterRow is one narrowing keyword of the rail: chain-answered, no link.
 	"filterRow": func(f FilterKeyword) hintRow { return hintRow{Hint: f.Hint, Label: f.Help} },
 	// shortDetail cuts an opaque detail (an address, a hash) in its middle,

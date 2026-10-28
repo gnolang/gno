@@ -76,10 +76,19 @@ func TestServeJSONShape(t *testing.T) {
 			t.Errorf("filter %+v: no hint or help to show", f)
 		}
 	}
-	// Each keyword says what it does: the omnibar shows nothing else.
+	// Each keyword says what it does: the omnibar shows nothing else. One
+	// that works anywhere also says where it is listed, or no list shows it.
 	for _, s := range append(chainSelectors(), indexerSelectors()...) {
 		if s.Help == "" {
 			t.Errorf("selector %q has no help", s.Name)
+		}
+		if s.Scope == ScopeGlobal && s.Group != GroupText && s.Group != GroupLookup {
+			t.Errorf("selector %q: group %q, want text or lookup", s.Name, s.Group)
+		}
+	}
+	for _, s := range resp.Selectors {
+		if s.Scope == ScopeGlobal && s.Group == "" {
+			t.Errorf("selector %q sent without its group", s.Name)
 		}
 	}
 }

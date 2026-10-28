@@ -55,14 +55,24 @@ type FilterKeyword struct {
 // filterKeywords is the one list of narrowing qualifiers: isNarrowing reads
 // it, so a keyword cannot be offered without being accepted.
 var filterKeywords = []FilterKeyword{
-	{Name: FilterAuthor, Hint: "author:<name>", Help: "Only this namespace or deployer", Complete: "namespace"},
-	{Name: FilterIn, Hint: "in:/r/<path>", Help: "Only this package", Complete: "path"},
-	{Name: FilterIs, Hint: "is:realm", Help: "Only realms, or only packages", Values: []string{"realm", "package"}},
+	{Name: FilterAuthor, Hint: "author:<name>", Help: "One namespace or deployer", Complete: "namespace"},
+	{Name: FilterIn, Hint: "in:<path>", Help: "One package (/r/… or /p/…)", Complete: "path"},
+	{Name: FilterIs, Hint: "is:<realm|package>", Help: "Only realms, or only packages", Values: []string{"realm", "package"}},
 }
 
 func isNarrowing(key string) bool {
 	return slices.ContainsFunc(filterKeywords, func(f FilterKeyword) bool { return f.Name == key })
 }
+
+// The keyword lists group the keywords that work anywhere by what they do;
+// narrowing qualifiers are a group of their own. The scope already groups
+// those about a package.
+const (
+	// GroupText searches text: rendered pages, deployed source.
+	GroupText = "text"
+	// GroupLookup finds one thing by its key: a transaction, a block.
+	GroupLookup = "lookup"
+)
 
 // Selector chooses what a query searches. Exactly one runs per query —
 // running all of them would turn one keystroke into a dozen queries.
@@ -77,6 +87,8 @@ type Selector struct {
 	Label string
 	Help  string
 	Scope Scope
+	// Group heads the keyword in the keyword lists, when its scope is global.
+	Group string
 
 	// Source is stamped by register from the table the selector is in, not
 	// by the literal. See Handler.register.
