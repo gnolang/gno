@@ -226,7 +226,17 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 	var also chan []Group
 	if sel.Accepts != nil && term == q.Text {
 		also = make(chan []Group, 1)
-		go func() { also <- h.discover(ctx, q) }()
+		go func() {
+			// net/http recovers a handler's panic, not one in a goroutine it
+			// starts: unrecovered, it would take the whole server down.
+			defer func() {
+				if r := recover(); r != nil {
+					h.deps.Logger.Error("omnisearch: discovery panicked", "panic", r)
+					also <- nil
+				}
+			}()
+			also <- h.discover(ctx, q)
+		}()
 	}
 
 	g := Group{Label: sel.Label, Source: sel.Source}
