@@ -243,23 +243,26 @@ type servedPage struct {
 
 // renderContext is the context a document renders under for pr.
 func (h *HTTPHandler) renderContext(ctx context.Context, pr *pageRender) RealmRenderContext {
+	price := sync.OnceValue(func() std.GasPrice { return h.gasPrice(ctx) })
 	return RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
-		Gas:     sync.OnceValue(func() components.TxGas { return h.txGas(ctx) }),
-		Domain:  h.Static.Domain,
-		Links:   pr.links,
+		Gas: func(pkgPath, fn string) components.TxGas {
+			return components.NewTxGas(price(), h.gasUse.get(ctx, pkgPath)[fn])
+		},
+		Domain: h.Static.Domain,
+		Links:  pr.links,
 	}
 }
 
-// txGas prices the gnokey commands a page offers at the chain's current gas
-// price, or at components.FallbackGasPrice when the node cannot say.
-func (h *HTTPHandler) txGas(ctx context.Context) components.TxGas {
+// gasPrice is the chain's current gas price, or the zero price, which
+// components.NewTxGas replaces with its fallback, when the node cannot say.
+func (h *HTTPHandler) gasPrice(ctx context.Context) std.GasPrice {
 	price, err := h.Client.GasPrice(ctx)
 	if err != nil {
-		price = std.GasPrice{} // the client logs why
+		return std.GasPrice{} // the client logs why
 	}
-	return components.NewTxGas(price)
+	return price
 }
 
 // pageCard is the summary and share image of a page whose document does

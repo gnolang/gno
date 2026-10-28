@@ -74,8 +74,9 @@ type Renderer interface {
 type RealmRenderContext struct {
 	ChainId string
 	Remote  string
-	// Gas prices the page's gnokey commands, called only if it shows one.
-	Gas    func() components.TxGas
+	// Gas prices the command calling fn in pkgPath, called only if the page
+	// shows one.
+	Gas    func(pkgPath, fn string) components.TxGas
 	Domain string
 	// Links says which links of the document search engines may follow.
 	Links md.LinkPolicy

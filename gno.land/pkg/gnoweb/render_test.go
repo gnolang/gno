@@ -108,25 +108,26 @@ func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	assert.NotNil(t, toc)
 }
 
-// A form's gnokey command is priced by the render context's gas lookup,
-// which a page without an exec form never calls.
+// A form's gnokey command is priced by the render context's gas lookup for
+// the form's package and exec function, which a page without an exec form
+// never calls.
 func TestRenderRealm_FormCommandGas(t *testing.T) {
 	r := newTestRenderer()
 	for _, tc := range []struct {
 		src   string
-		calls int
+		calls []string
 		want  string
 	}{
-		{"<gno-form exec=\"Bump\">\n</gno-form>\n", 1, "-gas-fee 60000ugnot"},
-		{"<gno-form>\n<input name=\"q\" />\n</gno-form>\n", 0, ""},
+		{"<gno-form exec=\"Bump\">\n</gno-form>\n", []string{"gno.land/r/test.Bump"}, "-gas-fee 60000ugnot"},
+		{"<gno-form>\n<input name=\"q\" />\n</gno-form>\n", nil, ""},
 	} {
-		calls := 0
-		gas := func() components.TxGas {
-			calls++
-			return components.NewTxGas(std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)})
+		var calls []string
+		gas := func(pkgPath, fn string) components.TxGas {
+			calls = append(calls, pkgPath+"."+fn)
+			return components.NewTxGas(std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)}, components.GasUse{})
 		}
 		w := &bytes.Buffer{}
-		_, err := r.RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, []byte(tc.src), RealmRenderContext{ChainId: "dev", Gas: gas})
+		_, err := r.RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, []byte(tc.src), RealmRenderContext{ChainId: "dev", Domain: "gno.land", Gas: gas})
 		require.NoError(t, err)
 		assert.Equal(t, tc.calls, calls, tc.src)
 		assert.Contains(t, w.String(), tc.want)

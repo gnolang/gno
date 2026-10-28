@@ -244,7 +244,7 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	// Handle exec attribute
 	if exec, ok := ExtractAttr(tok.Attr, "exec"); ok {
 		node.ExecFunc = exec
-		node.Gas = getGasFromContext(pc)
+		node.Gas = getGasFromContext(pc, node.Domain+node.RealmName, exec)
 	}
 
 	return node, parser.Continue

@@ -15,6 +15,8 @@ const HelpViewType ViewType = "help-view"
 type HelpFunction struct {
 	*doc.JSONFunc
 	DocComponent Component
+	// Gas prices the function's gnokey command.
+	Gas TxGas
 }
 
 type HelpData struct {
@@ -27,7 +29,6 @@ type HelpData struct {
 	Functions   []HelpFunction
 	ChainId     string
 	Remote      string
-	Gas         TxGas
 	PkgPath     string
 	PkgFullPath string
 	Doc         Component
@@ -109,7 +110,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			ParamNames: paramNames,
 			ChainId:    data.ChainId,
 			Remote:     data.Remote,
-			Gas:        data.Gas,
+			Gas:        fn.Gas,
 		}
 	}
 }

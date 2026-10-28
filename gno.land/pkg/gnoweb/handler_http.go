@@ -31,6 +31,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -178,6 +179,8 @@ type HTTPHandler struct {
 	packageText packageTextCache
 	// counterparts caches the project listings behind the breadcrumb switch.
 	counterparts counterpartCache
+	// gasUse sizes the gas of copied commands from recent calls.
+	gasUse gasUseCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -210,6 +213,10 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
 	h.trustedProxies = trustedProxies
+	h.gasUse.logger = logger
+	if cfg.Indexer != nil {
+		h.gasUse.recent = cfg.Indexer.RecentByPackage
+	}
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -1170,19 +1177,22 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Only a page with commands to price asks for the gas price and use.
+	pkgPath := path.Join(h.Static.Domain, gnourl.Path)
+	var price std.GasPrice
+	var uses map[string]components.GasUse
+	if len(fsigs) > 0 {
+		price, uses = h.gasPrice(ctx), h.gasUse.get(ctx, pkgPath)
+	}
+
 	// Wrap each function with its pre-rendered documentation Component.
 	functions := make([]components.HelpFunction, 0, len(fsigs))
 	for _, fn := range fsigs {
 		functions = append(functions, components.HelpFunction{
 			JSONFunc:     fn,
 			DocComponent: renderDoc(fn.Doc),
+			Gas:          components.NewTxGas(price, uses[fn.Name]),
 		})
-	}
-
-	// Only a page with commands to price asks the node for the gas price.
-	var gas components.TxGas
-	if len(functions) > 0 {
-		gas = h.txGas(ctx)
 	}
 
 	realmName := displayPackageName(gnourl.Path)
@@ -1193,9 +1203,8 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
-		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
+		PkgPath:   pkgPath,
 		Remote:    h.Static.RemoteHelp,
-		Gas:       gas,
 		Functions: functions,
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,

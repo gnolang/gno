@@ -48,6 +48,19 @@ const maxUgnotFee = 1_000_000
 // cannot be read or is unusable.
 var FallbackGasPrice = std.GasPrice{Gas: 1_000, Price: std.NewCoin("ugnot", 1)}
 
+// minTxGasWanted is the least gas a command sized from recent calls asks for.
+const minTxGasWanted = 1_000_000
+
+// minGasUseCalls is how many recent calls it takes to size the gas from them.
+const minGasUseCalls = 3
+
+// GasUse is what a function's recent successful calls used, as an indexer
+// reports it.
+type GasUse struct {
+	Max   int64 // the most gas one of them used
+	Calls int
+}
+
 // TxGas is the gas and fee a copied gnokey command offers, and the price the
 // fee was worked out from.
 type TxGas struct {
@@ -56,24 +69,38 @@ type TxGas struct {
 	Price  std.GasPrice
 	// Estimated is set when Price is FallbackGasPrice, not the chain's.
 	Estimated bool
+	// Used is what Wanted was sized from, zero when Wanted is TxGasWanted.
+	Used GasUse
 }
 
-// NewTxGas prices TxGasWanted at price times txFeeHeadroom, rounded up. A zero,
-// invalid, overflowing or too costly price falls back to FallbackGasPrice.
-func NewTxGas(price std.GasPrice) TxGas {
-	if fee, ok := txFee(price); ok {
-		return TxGas{Wanted: TxGasWanted, Fee: fee, Price: price}
+// NewTxGas asks for twice the most gas a recent call used, within
+// [minTxGasWanted, TxGasWanted], or for TxGasWanted with fewer than
+// minGasUseCalls calls. It prices that at price times txFeeHeadroom, rounded
+// up; a zero, invalid, overflowing or too costly price falls back to
+// FallbackGasPrice.
+func NewTxGas(price std.GasPrice, use GasUse) TxGas {
+	g := TxGas{Wanted: TxGasWanted, Price: price}
+	// Indexer data is not consensus data: it may lower the gas, never raise it.
+	if use.Calls >= minGasUseCalls {
+		if w := 2 * min(max(use.Max, minTxGasWanted/2), TxGasWanted/2); w < TxGasWanted {
+			g.Wanted, g.Used = w, use
+		}
 	}
-	fee, _ := txFee(FallbackGasPrice)
-	return TxGas{Wanted: TxGasWanted, Fee: fee, Price: FallbackGasPrice, Estimated: true}
+	fee, ok := txFee(price, g.Wanted)
+	if !ok {
+		fee, _ = txFee(FallbackGasPrice, g.Wanted)
+		g.Price, g.Estimated = FallbackGasPrice, true
+	}
+	g.Fee = fee
+	return g
 }
 
-// txFee is ceil(TxGasWanted × amount × txFeeHeadroom / gas).
-func txFee(p std.GasPrice) (std.Coin, bool) {
+// txFee is ceil(wanted × amount × txFeeHeadroom / gas).
+func txFee(p std.GasPrice, wanted int64) (std.Coin, bool) {
 	if p.Gas <= 0 || p.Price.Amount <= 0 || !p.Price.IsValid() {
 		return std.Coin{}, false
 	}
-	num := big.NewInt(TxGasWanted * txFeeHeadroom)
+	num := big.NewInt(wanted * txFeeHeadroom)
 	num.Mul(num, big.NewInt(p.Price.Amount))
 	den := big.NewInt(p.Gas)
 	fee := num.Add(num, den).Sub(num, big.NewInt(1)).Quo(num, den)
