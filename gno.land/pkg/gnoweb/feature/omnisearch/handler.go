@@ -221,6 +221,25 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		}}, ""
 	}
 
+	// A value a selector accepted alone (a pasted address) may also name
+	// paths and a user. Discovery runs beside the selector, not after it,
+	// so the two share the omnibar's time budget instead of adding up.
+	var also chan []Group
+	if sel.Accepts != nil && term == q.Text {
+		also = make(chan []Group, 1)
+		go func() {
+			// net/http recovers a handler's panic, not one in a goroutine it
+			// starts: unrecovered, it would take the whole server down.
+			defer func() {
+				if r := recover(); r != nil {
+					h.deps.Logger.Error("omnisearch: discovery panicked", "panic", r)
+					also <- nil
+				}
+			}()
+			also <- h.discover(ctx, q)
+		}()
+	}
+
 	g := Group{Label: sel.Label, Source: sel.Source}
 	results, err := sel.resolve(ctx, h, q, term)
 	var part partialAnswerError
@@ -251,10 +270,13 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		g.Truncated, g.Notice = true, fmt.Sprintf("Showing the first %d matches.", MaxResults)
 	}
 	groups = []Group{g}
-	// A value a selector accepted alone (a pasted address) may also name
-	// paths and a user: keep discovery's answer beside the selector's.
-	if sel.Accepts != nil && term == q.Text {
-		groups = append(groups, h.discover(ctx, q)...)
+	if also != nil {
+		// A failed discovery is not news here: the selector's group answers.
+		for _, dg := range <-also {
+			if dg.Err == nil {
+				groups = append(groups, dg)
+			}
+		}
 	}
 	return groups, ""
 }

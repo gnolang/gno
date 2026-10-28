@@ -246,10 +246,10 @@ func relevance(rel, needle string) int {
 	lower := strings.ToLower(rel)
 	segs := strings.FieldsFunc(lower, func(r rune) bool { return r == '/' })
 	name := gnolang.LastPathElement(lower)
-	depth := len(segs)
-	if depth > 1 && name != segs[depth-1] {
-		depth-- // a version segment is not depth
+	if len(segs) > 1 && name != segs[len(segs)-1] {
+		segs = segs[:len(segs)-1] // a version segment is neither name nor depth
 	}
+	depth := len(segs)
 	score := 20
 	switch {
 	case name == needle:
