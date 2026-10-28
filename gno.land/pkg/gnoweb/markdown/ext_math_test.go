@@ -297,11 +297,16 @@ func TestMathClosesInBracketsThatAreNoLink(t *testing.T) {
 	for src, link := range map[string]string{
 		"$$ [l](/r/x \"a $$ b\") c\n": `<a href="/r/x" title="a $$ b">l</a>`,
 		"$$ [a](x[l](/r/y$$z) w\n":    `<a href="/r/y$$z">l</a>`,
+		// A <...> destination may hold spaces.
+		"$$ [a](x[b](<y $$ z>) w $$\n":  `<a href="y%20$$%20z">b</a>`,
+		"$$ [a](x[b]( <y $$ z>) w $$\n": `<a href="y%20$$%20z">b</a>`,
 	} {
 		out := renderMathMarkdown(t, src)
 		assert.NotContains(t, out, "<math", src)
 		assert.Contains(t, out, link, src)
 	}
+	out := renderMathMarkdown(t, `\\( [a](x[b](<y \\) z>) w \\)`+"\n")
+	assert.Contains(t, out, `[b](&lt;y \\) z&gt;) w </annotation>`)
 }
 
 // A $ opened in a link label ends with the label: it does not pair with a $

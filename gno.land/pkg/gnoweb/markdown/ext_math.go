@@ -298,8 +298,11 @@ type closeFinder func(b []byte, ticks int) (idx, end, open int)
 // this one too. Without this, every unclosed opener rescans the rest of its
 // line (and the next one), which is quadratic on a line of "$a " openers.
 // A search that starts inside a code span answers only those that start in a
-// span of as many backticks. Two lines are remembered: the opener's and the
-// next one.
+// span of as many backticks. A search answered from an earlier one reports
+// its open backtick run, which may lie before base: if that run closes on the
+// next line, goldmark reads the opener at base as code and never asks; if it
+// does not, the next line is searched as if it were not there. Two lines are
+// remembered: the opener's and the next one.
 func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop, ticks int, find closeFinder) (idx, end, open int) {
 	if len(b) == 0 {
 		// Nothing to search, as past the last line: there is no line to
@@ -350,9 +353,9 @@ func isEscaped(b []byte, i int) bool {
 
 // findDollarClose returns the index of the first $ in b that can close an
 // inline $...$ expression, or -1 and the index where the search ended, and
-// the code span state described in closeFinder. Following pandoc, a closing $ must not be
-// preceded by a space or an escaping backslash nor followed by a digit, so
-// "$5 and $10" stays plain text.
+// the code span state described in closeFinder. Following pandoc, a closing $
+// must not be preceded by a space or an escaping backslash nor followed by a
+// digit, so "$5 and $10" stays plain text.
 func findDollarClose(b []byte, ticks int) (int, int, int) {
 	return findClose(b, ticks, true, func(b []byte, i int) bool {
 		return b[i] == '$' && i > 0 && !util.IsSpace(b[i-1]) && !isEscaped(b, i) &&
@@ -462,6 +465,7 @@ func findClose(b []byte, ticks int, stopAtLabel bool, closes func(b []byte, i in
 // again as text, and the ( it left open are returned as noLink, in place of
 // those passed in, which lie before them: their own destinations end at the
 // same space, so they open no link either, and need not be read a third time.
+// A ( followed by <...> could open one: the destination is then skipped whole.
 func linkEnd(b []byte, o int, noLink []int) (int, []int) {
 	i := o + 1 + util.TrimLeftSpaceLength(b[o+1:])
 	if i < len(b) && b[i] == '<' {
@@ -472,6 +476,11 @@ func linkEnd(b []byte, o int, noLink []int) (int, []int) {
 	for ; i < len(b); i++ {
 		switch c := b[i]; {
 		case c == '(' && !isEscaped(b, i):
+			if k := i + 1 + util.TrimLeftSpaceLength(b[i+1:]); k < len(b) && b[k] == '<' {
+				// A destination in <...>, which may hold spaces, would open
+				// a link here: skip it whole, as before.
+				return parenEnd(b, k, depth+1), noLink[:n]
+			}
 			depth++
 			noLink = append(noLink, i)
 		case c == ')' && !isEscaped(b, i):
