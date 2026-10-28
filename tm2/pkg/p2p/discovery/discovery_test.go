@@ -138,6 +138,47 @@ func TestReactor_AddPeer(t *testing.T) {
 		require.True(t, ok)
 	})
 
+	t.Run("outbound peer address marked connected", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			store = newTestStore(t)
+			peer  = mock.GeneratePeers(t, 1)[0]
+		)
+
+		peer.IsOutboundFn = func() bool { return true }
+		peer.SendFn = func(byte, []byte) bool { return true }
+
+		store.AddPeers(peer.SocketAddr())
+
+		NewReactor(store).AddPeer(peer)
+
+		store.mtx.RLock()
+		defer store.mtx.RUnlock()
+
+		assert.False(t, store.peers[peer.SocketAddr().String()].LastConnected.IsZero())
+	})
+
+	t.Run("inbound peer address not marked connected", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			store = newTestStore(t)
+			peer  = mock.GeneratePeers(t, 1)[0]
+		)
+
+		peer.IsOutboundFn = func() bool { return false }
+
+		store.AddPeers(peer.SocketAddr())
+
+		NewReactor(store).AddPeer(peer)
+
+		store.mtx.RLock()
+		defer store.mtx.RUnlock()
+
+		assert.True(t, store.peers[peer.SocketAddr().String()].LastConnected.IsZero())
+	})
+
 	t.Run("inbound peer is not asked for peers", func(t *testing.T) {
 		t.Parallel()
 
@@ -166,6 +207,61 @@ func TestReactor_AddPeer(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 		}
 	})
+}
+
+func TestReactor_DiscoveryRound_MarksHeldPeers(t *testing.T) {
+	t.Parallel()
+
+	var (
+		store = newTestStore(t)
+		peers = mock.GeneratePeers(t, 2)
+
+		// The inbound peer is listed first, so a round reaches it before the
+		// outbound one
+		inbound, outbound = peers[0], peers[1]
+	)
+
+	inbound.IsOutboundFn = func() bool { return false }
+	outbound.IsOutboundFn = func() bool { return true }
+
+	for _, p := range peers {
+		p.SendFn = func(byte, []byte) bool { return true }
+	}
+
+	// Both addresses were connected to longer ago than the mark lasts
+	store.AddPeers(inbound.SocketAddr(), outbound.SocketAddr())
+
+	store.mtx.Lock()
+	for _, p := range peers {
+		store.peers[p.SocketAddr().String()].LastConnected = time.Now().Add(-connectedExpiry - time.Minute)
+	}
+	store.mtx.Unlock()
+
+	marked := func(p *mock.Peer) bool {
+		store.mtx.RLock()
+		defer store.mtx.RUnlock()
+
+		return time.Since(store.peers[p.SocketAddr().String()].LastConnected) < connectedExpiry
+	}
+
+	r := NewReactor(store, WithDiscoveryInterval(10*time.Millisecond))
+	r.SetSwitch(&mockSwitch{
+		peersFn: func() p2p.PeerSet {
+			return &mockPeerSet{
+				listFn: func() []p2p.PeerConn {
+					return []p2p.PeerConn{inbound, outbound}
+				},
+			}
+		},
+	})
+
+	require.NoError(t, r.Start())
+	t.Cleanup(func() {
+		require.NoError(t, r.Stop())
+	})
+
+	require.Eventually(t, func() bool { return marked(outbound) }, 5*time.Second, 10*time.Millisecond)
+	assert.False(t, marked(inbound))
 }
 
 func TestReactor_DiscoveryResponse(t *testing.T) {
