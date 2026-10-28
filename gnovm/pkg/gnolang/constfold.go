@@ -89,7 +89,7 @@ func chargeConstFold(gm store.GasMeter, op Word, l, r *TypedValue) {
 			gas += overflow.Mulp(overflow.Mulp(lb/32, rb/32), bigIntQuadSlope(op)) / 32
 		case SHL:
 			s, _ := constant.Uint64Val(constant.ToInt(constValueOf(r)))
-			gas += int64(min(s, maxBigintShift)) * OpCPUSlopeBigIntShl / 1024
+			gas += int64(min(s, maxConstShift)) * OpCPUSlopeBigIntShl / 1024
 			gas += lb * OpCPUSlopeBigIntShl / 1024
 		case SHR:
 			gas += lb * OpCPUSlopeBigIntShr / 1024
@@ -192,8 +192,17 @@ func foldBinary(alloc *Allocator, x *BinaryExpr, l, r *TypedValue) TypedValue {
 	return constTypedValue(alloc, x, constant.BinaryOp(lv, tok, rv), l)
 }
 
+// maxConstShift is the largest constant shift count, as go/types
+// (shiftBound, 1023-1+52 so smallestFloat64 is expressible);
+// maxUntypedIntBits the width of an untyped integer constant, as go/types
+// (prec). Both bound every fold.
+const (
+	maxConstShift     = 1074
+	maxUntypedIntBits = 512
+)
+
 // foldShift folds a constant shift: the count is a non-negative typed uint
-// (assertShiftExprCompatible1), bounded by maxBigintShift; an untyped
+// (assertShiftExprCompatible1), bounded by maxConstShift; an untyped
 // float operand must be integral.
 func foldShift(x *BinaryExpr, l *TypedValue, lv, rv constant.Value) TypedValue {
 	lv = constant.ToInt(lv)
@@ -202,8 +211,8 @@ func foldShift(x *BinaryExpr, l *TypedValue, lv, rv constant.Value) TypedValue {
 			constExprString(x.Left), l.T))
 	}
 	s, ok := constant.Uint64Val(constant.ToInt(rv))
-	if !ok || s > maxBigintShift {
-		panic(fmt.Sprintf("shift amount %s exceeds maximum %d", rv, maxBigintShift))
+	if !ok || s > maxConstShift {
+		panic(fmt.Sprintf("invalid operation: invalid shift count %s", rv))
 	}
 	return constTypedValue(nil, x, constant.Shift(lv, binaryToken(x.Op), uint(s)), l)
 }
@@ -234,6 +243,49 @@ func foldUnary(x *UnaryExpr, v *TypedValue) TypedValue {
 		res = constant.UnaryOp(token.NOT, cv, 0)
 	}
 	return constTypedValue(nil, x, res, v)
+}
+
+// checkUntypedIntWidth rejects an untyped integer constant (bigint, or a
+// rune past int32) wider than maxUntypedIntBits, with go/types' wording:
+// "constant shift overflow", "constant overflow" for a literal.
+func checkUntypedIntWidth(x Expr, tv *TypedValue) {
+	var bi *big.Int
+	switch tv.T {
+	case UntypedBigintType:
+		bi = tv.GetBigInt()
+	case UntypedRuneType:
+		biv, ok := tv.V.(BigintValue)
+		if !ok {
+			return
+		}
+		bi = biv.V
+	default:
+		return
+	}
+	if bi.BitLen() <= maxUntypedIntBits {
+		return
+	}
+	op := ""
+	switch x := x.(type) {
+	case *BinaryExpr:
+		switch x.Op {
+		case ADD:
+			op = "addition "
+		case SUB:
+			op = "subtraction "
+		case MUL:
+			op = "multiplication "
+		case XOR:
+			op = "bitwise XOR "
+		case SHL:
+			op = "shift "
+		}
+	case *UnaryExpr:
+		if x.Op == XOR {
+			op = "bitwise complement "
+		}
+	}
+	panic(fmt.Sprintf("constant %soverflow", op))
 }
 
 // isIntegerConst reports whether constants of type t are integers:

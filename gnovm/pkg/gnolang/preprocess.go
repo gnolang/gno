@@ -4644,6 +4644,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 				}
 			}
 		}
+		checkUntypedIntWidth(x, &cv)
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

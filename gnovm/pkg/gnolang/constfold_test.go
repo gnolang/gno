@@ -162,8 +162,8 @@ func TestFoldConst(t *testing.T) {
 		{"int big mul", bin(cBigint("1267650600228229401496703205376"), MUL, cBigint("1267650600228229401496703205376")), "1606938044258990275541962092341162602522202993782792835301376 <untyped> bigint"},
 		{"int shl", bin(cBigint("1"), SHL, cTyped(UintType, 100)), "1267650600228229401496703205376 <untyped> bigint"},
 		{"int shr", bin(cBigint("1267650600228229401496703205376"), SHR, cTyped(UintType, 90)), "1024 <untyped> bigint"},
-		{"int shl max", bin(cBigint("1"), SHL, cTyped(UintType, maxBigintShift)), "1" + new(big.Int).Lsh(big.NewInt(1), maxBigintShift).String()[1:] + " <untyped> bigint"},
-		{"int shl past max", bin(cBigint("1"), SHL, cTyped(UintType, maxBigintShift+1)), "error: shift amount 10001 exceeds maximum 10000"},
+		{"int shl max count", bin(cBigint("1"), SHL, cTyped(UintType, maxConstShift)), new(big.Int).Lsh(big.NewInt(1), maxConstShift).String() + " <untyped> bigint"},
+		{"int shl past max count", bin(cBigint("1"), SHL, cTyped(UintType, maxConstShift+1)), "error: invalid operation: invalid shift count 1075"},
 		{"int neg", un(SUB, cBigint("1267650600228229401496703205376")), "-1267650600228229401496703205376 <untyped> bigint"},
 		{"int not", un(XOR, cBigint("0")), "-1 <untyped> bigint"},
 		{"int cmp", bin(cBigint("1267650600228229401496703205376"), LSS, cBigint("1267650600228229401496703205377")), "true <untyped> bool"},
@@ -244,8 +244,8 @@ func TestFoldConstGas(t *testing.T) {
 	// comparison by its bytes.
 	require.Equal(t, flat+500*OpCPUSlopeBigIntShl/1024, gas(bin(cBigint("1"), SHL, cTyped(UintType, 500))))
 	wide := cBigint(new(big.Int).Lsh(big.NewInt(1), 10000).String()) // 10001 bits
-	require.Equal(t, flat+10000*OpCPUSlopeBigIntShl/1024+10001*OpCPUSlopeBigIntShl/1024,
-		gas(bin(wide, SHL, cTyped(UintType, 10000))))
+	require.Equal(t, flat+1023*OpCPUSlopeBigIntShl/1024+10001*OpCPUSlopeBigIntShl/1024,
+		gas(bin(wide, SHL, cTyped(UintType, 1023))))
 	require.Equal(t, flat+(10001/32)*(10001/32)*OpCPUSlopeBigIntMulQ/32, gas(bin(wide, MUL, wide)))
 	require.Equal(t, flat+10001*OpCPUSlopeBigIntAdd/1024, gas(bin(wide, ADD, cBigint("1"))))
 	require.Equal(t, flat+10001*OpCPUSlopeBigIntUneg/1024, gas(un(SUB, wide)))
@@ -295,8 +295,14 @@ func TestFoldConstPreprocess(t *testing.T) {
 		{"var _ = 'a' / 0", "invalid operation: division by zero"},
 		{"const c int8 = 100\nvar _ = c * 2", "c * 2 (constant 200 of type int8) overflows int8"},
 		{"const k uint = 3\nvar _ = k << 63", "k << 63 (constant 27670116110564327424 of type uint) overflows uint"},
-		{"var _ = 1 << 10001", "shift amount 10001 exceeds maximum 10000"},
-		{"var _ int64 = 'a' << 40\nconst _ = 1 << 10000", ""},
+		{"var _ = 0 << 1075", "invalid operation: invalid shift count 1075"},
+		{"const _ = 1 << 512", "constant shift overflow"},
+		{"const c = 1 << 511\nconst _ = c + c", "constant addition overflow"},
+		{"const c = 1 << 511\nconst _ = -c - c", "constant subtraction overflow"},
+		{"const c = 1 << 511\nconst _ = c * 4", "constant multiplication overflow"},
+		{"const _ = 1" + strings.Repeat("0", 155), "constant overflow"},
+		{"const _ = 'a' << 1000", "constant shift overflow"},
+		{"var _ int64 = 'a' << 40\nconst _ = 1 << 511\nconst _ = 0 << 1074\nconst _ = 1<<511 - 1 + (1 << 511)", ""},
 	} {
 		m := NewMachine("test", nil)
 		n := m.MustParseFile("main.gno", "package test\n"+tc.src+"\nfunc main() {}\n")

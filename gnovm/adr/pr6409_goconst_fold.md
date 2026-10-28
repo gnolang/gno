@@ -58,11 +58,15 @@ packages fold no constant operation under the tx meter.
 
 ## Limits
 
-A shift count is bounded by `maxBigintShift` (10000) for every operand
-kind, as the machine bounded untyped shifts; rationals promote to the
-512-bit float form past 4096 bits (`ratOverflowBits`); a float result
-past big.Float's range is `constant result is not representable`. An
-untyped integer result has no width cap, as before.
+go/types' limits apply, so every operand of a fold is bounded: an
+untyped integer constant (literal or result) is at most 512 bits
+(`constant shift overflow`, `constant addition overflow`, `constant
+overflow` for a literal) and a constant shift count at most 1074
+(`invalid operation: invalid shift count 1075`). The deploy type check
+already enforced both; the VM now does, so `gno run` and filetests agree
+(`1 << 10000` was accepted). Rationals promote to the 512-bit float form
+past 4096 bits (`ratOverflowBits`); a float result past big.Float's range
+is `constant result is not representable`.
 
 go/constant's representation choices (rational until a component passes
 4096 bits, 512-bit float past that, the `%s` form of a value in an error)
@@ -83,6 +87,8 @@ moves one.
 - `int64(float32(1<<54 + 1<<30 + 1))` is 18014400656965632.
 - Shift overflow of a typed constant uses gc's wording.
 - `string(c)` of an untyped rune past int32 is `"\uFFFD"`, as gc.
+- Untyped integer constants past 512 bits and shift counts past 1074 are
+  rejected with go/types' wording (master accepted them in the VM).
 - A non-constant shift whose untyped rune operand is typed from its
   context (`var x int64 = c << s`, `int64(c << s)`) shifts the exact
   value. The contexts #6393 lists are unchanged.
