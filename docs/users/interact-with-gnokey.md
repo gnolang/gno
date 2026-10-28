@@ -176,7 +176,7 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
-subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
+subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chainid`, and
 `-remote` are used for setting the base transaction configuration. These flags
 will be repeated throughout the tutorial.
 
@@ -212,7 +212,8 @@ mykey
 ```
 
 If the transaction was successful, you will get an output from `gnokey` that is
-similar to the following:
+similar to the following, taken on a local chain (the testnet's height and gas
+used differ):
 
 ```console
 OK!
@@ -300,7 +301,8 @@ In this command, we have specified three main things:
 Apart from this, we have also set `-chainid` to the testnet's chain ID and
 `-remote` to its RPC endpoint, `https://rpc.latest.testnets.gno.land:443`.
 
-After running the command, we can expect an output similar to the following:
+After running the command, we can expect an output similar to the following.
+It was taken on a local chain: on the testnet, the height and gas used differ.
 
 ```bash
 OK!
@@ -702,16 +704,19 @@ To verify a transaction's signature is correct, you can use the `gnokey verify`
 subcommand. Provide the path to the transaction document using the `-tx-path`
 flag, and optionally the path to a separate signature file using the `-sig-path`
 flag. If `-sig-path` is omitted, the first signature embedded in the transaction
-itself is verified.
+itself is verified. Pass the chain ID, account number and sequence the
+transaction was signed with: without them, `gnokey verify` reads the account's
+current values from `-remote`, and the sequence has moved on once the
+transaction is broadcast.
 
 ```bash
-gnokey verify -tx-path counter.tx mykey
+gnokey verify -tx-path deposit.tx -chainid "<chain-id>" -account-number 468 -account-sequence 0 mykey
 ```
 
 To verify against a separate signature file:
 
 ```bash
-gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
+gnokey verify -tx-path deposit.tx -sig-path deposit-sig.json -chainid "<chain-id>" -account-number 468 -account-sequence 0 mykey
 ```
 
 ## Using a k-of-n multisig
@@ -1520,13 +1525,11 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  -pkgpath "gno.land/r/gnoland/boards2/v0" \
-  -func "CreateBoard" \
-  -args "MyBoard" \
-  -args "true" \
-  -args "true" \
-  -gas-fee 2000ugnot \
-  -gas-wanted 2000000 \
+  -pkgpath "gno.land/r/gnoland/wugnot" \
+  -func "Deposit" \
+  -send "1000ugnot" \
+  -gas-fee 8000ugnot \
+  -gas-wanted 8000000 \
   -remote https://rpc.latest.testnets.gno.land:443 \
   -chainid <chain-id> \
   YOUR_KEY_NAME
