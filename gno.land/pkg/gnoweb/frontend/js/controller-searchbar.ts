@@ -496,10 +496,11 @@ export class SearchbarController extends BaseController {
 		for (const s of sections) results.appendChild(this.buildChoiceSection(s));
 		const foot = this.buildLinkItem(
 			"/$search",
-			"All keywords and examples ",
-			this.decor("→"),
+			"All keywords and examples",
+			this.buildIcon("ico-arrow-right"),
 		);
 		foot.classList.add("b-omnisearch-foot");
+		foot.firstElementChild?.classList.add("c-with-icon--inline");
 		results.appendChild(foot);
 		this.helping = true;
 		this.endDraw(results);
@@ -1036,6 +1037,17 @@ export class SearchbarController extends BaseController {
 		item.appendChild(text);
 		this.items.push(item);
 		return item;
+	}
+
+	// buildIcon draws a symbol from the page's icon sprite, as decoration.
+	private buildIcon(id: string): SVGSVGElement {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("class", "c-icon");
+		svg.setAttribute("aria-hidden", "true");
+		const use = document.createElementNS(svg.namespaceURI, "use");
+		use.setAttribute("href", `#${id}`);
+		svg.appendChild(use);
+		return svg;
 	}
 
 	// buildIndexerPill is the visible half of a row's provenance; the

@@ -4376,8 +4376,9 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		display: block;
 		padding: var(--g-space-2) var(--g-space-2) var(--g-space-0-5);
 		font-size: var(--g-font-size-50);
-		font-weight: var(--g-font-semibold);
+		font-weight: var(--g-font-medium);
 		text-transform: uppercase;
+		letter-spacing: 0.04em;
 		color: var(--s-color-text-secondary);
 	}
 

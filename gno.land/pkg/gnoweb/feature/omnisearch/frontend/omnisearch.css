@@ -206,7 +206,7 @@
 	margin-block-end: var(--g-space-1);
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
-	font-weight: var(--g-font-semibold);
+	font-weight: var(--g-font-medium);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
