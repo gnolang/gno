@@ -5181,7 +5181,7 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
-		ConvertUntypedTo(&cx.TypedValue, t)
+		ConvertUntypedTo(constMeterOf(preprocessGasMeterOf(store)), &cx.TypedValue, t)
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.

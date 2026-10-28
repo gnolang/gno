@@ -458,7 +458,7 @@ func TestConvertUntypedRune(t *testing.T) {
 			}
 		}()
 		tv := cRune(v).TypedValue
-		ConvertUntypedTo(&tv, to)
+		ConvertUntypedTo(nil, &tv, to)
 		return constText(tv), ""
 	}
 	for _, tc := range []struct {
@@ -514,7 +514,7 @@ func TestConvertUntypedIntToFloat32RoundsOnce(t *testing.T) {
 		{"16777219", 16777220},
 	} {
 		tv := cBigint(tc.v).TypedValue
-		ConvertUntypedTo(&tv, Float32Type)
+		ConvertUntypedTo(nil, &tv, Float32Type)
 		require.Equal(t, tc.want, math.Float32frombits(tv.GetFloat32()), tc.v)
 	}
 }
@@ -546,14 +546,15 @@ func BenchmarkConstFold(b *testing.B) {
 	})
 }
 
-// TestConstFoldMetered: every goconst operation the fold calls is given
-// its Meter; a nil Meter is allowed only in the constant conversions of
-// values_conversions.go, whose operands are bounded by maxUntypedIntBits.
+// TestConstFoldMetered: every goconst operation the fold and the constant
+// conversions call is given its Meter.
 func TestConstFoldMetered(t *testing.T) {
-	src, err := os.ReadFile("constfold.go")
-	require.NoError(t, err)
-	for i, line := range strings.Split(string(src), "\n") {
-		require.NotRegexp(t, `goconst\.\w+\(nil\b`, line, "constfold.go:%d", i+1)
+	for _, file := range []string{"constfold.go", "values_conversions.go"} {
+		src, err := os.ReadFile(file)
+		require.NoError(t, err)
+		for i, line := range strings.Split(string(src), "\n") {
+			require.NotRegexp(t, `goconst\.\w+\(nil\b`, line, "%s:%d", file, i+1)
+		}
 	}
 }
 

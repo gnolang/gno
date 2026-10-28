@@ -27,8 +27,8 @@ value in an error) are consensus inputs, and in the stdlib they follow
 the toolchain a node is built with. And every operation takes a `Meter`
 and reports its work (`goconst.Work`: representation, bit length,
 operator, shift count) before running, so no caller reaches the
-arithmetic unpaid; the fork knows nothing about gas, `constMeter` prices
-the work with the slopes in `machine.go`.
+arithmetic unpaid, the constant conversions included; the fork knows
+nothing about gas, `constMeter` prices the work (`machine.go` slopes).
 
 - An untyped result is exact. An untyped rune past int32 is stored as a
   `BigintValue` under `UntypedRuneType`; an in-range one keeps its int32

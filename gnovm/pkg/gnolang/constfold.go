@@ -71,10 +71,16 @@ func foldOperand(x Expr) (*TypedValue, bool) {
 // and returns the Meter that prices each unit of work the fold's
 // operations report before running (goconst.Work): nil when gm is.
 func chargeConstFold(gm store.GasMeter) goconst.Meter {
+	chargeCPUGas(gm, OpCPUSlopeConstFold)
+	return constMeterOf(gm)
+}
+
+// constMeterOf is the Meter charging gm for the work of a constant
+// operation or conversion: nil when gm is.
+func constMeterOf(gm store.GasMeter) goconst.Meter {
 	if gm == nil {
 		return nil
 	}
-	chargeCPUGas(gm, OpCPUSlopeConstFold)
 	return constMeter{gm}
 }
 

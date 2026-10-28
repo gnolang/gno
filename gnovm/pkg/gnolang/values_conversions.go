@@ -1129,7 +1129,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 // If t is nil, the default type is used.
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
-func ConvertUntypedTo(tv *TypedValue, t Type) {
+func ConvertUntypedTo(m goconst.Meter, tv *TypedValue, t Type) {
 	if debug {
 		defer func() {
 			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
@@ -1171,11 +1171,11 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	case UntypedBoolType:
 		tv.T = t
 	case UntypedRuneType:
-		ConvertUntypedRuneTo(tv, t)
+		ConvertUntypedRuneTo(m, tv, t)
 	case UntypedBigintType:
-		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
+		ConvertUntypedBigintTo(m, tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
+		ConvertUntypedBigdecTo(m, tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
 		if t.Kind() == StringKind {
 			tv.T = t
@@ -1193,7 +1193,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 // ConvertUntypedRuneTo converts an untyped rune constant, exact in either
 // form (int32 in N, or a BigintValue past int32), to t: range checked for
 // an integer target, rounded once for a float one.
-func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
+func ConvertUntypedRuneTo(m goconst.Meter, dst *TypedValue, t Type) {
 	if t == UntypedRuneType {
 		return
 	}
@@ -1214,15 +1214,13 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		}
 		setIntKind(dst, k, bi)
 	case Float32Kind:
-		// Unmetered: one conversion, linear in bits that were paid for
-		// when the constant was parsed or folded.
-		f, _ := goconst.Float32Val(nil, goconst.Make(nil, bi))
+		f, _ := goconst.Float32Val(m, goconst.Make(m, bi))
 		if math.IsInf(float64(f), 0) {
 			panic(fmt.Sprintf("constant %s overflows float32", bi))
 		}
 		dst.SetFloat32(math.Float32bits(f))
 	case Float64Kind:
-		f, _ := goconst.Float64Val(nil, goconst.Make(nil, bi))
+		f, _ := goconst.Float64Val(m, goconst.Make(m, bi))
 		if math.IsInf(f, 0) {
 			panic(fmt.Sprintf("constant %s overflows float64", bi))
 		}
@@ -1246,7 +1244,7 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	}
 }
 
-func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
+func ConvertUntypedBigintTo(m goconst.Meter, dst *TypedValue, biv BigintValue, t Type) {
 	k := t.Kind()
 	bi := biv.V
 	var sv int64 = 0  // if signed.
@@ -1284,9 +1282,8 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		// Rounded once, from the exact value (#6394). Unmetered: one
-		// conversion, linear in bits paid for at parse or fold.
-		f32, _ := goconst.Float32Val(nil, goconst.Make(nil, bi))
+		// Rounded once, from the exact value (#6394).
+		f32, _ := goconst.Float32Val(m, goconst.Make(m, bi))
 		if math.IsInf(float64(f32), 0) {
 			panic("bigint overflows float32")
 		}
@@ -1295,7 +1292,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, biv BigintValue, t Type) {
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := goconst.Float64Val(nil, goconst.Make(nil, bi))
+		f64, _ := goconst.Float64Val(m, goconst.Make(m, bi))
 		if math.IsInf(f64, 0) {
 			panic("bigint overflows float64")
 		}
@@ -1383,7 +1380,7 @@ func posZero[F float32 | float64](f F) F {
 	return f
 }
 
-func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
+func ConvertUntypedBigdecTo(m goconst.Meter, dst *TypedValue, bdv BigdecValue, t Type) {
 	k := t.Kind()
 	switch k {
 	case BigintKind:
@@ -1413,7 +1410,7 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bdv BigdecValue, t Type) {
 				bigdecValueErrString(bdv),
 			))
 		}
-		ConvertUntypedBigintTo(dst, BigintValue{V: bigdecToBigInt(bdv)}, t)
+		ConvertUntypedBigintTo(m, dst, BigintValue{V: bigdecToBigInt(bdv)}, t)
 		return
 	case Float32Kind:
 		dst.T = t
