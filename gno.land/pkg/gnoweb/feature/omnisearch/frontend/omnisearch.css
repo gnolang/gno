@@ -8,13 +8,18 @@
    ========================================================================== */
 
 /* ===== NOTICES ===== */
-.b-omni-notice {
-	margin-block-end: var(--g-space-6);
+/* A notice and the provenance note share one box; each sets its tone. */
+.b-omni-notice,
+.b-omni-provenance {
 	padding: var(--g-space-3);
 	border: var(--s-border);
 	border-radius: var(--s-rounded-sm);
-	background-color: var(--s-color-bg-surface-secondary);
 	color: var(--s-color-text-secondary);
+}
+
+.b-omni-notice {
+	margin-block-end: var(--g-space-6);
+	background-color: var(--s-color-bg-surface-secondary);
 	font-size: var(--g-font-size-100);
 }
 
@@ -81,11 +86,7 @@
 	display: flex;
 	align-items: flex-start;
 	gap: var(--g-space-2);
-	padding: var(--g-space-3);
-	border: var(--s-border);
-	border-radius: var(--s-rounded-sm);
 	background-color: var(--s-color-bg-note-weak);
-	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
 
 	& .c-icon {
@@ -146,19 +147,12 @@
 
 .b-omni-keywords {
 	position-anchor: --omni-keywords;
-	inset: auto;
-	top: anchor(bottom);
 	right: anchor(right);
 	margin: var(--g-space-1) 0 0 var(--g-space-4);
 	width: min(26rem, calc(100vw - 2 * var(--g-space-4)));
 	max-height: 70vh;
 	overflow-y: auto;
 	padding: var(--g-space-4);
-	border: var(--s-border);
-	border-radius: var(--s-rounded);
-	background-color: var(--s-color-bg-base);
-	color: var(--s-color-text-primary);
-	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
 }
 
 .b-omni-hints {

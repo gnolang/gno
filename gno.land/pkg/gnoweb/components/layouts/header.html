@@ -254,7 +254,7 @@ UI - Breadcrumb component
     {{- end }}
   </ol>
   {{- with .Namespace }}{{ $kind := index $.Parts 0 }}
-  <div id="kind-switch-menu" popover class="b-kind-switch">
+  <div id="kind-switch-menu" popover class="b-popover b-kind-switch">
     {{- with $.Counterpart }}
     <a href="{{ .URL }}" class="item item--primary">
       <svg aria-hidden="true" class="c-icon"><use href="#{{ .Icon }}"></use></svg>
