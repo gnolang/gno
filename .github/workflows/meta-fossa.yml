@@ -22,7 +22,7 @@ jobs:
         run: mv .github/.fossa.yml .
 
       - name: Cache Coursier cache
-        uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # 8.1.1
+        uses: coursier/cache-action@057d08c2f9a2c4e7a4d33df3aae657b7db88b8cc # 8.2.0
 
       - name: Set up JDK 17
         uses: coursier/setup-action@648df969f41ef15fda2baba8b37f9fa3d16390a3 # v3.0.4
