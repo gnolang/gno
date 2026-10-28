@@ -1282,12 +1282,8 @@ export class SearchbarController extends BaseController {
 		const label = document.createElement("span");
 		label.className = "b-omnisearch-label";
 		label.textContent = title;
-		if (indexer) {
-			const from = document.createElement("span");
-			from.className = "b-omnisearch-from";
-			from.textContent = ` · ${FROM_INDEXER}`;
-			label.appendChild(from);
-		}
+		// The same pill as on a row, once for the whole group.
+		if (indexer) label.appendChild(this.buildIndexerPill());
 		// role="group" owns only options; the group already carries this
 		// text as its aria-label, so the span is decoration.
 		label.setAttribute("aria-hidden", "true");

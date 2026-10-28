@@ -4380,10 +4380,12 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		color: var(--s-color-text-secondary);
 	}
 
-	/* Provenance beside a group's name, as a remark. */
-	.b-omnisearch-from {
+	/* A group's pill reads as on a row, not as part of the uppercase name. */
+	.b-omnisearch-label .b-tag--indexer {
+		margin-inline-start: var(--g-space-1);
 		font-weight: var(--g-font-normal);
 		text-transform: none;
+		letter-spacing: normal;
 	}
 
 	/* Carries errors as well as "No results": secondary, not tertiary, so it

@@ -214,21 +214,9 @@
 	color: var(--s-color-text-tertiary);
 }
 
-/* A heading's provenance, when every row under it shares it. */
-.b-omni-hints__from {
+/* A heading's pill reads as on a row, not as part of the uppercase name. */
+.b-omni-hints__title .b-tag--indexer {
 	font-weight: var(--g-font-normal);
 	text-transform: none;
 	letter-spacing: normal;
-}
-
-/* Where the answer comes from, said quietly on a row of a mixed group: a
-   pill per row made the list read as badges rather than as syntax. */
-.b-omni-hints__src {
-	color: var(--s-color-text-tertiary);
-	font-style: italic;
-
-	&::before {
-		content: "· ";
-		font-style: normal;
-	}
 }
