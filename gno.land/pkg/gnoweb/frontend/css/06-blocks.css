@@ -232,8 +232,8 @@
 			padding-inline-end: var(--g-space-16);
 		}
 
-		/* Focus state */
-		&:has([data-role="header-input-search"]:focus-within) {
+		/* Focus state: the input, not the breadcrumb's links */
+		&:has(> .searchbar > input:focus) {
 			border-color: var(--s-color-border-tertiary);
 		}
 	}
@@ -4380,14 +4380,6 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		color: var(--s-color-text-secondary);
 	}
 
-	/* A group's pill reads as on a row, not as part of the uppercase name. */
-	.b-omnisearch-label .b-tag--indexer {
-		margin-inline-start: var(--g-space-1);
-		font-weight: var(--g-font-normal);
-		text-transform: none;
-		letter-spacing: normal;
-	}
-
 	/* Carries errors as well as "No results": secondary, not tertiary, so it
 	   clears WCAG AA on both dropdown surfaces. */
 	.b-omnisearch-empty {
@@ -4548,11 +4540,20 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 }
 
-/* When the omnisearch dropdown is open, square the bar's bottom corners so the
-   bar and the results read as one continuous surface extending downward. */
-.b-main-navigation:has(> .b-omnisearch:not([hidden])) > .inner {
-	border-end-start-radius: 0;
-	border-end-end-radius: 0;
+/* When the omnisearch dropdown is open, square the bar's bottom corners and
+   draw both in the focused bar's border colour, so the bar and the results
+   read as one outlined surface extending downward. Only the colour changes:
+   both borders are always 1px, so nothing moves when it opens. */
+.b-main-navigation:has(> .b-omnisearch:not([hidden])) {
+	& > .inner,
+	& > .b-omnisearch {
+		border-color: var(--s-color-border-tertiary);
+	}
+
+	& > .inner {
+		border-end-start-radius: 0;
+		border-end-end-radius: 0;
+	}
 }
 
 /* Transient highlight wrapped around an in-page match */

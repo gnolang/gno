@@ -149,17 +149,18 @@
 	position-anchor: --omni-keywords;
 	right: anchor(right);
 	margin: var(--g-space-1) 0 0 var(--g-space-4);
-	width: min(26rem, calc(100vw - 2 * var(--g-space-4)));
+	width: min(30rem, calc(100vw - 2 * var(--g-space-4)));
 	max-height: 70vh;
 	overflow-y: auto;
 	padding: var(--g-space-4);
 }
 
 /* One grid for every group, rows on its columns (a subgrid), so each
-   description starts at the same edge, as in the omnibar. */
+   description starts at the same edge and each row's `indexer` pill ends
+   at the same one, as in the omnibar. */
 .b-omni-hints {
 	display: grid;
-	grid-template-columns: max-content minmax(0, 1fr);
+	grid-template-columns: max-content minmax(0, 1fr) auto;
 	column-gap: var(--g-space-3);
 	font-size: var(--g-font-size-50);
 
@@ -214,9 +215,8 @@
 	color: var(--s-color-text-tertiary);
 }
 
-/* A heading's pill reads as on a row, not as part of the uppercase name. */
-.b-omni-hints__title .b-tag--indexer {
-	font-weight: var(--g-font-normal);
-	text-transform: none;
-	letter-spacing: normal;
+/* Flat, as in the omnibar: a pill does not make its row taller. */
+.b-omni-hints li > .b-tag--indexer {
+	grid-column: 3;
+	padding-block: 0;
 }

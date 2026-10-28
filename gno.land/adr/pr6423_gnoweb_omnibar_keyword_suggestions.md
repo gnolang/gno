@@ -35,9 +35,11 @@ it printed the qualifiers from three hardcoded template lines.
   nor an `in:` package (discover's floor, mirrored). The dropdown says what
   to add. This rule names `author:` and `in:` in the controller.
 - Rows are `<button role="option">`s on a shared grid (keyword, description,
-  marks), so descriptions align. Indexer provenance is said once in a
-  group's label when the whole group shares it, else per row, pill and
-  spoken text together. The pointer moves the same highlight as the arrows.
+  marks), so descriptions align. Indexer provenance is a row's, never a
+  group's: every indexer row carries the pill in the marks column (spoken
+  before its name), so it has one place whether its group is mixed or not,
+  in the omnibar and in the results page's keywords popover alike. The
+  pointer moves the same highlight as the arrows.
 
 ## Alternatives considered
 

@@ -57,12 +57,11 @@ type Choice = {
 	run?: boolean;
 };
 
-// indexer, when set, says whether the whole section is from the indexer;
-// left out, it is when every choice is.
+// ChoiceSection is a group of suggestions. Provenance is a row's, never
+// the group's: an indexer row carries its own pill, in the marks column.
 type ChoiceSection = {
 	label: string;
 	choices: Choice[];
-	indexer?: boolean;
 	notice?: string;
 	highlight?: string;
 };
@@ -535,6 +534,7 @@ export class SearchbarController extends BaseController {
 		const value = text.slice(at + 1);
 		const choices = (await this.valuesFor(k, value)).map((v) => ({
 			title: v,
+			indexer: k.source === "indexer",
 			complete: `${k.name}:${v} `,
 		}));
 		// What the value is, from the hint: `account:<address>`.
@@ -543,9 +543,8 @@ export class SearchbarController extends BaseController {
 		const notice =
 			!value && expected && !k.values ? `Type the ${expected}` : undefined;
 		if (choices.length === 0 && !notice) return none;
-		const indexer = k.source === "indexer";
 		return {
-			lead: [{ label: k.label, indexer, choices, notice, highlight: value }],
+			lead: [{ label: k.label, choices, notice, highlight: value }],
 			waiting: !value,
 		};
 	}
@@ -844,10 +843,7 @@ export class SearchbarController extends BaseController {
 		}
 
 		for (const group of groups) {
-			const section = this.sectionWithLabel(
-				group.label,
-				group.source === "indexer",
-			);
+			const section = this.sectionWithLabel(group.label);
 
 			if (group.error) {
 				section.appendChild(this.buildNotice(group.error));
@@ -891,8 +887,8 @@ export class SearchbarController extends BaseController {
 		this.endDraw(results);
 	}
 
-	// buildItem renders one row. Provenance belongs to the group, so it is
-	// read from there rather than repeated on every result.
+	// buildItem renders one row. Its group's provenance is said on the row,
+	// as on a suggestion: the pill after the text, spoken before it.
 	private buildItem(
 		r: SearchResult,
 		q: string,
@@ -936,9 +932,8 @@ export class SearchbarController extends BaseController {
 	}
 
 	// buildChoice renders a suggestion: what it inserts, set as typed, in a
-	// column the panel shares so the descriptions line up beside it. pill
-	// marks an indexer row whose group does not already say so.
-	private buildChoice(c: Choice, q: string, pill: boolean): HTMLElement {
+	// column the panel shares so the descriptions line up beside it.
+	private buildChoice(c: Choice, q: string): HTMLElement {
 		const item = document.createElement("button");
 		item.type = "button";
 		item.className = "b-omnisearch-item b-omnisearch-choice";
@@ -947,8 +942,7 @@ export class SearchbarController extends BaseController {
 		item.addEventListener("click", () =>
 			c.run ? this.runKeyword(c.complete) : this.complete(c.complete),
 		);
-		const marked = c.indexer && pill;
-		if (marked) item.appendChild(this.srOnly(`${FROM_INDEXER}: `));
+		if (c.indexer) item.appendChild(this.srOnly(`${FROM_INDEXER}: `));
 
 		// The keyword's name is what to read; the value it takes, muted. Its
 		// brackets are not read out.
@@ -977,7 +971,7 @@ export class SearchbarController extends BaseController {
 		// One trailing cell: provenance, then "runs at once".
 		const marks = document.createElement("span");
 		marks.className = "b-omnisearch-marks";
-		if (marked) marks.appendChild(this.buildIndexerPill());
+		if (c.indexer) marks.appendChild(this.buildIndexerPill());
 		if (c.run) {
 			const run = this.decor("↵", "kbd");
 			run.className = "b-omnisearch-run";
@@ -991,15 +985,11 @@ export class SearchbarController extends BaseController {
 		return item;
 	}
 
-	// buildChoiceSection says once, in its label, that a group comes from
-	// the indexer when all of it does; a mixed one marks its indexer rows.
 	private buildChoiceSection(s: ChoiceSection): HTMLElement {
-		const shared =
-			s.indexer ?? (s.choices.length > 0 && s.choices.every((c) => c.indexer));
-		const section = this.sectionWithLabel(s.label, shared);
+		const section = this.sectionWithLabel(s.label);
 		if (s.notice) section.appendChild(this.buildNotice(s.notice));
 		for (const c of s.choices) {
-			section.appendChild(this.buildChoice(c, s.highlight ?? "", !shared));
+			section.appendChild(this.buildChoice(c, s.highlight ?? ""));
 		}
 		return section;
 	}
@@ -1271,19 +1261,14 @@ export class SearchbarController extends BaseController {
 
 	// sectionWithLabel opens a group; indexer says in its label that all of
 	// it is from the indexer.
-	private sectionWithLabel(title: string, indexer = false): HTMLElement {
+	private sectionWithLabel(title: string): HTMLElement {
 		const section = document.createElement("div");
 		section.className = "b-omnisearch-section";
 		section.setAttribute("role", "group");
-		section.setAttribute(
-			"aria-label",
-			indexer ? `${title}, ${FROM_INDEXER}` : title,
-		);
+		section.setAttribute("aria-label", title);
 		const label = document.createElement("span");
 		label.className = "b-omnisearch-label";
 		label.textContent = title;
-		// The same pill as on a row, once for the whole group.
-		if (indexer) label.appendChild(this.buildIndexerPill());
 		// role="group" owns only options; the group already carries this
 		// text as its aria-label, so the span is decoration.
 		label.setAttribute("aria-hidden", "true");

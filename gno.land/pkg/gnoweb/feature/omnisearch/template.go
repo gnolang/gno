@@ -3,7 +3,6 @@ package omnisearch
 import (
 	"embed"
 	"html/template"
-	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -82,12 +81,11 @@ type hintRow struct {
 	Href       template.URL
 }
 
-// hintList is one heading of the keywords popover and its rows. Indexer
-// says once, in the heading, that every row under it is from the indexer.
+// hintList is one heading of the keywords popover and its rows. Provenance
+// is a row's, as in the omnibar: each indexer row carries its own pill.
 type hintList struct {
-	Label   string
-	Indexer bool
-	Rows    []hintRow
+	Label string
+	Rows  []hintRow
 }
 
 // angles sets a hint's placeholder as the omnibar does: `in:‹path›`.
@@ -109,14 +107,7 @@ func keywordLists(d SearchData) []hintList {
 		if len(rows) == 0 {
 			return
 		}
-		l := hintList{Label: label, Rows: rows}
-		l.Indexer = !slices.ContainsFunc(rows, func(r hintRow) bool { return !r.Indexer })
-		if l.Indexer {
-			for i := range rows {
-				rows[i].Indexer = false
-			}
-		}
-		lists = append(lists, l)
+		lists = append(lists, hintList{Label: label, Rows: rows})
 	}
 	for _, g := range keywordGroups {
 		var rows []hintRow
