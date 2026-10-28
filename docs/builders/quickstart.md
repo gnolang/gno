@@ -79,7 +79,7 @@ Live at **`https://latest.testnets.gno.land/r/<your-g1-addr>/counter`**.
 
 Before publishing a non-trivial realm, read the
 [Gno Security Guide](../resources/gno-security-guide.md). The
-[`misc/audit-pattern-harness`](../../misc/audit-pattern-harness/README.md)
+[`misc/audit-pattern-harness`](https://github.com/gnolang/gno/blob/master/misc/audit-pattern-harness/README.md)
 fixtures provide a quick sanity check for recurring audit patterns and show how
 to run the executable checks.
 

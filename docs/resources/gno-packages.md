@@ -161,7 +161,7 @@ structure for storing key-value data. It is one option in the broader family of
 tree-backed indexes, useful when you need access to large datasets.
 
 See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for storage-type guidance
-and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
+and the [package README](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 #### Usage example:
 
@@ -197,7 +197,7 @@ func Exists(key string) bool {
 }
 ```
 
-View the package source on [GitHub](../../examples/gno.land/p/nt/avl/v0).
+View the package source on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/avl/v0).
 
 ### Package `ufmt`
 
@@ -211,7 +211,7 @@ Deployed under `gno.land/p/nt/ufmt/v0`, this package is a minimal version of the
 package ufmt
 ```
 
-View the package source on [GitHub](../../examples/gno.land/p/nt/ufmt/v0).
+View the package source on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/ufmt/v0).
 
 ### Package `seqid`
 
@@ -233,7 +233,7 @@ have sequential IDs in Gno:
 package seqid
 ```
 
-View the package source on [GitHub](../../examples/gno.land/p/nt/seqid/v0).
+View the package source on [GitHub](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/nt/seqid/v0).
 
 ## Exploring Deployed Packages
 

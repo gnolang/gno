@@ -201,7 +201,7 @@ This lazy-loading pattern avoids transferring the entire object graph upfront.
 
 ## Client Libraries
 
-- **[@gnojs/amino](../../misc/gnojs/)** — TypeScript library that decodes Amino JSON into a navigable tree of `StateNode` objects. Handles all value types, primitive decoding, and struct field name resolution.
+- **[@gnojs/amino](https://github.com/gnolang/gno/tree/master/misc/gnojs)** — TypeScript library that decodes Amino JSON into a navigable tree of `StateNode` objects. Handles all value types, primitive decoding, and struct field name resolution.
 - **[gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)** — Go client (use `ABCIQuery` with the paths above)
 - **[gno-js-client](https://github.com/gnolang/gno-js-client)** / **[tm2-js-client](https://github.com/gnolang/tm2-js-client)** — JavaScript/TypeScript clients for RPC access
 

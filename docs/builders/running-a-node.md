@@ -49,7 +49,7 @@ read traffic, custom indexing, or archival history.
 A full node syncs a public network's blocks without taking part in
 consensus. Two things to read, and neither is in this section of the
 docs: the operator guide in
-[`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland),
+[`gno.land/cmd/gnoland`](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland),
 and the target network's own genesis, peer list, and `README.md` under
 [deployment files](../resources/gnoland-networks.md#deployment-files) —
 each network pins its own.
@@ -59,25 +59,25 @@ Don't point a `master` build at a released network. Chains run pinned
 releases; a node built from `master` will not reach consensus with them.
 After a coordinated upgrade the chain can also require a minimum binary
 version, and a `master` build satisfies none — see
-[upgrades](../../gno.land/cmd/gnoland/UPGRADES.md).
+[upgrades](https://github.com/gnolang/gno/blob/master/gno.land/cmd/gnoland/UPGRADES.md).
 :::
 
 ## Become a validator
 
 This is not "a full node, but voted in". Expect to run that node behind
 sentries, sign through a remote signer such as
-[tmkms](../../gno.land/cmd/gnoland/TMKMS.md), monitor it, and go through
+[tmkms](https://github.com/gnolang/gno/blob/master/gno.land/cmd/gnoland/TMKMS.md), monitor it, and go through
 an onboarding process on Discord that ends in a GovDAO vote. None of
 that is enforced by the software, but the review team checks your node
 is synced before approving you, and registering entitles you to nothing.
 
 Get the node running first, then start onboarding. Two places:
 
-- [`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland) — the operator
+- [`gno.land/cmd/gnoland`](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland) — the operator
   documentation: sentry architecture, remote signing, hardware, and the
   step-by-step onboarding process, which is kept up to date there rather
   than duplicated here.
-- [`misc/deployments/`](../../misc/deployments) — the target network's
+- [`misc/deployments/`](https://github.com/gnolang/gno/tree/master/misc/deployments) — the target network's
   own genesis, peers, and `VALIDATOR.md`.
 
 Onboarding starts in `#general-chat` on
@@ -88,7 +88,7 @@ become visible once you hold a candidate or validator role.
 
 Here a node is the point: no network to join, no genesis to fetch — just
 `gnoland` running a single-validator chain you can break. See
-[`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland).
+[`gno.land/cmd/gnoland`](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland).
 
 Install the binary with the `--full` flag of the
 [one-line installer](./install.md).

@@ -35,7 +35,7 @@ func Render(path string) string {
 Community markdown builders are still useful for composing output after you
 know whether each helper sanitizes internally or expects sanitized input.
 
-- [`gno.land/p/moul/md/v0`](../../examples/gno.land/p/moul/md/v0/md.gno): helpers for
+- [`gno.land/p/moul/md/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/moul/md/v0/md.gno): helpers for
   building markdown links, headings, lists, images, code blocks, and text
   escaping.
 
@@ -47,7 +47,7 @@ know whether each helper sanitizes internally or expects sanitized input.
   }
   ```
 
-- [`gno.land/p/moul/mdtable/v0`](../../examples/gno.land/p/moul/mdtable/v0/mdtable.gno):
+- [`gno.land/p/moul/mdtable/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/moul/mdtable/v0/mdtable.gno):
   helpers for markdown tables. Use this when your `Render` output is tabular
   and you want pipe escaping handled consistently.
 
@@ -61,10 +61,10 @@ know whether each helper sanitizes internally or expects sanitized input.
   }
   ```
 
-- [`gno.land/p/nt/mdalert/v0`](../../examples/gno.land/p/nt/mdalert/v0/README.md):
+- [`gno.land/p/nt/mdalert/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/mdalert/v0/README.md):
   helpers for Gno-Flavored Markdown alert blocks.
 
-- [`gno.land/p/sunspirit/md/v0`](../../examples/gno.land/p/sunspirit/md/v0/md.gno):
+- [`gno.land/p/sunspirit/md/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/sunspirit/md/v0/md.gno):
   a builder-oriented markdown package. It is convenient when a view is assembled
   from optional fragments.
 
@@ -78,19 +78,19 @@ know whether each helper sanitizes internally or expects sanitized input.
 
 ## Storage Helpers
 
-- [`gno.land/p/moul/ulist/v0`](../../examples/gno.land/p/moul/ulist/v0/ulist.gno):
+- [`gno.land/p/moul/ulist/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/moul/ulist/v0/ulist.gno):
   append-oriented list storage with range and offset iteration.
-- [`gno.land/p/moul/addrset/v0`](../../examples/gno.land/p/moul/addrset/v0/addrset.gno):
+- [`gno.land/p/moul/addrset/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/moul/addrset/v0/addrset.gno):
   address set semantics.
-- [`gno.land/p/moul/fifo/v0`](../../examples/gno.land/p/moul/fifo/v0/fifo.gno):
+- [`gno.land/p/moul/fifo/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/moul/fifo/v0/fifo.gno):
   queue-like storage.
 - `gno.land/p/moul/collection` **(quarantined)**:
   indexed collection patterns built on tree storage and `seqid`.
-- [`gno.land/p/nt/avl/v0`](../../examples/gno.land/p/nt/avl/v0/README.md):
+- [`gno.land/p/nt/avl/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/avl/v0/README.md):
   general sorted key/value indexes with range and offset iteration.
-- [`gno.land/p/nt/bptree/v0`](../../examples/gno.land/p/nt/bptree/v0/doc.gno):
+- [`gno.land/p/nt/bptree/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/bptree/v0/doc.gno):
   B+ tree storage variants for large sorted datasets and scan-heavy indexes.
-- [`gno.land/p/nt/seqid/v0`](../../examples/gno.land/p/nt/seqid/v0/README.md):
+- [`gno.land/p/nt/seqid/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/seqid/v0/README.md):
   sequential IDs encoded so they sort correctly as AVL keys.
 - `gno.land/p/jeronimoalbi/bitset` **(quarantined)**:
   compact membership flags when IDs are dense numeric indexes.
@@ -152,11 +152,11 @@ func IsClaimed(id uint64) bool {
 
 ## Access-Control Helpers
 
-- [`gno.land/p/nt/ownable/v0`](../../examples/gno.land/p/nt/ownable/v0/README.md):
+- [`gno.land/p/nt/ownable/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/nt/ownable/v0/README.md):
   owner-gated administration with explicit `cur realm` checks.
 - `gno.land/p/nt/pausable/v0` **(quarantined)**:
   pause switches layered on an `ownable.Ownable`.
-- [`gno.land/p/moul/authz/v0`](../../examples/gno.land/p/moul/authz/v0/authz.gno):
+- [`gno.land/p/moul/authz/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/moul/authz/v0/authz.gno):
   authorization helper patterns worth studying when a single owner is not
   enough.
 
@@ -180,10 +180,10 @@ func SetName(cur realm, name string) {
 
 ## Structured Data Helpers
 
-- [`gno.land/p/onbloc/json/v0`](../../examples/gno.land/p/onbloc/json/v0/README.md):
+- [`gno.land/p/onbloc/json/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/onbloc/json/v0/README.md):
   parse JSON into explicit nodes when a realm accepts structured text input.
-- [`gno.land/p/onbloc/int256/v0`](../../examples/gno.land/p/onbloc/int256/v0/doc.gno)
-  and [`gno.land/p/onbloc/uint256/v0`](../../examples/gno.land/p/onbloc/uint256/v0/README.md):
+- [`gno.land/p/onbloc/int256/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/onbloc/int256/v0/doc.gno)
+  and [`gno.land/p/onbloc/uint256/v0`](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/onbloc/uint256/v0/README.md):
   fixed-width integer helpers for domains that need larger arithmetic than the
   built-in integer types.
 - `gno.land/p/lou/query` **(quarantined)**:
