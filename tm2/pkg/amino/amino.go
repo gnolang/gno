@@ -1154,11 +1154,20 @@ func (cdc *Codec) MustUnmarshal(bz []byte, ptr any) {
 // in a block, must decode it with this function, or the same message
 // circulates under as many hashes as it has encodings.
 func (cdc *Codec) UnmarshalCanonical(bz []byte, ptr any) error {
+	// Unmarshal accepts **T as well as *T, and its reflect path decodes
+	// through any depth of pointers; Marshal takes one level and panics on
+	// more. Refuse the deeper forms here, before decoding.
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Pointer {
+		return ErrNoPointer
+	}
+	if rv.Elem().Kind() == reflect.Pointer && rv.Type().Elem().Elem().Kind() == reflect.Pointer {
+		return fmt.Errorf("UnmarshalCanonical: nested pointers not allowed (%v)", rv.Type())
+	}
 	if err := cdc.Unmarshal(bz, ptr); err != nil {
 		return err
 	}
-	// Unmarshal accepts **T as well as *T; Marshal takes one pointer level.
-	if rv := reflect.ValueOf(ptr); rv.Elem().Kind() == reflect.Pointer {
+	if rv.Elem().Kind() == reflect.Pointer {
 		ptr = rv.Elem().Interface()
 	}
 	canonical, err := cdc.Marshal(ptr)

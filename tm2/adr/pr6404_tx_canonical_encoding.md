@@ -62,8 +62,11 @@ the mechanism. The converse does not hold: `Marshal` can emit bytes the check
 then rejects where a repr type's producer is laxer than its consumer (an
 unsorted `std.Coins` string round-trips sorted), and bytes the check accepts
 can still be invalid (`0a 00`, a nil message, is the canonical encoding of
-`Tx{Msgs: {nil}}`). It ships here as a library function with its tests;
-nothing calls it yet.
+`Tx{Msgs: {nil}}`). Like `Unmarshal` it takes `*T` or `**T`; deeper pointers,
+which `Unmarshal` decodes through and `Marshal` panics on, are refused with an
+error before decoding. It ships here as a library function with its tests,
+covering the reflect path and, through a generated type, the genproto2 path
+that `std.Tx` takes; nothing calls it yet.
 
 **Enforcement is a separate PR, #6406**: `BaseApp.runTx` decodes every tx
 with `UnmarshalCanonical`, unconditionally. It cannot ship before the wire
