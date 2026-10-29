@@ -2158,31 +2158,31 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								case *FuncDecl:
 									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
 									dft := getType(&dbn.Type).(*FuncType)
-									if !dft.IsCrossing() || dft.Params[0].Name != "cur" {
+									if !dft.IsCrossing() {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 									}
 									// at this point we know that `cur` is from a containing crossing function.
-									// The name test makes this check self-contained: a
-									// crossing declaration whose first parameter is not
-									// named `cur` (an unnamed `.arg` binding) has no
-									// `cur` for this path to forward. Belt-and-braces
-									// now that checkDeclName refuses every other
-									// `cur` declaration.
+									// NOT also tested by name: a crossing function may
+									// bind its first realm parameter as `_`, and master
+									// accepts a local `cur` threaded from one, so a
+									// stored package may carry that shape and this runs
+									// again at node boot. The gate refuses the
+									// declaration for new source instead.
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								case *FuncLitExpr:
 									// dft := evalStaticType(store, last, &dbn.Type).(*FuncType)
 									dft := getType(&dbn.Type).(*FuncType)
-									if !dft.IsCrossing() || dft.Params[0].Name != "cur" {
+									if !dft.IsCrossing() {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 									}
 									// at this point we know that `cur` is from a containing crossing function.
-									// The name test makes this check self-contained: a
-									// crossing declaration whose first parameter is not
-									// named `cur` (an unnamed `.arg` binding) has no
-									// `cur` for this path to forward. Belt-and-braces
-									// now that checkDeclName refuses every other
-									// `cur` declaration.
+									// NOT also tested by name: a crossing function may
+									// bind its first realm parameter as `_`, and master
+									// accepts a local `cur` threaded from one, so a
+									// stored package may carry that shape and this runs
+									// again at node boot. The gate refuses the
+									// declaration for new source instead.
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								default:

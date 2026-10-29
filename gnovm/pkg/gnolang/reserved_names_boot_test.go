@@ -117,3 +117,35 @@ func F(cur realm) string {
 	}()
 	m.PreprocessAllFilesAndSaveBlockNodes()
 }
+
+// The third shape, and the one that shows why the rule may not sit in
+// preprocess even "belt and braces": a crossing function may bind its first
+// realm parameter as `_`, and master accepts a local `cur` threaded from it by
+// a non-crossing call. Tightening the cur-call provenance check by NAME
+// refused that at boot. Found by dora on 348078dbe.
+func TestBootStoredCurThreadedFromBlankParam(t *testing.T) {
+	const head = "package stored\n\nfunc G(cur realm) string { return cur.PkgPath() }\n\n"
+	for _, tc := range []struct{ name, body string }{
+		{"func decl", "func F(_ realm, c realm) string {\n\tcur := c\n\treturn G(cur)\n}"},
+		{"func literal", "var F = func(_ realm, c realm) string {\n\tcur := c\n\treturn G(cur)\n}"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := memdb.NewMemDB()
+			store := NewStore(nil,
+				dbadapter.StoreConstructor(db, stypes.StoreOptions{}),
+				iavl.StoreConstructor(db, stypes.StoreOptions{}))
+			store.AddMemPackage(&std.MemPackage{
+				Type: MPUserAll, Name: "stored", Path: "gno.land/r/demo/stored",
+				Files: []*std.MemFile{{Name: "a.gno", Body: head + tc.body + "\n"}},
+			}, MPUserAll)
+			m := NewMachineWithOptions(MachineOptions{Store: store})
+			defer m.Release()
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("a restarting node failed to boot on a stored package: %v", r)
+				}
+			}()
+			m.PreprocessAllFilesAndSaveBlockNodes()
+		})
+	}
+}

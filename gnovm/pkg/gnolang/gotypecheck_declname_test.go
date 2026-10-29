@@ -32,6 +32,9 @@ func TestCheckDeclNames(t *testing.T) {
 		// `:=` with one new variable ASSIGNS cur, so go/types records it in
 		// Uses, not Defs; checkDeclNames alone never sees this shape.
 		{"cur same-scope rebind", "func F(cur realm) string { cur, y := cur, 1; _ = y; return cur.PkgPath() }", "cannot reassign the crossing"},
+		// The shape preprocess must still accept for stored packages: a local
+		// `cur` threaded from a crossing function with a blank first param.
+		{"cur threaded from blank param", "func G(cur realm) string { return cur.PkgPath() }\nfunc F(_ realm, c realm) string { cur := c; return G(cur) }", "contextual keyword"},
 
 		// The one legal binding, and the shapes the rule must not touch.
 		{"crossing first param", "func F(cur realm) {}", ""},

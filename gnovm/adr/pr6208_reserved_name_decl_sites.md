@@ -51,6 +51,16 @@ rule; position alone would admit `func(x int, cur realm)`, type alone
 `func(cur int)`. The refusal is reported in source order, because `Defs` is a
 map.
 
+**Nothing in preprocess may tighten, not even belt-and-braces.** The first
+cut also added `dft.Params[0].Name != "cur"` to the cur-call provenance check,
+on the reasoning that no other `cur` could exist once the name rule ran. The
+rule does not run there, and master accepts a crossing function that binds its
+first realm parameter as `_` with a local `cur` threaded from it, so that
+tightening refused a stored package at boot (dora, on `348078dbe`;
+`TestBootStoredCurThreadedFromBlankParam`). `preprocess.go` now differs from
+master by one const string and nothing else, which is the invariant to hold
+this change to.
+
 **The rule may not live in preprocess.** `PreprocessAllFilesAndSaveBlockNodes`
 re-preprocesses every stored package at every node restart, so a rejection
 there refuses source the chain already accepted — a validator fails to start
