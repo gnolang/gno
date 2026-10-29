@@ -121,44 +121,6 @@ func main() {
 	})
 }
 
-func TestPreprocessCollectInitCycle(t *testing.T) {
-	msgs := collectErrors(t, `package main
-
-var a = f()
-
-func f() int { return a + g() }
-
-func g() int { return g() } // recursion among functions is not a cycle
-
-var b = 1
-
-func main() { println(a, b) }
-`)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
-		t.Fatalf("unexpected: %v", msgs)
-	}
-	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
-		t.Fatalf("false positive: %v", msgs)
-	}
-}
-
-func TestInitCycleOnChain(t *testing.T) {
-	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
-	// any initializer runs, with the same positioned message.
-	m := NewMachine("test", nil)
-	defer m.Release()
-	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
-	defer func() {
-		r := recover()
-		pe, ok := r.(*PreprocessError)
-		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
-			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
-		}
-	}()
-	m.RunFiles(fn)
-	t.Fatal("RunFiles accepted a cycle")
-}
-
 // collectWith is collectErrors with the accumulator exposed: full messages
 // (position kept), an optional in-walk hook, and the panic if one escaped.
 func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []string, panicked any) {
@@ -604,7 +566,7 @@ func main() {
 	// A failing clause drops alone: its body is silenced (go/types), the
 	// other clauses are checked.
 	wantErrors(t, msgs,
-		"main.gno:8:2", "0 is not a type",
+		"main.gno:8:7", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
 		"main.gno:13:3", "missing field M in main.Stringer",
 		"main.gno:16:2", "cannot use",
@@ -829,6 +791,85 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreprocessCollectConditionFollowOns(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func main() {
+	did := 1
+	var b bool
+	if !did && b {
+		_ = undefined1
+	}
+	for !did {
+		_ = undefined2
+	}
+	switch !did {
+	case true:
+		_ = undefined3
+	}
+	var x interface{}
+	switch t := x.(type) {
+	case 0:
+		t.x = 1
+		x.x = 1
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failed condition, tag or case leaves its body checked (did counts
+	// as used); the clause's variable is invalid, so t.x is silent.
+	wantErrors(t, msgs,
+		"main.gno:6:5", "operator ! not defined on: IntKind",
+		"main.gno:7:7", "undefined1",
+		"main.gno:9:6", "operator ! not defined on: IntKind",
+		"main.gno:10:7", "undefined2",
+		"main.gno:12:9", "operator ! not defined on: IntKind",
+		"main.gno:14:7", "undefined3",
+		"main.gno:18:7", "0 is not a type",
+		"main.gno:20:3", "missing field x in interface {}",
+	)
+}
+
+func TestPreprocessCollectInitCycle(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var a = f()
+
+func f() int { return a + g() }
+
+func g() int { return g() } // recursion among functions is not a cycle
+
+var b = 1
+
+func main() { println(a, b) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
 }
 
 func TestPreprocessCollectConstCycles(t *testing.T) {
