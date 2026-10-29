@@ -253,21 +253,18 @@ export class ActionFunctionController extends BaseController {
 		resultTarget.classList.toggle(errorClass, res.isError);
 	}
 
-	// _evalArgs returns the card's params in order, each with its typed value
-	// or, when empty, a zero value for its type. full is false when any
-	// param is still empty.
+	// _evalArgs returns the card's params in order, each typed value as a Gno
+	// literal or, when empty, a zero value for its type. The template renders
+	// one input per param, so unnamed or repeated names ("_") still count.
+	// full is false when any param is still empty.
 	private _evalArgs(): { args: string[]; full: boolean } {
-		const seen = new Set<string>();
-		const args: string[] = [];
 		let full = true;
-		for (const input of this._paramInputs) {
-			const name = this.getValue("param", input);
-			if (!name || seen.has(name)) continue;
-			seen.add(name);
-			const value = this._getParamCurrentValue(name);
+		const args = this._paramInputs.map((input) => {
+			const type = this.getValue("type", input);
+			const value = input.value.trim();
 			if (!value) full = false;
-			args.push(value || zeroLiteral(this.getValue("type", input)));
-		}
+			return value ? gnoLiteral(value, type) : zeroLiteral(type);
+		});
 		return { args, full };
 	}
 
@@ -309,11 +306,21 @@ export class ActionFunctionController extends BaseController {
 	}
 }
 
+// gnoLiteral turns a typed value into a Gno literal for its type: a string
+// or an address is quoted, unless the reader already wrote a quoted
+// literal; anything else is Gno source as typed (numbers, bools, calls).
+function gnoLiteral(value: string, type: string): string {
+	if (type !== "string" && type !== "address") return value;
+	if (/^"(?:[^"\\\n]|\\.)*"$|^`[^`]*`$/.test(value)) return value;
+	return JSON.stringify(value);
+}
+
 // zeroLiteral is a Gno literal of the zero value for a parameter type, as
-// the package's doc renders it: "" for strings, 0 for numbers, false for
-// bool and nil for the rest, a placeholder the reader replaces.
+// the package's doc renders it: "" for strings and addresses, 0 for
+// numbers, false for bool and nil for the rest, a placeholder the reader
+// replaces.
 function zeroLiteral(type: string): string {
-	if (type === "string") return '""';
+	if (type === "string" || type === "address") return '""';
 	if (type === "bool") return "false";
 	if (/^(u?int(8|16|32|64)?|uintptr|byte|rune|float(32|64))$/.test(type))
 		return "0";
