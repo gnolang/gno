@@ -608,9 +608,9 @@ func main() {
 	// A failing clause drops alone: its body is silenced (go/types), the
 	// other clauses are checked.
 	wantErrors(t, msgs,
-		"main.gno:8:2", "0 is not a type",
+		"main.gno:8:7", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
-		"main.gno:13:3", "e.M undefined",
+		"main.gno:13:3", "e.M undefined (type main.Stringer has no field or method M)",
 		"main.gno:16:2", "cannot use",
 		"main.gno:18:7", "cannot use",
 	)
@@ -1081,9 +1081,8 @@ func main() {
 	_, _, _, _, _ = m, n, p, q, r
 }
 `)
-	// The operand prints in its preprocessed form, as the neighbouring
-	// "is not constant" messages do.
-	if len(msgs) != 2 || !strings.Contains(msgs[0], "(s<") || !strings.Contains(msgs[1], "(f<") ||
+	// The operand prints as written (its folded parts as constants).
+	if len(msgs) != 2 || !strings.HasPrefix(msgs[0], "len(s[") || !strings.HasPrefix(msgs[1], "cap(f())") ||
 		!strings.HasSuffix(msgs[0], ") (value of type int) is not constant") || !strings.HasSuffix(msgs[1], ") (value of type int) is not constant") {
 		t.Fatalf("got %v", msgs)
 	}
@@ -3144,4 +3143,199 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreprocessCollectMethodExprPointerPointer(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type T struct{}
+
+func (T) foo() {}
+
+func main() {
+	var pt *T
+	(**T).foo(&pt)
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:9:2", "(**T).foo undefined (type **main.T has no field or method foo)",
+	)
+}
+
+func TestPreprocessCollectConstantArguments(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type T map[int]int
+
+func ff() string { return "" }
+
+var (
+	_ [1.5]int
+	_ ["abc"]int
+	_ [float64(10)]int
+	_ [len([1]string{ff()})]int
+	_ [10.0]int
+	_ ['a']int
+)
+
+const _ = string([]byte(nil))
+
+func main() {
+	var sink T
+	sink = make(T, uint64(1<<63))
+	const y = uint64(1 << 63)
+	sink = make(T, y)
+	_ = sink
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:8:", "array length 1.5 (untyped float constant) must be integer",
+		"main.gno:9:", `array length "abc" (untyped string constant) must be integer`,
+		"main.gno:10:", "array length float64(10) (constant of type float64) must be integer",
+		"main.gno:11:", "(value of type int) is not constant",
+		"main.gno:16:", "(value of type []uint8) is not constant",
+		"main.gno:20:", "overflows int",
+		"main.gno:22:", "overflows int",
+	)
+}
+
+func TestPreprocessCollectVariadicParams(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type I interface {
+	g(a ...int, b ...int, c float32)
+	h(...int, ...int)
+}
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every parameter and every method is reported.
+	wantErrors(t, msgs,
+		"main.gno:4:4", "can only use ... with final parameter in list",
+		"main.gno:4:14", "can only use ... with final parameter in list",
+		"main.gno:5:4", "can only use ... with final parameter in list",
+	)
+}
+
+func TestPreprocessCollectConditionFollowOns(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func main() {
+	did := 1
+	var b bool
+	if !did && b {
+		_ = undefined1
+	}
+	for !did {
+		_ = undefined2
+	}
+	switch !did {
+	case true:
+		_ = undefined3
+	}
+	var x interface{}
+	switch t := x.(type) {
+	case 0:
+		t.x = 1
+		x.x = 1
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failed condition, tag or case leaves its body checked (did counts
+	// as used); the clause's variable is invalid, so t.x is silent.
+	wantErrors(t, msgs,
+		"main.gno:6:5", "operator ! not defined on: IntKind",
+		"main.gno:7:7", "undefined1",
+		"main.gno:9:6", "operator ! not defined on: IntKind",
+		"main.gno:10:7", "undefined2",
+		"main.gno:12:9", "operator ! not defined on: IntKind",
+		"main.gno:14:7", "undefined3",
+		"main.gno:18:7", "0 is not a type",
+		"main.gno:20:3", "x.x undefined (type interface {} has no field or method x)",
+	)
+}
+
+func TestPreprocessCollectConstCycles(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+const A = 1 + B
+const B = C - 1
+const C = A + B + 1
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every cycle, at its first member in source order, as gc.
+	wantErrors(t, msgs,
+		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
+		"main.gno:4:", "initialization cycle: B refers to C refers to B",
+	)
+}
+
+func TestPreprocessCollectAssignCounts(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func two() (int, int) { return 1, 2 }
+func none()           {}
+
+func main() {
+	var a, b int
+	_ = a, b
+	a = two()
+	_, _ = two(), 1
+	a = none()
+	var c int = two()
+	_, _, _ = a, b, c
+}
+
+func f() (int, int) {
+	return two(), 0
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Each count rule fires once, at the value; gc's wording.
+	wantErrors(t, msgs,
+		"main.gno:8:2", "assignment mismatch: 1 variable but 2 values",
+		"main.gno:9:6", "assignment mismatch: 1 variable but two returns 2 values",
+		"main.gno:10:9", "multiple-value two() (value of type (int,int)) in single-value context",
+		"main.gno:11:2", "(no value) used as value",
+		"main.gno:12:14", "assignment mismatch: 1 variable but two returns 2 values",
+		"main.gno:17:9", "multiple-value two() (value of type (int,int)) in single-value context",
+	)
+}
+
+func TestPreprocessCollectArgPosition(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func g(int, int) {}
+
+func main() {
+	g(
+		1,
+		"s",
+	)
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:8:3", "cannot use",
+	)
 }

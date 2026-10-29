@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -260,7 +261,7 @@ Main:
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
-									panic(fmt.Sprintf("%s (value of type int) is not constant", currExpr.String()))
+									panic(fmt.Sprintf("%s (value of type int) is not constant", exprString(currExpr)))
 								}
 								break Main
 							}
@@ -280,6 +281,10 @@ Main:
 				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(), tup.Elts))
 			}
 		case *TypeType:
+			// string([]byte(nil)): the target must be a constant type.
+			if ct := evalStaticType(store, last, currExpr.Func); !isConstantType(ct) {
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", exprString(currExpr), ct))
+			}
 			for _, arg := range currExpr.Args {
 				assertValidConstValue(store, last, arg)
 			}
@@ -935,6 +940,76 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 }
 
+// assignMismatchMsg is gc's count error: "assignment mismatch: 2 variables
+// but 1 value", or "... but f returns 2 values" when the sole value is a
+// call of f.
+func assignMismatchMsg(nvars int, call Expr, nvals int) string {
+	vars := fmt.Sprintf("%d variables", nvars)
+	if nvars == 1 {
+		vars = "1 variable"
+	}
+	vals := fmt.Sprintf("%d values", nvals)
+	if nvals == 1 {
+		vals = "1 value"
+	}
+	if call != nil {
+		return fmt.Sprintf("assignment mismatch: %s but %s returns %s", vars, exprString(call), vals)
+	}
+	return fmt.Sprintf("assignment mismatch: %s but %s", vars, vals)
+}
+
+// assertSingleValued rejects a call returning no or several values where
+// each of xs stands for one (Go spec, "Calls"): an assignment or a
+// declaration with as many values as targets, a return with as many
+// results as the function.
+func assertSingleValued(store Store, last BlockNode, xs []Expr) {
+	for _, x := range xs {
+		cx, ok := x.(*CallExpr)
+		if !ok || isInvalidExpr(cx) {
+			continue
+		}
+		tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
+		if !ok {
+			continue
+		}
+		switch len(tt.Elts) {
+		case 1:
+		case 0:
+			failf(CodeMultiValue, []Node{cx}, "%s (no value) used as value", exprString(cx))
+		default:
+			failf(CodeMultiValue, []Node{cx}, "multiple-value %s (value of type %v) in single-value context", exprString(cx), tt)
+		}
+	}
+}
+
+// assertAssignValues is assertSingleValued for nvars targets taking the
+// values vals one each; a single target taking a multi-valued call is
+// gc's count mismatch.
+func assertAssignValues(store Store, last BlockNode, nvars int, vals []Expr) {
+	if nvars == 1 && len(vals) == 1 {
+		if cx, ok := vals[0].(*CallExpr); ok && !isInvalidExpr(cx) {
+			if tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType); ok && len(tt.Elts) > 1 {
+				fail(CodeMultiValue, assignMismatchMsg(1, cx.Func, len(tt.Elts)), cx)
+			}
+		}
+	}
+	assertSingleValued(store, last, vals)
+}
+
+// checkOrConvertArg is checkOrConvertType for argument i of the call n,
+// with the error positioned at the argument, as gc does.
+func checkOrConvertArg(store Store, last BlockNode, n *CallExpr, i int, t Type) {
+	defer func() {
+		if r := recover(); r != nil {
+			if msg, ok := r.(string); ok {
+				fail(CodeAssignability, msg, n.Args[i])
+			}
+			panic(r)
+		}
+	}()
+	checkOrConvertType(store, last, n, &n.Args[i], t)
+}
+
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
 		assertValidAssignRhs(store, last, x)
@@ -1313,4 +1388,26 @@ func isComparable(dt Type) bool {
 	default:
 		return false
 	}
+}
+
+// isConstantType reports whether t can be the type of a constant: a
+// boolean, numeric or string type (Go spec, "Constants").
+func isConstantType(t Type) bool {
+	_, ok := baseOf(t).(PrimitiveType)
+	return ok
+}
+
+// constFitsInt reports whether the integer constant tv is representable
+// as int (a make size, an index); a non-integer kind is left to the
+// integer rule.
+func constFitsInt(tv TypedValue) bool {
+	switch tv.T.Kind() {
+	case UintKind:
+		return tv.GetUint() <= math.MaxInt64
+	case Uint64Kind:
+		return tv.GetUint64() <= math.MaxInt64
+	case BigintKind:
+		return tv.GetBigInt().IsInt64()
+	}
+	return true
 }

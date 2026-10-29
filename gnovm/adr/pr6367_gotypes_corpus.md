@@ -38,3 +38,5 @@ finely and names the rule a gap belongs to.
   files Gno rejects (five language-version features, three gaps), the
   rest Unsupported, 163 of them generics.
 - Two rules the suite caught over-reporting are fixed in this PR.
+
+Follow-up (2026-10-30): a gc follow-on error on a dependent of a failed declaration (`issue65344`) is a documented divergence, not a gap.

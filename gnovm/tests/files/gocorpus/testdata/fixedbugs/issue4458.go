@@ -19,4 +19,7 @@ func main() {
 	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named|undefined"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19
+// GnoError:
+// line 19: (**T).foo undefined (type **main.T has no field or method foo)
+
+// Verdict: Clean errorcheck
