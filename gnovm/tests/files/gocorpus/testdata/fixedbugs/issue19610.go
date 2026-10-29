@@ -13,4 +13,7 @@ func main() {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10
+// GnoError:
+// line 10: cannot declare in post statement of for loop
+
+// Verdict: Clean errorcheck

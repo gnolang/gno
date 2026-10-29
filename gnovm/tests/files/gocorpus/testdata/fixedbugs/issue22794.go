@@ -22,7 +22,7 @@ func main() {
 
 // GnoError:
 // line 16: missing field floats in main.it
-// line 18: struct type struct{Floats bool; inner string} has no field floats
-// line 19: struct type struct{Floats bool; inner string} has no field InneR
+// line 18: unknown field floats in struct literal of type main.it
+// line 19: unknown field InneR in struct literal of type main.it
 
 // Verdict: Clean errorcheck

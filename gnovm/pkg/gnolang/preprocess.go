@@ -1774,6 +1774,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 		switch stage {
 		// ----------------------------------------
 		case TRANS_ENTER:
+			// A struct literal key that is not a field name is reported
+			// before it is resolved as an expression, each one.
+			if ftype == TRANS_COMPOSITE_KEY {
+				if msg := invalidStructKey(n.(Expr)); msg != "" {
+					clx := ns[len(ns)-1].(*CompositeLitExpr)
+					if clx.Type != nil {
+						if _, ok := baseOf(evalStaticType(store, last, clx.Type)).(*StructType); ok {
+							report(msg, n)
+							return n, TRANS_SKIP
+						}
+					}
+				}
+			}
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
@@ -1860,6 +1873,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
+				if as, ok := n.Post.(*AssignStmt); ok && as.Op == DEFINE {
+					panicAt("cannot declare in post statement of for loop", as)
+				}
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -2360,6 +2376,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// referencing an enclosing loop variable).
 						fname := strings.TrimSuffix(string(n.Name), ".loopvar")
 						n.Name = Name(fname)
+						assertStructField(bt, clt, n)
 						n.Path = bt.GetPathForName(n.Name)
 						// Check for unexported fields from external packages.
 						if !isUpper(fname) && bt.PkgPath != ctxpn.PkgPath {
@@ -3535,7 +3552,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
 						seen := map[Name]bool{}
 						for i := range n.Elts {
-							key := n.Elts[i].Key.(*NameExpr).Name
+							kx, ok := n.Elts[i].Key.(*NameExpr)
+							if !ok {
+								panicAt(fmt.Sprintf("invalid field name %s in struct literal", exprString(n.Elts[i].Key)), n.Elts[i].Key)
+							}
+							key := kx.Name
 							if seen[key] {
 								panicAt(fmt.Sprintf("duplicate field name %s in struct literal", key), n.Elts[i].Key)
 							}
@@ -3555,6 +3576,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 								"implicit assignment to unexported field in struct literal of type %s",
 								clt.String()))
 						}
+						assertStructLiteralCount(n, cclt, clt)
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
 							checkElt(&n.Elts[i].Value, ft, false)
@@ -3698,6 +3720,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
+				assertSelectorNotBlank(n, xt)
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -3911,6 +3934,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
+				assertFuncTypeNames(n, acc, stack)
 				ftype := evalStaticType(store, last, n)
 				// The `cur` naming rules decide on the RESOLVED type, because
 				// that is what decides whether the function is crossing.
@@ -4009,14 +4033,17 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
+					nameExprs := make([]*NameExpr, len(n.Lhs))
+					for i := range len(n.Lhs) {
+						nameExprs[i] = n.Lhs[i].(*NameExpr)
+					}
+					// Before defaulting: an already-declared target takes
+					// an untyped constant by assignability.
+					checkRedefinedTargets(store, last, n, nameExprs, n.Rhs)
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
 						convertIfConst(store, last, n, rx)
-					}
-					nameExprs := make([]*NameExpr, len(n.Lhs))
-					for i := range len(n.Lhs) {
-						nameExprs[i] = n.Lhs[i].(*NameExpr)
 					}
 					defineOrDecl(store, last, n, false, nameExprs, nil, n.Rhs, true)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
@@ -4357,6 +4384,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							}
 						}
 					}
+					// With clauses, checkUnused sees the variable in them.
+					if n.VarName != "" && len(n.Clauses) == 0 {
+						panic(fmt.Sprintf("declared and not used: %s", n.VarName))
+					}
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -4507,6 +4538,9 @@ func defineOrDecl(
 		// in that case). Report a proper error instead of a confusing internal panic.
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
 	}
+	if isConst && numVals == 0 && numNames > 0 {
+		panic(fmt.Sprintf("missing init expr for %s", nameExprs[0].Name))
+	}
 
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
@@ -4531,8 +4565,13 @@ func defineOrDecl(
 		} else {
 			_, ok := node.GetLocalIndex(nx.Name)
 			if isDefine && ok {
-				// Keep the original nx, this one is fake.
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
+				if src := definedBy(node, nx.Name); src != nil && src.Origin != n {
+					// Declared earlier in this block: := assigns to it
+					// and it keeps its type (see checkRedefinedTargets).
+				} else {
+					// Keep the original nx, this one is fake.
+					node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
+				}
 			} else {
 				nsType := NSValueDecl
 				if isDefine {
@@ -6788,7 +6827,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	var directR bool
 	// var direct = true // invalid cycle detection
 	for {
-		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct)
+		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct, index)
 		if debugFind {
 			fmt.Printf("tryPredefine(%v, %v, defining=%v, direct=%v)-->un=%v,untype=%v,direct2=%v\n", d, stack, defining, direct, un, untype, directR)
 		}
@@ -6958,7 +6997,7 @@ func cycleString(stack []Name, name Name) string {
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) (un Name, untype bool, directR bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		if d.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
 			// accumulate mode: a dependent of a dropped declaration.
@@ -7095,6 +7134,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 				// sanity check.
 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
+					assertNamesType(tx, tv, nil)
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
@@ -7103,6 +7143,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 							panic("should not happen")
 						}
 					}
+				} else if index != nil {
+					// Not yet defined: a package-level constant, variable
+					// or function is not a type, said before the empty
+					// type is placed and the dependency predefined.
+					assertNamesType(tx, nil, index.entries[tx.Name].decl)
 				}
 				// set t for proper type.
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
@@ -7204,18 +7249,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 
 			if pt, ok := rt.(*PointerType); ok {
 				assertValidReceiverType(pt.Elem())
-				if ddt, ok := pt.Elem().(*DeclaredType); ok {
-					assertValidReceiverType(baseOf(ddt))
-					dt = ddt
-				} else {
-					panic("should not happen")
-				}
-			} else if ddt, ok := rt.(*DeclaredType); ok {
-				assertValidReceiverType(baseOf(ddt))
-				dt = ddt
-			} else {
-				panic("should not happen")
 			}
+			dt = receiverDeclaredType(rt, pkg.PkgPath, d.Recv.Type)
+			assertValidReceiverType(baseOf(dt))
 			// The body may get altered during preprocessing later.
 			methodFV := &FuncValue{
 				Type:       ubft,

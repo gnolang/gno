@@ -22,6 +22,6 @@ func main() {
 }
 
 // GnoError:
-// line 20: struct type struct{about string; before map[string]uint; update map[string]int; updateTime time.Time; expect map[string]int} has no field updates
+// line 20: unknown field updates in struct literal of type struct{about string; before map[string]uint; update map[string]int; updateTime time.Time; expect map[string]int}
 
 // Verdict: Clean errorcheck

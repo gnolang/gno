@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"strings"
@@ -121,6 +122,44 @@ func main() {
 		}()
 		Preprocess(m.Store, pn, fn)
 	})
+}
+
+func TestPreprocessCollectInitCycle(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var a = f()
+
+func f() int { return a + g() }
+
+func g() int { return g() } // recursion among functions is not a cycle
+
+var b = 1
+
+func main() { println(a, b) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
 }
 
 // collectWith is collectErrors with the accumulator exposed: full messages
@@ -625,8 +664,8 @@ func main() { println(u) }
 			t.Fatalf("escaped: %v", panicked)
 		}
 		wantErrors(t, msgs,
-			"main.gno:11:2", "name foo not declared",
-			"main.gno:12:2", "name bar not declared",
+			"main.gno:11:2", "invalid field name foo.toInt in struct literal",
+			"main.gno:12:2", "invalid field name bar.toString in struct literal",
 		)
 	})
 
@@ -1628,167 +1667,6 @@ type T struct {
 	}
 }
 
-// deployAfterCollect runs the ordinary (non-accumulate) path over src,
-// optionally running a collect pass over the very same parsed nodes first,
-// and reports what the ordinary path did. A fresh PackageNode each time, so
-// only the AST is shared.
-func deployAfterCollect(t *testing.T, src string, collectFirst bool) (res string) {
-	t.Helper()
-	m := NewMachine("main", nil)
-	defer m.Release()
-	fn, err := m.ParseFile("main.gno", src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fset := &FileSet{Files: []*FileNode{fn}}
-	if collectFirst {
-		PreprocessFilesCollect(m.Store, NewPackageNode("main", "main", fset), fset)
-	}
-	pn := NewPackageNode("main", "main", fset)
-	defer func() {
-		if r := recover(); r != nil {
-			res = fmt.Sprint(r)
-		}
-	}()
-	PredefineFileSet(m.Store, pn, fset)
-	for _, f := range fset.Files {
-		Preprocess(m.Store, pn, f)
-	}
-	return ""
-}
-
-// TestPreprocessCollectIsNotReusable pins that nodes accumulate mode has
-// seen cannot be handed to the ordinary path. It drops a failing
-// declaration and leaves it ATTR_PREPROCESSED, so without the guard the
-// ordinary path skips the very code it must reject and ACCEPTS an invalid
-// package — a checking pass would decide what the deploy path admits.
-func TestPreprocessCollectIsNotReusable(t *testing.T) {
-	for _, tc := range []struct{ name, src, wantAlone string }{
-		{
-			"file-level declaration",
-			"package main\n\nvar x int = \"nope\"\n\nfunc main() { println(x) }\n",
-			"cannot use untyped string as IntKind",
-		},
-		{
-			"body statement",
-			"package main\n\nfunc main() {\n\tvar s string = \"a\"\n\tvar i int = s\n\tprintln(i)\n}\n",
-			"cannot use string as int",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			alone := deployAfterCollect(t, tc.src, false)
-			if !strings.Contains(alone, tc.wantAlone) {
-				t.Fatalf("the ordinary path must reject this on its own; got %q", alone)
-			}
-			after := deployAfterCollect(t, tc.src, true)
-			if after == "" {
-				t.Fatalf("a collect pass made the ordinary path ACCEPT an invalid package")
-			}
-			if !strings.Contains(after, "must not be preprocessed again") {
-				t.Errorf("want the reuse guard, got %q", after)
-			}
-		})
-	}
-}
-
-func TestPreprocessCollectConditionFollowOns(t *testing.T) {
-	msgs, panicked := collectWith(t, `package main
-
-func main() {
-	did := 1
-	var b bool
-	if !did && b {
-		_ = undefined1
-	}
-	for !did {
-		_ = undefined2
-	}
-	switch !did {
-	case true:
-		_ = undefined3
-	}
-	var x interface{}
-	switch t := x.(type) {
-	case 0:
-		t.x = 1
-		x.x = 1
-	}
-}
-`, nil)
-	if panicked != nil {
-		t.Fatalf("escaped: %v", panicked)
-	}
-	// A failed condition, tag or case leaves its body checked (did counts
-	// as used); the clause's variable is invalid, so t.x is silent.
-	wantErrors(t, msgs,
-		"main.gno:6:5", "operator ! not defined on: IntKind",
-		"main.gno:7:7", "undefined1",
-		"main.gno:9:6", "operator ! not defined on: IntKind",
-		"main.gno:10:7", "undefined2",
-		"main.gno:12:9", "operator ! not defined on: IntKind",
-		"main.gno:14:7", "undefined3",
-		"main.gno:18:7", "0 is not a type",
-		"main.gno:20:3", "missing field x in interface {}",
-	)
-}
-
-func TestPreprocessCollectInitCycle(t *testing.T) {
-	msgs := collectErrors(t, `package main
-
-var a = f()
-
-func f() int { return a + g() }
-
-func g() int { return g() } // recursion among functions is not a cycle
-
-var b = 1
-
-func main() { println(a, b) }
-`)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
-		t.Fatalf("unexpected: %v", msgs)
-	}
-	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
-		t.Fatalf("false positive: %v", msgs)
-	}
-}
-
-func TestInitCycleOnChain(t *testing.T) {
-	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
-	// any initializer runs, with the same positioned message.
-	m := NewMachine("test", nil)
-	defer m.Release()
-	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
-	defer func() {
-		r := recover()
-		pe, ok := r.(*PreprocessError)
-		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
-			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
-		}
-	}()
-	m.RunFiles(fn)
-	t.Fatal("RunFiles accepted a cycle")
-}
-
-func TestPreprocessCollectConstCycles(t *testing.T) {
-	msgs, panicked := collectWith(t, `package main
-
-const A = 1 + B
-const B = C - 1
-const C = A + B + 1
-
-func main() {}
-`, nil)
-	if panicked != nil {
-		t.Fatalf("escaped: %v", panicked)
-	}
-	// Every cycle, at its first member in source order, as gc.
-	wantErrors(t, msgs,
-		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
-		"main.gno:4:", "initialization cycle: B refers to C refers to B",
-	)
-}
-
 func TestPreprocessCollectAssign(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -1904,6 +1782,461 @@ func main() {}
 	if len(msgs) != len(want) {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
+}
+
+func TestPreprocessCollectDecls(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S struct{ a, b int }
+type V func(a ...int, b int) // variadic not last
+
+const (
+	A int = 1
+	B byte // no value
+)
+
+func f3() (float32, int, string) { return 1, 2, "3" }
+
+func f(x interface{}) {
+	i, g, s := f3()
+	g, h, t := f3() // g changes type
+	_, _, _, _, _ = i, g, s, h, t
+	var fl float64
+	fl, j := 1, 2 // the constant converts to float64
+	_, _ = fl, j
+	_ = S{7}
+	_ = S{7, 8, 9}
+	_ = [2]int{1, 2, 3}
+	_ = [2]int{5: 0}
+	for ; ; k := 1 {
+		_ = k
+	}
+	switch u := x.(type) {
+	}
+	switch w := x.(type) {
+	case int:
+		_ = w
+	}
+}
+
+func main() {}
+`)
+	want := []string{
+		"can only use ... with final parameter in list",
+		"missing init expr for B",
+		"cannot use float32 as int",
+		"too few values in struct literal of type main.S",
+		"too many values in struct literal of type main.S",
+		"index 2 is out of bounds (>= 2)",
+		"index 5 out of bounds [0:2]",
+		"cannot declare in post statement of for loop",
+		"declared and not used: u",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectRedefine(t *testing.T) {
+	// A := target the block already declares is assigned: an untyped
+	// constant must be assignable (kind and representability), a typed
+	// value assignable; the target keeps its declared type.
+	msgs := collectErrors(t, `package main
+
+const c = 5
+
+func f2() (int, bool) { return 1, true }
+
+func f() {
+	var s string
+	s, j := 1, 2 // not assignable
+	var b bool
+	b, k := 1, 2 // not assignable
+	var u uint8
+	u, l := 300, 2 // overflows
+	var fl float64
+	fl, m := 1+2, 2 // untyped constant expressions convert
+	fl, n := -1, 2
+	fl, o := 1<<2, 2
+	fl, p := c, 2
+	var e interface{}
+	e, ok := f2() // assignable, e keeps its type
+	_, _, _, _, _, _, _, _ = j, k, l, m, n, o, p, ok
+	_, _, _, _, _ = s, b, u, fl, e
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use 1 (untyped int constant) as string value in assignment",
+		"cannot use 1 (untyped int constant) as bool value in assignment",
+		"bigint overflows target kind",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestDefineRedeclaredKeepsType(t *testing.T) {
+	// On the run path the redeclared targets take the converted values
+	// and keep their declared types.
+	var buf bytes.Buffer
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "main", Output: &buf})
+	defer m.Release()
+	fn := m.MustParseFile("main.gno", `package main
+
+const c = 5
+
+func f2() (int, bool) { return 1, true }
+
+func main() {
+	var fl float64
+	fl, j := 1+2, 2
+	println(fl, j)
+	fl, k := c, 3
+	println(fl, k)
+	var e interface{}
+	e, ok := f2()
+	println(e, ok)
+}
+`)
+	m.RunFiles(fn)
+	m.RunMain()
+	if got, want := buf.String(), "3 2\n5 3\n1 true\n"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestConstSpecTypeWithoutValues(t *testing.T) {
+	// A typed spec without values repeats nothing and does not become the
+	// type the next untyped spec inherits.
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn := m.MustParseFile("main.gno", "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n")
+	c := fn.Decls[2].(*ValueDecl)
+	if tx, ok := c.Type.(*NameExpr); !ok || tx.Name != "int" || len(c.Values) != 1 {
+		t.Fatalf("C: type %v values %v", c.Type, c.Values)
+	}
+	msgs := collectErrors(t, "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n\nvar _ int = C\n")
+	if len(msgs) != 1 || msgs[0] != "missing init expr for B" {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectStructFieldName(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T struct{ x int }
+
+func main() {
+	_ = T{1: 2}
+	_ = T{"x": 2}
+	_ = T{x: 1}
+}
+`)
+	want := []string{"invalid field name 1 in struct literal", "invalid field name \"x\" in struct literal"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+}
+
+func TestPreprocessCollectStructLiteralKeys(t *testing.T) {
+	// Every key that is not a field name is reported, before it is
+	// resolved as an expression; keys of other literals are untouched.
+	msgs := collectErrors(t, `package main
+
+type T struct{ toInt, toString int }
+
+var foo, bar struct{ toInt, toString int }
+
+func main() {
+	t := T{
+		foo.toInt:    1,
+		bar.toString: 2,
+	}
+	m := map[string]int{"a": 1, "b": 2}
+	s := []int{0: 1, 3: 2}
+	_, _, _ = t, m, s
+}
+`)
+	want := []string{
+		"invalid field name foo.toInt in struct literal",
+		"invalid field name bar.toString in struct literal",
+	}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+}
+
+func TestPreprocessCollectUnknownField(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T struct{ x int }
+
+func main() {
+	_ = T{y: 1}
+	_ = struct{}{foo: 0}
+}
+`)
+	want := []string{
+		"unknown field y in struct literal of type main.T",
+		"unknown field foo in struct literal of type struct{}",
+	}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+}
+
+func TestPreprocessCollectBlankSelector(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var t struct{ _ int }
+
+func main() {
+	_ = t._
+}
+`)
+	want := "t._ undefined (type struct{_ int} has no field or method _)"
+	if len(msgs) != 1 || msgs[0] != want {
+		t.Fatalf("got %v, want [%s]", msgs, want)
+	}
+}
+
+func TestPreprocessCollectReceiverType(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type A = int
+
+func (x int) m()      {}
+func (p *int) n()     {}
+func (a A) o()        {}
+func (s struct{}) p() {}
+
+func main() {}
+`)
+	want := []string{
+		"cannot define new methods on non-local type int",
+		"cannot define new methods on non-local type int",
+		"cannot define new methods on non-local type int",
+		"invalid receiver type struct{}",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Fatalf("got %v, want %v", msgs, want)
+		}
+	}
+}
+
+func TestPreprocessCollectTypeDeclNotAType(t *testing.T) {
+	// A type declaration naming a constant, variable or function fails
+	// at the name, also when that value's declaration needs the type.
+	msgs := collectErrors(t, `package main
+
+const C = 0
+
+type T1 C
+
+var V = 1
+
+type T2 V
+
+func F() {}
+
+type T3 F
+
+type T4 K
+
+const K = T4(0)
+
+func main() {
+	const c = 0
+	type L c
+}
+`)
+	want := []string{
+		"C is not a type",
+		"V is not a type",
+		"F is not a type",
+		"K is not a type",
+		"c is not a type",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Fatalf("got %v, want %v", msgs, want)
+		}
+	}
+}
+
+// deployAfterCollect runs the ordinary (non-accumulate) path over src,
+// optionally running a collect pass over the very same parsed nodes first,
+// and reports what the ordinary path did. A fresh PackageNode each time, so
+// only the AST is shared.
+func deployAfterCollect(t *testing.T, src string, collectFirst bool) (res string) {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	if collectFirst {
+		PreprocessFilesCollect(m.Store, NewPackageNode("main", "main", fset), fset)
+	}
+	pn := NewPackageNode("main", "main", fset)
+	defer func() {
+		if r := recover(); r != nil {
+			res = fmt.Sprint(r)
+		}
+	}()
+	PredefineFileSet(m.Store, pn, fset)
+	for _, f := range fset.Files {
+		Preprocess(m.Store, pn, f)
+	}
+	return ""
+}
+
+// TestPreprocessCollectIsNotReusable pins that nodes accumulate mode has
+// seen cannot be handed to the ordinary path. It drops a failing
+// declaration and leaves it ATTR_PREPROCESSED, so without the guard the
+// ordinary path skips the very code it must reject and ACCEPTS an invalid
+// package — a checking pass would decide what the deploy path admits.
+func TestPreprocessCollectIsNotReusable(t *testing.T) {
+	for _, tc := range []struct{ name, src, wantAlone string }{
+		{
+			"file-level declaration",
+			"package main\n\nvar x int = \"nope\"\n\nfunc main() { println(x) }\n",
+			"cannot use untyped string as IntKind",
+		},
+		{
+			"body statement",
+			"package main\n\nfunc main() {\n\tvar s string = \"a\"\n\tvar i int = s\n\tprintln(i)\n}\n",
+			"cannot use string as int",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			alone := deployAfterCollect(t, tc.src, false)
+			if !strings.Contains(alone, tc.wantAlone) {
+				t.Fatalf("the ordinary path must reject this on its own; got %q", alone)
+			}
+			after := deployAfterCollect(t, tc.src, true)
+			if after == "" {
+				t.Fatalf("a collect pass made the ordinary path ACCEPT an invalid package")
+			}
+			if !strings.Contains(after, "must not be preprocessed again") {
+				t.Errorf("want the reuse guard, got %q", after)
+			}
+		})
+	}
+}
+
+func TestPreprocessCollectVariadicParams(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type I interface {
+	g(a ...int, b ...int, c float32)
+	h(...int, ...int)
+}
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every parameter and every method is reported.
+	wantErrors(t, msgs,
+		"main.gno:4:4", "can only use ... with final parameter in list",
+		"main.gno:4:14", "can only use ... with final parameter in list",
+		"main.gno:5:4", "can only use ... with final parameter in list",
+	)
+}
+
+func TestPreprocessCollectConditionFollowOns(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func main() {
+	did := 1
+	var b bool
+	if !did && b {
+		_ = undefined1
+	}
+	for !did {
+		_ = undefined2
+	}
+	switch !did {
+	case true:
+		_ = undefined3
+	}
+	var x interface{}
+	switch t := x.(type) {
+	case 0:
+		t.x = 1
+		x.x = 1
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failed condition, tag or case leaves its body checked (did counts
+	// as used); the clause's variable is invalid, so t.x is silent.
+	wantErrors(t, msgs,
+		"main.gno:6:5", "operator ! not defined on: IntKind",
+		"main.gno:7:7", "undefined1",
+		"main.gno:9:6", "operator ! not defined on: IntKind",
+		"main.gno:10:7", "undefined2",
+		"main.gno:12:9", "operator ! not defined on: IntKind",
+		"main.gno:14:7", "undefined3",
+		"main.gno:18:7", "0 is not a type",
+		"main.gno:20:3", "missing field x in interface {}",
+	)
+}
+
+func TestPreprocessCollectConstCycles(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+const A = 1 + B
+const B = C - 1
+const C = A + B + 1
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every cycle, at its first member in source order, as gc.
+	wantErrors(t, msgs,
+		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
+		"main.gno:4:", "initialization cycle: B refers to C refers to B",
+	)
 }
 
 func TestPreprocessCollectAssignCounts(t *testing.T) {
