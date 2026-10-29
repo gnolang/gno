@@ -125,6 +125,51 @@ func TestServePackageText_Deadline(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), ErrClientTimeout.Error())
 }
 
+// failingClient answers every package list with err.
+type failingClient struct {
+	*MockClient
+	err error
+}
+
+func (c *failingClient) ListFiles(context.Context, string, int64) ([]string, error) {
+	return nil, c.err
+}
+
+// TestServePackageText_Errors checks a failed $download says why, as a page
+// would, never a bare "not found" for what is not one.
+func TestServePackageText_Errors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantBody   string
+	}{
+		{"missing package", ErrClientPackageNotFound, http.StatusNotFound, "package not found"},
+		{"node error", fmt.Errorf("%w: boom", ErrClientResponse), http.StatusInternalServerError, "internal error"},
+		{"node timeout", ErrClientTimeout, http.StatusRequestTimeout, ErrClientTimeout.Error()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &failingClient{MockClient: NewMockClient(), err: tc.err}
+			handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+				Aliases:       map[string]AliasTarget{},
+			})
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil))
+			assert.Equal(t, tc.wantStatus, rr.Code)
+			assert.Equal(t, tc.wantBody+"\n", rr.Body.String())
+		})
+	}
+}
+
 // TestPackageFiles_SharedWithPlayground checks a playground copy reads the
 // package through $download's bounds and cache: a copy after a $download
 // costs no node query, and a package over the file cap is refused by both.
