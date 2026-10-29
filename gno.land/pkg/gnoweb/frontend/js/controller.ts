@@ -10,6 +10,7 @@ import {
 	makeIcon,
 	postEval,
 	setPrefCookie,
+	shellQuote,
 	toCamelCase,
 	toKebabCase,
 } from "./utils.js";
@@ -264,6 +265,7 @@ export {
 	makeIcon,
 	postEval,
 	setPrefCookie,
+	shellQuote,
 	toCamelCase,
 	toKebabCase,
 };

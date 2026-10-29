@@ -1,12 +1,5 @@
-// Shell-safe pieces of the command the run page prints.
-
-// shellQuote returns s as a single shell word: as is when it holds only
-// characters no shell (sh, bash, zsh) treats specially, single-quoted
-// otherwise, so a key name with a space or a "$(...)" stays one argument.
-export function shellQuote(s: string): string {
-	if (/^[\w@%+:,./-]+$/.test(s)) return s;
-	return `'${s.replace(/'/g, "'\\''")}'`;
-}
+// Shell-safe pieces of the command the run page prints; shellQuote, which
+// $help uses too, is in @gnoweb/js/utils.
 
 // heredocDelimiter returns a heredoc delimiter that no line of code equals,
 // so the heredoc carrying code ends where the code does and no line of it

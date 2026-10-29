@@ -1,39 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { test } from "node:test";
-import { heredocDelimiter, shellQuote } from "./shell.ts";
-
-// sh prints the arguments a command line gives, one per line.
-function shArgs(line: string): string[] {
-	const out = execFileSync("sh", ["-c", `printf '%s\\n' ${line}`], {
-		encoding: "utf8",
-	});
-	return out.split("\n").slice(0, -1);
-}
-
-test("shellQuote leaves plain values bare", () => {
-	for (const s of ["test1", "50_000_000", "100000ugnot", "1ugnot,2foo"]) {
-		assert.equal(shellQuote(s), s);
-	}
-});
-
-test("shellQuote keeps any value one literal argument", () => {
-	const cases = [
-		"my key",
-		'1ugnot"$(id)"',
-		"it's",
-		"`id`",
-		"a;b|c&d",
-		"~root",
-		"#x",
-		"=ls",
-		"*",
-		"",
-	];
-	for (const s of cases) {
-		assert.deepEqual(shArgs(shellQuote(s)), [s], s);
-	}
-});
+import { heredocDelimiter } from "./shell.ts";
 
 test("heredocDelimiter never equals a line of the code", () => {
 	const cases: [code: string, want: string][] = [

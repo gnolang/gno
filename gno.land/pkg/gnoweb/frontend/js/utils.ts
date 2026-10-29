@@ -16,6 +16,14 @@ export function escapeShellSpecialChars(arg: string): string {
 		.replace(/\n/g, "\\n"); // convert newlines to \n
 }
 
+// shellQuote returns s as a single shell word: as is when it holds only
+// characters no shell (sh, bash, zsh) treats specially, single-quoted
+// otherwise, so a key name with a space or a "$(...)" stays one argument.
+export function shellQuote(s: string): string {
+	if (/^[\w@%+:,./-]+$/.test(s)) return s;
+	return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
 export function toKebabCase(str: string): string {
 	return str
 		.replace(/([a-z])([A-Z])/g, "$1-$2") // replace camelCase with dash-separated words

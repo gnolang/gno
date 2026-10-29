@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { test } from "node:test";
-import { evalArgs, gnoLiteral, zeroLiteral } from "./utils.ts";
+import { evalArgs, gnoLiteral, shellQuote, zeroLiteral } from "./utils.ts";
 
 test("gnoLiteral quotes strings and addresses, and leaves the rest as typed", () => {
 	const cases: [value: string, type: string, want: string][] = [
@@ -145,6 +146,60 @@ test("evalArgs gives every param its argument, in order", () => {
 			evalArgs(c.inputs),
 			{ args: c.args, full: c.full },
 			c.name,
+		);
+	}
+});
+
+// bashArgs prints, one per line, the arguments bash passes to a command
+// line's first word.
+function bashArgs(line: string): string[] {
+	const out = execFileSync(
+		"bash",
+		["-c", `cmd() { printf '%s\\n' "$@"; }; ${line}`],
+		{ encoding: "utf8" },
+	);
+	return out.split("\n").slice(0, -1);
+}
+
+test("shellQuote leaves plain values bare", () => {
+	for (const s of ["test1", "50_000_000", "100000ugnot", "1ugnot,2foo"]) {
+		assert.equal(shellQuote(s), s);
+	}
+});
+
+const awkwardKeys = [
+	"my key",
+	'1ugnot"$(id)"',
+	"it's",
+	"`id`",
+	"a;b|c&d",
+	"~root",
+	"#x",
+	"=ls",
+	"*",
+	"",
+];
+
+test("shellQuote keeps any value one literal argument", () => {
+	for (const s of awkwardKeys) {
+		assert.deepEqual(bashArgs(`cmd ${shellQuote(s)}`), [s], s);
+	}
+});
+
+// $help prints the key or address as the last word of its gnokey lines, and
+// after auth/accounts/: each must reach gnokey whole, as typed.
+test("the key in $help's commands reaches gnokey as typed", () => {
+	for (const key of awkwardKeys.filter(Boolean)) {
+		const k = shellQuote(key);
+		assert.deepEqual(
+			bashArgs(`cmd sign -tx-path call.tx ${k}`),
+			["sign", "-tx-path", "call.tx", key],
+			key,
+		);
+		assert.deepEqual(
+			bashArgs(`cmd query auth/accounts/${k}`),
+			["query", `auth/accounts/${key}`],
+			key,
 		);
 	}
 });

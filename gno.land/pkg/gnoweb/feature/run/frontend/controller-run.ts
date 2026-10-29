@@ -1,6 +1,10 @@
 import { CodeEditor } from "@gnoweb/js/code-editor.js";
-import { BaseController, downloadBlob } from "@gnoweb/js/controller.js";
-import { heredocDelimiter, shellQuote } from "./shell.js";
+import {
+	BaseController,
+	downloadBlob,
+	shellQuote,
+} from "@gnoweb/js/controller.js";
+import { heredocDelimiter } from "./shell.js";
 
 // The page serves the script and both modes of the command whole. This
 // controller turns the script into an editor and fills the command's slots

@@ -5,6 +5,7 @@ import {
 	evalArgs,
 	gnoLiteral,
 	postEval,
+	shellQuote,
 } from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
 
@@ -93,7 +94,9 @@ export class ActionFunctionController extends BaseController {
 		// Update address elements
 		const addressElements = this.getTargets("address");
 		addressElements.forEach((addressElement) => {
-			addressElement.textContent = address.trim() || "ADDRESS";
+			// Quoted as $run quotes it: a key name may hold a space or a quote.
+			const key = address.trim();
+			addressElement.textContent = key ? shellQuote(key) : "ADDRESS";
 		});
 	}
 
