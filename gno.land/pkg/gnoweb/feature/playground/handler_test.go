@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -80,77 +81,153 @@ func extractPlaygroundViewData(t *testing.T, v *components.View) PlaygroundData 
 func TestHandlerPlaygroundEval(t *testing.T) {
 	t.Parallel()
 
-	h := New(Deps{
-		Client: &stubClient{evalResult: []byte("mock eval")},
-		Logger: discardLogger(),
-		Domain: "gno.land",
-	})
-
+	const valid = `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`
 	cases := []struct {
-		name       string
-		method     string
-		body       string
-		wantStatus int
-		wantResult string
-		wantError  string
+		name        string
+		method      string
+		contentType string // "" means application/json
+		headers     map[string]string
+		body        string
+		client      *stubClient // nil means a client answering "mock eval"
+		wantStatus  int
+		wantResult  string
+		wantError   string
+		wantAllow   string
 	}{
 		{
 			name:       "valid eval",
-			method:     http.MethodPost,
-			body:       `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`,
+			body:       valid,
 			wantStatus: http.StatusOK,
 			wantResult: "mock eval",
 		},
 		{
+			name:        "json with a charset",
+			contentType: "application/json; charset=utf-8",
+			body:        valid,
+			wantStatus:  http.StatusOK,
+			wantResult:  "mock eval",
+		},
+		{
 			name:       "missing pkg_path",
-			method:     http.MethodPost,
 			body:       `{"expression":"Render(\"\")"}`,
 			wantStatus: http.StatusBadRequest,
 			wantError:  "required",
 		},
 		{
 			name:       "missing expression",
-			method:     http.MethodPost,
 			body:       `{"pkg_path":"r/mock/path"}`,
 			wantStatus: http.StatusBadRequest,
 			wantError:  "required",
 		},
 		{
 			name:       "invalid json",
-			method:     http.MethodPost,
 			body:       `not json`,
 			wantStatus: http.StatusBadRequest,
 			wantError:  "invalid",
 		},
 		{
+			name:       "body over the cap",
+			body:       `{"pkg_path":"r/mock/path","expression":"` + strings.Repeat("x", maxEvalBodyBytes) + `"}`,
+			wantStatus: http.StatusRequestEntityTooLarge,
+			wantError:  "too large",
+		},
+		{
 			name:       "wrong method",
 			method:     http.MethodGet,
 			wantStatus: http.StatusMethodNotAllowed,
+			wantError:  "method not allowed",
+			wantAllow:  http.MethodPost,
+		},
+		{
+			name:        "text/plain body",
+			contentType: "text/plain",
+			body:        valid,
+			wantStatus:  http.StatusUnsupportedMediaType,
+			wantError:   "application/json",
+		},
+		{
+			name:       "cross-site fetch",
+			headers:    map[string]string{"Sec-Fetch-Site": "cross-site"},
+			body:       valid,
+			wantStatus: http.StatusForbidden,
+			wantError:  "cross-origin",
+		},
+		{
+			name:       "foreign origin",
+			headers:    map[string]string{"Origin": "https://evil.example"},
+			body:       valid,
+			wantStatus: http.StatusForbidden,
+			wantError:  "cross-origin",
+		},
+		{
+			name:       "same-origin fetch",
+			headers:    map[string]string{"Sec-Fetch-Site": "same-origin", "Origin": "http://example.com"},
+			body:       valid,
+			wantStatus: http.StatusOK,
+			wantResult: "mock eval",
+		},
+		{
+			name:       "chain error is an answer",
+			body:       valid,
+			client:     &stubClient{evalErr: errors.New("name NoSuchThing not declared")},
+			wantStatus: http.StatusOK,
+			wantError:  "NoSuchThing not declared",
+		},
+		{
+			name:       "node unreachable",
+			body:       valid,
+			client:     &stubClient{evalErr: fmt.Errorf("%w: dial tcp 10.0.0.1:26657", ErrEvalUnavailable)},
+			wantStatus: http.StatusBadGateway,
+			wantError:  ErrEvalUnavailable.Error(),
+		},
+		{
+			name:       "node timeout",
+			body:       valid,
+			client:     &stubClient{evalErr: fmt.Errorf("%w: deadline", ErrEvalTimeout)},
+			wantStatus: http.StatusGatewayTimeout,
+			wantError:  ErrEvalTimeout.Error(),
 		},
 	}
 
-	handler := h.EvalHandler()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(tc.method, "/_/api/eval", bytes.NewBufferString(tc.body))
-			req.Header.Set("Content-Type", "application/json")
+
+			client := tc.client
+			if client == nil {
+				client = &stubClient{evalResult: []byte("mock eval")}
+			}
+			handler := New(Deps{Client: client, Logger: discardLogger()}).EvalHandler()
+
+			method := tc.method
+			if method == "" {
+				method = http.MethodPost
+			}
+			req := httptest.NewRequest(method, "http://example.com/_/api/eval", strings.NewReader(tc.body))
+			contentType := tc.contentType
+			if contentType == "" {
+				contentType = "application/json"
+			}
+			req.Header.Set("Content-Type", contentType)
+			for k, v := range tc.headers {
+				req.Header.Set(k, v)
+			}
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 
 			assert.Equal(t, tc.wantStatus, rr.Code)
-			if tc.wantStatus == http.StatusOK {
-				var resp map[string]string
-				require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-				if tc.wantResult != "" {
-					assert.Contains(t, resp["result"], tc.wantResult)
-				}
-				if tc.wantError != "" {
-					assert.Contains(t, resp["error"], tc.wantError)
-				}
-			} else if tc.wantError != "" {
-				assert.Contains(t, rr.Body.String(), tc.wantError)
+			assert.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"))
+			assert.Equal(t, tc.wantAllow, rr.Header().Get("Allow"))
+
+			var resp evalResponse
+			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
+			assert.Equal(t, tc.wantResult, resp.Result)
+			assert.Contains(t, resp.Error, tc.wantError)
+			if tc.wantError == "" {
+				assert.Empty(t, resp.Error)
 			}
+			// Only the sentinel's message reaches the client.
+			assert.NotContains(t, resp.Error, "10.0.0.1")
 		})
 	}
 }

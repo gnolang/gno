@@ -1872,8 +1872,20 @@ func (a *playgroundClientAdapter) File(ctx context.Context, p, filename string) 
 	return body, err
 }
 
+// Eval keeps the chain's answer about the expression and hides why the node
+// could not be reached: pages answer the same errors with a generic message.
 func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
-	return a.client.Eval(ctx, pkgPath, expr)
+	res, err := a.client.Eval(ctx, pkgPath, expr)
+	switch {
+	case err == nil:
+		return res, nil
+	case errors.Is(err, ErrClientTimeout), errors.Is(err, context.DeadlineExceeded):
+		return nil, fmt.Errorf("%w: %w", playground.ErrEvalTimeout, err)
+	case errors.Is(err, ErrClientBadRequest), errors.Is(err, context.Canceled):
+		return nil, fmt.Errorf("%w: %w", playground.ErrEvalUnavailable, err)
+	default:
+		return nil, err
+	}
 }
 
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.

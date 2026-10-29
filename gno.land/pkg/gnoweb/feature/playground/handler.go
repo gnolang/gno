@@ -5,14 +5,12 @@ import (
 	"compress/flate"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -30,16 +28,6 @@ const (
 	// maxCopyCodeSize caps the total fetched source bytes of a package copy to
 	// guard against memory exhaustion from large or numerous package files.
 	maxCopyCodeSize = 1 << 20 // 1 MiB
-
-	// maxEvalBodyBytes caps the eval request body to guard against memory
-	// exhaustion from oversized JSON payloads.
-	maxEvalBodyBytes = 1 << 20 // 1 MiB
-
-	// maxEvalPkgPathLen and maxEvalExpressionLen bound the eval request fields
-	// well below maxEvalBodyBytes, rejecting oversized requests before they are
-	// forwarded to the RPC node. Legitimate values are far smaller.
-	maxEvalPkgPathLen    = 1024
-	maxEvalExpressionLen = 64 * 1024
 
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
@@ -169,72 +157,6 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 	})
 }
 
-// EvalHandler returns the http.Handler for POST /_/api/eval.
-func (h *Handler) EvalHandler() http.Handler {
-	return http.HandlerFunc(h.serveEval)
-}
-
-// evalRequest is the JSON request body for the eval endpoint.
-type evalRequest struct {
-	PkgPath    string `json:"pkg_path"`
-	Expression string `json:"expression"`
-}
-
-// evalResponse is the JSON response for the eval endpoint.
-type evalResponse struct {
-	Result string `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
-		writeJSON(w, http.StatusTooManyRequests, evalResponse{Error: "rate limit exceeded, please slow down"})
-		return
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, maxEvalBodyBytes)
-
-	var req evalRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "invalid request body"})
-		return
-	}
-
-	if req.PkgPath == "" || req.Expression == "" {
-		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "pkg_path and expression are required"})
-		return
-	}
-
-	if len(req.PkgPath) > maxEvalPkgPathLen || len(req.Expression) > maxEvalExpressionLen {
-		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "pkg_path or expression is too long"})
-		return
-	}
-
-	pkgPath := RelPath(h.deps.Domain, req.PkgPath)
-
-	h.deps.Logger.Debug("playground eval", "pkg_path", pkgPath)
-
-	start := time.Now()
-	// The client adds the chain domain and joins pkgPath and the expression
-	// as vm/qeval expects: "gno.land/r/demo/boards.Render("")".
-	result, err := h.deps.Client.Eval(r.Context(), pkgPath, req.Expression)
-	took := time.Since(start)
-
-	h.deps.Logger.Debug("playground eval result", "took", took, "error", err)
-
-	if err != nil {
-		writeJSON(w, http.StatusOK, evalResponse{Error: err.Error()})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, evalResponse{Result: string(result)})
-}
-
 // CopyURL is the playground URL that opens an editable copy of the package at
 // pkgPath, showing file first when set.
 func CopyURL(pkgPath, file string) string {
@@ -258,12 +180,6 @@ func RelPath(domain, p string) string {
 // isSource reports whether a file is source code that can be displayed in the code editor.
 func isSource(filename string) bool {
 	return strings.HasSuffix(filename, ".gno") || filename == "gnomod.toml"
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 // decodeCompressedCode decompresses DEFLATE data.

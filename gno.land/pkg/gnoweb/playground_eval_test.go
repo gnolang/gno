@@ -1,6 +1,7 @@
 package gnoweb_test
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -83,4 +84,42 @@ func TestPlaygroundEvalLimiter(t *testing.T) {
 		})
 		assert.Zero(t, limited)
 	})
+}
+
+// TestPlaygroundEvalErrors checks which client errors reach the reader: the
+// chain's answer about the expression does, how the node was reached does not.
+func TestPlaygroundEvalErrors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantBody   string
+	}{
+		{"chain error", gnoweb.ErrClientPackageNotFound, http.StatusOK, `"error":"package not found"`},
+		{"transport", fmt.Errorf("%w: Post \"http://127.0.0.1:26991\": connection refused", gnoweb.ErrClientBadRequest), http.StatusBadGateway, "unavailable"},
+		{"timeout", gnoweb.ErrClientTimeout, http.StatusGatewayTimeout, "did not answer in time"},
+		{"deadline", context.DeadlineExceeded, http.StatusGatewayTimeout, "did not answer in time"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			client := &stubClient{evalFunc: func(context.Context, string, string) ([]byte, error) {
+				return nil, tc.err
+			}}
+			h, err := gnoweb.NewHTTPHandler(slog.New(slog.DiscardHandler), newTestHandlerConfig(t, client))
+			require.NoError(t, err)
+
+			body := `{"pkg_path":"r/demo/counter","expression":"Render(\"\")"}`
+			req := httptest.NewRequest(http.MethodPost, "/_/api/eval", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+			h.Playground.EvalHandler().ServeHTTP(rr, req)
+
+			assert.Equal(t, tc.wantStatus, rr.Code)
+			assert.Contains(t, rr.Body.String(), tc.wantBody)
+			assert.NotContains(t, rr.Body.String(), "127.0.0.1")
+		})
+	}
 }
