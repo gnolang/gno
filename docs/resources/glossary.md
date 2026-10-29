@@ -62,7 +62,7 @@ functionality. See [Example Boards](../users/example-boards.md).
 
 ### Chain ID
 A unique identifier for a blockchain network (e.g., "gnoland-1" for mainnet,
-"onyx-1" for the current testnet).
+"dev" for a local node). See [Networks](./gnoland-networks.md) for testnet chain IDs.
 
 ### Coins vs Tokens
 In Gno.land, coins are native assets created by the Banker, such as `ugnot`. On

@@ -409,7 +409,7 @@ in the [Querying a network](#querying-a-gnoland-network) section.
 
 With the `Run` message, you can write a snippet of Gno code and run it against
 code on the chain. For this example, we will use the
-[Counter realm](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/counter),
+[Counter realm](../../examples/gno.land/r/demo/counter),
 which maintains a simple counter that can be incremented.
 It contains a simple `Increment()` function, which we will call with `Run`.
 

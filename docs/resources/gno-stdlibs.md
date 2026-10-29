@@ -654,7 +654,7 @@ Returns the chain ID.
 
 ##### Usage
 ```go
-chainID := runtime.ChainID() // "dev", "onyx-1", "gnoland-1", ...
+chainID := runtime.ChainID() // "dev", "gnoland-1", ...
 ```
 ---
 

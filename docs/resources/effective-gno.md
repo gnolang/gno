@@ -961,7 +961,7 @@ func MyBalance(cur realm) int64 {
 }
 ```
 
-See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/defi/foo20
+See also: [`gno.land/r/demo/defi/foo20`](../../examples/gno.land/r/demo/defi/foo20)
 
 #### Wrapping Coins
 

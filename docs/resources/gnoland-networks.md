@@ -81,7 +81,7 @@ Related infrastructure directories in the monorepo:
 :::warning Staging is down
 
 Staging has not produced a block since 2026-07-10, and its endpoints answer
-`503`. Its replacement, running staging on gnodev instead of the `misc/loop` setup, is
+`503`. Whether it returns, rebuilt on gnodev instead of the `misc/loop` setup, is
 tracked in [#6258](https://github.com/gnolang/gno/issues/6258). The docs use the
 current testnet, which runs mainnet's code: `https://rpc.latest.testnets.gno.land:443`.
 
