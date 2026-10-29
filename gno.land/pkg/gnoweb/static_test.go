@@ -55,3 +55,16 @@ func TestFeatureControllersShareChunks(t *testing.T) {
 		assert.NotContains(t, string(b), "[data-action]", name+" must not carry its own BaseController")
 	}
 }
+
+// PurgeCSS drops the global [hidden] rule, so a block whose controls are
+// served hidden until their controller connects keeps a rule of its own:
+// without it, a class's display shows them anyway.
+func TestServedHiddenControlsStayHidden(t *testing.T) {
+	t.Parallel()
+
+	css, err := assets.ReadFile("public/main.css")
+	require.NoError(t, err)
+	for _, rule := range []string{".b-playground [hidden]{display:none}", ".b-run [hidden]{display:none}"} {
+		assert.Contains(t, string(css), rule)
+	}
+}

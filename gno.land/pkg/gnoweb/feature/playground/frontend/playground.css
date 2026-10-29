@@ -122,8 +122,10 @@
 	}
 }
 
-/* The global [hidden] rule does not survive PurgeCSS (see .b-omnisearch). */
-.b-playground-tabs-nav[hidden] {
+/* The global [hidden] rule does not survive PurgeCSS (see .b-omnisearch):
+   the controls served hidden until the controller shows them, and the tab
+   scroll buttons, stay hidden here. */
+.b-playground [hidden] {
 	display: none;
 }
 
