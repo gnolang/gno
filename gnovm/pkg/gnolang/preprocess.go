@@ -428,6 +428,14 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 			// and when it does the following splitting logic will
 			// need to be duplicated in the Preprocessor.
 			if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 && len(vd.Values) == len(vd.NameExprs) {
+				// A name twice in one declaration: said here, since the
+				// parts below would each declare it alone.
+				if dup := duplicateDeclName(vd.NameExprs); dup != nil {
+					predefineOne(fn, vd, func() {
+						failf(CodeRedeclared, []Node{dup}, "%s redeclared in this block", dup.Name)
+					})
+					continue
+				}
 				var iota_ any
 				if len(vd.Attributes.data) > 0 {
 					// TODO: use a uint64 bitflag and faster operations.
@@ -1915,6 +1923,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
+				checkSignatureNames(last, n, nil, &n.Type)
 				// define parameters in new block.
 				for i, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
@@ -2060,6 +2069,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
+				checkSignatureNames(last, n, &n.Recv, &n.Type)
 				// define receiver in new block, if method.
 				if n.IsMethod {
 					name := n.Recv.Name
@@ -3413,7 +3423,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				if n.Type == nil {
 					// x.(type) is only a type switch guard; the parser
 					// accepts it anywhere (go/types reports it here too).
-					panic("use of .(type) outside type switch")
+					fail(CodeTypeSwitchTag, "use of .(type) outside type switch", n)
 				}
 
 				// Type assertions on the blank identifier are illegal.
@@ -3833,8 +3843,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					case *DeclaredType:
 						dt = ct
 					default:
-						panic(fmt.Sprintf("%s undefined (type %s has no method %s)",
-							exprString(n), typeString(xt), n.Sel))
+						failf(CodeNoMethod, []Node{n}, "%s undefined (type %s has no method %s)",
+							exprString(n), typeString(xt), n.Sel)
 					}
 					// Ensure exposed or package path match. Without this gate,
 					// `(*pkg.Type).unexportedMethod` from outside pkg resolves
@@ -4403,6 +4413,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				nameExprs := make([]*NameExpr, len(n.NameExprs))
 				for i := range n.NameExprs {
 					nameExprs[i] = &n.NameExprs[i]
+					checkNotRedeclared(last, nameExprs[i], n, NSValueDecl, i)
 				}
 				defineOrDecl(store, last, n, n.Const, nameExprs, n.Type, n.Values, false)
 
@@ -7144,6 +7155,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		assertNotImported(store, last, &d.NameExpr)
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
+		checkNotRedeclared(last, &d.NameExpr, d, NSTypeDecl, -1)
 		if !isLocallyDefined(last2, d.Name) {
 			// construct empty t type
 			var t Type
@@ -7177,7 +7189,19 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					assertNamesType(tx, tv, nil)
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
-						if !dt.sealed {
+						// A dropped declaration's type stays unsealed over
+						// an invalid base: usable as it is.
+						if !dt.sealed && !isInvalid(dt) {
+							// A type still being defined names this one
+							// directly: a cycle through names alone, which
+							// the dependency walk below would otherwise
+							// re-enter (go/types: invalid recursive type).
+							// Through a pointer it is valid, and still falls
+							// to the panic below.
+							if _, ok := defining[tx.Name]; ok && direct {
+								fail(CodeRecursiveType, fmt.Sprintf("invalid recursive type: %s", cycleString(stack, tx.Name)),
+									packageDeclOf(last, tx.Name))
+							}
 							// predefineRecursively should have
 							// already preprocessed dependent types!
 							panic("should not happen")
@@ -7227,17 +7251,18 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					"unexpected type declaration type %v",
 					reflect.TypeOf(d.Type)))
 			}
-			if d.IsAlias {
-				// use t directly.
-			} else {
+			if !d.IsAlias {
 				// create new declared type.
 				pn := packageOf(last)
 				dt := declareWith(pn.PkgPath, last, d.Name, t)
 				t = dt
 			}
-			// fill in later.
-			last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
-			d.Path = last.GetPathForName(store, d.Name)
+			// fill in later. An alias of a name not yet defined waits
+			// for it: a nil type value could not be redefined to it.
+			if t != nil {
+				last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
+				d.Path = last.GetPathForName(store, d.Name)
+			}
 		} // END if !isLocallyDefined(last2, d.Name) {
 		// now it is or was locally defined.
 
@@ -7330,6 +7355,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			if d.Name == "init" {
 				panic("d.Name 'init' should have been appended with a number in initStaticBlocks")
 			}
+			checkNotRedeclared(last, &d.NameExpr, d, NSFuncDecl, -1)
 			// define package-level function.
 			ft := &FuncType{}
 			// define a FuncValue w/ above type as d.Name.

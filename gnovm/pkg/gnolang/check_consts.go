@@ -252,9 +252,9 @@ Main:
 			}
 			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
 		default:
-			panic(fmt.Sprintf(
-				"unexpected selector expression type %v",
-				reflect.TypeOf(xt)))
+			fail(CodeMissingField, fmt.Sprintf(
+				"%s.%s undefined (type %s has no field or method %s)",
+				exprString(currExpr.X), currExpr.Sel, xt.String(), currExpr.Sel), currExpr)
 		}
 	default:
 		ift := evalStaticTypeOf(store, last, currExpr)
