@@ -315,14 +315,17 @@ func TestHelpViewEval(t *testing.T) {
 		`data-action-function-param-value="path" data-action-function-type-value="string"`,
 		`data-action-function-param-value="proposed" data-action-function-type-value="string"`,
 		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
+		`-remote "https://rpc.example:443" -data`,
 		`href="#expression-evaluator"`,
 		`<use href="#ico-eval"></use>`,
 		`id="expression-evaluator"`,
 	} {
 		assert.Contains(t, html, want)
 	}
-	// The Eval button reads the params, not the signature.
+	// The Eval button reads the params, not the signature, and nothing
+	// reads the node address from the page any more.
 	assert.NotContains(t, html, `data-action-function-sig-param`)
+	assert.NotContains(t, html, `data-action-function-target="remote"`)
 	// The evaluator is listed after the functions.
 	assert.Less(t, strings.Index(html, `href="#func-AmendBylawsPayload"`), strings.Index(html, `href="#expression-evaluator"`))
 }
