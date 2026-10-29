@@ -1782,3 +1782,66 @@ func main() {}
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
 }
+
+// deployAfterCollect runs the ordinary (non-accumulate) path over src,
+// optionally running a collect pass over the very same parsed nodes first,
+// and reports what the ordinary path did. A fresh PackageNode each time, so
+// only the AST is shared.
+func deployAfterCollect(t *testing.T, src string, collectFirst bool) (res string) {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	if collectFirst {
+		PreprocessFilesCollect(m.Store, NewPackageNode("main", "main", fset), fset)
+	}
+	pn := NewPackageNode("main", "main", fset)
+	defer func() {
+		if r := recover(); r != nil {
+			res = fmt.Sprint(r)
+		}
+	}()
+	PredefineFileSet(m.Store, pn, fset)
+	for _, f := range fset.Files {
+		Preprocess(m.Store, pn, f)
+	}
+	return ""
+}
+
+// TestPreprocessCollectIsNotReusable pins that nodes accumulate mode has
+// seen cannot be handed to the ordinary path. It drops a failing
+// declaration and leaves it ATTR_PREPROCESSED, so without the guard the
+// ordinary path skips the very code it must reject and ACCEPTS an invalid
+// package — a checking pass would decide what the deploy path admits.
+func TestPreprocessCollectIsNotReusable(t *testing.T) {
+	for _, tc := range []struct{ name, src, wantAlone string }{
+		{
+			"file-level declaration",
+			"package main\n\nvar x int = \"nope\"\n\nfunc main() { println(x) }\n",
+			"cannot use untyped string as IntKind",
+		},
+		{
+			"body statement",
+			"package main\n\nfunc main() {\n\tvar s string = \"a\"\n\tvar i int = s\n\tprintln(i)\n}\n",
+			"cannot use string as int",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			alone := deployAfterCollect(t, tc.src, false)
+			if !strings.Contains(alone, tc.wantAlone) {
+				t.Fatalf("the ordinary path must reject this on its own; got %q", alone)
+			}
+			after := deployAfterCollect(t, tc.src, true)
+			if after == "" {
+				t.Fatalf("a collect pass made the ordinary path ACCEPT an invalid package")
+			}
+			if !strings.Contains(after, "must not be preprocessed again") {
+				t.Errorf("want the reuse guard, got %q", after)
+			}
+		})
+	}
+}
