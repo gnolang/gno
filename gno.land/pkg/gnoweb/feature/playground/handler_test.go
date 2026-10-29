@@ -448,6 +448,31 @@ func TestRunLabel(t *testing.T) {
 	assert.Contains(t, buf.String(), "<span>Run locally</span>", "a shared snippet exists nowhere on the chain")
 }
 
+// TestControlsNeedJS checks the playground serves its controls hidden, as
+// they only work once the controller connects, and its code shown.
+func TestControlsNeedJS(t *testing.T) {
+	t.Parallel()
+
+	deps := validDeps()
+	deps.Packages = &stubPackages{files: []File{{Name: "foo.gno", Content: "package foo\n"}}}
+	h := New(deps)
+	_, copyView := h.copyView(context.Background(), "/r/demo/foo", "")
+	_, shared := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{"code": {"package main\n"}}})
+	for name, v := range map[string]*components.View{"copy": copyView, "shared snippet": shared} {
+		var buf bytes.Buffer
+		require.NoError(t, v.Render(&buf), name)
+		page := buf.String()
+		for _, hidden := range []string{
+			`<div class="b-btns" data-playground-target="js-only" hidden>`,
+			`<div class="b-playground-tabs-wrap" data-playground-target="tabs-wrap" hidden>`,
+			`<section class="b-result" data-playground-target="js-only" hidden>`,
+		} {
+			assert.Contains(t, page, hidden, name)
+		}
+		assert.Contains(t, page, `<pre class="chroma-chroma">package `, name)
+	}
+}
+
 func TestParseFrom(t *testing.T) {
 	t.Parallel()
 

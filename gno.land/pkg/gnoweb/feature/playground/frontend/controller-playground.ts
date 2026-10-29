@@ -57,6 +57,11 @@ export class PlaygroundController extends BaseController {
 		this.outputSeq = 0;
 		if (!this.editorEl || !this.outputEl || !this.tabsEl) return;
 
+		// Served hidden: the buttons, the file tabs and the output only work
+		// from here on.
+		for (const el of this.getTargets("js-only")) el.hidden = false;
+		if (this.tabsWrapEl) this.tabsWrapEl.hidden = false;
+
 		this.editorEl.addEventListener("focusin", () =>
 			this._scrollActiveTabIntoView(),
 		);
