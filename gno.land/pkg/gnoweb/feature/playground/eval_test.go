@@ -106,14 +106,15 @@ func TestEvalCache(t *testing.T) {
 		}}
 		h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger()})
 
+		// Only ServeHTTP runs off the test goroutine: requests are built and
+		// answers checked here, as require may only stop this goroutine.
 		const readers = 8
 		var wg sync.WaitGroup
-		results := make([]string, readers)
+		recs := make([]*httptest.ResponseRecorder, readers)
 		for i := range readers {
-			wg.Go(func() {
-				_, resp := serveEvalJSON(t, h, "r/a", "X()")
-				results[i] = resp.Result
-			})
+			req := newEvalRequest(t, "r/a", "X()")
+			recs[i] = httptest.NewRecorder()
+			wg.Go(func() { h.EvalHandler().ServeHTTP(recs[i], req) })
 		}
 		// Let every reader join the flight before it lands.
 		require.Eventually(t, func() bool { return c.calls.Load() == 1 }, time.Second, time.Millisecond)
@@ -122,8 +123,10 @@ func TestEvalCache(t *testing.T) {
 		wg.Wait()
 
 		assert.EqualValues(t, 1, c.calls.Load())
-		for _, r := range results {
-			assert.Equal(t, "ok", r)
+		for _, rr := range recs {
+			code, resp := decodeEval(t, rr)
+			assert.Equal(t, http.StatusOK, code)
+			assert.Equal(t, "ok", resp.Result)
 		}
 	})
 }
