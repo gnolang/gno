@@ -37,4 +37,7 @@ func _ () {
 // line 24: name foo not declared
 // line 26: unexpected newline, expecting { after if clause
 
+// GnoWordingDiffers:
+// line 26: gc expects: unexpected newline, expected { after if clause; gno: unexpected newline, expecting { after if clause
+
 // Verdict: KnownIssue errorcheck: #6344 over-strict: lines 22, 24

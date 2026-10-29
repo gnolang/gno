@@ -24,4 +24,7 @@ func main() {
 // GnoError:
 // line 15: name not defined: foo
 
+// GnoWordingDiffers:
+// line 15: gc expects: undefined|expected package; gno: name not defined: foo
+
 // Verdict: Clean errorcheck

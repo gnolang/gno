@@ -189,7 +189,14 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			// `// errorcheck`: gc's inline markers name the lines it
 			// rejects; Gno preprocesses once in accumulate mode.
-			errorcheckMarkers = ParseInlineErrors(source)
+			errorcheckMarkers = ParseInlineErrors(source, isGoTypesFile(fname))
+			if isGoTypesFile(fname) {
+				for _, mk := range errorcheckMarkers {
+					if mk.LineLeading {
+						return "", 0, diffs, fmt.Errorf("%s:%d: line-leading marker: go/types attributes it to the previous line's token, which the harness cannot follow", fname, mk.Line)
+					}
+				}
+			}
 			if len(errorcheckMarkers) == 0 {
 				// A marker on a full-comment line (a pragma, as in
 				// fixedbugs/issue18882.go) is not checkable.
@@ -454,11 +461,33 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			return "", gas, diffs, &SkipError{Reason: reason}
 		}
 		cov := attributeErrorcheck(errorcheckMarkers, result.gnoErrors, prependedLines, bodyLines)
+		// Two more Gno-side evidence blocks: markers a parse failure kept
+		// the checker from reaching (still uncaught; the block says why),
+		// and credited lines whose Gno wording matches none of gc's patterns.
+		parseBlocked, wording := make(map[int]string), make(map[int]string)
+		for _, mk := range errorcheckMarkers {
+			if mk.GcOnly {
+				continue
+			}
+			expect := "gc expects: " + strings.Join(patternTexts(mk.Patterns), " | ")
+			if len(mk.Patterns) == 0 {
+				expect = "gc expects an error (no pattern)"
+			}
+			if slices.Contains(cov.uncaught, mk.Line) {
+				if result.parseBlocked {
+					parseBlocked[mk.Line] = expect
+				}
+				continue
+			}
+			if msg, ok := cov.gnoErr[mk.Line]; ok && len(mk.Patterns) > 0 && !wordingMatches(mk.Patterns, msg) {
+				wording[mk.Line] = expect + "; gno: " + msg
+			}
+		}
 		// The on-chain path must reject the file iff accumulate mode did,
-		// with its first error on a reported line; a parse-blocked file
-		// has no on-chain checking error to compare.
+		// with its first error on a reported line (a parse error is the
+		// first error of both).
 		onChain := ""
-		if !result.parseBlocked {
+		{
 			lo, _ := errorSpan(result.onChainError)
 			lo = min(lo-prependedLines, bodyLines)
 			_, reported := cov.gnoErr[lo]
@@ -505,6 +534,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		sections := append(trimSections(trim, originalSource),
 			goldenSection{name: DirectiveGnoError, block: FormatGnoErrorBlock(cov.gnoErr)},
+			goldenSection{name: DirectiveParseBlocked, block: FormatGnoErrorBlock(parseBlocked)},
+			goldenSection{name: DirectiveGnoWordingDiffers, block: FormatGnoErrorBlock(wording)},
 			goldenSection{name: DirectiveGnoTypeDiffers, block: typeBlock},
 			goldenSection{name: DirectiveVerdict, block: v.String(), inline: true},
 		)
@@ -897,7 +928,8 @@ func stripTrailingVerdict(src string) string {
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoTrim, DirectiveGnoTrimmed, DirectiveGnoError, DirectiveGoBuildError, DirectiveGnoTypeDiffers,
+	DirectiveGnoTrim, DirectiveGnoTrimmed, DirectiveGnoError, DirectiveGoBuildError,
+	DirectiveParseBlocked, DirectiveGnoWordingDiffers, DirectiveGnoTypeDiffers,
 	// .go corpus files only: the run-mode goldens and the verdict line,
 	// so a rewrite leaves no stale block behind.
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveTypeCheckError,
@@ -1492,6 +1524,13 @@ const (
 	// Gno's side of a compile file is the same `// GnoError:` block run
 	// mode uses; the verdict's mode says which stage produced it.
 	DirectiveGoBuildError = "GoBuildError"
+	// Errorcheck evidence beside GnoError.
+	// ParseBlocked: checkable markers in a file Gno could not parse; the
+	// checker never ran, so they stay uncaught and this block says why.
+	// GnoWordingDiffers: covered lines whose Gno message matches none of
+	// gc's patterns, where line attribution may be a coincidence.
+	DirectiveParseBlocked      = "ParseBlocked"
+	DirectiveGnoWordingDiffers = "GnoWordingDiffers"
 	// DirectiveGnoTypeDiffers lists the declared names whose static type
 	// Gno and go/types disagree on (`line N: x gno int, go int32`), in
 	// every mode; one entry per name, written by sync (typediff.go).
@@ -1526,6 +1565,8 @@ var corpusDirectives = []string{
 	DirectiveGoOutput,
 	DirectiveGnoError,
 	DirectiveGoBuildError,
+	DirectiveParseBlocked,
+	DirectiveGnoWordingDiffers,
 	DirectiveGnoTypeDiffers,
 }
 
@@ -1553,10 +1594,12 @@ var singleLinePascalDirectives = map[string]bool{
 // skipped). `// GoOutput:` with no lines means "Go produces no stdout"
 // — a pinned-golden assertion we want visible in the file.
 var pinnedGoldenDirectives = map[string]bool{
-	DirectiveGnoOutput:    true,
-	DirectiveGoOutput:     true,
-	DirectiveGnoError:     true,
-	DirectiveGoBuildError: true,
+	DirectiveGnoOutput:         true,
+	DirectiveGoOutput:          true,
+	DirectiveGnoError:          true,
+	DirectiveGoBuildError:      true,
+	DirectiveParseBlocked:      true,
+	DirectiveGnoWordingDiffers: true,
 }
 
 // Directives contains the directives of a file.
@@ -1984,6 +2027,8 @@ func (opts *TestOptions) runErrorcheck(m, onChain *gno.Machine, pkgPath, fname s
 			rr.gnoErrors = append(rr.gnoErrors, err.Error())
 		}
 		rr.parseBlocked = true
+		// The parse error rejects the file on chain too, as its first error.
+		rr.onChainError = rr.gnoErrors[0]
 		rr.Error = strings.Join(rr.gnoErrors, "; ")
 		return rr
 	}
@@ -2267,6 +2312,12 @@ func legacySyncReason(r string) string {
 	return r
 }
 
+// isGoTypesFile reports whether fname is in the go/types suite
+// (testdata/gotypes/), whose markers follow go/types' conventions.
+func isGoTypesFile(fname string) bool {
+	return strings.Contains(filepath.ToSlash(fname), "gotypes/")
+}
+
 // gcOnlyErrorcheckReason names why an errorcheck file has nothing for
 // Gno to check: gc diagnostic or runtime-package flags, a -lang pin below
 // go1.17, only GC_ERROR markers, or only pragma-placement markers.
@@ -2289,6 +2340,11 @@ func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
 		if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
 			return "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
 		}
+		// go/types testdata: `// -lang=go1.N` and `// -gotypesalias=N`
+		// headers configure the checker itself.
+		if len(flags) > 0 && strings.HasPrefix(flags[0], "-") {
+			flags = append([]string{""}, flags...)
+		}
 		for _, fl := range flags[1:] {
 			switch {
 			case fl == "-0" || fl == "-m":
@@ -2297,6 +2353,8 @@ func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
 				return "gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts"
 			case langBelowPin(fl):
 				return "gc -lang version-gating test below Gno's go1.17 pin (" + strings.TrimPrefix(fl, "-lang=") + ")"
+			case fl == "-gotypesalias=0":
+				return "go/types -gotypesalias=0 configuration test; Gno has one alias representation"
 			}
 		}
 	}
@@ -2308,7 +2366,7 @@ func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
 		checkable++
 		hit := false
 		for _, pat := range mk.Patterns {
-			if strings.Contains(pat, "compiler directive") {
+			if strings.Contains(pat.Text, "compiler directive") {
 				hit = true
 			}
 		}

@@ -40,7 +40,7 @@ func TestGnoTrimApply(t *testing.T) {
 	if string(out) != want {
 		t.Errorf("apply = %q, want %q", out, want)
 	}
-	if mk := ParseInlineErrors(out); len(mk) != 1 || mk[0].Line != 6 {
+	if mk := ParseInlineErrors(out, false); len(mk) != 1 || mk[0].Line != 6 {
 		t.Errorf("markers after trim = %+v, want line 6 only", mk)
 	}
 	if ls := tr.markedLines(body); !slices.Equal(ls, []int{5}) {

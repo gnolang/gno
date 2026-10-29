@@ -16,4 +16,7 @@ var _ = F().(*X) // ERROR "undefined: X"
 // line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 13: name not defined: X
 
+// GnoWordingDiffers:
+// line 13: gc expects: undefined: X; gno: name not defined: X
+
 // Verdict: Clean errorcheck

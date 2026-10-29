@@ -13,4 +13,7 @@ var f = func() { // ERROR "unexpected EOF|expected .*}.*"
 // GnoError:
 // line 11: expected '(', found main
 
+// GnoWordingDiffers:
+// line 11: gc expects: unexpected EOF|expected .*}.*; gno: expected '(', found main
+
 // Verdict: Clean errorcheck

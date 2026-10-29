@@ -37,4 +37,13 @@ func f() {
 // line 21: wrong argument count in call to f2<VPBlock(3,2)>; want 2 got 3
 // line 22: not enough arguments in call to f2ddd<VPBlock(3,3)>; want 2 (besides variadic) got 1
 
+// GnoWordingDiffers:
+// line 16: gc expects: too many arguments in call to f0\n\thave \(number\)\n\twant \(\); gno: wrong argument count in call to f0<VPBlock(3,0)>; want 0 got 1
+// line 17: gc expects: too many arguments in call to f0\n\thave \(int\)\n\twant \(\); gno: wrong argument count in call to f0<VPBlock(3,0)>; want 0 got 1
+// line 18: gc expects: not enough arguments in call to f1\n\thave \(\)\n\twant \(int\); gno: wrong argument count in call to f1<VPBlock(3,1)>; want 1 got 0
+// line 19: gc expects: too many arguments in call to f1\n\thave \(number, number\)\n\twant \(int\); gno: wrong argument count in call to f1<VPBlock(3,1)>; want 1 got 2
+// line 20: gc expects: not enough arguments in call to f2\n\thave \(number\)\n\twant \(int, int\); gno: wrong argument count in call to f2<VPBlock(3,2)>; want 2 got 1
+// line 21: gc expects: too many arguments in call to f2\n\thave \(number, string, bool\)\n\twant \(int, int\); gno: wrong argument count in call to f2<VPBlock(3,2)>; want 2 got 3
+// line 22: gc expects: not enough arguments in call to f2ddd\n\thave \(number\)\n\twant \(int, int, \.\.\.int\); gno: not enough arguments in call to f2ddd<VPBlock(3,3)>; want 2 (besides variadic) got 1
+
 // Verdict: Clean errorcheck

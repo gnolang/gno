@@ -32,4 +32,9 @@ func main() {
 // line 21: not enough arguments in call to g<VPBlock(3,1)>; want 4 (including variadic) got 3
 // line 23: not enough arguments in call to g<VPBlock(3,1)>; want 4 (including variadic) got 5
 
+// GnoWordingDiffers:
+// line 16: gc expects: not enough arguments|incompatible type; gno: wrong argument count in call to f<VPBlock(3,0)>; want 4 got 3
+// line 18: gc expects: too many arguments|incompatible type; gno: wrong argument count in call to f<VPBlock(3,0)>; want 4 got 5
+// line 23: gc expects: too many arguments|truncated to integer; gno: not enough arguments in call to g<VPBlock(3,1)>; want 4 (including variadic) got 5
+
 // Verdict: Clean errorcheck

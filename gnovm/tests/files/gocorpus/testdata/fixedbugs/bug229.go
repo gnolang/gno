@@ -23,4 +23,8 @@ func main() {
 // line 17: missing field common in testing.T
 // line 19: cannot access testing.anyLowercaseName from main
 
+// GnoWordingDiffers:
+// line 17: gc expects: unexported|undefined; gno: missing field common in testing.T
+// line 19: gc expects: unexported|undefined; gno: cannot access testing.anyLowercaseName from main
+
 // Verdict: Clean errorcheck

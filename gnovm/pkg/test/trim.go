@@ -97,7 +97,7 @@ func (t gnoTrim) apply(body []byte) ([]byte, error) {
 		lines[l-1] = ""
 	}
 	out := []byte(strings.Join(lines, "\n"))
-	if len(ParseInlineErrors(body)) > 0 && len(ParseInlineErrors(out)) == 0 {
+	if len(ParseInlineErrors(body, false)) > 0 && len(ParseInlineErrors(out, false)) == 0 {
 		return nil, fmt.Errorf("`// GnoTrim:` blanks every `// ERROR` marker line")
 	}
 	return out, nil
@@ -121,7 +121,7 @@ func (t gnoTrim) markedLines(body []byte) []int {
 		trimmed[l] = true
 	}
 	var out []int
-	for _, mk := range ParseInlineErrors(body) {
+	for _, mk := range ParseInlineErrors(body, false) {
 		if trimmed[mk.Line] {
 			out = append(out, mk.Line)
 		}

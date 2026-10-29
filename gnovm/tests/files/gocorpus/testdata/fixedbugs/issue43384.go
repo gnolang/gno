@@ -149,4 +149,22 @@ func _() {
 // line 118: should not happen
 // line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 
+// GnoWordingDiffers:
+// line 40: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P3
+// line 42: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P3
+// line 46: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P3
+// line 48: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P3
+// line 55: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P4
+// line 57: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P4
+// line 61: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P4
+// line 63: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P4
+// line 96: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 98: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 102: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 104: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 111: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 113: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 117: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 119: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 41, 47, 56, 62, 97, 103, 112, 118; internal errors: lines 41, 47, 56, 62, 97, 103, 112, 118

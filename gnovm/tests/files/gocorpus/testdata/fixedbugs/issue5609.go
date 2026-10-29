@@ -15,4 +15,7 @@ var foo [Large]uint64 // ERROR "array bound is too large|array bound overflows|i
 // GnoError:
 // line 13: constant 18446744073709551615 overflows IntKind
 
+// GnoWordingDiffers:
+// line 13: gc expects: array bound is too large|array bound overflows|invalid array length; gno: constant 18446744073709551615 overflows IntKind
+
 // Verdict: Clean errorcheck

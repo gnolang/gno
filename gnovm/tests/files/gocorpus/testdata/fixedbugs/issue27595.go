@@ -23,4 +23,8 @@ func oneResult() int {
 // line 10: assignment mismatch: 3 variable(s) but twoResults<VPBlock(2,6)>() returns 2 value(s)
 // line 11: assignment mismatch: 2 variable(s) but oneResult<VPBlock(2,7)>() returns 1 value(s)
 
+// GnoWordingDiffers:
+// line 10: gc expects: assignment mismatch: 3 variables but twoResults returns 2 values|cannot initialize; gno: assignment mismatch: 3 variable(s) but twoResults<VPBlock(2,6)>() returns 2 value(s)
+// line 11: gc expects: assignment mismatch: 2 variables but oneResult returns 1 value|cannot initialize; gno: assignment mismatch: 2 variable(s) but oneResult<VPBlock(2,7)>() returns 1 value(s)
+
 // Verdict: Clean errorcheck

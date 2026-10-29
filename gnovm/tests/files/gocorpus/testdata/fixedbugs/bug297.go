@@ -18,4 +18,7 @@ const (
 // GnoError:
 // line 15: name not defined: X
 
+// GnoWordingDiffers:
+// line 15: gc expects: undefined; gno: name not defined: X
+
 // Verdict: Clean errorcheck

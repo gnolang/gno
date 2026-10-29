@@ -68,4 +68,16 @@ func foo6() (T, string) {
 // line 46: expected 3 return values; got 1
 // line 52: expected 2 return values; got 3
 
+// GnoWordingDiffers:
+// line 10: gc expects: not enough return values\n\thave \(number\)\n\twant \(int, int\)|not enough arguments to return; gno: expected 2 return values; got 1
+// line 14: gc expects: too many (arguments to return|return values)\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type; gno: expected 0 return values; got 2
+// line 19: gc expects: not enough return values\n\thave \(number\)\n\twant \(int, int, int, int\)|not enough arguments to return; gno: expected 4 return values; got 1
+// line 21: gc expects: not enough return values\n\thave \(number, number\)\n\twant \(int, int, int, int\)|not enough arguments to return; gno: expected 4 return values; got 2
+// line 27: gc expects: not enough return values\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return; gno: expected 2 return values; got 1
+// line 29: gc expects: too many return values\n\thave \(string, number, bool\)\n\twant \(string, int\)|too many arguments to return; gno: expected 2 return values; got 3
+// line 31: gc expects: not enough return values\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return; gno: expected 2 return values; got 1
+// line 43: gc expects: not enough return values\n\thave \(string\)\n\twant \(S, T, U\)|not enough arguments to return; gno: expected 3 return values; got 1
+// line 46: gc expects: not enough return values\n\thave \(\*T\)\n\twant \(S, T, U\)|not enough arguments to return; gno: expected 3 return values; got 1
+// line 52: gc expects: too many return values\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many arguments to return; gno: expected 2 return values; got 3
+
 // Verdict: Clean errorcheck

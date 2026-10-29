@@ -1,0 +1,9 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func main[T /* ERROR "func main must have no type parameters" */ any]() {}
+
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7

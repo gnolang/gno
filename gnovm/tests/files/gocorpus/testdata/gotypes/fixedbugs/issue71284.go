@@ -1,0 +1,19 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package A
+
+type (
+	_ = A
+	A /* ERROR "invalid recursive type: A refers to itself" */ = A
+)
+
+// GnoError:
+// line 8: name not defined: A
+// line 9: invalid recursive type: A -> A
+
+// GnoWordingDiffers:
+// line 9: gc expects: invalid recursive type: A refers to itself; gno: invalid recursive type: A -> A
+
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 8

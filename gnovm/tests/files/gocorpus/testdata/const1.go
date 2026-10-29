@@ -137,4 +137,12 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 91: []uint8(nil) (value of type []uint8) is not constant
 // line 94: (const (nil *int)) (variable of type *int) is not constant
 
+// GnoWordingDiffers:
+// line 44: gc expects: overflow|cannot convert; gno: bigint underflows target kind
+// line 47: gc expects: overflow|cannot convert; gno: bigint underflows target kind
+// line 53: gc expects: overflow|cannot convert; gno: bigint underflows target kind
+// line 71: gc expects: invalid operation|expected integer type; gno: operator % not defined on: BigdecKind
+// line 83: gc expects: truncate; gno: cannot convert untyped bigdec to integer -- 106.5 not an exact integer
+// line 90: gc expects: const.*nil|not constant; gno: use of untyped nil in variable declaration
+
 // Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 67, 68, 69

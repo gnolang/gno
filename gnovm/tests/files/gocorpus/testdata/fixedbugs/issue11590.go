@@ -17,4 +17,7 @@ var _ = complex128(1) * 1e500 // ERROR "complex real part overflow|overflows com
 // GnoError:
 // line 9: bigint overflows target kind
 
+// GnoWordingDiffers:
+// line 9: gc expects: overflows int8; gno: bigint overflows target kind
+
 // Verdict: Clean errorcheck

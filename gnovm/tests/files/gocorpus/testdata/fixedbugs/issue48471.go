@@ -70,4 +70,17 @@ func g() {
 // line 51: impossible type assertion: gno.land/p/filetest/p.T6 does not implement gno.land/p/filetest/p.I (missing method M)
 // line 54: cannot use interface {M func(int)} as *gno.land/p/filetest/p.T4
 
+// GnoWordingDiffers:
+// line 36: gc expects: cannot use new\(T\) \(.*type \*T\) as I value in argument to f: \*T does not implement I \(missing method M\); gno: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 39: gc expects: cannot use new\(T\) \(.*type \*T\) as I value in assignment: \*T does not implement I \(missing method M\); gno: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 40: gc expects: cannot convert new\(T\) \(.*type \*T\) to type I: \*T does not implement I \(missing method M\); gno: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
+// line 41: gc expects: cannot use new\(T2\) \(.*type \*T2\) as I value in assignment: \*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\); gno: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 43: gc expects: cannot use new\(T3\) \(.*type \*T3\) as I value in assignment: \*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\); gno: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
+// line 45: gc expects: cannot use T4\{\} \(.*type T4\) as I value in assignment: T4 does not implement I \(method M has pointer receiver\); gno: gno.land/p/filetest/p.T4 does not implement gno.land/p/filetest/p.I (method M has pointer receiver)
+// line 46: gc expects: cannot use new\(I\) \(.*type \*I\) as I value in assignment: \*I does not implement I \(type \*I is pointer to interface, not interface\); gno: *gno.land/p/filetest/p.I does not implement gno.land/p/filetest/p.I (type *gno.land/p/filetest/p.I is pointer to interface, not interface)
+// line 48: gc expects: impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\); gno: impossible type assertion: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 49: gc expects: impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\); gno: impossible type assertion: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
+// line 51: gc expects: impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing method M\)\n\t\thave m\(int\) string\n\t\twant M\(int\); gno: impossible type assertion: gno.land/p/filetest/p.T6 does not implement gno.land/p/filetest/p.I (missing method M)
+// line 54: gc expects: cannot use i \(variable of interface type I\) as \*T4 value in assignment: need type assertion; gno: cannot use interface {M func(int)} as *gno.land/p/filetest/p.T4
+
 // Verdict: Clean errorcheck

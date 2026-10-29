@@ -29,6 +29,7 @@ const (
 	CodeCopyArgs         ErrCode = "copy-args"
 	CodeRecursiveType    ErrCode = "recursive-type"
 	CodeRecursiveValue   ErrCode = "recursive-value"
+	CodeInitCycle        ErrCode = "init-cycle"
 	CodeFieldNotMethod   ErrCode = "field-not-method"
 	CodeInterfaceEmbed   ErrCode = "interface-embed"
 

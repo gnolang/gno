@@ -5,6 +5,35 @@ release in `UPSTREAM`, each followed by a comment tail the harness writes
 (`gnovm/pkg/test/filetest.go`). Nothing above the tail is edited. `VERSION`
 is the Go toolchain the Go-side evidence was recorded with.
 
+`testdata/gotypes/` is the type checker's own suite, lifted the same way
+from `$GOROOT/src/internal/types/testdata` (`check`, `fixedbugs`, `spec`,
+`examples`): one rule per file, markers in go/types' block form
+(`/* ERROR "text" */`, `/* ERRORx "regex" */`, several per line), checked
+by the same errorcheck mode; a file without markers must preprocess
+cleanly (compile mode). `// -lang=` and `// -gotypesalias=` headers
+configure go/types; those below Gno's go1.17 pin or disabling alias
+nodes are `Unsupported`, a `-lang=go1.N` with N ≥ 17 is ignored (the
+harness emulates no language version: a "requires go1.N" marker counts
+as caught only when Gno rejects the line for its own reason, which
+`GnoWordingDiffers:` then shows). A marker that is the first token on
+its line is refused for these files: go/types attributes it to the
+previous line's token, which line-based attribution cannot follow.
+
+## goconst: constant folding
+
+`testdata/goconst/` is a hand-transcribed third corpus: Go's constant
+arithmetic is exact (`go/constant` over `math/big`), but its evidence is
+table tests (`go/constant/value_test.go`) and go/types' `const*.go`,
+`conversions*.go` and `shifts.go`, which `gotypes/` skips as `Unsupported`
+for `unsafe` and complex numbers. Each file is a `// run` program (one
+`// errorcheck`) covering one theme: untyped rune arithmetic, typed
+overflow, non-constant shifts in context, float32 rounding, integer to
+float conversion, comparisons of big constants, unary operators; the
+rows of #6389, #6392, #6393 and #6394 are all in. `GoOutput:` comes from
+`go run` as for any run file. The files are not upstream, so the manifest
+skips them like the canary dirs; the provenance header names the sources
+and the Go release the output was recorded with.
+
 ## Per-file contract
 
 Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
@@ -15,8 +44,8 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
 | `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode). Compile mode runs no `main`, but it does run package initialisers (`var` initialisers, `init`), which gc never runs for a `// compile` file: Gno has no init-free load, and an initialiser that panics or loops is a finding, not a mode bug |
 | `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
-| `GnoTrim:` / `GnoTrimmed:` | hand-written: body lines blanked before checking (see "Trimming an incidental construct"); auto-written: the trimmed lines that carried a marker, dropped from the expected set |
-| `GnoTypeDiffers:` | the declared names (variables, constants, functions, parameters, results) whose static type Gno's preprocess records differs from go/types' on the same source, one `line N: x gno int, go int32` per name, every mode (see "The types check") |
+| `ParseBlocked:` | checkable markers in a file Gno could not parse: the checker never ran, so they stay uncaught (the verdict is `KnownIssue`) and this block says why |
+| `GnoWordingDiffers:` | attributed lines whose Gno message matches none of gc's patterns (go/types' `ERROR` is a substring, `ERRORx` and gc's `ERROR` regexps): the line agreed, the wording did not; read these when a line match may be a coincidence |
 
 | verdict | meaning |
 |---|---|
@@ -49,52 +78,12 @@ holds the sha256 of each file's upstream body, and `TestCorpusBodiesMatchUpstrea
 fails any file whose body (golden region stripped) drifts from it. After adding
 files, regenerate the manifest with `./upstream-manifest.sh <go source tree>`.
 The region is the trailing comment blocks that open with a golden directive
-(`GnoOutput:`, `GnoError:`, `GoOutput:`, `GnoTypeDiffers:`, `TypeCheckError:`, `Verdict:`); any
+(`GnoOutput:`, `GnoError:`, `GoOutput:`, `TypeCheckError:`, `Verdict:`); any
 other trailing comment is body and the manifest guards it, so triage notes
 go in the verdict's reason. Directive parsing is line-based: a column-0
 `// Verdict:` or `// GnoOutput: x` line inside an upstream body (a raw string,
 a comment) is read as a directive, verify fails the file for carrying two
 verdicts, and a sync would drop the line, which the manifest then catches.
-
-## The types check
-
-Acceptance, error lines and output never show the static type Gno gives
-a declaration, so every mode also compares it with go/types' (`typediff.go`):
-both are spelt one way (rune/byte by kind, `untyped int|rune|float|string|bool`,
-a declared type by its bare name, functions by signature, structs and
-interfaces by their literal) and each mismatch is a `GnoTypeDiffers:` line.
-A file with mismatches is `KnownIssue <mode>: #6344 types differ: lines …`;
-a reason written by hand keeps its own `[#NNNN ]types differ: lines …`
-group, reconciled like the errorcheck gap groups below (a stale block or
-list fails verify). An errorcheck file is checked for the declarations
-Gno accepted; a name go/types could not type is skipped.
-
-## Trimming an incidental construct
-
-A file skipped for one construct Gno lacks, while the rest of it is
-checkable, can carry a hand-written tail line
-
-    // GnoTrim: lines 12, 92-93
-
-The harness blanks the listed body lines (1-based, ranges inclusive)
-before parsing and classifying, so the Gno side never sees them and
-the rest of the file gets a real verdict. Line numbers do not move:
-markers keep their lines. A trimmed line that carried a marker is
-dropped from the expected set and listed as `// GnoTrimmed: lines …`.
-Sync keeps the directive as written and rewrites the evidence; verify
-refuses a directive that names a line outside the body or a line
-without a trimmable construct, a trim that blanks every marker line,
-and a trim on a run file (the trimmed program is not the upstream one).
-
-Use it for an incidental `import "unsafe"` plus its few (≤3) uses, a
-stray complex, imaginary or `uintptr` line; those four constructs are
-the only ones it may remove. Never trim a line to hide a checkable one,
-and never trim a declaration another line uses: a `var z complex128`
-whose `z` a marker line reads would turn that marker into a
-`name not defined` credit, and an unmarked use into an over-strict
-artefact; such a file stays `Unsupported` with no directive. If the
-trimmed file still hits a gap, sync keeps the directive and writes the
-new `Unsupported` tag, which is the honest bucket for it.
 
 ## Re-sync
 
@@ -114,18 +103,14 @@ on it and no Gno error starts on an unmarked line; otherwise sync writes
 directly, since every such gap is a preprocess conformance gap in that
 umbrella issue's scope. A reason written by hand is `;`-separated parts; a
 gap group is `[#NNNN ]<kind>: lines a, b, c-d[ (note)]` with kind `uncaught
-markers`, `over-strict`, `internal errors` or `types differ`, owned by the
-last `#NNNN` in force; other parts are prose, kept as written. Every run reconciles the
+markers`, `over-strict` or `internal errors`, owned by the last `#NNNN` in
+force; other parts are prose, kept as written. Every run reconciles the
 groups with the gaps: a group keeps the lines still gaps of its kind (its
 note with it, an emptied group is dropped), unowned gap lines go to `#6344`,
 and verify fails on a listed line no longer a gap or a gap listed nowhere.
 An over-strict line whose Gno message is a feature gap (the `unsupportedTags`
 needles: a stdlib symbol Gno lacks, a newer language feature) does not count;
-the `GnoError:` block still shows it. A bodiless function declaration (gc
-accepts it, the body being assembly) is such a line-level gap in errorcheck
-mode only: Gno reports it, keeps the function declared, and the calls on
-marker lines are still checked; a `// compile` file with one stays
-`Unsupported bodiless-func`. An internal error (`should not happen`
+the `GnoError:` block still shows it. An internal error (`should not happen`
 and kin) covers no marker: it is a VM bug, listed as `internal errors: lines …`.
 Every errorcheck file is also run through the on-chain path (plain
 `Preprocess`, first error): it must reject the file iff accumulate mode did,

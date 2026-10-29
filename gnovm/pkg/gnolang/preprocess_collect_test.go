@@ -998,6 +998,9 @@ func f() {
 	var fn func()
 	_ = e == fn
 	_ = fn == nil
+	switch fn {
+	case nil: // fine: the literal, converted to the tag type
+	}
 }
 
 func main() { f() }
@@ -2740,6 +2743,32 @@ func main() {}
 		if codes[i] != want[i] {
 			t.Errorf("error %d: want %s, got %s", i, want[i], codes[i])
 		}
+	}
+}
+
+func TestPreprocessCollectInitCyclePosition(t *testing.T) {
+	// The cycle is reported at its first member's winning declaration
+	// (the last file's), not at a same-named declaration in an earlier file.
+	m := NewMachine("main", nil)
+	defer m.Release()
+	var fns []*FileNode
+	for _, f := range []struct{ name, src string }{
+		{"a.gno", "package main\n\nvar b = 1\n"},
+		{"z.gno", "package main\n\nvar r = b\nvar b = c\nvar c = b\n\nfunc main() {}\n"},
+	} {
+		fn, err := m.ParseFile(f.name, f.src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fns = append(fns, fn)
+	}
+	fset := &FileSet{Files: fns}
+	pn := NewPackageNode("main", "main", fset)
+	errs := PreprocessFilesCollect(m.Store, pn, fset)
+	// The same-named declarations are a redeclaration too (gc reports both).
+	if len(errs) != 2 || !strings.Contains(errs[0].Error(), "a.gno:3:5-10: b redeclared in this block") ||
+		!strings.Contains(errs[1].Error(), "z.gno:4:5-10: initialization cycle: b refers to c refers to b") {
+		t.Fatalf("want the redeclaration and the cycle at z.gno:4, got %v", errs)
 	}
 }
 

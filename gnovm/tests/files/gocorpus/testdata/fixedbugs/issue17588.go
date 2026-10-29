@@ -22,4 +22,7 @@ func T(fn F) {
 // GnoError:
 // line 14: T<VPBlock(2,1)> is not a type
 
+// GnoWordingDiffers:
+// line 14: gc expects: T .*is not a type|expected type; gno: T<VPBlock(2,1)> is not a type
+
 // Verdict: Clean errorcheck

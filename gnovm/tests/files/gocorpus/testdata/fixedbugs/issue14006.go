@@ -81,4 +81,14 @@ func g() {
 // 	previous declaration at issue14006.go:50:3
 // line 67: expected ';', found 'EOF'
 
+// GnoWordingDiffers:
+// line 24: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 30: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 37: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 43: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 59: gc expects: label labelname defined and not used|previous definition|defined and not used; gno: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+// line 64: gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined; gno: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+
 // Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a label with no statement is reported at the next line, with cascades on the lines after each one

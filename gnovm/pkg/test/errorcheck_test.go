@@ -105,7 +105,7 @@ func TestGcOnlyErrorcheckReason_LineDirectives(t *testing.T) {
 	// Both directive forms remap the positions the markers refer to, so
 	// the file is gc-specific rather than attributed against the wrong
 	// line; a directive-free file is checkable.
-	markers := []InlineError{{Line: 3, Patterns: []string{"x"}}}
+	markers := []InlineError{{Line: 3, Patterns: []ErrorPattern{{Text: "x"}}}}
 	for src, want := range map[string]string{
 		"// errorcheck\n\npackage p\n//line :20:1\nvar _ = x // ERROR \"x\"\n":                  "//line",
 		"// errorcheck\n\npackage p\nvar _ = /*line :20:1*/x // ERROR \"x\"\n":                  "/*line*/",
@@ -221,7 +221,7 @@ func TestParseInlineErrors_GccgoMarkerIsOptional(t *testing.T) {
 var _ = x // GCCGO_ERROR "undefined"
 var _ = y // ERROR "undefined"
 `)
-	got := ParseInlineErrors(src)
+	got := ParseInlineErrors(src, false)
 	if len(got) != 2 || !got[0].GcOnly || got[1].GcOnly {
 		t.Fatalf("want an optional marker on line 2 and a required one on line 3, got %+v", got)
 	}
@@ -240,7 +240,8 @@ func main() { // ERROR "package"
 }
 `)
 	o := errorcheckOpts(t)
-	out, _, _, err := o.RunFiletest("testdata/errorcheck/pb.go", src, o.TestStore)
+	out, gas, diffs, err := o.RunFiletest("testdata/errorcheck/pb.go", src, o.TestStore)
+	_, _ = gas, diffs
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,6 +249,106 @@ func main() { // ERROR "package"
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
+	}
+}
+
+func TestParseInlineErrors_BlockMarkers(t *testing.T) {
+	src := []byte(`package p
+var _ = x /* ERROR "undefined: x" */ + y /* ERRORx "undefined.*y" */ // two markers
+var _ = a /* ERROR "first" */ + "quoted" /* ERROR "second" */
+/* ERROR "leading" */ var _ = 1
+// ERROR "own line"
+var _ = q // ERROR "line form"
+`)
+	got := ParseInlineErrors(src, true)
+	want := []InlineError{
+		{Line: 2, Patterns: []ErrorPattern{{Text: "undefined: x"}, {Text: "undefined.*y", Regex: true}}},
+		{Line: 3, Patterns: []ErrorPattern{{Text: "first"}, {Text: "second"}}},
+		{Line: 4, Patterns: []ErrorPattern{{Text: "leading"}}, LineLeading: true},
+		{Line: 5, Patterns: []ErrorPattern{{Text: "own line"}}, LineLeading: true},
+		{Line: 6, Patterns: []ErrorPattern{{Text: "line form"}}},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d markers %+v, want %d", len(got), got, len(want))
+	}
+	for i := range want {
+		if got[i].Line != want[i].Line || got[i].LineLeading != want[i].LineLeading ||
+			got[i].GcOnly != want[i].GcOnly || len(got[i].Patterns) != len(want[i].Patterns) {
+			t.Fatalf("marker %d: got %+v, want %+v", i, got[i], want[i])
+		}
+		for j := range want[i].Patterns {
+			if got[i].Patterns[j] != want[i].Patterns[j] {
+				t.Errorf("marker %d pattern %d: got %+v, want %+v", i, j, got[i].Patterns[j], want[i].Patterns[j])
+			}
+		}
+	}
+	// gc's line form is a regexp.
+	gc := ParseInlineErrors(src, false)
+	if p := gc[4].Patterns[0]; !p.Regex {
+		t.Errorf("gc // ERROR pattern should be a regexp: %+v", p)
+	}
+	if p := gc[0].Patterns[0]; p.Regex {
+		t.Errorf("/* ERROR */ pattern is a substring in every file: %+v", p)
+	}
+}
+
+func TestWordingMatches(t *testing.T) {
+	cases := []struct {
+		pat  ErrorPattern
+		msg  string
+		want bool
+	}{
+		// go/types ERROR literals with regexp metacharacters.
+		{ErrorPattern{Text: "cannot assign to m[key].a[0] (neither addressable nor a map index expression)"},
+			"cannot assign to m[key].a[0] (neither addressable nor a map index expression)", true},
+		{ErrorPattern{Text: "invalid use of [...] array"}, "invalid use of [...] array (outside a composite literal)", true},
+		// The same text read as a regexp does not match: the flag matters.
+		{ErrorPattern{Text: "invalid use of [...] array", Regex: true}, "invalid use of [...] array (outside a composite literal)", false},
+		{ErrorPattern{Text: "undefined.*y", Regex: true}, "undefined: y", true},
+		{ErrorPattern{Text: "undefined.*y"}, "undefined: y", false},
+		// A regexp that does not compile is tried as a substring.
+		{ErrorPattern{Text: "a(b", Regex: true}, "x a(b y", true},
+	}
+	for _, c := range cases {
+		if got := wordingMatches([]ErrorPattern{c.pat}, c.msg); got != c.want {
+			t.Errorf("wordingMatches(%+v, %q) = %v, want %v", c.pat, c.msg, got, c.want)
+		}
+	}
+}
+
+func TestErrorcheck_EveryParserErrorCounts(t *testing.T) {
+	// go/parser reports both lines; the second must not be dropped as a
+	// cascade of the first.
+	src := []byte(`package p
+
+func f() {
+	if { /* ERROR "missing condition" */
+	}
+	if x := 1 { /* ERROR "missing condition" */
+	}
+}
+`)
+	o := errorcheckOpts(t)
+	out, _, _, err := o.RunFiletest("testdata/gotypes/check/pc.go", src, o.TestStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "// Verdict: Clean errorcheck") || strings.Contains(out, "ParseBlocked") {
+		t.Errorf("want Clean with no ParseBlocked block, got:\n%s", out)
+	}
+}
+
+func TestErrorcheck_LineLeadingMarkerRefused(t *testing.T) {
+	src := []byte(`package p
+
+var _ = undefined
+/* ERROR "undefined" */
+`)
+	o := errorcheckOpts(t)
+	_, gas, diffs, err := o.RunFiletest("testdata/gotypes/check/ll.go", src, o.TestStore)
+	_, _ = gas, diffs
+	if err == nil || !strings.Contains(err.Error(), "line-leading marker") {
+		t.Fatalf("want a line-leading marker error, got %v", err)
 	}
 }
 

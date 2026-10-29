@@ -22,4 +22,8 @@ var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128|1e
 // line 11: cannot convert untyped bigdec to float32 -- too close to +-Inf
 // line 12: cannot convert untyped bigdec to float64 -- too close to +-Inf
 
+// GnoWordingDiffers:
+// line 11: gc expects: constant 1e\+200 overflows float32|1e200 .* overflows float32; gno: cannot convert untyped bigdec to float32 -- too close to +-Inf
+// line 12: gc expects: constant 1e\+500 overflows float64|1e500 .* overflows float64; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+
 // Verdict: Clean errorcheck

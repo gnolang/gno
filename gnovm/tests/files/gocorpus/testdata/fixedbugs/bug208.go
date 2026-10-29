@@ -21,4 +21,7 @@ var _ = T{f: 1}
 // GnoError:
 // line 17: name not defined: f
 
+// GnoWordingDiffers:
+// line 17: gc expects: undefined; gno: name not defined: f
+
 // Verdict: Clean errorcheck

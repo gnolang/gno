@@ -24,4 +24,8 @@ func f() {
 // line 16: operator ! not defined on: IntKind
 // line 17: name x not declared
 
+// GnoWordingDiffers:
+// line 16: gc expects: invalid operation; gno: operator ! not defined on: IntKind
+// line 17: gc expects: undefined; gno: name x not declared
+
 // Verdict: Clean errorcheck

@@ -75,4 +75,8 @@ var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
 // line 49: unexpected composite lit type *main.T
 // line 50: unexpected composite lit type int
 
+// GnoWordingDiffers:
+// line 49: gc expects: invalid composite literal type TP; gno: unexpected composite lit type *main.T
+// line 50: gc expects: invalid composite literal type Ti|expected.*type for composite literal; gno: unexpected composite lit type int
+
 // Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21, 22, 23

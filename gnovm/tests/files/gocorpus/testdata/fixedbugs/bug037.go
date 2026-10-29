@@ -14,4 +14,7 @@ func main() {
 // GnoError:
 // line 10: name vlong not declared
 
+// GnoWordingDiffers:
+// line 10: gc expects: undef; gno: name vlong not declared
+
 // Verdict: Clean errorcheck

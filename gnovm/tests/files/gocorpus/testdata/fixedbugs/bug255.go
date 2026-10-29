@@ -29,4 +29,7 @@ var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant|
 // line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 21: len([1]string{…}) (value of type int) is not constant
 
+// GnoWordingDiffers:
+// line 15: gc expects: undefined|undeclared; gno: name not defined: ee
+
 // Verdict: Clean errorcheck

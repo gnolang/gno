@@ -26,4 +26,7 @@ var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|inde
 // line 13: invalid argument: index must not be negative: (-2.0 <untyped> bigdec)
 // line 18: type should be numeric
 
+// GnoWordingDiffers:
+// line 18: gc expects: must be non-negative integer constant|index expression is not integer constant|cannot convert; gno: type should be numeric
+
 // Verdict: Clean errorcheck

@@ -36,7 +36,7 @@ func TestCorpusBodiesMatchUpstream(t *testing.T) {
 		}
 		rel := filepath.ToSlash(strings.TrimPrefix(p, testdata+string(filepath.Separator)))
 		switch strings.SplitN(rel, "/", 2)[0] {
-		case "run", "compile", "errorcheck", "gno": // canaries, not upstream
+		case "run", "compile", "errorcheck", "gno", "goconst": // canaries and hand-written files, not upstream
 			return nil
 		}
 		seen[rel] = true

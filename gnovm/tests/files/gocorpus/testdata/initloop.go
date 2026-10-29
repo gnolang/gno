@@ -19,4 +19,9 @@ var (
 // GnoError:
 // line 14: initialization cycle: a refers to b refers to c refers to a
 
+// GnoWordingDiffers:
+// line 14: gc expects: a refers to b
+// .*b refers to c
+// .*c refers to a|initialization loop; gno: initialization cycle: a refers to b refers to c refers to a
+
 // Verdict: Clean errorcheck

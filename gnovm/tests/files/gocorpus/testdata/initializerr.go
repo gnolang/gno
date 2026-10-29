@@ -48,4 +48,7 @@ var _ = map[Key]string{
 // line 25: index x must be integer constant
 // line 26: duplicate index 1 in array or slice literal
 
+// GnoWordingDiffers:
+// line 21: gc expects: mixture|undefined | too few values; gno: mixed keyed and unkeyed elements
+
 // Verdict: Clean errorcheck

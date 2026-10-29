@@ -19,4 +19,7 @@ func _() {
 // GnoError:
 // line 11: name not defined: Wrong
 
+// GnoWordingDiffers:
+// line 11: gc expects: undefined: Wrong|undefined name .*Wrong; gno: name not defined: Wrong
+
 // Verdict: Clean errorcheck

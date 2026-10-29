@@ -26,4 +26,7 @@ func main() {
 // GnoError:
 // line 17: cannot find GOTO label "start" within current function
 
+// GnoWordingDiffers:
+// line 17: gc expects: jumps into block; gno: cannot find GOTO label "start" within current function
+
 // Verdict: Clean errorcheck

@@ -25,4 +25,10 @@ func f() {
 // line 18: operator && not defined on: IntKind
 // line 19: operator && not defined on: IntKind
 
+// GnoWordingDiffers:
+// line 16: gc expects: invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|mismatched types untyped bool and int; gno: operator || not defined on: IntKind
+// line 17: gc expects: invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|mismatched types int and untyped bool; gno: operator || not defined on: IntKind
+// line 18: gc expects: invalid operation: .+ \(operator && not defined on int\)|incompatible types|mismatched types untyped bool and int; gno: operator && not defined on: IntKind
+// line 19: gc expects: invalid operation: .+ \(operator && not defined on int\)|incompatible types|mismatched types int and untyped bool; gno: operator && not defined on: IntKind
+
 // Verdict: Clean errorcheck

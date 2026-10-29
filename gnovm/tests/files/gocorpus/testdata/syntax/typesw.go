@@ -16,4 +16,7 @@ func main() {
 // line 9: interface conversion: ast.Expr is *ast.CallExpr, not *ast.Ident
 // line 10: no new variables on left side of :=
 
+// GnoWordingDiffers:
+// line 10: gc expects: invalid variable name|cannot use .* as value; gno: no new variables on left side of :=
+
 // Verdict: KnownIssue errorcheck: #6344 over-strict: lines 9

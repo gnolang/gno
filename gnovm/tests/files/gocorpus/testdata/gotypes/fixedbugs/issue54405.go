@@ -1,0 +1,26 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test that we don't see spurious errors for ==
+// for values with invalid types due to prior errors.
+
+package p
+
+var x struct {
+	f *NotAType /* ERROR "undefined" */
+}
+var _ = x.f == nil // no error expected here
+
+var y *NotAType  /* ERROR "undefined" */
+var _ = y == nil // no error expected here
+
+// GnoError:
+// line 11: name not defined: NotAType
+// line 15: name not defined: NotAType
+
+// GnoWordingDiffers:
+// line 11: gc expects: undefined; gno: name not defined: NotAType
+// line 15: gc expects: undefined; gno: name not defined: NotAType
+
+// Verdict: Clean errorcheck

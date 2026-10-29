@@ -13,4 +13,7 @@ type T x.T // ERROR "undefined|expected package"
 // GnoError:
 // line 9: name not defined: x
 
+// GnoWordingDiffers:
+// line 9: gc expects: undefined|expected package; gno: name not defined: x
+
 // Verdict: Clean errorcheck

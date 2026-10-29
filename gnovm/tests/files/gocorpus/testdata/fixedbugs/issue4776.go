@@ -11,4 +11,7 @@ type MyInt int32 // ERROR "package statement must be first|package clause"
 // GnoError:
 // line 9: expected 'package', found 'type'
 
+// GnoWordingDiffers:
+// line 9: gc expects: package statement must be first|package clause; gno: expected 'package', found 'type'
+
 // Verdict: Clean errorcheck

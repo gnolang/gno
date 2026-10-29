@@ -22,4 +22,9 @@ func f2() (*t, error) {
 // line 13: missing field M in gno.land/p/filetest/p.t
 // line 17: missing field M in gno.land/p/filetest/p.t
 
+// GnoWordingDiffers:
+// line 12: gc expects: t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M; gno: missing field M in gno.land/p/filetest/p.t
+// line 13: gc expects: t{...}.M undefined \(type t has no field or method M\)|undefined field or method .*M|no field or method M; gno: missing field M in gno.land/p/filetest/p.t
+// line 17: gc expects: t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M|not enough arguments; gno: missing field M in gno.land/p/filetest/p.t
+
 // Verdict: Clean errorcheck

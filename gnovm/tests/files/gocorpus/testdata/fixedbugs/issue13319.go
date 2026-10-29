@@ -23,4 +23,7 @@ func f(int, int) {
 // line 13: expected operand, found 'case'
 // line 18: expected ')', found 'EOF'
 
+// GnoWordingDiffers:
+// line 12: gc expects: expecting \)|possibly missing comma or \); gno: missing ',' before newline in argument list
+
 // Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): the missing comma is reported on the next line, with cascades on lines 10, 13 and 18

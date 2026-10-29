@@ -28,4 +28,7 @@ func H() (int, int) {
 // line 18: assignment mismatch: 2 variables but G<VPBlock(3,0)> returns 3 values
 // line 23: expected 2 return values; got 3
 
+// GnoWordingDiffers:
+// line 23: gc expects: too many|mismatch|wrong number; gno: expected 2 return values; got 3
+
 // Verdict: Clean errorcheck

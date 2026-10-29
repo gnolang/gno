@@ -116,4 +116,20 @@ func _() {
 // line 83: multiple-value f2() (value of type (int,int)) in single-value context
 // line 84: assignment mismatch: 3 variables but 2 values
 
+// GnoWordingDiffers:
+// line 14: gc expects: assignment mismatch: 2 variables but 1 value; gno: RHS should not be a<VPBlock(1,0)> when len(Lhs) > len(Rhs)
+// line 18: gc expects: assignment mismatch: 3 variables but 1 value; gno: RHS should not be a<VPBlock(1,0)> when len(Lhs) > len(Rhs)
+// line 32: gc expects: assignment mismatch: 2 variables but f1 returns 1 value; gno: assignment mismatch: 2 variables but f1<VPBlock(3,1)> returns 1 values
+// line 34: gc expects: assignment mismatch: 2 variables but f3 returns 3 values; gno: assignment mismatch: 2 variables but f3<VPBlock(3,3)> returns 3 values
+// line 36: gc expects: assignment mismatch: 3 variables but f1 returns 1 value; gno: assignment mismatch: 3 variables but f1<VPBlock(3,1)> returns 1 values
+// line 37: gc expects: assignment mismatch: 3 variables but f2 returns 2 values; gno: assignment mismatch: 3 variables but f2<VPBlock(3,2)> returns 2 values
+// line 42: gc expects: assignment mismatch: 2 variables but f1 returns 1 value; gno: assignment mismatch: 2 variables but f1<VPBlock(3,1)> returns 1 values
+// line 43: gc expects: assignment mismatch: 3 variables but f2 returns 2 values; gno: assignment mismatch: 3 variables but f2<VPBlock(3,2)> returns 2 values
+// line 61: gc expects: assignment mismatch: 2 variables but .\.f1 returns 1 value; gno: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f1 returns 1 values
+// line 63: gc expects: assignment mismatch: 2 variables but .\.f3 returns 3 values; gno: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f3 returns 3 values
+// line 65: gc expects: assignment mismatch: 3 variables but .\.f1 returns 1 value; gno: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f1 returns 1 values
+// line 66: gc expects: assignment mismatch: 3 variables but .\.f2 returns 2 values; gno: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f2 returns 2 values
+// line 71: gc expects: assignment mismatch: 2 variables but .\.f1 returns 1 value; gno: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f1 returns 1 values
+// line 72: gc expects: assignment mismatch: 3 variables but .\.f2 returns 2 values; gno: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f2 returns 2 values
+
 // Verdict: Clean errorcheck

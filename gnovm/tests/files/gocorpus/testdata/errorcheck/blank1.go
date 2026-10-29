@@ -39,4 +39,7 @@ func main() {
 // line 28: t._ undefined (type struct{_ int} has no field or method _)
 // line 31: gno.land/p/filetest/_.T is not comparable
 
+// GnoWordingDiffers:
+// line 31: gc expects: cannot be compared|non-comparable|cannot compare v1 == v2; gno: gno.land/p/filetest/_.T is not comparable
+
 // Verdict: Clean errorcheck
