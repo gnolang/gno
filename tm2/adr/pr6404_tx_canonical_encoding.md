@@ -86,11 +86,12 @@ emit and of what #6399 makes canonical.
 4. The written-out zero session address drains from chain traffic.
 5. #6406 ships as a coordinated upgrade, the mechanism from #5368 that
    gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to the
-   enforcing release and an entry in
-   `misc/deployments/mainnet.gno.land/upgrades.json`. Blocks before the halt
-   are replayed by the binaries that produced them, so no height gate is
-   needed. The release it rides is the next coordinated release on the mainnet
-   line after `v1.5.1`; the ledger entry names it when the halt is scheduled.
+   enforcing release, recorded in `misc/deployments/mainnet.gno.land/upgrades.json`
+   once the chain runs it (#6381). Blocks before the halt are replayed by the
+   binaries that produced them, so no height gate is needed. The release it
+   rides is the next coordinated release on the mainnet line after `v1.5.1`;
+   its release page and the halt announcement name the height once the
+   proposal has executed.
 
 ## Alternatives considered
 
