@@ -738,14 +738,20 @@
 }
 
 /* Five tabs (realm pages, with Run) are wider than the column beside the
-   omnibar: they keep their size, stay aligned on the right, and run into the
-   gap before the omnibar. Icons only once the screen has room for them. */
+   omnibar: from xl, where they share its row, they keep their size, stay
+   aligned on the right, and run into the gap before the omnibar. Below,
+   they have a row of their own, from the left. Icons only once the screen
+   has room for them. */
 .b-main-menu:has(> .menu-dev > .b-menu-link:nth-child(5)) {
-	justify-content: flex-end;
+	@media (--xl) {
+		justify-content: flex-end;
+	}
 }
 
 .menu-dev:has(> .b-menu-link:nth-child(5)) {
-	flex-shrink: 0;
+	@media (--xl) {
+		flex-shrink: 0;
+	}
 
 	/* The last tab ends on the content's right edge. */
 	.b-menu-link:not(:last-child) .link {
