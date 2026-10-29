@@ -262,11 +262,11 @@ export class PlaygroundController extends BaseController {
 		const names = this.editor.fileNames();
 
 		if (code.includes("func Render(")) {
-			const { text, isError } = await postEval(
+			const { text, isError, unavailable } = await postEval(
 				"r/playground_preview",
 				'Render("")',
 			);
-			this._resetOutput(text, false, isError);
+			this._resetOutput(text, false, isError || unavailable);
 		} else {
 			this._resetOutput(
 				`Package: ${pkgName}\nFiles: ${names.join(", ")}\n\nTo run locally:`,

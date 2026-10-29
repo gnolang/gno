@@ -54,7 +54,6 @@ export interface EvalResult {
 	text: string;
 	isError: boolean;
 	unavailable: boolean;
-	status: number;
 }
 
 // postEval evaluates expression in pkgPath through gnoweb's /_/api/eval.
@@ -75,21 +74,21 @@ export async function postEval(
 		const { status } = response;
 		if (status === 429 || status >= 500) {
 			const text = json.error || `HTTP ${status}`;
-			return { text, isError: false, unavailable: true, status };
+			return { text, isError: false, unavailable: true };
 		}
 		if (json.error) {
 			const text = `Error: ${json.error}`;
-			return { text, isError: true, unavailable: false, status };
+			return { text, isError: true, unavailable: false };
 		}
 		if (!response.ok) {
 			const text = `Error: HTTP ${status}`;
-			return { text, isError: true, unavailable: false, status };
+			return { text, isError: true, unavailable: false };
 		}
 		const text = json.result ?? "";
-		return { text, isError: false, unavailable: false, status };
+		return { text, isError: false, unavailable: false };
 	} catch {
 		const text = "gnoweb could not be reached, try again shortly";
-		return { text, isError: false, unavailable: true, status: 0 };
+		return { text, isError: false, unavailable: true };
 	}
 }
 
