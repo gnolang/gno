@@ -9,10 +9,42 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+// corpusGoVersion is the gc release every `// GoOutput:` is recorded
+// against; TestCorpusVersionPin keeps it in step with gocorpus/VERSION.
+const corpusGoVersion = "go1.25.9"
+
+// checkCorpusToolchain refuses a sync on any other gc. gc's output moves
+// between releases (printfloat changed in 1.26), so a golden synced
+// elsewhere records that toolchain's verdict instead of the pinned one —
+// and verify can never catch it, because it compares against the recorded
+// `// GoOutput:` and never shells out to go.
+func checkCorpusToolchain() error {
+	if runtime.Version() == corpusGoVersion {
+		return nil
+	}
+	return fmt.Errorf("corpus sync needs %s, host has %s: re-run with GOTOOLCHAIN=%s (the pin is gocorpus/VERSION)",
+		corpusGoVersion, runtime.Version(), corpusGoVersion)
+}
+
+// knownUnsupportedTag reports whether tag is one TagUnsupportedReason can
+// produce; "other" is its catch-all.
+func knownUnsupportedTag(tag string) bool {
+	if tag == "other" {
+		return true
+	}
+	for _, t := range unsupportedTags {
+		if t.tag == tag {
+			return true
+		}
+	}
+	return false
+}
 
 // UsesGenerics reports whether source declares any type parameters
 // (generic func or type). Gno has no generics, so such files are a
