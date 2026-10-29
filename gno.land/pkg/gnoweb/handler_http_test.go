@@ -4539,12 +4539,14 @@ func TestHTTPHandler_RunPage(t *testing.T) {
 		assert.Contains(t, body, call, path)
 	}
 
-	// Without the package, $run changes nothing: same status, no run page,
-	// and a missing realm's 404 page does not link to its $run.
-	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing"} {
-		wantCode, _ := get(path)
+	// Without the package or the file, $run changes nothing: the same page,
+	// header tabs included, and a missing realm's 404 page does not link to
+	// its $run.
+	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing", "/r/demo/foo/nope.gno"} {
+		wantCode, wantBody := get(path)
 		code, body := get(path + "$run")
 		assert.Equal(t, wantCode, code, path)
+		assert.Equal(t, wantBody, body, path)
 		assert.NotContains(t, body, runPage, path)
 		if code != http.StatusOK {
 			assert.NotContains(t, body, `$run"`, path)
@@ -4553,6 +4555,26 @@ func TestHTTPHandler_RunPage(t *testing.T) {
 	code, body := get("/r/nope/missing")
 	assert.Equal(t, http.StatusNotFound, code)
 	assert.NotContains(t, body, `$run"`, "a 404 page has no Run tab")
+}
+
+// TestHTTPHandler_RunPageNotAPackageURL checks that $run is never served on
+// a user page or a listing URL, even when the node answers qdoc for its path
+// (the RPC client trims the trailing slash of /r/demo/foo/).
+func TestHTTPHandler_RunPageNotAPackageURL(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+		return &doc.JSONDocumentation{}, nil
+	}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	for _, path := range []string{"/u/alice$run", "/r/demo/foo/$run"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.NotContains(t, rr.Body.String(), `data-controller="run"`, path)
+	}
 }
 
 // TestHTTPHandler_RunPageNodeError checks that $run answers a node failure

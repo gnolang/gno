@@ -756,16 +756,23 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Run page: a script against an existing realm or package. A
-	// listing, a user, or a path with no package renders as if $run were
-	// not there, its header tabs included.
+	// Handle Run page: a script against an existing realm or package, or
+	// one of its files. A listing, a user, a missing file, or a path with no
+	// package renders as if $run were not there, its header tabs included.
 	if gnourl.WebQuery.Has("run") && (gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
 		jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+		if err == nil && gnourl.IsFile() {
+			var files []string
+			files, err = h.Client.ListFiles(ctx, gnourl.Path, 0)
+			if err == nil && !slices.Contains(files, gnourl.File) {
+				err = ErrClientFileNotFound
+			}
+		}
 		switch {
 		case err == nil:
 			return h.Run.GetRunView(gnourl, jdoc.Funcs)
-		case !errors.Is(err, ErrClientPackageNotFound):
-			h.Logger.Error("unable to fetch qdoc", "error", err)
+		case !errors.Is(err, ErrClientPackageNotFound) && !errors.Is(err, ErrClientFileNotFound):
+			h.Logger.Error("unable to fetch the package to run", "error", err)
 			return GetClientErrorStatusView(gnourl, err, 0)
 		}
 	}
