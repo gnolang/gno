@@ -18,6 +18,27 @@ export function isValidFileName(name: string): boolean {
 	);
 }
 
+// The most a share link holds, which the server reads no further than
+// (maxSharedCodeLength, maxDecompressedCodeSize): the link stays under the
+// 8,192-byte default limit of common web servers (nginx, Apache), and its
+// code inflates to 64 KiB at most.
+export const MAX_SHARE_URL_LENGTH = 8_000;
+export const MAX_SHARE_CODE_BYTES = 64 * 1024;
+
+// shareRefusal says why a link to codeBytes of code, url characters long,
+// would not open, or "" when it would.
+export function shareRefusal(codeBytes: number, url: number): string {
+	const hint =
+		"\n\nTry reducing the code or splitting into a deployed package.";
+	if (codeBytes > MAX_SHARE_CODE_BYTES) {
+		return `Error: code is too large to share via URL: a link opens ${MAX_SHARE_CODE_BYTES / 1024} KiB of code at most, this is ${Math.ceil(codeBytes / 1024)} KiB.${hint}`;
+	}
+	if (url > MAX_SHARE_URL_LENGTH) {
+		return `Error: code is too large to share via URL.${hint}`;
+	}
+	return "";
+}
+
 // shareText writes files in the share format: each under its
 // "// --- name ---" header, a lone file too, so it comes back under its own
 // name.

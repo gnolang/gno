@@ -4,8 +4,11 @@ import {
 	copyFiles,
 	createTar,
 	isValidFileName,
+	MAX_SHARE_CODE_BYTES,
+	MAX_SHARE_URL_LENGTH,
 	parseInitialCode,
 	renderText,
+	shareRefusal,
 	shareText,
 } from "./playground-files.ts";
 
@@ -143,4 +146,18 @@ test("createTar writes whole names and skips the ones it cannot hold", () => {
 	// One header and one data block, then the two closing blocks.
 	assert.equal(tar.length, 512 * 4);
 	assert.equal(new TextDecoder().decode(tar.subarray(0, 100)), name);
+});
+
+// The server opens a link of 8,000 characters at most, whose code inflates
+// to 64 KiB at most: Share refuses any link it would not open, over either.
+test("shareRefusal refuses the links the server would not open", () => {
+	assert.equal(shareRefusal(MAX_SHARE_CODE_BYTES, MAX_SHARE_URL_LENGTH), "");
+	assert.match(
+		shareRefusal(MAX_SHARE_CODE_BYTES + 1, 100),
+		/64 KiB of code at most, this is 65 KiB/,
+	);
+	assert.match(
+		shareRefusal(100, MAX_SHARE_URL_LENGTH + 1),
+		/too large to share via URL/,
+	);
 });

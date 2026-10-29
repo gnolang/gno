@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -55,29 +56,41 @@ func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL) (int,
 		return h.copyView(ctx, pkg.Path, u.Query.Get("file"))
 	}
 
-	return http.StatusOK, NewPageView(PlaygroundData{
-		InitialCode: cmp.Or(sharedCode(u.Query), defaultCode),
+	code, err := sharedCode(u.Query)
+	data := PlaygroundData{
+		InitialCode: cmp.Or(code, defaultCode),
 		Domain:      h.deps.Domain,
-	})
+	}
+	if err != nil {
+		data.Refused = err.Error()
+	}
+	return http.StatusOK, NewPageView(data)
 }
+
+// Why a ?code= link was not opened, as the page tells the reader.
+var (
+	errSharedTooLong  = errors.New("the link is longer than Share writes")
+	errSharedTooLarge = fmt.Errorf("the link holds more than %d KiB of code", maxDecompressedCodeSize>>10)
+	errSharedInvalid  = errors.New("the link's code does not decode")
+)
 
 // sharedCode reads ?code=: with &z, the base64 of raw DEFLATE (RFC 1951)
 // Share writes, and plain text without. Code that is too long, or does not
-// decode, is empty, so the default code shows instead.
-func sharedCode(q url.Values) string {
+// decode, is refused with the reason, for the page to say why it shows the
+// default code instead.
+func sharedCode(q url.Values) (string, error) {
 	code := q.Get("code")
 	if len(code) > maxSharedCodeLength {
-		return ""
+		return "", errSharedTooLong
 	}
 	if !q.Has("z") {
-		return code
+		return code, nil
 	}
 	data, err := base64.StdEncoding.DecodeString(code)
 	if err != nil {
-		return ""
+		return "", errSharedInvalid
 	}
-	plain, _ := decodeCompressedCode(data)
-	return plain
+	return decodeCompressedCode(data)
 }
 
 // Errors a PackageFetcher answers with, so the copy page answers as the
@@ -183,16 +196,20 @@ func isSource(filename string) bool {
 	return strings.HasSuffix(filename, ".gno") || filename == "gnomod.toml"
 }
 
-// decodeCompressedCode decompresses DEFLATE data.
-func decodeCompressedCode(data []byte) (string, bool) {
+// decodeCompressedCode decompresses DEFLATE data, up to
+// maxDecompressedCodeSize.
+func decodeCompressedCode(data []byte) (string, error) {
 	zr := flate.NewReader(bytes.NewReader(data))
 	defer zr.Close()
 
 	// Read one byte past the ceiling so an over-limit payload is detectable
-	// rather than silently truncated. Over-limit is validated after by length.
+	// rather than silently truncated.
 	plain, err := io.ReadAll(io.LimitReader(zr, maxDecompressedCodeSize+1))
-	if err != nil || len(plain) > maxDecompressedCodeSize {
-		return "", false
+	switch {
+	case err != nil:
+		return "", errSharedInvalid
+	case len(plain) > maxDecompressedCodeSize:
+		return "", errSharedTooLarge
 	}
-	return string(plain), true
+	return string(plain), nil
 }

@@ -34,8 +34,13 @@ A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
   a snippet that happens to be valid base64 from being decoded into
   something else; Share has only ever written `&z`, and no release served
   another form, so no link breaks. With `&z`, a value that does not
-  inflate shows the default code. Share refuses links over 8,000 characters, so the server
-  reads no longer value and inflates to 64 KiB at most;
+  inflate shows the default code, under a notice saying why the link was
+  not opened (too long, more than 64 KiB of code, or not decodable): the
+  default code alone would read as the link's. The server reads no value
+  over 8,000 characters and inflates to 64 KiB at most, and Share refuses,
+  with a message, any link over either cap, so it never writes a link that
+  opens as the default code; a Go test checks both sides hold the same
+  caps;
 - multi-file code, one tab per file, with add and close. A share writes
   every file, a lone one too, under a `// --- name ---` header. Reading it
   back, a header whose name is not a file name (or repeats one) is a comment

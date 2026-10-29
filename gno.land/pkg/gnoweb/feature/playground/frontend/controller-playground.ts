@@ -13,14 +13,11 @@ import {
 	isValidFileName,
 	parseInitialCode,
 	renderText,
+	shareRefusal,
 	shareText,
 } from "./playground-files.js";
 
 const DEFAULT_GNO_CONTENT = "package main\n";
-
-// Max length for shared source code.
-// It stays under the 8192-byte default limit of common web servers (nginx, Apache).
-const MAX_SHARE_URL_LENGTH = 8_000;
 
 export class PlaygroundController extends BaseController {
 	private declare editorEl: HTMLElement;
@@ -351,10 +348,9 @@ export class PlaygroundController extends BaseController {
 
 		// Share compressed code
 		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`;
-		if (url.length > MAX_SHARE_URL_LENGTH) {
-			this._setErrorOutput(
-				`Error: code is too large to share via URL.\n\nTry reducing the code or splitting into a deployed package.`,
-			);
+		const refusal = shareRefusal(bytes.length, url.length);
+		if (refusal) {
+			this._setErrorOutput(refusal);
 			return;
 		}
 

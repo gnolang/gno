@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -299,29 +301,30 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 	z := deflateBase64(t, []byte(sentinel))
 
 	cases := []struct {
-		name  string
-		query url.Values
-		want  string
+		name    string
+		query   url.Values
+		want    string
+		refused error // what the page says, nil for nothing
 	}{
-		{"no code", url.Values{}, defaultCode},
-		{"plain text", url.Values{"code": {sentinel}}, sentinel},
-		{"plain text that parses as base64", url.Values{"code": {"test"}}, "test"},
-		{"base64 without z stays text", url.Values{"code": {"cGFja2FnZSBtYWluCg=="}}, "cGFja2FnZSBtYWluCg=="},
+		{"no code", url.Values{}, defaultCode, nil},
+		{"plain text", url.Values{"code": {sentinel}}, sentinel, nil},
+		{"plain text that parses as base64", url.Values{"code": {"test"}}, "test", nil},
+		{"base64 without z stays text", url.Values{"code": {"cGFja2FnZSBtYWluCg=="}}, "cGFja2FnZSBtYWluCg==", nil},
 		// One meaning per form: without &z nothing is decoded, not even
 		// what Share would have written with it.
-		{"compressed without z stays text", url.Values{"code": {z}}, z},
-		{"compressed", url.Values{"code": {z}, "z": {""}}, sentinel},
-		{"compressed, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, defaultCode},
-		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, defaultCode},
-		{"z on text that is no base64", url.Values{"code": {"package main"}, "z": {""}}, defaultCode},
+		{"compressed without z stays text", url.Values{"code": {z}}, z, nil},
+		{"compressed", url.Values{"code": {z}, "z": {""}}, sentinel, nil},
+		{"compressed, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, defaultCode, errSharedInvalid},
+		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, defaultCode, errSharedInvalid},
+		{"z on text that is no base64", url.Values{"code": {"package main"}, "z": {""}}, defaultCode, errSharedInvalid},
 		// The cap is written out, not read from the constant, so raising it
 		// fails here: 64 KiB is what a link Share writes can hold.
-		{"compressed up to 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10))}, "z": {""}}, strings.Repeat("a", 64<<10)},
+		{"compressed up to 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10))}, "z": {""}}, strings.Repeat("a", 64<<10), nil},
 		// A few bytes of a link must not expand into a page of megabytes.
-		{"compressed past 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10+1))}, "z": {""}}, defaultCode},
-		{"a link-sized megabyte", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 1<<20))}, "z": {""}}, defaultCode},
-		{"longer than Share writes", url.Values{"code": {strings.Repeat("a", maxSharedCodeLength+1)}}, defaultCode},
-		{"compressed, longer than Share writes", url.Values{"code": {z + strings.Repeat("A", maxSharedCodeLength)}, "z": {""}}, defaultCode},
+		{"compressed past 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10+1))}, "z": {""}}, defaultCode, errSharedTooLarge},
+		{"a link-sized megabyte", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 1<<20))}, "z": {""}}, defaultCode, errSharedTooLarge},
+		{"longer than Share writes", url.Values{"code": {strings.Repeat("a", maxSharedCodeLength+1)}}, defaultCode, errSharedTooLong},
+		{"compressed, longer than Share writes", url.Values{"code": {z + strings.Repeat("A", maxSharedCodeLength)}, "z": {""}}, defaultCode, errSharedTooLong},
 	}
 
 	h := New(validDeps())
@@ -338,6 +341,14 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 			_, initial := servedCode(t, buf.String())
 			assert.Equal(t, tc.want, initial)
 			assert.NotContains(t, buf.String(), "<textarea", "the code is in the page once")
+			// A refused link says so: the default code alone would read
+			// as the link's.
+			const notice = "This link's code was not opened"
+			if tc.refused == nil {
+				assert.NotContains(t, buf.String(), notice)
+				return
+			}
+			assert.Contains(t, buf.String(), notice+": "+template.HTMLEscapeString(tc.refused.Error())+". The default code is shown instead.")
 		})
 	}
 }
@@ -623,38 +634,23 @@ func TestCopyURL(t *testing.T) {
 func TestDecodeCompressedCode(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid small payload", func(t *testing.T) {
-		t.Parallel()
-
-		want := "some gno source"
+	deflate := func(b []byte) []byte {
 		var buf bytes.Buffer
 		zw, _ := flate.NewWriter(&buf, flate.BestCompression)
-		_, _ = zw.Write([]byte(want))
+		_, _ = zw.Write(b)
 		require.NoError(t, zw.Close())
+		return buf.Bytes()
+	}
 
-		got, ok := decodeCompressedCode(buf.Bytes())
-		require.True(t, ok)
-		assert.Equal(t, want, got)
-	})
+	got, err := decodeCompressedCode(deflate([]byte("some gno source")))
+	require.NoError(t, err)
+	assert.Equal(t, "some gno source", got)
 
-	t.Run("over-limit payload rejected", func(t *testing.T) {
-		t.Parallel()
+	_, err = decodeCompressedCode(deflate(bytes.Repeat([]byte{0}, maxDecompressedCodeSize+1)))
+	assert.ErrorIs(t, err, errSharedTooLarge, "payload exceeding the ceiling must be rejected")
 
-		var buf bytes.Buffer
-		zw, _ := flate.NewWriter(&buf, flate.BestCompression)
-		_, _ = zw.Write(bytes.Repeat([]byte{0}, maxDecompressedCodeSize+1))
-		require.NoError(t, zw.Close())
-
-		_, ok := decodeCompressedCode(buf.Bytes())
-		assert.False(t, ok, "payload exceeding the ceiling must be rejected")
-	})
-
-	t.Run("invalid deflate data rejected", func(t *testing.T) {
-		t.Parallel()
-
-		_, ok := decodeCompressedCode([]byte("not deflate data"))
-		assert.False(t, ok)
-	})
+	_, err = decodeCompressedCode([]byte("not deflate data"))
+	assert.ErrorIs(t, err, errSharedInvalid)
 }
 
 // denyLimiter refuses every request after the first n.
@@ -707,4 +703,16 @@ func TestEvalLimiter(t *testing.T) {
 		assert.Equal(t, tc.want, rr.Code, "request %d: %s", i, tc.expr)
 	}
 	assert.Equal(t, "B()", client.expr, "C() never reached the node")
+}
+
+// TestShareCapsMatch checks Share refuses exactly the links the server
+// would not open: both sides hold the caps, so a change to one alone
+// would let Share write links that open as the default code.
+func TestShareCapsMatch(t *testing.T) {
+	t.Parallel()
+
+	src, err := os.ReadFile("frontend/playground-files.ts")
+	require.NoError(t, err)
+	assert.Contains(t, string(src), fmt.Sprintf("MAX_SHARE_URL_LENGTH = %d_%03d;", maxSharedCodeLength/1000, maxSharedCodeLength%1000))
+	assert.Contains(t, string(src), fmt.Sprintf("MAX_SHARE_CODE_BYTES = %d * 1024;", maxDecompressedCodeSize/1024))
 }

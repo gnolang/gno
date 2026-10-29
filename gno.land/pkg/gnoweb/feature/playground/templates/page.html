@@ -41,6 +41,10 @@ LAYOUT - Playground view
     </div>
   </header>
 
+  {{- with .Refused }}
+  <p class="b-pkg-notice" role="note">This link's code was not opened: {{ . }}. The default code is shown instead.</p>
+  {{- end }}
+
   <!-- Editor Area -->
   <div class="b-code-editor-area">
     <!-- File tabs -->
