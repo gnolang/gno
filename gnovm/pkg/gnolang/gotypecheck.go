@@ -545,6 +545,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		// A type-switch guard declares one variable per clause, which
 		// go/types records here and not in Defs.
 		Implicits: map[ast.Node]types.Object{},
+		// `cur, x := ...` ASSIGNS cur, so it lands here, not in Defs.
+		Uses: map[*ast.Ident]types.Object{},
 	}
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
 	// Fail early: there's no point checking the others.
@@ -941,6 +943,9 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 			add(obj)
 		}
 	}
+	if err := checkCurRebind(fset, files, builtins, info, realmType); err != nil {
+		return err
+	}
 	if len(bad) == 0 {
 		return nil
 	}
@@ -996,4 +1001,52 @@ func shadowsAName(obj types.Object) bool {
 		return false
 	}
 	return true
+}
+
+// checkCurRebind refuses `cur, x := ...`, where `cur` already names the
+// crossing parameter. `:=` with at least one new variable ASSIGNS the
+// existing `cur` rather than declaring it, so go/types records that ident in
+// Uses, not Defs, and checkDeclNames never sees it. Rebinding the slot makes
+// the frame describe a realm it is not executing as.
+//
+// Here and not in preprocess: preprocess re-runs every stored package at node
+// boot, and master accepted this shape, so a rejection there stops an
+// upgraded node from starting. doOpCall carries the runtime check that
+// actually blocks a rebound cur from taking a caller's identity.
+func checkCurRebind(fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, realmType types.Type) error {
+	if realmType == nil {
+		return nil
+	}
+	var bad *ast.Ident
+	for _, f := range files {
+		if f == builtins {
+			continue
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			as, ok := n.(*ast.AssignStmt)
+			if !ok || as.Tok != token.DEFINE {
+				return true
+			}
+			for _, lh := range as.Lhs {
+				id, ok := lh.(*ast.Ident)
+				if !ok || id.Name != "cur" {
+					continue
+				}
+				// Defs means a fresh declaration, which checkDeclNames
+				// already refuses; Uses means this assigns the parameter.
+				obj := info.Uses[id]
+				if obj == nil || !types.Identical(obj.Type(), realmType) {
+					continue
+				}
+				if bad == nil || id.Pos() < bad.Pos() {
+					bad = id
+				}
+			}
+			return true
+		})
+	}
+	if bad == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame", fset.Position(bad.Pos()))
 }

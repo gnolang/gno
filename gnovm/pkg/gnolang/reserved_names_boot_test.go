@@ -84,3 +84,36 @@ func Cur() int { cur := 1; return cur }
 	}()
 	m.PreprocessAllFilesAndSaveBlockNodes()
 }
+
+// The same rule for the `cur` rebind, which is a separate shape: `cur, x :=`
+// ASSIGNS the crossing parameter rather than declaring it, so the gate catches
+// it through go/types Uses, not Defs. Master accepted it, so a stored package
+// may carry it and preprocess must still run it. Found by dora against an
+// earlier cut of this change, which refused it in preprocess and so would have
+// stopped every upgraded node from booting.
+func TestBootStoredRealmTypedCurRebind(t *testing.T) {
+	db := memdb.NewMemDB()
+	store := NewStore(nil,
+		dbadapter.StoreConstructor(db, stypes.StoreOptions{}),
+		iavl.StoreConstructor(db, stypes.StoreOptions{}))
+	store.AddMemPackage(&std.MemPackage{
+		Type: MPUserAll, Name: "stored", Path: "gno.land/r/demo/stored",
+		Files: []*std.MemFile{{Name: "a.gno", Body: `package stored
+
+func F(cur realm) string {
+	cur, y := cur, 1
+	_ = y
+	return cur.PkgPath()
+}
+`}},
+	}, MPUserAll)
+
+	m := NewMachineWithOptions(MachineOptions{Store: store})
+	defer m.Release()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("a restarting node failed to boot on a stored package: %v", r)
+		}
+	}()
+	m.PreprocessAllFilesAndSaveBlockNodes()
+}

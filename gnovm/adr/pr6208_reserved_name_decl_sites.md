@@ -60,10 +60,16 @@ they are already enforced on chain, so no stored package carries what they
 refuse.
 
 **The write rules keep #6196's resolved-type test** (assignment,
-address-of, range target), since stored code may bind `cur` to anything; the
-same-scope `cur, x :=` form is refused by running the check after the
-`DEFINE`/`ASSIGN` branch, which is #6196's bug fixed. The cur-call provenance
-check is belt-and-braces.
+address-of, range target), since stored code may bind `cur` to anything and
+preprocess re-runs stored code at boot. The same-scope `cur, x := ...` form is
+a declaration site, not a write: `:=` with one new variable ASSIGNS the
+parameter, so go/types records that ident in `Uses` and `checkDeclNames` never
+sees it. `checkCurRebind` covers it at the gate. It may not live in
+preprocess — master accepted the shape, so a rejection there stops every
+upgraded node from booting, which is what dora caught in the first cut of this
+change (`TestBootStoredRealmTypedCurRebind`). `doOpCall`'s identity check is
+what actually blocks a rebound `cur` at call time, and
+`zrealm_cur_reassign_define.gno` pins both layers.
 
 **Carried from #6196 unchanged.** The identity check exempts calls dispatched
 by package `testing` (`harnessSeedsCur`): the harness seeds a crossing sub-test

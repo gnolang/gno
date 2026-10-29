@@ -29,6 +29,9 @@ func TestCheckDeclNames(t *testing.T) {
 		{"cur non-realm param", "func F(cur int) int { return cur }", "contextual keyword"},
 		{"cur func", "func cur() {}", "contextual keyword"},
 		{"cur second param", "func F(a int, cur realm) {}", "contextual keyword"},
+		// `:=` with one new variable ASSIGNS cur, so go/types records it in
+		// Uses, not Defs; checkDeclNames alone never sees this shape.
+		{"cur same-scope rebind", "func F(cur realm) string { cur, y := cur, 1; _ = y; return cur.PkgPath() }", "cannot reassign the crossing"},
 
 		// The one legal binding, and the shapes the rule must not touch.
 		{"crossing first param", "func F(cur realm) {}", ""},

@@ -17,5 +17,11 @@ func main(cur realm) {
 	probe(cur)
 }
 
+// Both layers, which is the point: the gate refuses the deploy, and a stored
+// package carrying this shape is still caught at call time by doOpCall.
+
 // Error:
-// gno.land/r/demo/curreassigndef/zrealm_cur_reassign_define.gno:15:2-29: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame
+// crossing function gno.land/r/demo/curreassigndef.probe was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm
+
+// TypeCheckError:
+// gno.land/r/demo/curreassigndef/zrealm_cur_reassign_define.gno:15:2: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame

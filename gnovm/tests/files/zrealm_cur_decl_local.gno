@@ -13,8 +13,11 @@ func main(cur realm) {
 	println("ok")
 }
 
-// Error:
-// gno.land/r/demo/curdecllocal/zrealm_cur_decl_local.gno:10:3-13: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame
+// The gate refuses the deploy; preprocess still runs it, because a stored
+// package may carry this shape and a node must boot on it.
+
+// Output:
+// ok
 
 // TypeCheckError:
 // gno.land/r/demo/curdecllocal/zrealm_cur_decl_local.gno:10:3: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

@@ -3022,18 +3022,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
-				// Checked AFTER the branch above, because a DEFINE that
-				// reuses a name already declared in this same block assigns
-				// that slot rather than declaring a new one (defineOrDecl
-				// takes the same "already defined" branch), and only sets the
-				// name's path while doing so. By type, as above: a fresh local
-				// `cur` is legal in stored code.
-				for _, lh := range n.Lhs {
-					if ne, ok := lh.(*NameExpr); ok && ne.Name == "cur" &&
-						evalStaticTypeOf(store, last, ne) == gRealmType {
-						panic("cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame")
-					}
-				}
+				// A same-scope `cur, x := ...` assigns the slot rather than
+				// declaring it, so the DEFINE branch above does not see it.
+				// It is refused at the deploy gate (checkCurRebind), not
+				// here: stored packages re-run through preprocess at boot,
+				// and master accepted this shape. doOpCall's identity check
+				// is what stops a rebound cur from being used.
 
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
