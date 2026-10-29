@@ -2772,6 +2772,63 @@ func TestPreprocessCollectInitCyclePosition(t *testing.T) {
 	}
 }
 
+func TestPreprocessCollectGoTypes(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S struct{}
+type M int
+type T1 C
+
+const C = T1(0) // a constant is not a type, and this one needs T1
+
+func f(x []int) {
+	a, b, b := 1, 2, 3
+	_, _ = a, b
+	var sl []int
+	sl[0], c := 1, 2
+	_ = c
+	var st struct{ _ func() }
+	switch st {
+	}
+	switch nil {
+	}
+	var fn func()
+	switch fn { // fine
+	}
+	_ = M(x /* spread */ ...)
+	var s *S
+	var u *struct{}
+	s = u
+	_ = s
+}
+
+func main() {}
+`)
+	want := []string{
+		"C is not a type",
+		"b repeated on left side of :=",
+		"non-name sl[0] on left side of :=",
+		"cannot switch on st (variable of type struct{_ func()}) (struct{_ func()} is not comparable)",
+		"use of untyped nil in switch expression",
+		"invalid use of ... in conversion to main.M",
+		"cannot use *struct{} as *main.S",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 // deployAfterCollect runs the ordinary (non-accumulate) path over src,
 // optionally running a collect pass over the very same parsed nodes first,
 // and reports what the ordinary path did. A fresh PackageNode each time, so

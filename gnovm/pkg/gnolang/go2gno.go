@@ -401,9 +401,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	// path, but do not introduce per-node Pos()/End() walks without
 	// considering the DoS implications.
 	panicWithPos := func(fmtStr string, args ...any) {
-		pos := fs.Position(gon.Pos())
-		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
-		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+		panicAtPos(fs, gon.Pos(), fmtStr, args...)
 	}
 
 	switch gon := gon.(type) {
@@ -739,6 +737,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 			recv = *Go2Gno(fs, gon.Recv.List[0], fileComments).(*FieldTypeExpr)
 		}
 		name := toName(gon.Name)
+		if gon.Type.TypeParams != nil {
+			panicWithPos("type parameters are not permitted")
+		}
 		type_ := Go2Gno(fs, gon.Type, fileComments).(*FuncTypeExpr)
 		var body []Stmt
 		if gon.Body != nil {
@@ -949,6 +950,12 @@ func toDecl(fs *token.FileSet, god ast.Decl, fileComments []*ast.CommentGroup) D
 	}
 }
 
+// panicAtPos raises a positioned conversion error ("file:line:col: msg").
+func panicAtPos(fs *token.FileSet, pos token.Pos, fmtStr string, args ...any) {
+	p := fs.Position(pos)
+	panic(fmt.Errorf("%s:%d:%d: %v", p.Filename, p.Line, p.Column, fmt.Sprintf(fmtStr, args...)))
+}
+
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
@@ -964,6 +971,9 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 		switch s := s.(type) {
 		case *ast.TypeSpec:
 			name := toName(s.Name)
+			if s.TypeParams != nil {
+				panicAtPos(fs, s.Pos(), "type parameters are not permitted")
+			}
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
 			td := &TypeDecl{

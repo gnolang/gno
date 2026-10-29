@@ -332,23 +332,6 @@ func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
 	return found
 }
 
-// assertSwitchTag checks an expression switch's tag x of type t:
-// comparable, or a slice, map or func, which the clauses may compare to
-// nil only. The error is positioned at the tag.
-func assertSwitchTag(x Expr, t Type) {
-	if t == nil {
-		return
-	}
-	switch baseOf(t).(type) {
-	case *SliceType, *FuncType, *MapType:
-		return
-	}
-	if !isComparable(t) {
-		failf(CodeNotComparable, []Node{x}, "cannot switch on %s (variable of type %v) (%v is not comparable)",
-			exprString(x), t, t)
-	}
-}
-
 // assertAppendArgs checks append's arity: a typed slice, then values, with
 // ... only on a single second argument (Go spec: "Appending to and
 // copying slices"). Wording and positions follow go/types.

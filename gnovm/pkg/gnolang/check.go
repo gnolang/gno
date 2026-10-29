@@ -59,6 +59,10 @@ const (
 	CodeImportPath         ErrCode = "import-path"
 	CodeConstOverflow      ErrCode = "const-overflow"
 	CodeBranchLabel        ErrCode = "branch-label"
+	CodeNonNameDefine      ErrCode = "non-name-define"
+	CodeRepeatedDefine     ErrCode = "repeated-define"
+	CodeSwitchTag          ErrCode = "switch-tag"
+	CodeConversionSpread   ErrCode = "conversion-spread"
 	CodeShiftCount         ErrCode = "shift-count"
 
 	// Assignability.
