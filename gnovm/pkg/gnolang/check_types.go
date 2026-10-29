@@ -483,6 +483,6 @@ func assertArrayLengthInteger(cx *ConstExpr) {
 		panicAt(fmt.Sprintf("array length %s (untyped %s constant) must be integer",
 			constString(cx), untypedKindName(cx.T)), cx)
 	case !isInteger(cx.T):
-		panicAt(fmt.Sprintf("array length %s (constant of type %s) must be integer", constString(cx), cx.T), cx)
+		panicAt(fmt.Sprintf("array length %s must be integer", constOperandString(cx, cx.T)), cx)
 	}
 }

@@ -22,6 +22,6 @@ var (
 // GnoTrimmed: lines 15
 
 // GnoError:
-// line 12: array length float64(10) (constant of type float64) must be integer
+// line 12: array length float64(10) (constant 10 of type float64) must be integer
 
 // Verdict: Clean errorcheck

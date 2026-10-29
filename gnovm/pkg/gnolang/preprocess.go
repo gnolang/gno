@@ -3025,7 +3025,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									}
 									if !constFitsInt(tv) {
 										panicAt(fmt.Sprintf(
-											"invalid argument: index %v overflows int", tv), cx)
+											"invalid argument: index %s overflows int", constOperandString(cx, IntType)), cx)
 									}
 								}
 							}
