@@ -19,5 +19,6 @@ func main() {
 
 // GnoError:
 // line 14: 0 is not a type
+// line 16: missing field x in interface {}
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16
+// Verdict: Clean errorcheck

@@ -465,3 +465,24 @@ func assertCopyArgs(gm store.GasMeter, dt, st Type) {
 		panic(fmt.Sprintf("arguments to copy have different element types %v and byte", ds.Elt))
 	}
 }
+
+// assertArrayLengthInteger rejects an array length that is not an
+// integer constant (Go spec, "Array types"): an untyped constant must
+// be representable as int, a typed one of integer type.
+func assertArrayLengthInteger(cx *ConstExpr) {
+	switch {
+	case cx.IsUndefined():
+		panicAt("array length nil must be constant", cx)
+	case isUntyped(cx.T):
+		switch {
+		case cx.T == UntypedBigintType, cx.T == UntypedRuneType:
+			return
+		case cx.T == UntypedBigdecType && cx.GetBigDec().IsInt():
+			return
+		}
+		panicAt(fmt.Sprintf("array length %s (untyped %s constant) must be integer",
+			constString(cx), untypedKindName(cx.T)), cx)
+	case !isInteger(cx.T):
+		panicAt(fmt.Sprintf("array length %s (constant of type %s) must be integer", constString(cx), cx.T), cx)
+	}
+}
