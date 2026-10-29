@@ -165,9 +165,10 @@ export function zeroLiteral(type: string): string {
 }
 
 // evalArgs turns a function card's param inputs, in order, into Gno
-// arguments: each typed value as a literal for the input's param type, each
-// empty one as its zero value. The template renders one input per param,
-// and every one counts, so unnamed or repeated names ("_") keep their
+// arguments: each typed value, as typed (spaces too, as the printed
+// commands carry it), as a literal for the input's param type, each empty
+// one as its zero value. The template renders one input per param, and
+// every one counts, so unnamed or repeated names ("_") keep their
 // argument. full is false while any param is empty.
 export function evalArgs(
 	inputs: Pick<HTMLInputElement, "value" | "getAttribute">[],
@@ -175,7 +176,7 @@ export function evalArgs(
 	let full = true;
 	const args = inputs.map((input) => {
 		const type = input.getAttribute("data-action-function-type-value") ?? "";
-		const value = input.value.trim();
+		const value = input.value;
 		if (!value) full = false;
 		return value ? gnoLiteral(value, type) : zeroLiteral(type);
 	});

@@ -119,8 +119,9 @@ export class ActionFunctionController extends BaseController {
 			return checked?.value.trim() || "";
 		}
 
-		// Other: return value
-		return firstInput.value.trim();
+		// Other: the value as typed, which the live result and Eval
+		// evaluate too (evalArgs).
+		return firstInput.value;
 	}
 
 	// initialize the args

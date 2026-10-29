@@ -134,7 +134,15 @@ test("evalArgs gives every param its argument, in order", () => {
 		{
 			name: "repeated names, all typed",
 			inputs: [input("_", "string", "a"), input("_", "string", " b ")],
-			args: ['"a"', '"b"'],
+			args: ['"a"', '" b "'],
+			full: true,
+		},
+		// The printed commands carry a value as typed: so do the live
+		// result and Eval, and only an empty input is empty.
+		{
+			name: "spaces are kept",
+			inputs: [input("s", "string", "  "), input("n", "int", " 5")],
+			args: ['"  "', '" 5"'],
 			full: true,
 		},
 		{
