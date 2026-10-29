@@ -62,8 +62,4 @@ func h(x0, x1, x2, x3, x4 Big) {
 	g(4, x4)
 }
 
-// GnoOutput:
-
-// GoOutput:
-
-// Verdict: Clean run
+// Verdict: Unsupported other: resource budget; copies of a [2e6]int array: ~15 s and gigabytes; gc only type-checks or runs it natively

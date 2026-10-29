@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -104,10 +105,10 @@ func UsesGenerics(source []byte) bool {
 }
 
 // HasInlineErrorMarkers reports whether source contains any
-// `// ERROR ` or `// GC_ERROR ` marker (Go's errorcheck convention).
-// The harness refuses such files until errorcheck mode lands.
+// `// ERROR ` or `// GC_ERROR ` marker (Go's errorcheck convention),
+// which selects errorcheck mode.
 func HasInlineErrorMarkers(source []byte) bool {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// GCCGO_ERROR ", "// GCCGO_ERROR\t"} {
 		if bytes.Contains(source, []byte(tag)) {
 			return true
 		}
@@ -115,7 +116,18 @@ func HasInlineErrorMarkers(source []byte) bool {
 	return false
 }
 
-// PrependPkgPathIfNeeded rescues compile-only files
+// indexErrorMarker returns the byte index in line where an `// ERROR`
+// or `// GC_ERROR` marker's content begins, or -1.
+func indexErrorMarker(line string) int {
+	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// GCCGO_ERROR ", "// GCCGO_ERROR\t"} {
+		if i := strings.Index(line, tag); i >= 0 {
+			return i + len(tag)
+		}
+	}
+	return -1
+}
+
+// PrependPkgPathIfNeeded rescues errorcheck and compile-only files
 // declaring a non-main package (e.g. `package p`) so they reach
 // Gno's preprocess+typecheck phase instead of bouncing on the
 // realm-naming requirement. Two transforms:
@@ -236,6 +248,7 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name uintptr not (declared|defined)`), "uintptr type not supported in Gno"},
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
 	{regexp.MustCompile(`name (min|max) not declared`), "version-gating: min/max builtins (Go 1.21) not supported in Gno"},
+	{regexp.MustCompile(`cannot convert .* \(of type \[\][^)]*\) to type \[\d+\]`), "version-gating: slice-to-array conversion (Go 1.20) not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
 	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
@@ -255,7 +268,8 @@ var reStdlibSymbolGap = regexp.MustCompile(`name (Exit|Getenv|Args|Environ|Hostn
 	`Caller|Callers|SetFinalizer|KeepAlive|GC|GOMAXPROCS|GOARCH|GOOS|NumCPU|NumGoroutine|` +
 	`Gosched|Goexit|Stack|ReadMemStats|MemProfileRecord|MemProfileRate|MemStats|Frame|Frames|` +
 	`Compiler|Breakpoint|Version|Intn|Int31|Int31n|Int63|Int63n|Float64|Float32|Seed|Perm|Shuffle|` +
-	`Sleep|Tick|AllocsPerRun|Caller|PathError|ErrNotExist) not (declared|defined)`)
+	`Sleep|Tick|AllocsPerRun|Caller|PathError|ErrNotExist|Open|Create|Stat|File|FileInfo|` +
+	`Stdin|Stdout|Stderr|ReadFile|WriteFile) not (declared|defined)`)
 
 // UnsupportedFeatureError returns a feature-gap reason if errStr is one
 // of Gno's "feature not implemented" messages (channels, goroutines,
@@ -427,19 +441,17 @@ func gnoErrSegments(s string) []string {
 	return out
 }
 
-// reErrorPrefix matches a leading `path:line[:col]` position, with the
-// span end (`-col` or `-line:col`) and primes Gno's Location.String()
-// appends (`main.gno:9:2-11:2”`), up to the colon that ends it.
-var reErrorPrefix = regexp.MustCompile(`^[^:]+:\d+(?::\d+(?:-\d+(?::\d+)?)?)?'*:\s*`)
+// reErrorLocation is a located message's prefix: file:L:C, with an
+// optional span end (-C2 or -L2:C2) and primes ('), or just file:L.
+var reErrorLocation = regexp.MustCompile(`(?s)^\S+?:\d+(?::\d+)?(?:-\d+(?::\d+)?)?'*:\s*(.*)$`)
 
-// CleanErrorMessage strips a leading `path:line:col:` position (span
-// end included) from errStr, leaving just the message text. Used when
-// recording a Gno error in the `// GnoError:` golden block so the block
-// doesn't pin volatile file paths or column numbers.
+// CleanErrorMessage strips the location prefix from a Gno error message
+// ("pkg/file.go:12:3-14:2: msg" becomes "msg"); a message with no
+// location is returned trimmed.
 func CleanErrorMessage(errStr string) string {
 	s := strings.TrimSpace(errStr)
-	if m := reErrorPrefix.FindStringIndex(s); m != nil {
-		return strings.TrimSpace(s[m[1]:])
+	if m := reErrorLocation.FindStringSubmatch(s); m != nil {
+		return strings.TrimSpace(m[1])
 	}
 	return s
 }
@@ -567,4 +579,161 @@ func TagUnsupportedReason(reason string) string {
 		}
 	}
 	return "other: " + reason
+}
+
+// InlineError is one `// ERROR "regex"` marker attached to a source
+// line. Patterns are kept as Go regex strings; alternatives inside a
+// pattern are separated by '|' per Go's errorcheck convention.
+type InlineError struct {
+	// Line is the 1-based source line the marker was attached to.
+	Line int
+	// Patterns lists the quoted regex strings on the marker, in
+	// declaration order. Empty for a bare `// ERROR` with no patterns.
+	Patterns []string
+	// GcOnly marks a `// GC_ERROR` or `// GCCGO_ERROR` marker: a compiler-specific
+	// diagnostic (backend limit, pragma check, …) that is NOT part of
+	// Gno's contract. GcOnly markers are excluded from leak accounting —
+	// catching one is fine, missing one is not an uncaught error.
+	GcOnly bool
+}
+
+// ParseInlineErrors scans source for inline `// ERROR "..."` markers
+// and returns one [InlineError] per source line that carries one.
+//
+// Format: any number of double-quoted (or backtick-quoted) strings
+// after `// ERROR`, e.g. `// ERROR "oct|char"` or `// ERROR "a" "b"`.
+// `// GC_ERROR` is accepted as equivalent to `// ERROR` since several
+// corpus files mix the two. A gccgo-only marker (`// GCCGO_ERROR`) is
+// optional: it never counts as uncaught, but an error on its line is not
+// over-strict either, since another Go compiler reports one there (the
+// typical case is an undefined name after a syntax error, which gc alone
+// suppresses).
+// LINE/LINE+N substitutions are NOT performed; the literal text
+// stays in the regex (matching is best-effort).
+//
+// Lines that begin with `//` (i.e. pure doc-comment lines that
+// happen to mention `// ERROR "..."` in their prose) are skipped —
+// real markers always trail actual code on the same line.
+func ParseInlineErrors(source []byte) []InlineError {
+	var out []InlineError
+	sc := bufio.NewScanner(bytes.NewReader(source))
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	lineNo := 0
+	for sc.Scan() {
+		lineNo++
+		text := sc.Text()
+		idx := indexErrorMarker(text)
+		if idx < 0 {
+			continue
+		}
+		// Distinguish a real marker from an `// ERROR "..."` mentioned
+		// in narrative prose. Markers come in two valid shapes:
+		//   - trailing a line of code:  `_ = x // ERROR "..."`
+		//   - on its own comment line:  `// ERROR "..."` (used with
+		//     //line remapping, e.g. fixedbugs/bug305.go)
+		// A prose mention (e.g. a doc comment that says "a `// ERROR
+		// \"regex\"` marker …") has other text before the marker on a
+		// comment line. So: if the line is a pure comment, accept it
+		// only when the marker is the FIRST token after `//`.
+		trimmed := strings.TrimLeft(text, " \t")
+		if strings.HasPrefix(trimmed, "//") {
+			isMarkerStart := false
+			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// GCCGO_ERROR ", "// GCCGO_ERROR\t"} {
+				if strings.HasPrefix(trimmed, p) {
+					isMarkerStart = true
+					break
+				}
+			}
+			if !isMarkerStart {
+				continue
+			}
+		}
+		patterns := extractQuotedStrings(text[idx:])
+		gcOnly := strings.Contains(text[:idx], "GC_ERROR") || strings.Contains(text[:idx], "GCCGO_ERROR")
+		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
+	}
+	return out
+}
+
+// extractQuotedStrings pulls every Go-syntax quoted string (double
+// or backtick) out of s, decoding escapes via [strconv.Unquote].
+func extractQuotedStrings(s string) []string {
+	var out []string
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c != '"' && c != '`' {
+			i++
+			continue
+		}
+		end := findClosingQuote(s, i)
+		if end < 0 {
+			break
+		}
+		if v, err := strconv.Unquote(s[i : end+1]); err == nil {
+			out = append(out, v)
+		} else {
+			// gc's markers are regexes, not Go literals: `\(` and `\.`
+			// are regex escapes. Keep the raw text, unescaping only the
+			// quote itself, as go/test's run.go does.
+			out = append(out, strings.ReplaceAll(s[i+1:end], `\"`, `"`))
+		}
+		i = end + 1
+	}
+	return out
+}
+
+func findClosingQuote(s string, start int) int {
+	open := s[start]
+	if open == '`' {
+		i := strings.IndexByte(s[start+1:], '`')
+		if i < 0 {
+			return -1
+		}
+		return start + 1 + i
+	}
+	for i := start + 1; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			continue
+		}
+		if s[i] == '"' {
+			return i
+		}
+	}
+	return -1
+}
+
+// langBelowPin reports whether fl is a `-lang=go1.N` flag with N below
+// Gno's go1.17 pin (numeric compare; lexical would misorder go1.9).
+func langBelowPin(fl string) bool {
+	v, ok := strings.CutPrefix(fl, "-lang=go1.")
+	if !ok {
+		return false
+	}
+	n := 0
+	for _, c := range v {
+		if c < '0' || c > '9' {
+			return false
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n < 17
+}
+
+// internalErrorMarks are fragments of Gno messages that report a VM
+// failure rather than a checking verdict; such an error covers no marker.
+var internalErrorMarks = []string{
+	"should not happen", "decl node already predefined", "StaticBlock.Define",
+	"expected block type value path", "VPInvalid", "requires non-nil",
+	"nil pointer dereference", "index out of range", "unexpected selector expression type",
+}
+
+// IsInternalError reports whether msg is a VM failure, not a verdict.
+func IsInternalError(msg string) bool {
+	for _, m := range internalErrorMarks {
+		if strings.Contains(msg, m) {
+			return true
+		}
+	}
+	return false
 }

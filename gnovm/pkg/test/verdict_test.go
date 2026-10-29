@@ -96,7 +96,7 @@ func TestFinalizeGoRunDivergence_Verify(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			newDirs, err := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, nil, false, true)
+			newDirs, err := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, "", nil, nil, false, true)
 			if newDirs != nil {
 				t.Fatalf("verify must not rewrite directives, got %v", newDirs)
 			}
@@ -135,7 +135,7 @@ func TestFinalizeGoRunDivergence_Sync(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, _ := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, nil, true, tc.isGoFile)
+			out, _ := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, "", nil, nil, true, tc.isGoFile)
 			if got := verdictOf(out); got != tc.wantVerdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.wantVerdict)
 			}
@@ -190,6 +190,19 @@ func TestMissingStdlibImport(t *testing.T) {
 	} {
 		if got := MissingStdlibImport([]byte(src), root); got != want {
 			t.Errorf("MissingStdlibImport(%q) = %q, want %q", src, got, want)
+		}
+	}
+}
+
+func TestIsInternalError(t *testing.T) {
+	for msg, want := range map[string]bool{
+		"main/a.go:3:1: should not happen":                   true,
+		"main/a.go:9:6: decl node already predefined! var x": true,
+		"main/a.go:3:1: declared and not used: x":            false,
+		"main/a.go:3:1: cannot use int as string":            false,
+	} {
+		if got := IsInternalError(msg); got != want {
+			t.Errorf("IsInternalError(%q) = %v, want %v", msg, got, want)
 		}
 	}
 }
@@ -251,7 +264,7 @@ func main() {}
 
 // Verdict: Clean errorcheck
 `
-	got := writeUnsupportedDirective([]byte(src), "import: unknown import path go/parser")
+	got := writeUnsupportedDirective([]byte(src), nil, "import: unknown import path go/parser")
 	for _, want := range []string{
 		"// GnoError:",
 		"// line 11: import path must be a string",
