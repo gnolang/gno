@@ -1882,6 +1882,20 @@ func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=///evil.com/x", nil))
 	assert.NotContains(t, rr.Body.String(), `href="//`)
+
+	// A node that does not answer in time gives the copy the 408 pages get.
+	for name, nodeErr := range map[string]error{
+		"client timeout":    gnoweb.ErrClientTimeout,
+		"deadline exceeded": context.DeadlineExceeded,
+	} {
+		slow, err := gnoweb.NewHTTPHandler(logger, newTestHandlerConfig(t, &stubClient{
+			listFilesFunc: func(context.Context, string) ([]string, error) { return nil, nodeErr },
+		}))
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		slow.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=p/demo/foo", nil))
+		assert.Equal(t, http.StatusRequestTimeout, rr.Code, name)
+	}
 }
 
 // TestHTTPHandler_PlayRedirect checks that $play sends a package or file to
