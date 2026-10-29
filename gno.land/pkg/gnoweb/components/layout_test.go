@@ -356,14 +356,13 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 
 func TestViewModePredicates(t *testing.T) {
 	cases := []struct {
-		mode           ViewMode
-		name           string
-		wantExplorer   bool
-		wantRealm      bool
-		wantPackage    bool
-		wantHome       bool
-		wantUser       bool
-		wantPlayground bool
+		mode         ViewMode
+		name         string
+		wantExplorer bool
+		wantRealm    bool
+		wantPackage  bool
+		wantHome     bool
+		wantUser     bool
 	}{
 		{
 			mode:         ViewModeExplorer,
@@ -390,11 +389,6 @@ func TestViewModePredicates(t *testing.T) {
 			name:     "User",
 			wantUser: true,
 		},
-		{
-			mode:           ViewModePlayground,
-			name:           "Playground",
-			wantPlayground: true,
-		},
 	}
 
 	for _, tc := range cases {
@@ -404,7 +398,6 @@ func TestViewModePredicates(t *testing.T) {
 			assert.Equal(t, tc.wantPackage, tc.mode.IsPackage(), "IsPackage")
 			assert.Equal(t, tc.wantHome, tc.mode.IsHome(), "IsHome")
 			assert.Equal(t, tc.wantUser, tc.mode.IsUser(), "IsUser")
-			assert.Equal(t, tc.wantPlayground, tc.mode.IsPlayground(), "IsPlayground")
 		})
 	}
 }
