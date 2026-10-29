@@ -23,5 +23,6 @@ type b interface {
 // line 11: can only use ... with final parameter in list
 // line 13: can only use ... with final parameter in list
 // line 15: can only use ... with final parameter in list
+// line 16: can only use ... with final parameter in list
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: Clean errorcheck

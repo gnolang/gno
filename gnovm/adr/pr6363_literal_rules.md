@@ -40,3 +40,5 @@ Two native filetests take the preprocess-time message as their golden.
 ## Consequences
 
 - 7 errorcheck corpus files flip to `Clean`.
+
+Follow-up (2026-10-30): in accumulate mode each non-final variadic parameter is reported and kept as a slice, so the rest of an interface is still checked.
