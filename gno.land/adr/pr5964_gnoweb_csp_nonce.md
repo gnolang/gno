@@ -48,10 +48,11 @@ Add a per-response CSP nonce and let CodeMirror carry it on its injected
 
 - **`style-src 'unsafe-inline'`** — simplest, but re-permits arbitrary inline
   styles site-wide, weakening the policy for a UI-styling need. Rejected.
-- **Hashing the injected stylesheet (`'sha256-…'`)** — CSP-compliant, but the
-  hash changes with CodeMirror/theme upgrades and there are multiple style
-  modules (base theme + one-dark, swapped by the dark/light toggle), so the
-  allowlist would need constant maintenance. Rejected in favor of a nonce.
+- **Hashing the injected stylesheet (`'sha256-…'`)** — CSP-compliant, but
+  CodeMirror injects its base theme and gnoweb's `EditorView.theme` at
+  runtime, so the hashes would change with every CodeMirror upgrade or theme
+  edit and the allowlist would need constant maintenance. Rejected in favor
+  of a nonce.
 - **Running the editor in a shadow DOM** — adopted stylesheets escape
   `style-src`, but this is a larger refactor and does not fully sidestep CSP for
   in-tree inline styles. Rejected as disproportionate.
