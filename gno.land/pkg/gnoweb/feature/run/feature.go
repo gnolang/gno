@@ -1,5 +1,12 @@
 package run
 
+import "html/template"
+
+// Highlighter renders source code as highlighted HTML.
+type Highlighter interface {
+	Render(fileName string, source []byte) (template.HTML, error)
+}
+
 // Deps gathers the dependencies the run Handler needs.
 type Deps struct {
 	// Domain is the chain domain (e.g. "gno.land"), used to build the
@@ -11,6 +18,10 @@ type Deps struct {
 
 	// ChainId is the chain ID the printed commands sign for.
 	ChainId string
+
+	// Highlighter renders the script as served, before the editor loads.
+	// Optional: without it the script is served as plain text.
+	Highlighter Highlighter
 }
 
 // Handler owns the run feature state.

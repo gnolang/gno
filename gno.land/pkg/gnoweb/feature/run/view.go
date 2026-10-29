@@ -3,6 +3,7 @@ package run
 import (
 	"fmt"
 	"go/token"
+	"html/template"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -16,8 +17,10 @@ type RunData struct {
 	Remote  string // e.g. "https://rpc.gno.land:443"
 	ChainId string // e.g. "portal-loop"
 	Gas     components.Gas
-	// Script is the script the editor opens with.
-	Script string
+	// Script is the script the editor opens with, and ScriptHTML the same
+	// script highlighted, shown until the editor loads (or without JS).
+	Script     string
+	ScriptHTML template.HTML
 }
 
 // PkgAlias returns the name an unaliased import of PkgPath binds: the last

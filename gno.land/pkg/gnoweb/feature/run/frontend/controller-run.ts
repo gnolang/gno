@@ -2,105 +2,117 @@ import { CodeEditor } from "@gnoweb/js/code-editor.js";
 import { BaseController, downloadBlob } from "@gnoweb/js/controller.js";
 import { heredocDelimiter, shellQuote } from "./shell.js";
 
+// The page serves the script and both modes of the command whole. This
+// controller turns the script into an editor and fills the command's slots
+// from the fields; the mode and the key come from the action-header
+// controller, which stores them for $help too.
 export class RunController extends BaseController {
 	// The script the page was served with, which Reset goes back to.
 	private declare script: string;
-	private declare remote: string;
-	private declare chainId: string;
-	private declare editorEl: HTMLElement;
-	private declare keyEl: HTMLInputElement;
 	private declare gasWantedEl: HTMLInputElement;
 	private declare gasFeeEl: HTMLInputElement;
 	private declare sendEl: HTMLInputElement;
 	private declare includeScriptEl: HTMLInputElement;
-	private declare cmdEl: HTMLElement;
 	private declare editor: CodeEditor;
+	// The key or address typed in the header, empty for the placeholders.
+	private declare key: string;
+	private declare onMode: (e: Event) => void;
+	private declare onAddress: (e: Event) => void;
+	private declare onInput: () => void;
 
 	protected connect(): void {
 		this.script = this.getValue("script");
-		this.remote = this.getValue("remote");
-		this.chainId = this.getValue("chain-id");
-		this.editorEl = this.getTarget("editor") as HTMLElement;
-		this.keyEl = this.getTarget("key") as HTMLInputElement;
 		this.gasWantedEl = this.getTarget("gasWanted") as HTMLInputElement;
 		this.gasFeeEl = this.getTarget("gasFee") as HTMLInputElement;
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
 		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
-		this.cmdEl = this.getTarget("cmd") as HTMLElement;
+		const editorEl = this.getTarget("editor");
+		if (!editorEl) return;
+		this.key = "";
 
-		if (!this.editorEl || !this.cmdEl) return;
-
+		// The editor replaces the highlighted script the page was served with.
+		editorEl.replaceChildren();
 		this.editor = new CodeEditor({
-			parent: this.editorEl,
+			parent: editorEl,
 			content: this.script,
 			fileName: "script.gno",
 			label: "Run script editor",
 			onChange: () => this._updateCommand(),
 		});
 
-		this._setupInputListeners();
+		this.onInput = () => this._updateCommand();
+		this.onMode = (e) => this._showMode((e as CustomEvent).detail.mode);
+		this.onAddress = (e) => {
+			this.key = String((e as CustomEvent).detail.address).trim();
+			this._updateCommand();
+		};
+		for (const el of [this.gasWantedEl, this.gasFeeEl, this.sendEl]) {
+			el.addEventListener("input", this.onInput);
+		}
+		this.includeScriptEl.addEventListener("change", this.onInput);
+		this.on("mode:changed", this.onMode);
+		this.on("address:changed", this.onAddress);
+		// The browser may have restored the fields of a reloaded page.
 		this._updateCommand();
 	}
 
-	private _setupInputListeners(): void {
-		const update = (): void => this._updateCommand();
-		this.keyEl.addEventListener("input", update);
-		this.gasWantedEl.addEventListener("input", update);
-		this.gasFeeEl.addEventListener("input", update);
-		this.sendEl.addEventListener("input", update);
-		this.includeScriptEl.addEventListener("change", update);
+	protected disconnect(): void {
+		for (const el of [this.gasWantedEl, this.gasFeeEl, this.sendEl]) {
+			el?.removeEventListener("input", this.onInput);
+		}
+		this.includeScriptEl?.removeEventListener("change", this.onInput);
+		document.removeEventListener("mode:changed", this.onMode);
+		document.removeEventListener("address:changed", this.onAddress);
 	}
 
-	private _buildCmd(): string {
-		// KEYNAME, not <key-name>: a shell reads "<" as a redirect.
-		const keyName = this.keyEl.value.trim();
-		const key = keyName ? shellQuote(keyName) : "KEYNAME";
-		// An emptied field falls back to the default the page was served with.
-		const gasWanted = shellQuote(
-			this.gasWantedEl.value.trim() || this.gasWantedEl.defaultValue,
-		);
-		const gasFee = shellQuote(
-			this.gasFeeEl.value.trim() || this.gasFeeEl.defaultValue,
-		);
-		const send = this.sendEl.value.trim();
-
-		const parts = [
-			"gnokey maketx run",
-			`  -gas-wanted ${gasWanted}`,
-			`  -gas-fee ${gasFee}`,
-		];
-
-		if (send && send !== "0ugnot") {
-			parts.push(`  -send ${shellQuote(send)}`);
+	// Shows the command of the mode picked, and makes it the one Copy copies.
+	private _showMode(mode: string): void {
+		for (const el of this.getTargets("mode")) {
+			const shown = this.getValue("mode", el) === mode;
+			el.classList.toggle("u-inline", shown);
+			el.classList.toggle("u-hidden", !shown);
+			if (shown) el.dataset.copyTarget = "run-cmd";
+			else delete el.dataset.copyTarget;
 		}
-
-		parts.push("  -broadcast");
-
-		if (this.chainId) {
-			parts.push(`  -chainid ${this.chainId}`);
-		}
-
-		if (this.remote) {
-			parts.push(`  -remote "${this.remote}"`);
-		}
-
-		parts.push(`  ${key} script.gno`);
-		return parts.join(" \\\n");
 	}
 
-	// Wraps the editor content in a quoted heredoc so the script can be written
-	// from the same paste as the command.
-	private _buildHeredoc(): string {
-		const code = this.editor.getCode().replace(/\n+$/, "");
-		const delim = heredocDelimiter(code);
-		return `cat > script.gno <<'${delim}'\n${code}\n${delim}`;
+	private _fill(target: string, text: string): void {
+		for (const el of this.getTargets(target)) el.textContent = text;
 	}
 
 	private _updateCommand(): void {
-		const cmd = this._buildCmd();
-		this.cmdEl.textContent = this.includeScriptEl.checked
-			? `${this._buildHeredoc()}\n\n${cmd}`
-			: cmd;
+		// KEYNAME, not <key-name>: a shell reads "<" as a redirect.
+		const key = this.key ? shellQuote(this.key) : "";
+		this._fill("key-arg", key || "KEYNAME");
+		this._fill("address-arg", key || "ADDRESS");
+		// An emptied field falls back to the default the page was served with.
+		this._fill(
+			"gas-wanted-arg",
+			shellQuote(
+				this.gasWantedEl.value.trim() || this.gasWantedEl.defaultValue,
+			),
+		);
+		this._fill(
+			"gas-fee-arg",
+			shellQuote(this.gasFeeEl.value.trim() || this.gasFeeEl.defaultValue),
+		);
+		const send = this.sendEl.value.trim();
+		this._fill(
+			"send-arg",
+			send && send !== "0ugnot" ? ` -send ${shellQuote(send)}` : "",
+		);
+		this._fill("heredoc", this._heredoc());
+	}
+
+	// The heredoc that writes the editor's script from the same paste as the
+	// command, or, with the script left out, the line that asks for the file.
+	private _heredoc(): string {
+		if (!this.includeScriptEl.checked) {
+			return "# Save the script above as script.gno (Download), then run:\n";
+		}
+		const code = this.editor.getCode().replace(/\n+$/, "");
+		const delim = heredocDelimiter(code);
+		return `cat > script.gno <<'${delim}'\n${code}\n${delim}\n\n`;
 	}
 
 	public resetCode(): void {

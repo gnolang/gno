@@ -239,9 +239,10 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Timeout: h.requestTimeout(),
 	})
 	h.Run = run.New(run.Deps{
-		Domain:  cfg.Meta.Domain,
-		Remote:  cfg.Meta.RemoteHelp,
-		ChainId: cfg.Meta.ChainId,
+		Domain:      cfg.Meta.Domain,
+		Remote:      cfg.Meta.RemoteHelp,
+		ChainId:     cfg.Meta.ChainId,
+		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
 	})
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,

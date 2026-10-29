@@ -5,41 +5,31 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	column-gap: var(--g-space-4);
-	row-gap: var(--g-space-1);
+	justify-content: space-between;
+	gap: var(--g-space-2) var(--g-space-4);
 	margin-block-end: var(--g-space-2);
 	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-secondary);
 }
 
-.b-run-command-label {
-	font-weight: var(--g-font-semibold);
-	color: var(--s-color-text-primary);
-}
-
-.b-run-command-toggle {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--g-space-2);
-	cursor: pointer;
-
-	input[type="checkbox"] {
-		width: var(--g-space-4);
-		height: var(--g-space-4);
-		flex-shrink: 0;
-		accent-color: var(--s-color-bg-brand-default);
-		cursor: pointer;
+.b-run {
+	/* The script as served fills the editor's frame until the editor
+	   replaces it. */
+	.b-code-editor > .b-source-code {
+		flex: 1;
+		min-width: 0;
 	}
 
-	label {
-		cursor: pointer;
-	}
+	/* The switch's checkbox is visually hidden, not removed: it is how a
+	   keyboard reaches the switch, whose label shows the focus. */
+	.b-switch {
+		input {
+			display: inline;
+		}
 
-	input:checked ~ .b-run-command-hint-off,
-	input:not(:checked) ~ .b-run-command-hint-on {
-		display: none;
-	}
-
-	&:hover .b-run-command-label {
-		color: var(--s-color-text-link);
+		&:has(input:focus-visible) {
+			outline: var(--s-focus-ring);
+			outline-offset: 2px;
+		}
 	}
 }
