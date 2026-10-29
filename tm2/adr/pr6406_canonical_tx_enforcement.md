@@ -39,12 +39,14 @@ explicit check closes that path (found in review of #6404).
 The rule reaches a chain through the coordinated halt mechanism from #5368,
 which gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to
 the enforcing release, so an old binary cannot restart past the halt and a
-new one cannot start early, and an entry in the chain's upgrades ledger
-(`misc/deployments/mainnet.gno.land/upgrades.json`). From the halt height on,
-every included tx is canonical by construction; blocks before it are replayed
-by the binaries that produced them. The release it rides is the next
-coordinated release on the mainnet line after `v1.5.1`, the current rolling
-release; the ledger entry names it when the halt is scheduled. Merge order:
+new one cannot start early, with the entry in the chain's upgrades ledger
+(`misc/deployments/mainnet.gno.land/upgrades.json`) written once the chain
+runs the release (#6381). From the halt height on, every included tx is
+canonical by construction; blocks before it are replayed by the binaries that
+produced them. The release it rides is the next coordinated release on the
+mainnet line after `v1.5.1`, the current rolling release; its release page
+and the halt announcement name the height once the proposal has executed.
+Merge order:
 #6399, then #6404, then this change, then the related `runTx` tx-encoding
 change queued behind it, so the interaction is settled before merge rather
 than discovered at it.
