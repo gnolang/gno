@@ -100,3 +100,17 @@ func TestStripTrailingGoldenRegion_KeepsNotes(t *testing.T) {
 		t.Errorf("stripTrailingGoldenRegion dropped the note: %q", got)
 	}
 }
+
+// TestCorpusVersionPin keeps corpusGoVersion in step with
+// gocorpus/VERSION. They are the same pin: VERSION documents it for a
+// reader, the constant enforces it at sync.
+func TestCorpusVersionPin(t *testing.T) {
+	path := filepath.Join("..", "..", "tests", "files", "gocorpus", "VERSION")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.TrimSpace(string(b)); want != corpusGoVersion {
+		t.Errorf("gocorpus/VERSION is %q but corpusGoVersion is %q; update both", want, corpusGoVersion)
+	}
+}

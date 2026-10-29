@@ -193,3 +193,73 @@ func TestMissingStdlibImport(t *testing.T) {
 		}
 	}
 }
+
+// TestUnsupportedKeepsEvidence pins that parking a file as Unsupported
+// replaces its verdict line and nothing else. Stripping the evidence is
+// what makes a Clean -> Unsupported regression invisible: the file still
+// records that Gno got the right answer, and a reviewer can see what was
+// given up for the one unsupported feature.
+func TestUnsupportedKeepsEvidence(t *testing.T) {
+	const src = `package main
+
+func main() {}
+
+// GnoError:
+// line 11: import path must be a string
+
+// GoOutput:
+// x
+
+// Verdict: Clean errorcheck
+`
+	got := writeUnsupportedDirective([]byte(src), "import: unknown import path go/parser")
+	for _, want := range []string{
+		"// GnoError:",
+		"// line 11: import path must be a string",
+		"// GoOutput:",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("evidence %q was deleted:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "Clean errorcheck") {
+		t.Errorf("old verdict survived:\n%s", got)
+	}
+	if !strings.HasSuffix(got, "// Verdict: Unsupported import: unknown import path go/parser\n") {
+		t.Errorf("new verdict is not the last line:\n%s", got)
+	}
+}
+
+// TestStripTrailingVerdict pins that only the verdict block is cut.
+func TestStripTrailingVerdict(t *testing.T) {
+	const withEvidence = "package main\n\n// GnoOutput:\n// x\n\n// Verdict: Clean run\n"
+	if got, want := stripTrailingVerdict(withEvidence), "package main\n\n// GnoOutput:\n// x\n"; got != want {
+		t.Errorf("stripTrailingVerdict = %q, want %q", got, want)
+	}
+	const noVerdict = "package main\n\n// GnoOutput:\n// x\n"
+	if got := stripTrailingVerdict(noVerdict); got != noVerdict {
+		t.Errorf("stripTrailingVerdict changed a file with no verdict: %q", got)
+	}
+}
+
+// TestKnownUnsupportedTag pins the tag vocabulary check against what
+// TagUnsupportedReason can actually produce.
+func TestKnownUnsupportedTag(t *testing.T) {
+	for _, tag := range []string{"generics", "channel", "import", "stdlib-symbol", "other"} {
+		if !knownUnsupportedTag(tag) {
+			t.Errorf("knownUnsupportedTag(%q) = false, want true", tag)
+		}
+	}
+	for _, tag := range []string{"wibble-not-a-tag", "", "run"} {
+		if knownUnsupportedTag(tag) {
+			t.Errorf("knownUnsupportedTag(%q) = true, want false", tag)
+		}
+	}
+	// Every tag TagUnsupportedReason emits must pass the check, or sync
+	// would write a file verify then refuses.
+	for _, ut := range unsupportedTags {
+		if !knownUnsupportedTag(ut.tag) {
+			t.Errorf("TagUnsupportedReason can emit %q, which the check rejects", ut.tag)
+		}
+	}
+}
