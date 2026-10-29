@@ -1884,6 +1884,10 @@ func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string
 		return nil, fmt.Errorf("%w: %w", playground.ErrEvalTimeout, err)
 	case errors.Is(err, ErrClientBadRequest), errors.Is(err, context.Canceled):
 		return nil, fmt.Errorf("%w: %w", playground.ErrEvalUnavailable, err)
+	case errors.Is(err, ErrClientResponse):
+		// The reader sees the node's own words, as gnokey prints them,
+		// without gnoweb's internal prefix.
+		return nil, errors.New(strings.TrimPrefix(err.Error(), ErrClientResponse.Error()+": "))
 	default:
 		return nil, err
 	}
