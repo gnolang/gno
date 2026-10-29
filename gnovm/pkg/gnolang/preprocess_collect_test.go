@@ -123,44 +123,6 @@ func main() {
 	})
 }
 
-func TestPreprocessCollectInitCycle(t *testing.T) {
-	msgs := collectErrors(t, `package main
-
-var a = f()
-
-func f() int { return a + g() }
-
-func g() int { return g() } // recursion among functions is not a cycle
-
-var b = 1
-
-func main() { println(a, b) }
-`)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
-		t.Fatalf("unexpected: %v", msgs)
-	}
-	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
-		t.Fatalf("false positive: %v", msgs)
-	}
-}
-
-func TestInitCycleOnChain(t *testing.T) {
-	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
-	// any initializer runs, with the same positioned message.
-	m := NewMachine("test", nil)
-	defer m.Release()
-	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
-	defer func() {
-		r := recover()
-		pe, ok := r.(*PreprocessError)
-		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
-			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
-		}
-	}()
-	m.RunFiles(fn)
-	t.Fatal("RunFiles accepted a cycle")
-}
-
 // collectWith is collectErrors with the accumulator exposed: full messages
 // (position kept), an optional in-walk hook, and the panic if one escaped.
 func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []string, panicked any) {
@@ -606,7 +568,7 @@ func main() {
 	// A failing clause drops alone: its body is silenced (go/types), the
 	// other clauses are checked.
 	wantErrors(t, msgs,
-		"main.gno:8:2", "0 is not a type",
+		"main.gno:8:7", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
 		"main.gno:13:3", "missing field M in main.Stringer",
 		"main.gno:16:2", "cannot use",
@@ -1666,6 +1628,167 @@ type T struct {
 	}
 }
 
+// deployAfterCollect runs the ordinary (non-accumulate) path over src,
+// optionally running a collect pass over the very same parsed nodes first,
+// and reports what the ordinary path did. A fresh PackageNode each time, so
+// only the AST is shared.
+func deployAfterCollect(t *testing.T, src string, collectFirst bool) (res string) {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	if collectFirst {
+		PreprocessFilesCollect(m.Store, NewPackageNode("main", "main", fset), fset)
+	}
+	pn := NewPackageNode("main", "main", fset)
+	defer func() {
+		if r := recover(); r != nil {
+			res = fmt.Sprint(r)
+		}
+	}()
+	PredefineFileSet(m.Store, pn, fset)
+	for _, f := range fset.Files {
+		Preprocess(m.Store, pn, f)
+	}
+	return ""
+}
+
+// TestPreprocessCollectIsNotReusable pins that nodes accumulate mode has
+// seen cannot be handed to the ordinary path. It drops a failing
+// declaration and leaves it ATTR_PREPROCESSED, so without the guard the
+// ordinary path skips the very code it must reject and ACCEPTS an invalid
+// package — a checking pass would decide what the deploy path admits.
+func TestPreprocessCollectIsNotReusable(t *testing.T) {
+	for _, tc := range []struct{ name, src, wantAlone string }{
+		{
+			"file-level declaration",
+			"package main\n\nvar x int = \"nope\"\n\nfunc main() { println(x) }\n",
+			"cannot use untyped string as IntKind",
+		},
+		{
+			"body statement",
+			"package main\n\nfunc main() {\n\tvar s string = \"a\"\n\tvar i int = s\n\tprintln(i)\n}\n",
+			"cannot use string as int",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			alone := deployAfterCollect(t, tc.src, false)
+			if !strings.Contains(alone, tc.wantAlone) {
+				t.Fatalf("the ordinary path must reject this on its own; got %q", alone)
+			}
+			after := deployAfterCollect(t, tc.src, true)
+			if after == "" {
+				t.Fatalf("a collect pass made the ordinary path ACCEPT an invalid package")
+			}
+			if !strings.Contains(after, "must not be preprocessed again") {
+				t.Errorf("want the reuse guard, got %q", after)
+			}
+		})
+	}
+}
+
+func TestPreprocessCollectConditionFollowOns(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func main() {
+	did := 1
+	var b bool
+	if !did && b {
+		_ = undefined1
+	}
+	for !did {
+		_ = undefined2
+	}
+	switch !did {
+	case true:
+		_ = undefined3
+	}
+	var x interface{}
+	switch t := x.(type) {
+	case 0:
+		t.x = 1
+		x.x = 1
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failed condition, tag or case leaves its body checked (did counts
+	// as used); the clause's variable is invalid, so t.x is silent.
+	wantErrors(t, msgs,
+		"main.gno:6:5", "operator ! not defined on: IntKind",
+		"main.gno:7:7", "undefined1",
+		"main.gno:9:6", "operator ! not defined on: IntKind",
+		"main.gno:10:7", "undefined2",
+		"main.gno:12:9", "operator ! not defined on: IntKind",
+		"main.gno:14:7", "undefined3",
+		"main.gno:18:7", "0 is not a type",
+		"main.gno:20:3", "missing field x in interface {}",
+	)
+}
+
+func TestPreprocessCollectInitCycle(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var a = f()
+
+func f() int { return a + g() }
+
+func g() int { return g() } // recursion among functions is not a cycle
+
+var b = 1
+
+func main() { println(a, b) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
+}
+
+func TestPreprocessCollectConstCycles(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+const A = 1 + B
+const B = C - 1
+const C = A + B + 1
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every cycle, at its first member in source order, as gc.
+	wantErrors(t, msgs,
+		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
+		"main.gno:4:", "initialization cycle: B refers to C refers to B",
+	)
+}
+
 func TestPreprocessCollectAssign(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -1780,69 +1903,6 @@ func main() {}
 	}
 	if len(msgs) != len(want) {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
-	}
-}
-
-// deployAfterCollect runs the ordinary (non-accumulate) path over src,
-// optionally running a collect pass over the very same parsed nodes first,
-// and reports what the ordinary path did. A fresh PackageNode each time, so
-// only the AST is shared.
-func deployAfterCollect(t *testing.T, src string, collectFirst bool) (res string) {
-	t.Helper()
-	m := NewMachine("main", nil)
-	defer m.Release()
-	fn, err := m.ParseFile("main.gno", src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fset := &FileSet{Files: []*FileNode{fn}}
-	if collectFirst {
-		PreprocessFilesCollect(m.Store, NewPackageNode("main", "main", fset), fset)
-	}
-	pn := NewPackageNode("main", "main", fset)
-	defer func() {
-		if r := recover(); r != nil {
-			res = fmt.Sprint(r)
-		}
-	}()
-	PredefineFileSet(m.Store, pn, fset)
-	for _, f := range fset.Files {
-		Preprocess(m.Store, pn, f)
-	}
-	return ""
-}
-
-// TestPreprocessCollectIsNotReusable pins that nodes accumulate mode has
-// seen cannot be handed to the ordinary path. It drops a failing
-// declaration and leaves it ATTR_PREPROCESSED, so without the guard the
-// ordinary path skips the very code it must reject and ACCEPTS an invalid
-// package — a checking pass would decide what the deploy path admits.
-func TestPreprocessCollectIsNotReusable(t *testing.T) {
-	for _, tc := range []struct{ name, src, wantAlone string }{
-		{
-			"file-level declaration",
-			"package main\n\nvar x int = \"nope\"\n\nfunc main() { println(x) }\n",
-			"cannot use untyped string as IntKind",
-		},
-		{
-			"body statement",
-			"package main\n\nfunc main() {\n\tvar s string = \"a\"\n\tvar i int = s\n\tprintln(i)\n}\n",
-			"cannot use string as int",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			alone := deployAfterCollect(t, tc.src, false)
-			if !strings.Contains(alone, tc.wantAlone) {
-				t.Fatalf("the ordinary path must reject this on its own; got %q", alone)
-			}
-			after := deployAfterCollect(t, tc.src, true)
-			if after == "" {
-				t.Fatalf("a collect pass made the ordinary path ACCEPT an invalid package")
-			}
-			if !strings.Contains(after, "must not be preprocessed again") {
-				t.Errorf("want the reuse guard, got %q", after)
-			}
-		})
 	}
 }
 

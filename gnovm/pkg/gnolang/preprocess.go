@@ -1685,6 +1685,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// rule passes it (a key so typed is removed there).
 				acc.record(pe)
 				return invalidConstExpr(n.(Expr)), true
+			case TRANS_IF_COND, TRANS_FOR_COND, TRANS_SWITCH_X:
+				// the condition alone drops, so the body is still
+				// checked; the names it mentions count as used, as gc
+				// marks them before the operation fails.
+				acc.markReferenced(n)
+				acc.record(pe)
+				return invalidConstExpr(n.(Expr)), true
 			case TRANS_SWITCH_CASE:
 				n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // the switch skips it
 			}
@@ -2040,6 +2047,15 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									ct = nil
 								} else if _, ok := cxx.T.(*TypeType); ok {
 									ct = cxx.GetType()
+								} else if acc != nil {
+									// reported at the case; the clause is
+									// still checked, its variable invalid.
+									at := Node(cx)
+									if cxx.Source != nil {
+										at = cxx.Source
+									}
+									acc.record(wrapPreprocessPanic(stack, at, fmt.Sprintf("%s is not a type", constString(cxx))))
+									ct = invalidType{}
 								} else {
 									panic(fmt.Sprintf("%s is not a type", constString(cxx)))
 								}
@@ -2073,10 +2089,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
-						// Each case is compared to the tag with ==; checked
-						// here, before the conversion types an untyped nil.
-						assertComparableTo(tt, evalStaticTypeOf(store, last, cx), isNilLiteral(ss.X), isNilLiteral(cx))
-						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
+						if !isInvalid(tt) { // accumulate mode: the tag was reported
+							// Each case is compared to the tag with ==; checked
+							// here, before the conversion types an untyped nil.
+							assertComparableTo(tt, evalStaticTypeOf(store, last, cx), isNilLiteral(ss.X), isNilLiteral(cx))
+							checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
+						}
 						n.Cases[i] = cx
 					}
 				}
@@ -2241,15 +2259,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Preprocess and convert tag if const.
 				if n.X != nil {
 					n.X = Preprocess(store, last, n.X).(Expr)
-					convertIfConst(store, last, n, n.X)
+					if !isInvalidExpr(n.X) { // accumulate mode: the tag was reported
+						convertIfConst(store, last, n, n.X)
+					}
 				}
-				if !n.IsTypeSwitch && n.X != nil {
+				if isInvalidExpr(n.X) {
+					// accumulate mode: the tag was reported; the
+					// clauses are still checked.
+				} else if !n.IsTypeSwitch && n.X != nil {
 					// The tag must be comparable even with no case to
 					// compare it to; checked before the clauses, which
 					// would otherwise fail on the comparison first.
 					assertSwitchTag(n.X, evalStaticTypeOf(store, last, n.X))
-				}
-				if n.IsTypeSwitch {
+				} else if n.IsTypeSwitch {
 					tt := evalStaticTypeOf(store, last, n.X)
 					if _, ok := baseOf(tt).(*InterfaceType); !ok {
 						panic(fmt.Sprintf("cannot type switch on non-interface value %s (type %s)",
@@ -4322,6 +4344,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 						for _, casetype := range n.Clauses[i].Cases {
 							ctype := casetype.(*constTypeExpr).Type
+							if ctype != nil && isInvalid(ctype) {
+								continue // accumulate mode: not a type, reported
+							}
 							if ctype == nil {
 								continue
 							}
@@ -6618,6 +6643,9 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 
 // like checkOrConvertType() but for any typed bool kind.
 func checkOrConvertBoolKind(store Store, last BlockNode, n Node, x Expr) {
+	if isInvalidExpr(x) {
+		return // accumulate mode: already reported.
+	}
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, n, cx, BoolType)
 	} else if x != nil {
@@ -6782,6 +6810,16 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 					at = lookupPredefineDecl(pkg.FileSet, un).decl
 				} else {
 					at = index.lookup(un).decl
+				}
+				if vd, ok := d.(*ValueDecl); ok && vd.Const && !untype && index != nil && index.acc != nil {
+					// Accumulate mode, constants: the cycle is recorded
+					// and the name closing it stands in as invalidType,
+					// so d's other dependencies are still walked and a
+					// second cycle through them is reported too, as gc
+					// does (a variable cycle is checkInitCycles's, once).
+					index.acc.record(wrapPreprocessPanic([]BlockNode{last}, at, msg))
+					defineInvalid(skipFile(last).GetStaticBlock(), un)
+					continue
 				}
 				panicAt(msg, at)
 			}
