@@ -328,6 +328,8 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public async shareCode(): Promise<void> {
+		// Output written after this one (a Run) supersedes the share's.
+		const seq = this.outputSeq;
 		const code = shareText(this.editor.files());
 
 		// Compress code before sharing it
@@ -341,6 +343,7 @@ export class PlaygroundController extends BaseController {
 		// browsers older than ~2 years. ReadableStream.bytes() would a simpler alternative
 		// but it's only available for (Chrome 124+, Firefox 128+, Safari 18+).
 		const compressed = await new Response(cs.readable).arrayBuffer();
+		if (seq !== this.outputSeq) return;
 		const binary = Array.from(new Uint8Array(compressed), (b) =>
 			String.fromCharCode(b),
 		).join("");
@@ -359,10 +362,13 @@ export class PlaygroundController extends BaseController {
 			this._resetOutput(`Share URL:\n${url}`);
 			return;
 		}
+		const done = (text: string) => {
+			if (seq === this.outputSeq) this._resetOutput(text);
+		};
 		navigator.clipboard
 			.writeText(url)
-			.then(() => this._resetOutput("Share URL copied to clipboard!"))
-			.catch(() => this._resetOutput(`Share URL:\n${url}`));
+			.then(() => done("Share URL copied to clipboard!"))
+			.catch(() => done(`Share URL:\n${url}`));
 	}
 
 	public downloadFiles(): void {
