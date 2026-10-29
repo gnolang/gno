@@ -1,6 +1,6 @@
 package run
 
-import "path"
+import gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 
 // RunData is the render payload for templates/page.html.
 type RunData struct {
@@ -9,7 +9,8 @@ type RunData struct {
 	ChainId string // e.g. "portal-loop"
 }
 
-// PkgAlias returns the last segment of the import path.
+// PkgAlias returns the name an unaliased import of PkgPath binds: the last
+// path element, skipping a version suffix ("gno.land/r/foo/v2" gives "foo").
 func (d RunData) PkgAlias() string {
-	return path.Base(d.PkgPath)
+	return gno.LastPathElement(d.PkgPath)
 }

@@ -17,7 +17,7 @@ import "${this.pkgPath}"
 
 func main() {
 	// Call ${this.pkgAlias} functions here, e.g.:
-	// ${this.pkgAlias}.Render("")
+	println(${this.pkgAlias}.Render(""))
 }
 `}_setupInputListeners(){let e=()=>this._updateCommand();this.keyEl.addEventListener("input",e),this.gasWantedEl.addEventListener("input",e),this.gasFeeEl.addEventListener("input",e),this.sendEl.addEventListener("input",e),this.includeScriptEl.addEventListener("change",e)}_buildCmd(){let e=this.keyEl.value.trim()||"<key-name>",t=this.gasWantedEl.value.trim()||"1_000_000_000",i=this.gasFeeEl.value.trim()||"1000000ugnot",r=this.sendEl.value.trim(),s=["gnokey maketx run",`  -gas-wanted ${t}`,`  -gas-fee ${i}`];return r&&r!=="0ugnot"&&s.push(`  -send "${r}"`),s.push("  -broadcast"),this.chainId&&s.push(`  -chainid ${this.chainId}`),this.remote&&s.push(`  -remote "${this.remote}"`),s.push(`  ${e} script.gno`),s.join(` \\
 `)}_buildHeredoc(){let e=this.editor.getCode().replace(/\n+$/,"");return`cat > script.gno <<'${Gc}'
