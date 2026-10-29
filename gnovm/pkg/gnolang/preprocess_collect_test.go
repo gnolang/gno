@@ -2157,3 +2157,24 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 		})
 	}
 }
+
+func TestPreprocessCollectVariadicParams(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type I interface {
+	g(a ...int, b ...int, c float32)
+	h(...int, ...int)
+}
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every parameter and every method is reported.
+	wantErrors(t, msgs,
+		"main.gno:4:4", "can only use ... with final parameter in list",
+		"main.gno:4:14", "can only use ... with final parameter in list",
+		"main.gno:5:4", "can only use ... with final parameter in list",
+	)
+}

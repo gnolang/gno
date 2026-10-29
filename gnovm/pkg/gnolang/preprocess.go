@@ -3908,7 +3908,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
-				assertFuncTypeNames(n)
+				assertFuncTypeNames(n, acc, stack)
 				ftype := evalStaticType(store, last, n)
 				// The `cur` naming rules decide on the RESOLVED type, because
 				// that is what decides whether the function is crossing.
