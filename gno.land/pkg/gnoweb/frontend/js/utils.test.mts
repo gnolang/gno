@@ -157,15 +157,15 @@ test("evalArgs gives every param its argument, in order", () => {
 	}
 });
 
-// bashArgs prints, one per line, the arguments bash passes to a command
-// line's first word.
+// bashArgs returns the arguments bash passes to a command line's first
+// word, NUL-separated so an argument may hold a newline.
 function bashArgs(line: string): string[] {
 	const out = execFileSync(
 		"bash",
-		["-c", `cmd() { printf '%s\\n' "$@"; }; ${line}`],
+		["-c", `cmd() { printf '%s\\0' "$@"; }; ${line}`],
 		{ encoding: "utf8" },
 	);
-	return out.split("\n").slice(0, -1);
+	return out.split("\0").slice(0, -1);
 }
 
 test("shellQuote leaves plain values bare", () => {
@@ -231,6 +231,49 @@ test("$help's maketx args reach gnokey as typed", () => {
 	assert.deepEqual(bashArgs(`cmd $'${argSlotText("bob smith", "string")}'`), [
 		'"bob smith"',
 	]);
+});
+
+// Values a reader may type that a shell would read as syntax: each must
+// reach gnokey as the literal (qeval) or the value (maketx) it stands for.
+const hostileArgs = [
+	"a(b) hi!",
+	"!",
+	"!!",
+	"a!b",
+	"$(id)",
+	"`id`",
+	"$" + "{HOME}", // split so it reads as the text it is
+	"\\",
+	'"',
+	"'",
+	"\\n",
+	"{a,b}",
+	"* ? | & ; < > ( )",
+	'say "hi" it\'s $x\\',
+	"`raw` literal",
+	"line\nbreak",
+];
+
+// A qeval slot sits inside -data "pkg.F(...)", in double quotes, where a
+// backslash before anything but \ " $ ` stays in the word: $'...' escaping
+// would leave it before every ( ) ' ! and break the call.
+test("$help's qeval command reaches gnokey with the Eval button's literal", () => {
+	for (const type of ["string", "int", "[]string"]) {
+		for (const v of hostileArgs) {
+			const slot = argSlotText(v, type);
+			assert.deepEqual(
+				bashArgs(`cmd -data "gno.land/r/x.F(${slot})"`),
+				["-data", `gno.land/r/x.F(${gnoLiteral(v, type)})`],
+				`${type} ${v}`,
+			);
+		}
+	}
+});
+
+test("$help's maketx args reach gnokey as typed, hostile or not", () => {
+	for (const v of hostileArgs) {
+		assert.deepEqual(bashArgs(`cmd $'${argSlotText(v, "")}'`), [v], v);
+	}
 });
 
 test("$help's address slot is the quoted key, or ADDRESS", () => {

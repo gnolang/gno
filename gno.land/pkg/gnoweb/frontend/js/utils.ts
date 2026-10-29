@@ -9,11 +9,21 @@ export function debounce<P extends unknown[]>(
 	};
 }
 
-// Escape for $'...' bash quoting (handles newlines + all shell special chars)
+// Escape for $'...' bash quoting. Only \ and ' end or change the word
+// there, and a newline is written \n; every other character is literal,
+// and a backslash before one that is no ANSI-C escape stays in the word,
+// so a ( or a ! is left as is.
 export function escapeShellSpecialChars(arg: string): string {
-	return arg
-		.replace(/([$`"\\!|&;<>*?{}()'])/g, "\\$1") // escape shell special chars + single quote
-		.replace(/\n/g, "\\n"); // convert newlines to \n
+	return arg.replace(/([\\'])/g, "\\$1").replace(/\n/g, "\\n");
+}
+
+// Escape for "..." bash quoting, where only \ " $ and ` are special: a
+// backslash before anything else stays in the word. A ! starts history
+// expansion in an interactive shell (bash, zsh), even quoted, and no
+// backslash stops it there, so it is closed out of the quotes as '!',
+// which every shell reads as is, interactive or not.
+export function escapeDoubleQuoted(arg: string): string {
+	return arg.replace(/([\\"$`])/g, "\\$1").replace(/!/g, `"'!'"`);
 }
 
 // shellQuote returns s as a single shell word: as is when it holds only
@@ -25,11 +35,15 @@ export function shellQuote(s: string): string {
 }
 
 // argSlotText is the text of a $help command's arg slot. A qeval slot
-// carries its param type and gets a Gno literal for it; a maketx call slot
-// has none and keeps the raw value, which gnokey parses itself.
+// carries its param type and gets a Gno literal for it, inside the
+// double-quoted -data "pkg.F(...)"; a maketx call slot has none and keeps
+// the raw value, which gnokey parses itself, inside $'...'. Each is
+// escaped for the quotes it sits in.
 export function argSlotText(value: string, type: string): string {
 	if (!value) return "";
-	return escapeShellSpecialChars(type ? gnoLiteral(value, type) : value);
+	return type
+		? escapeDoubleQuoted(gnoLiteral(value, type))
+		: escapeShellSpecialChars(value);
 }
 
 // addressSlotText is the key or address slot of $help's commands, quoted as
