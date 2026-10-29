@@ -326,6 +326,8 @@ func TestHelpViewEval(t *testing.T) {
 	// reads the node address from the page any more.
 	assert.NotContains(t, html, `data-action-function-sig-param`)
 	assert.NotContains(t, html, `data-action-function-target="remote"`)
+	// The evaluator's own entry in the Functions list carries the eval icon.
+	assert.Regexp(t, `href="#expression-evaluator">\s*<svg class="c-icon">\s*<use href="#ico-eval">`, html)
 	// The evaluator is listed after the functions.
 	assert.Less(t, strings.Index(html, `href="#func-AmendBylawsPayload"`), strings.Index(html, `href="#expression-evaluator"`))
 }

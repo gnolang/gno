@@ -464,7 +464,8 @@ func (l *denyLimiter) AllowRequest(*http.Request) bool {
 }
 
 // TestEvalLimiter checks that serveEval charges the configured limiter and
-// answers 429 once it refuses.
+// answers 429 once it refuses, and that a request refused for its
+// Content-Type or origin costs the reader nothing.
 func TestEvalLimiter(t *testing.T) {
 	t.Parallel()
 
@@ -476,13 +477,25 @@ func TestEvalLimiter(t *testing.T) {
 	handler := h.EvalHandler()
 
 	body := `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`
-	codes := make([]int, 3)
-	for i := range codes {
+	requests := []map[string]string{
+		{"Content-Type": "text/plain"},
+		{"Content-Type": "application/json", "Sec-Fetch-Site": "cross-site"},
+		{"Content-Type": "application/json"},
+		{"Content-Type": "application/json"},
+		{"Content-Type": "application/json"},
+	}
+	codes := make([]int, len(requests))
+	for i, headers := range requests {
 		req := httptest.NewRequest(http.MethodPost, "/_/api/eval", strings.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 		codes[i] = rr.Code
 	}
-	assert.Equal(t, []int{http.StatusOK, http.StatusOK, http.StatusTooManyRequests}, codes)
+	assert.Equal(t, []int{
+		http.StatusUnsupportedMediaType, http.StatusForbidden,
+		http.StatusOK, http.StatusOK, http.StatusTooManyRequests,
+	}, codes)
 }

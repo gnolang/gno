@@ -144,15 +144,60 @@ func TestEvalResultCap(t *testing.T) {
 func TestEvalDeadline(t *testing.T) {
 	t.Parallel()
 
-	c := &funcClient{fn: func(ctx context.Context, _, _ string) ([]byte, error) {
-		<-ctx.Done()
-		return nil, fmt.Errorf("%w: %w", ErrEvalTimeout, ctx.Err())
-	}}
-	h := New(Deps{Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
+	// serve answers one eval, failing fast instead of hanging when no
+	// deadline ends it.
+	serve := func(t *testing.T, h *Handler) (int, evalResponse) {
+		t.Helper()
+		type answer struct {
+			code int
+			resp evalResponse
+		}
+		done := make(chan answer, 1)
+		go func() {
+			code, resp := serveEvalJSON(t, h, "r/a", "Slow()")
+			done <- answer{code, resp}
+		}()
+		select {
+		case a := <-done:
+			return a.code, a.resp
+		case <-time.After(5 * time.Second):
+			t.Fatal("the eval did not end at its deadline")
+			return 0, evalResponse{}
+		}
+	}
 
-	start := time.Now()
-	code, resp := serveEvalJSON(t, h, "r/a", "Slow()")
-	assert.Equal(t, http.StatusGatewayTimeout, code)
-	assert.Equal(t, ErrEvalTimeout.Error(), resp.Error)
-	assert.Less(t, time.Since(start), 5*time.Second)
+	t.Run("the reader is answered when the node ignores the deadline", func(t *testing.T) {
+		t.Parallel()
+		release := make(chan struct{})
+		t.Cleanup(func() { close(release) })
+		c := &funcClient{fn: func(context.Context, string, string) ([]byte, error) {
+			<-release
+			return nil, nil
+		}}
+		h := New(Deps{Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
+
+		code, resp := serve(t, h)
+		assert.Equal(t, http.StatusGatewayTimeout, code)
+		assert.Equal(t, ErrEvalTimeout.Error(), resp.Error)
+	})
+
+	t.Run("the node query has its own deadline", func(t *testing.T) {
+		t.Parallel()
+		returned := make(chan struct{})
+		c := &funcClient{fn: func(ctx context.Context, _, _ string) ([]byte, error) {
+			defer close(returned)
+			<-ctx.Done()
+			return nil, fmt.Errorf("%w: %w", ErrEvalTimeout, ctx.Err())
+		}}
+		h := New(Deps{Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
+
+		code, resp := serve(t, h)
+		assert.Equal(t, http.StatusGatewayTimeout, code)
+		assert.Equal(t, ErrEvalTimeout.Error(), resp.Error)
+		select {
+		case <-returned:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the detached node query never ended")
+		}
+	})
 }
