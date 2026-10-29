@@ -45,7 +45,12 @@ type HelpTocData struct {
 type HelpTocItem struct {
 	Link string
 	Text string
+	// Icon replaces the list's icon for this item when set.
+	Icon string
 }
+
+// helpEvalAnchor is the id of the expression evaluator below the functions.
+const helpEvalAnchor = "expression-evaluator"
 
 type CommandData struct {
 	FuncName   string
@@ -62,6 +67,8 @@ type helpViewParams struct {
 }
 
 func registerHelpFuncs(funcs template.FuncMap) {
+	funcs["evalAnchor"] = func() string { return helpEvalAnchor }
+
 	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {
 			return "", nil
@@ -133,6 +140,13 @@ func HelpView(data HelpData) *View {
 			Text: sig.String(),
 		}
 	}
+	// The evaluator stays below the functions; the list names it so a long
+	// page does not hide it.
+	tocData.Items = append(tocData.Items, HelpTocItem{
+		Link: "#" + helpEvalAnchor,
+		Text: "Expression evaluator",
+		Icon: "eval",
+	})
 
 	toc := NewTemplateComponent("ui/toc_generic", tocData)
 	content := NewTemplateComponent("ui/help_function", data)

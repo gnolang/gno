@@ -212,7 +212,7 @@ UI - Eval expression snippet (inline evaluator for action page)
 <div class="b-action-eval" data-controller="action-eval"
   data-action-eval-pkg-path-value="{{ .PkgPath }}">
 
-  <h2 class="b-content-h2">Gno Expression Evaluator</h2>
+  <h2 class="b-content-h2" id="{{ evalAnchor }}">Gno Expression Evaluator</h2>
   <p class="u-color-tertiary">
     Evaluate any read-only Gno expression against <code class="u-font-mono">{{ .PkgPath }}</code>, for example a function call with arguments.
   </p>
