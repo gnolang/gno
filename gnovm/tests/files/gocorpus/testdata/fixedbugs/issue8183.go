@@ -24,14 +24,10 @@ const (
 
 // GnoError:
 // line 15: bigint overflows target kind
-// line 19: cannot use iota outside constant declaration
-// line 20: cannot use iota outside constant declaration
-// line 21: cannot use iota outside constant declaration
-// line 22: cannot use iota outside constant declaration
+// line 21: invalid array length -1
+// line 22: invalid array length -2
 
 // GnoWordingDiffers:
 // line 15: gc expects: constant 256 overflows byte|integer constant overflow|cannot convert; gno: bigint overflows target kind
-// line 21: gc expects: array bound must be non-negative|negative array bound|invalid array length; gno: cannot use iota outside constant declaration
-// line 22: gc expects: array bound must be non-negative|negative array bound|invalid array length; gno: cannot use iota outside constant declaration
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 19, 20
+// Verdict: Clean errorcheck

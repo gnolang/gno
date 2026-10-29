@@ -3,6 +3,7 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -2985,6 +2986,99 @@ func main() {
 		if !strings.Contains(msgs[i], w) {
 			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
 		}
+	}
+}
+
+func TestPreprocessCollectOverStrict(t *testing.T) {
+	// Programs Go accepts that Gno used to refuse.
+	msgs := collectErrors(t, `package main
+
+type mybool bool
+
+const (
+	c = len([1 - iota]int{}) // iota inside a literal's type
+	d
+)
+
+func g(b bool) bool { return b }
+
+func f(x, y int, i interface{}, s string) {
+	var b mybool
+	b = true && x < y // && of untyped bools stays untyped
+	b = x < y || x < y
+	_ = b
+	// A nested logical expression defined without a context is bool.
+	d := (x < y && x < y) || x > y
+	g(d)
+	var e bool = d
+	_ = e
+	for ld := (x < y && x < y) || x > y; ld; {
+		break
+	}
+	f := x < y && (x < y || x > y)
+	g(f)
+	var a interface{} = x < y && x < y
+	_ = a
+	switch x {
+	case 0:
+		fallthrough
+		; // an empty statement may follow
+	case 1:
+	}
+	switch i {
+	case s: // a concrete case against an interface tag
+	}
+	switch s {
+	case i:
+	}
+}
+
+func main() {}
+`)
+	if len(msgs) != 0 {
+		t.Errorf("want no errors, got %v", msgs)
+	}
+	// A nested logical expression keeps its bool static type (not untyped).
+	msgs = collectErrors(t, `package main
+
+type mybool bool
+
+func f(x, y int) {
+	d := (x < y && x < y) || x > y
+	var b mybool = d
+	var i interface{} = x < y && x < y
+	var c mybool = i
+	_, _ = b, c
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use bool as main.mybool without explicit conversion",
+		"cannot use interface {} as bool",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
+	}
+}
+
+func TestPreprocessCollectNotCallable(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+const F = 1
+
+func main() {
+	x := 1
+	F()
+	x()
+}
+`)
+	want := []string{
+		"cannot call non-function F (constant of type <untyped> bigint)",
+		"cannot call non-function x (variable of type int)",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
 	}
 }
 
