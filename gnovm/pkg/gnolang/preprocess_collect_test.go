@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // collectErrors preprocesses one file in accumulate mode and returns the
@@ -133,7 +135,7 @@ func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []
 	}
 	fset := &FileSet{Files: []*FileNode{fn}}
 	pn := NewPackageNode("main", "main", fset)
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, testHook: hook}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}, testHook: hook}
 	func() {
 		defer func() { panicked = recover() }()
 		predefineFileSet(m.Store, pn, fset, acc)
@@ -728,6 +730,371 @@ func main() {
 			t.Fatalf("run %d differs:\n%v\nvs\n%v", i, got, first)
 		}
 	}
+}
+
+func TestPreprocessCollectUnused(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+func f() {
+	x := 1 // unused
+	y := 2
+	y = 3 // assignment is not a use
+	z := 4
+	_ = &z
+	var w int
+	w++ // a use
+	s := struct{ f int }{}
+	s.f = 1 // a use of s
+	c := 0
+	func() { c = 1; _ = c }() // used in a closure
+	var k int
+	k += 1 // a use
+L1:
+	for {
+		break L1
+	}
+L2:
+	for {
+		break
+	}
+	var i interface{} = 1
+	switch t := i.(type) {
+	case int:
+	}
+}
+
+func main() { f() }
+`)
+	// Source order, as gc reports them; the guard variable in gc's spelling.
+	want := []string{"declared and not used: x", "declared and not used: y", "label L2 defined and not used", "t declared and not used"}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q (all: %v)", i, w, msgs[i], msgs)
+		}
+	}
+}
+
+func TestPreprocessCollectUnusedOrder(t *testing.T) {
+	// Reported in source order whatever the block nesting: the inner x
+	// before the outer y, the labels where they stand. Checked many times
+	// in one process so no map order can reach the text or the first error.
+	src := `package main
+
+func main() {
+L1:
+	for {
+		break
+	}
+	if true {
+		x := 1
+	}
+L2:
+	for {
+		break
+	}
+	y := 2
+L3:
+	for {
+		break
+	}
+}
+`
+	want := "label L1 defined and not used|declared and not used: x|label L2 defined and not used|declared and not used: y|label L3 defined and not used"
+	for i := 0; i < 100; i++ {
+		if got := strings.Join(collectErrors(t, src), "|"); got != want {
+			t.Fatalf("iteration %d:\n got %s\nwant %s", i, got, want)
+		}
+	}
+	// The on-chain path panics with the first one.
+	for i := 0; i < 100; i++ {
+		m := NewMachine("main", nil)
+		fn, err := m.ParseFile("main.gno", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("main", "main", fset)
+		got := func() (s string) {
+			defer func() { s = fmt.Sprint(recover()) }()
+			PredefineFileSet(m.Store, pn, fset)
+			Preprocess(m.Store, pn, fn)
+			return "no error"
+		}()
+		m.Release()
+		if !strings.Contains(got, "main.gno:5:2-7:3: label L1 defined and not used") {
+			t.Fatalf("iteration %d: first error %q", i, got)
+		}
+	}
+}
+
+func TestPreprocessCollectUnusedFuncLit(t *testing.T) {
+	// A package-level function literal has no FuncDecl; its body and its
+	// nested literals are checked once.
+	msgs := collectErrors(t, `package main
+
+var f = func() {
+	q := 1
+	g := func() {
+		r := 2
+	}
+	g()
+}
+
+var _ = func() int {
+L:
+	s := 3
+	return 0
+}()
+
+func main() { f() }
+`)
+	want := []string{"declared and not used: q", "declared and not used: r", "label L defined and not used", "declared and not used: s"}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectInitSignature(t *testing.T) {
+	for _, tc := range []struct {
+		pkgPath, src, want string
+	}{
+		{"gno.land/r/test", "func init(cur realm) {}", ""},
+		{"gno.land/r/test", "func init(cur int) {}", "func init must have no arguments and no return values"},
+		{"gno.land/r/test", "func init() int { return 0 }", "func init must have no arguments and no return values"},
+	} {
+		m := NewMachine("test", nil)
+		fn, err := m.ParseFile("test.gno", "package test\n\n"+tc.src+"\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("test", tc.pkgPath, fset)
+		errs := PreprocessFilesCollect(m.Store, pn, fset)
+		m.Release()
+		var msgs []string
+		for _, e := range errs {
+			msgs = append(msgs, e.Unwrap().Error())
+		}
+		got := strings.Join(msgs, "|")
+		if tc.want == "" && got != "" || tc.want != "" && !strings.Contains(got, tc.want) {
+			t.Errorf("%s: want %q, got %q", tc.src, tc.want, got)
+		}
+	}
+}
+
+func TestPreprocessCollectShortVarDecl(t *testing.T) {
+	// The parser's resolver already rejects `a := 1; a := 2` and `b, b :=`;
+	// the preprocessor rule covers what resolution leaves: range variables.
+	msgs := collectErrors(t, `package main
+
+func f(p int) {
+	for i, v := range []int{1} {
+		i := i // shadows the range variable: new
+		v := v
+		_, _ = i, v
+	}
+	for j := 0; j < 1; j++ {
+		j := j // shadows the init variable: new
+		_ = j
+	}
+	if x := 1; x > 0 {
+		x := x
+		_ = x
+	}
+	for a, a := range []int{1} { // ERROR repeated
+		_ = a
+	}
+	var e any = 1
+	switch t := e.(type) { // the guard lives in each clause's block
+	case int:
+		t := 3 // ERROR no new variables
+		_ = t
+	}
+}
+
+func main() { f(0) }
+`)
+	if len(msgs) != 2 || !strings.Contains(msgs[0], "a repeated on left side of :=") ||
+		!strings.Contains(msgs[1], "no new variables on left side of :=") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectUnusedExempt(t *testing.T) {
+	// A name only a folded constant uses, and a blank label, are not unused.
+	src := `package main
+
+func main() {
+	var a [10]int
+	const ca = len(a)
+	_ = ca
+_:
+}
+`
+	if msgs := collectErrors(t, src); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectMainSignature(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+func main(int) {}
+`)
+	if len(msgs) != 1 || msgs[0] != "func main must have no arguments and no return values" {
+		t.Fatalf("got %v", msgs)
+	}
+}
+
+// depStore is a bare store that resolves "dep", "dep2" and "dep3" to
+// one-file packages.
+func depStore() Store {
+	store := NewStore(nil, nil, nil)
+	store.SetPackageGetter(func(pkgPath string, st Store) (*PackageNode, *PackageValue) {
+		switch pkgPath {
+		case "dep", "dep2", "dep3":
+		default:
+			return nil, nil
+		}
+		m := NewMachineWithOptions(MachineOptions{PkgPath: pkgPath, Store: st, SkipPackage: true})
+		defer m.Release()
+		return m.RunMemPackage(&std.MemPackage{Type: MPStdlibProd, Name: pkgPath, Path: pkgPath, Files: []*std.MemFile{
+			{Name: "dep.gno", Body: "package " + pkgPath + "\n\nconst X = 1\n\ntype T struct{}\n\nfunc F() int { return X }\n"},
+		}}, false)
+	})
+	return store
+}
+
+// collectPkgErrors preprocesses srcs (one file each: a.gno, b.gno, ...) as
+// one package in accumulate mode over depStore and returns the messages
+// with their position kept.
+func collectPkgErrors(t *testing.T, srcs ...string) []string {
+	t.Helper()
+	m := NewMachine("main", depStore())
+	defer m.Release()
+	var files []*FileNode
+	for i, src := range srcs {
+		fn, err := m.ParseFile(fmt.Sprintf("%c.gno", 'a'+i), src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, fn)
+	}
+	fset := &FileSet{Files: files}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectUnusedImport(t *testing.T) {
+	t.Run("unused import, at its spec", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import (
+	"dep"
+	"dep2"
+)
+
+func main() { println(dep.X) }
+`)
+		if len(msgs) != 1 || msgs[0] != `main/a.gno:5:2-8: "dep2" imported and not used` {
+			t.Fatalf("got %v", msgs)
+		}
+	})
+
+	t.Run("imports are per file; a use in another file does not count", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import d "dep"
+
+func main() { println(g()) }
+`, `package main
+
+import "dep"
+
+func g() int { return dep.F() }
+`)
+		if len(msgs) != 1 || msgs[0] != `main/a.gno:3:8-15: "dep" imported as d and not used` {
+			t.Fatalf("got %v", msgs)
+		}
+	})
+
+	t.Run("a type, a constant and a value reference are uses", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import (
+	"dep"
+	d2 "dep2"
+	"dep3"
+)
+
+type S struct{ f dep.T }
+
+const c = d2.X
+
+var _ = dep3.F
+
+func main() { _ = S{} }
+`)
+		if len(msgs) != 0 {
+			t.Fatalf("false positive: %v", msgs)
+		}
+	})
+
+	t.Run("blank imports are exempt", func(t *testing.T) {
+		if msgs := collectPkgErrors(t, "package main\n\nimport _ \"dep\"\n\nfunc main() {}\n"); len(msgs) != 0 {
+			t.Fatalf("false positive: %v", msgs)
+		}
+	})
+
+	t.Run("a name a dropped statement mentioned is not reported", func(t *testing.T) {
+		msgs := collectPkgErrors(t, "package main\n\nimport \"dep\"\n\nfunc main() { dep.Nope() }\n")
+		for _, msg := range msgs {
+			if strings.Contains(msg, "imported and not used") {
+				t.Fatalf("reported a dropped statement's import: %v", msgs)
+			}
+		}
+	})
+
+	t.Run("source order, files then specs", func(t *testing.T) {
+		msgs := collectPkgErrors(t, "package main\n\nimport (\n\t\"dep2\"\n\t\"dep\"\n)\n\nfunc main() {}\n", "package main\n\nimport \"dep3\"\n")
+		want := []string{
+			`main/a.gno:4:2-8: "dep2" imported and not used`,
+			`main/a.gno:5:2-7: "dep" imported and not used`,
+			`main/b.gno:3:8-14: "dep3" imported and not used`,
+		}
+		if fmt.Sprint(msgs) != fmt.Sprint(want) {
+			t.Fatalf("got %v\nwant %v", msgs, want)
+		}
+	})
+}
+
+func TestUnusedImportOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the package once its files are
+	// preprocessed, with the first unused import's positioned message.
+	m := NewMachine("test", depStore())
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nimport \"dep\"\n\nfunc f() int { return 1 }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), `test/a.gno:3:8-13: "dep" imported and not used`) {
+			t.Fatalf("want an unused-import PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted an unused import")
 }
 
 // deployAfterCollect runs the ordinary (non-accumulate) path over src,

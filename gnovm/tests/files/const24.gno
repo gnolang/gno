@@ -26,6 +26,7 @@ func main() {
 	const t = len("s")
 	const u = 1 + len("s") + 3
 	ars := [10]string{}
+	_ = ars // keep the variable used; the test is about something else
 	const v = len(ars)
 	const w = cap(ars)
 	const x = time.Second

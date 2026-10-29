@@ -76,6 +76,7 @@ func g() {
 // line 51: expected statement, found 'case'
 // line 59: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
+// line 60: label labelname defined and not used
 // line 64: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
 // line 67: expected ';', found 'EOF'

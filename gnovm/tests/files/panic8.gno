@@ -5,6 +5,7 @@ func main() {
 	defer func() {
 		a := 0
 		b := 1 / a
+		_ = b // keep the variable used; the test is about something else
 	}()
 	println("world")
 }
@@ -15,9 +16,6 @@ func main() {
 
 // Error:
 // runtime error: division by zero
-
-// TypeCheckError:
-// main/panic8.gno:7:3: declared and not used: b
 
 // Stacktrace:
 // panic: runtime error: division by zero
