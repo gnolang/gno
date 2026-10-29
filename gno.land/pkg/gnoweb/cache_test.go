@@ -12,7 +12,7 @@ import (
 func TestCacheHandler(t *testing.T) {
 	t.Parallel()
 
-	h := CacheHandler(`"abc"`, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := CacheHandler(`"abc"`, "123", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "missing") {
 			http.NotFound(w, r)
 			return
@@ -28,6 +28,8 @@ func TestCacheHandler(t *testing.T) {
 	}{
 		{"versioned", "/public/js/index.js?v=123", "", http.StatusOK, immutable, `"abc"`},
 		{"versioned revalidation", "/public/js/index.js?v=123", `"abc"`, http.StatusNotModified, immutable, `"abc"`},
+		{"other version", "/public/js/index.js?v=456", "", http.StatusOK, "no-cache", `"abc"`},
+		{"empty version", "/public/js/index.js?v=", "", http.StatusOK, "no-cache", `"abc"`},
 		{"unversioned import", "/public/js/controller.js", "", http.StatusOK, "no-cache", `"abc"`},
 		{"unversioned revalidation", "/public/js/controller.js", `"abc"`, http.StatusNotModified, "no-cache", `"abc"`},
 		{"stale copy", "/public/js/controller.js", `"old"`, http.StatusOK, "no-cache", `"abc"`},

@@ -10,15 +10,16 @@ const immutableCacheControl = "public, max-age=31536000, immutable"
 
 // CacheHandler adds ETag and Cache-Control headers to asset responses for
 // caching. A response is cached as immutable when its URL cannot serve other
-// bytes after a deploy: it carries the assets version (?v=), or names a
-// file that never changes in place (a content-hashed chunk, a font). Other
+// bytes after a deploy: it carries this build's assets version (?v=), or
+// names a file that never changes in place (a content-hashed chunk, a font). Other
 // files, such as controller.js, which modules import without a version, are
 // revalidated against the ETag, so a deploy never leaves a stale copy. Only
-// a 2xx is cached: an error, such as a 404, is never kept.
-func CacheHandler(hash string, next http.Handler) http.Handler {
+// a 2xx is cached: an error, such as a 404, is never kept. Any other ?v=,
+// such as the next release's asked of this one mid-deploy, is revalidated.
+func CacheHandler(hash, version string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cache := "no-cache"
-		if r.URL.Query().Has("v") || isImmutableAsset(r.URL.Path) {
+		if v := r.URL.Query().Get("v"); (v != "" && v == version) || isImmutableAsset(r.URL.Path) {
 			cache = immutableCacheControl
 		}
 
