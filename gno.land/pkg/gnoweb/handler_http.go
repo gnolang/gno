@@ -1436,13 +1436,13 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	// Get source file
 	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
-		status, _ := GetClientErrorStatusView(gnourl, err, 0)
+		status, msg := clientErrorMessage(err, 0)
 		if status == http.StatusNotFound {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
 		} else {
 			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		}
-		http.Error(w, "not found", status)
+		http.Error(w, msg, status)
 		return
 	}
 

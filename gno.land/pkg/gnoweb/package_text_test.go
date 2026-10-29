@@ -90,6 +90,41 @@ func TestServePackageText_Cache(t *testing.T) {
 	assert.Equal(t, queries+3, client.queries.Load(), "one build, shared")
 }
 
+// slowClient holds every package list until release is closed.
+type slowClient struct {
+	*MockClient
+	release chan struct{}
+}
+
+func (c *slowClient) ListFiles(ctx context.Context, path string, height int64) ([]string, error) {
+	<-c.release
+	return c.MockClient.ListFiles(ctx, path, height)
+}
+
+// TestServePackageText_Deadline checks a $download whose request deadline
+// passes before the shared read is done answers 408, as a page does.
+func TestServePackageText_Deadline(t *testing.T) {
+	t.Parallel()
+
+	client := &slowClient{
+		MockClient: NewMockClient(&MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: map[string]string{"a.gno": "package a"}}),
+		release:    make(chan struct{}),
+	}
+	t.Cleanup(func() { close(client.release) })
+	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+		Timeout:       20 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil))
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
+	assert.Contains(t, rr.Body.String(), ErrClientTimeout.Error())
+}
+
 // TestPackageFiles_SharedWithPlayground checks a playground copy reads the
 // package through $download's bounds and cache: a copy after a $download
 // costs no node query, and a package over the file cap is refused by both.

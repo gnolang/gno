@@ -51,8 +51,8 @@ func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoUR
 		return
 	case err != nil:
 		h.Logger.Error("unable to get package text", "path", gnourl.Path, "error", err)
-		status, _ := GetClientErrorStatusView(gnourl, err, 0)
-		http.Error(w, "not found", status)
+		status, msg := clientErrorMessage(err, 0)
+		http.Error(w, msg, status)
 		return
 	}
 	var out bytes.Buffer
