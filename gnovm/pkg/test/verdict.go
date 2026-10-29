@@ -310,13 +310,14 @@ var (
 	reDecisionRef = regexp.MustCompile(`\bdocs/[\w./-]+|#\d+|https?://`)
 )
 
-// check enforces that a Known* verdict is a human decision: sync's TODO
-// placeholder never passes verify, a KnownIssue names its issue, and a
+// check enforces that a verdict is a human decision: sync's TODO
+// placeholder never passes verify, a KnownIssue names its issue, a
 // KnownDivergence cites the decision it rests on — without one it is an
-// issue, not a blessing.
+// issue, not a blessing — and an Unsupported names a tag from the shared
+// vocabulary, since it is the one verdict that skips the file.
 func (v verdict) check() error {
 	switch v.Kind {
-	case VerdictKnownIssue, VerdictKnownDivergence:
+	case VerdictKnownIssue, VerdictKnownDivergence, VerdictUnsupported:
 		if v.Reason == "" || strings.HasPrefix(v.Reason, "TODO") {
 			return fmt.Errorf("`// Verdict: %s` needs a reason (sync's TODO placeholder does not count)", v.Kind)
 		}
@@ -326,6 +327,8 @@ func (v verdict) check() error {
 		return fmt.Errorf("`// Verdict: KnownIssue` must cite its tracking issue (#NNNN or an issue URL): %q", v.Reason)
 	case v.Kind == VerdictKnownDivergence && !reDecisionRef.MatchString(v.Reason):
 		return fmt.Errorf("`// Verdict: KnownDivergence` must cite the Gno decision it rests on (a docs/ page, #NNNN or a URL), else file it as a KnownIssue: %q", v.Reason)
+	case v.Kind == VerdictUnsupported && !knownUnsupportedTag(v.Mode):
+		return fmt.Errorf("`// Verdict: Unsupported` names tag %q, which is not in the shared tag vocabulary (unsupportedTags, or `other`)", v.Mode)
 	}
 	return nil
 }
