@@ -104,14 +104,24 @@ gas change is consensus-visible and rides with the schedule work
   `restart_gas.txtar` and `storage_deposit_price_change.txtar` are re-pinned.
   Reverting only the check leaves every number at the new value: the check
   charges no gas. No gas schedule change.
-- On-chain: no fork. The gate never re-reads stored source, so a package
-  already deployed with a builtin-named parameter keeps loading and keeps
-  running; only its next deploy is refused. Stdlibs ship with the binary, so
-  the in-tree renames below travel with the rule. A genesis-replay hardfork,
-  which an in-preprocess rule would have required of every live network
-  including `gnoland-1`, is not needed.
+- On-chain: no fork, and it took two things rather than one. The gate never
+  re-reads stored USER source, so a package already deployed with a
+  builtin-named parameter keeps loading and keeps running; only its next
+  deploy is refused. Stdlib source is not like that: it is written to state
+  at genesis, and node start re-type-checks the STORED copy
+  (`VMKeeper.Initialize` reads `vm.gnoStore.GetMemPackage(stdlib)`), never
+  the binary's. The rule alone therefore stops a restarting node on the
+  genesis-era `math/modf.gno` — measured by omarsy on a dev chain, and the
+  reason the first cut of this ADR was wrong to claim otherwise.
+  `TypeCheckOptions.AlreadyOnChain`, set at that one call site, skips
+  admission rules for source the chain has already admitted; what the
+  type-checker does to decide what a package MEANS still runs. So the node
+  starts, and the renames below only have to hold for chains made with this
+  binary. The genesis-replay hardfork an in-preprocess rule would have
+  required of every live network, `gnoland-1` included, is not needed.
+  `TestCheckDeclNamesSkipsSourceAlreadyOnChain`,
   `TestPreprocessAcceptsStoredReservedNames` and
-  `TestBootPreprocessesStoredReservedNames` pin that half.
+  `TestBootPreprocessesStoredReservedNames` pin those paths.
 - Fixtures: one `shadow_builtin_*.gno` and one `zrealm_cur_decl_*.gno` per
   binding site, plus `shadow_builtin_{functype,iface_method}.gno` and
   `zrealm_cur_decl_{functype,functype_second,functype_result,iface_method}.gno`

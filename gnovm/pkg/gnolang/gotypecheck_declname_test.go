@@ -85,3 +85,32 @@ func D() { cur := 1; _ = cur }
 		t.Fatalf("refusal worded %d different ways across 200 runs (%v); the message must not depend on map iteration order", len(seen), seen)
 	}
 }
+
+// Source the chain already admitted must keep type-checking. Node start
+// re-checks every stored stdlib from state, and `math/modf.gno` as written
+// at genesis names a result `int` — so without this the binary that adds the
+// rule cannot start on any chain that predates it, which is a genesis replay.
+func TestCheckDeclNamesSkipsSourceAlreadyOnChain(t *testing.T) {
+	// The real shape: Go's own Modf signature, which the stdlib used.
+	const body = "func Modf(f float64) (int float64, frac float64) { return 1, 0.5 }"
+	mpkg := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type: MPUserProd, Name: "probe", Path: "gno.land/r/demo/probe",
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: "module = \"gno.land/r/demo/probe\"\ngno = \"0.9\"\n"},
+				{Name: "a.gno", Body: "package probe\n\n" + body + "\n"},
+			},
+		}
+	}
+	base := TypeCheckOptions{Getter: mockPackageGetter{}, Mode: TCLatestStrict, ProdOnly: true}
+
+	if _, err := TypeCheckMemPackage(mpkg(), base); err == nil {
+		t.Fatal("a new deploy must still be refused")
+	}
+
+	onChain := base
+	onChain.AlreadyOnChain = true
+	if _, err := TypeCheckMemPackage(mpkg(), onChain); err != nil {
+		t.Fatalf("source already on chain must still check: %v", err)
+	}
+}

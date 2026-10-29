@@ -179,6 +179,21 @@ type TypeCheckOptions struct {
 	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
 	// keep checking test files.
 	ProdOnly bool
+
+	// AlreadyOnChain marks source the chain has ALREADY admitted, re-read
+	// from the store rather than submitted. Node start re-type-checks every
+	// stored stdlib (VMKeeper.Initialize), and that source was written at
+	// genesis, so a rule added after it would refuse a package the chain has
+	// been running — the node simply fails to start, and the only way out is
+	// a genesis replay.
+	//
+	// Rules that gate ADMISSION are therefore skipped here: they ran when the
+	// source was admitted, under whatever binary admitted it. Everything the
+	// type-checker does to decide what a package MEANS still runs.
+	//
+	// Defaults false. Set it only where the source is read back from the
+	// store; never on AddPackage or Run.
+	AlreadyOnChain bool
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -201,6 +216,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		getter:    gimpGetterWrapper{nil, opts.Getter},
 		tgetter:   gimpGetterWrapper{mpkg, opts.TestGetter},
 		cache:     map[string]*gnoImporterResult{},
+		onChain:   opts.AlreadyOnChain,
 		permCache: opts.Cache,
 		fset:      opts.Fset,
 		cfg: &types.Config{
@@ -256,6 +272,7 @@ type gnoImporter struct {
 	getter    MemPackageGetter // used for stdlibs if !.testing, and everything else.
 	tgetter   MemPackageGetter // used for stdlibs if .testing
 	cache     map[string]*gnoImporterResult
+	onChain   bool // see TypeCheckOptions.AlreadyOnChain
 	permCache TypeCheckCache
 	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
@@ -536,8 +553,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		return
 	}
 	// Only the package being admitted: an import is already on chain, and
-	// this rule may not retroactively refuse it.
-	if mpkg.Path == gimp.pkgPath {
+	// this rule may not retroactively refuse it. Nor may it refuse source
+	// the store is merely handing back (AlreadyOnChain).
+	if mpkg.Path == gimp.pkgPath && !gimp.onChain {
 		if err := checkDeclNames(pkg, gofset, pgofs, gmgof, info, synthetic); err != nil {
 			gimp.Error(err)
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
