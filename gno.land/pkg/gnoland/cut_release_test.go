@@ -16,25 +16,32 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
-// runCutReleaseFuncs runs the named functions of misc/release/cut-release.sh in
-// bash, in order, with the script's globals set from vars. It returns their
-// combined output and whether they all returned (die exits non-zero).
+// runCutReleaseFuncs is runScriptFuncs on misc/release/cut-release.sh.
 func runCutReleaseFuncs(t *testing.T, vars map[string]string, funcs ...string) (string, bool) {
 	t.Helper()
 
-	src := repoFile(t, "misc/release/cut-release.sh")
+	return runScriptFuncs(t, "misc/release/cut-release.sh", vars, funcs...)
+}
+
+// runScriptFuncs makes calls to functions of a release script in bash, in
+// order, with those functions and the script's die, ok and warn defined, and
+// the script's globals set from vars. A call is a function name, optionally
+// followed by shell-quoted arguments. It returns their combined output and
+// whether they all returned (die exits non-zero).
+func runScriptFuncs(t *testing.T, rel string, vars map[string]string, calls ...string) (string, bool) {
+	t.Helper()
+
+	src := repoFile(t, rel)
 	var script strings.Builder
 	script.WriteString("set -euo pipefail\n")
-	for _, name := range []string{"die", "ok", "warn"} {
-		script.WriteString(shellFunc(t, src, name) + "\n")
+	for _, call := range append([]string{"die", "ok", "warn"}, calls...) {
+		script.WriteString(shellFunc(t, rel, src, strings.Fields(call)[0]) + "\n")
 	}
-	for _, name := range funcs {
-		script.WriteString(shellFunc(t, src, name) + "\n")
-	}
-	script.WriteString(strings.Join(funcs, "\n") + "\n")
+	script.WriteString(strings.Join(calls, "\n") + "\n")
 
-	// check_ledger_entry builds the ledger tool with go run; a module fetch that
-	// hangs fails here rather than at the test binary's own timeout.
+	// cut-release.sh's check_ledger_entry builds the ledger tool with go run; a
+	// module fetch that hangs fails here rather than at the test binary's own
+	// timeout.
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", "-c", script.String())
@@ -50,9 +57,9 @@ func runCutReleaseFuncs(t *testing.T, vars map[string]string, funcs ...string) (
 	return string(out), err == nil
 }
 
-// shellFunc returns the definition of a function in a shell script, either a
-// one-liner or a block closed by a "}" on its own line.
-func shellFunc(t *testing.T, src, name string) string {
+// shellFunc returns the definition of a function in the shell script rel, read
+// as src, either a one-liner or a block closed by a "}" on its own line.
+func shellFunc(t *testing.T, rel, src, name string) string {
 	t.Helper()
 
 	q := regexp.QuoteMeta(name)
@@ -61,7 +68,7 @@ func shellFunc(t *testing.T, src, name string) string {
 			return def
 		}
 	}
-	require.Failf(t, "function not found", "cut-release.sh defines no %s()", name)
+	require.Failf(t, "function not found", "%s defines no %s()", rel, name)
 	return ""
 }
 
