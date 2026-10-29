@@ -2407,7 +2407,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
-						panic("slice/array literals may not contain non-const keys")
+						assertConstLiteralKey(n)
 					}
 				}
 				// specific and general cases
@@ -2895,13 +2895,22 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						fv = cx.GetFunc()
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
+						if n.Varg && fv.Name != "append" {
+							panic(fmt.Sprintf("invalid use of ... with built-in %s", fv.Name))
+						}
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
 								if msg := lenCapArgError(fv.Name, evalStaticTypeOf(store, last, n.Args[0])); msg != "" {
 									reportOrPanic(acc, stack, n, msg)
 								}
+								if cx := constStringLen(fv.Name, n.Args[0]); cx != nil {
+									cx.Source = n
+									return cx, TRANS_CONTINUE
+								}
 							}
+						case "append":
+							assertAppendArgs(store, last, n)
 						}
 						switch fv.Name {
 						case "append":
@@ -3011,12 +3020,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 											"cannot use %v as type int in argument to make", tv))
 									}
 									if tv.Sign() < 0 {
-										panic(fmt.Sprintf(
-											"invalid argument: index %v must not be negative", tv))
+										panicAt(fmt.Sprintf(
+											"invalid argument: index %s must not be negative", constOperandString(cx, IntType)), cx)
 									}
 									if !constFitsInt(tv) {
 										panicAt(fmt.Sprintf(
-											"invalid argument: index %v overflows int", tv), cx)
+											"invalid argument: index %s overflows int", constOperandString(cx, IntType)), cx)
 									}
 								}
 							}
@@ -3609,6 +3618,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				case *ArrayType:
 					for i := range n.Elts {
+						assertConstLiteralKey(n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panicAt(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue), cx)
 						}
@@ -3622,6 +3632,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					assertLiteralIndices(preprocessGasMeterOf(store), n, length)
 				case *SliceType:
 					for i := range n.Elts {
+						assertConstLiteralKey(n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panicAt(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue), cx)
 						}
@@ -3718,6 +3729,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// on the RefExpr so doOpRef can use it (instead of
 				// the runtime type, which is wrong for interface variables).
 				xt := evalStaticTypeOf(store, last, n.X)
+				if nx, ok := n.X.(*NameExpr); ok && isFuncDeclName(last, nx) {
+					panic(fmt.Sprintf("invalid operation: cannot take address of %s (value of type %v)", nx.Name, xt))
+				}
 				// Refuse a pointer to a realm-typed `cur`.
 				//
 				// Rejecting `cur = ...` (AssignStmt, below) only matches a
@@ -3895,9 +3909,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					case *DeclaredType:
 						dt = ct
 					default:
-						panic(fmt.Sprintf(
-							"unexpected selector expression type value %s",
-							xt.String()))
+						panic(fmt.Sprintf("%s undefined (type %s has no method %s)",
+							exprString(n), typeString(xt), n.Sel))
 					}
 					// Ensure exposed or package path match. Without this gate,
 					// `(*pkg.Type).unexportedMethod` from outside pkg resolves
@@ -3912,9 +3925,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					n.Path = dt.GetUnboundPathForName(n.Sel)
 				default:
-					panic(fmt.Sprintf(
-						"unexpected selector expression type %v",
-						reflect.TypeOf(xt)))
+					panic(fmt.Sprintf("%s undefined (type %s has no field or method %s)",
+						exprString(n), operandTypeString(xt), n.Sel))
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -4264,6 +4276,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					reportUnused(store, acc, stack, n)
 				}
 
+			// TRANS_LEAVE -----------------------
+			case *ExprStmt:
+				assertExprStmtUsed(store, last, n)
 			case *IncDecStmt:
 				n.AssertCompatible(store, last)
 
@@ -7108,6 +7123,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		if isBlankIdentifier(d.Type) {
 			panic("cannot use _ as value or type")
 		}
+		for i := range d.NameExprs {
+			assertNotImported(store, last, &d.NameExprs[i])
+		}
 		isalias := false                                                                   // a value decl can't be.
 		un, directR = findUndefinedT(store, last, d.Type, stack, defining, isalias, false) // XXX
 		if un != "" {
@@ -7136,6 +7154,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		if d.Name == blankIdentifier {
 			return
 		}
+		assertNotImported(store, last, &d.NameExpr)
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {
@@ -7245,6 +7264,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		}
 		// END *TypeDecl
 	case *FuncDecl:
+		if !d.IsMethod {
+			assertNotImported(store, last, &d.NameExpr)
+		}
 		un, directR = findUndefinedT(store, last, &d.Type, stack, defining, false, false)
 		if un != "" {
 			untype = true

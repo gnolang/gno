@@ -10,6 +10,6 @@ const c = 3
 var x = c.String()	// ERROR "String"
 
 // GnoError:
-// line 10: unexpected selector expression type gnolang.PrimitiveType
+// line 10: c.String undefined (type untyped int has no field or method String)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10; internal errors: lines 10
+// Verdict: Clean errorcheck

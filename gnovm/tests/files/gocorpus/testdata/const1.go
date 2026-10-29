@@ -116,8 +116,8 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 56: constant overflows
 // line 57: bigint overflows target kind
 // line 58: bigint overflows target kind
-// line 59: (const-type uint8)(100) * (const-type uint8)(100) (constant 10000 of type uint8) overflows uint8
-// line 60: (const-type uint8)(100) * 100 (constant 10000 of type uint8) overflows uint8
+// line 59: uint8(100) * uint8(100) (constant 10000 of type uint8) overflows uint8
+// line 60: uint8(100) * 100 (constant 10000 of type uint8) overflows uint8
 // line 61: bigint overflows target kind
 // line 63: bigint overflows target kind
 // line 64: invalid operation: division by zero
@@ -134,7 +134,7 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 86: cannot use untyped string as IntKind
 // line 87: cannot use untyped bool as IntKind
 // line 90: use of untyped nil in variable declaration
-// line 91: [](const-type uint8)(nil) (value of type []uint8) is not constant
+// line 91: []uint8(nil) (value of type []uint8) is not constant
 // line 94: (const (nil *int)) (variable of type *int) is not constant
 
 // Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 67, 68, 69

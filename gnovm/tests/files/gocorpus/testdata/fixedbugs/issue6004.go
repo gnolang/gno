@@ -13,4 +13,10 @@ func main() {
 	_ = append(nil, 1, 2, 3) // ERROR "untyped nil|nil"
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10, 11, 12, 13; on-chain path first error on line 10, not reported by accumulate mode
+// GnoError:
+// line 10: use of untyped nil in assignment
+// line 11: use of untyped nil in assignment
+// line 12: use of untyped nil in assignment
+// line 13: first argument to append must be a typed slice; have untyped nil
+
+// Verdict: Clean errorcheck

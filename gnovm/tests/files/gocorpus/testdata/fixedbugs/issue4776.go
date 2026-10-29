@@ -8,4 +8,7 @@
 
 type MyInt int32 // ERROR "package statement must be first|package clause"
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9
+// GnoError:
+// line 9: expected 'package', found 'type'
+
+// Verdict: Clean errorcheck

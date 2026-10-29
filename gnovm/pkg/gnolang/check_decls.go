@@ -97,6 +97,35 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 	}
 }
 
+// assertNotImported: a package-level declaration may not take the name an
+// import gives any file of the package (go/types: DuplicateDecl, reported
+// at the declaration). Charged per file as one name lookup
+// (OpCPUSlopeEmbedScan; BenchmarkCheckGas: 7 reference-ns/file).
+func assertNotImported(store Store, last BlockNode, nx *NameExpr) {
+	if nx.Name == blankIdentifier {
+		return
+	}
+	pn, ok := skipFile(last).(*PackageNode)
+	if !ok || pn.FileSet == nil {
+		return
+	}
+	chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeEmbedScan*int64(len(pn.FileSet.Files)))
+	for _, fn := range pn.FileSet.Files {
+		idx, exists := fn.GetLocalIndex(nx.Name)
+		if !exists {
+			continue
+		}
+		if src := fn.GetStaticBlock().NameSources[idx]; src.Type == NSImportDecl {
+			path := src.Origin.(*ImportDecl).PkgPath
+			pkg, ok := expectedPkgName(path)
+			if !ok {
+				pkg = path
+			}
+			panicAt(fmt.Sprintf("%s already declared through import of package %s (%q)", nx.Name, pkg, path), nx)
+		}
+	}
+}
+
 // invalidStructKey is the error for a keyed struct literal element whose
 // key is not a field name, "" when it is one. Checked before the key is
 // resolved as an expression, so every bad key of a literal is reported.

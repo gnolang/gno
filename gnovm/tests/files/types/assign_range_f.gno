@@ -10,7 +10,7 @@ func main() {
 }
 
 // Error:
-// main/assign_range_f.gno:7:2-8:3: cannot assign to (const (5 int))
+// main/assign_range_f.gno:7:2-8:3: cannot assign to c
 
 // TypeCheckError:
 // main/assign_range_f.gno:7:9: cannot assign to c (neither addressable nor a map index expression)

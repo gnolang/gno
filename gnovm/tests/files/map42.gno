@@ -8,3 +8,6 @@ func main() {
 
 // TypeCheckError:
 // main/map42.gno:5:34: duplicate key 0 in map literal
+
+// Error:
+// main/map42.gno:5:34-35: duplicate key 0 in map literal

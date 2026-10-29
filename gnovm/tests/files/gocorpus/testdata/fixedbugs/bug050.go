@@ -7,4 +7,7 @@
 func main() {	// ERROR "package"
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 7
+// GnoError:
+// line 7: expected 'package', found 'func'
+
+// Verdict: Clean errorcheck

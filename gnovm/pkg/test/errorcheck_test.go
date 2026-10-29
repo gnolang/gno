@@ -231,6 +231,26 @@ var _ = y // ERROR "undefined"
 	}
 }
 
+func TestErrorcheck_MissingPackageClauseIsPinned(t *testing.T) {
+	// The parser's "expected 'package'" error credits gc's marker line;
+	// the checker never runs, so there is no on-chain comparison.
+	src := []byte(`// errorcheck
+
+func main() { // ERROR "package"
+}
+`)
+	o := errorcheckOpts(t)
+	out, _, _, err := o.RunFiletest("testdata/errorcheck/pb.go", src, o.TestStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"// Verdict: Clean errorcheck", "line 3: expected 'package', found 'func'"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 // A bodiless function (gc: assembly-backed) is a per-line gap in
 // errorcheck mode: its error is evidence, not over-strictness, and the
 // function stays declared, so the call on the marker line is checked

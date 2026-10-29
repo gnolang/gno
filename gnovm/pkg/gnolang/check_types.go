@@ -328,8 +328,16 @@ func exprString(x Expr) string {
 	switch x := x.(type) {
 	case *NameExpr:
 		return string(x.Name)
+	case *BasicLitExpr:
+		return x.Value
 	case *ConstExpr:
 		return constString(x)
+	case *constTypeExpr:
+		return x.Type.String()
+	case *BinaryExpr:
+		return exprString(x.Left) + " " + x.Op.TokenString() + " " + exprString(x.Right)
+	case *UnaryExpr:
+		return x.Op.TokenString() + exprString(x.X)
 	case *SelectorExpr:
 		return exprString(x.X) + "." + string(x.Sel)
 	case *IndexExpr:
@@ -342,6 +350,23 @@ func exprString(x Expr) string {
 			args[i] = exprString(a)
 		}
 		return exprString(x.Func) + "(" + strings.Join(args, ", ") + ")"
+	case *SliceTypeExpr:
+		if x.Vrd {
+			return "..." + exprString(x.Elt)
+		}
+		return "[]" + exprString(x.Elt)
+	case *ArrayTypeExpr:
+		if x.Len == nil {
+			return "[...]" + exprString(x.Elt)
+		}
+		return "[" + exprString(x.Len) + "]" + exprString(x.Elt)
+	case *MapTypeExpr:
+		return "map[" + exprString(x.Key) + "]" + exprString(x.Value)
+	case *CompositeLitExpr:
+		if len(x.Elts) == 0 {
+			return exprString(x.Type) + "{}"
+		}
+		return exprString(x.Type) + "{…}" // as go/types
 	}
 	return x.String()
 }
@@ -359,10 +384,15 @@ func typeString(t Type) string {
 // for a typed one, strings quoted.
 func constString(c *ConstExpr) string {
 	switch src := c.Source.(type) {
-	case *BasicLitExpr:
-		return src.Value // as written, also after conversion
-	case *NameExpr:
-		return string(src.Name)
+	case *CallExpr:
+		// A conversion the preprocessor inserted has no span: print
+		// the operand as written.
+		if _, ok := src.Func.(*constTypeExpr); ok && len(src.Args) == 1 && src.GetSpan().IsZero() {
+			return exprString(src.Args[0])
+		}
+		return exprString(src)
+	case *BasicLitExpr, *BinaryExpr, *UnaryExpr, *NameExpr, *SelectorExpr, *ConstExpr:
+		return exprString(src) // as written, also after folding or conversion
 	}
 	var v string
 	switch {
@@ -453,6 +483,6 @@ func assertArrayLengthInteger(cx *ConstExpr) {
 		panicAt(fmt.Sprintf("array length %s (untyped %s constant) must be integer",
 			constString(cx), untypedKindName(cx.T)), cx)
 	case !isInteger(cx.T):
-		panicAt(fmt.Sprintf("array length %s (constant of type %s) must be integer", constString(cx), cx.T), cx)
+		panicAt(fmt.Sprintf("array length %s must be integer", constOperandString(cx, cx.T)), cx)
 	}
 }

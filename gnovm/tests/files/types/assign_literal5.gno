@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/assign_literal5.gno:4:2-65: cannot assign to (const-type map[string]int){(const ("a" string)): (const (1 int)), (const ("b" string)): (const (2 int))}
+// main/assign_literal5.gno:4:2-65: cannot assign to map[string]int{…}
 
 // TypeCheckError:
 // main/assign_literal5.gno:4:2: cannot assign to map[string]int{…} (neither addressable nor a map index expression)

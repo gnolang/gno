@@ -1167,6 +1167,8 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
 		} else if last.GetIsConst(store, clx.Name) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else if isFuncDeclName(last, clx) {
+			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", clx.Name))
 		} else {
 			shouldPanic = false
 		}
@@ -1186,7 +1188,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	default:
 	}
 	if shouldPanic {
-		panic(fmt.Sprintf("cannot assign to %v", lx))
+		panic(fmt.Sprintf("cannot assign to %s", exprString(lx)))
 	}
 }
 
