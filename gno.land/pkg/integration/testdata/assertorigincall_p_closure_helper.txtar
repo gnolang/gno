@@ -1,3 +1,4 @@
+loadpkg gno.land/p/demo/guard $WORK/p/demo/guard
 loadpkg gno.land/p/demo/helper $WORK/p/demo/helper
 loadpkg gno.land/p/demo/hook $WORK/p/demo/hook
 loadpkg gno.land/r/runner $WORK/r/runner
@@ -49,12 +50,43 @@ stderr 'invalid non-origin call'
 ! gnokey maketx call -pkgpath gno.land/r/relay -func Fire -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
+## The permissive direction, which master refused and this change allows: the
+## assertion itself lives in /p/. Every frame between the entry and the
+## assertion has no storage, so none is a boundary and the entry is still the
+## message's first realm. Without these two the whole file passes unchanged on
+## master, and nothing here would be testing the widening.
+
+## wug.DepositViaGuard -> guard.Only (assertion in /p/): OK
+gnokey maketx call -pkgpath gno.land/r/wug -func DepositViaGuard -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout OK!
+
+## the same through an arbitrarily deep /p/ chain: OK
+gnokey maketx call -pkgpath gno.land/r/wug -func DepositViaGuardDeep -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout OK!
+
+## and still refused with a realm in that chain: relay -> wug.GuardEntry: PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func ViaGuard -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
 -- p/demo/helper/helper.gno --
 package helper
 
 var Run = func(f func()) { f() }
 
 func RunNamed(f func()) { f() }
+
+-- p/demo/guard/guard.gno --
+package guard
+
+import "chain/runtime"
+
+// The assertion hosted in /p/ code. A /p/ package owns no storage, so its
+// frames borrow the caller's realm and never count as a boundary.
+func Only() { runtime.AssertOriginCall() }
+
+func Deep() { middle() }
+
+func middle() { Only() }
 
 -- p/demo/hook/hook.gno --
 package hook
@@ -79,6 +111,7 @@ package wug
 import (
 	"chain/runtime"
 
+	"gno.land/p/demo/guard"
 	"gno.land/p/demo/helper"
 	"gno.land/p/demo/hook"
 	"gno.land/r/runner"
@@ -108,6 +141,19 @@ func DepositViaRunner(cur realm) {
 	runner.Run(func() { runtime.AssertOriginCall() })
 }
 
+func DepositViaGuard(cur realm) {
+	guard.Only()
+}
+
+func DepositViaGuardDeep(cur realm) {
+	guard.Deep()
+}
+
+// GuardEntry is wug's own exported entry, reachable from another realm.
+func GuardEntry(cur realm) {
+	guard.Only()
+}
+
 func run(f func()) { f() }
 
 var Check = func() { runtime.AssertOriginCall() }
@@ -130,4 +176,8 @@ func GoNamed(cur realm) {
 
 func Fire(cur realm) {
 	wug.Hook.Fire()
+}
+
+func ViaGuard(cur realm) {
+	wug.GuardEntry(cross(cur))
 }

@@ -125,9 +125,18 @@ caller `p`: one more realm unless `p` is the entry realm itself.
   however entered (cross-call, non-crossing call, closure handed over,
   re-entry, simulated via `SetRealm`). Pinned in `assertorigincall*.txtar`
   (cases 29-30 are re-entry), `std16`, `std19`, `r/tests/vm/tests_test.gno`.
-- Strictly less exposure than master: every interposing realm counts, every
-  closure counts, and nothing an outsider can hand back to the realm can sit
-  between the entry and the assertion. `AssertOriginCall` is still not a
-  re-entrancy lock and not an immediate-caller check; payment code uses
-  `cur.Previous().IsUserCall()` for the caller.
+- Less exposure than master in the direction that matters, but NOT a subset
+  of it. Every interposing realm counts, every closure counts, and nothing an
+  outsider can hand back to the realm can sit between the entry and the
+  assertion. What is newly ADMITTED is the assertion hosted in `/p/` or
+  stdlib code, reachable through an arbitrarily deep `/p/` chain: master
+  counted those frames and refused them, so `/p/` guard helpers did not work
+  at all. The admitted set therefore grows here by design, and
+  `assertorigincall_p_closure_helper.txtar` pins both directions — without
+  its `DepositViaGuard` cases the whole file passes unchanged on master. The
+  cost is that an entry function no longer tells its author whether the
+  assertion is at the top of the stack: a transitive `/p/` dependency can
+  satisfy it. `AssertOriginCall` is still not a re-entrancy lock and not an
+  immediate-caller check; payment code uses `cur.Previous().IsUserCall()` for
+  the caller.
 - `native.gno`'s doc comment is genesis state: `apphash_crossrealm38_test.go` re-pinned.
