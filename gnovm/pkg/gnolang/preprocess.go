@@ -2259,13 +2259,15 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertIfConst(store, last, n, n.X)
 					}
 				}
-				if !n.IsTypeSwitch && n.X != nil {
+				if isInvalidExpr(n.X) {
+					// accumulate mode: the tag was reported; the
+					// clauses are still checked.
+				} else if !n.IsTypeSwitch && n.X != nil {
 					// The tag must be comparable even with no case to
 					// compare it to; checked before the clauses, which
 					// would otherwise fail on the comparison first.
 					assertSwitchTag(n.X, evalStaticTypeOf(store, last, n.X))
-				}
-				if n.IsTypeSwitch {
+				} else if n.IsTypeSwitch {
 					tt := evalStaticTypeOf(store, last, n.X)
 					if _, ok := baseOf(tt).(*InterfaceType); !ok {
 						panic(fmt.Sprintf("cannot type switch on non-interface value %s (type %s)",
