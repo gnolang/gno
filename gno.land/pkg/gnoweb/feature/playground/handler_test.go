@@ -230,54 +230,46 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 	}
 }
 
-// TestGetPlaygroundViewCode covers the "code" shared-snippet paths.
+// TestGetPlaygroundViewCode covers the "code" shared-snippet paths. Each
+// code holds a sentinel the default code does not, so a fallback to the
+// default never passes for a decoded snippet.
 func TestGetPlaygroundViewCode(t *testing.T) {
 	t.Parallel()
 
+	const sentinel = "package sentinel_42\n"
+	require.NotContains(t, defaultCode, "sentinel_42")
+	z := deflateBase64(t, []byte(sentinel))
+
+	cases := []struct {
+		name  string
+		query url.Values
+		want  string
+	}{
+		{"no code", url.Values{}, defaultCode},
+		{"plain text", url.Values{"code": {sentinel}}, sentinel},
+		{"plain text that parses as base64", url.Values{"code": {"test"}}, "test"},
+		{"base64 without z stays text", url.Values{"code": {"cGFja2FnZSBtYWluCg=="}}, "cGFja2FnZSBtYWluCg=="},
+		{"compressed", url.Values{"code": {z}, "z": {""}}, sentinel},
+		{"compressed, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, defaultCode},
+		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, defaultCode},
+		{"z on text that is no base64", url.Values{"code": {"package main"}, "z": {""}}, defaultCode},
+		{"compressed up to the cap", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), maxDecompressedCodeSize))}, "z": {""}}, strings.Repeat("a", maxDecompressedCodeSize)},
+		// A few bytes of a link must not expand into a page of megabytes.
+		{"compressed past the cap", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), maxDecompressedCodeSize+1))}, "z": {""}}, defaultCode},
+		{"longer than Share writes", url.Values{"code": {strings.Repeat("a", maxSharedCodeLength+1)}}, defaultCode},
+		{"compressed, longer than Share writes", url.Values{"code": {z + strings.Repeat("A", maxSharedCodeLength)}, "z": {""}}, defaultCode},
+	}
+
 	h := New(validDeps())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("default when no code", func(t *testing.T) {
-		t.Parallel()
-
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{}})
-		assert.Equal(t, http.StatusOK, status)
-		assert.Equal(t, defaultCode, extractPlaygroundViewData(t, v).InitialCode)
-	})
-
-	t.Run("plain base64", func(t *testing.T) {
-		t.Parallel()
-
-		code := "package main // hello"
-		q := url.Values{"code": {base64.StdEncoding.EncodeToString([]byte(code))}}
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q})
-		assert.Equal(t, http.StatusOK, status)
-		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
-	})
-
-	t.Run("compressed round-trip", func(t *testing.T) {
-		t.Parallel()
-
-		code := "package main\n\nfunc Render(path string) string { return \"hi\" }\n"
-		q := url.Values{"code": {deflateBase64(t, []byte(code))}, "z": {""}}
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q})
-		assert.Equal(t, http.StatusOK, status)
-		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
-	})
-
-	t.Run("decompression bomb is rejected", func(t *testing.T) {
-		t.Parallel()
-
-		// ~8 MiB of zeros compresses to a few KB; well over the 1 MiB ceiling.
-		bomb := deflateBase64(t, bytes.Repeat([]byte{0}, 8<<20))
-		q := url.Values{"code": {bomb}, "z": {""}}
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q})
-		assert.Equal(t, http.StatusOK, status)
-
-		// The over-limit payload must not be adopted as InitialCode,
-		// the guard sets the default code instead.
-		got := extractPlaygroundViewData(t, v).InitialCode
-		assert.Equal(t, got, defaultCode, "view must use default code")
-	})
+			status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: tc.query})
+			assert.Equal(t, http.StatusOK, status)
+			assert.Equal(t, tc.want, extractPlaygroundViewData(t, v).InitialCode)
+		})
+	}
 }
 
 func TestCopyView(t *testing.T) {

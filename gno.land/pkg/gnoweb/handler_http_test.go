@@ -1776,15 +1776,18 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
 
+	// The default code says "Hello, Playground!"; shared code says
+	// sentinel_42, so a fallback to the default never passes for it.
+	const hello = "Hello, Playground!"
 	cases := []struct {
 		name    string
 		path    string
 		contain string
 	}{
-		{"default playground", "/_/play", "Playground"},
-		{"with initial code", "/_/play?code=package+main", "package main"},
-		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D", "package main"},
-		{"with compressed encoded code", "/_/play?code=KkhMzk5MT1XITczM4wIEAAD%2F%2Fw%3D%3D&z", "package main"},
+		{"default playground", "/_/play", hello},
+		{"plain code", "/_/play?code=package+sentinel_42", "package sentinel_42"},
+		{"compressed code", "/_/play?code=K0hMzk5MT1UoTs0rycxLzYk3MeICAA%3D%3D&z", "package sentinel_42"},
+		{"compressed code that does not inflate", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D&z", hello},
 	}
 
 	for _, tc := range cases {
@@ -1794,7 +1797,11 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Code)
-			assert.Contains(t, rr.Body.String(), tc.contain)
+			body := rr.Body.String()
+			assert.Contains(t, body, tc.contain)
+			if tc.contain != hello {
+				assert.NotContains(t, body, hello)
+			}
 		})
 	}
 

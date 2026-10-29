@@ -2,6 +2,7 @@ package playground
 
 import (
 	"bytes"
+	"cmp"
 	"compress/flate"
 	"context"
 	"encoding/base64"
@@ -16,9 +17,16 @@ import (
 )
 
 const (
-	// maxDecompressedCodeSize caps DEFLATE-decompressed shared code to guard
-	// against decompression bombs when ?code=...&z are present in query path.
-	maxDecompressedCodeSize = 1 << 20 // 1 MiB
+	// maxSharedCodeLength is the longest ?code= value read: Share refuses
+	// links over 8,000 characters (MAX_SHARE_URL_LENGTH), so a longer value
+	// was made by hand, and falls back to the default code undecoded.
+	maxSharedCodeLength = 8_000
+
+	// maxDecompressedCodeSize caps the code a ?code=...&z link inflates to.
+	// About 8,000 characters of DEFLATE hold some 30 KiB of real source;
+	// the margin is for code that compresses well, not for a link whose
+	// few bytes would expand into a page of megabytes.
+	maxDecompressedCodeSize = 64 << 10
 
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
@@ -40,30 +48,29 @@ func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL) (int,
 		return h.copyView(ctx, pkg.Path, u.Query.Get("file"))
 	}
 
-	// If available, read initial source code from a query argument
-	initial := u.Query.Get("code")
-	if initial != "" {
-		if decoded, err := base64.StdEncoding.DecodeString(initial); err == nil {
-			// Decompress code when given as DEFLATE compressed data format (RFC 1951)
-			if u.Query.Has("z") {
-				initial = "" // uses default code if decompress fails
-				if plain, ok := decodeCompressedCode(decoded); ok {
-					initial = plain
-				}
-			} else {
-				initial = string(decoded)
-			}
-		}
-	}
-
-	if initial == "" {
-		initial = defaultCode
-	}
-
 	return http.StatusOK, NewPageView(PlaygroundData{
-		InitialCode: initial,
+		InitialCode: cmp.Or(sharedCode(u.Query), defaultCode),
 		Domain:      h.deps.Domain,
 	})
+}
+
+// sharedCode reads ?code=: with &z, the base64 of raw DEFLATE (RFC 1951)
+// Share writes, and plain text without. Code that is too long, or does not
+// decode, is empty, so the default code shows instead.
+func sharedCode(q url.Values) string {
+	code := q.Get("code")
+	if len(code) > maxSharedCodeLength {
+		return ""
+	}
+	if !q.Has("z") {
+		return code
+	}
+	data, err := base64.StdEncoding.DecodeString(code)
+	if err != nil {
+		return ""
+	}
+	plain, _ := decodeCompressedCode(data)
+	return plain
 }
 
 // Errors a PackageFetcher answers with, so the copy page answers as the
