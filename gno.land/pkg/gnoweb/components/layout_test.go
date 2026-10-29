@@ -234,7 +234,7 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false, false)
 	assert.Len(t, links, 5, "expected Content, State, Source, Actions, Run links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "State", links[1].Label)
@@ -251,7 +251,7 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	}
 
 	// Test package mode
-	links := StaticHeaderDevLinks(u, ViewModePackage, false)
+	links := StaticHeaderDevLinks(u, ViewModePackage, false, false)
 	assert.Len(t, links, 2, "expected Content, Source links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
@@ -265,7 +265,7 @@ func TestStaticHeaderDevLinks_SourceKeepsOpenFile(t *testing.T) {
 		WebQuery: url.Values{"source": {""}, "file": {"admin.gno"}},
 	}
 
-	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false, false)
 	source := links[2]
 	require.Equal(t, "Source", source.Label)
 	assert.Contains(t, source.URL, "file=admin.gno", "the Source tab must not drop the open file")
@@ -273,7 +273,7 @@ func TestStaticHeaderDevLinks_SourceKeepsOpenFile(t *testing.T) {
 
 	// With no file open, Source still points at the package overview.
 	u.WebQuery = url.Values{}
-	links = StaticHeaderDevLinks(u, ViewModeRealm, false)
+	links = StaticHeaderDevLinks(u, ViewModeRealm, false, false)
 	assert.NotContains(t, links[2].URL, "file=")
 }
 
@@ -284,7 +284,7 @@ func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
 		Path: "/r/test/pkg",
 	}
 
-	links := StaticHeaderDevLinks(u, ViewModeRealm, true)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, true, false)
 	require.Len(t, links, 1, "static content should only have Content link")
 	assert.Equal(t, "Content", links[0].Label)
 }
@@ -297,7 +297,7 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
+	links := StaticHeaderDevLinks(u, ViewModeExplorer, false, false)
 	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
@@ -309,7 +309,7 @@ func TestStaticHeaderDevLinks_WithPlaygroundMode(t *testing.T) {
 	}
 
 	// Test playground mode
-	links := StaticHeaderDevLinks(u, ViewModePlayground, false)
+	links := StaticHeaderDevLinks(u, ViewModePlayground, false, false)
 	assert.Empty(t, links, "expected no links in playground mode")
 }
 

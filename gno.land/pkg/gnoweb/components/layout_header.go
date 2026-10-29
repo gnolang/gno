@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
@@ -125,7 +124,9 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 	}
 }
 
-func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
+// StaticHeaderDevLinks returns the page's tabs. An error page (isError)
+// leaves out Run, whose page needs a package that exists.
+func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static, isError bool) []HeaderLink {
 	contentURL, sourceURL, helpURL, runURL, stateURL := u, u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
@@ -192,6 +193,8 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case mode == ViewModePlayground:
 		// The breadcrumb's playground pill says where the reader is.
 		return []HeaderLink{}
+	case isError:
+		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink}
 	default:
 		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink, runLink}
 	}
@@ -244,15 +247,12 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 		if data.CopyOf.IsPure() {
 			copyMode = ViewModePackage
 		}
-		data.Links.Dev = StaticHeaderDevLinks(*data.CopyOf, copyMode, false)
+		data.Links.Dev = StaticHeaderDevLinks(*data.CopyOf, copyMode, false, false)
 		for i := range data.Links.Dev {
 			data.Links.Dev[i].IsActive = false
 		}
 	default:
-		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
-		if data.Error {
-			data.Links.Dev = slices.DeleteFunc(data.Links.Dev, func(l HeaderLink) bool { return l.Label == "Run" })
-		}
+		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static, data.Error)
 	}
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)
