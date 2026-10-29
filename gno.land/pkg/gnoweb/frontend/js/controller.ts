@@ -1,11 +1,12 @@
 import {
+	addressSlotText,
+	argSlotText,
 	debounce,
 	downloadBlob,
 	escapeShellSpecialChars,
 	evalArgs,
 	findAllInclusive,
 	findFirstInclusive,
-	gnoLiteral,
 	makeCopyIcon,
 	makeIcon,
 	postEval,
@@ -254,13 +255,14 @@ export abstract class BaseController {
 
 // Re-export utilities for convenience
 export {
+	addressSlotText,
+	argSlotText,
 	debounce,
 	downloadBlob,
 	escapeShellSpecialChars,
 	evalArgs,
 	findAllInclusive,
 	findFirstInclusive,
-	gnoLiteral,
 	makeCopyIcon,
 	makeIcon,
 	postEval,

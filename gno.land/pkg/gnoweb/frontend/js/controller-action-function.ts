@@ -1,11 +1,10 @@
 import {
+	addressSlotText,
+	argSlotText,
 	BaseController,
 	debounce,
-	escapeShellSpecialChars,
 	evalArgs,
-	gnoLiteral,
 	postEval,
-	shellQuote,
 } from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
 
@@ -90,9 +89,7 @@ export class ActionFunctionController extends BaseController {
 		// Update address elements
 		const addressElements = this.getTargets("address");
 		addressElements.forEach((addressElement) => {
-			// Quoted as $run quotes it: a key name may hold a space or a quote.
-			const key = address.trim();
-			addressElement.textContent = key ? shellQuote(key) : "ADDRESS";
+			addressElement.textContent = addressSlotText(address);
 		});
 	}
 
@@ -176,16 +173,11 @@ export class ActionFunctionController extends BaseController {
 
 	// push args in DOM (in func code)
 	private _updateArgInDOM(paramName: string, paramValue: string): void {
-		// Update args elements with the new parameter value. A qeval arg
-		// carries its param type, and is a Gno literal for it; a maketx call
-		// arg has none and stays the raw value gnokey parses.
+		// Update args elements with the new parameter value.
 		this.getTargets("arg")
 			.filter((arg) => this.getValue("arg", arg) === paramName)
 			.forEach((arg) => {
-				const type = this.getValue("type", arg);
-				arg.textContent = paramValue
-					? escapeShellSpecialChars(gnoLiteral(paramValue, type))
-					: "";
+				arg.textContent = argSlotText(paramValue, this.getValue("type", arg));
 			});
 
 		// Update function execute (form) and anchor (copy button) with new parameter

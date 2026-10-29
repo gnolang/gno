@@ -24,6 +24,21 @@ export function shellQuote(s: string): string {
 	return `'${s.replace(/'/g, "'\\''")}'`;
 }
 
+// argSlotText is the text of a $help command's arg slot. A qeval slot
+// carries its param type and gets a Gno literal for it; a maketx call slot
+// has none and keeps the raw value, which gnokey parses itself.
+export function argSlotText(value: string, type: string): string {
+	if (!value) return "";
+	return escapeShellSpecialChars(type ? gnoLiteral(value, type) : value);
+}
+
+// addressSlotText is the key or address slot of $help's commands, quoted as
+// $run quotes it: a key name may hold a space or a quote.
+export function addressSlotText(address: string): string {
+	const key = address.trim();
+	return key ? shellQuote(key) : "ADDRESS";
+}
+
 export function toKebabCase(str: string): string {
 	return str
 		.replace(/([a-z])([A-Z])/g, "$1-$2") // replace camelCase with dash-separated words

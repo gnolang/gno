@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { test } from "node:test";
-import { evalArgs, gnoLiteral, shellQuote, zeroLiteral } from "./utils.ts";
+import {
+	addressSlotText,
+	argSlotText,
+	evalArgs,
+	gnoLiteral,
+	shellQuote,
+	zeroLiteral,
+} from "./utils.ts";
 
 test("gnoLiteral quotes strings and addresses, and leaves the rest as typed", () => {
 	const cases: [value: string, type: string, want: string][] = [
@@ -199,6 +206,39 @@ test("the key in $help's commands reaches gnokey as typed", () => {
 		assert.deepEqual(
 			bashArgs(`cmd query auth/accounts/${k}`),
 			["query", `auth/accounts/${key}`],
+			key,
+		);
+	}
+});
+
+// A maketx call arg slot has no type: gnokey gets the value as typed, never
+// a Gno literal of it. A qeval slot has one, and gets the literal.
+test("$help's maketx args reach gnokey as typed", () => {
+	for (const v of [
+		"bob smith",
+		"hello world-1",
+		"my-name",
+		"a,b",
+		"https://x.y/z",
+		"it's",
+		'say "hi"',
+		"alice",
+		"1000ugnot",
+	]) {
+		assert.deepEqual(bashArgs(`cmd $'${argSlotText(v, "")}'`), [v], v);
+	}
+	assert.equal(argSlotText("", ""), "");
+	assert.deepEqual(bashArgs(`cmd $'${argSlotText("bob smith", "string")}'`), [
+		'"bob smith"',
+	]);
+});
+
+test("$help's address slot is the quoted key, or ADDRESS", () => {
+	assert.equal(addressSlotText(" "), "ADDRESS");
+	for (const key of awkwardKeys.filter(Boolean)) {
+		assert.deepEqual(
+			bashArgs(`cmd ${addressSlotText(` ${key} `)}`),
+			[key],
 			key,
 		);
 	}
