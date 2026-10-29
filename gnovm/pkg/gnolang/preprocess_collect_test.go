@@ -3051,3 +3051,23 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 		})
 	}
 }
+
+func TestPreprocessCollectMethodExprPointerPointer(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type T struct{}
+
+func (T) foo() {}
+
+func main() {
+	var pt *T
+	(**T).foo(&pt)
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:9:2", "(**T).foo undefined (type **main.T has no field or method foo)",
+	)
+}

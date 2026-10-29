@@ -3774,7 +3774,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					var dt *DeclaredType
 					switch ct := xt.(type) {
 					case *PointerType:
-						dt = ct.Elt.(*DeclaredType)
+						var ok bool
+						if dt, ok = ct.Elt.(*DeclaredType); !ok { // (**T).m
+							undefinedSelector(n, xt)
+						}
 					case *DeclaredType:
 						dt = ct
 					default:
