@@ -662,18 +662,12 @@
 			transition: width var(--g-transition-fast);
 		}
 
-		/* SVG styles: phones show the labels alone, so up to five tabs fit
-		   and none is a bare icon to decode. */
+		/* SVG styles */
 		& > svg {
-			display: none;
 			min-width: var(--g-space-2);
 			flex-shrink: 0;
 			width: var(--g-space-5);
 			height: var(--g-space-5);
-
-			@media (--md) {
-				display: inline-block;
-			}
 
 			@media (--xl) {
 				display: none;
@@ -741,7 +735,7 @@
    omnibar: from xl, where they share its row, they keep their size, stay
    aligned on the right, and run into the gap before the omnibar. Below,
    they have a row of their own, from the left. Icons only once the screen
-   has room for them. */
+   has room for them: phones show the five labels alone. */
 .b-main-menu:has(> .menu-dev > .b-menu-link:nth-child(5)) {
 	@media (--xl) {
 		justify-content: flex-end;
@@ -765,7 +759,13 @@
 	}
 
 	.link > svg {
-		@media (--2xl) {
+		display: none;
+
+		@media (--md) {
+			display: inline-block;
+		}
+
+		@media (--xl) {
 			display: none;
 		}
 
