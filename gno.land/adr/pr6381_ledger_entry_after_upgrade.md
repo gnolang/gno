@@ -1,6 +1,6 @@
 # ADR: A ledger entry is written once the chain runs the release
 
-> **Superseded in part by `prxxxx_publish_releases_early.md`.** A final release is cut before its halt height is chosen, without `--halt-height`, so a coordinated release's tag message does not name its `halt_min_version` (Decision 3 below), and the halt proposal is created with `govdao-exec.sh set-halt` once the height is chosen.
+> **Superseded in part by `pr6429_publish_releases_early.md`.** A final release is cut before its halt height is chosen, without `--halt-height`, so a coordinated release's tag message does not name its `halt_min_version` (Decision 3 below), and the halt proposal is created with `govdao-exec.sh set-halt` once the height is chosen.
 
 ## Context
 

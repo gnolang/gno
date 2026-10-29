@@ -2,7 +2,7 @@
 
 > **Superseded in part by `pr6381_ledger_entry_after_upgrade.md`.** That ADR has a ledger entry written once the chain runs the release, so `cut-release.sh` warns, rather than refuses, when a final release has no entry (Decision 7 below), and a tag message records no halt height.
 >
-> **Superseded in part by `prxxxx_publish_releases_early.md`.** Every release is published as a pre-release, and GitHub's "Latest" and the CLI images' `latest` move only when `misc/release/promote-release.sh` promotes a final release, not by tag order at publication (Decision 4 below).
+> **Superseded in part by `pr6429_publish_releases_early.md`.** Every release is published as a pre-release, and GitHub's "Latest" and the CLI images' `latest` move only when `misc/release/promote-release.sh` promotes a final release, not by tag order at publication (Decision 4 below).
 
 ## Context
 
