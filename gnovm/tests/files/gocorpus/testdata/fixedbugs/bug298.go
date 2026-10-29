@@ -11,6 +11,6 @@ func Sum() int
 
 // GnoError:
 // line 9: function Sum does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 10: expected declaration, found 'for'
+// line 10: non-declaration statement outside function body
 
 // Verdict: Clean errorcheck

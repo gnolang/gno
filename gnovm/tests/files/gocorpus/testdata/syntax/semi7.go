@@ -14,9 +14,8 @@ func main() {
 // GnoError:
 // line 10: name x not declared
 // line 11: expected statement, found 'else'
-// line 12: expected ';', found 'EOF'
 
 // GnoWordingDiffers:
 // line 11: gc expects: unexpected semicolon or newline before .?else.?|unexpected keyword else; gno: expected statement, found 'else'
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 12
+// Verdict: Clean errorcheck

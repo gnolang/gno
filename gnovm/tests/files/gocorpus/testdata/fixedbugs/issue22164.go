@@ -26,12 +26,9 @@ func i() {
 }
 
 // GnoError:
-// line 12: missing ',' before newline in argument list
-// line 13: missing ',' in argument list
-// line 14: expected operand, found '}'
-// line 26: expected ')', found 'EOF'
+// line 12: unexpected newline in argument list; possibly missing comma or )
+// line 20: unexpected newline in argument list; possibly missing comma or )
+// line 24: unexpected newline in composite literal; possibly missing comma or }
+// line 26: expected '(', found main
 
-// GnoWordingDiffers:
-// line 12: gc expects: unexpected newline; gno: missing ',' before newline in argument list
-
-// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): the missing comma before a newline is reported on the next line, with cascades on lines 13, 14 and 26
+// Verdict: KnownIssue errorcheck: #6344: line 26 is the harness's appended main parsed inside i, whose '}' the comma recovery took as the literal's close (gc hides the same follow-up at EOF); over-strict: lines 26

@@ -18,10 +18,9 @@ func main() {
 // line 10: var declaration not allowed in if initializer
 // line 12: expected '{', found 'var'
 // line 14: expected '{', found 'var'
-// line 15: expected ';', found 'EOF'
 
 // GnoWordingDiffers:
 // line 12: gc expects: var declaration not allowed in switch initializer; gno: expected '{', found 'var'
 // line 14: gc expects: var declaration not allowed in for initializer; gno: expected '{', found 'var'
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15
+// Verdict: Clean errorcheck

@@ -11,9 +11,6 @@ var a = []int{
 }
 
 // GnoError:
-// line 10: missing ',' before newline in composite literal
-
-// GnoWordingDiffers:
-// line 10: gc expects: need trailing comma before newline in composite literal|possibly missing comma or }; gno: missing ',' before newline in composite literal
+// line 10: unexpected newline in composite literal; possibly missing comma or }
 
 // Verdict: Clean errorcheck
