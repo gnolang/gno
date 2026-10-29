@@ -44,3 +44,5 @@ tree:
   issue11610a, issue14520a, issue54280 by evidence line).
 - Programs that folded constants past 512 bits are rejected at deploy,
   as gc rejects them.
+
+Follow-up (2026-10-30): a `make` size past int, an array length that is nil, non-integer or non-constant, and a conversion to a non-constant type inside a constant are rejected.
