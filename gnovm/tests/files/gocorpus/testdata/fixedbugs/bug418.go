@@ -23,5 +23,7 @@ func Recursive() (x interface{}, y int) {
 
 // GnoError:
 // line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 16: multiple-value Two() (value of type (int,int)) in single-value context
+// line 21: multiple-value Recursive() (value of type (interface {},int)) in single-value context
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 21
+// Verdict: Clean errorcheck

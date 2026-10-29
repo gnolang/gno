@@ -1771,6 +1771,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
 				checkValDefineMismatch(n)
+				if n.Op == ASSIGN && len(n.Lhs) < len(n.Rhs) {
+					// Before the walk: it visits one value per target.
+					panic(assignMismatchMsg(len(n.Lhs), nil, len(n.Rhs)))
+				}
 
 				if n.Op == DEFINE {
 					checkShortVarDecl(ns, last, n)
@@ -3333,15 +3337,15 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 										if len(spts) <= i {
 											panic("expected final vargs slice but got many")
 										}
-										checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
+										checkOrConvertArg(store, last, n, i, spts[i].Type)
 									} else {
-										checkOrConvertType(store, last, n, &n.Args[i], spts[len(spts)-1].Type.Elem())
+										checkOrConvertArg(store, last, n, i, spts[len(spts)-1].Type.Elem())
 									}
 								} else {
-									checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
+									checkOrConvertArg(store, last, n, i, spts[i].Type)
 								}
 							} else {
-								checkOrConvertType(store, last, n, &n.Args[i], spts[i].Type)
+								checkOrConvertArg(store, last, n, i, spts[i].Type)
 							}
 						}
 					}
@@ -4079,6 +4083,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							// we updated FuncValue from source.
 						}
 					} else { // len(Lhs) == len(Rhs)
+						assertAssignValues(store, last, len(n.Lhs), n.Rhs)
 						switch n.Op {
 						case SHL_ASSIGN, SHR_ASSIGN:
 							// Special case if shift assign <<= or >>=.
@@ -4275,6 +4280,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						))
 					}
 				} else {
+					assertSingleValued(store, last, n.Results)
 					// Results consts become default *ConstExprs.
 					for i := range n.Results {
 						rtx := ft.Results[i].Type
@@ -4529,15 +4535,7 @@ func parseAssignFromExprList(
 ) {
 	numNames := len(nameExprs)
 
-	// Ensure that function only return 1 value.
-	for _, v := range valueExprs {
-		if cx, ok := v.(*CallExpr); ok {
-			tt, ok := evalStaticTypeOfRaw(store, bn, cx).(*tupleType)
-			if ok && len(tt.Elts) > 1 {
-				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
-			}
-		}
-	}
+	assertAssignValues(store, bn, numNames, valueExprs)
 
 	// Evaluate types and convert consts.
 	if typeExpr != nil {

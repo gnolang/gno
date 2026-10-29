@@ -19,7 +19,7 @@ func oneResult() int {
 }
 
 // GnoError:
-// line 9: multiple-value twoResults<VPBlock(2,6)> (value of type [int int]) in single-value context
+// line 9: assignment mismatch: 1 variable but twoResults returns 2 values
 // line 10: assignment mismatch: 3 variable(s) but twoResults<VPBlock(2,6)>() returns 2 value(s)
 // line 11: assignment mismatch: 2 variable(s) but oneResult<VPBlock(2,7)>() returns 1 value(s)
 
