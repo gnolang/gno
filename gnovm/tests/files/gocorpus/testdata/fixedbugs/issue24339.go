@@ -19,7 +19,4 @@ var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
 
 // ERROR "unknown field foo"
 
-// GnoError:
-// line 19: unknown field foo in struct literal of type struct{}
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20; over-strict: lines 19
+// Verdict: Unsupported gc-specific: /*line*/ directives remap the positions the markers refer to
