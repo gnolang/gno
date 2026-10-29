@@ -391,6 +391,48 @@ func TestCopyView(t *testing.T) {
 	}
 }
 
+// TestRunLabel checks the page names what Run does before any script runs:
+// Preview on a copy of a realm that declares Render, Run locally otherwise.
+func TestRunLabel(t *testing.T) {
+	t.Parallel()
+
+	const render = "package foo\n\nfunc Render(path string) string { return \"\" }\n"
+	cases := []struct {
+		name, pkg, code string
+		preview         bool
+	}{
+		{"realm with Render", "/r/demo/foo", render, true},
+		{"realm without Render", "/r/demo/foo", "package foo\n", false},
+		{"Render in a comment", "/r/demo/foo", "package foo\n// func Render(path string) string\n", false},
+		{"pure package with Render", "/p/demo/foo", render, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			deps := validDeps()
+			deps.Packages = &stubPackages{files: []File{{Name: "foo.gno", Content: tc.code}}}
+			status, v := New(deps).copyView(context.Background(), tc.pkg, "")
+			require.Equal(t, http.StatusOK, status)
+			var buf bytes.Buffer
+			require.NoError(t, v.Render(&buf))
+			page := buf.String()
+			if tc.preview {
+				assert.Contains(t, page, "<span>Preview</span>")
+				assert.Contains(t, page, `title="Show what `+deps.Domain+tc.pkg+` renders (Ctrl/Cmd+Enter)"`)
+			} else {
+				assert.Contains(t, page, "<span>Run locally</span>")
+				assert.Contains(t, page, `title="Show the commands that run and test this code (Ctrl/Cmd+Enter)"`)
+			}
+		})
+	}
+
+	_, v := New(validDeps()).GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{"code": {render}}})
+	var buf bytes.Buffer
+	require.NoError(t, v.Render(&buf))
+	assert.Contains(t, buf.String(), "<span>Run locally</span>", "a shared snippet exists nowhere on the chain")
+}
+
 func TestParseFrom(t *testing.T) {
 	t.Parallel()
 

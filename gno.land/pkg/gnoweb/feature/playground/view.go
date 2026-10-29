@@ -19,4 +19,8 @@ type PlaygroundData struct {
 
 	// DefaultFile is the filename that should be focused on first load.
 	DefaultFile string
+
+	// Preview is true when Run shows what the copied realm renders,
+	// instead of the commands that run the code locally.
+	Preview bool
 }

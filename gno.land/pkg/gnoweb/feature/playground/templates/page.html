@@ -21,9 +21,11 @@ LAYOUT - Playground view
           <svg class="c-icon"><use href="#ico-ddl"></use></svg>
           <span>Download</span>
         </button>
-        <button type="button" class="b-btn b-btn--primary c-with-icon" data-playground-target="run" data-action="click->playground#runCode" title="Show the commands that run and test this code (Ctrl/Cmd+Enter)">
+        <button type="button" class="b-btn b-btn--primary c-with-icon" data-playground-target="run" data-action="click->playground#runCode"
+          {{- if .Preview }} title="Show what {{ .Domain }}/{{ .From }} renders (Ctrl/Cmd+Enter)"
+          {{- else }} title="Show the commands that run and test this code (Ctrl/Cmd+Enter)"{{ end }}>
           <svg class="c-icon"><use href="#ico-run-code"></use></svg>
-          <span>Run locally</span>
+          <span>{{ if .Preview }}Preview{{ else }}Run locally{{ end }}</span>
         </button>
       </div>
     </div>

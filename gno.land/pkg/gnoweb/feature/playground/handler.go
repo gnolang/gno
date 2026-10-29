@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -108,11 +110,25 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 		}
 	}
 
+	from := strings.TrimPrefix(pkgPath, "/")
 	return http.StatusOK, NewPageView(PlaygroundData{
 		Files:       sources,
-		From:        strings.TrimPrefix(pkgPath, "/"),
+		From:        from,
 		Domain:      h.deps.Domain,
 		DefaultFile: file,
+		Preview:     canPreview(from, sources),
+	})
+}
+
+var renderDecl = regexp.MustCompile(`(?m)^func Render\(`)
+
+// canPreview reports whether Run can show what the copy of from renders on
+// the chain: from is a realm and one of its files declares Render. The
+// controller's canPreview (playground-files.ts) decides the same, then
+// drops it on the first edit.
+func canPreview(from string, files []File) bool {
+	return strings.HasPrefix(from, "r/") && slices.ContainsFunc(files, func(f File) bool {
+		return renderDecl.MatchString(f.Content)
 	})
 }
 
