@@ -69,8 +69,10 @@ current, so the reader can go back to it, and a copy of a community package
 carries the realm notice that package's pages carry.
 
 The playground does not execute scratch-pad code. Its button says what it
-does, from the server's first render on. On an unmodified copy of a realm
-that declares `Render`, it reads "Preview" and shows what that realm
+does, from the server's first render on: the server alone decides whether a
+copy previews, and the button carries the label and title the controller
+switches to on the first edit. On an unmodified copy of a realm that
+declares `Render`, it reads "Preview" and shows what that realm
 renders, `Render("")` through `/_/api/eval` at the copy's own path.
 Anywhere else (edited code, a package, a share, the default code), it reads
 "Run locally" and prints `gno run .` and `gno test .`, with no file name in
@@ -81,7 +83,10 @@ Analytics counts the page as `playground`, and `$run` as `run`.
 
 The page is served with its code as text, each file of a copy under its
 name, in the source view's frame, so a reader without JS still reads it; the
-controller replaces it with the editor.
+controller replaces it with the editor. Share, Download, Run, the file tabs
+and the Output do nothing without JS: they are served hidden and shown by
+the controller. PurgeCSS drops the global `[hidden]` rule, so the page,
+like the run page, keeps one of its own.
 
 ### 2. Expression evaluator on the action page (`$help`)
 
@@ -92,10 +97,14 @@ cards' live results evaluate through `POST /_/api/eval` (`vm/qeval`), so
 nothing mutates state.
 
 A card's Eval button sends the card's params in order, one per input, so
-unnamed and repeated (`_`) params count: the value typed, quoted when the
-param is a `string` or an `address` and not already a quoted literal, or a
-zero literal for the param's type (`""` for both). The template renders the
-types from the package doc (`.Params`) rather than parsing the signature.
+unnamed and repeated (`_`) params count: the value typed, as one operand,
+or a zero literal for the param's type (`""` for a `string` or an
+`address`). A typed value is kept only when it is exactly one valid Gno
+string literal, or, for a param of any other type, one number, rune or
+name; anything else is quoted. An expression never gets in: a link's
+prefilled value cannot make a card evaluate something else on load and
+show it as the function's result. The template renders the types from the
+package doc (`.Params`) rather than parsing the signature.
 The card's live result and its printed `gnokey query vm/qeval -data` command
 use the same literals, so all three agree on what a typed value means; the
 `gnokey maketx call -args` command keeps the raw value, which gnokey parses
@@ -134,9 +143,9 @@ through a heredoc. gnoweb never signs or broadcasts.
   pure package's `$run` is reached by URL. It makes a realm's fifth tab, so
   on phones a realm's tabs show their labels without icons, and on tablets,
   beside the omnibar, they sit closer so the icons keep their size; pages
-  with fewer tabs keep their icons and spacing. gnodev loads a package lazily on its first query,
-  so its proxy counts `vm/qdoc` as one, as it does `vm/qrender`: a first
-  `$run` gets the run page.
+  with fewer tabs keep their icons and spacing. gnodev loads a package
+  lazily on its first query, so its proxy counts `vm/qdoc` as one, as it
+  does `vm/qrender`: a first `$run` gets the run page.
 - **Starter script:** built on the server from the same qdoc, so it runs as
   generated, for a gas that does not depend on the package: `_ = pkg.Render`
   under a commented `println(pkg.Render(""))` when the package declares
@@ -165,23 +174,27 @@ through a heredoc. gnoweb never signs or broadcasts.
 - **Shell safety:** each typed value (key, gas, fee, coins) is single-quoted
   when it holds a character a shell treats specially, so it stays one
   literal argument; `escapeShellSpecialChars` leaves spaces, so it would not.
+  `shellQuote` is a shared helper: `$help`'s commands quote the key the same
+  way.
   The heredoc's delimiter (`GNO_EOF`, then `GNO_EOF_1`, ...) is one no line
   of the script equals, so the script cannot end the heredoc and run lines as
   commands. Both helpers are pinned by the frontend tests, which run the
-  quoted values and the heredoc through `sh`.
+  quoted values through `bash` and the heredoc through `sh`.
 - **Gas:** 50,000,000 gas with a 100000ugnot fee. The starter script names
   `Render` (or the first exported function) and shows the call in a
   comment: a `Render` costs what its package makes it cost (145 million gas
   for `r/gnoland/home`, 448 million for `r/docs/markdown` on gnodev), so a
   starter that called it would run out of gas, and be charged the fee, on
   exactly the realms people open. Named only, the example realms' starters
-  take 1 to 9 million gas. The fee pays for 100 million gas at the chain's
-  initial price (1ugnot per 1000 gas), since the whole fee is charged, even
-  out of gas; the line above the command says so and names the flags to
-  raise. `$help`'s calls keep their 1,000,000,000 and 1000000ugnot: they
-  call any function. Both pairs are Go values in `components` (`CallGas`,
-  `RunGas`), read by `command.html`, the run page's inputs and, for an
-  emptied field, the controller (the input's `defaultValue`).
+  take 1 to 9 million gas; uncommented, `r/sys/users`'s takes 10 million and
+  `r/gov/dao`'s 6 million, both broadcast under the default. The fee pays
+  for 100 million gas at the chain's initial price (1ugnot per 1000 gas),
+  since the whole fee is charged, even out of gas; the line above the
+  command says so and names the flags to raise. `$help`'s calls keep their
+  1,000,000,000 and 1000000ugnot: they call any function. Both pairs are Go
+  values in `components` (`CallGas`, `RunGas`), read by `command.html`, the
+  run page's inputs and, for an emptied field, the controller (the input's
+  `defaultValue`).
 - **"Include script"** is a `.b-switch`, whose checkbox stays focusable on
   this page; left out, the command asks for `script.gno` in a comment.
 
@@ -243,10 +256,12 @@ opens the playground).
 `connect-src` is `'self'` only: the JS calls `/_/api/eval` and never the node.
 CodeMirror's injected styles carry the per-response CSP nonce.
 
-Assets loaded without the version query (`?v=`), such as a module's own
-`./controller.js` import, are served `no-cache` and revalidated against the
-ETag; only versioned URLs are `immutable`, so a deploy reaches returning
-readers.
+Assets loaded without the version query (`?v=`) that change in place, such
+as a module's own `./controller.js` import, are served `no-cache` and
+revalidated against the ETag, so a deploy reaches returning readers. A
+versioned URL, a font and esbuild's content-hashed `chunk-<hash>.js` stay
+`immutable`, as on master, and only on a 2xx: an error is `no-store`. A page
+view costs one 304, for `controller.js`.
 
 ## Alternatives Considered
 
