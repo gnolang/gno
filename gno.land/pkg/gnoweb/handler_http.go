@@ -239,6 +239,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 				Burst:          evalRateLimitBurst,
 				TrustedProxies: trustedProxies,
 			}),
+			Timeout: h.requestTimeout(),
 		})
 		h.Run = run.New(run.Deps{
 			Logger:  logger,

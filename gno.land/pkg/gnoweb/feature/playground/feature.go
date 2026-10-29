@@ -4,6 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2"
+	"golang.org/x/sync/singleflight"
 )
 
 // ClientAdapter is the subset of the gnoweb chain-client interface that
@@ -40,11 +44,19 @@ type Deps struct {
 	// Limiter bounds the per-client eval rate. Optional; nil disables the
 	// check.
 	Limiter Limiter
+
+	// Timeout bounds one eval, like the deadline pages render under.
+	// Zero means defaultEvalTimeout.
+	Timeout time.Duration
 }
 
 // Handler owns the playground feature state.
 type Handler struct {
 	deps Deps
+
+	// evals holds the recent eval answers, evalGroup the ones in flight.
+	evals     *lru.Cache[string, evalAnswer]
+	evalGroup singleflight.Group
 }
 
 // New validates required deps and returns a Handler.
@@ -64,5 +76,10 @@ func New(deps Deps) *Handler {
 		deps.Domain = "gno.land"
 	}
 
-	return &Handler{deps: deps}
+	if deps.Timeout <= 0 {
+		deps.Timeout = defaultEvalTimeout
+	}
+
+	evals, _ := lru.New[string, evalAnswer](evalCacheSize) // errors only on a size <= 0
+	return &Handler{deps: deps, evals: evals}
 }

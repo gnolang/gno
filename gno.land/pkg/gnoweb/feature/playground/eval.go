@@ -1,11 +1,14 @@
 package playground
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mime"
 	"net/http"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -18,6 +21,23 @@ const (
 	// forwarded to the RPC node. Legitimate values are far smaller.
 	maxEvalPkgPathLen    = 1024
 	maxEvalExpressionLen = 64 * 1024
+
+	// maxEvalResultBytes caps the result returned to the reader, far above
+	// what a preview shows; the rest is cut with a visible marker.
+	maxEvalResultBytes = 64 << 10 // 64 KiB
+
+	// evalCacheTTL is how long an answer is reused. The chain moves one block
+	// at a time, so a few seconds keeps previews current while every reader
+	// of a popular Actions page costs the node one query per function.
+	evalCacheTTL = 3 * time.Second
+
+	// evalCacheSize bounds the cached answers; with the result and
+	// expression caps above, it bounds the cache to a few tens of MiB.
+	evalCacheSize = 256
+
+	// defaultEvalTimeout bounds an eval when Deps.Timeout is not set; it is
+	// gnoweb's default page deadline.
+	defaultEvalTimeout = 30 * time.Second
 )
 
 // The errors a ClientAdapter wraps when an eval failed for a reason that
@@ -101,17 +121,18 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 
 	h.deps.Logger.Debug("playground eval", "pkg_path", pkgPath)
 
+	ctx, cancel := context.WithTimeout(r.Context(), h.deps.Timeout)
+	defer cancel()
+
 	start := time.Now()
-	// The client adds the chain domain and joins pkgPath and the expression
-	// as vm/qeval expects: "gno.land/r/demo/boards.Render("")".
-	result, err := h.deps.Client.Eval(r.Context(), pkgPath, req.Expression)
+	result, err := h.eval(ctx, pkgPath, req.Expression)
 	took := time.Since(start)
 
 	h.deps.Logger.Debug("playground eval result", "took", took, "error", err)
 
 	switch {
 	case err == nil:
-		writeJSON(w, http.StatusOK, evalResponse{Result: string(result)})
+		writeJSON(w, http.StatusOK, evalResponse{Result: result})
 	case errors.Is(err, ErrEvalTimeout):
 		writeJSON(w, http.StatusGatewayTimeout, evalResponse{Error: ErrEvalTimeout.Error()})
 	case errors.Is(err, ErrEvalUnavailable):
@@ -119,6 +140,61 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeJSON(w, http.StatusOK, evalResponse{Error: err.Error()})
 	}
+}
+
+// evalAnswer is what the node answered for one expression.
+type evalAnswer struct {
+	result  string
+	err     error
+	expires time.Time
+}
+
+// eval answers expr in pkgPath, reusing an answer younger than evalCacheTTL
+// and sharing one node query between the readers asking at the same time.
+// The query runs detached from the reader who started it, under its own
+// deadline, so a closed tab does not fail the readers waiting on it.
+func (h *Handler) eval(ctx context.Context, pkgPath, expr string) (string, error) {
+	// The length prefix keeps two different pairs from sharing a key.
+	key := fmt.Sprintf("%d:%s%s", len(pkgPath), pkgPath, expr)
+	if a, ok := h.evals.Get(key); ok && time.Now().Before(a.expires) {
+		return a.result, a.err
+	}
+
+	ch := h.evalGroup.DoChan(key, func() (any, error) {
+		qctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), h.deps.Timeout)
+		defer cancel()
+		// The client adds the chain domain and joins pkgPath and the
+		// expression as vm/qeval expects: "gno.land/r/demo/boards.Render("")".
+		res, err := h.deps.Client.Eval(qctx, pkgPath, expr)
+		a := evalAnswer{result: capEvalResult(res), err: err, expires: time.Now().Add(evalCacheTTL)}
+		// Only the chain's answer is kept: a node that could not answer
+		// may answer the next reader.
+		if !errors.Is(err, ErrEvalUnavailable) && !errors.Is(err, ErrEvalTimeout) {
+			h.evals.Add(key, a)
+		}
+		return a, nil
+	})
+
+	select {
+	case res := <-ch:
+		a := res.Val.(evalAnswer)
+		return a.result, a.err
+	case <-ctx.Done():
+		return "", fmt.Errorf("%w: %w", ErrEvalTimeout, ctx.Err())
+	}
+}
+
+// capEvalResult cuts a result longer than maxEvalResultBytes on a rune
+// boundary and says how much was cut.
+func capEvalResult(b []byte) string {
+	if len(b) <= maxEvalResultBytes {
+		return string(b)
+	}
+	n := maxEvalResultBytes
+	for n > 0 && !utf8.RuneStart(b[n]) {
+		n--
+	}
+	return fmt.Sprintf("%s\n… (truncated: first %d of %d bytes shown)", b[:n], n, len(b))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
