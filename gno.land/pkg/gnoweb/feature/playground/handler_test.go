@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -379,41 +378,34 @@ func TestDecodeCompressedCode(t *testing.T) {
 	})
 }
 
-// TestRateLimiter tests that the per-IP rate limiter enforces burst
-// limits. Uses a custom (burst=2, refill=10s) bucket so the test does
-// not race the production +1/3s refill rate.
-func TestRateLimiter(t *testing.T) {
+// denyLimiter refuses every request after the first n.
+type denyLimiter struct{ n int }
+
+func (l *denyLimiter) AllowRequest(*http.Request) bool {
+	l.n--
+	return l.n >= 0
+}
+
+// TestEvalLimiter checks that serveEval charges the configured limiter and
+// answers 429 once it refuses.
+func TestEvalLimiter(t *testing.T) {
 	t.Parallel()
 
-	h := &Handler{
-		deps: Deps{
-			Client: &stubClient{evalResult: []byte("ok")},
-			Logger: discardLogger(),
-			Domain: "gno.land",
-		},
-		limiter: newRateLimiter(2, 10*time.Second),
-	}
+	h := New(Deps{
+		Client:  &stubClient{evalResult: []byte("ok")},
+		Logger:  discardLogger(),
+		Limiter: &denyLimiter{n: 2},
+	})
 	handler := h.EvalHandler()
 
 	body := `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`
-	ip := "192.0.2.1:1234"
-
-	// First two requests should succeed (burst=2).
-	for i := range 2 {
-		req := httptest.NewRequest(http.MethodPost, "/_/api/eval", bytes.NewBufferString(body))
+	codes := make([]int, 3)
+	for i := range codes {
+		req := httptest.NewRequest(http.MethodPost, "/_/api/eval", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		req.RemoteAddr = ip
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code, "request %d should succeed", i+1)
+		codes[i] = rr.Code
 	}
-
-	// Third request should be rate-limited.
-	req := httptest.NewRequest(http.MethodPost, "/_/api/eval", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.RemoteAddr = ip
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusTooManyRequests, rr.Code, "third request should be rate-limited")
-	assert.Contains(t, rr.Body.String(), "rate limit")
+	assert.Equal(t, []int{http.StatusOK, http.StatusOK, http.StatusTooManyRequests}, codes)
 }

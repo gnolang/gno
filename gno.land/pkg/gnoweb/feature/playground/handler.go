@@ -192,7 +192,7 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.limiter != nil && !h.limiter.allow(clientIP(r)) {
+	if h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
 		writeJSON(w, http.StatusTooManyRequests, evalResponse{Error: "rate limit exceeded, please slow down"})
 		return
 	}

@@ -142,6 +142,14 @@ type HTTPHandlerConfig struct {
 // bucket throttled everyone at a rate the edge would have allowed.
 const defaultRateLimitPerMinute = 1200
 
+// The /_/api/eval budget per client. An Actions page evaluates each of its
+// zero-argument functions on load, so the burst covers a load and a reload
+// of a realm with a dozen of them, with room left for typing.
+const (
+	evalRateLimitBurst     = 40
+	evalRateLimitPerMinute = 60
+)
+
 // validate checks if the HTTPHandlerConfig is valid.
 func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.ClientAdapter == nil {
@@ -207,22 +215,6 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Logger:   logger,
 		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity, cfg.NoIndex),
 	}
-	// The playground and the run page print gnokey commands, so they need the
-	// node a reader's gnokey talks to and its chain ID. Without them gnoweb
-	// serves everything else, as it did before these features.
-	if cfg.Meta.RemoteHelp != "" && cfg.Meta.ChainId != "" {
-		h.Playground = playground.New(playground.Deps{
-			Client: &playgroundClientAdapter{cfg.ClientAdapter},
-			Logger: logger,
-			Domain: cfg.Meta.Domain,
-		})
-		h.Run = run.New(run.Deps{
-			Logger:  logger,
-			Domain:  cfg.Meta.Domain,
-			Remote:  cfg.Meta.RemoteHelp,
-			ChainId: cfg.Meta.ChainId,
-		})
-	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
 		rate = defaultRateLimitPerMinute
@@ -232,6 +224,29 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
 	h.trustedProxies = trustedProxies
+	// The playground and the run page print gnokey commands, so they need the
+	// node a reader's gnokey talks to and its chain ID. Without them gnoweb
+	// serves everything else, as it did before these features.
+	if cfg.Meta.RemoteHelp != "" && cfg.Meta.ChainId != "" {
+		h.Playground = playground.New(playground.Deps{
+			Client: &playgroundClientAdapter{cfg.ClientAdapter},
+			Logger: logger,
+			Domain: cfg.Meta.Domain,
+			// Its own bucket: evals run caller-chosen code on the node, so
+			// they get a tighter budget than page reads.
+			Limiter: state.NewIPLimiter(state.RateLimitConfig{
+				PerMinute:      evalRateLimitPerMinute,
+				Burst:          evalRateLimitBurst,
+				TrustedProxies: trustedProxies,
+			}),
+		})
+		h.Run = run.New(run.Deps{
+			Logger:  logger,
+			Domain:  cfg.Meta.Domain,
+			Remote:  cfg.Meta.RemoteHelp,
+			ChainId: cfg.Meta.ChainId,
+		})
+	}
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},

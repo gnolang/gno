@@ -58,7 +58,6 @@ func TestNewDefaults(t *testing.T) {
 		require.NotNil(t, h)
 		assert.Equal(t, "gno.land", h.deps.Domain)
 		assert.NotNil(t, h.deps.Logger)
-		assert.NotNil(t, h.limiter)
 	})
 
 	t.Run("preserves explicit domain and logger", func(t *testing.T) {

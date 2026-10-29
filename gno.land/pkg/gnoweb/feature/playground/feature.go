@@ -3,6 +3,7 @@ package playground
 import (
 	"context"
 	"log/slog"
+	"net/http"
 )
 
 // ClientAdapter is the subset of the gnoweb chain-client interface that
@@ -21,6 +22,13 @@ type ClientAdapter interface {
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
+// Limiter is the admission check applied to each eval request. It takes the
+// request, not an address: which address to trust depends on which proxies
+// to trust, and that rule belongs with the limiter.
+type Limiter interface {
+	AllowRequest(r *http.Request) bool
+}
+
 // Deps gathers the dependencies the playground Handler needs.
 type Deps struct {
 	Client ClientAdapter
@@ -28,12 +36,15 @@ type Deps struct {
 
 	// Domain is the chain domain (e.g. "gno.land").
 	Domain string
+
+	// Limiter bounds the per-client eval rate. Optional; nil disables the
+	// check.
+	Limiter Limiter
 }
 
 // Handler owns the playground feature state.
 type Handler struct {
-	deps    Deps
-	limiter *rateLimiter
+	deps Deps
 }
 
 // New validates required deps and returns a Handler.
@@ -53,8 +64,5 @@ func New(deps Deps) *Handler {
 		deps.Domain = "gno.land"
 	}
 
-	return &Handler{
-		deps:    deps,
-		limiter: newRateLimiter(evalBurstSize, evalRefillInterval),
-	}
+	return &Handler{deps: deps}
 }
