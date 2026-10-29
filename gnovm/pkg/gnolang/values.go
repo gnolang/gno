@@ -107,6 +107,11 @@ type stringBacking struct {
 // execution, identical on every node. Preprocess-time folds re-mint
 // too; see evalConst.
 //
+// Invariant: this holds only because ClearObjectCache runs per message,
+// resetting alloc.bytes and the object cache, so every node re-mints
+// every loaded value from the same bytes. Caching objects across
+// messages would make the partition depend on node cache history.
+//
 // NOTE: compare strings by Str, never by struct equality — equal strings
 // from different mints differ in B.
 type StringValue struct {
