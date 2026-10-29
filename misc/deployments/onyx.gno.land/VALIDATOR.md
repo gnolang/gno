@@ -14,26 +14,26 @@ The flow:
 
 ## 1. Binaries
 
-Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.6.0-rc.1` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.7.0-rc.1` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
 
-**Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.6.0-rc.1), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
+**Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.7.0-rc.1), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
 
 ```shell
-curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.6.0-rc.1/gnoland_linux_amd64
-curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.6.0-rc.1/CHECKSUMS.txt
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.7.0-rc.1/gnoland_linux_amd64
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.7.0-rc.1/CHECKSUMS.txt
 shasum -a 256 gnoland_linux_amd64                   # must match the line in CHECKSUMS.txt
-git clone --branch v1.6.0-rc.1 --depth 1 https://github.com/gnolang/gno.git ~/gno
+git clone --branch v1.7.0-rc.1 --depth 1 https://github.com/gnolang/gno.git ~/gno
 export GNOROOT=~/gno
-chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.6.0-rc.1
+chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.7.0-rc.1
 ```
 
-Or build it from the tag (`git checkout v1.6.0-rc.1 && make -C gno.land VERSION=v1.6.0-rc.1 install.gnoland install.gnokey`; `gnoland version` must print `v1.6.0-rc.1`). Name the version: a candidate shares its commit with the final release, and without `VERSION` the build reports the final. Never from `master` or from a branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
+Or build it from the tag (`git checkout v1.7.0-rc.1 && make -C gno.land VERSION=v1.7.0-rc.1 install.gnoland install.gnokey`; `gnoland version` must print `v1.7.0-rc.1`). Name the version: a candidate shares its commit with the final release, and without `VERSION` the build reports the final. Never from `master` or from a branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
 
-**Container image.** `ghcr.io/gnolang/gno/gnoland:v1.6.0-rc.1` is the same release, built in the image with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount the two key files (`secrets/priv_validator_key.json` and `secrets/node_key.json`) read-only. Keep `secrets/` itself writable and on persistent storage: the node rewrites `secrets/priv_validator_state.json` there every time it signs, so a read-only `secrets/` stops it signing, and a node that starts without that file has lost its record of what it already signed.
+**Container image.** `ghcr.io/gnolang/gno/gnoland:v1.7.0-rc.1` is the same release, built in the image with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount the two key files (`secrets/priv_validator_key.json` and `secrets/node_key.json`) read-only. Keep `secrets/` itself writable and on persistent storage: the node rewrites `secrets/priv_validator_state.json` there every time it signs, so a read-only `secrets/` stops it signing, and a node that starts without that file has lost its record of what it already signed.
 
 ```shell
-docker pull ghcr.io/gnolang/gno/gnoland:v1.6.0-rc.1
-docker run --rm ghcr.io/gnolang/gno/gnoland:v1.6.0-rc.1 version   # must print v1.6.0-rc.1
+docker pull ghcr.io/gnolang/gno/gnoland:v1.7.0-rc.1
+docker run --rm ghcr.io/gnolang/gno/gnoland:v1.7.0-rc.1 version   # must print v1.7.0-rc.1
 ```
 
 ## 2. Genesis
