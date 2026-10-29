@@ -1,5 +1,7 @@
 # ADR: A ledger entry is written once the chain runs the release
 
+> **Superseded in part by `prxxxx_publish_releases_early.md`.** A final release is cut before its halt height is chosen, without `--halt-height`, so a coordinated release's tag message does not name its `halt_min_version` (Decision 3 below), and the halt proposal is created with `govdao-exec.sh set-halt` once the height is chosen.
+
 ## Context
 
 The upgrade ledger (`misc/deployments/<chain>.gno.land/upgrades.json`, rules in `gno.land/pkg/upgrades`) records one entry per release a network has run. #6228 made facts that have not happened yet `null`, rendered *(pending)*, and had `misc/release/cut-release.sh` refuse a final release the ledger does not record (its Decision 7). #6321 let the binaries be pending too, so the entry could be written before the release is cut, and had the script check that the entry names the commit being tagged. A coordinated upgrade's entry carries its halt height, and `cut-release.sh --halt-height` also writes that height into the annotated tag's message.
