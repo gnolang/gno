@@ -39,7 +39,9 @@ func main() {
 
 // GnoError:
 // line 18: invalid argument: index -1 (constant of type int) must not be negative
+// line 19: invalid argument: index (9223372036854775808 uint64) overflows int
 // line 23: invalid argument: index x (constant -1 of type int) must not be negative
+// line 25: invalid argument: index (9223372036854775808 uint64) overflows int
 // line 27: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
 // line 29: invalid argument: index (const (1 float32)) (variable of type float32) must be integer
 // line 30: invalid argument: index (const (1 float64)) (variable of type float64) must be integer
@@ -47,4 +49,4 @@ func main() {
 // GnoWordingDiffers:
 // line 27: gc expects: constant 0.5 truncated to integer|truncated to int; gno: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19, 25
+// Verdict: Clean errorcheck

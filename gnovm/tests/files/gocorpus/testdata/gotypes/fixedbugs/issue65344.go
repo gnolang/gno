@@ -22,4 +22,4 @@ func _() {
 // line 7: C is not a type
 // line 12: V is not a type
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10
+// Verdict: KnownDivergence errorcheck: line 10 is a follow-on of the failed type T1 that go/types itself marks TODO; Gno reports a failed declaration once (docs/resources/go-gno-compatibility.md)
