@@ -72,10 +72,10 @@ func deflateBase64(t *testing.T, b []byte) string {
 func extractPlaygroundViewData(t *testing.T, v *components.View) PlaygroundData {
 	t.Helper()
 
-	c, ok := v.Component.(*playgroundComponent)
+	c, ok := v.Component.(*components.FeatureComponent)
 	require.True(t, ok, "unexpected component type %T", v.Component)
-	data, ok := c.data.(PlaygroundData)
-	require.True(t, ok, "unexpected data type %T", c.data)
+	data, ok := c.Data.(PlaygroundData)
+	require.True(t, ok, "unexpected data type %T", c.Data)
 	return data
 }
 
@@ -380,8 +380,7 @@ func TestCopyView(t *testing.T) {
 			deps.Packages = &stubPackages{err: tc.err}
 			status, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
 			assert.Equal(t, tc.want, status)
-			_, ok := v.Component.(*playgroundComponent)
-			assert.False(t, ok, "an error is no playground")
+			assert.NotEqual(t, components.PlaygroundViewType, v.Type, "an error is no playground")
 		})
 	}
 

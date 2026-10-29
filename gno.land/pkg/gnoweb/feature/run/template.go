@@ -10,19 +10,17 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-// PageTemplate is the run scratchpad page. Pre-parsed at init so a
-// misconfigured template surfaces immediately, not on the first request.
-var PageTemplate = mustParse("templates/page.html")
+// PageTemplate is the run scratchpad page, with the shared copy button.
+// Pre-parsed at init so a misconfigured template surfaces immediately, not
+// on the first request.
+var PageTemplate = template.Must(template.Must(
+	template.New("").ParseFS(templateFS, "templates/page.html"),
+).ParseFS(components.SharedPartialsFS(), "btn_copy.html"))
 
-func mustParse(paths ...string) *template.Template {
-	t, err := template.New("").ParseFS(templateFS, paths...)
-	if err != nil {
-		panic("run: parse " + paths[0] + ": " + err.Error())
+// NewPageView wraps the run template.
+func NewPageView(data RunData) *components.View {
+	return &components.View{
+		Type:      components.RunViewType,
+		Component: &components.FeatureComponent{Tmpl: PageTemplate, Name: "renderPage", Data: data},
 	}
-
-	// Reuse component UI partials
-	if t, err = t.ParseFS(components.SharedPartialsFS(), "btn_copy.html"); err != nil {
-		panic("run: parse shared partials: " + err.Error())
-	}
-	return t
 }
