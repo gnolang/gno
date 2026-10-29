@@ -1365,6 +1365,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// rule passes it (a key so typed is removed there).
 				acc.record(pe)
 				return invalidConstExpr(n.(Expr)), true
+			case TRANS_IF_COND, TRANS_FOR_COND, TRANS_SWITCH_X:
+				// the condition alone drops, so the body is still
+				// checked; the names it mentions count as used, as gc
+				// marks them before the operation fails.
+				acc.markReferenced(n)
+				acc.record(pe)
+				return invalidConstExpr(n.(Expr)), true
 			case TRANS_SWITCH_CASE:
 				n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // the switch skips it
 			}
@@ -1707,9 +1714,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									ct = nil
 								} else {
 									if acc != nil && cxx.T.Kind() != TypeKind {
-										panic(fmt.Sprintf("%s is not a type", src.String()))
+										// reported at the case; the clause is
+										// still checked, its variable invalid.
+										acc.record(wrapPreprocessPanic(stack, src, fmt.Sprintf("%s is not a type", src.String())))
+										ct = invalidType{}
+									} else {
+										ct = cxx.GetType()
 									}
-									ct = cxx.GetType()
 								}
 							} else {
 								ct = evalStaticType(store, last, cx)
@@ -1741,7 +1752,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
-						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
+						if !isInvalid(tt) { // accumulate mode: the tag was reported
+							checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
+						}
 						n.Cases[i] = cx
 					}
 				}
@@ -1893,7 +1906,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Preprocess and convert tag if const.
 				if n.X != nil {
 					n.X = Preprocess(store, last, n.X).(Expr)
-					convertIfConst(store, last, n, n.X)
+					if !isInvalidExpr(n.X) { // accumulate mode: the tag was reported
+						convertIfConst(store, last, n, n.X)
+					}
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -3876,6 +3891,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						for _, casetype := range clause.Cases {
 							var ctstr string
 							ctype := casetype.(*constTypeExpr).Type
+							if ctype != nil && isInvalid(ctype) {
+								continue // accumulate mode: not a type, reported
+							}
 							if ctype == nil {
 								ctstr = nilStr
 							} else {
@@ -6166,6 +6184,9 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 
 // like checkOrConvertType() but for any typed bool kind.
 func checkOrConvertBoolKind(store Store, last BlockNode, n Node, x Expr) {
+	if isInvalidExpr(x) {
+		return // accumulate mode: already reported.
+	}
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, n, cx, BoolType)
 	} else if x != nil {
