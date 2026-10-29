@@ -384,6 +384,12 @@ func TestCopyView(t *testing.T) {
 		})
 	}
 
+	// A copy that timed out and an eval that did say which one did.
+	t.Run("timeouts are told apart", func(t *testing.T) {
+		t.Parallel()
+		assert.NotEqual(t, ErrPackageTimeout.Error(), ErrEvalTimeout.Error())
+	})
+
 	// Only a bare package path is copied: anything else is never fetched,
 	// so a file's lines are not taken for file names.
 	for _, from := range []string{"r/demo/foo/foo.gno", "r/demo/foo/README.md", "r/demo/foo:args", "r/demo/foo$source", "u/alice", "r/", "evil.com/x"} {

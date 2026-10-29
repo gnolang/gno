@@ -45,7 +45,7 @@ const (
 // message, never the transport detail.
 var (
 	ErrEvalUnavailable = errors.New("the node is unavailable, try again later")
-	ErrEvalTimeout     = errors.New("the node did not answer in time")
+	ErrEvalTimeout     = errors.New("the node did not answer the evaluation in time")
 )
 
 // crossOrigin refuses evals sent by another site's pages, which would spend

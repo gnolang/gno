@@ -80,7 +80,7 @@ func sharedCode(q url.Values) string {
 var (
 	ErrPackageNotFound = errors.New("package not found")
 	ErrPackageTooLarge = errors.New("package source is too large to open in the playground")
-	ErrPackageTimeout  = errors.New("the node did not answer in time")
+	ErrPackageTimeout  = errors.New("the node did not send the package in time")
 )
 
 // copyView opens an editable copy of the package at pkgPath, its source

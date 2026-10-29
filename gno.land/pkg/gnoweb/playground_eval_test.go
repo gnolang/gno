@@ -101,8 +101,8 @@ func TestPlaygroundEvalErrors(t *testing.T) {
 		{"chain error", gnoweb.ErrClientPackageNotFound, http.StatusOK, `"error":"package not found"`},
 		{"node error", fmt.Errorf("%w: %w", gnoweb.ErrClientResponse, errors.New("r/demo/counter:0:0: name He11o not declared")), http.StatusOK, `"error":"r/demo/counter:0:0: name He11o not declared"`},
 		{"transport", fmt.Errorf("%w: Post \"http://127.0.0.1:26991\": connection refused", gnoweb.ErrClientBadRequest), http.StatusBadGateway, "unavailable"},
-		{"timeout", gnoweb.ErrClientTimeout, http.StatusGatewayTimeout, "did not answer in time"},
-		{"deadline", context.DeadlineExceeded, http.StatusGatewayTimeout, "did not answer in time"},
+		{"timeout", gnoweb.ErrClientTimeout, http.StatusGatewayTimeout, "did not answer the evaluation in time"},
+		{"deadline", context.DeadlineExceeded, http.StatusGatewayTimeout, "did not answer the evaluation in time"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
