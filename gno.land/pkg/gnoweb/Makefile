@@ -40,8 +40,9 @@ out_dir_js := $(PUBLIC_DIR)/js
 # Pick up both legacy controllers under frontend/js/ and per-feature
 # controllers under feature/<name>/frontend/. All compile to
 # $(out_dir_js)/<basename>.js (flat output, no source-path mirroring).
-# code-editor.ts is a library bundled into the controllers that import it,
-# not a page entry point; so is any feature module not named controller-*.
+# code-editor.ts is a library the feature controllers import (it ships in
+# their shared chunk-<hash>.js), not a page entry point; so is any feature
+# module not named controller-*.
 feature_js := $(sort $(shell find feature -path 'feature/*/frontend/controller-*.ts' 2>/dev/null))
 input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts' -not -name 'code-editor.ts') \
             $(feature_js)
@@ -151,11 +152,20 @@ $(out_dir_js)/%.js: %.ts $(out_dir_js)/controller.js
 # all import, instead of once per controller. The run writes every feature
 # controller: the first one is the target, the others follow from it. Chunks
 # of a previous build are removed first, as their names change with content.
+# Any frontend module may be imported, so every one is a prerequisite. If a
+# follower or the chunk is missing, the run is forced, as make would otherwise
+# find nothing to do.
 feature_js_first := $(firstword $(feature_out_js))
-$(feature_js_first): $(shell find feature -path 'feature/*/frontend/*.ts' 2>/dev/null) $(src_dir_js)/code-editor.ts $(src_dir_js)/utils.ts $(out_dir_js)/controller.js
+feature_js_missing := $(filter-out $(wildcard $(feature_out_js)),$(feature_out_js)) \
+                      $(if $(wildcard $(out_dir_js)/chunk-*.js),,chunk)
+$(feature_js_first): $(shell find feature -path 'feature/*/frontend/*.ts' 2>/dev/null) \
+                     $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts') \
+                     $(out_dir_js)/controller.js $(if $(strip $(feature_js_missing)),FORCE)
 	rm -f $(out_dir_js)/chunk-*.js
 	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $(feature_js) --log-level=error --bundle --splitting --outdir=$(out_dir_js) --entry-names=[name] --format=esm --define:process.env.NODE_ENV="\"production\"" --minify --external:./controller.js $(esbuild_controller_alias)
 $(filter-out $(feature_js_first),$(feature_out_js)): $(feature_js_first) ;
+.PHONY: FORCE
+FORCE:
 
 # Rule to copy static files while preserving directory structure
 static: $(output_static)
