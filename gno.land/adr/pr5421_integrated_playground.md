@@ -29,8 +29,12 @@ A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
 (CodeMirror, Go/TOML modes). Supports:
 
 - sharing through `?code=...&z`: the base64 of raw DEFLATE. Without `&z`,
-  `code` is plain text; with it, a value that does not inflate shows the
-  default code. Share refuses links over 8,000 characters, so the server
+  `code` is plain text, always: a base64 value without `&z` is not
+  decoded, and opens as the base64 text it is. One meaning per form keeps
+  a snippet that happens to be valid base64 from being decoded into
+  something else; Share has only ever written `&z`, and no release served
+  another form, so no link breaks. With `&z`, a value that does not
+  inflate shows the default code. Share refuses links over 8,000 characters, so the server
   reads no longer value and inflates to 64 KiB at most;
 - multi-file code, one tab per file, with add and close. A share writes
   every file, a lone one too, under a `// --- name ---` header. Reading it

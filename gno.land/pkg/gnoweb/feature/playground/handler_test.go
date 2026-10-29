@@ -307,6 +307,9 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 		{"plain text", url.Values{"code": {sentinel}}, sentinel},
 		{"plain text that parses as base64", url.Values{"code": {"test"}}, "test"},
 		{"base64 without z stays text", url.Values{"code": {"cGFja2FnZSBtYWluCg=="}}, "cGFja2FnZSBtYWluCg=="},
+		// One meaning per form: without &z nothing is decoded, not even
+		// what Share would have written with it.
+		{"compressed without z stays text", url.Values{"code": {z}}, z},
 		{"compressed", url.Values{"code": {z}, "z": {""}}, sentinel},
 		{"compressed, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, defaultCode},
 		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, defaultCode},
