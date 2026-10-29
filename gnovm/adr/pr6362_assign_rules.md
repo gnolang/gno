@@ -43,3 +43,5 @@ tree:
   error rather than an internal one.
 - Tagged struct types that were identical by accident are now distinct;
   conversions between them need an explicit conversion, as in Go.
+
+Follow-up (2026-10-30): `assertAssignValues` at every one-value-per-target site (assignment, `:=`, `var`, `return`) with gc's "assignment mismatch" wording; fewer targets than values is checked before the walk; argument errors are positioned at the argument.
