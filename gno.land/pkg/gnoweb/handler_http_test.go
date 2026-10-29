@@ -4539,12 +4539,16 @@ func TestHTTPHandler_RunPage(t *testing.T) {
 		assert.Contains(t, body, call, path)
 	}
 
-	// Without the package or the file, $run changes nothing: the same page,
-	// header tabs included, and a missing realm's 404 page does not link to
-	// its $run.
-	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing", "/r/demo/foo/nope.gno"} {
+	// Without the package or the file, or on a $source page, $run changes
+	// nothing: the same page, header tabs included, and a missing realm's
+	// 404 page does not link to its $run.
+	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing", "/r/demo/foo/nope.gno", "/r/demo/foo$source"} {
 		wantCode, wantBody := get(path)
-		code, body := get(path + "$run")
+		run := path + "$run"
+		if strings.Contains(path, "$") {
+			run = path + "&run"
+		}
+		code, body := get(run)
 		assert.Equal(t, wantCode, code, path)
 		assert.Equal(t, wantBody, body, path)
 		assert.NotContains(t, body, runPage, path)

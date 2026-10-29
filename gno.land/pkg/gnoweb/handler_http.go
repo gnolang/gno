@@ -757,9 +757,11 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Handle Run page: a script against an existing realm or package, or
-	// one of its files. A listing, a user, a missing file, or a path with no
-	// package renders as if $run were not there, its header tabs included.
-	if gnourl.WebQuery.Has("run") && (gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
+	// one of its files. A listing, a user, a missing file, a path with no
+	// package, or a $source page renders as if $run were not there, its
+	// header tabs included.
+	if gnourl.WebQuery.Has("run") && !gnourl.WebQuery.Has("source") &&
+		(gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
 		jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 		if err == nil && gnourl.IsFile() {
 			var files []string
