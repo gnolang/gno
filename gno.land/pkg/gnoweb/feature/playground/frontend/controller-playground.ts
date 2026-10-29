@@ -1,4 +1,4 @@
-import { CodeEditor, type EditorFile } from "@gnoweb/js/code-editor.js";
+import { CodeEditor } from "@gnoweb/js/code-editor.js";
 import {
 	BaseController,
 	downloadBlob,
@@ -6,22 +6,19 @@ import {
 	makeIcon,
 	postEval,
 } from "@gnoweb/js/controller.js";
+import {
+	createTar,
+	GNOMOD_FILE,
+	isValidFileName,
+	parseInitialCode,
+	shareText,
+} from "./playground-files.js";
 
-const GNOMOD_FILE = "gnomod.toml";
 const DEFAULT_GNO_CONTENT = "package main\n";
 
 // Max length for shared source code.
 // It stays under the 8192-byte default limit of common web servers (nginx, Apache).
 const MAX_SHARE_URL_LENGTH = 8_000;
-
-// isValidFileName accepts Gno sources and gnomod.toml, with no path part, so
-// a name can never escape the archive Download builds.
-function isValidFileName(name: string): boolean {
-	if (name.includes("/") || name.includes("\\") || name.includes("..")) {
-		return false;
-	}
-	return name.endsWith(".gno") || name === GNOMOD_FILE;
-}
 
 export class PlaygroundController extends BaseController {
 	private declare editorEl: HTMLElement;
@@ -35,7 +32,9 @@ export class PlaygroundController extends BaseController {
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
-		const initialCodeEl = this.getTarget("initial-code") as HTMLTextAreaElement;
+		const initialCodeEl = this.getTarget(
+			"initial-code",
+		) as HTMLTextAreaElement | null;
 
 		this.editorEl = this.getTarget("editor") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
@@ -43,15 +42,13 @@ export class PlaygroundController extends BaseController {
 		this.tabsWrapEl = this.getTarget("tabs-wrap") as HTMLElement;
 		this.prevBtnEl = this.getTarget("prev-button") as HTMLButtonElement;
 		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
-		if (!this.editorEl || !this.outputEl || !this.tabsEl || !initialCodeEl) {
-			return;
-		}
+		if (!this.editorEl || !this.outputEl || !this.tabsEl) return;
 
 		this.editorEl.addEventListener("focusin", () =>
 			this._scrollActiveTabIntoView(),
 		);
 
-		const [first, ...rest] = parseInitialCode(initialCodeEl.value);
+		const [first, ...rest] = parseInitialCode(initialCodeEl?.value ?? "");
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
 			content: first.content,
@@ -239,7 +236,7 @@ export class PlaygroundController extends BaseController {
 
 		if (!isValidFileName(name)) {
 			this._setErrorOutput(
-				`Error: "${name}" is not a valid file name. Use a name ending in .gno, or gnomod.toml.`,
+				`Error: "${name}" is not a valid file name. Use letters, digits, "_", "-" and "." ending in .gno (100 characters at most), or gnomod.toml.`,
 			);
 			return;
 		}
@@ -278,11 +275,7 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public async shareCode(): Promise<void> {
-		const files = this.editor.files();
-		const code =
-			files.length === 1
-				? files[0].content
-				: files.map((f) => `// --- ${f.name} ---\n${f.content}`).join("\n\n");
+		const code = shareText(this.editor.files());
 
 		// Compress code before sharing it
 		const bytes = new TextEncoder().encode(code);
@@ -328,93 +321,4 @@ export class PlaygroundController extends BaseController {
 			);
 		}
 	}
-}
-
-// parseInitialCode splits shared or copied code on its "// --- name ---"
-// separators. Code without separators, or whose names are all rejected, is
-// a single main.gno.
-function parseInitialCode(initialCode: string): EditorFile[] {
-	const files: EditorFile[] = [];
-	if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
-		const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
-		for (let i = 1; i < parts.length; i += 2) {
-			const name = parts[i].trim();
-			if (!isValidFileName(name) || files.some((f) => f.name === name)) {
-				console.warn(`PlaygroundController: skipped file "${name}"`);
-				continue;
-			}
-			// Drop the separator's blank lines, keep one final newline.
-			const content = (parts[i + 1] || "").replace(/^\n+|\n+$/g, "");
-			files.push({ name, content: `${content}\n` });
-		}
-	}
-	return files.length ? files : [{ name: "main.gno", content: initialCode }];
-}
-
-function createTar(files: EditorFile[]): Uint8Array<ArrayBuffer> {
-	const encoder = new TextEncoder();
-	const blocks: Uint8Array[] = [];
-
-	for (const file of files) {
-		if (!isValidFileName(file.name)) {
-			console.error(
-				`PlaygroundController: skipped file with unsafe name in tar: "${file.name}"`,
-			);
-			continue;
-		}
-
-		const data = encoder.encode(file.content);
-
-		// TAR's numeric fields are ASCII octal strings
-		const timestamp = Math.floor(Date.now() / 1000).toString(8);
-
-		// Unix Standard TAR header: 512-byte fixed-field block preceding each file's data.
-		// Spec: https://www.gnu.org/software/tar/manual/html_node/Standard.html
-		// Fields: https://en.wikipedia.org/wiki/Tar_(computing)#UStar_format
-		const header = new Uint8Array(512);
-
-		header.set(encoder.encode(file.name).slice(0, 100), 0);
-		header.set(encoder.encode("0000644\0"), 100); // file mode
-		header.set(encoder.encode("0000000\0"), 108); // uid
-		header.set(encoder.encode("0000000\0"), 116); // gid
-		header.set(
-			encoder.encode(`${data.length.toString(8).padStart(11, "0")}\0`),
-			124,
-		); // file size
-		header.set(encoder.encode(`${timestamp.padStart(11, "0")}\0`), 136); // mtime
-		header.fill(0x20, 148, 156); // checksum placeholder (spaces)
-		header[156] = 0x30; // typeflag '0' = regular file
-		header.set(encoder.encode("ustar\0"), 257); // magic
-		header.set(encoder.encode("00"), 263); // version
-
-		// Sum all 512 header bytes (the 8 checksum bytes count as spaces, already
-		// set above), then write the result as 6 octal digits + NUL + space
-		// back into the checksum field at offset 148.
-		let sum = 0;
-		for (let i = 0; i < 512; i++) sum += header[i];
-		header.set(encoder.encode(`${sum.toString(8).padStart(6, "0")}\0 `), 148);
-
-		// Round up to the next 512-byte boundary because TAR requires
-		// file data to be padded to a multiple of 512 bytes.
-		// Extra space is padded with zeros.
-		const padded = new Uint8Array(Math.ceil(data.length / 512) * 512);
-		padded.set(data);
-
-		blocks.push(header);
-		blocks.push(padded);
-	}
-
-	// EOF, marked by two zero blocks
-	blocks.push(new Uint8Array(1024));
-
-	// Concatenate all blocks into a single flat byte array. Each block is
-	// copied into its position in the output buffer using a running offset.
-	const total = blocks.reduce((n, b) => n + b.length, 0);
-	const out = new Uint8Array(total);
-	let off = 0;
-	for (const b of blocks) {
-		out.set(b, off);
-		off += b.length;
-	}
-	return out;
 }

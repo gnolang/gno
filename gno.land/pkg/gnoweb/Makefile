@@ -41,9 +41,9 @@ out_dir_js := $(PUBLIC_DIR)/js
 # controllers under feature/<name>/frontend/. All compile to
 # $(out_dir_js)/<basename>.js (flat output, no source-path mirroring).
 # code-editor.ts is a library bundled into the controllers that import it,
-# not a page entry point.
+# not a page entry point; so is any feature module not named controller-*.
 input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts' -not -name 'code-editor.ts') \
-            $(shell find feature -path 'feature/*/frontend/*.ts' 2>/dev/null)
+            $(shell find feature -path 'feature/*/frontend/controller-*.ts' 2>/dev/null)
 # Guard against silent overwrites: two features cannot ship the same
 # controller-X.ts basename (they would compile to the same target).
 _dup_check := $(shell echo "$(notdir $(input_js))" | tr ' ' '\n' | sort | uniq -d)

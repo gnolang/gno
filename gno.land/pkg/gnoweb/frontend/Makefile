@@ -10,7 +10,7 @@ lint.ci: node_modules
 # Unit tests of the pure TS helpers, on node's own runner and type
 # stripping: no dependency to install.
 test:
-	node --test js/*.test.mts
+	node --test js/*.test.mts $(addsuffix /*.test.mts,$(feature_paths))
 
 fmt: node_modules
 	npx @biomejs/biome check --write . $(feature_paths)
