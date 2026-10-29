@@ -6,7 +6,7 @@ func main() {
 }
 
 // Error:
-// unexpected type for cap(): string
+// main/cap7.gno:5:17-23: invalid argument: string for built-in cap
 
 // TypeCheckError:
 // main/cap7.gno:5:21: invalid argument: s (variable of type string) for built-in cap

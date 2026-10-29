@@ -147,17 +147,29 @@ var (
 // line 73: invalid operation: (mismatched types <untyped> bigint and main.I)
 // line 74: invalid operation: (mismatched types <untyped> bigint and main.I)
 // line 75: operator >= not defined on: InterfaceKind
+// line 77: func() can only be compared to nil
+// line 78: func() can only be compared to nil
 // line 79: operator >= not defined on: InterfaceKind
+// line 80: func() can only be compared to nil
+// line 81: func() can only be compared to nil
 // line 82: operator >= not defined on: InterfaceKind
-// line 84: invalid operation: (mismatched types func() and main.I)
-// line 85: invalid operation: (mismatched types func() and main.I)
+// line 84: func() can only be compared to nil
+// line 85: func() can only be compared to nil
 // line 86: operator >= not defined on: InterfaceKind
-// line 87: invalid operation: (mismatched types func() and main.I)
-// line 88: invalid operation: (mismatched types func() and main.I)
+// line 87: func() can only be compared to nil
+// line 88: func() can only be compared to nil
 // line 89: operator >= not defined on: InterfaceKind
+// line 91: main.G can only be compared to nil
+// line 92: main.G can only be compared to nil
 // line 93: operator >= not defined on: InterfaceKind
+// line 94: main.G can only be compared to nil
+// line 95: main.G can only be compared to nil
 // line 96: operator >= not defined on: InterfaceKind
+// line 98: main.G can only be compared to nil
+// line 99: main.G can only be compared to nil
 // line 100: operator >= not defined on: InterfaceKind
+// line 101: main.G can only be compared to nil
+// line 102: main.G can only be compared to nil
 // line 103: operator >= not defined on: InterfaceKind
 // line 105: name not defined: _
 // line 106: name not defined: _
@@ -177,4 +189,4 @@ var (
 // line 123: operator ^ not defined on: InterfaceKind
 // line 124: operator ^ not defined on: InterfaceKind
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 77, 78, 80, 81, 91, 92, 94, 95, 98, 99, 101, 102
+// Verdict: Clean errorcheck

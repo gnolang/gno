@@ -71,4 +71,18 @@ func f() {
 	_ = x
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 41, 42, 44, 47, 48, 50, 61, 62, 64, 67, 68, 70
+// GnoError:
+// line 41: invalid argument: *map[string]int for built-in len
+// line 42: invalid argument: *map[string]int for built-in len
+// line 44: invalid argument: *map[string]int for built-in len
+// line 47: invalid argument: *string for built-in len
+// line 48: invalid argument: *string for built-in len
+// line 50: invalid argument: *string for built-in len
+// line 61: invalid argument: *[]int for built-in len
+// line 62: invalid argument: *[]int for built-in len
+// line 64: invalid argument: *[]int for built-in len
+// line 67: invalid argument: *[]int for built-in cap
+// line 68: invalid argument: *[]int for built-in cap
+// line 70: invalid argument: *[]int for built-in cap
+
+// Verdict: Clean errorcheck

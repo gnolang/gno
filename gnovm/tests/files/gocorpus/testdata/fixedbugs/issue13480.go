@@ -40,9 +40,12 @@ func bug() {
 // GnoError:
 // line 21: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].S can only be compared to nil
 // line 22: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].S can only be compared to nil
+// line 24: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].S can only be compared to nil
 // line 27: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].M can only be compared to nil
 // line 28: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].M can only be compared to nil
+// line 30: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].M can only be compared to nil
 // line 33: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 // line 34: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
+// line 36: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 24, 30, 36
+// Verdict: Clean errorcheck

@@ -928,6 +928,168 @@ func main() { f(0) }
 	}
 }
 
+func TestPreprocessCollectExprs(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S []int
+
+func f() {
+	var s []int
+	_ = s[2:1] // inverted
+	var a [1]int
+	_ = a[2:] // out of bounds
+	var b [10]int
+	_ = b[0:10] // high may equal the length
+	const c = "0123456789"
+	_ = c[10] // out of bounds
+	_ = c[9]
+	var m1 *map[int]int
+	_ = len(m1) // pointer to map
+	var pa *[3]int
+	_ = len(pa) // pointer to array is fine
+	_ = []byte{1: 1, 2: 2, 1: 3} // duplicate index
+	_ = struct{ X, Y int }{X: 1, X: 2}  // duplicate field
+	_ = map[string]int{"a": 1, "b": 2}
+	var sl S
+	switch sl {
+	case nil: // fine
+	case S(nil): // a typed nil is not the nil literal
+	}
+	var e interface{}
+	var fn func()
+	_ = e == fn
+	_ = fn == nil
+}
+
+func main() { f() }
+`)
+	want := []string{"invalid slice indices: 1 < 2", "index 2 out of bounds [0:2]", "index 10 out of bounds [0:10]", "*map[int]int for built-in len", "duplicate index 1 in array or slice literal", "duplicate field name X in struct literal", "main.S can only be compared to nil", "func() can only be compared to nil"}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectLenCapEverySite(t *testing.T) {
+	// A bad len or cap operand does not drop its statement: the call is
+	// still an int, so every site in one expression is reported, as gc does.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var m *map[int]int
+	var s *[]int
+	x := len(m) +
+		cap(s)
+	_ = x
+}
+`)
+	want := []string{"invalid argument: *map[int]int for built-in len", "invalid argument: *[]int for built-in cap"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
+func TestPreprocessCollectIndexBase(t *testing.T) {
+	// Only a pointer to an array is dereferenced by an index expression.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var ps *string
+	var pa *[3]int
+	var pm *map[int]int
+	_ = ps[0]
+	_ = pa[0]
+	_ = pm[0]
+	_ = (*ps)[0]
+}
+`)
+	want := []string{"invalid operation: cannot index ps (variable of type *string)", "invalid operation: cannot index pm (variable of type *map[int]int)"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
+func TestPreprocessCollectConstLenCap(t *testing.T) {
+	// len or cap of an array is constant only when its operand holds no
+	// call; a conversion or another constant len is not a call.
+	msgs := collectErrors(t, `package main
+
+var s [][10]int
+var a [3][4]int
+
+func f() [5]int { return [5]int{} }
+
+func main() {
+	const m = len(s[len(s)-1])
+	const n = cap(f())
+	const p = len(a[len(a)-1])
+	const q = len([4]int(a[0]))
+	const r = cap(a)
+	_, _, _, _, _ = m, n, p, q, r
+}
+`)
+	// The operand prints in its preprocessed form, as the neighbouring
+	// "is not constant" messages do.
+	if len(msgs) != 2 || !strings.Contains(msgs[0], "(s<") || !strings.Contains(msgs[1], "(f<") ||
+		!strings.HasSuffix(msgs[0], ") (value of type int) is not constant") || !strings.HasSuffix(msgs[1], ") (value of type int) is not constant") {
+		t.Fatalf("got %v", msgs)
+	}
+}
+
+func TestPreprocessCollectShiftInInterface(t *testing.T) {
+	// An untyped expression passed to an interface takes its default type
+	// as a whole, so the shift's operand in `1.0 + 1<<s` is a float64.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var s uint
+	var i any = 1 + 1<<s
+	println(1 + 1<<s, i)
+	println(1.0 + 1<<s)
+}
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "operator << not defined on") {
+		t.Fatalf("got %v", msgs)
+	}
+}
+
+func TestPreprocessCollectEmbeddedIdentity(t *testing.T) {
+	// struct{T} and struct{T T} share a TypeID but are not identical.
+	msgs := collectErrors(t, `package main
+
+type T int
+
+func main() {
+	var x struct{ T }
+	var y struct{ T T }
+	var z struct{ T }
+	x = y
+	x = z
+	var xs []struct{ T }
+	var ys []struct{ T T }
+	xs = ys
+	_, _ = x, xs
+}
+`)
+	want := []string{
+		"cannot use struct{T main.T} as struct{T main.T} (field T is embedded in only one)",
+		"cannot use []struct{T main.T} as []struct{T main.T}",
+	}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
