@@ -115,6 +115,14 @@ exponent form (`+1.500000e+000`). The Go spec leaves this format
 implementation-specific; Gno keeps one float formatter for `fmt`, `Render` and
 the builtins by choice.
 
+## Follow-on errors after a failed declaration
+
+When a declaration fails (an undefined type, a cycle), Gno's checker types
+what depends on it as invalid and reports nothing more about it, so one
+mistake is reported once. gc reports some follow-ons it marks as unwanted
+itself, such as `cannot convert 0 to type T1` for `const C = T1(0)` after
+`type T1 C` failed (go/types `TODO(gri)` in `issue65344.go`); Gno does not.
+
 ## Stdlibs
 
 Legend:

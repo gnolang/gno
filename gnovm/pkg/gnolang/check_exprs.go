@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -789,4 +790,33 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 			}
 		}
 	}
+}
+
+// constFitsInt reports whether the integer constant tv is representable
+// as int (a make size, an index); a non-integer kind is left to the
+// integer rule.
+func constFitsInt(tv TypedValue) bool {
+	switch tv.T.Kind() {
+	case UintKind:
+		return tv.GetUint() <= math.MaxInt64
+	case Uint64Kind:
+		return tv.GetUint64() <= math.MaxInt64
+	case BigintKind:
+		return tv.GetBigInt().IsInt64()
+	}
+	return true
+}
+
+// checkOrConvertArg is checkOrConvertType for argument i of the call n,
+// with the error positioned at the argument, as gc does.
+func checkOrConvertArg(store Store, last BlockNode, n *CallExpr, i int, t Type) {
+	defer func() {
+		if r := recover(); r != nil {
+			if msg, ok := r.(string); ok {
+				fail(CodeAssignability, msg, n.Args[i])
+			}
+			panic(r)
+		}
+	}()
+	checkOrConvertType(store, last, n, &n.Args[i], t)
 }

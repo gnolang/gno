@@ -21,4 +21,7 @@ var (
 
 // GnoTrimmed: lines 15
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12
+// GnoError:
+// line 12: array length float64(10) (constant of type float64) must be integer
+
+// Verdict: Clean errorcheck
