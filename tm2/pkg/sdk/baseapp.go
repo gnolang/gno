@@ -684,6 +684,12 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	for _, msg := range msgs {
+		// An empty Any (0a 00) decodes to a nil message, and is canonical, so
+		// it reaches here; reject it instead of letting ValidateBasic
+		// dereference it and the recover in runTx report an internal error.
+		if msg == nil {
+			return std.ErrUnknownRequest("nil message in tx")
+		}
 		// Validate the Msg.
 		if err := msg.ValidateBasic(); err != nil {
 			return err
@@ -916,9 +922,15 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		}
 	}()
 
+	// A tx is identified by the hash of its bytes while its signatures cover
+	// the sign doc, so only the canonical encoding of a tx is accepted: any
+	// other byte string decoding to the same tx is the same tx under another
+	// hash. See tm2/adr/pr6406_canonical_tx_enforcement.md.
 	var tx Tx
-	if err := amino.Unmarshal(txBytes, &tx); err != nil {
-		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+	if err := amino.UnmarshalCanonical(txBytes, &tx); err != nil {
+		// Field by field, so nothing already set on result is lost.
+		decodeErr := ABCIResultFromError(std.ErrTxDecode(err.Error()))
+		result.Error, result.Log = decodeErr.Error, decodeErr.Log
 		return
 	}
 
