@@ -120,14 +120,18 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 	})
 }
 
-var renderDecl = regexp.MustCompile(`(?m)^func Render\(`)
+// renderDecl matches the Render gnoweb renders a realm with:
+// func Render(path string) string, not a crossing one (cur realm, ...).
+var renderDecl = regexp.MustCompile(`(?m)^func Render\(\s*(?:\w+\s+)?string\s*\)\s*string\b`)
 
 // canPreview reports whether Run can show what the copy of from renders on
-// the chain: from is a realm and one of its files declares Render. The page
-// says so on the Run button, and the controller drops it on the first edit.
+// the chain: from is a realm and one of its files, not a test, declares
+// Render. The page says so on the Run button, and the controller drops it
+// on the first edit.
 func canPreview(from string, files []File) bool {
 	return strings.HasPrefix(from, "r/") && slices.ContainsFunc(files, func(f File) bool {
-		return renderDecl.MatchString(f.Content)
+		isTest := strings.HasSuffix(f.Name, "_test.gno") || strings.HasSuffix(f.Name, "_filetest.gno")
+		return !isTest && renderDecl.MatchString(f.Content)
 	})
 }
 

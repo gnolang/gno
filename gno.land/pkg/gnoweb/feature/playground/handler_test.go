@@ -413,20 +413,28 @@ func TestRunLabel(t *testing.T) {
 
 	const render = "package foo\n\nfunc Render(path string) string { return \"\" }\n"
 	cases := []struct {
-		name, pkg, code string
-		preview         bool
+		name, pkg, file, code string
+		preview               bool
 	}{
-		{"realm with Render", "/r/demo/foo", render, true},
-		{"realm without Render", "/r/demo/foo", "package foo\n", false},
-		{"Render in a comment", "/r/demo/foo", "package foo\n// func Render(path string) string\n", false},
-		{"pure package with Render", "/p/demo/foo", render, false},
+		{"realm with Render", "/r/demo/foo", "foo.gno", render, true},
+		{"unnamed path", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(string) string { return \"\" }\n", true},
+		{"realm without Render", "/r/demo/foo", "foo.gno", "package foo\n", false},
+		{"Render in a comment", "/r/demo/foo", "foo.gno", "package foo\n// func Render(path string) string\n", false},
+		{"pure package with Render", "/p/demo/foo", "foo.gno", render, false},
+		// gnoweb renders a realm with Render(path string) string, from
+		// the package's own files: a test's Render is not the realm's.
+		{"Render in a test", "/r/demo/foo", "foo_test.gno", render, false},
+		{"Render in a filetest", "/r/demo/foo", "z_filetest.gno", render, false},
+		{"crossing Render", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(cur realm, path string) string { return \"\" }\n", false},
+		{"Render with no result", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(path string) {}\n", false},
+		{"Render of two params", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(path string, n int) string { return \"\" }\n", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			deps := validDeps()
-			deps.Packages = &stubPackages{files: []File{{Name: "foo.gno", Content: tc.code}}}
+			deps.Packages = &stubPackages{files: []File{{Name: tc.file, Content: tc.code}}}
 			status, v := New(deps).copyView(context.Background(), tc.pkg, "")
 			require.Equal(t, http.StatusOK, status)
 			var buf bytes.Buffer
