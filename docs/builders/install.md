@@ -83,17 +83,14 @@ Official Docker images are published under [`ghcr.io/gnolang/gno`](https://ghcr.
 without installing from source:
 
 ```sh
-# Run gnokey (the CLI tools have a `latest` tag: the newest release)
+# Run gnokey (the CLI tools have a `latest` tag: the release mainnet runs)
 docker run -it ghcr.io/gnolang/gno/gnokey:latest --help
 
 # Run a gnoland node: always an explicit version, never `latest`
 docker run -it ghcr.io/gnolang/gno/gnoland:v1.5.1 start
 ```
 
-`gnoland` has no `latest` tag on purpose: the version a network runs changes
-at each coordinated upgrade, and a node refuses to start a newer version before
-the upgrade height. Take the version from the network's upgrade ledger — for
-mainnet, `UPGRADES.md` in [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
+`gnoland` has no `latest` tag on purpose: the version a network runs changes at each coordinated upgrade, and once the upgrade's halt is scheduled a node refuses to start a newer version before the upgrade height. Take the version from the network's upgrade ledger — for mainnet, `UPGRADES.md` in [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
 
 You can also build locally from the repository root:
 

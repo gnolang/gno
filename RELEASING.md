@@ -16,10 +16,7 @@ the source of most release incidents, so they are named separately here.
 | **Protocol version** | six constants under `tm2/`, see [Protocol versions](#protocol-versions) | the versionset exchanged in the p2p handshake, where peers whose MAJOR differs cannot connect; and the version in every block header, which nodes check for equality | rarely, never on its own, and always as a coordinated upgrade |
 | **App version** | `baseApp.SetAppVersion` in `gno.land/pkg/gnoland/app.go` | the `app` entry of the versionset, persisted onto consensus state at the ABCI handshake; also in every block header, which nodes check for equality | rarely, and always as a coordinated upgrade |
 
-Only the first is what people usually mean by "the version". The tooling in
-[`misc/release/`](misc/release) covers the first two: `cut-release.sh` for the
-release version, `bump-protocol-version.sh` for the protocol constants. The app
-version is the literal `SetAppVersion("dev")` in `app.go` and is edited by hand.
+Only the first is what people usually mean by "the version". The tooling in [`misc/release/`](misc/release) covers the first two: `cut-release.sh` for the release version, `promote-release.sh` for the release operators land on, `bump-protocol-version.sh` for the protocol constants. The app version is the literal `SetAppVersion("dev")` in `app.go` and is edited by hand.
 
 ## Versioning & branching
 
@@ -82,9 +79,7 @@ launch tags (`chain/<name>`) are lightweight. `v1.0.0` predates the rule and is
 lightweight too, which is one reason every `describe` that stamps a binary's
 version passes `--tags --match 'v*'` — the other being that a release commit
 can also carry the chain's launch tag, which is not a version.
-Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they
-lead to, and are published as GitHub pre-releases so they do not become the
-"Latest" release operators and `misc/install.sh` land on.
+Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they lead to. Every release is published as a GitHub pre-release, the final one included, and a final becomes GitHub's "Latest" release and `misc/install.sh`'s default (the highest `v*` release that is not a pre-release) only once it is promoted (see [Publishing early, promoting once the switch is set](#publishing-early-promoting-once-the-switch-is-set)).
 
 ### Chain branches are not master
 
@@ -119,10 +114,9 @@ runs, and the two are not the same thing:
 # top of the code, so every cut names the code commit
 misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
-# a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
-# The tag records no height: it can change until the proposal executes
-misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
-  --halt-height 120000 --push
+# the cut itself. A final is cut once its last candidate has passed on the
+# testnet, before mainnet's halt height is chosen: the tag records none
+misc/release/cut-release.sh v1.6.0 --commit <code-commit> --push
 ```
 
 The script checks that a tag would work as a release, and each check
@@ -219,26 +213,22 @@ node syncs from genesis with it. A fix means a new commit, through its own
 pull request, and `rc.2`. Only then is the final tag cut, on the same commit as
 the last rc.
 
+### Publishing early, promoting once the switch is set
+
+A final release is cut and published as soon as its last candidate has passed on the testnet, days before mainnet switches to it, so operators can fetch and check its binaries and images ahead of the switch. Nothing a release publishes names a halt height: not the tag, the binaries or the images. The height goes only where it can be edited (the release notes, the release's tracking issue, the announcement to operators): marked as an estimate until the halt proposal has executed, then replaced by the height the chain holds.
+
+Published that early, a final must not be what operators land on by default. `release / chain-tag` therefore publishes every release as a GitHub pre-release, the final one included, and `release / docker` pushes no `latest` image tag: GitHub's "Latest" release, `misc/install.sh`'s default and the CLI images' `latest` stay on the release mainnet runs. Once mainnet's switch is set (for a coordinated upgrade, once the halt proposal has executed; for a rolling one, on the agreed day), promote the final:
+
+```sh
+misc/release/promote-release.sh v1.6.0          # dry run: every check, nothing changed
+misc/release/promote-release.sh v1.6.0 --push
+```
+
+It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. A release candidate is never promoted, nor is a final mainnet skips: both stay pre-releases.
+
 ### Container images
 
-`release / docker` publishes `ghcr.io/gnolang/gno/<tool>:vX.Y.Z` for every
-`v*` tag, release candidates included, and never re-pushes a version tag. The
-four CLI tools — `gno`, `gnokey`, `gnodev`, `gnoweb` — also get `latest`, and
-only when the tag is the *highest* final release, so a backport cut after a
-newer line never moves `latest` backwards. GitHub's "Latest" release marker and
-`misc/install.sh`'s default follow the same rule, by version order rather than
-by creation date. `gnoland` deliberately has no floating tag: a node image
-that moves by itself is incompatible with a coordinated upgrade, because a
-validator restarting for an unrelated reason between "release built" and
-"halt height" would pull the new binary, and the node would refuse to start it
-until the halt. Operators pin the version the halt proposal names. Images are
-built from tags, not from branch pushes; `:master` images are development
-builds whose version does not parse. A release image carries its version tag
-only (and `latest` for the CLI tools), never a tag named after its commit: a
-final release shares its commit with its last candidate, so such a tag would
-move from the candidate's images to the final's. Some earlier images also
-answer to a `sha-<commit>` tag, which can name another build of that commit:
-pin a `vX.Y.Z` tag or a digest.
+`release / docker` publishes `ghcr.io/gnolang/gno/<tool>:vX.Y.Z` for every `v*` tag, release candidates included, and never re-pushes a version tag. The four CLI tools — `gno`, `gnokey`, `gnodev`, `gnoweb` — also answer to `latest`, which `release / docker` never sets: `promote-release.sh` moves it when it makes a final a full release, the kind `misc/install.sh`'s default picks, and GitHub's "Latest" (see [Publishing early, promoting once the switch is set](#publishing-early-promoting-once-the-switch-is-set)). `gnoland` deliberately has no floating tag: a node image that moves by itself is incompatible with a coordinated upgrade, because a validator restarting for an unrelated reason after the release is published would pull the new binary: until the halt proposal executes nothing stops it running on the old chain, and once it has, the node refuses to start it until the halt. Operators pin the version the halt proposal names. Images are built from tags, not from branch pushes; `:master` images are development builds whose version does not parse. A release image is pushed with its version tag only, never a tag named after its commit: a final release shares its commit with its last candidate, so such a tag would move from the candidate's images to the final's. Some earlier images also answer to a `sha-<commit>` tag, which can name another build of that commit: pin a `vX.Y.Z` tag or a digest.
 
 ### Release pages and the upgrade ledger
 
@@ -269,26 +259,20 @@ Add the entry once the chain runs the release — after the halt for a coordinat
 
 ### Coordinated upgrades
 
-For a MINOR bump, the release is only half of it: validators have to stop at the
-same height and come back on the new binary. `--halt-height` prints the GovDAO
-proposal to go with the tag, with `halt_min_version` set to the tag being cut,
-and the command that creates it:
+For a MINOR bump, the release is only half of it: validators have to stop at the same height and come back on the new binary. The height is chosen once the release is published, and a GovDAO proposal sets it, with `halt_min_version` naming the release:
 
 ```sh
 misc/deployments/mainnet.gno.land/govdao-exec.sh set-halt 120000 v1.6.0
 ```
+
+Once the proposal has executed, promote the release (see [Publishing early, promoting once the switch is set](#publishing-early-promoting-once-the-switch-is-set)) and write the height into its release notes.
 
 The mechanism, the failure modes, and what a halt looks like in the logs are
 documented in [`gno.land/cmd/gnoland/UPGRADES.md`](gno.land/cmd/gnoland/UPGRADES.md).
 
 ### Hotfix
 
-A critical fix that cannot wait for the `master`-first flow: commit it on its
-own `chain-upgrade/…` branch off the chain branch, open the CI-only pull request
-and fast-forward once green (see "Chain branches are not master"), then tag,
-deploy, and **back-port to `master` immediately**. The
-back-port is the part that gets skipped, and it is the part that matters — until
-it lands, the chain is running code nobody can review on `master`.
+A critical fix that cannot wait for the `master`-first flow: commit it on its own `chain-upgrade/…` branch off the chain branch, open the CI-only pull request and fast-forward once green (see "Chain branches are not master"), then tag, deploy, promote (see [Publishing early, promoting once the switch is set](#publishing-early-promoting-once-the-switch-is-set)), and **back-port to `master` immediately**. The back-port is the part that gets skipped, and it is the part that matters — until it lands, the chain is running code nobody can review on `master`.
 
 ## Protocol versions
 
