@@ -26,3 +26,32 @@ func TestAssetsVersionIsDerivedFromAssetContent(t *testing.T) {
 	assert.True(t, strings.HasPrefix(strings.Trim(assetsHash, `"`), version),
 		"the version and the asset ETag must come from the same content hash")
 }
+
+// The feature controllers that open a code editor share one copy of CodeMirror
+// (a chunk-*.js built with esbuild's --splitting) and the BaseController of
+// the controller.js every page loads, instead of each carrying its own.
+func TestFeatureControllersShareChunks(t *testing.T) {
+	t.Parallel()
+
+	entries, err := assets.ReadDir("public/js")
+	require.NoError(t, err)
+
+	var editors []string
+	for _, e := range entries {
+		b, err := assets.ReadFile("public/js/" + e.Name())
+		require.NoError(t, err)
+		if strings.Contains(string(b), "cm-editor") {
+			editors = append(editors, e.Name())
+		}
+	}
+	require.Len(t, editors, 1, "CodeMirror must be in one file, got %v", editors)
+	assert.Regexp(t, `^chunk-[A-Z0-9]+\.js$`, editors[0])
+
+	for _, name := range []string{"controller-playground.js", "controller-run.js"} {
+		b, err := assets.ReadFile("public/js/" + name)
+		require.NoError(t, err)
+		assert.Contains(t, string(b), `from"./`+editors[0]+`"`, name)
+		assert.Contains(t, string(b), `from"./controller.js"`, name)
+		assert.NotContains(t, string(b), "[data-action]", name+" must not carry its own BaseController")
+	}
+}

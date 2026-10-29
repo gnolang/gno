@@ -223,9 +223,15 @@ PurgeCSS cannot see the `.cm-*` classes CodeMirror adds at runtime.
 Vanilla TypeScript compiled to plain JS, one controller per feature through
 the existing `data-controller` dispatch; shared helpers (`postEval`,
 `downloadBlob`, icons) are re-exported from `controller.ts`. Compiled output
-is committed to `public/js/`. Each icon keeps a single meaning across gnoweb
-(the lightning is a transaction, `ico-run-code` runs the playground,
-`ico-eval` evaluates, `ico-playground` opens the playground).
+is committed to `public/js/`. The feature controllers build in one esbuild
+run with `--splitting`: CodeMirror, which the playground and `$run` both
+open, ships once as a `chunk-<hash>.js` they import, and
+`@gnoweb/js/controller.js` stays an import of the `controller.js` every page
+loads, so neither bundle carries its own `BaseController` or helpers. The
+`@gnoweb/js` alias lives in `tsconfig.json` only, which esbuild reads. Each
+icon keeps a single meaning across gnoweb (the lightning is a transaction,
+`ico-run-code` runs the playground, `ico-eval` evaluates, `ico-playground`
+opens the playground).
 
 ### CSP
 
