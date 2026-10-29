@@ -483,6 +483,6 @@ func assertArrayLengthInteger(cx *ConstExpr) {
 		failf(CodeArrayLength, []Node{cx}, "array length %s (untyped %s constant) must be integer",
 			constString(cx), untypedKindName(cx.T))
 	case !isInteger(cx.T):
-		failf(CodeArrayLength, []Node{cx}, "array length %s (constant of type %s) must be integer", constString(cx), cx.T)
+		failf(CodeArrayLength, []Node{cx}, "array length %s must be integer", constOperandString(cx, cx.T))
 	}
 }
