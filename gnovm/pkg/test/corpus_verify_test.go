@@ -53,6 +53,42 @@ func TestVerifyCorpusVerdicts(t *testing.T) {
 	}
 }
 
+// TestSyncRefusesDowngradeToUnsupported pins that sync will not quietly
+// move a file that reached a verdict into `Unsupported`. That transition
+// is a regression — Gno used to get a result here — and Unsupported is
+// skipped, so the file and its evidence would leave the ledger with CI
+// still green.
+func TestSyncRefusesDowngradeToUnsupported(t *testing.T) {
+	rootDir, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := &TestOptions{RootDir: rootDir, Output: io.Discard, Error: io.Discard, Sync: true}
+	opts.BaseStore, opts.TestStore = StoreWithOptions(rootDir, opts.WriterForStore(), StoreOptions{Testing: true})
+
+	// A file Gno now rejects for a feature gap, carrying a prior verdict.
+	const gap = "package main\n\nfunc main() {\n\t_ = Version\n\tprintln(\"x\")\n}\n"
+	const goldens = "\n// GnoOutput:\n// x\n\n// GoOutput:\n// x\n\n"
+	for _, prior := range []string{"Clean run", "KnownIssue run: #1 x", "KnownDivergence run: #1 x"} {
+		t.Run(prior, func(t *testing.T) {
+			src := gap + goldens + "// Verdict: " + prior + "\n"
+			_, _, _, err := opts.RunFiletest("testdata/run/probe.go", []byte(src), opts.TestStore)
+			if err == nil || !strings.Contains(err.Error(), "refusing to downgrade") {
+				t.Fatalf("sync silently downgraded `%s` to Unsupported (err %v)", prior, err)
+			}
+		})
+	}
+	t.Run("a file already Unsupported is still normalised", func(t *testing.T) {
+		src := gap + "\n// Verdict: Unsupported stdlib-symbol: Version\n"
+		if _, _, _, err := opts.RunFiletest("testdata/run/probe.go", []byte(src), opts.TestStore); err != nil {
+			var skip *SkipError
+			if !errors.As(err, &skip) {
+				t.Fatalf("an already-Unsupported file must still sync: %v", err)
+			}
+		}
+	})
+}
+
 // TestVerdictArmsTheGoComparison pins that EVERY verdict opts a .gno file
 // into the Gno-vs-Go comparison, not just KnownDivergence. A verdict is a
 // claim about what gc does; without a `// GoOutput:` beside it nothing
