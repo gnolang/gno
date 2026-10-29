@@ -2908,7 +2908,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									}
 									if !constFitsInt(tv) {
 										failf(CodeIndexBounds, []Node{cx},
-											"invalid argument: index %v overflows int", tv)
+											"invalid argument: index %s overflows int", constOperandString(cx, IntType))
 									}
 								}
 							}
