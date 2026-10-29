@@ -26,12 +26,16 @@ consensus path (kept off-chain as referee).
    the walk owns (shared by pointer) and, in accumulate mode, the error
    sink. The accumulate-mode handlers (`onPanic`, `predefineGuarded`,
    `report`, `reportUnused`) are its methods. On chain (`acc == nil`) the
-   first error panics exactly as before: no behaviour, gas or text change.
+   first error panics exactly as before: no behaviour, gas or wording
+   change; a rule that now names its node moves a position (composite16:
+   the non-constant literal index is reported at the index).
 3. **Error codes** (`ErrCode`): every rule raises `fail(code, msg, at...)`
    and the code travels on `PreprocessError.Code()`. Wording may change;
    the code is the stable identity, the future hash input when error text
    leaves the ABCI result (not done here). Sites not yet converted carry
-   `CodeNone`.
+   `CodeNone`. Audit at this step: 237 `panic(` calls in `preprocess.go`
+   and 76 in `type_check.go` (checking and internal) against 50 `fail`
+   sites; `TestErrCodesUnique` keeps the codes distinct.
 4. **Positions**: a rule names the node to point at; a folded constant
    borrows its source's span; a plain panic raised while predefining a
    declaration is positioned at that declaration.

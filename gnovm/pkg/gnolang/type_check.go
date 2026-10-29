@@ -398,9 +398,9 @@ func checkValDefineMismatch(n Node) {
 
 	if valueDecl != nil {
 		if numNames > numValues {
-			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].Name))
+			failf(CodeMissingConstInit, nil, "missing init expr for %s", valueDecl.NameExprs[numValues].Name)
 		}
-		panicAt(fmt.Sprintf("extra init expr %s", values[numNames].String()), values[numNames])
+		failf(CodeMissingConstInit, []Node{values[numNames]}, "extra init expr %s", values[numNames].String())
 	}
 
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
@@ -971,9 +971,9 @@ func assertSingleValued(store Store, last BlockNode, xs []Expr) {
 		switch len(tt.Elts) {
 		case 1:
 		case 0:
-			panicAt(fmt.Sprintf("%s (no value) used as value", exprString(cx)), cx)
+			failf(CodeMultiValue, []Node{cx}, "%s (no value) used as value", exprString(cx))
 		default:
-			panicAt(fmt.Sprintf("multiple-value %s (value of type %v) in single-value context", exprString(cx), tt), cx)
+			failf(CodeMultiValue, []Node{cx}, "multiple-value %s (value of type %v) in single-value context", exprString(cx), tt)
 		}
 	}
 }
@@ -985,7 +985,7 @@ func assertAssignValues(store Store, last BlockNode, nvars int, vals []Expr) {
 	if nvars == 1 && len(vals) == 1 {
 		if cx, ok := vals[0].(*CallExpr); ok && !isInvalidExpr(cx) {
 			if tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType); ok && len(tt.Elts) > 1 {
-				panicAt(assignMismatchMsg(1, cx.Func, len(tt.Elts)), cx)
+				fail(CodeMultiValue, assignMismatchMsg(1, cx.Func, len(tt.Elts)), cx)
 			}
 		}
 	}
@@ -998,7 +998,7 @@ func checkOrConvertArg(store Store, last BlockNode, n *CallExpr, i int, t Type) 
 	defer func() {
 		if r := recover(); r != nil {
 			if msg, ok := r.(string); ok {
-				panicAt(msg, n.Args[i])
+				fail(CodeAssignability, msg, n.Args[i])
 			}
 			panic(r)
 		}
@@ -1168,7 +1168,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		} else if last.GetIsConst(store, clx.Name) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
 		} else if isFuncDeclName(last, clx) {
-			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", clx.Name))
+			failf(CodeNotAssignable, nil, "cannot assign to %s (neither addressable nor a map index expression)", clx.Name)
 		} else {
 			shouldPanic = false
 		}
@@ -1176,14 +1176,14 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		shouldPanic = false
 	case *SelectorExpr:
 		if inMapValue(store, last, clx) {
-			panic(fmt.Sprintf("cannot assign to struct field %s in map", exprString(lx)))
+			failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
 		}
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
 		shouldPanic = xt != nil && xt.Kind() == StringKind
 		if !shouldPanic && inMapValue(store, last, clx) {
-			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", exprString(lx)))
+			failf(CodeMapValueAssign, nil, "cannot assign to %s (neither addressable nor a map index expression)", exprString(lx))
 		}
 	default:
 	}

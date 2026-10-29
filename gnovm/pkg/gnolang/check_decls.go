@@ -1,8 +1,6 @@
 package gnolang
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // Declaration and literal rules the preprocessor enforces (Go spec:
 // "Short variable declarations", "Function types", "Composite literals",
@@ -40,8 +38,8 @@ func checkRedefinedTargets(store Store, bn BlockNode, n Node, nameExprs []*NameE
 		case i < len(valueExprs):
 			if cx, ok := valueExprs[i].(*ConstExpr); ok && isUntyped(cx.T) {
 				if err := checkAssignableTo(store, n, cx.T, et); err != nil {
-					panic(fmt.Sprintf("cannot use %s (untyped %s constant) as %v value in assignment",
-						constString(cx), untypedKindName(cx.T), et))
+					failf(CodeAssignability, nil, "cannot use %s (untyped %s constant) as %v value in assignment",
+						constString(cx), untypedKindName(cx.T), et)
 				}
 				convertConst(store, bn, n, cx, et) // representability
 				continue
@@ -72,14 +70,10 @@ func untypedKindName(t Type) string {
 // one. (The parser already rejects a name used twice.)
 // In accumulate mode each such parameter is reported and kept as a
 // slice, so the type still completes.
-func assertFuncTypeNames(n *FuncTypeExpr, acc *preprocessAccumulator, stack []BlockNode) {
+func assertFuncTypeNames(c *checkRun, n *FuncTypeExpr) {
 	for i := 0; i+1 < len(n.Params); i++ {
 		if st, ok := n.Params[i].Type.(*SliceTypeExpr); ok && st.Vrd {
-			const msg = "can only use ... with final parameter in list"
-			if acc == nil {
-				panicAt(msg, &n.Params[i])
-			}
-			acc.record(wrapPreprocessPanic(stack, &n.Params[i], msg))
+			c.report(CodeVariadicLast, "can only use ... with final parameter in list", &n.Params[i])
 			st.Vrd = false
 		}
 	}
@@ -91,9 +85,9 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 	switch {
 	case len(n.Elts) == 0:
 	case len(n.Elts) < len(st.Fields):
-		panic(fmt.Sprintf("too few values in struct literal of type %v", lt))
+		failf(CodeStructLiteralCount, nil, "too few values in struct literal of type %v", lt)
 	case len(n.Elts) > len(st.Fields):
-		panic(fmt.Sprintf("too many values in struct literal of type %v", lt))
+		failf(CodeStructLiteralCount, nil, "too many values in struct literal of type %v", lt)
 	}
 }
 
@@ -121,7 +115,7 @@ func assertNotImported(store Store, last BlockNode, nx *NameExpr) {
 			if !ok {
 				pkg = path
 			}
-			panicAt(fmt.Sprintf("%s already declared through import of package %s (%q)", nx.Name, pkg, path), nx)
+			failf(CodeImportName, []Node{nx}, "%s already declared through import of package %s (%q)", nx.Name, pkg, path)
 		}
 	}
 }
@@ -144,13 +138,13 @@ func assertStructField(st *StructType, lt Type, key *NameExpr) {
 			return
 		}
 	}
-	panicAt(fmt.Sprintf("unknown field %s in struct literal of type %s", key.Name, lt), key)
+	failf(CodeStructField, []Node{key}, "unknown field %s in struct literal of type %s", key.Name, lt)
 }
 
 // assertSelectorNotBlank: a blank field or method is never found.
 func assertSelectorNotBlank(n *SelectorExpr, xt Type) {
 	if n.Sel == blankIdentifier {
-		panic(fmt.Sprintf("%s undefined (type %s has no field or method _)", exprString(n), xt))
+		failf(CodeNoMethod, nil, "%s undefined (type %s has no field or method _)", exprString(n), xt)
 	}
 }
 
@@ -170,9 +164,9 @@ func receiverDeclaredType(rt Type, pkgPath string, at Node) *DeclaredType {
 		}
 	case PrimitiveType:
 	default:
-		panicAt(fmt.Sprintf("invalid receiver type %s", rt), at)
+		failf(CodeReceiverType, []Node{at}, "invalid receiver type %s", rt)
 	}
-	panicAt(fmt.Sprintf("cannot define new methods on non-local type %s", bt), at)
+	failf(CodeReceiverType, []Node{at}, "cannot define new methods on non-local type %s", bt)
 	return nil
 }
 
@@ -190,6 +184,6 @@ func assertNamesType(nx *NameExpr, tv *TypedValue, dep Decl) {
 		notType = true
 	}
 	if notType {
-		panicAt(fmt.Sprintf("%s is not a type", nx.Name), nx)
+		failf(CodeNotAType, []Node{nx}, "%s is not a type", nx.Name)
 	}
 }

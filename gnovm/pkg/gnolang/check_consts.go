@@ -20,19 +20,19 @@ import (
 // not absolute.
 func assertValidImportPath(path string) {
 	if path == "" {
-		panic("invalid import path (empty string)")
+		fail(CodeImportPath, "invalid import path (empty string)")
 	}
 	if !utf8.ValidString(path) {
-		panic(fmt.Sprintf("import path contains invalid UTF-8 character: %q", path))
+		failf(CodeImportPath, nil, "import path contains invalid UTF-8 character: %q", path)
 	}
 	for _, r := range path {
 		if !unicode.IsGraphic(r) || unicode.IsSpace(r) ||
 			strings.ContainsRune("!\"#$%&'()*,:;<=>?[\\]^`{|}", r) {
-			panic(fmt.Sprintf("invalid import path (invalid character %#U)", r))
+			failf(CodeImportPath, nil, "invalid import path (invalid character %#U)", r)
 		}
 	}
 	if strings.HasPrefix(path, "/") {
-		panic(fmt.Sprintf("import path cannot be absolute path: %q", path))
+		failf(CodeImportPath, nil, "import path cannot be absolute path: %q", path)
 	}
 }
 
@@ -72,7 +72,7 @@ func assertConstShiftCount(rcx *ConstExpr) {
 	if nx, ok := rcx.Source.(*NameExpr); ok {
 		expr = string(nx.Name)
 	}
-	panic(fmt.Sprintf("invalid operation: invalid shift count %s (%s)", expr, what))
+	failf(CodeShiftCount, nil, "invalid operation: invalid shift count %s (%s)", expr, what)
 }
 
 // assertConstWidth rejects a folded untyped integer constant wider than
@@ -101,9 +101,9 @@ func assertConstWidth(x Expr, cv *TypedValue) {
 		}
 	}
 	if op == "" {
-		panic("constant overflow")
+		fail(CodeConstOverflow, "constant overflow")
 	}
-	panic(fmt.Sprintf("constant %s overflow", op))
+	failf(CodeConstOverflow, nil, "constant %s overflow", op)
 }
 
 var constOpNames = map[Word]string{
@@ -131,9 +131,9 @@ func assertBranchTarget(n *BranchStmt, bn BlockNode) {
 // cannot be branched to.
 func failBranchLabel(n *BranchStmt) {
 	if n.Op == BREAK {
-		panic(fmt.Sprintf("invalid break label %s", n.Label))
+		failf(CodeBranchLabel, nil, "invalid break label %s", n.Label)
 	}
-	panic(fmt.Sprintf("invalid continue label %s", n.Label))
+	failf(CodeBranchLabel, nil, "invalid continue label %s", n.Label)
 }
 
 // assertConstFinite rejects a folded untyped float constant beyond
@@ -148,9 +148,9 @@ func assertConstFinite(x Expr, cv *TypedValue) {
 		return
 	}
 	if bl, ok := x.(*BasicLitExpr); ok {
-		panic(fmt.Sprintf("malformed constant: %s", bl.Value))
+		failf(CodeConstOverflow, nil, "malformed constant: %s", bl.Value)
 	}
-	panic("constant result is not representable")
+	fail(CodeConstOverflow, "constant result is not representable")
 }
 
 // assertConstRepresentable rejects the constant operation x, about to be
@@ -201,8 +201,8 @@ func assertConstRepresentable(gm store.GasMeter, x Expr) {
 	if exact.Cmp(lo) >= 0 && exact.Cmp(hi) <= 0 {
 		return
 	}
-	panicAt(fmt.Sprintf("%s (constant %s of type %s) overflows %s",
-		constExprString(x), exact, t, t), x)
+	failf(CodeConstOverflow, []Node{x}, "%s (constant %s of type %s) overflows %s",
+		constExprString(x), exact, t, t)
 }
 
 // typedIntConst returns the value of x when it is a typed constant of an

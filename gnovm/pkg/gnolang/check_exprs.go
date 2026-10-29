@@ -1,10 +1,8 @@
 package gnolang
 
-import (
-	"fmt"
+import "fmt"
 
-	"github.com/gnolang/gno/tm2/pkg/store"
-)
+import "github.com/gnolang/gno/tm2/pkg/store"
 
 // Expression rules the preprocessor enforces (Go spec: "Comparison
 // operators", "Index expressions", "Slice expressions", "Composite
@@ -27,10 +25,10 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 		}
 		switch baseOf(t).(type) {
 		case *SliceType, *FuncType, *MapType:
-			panic(fmt.Sprintf("%v can only be compared to nil", t))
+			failf(CodeNilOnly, nil, "%v can only be compared to nil", t)
 		}
 		if !isComparable(t) {
-			panic(fmt.Sprintf("%v is not comparable", t))
+			failf(CodeNotComparable, nil, "%v is not comparable", t)
 		}
 	}
 	check(at, bNil)
@@ -81,7 +79,7 @@ func assertIndexable(x Expr, t Type) {
 			}
 		}
 	}
-	panic(fmt.Sprintf("invalid operation: cannot index %s (%s of type %v)", operandString(x), operandWord(x), t))
+	failf(CodeIndexOperand, nil, "invalid operation: cannot index %s (%s of type %v)", operandString(x), operandWord(x), t)
 }
 
 // operandWord is gc's noun for an operand in a message: a variable, else
@@ -143,7 +141,7 @@ func constIndex(x Expr) (int64, bool) {
 // negative constant was already refused by checkOrConvertIndexKind.
 func assertConstIndex(index Expr, length int64) {
 	if i, ok := constIndex(index); ok && length >= 0 && i >= length {
-		panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length))
+		failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length)
 	}
 }
 
@@ -161,10 +159,10 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 			continue
 		}
 		if length >= 0 && i > length {
-			panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length+1))
+			failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length+1)
 		}
 		if prev >= 0 && i < prev {
-			panic(fmt.Sprintf("invalid slice indices: %d < %d", i, prev))
+			failf(CodeSliceIndices, nil, "invalid slice indices: %d < %d", i, prev)
 		}
 		prev = i
 	}
@@ -188,13 +186,13 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 			}
 			idx = i
 			if length >= 0 && idx >= length {
-				panicAt(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length), elt.Key, elt.Value)
+				failf(CodeIndexBounds, []Node{elt.Key, elt.Value}, "invalid argument: index %d out of bounds [0:%d]", idx, length)
 			}
 		} else if length >= 0 && idx >= length {
-			panicAt(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length), elt.Value)
+			failf(CodeIndexBounds, []Node{elt.Value}, "index %d is out of bounds (>= %d)", idx, length)
 		}
 		if seen[idx] {
-			panicAt(fmt.Sprintf("duplicate index %d in array or slice literal", idx), elt.Key, elt.Value)
+			failf(CodeDuplicateIndex, []Node{elt.Key, elt.Value}, "duplicate index %d in array or slice literal", idx)
 		}
 		seen[idx] = true
 		next = idx + 1
@@ -232,13 +230,13 @@ func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
 func notUsed(store Store, last BlockNode, x Expr) {
 	t := evalStaticTypeOf(store, last, x)
 	if _, ok := t.(*TypeType); ok {
-		panic(fmt.Sprintf("%s (type) is not an expression", exprString(x)))
+		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(x))
 	}
 	xs := exprString(x)
 	if _, ok := x.(*FuncLitExpr); ok {
 		xs = fmt.Sprintf("(%s literal)", typeString(t)) // as go/types
 	}
-	panic(fmt.Sprintf("%s (value of type %s) is not used", xs, typeString(t)))
+	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", xs, typeString(t))
 }
 
 // constStringLen folds len of a constant string into an int constant.
@@ -258,7 +256,7 @@ func assertConstLiteralKey(key Expr) {
 		return
 	}
 	if _, ok := key.(*ConstExpr); !ok {
-		panic(fmt.Sprintf("index %s must be integer constant", exprString(key)))
+		failf(CodeLiteralKeyConst, []Node{key}, "index %s must be integer constant", exprString(key))
 	}
 }
 
@@ -337,8 +335,8 @@ func assertSwitchTag(x Expr, t Type) {
 		return
 	}
 	if !isComparable(t) {
-		panicAt(fmt.Sprintf("cannot switch on %s (variable of type %v) (%v is not comparable)",
-			exprString(x), t, t), x)
+		failf(CodeNotComparable, []Node{x}, "cannot switch on %s (variable of type %v) (%v is not comparable)",
+			exprString(x), t, t)
 	}
 }
 
@@ -347,11 +345,11 @@ func assertSwitchTag(x Expr, t Type) {
 // copying slices"). Wording and positions follow go/types.
 func assertAppendArgs(store Store, last BlockNode, n *CallExpr) {
 	if len(n.Args) == 0 {
-		panic("invalid operation: not enough arguments for append() (expected 1, found 0)")
+		fail(CodeAppendArgs, "invalid operation: not enough arguments for append() (expected 1, found 0)")
 	}
 	st := evalStaticTypeOf(store, last, n.Args[0])
 	if st == nil {
-		panic("first argument to append must be a typed slice; have untyped nil")
+		fail(CodeAppendArgs, "first argument to append must be a typed slice; have untyped nil")
 	}
 	bst, isSlice := baseOf(st).(*SliceType)
 	if !n.Varg {
@@ -376,9 +374,9 @@ func assertAppendArgs(store Store, last BlockNode, n *CallExpr) {
 	}
 	have += "...)"
 	if len(n.Args) > 2 {
-		panicAt(fmt.Sprintf("too many arguments in call to append\n\thave %s\n\twant %s", have, want), n.Args[2])
+		failf(CodeAppendArgs, []Node{n.Args[2]}, "too many arguments in call to append\n\thave %s\n\twant %s", have, want)
 	}
-	panic(fmt.Sprintf("not enough arguments in call to append\n\thave %s\n\twant %s", have, want))
+	failf(CodeAppendArgs, nil, "not enough arguments in call to append\n\thave %s\n\twant %s", have, want)
 }
 
 // argTypeSummary names an argument's type as go/types does in have/want
@@ -406,8 +404,7 @@ func assertAppendValues(store Store, last BlockNode, n *CallExpr, elt Type) {
 			continue
 		}
 		if checkAssignableTo(store, n, at, elt) != nil {
-			panicAt(fmt.Sprintf("cannot use %s (%s of type %s) as %s value in argument to append",
-				exprString(arg), operandKind(arg), typeString(at), typeString(elt)), arg)
+			failf(CodeAppendArgs, []Node{arg}, "cannot use %s (%s of type %s) as %s value in argument to append", exprString(arg), operandKind(arg), typeString(at), typeString(elt))
 		}
 	}
 }

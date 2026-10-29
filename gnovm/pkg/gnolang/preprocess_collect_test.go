@@ -2697,6 +2697,52 @@ func main() {}
 	})
 }
 
+// collectCodes returns the error codes of a collect run, in order.
+func collectCodes(t *testing.T, src string) []ErrCode {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var codes []ErrCode
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		codes = append(codes, e.Code())
+	}
+	return codes
+}
+
+func TestPreprocessCollectCodes(t *testing.T) {
+	codes := collectCodes(t, `package main
+
+import "a b"
+
+var _ map[func()]int
+
+func f(x int) {
+	y := 1
+	switch x {
+	case 0, 0:
+	}
+	len("a")
+}
+
+func main() {}
+`)
+	want := []ErrCode{CodeImportPath, CodeMapKey, CodeDuplicateCase, CodeNotUsed, CodeUnusedVar}
+	if len(codes) != len(want) {
+		t.Fatalf("want %v, got %v", want, codes)
+	}
+	for i := range want {
+		if codes[i] != want[i] {
+			t.Errorf("error %d: want %s, got %s", i, want[i], codes[i])
+		}
+	}
+}
+
 // deployAfterCollect runs the ordinary (non-accumulate) path over src,
 // optionally running a collect pass over the very same parsed nodes first,
 // and reports what the ordinary path did. A fresh PackageNode each time, so
