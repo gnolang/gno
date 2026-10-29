@@ -22,5 +22,6 @@ func f() {
 // line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 10: function h does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 16: operator ! not defined on: IntKind
+// line 17: name x not declared
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17
+// Verdict: Clean errorcheck
