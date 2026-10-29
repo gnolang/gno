@@ -1,8 +1,12 @@
-import { BaseController, postEval } from "./controller.js";
+import { BaseController, makeIcon, postEval } from "./controller.js";
 
 export class ActionEvalController extends BaseController {
-	// Past expressions, for ArrowUp recall.
+	// Past expressions, oldest first, walked with ArrowUp and ArrowDown.
 	private declare history: string[];
+	// Where ArrowUp/ArrowDown stand in history; history.length is the line
+	// being typed.
+	private declare historyIndex: number;
+	private declare onKeydown: (e: KeyboardEvent) => void;
 	private declare inputEl: HTMLInputElement;
 	private declare resultEl: HTMLElement;
 	private declare historyListEl: HTMLElement | null;
@@ -16,6 +20,7 @@ export class ActionEvalController extends BaseController {
 
 	protected connect(): void {
 		this.history = [];
+		this.historyIndex = 0;
 		this.inputEl = this.getTarget("input") as HTMLInputElement;
 		this.resultEl = this.getTarget("result") as HTMLElement;
 		this.historyListEl = this.getTarget("history-list") as HTMLElement | null;
@@ -32,6 +37,7 @@ export class ActionEvalController extends BaseController {
 
 	protected disconnect(): void {
 		this.evalAbort?.abort();
+		this.inputEl?.removeEventListener("keydown", this.onKeydown);
 	}
 
 	private _listenForEvents(): void {
@@ -54,13 +60,20 @@ export class ActionEvalController extends BaseController {
 		});
 	}
 
+	// ArrowUp and ArrowDown walk the history like a shell; walking past the
+	// newest entry gives back an empty line.
 	private _setupKeyboardShortcuts(): void {
-		this.inputEl.addEventListener("keydown", (e: KeyboardEvent) => {
-			if (e.key === "ArrowUp" && this.history.length > 0) {
-				e.preventDefault();
-				this.inputEl.value = this.history[this.history.length - 1];
-			}
-		});
+		this.onKeydown = (e: KeyboardEvent) => {
+			const step = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+			if (!step || this.history.length === 0) return;
+			e.preventDefault();
+			this.historyIndex = Math.min(
+				this.history.length,
+				Math.max(0, this.historyIndex + step),
+			);
+			this.inputEl.value = this.history[this.historyIndex] ?? "";
+		};
+		this.inputEl.addEventListener("keydown", this.onKeydown);
 	}
 
 	private async _doEval(expression: string): Promise<void> {
@@ -81,6 +94,7 @@ export class ActionEvalController extends BaseController {
 		// A rate limit or an outage says nothing about the expression: keep
 		// it out of history.
 		if (!unavailable) this._addToHistory(expression, shown, isError);
+		this.historyIndex = this.history.length;
 	}
 
 	private _show(text: string, isError: boolean): void {
@@ -112,7 +126,7 @@ export class ActionEvalController extends BaseController {
 		const rerunBtn = document.createElement("button");
 		rerunBtn.className = "b-action-eval-history-rerun";
 		rerunBtn.type = "button";
-		rerunBtn.textContent = "↩";
+		rerunBtn.appendChild(makeIcon("restore"));
 		rerunBtn.title = "Re-run";
 		rerunBtn.setAttribute("aria-label", `Re-run ${expression}`);
 		rerunBtn.addEventListener("click", () => {
