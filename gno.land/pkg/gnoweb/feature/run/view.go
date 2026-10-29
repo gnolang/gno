@@ -23,47 +23,46 @@ type RunData struct {
 	ScriptHTML template.HTML
 }
 
-// PkgAlias returns the name an unaliased import of PkgPath binds: the last
-// path element, skipping a version suffix ("gno.land/r/foo/v2" gives "foo").
-func (d RunData) PkgAlias() string {
-	return gno.LastPathElement(d.PkgPath)
-}
-
 // starterScript is a script that runs as generated against the package
-// whose functions funcs lists: it prints Render("") when the package has a
-// Render, and otherwise names one of its functions, since an import left
-// unused does not compile.
+// whose functions funcs lists, for a gas that does not depend on the
+// package: it names one of its functions, since an import left unused does
+// not compile, and shows a call to Render, which costs what the package
+// makes it cost, in a comment.
 func starterScript(pkgPath string, funcs []*doc.JSONFunc) string {
-	alias := RunData{PkgPath: pkgPath}.PkgAlias()
-	call, main := starterCall(alias, funcs), "main()"
-	switch {
-	case call == "":
+	alias := gno.LastPathElement(pkgPath)
+	ref, call := starterRef(alias, funcs)
+	if ref == "" {
 		return fmt.Sprintf("package main\n\nimport _ %q\n\nfunc main() {\n\t// Name the import above to call the package.\n}\n", pkgPath)
-	case strings.Contains(call, "cross(cur)"):
-		// A crossing call needs the realm main runs in.
+	}
+	main := "main()"
+	if strings.Contains(call, "cross(cur)") {
+		// Uncommented, a crossing call needs the realm main runs in.
 		main = "main(cur realm)"
 	}
-	return fmt.Sprintf("package main\n\nimport %q\n\nfunc %s {\n\t// Call %s functions here, e.g.:\n\t%s\n}\n", pkgPath, main, alias, call)
+	if call != "" {
+		ref = "// " + call + "\n\t" + ref
+	}
+	return fmt.Sprintf("package main\n\nimport %q\n\nfunc %s {\n\t// Call %s functions here, e.g.:\n\t%s\n}\n", pkgPath, main, alias, ref)
 }
 
-// starterCall is the starter script's one statement: a call to Render, or
-// else a reference to the first exported function, or else nothing.
-func starterCall(alias string, funcs []*doc.JSONFunc) string {
-	first := ""
+// starterRef is the starter script's one statement, a reference to Render
+// or else to the first exported function, and the call to Render it shows
+// when there is one.
+func starterRef(alias string, funcs []*doc.JSONFunc) (ref, call string) {
 	for _, fn := range funcs {
 		if fn.Type != "" || !token.IsExported(fn.Name) {
 			continue
 		}
 		switch {
 		case fn.Name == "Render" && isRender(fn, "string"):
-			return fmt.Sprintf("println(%s.Render(\"\"))", alias)
+			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(\"\"))", alias)
 		case fn.Name == "Render" && isRender(fn, "realm", "string"):
-			return fmt.Sprintf("println(%s.Render(cross(cur), \"\"))", alias)
-		case first == "":
-			first = fmt.Sprintf("_ = %s.%s", alias, fn.Name)
+			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(cross(cur), \"\"))", alias)
+		case ref == "":
+			ref = "_ = " + alias + "." + fn.Name
 		}
 	}
-	return first
+	return ref, ""
 }
 
 // isRender reports whether fn takes params of the given types and returns a

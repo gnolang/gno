@@ -4528,8 +4528,8 @@ func TestHTTPHandler_RunPage(t *testing.T) {
 	const runPage = `data-controller="run"`
 
 	served := map[string]string{
-		"/r/demo/foo$run":         "println(foo.Render(&#34;&#34;))",
-		"/r/demo/foo/foo.gno$run": "println(foo.Render(&#34;&#34;))",
+		"/r/demo/foo$run":         "_ = foo.Render",
+		"/r/demo/foo/foo.gno$run": "_ = foo.Render",
 		"/p/demo/bar$run":         "_ = bar.New",
 	}
 	for path, call := range served {

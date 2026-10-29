@@ -79,7 +79,8 @@ script into an editor and keeps the command in step with the fields.
     <h2 class="b-content-h2">Generated Command</h2>
     <div class="b-run-command-header">
       <p>Running it signs a transaction with <code class="u-font-mono" data-run-target="key-arg">KEYNAME</code>
-        and broadcasts it to the <code class="u-font-mono">{{ .ChainId }}</code> chain, which charges its gas fee.</p>
+        and broadcasts it to the <code class="u-font-mono">{{ .ChainId }}</code> chain, which charges its gas fee,
+        even when the script runs out of gas: raise <code class="u-font-mono">-gas-wanted</code> and <code class="u-font-mono">-gas-fee</code> for a heavier one.</p>
       <div class="b-btn b-switch" data-run-target="js-only" hidden>
         <input type="checkbox" id="run-include-script" class="u-sr-only" data-run-target="includeScript" checked />
         <label for="run-include-script">Add the script to the command</label>

@@ -59,10 +59,12 @@ var (
 	// CallGas is what $help's maketx call commands ask for: room for any
 	// function.
 	CallGas = Gas{Wanted: "1_000_000_000", Fee: "1000000ugnot"}
-	// RunGas is what a $run script asks for. The starter scripts of the
-	// example realms take 1 to 14 million gas; the fee pays for 100 million
-	// at the chain's initial price (1ugnot per 1000 gas), so raising the gas
-	// wanted that far needs no new fee.
+	// RunGas is what a $run script asks for. The starter script names a
+	// function rather than calling Render, whose gas is the package's (over
+	// 400 million on some realms), and takes 1 to 9 million on the example
+	// realms; the fee pays for 100 million at the chain's initial price
+	// (1ugnot per 1000 gas), so raising the gas wanted that far needs no new
+	// fee.
 	RunGas = Gas{Wanted: "50_000_000", Fee: "100000ugnot"}
 )
 

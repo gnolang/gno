@@ -10,6 +10,11 @@
 	margin-block-end: var(--g-space-2);
 	font-size: var(--g-font-size-100);
 	color: var(--s-color-text-secondary);
+
+	/* A flag or the chain ID stays whole; the key may be an address. */
+	code:not([data-run-target]) {
+		white-space: nowrap;
+	}
 }
 
 .b-run {

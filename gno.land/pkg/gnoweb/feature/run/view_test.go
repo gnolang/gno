@@ -12,26 +12,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
-func TestRunDataPkgAlias(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]struct {
-		pkgPath string
-		want    string
-	}{
-		"unversioned realm":  {"gno.land/r/demo/boards", "boards"},
-		"versioned realm v0": {"gno.land/r/gnoland/boards2/v0", "boards2"},
-		"versioned pure v1":  {"gno.land/p/nt/avl/v1", "avl"},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.want, RunData{PkgPath: tc.pkgPath}.PkgAlias())
-		})
-	}
-}
-
 func renderPage(t *testing.T, data RunData) string {
 	t.Helper()
 	var buf strings.Builder
@@ -62,15 +42,15 @@ func TestStarterScript(t *testing.T) {
 
 	cases := map[string]struct {
 		funcs []*doc.JSONFunc
-		want  string
+		want  string // the script's statements, below its first comment
 	}{
 		"render": {
 			[]*doc.JSONFunc{{Name: "Increment"}, render},
-			`println(counter.Render(""))`,
+			"// println(counter.Render(\"\"))\n\t_ = counter.Render",
 		},
 		"crossing render": {
 			[]*doc.JSONFunc{crossingRender},
-			`println(counter.Render(cross(cur), ""))`,
+			"// println(counter.Render(cross(cur), \"\"))\n\t_ = counter.Render",
 		},
 		"no render: first exported function": {
 			[]*doc.JSONFunc{method, {Name: "helper"}, {Name: "NewGroup"}, {Name: "Other"}},
@@ -86,11 +66,19 @@ func TestStarterScript(t *testing.T) {
 			t.Parallel()
 			script := starterScript("gno.land/r/demo/counter", tc.funcs)
 			assert.Contains(t, script, "import \"gno.land/r/demo/counter\"\n")
-			assert.Contains(t, script, "\n\t"+tc.want+"\n")
+			assert.Contains(t, script, "e.g.:\n\t"+tc.want+"\n}\n")
+			// Render runs only once uncommented: its gas is the package's.
+			assert.NotContains(t, script, "\tprintln(", script)
 			// Only a crossing call needs main's realm.
 			assert.Equal(t, strings.Contains(tc.want, "cross"), strings.Contains(script, "func main(cur realm) {"), script)
 		})
 	}
+
+	t.Run("versioned path", func(t *testing.T) {
+		t.Parallel()
+		script := starterScript("gno.land/r/gnoland/boards2/v0", []*doc.JSONFunc{render})
+		assert.Contains(t, script, "\t_ = boards2.Render\n")
+	})
 
 	t.Run("nothing to call", func(t *testing.T) {
 		t.Parallel()
@@ -136,6 +124,7 @@ func TestPageServedWhole(t *testing.T) {
 	// It says what running it does, and takes $help's mode and key.
 	assert.Contains(t, page, `signs a transaction with <code class="u-font-mono" data-run-target="key-arg">KEYNAME</code>`)
 	assert.Contains(t, page, `to the <code class="u-font-mono">test-1</code> chain`)
+	assert.Contains(t, page, `even when the script runs out of gas: raise <code class="u-font-mono">-gas-wanted</code>`)
 	assert.Contains(t, page, `data-controller="action-header"`)
 	assert.Contains(t, page, `data-action-header-target="mode"`)
 	assert.Contains(t, page, `data-action-header-target="address"`)
