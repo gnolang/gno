@@ -32,10 +32,11 @@ stays out of the tree.
 
 Verify (`go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus`) runs Gno only
 and compares with the pinned Go side; it never shells out to `go`. Sync runs
-`go run` / `go build` from the toolchain on PATH, so run it with
-`GOTOOLCHAIN=$(cat VERSION)` to keep the goldens on one Go release;
-`make -C gnovm _test.filetest` does not pin the toolchain unless `go.mod`
-carries a `toolchain` line, so set it explicitly.
+`go run` / `go build` from the toolchain on PATH, and **refuses to run on any
+toolchain but `VERSION`** — run it with `GOTOOLCHAIN=$(cat VERSION)`. The
+refusal is the point: gc's own output moves between releases (`printfloat`
+changed in 1.26), so a golden synced elsewhere records that toolchain's
+verdict, and verify can never catch it.
 
 Verify also refuses a Clean or `Known*` file whose Gno side now fails with a
 feature-gap message (`stale verdict`): only sync routes a file to
