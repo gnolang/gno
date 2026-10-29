@@ -680,9 +680,18 @@
 			}
 
 			/* The lightning's ink stops short of its box, unlike the other
-			   tab icons: pull its label in to the same distance. */
+			   tab icons: pull its label in to the same distance. From md to
+			   xl the labels are hidden, so the icon keeps its full box. */
 			&:has(> use[href="#ico-tx-link"]) {
 				margin-inline-end: -2px;
+
+				@media (--md) {
+					margin-inline-end: 0;
+				}
+
+				@media (--xl) {
+					margin-inline-end: -2px;
+				}
 			}
 		}
 
@@ -747,9 +756,10 @@
 		flex-shrink: 0;
 	}
 
-	/* The last tab ends on the content's right edge. */
+	/* The last tab ends on the content's right edge. From lg, beside the
+	   omnibar, the tighter gap keeps five icons at full size. */
 	.b-menu-link:not(:last-child) .link {
-		@media (--xl) {
+		@media (--lg) {
 			margin-inline-end: var(--g-space-4);
 		}
 

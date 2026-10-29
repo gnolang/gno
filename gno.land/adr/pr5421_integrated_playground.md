@@ -132,8 +132,9 @@ through a heredoc. gnoweb never signs or broadcasts.
   gets the error page `$help` gives. Error pages have no Run tab: the header
   is built knowing the page is an error. The Run tab stays a realm tab; a
   pure package's `$run` is reached by URL. It makes a realm's fifth tab, so
-  on phones a realm's tabs show their labels without icons; pages with fewer
-  tabs keep their icons. gnodev loads a package lazily on its first query,
+  on phones a realm's tabs show their labels without icons, and on tablets,
+  beside the omnibar, they sit closer so the icons keep their size; pages
+  with fewer tabs keep their icons and spacing. gnodev loads a package lazily on its first query,
   so its proxy counts `vm/qdoc` as one, as it does `vm/qrender`: a first
   `$run` gets the run page.
 - **Starter script:** built on the server from the same qdoc, so it runs as
