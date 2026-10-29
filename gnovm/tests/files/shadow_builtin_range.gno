@@ -6,5 +6,8 @@ func main() {
 	}
 }
 
-// Error:
-// main/shadow_builtin_range.gno:4:2-6:3: builtin identifiers cannot be shadowed: len
+// Output:
+// 0
+
+// TypeCheckError:
+// main/shadow_builtin_range.gno:4:6: builtin identifiers cannot be shadowed: len

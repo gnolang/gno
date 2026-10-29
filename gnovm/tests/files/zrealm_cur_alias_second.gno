@@ -15,3 +15,6 @@ func main(cur realm) {
 
 // Error:
 // gno.land/r/demo/curalias2/zrealm_cur_alias_second.gno:10:7-25: only the first realm type argument of a crossing function may have name `cur`
+
+// TypeCheckError:
+// gno.land/r/demo/curalias2/zrealm_cur_alias_second.gno:10:19: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

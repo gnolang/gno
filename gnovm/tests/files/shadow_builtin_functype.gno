@@ -9,5 +9,5 @@ func main() {
 	_ = f
 }
 
-// Error:
-// main/shadow_builtin_functype.gno:6:7-30: builtin identifiers cannot be shadowed: len
+// TypeCheckError:
+// main/shadow_builtin_functype.gno:6:12: builtin identifiers cannot be shadowed: len

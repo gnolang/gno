@@ -9,5 +9,8 @@ func main() {
 	}
 }
 
-// Error:
-// main/shadow_builtin_forinit.gno:7:6-14: builtin identifiers cannot be shadowed: len
+// Output:
+// 0
+
+// TypeCheckError:
+// main/shadow_builtin_forinit.gno:7:6: builtin identifiers cannot be shadowed: len

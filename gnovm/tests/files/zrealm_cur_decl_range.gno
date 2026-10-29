@@ -13,5 +13,8 @@ func main(cur realm) {
 	println("ok")
 }
 
-// Error:
-// gno.land/r/demo/curdeclrange/zrealm_cur_decl_range.gno:10:2-12:3: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
+// Output:
+// ok
+
+// TypeCheckError:
+// gno.land/r/demo/curdeclrange/zrealm_cur_decl_range.gno:10:9: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

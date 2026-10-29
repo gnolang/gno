@@ -9,5 +9,5 @@ func main() {
 	_ = i
 }
 
-// Error:
-// main/shadow_builtin_iface_method.gno:5:20-29: builtin identifiers cannot be shadowed: len
+// TypeCheckError:
+// main/shadow_builtin_iface_method.gno:5:21: builtin identifiers cannot be shadowed: len

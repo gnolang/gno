@@ -402,7 +402,9 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 // Minimal AST mutation(s) for Go.
 // Supports init(cur realm), main(cur realm) by removing the param and
 // inserting `var cur realm; _ = cur` so go/types sees the cur variable.
-func prepareGoGno0p9(f *ast.File) (err error) {
+// synth collects the `cur` identifiers this function invents, which are
+// not source bindings and must not be judged as such (checkDeclNames).
+func prepareGoGno0p9(f *ast.File, synth map[*ast.Ident]struct{}) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
 		case *ast.FuncDecl:
@@ -415,11 +417,15 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 				}
 				insert := gon.Type.End()
 				// var cur realm
+				curName := &ast.Ident{Name: "cur", NamePos: insert}
+				if synth != nil {
+					synth[curName] = struct{}{}
+				}
 				decl := &ast.DeclStmt{Decl: &ast.GenDecl{
 					Tok:    token.VAR,
 					TokPos: insert,
 					Specs: []ast.Spec{&ast.ValueSpec{
-						Names: []*ast.Ident{{Name: "cur", NamePos: insert}},
+						Names: []*ast.Ident{curName},
 						Type:  &ast.Ident{Name: "realm", NamePos: insert},
 					}},
 				}}
@@ -481,8 +487,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Prepare for Go type-checking.
+	synthetic := map[*ast.Ident]struct{}{}
 	for _, gof := range allgofs {
-		err := prepareGoGno0p9(gof)
+		err := prepareGoGno0p9(gof, synthetic)
 		if err != nil {
 			panic(fmt.Sprintf("unexpected error: %v", err))
 		}
@@ -516,11 +523,26 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+	info := &types.Info{
+		Defs: map[*ast.Ident]types.Object{},
+		// A type-switch guard declares one variable per clause, which
+		// go/types records here and not in Defs.
+		Implicits: map[ast.Node]types.Object{},
+	}
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
 		return
+	}
+	// Only the package being admitted: an import is already on chain, and
+	// this rule may not retroactively refuse it.
+	if mpkg.Path == gimp.pkgPath {
+		if err := checkDeclNames(pkg, gofset, pgofs, gmgof, info, synthetic); err != nil {
+			gimp.Error(err)
+			errs = multierr.Combine(gimp.errors[numErrs:]...)
+			return
+		}
 	}
 	if wtests != nil && !*wtests {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -833,4 +855,127 @@ func importErrorString(err ImportError) string {
 	} else {
 		return msg
 	}
+}
+
+//----------------------------------------
+// Reserved declaration names.
+//
+// A binding may not shadow a builtin, and `cur` may only name a crossing
+// function's first parameter. The rule protects readers, not the VM: in
+// contract code a reviewer reads `panic`, `cross`, `len` as VM semantics,
+// and Go lets any of them be rebound.
+//
+// It lives HERE, in the deploy gate, and not in preprocess, because
+// preprocess re-runs every stored package at node boot
+// (PreprocessAllFilesAndSaveBlockNodes). A rejection added there refuses
+// source the chain already accepted, so an upgraded node fails to start on
+// a package it has been serving for months. The gate sees source being
+// admitted, plus the binary's own stdlibs — which ship with the rule.
+//
+// go/types' Defs is its own record of every defining identifier, so no
+// binding form — parameter, result, receiver, range, type switch, for-init,
+// local type, closure parameter — can be missed here or added later without
+// being covered.
+
+// checkDeclNames reports the first offending binding in files, skipping the
+// synthetic .gnobuiltins file, which declares the builtins themselves.
+func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, synthetic map[*ast.Ident]struct{}) error {
+	// `realm` is an alias declared in the injected .gnobuiltins.gno;
+	// types.Identical sees through it, so an alias of the alias counts too.
+	var realmType types.Type
+	if tn, _ := pkg.Scope().Lookup("realm").(*types.TypeName); tn != nil {
+		realmType = tn.Type()
+	}
+	var skip *token.File
+	if builtins != nil {
+		skip = fset.File(builtins.Pos())
+	}
+	firstParam := firstParamIdents(files, builtins)
+	var bad []types.Object
+	add := func(obj types.Object) {
+		if obj == nil || fset.File(obj.Pos()) == skip || !shadowsAName(obj) {
+			return
+		}
+		if declNameRefused(Name(obj.Name())) {
+			bad = append(bad, obj)
+		}
+	}
+	for id, obj := range info.Defs {
+		if _, ok := synthetic[id]; ok {
+			continue
+		}
+		// The one legal `cur`: a crossing function's first parameter. Both
+		// halves are needed — position alone admits `func(x int, cur realm)`,
+		// type alone admits `func(cur int)` — and the type is read from
+		// go/types, so an alias for realm is held to the same rule.
+		if id.Name == "cur" {
+			if _, ok := firstParam[id]; ok && obj != nil && realmType != nil &&
+				types.Identical(obj.Type(), realmType) {
+				continue
+			}
+		}
+		add(obj)
+	}
+	for node, obj := range info.Implicits {
+		// Only the type-switch guard: the other implicit objects name an
+		// imported package, which is not this source's binding to choose.
+		if _, ok := node.(*ast.CaseClause); ok {
+			add(obj)
+		}
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	// Both maps are maps; order the report so two nodes word it identically.
+	slices.SortFunc(bad, func(a, b types.Object) int { return int(a.Pos()) - int(b.Pos()) })
+	obj := bad[0]
+	if isContextualKeyword(Name(obj.Name())) {
+		return fmt.Errorf("%s: %s", fset.Position(obj.Pos()), curReservedMsg)
+	}
+	return fmt.Errorf("%s: builtin identifiers cannot be shadowed: %s", fset.Position(obj.Pos()), obj.Name())
+}
+
+func declNameRefused(n Name) bool {
+	if n == "" || n == blankIdentifier || strings.HasPrefix(string(n), ".") {
+		return false
+	}
+	return isUverseName(n) || isContextualKeyword(n)
+}
+
+// firstParamIdents collects the first parameter name of every function type,
+// the only position where `cur` may be bound.
+func firstParamIdents(files []*ast.File, builtins *ast.File) map[*ast.Ident]struct{} {
+	out := map[*ast.Ident]struct{}{}
+	for _, f := range files {
+		if f == builtins {
+			continue
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			ft, ok := n.(*ast.FuncType)
+			if !ok || ft.Params == nil || len(ft.Params.List) == 0 {
+				return true
+			}
+			if p := ft.Params.List[0]; len(p.Names) > 0 {
+				out[p.Names[0]] = struct{}{}
+			}
+			return true
+		})
+	}
+	return out
+}
+
+// shadowsAName reports whether obj's name enters a scope where it can
+// displace a builtin. A struct field, an embedded field, a method and a
+// label each live in their own namespace — `type T struct{ bool bool }`
+// and `func (T) len() int` shadow nothing, and Go accepts both.
+func shadowsAName(obj types.Object) bool {
+	switch obj := obj.(type) {
+	case *types.Var:
+		return !obj.IsField()
+	case *types.Func:
+		return obj.Signature().Recv() == nil
+	case *types.Label:
+		return false
+	}
+	return true
 }

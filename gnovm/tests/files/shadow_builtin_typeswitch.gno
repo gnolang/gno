@@ -9,5 +9,8 @@ func main() {
 	}
 }
 
-// Error:
-// main/shadow_builtin_typeswitch.gno:7:2-8:15: builtin identifiers cannot be shadowed: len
+// Output:
+// 1
+
+// TypeCheckError:
+// main/shadow_builtin_typeswitch.gno:6:9: builtin identifiers cannot be shadowed: len

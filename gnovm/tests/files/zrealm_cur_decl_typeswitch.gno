@@ -13,5 +13,9 @@ func main(cur realm) {
 	println("ok")
 }
 
-// Error:
-// gno.land/r/demo/curdecltypeswitch/zrealm_cur_decl_typeswitch.gno:10:2-11:48: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
+// Output:
+// declared realm cur: gno.land/r/demo/curdecltypeswitch
+// ok
+
+// TypeCheckError:
+// gno.land/r/demo/curdecltypeswitch/zrealm_cur_decl_typeswitch.gno:9:9: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

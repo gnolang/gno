@@ -8,5 +8,8 @@ func main() {
 	println(f(1))
 }
 
-// Error:
-// main/shadow_builtin_param.gno:5:1-35: builtin identifiers cannot be shadowed: len
+// Output:
+// 1
+
+// TypeCheckError:
+// main/shadow_builtin_param.gno:5:8: builtin identifiers cannot be shadowed: len

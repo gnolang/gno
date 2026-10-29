@@ -14,4 +14,7 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/curdecllocal/zrealm_cur_decl_local.gno:10:3-13: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
+// gno.land/r/demo/curdecllocal/zrealm_cur_decl_local.gno:10:3-13: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame
+
+// TypeCheckError:
+// gno.land/r/demo/curdecllocal/zrealm_cur_decl_local.gno:10:3: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

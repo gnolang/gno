@@ -11,5 +11,5 @@ func main() {
 	_ = f
 }
 
-// Error:
-// gno.land/r/demo/curdeclfunctype/zrealm_cur_decl_functype.gno:7:8-21: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
+// TypeCheckError:
+// gno.land/r/demo/curdeclfunctype/zrealm_cur_decl_functype.gno:7:13: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function

@@ -11,5 +11,9 @@ func main() {
 	println("ok")
 }
 
-// Error:
-// gno.land/r/demo/curdeclintparam/zrealm_cur_decl_int_param.gno:7:1-20: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
+// Output:
+// 1
+// ok
+
+// TypeCheckError:
+// gno.land/r/demo/curdeclintparam/zrealm_cur_decl_int_param.gno:7:8: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
