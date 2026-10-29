@@ -4499,3 +4499,77 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		assert.NotContains(t, body, line)
 	})
 }
+
+// TestHTTPHandler_RunPage checks that $run serves the run page only for a
+// realm or package that exists, with a starter script that calls it. Any
+// other path renders as if $run were not there, and an error page offers no
+// Run tab.
+func TestHTTPHandler_RunPage(t *testing.T) {
+	t.Parallel()
+
+	render := &doc.JSONFunc{
+		Name:    "Render",
+		Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+		Results: []*doc.JSONField{{Type: "string"}},
+	}
+	client := gnoweb.NewMockClient(
+		&gnoweb.MockPackage{Path: "/r/demo/foo", Domain: "gno.land", Files: map[string]string{"foo.gno": "package foo"}, Functions: []*doc.JSONFunc{render}},
+		&gnoweb.MockPackage{Path: "/p/demo/bar", Domain: "gno.land", Files: map[string]string{"bar.gno": "package bar"}, Functions: []*doc.JSONFunc{{Name: "New"}}},
+	)
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	get := func(path string) (int, string) {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		return rr.Code, rr.Body.String()
+	}
+	const runPage = `data-controller="run"`
+
+	served := map[string]string{
+		"/r/demo/foo$run":         "println(foo.Render(&#34;&#34;))",
+		"/r/demo/foo/foo.gno$run": "println(foo.Render(&#34;&#34;))",
+		"/p/demo/bar$run":         "_ = bar.New",
+	}
+	for path, call := range served {
+		code, body := get(path)
+		assert.Equal(t, http.StatusOK, code, path)
+		assert.Contains(t, body, runPage, path)
+		assert.Contains(t, body, call, path)
+	}
+
+	// Without the package, $run changes nothing: same status, no run page,
+	// and a missing realm's 404 page does not link to its $run.
+	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing"} {
+		wantCode, _ := get(path)
+		code, body := get(path + "$run")
+		assert.Equal(t, wantCode, code, path)
+		assert.NotContains(t, body, runPage, path)
+		if code != http.StatusOK {
+			assert.NotContains(t, body, `$run"`, path)
+		}
+	}
+	code, body := get("/r/nope/missing")
+	assert.Equal(t, http.StatusNotFound, code)
+	assert.NotContains(t, body, `$run"`, "a 404 page has no Run tab")
+}
+
+// TestHTTPHandler_RunPageNodeError checks that $run answers a node failure
+// with its error page, not with a run page for a package it could not read.
+func TestHTTPHandler_RunPageNodeError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+		return nil, gnoweb.ErrClientTimeout
+	}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$run", nil))
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
+	assert.NotContains(t, rr.Body.String(), `data-controller="run"`)
+	assert.NotContains(t, rr.Body.String(), `$run"`)
+}

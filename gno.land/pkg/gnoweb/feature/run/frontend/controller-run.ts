@@ -3,8 +3,8 @@ import { BaseController, downloadBlob } from "@gnoweb/js/controller.js";
 import { heredocDelimiter, shellQuote } from "./shell.js";
 
 export class RunController extends BaseController {
-	private declare pkgPath: string;
-	private declare pkgAlias: string;
+	// The script the page was served with, which Reset goes back to.
+	private declare script: string;
 	private declare remote: string;
 	private declare chainId: string;
 	private declare editorEl: HTMLElement;
@@ -17,8 +17,7 @@ export class RunController extends BaseController {
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
-		this.pkgPath = this.getValue("pkg-path");
-		this.pkgAlias = this.getValue("pkg-alias") || "pkg";
+		this.script = this.getValue("script");
 		this.remote = this.getValue("remote");
 		this.chainId = this.getValue("chain-id");
 		this.editorEl = this.getTarget("editor") as HTMLElement;
@@ -33,7 +32,7 @@ export class RunController extends BaseController {
 
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
-			content: this._buildTemplate(),
+			content: this.script,
 			fileName: "script.gno",
 			label: "Run script editor",
 			onChange: () => this._updateCommand(),
@@ -41,18 +40,6 @@ export class RunController extends BaseController {
 
 		this._setupInputListeners();
 		this._updateCommand();
-	}
-
-	private _buildTemplate(): string {
-		return `package main
-
-import "${this.pkgPath}"
-
-func main() {
-\t// Call ${this.pkgAlias} functions here, e.g.:
-\tprintln(${this.pkgAlias}.Render(""))
-}
-`;
 	}
 
 	private _setupInputListeners(): void {
@@ -117,7 +104,7 @@ func main() {
 	}
 
 	public resetCode(): void {
-		this.editor.setCode(this._buildTemplate());
+		this.editor.setCode(this.script);
 	}
 
 	public downloadCode(): void {

@@ -755,9 +755,24 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetHelpView(ctx, gnourl)
 	}
 
-	// Handle Run page (maketx run scratchpad)
+	// Handle Run page: a script against an existing realm or package. A
+	// listing, a user, or a path with no package renders as if $run were
+	// not there, its header tabs included.
+	if gnourl.WebQuery.Has("run") && (gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
+		jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+		switch {
+		case err == nil:
+			return h.Run.GetRunView(gnourl, jdoc.Funcs)
+		case !errors.Is(err, ErrClientPackageNotFound):
+			h.Logger.Error("unable to fetch qdoc", "error", err)
+			return GetClientErrorStatusView(gnourl, err, 0)
+		}
+	}
 	if gnourl.WebQuery.Has("run") {
-		return h.Run.GetRunView(gnourl)
+		u := &indexData.HeaderData.RealmURL
+		// Clone: the map is shared with the request's GnoURL.
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("run")
 	}
 
 	// Handle Source page: with a file -> source code view; without -> package overview.
@@ -1773,6 +1788,7 @@ func scrubHeaderOnError(indexData *components.IndexData, status int) {
 	}
 	indexData.HeaderData.Origin = ""
 	indexData.HeaderData.CopyOf = nil
+	indexData.HeaderData.Error = true
 	if u := &indexData.HeaderData.RealmURL; u.WebQuery.Has("file") {
 		// Clone: the map is shared with the request's GnoURL.
 		u.WebQuery = maps.Clone(u.WebQuery)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
@@ -56,6 +57,9 @@ type HeaderData struct {
 	// CopyOf is the package a playground copy was opened from, whose tabs
 	// the copy shows, none of them current.
 	CopyOf *weburl.GnoURL
+	// Error is set on an error page. Its tabs leave out Run, whose page
+	// needs a package that exists.
+	Error bool
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -246,6 +250,9 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 		}
 	default:
 		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+		if data.Error {
+			data.Links.Dev = slices.DeleteFunc(data.Links.Dev, func(l HeaderLink) bool { return l.Label == "Run" })
+		}
 	}
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)

@@ -4,8 +4,7 @@ UI - Run (maketx run) scratchpad
 {{ define "renderPage" }}
 <div class="b-run"
   data-controller="run"
-  data-run-pkg-path-value="{{ .PkgPath }}"
-  data-run-pkg-alias-value="{{ .PkgAlias }}"
+  data-run-script-value="{{ .Script }}"
   data-run-remote-value="{{ .Remote }}"
   data-run-chain-id-value="{{ .ChainId }}">
 
