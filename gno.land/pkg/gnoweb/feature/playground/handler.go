@@ -43,7 +43,7 @@ func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL) (int,
 	if from := u.Query.Get("from"); from != "" {
 		pkg := ParseFrom(h.deps.Domain, from)
 		if pkg == nil {
-			return http.StatusBadRequest, components.StatusErrorComponent("invalid package path: from names a realm or a package, without file or arguments")
+			return http.StatusBadRequest, components.StatusErrorComponent("invalid package path")
 		}
 		return h.copyView(ctx, pkg.Path, u.Query.Get("file"))
 	}
