@@ -1498,6 +1498,12 @@ func PreprocessCollect(store Store, ctx BlockNode, n Node) (Node, []*PreprocessE
 }
 
 func preprocess(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator) Node {
+	if acc != nil {
+		// Accumulate mode leaves ATTR_PREPROCESSED on what it dropped, so
+		// the ordinary path would skip exactly the code it must reject.
+		// Mark the root; the skip below refuses to reuse it.
+		n.SetAttribute(ATTR_PREPROCESS_COLLECTED, true)
+	}
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
@@ -1656,6 +1662,15 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 	t := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
+			// Nodes accumulate mode has seen keep ATTR_PREPROCESSED even
+			// where it dropped them, so the ordinary path would skip the
+			// very code it must reject and accept the package. Reusing
+			// them here is a caller error, not an input error.
+			if acc == nil && (n.GetAttribute(ATTR_PREPROCESS_COLLECTED) == true ||
+				n.GetAttribute(ATTR_PREPROCESS_DROPPED) == true) {
+				panic(fmt.Sprintf("preprocess: %v went through accumulate mode; "+
+					"those nodes must not be preprocessed again", n))
+			}
 			return n, TRANS_SKIP
 		}
 
