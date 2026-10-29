@@ -34,4 +34,7 @@ func (f *FlagSet) setErrorHandling(b bool) {
 	f.failf("DIE")
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12
+// GnoError:
+// line 12: initialization cycle: commandLine refers to NewFlagSet refers to FlagSet.setErrorHandling refers to FlagSet.failf refers to FlagSet.usage refers to commandLine
+
+// Verdict: Clean errorcheck

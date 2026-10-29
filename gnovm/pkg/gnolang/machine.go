@@ -695,6 +695,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
+	CheckInitCycles(m.Store, pn, fset)
 	// Get new values across all files in package.
 	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
@@ -796,6 +797,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
+	CheckInitCycles(m.Store, pn, fs)
 
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
@@ -1674,6 +1676,19 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
+	// Checker walks at preprocess (check_*.go): per node visited by a
+	// type-shape, type-expression, unused-name or identity walk, and per
+	// literal element or switch case examined. BenchmarkCheckGas over 14
+	// example packages (M5, factor 2.1): unused 118, unused-import 100,
+	// duplicate-case 114, type-shape 90 reference-ns/node; a floor for the
+	// lighter Transcribe-only walks (type-expression shape 51).
+	OpCPUSlopeCheckNode = 100
+	// checkInitCycles: per declaration indexed, then per declaration and
+	// per dependency edge visited (map lookups, a name resolution, a
+	// sorted-name walk twice). BenchmarkInitCycleWalk + BenchmarkCheckGas
+	// two-point fit: ~113 ns/visit and ~114 ns/declaration on an M5,
+	// ~240 reference-ns each at factor 2.1.
+	OpCPUSlopeInitCycleVisit = 200
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 

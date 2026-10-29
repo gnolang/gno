@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"cmp"
 	stderrors "errors"
 	"fmt"
 	"maps"
@@ -12,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+
+	"github.com/gnolang/gno/tm2/pkg/store"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -44,7 +47,245 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 	for _, fn := range fset.Files {
 		preprocess(store, pn, fn, acc)
 	}
+	acc.errs = append(acc.errs, checkInitCycles(preprocessGasMeterOf(store), pn, fset)...)
 	return acc.errs
+}
+
+// checkInitCycles reports every initialization cycle among the package's
+// variables: a variable whose initializer, directly or through the
+// functions and methods it uses, depends on itself (Go spec, "Package
+// initialization"). The dependency edges are the ATTR_DECL_DEPS that
+// codaInitOrderDeps recorded on each declaration. One pass of Tarjan's
+// algorithm finds the strongly connected components; a component is a
+// cycle when it holds a variable (functions are edges, not roots), and is
+// reported once, at the variable the cycle closes on (see initCycleOf),
+// in source order. Each declaration indexed, and each declaration and
+// edge visited, bills OpCPUSlopeInitCycleVisit on gm. On chain
+// CheckInitCycles panics with the first one, where runFileDecls would
+// otherwise fail later and unpositioned.
+func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
+	w := &initCycleWalk{
+		gm:    gm,
+		order: map[Decl]int{},
+		file:  map[Decl]*FileNode{},
+		nodes: map[Decl]*initCycleNode{},
+	}
+	for _, fn := range fset.Files {
+		chargeCPUGas(gm, OpCPUSlopeInitCycleVisit*int64(len(fn.Decls)))
+		for _, d := range fn.Decls {
+			w.order[d] = len(w.order)
+			w.file[d] = fn
+		}
+	}
+	// Names resolve to the declaration predefine selected (the last
+	// file's wins), and only those are roots: a shadowed declaration is
+	// neither, or it would close a false cycle.
+	index := newPredefineDeclIndex(fset)
+	w.resolve = func(name Name) (Decl, bool) {
+		if e, ok := index.entries[name]; ok {
+			return e.decl, true
+		}
+		return resolveDeclDepSafe(name, pn)
+	}
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
+			vd, ok := d.(*ValueDecl)
+			if !ok || !w.live(vd, index) {
+				continue
+			}
+			if _, seen := w.nodes[vd]; !seen {
+				w.connect(vd)
+			}
+		}
+	}
+	type report struct {
+		at   Decl
+		path []Name
+	}
+	var reports []report
+	for _, scc := range w.sccs {
+		if at, path := w.initCycleOf(scc); at != nil {
+			reports = append(reports, report{at, path})
+		}
+	}
+	slices.SortFunc(reports, func(a, b report) int { return cmp.Compare(w.declOrder(a.at), w.declOrder(b.at)) })
+	var errs []*PreprocessError
+	for _, r := range reports {
+		var msg strings.Builder
+		msg.WriteString("initialization cycle: ")
+		for i, name := range r.path {
+			if i > 0 {
+				msg.WriteString(" refers to ")
+			}
+			msg.WriteString(string(name))
+		}
+		loc := Location{PkgPath: pn.PkgPath, Span: r.at.GetSpan()}
+		if fn := w.file[r.at]; fn != nil {
+			loc.File = fn.FileName
+		}
+		errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
+	}
+	return errs
+}
+
+// initCycleWalk is Tarjan's strongly-connected-components walk over the
+// declaration dependency graph.
+type initCycleWalk struct {
+	gm      store.GasMeter
+	resolve func(Name) (Decl, bool)
+	order   map[Decl]int       // source order of the file set's declarations
+	file    map[Decl]*FileNode // declaring file
+	nodes   map[Decl]*initCycleNode
+	stack   []Decl
+	sccs    [][]Decl // in completion order
+}
+
+// initCycleNode is a visited declaration's walk state.
+type initCycleNode struct {
+	number, low int // Tarjan index, in visit order, and low link
+	onStack     bool
+	deps        []Name // dependency names, sorted so the walk is deterministic
+}
+
+// live reports whether vd is the declaration predefine selected for one
+// of its names; a shadowed declaration is not walked.
+func (w *initCycleWalk) live(vd *ValueDecl, index *predefineDeclIndex) bool {
+	for _, name := range vd.GetDeclNames() {
+		if index.entries[name].decl == vd {
+			return true
+		}
+	}
+	return false
+}
+
+// declOrder is the source position of d among the walked files; a
+// declaration from an earlier file set sorts last.
+func (w *initCycleWalk) declOrder(d Decl) int {
+	if n, ok := w.order[d]; ok {
+		return n
+	}
+	return math.MaxInt
+}
+
+func (w *initCycleWalk) connect(d Decl) {
+	chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+	m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+	nd := &initCycleNode{number: len(w.nodes), onStack: true, deps: slices.Collect(maps.Keys(m))}
+	nd.low = nd.number
+	slices.Sort(nd.deps)
+	w.nodes[d] = nd
+	w.stack = append(w.stack, d)
+	for _, name := range nd.deps {
+		chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+		dep, ok := w.resolve(name)
+		if !ok {
+			continue
+		}
+		if nn, seen := w.nodes[dep]; !seen {
+			w.connect(dep)
+			nd.low = min(nd.low, w.nodes[dep].low)
+		} else if nn.onStack {
+			nd.low = min(nd.low, nn.number)
+		}
+	}
+	if nd.low != nd.number {
+		return
+	}
+	var scc []Decl
+	for {
+		top := w.stack[len(w.stack)-1]
+		w.stack = w.stack[:len(w.stack)-1]
+		w.nodes[top].onStack = false
+		scc = append(scc, top)
+		if top == d {
+			break
+		}
+	}
+	w.sccs = append(w.sccs, scc)
+}
+
+// initCycleOf returns the cycle to report for a component, or nil: a
+// component with no variable is recursion among functions, not a cycle.
+// The cycle is the first one the sorted-name walk from the component's
+// earliest variable closes on a variable; it is reported at that
+// variable, as its path of names closed with the variable's name.
+func (w *initCycleWalk) initCycleOf(scc []Decl) (Decl, []Name) {
+	members := make(map[Decl]bool, len(scc))
+	var start *ValueDecl
+	for _, d := range scc {
+		members[d] = true
+		if vd, ok := d.(*ValueDecl); ok && (start == nil || w.declOrder(vd) < w.declOrder(start)) {
+			start = vd
+		}
+	}
+	if start == nil {
+		return nil, nil
+	}
+	if len(scc) == 1 && !slices.ContainsFunc(w.nodes[start].deps, func(name Name) bool {
+		dep, ok := w.resolve(name)
+		return ok && dep == start
+	}) {
+		return nil, nil // a lone variable with no edge to itself
+	}
+	type step struct {
+		d    Decl
+		name Name
+	}
+	var path []step
+	onPath := map[Decl]int{}
+	var walk func(d Decl) (Decl, []Name)
+	walk = func(d Decl) (Decl, []Name) {
+		chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+		for _, name := range w.nodes[d].deps {
+			chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+			dep, ok := w.resolve(name)
+			if !ok || !members[dep] {
+				continue
+			}
+			if i, ok := onPath[dep]; ok {
+				if _, isVar := dep.(*ValueDecl); !isVar {
+					continue
+				}
+				names := make([]Name, 0, len(path)-i+1)
+				for _, st := range path[i:] {
+					names = append(names, st.name)
+				}
+				return dep, append(names, name)
+			}
+			onPath[dep] = len(path)
+			path = append(path, step{dep, name})
+			if at, names := walk(dep); at != nil {
+				return at, names
+			}
+			path = path[:len(path)-1]
+			delete(onPath, dep)
+		}
+		return nil, nil
+	}
+	onPath[start] = 0
+	path = append(path, step{start, start.GetDeclNames()[0]})
+	return walk(start)
+}
+
+// resolveDeclDepSafe is resolveDeclDep without the panics: a name the
+// package cannot resolve (dropped by accumulate mode) is skipped.
+func resolveDeclDepSafe(name Name, pn *PackageNode) (d Decl, ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			d, ok = nil, false
+		}
+	}()
+	d = resolveDeclDep(name, pn)
+	return d, d != nil
+}
+
+// CheckInitCycles is the on-chain form of checkInitCycles: the first
+// initialization cycle among the package's variables panics as a
+// *PreprocessError, positioned at the variable that opens it.
+func CheckInitCycles(store Store, pn *PackageNode, fset *FileSet) {
+	if errs := checkInitCycles(preprocessGasMeterOf(store), pn, fset); len(errs) > 0 {
+		panic(errs[0])
+	}
 }
 
 func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preprocessAccumulator) {
@@ -6323,6 +6564,28 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), un))
 				} else {
+					if index != nil && index.acc != nil { // gc's wording off chain; on chain unchanged
+						cycle := stack // the cycle only, from un
+						for i, s := range stack {
+							if s == un {
+								cycle = stack[i:]
+								break
+							}
+						}
+						msg := fmt.Sprintf("initialization cycle: %s refers to %s",
+							Names(cycle).Join(" refers to "), un)
+						if vd, ok := d.(*ValueDecl); ok && vd.Const {
+							// Constants: the cycle is recorded at its first
+							// member and the name closing it stands in as
+							// invalidType, so d's other dependencies are
+							// still walked and every cycle is reported, as
+							// gc does (a variable cycle is checkInitCycles's).
+							index.acc.record(wrapPreprocessPanic([]BlockNode{last}, index.entries[un].decl, msg))
+							defineInvalid(skipFile(last).GetStaticBlock(), un)
+							continue
+						}
+						panic(msg)
+					}
 					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
 						Names(stack).Join(" -> "), un))
 				}
@@ -7075,6 +7338,10 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 						if !ok {
 							break
+						}
+						// A call result (`f().m`) is typed as a one-element tuple.
+						if tt, ok2 := xt.(*tupleType); ok2 && len(tt.Elts) == 1 {
+							xt = tt.Elts[0]
 						}
 						// Dereference pointer receiver types.
 						if pt, ok2 := xt.(*PointerType); ok2 {

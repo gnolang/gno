@@ -11,7 +11,7 @@ var B = f()
 func main() {}
 
 // Error:
-// main/var_initorder22.gno:8:5: circular dependency: f -> B -> f
+// main/var_initorder22.gno:8:5-32: initialization cycle: f refers to B refers to f
 
 // TypeCheckError:
 // main/var_initorder22.gno:8:5: initialization cycle for f; main/var_initorder22.gno:8:5: 	f refers to B; main/var_initorder22.gno:9:5: 	B refers to f

@@ -833,3 +833,60 @@ func main() {
 		"main.gno:20:3", "missing field x in interface {}",
 	)
 }
+
+func TestPreprocessCollectInitCycle(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var a = f()
+
+func f() int { return a + g() }
+
+func g() int { return g() } // recursion among functions is not a cycle
+
+var b = 1
+
+func main() { println(a, b) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
+}
+
+func TestPreprocessCollectConstCycles(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+const A = 1 + B
+const B = C - 1
+const C = A + B + 1
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every cycle, at its first member in source order, as gc.
+	wantErrors(t, msgs,
+		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
+		"main.gno:4:", "initialization cycle: B refers to C refers to B",
+	)
+}

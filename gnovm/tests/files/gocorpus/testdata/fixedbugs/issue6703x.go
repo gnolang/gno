@@ -20,4 +20,7 @@ var (
 	x = p.pm() // ERROR "initialization cycle|depends upon itself"
 )
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20
+// GnoError:
+// line 20: initialization cycle: x refers to T.pm refers to x
+
+// Verdict: Clean errorcheck
