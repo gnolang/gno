@@ -51,9 +51,13 @@ Functions list ends with an entry that links to it. It and the function
 cards' live results evaluate through `POST /_/api/eval` (`vm/qeval`), so
 nothing mutates state.
 
-A card's Eval button sends the card's params in order: the value typed, or a
-zero literal for the param's type, which the template renders from the
-package doc (`.Params`) rather than parsing the signature. A newer live result
+A card's Eval button sends the card's params in order, one per input, so
+unnamed and repeated (`_`) params count: the value typed, quoted when the
+param is a `string` or an `address` and not already a quoted literal, or a
+zero literal for the param's type (`""` for both). The template renders the
+types from the package doc (`.Params`) rather than parsing the signature. A
+chain error reaches the reader in the node's own words, without gnoweb's
+internal prefix. A newer live result
 or evaluation aborts the request it supersedes. A rate limit, an unreachable
 node or a network failure is shown as "unavailable", not as the function's
 error, and analytics does not record it as a failed `qeval_preview`.
