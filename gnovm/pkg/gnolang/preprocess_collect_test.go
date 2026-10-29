@@ -830,3 +830,22 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 		})
 	}
 }
+
+func TestPreprocessCollectConstCycles(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+const A = 1 + B
+const B = C - 1
+const C = A + B + 1
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every cycle, at its first member in source order, as gc.
+	wantErrors(t, msgs,
+		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
+		"main.gno:4:", "initialization cycle: B refers to C refers to B",
+	)
+}

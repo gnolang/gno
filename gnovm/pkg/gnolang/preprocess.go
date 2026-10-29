@@ -6544,8 +6544,26 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 						Names(stack).Join(" -> "), un))
 				} else {
 					if index != nil && index.acc != nil { // gc's wording off chain; on chain unchanged
-						panic(fmt.Sprintf("initialization cycle: %s refers to %s",
-							Names(stack).Join(" refers to "), un))
+						cycle := stack // the cycle only, from un
+						for i, s := range stack {
+							if s == un {
+								cycle = stack[i:]
+								break
+							}
+						}
+						msg := fmt.Sprintf("initialization cycle: %s refers to %s",
+							Names(cycle).Join(" refers to "), un)
+						if vd, ok := d.(*ValueDecl); ok && vd.Const {
+							// Constants: the cycle is recorded at its first
+							// member and the name closing it stands in as
+							// invalidType, so d's other dependencies are
+							// still walked and every cycle is reported, as
+							// gc does (a variable cycle is checkInitCycles's).
+							index.acc.record(wrapPreprocessPanic([]BlockNode{last}, index.entries[un].decl, msg))
+							defineInvalid(skipFile(last).GetStaticBlock(), un)
+							continue
+						}
+						panic(msg)
 					}
 					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
 						Names(stack).Join(" -> "), un))
