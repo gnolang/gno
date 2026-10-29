@@ -1881,8 +1881,8 @@ func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 	assert.NotContains(t, rr.Body.String(), `href="//`)
 }
 
-// TestHTTPHandler_PlayRedirect checks that $play, and $fork (its earlier name),
-// send a package or file to its playground copy.
+// TestHTTPHandler_PlayRedirect checks that $play sends a package or file to
+// its playground copy, and that $fork, a name no release served, does not.
 func TestHTTPHandler_PlayRedirect(t *testing.T) {
 	t.Parallel()
 
@@ -1892,7 +1892,6 @@ func TestHTTPHandler_PlayRedirect(t *testing.T) {
 
 	cases := map[string]string{
 		"/r/demo/foo$play":         "/_/play?from=r%2Fdemo%2Ffoo",
-		"/r/demo/foo$fork":         "/_/play?from=r%2Fdemo%2Ffoo",
 		"/r/demo/foo/bar.gno$play": "/_/play?file=bar.gno&from=r%2Fdemo%2Ffoo",
 	}
 	for path, want := range cases {
@@ -1901,6 +1900,11 @@ func TestHTTPHandler_PlayRedirect(t *testing.T) {
 		assert.Equal(t, http.StatusFound, rr.Code, path)
 		assert.Equal(t, want, rr.Header().Get("Location"), path)
 	}
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$fork", nil))
+	assert.NotEqual(t, http.StatusFound, rr.Code)
+	assert.Empty(t, rr.Header().Get("Location"))
 }
 
 // TestHTTPHandler_GetOverviewView_SuccessRendersAllSections verifies the overview page

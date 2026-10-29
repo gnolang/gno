@@ -32,8 +32,8 @@ A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
 - multi-file code through `// --- filename.gno ---` separators, one tab per
   file, with add and close;
 - opening an editable copy of a deployed package with `?from=<pkgpath>`
-  (`&file=` picks the tab shown first). `<pkgpath>$play`, and `$fork` (its
-  earlier name), redirect there, and source file views link to it.
+  (`&file=` picks the tab shown first). `<pkgpath>$play` redirects there,
+  and source file views link to it.
 
 The playground is its own page. Its breadcrumb ends with a `playground` pill,
 after the copied package (or `_ / play` and the shared `?code=`). A copy keeps
