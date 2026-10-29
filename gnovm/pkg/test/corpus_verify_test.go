@@ -32,6 +32,10 @@ func TestVerifyCorpusVerdicts(t *testing.T) {
 		{"feature gap under Clean is stale, not a skip", gap + goldens + "// Verdict: Clean run\n", "stale verdict"},
 		{"second verdict behind Unsupported", clean + "\n// Verdict: Unsupported channel: x\n\n// Verdict: Clean run\n", "exactly one"},
 		{"Known* verdict names the mode", clean + goldens + "// Verdict: KnownIssue compile: #1 x\n", `mode "compile"`},
+		// Unsupported is the one verdict that skips, so it is the one a
+		// bad tag or a placeholder reason can hide behind.
+		{"Unsupported tag must be in the vocabulary", gap + "\n// Verdict: Unsupported wibble-not-a-tag: I'd rather not look\n", "tag vocabulary"},
+		{"Unsupported needs a real reason", gap + "\n// Verdict: Unsupported stdlib-symbol: TODO: explain\n", "needs a reason"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, _, _, err := opts.RunFiletest("gocorpus/testdata/run/probe.go", []byte(tc.src), opts.TestStore)
@@ -47,4 +51,34 @@ func TestVerifyCorpusVerdicts(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestVerdictArmsTheGoComparison pins that EVERY verdict opts a .gno file
+// into the Gno-vs-Go comparison, not just KnownDivergence. A verdict is a
+// claim about what gc does; without a `// GoOutput:` beside it nothing
+// ever checks that claim, and the file leaves the ledger silently.
+func TestVerdictArmsTheGoComparison(t *testing.T) {
+	rootDir, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := &TestOptions{RootDir: rootDir, Output: io.Discard, Error: io.Discard}
+	opts.BaseStore, opts.TestStore = StoreWithOptions(rootDir, opts.WriterForStore(), StoreOptions{Testing: true})
+
+	const body = "package main\n\nfunc main() {\n\tprintln(\"x\")\n}\n\n// Output:\n// x\n"
+	for _, kind := range []string{"Clean run", "KnownIssue run: #1 x", "KnownDivergence run: #1 x"} {
+		t.Run(kind, func(t *testing.T) {
+			src := body + "\n// Verdict: " + kind + "\n"
+			_, _, _, err := opts.RunFiletest("probe.gno", []byte(src), opts.TestStore)
+			if err == nil {
+				t.Fatalf("`// Verdict: %s` with no `// GoOutput:` passed verify", kind)
+			}
+			t.Logf("refused with: %v", err)
+		})
+	}
+	t.Run("no verdict is still pure-Gno", func(t *testing.T) {
+		if _, _, _, err := opts.RunFiletest("probe.gno", []byte(body), opts.TestStore); err != nil {
+			t.Fatalf("a .gno file with no verdict must keep its pure-Gno behaviour: %v", err)
+		}
+	})
 }

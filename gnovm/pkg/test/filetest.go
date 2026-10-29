@@ -121,6 +121,14 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Corpus vocabulary only: in a .gno file the line stays a comment.
 	// Sync re-evaluates a trimmed file: the trim may have removed the gap.
 	if v, ok := verdictIn(dirs); isGoFile && ok && v.Kind == VerdictUnsupported && (trim == nil || !opts.Sync) {
+		// Unsupported is the one verdict that skips, so it is the one a
+		// wrong tag can hide behind: check it here, since the short-circuit
+		// returns before the run-mode check() below is ever reached.
+		if !opts.Sync {
+			if err := v.check(); err != nil {
+				return "", 0, diffs, err
+			}
+		}
 		if opts.Sync {
 			// Normalise: tag the reason, drop goldens from before the
 			// file was marked (they are never read again).
@@ -168,11 +176,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	compileMode := false
 	var errorcheckMarkers []InlineError
 	// .gno files opt INTO Gno-vs-Go comparison by declaring
-	// `// GoOutput:` (or a KnownDivergence verdict). Without it, .gno
-	// files keep their pure-Gno behavior — the 1600+ existing files
-	// are untouched.
+	// `// GoOutput:` or ANY verdict. Without it, .gno files keep their
+	// pure-Gno behavior — the 1600+ existing files are untouched.
+	// Every verdict opts in, not just KnownDivergence: a verdict with no
+	// Go side is a claim about gc that nothing ever compares against.
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
-		verdictKind(dirs) == VerdictKnownDivergence
+		verdictKind(dirs) != ""
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
@@ -257,11 +266,16 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			return "", 0, diffs, fmt.Errorf("`// Verdict: %s` names mode %q, but this is a %s file", v.Kind, v.Mode, mode)
 		}
 	}
-	// The Go side is a golden: `go run` only under sync (with the toolchain
-	// pinned in gocorpus/VERSION); verify compares against `// GoOutput:`
+	// The Go side is a golden: `go run` only under sync, on the toolchain
+	// gocorpus/VERSION pins; verify compares against `// GoOutput:`
 	// offline, so the host's Go version cannot move the result.
 	if isGoRunMode {
 		if opts.Sync {
+			if isCorpusFiletest(fname) {
+				if err := checkCorpusToolchain(); err != nil {
+					return "", 0, diffs, fmt.Errorf("filetest %s: %w", fname, err)
+				}
+			}
 			out, runErr := runGoToolchain(source, false)
 			if runErr != nil {
 				return "", 0, diffs, fmt.Errorf("filetest %s: cannot run via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, runErr)
@@ -812,14 +826,26 @@ func strayGoldenBlocks(src string, allowed []string) []string {
 	return stray
 }
 
-// writeUnsupportedDirective returns originalSource (golden region
-// stripped) with a trailing `// Verdict: Unsupported <reason>` line (and
-// the file's `// GnoTrim:` line, if any), so a file that fails on a
-// Gno-unsupported construct is skipped on future runs (the verdict is
-// detected pre-dispatch) and self-documents why.
+// writeUnsupportedDirective returns originalSource with a trailing
+// `// Verdict: Unsupported <tag>: <reason>` line (and the file's
+// `// GnoTrim:` line, if any), so a file that fails on a Gno-unsupported
+// construct is skipped on future runs (the verdict is detected
+// pre-dispatch) and self-documents why.
 func writeUnsupportedDirective(originalSource []byte, trim *gnoTrim, reason string) string {
-	return writeStaticGolden(originalSource, append(trimSections(trim, nil),
-		goldenSection{name: DirectiveVerdict, block: VerdictUnsupported + " " + TagUnsupportedReason(reason), inline: true}))
+	vs := goldenSection{
+		name: DirectiveVerdict, inline: true,
+		block: VerdictUnsupported + " " + TagUnsupportedReason(reason),
+	}
+	if trim != nil {
+		// A trim rewrites the body, so the evidence no longer describes
+		// this file: regenerate the region around the trim's own lines.
+		return writeStaticGolden(originalSource, append(trimSections(trim, nil), vs))
+	}
+	// Otherwise replace the verdict and keep the evidence. A file parked
+	// as Unsupported after it carried a real verdict is a regression, and
+	// deleting what Gno did is what makes that regression invisible.
+	body := strings.TrimRight(stripTrailingVerdict(string(originalSource)), "\n")
+	return body + "\n\n// " + DirectiveVerdict + ": " + vs.block + "\n"
 }
 
 // writeStaticGolden returns the file content for a compile-mode golden
@@ -854,6 +880,25 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 		}
 	}
 	return sb.String()
+}
+
+// stripTrailingVerdict removes only the trailing `// Verdict:` block,
+// leaving the evidence blocks above it in place. Returns src unchanged if
+// the last comment block is not a verdict.
+func stripTrailingVerdict(src string) string {
+	lines := strings.Split(src, "\n")
+	end := len(lines)
+	for end > 0 && strings.TrimSpace(lines[end-1]) == "" {
+		end--
+	}
+	start := end
+	for start > 0 && strings.HasPrefix(strings.TrimSpace(lines[start-1]), "//") {
+		start--
+	}
+	if start < end && strings.HasPrefix(strings.TrimSpace(lines[start]), "// "+DirectiveVerdict+":") {
+		return strings.Join(lines[:start], "\n")
+	}
+	return src
 }
 
 // goldenRegionStarts are the directive names that can begin the trailing
