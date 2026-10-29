@@ -97,10 +97,7 @@ script into an editor and keeps the command in step with the fields.
       {{/* One span per mode, as $help's commands: the controller shows the
       mode picked and moves the copy target to it. Each span holds the whole
       text it copies, so the slots the fields fill are repeated in both. */}}
-      <pre><code class="u-font-mono"><span data-run-target="mode" data-run-mode-value="fast" class="u-hidden"># WARNING: This command is running in an INSECURE mode.
-# It is strongly recommended to use a hardware device for signing
-# and avoid trusting any computer connected to the internet,
-# as your private keys could be exposed.
+      <pre><code class="u-font-mono"><span data-run-target="mode" data-run-mode-value="fast" class="u-hidden">{{ template "ui/insecure_warning" }}
 
 {{ template "run/heredoc" . }}gnokey maketx run -gas-fee {{ template "run/gas" . }} -chainid "{{ .ChainId }}" -remote "{{ .Remote }}" <span data-run-target="key-arg">KEYNAME</span> script.gno</span><span data-run-target="mode" data-run-mode-value="secure" data-copy-target="run-cmd" class="u-inline">{{ template "run/heredoc" . }}gnokey query -remote "{{ .Remote }}" auth/accounts/<span data-run-target="address-arg">ADDRESS</span>
 gnokey maketx run -gas-fee {{ template "run/gas" . }} -broadcast=false <span data-run-target="key-arg">KEYNAME</span> script.gno &gt; run.tx

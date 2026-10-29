@@ -10,12 +10,13 @@ import (
 //go:embed templates/*.html
 var templateFS embed.FS
 
-// PageTemplate is the run scratchpad page, with the shared copy button.
+// PageTemplate is the run scratchpad page, with the shared copy button and
+// Fast mode warning.
 // Pre-parsed at init so a misconfigured template surfaces immediately, not
 // on the first request.
 var PageTemplate = template.Must(template.Must(
 	template.New("").ParseFS(templateFS, "templates/page.html"),
-).ParseFS(components.SharedPartialsFS(), "btn_copy.html"))
+).ParseFS(components.SharedPartialsFS(), "btn_copy.html", "insecure_warning.html"))
 
 // NewPageView wraps the run template.
 func NewPageView(data RunData) *components.View {
