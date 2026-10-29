@@ -125,12 +125,13 @@ generated `gnokey maketx run` command, optionally with the script inlined
 through a heredoc. gnoweb never signs or broadcasts.
 
 - **Where:** `$run` serves the page only for a realm or pure package the
-  node's `vm/qdoc` answers for, on its path or one of its files' (the Run
-  tab of a source file links there). A listing, a user page or a path with
-  no package renders as if `$run` were not there, with that page's tabs; a
-  node failure gets the error page `$help` gives. Error pages have no Run
-  tab. The Run tab stays a realm tab; a pure package's `$run` is reached by
-  URL.
+  node's `vm/qdoc` answers for, on its path or on one of its files that
+  the package lists (the Run tab of a source file links there). A listing,
+  a user page, a missing file or a path with no package renders as if
+  `$run` were not there, with that page's tabs; a node failure gets the
+  error page `$help` gives. Error pages have no Run tab: the header is
+  built knowing the page is an error. The Run tab stays a realm tab; a
+  pure package's `$run` is reached by URL.
 - **Starter script:** built on the server from the same qdoc, so it runs as
   generated: `println(pkg.Render(""))` when the package declares
   `Render(string) string`, `Render(cross(cur), "")` from a
@@ -142,7 +143,10 @@ through a heredoc. gnoweb never signs or broadcasts.
 - **Served whole:** the script is highlighted in the editor's place and the
   command is in the page, so the page is complete without JS. The
   controller replaces the script with the editor and fills the command's
-  slots from the fields.
+  slots from the fields. Reset, Download and the "Include script" switch
+  do nothing without JS, so they are served hidden and shown by the
+  controller, as the Eval buttons are on `$help`. Copy stays, as on every
+  code block.
 - **Modes and key:** the command follows `$help`: Full Security (query the
   account, `maketx run -broadcast=false > run.tx`, `sign`, `broadcast`) is
   shown and copied first, Fast is one `maketx run` under `$help`'s warning.
