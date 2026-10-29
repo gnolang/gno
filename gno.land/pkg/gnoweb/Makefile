@@ -131,8 +131,10 @@ $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
 node_path := $(node_modules)
 
 ts: $(esbuild) $(output_js)
-# Build shared chunk first (always loaded)
-$(out_dir_js)/controller.js: $(shared_js) $(esbuild)
+# Build shared chunk first (always loaded). It bundles the modules it
+# imports (utils.ts), and so do the controllers built after it, so any
+# frontend module rebuilds it.
+$(out_dir_js)/controller.js: $(shared_js) $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts') $(esbuild)
 	NODE_ENV=production NODE_PATH=$(node_path) $(esbuild) $< --log-level=error --bundle --outfile=$@ --format=esm --minify
 
 # sa-bootstrap is loaded as a synchronous classic <script src=...> so it blocks
