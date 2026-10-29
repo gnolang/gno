@@ -41,6 +41,7 @@ onClick<HTMLButtonElement>(
 		else if (remote === "source-code") kind = "source";
 		else if (remote.startsWith("func-")) kind = "func_signature";
 		else if (remote.startsWith("action-function-")) kind = "gnokey_command";
+		else if (remote === "run-cmd") kind = "run_command";
 		fire("copy_action", { kind });
 	},
 	true,
