@@ -46,6 +46,7 @@ const (
 	CodeAppendNil       ErrCode = "append-nil"
 	CodeBuiltinSpread   ErrCode = "builtin-spread"
 	CodeFuncAddress     ErrCode = "func-address"
+	CodeMultiValue      ErrCode = "multi-value"
 
 	// Declarations and statements.
 	CodeMissingConstInit   ErrCode = "missing-const-init"
@@ -191,6 +192,13 @@ func (c *checkRun) onPanic(ns []Node, ftype TransField, index int, n Node, r any
 	case TRANS_COMPOSITE_KEY, TRANS_COMPOSITE_VALUE:
 		// the element alone drops: typed invalid, the literal's rule
 		// passes it (a key so typed is removed there).
+		c.acc.record(pe)
+		return invalidConstExpr(n.(Expr)), true
+	case TRANS_IF_COND, TRANS_FOR_COND, TRANS_SWITCH_X:
+		// the condition alone drops, so the body is still checked; the
+		// names it mentions count as used, as gc marks them before the
+		// operation fails.
+		c.acc.markReferenced(n)
 		c.acc.record(pe)
 		return invalidConstExpr(n.(Expr)), true
 	case TRANS_SWITCH_CASE:
