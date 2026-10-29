@@ -106,7 +106,8 @@ func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string) ([]
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(packageTextFetchers)
 	for i, name := range names {
-		g.Go(func() error {
+		g.Go(func() (err error) {
+			defer recoverAsError(&err) // errgroup does not
 			if err := gctx.Err(); err != nil {
 				return err // a fetch failed or passed the cap: ask no more
 			}
@@ -153,7 +154,8 @@ func (c *packageFileCache) get(ctx context.Context, key string, build func() ([]
 	if e, ok := c.lookup(key); ok {
 		return e.files, e.err
 	}
-	ch := c.sf.DoChan(key, func() (any, error) {
+	ch := c.sf.DoChan(key, func() (_ any, err error) {
+		defer recoverAsError(&err) // DoChan would re-raise it where nothing can recover
 		if e, ok := c.lookup(key); ok {
 			return e.files, e.err
 		}
@@ -169,6 +171,15 @@ func (c *packageFileCache) get(ctx context.Context, key string, build func() ([]
 		return files, r.Err
 	case <-ctx.Done():
 		return nil, ctx.Err()
+	}
+}
+
+// recoverAsError turns a panic into *errp. Deferred on a goroutine of its
+// own, which net/http's recovery does not cover, it keeps one bad read from
+// stopping gnoweb.
+func recoverAsError(errp *error) {
+	if p := recover(); p != nil {
+		*errp = fmt.Errorf("panic: %v", p)
 	}
 }
 

@@ -160,7 +160,15 @@ func (h *Handler) eval(ctx context.Context, pkgPath, expr string) (string, error
 		return a.result, a.err
 	}
 
-	ch := h.evalGroup.DoChan(key, func() (any, error) {
+	ch := h.evalGroup.DoChan(key, func() (v any, _ error) {
+		// DoChan runs this on a goroutine of its own, where a panic would
+		// stop gnoweb: it is an answer the node could not give instead.
+		defer func() {
+			if p := recover(); p != nil {
+				h.deps.Logger.Error("playground eval panicked", "pkg_path", pkgPath, "panic", p)
+				v = evalAnswer{err: fmt.Errorf("%w: eval panicked", ErrEvalUnavailable)}
+			}
+		}()
 		qctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), h.deps.Timeout)
 		defer cancel()
 		// The client adds the chain domain and joins pkgPath and the

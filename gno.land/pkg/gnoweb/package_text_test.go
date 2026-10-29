@@ -320,3 +320,54 @@ func TestPackageTextCache(t *testing.T) {
 		assert.Equal(t, 1, builds)
 	})
 }
+
+// panickingClient panics on the call named by on: "list" or "file".
+type panickingClient struct {
+	*MockClient
+	on string
+}
+
+func (c *panickingClient) ListFiles(ctx context.Context, path string, height int64) ([]string, error) {
+	if c.on == "list" {
+		panic("list boom")
+	}
+	return c.MockClient.ListFiles(ctx, path, height)
+}
+
+func (c *panickingClient) File(ctx context.Context, pkgPath, fileName string, height int64) ([]byte, FileMeta, error) {
+	if c.on == "file" {
+		panic("file boom")
+	}
+	return c.MockClient.File(ctx, pkgPath, fileName, height)
+}
+
+// TestServePackageText_Panic checks a client that panics while a package
+// is read gives a 500: the read runs on goroutines net/http does not
+// guard, where an unrecovered panic stops the whole process.
+func TestServePackageText_Panic(t *testing.T) {
+	t.Parallel()
+
+	for _, on := range []string{"list", "file"} {
+		t.Run(on, func(t *testing.T) {
+			t.Parallel()
+
+			client := &panickingClient{on: on, MockClient: NewMockClient(&MockPackage{
+				Domain: "example.com",
+				Path:   "/r/mock/path",
+				Files:  map[string]string{"a.gno": "package a"},
+			})}
+			handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+				Aliases:       map[string]AliasTarget{},
+			})
+			require.NoError(t, err)
+			for _, target := range []string{"/r/mock/path$download", "/_/play?from=r/mock/path"} {
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+				assert.Equal(t, http.StatusInternalServerError, rr.Code, target)
+				assert.NotContains(t, rr.Body.String(), "boom", target)
+			}
+		})
+	}
+}

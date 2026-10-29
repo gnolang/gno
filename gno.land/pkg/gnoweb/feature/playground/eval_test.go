@@ -214,3 +214,19 @@ func TestEvalDeadline(t *testing.T) {
 		}
 	})
 }
+
+// TestEvalPanic checks a client that panics answers 502, and that nothing
+// keeps the panic as an answer: the query runs on a goroutine of its own,
+// where an unrecovered panic stops gnoweb.
+func TestEvalPanic(t *testing.T) {
+	t.Parallel()
+
+	c := &funcClient{fn: func(context.Context, string, string) ([]byte, error) { panic("boom") }}
+	h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger()})
+	for range 2 {
+		code, resp := serveEvalJSON(t, h, "r/a", "X()")
+		assert.Equal(t, http.StatusBadGateway, code)
+		assert.Equal(t, ErrEvalUnavailable.Error(), resp.Error)
+	}
+	assert.EqualValues(t, 2, c.calls.Load(), "a panic is not cached")
+}
