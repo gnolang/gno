@@ -39,7 +39,9 @@ A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
   first header is `main.gno`;
 - file names from a strict allowlist (letters, digits, `_`, `.`, `-`; a
   `.gno` name or `gnomod.toml`; no leading dot or dash; 100 bytes at most,
-  what a ustar header holds) for Add file, reopening a share and Download;
+  what a ustar header holds) for Add file, reopening a share, opening a
+  copy and Download. The chain takes a few names this rejects (a leading
+  dash, more than 100 bytes): a copy leaves those files out and says so;
 - opening an editable copy of a deployed package with `?from=<pkgpath>`
   (`&file=` picks the tab shown first). `<pkgpath>$play` redirects there,
   and source file views link to it.
@@ -49,8 +51,10 @@ the page carries its files as JSON in a `<script type="application/json">`,
 one entry per file, sources only. They are read by the fetch `$download`
 uses, handed to the playground as a `PackageFetcher` (as state is handed a
 `FileFetcher`), so both share one bound (100 files, 2 MiB of source), one
-60 s cache and one coalesced read per package. A missing package is a 404, a
-node timeout a 408, a package over the bounds a 413. `?from=` is read once,
+60 s cache and one coalesced read per package. The read outlives the
+request that started it, for the requests after, but a request waits for it
+no longer than its own deadline. A missing package is a 404, a node timeout
+or a deadline passed a 408, a package over the bounds a 413. `?from=` is read once,
 by `playground.ParseFrom`, for the copy, the header and the breadcrumb: only
 a bare realm or pure package path (with or without the domain); a file,
 args or a query is a 400 and is never fetched.
@@ -64,8 +68,8 @@ current, so the reader can go back to it, and a copy of a community package
 carries the realm notice that package's pages carry.
 
 The playground does not execute scratch-pad code. Its button says what it
-does. On an unmodified copy of a realm that declares `Render`, it reads
-"Preview" and shows what that realm renders, `Render("")` through
+does, from the server's first render on. On an unmodified copy of a realm
+that declares `Render`, it reads "Preview" and shows what that realm renders, `Render("")` through
 `/_/api/eval` at the copy's own path. Anywhere else (edited code, a package,
 a share, the default code), it reads "Run locally" and prints `gno run .`
 and `gno test .`, with no file name in any command. A result that comes back
