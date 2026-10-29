@@ -134,7 +134,7 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 86: cannot use untyped string as IntKind
 // line 87: cannot use untyped bool as IntKind
 // line 90: use of untyped nil in variable declaration
-// line 91: [](const-type uint8)(nil) (value of type []uint8) is not constant
+// line 91: []uint8(nil) (value of type []uint8) is not constant
 // line 94: (const (nil *int)) (variable of type *int) is not constant
 
 // Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 67, 68, 69
