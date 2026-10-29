@@ -84,3 +84,5 @@ holding it drops behind the parser's error for that line like any failed
 statement. gc and go/types type-check after syntax errors; the old
 `ParseFile` threw the tree away on the first one. On chain `ParseFile` is
 unchanged.
+
+Follow-up (2026-10-30): a failed `if`/`for`/`switch` condition or type-switch case becomes an invalid placeholder and its body is still checked; the names it mentions count as used.

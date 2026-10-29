@@ -607,7 +607,7 @@ func main() {
 	// A failing clause drops alone: its body is silenced (go/types), the
 	// other clauses are checked.
 	wantErrors(t, msgs,
-		"main.gno:8:2", "0 is not a type",
+		"main.gno:8:7", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
 		"main.gno:13:3", "missing field M in main.Stringer",
 		"main.gno:16:2", "cannot use",
@@ -2176,5 +2176,119 @@ func main() {}
 		"main.gno:4:4", "can only use ... with final parameter in list",
 		"main.gno:4:14", "can only use ... with final parameter in list",
 		"main.gno:5:4", "can only use ... with final parameter in list",
+	)
+}
+
+func TestPreprocessCollectConditionFollowOns(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func main() {
+	did := 1
+	var b bool
+	if !did && b {
+		_ = undefined1
+	}
+	for !did {
+		_ = undefined2
+	}
+	switch !did {
+	case true:
+		_ = undefined3
+	}
+	var x interface{}
+	switch t := x.(type) {
+	case 0:
+		t.x = 1
+		x.x = 1
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failed condition, tag or case leaves its body checked (did counts
+	// as used); the clause's variable is invalid, so t.x is silent.
+	wantErrors(t, msgs,
+		"main.gno:6:5", "operator ! not defined on: IntKind",
+		"main.gno:7:7", "undefined1",
+		"main.gno:9:6", "operator ! not defined on: IntKind",
+		"main.gno:10:7", "undefined2",
+		"main.gno:12:9", "operator ! not defined on: IntKind",
+		"main.gno:14:7", "undefined3",
+		"main.gno:18:7", "0 is not a type",
+		"main.gno:20:3", "missing field x in interface {}",
+	)
+}
+
+func TestPreprocessCollectConstCycles(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+const A = 1 + B
+const B = C - 1
+const C = A + B + 1
+
+func main() {}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Every cycle, at its first member in source order, as gc.
+	wantErrors(t, msgs,
+		"main.gno:3:", "initialization cycle: A refers to B refers to C refers to A",
+		"main.gno:4:", "initialization cycle: B refers to C refers to B",
+	)
+}
+
+func TestPreprocessCollectAssignCounts(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func two() (int, int) { return 1, 2 }
+func none()           {}
+
+func main() {
+	var a, b int
+	_ = a, b
+	a = two()
+	_, _ = two(), 1
+	a = none()
+	var c int = two()
+	_, _, _ = a, b, c
+}
+
+func f() (int, int) {
+	return two(), 0
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Each count rule fires once, at the value; gc's wording.
+	wantErrors(t, msgs,
+		"main.gno:8:2", "assignment mismatch: 1 variable but 2 values",
+		"main.gno:9:6", "assignment mismatch: 1 variable but two returns 2 values",
+		"main.gno:10:9", "multiple-value two() (value of type (int,int)) in single-value context",
+		"main.gno:11:2", "(no value) used as value",
+		"main.gno:12:14", "assignment mismatch: 1 variable but two returns 2 values",
+		"main.gno:17:9", "multiple-value two() (value of type (int,int)) in single-value context",
+	)
+}
+
+func TestPreprocessCollectArgPosition(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func g(int, int) {}
+
+func main() {
+	g(
+		1,
+		"s",
+	)
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:8:3", "cannot use",
 	)
 }
