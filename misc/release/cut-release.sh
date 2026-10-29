@@ -32,10 +32,10 @@
 #   # what the mainnet launch should have been tagged with
 #   misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 #
-#   # a consensus-breaking upgrade, with the halt proposal to go with it; the
-#   # commit is the code commit, not the branch tip, which may carry deployment
-#   # docs on top of it
-#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --halt-height 120000 --push
+#   # a coordinated upgrade's final, cut once its candidate has passed on the
+#   # testnet, before the halt height is chosen; the commit is the code commit,
+#   # not the branch tip, which may carry deployment docs on top of it
+#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --push
 
 set -euo pipefail
 
@@ -410,8 +410,8 @@ classify() {
 	if [[ ${new_major} != "${prev_major}" ]]; then
 		info "MAJOR bump: a new network, incompatible genesis. See RELEASING.md."
 	elif [[ ${new_minor} != "${prev_minor}" ]]; then
-		info "MINOR bump: coordinated upgrade. Validators must halt together;"
-		info "    pass --halt-height to emit the GovDAO proposal."
+		info "MINOR bump: coordinated upgrade. Validators must halt together: once"
+		info "    the height is chosen, govdao-exec.sh set-halt <H> ${VERSION} proposes it."
 	else
 		info "PATCH: no validator coordination needed."
 		if [[ ${breaking} -gt 0 ]]; then

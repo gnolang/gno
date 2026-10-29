@@ -30,17 +30,15 @@ jobs:
       # between its push and its signature.
       fail-fast: false
       matrix:
-        # `latest` only for the CLI tools: a node image that moves by itself
-        # breaks coordinated upgrades (RELEASING.md, "Container images").
-        include:
-          - { image: gnoland, latest: false }
-          - { image: gnokey, latest: true }
-          - { image: gnoweb, latest: true }
-          - { image: gno, latest: true }
-          - { image: gnofaucet, latest: false }
-          - { image: gnodev, latest: true }
-          - { image: gnocontribs, latest: false }
-          - { image: gpao, latest: false }
+        image:
+          - gnoland
+          - gnokey
+          - gnoweb
+          - gno
+          - gnofaucet
+          - gnodev
+          - gnocontribs
+          - gpao
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -51,18 +49,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # Every tag, for the ordering below; blob:none keeps that cheap.
-          fetch-depth: 0
-          filter: blob:none
-
-      - name: Decide whether this is the highest release
-        id: release_order
-        run: |
-          # `latest` may only move forward. Gate it on being the highest final
-          # v* tag, not merely a final one: a backport cut after a newer line
-          # must not re-point latest at the older line.
-          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
-          echo "is_highest=$([ -n "$HIGHEST" ] && [ "$HIGHEST" = "$GITHUB_REF_NAME" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -74,12 +60,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # Tags: the git tag itself (never the commit: a final release shares its
-      # last candidate's commit, so a commit tag would move between them), and
-      # `latest` for the images the matrix marks, only when this tag is the
-      # highest final release. The action's own default adds `latest` to every
-      # tag build, gnoland included, so it is turned off and the raw rule below
-      # is the only `latest` published. See RELEASING.md, "Container images".
+      # The git tag itself is the only tag: never the commit, since a final
+      # release shares its last candidate's commit, so a commit tag would move
+      # between them; and never `latest`, since a final is published days
+      # before the chain switches to it. misc/release/promote-release.sh moves
+      # the CLI images' `latest` then, never gnoland's. The action's own
+      # default adds `latest` to every tag build, so it is turned off. See
+      # RELEASING.md, "Container images".
       - name: Extract metadata
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         id: meta
@@ -87,7 +74,6 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}
           flavor: |
             latest=false
           labels: |
