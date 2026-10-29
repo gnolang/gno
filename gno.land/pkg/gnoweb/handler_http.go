@@ -1692,7 +1692,7 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 		lead = pageLead{}
 	}
 	if lead.title == "" {
-		lead.title = pathTitle(sp.url)
+		lead.title = pathTitle(sp.url, h.Static.Domain)
 	}
 	head.Title = h.titleWithDomain(lead.title)
 	card := sp.kind.card(sp.target, h.Static.Domain)

@@ -75,24 +75,29 @@ func TestPathTitle(t *testing.T) {
 
 	const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 	cases := map[string]string{
-		"/r/nym/app":             "app · realm by nym",
-		"/r/nym/app/":            "app · realm by nym",
-		"/r/nym/games/chess":     "games/chess · realm by nym",
-		"/r/nym/app:p/hello?x=1": "app · realm by nym",
-		"/r/nym/app$source":      "app · realm by nym",
-		"/p/nym/lib":             "lib · package by nym",
-		"/p/nym/lib/v2":          "lib/v2 · package by nym",
-		"/u/nym":                 "nym · user profile",
-		"/u/" + addr:             "g1jg...sqf5 · user profile",
-		"/r/" + addr + "/app":    "app · realm by g1jg...sqf5",
-		"/r/nym":                 "realms by nym",
-		"/r/nym/":                "realms by nym",
-		"/p/nym":                 "packages by nym",
-		"/r/":                    "Realms",
-		"/p/":                    "Packages",
-		"/u/":                    "Users",
-		"/about":                 "about",
-		"/":                      "",
+		"/r/nym/app":                      "app · realm by nym",
+		"/r/nym/app/":                     "app · realm by nym",
+		"/r/nym/games/chess":              "games/chess · realm by nym",
+		"/r/nym/app:p/hello?x=1":          "app · realm by nym",
+		"/r/nym/app$source":               "app · realm by nym",
+		"/p/nym/lib":                      "lib · package by nym",
+		"/p/nym/lib/v2":                   "lib/v2 · package by nym",
+		"/u/nym":                          "nym · user profile",
+		"/u/" + addr:                      "g1jg...sqf5 · user profile",
+		"/r/" + addr + "/app":             "app · realm by g1jg...sqf5",
+		"/r/nym":                          "realms by nym",
+		"/r/nym/":                         "realms by nym",
+		"/p/nym":                          "packages by nym",
+		"/r/":                             "Realms",
+		"/p/":                             "Packages",
+		"/u/":                             "Users",
+		"/about":                          "about",
+		"/_/play":                         "Playground",
+		"/_/play?code=abc&z":              "Playground",
+		"/_/play?from=r/nym/app":          "r/nym/app · Playground",
+		"/_/play?from=gno.land/p/nym/lib": "p/nym/lib · Playground",
+		"/_/play?from=r/nym/app/a.gno":    "Playground",
+		"/":                               "",
 	}
 	for path, want := range cases {
 		t.Run(path, func(t *testing.T) {
@@ -100,7 +105,7 @@ func TestPathTitle(t *testing.T) {
 
 			u, err := weburl.Parse(path)
 			require.NoError(t, err)
-			assert.Equal(t, want, pathTitle(u))
+			assert.Equal(t, want, pathTitle(u, "gno.land"))
 		})
 	}
 }

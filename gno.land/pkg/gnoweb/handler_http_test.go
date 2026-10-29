@@ -1855,6 +1855,9 @@ func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 		// The breadcrumb names the copied package, linked to it, then the pill.
 		assert.Contains(t, body, `href="/p/demo/foo"`, from)
 		assert.Contains(t, body, `class="view"`, from)
+		// The page, and the card a shared link shows, name the copy.
+		assert.Contains(t, body, "<title>p/demo/foo · Playground - gno.land</title>", from)
+		assert.Contains(t, body, `content="p/demo/foo · Playground - gno.land"`, from)
 		// The header keeps the package's tabs, none of them current.
 		assert.Contains(t, body, `href="/p/demo/foo$source"`, from)
 		assert.NotContains(t, body, "link--is-active", from)
