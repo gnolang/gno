@@ -3197,7 +3197,7 @@ func main() {
 	wantErrors(t, msgs,
 		"main.gno:8:", "array length 1.5 (untyped float constant) must be integer",
 		"main.gno:9:", `array length "abc" (untyped string constant) must be integer`,
-		"main.gno:10:", "array length float64(10) (constant of type float64) must be integer",
+		"main.gno:10:", "array length float64(10) (constant 10 of type float64) must be integer",
 		"main.gno:11:", "(value of type int) is not constant",
 		"main.gno:16:", "(value of type []uint8) is not constant",
 		"main.gno:20:", "overflows int",
