@@ -566,7 +566,7 @@ func main() {
 	// A failing clause drops alone: its body is silenced (go/types), the
 	// other clauses are checked.
 	wantErrors(t, msgs,
-		"main.gno:8:2", "0 is not a type",
+		"main.gno:8:7", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
 		"main.gno:13:3", "missing field M in main.Stringer",
 		"main.gno:16:2", "cannot use",
@@ -791,4 +791,45 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreprocessCollectConditionFollowOns(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func main() {
+	did := 1
+	var b bool
+	if !did && b {
+		_ = undefined1
+	}
+	for !did {
+		_ = undefined2
+	}
+	switch !did {
+	case true:
+		_ = undefined3
+	}
+	var x interface{}
+	switch t := x.(type) {
+	case 0:
+		t.x = 1
+		x.x = 1
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failed condition, tag or case leaves its body checked (did counts
+	// as used); the clause's variable is invalid, so t.x is silent.
+	wantErrors(t, msgs,
+		"main.gno:6:5", "operator ! not defined on: IntKind",
+		"main.gno:7:7", "undefined1",
+		"main.gno:9:6", "operator ! not defined on: IntKind",
+		"main.gno:10:7", "undefined2",
+		"main.gno:12:9", "operator ! not defined on: IntKind",
+		"main.gno:14:7", "undefined3",
+		"main.gno:18:7", "0 is not a type",
+		"main.gno:20:3", "missing field x in interface {}",
+	)
 }
