@@ -13,5 +13,6 @@ func (h *Handler) GetRunView(u *weburl.GnoURL) (int, *components.View) {
 		PkgPath: path.Join(h.deps.Domain, u.Path),
 		Remote:  h.deps.Remote,
 		ChainId: h.deps.ChainId,
+		Gas:     components.RunGas,
 	})
 }

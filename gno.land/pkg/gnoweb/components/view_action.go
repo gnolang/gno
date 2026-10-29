@@ -52,6 +52,20 @@ type HelpTocItem struct {
 // helpEvalAnchor is the id of the expression evaluator below the functions.
 const helpEvalAnchor = "expression-evaluator"
 
+// Gas is the gas a printed gnokey command asks for and the fee it offers.
+type Gas struct{ Wanted, Fee string }
+
+var (
+	// CallGas is what $help's maketx call commands ask for: room for any
+	// function.
+	CallGas = Gas{Wanted: "1_000_000_000", Fee: "1000000ugnot"}
+	// RunGas is what a $run script asks for. The starter scripts of the
+	// example realms take 1 to 14 million gas; the fee pays for 100 million
+	// at the chain's initial price (1ugnot per 1000 gas), so raising the gas
+	// wanted that far needs no new fee.
+	RunGas = Gas{Wanted: "50_000_000", Fee: "100000ugnot"}
+)
+
 type CommandData struct {
 	FuncName   string
 	PkgPath    string
@@ -68,6 +82,7 @@ type helpViewParams struct {
 
 func registerHelpFuncs(funcs template.FuncMap) {
 	funcs["evalAnchor"] = func() string { return helpEvalAnchor }
+	funcs["callGas"] = func() Gas { return CallGas }
 
 	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {

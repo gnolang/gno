@@ -1,9 +1,13 @@
 package run
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 func TestRunDataPkgAlias(t *testing.T) {
@@ -24,4 +28,20 @@ func TestRunDataPkgAlias(t *testing.T) {
 			assert.Equal(t, tc.want, RunData{PkgPath: tc.pkgPath}.PkgAlias())
 		})
 	}
+}
+
+func renderPage(t *testing.T, data RunData) string {
+	t.Helper()
+	var buf strings.Builder
+	require.NoError(t, NewPageView(data).Render(&buf))
+	return buf.String()
+}
+
+func TestPageGasDefaults(t *testing.T) {
+	t.Parallel()
+
+	page := renderPage(t, RunData{PkgPath: "gno.land/r/demo/counter", Gas: components.RunGas})
+	assert.Contains(t, page, `value="`+components.RunGas.Wanted+`"`)
+	assert.Contains(t, page, `value="`+components.RunGas.Fee+`"`)
+	assert.NotEqual(t, components.CallGas, components.RunGas, "a script asks for less than $help's calls")
 }

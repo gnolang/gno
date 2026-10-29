@@ -68,10 +68,13 @@ func main() {
 		// KEYNAME, not <key-name>: a shell reads "<" as a redirect.
 		const keyName = this.keyEl.value.trim();
 		const key = keyName ? shellQuote(keyName) : "KEYNAME";
+		// An emptied field falls back to the default the page was served with.
 		const gasWanted = shellQuote(
-			this.gasWantedEl.value.trim() || "1_000_000_000",
+			this.gasWantedEl.value.trim() || this.gasWantedEl.defaultValue,
 		);
-		const gasFee = shellQuote(this.gasFeeEl.value.trim() || "1000000ugnot");
+		const gasFee = shellQuote(
+			this.gasFeeEl.value.trim() || this.gasFeeEl.defaultValue,
+		);
 		const send = this.sendEl.value.trim();
 
 		const parts = [
