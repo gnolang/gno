@@ -55,7 +55,13 @@ A card's Eval button sends the card's params in order, one per input, so
 unnamed and repeated (`_`) params count: the value typed, quoted when the
 param is a `string` or an `address` and not already a quoted literal, or a
 zero literal for the param's type (`""` for both). The template renders the
-types from the package doc (`.Params`) rather than parsing the signature. A
+types from the package doc (`.Params`) rather than parsing the signature.
+The card's live result and its printed `gnokey query vm/qeval -data` command
+use the same literals, so all three agree on what a typed value means; the
+`gnokey maketx call -args` command keeps the raw value, which gnokey parses
+by type itself. These helpers are pure functions in `frontend/js/utils.ts`,
+pinned by `make -C gno.land/pkg/gnoweb/frontend test` (node's own test
+runner, no dependency), which CI runs beside the frontend lint. A
 chain error reaches the reader in the node's own words, without gnoweb's
 internal prefix. A newer live result
 or evaluation aborts the request it supersedes. A rate limit, an unreachable
