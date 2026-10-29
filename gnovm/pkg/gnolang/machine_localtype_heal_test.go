@@ -71,3 +71,57 @@ func Mk() any {
 		}
 	}
 }
+
+// The heal writes to the store from the boot path, which is outside any
+// transaction. That is only sound while two things hold, so pin both: the
+// write charges no gas, and nothing it caches can reach a later transaction.
+// The second is the sharp one — SetType early-returns on a cacheTypes hit, so
+// an inherited entry would make a transaction's gas depend on whether the node
+// had restarted.
+func TestBootHealCannotReachGas(t *testing.T) {
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+
+	mpkg := &std.MemPackage{
+		Type: MPUserAll, Name: "localtype", Path: "gno.land/p/demo/localtype",
+		Files: []*std.MemFile{{Name: "a.gno", Body: `package localtype
+
+func Mk() any {
+	type S struct{ N int }
+	return S{N: 1}
+}
+`}},
+	}
+	st := NewStore(nil, baseStore, iavlStore)
+	m := NewMachineWithOptions(MachineOptions{Store: st})
+	m.RunMemPackage(mpkg, true)
+	m.Release()
+
+	// Restart.
+	boot := NewStore(nil, baseStore, iavlStore)
+	if boot.gasMeter != nil || boot.gctx != nil {
+		t.Fatalf("the boot store meters gas (gasMeter=%v gctx=%v); the heal would charge for it",
+			boot.gasMeter, boot.gctx)
+	}
+	m2 := NewMachineWithOptions(MachineOptions{Store: boot})
+	m2.PreprocessAllFilesAndSaveBlockNodes()
+	m2.Release()
+
+	// InitStoreCaches seeds the built-ins into every store, so look for the
+	// healed type by ID rather than comparing cache sizes.
+	var healed TypeID
+	for tid, tt := range boot.cacheTypes {
+		if dt, ok := tt.(*DeclaredType); ok && dt.IsFuncLocal() {
+			healed = tid
+		}
+	}
+	if healed == "" {
+		t.Fatal("boot cached no function-local type; the fixture no longer exercises the heal")
+	}
+
+	tx := boot.BeginTransaction(nil, nil, nil, nil).(transactionStore)
+	if _, inherited := tx.cacheTypes[healed]; inherited {
+		t.Fatalf("a transaction inherited the healed type %s; SetType's gas would then depend on restart history", healed)
+	}
+}
