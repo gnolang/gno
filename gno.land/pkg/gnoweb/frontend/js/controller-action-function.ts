@@ -253,36 +253,35 @@ export class ActionFunctionController extends BaseController {
 		resultTarget.classList.toggle(errorClass, res.isError);
 	}
 
+	// _evalArgs returns the card's params in order, each with its typed value
+	// or, when empty, a zero value for its type. full is false when any
+	// param is still empty.
+	private _evalArgs(): { args: string[]; full: boolean } {
+		const seen = new Set<string>();
+		const args: string[] = [];
+		let full = true;
+		for (const input of this._paramInputs) {
+			const name = this.getValue("param", input);
+			if (!name || seen.has(name)) continue;
+			seen.add(name);
+			const value = this._getParamCurrentValue(name);
+			if (!value) full = false;
+			args.push(value || zeroLiteral(this.getValue("type", input)));
+		}
+		return { args, full };
+	}
+
 	// DOM ACTIONS
 
-	// Dispatch eval:expression event (DOM action).
-	// If the function has params, fills type-based placeholders without auto-evaluating.
-	// If no params, auto-evaluates immediately.
-	public triggerEval(
-		event: Event & { params?: Record<string, unknown> },
-	): void {
-		const funcName = this._funcName || "";
-		const funcSig = (event.params?.sig as string) || "";
-
-		const paramMatch = funcSig.match(/\(([^)]*)\)/);
-		const params = paramMatch ? paramMatch[1].trim() : "";
-
-		if (params) {
-			const expression = `${funcName}(${params
-				.split(",")
-				.map((p: string) => {
-					const parts = p.trim().split(/\s+/);
-					const type = parts[parts.length - 1];
-					return type === "string" ? '""' : "0";
-				})
-				.join(", ")})`;
-			this.dispatch("eval:expression", { expression, autoEval: false });
-		} else {
-			this.dispatch("eval:expression", {
-				expression: `${funcName}()`,
-				autoEval: true,
-			});
-		}
+	// Dispatch eval:expression event (DOM action), built from the params
+	// typed in the card. With every param filled (or none), the evaluator
+	// runs it; otherwise it selects the arguments for the reader to finish.
+	public triggerEval(): void {
+		const { args, full } = this._evalArgs();
+		this.dispatch("eval:expression", {
+			expression: `${this._funcName || ""}(${args.join(", ")})`,
+			autoEval: full,
+		});
 	}
 
 	// update all args (DOM action)
@@ -308,4 +307,15 @@ export class ActionFunctionController extends BaseController {
 		});
 		this._dispatchParamsChanged();
 	}
+}
+
+// zeroLiteral is a Gno literal of the zero value for a parameter type, as
+// the package's doc renders it: "" for strings, 0 for numbers, false for
+// bool and nil for the rest, a placeholder the reader replaces.
+function zeroLiteral(type: string): string {
+	if (type === "string") return '""';
+	if (type === "bool") return "false";
+	if (/^(u?int(8|16|32|64)?|uintptr|byte|rune|float(32|64))$/.test(type))
+		return "0";
+	return "nil";
 }

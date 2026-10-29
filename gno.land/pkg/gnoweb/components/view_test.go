@@ -289,7 +289,7 @@ func TestHelpView(t *testing.T) {
 }
 
 // TestHelpViewEval pins what the Actions page's eval scripts read from the
-// markup.
+// markup: each param's type and the live result's texts.
 func TestHelpViewEval(t *testing.T) {
 	view := HelpView(HelpData{
 		RealmName: "dao",
@@ -310,10 +310,15 @@ func TestHelpViewEval(t *testing.T) {
 	html := buf.String()
 
 	for _, want := range []string{
+		`data-action-function-param-value="daoID" data-action-function-type-value="uint64"`,
+		`data-action-function-param-value="path" data-action-function-type-value="string"`,
+		`data-action-function-param-value="proposed" data-action-function-type-value="string"`,
 		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
 	} {
 		assert.Contains(t, html, want)
 	}
+	// The Eval button reads the params, not the signature.
+	assert.NotContains(t, html, `data-action-function-sig-param`)
 }
 
 func TestDirectoryView(t *testing.T) {
