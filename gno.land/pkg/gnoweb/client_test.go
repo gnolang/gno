@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestCheckResponseSizeRejectsOversized — defense in depth against a
@@ -227,28 +228,40 @@ func (e *errCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rp
 	return &rpctypes.RPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}, nil
 }
 
-// An eval runs on its own slots: page queries holding every shared slot
-// must not block it.
-func TestEvalHasItsOwnSlots(t *testing.T) {
+// Evals stay within MaxConcurrentRPC, and a quarter of it: with every
+// shared slot held, an eval waits like any query; with every eval slot
+// held, pages still query.
+func TestEvalSlotsStayUnderTheRPCCap(t *testing.T) {
 	t.Parallel()
 
-	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(&pathsCaller{listing: "(1 int)"}), "gno.land", 4).(*rpcClient)
-	for range cap(c.rpcSlots) {
-		release, err := acquireRPCSlot(context.Background(), c.rpcSlots)
-		if err != nil {
-			t.Fatal(err)
+	newClient := func() *rpcClient {
+		return NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(&pathsCaller{listing: "(1 int)"}), "gno.land", 4).(*rpcClient)
+	}
+	hold := func(t *testing.T, slots chan struct{}) {
+		t.Helper()
+		for range cap(slots) {
+			release, err := acquireRPCSlot(context.Background(), slots)
+			require.NoError(t, err)
+			t.Cleanup(release)
 		}
-		defer release()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	c := newClient()
+	require.Equal(t, 1, cap(c.evalSlots), "a quarter of 4")
+
+	hold(t, c.rpcSlots)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if _, err := c.Eval(ctx, "r/demo/counter", "Get()"); err != nil {
-		t.Fatalf("Eval with every page slot held: %v", err)
-	}
-	if got := cap(c.evalSlots); got != 1 {
-		t.Fatalf("eval slots = %d, want a quarter of 4", got)
-	}
+	_, err := c.Eval(ctx, "r/demo/counter", "Get()")
+	require.ErrorIs(t, err, ErrClientTimeout, "an eval must not query past the cap")
+	require.Len(t, c.evalSlots, 0, "a waiting eval gives its eval slot back")
+
+	c = newClient()
+	hold(t, c.evalSlots)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = c.ListPaths(ctx, "gno.land/r/", 0)
+	require.NoError(t, err, "pages query while evals hold their slots")
 }
 
 // A failed eval is the caller's input: it logs at Debug only, without the

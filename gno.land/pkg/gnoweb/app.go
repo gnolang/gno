@@ -120,9 +120,9 @@ type AppConfig struct {
 	// IndexerToken, when set, is sent as a bearer credential to the indexer.
 	IndexerToken string
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
-	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
-	// chain nodes under pressure; relax when capacity allows. ADR-003
-	// §Resource bounds.
+	// against the chain node, evals included: they may hold a quarter of
+	// it at most. 0 ⇒ the rpcClient default (32). Tighten on chain nodes
+	// under pressure; relax when capacity allows. ADR-003 §Resource bounds.
 	MaxConcurrentRPC int
 }
 

@@ -204,9 +204,10 @@ always sets the help remote and the chain ID their commands print.
 - **Node load:** answers are kept for 3 s in a bounded LRU, keyed on package
   and expression, and concurrent readers of the same expression share one
   query (singleflight), so a popular Actions page costs the node one query
-  per function. Evals run on their own RPC slots, a quarter of
-  `AppConfig.MaxConcurrentRPC` (8 of 32 by default), so they cannot hold
-  the slots pages render with, and under the handler's request timeout.
+  per function. Evals count against `AppConfig.MaxConcurrentRPC`, which
+  still caps every query gnoweb sends the node, and may hold a quarter of
+  it at most (8 of 32 by default), so pages keep the rest. They run under
+  the handler's request timeout.
 - **Answers:** an expression the chain rejects is a 200 with `{error}`;
   an unreachable node is a 502 and a timeout a 504, both with a generic
   message. Results are cut at 64 KiB with a visible marker. A failed eval

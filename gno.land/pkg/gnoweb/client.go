@@ -126,9 +126,10 @@ type rpcClient struct {
 	logger   *slog.Logger
 	client   *client.RPCClient
 	rpcSlots chan struct{}
-	// evalSlots is the smaller pool vm/qeval runs on: its expressions are
-	// the caller's, and a burst of them must not hold the slots pages
-	// render with.
+	// evalSlots caps the vm/qeval queries among rpcSlots' at a quarter:
+	// an eval takes one of each, so evals count against the cap like any
+	// query, and a burst of them, whose expressions are the caller's,
+	// leaves most slots to the pages.
 	evalSlots chan struct{}
 }
 
@@ -342,19 +343,22 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 	// Bound concurrent outbound RPCs process-wide so gnoweb cannot
 	// hammer the chain node under HTTP burst — orthogonal to any
 	// HTTP-level rate limit (gnoweb's or nginx's), which sees neither
-	// the fan-out nor the per-request RPC count.
-	slots := c.rpcSlots
+	// the fan-out nor the per-request RPC count. An eval first takes one
+	// of its own, fewer, slots, then a shared one.
+	pools := []chan struct{}{c.rpcSlots}
 	if eval {
-		slots = c.evalSlots
+		pools = []chan struct{}{c.evalSlots, c.rpcSlots}
 	}
-	release, err := acquireRPCSlot(ctx, slots)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, ErrClientTimeout
+	for _, slots := range pools {
+		release, err := acquireRPCSlot(ctx, slots)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, ErrClientTimeout
+			}
+			return nil, err
 		}
-		return nil, err
+		defer release()
 	}
-	defer release()
 
 	start := time.Now()
 	opts := client.DefaultABCIQueryOptions
