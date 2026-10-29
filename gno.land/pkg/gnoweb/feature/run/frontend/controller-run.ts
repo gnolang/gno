@@ -29,6 +29,8 @@ export class RunController extends BaseController {
 		const editorEl = this.getTarget("editor");
 		if (!editorEl) return;
 		this.key = "";
+		// Served hidden: these controls only work from here on.
+		for (const el of this.getTargets("js-only")) el.hidden = false;
 
 		// The editor replaces the highlighted script the page was served with.
 		editorEl.replaceChildren();

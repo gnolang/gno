@@ -9,7 +9,9 @@ script into an editor and keeps the command in step with the fields.
   <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
     <h1 class="title b-content-h1">Run Script</h1>
     <div class="header-info">
-      <div class="b-btns">
+      {{/* Reset, Download and the script switch are shown by the
+      controller: without JS they do nothing. */}}
+      <div class="b-btns" data-run-target="js-only" hidden>
         <button type="button" class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
           <svg class="c-icon"><use href="#ico-restore"></use></svg>
           <span>Reset</span>
@@ -78,7 +80,7 @@ script into an editor and keeps the command in step with the fields.
     <div class="b-run-command-header">
       <p>Running it signs a transaction with <code class="u-font-mono" data-run-target="key-arg">KEYNAME</code>
         and broadcasts it to the <code class="u-font-mono">{{ .ChainId }}</code> chain, which charges its gas fee.</p>
-      <div class="b-btn b-switch">
+      <div class="b-btn b-switch" data-run-target="js-only" hidden>
         <input type="checkbox" id="run-include-script" class="u-sr-only" data-run-target="includeScript" checked />
         <label for="run-include-script">Add the script to the command</label>
         <label for="run-include-script">Remove the script from the command</label>

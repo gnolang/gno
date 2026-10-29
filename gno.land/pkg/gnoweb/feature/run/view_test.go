@@ -139,7 +139,11 @@ func TestPageServedWhole(t *testing.T) {
 	assert.Contains(t, page, `data-controller="action-header"`)
 	assert.Contains(t, page, `data-action-header-target="mode"`)
 	assert.Contains(t, page, `data-action-header-target="address"`)
-	assert.Contains(t, page, `class="b-btn b-switch"`)
+	assert.Contains(t, page, `class="b-btn b-switch" data-run-target="js-only" hidden>`)
+
+	// Reset, Download and the script switch do nothing without JS: the
+	// controller shows them.
+	assert.Contains(t, page, `<div class="b-btns" data-run-target="js-only" hidden>`)
 }
 
 func TestPageHighlightedScript(t *testing.T) {

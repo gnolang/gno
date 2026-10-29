@@ -13,6 +13,11 @@
 }
 
 .b-run {
+	/* Served hidden until the controller shows them: they need JS. */
+	[hidden] {
+		display: none;
+	}
+
 	/* The switch's checkbox is visually hidden, not removed: it is how a
 	   keyboard reaches the switch, whose label shows the focus. */
 	.b-switch {
