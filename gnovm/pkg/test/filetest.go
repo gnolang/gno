@@ -300,6 +300,17 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		if reason != "" {
 			if opts.Sync {
+				// A file that already carries a real verdict is being
+				// downgraded: Gno used to reach a result here and now hits a
+				// gap. That is a regression, not a classification, and
+				// Unsupported is skipped and carries no evidence — so it
+				// would leave the ledger silently. Make the human look.
+				if prev, ok := verdictIn(dirs); ok && prev.Kind != VerdictUnsupported {
+					return "", m.GasMeter.GasConsumed(), diffs, fmt.Errorf(
+						"refusing to downgrade `// Verdict: %s` to `Unsupported` (%s): "+
+							"this file used to reach a verdict. Fix the rule, or mark it "+
+							"Unsupported by hand if the gap is real", prev.Kind, reason)
+				}
 				return writeUnsupportedDirective(originalSource, reason), m.GasMeter.GasConsumed(), diffs, nil
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, fmt.Errorf(
