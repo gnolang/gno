@@ -33,8 +33,9 @@ script into an editor and keeps the command in step with the fields.
     </div>
   </div>
 
-  <!-- Command settings: the mode and key are $help's, stored by the same controller -->
-  <div class="b-run-panel" data-controller="action-header">
+  <!-- Command settings: the mode and key are $help's, stored by the same
+  controller. Shown by the run controller: without JS they change nothing. -->
+  <div class="b-run-panel" data-controller="action-header" data-run-target="js-only" hidden>
     <h2 class="b-content-h2">Command Settings</h2>
     <div class="params">
       <div class="b-input">
