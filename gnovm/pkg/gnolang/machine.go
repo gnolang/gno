@@ -361,6 +361,13 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		}
 		// pn.FileSet != nil happens for non-realm file tests.
 		// TODO ensure the files are the same.
+
+		// Heal packages deployed before addpkg persisted function-local
+		// types: without a record, a value of such a type that later
+		// escapes persists a ref no restart can resolve. Boot charges no
+		// gas and type records are not merkleized, so every node converges
+		// here whatever binary it deployed on.
+		m.persistFuncLocalTypes(pn)
 	}
 }
 
@@ -957,7 +964,14 @@ func (m *Machine) saveFuncLocalTypes(pv *PackageValue) {
 	// sourced from a *PackageNode. Anything else must fail loudly rather
 	// than silently skip type persistence.
 	bv := pv.Block.(*Block)
-	pn := bv.GetSource(m.Store).(*PackageNode)
+	m.persistFuncLocalTypes(bv.GetSource(m.Store).(*PackageNode))
+}
+
+// persistFuncLocalTypes writes pn's collected function-local types. Also
+// reached from the boot re-preprocess, which heals packages deployed
+// before addpkg wrote these records; SetType is idempotent per store, so
+// the deploy path pays for them exactly once.
+func (m *Machine) persistFuncLocalTypes(pn *PackageNode) {
 	if debugAssert {
 		assertFuncLocalTypesComplete(pn)
 	}

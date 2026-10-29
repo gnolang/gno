@@ -125,10 +125,12 @@ escaping into realm state, so no ephemeral-package types are persisted.
   matching the existing behavior for package-level types that are never
   referenced). Deterministic, but a state/gas change — coordinate like other
   consensus-affecting fixes.
-- Packages added before this change never had their local types persisted;
-  values of those types saved *after* the upgrade still produce dangling
-  refs. Deployment must either predate any such package (genesis) or include
-  a migration that re-runs local-type enumeration over stored packages.
+- Packages added before this change never had their local types persisted.
+  The boot re-preprocess (`PreprocessAllFilesAndSaveBlockNodes`) heals them:
+  it already re-enumerates every stored package, runs with no gas meter, and
+  type records live in the non-merkleized base store — so every node
+  converges there whatever binary it deployed on, and no separate state
+  migration is needed. `TestBootHealsFuncLocalTypes` pins it.
   Since #5737 is already on master, any chain state created on post-#5737
   code before this fix can already contain dangling method-value refs —
   the "fresh chain" caveat holds only if no network deploys master in the
