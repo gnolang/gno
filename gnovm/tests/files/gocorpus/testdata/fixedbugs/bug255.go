@@ -21,11 +21,12 @@ func ff() string
 var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant|must be constant"
 
 // GnoError:
-// line 11: cannot convert untyped bigdec to integer -- 1.5 not an exact integer
-// line 12: cannot convert StringKind to IntKind
-// line 13: cannot convert (undefined) to int
+// line 11: array length 1.5 (untyped float constant) must be integer
+// line 12: array length "abc" (untyped string constant) must be integer
+// line 13: array length nil must be constant
 // line 15: name not defined: ee
 // line 16: bigint overflows target kind
 // line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
+// line 21: len((const-type [1]string){ff<VPBlock(2,8)>()}) (value of type int) is not constant
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21
+// Verdict: Clean errorcheck

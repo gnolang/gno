@@ -10,7 +10,6 @@ import /* // ERROR "import path" */ `
 bogus`
 
 // GnoError:
-// line 9: unknown import path 
-// bogus
+// line 9: invalid import path (invalid character U+000A)
 
 // Verdict: Clean errorcheck

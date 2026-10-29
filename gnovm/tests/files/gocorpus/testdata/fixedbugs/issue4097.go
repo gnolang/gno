@@ -10,6 +10,6 @@ var s [][10]int
 const m = len(s[len(s)-1]) // ERROR "is not a constant|is not constant" 
 
 // GnoError:
-// line 10: (const (len func(interface {}) int))(s<VPBlock(2,0)>[(const (len func(interface {}) int))(s<VPBlock(2,0)>) - (const (1 int))]) (value of type int) is not constant
+// line 10: len(s[(const (len func(interface {}) int))(s<VPBlock(2,0)>) - (const (1 int))]) (value of type int) is not constant
 
 // Verdict: Clean errorcheck

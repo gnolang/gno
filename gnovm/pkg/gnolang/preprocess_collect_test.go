@@ -1077,9 +1077,8 @@ func main() {
 	_, _, _, _, _ = m, n, p, q, r
 }
 `)
-	// The operand prints in its preprocessed form, as the neighbouring
-	// "is not constant" messages do.
-	if len(msgs) != 2 || !strings.Contains(msgs[0], "(s<") || !strings.Contains(msgs[1], "(f<") ||
+	// The operand prints as written (its folded parts as constants).
+	if len(msgs) != 2 || !strings.HasPrefix(msgs[0], "len(s[") || !strings.HasPrefix(msgs[1], "cap(f())") ||
 		!strings.HasSuffix(msgs[0], ") (value of type int) is not constant") || !strings.HasSuffix(msgs[1], ") (value of type int) is not constant") {
 		t.Fatalf("got %v", msgs)
 	}
@@ -2095,6 +2094,283 @@ func main() {
 	}
 }
 
+func TestPreprocessCollectConsts(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+import ""
+import "a b"
+import "/foo"
+
+const big = 1 << 600 // 601 bits
+const sum = 1<<511 + 1<<511 // 513 bits
+const prod = (1 << 300) * (1 << 300)
+const fine = 1<<511 - 1
+
+func f() {
+L:
+	{
+		break L // a block
+		for {
+			continue L
+		}
+	}
+M:
+	for {
+		break M
+	}
+}
+
+func main() {}
+`)
+	want := []string{
+		"invalid import path (empty string)",
+		"invalid import path (invalid character U+0020 ' ')",
+		"import path cannot be absolute path: \"/foo\"",
+		"constant shift overflow",
+		"constant addition overflow",
+		"constant multiplication overflow",
+		"invalid break label L",
+		"invalid continue label L",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+// locatedErrors returns the located messages ("file:L:C-C2: msg") of a
+// collect run.
+func locatedErrors(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectConstShiftPositions(t *testing.T) {
+	// A shift with an untyped count folds through a synthesized node;
+	// the error must still point at the expression, not at the
+	// enclosing file or function.
+	msgs := locatedErrors(t, `package main
+
+const a = 1 << 1025
+
+func f() {
+	v := 1 << 1025
+	_ = v
+}
+
+func main() {}
+`)
+	want := []string{
+		"main/main.gno:3:11-20: constant shift overflow",
+		"main/main.gno:6:7-16: constant shift overflow",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectConstShiftCount(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+const c uint = 2000
+const _ = 0 << 2000
+const _ = 1 << c
+const _ = 1 << 1074 // within the count bound: overflow
+const _ = 1e1000 >> 1 // a float is converted first: no operation named
+
+func main() {}
+`)
+	want := []string{
+		"invalid operation: invalid shift count 2000 (untyped int constant)",
+		"invalid operation: invalid shift count c (constant 2000 of type uint)",
+		"constant shift overflow",
+		"constant overflow",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectImportPoison(t *testing.T) {
+	// A dropped import poisons its default name: a use of it is not a
+	// second error.
+	msgs := collectErrors(t, `package main
+
+import "/foo"
+
+func main() { foo.Bar() }
+`)
+	want := []string{"import path cannot be absolute path: \"/foo\""}
+	if len(msgs) != 1 || msgs[0] != want[0] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
+func TestPreprocessCollectConstFloatOverflow(t *testing.T) {
+	// A float constant past big.Float's exponent range is an infinity:
+	// rejected where it arises, so no later fold meets it (Inf - Inf).
+	msgs := collectErrors(t, `package main
+
+const a = 1e+500000000
+const b = a * a
+const c = b - b
+const d = a / 1e-500000000
+const e = 1e+700000000
+const f = -a
+
+func main() {}
+`)
+	want := []string{
+		"constant result is not representable",
+		"constant result is not representable",
+		"malformed constant: 1e+700000000",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Fatalf("got %v, want %v", msgs, want)
+		}
+	}
+}
+
+func TestPreprocessCollectConstRepresentable(t *testing.T) {
+	// A typed constant operation is folded exactly and must stay
+	// representable in its type (#6392); the machine's fold wraps.
+	msgs := collectErrors(t, `package main
+
+type T int8
+
+const a rune = '\U0010ffff'
+const b = a * a
+const c int8 = 100
+const _ = c * 2
+const d uint8 = 0
+const _ = d - 1
+const e int64 = 1 << 62
+const _ = e * 4
+const f uint64 = 1 << 63
+const _ = f + f
+const g int32 = -2147483648
+const _ = -g
+const k uint = 3
+const _ = k << 63 // a shift keeps the fold's check
+const h int16 = 32767
+const _ = h + 1
+const i uint32 = 1 << 31
+const _ = i * 2
+const j int = 1 << 62
+const _ = j + j
+const m int8 = -128
+const _ = m / -1
+const _ = -m
+const _ = (c + 1) * 2 // the folded operand prints as written
+const _ = c + 1 + 100
+const n T = 100
+const _ = n + n
+const u uint8 = 1
+const _ = -u
+const _ = m / 0 // division by zero keeps its error
+
+func main() {}
+`)
+	want := []string{
+		"a * a (constant 1241243320321 of type int32) overflows int32",
+		"c * 2 (constant 200 of type int8) overflows int8",
+		"d - 1 (constant -1 of type uint8) overflows uint8",
+		"e * 4 (constant 18446744073709551616 of type int64) overflows int64",
+		"f + f (constant 18446744073709551616 of type uint64) overflows uint64",
+		"-g (constant 2147483648 of type int32) overflows int32",
+		"constant overflows",
+		"h + 1 (constant 32768 of type int16) overflows int16",
+		"i * 2 (constant 4294967296 of type uint32) overflows uint32",
+		"j + j (constant 9223372036854775808 of type int) overflows int",
+		"m / -1 (constant 128 of type int8) overflows int8",
+		"-m (constant 128 of type int8) overflows int8",
+		"(c + 1) * 2 (constant 202 of type int8) overflows int8",
+		"c + 1 + 100 (constant 201 of type int8) overflows int8",
+		"n + n (constant 200 of type main.T) overflows main.T",
+		"-u (constant -1 of type uint8) overflows uint8",
+		"invalid operation: division by zero",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors %v, got %d: %v", len(want), want, len(msgs), msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+
+	// Boundary results are representable: not rejected.
+	msgs = collectErrors(t, `package main
+
+const _ int8 = 127
+const _ = int8(127)
+const _ int8 = -128
+const _ uint8 = 255
+const _ int64 = 1<<63 - 1
+const c int8 = 100
+const _ = c + 27
+const _ = -(c + 27)
+const m int8 = -128
+const _ = -(m + 1)
+const _ = m / 1
+const _ = m % -1
+const u uint8 = 200
+const _ = u + 55
+const _ = u * 1
+const z uint8 = 0
+const _ = -z
+const e int64 = 1 << 62
+const _ = e + (e - 1)
+const f uint64 = 1 << 63
+const _ = f + (f - 1)
+const _ = f * 2 / 2 // folded left to right: the first operation overflows
+
+func main() {}
+`)
+	want = []string{
+		"f * 2 (constant 18446744073709551616 of type uint64) overflows uint64",
+	}
+	if len(msgs) != len(want) || msgs[0] != want[0] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
 // deployAfterCollect runs the ordinary (non-accumulate) path over src,
 // optionally running a collect pass over the very same parsed nodes first,
 // and reports what the ordinary path did. A fresh PackageNode each time, so
@@ -2156,6 +2432,46 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreprocessCollectConstantArguments(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type T map[int]int
+
+func ff() string { return "" }
+
+var (
+	_ [1.5]int
+	_ ["abc"]int
+	_ [float64(10)]int
+	_ [len([1]string{ff()})]int
+	_ [10.0]int
+	_ ['a']int
+)
+
+const _ = string([]byte(nil))
+
+func main() {
+	var sink T
+	sink = make(T, uint64(1<<63))
+	const y = uint64(1 << 63)
+	sink = make(T, y)
+	_ = sink
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:8:", "array length 1.5 (untyped float constant) must be integer",
+		"main.gno:9:", `array length "abc" (untyped string constant) must be integer`,
+		"main.gno:10:", "array length float64(10) (constant of type float64) must be integer",
+		"main.gno:11:", "(value of type int) is not constant",
+		"main.gno:16:", "(value of type []uint8) is not constant",
+		"main.gno:20:", "overflows int",
+		"main.gno:22:", "overflows int",
+	)
 }
 
 func TestPreprocessCollectVariadicParams(t *testing.T) {

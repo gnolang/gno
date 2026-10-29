@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -260,7 +261,7 @@ Main:
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
-									panic(fmt.Sprintf("%s (value of type int) is not constant", currExpr.String()))
+									panic(fmt.Sprintf("%s (value of type int) is not constant", exprString(currExpr)))
 								}
 								break Main
 							}
@@ -280,6 +281,10 @@ Main:
 				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(), tup.Elts))
 			}
 		case *TypeType:
+			// string([]byte(nil)): the target must be a constant type.
+			if ct := evalStaticType(store, last, currExpr.Func); !isConstantType(ct) {
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", exprString(currExpr), ct))
+			}
 			for _, arg := range currExpr.Args {
 				assertValidConstValue(store, last, arg)
 			}
@@ -1377,4 +1382,26 @@ func isComparable(dt Type) bool {
 	default:
 		return false
 	}
+}
+
+// isConstantType reports whether t can be the type of a constant: a
+// boolean, numeric or string type (Go spec, "Constants").
+func isConstantType(t Type) bool {
+	_, ok := baseOf(t).(PrimitiveType)
+	return ok
+}
+
+// constFitsInt reports whether the integer constant tv is representable
+// as int (a make size, an index); a non-integer kind is left to the
+// integer rule.
+func constFitsInt(tv TypedValue) bool {
+	switch tv.T.Kind() {
+	case UintKind:
+		return tv.GetUint() <= math.MaxInt64
+	case Uint64Kind:
+		return tv.GetUint64() <= math.MaxInt64
+	case BigintKind:
+		return tv.GetBigInt().IsInt64()
+	}
+	return true
 }

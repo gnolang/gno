@@ -306,9 +306,40 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 	// later after this for-loop is a partial definition for *FuncDecl
 	// function declarations which will get filled out later during
 	// preprocessing.
+	// In accumulate mode a declaration that fails to predefine is recorded
+	// and dropped (marked preprocessed, so the walk skips it) instead of
+	// stopping the whole file set.
+	// Either way a checking error is a *PreprocessError positioned at d.
+	predefineOne := func(fn *FileNode, d Decl, do func()) {
+		defer func() {
+			if r := recover(); r != nil {
+				if isRuntimePanic(r) {
+					panic(r) // a VM bug, not a checking error
+				}
+				pe := wrapPreprocessPanic([]BlockNode{pn, fn}, d, r)
+				if acc == nil {
+					panic(pe)
+				}
+				acc.dropDecl(pe, fn, d)
+			}
+		}()
+		do()
+	}
 	for _, fn := range fset.Files {
 		setNodeLines(fn)
 		setNodeLocations(pn.PkgPath, fn.FileName, fn)
+		// Before the static blocks, which look the packages up.
+		for _, d := range fn.Decls {
+			if id, ok := d.(*ImportDecl); ok {
+				predefineOne(fn, id, func() { assertValidImportPath(id.PkgPath) })
+				// A dropped default import poisons the name it would bind.
+				if acc != nil && id.Name == "" && id.GetAttribute(ATTR_PREPROCESSED) == true {
+					if exp, ok := expectedPkgName(id.PkgPath); ok {
+						acc.poisoned[Name(exp)] = true
+					}
+				}
+			}
+		}
 		initStaticBlocks(store, pn, fn)
 	}
 	if acc != nil {
@@ -316,24 +347,6 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 	}
 	index := newPredefineDeclIndex(pn.FileSet)
 	index.acc = acc
-	// In accumulate mode a declaration that fails to predefine is recorded
-	// and dropped (marked preprocessed, so the walk skips it) instead of
-	// stopping the whole file set.
-	predefineOne := func(fn *FileNode, d Decl, do func()) {
-		if acc == nil {
-			do()
-			return
-		}
-		defer func() {
-			if r := recover(); r != nil {
-				if isRuntimePanic(r) {
-					panic(r) // a VM bug, not a checking error
-				}
-				acc.dropDecl(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), fn, d)
-			}
-		}()
-		do()
-	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -827,6 +840,9 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					}
 				}
 			case *ImportDecl:
+				if n.GetAttribute(ATTR_PREPROCESSED) == true {
+					return n, TRANS_SKIP // dropped by accumulate mode
+				}
 				nx := &n.NameExpr
 				nn := nx.Name
 				if nn == "." {
@@ -2525,6 +2541,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Shift case.
 				if n.Op == SHL || n.Op == SHR {
 					n.assertShiftExprCompatible1(store, last, lt, rt)
+					if lic && ric {
+						assertConstShiftCount(rcx)
+					}
 					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
@@ -2534,6 +2553,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							Op:    n.Op,
 							Right: rn,
 						}
+						// n2 stands for n: errors point at n's span.
+						n2.SetSpan(n.GetSpan())
 						// Mark the uint() conversion as a shift RHS so
 						// doOpCall can assert non-negative at runtime.
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
@@ -2992,6 +3013,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									if tv.Sign() < 0 {
 										panic(fmt.Sprintf(
 											"invalid argument: index %v must not be negative", tv))
+									}
+									if !constFitsInt(tv) {
+										panicAt(fmt.Sprintf(
+											"invalid argument: index %v overflows int", tv), cx)
 									}
 								}
 							}
@@ -3909,7 +3934,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				} else {
 					// Replace const Len with int *ConstExpr.
+					if _, ok := n.Len.(*ConstExpr); !ok {
+						assertValidConstValue(store, last, n.Len) // "must be constant"
+					}
 					cx := evalConst(store, last, n.Len)
+					assertArrayLengthInteger(cx)
 					convertConst(store, last, n, cx, IntType)
 					assertArrayLength(cx.GetInt())
 					n.Len = cx
@@ -4163,7 +4192,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// Make sure that the label exists, either for a switch or a
 						// BranchStmt.
 						if !isSwitchLabel(ns, n.Label) {
-							findBranchLabel(last, n.Label)
+							bn, _, _ := findBranchLabel(last, n.Label)
+							assertBranchTarget(n, bn)
 						}
 					}
 				case CONTINUE:
@@ -4171,9 +4201,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
-							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
+							failBranchLabel(n)
 						}
-						findBranchLabel(last, n.Label)
+						bn, _, _ := findBranchLabel(last, n.Label)
+						assertBranchTarget(n, bn)
 					}
 				case GOTO:
 					_, blockDepth, frameDepth, index := findGotoLabel(last, n.Label)
@@ -5811,6 +5842,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		assertConstRepresentable(preprocessGasMeterOf(store), x)
 		// is constant?  From the machine?
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath:            ".dontcare",
@@ -5834,6 +5866,8 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 				}
 			}
 		}
+		assertConstWidth(x, &cv)
+		assertConstFinite(x, &cv)
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

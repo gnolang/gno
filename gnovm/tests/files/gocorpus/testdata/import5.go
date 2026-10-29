@@ -32,4 +32,4 @@ import 0.25i // ERROR "import path must be a string"
 // line 26: import path must be a string
 // line 27: import path must be a string
 
-// Verdict: Clean errorcheck
+// Verdict: Unsupported import: unknown import path go/parser

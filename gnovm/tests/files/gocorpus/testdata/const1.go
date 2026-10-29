@@ -98,19 +98,26 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // GnoTrimmed: lines 92, 93
 
 // GnoError:
-// line 10: constant overflows
+// line 33: Int8 * 100 (constant 10100 of type int8) overflows int8
 // line 35: bigint overflows target kind
 // line 36: bigint overflows target kind
 // line 37: bigint overflows target kind
 // line 38: bigint overflows target kind
+// line 39: 2 * Int8 (constant 202 of type int8) overflows int8
+// line 40: Int8 * Const (constant 10403 of type int8) overflows int8
+// line 43: Uint8 * Uint8 (constant 10404 of type uint8) overflows uint8
 // line 44: bigint underflows target kind
+// line 46: Uint8 - Uint8 - Uint8 (constant -102 of type uint8) overflows uint8
 // line 47: bigint underflows target kind
 // line 51: constant -1 overflows Uint8Kind
 // line 52: constant -1 overflows Uint8Kind
 // line 53: bigint underflows target kind
 // line 55: bigint overflows target kind
+// line 56: constant overflows
 // line 57: bigint overflows target kind
 // line 58: bigint overflows target kind
+// line 59: (const-type uint8)(100) * (const-type uint8)(100) (constant 10000 of type uint8) overflows uint8
+// line 60: (const-type uint8)(100) * 100 (constant 10000 of type uint8) overflows uint8
 // line 61: bigint overflows target kind
 // line 63: bigint overflows target kind
 // line 64: invalid operation: division by zero
@@ -127,6 +134,7 @@ const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a con
 // line 86: cannot use untyped string as IntKind
 // line 87: cannot use untyped bool as IntKind
 // line 90: use of untyped nil in variable declaration
+// line 91: [](const-type uint8)(nil) (value of type []uint8) is not constant
 // line 94: (const (nil *int)) (variable of type *int) is not constant
 
-// Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 33, 39, 40, 43, 46, 59, 60, 67, 68, 69; #6344 uncaught markers: lines 56, 91; over-strict: lines 10 (the shift overflow of line 56, reported at the package line)
+// Verdict: KnownIssue errorcheck: #6392 uncaught markers: lines 67, 68, 69
