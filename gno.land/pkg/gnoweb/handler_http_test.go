@@ -1797,6 +1797,16 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 			assert.Contains(t, rr.Body.String(), tc.contain)
 		})
 	}
+
+	// The breadcrumb keeps the shared code's query, without the z flag, then
+	// ends with the pill.
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc&z", nil))
+	body := rr.Body.String()
+	assert.NotContains(t, body, `name="z"`)
+	query := strings.Index(body, `name="code" value="abc"`)
+	require.NotEqual(t, -1, query)
+	assert.Greater(t, strings.Index(body, `class="b-tag">playground<`), query)
 }
 
 // TestHTTPHandler_PlaygroundCopy tests opening a package copy with /_/play?from=,
@@ -1831,6 +1841,16 @@ func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 		// The breadcrumb names the copied package, linked to it, then the pill.
 		assert.Contains(t, body, `href="/p/demo/foo"`, from)
 		assert.Contains(t, body, `class="view"`, from)
+		// The header keeps the package's tabs, none of them current.
+		assert.Contains(t, body, `href="/p/demo/foo$source"`, from)
+		assert.NotContains(t, body, "link--is-active", from)
+	}
+
+	// Only a bare package path that could be copied gets its tabs.
+	for _, from := range []string{"p/demo/foo/foo.gno", "p/demo/foo$file=evil.gno", "p/demo/foo:args", "p/demo/foo?x=1", "p/demo/nope"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from="+url.QueryEscape(from), nil))
+		assert.NotContains(t, rr.Body.String(), `$source"`, from)
 	}
 
 	// Extra leading slashes never turn into links to another host.

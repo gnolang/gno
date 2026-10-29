@@ -125,6 +125,30 @@ func TestEnrichHeaderData(t *testing.T) {
 	assert.Len(t, enrichedData.Links.Dev, 5, "expected dev links with State, Actions, Run for home mode")
 }
 
+func TestEnrichHeaderData_PlaygroundCopy(t *testing.T) {
+	for _, tc := range []struct {
+		path   string
+		labels []string
+	}{
+		{"/r/demo/foo", []string{"Content", "State", "Source", "Actions", "Run"}},
+		{"/p/demo/foo", []string{"Content", "Source"}},
+	} {
+		data := HeaderData{CopyOf: &weburl.GnoURL{Path: tc.path}}
+		links := EnrichHeaderData(data, ViewModePlayground).Links.Dev
+
+		var labels []string
+		for _, link := range links {
+			labels = append(labels, link.Label)
+			assert.False(t, link.IsActive, "%s: %s should not be current", tc.path, link.Label)
+			assert.True(t, strings.HasPrefix(link.URL, tc.path), "%s: %s links to %s", tc.path, link.Label, link.URL)
+		}
+		assert.Equal(t, tc.labels, labels, tc.path)
+	}
+
+	// Without a copied package, the playground has no tabs.
+	assert.Empty(t, EnrichHeaderData(HeaderData{}, ViewModePlayground).Links.Dev)
+}
+
 func TestIsActive(t *testing.T) {
 	cases := []struct {
 		name     string

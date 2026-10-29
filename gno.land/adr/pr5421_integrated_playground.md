@@ -35,8 +35,9 @@ A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
   (`&file=` picks the tab shown first). `<pkgpath>$play`, and `$fork` (its
   earlier name), redirect there, and source file views link to it.
 
-The playground is its own page: the breadcrumb shows the copied package (or
-`_ / play`) followed by a `playground` pill, and no realm tabs.
+The playground is its own page. Its breadcrumb ends with a `playground` pill,
+after the copied package (or `_ / play` and the shared `?code=`). A copy keeps
+its package's tabs, none of them current, so the reader can go back to it.
 
 The "Run" button does not execute scratch-pad code: it prints the local
 `gno run` / `gno test` commands, and for code with `Render` it still calls

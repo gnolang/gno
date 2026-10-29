@@ -242,11 +242,6 @@ UI - Breadcrumb component
     </li>
     {{- end }} {{- end }}
 
-    <!-- View Part: a special view of the path above (e.g. playground) -->
-    {{- with .View.Name }}
-    <li class="view"><a href="{{ $.View.URL }}" class="b-tag">{{ . }}</a></li>
-    {{- end }}
-
     <!-- Queries Part -->
     {{ $allQueries := .Queries }} {{- range $index, $query := $allQueries }}
     <li class="query">
@@ -256,6 +251,11 @@ UI - Breadcrumb component
           placeholder="{{ $query.Key }}" data-controller="breadcrumb" data-action="focus->breadcrumb#focus" />
       </label>
     </li>
+    {{- end }}
+
+    <!-- View Part: a special view of the path and query above (e.g. playground) -->
+    {{- with .View.Name }}
+    <li class="view"><a href="{{ $.View.URL }}" class="b-tag">{{ . }}</a></li>
     {{- end }}
   </ol>
   {{- with .Namespace }}{{ $kind := index $.Parts 0 }}

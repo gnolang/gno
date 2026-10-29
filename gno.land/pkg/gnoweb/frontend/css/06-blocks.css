@@ -574,6 +574,11 @@
 		height: auto;
 	}
 
+	/* A page without tabs (the playground, a small listing) has no row. */
+	&:not(:has(.b-menu-link, .menu-toggle)) {
+		display: none;
+	}
+
 	/* Menu toggle button */
 	& .menu-toggle {
 		order: 3;
@@ -679,6 +684,12 @@
 				width: var(--g-space-4-5);
 				height: var(--g-space-4-5);
 			}
+
+			/* The lightning's ink stops short of its box, unlike the other
+			   tab icons: pull its label in to the same distance. */
+			&:has(> use[href="#ico-tx-link"]) {
+				margin-inline-end: -2px;
+			}
 		}
 
 		@media (--md) {
@@ -726,23 +737,33 @@
 	}
 }
 
-/* Five tabs (realm pages, with Run) only fit beside the omnibar with tighter
-   spacing, and with icons only once the screen has room for them. */
-.menu-dev:has(> .b-menu-link:nth-child(5)) .link {
-	@media (--xl) {
-		margin-inline-end: var(--g-space-2);
-	}
+/* Five tabs (realm pages, with Run) are wider than the column beside the
+   omnibar: they keep their size, stay aligned on the right, and run into the
+   gap before the omnibar. Icons only once the screen has room for them. */
+.b-main-menu:has(> .menu-dev > .b-menu-link:nth-child(5)) {
+	justify-content: flex-end;
+}
 
-	@media (--2xl) {
-		margin-inline-end: var(--g-space-3);
+.menu-dev:has(> .b-menu-link:nth-child(5)) {
+	flex-shrink: 0;
 
-		& > svg {
-			display: none;
+	/* The last tab ends on the content's right edge. */
+	.b-menu-link:not(:last-child) .link {
+		@media (--xl) {
+			margin-inline-end: var(--g-space-4);
+		}
+
+		@media (--2xl) {
+			margin-inline-end: var(--g-space-6);
 		}
 	}
 
-	@media (--max) {
-		& > svg {
+	.link > svg {
+		@media (--2xl) {
+			display: none;
+		}
+
+		@media (--max) {
 			display: inline-block;
 		}
 	}
@@ -914,6 +935,20 @@
 			/* supports rules */
 			@supports not (field-sizing: content) {
 				width: 5rem !important;
+			}
+
+			/* On phones, a query followed by the playground pill is cut
+			   shorter, so the pill stays in view at the end. */
+			.query:has(~ .view) & {
+				max-width: 1ch;
+
+				@media (--sm) {
+					max-width: 4ch;
+				}
+
+				@media (--md) {
+					max-width: 10ch;
+				}
 			}
 
 			/* Placeholder styling */

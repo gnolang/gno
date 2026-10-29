@@ -53,6 +53,9 @@ type HeaderData struct {
 	// MapTab is set by a directory listing large enough for a map: it then
 	// offers its Directory and Map renderings as tabs.
 	MapTab bool
+	// CopyOf is the package a playground copy was opened from, whose tabs
+	// the copy shows, none of them current.
+	CopyOf *weburl.GnoURL
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -232,6 +235,15 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 		// A listing without a map has one rendering: a single tab would
 		// choose between nothing.
 		data.Links.Dev = nil
+	case mode == ViewModePlayground && data.CopyOf != nil:
+		copyMode := ViewModeRealm
+		if data.CopyOf.IsPure() {
+			copyMode = ViewModePackage
+		}
+		data.Links.Dev = StaticHeaderDevLinks(*data.CopyOf, copyMode, false)
+		for i := range data.Links.Dev {
+			data.Links.Dev[i].IsActive = false
+		}
 	default:
 		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	}
