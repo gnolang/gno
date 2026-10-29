@@ -33,30 +33,37 @@ check here subsumes it (`iota` is a uverse name) and its fixtures stay.
 
 ## Decision
 
-**One name-based check at the one funnel every binding passes through.**
-`initStaticBlocks2` enumerates every source binding (`:=`, `var`, `const`,
-`type`, `func`, import, receiver, params, results, range key/value,
-type-switch var) and reserves each through `StaticBlock.Reserve`. `Reserve`
-now calls `checkDeclName`, which refuses a builtin name and any contextual
-keyword (`contextualKeywords` in `misc.go`: reserved as a binding name only,
-usable elsewhere, a third tier beside Go keywords and uverse names; today only
-`cur`). A
-first parameter named `cur` is carved out by position; `checkCurParamType`,
-where the function type is resolved, requires it to be realm-typed. A
-clause-less type switch reserves its variable nowhere, but `go/types` refuses
-that shape as unused on every path. A `:=` in a block where
-the name is already reserved is not re-reserved; the write rules refuse it as
-a rebind. Function types and interface methods declare nothing, but the
-`FuncTypeExpr` handler checks their parameter and result names the same way,
-so the rule has no exception; it also hosts `checkCurParamType`, since every
-function's type passes through it. The older builtin-only checks in
-`predefineRecursively2` and `fillNameExprPath` stay; `Reserve` fires first.
+**One name-based check at the deploy gate.** `TypeCheckMemPackage` is the
+only place the chain admits new source: `AddPackage` and `Run` call it, and
+boot calls it for the binary's own stdlibs. `go/types` hands back `Defs`, its
+record of every defining identifier, plus `Implicits` for the type-switch
+guard — a complete enumeration that no future binding form can slip past, the
+same property `Reserve` was chosen for. `checkDeclNames` walks it and refuses
+a uverse name or a contextual keyword (`contextualKeywords` in `misc.go`:
+reserved as a binding name only, usable elsewhere, a third tier beside Go
+keywords and uverse names; today only `cur`).
 
-**The write rules key on the name alone** (assignment, address-of, range
-target), after the `DEFINE`/`ASSIGN` branch so a same-scope `cur, x :=` is
-refused. "A `cur` is the parameter" makes the resolved-type test #6196 kept
-always true, so it is dropped; the cur-call provenance check is
-belt-and-braces.
+Fields, methods and labels are skipped: each has its own namespace, so
+`struct{ bool bool }` and `func (T) len() int` shadow nothing and Go accepts
+both. A `cur` is allowed only as a function type's first parameter whose type
+is `realm`, read from `go/types` so an alias of `realm` is held to the same
+rule; position alone would admit `func(x int, cur realm)`, type alone
+`func(cur int)`. The refusal is reported in source order, because `Defs` is a
+map.
+
+**The rule may not live in preprocess.** `PreprocessAllFilesAndSaveBlockNodes`
+re-preprocesses every stored package at every node restart, so a rejection
+there refuses source the chain already accepted — a validator fails to start
+on a package it has served for months. The older builtin-only checks in
+`Reserve`, `predefineRecursively2` and `fillNameExprPath` stay as they are:
+they are already enforced on chain, so no stored package carries what they
+refuse.
+
+**The write rules keep #6196's resolved-type test** (assignment,
+address-of, range target), since stored code may bind `cur` to anything; the
+same-scope `cur, x :=` form is refused by running the check after the
+`DEFINE`/`ASSIGN` branch, which is #6196's bug fixed. The cur-call provenance
+check is belt-and-braces.
 
 **Carried from #6196 unchanged.** The identity check exempts calls dispatched
 by package `testing` (`harnessSeedsCur`): the harness seeds a crossing sub-test
@@ -97,17 +104,14 @@ gas change is consensus-visible and rides with the schedule work
   `restart_gas.txtar` and `storage_deposit_price_change.txtar` are re-pinned.
   Reverting only the check leaves every number at the new value: the check
   charges no gas. No gas schedule change.
-- On-chain: this is a consensus change that existing networks cannot restart
-  into. Stdlib source is written to state once, at genesis; at every restart
-  `PreprocessAllFilesAndSaveBlockNodes` re-preprocesses the stored packages
-  with no per-package recover, so the stored `math` alone stops the node. The
-  path is the genesis-replay hardfork of `pr5511`: halt, export, new genesis
-  (which loads the new stdlibs), replay. Replay requires that every historical
-  `AddPkg` still passes, so a scan is a precondition: preprocess every stored
-  production package with this binary and list those refused, for the uverse
-  block names plus `cur`; each must get a fix-up in the new genesis. Mainnet
-  `gnoland-1` is such a network. Gating the rule per package (#5929) would
-  avoid the fork but is not in tree.
+- On-chain: no fork. The gate never re-reads stored source, so a package
+  already deployed with a builtin-named parameter keeps loading and keeps
+  running; only its next deploy is refused. Stdlibs ship with the binary, so
+  the in-tree renames below travel with the rule. A genesis-replay hardfork,
+  which an in-preprocess rule would have required of every live network
+  including `gnoland-1`, is not needed.
+  `TestPreprocessAcceptsStoredReservedNames` and
+  `TestBootPreprocessesStoredReservedNames` pin that half.
 - Fixtures: one `shadow_builtin_*.gno` and one `zrealm_cur_decl_*.gno` per
   binding site, plus `shadow_builtin_{functype,iface_method}.gno` and
   `zrealm_cur_decl_{functype,functype_second,functype_result,iface_method}.gno`
