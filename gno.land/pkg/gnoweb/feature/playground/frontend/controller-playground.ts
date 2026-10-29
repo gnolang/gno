@@ -64,9 +64,9 @@ export class PlaygroundController extends BaseController {
 		);
 
 		// A copy comes as JSON, one entry per file; a shared snippet as text.
-		const files = filesEl
+		const { files, skipped } = filesEl
 			? copyFiles(filesEl.textContent ?? "")
-			: parseInitialCode(initialCodeEl?.value ?? "");
+			: { files: parseInitialCode(initialCodeEl?.value ?? ""), skipped: [] };
 		const [first, ...rest] = files.length
 			? files
 			: [{ name: "main.gno", content: DEFAULT_GNO_CONTENT }];
@@ -86,7 +86,13 @@ export class PlaygroundController extends BaseController {
 
 		this._setupTabsScroll();
 		this.renderTabs();
-		this._resetOutput("// Run code to see output here");
+		if (skipped.length) {
+			this._setErrorOutput(
+				`Left out of this copy, as the playground takes no such file name: ${skipped.join(", ")}. Share and Download leave them out too.`,
+			);
+		} else {
+			this._resetOutput("// Run code to see output here");
+		}
 	}
 
 	private _setupTabsScroll(): void {

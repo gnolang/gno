@@ -78,28 +78,33 @@ export function renderText(result: string): string {
 }
 
 // copyFiles reads the files of a package copy, which the page hands over as
-// JSON, one entry per file, so no line of a file can split it.
-export function copyFiles(json: string): EditorFile[] {
+// JSON, one entry per file, so no line of a file can split it. skipped
+// names the files left out: the chain takes some names isValidFileName
+// does not (a leading dash, more than 100 bytes), and the reader must know
+// the copy lacks them.
+export function copyFiles(json: string): {
+	files: EditorFile[];
+	skipped: string[];
+} {
+	const files: EditorFile[] = [];
+	const skipped: string[] = [];
 	let data: unknown;
 	try {
 		data = JSON.parse(json);
 	} catch {
-		return [];
+		return { files, skipped };
 	}
-	if (!Array.isArray(data)) return [];
-	const files: EditorFile[] = [];
+	if (!Array.isArray(data)) return { files, skipped };
 	for (const f of data as Partial<EditorFile>[]) {
 		const { name, content } = f ?? {};
-		if (
-			typeof name === "string" &&
-			typeof content === "string" &&
-			isValidFileName(name) &&
-			!files.some((g) => g.name === name)
-		) {
+		if (typeof name !== "string" || typeof content !== "string") continue;
+		if (isValidFileName(name) && !files.some((g) => g.name === name)) {
 			files.push({ name, content });
+		} else {
+			skipped.push(name);
 		}
 	}
-	return files;
+	return { files, skipped };
 }
 
 // createTar builds a ustar archive of files, skipping any name
