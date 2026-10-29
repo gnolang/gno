@@ -23,6 +23,6 @@ func main() {
 
 // GnoError:
 // line 12: initialization cycle: a refers to a
-// line 18: initialization cycle: X refers to A refers to B refers to C refers to D refers to A
+// line 16: initialization cycle: A refers to B refers to C refers to D refers to A
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 18
+// Verdict: Clean errorcheck
