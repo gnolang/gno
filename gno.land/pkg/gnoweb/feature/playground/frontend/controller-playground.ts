@@ -70,6 +70,8 @@ export class PlaygroundController extends BaseController {
 		const [first, ...rest] = files.length
 			? files
 			: [{ name: "main.gno", content: DEFAULT_GNO_CONTENT }];
+		// The editor replaces the code the page was served with as text.
+		this.editorEl.replaceChildren();
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
 			content: first.content,

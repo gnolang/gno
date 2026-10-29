@@ -167,3 +167,12 @@
 	color: var(--s-color-text-secondary);
 	background-color: var(--s-color-bg-surface-secondary);
 }
+
+/* A copy's file name above its code, as served until the editor and its
+   tabs replace them. */
+.b-playground-file {
+	padding: var(--g-space-2) var(--g-space-3);
+	border-block-end: var(--s-divider);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}

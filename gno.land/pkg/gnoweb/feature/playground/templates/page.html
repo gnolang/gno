@@ -56,8 +56,17 @@ LAYOUT - Playground view
       </div>
     </div>
 
-    <!-- Code editor -->
-    <div class="b-code-editor" data-playground-target="editor"></div>
+    <!-- Code editor: the code as text until the editor replaces it -->
+    <div class="b-code-editor" data-playground-target="editor">
+      <div class="b-source-code">
+        {{- range .Files }}
+        <p class="b-playground-file u-font-mono">{{ .Name }}</p>
+        <pre class="chroma-chroma">{{ .Content }}</pre>
+        {{- else }}
+        <pre class="chroma-chroma">{{ .InitialCode }}</pre>
+        {{- end }}
+      </div>
+    </div>
     {{- with .Files }}
     <script type="application/json" data-playground-target="files">{{ . }}</script>
     {{- else }}

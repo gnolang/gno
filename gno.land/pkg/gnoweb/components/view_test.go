@@ -332,6 +332,12 @@ func TestHelpViewEval(t *testing.T) {
 	assert.Regexp(t, `href="#expression-evaluator">\s*<svg class="c-icon">\s*<use href="#ico-eval">`, html)
 	// The evaluator is listed after the functions.
 	assert.Less(t, strings.Index(html, `href="#func-AmendBylawsPayload"`), strings.Index(html, `href="#expression-evaluator"`))
+	// What works only with JS is served hidden, for the controllers to show:
+	// the Eval button, the evaluator's form and its result.
+	assert.Contains(t, html, `data-action-function-target="eval-button" title="Evaluate function (read-only)" hidden>`)
+	assert.Contains(t, html, `class="b-action-eval-form" data-action-eval-target="js-only" hidden>`)
+	assert.Contains(t, html, `<section class="b-result" data-action-eval-target="js-only" hidden>`)
+	assert.Contains(t, html, `<noscript><p class="u-color-tertiary">The evaluator needs JavaScript.</p></noscript>`)
 }
 
 func TestDirectoryView(t *testing.T) {

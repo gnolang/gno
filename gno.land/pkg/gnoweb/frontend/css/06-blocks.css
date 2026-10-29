@@ -2296,7 +2296,10 @@ main.is-dev-mode .b-toc a {
 	flex: 1;
 }
 
-.b-action-eval-history[hidden] {
+/* The Eval buttons and the evaluator's form, result and history are served
+   hidden until their controller shows them: they need JS. */
+.b-action-function .b-btn[hidden],
+.b-action-eval > [hidden] {
 	display: none;
 }
 
@@ -3730,6 +3733,15 @@ main.is-dev-mode .b-toc a {
 .b-code-editor {
 	display: flex;
 	min-width: 0;
+
+	/* The code as served, in the source view's frame, until the editor
+	   replaces it (or for good, without JS). */
+	& > .b-source-code {
+		flex: 1;
+		min-width: 0;
+		max-height: 70vh;
+		overflow: auto;
+	}
 }
 
 /* Playground and run pages: full-width editor pages. */

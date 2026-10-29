@@ -89,8 +89,9 @@ UI - Help Function component
           <span>Link</span>
         </button>
         {{ if not .Crossing }}
+        {{/* Shown by its controller: without JS it does nothing. */}}
         <button class="b-btn b-btn--secondary c-with-icon" data-action="click->action-function#triggerEval"
-          title="Evaluate function (read-only)">
+          data-action-function-target="eval-button" title="Evaluate function (read-only)" hidden>
           <svg class="c-icon"><use href="#ico-eval"></use></svg>
           <span>Eval</span>
         </button>
@@ -217,7 +218,10 @@ UI - Eval expression snippet (inline evaluator for action page)
     Evaluate any read-only Gno expression against <code class="u-font-mono">{{ .PkgPath }}</code>, for example a function call with arguments.
   </p>
 
-  <form data-action="submit->action-eval#evalExpression" class="b-action-eval-form">
+  {{/* The form and its result are shown by the controller: without JS
+  they do nothing. */}}
+  <noscript><p class="u-color-tertiary">The evaluator needs JavaScript.</p></noscript>
+  <form data-action="submit->action-eval#evalExpression" class="b-action-eval-form" data-action-eval-target="js-only" hidden>
     <div class="b-input b-input--full">
       <label for="action-eval-expression">Expression</label>
       <input type="text" id="action-eval-expression"
@@ -231,7 +235,7 @@ UI - Eval expression snippet (inline evaluator for action page)
     </button>
   </form>
 
-  <section class="b-result">
+  <section class="b-result" data-action-eval-target="js-only" hidden>
     <h3 class="b-result-title">Result</h3>
     <div class="b-code">
       <pre class="b-result-content" role="status" aria-live="polite"

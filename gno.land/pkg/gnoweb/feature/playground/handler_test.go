@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
@@ -286,6 +287,10 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 			status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: tc.query})
 			assert.Equal(t, http.StatusOK, status)
 			assert.Equal(t, tc.want, extractPlaygroundViewData(t, v).InitialCode)
+			// Served as text too, not only in the editor's hidden source.
+			var buf bytes.Buffer
+			require.NoError(t, v.Render(&buf))
+			assert.Contains(t, buf.String(), `<pre class="chroma-chroma">`+template.HTMLEscapeString(tc.want)+"</pre>")
 		})
 	}
 }
@@ -337,6 +342,11 @@ func TestCopyView(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(page[i+len(open):i+j]), &got))
 		assert.Equal(t, data.Files, got)
 		assert.NotContains(t, page, `data-playground-target="initial-code"`)
+		// Each file is also served as text, under its name, for a reader
+		// without JS: the JSON alone shows nothing.
+		for _, f := range data.Files {
+			assert.Contains(t, page, `<p class="b-playground-file u-font-mono">`+f.Name+"</p>\n        <pre class=\"chroma-chroma\">"+template.HTMLEscapeString(f.Content)+"</pre>")
+		}
 		// Run previews the realm it was copied from, by its own path.
 		assert.Contains(t, page, `data-playground-from-value="r/demo/foo"`)
 	})

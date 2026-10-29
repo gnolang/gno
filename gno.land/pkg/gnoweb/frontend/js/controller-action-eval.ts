@@ -31,6 +31,8 @@ export class ActionEvalController extends BaseController {
 
 		if (!this.inputEl || !this.resultEl) return;
 
+		// Served hidden: the form and its result only work from here on.
+		for (const el of this.getTargets("js-only")) el.hidden = false;
 		this._setupKeyboardShortcuts();
 		this._listenForEvents();
 	}

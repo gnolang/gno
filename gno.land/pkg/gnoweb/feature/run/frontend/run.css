@@ -13,13 +13,6 @@
 }
 
 .b-run {
-	/* The script as served fills the editor's frame until the editor
-	   replaces it. */
-	.b-code-editor > .b-source-code {
-		flex: 1;
-		min-width: 0;
-	}
-
 	/* The switch's checkbox is visually hidden, not removed: it is how a
 	   keyboard reaches the switch, whose label shows the focus. */
 	.b-switch {

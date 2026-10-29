@@ -42,6 +42,10 @@ export class ActionFunctionController extends BaseController {
 		this._initializeArgs();
 		this._listenForEvents();
 
+		// Served hidden: Eval only works from here on.
+		const evalButton = this.getTarget("eval-button");
+		if (evalButton) evalButton.hidden = false;
+
 		// Some functions may have no params, or all params already have values
 		this._updateQEvalResult();
 
