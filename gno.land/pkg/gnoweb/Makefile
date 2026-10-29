@@ -86,6 +86,7 @@ node-start:
 # Test process
 test:
 	go test -v ./...
+test.front:; $(MAKE) -C frontend test
 
 # Format process
 fmt: fmt.go fmt.front

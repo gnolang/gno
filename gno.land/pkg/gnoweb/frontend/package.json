@@ -1,5 +1,6 @@
 {
 	"name": "gnoweb",
+	"type": "module",
 	"dependencies": {
 		"htmx.org": "2.0.4"
 	},
