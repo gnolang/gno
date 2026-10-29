@@ -62,8 +62,11 @@ the mechanism. The converse does not hold: `Marshal` can emit bytes the check
 then rejects where a repr type's producer is laxer than its consumer (an
 unsorted `std.Coins` string round-trips sorted), and bytes the check accepts
 can still be invalid (`0a 00`, a nil message, is the canonical encoding of
-`Tx{Msgs: {nil}}`). It ships here as a library function with its tests;
-nothing calls it yet.
+`Tx{Msgs: {nil}}`). Like `Unmarshal` it takes `*T` or `**T`; deeper pointers,
+which `Unmarshal` decodes through and `Marshal` panics on, are refused with an
+error before decoding. It ships here as a library function with its tests,
+covering the reflect path and, through a generated type, the genproto2 path
+that `std.Tx` takes; nothing calls it yet.
 
 **Enforcement is a separate PR, #6406**: `BaseApp.runTx` decodes every tx
 with `UnmarshalCanonical`, unconditionally. It cannot ship before the wire
@@ -83,11 +86,12 @@ emit and of what #6399 makes canonical.
 4. The written-out zero session address drains from chain traffic.
 5. #6406 ships as a coordinated upgrade, the mechanism from #5368 that
    gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to the
-   enforcing release and an entry in
-   `misc/deployments/mainnet.gno.land/upgrades.json`. Blocks before the halt
-   are replayed by the binaries that produced them, so no height gate is
-   needed. The release it rides is the next coordinated release on the mainnet
-   line after `v1.5.1`; the ledger entry names it when the halt is scheduled.
+   enforcing release, recorded in `misc/deployments/mainnet.gno.land/upgrades.json`
+   once the chain runs it (#6381). Blocks before the halt are replayed by the
+   binaries that produced them, so no height gate is needed. The release it
+   rides is the next coordinated release on the mainnet line after `v1.5.1`;
+   its release page and the halt announcement name the height once the
+   proposal has executed.
 
 ## Alternatives considered
 

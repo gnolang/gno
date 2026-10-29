@@ -139,16 +139,16 @@ Amino objects are a subset of Go.
 * Pointers are automatically supported in go-amino but it is an extension of
   the theoretical Amino spec.
 
-## Field tags and consensus
+## Encoding changes and consensus
 
-A field tag changes the bytes a value encodes to, so on any type that reaches
-consensus a tag is part of the protocol. Once nodes accept only the canonical
-encoding of a transaction (`tm2/adr/pr6404_tx_canonical_encoding.md`), every
-field inside a transaction type is hashed, and a tag that changes which bytes a
-zero value produces, `amino:"skip_zero"` (#6399) first of all, rejects every
-older client's bytes: a struct tag becomes a hardfork. No new `skip_zero` on a
-type that reaches consensus without a coordinated upgrade, and the same for
-removing one.
+A change to the bytes `Marshal` produces for a value is a protocol change on any
+type that reaches consensus. Once nodes accept only the canonical encoding of a
+transaction (`tm2/adr/pr6404_tx_canonical_encoding.md`), that covers every type
+inside a transaction, whatever the source of the change: a field tag
+(`amino:"skip_zero"`, #6399), a repr type's `MarshalAmino` (`std.Coins` renders
+through `String`), or the codec itself, regenerated `pb3_gen.go` included
+(transactions encode through genproto2). Adding or removing a tag, changing a
+repr, or regenerating the codec for such a type needs a coordinated upgrade.
 
 ## Limitations
 
