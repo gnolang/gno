@@ -1,8 +1,6 @@
 import { CodeEditor } from "@gnoweb/js/code-editor.js";
 import { BaseController, downloadBlob } from "@gnoweb/js/controller.js";
-
-// Terminates the heredoc that carries the script.
-const HEREDOC_DELIMITER = "__GNO_EOF__";
+import { heredocDelimiter, shellQuote } from "./shell.js";
 
 export class RunController extends BaseController {
 	private declare pkgPath: string;
@@ -67,9 +65,13 @@ func main() {
 	}
 
 	private _buildCmd(): string {
-		const key = this.keyEl.value.trim() || "<key-name>";
-		const gasWanted = this.gasWantedEl.value.trim() || "1_000_000_000";
-		const gasFee = this.gasFeeEl.value.trim() || "1000000ugnot";
+		// KEYNAME, not <key-name>: a shell reads "<" as a redirect.
+		const keyName = this.keyEl.value.trim();
+		const key = keyName ? shellQuote(keyName) : "KEYNAME";
+		const gasWanted = shellQuote(
+			this.gasWantedEl.value.trim() || "1_000_000_000",
+		);
+		const gasFee = shellQuote(this.gasFeeEl.value.trim() || "1000000ugnot");
 		const send = this.sendEl.value.trim();
 
 		const parts = [
@@ -79,7 +81,7 @@ func main() {
 		];
 
 		if (send && send !== "0ugnot") {
-			parts.push(`  -send "${send}"`);
+			parts.push(`  -send ${shellQuote(send)}`);
 		}
 
 		parts.push("  -broadcast");
@@ -100,7 +102,8 @@ func main() {
 	// from the same paste as the command.
 	private _buildHeredoc(): string {
 		const code = this.editor.getCode().replace(/\n+$/, "");
-		return `cat > script.gno <<'${HEREDOC_DELIMITER}'\n${code}\n${HEREDOC_DELIMITER}`;
+		const delim = heredocDelimiter(code);
+		return `cat > script.gno <<'${delim}'\n${code}\n${delim}`;
 	}
 
 	private _updateCommand(): void {
