@@ -224,8 +224,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// offline, so the host's Go version cannot move the result.
 	if isGoRunMode {
 		if opts.Sync {
-			if err := checkCorpusToolchain(); err != nil {
-				return "", 0, diffs, fmt.Errorf("filetest %s: %w", fname, err)
+			if isCorpusFiletest(fname) {
+				if err := checkCorpusToolchain(); err != nil {
+					return "", 0, diffs, fmt.Errorf("filetest %s: %w", fname, err)
+				}
 			}
 			out, runErr := runGoToolchain(source, false)
 			if runErr != nil {
