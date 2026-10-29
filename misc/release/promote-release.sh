@@ -108,6 +108,8 @@ parse_args() {
 
 check_tools() {
   local tool
+  # No wget fallback: the registry calls rely on curl's config on stdin (-K -),
+  # header dumps (-D), status codes (-w) and PUT, which busybox wget lacks.
   for tool in gh curl jq; do
     command -v "${tool}" >/dev/null 2>&1 || die "needs ${tool}"
   done
