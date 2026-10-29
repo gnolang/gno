@@ -54,10 +54,6 @@ export class ActionFunctionController extends BaseController {
 		this._dispatchParamsChanged();
 	}
 
-	protected disconnect(): void {
-		this._qevalAbort?.abort();
-	}
-
 	// listen for events from action-header controller
 	private _listenForEvents(): void {
 		// Listen for mode changes from action-header controller

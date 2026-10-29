@@ -31,7 +31,6 @@ export class PlaygroundController extends BaseController {
 	private declare prevBtnEl: HTMLButtonElement;
 	private declare nextBtnEl: HTMLButtonElement;
 	private declare runBtnEl: HTMLElement | null;
-	private declare tabsObserver: ResizeObserver | undefined;
 	// The editor holds every file (text and undo history); the controller
 	// keeps no copy of its own.
 	private declare editor: CodeEditor;
@@ -104,14 +103,9 @@ export class PlaygroundController extends BaseController {
 			passive: true,
 		});
 
-		this.tabsObserver = new ResizeObserver(() => this._updateNavButtons());
-		this.tabsObserver.observe(this.tabsWrapEl);
-		this.tabsObserver.observe(this.tabsEl);
-	}
-
-	protected disconnect(): void {
-		this.tabsObserver?.disconnect();
-		this.runAbort?.abort();
+		const observer = new ResizeObserver(() => this._updateNavButtons());
+		observer.observe(this.tabsWrapEl);
+		observer.observe(this.tabsEl);
 	}
 
 	// _setPreview says what Run does, on the button too: show the copied

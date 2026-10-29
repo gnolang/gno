@@ -20,9 +20,6 @@ export class RunController extends BaseController {
 	private declare editor: CodeEditor;
 	// The key or address typed in the header, empty for the placeholders.
 	private declare key: string;
-	private declare onMode: (e: Event) => void;
-	private declare onAddress: (e: Event) => void;
-	private declare onInput: () => void;
 
 	protected connect(): void {
 		this.script = this.getValue("script");
@@ -46,29 +43,20 @@ export class RunController extends BaseController {
 			onChange: () => this._updateCommand(),
 		});
 
-		this.onInput = () => this._updateCommand();
-		this.onMode = (e) => this._showMode((e as CustomEvent).detail.mode);
-		this.onAddress = (e) => {
+		const update = () => this._updateCommand();
+		for (const el of [this.gasWantedEl, this.gasFeeEl, this.sendEl]) {
+			el.addEventListener("input", update);
+		}
+		this.includeScriptEl.addEventListener("change", update);
+		this.on("mode:changed", (e) =>
+			this._showMode((e as CustomEvent).detail.mode),
+		);
+		this.on("address:changed", (e) => {
 			this.key = String((e as CustomEvent).detail.address).trim();
 			this._updateCommand();
-		};
-		for (const el of [this.gasWantedEl, this.gasFeeEl, this.sendEl]) {
-			el.addEventListener("input", this.onInput);
-		}
-		this.includeScriptEl.addEventListener("change", this.onInput);
-		this.on("mode:changed", this.onMode);
-		this.on("address:changed", this.onAddress);
+		});
 		// The browser may have restored the fields of a reloaded page.
 		this._updateCommand();
-	}
-
-	protected disconnect(): void {
-		for (const el of [this.gasWantedEl, this.gasFeeEl, this.sendEl]) {
-			el?.removeEventListener("input", this.onInput);
-		}
-		this.includeScriptEl?.removeEventListener("change", this.onInput);
-		document.removeEventListener("mode:changed", this.onMode);
-		document.removeEventListener("address:changed", this.onAddress);
 	}
 
 	// Shows the command of the mode picked, and makes it the one Copy copies.
