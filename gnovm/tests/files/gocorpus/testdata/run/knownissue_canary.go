@@ -1,30 +1,23 @@
+// run
+
 // Verifies the `// Verdict: KnownIssue run: #NNNN <reason>` flow: Gno is
 // wrong, Go is right, the file pins both sides and cites the tracking
 // issue. Verify fails the moment the bug is fixed ("stale verdict"), so
 // the fix PR flips this line to `Clean run` and closes the issue.
 //
-// The bug: a method expression on an interface type, I.M, is rejected
-// at preprocess; Go accepts it and calls the dynamic method.
+// The bug: the builtin print inserts spaces between its operands; Go
+// writes them back to back (only println adds spaces).
 
 package main
 
-type I interface{ M() int }
-
-type T int
-
-func (T) M() int { return 1 }
-
 func main() {
-	f := I.M
-	println(f(T(0)))
+	print("ab", "cd", "\n")
 }
 
 // GnoOutput:
-
-// GnoError:
-// main/knownissue_canary.go:18:7-10: unknown *DeclaredType method named M
+// ab cd
 
 // GoOutput:
-// 1
+// abcd
 
-// Verdict: KnownIssue run: #5787 method expressions on interface types are rejected at preprocess
+// Verdict: KnownIssue run: #6331 builtin print inserts spaces between operands

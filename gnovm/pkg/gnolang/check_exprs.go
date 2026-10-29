@@ -1,8 +1,10 @@
 package gnolang
 
-import "fmt"
+import (
+	"fmt"
 
-import "github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store"
+)
 
 // Expression rules the preprocessor enforces (Go spec: "Comparison
 // operators", "Index expressions", "Slice expressions", "Composite
@@ -98,15 +100,6 @@ func operandWord(x Expr) string {
 		return "variable"
 	}
 	return "value"
-}
-
-// operandString spells an operand as written: a name without its
-// resolved value path.
-func operandString(x Expr) string {
-	if nx, ok := x.(*NameExpr); ok {
-		return string(nx.Name)
-	}
-	return x.String()
 }
 
 // staticLengthOf returns the length a constant index can be checked

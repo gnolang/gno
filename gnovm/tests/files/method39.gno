@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/method39.gno:12:2-7: missing field Foo in main.Derived
+// main/method39.gno:12:2-7: d.Foo undefined (type main.Derived has no field or method Foo)
 
 // TypeCheckError:
 // main/method39.gno:12:4: d.Foo undefined (type Derived has no field or method Foo)

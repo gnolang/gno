@@ -214,34 +214,21 @@ func issue5918() {
 }
 
 // GnoError:
-// line 34: cannot use func(gno.land/p/filetest/methodsets.T0) as func(*gno.land/p/filetest/methodsets.T0)
-// line 39: unknown *DeclaredType method named v2
-// line 40: unknown *DeclaredType method named p2
-// line 42: unknown *DeclaredType method named v0
-// line 43: unknown *DeclaredType method named p0
-// line 44: unknown *DeclaredType method named v1
-// line 45: unknown *DeclaredType method named p1
-// line 46: unknown *DeclaredType method named v2
-// line 47: unknown *DeclaredType method named p2
-// line 49: unknown *DeclaredType method named v0
-// line 50: unknown *DeclaredType method named p0
-// line 51: unknown *DeclaredType method named v1
-// line 52: unknown *DeclaredType method named p1
-// line 53: unknown *DeclaredType method named v2
-// line 54: unknown *DeclaredType method named p2
-// line 196: unknown *DeclaredType method named Error
-// line 199: should not happen
-// line 200: should not happen
-// line 201: unknown *DeclaredType method named Error
-// line 210: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
-// line 211: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
-// line 212: unknown *DeclaredType method named m
+// line 32: invalid method expression T0.p0 (needs pointer receiver (*T0).p0)
+// line 43: invalid method expression T3.p0 (needs pointer receiver (*T3).p0)
+// line 199: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 200: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 201: (*.uverse.error).Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 210: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
+// line 211: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
+// line 212: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
 // GnoWordingDiffers:
-// line 43: gc expects: invalid method expression T3.p0 (needs pointer receiver (*T3).p0); gno: unknown *DeclaredType method named p0
-// line 201: gc expects: type *error is pointer to interface, not interface; gno: unknown *DeclaredType method named Error
-// line 210: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
-// line 211: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
-// line 212: gc expects: type T is pointer to interface, not interface; gno: unknown *DeclaredType method named m
+// line 199: gc expects: type *error is pointer to interface, not interface; gno: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 200: gc expects: type *error is pointer to interface, not interface; gno: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 201: gc expects: type *error is pointer to interface, not interface; gno: (*.uverse.error).Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 210: gc expects: type T is pointer to interface, not interface; gno: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
+// line 211: gc expects: type T is pointer to interface, not interface; gno: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
+// line 212: gc expects: type T is pointer to interface, not interface; gno: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 32, 138, 148, 166, 176, 199, 200; over-strict: lines 34, 39, 40, 42, 44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 196; internal errors: lines 199, 200
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 138, 148, 166, 176

@@ -25,7 +25,4 @@ func f() {
 	I.Method(m, 42)
 }
 
-// GnoError:
-// line 24: unknown *DeclaredType method named MethodByName
-
-// Verdict: KnownIssue compile: #5787 method expression on an interface type is rejected at preprocess
+// Verdict: Clean compile

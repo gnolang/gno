@@ -573,7 +573,7 @@ func main() {}
 			"main.gno:7:6", "invalid recursive type: A -> A",
 			"main.gno:9:15", "name not defined: a",
 			"main.gno:9:24", "cannot use untyped bool",
-			"main.gno:13:2", "missing field g in main.S",
+			"main.gno:13:2", "s.g undefined",
 		)
 	})
 }
@@ -609,7 +609,7 @@ func main() {
 	wantErrors(t, msgs,
 		"main.gno:8:7", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
-		"main.gno:13:3", "missing field M in main.Stringer",
+		"main.gno:13:3", "e.M undefined (type main.Stringer has no field or method M)",
 		"main.gno:16:2", "cannot use",
 		"main.gno:18:7", "cannot use",
 	)
@@ -1705,7 +1705,7 @@ func main() {}
 		"cannot use struct{x int} as struct{x int}: struct tags differ",
 		"cannot assign to struct field m[0].x in map",
 		"cannot assign to mq[0].a[1] (neither addressable nor a map index expression)",
-		"missing field m in main.P",
+		"p.m undefined (type main.P has no field or method m)",
 	}
 	for _, w := range want {
 		found := false
@@ -1740,7 +1740,7 @@ func main() {
 	_ = x.f
 }
 `)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "x.f undefined (type main.P has no field or method f)") {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
@@ -2829,6 +2829,165 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectMethodExprs(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T0 struct{}
+
+func (T0) v0() int    { return 1 }
+func (*T0) p0() int   { return 2 }
+func (T0) sum(xs ...int) (n int) {
+	for _, x := range xs {
+		n += x
+	}
+	return
+}
+
+type T3 struct {
+	T0
+}
+
+type T4 struct{}
+
+func (T4) v0() int { return 3 }
+
+type Amb struct {
+	T0
+	T4
+}
+
+type I interface{ M() }
+
+func main() {
+	_ = T0.p0 // needs *T0
+	_ = T3.p0 // promoted, still needs a pointer
+	_ = T3.nope
+	_ = Amb.v0  // two at the same depth
+	_ = (*I).M  // a pointer to an interface has no methods
+	_ = I.M     // fine
+	var f func(T3) int = T3.v0
+	var g func(*T3) int = (*T3).p0
+	var g2 func(*T0) int = (*T0).v0 // value method through a pointer
+	var h func(T3, ...int) int = T3.sum
+	_, _, _, _ = f, g, h, g2
+}
+`)
+	want := []string{
+		"invalid method expression T0.p0 (needs pointer receiver (*T0).p0)",
+		"invalid method expression T3.p0 (needs pointer receiver (*T3).p0)",
+		"T3.nope undefined (type main.T3 has no method nope)",
+		"ambiguous selector Amb.v0",
+		"(*I).M undefined (type *main.I is pointer to interface, not interface)",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectPointerToNamedPointer(t *testing.T) {
+	// A pointer to a named pointer or interface type exposes no field or
+	// method, as a pointer to a pointer or to an interface does (Go spec,
+	// Selectors); the walk used to reach through it and panic.
+	msgs := collectErrors(t, `package main
+
+type T int
+
+func (T) Mv()  {}
+func (*T) Mp() {}
+
+type P3 *struct{ T }
+type P4 *struct{ *T }
+type PP *P3
+
+type I *interface{ m() int }
+
+var err error
+var perr = &err
+
+func main() {
+	var p P3
+	_ = (&p).T
+	(&p).Mv()
+	(&p).Mp()
+	(**&p).Mv() // fine
+	(*p).Mp()   // fine
+	var q P4
+	(&q).Mv()
+	var pp PP
+	_ = pp.T
+	_ = perr.Error
+	perr.Error()
+	var x I
+	_ = x.m
+	_ = (*x).m() // fine
+}
+`)
+	want := []string{
+		"(&p).T undefined (type *main.P3 has no field or method T)",
+		"(&p).Mv undefined (type *main.P3 has no field or method Mv)",
+		"(&p).Mp undefined (type *main.P3 has no field or method Mp)",
+		"(&q).Mv undefined (type *main.P4 has no field or method Mv)",
+		"pp.T undefined (type main.PP has no field or method T)",
+		"perr.Error undefined (type *.uverse.error is pointer to interface, not interface)",
+		"perr.Error undefined (type *.uverse.error is pointer to interface, not interface)",
+		"x.m undefined (type main.I is pointer to interface, not interface)",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.Contains(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectUndefinedSelector(t *testing.T) {
+	// A selector on a type that has no fields or methods at all, or on a
+	// multi-value call, is reported in go/types' words rather than as an
+	// internal error; a unary operand is printed in parens.
+	msgs := collectErrors(t, `package main
+
+func f() (int, int) { return 1, 2 }
+
+func main() {
+	var n int
+	_ = n.x
+	main.i()
+	_ = f().x
+	var s struct{ a int }
+	_ = (*&s).b
+	_ = (-n).y
+}
+`)
+	want := []string{
+		"n.x undefined (type int has no field or method x)",
+		"main.i undefined (type func() has no field or method i)",
+		"multiple-value f() (value of type (int,int)) in single-value context",
+		"(*&s).b undefined (type struct{a int} has no field or method b)",
+		"(-n).y undefined (type int has no field or method y)",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.Contains(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
+
 // deployAfterCollect runs the ordinary (non-accumulate) path over src,
 // optionally running a collect pass over the very same parsed nodes first,
 // and reports what the ordinary path did. A fresh PackageNode each time, so
@@ -2890,6 +3049,26 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreprocessCollectMethodExprPointerPointer(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type T struct{}
+
+func (T) foo() {}
+
+func main() {
+	var pt *T
+	(**T).foo(&pt)
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:9:2", "(**T).foo undefined (type **main.T has no field or method foo)",
+	)
 }
 
 func TestPreprocessCollectConstantArguments(t *testing.T) {
@@ -2990,7 +3169,7 @@ func main() {
 		"main.gno:12:9", "operator ! not defined on: IntKind",
 		"main.gno:14:7", "undefined3",
 		"main.gno:18:7", "0 is not a type",
-		"main.gno:20:3", "missing field x in interface {}",
+		"main.gno:20:3", "x.x undefined (type interface {} has no field or method x)",
 	)
 }
 

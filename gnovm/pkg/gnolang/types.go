@@ -3337,12 +3337,18 @@ func (w *embedWalk) expand() bool {
 // (embedded fields are T or *T, and pointers to declared types and
 // structs are transparent for field/method exposure). Returns nil for
 // types that expose nothing (e.g. nested pointers, pointers to
-// interfaces).
+// interfaces), a named pointer or interface under the pointer included.
 func canonEmbeddedType(t Type) Type {
 	if pt, ok := t.(*PointerType); ok {
-		switch pt.Elt.(type) {
-		case *DeclaredType, *StructType:
-			return pt.Elt
+		switch elt := pt.Elt.(type) {
+		case *DeclaredType:
+			switch elt.Base.(type) {
+			case *PointerType, *InterfaceType:
+				return nil
+			}
+			return elt
+		case *StructType:
+			return elt
 		}
 		return nil
 	}

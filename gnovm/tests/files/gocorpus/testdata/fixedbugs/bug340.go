@@ -19,9 +19,6 @@ func main() {
 
 // GnoError:
 // line 14: 0 is not a type
-// line 16: missing field x in interface {}
-
-// GnoWordingDiffers:
-// line 16: gc expects: type interface \{\}|reference to undefined field or method|interface with no methods|undefined; gno: missing field x in interface {}
+// line 16: x.x undefined (type interface {} has no field or method x)
 
 // Verdict: Clean errorcheck

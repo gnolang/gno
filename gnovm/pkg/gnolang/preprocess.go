@@ -3666,8 +3666,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						panic(fmt.Sprintf("ambiguous selector %s in %s",
 							n.Sel, cxt.String()))
 					case embedLookupNone:
-						panic(fmt.Sprintf("missing field %s in %s",
-							n.Sel, cxt.String()))
+						undefinedSelector(n, cxt)
 					}
 					// embedLookupFound guarantees tr != nil below.
 
@@ -3798,7 +3797,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					var dt *DeclaredType
 					switch ct := xt.(type) {
 					case *PointerType:
-						dt = ct.Elt.(*DeclaredType)
+						var ok bool
+						if dt, ok = ct.Elt.(*DeclaredType); !ok { // (**T).m
+							undefinedSelector(n, xt)
+						}
 					case *DeclaredType:
 						dt = ct
 					default:
@@ -3816,10 +3818,30 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						panic(fmt.Sprintf("cannot access unexported method %s.%s from %s",
 							dt.PkgPath, n.Sel, ctxpn.PkgPath))
 					}
-					n.Path = dt.GetUnboundPathForName(n.Sel)
+					_, isPtr := xt.(*PointerType)
+					if _, iface := dt.Base.(*InterfaceType); iface && isPtr {
+						failf(CodeNoMethod, []Node{n}, "(%s).%s undefined (type %v is pointer to interface, not interface)",
+							exprString(n.X), n.Sel, xt)
+					}
+					if i, ok := dt.lookupMethod(n.Sel); ok {
+						fv := dt.Methods[i].V.(*FuncValue)
+						recv := fv.GetType(store).Params[0].Type
+						assertMethodExprReceiver(dt, n.Sel, recv, isPtr)
+						if _, ptrRecv := recv.(*PointerType); isPtr && !ptrRecv {
+							// (*T).m with a value receiver has type
+							// func(*T, ...): the literal dereferences.
+							lit := promotedMethodExpr(store, last, ctxpn.PkgPath, n, xt, isPtr)
+							return Preprocess(store, last, lit).(Expr), TRANS_CONTINUE
+						}
+						n.Path = dt.GetUnboundPathForName(n.Sel)
+					} else {
+						// Promoted through an embedded field: a function
+						// literal that selects it on its receiver.
+						lit := promotedMethodExpr(store, last, ctxpn.PkgPath, n, xt, isPtr)
+						return Preprocess(store, last, lit).(Expr), TRANS_CONTINUE
+					}
 				default:
-					panic(fmt.Sprintf("%s undefined (type %s has no field or method %s)",
-						exprString(n), operandTypeString(xt), n.Sel))
+					undefinedSelector(n, xt)
 				}
 
 			// TRANS_LEAVE -----------------------
