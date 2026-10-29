@@ -17,13 +17,59 @@ test("gnoLiteral quotes strings and addresses, and leaves the rest as typed", ()
 			'"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"',
 		],
 		["42", "int", "42"],
+		["-7", "int64", "-7"],
+		["0x1F", "uint", "0x1F"],
+		["1e+5", "float64", "1e+5"],
+		["'a'", "rune", "'a'"],
+		["'\\n'", "rune", "'\\n'"],
 		["true", "bool", "true"],
-		["NewThing()", "ProposalID", "NewThing()"],
+		["nil", "ProposalID", "nil"],
+		["MaxSupply", "int", "MaxSupply"],
+		['"x"', "Name", '"x"'],
 		["raw", "", "raw"],
 	];
 	for (const [value, type, want] of cases) {
 		assert.equal(gnoLiteral(value, type), want, `${type} ${value}`);
 	}
+});
+
+// A prefilled link must not make a card evaluate another expression and
+// show its value as the function's result: anything that is not exactly one
+// operand reaches the function as a string.
+test("gnoLiteral quotes any value that is more than one operand", () => {
+	const cases: [value: string, type: string][] = [
+		['"a"+Other()+"b"', "string"],
+		['"a" + Other() + "b"', "address"],
+		["`a`+Other()+`b`", "string"],
+		['"a"//x', "string"],
+		['"\\q"', "string"], // not an escape Gno has
+		['"\\x4"', "string"],
+		["Other()", "string"],
+		["Other()", "int"],
+		["1+Other()", "int"],
+		["-Other()", "int"],
+		["pkg.Secret", "int"],
+		["'a'+Other()", "rune"],
+		["NewThing()", "ProposalID"],
+		["[]string{Other()}", "[]string"],
+		["true || Other()", "bool"],
+	];
+	for (const [value, type] of cases) {
+		assert.equal(
+			gnoLiteral(value, type),
+			JSON.stringify(value),
+			`${type} ${value}`,
+		);
+	}
+	// One literal holding what looks like a call is still that one literal.
+	assert.equal(
+		gnoLiteral('"a\\"+Other()+\\"b"', "string"),
+		'"a\\"+Other()+\\"b"',
+	);
+	assert.equal(
+		gnoLiteral('"\\x41\\u00e9\\101"', "string"),
+		'"\\x41\\u00e9\\101"',
+	);
 });
 
 test("zeroLiteral gives the zero value the doc renders for a type", () => {

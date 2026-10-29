@@ -92,13 +92,27 @@ export async function postEval(
 	}
 }
 
-// gnoLiteral turns a typed value into a Gno literal for its type: a string
-// or an address is quoted, unless the reader already wrote a quoted
-// literal; anything else is Gno source as typed (numbers, bools, calls).
+// gnoStringLiteral matches exactly one Gno string literal: interpreted,
+// with only the escapes Go's spec allows, or raw.
+const gnoStringLiteral =
+	/^(?:"(?:[^"\\\n]|\\(?:[abfnrtv\\"]|[0-7]{3}|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}))*"|`[^`]*`)$/;
+
+// gnoOperand matches one operand that is no expression: a signed number,
+// a rune literal, or a name such as true, nil or a constant.
+const gnoOperand =
+	/^(?:[+-]?\.?[0-9][0-9A-Za-z_.]*(?:[eEpP][+-][0-9_]+)?|'(?:[^'\\\n]|\\[^\n][0-9A-Fa-f]{0,7})'|[A-Za-z_][A-Za-z0-9_]*)$/;
+
+// gnoLiteral turns a typed value into one Gno operand for its param type,
+// never an expression: a link's prefilled value must not make a card
+// evaluate (and show as its function's result) anything but that function.
+// A string or an address is kept only when it is exactly one string
+// literal; any other type also keeps a number, a rune or a name. Anything
+// else is quoted, so it reaches the function as a string.
 export function gnoLiteral(value: string, type: string): string {
-	if (type !== "string" && type !== "address") return value;
-	if (/^"(?:[^"\\\n]|\\.)*"$|^`[^`]*`$/.test(value)) return value;
-	return JSON.stringify(value);
+	const asIs =
+		gnoStringLiteral.test(value) ||
+		(type !== "string" && type !== "address" && gnoOperand.test(value));
+	return asIs ? value : JSON.stringify(value);
 }
 
 // zeroLiteral is a Gno literal of the zero value for a parameter type, as
