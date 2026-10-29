@@ -228,7 +228,10 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+// Hash bumped: untyped rune +- int constants now fold as rune, not int
+// (#6339), changing the stored constants of unicode, regexp and
+// regexp/syntax (`MaxRune + 1`, `'\n' - 1`); behaviour is unchanged.
+const expectedCrossrealm38Hash = "2a5d13bf49f66526469233bf5143f40ad8f1026a6c3125cd6c0342c7e2b4181d"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

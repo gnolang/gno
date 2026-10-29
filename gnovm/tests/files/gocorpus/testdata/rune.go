@@ -46,13 +46,4 @@ var (
 	b = []bool{b0}
 )
 
-// GnoError:
-// line 22: cannot use int as int32
-
-// GnoTypeDiffers:
-// line 14: r1 gno int, go int32
-// line 15: r2 gno int, go int32
-// line 16: r3 gno int, go int32
-// line 17: r4 gno int, go int32
-
-// Verdict: KnownIssue compile: #6339 untyped rune constant arithmetic is typed as int; types differ: lines 14, 15, 16, 17
+// Verdict: Clean compile

@@ -8,9 +8,9 @@ var s uint
 var _ = string(1 /* ERRORx `shifted operand 1 .* must be integer` */ << s)
 
 // GnoError:
-// line 8: operator << not defined on: StringKind
+// line 8: cannot use untyped Bigint as StringKind
 
 // GnoWordingDiffers:
-// line 8: gc expects: shifted operand 1 .* must be integer; gno: operator << not defined on: StringKind
+// line 8: gc expects: shifted operand 1 .* must be integer; gno: cannot use untyped Bigint as StringKind
 
 // Verdict: Clean errorcheck

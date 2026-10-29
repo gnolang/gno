@@ -66,17 +66,34 @@ func main() {
 	rs := []rune{r}
 	println(len(rs), r)
 
-	// Constant counts.
-	var x8 int64 = 'a' << 40
+	// Constant counts ('a' << 40 leaves the int32 rune range: #6389,
+	// see rune_shift_const.go).
+	var x8 int64 = 'a' << 20
 	var x9 uint8 = 1 << 7
 	const k = 1 << 100
 	println(x8, x9, k>>90, 1<<10, 1024>>10, 0<<0, 'a'>>1, uint64(1<<63)>>63)
 }
 
 // GnoOutput:
-
-// GnoError:
-// main/shift_context.go:21:6-40: cannot use int32 as int64
+// 837518622720
+// 837518622720
+// 420906795008
+// 420906795008
+// false
+// 98 98
+// true
+// true
+// t
+// 194 1099511627777
+// true
+// true
+// true
+// true
+// 1 0 1
+// 846108557312
+// 99
+// 1 98
+// 101711872 128 1024 1024 1 0 48 1
 
 // GoOutput:
 // 837518622720
@@ -97,6 +114,6 @@ func main() {
 // 846108557312
 // 99
 // 1 98
-// 106652627894272 128 1024 1024 1 0 48 1
+// 101711872 128 1024 1024 1 0 48 1
 
-// Verdict: KnownIssue run: #6393 non-constant shift operands are typed before their context is known (rune ranking: #6339)
+// Verdict: Clean run

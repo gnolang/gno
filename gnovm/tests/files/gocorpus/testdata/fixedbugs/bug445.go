@@ -13,7 +13,4 @@ func f(x uint) uint {
 	return uint(m)
 }
 
-// GnoTypeDiffers:
-// line 12: m gno untyped int, go int
-
-// Verdict: KnownIssue compile: #6393 types differ: lines 12
+// Verdict: Clean compile

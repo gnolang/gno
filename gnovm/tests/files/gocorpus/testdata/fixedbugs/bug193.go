@@ -17,10 +17,10 @@ func main() {
 
 // GnoError:
 // line 13: operator << not defined on: Float64Kind
-// line 14: operator << not defined on: StringKind
+// line 14: cannot use untyped Bigint as StringKind
 
 // GnoWordingDiffers:
 // line 13: gc expects: shift; gno: operator << not defined on: Float64Kind
-// line 14: gc expects: shift; gno: operator << not defined on: StringKind
+// line 14: gc expects: shift; gno: cannot use untyped Bigint as StringKind
 
 // Verdict: Clean errorcheck

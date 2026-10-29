@@ -20,10 +20,10 @@ func main() {
 
 // GnoError:
 // line 16: operator << not defined on: Float64Kind
-// line 17: operator << not defined on: BigdecKind
+// line 17: operator << not defined on: Float64Kind
 
 // GnoWordingDiffers:
 // line 16: gc expects: invalid operation|non-integer type|incompatible type; gno: operator << not defined on: Float64Kind
-// line 17: gc expects: invalid operation|non-integer type; gno: operator << not defined on: BigdecKind
+// line 17: gc expects: invalid operation|non-integer type; gno: operator << not defined on: Float64Kind
 
 // Verdict: Clean errorcheck
