@@ -32,6 +32,14 @@ func checkCorpusToolchain() error {
 		corpusGoVersion, runtime.Version(), corpusGoVersion)
 }
 
+// isCorpusFiletest reports whether a filetest name is a gocorpus file.
+// Only those carry a `// GoOutput:` that is the ledger's record of gc;
+// a synthetic file a unit test builds does not, so it does not need the
+// pinned toolchain.
+func isCorpusFiletest(fname string) bool {
+	return strings.HasPrefix(fname, "gocorpus/") || strings.Contains(fname, "/gocorpus/")
+}
+
 // knownUnsupportedTag reports whether tag is one TagUnsupportedReason can
 // produce; "other" is its catch-all.
 func knownUnsupportedTag(tag string) bool {
