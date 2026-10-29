@@ -1077,9 +1077,8 @@ func main() {
 	_, _, _, _, _ = m, n, p, q, r
 }
 `)
-	// The operand prints in its preprocessed form, as the neighbouring
-	// "is not constant" messages do.
-	if len(msgs) != 2 || !strings.Contains(msgs[0], "(s<") || !strings.Contains(msgs[1], "(f<") ||
+	// The operand prints as written (its folded parts as constants).
+	if len(msgs) != 2 || !strings.HasPrefix(msgs[0], "len(s[") || !strings.HasPrefix(msgs[1], "cap(f())") ||
 		!strings.HasSuffix(msgs[0], ") (value of type int) is not constant") || !strings.HasSuffix(msgs[1], ") (value of type int) is not constant") {
 		t.Fatalf("got %v", msgs)
 	}
@@ -2433,4 +2432,44 @@ func TestPreprocessCollectIsNotReusable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPreprocessCollectConstantArguments(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type T map[int]int
+
+func ff() string { return "" }
+
+var (
+	_ [1.5]int
+	_ ["abc"]int
+	_ [float64(10)]int
+	_ [len([1]string{ff()})]int
+	_ [10.0]int
+	_ ['a']int
+)
+
+const _ = string([]byte(nil))
+
+func main() {
+	var sink T
+	sink = make(T, uint64(1<<63))
+	const y = uint64(1 << 63)
+	sink = make(T, y)
+	_ = sink
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:8:", "array length 1.5 (untyped float constant) must be integer",
+		"main.gno:9:", `array length "abc" (untyped string constant) must be integer`,
+		"main.gno:10:", "array length float64(10) (constant of type float64) must be integer",
+		"main.gno:11:", "(value of type int) is not constant",
+		"main.gno:16:", "(value of type []uint8) is not constant",
+		"main.gno:20:", "overflows int",
+		"main.gno:22:", "overflows int",
+	)
 }

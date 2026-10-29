@@ -2988,6 +2988,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 										panic(fmt.Sprintf(
 											"invalid argument: index %v must not be negative", tv))
 									}
+									if !constFitsInt(tv) {
+										panicAt(fmt.Sprintf(
+											"invalid argument: index %v overflows int", tv), cx)
+									}
 								}
 							}
 
@@ -3904,7 +3908,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				} else {
 					// Replace const Len with int *ConstExpr.
+					if _, ok := n.Len.(*ConstExpr); !ok {
+						assertValidConstValue(store, last, n.Len) // "must be constant"
+					}
 					cx := evalConst(store, last, n.Len)
+					assertArrayLengthInteger(cx)
 					convertConst(store, last, n, cx, IntType)
 					assertArrayLength(cx.GetInt())
 					n.Len = cx
