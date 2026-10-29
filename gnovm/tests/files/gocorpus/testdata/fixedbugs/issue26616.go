@@ -19,10 +19,11 @@ func f() {
 func three() (int, int, int)
 
 // GnoError:
-// line 9: multiple-value three<VPBlock(2,2)> (value of type [int int int]) in single-value context
-// line 12: multiple-value three<VPBlock(3,2)> (value of type [int int int]) in single-value context
-// line 13: multiple-value three<VPBlock(3,2)> (value of type [int int int]) in single-value context
-// line 15: multiple-value three<VPBlock(3,2)> (value of type [int int int]) in single-value context
+// line 9: assignment mismatch: 1 variable but three returns 3 values
+// line 12: assignment mismatch: 1 variable but three returns 3 values
+// line 13: assignment mismatch: 1 variable but three returns 3 values
+// line 14: assignment mismatch: 1 variable but three returns 3 values
+// line 15: assignment mismatch: 1 variable but three returns 3 values
 // line 19: function three does not have a body but is not natively defined (did you build after pulling from the repository?)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14
+// Verdict: Clean errorcheck

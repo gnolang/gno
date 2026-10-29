@@ -309,7 +309,7 @@ func promotion() {
 // GnoOutput:
 
 // GnoError:
-// main/method.go:51:5-17: cannot use *main.S as string
+// main/method.go:51:14-16: cannot use *main.S as string
 
 // GoOutput:
 

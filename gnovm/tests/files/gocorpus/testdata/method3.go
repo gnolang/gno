@@ -37,7 +37,7 @@ func main() {
 // GnoOutput:
 
 // GnoError:
-// main/method3.go:31:5-17: cannot use *main.T as []int
+// main/method3.go:31:14-16: cannot use *main.T as []int
 
 // GoOutput:
 

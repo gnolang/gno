@@ -451,7 +451,7 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
+			} else if err := idt.checkImplementedByStatic(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
@@ -637,18 +637,17 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *StructType:
+	case *StructType, *FuncType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			if f := embeddedFieldMismatch(xt, cdt); f != "" {
 				return errors.New(
 					"cannot use %s as %s (field %s is embedded in only one)",
 					xt.String(), dt.String(), f)
 			}
-			return nil // ok
-		}
-	case *FuncType, *PackageType, *TypeType:
-		if xt.TypeID() == cdt.TypeID() {
-			return nil // ok
+			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
+				return nil // ok
+			}
+			return errors.New("cannot use %s as %s: struct tags differ", xt.String(), dt.String())
 		}
 	default:
 		return errors.New(
@@ -932,6 +931,76 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	}
 }
 
+// assignMismatchMsg is gc's count error: "assignment mismatch: 2 variables
+// but 1 value", or "... but f returns 2 values" when the sole value is a
+// call of f.
+func assignMismatchMsg(nvars int, call Expr, nvals int) string {
+	vars := fmt.Sprintf("%d variables", nvars)
+	if nvars == 1 {
+		vars = "1 variable"
+	}
+	vals := fmt.Sprintf("%d values", nvals)
+	if nvals == 1 {
+		vals = "1 value"
+	}
+	if call != nil {
+		return fmt.Sprintf("assignment mismatch: %s but %s returns %s", vars, exprString(call), vals)
+	}
+	return fmt.Sprintf("assignment mismatch: %s but %s", vars, vals)
+}
+
+// assertSingleValued rejects a call returning no or several values where
+// each of xs stands for one (Go spec, "Calls"): an assignment or a
+// declaration with as many values as targets, a return with as many
+// results as the function.
+func assertSingleValued(store Store, last BlockNode, xs []Expr) {
+	for _, x := range xs {
+		cx, ok := x.(*CallExpr)
+		if !ok || isInvalidExpr(cx) {
+			continue
+		}
+		tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
+		if !ok {
+			continue
+		}
+		switch len(tt.Elts) {
+		case 1:
+		case 0:
+			panicAt(fmt.Sprintf("%s (no value) used as value", exprString(cx)), cx)
+		default:
+			panicAt(fmt.Sprintf("multiple-value %s (value of type %v) in single-value context", exprString(cx), tt), cx)
+		}
+	}
+}
+
+// assertAssignValues is assertSingleValued for nvars targets taking the
+// values vals one each; a single target taking a multi-valued call is
+// gc's count mismatch.
+func assertAssignValues(store Store, last BlockNode, nvars int, vals []Expr) {
+	if nvars == 1 && len(vals) == 1 {
+		if cx, ok := vals[0].(*CallExpr); ok && !isInvalidExpr(cx) {
+			if tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType); ok && len(tt.Elts) > 1 {
+				panicAt(assignMismatchMsg(1, cx.Func, len(tt.Elts)), cx)
+			}
+		}
+	}
+	assertSingleValued(store, last, vals)
+}
+
+// checkOrConvertArg is checkOrConvertType for argument i of the call n,
+// with the error positioned at the argument, as gc does.
+func checkOrConvertArg(store Store, last BlockNode, n *CallExpr, i int, t Type) {
+	defer func() {
+		if r := recover(); r != nil {
+			if msg, ok := r.(string); ok {
+				panicAt(msg, n.Args[i])
+			}
+			panic(r)
+		}
+	}()
+	checkOrConvertType(store, last, n, &n.Args[i], t)
+}
+
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
 		assertValidAssignRhs(store, last, x)
@@ -1096,11 +1165,19 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		} else {
 			shouldPanic = false
 		}
-	case *StarExpr, *SelectorExpr:
+	case *StarExpr:
+		shouldPanic = false
+	case *SelectorExpr:
+		if inMapValue(store, last, clx) {
+			panic(fmt.Sprintf("cannot assign to struct field %s in map", exprString(lx)))
+		}
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
 		shouldPanic = xt != nil && xt.Kind() == StringKind
+		if !shouldPanic && inMapValue(store, last, clx) {
+			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", exprString(lx)))
+		}
 	default:
 	}
 	if shouldPanic {

@@ -85,35 +85,35 @@ func _() {
 }
 
 // GnoError:
-// line 11: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: b<VPInvalid(0)>
-// line 12: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: b<VPInvalid(0)>
+// line 11: assignment mismatch: 1 variable but 2 values
+// line 12: assignment mismatch: 1 variable but 3 values
 // line 14: RHS should not be a<VPBlock(1,0)> when len(Lhs) > len(Rhs)
-// line 16: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: c<VPInvalid(0)>
+// line 16: assignment mismatch: 2 variables but 3 values
 // line 18: RHS should not be a<VPBlock(1,0)> when len(Lhs) > len(Rhs)
 // line 19: assignment mismatch: 3 variables but 2 values
 // line 23: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 24: function f2 does not have a body but is not natively defined (did you build after pulling from the repository?)
 // line 25: function f3 does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 29: typleType has no property called named
-// line 30: typleType has no property called named
+// line 29: assignment mismatch: 1 variable but f2 returns 2 values
+// line 30: assignment mismatch: 1 variable but f3 returns 3 values
 // line 32: assignment mismatch: 2 variables but f1<VPBlock(3,1)> returns 1 values
 // line 34: assignment mismatch: 2 variables but f3<VPBlock(3,3)> returns 3 values
 // line 36: assignment mismatch: 3 variables but f1<VPBlock(3,1)> returns 1 values
 // line 37: assignment mismatch: 3 variables but f2<VPBlock(3,2)> returns 2 values
-// line 41: multiple-value f3<VPBlock(3,3)> (value of type [int int int]) in single-value context
+// line 41: assignment mismatch: 1 variable but f3 returns 3 values
 // line 42: assignment mismatch: 2 variables but f1<VPBlock(3,1)> returns 1 values
 // line 43: assignment mismatch: 3 variables but f2<VPBlock(3,2)> returns 2 values
-// line 58: typleType has no property called named
-// line 59: typleType has no property called named
+// line 58: assignment mismatch: 1 variable but x.f2 returns 2 values
+// line 59: assignment mismatch: 1 variable but x.f3 returns 3 values
 // line 61: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f1 returns 1 values
 // line 63: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f3 returns 3 values
 // line 65: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f1 returns 1 values
 // line 66: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f2 returns 2 values
-// line 70: multiple-value x<VPBlock(1,0)>.f3 (value of type [int int int]) in single-value context
+// line 70: assignment mismatch: 1 variable but x.f3 returns 3 values
 // line 71: assignment mismatch: 2 variables but x<VPBlock(1,0)>.f1 returns 1 values
 // line 72: assignment mismatch: 3 variables but x<VPBlock(1,0)>.f2 returns 2 values
-// line 82: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: 2
-// line 83: typleType has no property called named
+// line 82: assignment mismatch: 1 variable but 2 values
+// line 83: multiple-value f2() (value of type (int,int)) in single-value context
 // line 84: assignment mismatch: 3 variables but 2 values
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 12, 16; internal errors: lines 11, 12, 16
+// Verdict: Clean errorcheck

@@ -1788,3 +1788,174 @@ func main() {}
 		"main.gno:4:", "initialization cycle: B refers to C refers to B",
 	)
 }
+
+func TestPreprocessCollectAssign(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S struct {
+	x int "foo"
+}
+type P *S
+type Q struct{ a [2]int }
+
+func (S) m() {}
+
+func f(p P, m map[int]S, mq map[int]Q, mp map[int]*S) {
+	var s S
+	var u struct {
+		x int "bar"
+	}
+	var v struct {
+		x int "foo"
+	}
+	s = u // tags differ
+	s = v // tags agree
+	s = S(u)
+	m[0].x = 1 // in a map
+	mp[0].x = 1 // through a pointer is fine
+	mq[0].a[1] = 2 // array element in a map
+	_ = p.x // field through a named pointer is fine
+	p.m() // method through a named pointer is not
+	_ = s
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use struct{x int} as struct{x int}: struct tags differ",
+		"cannot assign to struct field m[0].x in map",
+		"cannot assign to mq[0].a[1] (neither addressable nor a map index expression)",
+		"missing field m in main.P",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
+	// Through a declared pointer type a method is still the shallowest
+	// provider, so it shadows the promoted field and the selector fails.
+	msgs := collectErrors(t, `package main
+
+type E struct{ f int }
+type T struct{ E }
+
+func (*T) f() int { return 0 }
+
+type P *T
+
+func main() {
+	var x P
+	_ = x.f
+}
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectAssignTags(t *testing.T) {
+	// Tags take part in identity for method types and copy element types.
+	msgs := collectErrors(t, `package main
+
+type I interface{ M(struct{ x int "b" }) }
+type S struct{}
+
+func (S) M(struct{ x int "a" }) {}
+
+func f() {
+	var i I = S{}
+	var a []struct{ x int "a" }
+	var b []struct{ x int "b" }
+	var c []struct{ x int "a" }
+	copy(a, b)
+	copy(a, c)
+	_ = i
+}
+
+func main() {}
+`)
+	want := []string{
+		"main.S does not implement main.I (wrong type for method M)",
+		"arguments to copy have different element types struct{x int} and struct{x int}: struct tags differ",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectAssignCounts(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func two() (int, int) { return 1, 2 }
+func none()           {}
+
+func main() {
+	var a, b int
+	_ = a, b
+	a = two()
+	_, _ = two(), 1
+	a = none()
+	var c int = two()
+	_, _, _ = a, b, c
+}
+
+func f() (int, int) {
+	return two(), 0
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// Each count rule fires once, at the value; gc's wording.
+	wantErrors(t, msgs,
+		"main.gno:8:2", "assignment mismatch: 1 variable but 2 values",
+		"main.gno:9:6", "assignment mismatch: 1 variable but two returns 2 values",
+		"main.gno:10:9", "multiple-value two() (value of type (int,int)) in single-value context",
+		"main.gno:11:2", "(no value) used as value",
+		"main.gno:12:14", "assignment mismatch: 1 variable but two returns 2 values",
+		"main.gno:17:9", "multiple-value two() (value of type (int,int)) in single-value context",
+	)
+}
+
+func TestPreprocessCollectArgPosition(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+func g(int, int) {}
+
+func main() {
+	g(
+		1,
+		"s",
+	)
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	wantErrors(t, msgs,
+		"main.gno:8:3", "cannot use",
+	)
+}
