@@ -401,7 +401,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers. NewRouter normalized the IPFS gateway in place.
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.RenderConfig.IPFSGateway)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.RenderConfig.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -478,7 +478,7 @@ func ipfsGatewayImgSources(origin string) []string {
 // SecureHeadersMiddleware sets the security headers. ipfsGateway is the
 // normalized IPFS gateway origin (empty if disabled); it is allowed as an
 // image source because rendered ipfs:// images point at it.
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
+func SecureHeadersMiddleware(next http.Handler, strict bool, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
@@ -498,10 +498,12 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway
 	// runtime-injected <style> elements are allowed without relaxing the policy
 	// to 'unsafe-inline'. The nonce is generated per request below and echoed
 	// into <meta name="csp-nonce"> for the frontend to pass to CodeMirror.
+	//
+	// connect-src is 'self' only: the browser evaluates through gnoweb's
+	// /_/api/eval and never queries the node.
 	cspTemplate := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self' 'nonce-%%[1]s'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
-		imgSrc.String(),
-		remote,
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self' 'nonce-%%[1]s'; img-src %s; font-src 'self'; connect-src 'self'; form-action 'self'",
+		strings.ReplaceAll(imgSrc.String(), "%", "%%"),
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
