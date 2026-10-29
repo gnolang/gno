@@ -202,6 +202,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				// fixedbugs/issue18882.go) is not checkable.
 				reason := "errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness"
 				if opts.Sync {
+					if err := refuseDowngrade(dirs, reason); err != nil {
+						return "", 0, diffs, err
+					}
 					return writeUnsupportedDirective(originalSource, trim, reason), 0, diffs, nil
 				}
 				return "", 0, diffs, &SkipError{Reason: reason}
@@ -405,6 +408,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		if reason != "" {
 			if opts.Sync {
+				if err := refuseDowngrade(dirs, reason); err != nil {
+					return "", m.GasMeter.GasConsumed(), diffs, err
+				}
 				return writeUnsupportedDirective(originalSource, trim, reason), m.GasMeter.GasConsumed(), diffs, nil
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, fmt.Errorf(
@@ -447,6 +453,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		gas := m.GasMeter.GasConsumed()
 		if reason := gcOnlyErrorcheckReason(originalSource, errorcheckMarkers); reason != "" {
 			if opts.Sync {
+				if err := refuseDowngrade(dirs, reason); err != nil {
+					return "", gas, diffs, err
+				}
 				return writeUnsupportedDirective(originalSource, trim, reason), gas, diffs, nil
 			}
 			return "", gas, diffs, &SkipError{Reason: reason}
@@ -824,6 +833,21 @@ func strayGoldenBlocks(src string, allowed []string) []string {
 		stray = append(stray, m[1])
 	}
 	return stray
+}
+
+// refuseDowngrade reports an error when a file that already reached a
+// verdict is about to be parked as Unsupported. That transition is a
+// regression, not a classification: Gno used to get a result here, and
+// Unsupported is skipped and read by nothing, so the file would leave the
+// ledger with CI still green. Fix the rule, or mark the gap by hand.
+func refuseDowngrade(dirs Directives, reason string) error {
+	prev, ok := verdictIn(dirs)
+	if !ok || prev.Kind == VerdictUnsupported {
+		return nil
+	}
+	return fmt.Errorf("refusing to downgrade `// Verdict: %s` to `Unsupported` (%s): "+
+		"this file used to reach a verdict. Fix the rule, or mark it "+
+		"Unsupported by hand if the gap is real", prev.Kind, reason)
 }
 
 // writeUnsupportedDirective returns originalSource with a trailing
