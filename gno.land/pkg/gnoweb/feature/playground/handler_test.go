@@ -268,9 +268,12 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 		{"compressed, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, defaultCode},
 		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, defaultCode},
 		{"z on text that is no base64", url.Values{"code": {"package main"}, "z": {""}}, defaultCode},
-		{"compressed up to the cap", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), maxDecompressedCodeSize))}, "z": {""}}, strings.Repeat("a", maxDecompressedCodeSize)},
+		// The cap is written out, not read from the constant, so raising it
+		// fails here: 64 KiB is what a link Share writes can hold.
+		{"compressed up to 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10))}, "z": {""}}, strings.Repeat("a", 64<<10)},
 		// A few bytes of a link must not expand into a page of megabytes.
-		{"compressed past the cap", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), maxDecompressedCodeSize+1))}, "z": {""}}, defaultCode},
+		{"compressed past 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10+1))}, "z": {""}}, defaultCode},
+		{"a link-sized megabyte", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 1<<20))}, "z": {""}}, defaultCode},
 		{"longer than Share writes", url.Values{"code": {strings.Repeat("a", maxSharedCodeLength+1)}}, defaultCode},
 		{"compressed, longer than Share writes", url.Values{"code": {z + strings.Repeat("A", maxSharedCodeLength)}, "z": {""}}, defaultCode},
 	}
