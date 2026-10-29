@@ -1805,15 +1805,22 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 		})
 	}
 
-	// The breadcrumb keeps the shared code's query, without the z flag, then
-	// ends with the pill.
+	// The breadcrumb keeps the shared code's query, then ends with the pill.
+	// The z flag is no field, but is submitted with the code, so pressing
+	// Enter in it does not reopen the compressed bytes as text.
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc&z", nil))
 	body := rr.Body.String()
-	assert.NotContains(t, body, `name="z"`)
+	assert.NotContains(t, body, `id="z"`)
+	assert.Contains(t, body, `<input type="hidden" name="z" value="" />`)
 	query := strings.Index(body, `name="code" value="abc"`)
 	require.NotEqual(t, -1, query)
 	assert.Greater(t, strings.Index(body, `class="b-tag">playground<`), query)
+
+	// Plain code has no flag to carry.
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc", nil))
+	assert.NotContains(t, rr.Body.String(), `name="z"`)
 }
 
 // TestHTTPHandler_PlaygroundCopy tests opening a package copy with /_/play?from=,
@@ -4398,6 +4405,11 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		{"/r/nym-sunny000/app$state", true},
 		{"/p/nym-sunny000/lib", true},
 		{"/r/unknown/pkg", true},
+		// A copy carries the notice of the package it copies.
+		{"/_/play?from=r/nym-sunny000/app", true},
+		{"/_/play?from=p/nym-sunny000/lib", true},
+		{"/_/play?from=r/gnoland/home", false},
+		{"/_/play", false},
 		{"/chain", false},
 	}
 

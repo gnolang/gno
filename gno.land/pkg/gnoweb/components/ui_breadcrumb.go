@@ -21,6 +21,8 @@ type BreadcrumbData struct {
 	Parts    []BreadcrumbPart
 	ArgParts []BreadcrumbPart
 	Queries  []QueryParam
+	// Hidden are queries submitted with Queries but not shown.
+	Hidden []QueryParam
 	// Namespace is set on /r/<ns>/... and /p/<ns>/... paths, where the first
 	// segment opens a menu: the listing it used to link, the namespace page,
 	// and the Counterpart when there is one.

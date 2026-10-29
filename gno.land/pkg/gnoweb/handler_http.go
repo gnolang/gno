@@ -1753,16 +1753,17 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		Mode:       indexData.Mode,
 		Origin:     gnourl.Origin,
 	}
-	if h.showRealmNotice(gnourl) {
-		indexData.HeaderData.Notice = h.Static.RealmNotice
-	}
-	// A copy shows its package's tabs, only for a bare package path: the
-	// one the copy loads, without args, file or query.
-	if from := gnourl.Query.Get("from"); gnourl.IsPlayground() && from != "" {
-		rel := "/" + playground.RelPath(h.Static.Domain, from)
-		if u, err := weburl.Parse(rel); err == nil && u.Path == rel && (u.IsRealm() || u.IsPure()) {
+	// A copy shows its package's tabs, and the notice that package's own
+	// pages show: the code is a community package's all the same.
+	noticed := gnourl
+	if gnourl.IsPlayground() {
+		if u := playground.ParseFrom(h.Static.Domain, gnourl.Query.Get("from")); u != nil {
 			indexData.HeaderData.CopyOf = u
+			noticed = u
 		}
+	}
+	if h.showRealmNotice(noticed) {
+		indexData.HeaderData.Notice = h.Static.RealmNotice
 	}
 }
 
@@ -1788,16 +1789,21 @@ func scrubHeaderOnError(indexData *components.IndexData, status int) {
 
 func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.BreadcrumbData {
 	// The playground shows the package it was opened from (?from=), or its
-	// own path and shared code, then its pill. Its other queries (the z
-	// compression flag) mean nothing to a reader.
+	// own path and shared code, then its pill. The z compression flag
+	// means nothing to a reader: it is no field, but goes along with the
+	// code when the breadcrumb is submitted, which would otherwise reopen
+	// the compressed bytes as text.
 	if url.IsPlayground() {
 		// "_" has no page of its own: both segments lead to the playground.
 		data := components.BreadcrumbData{Parts: []components.BreadcrumbPart{
 			{Name: "_", URL: "/_/play"},
 			{Name: "play", URL: "/_/play"},
 		}, Queries: breadcrumbQueries(url.Query, "code")}
-		if from := url.Query.Get("from"); from != "" {
-			data = generateBreadcrumbPaths(&weburl.GnoURL{Path: "/" + playground.RelPath(domain, from)}, domain)
+		if url.Query.Has("code") && url.Query.Has("z") {
+			data.Hidden = []components.QueryParam{{Key: "z"}}
+		}
+		if from := playground.ParseFrom(domain, url.Query.Get("from")); from != nil {
+			data = generateBreadcrumbPaths(from, domain)
 		}
 		data.View = components.BreadcrumbPart{Name: "playground", URL: "/_/play"}
 		return data

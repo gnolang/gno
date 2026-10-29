@@ -258,6 +258,9 @@ UI - Breadcrumb component
     <li class="view"><a href="{{ $.View.URL }}" class="b-tag">{{ . }}</a></li>
     {{- end }}
   </ol>
+  {{- range .Hidden }}
+  <input type="hidden" name="{{ .Key }}" value="{{ .Value }}" />
+  {{- end }}
   {{- with .Namespace }}{{ $kind := index $.Parts 0 }}
   <div id="kind-switch-menu" popover class="b-kind-switch">
     {{- with $.Counterpart }}
