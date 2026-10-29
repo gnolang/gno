@@ -21,11 +21,19 @@ LAYOUT - Playground view
           <svg class="c-icon"><use href="#ico-ddl"></use></svg>
           <span>Download</span>
         </button>
+        {{- /* What Run does, decided here only: Preview shows what the copied
+        realm renders, until the first edit turns it into Run locally, whose
+        texts the controller then reads off the button. */}}
+        {{- $localLabel := "Run locally" }}
+        {{- $localTitle := "Show the commands that run and test this code (Ctrl/Cmd+Enter)" }}
         <button type="button" class="b-btn b-btn--primary c-with-icon" data-playground-target="run" data-action="click->playground#runCode"
           {{- if .Preview }} title="Show what {{ .Domain }}/{{ .From }} renders (Ctrl/Cmd+Enter)"
-          {{- else }} title="Show the commands that run and test this code (Ctrl/Cmd+Enter)"{{ end }}>
+          data-playground-preview-value
+          data-playground-local-label-value="{{ $localLabel }}"
+          data-playground-local-title-value="{{ $localTitle }}"
+          {{- else }} title="{{ $localTitle }}"{{ end }}>
           <svg class="c-icon"><use href="#ico-run-code"></use></svg>
-          <span>{{ if .Preview }}Preview{{ else }}Run locally{{ end }}</span>
+          <span>{{ if .Preview }}Preview{{ else }}{{ $localLabel }}{{ end }}</span>
         </button>
       </div>
     </div>

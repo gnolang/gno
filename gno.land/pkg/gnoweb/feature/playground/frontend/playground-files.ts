@@ -54,17 +54,6 @@ export function parseInitialCode(code: string): EditorFile[] {
 	}));
 }
 
-// canPreview reports whether Run can show what a copy renders on the
-// chain: it is a copy of a realm (from is its path, as r/demo/foo) and one
-// of its files declares Render. Only an unmodified copy may, which the
-// controller tracks: edited code exists nowhere the node can run it.
-export function canPreview(from: string, files: EditorFile[]): boolean {
-	return (
-		from.startsWith("r/") &&
-		files.some((f) => /^func Render\(/m.test(f.content))
-	);
-}
-
 // renderText is the text a Render("") eval returned, as qeval prints a
 // string, ("text" string), or the answer as it is when it is not one.
 export function renderText(result: string): string {

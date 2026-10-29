@@ -7,7 +7,6 @@ import {
 	postEval,
 } from "@gnoweb/js/controller.js";
 import {
-	canPreview,
 	copyFiles,
 	createTar,
 	GNOMOD_FILE,
@@ -34,8 +33,8 @@ export class PlaygroundController extends BaseController {
 	// The editor holds every file (text and undo history); the controller
 	// keeps no copy of its own.
 	private declare editor: CodeEditor;
-	// preview is true while Run can show the copied realm's own Render:
-	// the copy is unmodified and has one.
+	// preview is true while Run can show the copied realm's own Render: the
+	// page says it can, and the copy is unmodified.
 	private declare preview: boolean;
 	// outputSeq counts output resets, so a late Run result never replaces
 	// what came after it.
@@ -77,10 +76,10 @@ export class PlaygroundController extends BaseController {
 			fileName: first.name,
 			label: "Playground editor",
 			onRun: () => this.runCode(),
-			onChange: () => this._setPreview(false),
+			onChange: () => this._endPreview(),
 		});
 		for (const f of rest) this.editor.addFile(f.name, f.content);
-		this._setPreview(canPreview(this.getValue("from"), files));
+		this.preview = !!this.runBtnEl && this.hasValue("preview", this.runBtnEl);
 
 		const defaultFile = this.getValue("default-file");
 		if (defaultFile) this.editor.openFile(defaultFile);
@@ -108,18 +107,16 @@ export class PlaygroundController extends BaseController {
 		observer.observe(this.tabsEl);
 	}
 
-	// _setPreview says what Run does, on the button too: show the copied
-	// realm's Render, or the commands that run the code locally.
-	private _setPreview(preview: boolean): void {
-		if (this.preview === preview) return;
-		this.preview = preview;
+	// _endPreview makes Run show the commands that run the code locally,
+	// once the copy is edited, and the button say so in the page's words.
+	private _endPreview(): void {
+		if (!this.preview) return;
+		this.preview = false;
 		const btn = this.runBtnEl;
 		if (!btn) return;
 		const label = btn.querySelector("span");
-		if (label) label.textContent = preview ? "Preview" : "Run locally";
-		btn.title = preview
-			? `Show what ${this.getValue("domain")}/${this.getValue("from")} renders (Ctrl/Cmd+Enter)`
-			: "Show the commands that run and test this code (Ctrl/Cmd+Enter)";
+		if (label) label.textContent = this.getValue("local-label", btn);
+		btn.title = this.getValue("local-title", btn);
 	}
 
 	private _updateNavButtons(): void {
@@ -263,7 +260,7 @@ export class PlaygroundController extends BaseController {
 			this.editor.openFile(names[i + 1] ?? names[i - 1]);
 		}
 		this.editor.closeFile(name);
-		this._setPreview(false);
+		this._endPreview();
 		this.renderTabs();
 		// The closed tab's button is gone: keep keyboard focus in the tab bar.
 		this.tabsEl
@@ -293,7 +290,7 @@ export class PlaygroundController extends BaseController {
 		}
 
 		this.editor.addFile(name, content);
-		this._setPreview(false);
+		this._endPreview();
 		this._openFile(name);
 	}
 

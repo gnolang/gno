@@ -123,9 +123,8 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 var renderDecl = regexp.MustCompile(`(?m)^func Render\(`)
 
 // canPreview reports whether Run can show what the copy of from renders on
-// the chain: from is a realm and one of its files declares Render. The
-// controller's canPreview (playground-files.ts) decides the same, then
-// drops it on the first edit.
+// the chain: from is a realm and one of its files declares Render. The page
+// says so on the Run button, and the controller drops it on the first edit.
 func canPreview(from string, files []File) bool {
 	return strings.HasPrefix(from, "r/") && slices.ContainsFunc(files, func(f File) bool {
 		return renderDecl.MatchString(f.Content)

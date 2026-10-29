@@ -426,12 +426,18 @@ func TestRunLabel(t *testing.T) {
 			var buf bytes.Buffer
 			require.NoError(t, v.Render(&buf))
 			page := buf.String()
+			// The controller reads the decision and the texts it switches
+			// to on the first edit off the button: it holds none of its own.
 			if tc.preview {
 				assert.Contains(t, page, "<span>Preview</span>")
 				assert.Contains(t, page, `title="Show what `+deps.Domain+tc.pkg+` renders (Ctrl/Cmd+Enter)"`)
+				assert.Contains(t, page, "data-playground-preview-value")
+				assert.Contains(t, page, `data-playground-local-label-value="Run locally"`)
+				assert.Contains(t, page, `data-playground-local-title-value="Show the commands that run and test this code (Ctrl/Cmd&#43;Enter)"`)
 			} else {
 				assert.Contains(t, page, "<span>Run locally</span>")
-				assert.Contains(t, page, `title="Show the commands that run and test this code (Ctrl/Cmd+Enter)"`)
+				assert.Contains(t, page, `title="Show the commands that run and test this code (Ctrl/Cmd&#43;Enter)"`)
+				assert.NotContains(t, page, "data-playground-preview-value")
 			}
 		})
 	}

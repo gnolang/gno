@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-	canPreview,
 	copyFiles,
 	createTar,
 	isValidFileName,
@@ -127,28 +126,6 @@ test("copyFiles reads the page's JSON one entry per file", () => {
 	);
 	assert.deepEqual(copyFiles("not json"), { files: [], skipped: [] });
 	assert.deepEqual(copyFiles('{"name":"a.gno"}'), { files: [], skipped: [] });
-});
-
-test("canPreview takes a realm copy that declares Render", () => {
-	const render = [
-		{
-			name: "a.gno",
-			content: "package a\n\nfunc Render(path string) string {\n",
-		},
-	];
-	const cases: [from: string, files: typeof render, want: boolean][] = [
-		["r/demo/counter", render, true],
-		["p/demo/foo", render, false], // a package renders nothing
-		["", render, false], // no copy: nowhere on the chain to run it
-		[
-			"r/demo/foo",
-			[{ name: "a.gno", content: "package a\n// func Render(\n" }],
-			false,
-		],
-	];
-	for (const [from, files, want] of cases) {
-		assert.equal(canPreview(from, files), want, from);
-	}
 });
 
 test("renderText reads the string a Render eval returns", () => {
