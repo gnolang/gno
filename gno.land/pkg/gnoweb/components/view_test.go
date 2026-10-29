@@ -315,6 +315,8 @@ func TestHelpViewEval(t *testing.T) {
 		`data-action-function-param-value="path" data-action-function-type-value="string"`,
 		`data-action-function-param-value="proposed" data-action-function-type-value="string"`,
 		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
+		// The qeval command's args carry their type, to be written as Gno literals.
+		`data-action-function-target="arg" data-action-function-arg-value="path" data-action-function-type-value="string"`,
 		`-remote "https://rpc.example:443" -data`,
 		`href="#expression-evaluator"`,
 		`<use href="#ico-eval"></use>`,

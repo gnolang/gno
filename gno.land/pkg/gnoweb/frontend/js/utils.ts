@@ -92,6 +92,45 @@ export async function postEval(
 	}
 }
 
+// gnoLiteral turns a typed value into a Gno literal for its type: a string
+// or an address is quoted, unless the reader already wrote a quoted
+// literal; anything else is Gno source as typed (numbers, bools, calls).
+export function gnoLiteral(value: string, type: string): string {
+	if (type !== "string" && type !== "address") return value;
+	if (/^"(?:[^"\\\n]|\\.)*"$|^`[^`]*`$/.test(value)) return value;
+	return JSON.stringify(value);
+}
+
+// zeroLiteral is a Gno literal of the zero value for a parameter type, as
+// the package's doc renders it: "" for strings and addresses, 0 for
+// numbers, false for bool and nil for the rest, a placeholder the reader
+// replaces.
+export function zeroLiteral(type: string): string {
+	if (type === "string" || type === "address") return '""';
+	if (type === "bool") return "false";
+	if (/^(u?int(8|16|32|64)?|uintptr|byte|rune|float(32|64))$/.test(type))
+		return "0";
+	return "nil";
+}
+
+// evalArgs turns a function card's param inputs, in order, into Gno
+// arguments: each typed value as a literal for the input's param type, each
+// empty one as its zero value. The template renders one input per param,
+// and every one counts, so unnamed or repeated names ("_") keep their
+// argument. full is false while any param is empty.
+export function evalArgs(
+	inputs: Pick<HTMLInputElement, "value" | "getAttribute">[],
+): { args: string[]; full: boolean } {
+	let full = true;
+	const args = inputs.map((input) => {
+		const type = input.getAttribute("data-action-function-type-value") ?? "";
+		const value = input.value.trim();
+		if (!value) full = false;
+		return value ? gnoLiteral(value, type) : zeroLiteral(type);
+	});
+	return { args, full };
+}
+
 // downloadBlob saves blob as filename through a temporary object URL.
 export function downloadBlob(blob: Blob, filename: string): void {
 	const url = URL.createObjectURL(blob);

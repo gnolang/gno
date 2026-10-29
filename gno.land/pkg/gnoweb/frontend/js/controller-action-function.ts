@@ -2,6 +2,8 @@ import {
 	BaseController,
 	debounce,
 	escapeShellSpecialChars,
+	evalArgs,
+	gnoLiteral,
 	postEval,
 } from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
@@ -171,13 +173,16 @@ export class ActionFunctionController extends BaseController {
 
 	// push args in DOM (in func code)
 	private _updateArgInDOM(paramName: string, paramValue: string): void {
-		const escapedValue = escapeShellSpecialChars(paramValue);
-
-		// Update args elements with the new parameter value
+		// Update args elements with the new parameter value. A qeval arg
+		// carries its param type, and is a Gno literal for it; a maketx call
+		// arg has none and stays the raw value gnokey parses.
 		this.getTargets("arg")
 			.filter((arg) => this.getValue("arg", arg) === paramName)
 			.forEach((arg) => {
-				arg.textContent = escapedValue || "";
+				const type = this.getValue("type", arg);
+				arg.textContent = paramValue
+					? escapeShellSpecialChars(gnoLiteral(paramValue, type))
+					: "";
 			});
 
 		// Update function execute (form) and anchor (copy button) with new parameter
@@ -227,20 +232,16 @@ export class ActionFunctionController extends BaseController {
 		const unavailable = resultTarget.dataset.qevalUnavailable ?? "";
 		const errorClass = resultTarget.dataset.qevalErrorClass ?? "u-color-danger";
 
-		// If there are no args, then show the placeholder.
-		const argNodes = this.getTargets("arg");
-		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
-		if (!haveAllArgs) {
+		// Until every param has a value, show the placeholder.
+		const { args, full } = evalArgs(this._paramInputs);
+		if (!full) {
 			resultTarget.textContent = placeholder;
 			resultTarget.classList.remove(errorClass);
 			return;
 		}
 
-		// Build the expression for the eval query.
-		const args = argNodes
-			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
-			.join(",");
-		const expression = `${this._funcName}(${args})`;
+		// The same expression as the Eval button's: one Gno literal per param.
+		const expression = `${this._funcName}(${args.join(", ")})`;
 
 		const abort = new AbortController();
 		this._qevalAbort = abort;
@@ -253,28 +254,13 @@ export class ActionFunctionController extends BaseController {
 		resultTarget.classList.toggle(errorClass, res.isError);
 	}
 
-	// _evalArgs returns the card's params in order, each typed value as a Gno
-	// literal or, when empty, a zero value for its type. The template renders
-	// one input per param, so unnamed or repeated names ("_") still count.
-	// full is false when any param is still empty.
-	private _evalArgs(): { args: string[]; full: boolean } {
-		let full = true;
-		const args = this._paramInputs.map((input) => {
-			const type = this.getValue("type", input);
-			const value = input.value.trim();
-			if (!value) full = false;
-			return value ? gnoLiteral(value, type) : zeroLiteral(type);
-		});
-		return { args, full };
-	}
-
 	// DOM ACTIONS
 
 	// Dispatch eval:expression event (DOM action), built from the params
 	// typed in the card. With every param filled (or none), the evaluator
 	// runs it; otherwise it selects the arguments for the reader to finish.
 	public triggerEval(): void {
-		const { args, full } = this._evalArgs();
+		const { args, full } = evalArgs(this._paramInputs);
 		this.dispatch("eval:expression", {
 			expression: `${this._funcName || ""}(${args.join(", ")})`,
 			autoEval: full,
@@ -304,25 +290,4 @@ export class ActionFunctionController extends BaseController {
 		});
 		this._dispatchParamsChanged();
 	}
-}
-
-// gnoLiteral turns a typed value into a Gno literal for its type: a string
-// or an address is quoted, unless the reader already wrote a quoted
-// literal; anything else is Gno source as typed (numbers, bools, calls).
-function gnoLiteral(value: string, type: string): string {
-	if (type !== "string" && type !== "address") return value;
-	if (/^"(?:[^"\\\n]|\\.)*"$|^`[^`]*`$/.test(value)) return value;
-	return JSON.stringify(value);
-}
-
-// zeroLiteral is a Gno literal of the zero value for a parameter type, as
-// the package's doc renders it: "" for strings and addresses, 0 for
-// numbers, false for bool and nil for the rest, a placeholder the reader
-// replaces.
-function zeroLiteral(type: string): string {
-	if (type === "string" || type === "address") return '""';
-	if (type === "bool") return "false";
-	if (/^(u?int(8|16|32|64)?|uintptr|byte|rune|float(32|64))$/.test(type))
-		return "0";
-	return "nil";
 }
