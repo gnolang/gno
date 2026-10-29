@@ -144,10 +144,13 @@ func untypedKindName(t Type) string {
 
 // assertFuncTypeNames rejects a variadic parameter that is not the last
 // one. (The parser already rejects a name used twice.)
-func assertFuncTypeNames(n *FuncTypeExpr) {
+// In accumulate mode each such parameter is reported and kept as a
+// slice, so the type still completes.
+func assertFuncTypeNames(c *checkRun, n *FuncTypeExpr) {
 	for i := 0; i+1 < len(n.Params); i++ {
 		if st, ok := n.Params[i].Type.(*SliceTypeExpr); ok && st.Vrd {
-			fail(CodeVariadicLast, "can only use ... with final parameter in list", &n.Params[i])
+			c.report(CodeVariadicLast, "can only use ... with final parameter in list", &n.Params[i])
+			st.Vrd = false
 		}
 	}
 }

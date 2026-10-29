@@ -12,10 +12,9 @@ type (
 
 // GnoError:
 // line 8: bigint overflows target kind
-// line 10: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
+// line 10: array length 1.1 (untyped float constant) must be integer
 
 // GnoWordingDiffers:
 // line 8: gc expects: invalid array length; gno: bigint overflows target kind
-// line 10: gc expects: must be integer; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
 
 // Verdict: Clean errorcheck

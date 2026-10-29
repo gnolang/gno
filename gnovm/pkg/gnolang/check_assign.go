@@ -429,6 +429,62 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		dt.String()).Stacktrace()
 }
 
+// assignMismatchMsg is gc's count error: "assignment mismatch: 2 variables
+// but 1 value", or "... but f returns 2 values" when the sole value is a
+// call of f.
+func assignMismatchMsg(nvars int, call Expr, nvals int) string {
+	vars := fmt.Sprintf("%d variables", nvars)
+	if nvars == 1 {
+		vars = "1 variable"
+	}
+	vals := fmt.Sprintf("%d values", nvals)
+	if nvals == 1 {
+		vals = "1 value"
+	}
+	if call != nil {
+		return fmt.Sprintf("assignment mismatch: %s but %s returns %s", vars, exprString(call), vals)
+	}
+	return fmt.Sprintf("assignment mismatch: %s but %s", vars, vals)
+}
+
+// assertSingleValued rejects a call returning no or several values where
+// each of xs stands for one (Go spec, "Calls"): an assignment or a
+// declaration with as many values as targets, a return with as many
+// results as the function.
+func assertSingleValued(store Store, last BlockNode, xs []Expr) {
+	for _, x := range xs {
+		cx, ok := x.(*CallExpr)
+		if !ok || isInvalidExpr(cx) {
+			continue
+		}
+		tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
+		if !ok {
+			continue
+		}
+		switch len(tt.Elts) {
+		case 1:
+		case 0:
+			failf(CodeMultiValue, []Node{cx}, "%s (no value) used as value", exprString(cx))
+		default:
+			failf(CodeMultiValue, []Node{cx}, "multiple-value %s (value of type %v) in single-value context", exprString(cx), tt)
+		}
+	}
+}
+
+// assertAssignValues is assertSingleValued for nvars targets taking the
+// values vals one each; a single target taking a multi-valued call is
+// gc's count mismatch.
+func assertAssignValues(store Store, last BlockNode, nvars int, vals []Expr) {
+	if nvars == 1 && len(vals) == 1 {
+		if cx, ok := vals[0].(*CallExpr); ok && !isInvalidExpr(cx) {
+			if tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType); ok && len(tt.Elts) > 1 {
+				failf(CodeMultiValue, []Node{cx}, "%s", assignMismatchMsg(1, cx.Func, len(tt.Elts)))
+			}
+		}
+	}
+	assertSingleValued(store, last, vals)
+}
+
 func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
 		assertValidAssignRhs(store, last, x)
@@ -594,8 +650,8 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	// The target is a variable or a map index expression.
 	o := operandOf(store, last, lx)
 	assertNotType(o)
-	if o.assignable() {
-		return
+	if o.assignable() || isInvalid(o.typ) {
+		return // accumulate mode: an invalid target was reported
 	}
 	if sx, ok := lx.(*SelectorExpr); ok && inMapValue(store, last, sx) {
 		failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))

@@ -19,5 +19,6 @@ func main() {
 
 // GnoError:
 // line 14: 0 is not a type
+// line 16: x.x undefined (type interface {} has no field or method x)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16
+// Verdict: Clean errorcheck

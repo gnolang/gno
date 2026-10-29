@@ -129,8 +129,8 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 // PanicHandler is consulted when transcribing one body statement, file
-// declaration, switch or select clause, or composite literal element
-// panics. ns, ftype, index and n name the node; r is the panic value.
+// declaration, switch or select clause, composite literal element, or if,
+// for or switch condition panics. ns, ftype, index and n name the node; r is the panic value.
 // Returning true drops the node: nn takes its place (n itself to keep it
 // as is) and the walk continues with the next one; false re-panics.
 type PanicHandler func(ns []Node, ftype TransField, index int, n Node, r any) (nn Node, handled bool)
@@ -452,7 +452,7 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 			}
 		}
 		if cnn.Cond != nil {
-			cnn.Cond = transcribe(tc, nns, TRANS_FOR_COND, 0, cnn.Cond, &c).(Expr)
+			cnn.Cond = tc.guarded(nns, TRANS_FOR_COND, 0, cnn.Cond, &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}
@@ -492,7 +492,7 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 				return
 			}
 		}
-		cnn.Cond = transcribe(tc, nns, TRANS_IF_COND, 0, cnn.Cond, &c).(Expr)
+		cnn.Cond = tc.guarded(nns, TRANS_IF_COND, 0, cnn.Cond, &c).(Expr)
 		if stopOrSkip(nc, c) {
 			return
 		}
@@ -615,7 +615,7 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 				return
 			}
 		}
-		cnn.X = transcribe(tc, nns, TRANS_SWITCH_X, 0, cnn.X, &c).(Expr)
+		cnn.X = tc.guarded(nns, TRANS_SWITCH_X, 0, cnn.X, &c).(Expr)
 		if stopOrSkip(nc, c) {
 			return
 		}
