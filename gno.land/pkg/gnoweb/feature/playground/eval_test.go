@@ -62,7 +62,7 @@ func TestEvalCache(t *testing.T) {
 		c := &funcClient{fn: func(_ context.Context, p, e string) ([]byte, error) {
 			return []byte(p + "." + e), nil
 		}}
-		h := New(Deps{Client: c, Logger: discardLogger()})
+		h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger()})
 
 		for range 3 {
 			_, resp := serveEvalJSON(t, h, "r/a", "X()")
@@ -83,7 +83,7 @@ func TestEvalCache(t *testing.T) {
 			}
 			return nil, fmt.Errorf("%w: refused", ErrEvalUnavailable)
 		}}
-		h := New(Deps{Client: c, Logger: discardLogger()})
+		h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger()})
 
 		for range 2 {
 			code, _ := serveEvalJSON(t, h, "r/a", "Bad()")
@@ -104,7 +104,7 @@ func TestEvalCache(t *testing.T) {
 			<-release
 			return []byte("ok"), nil
 		}}
-		h := New(Deps{Client: c, Logger: discardLogger()})
+		h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger()})
 
 		const readers = 8
 		var wg sync.WaitGroup
@@ -136,7 +136,7 @@ func TestEvalResultCap(t *testing.T) {
 	c := &funcClient{fn: func(context.Context, string, string) ([]byte, error) {
 		return []byte(big), nil
 	}}
-	h := New(Deps{Client: c, Logger: discardLogger()})
+	h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger()})
 
 	code, resp := serveEvalJSON(t, h, "r/a", "Big()")
 	require.Equal(t, http.StatusOK, code)
@@ -148,7 +148,7 @@ func TestEvalResultCap(t *testing.T) {
 	small := &funcClient{fn: func(context.Context, string, string) ([]byte, error) {
 		return []byte("(1 int)"), nil
 	}}
-	_, resp = serveEvalJSON(t, New(Deps{Client: small, Logger: discardLogger()}), "r/a", "One()")
+	_, resp = serveEvalJSON(t, New(Deps{Packages: &stubPackages{}, Client: small, Logger: discardLogger()}), "r/a", "One()")
 	assert.Equal(t, "(1 int)", resp.Result)
 }
 
@@ -184,7 +184,7 @@ func TestEvalDeadline(t *testing.T) {
 			<-release
 			return nil, nil
 		}}
-		h := New(Deps{Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
+		h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
 
 		code, resp := serve(t, h)
 		assert.Equal(t, http.StatusGatewayTimeout, code)
@@ -199,7 +199,7 @@ func TestEvalDeadline(t *testing.T) {
 			<-ctx.Done()
 			return nil, fmt.Errorf("%w: %w", ErrEvalTimeout, ctx.Err())
 		}}
-		h := New(Deps{Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
+		h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger(), Timeout: 20 * time.Millisecond})
 
 		code, resp := serve(t, h)
 		assert.Equal(t, http.StatusGatewayTimeout, code)

@@ -54,6 +54,31 @@ export function parseInitialCode(code: string): EditorFile[] {
 	}));
 }
 
+// copyFiles reads the files of a package copy, which the page hands over as
+// JSON, one entry per file, so no line of a file can split it.
+export function copyFiles(json: string): EditorFile[] {
+	let data: unknown;
+	try {
+		data = JSON.parse(json);
+	} catch {
+		return [];
+	}
+	if (!Array.isArray(data)) return [];
+	const files: EditorFile[] = [];
+	for (const f of data as Partial<EditorFile>[]) {
+		const { name, content } = f ?? {};
+		if (
+			typeof name === "string" &&
+			typeof content === "string" &&
+			isValidFileName(name) &&
+			!files.some((g) => g.name === name)
+		) {
+			files.push({ name, content });
+		}
+	}
+	return files;
+}
+
 // createTar builds a ustar archive of files, skipping any name
 // isValidFileName rejects.
 export function createTar(files: EditorFile[]): Uint8Array<ArrayBuffer> {

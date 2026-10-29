@@ -15,15 +15,22 @@ import (
 // does not import the gnoweb package. The signatures match the
 // corresponding methods on gnoweb.ClientAdapter.
 type ClientAdapter interface {
-	// ListFiles lists all source files available in a specified package path.
-	ListFiles(ctx context.Context, path string) ([]string, error)
-
-	// File fetches the source file from a given package path and filename.
-	File(ctx context.Context, path, filename string) ([]byte, error)
-
 	// Eval evaluates expr inside pkgPath through vm/qeval. pkgPath carries
 	// no domain: the client adds its own.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
+}
+
+// File is one file of a package, as a copy hands it to the editor.
+type File struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+}
+
+// PackageFetcher reads every file of a package for a copy, with the bounds
+// and the cache $download reads under. It answers ErrPackageNotFound,
+// ErrPackageTooLarge and ErrPackageTimeout for what they name.
+type PackageFetcher interface {
+	PackageFiles(ctx context.Context, pkgPath string) ([]File, error)
 }
 
 // Limiter is the admission check applied to each eval request. It takes the
@@ -37,6 +44,9 @@ type Limiter interface {
 type Deps struct {
 	Client ClientAdapter
 	Logger *slog.Logger
+
+	// Packages reads the package a copy opens.
+	Packages PackageFetcher
 
 	// Domain is the chain domain (e.g. "gno.land").
 	Domain string
@@ -62,10 +72,14 @@ type Handler struct {
 // New validates required deps and returns a Handler.
 // If empty Domain defaults to "gno.land" and Logger defaults the
 // standard Go library's logger.
-// It panics if Client is not specified.
+// It panics if Client or Packages is not specified.
 func New(deps Deps) *Handler {
 	if deps.Client == nil {
 		panic("playground.New: Client is required")
+	}
+
+	if deps.Packages == nil {
+		panic("playground.New: Packages is required")
 	}
 
 	if deps.Logger == nil {

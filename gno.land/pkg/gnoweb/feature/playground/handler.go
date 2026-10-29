@@ -10,24 +10,15 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync/atomic"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
 	// maxDecompressedCodeSize caps DEFLATE-decompressed shared code to guard
 	// against decompression bombs when ?code=...&z are present in query path.
 	maxDecompressedCodeSize = 1 << 20 // 1 MiB
-
-	// maxParallelFileFetches caps the number of client source files fetch requests.
-	maxParallelFileFetches = 8
-
-	// maxCopyCodeSize caps the total fetched source bytes of a package copy to
-	// guard against memory exhaustion from large or numerous package files.
-	maxCopyCodeSize = 1 << 20 // 1 MiB
 
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
@@ -40,9 +31,13 @@ func Render(path string) string {
 
 // GetPlaygroundView serves /_/play: ?from=<pkgpath> opens an editable copy
 // of that package, ?code= a shared snippet, and nothing the default code.
-func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL) (int, *components.View) {
 	if from := u.Query.Get("from"); from != "" {
-		return h.copyView(ctx, "/"+RelPath(h.deps.Domain, from), u.Query.Get("file"))
+		pkg := ParseFrom(h.deps.Domain, from)
+		if pkg == nil {
+			return http.StatusBadRequest, components.StatusErrorComponent("invalid package path: from names a realm or a package, without file or arguments")
+		}
+		return h.copyView(ctx, pkg.Path, u.Query.Get("file"))
 	}
 
 	// If available, read initial source code from a query argument
@@ -71,87 +66,43 @@ func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL, index
 	})
 }
 
-// errCopyTooLarge signals that the cumulative fetched package source exceeded
-// maxCopyCodeSize and the fetch was aborted.
-var errCopyTooLarge = errors.New("package source is too large to open in the playground")
+// Errors a PackageFetcher answers with, so the copy page answers as the
+// package's own pages do.
+var (
+	ErrPackageNotFound = errors.New("package not found")
+	ErrPackageTooLarge = errors.New("package source is too large to open in the playground")
+	ErrPackageTimeout  = errors.New("the node did not answer in time")
+)
 
-// copyView opens an editable copy of the package at pkgPath, its source files
-// concatenated, with file shown first when set.
+// copyView opens an editable copy of the package at pkgPath, its source
+// files handed to the editor one by one, with file shown first when set.
 func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *components.View) {
-	files, err := h.deps.Client.ListFiles(ctx, pkgPath)
-	if err != nil {
-		msg := "unable to list the package files"
-		h.deps.Logger.Warn(msg, "path", pkgPath, "error", err)
-		return http.StatusBadRequest, components.StatusErrorComponent(msg)
-	}
-
-	// Fetch the source files in parallel, writing each into its own slot so
-	// the final order matches the order returned by ListFiles.
-	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxParallelFileFetches)
-
-	// Total bounds the cumulative fetched bytes, crossing maxCopyCodeSize aborts
-	// the group, which cancels the remaining in-flight and queued fetches.
-	// Contents is initialized to the number of files. It can contain nils if some
-	// files are not source files. Done to keep file order during content concatenation.
-	var total atomic.Int64
-	contents := make([][]byte, len(files))
-	for i, fileanme := range files {
-		if !isSource(fileanme) {
-			continue
-		}
-
-		g.Go(func() error {
-			body, err := h.deps.Client.File(ctx, pkgPath, fileanme)
-			if err != nil {
-				return err
-			}
-
-			if total.Add(int64(len(body))) > maxCopyCodeSize {
-				return errCopyTooLarge
-			}
-
-			contents[i] = body
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		if errors.Is(err, errCopyTooLarge) {
-			msg := err.Error()
-			h.deps.Logger.Warn(msg, "path", pkgPath, "limit", maxCopyCodeSize)
-			return http.StatusRequestEntityTooLarge, components.StatusErrorComponent(msg)
-		}
-
+	files, err := h.deps.Packages.PackageFiles(ctx, pkgPath)
+	switch {
+	case err == nil:
+	case errors.Is(err, ErrPackageNotFound):
+		return http.StatusNotFound, components.StatusErrorComponent(ErrPackageNotFound.Error())
+	case errors.Is(err, ErrPackageTooLarge):
+		h.deps.Logger.Warn("package too large to copy", "path", pkgPath)
+		return http.StatusRequestEntityTooLarge, components.StatusErrorComponent(ErrPackageTooLarge.Error())
+	case errors.Is(err, ErrPackageTimeout):
+		return http.StatusRequestTimeout, components.StatusErrorComponent(ErrPackageTimeout.Error())
+	default:
 		msg := "unable to fetch the package files"
 		h.deps.Logger.Error(msg, "path", pkgPath, "error", err)
 		return http.StatusInternalServerError, components.StatusErrorComponent(msg)
 	}
 
-	// Pre-size the builder so concatenation allocates a single buffer
-	// instead of growing per file.
-	var code strings.Builder
-	headerOverhead := len("\n// --- ") + len(" ---\n\n")
-	code.Grow(int(total.Load()) + len(files)*headerOverhead)
-
-	// Concatenate the fetched files in the original ListFiles order
-	for i, fileanme := range files {
-		if !isSource(fileanme) {
-			continue
+	// A new slice: the fetcher's may be shared with other readers.
+	sources := make([]File, 0, len(files))
+	for _, f := range files {
+		if isSource(f.Name) {
+			sources = append(sources, f)
 		}
-
-		// First content line has no newline
-		if code.Len() > 0 {
-			code.WriteString("\n")
-		}
-
-		code.WriteString("// --- " + fileanme + " ---\n\n")
-		code.Write(contents[i])
-		contents[i] = nil // release the body so it can be collected as we go
 	}
 
 	return http.StatusOK, NewPageView(PlaygroundData{
-		InitialCode: code.String(),
+		Files:       sources,
 		Domain:      h.deps.Domain,
 		DefaultFile: file,
 	})
@@ -165,6 +116,18 @@ func CopyURL(pkgPath, file string) string {
 		q.Set("file", file)
 	}
 	return "/_/play?" + q.Encode()
+}
+
+// ParseFrom reads a ?from= value: the bare path of a realm or a pure
+// package, with or without the chain domain. It is nil for anything else,
+// a file, args, a query, a user page or a listing, which no copy opens.
+func ParseFrom(domain, from string) *weburl.GnoURL {
+	rel := "/" + RelPath(domain, from)
+	u, err := weburl.Parse(rel)
+	if err != nil || u.Path != rel || u.IsDir() || !(u.IsRealm() || u.IsPure()) {
+		return nil
+	}
+	return u
 }
 
 // RelPath strips the chain domain and slashes from a package path:

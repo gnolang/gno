@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -49,7 +50,7 @@ func TestServePackageText_Cache(t *testing.T) {
 	})
 	require.NoError(t, err)
 	now := time.Unix(0, 0)
-	handler.packageText.now = func() time.Time { return now }
+	handler.pkgFiles.now = func() time.Time { return now }
 
 	get := func(target string) *httptest.ResponseRecorder {
 		rr := httptest.NewRecorder()
@@ -87,25 +88,67 @@ func TestServePackageText_Cache(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
+// TestPackageFiles_SharedWithPlayground checks a playground copy reads the
+// package through $download's bounds and cache: a copy after a $download
+// costs no node query, and a package over the file cap is refused by both.
+func TestPackageFiles_SharedWithPlayground(t *testing.T) {
+	t.Parallel()
+
+	files := map[string]string{"a.gno": "package a", "README.md": "# a"}
+	big := map[string]string{}
+	for i := range packageTextMaxFiles + 1 {
+		big[fmt.Sprintf("f%d.gno", i)] = "package big"
+	}
+	client := &countingClient{MockClient: NewMockClient(
+		&MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: files},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/big", Files: big},
+	)}
+	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev"},
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+	})
+	require.NoError(t, err)
+
+	get := func(target string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		return rr
+	}
+
+	require.Equal(t, http.StatusOK, get("/r/mock/path$download").Code)
+	queries := client.queries.Load()
+	rr := get("/_/play?from=r/mock/path")
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `{"name":"a.gno","content":"package a"}`)
+	assert.NotContains(t, rr.Body.String(), "README.md", "a copy holds sources only")
+	assert.Equal(t, queries, client.queries.Load(), "the copy is served from $download's cache")
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/r/mock/big$download").Code)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/big").Code)
+	assert.Equal(t, http.StatusNotFound, get("/_/play?from=r/does/not/exist").Code)
+}
+
 func TestPackageTextCache(t *testing.T) {
 	t.Parallel()
 
 	t.Run("coalesces concurrent builds", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
+		var c packageFileCache
 		var builds atomic.Int64
 		release := make(chan struct{})
 		var wg sync.WaitGroup
 		for range 8 {
 			wg.Go(func() {
-				text, err := c.get("/r/a", func() ([]byte, error) {
+				files, err := c.get("/r/a", func() ([]packageFile, error) {
 					builds.Add(1)
 					<-release
-					return []byte("a"), nil
+					return []packageFile{{name: "a.gno", source: []byte("a")}}, nil
 				})
 				assert.NoError(t, err)
-				assert.Equal(t, "a", string(text))
+				assert.Equal(t, []packageFile{{name: "a.gno", source: []byte("a")}}, files)
 			})
 		}
 		// Give every caller time to reach the build before it returns; a
@@ -119,23 +162,23 @@ func TestPackageTextCache(t *testing.T) {
 	t.Run("bounded memory", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
-		big := make([]byte, packageTextCacheBytes/2+1)
-		build := func() ([]byte, error) { return big, nil }
+		var c packageFileCache
+		big := []packageFile{{name: "a.gno", source: make([]byte, packageTextCacheBytes/2+1)}}
+		build := func() ([]packageFile, error) { return big, nil }
 		_, err := c.get("/r/a", build)
 		require.NoError(t, err)
 		_, err = c.get("/r/b", build)
 		require.NoError(t, err)
-		assert.Len(t, c.entries, 1, "a second big text would pass the cap")
+		assert.Len(t, c.entries, 1, "a second big package would pass the cap")
 		assert.LessOrEqual(t, c.size, packageTextCacheBytes)
 	})
 
 	t.Run("errors are returned, not cached", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
+		var c packageFileCache
 		boom := errors.New("boom")
-		_, err := c.get("/r/a", func() ([]byte, error) { return nil, boom })
+		_, err := c.get("/r/a", func() ([]packageFile, error) { return nil, boom })
 		assert.ErrorIs(t, err, boom)
 		assert.Empty(t, c.entries)
 	})
@@ -144,9 +187,9 @@ func TestPackageTextCache(t *testing.T) {
 	t.Run("too large is cached", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
+		var c packageFileCache
 		var builds int
-		build := func() ([]byte, error) { builds++; return nil, errPackageTooLarge }
+		build := func() ([]packageFile, error) { builds++; return nil, errPackageTooLarge }
 		for range 2 {
 			_, err := c.get("/r/a", build)
 			assert.ErrorIs(t, err, errPackageTooLarge)

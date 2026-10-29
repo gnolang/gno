@@ -1846,10 +1846,18 @@ func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 		assert.NotContains(t, body, "link--is-active", from)
 	}
 
-	// Only a bare package path that could be copied gets its tabs.
-	for _, from := range []string{"p/demo/foo/foo.gno", "p/demo/foo$file=evil.gno", "p/demo/foo:args", "p/demo/foo?x=1", "p/demo/nope"} {
+	// Only a bare package path is copied, and gets its tabs: a file, args
+	// or a query is no package, and a missing package is not found.
+	for from, status := range map[string]int{
+		"p/demo/foo/foo.gno":       http.StatusBadRequest,
+		"p/demo/foo$file=evil.gno": http.StatusBadRequest,
+		"p/demo/foo:args":          http.StatusBadRequest,
+		"p/demo/foo?x=1":           http.StatusBadRequest,
+		"p/demo/nope":              http.StatusNotFound,
+	} {
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from="+url.QueryEscape(from), nil))
+		assert.Equal(t, status, rr.Code, from)
 		assert.NotContains(t, rr.Body.String(), `$source"`, from)
 	}
 

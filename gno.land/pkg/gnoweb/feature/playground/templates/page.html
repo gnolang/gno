@@ -55,7 +55,11 @@ LAYOUT - Playground view
 
     <!-- Code editor -->
     <div class="b-code-editor" data-playground-target="editor"></div>
+    {{- with .Files }}
+    <script type="application/json" data-playground-target="files">{{ . }}</script>
+    {{- else }}
     <textarea data-playground-target="initial-code" hidden>{{ .InitialCode }}</textarea>
+    {{- end }}
   </div>
 
   <!-- Output Area -->

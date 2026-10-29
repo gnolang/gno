@@ -7,6 +7,7 @@ import {
 	postEval,
 } from "@gnoweb/js/controller.js";
 import {
+	copyFiles,
 	createTar,
 	GNOMOD_FILE,
 	isValidFileName,
@@ -32,6 +33,7 @@ export class PlaygroundController extends BaseController {
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
+		const filesEl = this.getTarget("files");
 		const initialCodeEl = this.getTarget(
 			"initial-code",
 		) as HTMLTextAreaElement | null;
@@ -48,7 +50,13 @@ export class PlaygroundController extends BaseController {
 			this._scrollActiveTabIntoView(),
 		);
 
-		const [first, ...rest] = parseInitialCode(initialCodeEl?.value ?? "");
+		// A copy comes as JSON, one entry per file; a shared snippet as text.
+		const files = filesEl
+			? copyFiles(filesEl.textContent ?? "")
+			: parseInitialCode(initialCodeEl?.value ?? "");
+		const [first, ...rest] = files.length
+			? files
+			: [{ name: "main.gno", content: DEFAULT_GNO_CONTENT }];
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
 			content: first.content,

@@ -9,9 +9,10 @@ import (
 
 func validDeps() Deps {
 	return Deps{
-		Client: &stubClient{},
-		Logger: discardLogger(),
-		Domain: "gno.land",
+		Client:   &stubClient{},
+		Packages: &stubPackages{},
+		Logger:   discardLogger(),
+		Domain:   "gno.land",
 	}
 }
 
@@ -27,6 +28,11 @@ func TestNewPanics(t *testing.T) {
 			name:    "nil client",
 			setup:   func(deps *Deps) { deps.Client = nil },
 			wantMsg: "playground.New: Client is required",
+		},
+		{
+			name:    "nil packages",
+			setup:   func(deps *Deps) { deps.Packages = nil },
+			wantMsg: "playground.New: Packages is required",
 		},
 	}
 

@@ -28,25 +28,23 @@ import (
 type stubClient struct {
 	evalResult []byte
 	evalErr    error
-	files      []string
-	filesErr   error
-	fileBodies map[string][]byte
-}
-
-func (s *stubClient) ListFiles(context.Context, string) ([]string, error) {
-	return s.files, s.filesErr
-}
-
-func (s *stubClient) File(_ context.Context, _, filename string) ([]byte, error) {
-	body, ok := s.fileBodies[filename]
-	if !ok {
-		return nil, errors.New("file not found")
-	}
-	return body, nil
 }
 
 func (s *stubClient) Eval(context.Context, string, string) ([]byte, error) {
 	return s.evalResult, s.evalErr
+}
+
+// stubPackages is a PackageFetcher answering files or err, and recording
+// the path it was asked for.
+type stubPackages struct {
+	files []File
+	err   error
+	asked string
+}
+
+func (s *stubPackages) PackageFiles(_ context.Context, pkgPath string) ([]File, error) {
+	s.asked = pkgPath
+	return s.files, s.err
 }
 
 func discardLogger() *slog.Logger {
@@ -197,7 +195,7 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 			if client == nil {
 				client = &stubClient{evalResult: []byte("mock eval")}
 			}
-			handler := New(Deps{Client: client, Logger: discardLogger()}).EvalHandler()
+			handler := New(Deps{Packages: &stubPackages{}, Client: client, Logger: discardLogger()}).EvalHandler()
 
 			method := tc.method
 			if method == "" {
@@ -237,12 +235,11 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 	t.Parallel()
 
 	h := New(validDeps())
-	indexData := &components.IndexData{}
 
 	t.Run("default when no code", func(t *testing.T) {
 		t.Parallel()
 
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{}}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{}})
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, defaultCode, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -252,7 +249,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 		code := "package main // hello"
 		q := url.Values{"code": {base64.StdEncoding.EncodeToString([]byte(code))}}
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q})
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -262,7 +259,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 		code := "package main\n\nfunc Render(path string) string { return \"hi\" }\n"
 		q := url.Values{"code": {deflateBase64(t, []byte(code))}, "z": {""}}
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q})
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -273,7 +270,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 		// ~8 MiB of zeros compresses to a few KB; well over the 1 MiB ceiling.
 		bomb := deflateBase64(t, bytes.Repeat([]byte{0}, 8<<20))
 		q := url.Values{"code": {bomb}, "z": {""}}
-		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q})
 		assert.Equal(t, http.StatusOK, status)
 
 		// The over-limit payload must not be adopted as InitialCode,
@@ -286,114 +283,125 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 func TestCopyView(t *testing.T) {
 	t.Parallel()
 
-	t.Run("multiple files concatenated with headers", func(t *testing.T) {
+	t.Run("files are handed over one by one, sources only, in order", func(t *testing.T) {
 		t.Parallel()
 
+		// a.gno holds a line shaped like the share format's separator: a
+		// copy never goes through that format, so it stays in a.gno.
+		a := "package main\n\n// --- b.gno ---\nfunc A() {}\n"
+		pkgs := &stubPackages{files: []File{
+			{Name: "a.gno", Content: a},
+			{Name: "README.md", Content: "# readme"},
+			{Name: "b.gno", Content: "package main\n"},
+			{Name: "gnomod.toml", Content: "module = \"main\"\n"},
+		}}
 		deps := validDeps()
-		deps.Client = &stubClient{
-			files: []string{"a.gno", "gnomod.toml"},
-			fileBodies: map[string][]byte{
-				"a.gno":       []byte("package main\n"),
-				"gnomod.toml": []byte("module = \"main\"\n"),
-			},
-		}
+		deps.Packages = pkgs
 		h := New(deps)
 
-		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{"from": {"gno.land/r/demo/foo"}, "file": {"b.gno"}}})
 		require.Equal(t, http.StatusOK, status)
-
-		code := extractPlaygroundViewData(t, v).InitialCode
-
-		// First header has no leading newline; the second one does
-		assert.True(t, strings.HasPrefix(code, "// --- a.gno ---\n\n"), "first header should not have a leading newline")
-		assert.Contains(t, code, "\n// --- gnomod.toml ---\n\n")
-		assert.Contains(t, code, "package main\n")
-		assert.Contains(t, code, "module = \"main\"\n")
-
-		// a.gno appears before gnomod.toml (list order preserved)
-		assert.Less(t, strings.Index(code, "a.gno"), strings.Index(code, "gnomod.toml"))
-	})
-
-	t.Run("non-source files are filtered out", func(t *testing.T) {
-		t.Parallel()
-
-		deps := validDeps()
-		deps.Client = &stubClient{
-			files: []string{"a.gno", "image.png", "README.md", "gnomod.toml"},
-			fileBodies: map[string][]byte{
-				"a.gno":       []byte("package main\n"),
-				"image.png":   []byte("binary"),
-				"README.md":   []byte("# readme"),
-				"gnomod.toml": []byte("module = \"main\"\n"),
-			},
-		}
-		h := New(deps)
-
-		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
-		require.Equal(t, http.StatusOK, status)
-
-		code := extractPlaygroundViewData(t, v).InitialCode
-		assert.Contains(t, code, "// --- a.gno ---")
-		assert.Contains(t, code, "// --- gnomod.toml ---")
-		assert.NotContains(t, code, "image.png")
-		assert.NotContains(t, code, "README.md")
-	})
-
-	t.Run("oversized source is rejected", func(t *testing.T) {
-		t.Parallel()
-
-		// Two files whose combined size exceeds maxCopyCodeSize.
-		big := bytes.Repeat([]byte("x"), maxCopyCodeSize)
-		deps := validDeps()
-		deps.Client = &stubClient{
-			files: []string{"a.gno", "b.gno"},
-			fileBodies: map[string][]byte{
-				"a.gno": big,
-				"b.gno": []byte("package main\n"),
-			},
-		}
-		h := New(deps)
-
-		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
-		assert.Equal(t, http.StatusRequestEntityTooLarge, status)
-
-		// The error path returns a status error component, not a playground view
-		_, ok := v.Component.(*playgroundComponent)
-		assert.False(t, ok, "oversized path must not return a playground component")
-	})
-
-	t.Run("fail listing package files", func(t *testing.T) {
-		t.Parallel()
-
-		deps := validDeps()
-		deps.Client = &stubClient{filesErr: errors.New("boom")}
-		h := New(deps)
-
-		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
-		assert.Equal(t, http.StatusBadRequest, status)
-
-		// The error path returns a status error component, not a playground view
-		_, ok := v.Component.(*playgroundComponent)
-		assert.False(t, ok, "error path must not return a playground component")
-	})
-
-	t.Run("playground data fields are populated", func(t *testing.T) {
-		t.Parallel()
-
-		deps := validDeps()
-		deps.Client = &stubClient{
-			files:      []string{"a.gno"},
-			fileBodies: map[string][]byte{"a.gno": []byte("package main\n")},
-		}
-		h := New(deps)
-
-		status, v := h.copyView(context.Background(), "/r/demo/foo", "a.gno")
-		require.Equal(t, http.StatusOK, status)
+		assert.Equal(t, "/r/demo/foo", pkgs.asked)
 
 		data := extractPlaygroundViewData(t, v)
-		assert.Equal(t, "a.gno", data.DefaultFile)
+		assert.Equal(t, []File{
+			{Name: "a.gno", Content: a},
+			{Name: "b.gno", Content: "package main\n"},
+			{Name: "gnomod.toml", Content: "module = \"main\"\n"},
+		}, data.Files)
+		assert.Empty(t, data.InitialCode)
+		assert.Equal(t, "b.gno", data.DefaultFile)
 		assert.Equal(t, deps.Domain, data.Domain)
+		assert.Equal(t, "README.md", pkgs.files[1].Name, "the fetcher's slice is left as it was")
+
+		// The page carries them as JSON, which reads back to the same files.
+		var buf bytes.Buffer
+		require.NoError(t, v.Render(&buf))
+		page := buf.String()
+		const open = `<script type="application/json" data-playground-target="files">`
+		i := strings.Index(page, open)
+		require.NotEqual(t, -1, i, "copy files script")
+		j := strings.Index(page[i:], "</script>")
+		var got []File
+		require.NoError(t, json.Unmarshal([]byte(page[i+len(open):i+j]), &got))
+		assert.Equal(t, data.Files, got)
+		assert.NotContains(t, page, `data-playground-target="initial-code"`)
 	})
+
+	t.Run("a closing script tag in a file stays inside the JSON", func(t *testing.T) {
+		t.Parallel()
+
+		deps := validDeps()
+		deps.Packages = &stubPackages{files: []File{{Name: "a.gno", Content: "// </script><script>alert(1)</script>"}}}
+		_, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
+		var buf bytes.Buffer
+		require.NoError(t, v.Render(&buf))
+		assert.NotContains(t, buf.String(), "<script>alert(1)")
+	})
+
+	errCases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"not found", fmt.Errorf("%w: gone", ErrPackageNotFound), http.StatusNotFound},
+		{"too large", fmt.Errorf("%w: 101 files", ErrPackageTooLarge), http.StatusRequestEntityTooLarge},
+		{"timeout", fmt.Errorf("%w: deadline", ErrPackageTimeout), http.StatusRequestTimeout},
+		{"anything else", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, tc := range errCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			deps := validDeps()
+			deps.Packages = &stubPackages{err: tc.err}
+			status, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
+			assert.Equal(t, tc.want, status)
+			_, ok := v.Component.(*playgroundComponent)
+			assert.False(t, ok, "an error is no playground")
+		})
+	}
+
+	// Only a bare package path is copied: anything else is never fetched,
+	// so a file's lines are not taken for file names.
+	for _, from := range []string{"r/demo/foo/foo.gno", "r/demo/foo/README.md", "r/demo/foo:args", "r/demo/foo$source", "u/alice", "r/", "evil.com/x"} {
+		t.Run("from "+from, func(t *testing.T) {
+			t.Parallel()
+
+			pkgs := &stubPackages{files: []File{{Name: "a.gno", Content: "package a"}}}
+			deps := validDeps()
+			deps.Packages = pkgs
+			status, _ := New(deps).GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{"from": {from}}})
+			assert.Equal(t, http.StatusBadRequest, status)
+			assert.Empty(t, pkgs.asked, "not fetched")
+		})
+	}
+}
+
+func TestParseFrom(t *testing.T) {
+	t.Parallel()
+
+	for from, want := range map[string]string{
+		"r/demo/foo":          "/r/demo/foo",
+		"/p/demo/foo":         "/p/demo/foo",
+		"gno.land/r/demo/foo": "/r/demo/foo",
+		"r/demo/foo/foo.gno":  "",
+		"r/demo/foo:args":     "",
+		"r/demo/foo$source":   "",
+		"r/demo/foo?x=1":      "",
+		"u/alice":             "",
+		"r/":                  "",
+		"r/demo/foo/":         "",
+		"///evil.com/x":       "",
+	} {
+		u := ParseFrom("gno.land", from)
+		if want == "" {
+			assert.Nil(t, u, from)
+			continue
+		}
+		require.NotNil(t, u, from)
+		assert.Equal(t, want, u.Path, from)
+	}
 }
 
 func TestRelPath(t *testing.T) {
@@ -470,9 +478,10 @@ func TestEvalLimiter(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{
-		Client:  &stubClient{evalResult: []byte("ok")},
-		Logger:  discardLogger(),
-		Limiter: &denyLimiter{n: 2},
+		Client:   &stubClient{evalResult: []byte("ok")},
+		Packages: &stubPackages{},
+		Logger:   discardLogger(),
+		Limiter:  &denyLimiter{n: 2},
 	})
 	handler := h.EvalHandler()
 

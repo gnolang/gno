@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+	copyFiles,
 	createTar,
 	isValidFileName,
 	parseInitialCode,
@@ -97,6 +98,26 @@ test("a share reads back to the files it was written from, a lone file too", () 
 	for (const files of cases) {
 		assert.deepEqual(parseInitialCode(shareText(files)), files);
 	}
+});
+
+test("copyFiles reads the page's JSON one entry per file", () => {
+	const files = [
+		{ name: "a.gno", content: "package a\n\n// --- b.gno ---\nfunc A() {}\n" },
+		{ name: "b.gno", content: "package a\n" },
+	];
+	assert.deepEqual(copyFiles(JSON.stringify(files)), files);
+	assert.deepEqual(
+		copyFiles(
+			JSON.stringify([
+				{ name: "../x.gno", content: "" },
+				{ name: "a.gno", content: 1 },
+				null,
+			]),
+		),
+		[],
+	);
+	assert.deepEqual(copyFiles("not json"), []);
+	assert.deepEqual(copyFiles('{"name":"a.gno"}'), []);
 });
 
 test("createTar writes whole names and skips the ones it cannot hold", () => {

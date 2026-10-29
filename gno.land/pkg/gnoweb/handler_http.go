@@ -188,8 +188,8 @@ type HTTPHandler struct {
 	ChainMap *chainmap.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
-	// packageText caches the whole-package texts of $download.
-	packageText packageTextCache
+	// pkgFiles caches the package files $download and playground copies read.
+	pkgFiles packageFileCache
 	// counterparts caches the project listings behind the breadcrumb switch.
 	counterparts counterpartCache
 }
@@ -229,9 +229,10 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	// serves everything else, as it did before these features.
 	if cfg.Meta.RemoteHelp != "" && cfg.Meta.ChainId != "" {
 		h.Playground = playground.New(playground.Deps{
-			Client: &playgroundClientAdapter{cfg.ClientAdapter},
-			Logger: logger,
-			Domain: cfg.Meta.Domain,
+			Client:   &playgroundClientAdapter{cfg.ClientAdapter},
+			Packages: playgroundPackages{h},
+			Logger:   logger,
+			Domain:   cfg.Meta.Domain,
 			// Its own bucket: evals run caller-chosen code on the node, so
 			// they get a tighter budget than page reads.
 			Limiter: state.NewIPLimiter(state.RateLimitConfig{
@@ -719,7 +720,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
 		return status, view
 	case gnourl.IsPlayground() && h.Playground != nil:
-		return h.Playground.GetPlaygroundView(ctx, gnourl, indexData)
+		return h.Playground.GetPlaygroundView(ctx, gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -1858,19 +1859,10 @@ func breadcrumbQueries(query url.Values, keys ...string) []components.QueryParam
 
 var _ playground.ClientAdapter = (*playgroundClientAdapter)(nil)
 
-// playgroundClientAdapter adapts ClientAdapter for the playground feature by
-// removing the FileMeta type dependency to break circular dependencies with gnoweb.
+// playgroundClientAdapter adapts ClientAdapter for the playground feature,
+// which cannot import gnoweb (cycle).
 type playgroundClientAdapter struct {
 	client ClientAdapter
-}
-
-func (a *playgroundClientAdapter) ListFiles(ctx context.Context, p string) ([]string, error) {
-	return a.client.ListFiles(ctx, p, 0)
-}
-
-func (a *playgroundClientAdapter) File(ctx context.Context, p, filename string) ([]byte, error) {
-	body, _, err := a.client.File(ctx, p, filename, 0)
-	return body, err
 }
 
 // Eval keeps the chain's answer about the expression and hides why the node
@@ -1891,6 +1883,33 @@ func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string
 	default:
 		return nil, err
 	}
+}
+
+var _ playground.PackageFetcher = playgroundPackages{}
+
+// playgroundPackages hands a playground copy the package files $download
+// reads, under the same bounds and cache, its errors turned into the
+// playground's.
+type playgroundPackages struct{ h *HTTPHandler }
+
+func (p playgroundPackages) PackageFiles(ctx context.Context, pkgPath string) ([]playground.File, error) {
+	files, err := p.h.packageFiles(ctx, pkgPath)
+	switch {
+	case err == nil:
+	case errors.Is(err, ErrClientPackageNotFound):
+		return nil, fmt.Errorf("%w: %w", playground.ErrPackageNotFound, err)
+	case errors.Is(err, errPackageTooLarge):
+		return nil, fmt.Errorf("%w: %w", playground.ErrPackageTooLarge, err)
+	case errors.Is(err, ErrClientTimeout), errors.Is(err, context.DeadlineExceeded):
+		return nil, fmt.Errorf("%w: %w", playground.ErrPackageTimeout, err)
+	default:
+		return nil, err
+	}
+	out := make([]playground.File, len(files))
+	for i, f := range files {
+		out[i] = playground.File{Name: f.name, Content: string(f.source)}
+	}
+	return out, nil
 }
 
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.
