@@ -70,13 +70,19 @@ func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoUR
 // above, from the cache while a recent read holds it. $download and the
 // playground's copies share it. The slice is the cache's: read, never write.
 func (h *HTTPHandler) packageFiles(ctx context.Context, pkgPath string) ([]packageFile, error) {
-	return h.pkgFiles.get(pkgPath, func() ([]packageFile, error) {
+	files, err := h.pkgFiles.get(ctx, pkgPath, func() ([]packageFile, error) {
 		// Concurrent requests share this read: one client hanging up must
 		// not fail the others.
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), packageTextBuildTimeout)
 		defer cancel()
 		return h.fetchPackageFiles(ctx, pkgPath)
 	})
+	if err != nil && ctx.Err() != nil {
+		// The request ran out of time before the shared read was done,
+		// which goes on for the next request.
+		return nil, fmt.Errorf("%w: %w", ErrClientTimeout, ctx.Err())
+	}
+	return files, err
 }
 
 // fetchPackageFiles fetches every file of the package: one node query for
@@ -101,6 +107,9 @@ func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string) ([]
 	g.SetLimit(packageTextFetchers)
 	for i, name := range names {
 		g.Go(func() error {
+			if err := gctx.Err(); err != nil {
+				return err // a fetch failed or passed the cap: ask no more
+			}
 			source, _, err := h.Client.File(gctx, pkgPath, name, 0)
 			if err != nil {
 				return err
@@ -120,9 +129,9 @@ func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string) ([]
 
 // packageFileCache keeps each package's files for packageTextTTL, so
 // repeating a $download or a copy costs no node query, and coalesces
-// concurrent reads of the same package into one. errPackageTooLarge is kept too, since a package
-// does not change once deployed; other errors are not: a missing package
-// may be deployed the next block.
+// concurrent reads of the same package into one. errPackageTooLarge is
+// kept too, since a package does not change once deployed; other errors
+// are not: a missing package may be deployed the next block.
 type packageFileCache struct {
 	mu      sync.Mutex
 	entries map[string]packageFileEntry
@@ -138,11 +147,13 @@ type packageFileEntry struct {
 	expires time.Time
 }
 
-func (c *packageFileCache) get(key string, build func() ([]packageFile, error)) ([]packageFile, error) {
+// get waits for the build no longer than ctx allows; the build itself goes
+// on, and stores its result for the callers after.
+func (c *packageFileCache) get(ctx context.Context, key string, build func() ([]packageFile, error)) ([]packageFile, error) {
 	if e, ok := c.lookup(key); ok {
 		return e.files, e.err
 	}
-	v, err, _ := c.sf.Do(key, func() (any, error) {
+	ch := c.sf.DoChan(key, func() (any, error) {
 		if e, ok := c.lookup(key); ok {
 			return e.files, e.err
 		}
@@ -152,8 +163,13 @@ func (c *packageFileCache) get(key string, build func() ([]packageFile, error)) 
 		}
 		return files, err
 	})
-	files, _ := v.([]packageFile)
-	return files, err
+	select {
+	case r := <-ch:
+		files, _ := r.Val.([]packageFile)
+		return files, r.Err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (c *packageFileCache) clock() time.Time {
