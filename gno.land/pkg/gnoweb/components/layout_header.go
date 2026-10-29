@@ -119,11 +119,10 @@ func StaticHeaderGeneralLinks() []HeaderLink {
 }
 
 func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderLink {
-	contentURL, sourceURL, helpURL, forkURL, runURL, stateURL := u, u, u, u, u, u
+	contentURL, sourceURL, helpURL, runURL, stateURL := u, u, u, u, u
 	contentURL.WebQuery = url.Values{}
 	sourceURL.WebQuery = url.Values{"source": {""}}
 	helpURL.WebQuery = url.Values{"help": {""}}
-	forkURL.WebQuery = url.Values{"fork": {""}}
 	runURL.WebQuery = url.Values{"run": {""}}
 	stateURL.WebQuery = url.Values{"state": {""}}
 
@@ -158,20 +157,12 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		Tooltip:  "Call the realm's exported functions.",
 	}
 
-	/* Hide the Fork button until we have publishing support
-	forkLink := HeaderLink{
-		Label:    "Fork",
-		URL:      forkURL.EncodeWebURL(),
-		Icon:     "ico-link",
-		IsActive: isActive(u.WebQuery, "Fork"),
-	}
-	*/
-
 	runLink := HeaderLink{
 		Label:    "Run",
 		URL:      runURL.EncodeWebURL(),
 		Icon:     "ico-tx-link",
 		IsActive: isActive(u.WebQuery, "Run"),
+		Tooltip:  "Write a script that calls the realm and get its gnokey command.",
 	}
 
 	stateLink := HeaderLink{
@@ -190,13 +181,12 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case mode == ViewModeUser:
 		return []HeaderLink{contentLink}
 	case mode == ViewModePackage:
-		// Hide the Fork button until we have publishing support
-		return []HeaderLink{contentLink, sourceLink /* , forkLink */}
+		return []HeaderLink{contentLink, sourceLink}
 	case mode == ViewModePlayground:
+		// The breadcrumb's playground pill says where the reader is.
 		return []HeaderLink{}
 	default:
-		// Hide the Fork button until we have publishing support
-		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink /* forkLink, */, runLink}
+		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink, runLink}
 	}
 }
 
@@ -260,7 +250,7 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("fork") && !webQuery.Has("run") && !webQuery.Has("state") && !webQuery.Has("deps")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("run") && !webQuery.Has("state") && !webQuery.Has("deps")
 	case "State":
 		return webQuery.Has("state")
 	case "Source":
@@ -268,8 +258,6 @@ func isActive(webQuery url.Values, label string) bool {
 		return webQuery.Has("source") || webQuery.Has("deps")
 	case "Actions":
 		return webQuery.Has("help")
-	case "Fork":
-		return webQuery.Has("fork")
 	case "Run":
 		return webQuery.Has("run")
 	default:

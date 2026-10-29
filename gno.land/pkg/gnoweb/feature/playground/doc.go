@@ -1,7 +1,6 @@
 // Package playground implements the gnoweb playground feature.
 //
-// It serves the standalone playground page at /_/play, the fork view
-// (?fork on a package or realm URL — concatenates the source files
-// into the playground), and the JSON API endpoints used by the
-// playground and run UIs (/_/api/eval, /_/api/funcs, /_/api/dryrun).
+// It serves the playground page at /_/play, which opens an editable copy of
+// a package with ?from=<pkgpath> (its source files, concatenated), and the
+// /_/api/eval endpoint the playground and the action page evaluate through.
 package playground

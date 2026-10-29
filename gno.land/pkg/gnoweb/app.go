@@ -292,8 +292,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle playground API endpoints
 	if pg := httphandler.Playground; pg != nil {
 		mux.Handle("/_/api/eval", pg.EvalHandler())
-		mux.Handle("/_/api/funcs", pg.FuncsHandler())
-		mux.Handle("/_/api/dryrun", pg.DryRunHandler())
 	}
 
 	// Handle status page

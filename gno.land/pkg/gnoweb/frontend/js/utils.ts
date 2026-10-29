@@ -46,6 +46,43 @@ export function findAllInclusive(
 	return result;
 }
 
+// postEval evaluates expression in pkgPath through gnoweb's /_/api/eval.
+// Chain errors, HTTP errors (rate limiting included: the server explains it
+// in the JSON body) and network failures all come back as isError text.
+export async function postEval(
+	pkgPath: string,
+	expression: string,
+): Promise<{ text: string; isError: boolean; status: number }> {
+	try {
+		const response = await fetch("/_/api/eval", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ pkg_path: pkgPath, expression }),
+		});
+		const json = await response.json().catch(() => ({}));
+		const { status } = response;
+		if (json.error)
+			return { text: `Error: ${json.error}`, isError: true, status };
+		if (!response.ok) {
+			return { text: `Error: HTTP ${status}`, isError: true, status };
+		}
+		return { text: json.result ?? "", isError: false, status };
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		return { text: `Error: ${msg}`, isError: true, status: 0 };
+	}
+}
+
+// downloadBlob saves blob as filename through a temporary object URL.
+export function downloadBlob(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = filename;
+	a.click();
+	URL.revokeObjectURL(url);
+}
+
 export function makeIcon(icon: string): SVGSVGElement {
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	svg.classList.add("c-icon");

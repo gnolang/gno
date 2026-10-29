@@ -1,10 +1,12 @@
 import {
 	debounce,
+	downloadBlob,
 	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
 	makeCopyIcon,
 	makeIcon,
+	postEval,
 	setPrefCookie,
 	toCamelCase,
 	toKebabCase,
@@ -250,11 +252,13 @@ export abstract class BaseController {
 // Re-export utilities for convenience
 export {
 	debounce,
+	downloadBlob,
 	escapeShellSpecialChars,
 	findAllInclusive,
 	findFirstInclusive,
 	makeCopyIcon,
 	makeIcon,
+	postEval,
 	setPrefCookie,
 	toCamelCase,
 	toKebabCase,

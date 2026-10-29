@@ -12,17 +12,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"github.com/gnolang/gno/gnovm/pkg/doc"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,15 +26,11 @@ import (
 // returns canned data so the API path can be exercised without importing
 // the gnoweb package (which would create a test-time cycle).
 type stubClient struct {
-	evalResult     []byte
-	evalErr        error
-	docResult      *doc.JSONDocumentation
-	docErr         error
-	files          []string
-	filesErr       error
-	fileBodies     map[string][]byte
-	simulateResult *abci.ResponseDeliverTx
-	simulateErr    error
+	evalResult []byte
+	evalErr    error
+	files      []string
+	filesErr   error
+	fileBodies map[string][]byte
 }
 
 func (s *stubClient) ListFiles(context.Context, string) ([]string, error) {
@@ -54,16 +45,8 @@ func (s *stubClient) File(_ context.Context, _, filename string) ([]byte, error)
 	return body, nil
 }
 
-func (s *stubClient) Doc(context.Context, string) (*doc.JSONDocumentation, error) {
-	return s.docResult, s.docErr
-}
-
 func (s *stubClient) Eval(context.Context, string, string) ([]byte, error) {
 	return s.evalResult, s.evalErr
-}
-
-func (s *stubClient) Simulate(context.Context, *std.Tx, crypto.Address) (*abci.ResponseDeliverTx, error) {
-	return s.simulateResult, s.simulateErr
 }
 
 func discardLogger() *slog.Logger {
@@ -99,11 +82,9 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{
-		Client:  &stubClient{evalResult: []byte("mock eval")},
-		Logger:  discardLogger(),
-		Domain:  "gno.land",
-		Remote:  "http://localhost:26657",
-		ChainId: "test",
+		Client: &stubClient{evalResult: []byte("mock eval")},
+		Logger: discardLogger(),
+		Domain: "gno.land",
 	})
 
 	cases := []struct {
@@ -175,80 +156,6 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 	}
 }
 
-// TestHandlerPlaygroundFuncs tests the GET /_/api/funcs handler directly.
-func TestHandlerPlaygroundFuncs(t *testing.T) {
-	t.Parallel()
-
-	deps := validDeps()
-	deps.Client = &stubClient{
-		docResult: &doc.JSONDocumentation{
-			Funcs: []*doc.JSONFunc{
-				{Name: "Hello", Signature: "Hello() string"},
-				{Name: "method", Type: "MyType", Signature: "method()"},
-			},
-		},
-	}
-	h := New(deps)
-
-	cases := []struct {
-		name       string
-		path       string
-		method     string
-		wantStatus int
-		check      func(t *testing.T, body string)
-	}{
-		{
-			name:       "valid path",
-			path:       "/_/api/funcs?path=/r/mock/path",
-			method:     http.MethodGet,
-			wantStatus: http.StatusOK,
-			check: func(t *testing.T, body string) {
-				t.Helper()
-				var resp map[string]any
-				require.NoError(t, json.Unmarshal([]byte(body), &resp))
-				funcs, ok := resp["functions"].([]any)
-				assert.True(t, ok)
-				found := false
-				for _, f := range funcs {
-					fm := f.(map[string]any)
-					if fm["name"] == "Hello" {
-						found = true
-					}
-					assert.NotEqual(t, "method", fm["name"], "methods should be filtered")
-				}
-				assert.True(t, found, "Hello function should be present")
-			},
-		},
-		{
-			name:       "missing path param",
-			path:       "/_/api/funcs",
-			method:     http.MethodGet,
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "wrong method",
-			path:       "/_/api/funcs?path=/r/mock/path",
-			method:     http.MethodPost,
-			wantStatus: http.StatusMethodNotAllowed,
-		},
-	}
-
-	handler := h.FuncsHandler()
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			req := httptest.NewRequest(tc.method, tc.path, nil)
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, tc.wantStatus, rr.Code)
-			if tc.check != nil {
-				tc.check(t, rr.Body.String())
-			}
-		})
-	}
-}
-
 // TestGetPlaygroundViewCode covers the "code" shared-snippet paths.
 func TestGetPlaygroundViewCode(t *testing.T) {
 	t.Parallel()
@@ -259,7 +166,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 	t.Run("default when no code", func(t *testing.T) {
 		t.Parallel()
 
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: url.Values{}}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: url.Values{}}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, defaultCode, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -269,7 +176,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 		code := "package main // hello"
 		q := url.Values{"code": {base64.StdEncoding.EncodeToString([]byte(code))}}
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -279,7 +186,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 		code := "package main\n\nfunc Render(path string) string { return \"hi\" }\n"
 		q := url.Values{"code": {deflateBase64(t, []byte(code))}, "z": {""}}
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, code, extractPlaygroundViewData(t, v).InitialCode)
 	})
@@ -290,7 +197,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 		// ~8 MiB of zeros compresses to a few KB; well over the 1 MiB ceiling.
 		bomb := deflateBase64(t, bytes.Repeat([]byte{0}, 8<<20))
 		q := url.Values{"code": {bomb}, "z": {""}}
-		status, v := h.GetPlaygroundView(&weburl.GnoURL{Query: q}, indexData)
+		status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: q}, indexData)
 		assert.Equal(t, http.StatusOK, status)
 
 		// The over-limit payload must not be adopted as InitialCode,
@@ -300,7 +207,7 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 	})
 }
 
-func TestGetForkView(t *testing.T) {
+func TestCopyView(t *testing.T) {
 	t.Parallel()
 
 	t.Run("multiple files concatenated with headers", func(t *testing.T) {
@@ -316,7 +223,7 @@ func TestGetForkView(t *testing.T) {
 		}
 		h := New(deps)
 
-		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
 		require.Equal(t, http.StatusOK, status)
 
 		code := extractPlaygroundViewData(t, v).InitialCode
@@ -346,7 +253,7 @@ func TestGetForkView(t *testing.T) {
 		}
 		h := New(deps)
 
-		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
 		require.Equal(t, http.StatusOK, status)
 
 		code := extractPlaygroundViewData(t, v).InitialCode
@@ -359,8 +266,8 @@ func TestGetForkView(t *testing.T) {
 	t.Run("oversized source is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		// Two files whose combined size exceeds maxForkCodeSize.
-		big := bytes.Repeat([]byte("x"), maxForkCodeSize)
+		// Two files whose combined size exceeds maxCopyCodeSize.
+		big := bytes.Repeat([]byte("x"), maxCopyCodeSize)
 		deps := validDeps()
 		deps.Client = &stubClient{
 			files: []string{"a.gno", "b.gno"},
@@ -371,7 +278,7 @@ func TestGetForkView(t *testing.T) {
 		}
 		h := New(deps)
 
-		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
 		assert.Equal(t, http.StatusRequestEntityTooLarge, status)
 
 		// The error path returns a status error component, not a playground view
@@ -386,7 +293,7 @@ func TestGetForkView(t *testing.T) {
 		deps.Client = &stubClient{filesErr: errors.New("boom")}
 		h := New(deps)
 
-		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: "/r/demo/foo"})
+		status, v := h.copyView(context.Background(), "/r/demo/foo", "")
 		assert.Equal(t, http.StatusBadRequest, status)
 
 		// The error path returns a status error component, not a playground view
@@ -404,16 +311,11 @@ func TestGetForkView(t *testing.T) {
 		}
 		h := New(deps)
 
-		pkgPath := "/r/demo/foo"
-		q := url.Values{"file": {"a.gno"}}
-		status, v := h.GetForkView(context.Background(), &weburl.GnoURL{Path: pkgPath, Query: q})
+		status, v := h.copyView(context.Background(), "/r/demo/foo", "a.gno")
 		require.Equal(t, http.StatusOK, status)
 
 		data := extractPlaygroundViewData(t, v)
-		assert.Equal(t, path.Join(deps.Domain, pkgPath), data.ForkFrom)
 		assert.Equal(t, "a.gno", data.DefaultFile)
-		assert.Equal(t, deps.Remote, data.Remote)
-		assert.Equal(t, deps.ChainId, data.ChainId)
 		assert.Equal(t, deps.Domain, data.Domain)
 	})
 }

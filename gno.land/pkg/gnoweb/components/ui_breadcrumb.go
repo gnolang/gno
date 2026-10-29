@@ -15,6 +15,9 @@ type QueryParam struct {
 }
 
 type BreadcrumbData struct {
+	// View names a special view of the path, shown after it as a pill that
+	// links to that view (e.g. "playground" on a package copy).
+	View     BreadcrumbPart
 	Parts    []BreadcrumbPart
 	ArgParts []BreadcrumbPart
 	Queries  []QueryParam

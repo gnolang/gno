@@ -1,5 +1,5 @@
-import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
-import { BaseController } from "@gnoweb/js/controller.js";
+import { CodeEditor } from "@gnoweb/js/code-editor.js";
+import { BaseController, downloadBlob } from "@gnoweb/js/controller.js";
 
 // Terminates the heredoc that carries the script.
 const HEREDOC_DELIMITER = "__GNO_EOF__";
@@ -16,7 +16,6 @@ export class RunController extends BaseController {
 	private declare sendEl: HTMLInputElement;
 	private declare includeScriptEl: HTMLInputElement;
 	private declare cmdEl: HTMLElement;
-	private declare resultEl: HTMLElement;
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
@@ -31,7 +30,6 @@ export class RunController extends BaseController {
 		this.sendEl = this.getTarget("send") as HTMLInputElement;
 		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
 		this.cmdEl = this.getTarget("cmd") as HTMLElement;
-		this.resultEl = this.getTarget("result") as HTMLElement;
 
 		if (!this.editorEl || !this.cmdEl) return;
 
@@ -39,12 +37,8 @@ export class RunController extends BaseController {
 			parent: this.editorEl,
 			content: this._buildTemplate(),
 			fileName: "script.gno",
-			isDarkMode: isDarkMode(),
+			label: "Run script editor",
 			onChange: () => this._updateCommand(),
-		});
-
-		this.on("theme:changed", () => {
-			this.editor.changeTheme(isDarkMode());
 		});
 
 		this._setupInputListeners();
@@ -120,52 +114,10 @@ func main() {
 		this.editor.setCode(this._buildTemplate());
 	}
 
-	// Simulates the script against the remote node without broadcasting.
-	public async dryRun(): Promise<void> {
-		this._setResult("Running...", false);
-
-		try {
-			const response = await fetch("/_/api/dryrun", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					pkg_path: this.pkgPath,
-					script: this.editor.getCode(),
-					address: this.keyEl.value.trim(),
-				}),
-			});
-
-			if (response.status === 429)
-				throw new Error("rate limit exceeded — please wait a moment");
-
-			const json = await response.json();
-			if (json.error) {
-				this._setResult(`Error: ${json.error}`, true);
-			} else {
-				this._setResult(json.result || "(no output)", false);
-			}
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			this._setResult(`Error: ${msg}`, true);
-		}
-	}
-
-	private _setResult(text: string, isError: boolean): void {
-		this.resultEl.textContent = text;
-		this.resultEl.classList.toggle("u-color-danger", isError);
-	}
-
-	public clearResult(): void {
-		this._setResult("// Press Dry Run to simulate the script above", false);
-	}
-
 	public downloadCode(): void {
-		const blob = new Blob([this.editor.getCode()], { type: "text/plain" });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = "script.gno";
-		a.click();
-		URL.revokeObjectURL(url);
+		downloadBlob(
+			new Blob([this.editor.getCode()], { type: "text/plain" }),
+			"script.gno",
+		);
 	}
 }

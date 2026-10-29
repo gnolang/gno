@@ -56,8 +56,6 @@ UI - Help Function component
 </div>
 {{ end }}
 
-{{ template "ui/eval_expression" $data }}
-
 <h2 class="b-content-h2">
   Function{{- if gt (len .Functions) 1 }}s{{- end }}
 </h2>
@@ -92,8 +90,8 @@ UI - Help Function component
         </button>
         {{ if not .Crossing }}
         <button class="b-btn b-btn--secondary c-with-icon" data-action="click->action-function#triggerEval"
-          data-action-function-sig-param="{{ .Signature }}" title="Evaluate function">
-          <svg class="c-icon"><use href="#ico-tx-link"></use></svg>
+          data-action-function-sig-param="{{ .Signature }}" title="Evaluate function (read-only)">
+          <svg class="c-icon"><use href="#ico-eval"></use></svg>
           <span>Eval</span>
         </button>
         {{ end }}
@@ -192,16 +190,18 @@ UI - Help Function component
       </div>
     </div>
     {{ if not .Crossing }}
-    <div class="b-action-result">
-      <h3 class="title">Result</h3>
+    <section class="b-result">
+      <h3 class="b-result-title">Result</h3>
       <div class="b-code">
         <pre><code><span data-action-function-target="qeval-result" data-qeval-placeholder="(enter param values)" data-qeval-error-class="u-color-danger"></span></code></pre>
       </div>
-    </div>
+    </section>
     {{ end }}
   </article>
   {{ end }}
 </div>
+
+{{ template "ui/eval_expression" $data }}
 {{ end }}
 
 
@@ -213,8 +213,8 @@ UI - Eval expression snippet (inline evaluator for action page)
   data-action-eval-pkg-path-value="{{ .PkgPath }}">
 
   <h2 class="b-content-h2">Gno Expression Evaluator</h2>
-  <p class="u-color-muted">
-    Evaluate read-only expressions against <code class="u-font-mono">{{ .PkgPath }}</code>
+  <p class="u-color-tertiary">
+    Evaluate any read-only Gno expression against <code class="u-font-mono">{{ .PkgPath }}</code>, for example a function call with arguments.
   </p>
 
   <form data-action="submit->action-eval#evalExpression" class="b-action-eval-form">
@@ -226,23 +226,21 @@ UI - Eval expression snippet (inline evaluator for action page)
         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
     </div>
     <button type="submit" class="b-btn b-btn--primary c-with-icon">
-      <svg class="c-icon"><use href="#ico-tx-link"></use></svg>
+      <svg class="c-icon"><use href="#ico-eval"></use></svg>
       <span>Eval</span>
     </button>
   </form>
 
-  <div class="b-action-eval-result">
-    <div class="b-action-eval-result-header">
-      <span class="b-action-eval-result-title">Result</span>
-      <button class="b-action-eval-result-clear"
-        data-action="click->action-eval#clearResult">Clear</button>
+  <section class="b-result">
+    <h3 class="b-result-title">Result</h3>
+    <div class="b-code">
+      <pre class="b-result-content" role="status" aria-live="polite"
+        data-action-eval-target="result">// Enter an expression above</pre>
     </div>
-    <pre class="b-action-eval-result-content"
-      data-action-eval-target="result"><span class="u-color-muted">// Enter an expression above</span></pre>
-  </div>
+  </section>
 
-  <div class="b-action-eval-history" data-action-eval-target="history" hidden>
-    <h3 class="b-content-h3">History</h3>
+  <div class="b-action-eval-history c-stack" data-action-eval-target="history" hidden>
+    <h3 class="b-result-title">History</h3>
     <div class="b-action-eval-history-list" data-action-eval-target="history-list"></div>
   </div>
 </div>

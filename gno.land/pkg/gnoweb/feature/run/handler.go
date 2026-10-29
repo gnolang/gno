@@ -11,7 +11,6 @@ import (
 func (h *Handler) GetRunView(u *weburl.GnoURL) (int, *components.View) {
 	return http.StatusOK, NewPageView(RunData{
 		PkgPath: path.Join(h.deps.Domain, u.Path),
-		Domain:  h.deps.Domain,
 		Remote:  h.deps.Remote,
 		ChainId: h.deps.ChainId,
 	})

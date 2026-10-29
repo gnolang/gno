@@ -3,11 +3,6 @@ package playground
 import (
 	"context"
 	"log/slog"
-
-	"github.com/gnolang/gno/gnovm/pkg/doc"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // ClientAdapter is the subset of the gnoweb chain-client interface that
@@ -21,16 +16,9 @@ type ClientAdapter interface {
 	// File fetches the source file from a given package path and filename.
 	File(ctx context.Context, path, filename string) ([]byte, error)
 
-	// Doc retrieves the JSON doc suitable for printing from a
-	// specified package path.
-	Doc(ctx context.Context, path string) (*doc.JSONDocumentation, error)
-
 	// Eval evaluates expr inside pkgPath through vm/qeval. pkgPath carries
 	// no domain: the client adds its own.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
-
-	// Simulate simulates running the transaction with the address.
-	Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error)
 }
 
 // Deps gathers the dependencies the playground Handler needs.
@@ -40,12 +28,6 @@ type Deps struct {
 
 	// Domain is the chain domain (e.g. "gno.land").
 	Domain string
-
-	// Remote is the RPC endpoint.
-	Remote string
-
-	// ChainId is the active chain ID.
-	ChainId string
 }
 
 // Handler owns the playground feature state.
@@ -57,18 +39,10 @@ type Handler struct {
 // New validates required deps and returns a Handler.
 // If empty Domain defaults to "gno.land" and Logger defaults the
 // standard Go library's logger.
-// It panics if Client, Remote or ChainId are not specified.
+// It panics if Client is not specified.
 func New(deps Deps) *Handler {
 	if deps.Client == nil {
 		panic("playground.New: Client is required")
-	}
-
-	if deps.Remote == "" {
-		panic("playground.New: Remote RPC endpoint is required")
-	}
-
-	if deps.ChainId == "" {
-		panic("playground.New: Chain ID is required")
 	}
 
 	if deps.Logger == nil {

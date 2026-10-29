@@ -657,18 +657,24 @@
 			transition: width var(--g-transition-fast);
 		}
 
-		/* SVG styles */
+		/* SVG styles: phones show the labels alone, so up to five tabs fit
+		   and none is a bare icon to decode. */
 		& > svg {
+			display: none;
 			min-width: var(--g-space-2);
 			flex-shrink: 0;
 			width: var(--g-space-5);
 			height: var(--g-space-5);
 
-			@media (--2xl) {
+			@media (--md) {
+				display: inline-block;
+			}
+
+			@media (--xl) {
 				display: none;
 			}
 
-			@media (min-width: 1760px) {
+			@media (--2xl) {
 				display: inline-block;
 				width: var(--g-space-4-5);
 				height: var(--g-space-4-5);
@@ -679,7 +685,7 @@
 			font-weight: var(--g-font-bold);
 		}
 
-		@media (--max) {
+		@media (--2xl) {
 			padding-inline-end: var(--g-space-1);
 			margin-inline-end: var(--g-space-6);
 		}
@@ -691,7 +697,7 @@
 			display: none;
 		}
 
-		@media (--2xl) {
+		@media (--xl) {
 			display: inline;
 		}
 	}
@@ -782,6 +788,18 @@
 				background-color: var(--s-color-bg-brand-default);
 				color: var(--s-color-text-base);
 			}
+		}
+	}
+
+	/* View pill (playground): follows the path it works on, without a
+	   separator, like a mode label. */
+	.view {
+		display: flex;
+		align-items: center;
+		z-index: var(--g-z-1);
+
+		&:not(:first-child) {
+			margin-inline-start: var(--g-space-2);
 		}
 	}
 
@@ -1169,6 +1187,31 @@
 
 	&:hover {
 		background-color: var(--s-color-bg-surface-primary);
+	}
+}
+
+/* Primary variant — the one action a view exists for (Run, Eval). */
+.b-btn--primary {
+	background-color: var(--s-color-bg-brand-default);
+	border-color: var(--s-color-border-brand-default);
+	color: var(--s-color-text-brand-default);
+	font-weight: var(--g-font-medium);
+
+	/* Keeps the brand fill: the generic .b-btn:hover surface would leave
+	   white text on a light grey, which reads as disabled. */
+	&:hover {
+		background-color: var(--s-color-bg-brand-default);
+		opacity: var(--g-opacity-90);
+	}
+
+	&:focus-visible {
+		outline: var(--s-focus-ring);
+		outline-offset: 2px;
+	}
+
+	/* Clear of the borderless inline links before it in a .b-btns row. */
+	.b-btns > &:not(:first-child) {
+		margin-inline-start: var(--g-space-2);
 	}
 }
 
@@ -1809,6 +1852,19 @@
 }
 
 /* ===== CODE COMPONENT & CHROMA ===== */
+/* Code frame shared by the read-only source view and the editable one. */
+.b-source-code > pre.chroma-chroma,
+.b-code-editor-area {
+	background-color: var(--s-color-bg-base);
+	border: var(--s-divider);
+	border-radius: var(--s-rounded);
+	font-size: var(--g-font-size-100);
+
+	@media (--md) {
+		font-size: var(--g-font-size-200);
+	}
+}
+
 .b-source-code {
 	font-family: var(--g-font-family-mono);
 
@@ -1816,16 +1872,11 @@
 	   background rule, so the code sits on the surface (white in light) with a
 	   visible border, like the overview frame — not blended into the page. */
 	> pre.chroma-chroma {
-		background-color: var(--s-color-bg-base);
-		border: var(--s-divider);
 		overflow: scroll;
-		border-radius: var(--s-rounded);
 		padding: var(--g-space-4) var(--g-space-1);
-		font-size: var(--g-font-size-100);
 
 		@media (--md) {
 			padding: var(--g-space-8) var(--g-space-3);
-			font-size: var(--g-font-size-200);
 		}
 
 		a {
@@ -1952,7 +2003,8 @@ main.is-dev-mode .b-toc a {
    adds its own specifics afterwards (action: `.params`/`.b-alert`;
    state: outer column flow, audit chips, fields, footer CTA). */
 .b-action-function,
-.b-state-decl {
+.b-state-decl,
+.b-run-panel {
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 	padding: var(--g-space-4);
@@ -2009,25 +2061,9 @@ main.is-dev-mode .b-toc a {
 	}
 
 	.params {
-		display: flex;
-		flex-direction: column;
-		gap: var(--g-space-1);
-		align-items: stretch;
-		width: 100%;
 		margin-block: var(--g-space-6) var(--g-space-1);
 		font-size: var(--g-font-size-100);
 		color: var(--s-color-text-tertiary);
-
-		label {
-			background-color: var(--s-color-bg-surface-primary);
-		}
-
-		.b-input:has(input:focus),
-		.b-input:has(input:hover) {
-			label {
-				background-color: var(--s-color-bg-surface-secondary);
-			}
-		}
 	}
 
 	.b-alert {
@@ -2056,6 +2092,28 @@ main.is-dev-mode .b-toc a {
 
 		.b-btn {
 			margin-block-start: var(--g-space-4);
+		}
+	}
+}
+
+/* Stack of labelled inputs inside a card: a function's params, the run
+   page's command settings. */
+.b-action-function .params,
+.b-run-panel .params {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	align-items: stretch;
+	width: 100%;
+
+	label {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+
+	.b-input:has(input:focus),
+	.b-input:has(input:hover) {
+		label {
+			background-color: var(--s-color-bg-surface-secondary);
 		}
 	}
 }
@@ -2105,12 +2163,51 @@ main.is-dev-mode .b-toc a {
 	}
 }
 
+/* ===== RESULT PANEL =====
+   Output of an evaluation or a run (playground, action evaluator): a small
+   title over a `.b-code` box, like the result of an action function card. */
+.b-result {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+}
+
+.b-result-title {
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-secondary);
+}
+
+.b-result-content {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--g-space-16);
+	max-height: var(--g-space-96);
+	overflow-y: auto;
+	padding: var(--g-space-4);
+	font-family: var(--g-font-family-mono);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	color: var(--s-color-text-secondary);
+}
+
+/* An error result takes the caution alert colours; .b-code pre would
+   otherwise override the u-color-danger set on it. */
+.b-result:has(.u-color-danger) .b-code {
+	background-color: var(--s-color-bg-caution-weak);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-error);
+}
+
+.b-result .b-code .u-color-danger {
+	color: var(--s-color-text-caution);
+}
+
 /* ===== ACTION EVAL COMPONENT ===== */
 .b-action-eval {
 	display: flex;
 	flex-direction: column;
 	gap: var(--g-space-4);
-	margin-block-end: var(--g-space-8);
+	margin-block: var(--g-space-8);
 
 	.b-content-h2 {
 		margin-bottom: 0;
@@ -2120,65 +2217,15 @@ main.is-dev-mode .b-toc a {
 .b-action-eval-form {
 	display: flex;
 	gap: var(--g-space-2);
-	align-items: flex-end;
+	align-items: stretch;
 }
 
 .b-action-eval-form .b-input--full {
 	flex: 1;
 }
 
-.b-action-eval-result {
-	background-color: var(--s-color-bg-surface-secondary);
-	border: 1px solid var(--s-color-border-default);
-	border-radius: var(--g-radius-2);
-	overflow: hidden;
-	padding: var(--g-space-4);
-}
-
-.b-action-eval-result-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	background-color: var(--s-color-bg-muted);
-	border-bottom: 1px solid var(--s-color-border-default);
-	margin-bottom: var(--g-space-1);
-}
-
-.b-action-eval-result-title {
-	font-size: var(--g-font-size-50);
-	letter-spacing: 0.05em;
-}
-
-.b-action-eval-result-clear {
-	border: none;
-	background: none;
-	cursor: pointer;
-	font-size: var(--g-font-size-50);
-	color: var(--s-color-text-tertiary);
-
-	&:hover {
-		color: var(--s-color-text-tertiary-hover);
-	}
-}
-
-.b-action-eval-result-content {
-	padding: var(--g-space-2);
-	margin: 0;
-	font-family: var(--g-font-mono);
-	font-size: var(--g-font-size-75);
-	line-height: 1.6;
-	white-space: pre-wrap;
-	word-break: break-word;
-	min-height: 80px;
-	max-height: 400px;
-	overflow-y: auto;
-	background-color: var(--s-color-bg-base);
-}
-
-.b-action-eval-history {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-2);
+.b-action-eval-history[hidden] {
+	display: none;
 }
 
 .b-action-eval-history-list {
@@ -2188,44 +2235,39 @@ main.is-dev-mode .b-toc a {
 }
 
 .b-action-eval-history-entry {
-	padding: var(--g-space-1-5);
-	border: 1px solid var(--s-color-border-default);
-	background-color: var(--s-color-bg-surface-secondary);
+	min-width: 0;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: var(--s-divider);
 	border-radius: var(--s-rounded);
-
-	& + & {
-		margin-top: var(--g-space-1);
-	}
+	background-color: var(--s-color-bg-base);
 }
 
 .b-action-eval-history-expr {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
+	gap: var(--g-space-2);
 	margin-bottom: var(--g-space-1);
+	font-size: var(--g-font-size-90);
+	overflow-wrap: anywhere;
 }
 
 .b-action-eval-history-rerun {
-	border: none;
-	background: none;
+	flex-shrink: 0;
+	min-width: var(--g-space-6);
+	min-height: var(--g-space-6);
 	cursor: pointer;
-	font-size: var(--g-font-size-100);
-	color: var(--s-color-text-muted);
+	color: var(--s-color-text-tertiary);
 
 	&:hover {
-		color: var(--s-color-text-base);
+		color: var(--s-color-text-tertiary-hover);
 	}
 }
 
 .b-action-eval-history-result {
 	margin: 0;
-	padding: var(--g-space-1);
-	font-family: var(--g-font-mono);
-	font-size: var(--g-font-size-50);
-	background-color: var(--s-color-bg-base);
-	border-radius: var(--g-radius-1);
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-80);
+	color: var(--s-color-text-secondary);
 	white-space: pre-wrap;
-	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 /* ===== PACKAGES LIST COMPONENT ===== */
@@ -3592,176 +3634,34 @@ main.is-dev-mode .b-toc a {
 
 /* ==========================================================================
    CODE EDITOR - CodeMirror wrapper block
+   CodeMirror's own parts (gutter, content, cursor) are themed in
+   frontend/js/code-editor.ts: its .cm-* classes are added at runtime, so
+   PurgeCSS would strip them from this file.
    ========================================================================== */
+/* The frame wraps the editor and, on the playground, its file tabs. */
 .b-code-editor-area {
-	display: flex;
-	flex-direction: column;
-	border: 1px solid var(--s-color-border-default);
-	border-radius: var(--g-radius-2);
+	margin-block-end: var(--g-space-6);
 	overflow: hidden;
-	margin-bottom: var(--g-space-8);
+
+	&:focus-within {
+		outline: var(--s-focus-ring);
+		outline-offset: calc(-1 * var(--g-space-px));
+	}
 }
 
 .b-code-editor {
 	display: flex;
-	height: 60vh;
-	min-height: 300px;
-	resize: vertical;
-	overflow: hidden;
-
-	& .cm-editor {
-		flex: 1;
-		width: 100%;
-		border-radius: var(--s-rounded);
-		background-color: var(--s-color-bg-base);
-		color: var(--s-color-text-secondary);
-		outline: none;
-		padding: var(--g-space-1) 0;
-	}
-
-	& .cm-editor.cm-focused {
-		outline: none;
-	}
-
-	& .cm-scroller {
-		font-family: var(--g-font-mono);
-		font-size: var(--g-font-size-75);
-		line-height: 1.6;
-	}
-
-	& .cm-gutters {
-		background-color: var(--s-color-bg-base);
-		color: var(--s-color-text-muted);
-		border: none;
-	}
+	min-width: 0;
 }
 
-/* ==========================================================================
-   EVAL - Expression evaluator
-   ========================================================================== */
-.b-eval {
+/* Playground and run pages: full-width editor pages. */
+.b-playground,
+.b-run {
 	display: flex;
 	flex-direction: column;
 	min-height: 70vh;
 	grid-column: 1 / -1;
-	gap: var(--g-space-6);
-}
-
-.b-eval-form {
-	display: flex;
-	gap: var(--g-space-2);
-	align-items: flex-end;
-}
-
-.b-eval-form .b-input--full {
-	flex: 1;
-}
-
-.b-eval-result {
-	background-color: var(--s-color-bg-surface-secondary);
-	border: 1px solid var(--s-color-border-default);
-	border-radius: var(--g-radius-2);
-	overflow: hidden;
-	padding: var(--g-space-4);
-}
-
-.b-eval-result-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: var(--g-space-1) 0;
-	background-color: var(--s-color-bg-muted);
-	border-bottom: 1px solid var(--s-color-border-default);
-}
-
-.b-eval-result-title {
-	font-size: var(--g-font-size-50);
-	font-weight: var(--g-font-semibold);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	margin-bottom: var(--g-space-1);
-}
-
-.b-eval-result-clear {
-	border: none;
-	background: none;
-	cursor: pointer;
-	font-size: var(--g-font-size-100);
-	color: var(--s-color-text-tertiary);
-
-	&:hover {
-		color: var(--s-color-text-tertiary-hover);
-	}
-}
-
-.b-eval-result-content {
-	padding: var(--g-space-2);
-	margin: 0;
-	font-family: var(--g-font-mono);
-	font-size: var(--g-font-size-75);
-	line-height: 1.6;
-	white-space: pre-wrap;
-	word-break: break-word;
-	min-height: 80px;
-	max-height: 400px;
-	overflow-y: auto;
-	background-color: var(--s-color-bg-base);
-}
-
-.b-eval-functions {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-2);
-	list-style: disc;
-	padding-left: var(--g-space-4);
-}
-
-.b-eval-history-list {
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	gap: var(--g-space-2);
-}
-
-.b-eval-history-entry {
-	padding: var(--g-space-1-5);
-	border: 1px solid var(--s-color-border-default);
-	background-color: var(--s-color-bg-surface-secondary);
-	border-radius: var(--s-rounded);
-
-	& + & {
-		margin-top: var(--g-space-1);
-	}
-}
-
-.b-eval-history-expr {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: var(--g-space-1);
-}
-
-.b-eval-history-rerun {
-	border: none;
-	background: none;
-	cursor: pointer;
-	font-size: var(--g-font-size-100);
-	color: var(--s-color-text-muted);
-
-	&:hover {
-		color: var(--s-color-text-base);
-	}
-}
-
-.b-eval-history-result {
-	margin: 0;
-	padding: var(--g-space-1);
-	font-family: var(--g-font-mono);
-	font-size: var(--g-font-size-50);
-	background-color: var(--s-color-bg-base);
-	border-radius: var(--g-radius-1);
-	white-space: pre-wrap;
-	word-break: break-word;
+	padding-bottom: var(--g-space-24);
 }
 
 /* ==========================================================================

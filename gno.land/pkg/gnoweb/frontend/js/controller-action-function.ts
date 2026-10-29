@@ -2,6 +2,7 @@ import {
 	BaseController,
 	debounce,
 	escapeShellSpecialChars,
+	postEval,
 } from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
 
@@ -11,6 +12,8 @@ export class ActionFunctionController extends BaseController {
 	declare _pkgPath: string | null;
 	declare _paramInputsCache: HTMLInputElement[];
 	declare _params: Record<string, string>;
+	// Set in connect(), which runs before class-field initialisers.
+	declare _qevalSeq: number;
 
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
@@ -27,6 +30,7 @@ export class ActionFunctionController extends BaseController {
 			"send-code": this.getTargets("send-code"),
 		});
 
+		this._qevalSeq = 0;
 		this._funcName = this.getValue("name") || null;
 		this._pkgPath = this.getValue("pkgpath") || null;
 
@@ -135,12 +139,16 @@ export class ActionFunctionController extends BaseController {
 		(paramName: string, paramValue: string) => {
 			if (paramName) {
 				this._updateArgInDOM(paramName, paramValue);
-				this._updateQEvalResult();
+				this._debouncedQEval();
 				this._dispatchParamsChanged();
 			}
 		},
 		50,
 	);
+
+	// The live result queries the rate-limited /_/api/eval: wait for a pause
+	// in typing instead of sending one request per keystroke.
+	private _debouncedQEval = debounce(() => this._updateQEvalResult(), 400);
 
 	// Dispatch params:changed event uppon parameter updates.
 	private _dispatchParamsChanged(): void {
@@ -197,6 +205,9 @@ export class ActionFunctionController extends BaseController {
 	// Placeholder text and the error class are both read from data-* attributes
 	// on the target so the contract is shared with analytics.ts.
 	private async _updateQEvalResult(): Promise<void> {
+		// Any newer update, even one that only shows the placeholder, voids
+		// the responses still in flight (they can arrive out of order).
+		const seq = ++this._qevalSeq;
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
 
 		// Crossing functions have no qeval-result target.
@@ -220,27 +231,10 @@ export class ActionFunctionController extends BaseController {
 			.join(",");
 		const expression = `${this._funcName}(${args})`;
 
-		// Fetch the eval result and update the DOM.
-		const result = await this._evalExpression(expression);
-		resultTarget.textContent = result;
-		resultTarget.classList.toggle(errorClass, result.startsWith("Error:"));
-	}
-
-	// Fetch the eval result via the same-origin /_/api/eval endpoint.
-	private async _evalExpression(expression: string): Promise<string> {
-		try {
-			const response = await fetch("/_/api/eval", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ pkg_path: this._pkgPath, expression }),
-			});
-			if (!response.ok) return "";
-
-			const json = await response.json();
-			return json.error ? `Error: ${json.error}` : (json.result ?? "");
-		} catch {
-			return "";
-		}
+		const { text, isError } = await postEval(this._pkgPath ?? "", expression);
+		if (seq !== this._qevalSeq) return;
+		resultTarget.textContent = text;
+		resultTarget.classList.toggle(errorClass, isError);
 	}
 
 	// DOM ACTIONS

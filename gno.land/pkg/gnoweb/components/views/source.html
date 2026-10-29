@@ -28,11 +28,13 @@ LAYOUT - Source component
         <span>Download</span>
       </a>
       {{ with .FileEdit }}
-      <a href="{{ . }}" class="b-inline-btn c-with-icon">
+      <a href="{{ . }}" class="b-inline-btn c-with-icon" rel="nofollow"
+        title="Open an editable copy of this package in the Playground (nothing is published)"
+        aria-label="Open in Playground">
         <svg class="c-icon">
-          <use href="#ico-code"></use>
+          <use href="#ico-playground"></use>
         </svg>
-        <span>Edit</span>
+        <span>Playground</span>
       </a>
       {{ end }}
     </div>

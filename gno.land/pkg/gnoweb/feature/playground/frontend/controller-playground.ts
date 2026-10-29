@@ -1,10 +1,11 @@
-import { CodeEditor, isDarkMode } from "@gnoweb/js/code-editor.js";
-import { BaseController, makeCopyIcon } from "@gnoweb/js/controller.js";
-
-interface PlaygroundFile {
-	name: string;
-	content: string;
-}
+import { CodeEditor, type EditorFile } from "@gnoweb/js/code-editor.js";
+import {
+	BaseController,
+	downloadBlob,
+	makeCopyIcon,
+	makeIcon,
+	postEval,
+} from "@gnoweb/js/controller.js";
 
 const GNOMOD_FILE = "gnomod.toml";
 const DEFAULT_GNO_CONTENT = "package main\n";
@@ -13,22 +14,29 @@ const DEFAULT_GNO_CONTENT = "package main\n";
 // It stays under the 8192-byte default limit of common web servers (nginx, Apache).
 const MAX_SHARE_URL_LENGTH = 8_000;
 
+// isValidFileName accepts Gno sources and gnomod.toml, with no path part, so
+// a name can never escape the archive Download builds.
+function isValidFileName(name: string): boolean {
+	if (name.includes("/") || name.includes("\\") || name.includes("..")) {
+		return false;
+	}
+	return name.endsWith(".gno") || name === GNOMOD_FILE;
+}
+
 export class PlaygroundController extends BaseController {
-	private declare files: PlaygroundFile[];
-	private declare activeFile: number;
 	private declare editorEl: HTMLElement;
 	private declare outputEl: HTMLElement;
 	private declare tabsEl: HTMLElement;
 	private declare tabsWrapEl: HTMLElement;
 	private declare prevBtnEl: HTMLButtonElement;
 	private declare nextBtnEl: HTMLButtonElement;
+	// The editor holds every file (text and undo history); the controller
+	// keeps no copy of its own.
 	private declare editor: CodeEditor;
 
 	protected connect(): void {
 		const initialCodeEl = this.getTarget("initial-code") as HTMLTextAreaElement;
 
-		this.files = [];
-		this.activeFile = 0;
 		this.editorEl = this.getTarget("editor") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
 		this.tabsEl = this.getTarget("tabs") as HTMLElement;
@@ -43,24 +51,22 @@ export class PlaygroundController extends BaseController {
 			this._scrollActiveTabIntoView(),
 		);
 
-		this._parseInitialCode(initialCodeEl.value);
-
+		const [first, ...rest] = parseInitialCode(initialCodeEl.value);
 		this.editor = new CodeEditor({
 			parent: this.editorEl,
-			content: this.files[0].content,
-			fileName: this.files[0].name,
-			isDarkMode: isDarkMode(),
+			content: first.content,
+			fileName: first.name,
+			label: "Playground editor",
 			onRun: () => this.runCode(),
 		});
+		for (const f of rest) this.editor.addFile(f.name, f.content);
 
-		this.on("theme:changed", () => {
-			this.editor.changeTheme(isDarkMode());
-		});
+		const defaultFile = this.getValue("default-file");
+		if (defaultFile) this.editor.openFile(defaultFile);
 
-		this._switchToDefaultFile();
 		this._setupTabsScroll();
 		this.renderTabs();
-		this.clearOutput();
+		this._resetOutput("// Run code to see output here");
 	}
 
 	private _setupTabsScroll(): void {
@@ -114,53 +120,12 @@ export class PlaygroundController extends BaseController {
 		this._scrollByPage(1);
 	}
 
-	private _isValidFileName(name: string): boolean {
-		return name.endsWith(".gno") || name === GNOMOD_FILE;
-	}
-
-	private _parseInitialCode(initialCode: string): void {
-		if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
-			const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
-			for (let i = 1; i < parts.length; i += 2) {
-				const name = parts[i].trim();
-				const content = (parts[i + 1] || "").trim();
-
-				// Make sure file name has no path prefix
-				if (name.includes("/") || name.includes("\\") || name.includes("..")) {
-					console.warn(
-						`PlaygroundController: rejected unsafe file name: "${name}"`,
-					);
-					continue;
-				}
-
-				if (name && this._isValidFileName(name)) {
-					this.files.push({ name, content });
-				}
-			}
-
-			if (this.files.length === 0) {
-				this.files = [{ name: "main.gno", content: initialCode }];
-			}
-		} else {
-			this.files = [{ name: "main.gno", content: initialCode }];
-		}
-	}
-
-	private _switchToDefaultFile(): void {
-		const defaultFile = this.getValue("default-file");
-		if (defaultFile) {
-			this._switchToFile(defaultFile);
-		}
-	}
-
 	private _resetOutput(
 		text: string,
 		copyable: boolean = false,
 		isError: boolean = false,
 	): void {
-		while (this.outputEl.firstChild) {
-			this.outputEl.removeChild(this.outputEl.firstChild);
-		}
+		this.outputEl.replaceChildren();
 		this._setOutput(text, copyable, isError);
 	}
 
@@ -175,10 +140,10 @@ export class PlaygroundController extends BaseController {
 			row.classList.add("u-color-danger");
 		}
 
-		const pre = document.createElement("pre");
-		pre.className = "b-playground-output-item-text";
-		pre.textContent = text;
-		row.appendChild(pre);
+		const line = document.createElement("div");
+		line.className = "b-playground-output-item-text";
+		line.textContent = text;
+		row.appendChild(line);
 
 		if (copyable) {
 			const btn = document.createElement("button");
@@ -193,57 +158,79 @@ export class PlaygroundController extends BaseController {
 		}
 
 		this.outputEl.appendChild(row);
-		this.outputEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 	}
 
 	private _setErrorOutput(text: string): void {
 		this._resetOutput(text, false, true);
 	}
 
-	private _switchToFile(fileName: string): boolean {
-		this.files[this.activeFile].content = this.editor.getCode();
-		const idx = this.files.findIndex((f) => f.name === fileName);
-		if (idx >= 0) {
-			this.activeFile = idx;
-			this.editor.setCode(this.files[idx].content);
-			this.editor.setLanguage(this.files[idx].name);
-			this.renderTabs();
-		}
-		return idx >= 0;
+	private _openFile(fileName: string): void {
+		this.editor.openFile(fileName);
+		this.renderTabs();
 	}
 
 	private renderTabs(): void {
-		while (this.tabsEl.firstChild) {
-			this.tabsEl.removeChild(this.tabsEl.firstChild);
-		}
+		const names = this.editor.fileNames();
+		const closable = names.length > 1;
+		this.tabsEl.replaceChildren(
+			...names.map((name) => {
+				const tab = document.createElement("div");
+				tab.className = `b-playground-tab${name === this.editor.fileName ? " b-playground-tab--active" : ""}`;
 
-		this.files.forEach((f, i) => {
-			const btn = document.createElement("button");
-			btn.className = `b-playground-tab${i === this.activeFile ? " b-playground-tab--active" : ""}`;
-			btn.textContent = f.name;
-			btn.addEventListener("click", () => this._switchToFile(f.name));
-			this.tabsEl.appendChild(btn);
-		});
+				const open = document.createElement("button");
+				open.type = "button";
+				open.className = "b-playground-tab-open";
+				open.append(makeIcon("file"), name);
+				open.addEventListener("click", () => this._openFile(name));
+				tab.appendChild(open);
+
+				if (closable) {
+					const close = document.createElement("button");
+					close.type = "button";
+					close.className = "b-playground-tab-close";
+					close.title = `Close ${name}`;
+					close.setAttribute("aria-label", `Close ${name}`);
+					close.appendChild(makeIcon("cross"));
+					close.addEventListener("click", () => this._closeFile(name));
+					tab.appendChild(close);
+				}
+				return tab;
+			}),
+		);
 
 		this._updateNavButtons();
 		this._scrollActiveTabIntoView();
 	}
 
-	public switchTab(event: Event & { params?: Record<string, unknown> }): void {
-		const fileName = event.params?.file as string;
-		if (fileName) {
-			this._switchToFile(fileName);
+	// _closeFile removes a file from the playground; it never removes the last one.
+	private _closeFile(name: string): void {
+		const names = this.editor.fileNames();
+		if (names.length < 2) return;
+		if (
+			this.editor.content(name).trim() &&
+			!confirm(`Remove ${name} from the playground?`)
+		) {
+			return;
 		}
+
+		if (name === this.editor.fileName) {
+			const i = names.indexOf(name);
+			this.editor.openFile(names[i + 1] ?? names[i - 1]);
+		}
+		this.editor.closeFile(name);
+		this.renderTabs();
 	}
 
 	public addFile(): void {
 		const name = prompt("File name (e.g. main.gno or gnomod.toml):");
 		if (name == null) return;
 
-		// If a file with the same name exists, switch to it
-		if (this._switchToFile(name)) return;
+		if (this.editor.fileNames().includes(name)) {
+			this._openFile(name);
+			return;
+		}
 
-		if (!this._isValidFileName(name)) {
+		if (!isValidFileName(name)) {
 			console.error(
 				`PlaygroundController: invalid name, file not added: ${name}`,
 			);
@@ -252,74 +239,43 @@ export class PlaygroundController extends BaseController {
 
 		let content = DEFAULT_GNO_CONTENT;
 		if (name === GNOMOD_FILE) {
-			const domain = this.getValue("domain") || "gno.land";
-			content = `module = "${domain}/r/yourname/pkg"\ngno = "0.9"`;
+			content = `module = "${this.getValue("domain")}/r/yourname/pkg"\ngno = "0.9"`;
 		}
 
-		this.files[this.activeFile].content = this.editor.getCode();
-		this.files.push({ name, content });
-		this.activeFile = this.files.length - 1;
-		this.editor.setCode(this.files[this.activeFile].content);
-		this.editor.setLanguage(this.files[this.activeFile].name);
-		this.renderTabs();
+		this.editor.addFile(name, content);
+		this._openFile(name);
 	}
 
 	public async runCode(): Promise<void> {
-		this.files[this.activeFile].content = this.editor.getCode();
 		this._resetOutput("Running...");
 
 		const code = this.editor.getCode();
 		const pkgMatch = code.match(/^package\s+(\w+)/m);
 		const pkgName = pkgMatch ? pkgMatch[1] : "main";
-		const domain = this.getValue("domain") || "gno.land";
+		const names = this.editor.fileNames();
 
 		if (code.includes("func Render(")) {
-			try {
-				const resp = await fetch("/_/api/eval", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						pkg_path: `${domain}/r/playground_preview`,
-						expression: 'Render("")',
-					}),
-				});
-				const result = await resp.json();
-				if (result.error) {
-					this._setErrorOutput(`Error: ${result.error}`);
-				} else {
-					this._resetOutput(result.result);
-				}
-			} catch {
-				this._resetOutput(
-					`Note: Server-side execution not available for scratchpad code.\n\nPackage: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo deploy and test:\n`,
-				);
-				this._setOutput(
-					` gnokey maketx addpkg -pkgpath "${domain}/r/yourname/pkg" ...`,
-					true,
-				);
-			}
+			const { text, isError } = await postEval(
+				"r/playground_preview",
+				'Render("")',
+			);
+			this._resetOutput(text, false, isError);
 		} else {
 			this._resetOutput(
-				`Package: ${pkgName}\nFiles: ${this.files.map((f) => f.name).join(", ")}\n\nTo run locally:`,
+				`Package: ${pkgName}\nFiles: ${names.join(", ")}\n\nTo run locally:`,
 			);
-			this._setOutput(
-				` gno run ${this.files.map((f) => f.name).join(" ")}`,
-				true,
-			);
+			this._setOutput(` gno run ${names.join(" ")}`, true);
 			this._setOutput("\n\nTo test:");
 			this._setOutput(" gno test .", true);
 		}
 	}
 
 	public async shareCode(): Promise<void> {
-		this.files[this.activeFile].content = this.editor.getCode();
-
+		const files = this.editor.files();
 		const code =
-			this.files.length === 1
-				? this.files[0].content
-				: this.files
-						.map((f) => `// --- ${f.name} ---\n${f.content}`)
-						.join("\n\n");
+			files.length === 1
+				? files[0].content
+				: files.map((f) => `// --- ${f.name} ---\n${f.content}`).join("\n\n");
 
 		// Compress code before sharing it
 		const bytes = new TextEncoder().encode(code);
@@ -352,48 +308,46 @@ export class PlaygroundController extends BaseController {
 	}
 
 	public downloadFiles(): void {
-		// Make sure current file content is the latest when downloading
-		this.files[this.activeFile].content = this.editor.getCode();
-
-		if (this.files.length === 1) {
-			this._triggerDownload(
-				new Blob([this.files[0].content], { type: "text/plain" }),
-				this.files[0].name,
+		const files = this.editor.files();
+		if (files.length === 1) {
+			downloadBlob(
+				new Blob([files[0].content], { type: "text/plain" }),
+				files[0].name,
 			);
 		} else {
-			this._triggerDownload(
-				new Blob([createTar(this.files)], { type: "application/x-tar" }),
+			downloadBlob(
+				new Blob([createTar(files)], { type: "application/x-tar" }),
 				"playground-gno-source-code.tar",
 			);
 		}
 	}
-
-	private _triggerDownload(blob: Blob, filename: string): void {
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = filename;
-		a.click();
-		URL.revokeObjectURL(url);
-	}
-
-	public clearOutput(): void {
-		this._resetOutput("// Run code to see output here");
-	}
 }
 
-function createTar(
-	files: { name: string; content: string }[],
-): Uint8Array<ArrayBuffer> {
+// parseInitialCode splits shared or copied code on its "// --- name ---"
+// separators. Code without separators, or whose names are all rejected, is
+// a single main.gno.
+function parseInitialCode(initialCode: string): EditorFile[] {
+	const files: EditorFile[] = [];
+	if (initialCode.includes("// --- ") && initialCode.includes(" ---")) {
+		const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
+		for (let i = 1; i < parts.length; i += 2) {
+			const name = parts[i].trim();
+			if (!isValidFileName(name)) {
+				console.warn(`PlaygroundController: rejected file name: "${name}"`);
+				continue;
+			}
+			files.push({ name, content: (parts[i + 1] || "").trim() });
+		}
+	}
+	return files.length ? files : [{ name: "main.gno", content: initialCode }];
+}
+
+function createTar(files: EditorFile[]): Uint8Array<ArrayBuffer> {
 	const encoder = new TextEncoder();
 	const blocks: Uint8Array[] = [];
 
 	for (const file of files) {
-		if (
-			file.name.includes("/") ||
-			file.name.includes("\\") ||
-			file.name.includes("..")
-		) {
+		if (!isValidFileName(file.name)) {
 			console.error(
 				`PlaygroundController: skipped file with unsafe name in tar: "${file.name}"`,
 			);

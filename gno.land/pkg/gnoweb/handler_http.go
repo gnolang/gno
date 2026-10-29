@@ -32,9 +32,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -214,11 +212,9 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	// serves everything else, as it did before these features.
 	if cfg.Meta.RemoteHelp != "" && cfg.Meta.ChainId != "" {
 		h.Playground = playground.New(playground.Deps{
-			Client:  &playgroundClientAdapter{cfg.ClientAdapter},
-			Logger:  logger,
-			Domain:  cfg.Meta.Domain,
-			Remote:  cfg.Meta.RemoteHelp,
-			ChainId: cfg.Meta.ChainId,
+			Client: &playgroundClientAdapter{cfg.ClientAdapter},
+			Logger: logger,
+			Domain: cfg.Meta.Domain,
 		})
 		h.Run = run.New(run.Deps{
 			Logger:  logger,
@@ -404,6 +400,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
+		return
+	}
+
+	// $play opens the package in the playground; $fork is its earlier name.
+	if (gnourl.WebQuery.Has("play") || gnourl.WebQuery.Has("fork")) && h.Playground != nil {
+		to := playground.CopyURL(gnourl.Path, gnourl.File)
+		http.Redirect(w, r, to, http.StatusFound)
+		components.RedirectView(components.RedirectData{
+			To:        to,
+			Analytics: h.Static.RedirectAnalytics(),
+		}).Render(w)
 		return
 	}
 
@@ -695,7 +702,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
 		return status, view
 	case gnourl.IsPlayground() && h.Playground != nil:
-		return h.Playground.GetPlaygroundView(gnourl, indexData)
+		return h.Playground.GetPlaygroundView(ctx, gnourl, indexData)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -735,11 +742,6 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
-	}
-
-	// Handle Fork page (fork source to playground)
-	if gnourl.WebQuery.Has("fork") && h.Playground != nil {
-		return h.Playground.GetForkView(ctx, gnourl)
 	}
 
 	// Handle Run page (maketx run scratchpad)
@@ -1328,10 +1330,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 
 	var fileEdit string
 	if strings.HasSuffix(fileName, ".gno") {
-		editURL := *gnourl
-		editURL.WebQuery = url.Values{"fork": {""}}
-		editURL.Query = url.Values{"file": {fileName}}
-		fileEdit = editURL.EncodeWebURL()
+		fileEdit = playground.CopyURL(gnourl.Path, fileName)
 	}
 
 	return http.StatusOK, components.SourceView(components.SourceData{
@@ -1729,7 +1728,7 @@ func errorTitle(status int) string {
 // before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeaderData = components.HeaderData{
-		Breadcrumb: generateBreadcrumbPaths(gnourl),
+		Breadcrumb: generateBreadcrumbPaths(gnourl, h.Static.Domain),
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
@@ -1759,20 +1758,35 @@ func scrubHeaderOnError(indexData *components.IndexData, status int) {
 	}
 }
 
-func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
-	split := strings.Split(url.Path, "/")
+func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.BreadcrumbData {
+	// The playground shows the package it was opened from (?from=), or its
+	// own path, then its pill; never its long ?code= query.
+	if url.IsPlayground() {
+		// "_" has no page of its own: both segments lead to the playground.
+		data := components.BreadcrumbData{Parts: []components.BreadcrumbPart{
+			{Name: "_", URL: "/_/play"},
+			{Name: "play", URL: "/_/play"},
+		}}
+		if from := url.Query.Get("from"); from != "" {
+			data = generateBreadcrumbPaths(&weburl.GnoURL{Path: "/" + playground.RelPath(domain, from)}, domain)
+		}
+		data.View = components.BreadcrumbPart{Name: "playground", URL: "/_/play"}
+		return data
+	}
 
+	// One linked part per path segment; the first one ("r", "p", "u") links to
+	// its listing, hence the trailing slash.
 	var data components.BreadcrumbData
-	var name string
-	for i := range split {
-		if name = split[i]; name == "" {
+	split := strings.Split(url.Path, "/")
+	for i, name := range split {
+		if name == "" {
 			continue
 		}
-
-		data.Parts = append(data.Parts, components.BreadcrumbPart{
-			Name: name,
-			URL:  strings.Join(split[:i+1], "/"),
-		})
+		u := strings.Join(split[:i+1], "/")
+		if len(data.Parts) == 0 {
+			u += "/"
+		}
+		data.Parts = append(data.Parts, components.BreadcrumbPart{Name: name, URL: u})
 	}
 
 	if url.IsRealm() || url.IsPure() {
@@ -1824,16 +1838,8 @@ func (a *playgroundClientAdapter) File(ctx context.Context, p, filename string) 
 	return body, err
 }
 
-func (a *playgroundClientAdapter) Doc(ctx context.Context, p string) (*doc.JSONDocumentation, error) {
-	return a.client.Doc(ctx, p, 0)
-}
-
 func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
 	return a.client.Eval(ctx, pkgPath, expr)
-}
-
-func (a *playgroundClientAdapter) Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error) {
-	return a.client.Simulate(ctx, tx, address)
 }
 
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.

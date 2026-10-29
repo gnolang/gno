@@ -24,9 +24,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,12 +90,6 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 		return s.listPathsFunc(ctx, prefix, limit)
 	}
 	return nil, errors.New("stubClient: ListPaths not implemented")
-}
-
-func (s *stubClient) Simulate(_ context.Context, _ *std.Tx, _ crypto.Address) (*abci.ResponseDeliverTx, error) {
-	return &abci.ResponseDeliverTx{
-		ResponseBase: abci.ResponseBase{Data: []byte("(stub simulate)")},
-	}, nil
 }
 
 func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {
@@ -1794,7 +1785,6 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 		{"with initial code", "/_/play?code=package+main", "package main"},
 		{"with initial encoded code", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D", "package main"},
 		{"with compressed encoded code", "/_/play?code=KkhMzk5MT1XITczM4wIEAAD%2F%2Fw%3D%3D&z", "package main"},
-		{"with fork param", "/_/play?from=gno.land/r/demo/foo", "gno.land/r/demo/foo"},
 	}
 
 	for _, tc := range cases {
@@ -1809,8 +1799,9 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 	}
 }
 
-// TestHTTPHandler_ForkView tests the ?fork query on a package page.
-func TestHTTPHandler_ForkView(t *testing.T) {
+// TestHTTPHandler_PlaygroundCopy tests opening a package copy with /_/play?from=,
+// with or without the chain domain in front of the path.
+func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 	t.Parallel()
 
 	mockPackage := &gnoweb.MockPackage{
@@ -1823,18 +1814,45 @@ func TestHTTPHandler_ForkView(t *testing.T) {
 	}
 
 	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	config.Meta.Domain = "gno.land"
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/p/demo/foo$fork", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	for _, from := range []string{"p/demo/foo", "gno.land/p/demo/foo"} {
+		req := httptest.NewRequest(http.MethodGet, "/_/play?from="+from, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	assert.Contains(t, body, "foo.gno")
-	assert.Contains(t, body, "package foo")
+		assert.Equal(t, http.StatusOK, rr.Code, from)
+		body := rr.Body.String()
+		assert.Contains(t, body, "foo.gno", from)
+		assert.Contains(t, body, "package foo", from)
+		// The breadcrumb names the copied package, linked to it.
+		assert.Contains(t, body, `href="/p/demo/foo"`, from)
+	}
+}
+
+// TestHTTPHandler_PlayRedirect checks that $play, and $fork (its earlier name),
+// send a package or file to its playground copy.
+func TestHTTPHandler_PlayRedirect(t *testing.T) {
+	t.Parallel()
+
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, &stubClient{}))
+	require.NoError(t, err)
+
+	cases := map[string]string{
+		"/r/demo/foo$play":         "/_/play?from=r%2Fdemo%2Ffoo",
+		"/r/demo/foo$fork":         "/_/play?from=r%2Fdemo%2Ffoo",
+		"/r/demo/foo/bar.gno$play": "/_/play?file=bar.gno&from=r%2Fdemo%2Ffoo",
+	}
+	for path, want := range cases {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, http.StatusFound, rr.Code, path)
+		assert.Equal(t, want, rr.Header().Get("Location"), path)
+	}
 }
 
 // TestHTTPHandler_GetOverviewView_SuccessRendersAllSections verifies the overview page

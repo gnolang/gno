@@ -9,11 +9,9 @@ import (
 
 func validDeps() Deps {
 	return Deps{
-		Client:  &stubClient{},
-		Logger:  discardLogger(),
-		Domain:  "gno.land",
-		Remote:  "http://localhost:26657",
-		ChainId: "test",
+		Client: &stubClient{},
+		Logger: discardLogger(),
+		Domain: "gno.land",
 	}
 }
 
@@ -29,16 +27,6 @@ func TestNewPanics(t *testing.T) {
 			name:    "nil client",
 			setup:   func(deps *Deps) { deps.Client = nil },
 			wantMsg: "playground.New: Client is required",
-		},
-		{
-			name:    "empty remote",
-			setup:   func(deps *Deps) { deps.Remote = "" },
-			wantMsg: "playground.New: Remote RPC endpoint is required",
-		},
-		{
-			name:    "empty chain id",
-			setup:   func(deps *Deps) { deps.ChainId = "" },
-			wantMsg: "playground.New: Chain ID is required",
 		},
 	}
 

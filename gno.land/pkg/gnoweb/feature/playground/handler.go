@@ -9,18 +9,13 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"path"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -32,9 +27,9 @@ const (
 	// maxParallelFileFetches caps the number of client source files fetch requests.
 	maxParallelFileFetches = 8
 
-	// maxForkCodeSize caps the total fetched source bytes for a fork to guard
-	// against memory exhaustion from large or numerous on-chain package files.
-	maxForkCodeSize = 1 << 20 // 1 MiB
+	// maxCopyCodeSize caps the total fetched source bytes of a package copy to
+	// guard against memory exhaustion from large or numerous package files.
+	maxCopyCodeSize = 1 << 20 // 1 MiB
 
 	// maxEvalBodyBytes caps the eval request body to guard against memory
 	// exhaustion from oversized JSON payloads.
@@ -46,12 +41,6 @@ const (
 	maxEvalPkgPathLen    = 1024
 	maxEvalExpressionLen = 64 * 1024
 
-	// maxDryRunBodyBytes caps the dry run request body to guard against memory
-	// exhaustion from oversized JSON payloads. A script that does not fit
-	// is not one the node would accept as a MsgRun either. Same bound as
-	// the eval body: both carry one JSON blob of user-authored text.
-	maxDryRunBodyBytes = maxEvalBodyBytes
-
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
 
@@ -61,8 +50,14 @@ func Render(path string) string {
 `
 )
 
-func (h *Handler) GetPlaygroundView(u *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+// GetPlaygroundView serves /_/play: ?from=<pkgpath> opens an editable copy
+// of that package, ?code= a shared snippet, and nothing the default code.
+func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	indexData.HeadData.Title = "Playground — " + h.deps.Domain
+
+	if from := u.Query.Get("from"); from != "" {
+		return h.copyView(ctx, "/"+RelPath(h.deps.Domain, from), u.Query.Get("file"))
+	}
 
 	// If available, read initial source code from a query argument
 	initial := u.Query.Get("code")
@@ -86,21 +81,20 @@ func (h *Handler) GetPlaygroundView(u *weburl.GnoURL, indexData *components.Inde
 
 	return http.StatusOK, NewPageView(PlaygroundData{
 		InitialCode: initial,
-		Remote:      h.deps.Remote,
-		ChainId:     h.deps.ChainId,
 		Domain:      h.deps.Domain,
 	})
 }
 
-// errForkCodeTooLarge signals that the cumulative fetched fork source exceeded
-// maxForkCodeSize and the fetch was aborted.
-var errForkCodeTooLarge = errors.New("package source is too large to fork")
+// errCopyTooLarge signals that the cumulative fetched package source exceeded
+// maxCopyCodeSize and the fetch was aborted.
+var errCopyTooLarge = errors.New("package source is too large to open in the playground")
 
-func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *components.View) {
-	pkgPath := u.Path
+// copyView opens an editable copy of the package at pkgPath, its source files
+// concatenated, with file shown first when set.
+func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *components.View) {
 	files, err := h.deps.Client.ListFiles(ctx, pkgPath)
 	if err != nil {
-		msg := "unable to list files for fork"
+		msg := "unable to list the package files"
 		h.deps.Logger.Warn(msg, "path", pkgPath, "error", err)
 		return http.StatusBadRequest, components.StatusErrorComponent(msg)
 	}
@@ -110,7 +104,7 @@ func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *comp
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(maxParallelFileFetches)
 
-	// Total bounds the cumulative fetched bytes, crossing maxForkCodeSize aborts
+	// Total bounds the cumulative fetched bytes, crossing maxCopyCodeSize aborts
 	// the group, which cancels the remaining in-flight and queued fetches.
 	// Contents is initialized to the number of files. It can contain nils if some
 	// files are not source files. Done to keep file order during content concatenation.
@@ -127,8 +121,8 @@ func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *comp
 				return err
 			}
 
-			if total.Add(int64(len(body))) > maxForkCodeSize {
-				return errForkCodeTooLarge
+			if total.Add(int64(len(body))) > maxCopyCodeSize {
+				return errCopyTooLarge
 			}
 
 			contents[i] = body
@@ -137,13 +131,13 @@ func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *comp
 	}
 
 	if err := g.Wait(); err != nil {
-		if errors.Is(err, errForkCodeTooLarge) {
+		if errors.Is(err, errCopyTooLarge) {
 			msg := err.Error()
-			h.deps.Logger.Warn(msg, "path", pkgPath, "limit", maxForkCodeSize)
+			h.deps.Logger.Warn(msg, "path", pkgPath, "limit", maxCopyCodeSize)
 			return http.StatusRequestEntityTooLarge, components.StatusErrorComponent(msg)
 		}
 
-		msg := "unable to fetch files for fork"
+		msg := "unable to fetch the package files"
 		h.deps.Logger.Error(msg, "path", pkgPath, "error", err)
 		return http.StatusInternalServerError, components.StatusErrorComponent(msg)
 	}
@@ -172,27 +166,14 @@ func (h *Handler) GetForkView(ctx context.Context, u *weburl.GnoURL) (int, *comp
 
 	return http.StatusOK, NewPageView(PlaygroundData{
 		InitialCode: code.String(),
-		ForkFrom:    path.Join(h.deps.Domain, pkgPath),
-		Remote:      h.deps.Remote,
-		ChainId:     h.deps.ChainId,
 		Domain:      h.deps.Domain,
-		DefaultFile: u.Query.Get("file"),
+		DefaultFile: file,
 	})
 }
 
 // EvalHandler returns the http.Handler for POST /_/api/eval.
 func (h *Handler) EvalHandler() http.Handler {
 	return http.HandlerFunc(h.serveEval)
-}
-
-// FuncsHandler returns the http.Handler for GET /_/api/funcs.
-func (h *Handler) FuncsHandler() http.Handler {
-	return http.HandlerFunc(h.serveFuncs)
-}
-
-// DryRunHandler returns the http.Handler for POST /_/api/dryrun.
-func (h *Handler) DryRunHandler() http.Handler {
-	return http.HandlerFunc(h.serveDryRun)
 }
 
 // evalRequest is the JSON request body for the eval endpoint.
@@ -203,41 +184,6 @@ type evalRequest struct {
 
 // evalResponse is the JSON response for the eval endpoint.
 type evalResponse struct {
-	Result string `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-// funcsResponse represents the JSON response of the funcs endpoint.
-type funcsResponse struct {
-	Functions []funcInfo `json:"functions"`
-	PkgDoc    string     `json:"pkg_doc,omitempty"`
-}
-
-type funcInfo struct {
-	Name      string      `json:"name"`
-	Doc       string      `json:"doc,omitempty"`
-	Signature string      `json:"signature"`
-	Params    []paramInfo `json:"params,omitempty"`
-	Crossing  bool        `json:"crossing"`
-}
-
-type paramInfo struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-}
-
-// dryRunRequest is the JSON request body for the dry run endpoint.
-type dryRunRequest struct {
-	PkgPath string `json:"pkg_path"`
-	Script  string `json:"script"`
-
-	// Address is the caller the simulation runs as. serveDryRun will check
-	// that it is a bech32 address.
-	Address string `json:"address"`
-}
-
-// dryRunResponse is the JSON response for the dry run endpoint.
-type dryRunResponse struct {
 	Result string `json:"result,omitempty"`
 	Error  string `json:"error,omitempty"`
 }
@@ -271,10 +217,7 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clean the pkg path.
-	pkgPath := strings.TrimPrefix(req.PkgPath, h.deps.Domain+"/")
-	pkgPath = strings.TrimPrefix(pkgPath, h.deps.Domain)
-	pkgPath = strings.TrimPrefix(pkgPath, "/")
+	pkgPath := RelPath(h.deps.Domain, req.PkgPath)
 
 	h.deps.Logger.Debug("playground eval", "pkg_path", pkgPath)
 
@@ -294,133 +237,22 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, evalResponse{Result: string(result)})
 }
 
-func (h *Handler) serveFuncs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+// CopyURL is the playground URL that opens an editable copy of the package at
+// pkgPath, showing file first when set.
+func CopyURL(pkgPath, file string) string {
+	q := url.Values{"from": {strings.TrimPrefix(pkgPath, "/")}}
+	if file != "" {
+		q.Set("file", file)
 	}
-
-	pkgPath := r.URL.Query().Get("path")
-	if pkgPath == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "path parameter required"})
-		return
-	}
-
-	jdoc, err := h.deps.Client.Doc(r.Context(), pkgPath)
-	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]string{"error": err.Error()})
-		return
-	}
-
-	resp := funcsResponse{
-		PkgDoc:    jdoc.PackageDoc,
-		Functions: make([]funcInfo, 0, len(jdoc.Funcs)),
-	}
-
-	for _, fn := range jdoc.Funcs {
-		if fn.Type != "" { // skip methods
-			continue
-		}
-
-		fi := funcInfo{
-			Name:      fn.Name,
-			Doc:       fn.Doc,
-			Signature: fn.Signature,
-			Crossing:  fn.Crossing,
-			Params:    make([]paramInfo, 0, len(fn.Params)),
-		}
-		for _, p := range fn.Params {
-			fi.Params = append(fi.Params, paramInfo{Name: p.Name, Type: p.Type})
-		}
-
-		resp.Functions = append(resp.Functions, fi)
-	}
-
-	writeJSON(w, http.StatusOK, resp)
+	return "/_/play?" + q.Encode()
 }
 
-// serveDryRun dry-runs the posted script: it simulates the equivalent
-// `gnokey maketx run` against the node without committing the transaction.
-func (h *Handler) serveDryRun(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Shares the eval limiter: both endpoints put work on the same node.
-	if h.limiter != nil && !h.limiter.allow(clientIP(r)) {
-		writeJSON(w, http.StatusTooManyRequests, dryRunResponse{Error: "rate limit exceeded, please slow down"})
-		return
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, maxDryRunBodyBytes)
-
-	var req dryRunRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, dryRunResponse{Error: "invalid request body"})
-		return
-	}
-
-	if req.Script == "" {
-		writeJSON(w, http.StatusBadRequest, dryRunResponse{Error: "script is required"})
-		return
-	}
-
-	// We have no way to look up a key name, so require a bech32 address.
-	addr, err := crypto.AddressFromBech32(req.Address)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, dryRunResponse{Error: "address must be a bech32 address"})
-		return
-	}
-
-	h.deps.Logger.Debug("playground run", "pkg_path", req.PkgPath, "address", addr, "script_len", len(req.Script))
-
-	// XXX: Need to get these from the request
-	var send std.Coins
-	var deposit std.Coins
-	gasWanted := int64(1_000_000_000)
-	gasFee := sdk.Coin{Amount: 1000000, Denom: ugnot.Denom}
-
-	// Make a run tx.
-	memPkg := &std.MemPackage{
-		Name: "main",
-		// Path will be automatically set by handler.
-		Files: []*std.MemFile{
-			{
-				Name: "main.gno",
-				Body: req.Script,
-			},
-		},
-	}
-	msg := vm.MsgRun{
-		Caller:     addr,
-		Package:    memPkg,
-		Send:       send,
-		MaxDeposit: deposit,
-	}
-	tx := &std.Tx{
-		Msgs: []std.Msg{msg},
-		Fee:  std.NewFee(gasWanted, gasFee),
-		// Simulate will add the signature
-		Signatures: nil,
-	}
-
-	start := time.Now()
-	result, err := h.deps.Client.Simulate(r.Context(), tx, addr)
-	took := time.Since(start)
-
-	h.deps.Logger.Debug("playground run result", "took", took, "error", err)
-
-	if err != nil {
-		writeJSON(w, http.StatusOK, dryRunResponse{Error: err.Error()})
-		return
-	}
-	if result.IsErr() {
-		writeJSON(w, http.StatusOK, dryRunResponse{Error: result.Error.Error()})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, dryRunResponse{Result: string(result.Data)})
+// RelPath strips the chain domain and slashes from a package path:
+// "gno.land/r/demo/foo", "/r/demo/foo" and "r/demo/foo" all give "r/demo/foo".
+func RelPath(domain, p string) string {
+	p = strings.TrimPrefix(p, "/")
+	p = strings.TrimPrefix(p, domain+"/")
+	return strings.TrimPrefix(p, "/")
 }
 
 // isSource reports whether a file is source code that can be displayed in the code editor.

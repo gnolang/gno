@@ -1,17 +1,14 @@
-import { BaseController } from "./controller.js";
-
-interface HistoryEntry {
-	expression: string;
-	result: string;
-	isError: boolean;
-}
+import { BaseController, postEval } from "./controller.js";
 
 export class ActionEvalController extends BaseController {
-	private declare history: HistoryEntry[];
+	// Past expressions, for ArrowUp recall.
+	private declare history: string[];
 	private declare inputEl: HTMLInputElement;
 	private declare resultEl: HTMLElement;
 	private declare historyListEl: HTMLElement | null;
 	private declare historySection: HTMLElement | null;
+	// The template's placeholder, shown again when a new expression arrives.
+	private declare placeholder: string;
 
 	protected connect(): void {
 		this.history = [];
@@ -19,17 +16,17 @@ export class ActionEvalController extends BaseController {
 		this.resultEl = this.getTarget("result") as HTMLElement;
 		this.historyListEl = this.getTarget("history-list") as HTMLElement | null;
 		this.historySection = this.getTarget("history") as HTMLElement | null;
+		this.placeholder = this.resultEl?.textContent ?? "";
 
 		if (!this.inputEl || !this.resultEl) return;
 
 		this._setupKeyboardShortcuts();
 		this._listenForEvents();
-		this.inputEl.focus();
 	}
 
 	private _listenForEvents(): void {
 		this.on("eval:expression", (e: Event) => {
-			this.clearResult();
+			this._show(this.placeholder, false);
 
 			const { expression, autoEval } = (e as CustomEvent).detail;
 			this.inputEl.value = expression;
@@ -50,53 +47,25 @@ export class ActionEvalController extends BaseController {
 		this.inputEl.addEventListener("keydown", (e: KeyboardEvent) => {
 			if (e.key === "ArrowUp" && this.history.length > 0) {
 				e.preventDefault();
-				this.inputEl.value = this.history[this.history.length - 1].expression;
+				this.inputEl.value = this.history[this.history.length - 1];
 			}
 		});
 	}
 
 	private async _doEval(expression: string): Promise<void> {
-		this.resultEl.textContent = "Evaluating...";
-		this.resultEl.classList.remove("u-color-danger");
+		this._show("Evaluating...", false);
+		const { text, isError, status } = await postEval(
+			this.getValue("pkg-path"),
+			expression,
+		);
+		this._show(text || "(empty result)", isError);
+		// Rate limiting says nothing about the expression: keep it out of history.
+		if (status !== 429) this._addToHistory(expression, text, isError);
+	}
 
-		try {
-			const pkgPath = this.getValue("pkg-path");
-			const domain = this.getValue("domain") || "gno.land";
-			const relPath = pkgPath.startsWith(`${domain}/`)
-				? pkgPath.slice(domain.length + 1)
-				: pkgPath;
-
-			const response = await fetch("/_/api/eval", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ pkg_path: relPath, expression }),
-			});
-
-			if (response.status === 429)
-				throw new Error("rate limit exceeded — please wait a moment");
-
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-			const json = await response.json();
-
-			let result: string;
-			let isError: boolean;
-			if (json.error) {
-				result = `Error: ${json.error}`;
-				isError = true;
-			} else {
-				result = json.result || "(empty result)";
-				isError = false;
-			}
-
-			this.resultEl.textContent = result;
-			this.resultEl.classList.toggle("u-color-danger", isError);
-			this._addToHistory(expression, result, isError);
-		} catch (err) {
-			const errMsg = `Error: ${err instanceof Error ? err.message : String(err)}`;
-			this.resultEl.textContent = errMsg;
-			this.resultEl.classList.add("u-color-danger");
-			this._addToHistory(expression, errMsg, true);
-		}
+	private _show(text: string, isError: boolean): void {
+		this.resultEl.textContent = text;
+		this.resultEl.classList.toggle("u-color-danger", isError);
 	}
 
 	private _addToHistory(
@@ -104,7 +73,7 @@ export class ActionEvalController extends BaseController {
 		result: string,
 		isError: boolean,
 	): void {
-		this.history.push({ expression, result, isError });
+		this.history.push(expression);
 		if (!this.historyListEl) return;
 
 		if (this.historySection) this.historySection.removeAttribute("hidden");
@@ -113,7 +82,7 @@ export class ActionEvalController extends BaseController {
 		entry.className = "b-action-eval-history-entry";
 
 		const exprDiv = document.createElement("div");
-		exprDiv.className = "b-action-eval-history-expr";
+		exprDiv.className = "b-action-eval-history-expr c-between";
 
 		const codeEl = document.createElement("code");
 		codeEl.className = "u-font-mono";
@@ -122,8 +91,10 @@ export class ActionEvalController extends BaseController {
 
 		const rerunBtn = document.createElement("button");
 		rerunBtn.className = "b-action-eval-history-rerun";
+		rerunBtn.type = "button";
 		rerunBtn.textContent = "↩";
 		rerunBtn.title = "Re-run";
+		rerunBtn.setAttribute("aria-label", `Re-run ${expression}`);
 		rerunBtn.addEventListener("click", () => {
 			this.inputEl.value = expression;
 			this._doEval(expression);
@@ -144,10 +115,5 @@ export class ActionEvalController extends BaseController {
 		event.preventDefault();
 		const expr = this.inputEl.value.trim();
 		if (expr) this._doEval(expr);
-	}
-
-	public clearResult(): void {
-		this.resultEl.textContent = "// Enter an expression above";
-		this.resultEl.classList.remove("u-color-danger");
 	}
 }

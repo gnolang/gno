@@ -96,7 +96,5 @@ export class ThemeController extends BaseController {
 		] as [HTMLElement | null, Preference][]) {
 			el?.classList.toggle("u-hidden", this.preference !== pref);
 		}
-
-		this.dispatch("theme:changed", { theme });
 	}
 }

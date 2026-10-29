@@ -9,17 +9,12 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // MockPackage represents a mock package with files and function signatures for testing.
 type MockPackage struct {
 	Path      string
 	Domain    string
-	Remote    string
-	ChainId   string
 	Files     map[string]string // filename -> body
 	Functions []*doc.JSONFunc
 	// Imports are what vm/qdoc reports the package imports.
@@ -187,11 +182,6 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		return nil, ErrClientPackageNotFound
 	}
 	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports}, nil
-}
-
-// Simulate simulates running the transaction with the address (mock implementation).
-func (m *MockClient) Simulate(ctx context.Context, tx *std.Tx, address crypto.Address) (*abci.ResponseDeliverTx, error) {
-	return nil, nil
 }
 
 // StatePkg returns mock package state data for testing.
