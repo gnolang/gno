@@ -2111,10 +2111,15 @@ main.is-dev-mode .b-toc a {
 	}
 
 	/* On a narrow card the buttons move under the title instead of
-	   squeezing it */
+	   squeezing it. From 20rem of title up, the signature wraps under the
+	   name instead, so the buttons keep the title row. */
 	& > header {
 		flex-wrap: wrap;
 		gap: var(--g-space-2) var(--g-space-4);
+
+		& > .title {
+			flex: 1 1 20rem;
+		}
 
 		.signature {
 			& > code {
