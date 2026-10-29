@@ -53,8 +53,6 @@ func Render(path string) string {
 // GetPlaygroundView serves /_/play: ?from=<pkgpath> opens an editable copy
 // of that package, ?code= a shared snippet, and nothing the default code.
 func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	indexData.HeadData.Title = "Playground — " + h.deps.Domain
-
 	if from := u.Query.Get("from"); from != "" {
 		return h.copyView(ctx, "/"+RelPath(h.deps.Domain, from), u.Query.Get("file"))
 	}
@@ -250,9 +248,11 @@ func CopyURL(pkgPath, file string) string {
 // RelPath strips the chain domain and slashes from a package path:
 // "gno.land/r/demo/foo", "/r/demo/foo" and "r/demo/foo" all give "r/demo/foo".
 func RelPath(domain, p string) string {
-	p = strings.TrimPrefix(p, "/")
+	// TrimLeft, not TrimPrefix: "///evil.com" must not become "//evil.com",
+	// which links would read as another host.
+	p = strings.TrimLeft(p, "/")
 	p = strings.TrimPrefix(p, domain+"/")
-	return strings.TrimPrefix(p, "/")
+	return strings.TrimLeft(p, "/")
 }
 
 // isSource reports whether a file is source code that can be displayed in the code editor.

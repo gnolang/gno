@@ -404,7 +404,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// $play opens the package in the playground; $fork is its earlier name.
-	if (gnourl.WebQuery.Has("play") || gnourl.WebQuery.Has("fork")) && h.Playground != nil {
+	if (gnourl.WebQuery.Has("play") || gnourl.WebQuery.Has("fork")) &&
+		(gnourl.IsRealm() || gnourl.IsPure()) && h.Playground != nil {
 		to := playground.CopyURL(gnourl.Path, gnourl.File)
 		http.Redirect(w, r, to, http.StatusFound)
 		components.RedirectView(components.RedirectData{

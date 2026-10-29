@@ -9,6 +9,8 @@ export class ActionEvalController extends BaseController {
 	private declare historySection: HTMLElement | null;
 	// The template's placeholder, shown again when a new expression arrives.
 	private declare placeholder: string;
+	// Bumped by every evaluation, so a slow response never overwrites a newer one.
+	private declare evalSeq: number;
 
 	protected connect(): void {
 		this.history = [];
@@ -17,6 +19,7 @@ export class ActionEvalController extends BaseController {
 		this.historyListEl = this.getTarget("history-list") as HTMLElement | null;
 		this.historySection = this.getTarget("history") as HTMLElement | null;
 		this.placeholder = this.resultEl?.textContent ?? "";
+		this.evalSeq = 0;
 
 		if (!this.inputEl || !this.resultEl) return;
 
@@ -26,6 +29,7 @@ export class ActionEvalController extends BaseController {
 
 	private _listenForEvents(): void {
 		this.on("eval:expression", (e: Event) => {
+			this.evalSeq++;
 			this._show(this.placeholder, false);
 
 			const { expression, autoEval } = (e as CustomEvent).detail;
@@ -53,14 +57,17 @@ export class ActionEvalController extends BaseController {
 	}
 
 	private async _doEval(expression: string): Promise<void> {
+		const seq = ++this.evalSeq;
 		this._show("Evaluating...", false);
 		const { text, isError, status } = await postEval(
 			this.getValue("pkg-path"),
 			expression,
 		);
-		this._show(text || "(empty result)", isError);
+		if (seq !== this.evalSeq) return;
+		const shown = text || "(empty result)";
+		this._show(shown, isError);
 		// Rate limiting says nothing about the expression: keep it out of history.
-		if (status !== 429) this._addToHistory(expression, text, isError);
+		if (status !== 429) this._addToHistory(expression, shown, isError);
 	}
 
 	private _show(text: string, isError: boolean): void {

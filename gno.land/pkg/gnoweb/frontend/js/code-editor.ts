@@ -88,7 +88,7 @@ const gnowebTheme = EditorView.theme({
 		minHeight: "var(--g-space-64)",
 		overflow: "auto",
 		fontFamily: "var(--g-font-family-mono)",
-		lineHeight: "1.6",
+		lineHeight: "var(--g-line-height-normal)",
 	},
 	".cm-content.chroma-chroma": {
 		paddingBlock: "var(--g-space-3)",
@@ -106,10 +106,17 @@ const gnowebTheme = EditorView.theme({
 	".cm-activeLine, .cm-activeLineGutter": {
 		backgroundColor: "var(--s-color-bg-hover)",
 	},
-	"&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
+	// A light highlight under the text, which keeps its syntax colours: the
+	// selectors match CodeMirror's own so they win, and the native selection
+	// (white text on brand green elsewhere in gnoweb) stays hidden.
+	"&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionLayer .cm-selectionBackground":
 		{
-			backgroundColor: "var(--s-color-selection-bg)",
+			backgroundColor: "var(--s-color-bg-selected)",
 		},
+	".cm-content ::selection": {
+		backgroundColor: "transparent",
+		color: "inherit",
+	},
 	".cm-matchingBracket": {
 		backgroundColor: "var(--s-color-bg-selected)",
 		outline: "var(--s-divider)",

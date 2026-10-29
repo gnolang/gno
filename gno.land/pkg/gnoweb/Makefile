@@ -40,7 +40,9 @@ out_dir_js := $(PUBLIC_DIR)/js
 # Pick up both legacy controllers under frontend/js/ and per-feature
 # controllers under feature/<name>/frontend/. All compile to
 # $(out_dir_js)/<basename>.js (flat output, no source-path mirroring).
-input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts') \
+# code-editor.ts is a library bundled into the controllers that import it,
+# not a page entry point.
+input_js := $(shell find $(src_dir_js) -name '*.ts' -not -name '*.d.ts' -not -name 'code-editor.ts') \
             $(shell find feature -path 'feature/*/frontend/*.ts' 2>/dev/null)
 # Guard against silent overwrites: two features cannot ship the same
 # controller-X.ts basename (they would compile to the same target).

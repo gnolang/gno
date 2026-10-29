@@ -222,8 +222,19 @@ func (r *HTMLRenderer) WriteChromaCSS(w io.Writer) error {
 	if r.cfg.ChromaDarkStyle != nil {
 		var buf bytes.Buffer
 		buf.WriteString("\n[data-theme=\"dark\"] {\n")
-		if err := r.ch.WriteCSS(&buf, r.cfg.ChromaDarkStyle); err != nil {
+		var dark bytes.Buffer
+		if err := r.ch.WriteCSS(&dark, r.cfg.ChromaDarkStyle); err != nil {
 			return fmt.Errorf("writing dark chroma CSS: %w", err)
+		}
+		// The highlighted HTML always carries the light style's mode class,
+		// so the dark rules must target it too, or [data-theme="dark"] keeps
+		// the light palette (unreadable on a dark background). The wrapper
+		// and background rules are dropped: gnoweb paints the code frames.
+		for _, line := range bytes.SplitAfter(dark.Bytes(), []byte("\n")) {
+			if bytes.HasPrefix(line, []byte("/* PreWrapper */")) || bytes.HasPrefix(line, []byte("/* Background */")) {
+				continue
+			}
+			buf.Write(bytes.ReplaceAll(line, []byte(".chroma-dark"), []byte(".chroma-light")))
 		}
 		buf.WriteString("}\n")
 		if _, err := buf.WriteTo(w); err != nil {

@@ -24,11 +24,11 @@
 	display: flex;
 	align-items: center;
 	border-inline-end: var(--s-divider);
-	color: var(--s-color-text-tertiary);
+	color: var(--s-color-text-secondary);
 	transition: color var(--g-transition-fast);
 
 	&:hover {
-		color: var(--s-color-text-secondary);
+		color: var(--s-color-text-primary);
 	}
 
 	&::after {
@@ -66,7 +66,10 @@
 
 .b-playground-tab-close {
 	display: inline-flex;
-	padding: var(--g-space-1);
+	align-items: center;
+	justify-content: center;
+	min-width: var(--g-space-6);
+	min-height: var(--g-space-6);
 	margin-inline-end: var(--g-space-1);
 	border-radius: var(--s-rounded-sm);
 	color: var(--s-color-text-tertiary);
@@ -79,6 +82,11 @@
 	}
 
 	.b-playground-tab:is(:hover, :focus-within, .b-playground-tab--active) & {
+		opacity: var(--g-opacity-100);
+	}
+
+	/* No hover on touch screens: always show it, never as an invisible target. */
+	@media (hover: none) {
 		opacity: var(--g-opacity-100);
 	}
 }

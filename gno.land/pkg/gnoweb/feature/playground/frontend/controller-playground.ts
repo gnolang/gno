@@ -180,6 +180,9 @@ export class PlaygroundController extends BaseController {
 				const open = document.createElement("button");
 				open.type = "button";
 				open.className = "b-playground-tab-open";
+				if (name === this.editor.fileName) {
+					open.setAttribute("aria-current", "true");
+				}
 				open.append(makeIcon("file"), name);
 				open.addEventListener("click", () => this._openFile(name));
 				tab.appendChild(open);
@@ -219,6 +222,10 @@ export class PlaygroundController extends BaseController {
 		}
 		this.editor.closeFile(name);
 		this.renderTabs();
+		// The closed tab's button is gone: keep keyboard focus in the tab bar.
+		this.tabsEl
+			.querySelector<HTMLButtonElement>('[aria-current="true"]')
+			?.focus();
 	}
 
 	public addFile(): void {
@@ -231,8 +238,8 @@ export class PlaygroundController extends BaseController {
 		}
 
 		if (!isValidFileName(name)) {
-			console.error(
-				`PlaygroundController: invalid name, file not added: ${name}`,
+			this._setErrorOutput(
+				`Error: "${name}" is not a valid file name. Use a name ending in .gno, or gnomod.toml.`,
 			);
 			return;
 		}
@@ -332,11 +339,13 @@ function parseInitialCode(initialCode: string): EditorFile[] {
 		const parts = initialCode.split(/^\/\/ --- (.+?) ---$/m);
 		for (let i = 1; i < parts.length; i += 2) {
 			const name = parts[i].trim();
-			if (!isValidFileName(name)) {
-				console.warn(`PlaygroundController: rejected file name: "${name}"`);
+			if (!isValidFileName(name) || files.some((f) => f.name === name)) {
+				console.warn(`PlaygroundController: skipped file "${name}"`);
 				continue;
 			}
-			files.push({ name, content: (parts[i + 1] || "").trim() });
+			// Drop the separator's blank lines, keep one final newline.
+			const content = (parts[i + 1] || "").replace(/^\n+|\n+$/g, "");
+			files.push({ name, content: `${content}\n` });
 		}
 	}
 	return files.length ? files : [{ name: "main.gno", content: initialCode }];

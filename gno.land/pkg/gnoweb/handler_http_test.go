@@ -1828,9 +1828,15 @@ func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
 		body := rr.Body.String()
 		assert.Contains(t, body, "foo.gno", from)
 		assert.Contains(t, body, "package foo", from)
-		// The breadcrumb names the copied package, linked to it.
+		// The breadcrumb names the copied package, linked to it, then the pill.
 		assert.Contains(t, body, `href="/p/demo/foo"`, from)
+		assert.Contains(t, body, `class="view"`, from)
 	}
+
+	// Extra leading slashes never turn into links to another host.
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=///evil.com/x", nil))
+	assert.NotContains(t, rr.Body.String(), `href="//`)
 }
 
 // TestHTTPHandler_PlayRedirect checks that $play, and $fork (its earlier name),

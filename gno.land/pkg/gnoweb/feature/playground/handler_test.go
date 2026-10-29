@@ -320,6 +320,27 @@ func TestCopyView(t *testing.T) {
 	})
 }
 
+func TestRelPath(t *testing.T) {
+	t.Parallel()
+
+	for in, want := range map[string]string{
+		"r/demo/foo":          "r/demo/foo",
+		"/r/demo/foo":         "r/demo/foo",
+		"gno.land/r/demo/foo": "r/demo/foo",
+		"///evil.com/x":       "evil.com/x",
+		"gno.land//r/demo":    "r/demo",
+	} {
+		assert.Equal(t, want, RelPath("gno.land", in), in)
+	}
+}
+
+func TestCopyURL(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "/_/play?from=r%2Fdemo%2Ffoo", CopyURL("/r/demo/foo", ""))
+	assert.Equal(t, "/_/play?file=a.gno&from=r%2Fdemo%2Ffoo", CopyURL("/r/demo/foo", "a.gno"))
+}
+
 // TestDecodeCompressedCode unit-tests the bounded DEFLATE decoder directly.
 func TestDecodeCompressedCode(t *testing.T) {
 	t.Parallel()

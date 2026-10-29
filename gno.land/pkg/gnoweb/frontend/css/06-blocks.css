@@ -726,6 +726,28 @@
 	}
 }
 
+/* Five tabs (realm pages, with Run) only fit beside the omnibar with tighter
+   spacing, and with icons only once the screen has room for them. */
+.menu-dev:has(> .b-menu-link:nth-child(5)) .link {
+	@media (--xl) {
+		margin-inline-end: var(--g-space-2);
+	}
+
+	@media (--2xl) {
+		margin-inline-end: var(--g-space-3);
+
+		& > svg {
+			display: none;
+		}
+	}
+
+	@media (--max) {
+		& > svg {
+			display: inline-block;
+		}
+	}
+}
+
 .b-menu-general .link {
 	color: var(--s-color-text-secondary);
 
@@ -800,6 +822,10 @@
 
 		&:not(:first-child) {
 			margin-inline-start: var(--g-space-2);
+		}
+
+		.b-tag {
+			border-color: var(--s-color-border-tertiary);
 		}
 	}
 
@@ -1887,7 +1913,7 @@
 	}
 }
 
-[data-theme="dark"] .b-source-code > pre {
+[data-theme="dark"] .b-source-code > pre.chroma-chroma {
 	background-color: var(--s-color-bg-base);
 }
 
@@ -2259,6 +2285,12 @@ main.is-dev-mode .b-toc a {
 	&:hover {
 		color: var(--s-color-text-tertiary-hover);
 	}
+}
+
+/* An error entry takes the caution colours, like the result panel above. */
+.b-action-eval-history-entry:has(.u-color-danger) {
+	background-color: var(--s-color-bg-caution-weak);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-error);
 }
 
 .b-action-eval-history-result {
