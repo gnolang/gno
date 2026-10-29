@@ -183,7 +183,7 @@ Main:
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
 								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
-									panic(fmt.Sprintf("%s (value of type int) is not constant", currExpr.String()))
+									panic(fmt.Sprintf("%s (value of type int) is not constant", exprString(currExpr)))
 								}
 								break Main
 							}
@@ -203,6 +203,10 @@ Main:
 				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(), tup.Elts))
 			}
 		case *TypeType:
+			// string([]byte(nil)): the target must be a constant type.
+			if ct := evalStaticType(store, last, currExpr.Func); !isConstantType(ct) {
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", exprString(currExpr), ct))
+			}
 			for _, arg := range currExpr.Args {
 				assertValidConstValue(store, last, arg)
 			}
@@ -434,4 +438,11 @@ func binaryPrecedence(op Word) int {
 		return 5
 	}
 	return 6
+}
+
+// isConstantType reports whether t can be the type of a constant: a
+// boolean, numeric or string type (Go spec, "Constants").
+func isConstantType(t Type) bool {
+	_, ok := baseOf(t).(PrimitiveType)
+	return ok
 }

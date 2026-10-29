@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/varg_6.gno:10:2-16: operator << not defined on: Float64Kind
+// main/varg_6.gno:10:6-12: operator << not defined on: Float64Kind
 
 // TypeCheckError:
 // main/varg_6.gno:10:6: invalid operation: shifted operand 1.0 (type float64) must be integer

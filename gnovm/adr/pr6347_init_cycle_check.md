@@ -46,3 +46,5 @@ lists 31 corpus files whose only gap is this rule.
   message as their golden.
 - Messages name the path, as gc's do, so a marker regex such as
   `initialization cycle|depends upon itself` matches.
+
+Follow-up (2026-10-30): in accumulate mode a constant cycle is recorded at its first member and the closing name stands in as invalidType, so every cycle through the other dependencies is reported too, as gc does.
