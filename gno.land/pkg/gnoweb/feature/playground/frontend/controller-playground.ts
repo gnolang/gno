@@ -117,6 +117,13 @@ export class PlaygroundController extends BaseController {
 	private _endPreview(): void {
 		if (!this.preview) return;
 		this.preview = false;
+		// A preview still in flight would show the realm as deployed, which
+		// the edit has just made something else: drop it.
+		if (this.runAbort) {
+			this.runAbort.abort();
+			this.runAbort = undefined;
+			this._resetOutput("// Run code to see output here");
+		}
 		const btn = this.runBtnEl;
 		if (!btn) return;
 		const label = btn.querySelector("span");
@@ -304,6 +311,7 @@ export class PlaygroundController extends BaseController {
 	// it shows the commands that run it locally instead.
 	public async runCode(): Promise<void> {
 		this.runAbort?.abort();
+		this.runAbort = undefined;
 		if (!this.preview) {
 			this._resetOutput("Save the files in one directory, then run:");
 			this._setOutput(" gno run .", true);
@@ -321,6 +329,7 @@ export class PlaygroundController extends BaseController {
 			this.runAbort.signal,
 		);
 		if (seq !== this.outputSeq) return;
+		this.runAbort = undefined;
 		const failed = isError || unavailable;
 		this._resetOutput(failed ? text : renderText(text), false, failed);
 	}
