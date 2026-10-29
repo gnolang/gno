@@ -125,26 +125,29 @@ generated `gnokey maketx run` command, optionally with the script inlined
 through a heredoc. gnoweb never signs or broadcasts.
 
 - **Where:** `$run` serves the page only for a realm or pure package the
-  node's `vm/qdoc` answers for, on its path or on one of its files that
-  the package lists (the Run tab of a source file links there). A listing,
-  a user page, a missing file or a path with no package renders as if
-  `$run` were not there, with that page's tabs; a node failure gets the
-  error page `$help` gives. Error pages have no Run tab: the header is
-  built knowing the page is an error. The Run tab stays a realm tab; a
-  pure package's `$run` is reached by URL.
+  node's `vm/qdoc` answers for, on its path or on one of its files that the
+  package lists (the Run tab of a source file links there). A listing, a
+  user page, a missing file, a path with no package or a `$source` page
+  renders as if `$run` were not there, with that page's tabs; a node failure
+  gets the error page `$help` gives. Error pages have no Run tab: the header
+  is built knowing the page is an error. The Run tab stays a realm tab; a
+  pure package's `$run` is reached by URL. gnodev loads a package lazily on
+  its first query, so its proxy counts `vm/qdoc` as one, as it does
+  `vm/qrender`: a first `$run` gets the run page.
 - **Starter script:** built on the server from the same qdoc, so it runs as
-  generated: `println(pkg.Render(""))` when the package declares
-  `Render(string) string`, `Render(cross(cur), "")` from a
+  generated, for a gas that does not depend on the package: `_ = pkg.Render`
+  under a commented `println(pkg.Render(""))` when the package declares
+  `Render(string) string`, the same with `Render(cross(cur), "")` from a
   `main(cur realm)` when that `Render` is crossing, and otherwise
   `_ = pkg.F` for the first exported function, since an unused import does
   not compile. A package with no exported function gets a blank import. The
   name is the import's own (`gno.LastPathElement`, which skips a version
   suffix).
 - **Served whole:** the script is highlighted in the editor's place and the
-  command is in the page, so the page is complete without JS. The
-  controller replaces the script with the editor and fills the command's
-  slots from the fields. Reset, Download and the "Include script" switch
-  do nothing without JS, so they are served hidden and shown by the
+  command is in the page, so the page is complete without JS. The controller
+  replaces the script with the editor and fills the command's slots from the
+  fields. Reset, Download, the "Include script" switch and the command
+  settings do nothing without JS, so they are served hidden and shown by the
   controller, as the Eval buttons are on `$help`. Copy stays, as on every
   code block.
 - **Modes and key:** the command follows `$help`: Full Security (query the
@@ -163,11 +166,16 @@ through a heredoc. gnoweb never signs or broadcasts.
   of the script equals, so the script cannot end the heredoc and run lines as
   commands. Both helpers are pinned by the frontend tests, which run the
   quoted values and the heredoc through `sh`.
-- **Gas:** 50,000,000 gas with a 100000ugnot fee. The example realms'
-  starter scripts take 1 to 14 million gas (one realm's `Render` alone takes
-  far more and needs a raised gas), and the fee pays for 100 million gas at
-  the chain's initial price (1ugnot per 1000 gas), since the whole fee is
-  charged. `$help`'s calls keep their 1,000,000,000 and 1000000ugnot: they
+- **Gas:** 50,000,000 gas with a 100000ugnot fee. The starter script names
+  `Render` (or the first exported function) and shows the call in a
+  comment: a `Render` costs what its package makes it cost (145 million gas
+  for `r/gnoland/home`, 448 million for `r/docs/markdown` on gnodev), so a
+  starter that called it would run out of gas, and be charged the fee, on
+  exactly the realms people open. Named only, the example realms' starters
+  take 1 to 9 million gas. The fee pays for 100 million gas at the chain's
+  initial price (1ugnot per 1000 gas), since the whole fee is charged, even
+  out of gas; the line above the command says so and names the flags to
+  raise. `$help`'s calls keep their 1,000,000,000 and 1000000ugnot: they
   call any function. Both pairs are Go values in `components` (`CallGas`,
   `RunGas`), read by `command.html`, the run page's inputs and, for an
   emptied field, the controller (the input's `defaultValue`).
