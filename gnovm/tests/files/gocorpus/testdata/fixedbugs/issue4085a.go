@@ -26,6 +26,5 @@ func main() {
 
 // GnoWordingDiffers:
 // line 13: gc expects: constant 0.5 truncated to integer|non-integer len argument|truncated to int; gno: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
-// line 15: gc expects: len argument too large|overflows int; gno: bigint overflows target kind
 
 // Verdict: Clean errorcheck
