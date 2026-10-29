@@ -230,7 +230,8 @@ run with `--splitting`: CodeMirror, which the playground and `$run` both
 open, ships once as a `chunk-<hash>.js` they import, and
 `@gnoweb/js/controller.js` stays an import of the `controller.js` every page
 loads, so neither bundle carries its own `BaseController` or helpers. The
-`@gnoweb/js` alias lives in `tsconfig.json` only, which esbuild reads. Each
+`@gnoweb/js` alias lives in `tsconfig.json`, which esbuild reads; the Makefile
+only maps `@gnoweb/js/controller.js` to that external `./controller.js`. Each
 icon keeps a single meaning across gnoweb (the lightning is a transaction,
 `ico-run-code` runs the playground, `ico-eval` evaluates, `ico-playground`
 opens the playground).
