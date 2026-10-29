@@ -25,6 +25,6 @@ func main() {
 
 // GnoError:
 // line 13: function foobar does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 18: cannot use <untyped> bigint as *main.Cint
+// line 22: cannot use <untyped> bigint as *main.Cint
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22; over-strict: lines 18
+// Verdict: Clean errorcheck
