@@ -90,11 +90,6 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
-		writeJSON(w, http.StatusTooManyRequests, evalResponse{Error: "rate limit exceeded, please slow down"})
-		return
-	}
-
 	r.Body = http.MaxBytesReader(w, r.Body, maxEvalBodyBytes)
 
 	var req evalRequest
@@ -118,6 +113,15 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkgPath := RelPath(h.deps.Domain, req.PkgPath)
+	key := evalKey(pkgPath, req.Expression)
+
+	// Only a query that reaches the node is charged: a cached answer costs
+	// nothing, so readers behind one address (a proxy gnoweb is not told
+	// to trust) do not drain their shared budget on a popular page.
+	if _, ok := h.cachedEval(key); !ok && h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
+		writeJSON(w, http.StatusTooManyRequests, evalResponse{Error: "rate limit exceeded, please slow down"})
+		return
+	}
 
 	h.deps.Logger.Debug("playground eval", "pkg_path", pkgPath)
 
@@ -125,7 +129,7 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	start := time.Now()
-	result, err := h.eval(ctx, pkgPath, req.Expression)
+	result, err := h.eval(ctx, key, pkgPath, req.Expression)
 	took := time.Since(start)
 
 	h.deps.Logger.Debug("playground eval result", "took", took, "error", err)
@@ -153,10 +157,8 @@ type evalAnswer struct {
 // and sharing one node query between the readers asking at the same time.
 // The query runs detached from the reader who started it, under its own
 // deadline, so a closed tab does not fail the readers waiting on it.
-func (h *Handler) eval(ctx context.Context, pkgPath, expr string) (string, error) {
-	// The length prefix keeps two different pairs from sharing a key.
-	key := fmt.Sprintf("%d:%s%s", len(pkgPath), pkgPath, expr)
-	if a, ok := h.evals.Get(key); ok && time.Now().Before(a.expires) {
+func (h *Handler) eval(ctx context.Context, key, pkgPath, expr string) (string, error) {
+	if a, ok := h.cachedEval(key); ok {
 		return a.result, a.err
 	}
 
@@ -190,6 +192,18 @@ func (h *Handler) eval(ctx context.Context, pkgPath, expr string) (string, error
 	case <-ctx.Done():
 		return "", fmt.Errorf("%w: %w", ErrEvalTimeout, ctx.Err())
 	}
+}
+
+// evalKey is the cache key of expr in pkgPath. The length prefix keeps two
+// different pairs from sharing a key.
+func evalKey(pkgPath, expr string) string {
+	return fmt.Sprintf("%d:%s%s", len(pkgPath), pkgPath, expr)
+}
+
+// cachedEval is the answer for key younger than evalCacheTTL, if any.
+func (h *Handler) cachedEval(key string) (evalAnswer, bool) {
+	a, ok := h.evals.Get(key)
+	return a, ok && time.Now().Before(a.expires)
 }
 
 // capEvalResult cuts a result longer than maxEvalResultBytes on a rune

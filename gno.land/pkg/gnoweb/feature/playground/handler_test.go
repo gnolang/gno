@@ -574,38 +574,44 @@ func (l *denyLimiter) AllowRequest(*http.Request) bool {
 
 // TestEvalLimiter checks that serveEval charges the configured limiter and
 // answers 429 once it refuses, and that a request refused for its
-// Content-Type or origin costs the reader nothing.
+// Content-Type or origin, or answered from the cache, costs the reader
+// nothing: readers behind one proxy share a bucket, and a popular page
+// must not drain it.
 func TestEvalLimiter(t *testing.T) {
 	t.Parallel()
 
+	client := &stubClient{evalResult: []byte("ok")}
 	h := New(Deps{
-		Client:   &stubClient{evalResult: []byte("ok")},
+		Client:   client,
 		Packages: &stubPackages{},
 		Logger:   discardLogger(),
 		Limiter:  &denyLimiter{n: 2},
 	})
 	handler := h.EvalHandler()
 
-	body := `{"pkg_path":"r/mock/path","expression":"Render(\"\")"}`
-	requests := []map[string]string{
-		{"Content-Type": "text/plain"},
-		{"Content-Type": "application/json", "Sec-Fetch-Site": "cross-site"},
-		{"Content-Type": "application/json"},
-		{"Content-Type": "application/json"},
-		{"Content-Type": "application/json"},
+	requests := []struct {
+		expr    string
+		headers map[string]string
+		want    int
+	}{
+		{"A()", map[string]string{"Content-Type": "text/plain"}, http.StatusUnsupportedMediaType},
+		{"A()", map[string]string{"Content-Type": "application/json", "Sec-Fetch-Site": "cross-site"}, http.StatusForbidden},
+		{"A()", map[string]string{"Content-Type": "application/json"}, http.StatusOK},
+		{"B()", map[string]string{"Content-Type": "application/json"}, http.StatusOK},
+		// The budget is spent: only cached answers are served.
+		{"A()", map[string]string{"Content-Type": "application/json"}, http.StatusOK},
+		{"B()", map[string]string{"Content-Type": "application/json"}, http.StatusOK},
+		{"C()", map[string]string{"Content-Type": "application/json"}, http.StatusTooManyRequests},
 	}
-	codes := make([]int, len(requests))
-	for i, headers := range requests {
+	for i, tc := range requests {
+		body := `{"pkg_path":"r/mock/path","expression":"` + tc.expr + `"}`
 		req := httptest.NewRequest(http.MethodPost, "/_/api/eval", strings.NewReader(body))
-		for k, v := range headers {
+		for k, v := range tc.headers {
 			req.Header.Set(k, v)
 		}
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
-		codes[i] = rr.Code
+		assert.Equal(t, tc.want, rr.Code, "request %d: %s", i, tc.expr)
 	}
-	assert.Equal(t, []int{
-		http.StatusUnsupportedMediaType, http.StatusForbidden,
-		http.StatusOK, http.StatusOK, http.StatusTooManyRequests,
-	}, codes)
+	assert.Equal(t, "B()", client.expr, "C() never reached the node")
 }

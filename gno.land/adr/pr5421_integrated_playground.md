@@ -213,7 +213,11 @@ always sets the help remote and the chain ID their commands print.
 - **Rate limit:** `state.NewIPLimiter`, built with `-trusted-proxies` like
   the state and search limiters: 40 of burst and 60 per minute per client,
   so a load and a reload of a realm with a dozen zero-argument functions
-  fit.
+  fit. Only a query that reaches the node is charged: an answer served from
+  the cache below costs no budget. Behind a reverse proxy, operators must
+  set `-trusted-proxies` to it; left empty (the default), every reader
+  resolves to the proxy and shares one bucket, which the free cached
+  answers keep a popular `$help` page from draining.
 - **Node load:** answers are kept for 3 s in a bounded LRU, keyed on package
   and expression, and concurrent readers of the same expression share one
   query (singleflight), so a popular Actions page costs the node one query

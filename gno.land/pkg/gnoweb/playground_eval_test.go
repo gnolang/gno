@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// postEval sends one /_/api/eval request from remoteAddr with the given
-// extra headers and returns the status.
-func postEval(t *testing.T, h http.Handler, remoteAddr string, headers map[string]string) int {
+// postEval sends one /_/api/eval request for expr from remoteAddr with the
+// given extra headers and returns the status.
+func postEval(t *testing.T, h http.Handler, expr, remoteAddr string, headers map[string]string) int {
 	t.Helper()
 
-	body := `{"pkg_path":"r/demo/counter","expression":"Render(\"\")"}`
+	body := fmt.Sprintf(`{"pkg_path":"r/demo/counter","expression":%q}`, expr)
 	req := httptest.NewRequest(http.MethodPost, "/_/api/eval", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range headers {
@@ -58,8 +58,18 @@ func TestPlaygroundEvalLimiter(t *testing.T) {
 	t.Run("a load and a reload of a dozen getters fit", func(t *testing.T) {
 		t.Parallel()
 		eval := newEval(t)
-		limited := countLimited(24, func(int) int {
-			return postEval(t, eval, "192.0.2.1:1234", nil)
+		// Each a query of its own, as when the cache has expired.
+		limited := countLimited(24, func(i int) int {
+			return postEval(t, eval, fmt.Sprintf("Getter%d()", i), "192.0.2.1:1234", nil)
+		})
+		assert.Zero(t, limited)
+	})
+
+	t.Run("cached answers cost no budget", func(t *testing.T) {
+		t.Parallel()
+		eval := newEval(t)
+		limited := countLimited(100, func(int) int {
+			return postEval(t, eval, `Render("")`, "192.0.2.1:1234", nil)
 		})
 		assert.Zero(t, limited)
 	})
@@ -68,7 +78,7 @@ func TestPlaygroundEvalLimiter(t *testing.T) {
 		t.Parallel()
 		eval := newEval(t)
 		limited := countLimited(100, func(i int) int {
-			return postEval(t, eval, "192.0.2.1:1234", map[string]string{
+			return postEval(t, eval, fmt.Sprintf("Getter%d()", i), "192.0.2.1:1234", map[string]string{
 				"X-Real-IP": fmt.Sprintf("10.0.1.%d", i),
 			})
 		})
@@ -79,7 +89,7 @@ func TestPlaygroundEvalLimiter(t *testing.T) {
 		t.Parallel()
 		eval := newEval(t, "127.0.0.1/32")
 		limited := countLimited(100, func(i int) int {
-			return postEval(t, eval, "127.0.0.1:1234", map[string]string{
+			return postEval(t, eval, fmt.Sprintf("Getter%d()", i), "127.0.0.1:1234", map[string]string{
 				"X-Real-IP": fmt.Sprintf("10.0.1.%d", i),
 			})
 		})
