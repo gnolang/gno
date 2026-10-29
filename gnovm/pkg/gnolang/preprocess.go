@@ -1692,7 +1692,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				checkValDefineMismatch(n)
 				if n.Op == ASSIGN && len(n.Lhs) < len(n.Rhs) {
 					// Before the walk: it visits one value per target.
-					panic(assignMismatchMsg(len(n.Lhs), nil, len(n.Rhs)))
+					failf(CodeMultiValue, nil, "%s", assignMismatchMsg(len(n.Lhs), nil, len(n.Rhs)))
 				}
 
 				if n.Op == DEFINE {
