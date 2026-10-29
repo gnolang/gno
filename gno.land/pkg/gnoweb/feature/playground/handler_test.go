@@ -28,9 +28,12 @@ import (
 type stubClient struct {
 	evalResult []byte
 	evalErr    error
+	// pkgPath and expr are what the last Eval was asked.
+	pkgPath, expr string
 }
 
-func (s *stubClient) Eval(context.Context, string, string) ([]byte, error) {
+func (s *stubClient) Eval(_ context.Context, pkgPath, expr string) ([]byte, error) {
+	s.pkgPath, s.expr = pkgPath, expr
 	return s.evalResult, s.evalErr
 }
 
@@ -95,6 +98,12 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 		{
 			name:       "valid eval",
 			body:       valid,
+			wantStatus: http.StatusOK,
+			wantResult: "mock eval",
+		},
+		{
+			name:       "the chain domain is stripped",
+			body:       `{"pkg_path":"gno.land/r/mock/path","expression":"Render(\"\")"}`,
 			wantStatus: http.StatusOK,
 			wantResult: "mock eval",
 		},
@@ -220,6 +229,12 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 			var resp evalResponse
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
 			assert.Equal(t, tc.wantResult, resp.Result)
+			if tc.wantResult != "" {
+				// The node is asked the request's package, without its
+				// domain, and its expression.
+				assert.Equal(t, "r/mock/path", client.pkgPath)
+				assert.Equal(t, `Render("")`, client.expr)
+			}
 			assert.Contains(t, resp.Error, tc.wantError)
 			if tc.wantError == "" {
 				assert.Empty(t, resp.Error)
