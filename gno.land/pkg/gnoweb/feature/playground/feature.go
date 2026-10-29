@@ -12,8 +12,8 @@ import (
 
 // ClientAdapter is the subset of the gnoweb chain-client interface that
 // the playground feature consumes. Declared locally so feature/playground
-// does not import the gnoweb package. The signatures match the
-// corresponding methods on gnoweb.ClientAdapter.
+// does not import the gnoweb package; gnoweb's adapter maps its client's
+// errors onto ErrEvalTimeout and ErrEvalUnavailable.
 type ClientAdapter interface {
 	// Eval evaluates expr inside pkgPath through vm/qeval. pkgPath carries
 	// no domain: the client adds its own.
