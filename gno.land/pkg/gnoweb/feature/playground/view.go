@@ -6,7 +6,7 @@ type PlaygroundData struct {
 	// text format the Share button writes.
 	InitialCode string
 
-	// Files is a package copy (?from=), one entry per file: never put
+	// Files is a package copy (?from=), one <pre> per file: never put
 	// through the text format, which a source line could split.
 	Files []File
 

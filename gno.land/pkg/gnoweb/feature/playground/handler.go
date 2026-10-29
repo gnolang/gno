@@ -30,6 +30,11 @@ const (
 	// few bytes would expand into a page of megabytes.
 	maxDecompressedCodeSize = 64 << 10
 
+	// maxCopySourceBytes caps the sources a copy shows, which the page
+	// carries as text. Only those count: a README or another file the copy
+	// leaves out does not.
+	maxCopySourceBytes = 1 << 20
+
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
 
@@ -104,10 +109,16 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 
 	// A new slice: the fetcher's may be shared with other readers.
 	sources := make([]File, 0, len(files))
+	size := 0
 	for _, f := range files {
 		if isSource(f.Name) {
 			sources = append(sources, f)
+			size += len(f.Content)
 		}
+	}
+	if size > maxCopySourceBytes {
+		h.deps.Logger.Warn("package too large to copy", "path", pkgPath, "bytes", size)
+		return http.StatusRequestEntityTooLarge, components.StatusErrorComponent(ErrPackageTooLarge.Error())
 	}
 
 	from := strings.TrimPrefix(pkgPath, "/")

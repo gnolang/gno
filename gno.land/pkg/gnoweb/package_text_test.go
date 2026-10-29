@@ -210,7 +210,7 @@ func TestPackageFiles_SharedWithPlayground(t *testing.T) {
 	queries := client.queries.Load()
 	rr := get("/_/play?from=r/mock/path")
 	require.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), `{"name":"a.gno","content":"package a"}`)
+	assert.Contains(t, rr.Body.String(), `data-playground-name-value="a.gno">`+"\npackage a</pre>")
 	assert.NotContains(t, rr.Body.String(), "README.md", "a copy holds sources only")
 	assert.Equal(t, queries, client.queries.Load(), "the copy is served from $download's cache")
 

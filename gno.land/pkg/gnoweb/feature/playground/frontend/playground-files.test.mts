@@ -101,31 +101,25 @@ test("a share reads back to the files it was written from, a lone file too", () 
 	}
 });
 
-test("copyFiles reads the page's JSON one entry per file", () => {
+test("copyFiles keeps the page's files one by one", () => {
 	const files = [
 		{ name: "a.gno", content: "package a\n\n// --- b.gno ---\nfunc A() {}\n" },
 		{ name: "b.gno", content: "package a\n" },
 	];
-	assert.deepEqual(copyFiles(JSON.stringify(files)), { files, skipped: [] });
+	assert.deepEqual(copyFiles(files), { files, skipped: [] });
 	// Names the chain takes but the playground does not are reported.
 	assert.deepEqual(
-		copyFiles(
-			JSON.stringify([
-				{ name: "../x.gno", content: "" },
-				{ name: "-x.gno", content: "" },
-				{ name: "b.gno", content: "" },
-				{ name: "b.gno", content: "again" },
-				{ name: "a.gno", content: 1 },
-				null,
-			]),
-		),
+		copyFiles([
+			{ name: "../x.gno", content: "" },
+			{ name: "-x.gno", content: "" },
+			{ name: "b.gno", content: "" },
+			{ name: "b.gno", content: "again" },
+		]),
 		{
 			files: [{ name: "b.gno", content: "" }],
 			skipped: ["../x.gno", "-x.gno", "b.gno"],
 		},
 	);
-	assert.deepEqual(copyFiles("not json"), { files: [], skipped: [] });
-	assert.deepEqual(copyFiles('{"name":"a.gno"}'), { files: [], skipped: [] });
 });
 
 test("renderText reads the string a Render eval returns", () => {

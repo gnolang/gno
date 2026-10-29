@@ -66,27 +66,17 @@ export function renderText(result: string): string {
 	}
 }
 
-// copyFiles reads the files of a package copy, which the page hands over as
-// JSON, one entry per file, so no line of a file can split it. skipped
-// names the files left out: the chain takes some names isValidFileName
-// does not (a leading dash, more than 100 bytes), and the reader must know
-// the copy lacks them.
-export function copyFiles(json: string): {
+// copyFiles takes the files of a package copy, which the page serves one
+// by one, so no line of a file can split them. skipped names the files left
+// out: the chain takes some names isValidFileName does not (a leading dash,
+// more than 100 bytes), and the reader must know the copy lacks them.
+export function copyFiles(served: EditorFile[]): {
 	files: EditorFile[];
 	skipped: string[];
 } {
 	const files: EditorFile[] = [];
 	const skipped: string[] = [];
-	let data: unknown;
-	try {
-		data = JSON.parse(json);
-	} catch {
-		return { files, skipped };
-	}
-	if (!Array.isArray(data)) return { files, skipped };
-	for (const f of data as Partial<EditorFile>[]) {
-		const { name, content } = f ?? {};
-		if (typeof name !== "string" || typeof content !== "string") continue;
+	for (const { name, content } of served) {
 		if (isValidFileName(name) && !files.some((g) => g.name === name)) {
 			files.push({ name, content });
 		} else {

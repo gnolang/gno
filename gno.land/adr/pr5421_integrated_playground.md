@@ -47,11 +47,15 @@ A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
   and source file views link to it.
 
 A copy never goes through the text format, which a source line could split:
-the page carries its files as JSON in a `<script type="application/json">`,
-one entry per file, sources only. They are read by the fetch `$download`
+the page serves each source file once, as text in a `<pre>` named after
+it, which a reader without JS reads and the controller reads back into the
+editor (each `<pre>` opens with a newline, which HTML drops, so a file's
+own leading blank line is kept). They are read by the fetch `$download`
 uses, handed to the playground as a `PackageFetcher` (as state is handed a
-`FileFetcher`), so both share one bound (100 files, 2 MiB of source), one
-60 s cache and one coalesced read per package. The read outlives the
+`FileFetcher`), so both share one bound (100 files, 2 MiB of all files),
+one 60 s cache and one coalesced read per package. A copy also caps what it
+shows: 1 MiB of sources, counting only the files it opens (not a README),
+so its page stays about that size. The read outlives the
 request that started it, for the requests after, but a request waits for it
 no longer than its own deadline. A missing package is a 404, a node
 timeout or a deadline passed a 408 (its text in the body, as a page shows

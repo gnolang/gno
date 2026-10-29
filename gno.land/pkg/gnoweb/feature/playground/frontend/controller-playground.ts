@@ -42,10 +42,13 @@ export class PlaygroundController extends BaseController {
 	private declare runAbort: AbortController | undefined;
 
 	protected connect(): void {
-		const filesEl = this.getTarget("files");
-		const initialCodeEl = this.getTarget(
-			"initial-code",
-		) as HTMLTextAreaElement | null;
+		// The page serves the code once, as text: read it before the editor
+		// replaces it.
+		const served = this.getTargets("file").map((el) => ({
+			name: this.getValue("name", el),
+			content: el.textContent ?? "",
+		}));
+		const initialCode = this.getTarget("initial-code")?.textContent ?? "";
 
 		this.editorEl = this.getTarget("editor") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
@@ -66,10 +69,10 @@ export class PlaygroundController extends BaseController {
 			this._scrollActiveTabIntoView(),
 		);
 
-		// A copy comes as JSON, one entry per file; a shared snippet as text.
-		const { files, skipped } = filesEl
-			? copyFiles(filesEl.textContent ?? "")
-			: { files: parseInitialCode(initialCodeEl?.value ?? ""), skipped: [] };
+		// A copy comes one file per <pre>; a shared snippet in the share format.
+		const { files, skipped } = served.length
+			? copyFiles(served)
+			: { files: parseInitialCode(initialCode), skipped: [] };
 		const [first, ...rest] = files.length
 			? files
 			: [{ name: "main.gno", content: DEFAULT_GNO_CONTENT }];

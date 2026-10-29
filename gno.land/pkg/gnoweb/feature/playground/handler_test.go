@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/html"
 )
 
 // stubClient is a minimal ClientAdapter for handler tests — every method
@@ -66,6 +66,48 @@ func deflateBase64(t *testing.T, b []byte) string {
 	require.NoError(t, err)
 	require.NoError(t, zw.Close())
 	return base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
+// servedCode reads the code a page serves, as the controller does: each
+// <pre> of the editor that names a file, or the shared snippet's <pre>, as
+// a browser parses it.
+func servedCode(t *testing.T, page string) (files []File, initial string) {
+	t.Helper()
+
+	doc, err := html.Parse(strings.NewReader(page))
+	require.NoError(t, err)
+	attr := func(n *html.Node, key string) (string, bool) {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return a.Val, true
+			}
+		}
+		return "", false
+	}
+	var text func(n *html.Node) string
+	text = func(n *html.Node) string {
+		if n.Type == html.TextNode {
+			return n.Data
+		}
+		var b strings.Builder
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			b.WriteString(text(c))
+		}
+		return b.String()
+	}
+	for n := range doc.Descendants() {
+		if n.Type != html.ElementNode || n.Data != "pre" {
+			continue
+		}
+		switch target, _ := attr(n, "data-playground-target"); target {
+		case "file":
+			name, _ := attr(n, "data-playground-name-value")
+			files = append(files, File{Name: name, Content: text(n)})
+		case "initial-code":
+			initial = text(n)
+		}
+	}
+	return files, initial
 }
 
 // extractPlaygroundViewData extracts data from a playground view.
@@ -287,10 +329,12 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 			status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: tc.query})
 			assert.Equal(t, http.StatusOK, status)
 			assert.Equal(t, tc.want, extractPlaygroundViewData(t, v).InitialCode)
-			// Served as text too, not only in the editor's hidden source.
+			// Served once, as text, which the controller reads back.
 			var buf bytes.Buffer
 			require.NoError(t, v.Render(&buf))
-			assert.Contains(t, buf.String(), `<pre class="chroma-chroma">`+template.HTMLEscapeString(tc.want)+"</pre>")
+			_, initial := servedCode(t, buf.String())
+			assert.Equal(t, tc.want, initial)
+			assert.NotContains(t, buf.String(), "<textarea", "the code is in the page once")
 		})
 	}
 }
@@ -330,36 +374,72 @@ func TestCopyView(t *testing.T) {
 		assert.Equal(t, deps.Domain, data.Domain)
 		assert.Equal(t, "README.md", pkgs.files[1].Name, "the fetcher's slice is left as it was")
 
-		// The page carries them as JSON, which reads back to the same files.
+		// The page serves each file once, as text under its name, which a
+		// reader without JS reads and the controller reads back as is.
 		var buf bytes.Buffer
 		require.NoError(t, v.Render(&buf))
 		page := buf.String()
-		const open = `<script type="application/json" data-playground-target="files">`
-		i := strings.Index(page, open)
-		require.NotEqual(t, -1, i, "copy files script")
-		j := strings.Index(page[i:], "</script>")
-		var got []File
-		require.NoError(t, json.Unmarshal([]byte(page[i+len(open):i+j]), &got))
+		got, initial := servedCode(t, page)
 		assert.Equal(t, data.Files, got)
-		assert.NotContains(t, page, `data-playground-target="initial-code"`)
-		// Each file is also served as text, under its name, for a reader
-		// without JS: the JSON alone shows nothing.
+		assert.Empty(t, initial)
 		for _, f := range data.Files {
-			assert.Contains(t, page, `<p class="b-playground-file u-font-mono">`+f.Name+"</p>\n        <pre class=\"chroma-chroma\">"+template.HTMLEscapeString(f.Content)+"</pre>")
+			assert.Contains(t, page, `<p class="b-playground-file u-font-mono">`+f.Name+"</p>")
 		}
+		assert.NotContains(t, page, "application/json", "the files are in the page once")
 		// Run previews the realm it was copied from, by its own path.
 		assert.Contains(t, page, `data-playground-from-value="r/demo/foo"`)
 	})
 
-	t.Run("a closing script tag in a file stays inside the JSON", func(t *testing.T) {
+	// Markup stays text, and so do a leading blank line, which HTML drops
+	// right after <pre>, and the characters the text format would read.
+	t.Run("a file reads back as it is", func(t *testing.T) {
 		t.Parallel()
 
+		files := []File{
+			{Name: "a.gno", Content: "// </pre></script><script>alert(1)</script>\n"},
+			{Name: "b.gno", Content: "\n\npackage b // & \"'<>\n"},
+			{Name: "c.gno", Content: ""},
+		}
 		deps := validDeps()
-		deps.Packages = &stubPackages{files: []File{{Name: "a.gno", Content: "// </script><script>alert(1)</script>"}}}
+		deps.Packages = &stubPackages{files: files}
 		_, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
 		var buf bytes.Buffer
 		require.NoError(t, v.Render(&buf))
 		assert.NotContains(t, buf.String(), "<script>alert(1)")
+		got, _ := servedCode(t, buf.String())
+		assert.Equal(t, files, got)
+	})
+
+	// Only the sources a copy shows count toward its cap, and its page
+	// holds them once: a package of 1 MiB of sources is a page of about
+	// 1 MiB, not two.
+	t.Run("the cap counts the sources shown, which the page holds once", func(t *testing.T) {
+		t.Parallel()
+
+		half := strings.Repeat("x", maxCopySourceBytes/2)
+		readme := File{Name: "README.md", Content: strings.Repeat("r", 4*maxCopySourceBytes)}
+		cases := []struct {
+			name  string
+			files []File
+			want  int
+		}{
+			{"at the cap, with a larger README", []File{{Name: "a.gno", Content: half}, {Name: "b.gno", Content: half}, readme}, http.StatusOK},
+			{"one byte past the cap", []File{{Name: "a.gno", Content: half}, {Name: "b.gno", Content: half + "x"}}, http.StatusRequestEntityTooLarge},
+		}
+		for _, tc := range cases {
+			deps := validDeps()
+			deps.Packages = &stubPackages{files: tc.files}
+			status, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
+			require.Equal(t, tc.want, status, tc.name)
+			if status != http.StatusOK {
+				continue
+			}
+			var buf bytes.Buffer
+			require.NoError(t, v.Render(&buf))
+			assert.Less(t, buf.Len(), maxCopySourceBytes+16<<10, tc.name)
+		}
+		// Written out, not read from the constant: raising the cap fails here.
+		assert.Equal(t, 1<<20, maxCopySourceBytes)
 	})
 
 	errCases := []struct {
@@ -483,7 +563,9 @@ func TestControlsNeedJS(t *testing.T) {
 		} {
 			assert.Contains(t, page, hidden, name)
 		}
-		assert.Contains(t, page, `<pre class="chroma-chroma">package `, name)
+		assert.Contains(t, page, "\npackage ", name)
+		files, initial := servedCode(t, page)
+		assert.True(t, len(files) > 0 || initial != "", name)
 	}
 }
 
