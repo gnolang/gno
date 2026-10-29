@@ -290,9 +290,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux.Handle(assetsBase, http.StripPrefix(assetsBase, assetsHandler))
 
 	// Handle playground API endpoints
-	if pg := httphandler.Playground; pg != nil {
-		mux.Handle("/_/api/eval", pg.EvalHandler())
-	}
+	mux.Handle("/_/api/eval", httphandler.Playground.EvalHandler())
 
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))

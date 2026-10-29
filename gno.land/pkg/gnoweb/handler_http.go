@@ -224,31 +224,25 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
 	h.trustedProxies = trustedProxies
-	// The playground and the run page print gnokey commands, so they need the
-	// node a reader's gnokey talks to and its chain ID. Without them gnoweb
-	// serves everything else, as it did before these features.
-	if cfg.Meta.RemoteHelp != "" && cfg.Meta.ChainId != "" {
-		h.Playground = playground.New(playground.Deps{
-			Client:   &playgroundClientAdapter{cfg.ClientAdapter},
-			Packages: playgroundPackages{h},
-			Logger:   logger,
-			Domain:   cfg.Meta.Domain,
-			// Its own bucket: evals run caller-chosen code on the node, so
-			// they get a tighter budget than page reads.
-			Limiter: state.NewIPLimiter(state.RateLimitConfig{
-				PerMinute:      evalRateLimitPerMinute,
-				Burst:          evalRateLimitBurst,
-				TrustedProxies: trustedProxies,
-			}),
-			Timeout: h.requestTimeout(),
-		})
-		h.Run = run.New(run.Deps{
-			Logger:  logger,
-			Domain:  cfg.Meta.Domain,
-			Remote:  cfg.Meta.RemoteHelp,
-			ChainId: cfg.Meta.ChainId,
-		})
-	}
+	h.Playground = playground.New(playground.Deps{
+		Client:   &playgroundClientAdapter{cfg.ClientAdapter},
+		Packages: playgroundPackages{h},
+		Logger:   logger,
+		Domain:   cfg.Meta.Domain,
+		// Its own bucket: evals run caller-chosen code on the node, so
+		// they get a tighter budget than page reads.
+		Limiter: state.NewIPLimiter(state.RateLimitConfig{
+			PerMinute:      evalRateLimitPerMinute,
+			Burst:          evalRateLimitBurst,
+			TrustedProxies: trustedProxies,
+		}),
+		Timeout: h.requestTimeout(),
+	})
+	h.Run = run.New(run.Deps{
+		Domain:  cfg.Meta.Domain,
+		Remote:  cfg.Meta.RemoteHelp,
+		ChainId: cfg.Meta.ChainId,
+	})
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -421,7 +415,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// $play opens the package in the playground.
-	if gnourl.WebQuery.Has("play") && (gnourl.IsRealm() || gnourl.IsPure()) && h.Playground != nil {
+	if gnourl.WebQuery.Has("play") && (gnourl.IsRealm() || gnourl.IsPure()) {
 		to := playground.CopyURL(gnourl.Path, gnourl.File)
 		http.Redirect(w, r, to, http.StatusFound)
 		components.RedirectView(components.RedirectData{
@@ -718,7 +712,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		status, view := h.GetPackageView(ctx, gnourl, indexData, pr)
 		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
 		return status, view
-	case gnourl.IsPlayground() && h.Playground != nil:
+	case gnourl.IsPlayground():
 		return h.Playground.GetPlaygroundView(ctx, gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
@@ -762,7 +756,7 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Handle Run page (maketx run scratchpad)
-	if gnourl.WebQuery.Has("run") && h.Run != nil {
+	if gnourl.WebQuery.Has("run") {
 		return h.Run.GetRunView(gnourl)
 	}
 

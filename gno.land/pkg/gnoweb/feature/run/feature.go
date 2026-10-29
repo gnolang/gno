@@ -1,19 +1,15 @@
 package run
 
-import "log/slog"
-
 // Deps gathers the dependencies the run Handler needs.
 type Deps struct {
-	Logger *slog.Logger
-
 	// Domain is the chain domain (e.g. "gno.land"), used to build the
 	// fully-qualified package import path stamped on the rendered page.
 	Domain string
 
-	// Remote is the RPC endpoint.
+	// Remote is the RPC endpoint the printed commands talk to.
 	Remote string
 
-	// ChainId is the active chain ID.
+	// ChainId is the chain ID the printed commands sign for.
 	ChainId string
 }
 
@@ -22,23 +18,8 @@ type Handler struct {
 	deps Deps
 }
 
-// New returns a Run handler.
-// If empty Domain defaults to "gno.land" and Logger defaults the
-// standard Go library's logger.
-// It panics if Remote or ChainId are not specified.
+// New returns a Run handler. An empty Domain defaults to "gno.land".
 func New(deps Deps) *Handler {
-	if deps.Remote == "" {
-		panic("run.New: Remote RPC endpoint is required")
-	}
-
-	if deps.ChainId == "" {
-		panic("run.New: Chain ID is required")
-	}
-
-	if deps.Logger == nil {
-		deps.Logger = slog.Default()
-	}
-
 	if deps.Domain == "" {
 		deps.Domain = "gno.land"
 	}

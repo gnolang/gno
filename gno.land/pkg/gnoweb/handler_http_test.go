@@ -156,12 +156,8 @@ func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTT
 
 	return &gnoweb.HTTPHandlerConfig{
 		ClientAdapter: client,
-		Meta: gnoweb.StaticMetadata{
-			RemoteHelp: "http://localhost:26657",
-			ChainId:    "test",
-		},
-		Renderer: &rawRenderer{},
-		Aliases:  map[string]gnoweb.AliasTarget{},
+		Renderer:      &rawRenderer{},
+		Aliases:       map[string]gnoweb.AliasTarget{},
 	}
 }
 
@@ -1468,11 +1464,7 @@ func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnow
 			ClientAdapter: client,
 			Renderer:      renderer,
 			Aliases:       map[string]gnoweb.AliasTarget{},
-			Meta: gnoweb.StaticMetadata{
-				Domain:     "gno.land",
-				RemoteHelp: "http://localhost:26657",
-				ChainId:    "test",
-			},
+			Meta:          gnoweb.StaticMetadata{Domain: "gno.land"},
 		},
 	)
 	require.NoError(t, err)
