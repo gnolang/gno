@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+	canPreview,
 	copyFiles,
 	createTar,
 	isValidFileName,
 	parseInitialCode,
+	renderText,
 	shareText,
 } from "./playground-files.ts";
 
@@ -118,6 +120,40 @@ test("copyFiles reads the page's JSON one entry per file", () => {
 	);
 	assert.deepEqual(copyFiles("not json"), []);
 	assert.deepEqual(copyFiles('{"name":"a.gno"}'), []);
+});
+
+test("canPreview takes a realm copy that declares Render", () => {
+	const render = [
+		{
+			name: "a.gno",
+			content: "package a\n\nfunc Render(path string) string {\n",
+		},
+	];
+	const cases: [from: string, files: typeof render, want: boolean][] = [
+		["r/demo/counter", render, true],
+		["p/demo/foo", render, false], // a package renders nothing
+		["", render, false], // no copy: nowhere on the chain to run it
+		[
+			"r/demo/foo",
+			[{ name: "a.gno", content: "package a\n// func Render(\n" }],
+			false,
+		],
+	];
+	for (const [from, files, want] of cases) {
+		assert.equal(canPreview(from, files), want, from);
+	}
+});
+
+test("renderText reads the string a Render eval returns", () => {
+	const cases: [result: string, want: string][] = [
+		['("0" string)', "0"],
+		['("# Title\\n\\nsay \\"hi\\"" string)', '# Title\n\nsay "hi"'],
+		["(42 int)", "(42 int)"],
+		["Error: package not found", "Error: package not found"],
+	];
+	for (const [result, want] of cases) {
+		assert.equal(renderText(result), want, result);
+	}
 });
 
 test("createTar writes whole names and skips the ones it cannot hold", () => {

@@ -7,11 +7,13 @@ import {
 	postEval,
 } from "@gnoweb/js/controller.js";
 import {
+	canPreview,
 	copyFiles,
 	createTar,
 	GNOMOD_FILE,
 	isValidFileName,
 	parseInitialCode,
+	renderText,
 	shareText,
 } from "./playground-files.js";
 
@@ -28,9 +30,18 @@ export class PlaygroundController extends BaseController {
 	private declare tabsWrapEl: HTMLElement;
 	private declare prevBtnEl: HTMLButtonElement;
 	private declare nextBtnEl: HTMLButtonElement;
+	private declare runBtnEl: HTMLElement | null;
+	private declare tabsObserver: ResizeObserver | undefined;
 	// The editor holds every file (text and undo history); the controller
 	// keeps no copy of its own.
 	private declare editor: CodeEditor;
+	// preview is true while Run can show the copied realm's own Render:
+	// the copy is unmodified and has one.
+	private declare preview: boolean;
+	// outputSeq counts output resets, so a late Run result never replaces
+	// what came after it.
+	private declare outputSeq: number;
+	private declare runAbort: AbortController | undefined;
 
 	protected connect(): void {
 		const filesEl = this.getTarget("files");
@@ -44,6 +55,8 @@ export class PlaygroundController extends BaseController {
 		this.tabsWrapEl = this.getTarget("tabs-wrap") as HTMLElement;
 		this.prevBtnEl = this.getTarget("prev-button") as HTMLButtonElement;
 		this.nextBtnEl = this.getTarget("next-button") as HTMLButtonElement;
+		this.runBtnEl = this.getTarget("run");
+		this.outputSeq = 0;
 		if (!this.editorEl || !this.outputEl || !this.tabsEl) return;
 
 		this.editorEl.addEventListener("focusin", () =>
@@ -63,8 +76,10 @@ export class PlaygroundController extends BaseController {
 			fileName: first.name,
 			label: "Playground editor",
 			onRun: () => this.runCode(),
+			onChange: () => this._setPreview(false),
 		});
 		for (const f of rest) this.editor.addFile(f.name, f.content);
+		this._setPreview(canPreview(this.getValue("from"), files));
 
 		const defaultFile = this.getValue("default-file");
 		if (defaultFile) this.editor.openFile(defaultFile);
@@ -81,9 +96,28 @@ export class PlaygroundController extends BaseController {
 			passive: true,
 		});
 
-		const observer = new ResizeObserver(() => this._updateNavButtons());
-		observer.observe(this.tabsWrapEl);
-		observer.observe(this.tabsEl);
+		this.tabsObserver = new ResizeObserver(() => this._updateNavButtons());
+		this.tabsObserver.observe(this.tabsWrapEl);
+		this.tabsObserver.observe(this.tabsEl);
+	}
+
+	protected disconnect(): void {
+		this.tabsObserver?.disconnect();
+		this.runAbort?.abort();
+	}
+
+	// _setPreview says what Run does, on the button too: show the copied
+	// realm's Render, or the commands that run the code locally.
+	private _setPreview(preview: boolean): void {
+		if (this.preview === preview) return;
+		this.preview = preview;
+		const btn = this.runBtnEl;
+		if (!btn) return;
+		const label = btn.querySelector("span");
+		if (label) label.textContent = preview ? "Preview" : "Run locally";
+		btn.title = preview
+			? `Show what ${this.getValue("domain")}/${this.getValue("from")} renders (Ctrl/Cmd+Enter)`
+			: "Show the commands that run and test this code (Ctrl/Cmd+Enter)";
 	}
 
 	private _updateNavButtons(): void {
@@ -130,6 +164,7 @@ export class PlaygroundController extends BaseController {
 		copyable: boolean = false,
 		isError: boolean = false,
 	): void {
+		this.outputSeq++;
 		this.outputEl.replaceChildren();
 		this._setOutput(text, copyable, isError);
 	}
@@ -226,6 +261,7 @@ export class PlaygroundController extends BaseController {
 			this.editor.openFile(names[i + 1] ?? names[i - 1]);
 		}
 		this.editor.closeFile(name);
+		this._setPreview(false);
 		this.renderTabs();
 		// The closed tab's button is gone: keep keyboard focus in the tab bar.
 		this.tabsEl
@@ -255,31 +291,34 @@ export class PlaygroundController extends BaseController {
 		}
 
 		this.editor.addFile(name, content);
+		this._setPreview(false);
 		this._openFile(name);
 	}
 
+	// runCode shows what the copied realm renders on the chain while the
+	// copy is unmodified: edited code exists nowhere the node can run it, so
+	// it shows the commands that run it locally instead.
 	public async runCode(): Promise<void> {
-		this._resetOutput("Running...");
-
-		const code = this.editor.getCode();
-		const pkgMatch = code.match(/^package\s+(\w+)/m);
-		const pkgName = pkgMatch ? pkgMatch[1] : "main";
-		const names = this.editor.fileNames();
-
-		if (code.includes("func Render(")) {
-			const { text, isError, unavailable } = await postEval(
-				"r/playground_preview",
-				'Render("")',
-			);
-			this._resetOutput(text, false, isError || unavailable);
-		} else {
-			this._resetOutput(
-				`Package: ${pkgName}\nFiles: ${names.join(", ")}\n\nTo run locally:`,
-			);
-			this._setOutput(` gno run ${names.join(" ")}`, true);
+		this.runAbort?.abort();
+		if (!this.preview) {
+			this._resetOutput("Save the files in one directory, then run:");
+			this._setOutput(" gno run .", true);
 			this._setOutput("\n\nTo test:");
 			this._setOutput(" gno test .", true);
+			return;
 		}
+
+		this._resetOutput("Running...");
+		const seq = this.outputSeq;
+		this.runAbort = new AbortController();
+		const { text, isError, unavailable } = await postEval(
+			this.getValue("from"),
+			'Render("")',
+			this.runAbort.signal,
+		);
+		if (seq !== this.outputSeq) return;
+		const failed = isError || unavailable;
+		this._resetOutput(failed ? text : renderText(text), false, failed);
 	}
 
 	public async shareCode(): Promise<void> {
@@ -309,6 +348,11 @@ export class PlaygroundController extends BaseController {
 			return;
 		}
 
+		// No Clipboard API outside a secure context (plain http off localhost).
+		if (!navigator.clipboard) {
+			this._resetOutput(`Share URL:\n${url}`);
+			return;
+		}
 		navigator.clipboard
 			.writeText(url)
 			.then(() => this._resetOutput("Share URL copied to clipboard!"))

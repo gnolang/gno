@@ -311,6 +311,7 @@ func TestCopyView(t *testing.T) {
 		}, data.Files)
 		assert.Empty(t, data.InitialCode)
 		assert.Equal(t, "b.gno", data.DefaultFile)
+		assert.Equal(t, "r/demo/foo", data.From)
 		assert.Equal(t, deps.Domain, data.Domain)
 		assert.Equal(t, "README.md", pkgs.files[1].Name, "the fetcher's slice is left as it was")
 
@@ -326,6 +327,8 @@ func TestCopyView(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(page[i+len(open):i+j]), &got))
 		assert.Equal(t, data.Files, got)
 		assert.NotContains(t, page, `data-playground-target="initial-code"`)
+		// Run previews the realm it was copied from, by its own path.
+		assert.Contains(t, page, `data-playground-from-value="r/demo/foo"`)
 	})
 
 	t.Run("a closing script tag in a file stays inside the JSON", func(t *testing.T) {

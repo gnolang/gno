@@ -5,6 +5,7 @@ LAYOUT - Playground view
 <!-- Playground Content -->
 <div class="b-playground" data-controller="playground"
   data-playground-domain-value="{{ .Domain }}"
+  {{ with .From }}data-playground-from-value="{{ . }}"{{ end }}
   {{ with .DefaultFile }}data-playground-default-file-value="{{ . }}"{{ end }}>
 
   <!-- Header -->
@@ -20,9 +21,9 @@ LAYOUT - Playground view
           <svg class="c-icon"><use href="#ico-ddl"></use></svg>
           <span>Download</span>
         </button>
-        <button type="button" class="b-btn b-btn--primary c-with-icon" data-action="click->playground#runCode" title="Run code (Ctrl/Cmd+Enter)">
+        <button type="button" class="b-btn b-btn--primary c-with-icon" data-playground-target="run" data-action="click->playground#runCode" title="Show the commands that run and test this code (Ctrl/Cmd+Enter)">
           <svg class="c-icon"><use href="#ico-run-code"></use></svg>
-          <span>Run</span>
+          <span>Run locally</span>
         </button>
       </div>
     </div>

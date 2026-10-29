@@ -10,6 +10,10 @@ type PlaygroundData struct {
 	// through the text format, which a source line could split.
 	Files []File
 
+	// From is the copied package's path without its domain (r/demo/foo),
+	// empty for anything but a copy.
+	From string
+
 	// Domain is the chain domain.
 	Domain string
 

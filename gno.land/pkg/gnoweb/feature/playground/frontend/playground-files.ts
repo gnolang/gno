@@ -54,6 +54,29 @@ export function parseInitialCode(code: string): EditorFile[] {
 	}));
 }
 
+// canPreview reports whether Run can show what a copy renders on the
+// chain: it is a copy of a realm (from is its path, as r/demo/foo) and one
+// of its files declares Render. Only an unmodified copy may, which the
+// controller tracks: edited code exists nowhere the node can run it.
+export function canPreview(from: string, files: EditorFile[]): boolean {
+	return (
+		from.startsWith("r/") &&
+		files.some((f) => /^func Render\(/m.test(f.content))
+	);
+}
+
+// renderText is the text a Render("") eval returned, as qeval prints a
+// string, ("text" string), or the answer as it is when it is not one.
+export function renderText(result: string): string {
+	const m = /^\(("(?:[^"\\]|\\.)*") string\)$/s.exec(result);
+	if (!m) return result;
+	try {
+		return JSON.parse(m[1]);
+	} catch {
+		return result;
+	}
+}
+
 // copyFiles reads the files of a package copy, which the page hands over as
 // JSON, one entry per file, so no line of a file can split it.
 export function copyFiles(json: string): EditorFile[] {

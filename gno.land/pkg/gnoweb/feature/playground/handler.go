@@ -103,6 +103,7 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 
 	return http.StatusOK, NewPageView(PlaygroundData{
 		Files:       sources,
+		From:        strings.TrimPrefix(pkgPath, "/"),
 		Domain:      h.deps.Domain,
 		DefaultFile: file,
 	})
