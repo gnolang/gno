@@ -1,129 +1,117 @@
-# ADR: Integrated Playground, Eval, and Fork Views in gnoweb
+# ADR: Integrated Playground, Expression Evaluator and Run Script in gnoweb
 
 ## Context
 
-gno.land previously had no interactive code evaluation in gnoweb. Users who
-wanted to call realm functions or experiment with Gno code had to use external
-tools (gnokey CLI, a separate gnostudio/studio app, or copy-paste workflows).
+gno.land had no interactive code evaluation in gnoweb. Users who wanted to
+call realm functions or experiment with Gno code had to use external tools
+(gnokey CLI, the separate React + WASM play.gno.land, or copy-paste workflows).
 
 The key problems:
 
 1. **Friction for exploration.** Reading a realm's `Render` output or calling
-   a view function required setting up a local environment or using CLI tools.
-2. **No in-browser eval.** Users could not quickly test expressions against a
+   a view function required a local environment or CLI tools.
+2. **No in-browser eval.** Users could not test expressions against a
    deployed package from the web UI.
 3. **No code scratch pad.** There was nowhere in gnoweb to write and share
    short Gno snippets.
-4. **Separate studio dependency.** The only interactive option required running
-   a separate application, breaking the single-binary model.
+4. **Separate studio dependency.** The only interactive option was a separate
+   application, breaking the single-binary model.
 
 ## Decision
 
-Add three interactive features to gnoweb as Go-native, single-binary
-extensions with no additional runtime dependencies:
+Add interactive features to gnoweb as Go-native, single-binary extensions,
+built from gnoweb's own UI vocabulary (CUBE CSS tokens, blocks and
+components) rather than a parallel design.
 
-### 1. `/_/play` — Playground scratch pad
+### 1. `/_/play`: playground
 
-A multi-file code editor backed by CodeMirror (Go/TOML modes, via the shared
-`@gnoweb/js/code-editor` component integrated in #5674). The `<textarea>` is
-retained as a hidden, progressively-enhanced fallback that also carries the
-initial code into the editor.
-Supports:
-- URL sharing via `?code=` query parameter (base64-encoded)
-- Multi-file mode via `// --- filename.gno ---` separators
-- Fork-from-package via `?from=` query parameter
-- Tab addition/switching, keyboard shortcuts (Ctrl+Enter to run, Tab for indent)
+A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
+(CodeMirror, Go/TOML modes). Supports:
 
-The "Run" button currently provides useful output for packages with `Render`
-by calling `/_/api/eval`. For scratch-pad code that has no on-chain package,
-it prints CLI instructions instead. This is intentional: the playground is a
-first step, not a full REPL.
+- sharing through `?code=` (base64, DEFLATE-compressed with `&z`);
+- multi-file code through `// --- filename.gno ---` separators, one tab per
+  file, with add and close;
+- opening an editable copy of a deployed package with `?from=<pkgpath>`
+  (`&file=` picks the tab shown first). `<pkgpath>$play`, and `$fork` (its
+  earlier name), redirect there, and source file views link to it.
 
-### 2. `?eval` on realm/package pages — Expression Evaluator
+The playground is its own page: the breadcrumb shows the copied package (or
+`_ / play`) followed by a `playground` pill, and no realm tabs.
 
-Adds an "Eval" tab to the existing realm/package navigation. Renders:
-- A text input for arbitrary Gno expressions
-- A result pane updated via `POST /_/api/eval`
-- Quick-call buttons for exported, non-crossing, non-method functions
-- An expression history with re-run support
+The "Run" button does not execute scratch-pad code: it prints the local
+`gno run` / `gno test` commands, and for code with `Render` it still calls
+`/_/api/eval` on a fixed path. Server-side execution is future work.
 
-The evaluator is read-only by design: only non-crossing functions are shown in
-Quick Call, and arbitrary expressions are limited to what `vm/qeval` allows
-(no state mutation).
+### 2. Expression evaluator on the action page (`$help`)
 
-### 3. `?fork` on package/realm pages — Fork to Playground
+Below the function list: an input for arbitrary read-only Gno expressions, a
+result panel and a history with re-run. It and the function cards' live
+results evaluate through `POST /_/api/eval` (`vm/qeval`), so nothing mutates
+state.
 
-Loads all `.gno` source files from a package via the existing `ListFiles` +
-`File` client methods, concatenates them with `// --- filename.gno ---`
-separators, and redirects to the playground view pre-filled with that code.
+### 3. `$run`: run script
 
-### API endpoints
+An editor pre-filled with a `main` that imports the realm, and the generated
+`gnokey maketx run` command (optionally with the script inlined through a
+heredoc). gnoweb never signs or broadcasts.
 
-Two new JSON endpoints behind `/_/api/`:
+### API endpoint
 
-- `POST /_/api/eval` — Evaluates a `pkg_path` + `expression` pair via
-  `vm/qeval` ABCI query. Returns `{result}` or `{error}`.
-- `GET /_/api/funcs?path=...` — Returns exported, non-crossing functions for a
-  package using the existing `Doc()` client method. Used by the eval quick-call
-  buttons and (in future) playground-aware tooling.
+`POST /_/api/eval` evaluates a `pkg_path` + `expression` pair through
+`vm/qeval` and returns `{result}` or `{error}`. It is rate-limited per client.
+
+### Editor
+
+The editor keeps every file of the playground (text and undo history, one
+CodeMirror state per file), so switching tabs never mixes undo histories.
+Its tokens carry chroma's class names, so it is coloured by the same
+stylesheet as the read-only source view in both themes, and it shares that
+view's frame. Its own styles are a CodeMirror theme in TypeScript, because
+PurgeCSS cannot see the `.cm-*` classes CodeMirror adds at runtime.
 
 ### Frontend approach
 
-Vanilla TypeScript compiled to plain JS (no React, no npm at runtime). Each
-feature is a standalone controller function loaded dynamically by the existing
-`data-controller` dispatch mechanism in `index.ts`. No new build tooling;
-compiled output is committed to `public/js/`.
+Vanilla TypeScript compiled to plain JS, one controller per feature through
+the existing `data-controller` dispatch; shared helpers (`postEval`,
+`downloadBlob`, icons) are re-exported from `controller.ts`. Compiled output
+is committed to `public/js/`. Each icon keeps a single meaning across gnoweb
+(the lightning is a transaction, `ico-run-code` runs the playground,
+`ico-eval` evaluates, `ico-playground` opens the playground).
 
-Cache busting is handled by extracting the `?v=` version suffix from
-`index.js`'s own `<script src>` URL and forwarding it to dynamic controller
-imports.
+### CSP
 
-### CSP update
-
-`connect-src` in the Content Security Policy was extended from just the remote
-ABCI endpoint to also include `'self'`, enabling the JS to call `/_/api/eval`
-and `/_/api/funcs` without CSP violations.
+`connect-src` includes `'self'` so the JS can call `/_/api/eval`; CodeMirror's
+injected styles carry the per-response CSP nonce.
 
 ## Alternatives Considered
 
-- **WebSocket REPL:** More interactive but much more complex server state.
-  Deferred to a later iteration.
-- **Server-side gno run / gno test:** Would require sandboxing, resource
-  limits, and execution isolation. Out of scope for this PR; instructions are
-  printed instead.
-- **CodeMirror editor:** Adopted (#5674) via the shared `@gnoweb/js/code-editor`
-  component — Go/TOML syntax modes, with the `<textarea>` kept as a hidden
-  progressive-enhancement fallback.
-- **Separate gnostudio service:** Breaks the single-binary model. The goal is
-  to keep gnoweb self-contained.
-- **Stimulus.js or other controller framework:** The codebase already has a
-  minimal controller dispatch in `index.ts`. Keeping new controllers as
-  standalone functions avoids framework coupling.
+- **Server-side `gno run` / `gno test`:** needs sandboxing, resource limits
+  and execution isolation. Deferred; the Run button prints commands instead.
+- **Dry Run through `.app/simulate`:** shipped on this branch, then removed.
+  Since #6088 the node simulates a `MsgRun` only with a real signature, which
+  gnoweb does not have. It can come back with wallet signing (sign without
+  broadcasting).
+- **`/_/api/funcs`:** removed, nothing called it.
+- **WebSocket REPL:** more interactive, much more server state. Deferred.
+- **Separate gnostudio service or WASM playground:** breaks the single-binary
+  model.
+- **Stimulus.js or another controller framework:** the existing dispatch is
+  enough.
 
 ## Consequences
 
-- **Positive:** Users can evaluate read-only realm expressions from the
-  browser without any local tooling.
-- **Positive:** Developers can fork any package's source into the playground
-  with one click.
-- **Positive:** Zero new runtime dependencies; gnoweb stays a single binary.
-- **Positive:** The `/_/api/eval` and `/_/api/funcs` endpoints form a stable
-  base for future tooling (IDE integrations, CLI helpers, etc.).
-- **Trade-off:** The playground cannot execute scratch-pad code that isn't
-  deployed on-chain. This is acceptable for an initial iteration; the UI
-  prints CLI instructions to bridge the gap.
-- **Trade-off:** No rate-limiting or sandboxing on `/_/api/eval`. Acceptable
-  for a dev/exploration tool; should be addressed before exposing this to
-  mainnet at scale.
-- **Trade-off:** Compiled JS is committed to the repo. This is consistent with
-  the existing gnoweb frontend approach.
+- **Positive:** read-only realm evaluation from the browser, without tooling.
+- **Positive:** any package can be opened as an editable copy in one click.
+- **Positive:** zero new runtime dependencies; gnoweb stays a single binary.
+- **Trade-off:** the playground cannot execute scratch-pad code yet.
+- **Trade-off:** `/_/api/eval` runs caller-chosen expressions on the node;
+  its rate limiting needs hardening before exposure to mainnet at scale.
+- **Trade-off:** compiled JS is committed to the repo, like the rest of the
+  gnoweb frontend.
 
 ## Not Yet Implemented
 
-- CodeMirror syntax highlighting and editor features
 - Server-side `gno run` / `gno test` execution with sandboxing
+- Wallet integration (signing, dry run, publishing a package copy)
 - WebSocket REPL
-- Wallet integration (signing transactions from playground)
 - gnodev hot-reload integration
-- Rate limiting / abuse prevention on eval API
-- Full test coverage for playground handler (current patch coverage ~16%)
