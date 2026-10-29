@@ -2006,6 +2006,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				} else {
 					// evaluate tag type
 					tt := evalStaticTypeOf(store, last, ss.X)
+					tag := operandOf(store, last, ss.X)
 					// check or convert case types to tt; a case of interface
 					// type against a concrete tag (or the reverse) is
 					// compared as is, see the comparability check at LEAVE.
@@ -2018,7 +2019,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 						// Each case is compared to the tag with ==; checked
 						// here, before the conversion types an untyped nil.
-						assertComparableTo(tt, evalStaticTypeOf(store, last, cx), isNilLiteral(ss.X), isNilLiteral(cx))
+						assertComparableTo(tag, operandOf(store, last, cx))
 						ct := evalStaticTypeOf(store, last, cx)
 						switch {
 						case ct == nil || tt == nil || isUntyped(ct) || (ct.Kind() == InterfaceKind) == (tt.Kind() == InterfaceKind):
@@ -2203,7 +2204,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// The tag must be comparable even with no case to
 					// compare it to; checked before the clauses, which
 					// would otherwise fail on the comparison first.
-					assertSwitchTag(n.X, evalStaticTypeOf(store, last, n.X))
+					assertSwitchTag(operandOf(store, last, n.X))
 				} else if n.IsTypeSwitch {
 					tt := evalStaticTypeOf(store, last, n.X)
 					if _, ok := baseOf(tt).(*InterfaceType); !ok {
@@ -2308,7 +2309,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
-						assertConstLiteralKey(n)
+						assertConstLiteralKey(store, last, n)
 					}
 				}
 				// specific and general cases
@@ -2820,7 +2821,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
-								if msg := lenCapArgError(fv.Name, evalStaticTypeOf(store, last, n.Args[0])); msg != "" {
+								if msg := lenCapArgError(fv.Name, operandOf(store, last, n.Args[0])); msg != "" {
 									c.report(CodeLenCapArg, msg, n)
 								}
 								if cx := constStringLen(fv.Name, n.Args[0]); cx != nil {
@@ -2877,8 +2878,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							if len(n.Args) == 2 {
 								assertCopyArgs(
 									preprocessGasMeterOf(store),
-									evalStaticTypeOf(store, last, n.Args[0]),
-									evalStaticTypeOf(store, last, n.Args[1]))
+									operandOf(store, last, n.Args[0]),
+									operandOf(store, last, n.Args[1]))
 								// If the second argument is a string,
 								// convert to byteslice.
 								args1 := n.Args[1]
@@ -3539,7 +3540,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				case *ArrayType:
 					for i := range n.Elts {
-						assertConstLiteralKey(n.Elts[i].Key)
+						assertConstLiteralKey(store, last, n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							failf(CodeIndexBounds, []Node{cx}, "invalid argument: index must not be negative: %v", cx.TypedValue)
 						}
@@ -3553,7 +3554,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					assertLiteralIndices(preprocessGasMeterOf(store), n, length)
 				case *SliceType:
 					for i := range n.Elts {
-						assertConstLiteralKey(n.Elts[i].Key)
+						assertConstLiteralKey(store, last, n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							failf(CodeIndexBounds, []Node{cx}, "invalid argument: index must not be negative: %v", cx.TypedValue)
 						}

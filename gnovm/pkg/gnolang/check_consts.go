@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"reflect"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -134,6 +135,134 @@ func failBranchLabel(n *BranchStmt) {
 		failf(CodeBranchLabel, nil, "invalid break label %s", n.Label)
 	}
 	failf(CodeBranchLabel, nil, "invalid continue label %s", n.Label)
+}
+
+func assertValidConstExpr(store Store, last BlockNode, n *ValueDecl, expr Expr) {
+	if n.Type != nil {
+		nt := evalStaticType(store, last, n.Type)
+		if _, ok := baseOf(nt).(PrimitiveType); !ok {
+			panic(fmt.Sprintf("invalid constant type %s", nt.String()))
+		}
+	}
+
+	nt := evalStaticTypeOf(store, last, expr)
+
+	if nt == nil {
+		panic(fmt.Sprintf("%s (variable of type nil) is not constant", expr))
+	}
+
+	if _, ok := baseOf(nt).(PrimitiveType); !ok {
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", expr, nt))
+	}
+
+	assertValidConstValue(store, last, expr)
+}
+
+func assertValidConstValue(store Store, last BlockNode, currExpr Expr) {
+Main:
+	switch currExpr := currExpr.(type) {
+	case *ConstExpr:
+	case *UnaryExpr:
+		// *, & is filter out previously since they are not primitive
+		assertValidConstValue(store, last, currExpr.X)
+	case *TypeAssertExpr:
+		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", currExpr.String(), currExpr.Type))
+	case *CallExpr:
+		ift := evalStaticTypeOf(store, last, currExpr.Func)
+		switch baseOf(ift).(type) {
+		case *FuncType:
+			tup := evalStaticTypeOfRaw(store, last, currExpr).(*tupleType)
+
+			// check for built-in functions
+			if cx, ok := currExpr.Func.(*ConstExpr); ok {
+				if fv, ok := cx.V.(*FuncValue); ok {
+					if fv.PkgPath == uversePkgPath {
+						// TODO: should support min, max, real, imag
+						switch fv.Name {
+						case "len", "cap":
+							at := evalStaticTypeOf(store, last, currExpr.Args[0])
+							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
+									panic(fmt.Sprintf("%s (value of type int) is not constant", exprString(currExpr)))
+								}
+								break Main
+							}
+							assertValidConstValue(store, last, currExpr.Args[0])
+							break Main
+						}
+					}
+				}
+			}
+
+			switch {
+			case len(tup.Elts) == 0:
+				panic(fmt.Sprintf("%s (no value) used as value", currExpr.String()))
+			case len(tup.Elts) == 1:
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", currExpr.String(), tup.Elts[0]))
+			default:
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", currExpr.String(), tup.Elts))
+			}
+		case *TypeType:
+			// string([]byte(nil)): the target must be a constant type.
+			if ct := evalStaticType(store, last, currExpr.Func); !isConstantType(ct) {
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", exprString(currExpr), ct))
+			}
+			for _, arg := range currExpr.Args {
+				assertValidConstValue(store, last, arg)
+			}
+		default:
+			panic(fmt.Sprintf(
+				"unexpected func type %v (%v)",
+				ift, reflect.TypeOf(ift)))
+		}
+	case *BinaryExpr:
+		assertValidConstValue(store, last, currExpr.Left)
+		assertValidConstValue(store, last, currExpr.Right)
+	case *SelectorExpr:
+		xt := evalStaticTypeOf(store, last, currExpr.X)
+		switch xt := xt.(type) {
+		case *PackageType:
+			var pv *PackageValue
+			if cx, ok := currExpr.X.(*ConstExpr); ok {
+				// NOTE: *Machine.TestMemPackage() needs this
+				// to pass in an imported package as *ConstEzpr.
+				pv = cx.V.(*PackageValue)
+			} else {
+				// otherwise, packages can only be referred to by
+				// *NameExprs, and cannot be copied.
+				pvc := evalConst(store, last, currExpr.X)
+				pv_, ok := pvc.V.(*PackageValue)
+				if !ok {
+					panic(fmt.Sprintf(
+						"missing package in selector expr %s",
+						currExpr.String()))
+				}
+				pv = pv_
+			}
+			if pv.GetBlock(store).Source.GetIsConst(store, currExpr.Sel) {
+				break Main
+			}
+
+			tt := pv.GetBlock(store).Source.GetStaticTypeOf(store, currExpr.Sel)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), tt))
+		case *PointerType, *DeclaredType, *StructType, *InterfaceType, *TypeType:
+			ty := evalStaticTypeOf(store, last, currExpr)
+			if _, ok := ty.(*TypeType); ok {
+				ty = evalStaticType(store, last, currExpr)
+			}
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ty))
+		default:
+			panic(fmt.Sprintf(
+				"unexpected selector expression type %v",
+				reflect.TypeOf(xt)))
+		}
+	default:
+		ift := evalStaticTypeOf(store, last, currExpr)
+		if _, ok := ift.(*TypeType); ok {
+			ift = evalStaticType(store, last, currExpr)
+		}
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
+	}
 }
 
 // assertConstFinite rejects a folded untyped float constant beyond
@@ -309,4 +438,11 @@ func binaryPrecedence(op Word) int {
 		return 5
 	}
 	return 6
+}
+
+// isConstantType reports whether t can be the type of a constant: a
+// boolean, numeric or string type (Go spec, "Constants").
+func isConstantType(t Type) bool {
+	_, ok := baseOf(t).(PrimitiveType)
+	return ok
 }
