@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/token"
 	"html/template"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -30,12 +29,12 @@ type RunData struct {
 // makes it cost, in a comment.
 func starterScript(pkgPath string, funcs []*doc.JSONFunc) string {
 	alias := gno.LastPathElement(pkgPath)
-	ref, call := starterRef(alias, funcs)
+	ref, call, crossing := starterRef(alias, funcs)
 	if ref == "" {
 		return fmt.Sprintf("package main\n\nimport _ %q\n\nfunc main() {\n\t// Name the import above to call the package.\n}\n", pkgPath)
 	}
 	main := "main()"
-	if strings.Contains(call, "cross(cur)") {
+	if crossing {
 		// Uncommented, a crossing call needs the realm main runs in.
 		main = "main(cur realm)"
 	}
@@ -47,22 +46,22 @@ func starterScript(pkgPath string, funcs []*doc.JSONFunc) string {
 
 // starterRef is the starter script's one statement, a reference to Render
 // or else to the first exported function, and the call to Render it shows
-// when there is one.
-func starterRef(alias string, funcs []*doc.JSONFunc) (ref, call string) {
+// when there is one; crossing is true when that call crosses into the realm.
+func starterRef(alias string, funcs []*doc.JSONFunc) (ref, call string, crossing bool) {
 	for _, fn := range funcs {
 		if fn.Type != "" || !token.IsExported(fn.Name) {
 			continue
 		}
 		switch {
 		case fn.Name == "Render" && isRender(fn, "string"):
-			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(\"\"))", alias)
+			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(\"\"))", alias), false
 		case fn.Name == "Render" && isRender(fn, "realm", "string"):
-			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(cross(cur), \"\"))", alias)
+			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(cross(cur), \"\"))", alias), true
 		case ref == "":
 			ref = "_ = " + alias + "." + fn.Name
 		}
 	}
-	return ref, ""
+	return ref, "", false
 }
 
 // isRender reports whether fn takes params of the given types and returns a
