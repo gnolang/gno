@@ -53,11 +53,12 @@ uses, handed to the playground as a `PackageFetcher` (as state is handed a
 `FileFetcher`), so both share one bound (100 files, 2 MiB of source), one
 60 s cache and one coalesced read per package. The read outlives the
 request that started it, for the requests after, but a request waits for it
-no longer than its own deadline. A missing package is a 404, a node timeout
-or a deadline passed a 408, a package over the bounds a 413. `?from=` is read once,
-by `playground.ParseFrom`, for the copy, the header and the breadcrumb: only
-a bare realm or pure package path (with or without the domain); a file,
-args or a query is a 400 and is never fetched.
+no longer than its own deadline. A missing package is a 404, a node
+timeout or a deadline passed a 408 (its text in the body, as a page shows
+it), a package over the bounds a 413. `?from=` is read once, by
+`playground.ParseFrom`, for the copy, the header and the breadcrumb: only a
+bare realm or pure package path (with or without the domain); a file, args
+or a query is a 400 and is never fetched.
 
 The playground is its own page, titled "Playground", or
 "r/demo/foo · Playground" for a copy, which share cards repeat. Its
@@ -69,11 +70,12 @@ carries the realm notice that package's pages carry.
 
 The playground does not execute scratch-pad code. Its button says what it
 does, from the server's first render on. On an unmodified copy of a realm
-that declares `Render`, it reads "Preview" and shows what that realm renders, `Render("")` through
-`/_/api/eval` at the copy's own path. Anywhere else (edited code, a package,
-a share, the default code), it reads "Run locally" and prints `gno run .`
-and `gno test .`, with no file name in any command. A result that comes back
-after the output moved on is dropped, and a newer Run aborts the request it
+that declares `Render`, it reads "Preview" and shows what that realm
+renders, `Render("")` through `/_/api/eval` at the copy's own path.
+Anywhere else (edited code, a package, a share, the default code), it reads
+"Run locally" and prints `gno run .` and `gno test .`, with no file name in
+any command. A Run result or a Share confirmation that comes back after the
+output moved on is dropped, and a newer Run aborts the request it
 supersedes. Share prints the link when the Clipboard API is missing.
 Analytics counts the page as `playground`, and `$run` as `run`.
 
