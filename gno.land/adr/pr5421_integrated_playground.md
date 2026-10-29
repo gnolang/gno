@@ -232,8 +232,11 @@ The editor keeps every file of the playground (text and undo history, one
 CodeMirror state per file), so switching tabs never mixes undo histories.
 Its tokens carry chroma's class names, so it is coloured by the same
 stylesheet as the read-only source view in both themes, and it shares that
-view's frame. Its own styles are a CodeMirror theme in TypeScript, because
-PurgeCSS cannot see the `.cm-*` classes CodeMirror adds at runtime.
+view's frame. That stylesheet now writes its dark rules under `.chroma-light`
+for `[data-theme=dark]`, so every code block on the site changes palette in
+dark mode, not only the editor's. The editor's own styles are a CodeMirror
+theme in TypeScript, because PurgeCSS cannot see the `.cm-*` classes
+CodeMirror adds at runtime.
 
 ### Frontend approach
 
@@ -258,9 +261,11 @@ CodeMirror's injected styles carry the per-response CSP nonce.
 
 Assets loaded without the version query (`?v=`) that change in place, such
 as a module's own `./controller.js` import, are served `no-cache` and
-revalidated against the ETag, so a deploy reaches returning readers. A
-versioned URL, a font and esbuild's content-hashed `chunk-<hash>.js` stay
-`immutable`, as on master, and only on a 2xx: an error is `no-store`. A page
+revalidated against the ETag, so a deploy reaches returning readers. A URL
+carrying this build's `?v=`, a font and esbuild's content-hashed
+`chunk-<hash>.js` stay `immutable`, as on master, and only on a 2xx: an error
+is `no-store`. Any other `?v=` is revalidated, so a request for the next
+release's version answered by an old replica mid-deploy is not kept. A page
 view costs one 304, for `controller.js`.
 
 ## Alternatives Considered
