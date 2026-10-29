@@ -135,19 +135,22 @@ document
 	});
 
 // ---- qeval_preview: watch the result element for an outcome change.
-// Placeholder text and error class are read from data-* attributes set on the
+// Placeholder texts and error class are read from data-* attributes set on the
 // element by the server (action.html); the controller reads the same source,
-// so analytics never holds an independent copy of these strings.
+// so analytics never holds an independent copy of these strings. The
+// "unavailable" text (rate limit, outage) says nothing about the function, so
+// it is no outcome either.
 const qevalResult = document.querySelector<HTMLElement>(
 	'[data-action-function-target="qeval-result"]',
 );
 if (qevalResult) {
 	const placeholder = qevalResult.dataset.qevalPlaceholder ?? "";
+	const unavailable = qevalResult.dataset.qevalUnavailable ?? "";
 	const errorClass = qevalResult.dataset.qevalErrorClass ?? "u-color-danger";
 	let lastSuccess: boolean | null = null;
 	const observer = new MutationObserver(() => {
 		const text = qevalResult.textContent?.trim() ?? "";
-		if (text === "" || text === placeholder) return;
+		if (text === "" || text === placeholder || text === unavailable) return;
 		const success = !qevalResult.classList.contains(errorClass);
 		if (success !== lastSuccess) {
 			lastSuccess = success;

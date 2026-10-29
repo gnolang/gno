@@ -11,6 +11,8 @@ export class ActionEvalController extends BaseController {
 	private declare placeholder: string;
 	// Bumped by every evaluation, so a slow response never overwrites a newer one.
 	private declare evalSeq: number;
+	// The evaluation in flight, aborted when a newer one starts.
+	private declare evalAbort: AbortController | null;
 
 	protected connect(): void {
 		this.history = [];
@@ -20,11 +22,16 @@ export class ActionEvalController extends BaseController {
 		this.historySection = this.getTarget("history") as HTMLElement | null;
 		this.placeholder = this.resultEl?.textContent ?? "";
 		this.evalSeq = 0;
+		this.evalAbort = null;
 
 		if (!this.inputEl || !this.resultEl) return;
 
 		this._setupKeyboardShortcuts();
 		this._listenForEvents();
+	}
+
+	protected disconnect(): void {
+		this.evalAbort?.abort();
 	}
 
 	private _listenForEvents(): void {
@@ -58,16 +65,22 @@ export class ActionEvalController extends BaseController {
 
 	private async _doEval(expression: string): Promise<void> {
 		const seq = ++this.evalSeq;
+		this.evalAbort?.abort();
+		const abort = new AbortController();
+		this.evalAbort = abort;
 		this._show("Evaluating...", false);
-		const { text, isError, status } = await postEval(
+		const { text, isError, unavailable } = await postEval(
 			this.getValue("pkg-path"),
 			expression,
+			abort.signal,
 		);
 		if (seq !== this.evalSeq) return;
+		this.evalAbort = null;
 		const shown = text || "(empty result)";
 		this._show(shown, isError);
-		// Rate limiting says nothing about the expression: keep it out of history.
-		if (status !== 429) this._addToHistory(expression, shown, isError);
+		// A rate limit or an outage says nothing about the expression: keep
+		// it out of history.
+		if (!unavailable) this._addToHistory(expression, shown, isError);
 	}
 
 	private _show(text: string, isError: boolean): void {

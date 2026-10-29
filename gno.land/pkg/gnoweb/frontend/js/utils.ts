@@ -46,30 +46,50 @@ export function findAllInclusive(
 	return result;
 }
 
+// EvalResult is one /_/api/eval answer. isError marks the chain's answer to
+// the expression (it failed); unavailable marks a request gnoweb or the node
+// could not answer (rate limit, outage, network, abort), which says nothing
+// about the expression and is shown without the "Error:" prefix.
+export interface EvalResult {
+	text: string;
+	isError: boolean;
+	unavailable: boolean;
+	status: number;
+}
+
 // postEval evaluates expression in pkgPath through gnoweb's /_/api/eval.
-// Chain errors, HTTP errors (rate limiting included: the server explains it
-// in the JSON body) and network failures all come back as isError text.
+// signal aborts a request a newer one supersedes.
 export async function postEval(
 	pkgPath: string,
 	expression: string,
-): Promise<{ text: string; isError: boolean; status: number }> {
+	signal?: AbortSignal,
+): Promise<EvalResult> {
 	try {
 		const response = await fetch("/_/api/eval", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ pkg_path: pkgPath, expression }),
+			signal,
 		});
 		const json = await response.json().catch(() => ({}));
 		const { status } = response;
-		if (json.error)
-			return { text: `Error: ${json.error}`, isError: true, status };
-		if (!response.ok) {
-			return { text: `Error: HTTP ${status}`, isError: true, status };
+		if (status === 429 || status >= 500) {
+			const text = json.error || `HTTP ${status}`;
+			return { text, isError: false, unavailable: true, status };
 		}
-		return { text: json.result ?? "", isError: false, status };
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		return { text: `Error: ${msg}`, isError: true, status: 0 };
+		if (json.error) {
+			const text = `Error: ${json.error}`;
+			return { text, isError: true, unavailable: false, status };
+		}
+		if (!response.ok) {
+			const text = `Error: HTTP ${status}`;
+			return { text, isError: true, unavailable: false, status };
+		}
+		const text = json.result ?? "";
+		return { text, isError: false, unavailable: false, status };
+	} catch {
+		const text = "gnoweb could not be reached, try again shortly";
+		return { text, isError: false, unavailable: true, status: 0 };
 	}
 }
 

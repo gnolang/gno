@@ -14,6 +14,8 @@ export class ActionFunctionController extends BaseController {
 	declare _params: Record<string, string>;
 	// Set in connect(), which runs before class-field initialisers.
 	declare _qevalSeq: number;
+	// The live result's request in flight, aborted when a newer one starts.
+	declare _qevalAbort: AbortController | null;
 
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
@@ -31,6 +33,7 @@ export class ActionFunctionController extends BaseController {
 		});
 
 		this._qevalSeq = 0;
+		this._qevalAbort = null;
 		this._funcName = this.getValue("name") || null;
 		this._pkgPath = this.getValue("pkgpath") || null;
 
@@ -42,6 +45,10 @@ export class ActionFunctionController extends BaseController {
 
 		// Dispatch initial params state for wallet integration
 		this._dispatchParamsChanged();
+	}
+
+	protected disconnect(): void {
+		this._qevalAbort?.abort();
 	}
 
 	// listen for events from action-header controller
@@ -202,18 +209,22 @@ export class ActionFunctionController extends BaseController {
 
 	// Update the qeval result
 	// If there is no "qeval-result" target, then do nothing.
-	// Placeholder text and the error class are both read from data-* attributes
+	// Placeholder texts and the error class are all read from data-* attributes
 	// on the target so the contract is shared with analytics.ts.
 	private async _updateQEvalResult(): Promise<void> {
 		// Any newer update, even one that only shows the placeholder, voids
-		// the responses still in flight (they can arrive out of order).
+		// the request still in flight: abort it, and drop its answer should
+		// it land anyway.
 		const seq = ++this._qevalSeq;
+		this._qevalAbort?.abort();
+		this._qevalAbort = null;
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
 
 		// Crossing functions have no qeval-result target.
 		if (!resultTarget) return;
 
 		const placeholder = resultTarget.dataset.qevalPlaceholder ?? "";
+		const unavailable = resultTarget.dataset.qevalUnavailable ?? "";
 		const errorClass = resultTarget.dataset.qevalErrorClass ?? "u-color-danger";
 
 		// If there are no args, then show the placeholder.
@@ -231,10 +242,15 @@ export class ActionFunctionController extends BaseController {
 			.join(",");
 		const expression = `${this._funcName}(${args})`;
 
-		const { text, isError } = await postEval(this._pkgPath ?? "", expression);
+		const abort = new AbortController();
+		this._qevalAbort = abort;
+		const res = await postEval(this._pkgPath ?? "", expression, abort.signal);
 		if (seq !== this._qevalSeq) return;
-		resultTarget.textContent = text;
-		resultTarget.classList.toggle(errorClass, isError);
+		this._qevalAbort = null;
+		// A rate limit or an outage says nothing about the function: show the
+		// neutral text analytics ignores, not an error.
+		resultTarget.textContent = res.unavailable ? unavailable : res.text;
+		resultTarget.classList.toggle(errorClass, res.isError);
 	}
 
 	// DOM ACTIONS

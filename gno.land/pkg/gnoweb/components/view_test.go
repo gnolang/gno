@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSourceView(t *testing.T) {
@@ -285,6 +286,34 @@ func TestHelpView(t *testing.T) {
 	assert.Equal(t, data.RealmName, helpViewParams.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.RealmName)
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+// TestHelpViewEval pins what the Actions page's eval scripts read from the
+// markup.
+func TestHelpViewEval(t *testing.T) {
+	view := HelpView(HelpData{
+		RealmName: "dao",
+		PkgPath:   "gno.land/r/gov/dao",
+		Remote:    "https://rpc.example:443",
+		Functions: []HelpFunction{{JSONFunc: &doc.JSONFunc{
+			Name:      "AmendBylawsPayload",
+			Signature: "func AmendBylawsPayload(daoID uint64, path, proposed string) string",
+			Params: []*doc.JSONField{
+				{Name: "daoID", Type: "uint64"},
+				{Name: "path", Type: "string"},
+				{Name: "proposed", Type: "string"},
+			},
+		}}},
+	})
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+
+	for _, want := range []string{
+		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
+	} {
+		assert.Contains(t, html, want)
+	}
 }
 
 func TestDirectoryView(t *testing.T) {
