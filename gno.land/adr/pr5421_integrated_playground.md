@@ -79,6 +79,10 @@ output moved on is dropped, and a newer Run aborts the request it
 supersedes. Share prints the link when the Clipboard API is missing.
 Analytics counts the page as `playground`, and `$run` as `run`.
 
+The page is served with its code as text, each file of a copy under its
+name, in the source view's frame, so a reader without JS still reads it; the
+controller replaces it with the editor.
+
 ### 2. Expression evaluator on the action page (`$help`)
 
 Below the function list: an input for arbitrary read-only Gno expressions, a
@@ -105,6 +109,10 @@ or evaluation aborts the request it supersedes. A rate limit, an unreachable
 node or a network failure is shown as "unavailable", not as the function's
 error, and analytics does not record it as a failed `qeval_preview`.
 
+The Eval buttons and the evaluator's form and result need JS: they are served
+hidden and shown by their controllers, and a `<noscript>` line says the
+evaluator needs JavaScript.
+
 The live results stay server-side rather than going from the browser to the
 node, as they did before: in production the CSP's `connect-src` named the node
 gnoweb queries (`-remote`), while the page queried the help remote, so the
@@ -112,9 +120,58 @@ direct query was blocked there.
 
 ### 3. `$run`: run script
 
-An editor pre-filled with a `main` that imports the realm, and the generated
-`gnokey maketx run` command (optionally with the script inlined through a
-heredoc). gnoweb never signs or broadcasts.
+An editor pre-filled with a `main` that imports the package, and the
+generated `gnokey maketx run` command, optionally with the script inlined
+through a heredoc. gnoweb never signs or broadcasts.
+
+- **Where:** `$run` serves the page only for a realm or pure package the
+  node's `vm/qdoc` answers for, on its path or one of its files' (the Run
+  tab of a source file links there). A listing, a user page or a path with
+  no package renders as if `$run` were not there, with that page's tabs; a
+  node failure gets the error page `$help` gives. Error pages have no Run
+  tab. The Run tab stays a realm tab; a pure package's `$run` is reached by
+  URL.
+- **Starter script:** built on the server from the same qdoc, so it runs as
+  generated: `println(pkg.Render(""))` when the package declares
+  `Render(string) string`, `Render(cross(cur), "")` from a
+  `main(cur realm)` when that `Render` is crossing, and otherwise
+  `_ = pkg.F` for the first exported function, since an unused import does
+  not compile. A package with no exported function gets a blank import. The
+  name is the import's own (`gno.LastPathElement`, which skips a version
+  suffix).
+- **Served whole:** the script is highlighted in the editor's place and the
+  command is in the page, so the page is complete without JS. The
+  controller replaces the script with the editor and fills the command's
+  slots from the fields.
+- **Modes and key:** the command follows `$help`: Full Security (query the
+  account, `maketx run -broadcast=false > run.tx`, `sign`, `broadcast`) is
+  shown and copied first, Fast is one `maketx run` under `$help`'s warning.
+  The mode select and the Key / Address field are `$help`'s, under the same
+  `action-header` controller and stored values, so a choice on one page
+  carries to the other. A line above the command says running it signs with
+  the key and broadcasts to the chain ID, which charges its fee. Empty, the
+  key reads `KEYNAME` (a shell reads `<key-name>` as a redirect) and the
+  account query `ADDRESS`.
+- **Shell safety:** each typed value (key, gas, fee, coins) is single-quoted
+  when it holds a character a shell treats specially, so it stays one
+  literal argument; `escapeShellSpecialChars` leaves spaces, so it would not.
+  The heredoc's delimiter (`GNO_EOF`, then `GNO_EOF_1`, ...) is one no line
+  of the script equals, so the script cannot end the heredoc and run lines as
+  commands. Both helpers are pinned by the frontend tests, which run the
+  quoted values and the heredoc through `sh`.
+- **Gas:** 50,000,000 gas with a 100000ugnot fee. The example realms'
+  starter scripts take 1 to 14 million gas (one realm's `Render` alone takes
+  far more and needs a raised gas), and the fee pays for 100 million gas at
+  the chain's initial price (1ugnot per 1000 gas), since the whole fee is
+  charged. `$help`'s calls keep their 1,000,000,000 and 1000000ugnot: they
+  call any function. Both pairs are Go values in `components` (`CallGas`,
+  `RunGas`), read by `command.html`, the run page's inputs and, for an
+  emptied field, the controller (the input's `defaultValue`).
+- **"Include script"** is a `.b-switch`, whose checkbox stays focusable on
+  this page; left out, the command asks for `script.gno` in a comment.
+
+The playground and the run page are built unconditionally: `NewRouter`
+always sets the help remote and the chain ID their commands print.
 
 ### API endpoint
 
