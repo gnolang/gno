@@ -31,12 +31,23 @@ func (c *funcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, er
 func serveEvalJSON(t *testing.T, h *Handler, pkgPath, expr string) (int, evalResponse) {
 	t.Helper()
 
+	rr := httptest.NewRecorder()
+	h.EvalHandler().ServeHTTP(rr, newEvalRequest(t, pkgPath, expr))
+	return decodeEval(t, rr)
+}
+
+func newEvalRequest(t *testing.T, pkgPath, expr string) *http.Request {
+	t.Helper()
+
 	body, err := json.Marshal(evalRequest{PkgPath: pkgPath, Expression: expr})
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, "/_/api/eval", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.EvalHandler().ServeHTTP(rr, req)
+	return req
+}
+
+func decodeEval(t *testing.T, rr *httptest.ResponseRecorder) (int, evalResponse) {
+	t.Helper()
 
 	var resp evalResponse
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
@@ -145,25 +156,24 @@ func TestEvalDeadline(t *testing.T) {
 	t.Parallel()
 
 	// serve answers one eval, failing fast instead of hanging when no
-	// deadline ends it.
+	// deadline ends it. Only the handler runs off the test goroutine: t
+	// must not be used there, and a goroutine left behind by a failure
+	// writes to its own recorder only.
 	serve := func(t *testing.T, h *Handler) (int, evalResponse) {
 		t.Helper()
-		type answer struct {
-			code int
-			resp evalResponse
-		}
-		done := make(chan answer, 1)
+		req := newEvalRequest(t, "r/a", "Slow()")
+		rr := httptest.NewRecorder()
+		done := make(chan struct{})
 		go func() {
-			code, resp := serveEvalJSON(t, h, "r/a", "Slow()")
-			done <- answer{code, resp}
+			defer close(done)
+			h.EvalHandler().ServeHTTP(rr, req)
 		}()
 		select {
-		case a := <-done:
-			return a.code, a.resp
+		case <-done:
 		case <-time.After(5 * time.Second):
 			t.Fatal("the eval did not end at its deadline")
-			return 0, evalResponse{}
 		}
+		return decodeEval(t, rr)
 	}
 
 	t.Run("the reader is answered when the node ignores the deadline", func(t *testing.T) {
