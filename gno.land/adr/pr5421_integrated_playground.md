@@ -28,20 +28,50 @@ components) rather than a parallel design.
 A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
 (CodeMirror, Go/TOML modes). Supports:
 
-- sharing through `?code=` (base64, DEFLATE-compressed with `&z`);
-- multi-file code through `// --- filename.gno ---` separators, one tab per
-  file, with add and close;
+- sharing through `?code=...&z`: the base64 of raw DEFLATE. Without `&z`,
+  `code` is plain text; with it, a value that does not inflate shows the
+  default code. Share refuses links over 8,000 characters, so the server
+  reads no longer value and inflates to 64 KiB at most;
+- multi-file code, one tab per file, with add and close. A share writes
+  every file, a lone one too, under a `// --- name ---` header. Reading it
+  back, a header whose name is not a file name (or repeats one) is a comment
+  that only looks like a header and stays in its file, and text before the
+  first header is `main.gno`;
+- file names from a strict allowlist (letters, digits, `_`, `.`, `-`; a
+  `.gno` name or `gnomod.toml`; no leading dot or dash; 100 bytes at most,
+  what a ustar header holds) for Add file, reopening a share and Download;
 - opening an editable copy of a deployed package with `?from=<pkgpath>`
   (`&file=` picks the tab shown first). `<pkgpath>$play` redirects there,
   and source file views link to it.
 
-The playground is its own page. Its breadcrumb ends with a `playground` pill,
-after the copied package (or `_ / play` and the shared `?code=`). A copy keeps
-its package's tabs, none of them current, so the reader can go back to it.
+A copy never goes through the text format, which a source line could split:
+the page carries its files as JSON in a `<script type="application/json">`,
+one entry per file, sources only. They are read by the fetch `$download`
+uses, handed to the playground as a `PackageFetcher` (as state is handed a
+`FileFetcher`), so both share one bound (100 files, 2 MiB of source), one
+60 s cache and one coalesced read per package. A missing package is a 404, a
+node timeout a 408, a package over the bounds a 413. `?from=` is read once,
+by `playground.ParseFrom`, for the copy, the header and the breadcrumb: only
+a bare realm or pure package path (with or without the domain); a file,
+args or a query is a 400 and is never fetched.
 
-The "Run" button does not execute scratch-pad code: it prints the local
-`gno run` / `gno test` commands, and for code with `Render` it still calls
-`/_/api/eval` on a fixed path. Server-side execution is future work.
+The playground is its own page, titled "Playground", or
+"r/demo/foo · Playground" for a copy, which share cards repeat. Its
+breadcrumb ends with a `playground` pill, after the copied package (or
+`_ / play` and the shared `?code=`, whose `&z` goes along as a hidden input
+when the field is submitted). A copy keeps its package's tabs, none of them
+current, so the reader can go back to it, and a copy of a community package
+carries the realm notice that package's pages carry.
+
+The playground does not execute scratch-pad code. Its button says what it
+does. On an unmodified copy of a realm that declares `Render`, it reads
+"Preview" and shows what that realm renders, `Render("")` through
+`/_/api/eval` at the copy's own path. Anywhere else (edited code, a package,
+a share, the default code), it reads "Run locally" and prints `gno run .`
+and `gno test .`, with no file name in any command. A result that comes back
+after the output moved on is dropped, and a newer Run aborts the request it
+supersedes. Share prints the link when the Clipboard API is missing.
+Analytics counts the page as `playground`, and `$run` as `run`.
 
 ### 2. Expression evaluator on the action page (`$help`)
 
@@ -61,7 +91,8 @@ use the same literals, so all three agree on what a typed value means; the
 `gnokey maketx call -args` command keeps the raw value, which gnokey parses
 by type itself. These helpers are pure functions in `frontend/js/utils.ts`,
 pinned by `make -C gno.land/pkg/gnoweb/frontend test` (node's own test
-runner, no dependency), which CI runs beside the frontend lint. A
+runner, no dependency), which CI runs beside the frontend lint; the
+playground's file helpers (`playground-files.ts`) are pinned the same way. A
 chain error reaches the reader in the node's own words, without gnoweb's
 internal prefix. A newer live result
 or evaluation aborts the request it supersedes. A rate limit, an unreachable
@@ -135,6 +166,12 @@ readers.
 
 - **Server-side `gno run` / `gno test`:** needs sandboxing, resource limits
   and execution isolation. Deferred; the Run button prints commands instead.
+- **Run previewing edited code:** the node can only evaluate deployed code,
+  so an edit could only be previewed against what the chain holds, which
+  would show the old code's output under the new code. Only an unmodified
+  copy previews.
+- **Copies in the share text format:** what the copy did at first. A source
+  line shaped like a header split the file; JSON has no such line.
 - **Dry Run through `.app/simulate`:** shipped on this branch, then removed.
   Since #6088 the node simulates a `MsgRun` only with a real signature, which
   gnoweb does not have. It can come back with wallet signing (sign without
