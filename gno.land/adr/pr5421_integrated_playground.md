@@ -46,9 +46,22 @@ The "Run" button does not execute scratch-pad code: it prints the local
 ### 2. Expression evaluator on the action page (`$help`)
 
 Below the function list: an input for arbitrary read-only Gno expressions, a
-result panel and a history with re-run. It and the function cards' live
-results evaluate through `POST /_/api/eval` (`vm/qeval`), so nothing mutates
-state.
+result panel and a history with re-run (ArrowUp/ArrowDown walk it). The
+Functions list ends with an entry that links to it. It and the function
+cards' live results evaluate through `POST /_/api/eval` (`vm/qeval`), so
+nothing mutates state.
+
+A card's Eval button sends the card's params in order: the value typed, or a
+zero literal for the param's type, which the template renders from the
+package doc (`.Params`) rather than parsing the signature. A newer live result
+or evaluation aborts the request it supersedes. A rate limit, an unreachable
+node or a network failure is shown as "unavailable", not as the function's
+error, and analytics does not record it as a failed `qeval_preview`.
+
+The live results stay server-side rather than going from the browser to the
+node, as they did before: in production the CSP's `connect-src` named the node
+gnoweb queries (`-remote`), while the page queried the help remote, so the
+direct query was blocked there.
 
 ### 3. `$run`: run script
 
@@ -59,7 +72,26 @@ heredoc). gnoweb never signs or broadcasts.
 ### API endpoint
 
 `POST /_/api/eval` evaluates a `pkg_path` + `expression` pair through
-`vm/qeval` and returns `{result}` or `{error}`. It is rate-limited per client.
+`vm/qeval` and returns `{result}` or `{error}`.
+
+- **Requests:** a body that is not `application/json` is refused with 415,
+  and a request another site sent (`Sec-Fetch-Site`/`Origin`, net/http's
+  `CrossOriginProtection`) with 403, both before the limiter is charged.
+  A body over 1 MiB is a 413; another method a 405 with `Allow: POST`.
+- **Rate limit:** `state.NewIPLimiter`, built with `-trusted-proxies` like
+  the state and search limiters: 40 of burst and 60 per minute per client,
+  so a load and a reload of a realm with a dozen zero-argument functions
+  fit.
+- **Node load:** answers are kept for 3 s in a bounded LRU, keyed on package
+  and expression, and concurrent readers of the same expression share one
+  query (singleflight), so a popular Actions page costs the node one query
+  per function. Evals run on their own RPC slots, a quarter of
+  `AppConfig.MaxConcurrentRPC` (8 of 32 by default), so they cannot hold
+  the slots pages render with, and under the handler's request timeout.
+- **Answers:** an expression the chain rejects is a 200 with `{error}`;
+  an unreachable node is a 502 and a timeout a 504, both with a generic
+  message. Results are cut at 64 KiB with a visible marker. A failed eval
+  logs at Debug, without the expression.
 
 ### Editor
 
@@ -81,8 +113,13 @@ is committed to `public/js/`. Each icon keeps a single meaning across gnoweb
 
 ### CSP
 
-`connect-src` includes `'self'` so the JS can call `/_/api/eval`; CodeMirror's
-injected styles carry the per-response CSP nonce.
+`connect-src` is `'self'` only: the JS calls `/_/api/eval` and never the node.
+CodeMirror's injected styles carry the per-response CSP nonce.
+
+Assets loaded without the version query (`?v=`), such as a module's own
+`./controller.js` import, are served `no-cache` and revalidated against the
+ETag; only versioned URLs are `immutable`, so a deploy reaches returning
+readers.
 
 ## Alternatives Considered
 
@@ -93,6 +130,9 @@ injected styles carry the per-response CSP nonce.
   gnoweb does not have. It can come back with wallet signing (sign without
   broadcasting).
 - **`/_/api/funcs`:** removed, nothing called it.
+- **Live results from the browser to the node (`<remote>/abci_query`):** what
+  master did. Blocked by the production CSP (see the Actions page section);
+  the endpoint is hardened instead.
 - **WebSocket REPL:** more interactive, much more server state. Deferred.
 - **Separate gnostudio service or WASM playground:** breaks the single-binary
   model.
@@ -105,8 +145,9 @@ injected styles carry the per-response CSP nonce.
 - **Positive:** any package can be opened as an editable copy in one click.
 - **Positive:** zero new runtime dependencies; gnoweb stays a single binary.
 - **Trade-off:** the playground cannot execute scratch-pad code yet.
-- **Trade-off:** `/_/api/eval` runs caller-chosen expressions on the node;
-  its rate limiting needs hardening before exposure to mainnet at scale.
+- **Trade-off:** `/_/api/eval` runs caller-chosen expressions on the node.
+  The per-client limit, the cache and the separate RPC slots bound what one
+  reader or one popular page costs; the edge proxy remains the first limit.
 - **Trade-off:** compiled JS is committed to the repo, like the rest of the
   gnoweb frontend.
 
