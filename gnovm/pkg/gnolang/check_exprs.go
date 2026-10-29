@@ -172,12 +172,14 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 
 // assertLiteralIndices rejects a repeated constant index in an array or
 // slice literal, and one at or past length when it is known (-1 for a
-// slice); elements without a key take the next index. Charged per element.
+// slice); elements without a key take the next index. Charged per
+// element; the error is positioned at the element.
 func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) {
 	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
-	for _, elt := range n.Elts {
+	for i := range n.Elts {
+		elt := &n.Elts[i]
 		idx := next
 		if elt.Key != nil {
 			i, ok := constIndex(elt.Key)
@@ -186,13 +188,13 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 			}
 			idx = i
 			if length >= 0 && idx >= length {
-				panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length))
+				panicAt(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length), elt.Key, elt.Value)
 			}
 		} else if length >= 0 && idx >= length {
-			panic(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length))
+			panicAt(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length), elt.Value)
 		}
 		if seen[idx] {
-			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+			panicAt(fmt.Sprintf("duplicate index %d in array or slice literal", idx), elt.Key, elt.Value)
 		}
 		seen[idx] = true
 		next = idx + 1
@@ -231,9 +233,10 @@ func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
 	return found
 }
 
-// assertSwitchTag checks an expression switch's tag: comparable, or a
-// slice, map or func, which the clauses may compare to nil only.
-func assertSwitchTag(t Type) {
+// assertSwitchTag checks an expression switch's tag x of type t:
+// comparable, or a slice, map or func, which the clauses may compare to
+// nil only. The error is positioned at the tag.
+func assertSwitchTag(x Expr, t Type) {
 	if t == nil {
 		return
 	}
@@ -242,6 +245,7 @@ func assertSwitchTag(t Type) {
 		return
 	}
 	if !isComparable(t) {
-		panic(fmt.Sprintf("cannot switch on %v (%v is not comparable)", t, t))
+		panicAt(fmt.Sprintf("cannot switch on %s (variable of type %v) (%v is not comparable)",
+			exprString(x), t, t), x)
 	}
 }

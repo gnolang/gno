@@ -27,8 +27,11 @@ type I6 interface {
 }
 
 // GnoError:
+// line 9: interface contains embedded non-interface main.I2
+// line 12: interface contains embedded non-interface int
 // line 14: invalid recursive type: S -> S
 // line 17: invalid recursive type: I4 -> I4
-// line 25: invalid recursive type: I5 -> I6 -> I5
+// line 21: invalid recursive type: I5 -> I6 -> I5
+// line 22: interface contains embedded non-interface main.I6
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9, 12; over-strict: lines 25
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 22

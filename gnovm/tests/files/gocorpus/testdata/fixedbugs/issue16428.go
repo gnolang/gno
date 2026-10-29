@@ -12,6 +12,6 @@ var (
 )
 
 // GnoError:
-// line 10: cannot convert StringKind to ArrayKind
+// line 10: invalid use of [...] array (outside a composite literal)
 
 // Verdict: Clean errorcheck

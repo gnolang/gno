@@ -15,7 +15,7 @@ func main() {
 }
 
 // Error:
-// main/maplit14.gno:14:6-55: invalid map key type main.Outer
+// main/maplit14.gno:14:10-15: invalid map key type main.Outer
 
 // TypeCheckError:
 // main/maplit14.gno:14:10: invalid map key type Outer

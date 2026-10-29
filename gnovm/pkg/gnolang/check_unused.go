@@ -39,6 +39,25 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 	var labels []label // in walk order; never ranged as a map
 	branched := map[Name]bool{}
 	plain := func(n Name) Name { return Name(strings.TrimSuffix(string(n), ".loopvar")) }
+	// markUse records a use of name from inside last, resolved to dbn's
+	// slot. A type-switch guard that shadows a name of the switch's init
+	// statement reuses the slot copied into each clause (resolved to the
+	// switch): used in a clause, it is the guard, not the init's name.
+	markUse := func(last, dbn BlockNode, name Name) {
+		if ss, ok := dbn.(*SwitchStmt); ok && ss.IsTypeSwitch && ss.VarName == name {
+			for bn := last; bn != nil && bn != BlockNode(ss); bn = bn.GetParentNode(nil) {
+				chargeCPUGas(gm, OpCPUSlopeCheckNode)
+				if cs, ok := bn.(*SwitchClauseStmt); ok && cs.GetParentNode(nil) == BlockNode(ss) {
+					used[key{ss, plain(name)}] = true
+					return
+				}
+			}
+		}
+		sources := dbn.GetStaticBlock().NameSources
+		if idx, ok := dbn.GetLocalIndex(name); ok && int(idx) < len(sources) {
+			used[key{sources[idx].Origin, plain(name)}] = true
+		}
+	}
 
 	TranscribeB(parent, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage == TRANS_ENTER {
@@ -63,10 +82,7 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 				Transcribe(cx.Source, func(_ []Node, _ TransField, _ int, sn Node, st TransStage) (Node, TransCtrl) {
 					if snx, ok := sn.(*NameExpr); ok && st == TRANS_LEAVE && snx.Path.Type == VPBlock {
 						if dbn := last.GetBlockNodeForPath(nil, snx.Path); dbn != nil {
-							sources := dbn.GetStaticBlock().NameSources
-							if idx, ok := dbn.GetLocalIndex(snx.Name); ok && int(idx) < len(sources) {
-								used[key{sources[idx].Origin, plain(snx.Name)}] = true
-							}
+							markUse(last, dbn, snx.Name)
 						}
 					}
 					return sn, TRANS_CONTINUE
@@ -87,10 +103,7 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 				fallthrough
 			default:
 				if dbn := last.GetBlockNodeForPath(nil, nx.Path); dbn != nil {
-					sources := dbn.GetStaticBlock().NameSources
-					if idx, ok := dbn.GetLocalIndex(nx.Name); ok && int(idx) < len(sources) {
-						used[key{sources[idx].Origin, plain(nx.Name)}] = true
-					}
+					markUse(last, dbn, nx.Name)
 				}
 			}
 		}

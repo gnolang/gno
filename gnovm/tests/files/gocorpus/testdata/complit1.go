@@ -70,8 +70,8 @@ var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
 // line 25: cannot slice variable of type <untyped> bigint
 // line 26: cannot slice variable of type <untyped> bigdec
 // line 27: cannot slice variable of type <untyped> bool
-// line 47: types cannot be elided in composite literals for struct types
-// line 48: types cannot be elided in composite literals for struct types
+// line 47: missing type in composite literal
+// line 48: missing type in composite literal
 // line 49: unexpected composite lit type *main.T
 // line 50: unexpected composite lit type int
 

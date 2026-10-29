@@ -93,4 +93,24 @@ func f8(r rune) {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15, 20, 27, 28, 35, 37, 44, 47, 49, 75, 76, 85, 86, 87, 88, 89, 91, 92
+// GnoError:
+// line 15: duplicate case 0 in expression switch
+// line 20: duplicate case int(0) in expression switch
+// line 27: duplicate case 5 in expression switch
+// line 28: duplicate case 5.0 in expression switch
+// line 35: duplicate case "" in expression switch
+// line 37: duplicate case "abc" in expression switch
+// line 44: duplicate case 0 in expression switch
+// line 47: duplicate case float32(10) in expression switch
+// line 49: duplicate case float64(10) in expression switch
+// line 75: duplicate case 0 in expression switch
+// line 76: duplicate case 1 in expression switch
+// line 85: duplicate case 33 in expression switch
+// line 86: duplicate case '"' in expression switch
+// line 87: duplicate case int32(35) in expression switch
+// line 88: duplicate case int32(36) in expression switch
+// line 89: duplicate case int32(37) in expression switch
+// line 91: duplicate case 'b' in expression switch
+// line 92: duplicate case x in expression switch
+
+// Verdict: Clean errorcheck

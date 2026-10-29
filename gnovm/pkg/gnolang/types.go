@@ -1032,6 +1032,12 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
 	// mirrors the runtime type-assertion charge in op_expressions.go.
 	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
+	if pt, ok := baseOf(ot).(*PointerType); ok {
+		if _, ok := baseOf(pt.Elt).(*InterfaceType); ok {
+			// Its method set is empty; the embedding walk has no case for it.
+			return fmt.Errorf("type %v is pointer to interface, not interface", ot)
+		}
+	}
 	// One walk of ot's embedding graph serves every method lookup below: the
 	// graph is expanded once (OpCPUSlopeEmbedExpand per type) and re-scanned
 	// per name (OpCPUSlopeEmbedScan per entry, plus OpCPUSlopeEmbedTrailHop
@@ -1050,6 +1056,9 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 		mname := im.stampedName()
 		if status != embedLookupFound {
 			return fmt.Errorf("missing method %s", mname)
+		}
+		if lt := trail[len(trail)-1].Type; lt == VPField || lt == VPDerefField {
+			return fmt.Errorf("%v.%s is a field, not a method", ot, mname)
 		}
 		// Seal enforcement: a dot-named marker method (e.g. `.seal` on the
 		// uverse `realm` interface) is undeclarable in user source — the
@@ -2683,6 +2692,9 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	if !hasEmbed {
 		names := make(map[Name]bool, len(fts))
 		for _, ft := range fts {
+			if ft.Name == "" {
+				assertEmbeddableInterface(ft.Type)
+			}
 			if ft.Name == "_" {
 				panic("methods must have a unique non-blank name")
 			}
@@ -2732,9 +2744,24 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 			}
 			continue
 		}
+		if fts[i].Name == "" {
+			assertEmbeddableInterface(fts[i].Type)
+		}
 		add(fts[i].Name, fts[i].Type, pkgPath)
 	}
 	return out
+}
+
+// assertEmbeddableInterface rejects a non-interface type embedded in an
+// interface. A declared type whose base is not yet set is let through:
+// it is being defined and is checked once complete.
+func assertEmbeddableInterface(t Type) {
+	if dt, ok := t.(*DeclaredType); ok && dt.Base == nil {
+		return
+	}
+	if embeddedInterface(t) == nil {
+		panic(fmt.Sprintf("interface contains embedded non-interface %v", t))
+	}
 }
 
 // isImplementedBy reports whether ot satisfies interface type it, charging the

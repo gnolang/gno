@@ -12,4 +12,7 @@ package main
 type m map[k]int // ERROR "invalid map key type"
 type k [1]m
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12
+// GnoError:
+// line 12: invalid map key type main.k
+
+// Verdict: Clean errorcheck

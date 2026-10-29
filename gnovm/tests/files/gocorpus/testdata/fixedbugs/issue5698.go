@@ -17,4 +17,7 @@ type Val struct{}
 
 type Map map[Key]Val // ERROR "invalid map key type"
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18
+// GnoError:
+// line 18: invalid map key type main.Key
+
+// Verdict: Clean errorcheck

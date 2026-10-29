@@ -13,6 +13,6 @@ func main() {
 }
 
 // GnoError:
-// line 12: cannot convert IntKind to ArrayKind
+// line 12: invalid use of [...] array (outside a composite literal)
 
 // Verdict: Clean errorcheck

@@ -13,7 +13,7 @@ func main() {
 }
 
 // Error:
-// main/var45.gno:3:1-13:2: invalid recursive value: A -> C -> A
+// main/var45.gno:6:2-13: invalid recursive value: A -> C -> A
 
 // TypeCheckError:
 // main/var45.gno:6:2: initialization cycle for A; main/var45.gno:6:2: 	A refers to C; main/var45.gno:7:2: 	C refers to A

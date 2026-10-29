@@ -1259,6 +1259,375 @@ func TestUnusedImportOnChain(t *testing.T) {
 	t.Fatal("RunFiles accepted an unused import")
 }
 
+func TestPreprocessCollectTypes(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type I interface{ M() }
+type P struct{}
+
+func (*P) M() {}
+
+type Field struct{ M func() }
+type Bad struct{ m map[Bad]int } // incomplete key, decided at the decl
+type Rec struct{ next *Rec }     // pointer cycle is fine
+type Ptr *struct{ Ptr }          // embedded named pointer
+type Bare interface{ int }
+
+var _ map[func()]int
+var _ map[*Rec]int
+
+func (Bad) A() {}
+
+func f(x int, e interface{}, i I, p *P, v P) {
+	switch x {
+	case 0, 1:
+	case 0: // duplicate
+	}
+	switch e {
+	case 0, int64(0), float32(10), float32(10): // duplicate only for the last
+	}
+	switch e {
+	case interface{}(0), interface{}(0): // conversions are not constants
+	}
+	switch e.(type) {
+	default:
+	default:
+	}
+	switch {
+	case true, true: // bools are exempt
+	}
+	switch e.(type) {
+	case 0: // not a type
+	}
+	switch i.(type) {
+	case P: // pointer receiver
+	case *P, int:
+	}
+	switch x.(type) { // not an interface
+	}
+	_ = i.(P)
+	_ = i.(*P)
+	_ = e.(P)
+	var fi Field
+	i = fi // a func field is not a method
+	var si []int
+	var sf []float64
+	copy(si, sf)
+	copy(si, "hi")
+	copy(x, si)
+	var a [-1]int
+	_ = a
+	var b [...]int
+	_ = b
+	_ = p
+	_ = v
+}
+
+func main() {}
+`)
+	want := []string{
+		"invalid map key type main.Bad",
+		"embedded field type cannot be a pointer",
+		"interface contains embedded non-interface int",
+		"invalid map key type func()",
+		"duplicate case 0 in expression switch",
+		"duplicate case float32(10) in expression switch",
+		"multiple defaults in switch",
+		"0 is not a type",
+		"cannot have dynamic type main.P (method M has pointer receiver)",
+		"cannot type switch on non-interface value x",
+		"impossible type assertion: main.P does not implement main.I (method M has pointer receiver)",
+		"main.Field does not implement main.I (main.Field.M is a field, not a method)",
+		"arguments to copy have different element types int and float64",
+		"arguments to copy have different element types int and byte",
+		"copy expects slice arguments; found int and []int",
+		"invalid array length -1",
+		"invalid use of [...] array (outside a composite literal)",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+// collectErrorsRaw is collectErrors with the position kept.
+func collectErrorsRaw(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	errs := PreprocessFilesCollect(m.Store, pn, fset)
+	var msgs []string
+	for _, e := range errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectTypePositions(t *testing.T) {
+	// B's key check is skipped while B is a shell and decided when B
+	// completes; the error still points at the key spelling in A.
+	msgs := collectErrorsRaw(t, `package main
+type B struct{ s []int; a A }
+type A struct{ m map[B]int }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:22-23: invalid map key type main.B") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	// A typed declared constant prints as T(value).
+	msgs = collectErrors(t, `package main
+type MyInt int
+func f(mi MyInt) {
+	switch mi {
+	case 1, MyInt(1):
+	}
+}
+`)
+	if len(msgs) != 1 || msgs[0] != "duplicate case main.MyInt(1) in expression switch" {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectTypeSwitchCases(t *testing.T) {
+	// Every repeated case is reported, at the case, by type identity:
+	// method order and parameter names do not distinguish types.
+	msgs := collectErrorsRaw(t, `package main
+func f(e interface{}) {
+	switch e.(type) {
+	case int:
+	case int:
+	case error:
+	case error:
+	case interface{ r(); w() }:
+	case interface{ w(); r() }:
+	case func(int):
+	case func(f int):
+	case nil, nil:
+	}
+}
+`)
+	want := []string{
+		"main/main.gno:5:7-10: duplicate case int in type switch",
+		"main/main.gno:7:7-12: duplicate case .uverse.error in type switch",
+		"main/main.gno:9:7-28: duplicate case interface {r func(); w func()} in type switch",
+		"main/main.gno:11:7-18: duplicate case func(int) in type switch",
+		"main/main.gno:12:12-15: duplicate case nil in type switch",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectTypeGuardOutsideSwitch(t *testing.T) {
+	// x.(type) parses anywhere; outside a type switch header it is an
+	// error, not a VM failure, also when parenthesised as a switch tag.
+	msgs := collectErrorsRaw(t, `package main
+func f(i interface{}) {
+	if x, ok := i.(type); ok {
+		_ = x
+	}
+	switch (i.(type)) {
+	}
+}
+`)
+	want := []string{
+		"main/main.gno:3:14-22: use of .(type) outside type switch",
+		"main/main.gno:6:10-18: use of .(type) outside type switch",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectSwitchTag(t *testing.T) {
+	// An incomparable tag is reported at the tag, before any clause
+	// compares a case to it.
+	msgs := collectErrorsRaw(t, `package main
+func f() {
+	var ar, ar1 [4]func()
+	switch ar {
+	case ar1:
+	}
+}
+`)
+	want := "main/main.gno:4:9-11: cannot switch on ar (variable of type [4]func()) ([4]func() is not comparable)"
+	if len(msgs) != 1 || msgs[0] != want {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectInterfaceElems(t *testing.T) {
+	// A blank method and an embedded non-interface are reported at the
+	// element, not at the interface.
+	msgs := collectErrorsRaw(t, `package main
+type B1 interface {
+	M()
+	_()
+}
+type B2 interface {
+	int
+}
+func f() {
+	var _ interface{ _() }
+}
+`)
+	want := []string{
+		"main/main.gno:4:2-5: methods must have a unique non-blank name",
+		"main/main.gno:7:2-5: interface contains embedded non-interface int",
+		"main/main.gno:10:19-22: methods must have a unique non-blank name",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectMalformedFloatConstant(t *testing.T) {
+	// A float literal past big.Float's exponent range parses as an
+	// infinity; gc rejects it as malformed. An underflow is 0, as in gc.
+	msgs := collectErrorsRaw(t, `package main
+const _ = 1e+1000000000
+const _ = 1e-1000000000
+const _ = 1e+646456992
+`)
+	want := "main/main.gno:2:11-24: malformed constant: 1e+1000000000"
+	if len(msgs) != 1 || msgs[0] != want {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectLiteralElements(t *testing.T) {
+	// Every failing element of a composite literal is reported at the
+	// element, in a function body and at package level alike; then the
+	// literal drops. Index and key errors point at the element too.
+	msgs := collectErrorsRaw(t, `package main
+type T struct{ f map[string]string }
+var m = map[string]int{
+	"a": 1,
+	1:   1,
+	2:   2,
+}
+func f() {
+	_ = map[string]int{
+		"a": 1,
+		"b", 2,
+		"a": 3,
+	}
+	_ = []string{"x", 20}
+	_ = []string{1: "dup", 1: "dup"}
+	_ = T{f: {"a": "b"}}
+}
+`)
+	want := []string{
+		"main/main.gno:5:2-3: cannot use untyped Bigint as StringKind",
+		"main/main.gno:6:2-3: cannot use untyped Bigint as StringKind",
+		"main/main.gno:11:3-6: missing key in map literal",
+		"main/main.gno:11:8-9: missing key in map literal",
+		"main/main.gno:12:3-6: duplicate key \"a\" in map literal",
+		"main/main.gno:14:20-22: cannot use untyped Bigint as StringKind",
+		"main/main.gno:15:25-26: duplicate index 1 in array or slice literal",
+		"main/main.gno:16:11-21: missing type in composite literal",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectInitExprCount(t *testing.T) {
+	// An extra initializer is reported at the value, as gc does; a
+	// missing one names the variable without its unresolved path.
+	msgs := collectErrorsRaw(t, `package main
+func main() {
+	var c, d = 1, 2, 3
+	var e, f, g = 1, 2
+	_, _, _, _, _ = c, d, e, f, g
+}
+`)
+	want := []string{
+		"main/main.gno:3:19-20: extra init expr 3",
+		"main/main.gno:4:6-20: missing init expr for g",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectPointerToInterface(t *testing.T) {
+	// A pointer to an interface has no methods: it implements nothing
+	// but the empty interface, in an assignment and in an assertion.
+	msgs := collectErrorsRaw(t, `package main
+type I interface{ M() }
+type S struct{}
+func (*S) M() {}
+func f(p *I, i I) {
+	var _ I = p
+	var _ interface{} = p
+	_ = i.(*I)
+}
+`)
+	want := []string{
+		"main/main.gno:6:6-13: *main.I does not implement main.I (type *main.I is pointer to interface, not interface)",
+		"main/main.gno:8:6-12: impossible type assertion: *main.I does not implement main.I (type *main.I is pointer to interface, not interface)",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectTypeSwitchGuardShadow(t *testing.T) {
+	// The guard t shadows the init t in each clause; a use of t in a
+	// clause is the guard's, so the init t is declared and not used.
+	msgs := collectErrorsRaw(t, `package main
+func f(x interface{}) {
+	switch t := 0; t := x.(type) {
+	case int:
+		_ = t
+	}
+}
+`)
+	want := []string{
+		"main/main.gno:3:9-10: declared and not used: t",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
+func TestPreprocessCollectUndefinedDependency(t *testing.T) {
+	// An undefined name in a declaration's type is reported where it is
+	// spelled, not at the declaration.
+	msgs := collectErrorsRaw(t, `package main
+type S struct {
+	err foo.Bar
+	Num int
+}
+type T struct {
+	x T1
+}
+`)
+	want := []string{
+		"main/main.gno:3:6-13: name not defined: foo",
+		"main/main.gno:7:4-6: name not defined: T1",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
+
 // deployAfterCollect runs the ordinary (non-accumulate) path over src,
 // optionally running a collect pass over the very same parsed nodes first,
 // and reports what the ordinary path did. A fresh PackageNode each time, so
