@@ -191,13 +191,15 @@ check_moves_forward() {
 # Checks that mainnet's halt_min_version, read from its RPC, is VERSION. The
 # comparison runs inside jq, as the node compares the floor, byte for byte: a
 # shell's $(…) would strip a trailing newline the node does not. An answer
-# that is not a query result is refused, never taken for an empty value.
+# that is not a query result is refused, never taken for an empty value. -n
+# and input make no answer at all an error, which jq 1.6's -e takes for a true
+# result.
 check_halt_min_version() {
   local body answer rc=0
   body='{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"params/node:p:halt_min_version","data":""}}'
   answer="$(curl -q -sS --connect-timeout 10 --max-time 30 -X POST -H 'Content-Type: application/json' -d "${body}" "${MAINNET_RPC}")" ||
     die "cannot ask ${MAINNET_RPC} for mainnet's halt_min_version"
-  jq -e --arg v "${VERSION}" '.result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson | . == $v end' \
+  jq -ne --arg v "${VERSION}" 'input | .result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson | . == $v end' \
     <<<"${answer}" >/dev/null 2>&1 || rc=$?
   case ${rc} in
   0) ok "mainnet's halt_min_version is ${VERSION}" ;;

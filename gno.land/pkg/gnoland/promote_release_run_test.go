@@ -101,6 +101,7 @@ type promoteFixture struct {
 	digests   map[string]string // Docker-Content-Digest overrides, by "<image>:<ref>"
 	halt      string            // mainnet's halt_min_version
 	rpcAnswer string            // a raw answer to the RPC query, replacing the one built from halt
+	rpcEmpty  bool              // the RPC query gets an answer with no body, replacing the one built from halt
 }
 
 // promoteState is everything a case sets before the run. The fixture takes it
@@ -115,6 +116,7 @@ type promoteState struct {
 	images    string            // the version every image's latest points at
 	halt      string            // mainnet's halt_min_version
 	rpcAnswer string            // a raw answer to the RPC query, replacing the one built from halt
+	rpcEmpty  bool              // the RPC query gets an answer with no body, replacing the one built from halt
 	digests   map[string]string // Docker-Content-Digest overrides, by "<image>:<ref>"
 	types     map[string]string // Content-Type overrides, by "<image>:<ref>"
 }
@@ -139,6 +141,7 @@ func newPromoteFixture(t *testing.T, st promoteState) *promoteFixture {
 		digests:   map[string]string{},
 		halt:      st.halt,
 		rpcAnswer: st.rpcAnswer,
+		rpcEmpty:  st.rpcEmpty,
 	}
 	f.log = filepath.Join(f.dir, "events")
 	for _, sub := range []string{"bin", "home", "gh"} {
@@ -214,9 +217,9 @@ func (f *promoteFixture) serve(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/" && r.Method == http.MethodPost:
 		f.event("rpc")
 		f.mu.Lock()
-		answer, halt := f.rpcAnswer, f.halt
+		answer, halt, empty := f.rpcAnswer, f.halt, f.rpcEmpty
 		f.mu.Unlock()
-		if answer == "" {
+		if answer == "" && !empty {
 			data, _ := json.Marshal(halt)
 			answer = `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":null,"Data":"` + base64.StdEncoding.EncodeToString(data) + `"}}}}`
 		}
@@ -391,6 +394,27 @@ func TestPromoteReleaseRuns(t *testing.T) {
 			assert.Empty(t, matching(ev, "gh release edit"))
 		})
 	}
+
+	// curl -sS exits 0 on a 503 or a 204 that has no body. This case guards
+	// the script only where jq is 1.6, as on Debian 12 and Ubuntu 22.04: there
+	// `jq -e` takes no input at all for a true result. jq 1.7, which CI runs,
+	// refuses no input itself, so there it passes however the script reads
+	// the answer.
+	t.Run("a MINOR is refused on an answer with no body", func(t *testing.T) {
+		t.Parallel()
+
+		st := held
+		st.rpcEmpty = true
+		f := newPromoteFixture(t, st)
+		out, code := f.run(script, "v1.7.0", "--push")
+		assert.NotEqual(t, 0, code, out)
+		assert.Contains(t, out, "gave no halt_min_version")
+		ev := f.events()
+		assert.Len(t, matching(ev, "rpc"), 1, "mainnet is asked")
+		assert.Empty(t, matching(ev, "token"), "no image is read")
+		assert.Empty(t, matching(ev, "PUT"))
+		assert.Empty(t, matching(ev, "gh release edit"))
+	})
 
 	t.Run("a PATCH asks mainnet nothing", func(t *testing.T) {
 		t.Parallel()
