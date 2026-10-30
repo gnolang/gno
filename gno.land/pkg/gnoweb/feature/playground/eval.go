@@ -48,10 +48,6 @@ var (
 	ErrEvalTimeout     = errors.New("the node did not answer the evaluation in time")
 )
 
-// crossOrigin refuses evals sent by another site's pages, which would spend
-// their visitors' budget.
-var crossOrigin = http.NewCrossOriginProtection()
-
 // EvalHandler returns the http.Handler for POST /_/api/eval.
 func (h *Handler) EvalHandler() http.Handler {
 	return http.HandlerFunc(h.serveEval)
@@ -79,13 +75,15 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A JSON body is what makes a cross-site fetch need a preflight, which
-	// gnoweb never approves; both checks run before the limiter is charged.
+	// A JSON body makes a cross-site fetch need a preflight gnoweb never
+	// approves. Origin is not read: a proxy may rewrite the Host it would match.
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "application/json" {
 		writeJSON(w, http.StatusUnsupportedMediaType, evalResponse{Error: "the body must be application/json"})
 		return
 	}
-	if err := crossOrigin.Check(r); err != nil {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "", "same-origin", "none":
+	default:
 		writeJSON(w, http.StatusForbidden, evalResponse{Error: "cross-origin request refused"})
 		return
 	}

@@ -201,11 +201,20 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 			wantError:  "cross-origin",
 		},
 		{
-			name:       "foreign origin",
-			headers:    map[string]string{"Origin": "https://evil.example"},
+			name:       "same-site fetch",
+			headers:    map[string]string{"Sec-Fetch-Site": "same-site"},
 			body:       valid,
 			wantStatus: http.StatusForbidden,
 			wantError:  "cross-origin",
+		},
+		{
+			// Plain HTTP: no Sec-Fetch-Site, and behind a proxy that rewrites
+			// Host, an Origin that differs from it on gnoweb's own pages.
+			name:       "origin other than the host",
+			headers:    map[string]string{"Origin": "http://testnet.example"},
+			body:       valid,
+			wantStatus: http.StatusOK,
+			wantResult: "mock eval",
 		},
 		{
 			name:       "same-origin fetch",
