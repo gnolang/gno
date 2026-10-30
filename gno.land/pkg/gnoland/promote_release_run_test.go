@@ -379,6 +379,10 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		// Its Data names the release, so only the Error refuses it.
 		{"an answer with an error", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":{"msg":"boom"},"Data":"InYxLjcuMCI="}}}}`, "gave no halt_min_version"},
 		{"an answer that is not JSON", "", `<html>bad gateway</html>`, "gave no halt_min_version"},
+		// Each starts with a value that names the release; only an answer
+		// that is one query result and nothing else is read.
+		{"an answer and trailing content", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":null,"Data":"InYxLjcuMCI="}}}}garbage`, "gave no halt_min_version"},
+		{"two answers", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":null,"Data":"InYxLjcuMCI="}}}}{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":null,"Data":"InYxLjYuMCI="}}}}`, "gave no halt_min_version"},
 	} {
 		t.Run("a MINOR is refused on "+c.name, func(t *testing.T) {
 			t.Parallel()

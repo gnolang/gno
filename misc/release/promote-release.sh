@@ -192,15 +192,15 @@ check_moves_forward() {
 # comparison runs inside jq, because a shell's $(…) would strip a trailing
 # newline that the node keeps: the node compares a floor that does not parse,
 # such as VERSION and a newline, byte for byte, so not even VERSION meets it.
-# An answer that is not a query result is refused, never taken for an empty
-# value. -n and input make no answer at all an error, which jq 1.6's -e takes
-# for a true result.
+# An answer that is not exactly one query result is refused, never taken for
+# an empty value: -s reads all of it, so no value, a second one or trailing
+# content fails. Without that, jq 1.6's -e exits 0 on an answer with no value.
 check_halt_min_version() {
   local body answer rc=0
   body='{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"params/node:p:halt_min_version","data":""}}'
   answer="$(curl -q -sS --connect-timeout 10 --max-time 30 -X POST -H 'Content-Type: application/json' -d "${body}" "${MAINNET_RPC}")" ||
     die "cannot ask ${MAINNET_RPC} for mainnet's halt_min_version"
-  jq -ne --arg v "${VERSION}" 'input | .result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson | . == $v end' \
+  jq -se --arg v "${VERSION}" 'if length != 1 then error("not one answer") else .[0] | .result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson | . == $v end end' \
     <<<"${answer}" >/dev/null 2>&1 || rc=$?
   case ${rc} in
   0) ok "mainnet's halt_min_version is ${VERSION}" ;;
