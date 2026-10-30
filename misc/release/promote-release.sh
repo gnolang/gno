@@ -189,11 +189,12 @@ check_moves_forward() {
 }
 
 # Checks that mainnet's halt_min_version, read from its RPC, is VERSION. The
-# comparison runs inside jq, as the node compares the floor, byte for byte: a
-# shell's $(…) would strip a trailing newline the node does not. An answer
-# that is not a query result is refused, never taken for an empty value. -n
-# and input make no answer at all an error, which jq 1.6's -e takes for a true
-# result.
+# comparison runs inside jq, because a shell's $(…) would strip a trailing
+# newline that the node keeps: the node compares a floor that does not parse,
+# such as VERSION and a newline, byte for byte, so not even VERSION meets it.
+# An answer that is not a query result is refused, never taken for an empty
+# value. -n and input make no answer at all an error, which jq 1.6's -e takes
+# for a true result.
 check_halt_min_version() {
   local body answer rc=0
   body='{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"params/node:p:halt_min_version","data":""}}'

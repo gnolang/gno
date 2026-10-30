@@ -18,9 +18,10 @@ const promoteReleaseScript = "misc/release/promote-release.sh"
 // followed by a space or the end of the line, and has an even number of '"'
 // and of "'" before it on its line. So a "#" inside a word, or inside a quoted
 // string such as "Fixes #6429" or "held # until the halt", is kept. Quotes are
-// counted, not parsed: an escaped quote or an apostrophe inside double quotes
-// before a comment keeps that comment as code, which fails a check rather
-// than hiding a flag from it.
+// counted, not parsed, so an escaped quote or an apostrophe inside double
+// quotes throws the count off. Before a comment, that keeps the comment as
+// code, which fails a check; before a "#" inside a string, as in "a \" # b",
+// it cuts the line there and hides what follows from the checks.
 func codeLines(t *testing.T, rel string) []string {
 	t.Helper()
 

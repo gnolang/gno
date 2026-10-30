@@ -57,11 +57,12 @@ case "$*" in
 esac
 `
 
-// The curl shim reaches the test's server and nothing else: https://ghcr.io/ is
-// rewritten to it, its own URLs pass, and any other URL, whatever its scheme
-// and case, is refused. Matching ignores case, as curl does for a scheme and
-// a host; the rewrite cuts the prefix by its length, since bash 3.2 matches
-// ${a#...} with case.
+// The curl shim sends the promote tests to the test's server: https://ghcr.io/
+// is rewritten to it, its own URLs pass, and any other argument with a scheme,
+// whatever its case, is refused. An argument without one, such as example.org/
+// or a url line in a -K config, reaches curl, and the dead proxies stop it.
+// Matching ignores case, as curl does for a scheme and a host; the rewrite
+// cuts the prefix by its length, since bash 3.2 matches ${a#...} with case.
 const curlShim = `#!/usr/bin/env bash
 set -u
 shopt -s nocasematch
@@ -370,8 +371,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 	for _, c := range []struct{ name, halt, answer, says string }{
 		{"no halt scheduled", "", "", "mainnet has not scheduled v1.7.0"},
 		{"a halt for another release", "v1.6.0", "", "mainnet has not scheduled v1.7.0"},
-		// The node compares the floor byte for byte; a shell's $(…) would
-		// strip the newline and take it for the release.
+		// The node keeps the newline, and meets a floor that does not parse
+		// only with those exact bytes, not with the release; a shell's $(…)
+		// would strip the newline and take it for the release.
 		{"a halt for the release and a newline", "v1.7.0\n", "", "mainnet has not scheduled v1.7.0"},
 		{"an answer with no data", "", `{"jsonrpc":"2.0","id":1,"result":{}}`, "gave no halt_min_version"},
 		// Its Data names the release, so only the Error refuses it.
@@ -596,8 +598,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 	})
 }
 
-// The curl shim is what keeps TestPromoteReleaseRuns off the network, with
-// the dead proxies behind it: only the stub server is reachable through it.
+// The curl shim keeps TestPromoteReleaseRuns off the network, with the dead
+// proxies behind it for what it lets through: an argument with a scheme
+// reaches the stub server or is refused.
 func TestPromoteStubCurlReachesOnlyTheServer(t *testing.T) {
 	t.Parallel()
 
