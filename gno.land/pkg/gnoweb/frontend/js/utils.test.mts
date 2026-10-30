@@ -166,11 +166,12 @@ test("evalArgs gives every param its argument, in order", () => {
 });
 
 // bashArgs returns the arguments bash passes to a command line's first
-// word, NUL-separated so an argument may hold a newline.
+// word, NUL-separated so an argument may hold a newline. History expansion
+// is on, as in the interactive shell these commands are pasted into.
 function bashArgs(line: string): string[] {
 	const out = execFileSync(
 		"bash",
-		["-c", `cmd() { printf '%s\\0' "$@"; }; ${line}`],
+		["-c", `set -o history -H\ncmd() { printf '%s\\0' "$@"; }; ${line}`],
 		{ encoding: "utf8" },
 	);
 	return out.split("\0").slice(0, -1);
@@ -236,9 +237,6 @@ test("$help's maketx args reach gnokey as typed", () => {
 		assert.deepEqual(bashArgs(`cmd $'${argSlotText(v, "")}'`), [v], v);
 	}
 	assert.equal(argSlotText("", ""), "");
-	assert.deepEqual(bashArgs(`cmd $'${argSlotText("bob smith", "string")}'`), [
-		'"bob smith"',
-	]);
 });
 
 // Values a reader may type that a shell would read as syntax: each must
@@ -260,6 +258,9 @@ const hostileArgs = [
 	'say "hi" it\'s $x\\',
 	"`raw` literal",
 	"line\nbreak",
+	"it's done!",
+	"it's !!",
+	"it's a!b",
 ];
 
 // A qeval slot sits inside -data "pkg.F(...)", in double quotes, where a

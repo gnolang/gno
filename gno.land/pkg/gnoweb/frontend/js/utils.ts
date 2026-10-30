@@ -12,9 +12,14 @@ export function debounce<P extends unknown[]>(
 // Escape for $'...' bash quoting. Only \ and ' end or change the word
 // there, and a newline is written \n; every other character is literal,
 // and a backslash before one that is no ANSI-C escape stays in the word,
-// so a ( or a ! is left as is.
+// so a ( is left as is. A ! is written \x21: interactive bash reads \' as
+// closing the quotes when it scans for history expansion, so a ! after an
+// apostrophe would expand there, and \x21 holds no ! to expand.
 export function escapeShellSpecialChars(arg: string): string {
-	return arg.replace(/([\\'])/g, "\\$1").replace(/\n/g, "\\n");
+	return arg
+		.replace(/([\\'])/g, "\\$1")
+		.replace(/\n/g, "\\n")
+		.replace(/!/g, "\\x21");
 }
 
 // Escape for "..." bash quoting, where only \ " $ and ` are special: a
