@@ -4,11 +4,11 @@
 
 #6228 (its Decision 4) gave GitHub's "Latest" release and the CLI images' `latest` tag to the highest final release, set at publication: `release / chain-tag` published the highest final tag with `--latest`, `release / docker` pushed `latest` for `gno`, `gnokey`, `gnodev` and `gnoweb` on it, and `misc/install.sh` installs the highest `v*` release that is not a pre-release. Publishing a final release therefore made it what operators land on by default, while mainnet still ran the previous one.
 
-After v1.6.0, the release runbook cut a final only once mainnet's switch was set: for a coordinated upgrade, once the GovDAO halt proposal had executed, shortly before the halt. The build takes about 40 minutes, so the binaries and images would arrive shortly before the halt, leaving operators and infrastructure (which prepares machine images ahead of time) little time to fetch and check them, and no slack for a build failure.
+After v1.6.0, the release manager's runbook, kept outside the repository, cut a final only once mainnet's switch was set: for a coordinated upgrade, once the GovDAO halt proposal had executed, shortly before the halt. `RELEASING.md` itself documented a cut with `--halt-height`, before the proposal. The build takes about 40 minutes, so the binaries and images would arrive shortly before the halt, leaving operators and infrastructure (which prepares machine images ahead of time) little time to fetch and check them, and no slack for a build failure.
 
 v1.6.0's tag message records an estimated halt height, which a pushed tag can never correct. #6381 removed the height from tag messages, so nothing a release publishes (tag, binaries, images) names a height: Latest was the only reason left to wait for the proposal.
 
-v1.7.0 was published the evening before mainnet's halt, and held by hand as each workflow ended: the release marked a pre-release, Latest given back to v1.5.1, and `latest` pointed back at v1.5.1's images by putting their manifests under it again.
+v1.7.0 was published on 2026-10-29, the evening before mainnet's planned halt, and held by hand as each workflow ended: the release marked a pre-release, Latest given back to v1.5.1, and `latest` pointed back at v1.5.1's images by putting their manifests under it again.
 
 ## Decision
 
