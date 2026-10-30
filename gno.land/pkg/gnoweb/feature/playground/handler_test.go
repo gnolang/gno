@@ -454,10 +454,26 @@ func TestIsValidFileName(t *testing.T) {
 	}
 }
 
+func TestInCopy(t *testing.T) {
+	t.Parallel()
+
+	for name, want := range map[string]bool{
+		"a.gno":            true,
+		"a_test.gno":       true,
+		"gnomod.toml":      true,
+		"z_0_filetest.gno": false,
+		"README.md":        false,
+		"LICENSE":          false,
+		"license":          false,
+	} {
+		assert.Equal(t, want, InCopy(name), name)
+	}
+}
+
 func TestCopyView(t *testing.T) {
 	t.Parallel()
 
-	t.Run("files are handed over one by one, sources only, in order", func(t *testing.T) {
+	t.Run("files are handed over one by one, in order", func(t *testing.T) {
 		t.Parallel()
 
 		// a.gno holds a line shaped like the share format's separator: a
@@ -465,7 +481,6 @@ func TestCopyView(t *testing.T) {
 		a := "package main\n\n// --- b.gno ---\nfunc A() {}\n"
 		pkgs := &stubPackages{files: []File{
 			{Name: "a.gno", Content: a},
-			{Name: "README.md", Content: "# readme"},
 			{Name: "b.gno", Content: "package main\n"},
 			{Name: "gnomod.toml", Content: "module = \"main\"\n"},
 		}}
@@ -486,7 +501,6 @@ func TestCopyView(t *testing.T) {
 		assert.Equal(t, "b.gno", data.DefaultFile)
 		assert.Equal(t, "r/demo/foo", data.From)
 		assert.Equal(t, deps.Domain, data.Domain)
-		assert.Equal(t, "README.md", pkgs.files[1].Name, "the fetcher's slice is left as it was")
 
 		// The page serves each file once, as text under its name, which a
 		// reader without JS reads and the controller reads back as is.
@@ -522,36 +536,21 @@ func TestCopyView(t *testing.T) {
 		assert.Equal(t, files, got)
 	})
 
-	// Only the sources a copy shows count toward its cap, and its page
-	// holds them once: a package of 1 MiB of sources is a page of about
-	// 1 MiB, not two.
-	t.Run("the cap counts the sources shown, which the page holds once", func(t *testing.T) {
+	// A page holds the sources once: a package of 1 MiB of sources is a
+	// page of about 1 MiB, not two.
+	t.Run("the page holds the sources once", func(t *testing.T) {
 		t.Parallel()
 
-		half := strings.Repeat("x", maxCopySourceBytes/2)
-		readme := File{Name: "README.md", Content: strings.Repeat("r", 4*maxCopySourceBytes)}
-		cases := []struct {
-			name  string
-			files []File
-			want  int
-		}{
-			{"at the cap, with a larger README", []File{{Name: "a.gno", Content: half}, {Name: "b.gno", Content: half}, readme}, http.StatusOK},
-			{"one byte past the cap", []File{{Name: "a.gno", Content: half}, {Name: "b.gno", Content: half + "x"}}, http.StatusRequestEntityTooLarge},
-		}
-		for _, tc := range cases {
-			deps := validDeps()
-			deps.Packages = &stubPackages{files: tc.files}
-			status, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
-			require.Equal(t, tc.want, status, tc.name)
-			if status != http.StatusOK {
-				continue
-			}
-			var buf bytes.Buffer
-			require.NoError(t, v.Render(&buf))
-			assert.Less(t, buf.Len(), maxCopySourceBytes+16<<10, tc.name)
-		}
+		half := strings.Repeat("x", MaxCopySourceBytes/2)
+		deps := validDeps()
+		deps.Packages = &stubPackages{files: []File{{Name: "a.gno", Content: half}, {Name: "b.gno", Content: half}}}
+		status, v := New(deps).copyView(context.Background(), "/r/demo/foo", "")
+		require.Equal(t, http.StatusOK, status)
+		var buf bytes.Buffer
+		require.NoError(t, v.Render(&buf))
+		assert.Less(t, buf.Len(), MaxCopySourceBytes+16<<10)
 		// Written out, not read from the constant: raising the cap fails here.
-		assert.Equal(t, 1<<20, maxCopySourceBytes)
+		assert.Equal(t, 1<<20, MaxCopySourceBytes)
 	})
 
 	errCases := []struct {

@@ -12,14 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )
 
-// Bounds on packageFiles, so one request cannot turn into an unbounded
-// number of node queries or response bytes. The byte cap is on the files'
-// sources, read by $download and by a playground copy alike.
+// Bounds on a package read, so one request cannot turn into an unbounded
+// number of node queries or response bytes.
 const (
 	packageTextMaxFiles = 100
 	packageTextMaxBytes = 2 << 20
@@ -35,16 +35,32 @@ const (
 
 var errPackageTooLarge = errors.New("package too large")
 
+// packageRead is what one kind of read takes of a package: the files keep
+// selects, up to maxBytes of them, cached apart under prefix.
+type packageRead struct {
+	prefix   string
+	keep     func(name string) bool
+	maxBytes int64
+}
+
+var (
+	// downloadRead takes every file vm/qfile can read.
+	downloadRead = packageRead{keep: validFileName, maxBytes: packageTextMaxBytes}
+	// copyRead takes what a playground copy opens, with no node query for
+	// the rest.
+	copyRead = packageRead{prefix: "copy:", keep: playground.InCopy, maxBytes: playground.MaxCopySourceBytes}
+)
+
 // packageFile is one file of a package, as the node serves it.
 type packageFile struct {
 	name   string
 	source []byte
 }
 
-// servePackageText serves every file of a package as one plain-text document,
+// servePackageText serves the files of a package as one plain-text document,
 // each under a "// file:" header, so it can be pasted into any assistant.
 func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
-	files, err := h.packageFiles(ctx, gnourl.Path)
+	files, err := h.packageFiles(ctx, gnourl.Path, downloadRead)
 	switch {
 	case errors.Is(err, errPackageTooLarge):
 		http.Error(w, "package too large", http.StatusRequestEntityTooLarge)
@@ -66,16 +82,15 @@ func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoUR
 	_, _ = w.Write(out.Bytes())
 }
 
-// packageFiles reads every file of the package at pkgPath, under the bounds
-// above, from the cache while a recent read holds it. $download and the
-// playground's copies share it. The slice is the cache's: read, never write.
-func (h *HTTPHandler) packageFiles(ctx context.Context, pkgPath string) ([]packageFile, error) {
-	files, err := h.pkgFiles.get(ctx, pkgPath, func() ([]packageFile, error) {
+// packageFiles reads what read takes of the package at pkgPath, from the
+// cache while a recent read holds it. The slice is the cache's: never write.
+func (h *HTTPHandler) packageFiles(ctx context.Context, pkgPath string, read packageRead) ([]packageFile, error) {
+	files, err := h.pkgFiles.get(ctx, read.prefix+pkgPath, func() ([]packageFile, error) {
 		// Concurrent requests share this read: one client hanging up must
 		// not fail the others.
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), packageTextBuildTimeout)
 		defer cancel()
-		return h.fetchPackageFiles(ctx, pkgPath)
+		return h.fetchPackageFiles(ctx, pkgPath, read)
 	})
 	if err != nil && ctx.Err() != nil {
 		// The request ran out of time before the shared read was done,
@@ -85,12 +100,11 @@ func (h *HTTPHandler) packageFiles(ctx context.Context, pkgPath string) ([]packa
 	return files, err
 }
 
-// fetchPackageFiles fetches every file of the package: one node query for
-// the list, then one per file. Passing the byte cap stops the fetches still
-// to come.
-func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string) ([]packageFile, error) {
+// fetchPackageFiles fetches what read takes: one node query for the list,
+// then one per file. Passing the byte cap stops the fetches still to come.
+func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string, read packageRead) ([]packageFile, error) {
 	names, err := h.Client.ListFiles(ctx, pkgPath, 0)
-	names = slices.DeleteFunc(names, func(f string) bool { return f == "" })
+	names = slices.DeleteFunc(names, func(f string) bool { return f == "" || !read.keep(f) })
 	if err == nil && len(names) == 0 {
 		err = ErrClientPackageNotFound
 	}
@@ -115,7 +129,7 @@ func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string) ([]
 			if err != nil {
 				return err
 			}
-			if total.Add(int64(len(source))) > packageTextMaxBytes {
+			if total.Add(int64(len(source))) > read.maxBytes {
 				return errPackageTooLarge
 			}
 			files[i] = packageFile{name: name, source: source}
@@ -128,9 +142,9 @@ func (h *HTTPHandler) fetchPackageFiles(ctx context.Context, pkgPath string) ([]
 	return files, nil
 }
 
-// packageFileCache keeps each package's files for packageTextTTL, so
+// packageFileCache keeps each read's files for packageTextTTL, so
 // repeating a $download or a copy costs no node query, and coalesces
-// concurrent reads of the same package into one. errPackageTooLarge is
+// concurrent identical reads into one. errPackageTooLarge is
 // kept too, since a package does not change once deployed; other errors
 // are not: a missing package may be deployed the next block.
 type packageFileCache struct {

@@ -19,6 +19,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
+// MaxCopySourceBytes caps the sources a copy shows, which the page carries
+// as text.
+const MaxCopySourceBytes = 1 << 20
+
 const (
 	// maxSharedCodeLength is the longest ?code= value read: Share refuses
 	// links over 8,000 characters (MAX_SHARE_URL_LENGTH), so a longer value
@@ -30,11 +34,6 @@ const (
 	// the margin is for code that compresses well, not for a link whose
 	// few bytes would expand into a page of megabytes.
 	maxDecompressedCodeSize = 64 << 10
-
-	// maxCopySourceBytes caps the sources a copy shows, which the page
-	// carries as text. Only those count: a README or another file the copy
-	// leaves out does not.
-	maxCopySourceBytes = 1 << 20
 
 	// defaultCode defines the default code displayed in the code editor.
 	defaultCode = `package main
@@ -150,27 +149,13 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 		return http.StatusInternalServerError, components.StatusErrorComponent(msg)
 	}
 
-	// A new slice: the fetcher's may be shared with other readers.
-	sources := make([]File, 0, len(files))
-	size := 0
-	for _, f := range files {
-		if isSource(f.Name) {
-			sources = append(sources, f)
-			size += len(f.Content)
-		}
-	}
-	if size > maxCopySourceBytes {
-		h.deps.Logger.Warn("package too large to copy", "path", pkgPath, "bytes", size)
-		return http.StatusRequestEntityTooLarge, components.StatusErrorComponent(ErrPackageTooLarge.Error())
-	}
-
 	from := strings.TrimPrefix(pkgPath, "/")
 	return http.StatusOK, NewPageView(PlaygroundData{
-		Files:       sources,
+		Files:       files,
 		From:        from,
 		Domain:      h.deps.Domain,
 		DefaultFile: file,
-		Preview:     canPreview(from, sources),
+		Preview:     canPreview(from, files),
 	})
 }
 
@@ -220,9 +205,13 @@ func RelPath(domain, p string) string {
 	return strings.TrimLeft(p, "/")
 }
 
-// isSource reports whether a file is source code that can be displayed in the code editor.
-func isSource(filename string) bool {
-	return strings.HasSuffix(filename, ".gno") || filename == "gnomod.toml"
+// InCopy reports whether a copy opens a package's file: its Gno sources and
+// gnomod.toml, without the filetests, of which a package can hold hundreds.
+func InCopy(name string) bool {
+	if strings.HasSuffix(name, "_filetest.gno") {
+		return false
+	}
+	return strings.HasSuffix(name, ".gno") || name == "gnomod.toml"
 }
 
 // decodeCompressedCode decompresses DEFLATE data, up to

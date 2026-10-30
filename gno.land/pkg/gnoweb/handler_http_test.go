@@ -218,7 +218,6 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path$download", Status: http.StatusOK, Contains: []string{
 			"// file: render.gno",
 			"one more time",
-			"// file: LicEnse",
 		}},
 		{Path: "/r/invalid/path$download", Status: http.StatusNotFound},
 

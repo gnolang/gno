@@ -26,9 +26,8 @@ type File struct {
 	Content string `json:"content"`
 }
 
-// PackageFetcher reads every file of a package for a copy, with the bounds
-// and the cache $download reads under. It answers ErrPackageNotFound,
-// ErrPackageTooLarge and ErrPackageTimeout for what they name.
+// PackageFetcher reads the files of a package InCopy selects, up to
+// MaxCopySourceBytes. It answers the ErrPackage errors for what they name.
 type PackageFetcher interface {
 	PackageFiles(ctx context.Context, pkgPath string) ([]File, error)
 }

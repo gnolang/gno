@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -170,17 +171,60 @@ func TestServePackageText_Errors(t *testing.T) {
 	}
 }
 
-// TestPackageFiles_SharedWithPlayground checks a playground copy reads the
-// package through $download's bounds and cache: a copy after a $download
-// costs no node query, and a package over the file cap is refused by both.
-func TestPackageFiles_SharedWithPlayground(t *testing.T) {
+// strictFileClient refuses the names vm/qfile cannot read, as rpcClient does.
+type strictFileClient struct{ *MockClient }
+
+func (c strictFileClient) File(ctx context.Context, path, name string, height int64) ([]byte, FileMeta, error) {
+	if !validFileName(name) {
+		return nil, FileMeta{}, ErrClientFileNotFound
+	}
+	return c.MockClient.File(ctx, path, name, height)
+}
+
+// TestPackageFiles_UnreadableNames checks a name vm/qfile cannot read, such as
+// a lowercase license, is left out of a read instead of failing it.
+func TestPackageFiles_UnreadableNames(t *testing.T) {
+	t.Parallel()
+
+	client := strictFileClient{NewMockClient(&MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/lic",
+		Files:  map[string]string{"a.gno": "package a", "license": "MIT", "LICENCE": "MIT"},
+	})}
+	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev"},
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+	})
+	require.NoError(t, err)
+
+	for _, target := range []string{"/r/mock/lic$download", "/_/play?from=r/mock/lic"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		assert.Equal(t, http.StatusOK, rr.Code, target)
+		assert.Contains(t, rr.Body.String(), "package a", target)
+	}
+}
+
+// TestPackageFiles_Copy checks a playground copy asks the node only for what
+// it opens, and is refused past the file cap and its own byte cap.
+func TestPackageFiles_Copy(t *testing.T) {
 	t.Parallel()
 
 	files := map[string]string{"a.gno": "package a", "README.md": "# a"}
+	// As r/gnoland/boards2/v0: more files than the cap, nearly all filetests.
+	filetests := map[string]string{"a.gno": "package a"}
+	for i := range packageTextMaxFiles + 1 {
+		filetests[fmt.Sprintf("z_%d_filetest.gno", i)] = "package main"
+	}
 	big := map[string]string{}
 	for i := range packageTextMaxFiles + 1 {
 		big[fmt.Sprintf("f%d.gno", i)] = "package big"
 	}
+	half := strings.Repeat("x", playground.MaxCopySourceBytes/2)
+	atCap := map[string]string{"a.gno": half, "b.gno": half}
+	pastCap := map[string]string{"a.gno": half, "b.gno": half + "x"}
 	// Few files, but any four of them pass the byte cap.
 	heavy := map[string]string{}
 	quarter := strings.Repeat("x", packageTextMaxBytes/4+1)
@@ -191,6 +235,9 @@ func TestPackageFiles_SharedWithPlayground(t *testing.T) {
 		&MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: files},
 		&MockPackage{Domain: "example.com", Path: "/r/mock/big", Files: big},
 		&MockPackage{Domain: "example.com", Path: "/r/mock/heavy", Files: heavy},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/filetests", Files: filetests},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/atcap", Files: atCap},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/pastcap", Files: pastCap},
 	)}
 	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
 		ClientAdapter: client,
@@ -212,16 +259,28 @@ func TestPackageFiles_SharedWithPlayground(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), `data-playground-name-value="a.gno">`+"\npackage a</pre>")
 	assert.NotContains(t, rr.Body.String(), "README.md", "a copy holds sources only")
-	assert.Equal(t, queries, client.queries.Load(), "the copy is served from $download's cache")
+	assert.Equal(t, queries+2, client.queries.Load(), "the list and a.gno: no query for the README")
+	require.Equal(t, http.StatusOK, get("/_/play?from=r/mock/path").Code)
+	assert.Equal(t, queries+2, client.queries.Load(), "a repeated copy is served from the cache")
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/r/mock/filetests$download").Code)
+	queries = client.queries.Load()
+	rr = get("/_/play?from=r/mock/filetests")
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "_filetest.gno", "a copy holds no filetests")
+	assert.Equal(t, queries+2, client.queries.Load(), "the list and a.gno: no query for a filetest")
 
 	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/r/mock/big$download").Code)
 	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/big").Code)
 	assert.Equal(t, http.StatusNotFound, get("/_/play?from=r/does/not/exist").Code)
 
-	// The byte cap: the copy reads first, $download then finds the
-	// rejection cached. Once the cap is passed, the fetches still queued
-	// are dropped: at most the ones running, and the three under the cap
-	// that freed their slots, reached the node.
+	assert.Equal(t, http.StatusOK, get("/_/play?from=r/mock/atcap").Code)
+	assert.Equal(t, http.StatusOK, get("/r/mock/pastcap$download").Code, "within $download's byte cap")
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/pastcap").Code)
+
+	// The byte cap. Once it is passed, the fetches still queued are
+	// dropped: at most the ones running, and the three under the cap that
+	// freed their slots, reached the node.
 	queries = client.queries.Load()
 	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/heavy").Code)
 	assert.LessOrEqual(t, client.queries.Load()-queries, int64(1+packageTextFetchers+3))

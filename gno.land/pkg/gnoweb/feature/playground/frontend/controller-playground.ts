@@ -82,6 +82,8 @@ export class PlaygroundController extends BaseController {
 		this.preview = !!this.runBtnEl && this.hasValue("preview", this.runBtnEl);
 
 		const defaultFile = this.getValue("default-file");
+		const missing =
+			defaultFile && !this.editor.fileNames().includes(defaultFile);
 		if (defaultFile) this.editor.openFile(defaultFile);
 
 		this._setupTabsScroll();
@@ -89,6 +91,10 @@ export class PlaygroundController extends BaseController {
 		if (skipped.length) {
 			this._setErrorOutput(
 				`Left out of this copy, as the playground takes no such file name: ${skipped.join(", ")}. Share and Download leave them out too.`,
+			);
+		} else if (missing) {
+			this._setErrorOutput(
+				"The file this link names is not in the copy, which leaves out filetests.",
 			);
 		} else {
 			this._resetOutput("// Run code to see output here");

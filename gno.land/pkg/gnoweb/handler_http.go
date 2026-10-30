@@ -1365,7 +1365,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKB)
 
 	var fileEdit string
-	if strings.HasSuffix(fileName, ".gno") {
+	if playground.InCopy(fileName) {
 		fileEdit = playground.CopyURL(gnourl.Path, fileName)
 	}
 
@@ -1912,13 +1912,12 @@ func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string
 
 var _ playground.PackageFetcher = playgroundPackages{}
 
-// playgroundPackages hands a playground copy the package files $download
-// reads, under the same bounds and cache, its errors turned into the
-// playground's.
+// playgroundPackages hands a playground copy the files it opens, its errors
+// turned into the playground's.
 type playgroundPackages struct{ h *HTTPHandler }
 
 func (p playgroundPackages) PackageFiles(ctx context.Context, pkgPath string) ([]playground.File, error) {
-	files, err := p.h.packageFiles(ctx, pkgPath)
+	files, err := p.h.packageFiles(ctx, pkgPath, copyRead)
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrClientPackageNotFound):
