@@ -1004,6 +1004,9 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				return
 			}
 			if field.BinFieldNum < fnum {
+				// Absent: reset it, as for any other absent field, rather
+				// than keep what a reused rv held (genproto2 resets too).
+				frv.Set(defaultValue(frv.Type()))
 				continue
 			}
 			// This is a list that was encoded unpacked, e.g.

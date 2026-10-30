@@ -250,3 +250,26 @@ func TestPointerToZero_Reflection_NilAndEmptyAreIndistinguishable(t *testing.T) 
 	// the decoder's defaultValue init for absent pointer fields).
 	assert.Equal(t, gotEmpty, gotNil)
 }
+
+// ---- Absent unpacked list, decoding into a used value ----------------
+
+// Pre-fix state: decodeReflectBinaryStruct reset every absent field to its
+// default except an unpacked list that a present field followed, which
+// kept whatever the value it decoded into held. genproto2's
+// UnmarshalBinary2 resets the whole value first. An empty []Struct is never
+// written, so reusing a value carried its old elements over.
+type unpackedThenTail struct {
+	Items []GnoVMPos
+	Tail  int64
+}
+
+func TestReflectDecode_AbsentUnpackedListResets(t *testing.T) {
+	t.Parallel()
+	cdc := registerLocal(t, unpackedThenTail{})
+
+	bz, err := cdc.MarshalReflect(unpackedThenTail{Tail: 1})
+	require.NoError(t, err)
+	got := unpackedThenTail{Items: []GnoVMPos{{Line: 1}}, Tail: 2}
+	require.NoError(t, cdc.UnmarshalReflect(bz, &got))
+	assert.Equal(t, unpackedThenTail{Tail: 1}, got)
+}

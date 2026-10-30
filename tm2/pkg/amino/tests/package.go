@@ -100,6 +100,17 @@ var Package = pkg.NewPackage(
 	// branch skips emission" gap that production AminoMarshalers never hit.
 	EmptyReprOnZero{},
 	FuzzNilEmptyRepr{},
+	// amino:"skip_zero" types.
+	SkipZeroInner{},
+	SkipZeroList{},
+	FuzzSkipZero{},
+	SkipZeroInterface{},
+	SkipZeroNilElements{},
+	SkipZeroOnly{},
+	SkipZeroHolder{},
+	SkipZeroElemRepr{},
+	SkipZeroElem{},
+	SkipZeroElems{},
 	// AminoMarshaler list element types.
 	SimpleAddress{},
 	HostRepr{},

@@ -207,6 +207,17 @@ func (ctx *P3Context2) writeFieldMarshal(sb *strings.Builder, field amino.FieldI
 
 	accessor := fmt.Sprintf("%s.%s", recv, fname)
 
+	// amino:"skip_zero" guards the whole field on its Go value, as
+	// encodeReflectBinaryStruct does; the repr-based zero checks below
+	// would still emit a zero value whose repr is non-empty.
+	if guard := ctx.skipZeroGuard(accessor, field); guard != "" {
+		field.SkipZero = false
+		fmt.Fprintf(sb, "\tif %s {\n", guard)
+		err := ctx.writeFieldMarshal(sb, field, recv)
+		sb.WriteString("\t}\n")
+		return err
+	}
+
 	// Handle unpacked lists.
 	if field.UnpackedList {
 		return ctx.writeUnpackedListMarshal(sb, accessor, finfo, fopts)
@@ -300,6 +311,10 @@ func (ctx *P3Context2) writeFieldMarshal(sb *strings.Builder, field amino.FieldI
 	return nil
 }
 
+// writeFieldMarshalInline writes a field of the struct repr of an element of
+// a list repr (see writeSliceReprMarshal). Unlike writeFieldMarshal it does
+// not convert a field to its repr, so such a repr cannot hold an
+// AminoMarshaler field: the generated code would not compile.
 func (ctx *P3Context2) writeFieldMarshalInline(sb *strings.Builder, field amino.FieldInfo, recv, indent string) {
 	finfo := field.TypeInfo
 	fname := field.Name
@@ -307,6 +322,14 @@ func (ctx *P3Context2) writeFieldMarshalInline(sb *strings.Builder, field amino.
 	fopts := field.FieldOptions
 
 	accessor := fmt.Sprintf("%s.%s", recv, fname)
+	if guard := ctx.skipZeroGuard(accessor, field); guard != "" {
+		// As in writeFieldMarshal.
+		field.SkipZero = false
+		fmt.Fprintf(sb, "%sif %s {\n", indent, guard)
+		ctx.writeFieldMarshalInline(sb, field, recv, indent+"\t")
+		fmt.Fprintf(sb, "%s}\n", indent)
+		return
+	}
 	zeroCheck := ctx.zeroCheck(accessor, finfo, fopts)
 	if zeroCheck != "" {
 		fmt.Fprintf(sb, "%sif %s {\n", indent, zeroCheck)
@@ -931,6 +954,48 @@ func (ctx *P3Context2) zeroCheck(accessor string, info *amino.TypeInfo, fopts am
 	default:
 		return ""
 	}
+}
+
+// skipZeroGuard returns the condition a field tagged amino:"skip_zero" is
+// wrapped in, or "" when the tag changes nothing, so the code stays the same
+// as without it: amino already leaves out a nil pointer, and the zero value
+// of a non-AminoMarshaler field that zeroCheck tests.
+func (ctx *P3Context2) skipZeroGuard(accessor string, field amino.FieldInfo) string {
+	if !field.SkipZero || field.Type.Kind() == reflect.Pointer {
+		return ""
+	}
+	if !field.TypeInfo.IsAminoMarshaler && ctx.zeroCheck(accessor, field.TypeInfo, field.FieldOptions) != "" {
+		return ""
+	}
+	return ctx.goNonZeroCheck(accessor, field.Type)
+}
+
+// goNonZeroCheck returns a Go expression that is true when the Go value at
+// accessor is not the zero value of rt, exactly as reflect.Value.IsZero
+// decides, which is the test the reflect codec applies for
+// amino:"skip_zero". Unlike zeroCheck it looks at the Go value, never the
+// repr. Since Go 1.22 IsZero agrees with == against the zero value (so
+// -0.0 is zero), and the zero value of a named type or an array can be
+// written as a literal; any other composite, or one == cannot compare,
+// asks reflect, so accessor must then be addressable.
+func (ctx *P3Context2) goNonZeroCheck(accessor string, rt reflect.Type) string {
+	switch rt.Kind() {
+	case reflect.Bool:
+		return accessor
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%s != 0", accessor)
+	case reflect.String:
+		return fmt.Sprintf("%s != \"\"", accessor)
+	case reflect.Slice:
+		return fmt.Sprintf("%s != nil", accessor)
+	case reflect.Array, reflect.Struct:
+		if (rt.Name() != "" || rt.Kind() == reflect.Array) && rt.Comparable() {
+			return fmt.Sprintf("%s != (%s{})", accessor, ctx.goTypeName(rt))
+		}
+	}
+	return fmt.Sprintf("!reflect.ValueOf(&%s).Elem().IsZero()", accessor)
 }
 
 func typ3GoStr(t amino.Typ3) string {
