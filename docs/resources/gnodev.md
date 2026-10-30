@@ -214,7 +214,7 @@ terminal; it turns off when output is piped or redirected, and in
 |---|---|
 | `-deploy-key <name>` | Override the default deployer (`devtest`) |
 | `-extra-root <dir>` | Add another directory tree whose packages are resolvable, alongside the working directory and `examples/` (repeatable) |
-| `-remote <domain>=<rpc>` | Fetch missing packages for a chain domain from its RPC, as `<domain>=<rpc>` (e.g. `gno.land=https://rpc.staging.gno.land:443`). Only domains given an entry are fetched; with no `-remote`, gnodev never reaches the network for packages |
+| `-remote <domain>=<rpc>` | Fetch missing packages for a chain domain from its RPC, as `<domain>=<rpc>` (e.g. `gno.land=https://rpc.latest.testnets.gno.land:443`). Only domains given an entry are fetched; with no `-remote`, gnodev never reaches the network for packages |
 | `-paths <paths>` | Preload extra package paths, comma-separated (e.g. `gno.land/r/my/realm`) |
 | `-no-examples` | Skip loading `$GNOROOT/examples` entirely |
 | `-add-account <name\|addr>[=<amount>]` | Premine or set the balance of an account (repeatable) |
