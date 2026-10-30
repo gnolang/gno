@@ -6,6 +6,8 @@ export class ActionEvalController extends BaseController {
 	// Where ArrowUp/ArrowDown stand in history; history.length is the line
 	// being typed.
 	private declare historyIndex: number;
+	// The line being typed, kept while ArrowUp walks the history.
+	private declare draft: string;
 	private declare inputEl: HTMLInputElement;
 	private declare resultEl: HTMLElement;
 	private declare historyListEl: HTMLElement | null;
@@ -20,6 +22,7 @@ export class ActionEvalController extends BaseController {
 	protected connect(): void {
 		this.history = [];
 		this.historyIndex = 0;
+		this.draft = "";
 		this.inputEl = this.getTarget("input") as HTMLInputElement;
 		this.resultEl = this.getTarget("result") as HTMLElement;
 		this.historyListEl = this.getTarget("history-list") as HTMLElement | null;
@@ -43,6 +46,7 @@ export class ActionEvalController extends BaseController {
 
 			const { expression, autoEval } = (e as CustomEvent).detail;
 			this.inputEl.value = expression;
+			this.historyIndex = this.history.length;
 			this.inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
 
 			if (autoEval) {
@@ -56,18 +60,20 @@ export class ActionEvalController extends BaseController {
 		});
 	}
 
-	// ArrowUp and ArrowDown walk the history like a shell; walking past the
-	// newest entry gives back an empty line.
+	// ArrowUp and ArrowDown walk the history like a shell: walking past the
+	// newest entry gives back the line being typed, and a step past either
+	// end leaves the input alone.
 	private _setupKeyboardShortcuts(): void {
 		this.inputEl.addEventListener("keydown", (e: KeyboardEvent) => {
 			const step = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
-			if (!step || this.history.length === 0) return;
+			const next = this.historyIndex + step;
+			if (!step || next < 0 || next > this.history.length) return;
 			e.preventDefault();
-			this.historyIndex = Math.min(
-				this.history.length,
-				Math.max(0, this.historyIndex + step),
-			);
-			this.inputEl.value = this.history[this.historyIndex] ?? "";
+			if (this.historyIndex === this.history.length) {
+				this.draft = this.inputEl.value;
+			}
+			this.historyIndex = next;
+			this.inputEl.value = this.history[next] ?? this.draft;
 		});
 	}
 
