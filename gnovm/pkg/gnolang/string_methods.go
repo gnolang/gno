@@ -21,29 +21,31 @@ func _() {
 	_ = x[Uint16Kind-10]
 	_ = x[Uint32Kind-11]
 	_ = x[Uint64Kind-12]
-	_ = x[Float32Kind-13]
-	_ = x[Float64Kind-14]
-	_ = x[BigintKind-15]
-	_ = x[BigdecKind-16]
-	_ = x[ArrayKind-17]
-	_ = x[SliceKind-18]
-	_ = x[PointerKind-19]
-	_ = x[StructKind-20]
-	_ = x[PackageKind-21]
-	_ = x[InterfaceKind-22]
-	_ = x[ChanKind-23]
-	_ = x[FuncKind-24]
-	_ = x[MapKind-25]
-	_ = x[TypeKind-26]
-	_ = x[BlockKind-27]
-	_ = x[HeapItemKind-28]
-	_ = x[TupleKind-29]
-	_ = x[RefTypeKind-30]
+	_ = x[Int256Kind-13]
+	_ = x[Uint256Kind-14]
+	_ = x[Float32Kind-15]
+	_ = x[Float64Kind-16]
+	_ = x[BigintKind-17]
+	_ = x[BigdecKind-18]
+	_ = x[ArrayKind-19]
+	_ = x[SliceKind-20]
+	_ = x[PointerKind-21]
+	_ = x[StructKind-22]
+	_ = x[PackageKind-23]
+	_ = x[InterfaceKind-24]
+	_ = x[ChanKind-25]
+	_ = x[FuncKind-26]
+	_ = x[MapKind-27]
+	_ = x[TypeKind-28]
+	_ = x[BlockKind-29]
+	_ = x[HeapItemKind-30]
+	_ = x[TupleKind-31]
+	_ = x[RefTypeKind-32]
 }
 
-const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindFloat32KindFloat64KindBigintKindBigdecKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindHeapItemKindTupleKindRefTypeKind"
+const _Kind_name = "InvalidKindBoolKindStringKindIntKindInt8KindInt16KindInt32KindInt64KindUintKindUint8KindUint16KindUint32KindUint64KindInt256KindUint256KindFloat32KindFloat64KindBigintKindBigdecKindArrayKindSliceKindPointerKindStructKindPackageKindInterfaceKindChanKindFuncKindMapKindTypeKindBlockKindHeapItemKindTupleKindRefTypeKind"
 
-var _Kind_index = [...]uint16{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 129, 140, 150, 160, 169, 178, 189, 199, 210, 223, 231, 239, 246, 254, 263, 275, 284, 295}
+var _Kind_index = [...]uint16{0, 11, 19, 29, 36, 44, 53, 62, 71, 79, 88, 98, 108, 118, 128, 139, 150, 161, 171, 181, 190, 199, 210, 220, 231, 244, 252, 260, 267, 275, 284, 296, 305, 316}
 
 func (i Kind) String() string {
 	idx := int(i) - 0
