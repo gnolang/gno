@@ -4284,6 +4284,8 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	z-index: var(--g-z-max);
 	max-height: 70vh;
 	overflow-y: auto;
+	/* A row the arrows reach stays above the sticky foot. */
+	scroll-padding-block-end: var(--g-space-9);
 	padding: var(--g-space-1);
 	font-size: var(--g-font-size-100);
 	background-color: var(--s-color-bg-surface-secondary);
@@ -4373,13 +4375,20 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	   light dropdown. */
 	/* Closer to its rows than to the group above, so it reads as their title. */
 	.b-omnisearch-label {
-		display: block;
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
 		padding: var(--g-space-2) var(--g-space-2) var(--g-space-0-5);
 		font-size: var(--g-font-size-50);
 		font-weight: var(--g-font-medium);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		color: var(--s-color-text-secondary);
+	}
+
+	.b-omnisearch-label .b-tag--indexer {
+		text-transform: none;
+		letter-spacing: normal;
 	}
 
 	/* Carries errors as well as "No results": secondary, not tertiary, so it
@@ -4469,16 +4478,6 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		font-size: var(--g-font-size-90);
 	}
 
-	/* A quiet outline: the note tint the results page uses is the
-	   dropdown's own surface in dark. */
-	.b-tag--indexer {
-		padding-block: 0;
-		border-color: var(--s-color-border-tertiary);
-		background-color: transparent;
-		color: var(--s-color-text-secondary);
-		font-family: inherit;
-	}
-
 	/* The way to everything else, quiet, under a rule, and kept in reach
 	   at the bottom of a long list (a phone's). */
 	.b-omnisearch-foot {
@@ -4500,11 +4499,6 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		.c-icon {
 			translate: 0 0.125em;
 		}
-	}
-
-	/* A result row's provenance pill. */
-	.b-omnisearch-item > .b-tag {
-		flex-shrink: 0;
 	}
 
 	/* A slot each, so pills and ↵ line up down the column. */
@@ -4568,6 +4562,16 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		border-end-start-radius: 0;
 		border-end-end-radius: 0;
 	}
+}
+
+/* A quiet, flat outline in the omnibar and its popover: the note tint the
+   results page uses is the dropdown's own surface in dark. */
+:is(.b-omnisearch, .b-omni-hints) .b-tag--indexer {
+	padding-block: 0;
+	border-color: var(--s-color-border-tertiary);
+	background-color: transparent;
+	color: var(--s-color-text-secondary);
+	font-family: inherit;
 }
 
 /* Transient highlight wrapped around an in-page match */

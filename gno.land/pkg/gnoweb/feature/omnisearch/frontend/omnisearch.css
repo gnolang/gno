@@ -155,23 +155,24 @@
 	padding: var(--g-space-4);
 }
 
-/* One grid for every group, rows on its columns (a subgrid), so each
-   description starts at the same edge and each row's `indexer` pill ends
-   at the same one, as in the omnibar. */
+/* As in the omnibar: a description under its keyword, and from sm one grid
+   for every group, so descriptions and pills line up. */
 .b-omni-hints {
-	display: grid;
-	grid-template-columns: max-content minmax(0, 1fr) auto;
-	column-gap: var(--g-space-3);
 	font-size: var(--g-font-size-50);
 
-	& > * {
-		grid-column: 1 / -1;
+	@media (--sm) {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr) auto;
+		column-gap: var(--g-space-4);
+
+		& > * {
+			grid-column: 1 / -1;
+		}
 	}
 
 	& ul,
 	& li {
 		display: grid;
-		grid-template-columns: subgrid;
 	}
 
 	& ul {
@@ -179,6 +180,10 @@
 		list-style: none;
 		margin: 0 0 var(--g-space-3);
 		padding: 0;
+
+		@media (--sm) {
+			grid-template-columns: subgrid;
+		}
 	}
 
 	/* A rule between groups, as in the omnibar. */
@@ -188,8 +193,15 @@
 	}
 
 	& li {
+		grid-template-columns: minmax(0, 1fr) auto;
 		grid-column: 1 / -1;
 		align-items: baseline;
+		column-gap: var(--g-space-3);
+
+		@media (--sm) {
+			grid-template-columns: subgrid;
+			column-gap: inherit;
+		}
 	}
 
 	& code {
@@ -218,16 +230,20 @@
 }
 
 .b-omni-hints__label {
+	grid-column: 1 / -1;
 	color: var(--s-color-text-tertiary);
+
+	@media (--sm) {
+		grid-column: auto;
+	}
 }
 
-/* Flat, as in the omnibar: a pill does not make its row taller. */
-/* The omnibar's quiet outline, not the results' filled pill. */
 .b-omni-hints li > .b-tag--indexer {
-	grid-column: 3;
-	padding-block: 0;
-	border-color: var(--s-color-border-tertiary);
-	background-color: transparent;
-	color: var(--s-color-text-secondary);
-	font-family: inherit;
+	grid-row: 1;
+	grid-column: 2;
+
+	@media (--sm) {
+		grid-row: auto;
+		grid-column: 3;
+	}
 }
