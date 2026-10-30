@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -92,12 +93,19 @@ type promoteFixture struct {
 	rpcAnswer string            // a raw answer to the RPC query, replacing the one built from halt
 }
 
+// promoteState is everything a case sets before the run. The fixture takes it
+// in before its server starts: the server's handlers run on their own
+// goroutines, and the requests reach them from a bash process the race
+// detector cannot see, so nothing may be set once it serves.
 type promoteState struct {
-	releases  []string // the full releases, as GitHub lists them
-	published []string // every published release, pre-releases included
-	latest    string   // GitHub's Latest
-	images    string   // the version every image's latest points at
-	halt      string   // mainnet's halt_min_version
+	releases  []string          // the full releases, as GitHub lists them
+	published []string          // every published release, pre-releases included
+	latest    string            // GitHub's Latest
+	images    string            // the version every image's latest points at
+	halt      string            // mainnet's halt_min_version
+	rpcAnswer string            // a raw answer to the RPC query, replacing the one built from halt
+	digests   map[string]string // Docker-Content-Digest overrides, by "<image>:<ref>"
+	types     map[string]string // Content-Type overrides, by "<image>:<ref>"
 }
 
 func newPromoteFixture(t *testing.T, st promoteState) *promoteFixture {
@@ -119,6 +127,7 @@ func newPromoteFixture(t *testing.T, st promoteState) *promoteFixture {
 		types:     map[string]string{},
 		digests:   map[string]string{},
 		halt:      st.halt,
+		rpcAnswer: st.rpcAnswer,
 	}
 	f.log = filepath.Join(f.dir, "events")
 	for _, sub := range []string{"bin", "home", "gh"} {
@@ -144,6 +153,8 @@ func newPromoteFixture(t *testing.T, st promoteState) *promoteFixture {
 		f.manifests[img+":latest"] = f.manifests[img+":"+st.images]
 		f.types[img+":latest"] = indexType
 	}
+	maps.Copy(f.digests, st.digests)
+	maps.Copy(f.types, st.types)
 
 	f.server = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.server.Close)
@@ -238,6 +249,14 @@ func (f *promoteFixture) manifest(w http.ResponseWriter, r *http.Request, key st
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+// stored returns a manifest's bytes and media type, as the server holds them
+// after a run.
+func (f *promoteFixture) stored(key string) (string, string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return string(f.manifests[key]), f.types[key]
 }
 
 func sha256Digest(b []byte) string {
@@ -345,8 +364,8 @@ func TestPromoteReleaseRuns(t *testing.T) {
 
 			st := held
 			st.halt = c.halt
+			st.rpcAnswer = c.answer
 			f := newPromoteFixture(t, st)
-			f.rpcAnswer = c.answer
 			out, code := f.run(script, "v1.7.0", "--push")
 			assert.NotEqual(t, 0, code, out)
 			assert.Contains(t, out, c.says)
@@ -414,8 +433,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 	t.Run("bytes that do not match their digest stop the run before any write", func(t *testing.T) {
 		t.Parallel()
 
-		f := newPromoteFixture(t, held)
-		f.digests[images[len(images)-1]+":v1.7.0"] = "sha256:" + strings.Repeat("0", 64)
+		st := held
+		st.digests = map[string]string{images[len(images)-1] + ":v1.7.0": "sha256:" + strings.Repeat("0", 64)}
+		f := newPromoteFixture(t, st)
 		out, code := f.run(script, "v1.7.0", "--push")
 		assert.NotEqual(t, 0, code, out)
 		assert.Contains(t, out, "bytes hash to")
@@ -427,8 +447,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 	t.Run("a media type release / docker does not push stops the run before any write", func(t *testing.T) {
 		t.Parallel()
 
-		f := newPromoteFixture(t, held)
-		f.types[images[len(images)-1]+":v1.7.0"] = "application/json"
+		st := held
+		st.types = map[string]string{images[len(images)-1] + ":v1.7.0": "application/json"}
+		f := newPromoteFixture(t, st)
 		out, code := f.run(script, "v1.7.0", "--push")
 		assert.NotEqual(t, 0, code, out)
 		assert.Contains(t, out, "not a manifest type release / docker pushes")
@@ -444,8 +465,10 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		out, code := f.run(script, "v1.7.0", "--push")
 		require.Equal(t, 0, code, out)
 		for _, img := range images {
-			assert.Equal(t, string(f.manifests[img+":v1.7.0"]), string(f.manifests[img+":latest"]), "%s:latest is %s:v1.7.0's bytes", img, img)
-			assert.Equal(t, indexType, f.types[img+":latest"])
+			want, _ := f.stored(img + ":v1.7.0")
+			got, ctype := f.stored(img + ":latest")
+			assert.Equal(t, want, got, "%s:latest is %s:v1.7.0's bytes", img, img)
+			assert.Equal(t, indexType, ctype)
 		}
 		ev := f.events()
 		for _, e := range matching(ev, "token") {
@@ -493,7 +516,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		require.Equal(t, 0, code, out)
 		assert.Contains(t, out, "v1.5.1 is the latest release already")
 		for _, img := range images {
-			assert.Equal(t, string(f.manifests[img+":v1.5.1"]), string(f.manifests[img+":latest"]), "%s:latest is back on v1.5.1", img)
+			want, _ := f.stored(img + ":v1.5.1")
+			got, _ := f.stored(img + ":latest")
+			assert.Equal(t, want, got, "%s:latest is back on v1.5.1", img)
 		}
 		ev := f.events()
 		assert.Equal(t, []string{"gh release edit v1.5.1 --repo gnolang/gno --prerelease=false --latest"}, matching(ev, "gh release edit"))
