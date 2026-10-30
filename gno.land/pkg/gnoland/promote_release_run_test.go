@@ -58,15 +58,19 @@ esac
 `
 
 // The curl shim reaches the test's server and nothing else: https://ghcr.io/ is
-// rewritten to it, its own URLs pass, and any other URL is refused.
+// rewritten to it, its own URLs pass, and any other URL, whatever its scheme
+// and case, is refused. Matching ignores case, as curl does for a scheme and
+// a host; the rewrite cuts the prefix by its length, since bash 3.2 matches
+// ${a#...} with case.
 const curlShim = `#!/usr/bin/env bash
 set -u
+shopt -s nocasematch
 args=()
 for a in "$@"; do
 	case "${a}" in
-	https://ghcr.io/*) a="${STUB_SERVER}/${a#https://ghcr.io/}" ;;
+	https://ghcr.io/*) a="${STUB_SERVER}/${a:16}" ;;
 	"${STUB_SERVER}" | "${STUB_SERVER}"/*) ;;
-	http://* | https://*)
+	*://*)
 		echo "curl shim: refused ${a}" >&2
 		exit 97
 		;;
@@ -566,4 +570,40 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		assert.Equal(t, []string{"gh release edit v1.5.1 --repo gnolang/gno --prerelease=false --latest"}, matching(ev, "gh release edit"))
 		assert.Empty(t, matching(ev, "rpc"), "the release the chain runs needs no scheduled halt")
 	})
+}
+
+// The curl shim is what keeps TestPromoteReleaseRuns off the network, with
+// the dead proxies behind it: only the stub server is reachable through it.
+func TestPromoteStubCurlReachesOnlyTheServer(t *testing.T) {
+	t.Parallel()
+
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash is not installed")
+	}
+	dir := t.TempDir()
+	shim, echo := filepath.Join(dir, "curl"), filepath.Join(dir, "echo-args")
+	require.NoError(t, os.WriteFile(shim, []byte(curlShim), 0o700))
+	require.NoError(t, os.WriteFile(echo, []byte("#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n"), 0o700))
+	run := func(args ...string) (string, int) {
+		cmd := exec.Command("bash", append([]string{shim}, args...)...)
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "STUB_SERVER=http://127.0.0.1:1", "REAL_CURL=" + echo}
+		out, err := cmd.CombinedOutput()
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return string(out), exitErr.ExitCode()
+		}
+		require.NoError(t, err)
+		return string(out), 0
+	}
+
+	out, code := run("-sS", "https://ghcr.io/v2/gnolang/gno/gno/manifests/latest")
+	require.Equal(t, 0, code, out)
+	assert.Equal(t, "-sS\nhttp://127.0.0.1:1/v2/gnolang/gno/gno/manifests/latest\n", out)
+	out, code = run("http://127.0.0.1:1/")
+	assert.Equal(t, 0, code, out)
+	for _, url := range []string{"https://example.org/", "HTTPS://example.org/", "Http://example.org/", "ftp://example.org/", "HTTPS://GHCR.IO.example.org/"} {
+		out, code := run("-sS", url)
+		assert.Equal(t, 97, code, "%s must be refused:\n%s", url, out)
+		assert.Contains(t, out, "refused")
+	}
 }
