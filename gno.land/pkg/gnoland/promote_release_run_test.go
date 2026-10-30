@@ -328,6 +328,62 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		for _, e := range matching(ev, "token") {
 			assert.Regexp(t, `:pull$`, e, "a dry run asks no write token")
 		}
+		assert.Len(t, matching(ev, "rpc"), 1, "a MINOR asks mainnet once whether it is scheduled")
+	})
+
+	// A MINOR is a coordinated upgrade: it becomes the release operators land
+	// on only once mainnet's halt proposal names it.
+	for _, c := range []struct{ name, halt, answer, says string }{
+		{"no halt scheduled", "", "", "mainnet has not scheduled v1.7.0"},
+		{"a halt for another release", "v1.6.0", "", "mainnet has not scheduled v1.7.0"},
+		{"an answer with no data", "", `{"jsonrpc":"2.0","id":1,"result":{}}`, "gave no halt_min_version"},
+		{"an answer with an error", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":{"msg":"boom"},"Data":null}}}}`, "gave no halt_min_version"},
+		{"an answer that is not JSON", "", `<html>bad gateway</html>`, "gave no halt_min_version"},
+	} {
+		t.Run("a MINOR is refused on "+c.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := held
+			st.halt = c.halt
+			f := newPromoteFixture(t, st)
+			f.rpcAnswer = c.answer
+			out, code := f.run(script, "v1.7.0", "--push")
+			assert.NotEqual(t, 0, code, out)
+			assert.Contains(t, out, c.says)
+			ev := f.events()
+			assert.Empty(t, matching(ev, "token"), "no image is read")
+			assert.Empty(t, matching(ev, "PUT"))
+			assert.Empty(t, matching(ev, "gh release edit"))
+		})
+	}
+
+	t.Run("a PATCH asks mainnet nothing", func(t *testing.T) {
+		t.Parallel()
+
+		st := held
+		st.releases = []string{"v1.7.0", "v1.5.1"}
+		st.published = []string{"v1.7.0", "v1.7.1", "v1.5.1"}
+		st.halt = ""
+		f := newPromoteFixture(t, st)
+		out, code := f.run(script, "v1.7.1")
+		require.Equal(t, 0, code, out)
+		assert.Empty(t, matching(f.events(), "rpc"))
+	})
+
+	t.Run("a MAJOR is refused before mainnet is asked", func(t *testing.T) {
+		t.Parallel()
+
+		st := held
+		st.releases = []string{"v1.7.0", "v1.5.1"}
+		st.published = []string{"v1.7.0", "v2.0.0", "v1.5.1"}
+		st.halt = "v2.0.0"
+		f := newPromoteFixture(t, st)
+		out, code := f.run(script, "v2.0.0")
+		assert.NotEqual(t, 0, code, out)
+		assert.Contains(t, out, "a MAJOR is a new network")
+		ev := f.events()
+		assert.Empty(t, matching(ev, "rpc"))
+		assert.Empty(t, matching(ev, "token"))
 	})
 
 	t.Run("a release candidate is refused before anything is asked", func(t *testing.T) {
@@ -418,6 +474,8 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		for _, img := range images {
 			assert.Equal(t, string(f.manifests[img+":v1.5.1"]), string(f.manifests[img+":latest"]), "%s:latest is back on v1.5.1", img)
 		}
-		assert.Equal(t, []string{"gh release edit v1.5.1 --repo gnolang/gno --prerelease=false --latest"}, matching(f.events(), "gh release edit"))
+		ev := f.events()
+		assert.Equal(t, []string{"gh release edit v1.5.1 --repo gnolang/gno --prerelease=false --latest"}, matching(ev, "gh release edit"))
+		assert.Empty(t, matching(ev, "rpc"), "the release the chain runs needs no scheduled halt")
 	})
 }

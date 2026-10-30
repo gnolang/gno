@@ -224,7 +224,7 @@ misc/release/promote-release.sh v1.6.0          # dry run: every check, nothing 
 misc/release/promote-release.sh v1.6.0 --push
 ```
 
-It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. A release candidate is never promoted, nor is a final mainnet skips: both stay pre-releases.
+It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. The script refuses a release candidate, and a MINOR until mainnet's halt proposal names it (read from mainnet's `halt_min_version`), so a final mainnet skips stays a pre-release for good; when to promote a PATCH is the release manager's call.
 
 ### Container images
 

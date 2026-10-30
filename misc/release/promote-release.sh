@@ -11,7 +11,9 @@
 #
 # A promotion only moves forward from the highest full release, which is not
 # always the highest tag: a patch to the running line can ship while the next
-# MINOR is held for its halt.
+# MINOR is held for its halt. A MINOR is refused until mainnet's halt proposal,
+# read from mainnet's RPC, names it; a PATCH needs no halt, and a MAJOR, a new
+# network, is never promoted here.
 #
 # Usage:
 #   misc/release/promote-release.sh <version> [--push]
@@ -33,6 +35,8 @@ export LC_ALL=C
 
 readonly REPO="gnolang/gno"
 readonly REGISTRY="ghcr.io"
+# Where mainnet's scheduled halt is read; overridable for a test.
+readonly MAINNET_RPC="${MAINNET_RPC:-https://rpc.gno.land}"
 
 # The CLI tools. Never gnoland: a node image that moves by itself breaks a
 # coordinated upgrade (RELEASING.md, "Container images").
@@ -180,6 +184,38 @@ check_moves_forward() {
   fi
 }
 
+# Mainnet's halt_min_version, read from its RPC. An answer that is not a query
+# result is refused, never taken for an empty value.
+halt_min_version() {
+  local body answer value
+  body='{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"params/node:p:halt_min_version","data":""}}'
+  answer="$(curl -q -sS --connect-timeout 10 --max-time 30 -X POST -H 'Content-Type: application/json' -d "${body}" "${MAINNET_RPC}")" ||
+    die "cannot ask ${MAINNET_RPC} for mainnet's halt_min_version"
+  value="$(jq -er '.result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson end' <<<"${answer}" 2>/dev/null)" ||
+    die "${MAINNET_RPC} gave no halt_min_version: ${answer:0:200}"
+  printf '%s\n' "${value}"
+}
+
+# A MINOR is a coordinated upgrade: it becomes the release operators land on
+# only once mainnet's halt proposal names it. A PATCH switches without a halt,
+# the release the chain runs needs none, and a MAJOR is a new network, which
+# mainnet never schedules.
+check_scheduled() {
+  local now_major now_minor major minor scheduled
+  IFS=. read -r now_major now_minor _ <<<"${LATEST_NOW#v}"
+  IFS=. read -r major minor _ <<<"${VERSION#v}"
+  [[ ${major} == "${now_major}" ]] ||
+    die "${VERSION} is a MAJOR from ${LATEST_NOW}: a MAJOR is a new network, and promote-release.sh only promotes along mainnet's line"
+  if [[ ${VERSION} == "${LATEST_NOW}" || ${minor} == "${now_minor}" ]]; then
+    ok "no halt to check: ${VERSION} is not a new MINOR"
+    return
+  fi
+  scheduled="$(halt_min_version)" || exit 1
+  [[ ${scheduled} == "${VERSION}" ]] ||
+    die "mainnet has not scheduled ${VERSION}: its halt_min_version is '${scheduled}'. A MINOR is promoted once its halt proposal has executed."
+  ok "mainnet's halt_min_version is ${VERSION}"
+}
+
 # ------------------------------------------------------------------- images
 
 # curl for the registry: without ~/.curlrc, where a `verbose` line would print
@@ -276,6 +312,7 @@ main() {
   read_releases
   pick_latest
   check_moves_forward
+  check_scheduled
 
   # Every image is read, checked and, with --push, granted a write token
   # before anything is written, so a missing one leaves nothing half-promoted.

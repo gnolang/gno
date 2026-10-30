@@ -62,7 +62,7 @@ misc/release/promote-release.sh v1.6.0          # dry run: every check, nothing 
 misc/release/promote-release.sh v1.6.0 --push
 ```
 
-It needs `curl`, `jq`, `sha256sum` or `shasum`, and `gh` logged in with the `write:packages` scope. It refuses a release candidate, a release still a draft (its `release / chain-tag` run has not finished), a release older than the highest full release (a promotion only moves forward), and an image it cannot read, whose bytes do not match their digest, or which it may not write: every image is read and checked before anything is written. A run stopped halfway leaves the release a pre-release, though some images' `latest` may have moved; run it again to finish.
+It needs `curl`, `jq`, `sha256sum` or `shasum`, and `gh` logged in with the `write:packages` scope. It refuses a release candidate, a release still a draft (its `release / chain-tag` run has not finished), a release older than the highest full release (a promotion only moves forward), a MINOR whose halt mainnet has not scheduled (mainnet's `halt_min_version` must name it; a PATCH, or the release mainnet runs, needs none), a MAJOR (a new network, which mainnet never schedules), and an image it cannot read, whose bytes do not match their digest, or which it may not write: every image is read and checked before anything is written. A run stopped halfway leaves the release a pre-release, though some images' `latest` may have moved; run it again to finish.
 
 ## `bump-protocol-version.sh`
 
