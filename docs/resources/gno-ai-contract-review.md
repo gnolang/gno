@@ -242,6 +242,7 @@ Two cases where the swap is **wrong**, both found by making it:
 - [ ] No exported function returns a `/p/`-type pointer whose type has mutation methods
 - [ ] No exported `/p/`-struct field is itself a pointer to a type with mutation methods
 - [ ] No method accepts a `func(...)` callback with a `/p/`-typed parameter and invokes it
+- [ ] `AssertOriginCall`, where used, is the first line of the entry function, with no same-realm helper or closure above it
 - [ ] Interface parameters from external callers are guarded with canonical-type asserts
 - [ ] No `realm`-typed value in package-level vars, struct fields, or closure captures
 - [ ] `/p/`-type fields with callback iterators are unexported

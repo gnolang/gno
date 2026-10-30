@@ -413,6 +413,24 @@ in realms that have not yet been migrated to the `cur realm` API.
 `cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
 `chain/runtime/unsafe` import.
 
+### 5.9 `AssertOriginCall` below the entry function
+
+`AssertOriginCall` holds only in the exported function the `MsgCall`
+named, or in `/p/` and stdlib code that function calls. A same-realm
+helper or closure above the entry is refused, because any function a
+realm declares is a value a script can hand back to it
+(`SetHook(cross(cur), Withdraw)`), and the type pin of §5.3 cannot
+tell the realm's own function from a stranger's.
+
+```go
+// WRONG: refused from a helper, and equally from a hook or a closure
+func Settle(cur realm) { draw(cur) }
+func draw(cur realm)   { runtime.AssertOriginCall(); ... }
+
+// RIGHT: first line of the entry; the body may still call /p/ helpers
+func Settle(cur realm) { runtime.AssertOriginCall(); ... }
+```
+
 ---
 
 ## 6. Properties That Make the Boundary Stronger Than Expected
