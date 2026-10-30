@@ -118,7 +118,13 @@ type ClientAdapter interface {
 	// raw result, one line per return value. pkgPath carries no domain, since
 	// the client adds its own, and no dot: the node splits pkgPath from expr on
 	// the first dot after the first slash. expr is the caller's to keep safe.
+	// It is for gnoweb's own expressions, and queries like any page.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
+
+	// PublicEval is Eval for an expression a reader wrote (/_/api/eval): it
+	// queries within its own, smaller pool, so readers' evals cannot starve
+	// the pages, and its failures log at Debug, without the expression.
+	PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -126,10 +132,10 @@ type rpcClient struct {
 	logger   *slog.Logger
 	client   *client.RPCClient
 	rpcSlots chan struct{}
-	// evalSlots caps the vm/qeval queries among rpcSlots' at a quarter:
-	// an eval takes one of each, so evals count against the cap like any
-	// query, and a burst of them, whose expressions are the caller's,
-	// leaves most slots to the pages.
+	// evalSlots caps PublicEval's queries among rpcSlots' at a quarter: a
+	// public eval takes one of each, so it counts against the cap like any
+	// query, and a burst of them, whose expressions are readers', leaves
+	// most slots to the pages.
 	evalSlots chan struct{}
 }
 
@@ -163,16 +169,18 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 	return c.query(ctx, qpath, []byte(data), 0)
 }
 
-// evalQueryPath is the query Eval sends. query treats it apart: its data is
-// an expression the caller wrote.
-const evalQueryPath = "vm/qeval"
-
 // Eval evaluates expr inside pkgPath through vm/qeval.
 func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
-	pkgPath = strings.Trim(pkgPath, "/")
-	data := fmt.Sprintf("%s/%s.%s", c.domain, pkgPath, expr)
+	return c.query(ctx, "vm/qeval", c.evalData(pkgPath, expr), 0)
+}
 
-	return c.query(ctx, evalQueryPath, []byte(data), 0)
+// PublicEval evaluates a reader's expr inside pkgPath through vm/qeval.
+func (c *rpcClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	return c.queryWith(ctx, "vm/qeval", c.evalData(pkgPath, expr), 0, true)
+}
+
+func (c *rpcClient) evalData(pkgPath, expr string) []byte {
+	return fmt.Appendf(nil, "%s/%s.%s", c.domain, strings.Trim(pkgPath, "/"), expr)
 }
 
 // validFileName reports whether vm/qfile reads name as a file of the package
@@ -330,23 +338,25 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
 func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
+	return c.queryWith(ctx, qpath, data, height, false)
+}
+
+// queryWith is query; public marks data as an expression a reader wrote (see
+// PublicEval): its failures are that reader's input, not the node's, and
+// the expression stays out of the logs above Debug.
+func (c *rpcClient) queryWith(ctx context.Context, qpath string, data []byte, height int64, public bool) ([]byte, error) {
 	// Debug, not Info: `data` carries caller-supplied OID/TID/file —
 	// at hot-path rates this would amplify log volume by an order of
 	// magnitude. Failures still log at Warn/Error below.
 	c.logger.Debug("querying node", "path", qpath, "data", string(data), "height", height)
 
-	// An eval's data is an expression the caller wrote: its failures are
-	// that caller's input, not the node's, and the expression stays out of
-	// the logs above Debug.
-	eval := qpath == evalQueryPath
-
 	// Bound concurrent outbound RPCs process-wide so gnoweb cannot
 	// hammer the chain node under HTTP burst — orthogonal to any
 	// HTTP-level rate limit (gnoweb's or nginx's), which sees neither
-	// the fan-out nor the per-request RPC count. An eval first takes one
-	// of its own, fewer, slots, then a shared one.
+	// the fan-out nor the per-request RPC count. A public eval first takes
+	// one of its own, fewer, slots, then a shared one.
 	pools := []chan struct{}{c.rpcSlots}
-	if eval {
+	if public {
 		pools = []chan struct{}{c.evalSlots, c.rpcSlots}
 	}
 	for _, slots := range pools {
@@ -370,7 +380,7 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 	if err != nil {
 		// Unexpected error from the RPC client itself
 		attrs := []any{"path", qpath, "error", err, "took", took}
-		if !eval {
+		if !public {
 			attrs = append(attrs, "data", string(data))
 		}
 		c.logger.Error("query request failed", attrs...)
@@ -403,7 +413,7 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 	}
 
 	msg, level, mapped := classifyQueryError(qerr)
-	if eval {
+	if public {
 		c.logger.Debug("eval failed", "error", qerr)
 	} else {
 		c.logger.Log(ctx, level, msg, "path", qpath, "data", string(data), "error", qerr)

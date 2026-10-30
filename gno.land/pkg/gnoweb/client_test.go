@@ -228,9 +228,9 @@ func (e *errCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rp
 	return &rpctypes.RPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}, nil
 }
 
-// Evals stay within MaxConcurrentRPC, and a quarter of it: with every
-// shared slot held, an eval waits like any query; with every eval slot
-// held, pages still query.
+// Public evals stay within MaxConcurrentRPC, and a quarter of it: with
+// every shared slot held, one waits like any query; with every eval slot
+// held, pages and gnoweb's own evals (the /u/ user lookup) still query.
 func TestEvalSlotsStayUnderTheRPCCap(t *testing.T) {
 	t.Parallel()
 
@@ -252,7 +252,7 @@ func TestEvalSlotsStayUnderTheRPCCap(t *testing.T) {
 	hold(t, c.rpcSlots)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	_, err := c.Eval(ctx, "r/demo/counter", "Get()")
+	_, err := c.PublicEval(ctx, "r/demo/counter", "Get()")
 	require.ErrorIs(t, err, ErrClientTimeout, "an eval must not query past the cap")
 	require.Len(t, c.evalSlots, 0, "a waiting eval gives its eval slot back")
 
@@ -262,10 +262,12 @@ func TestEvalSlotsStayUnderTheRPCCap(t *testing.T) {
 	defer cancel()
 	_, err = c.ListPaths(ctx, "gno.land/r/", 0)
 	require.NoError(t, err, "pages query while evals hold their slots")
+	_, err = c.Eval(ctx, UserRegistryPath, `ResolveAny("alice")`)
+	require.NoError(t, err, "gnoweb's own evals query while readers' hold their slots")
 }
 
-// A failed eval is the caller's input: it logs at Debug only, without the
-// expression, while other failed queries still log at Error.
+// A failed public eval is the reader's input: it logs at Debug only,
+// without the expression, while other failed queries still log at Error.
 func TestFailedEvalLogsAtDebug(t *testing.T) {
 	t.Parallel()
 
@@ -273,8 +275,8 @@ func TestFailedEvalLogsAtDebug(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	c := NewRPCClientAdapter(logger, client.NewRPCClient(&errCaller{}), "gno.land", 0)
 
-	if _, err := c.Eval(context.Background(), "r/demo/counter", "NoSuchThing()"); !errors.Is(err, ErrClientResponse) {
-		t.Fatalf("Eval error = %v, want ErrClientResponse", err)
+	if _, err := c.PublicEval(context.Background(), "r/demo/counter", "NoSuchThing()"); !errors.Is(err, ErrClientResponse) {
+		t.Fatalf("PublicEval error = %v, want ErrClientResponse", err)
 	}
 	if logs.Len() != 0 {
 		t.Fatalf("failed eval logged above Debug: %s", logs.String())

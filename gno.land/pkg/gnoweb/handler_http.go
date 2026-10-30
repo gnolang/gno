@@ -1893,7 +1893,7 @@ type playgroundClientAdapter struct {
 // Eval keeps the chain's answer about the expression and hides why the node
 // could not be reached: pages answer the same errors with a generic message.
 func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
-	res, err := a.client.Eval(ctx, pkgPath, expr)
+	res, err := a.client.PublicEval(ctx, pkgPath, expr)
 	switch {
 	case err == nil:
 		return res, nil

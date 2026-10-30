@@ -236,8 +236,11 @@ always sets the help remote and the chain ID their commands print.
   query (singleflight), so a popular Actions page costs the node one query
   per function. Evals count against `AppConfig.MaxConcurrentRPC`, which
   still caps every query gnoweb sends the node, and may hold a quarter of
-  it at most (8 of 32 by default), so pages keep the rest. They run under
-  the handler's request timeout.
+  it at most (8 of 32 by default), so pages keep the rest. That quarter is
+  for readers' expressions only (`ClientAdapter.PublicEval`): gnoweb's own
+  evals, like the `/u/` registry lookup, use `Eval` and query like a page,
+  so a burst of reader evals cannot fail a user page. They run under the
+  handler's request timeout.
 - **Answers:** an expression the chain rejects is a 200 with `{error}`;
   an unreachable node is a 502 and a timeout a 504, both with a generic
   message. Results are cut at 64 KiB with a visible marker. A failed eval

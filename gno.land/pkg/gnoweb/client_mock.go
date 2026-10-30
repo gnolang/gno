@@ -229,3 +229,8 @@ func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
 	}
 	return nil, ErrClientPackageNotFound
 }
+
+// PublicEval answers like Eval.
+func (m *MockClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	return m.Eval(ctx, pkgPath, expr)
+}

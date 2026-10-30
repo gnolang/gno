@@ -57,6 +57,10 @@ func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, er
 	return nil, gnoweb.ErrClientPackageNotFound
 }
 
+func (s *stubClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	return s.Eval(ctx, pkgPath, expr)
+}
+
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
 	if s.realmFunc != nil {
 		return s.realmFunc(ctx, path, args)
