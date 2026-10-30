@@ -448,6 +448,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	ExtColumns.Extend(m)
 	ExtFrames.Extend(m)
 	ExtAlerts.Extend(m)
+	ExtDetails.Extend(m)
 	ExtLinks.Extend(m)
 	ExtIPFS.Extend(m)     // ipfs:// and ipfsRewrittenGateways URLs, via the carried context
 	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)

@@ -1,0 +1,19 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: # Vault\n\n%s\n\n## Footer\n\n[Withdraw](/r/test$help&func=Withdraw)
+-- input.md --
+hi
+
+<gno-details summary="nothing to see">
+-- output.md --
+
+
+hi
+
+\<gno-details summary="nothing to see">
+
+-- output.html --
+<h1>Vault</h1>
+<p>hi</p>
+<p>&lt;gno-details summary=&quot;nothing to see&quot;&gt;</p>
+<h2>Footer</h2>
+<p><a href="/r/test$help&amp;func=Withdraw">Withdraw<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a></p>
