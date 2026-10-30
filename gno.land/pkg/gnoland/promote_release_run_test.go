@@ -58,9 +58,10 @@ esac
 `
 
 // The curl shim sends the promote tests to the test's server: https://ghcr.io/
-// is rewritten to it, its own URLs pass, and any other argument with a scheme,
-// whatever its case, is refused. An argument without one, such as example.org/
-// or a url line in a -K config, reaches curl, and the dead proxies stop it.
+// is rewritten to it, its own URLs pass, and any other argument containing
+// ://, whatever its case, is refused. The rest reach curl, and the dead proxies
+// stop them: example.org/, https:/example.org/ (which curl reads as
+// https://example.org/), or a url line in a -K config.
 // Matching ignores case, as curl does for a scheme and a host; the rewrite
 // cuts the prefix by its length, since bash 3.2 matches ${a#...} with case.
 const curlShim = `#!/usr/bin/env bash
@@ -603,7 +604,7 @@ func TestPromoteReleaseRuns(t *testing.T) {
 }
 
 // The curl shim keeps TestPromoteReleaseRuns off the network, with the dead
-// proxies behind it for what it lets through: an argument with a scheme
+// proxies behind it for what it lets through: an argument containing ://
 // reaches the stub server or is refused.
 func TestPromoteStubCurlReachesOnlyTheServer(t *testing.T) {
 	t.Parallel()
