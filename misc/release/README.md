@@ -8,13 +8,12 @@ this page is what to type.
 Tags a release, after checking it is one.
 
 ```sh
-# dry run — every check runs, nothing is pushed. Once the ledger entry is
-# pushed on top of the code, the branch tip is the ledger commit: name the code
-# commit
+# dry run — every check runs, nothing is pushed. The branch tip may carry
+# deployment docs on top of the code: name the code commit
 misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal, then pushes.
-# --commit names the code commit, the one the ledger entry names
+# The tag records no height: it can change until the proposal executes
 misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
   --halt-height 120000 --push
 ```
@@ -44,28 +43,17 @@ and `origin/chain/*`, and uses local tags to find the previous release.
   `halt_min_version` falls back to byte equality, which refuses the upgraded
   binary and leaves the chain unable to restart.
 - **A tag that already exists**, locally or on origin. Tags are immutable.
-- **Protocol-version constants that disagree** — see below. Read from a worktree
-  of the commit being tagged, not from your checkout: that is the code commit
-  `--commit` names, below the ledger commit you have checked out, and drift that
-  exists only there is drift validators run.
+- **Protocol-version constants that disagree** — see below. Read from a worktree of the commit being tagged, not from your checkout: that is the code commit `--commit` names, below any deployment docs you have checked out, and drift that exists only there is drift validators run.
 - **A binary that does not report the tag.** The script builds `gnoland` the way
   CI does and asks it. Mainnet's launch-day binaries answered `develop`.
-- **A final release its chain's upgrade ledger does not record**, or a ledger
-  that fails `upgrades check`, the check CI runs
-  (`misc/deployments/<chain>.gno.land/upgrades.json` and its `UPGRADES.md`).
-  Write the entry before the cut, with its image digest and binaries null until
-  CI has built them, commit it on top of the code being released, and cut from
-  that checkout with `--commit` naming the code commit. The entry must name the
-  commit being tagged. A release candidate only warns.
+- **A final release whose upgrade ledger fails `upgrades check`**, the check CI runs (`misc/deployments/<chain>.gno.land/upgrades.json` and its `UPGRADES.md`), or whose entry names another commit than the one being tagged. A release candidate only warns.
 - **A commit marked breaking in a PATCH range** (`feat!:`/`BREAKING`). A
   consensus change is a MINOR, and getting that wrong is how a coordinated
   upgrade goes out as a rolling one.
 - **A range that merges `master` and touches consensus code**, unless
   `--allow-merge` says the operator knows it ships everything `master` had.
 
-It *warns*, rather than refusing, when the commit is not on `master` (listing
-what is missing, since a squash-merge shows up here even though its content
-landed).
+It *warns*, rather than refusing, when the commit is not on `master` (listing what is missing, since a squash-merge shows up here even though its content landed), and when the ledger has no entry for the version yet: the entry is written once the chain runs the release, when everything it records, the halt time included, is known.
 
 ## `bump-protocol-version.sh`
 
