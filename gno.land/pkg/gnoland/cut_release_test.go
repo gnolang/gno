@@ -251,8 +251,9 @@ func TestReleaseScriptsFailAnyOtherEnding(t *testing.T) {
 			for _, m := range exits {
 				assert.Equal(t, "DONE=1", strings.TrimSpace(m[1]), "%s: an exit 0 must follow DONE=1", rel)
 			}
-			// DONE=1 anywhere else would let an abort after it exit 0.
-			assert.Len(t, regexp.MustCompile(`(?m)^[ \t]*DONE=1$`).FindAllString(src, -1), len(exits)+1, "%s sets DONE=1 before each exit 0 and after main, nowhere else", rel)
+			// DONE=1 anywhere else, however it is spelled, would let an abort
+			// after it exit 0.
+			assert.Equal(t, len(exits)+1, strings.Count(src, "DONE=1"), "%s sets DONE=1 before each exit 0 and after main, nowhere else", rel)
 		})
 	}
 }
