@@ -12,10 +12,16 @@
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.
 
-gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee 1000000ugnot -gas-wanted 1_000_000_000 -send "<span data-action-function-target="send-code"></span>" -chainid "{{.ChainId}}" -remote "{{.Remote}}" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-{{.FuncName}}" class="u-inline">gnokey query -remote "{{.Remote}}" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
-gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee 1000000ugnot -gas-wanted 1_000_000_000 -send "<span data-action-function-target="send-code"></span>" -broadcast=false <span data-action-function-target="address">ADDRESS</span> > call.tx
+gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee {{.Gas.Fast.Fee}} -gas-wanted {{.Gas.Fast.WantedFlag}} -send "<span data-action-function-target="send-code"></span>" -chainid "{{.ChainId}}" -remote "{{.Remote}}" <span data-action-function-target="address">ADDRESS</span></span><span data-action-function-target="mode" data-action-function-mode-value="secure" data-copy-target="action-function-{{.FuncName}}" class="u-inline">gnokey query -remote "{{.Remote}}" auth/accounts/<span data-action-function-target="address">ADDRESS</span>
+gnokey maketx call -pkgpath "{{.PkgPath}}" -func "{{.FuncName}}"{{range .ParamNames}} -args $'<span data-action-function-target="arg" data-action-function-arg-value="{{.}}"></span>'{{end}} -gas-fee {{.Gas.Secure.Fee}} -gas-wanted {{.Gas.Secure.WantedFlag}} -send "<span data-action-function-target="send-code"></span>" -broadcast=false <span data-action-function-target="address">ADDRESS</span> > call.tx
 gnokey sign -tx-path call.tx -chainid "{{.ChainId}}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-action-function-target="address">ADDRESS</span>
 gnokey broadcast -remote "{{.Remote}}" call.tx
   </span></code></pre>
+    <p class="note u-hidden" data-action-function-target="note" data-action-function-mode-value="fast">Fee <strong>{{ .Gas.Fast.FeeText }}</strong> for up to {{ FormatGas .Gas.Fast.Wanted }} gas{{ if .Gas.Used.Calls }} (its last {{ .Gas.Used.Calls }} successful calls used at most {{ FormatGas .Gas.Used.Max }}, per the indexer){{ end }}, at {{ template "ui/command-price" .Gas }}.
+        Unused gas is not refunded; gnokey simulates first, so running out of gas charges nothing.</p>
+    <p class="note" data-action-function-target="note" data-action-function-mode-value="secure">Fee <strong>{{ .Gas.Secure.FeeText }}</strong> for up to {{ FormatGas .Gas.Secure.Wanted }} gas, at {{ template "ui/command-price" .Gas }}.
+        Unused gas is not refunded, and these commands don't simulate: a call that runs out of gas is still charged.</p>
 </div>
 {{ end }}
+
+{{ define "ui/command-price" }}{{ if .Estimated }}an estimated {{ .Price }} (the chain's price was unavailable){{ else }}the chain's price of {{ .Price }}{{ end }}, times {{ .Headroom }} in case it rises{{ end }}

@@ -169,6 +169,7 @@ type FormNode struct {
 	Domain     string
 	ChainId    string
 	Remote     string
+	Gas        components.TxGas
 	Error      error
 	usedNames  map[string]bool
 }
@@ -243,6 +244,7 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	// Handle exec attribute
 	if exec, ok := ExtractAttr(tok.Attr, "exec"); ok {
 		node.ExecFunc = exec
+		node.Gas = getGasFromContext(pc, node.Domain+node.RealmName, exec)
 	}
 
 	return node, parser.Continue
@@ -588,6 +590,7 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 		ParamNames: paramNames,
 		ChainId:    chainId,
 		Remote:     remote,
+		Gas:        n.Gas,
 	}
 
 	// Create and render the template component

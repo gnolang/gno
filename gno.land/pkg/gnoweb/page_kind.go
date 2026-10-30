@@ -1,11 +1,15 @@
 package gnoweb
 
 import (
+	"context"
 	"net/url"
 	"strings"
+	"sync"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // pageKind says who answers for a page, which decides what its <head> may
@@ -238,13 +242,27 @@ type servedPage struct {
 }
 
 // renderContext is the context a document renders under for pr.
-func (h *HTTPHandler) renderContext(pr *pageRender) RealmRenderContext {
+func (h *HTTPHandler) renderContext(ctx context.Context, pr *pageRender) RealmRenderContext {
+	price := sync.OnceValue(func() std.GasPrice { return h.gasPrice(ctx) })
 	return RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-		Links:   pr.links,
+		Gas: func(pkgPath, fn string) components.TxGas {
+			return components.NewTxGas(price(), h.gasUse.get(ctx, pkgPath)[fn])
+		},
+		Domain: h.Static.Domain,
+		Links:  pr.links,
 	}
+}
+
+// gasPrice is the chain's current gas price, or the zero price, which
+// components.NewTxGas replaces with its fallback, when the node cannot say.
+func (h *HTTPHandler) gasPrice(ctx context.Context) std.GasPrice {
+	price, err := h.Client.GasPrice(ctx)
+	if err != nil {
+		return std.GasPrice{} // the client logs why
+	}
+	return price
 }
 
 // pageCard is the summary and share image of a page whose document does
