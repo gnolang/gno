@@ -15,10 +15,8 @@ export class ActionFunctionController extends BaseController {
 	declare _pkgPath: string | null;
 	declare _paramInputsCache: HTMLInputElement[];
 	declare _params: Record<string, string>;
-	// Set in connect(), which runs before class-field initialisers.
-	declare _qevalSeq: number;
-	// The live result's request in flight, aborted when a newer one starts.
-	declare _qevalAbort: AbortController | null;
+	// The live result's last request, aborted when a newer one starts.
+	declare _qevalAbort?: AbortController;
 
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
@@ -35,8 +33,6 @@ export class ActionFunctionController extends BaseController {
 			"send-code": this.getTargets("send-code"),
 		});
 
-		this._qevalSeq = 0;
-		this._qevalAbort = null;
 		this._funcName = this.getValue("name") || null;
 		this._pkgPath = this.getValue("pkgpath") || null;
 
@@ -229,9 +225,7 @@ export class ActionFunctionController extends BaseController {
 		// Any newer update, even one that only shows the placeholder, voids
 		// the request still in flight: abort it, and drop its answer should
 		// it land anyway.
-		const seq = ++this._qevalSeq;
 		this._qevalAbort?.abort();
-		this._qevalAbort = null;
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
 
 		// Crossing functions have no qeval-result target.
@@ -255,8 +249,7 @@ export class ActionFunctionController extends BaseController {
 		const abort = new AbortController();
 		this._qevalAbort = abort;
 		const res = await postEval(this._pkgPath ?? "", expression, abort.signal);
-		if (seq !== this._qevalSeq) return;
-		this._qevalAbort = null;
+		if (abort.signal.aborted) return;
 		// A rate limit or an outage says nothing about the function: show the
 		// neutral text analytics ignores, not an error.
 		resultTarget.textContent = res.unavailable ? unavailable : res.text;
