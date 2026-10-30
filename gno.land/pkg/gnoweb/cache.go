@@ -14,8 +14,9 @@ const immutableCacheControl = "public, max-age=31536000, immutable"
 // names a file that never changes in place (a content-hashed chunk, a font). Other
 // files, such as controller.js, which modules import without a version, are
 // revalidated against the ETag, so a deploy never leaves a stale copy. Only
-// a 2xx is cached: an error, such as a 404, is never kept. Any other ?v=,
-// such as the next release's asked of this one mid-deploy, is revalidated.
+// a 2xx or a 304 keeps these headers: an error, such as a 404, is never
+// cached. Any other ?v=, such as the next release's asked of this one
+// mid-deploy, is revalidated.
 func CacheHandler(hash, version string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cache := "no-cache"
@@ -23,18 +24,17 @@ func CacheHandler(hash, version string, next http.Handler) http.Handler {
 			cache = immutableCacheControl
 		}
 
+		// Set for a 2xx or a 304 up front; cacheWriter replaces them on any
+		// other status, which handlers always send through WriteHeader.
+		w.Header().Set("ETag", hash)
+		w.Header().Set("Cache-Control", cache)
+
 		// Return 304 if client's cached version matches
 		if r.Header.Get("If-None-Match") == hash {
-			w.Header().Set("ETag", hash)
-			w.Header().Set("Cache-Control", cache)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
 
-		// Set for a 2xx up front; cacheWriter replaces them on any other
-		// status, which handlers always send through WriteHeader.
-		w.Header().Set("ETag", hash)
-		w.Header().Set("Cache-Control", cache)
 		next.ServeHTTP(cacheWriter{w}, r)
 	})
 }
@@ -53,11 +53,12 @@ func isImmutableAsset(p string) bool {
 }
 
 // cacheWriter keeps an error, such as a 404, out of every cache: on a
-// status other than 2xx it drops the ETag and caching headers CacheHandler set.
+// status other than 2xx or 304 it drops the ETag and caching headers
+// CacheHandler set. http.FileServer sends its own 304 for a weak If-None-Match.
 type cacheWriter struct{ http.ResponseWriter }
 
 func (w cacheWriter) WriteHeader(code int) {
-	if code < 200 || code >= 300 {
+	if code != http.StatusNotModified && (code < 200 || code >= 300) {
 		w.Header().Del("ETag")
 		w.Header().Set("Cache-Control", "no-store")
 	}
