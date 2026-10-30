@@ -72,7 +72,10 @@ LATEST_NOW=""
 # The GitHub account the registry tokens are asked for.
 LOGIN=""
 SCRATCH=""
-trap '[[ -z ${SCRATCH} ]] || rm -rf "${SCRATCH}"' EXIT
+# Set once the run has ended on purpose. bash 3.2 ends a script aborted by
+# set -u with the EXIT trap's own status, so the trap fails any other ending.
+DONE=0
+trap '[[ -z ${SCRATCH} ]] || rm -rf "${SCRATCH}"; [[ ${DONE} -eq 1 ]] || exit 1' EXIT
 
 die() {
   printf '\033[31merror:\033[0m %s\n' "$*" >&2
@@ -89,6 +92,7 @@ parse_args() {
     case "$1" in
     -h | --help)
       usage
+      DONE=1
       exit 0
       ;;
     --push)
@@ -345,3 +349,4 @@ main() {
 }
 
 main "$@"
+DONE=1

@@ -458,6 +458,27 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		assert.Contains(t, out, "v1.7.0 is a full release, and Latest")
 	})
 
+	// bash 3.2 ends a script aborted by set -u with the EXIT trap's status, 0
+	// unless the trap says otherwise; the caller must still see a failure.
+	t.Run("an abort exits non-zero, and --help zero", func(t *testing.T) {
+		t.Parallel()
+
+		f := newPromoteFixture(t, held)
+		src := repoFile(t, promoteReleaseScript)
+		broken := strings.Replace(src, "  check_login\n", "  check_login\n  : \"${UNSET_BY_THE_TEST}\"\n", 1)
+		require.NotEqual(t, src, broken, "could not inject the abort")
+		copied := filepath.Join(t.TempDir(), "promote-release.sh")
+		require.NoError(t, os.WriteFile(copied, []byte(broken), 0o700))
+
+		out, code := f.run(copied, "v1.7.0")
+		assert.NotEqual(t, 0, code, "an unset variable aborts the run:\n%s", out)
+		assert.Contains(t, out, "UNSET_BY_THE_TEST")
+
+		out, code = f.run(script, "--help")
+		assert.Equal(t, 0, code, out)
+		assert.Contains(t, out, "Usage:")
+	})
+
 	// The recovery from a release skipped after its promotion: mark it a
 	// pre-release again, then promote the release the chain runs.
 	t.Run("promoting the running release puts latest back", func(t *testing.T) {
