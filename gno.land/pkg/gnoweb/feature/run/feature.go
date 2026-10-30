@@ -1,11 +1,6 @@
 package run
 
-import "html/template"
-
-// Highlighter renders source code as highlighted HTML.
-type Highlighter interface {
-	Render(fileName string, source []byte) (template.HTML, error)
-}
+import "github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 
 // Deps gathers the dependencies the run Handler needs.
 type Deps struct {
@@ -21,7 +16,7 @@ type Deps struct {
 
 	// Highlighter renders the script as served, before the editor loads.
 	// Optional: without it the script is served as plain text.
-	Highlighter Highlighter
+	Highlighter components.SnippetHighlighter
 }
 
 // Handler owns the run feature state.
