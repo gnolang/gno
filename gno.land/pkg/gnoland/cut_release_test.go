@@ -239,9 +239,11 @@ func TestReleaseScriptsFailAnyOtherEnding(t *testing.T) {
 				assert.True(t, strings.HasSuffix(body, "; "+fails+"'"), "%s: the EXIT trap must end with %s", rel, fails)
 			} else {
 				def := shellFunc(t, rel, src, trap)
-				assert.True(t, strings.HasSuffix(def, "\t"+fails+"\n}"), "%s: %s() must end with %s", rel, trap, fails)
+				assert.Regexp(t, `\n[ \t]*`+regexp.QuoteMeta(fails)+`\n\}$`, def, "%s: %s() must end with %s", rel, trap, fails)
 			}
-			assert.Less(t, strings.Index(src, "\nDONE=0\n"), strings.Index(src, "\ntrap "), "%s must set DONE=0 before its trap", rel)
+			done0 := strings.Index(src, "\nDONE=0\n")
+			require.GreaterOrEqual(t, done0, 0, "%s must set DONE=0", rel)
+			assert.Less(t, done0, strings.Index(src, "\ntrap "), "%s must set DONE=0 before its trap", rel)
 			assert.True(t, strings.HasSuffix(src, "\nmain \"$@\"\nDONE=1\n"), "%s must end with main \"$@\" and then DONE=1", rel)
 			// The only other end it means is --help's.
 			exits := regexp.MustCompile(`(?m)^(.*)\n\s*exit 0$`).FindAllStringSubmatch(src, -1)
@@ -249,6 +251,8 @@ func TestReleaseScriptsFailAnyOtherEnding(t *testing.T) {
 			for _, m := range exits {
 				assert.Equal(t, "DONE=1", strings.TrimSpace(m[1]), "%s: an exit 0 must follow DONE=1", rel)
 			}
+			// DONE=1 anywhere else would let an abort after it exit 0.
+			assert.Len(t, regexp.MustCompile(`(?m)^[ \t]*DONE=1$`).FindAllString(src, -1), len(exits)+1, "%s sets DONE=1 before each exit 0 and after main, nowhere else", rel)
 		})
 	}
 }
