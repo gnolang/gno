@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // ---------------- mock interfaces ----------------
@@ -908,6 +909,129 @@ func BenchmarkNative_Runtime_GetRealm_1(b *testing.B)    { benchRuntimeGetRealm(
 func BenchmarkNative_Runtime_GetRealm_10(b *testing.B)   { benchRuntimeGetRealm(b, 10) }
 func BenchmarkNative_Runtime_GetRealm_100(b *testing.B)  { benchRuntimeGetRealm(b, 100) }
 func BenchmarkNative_Runtime_GetRealm_1000(b *testing.B) { benchRuntimeGetRealm(b, 1000) }
+
+// payGas / payStorage(pkgPath string, max int64): both match pkgPath against
+// gno's pkgpath regexp (IsRealmPath) and, when they commit, derive its address
+// with DerivePkgCryptoAddr, which matches the same regexp again (IsGnoRunPath)
+// before hashing. The benches take that committing path, since the charge is
+// levied before the native picks a branch.
+//
+// pkgPath is always rlm.PkgPath(), so it never exceeds std's 256-byte pkgpath
+// limit and the sizes stop there. Every path that reaches the regexp matches
+// it: the one reachable input that would not, a sub-realm token ("host#sub"),
+// is refused on its '#' first (see BenchmarkNative_Runtime_PayGasSubRealm_256).
+// Worst case among matches: one-letter segments,
+// gno.land/r/a/a/a/..., which put a segment boundary, where the regexp's
+// backtracker tries each alternative, on every other byte. At 256 bytes
+// payGas costs 1.7x what it does on one long segment, and 10% more than on
+// the next costliest shape tried ("_" or "-" separators, digits, many domain
+// labels, a 63-letter TLD, segments mixing "/" and "_").
+func benchRealmPath(b *testing.B, n int) string {
+	b.Helper()
+	p := "gno.land/r/a" + fillWorstCase(n-12, "/a")
+	if len(p) != n || !gno.IsRealmPath(p) {
+		b.Fatalf("benchRealmPath(%d) = %q: not a realm path of that length", n, p)
+	}
+	return p
+}
+
+// X_payGas(m, pkgPath string, maxFee int64): in an eligible tx, at a set gas
+// price, under a finite meter — the branch that tightens the limit and
+// records the commitment.
+func benchRuntimePayGas(b *testing.B, n int) {
+	b.Helper()
+	pkgPath := benchRealmPath(b, n)
+	m := newDispatchMachine(2)
+	addContextAndFrames(m, pkgPath)
+	pgi := &sdk.PayGasInfo{Eligible: true}
+	ctx := m.Context.(stdlibs.ExecContext)
+	ctx.PayGasInfo = pgi
+	ctx.GasPrice = std.GasPrice{Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1}}
+	m.Context = ctx
+	m.GasMeter = store.NewGasMeter(10_000_000)
+	setBlockValueFromGo(m, 0, pkgPath)
+	setBlockValueFromGo(m, 1, int64(1_000_000))
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "payGas"), nReturns: 0}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pgi.MaxFee = 0 // once per tx: reset so every call commits
+		h.call()
+	}
+	if pgi.MaxFee == 0 {
+		b.Fatal("payGas did not commit")
+	}
+}
+
+func BenchmarkNative_Runtime_PayGas_12(b *testing.B)  { benchRuntimePayGas(b, 12) }
+func BenchmarkNative_Runtime_PayGas_32(b *testing.B)  { benchRuntimePayGas(b, 32) }
+func BenchmarkNative_Runtime_PayGas_64(b *testing.B)  { benchRuntimePayGas(b, 64) }
+func BenchmarkNative_Runtime_PayGas_128(b *testing.B) { benchRuntimePayGas(b, 128) }
+func BenchmarkNative_Runtime_PayGas_256(b *testing.B) { benchRuntimePayGas(b, 256) }
+
+// X_payStorage(m, pkgPath string, maxDeposit int64): pkgPath is the message's
+// entry realm, the branch that records the commitment. Entry is a separate
+// copy, as when the keeper sets it from the message, so the entry check
+// compares bytes rather than short-circuiting on a shared pointer.
+func benchRuntimePayStorage(b *testing.B, n int) {
+	b.Helper()
+	pkgPath := benchRealmPath(b, n)
+	m := newDispatchMachine(2)
+	addContextAndFrames(m, pkgPath)
+	psi := &stdlibs.PayStorageInfo{Entry: strings.Clone(pkgPath)}
+	ctx := m.Context.(stdlibs.ExecContext)
+	ctx.PayStorageInfo = psi
+	m.Context = ctx
+	setBlockValueFromGo(m, 0, pkgPath)
+	setBlockValueFromGo(m, 1, int64(1_000_000))
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "payStorage"), nReturns: 0}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		psi.MaxDeposit = 0 // once per tx: reset so every call commits
+		h.call()
+	}
+	if psi.MaxDeposit == 0 {
+		b.Fatal("payStorage did not commit")
+	}
+}
+
+// A sub-realm token reaches payGas (it passes rlm.IsCurrent()) but is not a
+// realm. Its host ending in one long letters segment is the shape on which a
+// failing regexp match backtracks longest, costlier than any match; the '#'
+// check refuses it before the regexp, so this must stay well under the
+// matching cost at the same length. Not fitted: the row is charged before the
+// native picks a branch. No frames, so m.Panic records an empty stack trace:
+// that cost is the same for any native that panics, and the harness's frames
+// are too bare to render one.
+func BenchmarkNative_Runtime_PayGasSubRealm_256(b *testing.B) {
+	host := "gno.land/r/test/"
+	pkgPath := host + strings.Repeat("a", 256-len(host)-2) + "#x"
+	m := newDispatchMachine(2)
+	addContextAndFrames(m)
+	ctx := m.Context.(stdlibs.ExecContext)
+	ctx.PayGasInfo = &sdk.PayGasInfo{Eligible: true}
+	m.Context = ctx
+	setBlockValueFromGo(m, 0, pkgPath)
+	setBlockValueFromGo(m, 1, int64(1_000_000))
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "payGas"), nReturns: 0}
+	refuse := func() (r any) {
+		defer func() { r = recover() }()
+		h.call()
+		return nil
+	}
+	if ex, ok := refuse().(*gno.Exception); !ok || !strings.Contains(ex.Sprint(m), "rlm is not a realm") {
+		b.Fatalf("payGas(%q) was not refused as a non-realm", pkgPath)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		refuse()
+	}
+}
+
+func BenchmarkNative_Runtime_PayStorage_12(b *testing.B)  { benchRuntimePayStorage(b, 12) }
+func BenchmarkNative_Runtime_PayStorage_32(b *testing.B)  { benchRuntimePayStorage(b, 32) }
+func BenchmarkNative_Runtime_PayStorage_64(b *testing.B)  { benchRuntimePayStorage(b, 64) }
+func BenchmarkNative_Runtime_PayStorage_128(b *testing.B) { benchRuntimePayStorage(b, 128) }
+func BenchmarkNative_Runtime_PayStorage_256(b *testing.B) { benchRuntimePayStorage(b, 256) }
 
 // ---------------- time.now ----------------
 

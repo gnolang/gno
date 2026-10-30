@@ -1,0 +1,63 @@
+# PayStorage in one message and PayGas in a LATER message of the same tx.
+#
+# Message 0's storage settles when message 0 ends, so the realm pays its
+# deposit before PayGas has run; the tx is still a valid sponsored tx because
+# PayGas is called before it ends. The realm is funded with exactly
+# maxFee + maxDeposit and pays less than that.
+
+## load the realm
+loadpkg gno.land/r/test/twostep $WORK/twostep
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund the realm with EXACTLY maxFee + maxDeposit
+gnokey maketx send -send 10000000ugnot -to g13xcx05jel97ztmjfhf5dasfez5v5lp42s87f0w -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/g13xcx05jel97ztmjfhf5dasfez5v5lp42s87f0w
+stdout '10000000ugnot'
+
+## sign the 2-message 0-fee tx: msg0 PayStorage+grow, msg1 PayGas
+gnokey sign -tx-path $WORK/twostep.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+
+## must succeed
+gnokey broadcast $WORK/twostep.tx -quiet=false
+stdout OK!
+stdout '"gassed" string'
+
+## the realm paid, and is still solvent
+gnokey query bank/balances/g13xcx05jel97ztmjfhf5dasfez5v5lp42s87f0w
+! stdout '10000000ugnot'
+
+-- twostep/gnomod.toml --
+module = "twostep"
+gno = "0.9"
+
+-- twostep/twostep.gno --
+package twostep
+
+import "chain/runtime"
+
+var data []string
+
+// Message 0: commits to storage and grows it. This is settled at the end of
+// THIS message, debiting the realm right away.
+func Store(cur realm) string {
+	runtime.PayStorage(5000000, cur)
+	data = append(data, "grow the realm's storage")
+	return "stored"
+}
+
+// Message 1: commits to gas.
+func Gas(cur realm) string {
+	runtime.PayGas(5000000, cur)
+	return "gassed"
+}
+
+-- twostep.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/twostep","func":"Store","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/twostep","func":"Gas","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}

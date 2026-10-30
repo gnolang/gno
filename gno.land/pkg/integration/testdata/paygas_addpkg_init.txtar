@@ -1,0 +1,58 @@
+# A 0-fee MsgAddPackage whose init calls PayGas and PayStorage: the new realm
+# pays the deploy's gas and the deposit for its own storage, including its
+# package objects. Its address is funded before the package exists.
+
+## user1 signs with a fixed key, so the gas below is deterministic
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund the realm's address before deploying it
+gnokey maketx send -send 10000000ugnot -to g1p7zga756l2u8gqjhgh5q2y38tyg0gsge46sey4 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/$user1_user_addr
+stdout '"1000000000ugnot"'
+
+## deploy with a 0 fee
+gnokey maketx addpkg -pkgdir $WORK/initsponsor -pkgpath gno.land/r/test/initsponsor -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
+stdout OK!
+stdout 'GAS USED:   2933076$'
+stdout 'STORAGE DELTA:  2959 bytes'
+stdout 'STORAGE FEE:    0ugnot'
+stdout 'SPONSORED STORAGE: 295900ugnot'
+stdout 'TOTAL TX COST:  0ugnot'
+stdout '"payer":"g1p7zga756l2u8gqjhgh5q2y38tyg0gsge46sey4"'
+
+## init ran
+gnokey query vm/qrender --data 'gno.land/r/test/initsponsor:'
+stdout 'hello'
+
+## user1 paid nothing
+gnokey query bank/balances/$user1_user_addr
+stdout '"1000000000ugnot"'
+
+## the realm paid the gas and the deposit: 10000000 - 2934 (2933076 gas at
+## 1ugnot per 1000 gas, rounded up) - 295900
+gnokey query bank/balances/g1p7zga756l2u8gqjhgh5q2y38tyg0gsge46sey4
+stdout '"9701166ugnot"'
+
+-- initsponsor/gnomod.toml --
+module = "gno.land/r/test/initsponsor"
+gno = "0.9"
+
+-- initsponsor/initsponsor.gno --
+package initsponsor
+
+import "chain/runtime"
+
+var greeting string
+
+func init(cur realm) {
+	runtime.PayGas(5000000, cur)
+	runtime.PayStorage(1000000, cur)
+	greeting = "hello"
+}
+
+func Render(_ string) string { return greeting }

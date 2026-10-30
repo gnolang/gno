@@ -1,0 +1,89 @@
+# PayStorage pays only in a message that calls the sponsoring realm.
+#
+# Storage is charged to the realm that allocated it. Here a holder realm keeps
+# an object the sponsor allocated, so the bytes land in the SPONSOR's storage,
+# and dropping it later refunds the caller. If the sponsor's commitment applied
+# to the holder's message, the caller could collect the sponsor's deposit with
+# two 0-fee txs. It must not: that growth is the caller's to pay.
+
+loadpkg gno.land/r/test/eo_sponsor $WORK/sponsor
+loadpkg gno.land/r/test/eo_holder $WORK/holder
+
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+gnoland start
+
+gnokey maketx send -send 10000000ugnot -to g106kdgw7p43j8wzl9q45ggcxgydpst9q79dm5qx -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## [sponsor.Do, holder.Grab]: the grabbed object grows the sponsor's storage in
+## the holder's message, so user1 pays for it.
+gnokey sign -tx-path $WORK/grab.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence 0 user1
+gnokey broadcast $WORK/grab.tx -quiet=false
+stdout OK!
+gnokey query bank/balances/$user1_user_addr
+! stdout '"1000000000ugnot"'
+
+## [sponsor.Do, holder.Drop]: user1 gets back only what it paid.
+gnokey sign -tx-path $WORK/drop.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence 1 user1
+gnokey broadcast $WORK/drop.tx -quiet=false
+stdout OK!
+gnokey query bank/balances/$user1_user_addr
+stdout '"999999000ugnot"'
+
+## The sponsor paid gas only. Without the entry rule it paid the 651700ugnot
+## the grab cost and user1 collected it on the drop.
+gnokey query bank/balances/g106kdgw7p43j8wzl9q45ggcxgydpst9q79dm5qx
+stdout '"9994613ugnot"'
+
+-- sponsor/gnomod.toml --
+module = "gno.land/r/test/eo_sponsor"
+gno = "0.9"
+
+-- sponsor/sponsor.gno --
+package eo_sponsor
+
+import "chain/runtime"
+
+type Box struct {
+	Data []string
+}
+
+func Do(cur realm) {
+	runtime.PayGas(1000000, cur)
+	runtime.PayStorage(1000000, cur)
+}
+
+// MakePtr returns a fresh allocation, as any constructor does.
+func MakePtr(cur realm) *Box {
+	b := &Box{}
+	for i := 0; i < 50; i++ {
+		b.Data = append(b.Data, "0123456789012345678901234567890123456789")
+	}
+	return b
+}
+
+-- holder/gnomod.toml --
+module = "gno.land/r/test/eo_holder"
+gno = "0.9"
+
+-- holder/holder.gno --
+package eo_holder
+
+import "gno.land/r/test/eo_sponsor"
+
+var held []*eo_sponsor.Box
+
+func Grab(cur realm) {
+	held = append(held, eo_sponsor.MakePtr(cross(cur)))
+}
+
+func Drop(cur realm) {
+	held = nil
+}
+
+-- grab.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/eo_sponsor","func":"Do","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/eo_holder","func":"Grab","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}
+
+-- drop.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/eo_sponsor","func":"Do","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/eo_holder","func":"Drop","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}

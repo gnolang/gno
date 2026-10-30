@@ -1,0 +1,67 @@
+# A realm cannot be made to pay from inside a callback it runs for someone else.
+# The attacker's callback runs while the victim is the current realm, but the
+# only realm value it holds is the attacker's own cur, which is not current
+# there, so PayGas refuses it. (Under the old frame-based check, a victim that
+# exported a plain PayGas helper could be made to pay by passing that helper as
+# the callback; a helper now needs the victim's own cur.)
+
+## start a new node
+gnoland start
+
+## deploy victim realm (has PayGas in a public function)
+gnokey maketx addpkg -pkgdir $WORK/victim -pkgpath gno.land/r/test/victim -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## deploy attacker realm (tries to trick victim into paying)
+gnokey maketx addpkg -pkgdir $WORK/attacker -pkgpath gno.land/r/test/attacker -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund victim realm so it could pay gas (if the attack succeeded)
+gnokey maketx send -send 10000000ugnot -to g1tlsggatdrxa4mrlfg0d3m7n9wsn9ppeww876fy -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## attacker calls victim.Execute with a callback that calls PayGas
+! gnokey maketx call -pkgpath gno.land/r/test/attacker -func Attack -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr 'rlm must be the current realm'
+
+-- victim/gnomod.toml --
+module = "victim"
+gno = "0.9"
+
+-- victim/victim.gno --
+package victim
+
+import "chain/runtime"
+
+// Execute runs any callback — a legitimate pattern.
+func Execute(cur realm, fn func()) {
+	fn()
+}
+
+// SponsoredWork pays gas for the caller — this is the legitimate use case.
+func SponsoredWork(cur realm) string {
+	runtime.PayGas(1000000, cur)
+	return "done"
+}
+
+-- attacker/gnomod.toml --
+module = "attacker"
+gno = "0.9"
+
+-- attacker/attacker.gno --
+package attacker
+
+import (
+	"chain/runtime"
+	"gno.land/r/test/victim"
+)
+
+// Attack tries to make the victim realm pay gas via a callback.
+func Attack(cur realm) {
+	victim.Execute(cross(cur), func() {
+		// This callback is defined in the attacker realm
+		// but executes in the victim realm's context.
+		// PayGas should panic: creator (attacker) != payer (victim).
+		runtime.PayGas(1000000, cur)
+	})
+}
