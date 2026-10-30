@@ -138,13 +138,24 @@ test("evalArgs gives every param its argument, in order", () => {
 			args: ['"a"', '" b "'],
 			full: true,
 		},
-		// The printed commands carry a value as typed: so do the live
-		// result and Eval, and only an empty input is empty.
+		// A string is as typed. Whitespace belongs to no other type, as
+		// in the printed commands (paramValue).
 		{
-			name: "spaces are kept",
-			inputs: [input("s", "string", "  "), input("n", "int", " 5")],
-			args: ['"  "', '" 5"'],
+			name: "spaces are kept in a string only",
+			inputs: [
+				input("s", "string", "  "),
+				input("n", "int", " 5 "),
+				input("a", "address", "g1abc "),
+				input("b", "bool", " true"),
+			],
+			args: ['"  "', "5", '"g1abc"', "true"],
 			full: true,
+		},
+		{
+			name: "a number of only spaces is empty",
+			inputs: [input("n", "int", "  ")],
+			args: ["0"],
+			full: false,
 		},
 		{
 			name: "typed string and address",

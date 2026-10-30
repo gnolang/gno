@@ -288,6 +288,28 @@ func TestHelpView(t *testing.T) {
 	assert.NoError(t, view.Render(io.Discard))
 }
 
+// TestHelpViewArgSlots checks each printed arg shares its position with its
+// param's input, in the maketx call and qeval commands alike.
+func TestHelpViewArgSlots(t *testing.T) {
+	params := []*doc.JSONField{{Name: "_", Type: "int"}, {Name: "_", Type: "int"}}
+	view := HelpView(HelpData{
+		PkgPath: "gno.land/r/demo/foo",
+		Functions: []HelpFunction{
+			{JSONFunc: &doc.JSONFunc{Name: "Get", Params: params}},
+			{JSONFunc: &doc.JSONFunc{Name: "Set", Params: params, Crossing: true}},
+		},
+	})
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+
+	for _, pos := range []string{"0", "1"} {
+		assert.Equal(t, 2, strings.Count(html, `data-action-function-param-value="_" data-action-function-arg-value="`+pos+`"`), "one input per function")
+		assert.Equal(t, 1, strings.Count(html, `data-action-function-arg-value="`+pos+`" data-action-function-type-value="int"></span>`), "the qeval slot")
+		assert.Equal(t, 2, strings.Count(html, `data-action-function-arg-value="`+pos+`"></span>`), "both modes' maketx call slots")
+	}
+}
+
 // TestHelpViewEval pins what the Actions page's eval scripts read from the
 // markup: each param's type, the live result's texts and the evaluator's
 // entry in the functions list.
@@ -311,12 +333,13 @@ func TestHelpViewEval(t *testing.T) {
 	html := buf.String()
 
 	for _, want := range []string{
-		`data-action-function-param-value="daoID" data-action-function-type-value="uint64"`,
-		`data-action-function-param-value="path" data-action-function-type-value="string"`,
-		`data-action-function-param-value="proposed" data-action-function-type-value="string"`,
+		`data-action-function-param-value="daoID" data-action-function-arg-value="0" data-action-function-type-value="uint64"`,
+		`data-action-function-param-value="proposed" data-action-function-arg-value="2" data-action-function-type-value="string"`,
 		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
-		// The qeval command's args carry their type, to be written as Gno literals.
-		`data-action-function-target="arg" data-action-function-arg-value="path" data-action-function-type-value="string"`,
+		// The qeval command's args share a position with their param's
+		// input and carry its type, to be written as Gno literals.
+		`data-action-function-param-value="path" data-action-function-arg-value="1" data-action-function-type-value="string"`,
+		`data-action-function-target="arg" data-action-function-arg-value="1" data-action-function-type-value="string"`,
 		`-remote "https://rpc.example:443" -data`,
 		`href="#expression-evaluator"`,
 		`<use href="#ico-eval"></use>`,

@@ -2,6 +2,7 @@ package components
 
 import (
 	"html/template"
+	"strconv"
 	"strings"
 
 	// for error types
@@ -69,11 +70,13 @@ var (
 )
 
 type CommandData struct {
-	FuncName   string
-	PkgPath    string
-	ParamNames []string
-	ChainId    string
-	Remote     string
+	FuncName string
+	PkgPath  string
+	// ArgKeys links each -args slot to its param's inputs: a position on
+	// $help, where names repeat or are missing ("_"), a name in a form.
+	ArgKeys []string
+	ChainId string
+	Remote  string
 }
 
 type helpViewParams struct {
@@ -118,19 +121,17 @@ func registerHelpFuncs(funcs template.FuncMap) {
 	}
 
 	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
-		// Extract parameter names
-		paramNames := make([]string, len(fn.Params))
-
-		for i, param := range fn.Params {
-			paramNames[i] = param.Name
+		argKeys := make([]string, len(fn.Params))
+		for i := range fn.Params {
+			argKeys[i] = strconv.Itoa(i)
 		}
 
 		return CommandData{
-			FuncName:   fn.Name,
-			PkgPath:    data.PkgPath,
-			ParamNames: paramNames,
-			ChainId:    data.ChainId,
-			Remote:     data.Remote,
+			FuncName: fn.Name,
+			PkgPath:  data.PkgPath,
+			ArgKeys:  argKeys,
+			ChainId:  data.ChainId,
+			Remote:   data.Remote,
 		}
 	}
 }

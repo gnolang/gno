@@ -4,6 +4,7 @@ import {
 	BaseController,
 	debounce,
 	evalArgs,
+	paramValue,
 	postEval,
 } from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
@@ -95,11 +96,15 @@ export class ActionFunctionController extends BaseController {
 
 	// get current value for a param name (handles checkbox multiple values)
 	private _getParamCurrentValue(paramName: string): string {
-		// radio or checkbox multiple values
-		const inputs = this._paramInputs.filter(
-			(inp) => this.getValue("param", inp) === paramName,
+		return this._inputsValue(
+			this._paramInputs.filter(
+				(inp) => this.getValue("param", inp) === paramName,
+			),
 		);
+	}
 
+	// the value of one param's inputs: several for a radio or a checkbox
+	private _inputsValue(inputs: HTMLInputElement[]): string {
 		if (!inputs.length) return "";
 
 		const firstInput = inputs[0];
@@ -119,9 +124,8 @@ export class ActionFunctionController extends BaseController {
 			return checked?.value.trim() || "";
 		}
 
-		// Other: the value as typed, which the live result and Eval
-		// evaluate too (evalArgs).
-		return firstInput.value;
+		// Other: the value the live result and Eval evaluate too (evalArgs).
+		return paramValue(firstInput.value, this.getValue("type", firstInput));
 	}
 
 	// initialize the args
@@ -136,25 +140,23 @@ export class ActionFunctionController extends BaseController {
 
 			if (!paramName || processed.has(paramName)) return;
 
-			const paramValue = this._getParamCurrentValue(paramName);
-			this._params[paramName] = paramValue;
-			if (paramValue) this._updateArgInDOM(paramName, paramValue);
+			const value = this._getParamCurrentValue(paramName);
+			this._params[paramName] = value;
+			if (value) this._updateArgInURLs(paramName, value);
 
 			processed.add(paramName);
 		});
+		this._fillArgSlots();
 	}
 
 	// debounced update all args and update the qeval result
-	private _debouncedUpdateAllArgs = debounce(
-		(paramName: string, paramValue: string) => {
-			if (paramName) {
-				this._updateArgInDOM(paramName, paramValue);
-				this._debouncedQEval();
-				this._dispatchParamsChanged();
-			}
-		},
-		50,
-	);
+	private _debouncedUpdateAllArgs = debounce((paramName: string) => {
+		this._fillArgSlots();
+		this._debouncedQEval();
+		if (!paramName) return;
+		this._updateArgInURLs(paramName, this._getParamCurrentValue(paramName));
+		this._dispatchParamsChanged();
+	}, 50);
 
 	// The live result queries the rate-limited /_/api/eval: wait for a pause
 	// in typing instead of sending one request per keystroke.
@@ -172,16 +174,27 @@ export class ActionFunctionController extends BaseController {
 		});
 	}
 
-	// push args in DOM (in func code)
-	private _updateArgInDOM(paramName: string, paramValue: string): void {
-		// Update args elements with the new parameter value.
-		this.getTargets("arg")
-			.filter((arg) => this.getValue("arg", arg) === paramName)
-			.forEach((arg) => {
-				arg.textContent = argSlotText(paramValue, this.getValue("type", arg));
-			});
+	// Fills the printed commands' arg slots. A slot and its param's inputs
+	// share a key: the param's position on $help, where names repeat or are
+	// missing ("_"); its name in a form, whose inputs carry no position.
+	private _fillArgSlots(): void {
+		const inputs = new Map<string, HTMLInputElement[]>();
+		for (const input of this._paramInputs) {
+			const key = this.getValue("arg", input) || this.getValue("param", input);
+			const group = inputs.get(key);
+			if (group) group.push(input);
+			else inputs.set(key, [input]);
+		}
+		this.getTargets("arg").forEach((slot) => {
+			slot.textContent = argSlotText(
+				this._inputsValue(inputs.get(this.getValue("arg", slot)) ?? []),
+				this.getValue("type", slot),
+			);
+		});
+	}
 
-		// Update function execute (form) and anchor (copy button) with new parameter
+	// Update function execute (form) and anchor (copy button) with new parameter
+	private _updateArgInURLs(paramName: string, value: string): void {
 		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
 		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
 		if (!executeForm && !anchorButton) return;
@@ -192,7 +205,7 @@ export class ActionFunctionController extends BaseController {
 		if (!baseUrl) return;
 
 		const parts = baseUrl.split("&");
-		const encodedValue = encodeURIComponent(paramValue);
+		const encodedValue = encodeURIComponent(value);
 		const index = parts.findIndex(
 			(part, i) => i > 0 && part.startsWith(`${paramName}=`),
 		);
@@ -267,12 +280,12 @@ export class ActionFunctionController extends BaseController {
 	public updateAllArgs(event: Event): void {
 		const target = event.target as HTMLInputElement;
 		const paramName = this.getValue("param", target);
-		if (!paramName) return;
 
 		// get the current value for the param name and update params tree
-		const paramValue = this._getParamCurrentValue(paramName);
-		this._params[paramName] = paramValue;
-		this._debouncedUpdateAllArgs(paramName, paramValue);
+		if (paramName) {
+			this._params[paramName] = this._getParamCurrentValue(paramName);
+		}
+		this._debouncedUpdateAllArgs(paramName);
 	}
 
 	// update all functions send (DOM action)

@@ -169,11 +169,16 @@ export function zeroLiteral(type: string): string {
 	return "nil";
 }
 
+// paramValue is a param's value as the evals and the printed commands carry
+// it: trimmed, unless $help types it string. A form's fields have no type.
+export function paramValue(value: string, type: string): string {
+	return type === "string" ? value : value.trim();
+}
+
 // evalArgs turns a function card's param inputs, in order, into Gno
-// arguments: each typed value, as typed (spaces too, as the printed
-// commands carry it), as a literal for the input's param type, each empty
-// one as its zero value. The template renders one input per param, and
-// every one counts, so unnamed or repeated names ("_") keep their
+// arguments: each paramValue as a literal for the input's param type, each
+// empty one as its zero value. The template renders one input per param,
+// and every one counts, so unnamed or repeated names ("_") keep their
 // argument. full is false while any param is empty.
 export function evalArgs(
 	inputs: Pick<HTMLInputElement, "value" | "getAttribute">[],
@@ -181,7 +186,7 @@ export function evalArgs(
 	let full = true;
 	const args = inputs.map((input) => {
 		const type = input.getAttribute("data-action-function-type-value") ?? "";
-		const value = input.value;
+		const value = paramValue(input.value, type);
 		if (!value) full = false;
 		return value ? gnoLiteral(value, type) : zeroLiteral(type);
 	});

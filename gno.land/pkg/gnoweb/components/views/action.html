@@ -132,15 +132,15 @@ UI - Help Function component
       {{ end }}
       {{ $funcName := .Name }}
       <div class="b-block-form u-mb-2">
-        {{ range .Params }}
+        {{ range $i, $p := .Params }}
         <div class="b-input">
-          <label for="func-{{ $funcName }}-param-{{ .Name }}">
+          <label for="func-{{ $funcName }}-param-{{ $i }}">
             {{ .Name }}
           </label>
           <input type="text" {{- if eq $data.SelectedFunc $funcName }} value="{{ getSelectedArgValue $data . }}" {{- end
-            }} placeholder="parameter" id="func-{{ $funcName }}-param-{{ .Name }}"
+            }} placeholder="parameter" id="func-{{ $funcName }}-param-{{ $i }}"
             data-action-function-target="param-input" data-action="input->action-function#updateAllArgs"
-            data-action-function-param-value="{{ .Name }}" data-action-function-type-value="{{ .Type }}" autocomplete="off" autocorrect="off" autocapitalize="off"
+            data-action-function-param-value="{{ .Name }}" data-action-function-arg-value="{{ $i }}" data-action-function-type-value="{{ .Type }}" autocomplete="off" autocorrect="off" autocapitalize="off"
             spellcheck="false" />
         </div>
         {{ end }}
@@ -185,7 +185,7 @@ UI - Help Function component
         {{ if .Crossing }}
         {{ template "ui/command" (buildCommandData $data .) }}
         {{ else }}
-        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $.Remote }}" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}" data-action-function-type-value="{{ $p.Type }}"></span>{{ end }})"</span></code></pre>
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $.Remote }}" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $i }}" data-action-function-type-value="{{ $p.Type }}"></span>{{ end }})"</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
