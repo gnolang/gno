@@ -625,7 +625,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					last.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			case *SwitchStmt:
-				// n.Varname is declared in each clause.
+				// n.Varname is Reserved (and checked) in each clause.
 			case *SwitchClauseStmt:
 				blen := len(n.Body)
 				if blen > 0 {
@@ -2167,6 +2167,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 									}
 									// at this point we know that `cur` is from a containing crossing function.
+									// NOT also tested by name: a crossing function may
+									// bind its first realm parameter as `_`, and master
+									// accepts a local `cur` threaded from one, so a
+									// stored package may carry that shape and this runs
+									// again at node boot. The gate refuses the
+									// declaration for new source instead.
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								case *FuncLitExpr:
@@ -2176,6 +2182,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 										panic("only the `cur` argument of a containing crossing function maybe passed by cross-call")
 									}
 									// at this point we know that `cur` is from a containing crossing function.
+									// NOT also tested by name: a crossing function may
+									// bind its first realm parameter as `_`, and master
+									// accepts a local `cur` threaded from one, so a
+									// stored package may carry that shape and this runs
+									// again at node boot. The gate refuses the
+									// declaration for new source instead.
 									// NOTE: TRANS_ENTER *FuncTypeExpr ensures that `cur realm` is the first
 									// argument of the crossing function.
 								default:
@@ -2868,16 +2880,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// frame; rebinding the name makes it describe a realm the frame
 				// is not in.
 				//
-				// `cur` is reserved as a PARAMETER name — the preprocessor lets
-				// only a crossing function's first realm parameter use it (see
-				// FuncTypeExpr above) — but a local may still shadow it in an
-				// inner block (`cur := cur.Previous()`), so a realm-typed `cur`
-				// on the left of `=` is USUALLY, not always, that parameter.
-				// Rejecting both is deliberate: a shadowing local cannot be
-				// cur-called anyway (the provenance check below resolves the
-				// name's declaring block node and requires a crossing
-				// FuncDecl/FuncLitExpr), so refusing it costs nothing and avoids
-				// reasoning about which one this is.
+				// `cur` is reserved as a PARAMETER name at the deploy gate, but
+				// preprocess also re-runs stored packages, which may bind the
+				// name anywhere. So the check is by TYPE: a realm-typed `cur`
+				// on the left of `=` is the parameter, or a local shadowing it
+				// in an inner block. Rejecting both is deliberate — a shadowing
+				// local cannot be cur-called anyway (the provenance check below
+				// requires a crossing FuncDecl/FuncLitExpr), so refusing it
+				// costs nothing and avoids resolving which one this is.
 				//
 				// It matters because the parameter is the one realm value a
 				// no-cross crossing call can forward (the cur-call check below
@@ -3016,6 +3026,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
+
+				// A same-scope `cur, x := ...` assigns the slot rather than
+				// declaring it, so the DEFINE branch above does not see it.
+				// It is refused at the deploy gate (checkCurRebind), not
+				// here: stored packages re-run through preprocess at boot,
+				// and master accepted this shape. doOpCall's identity check
+				// is what stops a rebound cur from being used.
 
 			// TRANS_LEAVE -----------------------
 			case *BranchStmt:
@@ -6102,6 +6119,8 @@ func skipFile(n BlockNode) BlockNode {
 		return n
 	}
 }
+
+const curReservedMsg = "`cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function"
 
 // returns "" if not in a file node.
 func fileNameOf(n BlockNode) string {

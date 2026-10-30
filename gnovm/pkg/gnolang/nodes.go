@@ -2326,6 +2326,11 @@ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype N
 	// iota is a non-shadowable builtin. A three-clause for init reaches here
 	// renamed to "iota.loopvar"; uverse's own registration goes through
 	// Define2, bypassing Reserve, so it is unaffected.
+	//
+	// The wider builtin/`cur` rule is NOT applied here: preprocess re-runs
+	// every stored package at node boot, so a rejection added here refuses
+	// source the chain already accepted. It lives in the deploy gate
+	// instead — checkDeclNames in gotypecheck.go.
 	if nx.Name == iotaIdentifier || nx.Name == iotaIdentifier+".loopvar" {
 		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", iotaIdentifier))
 	}

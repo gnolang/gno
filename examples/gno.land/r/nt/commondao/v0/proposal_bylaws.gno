@@ -103,10 +103,10 @@ func (amendBylawsKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao
 
 	// Freshness fail-fast: reject a patch that is already stale at
 	// creation (Validate re-checks at execution).
-	cur, exists := p.set.Get(p.patch.Path)
+	current, exists := p.set.Get(p.patch.Path)
 	curHash := ""
 	if exists {
-		curHash = bylaws.HashText(cur)
+		curHash = bylaws.HashText(current)
 	}
 	if p.patch.Base != curHash {
 		return nil, bylaws.ErrStalePatch
@@ -115,7 +115,7 @@ func (amendBylawsKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao
 	// Rendering the change also validates the edit script against the
 	// current text, so a malformed patch never becomes a proposal; only
 	// then reject the well-formed do-nothing shapes.
-	display, err := p.patch.Format(cur)
+	display, err := p.patch.Format(current)
 	if err != nil {
 		return nil, err
 	}
