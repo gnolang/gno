@@ -13,17 +13,27 @@ import (
 
 const promoteReleaseScript = "misc/release/promote-release.sh"
 
-// codeLines returns the lines of a file with comments cut off. A comment is a
-// "#" followed by a space or the end of the line, at the start of a line or
-// after a space: every comment in the release workflows is written that way,
-// and a "#" inside a word or a quoted string, as in "Fixes #6429", is kept.
+// codeLines returns the lines of a file with comments cut off. A comment
+// starts at a "#" that is at the start of the line or after a space, is
+// followed by a space or the end of the line, and has an even number of '"'
+// and of "'" before it on its line. So a "#" inside a word, or inside a quoted
+// string such as "Fixes #6429" or "held # until the halt", is kept. Quotes are
+// counted, not parsed: an escaped quote or an apostrophe inside double quotes
+// before a comment keeps that comment as code, which fails a check rather
+// than hiding a flag from it.
 func codeLines(t *testing.T, rel string) []string {
 	t.Helper()
 
-	comment := regexp.MustCompile(`(?:^|\s)#(?:\s.*)?$`)
+	comment := regexp.MustCompile(`(?:^|\s)#(?:\s|$)`)
 	var lines []string
 	for line := range strings.SplitSeq(repoFile(t, rel), "\n") {
-		lines = append(lines, comment.ReplaceAllString(line, ""))
+		for _, loc := range comment.FindAllStringIndex(line, -1) {
+			if before := line[:loc[0]]; strings.Count(before, `"`)%2 == 0 && strings.Count(before, "'")%2 == 0 {
+				line = before
+				break
+			}
+		}
+		lines = append(lines, line)
 	}
 	return lines
 }
