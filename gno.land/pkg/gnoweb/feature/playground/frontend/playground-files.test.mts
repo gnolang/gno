@@ -1,4 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import {
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { inflateRawSync } from "node:zlib";
 import {
@@ -32,6 +42,8 @@ test("isValidFileName takes Gno sources and gnomod.toml from a strict allowlist"
 		["-rf.gno", false],
 		["é.gno", false],
 		["README.md", false],
+		["main.gnoo", false],
+		["a.gno.sh", false],
 		["Base set", false],
 		[".gno", false],
 		["", false],
@@ -158,6 +170,10 @@ test("renderText reads the string a Render eval returns", () => {
 		['("\\U0001f600 \\xff \\\\x1b" string)', "\u{1f600} \ufffd \\x1b"],
 		["(42 int)", "(42 int)"],
 		["Error: package not found", "Error: package not found"],
+		['("a" string) and more', '("a" string) and more'],
+		['more ("a" string)', 'more ("a" string)'],
+		['("a\\x00b" string)', "a\u0000b"],
+		['("\\q" string)', '("\\q" string)'],
 	];
 	for (const [result, want] of cases) {
 		assert.equal(renderText(result), want, result);
@@ -175,16 +191,85 @@ test("createTar writes whole names and skips the ones it cannot hold", () => {
 	assert.equal(new TextDecoder().decode(tar.subarray(0, 100)), name);
 });
 
+// Each header is a valid ustar header field by field, so strict readers
+// (GNU tar, Go's archive/tar) take it too, not only lenient ones.
+test("createTar writes ustar headers field by field", (t) => {
+	t.mock.method(Date, "now", () => 1_700_000_000_000);
+	const content = "package main\n";
+	const tar = createTar([{ name: "main.gno", content }]);
+	const field = (at: number, len: number) =>
+		new TextDecoder().decode(tar.subarray(at, at + len));
+	assert.equal(field(100, 8), "0000644\0"); // mode
+	assert.equal(field(108, 8), "0000000\0"); // uid
+	assert.equal(field(116, 8), "0000000\0"); // gid
+	assert.equal(
+		field(124, 12),
+		`${content.length.toString(8).padStart(11, "0")}\0`,
+	); // size
+	assert.equal(
+		field(136, 12),
+		`${(1_700_000_000).toString(8).padStart(11, "0")}\0`,
+	); // mtime
+	assert.equal(field(156, 1), "0"); // regular file
+	assert.equal(field(257, 6), "ustar\0"); // magic
+	assert.equal(field(263, 2), "00"); // version
+	// The checksum is the sum of the header bytes, its own 8 read as spaces.
+	let sum = 0;
+	for (let i = 0; i < 512; i++) sum += i >= 148 && i < 156 ? 0x20 : tar[i];
+	assert.equal(field(148, 8), `${sum.toString(8).padStart(6, "0")}\0 `);
+});
+
+test("createTar leaves out a file it cannot name, and says so", (t) => {
+	const logged = t.mock.method(console, "error", () => {});
+	const tar = createTar([{ name: "$(id).gno", content: "x" }]);
+	assert.equal(tar.length, 512 * 2); // only the two closing blocks
+	assert.match(String(logged.mock.calls[0].arguments[0]), /\$\(id\)\.gno/);
+});
+
+// The archive Download builds is one a real tar reads: names, contents,
+// mode and size come back, and a corrupt header would be refused.
+test("createTar writes an archive tar extracts as written", () => {
+	const files = [
+		{ name: "main.gno", content: "package main\n\nfunc main() {}\n" },
+		{ name: "gnomod.toml", content: 'module = "gno.land/r/x"\n' },
+		{
+			name: "é_test.gno".replace("é", "e"),
+			content: "package main // ünïcode\n",
+		},
+	];
+	const dir = mkdtempSync(join(tmpdir(), "gnoweb-tar-"));
+	try {
+		writeFileSync(join(dir, "a.tar"), createTar(files));
+		const listing = execFileSync("tar", ["-tvf", "a.tar"], {
+			cwd: dir,
+		}).toString();
+		execFileSync("tar", ["-xf", "a.tar"], { cwd: dir });
+		for (const f of files) {
+			assert.equal(readFileSync(join(dir, f.name), "utf8"), f.content, f.name);
+			assert.equal(statSync(join(dir, f.name)).mode & 0o777, 0o644, f.name);
+			assert.match(listing, new RegExp(`${f.name.replace(".", "\\.")}$`, "m"));
+		}
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
 // The server opens a link of 8,000 characters at most, whose code inflates
 // to 64 KiB at most: Share refuses any link it would not open, over either.
 test("shareRefusal refuses the links the server would not open", () => {
 	assert.equal(shareRefusal(MAX_SHARE_CODE_BYTES, MAX_SHARE_URL_LENGTH), "");
 	assert.match(
 		shareRefusal(MAX_SHARE_CODE_BYTES + 1, 100),
-		/64 KiB of code at most, this is 65 KiB/,
+		/a link opens 64 KiB of code at most, this is 65 KiB\./,
 	);
 	assert.match(
 		shareRefusal(100, MAX_SHARE_URL_LENGTH + 1),
 		/too large to share via URL/,
 	);
+	for (const refusal of [
+		shareRefusal(MAX_SHARE_CODE_BYTES + 1, 100),
+		shareRefusal(100, MAX_SHARE_URL_LENGTH + 1),
+	]) {
+		assert.match(refusal, /splitting into a deployed package\.$/);
+	}
 });

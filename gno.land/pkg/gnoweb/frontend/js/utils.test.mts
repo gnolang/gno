@@ -6,6 +6,7 @@ import {
 	argSlotText,
 	evalArgs,
 	gnoLiteral,
+	postEval,
 	shellQuote,
 	zeroLiteral,
 } from "./utils.ts";
@@ -296,4 +297,108 @@ test("$help's address slot is the quoted key, or ADDRESS", () => {
 			key,
 		);
 	}
+});
+
+test("gnoLiteral keeps only a complete Gno literal or operand as is", () => {
+	const cases: [value: string, type: string, want: string][] = [
+		['"\\101"', "string", '"\\101"'], // octal needs three digits
+		['"\\1"', "string", JSON.stringify('"\\1"')],
+		['"\\u00e9"', "string", '"\\u00e9"'],
+		['"\\u12"', "string", JSON.stringify('"\\u12"')],
+		['"\\U0001f600"', "string", '"\\U0001f600"'],
+		['"\\U0001f60"', "string", JSON.stringify('"\\U0001f60"')],
+		["1e+10", "float64", "1e+10"],
+		["'\\x41'", "rune", "'\\x41'"],
+	];
+	for (const [value, type, want] of cases) {
+		assert.equal(gnoLiteral(value, type), want, value);
+	}
+});
+
+test("zeroLiteral reads the whole type name", () => {
+	for (const type of ["[]int", "int64Alias", "uintx", "*float64"]) {
+		assert.equal(zeroLiteral(type), "nil", type);
+	}
+});
+
+test("argSlotText leaves an empty slot empty, typed or not", () => {
+	assert.equal(argSlotText("", "string"), "");
+	assert.equal(argSlotText("", ""), "");
+});
+
+// postEval against a stubbed fetch: what it sends, and how each answer is
+// shown. 429 and 5xx are gnoweb or the node being busy or down, shown as
+// unavailable rather than as the function's error.
+test("postEval sends the expression and sorts the answers", async (t) => {
+	const calls: { url: string; init: RequestInit }[] = [];
+	const answer = (status: number, body: unknown) =>
+		new Response(body === undefined ? "not json" : JSON.stringify(body), {
+			status,
+		});
+	const cases: [
+		Response | Error,
+		{ text: string; isError: boolean; unavailable: boolean },
+	][] = [
+		[
+			answer(200, { result: '("x" string)' }),
+			{ text: '("x" string)', isError: false, unavailable: false },
+		],
+		[answer(200, {}), { text: "", isError: false, unavailable: false }],
+		[
+			answer(200, { error: "boom" }),
+			{ text: "Error: boom", isError: true, unavailable: false },
+		],
+		[
+			answer(400, { error: "bad" }),
+			{ text: "Error: bad", isError: true, unavailable: false },
+		],
+		[
+			answer(404, undefined),
+			{ text: "Error: HTTP 404", isError: true, unavailable: false },
+		],
+		[
+			answer(429, { error: "slow down" }),
+			{ text: "slow down", isError: false, unavailable: true },
+		],
+		[
+			answer(499, undefined),
+			{ text: "Error: HTTP 499", isError: true, unavailable: false },
+		],
+		[
+			answer(500, undefined),
+			{ text: "HTTP 500", isError: false, unavailable: true },
+		],
+		[
+			answer(503, { error: "busy" }),
+			{ text: "busy", isError: false, unavailable: true },
+		],
+		[
+			new TypeError("offline"),
+			{
+				text: "gnoweb could not be reached, try again shortly",
+				isError: false,
+				unavailable: true,
+			},
+		],
+	];
+	const realFetch = globalThis.fetch;
+	t.after(() => {
+		globalThis.fetch = realFetch;
+	});
+	for (const [reply, want] of cases) {
+		globalThis.fetch = (async (url: string, init: RequestInit) => {
+			calls.push({ url, init });
+			if (reply instanceof Error) throw reply;
+			return reply;
+		}) as typeof fetch;
+		assert.deepEqual(await postEval("gno.land/r/x", "F(1)"), want);
+	}
+	const { url, init } = calls[0];
+	assert.equal(url, "/_/api/eval");
+	assert.equal(init.method, "POST");
+	assert.deepEqual(init.headers, { "Content-Type": "application/json" });
+	assert.deepEqual(JSON.parse(init.body as string), {
+		pkg_path: "gno.land/r/x",
+		expression: "F(1)",
+	});
 });
