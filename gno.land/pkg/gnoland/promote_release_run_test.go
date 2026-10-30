@@ -363,6 +363,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 	for _, c := range []struct{ name, halt, answer, says string }{
 		{"no halt scheduled", "", "", "mainnet has not scheduled v1.7.0"},
 		{"a halt for another release", "v1.6.0", "", "mainnet has not scheduled v1.7.0"},
+		// The node compares the floor byte for byte; a shell's $(…) would
+		// strip the newline and take it for the release.
+		{"a halt for the release and a newline", "v1.7.0\n", "", "mainnet has not scheduled v1.7.0"},
 		{"an answer with no data", "", `{"jsonrpc":"2.0","id":1,"result":{}}`, "gave no halt_min_version"},
 		// Its Data names the release, so only the Error refuses it.
 		{"an answer with an error", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":{"msg":"boom"},"Data":"InYxLjcuMCI="}}}}`, "gave no halt_min_version"},

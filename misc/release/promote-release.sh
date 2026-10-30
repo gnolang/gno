@@ -187,16 +187,23 @@ check_moves_forward() {
   fi
 }
 
-# Mainnet's halt_min_version, read from its RPC. An answer that is not a query
-# result is refused, never taken for an empty value.
-halt_min_version() {
-  local body answer value
+# Checks that mainnet's halt_min_version, read from its RPC, is VERSION. The
+# comparison runs inside jq, as the node compares the floor, byte for byte: a
+# shell's $(…) would strip a trailing newline the node does not. An answer
+# that is not a query result is refused, never taken for an empty value.
+check_halt_min_version() {
+  local body answer rc=0
   body='{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"params/node:p:halt_min_version","data":""}}'
   answer="$(curl -q -sS --connect-timeout 10 --max-time 30 -X POST -H 'Content-Type: application/json' -d "${body}" "${MAINNET_RPC}")" ||
     die "cannot ask ${MAINNET_RPC} for mainnet's halt_min_version"
-  value="$(jq -er '.result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson end' <<<"${answer}" 2>/dev/null)" ||
-    die "${MAINNET_RPC} gave no halt_min_version: ${answer:0:200}"
-  printf '%s\n' "${value}"
+  jq -e --arg v "${VERSION}" '.result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson | . == $v end' \
+    <<<"${answer}" >/dev/null 2>&1 || rc=$?
+  case ${rc} in
+  0) ok "mainnet's halt_min_version is ${VERSION}" ;;
+  # jq -e answers 1 for a false result: a value, but not VERSION.
+  1) die "mainnet has not scheduled ${VERSION}: its halt_min_version is $(jq -r '.result.response.ResponseBase.Data | @base64d' <<<"${answer}"). A MINOR is promoted once its halt proposal has executed." ;;
+  *) die "${MAINNET_RPC} gave no halt_min_version: ${answer:0:200}" ;;
+  esac
 }
 
 # A MINOR is a coordinated upgrade: it becomes the release operators land on
@@ -204,7 +211,7 @@ halt_min_version() {
 # the release the chain runs needs none, and a MAJOR is a new network, which
 # mainnet never schedules.
 check_scheduled() {
-  local now_major now_minor major minor scheduled
+  local now_major now_minor major minor
   IFS=. read -r now_major now_minor _ <<<"${LATEST_NOW#v}"
   IFS=. read -r major minor _ <<<"${VERSION#v}"
   [[ ${major} == "${now_major}" ]] ||
@@ -213,10 +220,7 @@ check_scheduled() {
     ok "no halt to check: ${VERSION} is not a new MINOR"
     return
   fi
-  scheduled="$(halt_min_version)" || exit 1
-  [[ ${scheduled} == "${VERSION}" ]] ||
-    die "mainnet has not scheduled ${VERSION}: its halt_min_version is '${scheduled}'. A MINOR is promoted once its halt proposal has executed."
-  ok "mainnet's halt_min_version is ${VERSION}"
+  check_halt_min_version
 }
 
 # ------------------------------------------------------------------- images
