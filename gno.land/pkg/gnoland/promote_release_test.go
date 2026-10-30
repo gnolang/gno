@@ -13,12 +13,14 @@ import (
 
 const promoteReleaseScript = "misc/release/promote-release.sh"
 
-// codeLines returns the lines of a file with comments cut off: whole-line
-// comments, and trailing ones after a space.
+// codeLines returns the lines of a file with comments cut off. A comment is a
+// "#" followed by a space or the end of the line, at the start of a line or
+// after a space: every comment in the release workflows is written that way,
+// and a "#" inside a word or a quoted string, as in "Fixes #6429", is kept.
 func codeLines(t *testing.T, rel string) []string {
 	t.Helper()
 
-	comment := regexp.MustCompile(`(?:^|\s)#.*$`)
+	comment := regexp.MustCompile(`(?:^|\s)#(?:\s.*)?$`)
 	var lines []string
 	for line := range strings.SplitSeq(repoFile(t, rel), "\n") {
 		lines = append(lines, comment.ReplaceAllString(line, ""))
@@ -37,11 +39,12 @@ func TestReleasesArePublishedHeld(t *testing.T) {
 	t.Run("every release is published as a pre-release, never Latest", func(t *testing.T) {
 		t.Parallel()
 
-		// Every word carrying a --prerelease or --latest flag, in order: the
-		// draft is created as a pre-release, whatever the tag, and published as
-		// one, without taking Latest. Whole words, so a flag assigned to a
-		// variable shows as the assignment it is and fails the comparison.
-		flag := regexp.MustCompile(`\S*--(?:prerelease|latest)\S*`)
+		// Every word carrying a --prerelease or --latest flag, or the API's
+		// make_latest and prerelease fields, in order: the draft is created as
+		// a pre-release, whatever the tag, and published as one, without taking
+		// Latest. Whole words, so a flag assigned to a variable shows as the
+		// assignment it is and fails the comparison.
+		flag := regexp.MustCompile(`\S*(?:--(?:prerelease|latest)|make_latest|\bprerelease=)\S*`)
 		var flags []string
 		for _, line := range codeLines(t, releaseChainTagWorkflow) {
 			flags = append(flags, flag.FindAllString(line, -1)...)
@@ -79,7 +82,8 @@ func TestReleasesArePublishedHeld(t *testing.T) {
 		assert.Contains(t, images, "gnoland", "%s: could not read the image matrix", releaseDockerWorkflow)
 
 		latest := strings.Fields(grepOne(t, promoteReleaseScript, `(?m)^readonly LATEST_IMAGES=\((.+)\)$`))
-		assert.NotEmpty(t, latest)
+		// RELEASING.md, "Container images": exactly the four CLI tools.
+		assert.ElementsMatch(t, []string{"gno", "gnokey", "gnodev", "gnoweb"}, latest)
 		for _, img := range latest {
 			assert.Contains(t, images, img, "%s moves latest on %s, which %s does not build", promoteReleaseScript, img, releaseDockerWorkflow)
 		}
@@ -104,13 +108,17 @@ func TestPromoteRelease(t *testing.T) {
 		t.Parallel()
 
 		for _, v := range []string{"v1.7.0", "v1.10.0", "v2.0.0"} {
-			out, returned := runScriptFuncs(t, promoteReleaseScript, map[string]string{"VERSION": v, "VERSION_RE": shape}, "check_final")
-			assert.True(t, returned, "check_final refused %q:\n%s", v, out)
+			t.Run(v, func(t *testing.T) {
+				out, returned := runScriptFuncs(t, promoteReleaseScript, map[string]string{"VERSION": v, "VERSION_RE": shape}, "check_final")
+				assert.True(t, returned, "check_final refused %q:\n%s", v, out)
+			})
 		}
 		for _, v := range []string{"v1.7.0-rc.1", "v1.7.0+deadbeef", "v1.07.0", "v1.7", "1.7.0", "chain/mainnet", ""} {
-			out, returned := runScriptFuncs(t, promoteReleaseScript, map[string]string{"VERSION": v, "VERSION_RE": shape}, "check_final")
-			assert.False(t, returned, "check_final accepted %q:\n%s", v, out)
-			assert.Contains(t, out, "only a final vMAJOR.MINOR.PATCH release is promoted", "check_final on %q", v)
+			t.Run("refuses "+v, func(t *testing.T) {
+				out, returned := runScriptFuncs(t, promoteReleaseScript, map[string]string{"VERSION": v, "VERSION_RE": shape}, "check_final")
+				assert.False(t, returned, "check_final accepted %q:\n%s", v, out)
+				assert.Contains(t, out, "only a final vMAJOR.MINOR.PATCH release is promoted", "check_final on %q", v)
+			})
 		}
 	})
 
@@ -136,12 +144,16 @@ func TestPromoteRelease(t *testing.T) {
 			// A pre-release tag published as a full release by hand is no floor.
 			{"v1.5.1\nv1.8.0-rc.1", "v1.7.0", true, "v1.5.1 → v1.7.0"},
 			{"chain/onyx", "v1.7.0", false, "has no full release to move forward from"},
+			// GitHub lists releases newest first, not in version order.
+			{"v1.5.2\nv1.7.0", "v1.6.0", false, "v1.7.0 is the latest release"},
 		} {
-			out, returned := runScriptFuncs(t, promoteReleaseScript,
-				map[string]string{"VERSION": c.version, "RELEASES": c.releases, "VERSION_RE": shape, "REPO": "gnolang/gno"},
-				"pick_latest", "check_moves_forward")
-			assert.Equal(t, c.moves, returned, "%s over %q:\n%s", c.version, c.releases, out)
-			assert.Contains(t, out, c.says, "%s over %q", c.version, c.releases)
+			t.Run(c.version+" over "+strings.ReplaceAll(c.releases, "\n", ","), func(t *testing.T) {
+				out, returned := runScriptFuncs(t, promoteReleaseScript,
+					map[string]string{"VERSION": c.version, "RELEASES": c.releases, "VERSION_RE": shape, "REPO": "gnolang/gno"},
+					"pick_latest", "check_moves_forward")
+				assert.Equal(t, c.moves, returned, "%s over %q:\n%s", c.version, c.releases, out)
+				assert.Contains(t, out, c.says, "%s over %q", c.version, c.releases)
+			})
 		}
 	})
 
@@ -169,11 +181,15 @@ func TestPromoteRelease(t *testing.T) {
 				"docker-content-digest", "",
 			},
 		} {
-			dump := filepath.Join(dir, c.name)
-			require.NoError(t, os.WriteFile(dump, []byte(c.dump), 0o600))
-			out, returned := runScriptFuncs(t, promoteReleaseScript, nil, "header "+c.header+" '"+dump+"'")
-			require.True(t, returned, "header on %s:\n%s", c.name, out)
-			assert.Equal(t, c.want+"\n", out, "header %s in the %s dump", c.header, c.name)
+			t.Run(c.name, func(t *testing.T) {
+				dump := filepath.Join(dir, c.name)
+				require.NoError(t, os.WriteFile(dump, []byte(c.dump), 0o600))
+				// The path reaches bash through the environment, never spliced
+				// into its source.
+				out, returned := runScriptFuncs(t, promoteReleaseScript, map[string]string{"DUMP": dump}, "header "+c.header+` "$DUMP"`)
+				require.True(t, returned, "header on %s:\n%s", c.name, out)
+				assert.Equal(t, c.want+"\n", out, "header %s in the %s dump", c.header, c.name)
+			})
 		}
 	})
 }
