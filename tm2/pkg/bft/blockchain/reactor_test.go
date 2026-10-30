@@ -25,6 +25,7 @@ import (
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var config *cfg.Config
@@ -174,9 +175,8 @@ func TestNoBlockResponse(t *testing.T) {
 		{100, false},
 	}
 
-	for !reactorPairs[1].reactor.pool.IsCaughtUp() {
-		time.Sleep(10 * time.Millisecond)
-	}
+	require.Eventually(t, reactorPairs[1].reactor.pool.IsCaughtUp,
+		30*time.Second, 10*time.Millisecond, "the syncing node did not catch up")
 
 	assert.Equal(t, maxBlockHeight, reactorPairs[0].reactor.store.Height())
 
@@ -249,9 +249,8 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 		}
 	}()
 
-	for !reactorPairs[3].reactor.pool.IsCaughtUp() {
-		time.Sleep(1 * time.Second)
-	}
+	require.Eventually(t, reactorPairs[3].reactor.pool.IsCaughtUp,
+		30*time.Second, time.Second, "node 3 did not catch up")
 
 	// at this time, reactors[0-3] is the newest
 	assert.Equal(t, 3, len(reactorPairs[1].reactor.Switch.Peers().List()))
@@ -287,9 +286,9 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 
 	p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
-	for !lastReactorPair.reactor.pool.IsCaughtUp() && len(lastReactorPair.reactor.Switch.Peers().List()) != 0 {
-		time.Sleep(1 * time.Second)
-	}
+	require.Eventually(t, func() bool {
+		return lastReactorPair.reactor.pool.IsCaughtUp() || len(lastReactorPair.reactor.Switch.Peers().List()) == 0
+	}, 30*time.Second, time.Second, "the new node neither caught up nor lost its peers")
 
 	assert.True(t, len(lastReactorPair.reactor.Switch.Peers().List()) < len(reactorPairs)-1)
 }
