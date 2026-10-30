@@ -66,8 +66,7 @@ VERSION=""
 PUSH=0
 # Every full release of REPO (neither a draft nor a pre-release), one tag per line.
 RELEASES=""
-# The highest final release among them: the one misc/install.sh installs, and
-# the one a promotion moves forward from.
+# The highest final full release: the one a promotion moves forward from.
 LATEST_NOW=""
 # The GitHub account the registry tokens are asked for.
 LOGIN=""
@@ -250,8 +249,9 @@ registry_auth() {
 }
 
 # Reads <image>:<version>'s manifest into the scratch directory, its bytes as
-# stored, and checks them against their digest. With --push the token can write,
-# so a missing permission stops the run before anything is written.
+# stored, and checks them against their digest. With --push it asks a token
+# that may write, but ghcr.io checks the permission at the write itself, so a
+# missing one shows at the first write.
 read_image() {
   local image=$1 dir="${SCRATCH}/$1" actions=pull digest type sum known
   mkdir "${dir}"
@@ -318,8 +318,8 @@ main() {
   check_moves_forward
   check_scheduled
 
-  # Every image is read, checked and, with --push, granted a write token
-  # before anything is written, so a missing one leaves nothing half-promoted.
+  # Every image is read and checked before anything is written, so a missing
+  # or corrupt one leaves nothing half-promoted.
   info "images"
   SCRATCH="$(mktemp -d)"
   local image latest

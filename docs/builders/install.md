@@ -83,7 +83,7 @@ Official Docker images are published under [`ghcr.io/gnolang/gno`](https://ghcr.
 without installing from source:
 
 ```sh
-# Run gnokey (the CLI tools have a `latest` tag: the release mainnet runs)
+# Run gnokey (the CLI tools have a `latest` tag: the release mainnet runs or has scheduled)
 docker run -it ghcr.io/gnolang/gno/gnokey:latest --help
 
 # Run a gnoland node: always an explicit version, never `latest`

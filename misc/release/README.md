@@ -58,11 +58,11 @@ It *warns*, rather than refusing, when the commit is not on `master` (listing wh
 Makes a published final release the one operators land on: points `latest` at its `gno`, `gnokey`, `gnodev` and `gnoweb` images, byte for byte, then makes it a full release, the kind `misc/install.sh` installs by default (the highest `v*` release that is not a pre-release), and GitHub's "Latest". Run it once mainnet's switch is set: for a coordinated upgrade, once the halt proposal has executed; for a rolling one, on the agreed day.
 
 ```sh
-misc/release/promote-release.sh v1.6.0          # dry run: every check, nothing changed
-misc/release/promote-release.sh v1.6.0 --push
+misc/release/promote-release.sh v1.7.0          # dry run: every check, nothing changed
+misc/release/promote-release.sh v1.7.0 --push
 ```
 
-It needs `curl`, `jq`, `sha256sum` or `shasum`, and `gh` logged in with the `write:packages` scope. It refuses a release candidate, a release still a draft (its `release / chain-tag` run has not finished), a release older than the highest full release (a promotion only moves forward), a MINOR whose halt mainnet has not scheduled (mainnet's `halt_min_version` must name it; a PATCH, or the release mainnet runs, needs none), a MAJOR (a new network, which mainnet never schedules), and an image it cannot read, whose bytes do not match their digest, or which it may not write: every image is read and checked before anything is written. A run stopped halfway leaves the release a pre-release, though some images' `latest` may have moved; run it again to finish.
+It needs `curl`, `jq`, `sha256sum` or `shasum`, and `gh` logged in with the `write:packages` scope. It refuses a release candidate, a release still a draft (its `release / chain-tag` run has not finished), a release older than the highest full release (a promotion only moves forward), a MINOR whose halt mainnet has not scheduled (mainnet's `halt_min_version` must name it; a PATCH, or the release mainnet runs, needs none), a MAJOR (a new network, which mainnet never schedules), and an image it cannot read, or whose bytes or media type are not what release / docker pushed: every image is read and checked before anything is written. A missing write permission shows only at the first write, where ghcr.io checks it. A run stopped halfway leaves the release a pre-release, though some images' `latest` may have moved; run it again to finish.
 
 ## `bump-protocol-version.sh`
 
