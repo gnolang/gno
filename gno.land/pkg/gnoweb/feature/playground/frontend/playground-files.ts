@@ -77,11 +77,30 @@ export function parseInitialCode(code: string): EditorFile[] {
 
 // renderText is the text a Render("") eval returned, as qeval prints a
 // string, ("text" string), or the answer as it is when it is not one.
+// qeval quotes the way Go does, with escapes JSON lacks (\a \v \xHH
+// \UHHHHHHHH), which are rewritten first; a \x above 7f is a byte that is
+// not UTF-8, read as U+FFFD.
 export function renderText(result: string): string {
 	const m = /^\(("(?:[^"\\]|\\.)*") string\)$/s.exec(result);
 	if (!m) return result;
+	const json = m[1].replace(
+		/\\(x[0-9a-fA-F]{2}|U[0-9a-fA-F]{8}|.)/gs,
+		(esc, e: string) => {
+			const code =
+				e === "a"
+					? 7
+					: e === "v"
+						? 11
+						: e.length > 1
+							? parseInt(e.slice(1), 16)
+							: -1;
+			if (code < 0) return esc;
+			const char = e[0] === "x" && code > 0x7f ? 0xfffd : code;
+			return JSON.stringify(String.fromCodePoint(char)).slice(1, -1);
+		},
+	);
 	try {
-		return JSON.parse(m[1]);
+		return JSON.parse(json);
 	} catch {
 		return result;
 	}

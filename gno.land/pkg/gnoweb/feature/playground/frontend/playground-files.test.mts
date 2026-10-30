@@ -129,6 +129,11 @@ test("renderText reads the string a Render eval returns", () => {
 	const cases: [result: string, want: string][] = [
 		['("0" string)', "0"],
 		['("# Title\\n\\nsay \\"hi\\"" string)', '# Title\n\nsay "hi"'],
+		[
+			'("tab\\there\\x1b\\v\\a\\x7f end" string)',
+			"tab\there\x1b\v\x07\x7f end",
+		],
+		['("\\U0001f600 \\xff \\\\x1b" string)', "\u{1f600} \ufffd \\x1b"],
 		["(42 int)", "(42 int)"],
 		["Error: package not found", "Error: package not found"],
 	];
