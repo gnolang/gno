@@ -33,7 +33,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		return refused(fmt.Sprintf("type at least %d characters, or a qualifier such as author:", MinTermLen))
 	}
 	want, hasIs := q.Get(FilterIs)
-	if hasIs && !strings.EqualFold(want, "realm") && !strings.EqualFold(want, "package") {
+	if hasIs && !filterTakes(FilterIs, want) {
 		return refused(fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))
 	}
 

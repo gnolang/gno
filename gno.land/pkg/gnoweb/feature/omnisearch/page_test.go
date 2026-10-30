@@ -238,3 +238,75 @@ func TestActionTagOnlyOnCallableFuncs(t *testing.T) {
 		}
 	}
 }
+
+// TestFilterValuesAreAccepted checks every value a filter offers is one
+// discover accepts, and that nothing else is.
+func TestFilterValuesAreAccepted(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	for _, f := range filterKeywords {
+		for _, v := range f.Values {
+			if !filterTakes(f.Name, strings.ToUpper(v)) {
+				t.Errorf("%s offers %q and refuses it", f.Name, v)
+			}
+		}
+	}
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog is:user", ""))
+	if len(groups) != 1 || groups[0].Err == nil {
+		t.Errorf("is:user: groups = %+v, want one refusal", groups)
+	}
+}
+
+func TestRegisterRefusesAKeywordWithNoHeading(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recover() == nil {
+			t.Error("a global selector with no group registered")
+		}
+	}()
+	h := &Handler{byName: map[string]*Selector{}}
+	h.register(SourceChain, &Selector{Name: "lost", Scope: ScopeGlobal, Group: "nowhere"})
+}
+
+// TestKeywordLists checks the keyword lists match the omnibar's: the
+// package's keywords first on its page, those that run alone leading.
+func TestKeywordLists(t *testing.T) {
+	t.Parallel()
+
+	selectors := []*Selector{
+		{Name: "func", Hint: "func:<name>", Scope: ScopePackage},
+		{Name: "imports", Hint: "imports", Scope: ScopePackage, Bare: true},
+		{Name: "render", Hint: "render:<text>", Scope: ScopeGlobal, Group: GroupText},
+	}
+
+	onPackage := keywordLists(SearchData{Selectors: selectors, PagePath: "/r/demo/foo"})
+	if onPackage[0].Label != "On this package" || onPackage[0].Rows[0].Hint != "imports" {
+		t.Errorf("on a package: first list = %+v", onPackage[0])
+	}
+
+	anywhere := keywordLists(SearchData{Selectors: selectors})
+	last := anywhere[len(anywhere)-1]
+	if last.Label != "On a package page" || last.Rows[0].Hint != "imports" {
+		t.Errorf("anywhere: last list = %+v", last)
+	}
+}
+
+// TestEmptyQueryListsTheKeywords checks the page the omnibar's last row opens
+// shows the list that row promises, not a button to it.
+func TestEmptyQueryListsTheKeywords(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	page := handlePage(t, h, "/$search")
+	if !strings.Contains(page, `class="b-omni-hints"`) {
+		t.Error("the empty page lists no keywords")
+	}
+	if strings.Contains(page, "popovertarget") {
+		t.Error("the empty page keeps its keywords behind a button")
+	}
+	if page = handlePage(t, h, "/$search&q=blog"); !strings.Contains(page, "popovertarget") {
+		t.Error("a results page lost its Keywords button")
+	}
+}

@@ -92,8 +92,8 @@ type hintList struct {
 var angles = strings.NewReplacer("<", "‹", ">", "›")
 
 // keywordLists groups the keywords as the omnibar does: those that work
-// anywhere under keywordGroups, then those about a package. On a package
-// page, a keyword that takes no argument links to its own answer there.
+// anywhere under keywordGroups, and those about a package, the ones that take
+// no argument leading, first on its page, where they link to their own answer.
 func keywordLists(d SearchData) []hintList {
 	selRow := func(s *Selector, pkgPath string) hintRow {
 		row := hintRow{Hint: angles.Replace(s.Hint), Help: s.Help, Indexer: s.Source == SourceIndexer}
@@ -116,7 +116,7 @@ func keywordLists(d SearchData) []hintList {
 				rows = append(rows, selRow(s, ""))
 			}
 		}
-		for _, f := range d.Filters {
+		for _, f := range filterKeywords {
 			if f.Group == g.Key {
 				rows = append(rows, hintRow{Hint: angles.Replace(f.Hint), Help: f.Help})
 			}
@@ -124,13 +124,18 @@ func keywordLists(d SearchData) []hintList {
 		add(g.Label, rows)
 	}
 	var pkg []hintRow
-	for _, s := range d.Selectors {
-		if s.Scope == ScopePackage {
-			pkg = append(pkg, selRow(s, d.PkgPath))
+	for _, bare := range []bool{true, false} {
+		for _, s := range d.Selectors {
+			if s.Scope == ScopePackage && s.Bare == bare {
+				pkg = append(pkg, selRow(s, d.PagePath))
+			}
 		}
 	}
-	add("On a package page", pkg)
-	return lists
+	if d.PagePath == "" {
+		add("On a package page", pkg)
+		return lists
+	}
+	return append([]hintList{{Label: "On this package", Rows: pkg}}, lists...)
 }
 
 // pageTemplate is parsed once at init: a malformed template surfaces

@@ -73,7 +73,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		Query:         data.Query,
 		PkgPath:       data.PkgPath,
 		Selectors:     make([]jsonSelector, 0, len(data.Selectors)),
-		Filters:       data.Filters,
+		Filters:       filterKeywords,
 		KeywordGroups: keywordGroups,
 		UnknownFilter: data.UnknownFilter,
 	}

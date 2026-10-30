@@ -76,8 +76,15 @@ func TestServeJSONShape(t *testing.T) {
 		return slices.ContainsFunc(keywordGroups, func(g KeywordGroup) bool { return g.Key == group })
 	}
 	for _, f := range resp.Filters {
-		if f.Hint == "" || f.Help == "" || !headed(f.Group) {
-			t.Errorf("filter %+v: no hint, help or heading to show", f)
+		if f.Hint == "" || f.Label == "" || f.Help == "" || !headed(f.Group) {
+			t.Errorf("filter %+v: no hint, label, help or heading to show", f)
+		}
+		if f.Scope != ScopeGlobal || f.Source != SourceChain {
+			t.Errorf("filter %q: scope %q, source %q, want global and chain", f.Name, f.Scope, f.Source)
+		}
+		// The omnibar matches these literally: another word drops the list.
+		if f.Complete != "" && f.Complete != CompleteNamespace && f.Complete != CompletePath {
+			t.Errorf("filter %q: unknown value list %q", f.Name, f.Complete)
 		}
 	}
 	// Each keyword says what it does: the omnibar shows nothing else. One

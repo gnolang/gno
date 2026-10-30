@@ -21,6 +21,10 @@ type SearchData struct {
 	// names none.
 	PkgPath string
 
+	// PagePath is the package the search was made from, which a discovery
+	// search does not scope to: the keywords about it still work there.
+	PagePath string
+
 	// WholeChainHref, set on a scoped discovery search, repeats it without
 	// the scope.
 	WholeChainHref string
@@ -29,9 +33,6 @@ type SearchData struct {
 
 	// Selectors is the honest inventory of what this deployment can answer.
 	Selectors []*Selector
-
-	// Filters are the narrowing qualifiers, listed after the selectors.
-	Filters []FilterKeyword
 
 	// UnknownFilter names a qualifier that is neither a selector nor a
 	// narrowing keyword, so the page can say so instead of showing nothing.

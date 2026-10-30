@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 // Source travels to the template because the distinction is not cosmetic:
@@ -39,32 +40,49 @@ const (
 	FilterIs     = "is"
 )
 
+// The lists the omnibar already holds, which it suggests a filter's values
+// from.
+const (
+	CompleteNamespace = "namespace"
+	CompletePath      = "path"
+)
+
 // FilterKeyword describes a narrowing qualifier for the keyword lists: the
 // results page's and the omnibar's, so both offer the same ones.
 type FilterKeyword struct {
-	Name  string `json:"name"`
-	Hint  string `json:"hint"`
-	Help  string `json:"help"`
-	Group string `json:"group"`
+	Name   string `json:"name"`
+	Hint   string `json:"hint"`
+	Label  string `json:"label"`
+	Help   string `json:"help"`
+	Scope  Scope  `json:"scope"`
+	Group  string `json:"group"`
+	Source Source `json:"source"`
 
 	// Values is every value the filter takes, when there are few.
 	Values []string `json:"values,omitempty"`
 
-	// Complete names the list the omnibar suggests values from, one it
-	// already holds: "namespace" or "path".
+	// Complete names the list the omnibar suggests values from.
 	Complete string `json:"complete,omitempty"`
 }
 
-// filterKeywords is the one list of narrowing qualifiers: isNarrowing reads
-// it, so a keyword cannot be offered without being accepted.
+// filterKeywords is the one list of narrowing qualifiers: isNarrowing and
+// filterTakes read it, so a keyword cannot be offered without being accepted.
 var filterKeywords = []FilterKeyword{
-	{Name: FilterAuthor, Hint: "author:<name>", Help: "One namespace or deployer", Group: GroupNarrow, Complete: "namespace"},
-	{Name: FilterIn, Hint: "in:<path>", Help: "One package (/r/… or /p/…)", Group: GroupNarrow, Complete: "path"},
-	{Name: FilterIs, Hint: "is:<realm|package>", Help: "Only realms, or only packages", Group: GroupNarrow, Values: []string{"realm", "package"}},
+	{Name: FilterAuthor, Hint: "author:<name>", Label: "Authors", Help: "One namespace or deployer", Scope: ScopeGlobal, Group: GroupNarrow, Source: SourceChain, Complete: CompleteNamespace},
+	{Name: FilterIn, Hint: "in:<path>", Label: "Packages", Help: "One package (/r/… or /p/…)", Scope: ScopeGlobal, Group: GroupNarrow, Source: SourceChain, Complete: CompletePath},
+	{Name: FilterIs, Hint: "is:<realm|package>", Label: "Kinds", Help: "Only realms, or only packages", Scope: ScopeGlobal, Group: GroupNarrow, Source: SourceChain, Values: []string{"realm", "package"}},
 }
 
 func isNarrowing(key string) bool {
 	return slices.ContainsFunc(filterKeywords, func(f FilterKeyword) bool { return f.Name == key })
+}
+
+// filterTakes reports whether a filter with a fixed set of values takes value.
+func filterTakes(name, value string) bool {
+	i := slices.IndexFunc(filterKeywords, func(f FilterKeyword) bool { return f.Name == name })
+	return i >= 0 && slices.ContainsFunc(filterKeywords[i].Values, func(v string) bool {
+		return strings.EqualFold(v, value)
+	})
 }
 
 // The keyword lists group the keywords that work anywhere by what they do.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"golang.org/x/sync/singleflight"
@@ -145,6 +146,11 @@ func New(deps Deps) *Handler {
 // can claim the wrong one by copy-paste.
 func (h *Handler) register(src Source, sels ...*Selector) {
 	for _, s := range sels {
+		// A global selector without a heading would drop out of both keyword
+		// lists while it can still be typed.
+		if s.Scope != ScopePackage && !slices.ContainsFunc(keywordGroups, func(g KeywordGroup) bool { return g.Key == s.Group }) {
+			panic(fmt.Sprintf("omnisearch: selector %q has no keyword group", s.Name))
+		}
 		s.Source = src
 		h.selectors = append(h.selectors, s)
 		h.byName[s.Name] = s
