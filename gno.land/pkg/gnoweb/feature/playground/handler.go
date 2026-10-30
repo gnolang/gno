@@ -174,9 +174,9 @@ func (h *Handler) copyView(ctx context.Context, pkgPath, file string) (int, *com
 	})
 }
 
-// renderDecl matches the Render gnoweb renders a realm with:
-// func Render(path string) string, not a crossing one (cur realm, ...).
-var renderDecl = regexp.MustCompile(`(?m)^func Render\(\s*(?:\w+\s+)?string\s*\)\s*string\b`)
+// renderDecl matches the Render gnoweb renders a realm with, crossing or not,
+// which vm/qeval calls too.
+var renderDecl = regexp.MustCompile(`(?m)^func Render\(\s*(?:\w+\s+realm\s*,\s*)?(?:\w+\s+)?string\s*\)\s*(?:string\b|\(\s*(?:\w+\s+)?string\s*\))`)
 
 // canPreview reports whether Run can show what the copy of from renders on
 // the chain: from is a realm and one of its files, not a test, declares
@@ -184,8 +184,7 @@ var renderDecl = regexp.MustCompile(`(?m)^func Render\(\s*(?:\w+\s+)?string\s*\)
 // on the first edit.
 func canPreview(from string, files []File) bool {
 	return strings.HasPrefix(from, "r/") && slices.ContainsFunc(files, func(f File) bool {
-		isTest := strings.HasSuffix(f.Name, "_test.gno") || strings.HasSuffix(f.Name, "_filetest.gno")
-		return !isTest && renderDecl.MatchString(f.Content)
+		return !components.ClassifyFile(f.Name).IsTest && renderDecl.MatchString(f.Content)
 	})
 }
 

@@ -617,7 +617,12 @@ func TestRunLabel(t *testing.T) {
 		// the package's own files: a test's Render is not the realm's.
 		{"Render in a test", "/r/demo/foo", "foo_test.gno", render, false},
 		{"Render in a filetest", "/r/demo/foo", "z_filetest.gno", render, false},
-		{"crossing Render", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(cur realm, path string) string { return \"\" }\n", false},
+		// vm/qeval gives a crossing Render its cur, as it does on the chain.
+		{"crossing Render", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(cur realm, path string) string { return \"\" }\n", true},
+		{"crossing blank path", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(_ realm, _ string) string { return \"\" }\n", true},
+		{"named result", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(path string) (out string) { return \"\" }\n", true},
+		{"crossing Render of two params", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(cur realm, path string, n int) string { return \"\" }\n", false},
+		{"two results", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(path string) (string, error) { return \"\", nil }\n", false},
 		{"Render with no result", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(path string) {}\n", false},
 		{"Render of two params", "/r/demo/foo", "foo.gno", "package foo\n\nfunc Render(path string, n int) string { return \"\" }\n", false},
 	}
