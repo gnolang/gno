@@ -174,6 +174,12 @@ test("renderText reads the string a Render eval returns", () => {
 		['more ("a" string)', 'more ("a" string)'],
 		['("a\\x00b" string)', "a\u0000b"],
 		['("\\q" string)', '("\\q" string)'],
+		['("\\U00110000" string)', '("\\U00110000" string)'],
+		// A result past the server's cap keeps its quotes (capEvalResult).
+		[
+			'("a\\n… (truncated: first 1 of 2 bytes shown)" string)',
+			"a\n… (truncated: first 1 of 2 bytes shown)",
+		],
 	];
 	for (const [result, want] of cases) {
 		assert.equal(renderText(result), want, result);

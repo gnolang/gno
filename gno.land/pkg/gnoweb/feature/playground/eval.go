@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -25,6 +27,9 @@ const (
 	// maxEvalResultBytes caps the result returned to the reader, far above
 	// what a preview shows; the rest is cut with a visible marker.
 	maxEvalResultBytes = 64 << 10 // 64 KiB
+
+	// evalCutMarker ends a cut result, with the bytes kept and the total.
+	evalCutMarker = "… (truncated: first %d of %d bytes shown)"
 
 	// evalCacheTTL is how long an answer is reused. The chain moves one block
 	// at a time, so a few seconds keeps previews current while every reader
@@ -204,17 +209,39 @@ func (h *Handler) cachedEval(key string) (evalAnswer, bool) {
 	return a, ok && time.Now().Before(a.expires)
 }
 
-// capEvalResult cuts a result longer than maxEvalResultBytes on a rune
-// boundary and says how much was cut.
+// capEvalResult cuts a result longer than maxEvalResultBytes and says how
+// much was cut, inside the quotes of a ("…" string) result for Preview to read.
 func capEvalResult(b []byte) string {
 	if len(b) <= maxEvalResultBytes {
 		return string(b)
+	}
+	if n := quotedCut(string(b)); n > 0 {
+		return fmt.Sprintf(`%s\n`+evalCutMarker+`" string)`, b[:n], n, len(b))
 	}
 	n := maxEvalResultBytes
 	for n > 0 && !utf8.RuneStart(b[n]) {
 		n--
 	}
-	return fmt.Sprintf("%s\n… (truncated: first %d of %d bytes shown)", b[:n], n, len(b))
+	return fmt.Sprintf("%s\n"+evalCutMarker, b[:n], n, len(b))
+}
+
+// quotedCut is where to cut a long ("…" string) result so no escape of the
+// Go literal is split, or 0 for any other result.
+func quotedCut(s string) int {
+	rest, ok := strings.CutPrefix(s, `("`)
+	if !ok || !strings.HasSuffix(s, `" string)`) {
+		return 0
+	}
+	for {
+		_, _, tail, err := strconv.UnquoteChar(rest, '"')
+		if err != nil {
+			return 0 // the literal ends early: the result is several values
+		}
+		if len(s)-len(tail) > maxEvalResultBytes {
+			return len(s) - len(rest)
+		}
+		rest = tail
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

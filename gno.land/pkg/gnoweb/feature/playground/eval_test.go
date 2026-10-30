@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -153,6 +154,33 @@ func TestEvalResultCap(t *testing.T) {
 	}}
 	_, resp = serveEvalJSON(t, New(Deps{Packages: &stubPackages{}, Client: small, Logger: discardLogger()}), "r/a", "One()")
 	assert.Equal(t, "(1 int)", resp.Result)
+}
+
+// TestCapEvalResultQuoted checks a cut string result is still one, which
+// Preview reads as the text, wherever the cap falls in an escape.
+func TestCapEvalResultQuoted(t *testing.T) {
+	t.Parallel()
+
+	for _, esc := range []string{`\"`, `\\`, `\n`, `\x80`, `\u2028`, `\U0010ffff`, "é"} {
+		for pad := range 12 {
+			result := `("` + strings.Repeat("a", maxEvalResultBytes-2-pad) + strings.Repeat(esc, 20) + `" string)`
+
+			got := capEvalResult([]byte(result))
+			lit, ok := strings.CutSuffix(strings.TrimPrefix(got, "("), " string)")
+			require.True(t, ok, "%s, %d: %.40q", esc, pad, got[len(got)-40:])
+			text, err := strconv.Unquote(lit)
+			require.NoError(t, err, "%s, %d", esc, pad)
+			assert.Contains(t, text, "\n… (truncated: first ", "%s, %d", esc, pad)
+			assert.Contains(t, text, fmt.Sprintf("of %d bytes shown)", len(result)), "%s, %d", esc, pad)
+			assert.LessOrEqual(t, len(text), maxEvalResultBytes+64, "%s, %d", esc, pad)
+		}
+	}
+
+	// The literal ends before the cap: the result is several values.
+	several := `("a" string)` + "\n" + `("` + strings.Repeat("b", maxEvalResultBytes) + `" string)`
+	head, _, ok := strings.Cut(capEvalResult([]byte(several)), "\n… (truncated")
+	require.True(t, ok)
+	assert.Len(t, head, maxEvalResultBytes)
 }
 
 func TestEvalDeadline(t *testing.T) {
