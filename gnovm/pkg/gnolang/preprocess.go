@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -1688,6 +1689,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
+							if ct.Kind() == StringKind {
+								foldStringOfLargeIntConst(arg0)
+							}
 							convertConst(store, last, n, arg0, nil)
 						}
 
@@ -4610,6 +4614,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
+		checkUntypedRuneConst(x)
 		// is constant?  From the machine?
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath:            ".dontcare",
@@ -4646,6 +4651,155 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	setPreprocessed(cx)
 	setConstAttrs(cx)
 	return cx
+}
+
+// foldStringOfLargeIntConst prepares string(cx), for an untyped integer
+// constant cx beyond the int64 range: no such value is a Unicode code
+// point, so string(cx) is "\uFFFD" (Go spec, conversions to string). cx
+// becomes the rune '\uFFFD', so its default type, int, no longer overflows
+// (string(1<<64) was rejected). Values within int64 are left to the regular
+// conversion, which already gives "\uFFFD" for them.
+func foldStringOfLargeIntConst(cx *ConstExpr) {
+	if cx.T != UntypedBigintType || cx.GetBigInt().IsInt64() {
+		return
+	}
+	cx.TypedValue = TypedValue{T: UntypedRuneType}
+	cx.SetInt32(utf8.RuneError)
+	setConstAttrs(cx)
+}
+
+// isUntypedRuneConst reports whether x is an untyped rune *ConstExpr.
+func isUntypedRuneConst(x Expr) bool {
+	cx, ok := x.(*ConstExpr)
+	return ok && cx.T == UntypedRuneType
+}
+
+// constSource renders x as written, looking through the *ConstExpr nodes
+// that preprocessing put in place of folded subexpressions.
+func constSource(x Expr) string {
+	switch x := x.(type) {
+	case *ConstExpr:
+		if x.Source != nil {
+			return constSource(x.Source)
+		}
+	case *BinaryExpr:
+		return constSourceOperand(x.Left) + " " + x.Op.TokenString() + " " + constSourceOperand(x.Right)
+	case *UnaryExpr:
+		return x.Op.TokenString() + constSourceOperand(x.X)
+	case *NameExpr:
+		return string(x.Name)
+	case *SelectorExpr:
+		return constSource(x.X) + "." + string(x.Sel)
+	case *CallExpr:
+		// The uint() conversion preprocessing wraps a shift count in.
+		if x.GetAttribute(ATTR_SHIFT_RHS) == true && len(x.Args) == 1 {
+			return constSourceOperand(x.Args[0])
+		}
+		args := make([]string, len(x.Args))
+		for i, arg := range x.Args {
+			args[i] = constSource(arg)
+		}
+		return constSource(x.Func) + "(" + strings.Join(args, ", ") + ")"
+	case *constTypeExpr:
+		if x.Source != nil {
+			return constSource(x.Source)
+		}
+	}
+	return x.String()
+}
+
+// constSourceOperand is constSource, parenthesized for an operation.
+func constSourceOperand(x Expr) string {
+	if cx, ok := x.(*ConstExpr); ok && cx.Source != nil {
+		x = cx.Source
+	}
+	switch x.(type) {
+	case *BinaryExpr, *UnaryExpr:
+		return "(" + constSource(x) + ")"
+	}
+	return constSource(x)
+}
+
+// checkUntypedRuneConst rejects the constant operation x if it is an
+// operation on untyped rune constants whose exact result does not fit in
+// int32.
+//
+// Untyped constant arithmetic in Go is exact, while the machine folds an
+// operation on two untyped runes in int32 and wraps: '\U0010ffff' *
+// '\U0010ffff' gave -2228223. Go keeps such a result an exact untyped rune,
+// but Gno's untyped runes hold int32 values, and folding it to an untyped
+// integer instead would change its kind (its default type, and the type of
+// everything derived from it). So it is rejected, and the program needs a
+// typed operand, e.g. int64('\U0010ffff') * '\U0010ffff'. An operation
+// whose exact result fits in int32 is left to the machine, which then
+// computes exactly that result, at master's gas: the check is plain Go
+// arithmetic on two int32 values, charged nothing.
+//
+// Comparisons are exact in int32. Unary operators are not defined on
+// untyped runes by the machine (-'a' is rejected, as before; +'a' cannot
+// overflow), nor are right shifts able to overflow.
+func checkUntypedRuneConst(x Expr) {
+	bx, ok := x.(*BinaryExpr)
+	if !ok || !isUntypedRuneConst(bx.Left) {
+		return
+	}
+	a := int64(bx.Left.(*ConstExpr).GetInt32())
+	var exact *big.Int // nil: fits in int32
+	switch bx.Op {
+	case SHL:
+		rcx, ok := bx.Right.(*ConstExpr)
+		if !ok || a == 0 || rcx.T == nil || rcx.T.Kind() != UintKind {
+			return // 0 << n is 0 for any count; other counts fail as before
+		}
+		switch n := rcx.GetUint(); {
+		case n > maxBigintShift:
+			// |a << n| >= 1<<n: too large to print.
+			panic(fmt.Sprintf(
+				"untyped rune constant %s overflows int32; "+
+					"convert an operand to a wider integer type, e.g. int64(%s)",
+				constSource(x), constSource(bx.Left)))
+		case n >= 32: // |a| >= 1, so |a << n| >= 1<<32
+			exact = new(big.Int).Lsh(big.NewInt(a), uint(n))
+		default: // |a << n| < 1<<62
+			if r := a << n; int64(int32(r)) != r {
+				exact = big.NewInt(r)
+			}
+		}
+	case ADD, SUB, MUL, QUO, REM:
+		if !isUntypedRuneConst(bx.Right) {
+			return
+		}
+		b := int64(bx.Right.(*ConstExpr).GetInt32())
+		var r int64
+		switch bx.Op {
+		case ADD:
+			r = a + b
+		case SUB:
+			r = a - b
+		case MUL:
+			r = a * b // |a*b| <= 1<<62
+		case QUO:
+			if b == 0 {
+				return // division by zero, as before
+			}
+			r = a / b // only MinInt32 / -1 leaves int32
+		case REM:
+			return // |a % b| <= |a|
+		}
+		if int64(int32(r)) != r {
+			exact = big.NewInt(r)
+		}
+	default:
+		// Bitwise operations on int32 values stay within int32; right
+		// shifts too.
+		return
+	}
+	if exact != nil {
+		panic(fmt.Sprintf(
+			"untyped rune constant %s overflows int32 (value %s); "+
+				"convert an operand to a wider integer type, e.g. int64(%s)",
+			constSource(x), exact.String(), constSource(bx.Left)))
+	}
 }
 
 func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {

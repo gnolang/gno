@@ -151,3 +151,27 @@ func TestConvertUntypedBigdecToFloat32(t *testing.T) {
 			ConvertUntypedBigdecTo(&TypedValue{}, BigdecValue{V: huge}, Float32Type)
 		})
 }
+
+func TestConvertUntypedRuneTo(t *testing.T) {
+	t.Parallel()
+
+	newRune := func(r int32) *TypedValue {
+		tv := &TypedValue{T: UntypedRuneType}
+		tv.SetInt32(r)
+		return tv
+	}
+
+	tv := newRune('a')
+	ConvertUntypedTo(tv, Float64Type)
+	require.Equal(t, float64('a'), math.Float64frombits(tv.GetFloat64()))
+	tv = newRune(-'a')
+	ConvertUntypedTo(tv, Float32Type)
+	require.Equal(t, float32(-'a'), math.Float32frombits(tv.GetFloat32()))
+
+	tv = newRune('a')
+	ConvertUntypedTo(tv, Uint64Type)
+	require.Equal(t, uint64('a'), tv.GetUint64())
+	require.PanicsWithValue(t, "rune underflows target kind", func() {
+		ConvertUntypedTo(newRune(-1), Uint64Type)
+	})
+}
