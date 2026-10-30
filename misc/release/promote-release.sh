@@ -76,7 +76,6 @@ die() {
 }
 info() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 ok() { printf '  \033[32m✓\033[0m %s\n' "$*"; }
-warn() { printf '  \033[33m!\033[0m %s\n' "$*" >&2; }
 # Up to the first blank line, so adding an option to the header above cannot
 # silently truncate --help.
 usage() { sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's|^# \{0,1\}||'; }

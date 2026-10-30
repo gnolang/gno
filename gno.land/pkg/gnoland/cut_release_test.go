@@ -24,17 +24,20 @@ func runCutReleaseFuncs(t *testing.T, vars map[string]string, funcs ...string) (
 }
 
 // runScriptFuncs makes calls to functions of a release script in bash, in
-// order, with those functions and the script's die, ok and warn defined, and
-// the script's globals set from vars. A call is a function name, optionally
-// followed by shell-quoted arguments. It returns their combined output and
-// whether they all returned (die exits non-zero).
+// order, with those functions and whichever of the script's die, ok and warn it
+// defines, and the script's globals set from vars. A call is a function name,
+// optionally followed by shell-quoted arguments. It returns their combined
+// output and whether they all returned (die exits non-zero).
 func runScriptFuncs(t *testing.T, rel string, vars map[string]string, calls ...string) (string, bool) {
 	t.Helper()
 
 	src := repoFile(t, rel)
 	var script strings.Builder
 	script.WriteString("set -euo pipefail\n")
-	for _, call := range append([]string{"die", "ok", "warn"}, calls...) {
+	for _, helper := range []string{"die", "ok", "warn"} {
+		script.WriteString(findShellFunc(src, helper) + "\n")
+	}
+	for _, call := range calls {
 		script.WriteString(shellFunc(t, rel, src, strings.Fields(call)[0]) + "\n")
 	}
 	script.WriteString(strings.Join(calls, "\n") + "\n")
@@ -58,17 +61,25 @@ func runScriptFuncs(t *testing.T, rel string, vars map[string]string, calls ...s
 }
 
 // shellFunc returns the definition of a function in the shell script rel, read
-// as src, either a one-liner or a block closed by a "}" on its own line.
+// as src, and fails the test if the script defines no such function.
 func shellFunc(t *testing.T, rel, src, name string) string {
 	t.Helper()
 
+	def := findShellFunc(src, name)
+	require.NotEmpty(t, def, "%s defines no %s()", rel, name)
+	return def
+}
+
+// findShellFunc returns the definition of a function in a shell script's
+// source, either a one-liner or a block closed by a "}" on its own line, or ""
+// when the script defines none.
+func findShellFunc(src, name string) string {
 	q := regexp.QuoteMeta(name)
 	for _, re := range []string{`(?ms)^` + q + `\(\) \{\n.*?^\}$`, `(?m)^` + q + `\(\) \{ .* \}$`} {
 		if def := regexp.MustCompile(re).FindString(src); def != "" {
 			return def
 		}
 	}
-	require.Failf(t, "function not found", "%s defines no %s()", rel, name)
 	return ""
 }
 
