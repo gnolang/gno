@@ -54,6 +54,9 @@ type StateNode struct {
 	ObjectID   string
 	TypeID     string
 	Length     *int
+	// PointerIndex is set for a pointer whose Base is the stored object ObjectID:
+	// the Index of the struct field, array element or block value pointed to.
+	PointerIndex *int
 	// Preview is a one-line summary of Children, rendered in
 	// collapsed/ref rows. Re-computed after lazy ref fetches.
 	Preview string
@@ -513,6 +516,7 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 			return []StateNode{{
 				Name: "*", Type: "(stored)", Kind: KindPointer,
 				Expandable: true, ObjectID: rv.ObjectID.String(),
+				PointerIndex: intPtr(cv.Index),
 			}}
 		}
 		return []StateNode{{Name: "*", Type: "*", Kind: KindPointer, Value: "nil"}}
@@ -685,6 +689,9 @@ func decodePointer(depth int, name, tName, typeID string, pv gno.PointerValue) S
 			Expandable: true, ObjectID: rv.ObjectID.String(),
 			// Carry pointee TypeID so qtype_json can resolve struct field names.
 			TypeID: typeID,
+			// Carry the Index so the expansion decodes the pointee, not the
+			// whole Base (e.g. &s.Field points into the stored struct s).
+			PointerIndex: intPtr(pv.Index),
 		}
 	}
 	if pv.TV != nil {
@@ -1156,14 +1163,54 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 	return view
 }
 
+// pointedTo returns the value which a pointer with the given Index points
+// to in its stored Base object v: a struct field, an array element or a
+// block value. It is wrapped in a HeapItemValue so both decode paths show
+// it like the value of a pointer to a heap item, which is returned as is
+// (its one value is at Index 0).
+func pointedTo(v gno.Value, index int) (gno.Value, error) {
+	if index < 0 {
+		return nil, fmt.Errorf("invalid pointer index %d", index)
+	}
+	var list []gno.TypedValue
+	switch cv := v.(type) {
+	case *gno.HeapItemValue:
+		return cv, nil
+	case *gno.StructValue:
+		list = cv.Fields
+	case *gno.ArrayValue:
+		if cv.Data != nil {
+			if index >= len(cv.Data) {
+				return nil, fmt.Errorf("pointer index %d out of range", index)
+			}
+			// An element of a byte array is a uint8.
+			tv := gno.TypedValue{T: gno.Uint8Type}
+			tv.SetUint8(cv.Data[index])
+			return &gno.HeapItemValue{Value: tv}, nil
+		}
+		list = cv.List
+	case *gno.Block:
+		list = cv.Values
+	default:
+		return nil, fmt.Errorf("pointer base %T is not a struct, array, block or heap item", v)
+	}
+	if index >= len(list) {
+		return nil, fmt.Errorf("pointer index %d out of range", index)
+	}
+	return &gno.HeapItemValue{Value: list[index]}, nil
+}
+
 // DecodeObjectFull parses qobject_json (and optional qtype_json) into
 // children to render plus the queried object's ObjectInfo in one pass.
 // cfg bounds recursion depth on both the typed and untyped paths so a
 // &tid= request honours the same per-fragment budget as the untyped one.
+// A non-nil ptrIndex (from a pointer node's PointerIndex) decodes only the
+// value the pointer points to in the object; Info still describes the
+// whole object.
 // recoverToErr keeps amino + walker panics on hostile chain bytes inside
 // the function — the page/fragment handler surfaces a clean error instead
 // of unwinding to net/http's top-level recover.
-func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *DecodedObject, err error) {
+func DecodeObjectFull(rawObject, rawType []byte, ptrIndex *int, cfg RenderConfig) (decoded *DecodedObject, err error) {
 	defer recoverToErr(nil, "decode object JSON", &err)
 
 	var resp objectResponse
@@ -1172,6 +1219,14 @@ func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *Dec
 	}
 
 	info := objectInfoOf(resp.Value)
+
+	if ptrIndex != nil {
+		v, perr := pointedTo(resp.Value, *ptrIndex)
+		if perr != nil {
+			return nil, fmt.Errorf("decode object JSON: %w", perr)
+		}
+		resp.Value = v
+	}
 
 	var nodes []StateNode
 	if len(rawType) == 0 {

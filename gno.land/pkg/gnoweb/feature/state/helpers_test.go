@@ -46,7 +46,7 @@ func TestStateObjectHref_RoundtripsThroughWebURL(t *testing.T) {
 	t.Parallel()
 
 	const oid = "ffffffffffffffffffffffffffffffffffffffff:42"
-	href := stateObjectHref("/r/demo/foo", oid, "", "")
+	href := stateObjectHref("/r/demo/foo", oid, "", nil, "")
 	assert.NotEmpty(t, href)
 
 	gnourl, err := weburl.Parse("https://gno.land" + string(href))
@@ -57,21 +57,23 @@ func TestStateObjectHref_RoundtripsThroughWebURL(t *testing.T) {
 	assert.True(t, gnourl.WebQuery.Has("state"), "state flag preserved")
 }
 
-// TestStateObjectHref_StampsTypeAndView — tid and viewMode should round-trip
-// when present and stay absent when zero.
+// TestStateObjectHref_StampsTypeAndView — tid, ptrIndex and viewMode should
+// round-trip when present (ptrIndex 0 included) and stay absent when zero.
 func TestStateObjectHref_StampsTypeAndView(t *testing.T) {
 	t.Parallel()
 
-	href := stateObjectHref("/r/demo", "abcd:1", "tid-x", "tree")
+	href := stateObjectHref("/r/demo", "abcd:1", "tid-x", intPtr(0), "tree")
 	gnourl, err := weburl.Parse("https://gno.land" + string(href))
 	require.NoError(t, err)
 	assert.Equal(t, "tid-x", gnourl.WebQuery.Get("tid"))
+	assert.Equal(t, "0", gnourl.WebQuery.Get("idx"))
 	assert.Equal(t, "tree", gnourl.WebQuery.Get("view"))
 
-	bare := stateObjectHref("/r/demo", "abcd:1", "", "")
+	bare := stateObjectHref("/r/demo", "abcd:1", "", nil, "")
 	gnourl, err = weburl.Parse("https://gno.land" + string(bare))
 	require.NoError(t, err)
 	assert.Empty(t, gnourl.WebQuery.Get("tid"))
+	assert.False(t, gnourl.WebQuery.Has("idx"))
 	assert.Empty(t, gnourl.WebQuery.Get("view"))
 }
 

@@ -25,7 +25,7 @@ func decodePkgJSON(raw []byte) ([]StateNode, error) {
 }
 
 func decodeObjectJSON(raw []byte) ([]StateNode, error) {
-	root, err := DecodeObject(context.Background(), raw, DefaultPageRenderConfig())
+	root, err := DecodeObject(context.Background(), raw, nil, DefaultPageRenderConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func decodeObjectJSON(raw []byte) ([]StateNode, error) {
 }
 
 func decodeObjectJSONWithType(rawObject, rawType []byte) ([]StateNode, error) {
-	decoded, err := DecodeObjectFull(rawObject, rawType, DefaultPageRenderConfig())
+	decoded, err := DecodeObjectFull(rawObject, rawType, nil, DefaultPageRenderConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +128,25 @@ func TestDecodeObjectJSON_Struct(t *testing.T) {
 	assert.Equal(t, "1", nodes[1].Name)
 	assert.Equal(t, "string", nodes[1].Type)
 	assert.Equal(t, `"test"`, nodes[1].Value)
+
+	// Regression test: Removing the check for ptrIndex in DecodeObjectFull makes this fail.
+	// A pointer to field 1 of the stored struct decodes only that field,
+	// in both DecodeObject and DecodeObjectFull.
+	root, err := DecodeObject(context.Background(), []byte(fixture), intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	decoded, err := DecodeObjectFull([]byte(fixture), nil, intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	for _, pointee := range [][]StateNode{root.Children, decoded.Nodes} {
+		require.Len(t, pointee, 1)
+		assert.Equal(t, "value", pointee[0].Name)
+		assert.Equal(t, "string", pointee[0].Type)
+		assert.Equal(t, `"test"`, pointee[0].Value)
+	}
+	// An index which selects no field is an error, not another value.
+	_, err = DecodeObject(context.Background(), []byte(fixture), intPtr(2), DefaultPageRenderConfig())
+	assert.Error(t, err)
+	_, err = DecodeObjectFull([]byte(fixture), nil, intPtr(2), DefaultPageRenderConfig())
+	assert.Error(t, err)
 }
 
 // TestExportRefValueCycle ensures ExportRefValue produces a non-expandable
@@ -322,7 +341,8 @@ func TestDecodeInlineStruct(t *testing.T) {
 }
 
 // TestDecodePointerRefValue mirrors TS testDecodePointerRefValue: a pointer
-// whose Base is a RefValue is expandable and exposes the target ObjectID.
+// whose Base is a RefValue is expandable and exposes the target ObjectID
+// and the Index of the pointee in it.
 func TestDecodePointerRefValue(t *testing.T) {
 	t.Parallel()
 
@@ -344,6 +364,8 @@ func TestDecodePointerRefValue(t *testing.T) {
 	assert.Equal(t, "pointer", p.Kind)
 	assert.True(t, p.Expandable)
 	assert.Equal(t, "ffffffffffffffffffffffffffffffffffffffff:5", p.ObjectID)
+	require.NotNil(t, p.PointerIndex, "Index 0 is kept: it can be field 0 of a stored struct")
+	assert.Equal(t, 0, *p.PointerIndex)
 }
 
 // TestDecodeSliceRefBase mirrors TS testDecodeSliceRefBase: a slice whose
@@ -631,6 +653,14 @@ func TestDecodeArrayBytes(t *testing.T) {
 	assert.Equal(t, 5, *a.Length)
 	assert.Equal(t, "[5]byte{...}", a.Value, "byte arrays summarized, not expanded")
 	assert.False(t, a.Expandable)
+
+	// A pointer to element 1 of a stored byte array points to one uint8.
+	v, err := pointedTo(&gno.ArrayValue{Data: []byte("hello")}, 1)
+	require.NoError(t, err)
+	elem := decodeValueChildren(DefaultPageRenderConfig(), v)
+	require.Len(t, elem, 1)
+	assert.Equal(t, "uint8", elem[0].Type)
+	assert.Equal(t, "101", elem[0].Value, "'e'")
 }
 
 // TestDecodePrimitives_Variants exercises every primitive type kind that
@@ -835,6 +865,11 @@ func TestDecodeObjectJSONWithType_LabelsStructFields(t *testing.T) {
 	assert.Equal(t, `"alice"`, nodes[0].Value)
 	assert.Equal(t, "Age", nodes[1].Name, "field 1 labelled from StructType")
 	assert.Equal(t, "30", nodes[1].Value)
+
+	// A pointer to a heap item has Index 0: the heap item's one value.
+	pointee, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(0), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	assert.Equal(t, nodes, pointee.Nodes)
 }
 
 // TestDecodeObjectJSONWithType_NilTypeFallsBack: a missing/empty type
@@ -975,6 +1010,12 @@ func TestDecodeObjectJSON_Array(t *testing.T) {
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "10", nodes[0].Value)
 	assert.Equal(t, "20", nodes[1].Value)
+
+	// A pointer to element 1 of the stored array decodes only that element.
+	root, err := DecodeObject(context.Background(), []byte(fixture), intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	require.Len(t, root.Children, 1)
+	assert.Equal(t, "20", root.Children[0].Value)
 }
 
 // ---- Robustness tests (graceful failure modes) --------------------------

@@ -44,11 +44,13 @@ func startDepthFor(cfg RenderConfig) int {
 // DecodeObject decodes one qobject_json payload into a root StateNode
 // whose Children are the decoded fields/elements, bounded by cfg.
 // Refs surface as KindRef; ExportRefValue cycle markers as KindCycle.
+// A non-nil ptrIndex decodes only the value a pointer points to in the
+// object, as in DecodeObjectFull.
 // recoverToErr keeps amino's hard panics on hostile chain bytes inside
 // the function — the caller gets an error, never a torn request. The nil
 // logger arg routes the panic payload into the wrapped err, picked up by
 // the handler's existing decode-error log line.
-func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (root StateNode, err error) {
+func DecodeObject(ctx context.Context, raw []byte, ptrIndex *int, cfg RenderConfig) (root StateNode, err error) {
 	defer recoverToErr(nil, "decode object JSON", &err)
 	if cerr := ctx.Err(); cerr != nil {
 		return StateNode{}, cerr
@@ -58,6 +60,14 @@ func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (root State
 	var resp objectResponse
 	if cerr := amino.UnmarshalJSON(raw, &resp); cerr != nil {
 		return StateNode{}, fmt.Errorf("decode object JSON: %w", cerr)
+	}
+
+	if ptrIndex != nil {
+		v, perr := pointedTo(resp.Value, *ptrIndex)
+		if perr != nil {
+			return StateNode{}, fmt.Errorf("decode object JSON: %w", perr)
+		}
+		resp.Value = v
 	}
 
 	root = StateNode{
