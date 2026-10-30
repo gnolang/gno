@@ -129,11 +129,8 @@ use the same literals, so all three agree on what a typed value means; the
 by type itself. These helpers are pure functions in `frontend/js/utils.ts`,
 pinned by `make -C gno.land/pkg/gnoweb/frontend test` (node's own test
 runner, no dependency); the playground's file helpers (`playground-files.ts`)
-are pinned the same way. CI does not run them yet: adding the step to
-`.github/workflows/ci-dir-gnoland.yml` needs a maintainer with workflow
-rights. A
-chain error reaches the reader in the node's own words, without gnoweb's
-internal prefix. A newer live result
+are pinned the same way. A chain error reaches the reader in the node's
+own words, without gnoweb's internal prefix. A newer live result
 or evaluation aborts the request it supersedes. A rate limit, an unreachable
 node or a network failure is shown as "unavailable", not as the function's
 error, and analytics does not record it as a failed `qeval_preview`.

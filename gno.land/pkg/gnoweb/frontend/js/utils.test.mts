@@ -186,6 +186,8 @@ test("shellQuote leaves plain values bare", () => {
 const awkwardKeys = [
 	"my key",
 	'1ugnot"$(id)"',
+	"$(id)",
+	"$HOME",
 	"it's",
 	"`id`",
 	"a;b|c&d",

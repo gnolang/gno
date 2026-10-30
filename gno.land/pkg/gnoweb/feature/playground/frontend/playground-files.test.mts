@@ -21,6 +21,9 @@ test("isValidFileName takes Gno sources and gnomod.toml from a strict allowlist"
 		[`${"x".repeat(96)}.gno`, true], // 100 bytes
 		[`${"x".repeat(97)}.gno`, false], // 101 bytes, cut by a ustar header
 		["$(touch PWNED).gno", false],
+		["$(id).gno", false],
+		["a$b.gno", false],
+		["`id`.gno", false],
 		["a;b.gno", false],
 		["a b.gno", false],
 		["../x.gno", false],
