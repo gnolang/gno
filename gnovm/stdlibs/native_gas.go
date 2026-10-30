@@ -128,6 +128,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "math", Fn: "Float32frombits", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 32.4ns
 	{Pkg: "math", Fn: "Float64bits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                              // flat, median 28.7ns
 	{Pkg: "math", Fn: "Float64frombits", Base: 29, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                          // flat, median 28.8ns
+	{Pkg: "chain/banker", Fn: "bankerCallSend", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // one identity lookup + a frame walk to the entering cross; mirrors chain/runtime/unsafe.getRealm, recalibrate with the table
 	{Pkg: "chain/banker", Fn: "bankerSendCoins", Base: 322, Slope: 35318, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                // fit base=321.9ns slope=34.4898ns/N (=35318/1024) R²=0.999
 	{Pkg: "chain/banker", Fn: "bankerGetCoins", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 36206, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=349.1ns + 35.3578ns/N (=36206/1024) R²=0.998
 	{Pkg: "chain/banker", Fn: "bankerGetCoin", Base: 129, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                   // flat, median 129.2ns

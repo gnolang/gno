@@ -4,10 +4,16 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
+	var sendTV TypedValue
+	if cx.Send != nil {
+		sendTV = *m.PopValue()
+	}
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
 		m.Panic(typedRuntimeError("runtime error: call of nil function"))
@@ -23,7 +29,7 @@ func (m *Machine) doOpPrecall() {
 			m.PushOp(OpEnterCrossing)
 		}
 		if cx.IsWithCross() {
-			m.installCrossingCur(cx, isCrossing, fv.PkgPath)
+			m.installCrossingCur(cx, isCrossing, fv.PkgPath, sendTV)
 		}
 	case *BoundMethodValue:
 		m.incrCPU(OpCPUPrecallBoundMethod)
@@ -42,7 +48,7 @@ func (m *Machine) doOpPrecall() {
 			m.PushOp(OpEnterCrossing)
 		}
 		if cx.IsWithCross() {
-			m.installCrossingCur(cx, isCrossing, fn.PkgPath)
+			m.installCrossingCur(cx, isCrossing, fn.PkgPath, sendTV)
 		}
 	case TypeValue:
 		m.incrCPU(OpCPUPrecallTypeConv)
@@ -89,13 +95,14 @@ func (m *Machine) doOpPrecall() {
 //     and pushes it back unchanged, so the stack slot holds the
 //     validated realm value. We use it directly as the new cur's
 //     prev — no second IsCurrent check needed here.
-func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath string) {
+func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath string, sendTV TypedValue) {
 	if !isCrossing {
 		panic("non-crossing function in cross call")
 	}
 	argtv := m.PeekValue(cx.NumArgs)
 	var prev TypedValue
-	if argtv.IsUndefined() {
+	isOrigin := argtv.IsUndefined()
+	if isOrigin {
 		// .origin path.
 		prev = m.callingCurOrOrigin()
 	} else {
@@ -106,6 +113,47 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 	crlm := NewConcreteRealm(m.Alloc, pkgPath, prev)
 	argtv.Assign(m.Alloc, crlm, false)
 	m.LastFrame().Cur = crlm
+	if isOrigin {
+		m.LastFrame().EntryCall = true // the MsgCall entry: its receipt is the message send
+	} else if cx.Send != nil {
+		m.deliverSend(prev, sendTV)
+	}
+}
+
+// deliverSend moves the coins of fn(cross(rlm, coins)) from rlm's address to
+// the callee realm's, through CrossSendHandler, and records what this call
+// delivered on the callee frame. Runs after PushFrameCall and installCrossingCur.
+func (m *Machine) deliverSend(from TypedValue, sendTV TypedValue) {
+	if sendTV.V == nil {
+		return
+	}
+	m.incrCPU(OpCPUCrossSendBase + OpCPUCrossSendSlope*int64(sendTV.GetLength())/1024)
+	if CrossSendHandler == nil {
+		m.PanicString("send: no CrossSendHandler installed")
+		return
+	}
+	fr := m.LastFrame()
+	fromAddr := derefRealmStruct(&from).Fields[realmFieldAddr].GetString()
+	toAddr := derefRealmStruct(&fr.Cur).Fields[realmFieldAddr].GetString() // minted by installCrossingCur
+	fr.Received = CrossSendHandler(m, fromAddr, toAddr, sendTV)
+}
+
+// CallReceived returns the coins delivered to the current call by the cross
+// that entered it, and whether the current call is the message entry (the
+// MsgCall .origin frame, or code with no cross above it: init, main, tests),
+// whose receipt is the message send held by the context. Plain `fn(cur)` calls
+// are transparent, like any same-realm helper.
+func (m *Machine) CallReceived() (coins std.Coins, entry bool) {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if !fr.IsCall() {
+			continue
+		}
+		if fr.WithCross {
+			return fr.Received, fr.EntryCall
+		}
+	}
+	return nil, true
 }
 
 // curUsesPreprocessOrigin reports whether tv is a captured realm whose
