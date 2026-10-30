@@ -11,9 +11,10 @@
 #
 # A promotion only moves forward from the highest full release, which is not
 # always the highest tag: a patch to the running line can ship while the next
-# MINOR is held for its halt. A MINOR is refused until mainnet's halt proposal,
-# read from mainnet's RPC, names it; a PATCH needs no halt, and a MAJOR, a new
-# network, is never promoted here.
+# MINOR is held for its halt. A MINOR is refused until mainnet's halt proposal
+# naming it has executed, read from mainnet's RPC; a PATCH to the highest full
+# release's line needs no halt, and a MAJOR, a new network, is never promoted
+# here.
 #
 # Usage:
 #   misc/release/promote-release.sh <version> [--push]

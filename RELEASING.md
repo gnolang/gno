@@ -146,7 +146,7 @@ the four platforms, asserts that `gnoland`, `gnokey` and `gno` carry the tag on
 the two platforms its runners can execute, and attaches them to the release.
 It also triggers [`release / docker`](.github/workflows/release-docker.yml),
 which publishes the matching images to `ghcr.io/gnolang/gno/*`. A
-`chain/<name>` launch tag triggers nothing: its release is the genesis record, created by hand with the `genesis.json` and its checksums attached and no binaries, and never made GitHub's "Latest": `gh release create … --latest=false`, or "Set as the latest release" unticked in the web form.
+`chain/<name>` launch tag triggers nothing: its release is the genesis record, created by hand with the `genesis.json` and its checksums attached and no binaries, and never made GitHub's "Latest": create it with `gh release create … --latest=false`, not the web form, which gives Latest by version order when "Set as the latest release" is left unticked.
 
 **Do not hand-upload release binaries** — an artifact built outside CI is not
 reproducible from the tag and generally lacks the `-ldflags` that give it a
@@ -222,7 +222,7 @@ misc/release/promote-release.sh v1.7.0          # dry run: every check, nothing 
 misc/release/promote-release.sh v1.7.0 --push
 ```
 
-It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. The script refuses a release candidate, and a MINOR until mainnet's halt proposal names it (read from mainnet's `halt_min_version`), so a final mainnet skips stays a pre-release for good; when to promote a PATCH is the release manager's call.
+It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. The script refuses a release candidate, a MAJOR (a new network, which mainnet never schedules), and a MINOR until mainnet's halt proposal naming it has executed (read from mainnet's `halt_min_version`), so a final mainnet skips stays a pre-release for good; when to promote a PATCH to the highest full release's line is the release manager's call.
 
 Should mainnet skip a release after its promotion (a cancelled halt), mark it a pre-release again and promote the release the chain runs, which puts `latest` back on its images and gives it Latest:
 
