@@ -67,6 +67,27 @@ export async function shareLink(
 	};
 }
 
+// The declarations gno run can start from. A crossing Render is not one:
+// -expr cannot hand it its cur inside the println that shows its result.
+const MAIN_DECL = /^\s*func\s+main\s*\(/m;
+const RENDER_DECL =
+	/^\s*func\s+Render\s*\(\s*(?:\w+\s+)?string\s*\)\s*(?:string\b|\(\s*(?:\w+\s+)?string\s*\))/m;
+
+// localCommands are the commands that run and test files saved in one
+// directory, each empty when it would only fail.
+export function localCommands(files: EditorFile[]): {
+	run: string;
+	test: string;
+} {
+	const code = files.filter((f) => !/_(file)?test\.gno$/.test(f.name));
+	const declares = (decl: RegExp) => code.some((f) => decl.test(f.content));
+	let run = "";
+	if (declares(MAIN_DECL)) run = "gno run .";
+	else if (declares(RENDER_DECL)) run = `gno run -expr 'println(Render(""))' .`;
+	const test = files.some((f) => f.name === GNOMOD_FILE) ? "gno test ." : "";
+	return { run, test };
+}
+
 // renderText is the text a Render("") eval returned, as qeval prints a
 // string, ("text" string), or the answer as it is when it is not one.
 // qeval quotes the way Go does, with escapes JSON lacks (\a \v \xHH

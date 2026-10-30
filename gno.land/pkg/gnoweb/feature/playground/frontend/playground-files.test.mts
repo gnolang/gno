@@ -15,6 +15,7 @@ import {
 	copyFiles,
 	createTar,
 	isValidFileName,
+	localCommands,
 	MAX_SHARE_CODE_BYTES,
 	MAX_SHARE_URL_LENGTH,
 	renderText,
@@ -157,6 +158,55 @@ test("copyFiles keeps the page's files one by one", () => {
 			skipped: ["../x.gno", "-x.gno", "b.gno"],
 		},
 	);
+});
+
+test("localCommands prints only what would run", () => {
+	const gno = (content: string, name = "a.gno") => ({ name, content });
+	const gnomod = gno('module = "gno.land/r/a"\n', "gnomod.toml");
+	const main = "package main\n\nfunc main() {}\n";
+	const render =
+		'package main\n\nfunc Render(path string) string { return "" }\n';
+	const runMain = "gno run .";
+	const runRender = `gno run -expr 'println(Render(""))' .`;
+	const cases: [
+		name: string,
+		files: { name: string; content: string }[],
+		run: string,
+		test: string,
+	][] = [
+		["the default code", [gno(render)], runRender, ""],
+		["main wins over Render", [gno(render), gno(main, "b.gno")], runMain, ""],
+		["a package copy", [gno(render), gnomod], runRender, "gno test ."],
+		[
+			"a named result",
+			[gno("func Render(p string) (out string) { return }\n")],
+			runRender,
+			"",
+		],
+		[
+			"an unnamed path",
+			[gno('func Render(string) string { return "" }\n')],
+			runRender,
+			"",
+		],
+		// -expr cannot hand a crossing Render its cur inside println.
+		[
+			"a crossing Render",
+			[gno('func Render(cur realm, p string) string { return "" }\n'), gnomod],
+			"",
+			"gno test .",
+		],
+		["neither", [gno("package a\n")], "", ""],
+		["a spaced main", [gno("func main () {}\n")], runMain, ""],
+		["an indented main", [gno("  func main() {}\n")], runMain, ""],
+		["a main in a comment", [gno("// func main() {}\n")], "", ""],
+		["a main in a test", [gno(main, "a_test.gno")], "", ""],
+		["a main in a filetest", [gno(main, "z_filetest.gno")], "", ""],
+		["a Render in a test", [gno(render, "a_test.gno")], "", ""],
+	];
+	for (const [name, files, run, test] of cases) {
+		assert.deepEqual(localCommands(files), { run, test }, name);
+	}
 });
 
 test("renderText reads the string a Render eval returns", () => {

@@ -11,6 +11,7 @@ import {
 	createTar,
 	GNOMOD_FILE,
 	isValidFileName,
+	localCommands,
 	renderText,
 	shareLink,
 	shareRefusal,
@@ -314,10 +315,7 @@ export class PlaygroundController extends BaseController {
 		this.runAbort?.abort();
 		this.runAbort = undefined;
 		if (!this.preview) {
-			this._resetOutput("Save the files in one directory, then run:");
-			this._setOutput(" gno run .", true);
-			this._setOutput("\n\nTo test:");
-			this._setOutput(" gno test .", true);
+			this._showLocalCommands();
 			return;
 		}
 
@@ -333,6 +331,25 @@ export class PlaygroundController extends BaseController {
 		this.runAbort = undefined;
 		const failed = isError || unavailable;
 		this._resetOutput(failed ? text : renderText(text), false, failed);
+	}
+
+	private _showLocalCommands(): void {
+		const { run, test } = localCommands(this.editor.files());
+		if (!run && !test) {
+			this._resetOutput(
+				"Nothing to run yet: gno run needs func main() or Render(path string) string, and gno test a gnomod.toml.",
+			);
+			return;
+		}
+		this._resetOutput("Save the files in one directory, then run:");
+		if (run) this._setOutput(` ${run}`, true);
+		if (test) {
+			if (run) this._setOutput("\n\nTo test:");
+			this._setOutput(` ${test}`, true);
+		}
+		if (this.getValue("from")) {
+			this._setOutput("\n\nA copy leaves out the package's filetests.");
+		}
 	}
 
 	public async shareCode(): Promise<void> {
