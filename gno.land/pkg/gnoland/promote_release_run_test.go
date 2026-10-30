@@ -37,8 +37,14 @@ case "$*" in
 "api repos/gnolang/gno/releases/latest --jq .tag_name") cat "${s}/latest" ;;
 "release view "*" --repo gnolang/gno --json isDraft --jq .isDraft")
 	[[ $# -eq 9 ]] || exit 64
-	grep -qx -- "$3" "${s}/published" || { echo "release not found" >&2; exit 1; }
-	echo false
+	if grep -qx -- "$3" "${s}/published"; then
+		echo false
+	elif grep -qx -- "$3" "${s}/drafts"; then
+		echo true
+	else
+		echo "release not found" >&2
+		exit 1
+	fi
 	;;
 "release edit "*" --repo gnolang/gno --prerelease=false --latest")
 	[[ $# -eq 7 ]] || exit 64
@@ -100,6 +106,7 @@ type promoteFixture struct {
 type promoteState struct {
 	releases  []string          // the full releases, as GitHub lists them
 	published []string          // every published release, pre-releases included
+	drafts    []string          // releases still drafts
 	latest    string            // GitHub's Latest
 	images    string            // the version every image's latest points at
 	halt      string            // mainnet's halt_min_version
@@ -138,6 +145,7 @@ func newPromoteFixture(t *testing.T, st promoteState) *promoteFixture {
 		"bin/curl":     curlShim,
 		"gh/releases":  lines(st.releases),
 		"gh/published": lines(st.published),
+		"gh/drafts":    lines(st.drafts),
 		"gh/latest":    st.latest + "\n",
 		"events":       "",
 	} {
@@ -414,6 +422,33 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		assert.Contains(t, out, "only a final vMAJOR.MINOR.PATCH release is promoted")
 		assert.Empty(t, f.events(), "nothing is asked of GitHub or the registry")
 	})
+
+	// release / chain-tag publishes the release once every binary is
+	// attached: a draft, or no release at all, means its run has not ended.
+	for _, c := range []struct {
+		name   string
+		drafts []string
+		says   string
+	}{
+		{"no release at all", nil, "no release v1.7.0 on gnolang/gno"},
+		{"a draft", []string{"v1.7.0"}, "v1.7.0 is still a draft"},
+	} {
+		t.Run("a final is refused on "+c.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := held
+			st.published = []string{"v1.5.1", "v1.4.0"}
+			st.drafts = c.drafts
+			f := newPromoteFixture(t, st)
+			out, code := f.run(script, "v1.7.0", "--push")
+			assert.NotEqual(t, 0, code, out)
+			assert.Contains(t, out, c.says)
+			ev := f.events()
+			assert.Empty(t, matching(ev, "token"), "no image is read")
+			assert.Empty(t, matching(ev, "PUT"))
+			assert.Empty(t, matching(ev, "gh release edit"))
+		})
+	}
 
 	t.Run("an older final is refused before any image is read", func(t *testing.T) {
 		t.Parallel()
