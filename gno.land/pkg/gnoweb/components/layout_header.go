@@ -42,13 +42,16 @@ type HeaderData struct {
 	// intercepts the submit, so this stays the fallback rather than the
 	// normal path.
 	SearchAction string
-	RealmURL     weburl.GnoURL
-	Breadcrumb   BreadcrumbData
-	Links        HeaderLinks
-	ChainId      string
-	Remote       string
-	Mode         ViewMode
-	Static       bool
+	// PackagePath is the package this page shows, for the keywords about it:
+	// empty on a listing, an error page or an alias.
+	PackagePath string
+	RealmURL    weburl.GnoURL
+	Breadcrumb  BreadcrumbData
+	Links       HeaderLinks
+	ChainId     string
+	Remote      string
+	Mode        ViewMode
+	Static      bool
 	// Origin is the request scheme+host the AI prompts link to.
 	Origin string
 	AI     *AIMenu

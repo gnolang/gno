@@ -11,7 +11,7 @@ LAYOUT - Header component
         {{ template "ui/gnome" }}
       </a>
 
-      <div class="b-main-navigation" data-controller="searchbar">
+      <div class="b-main-navigation" data-controller="searchbar"{{ with .PackagePath }} data-searchbar-package-value="{{ . }}"{{ end }}>
         <div class="inner c-reel u-no-scrollbar">
           {{/* method/action/name make the bar work with JavaScript off: the
                form submits to the server-rendered results page. The
@@ -33,7 +33,7 @@ LAYOUT - Header component
           {{ if or .Breadcrumb.Parts .Breadcrumb.ArgParts .Breadcrumb.Queries }}{{ template "ui/breadcrumb" .Breadcrumb }}{{ end }}
         </div>
 
-        <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" aria-label="Search suggestions" hidden></div>
+        <div id="omnisearch-results" class="b-omnisearch" tabindex="-1" data-searchbar-target="results" role="listbox" aria-label="Search suggestions" hidden></div>
 
         <!-- Search icon, Network Info and Ask AI toggles -->
         <div class="searchbar-actions">
