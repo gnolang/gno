@@ -2,12 +2,8 @@ package playground
 
 // PlaygroundData is the render payload for templates/page.html.
 type PlaygroundData struct {
-	// InitialCode is a shared snippet (?code=), in the "// --- name ---"
-	// text format the Share button writes.
-	InitialCode string
-
-	// Files is a package copy (?from=), one <pre> per file: never put
-	// through the text format, which a source line could split.
+	// Files is the code the editor opens, one <pre> per file: a package
+	// copy (?from=), a shared snippet (?code=) or the default code.
 	Files []File
 
 	// From is the copied package's path without its domain (r/demo/foo),

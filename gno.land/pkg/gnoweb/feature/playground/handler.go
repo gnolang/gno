@@ -2,10 +2,10 @@ package playground
 
 import (
 	"bytes"
-	"cmp"
 	"compress/flate"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +25,7 @@ const (
 	// was made by hand, and falls back to the default code undecoded.
 	maxSharedCodeLength = 8_000
 
-	// maxDecompressedCodeSize caps the code a ?code=...&z link inflates to.
+	// maxDecompressedCodeSize caps the JSON a ?code=...&z link inflates to.
 	// About 8,000 characters of DEFLATE hold some 30 KiB of real source;
 	// the margin is for code that compresses well, not for a link whose
 	// few bytes would expand into a page of megabytes.
@@ -56,11 +56,11 @@ func (h *Handler) GetPlaygroundView(ctx context.Context, u *weburl.GnoURL) (int,
 		return h.copyView(ctx, pkg.Path, u.Query.Get("file"))
 	}
 
-	code, err := sharedCode(u.Query)
-	data := PlaygroundData{
-		InitialCode: cmp.Or(code, defaultCode),
-		Domain:      h.deps.Domain,
+	files, err := sharedFiles(u.Query)
+	if len(files) == 0 {
+		files = []File{{Name: "main.gno", Content: defaultCode}}
 	}
+	data := PlaygroundData{Files: files, Domain: h.deps.Domain}
 	if err != nil {
 		data.Refused = err.Error()
 	}
@@ -72,25 +72,55 @@ var (
 	errSharedTooLong  = errors.New("the link is longer than Share writes")
 	errSharedTooLarge = fmt.Errorf("the link holds more than %d KiB of code", maxDecompressedCodeSize>>10)
 	errSharedInvalid  = errors.New("the link's code does not decode")
+	errSharedName     = errors.New("the link names a file the playground does not take")
 )
 
-// sharedCode reads ?code=: with &z, the base64 of raw DEFLATE (RFC 1951)
-// Share writes, and plain text without. Code that is too long, or does not
-// decode, is refused with the reason, for the page to say why it shows the
-// default code instead.
-func sharedCode(q url.Values) (string, error) {
+// sharedFiles reads ?code=. With &z, it is what Share writes: the base64 of
+// raw DEFLATE (RFC 1951) of the JSON list of files, [{"name","content"}],
+// each file as it is, with no line of it read as anything. Without &z, it
+// is plain text, one main.gno. A link that is too long, does not decode,
+// or names a file isValidFileName rejects (or one twice) is refused with
+// the reason, for the page to say why it shows the default code instead.
+// No code, &z or not, is the default code, with nothing to say.
+func sharedFiles(q url.Values) ([]File, error) {
 	code := q.Get("code")
-	if len(code) > maxSharedCodeLength {
-		return "", errSharedTooLong
-	}
-	if !q.Has("z") {
-		return code, nil
+	switch {
+	case code == "":
+		return nil, nil
+	case len(code) > maxSharedCodeLength:
+		return nil, errSharedTooLong
+	case !q.Has("z"):
+		return []File{{Name: "main.gno", Content: code}}, nil
 	}
 	data, err := base64.StdEncoding.DecodeString(code)
 	if err != nil {
-		return "", errSharedInvalid
+		return nil, errSharedInvalid
 	}
-	return decodeCompressedCode(data)
+	plain, err := decodeCompressedCode(data)
+	if err != nil {
+		return nil, err
+	}
+	var files []File
+	if err := json.Unmarshal(plain, &files); err != nil || len(files) == 0 {
+		return nil, errSharedInvalid
+	}
+	seen := make(map[string]bool, len(files))
+	for _, f := range files {
+		if !isValidFileName(f.Name) || seen[f.Name] {
+			return nil, errSharedName
+		}
+		seen[f.Name] = true
+	}
+	return files, nil
+}
+
+// validFileName is the allowlist of playground-files.ts's isValidFileName,
+// which Add file, Share and a copy go by: a Gno source or gnomod.toml, no
+// path part, no leading dot or dash, 100 bytes at most (a ustar name).
+var validFileName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*\.gno$`)
+
+func isValidFileName(name string) bool {
+	return len(name) <= 100 && (name == "gnomod.toml" || validFileName.MatchString(name))
 }
 
 // Errors a PackageFetcher answers with, so the copy page answers as the
@@ -198,7 +228,7 @@ func isSource(filename string) bool {
 
 // decodeCompressedCode decompresses DEFLATE data, up to
 // maxDecompressedCodeSize.
-func decodeCompressedCode(data []byte) (string, error) {
+func decodeCompressedCode(data []byte) ([]byte, error) {
 	zr := flate.NewReader(bytes.NewReader(data))
 	defer zr.Close()
 
@@ -207,9 +237,9 @@ func decodeCompressedCode(data []byte) (string, error) {
 	plain, err := io.ReadAll(io.LimitReader(zr, maxDecompressedCodeSize+1))
 	switch {
 	case err != nil:
-		return "", errSharedInvalid
+		return nil, errSharedInvalid
 	case len(plain) > maxDecompressedCodeSize:
-		return "", errSharedTooLarge
+		return nil, errSharedTooLarge
 	}
-	return string(plain), nil
+	return plain, nil
 }

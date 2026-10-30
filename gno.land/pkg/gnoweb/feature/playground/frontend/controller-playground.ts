@@ -11,10 +11,9 @@ import {
 	createTar,
 	GNOMOD_FILE,
 	isValidFileName,
-	parseInitialCode,
 	renderText,
+	shareLink,
 	shareRefusal,
-	shareText,
 } from "./playground-files.js";
 
 const DEFAULT_GNO_CONTENT = "package main\n";
@@ -39,13 +38,12 @@ export class PlaygroundController extends BaseController {
 	private declare runAbort: AbortController | undefined;
 
 	protected connect(): void {
-		// The page serves the code once, as text: read it before the editor
-		// replaces it.
+		// The page serves the code once, as text, one <pre> per file: read
+		// it before the editor replaces it.
 		const served = this.getTargets("file").map((el) => ({
 			name: this.getValue("name", el),
 			content: el.textContent ?? "",
 		}));
-		const initialCode = this.getTarget("initial-code")?.textContent ?? "";
 
 		this.editorEl = this.getTarget("editor") as HTMLElement;
 		this.outputEl = this.getTarget("output") as HTMLElement;
@@ -66,10 +64,7 @@ export class PlaygroundController extends BaseController {
 			this._scrollActiveTabIntoView(),
 		);
 
-		// A copy comes one file per <pre>; a shared snippet in the share format.
-		const { files, skipped } = served.length
-			? copyFiles(served)
-			: { files: parseInitialCode(initialCode), skipped: [] };
+		const { files, skipped } = copyFiles(served);
 		const [first, ...rest] = files.length
 			? files
 			: [{ name: "main.gno", content: DEFAULT_GNO_CONTENT }];
@@ -337,27 +332,12 @@ export class PlaygroundController extends BaseController {
 	public async shareCode(): Promise<void> {
 		// Output written after this one (a Run) supersedes the share's.
 		const seq = this.outputSeq;
-		const code = shareText(this.editor.files());
-
-		// Compress code before sharing it
-		const bytes = new TextEncoder().encode(code);
-		const cs = new CompressionStream("deflate-raw");
-		const writer = cs.writable.getWriter();
-		writer.write(bytes);
-		writer.close();
-
-		// Use Response to drain the stream into an ArrayBuffer for compatibility with
-		// browsers older than ~2 years. ReadableStream.bytes() would a simpler alternative
-		// but it's only available for (Chrome 124+, Firefox 128+, Safari 18+).
-		const compressed = await new Response(cs.readable).arrayBuffer();
+		const { url, bytes } = await shareLink(
+			window.location.origin,
+			this.editor.files(),
+		);
 		if (seq !== this.outputSeq) return;
-		const binary = Array.from(new Uint8Array(compressed), (b) =>
-			String.fromCharCode(b),
-		).join("");
-
-		// Share compressed code
-		const url = `${window.location.origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`;
-		const refusal = shareRefusal(bytes.length, url.length);
+		const refusal = shareRefusal(bytes, url.length);
 		if (refusal) {
 			this._setErrorOutput(refusal);
 			return;

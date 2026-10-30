@@ -70,19 +70,16 @@ LAYOUT - Playground view
       </div>
     </div>
 
-    {{- /* Code editor: the code as text, its only copy in the page, which
-    the controller reads into the editor that replaces it. Each <pre> opens
-    with a newline, which HTML drops, so a file's own first blank line is
-    kept. */}}
+    {{- /* Code editor: the code as text, each file under its name, its
+    only copy in the page, which the controller reads into the editor that
+    replaces it. Each <pre> opens with a newline, which HTML drops, so a
+    file's own first blank line is kept. */}}
     <div class="b-code-editor" data-playground-target="editor">
       <div class="b-source-code">
         {{- range .Files }}
         <p class="b-playground-file u-font-mono">{{ .Name }}</p>
         <pre class="chroma-chroma" data-playground-target="file" data-playground-name-value="{{ .Name }}">
 {{ .Content }}</pre>
-        {{- else }}
-        <pre class="chroma-chroma" data-playground-target="initial-code">
-{{ .InitialCode }}</pre>
         {{- end }}
       </div>
     </div>

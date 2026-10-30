@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { inflateRawSync } from "node:zlib";
 import {
 	copyFiles,
 	createTar,
 	isValidFileName,
 	MAX_SHARE_CODE_BYTES,
 	MAX_SHARE_URL_LENGTH,
-	parseInitialCode,
 	renderText,
+	shareLink,
 	shareRefusal,
-	shareText,
 } from "./playground-files.ts";
 
 test("isValidFileName takes Gno sources and gnomod.toml from a strict allowlist", () => {
@@ -38,70 +38,89 @@ test("isValidFileName takes Gno sources and gnomod.toml from a strict allowlist"
 	}
 });
 
-test("parseInitialCode keeps a comment shaped like a header in its file", () => {
-	// p/nt/groups/v0's group.gno holds such section comments.
-	const group =
-		"package groups\n\n// --- Base set ---\n\nfunc A() {}\n\n// --- Role registry ---\nfunc B() {}\n";
-	const files = parseInitialCode(
-		`// --- group.gno ---\n${group}\n\n// --- role.gno ---\npackage groups\n`,
-	);
-	assert.deepEqual(files, [
-		{ name: "group.gno", content: group },
-		{ name: "role.gno", content: "package groups\n" },
-	]);
-});
+// shareFiles reads a link back as the server does (handler.go's
+// sharedFiles): base64, raw DEFLATE, then the JSON list of files.
+function shareFiles(url: string): { name: string; content: string }[] {
+	const u = new URL(url);
+	assert.equal(u.pathname, "/_/play");
+	assert.ok(u.searchParams.has("z"));
+	const code = u.searchParams.get("code") ?? "";
+	return JSON.parse(inflateRawSync(Buffer.from(code, "base64")).toString());
+}
 
-test("parseInitialCode reads text before the first header as main.gno", () => {
-	assert.deepEqual(
-		parseInitialCode(
-			"package main\n\nfunc main() {}\n// --- foo.gno ---\npackage main\n",
-		),
-		[
-			{ name: "main.gno", content: "package main\n\nfunc main() {}\n" },
-			{ name: "foo.gno", content: "package main\n" },
-		],
-	);
-	// A rejected header with nothing before it still keeps its text.
-	assert.deepEqual(parseInitialCode("// --- not a file ---\npackage main\n"), [
-		{ name: "main.gno", content: "// --- not a file ---\npackage main\n" },
-	]);
-});
-
-test("parseInitialCode keeps a repeated name as text in the file before", () => {
-	assert.deepEqual(
-		parseInitialCode(
-			"// --- a.gno ---\npackage a\n// --- a.gno ---\nfunc A() {}\n",
-		),
-		[{ name: "a.gno", content: "package a\n// --- a.gno ---\nfunc A() {}\n" }],
-	);
-});
-
-test("parseInitialCode leaves code without headers as it is", () => {
-	assert.deepEqual(parseInitialCode("package main"), [
-		{ name: "main.gno", content: "package main" },
-	]);
-});
-
-test("a share reads back to the files it was written from, a lone file too", () => {
+test("a share link reads back to the files it was written from", async () => {
+	const many = Array.from({ length: 60 }, (_, i) => ({
+		name: `f${i}.gno`,
+		content: `package f\n\nvar N${i} = ${i}\n`,
+	}));
 	const cases: { name: string; content: string }[][] = [
+		[{ name: "counter.gno", content: "package counter\n" }],
 		[
 			{
 				name: "gnomod.toml",
 				content: 'module = "gno.land/r/x"\ngno = "0.9"\n',
 			},
 		],
-		[{ name: "counter.gno", content: "package counter\n" }],
+		// Lines shaped like the separator the text format had: no line of a
+		// file is read as anything.
 		[
 			{
-				name: "main.gno",
-				content: "package main\n\n// --- note ---\nfunc main() {}\n",
+				name: "a.gno",
+				content:
+					"package a\n\n// --- b.gno ---\nfunc A() {}\n// --- Base set ---\n",
 			},
-			{ name: "gnomod.toml", content: 'module = "main"\n' },
+			{ name: "b.gno", content: "// --- a.gno ---\npackage a\n" },
 		],
+		// Blank lines at either edge, no final newline, an empty file.
+		[
+			{ name: "c.gno", content: "\n\n\npackage c\n\n\n" },
+			{ name: "d.gno", content: "package d" },
+			{ name: "e.gno", content: "" },
+		],
+		[{ name: "crlf.gno", content: "package crlf\r\n\r\nfunc F() {}\r\n" }],
+		[{ name: "u.gno", content: 'package u // héllo 世界 🎉 "\\" \u2028\n' }],
+		many,
 	];
 	for (const files of cases) {
-		assert.deepEqual(parseInitialCode(shareText(files)), files);
+		const { url, bytes } = await shareLink("https://gno.land", files);
+		assert.ok(url.startsWith("https://gno.land/_/play?code="), url);
+		assert.deepEqual(shareFiles(url), files);
+		assert.equal(bytes, Buffer.byteLength(JSON.stringify(files)));
+		assert.equal(shareRefusal(bytes, url.length), "");
 	}
+});
+
+test("a share link holds only names and contents", async () => {
+	const files = [{ name: "a.gno", content: "package a\n", extra: 1 }];
+	const { url } = await shareLink("", files);
+	assert.deepEqual(shareFiles(`https://x${url}`), [
+		{ name: "a.gno", content: "package a\n" },
+	]);
+});
+
+test("Share refuses a link over either cap", async () => {
+	// Compressible past 64 KiB of JSON, within 8,000 characters of link.
+	const big = await shareLink("", [
+		{ name: "a.gno", content: "a".repeat(MAX_SHARE_CODE_BYTES) },
+	]);
+	assert.ok(big.bytes > MAX_SHARE_CODE_BYTES);
+	assert.ok(big.url.length <= MAX_SHARE_URL_LENGTH);
+	assert.match(
+		shareRefusal(big.bytes, big.url.length),
+		/64 KiB of code at most/,
+	);
+	// Incompressible: under 64 KiB, but the link is too long.
+	let x = 1;
+	const noise = Array.from({ length: 20_000 }, () => {
+		x = (x * 1103515245 + 12345) % 2 ** 31;
+		return String.fromCharCode(33 + (x % 90));
+	}).join("");
+	const long = await shareLink("", [{ name: "a.gno", content: noise }]);
+	assert.ok(long.bytes <= MAX_SHARE_CODE_BYTES);
+	assert.match(
+		shareRefusal(long.bytes, long.url.length),
+		/too large to share via URL/,
+	);
 });
 
 test("copyFiles keeps the page's files one by one", () => {

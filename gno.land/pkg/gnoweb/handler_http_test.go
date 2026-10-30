@@ -1779,11 +1779,16 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 		name    string
 		path    string
 		contain string
+		refused bool
 	}{
-		{"default playground", "/_/play", hello},
-		{"plain code", "/_/play?code=package+sentinel_42", "package sentinel_42"},
-		{"compressed code", "/_/play?code=K0hMzk5MT1UoTs0rycxLzYk3MeICAA%3D%3D&z", "package sentinel_42"},
-		{"compressed code that does not inflate", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D&z", hello},
+		{"default playground", "/_/play", hello, false},
+		{"plain code", "/_/play?code=package+sentinel_42", "package sentinel_42", false},
+		// Written by playground-files.ts's shareLink: a.gno holds a line
+		// shaped like the old text format's separator, and stays whole.
+		{"shared code", "/_/play?code=i65WykvMTVWyUkrUS8%2FLV9JRSs7PK0nNKwGKxOQVJCZnJ6anKhQDBTLzUnPiTYxi8mLy9PUVdHV1FZJAOkCsmLy00rxkBUcNTYXqWpACpVoduLlJGOZiNVWpNhYA&z", "\npackage sentinel_42\n\n// --- b.gno ---\nfunc A() {}\n\n</pre>", false},
+		{"shared code that does not inflate", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D&z", hello, true},
+		// No code to open, so nothing to say.
+		{"z and no code", "/_/play?z", hello, false},
 	}
 
 	for _, tc := range cases {
@@ -1798,6 +1803,7 @@ func TestHTTPHandler_PlaygroundPage(t *testing.T) {
 			if tc.contain != hello {
 				assert.NotContains(t, body, hello)
 			}
+			assert.Equal(t, tc.refused, strings.Contains(body, "This link's code was not opened"))
 		})
 	}
 

@@ -28,38 +28,43 @@ components) rather than a parallel design.
 A multi-file editor backed by the shared `@gnoweb/js/code-editor` component
 (CodeMirror, Go/TOML modes). Supports:
 
-- sharing through `?code=...&z`: the base64 of raw DEFLATE. Without `&z`,
-  `code` is plain text, always: a base64 value without `&z` is not
-  decoded, and opens as the base64 text it is. One meaning per form keeps
-  a snippet that happens to be valid base64 from being decoded into
-  something else; Share has only ever written `&z`, and no release served
-  another form, so no link breaks. With `&z`, a value that does not
-  inflate shows the default code, under a notice saying why the link was
-  not opened (too long, more than 64 KiB of code, or not decodable): the
-  default code alone would read as the link's. The server reads no value
-  over 8,000 characters and inflates to 64 KiB at most, and Share refuses,
-  with a message, any link over either cap, so it never writes a link that
-  opens as the default code; a Go test checks both sides hold the same
-  caps;
-- multi-file code, one tab per file, with add and close. A share writes
-  every file, a lone one too, under a `// --- name ---` header. Reading it
-  back, a header whose name is not a file name (or repeats one) is a comment
-  that only looks like a header and stays in its file, and text before the
-  first header is `main.gno`;
+- sharing through `?code=...&z`: the base64 of raw DEFLATE of the JSON
+  list of files, `[{"name","content"}]`, every file, a lone one too. The
+  server decodes it into the same file list a copy opens (below), so each
+  file comes back as it was written: no line of it is read as anything,
+  and its blank lines, at either edge too, are kept. Without `&z`, `code`
+  is plain text, always, one `main.gno`: a base64 value without `&z` is
+  not decoded, and opens as the base64 text it is. One meaning per form
+  keeps a snippet that happens to be valid base64 from being decoded into
+  something else; no release served another form, so no link breaks. With
+  `&z`, a value that does not decode to such a list, or names a file the
+  allowlist below rejects (or one twice), shows the default code, under a
+  notice saying why the link was not opened (too long, more than 64 KiB of
+  code, not decodable, or a file name the playground does not take): the
+  default code alone would read as the link's. `/_/play?z` with no code
+  is the default code, with no notice. The server reads no value over
+  8,000 characters and inflates to 64 KiB of JSON at most, and Share
+  refuses, with a message, any link over either cap, so it never writes a
+  link that opens as the default code; a Go test checks both sides hold
+  the same caps. A file with CRLF line ends decodes as it is; the page
+  serves it as the editor holds it, with LF ends;
+- multi-file code, one tab per file, with add and close;
 - file names from a strict allowlist (letters, digits, `_`, `.`, `-`; a
   `.gno` name or `gnomod.toml`; no leading dot or dash; 100 bytes at most,
-  what a ustar header holds) for Add file, reopening a share, opening a
-  copy and Download. The chain takes a few names this rejects (a leading
-  dash, more than 100 bytes): a copy leaves those files out and says so;
+  what a ustar header holds) for Add file, opening a share (checked by the
+  server, which holds the same list), opening a copy and Download. The
+  chain takes a few names this rejects (a leading dash, more than 100
+  bytes): a copy leaves those files out and says so;
 - opening an editable copy of a deployed package with `?from=<pkgpath>`
   (`&file=` picks the tab shown first). `<pkgpath>$play` redirects there,
   and source file views link to it.
 
-A copy never goes through the text format, which a source line could split:
-the page serves each source file once, as text in a `<pre>` named after
-it, which a reader without JS reads and the controller reads back into the
-editor (each `<pre>` opens with a newline, which HTML drops, so a file's
-own leading blank line is kept). They are read by the fetch `$download`
+Every file the editor opens, a copy's, a share's or the default code,
+comes the same way: the page serves each file once, as text in a `<pre>`
+named after it, which a reader without JS reads and the controller reads
+back into the editor (each `<pre>` opens with a newline, which HTML drops,
+so a file's own leading blank line is kept). A copy's files are read by
+the fetch `$download`
 uses, handed to the playground as a `PackageFetcher` (as state is handed a
 `FileFetcher`), so both share one bound (100 files, 2 MiB of all files),
 one 60 s cache and one coalesced read per package. A copy also caps what it
@@ -296,8 +301,11 @@ view costs one 304, for `controller.js`.
   so an edit could only be previewed against what the chain holds, which
   would show the old code's output under the new code. Only an unmodified
   copy previews.
-- **Copies in the share text format:** what the copy did at first. A source
-  line shaped like a header split the file; JSON has no such line.
+- **Copies and shares in a text format:** what both did at first, every
+  file under a `// --- name ---` header. A source line shaped like a
+  header split the file when the link was opened, and the blank lines
+  around each header were trimmed, so a file's own blank edges were lost.
+  JSON has no such line.
 - **Dry Run through `.app/simulate`:** shipped on this branch, then removed.
   Since #6088 the node simulates a `MsgRun` only with a real signature, which
   gnoweb does not have. It can come back with wallet signing (sign without

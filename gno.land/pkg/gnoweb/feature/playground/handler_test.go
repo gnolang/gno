@@ -71,9 +71,8 @@ func deflateBase64(t *testing.T, b []byte) string {
 }
 
 // servedCode reads the code a page serves, as the controller does: each
-// <pre> of the editor that names a file, or the shared snippet's <pre>, as
-// a browser parses it.
-func servedCode(t *testing.T, page string) (files []File, initial string) {
+// <pre> of the editor that names a file, as a browser parses it.
+func servedCode(t *testing.T, page string) (files []File) {
 	t.Helper()
 
 	doc, err := html.Parse(strings.NewReader(page))
@@ -101,15 +100,12 @@ func servedCode(t *testing.T, page string) (files []File, initial string) {
 		if n.Type != html.ElementNode || n.Data != "pre" {
 			continue
 		}
-		switch target, _ := attr(n, "data-playground-target"); target {
-		case "file":
+		if target, _ := attr(n, "data-playground-target"); target == "file" {
 			name, _ := attr(n, "data-playground-name-value")
 			files = append(files, File{Name: name, Content: text(n)})
-		case "initial-code":
-			initial = text(n)
 		}
 	}
-	return files, initial
+	return files
 }
 
 // extractPlaygroundViewData extracts data from a playground view.
@@ -290,6 +286,16 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 	}
 }
 
+// shareCode is the ?code= value Share writes for files: the base64 of raw
+// DEFLATE of their JSON list.
+func shareCode(t *testing.T, files []File) string {
+	t.Helper()
+
+	b, err := json.Marshal(files)
+	require.NoError(t, err)
+	return deflateBase64(t, b)
+}
+
 // TestGetPlaygroundViewCode covers the "code" shared-snippet paths. Each
 // code holds a sentinel the default code does not, so a fallback to the
 // default never passes for a decoded snippet.
@@ -298,33 +304,77 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 	const sentinel = "package sentinel_42\n"
 	require.NotContains(t, defaultCode, "sentinel_42")
-	z := deflateBase64(t, []byte(sentinel))
+	main := func(code string) []File { return []File{{Name: "main.gno", Content: code}} }
+	def := main(defaultCode)
+	one := main(sentinel)
+	z := shareCode(t, one)
+	share := func(files []File) url.Values { return url.Values{"code": {shareCode(t, files)}, "z": {""}} }
+	zcode := func(b []byte) url.Values { return url.Values{"code": {deflateBase64(t, b)}, "z": {""}} }
+
+	// Lines shaped like the separator the text format had, and blank lines
+	// at either edge: each file comes back as it went.
+	separators := []File{
+		{Name: "a.gno", Content: "\n\npackage sentinel_42\n\n// --- b.gno ---\nfunc A() {}\n// --- Base set ---\n\n\n"},
+		{Name: "b.gno", Content: "// --- a.gno ---\npackage sentinel_42"},
+		{Name: "c.gno", Content: ""},
+		{Name: "gnomod.toml", Content: "module = \"sentinel_42\"\n"},
+	}
+	unicode := []File{{Name: "u.gno", Content: "package sentinel_42 // héllo 世界 🎉 \"\\\" <b>&amp;</b> \u2028\n"}}
+	many := make([]File, 60)
+	for i := range many {
+		many[i] = File{Name: fmt.Sprintf("f%d.gno", i), Content: fmt.Sprintf("package sentinel_42\n\nvar N%d = %d\n", i, i)}
+	}
+	// A JSON list of exactly n bytes, one file of "a"s.
+	sized := func(n int) []File {
+		empty, err := json.Marshal([]File{{Name: "a.gno"}})
+		require.NoError(t, err)
+		return []File{{Name: "a.gno", Content: strings.Repeat("a", n-len(empty))}}
+	}
 
 	cases := []struct {
 		name    string
 		query   url.Values
-		want    string
+		want    []File
 		refused error // what the page says, nil for nothing
 	}{
-		{"no code", url.Values{}, defaultCode, nil},
-		{"plain text", url.Values{"code": {sentinel}}, sentinel, nil},
-		{"plain text that parses as base64", url.Values{"code": {"test"}}, "test", nil},
-		{"base64 without z stays text", url.Values{"code": {"cGFja2FnZSBtYWluCg=="}}, "cGFja2FnZSBtYWluCg==", nil},
+		{"no code", url.Values{}, def, nil},
+		{"z and no code", url.Values{"z": {""}}, def, nil},
+		{"z and an empty code", url.Values{"code": {""}, "z": {""}}, def, nil},
+		{"plain text", url.Values{"code": {sentinel}}, one, nil},
+		// Without &z, code is one main.gno, whatever its lines look like.
+		{"plain text with separator lines", url.Values{"code": {"// --- a.gno ---\n" + sentinel + "// --- b.gno ---\n"}}, main("// --- a.gno ---\n" + sentinel + "// --- b.gno ---\n"), nil},
+		{"plain text that parses as base64", url.Values{"code": {"test"}}, main("test"), nil},
+		{"base64 without z stays text", url.Values{"code": {"cGFja2FnZSBtYWluCg=="}}, main("cGFja2FnZSBtYWluCg=="), nil},
 		// One meaning per form: without &z nothing is decoded, not even
 		// what Share would have written with it.
-		{"compressed without z stays text", url.Values{"code": {z}}, z, nil},
-		{"compressed", url.Values{"code": {z}, "z": {""}}, sentinel, nil},
-		{"compressed, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, defaultCode, errSharedInvalid},
-		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, defaultCode, errSharedInvalid},
-		{"z on text that is no base64", url.Values{"code": {"package main"}, "z": {""}}, defaultCode, errSharedInvalid},
+		{"shared without z stays text", url.Values{"code": {z}}, main(z), nil},
+		{"shared", url.Values{"code": {z}, "z": {""}}, one, nil},
+		{"shared separator lines and blank edges", share(separators), separators, nil},
+		{"shared unicode and markup", share(unicode), unicode, nil},
+		{"shared many files", share(many), many, nil},
+		{"shared, cut short", url.Values{"code": {z[:len(z)-1]}, "z": {""}}, def, errSharedInvalid},
+		{"z on base64 that is no deflate", url.Values{"code": {"dGVzdA=="}, "z": {""}}, def, errSharedInvalid},
+		{"z on text that is no base64", url.Values{"code": {"package main"}, "z": {""}}, def, errSharedInvalid},
+		// The text format Share wrote before: no list, so refused.
+		{"z on the text format", zcode([]byte("// --- a.gno ---\n" + sentinel)), def, errSharedInvalid},
+		{"z on a JSON object", zcode([]byte(`{"name":"a.gno","content":""}`)), def, errSharedInvalid},
+		{"z on an empty list", zcode([]byte(`[]`)), def, errSharedInvalid},
+		{"z on null", zcode([]byte(`null`)), def, errSharedInvalid},
+		{"z on a list with trailing data", zcode([]byte(`[{"name":"a.gno","content":""}]x`)), def, errSharedInvalid},
+		{"z on a file that is no object", zcode([]byte(`["a.gno"]`)), def, errSharedInvalid},
+		// Names from isValidFileName's allowlist, each once.
+		{"a path in a name", share([]File{{Name: "../x.gno", Content: sentinel}}), def, errSharedName},
+		{"no name", share([]File{{Content: sentinel}}), def, errSharedName},
+		{"a name that is no source", share([]File{{Name: "README.md", Content: sentinel}}), def, errSharedName},
+		{"a name twice", share([]File{{Name: "a.gno", Content: sentinel}, {Name: "a.gno"}}), def, errSharedName},
 		// The cap is written out, not read from the constant, so raising it
 		// fails here: 64 KiB is what a link Share writes can hold.
-		{"compressed up to 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10))}, "z": {""}}, strings.Repeat("a", 64<<10), nil},
+		{"shared up to 64 KiB", share(sized(64 << 10)), sized(64 << 10), nil},
 		// A few bytes of a link must not expand into a page of megabytes.
-		{"compressed past 64 KiB", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 64<<10+1))}, "z": {""}}, defaultCode, errSharedTooLarge},
-		{"a link-sized megabyte", url.Values{"code": {deflateBase64(t, bytes.Repeat([]byte("a"), 1<<20))}, "z": {""}}, defaultCode, errSharedTooLarge},
-		{"longer than Share writes", url.Values{"code": {strings.Repeat("a", maxSharedCodeLength+1)}}, defaultCode, errSharedTooLong},
-		{"compressed, longer than Share writes", url.Values{"code": {z + strings.Repeat("A", maxSharedCodeLength)}, "z": {""}}, defaultCode, errSharedTooLong},
+		{"shared past 64 KiB", share(sized(64<<10 + 1)), def, errSharedTooLarge},
+		{"a link-sized megabyte", zcode(bytes.Repeat([]byte("a"), 1<<20)), def, errSharedTooLarge},
+		{"longer than Share writes", url.Values{"code": {strings.Repeat("a", maxSharedCodeLength+1)}}, def, errSharedTooLong},
+		{"shared, longer than Share writes", url.Values{"code": {z + strings.Repeat("A", maxSharedCodeLength)}, "z": {""}}, def, errSharedTooLong},
 	}
 
 	h := New(validDeps())
@@ -334,12 +384,15 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 
 			status, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: tc.query})
 			assert.Equal(t, http.StatusOK, status)
-			assert.Equal(t, tc.want, extractPlaygroundViewData(t, v).InitialCode)
-			// Served once, as text, which the controller reads back.
+			data := extractPlaygroundViewData(t, v)
+			assert.Equal(t, tc.want, data.Files)
+			assert.Empty(t, data.From, "a share is no copy")
+			assert.False(t, data.Preview)
+			// Served once, as text, one <pre> per file, which the
+			// controller reads back as is.
 			var buf bytes.Buffer
 			require.NoError(t, v.Render(&buf))
-			_, initial := servedCode(t, buf.String())
-			assert.Equal(t, tc.want, initial)
+			assert.Equal(t, tc.want, servedCode(t, buf.String()))
 			assert.NotContains(t, buf.String(), "<textarea", "the code is in the page once")
 			// A refused link says so: the default code alone would read
 			// as the link's.
@@ -350,6 +403,45 @@ func TestGetPlaygroundViewCode(t *testing.T) {
 			}
 			assert.Contains(t, buf.String(), notice+": "+template.HTMLEscapeString(tc.refused.Error())+". The default code is shown instead.")
 		})
+	}
+
+	// A CRLF file decodes as it is; the page serves it as the browser and
+	// the editor read it, with LF line ends.
+	crlf := []File{{Name: "crlf.gno", Content: "package sentinel_42\r\n\r\nfunc F() {}\r\n"}}
+	_, v := h.GetPlaygroundView(context.Background(), &weburl.GnoURL{Query: share(crlf)})
+	assert.Equal(t, crlf, extractPlaygroundViewData(t, v).Files)
+	var buf bytes.Buffer
+	require.NoError(t, v.Render(&buf))
+	assert.Equal(t, []File{{Name: "crlf.gno", Content: "package sentinel_42\n\nfunc F() {}\n"}}, servedCode(t, buf.String()))
+}
+
+// TestIsValidFileName holds the cases of playground-files.test.mts's
+// isValidFileName test: a share opens only what Add file would take.
+func TestIsValidFileName(t *testing.T) {
+	t.Parallel()
+
+	for name, want := range map[string]bool{
+		"main.gno":                       true,
+		"gnomod.toml":                    true,
+		"a_test.gno":                     true,
+		"Z-1.v2.gno":                     true,
+		strings.Repeat("x", 96) + ".gno": true,  // 100 bytes
+		strings.Repeat("x", 97) + ".gno": false, // 101 bytes, cut by a ustar header
+		"$(touch PWNED).gno":             false,
+		"a;b.gno":                        false,
+		"a b.gno":                        false,
+		"../x.gno":                       false,
+		"x/y.gno":                        false,
+		".hidden.gno":                    false,
+		"-rf.gno":                        false,
+		"é.gno":                          false,
+		"README.md":                      false,
+		"Base set":                       false,
+		".gno":                           false,
+		"":                               false,
+		"a.gno\n":                        false,
+	} {
+		assert.Equal(t, want, isValidFileName(name), "%q", name)
 	}
 }
 
@@ -382,7 +474,6 @@ func TestCopyView(t *testing.T) {
 			{Name: "b.gno", Content: "package main\n"},
 			{Name: "gnomod.toml", Content: "module = \"main\"\n"},
 		}, data.Files)
-		assert.Empty(t, data.InitialCode)
 		assert.Equal(t, "b.gno", data.DefaultFile)
 		assert.Equal(t, "r/demo/foo", data.From)
 		assert.Equal(t, deps.Domain, data.Domain)
@@ -393,9 +484,7 @@ func TestCopyView(t *testing.T) {
 		var buf bytes.Buffer
 		require.NoError(t, v.Render(&buf))
 		page := buf.String()
-		got, initial := servedCode(t, page)
-		assert.Equal(t, data.Files, got)
-		assert.Empty(t, initial)
+		assert.Equal(t, data.Files, servedCode(t, page))
 		for _, f := range data.Files {
 			assert.Contains(t, page, `<p class="b-playground-file u-font-mono">`+f.Name+"</p>")
 		}
@@ -420,7 +509,7 @@ func TestCopyView(t *testing.T) {
 		var buf bytes.Buffer
 		require.NoError(t, v.Render(&buf))
 		assert.NotContains(t, buf.String(), "<script>alert(1)")
-		got, _ := servedCode(t, buf.String())
+		got := servedCode(t, buf.String())
 		assert.Equal(t, files, got)
 	})
 
@@ -578,8 +667,7 @@ func TestControlsNeedJS(t *testing.T) {
 			assert.Contains(t, page, hidden, name)
 		}
 		assert.Contains(t, page, "\npackage ", name)
-		files, initial := servedCode(t, page)
-		assert.True(t, len(files) > 0 || initial != "", name)
+		assert.NotEmpty(t, servedCode(t, page), name)
 	}
 }
 
@@ -644,7 +732,7 @@ func TestDecodeCompressedCode(t *testing.T) {
 
 	got, err := decodeCompressedCode(deflate([]byte("some gno source")))
 	require.NoError(t, err)
-	assert.Equal(t, "some gno source", got)
+	assert.Equal(t, "some gno source", string(got))
 
 	_, err = decodeCompressedCode(deflate(bytes.Repeat([]byte{0}, maxDecompressedCodeSize+1)))
 	assert.ErrorIs(t, err, errSharedTooLarge, "payload exceeding the ceiling must be rejected")

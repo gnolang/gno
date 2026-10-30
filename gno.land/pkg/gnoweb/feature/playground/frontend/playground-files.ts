@@ -39,40 +39,32 @@ export function shareRefusal(codeBytes: number, url: number): string {
 	return "";
 }
 
-// shareText writes files in the share format: each under its
-// "// --- name ---" header, a lone file too, so it comes back under its own
-// name.
-export function shareText(files: EditorFile[]): string {
-	return files.map((f) => `// --- ${f.name} ---\n${f.content}`).join("\n\n");
-}
-
-// parseInitialCode reads the share format back. A header whose name is not
-// a file name (or names a file already read) is a comment that only looks
-// like one: it stays as text in the file it is in. Text before the first
-// header, and code without headers, is main.gno.
-export function parseInitialCode(code: string): EditorFile[] {
-	const parts = code.split(/^\/\/ --- (.+?) ---$/m);
-	if (parts.length === 1) return [{ name: "main.gno", content: code }];
-
-	const files: EditorFile[] = [];
-	if (parts[0].trim()) files.push({ name: "main.gno", content: parts[0] });
-	for (let i = 1; i < parts.length; i += 2) {
-		const name = parts[i].trim();
-		const body = parts[i + 1];
-		if (isValidFileName(name) && !files.some((f) => f.name === name)) {
-			files.push({ name, content: body });
-			continue;
-		}
-		const text = `// --- ${parts[i]} ---${body}`;
-		const last = files[files.length - 1];
-		if (last) last.content += text;
-		else files.push({ name: "main.gno", content: parts[0] + text });
-	}
-	// Drop the blank lines around each header, keep one final newline.
-	return files.map(({ name, content }) => ({
-		name,
-		content: `${content.replace(/^\n+|\n+$/g, "")}\n`,
-	}));
+// shareLink is the link Share writes for files: /_/play?code=...&z, the
+// base64 of raw DEFLATE of the JSON list of files, [{"name","content"}],
+// which the server opens as it does a copy, so each file comes back as it
+// is. bytes is the JSON's size, which the server inflates no further than
+// MAX_SHARE_CODE_BYTES.
+export async function shareLink(
+	origin: string,
+	files: EditorFile[],
+): Promise<{ url: string; bytes: number }> {
+	const json = new TextEncoder().encode(
+		JSON.stringify(files.map(({ name, content }) => ({ name, content }))),
+	);
+	const cs = new CompressionStream("deflate-raw");
+	const writer = cs.writable.getWriter();
+	writer.write(json);
+	writer.close();
+	// Response drains the stream: ReadableStream.bytes() is newer (Chrome
+	// 124+, Firefox 128+, Safari 18+).
+	const compressed = new Uint8Array(
+		await new Response(cs.readable).arrayBuffer(),
+	);
+	const binary = Array.from(compressed, (b) => String.fromCharCode(b)).join("");
+	return {
+		url: `${origin}/_/play?code=${encodeURIComponent(btoa(binary))}&z`,
+		bytes: json.length,
+	};
 }
 
 // renderText is the text a Render("") eval returned, as qeval prints a
@@ -106,8 +98,8 @@ export function renderText(result: string): string {
 	}
 }
 
-// copyFiles takes the files of a package copy, which the page serves one
-// by one, so no line of a file can split them. skipped names the files left
+// copyFiles takes the files the page serves one by one (a copy, a share,
+// the default code), so no line of a file can split them. skipped names the files left
 // out: the chain takes some names isValidFileName does not (a leading dash,
 // more than 100 bytes), and the reader must know the copy lacks them.
 export function copyFiles(served: EditorFile[]): {
