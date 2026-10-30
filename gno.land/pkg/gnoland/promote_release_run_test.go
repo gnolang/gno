@@ -364,7 +364,8 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		{"no halt scheduled", "", "", "mainnet has not scheduled v1.7.0"},
 		{"a halt for another release", "v1.6.0", "", "mainnet has not scheduled v1.7.0"},
 		{"an answer with no data", "", `{"jsonrpc":"2.0","id":1,"result":{}}`, "gave no halt_min_version"},
-		{"an answer with an error", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":{"msg":"boom"},"Data":null}}}}`, "gave no halt_min_version"},
+		// Its Data names the release, so only the Error refuses it.
+		{"an answer with an error", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":{"msg":"boom"},"Data":"InYxLjcuMCI="}}}}`, "gave no halt_min_version"},
 		{"an answer that is not JSON", "", `<html>bad gateway</html>`, "gave no halt_min_version"},
 	} {
 		t.Run("a MINOR is refused on "+c.name, func(t *testing.T) {
