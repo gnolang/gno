@@ -416,7 +416,7 @@ classify() {
 		info "MAJOR bump: a new network, incompatible genesis. See RELEASING.md."
 	elif [[ ${new_minor} != "${prev_minor}" ]]; then
 		info "MINOR bump: coordinated upgrade. Validators must halt together: once"
-		info "    the height is chosen, govdao-exec.sh set-halt <H> ${VERSION} proposes it."
+		info "    the height is chosen, misc/deployments/<chain>.gno.land/govdao-exec.sh set-halt <H> ${VERSION} proposes it."
 	else
 		info "PATCH: no validator coordination needed."
 		if [[ ${breaking} -gt 0 ]]; then
@@ -496,22 +496,30 @@ $(printf '%s\n' "${consensus}" | head -10 | sed 's/^/       /')
 # file left behind when the tag is undone. The proposal is a governance action,
 # and misc/govdao-scripts/set-halt.sh is what performs it.
 print_halt_proposal() {
-	# The wrapper is named govdao-exec.sh in most deployments and govdao in a
-	# couple of older ones; both dispatch into misc/govdao-scripts/.
 	local wrapper=""
 	local dir name
-	for dir in "misc/deployments/${CHAIN}.gno.land" "misc/deployments/${CHAIN}"; do
-		for name in govdao-exec.sh govdao; do
-			if [[ -x "${REPO_ROOT}/${dir}/${name}" ]]; then
-				wrapper="${dir}/${name}"
-				break 2
-			fi
+	if [[ ${VERSION} == *-* ]]; then
+		# A candidate's halt is the testnet's, and candidates are cut from
+		# chain/mainnet too, so CHAIN names the wrong network: the command
+		# names none, and cannot be pasted as it stands.
+		wrapper="misc/deployments/<chain>.gno.land/govdao-exec.sh"
+	else
+		# The wrapper is named govdao-exec.sh in most deployments and govdao in
+		# a couple of older ones; both dispatch into misc/govdao-scripts/.
+		for dir in "misc/deployments/${CHAIN}.gno.land" "misc/deployments/${CHAIN}"; do
+			for name in govdao-exec.sh govdao; do
+				if [[ -x "${REPO_ROOT}/${dir}/${name}" ]]; then
+					wrapper="${dir}/${name}"
+					break 2
+				fi
+			done
 		done
-	done
-	[[ -n ${wrapper} ]] || die "no govdao wrapper under misc/deployments for --chain ${CHAIN}"
+		[[ -n ${wrapper} ]] || die "no govdao wrapper under misc/deployments for --chain ${CHAIN}"
+	fi
 
 	info "coordinated upgrade: the GovDAO proposal for it is"
 	printf '\n    %s set-halt %s %s\n\n' "${wrapper}" "${HALT_HEIGHT}" "${VERSION}"
+	[[ ${VERSION} != *-* ]] || warn "a release candidate's halt is the testnet's: run it from that network's folder, never mainnet's"
 	info "which creates this proposal:"
 	cat <<EOF
 

@@ -21,7 +21,7 @@ misc/release/cut-release.sh v1.6.0 --commit <code-commit> --push
 | `--chain <name>` | chain branch to cut from (default `mainnet` → `chain/mainnet`) |
 | `--commit <ref>` | commit to tag (default: the branch tip) |
 | `--previous <version>` | previous release, for the change summary (default: the newest final `v*` tag reachable from the commit) |
-| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `govdao-exec.sh set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)). Only before the tag exists, which for a release published early is before the height is chosen: once it is chosen, run `govdao-exec.sh set-halt <H> <version>` directly |
+| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `govdao-exec.sh set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)). For a release candidate the command names `misc/deployments/<chain>.gno.land/`, the testnet's folder, since candidates are cut from `chain/mainnet` too. Only before the tag exists, which for a release published early is before the height is chosen: once it is chosen, run `govdao-exec.sh set-halt <H> <version>` from the network's folder directly |
 | `--push` | create and push the tag (without it, nothing is created at all) |
 | `--allow-dirty` | skip the clean-worktree check — local rehearsal only |
 | `--allow-merge` | cut a range that merges `master` and touches consensus code, which is otherwise refused |

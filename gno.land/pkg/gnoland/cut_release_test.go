@@ -25,8 +25,8 @@ func runCutReleaseFuncs(t *testing.T, vars map[string]string, funcs ...string) (
 }
 
 // runScriptFuncs makes calls to functions of a release script in bash, in
-// order, with those functions and whichever of the script's die, ok and warn it
-// defines, and the script's globals set from vars. A call is a function name,
+// order, with those functions and whichever of the script's die, info, ok and
+// warn it defines, and the script's globals set from vars. A call is a function name,
 // optionally followed by shell-quoted arguments. It returns their combined
 // output and whether they all returned (die exits non-zero).
 func runScriptFuncs(t *testing.T, rel string, vars map[string]string, calls ...string) (string, bool) {
@@ -35,7 +35,7 @@ func runScriptFuncs(t *testing.T, rel string, vars map[string]string, calls ...s
 	src := repoFile(t, rel)
 	var script strings.Builder
 	script.WriteString("set -euo pipefail\n")
-	for _, helper := range []string{"die", "ok", "warn"} {
+	for _, helper := range []string{"die", "info", "ok", "warn"} {
 		script.WriteString(findShellFunc(src, helper) + "\n")
 	}
 	for _, call := range calls {
@@ -191,4 +191,27 @@ func TestCutReleaseAbortExitsNonZero(t *testing.T) {
 
 	out, err = exec.Command("bash", copied, "--help").CombinedOutput()
 	assert.NoError(t, err, "--help exits zero:\n%s", out)
+}
+
+// Candidates are cut from chain/mainnet too, so CHAIN names mainnet for every
+// cut, while a candidate's halt is the testnet's. The proposal printed for a
+// candidate must not be a command that, pasted, schedules the halt on mainnet.
+func TestCutReleaseHaltProposalNamesTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct{ version, says, never string }{
+		{"v1.8.0-rc.1", "misc/deployments/<chain>.gno.land/govdao-exec.sh set-halt 120000 v1.8.0-rc.1", "misc/deployments/mainnet.gno.land/"},
+		{"v1.8.0", "misc/deployments/mainnet.gno.land/govdao-exec.sh set-halt 120000 v1.8.0", "<chain>"},
+	} {
+		t.Run(c.version, func(t *testing.T) {
+			t.Parallel()
+
+			out, returned := runCutReleaseFuncs(t, map[string]string{
+				"CHAIN": "mainnet", "VERSION": c.version, "HALT_HEIGHT": "120000",
+			}, "print_halt_proposal")
+			require.True(t, returned, out)
+			assert.Contains(t, out, c.says)
+			assert.NotContains(t, out, c.never)
+		})
+	}
 }
