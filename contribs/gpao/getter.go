@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -57,23 +59,27 @@ var errResolverUnavailable = errors.New("import resolver unavailable")
 // qfileFunc runs a vm/qfile query for a package path or a package file path.
 type qfileFunc func(filepath string) ([]byte, error)
 
+// qmetaFunc runs a vm/qpkgmeta_json query for a package path.
+type qmetaFunc func(pkgPath string) (vm.PackageMeta, error)
+
 // rpcGetter fetches package sources from a node via the vm/qfile ABCI query and
-// reconstructs them into MemPackages. Whatever the node ANSWERS is cached for
-// the getter's lifetime: a fetched package because on-chain paths are immutable
-// (a path is write-once — re-adding fails), and an absence because the getter
-// serves exactly one verification and chain state cannot move under it.
+// reconstructs them into MemPackages. Whatever the node ANSWERS, a fetched
+// package or an absence, is cached for the getter's lifetime: it serves exactly
+// one verification, and chain state cannot move under it.
 type rpcGetter struct {
 	qfile qfileFunc
+	qmeta qmetaFunc
 	cache map[string]*std.MemPackage
 
-	// transportErr is the first transport fault seen this verification; the
-	// child makes exactly one.
+	// transportErr is the first transport fault seen this verification.
 	transportErr error
 }
 
-func newRPCGetter(client rpcclient.Client) *rpcGetter {
+// newRPCGetter returns a getter that runs every query under ctx, for as long as
+// the getter is used.
+func newRPCGetter(ctx context.Context, client rpcclient.Client) *rpcGetter {
 	qfile := func(filepath string) ([]byte, error) {
-		qres, err := client.ABCIQuery(context.Background(), "vm/qfile", []byte(filepath))
+		qres, err := client.ABCIQuery(ctx, "vm/qfile", []byte(filepath))
 		if err != nil {
 			// The node could not be reached at all.
 			return nil, fmt.Errorf("%w: %w", errResolverUnavailable, err)
@@ -87,7 +93,42 @@ func newRPCGetter(client rpcclient.Client) *rpcGetter {
 		}
 		return qres.Response.Data, nil
 	}
-	return &rpcGetter{qfile: qfile, cache: make(map[string]*std.MemPackage)}
+	qmeta := func(pkgPath string) (vm.PackageMeta, error) {
+		return queryPkgMeta(ctx, client, pkgPath)
+	}
+	return &rpcGetter{qfile: qfile, qmeta: qmeta, cache: make(map[string]*std.MemPackage)}
+}
+
+// queryPkgMeta asks the node what it holds at pkgPath. Every error wraps
+// errResolverUnavailable: an unknown path is answered "absent", not refused.
+func queryPkgMeta(ctx context.Context, client rpcclient.Client, pkgPath string) (vm.PackageMeta, error) {
+	qres, err := client.ABCIQuery(ctx, "vm/qpkgmeta_json", []byte(pkgPath))
+	if err != nil {
+		return vm.PackageMeta{}, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+	}
+	if qerr := qres.Response.Error; qerr != nil {
+		return vm.PackageMeta{}, fmt.Errorf("%w: vm/qpkgmeta_json: %w", errResolverUnavailable, qerr)
+	}
+	meta, err := decodePkgMeta(qres.Response.Data)
+	if err != nil {
+		return meta, fmt.Errorf("%w: %w", errResolverUnavailable, err)
+	}
+	return meta, nil
+}
+
+// decodePkgMeta reads a vm/qpkgmeta_json answer, refusing a body that does not
+// decode or names a status other than live, inert or absent: classified, such
+// an answer would read as "absent", which is a verdict.
+func decodePkgMeta(data []byte) (vm.PackageMeta, error) {
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return meta, fmt.Errorf("unreadable vm/qpkgmeta_json answer: %w", err)
+	}
+	switch meta.Status {
+	case vm.PackageStatusLive, vm.PackageStatusInert, vm.PackageStatusAbsent:
+		return meta, nil
+	}
+	return meta, fmt.Errorf("vm/qpkgmeta_json answered status %q, which this build does not know", meta.Status)
 }
 
 // absence reports whether an answered query said "nothing is stored at this
@@ -116,14 +157,13 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 		return mpkg
 	}
 	mpkg, err := g.fetch(pkgPath)
-	// Cache what the chain answered, an absence included. A miss used to be
-	// re-queried, for a getter that hung off the long-lived daemon and could
-	// outlive a package's activation; this one is built per verification in a
-	// child that exits with it (newVerifier), so nothing enables a package
-	// under it and the answer cannot change. Re-asking only moves the same
-	// answer out of prepare, which is off the budget, into the two stages that
-	// are on it -- where against a slow node it arrives as an overrun instead
-	// of as the rejection the typecheck was going to give.
+	// Cache what the chain answered, an absence included. The getter serves a
+	// single verification (newVerifier in the child, oracle.verify in the
+	// parent), so nothing enables a package under it and the answer cannot
+	// change. Re-asking only moves the same answer out of prepare, which is
+	// off the budget, into the two stages that are on it -- where against a
+	// slow node it arrives as an overrun instead of as the rejection the
+	// typecheck was going to give.
 	//
 	// A fault is not an answer, so it is not cached: a node that could not be
 	// ASKED has said nothing about the path, and asking again costs less than
@@ -134,7 +174,19 @@ func (g *rpcGetter) GetMemPackage(pkgPath string) *std.MemPackage {
 	return mpkg
 }
 
-// fetch queries vm/qfile for the package's file list, then each file's body,
+// seed takes the answers the parent already got from the node for this
+// verification as this getter's own.
+func (g *rpcGetter) seed(found []*std.MemPackage, absent []string) {
+	for _, dep := range found {
+		g.cache[dep.Path] = dep
+	}
+	for _, path := range absent {
+		g.cache[path] = nil
+	}
+}
+
+// fetch queries vm/qfile for the package's file list, then the body of each
+// file readByVerify keeps (every .gno file, for a package holding tests alone),
 // and assembles a MemPackage. A nil package with a nil error is the node
 // answering that nothing is stored at the path (the typechecker then reports
 // the import as unresolved); the error is returned so the caller can tell that
@@ -146,9 +198,16 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, err
 	}
 	names := strings.Split(string(list), "\n")
+	// A package holding tests alone, which AddPackage has refused since #5892
+	// but one stored before it may be, is empty to the validator's typecheck,
+	// which rejects its importers. Its tests are read too: with no .gno file
+	// it would not build here, and those importers would sit pending instead.
+	testsOnly := !slices.ContainsFunc(names, func(name string) bool {
+		return strings.HasSuffix(name, ".gno") && readByVerify(name)
+	})
 	files := make([]*std.MemFile, 0, len(names))
 	for _, name := range names {
-		if name == "" {
+		if !readByVerify(name) && !(testsOnly && strings.HasSuffix(name, ".gno")) {
 			continue
 		}
 		body, err := g.query(path.Join(pkgPath, name))
@@ -161,19 +220,46 @@ func (g *rpcGetter) fetch(pkgPath string) (*std.MemPackage, error) {
 		return nil, nil
 	}
 
-	// MPUserAll, matching what AddPackage stamps on the stored package and
-	// therefore what a node serves here. Not MPUserProd: qfile lists every
-	// stored file, _test.gno and flattened _filetest.gno included (see
-	// TestRPCGetterNamesReconstructedPackage), and MPUserProd's validation
-	// rejects those outright -- so stamping it made AddMemPackage panic on any
-	// dependency that ships tests, which is most of them. Restricting to
-	// production files is the fileset's job at each point of use.
+	// A test file's clause may carry _test, and AddMemPackage wants the name
+	// the path gives.
+	name := gno.LastPathElement(pkgPath)
+	if !testsOnly {
+		name = packageName(files)
+	}
+
+	// MPUserAll, the type AddPackage stamps on the stored package, of which
+	// this is the production subset.
 	return &std.MemPackage{
-		Name:  packageName(files),
+		Name:  name,
 		Path:  pkgPath,
 		Files: files,
 		Type:  gno.MPUserAll,
 	}, nil
+}
+
+// readByVerify reports whether the typecheck or the preprocess reads this file
+// of an import: its production sources and the gnomod setting their version.
+// Tests, docs and licenses are listed by the node but never read.
+func readByVerify(name string) bool {
+	switch name {
+	case "gnomod.toml", "gno.mod":
+		return true
+	}
+	return strings.HasSuffix(name, ".gno") && !gno.IsTestFile(name)
+}
+
+// status asks what the chain holds at a path vm/qfile would not serve: live,
+// inert or absent (the vm.PackageStatus constants). A fault is remembered
+// like a qfile one, since the node could not be asked.
+func (g *rpcGetter) status(pkgPath string) (string, error) {
+	meta, err := g.qmeta(pkgPath)
+	if err != nil {
+		if errors.Is(err, errResolverUnavailable) && g.transportErr == nil {
+			g.transportErr = err
+		}
+		return "", err
+	}
+	return meta.Status, nil
 }
 
 // query wraps qfile and remembers a transport fault, which is evidence
@@ -186,41 +272,17 @@ func (g *rpcGetter) query(filepath string) ([]byte, error) {
 	return body, err
 }
 
-// packageName derives the package name the way the chain derives it in
-// ReadMemPackageFromList: the first production .gno file whose package clause
-// parses names the package, with a _test suffix trimmed. Filetests carry
-// arbitrary clauses, so they name a package only when it holds nothing else --
-// their own clause where they agree on one, and the literal "filetests" where
-// they do not.
-//
-// The order matters here because the file list comes from vm/qfile sorted, and
-// ReadMemPackage flattens a package's filetests/ directory into it, so a
-// filetest carrying a package clause of its own routinely sorts ahead of the
-// production files. The fallback matters because the name is what
-// typeCheckMemPackage writes .gnobuiltins.gno under, and an empty one makes
-// that file unparseable.
+// packageName is the package clause of the first .gno file that parses. fetch
+// hands it production files only, so that clause is the package's own name,
+// which typeCheckMemPackage writes .gnobuiltins.gno under.
 func packageName(files []*std.MemFile) string {
-	var filetestName string
-	filetestsDiffer := false
 	for _, f := range files {
 		if !strings.HasSuffix(f.Name, ".gno") {
 			continue
 		}
-		name, err := gno.PackageNameFromFileBody(f.Name, f.Body)
-		if err != nil {
-			continue
-		}
-		if !strings.HasSuffix(f.Name, "_filetest.gno") {
-			return strings.TrimSuffix(string(name), "_test")
-		}
-		if filetestName == "" {
-			filetestName = string(name)
-		} else if filetestName != string(name) {
-			filetestsDiffer = true
+		if name, err := gno.PackageNameFromFileBody(f.Name, f.Body); err == nil {
+			return string(name)
 		}
 	}
-	if filetestsDiffer {
-		return "filetests"
-	}
-	return filetestName
+	return ""
 }

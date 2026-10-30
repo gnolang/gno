@@ -13,6 +13,14 @@ import (
 // seedCache populates valoperCache with the given (op, pubkey, kr)
 // tuples — used in tests to satisfy NewValidatorProposalRequest's
 // creation-time membership check without going through valopers.
+// asGovDAOProxy is the realm these tests stand in as before invoking an
+// executor directly. SimpleExecutor.Execute is invocable only from the
+// r/gov/dao namespace; on the live route dao.ExecuteProposal and
+// impl.ExecuteProposal thread the proxy's cur to it non-crossing, so
+// Previous() inside Execute is this path. Calling Execute from the test's
+// own realm is a route no transaction takes.
+const asGovDAOProxy = "gno.land/r/gov/dao"
+
 func seedCache(t *testing.T, entries []struct {
 	op          address
 	pubKey      string
@@ -151,6 +159,8 @@ func TestNewValidatorProposalRequest_ExecutorReResolvesPubkey(cur realm, t *test
 		KeepRunning:    true,
 	})
 
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	urequire.NoError(t, exec.Execute(cross(cur)))
 
 	// Effective valset should contain pubKeyB (post-rotation), not
@@ -178,6 +188,8 @@ func TestNewValidatorProposalRequest_RemoveOperator(cur realm, t *testing.T) {
 	// Liveness floor: removing the only validator empties the set.
 	// Executor runs inside a crossing dao.Executor.Execute call, so
 	// the panic surfaces as an abort, not a regular panic.
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	uassert.AbortsContains(t, cur, "would empty the validator set", func() {
 		_ = newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross(cur))
 	})
@@ -206,6 +218,8 @@ func TestNewValidatorProposalRequest_RemoveLeavesOthers(cur realm, t *testing.T)
 
 	changes := []ValoperChange{{OperatorAddress: opA, Power: 0}}
 	// Build the executor directly (private function, same package).
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	urequire.NoError(t, newValoperChangeExecutor(cur, changes).Execute(cross(cur)))
 
 	// Effective set: only opB / pubKeyB remains.
@@ -235,6 +249,8 @@ func TestNewValidatorProposalRequest_AllowsFullValsetReplacement(cur realm, t *t
 		{OperatorAddress: opA, Power: 0},
 		{OperatorAddress: opB, Power: 10},
 	}
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	urequire.NoError(t, newValoperChangeExecutor(cur, changes).Execute(cross(cur)))
 
 	effective := sysparams.GetValsetEffective()
@@ -293,6 +309,8 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(cur realm, t
 	_ = pr
 
 	// Executor also succeeds.
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	urequire.NoError(t, newValoperChangeExecutor(cur, []ValoperChange{{OperatorAddress: opA, Power: 0}}).Execute(cross(cur)))
 }
 
@@ -367,6 +385,8 @@ func TestNewValidatorProposalRequest_UpsertExistingValidator(cur realm, t *testi
 	})
 
 	changes := []ValoperChange{{OperatorAddress: opA, Power: 9}}
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	urequire.NoError(t, newValoperChangeExecutor(cur, changes).Execute(cross(cur)))
 
 	effective := sysparams.GetValsetEffective()
@@ -400,6 +420,8 @@ func TestNewValidatorProposalRequest_ExecutorRejectsRaceFlippedKeepRunning(cur r
 		SigningAddress: mustAddr(t, pubKeyA),
 		KeepRunning:    false,
 	})
+
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
 
 	uassert.AbortsContains(t, cur, "KeepRunning=false at execution", func() {
 		_ = exec.Execute(cross(cur))
@@ -477,6 +499,8 @@ func TestNewValidatorProposalRequest_PhantomBaselineDocumentsUnreachableState(cu
 		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
 
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	urequire.NoError(t, newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 2}},
 	).Execute(cross(cur)))
@@ -516,6 +540,8 @@ func TestNewValidatorProposalRequest_SameBlockExecuteThenRotate(cur realm, t *te
 		{op: opA, pubKey: pubKeyA, keepRunning: true},
 		{op: opB, pubKey: pubKeyB, keepRunning: true},
 	})
+
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
 
 	urequire.NoError(t, newValoperChangeExecutor(cur,
 		[]ValoperChange{{OperatorAddress: opA, Power: 3}},
@@ -570,6 +596,8 @@ func TestNewValidatorProposalRequest_ExecutorVanishedCacheEntryPanics(cur realm,
 	// (NOT a public API) — production code has no path here today.
 	_, removed := valoperCache.Remove(op.String())
 	urequire.True(t, removed, "fixture: cache entry must have been present before Remove")
+
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
 
 	uassert.AbortsContains(t, cur, "operator vanished from valoperCache between propose and execute", func() {
 		_ = exec.Execute(cross(cur))

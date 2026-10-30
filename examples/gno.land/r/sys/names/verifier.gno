@@ -10,7 +10,7 @@
 //     has a (name → addr) mapping where the resolved address equals the
 //     deployer AND the name is the user's CURRENT name (not a historical
 //     alias from a rename chain). This is the bridge that lets
-//     r/sys/namereg/v1 (or any other DAO-whitelisted controller) grant
+//     r/sys/namereg/v0 (or any other DAO-whitelisted controller) grant
 //     deploy authority via name registration.
 //
 // Authority is unscoped: a registered name owns BOTH r/<name>/* and

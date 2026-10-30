@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -42,11 +43,9 @@ func TestVerifierResolvesChainOnlyImport(t *testing.T) {
 
 // Same property with a realistic dependency: one that ships tests.
 //
-// vm/qfile lists every stored file, so a dependency rebuilt from it carries its
-// _test.gno and its flattened _filetest.gno. Stamping that MPUserProd -- as the
-// getter did -- makes AddMemPackage reject it ("unexpected file given type
-// MPUserProd"), which surfaces as a rejection of the IMPORTING package for
-// files that are not even its own.
+// vm/qfile lists every stored file, the dependency's _test.gno and flattened
+// _filetest.gno included, and none of them may decide the verdict on the
+// IMPORTING package, whose files they are not.
 func TestVerifierResolvesChainOnlyImportWithTestFiles(t *testing.T) {
 	dep := chainPackage("gno.land/p/test/tested", "package tested\n\nfunc Add(a, b int) int { return a + b }\n")
 	dep.Files = append(dep.Files,
@@ -60,6 +59,46 @@ func TestVerifierResolvesChainOnlyImportWithTestFiles(t *testing.T) {
 	v := newRPCVerifier(t, dep)
 	require.NoError(t, v.verifyPackage(mpkg),
 		"a dependency's own test files are not the importing package's problem")
+}
+
+// A dependency whose module file is the legacy gno.mod carries it to the
+// typecheck, which refuses a dependency with no module file at all.
+func TestVerifierResolvesChainOnlyImportWithLegacyGnoMod(t *testing.T) {
+	const depPath = "gno.land/p/test/legacy"
+	dep := chainPackage(depPath, "package legacy\n\nfunc Add(a, b int) int { return a + b }\n")
+	for _, f := range dep.Files {
+		if f.Name == "gnomod.toml" {
+			f.Name, f.Body = "gno.mod", "module "+depPath+"\n"
+		}
+	}
+	dep.Sort()
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/legacy\"\n\nfunc Use() int { return legacy.Add(1, 2) }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg),
+		"a dependency's gno.mod must reach the typecheck")
+}
+
+// A dependency holding tests alone, which AddPackage has refused since #5892
+// but a package stored before it may be, is empty to the validator's
+// typecheck: its importer is rejected, not left pending on a dependency the
+// oracle could not build. The test is an xtest, whose clause does not name the
+// package.
+func TestVerifierRejectsAnImportHoldingOnlyTests(t *testing.T) {
+	const depPath = "gno.land/p/test/onlytests"
+	dep := chainPackage(depPath, "")
+	dep.Files[1] = &std.MemFile{Name: "onlytests_test.gno", Body: "package onlytests_test\n\nconst X = 1\n"}
+	dep.Sort()
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/onlytests\"\n\nfunc Use() int { return onlytests.X }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg), "the dependency is the chain's, not a reason to wait")
+	err := v.verifyPackage(mpkg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "undefined: onlytests.X")
 }
 
 // A diamond: user imports low and mid, and mid also imports low. So a
@@ -148,8 +187,27 @@ func chainPackage(pkgPath, body string) *std.MemPackage {
 func newRPCVerifier(t *testing.T, pkgs ...*std.MemPackage) *verifier {
 	t.Helper()
 	v := newTestVerifier(t)
-	v.rpc = &rpcGetter{cache: make(map[string]*std.MemPackage), qfile: fakeQFile(pkgs...)}
+	v.rpc = &rpcGetter{
+		cache: make(map[string]*std.MemPackage),
+		qfile: fakeQFile(pkgs...),
+		qmeta: fakeQMeta(pkgs...),
+	}
 	return v
+}
+
+// fakeQMeta answers like vm/qpkgmeta_json for a chain serving pkgs: live for
+// one of them, absent for anything else. Everything such a chain serves is
+// live, so a miss the verifier asks about can only be absent.
+func fakeQMeta(pkgs ...*std.MemPackage) qmetaFunc {
+	return func(pkgPath string) (vm.PackageMeta, error) {
+		meta := vm.PackageMeta{Path: pkgPath, Status: vm.PackageStatusAbsent}
+		for _, mpkg := range pkgs {
+			if mpkg.Path == pkgPath {
+				meta.Status = vm.PackageStatusLive
+			}
+		}
+		return meta, nil
+	}
 }
 
 // fakeQFile answers like vm/qfile: a newline-separated file list for a package
@@ -240,9 +298,7 @@ func TestPrepareReportsTheTransportFaultUnderABuildFailure(t *testing.T) {
 	}
 
 	// There is a build failure to outrank, asserted on the walk itself because
-	// prepare returns the fault instead. Without this the test below passes
-	// against a buildChainImports that does nothing: prepare's own LoadImports
-	// reaches low first and sets transportErr before the walk ever runs.
+	// prepare returns the fault instead.
 	buildErr := faulting().buildChainImports(mpkg)
 	require.Error(t, buildErr, "the walk must produce the failure being outranked")
 	assert.Contains(t, buildErr.Error(), "could not prebuild")
@@ -289,16 +345,185 @@ func TestPrepareCachesAnImportTheNodeDoesNotServe(t *testing.T) {
 		"the typecheck and the preprocess must not reach the node on the budget")
 }
 
+// An import only the candidate's tests name is never asked for. Both stages
+// read production files alone, as the validator does at enable, so fetching it
+// is a round trip that informs nothing.
+func TestVerifierFetchesNoImportOnlyItsTestsName(t *testing.T) {
+	dep := chainPackage("gno.land/p/test/dep", "package dep\n\nfunc Add(a, b int) int { return a + b }\n")
+	testOnly := chainPackage("gno.land/p/test/testonly", "package testonly\n\nfunc Want() int { return 3 }\n")
+	xtestOnly := chainPackage("gno.land/p/test/xtestonly", "package xtestonly\n\nfunc Want() int { return 3 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/dep\"\n\nfunc Use() int { return dep.Add(1, 2) }\n")
+	mpkg.Files = append(mpkg.Files,
+		&std.MemFile{Name: "user_test.gno", Body: "package user\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/test/testonly\"\n)\n\n" +
+			"func TestUse(t *testing.T) {\n\tif Use() != testonly.Want() {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+		&std.MemFile{Name: "z_test.gno", Body: "package user_test\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/test/user\"\n\t\"gno.land/p/test/xtestonly\"\n)\n\n" +
+			"func TestUse(t *testing.T) {\n\tif user.Use() != xtestonly.Want() {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+	)
+	mpkg.Sort()
+
+	v := newRPCVerifier(t, dep, testOnly, xtestOnly)
+	var asked []string
+	served := v.rpc.qfile
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		asked = append(asked, fpath)
+		return served(fpath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg))
+	require.Contains(t, asked, dep.Path, "premise: the production import must have been fetched, or this proves nothing")
+	assert.NotContains(t, asked, testOnly.Path, "a _test.gno import is not the validator's to resolve")
+	assert.NotContains(t, asked, xtestOnly.Path, "nor is an external test's")
+}
+
+// A live dependency vm/qfile missed once is fetched again, before the budget.
+//
+// The walk caches a miss as an absence, which is right for a chain that cannot
+// move under one verification. vm/qfile can move under the walk, though: an
+// enable landing between the miss and prepare's question leaves the getter
+// holding "absent" for a package vm/qpkgmeta_json reports live. Read as
+// absent, the stale miss becomes a typecheck verdict on a package the
+// validator would enable. So a live answer costs one more fetch, and the
+// package then verifies through both stages.
+func TestPrepareFetchesAgainWhatWentLiveUnderTheWalk(t *testing.T) {
+	dep := chainPackage("gno.land/p/test/latecomer", "package latecomer\n\nfunc One() int { return 1 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/latecomer\"\n\nfunc Use() int { return latecomer.One() }\n")
+
+	// Absent for the first listing, served from then on: enabled between the
+	// walk's fetch and prepare's question. The status query says live
+	// throughout, as fakeQMeta does for anything the chain serves.
+	v := newRPCVerifier(t, dep)
+	served := v.rpc.qfile
+	missedOnce := false
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		if fpath == dep.Path && !missedOnce {
+			missedOnce = true
+			return nil, errors.New("package is not available")
+		}
+		return served(fpath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.True(t, missedOnce, "premise: the walk must have missed the dependency once, or this proves nothing")
+	require.NoError(t, v.verifyPackage(mpkg),
+		"a dependency the chain reports live must resolve, whatever vm/qfile answered first")
+}
+
+// An import the walk could not fetch is classified by asking the node, and a
+// node that cannot be asked leaves it unclassified: the candidate is pending
+// on the fault, not judged on a question that was never answered.
+func TestPrepareReportsTheFaultUnderAnUnclassifiedImport(t *testing.T) {
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/nothing\"\n\nfunc Use() int { return nothing.X }\n")
+
+	v := newRPCVerifier(t) // a chain that serves nothing at all
+	v.rpc.qmeta = func(string) (vm.PackageMeta, error) {
+		return vm.PackageMeta{}, fmt.Errorf("%w: connection refused", errResolverUnavailable)
+	}
+
+	err := v.prepare(mpkg)
+	require.ErrorIs(t, err, errResolverUnavailable,
+		"a miss the node would not classify is the node's fault, and the parent classifies on it")
+}
+
+// TestPrepareBuildsLatecomersInAnyOrder: two imports the walk missed, live by
+// the time they are classified, one importing the other, verify on every run.
+// Building either resolves the other, so every cached absence has to go
+// before the first build, whichever path is visited first.
+func TestPrepareBuildsLatecomersInAnyOrder(t *testing.T) {
+	low := chainPackage("gno.land/p/test/depb", "package depb\n\nfunc One() int { return 1 }\n")
+	high := chainPackage("gno.land/p/test/depa",
+		"package depa\n\nimport \"gno.land/p/test/depb\"\n\nfunc Two() int { return depb.One() + 1 }\n")
+	mpkg := chainPackage("gno.land/r/test/wantsboth",
+		"package wantsboth\n\nimport (\n\t\"gno.land/p/test/depa\"\n\t\"gno.land/p/test/depb\"\n)\n\n"+
+			"func N(cur realm) int { return depa.Two() + depb.One() }\n")
+
+	for range 10 {
+		v := newRPCVerifier(t, low, high)
+		served := v.rpc.qfile
+		missed := map[string]bool{}
+		v.rpc.qfile = func(fpath string) ([]byte, error) {
+			if (fpath == low.Path || fpath == high.Path) && !missed[fpath] {
+				missed[fpath] = true
+				return nil, errors.New("package is not available")
+			}
+			return served(fpath)
+		}
+
+		require.NoError(t, v.prepare(mpkg))
+		require.Len(t, missed, 2, "premise: the walk must have missed both, or this proves nothing")
+		require.NoError(t, v.verifyPackage(mpkg),
+			"two latecomers the chain reports live must resolve, whichever is built first")
+	}
+}
+
+// TestPrepareAsksNoFurtherOnceAnImportIsAbsent: one absent import is a verdict
+// already, so classifying the misses stops there. A package naming many
+// imports that exist nowhere costs one status query, not one per import.
+func TestPrepareAsksNoFurtherOnceAnImportIsAbsent(t *testing.T) {
+	var imports, uses strings.Builder
+	for i := range 5 {
+		fmt.Fprintf(&imports, "\t\"gno.land/p/test/nowhere%d\"\n", i)
+		fmt.Fprintf(&uses, " + nowhere%d.X", i)
+	}
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport (\n"+imports.String()+")\n\nfunc Use() int { return 0"+uses.String()+" }\n")
+
+	v := newRPCVerifier(t) // a chain that serves nothing at all
+	asked := 0
+	status := v.rpc.qmeta
+	v.rpc.qmeta = func(pkgPath string) (vm.PackageMeta, error) {
+		asked++
+		return status(pkgPath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.Len(t, v.unserved, 5, "premise: the walk must have missed every import")
+	assert.Equal(t, 1, asked,
+		"the first absent import settles the package; asking about the rest costs a round trip each")
+	err := v.verifyPackage(mpkg)
+	require.Error(t, err, "the typecheck judges a package whose imports exist nowhere")
+	assert.NotErrorIs(t, err, errImportParked)
+}
+
+// TestPrepareReportsTheFaultUnderALateBuild: a latecomer whose own import the
+// node drops while it is built reports the fault, not the build failure it
+// causes, as TestPrepareReportsTheTransportFaultUnderABuildFailure pins for
+// the walk.
+func TestPrepareReportsTheFaultUnderALateBuild(t *testing.T) {
+	low := chainPackage("gno.land/p/test/low", "package low\n\nfunc One() int { return 1 }\n")
+	late := chainPackage("gno.land/p/test/latecomer",
+		"package latecomer\n\nimport \"gno.land/p/test/low\"\n\nfunc Two() int { return low.One() + 1 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/latecomer\"\n\nfunc Use() int { return latecomer.Two() }\n")
+
+	v := newRPCVerifier(t, low, late)
+	served := v.rpc.qfile
+	missedOnce := false
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		switch {
+		case fpath == late.Path && !missedOnce:
+			missedOnce = true
+			return nil, errors.New("package is not available")
+		case strings.HasPrefix(fpath, low.Path):
+			return nil, fmt.Errorf("%w: connection reset", errResolverUnavailable)
+		}
+		return served(fpath)
+	}
+
+	err := v.prepare(mpkg)
+	require.True(t, missedOnce, "premise: the walk must have missed the latecomer, or this proves nothing")
+	require.ErrorIs(t, err, errResolverUnavailable,
+		"a build that failed under a transport fault is the fault, not a fault of this oracle's tree")
+}
+
 // A stdlib that will not build in the operator's tree leaves the candidate
 // pending, whether it is imported directly or through a chain dependency.
 //
-// The asymmetry this pins out: buildChainImports used to skip non-userlib
-// paths, and LoadImports is called with abortOnError=false, which recovers the
-// disk getter's panic and prints it -- so prepare returned nil and the
-// typecheck's own panic became the answer. A candidate importing a broken
-// stdlib directly was rejected and marked seen; one importing a /p/ package
-// that imports it stayed pending. One level of indirection decided whether the
-// operator's checkout settled a stranger's bytes, terminally.
+// Both routes must give the same answer: the operator's checkout must never
+// settle a stranger's bytes, whatever level of indirection reaches it.
 func TestPrepareRefusesABrokenStdlibWhereverItIsImported(t *testing.T) {
 	// A tree that will not build, simulated at the seam a corrupt source file
 	// panics through. The real fault was NUL bytes in a stdlib .gno file.

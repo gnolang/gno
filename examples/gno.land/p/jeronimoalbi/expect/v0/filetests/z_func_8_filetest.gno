@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	caller = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	caller = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	msg    = "Boom!"
 )
 

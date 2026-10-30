@@ -1,6 +1,8 @@
 # Hostile realm proxy attack on valopers.UpdateSigningKey.
 #
-# valopers.UpdateSigningKey gates on v.Auth().AssertPreviousOnAuthList().
+# valopers.UpdateSigningKey gates on v.auth.AssertPreviousOnAuthList(),
+# the per-operator auth list -- NOT the realm-level governance authority
+# that valopers.Auth() describes; the two are unrelated.
 # Per docs/resources/gno-interrealm.md, PreviousRealm() returns the
 # IMMEDIATE previous frame: when a hostile third realm cross-calls
 # UpdateSigningKey from its own crossing function, valopers sees the

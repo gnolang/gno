@@ -49,7 +49,7 @@ func TestNodeAnswersAboutItselfAreNotAMiss(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			g := newRPCGetter(answeringClient{resp: abci.ResponseQuery{
+			g := newRPCGetter(t.Context(), answeringClient{resp: abci.ResponseQuery{
 				ResponseBase: abci.ResponseBase{Error: tc.answer},
 			}})
 
@@ -69,6 +69,68 @@ func TestNodeAnswersAboutItselfAreNotAMiss(t *testing.T) {
 	}
 }
 
+// TestPackageStatusIsAnAnswerOrAFault pins how vm/qpkgmeta_json is read. An
+// absent path is a successful "absent" (VMKeeper.QueryPackageMeta), so unlike
+// vm/qfile the route has no error that is evidence about the path: every
+// error is the node describing itself, and is remembered as a fault so the
+// verification it interrupted is left pending rather than judged.
+func TestPackageStatusIsAnAnswerOrAFault(t *testing.T) {
+	cases := map[string]struct {
+		resp       abci.ResponseQuery
+		wantStatus string
+	}{
+		"answered inert": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+				Data: []byte(`{"path":"gno.land/p/x/y","status":"inert","pending":true}`),
+			}},
+			wantStatus: vm.PackageStatusInert,
+		},
+		"answered absent": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+				Data: []byte(`{"path":"gno.land/p/x/y","status":"absent"}`),
+			}},
+			wantStatus: vm.PackageStatusAbsent,
+		},
+		"unknown request, route missing": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Error: std.UnknownRequestError{}}},
+		},
+		"internal error, state unloadable": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Error: std.InternalError{}}},
+		},
+		"unreadable answer": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte("not json")}},
+		},
+		"an answer with no status": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(`{}`)}},
+		},
+		"a null answer": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(`null`)}},
+		},
+		"a status this build does not know": {
+			resp: abci.ResponseQuery{ResponseBase: abci.ResponseBase{
+				Data: []byte(`{"path":"gno.land/p/x/y","status":"quarantined"}`),
+			}},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			g := newRPCGetter(t.Context(), answeringClient{resp: tc.resp})
+
+			status, err := g.status("gno.land/p/x/y")
+			if tc.wantStatus != "" {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantStatus, status)
+				assert.NoError(t, g.transportErr, "an answer records no fault")
+				return
+			}
+			require.ErrorIs(t, err, errResolverUnavailable,
+				"the route never says anything about the path through an error, so an error is about the node")
+			assert.ErrorIs(t, g.transportErr, errResolverUnavailable,
+				"the fault must be remembered so prepare reports it instead of a classification it never got")
+		})
+	}
+}
+
 // TestGenuineMissFromARealNode pins the wire form of a miss, so the type
 // switch above matches what a node actually sends rather than what the keeper
 // constructs.
@@ -80,7 +142,7 @@ func TestGenuineMissFromARealNode(t *testing.T) {
 
 	rpc, err := rpcclient.NewHTTPClient(remote)
 	require.NoError(t, err)
-	g := newRPCGetter(rpc)
+	g := newRPCGetter(t.Context(), rpc)
 
 	const path = "gno.land/p/nobody/nothing"
 	body, err := g.query(path)
@@ -92,10 +154,11 @@ func TestGenuineMissFromARealNode(t *testing.T) {
 	assert.Nil(t, g.GetMemPackage(path))
 }
 
-// TestStalledRemoteIsNotABudgetOverrun: a node that accepts the connection and
-// never answers must be reported as unavailable, not as a package that ran out
-// of verification time.
-func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
+// stalledNode starts a node that accepts the connection and never answers, and
+// returns its address. Its handlers are released before the server closes,
+// since Close waits on them.
+func stalledNode(t *testing.T) string {
+	t.Helper()
 	stall := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		select {
@@ -105,17 +168,43 @@ func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	t.Cleanup(func() { close(stall) })
+	return srv.URL
+}
 
-	o := newTestOracle(t)
-	o.cfg.remote = srv.URL
-	// The stall is ended by the prepare budget alone: the child has no
-	// per-request timeout of its own.
-	o.cfg.prepareBudget = 3 * time.Second
-	o.cfg.verifyBudget = 10 * time.Second
+// TestStalledRemoteIsNotABudgetOverrun: a node that accepts the connection and
+// never answers must be reported as unavailable, not as a package that ran out
+// of verification time -- whether the parent's import walk or the child is the
+// one waiting on it.
+func TestStalledRemoteIsNotABudgetOverrun(t *testing.T) {
+	stalled := stalledNode(t)
 
-	err := o.verify(context.Background(), packageImportingChainOnly())
-	require.ErrorIs(t, err, errVerifyUnavailable,
-		"the network under the resolver stalled; that says nothing about the package")
-	assert.NotErrorIs(t, err, errVerifyBudget,
-		"a stall must not count against the package's budget allowance, which gives up after %d", maxOverBudgetAttempts)
+	cases := map[string]func(t *testing.T) *oracle{
+		"in the parent": func(t *testing.T) *oracle {
+			t.Helper()
+			return newTestOracleAt(t, stalled)
+		},
+		"in the child": func(t *testing.T) *oracle {
+			t.Helper()
+			// The parent's walk is refused at once and hands over nothing, so
+			// the child is the one left waiting.
+			o := newTestOracle(t)
+			o.cfg.remote = stalled
+			return o
+		},
+	}
+	for name, newOracle := range cases {
+		t.Run(name, func(t *testing.T) {
+			o := newOracle(t)
+			// The stall is ended by the prepare budget alone: neither side has
+			// a per-request timeout shorter than it.
+			o.cfg.prepareBudget = 3 * time.Second
+			o.cfg.verifyBudget = 10 * time.Second
+
+			err := o.verify(context.Background(), packageImportingChainOnly())
+			require.ErrorIs(t, err, errVerifyUnavailable,
+				"the network under the resolver stalled; that says nothing about the package")
+			assert.NotErrorIs(t, err, errVerifyBudget,
+				"a stall must not count against the package's budget allowance, which gives up after %d", maxOverBudgetAttempts)
+		})
+	}
 }

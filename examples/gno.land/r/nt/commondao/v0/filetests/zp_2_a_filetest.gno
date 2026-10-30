@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	owner   = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner   = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user    = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 	name    = "Foo SubDAO"
-	members = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq\ng1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+	members = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx\ng1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 )
 
 var daoID uint64
@@ -58,5 +58,5 @@ func main(cur realm) {
 // Purpose
 //
 // **Council Members:**
-// - g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq
+// - g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 // - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5

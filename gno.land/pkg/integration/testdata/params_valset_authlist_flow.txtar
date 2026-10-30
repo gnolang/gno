@@ -1,7 +1,9 @@
 # AddToAuthList / DeleteFromAuthList privilege flow test for valoper
 # UpdateSigningKey.
 #
-# UpdateSigningKey calls v.Auth().AssertPreviousOnAuthList(); the auth
+# UpdateSigningKey calls v.auth.AssertPreviousOnAuthList() on the
+# per-operator auth list -- NOT the realm-level governance authority that
+# valopers.Auth() describes; the two are unrelated. The auth
 # list is seeded with just the operator at Register time and extends
 # only via valopers.AddToAuthList. This test exercises three states:
 #

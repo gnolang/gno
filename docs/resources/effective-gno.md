@@ -108,10 +108,11 @@ behavior. Packages should be designed to be flexible and not impose restrictions
 that could lead to user frustration or the need to fork the code.
 
 ```go
-import "chain/runtime"
-
-func Foobar() {
-	caller := runtime.PreviousRealm().Address()
+func Foobar(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
 	}
@@ -152,10 +153,7 @@ A common use case could be to set the "admin" as the caller uploading the
 package.
 
 ```go
-import (
-	"chain/runtime"
-	"time"
-)
+import "time"
 
 var (
 	created time.Time
@@ -163,12 +161,12 @@ var (
 	list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
-func init() {
+func init(cur realm) {
 	created = time.Now()
-	// runtime.OriginCaller in the context of realm initialisation is,
-	// of course, the publisher of the realm :)
-	// This can be better than hardcoding an admin address as a constant.
-	admin = runtime.OriginCaller()
+	// During initialization the previous realm is the publisher of the realm
+	// (the EOA that deployed it), so capturing it here is better than
+	// hardcoding an admin address as a constant.
+	admin = cur.Previous().Address()
 	// list is already initialized, so it will already contain "foo", "bar" and
 	// the current time as existing items.
 	list = append(list, admin.String())
@@ -469,10 +467,8 @@ realm's functionality and ensure that only authorized callers can execute
 certain operations.
 
 ```go
-import "chain/runtime"
-
-func PublicMethod(nb int) {
-	caller := runtime.PreviousRealm().Address()
+func PublicMethod(cur realm, nb int) {
+	caller := cur.Previous().Address()
 	privateMethod(caller, nb)
 }
 
@@ -480,7 +476,7 @@ func privateMethod(caller address, nb int) { /* ... */ }
 ```
 
 In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `runtime.PreviousRealm().Address()`, and
+realms. It retrieves the caller's address using `cur.Previous().Address()`, and
 then passes it to `privateMethod`, which is a private function that performs the
 actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
@@ -506,19 +502,16 @@ the Gno standard library:
 ```go
 package events
 
-import (
-	"chain"
-	"chain/runtime"
-)
+import "chain"
 
 var owner address
 
-func init() {
-	owner = runtime.PreviousRealm().Address()
+func init(cur realm) {
+	owner = cur.Previous().Address()
 }
 
-func ChangeOwner(_ realm, newOwner address) {
-	caller := runtime.PreviousRealm().Address()
+func ChangeOwner(cur realm, newOwner address) {
+	caller := cur.Previous().Address()
 
 	if caller != owner {
 		panic("access denied")
@@ -567,40 +560,41 @@ whitelisted or not.
 
 Let's deep dive into the different access control mechanisms we can use:
 
-One strategy is to look at the caller with `runtime.PreviousRealm()`, which could be the
-EOA (Externally Owned Account), or the preceding realm in the call stack.
+One strategy is to look at the immediate caller with `cur.Previous()` inside a
+crossing function (`func F(cur realm, ...)`). The previous realm could be the EOA
+(Externally Owned Account), or the preceding realm in the call stack.
 
-Another approach is to look specifically at the EOA. For this, you should call
-`runtime.OriginCaller()`, which returns the public address of the account that
-signed the transaction.
-
-TODO: explain when to use `runtime.OriginCaller`.
+Another approach is to look specifically at the EOA with
+`unsafe.OriginCaller()` from `chain/runtime/unsafe`, which returns the public
+address of the account that signed the transaction. This is Gno's `tx.origin`,
+and it carries the same phishing risk as Solidity's well-known `tx.origin`: an
+intermediate realm the user was tricked into calling still shows up as that
+original signer. Prefer `cur.Previous()` for caller authentication; reach for
+`unsafe.OriginCaller()` only when you specifically need the signer's identity
+rather than the immediate caller's.
 
 Internally, this call will look at the frame stack, which is basically the stack
 of callers, including all the functions, anonymous functions, other realms, and
-take the initial caller. This allows you to identify the original caller and
-implement access control based on their address.
+take the initial caller.
 
 Here's an example:
 
 ```go
-import "chain/runtime"
-
 var admin address = "g1xxxxx"
 
-func AdminOnlyFunction(_ realm) {
-	caller := runtime.PreviousRealm().Address()
+func AdminOnlyFunction(cur realm) {
+	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
 	}
 	// ...
 }
 
-// func UpdateAdminAddress(_ realm, newAddr address) { /* ... */ }
+// func UpdateAdminAddress(cur realm, newAddr address) { /* ... */ }
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `runtime.PreviousRealm().Address()`,
+the admin. It retrieves the caller's address using `cur.Previous().Address()`,
 this can be either another realm contract, or the calling user if there is no
 other intermediary realm. and then checks if the caller is the admin. If not, it
 panics and stops the execution.
@@ -613,10 +607,8 @@ the behavior of the default grc20 implementation.
 Here's an example:
 
 ```go
-import "chain/runtime"
-
-func TransferTokens(_ realm, to address, amount int64) {
-	caller := runtime.PreviousRealm().Address()
+func TransferTokens(cur realm, to address, amount int64) {
+	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
 	}
@@ -625,7 +617,7 @@ func TransferTokens(_ realm, to address, amount int64) {
 ```
 
 In this example, `TransferTokens` is a function that can only be called by the
-admin. It retrieves the caller's address using `runtime.PreviousRealm().Address()`, and
+admin. It retrieves the caller's address using `cur.Previous().Address()`, and
 then checks if the caller is the admin. If not, the function panics and execution is stopped.
 
 By using these access control mechanisms, you can ensure that your contract's
@@ -640,22 +632,66 @@ store each node separately (accessing a value loads only the search path).
 This makes `avl.Tree` significantly more efficient in both gas usage and
 runtime performance for large or growing datasets.
 
+That same "all entries in one object" is also what a **write** costs. Changing one
+entry of a map marks the whole object dirty, so the transaction is charged for
+re-persisting all of it: a map update is O(n) in the entries the map holds. An
+`avl.Tree` marks only the nodes on the search path, so its update is O(log n).
+The two costs run in opposite directions, and that is what decides between them:
+
+| one update, cold | n = 100 | n = 1,000 | n = 10,000 | bytes/entry |
+|---|--:|--:|--:|--:|
+| `map[string]string` | 118,685 | 1,034,165 | 10,195,084 | 153 |
+| `avl.Tree` | 267,504 | 364,210 | 463,823 | 2,029 |
+
+The map really is O(n): it fits `17k + 1017n` to within 0.06% across those
+three decades. On bytes it is the cheaper structure at every size, 153 against
+2,029 per entry. On the update it is cheaper only while it stays small, and the
+crossover is measured rather than extrapolated: the suite carries n = 220, 280
+and 300, and the map passes `avl.Tree` between 280 (map 301,609, AVL 315,224)
+and 300. So **under roughly 250 entries a map wins on both counts**, however
+often it is written; above that the gap only widens, and at n = 10,000 a map
+update costs 22x what the tree charges, on every call that touches one record.
+
+Gas figures are from the [`gnobench` storage
+suite](https://github.com/moul/gno-contracts/blob/main/gnobench/reports/storage.md)
+(gas from workload `tx_write`, bytes from `insert_rand`, both group `kv`, mode
+cold, string values; the gas figure is the marginal cost over a transaction
+that never touches the container), run 2026-10-26 against `gnolang/gno`
+`4f6104831`; raw rows are in
+[`gnobench/results/storage/`](https://github.com/moul/gno-contracts/tree/main/gnobench/results/storage).
+
 **Key differences**:
 
-- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
-- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
+- **AVL Trees**: O(log n) lookup, O(log n) update, lazy loading, iterate in
+  **sorted key order**.
+- **Maps**: O(1) lookup, O(n) update, type safety, iterate in **insertion
+  order**.
+
+Note on iteration order: unlike Go, where ranging over a map is deliberately
+randomised, a Gno map iterates deterministically in insertion order, and a key
+that is deleted and re-added moves to the end. A `MapValue` holds a `MapList`,
+a linked list appended to at the tail (`gnovm/pkg/gnolang/values.go`), and
+`OpRangeIterMap` walks it from `List.Head`
+(`gnovm/pkg/gnolang/op_exec.go`); the order is preserved across persistence by
+`MapList.MarshalAmino`. So ranging over a map is not a consensus hazard. What
+you give up is *key* order, not determinism.
 
 **Use `avl.Tree` when you need**:
 
 - Lazy loading (efficient for large datasets - only loads the search path)
 - Efficient range queries (find all keys between "bob" and "charlie")
 - Data that grows over time (user registries, leaderboards)
+- Data above a few hundred entries that is updated in place, where the map's
+  O(n) write dominates
 - Sorted iteration by key value
 
 **Use `map` when you need**:
 
 - O(1) fast lookups
-- Small bounded datasets (e.g.: configuration values)
+- Small bounded datasets, roughly **under 250 entries** (e.g.: configuration
+  values). Below the crossover a map is cheaper on gas and on storage deposit
+  alike
+- Deterministic insertion-order iteration
 - Type safety (AVL values are `any` and require type assertions)
 
 ```go
@@ -663,7 +699,7 @@ runtime performance for large or growing datasets.
 users := make(map[string]User)
 users["bob"] = User{}
 users["alice"] = User{}
-for name := range users { // unspecified order
+for name := range users { // insertion order: bob, then alice
 	// ...
 }
 user := users["alice"] // O(1) direct access
@@ -728,15 +764,18 @@ pointer can be "stored" by other realms without issue, because it protects its
 usage completely.
 
 ```go
-import "chain/runtime"
-
 type MySafeStruct struct {
 	counter int
 	admin address
 }
 
-func NewSafeStruct() *MySafeStruct {
-	caller := runtime.PreviousRealm().Address()
+// A /p/ package cannot declare realm-first-arg crossing functions, so the
+// caller's realm is threaded as a non-first argument, the way p/nt/ownable does.
+func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
 		admin: caller,
@@ -744,8 +783,11 @@ func NewSafeStruct() *MySafeStruct {
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
-func (s *MySafeStruct) Inc(_ realm) {
-	caller := runtime.PreviousRealm().Address()
+func (s *MySafeStruct) Inc(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	if caller != s.admin {
 		panic("permission denied")
 	}
@@ -758,9 +800,9 @@ Then, you can register this object in one or more other realms so that they can 
 ```go
 import "gno.land/r/otherrealm"
 
-func init() {
-	mySafeObj := NewSafeStruct()
-	otherrealm.Register(mySafeObject)
+func init(cur realm) {
+	mySafeObj := NewSafeStruct(0, cur)
+	otherrealm.Register(mySafeObj)
 }
 
 // then, other realm can call the public functions but won't be the "owner" of
@@ -798,18 +840,18 @@ A realm that wants to charge for a function typically attaches a payment check
 like this:
 
 ```go
-func BuyThing(_ realm, ...) {
-    if !runtime.PreviousRealm().IsUser() {   // BAD
+func BuyThing(cur realm, ...) {
+    if !cur.Previous().IsUser() {   // BAD
         panic("must be called by a user")
     }
-    if banker.OriginSend().AmountOf("ugnot") != price {
+    if unsafe.OriginSend().AmountOf("ugnot") != price {
         panic("wrong payment amount")
     }
     // ... do the thing ...
 }
 ```
 
-This is **subtly unsafe**. `banker.OriginSend()` returns the coins attached to
+This is **subtly unsafe**. `unsafe.OriginSend()` returns the coins attached to
 the *original transaction*, not the coins actually received by this realm. If
 anything runs between the tx origin and this realm's function, those coins may
 have been consumed by the intermediary. Two attacker shapes bypass the check:
@@ -833,18 +875,18 @@ have been consumed by the intermediary. Two attacker shapes bypass the check:
 The fix is to use `IsUserCall()` instead of `IsUser()`:
 
 ```go
-func BuyThing(_ realm, ...) {
-    if !runtime.PreviousRealm().IsUserCall() {  // GOOD
+func BuyThing(cur realm, ...) {
+    if !cur.Previous().IsUserCall() {  // GOOD
         panic("must be called directly by an EOA (maketx call)")
     }
-    if banker.OriginSend().AmountOf("ugnot") != price {
+    if unsafe.OriginSend().AmountOf("ugnot") != price {
         panic("wrong payment amount")
     }
     // ... do the thing ...
 }
 ```
 
-`IsUserCall()` returns true only when `PreviousRealm().PkgPath() == ""`, i.e.
+`IsUserCall()` returns true only when `cur.Previous().PkgPath() == ""`, i.e.
 the caller is a pure EOA. In that case the `-send` coins are guaranteed to
 have landed at this realm's address, so `OriginSend()` and receipt agree.
 
@@ -862,8 +904,8 @@ Alternatives considered:
   blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
   (e.g. governance-only functions).
 
-- **`banker.NewBanker(banker.BankerTypeOriginSend)`** — creating this banker
-  requires `PreviousRealm().PkgPath() == ""`, so it implicitly asserts EOA. But
+- **`banker.NewBanker(banker.BankerTypeOriginSend, cur)`** — creating this banker
+  requires `cur.Previous().PkgPath() == ""`, so it implicitly asserts EOA. But
   it's a side-effectful assertion; if you don't need the banker itself,
   `IsUserCall()` is clearer.
 
@@ -891,11 +933,7 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import (
-	"chain/runtime"
-
-	"gno.land/p/nt/grc20/v0"
-)
+import "gno.land/p/nt/grc20/v0"
 
 var (
 	Token         *grc20.Token
@@ -917,8 +955,8 @@ func Transfer(cur realm, to address, amount int64) {
 	}
 }
 
-func MyBalance(_ realm) int64 {
-	caller := runtime.PreviousRealm().Address()
+func MyBalance(cur realm) int64 {
+	caller := cur.Previous().Address()
 	return Token.BalanceOf(caller)
 }
 ```
