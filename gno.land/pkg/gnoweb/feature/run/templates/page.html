@@ -51,7 +51,7 @@ script into an editor and keeps the command in step with the fields.
         <label for="run-key">Key&nbsp;/&nbsp;Address</label>
         <input type="text" id="run-key" data-action-header-target="address"
           data-action="input->action-header#updateAddress"
-          placeholder="KEYNAME" class="u-font-mono"
+          placeholder="ADDRESS" class="u-font-mono"
           autocomplete="off" />
       </div>
       <div class="b-input">
@@ -79,7 +79,7 @@ script into an editor and keeps the command in step with the fields.
   <div class="b-run-panel">
     <h2 class="b-content-h2">Generated Command</h2>
     <div class="b-run-command-header">
-      <p>Running it signs a transaction with <code class="u-font-mono" data-run-target="key-arg">KEYNAME</code>
+      <p>Running it signs a transaction with <code class="u-font-mono" data-run-target="address-arg">ADDRESS</code>
         and broadcasts it to the <code class="u-font-mono">{{ .ChainId }}</code> chain, which charges its gas fee,
         even when the script runs out of gas: raise <code class="u-font-mono">-gas-wanted</code> and <code class="u-font-mono">-gas-fee</code> for a heavier one.</p>
       <div class="b-btn b-switch" data-run-target="js-only" hidden>
@@ -99,9 +99,9 @@ script into an editor and keeps the command in step with the fields.
       text it copies, so the slots the fields fill are repeated in both. */}}
       <pre><code class="u-font-mono"><span data-run-target="mode" data-run-mode-value="fast" class="u-hidden">{{ template "ui/insecure_warning" }}
 
-{{ template "run/heredoc" . }}gnokey maketx run -gas-fee {{ template "run/gas" . }} -chainid "{{ .ChainId }}" -remote "{{ .Remote }}" <span data-run-target="key-arg">KEYNAME</span> script.gno</span><span data-run-target="mode" data-run-mode-value="secure" data-copy-target="run-cmd" class="u-inline">{{ template "run/heredoc" . }}gnokey query -remote "{{ .Remote }}" auth/accounts/<span data-run-target="address-arg">ADDRESS</span>
-gnokey maketx run -gas-fee {{ template "run/gas" . }} -broadcast=false <span data-run-target="key-arg">KEYNAME</span> script.gno &gt; run.tx
-gnokey sign -tx-path run.tx -chainid "{{ .ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-run-target="key-arg">KEYNAME</span>
+{{ template "run/heredoc" . }}gnokey maketx run -gas-fee {{ template "run/gas" . }} -chainid "{{ .ChainId }}" -remote "{{ .Remote }}" <span data-run-target="address-arg">ADDRESS</span> script.gno</span><span data-run-target="mode" data-run-mode-value="secure" data-copy-target="run-cmd" class="u-inline">{{ template "run/heredoc" . }}gnokey query -remote "{{ .Remote }}" auth/accounts/<span data-run-target="address-arg">ADDRESS</span>
+gnokey maketx run -gas-fee {{ template "run/gas" . }} -broadcast=false <span data-run-target="address-arg">ADDRESS</span> script.gno &gt; run.tx
+gnokey sign -tx-path run.tx -chainid "{{ .ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-run-target="address-arg">ADDRESS</span>
 gnokey broadcast -remote "{{ .Remote }}" run.tx</span></code></pre>
     </div>
   </div>

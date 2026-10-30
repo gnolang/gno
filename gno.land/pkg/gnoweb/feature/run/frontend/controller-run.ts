@@ -1,5 +1,6 @@
 import { CodeEditor } from "@gnoweb/js/code-editor.js";
 import {
+	addressSlotText,
 	BaseController,
 	downloadBlob,
 	shellQuote,
@@ -18,8 +19,8 @@ export class RunController extends BaseController {
 	private declare sendEl: HTMLInputElement;
 	private declare includeScriptEl: HTMLInputElement;
 	private declare editor: CodeEditor;
-	// The key or address typed in the header, empty for the placeholders.
-	private declare key: string;
+	// The address typed in the header, empty for the placeholder.
+	private declare address: string;
 
 	protected connect(): void {
 		this.script = this.getValue("script");
@@ -29,7 +30,7 @@ export class RunController extends BaseController {
 		this.includeScriptEl = this.getTarget("includeScript") as HTMLInputElement;
 		const editorEl = this.getTarget("editor");
 		if (!editorEl) return;
-		this.key = "";
+		this.address = "";
 		// Served hidden: these controls only work from here on.
 		for (const el of this.getTargets("js-only")) el.hidden = false;
 
@@ -52,7 +53,7 @@ export class RunController extends BaseController {
 			this._showMode((e as CustomEvent).detail.mode),
 		);
 		this.on("address:changed", (e) => {
-			this.key = String((e as CustomEvent).detail.address).trim();
+			this.address = String((e as CustomEvent).detail.address);
 			this._updateCommand();
 		});
 		// The browser may have restored the fields of a reloaded page.
@@ -75,10 +76,7 @@ export class RunController extends BaseController {
 	}
 
 	private _updateCommand(): void {
-		// KEYNAME, not <key-name>: a shell reads "<" as a redirect.
-		const key = this.key ? shellQuote(this.key) : "";
-		this._fill("key-arg", key || "KEYNAME");
-		this._fill("address-arg", key || "ADDRESS");
+		this._fill("address-arg", addressSlotText(this.address));
 		// An emptied field falls back to the default the page was served with.
 		this._fill(
 			"gas-wanted-arg",

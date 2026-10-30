@@ -112,17 +112,16 @@ func TestPageServedWhole(t *testing.T) {
 	assert.Contains(t, page, `<span data-run-target="mode" data-run-mode-value="fast" class="u-hidden"># WARNING`)
 	for _, line := range []string{
 		`gnokey query -remote "https://rpc.example:443" auth/accounts/<span data-run-target="address-arg">ADDRESS</span>`,
-		`gnokey maketx run -gas-fee <span data-run-target="gas-fee-arg">100000ugnot</span> -gas-wanted <span data-run-target="gas-wanted-arg">50_000_000</span><span data-run-target="send-arg"></span> -broadcast=false <span data-run-target="key-arg">KEYNAME</span> script.gno &gt; run.tx`,
-		`gnokey sign -tx-path run.tx -chainid "test-1" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-run-target="key-arg">KEYNAME</span>`,
+		`gnokey maketx run -gas-fee <span data-run-target="gas-fee-arg">100000ugnot</span> -gas-wanted <span data-run-target="gas-wanted-arg">50_000_000</span><span data-run-target="send-arg"></span> -broadcast=false <span data-run-target="address-arg">ADDRESS</span> script.gno &gt; run.tx`,
+		`gnokey sign -tx-path run.tx -chainid "test-1" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-run-target="address-arg">ADDRESS</span>`,
 		`gnokey broadcast -remote "https://rpc.example:443" run.tx`,
-		`-chainid "test-1" -remote "https://rpc.example:443" <span data-run-target="key-arg">KEYNAME</span> script.gno</span>`,
+		`-chainid "test-1" -remote "https://rpc.example:443" <span data-run-target="address-arg">ADDRESS</span> script.gno</span>`,
 	} {
 		assert.Contains(t, page, line)
 	}
-	assert.NotContains(t, page, "&lt;key-name&gt;", "a shell reads <key-name> as a redirect")
 
 	// It says what running it does, and takes $help's mode and key.
-	assert.Contains(t, page, `signs a transaction with <code class="u-font-mono" data-run-target="key-arg">KEYNAME</code>`)
+	assert.Contains(t, page, `signs a transaction with <code class="u-font-mono" data-run-target="address-arg">ADDRESS</code>`)
 	assert.Contains(t, page, `to the <code class="u-font-mono">test-1</code> chain`)
 	assert.Contains(t, page, `even when the script runs out of gas: raise <code class="u-font-mono">-gas-wanted</code>`)
 	assert.Contains(t, page, `data-controller="action-header"`)

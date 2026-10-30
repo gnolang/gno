@@ -51,8 +51,8 @@ export function argSlotText(value: string, type: string): string {
 		: escapeShellSpecialChars(value);
 }
 
-// addressSlotText is the key or address slot of $help's commands, quoted as
-// $run quotes it: a key name may hold a space or a quote.
+// addressSlotText is the key or address slot of $help's and $run's commands,
+// quoted: a key name may hold a space or a quote.
 export function addressSlotText(address: string): string {
 	const key = address.trim();
 	return key ? shellQuote(key) : "ADDRESS";
