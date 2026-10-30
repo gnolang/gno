@@ -172,7 +172,10 @@ func TestCutReleaseTagMessage(t *testing.T) {
 }
 
 // bash 3.2 ends a script aborted by set -u with the EXIT trap's status, 0
-// unless the trap says otherwise; the operator must still see a failure.
+// unless the trap says otherwise; the operator must still see a failure. This
+// bites on bash 3.2 only, macOS's /bin/bash: bash 5 exits non-zero from the
+// abort with or without the fix. TestReleaseScriptsFailAnyOtherEnding pins
+// the fix's shape on any bash.
 func TestCutReleaseAbortExitsNonZero(t *testing.T) {
 	t.Parallel()
 
@@ -212,6 +215,40 @@ func TestCutReleaseHaltProposalNamesTheNetwork(t *testing.T) {
 			require.True(t, returned, out)
 			assert.Contains(t, out, c.says)
 			assert.NotContains(t, out, c.never)
+		})
+	}
+}
+
+// Each release script marks the ends it means, --help and main returning,
+// with DONE=1, and its EXIT trap fails any other ending. This is the shape
+// TestCutReleaseAbortExitsNonZero and TestPromoteReleaseRuns's abort case
+// exercise on bash 3.2, read from the scripts so it holds on any bash.
+func TestReleaseScriptsFailAnyOtherEnding(t *testing.T) {
+	t.Parallel()
+
+	const fails = "[[ ${DONE} -eq 1 ]] || exit 1"
+	for _, rel := range []string{"misc/release/cut-release.sh", promoteReleaseScript} {
+		t.Run(rel, func(t *testing.T) {
+			t.Parallel()
+
+			src := repoFile(t, rel)
+			trap := grepOne(t, rel, `(?m)^trap (.+) EXIT$`)
+			// An inline trap ends with the check; a named one is a function
+			// whose last statement is the check.
+			if body, ok := strings.CutPrefix(trap, "'"); ok {
+				assert.True(t, strings.HasSuffix(body, "; "+fails+"'"), "%s: the EXIT trap must end with %s", rel, fails)
+			} else {
+				def := shellFunc(t, rel, src, trap)
+				assert.True(t, strings.HasSuffix(def, "\t"+fails+"\n}"), "%s: %s() must end with %s", rel, trap, fails)
+			}
+			assert.Less(t, strings.Index(src, "\nDONE=0\n"), strings.Index(src, "\ntrap "), "%s must set DONE=0 before its trap", rel)
+			assert.True(t, strings.HasSuffix(src, "\nmain \"$@\"\nDONE=1\n"), "%s must end with main \"$@\" and then DONE=1", rel)
+			// The only other end it means is --help's.
+			exits := regexp.MustCompile(`(?m)^(.*)\n\s*exit 0$`).FindAllStringSubmatch(src, -1)
+			require.NotEmpty(t, exits, "%s: no exit 0 for --help", rel)
+			for _, m := range exits {
+				assert.Equal(t, "DONE=1", strings.TrimSpace(m[1]), "%s: an exit 0 must follow DONE=1", rel)
+			}
 		})
 	}
 }

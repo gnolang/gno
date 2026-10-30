@@ -522,6 +522,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 
 	// bash 3.2 ends a script aborted by set -u with the EXIT trap's status, 0
 	// unless the trap says otherwise; the caller must still see a failure.
+	// This bites on bash 3.2 only, macOS's /bin/bash: bash 5 exits non-zero
+	// from the abort with or without the fix. TestReleaseScriptsFailAnyOtherEnding
+	// pins the fix's shape on any bash.
 	t.Run("an abort exits non-zero, and --help zero", func(t *testing.T) {
 		t.Parallel()
 
