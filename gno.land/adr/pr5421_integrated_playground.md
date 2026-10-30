@@ -64,12 +64,20 @@ comes the same way: the page serves each file once, as text in a `<pre>`
 named after it, which a reader without JS reads and the controller reads
 back into the editor (each `<pre>` opens with a newline, which HTML drops,
 so a file's own leading blank line is kept). A copy's files are read by
-the fetch `$download`
-uses, handed to the playground as a `PackageFetcher` (as state is handed a
-`FileFetcher`), so both share one bound (100 files, 2 MiB of all files),
-one 60 s cache and one coalesced read per package. A copy also caps what it
-shows: 1 MiB of sources, counting only the files it opens (not a README),
-so its page stays about that size. The read outlives the
+the fetch `$download` uses, handed to the playground as a `PackageFetcher`
+(as state is handed a `FileFetcher`), so both share one file cap (100), one
+60 s cache and one coalesced read per package and kind of read. A copy reads
+only what it opens, the Gno sources and `gnomod.toml` (`InCopy`), so a README
+or a filetest costs no node query and does not count against the bounds:
+`r/gnoland/boards2/v0` lists 252 files on gno.land, 228 of them filetests,
+which `$download` refuses and a copy opens as its 23 sources. Filetests stay
+out of every copy, whatever its size, so what a copy holds does not depend on
+a threshold; Run locally says so, a filetest's source page links to no copy,
+and a link that still names one says the file is not in it. A
+`gnomod.toml`'s source page links to its tab. A read skips a name vm/qfile
+cannot read (`validFileName`), such as a lowercase `license`, which the chain
+takes. `$download` reads 2 MiB at most, and a copy 1 MiB of sources, which
+the page carries once, as HTML-escaped text. The read outlives the
 request that started it, for the requests after, but a request waits for it
 no longer than its own deadline. A missing package is a 404, a node
 timeout or a deadline passed a 408 (its text in the body, as a page shows
@@ -90,11 +98,17 @@ The playground does not execute scratch-pad code. Its button says what it
 does, from the server's first render on: the server alone decides whether a
 copy previews, and the button carries the label and title the controller
 switches to on the first edit. On an unmodified copy of a realm that
-declares `Render`, it reads "Preview" and shows what that realm
-renders, `Render("")` through `/_/api/eval` at the copy's own path.
+declares `Render`, crossing or not, it reads "Preview" and shows what that
+realm renders, `Render("")` through `/_/api/eval` at the copy's own path,
+where `vm/qeval` hands a crossing `Render` its `cur`.
 Anywhere else (edited code, a package, a share, the default code), it reads
-"Run locally" and prints `gno run .` and `gno test .`, with no file name in
-any command. A Run result or a Share confirmation that comes back after the
+"Run locally" and prints the commands that would run, with no file name in
+any of them (`localCommands`): `gno run .` for code that declares `main`,
+`gno run -expr 'println(Render(""))' .` for one that declares
+`Render(path string) string` without a `main`, and `gno test .` when the
+editor holds a `gnomod.toml`, which that command needs. A crossing `Render`
+gets no run command: `-expr` hands one its `cur` only as the outermost call,
+where `gno run` discards the result. A Run result or a Share confirmation that comes back after the
 output moved on is dropped, and a newer Run aborts the request it
 supersedes. Share prints the link when the Clipboard API is missing.
 Analytics counts the page as `playground`, and `$run` as `run`.
@@ -117,7 +131,11 @@ nothing mutates state.
 A card's Eval button sends the card's params in order, one per input, so
 unnamed and repeated (`_`) params count: the value typed, as one operand,
 or a zero literal for the param's type (`""` for a `string` or an
-`address`). A typed value is kept only when it is exactly one valid Gno
+`address`). On `$help` a `string` is taken as typed and any other type
+trimmed, as whitespace belongs to no number, bool or address (`paramValue`).
+A form's fields have no type and are trimmed, as on master: a stray space
+in a number fails on chain after spending gas, a lost one in a text does not.
+A typed value is kept only when it is exactly one valid Gno
 string literal, or, for a param of any other type, one number, rune or
 name; anything else is quoted. An expression never gets in: a link's
 prefilled value cannot make a card evaluate something else on load and
@@ -126,7 +144,11 @@ package doc (`.Params`) rather than parsing the signature.
 The card's live result and its printed `gnokey query vm/qeval -data` command
 use the same literals, so all three agree on what a typed value means; the
 `gnokey maketx call -args` command keeps the raw value, which gnokey parses
-by type itself. These helpers are pure functions in `frontend/js/utils.ts`,
+by type itself. On `$help` a printed arg and its input share the param's
+position, so an unnamed or a repeated param keeps its own value; a form's
+inputs have no position to share (a radio is several inputs of one param),
+and go by name. The URL a card shares still goes by name, so repeated `_`
+params collapse there. These helpers are pure functions in `frontend/js/utils.ts`,
 pinned by `make -C gno.land/pkg/gnoweb/frontend test` (node's own test
 runner, no dependency); the playground's file helpers (`playground-files.ts`)
 are pinned the same way. A chain error reaches the reader in the node's
@@ -186,8 +208,9 @@ through a heredoc. gnoweb never signs or broadcasts.
   `action-header` controller and stored values, so a choice on one page
   carries to the other. A line above the command says running it signs with
   the key and broadcasts to the chain ID, which charges its fee. Empty, the
-  key reads `KEYNAME` (a shell reads `<key-name>` as a redirect) and the
-  account query `ADDRESS`.
+  field and all the commands read `ADDRESS`, as on `$help`: `maketx` and
+  `sign` take an address as well as a key name, while the account query the
+  secure mode opens with takes only an address.
 - **Shell safety:** each typed value (key, gas, fee, coins) is single-quoted
   when it holds a character a shell treats specially, so it stays one
   literal argument; `escapeShellSpecialChars` leaves spaces, so it would not.
@@ -224,8 +247,12 @@ always sets the help remote and the chain ID their commands print.
 `vm/qeval` and returns `{result}` or `{error}`.
 
 - **Requests:** a body that is not `application/json` is refused with 415,
-  and a request another site sent (`Sec-Fetch-Site`/`Origin`, net/http's
-  `CrossOriginProtection`) with 403, both before the limiter is charged.
+  and a request `Sec-Fetch-Site` names as another site's with 403, both
+  before the limiter is charged. The JSON body is what stops a cross-site
+  page, which needs a preflight gnoweb never approves. `Origin` is not read,
+  so net/http's `CrossOriginProtection` is not used: browsers send no
+  `Sec-Fetch-Site` on plain HTTP, and its fallback, comparing `Origin` with
+  `Host`, refuses gnoweb's own pages behind a proxy that rewrites `Host`.
   A body over 1 MiB is a 413; another method a 405 with `Allow: POST`.
 - **Rate limit:** `state.NewIPLimiter`, built with `-trusted-proxies` like
   the state and search limiters: 40 of burst and 60 per minute per client,
@@ -247,7 +274,8 @@ always sets the help remote and the chain ID their commands print.
   handler's request timeout.
 - **Answers:** an expression the chain rejects is a 200 with `{error}`;
   an unreachable node is a 502 and a timeout a 504, both with a generic
-  message. Results are cut at 64 KiB with a visible marker. A failed eval
+  message. Results are cut at 64 KiB with a visible marker, kept inside the
+  quotes of a string result, so Preview still reads it as text. A failed eval
   logs at Debug, without the expression.
 
 ### Editor
@@ -287,8 +315,8 @@ Assets loaded without the version query (`?v=`) that change in place, such
 as a module's own `./controller.js` import, are served `no-cache` and
 revalidated against the ETag, so a deploy reaches returning readers. A URL
 carrying this build's `?v=`, a font and esbuild's content-hashed
-`chunk-<hash>.js` stay `immutable`, as on master, and only on a 2xx: an error
-is `no-store`. Any other `?v=` is revalidated, so a request for the next
+`chunk-<hash>.js` stay `immutable`, as on master, and only on a 2xx or a
+304: an error is `no-store`. Any other `?v=` is revalidated, so a request for the next
 release's version answered by an old replica mid-deploy is not kept. A page
 view costs one 304, for `controller.js`.
 
