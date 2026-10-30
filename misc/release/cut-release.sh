@@ -74,11 +74,15 @@ VERSION=""
 # `set -u` turns cleanup into an error.
 SCRATCH=""
 WORKTREE=""
+# Set once the run has ended on purpose. bash 3.2 ends a script aborted by
+# set -u with the EXIT trap's own status, so cleanup fails any other ending.
+DONE=0
 cleanup() {
 	if [[ -n ${WORKTREE} ]]; then
 		git -C "${REPO_ROOT}" worktree remove --force "${WORKTREE}" >/dev/null 2>&1 || true
 	fi
 	[[ -z ${SCRATCH} ]] || rm -rf "${SCRATCH}"
+	[[ ${DONE} -eq 1 ]] || exit 1
 }
 trap cleanup EXIT
 
@@ -98,6 +102,7 @@ parse_args() {
 		case "$1" in
 		-h | --help)
 			usage
+			DONE=1
 			exit 0
 			;;
 		--chain)
@@ -583,3 +588,4 @@ main() {
 }
 
 main "$@"
+DONE=1

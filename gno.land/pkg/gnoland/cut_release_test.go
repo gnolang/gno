@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -168,4 +169,26 @@ func TestCutReleaseTagMessage(t *testing.T) {
 	require.True(t, returned, out)
 	assert.NotContains(t, out, "848000", "the tag message records the halt height")
 	assert.Contains(t, out, "halt_min_version v1.6.0")
+}
+
+// bash 3.2 ends a script aborted by set -u with the EXIT trap's status, 0
+// unless the trap says otherwise; the operator must still see a failure.
+func TestCutReleaseAbortExitsNonZero(t *testing.T) {
+	t.Parallel()
+
+	src := repoFile(t, "misc/release/cut-release.sh")
+	broken := strings.Replace(src, "\tparse_args \"$@\"\n", "\tparse_args \"$@\"\n\t: \"${UNSET_BY_THE_TEST}\"\n", 1)
+	require.NotEqual(t, src, broken, "could not inject the abort")
+	// The script finds the repository two levels up from itself.
+	root := t.TempDir()
+	copied := filepath.Join(root, "misc", "release", "cut-release.sh")
+	require.NoError(t, os.MkdirAll(filepath.Dir(copied), 0o700))
+	require.NoError(t, os.WriteFile(copied, []byte(broken), 0o700))
+
+	out, err := exec.Command("bash", copied, "v99.0.0").CombinedOutput()
+	assert.Error(t, err, "an unset variable aborts the run:\n%s", out)
+	assert.Contains(t, string(out), "UNSET_BY_THE_TEST")
+
+	out, err = exec.Command("bash", copied, "--help").CombinedOutput()
+	assert.NoError(t, err, "--help exits zero:\n%s", out)
 }
