@@ -139,6 +139,17 @@ Amino objects are a subset of Go.
 * Pointers are automatically supported in go-amino but it is an extension of
   the theoretical Amino spec.
 
+## Encoding changes and consensus
+
+A change to the bytes `Marshal` produces for a value is a protocol change on any
+type that reaches consensus. Once nodes accept only the canonical encoding of a
+transaction (`tm2/adr/pr6404_tx_canonical_encoding.md`), that covers every type
+inside a transaction, whatever the source of the change: a field tag
+(`amino:"skip_zero"`, #6399), a repr type's `MarshalAmino` (`std.Coins` renders
+through `String`), or the codec itself, regenerated `pb3_gen.go` included
+(transactions encode through genproto2). Adding or removing a tag, changing a
+repr, or regenerating the codec for such a type needs a coordinated upgrade.
+
 ## Limitations
 
 * Pointer types in arrays and slices lose pointer information.
