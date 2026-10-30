@@ -7,7 +7,7 @@ import (
 )
 
 // StateViewType re-exports the components-side constant so feature/state
-// callers (component.go) don't reach across packages for the View tag.
+// callers (NewPageView) don't reach across packages for the View tag.
 // Both names resolve to the same underlying ViewType string.
 const StateViewType = components.StateViewType
 

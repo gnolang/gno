@@ -147,8 +147,8 @@ func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 		data.Busiest = busiest(data, busiestCount)
 	}
 	return components.MapParts{
-		Figure: &pageComponent{name: "chainmap/figure", data: data},
-		Key:    &pageComponent{name: "chainmap/key", data: data},
+		Figure: page("chainmap/figure", data),
+		Key:    page("chainmap/key", data),
 	}
 }
 

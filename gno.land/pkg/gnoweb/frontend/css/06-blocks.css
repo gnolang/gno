@@ -574,6 +574,11 @@
 		height: auto;
 	}
 
+	/* A page without tabs (the playground, a small listing) has no row. */
+	&:not(:has(.b-menu-link, .menu-toggle)) {
+		display: none;
+	}
+
 	/* Menu toggle button */
 	& .menu-toggle {
 		order: 3;
@@ -673,6 +678,21 @@
 				width: var(--g-space-4-5);
 				height: var(--g-space-4-5);
 			}
+
+			/* The lightning's ink stops short of its box, unlike the other
+			   tab icons: pull its label in to the same distance. From md to
+			   xl the labels are hidden, so the icon keeps its full box. */
+			&:has(> use[href="#ico-tx-link"]) {
+				margin-inline-end: -2px;
+
+				@media (--md) {
+					margin-inline-end: 0;
+				}
+
+				@media (--xl) {
+					margin-inline-end: -2px;
+				}
+			}
 		}
 
 		@media (--md) {
@@ -716,6 +736,51 @@
 
 		& > svg {
 			color: var(--s-color-bg-brand-default);
+		}
+	}
+}
+
+/* Five tabs (realm pages, with Run) are wider than the column beside the
+   omnibar: from xl, where they share its row, they keep their size, stay
+   aligned on the right, and run into the gap before the omnibar. Below,
+   they have a row of their own, from the left. Icons only once the screen
+   has room for them: phones show the five labels alone. */
+.b-main-menu:has(> .menu-dev > .b-menu-link:nth-child(5)) {
+	@media (--xl) {
+		justify-content: flex-end;
+	}
+}
+
+.menu-dev:has(> .b-menu-link:nth-child(5)) {
+	@media (--xl) {
+		flex-shrink: 0;
+	}
+
+	/* The last tab ends on the content's right edge. From lg, beside the
+	   omnibar, the tighter gap keeps five icons at full size. */
+	.b-menu-link:not(:last-child) .link {
+		@media (--lg) {
+			margin-inline-end: var(--g-space-4);
+		}
+
+		@media (--2xl) {
+			margin-inline-end: var(--g-space-6);
+		}
+	}
+
+	.link > svg {
+		display: none;
+
+		@media (--md) {
+			display: inline-block;
+		}
+
+		@media (--xl) {
+			display: none;
+		}
+
+		@media (--max) {
+			display: inline-block;
 		}
 	}
 }
@@ -782,6 +847,22 @@
 				background-color: var(--s-color-bg-brand-default);
 				color: var(--s-color-text-base);
 			}
+		}
+	}
+
+	/* View pill (playground): follows the path it works on, without a
+	   separator, like a mode label. */
+	.view {
+		display: flex;
+		align-items: center;
+		z-index: var(--g-z-1);
+
+		&:not(:first-child) {
+			margin-inline-start: var(--g-space-2);
+		}
+
+		.b-tag {
+			border-color: var(--s-color-border-tertiary);
 		}
 	}
 
@@ -870,6 +951,20 @@
 			/* supports rules */
 			@supports not (field-sizing: content) {
 				width: 5rem !important;
+			}
+
+			/* On phones, a query followed by the playground pill is cut
+			   shorter, so the pill stays in view at the end. */
+			.query:has(~ .view) & {
+				max-width: 1ch;
+
+				@media (--sm) {
+					max-width: 4ch;
+				}
+
+				@media (--md) {
+					max-width: 10ch;
+				}
 			}
 
 			/* Placeholder styling */
@@ -1169,6 +1264,31 @@
 
 	&:hover {
 		background-color: var(--s-color-bg-surface-primary);
+	}
+}
+
+/* Primary variant — the one action a view exists for (Run, Eval). */
+.b-btn--primary {
+	background-color: var(--s-color-bg-brand-default);
+	border-color: var(--s-color-border-brand-default);
+	color: var(--s-color-text-brand-default);
+	font-weight: var(--g-font-medium);
+
+	/* Keeps the brand fill: the generic .b-btn:hover surface would leave
+	   white text on a light grey, which reads as disabled. */
+	&:hover {
+		background-color: var(--s-color-bg-brand-default);
+		opacity: var(--g-opacity-90);
+	}
+
+	&:focus-visible {
+		outline: var(--s-focus-ring);
+		outline-offset: 2px;
+	}
+
+	/* Clear of the borderless inline links before it in a .b-btns row. */
+	.b-btns > &:not(:first-child) {
+		margin-inline-start: var(--g-space-2);
 	}
 }
 
@@ -1809,6 +1929,19 @@
 }
 
 /* ===== CODE COMPONENT & CHROMA ===== */
+/* Code frame shared by the read-only source view and the editable one. */
+.b-source-code > pre.chroma-chroma,
+.b-code-editor-area {
+	background-color: var(--s-color-bg-base);
+	border: var(--s-divider);
+	border-radius: var(--s-rounded);
+	font-size: var(--g-font-size-100);
+
+	@media (--md) {
+		font-size: var(--g-font-size-200);
+	}
+}
+
 .b-source-code {
 	font-family: var(--g-font-family-mono);
 
@@ -1816,16 +1949,11 @@
 	   background rule, so the code sits on the surface (white in light) with a
 	   visible border, like the overview frame — not blended into the page. */
 	> pre.chroma-chroma {
-		background-color: var(--s-color-bg-base);
-		border: var(--s-divider);
 		overflow: scroll;
-		border-radius: var(--s-rounded);
 		padding: var(--g-space-4) var(--g-space-1);
-		font-size: var(--g-font-size-100);
 
 		@media (--md) {
 			padding: var(--g-space-8) var(--g-space-3);
-			font-size: var(--g-font-size-200);
 		}
 
 		a {
@@ -1836,7 +1964,7 @@
 	}
 }
 
-[data-theme="dark"] .b-source-code > pre {
+[data-theme="dark"] .b-source-code > pre.chroma-chroma {
 	background-color: var(--s-color-bg-base);
 }
 
@@ -1952,7 +2080,8 @@ main.is-dev-mode .b-toc a {
    adds its own specifics afterwards (action: `.params`/`.b-alert`;
    state: outer column flow, audit chips, fields, footer CTA). */
 .b-action-function,
-.b-state-decl {
+.b-state-decl,
+.b-run-panel {
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 	padding: var(--g-space-4);
@@ -1992,10 +2121,15 @@ main.is-dev-mode .b-toc a {
 	}
 
 	/* On a narrow card the buttons move under the title instead of
-	   squeezing it */
+	   squeezing it. From 20rem of title up, the signature wraps under the
+	   name instead, so the buttons keep the title row. */
 	& > header {
 		flex-wrap: wrap;
 		gap: var(--g-space-2) var(--g-space-4);
+
+		& > .title {
+			flex: 1 1 20rem;
+		}
 
 		.signature {
 			& > code {
@@ -2009,25 +2143,9 @@ main.is-dev-mode .b-toc a {
 	}
 
 	.params {
-		display: flex;
-		flex-direction: column;
-		gap: var(--g-space-1);
-		align-items: stretch;
-		width: 100%;
 		margin-block: var(--g-space-6) var(--g-space-1);
 		font-size: var(--g-font-size-100);
 		color: var(--s-color-text-tertiary);
-
-		label {
-			background-color: var(--s-color-bg-surface-primary);
-		}
-
-		.b-input:has(input:focus),
-		.b-input:has(input:hover) {
-			label {
-				background-color: var(--s-color-bg-surface-secondary);
-			}
-		}
 	}
 
 	.b-alert {
@@ -2056,6 +2174,28 @@ main.is-dev-mode .b-toc a {
 
 		.b-btn {
 			margin-block-start: var(--g-space-4);
+		}
+	}
+}
+
+/* Stack of labelled inputs inside a card: a function's params, the run
+   page's command settings. */
+.b-action-function .params,
+.b-run-panel .params {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	align-items: stretch;
+	width: 100%;
+
+	label {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+
+	.b-input:has(input:focus),
+	.b-input:has(input:hover) {
+		label {
+			background-color: var(--s-color-bg-surface-secondary);
 		}
 	}
 }
@@ -2103,6 +2243,122 @@ main.is-dev-mode .b-toc a {
 			color: var(--s-color-text-primary);
 		}
 	}
+}
+
+/* ===== RESULT PANEL =====
+   Output of an evaluation or a run (playground, action evaluator): a small
+   title over a `.b-code` box, like the result of an action function card. */
+.b-result {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+}
+
+.b-result-title {
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-secondary);
+}
+
+.b-result-content {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--g-space-16);
+	max-height: var(--g-space-96);
+	overflow-y: auto;
+	padding: var(--g-space-4);
+	font-family: var(--g-font-family-mono);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	color: var(--s-color-text-secondary);
+}
+
+/* An error result takes the caution alert colours; .b-code pre would
+   otherwise override the u-color-danger set on it. */
+.b-result:has(.u-color-danger) .b-code {
+	background-color: var(--s-color-bg-caution-weak);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-error);
+}
+
+.b-result .b-code .u-color-danger {
+	color: var(--s-color-text-caution);
+}
+
+/* ===== ACTION EVAL COMPONENT ===== */
+.b-action-eval {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-4);
+	margin-block: var(--g-space-8);
+
+	.b-content-h2 {
+		margin-bottom: 0;
+	}
+}
+
+.b-action-eval-form {
+	display: flex;
+	gap: var(--g-space-2);
+	align-items: stretch;
+}
+
+.b-action-eval-form .b-input--full {
+	flex: 1;
+}
+
+/* The Eval buttons and the evaluator's form, result and history are served
+   hidden until their controller shows them: they need JS. */
+.b-action-function .b-btn[hidden],
+.b-action-eval > [hidden] {
+	display: none;
+}
+
+.b-action-eval-history-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+}
+
+.b-action-eval-history-entry {
+	min-width: 0;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: var(--s-divider);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+}
+
+.b-action-eval-history-expr {
+	gap: var(--g-space-2);
+	margin-bottom: var(--g-space-1);
+	font-size: var(--g-font-size-90);
+	overflow-wrap: anywhere;
+}
+
+.b-action-eval-history-rerun {
+	flex-shrink: 0;
+	min-width: var(--g-space-6);
+	min-height: var(--g-space-6);
+	cursor: pointer;
+	color: var(--s-color-text-tertiary);
+
+	&:hover {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* An error entry takes the caution colours, like the result panel above. */
+.b-action-eval-history-entry:has(.u-color-danger) {
+	background-color: var(--s-color-bg-caution-weak);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-error);
+}
+
+.b-action-eval-history-result {
+	margin: 0;
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-80);
+	color: var(--s-color-text-secondary);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 
 /* ===== PACKAGES LIST COMPONENT ===== */
@@ -3466,6 +3722,47 @@ main.is-dev-mode .b-toc a {
    @import at the top of main.css. The block originally sat at this
    position; cascade order is preserved (no rule below this point targets
    `.b-state-*`, and the rules above remain untouched). */
+
+/* ==========================================================================
+   CODE EDITOR - CodeMirror wrapper block
+   CodeMirror's own parts (gutter, content, cursor) are themed in
+   frontend/js/code-editor.ts: its .cm-* classes are added at runtime, so
+   PurgeCSS would strip them from this file.
+   ========================================================================== */
+/* The frame wraps the editor and, on the playground, its file tabs. */
+.b-code-editor-area {
+	margin-block-end: var(--g-space-6);
+	overflow: hidden;
+
+	&:focus-within {
+		outline: var(--s-focus-ring);
+		outline-offset: calc(-1 * var(--g-space-px));
+	}
+}
+
+.b-code-editor {
+	display: flex;
+	min-width: 0;
+
+	/* The code as served, in the source view's frame, until the editor
+	   replaces it (or for good, without JS). */
+	& > .b-source-code {
+		flex: 1;
+		min-width: 0;
+		max-height: 70vh;
+		overflow: auto;
+	}
+}
+
+/* Playground and run pages: full-width editor pages. */
+.b-playground,
+.b-run {
+	display: flex;
+	flex-direction: column;
+	min-height: 70vh;
+	grid-column: 1 / -1;
+	padding-bottom: var(--g-space-24);
+}
 
 /* ==========================================================================
    DOC EXAMPLE — collapsible code block in doc-context markdown rendering

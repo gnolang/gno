@@ -84,6 +84,14 @@
 	color: var(--s-color-text-caution);
 }
 
+.u-color-tertiary {
+	color: var(--s-color-text-tertiary);
+}
+
+.u-text-sm {
+	font-size: var(--g-font-size-90);
+}
+
 .u-quotes::before,
 .u-quotes::after {
 	content: '"';

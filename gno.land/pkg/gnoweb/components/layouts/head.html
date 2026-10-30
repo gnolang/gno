@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ .Title }}</title>
 
+  <!-- CSP nonce (set under strict headers) so CodeMirror's injected styles pass the policy -->
+  {{ if .CSPNonce }}
+  <meta name="csp-nonce" content="{{ .CSPNonce }}" />
+  {{ end }}
+
   <!-- Preload. Deliberately unversioned: a preload is claimed only by a request
        for the very same URL, and the request for a font comes from the @font-face
        rule in main.css, which names the file with no version. Appending one here

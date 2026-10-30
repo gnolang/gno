@@ -60,6 +60,10 @@ func ClassifyPageType(mode ViewMode, view ViewType) string {
 		return "status"
 	case RedirectViewType:
 		return "redirect"
+	case RunViewType:
+		return "run"
+	case PlaygroundViewType:
+		return "playground"
 	}
 	switch mode {
 	case ViewModeHome:

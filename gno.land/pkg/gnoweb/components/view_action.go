@@ -2,6 +2,7 @@ package components
 
 import (
 	"html/template"
+	"strconv"
 	"strings"
 
 	// for error types
@@ -45,14 +46,37 @@ type HelpTocData struct {
 type HelpTocItem struct {
 	Link string
 	Text string
+	// Icon replaces the list's icon for this item when set.
+	Icon string
 }
 
+// helpEvalAnchor is the id of the expression evaluator below the functions.
+const helpEvalAnchor = "expression-evaluator"
+
+// Gas is the gas a printed gnokey command asks for and the fee it offers.
+type Gas struct{ Wanted, Fee string }
+
+var (
+	// CallGas is what $help's maketx call commands ask for: room for any
+	// function.
+	CallGas = Gas{Wanted: "1_000_000_000", Fee: "1000000ugnot"}
+	// RunGas is what a $run script asks for. The starter script names a
+	// function rather than calling Render, whose gas is the package's (over
+	// 400 million on some realms), and takes 1 to 9 million on the example
+	// realms; the fee pays for 100 million at the chain's initial price
+	// (1ugnot per 1000 gas), so raising the gas wanted that far needs no new
+	// fee.
+	RunGas = Gas{Wanted: "50_000_000", Fee: "100000ugnot"}
+)
+
 type CommandData struct {
-	FuncName   string
-	PkgPath    string
-	ParamNames []string
-	ChainId    string
-	Remote     string
+	FuncName string
+	PkgPath  string
+	// ArgKeys links each -args slot to its param's inputs: a position on
+	// $help, where names repeat or are missing ("_"), a name in a form.
+	ArgKeys []string
+	ChainId string
+	Remote  string
 }
 
 type helpViewParams struct {
@@ -62,6 +86,9 @@ type helpViewParams struct {
 }
 
 func registerHelpFuncs(funcs template.FuncMap) {
+	funcs["evalAnchor"] = func() string { return helpEvalAnchor }
+	funcs["callGas"] = func() Gas { return CallGas }
+
 	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {
 			return "", nil
@@ -94,19 +121,17 @@ func registerHelpFuncs(funcs template.FuncMap) {
 	}
 
 	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
-		// Extract parameter names
-		paramNames := make([]string, len(fn.Params))
-
-		for i, param := range fn.Params {
-			paramNames[i] = param.Name
+		argKeys := make([]string, len(fn.Params))
+		for i := range fn.Params {
+			argKeys[i] = strconv.Itoa(i)
 		}
 
 		return CommandData{
-			FuncName:   fn.Name,
-			PkgPath:    data.PkgPath,
-			ParamNames: paramNames,
-			ChainId:    data.ChainId,
-			Remote:     data.Remote,
+			FuncName: fn.Name,
+			PkgPath:  data.PkgPath,
+			ArgKeys:  argKeys,
+			ChainId:  data.ChainId,
+			Remote:   data.Remote,
 		}
 	}
 }
@@ -133,6 +158,13 @@ func HelpView(data HelpData) *View {
 			Text: sig.String(),
 		}
 	}
+	// The evaluator stays below the functions; the list names it so a long
+	// page does not hide it.
+	tocData.Items = append(tocData.Items, HelpTocItem{
+		Link: "#" + helpEvalAnchor,
+		Text: "Expression evaluator",
+		Icon: "eval",
+	})
 
 	toc := NewTemplateComponent("ui/toc_generic", tocData)
 	content := NewTemplateComponent("ui/help_function", data)

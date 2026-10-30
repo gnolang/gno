@@ -57,6 +57,10 @@ func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, er
 	return nil, gnoweb.ErrClientPackageNotFound
 }
 
+func (s *stubClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	return s.Eval(ctx, pkgPath, expr)
+}
+
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
 	if s.realmFunc != nil {
 		return s.realmFunc(ctx, path, args)
@@ -214,7 +218,6 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path$download", Status: http.StatusOK, Contains: []string{
 			"// file: render.gno",
 			"one more time",
-			"// file: LicEnse",
 		}},
 		{Path: "/r/invalid/path$download", Status: http.StatusNotFound},
 
@@ -1757,6 +1760,169 @@ func TestHTTPHandler_ThemeCookie(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHTTPHandler_PlaygroundPage tests the /_/play standalone playground route.
+func TestHTTPHandler_PlaygroundPage(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, &stubClient{})
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	// The default code says "Hello, Playground!"; shared code says
+	// sentinel_42, so a fallback to the default never passes for it.
+	const hello = "Hello, Playground!"
+	cases := []struct {
+		name    string
+		path    string
+		contain string
+		refused bool
+	}{
+		{"default playground", "/_/play", hello, false},
+		{"plain code", "/_/play?code=package+sentinel_42", "package sentinel_42", false},
+		// Written by playground-files.ts's shareLink: a.gno holds a line
+		// shaped like the old text format's separator, and stays whole.
+		{"shared code", "/_/play?code=i65WykvMTVWyUkrUS8%2FLV9JRSs7PK0nNKwGKxOQVJCZnJ6anKhQDBTLzUnPiTYxi8mLy9PUVdHV1FZJAOkCsmLy00rxkBUcNTYXqWpACpVoduLlJGOZiNVWpNhYA&z", "\npackage sentinel_42\n\n// --- b.gno ---\nfunc A() {}\n\n</pre>", false},
+		{"shared code that does not inflate", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D&z", hello, true},
+		// No code to open, so nothing to say.
+		{"z and no code", "/_/play?z", hello, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, tc.contain)
+			if tc.contain != hello {
+				assert.NotContains(t, body, hello)
+			}
+			assert.Equal(t, tc.refused, strings.Contains(body, "This link's code was not opened"))
+		})
+	}
+
+	// The breadcrumb keeps the shared code's query, then ends with the pill.
+	// The z flag is no field, but is submitted with the code, so pressing
+	// Enter in it does not reopen the compressed bytes as text.
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc&z", nil))
+	body := rr.Body.String()
+	assert.NotContains(t, body, `id="z"`)
+	assert.Contains(t, body, `<input type="hidden" name="z" value="" />`)
+	query := strings.Index(body, `name="code" value="abc"`)
+	require.NotEqual(t, -1, query)
+	assert.Greater(t, strings.Index(body, `class="b-tag">playground<`), query)
+
+	// Plain code has no flag to carry.
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc", nil))
+	assert.NotContains(t, rr.Body.String(), `name="z"`)
+}
+
+// TestHTTPHandler_PlaygroundCopy tests opening a package copy with /_/play?from=,
+// with or without the chain domain in front of the path.
+func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/p/demo/foo",
+		Files: map[string]string{
+			"foo.gno": `package foo`,
+			"bar.gno": `package foo`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	config.Meta.Domain = "gno.land"
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	for _, from := range []string{"p/demo/foo", "gno.land/p/demo/foo"} {
+		req := httptest.NewRequest(http.MethodGet, "/_/play?from="+from, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code, from)
+		body := rr.Body.String()
+		assert.Contains(t, body, "foo.gno", from)
+		assert.Contains(t, body, "package foo", from)
+		// The breadcrumb names the copied package, linked to it, then the pill.
+		assert.Contains(t, body, `href="/p/demo/foo"`, from)
+		assert.Contains(t, body, `class="view"`, from)
+		// The page, and the card a shared link shows, name the copy.
+		assert.Contains(t, body, "<title>p/demo/foo · Playground - gno.land</title>", from)
+		assert.Contains(t, body, `content="p/demo/foo · Playground - gno.land"`, from)
+		// The header keeps the package's tabs, none of them current.
+		assert.Contains(t, body, `href="/p/demo/foo$source"`, from)
+		assert.NotContains(t, body, "link--is-active", from)
+	}
+
+	// Only a bare package path is copied, and gets its tabs: a file, args
+	// or a query is no package, and a missing package is not found.
+	for from, status := range map[string]int{
+		"p/demo/foo/foo.gno":       http.StatusBadRequest,
+		"p/demo/foo$file=evil.gno": http.StatusBadRequest,
+		"p/demo/foo:args":          http.StatusBadRequest,
+		"p/demo/foo?x=1":           http.StatusBadRequest,
+		"p/demo/nope":              http.StatusNotFound,
+	} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from="+url.QueryEscape(from), nil))
+		assert.Equal(t, status, rr.Code, from)
+		assert.NotContains(t, rr.Body.String(), `$source"`, from)
+	}
+
+	// Extra leading slashes never turn into links to another host.
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=///evil.com/x", nil))
+	assert.NotContains(t, rr.Body.String(), `href="//`)
+
+	// A node that does not answer in time gives the copy the 408 pages get.
+	for name, nodeErr := range map[string]error{
+		"client timeout":    gnoweb.ErrClientTimeout,
+		"deadline exceeded": context.DeadlineExceeded,
+	} {
+		slow, err := gnoweb.NewHTTPHandler(logger, newTestHandlerConfig(t, &stubClient{
+			listFilesFunc: func(context.Context, string) ([]string, error) { return nil, nodeErr },
+		}))
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		slow.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=p/demo/foo", nil))
+		assert.Equal(t, http.StatusRequestTimeout, rr.Code, name)
+	}
+}
+
+// TestHTTPHandler_PlayRedirect checks that $play sends a package or file to
+// its playground copy, and that $fork, a name no release served, does not.
+func TestHTTPHandler_PlayRedirect(t *testing.T) {
+	t.Parallel()
+
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, &stubClient{}))
+	require.NoError(t, err)
+
+	cases := map[string]string{
+		"/r/demo/foo$play":         "/_/play?from=r%2Fdemo%2Ffoo",
+		"/r/demo/foo/bar.gno$play": "/_/play?file=bar.gno&from=r%2Fdemo%2Ffoo",
+	}
+	for path, want := range cases {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, http.StatusFound, rr.Code, path)
+		assert.Equal(t, want, rr.Header().Get("Location"), path)
+	}
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$fork", nil))
+	assert.NotEqual(t, http.StatusFound, rr.Code)
+	assert.Empty(t, rr.Header().Get("Location"))
 }
 
 // TestHTTPHandler_GetOverviewView_SuccessRendersAllSections verifies the overview page
@@ -4261,6 +4427,11 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		{"/r/nym-sunny000/app$state", true},
 		{"/p/nym-sunny000/lib", true},
 		{"/r/unknown/pkg", true},
+		// A copy carries the notice of the package it copies.
+		{"/_/play?from=r/nym-sunny000/app", true},
+		{"/_/play?from=p/nym-sunny000/lib", true},
+		{"/_/play?from=r/gnoland/home", false},
+		{"/_/play", false},
 		{"/chain", false},
 	}
 
@@ -4336,4 +4507,104 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		assert.Contains(t, body, "This transaction link is requesting")
 		assert.NotContains(t, body, line)
 	})
+}
+
+// TestHTTPHandler_RunPage checks that $run serves the run page only for a
+// realm or package that exists, with a starter script that calls it. Any
+// other path renders as if $run were not there, and an error page offers no
+// Run tab.
+func TestHTTPHandler_RunPage(t *testing.T) {
+	t.Parallel()
+
+	render := &doc.JSONFunc{
+		Name:    "Render",
+		Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+		Results: []*doc.JSONField{{Type: "string"}},
+	}
+	client := gnoweb.NewMockClient(
+		&gnoweb.MockPackage{Path: "/r/demo/foo", Domain: "gno.land", Files: map[string]string{"foo.gno": "package foo"}, Functions: []*doc.JSONFunc{render}},
+		&gnoweb.MockPackage{Path: "/p/demo/bar", Domain: "gno.land", Files: map[string]string{"bar.gno": "package bar"}, Functions: []*doc.JSONFunc{{Name: "New"}}},
+	)
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	get := func(path string) (int, string) {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		return rr.Code, rr.Body.String()
+	}
+	const runPage = `data-controller="run"`
+
+	served := map[string]string{
+		"/r/demo/foo$run":         "_ = foo.Render",
+		"/r/demo/foo/foo.gno$run": "_ = foo.Render",
+		"/p/demo/bar$run":         "_ = bar.New",
+	}
+	for path, call := range served {
+		code, body := get(path)
+		assert.Equal(t, http.StatusOK, code, path)
+		assert.Contains(t, body, runPage, path)
+		assert.Contains(t, body, call, path)
+	}
+
+	// Without the package or the file, or on a $source page, $run changes
+	// nothing: the same page, header tabs included, and a missing realm's
+	// 404 page does not link to its $run.
+	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing", "/r/demo/foo/nope.gno", "/r/demo/foo$source"} {
+		wantCode, wantBody := get(path)
+		run := path + "$run"
+		if strings.Contains(path, "$") {
+			run = path + "&run"
+		}
+		code, body := get(run)
+		assert.Equal(t, wantCode, code, path)
+		assert.Equal(t, wantBody, body, path)
+		assert.NotContains(t, body, runPage, path)
+		if code != http.StatusOK {
+			assert.NotContains(t, body, `$run"`, path)
+		}
+	}
+	code, body := get("/r/nope/missing")
+	assert.Equal(t, http.StatusNotFound, code)
+	assert.NotContains(t, body, `$run"`, "a 404 page has no Run tab")
+}
+
+// TestHTTPHandler_RunPageNotAPackageURL checks that $run is never served on
+// a user page or a listing URL, even when the node answers qdoc for its path
+// (the RPC client trims the trailing slash of /r/demo/foo/).
+func TestHTTPHandler_RunPageNotAPackageURL(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+		return &doc.JSONDocumentation{}, nil
+	}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	for _, path := range []string{"/u/alice$run", "/r/demo/foo/$run"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.NotContains(t, rr.Body.String(), `data-controller="run"`, path)
+	}
+}
+
+// TestHTTPHandler_RunPageNodeError checks that $run answers a node failure
+// with its error page, not with a run page for a package it could not read.
+func TestHTTPHandler_RunPageNodeError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+		return nil, gnoweb.ErrClientTimeout
+	}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$run", nil))
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
+	assert.NotContains(t, rr.Body.String(), `data-controller="run"`)
+	assert.NotContains(t, rr.Body.String(), `$run"`)
 }

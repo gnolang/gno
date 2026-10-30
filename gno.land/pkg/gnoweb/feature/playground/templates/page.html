@@ -1,0 +1,96 @@
+{{/* ===================================================================================
+LAYOUT - Playground view
+=================================================================================== */}}
+{{ define "renderPage" }}
+<!-- Playground Content -->
+<div class="b-playground" data-controller="playground"
+  data-playground-domain-value="{{ .Domain }}"
+  {{ with .From }}data-playground-from-value="{{ . }}"{{ end }}
+  {{ with .DefaultFile }}data-playground-default-file-value="{{ . }}"{{ end }}>
+
+  <!-- Header -->
+  <header class="b-content-header">
+    <h1 class="title b-content-h1">Playground</h1>
+    <div class="header-info">
+      {{- /* Served hidden, like the run page's: Share, Download and Run only
+      work once the controller connects. The code reads without them. */}}
+      <div class="b-btns" data-playground-target="js-only" hidden>
+        <button type="button" class="b-inline-btn c-with-icon" data-action="click->playground#shareCode" title="Copy a link to this code">
+          <svg class="c-icon"><use href="#ico-link"></use></svg>
+          <span>Share</span>
+        </button>
+        <button type="button" class="b-inline-btn c-with-icon" data-action="click->playground#downloadFiles" title="Download file(s)">
+          <svg class="c-icon"><use href="#ico-ddl"></use></svg>
+          <span>Download</span>
+        </button>
+        {{- /* What Run does, decided here only: Preview shows what the copied
+        realm renders, until the first edit turns it into Run locally, whose
+        texts the controller then reads off the button. */}}
+        {{- $localLabel := "Run locally" }}
+        {{- $localTitle := "Show the commands that run and test this code (Ctrl/Cmd+Enter)" }}
+        <button type="button" class="b-btn b-btn--primary c-with-icon" data-playground-target="run" data-action="click->playground#runCode"
+          {{- if .Preview }} title="Show what {{ .Domain }}/{{ .From }} renders (Ctrl/Cmd+Enter)"
+          data-playground-preview-value
+          data-playground-local-label-value="{{ $localLabel }}"
+          data-playground-local-title-value="{{ $localTitle }}"
+          {{- else }} title="{{ $localTitle }}"{{ end }}>
+          <svg class="c-icon"><use href="#ico-run-code"></use></svg>
+          <span>{{ if .Preview }}Preview{{ else }}{{ $localLabel }}{{ end }}</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  {{- with .Refused }}
+  <p class="b-pkg-notice" role="note">This link's code was not opened: {{ . }}. The default code is shown instead.</p>
+  {{- end }}
+
+  <!-- Editor Area -->
+  <div class="b-code-editor-area">
+    <!-- File tabs -->
+    <div class="b-playground-tabs-wrap" data-playground-target="tabs-wrap" hidden>
+      <div class="b-playground-tabs u-no-scrollbar" data-playground-target="tabs">
+      </div>
+      <div class="b-playground-tabs-actions">
+        <button type="button" class="b-playground-tabs-nav"
+          data-playground-target="prev-button"
+          data-action="click->playground#scrollTabsPrev"
+          title="Scroll tabs left" aria-label="Scroll tabs left" hidden>
+          <svg class="c-icon"><use href="#ico-arrow-left"></use></svg>
+        </button>
+        <button type="button" class="b-playground-tabs-nav"
+          data-playground-target="next-button"
+          data-action="click->playground#scrollTabsNext"
+          title="Scroll tabs right" aria-label="Scroll tabs right" hidden>
+          <svg class="c-icon"><use href="#ico-arrow-right"></use></svg>
+        </button>
+        <button type="button" class="b-playground-tab-add"
+          data-action="click->playground#addFile"
+          title="Add file" aria-label="Add file">+</button>
+      </div>
+    </div>
+
+    {{- /* Code editor: the code as text, each file under its name, its
+    only copy in the page, which the controller reads into the editor that
+    replaces it. Each <pre> opens with a newline, which HTML drops, so a
+    file's own first blank line is kept. */}}
+    <div class="b-code-editor" data-playground-target="editor">
+      <div class="b-source-code">
+        {{- range .Files }}
+        <p class="b-playground-file u-font-mono">{{ .Name }}</p>
+        <pre class="chroma-chroma" data-playground-target="file" data-playground-name-value="{{ .Name }}">
+{{ .Content }}</pre>
+        {{- end }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Output Area -->
+  <section class="b-result" data-playground-target="js-only" hidden>
+    <h2 class="b-result-title">Output</h2>
+    <div class="b-code">
+      <div class="b-result-content" role="status" aria-live="polite" data-playground-target="output"></div>
+    </div>
+  </section>
+</div>
+{{ end }}

@@ -3,14 +3,17 @@ package gnoweb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +52,7 @@ func TestServePackageText_Cache(t *testing.T) {
 	})
 	require.NoError(t, err)
 	now := time.Unix(0, 0)
-	handler.packageText.now = func() time.Time { return now }
+	handler.pkgFiles.now = func() time.Time { return now }
 
 	get := func(target string) *httptest.ResponseRecorder {
 		rr := httptest.NewRecorder()
@@ -78,13 +81,210 @@ func TestServePackageText_Cache(t *testing.T) {
 	assert.Equal(t, int64(8), client.queries.Load(), "errors are not cached")
 
 	// The build is shared, so it does not die with the request that
-	// started it.
+	// started it: the next request gets its files, at no extra query.
 	now = now.Add(packageTextTTL)
+	queries := client.queries.Load()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	rr = httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil).WithContext(ctx))
-	assert.Equal(t, http.StatusOK, rr.Code)
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil).WithContext(ctx))
+	assert.Equal(t, http.StatusOK, get("/r/mock/path$download").Code)
+	assert.Equal(t, queries+3, client.queries.Load(), "one build, shared")
+}
+
+// slowClient holds every package list until release is closed.
+type slowClient struct {
+	*MockClient
+	release chan struct{}
+}
+
+func (c *slowClient) ListFiles(ctx context.Context, path string, height int64) ([]string, error) {
+	<-c.release
+	return c.MockClient.ListFiles(ctx, path, height)
+}
+
+// TestServePackageText_Deadline checks a $download whose request deadline
+// passes before the shared read is done answers 408, as a page does.
+func TestServePackageText_Deadline(t *testing.T) {
+	t.Parallel()
+
+	client := &slowClient{
+		MockClient: NewMockClient(&MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: map[string]string{"a.gno": "package a"}}),
+		release:    make(chan struct{}),
+	}
+	t.Cleanup(func() { close(client.release) })
+	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+		Timeout:       20 * time.Millisecond,
+	})
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil))
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
+	assert.Contains(t, rr.Body.String(), ErrClientTimeout.Error())
+}
+
+// failingClient answers every package list with err.
+type failingClient struct {
+	*MockClient
+	err error
+}
+
+func (c *failingClient) ListFiles(context.Context, string, int64) ([]string, error) {
+	return nil, c.err
+}
+
+// TestServePackageText_Errors checks a failed $download says why, as a page
+// would, never a bare "not found" for what is not one.
+func TestServePackageText_Errors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantBody   string
+	}{
+		{"missing package", ErrClientPackageNotFound, http.StatusNotFound, "package not found"},
+		{"node error", fmt.Errorf("%w: boom", ErrClientResponse), http.StatusInternalServerError, "internal error"},
+		{"node timeout", ErrClientTimeout, http.StatusRequestTimeout, ErrClientTimeout.Error()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &failingClient{MockClient: NewMockClient(), err: tc.err}
+			handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+				Aliases:       map[string]AliasTarget{},
+			})
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil))
+			assert.Equal(t, tc.wantStatus, rr.Code)
+			assert.Equal(t, tc.wantBody+"\n", rr.Body.String())
+		})
+	}
+}
+
+// strictFileClient refuses the names vm/qfile cannot read, as rpcClient does.
+type strictFileClient struct{ *MockClient }
+
+func (c strictFileClient) File(ctx context.Context, path, name string, height int64) ([]byte, FileMeta, error) {
+	if !validFileName(name) {
+		return nil, FileMeta{}, ErrClientFileNotFound
+	}
+	return c.MockClient.File(ctx, path, name, height)
+}
+
+// TestPackageFiles_UnreadableNames checks a name vm/qfile cannot read, such as
+// a lowercase license, is left out of a read instead of failing it.
+func TestPackageFiles_UnreadableNames(t *testing.T) {
+	t.Parallel()
+
+	client := strictFileClient{NewMockClient(&MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/lic",
+		Files:  map[string]string{"a.gno": "package a", "license": "MIT", "LICENCE": "MIT"},
+	})}
+	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev"},
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+	})
+	require.NoError(t, err)
+
+	for _, target := range []string{"/r/mock/lic$download", "/_/play?from=r/mock/lic"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		assert.Equal(t, http.StatusOK, rr.Code, target)
+		assert.Contains(t, rr.Body.String(), "package a", target)
+	}
+}
+
+// TestPackageFiles_Copy checks a playground copy asks the node only for what
+// it opens, and is refused past the file cap and its own byte cap.
+func TestPackageFiles_Copy(t *testing.T) {
+	t.Parallel()
+
+	files := map[string]string{"a.gno": "package a", "README.md": "# a"}
+	// As r/gnoland/boards2/v0: more files than the cap, nearly all filetests.
+	filetests := map[string]string{"a.gno": "package a"}
+	for i := range packageTextMaxFiles + 1 {
+		filetests[fmt.Sprintf("z_%d_filetest.gno", i)] = "package main"
+	}
+	big := map[string]string{}
+	for i := range packageTextMaxFiles + 1 {
+		big[fmt.Sprintf("f%d.gno", i)] = "package big"
+	}
+	half := strings.Repeat("x", playground.MaxCopySourceBytes/2)
+	atCap := map[string]string{"a.gno": half, "b.gno": half}
+	pastCap := map[string]string{"a.gno": half, "b.gno": half + "x"}
+	// Few files, but any four of them pass the byte cap.
+	heavy := map[string]string{}
+	quarter := strings.Repeat("x", packageTextMaxBytes/4+1)
+	for i := range 4 * packageTextFetchers {
+		heavy[fmt.Sprintf("f%d.gno", i)] = quarter
+	}
+	client := &countingClient{MockClient: NewMockClient(
+		&MockPackage{Domain: "example.com", Path: "/r/mock/path", Files: files},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/big", Files: big},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/heavy", Files: heavy},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/filetests", Files: filetests},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/atcap", Files: atCap},
+		&MockPackage{Domain: "example.com", Path: "/r/mock/pastcap", Files: pastCap},
+	)}
+	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev"},
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+	})
+	require.NoError(t, err)
+
+	get := func(target string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		return rr
+	}
+
+	require.Equal(t, http.StatusOK, get("/r/mock/path$download").Code)
+	queries := client.queries.Load()
+	rr := get("/_/play?from=r/mock/path")
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), `data-playground-name-value="a.gno">`+"\npackage a</pre>")
+	assert.NotContains(t, rr.Body.String(), "README.md", "a copy holds sources only")
+	assert.Equal(t, queries+2, client.queries.Load(), "the list and a.gno: no query for the README")
+	require.Equal(t, http.StatusOK, get("/_/play?from=r/mock/path").Code)
+	assert.Equal(t, queries+2, client.queries.Load(), "a repeated copy is served from the cache")
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/r/mock/filetests$download").Code)
+	queries = client.queries.Load()
+	rr = get("/_/play?from=r/mock/filetests")
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.NotContains(t, rr.Body.String(), "_filetest.gno", "a copy holds no filetests")
+	assert.Equal(t, queries+2, client.queries.Load(), "the list and a.gno: no query for a filetest")
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/r/mock/big$download").Code)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/big").Code)
+	assert.Equal(t, http.StatusNotFound, get("/_/play?from=r/does/not/exist").Code)
+
+	assert.Equal(t, http.StatusOK, get("/_/play?from=r/mock/atcap").Code)
+	assert.Equal(t, http.StatusOK, get("/r/mock/pastcap$download").Code, "within $download's byte cap")
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/pastcap").Code)
+
+	// The byte cap. Once it is passed, the fetches still queued are
+	// dropped: at most the ones running, and the three under the cap that
+	// freed their slots, reached the node.
+	queries = client.queries.Load()
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/_/play?from=r/mock/heavy").Code)
+	assert.LessOrEqual(t, client.queries.Load()-queries, int64(1+packageTextFetchers+3))
+	assert.Equal(t, http.StatusRequestEntityTooLarge, get("/r/mock/heavy$download").Code)
 }
 
 func TestPackageTextCache(t *testing.T) {
@@ -93,19 +293,19 @@ func TestPackageTextCache(t *testing.T) {
 	t.Run("coalesces concurrent builds", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
+		var c packageFileCache
 		var builds atomic.Int64
 		release := make(chan struct{})
 		var wg sync.WaitGroup
 		for range 8 {
 			wg.Go(func() {
-				text, err := c.get("/r/a", func() ([]byte, error) {
+				files, err := c.get(context.Background(), "/r/a", func() ([]packageFile, error) {
 					builds.Add(1)
 					<-release
-					return []byte("a"), nil
+					return []packageFile{{name: "a.gno", source: []byte("a")}}, nil
 				})
 				assert.NoError(t, err)
-				assert.Equal(t, "a", string(text))
+				assert.Equal(t, []packageFile{{name: "a.gno", source: []byte("a")}}, files)
 			})
 		}
 		// Give every caller time to reach the build before it returns; a
@@ -116,26 +316,51 @@ func TestPackageTextCache(t *testing.T) {
 		assert.Equal(t, int64(1), builds.Load())
 	})
 
+	// A caller waits no longer than its request may; the build goes on and
+	// serves the next one.
+	t.Run("stops waiting when the caller's context ends", func(t *testing.T) {
+		t.Parallel()
+
+		var c packageFileCache
+		var builds atomic.Int64
+		release := make(chan struct{})
+		build := func() ([]packageFile, error) {
+			builds.Add(1)
+			<-release
+			return []packageFile{{name: "a.gno", source: []byte("a")}}, nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		defer cancel()
+		_, err := c.get(ctx, "/r/a", build)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+
+		close(release)
+		files, err := c.get(context.Background(), "/r/a", build)
+		require.NoError(t, err)
+		assert.Equal(t, []packageFile{{name: "a.gno", source: []byte("a")}}, files)
+		assert.Equal(t, int64(1), builds.Load())
+	})
+
 	t.Run("bounded memory", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
-		big := make([]byte, packageTextCacheBytes/2+1)
-		build := func() ([]byte, error) { return big, nil }
-		_, err := c.get("/r/a", build)
+		var c packageFileCache
+		big := []packageFile{{name: "a.gno", source: make([]byte, packageTextCacheBytes/2+1)}}
+		build := func() ([]packageFile, error) { return big, nil }
+		_, err := c.get(context.Background(), "/r/a", build)
 		require.NoError(t, err)
-		_, err = c.get("/r/b", build)
+		_, err = c.get(context.Background(), "/r/b", build)
 		require.NoError(t, err)
-		assert.Len(t, c.entries, 1, "a second big text would pass the cap")
+		assert.Len(t, c.entries, 1, "a second big package would pass the cap")
 		assert.LessOrEqual(t, c.size, packageTextCacheBytes)
 	})
 
 	t.Run("errors are returned, not cached", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
+		var c packageFileCache
 		boom := errors.New("boom")
-		_, err := c.get("/r/a", func() ([]byte, error) { return nil, boom })
+		_, err := c.get(context.Background(), "/r/a", func() ([]packageFile, error) { return nil, boom })
 		assert.ErrorIs(t, err, boom)
 		assert.Empty(t, c.entries)
 	})
@@ -144,13 +369,64 @@ func TestPackageTextCache(t *testing.T) {
 	t.Run("too large is cached", func(t *testing.T) {
 		t.Parallel()
 
-		var c packageTextCache
+		var c packageFileCache
 		var builds int
-		build := func() ([]byte, error) { builds++; return nil, errPackageTooLarge }
+		build := func() ([]packageFile, error) { builds++; return nil, errPackageTooLarge }
 		for range 2 {
-			_, err := c.get("/r/a", build)
+			_, err := c.get(context.Background(), "/r/a", build)
 			assert.ErrorIs(t, err, errPackageTooLarge)
 		}
 		assert.Equal(t, 1, builds)
 	})
+}
+
+// panickingClient panics on the call named by on: "list" or "file".
+type panickingClient struct {
+	*MockClient
+	on string
+}
+
+func (c *panickingClient) ListFiles(ctx context.Context, path string, height int64) ([]string, error) {
+	if c.on == "list" {
+		panic("list boom")
+	}
+	return c.MockClient.ListFiles(ctx, path, height)
+}
+
+func (c *panickingClient) File(ctx context.Context, pkgPath, fileName string, height int64) ([]byte, FileMeta, error) {
+	if c.on == "file" {
+		panic("file boom")
+	}
+	return c.MockClient.File(ctx, pkgPath, fileName, height)
+}
+
+// TestServePackageText_Panic checks a client that panics while a package
+// is read gives a 500: the read runs on goroutines net/http does not
+// guard, where an unrecovered panic stops the whole process.
+func TestServePackageText_Panic(t *testing.T) {
+	t.Parallel()
+
+	for _, on := range []string{"list", "file"} {
+		t.Run(on, func(t *testing.T) {
+			t.Parallel()
+
+			client := &panickingClient{on: on, MockClient: NewMockClient(&MockPackage{
+				Domain: "example.com",
+				Path:   "/r/mock/path",
+				Files:  map[string]string{"a.gno": "package a"},
+			})}
+			handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+				Aliases:       map[string]AliasTarget{},
+			})
+			require.NoError(t, err)
+			for _, target := range []string{"/r/mock/path$download", "/_/play?from=r/mock/path"} {
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+				assert.Equal(t, http.StatusInternalServerError, rr.Code, target)
+				assert.NotContains(t, rr.Body.String(), "boom", target)
+			}
+		})
+	}
 }

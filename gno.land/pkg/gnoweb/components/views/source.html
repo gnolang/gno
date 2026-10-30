@@ -27,6 +27,16 @@ LAYOUT - Source component
         </svg>
         <span>Download</span>
       </a>
+      {{ with .FileEdit }}
+      <a href="{{ . }}" class="b-inline-btn c-with-icon" rel="nofollow"
+        title="Open an editable copy of this package in the Playground (nothing is published)"
+        aria-label="Open in Playground">
+        <svg class="c-icon">
+          <use href="#ico-playground"></use>
+        </svg>
+        <span>Playground</span>
+      </a>
+      {{ end }}
     </div>
   </div>
 </header>
