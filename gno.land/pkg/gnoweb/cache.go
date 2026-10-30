@@ -31,7 +31,11 @@ func CacheHandler(hash, version string, next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(&cacheWriter{ResponseWriter: w, hash: hash, cache: cache}, r)
+		// Set for a 2xx up front; cacheWriter replaces them on any other
+		// status, which handlers always send through WriteHeader.
+		w.Header().Set("ETag", hash)
+		w.Header().Set("Cache-Control", cache)
+		next.ServeHTTP(cacheWriter{w}, r)
 	})
 }
 
@@ -48,32 +52,16 @@ func isImmutableAsset(p string) bool {
 	return false
 }
 
-// cacheWriter sets the caching headers once the status is known: ETag and
-// cache on a 2xx, no caching on anything else.
-type cacheWriter struct {
-	http.ResponseWriter
-	hash, cache string
-	wroteHeader bool
-}
+// cacheWriter keeps an error, such as a 404, out of every cache: on a
+// status other than 2xx it drops the ETag and caching headers CacheHandler set.
+type cacheWriter struct{ http.ResponseWriter }
 
-func (w *cacheWriter) WriteHeader(code int) {
-	if !w.wroteHeader {
-		w.wroteHeader = true
-		if code >= 200 && code < 300 {
-			w.Header().Set("ETag", w.hash)
-			w.Header().Set("Cache-Control", w.cache)
-		} else {
-			w.Header().Set("Cache-Control", "no-store")
-		}
+func (w cacheWriter) WriteHeader(code int) {
+	if code < 200 || code >= 300 {
+		w.Header().Del("ETag")
+		w.Header().Set("Cache-Control", "no-store")
 	}
 	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *cacheWriter) Write(b []byte) (int, error) {
-	if !w.wroteHeader {
-		w.WriteHeader(http.StatusOK)
-	}
-	return w.ResponseWriter.Write(b)
 }
 
 // NoCacheHandler always invalidates cache for all responses.
