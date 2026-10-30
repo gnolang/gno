@@ -128,8 +128,10 @@ use the same literals, so all three agree on what a typed value means; the
 `gnokey maketx call -args` command keeps the raw value, which gnokey parses
 by type itself. These helpers are pure functions in `frontend/js/utils.ts`,
 pinned by `make -C gno.land/pkg/gnoweb/frontend test` (node's own test
-runner, no dependency), which CI runs beside the frontend lint; the
-playground's file helpers (`playground-files.ts`) are pinned the same way. A
+runner, no dependency); the playground's file helpers (`playground-files.ts`)
+are pinned the same way. CI does not run them yet: adding the step to
+`.github/workflows/ci-dir-gnoland.yml` needs a maintainer with workflow
+rights. A
 chain error reaches the reader in the node's own words, without gnoweb's
 internal prefix. A newer live result
 or evaluation aborts the request it supersedes. A rate limit, an unreachable
