@@ -816,7 +816,8 @@ func (st *StructType) IsNamed() bool {
 	return false
 }
 
-// NOTE only works for exposed non-embedded fields.
+// NOTE only matches direct fields (an embedded field by its type name);
+// promoted fields are resolved by findEmbeddedFieldType().
 func (st *StructType) GetPathForName(n Name) ValuePath {
 	for i := 0; i < len(st.Fields); i++ {
 		ft := st.Fields[i]
@@ -825,12 +826,6 @@ func (st *StructType) GetPathForName(n Name) ValuePath {
 				panic("too many fields")
 			}
 			return NewValuePathField(0, uint16(i), n)
-		}
-		if st, ok := ft.Type.(*StructType); ok {
-			if ft.Name != "" {
-				// skip fields not promoted.
-				i += len(st.Fields)
-			}
 		}
 	}
 	panic(fmt.Sprintf("struct type %s has no field %s",
