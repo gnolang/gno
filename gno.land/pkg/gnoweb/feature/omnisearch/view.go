@@ -1,29 +1,33 @@
 package omnisearch
 
 import (
+	"html/template"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
-// OmnisearchViewType tags the body view. Local because nothing in components
-// renders this feature.
-const OmnisearchViewType components.ViewType = "omnisearch-view"
+// OmnisearchViewType tags the body view.
+const OmnisearchViewType = components.SearchViewType
 
 // SearchData is the render payload for templates/page.html — field names must
 // match the template.
 type SearchData struct {
 	Query string
+	// QueryIsLabel: the query is a bare keyword its group's heading already
+	// names, so the title does not repeat it.
+	QueryIsLabel bool
 
 	// PkgPath is the scoped package, gnoweb-relative; empty when the URL
 	// names none.
 	PkgPath string
 
+	// PagePath is the package the search was made from, which a discovery
+	// search does not scope to: the keywords about it still work there.
+	PagePath string
+
 	// WholeChainHref, set on a scoped discovery search, repeats it without
 	// the scope.
 	WholeChainHref string
-
-	// FormAction is explicit rather than `action=""`, which would re-submit
-	// the webargs already in the path and grow the URL on every search.
-	FormAction string
 
 	Groups []Group
 
@@ -37,12 +41,25 @@ type SearchData struct {
 	// Indexer is set only when an indexer-backed group ran; nil drops the
 	// provenance footer entirely.
 	Indexer *IndexerStatus
+
+	// RailTitle and RailLinks are what the rail offers under the counts: the
+	// package's keywords on a package page, a few queries to try when there
+	// is no answer. Empty otherwise: the counts are enough.
+	RailTitle string
+	RailLinks []RailLink
+}
+
+// RailLink is one search the rail runs in a click.
+type RailLink struct {
+	Label string
+	Query string
+	Href  template.URL
 }
 
 // IndexerStatus is the provenance footer: indexer results are not consensus
-// data, so the reader gets the endpoint and how far behind it is.
+// data, so the reader gets how far behind it is. Not the endpoint, which is
+// often a host the reader cannot reach.
 type IndexerStatus struct {
-	URL       string
 	LastBlock int
 	// Err makes the footer say the freshness is unknown rather than omit it.
 	Err error

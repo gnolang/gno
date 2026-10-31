@@ -15,6 +15,9 @@ type Selector = {
 	scope: string;
 	source: string;
 	bare?: boolean;
+	// A value this selector answers typed alone (a pasted address), as a
+	// pattern. The server matches the same one.
+	accepts?: string;
 };
 
 type SearchResult = {
@@ -52,7 +55,13 @@ function isSearchResponse(v: unknown): v is SearchResponse {
 		x === undefined || (Array.isArray(x) && x.every(ok));
 	return (
 		obj(v) &&
-		list(v.selectors, (s) => obj(s) && typeof s.name === "string") &&
+		list(
+			v.selectors,
+			(s) =>
+				obj(s) &&
+				typeof s.name === "string" &&
+				(s.accepts === undefined || typeof s.accepts === "string"),
+		) &&
 		list(
 			v.groups,
 			(g) =>
@@ -75,7 +84,8 @@ type PageMatch = {
 	snippet: string;
 };
 
-const CONTENT_SELECTOR = "md-renderer, .b-source-code";
+// Not the results page: its rows already answer the query.
+const CONTENT_SELECTOR = "md-renderer:not(.b-omni), .b-source-code";
 const SEARCH_ENDPOINT = "/search.json";
 const MIN_QUERY_LENGTH = 2;
 const RESULTS_PER_GROUP = 5;
@@ -91,6 +101,18 @@ const QUALIFIED_SEARCH_DELAY = 220;
 // through to a normal text search.
 const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
 
+// A bech32 account address, as a namespace: ranked as a throwaway deploy.
+// Same shape as omnisearch addressPattern, whose prefix is `g` on every
+// shipped binary and which the rest of gnoweb assumes too.
+const ADDRESS_PATTERN = /^g1[02-9ac-hj-np-z]{38}$/;
+
+// Same patterns as omnisearch testWord and testNamespace.
+const TEST_WORD = /(^|[-_])test(s|ing|utils?)?([-_0-9]|$)/;
+const TEST_NAMESPACE = /test[0-9]/;
+
+// A version segment such as v0 or v12, skipped for a package's name.
+const VERSION_SEGMENT = /^v(0|[1-9]\d*)$/;
+
 // A leading `gno.land` host, with or without scheme.
 const GNO_LAND_HOST = /^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i;
 
@@ -104,7 +126,13 @@ export class SearchbarController extends BaseController {
 	private pageMatches: PageMatch[] = [];
 	private highlightEl: HTMLElement | null = null;
 	private runId = 0;
+	// What a results page filled the bar with, read from the bar: a text input
+	// drops a newline the URL's query kept, so the URL's is not what it holds.
+	// Declared: connect runs inside the base constructor, before an initializer.
+	private declare pageQuery: string;
 	private selectors: Selector[] = [];
+	// The selectors' `accepts` patterns, compiled with them, not per keystroke.
+	private accepting: RegExp[] = [];
 	private selectorsLoaded = false;
 	// null until the first probe answers. false means this deployment serves
 	// no `$search` endpoint, and the controller stops asking.
@@ -121,13 +149,11 @@ export class SearchbarController extends BaseController {
 			results: this.getTarget("results"),
 		});
 
-		const input = this.getDOMElement("input");
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		this.pageQuery = this.hasValue("query") ? (input?.value.trim() ?? "") : "";
 		input?.addEventListener("keydown", this.keynav.bind(this));
 		input?.addEventListener("focus", this.selectInput.bind(this));
-		(input as HTMLInputElement | null)?.form?.addEventListener(
-			"mousedown",
-			this.focusFromForm.bind(this),
-		);
+		input?.form?.addEventListener("mousedown", this.focusFromForm.bind(this));
 		document.addEventListener("click", this.onOutsideClick.bind(this));
 		document.addEventListener("keydown", this.onKeyShortcut.bind(this));
 	}
@@ -159,6 +185,13 @@ export class SearchbarController extends BaseController {
 			clearTimeout(this.timer);
 			window.location.href = href;
 		};
+
+		// A results page fills the bar from its URL: that query searches, or a
+		// link could send the reader off the site with one Enter.
+		if (raw === this.pageQuery) {
+			go(this.searchHref(raw));
+			return;
+		}
 
 		// OID-shaped input redirects to the state view for that object.
 		if (OID_PATTERN.test(raw) && !raw.startsWith("/")) {
@@ -248,11 +281,24 @@ export class SearchbarController extends BaseController {
 	private async run(q: string): Promise<void> {
 		const id = ++this.runId;
 		const pageMatches = this.scanPage(q);
+		const drawLocal = (): void => {
+			this.pageMatches = pageMatches;
+			this.render(q, this.filter(q), pageMatches);
+		};
 
 		if (this.isQualified(q)) {
 			const ctl = new AbortController();
 			this.inflight = ctl;
+			// A pasted address waits on an account's walk, which can take
+			// seconds: what the path list knows shows in the meantime.
+			let answered = false;
+			if (this.isAccepted(q)) {
+				void this.ensureLoaded().then(() => {
+					if (!answered && id === this.runId) drawLocal();
+				});
+			}
 			const res = await this.fetchSearch(q, ctl.signal);
+			answered = true;
 			// A newer keystroke, or close(), superseded us.
 			if (id !== this.runId || ctl.signal.aborted) return;
 			if (res) {
@@ -271,8 +317,7 @@ export class SearchbarController extends BaseController {
 
 		await this.ensureLoaded();
 		if (id !== this.runId) return;
-		this.pageMatches = pageMatches;
-		this.render(q, this.filter(q), pageMatches);
+		drawLocal();
 	}
 
 	// searchHref builds on the form's action, the server's `SearchAction`, so
@@ -295,7 +340,26 @@ export class SearchbarController extends BaseController {
 		// that does not exist".
 		if (q.split(/\s+/).some(SearchbarController.isQualifierToken)) return true;
 		const word = q.trim().toLowerCase();
-		return this.selectors.some((s) => s.bare && s.name === word);
+		return (
+			this.selectors.some((s) => s.bare && s.name === word) ||
+			this.isAccepted(q)
+		);
+	}
+
+	// isAccepted reports a value a selector answers typed alone.
+	private isAccepted(q: string): boolean {
+		return this.accepting.some((re) => re.test(q.trim()));
+	}
+
+	// pattern compiles an `accepts`, a Go regexp the browser may not read: one
+	// it refuses is left out, not a failure of the whole answer.
+	static pattern(source?: string): RegExp[] {
+		if (!source) return [];
+		try {
+			return [new RegExp(source)];
+		} catch {
+			return [];
+		}
 	}
 
 	// highlightTerm is what a server-answered row can contain: the free text,
@@ -360,6 +424,11 @@ export class SearchbarController extends BaseController {
 			this.searchAvailable = true;
 			if (data.selectors) {
 				this.selectors = data.selectors;
+				if (!this.selectorsLoaded) {
+					this.accepting = data.selectors.flatMap((s) =>
+						SearchbarController.pattern(s.accepts),
+					);
+				}
 				this.selectorsLoaded = true;
 			}
 			return data;
@@ -592,9 +661,8 @@ export class SearchbarController extends BaseController {
 	}
 
 	// filter ranks the cached lists by relevance and keeps the top results per
-	// group. Users are derived from the first path segment of the ranked matches.
-	// filter ranks the cached lists locally and emits the same shape the
-	// server returns, so one renderer serves both paths.
+	// group, in the shape the server returns, so one renderer serves both
+	// paths. Users are derived from the first path segment of the ranked matches.
 	private filter(q: string): SearchGroup[] {
 		const needle = q.toLowerCase();
 		const apps = SearchbarController.rank(this.realms, needle);
@@ -602,6 +670,11 @@ export class SearchbarController extends BaseController {
 
 		const users: string[] = [];
 		const seen = new Set<string>();
+		// A pasted address names a user even with nothing deployed under it.
+		if (SearchbarController.isAddress(q)) {
+			seen.add(needle);
+			users.push(`/u/${needle}`);
+		}
 		for (const p of apps.concat(packages)) {
 			const name = SearchbarController.firstSegment(p);
 			if (name && !seen.has(name)) {
@@ -625,22 +698,65 @@ export class SearchbarController extends BaseController {
 		].filter((g) => (g.results?.length ?? 0) > 0);
 	}
 
-	// rank returns the paths matching needle, most-relevant first: a match in the
-	// realm name (last segment) outranks one in the namespace/address, and a
-	// shallower path edges out a deeper one.
+	// rank returns the paths matching needle, most-relevant first: throwaway
+	// deploys last, then a match in the package name outranks one in the
+	// namespace/address, and a shallower path edges out a deeper one. The
+	// results page ranks with the same rules (omnisearch sortByRelevance).
 	static rank(paths: string[], needle: string): string[] {
-		const scored: Array<{ path: string; score: number }> = [];
+		const scored: Array<{ path: string; score: number; throwaway: boolean }> =
+			[];
 		for (const p of paths) {
 			const score = SearchbarController.relevance(p, needle);
-			if (score > 0) scored.push({ path: p, score });
+			if (score > 0)
+				scored.push({
+					path: p,
+					score,
+					throwaway: SearchbarController.isThrowaway(p, needle),
+				});
 		}
 		scored.sort(
 			(a, b) =>
+				Number(a.throwaway) - Number(b.throwaway) ||
 				b.score - a.score ||
 				a.path.length - b.path.length ||
-				a.path.localeCompare(b.path),
+				(a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
 		);
 		return scored.map((s) => s.path);
+	}
+
+	// isAddress checks a bech32 address's checksum (BIP-173), as the server
+	// does before linking /u/<address>: the shape alone lets a typo through.
+	static isAddress(s: string): boolean {
+		if (!ADDRESS_PATTERN.test(s)) return false;
+		const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+		const sep = s.lastIndexOf("1");
+		const hrp = [...s.slice(0, sep)].map((c) => c.charCodeAt(0));
+		const values = [
+			...hrp.map((c) => c >> 5),
+			0,
+			...hrp.map((c) => c & 31),
+			...[...s.slice(sep + 1)].map((c) => charset.indexOf(c)),
+		];
+		const gen = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+		let chk = 1;
+		for (const v of values) {
+			const top = chk >>> 25;
+			chk = ((chk & 0x1ffffff) << 5) ^ v;
+			for (let i = 0; i < 5; i++) if (((top >>> i) & 1) !== 0) chk ^= gen[i];
+		}
+		return chk === 1;
+	}
+
+	// isThrowaway mirrors omnisearch isThrowaway: a raw address namespace or
+	// one numbered after a test, or a segment that names a test; not when
+	// asked for.
+	static isThrowaway(path: string, needle: string): boolean {
+		const segs = path.toLowerCase().split("/").filter(Boolean);
+		const ns = segs[1] ?? "";
+		// A pasted address asks for that namespace; a needle inside it does not.
+		if (ADDRESS_PATTERN.test(ns) && ns !== needle) return true;
+		if (needle.includes("test")) return false;
+		return TEST_NAMESPACE.test(ns) || segs.some((s) => TEST_WORD.test(s));
 	}
 
 	// relevance scores how well a path matches needle; 0 means no match.
@@ -648,9 +764,14 @@ export class SearchbarController extends BaseController {
 		const lower = path.toLowerCase();
 		if (!lower.includes(needle)) return 0;
 		const segs = lower.split("/").filter(Boolean);
+		// A version segment (`/v0`) is not depth: the name is the one before.
+		if (segs.length > 1 && VERSION_SEGMENT.test(segs[segs.length - 1] ?? "")) {
+			segs.pop();
+		}
 		const name = segs[segs.length - 1] ?? "";
 		let score: number;
 		if (name === needle) score = 100;
+		else if (segs.includes(needle)) score = 90;
 		else if (name.startsWith(needle)) score = 80;
 		else if (name.includes(needle)) score = 60;
 		else if (segs.some((s) => s.startsWith(needle))) score = 40;
@@ -754,7 +875,9 @@ export class SearchbarController extends BaseController {
 
 	// onKeyShortcut focuses the search bar when "/" is pressed outside any
 	// editable element, then opens the dropdown against the prefilled path so
-	// the action has visible feedback (a bare select() reads as a no-op).
+	// the action has visible feedback (a bare select() reads as a no-op). A
+	// results page already answers the query its bar holds, so the bar only
+	// takes the caret there, at the end, ready to refine it.
 	// Skips when modifiers are held or during IME composition so chorded
 	// shortcuts and CJK input keep working.
 	//
@@ -766,7 +889,13 @@ export class SearchbarController extends BaseController {
 		const target = e.target as HTMLElement | null;
 		if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
 		e.preventDefault();
-		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		if (!input) return;
+		input.focus();
+		if (this.pageQuery && input.value.trim() === this.pageQuery) {
+			input.setSelectionRange(input.value.length, input.value.length);
+			return;
+		}
 		this.search();
 	}
 
@@ -782,10 +911,11 @@ export class SearchbarController extends BaseController {
 	// selectInput selects the whole input on focus so typing replaces the
 	// prefilled path instead of appending to it. Deferred via rAF so a mouse
 	// click's caret placement doesn't collapse the selection (a plain
-	// synchronous select() is lost on mousedown→focus→mouseup).
+	// synchronous select() is lost on mousedown→focus→mouseup). A results page
+	// holds its query instead, which a reader refines: the caret stays put.
 	private selectInput(): void {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
-		requestAnimationFrame(() => input?.select());
+		if (!this.pageQuery) requestAnimationFrame(() => input?.select());
 		// Learn the qualifier list on first focus, not on page load: a reader
 		// who never opens the bar costs no request.
 		void this.loadSelectors();

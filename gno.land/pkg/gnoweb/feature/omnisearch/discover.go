@@ -1,10 +1,16 @@
 package omnisearch
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"regexp"
+	"slices"
 	"strings"
+	"sync"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // maxDiscoverResults caps each discovery group. The omnibar shows what is
@@ -31,10 +37,25 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		return refused(fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))
 	}
 
+	var users []string
+	seen := map[string]bool{}
+	addUser := func(ns string) {
+		if ns != "" && !seen[ns] {
+			seen[ns] = true
+			users = append(users, ns)
+		}
+	}
+	// A pasted address names a user even with nothing deployed under it, which
+	// takes no listing. A qualifier narrows the answer past it.
+	if _, err := crypto.AddressFromBech32(q.Text); err == nil && len(q.Filters) == 0 {
+		addUser(needle)
+	}
+
 	realms, packages, truncated, err := h.deps.Directory.Paths(ctx)
 	if err != nil {
 		h.deps.Logger.Warn("omnisearch: path listing failed", "error", err)
-		return []Group{{Label: "Realms", Source: SourceChain, Err: publicError(err, SourceChain)}}
+		failed := Group{Label: "Realms", Source: SourceChain, Err: publicError(err, SourceChain)}
+		return append([]Group{failed}, usersGroup(users)...)
 	}
 
 	kinds := []struct {
@@ -45,17 +66,14 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		{"Realms", "realm", realms},
 		{"Packages", "package", packages},
 	}
-	var (
-		groups     []Group
-		namespaces = map[string]bool{}
-	)
+	var groups []Group
 	for _, k := range kinds {
 		if hasIs && !strings.EqualFold(want, k.is) {
 			continue
 		}
 
 		g := Group{Label: k.label, Source: SourceChain}
-		matched := 0
+		var hits []string
 		for _, p := range k.paths {
 			rel := strings.TrimPrefix(p, h.deps.Domain)
 			// Scope first, then the needle: both reject most paths, and the
@@ -66,21 +84,25 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 			if needle != "" && !strings.Contains(strings.ToLower(rel), needle) {
 				continue
 			}
-			ns := namespaceOf(rel)
-			if author != "" && !strings.EqualFold(ns, author) {
+			if author != "" && !strings.EqualFold(namespaceOf(rel), author) {
 				continue
 			}
-			// Recorded before the cap, so the users group reflects every
-			// match rather than the first ten.
-			if ns != "" {
-				namespaces[ns] = true
-			}
-			if matched++; len(g.Results) >= maxDiscoverResults {
-				continue
-			}
+			hits = append(hits, rel)
+		}
+		// Ranked before the cap: the listing is alphabetical, which put a
+		// test deploy under an address ahead of the package everyone uses.
+		sortByRelevance(hits, needle)
+		// Before the cap too, so the users group reflects every match rather
+		// than the first ten, in their order.
+		for _, rel := range hits {
+			addUser(namespaceOf(rel))
+		}
+		matched := len(hits)
+		for _, rel := range hits[:min(matched, maxDiscoverResults)] {
 			g.Results = append(g.Results, Result{
 				Title:  rel,
-				Detail: ns,
+				Detail: namespaceOf(rel),
+				Opaque: true,
 				Href:   safePathHref(rel),
 				Tags:   []string{k.is},
 			})
@@ -93,9 +115,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		}
 	}
 
-	if g := usersGroup(namespaces); len(g.Results) > 0 {
-		groups = append(groups, g)
-	}
+	groups = append(groups, usersGroup(users)...)
 	if truncated {
 		// The node always drops the same lexicographic tail, so a namespace
 		// late in the alphabet would otherwise look like it does not exist.
@@ -149,23 +169,18 @@ func inScope(rel, scope string) bool {
 }
 
 // usersGroup is derived, not fetched: every namespace came from a path the
-// chain already returned.
-func usersGroup(namespaces map[string]bool) Group {
-	names := make([]string, 0, len(namespaces))
-	for ns := range namespaces {
-		names = append(names, ns)
+// chain already returned, or is the address pasted. It keeps their order, the
+// order of the ranked paths, as the omnibar does. No names, no group.
+func usersGroup(names []string) []Group {
+	if len(names) == 0 {
+		return nil
 	}
-	sort.Strings(names)
-
 	g := Group{Label: "Users", Source: SourceChain}
-	for _, ns := range names {
-		if len(g.Results) >= maxDiscoverResults {
-			break
-		}
+	for _, ns := range names[:min(len(names), maxDiscoverResults)] {
 		g.Results = append(g.Results, Result{Title: ns, Href: safeUserHref(ns)})
 	}
 	markCapped(&g, len(names))
-	return g
+	return []Group{g}
 }
 
 // namespaceOf returns the owner segment of a gnoweb path:
@@ -190,4 +205,93 @@ func matchesAuthor(chainPath, signer, author, domain string) bool {
 		return true
 	}
 	return strings.EqualFold(namespaceOf(strings.TrimPrefix(chainPath, domain)), author)
+}
+
+// addressPattern is a bech32 account address. It checks the shape only: the
+// account search validates the checksum before asking the indexer. Built on
+// first use: reading the prefix fixes it, which importing gnoweb must not do.
+var addressPattern = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`^` + crypto.Bech32AddrPrefix() + `1[02-9ac-hj-np-z]{38}$`)
+})
+
+func isAddress(s string) bool { return addressPattern().MatchString(s) }
+
+// sortByRelevance orders matched paths: throwaway deploys last (see
+// isThrowaway), then by relevance, then the shortest path. No list of
+// official namespaces: the rank follows from the paths. The omnibar ranks its
+// local matches with the same rules (controller-searchbar.ts rank).
+func sortByRelevance(paths []string, needle string) {
+	// Each key once, not once per comparison.
+	type key struct{ throwaway, score int }
+	keys := make(map[string]key, len(paths))
+	for _, rel := range paths {
+		k := key{score: -relevance(rel, needle)}
+		if isThrowaway(rel, needle) {
+			k.throwaway = 1
+		}
+		keys[rel] = k
+	}
+	slices.SortFunc(paths, func(a, b string) int {
+		ka, kb := keys[a], keys[b]
+		return cmp.Or(
+			cmp.Compare(ka.throwaway, kb.throwaway),
+			cmp.Compare(ka.score, kb.score),
+			cmp.Compare(len(a), len(b)),
+			strings.Compare(a, b),
+		)
+	})
+}
+
+// relevance scores how well rel matches needle: the package's name (its last
+// segment before any /vN) first, then a segment that is the needle (a
+// namespace typed whole), then a match in the name, at the start of a
+// segment, anywhere; a shallower path edges out a deeper one.
+func relevance(rel, needle string) int {
+	lower := strings.ToLower(rel)
+	segs := strings.FieldsFunc(lower, func(r rune) bool { return r == '/' })
+	name := gnolang.LastPathElement(lower)
+	if len(segs) > 1 && name != segs[len(segs)-1] {
+		segs = segs[:len(segs)-1] // a version segment is neither name nor depth
+	}
+	depth := len(segs)
+	score := 20
+	switch {
+	case name == needle:
+		score = 100
+	case slices.Contains(segs, needle):
+		score = 90
+	case strings.HasPrefix(name, needle):
+		score = 80
+	case strings.Contains(name, needle):
+		score = 60
+	case slices.ContainsFunc(segs, func(s string) bool { return strings.HasPrefix(s, needle) }):
+		score = 40
+	}
+	return score - depth
+}
+
+// testWord is a path segment naming a test: "test" as a word of its own, or a
+// helper such as testutils. Not "latest", "attestation" or "testimonials".
+// testNamespace is a namespace numbered after one (nym-moultest123), which
+// only a namespace can be read as: a package may be "latest2". The omnibar
+// matches the same patterns (controller-searchbar.ts TEST_WORD, TEST_NAMESPACE).
+var (
+	testWord      = regexp.MustCompile(`(^|[-_])test(s|ing|utils?)?([-_0-9]|$)`)
+	testNamespace = regexp.MustCompile(`test[0-9]`)
+)
+
+// isThrowaway: a deploy under a raw address namespace or one numbered after a
+// test, or with a segment that names a test. Not when the needle asks for it.
+func isThrowaway(rel, needle string) bool {
+	ns := strings.ToLower(namespaceOf(rel))
+	// A pasted address asks for that namespace; a needle inside it does not.
+	if isAddress(ns) && ns != needle {
+		return true
+	}
+	lower := strings.ToLower(rel)
+	// Contains first: this runs on every match, and few paths hold the word.
+	if strings.Contains(needle, "test") || !strings.Contains(lower, "test") {
+		return false
+	}
+	return testNamespace.MatchString(ns) || slices.ContainsFunc(strings.Split(lower, "/"), testWord.MatchString)
 }

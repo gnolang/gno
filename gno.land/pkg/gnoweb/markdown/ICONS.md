@@ -30,7 +30,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 
 ![Every icon with its name](ICONS.svg)
 
-491 icons:
+492 icons:
 
 | Icon | Name |
 |---|---|
@@ -393,6 +393,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="push-left" /> | `push-left` |
 | <gno-icon name="push-right" /> | `push-right` |
 | <gno-icon name="push-up" /> | `push-up` |
+| <gno-icon name="question" /> | `question` |
 | <gno-icon name="radio-on" /> | `radio-on` |
 | <gno-icon name="readme" /> | `readme` |
 | <gno-icon name="realm" /> | `realm` |

@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"context"
 	"html/template"
+	"regexp"
 	"slices"
 )
 
@@ -70,14 +71,35 @@ type Selector struct {
 	// PageOnly keeps a fan-out selector off the per-keystroke JSON path.
 	PageOnly bool
 
+	// Accepts matches a value this selector answers when it is typed alone,
+	// without its key: a pasted address is an `account:` search. The JSON
+	// answer carries it, so the omnibar asks the server for the same input.
+	Accepts *regexp.Regexp
+
 	// resolve answers the query; term is the selector's own value.
 	resolve func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error)
 }
+
+// ResultKind is what a row names when its link does not say: a transaction
+// links to the package it touched, a block or a standard library import
+// nowhere. The zero value leaves it to the link.
+type ResultKind int
+
+const (
+	KindTx ResultKind = iota + 1
+	KindBlock
+	KindImport
+)
 
 // Result is one row in the results list.
 type Result struct {
 	Title  string
 	Detail string
+	// Opaque says Detail ends in an address or a hash, which a reader tells
+	// by both ends: that word is cut in its middle. Prose is left whole.
+	Opaque bool
+	// Kind says what the row names, for what its link cannot tell.
+	Kind ResultKind
 
 	// Href is typed so escaping is enforced by construction. Empty when the
 	// row has no destination.

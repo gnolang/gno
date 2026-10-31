@@ -33,7 +33,7 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return writeRateLimited(w, isJSON), nil
 	}
 
-	q, err := ParseQuery(queryTerm(u))
+	q, err := ParseQuery(QueryTerm(u))
 	if err != nil {
 		if isJSON {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -55,9 +55,9 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return http.StatusOK, NewPageView(h.build(ctx, q))
 }
 
-// queryTerm reads `q` from either grammar: gnoweb's links build `$search&q=`,
+// QueryTerm reads `q` from either grammar: gnoweb's links build `$search&q=`,
 // a plain GET form can only produce `?q=`.
-func queryTerm(u *weburl.GnoURL) string {
+func QueryTerm(u *weburl.GnoURL) string {
 	if v := u.WebQuery.Get("q"); v != "" {
 		return v
 	}
@@ -67,12 +67,6 @@ func queryTerm(u *weburl.GnoURL) string {
 // scope resolves which package the query runs against: `in:` when given,
 // otherwise the URL's path. Only realm and pure paths carry one.
 func (h *Handler) scope(q *Query, u *weburl.GnoURL) {
-	base := u.Path
-	if base == "" {
-		base = "/"
-	}
-	q.formAction = base + "$search"
-
 	rel := ""
 	if in, ok := q.Get(FilterIn); ok {
 		rel = normalizePkgPath(in, h.deps.Domain)
@@ -105,10 +99,13 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 	data := SearchData{
 		Query:     q.Raw,
 		PkgPath:   q.PkgPath,
+		PagePath:  q.PkgPath,
 		Selectors: h.selectors,
 	}
-	data.FormAction = q.formAction
-	if sel, _ := h.selectorFor(q); sel == nil {
+	sel, term := h.selectorFor(q)
+	// A bare keyword (`deploys`) is already named by its group's heading.
+	data.QueryIsLabel = sel != nil && sel.Bare && term == "" && q.HasBareWord(sel.Name) && len(q.Filters) == 0
+	if sel == nil {
 		// A discovery search ignores the page it was typed on, so the header
 		// must not claim that scope, nor on the empty page, where most
 		// queries typed are discovery ones. An `in:` scope is the one answer
@@ -127,7 +124,39 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 	}
 	data.Groups, data.UnknownFilter = h.Search(ctx, q)
 	data.Indexer = h.indexerStatus(ctx, data.Groups)
+	data.RailTitle, data.RailLinks = h.railLinks(data, sel)
 	return data
+}
+
+// railExamples are queries any chain answers: a name, a namespace, and a
+// namespace's realms.
+var railExamples = []RailLink{
+	{Label: "A name", Query: "avl", Href: searchHref("avl")},
+	{Label: "A namespace", Query: "author:gnoland", Href: searchHref("author:gnoland")},
+	{Label: "Its realms", Query: "is:realm author:gnoland", Href: searchHref("is:realm author:gnoland")},
+}
+
+// railLinks fills the rail under the counts. On a package page, the keywords
+// that need no argument, so moving from deploys to activity is one click.
+// Without an answer, a few queries to try. Otherwise nothing.
+func (h *Handler) railLinks(data SearchData, current *Selector) (string, []RailLink) {
+	if safePathHref(data.PagePath) != "" {
+		var links []RailLink
+		for _, sel := range h.selectors {
+			// The one running already heads the results.
+			if sel.Scope != ScopePackage || !sel.Bare || sel == current {
+				continue
+			}
+			links = append(links, RailLink{Label: sel.Label, Query: sel.Name, Href: keywordHref(data.PagePath, sel.Name)})
+		}
+		if len(links) > 0 {
+			return "On this package", links
+		}
+	}
+	if data.HasResults() {
+		return "", nil
+	}
+	return "Try", railExamples
 }
 
 // wholeChainHref is the same discovery search without its scope: `in:`
@@ -142,7 +171,12 @@ func wholeChainHref(q *Query) string {
 	if q.Text != "" {
 		kept = append(kept, q.Text)
 	}
-	return "/$search?q=" + url.QueryEscape(strings.Join(kept, " "))
+	return string(searchHref(strings.Join(kept, " ")))
+}
+
+// searchHref is a chain-wide search for query.
+func searchHref(query string) template.URL {
+	return template.URL("/$search?q=" + url.QueryEscape(query)) //nolint:gosec // G203: a fixed path and an escaped query.
 }
 
 // Search answers a query. At most one selector runs: they name different
@@ -187,6 +221,25 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		}}, ""
 	}
 
+	// A value a selector accepted alone (a pasted address) may also name
+	// paths and a user. Discovery runs beside the selector, not after it,
+	// so the two share the omnibar's time budget instead of adding up.
+	var also chan []Group
+	if sel.Accepts != nil && term == q.Text {
+		also = make(chan []Group, 1)
+		go func() {
+			// net/http recovers a handler's panic, not one in a goroutine it
+			// starts: unrecovered, it would take the whole server down.
+			defer func() {
+				if r := recover(); r != nil {
+					h.deps.Logger.Error("omnisearch: discovery panicked", "panic", r)
+					also <- nil
+				}
+			}()
+			also <- h.discover(ctx, q)
+		}()
+	}
+
 	g := Group{Label: sel.Label, Source: sel.Source}
 	results, err := sel.resolve(ctx, h, q, term)
 	var part partialAnswerError
@@ -216,7 +269,12 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 	if g.Results, cut = capResults(results); cut && !g.Truncated {
 		g.Truncated, g.Notice = true, fmt.Sprintf("Showing the first %d matches.", MaxResults)
 	}
-	return []Group{g}, ""
+	groups = []Group{g}
+	if also != nil {
+		// A failed one stays: "could not ask" is not "nothing matched".
+		groups = append(groups, <-also...)
+	}
+	return groups, ""
 }
 
 // selectorFor picks the one selector a query names.
@@ -234,6 +292,16 @@ func (h *Handler) selectorFor(q *Query) (*Selector, string) {
 	for _, sel := range h.selectors {
 		if sel.Bare && q.HasBareWord(sel.Name) {
 			return sel, ""
+		}
+	}
+	// A value typed alone that a selector accepts is that selector's search:
+	// a pasted address asks for its account. Without an indexer there is no
+	// such selector, and discovery links the user's page instead.
+	if len(q.Filters) == 0 {
+		for _, sel := range h.selectors {
+			if sel.Accepts != nil && sel.Accepts.MatchString(q.Text) {
+				return sel, q.Text
+			}
 		}
 	}
 	return nil, ""
@@ -274,7 +342,7 @@ func (h *Handler) indexerStatus(ctx context.Context, groups []Group) *IndexerSta
 		return nil
 	}
 
-	st := &IndexerStatus{URL: h.deps.Indexer.URL()}
+	st := &IndexerStatus{}
 	height, err := h.deps.Indexer.LatestBlockHeight(ctx)
 	if err != nil {
 		h.deps.Logger.Warn("omnisearch: indexer tip failed", "error", err)
@@ -344,6 +412,16 @@ func writeRateLimited(w http.ResponseWriter, isJSON bool) int {
 func isSafeRelPath(rel string) bool {
 	u := weburl.GnoURL{Path: rel}
 	return u.IsRealm() || u.IsPure()
+}
+
+// keywordHref runs a keyword on a package page, or is empty when pkgPath is
+// not a package.
+func keywordHref(pkgPath, keyword string) template.URL {
+	base := safePathHref(pkgPath)
+	if base == "" {
+		return ""
+	}
+	return base + template.URL("$search&q="+url.QueryEscape(keyword)) //nolint:gosec // G203: a validated path and an escaped keyword.
 }
 
 // safePathHref links a chain-listed package path, or nothing.

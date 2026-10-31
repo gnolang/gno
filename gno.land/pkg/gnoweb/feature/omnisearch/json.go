@@ -34,10 +34,11 @@ type jsonSelector struct {
 	Scope  Scope  `json:"scope"`
 	Source Source `json:"source"`
 	Bare   bool   `json:"bare,omitempty"`
+	// Accepts is Selector.Accepts as a pattern the omnibar can test.
+	Accepts string `json:"accepts,omitempty"`
 }
 
 type jsonIndexer struct {
-	URL       string `json:"url"`
 	LastBlock int    `json:"last_block,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
@@ -69,10 +70,14 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		UnknownFilter: data.UnknownFilter,
 	}
 	for _, s := range data.Selectors {
-		resp.Selectors = append(resp.Selectors, jsonSelector{
+		js := jsonSelector{
 			Name: s.Name, Hint: s.Hint, Label: s.Label,
 			Scope: s.Scope, Source: s.Source, Bare: s.Bare,
-		})
+		}
+		if s.Accepts != nil {
+			js.Accepts = s.Accepts.String()
+		}
+		resp.Selectors = append(resp.Selectors, js)
 	}
 	for _, g := range data.Groups {
 		jg := jsonGroup{
@@ -90,7 +95,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		resp.Groups = append(resp.Groups, jg)
 	}
 	if data.Indexer != nil {
-		ji := &jsonIndexer{URL: data.Indexer.URL, LastBlock: data.Indexer.LastBlock}
+		ji := &jsonIndexer{LastBlock: data.Indexer.LastBlock}
 		if data.Indexer.Err != nil {
 			ji.Error = data.Indexer.Err.Error()
 		}

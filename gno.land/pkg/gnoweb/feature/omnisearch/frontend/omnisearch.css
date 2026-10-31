@@ -1,183 +1,111 @@
 /* ==========================================================================
    OMNISEARCH - feature-scoped Block layer (CUBE CSS)
    Pulled into the Block layer via @import from frontend/css/main.css.
+
+   The results page is a listing: sections and rows reuse .b-pkg-section and
+   .b-list, the rail reuses .b-listing-rail. What follows is only what a
+   search row carries that a listing row does not.
    ========================================================================== */
 
-.b-omni {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-6);
-}
-
-/* ===== QUERY FORM (the no-JavaScript entry point) ===== */
-.b-omni-form {
-	display: flex;
-	gap: var(--g-space-2);
-	align-items: stretch;
-
-	& input {
-		flex: 1;
-		min-width: 0;
-		padding: var(--g-space-2) var(--g-space-3);
-		border: var(--s-border);
-		border-radius: var(--s-rounded-sm);
-		background-color: var(--s-color-bg-input);
-		color: var(--s-color-text-primary);
-		font-family: var(--g-font-family-mono);
-		font-size: var(--g-font-size-100);
-
-		&::placeholder {
-			color: var(--s-color-text-input-placeholder);
-		}
-
-		&:focus-visible {
-			background-color: var(--s-color-bg-input-focus);
-			border-color: var(--s-color-border-tertiary);
-			outline: 2px solid var(--s-color-focus-ring);
-			outline-offset: 2px;
-		}
-	}
-}
-
 /* ===== NOTICES ===== */
-.b-omni-notice {
+/* A notice and the provenance note share one box; each sets its tone. */
+.b-omni-notice,
+.b-omni-provenance {
 	padding: var(--g-space-3);
 	border: var(--s-border);
 	border-radius: var(--s-rounded-sm);
-	background-color: var(--s-color-bg-surface-secondary);
 	color: var(--s-color-text-secondary);
+}
+
+.b-omni-notice {
+	margin-block-end: var(--g-space-6);
+	background-color: var(--s-color-bg-surface-secondary);
 	font-size: var(--g-font-size-100);
 }
 
-/* ===== RESULT GROUPS ===== */
-.b-omni-group {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-2);
-}
-
-.b-omni-group__header {
-	display: flex;
-	align-items: center;
-	gap: var(--g-space-2);
-	padding-block-end: var(--g-space-1);
-	border-block-end: var(--s-border);
-	color: var(--s-color-text-primary);
-	font-size: var(--g-font-size-200);
-	font-weight: var(--g-font-semibold);
-
-	& .count {
-		margin-inline-start: auto;
-		color: var(--s-color-text-tertiary);
-		font-size: var(--g-font-size-50);
-		font-weight: var(--g-font-normal);
-	}
-}
-
 .b-omni-group__notice {
+	margin-block-end: var(--g-space-2);
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
 }
 
-/* An error is not a footnote: rendering "could not answer" smaller and
-   fainter than everything around it inverts the hierarchy. */
-.b-omni-group__error {
-	color: var(--s-color-text-secondary);
-	font-size: var(--g-font-size-100);
+/* ===== RESULT GROUPS ===== */
+/* A group heads a run of rows, not a section of a document: a step below the
+   overview's 22px, so the page title stays the one heading at 24px. */
+.b-omni-group .b-pkg-section__header {
+	font-size: var(--g-font-size-300);
+	margin-block-end: var(--g-space-2);
+}
+
+/* The rail links here: a jump clears the sticky header, as #main-content's. */
+.b-omni-group {
+	scroll-margin-block-start: var(--g-space-28);
+
+	@media (--lg) {
+		scroll-margin-block-start: var(--g-space-16);
+	}
 }
 
 /* ===== RESULT ROWS ===== */
-.b-omni-list {
-	display: flex;
-	flex-direction: column;
-	list-style: none;
-	margin: 0;
-	padding: 0;
+.b-omni .b-list {
+	margin-block-end: 0;
 }
 
-.b-omni-list__item {
+/* A title ends with the path or the recipient: it wraps rather than clamps. */
+.b-omni .b-list .name {
+	display: block;
+	overflow-wrap: anywhere;
+}
+
+/* The group heading already draws the line above the first row. */
+.b-omni-group .b-pkg-section__header + .b-list > li:first-child {
+	border-top: none;
+}
+
+/* A row with no destination (a transaction has no page in gnoweb) is still
+   an answer: same layout as a linked row, without the link's affordances. */
+.b-omni-plain {
+	flex: 1 1 12rem;
 	min-width: 0;
 }
 
-.b-omni-list__link {
-	display: flex;
-	/* A row that links must read as a link: the hover background alone does
-	   not exist on touch, so it left the two variants identical at rest. */
-	&:is(a) .title {
-		color: var(--s-color-text-link);
-	}
-
-	&:is(a):hover .title,
-	&:is(a):focus-visible .title {
-		text-decoration: underline;
-	}
-
-	&:focus-visible {
-		outline: 2px solid var(--s-color-focus-ring);
-		outline-offset: -2px;
-	}
-
-	align-items: center;
-	gap: var(--g-space-3);
-	padding: var(--g-space-2) var(--g-space-2);
-	border-radius: var(--s-rounded-sm);
-	color: var(--s-color-text-primary);
-	text-decoration: none;
-	transition: background-color var(--g-transition-fast);
-
-	&:hover {
-		background-color: var(--s-color-bg-hover);
-	}
-
-	/* A row with no destination is still an answer; it just must not look
-	   clickable. A transaction has no page in gnoweb. */
-	&.b-omni-list__link--plain {
-		cursor: default;
-
-		&:hover {
-			background-color: transparent;
-		}
-	}
+.b-omni .b-list > li > div:has(> .b-omni-plain):hover {
+	background-color: transparent;
 }
 
-.b-omni-list__text {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-0-5);
-	min-width: 0;
-
-	& .title {
-		overflow-wrap: anywhere;
-		font-size: var(--g-font-size-100);
-	}
-
-	/* Secondary, not tertiary: 12px tertiary falls under AA on a hovered row. */
-	& .detail {
-		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-50);
-		overflow-wrap: anywhere;
-	}
+.b-omni .b-list > li > div > a .name {
+	color: var(--s-color-text-link);
 }
 
-.b-omni-list__tags {
-	display: flex;
+/* Who signed, the hash, the height: secondary to the name, so they sit on the
+   right where a listing puts its actions, and ellipsize first. */
+.b-omni-meta {
 	flex-wrap: wrap;
-	gap: var(--g-space-1);
-	margin-inline-start: auto;
+	justify-content: flex-end;
+	gap: var(--g-space-1) var(--g-space-2);
+	min-width: 0;
+
+	/* Cut in the middle by the template; this only guards a long name. */
+	& .detail {
+		overflow: hidden;
+		max-width: 26ch;
+		color: var(--s-color-text-secondary);
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-50);
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 }
 
 /* ===== PROVENANCE ===== */
-/* Indexer results are not consensus data. This footer is the visible half of
-   that contract; the `indexer` tag on each group is the other half. */
+/* Indexer results are not consensus data. This note is the visible half of
+   that contract; the `indexer` tag on each group is the other half. Shared
+   with ui/indexer_status, on the map and dependency pages. */
 .b-omni-provenance {
 	display: flex;
 	align-items: flex-start;
 	gap: var(--g-space-2);
-	padding: var(--g-space-3);
-	border: var(--s-border);
-	border-radius: var(--s-rounded-sm);
 	background-color: var(--s-color-bg-note-weak);
-	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
 
 	& .c-icon {
@@ -188,48 +116,136 @@
 	}
 }
 
-.b-tag--indexer {
+/* An indexer group's count carries its provenance in the same colour, so
+   the group heading keeps one pill. A step above the chain count's fill, and
+   above the page and the note this sits on, in both themes. */
+.b-tag--indexer,
+.b-omni-group .count.b-omni-count--indexer {
 	/* .b-tag carries a border; every other filled variant drops it. */
-	background-color: var(--s-color-bg-note-weak);
+	white-space: nowrap;
+	background-color: var(--s-color-bg-surface-tertiary);
 	border-color: transparent;
-	color: var(--s-color-text-secondary);
+	color: var(--s-color-text-primary);
 }
 
-/* ===== QUALIFIER HINTS ===== */
+/* ===== THE QUERY, in the header ===== */
+/* In the title, which wraps (listing rule): a long query such as an address
+   goes to its own line and breaks there, instead of squeezing the facts. */
+.b-omni-query {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	padding: var(--g-space-0-5) var(--g-space-1-5);
+	font-size: var(--g-font-size-100);
+	font-weight: var(--g-font-normal);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-secondary);
+	color: var(--s-color-text-primary);
+	font-family: var(--g-font-family-mono);
+}
+
+/* Fills the header's width so the keywords button reaches its end, and
+   wraps on a phone: the scope, its whole-chain link and the button do not
+   fit one line there. */
+.b-content-header .b-omni-info {
+	flex: 1;
+	flex-wrap: wrap;
+	gap: var(--g-space-1) var(--g-space-6);
+}
+
+.b-omni-info > span {
+	overflow-wrap: anywhere;
+}
+
+/* ===== SEARCH KEYWORDS (a popover under the header's button) ===== */
+/* Anchored as the breadcrumb's kind switch is. The button sits at the
+   header's end, so the popover opens leftwards from its right edge. */
+.b-omni-keywords-btn {
+	anchor-name: --omni-keywords;
+	margin-inline-start: auto;
+	min-block-size: var(--g-space-6);
+	white-space: nowrap;
+}
+
+/* Runs from the button to the bottom inset at most, so a phone's popover
+   stays on screen with its rows scrolling inside it; max-height stops a short
+   one from stretching to that inset. */
+.b-omni-keywords {
+	position-anchor: --omni-keywords;
+	right: anchor(right);
+	bottom: var(--g-space-4);
+	margin: var(--g-space-1) 0 0 var(--g-space-4);
+	width: min(26rem, calc(100vw - 2 * var(--g-space-4)));
+	height: auto;
+	max-height: fit-content;
+	overflow-y: auto;
+	padding: var(--g-space-4);
+}
+
+/* Without anchor positioning (older browsers) it opens under the header, at
+   the end, rather than at the content's start and off the top of the screen. */
+@supports not (top: anchor(bottom)) {
+	.b-omni-keywords {
+		top: var(--g-space-14);
+		right: var(--g-space-4);
+	}
+}
+
 .b-omni-hints {
+	font-size: var(--g-font-size-50);
+
 	& ul {
 		display: flex;
 		flex-direction: column;
-		gap: var(--g-space-1);
+		gap: var(--g-space-1-5);
 		list-style: none;
-		margin: 0;
+		margin: 0 0 var(--g-space-4);
 		padding: 0;
 	}
 
-	/* Wraps: an indexer qualifier carries two pills, which overflow at 320px. */
 	& li {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--g-space-2);
-		font-size: var(--g-font-size-50);
+		align-items: baseline;
+		gap: var(--g-space-0-5) var(--g-space-2);
 	}
 
 	& code {
-		flex: none;
-		min-width: 12ch;
-		font-family: var(--g-font-family-mono);
 		color: var(--s-color-text-primary);
+		font-family: var(--g-font-family-mono);
+	}
+
+	& a code {
+		color: var(--s-color-text-link);
 	}
 }
 
+.b-omni-hints__intro {
+	margin-block-end: var(--g-space-4);
+	color: var(--s-color-text-secondary);
+}
+
+/* Same eyebrow as the rail's other sub-headings. */
 .b-omni-hints__title {
 	margin-block-end: var(--g-space-2);
 	color: var(--s-color-text-secondary);
-	font-size: var(--g-font-size-100);
+	font-size: var(--g-font-size-50);
 	font-weight: var(--g-font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 }
 
 .b-omni-hints__label {
 	color: var(--s-color-text-tertiary);
+}
+
+/* Where the answer comes from, said once per keyword and quietly: a pill per
+   row made the list read as badges rather than as syntax. */
+.b-omni-hints__src {
+	color: var(--s-color-text-tertiary);
+	font-style: italic;
+
+	&::before {
+		content: "· ";
+		font-style: normal;
+	}
 }

@@ -4407,6 +4407,20 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	border-radius: var(--s-rounded-sm);
 }
 
+/* ===== POPOVER PANEL ===== */
+/* A native popover hung under the control that opens it (its anchor), in
+   the top layer: the breadcrumb's kind switch, the search keywords. Each
+   block names its anchor and which edge it aligns to. */
+.b-popover {
+	inset: auto;
+	top: anchor(bottom);
+	border: var(--s-border);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+}
+
 /* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
 /* Right-aligned instead when the menu would leave the screen */
 @position-try --kind-switch-end {
@@ -4417,19 +4431,12 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 .b-kind-switch {
 	position-anchor: --kind-switch;
 	position-try-fallbacks: --kind-switch-end;
-	inset: auto;
-	top: anchor(bottom);
 	left: anchor(left);
 	margin: var(--g-space-1) var(--g-space-4) 0 0;
 	min-width: var(--g-space-64);
 	max-width: calc(100vw - 2 * var(--g-space-4));
 	overflow-wrap: anywhere;
 	padding: var(--g-space-1);
-	border: var(--s-border);
-	border-radius: var(--s-rounded);
-	background-color: var(--s-color-bg-base);
-	color: var(--s-color-text-primary);
-	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
 
 	& .item {
 		display: grid;
