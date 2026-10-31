@@ -35,8 +35,9 @@ the list of search keywords printed under the results as if it were one.
   the cap kept may all be dropped, and the rows below it were not searched, so
   the next band starts there, at the page's lowest block, read again whole
   since an older tx-indexer ends a page inside a block. Those rows stay in hand
-  until it answers, as the walk may end first. It stops at once only when one
-  block fills the cap, which heights cannot page past.
+  until it answers, as the walk may end first. It stops at once only when the
+  next band would be the same one: heights cannot page past a block filling
+  the cap.
 - The endpoint leaves the footer, the map, the dependencies page and the JSON
   answer (`indexer.url`). The freshness stays.
 - The results page is laid out as a directory listing: the same grid
