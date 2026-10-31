@@ -38,9 +38,9 @@ For more information and flags usage description, use 'gnodev local -h'.`,
 			return nil
 		},
 	)
-
 	cmd.AddSubCommands(localcmd)
 	cmd.AddSubCommands(NewStagingCmd(stdio))
+	cmd.AddSubCommands(newVersionCmd(stdio))
 
 	// XXX: This part is a bit hacky; it mostly configures the command to
 	// use the local command as default, but still falls back on gnodev root
