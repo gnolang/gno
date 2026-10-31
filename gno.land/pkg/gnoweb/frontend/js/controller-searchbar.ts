@@ -641,8 +641,9 @@ export class SearchbarController extends BaseController {
 	}
 
 	// replaceToken puts text in place of the token the list was drawn for,
-	// else the caret's, the caret after it. In the help it adds to a query
-	// the bar holds, and replaces only a prefilled path.
+	// else the caret's, the caret after it. In the help it adds to the end of
+	// a query the bar holds, wherever the caret was, and replaces only a
+	// prefilled path.
 	private replaceToken(text: string): string {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		if (!input) return "";
@@ -653,8 +654,9 @@ export class SearchbarController extends BaseController {
 			start = 0;
 			end = v.length;
 		} else if (this.helping) {
-			start = end;
-			if (/\S$/.test(v.slice(0, start))) added = ` ${text}`;
+			start = v.length;
+			end = v.length;
+			if (/\S$/.test(v)) added = ` ${text}`;
 		}
 		const rest = v.slice(end);
 		input.value =
