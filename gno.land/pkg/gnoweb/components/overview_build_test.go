@@ -240,6 +240,23 @@ func TestDeriveInfo_CreatorHeightFromGnomod(t *testing.T) {
 	require.Equal(t, 42, info.Height)
 }
 
+func TestDeriveInfo_SourceFromGnomod(t *testing.T) {
+	t.Parallel()
+	u, err := weburlParseForTest("/r/demo/foo")
+	require.NoError(t, err)
+	mod := []byte("module = \"gno.land/r/demo/foo\"\ngno = \"0.9\"\n\n[source]\nrepository = \"https://github.com/gnolang/gno\"\npath = \"examples/gno.land/r/demo/foo\"\nrevision = \"3cc494ec4d1f\"")
+	info := deriveInfo(u, mod)
+	require.Equal(t, PackageSource{
+		URL:      "https://github.com/gnolang/gno/tree/3cc494ec4d1f/examples/gno.land/r/demo/foo",
+		Label:    "github.com/gnolang/gno",
+		Revision: "3cc494ec4",
+	}, info.Source)
+
+	// An invalid section fails ParseBytes as a whole, so nothing is shown.
+	bad := []byte("module = \"gno.land/r/demo/foo\"\n\n[source]\nrepository = \"javascript:alert(1)\"")
+	require.Equal(t, PackageSource{}, deriveInfo(u, bad).Source)
+}
+
 func TestPackageTypeOf(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
