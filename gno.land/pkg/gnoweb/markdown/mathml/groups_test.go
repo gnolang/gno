@@ -26,7 +26,7 @@ func convertErrWithin(t *testing.T, tex string) (string, error) {
 	case r := <-done:
 		return r.out, r.err
 	case <-time.After(2 * time.Second):
-		t.Fatalf("conversion of %q did not terminate", tex)
+		t.Fatalf("conversion of %.80q did not terminate", tex)
 		return "", nil
 	}
 }
