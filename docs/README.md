@@ -48,6 +48,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Users and Teams](resources/users-and-teams.md) - Understand user registration, namespace ownership, and team collaboration in the Gno.land ecosystem.
 - [Gas Fees](resources/gas-fees.md) - Learn about gas pricing, estimation, and optimization strategies in Gno.land.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
+- [Upgrading a realm](resources/realm-upgrades.md) - Replace a realm's code in place and keep its state with a versioned redeploy: the rules, a walkthrough, and what is refused.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
 - [Local development with `gnodev`](resources/gnodev.md) - Reference for the local node, its features and flags, and the hot-reload development loop.

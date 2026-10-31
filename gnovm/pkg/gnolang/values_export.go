@@ -441,6 +441,7 @@ func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
 			NativePkg:  cv.NativePkg,
 			NativeName: cv.NativeName,
 			Crossing:   cv.Crossing,
+			Version:    cv.Version,
 		}
 	case *BoundMethodValue:
 		// cv.Func is typed *FuncValue, not Value, so it can't carry a
