@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_mv_attacker_stored_mv
 package launderrh_mv_attacker_stored_mv
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Bound-method-value stored in /r/-ATTACKER state and invoked from
 // /r/-attacker context. Question: does the recv-borrow borrow rule #2 still
 // fire at invocation, or is it gated on the call site being /r/-victim?
@@ -39,4 +44,6 @@ func main(cur realm) {
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-bound-mv
+
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,0)>.Field

@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_pdr_p_recover
 package launderrh_pdr_p_recover
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Vector 8: /p/-method RecoverApply has its own defer/recover.
 // What happens when an attacker /r/-closure panics from inside?
 //
@@ -36,5 +41,7 @@ func main(cur realm) {
 	println("after: ", launderrvictim.ReadPtr())
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// Output:
+// before: ptr-orig
+// rec: cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// after:  ptr-orig

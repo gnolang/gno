@@ -24,12 +24,13 @@ func init() {
 	local = &LocalStruct{A: 123}
 }
 
-// Make1 returns a local object wrapped by a p struct
+// Make1 returns a local object wrapped by a p struct. The wrapper is a
+// handle: callers may write it through /p/ methods (Touch).
 func Make1() *p_crossrealm.Container {
-	return &p_crossrealm.Container{
+	return mutable(&p_crossrealm.Container{
 		A: 1,
 		B: local,
-	}
+	})
 }
 
 type Fooer interface {
