@@ -18,6 +18,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -50,17 +51,30 @@ type ImportResolver func(importPath string) (relPath string, ok bool)
 
 // DefaultResolver returns "examples/<path>" for non-stdlibs and
 // "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it also
-// checks the resolved path exists on disk.
+// checks the resolved path exists on disk, and falls back to the directory
+// that declares importPath in examples/, which does not have to repeat the
+// version the module path carries.
 func DefaultResolver(rootDir string) ImportResolver {
 	return func(importPath string) (string, bool) {
 		rel := PackageDirLocation(importPath)
 		if rootDir == "" {
 			return rel, true
 		}
-		if _, err := os.Stat(filepath.Join(rootDir, rel)); err != nil {
+		if _, err := os.Stat(filepath.Join(rootDir, rel)); err == nil {
+			return rel, true
+		}
+		if gno.IsStdlib(importPath) {
 			return "", false
 		}
-		return rel, true
+		dir := gnomod.FindModuleDir(filepath.Join(rootDir, "examples"), importPath)
+		if dir == "" {
+			return "", false
+		}
+		rel, err := filepath.Rel(rootDir, dir)
+		if err != nil {
+			return "", false
+		}
+		return filepath.ToSlash(rel), true
 	}
 }
 
