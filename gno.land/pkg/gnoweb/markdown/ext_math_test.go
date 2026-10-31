@@ -263,6 +263,109 @@ func TestMathDoesNotCrossCodeSpan(t *testing.T) {
 		assert.Contains(t, out, code, src)
 	}
 	assert.Equal(t, 2, strings.Count(renderMathMarkdown(t, "$n$th and `x$y` and $a$"), "<math"))
+
+	// A code span the opener's line leaves open, closed on the next line.
+	out := renderMathMarkdown(t, "\\\\(a `x\nb\\\\)c` d\\\\)\n")
+	assert.Equal(t, 1, strings.Count(out, "<math"))
+	assert.Contains(t, out, "c` d</annotation>")
+
+	// A $$ in a code span does not close the display math it opens.
+	out = renderMathMarkdown(t, "$$ a `$$` b\nc\n$$\n")
+	assert.Contains(t, out, `display="block"`)
+	assert.Contains(t, out, "c\n</annotation>")
+}
+
+// Only what goldmark reads as a link is kept whole: a destination outside
+// <...> holds no space, so "[a,b](x \\)" is text and its closer closes.
+func TestMathClosesInBracketsThatAreNoLink(t *testing.T) {
+	for src, n := range map[string]int{
+		`\\( [a,b](x \\) and [l](/r/y) then \\(z\\)` + "\n": 2,
+		"$$[0,1](x $$ and [l](/r/y) z\nw $$\n":              1,
+		"$$ [0,1](x $$\n":                                   1,
+		`\\( \left[ a \right]( b \\)` + "\n":                1,
+		"$[a](x y$ and [l](/r/y)\n":                         1,
+		// A destination in a destination read as no link is no link either.
+		"$$ [a](x[b](y$$ z w $$\n": 1,
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.Equal(t, n, strings.Count(out, "<math"), src)
+		if strings.Contains(src, "[l]") {
+			assert.Contains(t, out, `<a href="/r/y">l</a>`, src)
+		}
+	}
+	// Still whole: a link with a title, or in a destination read as no link.
+	for src, link := range map[string]string{
+		"$$ [l](/r/x \"a $$ b\") c\n": `<a href="/r/x" title="a $$ b">l</a>`,
+		"$$ [a](x[l](/r/y$$z) w\n":    `<a href="/r/y$$z">l</a>`,
+		// A <...> destination may hold spaces.
+		"$$ [a](x[b](<y $$ z>) w $$\n":  `<a href="y%20$$%20z">b</a>`,
+		"$$ [a](x[b]( <y $$ z>) w $$\n": `<a href="y%20$$%20z">b</a>`,
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", src)
+		assert.Contains(t, out, link, src)
+	}
+	out := renderMathMarkdown(t, `\\( [a](x[b](<y \\) z>) w \\)`+"\n")
+	assert.Contains(t, out, `[b](&lt;y \\) z&gt;) w </annotation>`)
+}
+
+// A $ opened in a link label ends with the label: it does not pair with a $
+// on the next line.
+func TestMathLabelEndsTheSearch(t *testing.T) {
+	out := renderMathMarkdown(t, "[Send $10](/r/demo/bank$help&func=Send)\nBalance: 100$\n")
+	assert.NotContains(t, out, "<math")
+	assert.Contains(t, out, `<a href="/r/demo/bank$help&amp;func=Send">Send $10`)
+}
+
+// Each byte of a destination read as no link is read a bounded number of
+// times, however many destinations open in it.
+func TestMathNoLinkDestinationsAreLinear(t *testing.T) {
+	const k = 1 << 18
+	for _, src := range []string{
+		"$$" + strings.Repeat("[", k) + strings.Repeat("](", k) + " y\n",
+		`\\(` + strings.Repeat("[", k) + strings.Repeat("](x", k) + " y\n",
+	} {
+		start := time.Now()
+		renderMathMarkdown(t, src)
+		assert.Less(t, time.Since(start), 10*time.Second, src[:8])
+	}
+}
+
+// Backtick runs of 1, 2, 3... backticks are all left unclosed. Searching for
+// each one's closing run used to read the rest of the line every time,
+// O(n^1.5): 64 times the input took about 512 times as long. The search must
+// now take about 64 times as long, well under 160.
+func TestMathUnclosedBacktickRunsAreLinear(t *testing.T) {
+	line := func(n int) []byte {
+		var b strings.Builder
+		for k := 1; b.Len() < n; k++ {
+			b.WriteString(strings.Repeat("`", k) + "a ")
+		}
+		return []byte(b.String())
+	}
+	fastest := func(find closeFinder, b []byte) time.Duration {
+		best := time.Hour
+		for range 5 {
+			start := time.Now()
+			if idx, _, _ := find(b, 0, nil); idx >= 0 {
+				t.Fatal("unexpected close")
+			}
+			best = min(best, time.Since(start))
+		}
+		return best
+	}
+	// 64x the input: linear costs about 64x, the quadratic search it guards
+	// against about 512x, so the bound sits far from both under CI load.
+	small, large := line(16<<10), line(1<<20)
+	for name, find := range map[string]closeFinder{
+		"$":   findDollarClose,
+		"$$":  findDelimClose(_dollarDisplay),
+		`\\(`: findDelimClose(_inlineclose),
+		`\\[`: findDelimClose(_displayclose),
+	} {
+		ratio := float64(fastest(find, large)) / float64(fastest(find, small))
+		assert.Less(t, ratio, 160.0, "%s: 64x the input took %.0fx as long", name, ratio)
+	}
 }
 
 func TestMathStillRenders(t *testing.T) {
@@ -341,24 +444,26 @@ func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
 	}{
 		{"$a ", 1, closeDollarInlineKey, findDollarClose},
 		{"[$a ](", 2, closeDollarInlineKey, findDollarClose},
-		{`\\(a `, 3, closeInlineKey, func(b []byte) (int, int) { return bytes.Index(b, _inlineclose), len(b) }},
+		{`\\(a `, 3, closeInlineKey, findDelimClose(_inlineclose)},
+		{`[\\(a ](`, 4, closeInlineKey, findDelimClose(_inlineclose)},
+		{`\\[a `, 3, closeDisplayKey, findDelimClose(_displayclose)},
 	} {
 		unit, open, key := tc.unit, tc.open, tc.key
 		line := []byte(strings.Repeat(unit, 1<<12))
 		next := []byte("no closer on the next line either\n")
 		pc := parser.NewContext()
 		scanned := 0
-		counting := func(b []byte) (int, int) {
-			idx, end := tc.find(b)
+		counting := func(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+			idx, end, open := tc.find(b, ticks, runs)
 			scanned += max(idx+1, end) // the bytes read
-			return idx, end
+			return idx, end, open
 		}
 		lineStop, nextStart := len(line), len(line)
 		for i := 0; i < len(line); i += len(unit) {
-			if findCloseCached(pc, key, line[i+open:], i+open, lineStop, counting) >= 0 {
+			if idx, _, _ := findCloseCached(pc, key, line[i+open:], i+open, lineStop, 0, counting); idx >= 0 {
 				t.Fatalf("%q: unexpected close", unit)
 			}
-			if findCloseCached(pc, key, next, nextStart, nextStart+len(next), counting) >= 0 {
+			if idx, _, _ := findCloseCached(pc, key, next, nextStart, nextStart+len(next), 0, counting); idx >= 0 {
 				t.Fatalf("%q: unexpected close on next line", unit)
 			}
 		}

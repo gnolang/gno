@@ -83,10 +83,13 @@ var inlineEscapeSet [128]bool
 var titleEscapeSet [128]bool
 
 func init() {
-	for _, c := range []byte{'\\', '*', '_', '[', ']', '(', ')', '~', '>', '-', '+', '.', '!', '`', '#', '<', '&'} {
+	for _, c := range []byte{'\\', '*', '_', '[', ']', '(', ')', '~', '>', '-', '+', '.', '!', '`', '#', '<', '&', '$'} {
 		inlineEscapeSet[c] = true
 	}
 	titleEscapeSet = inlineEscapeSet
+	// A title is an HTML attribute, never parsed as math, and gnoweb shows
+	// its backslashes: "Price \$5" would read as such.
+	titleEscapeSet['$'] = false
 	titleEscapeSet['"'] = true
 	titleEscapeSet['\''] = true
 }

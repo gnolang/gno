@@ -182,7 +182,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			return nil
 		}
 	}
-	find := func(b []byte) (int, int) { return bytes.Index(b, end), len(b) }
+	find := findDelimClose(end)
 	if flavor == flavorInline|delimiterTeX {
 		find = findDollarClose
 	}
@@ -193,15 +193,20 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	// of one expression per line.
 	first := line[len(begin):]
 	var head, tail []byte // the expression on the opener's line and on the next
-	stop := findCloseCached(pc, key, first, seg.Start+len(begin), seg.Stop, find)
+	stop, scanned, ticks := findCloseCached(pc, key, first, seg.Start+len(begin), seg.Stop, 0, find)
 	if stop >= 0 {
 		head = first[:stop]
 		stop += len(begin)
+	} else if scanned < len(first) {
+		// The search stopped where no expression crosses: the next line is
+		// past it too.
+		return nil
 	} else {
-		// The expression may continue on the next line.
+		// The expression may continue on the next line, inside the code
+		// span this one leaves open, if any.
 		block.AdvanceLine()
 		line, seg = block.PeekLine()
-		stop = findCloseCached(pc, key, line, seg.Start-seg.Padding, seg.Stop, find)
+		stop, _, _ = findCloseCached(pc, key, line, seg.Start-seg.Padding, seg.Stop, ticks, find)
 		if stop < 0 {
 			block.SetPosition(posLine, posSeg)
 			return nil
@@ -273,13 +278,54 @@ var (
 // closeScan records one search for a closing delimiter on the line that ends
 // at source offset stop: searching from offset from, the first close is at
 // offset found, or, if found is -1, there is none before offset end (the
-// line end, or a point no expression crosses, see findDollarClose).
-type closeScan struct{ stop, from, found, end int }
+// line end, or a point no expression crosses, see findDollarClose). ticks and
+// open are the search's code span state (see closeFinder), and runs indexes
+// the line's backtick runs for every search of it.
+type closeScan struct {
+	stop, from, found, end, ticks, open int
+	runs                                *tickRuns
+}
 
-// closeFinder searches b for a closing delimiter. It returns its index, or
-// -1 and the index where the search ended: len(b), or a point no expression
-// crosses.
-type closeFinder func(b []byte) (idx, end int)
+// closeFinder searches b, which starts inside a code span opened by a run of
+// ticks backticks if ticks > 0, for a closing delimiter. It returns its index,
+// or -1 and the index where the search ended: len(b), or a point no
+// expression crosses. open is the length of the first backtick run b leaves
+// unclosed, a code span the next line may close. runs, which may be nil, is
+// the index of b's line, kept across the searches of that line.
+type closeFinder func(b []byte, ticks int, runs *tickRuns) (idx, end, open int)
+
+// tickRuns indexes the backtick runs of a line: last[n] is the distance from
+// the line end to the start of its last run of exactly n backticks. Every
+// search reads a suffix of its line, so one index, built once over the
+// longest, answers them all. Without it, each run left unclosed rescans the
+// rest of the line for a closing run: a line of runs of 1, 2, 3... backticks
+// is read once per run, O(n^1.5).
+type tickRuns struct {
+	size int // the length of the suffix indexed
+	last map[int]int
+}
+
+// closes reports whether the run of n backticks at b[i] is closed by a later
+// run of as many on b's line, indexing b first if needed.
+func (r *tickRuns) closes(b []byte, i, n int) bool {
+	if r.last == nil || r.size < len(b) {
+		r.size, r.last = len(b), map[int]int{}
+		for j := 0; j < len(b); {
+			k := bytes.IndexByte(b[j:], '`')
+			if k < 0 {
+				break
+			}
+			j += k
+			start := j
+			for j < len(b) && b[j] == '`' {
+				j++
+			}
+			r.last[j-start] = len(b) - start
+		}
+	}
+	d, ok := r.last[n]
+	return ok && d < len(b)-i
+}
 
 // findCloseCached returns find(b), where b is the part of a line starting at
 // source offset base and ending at stop, reusing an earlier search of the same
@@ -289,12 +335,17 @@ type closeFinder func(b []byte) (idx, end int)
 // close at or after base, or found none before an end after base, answers
 // this one too. Without this, every unclosed opener rescans the rest of its
 // line (and the next one), which is quadratic on a line of "$a " openers.
-// Two lines are remembered: the opener's and the next one.
-func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop int, find closeFinder) int {
+// A search that starts inside a code span answers only those that start in a
+// span of as many backticks. A search answered from an earlier one reports
+// its open backtick run, which may lie before base: if that run closes on the
+// next line, goldmark reads the opener at base as code and never asks; if it
+// does not, the next line is searched as if it were not there. Two lines are
+// remembered: the opener's and the next one.
+func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop, ticks int, find closeFinder) (idx, end, open int) {
 	if len(b) == 0 {
 		// Nothing to search, as past the last line: there is no line to
 		// remember either.
-		return -1
+		return -1, 0, 0
 	}
 	cache, _ := pc.Get(key).(*[2]closeScan)
 	if cache == nil {
@@ -306,11 +357,11 @@ func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, s
 		if sc.stop != stop {
 			continue
 		}
-		if sc.from <= base && (sc.found < 0 && base < sc.end || sc.found >= base) {
+		if sc.ticks == ticks && sc.from <= base && (sc.found < 0 && base < sc.end || sc.found >= base) {
 			if sc.found < 0 {
-				return -1
+				return -1, sc.end - base, sc.open
 			}
-			return sc.found - base
+			return sc.found - base, sc.found - base, sc.open
 		}
 		slot = i
 	}
@@ -320,13 +371,17 @@ func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, s
 			slot = 1
 		}
 	}
-	idx, end := find(b)
+	runs := new(tickRuns)
+	if cache[slot].stop == stop && cache[slot].runs != nil {
+		runs = cache[slot].runs
+	}
+	idx, end, open = find(b, ticks, runs)
 	found := -1
 	if idx >= 0 {
 		found = base + idx
 	}
-	cache[slot] = closeScan{stop: stop, from: base, found: found, end: base + end}
-	return idx
+	cache[slot] = closeScan{stop: stop, from: base, found: found, end: base + end, ticks: ticks, open: open, runs: runs}
+	return idx, end, open
 }
 
 // isEscaped reports whether b[i] is preceded by an odd number of backslashes.
@@ -339,34 +394,51 @@ func isEscaped(b []byte, i int) bool {
 }
 
 // findDollarClose returns the index of the first $ in b that can close an
-// inline $...$ expression, or -1 and the index where the search ended.
-// Following pandoc, a closing $ must not be
-// preceded by a space or an escaping backslash nor followed by a digit, so
-// "$5 and $10" stays plain text.
+// inline $...$ expression, or -1 and the index where the search ended, and
+// the code span state described in closeFinder. Following pandoc, a closing $
+// must not be preceded by a space or an escaping backslash nor followed by a
+// digit, so "$5 and $10" stays plain text.
+func findDollarClose(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+	return findClose(b, ticks, runs, true, func(b []byte, i int) bool {
+		return b[i] == '$' && i > 0 && !util.IsSpace(b[i-1]) && !isEscaped(b, i) &&
+			!(i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9')
+	})
+}
+
+// findDelimClose returns the search for the $$, \\) or \\] closer end. It
+// keeps code spans and the links inside the expression whole, but, unlike
+// findDollarClose, does not end the expression at a "](" it did not open:
+// "$$ (0,1](x) $$" is a half-open interval, not the end of a link label.
+func findDelimClose(end []byte) closeFinder {
+	return func(b []byte, ticks int, runs *tickRuns) (int, int, int) {
+		return findClose(b, ticks, runs, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
+	}
+}
+
+// findClose returns the index of the first byte of b at which closes reports
+// a closing delimiter, or -1 and the index where the search ended, and the
+// code span state described in closeFinder.
 //
 // Links are kept whole. gnoweb's links to a realm function are written
 // [label](/r/x$help&func=F), so a $ inside a link destination, or inside an
 // autolink (<scheme:...>), does not close. And an expression that opens in
 // a link label ends there: "[Send $10](/r/x$help&func=Send) ... $" has no
 // closer, so the link stays a link instead of turning into math.
+// Only what goldmark reads as a link is kept whole (see linkEnd): in
+// "\\( [a,b](x \\)", the \\) closes.
 // Code spans are kept whole the same way: in "Costs $5: see `foo$bar`", the
-// $ in the code span does not close the price.
-func findDollarClose(b []byte) (int, int) {
-	labels := 0 // [ opened since the start of the expression
-	depth := 0  // inside a link destination, its parenthesis nesting
-	for i := 0; i < len(b); i++ {
-		c := b[i]
-		if depth > 0 {
-			// isEscaped only on parentheses: on every byte, it would rescan
-			// a run of backslashes once per backslash.
-			if c == '(' && !isEscaped(b, i) {
-				depth++
-			} else if c == ')' && !isEscaped(b, i) {
-				depth--
-			}
-			continue
-		}
-		switch c {
+// $ in the code span does not close the price. stopAtLabel ends the
+// expression at a "](" that closes a label opened before it.
+func findClose(b []byte, ticks int, runs *tickRuns, stopAtLabel bool, closes func(b []byte, i int) bool) (idx, end, open int) {
+	i := 0
+	if ticks > 0 {
+		// Past the code span, if it closes on this line.
+		i = max(runEnd(b, ticks), 0)
+	}
+	labels := 0      // [ opened since the start of the expression
+	var noLink []int // the ( that open no link destination, see linkEnd
+	for ; i < len(b); i++ {
+		switch b[i] {
 		case '[':
 			if !isEscaped(b, i) {
 				labels++
@@ -377,44 +449,125 @@ func findDollarClose(b []byte) (int, int) {
 			}
 			if i+1 < len(b) && b[i+1] == '(' {
 				if labels == 0 {
-					// The label the expression opened in ends here.
-					return -1, i
+					if stopAtLabel {
+						// The label the expression opened in ends here.
+						return -1, i, open
+					}
+					continue
 				}
-				depth = 1
-				i++
+				labels--
+				for len(noLink) > 0 && noLink[0] <= i {
+					noLink = noLink[1:]
+				}
+				if len(noLink) > 0 && noLink[0] == i+1 {
+					continue
+				}
+				var e int
+				if e, noLink = linkEnd(b, i+1, noLink); e >= 0 {
+					i = e
+				}
+				continue
 			}
 			labels = max(labels-1, 0)
 		case '<':
 			if end := autolinkEnd(b[i:]); end > 0 {
 				i += end
 			}
-		case '$':
-			if i == 0 || util.IsSpace(b[i-1]) || isEscaped(b, i) {
-				continue
-			}
-			if i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9' {
-				continue
-			}
-			return i, i
 		case '`':
 			// So are code spans: a $ in one is code.
-			if !isEscaped(b, i) {
-				i += codeSpanEnd(b[i:])
+			if isEscaped(b, i) {
+				break
+			}
+			n := 1
+			for i+n < len(b) && b[i+n] == '`' {
+				n++
+			}
+			if runs == nil {
+				runs = new(tickRuns)
+			}
+			if runs.closes(b, i, n) {
+				i += n + runEnd(b[i+n:], n) - 1
+			} else {
+				i += n - 1
+				if open == 0 {
+					open = n
+				}
+			}
+			continue
+		}
+		if closes(b, i) {
+			return i, i, open
+		}
+	}
+	return -1, len(b), open
+}
+
+// linkEnd returns the index of the ) that ends the link destination, and
+// title, that the ( at b[o] opens, len(b) if they may end on a later line, or
+// -1 if goldmark reads no link there. A destination outside <...> ends at its
+// first space, which only a title or the ) may follow: "[a,b](x \\)" is
+// text, so a closer in it closes. Read as no link, the destination is read
+// again as text, and the ( it left open are returned as noLink, in place of
+// those passed in, which lie before them: their own destinations end at the
+// same space, so they open no link either, and need not be read a third time.
+// A ( followed by <...> could open one: the destination is then skipped whole.
+func linkEnd(b []byte, o int, noLink []int) (int, []int) {
+	i := o + 1 + util.TrimLeftSpaceLength(b[o+1:])
+	if i < len(b) && b[i] == '<' {
+		return parenEnd(b, i, 1), noLink
+	}
+	n := len(noLink)
+	depth := 1
+	for ; i < len(b); i++ {
+		switch c := b[i]; {
+		case c == '(' && !isEscaped(b, i):
+			if k := i + 1 + util.TrimLeftSpaceLength(b[i+1:]); k < len(b) && b[k] == '<' {
+				// A destination in <...>, which may hold spaces, would open
+				// a link here: skip it whole, as before.
+				return parenEnd(b, k, depth+1), noLink[:n]
+			}
+			depth++
+			noLink = append(noLink, i)
+		case c == ')' && !isEscaped(b, i):
+			if depth--; depth == 0 {
+				return i, noLink[:n]
+			}
+			noLink = noLink[:len(noLink)-1]
+		case util.IsSpace(c):
+			j := i + util.TrimLeftSpaceLength(b[i:])
+			switch {
+			case j == len(b) || b[j] == ')':
+				return j, noLink[:n]
+			case b[j] == '"' || b[j] == '\'' || b[j] == '(':
+				return parenEnd(b, j, depth), noLink[:n]
+			}
+			return -1, noLink[n:]
+		}
+	}
+	return len(b), noLink[:n]
+}
+
+// parenEnd returns the index of the ) that closes the depth parentheses open
+// before b[i], or len(b).
+func parenEnd(b []byte, i, depth int) int {
+	for ; i < len(b); i++ {
+		// isEscaped only on parentheses: on every byte, it would rescan a run
+		// of backslashes once per backslash.
+		if b[i] == '(' && !isEscaped(b, i) {
+			depth++
+		} else if b[i] == ')' && !isEscaped(b, i) {
+			if depth--; depth == 0 {
+				return i
 			}
 		}
 	}
-	return -1, len(b)
+	return len(b)
 }
 
-// codeSpanEnd returns the index of the last backtick of the code span b
-// starts with, or, if no run of as many backticks closes it, of the last
-// backtick of its opening run.
-func codeSpanEnd(b []byte) int {
-	n := 0
-	for n < len(b) && b[n] == '`' {
-		n++
-	}
-	for i := n; i < len(b); {
+// runEnd returns the index past the first run of exactly n backticks in b,
+// the end of a code span its opening run of n backticks left open, or -1.
+func runEnd(b []byte, n int) int {
+	for i := 0; i < len(b); {
 		j := bytes.IndexByte(b[i:], '`')
 		if j < 0 {
 			break
@@ -426,10 +579,10 @@ func codeSpanEnd(b []byte) int {
 			run++
 		}
 		if run == n {
-			return i - 1
+			return i
 		}
 	}
-	return n - 1
+	return -1
 }
 
 // autolinkEnd returns the index of the > that ends the URI autolink b
@@ -468,9 +621,11 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 
 	// A closing delimiter on the same line is an inline-level expression,
-	// handled by the inline parser.
-	if bytes.Contains(line[len(open):], closeTag) {
-		return nil, parser.NoChildren
+	// handled by the inline parser, which finds it the same way.
+	if rest := line[len(open):]; bytes.Contains(rest, closeTag) {
+		if idx, _, _ := findDelimClose(closeTag)(rest, 0, nil); idx >= 0 {
+			return nil, parser.NoChildren
+		}
 	}
 	// Don't open a block that never closes: it would swallow the rest of the
 	// document. Nor one that holds no math ($$ then $$): like an empty
