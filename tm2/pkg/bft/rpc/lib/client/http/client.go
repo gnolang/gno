@@ -18,6 +18,7 @@ const (
 	protoHTTP  = "http"
 	protoHTTPS = "https"
 	protoTCP   = "tcp"
+	protoUnix  = "unix"
 
 	portHTTP  = "80"
 	portHTTPS = "443"
@@ -188,6 +189,15 @@ func makeHTTPDialer(remoteAddr string) (net.Conn, error) {
 		protocol = protoTCP
 	}
 
+	// A URL path is part of the request, not of the dial target: net.Dial on
+	// "127.0.0.1:26657/rpc" reads "/rpc" as the port and fails. Unix keeps its
+	// path, which is the socket itself. tcp4 and tcp6 are tcp too.
+	if strings.HasPrefix(protocol, protoTCP) {
+		if host, _, found := strings.Cut(address, "/"); found {
+			address = host
+		}
+	}
+
 	return net.Dial(protocol, address)
 }
 
@@ -206,13 +216,30 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 		clientProtocol = protoHTTP
 	}
 
-	// replace / with . for http requests (kvstore domain)
-	trimmedAddress := strings.ReplaceAll(address, "/", ".")
+	// A unix socket's address is a filesystem path, so "/" is encoded as "."
+	// to give the request URL a host. makeHTTPDialer ignores that host and
+	// dials the socket from the raw remote.
+	//
+	// Only for unix sockets (unix and unixpacket, both accepted by the
+	// server's Listen). Doing it to a tcp/http address destroys any URL
+	// path, so an RPC published behind a prefix ("https://host/rpc", the usual
+	// way to serve a chain and its web UI on one hostname) turned into
+	// "https://host.rpc" and failed to parse.
+	if strings.HasPrefix(protocol, protoUnix) {
+		address = strings.ReplaceAll(address, "/", ".")
+	}
 
-	return clientProtocol, trimmedAddress
+	return clientProtocol, address
 }
 
 func toClientAddress(remoteAddr string) (string, error) {
+	// Only a unix socket may have no host: a scheme-less "/var/run/gno.sock"
+	// or "http:///rpc" would otherwise be sent to whatever listens locally.
+	protocol, address := parseRemoteAddr(remoteAddr)
+	if host, _, _ := strings.Cut(address, "/"); host == "" && !strings.HasPrefix(protocol, protoUnix) {
+		return "", fmt.Errorf("no host in %q", remoteAddr)
+	}
+
 	clientProtocol, trimmedAddress := toClientAddrAndParse(remoteAddr)
 
 	return clientProtocol + "://" + trimmedAddress, nil
@@ -233,14 +260,27 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 		protocol, address = parts[0], parts[1]
 	}
 
-	// Append default ports if not specified
-	if !strings.Contains(address, ":") {
-		switch protocol {
-		case protoHTTPS:
-			address += ":" + portHTTPS
-		case protoHTTP, protoTCP:
-			address += ":" + portHTTP
-		default: // noop
+	// Append default ports if not specified. Split the path off first: the
+	// port belongs to the host, and appending it to the whole string turned
+	// "https://host/rpc" into "https://host/rpc:443".
+	//
+	// Unix sockets are excluded because their address is a path, not a host.
+	// An empty host gets no port either, so toClientAddress can reject it
+	// instead of it becoming ":80", which is localhost.
+	if !strings.HasPrefix(protocol, protoUnix) {
+		host, path, hasPath := strings.Cut(address, "/")
+		if host != "" && !strings.Contains(host, ":") {
+			switch protocol {
+			case protoHTTPS:
+				host += ":" + portHTTPS
+			case protoHTTP, protoTCP:
+				host += ":" + portHTTP
+			default: // noop
+			}
+		}
+		address = host
+		if hasPath {
+			address += "/" + path
 		}
 	}
 
