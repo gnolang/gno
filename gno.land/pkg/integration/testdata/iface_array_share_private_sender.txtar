@@ -1,0 +1,63 @@
+# A private realm hands a public realm an array of interfaces by value. The
+# public realm must persist its own copy of the elements: sharing the private
+# realm's element would make the save fail with "cannot persist object from
+# the private realm".
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/pub -pkgpath gno.land/r/foobar/pub -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/foobar/priv -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+# control: an array of arrays, no interface elements
+gnokey maketx call -pkgpath gno.land/r/foobar/priv -func SendPlain -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/priv -func SendIface -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/foobar/pub.Get()"
+stdout '1 int'
+
+-- pub/gnomod.toml --
+module = "gno.land/r/foobar/pub"
+gno = "0.9"
+
+-- pub/pub.gno --
+package pub
+
+var Object any
+
+func SetObject(cur realm, x any) {
+	Object = x
+}
+
+func Get() int {
+	switch v := Object.(type) {
+	case [1]any:
+		return v[0].([2]int)[0]
+	case [1][2]int:
+		return v[0][0]
+	}
+	return -1
+}
+
+-- priv/gnomod.toml --
+module = "gno.land/r/foobar/priv"
+gno = "0.9"
+private = true
+
+-- priv/priv.gno --
+package priv
+
+import "gno.land/r/foobar/pub"
+
+func SendPlain(cur realm) {
+	pub.SetObject(cross(cur), [1][2]int{{1, 2}})
+}
+
+func SendIface(cur realm) {
+	pub.SetObject(cross(cur), [1]any{[2]int{1, 2}})
+}

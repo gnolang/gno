@@ -467,8 +467,32 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	var cp *ArrayValue
 	if av.Data == nil {
 		cp = alloc.NewListArray(t, len(av.List))
-		for i, tv := range av.List {
-			cp.List[i] = tv.Copy(alloc)
+		if t.Elem().Kind() == InterfaceKind {
+			// The elements are interface slots, whose contents are
+			// sealed: every write into an interface slot copies on
+			// entry, interface-held values are not addressable (see
+			// isAddressable), and extracting one (type assertion)
+			// copies again. Share them instead of deep-copying —
+			// mirroring Go, where copying an array of interfaces copies
+			// the boxes' headers. This also keeps chains like
+			// `x = [1]any{x}` linear instead of quadratic.
+			//
+			// An element stamped with another realm than the copy is
+			// still deep-copied: shared, it would be persisted (and its
+			// storage deposit charged) as an object of the realm that
+			// allocated it, which a private realm refuses outright.
+			pid := cp.GetObjectID().PkgID
+			for i, tv := range av.List {
+				if o, ok := tv.V.(Object); ok && o.GetObjectID().PkgID != pid {
+					cp.List[i] = tv.Copy(alloc)
+				} else {
+					cp.List[i] = tv
+				}
+			}
+		} else {
+			for i, tv := range av.List {
+				cp.List[i] = tv.Copy(alloc)
+			}
 		}
 	} else {
 		cp = alloc.NewDataArray(t, len(av.Data))
@@ -1348,6 +1372,9 @@ func (tv *TypedValue) ClearNum() {
 	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
 }
 
+// Copy returns a value copy of tv, deep-copying array, struct and bigint
+// values, except that the elements of an array of interface type are shared
+// (see ArrayValue.Copy).
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	switch cv := tv.V.(type) {
 	case BigintValue:
