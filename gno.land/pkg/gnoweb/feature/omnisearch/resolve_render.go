@@ -31,7 +31,9 @@ func renderSelector() *Selector {
 		Name:  "render",
 		Hint:  "render:<text>",
 		Label: "Rendered content",
+		Help:  "Text in rendered pages",
 		Scope: ScopeGlobal,
+		Group: GroupText,
 		// Executing Render costs what serving a page view costs, so this one
 		// never runs on a keystroke — only on a committed navigation.
 		PageOnly: true,

@@ -238,3 +238,115 @@ func TestActionTagOnlyOnCallableFuncs(t *testing.T) {
 		}
 	}
 }
+
+// TestFilterValuesAreAccepted checks every value a filter offers is one
+// discover accepts, and that nothing else is.
+func TestFilterValuesAreAccepted(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	for _, f := range filterKeywords {
+		for _, v := range f.Values {
+			if !filterTakes(f.Name, strings.ToUpper(v)) {
+				t.Errorf("%s offers %q and refuses it", f.Name, v)
+			}
+		}
+	}
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog is:user", ""))
+	if len(groups) != 1 || groups[0].Err == nil {
+		t.Errorf("is:user: groups = %+v, want one refusal", groups)
+	}
+}
+
+func TestRegisterRefusesAKeywordWithNoHeading(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recover() == nil {
+			t.Error("a global selector with no group registered")
+		}
+	}()
+	h := &Handler{byName: map[string]*Selector{}}
+	h.register(SourceChain, &Selector{Name: "lost", Scope: ScopeGlobal, Group: "nowhere"})
+}
+
+// TestKeywordLists checks the keyword lists match the omnibar's: the
+// package's keywords first on its page, those that run alone leading.
+func TestKeywordLists(t *testing.T) {
+	t.Parallel()
+
+	selectors := []*Selector{
+		{Name: "func", Hint: "func:<name>", Scope: ScopePackage},
+		{Name: "imports", Hint: "imports", Scope: ScopePackage, Bare: true},
+		{Name: "render", Hint: "render:<text>", Scope: ScopeGlobal, Group: GroupText},
+	}
+
+	onPackage := keywordLists(SearchData{Selectors: selectors, PagePath: "/r/demo/foo"})
+	if onPackage[0].Label != "On this package" || onPackage[0].Rows[0].Hint != "imports" {
+		t.Errorf("on a package: first list = %+v", onPackage[0])
+	}
+
+	anywhere := keywordLists(SearchData{Selectors: selectors})
+	last := anywhere[len(anywhere)-1]
+	if last.Label != "On a package page" || last.Rows[0].Hint != "imports" {
+		t.Errorf("anywhere: last list = %+v", last)
+	}
+}
+
+// TestEmptyQueryListsTheKeywords checks the page the omnibar's last row opens
+// shows the list that row promises, not a button to it.
+func TestEmptyQueryListsTheKeywords(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	page := handlePage(t, h, "/$search")
+	if !strings.Contains(page, `class="b-omni-hints"`) {
+		t.Error("the empty page lists no keywords")
+	}
+	if strings.Contains(page, "popovertarget") {
+		t.Error("the empty page keeps its keywords behind a button")
+	}
+	if page = handlePage(t, h, "/$search&q=blog"); !strings.Contains(page, "popovertarget") {
+		t.Error("a results page lost its Keywords button")
+	}
+}
+
+// The page a search was made from keeps its keywords, whatever the answer's
+// scope: a discovery search ignores the page, a reader on it does not.
+func TestKeywordsFollowThePage(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	html := handlePage(t, h, "/r/alice/blog$search&q=blog")
+	if !strings.Contains(html, "On this package") || !strings.Contains(html, `/r/alice/blog$search&amp;q=deploys`) {
+		t.Errorf("a whole-chain answer on a package page lost its keywords:\n%s", html)
+	}
+}
+
+// The rail's toggle stands in for its first heading, which it hides below
+// --lg, so the two must say the same.
+func TestRailToggleNamesTheFirstHeading(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	toggle := regexp.MustCompile(`class="b-expend-btn">\s*(\S+)`)
+	heading := regexp.MustCompile(`<h2 class="b-sidebar-heading">([^<]+)<`)
+	for _, raw := range []string{"/$search&q=blog", "/$search&q=zzzz", "/r/alice/blog$search&q=deploys"} {
+		html := handlePage(t, h, raw)
+		got, want := toggle.FindStringSubmatch(html), heading.FindStringSubmatch(html)
+		if got == nil || want == nil || got[1] != strings.Fields(want[1])[0] {
+			t.Errorf("%s: toggle %q, first heading %q", raw, got, want)
+		}
+	}
+}
+
+// The title holds the query whole: nothing else does on a touch screen.
+func TestTitleHoldsTheWholeQuery(t *testing.T) {
+	t.Parallel()
+
+	const q = "content:transferOwnershipTo"
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	if html := handlePage(t, h, "/r/demo/boards$search&q="+q); !strings.Contains(html, `<code class="b-omni-query">`+q+`</code>`) {
+		t.Errorf("the title does not hold %s:\n%s", q, html)
+	}
+}

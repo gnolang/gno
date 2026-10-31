@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -66,6 +67,36 @@ func TestServeJSONShape(t *testing.T) {
 			t.Errorf("selector %q advertised without an indexer", s.Name)
 		}
 	}
+	// So do the narrowing qualifiers and the headings, so the omnibar
+	// suggests them without a list of its own.
+	if len(resp.Filters) != len(filterKeywords) || len(resp.KeywordGroups) != len(keywordGroups) {
+		t.Fatalf("filters = %d, groups = %d, want %d and %d", len(resp.Filters), len(resp.KeywordGroups), len(filterKeywords), len(keywordGroups))
+	}
+	headed := func(group string) bool {
+		return slices.ContainsFunc(keywordGroups, func(g KeywordGroup) bool { return g.Key == group })
+	}
+	for _, f := range resp.Filters {
+		if f.Hint == "" || f.Label == "" || f.Help == "" || !headed(f.Group) {
+			t.Errorf("filter %+v: no hint, label, help or heading to show", f)
+		}
+		if f.Scope != ScopeGlobal || f.Source != SourceChain {
+			t.Errorf("filter %q: scope %q, source %q, want global and chain", f.Name, f.Scope, f.Source)
+		}
+		// The omnibar matches these literally: another word drops the list.
+		if f.Complete != "" && f.Complete != CompleteNamespace && f.Complete != CompletePath {
+			t.Errorf("filter %q: unknown value list %q", f.Name, f.Complete)
+		}
+	}
+	// Each keyword says what it does: the omnibar shows nothing else. One
+	// that works anywhere also has a heading, or no list shows it.
+	for _, s := range append(chainSelectors(), indexerSelectors()...) {
+		if s.Help == "" {
+			t.Errorf("selector %q has no help", s.Name)
+		}
+		if s.Scope == ScopeGlobal && !headed(s.Group) {
+			t.Errorf("selector %q: group %q has no heading", s.Name, s.Group)
+		}
+	}
 }
 
 func TestServeJSONRejectsAHostileQuery(t *testing.T) {
@@ -111,7 +142,9 @@ func TestServePageRendersWithoutJavaScript(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := body.String()
-	for _, want := range []string{"b-omni", "/r/alice/blog", "Qualifiers"} {
+	// The keywords popover lists the filters from the same table as the
+	// JSON answer, so the page and the omnibar cannot disagree.
+	for _, want := range []string{"b-omni", "/r/alice/blog", "Search keywords", "author:‹name›", "Only realms, or only packages"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("rendered page missing %q", want)
 		}
@@ -138,13 +171,13 @@ func TestIndexerResultsAreMarkedInTheMarkup(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := body.String()
-	if !strings.Contains(out, "b-tag--indexer") {
+	if !strings.Contains(out, "b-omni-count--indexer") {
 		t.Error("indexer group is not tagged in the markup")
 	}
 	if !strings.Contains(out, "not consensus data") {
 		t.Error("provenance footer missing from the markup")
 	}
-	if !strings.Contains(out, "last indexed block 185214") {
+	if !strings.Contains(out, "Last indexed block 185214") {
 		t.Error("freshness stamp missing from the markup")
 	}
 }
@@ -218,28 +251,10 @@ func TestQueryTermAcceptsBothGrammars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := queryTerm(parseURL(t, tt.url)); got != "blog" {
-				t.Fatalf("queryTerm(%q) = %q, want %q", tt.url, got, "blog")
+			if got := QueryTerm(parseURL(t, tt.url)); got != "blog" {
+				t.Fatalf("QueryTerm(%q) = %q, want %q", tt.url, got, "blog")
 			}
 		})
-	}
-}
-
-// The results page's form must target the bare path plus `$search`. With
-// action="" the browser re-submits the webargs already in the path, so each
-// search would append another `q` to the URL.
-func TestFormActionDoesNotAccumulateWebargs(t *testing.T) {
-	t.Parallel()
-
-	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
-	q, err := ParseQuery("blog")
-	if err != nil {
-		t.Fatalf("ParseQuery: %v", err)
-	}
-	h.scope(q, parseURL(t, "/r/alice/blog$search&q=blog"))
-
-	if q.formAction != "/r/alice/blog$search" {
-		t.Fatalf("formAction = %q, want /r/alice/blog$search", q.formAction)
 	}
 }
 
@@ -372,10 +387,72 @@ func TestIndexerCredentialsNeverPublished(t *testing.T) {
 		if !strings.Contains(out, "9f2a") {
 			t.Fatalf("%s: the authenticated indexer did not answer:\n%s", raw, out)
 		}
-		for _, secret := range []string{"hunter2", "gnoweb:", "k3y"} {
+		// Not even the host: a deployment's indexer is often an internal
+		// address the reader cannot reach.
+		for _, secret := range []string{"hunter2", "gnoweb:", "k3y", pu.Host} {
 			if strings.Contains(out, secret) {
 				t.Errorf("%s: response carries %q", raw, secret)
 			}
 		}
+	}
+}
+
+// The rail always has something under the counts: on a package page the
+// other keywords that need no argument, without an answer a few queries to
+// try, and nothing more once there is an answer elsewhere.
+func TestRailLinks(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+
+	title, links := h.railLinks(SearchData{PagePath: "/r/alice/blog"}, h.byName["imports"])
+	if title != "On this package" || len(links) == 0 {
+		t.Fatalf("package page: rail = %q %v, want its keywords", title, links)
+	}
+	for _, l := range links {
+		if l.Query == "imports" {
+			t.Error("the running keyword is listed again in the rail")
+		}
+		if !strings.HasPrefix(string(l.Href), "/r/alice/blog$search&q=") {
+			t.Errorf("keyword link %q leaves the package", l.Href)
+		}
+	}
+
+	// A path that is not a package gets no keyword links built on it.
+	if title, _ := h.railLinks(SearchData{PagePath: "/u/alice"}, nil); title == "On this package" {
+		t.Error("keyword links built on a path that is not a package")
+	}
+
+	if title, links := h.railLinks(SearchData{}, nil); title != "Try" || len(links) != len(railExamples) {
+		t.Errorf("no answer: rail = %q %v, want the examples", title, links)
+	}
+
+	answered := SearchData{Groups: []Group{{Label: "Packages", Results: []Result{{Title: "x"}}}}}
+	if title, links := h.railLinks(answered, nil); title != "" || links != nil {
+		t.Errorf("answered search: rail = %q %v, want nothing", title, links)
+	}
+}
+
+// The title drops the query only when it is the bare keyword alone: then the
+// group heading names it. Anything more, and the title must still show it.
+func TestQueryIsLabel(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	for raw, want := range map[string]bool{
+		"deploys":          true,
+		"is:realm deploys": false,
+		"deploys foo:bar":  false,
+		"deploys:x":        false,
+		"blog":             false,
+	} {
+		t.Run(raw, func(t *testing.T) {
+			t.Parallel()
+
+			data := h.build(context.Background(), mustQuery(t, h, raw, "/r/demo/boards"))
+			if data.QueryIsLabel != want {
+				t.Errorf("QueryIsLabel = %v, want %v", data.QueryIsLabel, want)
+			}
+		})
 	}
 }

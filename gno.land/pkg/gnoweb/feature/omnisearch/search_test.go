@@ -2,16 +2,22 @@ package omnisearch
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -927,6 +933,291 @@ func TestGlobalSelectorDoesNotClaimThePageAsScope(t *testing.T) {
 		h.scope(q, parseURL(t, "/r/demo/boards$search"))
 		if got := h.build(context.Background(), q).PkgPath; got != "" {
 			t.Errorf("%q: PkgPath = %q, want none for a chain-wide selector", raw, got)
+		}
+	}
+}
+
+// The listing is alphabetical; the answer is not. A package named after the
+// needle comes first, a deploy under a raw address or a test package last.
+func TestDiscoveryRanksByRelevance(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1a9g8nu3m0xgx58hh36fph49e2xkqm9axlxuf5z"
+	got := []string{
+		"/p/" + addr + "/avl",
+		"/p/demo/avl_test",
+		"/p/nt/avl/pager/v0",
+		"/p/nt/avl/v0",
+		"/p/samcrew/avl",
+		"/r/x/latest/avl",
+		"/r/nym-moultest123/avl",
+	}
+	sortByRelevance(got, "avl")
+	want := []string{
+		"/p/nt/avl/v0",
+		"/p/samcrew/avl",
+		"/r/x/latest/avl",
+		"/p/nt/avl/pager/v0",
+		"/r/nym-moultest123/avl", // throwaways, named after the needle
+		"/p/" + addr + "/avl",
+		"/p/demo/avl_test",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("order:\n got %v\nwant %v", got, want)
+	}
+
+	// A needle that only appears inside an address namespace does not
+	// lift it: "dug" is in g1edq4dug…, not the namespace asked for.
+	if !isThrowaway("/r/g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p/smoke/counter", "dug") {
+		t.Error("an address namespace that merely contains the needle is not ranked last")
+	}
+	byName := []string{"/p/onbloc/int256/v0", "/p/nt/avl/v0"}
+	sortByRelevance(byName, "nt")
+	if byName[0] != "/p/nt/avl/v0" {
+		t.Errorf("nt: a segment named nt should lead a name that contains it, got %v", byName)
+	}
+
+	// Asking for tests, or for that address, does not push them down.
+	if isThrowaway("/p/demo/avl_test", "avl_test") || isThrowaway("/p/"+addr+"/avl", addr) {
+		t.Error("a throwaway the needle asks for is still ranked last")
+	}
+}
+
+// A pasted address asks for that account: the account selector when an
+// indexer is configured, a link to the user's page otherwise.
+func TestPastedAddress(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	if sel, term := h.selectorFor(mustQuery(t, h, addr, "")); sel == nil || sel.Name != "account" || term != addr {
+		t.Errorf("with an indexer: selector = %v %q, want account %q", sel, term, addr)
+	}
+	if sel, _ := h.selectorFor(mustQuery(t, h, "is:realm "+addr, "")); sel != nil {
+		t.Errorf("an address beside a qualifier is not a pasted address: got %s", sel.Name)
+	}
+
+	// The omnibar tests the same pattern to ask the server, not its path list.
+	w := httptest.NewRecorder()
+	h.Handle(context.Background(), w, httptest.NewRequest(http.MethodGet, "/", nil), parseURL(t, "/$search&q=x&json"))
+	var resp struct {
+		Selectors []struct{ Name, Accepts string }
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(resp.Selectors, func(s struct{ Name, Accepts string }) bool { return s.Name == "account" })
+	if i < 0 || !regexp.MustCompile(resp.Selectors[i].Accepts).MatchString(addr) {
+		t.Errorf("JSON selectors %+v: no account pattern matching %s", resp.Selectors, addr)
+	}
+
+	// With an indexer, the account's activity comes with discovery's answer:
+	// the user row is still there.
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, addr, ""))
+	if len(groups) < 2 || groups[0].Label != "Account activity" {
+		t.Errorf("with an indexer: groups %+v, want account activity then discovery", groups)
+	}
+
+	// A bad checksum names no user.
+	bad := addr[:len(addr)-1] + "q"
+	if bad == addr {
+		bad = addr[:len(addr)-1] + "p"
+	}
+	h = newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, bad, ""))
+	for _, g := range groups {
+		for _, r := range g.Results {
+			if string(r.Href) == "/u/"+bad {
+				t.Errorf("a bad checksum got a user link: %+v", r)
+			}
+		}
+	}
+
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, addr, ""))
+	for _, g := range groups {
+		for _, r := range g.Results {
+			if g.Label == "Users" && string(r.Href) == "/u/"+addr {
+				return
+			}
+		}
+	}
+	t.Errorf("without an indexer: no link to /u/%s in %+v", addr, groups)
+}
+
+// A test is named by a word of its own, not by letters inside another word.
+func TestThrowawayIsAWordNotALetterRun(t *testing.T) {
+	t.Parallel()
+
+	for rel, want := range map[string]bool{
+		"/r/attestation/registry": false,
+		"/r/latest/registry":      false,
+		"/r/contest/registry":     false,
+		"/r/demo/testimonials":    false,
+		"/r/demo/testament":       false,
+		"/r/demo/latest2":         false,
+		"/p/demo/contest2026":     false,
+		"/r/gnoland/attest1":      false,
+		"/r/test/avl":             true,
+		"/r/test1/avl":            true,
+		"/r/nym-moultest123/avl":  true,
+		"/r/foo_test/avl":         true,
+		"/p/demo/avl_test":        true,
+		"/p/demo/avl-test":        true,
+		"/p/demo/tests/avl":       true,
+		"/p/nt/testutils/v0":      true,
+	} {
+		if got := isThrowaway(rel, "avl"); got != want {
+			t.Errorf("isThrowaway(%q) = %v, want %v", rel, got, want)
+		}
+	}
+
+	// Its name equals the needle: ten weaker matches must not push it out.
+	paths := []string{"/r/attestation/registry"}
+	for i := range 10 {
+		paths = append(paths, fmt.Sprintf("/r/demo%d/pkgregistry", i))
+	}
+	sortByRelevance(paths, "registry")
+	if paths[0] != "/r/attestation/registry" {
+		t.Errorf("registry: first = %s, want the exact name", paths[0])
+	}
+}
+
+// The omnibar ranks with the same patterns. Nothing else ties the two.
+func TestTestWordMatchesTheOmnibar(t *testing.T) {
+	t.Parallel()
+
+	src, err := os.ReadFile("../../frontend/js/controller-searchbar.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, re := range map[string]*regexp.Regexp{"TEST_WORD": testWord, "TEST_NAMESPACE": testNamespace} {
+		if want := "const " + name + " = /" + re.String() + "/;"; !strings.Contains(string(src), want) {
+			t.Errorf("controller-searchbar.ts has no %s", want)
+		}
+	}
+}
+
+// userTitles lists the rows of the users group.
+func userTitles(groups []Group) (titles []string) {
+	for _, g := range groups {
+		if g.Label == "Users" {
+			for _, r := range g.Results {
+				titles = append(titles, r.Title)
+			}
+		}
+	}
+	return titles
+}
+
+// The users group follows the ranked paths, as the omnibar's does, and an
+// address is its first row.
+func TestUsersFollowTheRankedPaths(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1a9g8nu3m0xgx58hh36fph49e2xkqm9axlxuf5z"
+	dir := &mockDirectory{packages: []string{
+		"gno.land/p/" + addr + "/avl",
+		"gno.land/p/demo/avl/pager",
+		"gno.land/p/nt/avl/v0",
+		"gno.land/p/samcrew/avltool",
+	}}
+	h := newHandlerWithDir(t, newDiscoveryClient(), dir, nil)
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "avl", ""))
+	if got, want := userTitles(groups), []string{"nt", "demo", "samcrew", addr}; !slices.Equal(got, want) {
+		t.Errorf("users = %v, want %v", got, want)
+	}
+}
+
+// A pasted address is a user with or without a listing, and only when it is
+// the whole query: a qualifier narrows the answer past it.
+func TestPastedAddressUserRow(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	for _, raw := range []string{addr + " author:alice", "in:/r/alice/blog " + addr} {
+		if groups, _ := h.Search(context.Background(), mustQuery(t, h, raw, "")); len(userTitles(groups)) != 0 {
+			t.Errorf("%q: users = %v, want none", raw, userTitles(groups))
+		}
+	}
+
+	failing := &mockDirectory{err: errors.New("connection refused")}
+	h = newHandlerWithDir(t, newDiscoveryClient(), failing, nil)
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, addr, ""))
+	if got := userTitles(groups); !slices.Equal(got, []string{addr}) {
+		t.Errorf("failed listing: users = %v, want the address", got)
+	}
+	if groups[0].Err == nil {
+		t.Errorf("failed listing: groups = %+v, want the error first", groups)
+	}
+}
+
+// A discovery that failed beside the account search still says so: "could
+// not ask" must not read as "nothing found".
+func TestFailedDiscoveryShowsBesideTheAccount(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
+	failing := &mockDirectory{err: errors.New("connection refused")}
+	h := newHandlerWithDir(t, newDiscoveryClient(), failing, &mockIndexer{})
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, addr, ""))
+	var labels []string
+	failed := false
+	for _, g := range groups {
+		labels = append(labels, g.Label)
+		failed = failed || (g.Label == "Realms" && g.Err != nil)
+	}
+	if !failed || !slices.Equal(labels, []string{"Account activity", "Realms", "Users"}) {
+		t.Errorf("groups = %v (failed: %v), want the account, the failed Realms, the user", labels, failed)
+	}
+}
+
+func TestShortDetail(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
+	for _, tt := range []struct {
+		r    Result
+		want string
+	}{
+		{Result{Detail: addr, Opaque: true}, "g1edq4…leuc8p"},
+		{Result{Detail: "deployed by " + addr, Opaque: true}, "deployed by g1edq4…leuc8p"},
+		{Result{Detail: "short", Opaque: true}, "short"},
+		// No space is no sign of an address: a snippet of minified JSON keeps its match.
+		{Result{Detail: `{"a":"aaaaaaaaaaaaneedleword"}`}, `{"a":"aaaaaaaaaaaaneedleword"}`},
+		{Result{Detail: "A synopsis with words"}, "A synopsis with words"},
+	} {
+		if got := shortDetail(tt.r); got != tt.want {
+			t.Errorf("shortDetail(%q) = %q, want %q", tt.r.Detail, got, tt.want)
+		}
+	}
+	// What .b-omni-meta .detail's 26ch must hold, or it cuts the kept end.
+	if n := utf8.RuneCountInString(shortDetail(Result{Detail: "deployed by " + addr, Opaque: true})); n > 26 {
+		t.Errorf("a cut detail is %d characters, over the stylesheet's 26ch", n)
+	}
+}
+
+func TestRowIcon(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		r    Result
+		want string
+	}{
+		{Result{Kind: KindTx}, "ico-tx-link"},
+		{Result{Kind: KindTx, Href: "/r/demo/boards"}, "ico-tx-link"}, // a call links to its package
+		{Result{Kind: KindBlock}, "ico-chain"},
+		{Result{Kind: KindImport}, "ico-pure"}, // a stdlib import links nowhere
+		{Result{Kind: KindImport, Href: "/r/demo/boards"}, "ico-realm"},
+		{Result{Href: "/u/alice"}, "ico-user-link"},
+		{Result{Href: "/r/demo/boards"}, "ico-realm"},
+		{Result{Href: "/p/demo/avl"}, "ico-pure"},
+		{Result{}, "ico-file"},
+	} {
+		if got := rowIcon(tt.r); got != tt.want {
+			t.Errorf("rowIcon(%+v) = %q, want %q", tt.r, got, tt.want)
 		}
 	}
 }

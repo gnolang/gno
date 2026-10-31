@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -282,7 +284,7 @@ func TestRecentStopsOnceItHasEnough(t *testing.T) {
 			return
 		}
 		queries++
-		respond(w, `{"data":{"getTransactions":[{"hash":"abc"}]}}`)
+		respond(w, `{"data":{"getTransactions":[{"hash":"abc","messages":[{"value":{"__typename":"MsgCall","pkg_path":"gno.land/r/demo/boards"}}]}]}}`)
 	})
 
 	txs, err := c.RecentByPackage(context.Background(), "gno.land/r/demo/boards", 1)
@@ -404,7 +406,7 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 		}
 		bands++
 		if bands == 1 {
-			respond(w, `{"data":{"getTransactions":[{"hash":"newest"}]}}`)
+			respond(w, `{"data":{"getTransactions":[{"hash":"newest","messages":[{"value":{"__typename":"MsgCall","pkg_path":"gno.land/r/demo/boards"}}]}]}}`)
 			return
 		}
 		w.WriteHeader(http.StatusBadGateway)
@@ -420,6 +422,295 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	// The cause travels with it, for the log.
 	if !strings.Contains(err.Error(), "502") {
 		t.Fatalf("err = %v, want the band's failure named", err)
+	}
+}
+
+// tx-indexer lets a message it could not decode through any filter. Those
+// rows must neither reach the reader nor use up the walk's budget: the walk
+// goes on to the next band for the real deploy.
+func TestRecentDropsRowsTheFilterDidNotMatch(t *testing.T) {
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":100000}}`)
+			return
+		}
+		bands++
+		if bands == 1 {
+			respond(w, `{"data":{"getTransactions":[
+				{"hash":"session","messages":[{"value":{"__typename":"UnexpectedMessage"}}]},
+				{"hash":"other","messages":[{"value":{"__typename":"MsgAddPackage","package":{"path":"gno.land/r/demo/other"}}}]}
+			]}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[
+			{"hash":"deploy","messages":[{"value":{"__typename":"MsgAddPackage","package":{"path":"gno.land/r/demo/boards"}}}]}
+		]}}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/demo/boards", 1)
+	if err != nil {
+		t.Fatalf("Deploys: %v", err)
+	}
+	if len(txs) != 1 || txs[0].Hash != "deploy" {
+		t.Fatalf("txs = %+v, want only the deploy of the package", txs)
+	}
+	if bands != 2 {
+		t.Fatalf("bands = %d, want 2: rows the filter did not match must not count", bands)
+	}
+}
+
+// cappedIndexer answers a band as tx-indexer does: rows DESC down to its cap,
+// then an error beside the rows it kept. A filter on value alone lets a row
+// through whatever it says, so each band is as dense as the chain is.
+func cappedIndexer(t *testing.T, tip, maxRows int, rows []string) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, fmt.Sprintf(`{"data":{"latestBlockHeight":%d}}`, tip))
+			return
+		}
+		band := parseBounds(t, req.Query)
+		var page []string
+		for _, row := range rows {
+			if h := rowHeight(row); h > band[0] && h < band[1] {
+				page = append(page, row)
+			}
+		}
+		if len(page) <= maxRows {
+			respond(w, `{"data":{"getTransactions":[`+strings.Join(page, ",")+`]}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[`+strings.Join(page[:maxRows], ",")+
+			`]},"errors":[{"message":"max elements per query reached"}]}`)
+	}
+}
+
+var rowHeightPattern = regexp.MustCompile(`"block_height":(\d+)`)
+
+func rowHeight(row string) int {
+	h, _ := strconv.Atoi(rowHeightPattern.FindStringSubmatch(row)[1])
+	return h
+}
+
+// txRow is a row of an indexer's answer, on r/alice/blog.
+func txRow(hash, kind string, height int) string {
+	return fmt.Sprintf(`{"hash":%q,"block_height":%d,"messages":[{"value":{"__typename":%q,"package":{"path":"gno.land/r/alice/blog"}}}]}`, hash, height, kind)
+}
+
+// One session message every 10 blocks, which the band's cap fills up on, and
+// one deploy below where the cap stops the third band.
+func TestRecentWalksOnPastACappedBand(t *testing.T) {
+	const tip, every, maxRows = 300000, 10, 10000
+	for _, deploy := range []int{160005, 100005} {
+		t.Run(strconv.Itoa(deploy), func(t *testing.T) {
+			var rows []string
+			for h := tip; h > 0; h -= every {
+				if h < deploy && h+every > deploy {
+					rows = append(rows, txRow("deploy", "MsgAddPackage", deploy))
+				}
+				rows = append(rows, txRow("session", "UnexpectedMessage", h))
+			}
+			c, _ := newTestClient(t, cappedIndexer(t, tip, maxRows, rows))
+
+			txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+			if len(txs) != 1 || txs[0].Hash != "deploy" {
+				t.Fatalf("txs = %+v, err = %v, want the deploy at %d", txs, err, deploy)
+			}
+		})
+	}
+}
+
+// An indexer may end a capped page inside a block: an older tx-indexer cuts
+// at the cap, a newer one at a block boundary. Neither may cost a row or
+// return one twice.
+func TestRecentResumesACappedBandAtAWholeBlock(t *testing.T) {
+	deploy := func(hash string, h int) string { return txRow(hash, "MsgAddPackage", h) }
+	// The cap of 3 falls between b and c, both in block 500.
+	rows := []string{deploy("z", 700), deploy("a", 600), deploy("b", 500), deploy("c", 500), deploy("d", 400)}
+	c, _ := newTestClient(t, cappedIndexer(t, 1000, 3, rows))
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if err != nil {
+		t.Fatalf("Deploys: %v", err)
+	}
+	var got []string
+	for _, tx := range txs {
+		got = append(got, tx.Hash)
+	}
+	if want := []string{"z", "a", "b", "c", "d"}; !slices.Equal(got, want) {
+		t.Fatalf("rows = %v, want %v", got, want)
+	}
+}
+
+// A walk that ends on a capped page has no band left to read its last block
+// again, and rows in hand must not go with it.
+func TestRecentKeepsACappedPagesLastBlockWhenTheWalkEnds(t *testing.T) {
+	const tip = 1500000
+	// The fourth and last band is capped, and its page ends on the deploy.
+	var rows []string
+	for h := tip - 150000; h > tip-150040; h -= 10 {
+		rows = append(rows, txRow("session", "UnexpectedMessage", h))
+	}
+	rows = append(rows, txRow("deploy", "MsgAddPackage", tip-150040))
+	rows = append(rows, txRow("session", "UnexpectedMessage", tip-150050))
+	c, _ := newTestClient(t, cappedIndexer(t, tip, 5, rows))
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if !errors.Is(err, ErrPartial) {
+		t.Fatalf("err = %v, want ErrPartial", err)
+	}
+	if len(txs) != 1 || txs[0].Hash != "deploy" {
+		t.Fatalf("txs = %+v, want the deploy the page held", txs)
+	}
+}
+
+// A band that answers the cap with no rows has nothing to replace what the
+// page before it held.
+func TestRecentKeepsRowsInHandOnAnEmptyCappedAnswer(t *testing.T) {
+	deploy := func(hash string, h int) string { return txRow(hash, "MsgAddPackage", h) }
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":1000}}`)
+			return
+		}
+		bands++
+		rows := deploy("a", 600) + "," + deploy("b", 500)
+		if bands > 1 {
+			rows = ""
+		}
+		respond(w, `{"data":{"getTransactions":[`+rows+`]},"errors":[{"message":"max elements per query reached"}]}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if !errors.Is(err, ErrPartial) || len(txs) != 2 {
+		t.Fatalf("txs = %+v, err = %v, want both rows and ErrPartial", txs, err)
+	}
+}
+
+// Two blocks at the chain's bottom filling the cap leave the walk nowhere to
+// go: the same band again would answer the same page.
+func TestRecentDoesNotRepeatABandAtTheBottom(t *testing.T) {
+	deploy := func(hash string, h int) string { return txRow(hash, "MsgAddPackage", h) }
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":1}}`)
+			return
+		}
+		bands++
+		respond(w, `{"data":{"getTransactions":[`+deploy("a", 1)+`,`+deploy("b", 0)+`]},"errors":[{"message":"max elements per query reached"}]}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if !errors.Is(err, ErrPartial) || len(txs) != 2 || bands != 1 {
+		t.Fatalf("txs = %+v, err = %v, bands = %d, want both rows from one band and ErrPartial", txs, err, bands)
+	}
+}
+
+// One block filling the cap cannot be paged by height: the walk stops there
+// and says so, rather than asking for the same block again.
+func TestRecentStopsOnABlockFillingTheCap(t *testing.T) {
+	deploy := func(hash string) string { return txRow(hash, "MsgAddPackage", 900) }
+	rows := []string{deploy("a"), deploy("b"), deploy("c")}
+	c, _ := newTestClient(t, cappedIndexer(t, 1000, 2, rows))
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if !errors.Is(err, ErrPartial) {
+		t.Fatalf("err = %v, want ErrPartial", err)
+	}
+	if len(txs) != 2 {
+		t.Fatalf("txs = %+v, want the two rows the cap kept", txs)
+	}
+}
+
+// Each clause of a where must name its message's typeUrl, which is what drops
+// a message the indexer could not decode, and its match must keep the rows
+// that clause asks for: a clause match does not know drops every row silently.
+func TestEveryWhereClauseSurvivesItsMatch(t *testing.T) {
+	const pkg, addr = "gno.land/r/demo/boards", "g1test"
+	calls := map[string]func(*Client) ([]Tx, error){
+		"RecentByPackage":  func(c *Client) ([]Tx, error) { return c.RecentByPackage(context.Background(), pkg, 20) },
+		"RecentByAddress":  func(c *Client) ([]Tx, error) { return c.RecentByAddress(context.Background(), addr, 20) },
+		"Deploys":          func(c *Client) ([]Tx, error) { return c.Deploys(context.Background(), pkg, 20) },
+		"SourceContains":   func(c *Client) ([]Tx, error) { return c.SourceContains(context.Background(), "x", "", 20) },
+		"DeploysImporting": func(c *Client) ([]Tx, error) { return c.DeploysImporting(context.Background(), pkg, 20) },
+	}
+	clause := regexp.MustCompile(`typeUrl: \{ eq: "\w+" \} value: \{ (\w+):`)
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			var kinds []string
+			c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				body, _ := io.ReadAll(r.Body)
+				var req gqlRequest
+				_ = json.Unmarshal(body, &req)
+				if strings.Contains(req.Query, "latestBlockHeight") {
+					respond(w, `{"data":{"latestBlockHeight":100}}`)
+					return
+				}
+				if n, want := len(clause.FindAllString(req.Query, -1)), strings.Count(req.Query, "value: {"); n != want {
+					t.Errorf("%d of %d clauses name their typeUrl:\n%s", n, want, req.Query)
+				}
+				var rows []string
+				for _, m := range clause.FindAllStringSubmatch(req.Query, -1) {
+					kinds = append(kinds, m[1])
+					rows = append(rows, fmt.Sprintf(`{"hash":%q,"messages":[{"value":{"__typename":%q,"pkg_path":%q,"caller":%q,"creator":%q,"from_address":%q,"package":{"path":%q}}}]}`,
+						m[1], m[1], pkg, addr, addr, addr, pkg))
+				}
+				respond(w, `{"data":{"getTransactions":[`+strings.Join(rows, ",")+`]}}`)
+			})
+
+			txs, err := call(c)
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			if len(kinds) == 0 || len(txs) != len(kinds) {
+				t.Fatalf("kept %d of the %d rows asked for (%v)", len(txs), len(kinds), kinds)
+			}
+		})
+	}
+}
+
+// Each kind of message names the address in its own field.
+func TestRecentByAddressKeepsRowsNamingTheAddress(t *testing.T) {
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":10}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[
+			{"hash":"call","messages":[{"value":{"__typename":"MsgCall","caller":"g1a"}}]},
+			{"hash":"run","messages":[{"value":{"__typename":"MsgRun","caller":"g1a"}}]},
+			{"hash":"deploy","messages":[{"value":{"__typename":"MsgAddPackage","creator":"g1a"}}]},
+			{"hash":"received","messages":[{"value":{"__typename":"BankMsgSend","from_address":"g1b","to_address":"g1a"}}]},
+			{"hash":"someone-else","messages":[{"value":{"__typename":"MsgCall","caller":"g1b"}}]},
+			{"hash":"session","messages":[{"value":{"__typename":"UnexpectedMessage"}}]}
+		]}}`)
+	})
+
+	txs, err := c.RecentByAddress(context.Background(), "g1a", 10)
+	if err != nil {
+		t.Fatalf("RecentByAddress: %v", err)
+	}
+	var got []string
+	for _, tx := range txs {
+		got = append(got, tx.Hash)
+	}
+	if want := "call run deploy received"; strings.Join(got, " ") != want {
+		t.Fatalf("hashes = %q, want %q", strings.Join(got, " "), want)
 	}
 }
 
@@ -776,6 +1067,7 @@ func TestSlowBandDoesNotOpenBreaker(t *testing.T) {
 func TestEqValuesAreEscaped(t *testing.T) {
 	const hostile = `x" } } }) { hash } evil: getBlocks { hash } # \`
 	eqLiteral := regexp.MustCompile(`eq: ("(?:[^"\\]|\\.)*")`)
+	typeURLClause := regexp.MustCompile(`typeUrl: \{ eq: "\w+" \}`)
 	for name, run := range map[string]func(c *Client){
 		"TxByHash":        func(c *Client) { _, _ = c.TxByHash(context.Background(), hostile) },
 		"RecentByAddress": func(c *Client) { _, _ = c.RecentByAddress(context.Background(), hostile, 5) },
@@ -783,7 +1075,8 @@ func TestEqValuesAreEscaped(t *testing.T) {
 		"Deploys":         func(c *Client) { _, _ = c.Deploys(context.Background(), hostile, 5) },
 	} {
 		t.Run(name, func(t *testing.T) {
-			q := captureTxQuery(t, run)
+			// A typeUrl is a constant of this package, not an input.
+			q := typeURLClause.ReplaceAllString(captureTxQuery(t, run), "")
 			eqs := eqLiteral.FindAllStringSubmatch(q, -1)
 			if len(eqs) == 0 || strings.Count(q, "eq:") != len(eqs) {
 				t.Fatalf("eq: values are not all string literals:\n%s", q)

@@ -175,7 +175,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	}
 
 	data.Window = a
-	data.Indexer = &components.IndexerStatus{URL: h.deps.Indexer.URL(), LastBlock: a.To}
+	data.Indexer = &components.IndexerStatus{LastBlock: a.To}
 
 	// The scale is the busiest realm on this map, so a zoomed-in map still
 	// tells its own realms apart.

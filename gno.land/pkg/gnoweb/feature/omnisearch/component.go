@@ -24,5 +24,7 @@ func NewPageView(data SearchData) *components.View {
 	return &components.View{
 		Type:      OmnisearchViewType,
 		Component: &searchComponent{data: data},
+		// The rail renders first, so the header carries #main-content.
+		SkipTargetInBody: true,
 	}
 }
