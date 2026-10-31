@@ -1,10 +1,10 @@
 # Gnoland Validator Scenario Harness
 
-This repo generates local Gnoland validator networks in Docker and runs scripted failure / recovery scenarios against them.
+This repo generates local Gnoland validator networks — in Docker containers or as native processes — and runs scripted failure / recovery scenarios against them.
 
 It is inspired by `../gno-val-test`, but the setup here is reusable and scenario-driven:
 
-- each validator or sentry runs in its own container
+- each validator or sentry runs in its own container (docker runtime) or as a native process (local runtime); see [Runtime Backends](#runtime-backends)
 - validators can optionally run with a controllable remote-signer sidecar
 - the network is generated from a small Bash DSL
 - scenarios can stop, restart, and reset nodes
@@ -13,51 +13,88 @@ It is inspired by `../gno-val-test`, but the setup here is reusable and scenario
 
 ## Prerequisites
 
-- `docker`
-- `docker compose`
 - `jq`
 - `curl`
 - `bash` (4+)
+- `docker` + `docker compose` (for `RUNTIME=docker`, the default)
+- a Go toolchain (for `RUNTIME=local`)
 
-## Build The Local Images
+## Runtime Backends
 
-The scripts expect three local Docker images:
+Scenarios run against one of two backends, selected with `RUNTIME`:
+
+- `docker` (default): every node and CLI command runs in a container.
+- `local`: nodes and CLI commands run from native binaries built into `bin/`.
+
+The usage path is identical for both — only the value of `RUNTIME` changes. Build
+the dependencies with `make build`, then run any scenario the same way:
+
+```bash
+make build                       # docker images (default)
+make scenario-01
+
+make build RUNTIME=local         # native binaries instead
+make scenario-01 RUNTIME=local
+```
+
+`make build` is a dispatcher: it runs `build-images` for the docker backend and
+`build-binaries` for the local backend. You can still call those underlying
+targets directly if you prefer.
+
+### `.local` shorthand
+
+Append `.local` to any target to run it against native binaries without spelling
+out `RUNTIME=local`. It works for every target — current and future:
+
+```bash
+make build.local                 # == make build RUNTIME=local
+make scenario-01.local           # == make scenario-01 RUNTIME=local
+make test.local
+make logs-05.local
+```
+
+Extra variables still propagate, e.g. `make scenario-12.local GH_USER=gnolang`.
+Docker is the default, so plain `make <target>` is the docker path — there is no
+`.docker` suffix.
+
+## Build The Dependencies
+
+For `RUNTIME=docker`, `make build` builds three local Docker images:
 
 - `gno-val-scenario-core:local`: built from the root `Dockerfile` `all` target; contains `gnoland` and `gnokey`
 - `gnogenesis:local`: built from the root `Dockerfile` `gnocontribs` target
 - `valsignerd:local`: built from `misc/val-scenarios/Dockerfile`; contains only the scenario signer sidecar
 
-```bash
-make build-images
-```
+For `RUNTIME=local`, `make build RUNTIME=local` builds `gnoland`, `gnokey`, `gnogenesis`, and `valsignerd` into `bin/`.
 
 Override image tags with `IMAGE=...`, `GNOKEY_IMAGE=...`, `GNOGENESIS_IMAGE=...`, and `VALSIGNER_IMAGE=...` if needed. By default, `GNOKEY_IMAGE` is the same image as `IMAGE`.
 
-To build images from a GitHub fork, set `GH_USER`. `GH_REPO` defaults to `gno` and `GH_BRANCH` defaults to `master`. Image tags are derived automatically as `<base>:<GH_USER>-<GH_BRANCH>` (slashes in the branch name become dashes), so multiple versions can coexist without overwriting each other.
+To build from a GitHub fork, set `GH_USER`. `GH_REPO` defaults to `gno` and `GH_BRANCH` defaults to `master`. This drives both backends: image tags and the binary output dir are derived automatically from `<GH_USER>-<GH_BRANCH>` (slashes in the branch name become dashes), so multiple versions can coexist without overwriting each other.
 
 ```bash
-make build-images GH_USER=gnolang
-# -> gno-val-scenario-core:gnolang-master, gnogenesis:gnolang-master, valsignerd:gnolang-master
+make build GH_USER=gnolang
+# images:   gno-val-scenario-core:gnolang-master, gnogenesis:gnolang-master, valsignerd:gnolang-master
+# binaries: bin/gnolang-master/ (with RUNTIME=local)
 
-make build-images GH_USER=gnolang GH_REPO=gno GH_BRANCH=feat/my-branch
-# -> gno-val-scenario-core:gnolang-feat-my-branch, gnogenesis:gnolang-feat-my-branch, valsignerd:gnolang-feat-my-branch
+make build GH_USER=gnolang GH_REPO=gno GH_BRANCH=feat/my-branch
+# -> ...:gnolang-feat-my-branch (or bin/gnolang-feat-my-branch/ for RUNTIME=local)
 ```
 
-When `GH_USER` is set, all images build from the fetched remote branch by default. You can override each source checkout independently:
+When `GH_USER` is set, all artifacts build from the fetched remote branch by default. You can override each source checkout independently:
 
-- `CORE_GNO_ROOT`: source for the core image (`gnoland` and `gnokey`)
-- `GNOGENESIS_GNO_ROOT`: source for the `gnogenesis` image
-- `VALSIGNER_GNO_ROOT`: source for the `valsignerd` image
+- `CORE_GNO_ROOT`: source for `gnoland` and `gnokey`
+- `GNOGENESIS_GNO_ROOT`: source for `gnogenesis`
+- `VALSIGNER_GNO_ROOT`: source for `valsignerd`
 
 This is useful when testing a branch that does not contain every scenario tool. For example, build the chain binaries from a remote branch but use the local `valsignerd`:
 
 ```bash
-GH_USER=moul GH_BRANCH=feat/valset-params-v3 VALSIGNER_GNO_ROOT=$PWD make build-images
+GH_USER=moul GH_BRANCH=feat/valset-params-v3 VALSIGNER_GNO_ROOT=$PWD make build
 ```
 
 The repository is cloned once to `/tmp/gno-remote-build` and reused across subsequent builds. To force a fresh clone, run `make fetch-remote` with the same variables.
 
-To run a scenario against previously built fork images, pass the matching tag variables through the Makefile:
+To run a scenario against previously built fork artifacts, pass the matching tag variables (and `RUNTIME` if local) through the Makefile:
 
 ```bash
 make scenario-12 GH_USER=gnolang GH_BRANCH=feat/my-branch
@@ -72,6 +109,8 @@ make test-all      # run all scenarios
 make scenario-01
 make scenario-04
 ```
+
+Append `.local` (or add `RUNTIME=local`) to any of these to run against native binaries instead of containers, e.g. `make test.local` or `make scenario-01.local`.
 
 `make test-basics` / `make basics` are aliases for `make test-ci`.
 `make test-advanced` / `make advanced` are aliases for `make test-local`.
@@ -90,10 +129,13 @@ KEEP_UP=1 ./scenarios/05_sentry_ip_rotation.sh
 
 ## Scenario Selection
 
-All scenario scripts live in `scenarios/`. Each script declares whether it should run in CI:
+All scenario scripts live in `scenarios/`. Each script sets a few flags near the top:
 
 - `SCENARIO_CI=true`: included in `.github/workflows/ci-val-scenarios.yml` and `make test`
 - `SCENARIO_CI=false`: local-only, usually because the scenario needs `valsignerd`
+- `SCENARIO_GENESIS_EXAMPLES=false` (optional, default `true`): skip loading the example packages and the on-chain PoA valset realm in genesis. Consensus is driven by the genesis validator set, so consensus-only scenarios set this to avoid replaying ~300 example packages at `InitChain` on every node start and restart (a large speedup). Scenarios that deploy/call realms or change the validator set through governance leave it at the default. See `generate_genesis` in `lib/scenario.sh`.
+
+A scenario that needs real per-node networking (distinct IPs / stable DNS) — e.g. a sentry topology — calls `skip_unless_docker "<reason>"` after `scenario_init`. Under the local runtime every node shares `127.0.0.1` and is mutually reachable, so such isolation cannot be reproduced; the helper exits 0 (skipped, not failed) so `make test.local` passes over it.
 
 ### CI Scenarios
 
@@ -101,7 +143,7 @@ All scenario scripts live in `scenarios/`. Each script declares whether it shoul
 - `scenarios/02_three_validators_restart_staggered.sh`: start 3 validators, stop all after 60s, restart one by one
 - `scenarios/03_three_validators_restart_parallel.sh`: start 3 validators, stop all after 60s, restart all together
 - `scenarios/04_counter_realm_churn.sh`: deploy a sample counter realm, submit transactions, reset one validator, continue submitting txs
-- `scenarios/05_sentry_ip_rotation.sh`: run validators behind a sentry, recreate the sentry to force a new container IP, and verify the network keeps progressing
+- `scenarios/05_sentry_ip_rotation.sh`: run validators behind a sentry, recreate the sentry to force a new container IP, and verify the network keeps progressing (docker only — skipped under the local runtime, which can't isolate nodes that share `127.0.0.1`)
 - `scenarios/06_gas_nondeterminism_check.sh`: restart a subset of validators, estimate addpkg gas on a warm node, and fail if the chain halts after the trigger tx
 - `scenarios/07_four_validators_reset_one.sh`: start 4 validators, stop/reset/restart 1; 3/4 remain above the 2/3 threshold so the chain must keep advancing throughout
 - `scenarios/08_five_validators_reset_two_below_consensus.sh`: start 5 validators, stop/reset 2; 3/5 drops below the 2/3 threshold so the chain must halt, then verify it resumes after both validators are restarted
@@ -213,5 +255,7 @@ The intended flow is:
 7. compose the scenario out of lifecycle and transaction helpers
 
 Use `gen_validator <name> --not-in-genesis` for a validator node that should exist in the generated docker-compose topology but enter the validator set later through a transaction or proposal.
+
+For a consensus-only scenario (no realm deploys/calls, no governance valset changes), set `SCENARIO_GENESIS_EXAMPLES=false` near the top so genesis stays minimal and starts/restarts are fast. If the scenario needs network isolation (a sentry), call `skip_unless_docker "<reason>"` right after `scenario_init` so it is skipped cleanly under the local runtime.
 
 See any file under `scenarios/` for examples.
