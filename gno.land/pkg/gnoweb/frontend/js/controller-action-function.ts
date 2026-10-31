@@ -1,3 +1,11 @@
+import { readSession } from "../../feature/connect/frontend/session.js";
+import {
+	type Account,
+	commandNumbers,
+	isAddress,
+	loadAccount,
+} from "./account.js";
+import { abciQuery, ChainError, normalizeRPC } from "./chain.js";
 import {
 	BaseController,
 	debounce,
@@ -11,6 +19,7 @@ export class ActionFunctionController extends BaseController {
 	declare _pkgPath: string | null;
 	declare _paramInputsCache: HTMLInputElement[];
 	declare _params: Record<string, string>;
+	declare _address: string;
 
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
@@ -38,6 +47,21 @@ export class ActionFunctionController extends BaseController {
 
 		// Dispatch initial params state for wallet integration
 		this._dispatchParamsChanged();
+	}
+
+	// Fill one address parameter with the connected address (DOM action).
+	// A query function's live result evaluates the args as Gno, so it gets a
+	// string literal; a call's args are passed as raw strings.
+	public fillMe(event: Event & { params?: Record<string, unknown> }): void {
+		const session = readSession();
+		const name = String(event.params?.name ?? "");
+		const input = this._paramInputs.find(
+			(inp) => this.getValue("param", inp) === name,
+		);
+		if (!session || !input) return;
+		const isQuery = this.getTarget("qeval-result") !== null;
+		input.value = isQuery ? `"${session.address}"` : session.address;
+		input.dispatchEvent(new Event("input", { bubbles: true }));
 	}
 
 	// listen for events from action-header controller
@@ -77,6 +101,33 @@ export class ActionFunctionController extends BaseController {
 		const addressElements = this.getTargets("address");
 		addressElements.forEach((addressElement) => {
 			addressElement.textContent = address.trim() || "ADDRESS";
+		});
+		void this._fillAccount(address.trim());
+	}
+
+	// Account number and sequence for the address in the command, or the
+	// placeholders when it is a key name, unknown on chain, or unreachable.
+	private async _fillAccount(address: string): Promise<void> {
+		this._address = address;
+		const numbers = this.getTargets("account-number");
+		const sequences = this.getTargets("sequence");
+		if (numbers.length === 0 && sequences.length === 0) return;
+
+		let account: Account | null = null;
+		if (isAddress(address)) {
+			try {
+				account = await loadAccount(address);
+			} catch (err) {
+				this.warn("account lookup failed", err);
+			}
+		}
+		if (this._address !== address) return; // a newer address won
+		const fill = commandNumbers(account);
+		numbers.forEach((el) => {
+			el.textContent = fill.accountNumber;
+		});
+		sequences.forEach((el) => {
+			el.textContent = fill.sequence;
 		});
 	}
 
@@ -168,6 +219,7 @@ export class ActionFunctionController extends BaseController {
 		// Update function execute (form) and anchor (copy button) with new parameter
 		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
 		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
+		const qrAnchor = this.getTarget("qr-anchor") as HTMLAnchorElement | null;
 		if (!executeForm && !anchorButton) return;
 
 		const baseUrl =
@@ -190,6 +242,9 @@ export class ActionFunctionController extends BaseController {
 
 		executeForm?.setAttribute("action", updatedUrl);
 		anchorButton?.setAttribute("data-copy-text-value", updatedUrl);
+		// The QR is server-rendered, so editing an argument must navigate to the
+		// fresh URL rather than reveal a stale code.
+		qrAnchor?.setAttribute("href", `${updatedUrl}#qr-${this._funcName ?? ""}`);
 	}
 
 	// Update the qeval result
@@ -230,13 +285,12 @@ export class ActionFunctionController extends BaseController {
 	// Fetch the qeval result from the remote
 	private async _fetchQEval(remote: string, data: string): Promise<string> {
 		try {
-			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
-			if (!response.ok) return "";
-
-			const result = (await response.json()).result.response.ResponseBase;
-			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
-		} catch {
+			return (await abciQuery("vm/qeval", data, normalizeRPC(remote))) ?? "";
+		} catch (err) {
+			// A node error is the answer; a transport failure shows nothing.
+			if (err instanceof ChainError && err.nodeError !== undefined) {
+				return `Error: ${err.nodeError}`;
+			}
 			return "";
 		}
 	}

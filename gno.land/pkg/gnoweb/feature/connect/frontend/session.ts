@@ -1,0 +1,295 @@
+// The connected identity, client-side only. No cookie, no server session, no
+// signature challenge: every page stays cacheable and identical for all
+// visitors. What connecting buys is the header avatar, an Execute that goes
+// straight to the remembered wallet, and a `signer` pin on every intent.
+
+import {
+	type GnoAccount,
+	type GnoProviderEvents,
+	type GnoWallet,
+	getWallets,
+} from "../../../frontend/js/wallet-discovery.js";
+
+export interface GnoSession {
+	rdns: string; // durable wallet identity — never the per-page-load uuid
+	address: string;
+	chainid: string;
+	name: string;
+	username?: string; // r/sys/users name, when registered
+}
+
+const STORAGE_KEY = "gnoweb:session:v1";
+const MAX_NAME_LENGTH = 64;
+
+// Each controller bundle embeds its own copy of this module, so a module-level
+// listener set would only reach its own bundle: changes travel on window.
+export const SESSION_EVENT = "gnoweb:session";
+
+function emit(session: GnoSession | null): void {
+	window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: session }));
+}
+
+// Storage is same-origin, but it is still parsed input: a half-written or
+// hand-edited entry must drop the session, not render undefined.
+function normalize(value: unknown): GnoSession | null {
+	if (typeof value !== "object" || value === null) return null;
+	const { rdns, address, chainid, name, username } = value as Record<
+		string,
+		unknown
+	>;
+	if (typeof rdns !== "string" || !rdns) return null;
+	if (typeof address !== "string" || !address) return null;
+	const session: GnoSession = {
+		rdns,
+		address,
+		chainid: typeof chainid === "string" ? chainid : "",
+		name: typeof name === "string" ? name.slice(0, MAX_NAME_LENGTH) : "",
+	};
+	if (typeof username === "string" && username) {
+		session.username = username.slice(0, MAX_NAME_LENGTH);
+	}
+	return session;
+}
+
+export function readSession(): GnoSession | null {
+	let raw: string | null = null;
+	try {
+		raw = window.localStorage.getItem(STORAGE_KEY);
+	} catch {
+		return null; // storage disabled (private mode, blocked cookies)
+	}
+	if (!raw) return null;
+	try {
+		return normalize(JSON.parse(raw));
+	} catch {
+		return null;
+	}
+}
+
+export function writeSession(session: GnoSession): void {
+	try {
+		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+	} catch {
+		// A session we cannot persist is still usable for this page load.
+	}
+	emit(session);
+}
+
+export function clearSession(): void {
+	try {
+		window.localStorage.removeItem(STORAGE_KEY);
+	} catch {
+		// Nothing to do: the in-memory notification below is what the UI reads.
+	}
+	emit(null);
+}
+
+// setUsername records the name resolved for address, if it is still current.
+// It announces only what storage kept: the announcement re-runs resolution,
+// which must then find the name already stored, or it would loop.
+export function setUsername(address: string, username: string | null): void {
+	const session = readSession();
+	if (!session || session.address !== address) return;
+	const name = username ? username.slice(0, MAX_NAME_LENGTH) : undefined;
+	if (session.username === name) return;
+	const next: GnoSession = { ...session };
+	if (name) next.username = name;
+	else delete next.username;
+	try {
+		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+	} catch {
+		return;
+	}
+	emit(next);
+}
+
+export function displayName(session: GnoSession): string {
+	return session.username ? `@${session.username}` : truncate(session.address);
+}
+
+export function onSessionChange(
+	fn: (session: GnoSession | null) => void,
+): () => void {
+	const listener = (event: Event) => {
+		try {
+			fn((event as CustomEvent<GnoSession | null>).detail);
+		} catch (err) {
+			console.warn("session: listener failed", err);
+		}
+	};
+	window.addEventListener(SESSION_EVENT, listener);
+	return () => window.removeEventListener(SESSION_EVENT, listener);
+}
+
+export function findAnnounced(rdns: string): GnoWallet | undefined {
+	return getWallets()
+		.get()
+		.find((wallet) => wallet.info.rdns === rdns);
+}
+
+function toSession(wallet: GnoWallet, account: GnoAccount): GnoSession {
+	return {
+		rdns: wallet.info.rdns,
+		address: account.address,
+		chainid: account.chainid ?? "",
+		name: wallet.info.name,
+	};
+}
+
+// Ask a wallet who the user is and remember the answer. A wallet that declines,
+// throws, or does not implement connect yields null — the caller degrades, it
+// never dead-ends.
+export async function connectWallet(
+	wallet: GnoWallet,
+): Promise<GnoSession | null> {
+	const connect = wallet.provider?.connect;
+	if (typeof connect !== "function") {
+		console.warn(
+			`session: wallet "${wallet.info.name}" announced no connect; it cannot be logged into`,
+		);
+		return null;
+	}
+	try {
+		const response = await connect.call(wallet.provider);
+		if (response?.status !== "Approved" || !response.args?.address) return null;
+		const session = toSession(wallet, response.args);
+		writeSession(session);
+		return session;
+	} catch (err) {
+		console.warn(
+			`session: wallet "${wallet.info.name}" failed to connect`,
+			err,
+		);
+		return null;
+	}
+}
+
+// Re-check the remembered address against the wallet, without prompting.
+// getAccount first (it is defined never to prompt); connect second, which per
+// the standard must resolve silently for an approved origin. A different
+// address updates the session; a failure drops it.
+export async function reconcile(): Promise<GnoSession | null> {
+	const session = readSession();
+	if (!session) return null;
+
+	const wallet = findAnnounced(session.rdns);
+	if (!wallet) return session; // not announced yet — keep what we render
+
+	const ask = async (): Promise<GnoAccount | null> => {
+		const getAccount = wallet.provider?.getAccount;
+		if (typeof getAccount === "function") {
+			const response = await getAccount.call(wallet.provider);
+			if (response?.status === "Approved") return response.args;
+		}
+		const connect = wallet.provider?.connect;
+		if (typeof connect === "function") {
+			const response = await connect.call(wallet.provider);
+			if (response?.status === "Approved") return response.args;
+		}
+		return null;
+	};
+
+	let account: GnoAccount | null = null;
+	try {
+		account = await ask();
+	} catch (err) {
+		console.warn("session: reconcile failed", err);
+	}
+	if (!account?.address) {
+		clearSession();
+		return null;
+	}
+	if (
+		account.address === session.address &&
+		account.chainid === session.chainid
+	) {
+		return session;
+	}
+	const updated = toSession(wallet, account);
+	writeSession(updated);
+	return updated;
+}
+
+// followWallet keeps the session in step with what the remembered wallet
+// reports: a switched account or network rewrites it, a disconnect clears it.
+// It never prompts; after a disconnect, reconnecting is the user's move.
+export function followWallet(
+	lookup: (rdns: string) => GnoWallet | undefined = findAnnounced,
+	onAnnounce: (fn: () => void) => () => void = (fn) => getWallets().on(fn),
+): () => void {
+	let following: { rdns: string; stop: () => void } | null = null;
+
+	const stop = () => {
+		following?.stop();
+		following = null;
+	};
+
+	// A wallet whose on() returned no unsubscribe keeps calling after we switch.
+	const ours = (rdns: string): GnoSession | null => {
+		const session = readSession();
+		return session?.rdns === rdns ? session : null;
+	};
+
+	const follow = (session: GnoSession | null) => {
+		if (!session) return stop();
+		if (following?.rdns === session.rdns) return;
+		stop();
+		const wallet = lookup(session.rdns);
+		const on = wallet?.provider?.on;
+		if (!wallet || typeof on !== "function") return; // retried on announce
+
+		const rdns = session.rdns;
+		const offs: (() => void)[] = [];
+		const subscribe = <E extends keyof GnoProviderEvents>(
+			event: E,
+			listener: (detail: GnoProviderEvents[E]) => void,
+		) => {
+			try {
+				const off = on.call(wallet.provider, event, listener);
+				if (typeof off === "function") offs.push(off);
+			} catch (err) {
+				console.warn(
+					`session: wallet "${wallet.info.name}" rejected ${event}`,
+					err,
+				);
+			}
+		};
+
+		subscribe("accountChanged", (account) => {
+			const current = ours(rdns);
+			if (!current || typeof account?.address !== "string" || !account.address)
+				return;
+			if (account.address === current.address) return;
+			writeSession(toSession(wallet, account));
+		});
+		subscribe("networkChanged", (network) => {
+			const current = ours(rdns);
+			if (!current || typeof network?.chainid !== "string") return;
+			if (network.chainid === current.chainid) return;
+			writeSession({ ...current, chainid: network.chainid });
+		});
+		subscribe("disconnect", () => {
+			if (ours(rdns)) clearSession();
+		});
+
+		following = { rdns, stop: () => offs.forEach((off) => off()) };
+	};
+
+	const offSession = onSessionChange(follow);
+	// The wallet may announce after the session was restored from storage.
+	const offAnnounce = onAnnounce(() => follow(readSession()));
+	follow(readSession());
+
+	return () => {
+		offSession();
+		offAnnounce();
+		stop();
+	};
+}
+
+// Header display form: enough of each end to recognise, short enough to fit.
+export function truncate(address: string): string {
+	return address.length <= 15
+		? address
+		: `${address.slice(0, 8)}…${address.slice(-4)}`;
+}

@@ -1,0 +1,1 @@
+var l=5e3;function g(i,r,o,e){let n,t;try{n=new URL(i,r),t=decodeURIComponent(n.pathname)}catch{return!1}return e&&n.origin===new URL(r).origin&&t===`/u/${e}`?!0:t.includes(o)}export{l as MAX_TEXT_NODES,g as linkIsSelf};
