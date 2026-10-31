@@ -12,6 +12,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
+	"strings"
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -490,6 +492,122 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 		rlm.newEscaped = make([]Object, 0, 256)
 	}
 	rlm.newEscaped = append(rlm.newEscaped, oo)
+}
+
+//----------------------------------------
+// redeploy
+
+// ReleaseRedeployedObjects deletes the object graph the deployment currently
+// persisted at rlm.Path owns, so that a redeploy over that path credits its
+// storage deposit back before the new deployment is charged for its own.
+//
+// A redeploy hands the live realm record to a brand new PackageValue (see
+// Machine.RunMemPackageOverRealm). The new package block's globals are fresh,
+// so no Gno code in the new deployment can name the previous one's objects,
+// but nothing unlinks them either: they stay counted in rlm.Storage, stay
+// backed by escrowed funds, and no later message can free them. The refund in
+// processStorageDeposit is driven entirely by RealmStorageDiffs(), so the
+// release has to be real deletions here rather than an adjustment to the
+// record.
+//
+// Why this traces instead of dropping a reference and letting
+// decRefDeletedDescendants cascade: a package's persisted graph is cyclic.
+// The package block holds each declared FuncValue, every FuncValue holds its
+// file block as Parent, and every file block holds the package block as
+// Parent. Reference counts in that ring never reach zero, so the refcount
+// collector provably cannot release a redeployed package, however the root is
+// dropped.
+//
+// Deleting the whole closure is safe here because only a private realm may be
+// redeployed at all, and a private realm's objects cannot be referenced from
+// outside it: assertObjectIsPublic panics when any other realm tries to
+// persist a reference into one. So every holder of anything reachable from
+// this package value is itself inside the closure and is going away too.
+//
+// The walk is restricted to rlm's own objects. An object stamped with another
+// PkgID belongs to another realm's authority, is accounted against that
+// realm's storage, and is merely referenced from here.
+//
+// Types are not released. They are persisted separately by SetType, keyed by
+// TypeID rather than owned by the realm, and are not part of rlm.Storage.
+func (rlm *Realm) ReleaseRedeployedObjects(store Store) {
+	root := store.GetObjectSafe(ObjectIDFromPkgID(rlm.ID))
+	if root == nil {
+		// No package value persisted at this path: a realm record exists for
+		// a deployment that never finalized one. Nothing to release.
+		return
+	}
+	ppv, ok := root.(*PackageValue)
+	if !ok {
+		panic(fmt.Sprintf(
+			"the object at the package value id of realm %s is a %T, not a package value",
+			rlm.Path, root))
+	}
+
+	// Trace the closure. Explicit stack: a realm's object graph is as deep as
+	// the data in it, so recursion here would be a stack overflow reachable
+	// from user code.
+	owned := make(map[ObjectID]Object)
+	stack := []Object{ppv}
+	for len(stack) > 0 {
+		oo := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		oid := oo.GetObjectID()
+		if oid.PkgID != rlm.ID {
+			continue
+		}
+		if _, seen := owned[oid]; seen {
+			continue
+		}
+		owned[oid] = oo
+		// Not getChildObjects2: it resolves every RefValue through
+		// Store.GetObject, and a package block's values include imported
+		// packages held as RefValue{PkgPath} with no object id, which that
+		// would look up as the zero id and panic on.
+		for _, cv := range getChildObjects(oo, nil) {
+			switch child := cv.(type) {
+			case RefValue:
+				if child.PkgPath != "" || child.ObjectID.PkgID != rlm.ID {
+					continue
+				}
+				// GetObjectSafe, not GetObject: a reference into this realm
+				// whose target is already gone is not worth a panic during a
+				// teardown whose whole purpose is removing it.
+				if co := store.GetObjectSafe(child.ObjectID); co != nil {
+					stack = append(stack, co)
+				}
+			case Object:
+				stack = append(stack, child)
+			}
+		}
+	}
+
+	// Delete in object-id order. Map iteration is randomized, and DelObject
+	// both charges gas and writes the realm op log, so an unordered sweep
+	// would make gas and the op log differ between nodes replaying the same
+	// block.
+	oids := make([]ObjectID, 0, len(owned))
+	for oid := range owned {
+		oids = append(oids, oid)
+	}
+	slices.SortFunc(oids, func(a, b ObjectID) int {
+		return strings.Compare(a.String(), b.String())
+	})
+	for _, oid := range oids {
+		oo := owned[oid]
+		oo.SetIsDeleted(true)
+		rlm.sumDiff -= store.DelObject(oo)
+	}
+
+	// sumDiff is drained by the next FinalizeRealmTransaction, which is the
+	// new deployment's, so the release and the new charge net into one
+	// RealmStorageDiffs entry for this message: a redeploy that shrinks the
+	// realm refunds, one that grows it is charged the difference.
+	//
+	// DelObject evicts cacheRealms in lock-step with the package value it
+	// just removed. Only the objects the record accounts for are being
+	// released, never the record, so put it back for the new deployment.
+	store.SetPackageRealm(rlm)
 }
 
 //----------------------------------------
