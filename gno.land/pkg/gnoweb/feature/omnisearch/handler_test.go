@@ -447,6 +447,8 @@ func TestQueryIsLabel(t *testing.T) {
 		"blog":             false,
 	} {
 		t.Run(raw, func(t *testing.T) {
+			t.Parallel()
+
 			data := h.build(context.Background(), mustQuery(t, h, raw, "/r/demo/boards"))
 			if data.QueryIsLabel != want {
 				t.Errorf("QueryIsLabel = %v, want %v", data.QueryIsLabel, want)
