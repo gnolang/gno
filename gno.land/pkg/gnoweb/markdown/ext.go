@@ -119,6 +119,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add mentions extension
 	ExtMention.Extend(m)
 
+	// Add heading anchor extension
+	ExtHeading.Extend(m)
+
 	// Add inline icons extension
 	ExtIcons.Extend(m)
 

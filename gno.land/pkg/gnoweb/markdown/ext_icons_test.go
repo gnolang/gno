@@ -166,8 +166,9 @@ func FuzzIconRender(f *testing.F) {
 		}
 		for _, svg := range strings.Split(buf.String(), "<svg")[1:] {
 			// gno-icons, or the chrome glyphs other extensions write
-			// (alert kinds, link and form markers), which are <use> refs.
-			if !strings.HasPrefix(svg, ` class="gno-icon" `) && !strings.Contains(svg[:min(len(svg), 40)], "<use href=\"#ico-") {
+			// (alert kinds, link and form markers, heading anchors),
+			// which are <use> refs.
+			if !strings.HasPrefix(svg, ` class="gno-icon" `) && !strings.Contains(svg[:min(len(svg), 60)], "<use href=\"#ico-") {
 				t.Fatalf("an <svg> that is neither a gno-icon nor a chrome glyph: %q", svg[:min(len(svg), 80)])
 			}
 			// Attribute names only: a label value may hold " on".
@@ -259,15 +260,15 @@ func TestIconHeadingIDAndToc(t *testing.T) {
 
 	// IDs come from the visible text, deduplicated in document order.
 	assert.Contains(t, out, `<h2 id="launch"><svg class="gno-icon"`)
-	assert.Contains(t, out, `<h2 id="launch-1">Launch</h2>`)
-	assert.Contains(t, out, `<h1 id="title">Title</h1>`)
+	assert.Contains(t, out, `<h2 id="launch-1">Launch<a href="#launch-1" class="heading-anchor"`)
+	assert.Contains(t, out, `<h1 id="title">Title<a href="#title" class="heading-anchor"`)
 	assert.Contains(t, out, `<h2 id="status-done">Status <svg class="gno-icon"`)
 	assert.Contains(t, out, `<h2 id="heading"><svg class="gno-icon"`)
 	assert.Contains(t, out, `<h2 id="top"><svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Top">`)
 	// A tag shown as text (code span, backslash escape) stays in the ID.
 	assert.Contains(t, out, `<h2 id="gno-icon-namestar--syntax"><code>`)
 	assert.Contains(t, out, `<h2 id="gno-icon-namestar--escaped">&lt;gno-icon`)
-	assert.Contains(t, out, `<h2 id="plain-heading">Plain heading</h2>`)
+	assert.Contains(t, out, `<h2 id="plain-heading">Plain heading<a href="#plain-heading" class="heading-anchor"`)
 	assert.NotContains(t, out, "gno-icon-namerocket")
 
 	toc, err := TocInspect(doc, src, TocOptions{MinDepth: 2, MaxDepth: 6})
