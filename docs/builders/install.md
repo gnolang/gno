@@ -87,7 +87,7 @@ without installing from source:
 docker run -it ghcr.io/gnolang/gno/gnokey:latest --help
 
 # Run a gnoland node: always an explicit version, never `latest`
-docker run -it ghcr.io/gnolang/gno/gnoland:v1.5.1 start
+docker run -it ghcr.io/gnolang/gno/gnoland:v1.7.0 start
 ```
 
 `gnoland` has no `latest` tag on purpose: the version a network runs changes
