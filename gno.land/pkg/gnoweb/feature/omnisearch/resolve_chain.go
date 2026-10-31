@@ -237,6 +237,7 @@ func (h *Handler) resolveImports(ctx context.Context, q *Query, term string) ([]
 		kind, href := classifyImport(imp, h.deps.Domain)
 		out = append(out, Result{
 			Title: imp,
+			Kind:  KindImport,
 			Href:  href,
 			Tags:  []string{kind},
 		})

@@ -33,7 +33,7 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return writeRateLimited(w, isJSON), nil
 	}
 
-	q, err := ParseQuery(queryTerm(u))
+	q, err := ParseQuery(QueryTerm(u))
 	if err != nil {
 		if isJSON {
 			writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -55,9 +55,9 @@ func (h *Handler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return http.StatusOK, NewPageView(h.build(ctx, q))
 }
 
-// queryTerm reads `q` from either grammar: gnoweb's links build `$search&q=`,
+// QueryTerm reads `q` from either grammar: gnoweb's links build `$search&q=`,
 // a plain GET form can only produce `?q=`.
-func queryTerm(u *weburl.GnoURL) string {
+func QueryTerm(u *weburl.GnoURL) string {
 	if v := u.WebQuery.Get("q"); v != "" {
 		return v
 	}
@@ -131,23 +131,23 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 // railExamples are queries any chain answers: a name, a namespace, and a
 // namespace's realms.
 var railExamples = []RailLink{
-	{Label: "A name", Query: "avl"},
-	{Label: "A namespace", Query: "author:gnoland"},
-	{Label: "Its realms", Query: "is:realm author:gnoland"},
+	{Label: "A name", Query: "avl", Href: searchHref("avl")},
+	{Label: "A namespace", Query: "author:gnoland", Href: searchHref("author:gnoland")},
+	{Label: "Its realms", Query: "is:realm author:gnoland", Href: searchHref("is:realm author:gnoland")},
 }
 
 // railLinks fills the rail under the counts. On a package page, the keywords
 // that need no argument, so moving from deploys to activity is one click.
 // Without an answer, a few queries to try. Otherwise nothing.
 func (h *Handler) railLinks(data SearchData, current *Selector) (string, []RailLink) {
-	if safePathHref(data.PkgPath) != "" {
+	if safePathHref(data.PagePath) != "" {
 		var links []RailLink
 		for _, sel := range h.selectors {
 			// The one running already heads the results.
 			if sel.Scope != ScopePackage || !sel.Bare || sel == current {
 				continue
 			}
-			links = append(links, RailLink{Label: sel.Label, Query: sel.Name, Href: keywordHref(data.PkgPath, sel.Name)})
+			links = append(links, RailLink{Label: sel.Label, Query: sel.Name, Href: keywordHref(data.PagePath, sel.Name)})
 		}
 		if len(links) > 0 {
 			return "On this package", links
@@ -156,12 +156,7 @@ func (h *Handler) railLinks(data SearchData, current *Selector) (string, []RailL
 	if data.HasResults() {
 		return "", nil
 	}
-	links := make([]RailLink, len(railExamples))
-	for i, ex := range railExamples {
-		ex.Href = template.URL("/$search?q=" + url.QueryEscape(ex.Query)) //nolint:gosec // G203: a fixed path and an escaped query.
-		links[i] = ex
-	}
-	return "Try", links
+	return "Try", railExamples
 }
 
 // wholeChainHref is the same discovery search without its scope: `in:`
@@ -176,7 +171,12 @@ func wholeChainHref(q *Query) string {
 	if q.Text != "" {
 		kept = append(kept, q.Text)
 	}
-	return "/$search?q=" + url.QueryEscape(strings.Join(kept, " "))
+	return string(searchHref(strings.Join(kept, " ")))
+}
+
+// searchHref is a chain-wide search for query.
+func searchHref(query string) template.URL {
+	return template.URL("/$search?q=" + url.QueryEscape(query)) //nolint:gosec // G203: a fixed path and an escaped query.
 }
 
 // Search answers a query. At most one selector runs: they name different
@@ -271,12 +271,8 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 	}
 	groups = []Group{g}
 	if also != nil {
-		// A failed discovery is not news here: the selector's group answers.
-		for _, dg := range <-also {
-			if dg.Err == nil {
-				groups = append(groups, dg)
-			}
-		}
+		// A failed one stays: "could not ask" is not "nothing matched".
+		groups = append(groups, <-also...)
 	}
 	return groups, ""
 }

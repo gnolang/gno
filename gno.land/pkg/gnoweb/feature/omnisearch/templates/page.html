@@ -8,7 +8,7 @@ JavaScript off it submits here, so the reader still gets every answer.
 {{ define "renderSearch" }}
 {{ template "omnisearch/rail" . }}
 <header id="main-content" tabindex="-1" class="b-content-header">
-  <h1 class="title b-content-h1">Search{{ if not .QueryIsLabel }}{{ with .Query }} <code class="b-omni-query" title="{{ . }}">{{ shortQuery . }}</code>{{ end }}{{ end }}</h1>
+  <h1 class="title b-content-h1">Search{{ if not .QueryIsLabel }}{{ with .Query }} <code class="b-omni-query">{{ . }}</code>{{ end }}{{ end }}</h1>
   <div class="header-info b-omni-info">
     {{ if .PkgPath }}
     <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
@@ -64,8 +64,9 @@ link to its group; then the searches one click away (see railLinks).
 <aside class="b-sidebar sidebar">
   <div>
     <div class="inner u-no-scrollbar">
-      {{ template "ui/expend_label" "Search" }}
-      <nav aria-label="Search">
+      {{/* Names the first heading, which the toggle stands in for below --lg. */}}
+      {{ template "ui/expend_label" (or (and .Groups "Results") .RailTitle) }}
+      <nav aria-label="Search results">
         {{ with .Groups }}
         <h2 class="b-sidebar-heading">Results</h2>
         <div class="b-listing-rail">

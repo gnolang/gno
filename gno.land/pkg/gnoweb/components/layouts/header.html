@@ -11,7 +11,7 @@ LAYOUT - Header component
         {{ template "ui/gnome" }}
       </a>
 
-      <div class="b-main-navigation" data-controller="searchbar"{{ with .PackagePath }} data-searchbar-package-value="{{ . }}"{{ end }}>
+      <div class="b-main-navigation" data-controller="searchbar"{{ with .PackagePath }} data-searchbar-package-value="{{ . }}"{{ end }}{{ with .SearchQuery }} data-searchbar-query-value="{{ . }}"{{ end }}>
         <div class="inner c-reel u-no-scrollbar">
           {{/* method/action/name make the bar work with JavaScript off: the
                form submits to the server-rendered results page. The

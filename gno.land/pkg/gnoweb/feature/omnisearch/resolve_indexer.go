@@ -42,7 +42,7 @@ func indexerSelectors() []*Selector {
 			Help:    "An account's activity",
 			Scope:   ScopeGlobal,
 			Group:   GroupLookup,
-			Accepts: addressPattern,
+			Accepts: addressPattern(),
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				// A partial address never matches, yet walks every height
 				// band: one per debounced keystroke while it is typed.
@@ -73,6 +73,8 @@ func indexerSelectors() []*Selector {
 				return []Result{{
 					Title:  "block " + strconv.Itoa(b.Height),
 					Detail: b.Hash,
+					Opaque: true,
+					Kind:   KindBlock,
 					Tags: []string{
 						b.ChainID,
 						strconv.Itoa(b.NumTxs) + " tx",
@@ -161,6 +163,7 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 			out = append(out, Result{
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
+				Opaque: true,
 				Href:   chainPathHref(path, h.deps.Domain),
 				Tags:   batchTags(batch, "mentions", "block "+strconv.Itoa(tx.Height)),
 			})
@@ -229,6 +232,7 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 			out = append(out, Result{
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
+				Opaque: true,
 				Href:   chainPathHref(path, h.deps.Domain),
 				Tags:   batchTags(batch, "contains "+term, "block "+strconv.Itoa(tx.Height)),
 			})
@@ -245,6 +249,8 @@ func (h *Handler) txResults(txs []indexer.Tx) []Result {
 		r := Result{
 			Title:  txTitle(tx),
 			Detail: txDetail(tx),
+			Opaque: true,
+			Kind:   KindTx,
 			Tags: []string{
 				"block " + strconv.Itoa(tx.Height),
 				strconv.Itoa(tx.GasUsed) + " gas",

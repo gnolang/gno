@@ -163,7 +163,8 @@ type PageMatch = {
 	snippet: string;
 };
 
-const CONTENT_SELECTOR = "md-renderer, .b-source-code";
+// Not the results page: its rows already answer the query.
+const CONTENT_SELECTOR = "md-renderer:not(.b-omni), .b-source-code";
 const SEARCH_ENDPOINT = "/search.json";
 const MIN_QUERY_LENGTH = 2;
 const RESULTS_PER_GROUP = 5;
@@ -184,13 +185,18 @@ const QUALIFIED_SEARCH_DELAY = 220;
 const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
 
 // A bech32 account address, as a namespace: ranked as a throwaway deploy.
-// Same shape as omnisearch addressPattern.
+// Same shape as omnisearch addressPattern, whose prefix is `g` on every
+// shipped binary and which the rest of gnoweb assumes too.
 const ADDRESS_PATTERN = /^g1[02-9ac-hj-np-z]{38}$/;
 
 // The lists a filter suggests its values from: omnisearch CompleteNamespace
 // and CompletePath.
 const COMPLETE_NAMESPACE = "namespace";
 const COMPLETE_PATH = "path";
+
+// Same patterns as omnisearch testWord and testNamespace.
+const TEST_WORD = /(^|[-_])test(s|ing|utils?)?([-_0-9]|$)/;
+const TEST_NAMESPACE = /test[0-9]/;
 
 // A version segment such as v0 or v12, skipped for a package's name.
 const VERSION_SEGMENT = /^v(0|[1-9]\d*)$/;
@@ -210,6 +216,10 @@ export class SearchbarController extends BaseController {
 	private pageMatches: PageMatch[] = [];
 	private highlightEl: HTMLElement | null = null;
 	private runId = 0;
+	// What a results page filled the bar with, read from the bar: a text input
+	// drops a newline the URL's query kept, so the URL's is not what it holds.
+	// Declared: connect runs inside the base constructor, before an initializer.
+	private declare pageQuery: string;
 	private selectors: Selector[] = [];
 	// The selectors' `accepts` patterns, compiled with them, not per keystroke.
 	private accepting: RegExp[] = [];
@@ -238,15 +248,13 @@ export class SearchbarController extends BaseController {
 			results: this.getTarget("results"),
 		});
 
-		const input = this.getDOMElement("input");
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		this.pageQuery = this.hasValue("query") ? (input?.value.trim() ?? "") : "";
 		input?.addEventListener("keydown", this.keynav.bind(this));
 		input?.addEventListener("focus", this.selectInput.bind(this));
 		// Focus leaving the input closes the list: a click outside, Tab out.
 		input?.addEventListener("focusout", () => this.close());
-		(input as HTMLInputElement | null)?.form?.addEventListener(
-			"mousedown",
-			this.focusFromForm.bind(this),
-		);
+		input?.form?.addEventListener("mousedown", this.focusFromForm.bind(this));
 		// Focus stays in the input, as the combobox pattern wants, so a choice
 		// can edit it and leave the caret where the reader types next.
 		const results = this.getDOMElement("results");
@@ -293,10 +301,7 @@ export class SearchbarController extends BaseController {
 
 		// A results page fills the bar from its URL: that query searches, or a
 		// link could send the reader off the site with one Enter.
-		if (
-			raw === input?.defaultValue.trim() &&
-			window.location.pathname.includes("$search")
-		) {
+		if (raw === this.pageQuery) {
 			go(this.searchHref(raw));
 			return;
 		}
@@ -416,11 +421,24 @@ export class SearchbarController extends BaseController {
 			return;
 		}
 		const pageMatches = this.scanPage(q);
+		const drawLocal = (lead: ChoiceSection[]): void => {
+			this.pageMatches = pageMatches;
+			this.render(q, this.filter(q), pageMatches, { lead, token });
+		};
 
 		const qualified = this.isQualified(q);
 		const ctl = new AbortController();
 		if (qualified) this.inflight = ctl;
+		// A pasted address waits on an account's walk, which can take seconds:
+		// what the path list knows shows in the meantime.
+		let answered = false;
+		if (qualified && this.isAccepted(q)) {
+			void Promise.all([suggesting, this.ensureLoaded()]).then(([lead]) => {
+				if (!answered && id === this.runId) drawLocal(lead);
+			});
+		}
 		const res = qualified ? await this.fetchSearch(q, ctl.signal) : null;
+		answered = true;
 		const lead = await suggesting;
 		// A newer keystroke, or close(), superseded us.
 		if (id !== this.runId || ctl.signal.aborted) return;
@@ -441,8 +459,7 @@ export class SearchbarController extends BaseController {
 		// rather than an empty dropdown.
 		await this.ensureLoaded();
 		if (id !== this.runId) return;
-		this.pageMatches = pageMatches;
-		this.render(q, this.filter(q), pageMatches, { lead, token });
+		drawLocal(lead);
 	}
 
 	// keywords are the selectors and filters the reader can use here: those
@@ -691,8 +708,13 @@ export class SearchbarController extends BaseController {
 		const word = q.trim().toLowerCase();
 		return (
 			this.selectors.some((s) => s.bare && s.name === word) ||
-			this.accepting.some((re) => re.test(q.trim()))
+			this.isAccepted(q)
 		);
+	}
+
+	// isAccepted reports a value a selector answers typed alone.
+	private isAccepted(q: string): boolean {
+		return this.accepting.some((re) => re.test(q.trim()));
 	}
 
 	// highlightTerm is what a server-answered row can contain: the free text,
@@ -771,9 +793,11 @@ export class SearchbarController extends BaseController {
 			this.searchAvailable = true;
 			if (data.selectors) {
 				this.selectors = data.selectors;
-				this.accepting = data.selectors.flatMap((s) =>
-					SearchbarController.pattern(s.accepts),
-				);
+				if (!this.selectorsLoaded) {
+					this.accepting = data.selectors.flatMap((s) =>
+						SearchbarController.pattern(s.accepts),
+					);
+				}
 				this.selectorsLoaded = true;
 			}
 			if (data.filters) this.filters = data.filters;
@@ -1140,8 +1164,9 @@ export class SearchbarController extends BaseController {
 		return this.loading;
 	}
 
-	// filter ranks the cached lists locally and emits the same shape the
-	// server returns, so one renderer serves both paths.
+	// filter ranks the cached lists by relevance and keeps the top results per
+	// group, in the shape the server returns, so one renderer serves both
+	// paths. Users are derived from the first path segment of the ranked matches.
 	private filter(q: string): SearchGroup[] {
 		const needle = q.toLowerCase();
 		const realms = SearchbarController.rank(this.realms, needle);
@@ -1221,24 +1246,21 @@ export class SearchbarController extends BaseController {
 		for (const v of values) {
 			const top = chk >>> 25;
 			chk = ((chk & 0x1ffffff) << 5) ^ v;
-			for (let i = 0; i < 5; i++) if ((top >>> i) & 1) chk ^= gen[i];
+			for (let i = 0; i < 5; i++) if (((top >>> i) & 1) !== 0) chk ^= gen[i];
 		}
 		return chk === 1;
 	}
 
-	// isThrowaway mirrors omnisearch isThrowaway: a raw address namespace, a
-	// namespace with "test" in it, or a test package; not when asked for.
+	// isThrowaway mirrors omnisearch isThrowaway: a raw address namespace or
+	// one numbered after a test, or a segment that names a test; not when
+	// asked for.
 	static isThrowaway(path: string, needle: string): boolean {
 		const segs = path.toLowerCase().split("/").filter(Boolean);
 		const ns = segs[1] ?? "";
 		// A pasted address asks for that namespace; a needle inside it does not.
 		if (ADDRESS_PATTERN.test(ns) && ns !== needle) return true;
 		if (needle.includes("test")) return false;
-		if (ns.includes("test")) return true;
-		// Not "latest" or "attestation".
-		return segs.some(
-			(s) => s.startsWith("test") || s.endsWith("_test") || s.endsWith("-test"),
-		);
+		return TEST_NAMESPACE.test(ns) || segs.some((s) => TEST_WORD.test(s));
 	}
 
 	// relevance scores how well a path matches needle; 0 means no match.
@@ -1247,7 +1269,7 @@ export class SearchbarController extends BaseController {
 		if (!lower.includes(needle)) return 0;
 		const segs = lower.split("/").filter(Boolean);
 		// A version segment (`/v0`) is not depth: the name is the one before.
-		if (segs.length > 1 && VERSION_SEGMENT.test(segs[segs.length - 1])) {
+		if (segs.length > 1 && VERSION_SEGMENT.test(segs[segs.length - 1] ?? "")) {
 			segs.pop();
 		}
 		const name = segs[segs.length - 1] ?? "";
@@ -1378,7 +1400,9 @@ export class SearchbarController extends BaseController {
 	// onKeyShortcut focuses the search bar when "/" is pressed outside any
 	// editable element; the focus opens the keyword help, or, when that does
 	// not open, the dropdown against what the bar holds, so the action has
-	// visible feedback (a bare select() reads as a no-op).
+	// visible feedback (a bare select() reads as a no-op). A results page
+	// already answers the query its bar holds, so the bar only takes the caret
+	// there, at the end, ready to refine it.
 	// Skips when modifiers are held or during IME composition so chorded
 	// shortcuts and CJK input keep working.
 	//
@@ -1390,12 +1414,18 @@ export class SearchbarController extends BaseController {
 		const target = e.target as HTMLElement | null;
 		if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
 		e.preventDefault();
-		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		if (!input) return;
+		input.focus();
+		if (this.pageQuery && input.value.trim() === this.pageQuery) {
+			input.setSelectionRange(input.value.length, input.value.length);
+			return;
+		}
 		const id = this.runId;
 		void this.loadSelectors().then(() => {
 			if (
 				id === this.runId &&
-				document.activeElement === this.getDOMElement("input") &&
+				document.activeElement === input &&
 				this.getDOMElement("results")?.hidden
 			)
 				this.search();
@@ -1415,12 +1445,15 @@ export class SearchbarController extends BaseController {
 	// prefilled path instead of appending to it. Deferred via rAF so a mouse
 	// click's caret placement doesn't collapse the selection (a plain
 	// synchronous select() is lost on mousedown→focus→mouseup). Only while
-	// focused: select() pulls focus back.
+	// focused: select() pulls focus back. A results page holds its query
+	// instead, which a reader refines: the caret stays put.
 	private selectInput(): void {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
-		requestAnimationFrame(() => {
-			if (document.activeElement === input) input?.select();
-		});
+		if (!this.pageQuery) {
+			requestAnimationFrame(() => {
+				if (document.activeElement === input) input?.select();
+			});
+		}
 		// Learn the qualifier list on first focus, not on page load: a reader
 		// who never opens the bar costs no request. A bar not yet typed in
 		// opens on the keywords: nothing else says they exist, unless Escape

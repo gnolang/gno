@@ -310,3 +310,43 @@ func TestEmptyQueryListsTheKeywords(t *testing.T) {
 		t.Error("a results page lost its Keywords button")
 	}
 }
+
+// The page a search was made from keeps its keywords, whatever the answer's
+// scope: a discovery search ignores the page, a reader on it does not.
+func TestKeywordsFollowThePage(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	html := handlePage(t, h, "/r/alice/blog$search&q=blog")
+	if !strings.Contains(html, "On this package") || !strings.Contains(html, `/r/alice/blog$search&amp;q=deploys`) {
+		t.Errorf("a whole-chain answer on a package page lost its keywords:\n%s", html)
+	}
+}
+
+// The rail's toggle stands in for its first heading, which it hides below
+// --lg, so the two must say the same.
+func TestRailToggleNamesTheFirstHeading(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	toggle := regexp.MustCompile(`class="b-expend-btn">\s*(\S+)`)
+	heading := regexp.MustCompile(`<h2 class="b-sidebar-heading">([^<]+)<`)
+	for _, raw := range []string{"/$search&q=blog", "/$search&q=zzzz", "/r/alice/blog$search&q=deploys"} {
+		html := handlePage(t, h, raw)
+		got, want := toggle.FindStringSubmatch(html), heading.FindStringSubmatch(html)
+		if got == nil || want == nil || got[1] != strings.Fields(want[1])[0] {
+			t.Errorf("%s: toggle %q, first heading %q", raw, got, want)
+		}
+	}
+}
+
+// The title holds the query whole: nothing else does on a touch screen.
+func TestTitleHoldsTheWholeQuery(t *testing.T) {
+	t.Parallel()
+
+	const q = "content:transferOwnershipTo"
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
+	if html := handlePage(t, h, "/r/demo/boards$search&q="+q); !strings.Contains(html, `<code class="b-omni-query">`+q+`</code>`) {
+		t.Errorf("the title does not hold %s:\n%s", q, html)
+	}
+}

@@ -251,8 +251,8 @@ func TestQueryTermAcceptsBothGrammars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := queryTerm(parseURL(t, tt.url)); got != "blog" {
-				t.Fatalf("queryTerm(%q) = %q, want %q", tt.url, got, "blog")
+			if got := QueryTerm(parseURL(t, tt.url)); got != "blog" {
+				t.Fatalf("QueryTerm(%q) = %q, want %q", tt.url, got, "blog")
 			}
 		})
 	}
@@ -405,7 +405,7 @@ func TestRailLinks(t *testing.T) {
 
 	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
 
-	title, links := h.railLinks(SearchData{PkgPath: "/r/alice/blog"}, h.byName["imports"])
+	title, links := h.railLinks(SearchData{PagePath: "/r/alice/blog"}, h.byName["imports"])
 	if title != "On this package" || len(links) == 0 {
 		t.Fatalf("package page: rail = %q %v, want its keywords", title, links)
 	}
@@ -419,7 +419,7 @@ func TestRailLinks(t *testing.T) {
 	}
 
 	// A path that is not a package gets no keyword links built on it.
-	if title, _ := h.railLinks(SearchData{PkgPath: "/u/alice"}, nil); title == "On this package" {
+	if title, _ := h.railLinks(SearchData{PagePath: "/u/alice"}, nil); title == "On this package" {
 		t.Error("keyword links built on a path that is not a package")
 	}
 
@@ -446,9 +446,11 @@ func TestQueryIsLabel(t *testing.T) {
 		"deploys:x":        false,
 		"blog":             false,
 	} {
-		data := h.build(context.Background(), mustQuery(t, h, raw, "/r/demo/boards"))
-		if data.QueryIsLabel != want {
-			t.Errorf("%q: QueryIsLabel = %v, want %v", raw, data.QueryIsLabel, want)
-		}
+		t.Run(raw, func(t *testing.T) {
+			data := h.build(context.Background(), mustQuery(t, h, raw, "/r/demo/boards"))
+			if data.QueryIsLabel != want {
+				t.Errorf("QueryIsLabel = %v, want %v", data.QueryIsLabel, want)
+			}
+		})
 	}
 }
