@@ -8,7 +8,7 @@ JavaScript off it submits here, so the reader still gets every answer.
 {{ define "renderSearch" }}
 {{ template "omnisearch/rail" . }}
 <header id="main-content" tabindex="-1" class="b-content-header">
-  <h1 class="title b-content-h1">Search{{ if not .QueryIsLabel }}{{ with .Query }} <code class="b-omni-query" title="{{ . }}">{{ shortQuery . }}</code>{{ end }}{{ end }}</h1>
+  <h1 class="title b-content-h1">Search{{ if not .QueryIsLabel }}{{ with .Query }} <code class="b-omni-query">{{ . }}</code>{{ end }}{{ end }}</h1>
   <div class="header-info b-omni-info">
     {{ if .PkgPath }}
     <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
@@ -17,13 +17,16 @@ JavaScript off it submits here, so the reader still gets every answer.
     <span>Whole chain</span>
     {{ end }}
     {{/* Help, not results: a native popover, no JavaScript needed. In
-         header-info like the source page's Copy and Download. */}}
+         header-info like the source page's Copy and Download. An empty query
+         has nothing else to show, so the list is the page. */}}
+    {{ if .Query }}
     <button type="button" class="b-inline-btn c-with-icon b-omni-keywords-btn" popovertarget="omni-keywords" aria-label="Search keywords" title="Search keywords">
       <svg class="c-icon" aria-hidden="true"><use href="#ico-question"></use></svg>
       <span>Keywords</span>
     </button>
+    {{ end }}
   </div>
-  <div id="omni-keywords" popover class="b-popover b-omni-keywords">{{ template "omnisearch/hints" . }}</div>
+  {{ if .Query }}<div id="omni-keywords" popover class="b-popover b-omni-keywords">{{ template "omnisearch/hints" . }}</div>{{ end }}
 </header>
 <md-renderer class="c-listing-view b-omni">
   {{ with .UnknownFilter }}
@@ -35,6 +38,7 @@ JavaScript off it submits here, so the reader still gets every answer.
 
   {{ if not .Query }}
   <p class="b-omni-notice">Type in the search bar above: a path, a name, or one of the search keywords.</p>
+  {{ template "omnisearch/hints" . }}
   {{ end }}
 
   {{ range $i, $g := .Groups }}{{ template "omnisearch/group" (groupAt $i $g) }}{{ end }}
@@ -60,8 +64,9 @@ link to its group; then the searches one click away (see railLinks).
 <aside class="b-sidebar sidebar">
   <div>
     <div class="inner u-no-scrollbar">
-      {{ template "ui/expend_label" "Search" }}
-      <nav aria-label="Search">
+      {{/* Names the first heading, which the toggle stands in for below --lg. */}}
+      {{ template "ui/expend_label" (or (and .Groups "Results") .RailTitle) }}
+      <nav aria-label="Search results">
         {{ with .Groups }}
         <h2 class="b-sidebar-heading">Results</h2>
         <div class="b-listing-rail">
@@ -136,7 +141,7 @@ package page, a keyword that takes no argument is a link that runs it.
 
   <h3 class="b-omni-hints__title">On a package page</h3>
   <ul>
-    {{ range .Selectors }}{{ if eq .Scope "package" }}{{ template "omnisearch/hint" (hintRow . $.PkgPath) }}{{ end }}{{ end }}
+    {{ range .Selectors }}{{ if eq .Scope "package" }}{{ template "omnisearch/hint" (hintRow . $.PagePath) }}{{ end }}{{ end }}
   </ul>
 </section>
 {{ end }}

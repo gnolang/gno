@@ -50,13 +50,13 @@ answer, so it renders as text rather than as a dead anchor.
   <div>
     {{ if .Href }}<a href="{{ .Href }}">{{ else }}<span class="b-omni-plain">{{ end }}
       <span class="c-with-icon">
-        <svg class="c-icon" aria-hidden="true"><use href="#{{ rowIcon .Href }}"></use></svg>
+        <svg class="c-icon" aria-hidden="true"><use href="#{{ rowIcon . }}"></use></svg>
         <span class="name">{{ .Title }}</span>
       </span>
     {{ if .Href }}</a>{{ else }}</span>{{ end }}
     {{ if or .Detail .Tags }}
     <span class="c-inline b-omni-meta">
-      {{ with .Detail }}<span class="detail" title="{{ . }}">{{ shortDetail . }}</span>{{ end }}
+      {{ if .Detail }}<span class="detail" title="{{ .Detail }}">{{ shortDetail . }}</span>{{ end }}
       {{ range .Tags }}<span class="b-tag--tertiary">{{ . }}</span>{{ end }}
     </span>
     {{ end }}
