@@ -1011,7 +1011,7 @@ const (
 	OpCPUSlopeBigIntShl            =   39 // 0.0377 ns/bit * 1024 = 38.6
 	OpCPUSlopeBigIntShr            =   51 // 0.0498 ns/bit * 1024 = 51.0
 	OpCPUSlopeBigIntEql            =   10 // 0.0101 ns/bit * 1024 = 10.3
-	OpCPUSlopeBigIntLss            =    9 // 0.0086 ns/bit * 1024 = 8.8
+	OpCPUSlopeBigIntCmp            =    9 // 0.0086 ns/bit * 1024 = 8.8 (benched as Lss)
 	OpCPUSlopeBigIntBand           =   58 // 0.0562 ns/bit * 1024 = 57.6
 	OpCPUSlopeBigIntBor            =   59 // 0.0581 ns/bit * 1024 = 59.5
 	OpCPUSlopeBigIntXor            =   69 // 0.0671 ns/bit * 1024 = 68.7
