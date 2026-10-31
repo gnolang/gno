@@ -188,8 +188,10 @@ directions:
   cut; running it early is the same divergence from the other side.
 
 Both checks are skipped entirely when `halt_height` is `0` or
-`halt_min_version` is empty. A halt proposal that leaves the version empty is a
-coordinated *pause*, not an upgrade gate.
+`halt_min_version` is empty. A halt proposal that leaves the version empty still
+coordinates an upgrade — validators stop together and swap binaries — it just
+does so **with no gate**, which is what happens when the binaries carry no
+version the comparison can parse.
 
 **The floor is the version operators switch to, above every version the network runs.** A floor the running binary already meets gates nothing and blocks restarts: before the halt the second check refuses every restart of that binary, so the chain stalls short of the halt once validators holding a third of the voting power have tried to restart, and after the halt the first check lets the same binary resume. `misc/govdao-scripts/set-halt.sh` refuses such a floor, comparing it with the version one node, its `REMOTE`, reports; survey the others as described in [Where the binary's version comes from](#where-the-binarys-version-comes-from).
 
