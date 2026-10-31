@@ -1,7 +1,6 @@
 # Release tooling
 
-Two scripts. The policy they enforce is in [`RELEASING.md`](../../RELEASING.md);
-this page is what to type.
+Three scripts. The policy they enforce is in [`RELEASING.md`](../../RELEASING.md); this page is what to type.
 
 ## `cut-release.sh`
 
@@ -12,10 +11,9 @@ Tags a release, after checking it is one.
 # deployment docs on top of the code: name the code commit
 misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
-# a coordinated upgrade: also prints the GovDAO halt proposal, then pushes.
-# The tag records no height: it can change until the proposal executes
-misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
-  --halt-height 120000 --push
+# the cut itself. A final is cut once its last candidate has passed on the
+# testnet, before mainnet's halt height is chosen: the tag records none
+misc/release/cut-release.sh v1.6.0 --commit <code-commit> --push
 ```
 
 | Option | |
@@ -23,7 +21,7 @@ misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
 | `--chain <name>` | chain branch to cut from (default `mainnet` → `chain/mainnet`) |
 | `--commit <ref>` | commit to tag (default: the branch tip) |
 | `--previous <version>` | previous release, for the change summary (default: the newest final `v*` tag reachable from the commit) |
-| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `govdao-exec.sh set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)) |
+| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `govdao-exec.sh set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)). For a release candidate the command names `misc/deployments/<chain>.gno.land/`, the testnet's folder, since candidates are cut from `chain/mainnet` too. Only before the tag exists, which for a release published early is before the height is chosen: once it is chosen, run `govdao-exec.sh set-halt <H> <version>` from the network's folder directly |
 | `--push` | create and push the tag (without it, nothing is created at all) |
 | `--allow-dirty` | skip the clean-worktree check — local rehearsal only |
 | `--allow-merge` | cut a range that merges `master` and touches consensus code, which is otherwise refused |
@@ -54,6 +52,17 @@ and `origin/chain/*`, and uses local tags to find the previous release.
   `--allow-merge` says the operator knows it ships everything `master` had.
 
 It *warns*, rather than refusing, when the commit is not on `master` (listing what is missing, since a squash-merge shows up here even though its content landed), and when the ledger has no entry for the version yet: the entry is written once the chain runs the release, when everything it records, the halt time included, is known.
+
+## `promote-release.sh`
+
+Makes a published final release the one operators land on: points `latest` at its `gno`, `gnokey`, `gnodev` and `gnoweb` images, byte for byte, then makes it a full release, the kind `misc/install.sh` installs by default (the highest `v*` release that is not a pre-release), and GitHub's "Latest". Run it once mainnet's switch is set: for a coordinated upgrade, once the halt proposal has executed; for a rolling one, on the agreed day.
+
+```sh
+misc/release/promote-release.sh v1.7.0          # dry run: every check, nothing changed
+misc/release/promote-release.sh v1.7.0 --push
+```
+
+It needs `curl`, `jq`, `sha256sum` or `shasum`, and `gh` logged in with the `write:packages` scope. It refuses a release candidate, a release still a draft (its `release / chain-tag` run has not finished), a release older than the highest full release (a promotion only moves forward), a MINOR whose halt mainnet has not scheduled (mainnet's `halt_min_version` must name it; a PATCH to the highest full release's line, or the release mainnet runs, needs none), a MAJOR (a new network, which mainnet never schedules), and an image it cannot read, or whose bytes or media type are not what release / docker pushed: every image is read and checked before anything is written. A missing write permission shows only at the first write, where ghcr.io checks it. A run stopped halfway leaves the release a pre-release, though some images' `latest` may have moved; run it again to finish.
 
 ## `bump-protocol-version.sh`
 

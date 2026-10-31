@@ -268,21 +268,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
-          # "Latest" — the page misc/deployments/*/VALIDATOR.md sends operators
-          # to. Mark pre-releases as such, matching goreleaser's `prerelease:
-          # auto`.
-          PRERELEASE=""
-          case "${TAG}" in
-            v*-*) PRERELEASE="--prerelease" ;;
-          esac
+          # Every release starts as a pre-release, the final one included: it
+          # is published days before the chain switches to it, and until then
+          # the release the chain runs keeps "Latest" and misc/install.sh's
+          # default. misc/release/promote-release.sh makes a final a full
+          # release and Latest (RELEASING.md, "Publishing early, promoting once
+          # the switch is set").
           gh release create "${TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
             --draft \
             --title "${TAG}" \
             --notes-file notes.md \
             --verify-tag \
-            ${PRERELEASE}
+            --prerelease
 
       - name: Upload release assets
         env:
@@ -296,13 +294,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # "Latest" may only move forward: GitHub would otherwise give it to
-          # whichever release was published last, so a backport cut after a
-          # newer line would take it. Only the highest final tag gets it. The
-          # tags are fetched again: the checkout's are minutes old by now, and
-          # a final tag pushed meanwhile must keep Latest from this one.
-          git fetch --quiet --force --tags origin
-          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
-          LATEST="--latest=false"
-          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
-          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false ${LATEST}
+          # Published as a pre-release even from a draft made by hand without
+          # the flag, and never Latest, which GitHub would otherwise give a
+          # full release on publication. Only misc/release/promote-release.sh
+          # promotes a release.
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease --latest=false
