@@ -75,6 +75,10 @@ type Environment struct {
 	Logger *slog.Logger
 	Config cfg.RPCConfig // value, not pointer — TimeoutBroadcastTxCommit must be stable
 
+	// CodeExecutionQueryPaths are the application's query paths that run code,
+	// refused beside .app/simulate when Config.AllowCodeExecution is false.
+	CodeExecutionQueryPaths []string
+
 	// Internal state. Populated by Start; nil before.
 	mtx          sync.Mutex
 	txDispatcher *txDispatcher

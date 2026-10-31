@@ -708,6 +708,19 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"allow code execution updated",
+			[]string{
+				"rpc.allow_code_execution",
+				"false",
+			},
+			func(loadedCfg *config.Config, value string) {
+				boolVal, err := strconv.ParseBool(value)
+				require.NoError(t, err)
+
+				assert.Equal(t, boolVal, loadedCfg.RPC.AllowCodeExecution)
+			},
+		},
+		{
 			"TLS cert file updated",
 			[]string{
 				"rpc.tls_cert_file",
