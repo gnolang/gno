@@ -572,6 +572,52 @@ func TestRecentKeepsACappedPagesLastBlockWhenTheWalkEnds(t *testing.T) {
 	}
 }
 
+// A band that answers the cap with no rows has nothing to replace what the
+// page before it held.
+func TestRecentKeepsRowsInHandOnAnEmptyCappedAnswer(t *testing.T) {
+	deploy := func(hash string, h int) string { return txRow(hash, "MsgAddPackage", h) }
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":1000}}`)
+			return
+		}
+		bands++
+		rows := deploy("a", 600) + "," + deploy("b", 500)
+		if bands > 1 {
+			rows = ""
+		}
+		respond(w, `{"data":{"getTransactions":[`+rows+`]},"errors":[{"message":"max elements per query reached"}]}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if !errors.Is(err, ErrPartial) || len(txs) != 2 {
+		t.Fatalf("txs = %+v, err = %v, want both rows and ErrPartial", txs, err)
+	}
+}
+
+// Two blocks at the chain's bottom filling the cap leave the walk nowhere to
+// go: the same band again would answer the same page.
+func TestRecentDoesNotRepeatABandAtTheBottom(t *testing.T) {
+	deploy := func(hash string, h int) string { return txRow(hash, "MsgAddPackage", h) }
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":1}}`)
+			return
+		}
+		bands++
+		respond(w, `{"data":{"getTransactions":[`+deploy("a", 1)+`,`+deploy("b", 0)+`]},"errors":[{"message":"max elements per query reached"}]}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/alice/blog", 20)
+	if !errors.Is(err, ErrPartial) || len(txs) != 2 || bands != 1 {
+		t.Fatalf("txs = %+v, err = %v, bands = %d, want both rows from one band and ErrPartial", txs, err, bands)
+	}
+}
+
 // One block filling the cap cannot be paged by height: the walk stops there
 // and says so, rather than asking for the same block again.
 func TestRecentStopsOnABlockFillingTheCap(t *testing.T) {

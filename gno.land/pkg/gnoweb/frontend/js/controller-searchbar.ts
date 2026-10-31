@@ -671,7 +671,7 @@ export class SearchbarController extends BaseController {
 		const users: string[] = [];
 		const seen = new Set<string>();
 		// A pasted address names a user even with nothing deployed under it.
-		if (SearchbarController.isAddress(needle)) {
+		if (SearchbarController.isAddress(q)) {
 			seen.add(needle);
 			users.push(`/u/${needle}`);
 		}

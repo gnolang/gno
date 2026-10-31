@@ -383,8 +383,12 @@ func (c *Client) recent(ctx context.Context, where string, need int, match func(
 		) { %s } }`, bounds, where, txFields)
 
 		// keep adds this band's rows. A capped page may have ended inside the
-		// block this band starts at, which it reads whole, so those rows go.
+		// block this band starts at, which it reads whole: those rows give way
+		// to its answer, if it has one.
 		keep := func() {
+			if len(out.Txs) == 0 {
+				return
+			}
 			found = slices.DeleteFunc(found, func(tx Tx) bool { return tx.Height < upper })
 			found = append(found, keepMatching(out.Txs, match)...)
 		}
@@ -401,14 +405,17 @@ func (c *Client) recent(ctx context.Context, where string, need int, match func(
 			// not searched, so the next band starts there: rows the match
 			// drops may be all the cap kept. At the page's lowest block, read
 			// again whole, as an older tx-indexer ends a page inside a block.
-			n := len(out.Txs)
-			if n == 0 || out.Txs[0].Height == out.Txs[n-1].Height {
-				// One block filled the cap: heights cannot page past it.
+			bandLower = upper - 1
+			if n := len(out.Txs); n > 0 {
+				bandLower = max(out.Txs[n-1].Height, 1)
+			}
+			if bandLower+1 >= upper {
+				// The next band would be this one: heights cannot page past
+				// a block filling the cap.
 				lower = max(upper-1, 1)
 				keep()
 				return partial(found)
 			}
-			bandLower = max(out.Txs[n-1].Height, 1)
 		default:
 			// A wide band timing out costs the rows the narrower ones
 			// already found; those are still the newest, so keep them.
