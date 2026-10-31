@@ -561,6 +561,122 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 	}
 }
 
+// TestExtensionAndFooterIsolation verifies that untrusted user input cannot
+// open live structural extensions (<gno-columns>, <gno-form>, <gno-frame>, etc.),
+// swallow trusted page footer chrome, or rebind the realm's reference links
+// across Block and BlockRich callers.
+func TestExtensionAndFooterIsolation(t *testing.T) {
+	const (
+		chromePrefix = "# Trusted Realm Title\n\n"
+		chromeFooter = "\n\n---\n**Trusted Realm Footer** [home]\n\n[home]: https://realm.example/home\n"
+	)
+
+	// A live structural extension, or a link bound to the attacker's URL.
+	liveExtension := regexp.MustCompile(`class="gno-(?:form|columns|column|frame|foreign|button|alert)[" ]`)
+	const rebound = `href="https://evil.example`
+
+	reproCases := []struct{ name, input string }{
+		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>"},
+		{"repro-fence-in-list-form", "- a\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-fence-in-list-lazy-continuation", "- a\nb\n  ```\n<gno-columns>\n```\n"},
+		{"repro-fence-in-list-dedented-closer", "- a\n  ```\n```\n<gno-columns>\n"},
+		{"repro-fence-in-list-unclosed", "- a\n  ```\n  code\n"},
+		{"repro-fence-after-thematic-break", "para\n* * *\n  ```\n  x\ntext\n"},
+		{"repro-fence-after-ordered-marker", "para\n2. item\n   ```\n   x\n<gno-columns>\n"},
+		{"repro-fence-in-list-lrd", "- a\n  ```\n[home]: https://evil.example\n```\n"},
+		{"repro-fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n"},
+		{"repro-indented-code-lrd", "    ```\n[home]: https://evil.example\n"},
+		{"repro-tab-indented-code-lrd", "\t```\n[home]: https://evil.example\n"},
+		{"repro-unclosed-fence-indented", " ```\nx\n"},
+		{"bracket-fence-idempotency", "[\n ~~~](<\n>)"},
+		{"repro-lrd-destination-line-opens-fence", "- x\n[foo]:\n  ```\n<gno-form path=\"x\">\n"},
+		{"repro-lrd-indent-joins-next", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-lrd-indent-before-fence", " [x]: u\n   ```\n[home]: https://evil.example\n"},
+		{"repro-empty-list-item", "-\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-empty-list-item-lrd", "*\n  ```\n[home]: https://evil.example\n```\n"},
+		{"repro-empty-item-after-fence-footer", "```\n```\n*\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-alert-quote-tab-fence", "\t````\n````\n> [!WARNING] x"},
+		{"repro-alert-rich-list-fence", "- x\n    ```\n  ```\n  > [!WARNING] x"},
+		{"repro-alert-quote-tab-closer", "```\n\t```\n> [!WARNING] x"},
+		{"repro-fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n"},
+		{"repro-closer-at-5-spaces", "- a\n  ```\n     ```\n  <gno-form path=\"x\">\n"},
+		{"repro-opener-at-4-spaces-lrd", "- a\n    ```\n  ```\n  [home]: https://evil.example\n"},
+		{"repro-html-block-hides-fence", "<div>\n```\n\n<gno-form path=\"x\">\n"},
+		{"repro-hard-break-before-fence", "a\\\n```\nx\n```\n[home]: https://evil.example\n"},
+		{"repro-tab-indented-line-in-list-fence", "1. a\n   ```\n\t<gno-form path=\"x\">\n"},
+		{"repro-lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n"},
+		{"repro-lrd-text-after-destination-html", "[a]: u ```\n```\n- y\n  ```\n<script>\n"},
+		{"repro-html-close-tag-space-over-fence", "</ div>\n```\n\nfoo"},
+		{"repro-html-block-type-1-form-feed", "<script\f\nhello"},
+		{"idempotent-empty-item-in-link", "[](\n1)"},
+		{"idempotent-leading-setext-after-lrd", " []: x\n   ="},
+	}
+
+	for _, helper := range []string{"Block", "BlockRich", "Blockquote", "BlockquoteRich"} {
+		sc := sanitizeCase{Func: helper}
+		t.Run(helper, func(t *testing.T) {
+			for _, rc := range reproCases {
+				t.Run(rc.name, func(t *testing.T) {
+					sanitized := applySanitize(t, sc, rc.input)
+					composed := chromePrefix + sanitized + chromeFooter
+					html := renderMarkdown(t, composed)
+
+					require.False(t, liveExtension.MatchString(html),
+						"helper %s let input %q open an extension\nrendered: %s",
+						helper, rc.input, html)
+					require.NotContains(t, html, rebound,
+						"helper %s let input %q rebind [home]\nrendered: %s",
+						helper, rc.input, html)
+					require.Contains(t, html, `href="https://realm.example/home"`,
+						"helper %s let input %q drop or corrupt realm link [home]\nrendered: %s",
+						helper, rc.input, html)
+
+					// The footer must render as markdown: inside a code
+					// block its text would still be there, unbolded.
+					require.Contains(t, html, "<strong>Trusted Realm Footer</strong>",
+						"trusted footer was swallowed or corrupted by helper %s with input %q\nrendered: %s",
+						helper, rc.input, html)
+
+					// The quote helpers nest a second `> ` on a second
+					// pass by design; the others must be idempotent.
+					if helper == "Block" || helper == "BlockRich" {
+						twice := applySanitize(t, sc, sanitized)
+						require.Equal(t, sanitized, twice,
+							"helper %s was not idempotent on input %q", helper, rc.input)
+					}
+				})
+			}
+		})
+	}
+
+	// Verify that <gno-icon> inside list items and blockquotes renders as a live SVG in BlockRich
+	t.Run("BlockRich_IconInContainers", func(t *testing.T) {
+		sc := sanitizeCase{Func: "BlockRich"}
+		containerCases := []struct {
+			name  string
+			input string
+		}{
+			{"list-bullet", "- <gno-icon name=\"star\" /> Star item\n"},
+			{"list-numbered", "1. <gno-icon name=\"check\" /> Checked item\n"},
+			{"blockquote", "> <gno-icon name=\"info\" /> Note quote\n"},
+		}
+		for _, tc := range containerCases {
+			t.Run(tc.name, func(t *testing.T) {
+				sanitized := applySanitize(t, sc, tc.input)
+				html := renderMarkdown(t, sanitized)
+				require.Contains(t, html, "<svg class=\"gno-icon\"",
+					"gno-icon in container failed to render live SVG: %s", html)
+
+				// Idempotency
+				twice := applySanitize(t, sc, sanitized)
+				require.Equal(t, sanitized, twice, "not idempotent on %q", tc.input)
+			})
+		}
+	})
+}
+
 // SANITIZE.md's threat-surface table carries a per-helper fixture count. Hand
 // maintenance let it drift badly — it claimed 103 fixtures against 186 on
 // disk, documented a `Link` helper that no longer exists, and had no row at

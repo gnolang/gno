@@ -100,14 +100,18 @@ func CodeFence(content string, minCount int) string // injected
 // escaping in a single pass. Steps:
 //  1. Strip CM link reference definitions.
 //  2. Escape line-leading block markers (ATX heading, thematic break,
-//     blockquote, list marker, code fence) by prefixing with \.
+//     blockquote, list marker) by prefixing with \. Code fences are
+//     kept and tracked.
 //  3. Escape setext heading underlines following a non-blank line.
-//  4. Escape extension-delimiter lines (any line starting with
-//     `<gno-…>` or `</gno-…>`) by prefixing with a backslash so the
-//     opening `<` becomes a CM §2.4 inline escape.
+//  4. Escape `<gno-…>` and `</gno-…>` tags at block start (line
+//     start, after indentation, or after list and quote markers;
+//     fenced lines included) by prefixing the `<` with a backslash so
+//     it becomes a CM §2.4 inline escape. `<gno-icon />` after a list
+//     or quote marker is left to render.
 //  5. Reference-link USE escape: [text][label] → [text]\[label].
 //  6. Fold U+2028, U+2029, U+0085 NEL to \n.
-//  7. Auto-close any open code fence at end-of-input.
+//  7. Auto-close any open code fence at end-of-input, at the opener's
+//     column.
 //
 // Preserves inline emphasis, code spans, inline links, GFM tables,
 // soft line breaks within paragraphs.
