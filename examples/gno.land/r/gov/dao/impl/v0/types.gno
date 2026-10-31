@@ -3,6 +3,7 @@ package impl
 import (
 	"strings"
 
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -91,7 +92,7 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 //
 // Non-crossing: rlm is threaded into the crossing getMembers(cross(rlm))
 // call. The proposalStatus methods that compose this (votePowerPercent,
-// YesPercent etc., String) all take `_ int, rlm realm` for the same reason.
+// YesPercent etc., tally) all take `_ int, rlm realm` for the same reason.
 func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 	members := getMembers(cross(rlm))
 	var tp float64
@@ -140,39 +141,25 @@ func (ps *proposalStatus) IsAllowed(tier string) bool {
 	return false
 }
 
+// tally is the vote line of the metadata block. Percentages are rounded to two
+// places; the vote list the page links carries the exact ratio.
+//
 // XXX: can be optimized by passing down total power to Yes/No/Abstain percent fn to avoid re-computing
-func (ps *proposalStatus) String(_ int, rlm realm) string {
-	var sb strings.Builder
-	sb.WriteString("### Stats\n")
+func (ps *proposalStatus) tally(_ int, rlm realm) string {
+	return ufmt.Sprintf("Votes: YES %.2f%%, NO %.2f%%, ABSTAIN %.2f%%",
+		ps.YesPercent(0, rlm), ps.NoPercent(0, rlm), ps.AbstainPercent(0, rlm))
+}
 
-	if ps.Accepted {
-		sb.WriteString("- **PROPOSAL HAS BEEN ACCEPTED**\n")
-	} else if ps.Denied {
-		sb.WriteString("- **PROPOSAL HAS BEEN DENIED**\n")
-		if ps.DeniedReason != "" {
-			sb.WriteString("REASON: ")
-			// DeniedReason is "execution failed: " + err.Error() from the
-			// proposal's executor callback, which any third-party realm can
-			// supply. Raw, it wrote attacker-controlled markdown directly beneath
-			// the "PROPOSAL HAS BEEN DENIED" line. InlineText folds newlines, so
-			// the reason cannot leave the REASON: line, and escapes emphasis and
-			// raw HTML.
-			sb.WriteString(sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason)))
-			sb.WriteString("\n")
-		}
-	} else {
-		sb.WriteString("- **Proposal is open for votes**\n")
+// statusLine names the state a voter needs first, with the denial reason when
+// there is one. That reason is an error string a third-party executor gave:
+// InlineText folds its newlines, so it cannot leave the line.
+func (ps *proposalStatus) statusLine() string {
+	line := "Status: " + getPropStatus(ps)
+	if ps.Denied && ps.DeniedReason != "" {
+		line += ", " + sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason))
 	}
 
-	sb.WriteString("- Tiers eligible to vote: ")
-	sb.WriteString(strings.Join(ps.TiersAllowedToVote, ", "))
-	sb.WriteString("\n")
-
-	sb.WriteString(ufmt.Sprintf("- YES PERCENT: %v%%\n", ps.YesPercent(0, rlm)))
-	sb.WriteString(ufmt.Sprintf("- NO PERCENT: %v%%\n", ps.NoPercent(0, rlm)))
-	sb.WriteString(ufmt.Sprintf("- ABSTAIN PERCENT: %v%%\n", ps.AbstainPercent(0, rlm)))
-
-	return sb.String()
+	return line
 }
 
 func StringifyVotes(_ int, rlm realm, ps *proposalStatus) string {
@@ -221,21 +208,15 @@ func StringifyProposal(p *dao.Proposal) string {
 
 ### Proposed by: %s
 
-%s
-`, p.Title(), p.Author(), p.Description())
+`, md.EscapeText(clampField(p.Title(), maxRenderedTitle)), p.Author())
 
-	if p.ExecutorString() != "" {
-		out += ufmt.Sprintf(`
-This proposal contains the following metadata:
-
-%s
-`, p.ExecutorString())
-	}
-
-	// Disclosed independently of the metadata string, and escaped, for the
-	// same reasons as render.renderProposalPage.
-	if cr := sanitize.InlineCode(strings.TrimSpace(clampField(p.ExecutorCreationRealm(), maxRenderedRealm))); cr != "" {
-		out += ufmt.Sprintf("\nExecutor created in: %s\n", cr)
+	// The same lines in the same order as the proposal page, escaped, clamped
+	// and quoted as it renders them, so a realm printing the text names the
+	// executor first and cannot be handed the page's own lines by the proposer.
+	out += "Executes: " + executesLine(p) + "\n\n"
+	out += renderExecution(p)
+	if description := quoteMarkdown(p.Description()); description != "" {
+		out += description + "\n\n"
 	}
 
 	return out
