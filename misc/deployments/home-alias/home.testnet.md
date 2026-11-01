@@ -1,162 +1,104 @@
-# Welcome to Gno.land
+# Onyx, the Gno.land testnet
 
-We're building Gno.land, set to become the leading open-source smart contract
-platform, using Gno, an interpreted and fully deterministic variation of the
-Go programming language for succinct and composable smart contracts.
+Onyx runs mainnet's code with free test tokens. Try your packages here before you deploy them to [mainnet](https://gno.land).
 
-With transparent and timeless code, Gno.land is the next generation of smart
-contract platforms, serving as the "GitHub" of the ecosystem, with realms built
-using fully transparent, auditable code that anyone can inspect and reuse.
-
-Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes
-censorship-resistant platforms accessible to everyone. If you want to help lay
-the foundations of a fairer and freer world, join us today.
+> [!NOTE]
+> Testnet GNOT has no value, and package names here are not reserved for production. State carries over from one upgrade to the next.
 
 ---
 
 <gno-columns>
 
-## <gno-icon name="browser" /> Use apps
+## <gno-icon name="code-outline" /> Deploy a realm
 
-Get free testnet GNOTs and try the realms on this testnet.
+From zero to a live realm.
 
-<gno-button href="https://faucet.gno.land" label="Get testnet GNOTs" />
+<gno-button href="https://docs.gno.land/builders/getting-started" label="Read the guide" />
 
-- [Get a wallet (Adena)](https://www.adena.app/)
-- [Explore the ecosystem](/ecosystem)
-- [See what runs on this testnet](#on-this-testnet)
-- [Read the code behind any app](#explore-packages-and-realms)
+1. [Install gnokey](https://docs.gno.land/builders/install) and add a key
+2. [Get test GNOT](https://faucet.gno.land)
+3. Deploy with [`addpkg`](#deploy-from-your-terminal)
+4. Call it in its Actions tab
 
 <gno-columns-sep>
 
-## <gno-icon name="code-outline" /> Build with Gno
+## <gno-icon name="browser" /> Test an app
 
-Write, test and deploy smart contracts in Gno.
+Try apps with free tokens.
 
-<gno-button href="https://docs.gno.land/builders/getting-started" label="Getting started guide" />
+<gno-button href="https://faucet.gno.land" label="Open the faucet" />
+
+1. [Install Adena](https://www.adena.app/)
+2. Switch it to Onyx
+3. Get test GNOT
+4. Pick a realm from [the list](/r/)
+
+<gno-columns-sep>
+
+## <gno-icon name="lightbulb" /> Build with AI
+
+Let your agent deploy Gno.
+
+<gno-button href="https://mcp.gno.dev" label="Set up gnomcp" />
+
+1. Install gnomcp
+2. It creates its own key
+3. It funds itself
+4. It deploys with its key
+
+</gno-columns>
+
+---
+
+<!-- whats-new:start -->
+<!-- whats-new:end -->
+
+## <gno-icon name="rocket" /> Deploy from your terminal
+
+```sh
+gnokey add alice   # gnokey list prints your g1 address
+# Fund that address at https://faucet.gno.land (pick Onyx)
+
+cd myrealm         # your .gno files, in package myrealm
+gno mod init gno.land/r/<your-g1-addr>/myrealm
+
+gnokey maketx addpkg \
+  -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
+  -pkgdir . \
+  -gas-fee 40000ugnot -gas-wanted 20000000 \
+  -chainid onyx-1 -remote https://rpc.onyx.testnets.gno.land:443 \
+  alice
+```
+
+A new package is enabled a few seconds after `addpkg`. If it is not, `https://gpao.onyx.testnets.gno.land/status/gno.land/r/<your-g1-addr>/myrealm` says why. Still `unknown` after a minute? [Ask on Discord](https://discord.com/invite/gnoland).
+
+---
+
+<gno-columns>
+
+## <gno-icon name="book" /> Learn
 
 - [Write Gno in the browser](https://play.gno.land)
-- [Build with AI, using gnomcp](https://mcp.gno.dev)
-- [Get a grant for your project](/partners)
+- [The Gno language](/gnolang)
+- [Local development (gnodev)](https://docs.gno.land/resources/gnodev)
+- [Networks documentation](https://docs.gno.land/resources/gnoland-networks/)
+
+<gno-columns-sep>
+
+## <gno-icon name="search-outline" /> Read the code
+
+- [Official realms (r/gnoland)](/r/gnoland)
+- [System realms (r/sys)](/r/sys)
+- [Standard packages (p/nt)](/p/nt)
+- [GovDAO](/r/gov/dao)
 
 <gno-columns-sep>
 
 ## <gno-icon name="users" /> Community
 
-Meet the Gno.land community and follow the project.
-
-<gno-button href="https://gno.world" label="Join gno.world" />
-
-- [Join the Discord](https://discord.com/invite/gnoland)
-- [Subscribe to the newsletter](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
-- [All community channels](#stay-connected)
-
-</gno-columns>
-
----
-
-## <gno-icon name="grid-outline" /> On this testnet
-
-<gno-columns>
-<gno-frame>
-**[GovDAO](/r/gov/dao)**
-
-The DAO that governs Gno.land. Its members vote on proposals, like adding validators.
-</gno-frame>
-<gno-columns-sep>
-<gno-frame>
-**[Validators](/r/gnops/valopers)**
-
-The registry of validator profiles. GovDAO members read it before voting on new validators.
-</gno-frame>
-</gno-columns>
-
-<gno-button href="/ecosystem" label="Explore the ecosystem" variant="outline" />
-
----
-
-## <gno-icon name="chat" /> Boards: on-chain forum
-
-> [!NOTE]
-> Boards is deployed on this testnet, but creating boards is not open to the public yet.
-
-Boards is a fully on-chain social forum to create boards, post threads, comment
-and reply. A plug-and-deploy DAO lets communities manage content, permissions
-and moderation their way. Until it opens, join the conversation on
-[Discord](https://discord.com/invite/gnoland).
-
----
-
-## <gno-icon name="search-outline" /> Explore packages and realms
-
-Every app on Gno.land is open source and readable on-chain. All code in
-Gno.land is organized in packages, and each package lives at a unique package
-path like "r/gnoland/blog". You can browse packages, inspect their source, and
-use them in your own libraries and realms. For example, read the
-[source of the Gno.land blog](/r/gnoland/blog$source).
-
-<gno-columns>
-
-**r/gnoland**
-
-Official realm packages developed by the Gno.land core team.
-
-[Browse r/gnoland realms](/r/gnoland)
-
-<gno-columns-sep>
-
-**r/sys**
-
-System-level realm packages used by the chain.
-
-[Browse r/sys realms](/r/sys)
-
-<gno-columns-sep>
-
-**p/nt**
-
-Standard pure packages maintained by the core team.
-
-[Browse p/nt packages](/p/nt)
-
-</gno-columns>
-
----
-
-<gno-columns>
-
-## <gno-icon name="book" /> About Gno.land
-
-- [About](/about)
-- [The Gno language](/gnolang)
-- [Blog](https://gno.land/r/gnoland/blog)
-- [Events](/events)
-- [Partners, Fund, Grants](/partners)
-- [Ecosystem](/ecosystem)
-
-<gno-columns-sep>
-
-## <gno-icon name="terminal" /> Developer resources
-
-- [Local development (gnodev)](https://docs.gno.land/resources/gnodev)
-- [Networks documentation](https://docs.gno.land/resources/gnoland-networks/)
-- [Faucet Hub](https://faucet.gno.land)
+- [Ask on Discord](https://discord.com/invite/gnoland)
 - [Awesome Gno projects](https://github.com/gnoverse/awesome-gno)
 - [Contribute](/contribute)
-- [GitHub](https://github.com/gnolang)
-
-<gno-columns-sep>
-
-## <gno-icon name="globe" /> Stay connected
-
-- [Discord](https://discord.com/invite/gnoland)
-- [X (Twitter)](https://twitter.com/_gnoland)
-- [YouTube](https://www.youtube.com/@_gnoland)
-- [gno.world](https://gno.world)
-- [Newsletter](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
+- [Get a grant](https://github.com/gnolang/grants)
 
 </gno-columns>
-
----
-
-**This is a testnet.** Package names are not guaranteed to be available for production.

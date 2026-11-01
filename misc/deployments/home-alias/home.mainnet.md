@@ -18,7 +18,7 @@ the foundations of a fairer and freer world, join us today.
 
 ## <gno-icon name="browser" /> Use apps
 
-Use live apps and read the code behind them.
+Use apps and read their code.
 
 <gno-button href="/ecosystem" label="Explore the ecosystem" />
 
@@ -30,7 +30,7 @@ Use live apps and read the code behind them.
 
 ## <gno-icon name="code-outline" /> Build with Gno
 
-Write, test and deploy smart contracts in Gno.
+Write, test and deploy in Gno.
 
 <gno-button href="https://docs.gno.land/builders/getting-started" label="Getting started guide" />
 
@@ -42,7 +42,7 @@ Write, test and deploy smart contracts in Gno.
 
 ## <gno-icon name="users" /> Community
 
-Meet the Gno.land community and follow the project.
+Meet and follow the community.
 
 <gno-button href="https://gno.world" label="Join gno.world" />
 
@@ -53,6 +53,9 @@ Meet the Gno.land community and follow the project.
 </gno-columns>
 
 ---
+
+<!-- whats-new:start -->
+<!-- whats-new:end -->
 
 ## <gno-icon name="grid-outline" /> Live on mainnet
 
