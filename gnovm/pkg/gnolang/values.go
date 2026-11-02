@@ -151,16 +151,6 @@ func (bdv BigdecValue) AsFloat() *big.Float {
 	return new(big.Float).SetPrec(BigdecFloatPrec).SetRat(bdv.V)
 }
 
-// NewBigdecFromRat wraps r as a rat-form BigdecValue.
-func NewBigdecFromRat(r *big.Rat) BigdecValue {
-	return BigdecValue{V: r}
-}
-
-// NewBigdecFromFloat wraps f as a float-form BigdecValue.
-func NewBigdecFromFloat(f *big.Float) BigdecValue {
-	return BigdecValue{F: f}
-}
-
 // Sign returns -1, 0, or +1 depending on the sign of the value.
 func (bdv BigdecValue) Sign() int {
 	if bdv.F != nil {

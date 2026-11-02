@@ -97,16 +97,6 @@ func Fld(n, t any) FieldTypeExpr {
 	}
 }
 
-func Recv(n, t any) FieldTypeExpr {
-	if n == "" {
-		n = blankIdentifier
-	}
-	return FieldTypeExpr{
-		NameExpr: *Nx(n),
-		Type:     X(t),
-	}
-}
-
 // FuncD creates a new function declaration.
 //
 // There is a difference between passing nil to body or passing []Stmt{}:
@@ -452,10 +442,6 @@ func Ss(b ...Stmt) []Stmt {
 	return b
 }
 
-func Xs(exprs ...Expr) []Expr {
-	return exprs
-}
-
 // Usage: A(lhs1, lhs2, ..., ":=", rhs1, rhs2, ...)
 // Operation can be like ":=", "=", "+=", etc.
 // Other strings are automatically parsed as X(arg).
@@ -494,13 +480,6 @@ func A(args ...any) *AssignStmt {
 		Op:  op,
 		Lhs: lhs,
 		Rhs: rhs,
-	}
-}
-
-func Not(x Expr) *UnaryExpr {
-	return &UnaryExpr{
-		Op: Op2Word("!"),
-		X:  x,
 	}
 }
 
@@ -552,93 +531,12 @@ func Str(s string) *BasicLitExpr {
 	}
 }
 
-func Num(s string) *BasicLitExpr {
-	return &BasicLitExpr{
-		Kind:  INT,
-		Value: s,
-	}
-}
-
-func Ref(x any) *RefExpr {
-	return &RefExpr{
-		X: X(x),
-	}
-}
-
-func Deref(x any) *StarExpr {
-	return &StarExpr{
-		X: X(x),
-	}
-}
-
-// NOTE: Same as DEREF, but different context.
-func Ptr(x any) *StarExpr {
-	return &StarExpr{
-		X: X(x),
-	}
-}
-
 // ----------------------------------------
 // AST Construction (Stmt)
-
-func If(cond Expr, b ...Stmt) *IfStmt {
-	return &IfStmt{
-		Cond: cond,
-		Then: IfCaseStmt{Body: b},
-	}
-}
-
-func IfElse(cond Expr, bdy, els Stmt) *IfStmt {
-	var body []Stmt
-	if bdy, ok := bdy.(*BlockStmt); !ok {
-		body = bdy.Body
-	} else {
-		body = []Stmt{bdy}
-	}
-	var els_ []Stmt
-	if els, ok := els.(*BlockStmt); !ok {
-		els_ = els.Body
-	} else {
-		els_ = []Stmt{els}
-	}
-	return &IfStmt{
-		Cond: cond,
-		Then: IfCaseStmt{Body: body},
-		Else: IfCaseStmt{Body: els_},
-	}
-}
 
 func Return(results ...Expr) *ReturnStmt {
 	return &ReturnStmt{
 		Results: results,
-	}
-}
-
-func Continue(label any) *BranchStmt {
-	return &BranchStmt{
-		Op:    CONTINUE,
-		Label: N(label),
-	}
-}
-
-func Break(label any) *BranchStmt {
-	return &BranchStmt{
-		Op:    BREAK,
-		Label: N(label),
-	}
-}
-
-func Goto(label any) *BranchStmt {
-	return &BranchStmt{
-		Op:    GOTO,
-		Label: N(label),
-	}
-}
-
-func Fallthrough(label any) *BranchStmt {
-	return &BranchStmt{
-		Op:    FALLTHROUGH,
-		Label: N(label),
 	}
 }
 
@@ -658,30 +556,6 @@ func For(init, cond, post any, b ...Stmt) *ForStmt {
 	}
 }
 
-func Loop(b ...Stmt) *ForStmt {
-	return For(nil, nil, nil, b...)
-}
-
-func Once(b ...Stmt) *ForStmt {
-	b = append(b, Break(""))
-	return For(nil, nil, nil, b...)
-}
-
-func Len(x Expr) *CallExpr {
-	return Call(Nx("len"), x)
-}
-
-func Var(name any, typ Expr, value Expr) *DeclStmt {
-	return &DeclStmt{
-		Body: []Stmt{&ValueDecl{
-			NameExprs: []NameExpr{*Nx(name)},
-			Type:      typ,
-			Values:    []Expr{value},
-			Const:     false,
-		}},
-	}
-}
-
 func Inc(x any) *IncDecStmt {
 	var xx Expr
 	if xs, ok := x.(string); ok {
@@ -690,17 +564,6 @@ func Inc(x any) *IncDecStmt {
 	return &IncDecStmt{
 		X:  xx,
 		Op: INC,
-	}
-}
-
-func Dec(x any) *IncDecStmt {
-	var xx Expr
-	if xs, ok := x.(string); ok {
-		xx = X(xs)
-	}
-	return &IncDecStmt{
-		X:  xx,
-		Op: DEC,
 	}
 }
 
@@ -781,19 +644,6 @@ func Op2Word(op string) Word {
 		return BAND_NOT_ASSIGN
 	default:
 		panic("unrecognized binary/unary/assignment operator " + op)
-	}
-}
-
-// ----------------------------------------
-// AST Static (compile time)
-
-func SIf(cond bool, then_, else_ Stmt) Stmt {
-	if cond {
-		return then_
-	} else if else_ != nil {
-		return else_
-	} else {
-		return &EmptyStmt{}
 	}
 }
 
