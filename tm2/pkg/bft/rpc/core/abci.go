@@ -16,9 +16,9 @@ import (
 // messages included; see handleQueryApp in tm2/pkg/sdk/baseapp.go.
 const simulateQueryPath = ".app/simulate"
 
-// NewCodeExecutionRefusedError is the error ABCIQuery returns for a query that
+// codeExecutionRefusedError is the error ABCIQuery returns for a query that
 // runs code on a node whose rpc.allow_code_execution is false.
-func NewCodeExecutionRefusedError(path string) error {
+func codeExecutionRefusedError(path string) error {
 	return rpctypes.NewHTTPStatusError(http.StatusForbidden, fmt.Sprintf(
 		"query %q runs code, which this node does not allow over RPC (rpc.allow_code_execution = false)", path))
 }
@@ -30,7 +30,7 @@ func (env *Environment) ABCIQuery(ctx *rpctypes.Context, path string, data []byt
 	// A query pays no fee, so code it runs costs only this node.
 	// A refused query never reaches the app, so the setting cannot change a block.
 	if !env.Config.AllowCodeExecution && env.runsCode(path) {
-		return nil, NewCodeExecutionRefusedError(path)
+		return nil, codeExecutionRefusedError(path)
 	}
 	resQuery, err := env.ProxyAppQuery.QuerySync(abci.RequestQuery{
 		Path:   path,

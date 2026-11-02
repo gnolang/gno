@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	rpcserver "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/server"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -23,18 +24,9 @@ import (
 
 // recordingQueryConn answers every query and records the paths that reached it.
 type recordingQueryConn struct {
-	mu    sync.Mutex
-	paths []string
-}
-
-func (c *recordingQueryConn) Error() error { return nil }
-
-func (c *recordingQueryConn) EchoSync(msg string) (abci.ResponseEcho, error) {
-	return abci.ResponseEcho{Message: msg}, nil
-}
-
-func (c *recordingQueryConn) InfoSync(abci.RequestInfo) (abci.ResponseInfo, error) {
-	return abci.ResponseInfo{}, nil
+	appconn.Query // only QuerySync is called
+	mu            sync.Mutex
+	paths         []string
 }
 
 func (c *recordingQueryConn) QuerySync(req abci.RequestQuery) (abci.ResponseQuery, error) {
@@ -107,7 +99,7 @@ func TestABCIQuery_AllowCodeExecution(t *testing.T) {
 		env, conn := newCodeExecutionEnv(false)
 		for _, path := range runsCode {
 			_, err := env.ABCIQuery(&rpctypes.Context{}, path, nil, 0, false)
-			assert.Equal(t, NewCodeExecutionRefusedError(path), err, "path %q", path)
+			assert.Equal(t, codeExecutionRefusedError(path), err, "path %q", path)
 		}
 		for _, path := range runsNoCode {
 			_, err := env.ABCIQuery(&rpctypes.Context{}, path, nil, 0, false)
@@ -155,15 +147,10 @@ func TestABCIQuery_CodeExecutionOverEveryTransport(t *testing.T) {
 	var answers rpctypes.RPCResponses
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&answers))
 	resp.Body.Close()
-	require.Len(t, answers, 2)
-	for _, answer := range answers {
-		if answer.ID == rpctypes.JSONRPCIntID(0) {
-			require.NotNil(t, answer.Error)
-			assert.Contains(t, answer.Error.Data, refusedMsg)
-		} else {
-			assert.Nil(t, answer.Error)
-		}
-	}
+	require.Len(t, answers, 2) // answered in request order
+	require.NotNil(t, answers[0].Error)
+	assert.Contains(t, answers[0].Error.Data, refusedMsg)
+	assert.Nil(t, answers[1].Error)
 
 	// WebSocket.
 	ws, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http")+"/websocket", nil)

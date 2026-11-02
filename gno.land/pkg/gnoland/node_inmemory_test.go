@@ -8,7 +8,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	rpccore "github.com/gnolang/gno/tm2/pkg/bft/rpc/core"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
@@ -23,6 +22,6 @@ func TestInMemoryNode_AllowCodeExecutionFalse(t *testing.T) {
 
 	for _, path := range []string{".app/simulate", "vm/qrender", "vm/qeval", "vm/qeval_json"} {
 		_, err := n.RPCEnvironment().ABCIQuery(&rpctypes.Context{}, path, nil, 0, false)
-		assert.Equal(t, rpccore.NewCodeExecutionRefusedError(path), err, "path %q", path)
+		assert.ErrorContains(t, err, "rpc.allow_code_execution = false", "path %q", path)
 	}
 }
