@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Proposed, in PR #6441.
 
 ## Context
 
