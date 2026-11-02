@@ -13,7 +13,7 @@ The group needs no gnoland change: a socket created in a setgid directory takes 
 Two smaller defects sat in the same code:
 
 - Until the chmod, the socket had `0777` minus the umask. With a `022` umask that is `0755`, which no other user can connect to (connecting needs write permission). With `002` or `000`, the group or every local user could connect in that window, and the first client to connect becomes the signer: `SignerClient.Init` caches the key it reports.
-- A failed chmod only logged a warning and kept the umask's mode, although on a Unix listener the socket's mode is the only access control (`allowed_kms_pubkeys` is ignored there).
+- A failed chmod only logged a warning and kept the umask's mode, although on a Unix listener the access control is the socket's mode and its directory's permissions (`allowed_kms_pubkeys` is ignored there).
 
 Measured with a Go program listening as UID 1001 and clients as other UIDs (Linux, `golang` container):
 

@@ -61,9 +61,10 @@ type TmkmsListenerConfig struct {
 	ListenAddr string `json:"listen_addr" toml:"listen_addr" comment:"Address to listen on for upstream-protocol signer connections (e.g. tmkms). Empty to disable."`
 
 	// SocketMode is the file mode of a unix:// listener's socket, as an
-	// octal string within 0770. The socket's mode is the only access
-	// control on a unix:// listener: a signer connects only if the mode
-	// lets its user write to the socket. Ignored for tcp://.
+	// octal string within 0770. On a unix:// listener the access control
+	// is the socket's mode and its directory's permissions: a signer
+	// connects only if its user can search the directory and write to the
+	// socket. Ignored for tcp://.
 	SocketMode string `json:"socket_mode" toml:"socket_mode" comment:"File mode of the unix:// socket, in octal, within 0770 (default \"0600\"). Ignored for tcp://."`
 
 	// AllowedKMSPubKeys is the allowlist of expected signer pubkeys.
@@ -163,7 +164,8 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 				errInvalidTmkmsListenAddr, c.ListenAddr)
 		}
 		// Allowlist not applicable; intentionally not required. The
-		// socket's mode is the access control instead.
+		// socket's mode and its directory's permissions are the access
+		// control instead.
 		if _, err := c.parseSocketMode(); err != nil {
 			return err
 		}
