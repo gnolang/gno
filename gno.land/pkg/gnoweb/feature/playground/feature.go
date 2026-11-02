@@ -66,6 +66,8 @@ type Handler struct {
 	// evals holds the recent eval answers, evalGroup the ones in flight.
 	evals     *lru.Cache[string, evalAnswer]
 	evalGroup singleflight.Group
+	// evalsInFlight bounds the node queries started and not answered yet.
+	evalsInFlight chan struct{}
 }
 
 // New validates required deps and returns a Handler.
@@ -94,5 +96,5 @@ func New(deps Deps) *Handler {
 	}
 
 	evals, _ := lru.New[string, evalAnswer](evalCacheSize) // errors only on a size <= 0
-	return &Handler{deps: deps, evals: evals}
+	return &Handler{deps: deps, evals: evals, evalsInFlight: make(chan struct{}, maxEvalsInFlight)}
 }

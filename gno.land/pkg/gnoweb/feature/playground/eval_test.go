@@ -269,3 +269,38 @@ func TestEvalPanic(t *testing.T) {
 	}
 	assert.EqualValues(t, 2, c.calls.Load(), "a panic is not cached")
 }
+
+// TestEvalInFlightCap checks that evals whose readers left stop piling up
+// behind a busy node: past 128, one is unavailable at once.
+func TestEvalInFlightCap(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	answer := sync.OnceFunc(func() { close(release) })
+	defer answer()
+	c := &funcClient{fn: func(context.Context, string, string) ([]byte, error) {
+		<-release
+		return []byte("ok"), nil
+	}}
+	h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger(), Timeout: 2 * time.Second})
+
+	for i := range maxEvalsInFlight {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // the reader leaves; its query keeps waiting on the node
+		req := newEvalRequest(t, "r/a", fmt.Sprintf("X%d()", i)).WithContext(ctx)
+		h.EvalHandler().ServeHTTP(httptest.NewRecorder(), req)
+	}
+	require.Eventually(t, func() bool { return c.calls.Load() == maxEvalsInFlight }, time.Second, time.Millisecond)
+
+	code, resp := serveEvalJSON(t, h, "r/a", "Over()")
+	assert.Equal(t, http.StatusBadGateway, code)
+	assert.Equal(t, ErrEvalUnavailable.Error(), resp.Error)
+	assert.EqualValues(t, maxEvalsInFlight, c.calls.Load())
+
+	// Once the node answers, every slot comes back.
+	answer()
+	require.Eventually(t, func() bool { return len(h.evalsInFlight) == 0 }, time.Second, time.Millisecond)
+	code, resp = serveEvalJSON(t, h, "r/a", "After()")
+	assert.Equal(t, http.StatusOK, code)
+	assert.Equal(t, "ok", resp.Result)
+}

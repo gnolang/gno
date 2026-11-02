@@ -40,6 +40,13 @@ const (
 	// expression caps above, it bounds the cache to a few tens of MiB.
 	evalCacheSize = 256
 
+	// maxEvalsInFlight bounds the evals started and not answered, those
+	// querying the node and those queued for one of the client's eval
+	// slots. One waits up to Deps.Timeout, even after its reader left;
+	// past this count an eval is unavailable at once instead of holding
+	// its expression until then.
+	maxEvalsInFlight = 128
+
 	// defaultEvalTimeout bounds an eval when Deps.Timeout is not set; it is
 	// gnoweb's default page deadline.
 	defaultEvalTimeout = 30 * time.Second
@@ -174,6 +181,12 @@ func (h *Handler) eval(ctx context.Context, key, pkgPath, expr string) (string, 
 				v = evalAnswer{err: fmt.Errorf("%w: eval panicked", ErrEvalUnavailable)}
 			}
 		}()
+		select {
+		case h.evalsInFlight <- struct{}{}:
+			defer func() { <-h.evalsInFlight }()
+		default:
+			return evalAnswer{err: fmt.Errorf("%w: too many evaluations in flight", ErrEvalUnavailable)}, nil
+		}
 		qctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), h.deps.Timeout)
 		defer cancel()
 		// The client adds the chain domain and joins pkgPath and the

@@ -271,10 +271,13 @@ always sets the help remote and the chain ID their commands print.
   for readers' expressions only (`ClientAdapter.PublicEval`): gnoweb's own
   evals, like the `/u/` registry lookup, use `Eval` and query like a page,
   so a burst of reader evals cannot fail a user page. They run under the
-  handler's request timeout.
+  handler's request timeout, and outlive a reader who leaves; 128 at most
+  are in flight at once, at the node or queued for one of those slots,
+  past which an eval is unavailable at once, so requests sent and dropped
+  from many addresses cannot pile up.
 - **Answers:** an expression the chain rejects is a 200 with `{error}`;
-  an unreachable node is a 502 and a timeout a 504, both with a generic
-  message. Results are cut at 64 KiB with a visible marker, kept inside the
+  an unreachable node, or 128 evals already in flight, is a 502 and a
+  timeout a 504, both with a generic message. Results are cut at 64 KiB with a visible marker, kept inside the
   quotes of a string result, so Preview still reads it as text. A failed eval
   logs at Debug, without the expression.
 
