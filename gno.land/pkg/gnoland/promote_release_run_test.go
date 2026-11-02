@@ -577,6 +577,17 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		out, code = f.run(script, "--help")
 		assert.Equal(t, 0, code, out)
 		assert.Contains(t, out, "Usage:")
+
+		// A missing version is an error: the usage goes to stderr.
+		cmd := exec.Command("bash", script, "--push")
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
+		var stdout, stderr strings.Builder
+		cmd.Stdout, cmd.Stderr = &stdout, &stderr
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, cmd.Run(), &exitErr)
+		assert.Equal(t, 1, exitErr.ExitCode())
+		assert.Empty(t, stdout.String())
+		assert.Contains(t, stderr.String(), "Usage:")
 	})
 
 	// The recovery from a release skipped after its promotion: mark it a

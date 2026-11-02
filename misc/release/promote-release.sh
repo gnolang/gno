@@ -108,7 +108,7 @@ parse_args() {
     esac
   done
   [[ -n ${VERSION} ]] || {
-    usage
+    usage >&2
     exit 1
   }
 }
