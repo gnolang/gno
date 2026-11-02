@@ -1,7 +1,9 @@
 package privval
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -170,6 +172,41 @@ func TestValidateBasic(t *testing.T) {
 
 		assert.ErrorIs(t, cfg.ValidateBasic(), errNegativeTmkmsRetryTimeout)
 	})
+
+	// validTmkmsUnixConfig returns a unix:// listener config that clears every
+	// other check, so socket_mode is what ValidateBasic judges.
+	validTmkmsUnixConfig := func(mode string) *PrivValidatorConfig {
+		cfg := tmkmsUnixListenerConfig("/var/run/gnoland/privval.sock")
+		cfg.TmkmsListener.SocketMode = mode
+		return cfg
+	}
+
+	for _, mode := range []string{"0600", "0660", "600", "0770"} {
+		t.Run(fmt.Sprintf("tmkms listener socket_mode %q accepted", mode), func(t *testing.T) {
+			t.Parallel()
+
+			assert.NoError(t, validTmkmsUnixConfig(mode).ValidateBasic())
+		})
+	}
+
+	// Not octal, prefixed, negative, any "other" bit (every local user could
+	// connect and become the signer), or a setuid/setgid/sticky bit.
+	for _, mode := range []string{"", "abc", "0999", "0o660", "0x1b0", "-600", "0606", "0666", "1660", "2660", "4600", "1777", "077777"} {
+		t.Run(fmt.Sprintf("tmkms listener socket_mode %q rejected", mode), func(t *testing.T) {
+			t.Parallel()
+
+			assert.ErrorIs(t, validTmkmsUnixConfig(mode).ValidateBasic(), errInvalidTmkmsSocketMode)
+		})
+	}
+
+	t.Run("tmkms listener on tcp ignores socket_mode", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := validTmkmsTCPConfig()
+		cfg.TmkmsListener.SocketMode = "not a mode"
+
+		assert.NoError(t, cfg.ValidateBasic())
+	})
 }
 
 func TestPathGetters(t *testing.T) {
@@ -319,67 +356,68 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("tmkms listener UDS socket has 0600 perms", func(t *testing.T) {
-		t.Parallel()
-		// Default umask on most distros leaves UDS sockets group/world
-		// readable+writable. The factory chmods 0600 so a local
-		// non-root user can't enter the SecretConn handshake and
-		// attempt to become the signer.
-		if runtime.GOOS == "windows" {
-			t.Skip("UDS perm semantics differ on windows")
-		}
-
-		// macOS limits AF_UNIX paths to 104 chars; t.TempDir's path is
-		// long enough to overshoot, so use a short /tmp directory.
-		dir, err := os.MkdirTemp("/tmp", "pv")
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = os.RemoveAll(dir) })
-		sockPath := filepath.Join(dir, "p.sock")
-
-		cfg := DefaultPrivValidatorConfig()
-		cfg.RootDir = t.TempDir()
-		cfg.RemoteSigner.ServerAddress = ""
-		cfg.TmkmsListener.ListenAddr = "unix://" + sockPath
-		cfg.TmkmsListener.ChainID = "test-chain"
-		// Long enough that the socket exists while we stat it; short
-		// enough that the test exits quickly.
-		cfg.TmkmsListener.WaitForConnectionTimeout = 800 * time.Millisecond
-
-		// Run the factory in a goroutine — Init will block waiting for
-		// a signer that never arrives, then time out. Meanwhile we stat
-		// the socket from the main goroutine.
-		done := make(chan error, 1)
-		go func() {
-			_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
-			done <- err
-		}()
-
-		// Poll for the socket to exist (Listen is fast; chmod runs
-		// immediately after).
-		var info os.FileInfo
-		var statErr error
-		deadline := time.Now().Add(500 * time.Millisecond)
-		for time.Now().Before(deadline) {
-			info, statErr = os.Stat(sockPath)
-			if statErr == nil {
-				break
+	// The socket's mode is the access control on a unix:// listener: a local
+	// user who can write to the socket can connect and become the signer.
+	for _, tc := range []struct {
+		mode string // socket_mode; empty keeps the default
+		want os.FileMode
+	}{
+		{mode: "", want: 0o600},
+		{mode: "0660", want: 0o660},
+	} {
+		t.Run(fmt.Sprintf("tmkms listener UDS socket has %04o perms", tc.want), func(t *testing.T) {
+			t.Parallel()
+			if runtime.GOOS == "windows" {
+				t.Skip("UDS perm semantics differ on windows")
 			}
-			time.Sleep(10 * time.Millisecond)
-		}
-		require.NoError(t, statErr, "socket must exist before Init times out")
 
-		// Mode bits: only owner-RW. Higher bits (S_IFSOCK, etc.) are
-		// fine; mask to the perm bits we care about.
-		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(),
-			"UDS socket must be 0600 to keep non-owner users from connecting")
+			sockPath := shortSocketPath(t)
 
-		// Drain the goroutine.
-		select {
-		case <-done:
-		case <-time.After(2 * time.Second):
-			t.Fatal("NewPrivValidatorFromConfig did not return")
-		}
-	})
+			cfg := tmkmsUnixListenerConfig(sockPath)
+			cfg.RootDir = t.TempDir()
+			if tc.mode != "" {
+				cfg.TmkmsListener.SocketMode = tc.mode
+			}
+			// Long enough that the socket exists while we stat it; short
+			// enough that the test exits quickly.
+			cfg.TmkmsListener.WaitForConnectionTimeout = 800 * time.Millisecond
+
+			// Run the factory in a goroutine — Init will block waiting for
+			// a signer that never arrives, then time out. Meanwhile we stat
+			// the socket from the main goroutine.
+			done := make(chan error, 1)
+			go func() {
+				_, err := NewPrivValidatorFromConfig(cfg, privKey, logger)
+				done <- err
+			}()
+
+			// Poll for the socket to exist (Listen is fast; chmod runs
+			// immediately after).
+			var info os.FileInfo
+			var statErr error
+			deadline := time.Now().Add(500 * time.Millisecond)
+			for time.Now().Before(deadline) {
+				info, statErr = os.Stat(sockPath)
+				if statErr == nil {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			require.NoError(t, statErr, "socket must exist before Init times out")
+
+			// Higher bits (S_IFSOCK, etc.) are fine; mask to the perm bits
+			// we care about.
+			assert.Equal(t, tc.want, info.Mode().Perm(),
+				"UDS socket must have the configured mode, whatever the umask")
+
+			// Drain the goroutine.
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("NewPrivValidatorFromConfig did not return")
+			}
+		})
+	}
 
 	t.Run("tmkms listener Init failure releases the listener", func(t *testing.T) {
 		t.Parallel()
@@ -421,4 +459,51 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 		require.NoError(t, err, "port must be released after Init failure")
 		require.NoError(t, rebound.Close())
 	})
+}
+
+// tmkmsUnixListenerConfig returns a config whose only signer is a tmkms
+// listener on a unix:// socket at sockPath.
+func tmkmsUnixListenerConfig(sockPath string) *PrivValidatorConfig {
+	cfg := DefaultPrivValidatorConfig()
+	cfg.RemoteSigner.ServerAddress = ""
+	cfg.TmkmsListener.ListenAddr = "unix://" + sockPath
+	cfg.TmkmsListener.ChainID = "test-chain"
+	return cfg
+}
+
+// shortSocketPath returns a socket path in a fresh directory under /tmp:
+// macOS limits AF_UNIX paths to 104 chars, and t.TempDir's path is long
+// enough to overshoot.
+func shortSocketPath(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.MkdirTemp("/tmp", "pv")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return filepath.Join(dir, "p.sock")
+}
+
+// A unix listener whose socket mode cannot be set fails the start and leaves
+// no socket behind. Not parallel: it swaps chmodSocket, and Go runs parallel
+// top-level tests only once the sequential ones are done.
+func TestTmkmsListenerFailedChmodFailsStart(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("UDS perm semantics differ on windows")
+	}
+
+	errChmod := errors.New("chmod refused")
+	orig := chmodSocket
+	chmodSocket = func(string, os.FileMode) error { return errChmod }
+	t.Cleanup(func() { chmodSocket = orig })
+
+	sockPath := shortSocketPath(t)
+	cfg := tmkmsUnixListenerConfig(sockPath)
+	cfg.RootDir = t.TempDir()
+	cfg.TmkmsListener.WaitForConnectionTimeout = 100 * time.Millisecond
+
+	privVal, err := NewPrivValidatorFromConfig(cfg, ed25519.GenPrivKey(), log.NewNoopLogger())
+	require.Nil(t, privVal)
+	require.ErrorIs(t, err, errChmod)
+	_, statErr := os.Stat(sockPath)
+	assert.ErrorIs(t, statErr, fs.ErrNotExist, "a socket whose mode could not be set must not be left behind")
 }

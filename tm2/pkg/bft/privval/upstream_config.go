@@ -14,6 +14,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +27,7 @@ import (
 // Errors returned by TmkmsListenerConfig.
 var (
 	errInvalidTmkmsListenAddr       = errors.New("invalid tmkms_listener.listen_addr")
+	errInvalidTmkmsSocketMode       = errors.New("invalid tmkms_listener.socket_mode")
 	errInvalidTmkmsAllowedPubkeys   = errors.New("invalid tmkms_listener.allowed_kms_pubkeys")
 	errEmptyTmkmsChainID            = errors.New("tmkms_listener.chain_id must not be empty")
 	errEmptyTmkmsAllowedPubkeys     = errors.New("tmkms_listener.allowed_kms_pubkeys must not be empty on a tcp:// listener (an empty allowlist accepts any peer that completes the SecretConnection handshake)")
@@ -42,6 +45,11 @@ var (
 // floor instead of just the panic threshold; cometbft defaults to 5s.
 const minTmkmsTimeoutReadWrite = 1 * time.Second
 
+// tmkmsSocketModeBits are the permission bits socket_mode may set: owner and
+// group. An "other" bit would let every local user connect and become the
+// signer; setuid, setgid and sticky have no use on a socket.
+const tmkmsSocketModeBits os.FileMode = 0o770
+
 // TmkmsListenerConfig configures the upstream-Tendermint-protocol listener.
 // Field types and JSON/TOML tags chosen to match cometbft's config style
 // for operator familiarity.
@@ -51,6 +59,12 @@ type TmkmsListenerConfig struct {
 	// "unix:///var/run/gnoland/privval.sock". An empty value disables
 	// this mode (the existing local/remote-client paths apply).
 	ListenAddr string `json:"listen_addr" toml:"listen_addr" comment:"Address to listen on for upstream-protocol signer connections (e.g. tmkms). Empty to disable."`
+
+	// SocketMode is the file mode of a unix:// listener's socket, as an
+	// octal string within 0770. The socket's mode is the only access
+	// control on a unix:// listener: a signer connects only if the mode
+	// lets its user write to the socket. Ignored for tcp://.
+	SocketMode string `json:"socket_mode" toml:"socket_mode" comment:"File mode of the unix:// socket, in octal, within 0770 (default \"0600\"). Ignored for tcp://."`
 
 	// AllowedKMSPubKeys is the allowlist of expected signer pubkeys.
 	// Each entry is a hex-encoded ed25519 pubkey (32 bytes → 64 hex
@@ -99,6 +113,7 @@ type TmkmsListenerConfig struct {
 func DefaultTmkmsListenerConfig() *TmkmsListenerConfig {
 	return &TmkmsListenerConfig{
 		ListenAddr:               "",
+		SocketMode:               "0600",
 		AllowedKMSPubKeys:        []string{},
 		ChainID:                  "",
 		ProtocolVersion:          upstream.ProtocolVersion,
@@ -141,7 +156,11 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 			return errEmptyTmkmsAllowedPubkeys
 		}
 	case "unix":
-		// Allowlist not applicable; intentionally not required.
+		// Allowlist not applicable; intentionally not required. The
+		// socket's mode is the access control instead.
+		if _, err := c.parseSocketMode(); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("%w: unsupported scheme %q (want tcp:// or unix://)",
 			errInvalidTmkmsListenAddr, protocol)
@@ -164,6 +183,20 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 		return fmt.Errorf("%w: got %s", errNegativeTmkmsRetryTimeout, c.RetryTimeout)
 	}
 	return nil
+}
+
+// parseSocketMode decodes SocketMode, an octal string such as "0660". It is
+// the one parser of the field: ValidateBasic and the listener both use it.
+func (c *TmkmsListenerConfig) parseSocketMode() (os.FileMode, error) {
+	n, err := strconv.ParseUint(c.SocketMode, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %q is not an octal mode", errInvalidTmkmsSocketMode, c.SocketMode)
+	}
+	mode := os.FileMode(n)
+	if mode&^tmkmsSocketModeBits != 0 {
+		return 0, fmt.Errorf("%w: %q sets bits outside %04o", errInvalidTmkmsSocketMode, c.SocketMode, tmkmsSocketModeBits)
+	}
+	return mode, nil
 }
 
 // ParseAllowlist decodes AllowedKMSPubKeys into typed ed25519 pubkeys.
