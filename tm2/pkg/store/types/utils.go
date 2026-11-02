@@ -1,9 +1,5 @@
 package types
 
-import (
-	"bytes"
-)
-
 // Iterator over all the keys with a certain prefix in ascending order.
 // gctx may be nil for gas-free iteration (node startup, test helpers).
 func PrefixIterator(gctx *GasContext, kvs Store, prefix []byte) Iterator {
@@ -14,41 +10,6 @@ func PrefixIterator(gctx *GasContext, kvs Store, prefix []byte) Iterator {
 // gctx may be nil for gas-free iteration (node startup, test helpers).
 func ReversePrefixIterator(gctx *GasContext, kvs Store, prefix []byte) Iterator {
 	return kvs.ReverseIterator(gctx, prefix, PrefixEndBytes(prefix))
-}
-
-// Compare two stores, return either the first key/value pair
-// at which they differ and whether or not they are equal, skipping
-// value comparison for a set of provided prefixes
-func DiffStores(a Store, b Store, prefixesToSkip [][]byte) (kvA KVPair, kvB KVPair, count int64, equal bool) {
-	iterA := a.Iterator(nil, nil, nil)
-	iterB := b.Iterator(nil, nil, nil)
-	count = int64(0)
-	for iterA.Valid() || iterB.Valid() {
-		var kvA, kvB KVPair
-		if iterA.Valid() {
-			kvA = KVPair{Key: iterA.Key(), Value: iterA.Value()}
-			iterA.Next()
-		}
-		if iterB.Valid() {
-			kvB = KVPair{Key: iterB.Key(), Value: iterB.Value()}
-			iterB.Next()
-		}
-		if !bytes.Equal(kvA.Key, kvB.Key) {
-			return kvA, kvB, count, false
-		}
-		compareValue := true
-		for _, prefix := range prefixesToSkip {
-			// Skip value comparison if we matched a prefix
-			if bytes.Equal(kvA.Key[:len(prefix)], prefix) {
-				compareValue = false
-			}
-		}
-		if compareValue && !bytes.Equal(kvA.Value, kvB.Value) {
-			return kvA, kvB, count, false
-		}
-		count++
-	}
-	return KVPair{}, KVPair{}, count, true
 }
 
 // PrefixEndBytes returns the []byte that would end a
@@ -75,13 +36,6 @@ func PrefixEndBytes(prefix []byte) []byte {
 		}
 	}
 	return end
-}
-
-// InclusiveEndBytes returns the []byte that would end a
-// range query such that the input would be included
-func InclusiveEndBytes(inclusiveBytes []byte) (exclusiveBytes []byte) {
-	exclusiveBytes = append(inclusiveBytes, byte(0x00))
-	return exclusiveBytes
 }
 
 // ----------------------------------------
