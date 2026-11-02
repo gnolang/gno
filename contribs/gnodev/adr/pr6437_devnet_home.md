@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Proposed ([#6437](https://github.com/gnolang/gno/pull/6437)).
 
 ## Context
 
