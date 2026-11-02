@@ -46,8 +46,9 @@ var (
 const minTmkmsTimeoutReadWrite = 1 * time.Second
 
 // tmkmsSocketModeBits are the permission bits socket_mode may set: owner and
-// group. An "other" bit would let every local user connect and become the
-// signer; setuid, setgid and sticky have no use on a socket.
+// group. The "other" write bit would let every local user connect and become
+// the signer; the other "other" bits, setuid, setgid and sticky have no use
+// on a socket.
 const tmkmsSocketModeBits os.FileMode = 0o770
 
 // TmkmsListenerConfig configures the upstream-Tendermint-protocol listener.
