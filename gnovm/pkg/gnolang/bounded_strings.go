@@ -462,7 +462,7 @@ func boundedSprintStringValue(w *boundedBuf, sv StringValue) {
 	if rem <= 0 {
 		return
 	}
-	s := string(sv)
+	s := sv.Str
 	// strconv.Quote can expand by up to ~6× for non-ASCII /
 	// non-printable bytes (`\u00XX` = 6 bytes per source byte
 	// worst case). Pre-truncate to bound the intermediate.

@@ -6,7 +6,7 @@ import "testing"
 // constant value types (StringValue, BigintValue, BigdecValue) unchanged, since
 // they hold no references to resolve.
 func TestConstantValuesDeepFill(t *testing.T) {
-	for _, v := range []Value{StringValue("test"), BigintValue{}, BigdecValue{}} {
+	for _, v := range []Value{StringValue{Str: "test"}, BigintValue{}, BigdecValue{}} {
 		tv := TypedValue{V: v}
 		tv.DeepFill(nil)
 		if tv.V != v {

@@ -48,7 +48,7 @@ func TestConvertEmptyNumbers(t *testing.T) {
 		testname := fmt.Sprintf("%v", tt.argT)
 		t.Run(testname, func(t *testing.T) {
 			run := func() {
-				_ = convertArgToGno("", tt.argT)
+				_ = convertArgToGno(nil, "", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
 		})
@@ -74,10 +74,10 @@ func TestConvertFloatArgLengthBound(t *testing.T) {
 			t.Parallel()
 
 			require.NotPanics(t, func() {
-				_ = convertArgToGno(atLimit, tt.argT)
+				_ = convertArgToGno(nil, atLimit, tt.argT)
 			})
 			assert.PanicsWithValue(t, tt.expectedErr, func() {
-				_ = convertArgToGno(overLimit, tt.argT)
+				_ = convertArgToGno(nil, overLimit, tt.argT)
 			})
 		})
 	}
@@ -129,10 +129,10 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 						tt.declaredLen, len(b64), want)
 				}
 				require.PanicsWithValue(t, expected, func() {
-					convertArgToGno(b64, arrType)
+					convertArgToGno(nil, b64, arrType)
 				})
 			} else {
-				tv := convertArgToGno(b64, arrType)
+				tv := convertArgToGno(nil, b64, arrType)
 				av, ok := tv.V.(*gnolang.ArrayValue)
 				require.True(t, ok)
 				assert.Equal(t, tt.declaredLen, av.GetLength())
@@ -153,7 +153,7 @@ func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
 	require.Len(t, canonical, base64.StdEncoding.EncodedLen(32))
 
 	// The canonical spelling still converts.
-	tv := convertArgToGno(canonical, arrType)
+	tv := convertArgToGno(nil, canonical, arrType)
 	av, ok := tv.V.(*gnolang.ArrayValue)
 	require.True(t, ok)
 	assert.Equal(t, 32, av.GetLength())
@@ -170,14 +170,14 @@ func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
 		strings.Repeat("\n", 1024) + canonical,
 	} {
 		assert.PanicsWithValue(t, mismatch(len(arg)), func() {
-			convertArgToGno(arg, arrType)
+			convertArgToGno(nil, arg, arrType)
 		})
 	}
 
 	// An oversized argument is refused on length, so base64 never runs on it.
 	huge := strings.Repeat("A", 1_000_000)
 	assert.PanicsWithValue(t, mismatch(len(huge)), func() {
-		convertArgToGno(huge, arrType)
+		convertArgToGno(nil, huge, arrType)
 	})
 }
 
@@ -1473,4 +1473,31 @@ func init() {
 		require.Contains(t, rep, `"ObjectID":":1"`,
 			"back-reference must target the first-visited ephemeral Object (:1); got:\n%s", rep)
 	})
+}
+
+// TestConvertArgToGno_StringArgIsCharged pins that string call arguments
+// are minted through the tx allocator: charged at conversion time and
+// registered for the GC's backing-byte recount. A raw StringValue here
+// would be charged nothing and stay invisible to GC (header-only) forever.
+func TestConvertArgToGno_StringArgIsCharged(t *testing.T) {
+	t.Parallel()
+
+	alloc := gnolang.NewAllocator(1_000_000)
+	arg := strings.Repeat("x", 1000)
+	tv := convertArgToGno(alloc, arg, gnolang.StringType)
+	require.Equal(t, arg, tv.GetString())
+
+	_, charged := alloc.Status()
+	require.Greater(t, charged, int64(1000), "string arg bytes must be charged at conversion")
+
+	// The value carries mint identity: the GC recount charges its full
+	// backing length.
+	sv, ok := tv.V.(gnolang.StringValue)
+	require.True(t, ok)
+	require.NotNil(t, sv.B, "string arg must be minted (tracked for GC recount)")
+	require.Equal(t, int64(1000), sv.B.Extent)
+
+	// nil allocator (tests, no budget) stays valid.
+	tv = convertArgToGno(nil, arg, gnolang.StringType)
+	require.Equal(t, arg, tv.GetString())
 }

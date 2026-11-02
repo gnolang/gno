@@ -41,7 +41,7 @@ func typedInt(n int) gno.TypedValue {
 
 // typedString returns a TypedValue holding a short string.
 func typedString(s string) gno.TypedValue {
-	return gno.TypedValue{T: gno.StringType, V: gno.StringValue(s)}
+	return gno.TypedValue{T: gno.StringType, V: gno.StringValue{Str: s}}
 }
 
 // typedBool returns a TypedValue holding a bool.
