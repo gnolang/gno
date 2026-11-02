@@ -29,7 +29,6 @@ testdir
 # is checked in; regenerated rarely (when the upstream Tendermint v0.34
 # protocol shape would matter).
 !tm2/pkg/bft/privval/upstream/upstreampb/upstream.pb.go
-pbbindings.go
 *~
 .#*
 *#
