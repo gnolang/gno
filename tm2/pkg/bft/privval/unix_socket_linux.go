@@ -17,7 +17,7 @@ func bindUnixSocket(address string, mode os.FileMode) (net.Listener, error) {
 		Control: func(_, _ string, c syscall.RawConn) error {
 			var err error
 			if cerr := c.Control(func(fd uintptr) {
-				err = syscall.Fchmod(int(fd), uint32(mode.Perm()))
+				err = os.NewSyscallError("fchmod", syscall.Fchmod(int(fd), uint32(mode.Perm())))
 			}); cerr != nil {
 				return cerr
 			}
