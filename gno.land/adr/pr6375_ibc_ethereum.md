@@ -1297,6 +1297,46 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 
 ### 7.4 Guardians, flags and holds — R10, E7
 
+**In brief.** Governance is slow on purpose: every loosening decision waits 7 days (§7.5), so that a bad or captured
+proposal can be seen and answered before it lands. An incident is fast: a light-client fault, a leaked relayer or
+validator key, a forged packet draining a route. Something must be able to stop the damage within minutes without
+becoming a new way to move funds or change the rules. The seats are that brake; the rest of this section is their
+mechanics.
+
+- **Who sits where.** Each chain has six seats, each holding one key (a gno address on gno.land, an Ethereum address
+  on Ethereum). Seats 0–3 are the **guardians**: by deployment convention 0–1 hold the operator's two and 2–3 the
+  two outsiders', independent parties (the convention is `ibcgov`'s seat comment; the code treats the four alike).
+  Seats 4–5 are the **watch keys**, the operator's automated monitors. Only governance fills or changes a seat
+  (`NewSetSeatsRequest` on gno.land, kind 3 on Ethereum): at most two guardian seats a decision, 7 days each.
+- **What every seat can do: flag.** A flag pauses one function at once, with no vote and no delay: on gno.land a
+  route's `sends`, `credits`, `payouts` or `refunds`; on Ethereum a route's receives and escrowed sends, its refunds,
+  or `IBCAdmin`'s decisions. Flags never stop exits (voucher burns, acknowledgements, timeouts), and a `refunds` flag
+  delays refunds, never cancels them, so users can always leave. A seat clears only its own flags; governance clears
+  every seat's flags of a function with an unpause decision (at once on gno.land, after 24 hours on Ethereum). A
+  guardian's `payouts` flag on gno.land may name the packets it suspects, which voids their payouts at once.
+- **The watch keys.** A monitor that sees a supply mismatch, an unexpected packet or a stalled client flags without
+  waiting for a person. Its flags pause like any other but never count toward a hold: the operator's automation can
+  stop traffic, never delay governance. (On Ethereum any standing flag, a watch key's included, also defers a kind 9
+  hand-over, below.)
+- **What guardians add: the hold.** Two guardian seats flagging at once make a **hold**: queued 7-day decisions are
+  deferred and unpause decisions are spent, so a captured or rushed governance cannot loosen a control, swap an
+  implementation or lift the pause in the middle of an incident. Decisions that tighten apply at once and are never
+  held. The hold ends 24 hours after fewer than two guardian flags stand. On gno.land any two guardian flags, on any
+  route, make one global hold; on Ethereum a hold is per flag set (below).
+- **Delay, never veto.** Guardians move no funds, change no configuration, decide nothing, and cannot clear another
+  seat's flag. A hold defers a decision, never cancels it. Governance can replace a guardian, and that change waits 7
+  days and, under a hold, lands no sooner than day 21 of the hold that first deferred it. So a captured guardian pair
+  can stall governance for about three weeks, never forever, and can take nothing.
+- **Two sides, neither alone.** Any two guardians make a hold, so the operator's pair can brake without the
+  outsiders and the outsiders without the operator: neither side's capture or absence disables the brake. The one
+  guardian power beyond delay, the emergency route replacement on Ethereum (§7.12, while enabled), needs `threshold`
+  approvals to propose and `cancelThreshold` votes to cancel, 3 of 4 seats at launch: the operator's two seats cannot
+  reach either alone, nor can the outsiders', so every recovery, and every cancellation of one, takes both sides.
+  This is why, with that path enabled, the outsider seats must hold independent parties from the start (§7.12).
+- **Empty seats protect nothing.** On gno.land all six seats start empty and an empty seat cannot flag, so no flag or
+  hold protects a route until governance seats them: two guardians a decision, so two 7-day decisions for the four
+  (gno-realms `docs/upgrade-runbook.md`, step 3). Ethereum refuses vacancies (§8.5).
+
 - **Seats.** Six per side: 4 guardians (2 of them outsiders) and 2 watch keys (the operator's monitors). On
   gno.land all six start empty, and an unseated key cannot flag, so nothing protects a route until they are seated
   by decision (at most two guardian seats a decision, no address in two seats).
