@@ -31,6 +31,7 @@ On macOS, `fchmod` on an unbound socket fails with `EINVAL`.
 1. A `socket_mode` key under `[consensus.priv_validator.tmkms_listener]`: an octal string, default `"0600"` (the previous fixed mode). One helper parses it with `strconv.ParseUint(s, 8, 32)` for both `ValidateBasic` and the listener. The mode must be within `0770`. It is checked for `unix://` only and ignored for `tcp://`.
 2. On Linux, the socket is `fchmod`ed to the mode before `bind(2)`, through `net.ListenConfig.Control`, so `bind` creates the file with the mode minus the umask: never more open than the mode. Then, on every OS, `os.Chmod` sets the exact mode, since the umask may have removed bits the operator asked for.
 3. If the mode cannot be set, the listener is closed, which removes the socket, and the start fails.
+4. `ValidateBasic` refuses an empty `unix://` address and one starting with `@`: on Linux both name an abstract socket, which has no file, so no mode can protect it.
 
 ## Alternatives considered
 
@@ -46,7 +47,7 @@ On macOS, `fchmod` on an unbound socket fails with `EINVAL`.
 ## Consequences
 
 - A `config.toml` without the key keeps the default `"0600"`, the previous mode. `gnoland config init` writes the key; `gnoland config get/set` handle it as a string.
-- Stricter than before: a mode that cannot be set stops the start instead of logging a warning, and on Linux the socket never passes through the umask's mode.
+- Stricter than before: a mode that cannot be set stops the start instead of logging a warning, on Linux the socket never passes through the umask's mode, and an abstract `unix://` address, which used to start the node on a socket no permission protects, is refused when the config is loaded or set.
 - A signer under its own user needs a socket directory owned by gnoland's user and the signer's group with mode `2710`, and `socket_mode = "0660"`; `gno.land/cmd/gnoland/TMKMS.md` documents it.
 - Outside Linux, the window between `bind` and the chmod remains.
 - `TestBindUnixSocketCreatesTheSocketWithItsMode` (Linux only) changes the process umask, so it is not parallel either; CI runs the Go tests on Linux.
