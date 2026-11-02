@@ -35,11 +35,11 @@ func TestID_Binary(cur realm, t *testing.T) {
 	prev := i.Binary()
 
 	for j := 0; j < 1000; j++ {
-		cur := i.Next().Binary()
-		if cur <= prev {
-			t.Fatalf("cur %x > prev %x", cur, prev)
+		id := i.Next().Binary()
+		if id <= prev {
+			t.Fatalf("id %x > prev %x", id, prev)
 		}
-		prev = cur
+		prev = id
 	}
 }
 
@@ -48,21 +48,21 @@ func TestID_String(cur realm, t *testing.T) {
 	prev := i.String()
 
 	for j := 0; j < 1000; j++ {
-		cur := i.Next().String()
-		if cur <= prev {
-			t.Fatalf("cur %s > prev %s", cur, prev)
+		id := i.Next().String()
+		if id <= prev {
+			t.Fatalf("id %s > prev %s", id, prev)
 		}
-		prev = cur
+		prev = id
 	}
 
 	// Test for when cford32 switches over to the long encoding.
 	i = 1<<34 - 512
 	for j := 0; j < 1024; j++ {
-		cur := i.Next().String()
-		// println(cur)
-		if cur <= prev {
-			t.Fatalf("cur %s > prev %s", cur, prev)
+		id := i.Next().String()
+		// println(id)
+		if id <= prev {
+			t.Fatalf("id %s > prev %s", id, prev)
 		}
-		prev = cur
+		prev = id
 	}
 }

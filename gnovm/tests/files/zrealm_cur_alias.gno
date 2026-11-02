@@ -10,14 +10,14 @@ package curalias
 // the cur-call provenance check would then accept by name, with no assignment
 // and no address taken anywhere for the write-shape rules to see.
 //
-// The position-0 rule is the one that fires here, because `c` resolves to
-// realm as well. That is the point: the rules now see through the alias at
-// every position, not only the one that first exposed the gap.
+// `cur` is now reserved by name (StaticBlock.Reserve), so a second parameter
+// named `cur` is refused before any type resolves; the alias rule is pinned
+// here through position 0, where `c` resolves to realm and is not `cur`.
 
 type R = realm
 
-func f(c R, cur R) {
-	_ = cur.IsCurrent()
+func f(c R, x R) {
+	_ = x.IsCurrent()
 }
 
 func main(cur realm) {
@@ -25,4 +25,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/curalias/zrealm_cur_alias.gno:19:1-19: a crossing function's first realm argument must have name `cur`
+// gno.land/r/demo/curalias/zrealm_cur_alias.gno:19:1-17: a crossing function's first realm argument must have name `cur`

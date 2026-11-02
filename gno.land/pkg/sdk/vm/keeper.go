@@ -212,6 +212,10 @@ func (vm *VMKeeper) Initialize(
 			// test passes to check; stating it keeps the overlay out of every
 			// keeper path.
 			ProdOnly: true,
+			// This source was written to state at genesis and the chain has
+			// been running it; a rule added since must not stop the node from
+			// starting. See TypeCheckOptions.AlreadyOnChain.
+			AlreadyOnChain: true,
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
