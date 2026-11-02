@@ -122,7 +122,11 @@ why instead of only "panic parsing struct".
   both encodings decode to the same transaction, the sign bytes never covered
   the signature's encoding, and no signature is stored in state. Nodes with
   and without this change agree on every transaction, and wallets that still
-  send the old encoding keep working.
+  send the old encoding keep working. Accepting the old encoding is the
+  behaviour before #6406, which decodes every transaction with
+  `amino.UnmarshalCanonical` and refuses any encoding but the canonical one,
+  this change's shorter form; whoever lands it flips
+  `TestDeliverTxZeroSessionAddr`'s assertion that the old form succeeds.
 - Genesis and hardfork replay are unaffected. `BaseApp.Deliver`, which
   InitChain uses for each of those transactions, re-encodes the transaction
   but runs it with no transaction bytes in its context, so the ante handler

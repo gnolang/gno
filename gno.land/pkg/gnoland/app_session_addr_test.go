@@ -51,6 +51,10 @@ func legacyTxBytes(t *testing.T, tx std.Tx) []byte {
 // Delivered to two identical chains, the two encodings do the same thing
 // and reach the same app hash; the old one only costs more gas, for its
 // extra bytes.
+//
+// Accepting the old encoding is the behaviour before #6406, which refuses
+// any encoding of a transaction but the canonical one; it flips the
+// oldRes assertion below to expect std.ErrTxDecode.
 func TestDeliverTxZeroSessionAddr(t *testing.T) {
 	t.Parallel()
 
