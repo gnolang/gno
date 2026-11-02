@@ -37,16 +37,16 @@ On macOS, `fchmod` on an unbound socket fails with `EINVAL`.
 - **A loopback `tcp://` listener with `allowed_kms_pubkeys`:** it already lets the signer run under its own user, needs no change, and stays available. UDS is kept usable that way because `gno.land/cmd/gnoland/TMKMS.md` recommends it when the signer is on the same host, and because over TCP every local user reaches the SecretConnection handshake, which leaves the signer's identity key as the only boundary; on UDS the kernel refuses `connect(2)` to every user the filesystem permissions leave out.
 - **An integer key:** go-toml v1.9.5 writes `0o660` as `432` and rejects `0660`, JSON rejects a leading zero, and `gnoland config set` has no case for an `os.FileMode` field. An octal string reads and edits as the mode it is.
 - **Base 0 parsing:** it would accept `0o660` and `0660`, but also `0x…` and decimal, where `660` would mean `01224`.
-- **Any subset of `0777`:** an "other" bit lets every local user connect and become the signer, and setuid, setgid and sticky have no use on a socket.
+- **Any mode up to `07777`:** an "other" bit lets every local user connect and become the signer, and setuid, setgid and sticky have no use on a socket.
 - **A `socket_group` key:** a non-root process can only give a file a group it belongs to (chown(2)), so gnoland's user would have to join the signer's group, which also grants it whatever else that group can open. The setgid directory gives the socket that group without it.
-- **Rejecting or warning on a non-default `socket_mode` with `tcp://`:** every generated `config.toml` carries the key; it is ignored, as the field's comment says.
+- **Rejecting or warning on a non-default `socket_mode` with `tcp://`:** every generated `config.toml` carries the key, and an operator moving a listener from `unix://` to `tcp://` would have to delete a key that no longer applies, or read a warning about it on every start. It is ignored, as the field's comment says.
 - **Closing the window outside Linux:** changing the process umask around `Listen` affects every goroutine creating a file at that moment, and binding under a private name then renaming into place leaves the final path behind on `Close`, since Go unlinks the name it bound. Outside Linux the socket keeps `0777` minus the umask between `bind` and the chmod.
-- **Leaving the failed-chmod path untested:** a test swaps a package variable, `chmodSocket`, for a failing one and checks that the start fails and no socket is left. A real chmod failure on the process's own socket cannot be produced in a test. The test is not parallel, so the swap cannot race the parallel tests that build a listener.
+- **Leaving the failed-chmod path untested:** that path is the security change, since a node must not run on a socket whose mode it could not set. A test swaps a package variable, `chmodSocket`, for a failing one and checks that the start fails and no socket is left. A real chmod failure on the process's own socket cannot be produced in a test. The test is not parallel, so the swap cannot race the parallel tests that build a listener.
 
 ## Consequences
 
 - A `config.toml` without the key keeps the default `"0600"`, the previous mode. `gnoland config init` writes the key; `gnoland config get/set` handle it as a string.
 - Stricter than before: a mode that cannot be set stops the start instead of logging a warning, and on Linux the socket never passes through the umask's mode.
-- A signer under its own user needs a socket directory owned by gnoland's user and the signer's group with mode `2710`, and `socket_mode = "0660"`; `TMKMS.md` documents it.
+- A signer under its own user needs a socket directory owned by gnoland's user and the signer's group with mode `2710`, and `socket_mode = "0660"`; `gno.land/cmd/gnoland/TMKMS.md` documents it.
 - Outside Linux, the window between `bind` and the chmod remains.
 - `TestBindUnixSocketCreatesTheSocketWithItsMode` (Linux only) changes the process umask, so it is not parallel either; CI runs the Go tests on Linux.
