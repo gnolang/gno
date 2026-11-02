@@ -548,7 +548,6 @@ func (cdc *Codec) GetPackages() pkg.PackageSet {
 	return cdc.packages
 }
 
-// This is used primarily for gengo.
 // XXX TODO: make this safe so modifications don't affect runtime codec,
 // and ensure that it stays safe.
 // NOTE: do not modify the returned TypeInfo.
