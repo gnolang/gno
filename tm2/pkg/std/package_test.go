@@ -137,3 +137,53 @@ func TestAminoSignatureSessionAddrRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// TestAminoSignatureZeroSessionAddrWire pins what a master-key signature
+// writes for its zero SessionAddr: nothing, in amino binary and JSON alike,
+// through amino:"skip_zero". Without the tag amino binary wrote field 3 as
+// the zero address's bech32 string, judging emptiness by MarshalAmino's
+// repr; signatures encoded that way must still decode, through both codecs,
+// to a zero SessionAddr, so they stay master-key signatures. If any of this
+// changes, update SessionAddr's comment in doc.go with it.
+func TestAminoSignatureZeroSessionAddrWire(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(std.Package)
+	cdc.Seal()
+
+	sig := std.Signature{Signature: []byte("sig")}
+	bz, err := cdc.MarshalReflect(sig)
+	require.NoError(t, err)
+	// Field 2 (0x12) with the 3 signature bytes, and no field 3.
+	assert.Equal(t, []byte("\x12\x03sig"), bz)
+
+	js, err := cdc.JSONMarshal(sig)
+	require.NoError(t, err)
+	assert.NotContains(t, string(js), "session_addr")
+
+	// The encoding before the tag: field 3, length-delimited (0x1a), holding
+	// the zero address's bech32 string, 42 bytes in all.
+	zero := crypto.Address{}.String()
+	legacy := append([]byte("\x12\x03sig\x1a"), byte(len(zero)))
+	legacy = append(legacy, zero...)
+	require.Len(t, legacy, len(bz)+42)
+	var viaReflect, viaBinary2 std.Signature
+	require.NoError(t, cdc.UnmarshalReflect(legacy, &viaReflect))
+	require.NoError(t, viaBinary2.UnmarshalBinary2(cdc, legacy, 0))
+	assert.Equal(t, sig, viaReflect)
+	assert.Equal(t, sig, viaBinary2)
+
+	// And its JSON, which spelled the zero address out where a client
+	// wrote it so.
+	var viaJSON std.Signature
+	require.NoError(t, cdc.JSONUnmarshal([]byte(`{"signature":"c2ln","session_addr":"`+zero+`"}`), &viaJSON))
+	assert.Equal(t, sig, viaJSON)
+
+	// An all-zero signature, which gnoclient puts in a Tx for each signer
+	// before signing, is now an empty list element (field 3, length 0); the
+	// "Tx/placeholder-signatures" parity case checks that decoding keeps both.
+	bz, err = cdc.MarshalReflect(std.Tx{Signatures: []std.Signature{{}, {}}})
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x1a, 0x00, 0x1a, 0x00}, bz)
+}
