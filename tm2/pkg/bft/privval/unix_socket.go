@@ -22,7 +22,8 @@ func listenUnixSocket(address string, mode os.FileMode) (net.Listener, error) {
 	}
 	if err := chmodSocket(address, mode); err != nil {
 		_ = ln.Close()
-		return nil, fmt.Errorf("tmkms_listener: unable to set mode %04o on unix socket %s: %w", mode, address, err)
+		// The *PathError from os.Chmod names the socket.
+		return nil, fmt.Errorf("tmkms_listener: unable to set the unix socket's mode to %04o: %w", mode, err)
 	}
 	return ln, nil
 }
