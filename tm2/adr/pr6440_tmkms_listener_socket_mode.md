@@ -34,6 +34,7 @@ On macOS, `fchmod` on an unbound socket fails with `EINVAL`.
 
 ## Alternatives considered
 
+- **A loopback `tcp://` listener with `allowed_kms_pubkeys`:** it already lets the signer run under its own user, needs no change, and stays available. UDS is kept usable that way because `gno.land/cmd/gnoland/TMKMS.md` recommends it when the signer is on the same host, and because over TCP every local user reaches the SecretConnection handshake, which leaves the signer's identity key as the only boundary; on UDS the kernel refuses `connect(2)` to every user the filesystem permissions leave out.
 - **An integer key:** go-toml v1.9.5 writes `0o660` as `432` and rejects `0660`, JSON rejects a leading zero, and `gnoland config set` has no case for an `os.FileMode` field. An octal string reads and edits as the mode it is.
 - **Base 0 parsing:** it would accept `0o660` and `0660`, but also `0x…` and decimal, where `660` would mean `01224`.
 - **Any subset of `0777`:** an "other" bit lets every local user connect and become the signer, and setuid, setgid and sticky have no use on a socket.
