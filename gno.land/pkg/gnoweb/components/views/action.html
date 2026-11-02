@@ -177,7 +177,7 @@ UI - Help Function component
         {{ if .Crossing }}
         {{ template "ui/command" (buildCommandData $data .) }}
         {{ else }}
-        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data $'{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})'</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
