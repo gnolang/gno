@@ -176,7 +176,7 @@ listener one as a positive match against upstream byte-for-byte.
 | Signer swap mid-session (TCP reset + race a different tmkms instance) | Connection-generation counter on the endpoint. SignerClient re-fetches and verifies the signer's pubkey on every reconnect; mismatch refuses to sign. |
 | Compromised signer that rewrites `(Height, Round, BlockID)` in the response | Echo verification: signer may only fill in `Signature` (and canonicalize `Timestamp`); other fields must echo what we sent. Signature is rejected on mismatch. |
 | Fail-open allowlist | `ValidateBasic` refuses an empty `allowed_kms_pubkeys` when the listener mode is enabled. |
-| Local-user privilege escalation via UDS socket | The socket gets the configured `socket_mode` (default `0600`, within `0770`): set before `bind(2)` on Linux and exactly after it on every OS; a mode that cannot be set fails the start. See `pr6440_tmkms_listener_socket_mode.md`. |
+| Local-user privilege escalation via UDS socket | The socket gets the configured `socket_mode` (default `0600`, within `0770`): set before `bind(2)` on Linux, then set to the exact mode by a chmod after `bind(2)` on every OS; a mode that cannot be set fails the start. See `pr6440_tmkms_listener_socket_mode.md`. |
 | Listener leak on Init failure | `endpoint.Stop()` (not `sc.Close()`) drains goroutines and releases the bound port. |
 | Protocol-dialect drift | Pinned to `v0.34`; `ValidateBasic` refuses any other value. |
 
