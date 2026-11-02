@@ -151,7 +151,7 @@ For Horcrux running multiple cosigners, list one entry per cosigner.
 | Mutual auth | ed25519 allowlist | Filesystem perms (`socket_mode`, default `0600`) |
 | Use when | Signer is on a different host | Signer is on the same host |
 
-For UDS there is no SecretConnection and no pubkey allowlist: the only access control is filesystem permissions, and any `allowed_kms_pubkeys` you configure is ignored. gnoland gives the socket the mode set by `socket_mode` (default `0600`: only gnoland's user can connect), and refuses to start if it cannot. On Linux the mode is set on the socket before `bind(2)`, so the socket is never more open than `socket_mode`, whatever the umask; on other systems it is set right after `bind(2)`. Keep the parent directory's perms tight too: only the users that must connect should be able to traverse it.
+For UDS there is no SecretConnection and no pubkey allowlist: the only access control is filesystem permissions, and any `allowed_kms_pubkeys` you configure is ignored. gnoland gives the socket the mode set by `socket_mode` (default `0600`: only gnoland's user can connect), and refuses to start if it cannot. On Linux the mode is set on the socket before `bind(2)`, so the socket is never more open than `socket_mode`, whatever the umask; on other systems it is set right after `bind(2)`. Keep the parent directory's perms tight too: only gnoland's user and the users that must connect should be able to traverse it.
 
 ### Running the signer under its own user
 
@@ -303,7 +303,7 @@ mismatches.
 - [ ] If using TCP, `listen_addr` is reachable from the signer host
       and not exposed publicly (firewall the inbound port to the
       signer's source IP).
-- [ ] If using UDS, the parent directory is on local disk (not a shared filesystem), only the users that must connect can traverse it, and `socket_mode` grants no more than they need (`0600` with the signer as gnoland's user, `0660` with the signer's group; see "Running the signer under its own user").
+- [ ] If using UDS, the parent directory is on a local filesystem (local disk or a tmpfs such as `/run`), not a shared one, only gnoland's user and the users that must connect can traverse it, and `socket_mode` grants no more than they need (`0600` with the signer as gnoland's user, `0660` with the signer's group; see "Running the signer under its own user").
 - [ ] `consensus.json` (tmkms HRS state) is durable and backed up;
       restoring an older copy enables double-signing.
 - [ ] tmkms is started and reachable BEFORE gnoland — gnoland's
