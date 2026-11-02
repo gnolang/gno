@@ -1649,6 +1649,41 @@ func TestHTTPHandler_MarkdownNegotiation_StaticAlias(t *testing.T) {
 	assert.Equal(t, md, rr.Body.String())
 }
 
+// TestHTTPHandler_StaticAliasRender verifies a static page with Render is
+// built again on each request, in HTML as in markdown.
+func TestHTTPHandler_StaticAliasRender(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	config := &gnoweb.HTTPHandlerConfig{
+		ClientAdapter: gnoweb.NewMockClient(),
+		Renderer:      &rawRenderer{},
+		Aliases: map[string]gnoweb.AliasTarget{
+			"/": {Kind: gnoweb.StaticMarkdown, Value: "# Unused", Render: func() string {
+				calls++
+				return fmt.Sprintf("# Home %d\n", calls)
+			}},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	for i, accept := range []string{"text/html", "text/markdown", "text/html"} {
+		req, err := http.NewRequest(http.MethodGet, "/", nil)
+		require.NoError(t, err)
+		req.Header.Set("Accept", accept)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), fmt.Sprintf("# Home %d", i+1))
+		assert.NotContains(t, rr.Body.String(), "Unused")
+	}
+}
+
 // TestHTTPHandler_MarkdownNegotiation_NoRenderFallsBackToHTML verifies that a
 // realm without a Render() function falls back to the HTML directory view even
 // when markdown is requested. This guards the ordering invariant: the markdown

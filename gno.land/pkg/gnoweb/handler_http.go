@@ -93,10 +93,24 @@ const (
 type AliasTarget struct {
 	Value string
 	Kind  AliasKind
+	// Render, when set on a StaticMarkdown alias, builds the page on each
+	// request in place of Value, for a host whose page follows its own state,
+	// as gnodev's home. It is called concurrently, and its output is the
+	// operator's like Value, without front matter. Its func makes AliasTarget
+	// no longer comparable.
+	Render func() string
 	// Title and Description come from a static page's front matter, and are
 	// empty for every other alias.
 	Title       string
 	Description string
+}
+
+// markdown is what a static page shows on this request.
+func (t AliasTarget) markdown() string {
+	if t.Render != nil {
+		return t.Render()
+	}
+	return t.Value
 }
 
 // HTTPHandlerConfig configures an HTTPHandler.
@@ -650,7 +664,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		if pr.markdown {
-			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.Value))
+			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.markdown()))
 		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget, pr)
@@ -676,7 +690,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, 
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), h.renderContext(pr))
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.markdown()), h.renderContext(pr))
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)

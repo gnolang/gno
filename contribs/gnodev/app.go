@@ -54,6 +54,7 @@ type App struct {
 	deferred func()
 
 	webHomePath   string
+	home          *devnetHome
 	paths         []string
 	devNode       *gnodev.Node
 	emitterServer *emitter.Server
@@ -308,8 +309,24 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	ds.logger.Debug("balances loaded", "list", balances.List())
 
+	// Unless told otherwise, a local gnodev serves its own home at /, and
+	// sees every transaction for it.
+	var nodeEmitter emitter.Emitter = ds.emitterServer
+	if ds.cfg.webHome == "" && !ds.cfg.staging && !ds.cfg.noWeb {
+		// The packages the loader reads from disk, examples aside.
+		roots := slices.Clone(loaderCfg.ExtraRoots)
+		if loaderCfg.Workspace != "" {
+			roots = append(roots, loaderCfg.Workspace)
+		}
+		for _, gp := range generatedPkgs {
+			roots = append(roots, gp.dir)
+		}
+		ds.home = newDevnetHome(ds.emitterServer, ds.cfg, roots, ds.paths)
+		nodeEmitter = ds.home
+	}
+
 	nodeLogger := ds.logger.WithGroup(NodeLogName)
-	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, ds.emitterServer, balances, reload, ds.book)
+	nodeCfg, err := setupDevNodeConfig(ds.cfg, nodeLogger, nodeEmitter, balances, reload, ds.book)
 	if err != nil {
 		return fmt.Errorf("unable to setup node config: %w", err)
 	}
@@ -343,13 +360,16 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		return err
 	}
 	ds.DeferClose(ds.devNode.Close)
+	if ds.home != nil {
+		ds.home.watch(ds.devNode.ListPkgs)
+	}
 
 	// Setup default web home realm, fallback on first local path
 	devNodePaths := ds.devNode.Paths()
 
 	switch webHome := ds.cfg.webHome; webHome {
 	case "":
-		if len(devNodePaths) > 0 {
+		if ds.home == nil && len(devNodePaths) > 0 {
 			ds.webHomePath = strings.TrimPrefix(devNodePaths[0], ds.cfg.chainDomain)
 			ds.logger.WithGroup(WebLogName).Info("using default package", "path", devNodePaths[0])
 		}
@@ -454,7 +474,7 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 	}
 
 	// Setup gnoweb
-	webhandler, err := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, remote)
+	webhandler, err := setupGnoWebServer(ds.logger.WithGroup(WebLogName), ds.cfg, remote, ds.home)
 	if err != nil {
 		return nil, fmt.Errorf("unable to setup gnoweb server: %w", err)
 	}
