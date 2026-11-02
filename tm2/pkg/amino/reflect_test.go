@@ -14,7 +14,6 @@ import (
 	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	proto "google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
@@ -89,7 +88,7 @@ func TestCodecStruct(t *testing.T) {
 
 // TestCodecAminoTags tests types with amino-specific encoding tags
 // (write_empty, nil_elements) that have no proto3 equivalent.
-// Same checks as TestCodecStruct but skips proto.Marshal byte comparison.
+// Same checks as TestCodecStruct, plus a lossy mode for FuzzNilElements.
 //
 // FuzzNilElements is structurally lossy: with amino:"nil_elements", both
 // a nil *Struct and a non-nil zero-valued *Struct encode to 0x00 (proto3
@@ -234,46 +233,6 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			spw(ptr), spw(ptr2), bz, bz)
 
 		if codecType == "binary" {
-			// Get pbo from rv. (go -> p3go)
-			pbm, ok := rv.Interface().(amino.PBMessager)
-			if !ok {
-				// typedefs that are not structs, for example,
-				// are not pbMessanger.
-				continue
-			}
-			pbo, err := pbm.ToPBMessage(cdc)
-			require.NoError(t, err)
-
-			// Get back to go from pbo, and ensure equality. (go -> p3go -> go vs go)
-			rv3 := reflect.New(rt)
-			ptr3 := rv3.Interface()
-			err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
-			require.NoError(t, err)
-			require.Equal(t, ptr, ptr3,
-				"end to end through pbo failed.\nstart(goo): %v\nend(goo): %v\nmid(pbo): %v\n",
-				spw(ptr), spw(ptr3), spw(pbo))
-
-			// Marshal pbo and check for equality of bz and b3. (go -> p3go -> bz vs go -> bz)
-			bz3, err := proto.Marshal(pbo)
-			require.NoError(t, err)
-			require.Equal(t, bz, bz3,
-				"pbo serialization check failed.\nbz(go): %X\nbz(pb-go): %X\nstart(goo): %v\nend(pbo): %v\n",
-				bz, bz3, spw(ptr), spw(pbo))
-
-			// Decode from bz and check for equality (go -> bz -> p3go -> go vs go)
-			pbo2 := pbm.EmptyPBMessage(cdc)
-			err = proto.Unmarshal(bz, pbo2)
-			require.NoError(t, err)
-			rv4 := reflect.New(rt)
-			ptr4 := rv4.Interface()
-			err = ptr4.(amino.PBMessager).FromPBMessage(cdc, pbo2)
-			require.NoError(t, err)
-			require.Equal(t, ptr, ptr4,
-				"end to end through bytes and pbo failed.\nbz(go): %X\nstart(goo): %v\nend(goo): %v\nmid(pbo): %v\n",
-				bz, spw(ptr), spw(ptr3), spw(pbo))
-		}
-
-		if codecType == "binary" {
 			// Check genproto2 (go -> bz2 vs go -> bz)
 			pbm2, ok := rv.Interface().(amino.PBMessager2)
 			if !ok {
@@ -335,10 +294,9 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 	}
 }
 
-// _testCodecAminoTags mirrors _testCodec but skips the proto.Marshal byte
-// comparison, which is invalid for types with amino-specific tags like
-// write_empty (forces zero-value emission) or nil_elements (allows nil
-// entries in repeated fields) — neither has a proto3 equivalent.
+// _testCodecAminoTags mirrors _testCodec for types with amino-specific tags
+// like write_empty (forces zero-value emission) or nil_elements (allows nil
+// entries in repeated fields), neither of which has a proto3 equivalent.
 //
 // If lossyDecode is true, the decoder may produce a struct that does not
 // reflect.DeepEqual to the original (e.g. nil pointer → zero-value struct).
@@ -417,25 +375,6 @@ func _testCodecAminoTags(t *testing.T, rt reflect.Type, codecType string, lossyD
 
 		if codecType != "binary" {
 			continue
-		}
-
-		// ToPBMessage + FromPBMessage. In strict mode we also check struct
-		// equality; in lossy mode ToPBMessage/FromPBMessage may share the
-		// same lossy decode path, so we only verify it doesn't error.
-		pbm, ok := rv.Interface().(amino.PBMessager)
-		if !ok {
-			continue
-		}
-		pbo, err := pbm.ToPBMessage(cdc)
-		require.NoError(t, err)
-		rv3 := reflect.New(rt)
-		ptr3 := rv3.Interface()
-		err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
-		require.NoError(t, err)
-		if !lossyDecode {
-			require.Equal(t, ptr, ptr3,
-				"ToPBMessage/FromPBMessage roundtrip failed.\nstart: %v\nend: %v\nmid(pbo): %v\n",
-				spw(ptr), spw(ptr3), spw(pbo))
 		}
 
 		// genproto2 byte equality (cross-encoder) + roundtrip.

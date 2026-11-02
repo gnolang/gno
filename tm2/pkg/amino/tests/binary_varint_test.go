@@ -477,7 +477,7 @@ func TestPlainVarint_NListNameDisambiguation(t *testing.T) {
 	t.Logf("schema:\n%s", schema)
 
 	// Both kinds of synthetic NList element type must be emitted. The
-	// genproto package prefix is `TESTS_` (capitalized P3PkgName) and the
+	// proto3 package prefix is `TESTS_` (capitalized P3PkgName) and the
 	// per-NList suffix follows from `NList.Name()`: the zigzag variant
 	// gets just `Int64ValueList`, the varint variant gets `VarintInt64ValueList`.
 	assert.Contains(t, schema, "TESTS_Int64ValueList",
