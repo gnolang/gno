@@ -55,6 +55,8 @@ type nodeParamsKeeper struct {
 	// halt reads the halt params from the disk, so a block sync that holds
 	// its writes must write them from the block that scheduled the halt.
 	requireFlushPoint func()
+	// prmk reads valset:current for the valset:proposed dry run.
+	prmk sdkparams.ParamsKeeperI
 }
 
 // WillSetParam validates node parameters before they are written to the params store.
@@ -108,10 +110,25 @@ func (k nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		// allowed, so one already in the set can still be dropped. Not in
 		// ParseValidatorUpdate: valset:current and EndBlocker parse with it
 		// too, and must still read a set that already holds such a key.
+		// A repeated address passes the dry run, since UpdatesFrom keeps one
+		// entry per address, but once stored it turns off liveValset and so
+		// every later dry run.
+		seen := make(map[string]bool, len(updates))
 		for i, u := range updates {
 			if ed, ok := u.PubKey.(ed25519.PubKeyEd25519); ok && u.Power > 0 && ed.IsSmallOrder() {
 				panic(fmt.Sprintf("invalid valset:proposed: entry %d has a small-order ed25519 pubkey", i))
 			}
+			addr := u.Address.String()
+			if seen[addr] {
+				panic(fmt.Sprintf("invalid valset:proposed: entry %d repeats address %s", i, addr))
+			}
+			seen[addr] = true
+		}
+		// EndBlocker drops a refused proposal whole, with every other valset
+		// write of the block in it; refusing here fails only this tx.
+		currentSet := loadValsetCurrent(ctx, k.prmk)
+		if err := dryRunValsetDiff(currentSet, currentSet.UpdatesFrom(updates)); err != nil {
+			panic(fmt.Sprintf("valset:proposed would fail consensus apply: %v", err))
 		}
 	case "valset:current":
 		// Chain-only key. Use type-assertion idiom (codebase

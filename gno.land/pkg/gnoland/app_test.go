@@ -1565,7 +1565,7 @@ func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Appli
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
-	prmk.Register("node", nodeParamsKeeper{})
+	prmk.Register("node", nodeParamsKeeper{prmk: prmk})
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
@@ -2476,7 +2476,7 @@ var Deployed = true
 func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 	t.Parallel()
 
-	npk := nodeParamsKeeper{}
+	npk := nodeParamsKeeper{prmk: newValsetMock(&valsetState{})}
 
 	t.Run("valid halt_height (no block context)", func(t *testing.T) {
 		t.Parallel()
@@ -2619,8 +2619,9 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 		assert.Panics(t, func() {
 			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":10"})
 		})
+		inSet := nodeParamsKeeper{prmk: newValsetMock(&valsetState{current: []string{good, small + ":10"}})}
 		assert.NotPanics(t, func() {
-			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":0"})
+			inSet.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":0"})
 		})
 	})
 

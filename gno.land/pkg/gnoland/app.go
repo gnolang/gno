@@ -146,7 +146,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
-	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint})
+	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint, prmk: prmk})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -1174,8 +1174,7 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
-		var currentEntries, proposedEntries []string
-		prmk.GetStrings(ctx, valsetCurrentPath, &currentEntries)
+		var proposedEntries []string
 		prmk.GetStrings(ctx, valsetProposedPath, &proposedEntries)
 
 		// Parse proposed first; on parse failure, drop the proposal by
@@ -1215,10 +1214,7 @@ func EndBlocker(
 		// store damage, partial commit, or a chain-code bug that wrote
 		// past WillSetParam are the only ways to get here. Panic is
 		// the right "this shouldn't happen, investigate" signal.
-		currentSet, err := abci.ParseValidatorUpdates(currentEntries)
-		if err != nil {
-			panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
-		}
+		currentSet := loadValsetCurrent(ctx, prmk)
 
 		// Min-validator floor: refuse to empty consensus.
 		// proposed is the full target set, so the post-apply set has
@@ -1270,15 +1266,13 @@ func EndBlocker(
 
 		// ApplyBlock enforces the same bounds after this block is stored, so
 		// running the apply call here whole-rejects what consensus would refuse.
-		if liveSet, ok := liveValset(currentSet); ok {
-			if err := bft.NewValidatorSetFromABCIValidatorUpdates(liveSet).UpdateWithABCIValidatorUpdates(diff); err != nil {
-				app.Logger().Error(
-					"valset proposal would fail consensus apply; rejecting whole proposal",
-					"err", err,
-				)
-				prmk.SetBool(ctx, valsetDirtyPath, false)
-				return abci.ResponseEndBlock{}
-			}
+		if err := dryRunValsetDiff(currentSet, diff); err != nil {
+			app.Logger().Error(
+				"valset proposal would fail consensus apply; rejecting whole proposal",
+				"err", err,
+			)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
+			return abci.ResponseEndBlock{}
 		}
 
 		app.Logger().Info("valset changes to be applied", "count", len(diff))
@@ -1300,6 +1294,28 @@ func EndBlocker(
 			ValidatorUpdates: diff,
 		}
 	}
+}
+
+// loadValsetCurrent reads and parses valset:current, panicking on a parse
+// error: only chain code writes it.
+func loadValsetCurrent(ctx sdk.Context, prmk params.ParamsKeeperI) abci.ValidatorUpdates {
+	var entries []string
+	prmk.GetStrings(ctx, valsetCurrentPath, &entries)
+	current, err := abci.ParseValidatorUpdates(entries)
+	if err != nil {
+		panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
+	}
+	return current
+}
+
+// dryRunValsetDiff returns the error ApplyBlock's apply call gives diff on the
+// set current holds, or nil when liveValset cannot rebuild that set.
+func dryRunValsetDiff(current, diff abci.ValidatorUpdates) error {
+	liveSet, ok := liveValset(current)
+	if !ok {
+		return nil
+	}
+	return bft.NewValidatorSetFromABCIValidatorUpdates(liveSet).UpdateWithABCIValidatorUpdates(diff)
 }
 
 // liveValset returns the validators valset:current holds, and false when an

@@ -1,5 +1,10 @@
 # ADR: Bound A Valset Proposal By The Apply It Will Meet
 
+Superseded in part by `prxxxx_valset_proposed_write_dry_run.md`: the same dry
+run now refuses the write of `valset:proposed`, so the EndBlocker gate below
+is a fallback, and the change as a whole is a coordinated upgrade rather than
+one nodes take independently.
+
 ## Context
 
 `EndBlocker` in `gno.land/pkg/gnoland/app.go` is the last gate before a
