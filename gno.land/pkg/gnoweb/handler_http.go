@@ -416,7 +416,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// $play opens the package in the playground.
-	if gnourl.WebQuery.Has("play") && (gnourl.IsRealm() || gnourl.IsPure()) {
+	if gnourl.WebQuery.Has("play") && (gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
 		to := playground.CopyURL(gnourl.Path, gnourl.File)
 		http.Redirect(w, r, to, http.StatusFound)
 		components.RedirectView(components.RedirectData{

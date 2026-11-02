@@ -1919,10 +1919,13 @@ func TestHTTPHandler_PlayRedirect(t *testing.T) {
 		assert.Equal(t, want, rr.Header().Get("Location"), path)
 	}
 
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$fork", nil))
-	assert.NotEqual(t, http.StatusFound, rr.Code)
-	assert.Empty(t, rr.Header().Get("Location"))
+	// $fork is gone, and a listing has no copy to open.
+	for _, path := range []string{"/r/demo/foo$fork", "/r/demo/$play", "/p/$play"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.NotEqual(t, http.StatusFound, rr.Code, path)
+		assert.Empty(t, rr.Header().Get("Location"), path)
+	}
 }
 
 // TestHTTPHandler_GetOverviewView_SuccessRendersAllSections verifies the overview page
