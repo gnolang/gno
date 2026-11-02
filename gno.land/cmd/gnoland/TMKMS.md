@@ -73,7 +73,8 @@ socket_mode = "0600"
 
 # Hex-encoded ed25519 pubkeys of every signer instance allowed to
 # connect. Each entry is 64 hex chars, optionally prefixed "ed25519:".
-# Empty list is REJECTED at startup — see Security below.
+# On a tcp:// listener an empty list is REJECTED at startup — see
+# Security notes below. Ignored on unix:// (see "TCP vs UDS").
 allowed_kms_pubkeys = [
   "ed25519:7c4f6a1c...0000000000000000000000000000000000000000000000",
 ]
@@ -159,7 +160,7 @@ With the default `0600`, the signer must run as gnoland's user, so a compromise 
 
 1. Run the signer as a user in its own group, for example user and group `tmkms`. gnoland's user stays out of that group.
 2. Before gnoland starts, create the socket's directory owned by gnoland's user and the signer's group, with the setgid bit and only the group's search bit, for example `mkdir -p /run/gnoland && chown gnoland:tmkms /run/gnoland && chmod 2710 /run/gnoland`. A directory under a tmpfs such as `/run` has to be created again after every boot.
-3. In gnoland's `config.toml`, with the other keys as in "Configuration" above, listen on a socket in that directory, open to the group:
+3. In gnoland's `config.toml`, listen on a socket in that directory, open to the group. Keep `chain_id`, `protocol_version`, the timeouts and the retries as in "Configuration" above; leave `allowed_kms_pubkeys` out, since a `unix://` listener ignores it and logs a warning on every start when it is set:
 
    ```toml
    [consensus.priv_validator.tmkms_listener]
