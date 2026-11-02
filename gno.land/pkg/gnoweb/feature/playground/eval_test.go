@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -303,4 +304,48 @@ func TestEvalInFlightCap(t *testing.T) {
 	code, resp = serveEvalJSON(t, h, "r/a", "After()")
 	assert.Equal(t, http.StatusOK, code)
 	assert.Equal(t, "ok", resp.Result)
+}
+
+// TestEvalDroppedJoiner checks that a reader who drops a request for an eval
+// in flight, before its body ends, is let go at once rather than when the
+// eval answers.
+func TestEvalDroppedJoiner(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	c := &funcClient{fn: func(context.Context, string, string) ([]byte, error) {
+		<-release
+		return []byte("ok"), nil
+	}}
+	// A deadline far past the waits below: only the reader leaving can end
+	// its request in time.
+	h := New(Deps{Packages: &stubPackages{}, Client: c, Logger: discardLogger(), Timeout: time.Minute})
+	var active atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		active.Add(1)
+		defer active.Add(-1)
+		h.EvalHandler().ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	defer close(release) // answer before Close waits on the handlers
+
+	send := func(req string) net.Conn {
+		conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+		require.NoError(t, err)
+		_, err = conn.Write([]byte(req))
+		require.NoError(t, err)
+		return conn
+	}
+	body := `{"pkg_path":"r/a","expression":"X()"}`
+	head := "POST / HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\n"
+	leader := send(head + fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(body), body))
+	defer leader.Close()
+	require.Eventually(t, func() bool { return c.calls.Load() == 1 }, time.Second, time.Millisecond)
+
+	// The same expression in a chunked body that never ends, then gone.
+	joiner := send(head + fmt.Sprintf("Transfer-Encoding: chunked\r\n\r\n%x\r\n%s\r\n", len(body), body))
+	require.Eventually(t, func() bool { return active.Load() == 2 }, time.Second, time.Millisecond)
+	joiner.Close()
+	assert.Eventually(t, func() bool { return active.Load() == 1 }, 2*time.Second, 10*time.Millisecond)
+	assert.EqualValues(t, 1, c.calls.Load())
 }

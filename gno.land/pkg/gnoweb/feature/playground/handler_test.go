@@ -174,6 +174,18 @@ func TestHandlerPlaygroundEval(t *testing.T) {
 			wantError:  "invalid",
 		},
 		{
+			name:       "data after the object",
+			body:       valid + `{}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  "invalid",
+		},
+		{
+			name:       "padding over the cap after the object",
+			body:       valid + strings.Repeat(" ", maxEvalBodyBytes),
+			wantStatus: http.StatusRequestEntityTooLarge,
+			wantError:  "too large",
+		},
+		{
 			name:       "body over the cap",
 			body:       `{"pkg_path":"r/mock/path","expression":"` + strings.Repeat("x", maxEvalBodyBytes) + `"}`,
 			wantStatus: http.StatusRequestEntityTooLarge,

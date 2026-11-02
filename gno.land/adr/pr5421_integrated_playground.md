@@ -253,7 +253,9 @@ always sets the help remote and the chain ID their commands print.
   so net/http's `CrossOriginProtection` is not used: browsers send no
   `Sec-Fetch-Site` on plain HTTP, and its fallback, comparing `Origin` with
   `Host`, refuses gnoweb's own pages behind a proxy that rewrites `Host`.
-  A body over 1 MiB is a 413; another method a 405 with `Allow: POST`.
+  A body over 1 MiB is a 413, data after its JSON object a 400; another
+  method a 405 with `Allow: POST`. The body is read to its end before the
+  eval, so net/http notices a reader who leaves.
 - **Rate limit:** `state.NewIPLimiter`, built with `-trusted-proxies` like
   the state and search limiters: 40 of burst and 60 per minute per client,
   so a load and a reload of a realm with a dozen zero-argument functions

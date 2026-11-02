@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"strconv"
@@ -102,12 +103,15 @@ func (h *Handler) serveEval(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxEvalBodyBytes)
 
+	// Read to the end: net/http only notices a reader who left once the body
+	// is consumed, and the eval below may wait on a query in flight.
+	body, err := io.ReadAll(r.Body)
+	if errors.As(err, new(*http.MaxBytesError)) {
+		writeJSON(w, http.StatusRequestEntityTooLarge, evalResponse{Error: "request body is too large"})
+		return
+	}
 	var req evalRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		if errors.As(err, new(*http.MaxBytesError)) {
-			writeJSON(w, http.StatusRequestEntityTooLarge, evalResponse{Error: "request body is too large"})
-			return
-		}
+	if err != nil || json.Unmarshal(body, &req) != nil {
 		writeJSON(w, http.StatusBadRequest, evalResponse{Error: "invalid request body"})
 		return
 	}
