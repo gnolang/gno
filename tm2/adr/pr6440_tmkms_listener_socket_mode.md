@@ -1,4 +1,4 @@
-# PRxxxx: A configurable mode for the tmkms_listener Unix socket
+# PR6440: A configurable mode for the tmkms_listener Unix socket
 
 ## Status
 
