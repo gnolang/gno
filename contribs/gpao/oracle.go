@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -55,6 +54,15 @@ type oracle struct {
 	// overBudget, or they race on a plain map.
 	failedEnable map[string]int
 
+	// stranded holds, per path, the submission handleCandidate last left
+	// pending (see track and reofferStranded). Touched only by the verifier
+	// goroutine.
+	stranded map[string]strandedSubmission
+
+	// reofferNext is the path where a pass cut short by a queued candidate
+	// resumes, "" once a pass ran to its end. Verifier goroutine only.
+	reofferNext string
+
 	// spent is the gas fees paid for approvals so far this run, and maxSpend the
 	// bound from -max-spend. Touched only by the verifier goroutine, which is
 	// the only thing that approves.
@@ -71,6 +79,17 @@ type oracle struct {
 	// only by that goroutine afterwards. Starting the goroutine is what
 	// publishes the value; there is no lock. Writing it anywhere else needs one.
 	blockMaxGas int64
+
+	// settledTimeout bounds the settled check before verifying
+	// (settledCheckTimeout). A field, so a test can wait out a stalled node in
+	// less than that.
+	settledTimeout time.Duration
+
+	// imports keeps the chain packages fetched for earlier verifications, and
+	// importsChain is block 1's hash on the chain they were fetched from.
+	// Touched only by the verifier goroutine.
+	imports      importCache
+	importsChain []byte
 
 	// status is the one piece of oracle state readable from outside the
 	// verifier goroutine, and it takes a lock for that reason. See statusBoard.
@@ -174,17 +193,20 @@ func newOracle(cfg config, io commands.IO) (*oracle, error) {
 	}
 
 	return &oracle{
-		cfg:          cfg,
-		io:           io,
-		client:       gnoclient.Client{Signer: signer, RPCClient: rpc},
-		approver:     info.GetAddress(),
-		candidates:   make(chan candidate, candidateQueueSize),
-		seen:         make(map[string]struct{}),
-		overBudget:   make(map[string]int),
-		failedEnable: make(map[string]int),
-		status:       newStatusBoard(),
-		enableFee:    gasFee.Amount,
-		maxSpend:     maxSpend.Amount,
+		cfg:            cfg,
+		io:             io,
+		client:         gnoclient.Client{Signer: signer, RPCClient: rpc},
+		approver:       info.GetAddress(),
+		candidates:     make(chan candidate, candidateQueueSize),
+		seen:           make(map[string]struct{}),
+		overBudget:     make(map[string]int),
+		failedEnable:   make(map[string]int),
+		settledTimeout: settledCheckTimeout,
+		imports:        importCache{},
+		stranded:       make(map[string]strandedSubmission),
+		status:         newStatusBoard(),
+		enableFee:      gasFee.Amount,
+		maxSpend:       maxSpend.Amount,
 	}, nil
 }
 
@@ -317,7 +339,9 @@ func (o *oracle) run(ctx context.Context) error {
 	// so concurrency would be safe; it stays serial because verification is the
 	// expensive thing this daemon does and running several at once would make
 	// each slower and the budget harder to interpret.
-	go o.runVerifier(ctx)
+	reoffer := time.NewTicker(reofferInterval)
+	defer reoffer.Stop()
+	go o.runVerifier(ctx, reoffer.C)
 
 	for {
 		select {
@@ -356,18 +380,33 @@ func (o *oracle) run(ctx context.Context) error {
 	}
 }
 
-// processBlock decodes a block's transactions and handles every MsgAddPackage.
+// processBlock hands every package a block added to the verifier.
 func (o *oracle) processBlock(ctx context.Context, height int64) error {
-	res, err := o.client.RPCClient.Block(ctx, &height)
+	added, err := o.addedPackages(ctx, height)
 	if err != nil {
 		return err
 	}
+	for _, c := range added {
+		if err := o.enqueue(ctx, c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// addedPackages decodes a block's transactions and returns the package of
+// every MsgAddPackage that succeeded, in block order.
+func (o *oracle) addedPackages(ctx context.Context, height int64) ([]candidate, error) {
+	res, err := o.client.RPCClient.Block(ctx, &height)
+	if err != nil {
+		return nil, err
+	}
 	if res.Block == nil {
-		return nil
+		return nil, nil
 	}
 	txs := res.Block.Data.Txs
 	if len(txs) == 0 {
-		return nil
+		return nil, nil
 	}
 	// Only transactions that SUCCEEDED count. A block carries every transaction
 	// that was proposed, including those that failed in DeliverTx -- CheckTx
@@ -388,15 +427,16 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 	// path rather than a content hash. That needs a chain-side change.
 	results, err := o.client.RPCClient.BlockResults(ctx, &height)
 	if err != nil {
-		return fmt.Errorf("cannot read results for block %d, refusing to verify "+
+		return nil, fmt.Errorf("cannot read results for block %d, refusing to verify "+
 			"transactions whose outcome is unknown: %w", height, err)
 	}
 	if results.Results == nil || len(results.Results.DeliverTxs) != len(txs) {
-		return fmt.Errorf("block %d has %d transactions but %d results; "+
+		return nil, fmt.Errorf("block %d has %d transactions but %d results; "+
 			"refusing to pair them by position",
 			height, len(txs), deliverTxCount(results))
 	}
 
+	var added []candidate
 	for i, raw := range txs {
 		if !results.Results.DeliverTxs[i].IsOK() {
 			continue
@@ -411,12 +451,10 @@ func (o *oracle) processBlock(ctx context.Context, height int64) error {
 			if !ok || add.Package == nil {
 				continue
 			}
-			if err := o.enqueue(ctx, candidate{mpkg: add.Package, height: height}); err != nil {
-				return err
-			}
+			added = append(added, candidate{mpkg: add.Package, height: height})
 		}
 	}
-	return nil
+	return added, nil
 }
 
 func deliverTxCount(r *ctypes.ResultBlockResults) int {
@@ -426,14 +464,22 @@ func deliverTxCount(r *ctypes.ResultBlockResults) int {
 	return len(r.Results.DeliverTxs)
 }
 
-// runVerifier drains the candidate queue, one package at a time.
-func (o *oracle) runVerifier(ctx context.Context) {
+// runVerifier drains the candidate queue, one package at a time, and on each
+// reoffer tick verifies again what it left pending (reofferStranded).
+func (o *oracle) runVerifier(ctx context.Context, reoffer <-chan time.Time) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case c := <-o.candidates:
 			o.handleCandidate(ctx, c)
+			// A pass cut short for a candidate goes on once the queue is empty,
+			// not a whole interval later.
+			if o.reofferNext != "" {
+				o.reofferStranded(ctx)
+			}
+		case <-reoffer:
+			o.reofferStranded(ctx)
 		}
 	}
 }
@@ -493,11 +539,20 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	if _, done := o.seen[key]; done {
 		return
 	}
+	defer o.track(path, c.height)
+	// Bounded on its own clock: a node that stops answering here only means
+	// the package is verified, and verifying reports the node as unavailable.
+	settleCtx, cancel := context.WithTimeout(ctx, o.settledTimeout)
+	settled := o.recordIfSettled(settleCtx, path, key)
+	cancel()
+	if settled {
+		return
+	}
 
 	o.logf("gpao: verifying %q (budget %s)", path, o.cfg.verifyBudget)
 	err := o.verify(ctx, mpkg)
 	if errors.Is(err, errVerifyUnavailable) {
-		// Left unseen and uncounted, so a restart or resubmission retries it.
+		// Left unseen and uncounted, so a later offer retries it.
 		o.status.record(path, statusPending, "the oracle could not run verification: "+err.Error(), 0)
 		o.errf("gpao: could not verify %q, leaving it pending: %v", path, err)
 		return
@@ -506,11 +561,8 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		// Not (usually) marked seen: the verdict is "we ran out of time", not
 		// "this package is bad", and CPU contention is transient.
 		//
-		// Note what that does and does not buy. Heights are read once and only
-		// move forward, so nothing re-offers this package on its own; the retry
-		// is a restart (with -start-height at or below the submitting block) or
-		// a resubmission. Leaving it unseen is what makes either effective
-		// instead of a no-op, and it keeps a slow package off the rejected list.
+		// Leaving it unseen is what makes a later offer effective instead of a
+		// no-op, and it keeps a slow package off the rejected list.
 		o.overBudget[key]++
 		if n := o.overBudget[key]; n >= maxOverBudgetAttempts {
 			o.seen[key] = struct{}{}
@@ -527,10 +579,9 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 	if errors.Is(err, errAwaitingDependency) {
-		// Left unseen, so a resubmission or a restart once the import is
-		// enabled gets a fresh look, and uncounted: a cap would end in the
-		// outcome this branch exists to prevent, valid bytes refused for the
-		// order they were sent in.
+		// Left unseen, so a later offer retries it once the import is live,
+		// and uncounted: a cap would end in the outcome this branch exists to
+		// prevent, valid bytes refused for the order they were sent in.
 		o.status.record(path, statusPending, err.Error(), 0)
 		o.logf("gpao: %q waits on a parked import, leaving it pending: %v", path, err)
 		return
@@ -546,14 +597,8 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		return
 	}
 
-	// Live with nothing waiting to be enabled? Then there is nothing to enable,
-	// and sending the message anyway costs the full fee to be told so. This is
-	// the common case when catching up with -start-height over blocks that were
-	// already approved. Terminal, so recorded.
-	if o.isSettled(ctx, path) {
-		o.status.record(path, statusApproved, "already active on-chain", 0)
-		o.seen[key] = struct{}{}
-		o.logf("gpao: %q is already active, nothing to approve", path)
+	// Asked again: the package may have gone live while it was being verified.
+	if o.recordIfSettled(ctx, path, key) {
 		return
 	}
 
@@ -593,10 +638,8 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		// maxEnableAttempts: the package verified, so the failure is about the
 		// chain's state rather than the code, and most such causes clear.
 		//
-		// As with overBudget, this does not re-offer the package by itself --
-		// heights only move forward. It is what makes a restart (with
-		// -start-height at or below the submitting block) or a resubmission of
-		// the same bytes effective instead of a silent no-op.
+		// As with overBudget, it is what makes a later offer of the same bytes
+		// effective instead of a silent no-op.
 		if n, giveUp := o.recordEnableFailure(key); giveUp {
 			o.status.record(path, statusGaveUp, err.Error(), n)
 			o.errf("gpao: failed to approve %q %d times, giving up on it this run "+
@@ -684,8 +727,8 @@ func blockMaxGasFrom(res *ctypes.ResultConsensusParams, fallback int64) int64 {
 // count, plus whether the oracle should stop retrying it.
 //
 // Marks the content seen only on the last attempt, which is the whole point:
-// until then the path stays eligible, so a restart or a resubmission of the same
-// bytes gets another go at a failure that was never about the bytes.
+// until then the path stays eligible, so a later offer of the same bytes gets
+// another go at a failure that was never about the bytes.
 func (o *oracle) recordEnableFailure(key string) (n int, giveUp bool) {
 	o.failedEnable[key]++
 	n = o.failedEnable[key]
@@ -708,6 +751,22 @@ func (o *oracle) wouldExceedSpend() bool {
 
 const ugnotDenom = "ugnot"
 
+// recordIfSettled records the candidate as already active when its path is
+// live with nothing waiting to be enabled, and reports whether it did.
+//
+// There is nothing to enable then, and sending the message anyway costs the
+// full fee to be told so. This is the common case when catching up with
+// -start-height over blocks that were already approved. Terminal, so recorded.
+func (o *oracle) recordIfSettled(ctx context.Context, path, key string) bool {
+	if !o.isSettled(ctx, path) {
+		return false
+	}
+	o.status.record(path, statusApproved, "already active on-chain", 0)
+	o.seen[key] = struct{}{}
+	o.logf("gpao: %q is already active, nothing to approve", path)
+	return true
+}
+
 // isSettled reports whether a package is live at this path with nothing left to
 // enable.
 //
@@ -728,25 +787,20 @@ const ugnotDenom = "ugnot"
 // silently stop the oracle approving. The spend bound is what limits the damage
 // if the node is wrong.
 func (o *oracle) isSettled(ctx context.Context, pkgPath string) bool {
-	res, err := o.client.Query(gnoclient.QueryCfg{
-		Path: "vm/qpkgmeta_json",
-		Data: []byte(pkgPath),
-	})
-	if err != nil || res == nil || res.Response.Error != nil {
-		return false
-	}
-	return pkgMetaSettled(res.Response.Data)
+	meta, err := queryPkgMeta(ctx, o.client.RPCClient, pkgPath)
+	return err == nil && metaSettled(meta)
 }
 
-// pkgMetaSettled reads a vm/qpkgmeta_json response and reports "live with no
-// submission pending" -- the one state where an enable has nothing to do.
-// Split out from the query so it can be tested without a node, like
-// blockMaxGasFrom.
-func pkgMetaSettled(data []byte) bool {
-	var meta vm.PackageMeta
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return false
-	}
+// settledCheckTimeout bounds the settled check before verifying. A healthy
+// node answers that query in well under a second, so a node that stops
+// answering holds the verifier this long, not for the RPC client's minute. The
+// check after verifying keeps the client's deadline: giving up there sends an
+// enable, which costs a fee.
+const settledCheckTimeout = 10 * time.Second
+
+// metaSettled reports "live with no submission pending" -- the one state where
+// an enable has nothing to do.
+func metaSettled(meta vm.PackageMeta) bool {
 	return meta.Status == vm.PackageStatusLive && !meta.Pending
 }
 

@@ -166,8 +166,30 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func TestSecureHeadersMiddlewareIPFSGateway(t *testing.T) {
+	cspFor := func(gateway string) string {
+		handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com", gateway)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest("GET", "http://example.com", nil))
+		return rec.Result().Header.Get("Content-Security-Policy")
+	}
+
+	csp := cspFor("https://ipfs.filebase.io")
+	assert.Contains(t, csp, " https://ipfs.filebase.io ")
+	assert.NotContains(t, csp, "https://ipfs.io")
+	assert.NotContains(t, csp, "cloudflare-ipfs.com")
+	assert.NotContains(t, cspFor(""), "filebase")
+
+	// A subdomain gateway (Kubo, by default on localhost) redirects
+	// /ipfs/<cid> to <cid>.ipfs.<host>, so those subdomains are allowed too.
+	assert.Contains(t, cspFor("http://localhost:8080"),
+		" http://localhost:8080 http://*.ipfs.localhost:8080 http://*.ipns.localhost:8080;")
+	// An IP address has no subdomains.
+	assert.Contains(t, cspFor("http://127.0.0.1:8080"), " http://127.0.0.1:8080;")
+}
+
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com", "https://ipfs.filebase.io")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -212,7 +234,7 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com", "https://ipfs.filebase.io")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()

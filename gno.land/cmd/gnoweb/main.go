@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -20,7 +21,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Authorized external image host providers.
+// Authorized external image host providers. docs/users/explore-with-gnoweb.md
+// lists them for users: keep the two in sync.
 var cspImgHost = []string{
 	// Gno-related hosts
 	"https://gnolang.github.io",
@@ -38,9 +40,7 @@ var cspImgHost = []string{
 	"https://github.com",
 	"https://*.githubusercontent.com",
 
-	// IPFS
-	"https://ipfs.io",
-	"https://cloudflare-ipfs.com",
+	// IPFS: the configured -ipfs-gateway is added at startup.
 }
 
 type webCfg struct {
@@ -51,6 +51,7 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	ipfsGateway      string
 	indexerURL       string
 	aliases          string
 	trustedProxies   string
@@ -85,6 +86,7 @@ var defaultWebOptions = webCfg{
 	timeout:        time.Minute,
 	trustedPaths:   gnoweb.DefaultTrustedPaths,
 	indexCommunity: gnoweb.NewDefaultAppConfig().IndexCommunity,
+	ipfsGateway:    gnoweb.DefaultIPFSGateway,
 }
 
 func main() {
@@ -233,6 +235,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"The faucet URL will redirect the user when they access `/faucet`.",
 	)
 
+	fs.StringVar(
+		&c.ipfsGateway,
+		"ipfs-gateway",
+		defaultWebOptions.ipfsGateway,
+		"IPFS gateway origin that ipfs:// URLs, URLs on retired gateways (ipfs.io, dweb.link, ...) and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
+	)
+
 	fs.BoolVar(
 		&c.json,
 		"json",
@@ -345,6 +354,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		// ParseTrustedProxies trims and skips empty entries itself.
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
+	appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
@@ -389,8 +399,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
-	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	// Setup security headers. NewRouter normalized the IPFS gateway in place.
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.RenderConfig.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -448,13 +458,35 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+// ipfsGatewayImgSources returns the img-src sources an IPFS gateway origin
+// needs: the origin itself and, for a DNS name, the subdomains a subdomain
+// gateway redirects /ipfs/<cid> and /ipns/<name> to (<cid>.ipfs.<host>,
+// <name>.ipns.<host>), as Kubo does by default on localhost.
+func ipfsGatewayImgSources(origin string) []string {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	sources := []string{origin}
+	if net.ParseIP(u.Hostname()) == nil {
+		sources = append(sources, u.Scheme+"://*.ipfs."+u.Host, u.Scheme+"://*.ipns."+u.Host)
+	}
+	return sources
+}
+
+// SecureHeadersMiddleware sets the security headers. ipfsGateway is the
+// normalized IPFS gateway origin (empty if disabled); it is allowed as an
+// image source because rendered ipfs:// images point at it.
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
+	}
+	for _, src := range ipfsGatewayImgSources(ipfsGateway) {
+		imgSrc.WriteString(" " + src)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of
