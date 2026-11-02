@@ -69,9 +69,9 @@ export async function shareLink(
 
 // The declarations gno run can start from. A crossing Render is not one:
 // -expr cannot hand it its cur inside the println that shows its result.
-const MAIN_DECL = /^\s*func\s+main\s*\(/m;
+const MAIN_DECL = /^[ \t]*func\s+main\s*\(/m;
 const RENDER_DECL =
-	/^\s*func\s+Render\s*\(\s*(?:\w+\s+)?string\s*\)\s*(?:string\b|\(\s*(?:\w+\s+)?string\s*\))/m;
+	/^[ \t]*func\s+Render\s*\(\s*(?:\w+\s+)?string\s*\)\s*(?:string\b|\(\s*(?:\w+\s+)?string\s*\))/m;
 
 // localCommands are the commands that run and test files saved in one
 // directory, each empty when it would only fail.

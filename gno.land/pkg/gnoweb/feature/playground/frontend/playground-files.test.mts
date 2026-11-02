@@ -199,6 +199,7 @@ test("localCommands prints only what would run", () => {
 		["neither", [gno("package a\n")], "", ""],
 		["a spaced main", [gno("func main () {}\n")], runMain, ""],
 		["an indented main", [gno("  func main() {}\n")], runMain, ""],
+		["a tab-indented main", [gno("\n\n\tfunc main() {}\n")], runMain, ""],
 		["a main in a comment", [gno("// func main() {}\n")], "", ""],
 		["a main in a test", [gno(main, "a_test.gno")], "", ""],
 		["a main in a filetest", [gno(main, "z_filetest.gno")], "", ""],
@@ -207,6 +208,17 @@ test("localCommands prints only what would run", () => {
 	for (const [name, files, run, test] of cases) {
 		assert.deepEqual(localCommands(files), { run, test }, name);
 	}
+});
+
+test("localCommands reads a file of blank lines in linear time", () => {
+	// A share link holds about 32k of them: the declarations must not walk
+	// every blank line again from each line start.
+	const files = [
+		{ name: "a.gno", content: `package a${"\n".repeat(1 << 16)}` },
+	];
+	const start = performance.now();
+	assert.deepEqual(localCommands(files), { run: "", test: "" });
+	assert.ok(performance.now() - start < 500, "localCommands took too long");
 });
 
 test("renderText reads the string a Render eval returns", () => {
