@@ -14,6 +14,8 @@ faucets and indexers. The following are out of scope:
 
 * packages and realms that are not in this repository, such as those deployed
   on gno.land by third parties: please report those to their authors;
+* packages and realms under `examples/quarantined`, which are not deployed on
+  public networks;
 * attacks that assume more than a third of validator voting power is malicious,
   or that need someone else's private keys;
 * denial of service through traffic volume alone, such as flooding an RPC
@@ -94,6 +96,7 @@ we may stop answering addresses that misuse it.
 Please keep the vulnerability private until its fix is deployed on gno.land
 mainnet. Fixes often land in this repository before then; that doesn't end the
 embargo, since the chain keeps running the vulnerable code until it upgrades.
+We will email you when the fix is deployed, so you know when you can disclose.
 
 If the fix is not deployed within 90 days of your report, you may disclose it
 after telling us first. Fixes that need a coordinated chain upgrade can take
