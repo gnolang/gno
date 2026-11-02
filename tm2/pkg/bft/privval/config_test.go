@@ -391,24 +391,19 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 				done <- err
 			}()
 
-			// Poll for the socket to exist (Listen is fast; chmod runs
-			// immediately after).
-			var info os.FileInfo
-			var statErr error
-			deadline := time.Now().Add(500 * time.Millisecond)
-			for time.Now().Before(deadline) {
-				info, statErr = os.Stat(sockPath)
-				if statErr == nil {
-					break
+			// Poll until the socket has the configured mode, before Init
+			// times out: between bind and chmod it has another one. A
+			// failure reports the last mode seen.
+			assert.EventuallyWithT(t, func(c *assert.CollectT) {
+				info, err := os.Stat(sockPath)
+				if !assert.NoError(c, err, "socket must exist before Init times out") {
+					return
 				}
-				time.Sleep(10 * time.Millisecond)
-			}
-			require.NoError(t, statErr, "socket must exist before Init times out")
-
-			// Higher bits (S_IFSOCK, etc.) are fine; mask to the perm bits
-			// we care about.
-			assert.Equal(t, tc.want, info.Mode().Perm(),
-				"UDS socket must have the configured mode, whatever the umask")
+				// Higher bits (S_IFSOCK, etc.) are fine; mask to the perm
+				// bits we care about.
+				assert.Equal(c, tc.want, info.Mode().Perm(),
+					"UDS socket must have the configured mode, whatever the umask")
+			}, 500*time.Millisecond, 10*time.Millisecond)
 
 			// Drain the goroutine.
 			select {
