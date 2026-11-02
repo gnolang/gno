@@ -10,12 +10,16 @@ vulnerability per email.
 
 Everything in this repository is in scope, along with gno.land mainnet, the
 testnets running it, and the services we host for them, such as RPC endpoints,
-faucets and indexers. The following are out of scope:
+faucets and indexers. Under `examples/`, only the packages and realms that
+mainnet genesis is built from are in scope: those listed in `FILTERED_PACKAGES`
+in [`gen-genesis.sh`](misc/deployments/mainnet.gno.land/gen-genesis.sh), and the
+packages and realms they import, directly or indirectly. The following are out
+of scope:
 
 * packages and realms that are not in this repository, such as those deployed
   on gno.land by third parties: please report those to their authors;
-* packages and realms under `examples/quarantined`, which are not deployed on
-  public networks;
+* packages and realms that the genesis set uses only in its tests, even though
+  genesis deploys them as well;
 * attacks that assume more than a third of validator voting power is malicious,
   or that need someone else's private keys;
 * denial of service through traffic volume alone, such as flooding an RPC
@@ -41,7 +45,8 @@ We can verify a report fastest when we can reproduce it. Please include:
   `gno.land/pkg/integration/testdata`, a GnoVM filetest under
   `gnovm/tests/files`, or a Go test;
 * what you expected to happen, and what happened instead;
-* the impact, and the severity you would assign it (a CVSS vector is welcome).
+* the impact, and the severity you would assign it (a CVSS v3.1 vector is
+  welcome).
 
 Attach files to your email rather than linking to them on outside hosts.
 
@@ -51,8 +56,9 @@ Attach files to your email rather than linking to them on outside hosts.
    your email, generally within a few minutes.
 2. An automated system tries to reproduce your report against the current
    `master` branch.
-3. It replies with the outcome, and the reply says that the outcome came from
-   automated verification.
+3. It replies with the outcome: for example, that your report was reproduced,
+   could not be reproduced, or duplicates an issue we already know about. The
+   reply says that the outcome came from automated verification.
 4. The team reviews verified findings and follows up with you.
 
 We will respond to every report within 3 business days. The verification outcome
@@ -71,10 +77,9 @@ There is no encrypted or otherwise confidential intake: every report goes
 through the process described here.
 
 Automated processing has been chosen as the path that more easily allows us to
-filter signal from noise. Please follow the route described here, and don't ask
-for special handling because you would rather language models didn't see your
-report: we rely on coding agents heavily for development work, including finding
-and fixing vulnerabilities, so they will process it on its way to a fix anyway.
+filter signal from noise. Please report through this process only. We can't
+offer a channel that language models don't read, because coding agents are
+part of how we find and fix vulnerabilities.
 
 If the automated system gets the assessment wrong, even after follow-ups,
 include this exact sentence in an email, and the email will be forwarded to our
@@ -104,8 +109,8 @@ longer; in that case we will ask you for more time.
 
 ## Rewards
 
-Only verified findings of High or Critical severity, as defined by CVSS (a score
-of 7.0 or above), can be eligible for a reward. Amounts and the reward process
-are not fixed, and a report does not guarantee payment.
+Only verified findings of High or Critical severity, as defined by CVSS v3.1 (a
+score of 7.0 or above), can be eligible for a reward. Amounts and the reward
+process are not fixed, and a report does not guarantee payment.
 
 Thank you for helping to keep our ecosystem safe!
