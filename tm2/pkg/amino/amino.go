@@ -147,16 +147,8 @@ func UnmarshalSizedReader(r io.Reader, ptr any, maxSize int64) (n int64, err err
 	return gcdc.UnmarshalSizedReader(r, ptr, maxSize)
 }
 
-func MustUnmarshalSized(bz []byte, ptr any) {
-	gcdc.MustUnmarshalSized(bz, ptr)
-}
-
 func UnmarshalAny(bz []byte, ptr any) error {
 	return gcdc.UnmarshalAny(bz, ptr)
-}
-
-func UnmarshalAny2(typeURL string, value []byte, ptr any) error {
-	return gcdc.UnmarshalAny2(typeURL, value, ptr)
 }
 
 func MustUnmarshalAny(bz []byte, ptr any) {
