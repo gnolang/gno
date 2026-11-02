@@ -39,42 +39,6 @@ func TestPackageName(t *testing.T) {
 			files: []*std.MemFile{{Name: "gnomod.toml", Body: "module = \"x\""}},
 			want:  "",
 		},
-		{
-			// vm/qfile serves a package's files sorted, and ReadMemPackage
-			// flattens filetests/ into the same list, so a filetest routinely
-			// sorts ahead of the production files. Its package clause is
-			// arbitrary and unrelated to the package's own.
-			name: "ignores a filetest sorting ahead of the production files",
-			files: []*std.MemFile{
-				{Name: "caller_teller_sub_realm_filetest.gno", Body: "package grc20subrealm\n"},
-				{Name: "token.gno", Body: "package grc20\n\nfunc F() {}"},
-			},
-			want: "grc20",
-		},
-		{
-			name: "strips the _test suffix an external test file carries",
-			files: []*std.MemFile{
-				{Name: "grc20_test.gno", Body: "package grc20_test\n"},
-				{Name: "token.gno", Body: "package grc20\n"},
-			},
-			want: "grc20",
-		},
-		{
-			name: "filetests agreeing on a clause name the package",
-			files: []*std.MemFile{
-				{Name: "a_filetest.gno", Body: "package anything\n"},
-				{Name: "b_filetest.gno", Body: "package anything\n"},
-			},
-			want: "anything",
-		},
-		{
-			name: "filetests disagreeing fall back to the chain's default",
-			files: []*std.MemFile{
-				{Name: "a_filetest.gno", Body: "package anything\n"},
-				{Name: "b_filetest.gno", Body: "package something\n"},
-			},
-			want: "filetests",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,20 +51,24 @@ func TestPackageName(t *testing.T) {
 // vm/qfile carries. The listing is what a node serves for a package holding
 // filetests: production files, stored _test.gno, and flattened _filetest.gno,
 // sorted, so the filetest comes first and its package clause is not the
-// package's own.
+// package's own. Neither test file's body is queried: both stages read only an
+// import's production files.
 func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 	const pkgPath = "gno.land/p/nt/grc20/v0"
 	files := map[string]string{
-		pkgPath: "caller_teller_sub_realm_filetest.gno\ngnomod.toml\ntoken.gno\ntoken_test.gno",
+		pkgPath:                         "README.md\ncaller_teller_sub_realm_filetest.gno\ngnomod.toml\ntoken.gno\ntoken_test.gno",
+		path.Join(pkgPath, "README.md"): "# grc20\n",
 		path.Join(pkgPath, "caller_teller_sub_realm_filetest.gno"): "package grc20subrealm\n",
 		path.Join(pkgPath, "gnomod.toml"):                          "module = \"" + pkgPath + "\"\n",
 		path.Join(pkgPath, "token.gno"):                            "package grc20\n\nfunc F() {}\n",
 		path.Join(pkgPath, "token_test.gno"):                       "package grc20_test\n",
 	}
 
+	var queried []string
 	g := &rpcGetter{
 		cache: make(map[string]*std.MemPackage),
 		qfile: func(fp string) ([]byte, error) {
+			queried = append(queried, fp)
 			body, ok := files[fp]
 			if !ok {
 				return nil, errors.New("file is not available")
@@ -114,21 +82,21 @@ func TestRPCGetterNamesReconstructedPackage(t *testing.T) {
 	assert.Equal(t, "grc20", mpkg.Name,
 		"the typechecker emits .gnobuiltins.gno under this name, so a filetest's "+
 			"clause here rejects the importing package for a name its author never wrote")
+	assert.Equal(t, []string{pkgPath, path.Join(pkgPath, "gnomod.toml"), path.Join(pkgPath, "token.gno")},
+		queried)
+	assert.Equal(t, []string{"gnomod.toml", "token.gno"}, mpkg.FileNames())
 }
 
 // TestRPCGetterCaching verifies the getter caches what the node ANSWERED --
-// a fetched package, because on-chain paths are immutable, and an absence --
-// and does not cache a fault.
+// a fetched package and an absence -- and does not cache a fault.
 //
-// An absence used to be re-queried, on the rationale that a package absent now
-// may be enabled later in the run. That rationale belonged to a getter hanging
-// off the long-lived daemon. This one is built per verification in a child that
-// exits with it (newVerifier), so nothing can enable a package under it, and
-// re-asking only moves the same answer out of prepare -- which is off the
-// budget -- into the typecheck and the preprocess, which are on it. Against a
-// slow node that turns a rejection the typecheck was going to give into an
-// overrun, which counts toward maxOverBudgetAttempts instead of settling the
-// package.
+// An absence is cached because the getter serves a single verification
+// (newVerifier in the child, oracle.verify in the parent), so nothing can
+// enable a package under it. Re-asking only moves the same answer out of
+// prepare -- which is off the budget -- into the typecheck and the preprocess,
+// which are on it. Against a slow node that turns a rejection the typecheck
+// was going to give into an overrun, which counts toward
+// maxOverBudgetAttempts instead of settling the package.
 func TestRPCGetterCaching(t *testing.T) {
 	const pkgPath = "gno.land/p/x"
 	files := map[string]string{
