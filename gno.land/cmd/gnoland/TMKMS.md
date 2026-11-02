@@ -157,8 +157,17 @@ For UDS there is no SecretConnection and no pubkey allowlist: the only access co
 
 With the default `0600`, the signer must run as gnoland's user, so a compromise of gnoland also reaches what the signer holds: the HSM password (or a softsign key) and tmkms's double-sign state. To give the signer its own user, let the signer's group connect instead:
 
-1. Before gnoland starts, create the socket's directory owned by gnoland's user and the signer's group, with the setgid bit and only the group's search bit, for example `mkdir -p /run/gnoland && chown gnoland:tmkms /run/gnoland && chmod 2710 /run/gnoland`. A directory under a tmpfs such as `/run` has to be created again after every boot.
-2. Set `socket_mode = "0660"`.
+1. Run the signer as a user in its own group, for example user and group `tmkms`. gnoland's user stays out of that group.
+2. Before gnoland starts, create the socket's directory owned by gnoland's user and the signer's group, with the setgid bit and only the group's search bit, for example `mkdir -p /run/gnoland && chown gnoland:tmkms /run/gnoland && chmod 2710 /run/gnoland`. A directory under a tmpfs such as `/run` has to be created again after every boot.
+3. In gnoland's `config.toml`, with the other keys as in "Configuration" above, listen on a socket in that directory, open to the group:
+
+   ```toml
+   [consensus.priv_validator.tmkms_listener]
+   listen_addr = "unix:///run/gnoland/privval.sock"
+   socket_mode = "0660"
+   ```
+
+4. In `tmkms.toml`, point the `[[validator]]` block at the same socket: `addr = "unix:///run/gnoland/privval.sock"`.
 
 A socket created in a setgid directory takes the directory's group ([inode(7)](https://man7.org/linux/man-pages/man7/inode.7.html)), even though gnoland's user is not in that group. The signer's user, a member of the group, can traverse the directory and connect; other users can do neither. gnoland's user needs no membership in the signer's group, which would also grant it whatever else that group can open.
 
