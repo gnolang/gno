@@ -102,6 +102,7 @@ const (
 	_allocRefValue     = 72 // unsafe.Sizeof(RefValue{})
 	_allocTypeValue    = 16 // unsafe.Sizeof(TypeValue{})
 	_allocTypedValue   = 40 // unsafe.Sizeof(TypedValue{})
+	_allocBits256Value = 32 // unsafe.Sizeof(Uint256Value{})
 
 	// By-pointer types (pointer receivers on Value interface).
 	// Heap-allocated; *T stored in TypedValue.V.
@@ -144,6 +145,10 @@ const (
 
 	// PointerValue (32 bytes, by value, escapes to heap via interface).
 	allocPointer = _allocHeap + _allocPointerValue
+
+	// Int256Value/Uint256Value (32 bytes, by value, escapes to heap via interface).
+	// Charged for every non-zero int256/uint256 result; zero is a nil V.
+	allocBits256 = _allocHeap + _allocBits256Value
 
 	// By-pointer types: _allocHeap + sizeof.
 	allocArray       = _allocHeap + _allocArrayValue
@@ -189,6 +194,7 @@ func init() {
 	check("_allocPackageValue", _allocPackageValue, unsafe.Sizeof(PackageValue{}))
 	check("_allocTypeValue", _allocTypeValue, unsafe.Sizeof(TypeValue{}))
 	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
+	check("_allocBits256Value", _allocBits256Value, unsafe.Sizeof(Uint256Value{}))
 	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
 	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
 }
@@ -986,6 +992,8 @@ func internalRefSize(val Value) int64 {
 	case StringValue:
 		// do nothing
 	case BigintValue:
+		// do nothing
+	case Int256Value, Uint256Value:
 		// do nothing
 	case BigdecValue:
 		// do nothing

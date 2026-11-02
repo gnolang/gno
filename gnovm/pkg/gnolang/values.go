@@ -1413,6 +1413,10 @@ func (tv *TypedValue) MapKeyBytes(bz []byte) (bz2 []byte, isNaN bool) {
 		return binary.LittleEndian.AppendUint32(bz, tv.GetUint32()), false
 	case UintType, Uint64Type:
 		return binary.LittleEndian.AppendUint64(bz, tv.GetUint()), false
+	case Int256Type, Uint256Type:
+		z := tv.GetBits256()
+		b32 := z.Bytes32()
+		return append(bz, b32[:]...), false
 	case Float32Type:
 		u32 := tv.GetFloat32()
 		if u32 == 0 || u32 == (1<<31) { // 0 or -0 normalized to 0
@@ -1507,6 +1511,9 @@ func (tv *TypedValue) SetInt(n int64) {
 }
 
 func (tv *TypedValue) ConvertGetInt() int64 {
+	if is256Kind(tv.T.Kind()) {
+		return convertGetInt256(tv)
+	}
 	var store Store = nil // not used
 	// IntType-only conversion: no allocation occurs, so pass a nil
 	// (no-op) allocator.
@@ -1873,6 +1880,14 @@ func (tv *TypedValue) Sign() int {
 		return signOfInteger(uint64(tv.GetUint32()))
 	case Uint64Kind:
 		return signOfInteger(tv.GetUint64())
+	case Int256Kind:
+		z := tv.GetBits256()
+		return z.Sign()
+	case Uint256Kind:
+		if tv.V == nil {
+			return 0
+		}
+		return 1
 	case Float32Kind:
 		return signOfFloat32Bits(tv.GetFloat32())
 	case Float64Kind:

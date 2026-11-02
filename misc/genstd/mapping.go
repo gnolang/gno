@@ -23,7 +23,11 @@ type mapping struct {
 }
 
 type mappingType struct {
-	Type ast.Expr
+	Type ast.Expr // the Gno type
+
+	// GoType is the Go type, which is the same expression as Type except
+	// for the 256-bit integers (int256 is gno.Int256, see gnoGoTypes).
+	GoType ast.Expr
 
 	// IsTypedValue is set to true if the parameter or result in go is of type
 	// gno.TypedValue. This prevents the generated code from performing
@@ -32,7 +36,7 @@ type mappingType struct {
 }
 
 func (mt mappingType) GoQualifiedName() string {
-	return types.ExprString(mt.Type)
+	return types.ExprString(mt.GoType)
 }
 
 func (mt mappingType) GnoTypeExpression() string {
@@ -109,13 +113,30 @@ func (m *mapping) loadParamsResults(gnof, gof funcDecl) {
 
 func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field) {
 	iterFields(gnol, gol, func(gnoe, goe ast.Expr) error {
-		if m.isTypedValue(goe) {
-			*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true})
-		} else {
-			*dst = append(*dst, mappingType{Type: gnoe})
-		}
+		*dst = append(*dst, mappingType{Type: gnoe, GoType: m.qualifyGoType(goe), IsTypedValue: m.isTypedValue(goe)})
 		return nil
 	})
+}
+
+// qualifyGoType returns e with each package selector renamed to the name the
+// generated file imports the package under (see tplData.Imports), whatever
+// alias the native's own file uses.
+func (m *mapping) qualifyGoType(e ast.Expr) ast.Expr {
+	switch e := e.(type) {
+	case *ast.SelectorExpr:
+		path := resolveSelectorImport(m.goImports, e)
+		return &ast.SelectorExpr{X: ast.NewIdent(pkgNameFromPath(path)), Sel: e.Sel}
+	case *ast.StarExpr:
+		return &ast.StarExpr{X: m.qualifyGoType(e.X)}
+	case *ast.ArrayType:
+		return &ast.ArrayType{Len: e.Len, Elt: m.qualifyGoType(e.Elt)}
+	case *ast.MapType:
+		return &ast.MapType{Key: m.qualifyGoType(e.Key), Value: m.qualifyGoType(e.Value)}
+	case *ast.Ellipsis:
+		return &ast.Ellipsis{Elt: m.qualifyGoType(e.Elt)}
+	default:
+		return e
+	}
 }
 
 // isGnoMachine checks whether field is of type *gno.Machine,
@@ -207,6 +228,14 @@ func (m *mapping) typesEqual(gnoe, goe ast.Expr) error {
 	// https://go.dev/ref/spec#Type
 
 	case *ast.Ident:
+		// Gno builtins that have no Go counterpart are matched to a type
+		// of the gnolang package.
+		if goName, ok := gnoGoTypes[gnoe.Name]; ok {
+			if !m.isGnoType(goe, false, goName) {
+				return &mismatch
+			}
+			return nil
+		}
 		goi, ok := goe.(*ast.Ident)
 		switch {
 		case !ok || gnoe.Name != goi.Name:
@@ -367,6 +396,15 @@ var builtinTypes = [...]string{
 	"float32",
 	"float64",
 	"error",
+	"int256",
+	"uint256",
+}
+
+// gnoGoTypes maps the Gno builtin types that Go lacks to the gnolang package
+// types natives use for them (see gnolang.Int256).
+var gnoGoTypes = map[string]string{
+	"int256":  "Int256",
+	"uint256": "Uint256",
 }
 
 func isBuiltin(name string) bool {

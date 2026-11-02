@@ -131,6 +131,11 @@ const (
 	UntypedBigintType
 	UntypedBigdecType
 	// UintptrType
+	// Int256Type and Uint256Type are appended last: PrimitiveType values are
+	// amino-persisted as varints, so inserting them earlier would renumber
+	// the float and untyped types already stored on chain.
+	Int256Type
+	Uint256Type
 )
 
 // Used for converting constant binary expressions.
@@ -167,6 +172,8 @@ func (pt PrimitiveType) Specificity() int {
 	case Uint32Type:
 		return 0
 	case Uint64Type:
+		return 0
+	case Int256Type, Uint256Type:
 		return 0
 	case Float32Type:
 		return 0
@@ -215,6 +222,10 @@ func (pt PrimitiveType) Kind() Kind {
 		return Uint32Kind
 	case Uint64Type:
 		return Uint64Kind
+	case Int256Type:
+		return Int256Kind
+	case Uint256Type:
+		return Uint256Kind
 	case Float32Type:
 		return Float32Kind
 	case Float64Type:
@@ -265,6 +276,10 @@ func (pt PrimitiveType) TypeID() TypeID {
 		return typeid("uint32")
 	case Uint64Type:
 		return typeid("uint64")
+	case Int256Type:
+		return typeid("int256")
+	case Uint256Type:
+		return typeid("uint256")
 	case Float32Type:
 		return typeid("float32")
 	case Float64Type:
@@ -314,6 +329,10 @@ func (pt PrimitiveType) String() string {
 		return string("uint32")
 	case Uint64Type:
 		return string("uint64")
+	case Int256Type:
+		return string("int256")
+	case Uint256Type:
+		return string("uint256")
 	case Float32Type:
 		return string("float32")
 	case Float64Type:
@@ -2382,6 +2401,8 @@ const (
 	Uint16Kind
 	Uint32Kind
 	Uint64Kind
+	Int256Kind  // not in go.
+	Uint256Kind // not in go.
 	Float32Kind
 	Float64Kind
 	BigintKind // not in go.
@@ -2435,6 +2456,10 @@ func KindOf(t Type) Kind {
 			return Uint32Kind
 		case Uint64Type:
 			return Uint64Kind
+		case Int256Type:
+			return Int256Kind
+		case Uint256Type:
+			return Uint256Kind
 		case Float32Type:
 			return Float32Kind
 		case Float64Type:

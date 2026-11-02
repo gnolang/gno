@@ -1346,6 +1346,8 @@ func getChildObjects(val Value, more []Value) []Value {
 		return more
 	case BigintValue:
 		return more
+	case Int256Value, Uint256Value:
+		return more
 	case BigdecValue:
 		return more
 	case DataByteValue:
@@ -1622,6 +1624,8 @@ func copyValueWithRefs(val Value) Value {
 		return cv
 	case BigintValue:
 		return cv
+	case Int256Value, Uint256Value:
+		return cv
 	case BigdecValue:
 		return cv
 	case DataByteValue:
@@ -1894,6 +1898,8 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	case StringValue: // do nothing
 		return cv
 	case BigintValue: // do nothing
+		return cv
+	case Int256Value, Uint256Value: // do nothing
 		return cv
 	case BigdecValue: // do nothing
 		return cv

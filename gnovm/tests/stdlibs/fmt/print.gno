@@ -394,6 +394,36 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 	}
 }
 
+// fmtInteger256 formats a 256-bit integer; for int256, v holds its two's
+// complement bits. %c, %q and %U are not supported: no 256-bit value beyond
+// the uint64 range is a code point.
+func (p *pp) fmtInteger256(v uint256, isSigned bool, verb rune) {
+	switch verb {
+	case 'v':
+		if p.fmt.sharpV && !isSigned {
+			// As fmt0x64: %#v prints an unsigned integer in hex.
+			sharp := p.fmt.sharp
+			p.fmt.sharp = true
+			p.fmt.fmtInteger256(v, 16, isSigned, 'v', ldigits)
+			p.fmt.sharp = sharp
+		} else {
+			p.fmt.fmtInteger256(v, 10, isSigned, verb, ldigits)
+		}
+	case 'd':
+		p.fmt.fmtInteger256(v, 10, isSigned, verb, ldigits)
+	case 'b':
+		p.fmt.fmtInteger256(v, 2, isSigned, verb, ldigits)
+	case 'o', 'O':
+		p.fmt.fmtInteger256(v, 8, isSigned, verb, ldigits)
+	case 'x':
+		p.fmt.fmtInteger256(v, 16, isSigned, verb, ldigits)
+	case 'X':
+		p.fmt.fmtInteger256(v, 16, isSigned, verb, udigits)
+	default:
+		p.badVerb(verb)
+	}
+}
+
 // fmtFloat formats a float. The default precision for each verb
 // is specified as last argument in the call to fmt_float.
 func (p *pp) fmtFloat(v float64, size int, verb rune) {
@@ -657,6 +687,10 @@ func (p *pp) printArg(arg any, verb rune) {
 		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint64:
 		p.fmtInteger(f, unsigned, verb)
+	case int256:
+		p.fmtInteger256(uint256(f), signed, verb)
+	case uint256:
+		p.fmtInteger256(f, unsigned, verb)
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
@@ -701,6 +735,10 @@ func (p *pp) printValue(value valueInfo, verb rune, depth int) {
 		p.fmtInteger(f.Bytes, signed, verb)
 	case "uint", "uint8", "uint16", "uint32", "uint64":
 		p.fmtInteger(f.Bytes, unsigned, verb)
+	case "int256":
+		p.fmtInteger256(uint256(value.Base.(int256)), signed, verb)
+	case "uint256":
+		p.fmtInteger256(value.Base.(uint256), unsigned, verb)
 	case "float32":
 		p.fmtFloat(float64(math.Float32frombits(uint32(f.Bytes))), 32, verb)
 	case "float64":
@@ -837,6 +875,18 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 			case "uint", "uint8", "uint16", "uint32", "uint64":
 				n := v.Bytes
 				if int64(n) >= 0 && uint64(int(n)) == n {
+					num = int(n)
+					isInt = true
+				}
+			case "int256":
+				n := v.Base.(int256)
+				if int256(int(n)) == n {
+					num = int(n)
+					isInt = true
+				}
+			case "uint256":
+				n := v.Base.(uint256)
+				if n <= uint256(^uint(0)>>1) {
 					num = int(n)
 					isInt = true
 				}

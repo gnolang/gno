@@ -228,7 +228,17 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped by native int256/uint256 (gnovm/adr/pr6387_native_int256.md): the
+// stdlib gained strconv/int256.gno and its test, 256-bit functions in
+// math/overflow (and overflow256_test.gno), and the math.MaxInt256,
+// MinInt256 and MaxUint256 constants. Those source bytes are in genesis
+// state, so the root moves; crossrealm38 uses none of them. With the master
+// versions of strconv and math, this branch reproduces the previous root.
+// Re-derived when the 256-bit helpers and constants moved to files of their
+// own (math/overflow/overflow256_generated.gno, math/const256.gno), so that
+// tools turning Gno into Go can leave them out whole.
+const expectedCrossrealm38Hash = "157ad7ea8ccbd52cb67f7c7240955dd0ea5b73f3d4ca00e1684c1347ebf2e37f"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

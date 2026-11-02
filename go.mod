@@ -25,6 +25,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/gtank/merlin v0.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/holiman/uint256 v1.3.2
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0

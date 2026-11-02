@@ -45,6 +45,8 @@ type transpileOptions struct {
 	// resolver maps Gno import paths to their on-disk location relative
 	// to cfg.rootDir.
 	resolver transpiler.ImportResolver
+	// int256/uint256 handling, see tool_transpile_int256.go.
+	go256 *go256State
 }
 
 func newTranspileOptions(cfg *transpileCfg, io commands.IO) *transpileOptions {
@@ -53,6 +55,7 @@ func newTranspileOptions(cfg *transpileCfg, io commands.IO) *transpileOptions {
 		io:         io,
 		transpiled: map[string]struct{}{},
 		resolver:   transpiler.DefaultResolver(cfg.rootDir),
+		go256:      newGo256State(),
 	}
 }
 
@@ -147,8 +150,9 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 
 	opts := newTranspileOptions(cfg, io)
 
-	if r := buildTranspileResolver(cfg.rootDir, io); r != nil {
+	if r, dirs := buildTranspileResolver(cfg.rootDir, io); r != nil {
 		opts.resolver = r
+		opts.go256.pkgPaths = dirs
 	}
 	var errlist scanner.ErrorList
 	for _, path := range paths {
@@ -178,6 +182,12 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	if errlist.Len() == 0 && cfg.gobuild {
 		for _, pkgPath := range paths {
 			if slices.Contains(opts.skipped, pkgPath) {
+				continue
+			}
+			if reason, skip := opts.go256.skipBuild(pkgPath); skip {
+				if cfg.verbose {
+					io.ErrPrintfln("%s [build skipped: %s]", filepath.Clean(pkgPath), reason)
+				}
 				continue
 			}
 			if cfg.output != "." {
@@ -210,10 +220,11 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 // Additionally, it checks the gnomod.toml in said location, and skips it if it is
 // a ignore module
 func transpilePkg(dirPath string, opts *transpileOptions) error {
-	if opts.isTranspiled(dirPath) {
+	key := absDir(dirPath)
+	if opts.isTranspiled(key) {
 		return nil
 	}
-	opts.markAsTranspiled(dirPath)
+	opts.markAsTranspiled(key)
 
 	gmod, err := gnomod.ParseDir(dirPath)
 	if err != nil && !errors.Is(err, gnomod.ErrNoModFile) {
@@ -236,10 +247,28 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 		return err
 	}
 
+	// Transpile the imported packages first: whether this package can be
+	// built as Go depends on theirs (see go256State.analyze).
+	if !opts.cfg.skipImports {
+		if err := transpileImportsOf(files, opts); err != nil {
+			return err
+		}
+	}
+	leftOut, err := opts.go256.analyze(dirPath, opts)
+	if err != nil {
+		return fmt.Errorf("%s: %w", dirPath, err)
+	}
+
 	if opts.cfg.verbose {
 		opts.io.ErrPrintln(filepath.Clean(dirPath))
 	}
 	for _, file := range files {
+		if leftOut[filepath.Base(file)] {
+			if opts.cfg.verbose {
+				opts.io.ErrPrintfln("%s (left out: uses int256/uint256, which Go lacks)", filepath.Clean(file))
+			}
+			continue
+		}
 		if err := transpileFile(file, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
@@ -332,7 +361,8 @@ func getPathsFromImportSpec(rootDir string, importSpec []*ast.ImportSpec) (dirs 
 // buildTranspileResolver returns an [transpiler.ImportResolver] indexing
 // every package reachable from the current workspace. Returns nil if
 // packages.Load errors (e.g. cwd is not in a workspace).
-func buildTranspileResolver(rootDir string, io commands.IO) transpiler.ImportResolver {
+// It also returns the import path of each package directory it indexed.
+func buildTranspileResolver(rootDir string, io commands.IO) (transpiler.ImportResolver, map[string]string) {
 	loadConf := packages.LoadConfig{
 		Fetcher:    testPackageFetcher,
 		AllowEmpty: true,
@@ -340,7 +370,13 @@ func buildTranspileResolver(rootDir string, io commands.IO) transpiler.ImportRes
 	}
 	pkgs, err := packages.Load(loadConf, "./...")
 	if err != nil {
-		return nil
+		return nil, nil
+	}
+	pkgPaths := make(map[string]string, len(pkgs))
+	for _, p := range pkgs {
+		if p.ImportPath != "" {
+			pkgPaths[absDir(p.Dir)] = p.ImportPath
+		}
 	}
 
 	dirs := make(map[string]string, len(pkgs))
@@ -363,7 +399,7 @@ func buildTranspileResolver(rootDir string, io commands.IO) transpiler.ImportRes
 			return "gnovm/stdlibs/" + importPath, true
 		}
 		return "", false
-	}
+	}, pkgPaths
 }
 
 // buildTranspiledPackage tries to run `go build` against the transpiled .go files.

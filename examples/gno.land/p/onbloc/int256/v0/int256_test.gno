@@ -3,7 +3,7 @@ package int256
 import (
 	"testing"
 
-	"gno.land/p/onbloc/uint256/v0"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 func TestInitializers(t *testing.T) {
@@ -133,12 +133,12 @@ func TestSetUint64(t *testing.T) {
 
 func TestFromUint256(t *testing.T) {
 	tests := []struct {
-		input    *uint256.Uint
+		input    *u256.Uint
 		expected int
 	}{
-		{uint256.NewUint(0), 0},
-		{uint256.NewUint(1), 1},
-		{uint256.NewUint(18446744073709551615), 1},
+		{u256.NewUint(0), 0},
+		{u256.NewUint(1), 1},
+		{u256.NewUint(18446744073709551615), 1},
 	}
 
 	for _, tt := range tests {

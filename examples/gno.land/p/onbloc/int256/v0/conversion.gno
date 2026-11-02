@@ -3,7 +3,7 @@ package int256
 import (
 	"math"
 
-	"gno.land/p/onbloc/uint256/v0"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 // SetInt64 sets the Int to the value of the provided int64.
@@ -30,7 +30,7 @@ func (z *Int) Uint64() uint64 {
 	if z.Sign() < 0 {
 		panic("cannot convert negative int256 to uint64")
 	}
-	if z.value.Gt(uint256.NewUint(0).SetUint64(math.MaxUint64)) {
+	if z.value.Gt(u256.NewUint(0).SetUint64(math.MaxUint64)) {
 		panic("overflow: int256 does not fit in uint64 type")
 	}
 	return z.value.Uint64()
@@ -44,8 +44,8 @@ func (z *Int) Int64() int64 {
 		}
 		return int64(z.value.Uint64())
 	}
-	var temp uint256.Uint
-	temp.Sub(uint256.NewUint(0), &z.value) // temp = -z.value
+	var temp u256.Uint
+	temp.Sub(u256.NewUint(0), &z.value) // temp = -z.value
 	if temp.BitLen() > 64 {
 		panic("overflow: int256 does not fit in int64 type")
 	}
@@ -68,8 +68,8 @@ func (z *Int) Set(x *Int) *Int {
 	return z
 }
 
-// SetFromUint256 converts a uint256.Uint to Int and sets the value to z.
-func (z *Int) SetUint256(x *uint256.Uint) *Int {
+// SetFromUint256 converts a u256.Uint to Int and sets the value to z.
+func (z *Int) SetUint256(x *u256.Uint) *Int {
 	z.value.Set(x)
 	return z
 }
@@ -81,12 +81,12 @@ func (z *Int) String() string {
 		return "0"
 	}
 	sign := z.Sign()
-	var temp uint256.Uint
+	var temp u256.Uint
 	if sign >= 0 {
 		temp.Set(&z.value)
 	} else {
 		// temp = -z.value
-		temp.Sub(uint256.NewUint(0), &z.value)
+		temp.Sub(u256.NewUint(0), &z.value)
 	}
 	s := temp.Dec()
 	if sign < 0 {

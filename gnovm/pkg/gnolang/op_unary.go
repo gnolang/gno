@@ -22,6 +22,7 @@ func (m *Machine) doOpUneg() {
 	}
 	xv := m.PeekValue(1)
 	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUneg)
+	m.incrCPU256(xv.T, OpCPUUnegInt256, OpCPUUneg)
 	m.incrCPUBigDecUnary(xv, OpCPUSlopeBigDecUneg)
 
 	// Switch on the base type.
@@ -47,6 +48,10 @@ func (m *Machine) doOpUneg() {
 		xv.SetUint32(-xv.GetUint32())
 	case Uint64Type:
 		xv.SetUint64(-xv.GetUint64())
+	case Int256Type, Uint256Type:
+		x := xv.GetBits256()
+		x.Neg(&x)
+		xv.SetBits256(m.Alloc, &x)
 	case Float32Type:
 		xv.SetFloat32(softfloat.Fneg32(xv.GetFloat32()))
 	case Float64Type:
@@ -95,6 +100,7 @@ func (m *Machine) doOpUxor() {
 	}
 	xv := m.PeekValue(1)
 	m.incrCPUBigUnary(xv, OpCPUSlopeBigIntUxor)
+	m.incrCPU256(xv.T, OpCPUUxorInt256, OpCPUUxor)
 
 	// Switch on the base type.
 	switch baseOf(xv.T) {
@@ -118,6 +124,10 @@ func (m *Machine) doOpUxor() {
 		xv.SetUint32(^xv.GetUint32())
 	case Uint64Type:
 		xv.SetUint64(^xv.GetUint64())
+	case Int256Type, Uint256Type:
+		x := xv.GetBits256()
+		x.Not(&x)
+		xv.SetBits256(m.Alloc, &x)
 	case UntypedBigintType:
 		bv := xv.V.(BigintValue)
 		xv.V = BigintValue{V: new(big.Int).Not(bv.V)}

@@ -77,7 +77,8 @@ func (pt PrimitiveType) category() category {
 		return IsBoolean
 	case StringKind:
 		return IsString
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+		Int256Kind, Uint256Kind:
 		return IsInteger // UntypedRuneType is int32kind, DataByteType is uint8 kind
 	case Float32Kind, Float64Kind:
 		return IsFloat
@@ -148,7 +149,8 @@ func isWhole(t Type) bool {
 func isIntegerKind(k Kind) bool {
 	switch k {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
-		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+		Int256Kind, Uint256Kind:
 		return true
 	default:
 		return false
@@ -527,7 +529,8 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind, BigdecKind, Float32Kind, Float64Kind:
+				Uint32Kind, Uint64Kind, Int256Kind, Uint256Kind,
+				BigdecKind, Float32Kind, Float64Kind:
 				return nil // ok
 			default:
 				return errors.New(
@@ -538,7 +541,8 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind: // see 0d0
+				Uint32Kind, Uint64Kind, Int256Kind, Uint256Kind,
+				BigintKind, BigdecKind, Float32Kind, Float64Kind: // see 0d0
 				return nil // ok
 			default:
 				return errors.New(
@@ -549,7 +553,8 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			switch dt.Kind() {
 			case IntKind, Int8Kind, Int16Kind, Int32Kind,
 				Int64Kind, UintKind, Uint8Kind, Uint16Kind,
-				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
+				Uint32Kind, Uint64Kind, Int256Kind, Uint256Kind,
+				BigintKind, BigdecKind, Float32Kind, Float64Kind:
 				return nil // ok
 			default:
 				return errors.New(

@@ -18,6 +18,15 @@ func TestAminoJSONRegisteredTypes(t *testing.T) {
 		// Instantiate registered type
 		x := reflect.New(typ.Type).Interface()
 
+		// The zero value of a 256-bit value type is a boxed zero, which
+		// is refused so that zero has one encoding (a nil V).
+		switch x.(type) {
+		case *Int256Value, *Uint256Value:
+			_, err := amino.MarshalJSON(x)
+			require.Error(t, err, "marshal type %s", typ.Type.Name())
+			continue
+		}
+
 		// Call MarshalAmino directly on 'x'
 		_, err := amino.MarshalJSON(x)
 		require.NoError(t, err, "marshal type %s", typ.Type.Name())

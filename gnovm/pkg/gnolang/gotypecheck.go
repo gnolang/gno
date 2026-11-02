@@ -57,6 +57,12 @@ type address string
 func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
+
+// 256-bit integers; see GoTypesSizes and gnovm/adr/pr6387_native_int256.md.
+type int256 int
+type uint256 uintptr
+type Int256 = int256
+type Uint256 = uint256
 `)
 	return mpkg
 }
@@ -84,11 +90,38 @@ func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form.
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
+type int256 = gno0p9.Int256
+type uint256 = gno0p9.Uint256
 `
 	return &std.MemFile{
 		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
 		Body: fmt.Sprintf(gnoBuiltins, pkgName),
 	}
+}
+
+// GoTypesSizes is the types.Sizes Gno type-checks with, here and in any
+// tool that type-checks Gno code (gno lint goes through TypeCheckMemPackage;
+// an external checker such as an editor must use the same shims, from
+// gnoBuiltinsGno0p9, and these sizes). It differs from gc/amd64 in one point:
+// uintptr is 32 bytes wide. Gno has no uintptr, so the only uintptr-based
+// type go/types sees is the uint256 shim (`type uint256 uintptr`), and this
+// makes go/types accept exactly the uint256 constants [0, 2^256-1]: it sizes
+// Uint and Uintptr through Config.Sizes when checking representability.
+//
+// int256 is shimmed as `type int256 int`, and int keeps its 8 bytes: go/types
+// computes a sized int's bounds as int64(-1)<<(s-1), which is wrong for
+// s > 64. So go/types only accepts int256 constants in the int64 range. This
+// is a language restriction of Gno (see the ADR): a wider int256 value comes
+// from runtime arithmetic or a conversion of a non-constant value.
+var GoTypesSizes types.Sizes = gnoTypesSizes{types.SizesFor("gc", "amd64")}
+
+type gnoTypesSizes struct{ types.Sizes }
+
+func (s gnoTypesSizes) Sizeof(t types.Type) int64 {
+	if b, ok := t.Underlying().(*types.Basic); ok && b.Kind() == types.Uintptr {
+		return 32
+	}
+	return s.Sizes.Sizeof(t)
 }
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
@@ -179,6 +212,11 @@ type TypeCheckOptions struct {
 	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
 	// keep checking test files.
 	ProdOnly bool
+
+	// Info, if non-nil, receives the type information of mpkg's production
+	// files (not of its imports nor of its test files). Tools use it, see
+	// Files256.
+	Info *types.Info
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -203,6 +241,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
 		fset:      opts.Fset,
+		info:      opts.Info,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
 			// syntax at whatever version the validator binary was built with,
@@ -216,6 +255,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 			// features Gno can't run (min/max, range-over-int/func) here rather
 			// than downstream.
 			GoVersion: "go1.18",
+			Sizes:     GoTypesSizes,
 			Error: func(err error) {
 				gimp.Error(err)
 			},
@@ -259,8 +299,9 @@ type gnoImporter struct {
 	permCache TypeCheckCache
 	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
-	errors    []error  // there may be many for a single import
-	stack     []string // stack of pkgpaths for cyclic import detection
+	info      *types.Info // for the production files of pkgPath only
+	errors    []error     // there may be many for a single import
+	stack     []string    // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -516,7 +557,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+	var info *types.Info
+	if mpkg.Path == gimp.pkgPath {
+		info = gimp.info
+	}
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)

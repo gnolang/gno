@@ -378,6 +378,8 @@ func boundedSprintPrimitiveTV(w *boundedBuf, tv TypedValue) {
 		fmt.Fprintf(w, "%d", tv.GetUint32())
 	case Uint64Type:
 		fmt.Fprintf(w, "%d", tv.GetUint64())
+	case Int256Type, Uint256Type:
+		w.WriteString(sprint256(&tv))
 	case Float32Type:
 		fmt.Fprintf(w, "%g", math.Float32frombits(tv.GetFloat32()))
 	case Float64Type:
@@ -419,6 +421,8 @@ func boundedSprintValue(w *boundedBuf, v Value, depth int) {
 		boundedSprintStringValue(w, x)
 	case BigintValue:
 		boundedSprintBigInt(w, x.V)
+	case Uint256Value, Int256Value:
+		w.WriteString(x.String())
 	case BigdecValue:
 		boundedSprintBigDecValue(w, x)
 	case *ArrayValue:

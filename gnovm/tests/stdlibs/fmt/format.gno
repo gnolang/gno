@@ -323,6 +323,106 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
 	f.zero = oldZero
 }
 
+// fmtInteger256 is fmtInteger for the 256-bit integers: u holds the bits of
+// a uint256, or of an int256 (two's complement) when isSigned is set.
+func (f *fmt) fmtInteger256(u uint256, base int, isSigned bool, verb rune, digits string) {
+	negative := isSigned && int256(u) < 0
+	if negative {
+		u = -u
+	}
+
+	// 256 binary digits plus a sign and a "0b" prefix.
+	width := 3 + 256
+	if f.widPresent || f.precPresent {
+		width += f.wid + f.prec // wid and prec are always positive.
+	}
+	buf := make([]byte, width)
+
+	// Two ways to ask for extra leading zero digits: %.3d or %03d.
+	// If both are specified the f.zero flag is ignored and
+	// padding with spaces is used instead.
+	prec := 0
+	if f.precPresent {
+		prec = f.prec
+		// Precision of 0 and value of 0 means "print nothing" but padding.
+		if prec == 0 && u == 0 {
+			oldZero := f.zero
+			f.zero = false
+			f.writePadding(f.wid)
+			f.zero = oldZero
+			return
+		}
+	} else if f.zero && !f.minus && f.widPresent { // Zero padding is allowed only to the left.
+		prec = f.wid
+		if negative || f.plus || f.space {
+			prec-- // leave room for sign
+		}
+	}
+
+	// Format u into buf, ending at buf[i].
+	i := len(buf)
+	b := uint256(base)
+	for u >= b {
+		i--
+		next := u / b
+		buf[i] = digits[uint64(u-next*b)]
+		u = next
+	}
+	i--
+	buf[i] = digits[uint64(u)]
+	for i > 0 && prec > len(buf)-i {
+		i--
+		buf[i] = '0'
+	}
+
+	// Various prefixes: 0x, -, etc.
+	if f.sharp {
+		switch base {
+		case 2:
+			// Add a leading 0b.
+			i--
+			buf[i] = 'b'
+			i--
+			buf[i] = '0'
+		case 8:
+			if buf[i] != '0' {
+				i--
+				buf[i] = '0'
+			}
+		case 16:
+			// Add a leading 0x or 0X.
+			i--
+			buf[i] = digits[16]
+			i--
+			buf[i] = '0'
+		}
+	}
+	if verb == 'O' {
+		i--
+		buf[i] = 'o'
+		i--
+		buf[i] = '0'
+	}
+
+	if negative {
+		i--
+		buf[i] = '-'
+	} else if f.plus {
+		i--
+		buf[i] = '+'
+	} else if f.space {
+		i--
+		buf[i] = ' '
+	}
+
+	// Left padding with zeros has already been handled like precision earlier
+	// or the f.zero flag is ignored due to an explicitly set precision.
+	oldZero := f.zero
+	f.zero = false
+	f.pad(buf[i:])
+	f.zero = oldZero
+}
+
 // truncateString truncates the string s to the specified precision, if present.
 func (f *fmt) truncateString(s string) string {
 	if f.precPresent {

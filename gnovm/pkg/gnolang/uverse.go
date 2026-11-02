@@ -1915,6 +1915,11 @@ func makeUverseNode() {
 			}
 		},
 	)
+	// 256-bit integers. Defined last: uverse names are addressed by their
+	// block index from persisted code, so a new name must not shift the
+	// indices of the names above.
+	def("int256", asValue(Int256Type))
+	def("uint256", asValue(Uint256Type))
 	uverseValue = uverseNode.NewPackage(nil)
 
 	sealUverseTypes()
