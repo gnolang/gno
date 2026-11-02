@@ -54,9 +54,6 @@ Meet and follow the community.
 
 ---
 
-<!-- whats-new:start -->
-<!-- whats-new:end -->
-
 ## <gno-icon name="grid-outline" /> Live on mainnet
 
 <gno-columns>
@@ -103,6 +100,9 @@ The registry of validator profiles. GovDAO members read it before voting on new 
 
 ---
 
+<!-- whats-new:start -->
+<!-- whats-new:end -->
+
 ## <gno-icon name="chat" /> Boards: on-chain forum
 
 > [!NOTE]
@@ -123,31 +123,10 @@ path like "r/gnoland/blog". You can browse packages, inspect their source, and
 use them in your own libraries and realms. For example, read the
 [source of the Gno.land blog](/r/gnoland/blog$source).
 
-<gno-columns>
+[Official realms](/r/gnoland) · [System realms](/r/sys) · [Standard packages](/p/nt)
 
-**r/gnoland**
-
-Official realm packages developed by the Gno.land core team.
-
-[Browse r/gnoland realms](/r/gnoland)
-
-<gno-columns-sep>
-
-**r/sys**
-
-System-level realm packages used by the chain.
-
-[Browse r/sys realms](/r/sys)
-
-<gno-columns-sep>
-
-**p/nt**
-
-Standard pure packages maintained by the core team.
-
-[Browse p/nt packages](/p/nt)
-
-</gno-columns>
+<!-- whats-trending:start -->
+<!-- whats-trending:end -->
 
 ---
 

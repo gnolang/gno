@@ -32,14 +32,18 @@ nothing.
 ./whatsnew.sh --force home.md     # same, ignoring the refresh intervals
 ```
 
-The block breaks from the three-column grids around it: two wide cards with the
-latest X posts and blog posts, each with a button to its source, then a line of
-the most used realms and one of the most imported packages. Without an indexer,
-the realms' line stays out. With
+On mainnet there are two blocks. What's new shows a row of the latest X posts and
+a row of the latest blog posts, each with a button to its source. The Explore
+section, between `<!-- whats-trending:start -->` and
+`<!-- whats-trending:end -->`, lists the most used realms, the most imported
+packages and the latest releases, each over a button to all of it; without an
+indexer, the last merged pull requests take the realms' place. A page without those two lines only gets What's
+new. With
 `--builders`, for a testnet, it holds the week's totals, then the latest
 deployments, the most used realms and the last merged pull requests:
 
 ```sh
+RPC_URL=https://rpc.onyx.testnets.gno.land:443 \
 INDEXER_URL=https://indexer.example/graphql/query USED_NAMESPACES= \
   ./whatsnew.sh --builders home.md
 ```
@@ -50,7 +54,7 @@ distinct addresses, and only those of the `USED_NAMESPACES` namespaces can appea
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `RPC_URL` | `https://rpc.gno.land:443` | Package list of "Most imported" |
+| `RPC_URL` | `https://rpc.gno.land:443` | The chain's RPC: package list of "Top packages", and with `--builders` the check that a deployment is live |
 | `BLOG_RPC_URL` | `https://rpc.gno.land:443` | Where the blog is read |
 | `LINK_BASE` | empty | Prefix of blog links, for a page served elsewhere than mainnet |
 | `INDEXER_URL` | empty | tx-indexer GraphQL endpoint; without it, what needs an indexer stays out |
@@ -62,22 +66,24 @@ distinct addresses, and only those of the `USED_NAMESPACES` namespaces can appea
 | `STATE_DIR` | `.whatsnew` beside the page | Last good output of each source |
 | `FEED_TTL` | `30` | Minutes between reads of X, the blog and GitHub |
 | `USED_TTL` | `1440` | Minutes between indexer scans, about 10 queries each, of the most used realms and, with `--builders`, of the deployments |
-| `IMPORTED_TTL` | `10080` | Minutes between "Most imported" scans, one `vm/qdoc` per package |
+| `IMPORTED_TTL` | `10080` | Minutes between "Top packages" scans, one `vm/qdoc` per package |
 
 Run it often: a source is only read once its interval has passed, whether or not
 its last read worked. One that fails keeps its previous content, except the
 rankings of the week, which go after seven days. The page is replaced atomically
 and keeps its mode, only when its content changes, and never by an empty block.
-Point the script at the file itself, not at a symlink. It exits 0 once it has
+Point the script at the file itself, not at a symlink, and give each page its
+own `STATE_DIR`. It exits 0 once it has
 run, and 2 if the page does not hold each marker line once, in order; a failed
 `ON_CHANGE` is logged and tried again on the next run.
 
 The block only shows if gnoweb re-reads a static page when it changes (#6327).
-Without that, `ON_CHANGE` can restart gnoweb on a single host. Do not do that on
-a pool behind a load balancer: every host would drop requests for the same post.
+Without that, `ON_CHANGE` can restart gnoweb on a single host. Do not do that
+with several hosts: every host would drop requests for the same post.
 
-On a pool, ship the script and its units in the image, keep `STATE_DIR` out of
-any folder a sync replaces, and enable the timer so that it starts once the page is in place. With
+With several hosts, run the script on each, keep `STATE_DIR` out of any folder
+replaced on deployment, and enable the timer so that it starts once the page is
+in place. With
 `gnoalias.sh`, run it on `home-override.md` instead, with `ON_CHANGE` empty.
 
 ```ini

@@ -26,13 +26,14 @@ export RPC_URL BLOG_RPC_URL LINK_BASE INDEXER_URL X_ACCOUNT DEPLOYED_SKIP USED_N
 
 START='<!-- whats-new:start -->'
 END='<!-- whats-new:end -->'
+TRENDING_START='<!-- whats-trending:start -->'
+TRENDING_END='<!-- whats-trending:end -->'
 CARD_ROWS=3
-STRIP_SIZE=5
-LIST_SIZE=6
+LIST_SIZE=5
 SHIPPED_SIZE=3
 MIN_CHARS=20
 MAX_IMPORT_FAILURES=10
-MAX_CHARS=90
+MAX_CHARS=110
 SHORT_CHARS=60
 ACTIVITY_WINDOW=604800
 # Past a week, a ranking no longer reads as "this week".
@@ -75,8 +76,8 @@ html_to_text() {
     | gsub("&nbsp;"; " ") | gsub("&amp;"; "&")'
 }
 
-# X rewrites a bare gno.land into a t.co link; every other link is dropped, so
-# that the page never carries a link a post chose.
+# A t.co link to a bare domain becomes that domain as text; every other link is
+# dropped, so that the page never carries a link a post chose.
 expand_links() {
   local text url target
   text=$(cat)
@@ -84,6 +85,10 @@ expand_links() {
     target=$(curl -s --max-time 10 -o /dev/null -w '%{redirect_url}' "$url" || true)
     if grep -qE '^https?://(www\.)?gno\.land(/|$)' <<<"$target"; then
       text=${text//$url/Gno.land}
+    elif grep -qE '^https?://(www\.)?([a-z0-9-]+\.)+[a-z]{2,}/?$' <<<"$target"; then
+      target=${target#*://}
+      target=${target#www.}
+      text=${text//$url/${target%/}}
     fi
   done
   jq -Rrs '
@@ -154,10 +159,22 @@ source_blog() {
   fields=$(abci "$BLOG_RPC_URL" vm/qrender 'gno.land/r/gnoland/blog:' |
     jq -Rrs --arg months "$MONTHS" --argjson size "$CARD_ROWS" "$YMD"'
       limit($size; capture("### \\[(?<t>[^\\n]*)\\]\\(/r/gnoland/blog:p/(?<s>[a-z0-9-]+)\\)\\n(?<d>[0-9]{2}) (?<m>[A-Z][a-z]{2}) (?<y>[0-9]{4})"; "g"))
-      | [ymd, .s, .t] | @tsv')
+      | [ymd, .s, (.t | gsub("[\\t\\n\\r]"; " "))] | join("\t")')
   [ -n "$fields" ]
   while IFS=$'\t' read -r date slug title; do
     row "$date" "${LINK_BASE}/r/gnoland/blog:p/${slug}" "$title"
+  done <<<"$fields"
+}
+
+source_release() {
+  local fields tag date
+  fields=$("${CURL[@]}" 'https://api.github.com/repos/gnolang/gno/releases?per_page=30' |
+    jq -er --argjson size "$LIST_SIZE" '
+      [.[] | select(.prerelease == false and (.tag_name | test("^v[0-9.]+$")))][:$size][]
+      | [.tag_name, (.published_at[0:10] | gsub("-"; ""))] | @tsv')
+  [ -n "$fields" ]
+  while IFS=$'\t' read -r tag date; do
+    row "$date" "https://github.com/gnolang/gno/releases/tag/${tag}" "$tag"
   done <<<"$fields"
 }
 
@@ -224,16 +241,27 @@ source_used() {
     awk -v OFS='\t' '{ print $1, $2 }' | short_paths
 }
 
+# A chain can park code, so addpkg alone does not put a package online.
+live_rows() {
+  local height pkg n=0
+  while IFS=$'\t' read -r height pkg; do
+    [ "$n" -lt "$LIST_SIZE" ] || break
+    abci "$RPC_URL" vm/qfile "$pkg" >/dev/null 2>&1 || continue
+    printf '%s\t%s\n' "$height" "$pkg"
+    n=$((n + 1))
+  done <<<"$1"
+}
+
 # One line per project, newest first; the week's count goes beside it.
 source_deployed() {
   local rows height name path epoch
   rows=$(scan_week 'MsgAddPackage: { package: { path: { like: "." } } }' '... on MsgAddPackage { package { path } }' \
     'select(.__typename == "MsgAddPackage") | [$height, .package.path] | @tsv' |
-    grep -E $'^[0-9]+\tgno\\.land/[rp]/[a-z0-9_./-]+$' | grep -vF .. |
-    awk -v skip="$DEPLOYED_SKIP" 'skip == "" || $0 !~ skip' | sort -rn)
-  grep -c . <<<"$rows" >"$STATE_DIR/deployed-count"
-  awk -F'\t' '{ split($2, p, "/"); if (!((p[3] "/" p[4]) in seen)) { seen[p[3] "/" p[4]]; print } }' <<<"$rows" |
-    first_rows "$LIST_SIZE" | short_paths | while IFS=$'\t' read -r height name path; do
+    awk -F'\t' -v skip="$DEPLOYED_SKIP" '/^[0-9]+\tgno\.land\/[rp]\/[a-z0-9_.\/-]+$/ && !index($0, "..") && (skip == "" || $2 !~ skip)' |
+    sort -rn)
+  { grep -c . <<<"$rows" || true; } >"$STATE_DIR/deployed-count"
+  live_rows "$(awk -F'\t' '{ split($2, p, "/"); if (!((p[3] "/" p[4]) in seen)) { seen[p[3] "/" p[4]]; print } }' <<<"$rows" |
+    first_rows "$((LIST_SIZE * 4))")" | short_paths | while IFS=$'\t' read -r height name path; do
     epoch=$(block_time "$height")
     printf '%s\t%s\t%s\n' "$(jq -nr --argjson t "$epoch" '$t | strftime("%Y%m%d")')" "$(cut -d/ -f1,2 <<<"$name")" "$path"
   done
@@ -250,7 +278,7 @@ source_shipped() {
   prs=$("${CURL[@]}" 'https://api.github.com/search/issues?q=repo:gnolang/gno+is:pr+is:merged&sort=updated&order=desc&per_page=30' |
     jq -r --argjson size "$SHIPPED_SIZE" '[.items[] | select(.title | test("^(feat|fix)[(:!]"))] | sort_by(.closed_at) | reverse | .[:$size][]
       | (.title | sub("^[a-z]+(\\([^)]*\\))?!?: *"; "")) as $t
-      | [.number, ($t[:1] | ascii_upcase) + $t[1:]] | @tsv')
+      | [(.number | tostring), (($t[:1] | ascii_upcase) + $t[1:] | gsub("[\\t\\n\\r]"; " "))] | join("\t")')
   [ -n "$prs" ]
   while IFS=$'\t' read -r number title; do
     printf '%s\t%s\n' "$number" "$(MAX_CHARS=$SHORT_CHARS to_md <<<"$title")"
@@ -259,11 +287,11 @@ source_shipped() {
 
 source_imported() {
   local imports
-  imports=$({ abci "$RPC_URL" vm/qpaths gno.land/p/; abci "$RPC_URL" vm/qpaths gno.land/r/; } |
+  imports=$({ abci "$RPC_URL" 'vm/qpaths?limit=10000' gno.land/p/ && abci "$RPC_URL" 'vm/qpaths?limit=10000' gno.land/r/; } |
     grep . | xargs -P 4 -I{} "$BASH" "$0" --imports {})
   # A package may fail to read; many failing would skew the ranking.
   [ "$(grep -c '^!failed$' <<<"$imports" || true)" -le "$MAX_IMPORT_FAILURES" ]
-  grep -E '^gno\.land/p/[a-z0-9_./-]+$' <<<"$imports" | grep -vF .. |
+  grep -E '^gno\.land/p/[a-z0-9_./-]+$' <<<"$imports" | grep -vF .. | grep -vE '^gno\.land/p/g1[a-z0-9]{38}/' |
     sort | uniq -c | sort -rn | first_rows "$LIST_SIZE" |
     awk '{
       path = $2; sub(/^gno\.land/, "", path)
@@ -300,7 +328,7 @@ short_date() {
 }
 
 latest() {
-  [ ! -f "$STATE_DIR/$1" ] || sort -rs -t$'\t' -k1,1 "$STATE_DIR/$1" | first_rows "$CARD_ROWS"
+  [ ! -f "$STATE_DIR/$1" ] || awk -F'\t' 'NF == 3' "$STATE_DIR/$1" | sort -rs -t$'\t' -k1,1 | first_rows "$CARD_ROWS"
 }
 
 is_recent() {
@@ -320,39 +348,65 @@ render_columns() {
   printf '\n</gno-columns>\n\n'
 }
 
-# Laid out like the page's cards: a short green link, then neutral text.
-render_feed() {
+# Laid out like posts: a short green link, then neutral text.
+render_post() {
   local date url text
-  [ -n "$4" ] || return 0
-  printf '<gno-frame>\n\n%s\n\n<gno-button href="%s" label="%s" />\n\n' "$1" "$2" "$3"
-  while IFS=$'\t' read -r date url text; do
-    printf -- '- **[%s](%s)** %s\n' "$(short_date "$date")" "$url" "$text"
-  done <<<"$4"
-  printf '\n</gno-frame>\n'
+  [ -n "$3" ] || return 0
+  IFS=$'\t' read -r date url text <<<"$3"
+  printf '%s **[%s · %s](%s)**\n\n%s' "$1" "$2" "$(short_date "$date")" "$url" "$text"
 }
 
-# A line of links, so that the block reads as more than one more grid.
-render_strip() {
-  awk -F'\t' -v size="$STRIP_SIZE" -v label="$1" '
-    NR <= size { printf "%s[%s](%s)", (NR == 1 ? "**" label ":** " : " · "), $2, $3 }
-    END { print "\n" }' "$2"
+render_button() {
+  printf '<gno-button href="%s" label="%s" variant="outline" />' "$1" "$2"
 }
 
-# Two wide cards and a line, where the sections around it have three columns.
-# Each source keeps its card, so that a post on X every day cannot push the
-# blog out.
+# One source per row, on the page's three columns, with its button under it, so
+# that a row stays level whatever the length of its posts, and a post on X every
+# day cannot push the blog out.
+render_row() {
+  local line cells=()
+  [ -n "$3" ] || return 0
+  while IFS= read -r line; do
+    cells+=("$(render_post "$1" "$2" "$line")")
+  done <<<"$3"
+  render_columns "${cells[@]}"
+  printf '%s\n\n---\n\n' "$4"
+}
+
 render_block() {
-  local posts blog imported="$STATE_DIR/imported"
+  local posts blog
   posts=$(latest x)
   blog=$(latest blog)
   [ -n "$posts$blog" ] || return 0
-  printf '## <gno-icon name="newspaper" /> What'\''s new\n\nThe latest from Gno.land, and what people use on it.\n\n'
-  render_columns \
-    "$(render_feed '𝕏 **Latest on X**' "https://x.com/${X_ACCOUNT}" 'Follow on X' "$posts")" \
-    "$(render_feed '<gno-icon name="book" /> **Latest posts**' "${LINK_BASE}/blog" 'Read the blog' "$blog")"
-  ! is_recent used || render_strip 'Most used this week' "$STATE_DIR/used"
-  [ ! -s "$imported" ] || render_strip 'Most imported' "$imported"
-  printf -- '---\n\n'
+  printf '## <gno-icon name="newspaper" /> What'\''s new\n\n'
+  render_row '𝕏' "Gno.land \\@${X_ACCOUNT/_/\\_}" "$posts" "$(render_button "https://x.com/${X_ACCOUNT}" 'Follow on X')"
+  render_row '<gno-icon name="book" />' Blog "$blog" "$(render_button "${LINK_BASE}/blog" 'Read the blog')"
+}
+
+# A list and the button to all of it stay in one column, so that they stay
+# together once the columns stack on a phone.
+with_button() {
+  [ -n "$1" ] || return 0
+  printf '%s\n\n%s' "$1" "$(render_button "$2" "$3")"
+}
+
+# The lists of the page's Explore section, in one frame that sets them apart from
+# the text above. Without an indexer, the merged pull requests keep them at three,
+# two of them so that the column stays as long as the lists beside it.
+render_trending() {
+  local used imported releases shipped pulls='https://github.com/gnolang/gno/pulls?q=is%3Apr+is%3Amerged'
+  used=$(render_used)
+  imported=$(with_button "$(render_imported)" /p/ 'Explore packages')
+  releases=$(with_button "$(render_releases)" https://github.com/gnolang/gno/releases 'All releases')
+  shipped=$(with_button "$(render_shipped 2)" "$pulls" 'All merged PRs')
+  [ -n "$imported$releases" ] || return 0
+  printf '<gno-frame>\n\n'
+  if [ -n "$used" ]; then
+    render_columns "$(with_button "$used" /r/ 'Explore realms')" "$imported" "$releases"
+  else
+    render_columns "$imported" "$releases" "$shipped"
+  fi
+  printf '</gno-frame>\n\n'
 }
 
 render_deployed() {
@@ -370,11 +424,28 @@ render_used() {
   awk -F'\t' '{ printf "%d. [%s](%s) · %d\n", NR, $2, $3, $1 }' "$STATE_DIR/used"
 }
 
+render_imported() {
+  local imported="$STATE_DIR/imported"
+  [ -s "$imported" ] || return 0
+  printf '<gno-icon name="cube" /> **[Top packages](/p/)** · imports\n\n'
+  awk -F'\t' '{ printf "%d. [%s](%s) · %d\n", NR, $2, $3, $1 }' "$imported"
+}
+
+render_releases() {
+  local date url text
+  [ -s "$STATE_DIR/release" ] || return 0
+  printf '<gno-icon name="rocket" /> **[Gno.land releases](https://github.com/gnolang/gno/releases)**\n\n'
+  awk -F'\t' 'NF == 3' "$STATE_DIR/release" | while IFS=$'\t' read -r date url text; do
+    printf -- '- [%s](%s) · %s\n' "$text" "$url" "$(short_date "$date")"
+  done
+}
+
 render_shipped() {
   local shipped="$STATE_DIR/shipped"
   [ -s "$shipped" ] || return 0
-  printf '<gno-icon name="branch" /> **[Just shipped on GitHub](https://github.com/gnolang/gno/pulls?q=is%%3Apr+is%%3Amerged)**\n\n'
-  awk -F'\t' '{ printf "- [%s](https://github.com/gnolang/gno/pull/%s)\n", $2, $1 }' "$shipped"
+  printf '<gno-icon name="branch" /> **[Just merged on GitHub](https://github.com/gnolang/gno/pulls?q=is%%3Apr+is%%3Amerged)**\n\n'
+  first_rows "${1:-$SHIPPED_SIZE}" <"$shipped" |
+    awk -F'\t' '{ printf "- [%s](https://github.com/gnolang/gno/pull/%s)\n", $2, $1 }'
 }
 
 render_stat() {
@@ -405,10 +476,24 @@ render_builders() {
 
 # Exactly one of each marker, in order: anything else would eat the page.
 markers_ok() {
-  [ -f "$1" ] && START="$START" END="$END" awk '
+  [ -f "$1" ] && START="$2" END="$3" awk '
     $0 == ENVIRON["START"] { s++; if (e) bad = 1 }
     $0 == ENVIRON["END"] { e++ }
     END { exit !(s == 1 && e == 1 && !bad) }' "$1"
+}
+
+# A page may leave out the second section's markers, but not get them wrong.
+page_ok() {
+  markers_ok "$1" "$START" "$END" || return 1
+  ! grep -qF -e "$TRENDING_START" -e "$TRENDING_END" "$1" || markers_ok "$1" "$TRENDING_START" "$TRENDING_END"
+}
+
+# Reads a page and writes it with a block between two markers.
+fill_block() {
+  START="$1" END="$2" BLOCK="$3" awk '
+    $0 == ENVIRON["START"] { print; printf "%s", ENVIRON["BLOCK"]; skip = 1; next }
+    $0 == ENVIRON["END"] { skip = 0 }
+    !skip'
 }
 
 # A failed reload stays pending, so that the next run tries it again.
@@ -423,7 +508,7 @@ reload() {
 }
 
 main() {
-  local home="" dry_run=0 builders=0 render=render_block block tmp
+  local home="" dry_run=0 builders=0 render=render_block block trending="" tmp
   FORCE=0
   while [ $# -gt 0 ]; do
     case $1 in
@@ -434,7 +519,7 @@ main() {
     esac
     shift
   done
-  if [ -z "$home" ] || ! markers_ok "$home"; then
+  if [ -z "$home" ] || ! page_ok "$home"; then
     echo "usage: whatsnew.sh [--dry-run] [--force] [--builders] <home.md>, with its two marker lines" >&2
     exit 2
   fi
@@ -442,13 +527,14 @@ main() {
   export STATE_DIR
   mkdir -p "$STATE_DIR"
 
+  refresh shipped "$FEED_TTL" &
   if [ "$builders" = 1 ]; then
-    refresh shipped "$FEED_TTL" &
     refresh candidate "$FEED_TTL" &
     [ -z "$INDEXER_URL" ] || refresh deployed "$USED_TTL" &
   else
     refresh x "$FEED_TTL" &
     refresh blog "$FEED_TTL" &
+    refresh release "$FEED_TTL" &
     refresh imported "$IMPORTED_TTL" &
   fi
   [ -z "$INDEXER_URL" ] || refresh used "$USED_TTL" &
@@ -456,23 +542,31 @@ main() {
 
   block=$("$render"; printf x)
   block=${block%x}
+  if [ "$builders" = 0 ] && grep -qF "$TRENDING_START" "$home"; then
+    trending=$(render_trending; printf x)
+    trending=${trending%x}
+  fi
   # An outage on a host that lost its state must not wipe a filled block.
-  if [ -z "$block" ]; then
+  if [ -z "$block$trending" ]; then
     echo "whatsnew: nothing to show, page left as it is" >&2
     return 0
   fi
   if [ "$dry_run" = 1 ]; then
-    printf '%s' "$block"
+    printf '%s%s' "$block" "$trending"
     return 0
   fi
 
   # Same folder and same mode, so the rename is atomic and gnoweb can read it.
   tmp=$(mktemp "$home.XXXXXX")
+  PAGE_TMP=$tmp
+  trap 'rm -f -- "$PAGE_TMP"' EXIT
   cp -p "$home" "$tmp"
-  START="$START" END="$END" BLOCK="$block" awk '
-    $0 == ENVIRON["START"] { print; printf "%s", ENVIRON["BLOCK"]; skip = 1; next }
-    $0 == ENVIRON["END"] { skip = 0 }
-    !skip' "$home" >"$tmp"
+  chmod u+w "$tmp"
+  # cat reports a failed write, which busybox awk does not.
+  if [ -n "$block" ]; then fill_block "$START" "$END" "$block"; else cat; fi <"$home" |
+    if [ -n "$trending" ]; then fill_block "$TRENDING_START" "$TRENDING_END" "$trending"; else cat; fi |
+    cat >"$tmp"
+  [ -w "$home" ] || chmod u-w "$tmp"
   if cmp -s "$home" "$tmp"; then
     rm -f "$tmp"
     echo "whatsnew: unchanged"
