@@ -11,10 +11,10 @@
 #
 # A promotion only moves forward from the highest full release, which is not
 # always the highest tag: a patch to the running line can ship while the next
-# MINOR is held for its halt. A MINOR is refused until mainnet's halt proposal
-# naming it has executed, read from mainnet's RPC; a PATCH to the highest full
-# release's line needs no halt, and a MAJOR, a new network, is never promoted
-# here.
+# MINOR is held for its halt. Every promotion is held to mainnet's floor, its
+# halt_min_version read from its RPC: a release below it is refused, and a new
+# MINOR waits until a halt proposal sets the floor on its line. A MAJOR, a new
+# network, is never promoted here.
 #
 # Usage:
 #   misc/release/promote-release.sh <version> [--push]
@@ -36,7 +36,7 @@ export LC_ALL=C
 
 readonly REPO="gnolang/gno"
 readonly REGISTRY="ghcr.io"
-# Where mainnet's scheduled halt is read; overridable for a test.
+# Where mainnet's floor is read; overridable for a test.
 readonly MAINNET_RPC="${MAINNET_RPC:-https://rpc.gno.land}"
 
 # The CLI tools. Never gnoland: a node image that moves by itself breaks a
@@ -71,6 +71,8 @@ RELEASES=""
 LATEST_NOW=""
 # The GitHub account the registry tokens are asked for.
 LOGIN=""
+# Mainnet's halt_min_version as JSON text (read_floor).
+FLOOR=""
 SCRATCH=""
 # Set once the run has ended on purpose. bash 3.2 ends a script aborted by
 # set -u with the EXIT trap's own status, so the trap fails any other ending.
@@ -188,43 +190,51 @@ check_moves_forward() {
   fi
 }
 
-# Checks that mainnet's halt_min_version, read from its RPC, is VERSION. The
-# comparison runs inside jq, because a shell's $(…) would strip a trailing
-# newline that the node keeps: the node compares a floor that does not parse,
-# such as VERSION and a newline, byte for byte, so not even VERSION meets it.
-# An answer that is not exactly one query result is refused, never taken for
-# an empty value: -s reads all of it, so no value, a second one or trailing
-# content fails. Without that, jq 1.6's -e exits 0 on an answer with no value.
-check_halt_min_version() {
-  local body answer rc=0
+# Reads mainnet's halt_min_version into FLOOR, as JSON text: null when no halt
+# has ever set one, "" once a halt was cancelled. A node's version must meet it
+# to restart past the halt height, and the node keeps it as written, so it
+# stays JSON text here: a shell's $(…) would strip a trailing newline that the
+# node keeps. An answer that is not exactly one query result is refused, never
+# taken for no floor: -s reads all of it, so no value, a second one or trailing
+# content fails, where jq 1.6's -e would take an empty answer for a true one.
+read_floor() {
+  local body answer
   body='{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"params/node:p:halt_min_version","data":""}}'
   answer="$(curl -q -sS --connect-timeout 10 --max-time 30 -X POST -H 'Content-Type: application/json' -d "${body}" "${MAINNET_RPC}")" ||
     die "cannot ask ${MAINNET_RPC} for mainnet's halt_min_version"
-  jq -se --arg v "${VERSION}" 'if length != 1 then error("not one answer") else .[0] | .result.response.ResponseBase | if .Error != null then error("query error") else (.Data // error("no data")) | @base64d | fromjson | . == $v end end' \
-    <<<"${answer}" >/dev/null 2>&1 || rc=$?
-  case ${rc} in
-  0) ok "mainnet's halt_min_version is ${VERSION}" ;;
-  # jq -e answers 1 for a false result: a value, but not VERSION.
-  1) die "mainnet has not scheduled ${VERSION}: its halt_min_version is $(jq -r '.result.response.ResponseBase.Data | @base64d' <<<"${answer}"). A MINOR is promoted once its halt proposal has executed." ;;
-  *) die "${MAINNET_RPC} gave no halt_min_version: ${answer:0:200}" ;;
-  esac
+  FLOOR="$(jq -sc 'if length != 1 then error("not one answer") else .[0] | .result.response.ResponseBase | if type != "object" then error("not a query result") elif .Error != null then error("query error") elif .Data == null then null else .Data | @base64d | fromjson end end' \
+    <<<"${answer}" 2>/dev/null)" ||
+    die "${MAINNET_RPC} gave no halt_min_version: ${answer:0:200}"
 }
 
-# A MINOR is a coordinated upgrade: it becomes the release operators land on
-# only once mainnet's halt proposal names it. A PATCH switches without a halt,
-# the release the chain runs needs none, and a MAJOR is a new network, which
-# mainnet never schedules.
+# Every promotion is held to mainnet's floor: a node on a release below it
+# stops at the halt, so that release must not become the default. A new MINOR
+# is a coordinated upgrade, and also waits for the halt proposal that sets the
+# floor on its line: until then the floor is none, or an older line's. A PATCH
+# switches without a halt of its own. A MAJOR is a new network, which mainnet
+# never schedules.
 check_scheduled() {
-  local now_major now_minor major minor
+  local now_major now_minor major minor floor
+  local final_re='^"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"$'
   IFS=. read -r now_major now_minor _ <<<"${LATEST_NOW#v}"
   IFS=. read -r major minor _ <<<"${VERSION#v}"
   [[ ${major} == "${now_major}" ]] ||
     die "${VERSION} is a MAJOR from ${LATEST_NOW}: a MAJOR is a new network, and promote-release.sh only promotes along mainnet's line"
-  if [[ ${VERSION} == "${LATEST_NOW}" || ${minor} == "${now_minor}" ]]; then
-    ok "no halt to check: ${VERSION} is not a new MINOR"
+  read_floor
+  if [[ ${FLOOR} == null || ${FLOOR} == '""' ]]; then
+    [[ ${minor} == "${now_minor}" ]] ||
+      die "mainnet has not scheduled ${VERSION}: no halt sets a floor. A MINOR is promoted once its halt proposal has executed."
+    ok "mainnet sets no floor, and ${VERSION} is not a new MINOR"
     return
   fi
-  check_halt_min_version
+  [[ ${FLOOR} =~ ${final_re} ]] ||
+    die "mainnet's halt_min_version is ${FLOOR}, which is not a final release: promote-release.sh compares only against one"
+  floor="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+  [[ "$(printf '%s\n%s\n' "${floor}" "${VERSION}" | sort -V | tail -n 1)" == "${VERSION}" ]] ||
+    die "${VERSION} is below mainnet's floor ${floor}: a node on it stops at the halt"
+  [[ ${minor} == "${now_minor}" || ${floor} == "v${major}.${minor}."* ]] ||
+    die "mainnet has not scheduled ${VERSION}: its halt_min_version is ${floor}. A MINOR is promoted once its halt proposal has executed."
+  ok "mainnet's floor is ${floor}, and ${VERSION} meets it"
 }
 
 # ------------------------------------------------------------------- images

@@ -84,6 +84,10 @@ exec "${REAL_CURL}" "${args[@]}"
 
 const indexType = "application/vnd.oci.image.index.v1+json"
 
+// noFloorAnswer is mainnet's answer for a halt_min_version no halt has ever
+// set: a query result whose Data is null. A cancelled halt sets "" instead.
+const noFloorAnswer = `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":null,"Data":null,"Log":""}}}}`
+
 // promoteFixture runs promote-release.sh whole: a fake ghcr.io and mainnet RPC
 // behind an httptest server, the gh stub and the curl shim first on PATH, a
 // scratch HOME, a garbage GH_TOKEN and proxies on a dead port. Every request
@@ -162,7 +166,7 @@ func newPromoteFixture(t *testing.T, st promoteState) *promoteFixture {
 	}
 
 	for _, img := range promoteLatestImages(t) {
-		for _, ref := range []string{"v1.5.1", "v1.7.0", "v1.7.1", "v2.0.0", "v1.7.0-rc.1"} {
+		for _, ref := range []string{"v1.5.1", "v1.7.0", "v1.7.1", "v1.8.0", "v1.8.1", "v2.0.0", "v1.7.0-rc.1"} {
 			key := img + ":" + ref
 			f.manifests[key] = []byte(`{"schemaVersion":2,"mediaType":"` + indexType + `","manifests":[],"annotations":{"ref":"` + key + `"}}`)
 			f.types[key] = indexType
@@ -368,14 +372,18 @@ func TestPromoteReleaseRuns(t *testing.T) {
 	})
 
 	// A MINOR is a coordinated upgrade: it becomes the release operators land
-	// on only once mainnet's halt proposal names it.
+	// on only once mainnet's halt proposal sets a floor on its line, at or
+	// below it.
 	for _, c := range []struct{ name, halt, answer, says string }{
 		{"no halt scheduled", "", "", "mainnet has not scheduled v1.7.0"},
+		{"a floor no halt has set", "", noFloorAnswer, "mainnet has not scheduled v1.7.0"},
 		{"a halt for another release", "v1.6.0", "", "mainnet has not scheduled v1.7.0"},
+		// A fix replaced it before the vote: a node on it stops at the halt.
+		{"a floor above it on its line", "v1.7.1", "", "v1.7.0 is below mainnet's floor v1.7.1"},
 		// The node keeps the newline, and meets a floor that does not parse
 		// only with those exact bytes, not with the release; a shell's $(…)
 		// would strip the newline and take it for the release.
-		{"a halt for the release and a newline", "v1.7.0\n", "", "mainnet has not scheduled v1.7.0"},
+		{"a halt for the release and a newline", "v1.7.0\n", "", "which is not a final release"},
 		{"an answer with no data", "", `{"jsonrpc":"2.0","id":1,"result":{}}`, "gave no halt_min_version"},
 		// Its Data names the release, so only the Error refuses it.
 		{"an answer with an error", "", `{"jsonrpc":"2.0","id":1,"result":{"response":{"ResponseBase":{"Error":{"msg":"boom"},"Data":"InYxLjcuMCI="}}}}`, "gave no halt_min_version"},
@@ -423,18 +431,98 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		assert.Empty(t, matching(ev, "gh release edit"))
 	})
 
-	t.Run("a PATCH asks mainnet nothing", func(t *testing.T) {
+	// A PATCH switches without a halt of its own, but is held to the floor
+	// like any release: one below it would stop at the halt.
+	for _, c := range []struct{ name, halt, answer string }{
+		{"no floor, a halt cancelled", "", ""},
+		{"a floor no halt has set", "", noFloorAnswer},
+		{"an older line's floor", "v1.5.1", ""},
+		{"its line's floor", "v1.7.0", ""},
+		{"a floor that names it", "v1.7.1", ""},
+	} {
+		t.Run("a PATCH is promoted over "+c.name, func(t *testing.T) {
+			t.Parallel()
+
+			st := held
+			st.releases = []string{"v1.7.0", "v1.5.1"}
+			st.published = []string{"v1.7.0", "v1.7.1", "v1.5.1"}
+			st.halt = c.halt
+			st.rpcAnswer = c.answer
+			f := newPromoteFixture(t, st)
+			out, code := f.run(script, "v1.7.1")
+			require.Equal(t, 0, code, out)
+			assert.Len(t, matching(f.events(), "rpc"), 1, "mainnet's floor is read")
+		})
+	}
+
+	// A backport to the running line, while the next MINOR's halt is
+	// scheduled but the MINOR not promoted yet.
+	t.Run("a PATCH below mainnet's floor is refused", func(t *testing.T) {
 		t.Parallel()
 
 		st := held
-		st.releases = []string{"v1.7.0", "v1.5.1"}
-		st.published = []string{"v1.7.0", "v1.7.1", "v1.5.1"}
-		st.halt = ""
+		st.releases = []string{"v1.5.0"}
+		st.published = []string{"v1.5.0", "v1.5.1", "v1.7.0"}
+		st.latest = "v1.5.0"
 		f := newPromoteFixture(t, st)
-		out, code := f.run(script, "v1.7.1")
-		require.Equal(t, 0, code, out)
-		assert.Empty(t, matching(f.events(), "rpc"))
+		out, code := f.run(script, "v1.5.1", "--push")
+		assert.NotEqual(t, 0, code, out)
+		assert.Contains(t, out, "v1.5.1 is below mainnet's floor v1.7.0")
+		ev := f.events()
+		assert.Empty(t, matching(ev, "token"), "no image is read")
+		assert.Empty(t, matching(ev, "PUT"))
+		assert.Empty(t, matching(ev, "gh release edit"))
 	})
+
+	// The v1.7.0 upgrade, then the next one, step by step. Every final is
+	// published held (TestReleasesArePublishedHeld), and stays held until the
+	// halt proposal for its line has executed: before that, mainnet's floor is
+	// none, or the running line's.
+	for _, c := range []struct {
+		step     string
+		running  string // the highest full release, the one mainnet runs
+		version  string
+		floor    string
+		promoted bool
+	}{
+		{"v1.7.0, before its halt proposal", "v1.5.1", "v1.7.0", "", false},
+		{"v1.7.0, once its halt proposal has executed", "v1.5.1", "v1.7.0", "v1.7.0", true},
+		{"v1.8.0, while mainnet runs v1.7.0", "v1.7.0", "v1.8.0", "v1.7.0", false},
+		{"v1.8.0, once its halt proposal has executed", "v1.7.0", "v1.8.0", "v1.8.0", true},
+		// Cut once the halt is scheduled, it takes the place of the release
+		// it fixes, which is never promoted.
+		{"v1.8.1, a fix to v1.8.0 before v1.8.0 is promoted", "v1.7.0", "v1.8.1", "v1.8.0", true},
+	} {
+		t.Run("the upgrade cycle: "+c.step, func(t *testing.T) {
+			t.Parallel()
+
+			st := promoteState{
+				releases:  []string{c.running, "v1.5.1"},
+				published: []string{c.running, "v1.5.1", "v1.7.0", "v1.8.0", "v1.8.1"},
+				latest:    c.running,
+				images:    c.running,
+				halt:      c.floor,
+			}
+			f := newPromoteFixture(t, st)
+			out, code := f.run(script, c.version, "--push")
+			ev := f.events()
+			if !c.promoted {
+				assert.NotEqual(t, 0, code, out)
+				assert.Contains(t, out, "mainnet has not scheduled "+c.version)
+				assert.Empty(t, matching(ev, "token"), "no image is read")
+				assert.Empty(t, matching(ev, "PUT"))
+				assert.Empty(t, matching(ev, "gh release edit"))
+				return
+			}
+			require.Equal(t, 0, code, out)
+			for _, img := range images {
+				want, _ := f.stored(img + ":" + c.version)
+				got, _ := f.stored(img + ":latest")
+				assert.Equal(t, want, got, "%s:latest is %s", img, c.version)
+			}
+			assert.Equal(t, []string{"gh release edit " + c.version + " --repo gnolang/gno --prerelease=false --latest"}, matching(ev, "gh release edit"))
+		})
+	}
 
 	t.Run("a MAJOR is refused before mainnet is asked", func(t *testing.T) {
 		t.Parallel()
@@ -590,8 +678,9 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		assert.Contains(t, stderr.String(), "Usage:")
 	})
 
-	// The recovery from a release skipped after its promotion: mark it a
-	// pre-release again, then promote the release the chain runs.
+	// The recovery from a release skipped after its promotion: cancel its
+	// halt, which clears mainnet's floor, mark it a pre-release again, then
+	// promote the release the chain runs.
 	t.Run("promoting the running release puts latest back", func(t *testing.T) {
 		t.Parallel()
 
@@ -599,6 +688,7 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		st.releases = []string{"v1.5.1"}
 		st.latest = "v1.7.0"
 		st.images = "v1.7.0"
+		st.halt = ""
 		f := newPromoteFixture(t, st)
 		out, code := f.run(script, "v1.5.1", "--push")
 		require.Equal(t, 0, code, out)
@@ -610,7 +700,23 @@ func TestPromoteReleaseRuns(t *testing.T) {
 		}
 		ev := f.events()
 		assert.Equal(t, []string{"gh release edit v1.5.1 --repo gnolang/gno --prerelease=false --latest"}, matching(ev, "gh release edit"))
-		assert.Empty(t, matching(ev, "rpc"), "the release the chain runs needs no scheduled halt")
+		assert.Len(t, matching(ev, "rpc"), 1, "mainnet's floor is read")
+	})
+
+	t.Run("the running release is not put back while a halt above it stands", func(t *testing.T) {
+		t.Parallel()
+
+		st := held
+		st.releases = []string{"v1.5.1"}
+		st.latest = "v1.7.0"
+		st.images = "v1.7.0"
+		f := newPromoteFixture(t, st)
+		out, code := f.run(script, "v1.5.1", "--push")
+		assert.NotEqual(t, 0, code, out)
+		assert.Contains(t, out, "v1.5.1 is below mainnet's floor v1.7.0")
+		ev := f.events()
+		assert.Empty(t, matching(ev, "PUT"))
+		assert.Empty(t, matching(ev, "gh release edit"))
 	})
 }
 
