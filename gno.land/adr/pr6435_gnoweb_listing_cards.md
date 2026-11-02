@@ -71,9 +71,20 @@ listing still renders at once.
 
 A listing waits at most `cardsWait` (1.5 s). A card not ready by then shows
 its path and links, and its fetch finishes for the next reader. Because a
-fetch outlives its request, a process-wide cap (`maxCardFetches`, 8, a quarter
-of the RPC client's default) bounds them across every reader, as `importers`
-does for its lookups: a card refused a slot stays blank and is not remembered.
+fetch outlives its request, a process-wide cap (`maxCardFetches`, 8) bounds
+them across every reader, chain reads and indexer block lookups together: a
+quarter of the RPC client's default and half of the indexer client's, so a
+flood of cold listings never takes the slots the map, search and pages need.
+It refuses at once rather than queue, as `importers` does for its lookups: a
+card refused a slot stays blank and is not remembered.
+`TestCards_FloodStaysUnderTheCap` runs 40 cold listings of 50 packages at
+once and checks that no more than 8 reads ever run and every listing returns
+within its budget.
+
+What a request can make gnoweb do is bounded by data it does not choose: the
+cards' cache keys are package paths from the node's listing (at most 1,000)
+and deploy heights, never a value from the URL, and each cache holds at most
+4,096 entries. The activity scan is one shared aggregate.
 The week's activity is read beside the packages, never before them, so a cold
 indexer scan cannot spend the wait; a listing of pure packages, which are
 never called, does not ask for it. A cold listing of 142 packages filled 15,

@@ -2,6 +2,8 @@ package chainmap
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -167,6 +169,67 @@ func TestCards_BusySlotsAreNotRemembered(t *testing.T) {
 		<-h.cardSlots
 	}
 	assert.True(t, h.Cards(context.Background(), []string{"/r/demo/blog"})[0].Known)
+}
+
+// countingPackages answers every path, slowly, and records the most reads
+// it ever had in flight.
+type countingPackages struct {
+	mu            sync.Mutex
+	inFlight, max int
+	calls         int
+}
+
+func (c *countingPackages) Summary(ctx context.Context, pkgPath string) (PackageSummary, error) {
+	c.mu.Lock()
+	c.inFlight++
+	c.calls++
+	c.max = max(c.max, c.inFlight)
+	c.mu.Unlock()
+	defer func() {
+		c.mu.Lock()
+		c.inFlight--
+		c.mu.Unlock()
+	}()
+	select {
+	case <-time.After(50 * time.Millisecond):
+	case <-ctx.Done():
+	}
+	return PackageSummary{Height: 7}, nil
+}
+
+// A flood of cold listings, each over its own packages, never runs more than
+// maxCardFetches backend reads at once, chain and indexer together, and never
+// waits past its budget.
+func TestCards_FloodStaysUnderTheCap(t *testing.T) {
+	t.Parallel()
+
+	pkgs := &countingPackages{}
+	idx := &fakeIndexer{tip: 1000, t0: time.Now().Add(-1000 * time.Second)}
+	h := New(Deps{Indexer: idx, Imports: fakeImports{}, Packages: pkgs, Domain: "gno.land"})
+
+	const listings, perListing = 40, 50
+	var wg sync.WaitGroup
+	start := time.Now()
+	for l := range listings {
+		paths := make([]string, perListing)
+		for i := range paths {
+			paths[i] = fmt.Sprintf("/p/flood%d/pkg%d", l, i)
+		}
+		wg.Go(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
+			h.Cards(ctx, paths)
+		})
+	}
+	wg.Wait()
+	assert.Less(t, time.Since(start), 2*time.Second, "every listing returns within its budget")
+
+	// Fetches outlive their listing; once they land, every slot is back.
+	assert.Eventually(t, func() bool { return len(h.cardSlots) == 0 }, 2*time.Second, 10*time.Millisecond)
+	pkgs.mu.Lock()
+	defer pkgs.mu.Unlock()
+	assert.LessOrEqual(t, pkgs.max, maxCardFetches, "chain reads in flight")
+	assert.Less(t, pkgs.calls, listings*perListing, "refused reads are not run")
 }
 
 // A cached aggregate dates calls from the chain's own clock, not the reader's.

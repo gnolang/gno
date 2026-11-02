@@ -46,11 +46,12 @@ const (
 	// cardConcurrency bounds the goroutines one listing runs at once.
 	cardConcurrency = 8
 
-	// maxCardFetches bounds the package reads running at once across all
-	// readers, a quarter of the RPC client's default cap: a fetch outlives
-	// the listing that started it, and many cold listings at once must not
-	// take the slots every other page needs. A card refused a slot stays
-	// blank, and a later reader retries.
+	// maxCardFetches bounds the card reads running at once across all
+	// readers, chain and indexer together: a quarter of the RPC client's
+	// default cap, half of the indexer client's. A fetch outlives the listing
+	// that started it, and many cold listings at once must not take the
+	// slots every other page needs. A card refused a slot stays blank, and a
+	// later reader retries.
 	maxCardFetches = 8
 
 	// summaryTTL is how long a package's card is served fresh; past it, the
@@ -145,12 +146,11 @@ func (h *Handler) Cards(ctx context.Context, paths []string) []components.Packag
 // can date it, its deploy date.
 func (h *Handler) fillCard(ctx context.Context, c *components.PackageCard) {
 	s, err := h.summaries.get(ctx, c.Path, func(ctx context.Context) (cardSummary, error) {
-		select {
-		case h.cardSlots <- struct{}{}:
-			defer func() { <-h.cardSlots }()
-		default:
-			return cardSummary{}, errCardsBusy
+		release, err := h.takeCardSlot()
+		if err != nil {
+			return cardSummary{}, err
 		}
+		defer release()
 		p, err := h.deps.Packages.Summary(ctx, c.Path)
 		if err != nil {
 			return cardSummary{}, err
@@ -181,6 +181,18 @@ func (h *Handler) fillCard(ctx context.Context, c *components.PackageCard) {
 	}
 }
 
+// takeCardSlot admits one card fetch, chain or indexer, or refuses at once
+// when maxCardFetches already run: cards never queue on the backends other
+// pages need. The returned func gives the slot back.
+func (h *Handler) takeCardSlot() (release func(), err error) {
+	select {
+	case h.cardSlots <- struct{}{}:
+		return func() { <-h.cardSlots }, nil
+	default:
+		return nil, errCardsBusy
+	}
+}
+
 // cardActivity is the week's aggregate, or nil when it is not ready in time
 // or the indexer failed: cards then show no activity.
 func (h *Handler) cardActivity(ctx context.Context) *Activity {
@@ -198,6 +210,11 @@ func (h *Handler) cardActivity(ctx context.Context) *Activity {
 // cannot say in time.
 func (h *Handler) blockTime(ctx context.Context, height int) time.Time {
 	t, err := h.blockTimes.get(ctx, strconv.Itoa(height), func(ctx context.Context) (time.Time, error) {
+		release, err := h.takeCardSlot()
+		if err != nil {
+			return time.Time{}, err
+		}
+		defer release()
 		b, err := h.deps.Indexer.Block(ctx, height)
 		if err != nil {
 			return time.Time{}, err
