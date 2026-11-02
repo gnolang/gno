@@ -25,5 +25,5 @@ func TestBindUnixSocketCreatesTheSocketWithItsMode(t *testing.T) {
 
 	info, err := os.Stat(sockPath)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o660), info.Mode().Perm())
+	assert.Equal(t, os.FileMode(0o660).String(), info.Mode().Perm().String())
 }

@@ -411,7 +411,7 @@ func TestNewPrivValidatorFromConfig(t *testing.T) {
 				}
 				// Higher bits (S_IFSOCK, etc.) are fine; mask to the perm
 				// bits we care about.
-				assert.Equal(c, tc.want, info.Mode().Perm(),
+				assert.Equal(c, tc.want.String(), info.Mode().Perm().String(),
 					"UDS socket must have the configured mode, whatever the umask")
 			}, 500*time.Millisecond, 10*time.Millisecond)
 
