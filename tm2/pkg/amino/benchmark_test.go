@@ -70,7 +70,6 @@ func BenchmarkEncode(b *testing.B) {
 				cdc.MarshalReflect(bd.ptrs[i%benchN])
 			}
 		})
-
 	}
 }
 
@@ -103,6 +102,5 @@ func BenchmarkDecode(b *testing.B) {
 				cdc.UnmarshalReflect(bd.bzs[i%benchN], rv.Interface())
 			}
 		})
-
 	}
 }
