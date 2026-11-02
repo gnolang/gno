@@ -102,6 +102,16 @@ func TestReleasesArePublishedHeld(t *testing.T) {
 		// (RELEASING.md, "Container images").
 		assert.NotContains(t, latest, "gnoland", "%s must never move gnoland:latest", promoteReleaseScript)
 	})
+
+	// misc/install.sh takes the highest full v* release among the newest
+	// releases GitHub lists. Every final starts as a pre-release, so a run of
+	// candidates and held finals could push the highest full one off a short
+	// page: it reads GitHub's largest.
+	t.Run("misc/install.sh reads the largest page of releases", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, "100", grepOne(t, "misc/install.sh", `releases\?per_page=([0-9]+)"`))
+	})
 }
 
 // promote-release.sh makes a final release the one misc/install.sh, GitHub's
