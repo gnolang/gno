@@ -61,7 +61,11 @@ gnokey add alice   # gnokey list prints your g1 address
 
 cd myrealm         # your .gno files, in package myrealm
 gno mod init gno.land/r/<your-g1-addr>/myrealm
+```
 
+Then deploy it:
+
+```sh
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \

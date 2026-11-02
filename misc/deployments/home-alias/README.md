@@ -32,9 +32,10 @@ nothing.
 ./whatsnew.sh --force home.md     # same, ignoring the refresh intervals
 ```
 
-The block has the three columns of the rest of the page: the latest X posts, the
-latest blog posts, videos or releases under 60 days old with the last merged
-pull requests, and the most used realms with the most imported packages. With
+The block breaks from the three-column grids around it: two wide cards with the
+latest X posts and blog posts, each with a button to its source, then a line of
+the most used realms and one of the most imported packages. Without an indexer,
+the realms' line stays out. With
 `--builders`, for a testnet, it holds the week's totals, then the latest
 deployments, the most used realms and the last merged pull requests:
 
@@ -49,21 +50,19 @@ distinct addresses, and only those of the `USED_NAMESPACES` namespaces can appea
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `RPC_URL` | `https://rpc.gno.land:443` | Package list of "Top packages" |
+| `RPC_URL` | `https://rpc.gno.land:443` | Package list of "Most imported" |
 | `BLOG_RPC_URL` | `https://rpc.gno.land:443` | Where the blog is read |
 | `LINK_BASE` | empty | Prefix of blog links, for a page served elsewhere than mainnet |
 | `INDEXER_URL` | empty | tx-indexer GraphQL endpoint; without it, what needs an indexer stays out |
 | `X_ACCOUNT` | `_gnoland` | The account shown |
-| `YOUTUBE_CHANNEL` | `UCHlHaup7HEDQFQrb1goxAkg` | The channel shown |
-| `VIDEO_SKIP` | `Jae Kwon` | Regular expression of video titles to leave out; empty keeps all |
 | `DEPLOYED_SKIP` | `/smoke/` | Regular expression of paths `--builders` leaves out of its deployments and their total; empty keeps all |
 | `USED_NAMESPACES` | `gnoland gnoswap akkadia` | Namespaces the ranking may show; empty shows all, for a testnet |
 | `NETWORK` | `onyx` | The testnet `--builders` names and links to |
 | `ON_CHANGE` | empty | Command run after the page changed |
 | `STATE_DIR` | `.whatsnew` beside the page | Last good output of each source |
-| `FEED_TTL` | `30` | Minutes between reads of X, the blog, YouTube and GitHub |
-| `USED_TTL` | `1440` | Minutes between indexer scans, about 10 queries each, of "Top realms" and, with `--builders`, of the deployments |
-| `IMPORTED_TTL` | `10080` | Minutes between "Top packages" scans, one `vm/qdoc` per package |
+| `FEED_TTL` | `30` | Minutes between reads of X, the blog and GitHub |
+| `USED_TTL` | `1440` | Minutes between indexer scans, about 10 queries each, of the most used realms and, with `--builders`, of the deployments |
+| `IMPORTED_TTL` | `10080` | Minutes between "Most imported" scans, one `vm/qdoc` per package |
 
 Run it often: a source is only read once its interval has passed, whether or not
 its last read worked. One that fails keeps its previous content, except the

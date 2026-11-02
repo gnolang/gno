@@ -9,12 +9,9 @@ set -euo pipefail
 # to https://gno.land so that its links lead there.
 : "${BLOG_RPC_URL:=https://rpc.gno.land:443}"
 : "${LINK_BASE:=}"
-# Without an indexer, "Top realms" stays out of the page.
+# Without an indexer, the realms stay out of the page.
 : "${INDEXER_URL:=}"
 : "${X_ACCOUNT:=_gnoland}"
-: "${YOUTUBE_CHANNEL:=UCHlHaup7HEDQFQrb1goxAkg}"
-# Videos whose title matches this regular expression stay out of the feed.
-: "${VIDEO_SKIP=Jae Kwon}"
 # Deployments whose path matches this regular expression stay out of --builders.
 : "${DEPLOYED_SKIP=/smoke/}"
 # For a gnoweb that reads its static pages at startup only.
@@ -25,19 +22,18 @@ set -euo pipefail
 : "${IMPORTED_TTL:=10080}"
 # The testnet --builders describes.
 : "${NETWORK:=onyx}"
-export RPC_URL BLOG_RPC_URL LINK_BASE INDEXER_URL X_ACCOUNT YOUTUBE_CHANNEL VIDEO_SKIP DEPLOYED_SKIP USED_NAMESPACES
+export RPC_URL BLOG_RPC_URL LINK_BASE INDEXER_URL X_ACCOUNT DEPLOYED_SKIP USED_NAMESPACES
 
 START='<!-- whats-new:start -->'
 END='<!-- whats-new:end -->'
-X_SLOTS=3
-OTHER_SLOTS=2
-# An old blog post, video or release would not read as new.
-MAX_ROW_AGE=60
+CARD_ROWS=3
+STRIP_SIZE=5
 LIST_SIZE=6
 SHIPPED_SIZE=3
 MIN_CHARS=20
 MAX_IMPORT_FAILURES=10
-MAX_CHARS=110
+MAX_CHARS=90
+SHORT_CHARS=60
 ACTIVITY_WINDOW=604800
 # Past a week, a ranking no longer reads as "this week".
 USED_MAX_AGE=$((ACTIVITY_WINDOW / 60))
@@ -111,10 +107,10 @@ to_md() {
     | gsub("g(?=1[0-9A-Za-z]{36})"; "&#103;")'
 }
 
-# A source prints one row per item: date (YYYYMMDD), kind, link, escaped text.
+# A source prints one row per item: date (YYYYMMDD), link, escaped text.
 row() {
   [[ $1 =~ ^[0-9]{8}$ ]] || return 1
-  printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$(to_md <<<"$4")"
+  printf '%s\t%s\t%s\n' "$1" "$2" "$(to_md <<<"$3")"
 }
 
 # FxTwitter only supplies the post IDs: text and author come from X itself.
@@ -126,9 +122,9 @@ source_x() {
       | select(.author.screen_name == $account
           and .reposted_by == null and .replying_to == null
           and (.id | test("^[0-9]+$")))
-      | [.id, (if .article then "article" else "x" end)] | @tsv')
+      | [.id, (if .article then "article" else "x" end)] | @tsv' | sort -rn)
   while IFS=$'\t' read -r id kind; do
-    [ "$n" -lt 6 ] || break
+    [ "$n" -lt "$CARD_ROWS" ] || break
     url="https://x.com/${X_ACCOUNT}/status/${id}"
     oembed=$("${CURL[@]}" -G --data-urlencode "url=${url}" --data-urlencode "omit_script=1" \
       https://publish.x.com/oembed) || continue
@@ -147,7 +143,7 @@ source_x() {
         html_to_text | expand_links)
       [ "${#text}" -ge "$MIN_CHARS" ] || continue
     fi
-    row "$date" x "$url" "$text"
+    row "$date" "$url" "$text"
     n=$((n + 1))
   done <<<"$posts"
   [ "$n" -gt 0 ]
@@ -156,33 +152,13 @@ source_x() {
 source_blog() {
   local fields date slug title
   fields=$(abci "$BLOG_RPC_URL" vm/qrender 'gno.land/r/gnoland/blog:' |
-    jq -Rrs --arg months "$MONTHS" "$YMD"'
-      first(capture("### \\[(?<t>[^\\n]*)\\]\\(/r/gnoland/blog:p/(?<s>[a-z0-9-]+)\\)\\n(?<d>[0-9]{2}) (?<m>[A-Z][a-z]{2}) (?<y>[0-9]{4})"; "g"))
+    jq -Rrs --arg months "$MONTHS" --argjson size "$CARD_ROWS" "$YMD"'
+      limit($size; capture("### \\[(?<t>[^\\n]*)\\]\\(/r/gnoland/blog:p/(?<s>[a-z0-9-]+)\\)\\n(?<d>[0-9]{2}) (?<m>[A-Z][a-z]{2}) (?<y>[0-9]{4})"; "g"))
       | [ymd, .s, .t] | @tsv')
   [ -n "$fields" ]
-  IFS=$'\t' read -r date slug title <<<"$fields"
-  row "$date" blog "${LINK_BASE}/r/gnoland/blog:p/${slug}" "$title"
-}
-
-source_video() {
-  local fields id date title
-  fields=$("${CURL[@]}" "https://www.youtube.com/feeds/videos.xml?channel_id=${YOUTUBE_CHANNEL}" |
-    jq -Rrs --arg skip "$VIDEO_SKIP" '
-      gsub("\\s+"; " ")
-      | first(capture("<entry>.*?<yt:videoId>(?<id>[A-Za-z0-9_-]{11})</yt:videoId>.*?<title>(?<t>[^<]*)</title>.*?<published>(?<y>[0-9]{4})-(?<m>[0-9]{2})-(?<d>[0-9]{2})"; "g")
-          | select($skip == "" or (.t | test($skip; "i") | not)))
-      | [.id, "\(.y)\(.m)\(.d)", .t] | @tsv')
-  [ -n "$fields" ]
-  IFS=$'\t' read -r id date title <<<"$fields"
-  row "$date" video "https://www.youtube.com/watch?v=${id}" "$(html_to_text <<<"$title" | expand_links)"
-}
-
-source_release() {
-  local fields tag date
-  fields=$("${CURL[@]}" https://api.github.com/repos/gnolang/gno/releases/latest |
-    jq -er 'select(.tag_name | test("^v[0-9.]+$")) | [.tag_name, (.published_at[0:10] | gsub("-"; ""))] | @tsv')
-  IFS=$'\t' read -r tag date <<<"$fields"
-  row "$date" release "https://github.com/gnolang/gno/releases/tag/${tag}" "Gno.land ${tag} released"
+  while IFS=$'\t' read -r date slug title; do
+    row "$date" "${LINK_BASE}/r/gnoland/blog:p/${slug}" "$title"
+  done <<<"$fields"
 }
 
 # scan_band <lower> <upper> <filter> <fields> <rows> prints the rows a jq filter
@@ -270,17 +246,15 @@ source_candidate() {
 }
 
 source_shipped() {
-  local prs number title n=0
+  local prs number title
   prs=$("${CURL[@]}" 'https://api.github.com/search/issues?q=repo:gnolang/gno+is:pr+is:merged&sort=updated&order=desc&per_page=30' |
     jq -r --argjson size "$SHIPPED_SIZE" '[.items[] | select(.title | test("^(feat|fix)[(:!]"))] | sort_by(.closed_at) | reverse | .[:$size][]
       | (.title | sub("^[a-z]+(\\([^)]*\\))?!?: *"; "")) as $t
       | [.number, ($t[:1] | ascii_upcase) + $t[1:]] | @tsv')
   [ -n "$prs" ]
   while IFS=$'\t' read -r number title; do
-    printf '%s\t%s\n' "$number" "$(MAX_CHARS=60 to_md <<<"$title")"
-    n=$((n + 1))
+    printf '%s\t%s\n' "$number" "$(MAX_CHARS=$SHORT_CHARS to_md <<<"$title")"
   done <<<"$prs"
-  [ "$n" -gt 0 ]
 }
 
 source_imported() {
@@ -325,82 +299,75 @@ short_date() {
   printf '%s %d' "${months[$((10#${1:4:2} - 1))]}" "$((10#${1:6:2}))"
 }
 
-fragments() {
-  local name
-  for name in "$@"; do
-    [ ! -f "$STATE_DIR/$name" ] || cat "$STATE_DIR/$name"
-  done
+latest() {
+  [ ! -f "$STATE_DIR/$1" ] || sort -rs -t$'\t' -k1,1 "$STATE_DIR/$1" | first_rows "$CARD_ROWS"
 }
 
-newest() {
-  sort -rs -t$'\t' -k1,1
+is_recent() {
+  [ -s "$STATE_DIR/$1" ] && ! older_than "$STATE_DIR/$1" "$USED_MAX_AGE"
 }
 
-# Laid out like the page's cards: a short green link, then neutral text.
-render_rows() {
-  local date kind url text icon label first=1
-  newest | while IFS=$'\t' read -r date kind url text; do
-    case $kind in
-    x) icon='𝕏' label="Gno.land \\@${X_ACCOUNT/_/\\_}" ;;
-    blog) icon='<gno-icon name="book" />' label=Blog ;;
-    video) icon='<gno-icon name="camera" />' label=Video ;;
-    release) icon='<gno-icon name="rocket" />' label=Release ;;
-    esac
-    [ "$first" = 1 ] || printf '\n---\n\n'
-    first=0
-    printf '%s **[%s · %s](%s)**\n\n%s\n' "$icon" "$label" "$(short_date "$date")" "$url" "$text"
-  done
-}
-
-render_posts() {
-  fragments x | newest | first_rows "$X_SLOTS" | render_rows
-}
-
-render_news() {
-  local cutoff rows shipped="$STATE_DIR/shipped"
-  cutoff=$(jq -nr --argjson days "$MAX_ROW_AGE" 'now - $days * 86400 | strftime("%Y%m%d")')
-  rows=$(fragments blog video release | awk -F'\t' -v cutoff="$cutoff" '$1 >= cutoff' |
-    newest | first_rows "$OTHER_SLOTS" | render_rows)
-  [ -z "$rows" ] || printf '%s\n' "$rows"
-  [ -s "$shipped" ] || return 0
-  [ -z "$rows" ] || printf '\n---\n\n'
-  render_shipped
-}
-
-render_list() {
-  awk -F'\t' '{ printf "%d. [%s](%s) · %d\n", NR, $2, $3, $1 }' "$1"
-}
-
-render_panel() {
-  local used="$STATE_DIR/used" imported="$STATE_DIR/imported"
-  if [ -s "$used" ] && ! older_than "$used" "$USED_MAX_AGE"; then
-    printf '<gno-icon name="flame" /> **[Top realms](/r/)** · weekly users\n\n'
-    render_list "$used"
-    printf '\n'
-  fi
-  if [ -s "$imported" ]; then
-    printf '<gno-icon name="cube" /> **[Top packages](/p/)** · imports\n\n'
-    render_list "$imported"
-  fi
-}
-
-# Three columns, like the rest of the page: the rows line up with the sections
-# above and below.
-render_block() {
-  local posts news panel column first=1
-  posts=$(render_posts)
-  news=$(render_news)
-  panel=$(render_panel)
-  [ -n "$posts$news" ] || return 0
-  printf '## <gno-icon name="newspaper" /> What'\''s new\n\nThe latest from Gno.land, and what people use on it.\n\n<gno-columns>\n'
-  for column in "$posts" "$news" "$panel"; do
+# One row of the page's grid.
+render_columns() {
+  local column first=1
+  printf '<gno-columns>\n'
+  for column in "$@"; do
     [ -n "$column" ] || continue
     [ "$first" = 1 ] || printf '\n<gno-columns-sep>\n'
     printf '\n%s\n' "$column"
     first=0
   done
   printf '\n</gno-columns>\n\n'
-  printf '<gno-button href="https://x.com/%s" label="Follow Gno.land on X" variant="outline" /> <gno-button href="%s/blog" label="Read the blog" variant="outline" />\n\n---\n\n' "$X_ACCOUNT" "$LINK_BASE"
+}
+
+# Laid out like the page's cards: a short green link, then neutral text.
+render_feed() {
+  local date url text
+  [ -n "$4" ] || return 0
+  printf '<gno-frame>\n\n%s\n\n<gno-button href="%s" label="%s" />\n\n' "$1" "$2" "$3"
+  while IFS=$'\t' read -r date url text; do
+    printf -- '- **[%s](%s)** %s\n' "$(short_date "$date")" "$url" "$text"
+  done <<<"$4"
+  printf '\n</gno-frame>\n'
+}
+
+# A line of links, so that the block reads as more than one more grid.
+render_strip() {
+  awk -F'\t' -v size="$STRIP_SIZE" -v label="$1" '
+    NR <= size { printf "%s[%s](%s)", (NR == 1 ? "**" label ":** " : " · "), $2, $3 }
+    END { print "\n" }' "$2"
+}
+
+# Two wide cards and a line, where the sections around it have three columns.
+# Each source keeps its card, so that a post on X every day cannot push the
+# blog out.
+render_block() {
+  local posts blog imported="$STATE_DIR/imported"
+  posts=$(latest x)
+  blog=$(latest blog)
+  [ -n "$posts$blog" ] || return 0
+  printf '## <gno-icon name="newspaper" /> What'\''s new\n\nThe latest from Gno.land, and what people use on it.\n\n'
+  render_columns \
+    "$(render_feed '𝕏 **Latest on X**' "https://x.com/${X_ACCOUNT}" 'Follow on X' "$posts")" \
+    "$(render_feed '<gno-icon name="book" /> **Latest posts**' "${LINK_BASE}/blog" 'Read the blog' "$blog")"
+  ! is_recent used || render_strip 'Most used this week' "$STATE_DIR/used"
+  [ ! -s "$imported" ] || render_strip 'Most imported' "$imported"
+  printf -- '---\n\n'
+}
+
+render_deployed() {
+  local deployed="$STATE_DIR/deployed" date name path
+  [ -s "$deployed" ] || return 0
+  printf '<gno-icon name="box" /> **Recently deployed**\n\n'
+  while IFS=$'\t' read -r date name path; do
+    printf -- '- [%s](%s) · %s\n' "$name" "$path" "$(short_date "$date")"
+  done <"$deployed"
+}
+
+render_used() {
+  is_recent used || return 0
+  printf '<gno-icon name="flame" /> **[Top realms](/r/)** · weekly users\n\n'
+  awk -F'\t' '{ printf "%d. [%s](%s) · %d\n", NR, $2, $3, $1 }' "$STATE_DIR/used"
 }
 
 render_shipped() {
@@ -410,18 +377,14 @@ render_shipped() {
   awk -F'\t' '{ printf "- [%s](https://github.com/gnolang/gno/pull/%s)\n", $2, $1 }' "$shipped"
 }
 
+render_stat() {
+  printf '<gno-frame>\n**%s** %s this week\n</gno-frame>' "$1" "$2"
+}
+
 render_builders() {
-  local deployed="$STATE_DIR/deployed" used="$STATE_DIR/used" tag date name path users realms packages first=1 column
-  local recent="" ranking="" shipped
-  if [ -s "$deployed" ]; then
-    recent='<gno-icon name="box" /> **Recently deployed**'$'\n\n'
-    while IFS=$'\t' read -r date name path; do
-      recent+="- [${name}](${path}) · $(short_date "$date")"$'\n'
-    done <"$deployed"
-  fi
-  if [ -s "$used" ] && ! older_than "$used" "$USED_MAX_AGE"; then
-    ranking=$(printf '<gno-icon name="flame" /> **[Top realms](/r/)** · weekly users\n\n'; render_list "$used")
-  fi
+  local tag users realms packages recent ranking shipped
+  recent=$(render_deployed)
+  ranking=$(render_used)
   shipped=$(render_shipped)
   [ -n "$recent$ranking$shipped" ] || return 0
 
@@ -431,21 +394,13 @@ render_builders() {
     printf 'Latest candidate: [%s](https://github.com/gnolang/gno/releases/tag/%s). ' "$tag" "$tag"
   }
   printf 'Watch it on [Gnockpit](https://gnockpit.%s.testnets.gno.land) or [Gnoscan](https://gnoscan.io/?chainId=%s-1).\n\n' "$NETWORK" "$NETWORK"
-  if [ -s "$STATE_DIR/activity" ] && [ -s "$STATE_DIR/deployed-count" ] &&
-    ! older_than "$STATE_DIR/activity" "$USED_MAX_AGE" && ! older_than "$STATE_DIR/deployed-count" "$USED_MAX_AGE"; then
+  if is_recent activity && is_recent deployed-count; then
     IFS=$'\t' read -r users realms <"$STATE_DIR/activity"
     packages=$(cat "$STATE_DIR/deployed-count")
-    printf '<gno-columns>\n<gno-frame>\n**%s** deployments this week\n</gno-frame>\n<gno-columns-sep>\n<gno-frame>\n**%s** active users this week\n</gno-frame>\n<gno-columns-sep>\n<gno-frame>\n**%s** realms used this week\n</gno-frame>\n</gno-columns>\n\n' \
-      "$packages" "$users" "$realms"
+    render_columns "$(render_stat "$packages" deployments)" "$(render_stat "$users" 'active users')" "$(render_stat "$realms" 'realms used')"
   fi
-  printf '<gno-columns>\n'
-  for column in "$recent" "$ranking" "$shipped"; do
-    [ -n "$column" ] || continue
-    [ "$first" = 1 ] || printf '\n<gno-columns-sep>\n'
-    printf '\n%s\n' "$column"
-    first=0
-  done
-  printf '\n</gno-columns>\n\n---\n\n'
+  render_columns "$recent" "$ranking" "$shipped"
+  printf -- '---\n\n'
 }
 
 # Exactly one of each marker, in order: anything else would eat the page.
@@ -468,13 +423,13 @@ reload() {
 }
 
 main() {
-  local home="" dry_run=0 builders=0 block tmp
+  local home="" dry_run=0 builders=0 render=render_block block tmp
   FORCE=0
   while [ $# -gt 0 ]; do
     case $1 in
     --dry-run) dry_run=1 ;;
     --force) FORCE=1 ;;
-    --builders) builders=1 ;;
+    --builders) builders=1 render=render_builders ;;
     *) home=$1 ;;
     esac
     shift
@@ -487,25 +442,19 @@ main() {
   export STATE_DIR
   mkdir -p "$STATE_DIR"
 
-  refresh shipped "$FEED_TTL" &
   if [ "$builders" = 1 ]; then
+    refresh shipped "$FEED_TTL" &
     refresh candidate "$FEED_TTL" &
     [ -z "$INDEXER_URL" ] || refresh deployed "$USED_TTL" &
   else
     refresh x "$FEED_TTL" &
     refresh blog "$FEED_TTL" &
-    refresh video "$FEED_TTL" &
-    refresh release "$FEED_TTL" &
     refresh imported "$IMPORTED_TTL" &
   fi
   [ -z "$INDEXER_URL" ] || refresh used "$USED_TTL" &
   wait
 
-  if [ "$builders" = 1 ]; then
-    block=$(render_builders; printf x)
-  else
-    block=$(render_block; printf x)
-  fi
+  block=$("$render"; printf x)
   block=${block%x}
   # An outage on a host that lost its state must not wipe a filled block.
   if [ -z "$block" ]; then

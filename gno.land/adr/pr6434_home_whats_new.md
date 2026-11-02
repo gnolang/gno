@@ -8,9 +8,8 @@ Proposed. Replaces the `gnoalias.sh` part of #6327.
 
 The static home of mainnet and the testnets never changes between two
 deployments, so nothing on it shows that the project is alive. The goal is one
-section that does: recent posts from X, the blog, videos and releases, next to
-the most used realms, the most imported packages and the latest merged pull
-requests.
+section that does: recent posts from X and the blog, next to the most used realms
+and the most imported packages.
 
 #6327 did this for the blog from `gnoalias.sh`, a sidecar that rewrites the page.
 Those networks run no such sidecar: their page is a static file read at startup.
@@ -24,10 +23,15 @@ and `jq`. It takes the path of the page and updates it between two marker lines,
 so the pinned file stays the source of the rest of the page and can be deployed
 without the script.
 
-- **One section**, not one per source: a post on X every day keeps its top
-  recent, where a section for the blog alone would show a post weeks old. X, the
-  news and the rankings each get a column, on the page's three-column grid, so that X cannot
-  push the others out and the block lines up with the sections around it.
+- **One section**, not one per source. Two wide cards and two lines of links,
+  because the page already stacks three grids of three columns, and a fourth
+  would read as more of the same. Each card holds several entries of one source
+  and a button to it, so that a post on X every day cannot push the blog out.
+  Without an indexer the realms' line stays out, and nothing leaves a hole.
+- **No videos or releases on mainnet.** X and the blog already announce a
+  release, which appeared three times when it had a card of its own, and the
+  YouTube feed answered 404 and 500 at random. Merged pull requests stay on the
+  testnet, where a builder needs them.
 - **Each source fails alone.** Its last good output is kept in a state folder
   and its last attempt sets when it is read again, so the timer can be frequent
   while the expensive sources stay rare. A ranking older than a week goes: it
@@ -80,7 +84,6 @@ without the script.
 - The block depends on gnoweb re-reading a changed page, from #6327. A restart
   per change only suits a single host: a pool would drop requests each time, and
   the totals of `--builders` change once a day on their own.
-- FxTwitter and the YouTube feed are outside the project's control, and the feed
-  answered 404 and 500 at random while this was written. Each only costs its
-  part of the block.
+- FxTwitter is outside the project's control. If it fails, only the X card keeps
+  its last posts.
 - A new partner shows in "Top realms" once its namespace joins `USED_NAMESPACES`.
