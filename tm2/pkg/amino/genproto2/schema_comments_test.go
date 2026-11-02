@@ -1,4 +1,4 @@
-package genproto
+package genproto2
 
 import (
 	"path"
@@ -25,14 +25,14 @@ type TestMessageName2 struct {
 func TestComments(t *testing.T) {
 	pkg := amino.RegisterPackage(
 		amino.NewPackage(
-			"github.com/gnolang/gno/tm2/pkg/amino/genproto",
+			"github.com/gnolang/gno/tm2/pkg/amino/genproto2",
 			"amino_test",
 			amino.GetCallersDirname(),
 		).WithTypes(
 			&TestMessageName{},
 			&TestMessageName2{},
 		// Add comments from this same source file.
-		).WithComments(path.Join(amino.GetCallersDirname(), "comments_test.go")))
+		).WithComments(path.Join(amino.GetCallersDirname(), "schema_comments_test.go")))
 
 	p3c := NewP3Context()
 	p3c.RegisterPackage(pkg)
@@ -42,7 +42,7 @@ func TestComments(t *testing.T) {
 	assert.Equal(t, `syntax = "proto3";
 package amino_test;
 
-option go_package = "github.com/gnolang/gno/tm2/pkg/amino/genproto/pb";
+option go_package = "github.com/gnolang/gno/tm2/pkg/amino/genproto2/pb";
 
 // messages
 // message comment

@@ -1,8 +1,7 @@
-package genproto
+package genproto2
 
 import (
 	"fmt"
-	"go/ast"
 	"reflect"
 	"sort"
 	"strconv"
@@ -354,12 +353,6 @@ func (nl NList) Name() string {
 	}
 
 	return fmt.Sprintf("%s_%v%v%v", pkgname, prefix, ename, listSfx)
-}
-
-//nolint:staticcheck
-func (nl NList) P3GoExprString(imports *ast.GenDecl, scope *ast.Scope) string {
-	pkgName := addImportAuto(imports, scope, nl.Package.GoPkgName+"pb", nl.Package.P3GoPkgPath)
-	return fmt.Sprintf("*%v.%v", pkgName, nl.Name())
 }
 
 // NOTE: requires nl.Package.

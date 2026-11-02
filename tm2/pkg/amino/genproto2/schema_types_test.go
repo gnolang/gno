@@ -1,4 +1,4 @@
-package genproto
+package genproto2
 
 import (
 	"testing"

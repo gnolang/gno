@@ -1,7 +1,7 @@
 package submodule
 
 import (
-	"github.com/gnolang/gno/tm2/pkg/amino/genproto/example/submodule2"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto2/example/submodule2"
 )
 
 type StructSM struct {

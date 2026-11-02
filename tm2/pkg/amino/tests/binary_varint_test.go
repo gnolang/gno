@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/genproto"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto2"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -387,7 +387,7 @@ type bothListsStruct struct {
 // schemaFor renders the generated proto schema text for a registered struct.
 func schemaFor(t *testing.T, types ...any) string {
 	t.Helper()
-	p3c := genproto.NewP3Context()
+	p3c := genproto2.NewP3Context()
 	p := pkg.NewPackage(
 		"github.com/gnolang/gno/tm2/pkg/amino/tests",
 		"tests_varint",

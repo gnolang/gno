@@ -1,31 +1,33 @@
-package genproto
+package genproto2
 
-// p3c.SetProjectRootGopkg("example.com/main")
+// This file generates the proto3 schema (.proto) of an amino package. It
+// came from genproto, the deprecated generator that also wrote protobuf
+// bindings; WriteProto3Schema output is unchanged.
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
-	"path/filepath"
 	"reflect"
-	"strings"
 	"time"
 
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/genproto/stringutil"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto2/stringutil"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
-// TODO sort
-//  * Proto3 import file paths are by default always full (including
-//  domain) and basically the gopkg path.  This lets proto3 schema
-//  import paths stay consistent even as dependency.
-//  * In the go mod world, the user is expected to run an independent
-//  tool to copy proto files to a proto folder from go mod dependencies.
-//  This is provided by MakeProtoFilder().
+// Proto3 import file paths are always full (including domain), basically
+// the gopkg path, so proto3 schema import paths stay consistent even as a
+// dependency.
+
+var (
+	gTimestampType = reflect.TypeFor[timestamppb.Timestamp]()
+	gDurationType  = reflect.TypeFor[durationpb.Duration]()
+)
 
 // P3Context holds contextual information beyond the P3Doc.
 //
@@ -431,122 +433,4 @@ func WriteProto3Schema(pkg *amino.Package) {
 	p3c.ValidateBasic()
 	filename := path.Join(pkg.DirName, pkg.GoPkgName+".proto")
 	p3c.WriteProto3SchemaForTypes(filename, pkg, pkg.ReflectTypes()...)
-}
-
-// Symlinks .proto files from pkg info to dirname, keeping the go path
-// structure as expected, <dirName>/path/to/gopkg/<gopkgName>.proto.
-// If Pkg.DirName is empty, the package is considered "well known", and
-// the mapping is not made.
-func MakeProtoFolder(pkg *amino.Package, dirName string) {
-	fmt.Printf("making proto3 schema folder for package %v\n", pkg)
-	p3c := NewP3Context()
-	p3c.RegisterPackage(pkg)
-
-	// Populate mapping.
-	// p3 import path -> p3 import file (abs path).
-	// e.g. "github.com/.../mygopkg.proto" ->
-	// "/gopath/pkg/mod/.../mygopkg.proto"
-	p3imports := map[string]string{}
-	for _, dpkg := range p3c.GetAllPackages() {
-		if dpkg.P3SchemaFile == "" {
-			// Skip well known packages like google.protobuf.Any
-			continue
-		}
-		p3path := dpkg.P3ImportPath
-		if p3path == "" {
-			panic("P3ImportPath cannot be empty")
-		}
-		p3file := dpkg.P3SchemaFile
-		p3imports[p3path] = p3file
-	}
-
-	// Check validity.
-	if _, err := os.Stat(dirName); os.IsNotExist(err) {
-		panic(fmt.Sprintf("directory %v does not exist", dirName))
-	}
-
-	// Make symlinks.
-	for p3path, p3file := range p3imports {
-		fmt.Println("p3path", p3path, "p3file", p3file)
-		loc := path.Join(dirName, p3path)
-		locdir := path.Dir(loc)
-		// Ensure that paths exist.
-		if _, err := os.Stat(locdir); os.IsNotExist(err) {
-			err = os.MkdirAll(locdir, os.ModePerm)
-			if err != nil {
-				panic(err)
-			}
-		}
-		// Delete existing symlink.
-		if _, err := os.Stat(loc); !os.IsNotExist(err) {
-			err := os.Remove(loc)
-			if err != nil {
-				panic(err)
-			}
-		}
-		// Write symlink.
-		err := os.Symlink(p3file, loc)
-		if os.IsExist(err) {
-			// do nothing.
-		} else if err != nil {
-			panic(err)
-		}
-	}
-}
-
-// Uses pkg.P3GoPkgPath to determine where the compiled file goes.  If
-// pkg.P3GoPkgPath is a subpath of pkg.GoPkgPath, then it will be
-// written in the relevant subpath in pkg.DirName.
-// `protosDir`: folder where .proto files for all dependencies live.
-func RunProtoc(pkg *amino.Package, protosDir string) {
-	if !strings.HasSuffix(pkg.P3SchemaFile, ".proto") {
-		panic(fmt.Sprintf("expected P3Importfile to have .proto suffix, got %v", pkg.P3SchemaFile))
-	}
-	inDir := filepath.Dir(pkg.P3SchemaFile)
-	inFile := filepath.Base(pkg.P3SchemaFile)
-	outDir := path.Join(inDir, "pb")
-	outFile := inFile[:len(inFile)-6] + ".pb.go"
-	// Ensure that paths exist.
-	if _, err := os.Stat(outDir); os.IsNotExist(err) {
-		err = os.MkdirAll(outDir, os.ModePerm)
-		if err != nil {
-			panic(err)
-		}
-	}
-	// First generate output to a temp dir.
-	tempDir, err := os.MkdirTemp("", "amino-genproto")
-	if err != nil {
-		return
-	}
-	// Run protoc
-	cmd := exec.Command("protoc", "-I="+inDir, "-I="+protosDir, "--go_out="+tempDir, pkg.P3SchemaFile)
-	fmt.Println("running protoc: ", cmd.String())
-	cmd.Stdin = nil
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println("ERROR: ", out.String())
-		panic(err)
-	}
-
-	// Copy file from tempDir to outDir.
-	copyFile(
-		path.Join(tempDir, pkg.P3GoPkgPath, outFile),
-		path.Join(outDir, outFile),
-	)
-}
-
-func copyFile(src string, dst string) {
-	// Read all content of src to data
-	data, err := os.ReadFile(src)
-	if err != nil {
-		panic(err)
-	}
-	// Write data to dst
-	err = os.WriteFile(dst, data, 0o644)
-	if err != nil {
-		panic(err)
-	}
 }
