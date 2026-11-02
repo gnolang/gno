@@ -65,6 +65,11 @@ In `config.toml`, under `[consensus.priv_validator.tmkms_listener]`:
 # tcp://<bind>:<port>  or  unix:///path/to/privval.sock
 listen_addr = "tcp://0.0.0.0:26659"
 
+# File mode of a unix:// socket, in octal, within 0770. The mode is
+# the socket's only access control: see "TCP vs UDS" below. Ignored
+# for tcp://.
+socket_mode = "0600"
+
 # Hex-encoded ed25519 pubkeys of every signer instance allowed to
 # connect. Each entry is 64 hex chars, optionally prefixed "ed25519:".
 # Empty list is REJECTED at startup — see Security below.
@@ -142,15 +147,19 @@ For Horcrux running multiple cosigners, list one entry per cosigner.
 |---|---|---|
 | Connection | Network | Local filesystem socket |
 | Encryption | SecretConnection (X25519 + ChaCha20-Poly1305) | None — kernel-level isolation |
-| Mutual auth | ed25519 allowlist | Filesystem perms (gnoland chmods `0600`) |
+| Mutual auth | ed25519 allowlist | Filesystem perms (`socket_mode`, default `0600`) |
 | Use when | Signer is on a different host | Signer is on the same host |
 
-For UDS there is no SecretConnection and no pubkey allowlist — the only
-access control is filesystem permissions. gnoland sets the socket to mode
-`0600` after `bind(2)` so only the owning user can connect; any
-`allowed_kms_pubkeys` you configure is ignored in this mode. You should
-still keep the parent directory's perms tight (e.g. only the gnoland
-service user has the search bit on it).
+For UDS there is no SecretConnection and no pubkey allowlist: the only access control is filesystem permissions, and any `allowed_kms_pubkeys` you configure is ignored. gnoland gives the socket the mode set by `socket_mode` (default `0600`: only gnoland's user can connect), and refuses to start if it cannot. On Linux the mode is set on the socket before `bind(2)`, so the socket is never more open than `socket_mode`, whatever the umask; on other systems it is set right after `bind(2)`. Keep the parent directory's perms tight too: only the users that must connect should be able to traverse it.
+
+### Running the signer under its own user
+
+With the default `0600`, the signer must run as gnoland's user, so a compromise of gnoland also reaches what the signer holds: the HSM password (or a softsign key) and tmkms's double-sign state. To give the signer its own user, let the signer's group connect instead:
+
+1. Before gnoland starts, create the socket's directory owned by gnoland's user and the signer's group, with the setgid bit and only the group's search bit, for example `mkdir -p /run/gnoland && chown gnoland:tmkms /run/gnoland && chmod 2710 /run/gnoland`. A directory under a tmpfs such as `/run` has to be created again after every boot.
+2. Set `socket_mode = "0660"`.
+
+A socket created in a setgid directory takes the directory's group ([inode(7)](https://man7.org/linux/man-pages/man7/inode.7.html)), even though gnoland's user is not in that group. The signer's user, a member of the group, can traverse the directory and connect; other users can do neither. gnoland's user needs no membership in the signer's group, which would also grant it whatever else that group can open.
 
 ## Protocol version pin
 
@@ -284,9 +293,7 @@ mismatches.
 - [ ] If using TCP, `listen_addr` is reachable from the signer host
       and not exposed publicly (firewall the inbound port to the
       signer's source IP).
-- [ ] If using UDS, the parent directory is on local disk (not a
-      shared filesystem) and only the gnoland service user can
-      traverse it.
+- [ ] If using UDS, the parent directory is on local disk (not a shared filesystem), only the users that must connect can traverse it, and `socket_mode` grants no more than they need (`0600` with the signer as gnoland's user, `0660` with the signer's group; see "Running the signer under its own user").
 - [ ] `consensus.json` (tmkms HRS state) is durable and backed up;
       restoring an older copy enables double-signing.
 - [ ] tmkms is started and reachable BEFORE gnoland — gnoland's
