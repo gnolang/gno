@@ -376,9 +376,9 @@ func TestSkipZeroReadsEncodingsWrittenWithoutIt(t *testing.T) {
 
 		now, err := cdc.MarshalReflect(v)
 		require.NoError(t, err)
-		again, err := cdc.MarshalReflect(viaReflect)
-		require.NoError(t, err)
-		assert.Equal(t, now, again, "case %d", i)
+		var fromNow FuzzSkipZero
+		require.NoError(t, cdc.UnmarshalReflect(now, &fromNow))
+		assert.Equal(t, viaReflect, fromNow, "case %d", i)
 	}
 }
 
