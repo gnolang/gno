@@ -92,7 +92,7 @@ func TestReleasesArePublishedHeld(t *testing.T) {
 		}
 		assert.Contains(t, images, "gnoland", "%s: could not read the image matrix", releaseDockerWorkflow)
 
-		latest := strings.Fields(grepOne(t, promoteReleaseScript, `(?m)^readonly LATEST_IMAGES=\((.+)\)$`))
+		latest := promoteLatestImages(t)
 		// RELEASING.md, "Container images": exactly the four CLI tools.
 		assert.ElementsMatch(t, []string{"gno", "gnokey", "gnodev", "gnoweb"}, latest)
 		for _, img := range latest {
