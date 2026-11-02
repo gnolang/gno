@@ -150,12 +150,18 @@ func (c *TmkmsListenerConfig) ValidateBasic() error {
 	if c.ChainID == "" {
 		return errEmptyTmkmsChainID
 	}
-	switch protocol, _ := osm.ProtocolAndAddress(c.ListenAddr); protocol {
+	switch protocol, address := osm.ProtocolAndAddress(c.ListenAddr); protocol {
 	case "tcp":
 		if len(c.AllowedKMSPubKeys) == 0 {
 			return errEmptyTmkmsAllowedPubkeys
 		}
 	case "unix":
+		// On Linux an empty address or one starting with "@" is an
+		// abstract socket: it has no file, so no mode can protect it.
+		if address == "" || strings.HasPrefix(address, "@") {
+			return fmt.Errorf("%w: %q is an abstract socket, which has no file permissions (want unix:///path/to/socket)",
+				errInvalidTmkmsListenAddr, c.ListenAddr)
+		}
 		// Allowlist not applicable; intentionally not required. The
 		// socket's mode is the access control instead.
 		if _, err := c.parseSocketMode(); err != nil {

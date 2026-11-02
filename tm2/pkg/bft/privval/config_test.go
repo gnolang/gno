@@ -131,6 +131,16 @@ func TestValidateBasic(t *testing.T) {
 		assert.ErrorIs(t, cfg.ValidateBasic(), errInvalidTmkmsListenAddr)
 	})
 
+	// On Linux an empty unix:// address or one starting with "@" is an
+	// abstract socket: it has no file, so socket_mode cannot protect it.
+	for _, path := range []string{"", "@privval"} {
+		t.Run(fmt.Sprintf("tmkms listener on abstract unix socket %q rejected", path), func(t *testing.T) {
+			t.Parallel()
+
+			assert.ErrorIs(t, tmkmsUnixListenerConfig(path).ValidateBasic(), errInvalidTmkmsListenAddr)
+		})
+	}
+
 	// validTmkmsTCPConfig returns a config that clears every check up to the
 	// timeout/retry bounds, so a single tweaked field is what trips ValidateBasic.
 	validTmkmsTCPConfig := func() *PrivValidatorConfig {
