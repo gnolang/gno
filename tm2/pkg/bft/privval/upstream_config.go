@@ -65,7 +65,7 @@ type TmkmsListenerConfig struct {
 	// is the socket's mode and its directory's permissions: a signer
 	// connects only if its user can search the directory and write to the
 	// socket. Ignored for tcp://.
-	SocketMode string `json:"socket_mode" toml:"socket_mode" comment:"File mode of the unix:// socket, in octal, within 0770 (default \"0600\"). Ignored for tcp://."`
+	SocketMode string `json:"socket_mode" toml:"socket_mode" comment:"File mode of the unix:// socket: an octal mode within 0770, as a quoted string (default \"0600\"). Ignored for tcp://."`
 
 	// AllowedKMSPubKeys is the allowlist of expected signer pubkeys.
 	// Each entry is a hex-encoded ed25519 pubkey (32 bytes → 64 hex

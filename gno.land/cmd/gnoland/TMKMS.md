@@ -65,9 +65,10 @@ In `config.toml`, under `[consensus.priv_validator.tmkms_listener]`:
 # tcp://<bind>:<port>  or  unix:///path/to/privval.sock
 listen_addr = "tcp://0.0.0.0:26659"
 
-# File mode of a unix:// socket, in octal, within 0770. With the
-# socket directory's permissions, the mode is the access control: see
-# "TCP vs UDS" below. Ignored for tcp://.
+# File mode of a unix:// socket: an octal mode within 0770, as a
+# quoted string ("0660", not 0660). With the socket directory's
+# permissions, the mode is the access control: see "TCP vs UDS"
+# below. Ignored for tcp://.
 socket_mode = "0600"
 
 # Hex-encoded ed25519 pubkeys of every signer instance allowed to
