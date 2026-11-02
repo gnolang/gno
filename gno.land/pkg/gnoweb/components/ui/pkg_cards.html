@@ -37,11 +37,6 @@ and its tooltip says so.
         {{ end }}
       </div>
       {{ with .Description }}<p class="b-pkg-card__desc">{{ . }}</p>{{ end }}
-      {{ with .Tags }}
-      <ul class="b-pkg-card__tags" aria-label="Tags">
-        {{ range . }}<li class="b-tag--tertiary">{{ . }}</li>{{ end }}
-      </ul>
-      {{ end }}
       {{ if .Known }}
       <ul class="b-pkg-card__meta" aria-label="Details">
         {{ if .Actions }}

@@ -32,8 +32,6 @@ type PackageCard struct {
 	Realm bool
 	// Description is the opening of the package's doc comment, plain text.
 	Description string
-	// Tags are facts read from the package, such as "read-only".
-	Tags []string
 	// Actions counts the exported crossing functions a reader can call.
 	Actions int
 

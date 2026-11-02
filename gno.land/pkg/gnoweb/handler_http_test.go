@@ -589,9 +589,9 @@ func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 	// holds is dropped, never run.
 	assert.Contains(t, body, `<p class="b-pkg-card__desc">Demo realm alert(1).</p>`)
 	assert.NotContains(t, body, "<script>alert(1)")
-	// What the chain records: no crossing function, deployed at block 42.
-	assert.Contains(t, body, `<li class="b-tag--tertiary">read-only</li>`)
+	// What the chain records: deployed at block 42, and no tag.
 	assert.Contains(t, body, "Block 42")
+	assert.NotContains(t, body, ">read-only<")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.

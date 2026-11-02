@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -82,7 +81,7 @@ var errCardsBusy = fmt.Errorf("%w: every card fetch slot is taken", errTransient
 // to its description, so a listing never parses markdown.
 type cardSummary struct {
 	description string
-	actions     []string
+	actions     int
 	height      int
 }
 
@@ -155,7 +154,7 @@ func (h *Handler) fillCard(ctx context.Context, c *components.PackageCard) {
 		if err != nil {
 			return cardSummary{}, err
 		}
-		return cardSummary{description: describe(p.Doc), actions: p.Actions, height: p.Height}, nil
+		return cardSummary{description: describe(p.Doc), actions: len(p.Actions), height: p.Height}, nil
 	})
 	switch {
 	case err == nil:
@@ -168,13 +167,7 @@ func (h *Handler) fillCard(ctx context.Context, c *components.PackageCard) {
 
 	c.Known, c.Block, c.Description = true, s.height, s.description
 	if c.Realm {
-		c.Actions = len(s.actions)
-		if c.Actions == 0 {
-			c.Tags = append(c.Tags, "read-only")
-		}
-		if isToken(s.actions) {
-			c.Tags = append(c.Tags, "token")
-		}
+		c.Actions = s.actions
 	}
 	if c.Block > 0 && h.blockTimes != nil {
 		c.Date = h.blockTime(ctx, c.Block)
@@ -238,19 +231,6 @@ func fillActivity(c *components.PackageCard, a *Activity, pkgPath string) {
 	if last, ok := a.Last[pkgPath]; ok {
 		c.LastUsed = a.timeOf(last)
 	}
-}
-
-// tokenActions are the calls every GRC20 token realm exposes. Having all
-// three describes the realm's API, not its worth.
-var tokenActions = []string{"Approve", "Transfer", "TransferFrom"}
-
-func isToken(actions []string) bool {
-	for _, a := range tokenActions {
-		if !slices.Contains(actions, a) {
-			return false
-		}
-	}
-	return true
 }
 
 // packageClause matches the Go doc convention a doc comment opens with,

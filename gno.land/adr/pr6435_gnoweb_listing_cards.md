@@ -34,16 +34,16 @@ other user, goes with it.
 | Field | Source | Without an indexer |
 |---|---|---|
 | Description | `vm/qdoc` package doc, first sentences up to 240 runes, package clause dropped | shown |
-| Actions, `read-only`, `token` | `vm/qdoc` exported crossing functions | shown |
+| Actions | `vm/qdoc` exported crossing functions | shown |
 | Block, or Genesis | `vm/qpkgmeta_json` height | shown |
 | Date | indexer `Block(height)` | absent |
 | Weekly users, Used … ago | `chainmap` activity aggregate | absent |
 
-`token` means the realm exposes `Approve`, `Transfer` and `TransferFrom`: it
-describes the API, not the token's worth. No tag is inferred from free text or
-imports: an import of `r/gov/dao` does not make a realm a DAO, and a word list
-would mislabel as often as it helps. Author-chosen categories wait for Explore
-(#6273), whose `Category` and `Tagline` are the place for them.
+Cards carry no tags for now. A tag inferred from free text or imports
+mislabels as often as it helps (an import of `r/gov/dao` does not make a realm
+a DAO), and tags read from the code (`read-only`, `token`) were left out of
+this first version to keep the card plain. Author-chosen categories wait for
+Explore (#6273), whose `Category` and `Tagline` are the place for them.
 
 Weekly users are the distinct addresses that called the realm over the last
 seven days, as on the home page's "Top realms". "Used … ago" estimates the time
@@ -112,8 +112,10 @@ plain rows.
 
 - **README as a fallback description.** One more file read per package for the
   packages without a doc comment. Left out to keep a card to two RPCs.
-- **`r/nt/grc20reg` for the `token` tag.** Authoritative, but the registry
-  exposes no cheap query by path: it would mean parsing its `Render`.
+- **Tags read from the code** (`read-only` for a realm with nothing to call,
+  `token` for one exposing `Approve`, `Transfer` and `TransferFrom`). Cheap,
+  since `vm/qdoc` already answers, but dropped for now; `r/nt/grc20reg` would
+  be the authoritative source for `token`, yet exposes no cheap query by path.
 - **A client-side fetch per visible card.** Avoids the wait entirely, but adds a
   JSON endpoint and a controller for what the server can render.
 - **Deploy dates from the node.** The node has block times, but `ClientAdapter`

@@ -1495,7 +1495,6 @@
 }
 
 .b-pkg-card__desc,
-.b-pkg-card__tags,
 .b-pkg-card__meta {
 	grid-column: 1 / -1;
 }
@@ -1507,12 +1506,6 @@
 	overflow: hidden;
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-100);
-}
-
-.b-pkg-card__tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--g-space-2);
 }
 
 .b-pkg-card__meta {

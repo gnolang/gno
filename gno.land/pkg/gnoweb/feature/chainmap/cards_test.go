@@ -59,19 +59,17 @@ func TestCards_FromChain(t *testing.T) {
 		Description: "Multi-author blog. Anyone can post.",
 		Actions:     1,
 		Block:       25988,
-	}, cards[0], "a realm with a call: no tag, its actions and its block")
+	}, cards[0], "a realm with a call: its actions and its block")
 
-	assert.Equal(t, "Provides coin helpers.", cards[1].Description)
-	assert.Equal(t, []string{"read-only"}, cards[1].Tags, "a realm with nothing to call is read-only")
-	assert.Zero(t, cards[1].Block, "deployed at genesis")
-	assert.True(t, cards[1].Known)
+	assert.Equal(t, components.PackageCard{
+		Path: "/r/demo/coins", Realm: true, Known: true, Description: "Provides coin helpers.",
+	}, cards[1], "a realm with nothing to call, deployed at genesis")
 
-	assert.Equal(t, []string{"token"}, cards[2].Tags, "a realm exposing the GRC20 calls is a token")
 	assert.Equal(t, 5, cards[2].Actions)
 
 	assert.Equal(t, components.PackageCard{
 		Path: "/p/demo/avl", Known: true, Description: "Implements an AVL tree.",
-	}, cards[3], "a pure package has no actions and no tags")
+	}, cards[3], "a pure package has no actions")
 
 	assert.Equal(t, components.PackageCard{Path: "/r/demo/gone", Realm: true}, cards[4],
 		"a package the chain does not know keeps its path and links only")
