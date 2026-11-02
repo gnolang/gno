@@ -222,9 +222,9 @@ misc/release/promote-release.sh v1.7.0          # dry run: every check, nothing 
 misc/release/promote-release.sh v1.7.0 --push
 ```
 
-It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. The script refuses a release candidate, a MAJOR (a new network, which mainnet never schedules), and a MINOR until mainnet's halt proposal naming it has executed (read from mainnet's `halt_min_version`), so a final mainnet skips stays a pre-release for good; when to promote a PATCH to the highest full release's line is the release manager's call.
+It points `latest` at the release's images for the four CLI tools, then makes the release a full release and GitHub's "Latest". A promotion only moves forward from the highest full release, which is not always the highest tag: a patch to the running line is promoted while the next MINOR waits for its halt. The script refuses a release candidate, a MAJOR (a new network, which mainnet never schedules), any release below mainnet's floor (its `halt_min_version`, read from its RPC: a node on such a release stops at the halt), and a MINOR until a halt proposal has set the floor on its line, so a final mainnet skips stays a pre-release for good. A fix cut once the halt is scheduled, such as `v1.8.1` over a `v1.8.0` floor, is promoted in place of the release it fixes. When to promote a PATCH to the highest full release's line is the release manager's call.
 
-Should mainnet skip a release after its promotion (a cancelled halt), mark it a pre-release again and promote the release the chain runs, which puts `latest` back on its images and gives it Latest:
+Should mainnet skip a release after its promotion, cancel its halt with `govdao-exec.sh set-halt 0`, which clears mainnet's floor, mark the release a pre-release again, and promote the release the chain runs, which puts `latest` back on its images and gives it Latest. While the halt stands, the script refuses the release the chain runs: it is below the floor.
 
 ```sh
 gh release edit <skipped> --repo gnolang/gno --prerelease
