@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
@@ -51,6 +52,10 @@ type Deps struct {
 	// Limiter bounds the per-IP rate of importer lookups. Optional.
 	Limiter Limiter
 
+	// Packages reads what a listing's cards show of each package. Optional:
+	// without it, a card carries the package's path and links only.
+	Packages PackageReader
+
 	Logger *slog.Logger
 }
 
@@ -61,10 +66,15 @@ type Handler struct {
 	// closedBands keeps the activity of whole bands across refreshes.
 	closedBands *closedBands
 	importers   importerFlights
+	// summaries and blockTimes back the listing cards; cardSlots admits
+	// maxCardFetches package reads at a time.
+	summaries  *flight[cardSummary]
+	blockTimes *flight[time.Time]
+	cardSlots  chan struct{}
 }
 
-// New validates required deps and returns a Handler. The caches exist only
-// with an indexer, so none can be reached without one.
+// New validates required deps and returns a Handler. Each cache exists only
+// with the dependency it remembers answers from.
 func New(deps Deps) *Handler {
 	if deps.Imports == nil {
 		panic("chainmap.New: Imports is required")
@@ -73,10 +83,15 @@ func New(deps Deps) *Handler {
 		deps.Logger = slog.Default()
 	}
 	h := &Handler{deps: deps}
+	if deps.Packages != nil {
+		h.summaries = newSummaryFlight()
+		h.cardSlots = make(chan struct{}, maxCardFetches)
+	}
 	if deps.Indexer != nil {
 		h.activity = newActivityFlight()
 		h.closedBands = new(closedBands)
 		h.importers = newImporterFlights()
+		h.blockTimes = newBlockTimeFlight()
 	}
 	return h
 }
