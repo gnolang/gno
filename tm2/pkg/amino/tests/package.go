@@ -111,6 +111,7 @@ var Package = pkg.NewPackage(
 	SkipZeroElemRepr{},
 	SkipZeroElem{},
 	SkipZeroElems{},
+	SkipZeroSlice{},
 	// AminoMarshaler list element types.
 	SimpleAddress{},
 	HostRepr{},

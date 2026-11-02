@@ -977,7 +977,9 @@ func (ctx *P3Context2) skipZeroGuard(accessor string, field amino.FieldInfo) str
 // repr. Since Go 1.22 IsZero agrees with == against the zero value (so
 // -0.0 is zero), and the zero value of a named type or an array can be
 // written as a literal; any other composite, or one == cannot compare,
-// asks reflect, so accessor must then be addressable.
+// asks reflect, so accessor must then be addressable. A slice is the one
+// exception: the reflect codec also leaves out an empty non-nil slice
+// field (isNonstructDefaultValue), so the check is on its length.
 func (ctx *P3Context2) goNonZeroCheck(accessor string, rt reflect.Type) string {
 	switch rt.Kind() {
 	case reflect.Bool:
@@ -989,7 +991,7 @@ func (ctx *P3Context2) goNonZeroCheck(accessor string, rt reflect.Type) string {
 	case reflect.String:
 		return fmt.Sprintf("%s != \"\"", accessor)
 	case reflect.Slice:
-		return fmt.Sprintf("%s != nil", accessor)
+		return fmt.Sprintf("len(%s) != 0", accessor)
 	case reflect.Array, reflect.Struct:
 		if (rt.Name() != "" || rt.Kind() == reflect.Array) && rt.Comparable() {
 			return fmt.Sprintf("%s != (%s{})", accessor, ctx.goTypeName(rt))

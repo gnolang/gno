@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Condensed test types inspired by gnovm amino-registered types.
@@ -485,6 +486,31 @@ func (l SkipZeroElems) MarshalAmino() ([]SkipZeroElem, error) {
 func (l *SkipZeroElems) UnmarshalAmino(r []SkipZeroElem) error {
 	l.Items = r
 	return nil
+}
+
+// SkipZeroTags is a slice AminoMarshaler whose empty list, nil or not, still
+// has a non-empty repr, "[]".
+type SkipZeroTags []string
+
+func (t SkipZeroTags) MarshalAmino() (string, error) {
+	return "[" + strings.Join(t, ",") + "]", nil
+}
+
+func (t *SkipZeroTags) UnmarshalAmino(s string) error {
+	if s = strings.TrimSuffix(strings.TrimPrefix(s, "["), "]"); s == "" {
+		*t = nil
+		return nil
+	}
+	*t = strings.Split(s, ",")
+	return nil
+}
+
+// SkipZeroSlice: amino:"skip_zero" on a slice AminoMarshaler. Amino binary
+// leaves out an empty slice field whether or not it is nil, so a non-nil
+// empty SkipZeroTags is left out too, despite its repr.
+type SkipZeroSlice struct {
+	Tags SkipZeroTags `amino:"skip_zero"`
+	N    int32
 }
 
 // InterfaceHeavy: benchmarks MarshalAnyBinary2 with multiple interface fields.

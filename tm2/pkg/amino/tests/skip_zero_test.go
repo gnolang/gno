@@ -331,6 +331,8 @@ func TestSkipZeroParity(t *testing.T) {
 			{Inner: SkipZeroInner{N: 3}},
 			{Inner: SkipZeroInner{Addr: SkipZeroAddr{4}}},
 		}},
+		&SkipZeroSlice{},
+		&SkipZeroSlice{Tags: SkipZeroTags{"a", "b"}, N: 1},
 	}
 	for _, tc := range zeroOneField {
 		v := fullSkipZero()
@@ -348,6 +350,9 @@ func TestSkipZeroParity(t *testing.T) {
 	// nothing itself, and it decodes back as nil, so the round trip is not
 	// exact here; compare the codecs with each other only.
 	compareEncoding(t, cdc, "List/empty-slice", FuzzSkipZero{List: SkipZeroList{Ns: []int32{}}})
+	// Amino binary leaves out an empty slice, nil or not, so a non-nil empty
+	// slice AminoMarshaler is left out too, though its repr is "[]".
+	compareEncoding(t, cdc, "Tags/empty-slice", SkipZeroSlice{Tags: SkipZeroTags{}, N: 1})
 }
 
 // TestSkipZeroReadsEncodingsWrittenWithoutIt: bytes written before a field

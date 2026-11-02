@@ -623,6 +623,11 @@ message SkipZeroElems {
 	repeated SkipZeroElem value = 1;
 }
 
+message SkipZeroSlice {
+	string tags = 1 [json_name = "Tags"];
+	sint32 n = 2 [json_name = "N"];
+}
+
 message SimpleAddress {
 	string value = 1;
 }

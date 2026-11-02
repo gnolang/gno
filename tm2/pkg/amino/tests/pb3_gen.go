@@ -102,6 +102,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SkipZeroElemRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SkipZeroElem)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SkipZeroElems)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*SkipZeroSlice)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SimpleAddress)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*HostRepr)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*CounterRepr)(nil)).Elem())
@@ -18148,6 +18149,108 @@ func (goo *SkipZeroElems) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		repr = append(repr, elem)
 	}
 	return goo.UnmarshalAmino(repr)
+}
+
+func (goo SkipZeroSlice) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	if goo.N != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.N))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if len(goo.Tags) != 0 {
+		{
+			repr, err := goo.Tags.MarshalAmino()
+			if err != nil {
+				return offset, err
+			}
+			if repr != "" {
+				{
+					before := offset
+					offset = amino.PrependString(buf, offset, string(repr))
+					valueLen := before - offset
+					if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+						offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
+					} else {
+						offset = before
+					}
+				}
+			}
+		}
+	}
+	return offset, err
+}
+
+func (goo SkipZeroSlice) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	if len(goo.Tags) != 0 {
+		{
+			repr, err := goo.Tags.MarshalAmino()
+			if err != nil {
+				return 0, err
+			}
+			if repr != "" {
+				s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+			}
+		}
+	}
+	if goo.N != 0 {
+		s += 1 + amino.VarintSize(int64(goo.N))
+	}
+	return s, nil
+}
+
+func (goo *SkipZeroSlice) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = SkipZeroSlice{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		case 1:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.Tags.UnmarshalAmino(repr); err != nil {
+				return err
+			}
+		case 2:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.N = int32(v)
+		default:
+			return fmt.Errorf("unknown field number %d for SkipZeroSlice", fnum)
+		}
+	}
+	return nil
 }
 
 func (goo SimpleAddress) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
