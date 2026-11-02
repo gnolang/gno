@@ -237,7 +237,7 @@ func quotedCut(s string) int {
 		if err != nil {
 			return 0 // the literal ends early: the result is several values
 		}
-		if len(s)-len(tail) > maxEvalResultBytes {
+		if len(s)-len(tail) > maxEvalResultBytes-len(`" string)`) {
 			return len(s) - len(rest)
 		}
 		rest = tail

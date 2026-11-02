@@ -176,6 +176,17 @@ func TestCapEvalResultQuoted(t *testing.T) {
 		}
 	}
 
+	// A result just over the cap, by less than its closing " string) or by
+	// more, is cut inside the literal too.
+	for over := 1; over <= 12; over++ {
+		result := `("` + strings.Repeat("a", maxEvalResultBytes+over-len(`("" string)`)) + `" string)`
+		got := capEvalResult([]byte(result))
+		lit, ok := strings.CutSuffix(strings.TrimPrefix(got, "("), " string)")
+		require.True(t, ok, "%d: %.40q", over, got[len(got)-40:])
+		_, err := strconv.Unquote(lit)
+		require.NoError(t, err, "%d", over)
+	}
+
 	// The literal ends before the cap: the result is several values.
 	several := `("a" string)` + "\n" + `("` + strings.Repeat("b", maxEvalResultBytes) + `" string)`
 	head, _, ok := strings.Cut(capEvalResult([]byte(several)), "\n… (truncated")
