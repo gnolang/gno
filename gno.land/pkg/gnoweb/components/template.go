@@ -67,15 +67,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		}
 		return *p
 	}
-	// truncMiddle shortens long opaque strings (e.g. bech32 addresses) for the
-	// sidebar: keeps `keep` runes on each side joined by an ellipsis.
-	funcs["truncMiddle"] = func(s string, keep int) string {
-		r := []rune(s)
-		if keep <= 0 || len(r) <= keep*2+1 {
-			return s
-		}
-		return string(r[:keep]) + "…" + string(r[len(r)-keep:])
-	}
+	funcs["truncMiddle"] = TruncMiddle
 	// splitHalf cuts s in two at its middle rune, so a long opaque string (a
 	// bech32 address) can be offered a single break point between equal
 	// halves. Both halves are plain strings and stay escaped by the template.
@@ -113,4 +105,15 @@ func init() {
 	if err != nil {
 		panic("unable to parse embed templates: " + err.Error())
 	}
+}
+
+// TruncMiddle shortens a long opaque string (a bech32 address, a hash): it
+// keeps `keep` runes on each side, joined by an ellipsis, since both ends are
+// what a reader recognizes one by.
+func TruncMiddle(s string, keep int) string {
+	r := []rune(s)
+	if keep <= 0 || len(r) <= keep*2+1 {
+		return s
+	}
+	return string(r[:keep]) + "…" + string(r[len(r)-keep:])
 }

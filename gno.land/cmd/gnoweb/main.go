@@ -117,7 +117,8 @@ Environment variables:
 			}
 
 			return run()
-		})
+		},
+	)
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
@@ -162,7 +163,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedProxies,
 		"trusted-proxies",
 		defaultWebOptions.trustedProxies,
-		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins. Empty (the default) trusts nothing, which is correct when gnoweb is exposed directly and wrong behind a proxy — there every visitor resolves to the proxy and shares one rate-limit bucket.",
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins. Empty (the default) trusts nothing, which is correct when gnoweb is exposed directly and wrong behind a proxy — there every visitor resolves to the proxy and shares one rate-limit bucket (state, search and /_/api/eval).",
 	)
 
 	fs.BoolVar(
@@ -400,7 +401,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers. NewRouter normalized the IPFS gateway in place.
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.RenderConfig.IPFSGateway)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.RenderConfig.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -477,7 +478,7 @@ func ipfsGatewayImgSources(origin string) []string {
 // SecureHeadersMiddleware sets the security headers. ipfsGateway is the
 // normalized IPFS gateway origin (empty if disabled); it is allowed as an
 // image source because rendered ipfs:// images point at it.
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
+func SecureHeadersMiddleware(next http.Handler, strict bool, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
@@ -492,10 +493,17 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway
 	// Define a Content Security Policy (CSP) to restrict the sources of
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
-	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
-		imgSrc.String(),
-		remote,
+	//
+	// style-src carries a per-response nonce (%[1]s) so CodeMirror's
+	// runtime-injected <style> elements are allowed without relaxing the policy
+	// to 'unsafe-inline'. The nonce is generated per request below and echoed
+	// into <meta name="csp-nonce"> for the frontend to pass to CodeMirror.
+	//
+	// connect-src is 'self' only: the browser evaluates through gnoweb's
+	// /_/api/eval and never queries the node.
+	cspTemplate := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self' 'nonce-%%[1]s'; img-src %s; font-src 'self'; connect-src 'self'; form-action 'self'",
+		strings.ReplaceAll(imgSrc.String(), "%", "%%"),
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -514,8 +522,13 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway
 
 		// In `strict` mode, prevent cross-site ressources forgery and enforce https
 		if strict {
-			// Set `csp` defined above.
-			w.Header().Set("Content-Security-Policy", csp)
+			// Generate a fresh per-response nonce and thread it through both the
+			// CSP header and the request context, so the rendered HTML embeds the
+			// same value (see WithCSPNonce / <meta name="csp-nonce">).
+			nonce := gnoweb.NewCSPNonce()
+			r = r.WithContext(gnoweb.WithCSPNonce(r.Context(), nonce))
+
+			w.Header().Set("Content-Security-Policy", fmt.Sprintf(cspTemplate, nonce))
 
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to

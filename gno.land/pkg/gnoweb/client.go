@@ -118,7 +118,13 @@ type ClientAdapter interface {
 	// raw result, one line per return value. pkgPath carries no domain, since
 	// the client adds its own, and no dot: the node splits pkgPath from expr on
 	// the first dot after the first slash. expr is the caller's to keep safe.
+	// It is for gnoweb's own expressions, and queries like any page.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
+
+	// PublicEval is Eval for an expression a reader wrote (/_/api/eval): it
+	// queries within its own, smaller pool, so readers' evals cannot starve
+	// the pages, and its failures log at Debug, without the expression.
+	PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -126,6 +132,11 @@ type rpcClient struct {
 	logger   *slog.Logger
 	client   *client.RPCClient
 	rpcSlots chan struct{}
+	// evalSlots caps PublicEval's queries among rpcSlots' at a quarter: a
+	// public eval takes one of each, so it counts against the cap like any
+	// query, and a burst of them, whose expressions are readers', leaves
+	// most slots to the pages.
+	evalSlots chan struct{}
 }
 
 var _ ClientAdapter = (*rpcClient)(nil)
@@ -138,10 +149,11 @@ func NewRPCClientAdapter(logger *slog.Logger, cli *client.RPCClient, domain stri
 		maxConcurrentRPC = defaultMaxConcurrentRPC
 	}
 	return &rpcClient{
-		logger:   logger,
-		domain:   domain,
-		client:   cli,
-		rpcSlots: make(chan struct{}, maxConcurrentRPC),
+		logger:    logger,
+		domain:    domain,
+		client:    cli,
+		rpcSlots:  make(chan struct{}, maxConcurrentRPC),
+		evalSlots: make(chan struct{}, max(1, maxConcurrentRPC/4)),
 	}
 }
 
@@ -159,12 +171,16 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 
 // Eval evaluates expr inside pkgPath through vm/qeval.
 func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
-	const qpath = "vm/qeval"
+	return c.query(ctx, "vm/qeval", c.evalData(pkgPath, expr), 0)
+}
 
-	pkgPath = strings.Trim(pkgPath, "/")
-	data := fmt.Sprintf("%s/%s.%s", c.domain, pkgPath, expr)
+// PublicEval evaluates a reader's expr inside pkgPath through vm/qeval.
+func (c *rpcClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	return c.queryWith(ctx, "vm/qeval", c.evalData(pkgPath, expr), 0, true)
+}
 
-	return c.query(ctx, qpath, []byte(data), 0)
+func (c *rpcClient) evalData(pkgPath, expr string) []byte {
+	return fmt.Appendf(nil, "%s/%s.%s", c.domain, strings.Trim(pkgPath, "/"), expr)
 }
 
 // validFileName reports whether vm/qfile reads name as a file of the package
@@ -322,6 +338,13 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
 func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
+	return c.queryWith(ctx, qpath, data, height, false)
+}
+
+// queryWith is query; public marks data as an expression a reader wrote (see
+// PublicEval): its failures are that reader's input, not the node's, and
+// the expression stays out of the logs above Debug.
+func (c *rpcClient) queryWith(ctx context.Context, qpath string, data []byte, height int64, public bool) ([]byte, error) {
 	// Debug, not Info: `data` carries caller-supplied OID/TID/file —
 	// at hot-path rates this would amplify log volume by an order of
 	// magnitude. Failures still log at Warn/Error below.
@@ -330,15 +353,22 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 	// Bound concurrent outbound RPCs process-wide so gnoweb cannot
 	// hammer the chain node under HTTP burst — orthogonal to any
 	// HTTP-level rate limit (gnoweb's or nginx's), which sees neither
-	// the fan-out nor the per-request RPC count.
-	release, err := acquireRPCSlot(ctx, c.rpcSlots)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, ErrClientTimeout
-		}
-		return nil, err
+	// the fan-out nor the per-request RPC count. A public eval first takes
+	// one of its own, fewer, slots, then a shared one.
+	pools := []chan struct{}{c.rpcSlots}
+	if public {
+		pools = []chan struct{}{c.evalSlots, c.rpcSlots}
 	}
-	defer release()
+	for _, slots := range pools {
+		release, err := acquireRPCSlot(ctx, slots)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return nil, ErrClientTimeout
+			}
+			return nil, err
+		}
+		defer release()
+	}
 
 	start := time.Now()
 	opts := client.DefaultABCIQueryOptions
@@ -349,12 +379,11 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 	took := time.Since(start)
 	if err != nil {
 		// Unexpected error from the RPC client itself
-		c.logger.Error("query request failed",
-			"path", qpath,
-			"data", string(data),
-			"error", err,
-			"took", took,
-		)
+		attrs := []any{"path", qpath, "error", err, "took", took}
+		if !public {
+			attrs = append(attrs, "data", string(data))
+		}
+		c.logger.Error("query request failed", attrs...)
 
 		if errors.Is(err, context.DeadlineExceeded) {
 			// Don't leak transport URL / endpoint detail into the wrapped
@@ -383,58 +412,40 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 		return qres.Response.Data, nil
 	}
 
-	// Handle and log known error types
+	msg, level, mapped := classifyQueryError(qerr)
+	if public {
+		c.logger.Debug("eval failed", "error", qerr)
+	} else {
+		c.logger.Log(ctx, level, msg, "path", qpath, "data", string(data), "error", qerr)
+	}
+	return nil, mapped
+}
+
+// classifyQueryError maps a node error to the message and level it is
+// logged at, and the client error callers test for.
+func classifyQueryError(qerr error) (string, slog.Level, error) {
 	switch {
 	case errors.Is(qerr, vm.InvalidPkgPathError{}), errors.Is(qerr, vm.InvalidPackageError{}):
-		c.logger.Warn("package not found",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, ErrClientPackageNotFound
+		return "package not found", slog.LevelWarn, ErrClientPackageNotFound
 	case errors.Is(qerr, vm.InvalidFileError{}):
-		c.logger.Warn("file not found",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, ErrClientFileNotFound
+		return "file not found", slog.LevelWarn, ErrClientFileNotFound
 	case errors.Is(qerr, vm.ObjectNotFoundError{}):
-		c.logger.Warn("object not found",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, ErrClientObjectNotFound
+		return "object not found", slog.LevelWarn, ErrClientObjectNotFound
 	case errors.Is(qerr, vm.InvalidExprError{}):
 		// vm/qtype_json returns InvalidExprError("type not found: …") when
 		// the TypeID is unknown. Map to the same not-found sentinel so the
 		// state explorer renders a 404 (the type page is gone) instead of
 		// the generic 500.
-		c.logger.Warn("type not found",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, ErrClientObjectNotFound
+		return "type not found", slog.LevelWarn, ErrClientObjectNotFound
 	case errors.Is(qerr, vm.NoRenderDeclError{}):
-		c.logger.Warn("render function not declared",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, ErrClientRenderNotDeclared
+		return "render function not declared", slog.LevelWarn, ErrClientRenderNotDeclared
 	case errors.Is(qerr, vm.ExportSizeExceededError{}):
 		// The node refused the query because its response would exceed
 		// maxQueryExportBytes. That is the same "response too large" condition
 		// gnoweb's own maxRPCResponseSize cap reports, so route it to the same
 		// sentinel (state.mapClientError renders it as 502, not a generic 500).
-		c.logger.Warn("node refused oversized response",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
+		return "node refused oversized response", slog.LevelWarn,
+			fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
 	case errors.Is(qerr, vm.ExportDepthExceededError{}):
 		// Sibling of the size guard above: the node refused a response nested
 		// past maxExportDepth. Route it to the same sentinel so it renders as a
@@ -447,20 +458,10 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 		// (measured: a 600-node persisted list exports to 899 bytes). Mapped
 		// anyway so a future endpoint — or a shape that does not collapse —
 		// cannot regress this into a generic 500.
-		c.logger.Warn("node refused deeply nested response",
-			"path", qpath,
-			"data", string(data),
-			"error", qres.Response.Error,
-		)
-		return nil, fmt.Errorf("%w: rejected by node export depth guard", ErrClientResponseTooLarge)
+		return "node refused deeply nested response", slog.LevelWarn,
+			fmt.Errorf("%w: rejected by node export depth guard", ErrClientResponseTooLarge)
 	default:
+		// fallback on general error
+		return "node response error", slog.LevelError, fmt.Errorf("%w: %w", ErrClientResponse, qerr)
 	}
-
-	// fallback on general error
-	c.logger.Error("node response error",
-		"path", qpath,
-		"data", string(data),
-		"error", qres.Response.Error,
-	)
-	return nil, fmt.Errorf("%w: %w", ErrClientResponse, qres.Response.Error)
 }
