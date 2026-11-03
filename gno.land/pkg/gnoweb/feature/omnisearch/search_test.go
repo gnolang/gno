@@ -1012,11 +1012,16 @@ func TestPastedAddress(t *testing.T) {
 		t.Errorf("JSON selectors %+v: no account pattern matching %s", resp.Selectors, addr)
 	}
 
-	// With an indexer, the account's activity comes with discovery's answer:
-	// the user row is still there.
-	groups, _ := h.Search(context.Background(), mustQuery(t, h, addr, ""))
-	if len(groups) < 2 || groups[0].Label != "Account activity" {
-		t.Errorf("with an indexer: groups %+v, want account activity then discovery", groups)
+	// With an indexer, the account's activity comes with discovery's answer,
+	// the user row first even with a realm deployed under the address.
+	deployed := newHandlerWithDir(t, newDiscoveryClient(), &mockDirectory{realms: []string{"gno.land/r/" + addr + "/blog"}}, &mockIndexer{})
+	groups, _ := deployed.Search(context.Background(), mustQuery(t, deployed, addr, ""))
+	var labels []string
+	for _, g := range groups {
+		labels = append(labels, g.Label)
+	}
+	if !slices.Equal(labels, []string{"Users", "Realms", "Account activity"}) {
+		t.Errorf("with an indexer: groups %v, want the user, the realm, the account activity", labels)
 	}
 
 	// A bad checksum names no user.
@@ -1169,8 +1174,8 @@ func TestFailedDiscoveryShowsBesideTheAccount(t *testing.T) {
 		labels = append(labels, g.Label)
 		failed = failed || (g.Label == "Realms" && g.Err != nil)
 	}
-	if !failed || !slices.Equal(labels, []string{"Account activity", "Realms", "Users"}) {
-		t.Errorf("groups = %v (failed: %v), want the account, the failed Realms, the user", labels, failed)
+	if !failed || !slices.Equal(labels, []string{"Realms", "Users", "Account activity"}) {
+		t.Errorf("groups = %v (failed: %v), want the failed Realms, the user, the account", labels, failed)
 	}
 }
 

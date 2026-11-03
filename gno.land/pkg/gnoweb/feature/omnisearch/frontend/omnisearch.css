@@ -85,7 +85,8 @@
 	gap: var(--g-space-1) var(--g-space-2);
 	min-width: 0;
 
-	/* Cut in the middle by the template; this only guards a long name. */
+	/* An address or hash is cut in the middle by the template; prose (a
+	   synopsis, a render snippet, which starts near its match) ends here. */
 	& .detail {
 		overflow: hidden;
 		max-width: 26ch;

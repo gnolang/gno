@@ -671,7 +671,8 @@ export class SearchbarController extends BaseController {
 		const users: string[] = [];
 		const seen = new Set<string>();
 		// A pasted address names a user even with nothing deployed under it.
-		if (SearchbarController.isAddress(q)) {
+		const pasted = SearchbarController.isAddress(q);
+		if (pasted) {
 			seen.add(needle);
 			users.push(`/u/${needle}`);
 		}
@@ -691,11 +692,15 @@ export class SearchbarController extends BaseController {
 				.map((path) => ({ title: path, href: path })),
 		});
 
-		return [
-			toGroup("Apps", apps),
-			toGroup("Packages", packages),
-			toGroup("Users", users),
-		].filter((g) => (g.results?.length ?? 0) > 0);
+		const groups = [toGroup("Apps", apps), toGroup("Packages", packages)];
+		// Its account page is what an address is most often pasted for: the
+		// user row leads, as on the results page (omnisearch discover).
+		if (pasted) {
+			groups.unshift(toGroup("Users", users));
+		} else {
+			groups.push(toGroup("Users", users));
+		}
+		return groups.filter((g) => (g.results?.length ?? 0) > 0);
 	}
 
 	// rank returns the paths matching needle, most-relevant first: throwaway

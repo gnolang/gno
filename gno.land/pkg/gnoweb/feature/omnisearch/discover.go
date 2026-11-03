@@ -47,7 +47,9 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	}
 	// A pasted address names a user even with nothing deployed under it, which
 	// takes no listing. A qualifier narrows the answer past it.
-	if _, err := crypto.AddressFromBech32(q.Text); err == nil && len(q.Filters) == 0 {
+	_, err := crypto.AddressFromBech32(q.Text)
+	pasted := err == nil && len(q.Filters) == 0
+	if pasted {
 		addUser(needle)
 	}
 
@@ -115,7 +117,13 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		}
 	}
 
-	groups = append(groups, usersGroup(users)...)
+	if pasted {
+		// Its account page is what an address is most often pasted for: the
+		// user row leads, ahead of what is deployed under it.
+		groups = append(usersGroup(users), groups...)
+	} else {
+		groups = append(groups, usersGroup(users)...)
+	}
 	if truncated {
 		// The node always drops the same lexicographic tail, so a namespace
 		// late in the alphabet would otherwise look like it does not exist.
