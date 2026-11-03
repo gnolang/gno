@@ -56,7 +56,7 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 		}
 	}
 
-	view := &components.View{Type: components.DepsViewType, Component: &pageComponent{name: "renderDeps", data: data}}
+	view := &components.View{Type: components.DepsViewType, Component: page("renderDeps", data)}
 	view.SkipTargetInBody = true // on the content header
 	return status, view, nil
 }

@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 	"time"
 )
@@ -21,6 +22,19 @@ func (c *TemplateComponent) Render(w io.Writer) error {
 
 func NewTemplateComponent(name string, data any) Component {
 	return &TemplateComponent{name: name, data: data}
+}
+
+// FeatureComponent renders Name from a feature's own template set, so
+// IndexLayout wraps a feature's page without components knowing its
+// templates.
+type FeatureComponent struct {
+	Tmpl *template.Template
+	Name string
+	Data any
+}
+
+func (c *FeatureComponent) Render(w io.Writer) error {
+	return c.Tmpl.ExecuteTemplate(w, c.Name, c.Data)
 }
 
 type readerComponent struct {
