@@ -28,6 +28,15 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		return &qres.Response, nil
 	}
 
+	queryHeight := func(ctx context.Context) (int64, error) {
+		info, err := cli.ABCIInfo(ctx)
+		if err != nil {
+			return 0, errors.Wrap(err, "query app info")
+		}
+
+		return info.Response.LastBlockHeight, nil
+	}
+
 	startedAt := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -64,6 +73,10 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 
 		ret.Gnoland.Connected = true
 		res, err := queryVersion(ctx)
+		var height int64
+		if err == nil {
+			height, err = queryHeight(ctx)
+		}
 		if err != nil {
 			ret.Gnoland.Connected = false
 			errmsg := err.Error()
@@ -71,7 +84,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		} else {
 			version := string(res.Value)
 			ret.Gnoland.Version = &version
-			ret.Gnoland.Height = &res.Height
+			ret.Gnoland.Height = &height
 		}
 
 		out, _ := json.MarshalIndent(ret, "", "  ")
