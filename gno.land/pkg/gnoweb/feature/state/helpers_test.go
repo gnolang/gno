@@ -58,7 +58,7 @@ func TestStateObjectHref_RoundtripsThroughWebURL(t *testing.T) {
 }
 
 // TestStateObjectHref_StampsTypeAndView — tid, ptrIndex and viewMode should
-// round-trip when present (ptrIndex 0 included) and stay absent when zero.
+// round-trip when present (ptrIndex 0 included) and stay absent when unset.
 func TestStateObjectHref_StampsTypeAndView(t *testing.T) {
 	t.Parallel()
 
