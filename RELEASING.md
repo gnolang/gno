@@ -143,7 +143,9 @@ corresponds to something that has gone wrong before. All but one are refusals:
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
 the four platforms, asserts that `gnoland`, `gnokey` and `gno` carry the tag on
-the two platforms its runners can execute, and attaches them to the release.
+the two platforms its runners can execute, refuses a Linux binary that needs a
+glibc newer than 2.35 (Ubuntu 22.04, Debian 12), and attaches them to the
+release.
 It also triggers [`release / docker`](.github/workflows/release-docker.yml),
 which publishes the matching images to `ghcr.io/gnolang/gno/*`. A
 `chain/<name>` launch tag triggers nothing: its release is the genesis record, created by hand with the `genesis.json` and its checksums attached and no binaries, and never made GitHub's "Latest": create it with `gh release create … --latest=false`, not the web form, which gives Latest by version order when "Set as the latest release" is left unticked.
