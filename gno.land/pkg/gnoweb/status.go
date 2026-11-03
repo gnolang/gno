@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"time"
 
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -17,15 +16,13 @@ import (
 // XXX: rework this part, this is the original method from previous gnoweb
 // handlerStatusJSON returns an http.Handler that serves status information as JSON.
 func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler {
-	const qpath = ".app/version"
-
-	queryVersion := func(ctx context.Context) (*abci.ResponseQuery, error) {
-		qres, err := cli.ABCIQuery(ctx, qpath, []byte{})
+	queryVersion := func(ctx context.Context) (string, error) {
+		status, err := cli.Status(ctx, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, "query app version")
+			return "", errors.Wrap(err, "query node status")
 		}
 
-		return &qres.Response, nil
+		return status.NodeInfo.Version, nil
 	}
 
 	queryHeight := func(ctx context.Context) (int64, error) {
@@ -72,7 +69,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		ret.Website.GoVersion = runtime.Version()
 
 		ret.Gnoland.Connected = true
-		res, err := queryVersion(ctx)
+		version, err := queryVersion(ctx)
 		var height int64
 		if err == nil {
 			height, err = queryHeight(ctx)
@@ -82,7 +79,6 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 			errmsg := err.Error()
 			ret.Gnoland.Error = &errmsg
 		} else {
-			version := string(res.Value)
 			ret.Gnoland.Version = &version
 			ret.Gnoland.Height = &height
 		}
