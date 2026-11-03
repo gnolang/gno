@@ -147,8 +147,8 @@ func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 		data.Busiest = busiest(data, busiestCount)
 	}
 	return components.MapParts{
-		Figure: &pageComponent{name: "chainmap/figure", data: data},
-		Key:    &pageComponent{name: "chainmap/key", data: data},
+		Figure: page("chainmap/figure", data),
+		Key:    page("chainmap/key", data),
 	}
 }
 
@@ -173,7 +173,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	}
 
 	data.Window = a
-	data.Indexer = &components.IndexerStatus{URL: h.deps.Indexer.URL(), LastBlock: a.To}
+	data.Indexer = &components.IndexerStatus{LastBlock: a.To}
 
 	// The scale is the busiest realm on this map, so a zoomed-in map still
 	// tells its own realms apart.

@@ -59,4 +59,4 @@ jobs:
             -run 'TestParallelQueries|TestParallelVMQueries|TestQueryRace|TestConcurrentInitChain' \
             ./gno.land/pkg/gnoland/
       - name: gnoweb markdown concurrent rendering
-        run: go test -race -covermode=atomic -timeout 10m -run 'TestMathConcurrentRender' ./gno.land/pkg/gnoweb/markdown/
+        run: go test -race -covermode=atomic -timeout 10m -run 'ConcurrentRender' ./gno.land/pkg/gnoweb/markdown/

@@ -1,0 +1,38 @@
+/* ==========================================================================
+   RUN - maketx run scratchpad
+   ========================================================================== */
+.b-run-command-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2) var(--g-space-4);
+	margin-block-end: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-secondary);
+
+	/* A flag or the chain ID stays whole; the key may be an address. */
+	code:not([data-run-target]) {
+		white-space: nowrap;
+	}
+}
+
+.b-run {
+	/* Served hidden until the controller shows them: they need JS. */
+	[hidden] {
+		display: none;
+	}
+
+	/* The switch's checkbox is visually hidden, not removed: it is how a
+	   keyboard reaches the switch, whose label shows the focus. */
+	.b-switch {
+		input {
+			display: inline;
+		}
+
+		&:has(input:focus-visible) {
+			outline: var(--s-focus-ring);
+			outline-offset: 2px;
+		}
+	}
+}
