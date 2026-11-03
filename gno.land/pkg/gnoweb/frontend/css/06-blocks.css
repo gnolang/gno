@@ -2222,12 +2222,14 @@ main.is-dev-mode .b-toc a {
 	border-radius: var(--s-rounded);
 	background-color: var(--s-color-bg-base);
 	font-size: var(--g-font-size-100);
+	/* Inherited by everything the box holds: a long token (a key, a path)
+	   breaks instead of overflowing the box. */
+	overflow-wrap: anywhere;
 
 	pre {
 		padding: var(--g-space-4);
 		padding-inline-end: var(--g-space-10);
 		white-space: pre-wrap;
-		overflow-wrap: anywhere;
 		color: var(--s-color-text-secondary);
 	}
 
@@ -2270,7 +2272,6 @@ main.is-dev-mode .b-toc a {
 	padding: var(--g-space-4);
 	font-family: var(--g-font-family-mono);
 	white-space: pre-wrap;
-	overflow-wrap: anywhere;
 	color: var(--s-color-text-secondary);
 }
 
@@ -2326,13 +2327,13 @@ main.is-dev-mode .b-toc a {
 	border: var(--s-divider);
 	border-radius: var(--s-rounded);
 	background-color: var(--s-color-bg-base);
+	overflow-wrap: anywhere;
 }
 
 .b-action-eval-history-expr {
 	gap: var(--g-space-2);
 	margin-bottom: var(--g-space-1);
 	font-size: var(--g-font-size-90);
-	overflow-wrap: anywhere;
 }
 
 .b-action-eval-history-rerun {
@@ -2359,7 +2360,6 @@ main.is-dev-mode .b-toc a {
 	font-size: var(--g-font-size-80);
 	color: var(--s-color-text-secondary);
 	white-space: pre-wrap;
-	overflow-wrap: anywhere;
 }
 
 /* ===== PACKAGES LIST COMPONENT ===== */
