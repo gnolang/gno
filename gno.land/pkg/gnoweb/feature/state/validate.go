@@ -23,15 +23,15 @@ const (
 )
 
 var (
-	ErrInvalidOID    = errors.New("invalid object id")
-	ErrInvalidTID    = errors.New("invalid type id")
-	ErrInvalidFile   = errors.New("invalid file")
-	ErrInvalidHeight = errors.New("invalid height")
-	ErrInvalidLine   = errors.New("invalid line")
-	ErrInvalidOffset = errors.New("invalid offset")
-	ErrInvalidLimit  = errors.New("invalid limit")
-	ErrInvalidSearch = errors.New("invalid search")
-	ErrInvalidIndex  = errors.New("invalid pointer index")
+	ErrInvalidOID          = errors.New("invalid object id")
+	ErrInvalidTID          = errors.New("invalid type id")
+	ErrInvalidFile         = errors.New("invalid file")
+	ErrInvalidHeight       = errors.New("invalid height")
+	ErrInvalidLine         = errors.New("invalid line")
+	ErrInvalidOffset       = errors.New("invalid offset")
+	ErrInvalidLimit        = errors.New("invalid limit")
+	ErrInvalidSearch       = errors.New("invalid search")
+	ErrInvalidPointerIndex = errors.New("invalid pointer index")
 )
 
 func ValidateOID(s string) error {
@@ -60,7 +60,7 @@ func ValidatePointerIndex(s string) (*int, error) {
 	}
 	n, err := strconv.Atoi(s)
 	if err != nil || n < 0 {
-		return nil, ErrInvalidIndex
+		return nil, ErrInvalidPointerIndex
 	}
 	return &n, nil
 }
