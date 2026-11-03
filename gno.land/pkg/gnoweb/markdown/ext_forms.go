@@ -585,12 +585,12 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 	// Build PkgPath with domain (like the action page does)
 	pkgPath := n.Domain + n.RealmName
 	data := components.CommandData{
-		FuncName:   n.ExecFunc,
-		PkgPath:    pkgPath,
-		ParamNames: paramNames,
-		ChainId:    chainId,
-		Remote:     remote,
-		Gas:        n.Gas,
+		FuncName: n.ExecFunc,
+		PkgPath:  pkgPath,
+		ArgKeys:  paramNames,
+		ChainId:  chainId,
+		Remote:   remote,
+		Gas:      n.Gas,
 	}
 
 	// Create and render the template component

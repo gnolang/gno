@@ -120,9 +120,9 @@ type AppConfig struct {
 	// IndexerToken, when set, is sent as a bearer credential to the indexer.
 	IndexerToken string
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
-	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
-	// chain nodes under pressure; relax when capacity allows. ADR-003
-	// §Resource bounds.
+	// against the chain node, evals included: they may hold a quarter of
+	// it at most. 0 ⇒ the rpcClient default (32). Tighten on chain nodes
+	// under pressure; relax when capacity allows. ADR-003 §Resource bounds.
 	MaxConcurrentRPC int
 }
 
@@ -288,6 +288,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle assets path
 	assetsHandler := cacheAssetHandler(AssetHandler())
 	mux.Handle(assetsBase, http.StripPrefix(assetsBase, assetsHandler))
+
+	// Handle playground API endpoints
+	mux.Handle("/_/api/eval", httphandler.Playground.EvalHandler())
 
 	// Handle status page
 	mux.Handle("/status.json", handlerStatusJSON(logger, rpcclient))
