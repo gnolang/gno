@@ -1,0 +1,180 @@
+/* ==========================================================================
+   PLAYGROUND - Scratch pad editor
+   ========================================================================== */
+/* File tabs sit inside the editor frame (.b-code-editor-area): one tab per
+   file, the active one marked like gnoweb's other tab bars. */
+.b-playground-tabs-wrap {
+	display: flex;
+	align-items: stretch;
+	background-color: var(--s-color-bg-surface-secondary);
+	border-block-end: var(--s-divider);
+}
+
+.b-playground-tabs {
+	flex: 0 1 auto;
+	min-width: 0;
+	display: flex;
+	overflow-x: auto;
+	scroll-behavior: smooth;
+}
+
+.b-playground-tab {
+	position: relative;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	border-inline-end: var(--s-divider);
+	color: var(--s-color-text-secondary);
+	transition: color var(--g-transition-fast);
+
+	&:hover {
+		color: var(--s-color-text-primary);
+	}
+
+	&::after {
+		content: "";
+		position: absolute;
+		inset-inline: 0;
+		bottom: 0;
+		height: var(--g-space-1);
+		border-radius: var(--s-rounded) var(--s-rounded) 0 0;
+		background-color: var(--s-color-bg-brand-default);
+		transform: scaleX(0);
+		transition: transform var(--g-transition-fast);
+	}
+}
+
+.b-playground-tab--active {
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+
+	&::after {
+		transform: scaleX(1);
+	}
+}
+
+.b-playground-tab-open {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-1-5);
+	padding: var(--g-space-2) var(--g-space-3);
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-90);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.b-playground-tab-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: var(--g-space-6);
+	min-height: var(--g-space-6);
+	margin-inline-end: var(--g-space-1);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-tertiary);
+	cursor: pointer;
+	opacity: var(--g-opacity-0);
+
+	&:hover {
+		background-color: var(--s-color-bg-surface-secondary);
+		color: var(--s-color-text-primary);
+	}
+
+	.b-playground-tab:is(:hover, :focus-within, .b-playground-tab--active) & {
+		opacity: var(--g-opacity-100);
+	}
+
+	/* No hover on touch screens: always show it, never as an invisible target. */
+	@media (hover: none) {
+		opacity: var(--g-opacity-100);
+	}
+}
+
+.b-playground-tabs-actions {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	margin-inline-start: auto;
+	padding-inline: var(--g-space-1);
+}
+
+.b-playground-tabs-nav,
+.b-playground-tab-add {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--g-space-7);
+	height: var(--g-space-7);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-tertiary);
+	cursor: pointer;
+	transition: color var(--g-transition-fast);
+
+	&:hover:not(:disabled) {
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-secondary);
+	}
+
+	&:disabled {
+		opacity: var(--g-opacity-30);
+		cursor: default;
+	}
+}
+
+/* The global [hidden] rule does not survive PurgeCSS (see .b-omnisearch):
+   the controls served hidden until the controller shows them, and the tab
+   scroll buttons, stay hidden here. */
+.b-playground [hidden] {
+	display: none;
+}
+
+.b-playground-tab-add {
+	font-size: var(--g-font-size-200);
+	line-height: 1;
+}
+
+.b-playground-tab .c-icon,
+.b-playground-tabs-nav .c-icon {
+	width: var(--g-space-3);
+	height: var(--g-space-3);
+}
+
+.b-playground-output-item {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--g-space-2);
+}
+
+/* A div, not a pre: .b-code pre would add its own padding to every line;
+   wrapping and font come from .b-result-content. */
+.b-playground-output-item-text {
+	flex: 1;
+}
+
+.b-playground-output-copy-btn {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	padding: var(--g-space-1);
+	color: var(--s-color-text-tertiary);
+	border-radius: var(--s-rounded-sm);
+	transition:
+		color var(--g-transition-fast),
+		background-color var(--g-transition-fast);
+}
+
+.b-playground-output-copy-btn:hover {
+	color: var(--s-color-text-secondary);
+	background-color: var(--s-color-bg-surface-secondary);
+}
+
+/* A copy's file name above its code, as served until the editor and its
+   tabs replace them. */
+.b-playground-file {
+	padding: var(--g-space-2) var(--g-space-3);
+	border-block-end: var(--s-divider);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}

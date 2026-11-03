@@ -1,7 +1,11 @@
 import {
+	addressSlotText,
+	argSlotText,
 	BaseController,
 	debounce,
-	escapeShellSpecialChars,
+	evalArgs,
+	paramValue,
+	postEval,
 } from "./controller.js";
 import type { ActionMode } from "./controller-action-header.js";
 
@@ -11,6 +15,8 @@ export class ActionFunctionController extends BaseController {
 	declare _pkgPath: string | null;
 	declare _paramInputsCache: HTMLInputElement[];
 	declare _params: Record<string, string>;
+	// The live result's last request, aborted when a newer one starts.
+	declare _qevalAbort?: AbortController;
 
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
@@ -32,6 +38,10 @@ export class ActionFunctionController extends BaseController {
 
 		this._initializeArgs();
 		this._listenForEvents();
+
+		// Served hidden: Eval only works from here on.
+		const evalButton = this.getTarget("eval-button");
+		if (evalButton) evalButton.hidden = false;
 
 		// Some functions may have no params, or all params already have values
 		this._updateQEvalResult();
@@ -76,17 +86,21 @@ export class ActionFunctionController extends BaseController {
 		// Update address elements
 		const addressElements = this.getTargets("address");
 		addressElements.forEach((addressElement) => {
-			addressElement.textContent = address.trim() || "ADDRESS";
+			addressElement.textContent = addressSlotText(address);
 		});
 	}
 
 	// get current value for a param name (handles checkbox multiple values)
 	private _getParamCurrentValue(paramName: string): string {
-		// radio or checkbox multiple values
-		const inputs = this._paramInputs.filter(
-			(inp) => this.getValue("param", inp) === paramName,
+		return this._inputsValue(
+			this._paramInputs.filter(
+				(inp) => this.getValue("param", inp) === paramName,
+			),
 		);
+	}
 
+	// the value of one param's inputs: several for a radio or a checkbox
+	private _inputsValue(inputs: HTMLInputElement[]): string {
 		if (!inputs.length) return "";
 
 		const firstInput = inputs[0];
@@ -106,8 +120,8 @@ export class ActionFunctionController extends BaseController {
 			return checked?.value.trim() || "";
 		}
 
-		// Other: return value
-		return firstInput.value.trim();
+		// Other: the value the live result and Eval evaluate too (evalArgs).
+		return paramValue(firstInput.value, this.getValue("type", firstInput));
 	}
 
 	// initialize the args
@@ -122,25 +136,27 @@ export class ActionFunctionController extends BaseController {
 
 			if (!paramName || processed.has(paramName)) return;
 
-			const paramValue = this._getParamCurrentValue(paramName);
-			this._params[paramName] = paramValue;
-			if (paramValue) this._updateArgInDOM(paramName, paramValue);
+			const value = this._getParamCurrentValue(paramName);
+			this._params[paramName] = value;
+			if (value) this._updateArgInURLs(paramName, value);
 
 			processed.add(paramName);
 		});
+		this._fillArgSlots();
 	}
 
 	// debounced update all args and update the qeval result
-	private _debouncedUpdateAllArgs = debounce(
-		(paramName: string, paramValue: string) => {
-			if (paramName) {
-				this._updateArgInDOM(paramName, paramValue);
-				this._updateQEvalResult();
-				this._dispatchParamsChanged();
-			}
-		},
-		50,
-	);
+	private _debouncedUpdateAllArgs = debounce((paramName: string) => {
+		this._fillArgSlots();
+		this._debouncedQEval();
+		if (!paramName) return;
+		this._updateArgInURLs(paramName, this._getParamCurrentValue(paramName));
+		this._dispatchParamsChanged();
+	}, 50);
+
+	// The live result queries the rate-limited /_/api/eval: wait for a pause
+	// in typing instead of sending one request per keystroke.
+	private _debouncedQEval = debounce(() => this._updateQEvalResult(), 400);
 
 	// Dispatch params:changed event uppon parameter updates.
 	private _dispatchParamsChanged(): void {
@@ -154,18 +170,27 @@ export class ActionFunctionController extends BaseController {
 		});
 	}
 
-	// push args in DOM (in func code)
-	private _updateArgInDOM(paramName: string, paramValue: string): void {
-		const escapedValue = escapeShellSpecialChars(paramValue);
+	// Fills the printed commands' arg slots. A slot and its param's inputs
+	// share a key: the param's position on $help, where names repeat or are
+	// missing ("_"); its name in a form, whose inputs carry no position.
+	private _fillArgSlots(): void {
+		const inputs = new Map<string, HTMLInputElement[]>();
+		for (const input of this._paramInputs) {
+			const key = this.getValue("arg", input) || this.getValue("param", input);
+			const group = inputs.get(key);
+			if (group) group.push(input);
+			else inputs.set(key, [input]);
+		}
+		this.getTargets("arg").forEach((slot) => {
+			slot.textContent = argSlotText(
+				this._inputsValue(inputs.get(this.getValue("arg", slot)) ?? []),
+				this.getValue("type", slot),
+			);
+		});
+	}
 
-		// Update args elements with the new parameter value
-		this.getTargets("arg")
-			.filter((arg) => this.getValue("arg", arg) === paramName)
-			.forEach((arg) => {
-				arg.textContent = escapedValue || "";
-			});
-
-		// Update function execute (form) and anchor (copy button) with new parameter
+	// Update function execute (form) and anchor (copy button) with new parameter
+	private _updateArgInURLs(paramName: string, value: string): void {
 		const executeForm = this.getTarget("function-execute") as HTMLFormElement;
 		const anchorButton = this.getTarget("function-anchor") as HTMLButtonElement;
 		if (!executeForm && !anchorButton) return;
@@ -176,7 +201,7 @@ export class ActionFunctionController extends BaseController {
 		if (!baseUrl) return;
 
 		const parts = baseUrl.split("&");
-		const encodedValue = encodeURIComponent(paramValue);
+		const encodedValue = encodeURIComponent(value);
 		const index = parts.findIndex(
 			(part, i) => i > 0 && part.startsWith(`${paramName}=`),
 		);
@@ -194,64 +219,66 @@ export class ActionFunctionController extends BaseController {
 
 	// Update the qeval result
 	// If there is no "qeval-result" target, then do nothing.
-	// Placeholder text and the error class are both read from data-* attributes
+	// Placeholder texts and the error class are all read from data-* attributes
 	// on the target so the contract is shared with analytics.ts.
 	private async _updateQEvalResult(): Promise<void> {
+		// Any newer update, even one that only shows the placeholder, voids
+		// the request still in flight: abort it, and drop its answer should
+		// it land anyway.
+		this._qevalAbort?.abort();
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
-		const remoteTarget = this.getTarget("remote") as HTMLElement;
 
-		// If there is no resultTarget or remoteTarget, this is a crossing function.
-		if (!(resultTarget && remoteTarget)) return;
+		// Crossing functions have no qeval-result target.
+		if (!resultTarget) return;
 
 		const placeholder = resultTarget.dataset.qevalPlaceholder ?? "";
+		const unavailable = resultTarget.dataset.qevalUnavailable ?? "";
 		const errorClass = resultTarget.dataset.qevalErrorClass ?? "u-color-danger";
 
-		// If there are no args, then show the placeholder.
-		const argNodes = this.getTargets("arg");
-		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
-		if (!haveAllArgs) {
+		// Until every param has a value, show the placeholder.
+		const { args, full } = evalArgs(this._paramInputs);
+		if (!full) {
 			resultTarget.textContent = placeholder;
 			resultTarget.classList.remove(errorClass);
 			return;
 		}
 
-		// Build the data string for the qeval query.
-		const args = argNodes
-			.map((arg) => (arg.textContent as string).replace(/\\(.)/g, "$1"))
-			.join(",");
-		const data = `${this._pkgPath}.${this._funcName}(${args})`;
+		// The same expression as the Eval button's: one Gno literal per param.
+		const expression = `${this._funcName}(${args.join(", ")})`;
 
-		// Fetch the qeval result from the remote and update the DOM.
-		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
-		resultTarget.textContent = result;
-		resultTarget.classList.toggle(errorClass, result.startsWith("Error:"));
-	}
-
-	// Fetch the qeval result from the remote
-	private async _fetchQEval(remote: string, data: string): Promise<string> {
-		try {
-			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
-			if (!response.ok) return "";
-
-			const result = (await response.json()).result.response.ResponseBase;
-			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
-		} catch {
-			return "";
-		}
+		const abort = new AbortController();
+		this._qevalAbort = abort;
+		const res = await postEval(this._pkgPath ?? "", expression, abort.signal);
+		if (abort.signal.aborted) return;
+		// A rate limit or an outage says nothing about the function: show the
+		// neutral text analytics ignores, not an error.
+		resultTarget.textContent = res.unavailable ? unavailable : res.text;
+		resultTarget.classList.toggle(errorClass, res.isError);
 	}
 
 	// DOM ACTIONS
+
+	// Dispatch eval:expression event (DOM action), built from the params
+	// typed in the card. With every param filled (or none), the evaluator
+	// runs it; otherwise it selects the arguments for the reader to finish.
+	public triggerEval(): void {
+		const { args, full } = evalArgs(this._paramInputs);
+		this.dispatch("eval:expression", {
+			expression: `${this._funcName || ""}(${args.join(", ")})`,
+			autoEval: full,
+		});
+	}
+
 	// update all args (DOM action)
 	public updateAllArgs(event: Event): void {
 		const target = event.target as HTMLInputElement;
 		const paramName = this.getValue("param", target);
-		if (!paramName) return;
 
 		// get the current value for the param name and update params tree
-		const paramValue = this._getParamCurrentValue(paramName);
-		this._params[paramName] = paramValue;
-		this._debouncedUpdateAllArgs(paramName, paramValue);
+		if (paramName) {
+			this._params[paramName] = this._getParamCurrentValue(paramName);
+		}
+		this._debouncedUpdateAllArgs(paramName);
 	}
 
 	// update all functions send (DOM action)

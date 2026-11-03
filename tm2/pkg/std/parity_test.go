@@ -94,6 +94,13 @@ func TestCodecParity_Std(t *testing.T) {
 			// PubKey left nil — interface-is-nil case.
 			Signature: []byte{0x01, 0x02},
 		}},
+		// A session key's signature: SessionAddr is non-zero, so its
+		// amino:"skip_zero" lets it through.
+		{"Signature/session", &std.Signature{
+			PubKey:      pk,
+			Signature:   []byte{0x03},
+			SessionAddr: addr,
+		}},
 
 		// MemFile + MemPackage: nested pointer slice.
 		{"MemFile", &std.MemFile{Name: "foo.gno", Body: "package foo\n"}},
@@ -120,6 +127,9 @@ func TestCodecParity_Std(t *testing.T) {
 		}},
 		// String field with embedded NUL bytes — amino's length-prefix
 		// encoding must be binary-safe.
+		// All-zero signatures, as gnoclient fills one in per signer
+		// before signing: each is an empty element, and both must survive.
+		{"Tx/placeholder-signatures", &std.Tx{Signatures: []std.Signature{{}, {}}}},
 		{"Tx/memo-with-nul", &std.Tx{
 			Msgs: nil,
 			Fee:  std.Fee{GasWanted: 1000, GasFee: std.Coin{Denom: "ugnot", Amount: 10}},
