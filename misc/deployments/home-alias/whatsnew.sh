@@ -188,7 +188,9 @@ scan_band() {
       messages: { value: { $filter } }
     }) { block_height success messages { value { __typename $fields } } } }") || return 1
   if ! jq -e .errors <<<"$reply" >/dev/null; then
-    jq -r ".data.getTransactions | if type == \"array\" then .[] else error(\"no data\") end
+    # tx-indexer answers null for a band with no match: an empty band, not a
+    # failure, which the .errors check above already caught.
+    jq -r ".data | if has(\"getTransactions\") then .getTransactions // [] | .[] else error(\"no data\") end
       | select(.success) | .block_height as \$height | .messages[]?.value | $rows" <<<"$reply"
     return
   fi
@@ -208,8 +210,14 @@ scan_week() {
   local tip head probe lower upper
   tip=$(graphql '{ latestBlockHeight }' | jq -er '.data.latestBlockHeight | numbers') || return 1
   head=$(block_time "$tip") || return 1
-  probe=$(block_time $((tip - RATE_PROBE))) || return 1
-  lower=$((tip - RATE_PROBE * ACTIVITY_WINDOW / (head - probe)))
+  # A chain younger than the probe, or than the window, counts from its first
+  # block, as gnoweb's windowStart does.
+  lower=0
+  if [ "$tip" -gt "$RATE_PROBE" ]; then
+    probe=$(block_time $((tip - RATE_PROBE))) || return 1
+    lower=$((tip - RATE_PROBE * ACTIVITY_WINDOW / (head - probe)))
+  fi
+  [ "$lower" -gt 0 ] || lower=0
   while [ "$lower" -lt "$tip" ]; do
     upper=$((lower + BAND_WIDTH))
     [ "$upper" -le "$tip" ] || upper=$tip
@@ -241,12 +249,20 @@ source_used() {
     awk -v OFS='\t' '{ print $1, $2 }' | short_paths
 }
 
-# A chain can park code, so addpkg alone does not put a package online.
+# A chain can park code, so addpkg alone does not put a package online. One
+# row per project (namespace/name), its newest live deploy: a newer one that
+# is parked or refused must not hide an older live one. At most LIST_SIZE * 4
+# deploys are checked, and only those of a project not listed yet: a project
+# that deployed many packages must not crowd the others out.
 live_rows() {
-  local height pkg n=0
+  local height pkg project seen=" " n=0 tries=0
   while IFS=$'\t' read -r height pkg; do
-    [ "$n" -lt "$LIST_SIZE" ] || break
+    [ "$n" -lt "$LIST_SIZE" ] && [ "$tries" -lt "$((LIST_SIZE * 4))" ] || break
+    project=$(cut -d/ -f3,4 <<<"$pkg")
+    case $seen in *" $project "*) continue ;; esac
+    tries=$((tries + 1))
     abci "$RPC_URL" vm/qfile "$pkg" >/dev/null 2>&1 || continue
+    seen="$seen$project "
     printf '%s\t%s\n' "$height" "$pkg"
     n=$((n + 1))
   done <<<"$1"
@@ -260,17 +276,17 @@ source_deployed() {
     awk -F'\t' -v skip="$DEPLOYED_SKIP" '/^[0-9]+\tgno\.land\/[rp]\/[a-z0-9_.\/-]+$/ && !index($0, "..") && (skip == "" || $2 !~ skip)' |
     sort -rn)
   { grep -c . <<<"$rows" || true; } >"$STATE_DIR/deployed-count"
-  live_rows "$(awk -F'\t' '{ split($2, p, "/"); if (!((p[3] "/" p[4]) in seen)) { seen[p[3] "/" p[4]]; print } }' <<<"$rows" |
-    first_rows "$((LIST_SIZE * 4))")" | short_paths | while IFS=$'\t' read -r height name path; do
+  live_rows "$rows" | short_paths | while IFS=$'\t' read -r height name path; do
     epoch=$(block_time "$height")
     printf '%s\t%s\t%s\n' "$(jq -nr --argjson t "$epoch" '$t | strftime("%Y%m%d")')" "$(cut -d/ -f1,2 <<<"$name")" "$path"
   done
 }
 
-# A testnet runs each release first, as a candidate.
-source_candidate() {
-  "${CURL[@]}" 'https://api.github.com/repos/gnolang/gno/releases?per_page=10' |
-    jq -er 'first(.[].tag_name | select(test("^v[0-9.]+-rc\\.[0-9]+$")))'
+# The binary the chain runs, a candidate on a testnet. node_info.version is the
+# protocol's, not the release's. Only a release tag goes into the link.
+source_version() {
+  "${CURL[@]}" "$RPC_URL/status" |
+    jq -er '.result.build_version | select(test("^v[0-9.]+(-rc\\.[0-9]+)?$"))'
 }
 
 source_shipped() {
@@ -370,7 +386,7 @@ render_row() {
     cells+=("$(render_post "$1" "$2" "$line")")
   done <<<"$3"
   render_columns "${cells[@]}"
-  printf '%s\n\n---\n\n' "$4"
+  printf '%s\n\n' "$4"
 }
 
 render_block() {
@@ -381,6 +397,8 @@ render_block() {
   printf '## <gno-icon name="newspaper" /> What'\''s new\n\n'
   render_row '𝕏' "Gno.land \\@${X_ACCOUNT/_/\\_}" "$posts" "$(render_button "https://x.com/${X_ACCOUNT}" 'Follow on X')"
   render_row '<gno-icon name="book" />' Blog "$blog" "$(render_button "${LINK_BASE}/blog" 'Read the blog')"
+  # One break after the block: between its rows it would read as a new section.
+  printf -- '---\n\n'
 }
 
 # A list and the button to all of it stay in one column, so that they stay
@@ -411,7 +429,9 @@ render_trending() {
 
 render_deployed() {
   local deployed="$STATE_DIR/deployed" date name path
-  [ -s "$deployed" ] || return 0
+  # A week with nothing new live keeps the old list: it ages out as the
+  # ranking does, rather than sit under "0 deployments this week".
+  is_recent deployed || return 0
   printf '<gno-icon name="box" /> **Recently deployed**\n\n'
   while IFS=$'\t' read -r date name path; do
     printf -- '- [%s](%s) · %s\n' "$name" "$path" "$(short_date "$date")"
@@ -460,9 +480,9 @@ render_builders() {
   [ -n "$recent$ranking$shipped" ] || return 0
 
   printf '## <gno-icon name="signal" /> Live on %s\n\n' "$NETWORK"
-  [ ! -s "$STATE_DIR/candidate" ] || {
-    tag=$(cat "$STATE_DIR/candidate")
-    printf 'Latest candidate: [%s](https://github.com/gnolang/gno/releases/tag/%s). ' "$tag" "$tag"
+  [ ! -s "$STATE_DIR/version" ] || {
+    tag=$(cat "$STATE_DIR/version")
+    printf 'Runs [%s](https://github.com/gnolang/gno/releases/tag/%s). ' "$tag" "$tag"
   }
   printf 'Watch it on [Gnockpit](https://gnockpit.%s.testnets.gno.land) or [Gnoscan](https://gnoscan.io/?chainId=%s-1).\n\n' "$NETWORK" "$NETWORK"
   if is_recent activity && is_recent deployed-count; then
@@ -482,10 +502,14 @@ markers_ok() {
     END { exit !(s == 1 && e == 1 && !bad) }' "$1"
 }
 
-# A page may leave out the second section's markers, but not get them wrong.
+# A page may leave out the second section's markers, but not get them wrong:
+# nested or interleaved, the first fill would overwrite one block with the other.
 page_ok() {
   markers_ok "$1" "$START" "$END" || return 1
-  ! grep -qF -e "$TRENDING_START" -e "$TRENDING_END" "$1" || markers_ok "$1" "$TRENDING_START" "$TRENDING_END"
+  ! grep -qF -e "$TRENDING_START" -e "$TRENDING_END" "$1" || {
+    markers_ok "$1" "$TRENDING_START" "$TRENDING_END" &&
+      { markers_ok "$1" "$END" "$TRENDING_START" || markers_ok "$1" "$TRENDING_END" "$START"; }
+  }
 }
 
 # Reads a page and writes it with a block between two markers.
@@ -515,6 +539,10 @@ main() {
     --dry-run) dry_run=1 ;;
     --force) FORCE=1 ;;
     --builders) builders=1 render=render_builders ;;
+    -*)
+      echo "whatsnew: unknown option $1" >&2
+      exit 2
+      ;;
     *) home=$1 ;;
     esac
     shift
@@ -529,7 +557,7 @@ main() {
 
   refresh shipped "$FEED_TTL" &
   if [ "$builders" = 1 ]; then
-    refresh candidate "$FEED_TTL" &
+    refresh version "$FEED_TTL" &
     [ -z "$INDEXER_URL" ] || refresh deployed "$USED_TTL" &
   else
     refresh x "$FEED_TTL" &
@@ -566,7 +594,8 @@ main() {
   if [ -n "$block" ]; then fill_block "$START" "$END" "$block"; else cat; fi <"$home" |
     if [ -n "$trending" ]; then fill_block "$TRENDING_START" "$TRENDING_END" "$trending"; else cat; fi |
     cat >"$tmp"
-  [ -w "$home" ] || chmod u-w "$tmp"
+  # The mode bit, not -w: root can write any page, read-only or not.
+  [ -n "$(find "$home" -perm -200)" ] || chmod u-w "$tmp"
   if cmp -s "$home" "$tmp"; then
     rm -f "$tmp"
     echo "whatsnew: unchanged"

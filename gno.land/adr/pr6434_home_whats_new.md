@@ -68,9 +68,11 @@ without the script.
   and a deploy command, and `--builders` fills it with chain activity. It runs
   with `USED_NAMESPACES` empty: real projects sit under `g1` addresses, and a
   gamed ranking costs little on a testnet.
-- **The latest candidate, not the node's version.** The RPC answers `v1.0.0-rc.0`
-  on a chain running v1.7, so the line names GitHub's latest candidate and
-  claims no more than that.
+- **The version the chain runs.** The RPC's `/status` reports the running
+  binary as `build_version` (`v1.7.0-rc.1` on onyx); `node_info.version` is
+  the protocol's (`v1.0.0-rc.0`). The line names the former, which a testnet
+  can lag GitHub's newest candidate, and only a release tag goes into
+  its link.
 
 ## Alternatives considered
 

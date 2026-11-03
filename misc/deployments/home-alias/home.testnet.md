@@ -17,7 +17,7 @@ From zero to a live realm.
 
 1. [Install gnokey](https://docs.gno.land/builders/install) and add a key
 2. [Get test GNOT](https://faucet.gno.land)
-3. Deploy with [`addpkg`](#deploy-from-your-terminal)
+3. Write it, then deploy with [addpkg](#deploy-from-your-terminal)
 4. Call it in its Actions tab
 
 <gno-columns-sep>
@@ -55,12 +55,17 @@ Let your agent deploy Gno.
 
 ## <gno-icon name="rocket" /> Deploy from your terminal
 
-```sh
-gnokey add alice   # gnokey list prints your g1 address
-# Fund that address at https://faucet.gno.land (pick Onyx)
+Add a key (`gnokey list` prints its g1 address), and fund that address at the [faucet](https://faucet.gno.land), picking Onyx. Then write a realm:
 
-cd myrealm         # your .gno files, in package myrealm
-gno mod init gno.land/r/<your-g1-addr>/myrealm
+```sh
+gnokey add alice
+mkdir myrealm && cd myrealm
+cat > myrealm.gno <<'EOF'
+package myrealm
+
+func Render(_ string) string { return "Hello from myrealm" }
+EOF
+gno mod init "gno.land/r/<your-g1-addr>/myrealm"
 ```
 
 Then deploy it:

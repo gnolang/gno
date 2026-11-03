@@ -54,7 +54,7 @@ distinct addresses, and only those of the `USED_NAMESPACES` namespaces can appea
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `RPC_URL` | `https://rpc.gno.land:443` | The chain's RPC: package list of "Top packages", and with `--builders` the check that a deployment is live |
+| `RPC_URL` | `https://rpc.gno.land:443` | The chain's RPC: package list of "Top packages", and with `--builders` the check that a deployment is live and the version the chain runs |
 | `BLOG_RPC_URL` | `https://rpc.gno.land:443` | Where the blog is read |
 | `LINK_BASE` | empty | Prefix of blog links, for a page served elsewhere than mainnet |
 | `INDEXER_URL` | empty | tx-indexer GraphQL endpoint; without it, what needs an indexer stays out |
@@ -74,8 +74,12 @@ rankings of the week, which go after seven days. The page is replaced atomically
 and keeps its mode, only when its content changes, and never by an empty block.
 Point the script at the file itself, not at a symlink, and give each page its
 own `STATE_DIR`. It exits 0 once it has
-run, and 2 if the page does not hold each marker line once, in order; a failed
+run, and 2 for an unknown option or if the page does not hold each marker line
+once, in order, the two pairs apart; a failed
 `ON_CHANGE` is logged and tried again on the next run.
+
+`bash whatsnew_test.sh` checks the script offline, with the indexer, the RPC
+and curl stubbed; run it after a change.
 
 The block only shows if gnoweb re-reads a static page when it changes (#6327).
 Without that, `ON_CHANGE` can restart gnoweb on a single host. Do not do that
