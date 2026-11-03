@@ -85,9 +85,11 @@ func TestSearchPageAcceptsAPlainFormSubmission(t *testing.T) {
 		"the query must round-trip into the form, or the no-JS path silently searched for nothing")
 }
 
-// The `?q=` a no-JS search adds is the search's, not the realm's: left in
-// the header input, Enter with JavaScript on navigates to the realm with it.
-func TestSearchPageHeaderInputHoldsThePathOnly(t *testing.T) {
+// The results page has no form of its own, so the header input holds the
+// query, as typed: refining it is one edit, and Enter searches again. Never
+// the path with the no-JS `?q=` on it, which Enter with JavaScript on would
+// navigate to.
+func TestSearchPageHeaderInputHoldsTheQuery(t *testing.T) {
 	t.Parallel()
 
 	handler := newSearchPageHandler(t)
@@ -97,7 +99,7 @@ func TestSearchPageHeaderInputHoldsThePathOnly(t *testing.T) {
 
 	m := regexp.MustCompile(`id="header-input-search"[^>]*?\svalue="([^"]*)"`).FindStringSubmatch(rr.Body.String())
 	require.NotNil(t, m, "header input not found")
-	require.Equal(t, "/r/mock/path", m[1])
+	require.Equal(t, "mock", m[1])
 }
 
 // Chain-wide results name no package, so the header must not offer the
