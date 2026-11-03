@@ -469,20 +469,26 @@ func TestFragNodeRejectsTraversalInSourceFile(t *testing.T) {
 		"traversal payload must not surface fetched content in the fragment body")
 }
 
-func TestFragNodeInvalidOID(t *testing.T) {
+func TestFragNodeInvalidParams(t *testing.T) {
 	client := &fragMockClient{}
 	h := newFragHandler(client, nil)
-	for _, q := range []url.Values{
-		{"frag": {"node"}, "oid": {"not-an-oid"}},
-		{"frag": {"node"}, "oid": {fragOID}, "idx": {"-1"}},
-	} {
-		rec := serveFragReq(t, h, q)
+	cases := []struct {
+		name string
+		q    url.Values
+	}{
+		{"invalid oid", url.Values{"frag": {"node"}, "oid": {"not-an-oid"}}},
+		{"negative idx", url.Values{"frag": {"node"}, "oid": {fragOID}, "idx": {"-1"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec := serveFragReq(t, h, c.q)
 
-		assert.Equal(t, http.StatusOK, rec.Code, "validation failure surfaces via fragment-error (HTTP 200)")
-		body := rec.Body.String()
-		assert.Contains(t, body, "b-state-frag-error")
-		assert.NotContains(t, body, "b-state-frag-children",
-			"invalid input must not reach the success template")
+			assert.Equal(t, http.StatusOK, rec.Code, "validation failure surfaces via fragment-error (HTTP 200)")
+			body := rec.Body.String()
+			assert.Contains(t, body, "b-state-frag-error")
+			assert.NotContains(t, body, "b-state-frag-children",
+				"invalid input must not reach the success template")
+		})
 	}
 	assert.Equal(t, int32(0), atomic.LoadInt32(&client.objCalls), "invalid input is rejected before any RPC")
 }
