@@ -2227,6 +2227,7 @@ main.is-dev-mode .b-toc a {
 		padding: var(--g-space-4);
 		padding-inline-end: var(--g-space-10);
 		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 		color: var(--s-color-text-secondary);
 	}
 
