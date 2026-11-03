@@ -16,7 +16,7 @@ gnokey broadcast -remote "{{.Remote}}" call.tx
   </span></code></pre>
     <p class="note u-hidden" data-action-function-target="note" data-action-function-mode-value="fast">Fee <strong>{{ .Gas.Fast.FeeText }}</strong> for up to {{ FormatGas .Gas.Fast.Wanted }} gas{{ if .Gas.Used.Calls }} (its last {{ .Gas.Used.Calls }} successful calls used at most {{ FormatGas .Gas.Used.Max }}, per the indexer){{ end }}, at {{ template "ui/command-price" .Gas }}.
         Unused gas is not refunded; gnokey simulates first, so running out of gas charges nothing.</p>
-    <p class="note" data-action-function-target="note" data-action-function-mode-value="secure">Fee <strong>{{ .Gas.Secure.FeeText }}</strong> for up to {{ FormatGas .Gas.Secure.Wanted }} gas, at {{ template "ui/command-price" .Gas }}.
+    <p class="note" data-action-function-target="note" data-action-function-mode-value="secure">Fee <strong>{{ .Gas.Secure.FeeText }}</strong> for up to {{ FormatGas .Gas.Secure.Wanted }} gas{{ if and .Gas.Used.Calls (eq .Gas.Secure.Wanted .Gas.Fast.Wanted) }} (its last {{ .Gas.Used.Calls }} successful calls used at most {{ FormatGas .Gas.Used.Max }}, per the indexer){{ end }}, at {{ template "ui/command-price" .Gas }}.
         Unused gas is not refunded, and these commands don't simulate: a call that runs out of gas is still charged.</p>
 </div>
 {{ end }}

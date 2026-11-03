@@ -33,7 +33,8 @@ const (
 	// maxGasUseReads caps the reads in flight. Past it a page skips its read
 	// and a later page retries.
 	maxGasUseReads = 4
-	// maxGasUsePkgs bounds the cache; a full one is cleared.
+	// maxGasUsePkgs bounds the cache. A full one drops its expired entries,
+	// at most once per gasUseRetry, and stores nothing while still full.
 	maxGasUsePkgs = 1024
 	// maxGasUseFunc is the longest function name kept from the indexer.
 	maxGasUseFunc = 64
@@ -76,11 +77,12 @@ type gasUseCache struct {
 	sf      singleflight.Group
 	mu      sync.Mutex
 	entries map[string]gasUseEntry
+	sweep   time.Time        // when a full cache may next drop its expired entries
 	now     func() time.Time // for tests; time.Now when nil
 }
 
 type gasUseEntry struct {
-	uses    map[string]components.GasUse // nil when the read failed
+	uses    map[string]components.GasUse // the last read's, nil until one succeeds
 	expires time.Time
 }
 
@@ -121,17 +123,39 @@ func (c *gasUseCache) read(ctx context.Context, pkgPath string) {
 	if err == nil || errors.Is(err, indexer.ErrPartial) { // the newest rows, which is what is measured
 		e = gasUseEntry{uses: gasUses(txs, pkgPath), expires: c.clock().Add(gasUseTTL)}
 	} else {
+		// Kept until a read succeeds, as GasPrice keeps its last good price:
+		// one timeout would otherwise send the fast-mode gas back to
+		// TxGasWanted.
 		c.logger.Debug("gas use unavailable", "pkgpath", pkgPath, "error", err)
-		e.expires = c.clock().Add(gasUseRetry)
+		last, _ := c.lookup(pkgPath)
+		e = gasUseEntry{uses: last.uses, expires: c.clock().Add(gasUseRetry)}
 	}
+	c.store(pkgPath, e)
+}
 
+// store keeps e unless the cache is full of live entries. A crawl over many
+// packages then fills it once, and stops there, instead of dropping every
+// live measure each time it is full.
+func (c *gasUseCache) store(pkgPath string, e gasUseEntry) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	now := c.clock()
 	if c.entries == nil {
 		c.entries = make(map[string]gasUseEntry)
 	}
 	if _, ok := c.entries[pkgPath]; !ok && len(c.entries) >= maxGasUsePkgs {
-		clear(c.entries)
+		if now.Before(c.sweep) {
+			return
+		}
+		c.sweep = now.Add(gasUseRetry)
+		for k, old := range c.entries {
+			if !now.Before(old.expires) {
+				delete(c.entries, k)
+			}
+		}
+		if len(c.entries) >= maxGasUsePkgs {
+			return
+		}
 	}
 	c.entries[pkgPath] = e
 }

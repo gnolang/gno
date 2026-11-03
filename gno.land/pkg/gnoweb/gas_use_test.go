@@ -248,9 +248,38 @@ func TestGasUseCacheBounds(t *testing.T) {
 	c.settle(t, testPkg)
 	require.Len(t, c.entries, maxGasUsePkgs, "a refresh clears nothing")
 
-	c.get(context.Background(), testPkg+"x")
-	c.settle(t, testPkg+"x")
+	// Full of live entries: a new package is read but not kept, so a crawl
+	// cannot flush the live measures.
+	c.read(context.Background(), testPkg+"x")
+	_, kept := c.lookup(testPkg + "x")
+	require.False(t, kept, "full of live entries: not kept")
+	require.Len(t, c.entries, maxGasUsePkgs, "nothing dropped for it")
+
+	// Once they expire, a full cache drops them for a new package.
+	clock.add(time.Hour)
+	c.read(context.Background(), testPkg+"y")
+	_, kept = c.lookup(testPkg + "y")
+	require.True(t, kept, "expired entries swept for a new package")
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	require.Len(t, c.entries, 1, "cleared for a new package")
+	require.Len(t, c.entries, 1, "only the new package left")
+}
+
+// A failed refresh keeps the last measure: one indexer timeout must not send
+// the fast-mode gas back to TxGasWanted.
+func TestGasUseKeepsTheLastMeasure(t *testing.T) {
+	t.Parallel()
+
+	clock := &fakeClock{}
+	idx := &stubRecent{}
+	c := newGasUseCache(idx, clock)
+	idx.set(deposits(1_380_000, 1_380_000, 1_380_000), nil, nil)
+	c.read(context.Background(), testPkg)
+	first := c.get(context.Background(), testPkg)["Deposit"]
+	require.Equal(t, 3, first.Calls)
+
+	clock.add(gasUseTTL)
+	idx.set(nil, errors.New("indexer down"), nil)
+	c.read(context.Background(), testPkg)
+	require.Equal(t, first, c.get(context.Background(), testPkg)["Deposit"], "kept after a failed read")
 }

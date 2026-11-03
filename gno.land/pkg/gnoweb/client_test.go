@@ -435,3 +435,29 @@ func TestGasPriceFirstReadFails(t *testing.T) {
 		t.Fatalf("%d queries, want 1", n)
 	}
 }
+
+// With no price read yet, callers that arrive while the first read is in
+// flight wait for it and get the chain's price, from one query: none gets
+// the zero price while the node is answering.
+func TestGasPriceFirstReadIsShared(t *testing.T) {
+	t.Parallel()
+
+	gate := make(chan struct{})
+	caller := &gasCaller{price: `{"gas":"1000","price":"5ugnot"}`, gate: gate}
+	c := newGasClient(caller)
+	want := std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 5)}
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Go(func() {
+			if gp, err := c.GasPrice(context.Background()); err != nil || gp != want {
+				t.Errorf("GasPrice = %v, %v; want %v from the shared first read", gp, err, want)
+			}
+		})
+	}
+	require.Eventually(t, func() bool { return caller.count() == 1 }, 5*time.Second, time.Millisecond)
+	close(gate)
+	wg.Wait()
+	if n := caller.count(); n != 1 {
+		t.Fatalf("%d queries, want 1", n)
+	}
+}

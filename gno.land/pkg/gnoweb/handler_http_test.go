@@ -1169,6 +1169,7 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 		name     string
 		url      string
 		funcs    bool // the realm has a crossing function
+		getters  bool // the realm has only a non-crossing function
 		realm    string
 		err      error
 		indexer  bool
@@ -1179,6 +1180,7 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 		{name: "help, chain price", url: "/r/test/path$help", funcs: true, calls: 1, want: "-gas-fee 60000ugnot"},
 		{name: "help, node down", url: "/r/test/path$help", funcs: true, err: gnoweb.ErrClientTimeout, calls: 1, want: "-gas-fee 30000ugnot"},
 		{name: "help, no functions", url: "/r/test/path$help", calls: 0},
+		{name: "help, getters only", url: "/r/test/path$help", getters: true, calls: 0},
 		{name: "exec form", url: "/r/test/path", realm: execForm, calls: 1, want: "-gas-fee 60000ugnot"},
 		{name: "no exec form", url: "/r/test/path", realm: queryForm, calls: 0},
 		{name: "help, measured", url: "/r/test/path$help", funcs: true, indexer: true, calls: 1, want: "-gas-wanted 10_000_000", measured: measured},
@@ -1196,6 +1198,10 @@ func TestHTTPHandler_CommandGas(t *testing.T) {
 					if tc.funcs {
 						// Built per request: the handler annotates the funcs it is given.
 						jdoc.Funcs = []*doc.JSONFunc{{Name: "Bump", Crossing: true, Params: []*doc.JSONField{{Name: "cur", Type: "realm"}}}}
+					}
+					if tc.getters {
+						// No command to price: the page must not ask the node.
+						jdoc.Funcs = []*doc.JSONFunc{{Name: "Get", Results: []*doc.JSONField{{Type: "int"}}}}
 					}
 					return jdoc, nil
 				},
@@ -4753,4 +4759,42 @@ func TestHTTPHandler_RunPageNodeError(t *testing.T) {
 	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
 	assert.NotContains(t, rr.Body.String(), `data-controller="run"`)
 	assert.NotContains(t, rr.Body.String(), `$run"`)
+}
+
+// A measure above 5 M raises both modes, and the secure note says where the
+// gas comes from, as the fast one does.
+func TestHTTPHandler_CommandGasRaised(t *testing.T) {
+	t.Parallel()
+
+	const pkg = "gno.land/r/test/path"
+	vote := func(gas int) indexer.Tx {
+		tx := indexer.Tx{Success: true, GasUsed: gas, Messages: make([]indexer.Message, 1)}
+		tx.Messages[0].Value.Type, tx.Messages[0].Value.PkgPath, tx.Messages[0].Value.Func = "MsgCall", pkg, "Vote"
+		return tx
+	}
+	cl := &stubClient{
+		docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+			return &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{Name: "Vote", Crossing: true, Params: []*doc.JSONField{{Name: "cur", Type: "realm"}}}}}, nil
+		},
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"a.gno"}, nil },
+	}
+	cfg := newTestHandlerConfig(t, cl)
+	cfg.Meta.Domain = "gno.land"
+	cfg.Indexer = &gasIndexer{txs: []indexer.Tx{vote(16_600_000), vote(18_800_000), vote(17_000_000)}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), cfg)
+	require.NoError(t, err)
+
+	var body string
+	require.Eventually(t, func() bool {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/test/path$help", nil))
+		body = rr.Body.String()
+		return strings.Contains(body, "37_600_000")
+	}, 5*time.Second, 5*time.Millisecond)
+	fast, secure, ok := strings.Cut(body, `data-action-function-mode-value="secure"`)
+	require.True(t, ok)
+	assert.Contains(t, fast, "-gas-fee 112800ugnot -gas-wanted 37_600_000")
+	assert.Contains(t, secure, "-gas-fee 112800ugnot -gas-wanted 37_600_000")
+	assert.NotContains(t, body, "10_000_000")
+	assert.Equal(t, 2, strings.Count(body, "(its last 3 successful calls used at most 19 M, per the indexer)"), "both notes say where the gas comes from")
 }

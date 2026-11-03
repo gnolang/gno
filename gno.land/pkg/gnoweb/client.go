@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/sync/singleflight"
 )
 
 var (
@@ -144,8 +145,10 @@ type rpcClient struct {
 	gasPrice std.GasPrice
 	gasOK    bool      // gasPrice was read at least once
 	gasAt    time.Time // last query, failed or not
-	// gasBusy is set while a gas price query is in flight.
-	gasBusy atomic.Bool
+	// gasBusy is set while a background refresh of the gas price is in
+	// flight; gasFirst joins the callers of a read with no price yet.
+	gasBusy  atomic.Bool
+	gasFirst singleflight.Group
 
 	// evalSlots caps PublicEval's queries among rpcSlots' at a quarter: a
 	// public eval takes one of each, so it counts against the cap like any
@@ -214,11 +217,17 @@ func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
 	gp, ok, at := c.gasPrice, c.gasOK, c.gasAt
 	c.gasMu.Unlock()
 
-	if time.Since(at) >= gasPriceTTL && c.gasBusy.CompareAndSwap(false, true) {
-		if !ok {
-			defer c.gasBusy.Store(false)
-			return c.queryGasPrice(ctx)
+	stale := time.Since(at) >= gasPriceTTL
+	if !ok && stale {
+		// No price yet: every caller waits for the one read, rather than
+		// getting no price while the node is answering.
+		v, err, _ := c.gasFirst.Do("", func() (any, error) { return c.queryGasPrice(ctx) })
+		if err != nil {
+			return std.GasPrice{}, err
 		}
+		return v.(std.GasPrice), nil
+	}
+	if stale && c.gasBusy.CompareAndSwap(false, true) {
 		go func() {
 			defer c.gasBusy.Store(false)
 			c.queryGasPrice(ctx)

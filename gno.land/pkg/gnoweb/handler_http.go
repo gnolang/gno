@@ -1257,11 +1257,12 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
-	// Only a page with commands to price asks for the gas price and use.
+	// Only a page with commands to price asks for the gas price and use: a
+	// crossing function's, the only kind that renders one.
 	pkgPath := path.Join(h.Static.Domain, gnourl.Path)
 	var price std.GasPrice
 	var uses map[string]components.GasUse
-	if len(fsigs) > 0 {
+	if slices.ContainsFunc(fsigs, func(fn *doc.JSONFunc) bool { return fn.Crossing }) {
 		price, uses = h.gasPrice(ctx), h.gasUse.get(ctx, pkgPath)
 	}
 
