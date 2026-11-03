@@ -16,13 +16,13 @@ import (
 // XXX: rework this part, this is the original method from previous gnoweb
 // handlerStatusJSON returns an http.Handler that serves status information as JSON.
 func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler {
-	queryVersion := func(ctx context.Context) (string, error) {
+	queryVersionAndChainID := func(ctx context.Context) (string, string, error) {
 		status, err := cli.Status(ctx, nil)
 		if err != nil {
-			return "", errors.Wrap(err, "query node status")
+			return "", "", errors.Wrap(err, "query node status")
 		}
 
-		return status.NodeInfo.Version, nil
+		return status.NodeInfo.Version, status.NodeInfo.Network, nil
 	}
 
 	queryHeight := func(ctx context.Context) (int64, error) {
@@ -47,6 +47,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 				// active connections
 
 				Version *string `json:"version,omitempty"`
+				ChainID *string `json:"chain_id,omitempty"`
 				// Uptime    *float64 `json:"uptime-seconds,omitempty"`
 				// Goarch    *string  `json:"goarch,omitempty"`
 				// Goos      *string  `json:"goos,omitempty"`
@@ -69,7 +70,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 		ret.Website.GoVersion = runtime.Version()
 
 		ret.Gnoland.Connected = true
-		version, err := queryVersion(ctx)
+		version, chainID, err := queryVersionAndChainID(ctx)
 		var height int64
 		if err == nil {
 			height, err = queryHeight(ctx)
@@ -80,6 +81,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 			ret.Gnoland.Error = &errmsg
 		} else {
 			ret.Gnoland.Version = &version
+			ret.Gnoland.ChainID = &chainID
 			ret.Gnoland.Height = &height
 		}
 
