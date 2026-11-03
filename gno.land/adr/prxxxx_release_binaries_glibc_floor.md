@@ -9,7 +9,7 @@ The linux/arm64 binaries are cross-compiled from the same runner. Go turns cgo o
 ## Decision
 
 1. The linux/amd64 row of `release / chain-tag` runs in an `ubuntu:22.04` container, pinned by digest, on `ubuntu-latest`. A step installs the compiler and sets `CGO_ENABLED=1`, because Go turns cgo off by itself when it finds no C compiler, which would drop `lmdb`, `mdbx` and Ledger support without failing anything. Built in amd64 Ubuntu 22.04, all five binaries need `GLIBC_2.34` at most, keep `lmdb`, `mdbx` and `zondax/hid`, and start on Debian 12, Ubuntu 22.04 and AlmaLinux 9.
-2. A step refuses any Linux binary that needs a glibc newer than 2.35, before the upload. A change of build system that raises the floor, such as a newer image, then fails the release run instead of shipping. It reads each binary with `readelf`, which reads any ELF, so the static arm64 binaries are checked too. It fails as well on anything it cannot read, and on an empty `dist/`.
+2. A step refuses any Linux binary that needs a glibc newer than 2.35, before the upload. A change of build system that raises the floor, such as a newer image, then fails the release run instead of shipping. It reads each binary with `readelf`, which reads any ELF, so the static arm64 binaries are checked too. It fails as well on a file `readelf` rejects, and on an empty `dist/`.
 
 ## Alternatives considered
 
