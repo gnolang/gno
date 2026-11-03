@@ -1,0 +1,11 @@
+-- input.md --
+<gno-details summary='<script>alert(1)</script> & "x"'>
+Body line.
+</gno-details>
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;</span></summary>
+<div>
+<p>Body line.</p>
+</div>
+</details>

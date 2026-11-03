@@ -1,0 +1,29 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-details summary="Comments">\n%s\n</gno-details>\n\n## Footer
+-- input.md --
+> </gno-details>
+> <gno-details summary="mine">
+> quoted
+-- output.md --
+
+
+> </gno-details>
+> <gno-details summary="mine">
+> quoted
+
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>Comments</span></summary>
+<div>
+<blockquote>
+<!-- unexpected/invalid details tag omitted -->
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>mine</span></summary>
+<div>
+<p>quoted</p>
+</div>
+</details>
+</blockquote>
+</div>
+</details>
+<h2>Footer</h2>
