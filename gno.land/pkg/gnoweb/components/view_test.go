@@ -364,34 +364,45 @@ func TestHelpViewEval(t *testing.T) {
 }
 
 func TestDirectoryView(t *testing.T) {
-	pkgPath := "example/path"
+	t.Parallel()
+	pkgPath := "/p/demo/path"
 	files := []string{"file1.gno", "file2.gno"}
-	fileCounter := 2
-	mode := ViewModePackage
+	jdoc := &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{Name: "New", File: "file1.gno"}}}
 
-	view := DirectoryView(pkgPath, files, fileCounter, mode)
-
-	assert.NotNil(t, view, "expected view to be non-nil")
+	view := DirectoryView(pkgPath, files, jdoc, ViewModePackage, nil)
 
 	templateComponent, ok := view.Component.(*TemplateComponent)
-	assert.True(t, ok, "expected TemplateComponent type in view.Component")
-
+	require.True(t, ok, "expected TemplateComponent type in view.Component")
 	dirData, ok := templateComponent.data.(DirData)
-	assert.True(t, ok, "expected DirData type in component data")
+	require.True(t, ok, "expected DirData type in component data")
 
-	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
-	assert.Equal(t, len(files), len(dirData.FilesLinks), "expected %d files, got %d", len(files), len(dirData.FilesLinks))
-	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
-	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
+	assert.Equal(t, pkgPath, dirData.PkgPath)
+	assert.Equal(t, ViewModePackage, dirData.Mode)
+	assert.False(t, dirData.DocUnavailable)
+	require.Len(t, dirData.Files, 2)
+	assert.Equal(t, "New()", dirData.Files[0].Summary)
+	assert.Equal(t, "no exports", dirData.Files[1].Summary)
 
-	assert.NoError(t, view.Render(io.Discard))
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+	// The Content tab lists the files with the overview's template.
+	assert.Contains(t, html, `<ul class="b-pkg-list b-pkg-list--files">`)
+	assert.Contains(t, html, `<span class="b-pkg-list__desc">New()</span>`)
+	assert.NotContains(t, html, "could not be loaded")
 }
 
-func TestBuildFilesLinks(t *testing.T) {
+func TestDirectoryView_DocUnavailable(t *testing.T) {
 	t.Parallel()
+	view := DirectoryView("/p/demo/path", []string{"a.gno", "gnomod.toml"}, nil, ViewModePackage, nil)
 
-	got := buildFilesLinks([]string{"a.gno"}, "/r/test/pkg")
-	assert.Equal(t, FilesLinks{{Link: "/r/test/pkg$source&file=a.gno", Name: "a.gno"}}, got)
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+	// Without the doc no row claims the file exports nothing: it says so once.
+	assert.Contains(t, html, "The package documentation could not be loaded")
+	assert.NotContains(t, html, "no exports")
+	assert.Contains(t, html, "Module path and Gno version", "what a file is for needs no doc")
 }
 
 func TestUserView(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/token"
 	"log/slog"
 	"net"
 	"net/http"
@@ -84,7 +83,7 @@ func (r chainReader) Summary(ctx context.Context, pkgPath string) (chainmap.Pack
 	}
 	s := chainmap.PackageSummary{Doc: d.PackageDoc, Height: meta.Height}
 	for _, fn := range d.Funcs {
-		if fn.Type == "" && fn.Crossing && token.IsExported(fn.Name) {
+		if components.IsAction(fn) {
 			s.Actions = append(s.Actions, fn.Name)
 		}
 	}

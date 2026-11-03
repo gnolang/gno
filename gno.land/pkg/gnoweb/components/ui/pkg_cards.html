@@ -5,34 +5,28 @@ A listing's packages, one card each: the path, what the package says about
 itself, what a reader can do with it, and what the chain records about it.
 Every field may be blank, and the card still reads: a package the node did not
 answer for yet shows its path and links only. Activity comes from an indexer,
-and its tooltip says so.
+and its tooltip says so. Accepts: Cards ([]PackageCard), and Nested when the
+cards sit under a section heading, which makes their titles one level lower.
 =================================================================================== */}}
 {{ define "ui/pkg_cards" }}
 <ul class="b-pkg-cards">
-  {{ range . }}
+  {{ range .Cards }}
   <li data-listing-item data-name="{{ .Path }}">
     <article class="b-pkg-card">
-      <h2 class="b-pkg-card__title">
-        <a href="{{ .Path }}" class="b-pkg-card__name">
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-{{ if .Realm }}realm{{ else }}pure{{ end }}"></use></svg>
-          <span>{{ .Path }}</span>
-        </a>
-      </h2>
-      <div class="b-pkg-card__actions" role="group" aria-label="Actions">
+      {{ if $.Nested }}<h3 class="b-pkg-card__title">{{ template "ui/pkg_card_name" . }}</h3>
+      {{ else }}<h2 class="b-pkg-card__title">{{ template "ui/pkg_card_name" . }}</h2>{{ end }}
+      <div class="b-pkg-card__actions" role="group" aria-label="Pages">
         {{ if .Realm }}
         <a href="{{ .Path }}" class="b-btn b-pkg-card__btn">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-content"></use></svg>Open
         </a>
         {{ end }}
-        <a href="{{ .Path }}/" class="b-btn b-pkg-card__btn">
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-folder-closed"></use></svg>Browse
-        </a>
         <a href="{{ .Path }}$source" class="b-btn b-pkg-card__btn">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg>Source
         </a>
         {{ if .Realm }}
         <a href="{{ .Path }}$help" class="b-btn b-pkg-card__btn">
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-tx-link"></use></svg>Action
+          <svg class="c-icon" aria-hidden="true"><use href="#ico-tx-link"></use></svg>Actions
         </a>
         {{ end }}
       </div>
@@ -66,4 +60,11 @@ and its tooltip says so.
   </li>
   {{ end }}
 </ul>
+{{ end }}
+
+{{ define "ui/pkg_card_name" }}
+<a href="{{ .Path }}" class="b-pkg-card__name">
+  <svg class="c-icon" aria-hidden="true"><use href="#ico-{{ if .Realm }}realm{{ else }}pure{{ end }}"></use></svg>
+  <span>{{ .Path }}</span>
+</a>
 {{ end }}

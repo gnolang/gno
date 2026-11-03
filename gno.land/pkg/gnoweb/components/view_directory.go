@@ -3,16 +3,23 @@ package components
 import (
 	"strings"
 	"time"
+
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 const DirectoryViewType ViewType = "dir-view"
 
 type DirData struct {
-	PkgPath     string
+	PkgPath string
+	// FileCounter is an explorer listing's package count.
 	FileCounter int
-	FilesLinks  FilesLinks
-	Mode        ViewMode
-	Readme      Component
+	// Files are a package's files, one row each (ui/file_list).
+	Files  []FileLink
+	Mode   ViewMode
+	Readme Component
+	// DocUnavailable is set when the package's doc could not be read, so
+	// the rows say nothing of what the files declare.
+	DocUnavailable bool
 	// Truncated is set on a listing that stopped at its cap.
 	Truncated bool
 	// Rail is an explorer listing's side rail (ui/listing_rail).
@@ -74,39 +81,17 @@ func countFolders(root string, paths []string) int {
 	return len(seen)
 }
 
-// FullFileLink represents a file entry in a package's directory.
-type FullFileLink struct {
-	Link string
-	Name string
-}
-
-// FilesLinks is a slice of FullFileLink
-type FilesLinks []FullFileLink
-
-// buildFilesLinks links each file of pkgPath to its source view.
-func buildFilesLinks(files []string, pkgPath string) FilesLinks {
-	result := make(FilesLinks, len(files))
-	for i, file := range files {
-		result[i] = FullFileLink{
-			Link: pkgPath + "$source&file=" + file,
-			Name: file,
-		}
-	}
-	return result
-}
-
-// DirectoryView renders the files of the package at pkgPath.
-func DirectoryView(pkgPath string, files []string, fileCounter int, mode ViewMode, readme ...Component) *View {
-	viewData := DirData{
-		PkgPath:     pkgPath,
-		FilesLinks:  buildFilesLinks(files, pkgPath),
-		FileCounter: fileCounter,
-		Mode:        mode,
-	}
-	if len(readme) > 0 {
-		viewData.Readme = readme[0]
-	}
-	return NewTemplateView(DirectoryViewType, "renderDir", viewData)
+// DirectoryView renders the files of the package at pkgPath, as a pure
+// package's or a realm without Render's Content tab. jdoc says what each file
+// declares; nil when it could not be read.
+func DirectoryView(pkgPath string, files []string, jdoc *doc.JSONDocumentation, mode ViewMode, readme Component) *View {
+	return NewTemplateView(DirectoryViewType, "renderDir", DirData{
+		PkgPath:        pkgPath,
+		Files:          buildFileLinks(pkgPath, files, jdoc, mode == ViewModeRealm),
+		Mode:           mode,
+		Readme:         readme,
+		DocUnavailable: jdoc == nil,
+	})
 }
 
 // ExplorerView renders the package paths under pkgPath, as cards, or as a map

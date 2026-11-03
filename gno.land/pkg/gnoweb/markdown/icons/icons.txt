@@ -5,7 +5,7 @@
 # already in components/ui/icons.html are callable without being listed here;
 # an upstream icon whose name they already use is imported as `name-outline`.
 # Every upstream icon is imported except the brand marks below, and except
-# hash, calendar, clock, users and folder-closed: the gnoweb chrome uses them,
+# hash, calendar, clock and users: the gnoweb chrome uses them,
 # so icons.html holds verbatim copies, which an upstream bump must update by
 # hand.
 #
@@ -310,6 +310,7 @@ filter-single
 filtering
 flame-alt
 flip-view
+folder-closed
 folder-minus
 forward
 frame

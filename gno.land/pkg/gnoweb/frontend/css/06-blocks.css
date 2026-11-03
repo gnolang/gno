@@ -1490,50 +1490,6 @@
 	}
 }
 
-/* ===== LIST COMPONENT ===== */
-.b-list {
-	margin-block-end: var(--g-space-10);
-
-	& > li {
-		border-bottom: var(--s-border);
-		color: var(--s-color-text-tertiary);
-
-		&:first-child {
-			border-top: var(--s-border);
-		}
-
-		& > a {
-			display: flex;
-			align-items: center;
-			padding: var(--g-space-2);
-
-			&:hover {
-				background-color: var(--s-color-bg-surface-primary-hover);
-			}
-
-			.c-icon {
-				margin-inline-start: 0;
-			}
-		}
-	}
-
-	/* Inline-flex keeps a long name at full width: cap it so it ellipsizes. */
-	.c-with-icon {
-		max-width: 100%;
-	}
-
-	.name {
-		display: -webkit-box;
-		-webkit-line-clamp: 1;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		margin-inline-start: var(--g-space-1);
-		max-width: 100%;
-		color: var(--s-color-text-secondary);
-	}
-}
-
 /* ===== PACKAGE CARDS ===== */
 /* A listing's packages, one card each. Narrow screens stack the actions under
    the path, full width; wider ones put them beside it. */
@@ -4215,16 +4171,6 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		font-size: var(--g-font-size-100);
 		font-weight: var(--g-font-normal);
 	}
-
-	/* The reset strips link styling from the one label that navigates. */
-	.b-pkg-section__link {
-		color: var(--s-color-text-link);
-		text-decoration: none;
-
-		&:hover {
-			text-decoration: underline;
-		}
-	}
 }
 
 .b-pkg-section__body {
@@ -4410,7 +4356,54 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 
 .b-pkg-list__tags {
 	display: inline-flex;
+	flex-shrink: 0;
 	gap: var(--g-space-1-5);
+}
+
+/* A file list (ui/file_list) adds a column between the name and the tags:
+   what the file declares. The name column has one width so those line up,
+   from --lg; below it the column is left out, the name keeping the room. A
+   name cut short keeps its full form in its tooltip. */
+.b-pkg-list--files {
+	& .b-pkg-list__link > .c-with-icon {
+		min-inline-size: 0;
+
+		@media (--lg) {
+			flex: 0 0 var(--g-space-52);
+		}
+
+		/* A file that declares nothing to show lends the name its column. */
+		&:has(+ .b-pkg-list__desc:empty) {
+			flex: 1 1 auto;
+		}
+
+		& > span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
+}
+
+.b-pkg-list__desc {
+	display: none;
+	flex: 1;
+	min-inline-size: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--g-font-size-90);
+	color: var(--s-color-text-tertiary);
+
+	@media (--lg) {
+		display: block;
+	}
+}
+
+.b-pkg-list__stat {
+	font-size: var(--g-font-size-90);
+	color: var(--s-color-text-secondary);
+	white-space: nowrap;
 }
 
 /* --- Tag variants --- */
