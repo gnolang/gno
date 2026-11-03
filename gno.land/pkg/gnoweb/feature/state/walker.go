@@ -55,7 +55,9 @@ type StateNode struct {
 	TypeID     string
 	Length     *int
 	// PointerIndex is set for a pointer whose Base is the stored object ObjectID:
-	// the Index of the struct field, array element or block value pointed to.
+	// the Index of the struct field, array element or block value pointed to,
+	// or 0 for a heap item (the common case, e.g. var x = &T{}). It is set even
+	// then, since the Base kind is unknown until ObjectID is fetched.
 	PointerIndex *int
 	// Preview is a one-line summary of Children, rendered in
 	// collapsed/ref rows. Re-computed after lazy ref fetches.
