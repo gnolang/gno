@@ -7,7 +7,7 @@ UI - TOC component
   <li>
     <a class="c-with-icon" href="{{ .Link }}">
       <svg class="c-icon">
-        <use href="#ico-{{ $.Icon }}"></use>
+        <use href="#ico-{{ or .Icon $.Icon }}"></use>
       </svg>
       <span>{{ .Text }}</span>
     </a>

@@ -33,9 +33,12 @@ env CALL_GAS=10_000_000
 #                                           ModExp itself, which is Gno-side
 #                                           opcodes, not a native charge
 #
+# Since then a master-key signature leaves its zero SessionAddr off the wire
+# (amino:"skip_zero"), 43 bytes of this tx, so 430 gas: 1850271 - 430.
+#
 # Re-derived after merging develop; unrelated gas changes on the base branch
 # move the absolute number, so re-derive again rather than assuming it holds.
-env EXACT_GAS=1850271
+env EXACT_GAS=1849841
 
 gnoland start
 
