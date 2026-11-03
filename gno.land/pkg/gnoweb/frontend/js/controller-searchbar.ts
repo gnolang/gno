@@ -512,13 +512,15 @@ export class SearchbarController extends BaseController {
 		if (all.length === 0) return false;
 		const local = all.filter((k) => k.scope === "package");
 		const sections: ChoiceSection[] = [];
-		const alone = this.barIsFree();
 		const onPackage = this.packagePath() !== "" && local.length > 0;
 		if (onPackage) {
 			local.sort((a, b) => Number(!!b.bare) - Number(!!a.bare));
 			sections.push({
 				label: "On this package",
-				choices: local.map((k) => this.keywordChoice(k, alone)),
+				// A keyword that takes no value runs on its own from the help,
+				// as the Keywords popover does: a results page's bar holds its
+				// query.
+				choices: local.map((k) => this.keywordChoice(k, true)),
 			});
 		}
 		for (const g of this.groups) {
@@ -528,7 +530,7 @@ export class SearchbarController extends BaseController {
 			if (ks.length > 0) {
 				sections.push({
 					label: g.label,
-					choices: ks.map((k) => this.keywordChoice(k, alone)),
+					choices: ks.map((k) => this.keywordChoice(k, true)),
 				});
 			}
 		}
@@ -675,9 +677,10 @@ export class SearchbarController extends BaseController {
 		this.search();
 	}
 
-	// runKeyword runs a keyword that takes no value, as Enter on it would.
+	// runKeyword runs a keyword that takes no value, as Enter on it would:
+	// from the help on its own, whatever the bar holds.
 	private runKeyword(name: string): void {
-		const q = this.replaceToken(name).trim();
+		const q = this.helping ? name : this.replaceToken(name).trim();
 		clearTimeout(this.timer);
 		window.location.href = this.searchHref(q);
 	}

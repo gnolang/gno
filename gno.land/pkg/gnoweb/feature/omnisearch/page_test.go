@@ -135,6 +135,9 @@ func TestDiscoveryExplainsWhatItWillNotRun(t *testing.T) {
 	for raw, want := range map[string]string{
 		"a":            "at least 2 characters",
 		"is:pkg util":  "is:pkg is not a kind",
+		"is:foo":       "is:foo is not a kind",
+		"is:realm":     "add a name, such as is:realm wugnot",
+		"is:package":   "add a name, such as is:package avl",
 		"author:b":     "at least 2 characters",
 		"is:PACKAGE u": "",
 	} {
@@ -247,14 +250,23 @@ func TestFilterValuesAreAccepted(t *testing.T) {
 	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
 	for _, f := range filterKeywords {
 		for _, v := range f.Values {
-			if !filterTakes(f.Name, strings.ToUpper(v)) {
-				t.Errorf("%s offers %q and refuses it", f.Name, v)
+			groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog "+f.Name+":"+strings.ToUpper(v), ""))
+			for _, g := range groups {
+				if g.Err != nil {
+					t.Errorf("%s offers %q and refuses it: %v", f.Name, v, g.Err)
+				}
 			}
 		}
 	}
 	groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog is:user", ""))
 	if len(groups) != 1 || groups[0].Err == nil {
 		t.Errorf("is:user: groups = %+v, want one refusal", groups)
+	}
+	// Picked alone from the bar, a kind says what it still needs, not that
+	// it needs a qualifier.
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, "is:realm", ""))
+	if len(groups) != 1 || groups[0].Err == nil || !strings.Contains(groups[0].Err.Error(), "add a name, such as is:realm wugnot") {
+		t.Errorf("is:realm alone: groups = %+v, want a refusal asking for a name", groups)
 	}
 }
 

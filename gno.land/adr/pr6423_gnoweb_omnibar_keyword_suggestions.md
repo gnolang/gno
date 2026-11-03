@@ -37,12 +37,13 @@ it printed the qualifiers from three hardcoded template lines.
 - Typing the start of a keyword offers up to four keywords, from the first
   character; after `key:`, what to type and the values known locally. Choosing
   a keyword that takes a value inserts `name:`; a value completes and
-  searches. A keyword that takes none runs at once only with no other word,
-  as the server runs it; beside other words it is inserted. Tab
+  searches. A keyword that takes none runs at once when typed with no other
+  word, as the server runs it; typed beside other words it is inserted. In
+  the help it always runs on its own, as the Keywords popover does: a results
+  page keeps its query in the bar, and `blog deploys` would find nothing. Tab
   inserts the highlighted row, and with none leaves the bar. A choice replaces
-  the token its list was drawn for; in the help it adds to a query the bar
-  holds, at the caret or after a query focus selected, and replaces only a
-  prefilled path.
+  the token its list was drawn for; in the help it adds to the end of a query
+  the bar holds, wherever the caret is, and replaces only a prefilled path.
 - The bar refuses nothing itself. A keyword with no value yet sends no query,
   as what it takes is the answer to give; anything else goes to the server,
   which answers or says why not. An earlier version mirrored
