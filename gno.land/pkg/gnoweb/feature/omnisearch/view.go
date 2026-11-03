@@ -21,8 +21,9 @@ type SearchData struct {
 	// names none.
 	PkgPath string
 
-	// PagePath is the package the search was made from, which a discovery
-	// search does not scope to: the keywords about it still work there.
+	// PagePath is the package the query names, by in: or by the page. A
+	// search that ignores the package clears PkgPath, not this: the keywords
+	// about it still work there.
 	PagePath string
 
 	// WholeChainHref, set on a scoped discovery search, repeats it without
