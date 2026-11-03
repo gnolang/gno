@@ -30,7 +30,7 @@ LAYOUT - Header component
             <kbd class="b-tag shortcut" aria-hidden="true">/</kbd>
           </form>
 
-          {{ if or .Breadcrumb.Parts .Breadcrumb.ArgParts .Breadcrumb.Queries }}{{ template "ui/breadcrumb" .Breadcrumb }}{{ end }}
+          {{ if or .Breadcrumb.View.Name .Breadcrumb.Parts .Breadcrumb.ArgParts .Breadcrumb.Queries }}{{ template "ui/breadcrumb" .Breadcrumb }}{{ end }}
         </div>
 
         <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" hidden></div>
@@ -226,7 +226,7 @@ UI - Breadcrumb component
     </li>
     {{- else }}
     <li class="element">
-      <a href="{{ $part.URL }}{{ if eq $index 0 }}/{{ end }}">
+      <a href="{{ $part.URL }}">
         {{ $part.Name }}
       </a>
     </li>
@@ -252,7 +252,15 @@ UI - Breadcrumb component
       </label>
     </li>
     {{- end }}
+
+    <!-- View Part: a special view of the path and query above (e.g. playground) -->
+    {{- with .View.Name }}
+    <li class="view"><a href="{{ $.View.URL }}" class="b-tag">{{ . }}</a></li>
+    {{- end }}
   </ol>
+  {{- range .Hidden }}
+  <input type="hidden" name="{{ .Key }}" value="{{ .Value }}" />
+  {{- end }}
   {{- with .Namespace }}{{ $kind := index $.Parts 0 }}
   <div id="kind-switch-menu" popover class="b-kind-switch">
     {{- with $.Counterpart }}
@@ -268,10 +276,10 @@ UI - Breadcrumb component
       <span class="item-path">/u/{{ . }}</span>
     </a>
     <hr>
-    <a href="{{ $kind.URL }}/" class="item item--inline">
+    <a href="{{ $kind.URL }}" class="item item--inline">
       <svg aria-hidden="true" class="c-icon"><use href="#ico-list"></use></svg>
       <span class="item-label">{{ if eq $kind.Name "r" }}All realms{{ else }}All packages{{ end }}</span>
-      <span class="item-path">{{ $kind.URL }}/</span>
+      <span class="item-path">{{ $kind.URL }}</span>
     </a>
   </div>
   {{- end }}

@@ -30,7 +30,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 
 ![Every icon with its name](ICONS.svg)
 
-491 icons:
+495 icons:
 
 | Icon | Name |
 |---|---|
@@ -205,6 +205,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="enter" /> | `enter` |
 | <gno-icon name="enter-alt" /> | `enter-alt` |
 | <gno-icon name="episodes" /> | `episodes` |
+| <gno-icon name="eval" /> | `eval` |
 | <gno-icon name="exit" /> | `exit` |
 | <gno-icon name="exit-left" /> | `exit-left` |
 | <gno-icon name="expand" /> | `expand` |
@@ -379,6 +380,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="pie-third" /> | `pie-third` |
 | <gno-icon name="pill" /> | `pill` |
 | <gno-icon name="play" /> | `play` |
+| <gno-icon name="playground" /> | `playground` |
 | <gno-icon name="plus" /> | `plus` |
 | <gno-icon name="plus-circle" /> | `plus-circle` |
 | <gno-icon name="postcard" /> | `postcard` |
@@ -409,6 +411,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="reset-forward" /> | `reset-forward` |
 | <gno-icon name="reset-hard" /> | `reset-hard` |
 | <gno-icon name="reset-temporary" /> | `reset-temporary` |
+| <gno-icon name="restore" /> | `restore` |
 | <gno-icon name="reuse" /> | `reuse` |
 | <gno-icon name="reverse" /> | `reverse` |
 | <gno-icon name="reverse-alt" /> | `reverse-alt` |
@@ -416,6 +419,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="rocket" /> | `rocket` |
 | <gno-icon name="rpc" /> | `rpc` |
 | <gno-icon name="ruler" /> | `ruler` |
+| <gno-icon name="run-code" /> | `run-code` |
 | <gno-icon name="save" /> | `save` |
 | <gno-icon name="scale" /> | `scale` |
 | <gno-icon name="scale-contract" /> | `scale-contract` |
