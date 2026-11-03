@@ -4131,6 +4131,14 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 .b-pkg-section {
 	display: block;
 	margin-block-end: var(--g-space-10);
+	/* An anchor (a section tab, a redirect to #files) lands the heading below
+	   the sticky header, and from --md below the sticky section bar too, which
+	   can wrap to two rows: the margin covers both. */
+	scroll-margin-block-start: var(--s-header-offset);
+
+	@media (--md) {
+		scroll-margin-block-start: calc(var(--s-header-offset) + var(--g-space-20));
+	}
 }
 
 .b-pkg-section__header {

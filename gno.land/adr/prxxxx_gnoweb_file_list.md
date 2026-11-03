@@ -74,6 +74,16 @@ yet, then a listing), so a client must not remember it. When `vm/qdoc` cannot
 be read, whether the realm declares Render is unknown: the address then serves
 the directory page with the doc-unavailable notice instead of redirecting.
 
+### Landing on `#files` shows the section, and says so
+
+The redirect makes an anchor landing the common way into the overview, which
+exposed two defects the section tabs already had. The heading landed under the
+sticky header and section bar: `.b-pkg-section` now has a
+`scroll-margin-block-start` covering both (the bar may wrap to two rows). And
+the section bar marked the section above, still in its top band: the
+`observer` controller now marks the fragment's link when the page opens on
+one, as a click does.
+
 ### Cards drop Browse and say Actions
 
 A listing card's Browse led to the directory page: for a realm it is now the
