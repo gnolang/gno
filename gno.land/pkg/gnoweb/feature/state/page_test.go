@@ -192,7 +192,7 @@ func TestServePageObjectHappyPath(t *testing.T) {
 		t.Errorf("body missing Realm sidebar label\n%s", head(body, 800))
 	}
 	// Field-level rows surfaced.
-	if !strings.Contains(body, "test") {
+	if !strings.Contains(body, `&#34;test&#34;`) {
 		t.Errorf("body missing struct field value\n%s", head(body, 800))
 	}
 
@@ -201,7 +201,7 @@ func TestServePageObjectHappyPath(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("idx=0: status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	if strings.Contains(rec.Body.String(), "test") {
+	if strings.Contains(rec.Body.String(), `&#34;test&#34;`) {
 		t.Errorf("idx=0: body shows field 1, not only the pointee field 0\n%s", head(rec.Body.String(), 800))
 	}
 }
