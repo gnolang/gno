@@ -16,14 +16,21 @@ import (
 
 const glibcStepName = "      - name: Assert the Linux binaries start on glibc 2.35"
 
-// glibcStep returns the lines of release / chain-tag's glibc step, from its
-// name up to the next step or job.
+// glibcStep returns the lines of release / chain-tag's glibc step.
 func glibcStep(t *testing.T) []string {
+	t.Helper()
+
+	return workflowStep(t, glibcStepName)
+}
+
+// workflowStep returns the lines of release / chain-tag's step with the given
+// name line, from that line up to the next step or job.
+func workflowStep(t *testing.T, name string) []string {
 	t.Helper()
 
 	lines := strings.Split(repoFile(t, releaseChainTagWorkflow), "\n")
 	for i, line := range lines {
-		if line != glibcStepName {
+		if line != name {
 			continue
 		}
 		end := i + 1
@@ -33,8 +40,16 @@ func glibcStep(t *testing.T) []string {
 		}
 		return lines[i:end]
 	}
-	t.Fatalf("%s: no step %q", releaseChainTagWorkflow, strings.TrimSpace(glibcStepName))
+	t.Fatalf("%s: no step %q", releaseChainTagWorkflow, strings.TrimSpace(name))
 	return nil
+}
+
+// installStep returns the lines of release / chain-tag's step that installs
+// the container's build tools.
+func installStep(t *testing.T) []string {
+	t.Helper()
+
+	return workflowStep(t, "      - name: Install the build tools in the container")
 }
 
 // glibcScript returns the glibc step's run script, without its YAML
@@ -142,7 +157,12 @@ func TestReleaseLinuxBinariesStartOnGlibc235(t *testing.T) {
 		assert.Contains(t, wf, "\n    container: ${{ matrix.container }}\n", "the binaries job runs in the row's container")
 		// Go turns cgo off by itself when it finds no C compiler, which would
 		// drop lmdb, mdbx and Ledger support without failing anything.
-		assert.Contains(t, wf, `echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"`, "the container's build requires cgo")
+		install := installStep(t)
+		assert.Contains(t, install, "        if: matrix.container", "the container row installs its compiler")
+		assert.Contains(t, install, `          echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"`, "the container's build requires cgo")
+		// The job runs as root in a workspace the runner's user owns: without
+		// this, git refuses it, and go build fails on its VCS stamping.
+		assert.Contains(t, install, `          git config --system --add safe.directory "${GITHUB_WORKSPACE}"`, "git must accept the workspace")
 	})
 
 	t.Run("the glibc step runs on every Linux row, before the upload, and fails the run", func(t *testing.T) {

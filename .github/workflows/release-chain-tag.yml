@@ -61,7 +61,10 @@ jobs:
       # The image has no compiler, and Go turns cgo off by itself when it finds
       # none, which would drop lmdb, mdbx and Ledger support without failing
       # anything: the build requires cgo instead. git lets actions/checkout
-      # clone, and perl provides shasum.
+      # clone, and perl provides shasum. The job runs as root in a workspace
+      # the runner's user owns, which git refuses, and go build then fails on
+      # its VCS stamping: the system config, which every later step in the
+      # container reads, marks the workspace safe.
       - name: Install the build tools in the container
         if: matrix.container
         env:
@@ -69,6 +72,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends ca-certificates gcc git libc6-dev perl
+          git config --system --add safe.directory "${GITHUB_WORKSPACE}"
           echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
