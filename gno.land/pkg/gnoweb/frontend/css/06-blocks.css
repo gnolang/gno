@@ -1490,6 +1490,63 @@
 	}
 }
 
+/* ===== LIST COMPONENT ===== */
+.b-list {
+	margin-block-end: var(--g-space-10);
+
+	& > li {
+		border-bottom: var(--s-border);
+		color: var(--s-color-text-tertiary);
+
+		&:first-child {
+			border-top: var(--s-border);
+		}
+
+		/* Narrow screens: the actions wrap under the path. */
+		& > :where(a, div) {
+			display: flex;
+			flex-wrap: wrap;
+			gap: var(--g-space-1) var(--g-space-3);
+			justify-content: space-between;
+			align-items: center;
+			padding: var(--g-space-2);
+
+			&:hover {
+				background-color: var(--s-color-bg-surface-primary-hover);
+			}
+
+			.c-icon {
+				margin-inline-start: 0;
+			}
+
+			& > a {
+				flex: 1 1 12rem;
+				min-width: 0;
+
+				&:hover {
+					background-color: transparent;
+				}
+			}
+		}
+	}
+
+	/* Inline-flex keeps a long path at full width: cap it so it ellipsizes. */
+	.c-with-icon {
+		max-width: 100%;
+	}
+
+	.name {
+		display: -webkit-box;
+		-webkit-line-clamp: 1;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		margin-inline-start: var(--g-space-1);
+		max-width: 100%;
+		color: var(--s-color-text-secondary);
+	}
+}
+
 /* ===== PACKAGE CARDS ===== */
 /* A listing's packages, one card each. Narrow screens stack the actions under
    the path, full width; wider ones put them beside it. */
@@ -4801,6 +4858,20 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	border-radius: var(--s-rounded-sm);
 }
 
+/* ===== POPOVER PANEL ===== */
+/* A native popover hung under the control that opens it (its anchor), in
+   the top layer: the breadcrumb's kind switch, the search keywords. Each
+   block names its anchor and which edge it aligns to. */
+.b-popover {
+	inset: auto;
+	top: anchor(bottom);
+	border: var(--s-border);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+}
+
 /* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
 /* Right-aligned instead when the menu would leave the screen */
 @position-try --kind-switch-end {
@@ -4811,19 +4882,12 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 .b-kind-switch {
 	position-anchor: --kind-switch;
 	position-try-fallbacks: --kind-switch-end;
-	inset: auto;
-	top: anchor(bottom);
 	left: anchor(left);
 	margin: var(--g-space-1) var(--g-space-4) 0 0;
 	min-width: var(--g-space-64);
 	max-width: calc(100vw - 2 * var(--g-space-4));
 	overflow-wrap: anywhere;
 	padding: var(--g-space-1);
-	border: var(--s-border);
-	border-radius: var(--s-rounded);
-	background-color: var(--s-color-bg-base);
-	color: var(--s-color-text-primary);
-	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
 
 	& .item {
 		display: grid;

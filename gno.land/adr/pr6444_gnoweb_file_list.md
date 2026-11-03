@@ -45,8 +45,8 @@ cards and its files agree: one predicate, `components.IsAction`, decides it
 for both. It is not the Actions tab's count, which lists every
 exported function, crossing or not; the tooltip says what is counted.
 
-`ui/dir_list` and the `.b-list` block go: the list is `b-pkg-list` with a
-`b-pkg-list--files` modifier for the description column, which is hidden below
+`ui/dir_list` goes; `.b-list` stays, for the search results page. The list is
+`b-pkg-list` with a `b-pkg-list--files` modifier for the description column, which is hidden below
 `--lg`; a name cut by its column keeps its full form in a tooltip. The Source
 Files heading is no longer a link to the directory page.
 

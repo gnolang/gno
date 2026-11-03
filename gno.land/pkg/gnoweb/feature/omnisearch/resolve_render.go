@@ -17,7 +17,11 @@ import (
 const (
 	maxRenderCandidates = 8
 	renderConcurrency   = 4
-	renderSnippetRadius = 60
+	// A render snippet keeps renderSnippetLead bytes before the match and
+	// renderSnippetTail after it: .detail shows about 25 characters on one
+	// line, so the match must start near its head.
+	renderSnippetLead = 12
+	renderSnippetTail = 60
 )
 
 // errRenderNeedsNarrowing states the one precondition.
@@ -190,11 +194,11 @@ func joinNotices(notices []string) error {
 	return partialAnswerError(strings.Join(notices, " "))
 }
 
-// snippetAround returns the match with context either side. Bounds are
-// clamped: a snippet is not worth a panic.
+// snippetAround returns the match with a little context before it and more
+// after. Bounds are clamped: a snippet is not worth a panic.
 func snippetAround(body []byte, from, to int) string {
-	start := max(0, min(from, len(body))-renderSnippetRadius)
-	end := min(len(body), max(to, 0)+renderSnippetRadius)
+	start := max(0, min(from, len(body))-renderSnippetLead)
+	end := min(len(body), max(to, 0)+renderSnippetTail)
 	// Byte offsets can land inside a multi-byte rune, which would print as
 	// U+FFFD at either edge: move each bound to a rune start.
 	for start > 0 && start < len(body) && !utf8.RuneStart(body[start]) {
