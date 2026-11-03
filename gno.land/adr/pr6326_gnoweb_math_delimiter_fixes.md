@@ -86,12 +86,29 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
   closes there, as on master: ending `$$`, `\\(` and `\\[` at the label's
   `](` would turn `$$ (0,1](x) $$` into text. In ``$$a` b$$ c``, the code
   span now wins over the closer, as CommonMark has it.
+- A `$` inside a link label ends with the label even when the search cache
+  holds an earlier search of its line that read past the label as part of a
+  link: from the line above (`Costs $5` over `[Send $10](…)`), or from a `$`
+  before the label, and also for a label inside another left open or closed
+  by a plain `]`. Each cached search keeps every label a `](` closed, the
+  outermost of nested ones, and answers an opener inside one with that
+  label's end.
+- The search cache hands an opener only the backtick runs left open from the
+  opener on. A run before it that goldmark gave to something else, a formula
+  (`` \\(`\\) ``) or a raw HTML attribute, no longer opens a code span on
+  the next line and hides its closer there.
+- A link title and a `<…>` destination are skipped as goldmark reads them:
+  a parenthesis inside neither opens nor closes (`$$ [a](x "(") b $$`), a
+  `$$` inside does not close, a `<` inside `<…>` does not end it while one
+  with no `>` on its line is no link, and the link ends at the first `)`
+  after the title. Each line remembers the `>` it last found, for all its
+  searches, so a line of `<` with no `>` is still read once.
 - Known limit, unchanged for `$`, now shared by the other closers: the
   search cache can answer "no closer" for an opener placed after a link
-  destination still skipped to the line end (one without a space, with a
-  title or `<…>`, that never closes on its line: `$$[0,1](x$$y$$`), leaving
-  that math as text. It never makes a formula cross a link. A destination
-  with a space and no title (`$$[0,1](x … $$y$$`) is no longer skipped.
+  destination still skipped to the line end (one without a space, or with a
+  title, that never closes on its line: `$$[0,1](x$$y$$`), leaving that math
+  as text. It never makes a formula cross a link. A destination with a space
+  and no title (`$$[0,1](x … $$y$$`) is no longer skipped.
 - Known limit: a code span is seen across the line break from the opener's
   line to the next only. One opened on the opener's line and closed on the
   next does not hide a closer that follows it on the opener's line

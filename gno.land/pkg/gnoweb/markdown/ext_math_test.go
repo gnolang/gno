@@ -318,17 +318,46 @@ func TestMathLabelEndsTheSearch(t *testing.T) {
 }
 
 // Each byte of a destination read as no link is read a bounded number of
-// times, however many destinations open in it.
+// times, however many destinations open in it. So is each byte of a title or
+// a <...> destination. The search alone is timed: goldmark takes seconds on
+// these inputs with no extension loaded, which would leave the bound no room.
 func TestMathNoLinkDestinationsAreLinear(t *testing.T) {
 	const k = 1 << 18
-	for _, src := range []string{
-		"$$" + strings.Repeat("[", k) + strings.Repeat("](", k) + " y\n",
-		`\\(` + strings.Repeat("[", k) + strings.Repeat("](x", k) + " y\n",
+	for name, tc := range map[string]struct {
+		find closeFinder
+		b    string
+	}{
+		"$$":           {findDelimClose(_dollarDisplay), strings.Repeat("[", k) + strings.Repeat("](", k) + " y\n"},
+		`\\(`:          {findDelimClose(_inlineclose), strings.Repeat("[", k) + strings.Repeat("](x", k) + " y\n"},
+		"<...>":        {findDelimClose(_inlineclose), strings.Repeat("[", k) + strings.Repeat("](<x", k) + " y\n"},
+		"<...<":        {findDelimClose(_inlineclose), strings.Repeat("[", k) + strings.Repeat("](<x<", k) + " y\n"},
+		"title":        {findDelimClose(_inlineclose), strings.Repeat("[", k) + strings.Repeat(`](x "`, k) + " y\n"},
+		"(title)":      {findDelimClose(_inlineclose), strings.Repeat("[", k) + strings.Repeat("](x (", k) + " y\n"},
+		"$ in a label": {findDollarClose, strings.Repeat("[", k) + strings.Repeat(`](x "`, k) + " y\n"},
 	} {
 		start := time.Now()
-		renderMathMarkdown(t, src)
-		assert.Less(t, time.Since(start), 10*time.Second, src[:8])
+		tc.find([]byte(tc.b), 0, nil, nil)
+		assert.Less(t, time.Since(start), time.Second, name)
 	}
+}
+
+// A <...> destination that never closes is read once per line, not once
+// per search: goldmark reads <i x=[\> as raw HTML and asks for every $a,
+// while the search sees a [ and a <. The search across the line takes about
+// four times as long on four times the input, well under eight.
+func TestMathPointyDestinationsAcrossSearchesAreLinear(t *testing.T) {
+	search := func(n int) time.Duration {
+		line := strings.Repeat("$a <i x=[\\>](<", n)
+		best := time.Duration(1<<63 - 1)
+		for range 3 {
+			start := time.Now()
+			renderMathMarkdown(t, line+"\n")
+			best = min(best, time.Since(start))
+		}
+		return best
+	}
+	small, large := search(1<<14), search(1<<16)
+	assert.Less(t, large, 8*small+50*time.Millisecond, "n took %v, 4n took %v", small, large)
 }
 
 // Backtick runs of 1, 2, 3... backticks are all left unclosed. Searching for
@@ -347,7 +376,7 @@ func TestMathUnclosedBacktickRunsAreLinear(t *testing.T) {
 		best := time.Hour
 		for range 5 {
 			start := time.Now()
-			if idx, _, _ := find(b, 0, nil); idx >= 0 {
+			if idx, _, _ := find(b, 0, nil, nil); idx >= 0 {
 				t.Fatal("unexpected close")
 			}
 			best = min(best, time.Since(start))
@@ -453,8 +482,8 @@ func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
 		next := []byte("no closer on the next line either\n")
 		pc := parser.NewContext()
 		scanned := 0
-		counting := func(b []byte, ticks int, runs *tickRuns) (int, int, int) {
-			idx, end, open := tc.find(b, ticks, runs)
+		counting := func(b []byte, ticks int, runs *tickRuns, notes *scanNotes) (int, int, int) {
+			idx, end, open := tc.find(b, ticks, runs, notes)
 			scanned += max(idx+1, end) // the bytes read
 			return idx, end, open
 		}
@@ -1042,4 +1071,68 @@ func TestMathTextIsItsSource(t *testing.T) {
 	} {
 		assert.Contains(t, renderMathMarkdown(t, src), want, "%q", src)
 	}
+}
+
+// A $ in a link label ends with the label even when an earlier search of its
+// line, from the line above or from a $ before the label, read past the label
+// as part of a link and cached what it found.
+func TestMathLabelEndsTheSearchAfterAnEarlierSearch(t *testing.T) {
+	for name, gm := range map[string]goldmark.Markdown{
+		"line above":   goldmark.New(goldmark.WithExtensions(NewGnoExtension())),
+		"footnote ref": goldmark.New(goldmark.WithExtensions(extension.Footnote, NewGnoExtension())),
+	} {
+		src := "Costs $5\n[Send $10](/r/demo/bank$help&func=Send) now\nBalance: 100$\n"
+		if name == "footnote ref" {
+			src = "$[^1] [Send $10](/r/demo/bank$help&func=Send) now\nBalance: 100$\n\n[^1]: note\n"
+		}
+		var buf bytes.Buffer
+		require.NoError(t, gm.Convert([]byte(src), &buf))
+		assert.NotContains(t, buf.String(), "<math", name)
+		assert.Contains(t, buf.String(), `<a href="/r/demo/bank$help&amp;func=Send">Send $10`, name)
+	}
+	// So does a $ in a label inside another, whether that one is left
+	// open or closed by a plain ].
+	for src, link := range map[string]string{
+		"Costs $5\n[a [Send $10](/r/x) now\nBalance: 100$\n":         `<a href="/r/x">Send $10</a>`,
+		"Costs $5\n[see [the $docs](/r/x$help) here]\nor 10$ more\n": `<a href="/r/x$help">the $docs</a>`,
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", src)
+		assert.Contains(t, out, link, src)
+	}
+}
+
+// An unclosed backtick run before an opener that something else took (math,
+// a raw HTML attribute) does not open a code span for that opener's next line:
+// $b pairs with d$ whatever came before it.
+func TestMathOpenRunBeforeTheOpener(t *testing.T) {
+	for _, before := range []string{"x \\\\(`\\\\)", "$a \\\\(`\\\\)", "$a <x y=\"`\">"} {
+		out := renderMathMarkdown(t, before+" $b c\nd$ `e\n")
+		assert.Contains(t, out, ">b c\nd</annotation>", before)
+	}
+}
+
+// A link title or a <...> destination is skipped whole: a parenthesis in it
+// does not hide the closer after the link, and a closer in it does not close.
+func TestMathLinkTitlesAndPointyDestinations(t *testing.T) {
+	for _, src := range []string{
+		`$$ [a](x "(") b $$` + "\n",
+		`\\( [a](x "(") b \\)` + "\n",
+		`\\( [a](x '(') b \\)` + "\n",
+		`\\( [a](<x(>) b \\)` + "\n",
+		`\\( [a](<x b \\)` + "\n",
+	} {
+		assert.Equal(t, 1, strings.Count(renderMathMarkdown(t, src), "<math"), src)
+	}
+	// As in goldmark, a < does not end a <...> destination: the $ in it
+	// stays in the link.
+	out := renderMathMarkdown(t, "Pay $a [x](<y<z$w>) $\n")
+	assert.NotContains(t, out, "<math")
+	assert.Contains(t, out, `<a href="y%3Cz$w">x</a>`)
+	out = renderMathMarkdown(t, `Pay $$ [a](x "(") b $$ then`+"\nsee $$ below.\n")
+	assert.NotContains(t, out, "see </annotation>")
+	// A closer in a title does not close: the formula runs to the last $$.
+	out = renderMathMarkdown(t, `$$ [a](x "t) $$ q") c $$`+"\n")
+	assert.Equal(t, 1, strings.Count(out, "<math"))
+	assert.Contains(t, out, `) c </annotation>`)
 }
