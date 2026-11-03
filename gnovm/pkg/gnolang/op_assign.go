@@ -48,6 +48,20 @@ func (m *Machine) doOpAssign() {
 	// exact pricing is wanted, add a per-LHS multi-assign surcharge constant
 	// instead (consensus-breaking, so best batched with other gas changes).
 
+	// `a, b = f()` where a result differs from its Lhs only by name: convert
+	// it as `a = x` would, before any Lhs is written. Convert in place, while
+	// the results are still on m.Values: Copy can allocate and so run GC,
+	// which counts live bytes from m.Values and would miss popped ones.
+	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		results := m.Values[len(m.Values)-len(s.Lhs):]
+		for i, t := range convs {
+			if t != nil {
+				results[i] = results[i].Copy(m.Alloc, m.Store)
+				m.convertValue(&results[i], t)
+			}
+		}
+	}
+
 	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.
 	rvs := m.PopValues(len(s.Lhs))
 

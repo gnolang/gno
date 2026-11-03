@@ -24,9 +24,9 @@ package gnolang
 // A block node reaches its types two ways, and both are walked. Named types
 // hang off the static block (StaticBlock.Types and Block.Values); a composite
 // type written in expression position is defined under no name at all and hangs
-// off the expression instead, in ATTR_TYPE_VALUE, ATTR_TYPEOF_VALUE or a
-// constTypeExpr. Those are the same shared objects, reached through the same
-// shared node, so sealExprTypes walks them too.
+// off the expression instead, in ATTR_TYPE_VALUE, ATTR_TYPEOF_VALUE,
+// ATTR_ASSIGN_CONVERT or a constTypeExpr. Those are the same shared objects,
+// reached through the same shared node, so sealExprTypes walks them too.
 //
 // Sealing closes that by filling the caches once, on the single goroutine that
 // publishes the graph, so every later reader finds them already populated and
@@ -183,6 +183,12 @@ func (s *sealer) sealExprTypes(n Node) {
 	// wrapper — the object the *tupleType case exists for — unsealed.
 	if t, ok := n.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
 		s.sealType(t)
+	}
+	// doOpAssign converts to these at run time (sealType skips the nils).
+	if ts, ok := n.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		for _, t := range ts {
+			s.sealType(t)
+		}
 	}
 }
 

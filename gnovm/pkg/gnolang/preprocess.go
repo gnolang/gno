@@ -835,23 +835,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
 				checkValDefineMismatch(n)
-
-				if n.Op == DEFINE {
-					for i, lx := range n.Lhs {
-						lnx := lx.(*NameExpr)
-						if lnx.Name == blankIdentifier {
-							// ignore.
-						} else if strings.HasPrefix(string(lnx.Name), ".decompose_") {
-							_, ok := last.GetLocalIndex(lnx.Name)
-							if !ok {
-								// initial declaration to be re-defined.
-								last.Reserve(false, lnx, n, NSDefine, i)
-							}
-							// else, do not redeclare.
-						}
-					}
-				}
-				// else, nothing defined.
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
 				// NOTE func decl usually must happen with a
@@ -2912,84 +2895,32 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// check is done in assertCompatible where we also
 						// asserted we have at lease one element in Rhs
 						if cx, ok := n.Rhs[0].(*CallExpr); ok {
-							// we decompose the a,b = x(...) for named and unamed
-							// type value return in an assignments
 							// Call case: a, b = x(...)
 							ift := evalStaticTypeOf(store, last, cx.Func)
 							cft := getGnoFuncTypeOf(store, ift)
-							// check if we we need to decompose for named typed conversion in the function return results
-							var decompose bool
-
+							// A result whose type differs from its Lhs only by
+							// name (NamedMap into map[string]int) needs the
+							// conversion a single-value assignment gets from
+							// checkOrConvertType, under the same rules: none into
+							// an interface, named or not. A call's results cannot
+							// each be wrapped in a conversion, so record the
+							// target types and let doOpAssign convert. The
+							// statement keeps its shape, so this holds in every
+							// position it can sit in: a body, a for/if/switch
+							// header, a method.
+							var convs []Type
 							for i, rhsType := range cft.Results {
 								lt := evalStaticTypeOf(store, last, n.Lhs[i])
-								if lt != nil && isNamedConversion(rhsType.Type, lt) {
-									decompose = true
-									break
+								if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(rhsType.Type, lt) {
+									if convs == nil {
+										convs = make([]Type, len(n.Lhs))
+									}
+									convs[i] = lt
 								}
 							}
-							if decompose {
-								// only enter this section if cft.Results to be converted to Lhs type for named type conversion.
-								// decompose a,b = x()
-								// .decompose1, .decompose2 := x()  assignment statement expression (Op=DEFINE)
-								// a,b = .decompose1, .decompose2   assignment statement expression ( Op=ASSIGN )
-								// add the new statement to last.Body
-
-								// step1:
-								// create a hidden var with leading . (dot) the curBodyLen increase every time when there is a decomposition
-								// because there could be multiple decomposition happens
-								// we use both stmt index and return result number to differentiate the .decompose variables created in each assignment decompostion
-								// ex. .decompose_3_2: this variable is created as the 3rd statement in the block, the 2nd parameter returned from x(),
-								// create .decompose_1_1, .decompose_1_2 .... based on number of result from x()
-								tmpExprs := make(Exprs, 0, len(cft.Results))
-								for i := range cft.Results {
-									rn := fmt.Sprintf(".decompose_%d_%d", index, i)
-									tmpExprs = append(tmpExprs, Nx(rn))
-								}
-								// step2:
-								// .decompose1, .decompose2 := x()
-								dsx := &AssignStmt{
-									Lhs: tmpExprs,
-									Op:  DEFINE,
-									Rhs: n.Rhs,
-								}
-								// dsx.SetSpan(n.GetSpan())
-								dsx = Preprocess(store, last, dsx).(*AssignStmt)
-
-								// step3:
-
-								// a,b = .decompose1, .decompose2
-								// assign stmt expression
-								// The right-hand side will be converted to a call expression for named/unnamed conversion.
-								// tmpExprs is a []Expr; we make a copy of tmpExprs to prevent dsx.Lhs in the previous statement (dsx) from being changed by side effects.
-								// If we don't copy tmpExprs, when asx.Rhs is converted to a const call expression during the preprocessing of the AssignStmt asx,
-								// dsx.Lhs will change from []NameExpr to []CallExpr.
-								// This side effect would cause a panic when the machine executes the dsx statement, as it expects Lhs to be []NameExpr.
-
-								asx := &AssignStmt{
-									Lhs: n.Lhs,
-									Op:  ASSIGN,
-									Rhs: copyExprs(tmpExprs),
-								}
-								// asx.SetSpan(n.GetSpan())
-								asx = Preprocess(store, last, asx).(*AssignStmt)
-
-								// step4:
-								// replace the original stmt with two new stmts
-								body := last.GetBody()
-								// we need to do an in-place replacement while leaving the current node
-								n.Attributes = dsx.Attributes
-								n.Lhs = dsx.Lhs
-								n.Op = dsx.Op
-								n.Rhs = dsx.Rhs
-
-								//  insert a assignment statement a,b = .decompose1,.decompose2 AFTER the current statement in the last.Body.
-								body = append(body[:index+1], append(Body{asx}, body[index+1:]...)...)
-								last.SetBody(body)
-							} // end of the decomposition
-
-							// Last step: we need to insert the statements to FuncValue.body of PackageNopde.Values[i].V
-							// updating FuncValue.body=FuncValue.Source.Body in updates := pn.PrepareNewValues(pv) during preprocess.
-							// we updated FuncValue from source.
+							if convs != nil {
+								n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
+							}
 						}
 					} else { // len(Lhs) == len(Rhs)
 						switch n.Op {

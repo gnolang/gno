@@ -798,7 +798,15 @@ func (m *Machine) doOpFuncLit() {
 func (m *Machine) doOpConvert() {
 	xv := m.PopValue().Copy(m.Alloc, m.Store)
 	t := m.PopValue().GetType()
+	m.convertValue(&xv, t)
+	m.PushValue(xv)
+}
 
+// convertValue converts xv, a copy the caller owns, to t in place. Besides
+// explicit conversions, it applies the implicit named<->unnamed conversion of
+// a multi-value assignment (see ATTR_ASSIGN_CONVERT), so both get the same gas
+// and the same inter-realm checks. It never touches m.Values.
+func (m *Machine) convertValue(xv *TypedValue, t Type) {
 	// Gas based on conversion variant. Both directions allocate and copy,
 	// so they share the same flat cost; []byte→string additionally pays a
 	// per-byte slope below (string→[]byte's copy is covered by alloc gas).
@@ -823,7 +831,7 @@ func (m *Machine) doOpConvert() {
 	// victim authority. Blocking the conversion here (m.IsReadonly is
 	// the cross-realm ownership check) stops the launder before any
 	// method dispatch. See zrealm_launder_g_typepun.gno.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow conversion when xv.T is m.Realm's own
@@ -872,6 +880,5 @@ func (m *Machine) doOpConvert() {
 		}
 	}
 
-	ConvertTo(m.Alloc, m.Store, &xv, t, false)
-	m.PushValue(xv)
+	ConvertTo(m.Alloc, m.Store, xv, t, false)
 }
