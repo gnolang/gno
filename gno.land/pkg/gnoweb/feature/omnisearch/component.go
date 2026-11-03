@@ -9,5 +9,7 @@ func NewPageView(data SearchData) *components.View {
 	return &components.View{
 		Type:      OmnisearchViewType,
 		Component: &components.FeatureComponent{Tmpl: pageTemplate, Name: "renderSearch", Data: data},
+		// The rail renders first, so the header carries #main-content.
+		SkipTargetInBody: true,
 	}
 }
