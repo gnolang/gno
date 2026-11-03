@@ -53,13 +53,15 @@ func ValidateTID(s string) error {
 
 // ValidatePointerIndex parses the attacker-controlled &idx= param: the
 // Index of a pointer into the object &oid=. Empty input → nil (the whole
-// object). The decoder checks the index against the object.
+// object). Only canonical decimal is accepted (no sign, no leading zeros)
+// so each pointee has one URL. The decoder checks the index against the
+// object.
 func ValidatePointerIndex(s string) (*int, error) {
 	if s == "" {
 		return nil, nil
 	}
 	n, err := strconv.Atoi(s)
-	if err != nil || n < 0 {
+	if err != nil || n < 0 || strconv.Itoa(n) != s {
 		return nil, ErrInvalidPointerIndex
 	}
 	return &n, nil
