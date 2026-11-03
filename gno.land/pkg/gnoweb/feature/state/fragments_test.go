@@ -493,6 +493,29 @@ func TestFragNodeInvalidParams(t *testing.T) {
 	assert.Equal(t, int32(0), atomic.LoadInt32(&client.objCalls), "invalid input is rejected before any RPC")
 }
 
+func TestFragNodeIdxOutOfRange(t *testing.T) {
+	// fragStructBody has two fields.
+	cases := []struct {
+		name string
+		q    url.Values
+	}{
+		{"untyped", url.Values{"frag": {"node"}, "oid": {fragOID}, "idx": {"2"}}},
+		{"typed", url.Values{"frag": {"node"}, "oid": {fragOID}, "tid": {"gno.land/r/demo.T"}, "idx": {"2"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client := &fragMockClient{objBytes: fragStructBody(fragOID), typBytes: []byte(`{}`)}
+			h := newFragHandler(client, nil)
+			rec := serveFragReq(t, h, c.q)
+
+			assert.Equal(t, http.StatusOK, rec.Code, "validation failure surfaces via fragment-error (HTTP 200)")
+			body := rec.Body.String()
+			assert.Contains(t, body, "b-state-frag-error")
+			assert.Contains(t, body, "Invalid pointer index")
+		})
+	}
+}
+
 func TestFragNodeNotFoundReturnsFragError(t *testing.T) {
 	client := &fragMockClient{objErr: errors.New("object not found")}
 	h := newFragHandler(client, nil)

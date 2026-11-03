@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -256,6 +257,9 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 	// DecodeObjectFull keeps positional parity with the legacy path so
 	// sidebar Info fields (Hash, OwnerID, RefCount, ...) still surface.
 	decoded, err := DecodeObjectFull(raw, typeRaw, ptrIndex, DefaultPageRenderConfig())
+	if errors.Is(err, ErrInvalidPointerIndex) {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid pointer index")
+	}
 	if err != nil {
 		h.deps.Logger.Error("unable to decode state object JSON", "error", err, "path", u.EncodeURL(), "oid", oid)
 		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state object")

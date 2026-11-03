@@ -222,6 +222,23 @@ func TestServePageInvalidOID400(t *testing.T) {
 	}
 }
 
+func TestServePageObjectIdxOutOfRange400(t *testing.T) {
+	client := &pageMockClient{
+		objBytes: map[string][]byte{validOID: []byte(pageFixtureObj)},
+	}
+	h := newPageHandler(client)
+	// pageFixtureObj has two fields.
+	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"oid": {validOID}, "idx": {"2"}, "state": {""}}}
+	req := httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
+	status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+	}
+	if view == nil {
+		t.Fatalf("view is nil; want a status-error view")
+	}
+}
+
 func TestServePageNotFound404(t *testing.T) {
 	h := newPageHandler(&pageMockClient{pkgErr: errors.New("package not found")})
 	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"state": {""}}}

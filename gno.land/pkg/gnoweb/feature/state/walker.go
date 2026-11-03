@@ -1172,13 +1172,13 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 // (its one value is at Index 0).
 func pointedTo(v gno.Value, index int) (gno.Value, error) {
 	if index < 0 {
-		return nil, fmt.Errorf("invalid pointer index %d", index)
+		return nil, fmt.Errorf("%w: %d", ErrInvalidPointerIndex, index)
 	}
 	var list []gno.TypedValue
 	switch cv := v.(type) {
 	case *gno.HeapItemValue:
 		if index != 0 {
-			return nil, fmt.Errorf("pointer index %d out of range", index)
+			return nil, fmt.Errorf("%w: %d out of range", ErrInvalidPointerIndex, index)
 		}
 		return cv, nil
 	case *gno.StructValue:
@@ -1186,7 +1186,7 @@ func pointedTo(v gno.Value, index int) (gno.Value, error) {
 	case *gno.ArrayValue:
 		if cv.Data != nil {
 			if index >= len(cv.Data) {
-				return nil, fmt.Errorf("pointer index %d out of range", index)
+				return nil, fmt.Errorf("%w: %d out of range", ErrInvalidPointerIndex, index)
 			}
 			// An element of a byte array is a uint8.
 			tv := gno.TypedValue{T: gno.Uint8Type}
@@ -1200,7 +1200,7 @@ func pointedTo(v gno.Value, index int) (gno.Value, error) {
 		return nil, fmt.Errorf("pointer base %T is not a struct, array, block or heap item", v)
 	}
 	if index >= len(list) {
-		return nil, fmt.Errorf("pointer index %d out of range", index)
+		return nil, fmt.Errorf("%w: %d out of range", ErrInvalidPointerIndex, index)
 	}
 	return &gno.HeapItemValue{Value: list[index]}, nil
 }

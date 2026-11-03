@@ -85,6 +85,8 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 				root = StateNode{Name: "(object)", Kind: KindStruct, ObjectID: oid, Children: decoded.Nodes}
 				root.Length = intPtr(len(decoded.Nodes))
 				typed = true
+			} else if errors.Is(derr, ErrInvalidPointerIndex) {
+				return writeFragError(w, "Invalid pointer index", "Please retry from the page.")
 			} else {
 				h.deps.Logger.Debug("frag=node typed decode failed; falling back", "oid", oid, "tid", tid, "err", derr)
 			}
@@ -94,6 +96,9 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 		// Depth ≤3; deeper exploration requires the user to expand a nested
 		// node (new fragment GET).
 		root, err = DecodeObject(ctx, raw, ptrIndex, DefaultFragmentRenderConfig())
+		if errors.Is(err, ErrInvalidPointerIndex) {
+			return writeFragError(w, "Invalid pointer index", "Please retry from the page.")
+		}
 		if err != nil {
 			h.deps.Logger.Error("frag=node decode failed", "oid", oid, "err", err)
 			return writeFragError(w, "Could not decode object", "Please retry.")
