@@ -68,7 +68,7 @@ const (
 type Client struct {
 	url string
 	// display is url with its credentials removed: the only form of the
-	// endpoint that may reach a page, a JSON response or a log line.
+	// endpoint that may reach a log line or an error.
 	display string
 	// token, when set, is sent as a bearer credential. Indexers are usually
 	// public, so most deployments leave it empty.
@@ -97,7 +97,7 @@ type Client struct {
 // Authorization header is sent.
 //
 // The URL may carry credentials, as userinfo or a query-string key; they are
-// sent to the indexer and never shown: URL reports the redacted form.
+// sent to the indexer and never logged: errors carry the redacted form.
 func New(rawURL, token string) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = maxIdleConnsPerHost
@@ -118,10 +118,6 @@ func New(rawURL, token string) *Client {
 		},
 	}
 }
-
-// URL reports the configured endpoint, for display and health reporting,
-// as scheme and host only. See Redact.
-func (c *Client) URL() string { return c.display }
 
 // ValidateURL rejects an endpoint the client could never reach, so a typo
 // fails at startup rather than behind a log line calling the indexer enabled.
@@ -144,8 +140,8 @@ func ValidateURL(raw string) error {
 
 // Redact reduces an endpoint to its scheme and host. Userinfo and a query
 // string are where an operator puts an indexer credential, and the endpoint
-// is shown to every anonymous reader; the path goes too, since a key can sit
-// there as well.
+// goes into logs and errors; the path goes too, since a key can sit there as
+// well.
 func Redact(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" {

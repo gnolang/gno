@@ -91,8 +91,6 @@ func (f *fakeIndexer) DeploysQuoting(_ context.Context, pkgPath string, lower, u
 	return out, f.deploysErr
 }
 
-func (f *fakeIndexer) URL() string { return "https://indexer.test/graphql/query" }
-
 // call builds a MsgCall transaction.
 func call(height int, ok bool, caller, pkg string) indexer.Tx {
 	tx := indexer.Tx{Height: height, Success: ok, Messages: make([]indexer.Message, 1)}

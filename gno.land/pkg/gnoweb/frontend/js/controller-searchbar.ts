@@ -214,7 +214,15 @@ export class SearchbarController extends BaseController {
 		}
 
 		const target = SearchbarController.resolveTarget(raw);
-		if (target) go(target);
+		if (!target) return;
+		// The bar on a results page starts from a link's query: an edit of it
+		// must not leave the site either, so another host is searched. Pasting
+		// a testnet or local URL elsewhere still opens it.
+		if (this.pageQuery && new URL(target).origin !== window.location.origin) {
+			go(this.searchHref(raw));
+			return;
+		}
+		go(target);
 	}
 
 	// isPathLike reports input the bar navigates to rather than searches: a

@@ -86,7 +86,10 @@ func TestIconHeadingIDsLinear(t *testing.T) {
 // two sizes on the same machine, rather than against a fixed budget, holds
 // under -race and on slow runners. Each size keeps its fastest of 5 runs,
 // each after a GC, so a collection or a scheduler pause in one run does not
-// skew the ratio (a CI runner hit 9x on a linear input with 3 runs).
+// skew the ratio (a CI runner hit 9x on a linear input with 3 runs). A ratio
+// between 10 and 14 is measured again, up to 3 times: a busy shared runner hit
+// 10.1x on a linear input with 5 runs, while quadratic code measures 16x and
+// more, and fails at once.
 func assertLinear(t *testing.T, gen func(n int) string, n int) {
 	t.Helper()
 	m := newProductionLikeMarkdown()
@@ -101,10 +104,19 @@ func assertLinear(t *testing.T, gen func(n int) string, n int) {
 		}
 		return best
 	}
-	small, large := measure([]byte(gen(n))), measure([]byte(gen(4*n)))
-	// Below a few milliseconds the ratio is noise; nothing quadratic stays there.
-	if large < 20*time.Millisecond {
-		return
+	var small, large time.Duration
+	for range 3 {
+		small, large = measure([]byte(gen(n))), measure([]byte(gen(4*n)))
+		// Below a few milliseconds the ratio is noise; nothing quadratic
+		// stays there.
+		if large < 20*time.Millisecond || large < 10*small {
+			return
+		}
+		// Well past noise: quadratic code measures 16x and more, and
+		// measuring it again would only triple a failing run.
+		if large > 14*small {
+			break
+		}
 	}
 	assert.Less(t, large, 10*small, "n=%d took %v, 4n took %v", n, small, large)
 }
