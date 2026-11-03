@@ -104,9 +104,10 @@ emphasis guard. Tags come from a fixed set.
 
 The buttons are `.b-btn` with a modifier for the touch size; the title is an
 `h2` so screen readers can jump card to card, as the user page's cards do; the
-actions are a labelled group, not a landmark per card. The explorer listing's
-`.b-list` action layout, now unused, is removed, and package files keep their
-plain rows.
+actions are a labelled group, not a landmark per card. Package files keep
+their plain rows. The `.b-list` row layout (name on the left, details on the
+right) stays: the explorer listing no longer uses it, but the search results
+page (#6411) does.
 
 ## Alternatives considered
 
