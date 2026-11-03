@@ -32,7 +32,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          # Not ubuntu-latest: a native build has cgo on, so its binaries need
+          # at least the runner's glibc, and 22.04's 2.35 is what lets them
+          # start on Ubuntu 22.04 and Debian 12 (see the glibc step below).
+          - os: ubuntu-22.04
             goos: linux
             goarch: amd64
             native: true # runs on the builder, so the version can be asserted
@@ -120,6 +123,32 @@ jobs:
               exit 1
             fi
             echo "${name}: ${got}"
+          done
+
+      # A Linux binary built with cgo needs at least the glibc it was linked
+      # against, and refuses to start on an older one: v1.7.0's, built on
+      # ubuntu-latest (24.04), needed 2.38 and did not start on Ubuntu 22.04 or
+      # Debian 12. This fails the run before such a binary reaches the release.
+      # readelf reads any ELF, so the cross-compiled arm64 binaries, static
+      # without cgo, are checked too.
+      - name: Assert the Linux binaries start on glibc 2.35
+        if: matrix.goos == 'linux'
+        env:
+          MAX_GLIBC: GLIBC_2.35
+        run: |
+          for bin in dist/*_linux_*; do
+            case "${bin}" in *.txt) continue ;; esac
+            # A static binary has no version needs, so grep finds nothing.
+            need="$(readelf --version-info --wide "${bin}" | { grep -oE 'GLIBC_[0-9]+(\.[0-9]+)+' || true; } | sort -uV | tail -n 1)"
+            if [ -z "${need}" ]; then
+              echo "${bin}: needs no glibc symbol version"
+              continue
+            fi
+            if [ "$(printf '%s\n%s\n' "${need}" "${MAX_GLIBC}" | sort -V | tail -n 1)" != "${MAX_GLIBC}" ]; then
+              echo "::error::${bin} needs ${need}, newer than ${MAX_GLIBC}: it would not start on Ubuntu 22.04 or Debian 12"
+              exit 1
+            fi
+            echo "${bin}: needs ${need}"
           done
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
