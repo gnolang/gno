@@ -19,11 +19,12 @@ import (
 type ViewMode int
 
 const (
-	ViewModeExplorer ViewMode = iota // For exploring packages and paths
-	ViewModeRealm                    // For realm content display
-	ViewModePackage                  // For package content display
-	ViewModeHome                     // For home page display
-	ViewModeUser                     // For user page display
+	ViewModeExplorer   ViewMode = iota // For exploring packages and paths
+	ViewModeRealm                      // For realm content display
+	ViewModePackage                    // For package content display
+	ViewModeHome                       // For home page display
+	ViewModeUser                       // For user page display
+	ViewModePlayground                 // For playground display
 )
 
 // View mode predicates
@@ -59,6 +60,7 @@ type HeadData struct {
 	Remote            string
 	ChainId           string
 	AssetsVersion     string
+	CSPNonce          string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.
@@ -264,7 +266,7 @@ func IndexLayout(data IndexData) Component {
 
 	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {
-	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, OverviewViewType, DepsViewType:
+	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, PlaygroundViewType, RunViewType, OverviewViewType, DepsViewType:
 		dataLayout.IsDevmodView = true
 	}
 
