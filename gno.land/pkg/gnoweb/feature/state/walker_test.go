@@ -870,6 +870,8 @@ func TestDecodeObjectJSONWithType_LabelsStructFields(t *testing.T) {
 	pointee, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(0), DefaultPageRenderConfig())
 	require.NoError(t, err)
 	assert.Equal(t, nodes, pointee.Nodes)
+	_, err = DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(1), DefaultPageRenderConfig())
+	assert.Error(t, err)
 }
 
 // TestDecodeObjectJSONWithType_NilTypeFallsBack: a missing/empty type

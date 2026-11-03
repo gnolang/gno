@@ -1177,6 +1177,9 @@ func pointedTo(v gno.Value, index int) (gno.Value, error) {
 	var list []gno.TypedValue
 	switch cv := v.(type) {
 	case *gno.HeapItemValue:
+		if index != 0 {
+			return nil, fmt.Errorf("pointer index %d out of range", index)
+		}
 		return cv, nil
 	case *gno.StructValue:
 		list = cv.Fields
