@@ -129,9 +129,9 @@ func TestDecodeObjectJSON_Struct(t *testing.T) {
 	assert.Equal(t, "string", nodes[1].Type)
 	assert.Equal(t, `"test"`, nodes[1].Value)
 
-	// Regression test: Removing the check for ptrIndex in DecodeObjectFull makes this fail.
+	// Regression test: Removing the check for ptrIndex in DecodeObject or DecodeObjectFull makes this fail.
 	// A pointer to field 1 of the stored struct decodes only that field,
-	// in both DecodeObject and DecodeObjectFull.
+	// in both of these functions.
 	root, err := DecodeObject(context.Background(), []byte(fixture), intPtr(1), DefaultPageRenderConfig())
 	require.NoError(t, err)
 	decoded, err := DecodeObjectFull([]byte(fixture), nil, intPtr(1), DefaultPageRenderConfig())
