@@ -271,8 +271,10 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 	}
 	groups = []Group{g}
 	if also != nil {
-		// A failed one stays: "could not ask" is not "nothing matched".
-		groups = append(groups, <-also...)
+		// Discovery first, its user row leading: a pasted address is most
+		// often after its account page, not its activity. A failed group
+		// stays: "could not ask" is not "nothing matched".
+		groups = append(<-also, g)
 	}
 	return groups, ""
 }

@@ -62,9 +62,11 @@ the list of search keywords printed under the results as if it were one.
   (`20 · indexer`), the overview's `.count` pill in the indexer tag's colour.
 - The title repeats the query, whole, only when the group heading does not
   already name it: a bare keyword alone (`deploys`) is not repeated.
-- A pasted address is a search for that account: with an indexer, its
-  activity, followed by what discovery finds for it (its packages and a
-  Users row linking `/u/<address>`); without one, discovery alone. Before,
+- A pasted address is a search for that account: what discovery finds for
+  it, led by a Users row linking `/u/<address>` and then its packages,
+  followed with an indexer by its activity; without one, discovery alone.
+  The account page is what an address is most often pasted for, so its row
+  comes first, in the omnibar too. Before,
   only the paths deployed under that address showed, and nothing pointed to
   `account:`. A bad checksum gets no user link, and a qualifier beside the
   address takes the row out with the rest of what it narrows. The row needs no
