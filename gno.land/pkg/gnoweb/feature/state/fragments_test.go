@@ -218,7 +218,9 @@ func TestFragNodeHappyPath(t *testing.T) {
 		"oid":  {fragOID},
 		"idx":  {"1"},
 	})
-	assert.Equal(t, 1, strings.Count(rec.Body.String(), `data-shape="leaf"`), "one row for the pointee")
+	body = rec.Body.String()
+	assert.Equal(t, 1, strings.Count(body, `data-shape="leaf"`), "one row for the pointee")
+	assert.Contains(t, body, `data-value="2"`, "the row shows field 1")
 }
 
 func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
