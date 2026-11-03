@@ -32,10 +32,13 @@ jobs:
     strategy:
       matrix:
         include:
-          # Not ubuntu-latest: a native build has cgo on, so its binaries need
-          # at least the runner's glibc, and 22.04's 2.35 is what lets them
-          # start on Ubuntu 22.04 and Debian 12 (see the glibc step below).
-          - os: ubuntu-22.04
+          # A native build has cgo on, so its binaries need at most the build
+          # system's glibc, and may need exactly that. ubuntu:22.04's is 2.35,
+          # Ubuntu 22.04's, so they start there and on any newer glibc (see the
+          # glibc step below). A container, not the ubuntu-22.04 runner, which
+          # GitHub retires on 2027-04-17 (actions/runner-images#14254).
+          - os: ubuntu-latest
+            container: ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
             goos: linux
             goarch: amd64
             native: true # runs on the builder, so the version can be asserted
@@ -50,9 +53,24 @@ jobs:
             goarch: arm64
             native: true
     runs-on: ${{ matrix.os }}
+    # Empty for the other rows, which then run on the runner itself.
+    container: ${{ matrix.container }}
     permissions:
       contents: read
     steps:
+      # The image has no compiler, and Go turns cgo off by itself when it finds
+      # none, which would drop lmdb, mdbx and Ledger support without failing
+      # anything: the build requires cgo instead. git lets actions/checkout
+      # clone, and perl provides shasum.
+      - name: Install the build tools in the container
+        if: matrix.container
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates gcc git libc6-dev perl
+          echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

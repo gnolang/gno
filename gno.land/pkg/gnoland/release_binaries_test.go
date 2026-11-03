@@ -15,12 +15,16 @@ import (
 func TestReleaseLinuxBinariesStartOnGlibc235(t *testing.T) {
 	t.Parallel()
 
-	t.Run("linux/amd64 is built on ubuntu-22.04", func(t *testing.T) {
+	t.Run("linux/amd64 is built with cgo in an ubuntu:22.04 container", func(t *testing.T) {
 		t.Parallel()
 
-		// A native build, so cgo is on and the runner's glibc is the floor.
-		runner := grepOne(t, releaseChainTagWorkflow, `(?m)^ +- os: (\S+)\n +goos: linux\n +goarch: amd64$`)
-		assert.Equal(t, "ubuntu-22.04", runner)
+		image := grepOne(t, releaseChainTagWorkflow, `(?m)^ +container: (\S+)\n +goos: linux\n +goarch: amd64$`)
+		assert.Regexp(t, `^ubuntu:22\.04@sha256:[0-9a-f]{64}$`, image, "linux/amd64 builds in ubuntu:22.04, pinned by digest")
+		wf := repoFile(t, releaseChainTagWorkflow)
+		assert.Contains(t, wf, "\n    container: ${{ matrix.container }}\n", "the binaries job runs in the row's container")
+		// Go turns cgo off by itself when it finds no C compiler, which would
+		// drop lmdb, mdbx and Ledger support without failing anything.
+		assert.Contains(t, wf, `echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"`, "the container's build requires cgo")
 	})
 
 	t.Run("a step refuses a Linux binary that needs a newer glibc", func(t *testing.T) {
