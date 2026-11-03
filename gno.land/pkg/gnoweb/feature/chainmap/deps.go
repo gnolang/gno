@@ -52,7 +52,7 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 		importers, err := h.Importers(wctx, r, full)
 		data.Graph.Importers, status = h.importersSide(pkgPath, importers, err)
 		if err == nil {
-			data.Indexer = &components.IndexerStatus{URL: h.deps.Indexer.URL(), LastBlock: importers.AsOf}
+			data.Indexer = &components.IndexerStatus{LastBlock: importers.AsOf}
 		}
 	}
 
