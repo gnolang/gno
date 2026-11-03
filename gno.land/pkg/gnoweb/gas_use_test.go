@@ -156,11 +156,9 @@ func TestGasUseCache(t *testing.T) {
 	clock.add(time.Second)
 	var wg sync.WaitGroup
 	for range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			assert.Equal(t, first, c.get(ctx, testPkg)["Deposit"], "during a refresh")
-		}()
+		})
 	}
 	wg.Wait()
 	close(gate)

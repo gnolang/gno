@@ -393,13 +393,11 @@ func TestGasPriceStaleWhileRevalidate(t *testing.T) {
 	c.expire()
 	var wg sync.WaitGroup
 	for range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if gp, err := c.GasPrice(ctx); err != nil || gp != one {
 				t.Errorf("during a refresh: %v, %v; want the stale price", gp, err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(gate)
