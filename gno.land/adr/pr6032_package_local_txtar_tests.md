@@ -38,15 +38,14 @@ under `examples/` is discovered and run automatically, by the same test that run
 
 Concretely:
 
-- **`gnovm/pkg/integration.FindTestScripts(roots ...string)`** walks each root
-  and returns every `*.txtar` below it, skipping hidden directories. It returns
-  an *error* on duplicate base names — across all roots, since they share one
-  subtest namespace — because `testscript` names each subtest after the base name
+- **`NewTestingParamsFromRoots(t, roots ...string)`** in
+  `gnovm/pkg/integration` walks each root and collects every `*.txtar` below it,
+  skipping hidden directories. It returns an *error* on duplicate base names —
+  across all roots, since they share one subtest namespace — because `testscript` names each subtest after the base name
   alone and would otherwise silently emit `render` and `render#1`. Scripts are
   therefore prefixed with the package name (`commondao_council.txtar`).
-- **`NewTestingParamsFromRoots`** wraps it, so the `Dir`-must-be-empty-for-`Files`
-  quirk of `testscript.Params` stays inside the package that owns the params. It
-  requires **every** root to contribute at least one script. An aggregate
+- It keeps the `Dir`-must-be-empty-for-`Files` quirk of `testscript.Params`
+  inside the package that owns the params, and requires **every** root to contribute at least one script. An aggregate
   "at least one script total" check is not enough once the roots are spread
   across the repository: `<GNOROOT>/examples` comes from an environment
   variable, and a `GNOROOT` pointing at an unrelated or stale checkout would
@@ -81,14 +80,14 @@ Four consumers outside the Go test had to follow:
 
 - `update_gas_wanted.sh` globbed `testdata/*.txtar`; it now snapshots and
   rewrites a `find`-generated list over both roots. It maps captured gas back to
-  a file by base name, which is exactly the invariant `FindTestScripts`
+  a file by base name, which is exactly the invariant discovery
   enforces — noted in the script so the coupling is visible. The `find` prunes
   dot-directories, matching the walker: otherwise a script under one would get
   its gas numbers rewritten by this tool and never be run to check the result.
 - `gno.land/Makefile`'s failing-test summary grepped for `FAIL: testdata/`; the
   moved scripts print an absolute path, so the pattern is now `FAIL: .*\.txtar:`.
-- **`gno fix`** took a `.txtar` only as an explicit file target. `make -C
-  examples fix` and `gno fix ./...` pass directories, so a migration sweep would
+- **`gno fix`** took a `.txtar` only as an explicit file target. `gno fix ./...`
+  passes directories, so a migration sweep would
   have rewritten a package's `.gno` files and walked past the script now beside
   them — leaving the `.gno` *inside* the archive on the old language version. A
   directory target now also covers the `.txtar` files in that directory, at the
@@ -99,6 +98,16 @@ Four consumers outside the Go test had to follow:
   one-line gas-number refresh would have started paying for two suites that
   never read the file. Both now carry `'!examples/**/*.txtar'`. `ci-dir-gnoland`,
   which owns `TestTestdata`, still matches.
+
+Audience. The convention is for contributors to this repository, not for realm
+authors at large. The only runner is `TestTestdata`, whose roots are this
+repository's `testdata/` and `$GNOROOT/examples`, and no `gno` subcommand
+executes a `.txtar`; a script placed next to a realm outside this tree runs for
+nobody. So the how-to lives in `CONTRIBUTING.md` (with pointers from `AGENTS.md`
+and `examples/README.md`, which is contributor-facing), not in
+`docs/resources/`, which documents what the `gno` binary does for anyone. If a
+`gno` subcommand ever learns to run package-local scripts, that is the point to
+move it into the user docs.
 
 ## Alternatives considered
 
@@ -132,9 +141,9 @@ and that argument is about `examples/` rather than `testdata/` — where the old
 directory mode did glob `.txt`. The narrower rule was still kept, for both roots:
 matching by root would mean the same file name runs or does not run depending on
 where it sits, which is a worse trap than one uniform rule. No `.txt` script
-exists in either root, so nothing is dropped today; `FindTestScripts` has a case
+exists in either root, so nothing is dropped today; discovery has a test case
 pinning that `.txt` is ignored, so the choice is visible rather than incidental,
-and `docs/resources/gno-testing.md` states the extension.
+and `CONTRIBUTING.md` states the extension.
 
 ## Consequences
 
@@ -150,8 +159,8 @@ and `docs/resources/gno-testing.md` states the extension.
   place at its new location.
 - Discovery now costs one walk of `examples/` (~10 ms for ~1900 files) per test
   process, against a multi-minute suite.
-- Where scripts live is expressed in two places — `FindTestScripts`' roots in
-  `testdata_test.go` and the `find` roots in `update_gas_wanted.sh`. Adding a
+- Where scripts live is expressed in two places — the roots `TestTestdata`
+  passes in `testdata_test.go` and the `find` roots in `update_gas_wanted.sh`. Adding a
   third root means editing both; the script comment says so.
 - Follow-up (not in this change): the remaining realm-owned families, notably
   `params_valset_*` → `r/sys/validators/v3` and `govdao_*` → `r/gov/dao/v3/impl`.

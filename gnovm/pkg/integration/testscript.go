@@ -40,7 +40,7 @@ func NewTestingParams(t *testing.T, testdir string) testscript.Params {
 }
 
 // NewTestingParamsFromRoots is like [NewTestingParams], but discovers the
-// scripts to run below each of roots (see [FindTestScripts]) instead of reading
+// scripts to run below each of roots (see findTestScriptsIn) instead of reading
 // a single directory. It lets a suite keep its scripts next to the code they
 // exercise.
 //
@@ -78,8 +78,8 @@ func NewTestingParamsFromRoots(t *testing.T, roots ...string) (testscript.Params
 	return params, nil
 }
 
-// FindTestScripts walks each of roots recursively and returns every testscript
-// file below them, in walk order. Hidden directories are skipped.
+// findTestScriptsIn walks root recursively and returns every testscript file
+// below it, in walk order. Hidden directories are skipped.
 //
 // Only *.txtar is matched, in every root. testscript's own directory mode also
 // globs *.txt; that is not carried over, because the discovery here reaches into
@@ -90,26 +90,10 @@ func NewTestingParamsFromRoots(t *testing.T, roots ...string) (testscript.Params
 // name a new one .txtar.
 //
 // testscript names each subtest after the script's base name alone, silently
-// disambiguating collisions as "name" and "name#1". FindTestScripts returns an
-// error on collision instead — across all roots, since they share one subtest
-// namespace — so that `-run` selectors stay unambiguous.
-func FindTestScripts(roots ...string) ([]string, error) {
-	var (
-		files []string
-		seen  = map[string]string{}
-	)
-	for _, root := range roots {
-		found, err := findTestScriptsIn(root, seen)
-		if err != nil {
-			return nil, err
-		}
-		files = append(files, found...)
-	}
-	return files, nil
-}
-
-// findTestScriptsIn walks a single root, recording every base name it accepts in
-// seen so that collisions are detected across roots as well as within one.
+// disambiguating collisions as "name" and "name#1". findTestScriptsIn returns an
+// error on collision instead. It records every base name it accepts in seen, so
+// a caller sharing seen across roots gets the check across all of them — they
+// share one subtest namespace — and `-run` selectors stay unambiguous.
 func findTestScriptsIn(root string, seen map[string]string) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {

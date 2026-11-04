@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFindTestScripts(t *testing.T) {
+func TestFindTestScriptsIn(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -84,7 +84,19 @@ func TestFindTestScripts(t *testing.T) {
 				roots = []string{dir}
 			}
 
-			got, err := FindTestScripts(roots...)
+			// One seen map across all roots, as NewTestingParamsFromRoots does.
+			var (
+				got  []string
+				err  error
+				seen = map[string]string{}
+			)
+			for _, root := range roots {
+				var found []string
+				if found, err = findTestScriptsIn(root, seen); err != nil {
+					break
+				}
+				got = append(got, found...)
+			}
 			if tt.errContains != "" {
 				assert.ErrorContains(t, err, tt.errContains)
 				return

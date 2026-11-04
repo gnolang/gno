@@ -53,7 +53,7 @@ A `.txtar` about one package belongs next to that package under `examples/`;
 `gno.land/pkg/integration/testdata/` is for scripts about the VM, the node or
 `gnokey` itself. `TestTestdata` runs both. Base names must be unique across the
 two locations (prefix with the package name). See
-[docs/resources/gno-testing.md](./docs/resources/gno-testing.md#integration-tests).
+[CONTRIBUTING.md](./CONTRIBUTING.md#integration-tests).
 
 ### Verification Rules
 

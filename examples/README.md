@@ -36,7 +36,7 @@ fails discovery for the whole suite. Prefix with the package name
 go test ./gno.land/pkg/integration/ -run TestTestdata/commondao_council -v
 ```
 
-See [Integration tests](../docs/resources/gno-testing.md#integration-tests) for
+See [Integration tests](../CONTRIBUTING.md#integration-tests) for
 when to reach for one.
 
 ## Personal Realms & Shared Content
