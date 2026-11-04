@@ -84,3 +84,40 @@ func TestOverviewView_StdlibImportLeavesTheSite(t *testing.T) {
 	require.Equal(t, 1, strings.Count(out, `<use href="#ico-external-link">`),
 		"only the stdlib row is marked outbound")
 }
+
+// The Source row is an outbound link to a URL the deployer chose: it must keep
+// its rel, its external icon and its accessible "not verified" note, and be
+// absent when the package declares none.
+func TestOverviewView_SourceRow(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	render := func(gnomod string) string {
+		data := BuildOverview(OverviewInput{
+			URL:         u,
+			Files:       []string{"foo.gno", "gnomod.toml"},
+			Doc:         &doc.JSONDocumentation{},
+			Sources:     map[string][]byte{"gnomod.toml": []byte(gnomod)},
+			DocRenderer: noopRenderer{},
+			Domain:      "gno.land",
+		})
+		var buf bytes.Buffer
+		require.NoError(t, OverviewView(data).Render(&buf))
+		return buf.String()
+	}
+
+	out := render("module = \"gno.land/r/demo/foo\"\n\n[source]\nrepository = \"https://github.com/o/r\"\npath = \"r/foo\"\nrevision = \"3cc494ec4d1f\"\n")
+	require.Contains(t, out, `<a href="https://github.com/o/r/tree/3cc494ec4d1f/r/foo" rel="noopener nofollow ugc"`)
+	require.Contains(t, out, `aria-describedby="pkg-source-note">github.com/o/r@3cc494ec4<svg class="c-icon" aria-hidden="true"><use href="#ico-external-link"></use></svg></a>`)
+	require.Contains(t, out, `<span id="pkg-source-note" class="u-sr-only">`)
+
+	for _, mod := range []string{
+		"module = \"gno.land/r/demo/foo\"\n",
+		"module = \"gno.land/r/demo/foo\"\n\n[source]\nrepository = \"javascript:alert(1)\"\n",
+	} {
+		out := render(mod)
+		require.NotContains(t, out, ">Source</dt>")
+		require.NotContains(t, out, "javascript:")
+	}
+}

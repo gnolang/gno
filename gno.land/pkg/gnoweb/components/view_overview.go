@@ -44,7 +44,7 @@ type PackageInfo struct {
 type PackageSource struct {
 	URL      string // link to the module directory at Revision, see gnomod.Source.URL
 	Label    string // repository without the scheme, like "github.com/gnolang/gno"
-	Revision string // short commit id, empty when none was stamped
+	Revision string // short commit id, empty when none was stamped or URL does not carry it
 }
 
 // PackageStats aggregates numeric counters derived from files and qdoc.
