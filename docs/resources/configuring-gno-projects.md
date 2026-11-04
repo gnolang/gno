@@ -78,16 +78,26 @@ Declares where the package's source code lives, so explorers such as gnoweb
 can link a deployed package back to its repository. It is informational: the
 chain stores it as written and never fetches or verifies it.
 
-- `repository`: https URL of the repository, without credentials, query or
-  fragment (`https://github.com/<owner>/<repo>`). Required when the section is set.
-- `path`: the package directory inside the repository, relative to its root.
-- `revision`: the commit the package was deployed from, as lowercase hex.
+- `repository`: https URL of the repository, like
+  `https://github.com/<owner>/<repo>`: a lowercase host with at least one dot,
+  an optional port, and a path of `[A-Za-z0-9._~-]` segments. No credentials,
+  query, fragment, percent-encoding or `.`/`..` segments. Required when the
+  section is set.
+- `path`: the package directory inside the repository, relative to its root,
+  made of the same segments.
+- `revision`: the commit the package was deployed from, as 7 to 64 lowercase
+  hex digits. Do not commit it: it is stale one commit later. Publish tooling
+  stamps it on the uploaded copy, and it is left out of the package hash
+  approvers sign, so a `-pkgdir` approval of the checkout still matches.
 
-`gno mod init -source <path>` and `gno mod tidy -source` fill `repository` and
-`path` from the git checkout's `origin` remote. It is opt-in, so a private
-repository's name never ends up on chain by accident. `revision` is not written
-by `gno mod`: a committed revision is stale one commit later, so it belongs to
-whatever tool publishes the package.
+`gno mod init -source <pkgpath>` and `gno mod tidy -source` fill `repository`
+and `path` from the git checkout's `origin` remote, replacing any existing
+section (a hand-written upstream repository or a revision included). It is
+opt-in, so a private repository's name never ends up on chain by accident.
+
+The section is checked when a package is added on chain and by
+`gno mod init/tidy`, but not when a `gnomod.toml` is only read: an invalid
+section is ignored there rather than making the whole file unreadable.
 
 ### Example
 
@@ -101,7 +111,6 @@ private = true
 [source]
   repository = "https://github.com/gnolang/gno"
   path = "examples/gno.land/r/test"
-  revision = "3cc494ec4"
 
 [[replace]]
   old = "gno.land/r/test"
