@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -163,11 +164,11 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 
 	mutations := map[string][]byte{
 		// Memo is field 4 and empty, so the encoder omitted it; write it out.
-		"explicit empty memo": slices.Concat(canonical, []byte{0x22, 0x00}),
-		// The first tag as a two-byte varint.
+		"explicit empty memo":             slices.Concat(canonical, []byte{0x22, 0x00}),
 		"fee: gas_wanted value padded":    withTop(1, joinFields(fee, 0)),
 		"message: type_url length padded": withTop(0, joinFields(msgAny, 0)),
 	}
+	// The first tag as a two-byte varint.
 	mutations["padded first tag"] = slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
 
 	for name, bz := range mutations {
@@ -178,24 +179,34 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 	require.True(t, deliver.IsOK(), deliver.Log)
 }
 
-// TestTxLegacyZeroSessionAddrRejected: before #6399, every Go client wrote a
-// master-key signature's zero SessionAddr as its bech32 string, 42 bytes in
-// field 3. #6399 leaves it out, which makes those bytes another encoding of
-// the same signed tx, under another hash, and so refused here. Until #6399
-// is in this tree the written-out form is still what the encoder produces,
-// so there is nothing to reject and the test stands down.
-func TestTxLegacyZeroSessionAddrRejected(t *testing.T) {
+// A nil *std.MemPackage inside MsgAddPackage or MsgRun is a non-nil message
+// in its canonical encoding, so it passes both the canonical check and the
+// nil-message guard in runTx; ValidateBasic then dereferenced it, and the
+// recovered panic cost about thirteen times a clean rejection. Both must fail
+// as a bad request in both modes. The written-out zero session address, the
+// other legacy form, is covered by TestDeliverTxZeroSessionAddr.
+func TestTxNilPackageRejected(t *testing.T) {
 	t.Parallel()
 
-	app, canonical, top := canonicalSendApp(t)
-	sig := splitFields(t, top[2].raw) // pub_key, signature[, session_addr before #6399]
-	if len(sig) == 3 {
-		t.Skip("the encoder still writes the zero session address (before #6399): the legacy form is the canonical one")
-	}
-	require.Len(t, sig, 2, "a zero session address has no wire presence")
+	app, _, _ := canonicalSendApp(t)
+	caller := crypto.AddressFromPreimage([]byte("caller"))
+	for name, msg := range map[string]std.Msg{
+		"MsgAddPackage": vm.MsgAddPackage{Creator: caller},
+		"MsgRun":        vm.MsgRun{Caller: caller},
+	} {
+		bz, err := amino.Marshal(std.Tx{Msgs: []std.Msg{msg}})
+		require.NoError(t, err)
+		var decoded std.Tx
+		require.NoError(t, amino.UnmarshalCanonical(bz, &decoded), name)
 
-	written := wireField{3, amino.Typ3ByteLength, []byte(crypto.Address{}.String())}
-	fields := slices.Clone(top)
-	fields[2].raw = joinFields(append(slices.Clone(sig), written), -1)
-	requireSameTxRejected(t, app, canonical, joinFields(fields, -1), "legacy written-out zero session address")
+		check := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+		require.False(t, check.IsOK(), name)
+		assert.Equal(t, vm.InvalidPkgPathError{}, check.Error, name)
+		assert.NotContains(t, check.Log, "recovered", name)
+
+		deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: bz})
+		require.False(t, deliver.IsOK(), name)
+		assert.Equal(t, vm.InvalidPkgPathError{}, deliver.Error, name)
+		assert.NotContains(t, deliver.Log, "recovered", name)
+	}
 }
