@@ -74,14 +74,8 @@ func newButtonLink(t buttonTag) *ast.Link {
 
 	// The raw href goes to the link pipeline, whose resolveDestination
 	// decodes it once, exactly as it decodes a markdown link destination.
-	link := ast.NewLink()
-	link.Destination = bytes.Clone(t.href)
+	link := newRawLabelLink(bytes.Clone(t.href), []byte(label))
 	link.SetAttribute(linkClassAttr, buttonClass(strings.Fields(strings.ToLower(string(t.variant)))))
-
-	// Escaped on output, never parsed as markdown (raw).
-	labelNode := ast.NewString([]byte(label))
-	labelNode.SetRaw(true)
-	link.AppendChild(link, labelNode)
 	return link
 }
 
