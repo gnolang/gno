@@ -23,11 +23,44 @@ Usage:
     python3 gen_native_table.py native_bench_output.txt
 """
 import argparse
+import math
 import re
 import sys
 from collections import defaultdict
 
 import numpy as np
+
+
+# Mirrors modExpWork in gnovm/pkg/gnolang/native_gas.go. Keep in sync; the
+# runtime and the fitter must compute the same metric, or the fitter reduces
+# each bench to a work value the runtime never charges on and the slope it
+# emits is scaled by the ratio between the two. TestModExpConstantsMatchFitter
+# in gnovm/pkg/gnolang reads this file and asserts the constants agree.
+MODEXP_FLOOR_WORDS = 65
+MODEXP_WORD_BYTES = 8
+MODEXP_MONT_SETUP = 38
+MODEXP_MONT_PER_WORD = 160
+MODEXP_GENERIC_PER_BIT = 5
+
+
+def modexp_work(exp_len, mod_len):
+    """Modular multiplications big.Int.Exp performs — see SizeModExpWork.
+
+    One machine word of exponent decides the routine: the generic
+    square-and-multiply loop at or below it (one squaring, multiply and full
+    division per bit), the windowed Montgomery loop above it (a fixed setup
+    plus 5 steps per 4-bit window, walking whole words so a ragged length
+    rounds up).
+    """
+    if exp_len <= 0 or mod_len <= 0:
+        return 0
+    unit = MODEXP_FLOOR_WORDS + ((mod_len + 7) // 8) ** 2
+    if exp_len <= MODEXP_WORD_BYTES:
+        units = MODEXP_GENERIC_PER_BIT * 8 * exp_len
+    else:
+        ewords = (exp_len + MODEXP_WORD_BYTES - 1) // MODEXP_WORD_BYTES
+        units = MODEXP_MONT_SETUP + MODEXP_MONT_PER_WORD * ewords
+    return units * unit
 
 
 # Per-native spec.
@@ -179,8 +212,8 @@ NATIVE_SPECS = [
     # ---- IBC crypto stdlibs ----
     ("crypto/keccak256", "sum256", 0, "LenBytes",
      r"BenchmarkNative_Keccak256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
-    ("crypto/modexp", "modExp", 2, "LenBytes",
-     r"BenchmarkNative_ModExp_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # crypto/modexp is NOT here — it is fitted separately by fit_modexp, which
+    # takes upper bounds rather than least squares. See MODEXP_SPEC.
     ("crypto/bn254", "g1Add", None, "Flat",
      r"BenchmarkNative_BN254_G1Add-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/bn254", "g1Mul", None, "Flat",
@@ -262,6 +295,99 @@ def parse_bench(path):
                 ns = float(m.group(2))
                 var_data[(pkg, fn)][size].append(ns)
     return var_data, flat_data
+
+
+# crypto/modexp is fitted on its own because its coefficients are UPPER BOUNDS
+# over the grid, not least squares. A central fit sits below cost on about half
+# the grid, which is fine for describing a cost and wrong for charging one.
+#
+# Matches the grid benches, NOT the symmetric BenchmarkNative_ModExp_N series:
+# fitting the symmetric diagonal is what hid the asymmetric cost originally.
+#
+# Format: (pkg, fn, exponent param index, regex over (expLen, modLen, ns))
+MODEXP_SPEC = ("crypto/modexp", "modExp", 1,
+               r"BenchmarkNative_ModExpGrid_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op")
+
+# Applied on top of the measured upper bound. The grid samples a surface rather
+# than covering it, and bench-to-bench variance on a shared machine is a few
+# percent; without headroom the thinnest grid point ships at exactly 1.00x.
+MODEXP_MARGIN = 1.2
+
+
+def parse_bench_modexp(path):
+    """Parse ModExpGrid rows: (expLen, modLen) -> list of ns observations."""
+    _, _, _, regex = MODEXP_SPEC
+    grid = defaultdict(list)
+    for line in open(path).read().splitlines():
+        m = re.search(regex, line)
+        if m:
+            grid[(int(m.group(1)), int(m.group(2)))].append(float(m.group(3)))
+    return grid
+
+
+def _round_up_2sf(x):
+    """Round up to two significant figures, so the table carries a readable
+    constant rather than the last digit of a benchmark. Always rounds up, so
+    rounding can never take a coefficient below the bound it came from."""
+    if x <= 0:
+        return 0
+    mag = 10.0 ** (math.floor(math.log10(x)) - 1)
+    return int(math.ceil(x / mag) * mag)
+
+
+def fit_modexp(grid, hw_factor=1.0):
+    """Upper-bound fit for crypto/modexp. Returns a row dict, or None.
+
+    Three coefficients, fitted in dependency order, each the maximum the grid
+    demands rather than the mean:
+
+      slope2  ns per byte of modulus. Taken from the expLen=0 points, which do
+              no exponentiation at all and so isolate the cost of converting the
+              operands and building the result — a cost linear in len(modulus)
+              that the work metric deliberately does not model.
+      base    the intercept of that same line.
+      slope   ns per modular multiplication, from max over every remaining point
+              of (ns - dispatcher(modLen)) / work(expLen, modLen).
+
+    hw_factor scales the measurements onto reference hardware. The benches are
+    rarely run on the reference Xeon, and a fit taken on a faster machine is an
+    undercharge everywhere unless it is projected first.
+    """
+    zero = {m: float(np.median(v)) * hw_factor for (e, m), v in grid.items() if e == 0}
+    rest = {(e, m): float(np.median(v)) * hw_factor
+            for (e, m), v in grid.items() if e > 0}
+    if len(zero) < 2 or not rest:
+        return None
+
+    mods = np.array(sorted(zero), dtype=float)
+    ns0 = np.array([zero[int(m)] for m in mods], dtype=float)
+    coeffs, *_ = np.linalg.lstsq(
+        np.column_stack([np.ones(len(mods)), mods]), ns0, rcond=None)
+    base, per_byte = float(coeffs[0]), max(float(coeffs[1]), 0.0)
+    # Lift the line until it covers every expLen=0 point. It is a charge, not a
+    # description, so it may sit above the data but never below it.
+    lift = float(np.max(ns0 / np.maximum(base + per_byte * mods, 1e-9)))
+    base, per_byte = max(base, 0.0) * lift, per_byte * lift
+
+    needed, worst = 0.0, None
+    for (e, m), ns in rest.items():
+        w = modexp_work(e, m)
+        if not w:
+            continue
+        r = max(ns - (base + per_byte * m), 0.0) / w
+        if r > needed:
+            needed, worst = r, (e, m)
+    if worst is None:
+        return None
+
+    return {
+        "pkg": MODEXP_SPEC[0], "fn": MODEXP_SPEC[1], "shape": "modexp",
+        "idx": MODEXP_SPEC[2],
+        "base": _round_up_2sf(base * MODEXP_MARGIN),
+        "slope": _round_up_2sf(needed * MODEXP_MARGIN * 1024),
+        "slope2": _round_up_2sf(per_byte * MODEXP_MARGIN * 1024),
+        "worst": worst, "npoints": len(grid), "hw_factor": hw_factor,
+    }
 
 
 def parse_bench_pair(path):
@@ -358,6 +484,8 @@ def n_desc(kind, slope_idx):
         "NumCallFrames":    "m.NumCallFrames()",
         "ReturnLen":        f"len(return[{slope_idx}])",
         "SliceTotalBytes":  f"sum_inner_len(p{slope_idx})",
+        "ModExpWork":       (f"modmuls(len(p{slope_idx})) * "
+                             f"({MODEXP_FLOOR_WORDS} + words(p{slope_idx + 1})^2)"),
     }[kind]
 
 
@@ -402,6 +530,22 @@ def emit_go_table(rows, out):
     out.write("// See gnovm/cmd/calibrate/native_gas_formulas.md for derivation.\n")
     out.write("var calibratedNativeGas = []nativeGasEntry{\n")
     for r in rows:
+        if r["shape"] == "modexp":
+            we, wm = r["worst"]
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {r["base"]}, '
+                f'Slope: {r["slope"]}, '
+                f'SlopeIdx: {r["idx"]}, '
+                f'SlopeKind: SizeModExpWork, '
+                f'Slope2: {r["slope2"]}, '
+                f'Slope2Idx: {r["idx"] + 1}, '
+                f'Slope2Kind: SizeLenBytes}},'
+                f' // upper bound over {r["npoints"]} ModExpGrid points'
+                f' (x{r["hw_factor"]} to reference, +{int((MODEXP_MARGIN - 1) * 100)}% margin);'
+                f' thinnest at expLen={we}/modLen={wm}\n'
+            )
+            continue
         if r["shape"] == "flat":
             out.write(
                 f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
@@ -626,11 +770,19 @@ def main():
     ap.add_argument("--go-out", default="native_gas_table.go.txt")
     ap.add_argument("--plot", default="native_gas_fits.png")
     ap.add_argument("--no-plot", action="store_true")
+    ap.add_argument(
+        "--hw-factor", type=float, default=1.0,
+        help="Scale crypto/modexp measurements onto the reference Xeon 8168. "
+             "Leave at 1.0 only when the benches were run on it; otherwise a fit "
+             "taken on a faster machine undercharges everywhere. Anchor it on a "
+             "row already calibrated on the reference — see the recorded run in "
+             "ibc_native_bench_test.go.")
     args = ap.parse_args()
 
     var_data, flat_data = parse_bench(args.bench_file)
     pair_data = parse_bench_pair(args.bench_file)
     two_d_data = parse_bench_2d(args.bench_file)
+    modexp_grid = parse_bench_modexp(args.bench_file)
 
     rows = []
     for pkg, fn, slope_idx, kind, _ in NATIVE_SPECS:
@@ -657,6 +809,21 @@ def main():
                 rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
                              "base": base, "slope": slope, "r2": r2,
                              "slope_idx": slope_idx, "kind": kind})
+
+    # crypto/modexp: upper-bound fit, not least squares.
+    if modexp_grid:
+        mrow = fit_modexp(modexp_grid, args.hw_factor)
+        if mrow is None:
+            print("WARN: ModExpGrid needs at least two expLen=0 points and one "
+                  "priced point; crypto/modexp row not emitted", file=sys.stderr)
+        else:
+            rows.append(mrow)
+            if args.hw_factor == 1.0:
+                print("NOTE: crypto/modexp fitted with --hw-factor 1.0 — correct "
+                      "only if these benches ran on the reference Xeon 8168",
+                      file=sys.stderr)
+    else:
+        print("WARN: no ModExpGrid bench lines found", file=sys.stderr)
 
     # Pair fits (two byte-slice params, one shared per-byte rate).
     for pkg, fn, idx_a, idx_b, kind, _ in NATIVE_SPECS_PAIR:

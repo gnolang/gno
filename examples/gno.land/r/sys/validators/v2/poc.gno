@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
 )
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/jeronimoalbi/datasource"
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"

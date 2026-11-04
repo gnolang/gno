@@ -3,13 +3,13 @@ package foo1155
 import (
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/tokens/grc1155"
+	"gno.land/p/nt/grc1155/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 var (
 	dummyURI         = "ipfs://xyz"
-	admin    address = "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh" // govdao t1 multisig
+	admin    address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // govdao t1 multisig
 	foo              = grc1155.NewBasicGRC1155Token(dummyURI)
 )
 

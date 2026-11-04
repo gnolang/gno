@@ -22,6 +22,10 @@ GOTOOLCHAIN ?= $(shell sed -n 's/^toolchain //p' ../go.mod)
 export GOTOOLCHAIN
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+# `gno test` worker count for the stdlibs; each worker holds a full GnoVM store.
+# See examples/Makefile: 4.4 GiB over sixteen workers against 1.3 GiB over four,
+# for the same wall time.
+GNOTEST_JOBS ?= $(or $(shell echo '$(GNO_TEST_MAX_PARALLEL)' | grep -xE '\+?0*[1-9][0-9]{0,17}' | sed 's/^+//; s/^0*//'),4)
 # used to set the default GNOROOT. This helps on local development, as it sets
 # up GNOROOT to the supposed path of the Gno repository clone.
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../)
@@ -33,7 +37,7 @@ GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(V
 GOTEST_COVER_PROFILE ?= cmd-profile.out
 
 # user for gno version [branch].[N]+[hash]
-VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
+VERSION ?= $(shell git describe --tags --exact-match --match 'v*' 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 
 ########################################
 # Dev tools
@@ -149,7 +153,7 @@ _test.stdlibs:
 	go test -v ./stdlibs/...
 	# 'gno test ./stdlibs/...' is different from TestStdlibs in 'go test ./pkg/..'
 	# TestStdlibs does not include tests from *_test packages.
-	cd stdlibs && go run ../cmd/gno test -v ./...
+	cd stdlibs && go run ../cmd/gno test -v -p $(GNOTEST_JOBS) ./...
 
 
 .PHONY: _test.filetest

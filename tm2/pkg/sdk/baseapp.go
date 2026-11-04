@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -68,11 +69,22 @@ type BaseApp struct {
 	// Used by Simulate and query handlers that run outside the consensus mutex.
 	lastBlockHeader atomic.Pointer[headerSnapshot]
 
+	// preCommitSimulateMu serialises Simulate's pre-commit path, the one case
+	// that has no committed version to snapshot and must read the mutable
+	// checkState. See BaseApp.Simulate.
+	preCommitSimulateMu sync.Mutex
+
 	// flag for sealing options and parameters to a BaseApp
 	sealed bool // TODO: needed?
 
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
+
+	// Deferred commits during block sync (deferred.go). heldHeader is the
+	// header of the last held commit, published to queries once written.
+	deferAllowed  bool
+	flushRequired atomic.Bool
+	heldHeader    abci.Header
 
 	// application's version string
 	appVersion string
@@ -253,6 +265,11 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
+	if app.deferringCommits() {
+		// Queries answer from the disk: WriteCommits publishes the header.
+		app.heldHeader = header
+		return
+	}
 	app.lastBlockHeader.Store(&headerSnapshot{header: header})
 }
 
@@ -320,7 +337,7 @@ func (app *BaseApp) getMaximumBlockGas() int64 {
 
 // Info implements the ABCI interface.
 func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
-	lastCommitID := app.cms.LastCommitID()
+	lastCommitID := app.writtenCommitID()
 
 	res.Data = []byte(app.Name())
 	res.LastBlockHeight = lastCommitID.Version
@@ -488,7 +505,11 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 
 	// when a client did not provide a query height, manually inject the latest
 	if req.Height == 0 {
-		req.Height = app.LastBlockHeight()
+		req.Height = app.writtenCommitID().Version
+	}
+	if app.nothingWritten() {
+		res.Error = ABCIError(errNothingWritten)
+		return
 	}
 
 	if req.Height <= 1 && req.Prove {
@@ -540,7 +561,11 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 	// when a client did not provide a query height, manually inject the latest
 	if req.Height == 0 {
-		req.Height = app.LastBlockHeight()
+		req.Height = app.writtenCommitID().Version
+	}
+	if app.nothingWritten() {
+		res.Error = ABCIError(errNothingWritten)
+		return
 	}
 
 	if req.Height <= 1 && req.Prove {
@@ -553,7 +578,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		res.Error = ABCIError(std.ErrInternal(
 			fmt.Sprintf(
 				"failed to load state at height %d; %s (latest height: %d)",
-				req.Height, err, app.LastBlockHeight(),
+				req.Height, err, app.writtenCommitID().Version,
 			),
 		))
 		return
@@ -614,7 +639,9 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
 
 	if app.beginBlocker != nil {
+		app.clearRefusedIterators()
 		res = app.beginBlocker(app.deliverState.ctx, req)
+		app.checkRefusedIterators()
 	}
 
 	// set the signed validators for addition to context in deliverTx
@@ -640,8 +667,10 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 
 // DeliverTx implements the ABCI interface.
 func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
+	app.clearRefusedIterators()
 	ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
 	result := app.runTx(ctx, req.Tx)
+	app.checkRefusedIterators()
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
 	res.GasUsed = result.GasUsed
@@ -982,7 +1011,9 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 		// we need to load consensusParams to the end blocker Context
 		// end blocker use consensusParams to calculat the gas price changes.
 		ctx := app.deliverState.ctx.WithConsensusParams(app.consensusParams)
+		app.clearRefusedIterators()
 		res = app.endBlocker(ctx, req)
+		app.checkRefusedIterators()
 	}
 
 	return

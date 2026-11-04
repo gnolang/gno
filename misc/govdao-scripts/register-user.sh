@@ -2,7 +2,7 @@
 # Register a custom username for an address via govDAO proposal.
 #
 # Routes through r/sys/users.ProposeRegisterUser. The proposal
-# bypasses the controller whitelist (where r/sys/namereg/v1 lives)
+# bypasses the controller whitelist (where r/sys/namereg/v0 lives)
 # and the canonical-collision check (decision #3: DAO grants are
 # sovereign). A canonical-collision warning is auto-injected into
 # the proposal description if relevant; voters can NO it.

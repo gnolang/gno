@@ -30,7 +30,7 @@ package hivunrealborrow
 // slot. With it, the PkgID gate is skipped while NewTime == 0.
 
 import (
-	"gno.land/p/demo/tests/p_closurecap"
+	"gno.land/p/demo/tests/p_closurecap/v0"
 	"gno.land/r/tests/vm/innerowner"
 )
 

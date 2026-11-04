@@ -12,7 +12,7 @@ func init() {
 		"Common DAO",
 		"Govern and maintain the commondao reference realm.",
 		"This DAO is responsible for managing `commondao` realm functionalities.",
-		"g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq", // @devx
+		"g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx", // govdao t1 multisig
 		"g1manfred47kzduec920z88wfr64ylksmdcedlf5", // @moul
 	)
 	setListed(dao.ID(), true)

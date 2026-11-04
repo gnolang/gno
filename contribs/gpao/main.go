@@ -26,15 +26,44 @@ import (
 
 const (
 	defaultRemote = "http://127.0.0.1:26657"
-	defaultGasFee = "1000000ugnot"
+	// defaultGasFee is 0.1 GNOT, and it is a flat cost rather than a budget.
+	//
+	// The ante deducts tx.Fee.GasFee whole rather than metering it, so whatever
+	// is set here is what every approval costs, successful or not. What the chain
+	// REQUIRES is a ratio: EnsureSufficientMempoolFees compares GasFee/GasWanted
+	// against the block gas price, which is 1ugnot per 1000 gas on gno.land.
+	// The fee therefore has to cover the gas an approval ASKS for, and everything
+	// above that is a donation to the fee collector.
+	//
+	// Measured rather than guessed. A real MsgEnablePackage on gnoland-1, block
+	// 26021, ran with GasWanted 12,797,970 and GasUsed 10,664,965 -- so the chain
+	// wanted 12,798ugnot for it, and the previous default of 1 GNOT paid 78x
+	// that. 0.1 GNOT still covers that same approval about eight times over,
+	// which is the margin worth keeping rather than trimming: GasWanted is an
+	// estimate plus 20%, taken against state the enable has not landed in yet.
+	//
+	// What it buys is a ceiling of GasWanted <= 100,000,000 (the fee times 1000,
+	// at the standard price). Every enable measured so far is an order of
+	// magnitude under it and the fallback -gas-wanted is 20,000,000, but a
+	// package that genuinely wants more needs -gas-fee raised alongside it --
+	// below the ratio the node refuses the transaction at CheckTx. See
+	// TestDefaultFeeCoversDefaultGasWanted, which pins the two constants
+	// together.
+	defaultGasFee = "100000ugnot"
 
 	// defaultMaxSpend bounds what one run will pay in gas fees for approvals.
 	//
 	// Every approval costs the full gas fee whether or not it succeeds, and the
 	// daemon decides on its own when to send one -- so without a bound, anything
 	// that makes approvals fail repeatedly drains the approver key. 100 GNOT at
-	// the default 1 GNOT fee is a hundred approvals, generous for normal
+	// the default 0.1 GNOT fee is a thousand approvals, generous for normal
 	// operation and small enough to notice.
+	//
+	// Note that this bound is stated in coin and the thing it is trying to bound
+	// is a COUNT, so lowering -gas-fee raises how many approvals it permits --
+	// this default meant a hundred when the fee was 1 GNOT, and gnoland-1 stopped
+	// activating packages chain-wide on exactly that hundredth. Nothing here
+	// fixes that; it only moves the wall further out. See #6178.
 	defaultMaxSpend     = "100000000ugnot"
 	defaultGasWanted    = int64(20_000_000)
 	defaultPollInterval = time.Second
@@ -45,8 +74,18 @@ const (
 	// daemon does not refuse slow packages it only repeats a correctness
 	// check the chain already does. Generous on purpose -- a real package
 	// takes milliseconds, and borderline ones should pass rather than be
-	// rejected for losing a race with CPU contention.
+	// rejected for losing a race with CPU contention. It starts once the
+	// sources the compile needs are local, so a slow node is not the
+	// package's problem.
 	defaultVerifyBudget = 10 * time.Second
+	// defaultPrepareBudget bounds the verifier from spawn until it reports
+	// that every source the compile needs is local: process start, the disk
+	// imports, and the import closure fetched from the node. That phase is the
+	// oracle's own cost and is not the verify budget, but it cannot be left
+	// unbounded either. A minute is the RPC client's own default request
+	// timeout; a node that has not delivered the sources in that long is not
+	// answering. Expiry is unavailability, not a verdict.
+	defaultPrepareBudget = time.Minute
 )
 
 // newRootCmd builds the full command tree.
@@ -112,7 +151,9 @@ type config struct {
 	pollInterval time.Duration
 	// verifyBudget: see defaultVerifyBudget.
 	verifyBudget time.Duration
-	startHeight  int64
+	// prepareBudget: see defaultPrepareBudget.
+	prepareBudget time.Duration
+	startHeight   int64
 	// maxSpend bounds the total gas fees this run will pay for approvals. See
 	// defaultMaxSpend.
 	maxSpend string
@@ -144,6 +185,8 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 		"gas fee for approval transactions")
 	fs.DurationVar(&c.verifyBudget, "verify-budget", defaultVerifyBudget,
 		"withhold approval from a package whose verification exceeds this duration (it is left pending, not rejected)")
+	fs.DurationVar(&c.prepareBudget, "prepare-budget", defaultPrepareBudget,
+		"how long the verifier may take to fetch a package's imports from the node before verification starts; expiry leaves the package pending as unavailable, not as slow")
 	fs.Int64Var(&c.gasWanted, "gas-wanted", defaultGasWanted,
 		"fallback gas wanted for approval transactions, used only when the node will not simulate one (each approval is normally estimated, plus 20%, capped at the block limit)")
 	fs.DurationVar(&c.pollInterval, "poll-interval", defaultPollInterval,
@@ -164,6 +207,9 @@ func (c *config) validate() error {
 	}
 	if c.verifyBudget <= 0 {
 		return fmt.Errorf("verify-budget must be positive, got %s", c.verifyBudget)
+	}
+	if c.prepareBudget <= 0 {
+		return fmt.Errorf("prepare-budget must be positive, got %s", c.prepareBudget)
 	}
 	if c.gasWanted <= 0 {
 		return fmt.Errorf("--gas-wanted must be > 0")

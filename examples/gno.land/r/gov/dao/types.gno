@@ -2,6 +2,7 @@ package dao
 
 import (
 	"errors"
+	"strings"
 
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
@@ -187,7 +188,42 @@ type SimpleExecutor struct {
 	creationRealm string
 }
 
+// proxyPkgPath is this package: the realm whose frame Execute mints for a
+// callback, and therefore the only realm entitled to invoke one.
+const proxyPkgPath = "gno.land/r/gov/dao"
+
+// Execute runs the proposal's callback. Invocable only from this proxy.
+//
+// SECURITY: Execute is a CROSSING method declared here, so invoking it mints
+// a gno.land/r/gov/dao frame for the callback — `cur.Previous()` inside the
+// callback is this path whoever called. That is a capability: realms gate on
+// it (authz.NewContractAuthority("gno.land/r/gov/dao") + DoByPrevious,
+// ownable, anything reading Previous().Address()). Ungated, any realm could
+// wrap a reachable `func(realm) error` — including an ordinary exported
+// entrypoint of the victim — and run it with governance's identity, with no
+// proposal id minted, so nothing to render, audit or deny afterwards.
+//
+// NOT InAllowedDAOs: that is SafeExecutor's bug. It holds the impl path while
+// an executor's caller is the proxy, so it rejects the approved route and
+// fails open while empty. Exact path plus subpackages, because
+// impl.ExecuteProposal is non-crossing (Previous() is the proxy exactly), so
+// a bare prefix would reject every real proposal.
+//
+// Gates the executor object's INVOCATION only. Keeping a privileged closure,
+// or an exported entrypoint shaped like `func(realm) error`, out of reach
+// stays the consumer's job — see r/gnops/valopers/admin.gno
+// and p/moul/authz's NewContractAuthority godoc.
 func (e *SimpleExecutor) Execute(cur realm) error {
+	// IsCurrent first, as every other gate here does: otherwise Previous() is
+	// read from whatever realm value the caller threaded in.
+	if !cur.IsCurrent() {
+		return errors.New("execution denied: cur is not the caller's live realm")
+	}
+	if prev := cur.Previous().PkgPath(); prev != proxyPkgPath &&
+		!strings.HasPrefix(prev, proxyPkgPath+"/") {
+		return errors.New("execution denied: executors are only invocable by " + proxyPkgPath)
+	}
+
 	// Check if executor was created using the constructor func
 	if e.callback == nil {
 		return nil
@@ -223,12 +259,12 @@ func (e *SafeExecutor) Execute(cur realm) error {
 	// or sibling-frame cur would have its Previous() read from that value
 	// rather than from the live frame.
 	//
-	// Note what this does NOT gate: NewSafeExecutor has no call sites, so this
-	// type is currently dead code. Live proposal execution goes through the
-	// Executor interface to SimpleExecutor.Execute below, which has no
-	// InAllowedDAOs check -- it is contained instead by the executor being
-	// unexported inside ProposalRequest/Proposal with no accessor. Do not read
-	// this method as evidence that executor invocation is allowlist-gated.
+	// NewSafeExecutor has no call sites, so this type is currently dead code.
+	// Live proposal execution goes through the Executor interface to
+	// SimpleExecutor.Execute, which now gates on the invoking realm being the
+	// proxy -- deliberately NOT on InAllowedDAOs, which holds the impl path
+	// and therefore rejects the approved route and fails open while empty.
+	// That is this method's bug; see SimpleExecutor.Execute.
 	if !cur.IsCurrent() {
 		return errors.New("execution denied: cur is not the caller's live realm")
 	}

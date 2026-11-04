@@ -16,6 +16,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+var errInvalidSignature = errors.New("invalid signature")
+
 type VerifyCfg struct {
 	RootCfg *BaseCfg
 
@@ -163,18 +165,18 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 		}
 	}
 
-	// Get the bytes to verify
-	signBytes, err := tx.GetSignBytes(
-		chainID,
-		accountNumber,
-		accountSequence,
+	// The chain accepts a signature over either payload rendering, see
+	// std.VerifySignaturePayload.
+	rendering, err := std.VerifySignaturePayload(
+		info.GetPubKey(),
+		tx.SignDoc(chainID, accountNumber, accountSequence),
+		sig,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to get signature bytes, %w", err)
 	}
-
-	if err = kb.Verify(info.GetName(), signBytes, sig); err != nil {
-		return fmt.Errorf("unable to verify signature: %w", err)
+	if rendering == std.PayloadRenderingNone {
+		return fmt.Errorf("unable to verify signature: %w", errInvalidSignature)
 	}
 
 	if !cfg.RootCfg.BaseOptions.Quiet {
@@ -184,6 +186,12 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 			info.GetPubKey().String(),
 			base64.StdEncoding.EncodeToString(sig),
 		)
+		// Only the amount/gas rendering is one the Ledger Cosmos app will
+		// sign, so a signature over the other is worth pointing out.
+		if rendering == std.PayloadRenderingLegacy {
+			io.Printfln("Note: signed over the legacy payload rendering (fee as " +
+				"gas_wanted/gas_fee), which the Ledger Cosmos app refuses to sign")
+		}
 	}
 
 	return nil

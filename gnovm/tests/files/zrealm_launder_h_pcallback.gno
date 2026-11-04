@@ -27,7 +27,7 @@ package launderh
 // their own logic data types in /r/, not in /p/.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 

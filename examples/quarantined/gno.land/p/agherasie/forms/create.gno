@@ -3,7 +3,7 @@ package forms
 import (
 	"time"
 
-	"gno.land/p/onbloc/json"
+	"gno.land/p/onbloc/json/v0"
 )
 
 const dateFormat = "2006-01-02T15:04:05Z"

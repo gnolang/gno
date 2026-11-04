@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
-	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 const (
@@ -29,8 +28,8 @@ const (
 )
 
 // Reactor handles mempool tx broadcasting amongst peers.
-// It maintains a map from peer ID to counter, to prevent gossiping txs to the
-// peers you received it from.
+// It maintains a map from peer connection to counter, to prevent gossiping txs
+// to the peers you received it from.
 type Reactor struct {
 	p2p.BaseReactor
 	config  *cfg.MempoolConfig
@@ -38,21 +37,35 @@ type Reactor struct {
 	ids     *mempoolIDs
 }
 
+// mempoolIDs keys reservations on the peer connection rather than on its peer
+// ID. Two connections can hold the same peer ID at once, while a reconnect
+// supersedes a connection the switch has not finished tearing down, and each
+// has to give back only the ID it took: keyed on the peer ID, the superseded
+// connection's Reclaim would strip the live one, leaving it to gossip under
+// UnknownPeerID for the rest of its life.
+//
+// The switch hands every reactor hook the same PeerConn for a connection
+// (peer.createMConnection closes over it for Receive and OnPeerError), so a
+// connection is its own identity here.
 type mempoolIDs struct {
 	mtx       sync.RWMutex
-	peerMap   map[p2pTypes.ID]uint16
+	peerMap   map[p2p.PeerConn]uint16
 	nextID    uint16              // assumes that a node will never have over 65536 active peers
 	activeIDs map[uint16]struct{} // used to check if a given mempoolID key is used, the value doesn't matter
 }
 
-// Reserve searches for the next unused ID and assigns it to the
-// peer.
-func (ids *mempoolIDs) ReserveForPeer(id p2pTypes.ID) {
+// ReserveForPeer assigns the next unused ID to the peer connection, unless it
+// already holds one.
+func (ids *mempoolIDs) ReserveForPeer(peer p2p.PeerConn) {
 	ids.mtx.Lock()
 	defer ids.mtx.Unlock()
 
+	if _, reserved := ids.peerMap[peer]; reserved {
+		return
+	}
+
 	curID := ids.nextMempoolPeerID()
-	ids.peerMap[id] = curID
+	ids.peerMap[peer] = curID
 	ids.activeIDs[curID] = struct{}{}
 }
 
@@ -73,29 +86,29 @@ func (ids *mempoolIDs) nextMempoolPeerID() uint16 {
 	return curID
 }
 
-// Reclaim returns the ID reserved for the peer back to unused pool.
-func (ids *mempoolIDs) Reclaim(id p2pTypes.ID) {
+// Reclaim returns the ID reserved for the peer connection back to unused pool.
+func (ids *mempoolIDs) Reclaim(peer p2p.PeerConn) {
 	ids.mtx.Lock()
 	defer ids.mtx.Unlock()
 
-	removedID, ok := ids.peerMap[id]
+	removedID, ok := ids.peerMap[peer]
 	if ok {
 		delete(ids.activeIDs, removedID)
-		delete(ids.peerMap, id)
+		delete(ids.peerMap, peer)
 	}
 }
 
-// GetForPeer returns an ID reserved for the peer.
-func (ids *mempoolIDs) GetForPeer(id p2pTypes.ID) uint16 {
+// GetForPeer returns an ID reserved for the peer connection.
+func (ids *mempoolIDs) GetForPeer(peer p2p.PeerConn) uint16 {
 	ids.mtx.RLock()
 	defer ids.mtx.RUnlock()
 
-	return ids.peerMap[id]
+	return ids.peerMap[peer]
 }
 
 func newMempoolIDs() *mempoolIDs {
 	return &mempoolIDs{
-		peerMap:   make(map[p2pTypes.ID]uint16),
+		peerMap:   make(map[p2p.PeerConn]uint16),
 		activeIDs: map[uint16]struct{}{0: {}},
 		nextID:    1, // reserve unknownPeerID(0) for mempoolReactor.BroadcastTx
 	}
@@ -137,16 +150,23 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	}
 }
 
+// InitPeer implements Reactor.
+// It reserves the peer's mempool ID before the switch starts the peer.
+func (memR *Reactor) InitPeer(peer p2p.PeerConn) p2p.PeerConn {
+	memR.ids.ReserveForPeer(peer)
+
+	return peer
+}
+
 // AddPeer implements Reactor.
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
 func (memR *Reactor) AddPeer(peer p2p.PeerConn) {
-	memR.ids.ReserveForPeer(peer.ID())
 	go memR.broadcastTxRoutine(peer)
 }
 
 // RemovePeer implements Reactor.
 func (memR *Reactor) RemovePeer(peer p2p.PeerConn, reason any) {
-	memR.ids.Reclaim(peer.ID())
+	memR.ids.Reclaim(peer)
 	// broadcast routine checks if peer is gone and returns
 }
 
@@ -163,7 +183,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
 
 	switch msg := msg.(type) {
 	case *TxMessage:
-		mempoolID := memR.ids.GetForPeer(src.ID())
+		mempoolID := memR.ids.GetForPeer(src)
 		err := memR.mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{SenderID: mempoolID})
 		if err != nil {
 			memR.Logger.Info("Could not check tx", "tx", txID(msg.Tx), "err", err)
@@ -185,7 +205,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.PeerConn) {
 		return
 	}
 
-	mempoolID := memR.ids.GetForPeer(peer.ID())
+	mempoolID := memR.ids.GetForPeer(peer)
 	var next *clist.CElement
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time

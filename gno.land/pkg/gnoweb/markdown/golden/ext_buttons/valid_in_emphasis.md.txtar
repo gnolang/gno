@@ -1,0 +1,4 @@
+-- input.md --
+*Emphasized <gno-button href="/r/test" label="Btn" /> text*
+-- output.html --
+<p><em>Emphasized <a href="/r/test" class="gno-button">Btn</a> text</em></p>

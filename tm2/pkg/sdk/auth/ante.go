@@ -214,6 +214,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// ——— Phase 3: Verify signatures, increment sequences ———
 
+		// Simulate normally skips verification; see RequireSigForSimulate
+		// for why some messages cannot afford that. Nothing below changes
+		// the predicate's answer, so it is asked once, not once per signature.
+		verifySig := !simulate ||
+			(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				continue
@@ -291,27 +297,45 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accNum = sigAcc.GetAccountNumber()
 				accSeq = sigAcc.GetSequence()
 			}
-			signBytes, err := tx.GetSignBytes(
-				newCtx.ChainID(),
-				accNum,
-				accSeq,
-			)
-			if err != nil {
-				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+			// Built only when verified: the build is unmetered and simulate skips
+			// verification. verifySig is true on every consensus path.
+			var signBytes []byte
+			if verifySig {
+				var err error
+				signBytes, err = tx.GetSignBytes(
+					newCtx.ChainID(),
+					accNum,
+					accSeq,
+				)
+				if err != nil {
+					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+				}
 			}
 
 			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 				return newCtx, res, true
 			}
 
-			// Simulate normally skips verification; see RequireSigForSimulate
-			// for why some messages cannot afford that.
-			verifySig := !simulate ||
-				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				// Either payload rendering is accepted; std.VerifySignaturePayload
+				// holds the argument for why that is safe.
+				//
+				// Spelled out here rather than delegated to that helper because
+				// the payload is built above, before gas is charged, and
+				// delegating would reorder those steps on the consensus path.
+				// The legacy encoding cannot fail once the one above succeeded
+				// -- the two differ only in the fee's plain fields -- so lerr
+				// carries nothing the first marshal did not already report.
+				// Gas was charged above for one verification.
+				legacySignBytes, lerr := tx.GetSignBytesLegacy(
+					newCtx.ChainID(),
+					accNum,
+					accSeq,
+				)
+				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
+					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				}
 			}
-
 			if isSession {
 				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
 				ak.SetSessionAccount(newCtx, signerAddrs[i], sigAcc)
@@ -635,8 +659,9 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
 }
 
-// GetSignBytes returns a slice of bytes to sign over for a given transaction
-// and an account.
+// GetSignBytes returns the amount/gas rendering of the signature payload for a
+// given transaction and account. It is a signing helper only: a verifier must
+// also accept the gas_wanted/gas_fee rendering, see std.VerifySignaturePayload.
 func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
 	var (
 		accNum      uint64

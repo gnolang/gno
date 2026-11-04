@@ -1,0 +1,125 @@
+# Lazy interface method values resolve their receiver at call time, walking
+# the concrete type's embedding graph on every call (resolveLazyBound). That
+# walk is gas-metered per embedded type reached (OpCPUSlopeEmbedExpand),
+# so a loop of calls over a wide-embedding receiver runs out of gas instead of
+# burning unmetered CPU. Readable companion to TestRuntime_LazyBoundResolve_*.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/lazybind -pkgpath gno.land/r/test/lazybind -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid tendermint_test test1
+stdout OK!
+
+# 1000 calls × (32 × (200 expand + 25 scan) + 135 trail) gas ≈ 7.3M gas for
+# the walk alone, on top of ≈7M for the loop itself (≈14M total). A 12M budget
+# covers the loop but not the walk, so this fails only because the walk is
+# billed.
+! gnokey maketx call -pkgpath gno.land/r/test/lazybind -func Call -args 1000 -gas-fee 1000000ugnot -gas-wanted 12000000 -chainid tendermint_test test1
+stderr 'Data: out of gas error'
+
+# With a budget that covers the walk the same call succeeds.
+gnokey maketx call -pkgpath gno.land/r/test/lazybind -func Call -args 1000 -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/test/lazybind.Calls()"
+stdout '1000 int'
+
+-- lazybind/gnomod.toml --
+module = "gno.land/r/test/lazybind"
+gno = "0.9"
+
+-- lazybind/lazybind.gno --
+package lazybind
+
+type I interface{ M() }
+
+type T0 struct{}
+type T1 struct{}
+type T2 struct{}
+type T3 struct{}
+type T4 struct{}
+type T5 struct{}
+type T6 struct{}
+type T7 struct{}
+type T8 struct{}
+type T9 struct{}
+type T10 struct{}
+type T11 struct{}
+type T12 struct{}
+type T13 struct{}
+type T14 struct{}
+type T15 struct{}
+type T16 struct{}
+type T17 struct{}
+type T18 struct{}
+type T19 struct{}
+type T20 struct{}
+type T21 struct{}
+type T22 struct{}
+type T23 struct{}
+type T24 struct{}
+type T25 struct{}
+type T26 struct{}
+type T27 struct{}
+type T28 struct{}
+type T29 struct{}
+type T30 struct{}
+type T31 struct{}
+
+// Only the last embedded type provides M, so resolving i.M on S walks all
+// 32 embedded types before finding it.
+func (T31) M() {}
+
+type S struct {
+	T0
+	T1
+	T2
+	T3
+	T4
+	T5
+	T6
+	T7
+	T8
+	T9
+	T10
+	T11
+	T12
+	T13
+	T14
+	T15
+	T16
+	T17
+	T18
+	T19
+	T20
+	T21
+	T22
+	T23
+	T24
+	T25
+	T26
+	T27
+	T28
+	T29
+	T30
+	T31
+}
+
+var i I = S{}
+
+// fn is a lazily bound interface method value: the receiver is looked up
+// through S's embedding graph on every call, not once at bind time.
+var fn = i.M
+
+var calls int
+
+// Call invokes the lazily bound method value n times.
+func Call(cur realm, n int) {
+	for k := 0; k < n; k++ {
+		fn()
+		calls++
+	}
+}
+
+func Calls() int {
+	return calls
+}

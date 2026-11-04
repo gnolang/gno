@@ -160,6 +160,34 @@ func TestParseExpr(t *testing.T) {
 	}
 }
 
+func TestParseExprUnionDepthLimit(t *testing.T) {
+	if _, err := ParseExpr("interface{a|b|c}(nil)"); err != nil {
+		t.Fatalf("ParseExpr(small union): %v", err)
+	}
+
+	const want = "exceeded max nesting depth"
+	for _, test := range []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "plain",
+			src:  "interface{a" + strings.Repeat("|a", maxNestLev+1) + "}(nil)",
+		},
+		{
+			name: "preceding small unions",
+			src: "interface{" + strings.Repeat("a|b;", 100) +
+				"a" + strings.Repeat("|a", maxNestLev+1) + "}(nil)",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := ParseExpr(test.src); err == nil || !strings.HasSuffix(err.Error(), want) {
+				t.Fatalf("ParseExpr(union chain) error = %v, want %q", err, want)
+			}
+		})
+	}
+}
+
 func TestColonEqualsScope(t *testing.T) {
 	f, err := ParseFile(token.NewFileSet(), "", `package p; func f() { x, y, z := x, y, z }`, 0)
 	if err != nil {

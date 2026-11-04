@@ -1,0 +1,10 @@
+-- input.md --
+< gno-frame>
+
+<gno-frаme>
+
+after
+-- output.html --
+<p>&lt; gno-frame&gt;</p>
+<p>&lt;gno-frаme&gt;</p>
+<p>after</p>

@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/commondao/v0"
 )
 
-const member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq" // @devx
+const member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // govdao t1 multisig
 
 var (
 	dao        *commondao.CommonDAO

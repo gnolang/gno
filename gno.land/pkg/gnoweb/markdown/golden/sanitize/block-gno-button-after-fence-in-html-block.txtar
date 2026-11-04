@@ -1,0 +1,21 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+<div>
+```
+
+<gno-button href="https://evil.example/claim" label="Claim your reward" />
+-- output.md --
+
+
+<div>
+```
+
+\<gno-button href="https://evil.example/claim" label="Claim your reward" />
+```
+
+-- output.html --
+<!-- raw HTML omitted -->
+<p>&lt;gno-button href=&quot;https://evil.example/claim&quot; label=&quot;Claim your reward&quot; /&gt;</p>
+<pre><code>
+</code></pre>

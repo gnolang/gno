@@ -406,15 +406,19 @@ func (tv *TypedValue) Fprint(w io.Writer, m *Machine) {
 	// and writes the resulting string. The intermediate Go string is
 	// allocated outside the writer's accounting (bounded indirectly by
 	// the gno call's own gas/alloc budget); see ADR for the gap note.
-	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
-		mw.WriteString(res[0].GetString())
-		return
-	}
-	if IsImplementedBy(gErrorType, tv.T) {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
-		mw.WriteString(res[0].GetString())
-		return
+	// Needs a machine (m.Eval, m.GasMeter); without one (debug/test Sprint)
+	// fall through to raw value formatting.
+	if m != nil {
+		if isImplementedBy(m.GasMeter, gStringerType, tv.T) && !tv.IsNilInterface() {
+			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
+			mw.WriteString(res[0].GetString())
+			return
+		}
+		if isImplementedBy(m.GasMeter, gErrorType, tv.T) {
+			res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
+			mw.WriteString(res[0].GetString())
+			return
+		}
 	}
 
 	writeProtectedSprint(mw, *tv, newSeenValues(), true)

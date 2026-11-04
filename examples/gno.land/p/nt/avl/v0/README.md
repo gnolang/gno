@@ -77,8 +77,8 @@ The zero value of `Tree` is a usable empty tree. `Get` returns `nil` for an abse
 
 ## Subpackages
 
-- `gno.land/p/nt/avl/v0/pager` - pagination helper for trees and lists.
-- `gno.land/p/nt/avl/v0/rotree` - read-only view of a `Tree`.
+- `gno.land/p/nt/avl/pager/v0` - pagination helper for trees and lists.
+- `gno.land/p/nt/avl/rotree/v0` - read-only view of a `Tree`.
 
 ## Why AVL over Map?
 

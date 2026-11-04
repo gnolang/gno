@@ -25,6 +25,31 @@ type Application interface {
 	Close() error
 }
 
+// DeferredCommitter is an Application that can hold its commits in memory
+// across blocks and write them when the node says so. During block sync the
+// node holds its own writes too, and writes all of them at flush points: its
+// block store, then its state, then the application (WriteCommits), so that a
+// crash at any instant leaves them consistent. It holds its own writes only
+// while the application defers its commits: an application on disk ahead of
+// the node's records is the one state a restart cannot recover from.
+type DeferredCommitter interface {
+	// DeferCommits makes Commit hold its writes in memory (on), or write them
+	// as before (off), and reports whether the application defers. It is
+	// called only between blocks, with nothing held when turned off.
+	DeferCommits(on bool) bool
+
+	// WriteCommits writes every held commit as one all-or-nothing write.
+	WriteCommits() error
+
+	// HeldBytes returns the bytes of the held writes, which the node keeps
+	// under its budget.
+	HeldBytes() int64
+
+	// NeedsFlushPoint reports that the node must write everything after the
+	// current block: the halt height is reached, or a flush point was required.
+	NeedsFlushPoint() bool
+}
+
 //-------------------------------------------------------
 // BaseApplication is a base form of Application
 

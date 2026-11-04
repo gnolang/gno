@@ -1,17 +1,31 @@
 package valopers
 
 import (
-	"gno.land/p/moul/authz"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/authz/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/avl/v0"
 )
 
 func init() {
 	valopers = avl.NewTree()
 
+	// The authority is pointed at GovDAO, NOT at this realm.
+	//
+	// Pointing it here instead would make the gate compare valopers'
+	// address to valopers' address: every crossing frame of this package
+	// has rlm.Address() == PackageAddress(ownPath), so the check could
+	// never reject. Pointed at r/gov/dao and driven by DoByPrevious
+	// (see updateInstructions), the principal is the realm that crossed
+	// in — GovDAO's executor on the legitimate path, and the caller
+	// itself on any other, which is what makes the check real.
+	//
+	// The handler is a pass-through: this is where an intent check
+	// (timelock, quorum, audit trail) would go if one is ever wanted.
+	// It is NOT where the caller check lives — that is the authority's
+	// contract-identity gate, upstream of here.
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gnops/valopers",
+			"gno.land/r/gov/dao",
 			func(_ string, action authz.PrivilegedAction) error {
 				return action()
 			},

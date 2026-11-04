@@ -60,3 +60,20 @@ Convert the printed milligas table to gas (divide by 1000) and replace the `allo
 | `gen_alloc_table.py` | Parses benchmark output, fits model, generates table + plot |
 | `bench_output_do_dedicated.txt` | Reference benchmark data (DO Dedicated, amd64, Go 1.24) |
 | `bench_output_do_amd64.txt` | Older data from DO Regular (shared vCPU), kept for comparison |
+
+## Op handler constants (`OpCPU*` in `machine.go`)
+
+`op_bench_analysis.txt` is produced from a reference-box run of the op
+benchmarks and compares each fit to the current constant:
+
+```bash
+go test -run='^$' -bench='BenchmarkOp' -benchtime=2s -count=3 -timeout=60m ./pkg/gnolang/ | tee cmd/calibrate/op_bench_do_dedicated.txt
+python3 cmd/calibrate/gen_analysis.py cmd/calibrate/op_bench_do_dedicated.txt pkg/gnolang/machine.go > cmd/calibrate/op_bench_analysis.txt
+```
+
+On other hardware pass a third argument, measured-ns per reference-ns, taken as
+1 ÷ (table ÷ `ns/op(pure)`) over several flat ops marked `ok`; a tight spread
+across ops is what makes the factor trustworthy. `embedwalk_bench_m5_arm64.txt`
+is such a dev-box run (factor 2.1 → `0.476`) behind the `OpCPUSlopeEmbed*`
+constants; SECTION 2b of the report reads their three slopes from
+`BenchmarkOpEmbedWalk`.

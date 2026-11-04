@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button variant="info" label="Reordered" href="/r/test" />
+-- output.html --
+<p><a href="/r/test" class="gno-button gno-button-info">Reordered</a></p>

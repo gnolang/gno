@@ -32,13 +32,13 @@ func syskey(module, submodule, name string) string {
 // assertNotValsetKey rejects governance proposals that target the
 // node:valset:* key family. Those keys are reserved for the realm-side
 // gate in r/sys/params/valset.gno (SetValsetProposal) which checks
-// the immediate caller is gno.land/r/sys/validators/v3. Without this
+// the immediate caller is gno.land/r/sys/validators/v0. Without this
 // guard, a generic NewSysParam*PropRequest("node","valset",...) would
-// let any GovDAO supermajority bypass the v3 authorization and write
+// let any GovDAO supermajority bypass the v0 authorization and write
 // validator-set state directly.
 func assertNotValsetKey(module, submodule string) {
 	if module == "node" && submodule == "valset" {
-		panic("node:valset:* is reserved for r/sys/validators/v3; use it instead of the generic factory")
+		panic("node:valset:* is reserved for r/sys/validators/v0; use it instead of the generic factory")
 	}
 }
 

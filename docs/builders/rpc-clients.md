@@ -18,9 +18,13 @@ Gno.land networks expose several RPC endpoints that allow you to:
 
 1. **Query blockchain state** - Retrieve account information, package data, and more
 2. **Submit transactions** - Send GNOT tokens, call realm functions, and deploy code
-3. **Subscribe to events** - Get real-time updates about blockchain activity
 
-All RPC endpoints for each network can be found in the [Networks documentation](../resources/gnoland-networks.md).
+There is no event subscription: the interface is request-response only, and
+noticing an on-chain event means polling or running an indexer.
+
+The available methods, their encoding, and what the interface does not provide
+are documented in [JSON-RPC endpoints](../resources/rpc-endpoints.md). Node addresses per
+network are listed in the [Networks documentation](../resources/gnoland-networks.md).
 
 ### Query Endpoints
 

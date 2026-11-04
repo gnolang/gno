@@ -29,7 +29,7 @@ package launderrh_pdr_multilevel
 // entry is /r/-victim.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

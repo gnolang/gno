@@ -4,7 +4,7 @@ import (
 	"chain"
 
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/onbloc/json"
+	"gno.land/p/onbloc/json/v0"
 )
 
 type MembersStore struct {

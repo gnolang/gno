@@ -13,7 +13,7 @@ package launderf
 // victim's state (not a fresh attacker literal).
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 

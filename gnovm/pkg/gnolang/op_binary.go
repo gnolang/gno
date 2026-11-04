@@ -377,9 +377,24 @@ func (m *Machine) doOpShl() {
 		}
 	}
 
-	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	// Per-N gas for BigInt Shl: charge per-kilobit of BOTH the shift amount
+	// (output growth) and the current input bit width. Charging only the
+	// shift amount left chained shifts undercharged — e.g.
+	// 1<<10000<<10000<<... grows the operand by ~10000 bits each step (each
+	// shift is within maxBigintShift, so the per-shift cap never trips) while
+	// gas stayed flat, so the accumulating O(bits) copy cost was free. The
+	// incrCPUBigUnary term (mirroring doOpShr) makes gas track operand size.
 	if lv.T == UntypedBigintType {
-		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+		// Clamp before the multiply: rv is unvalidated here (shlAssign
+		// enforces maxBigintShift only later), so an amount above
+		// ~2.4e17 makes int64(rv.GetUint())*OpCPUSlopeBigIntShl wrap
+		// negative and incrCPU panics "gas must not be negative"
+		// instead of the real "shift amount exceeds maximum". Anything
+		// over the cap panics in shlAssign regardless, so clamping
+		// cannot under-charge an operation that actually runs.
+		shift := min(rv.GetUint(), uint64(maxBigintShift))
+		m.incrCPU(int64(shift) * OpCPUSlopeBigIntShl / 1024)
+		m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShl)
 	}
 
 	// lv << rv

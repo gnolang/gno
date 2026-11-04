@@ -11,7 +11,7 @@ loadpkg gno.land/r/nt/commondao/v0
 
 # Make test1 the sole genesis council member (the two hardcoded members
 # collapse into a one-address set, so a single YES is a supermajority).
-patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx $test1_user_addr
 patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
 
 gnoland start

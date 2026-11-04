@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/bylaws/v0"
 	"gno.land/p/nt/commondao/v0"

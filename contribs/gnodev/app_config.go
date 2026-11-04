@@ -19,9 +19,10 @@ type AppConfig struct {
 	premineAccounts varPremineAccounts
 
 	// Files
-	balancesFile string
-	genesisFile  string
-	txsFile      string
+	balancesFile     string
+	genesisFile      string
+	txsFile          string
+	validatorKeyFile string
 
 	// Web Configuration
 	noWeb                bool
@@ -32,6 +33,7 @@ type AppConfig struct {
 	webHome              string
 	webAnalytics         bool
 	webAnalyticsHostname string
+	webIPFSGateway       string
 
 	// Loader
 	noExamples                 bool
@@ -143,6 +145,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
 	)
 
+	fs.StringVar(
+		&c.webIPFSGateway,
+		"web-ipfs-gateway",
+		defaultCfg.webIPFSGateway,
+		"gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
+	)
+
 	fs.BoolVar(
 		&c.withoutQuarantinedExamples,
 		"without-quarantined-examples",
@@ -194,6 +203,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"genesis",
 		defaultCfg.genesisFile,
 		"load the given genesis file",
+	)
+
+	fs.StringVar(
+		&c.validatorKeyFile,
+		"validator-key-file",
+		defaultCfg.validatorKeyFile,
+		"load the validator key from the given priv_validator_key.json file instead of generating one (no double-sign protection: never use a production key)",
 	)
 
 	fs.StringVar(

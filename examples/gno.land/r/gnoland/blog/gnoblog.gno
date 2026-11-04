@@ -3,7 +3,7 @@ package blog
 import (
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/blog"
+	"gno.land/p/gnoland/blog/v0"
 )
 
 var b = &blog.Blog{

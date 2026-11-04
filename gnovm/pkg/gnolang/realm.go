@@ -1982,6 +1982,10 @@ func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 //     mint NewTime from the OWNING realm's counter
 //     (rlm.touchForeignRealm). Record the touched foreign realm
 //     so FinalizeRealmTransaction's batch-drain persists it.
+//   - rlm's own package value takes the reserved NewTime that
+//     ObjectIDFromPkgID names, without minting: a package path
+//     resolves to that one id, so a deployment over a realm whose
+//     counter has already moved replaces the object there.
 //   - Otherwise, mint NewTime from rlm's counter (the self case).
 func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	oid := oo.GetObjectID()
@@ -2021,6 +2025,13 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		// take pre-allocated targets as out-parameters.
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
+	}
+	if _, isPkg := oo.(*PackageValue); isPkg && oid.PkgID == rlm.ID {
+		reserved := ObjectIDFromPkgID(rlm.ID)
+		oo.SetNewTime(reserved.NewTime)
+		// A counter below the reserved id would hand it out again.
+		rlm.Time = max(rlm.Time, reserved.NewTime)
+		return oo.GetObjectID()
 	}
 	targetRlm := rlm
 	if oid.PkgID != rlm.ID {

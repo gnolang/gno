@@ -6,12 +6,39 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 )
 
 var (
 	reFloat    = regexp.MustCompile(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`)
 	reHexFloat = regexp.MustCompile(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`)
 )
+
+// chargeBigLitParse charges quadratic CPU gas for the O(n^2) parse of an
+// untyped bigint/bigdec literal (big.Int.SetString / big.ParseFloat) before it
+// runs, so a huge literal OOGs first: gas = (chars/10)^2 * slope / 10, via
+// overflow.Mulp as in incrCPUBigDecQuad.
+//
+// rawLen must be len(x.Value) with x.Value unmutated, i.e. the literal as
+// written in source with separators included: the blank-identifier strip
+// scans (and may copy) the whole literal outside m.Alloc, so charging on the
+// stripped length would leave that pass unbilled and, worse, would bill a
+// node's first evaluation differently from later ones. doOpEval therefore
+// must not write the stripped form back into the AST node. Pinned by
+// TestBigLitParseChargeIsEvalInvariant; see the ADR for why that is latent
+// rather than reachable today.
+func (m *Machine) chargeBigLitParse(rawLen int, slope int64) {
+	d10 := int64(rawLen) / 10 // chars/10; prefix, '.', exponent and separators all counted
+	m.incrCPU(overflow.Mulp(overflow.Mulp(d10, d10), slope) / 10)
+}
+
+// stripBlanks removes the blank identifiers Go allows as digit separators in
+// numeric literals. It deliberately returns a new string rather than updating
+// the AST node in place; see chargeBigLitParse.
+func stripBlanks(value string) string {
+	return strings.ReplaceAll(value, blankIdentifier, "")
+}
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
@@ -48,36 +75,37 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		switch x.Kind {
 		case INT:
-			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
+			m.chargeBigLitParse(len(x.Value), OpCPUSlopeBigIntSetString)
+			value := stripBlanks(x.Value)
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
 			var ok bool
-			if len(x.Value) >= 2 && x.Value[0] == '0' {
-				switch x.Value[1] {
+			if len(value) >= 2 && value[0] == '0' {
+				switch value[1] {
 				case 'b', 'B':
-					_, ok = bi.SetString(x.Value[2:], 2)
+					_, ok = bi.SetString(value[2:], 2)
 				case 'o', 'O':
-					_, ok = bi.SetString(x.Value[2:], 8)
+					_, ok = bi.SetString(value[2:], 8)
 				case 'x', 'X':
-					_, ok = bi.SetString(x.Value[2:], 16)
+					_, ok = bi.SetString(value[2:], 16)
 				case '0', '1', '2', '3', '4', '5', '6', '7':
-					_, ok = bi.SetString(x.Value, 8)
+					_, ok = bi.SetString(value, 8)
 				default:
 					ok = false
 				}
 				if !ok {
 					panic(fmt.Sprintf(
 						"invalid integer constant: %s",
-						x.Value))
+						value))
 				}
 			} else {
-				_, ok := bi.SetString(x.Value, 10)
+				_, ok := bi.SetString(value, 10)
 				if !ok {
 					panic(fmt.Sprintf(
 						"invalid integer constant: %s",
-						x.Value))
+						value))
 				}
 			}
 			m.PushValue(TypedValue{
@@ -85,22 +113,26 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
+			// Charge FLOAT too: a trailing ".0"/"e1" routes an integer through
+			// parseBigdecLiteral (big.ParseFloat + big.Rat.SetString), so an
+			// INT-only charge is trivially bypassed.
+			m.chargeBigLitParse(len(x.Value), OpCPUSlopeBigDecParse)
+			value := stripBlanks(x.Value)
 
-			if reFloat.MatchString(x.Value) {
+			if reFloat.MatchString(value) {
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: parseBigdecLiteral(x.Value, "decimal"),
+					V: parseBigdecLiteral(value, "decimal"),
 				})
 				return
-			} else if reHexFloat.MatchString(x.Value) {
+			} else if reHexFloat.MatchString(value) {
 				m.PushValue(TypedValue{
 					T: UntypedBigdecType,
-					V: parseBigdecLiteral(x.Value, "hex float"),
+					V: parseBigdecLiteral(value, "hex float"),
 				})
 				return
 			} else {
-				panic(fmt.Sprintf("unexpected decimal/float format %s", x.Value))
+				panic(fmt.Sprintf("unexpected decimal/float format %s", value))
 			}
 		case IMAG:
 			// NOTE: this is a syntax and grammar problem, not an

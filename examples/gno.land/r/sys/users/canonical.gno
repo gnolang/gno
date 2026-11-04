@@ -9,7 +9,7 @@ import (
 // canonicalStore maps canonicalized full names to the original name
 // that was registered. Keyed by the result of Canonicalize.
 //
-// Multiple controllers (namereg/v1, future registries, governance,
+// Multiple controllers (namereg/v0, future registries, governance,
 // genesis bootstrapping) all share this single store via RegisterUser
 // and the bypass variant RegisterUserIgnoreCanonical. Cross-controller
 // canonical-collision detection is uniform and atomic with the

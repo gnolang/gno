@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+<gno-button href="/r/evil" label="Claim" />
+  <gno-button href="/r/evil" label="Indented" />
+-- output.md --
+
+
+\<gno-button href="/r/evil" label="Claim" />
+  \<gno-button href="/r/evil" label="Indented" />
+
+-- output.html --
+<p>&lt;gno-button href=&quot;/r/evil&quot; label=&quot;Claim&quot; /&gt;
+&lt;gno-button href=&quot;/r/evil&quot; label=&quot;Indented&quot; /&gt;</p>

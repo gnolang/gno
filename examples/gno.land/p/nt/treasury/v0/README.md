@@ -21,7 +21,7 @@ import (
     "chain/banker"
     "chain/runtime"
 
-    "gno.land/p/demo/tokens/grc20"
+    "gno.land/p/nt/grc20/v0"
     "gno.land/p/nt/treasury/v0"
 )
 

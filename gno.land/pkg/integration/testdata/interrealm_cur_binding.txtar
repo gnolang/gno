@@ -1,0 +1,198 @@
+# The crossing `cur` binding is fixed for the life of the frame.
+#
+# `cur` names the realm a crossing frame is executing as. A crossing function
+# entered WITHOUT cross() takes its frame identity from the `cur` it is handed,
+# so a `cur` that was rebound along the way carries a realm the caller is not in
+# into the callee, where IsCurrent() and cross(rlm) then agree with it.
+#
+# Preprocess refuses every source-level write into that slot: assignment,
+# address-of, and range assignment. Each has its own case below because each
+# reaches the slot through a different node type, and the first two rules were
+# each found incomplete by the next one. doOpCall carries the matching runtime
+# check for anything the syntactic rules miss.
+#
+# Code that threads `cur` unchanged is unaffected — the positive control.
+
+loadpkg gno.land/r/gnoland/wugnot
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+# POSITIVE CONTROL: a realm that threads `cur` unchanged into a no-cross
+# crossing helper compiles and works.
+gnokey maketx addpkg -pkgdir $WORK/thread -pkgpath gno.land/r/test/thread -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/thread -func Do -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/test/thread:'
+stdout 'ok=true'
+
+# ASSIGNMENT, forwarded to a registry wrapper.
+! gnokey maketx addpkg -pkgdir $WORK/wrapper -pkgpath gno.land/r/test/wrapper -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# ASSIGNMENT, forwarded to a realm-send banker. Same rule, and worth its own
+# case: `banker.NewBanker(BankerTypeRealmSend, cur)` reads the frame identity
+# straight out of the value it is given.
+! gnokey maketx addpkg -pkgdir $WORK/bankersend -pkgpath gno.land/r/test/bankersend -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# ASSIGNMENT, forwarded across a realm boundary with cross().
+! gnokey maketx addpkg -pkgdir $WORK/relay -pkgpath gno.land/r/test/relay -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# ASSIGNMENT via a local: `v := cur.Previous(); cur = v`. The rule keys on the
+# left-hand side, so routing the value through a local changes nothing.
+! gnokey maketx addpkg -pkgdir $WORK/indirect -pkgpath gno.land/r/test/indirect -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot reassign the crossing .cur. parameter'
+
+# ADDRESS-OF: `p := &cur; *p = cur.Previous()` writes the same parameter slot
+# through a StarExpr, which no assignment rule matches. It used to compile and
+# fail only when called; it is refused at compile time now.
+! gnokey maketx addpkg -pkgdir $WORK/addrof -pkgpath gno.land/r/test/addrof -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot take the address of a realm-typed .cur.'
+
+# RANGE ASSIGNMENT: `for _, cur = range rs` writes the same slot without being
+# an assignment statement and without taking an address, so neither rule above
+# sees it. It too used to compile and fail only when called.
+! gnokey maketx addpkg -pkgdir $WORK/rangeasg -pkgpath gno.land/r/test/rangeasg -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot assign to a realm-typed .cur. in a range clause'
+
+-- thread/gnomod.toml --
+module = "gno.land/r/test/thread"
+gno = "0.9"
+
+-- thread/thread.gno --
+package thread
+
+var done bool
+
+// Do threads its own live `cur` into a no-cross crossing helper — the
+// ordinary pattern. `cur` is never rebound, so the helper inherits the
+// realm Do is genuinely executing as.
+func Do(cur realm) {
+	helper(cur)
+}
+
+func helper(cur realm) {
+	done = cur.IsCurrent() // true: cur genuinely names this realm
+}
+
+func Render(path string) string {
+	if done {
+		return "ok=true"
+	}
+	return "ok=false"
+}
+
+-- wrapper/gnomod.toml --
+module = "gno.land/r/test/wrapper"
+gno = "0.9"
+
+-- wrapper/wrapper.gno --
+package wrapper
+
+import "gno.land/r/nt/grc20reg/v0"
+
+func Send(cur realm, to address, amount int64) {
+	cur = cur.Previous()
+	grc20reg.Transfer(0, cur, "gno.land/r/gnoland/wugnot.wugnot", to, amount)
+}
+
+-- bankersend/gnomod.toml --
+module = "gno.land/r/test/bankersend"
+gno = "0.9"
+
+-- bankersend/bankersend.gno --
+package bankersend
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func Send(cur realm, to address, amount int64) {
+	cur = cur.Previous()
+	send(cur, to, amount)
+}
+
+func send(cur realm, to address, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), to, chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+-- relay/gnomod.toml --
+module = "gno.land/r/test/relay"
+gno = "0.9"
+
+-- relay/relay.gno --
+package relay
+
+import "gno.land/r/test/thread"
+
+func Hook(cur realm) {
+	cur = cur.Previous()
+	relay(cur)
+}
+
+func relay(cur realm) {
+	thread.Do(cross(cur))
+}
+
+-- indirect/gnomod.toml --
+module = "gno.land/r/test/indirect"
+gno = "0.9"
+
+-- indirect/indirect.gno --
+package indirect
+
+func Hook(cur realm) {
+	v := cur.Previous()
+	cur = v
+	relay(cur)
+}
+
+func relay(cur realm) {
+	_ = cur.IsCurrent()
+}
+
+-- addrof/gnomod.toml --
+module = "gno.land/r/test/addrof"
+gno = "0.9"
+
+-- addrof/addrof.gno --
+package addrof
+
+// Nothing here is an AssignStmt with `cur` on the left, so the reassignment
+// rule does not match; the write lands in the parameter slot all the same, and
+// `observe` would inherit the rebound value as its frame identity.
+func Hook(cur realm) {
+	p := &cur
+	*p = cur.Previous()
+	observe(cur)
+}
+
+func observe(cur realm) {
+	_ = cur.IsCurrent()
+}
+
+-- rangeasg/gnomod.toml --
+module = "gno.land/r/test/rangeasg"
+gno = "0.9"
+
+-- rangeasg/rangeasg.gno --
+package rangeasg
+
+// No AssignStmt with `cur` on the left, no address taken — the write lands in
+// the parameter slot all the same.
+func Hook(cur realm) {
+	rs := []realm{cur.Previous()}
+	for _, cur = range rs {
+	}
+	observe(cur)
+}
+
+func observe(cur realm) {
+	_ = cur.IsCurrent()
+}
