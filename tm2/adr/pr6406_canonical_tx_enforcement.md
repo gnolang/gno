@@ -3,8 +3,9 @@
 ## Status
 
 Proposed. Follows `tm2/adr/pr6404_tx_canonical_encoding.md`, which analysed
-the problem and added `amino.UnmarshalCanonical`, and #6399, which takes the
-zero session address off the wire with `amino:"skip_zero"`.
+the problem and added `amino.UnmarshalCanonical` (merged 2026-11-03), and
+#6399, which takes the zero session address off the wire with
+`amino:"skip_zero"` (merged 2026-11-02).
 
 ## Context
 
@@ -36,6 +37,15 @@ dereferenced it and the recover in `runTx` reported an internal error, at
 about sixteen times the CPU of a decode error and charged no gas. The
 explicit check closes that path (found in review of #6404).
 
+`vm.MsgAddPackage.ValidateBasic` and `vm.MsgRun.ValidateBasic` refuse a nil
+`Package` with `ErrInvalidPkgPath`. Such a message is non-nil and in its
+canonical encoding, so it passes both checks above; `ValidateBasic` then
+dereferenced it, and the recovered panic cost about thirteen times a clean
+rejection (found in review of this change). The other seven messages gno.land
+registers already return clean errors. A delivered tx's error type is part of
+its result, and so of the block's results hash, which is why the guard rides
+this halt rather than a rolling release.
+
 The rule reaches a chain through the coordinated halt mechanism from #5368,
 which gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to
 the enforcing release, so an old binary cannot restart past the halt and a
@@ -47,9 +57,9 @@ produced them. The release it rides is the next coordinated release on the
 mainnet line after `v1.5.1`, the current rolling release; its release page
 and the halt announcement name the height once the proposal has executed.
 Merge order:
-#6399, then #6404, then this change, then the related `runTx` tx-encoding
-change queued behind it, so the interaction is settled before merge rather
-than discovered at it.
+#6399 and #6404 first, both merged, then this change, then the related `runTx`
+tx-encoding change queued behind it, so the interaction is settled before
+merge rather than discovered at it.
 
 ## Alternatives considered
 
@@ -101,8 +111,10 @@ than discovered at it.
   with a signed tx: an explicit empty memo, a padded tag, a padded value
   inside the fee, a padded length inside the message `Any`, and the
   written-out zero session address every Go client produced before #6399,
-  each decoding to the same signed tx and each rejected. The last case is a
-  test of its own that stands down while the encoder still writes that
-  address, that is until #6399 is in the tree; before it the written-out form
-  is the canonical one and the omitted form is not, the reverse of what the
-  clients emit.
+  each decoding to the same signed tx and each rejected. The last case lives
+  in #6399's `TestDeliverTxZeroSessionAddr`, flipped as its own comment
+  anticipated: the old bytes, built by its `legacyTxBytes`, are refused as a
+  decode error where they used to deliver, and the app-hash, tampered
+  signature and per-byte gas comparisons that held only while they delivered
+  are gone. A nil `Package` in `MsgAddPackage` and `MsgRun` is refused as a
+  bad request in both modes, with no recovered panic.
