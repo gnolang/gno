@@ -33,8 +33,29 @@ stderr 'illegal conversion of readonly or externally stored value'
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeclRange -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 stderr 'illegal conversion of readonly or externally stored value'
 
+# A spread into a method on a receiver another realm stores converts in the
+# caller's realm, before the method's frame takes the receiver's.
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeclArgBorrowed -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
 gnokey query vm/qeval --data 'gno.land/r/test/members.First()'
 stdout 'data: \("alice" string\)'
+
+# Another realm's stored map through each source.
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func MapReturn -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func MapArg -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func MapComma -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func MapRange -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+gnokey query vm/qeval --data 'gno.land/r/test/members.Setting()'
+stdout 'data: \("orig" string\)'
 
 # Another realm's type built through each source.
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeReturn -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
@@ -60,6 +81,10 @@ stdout '"own-return own-decl" string'
 gnokey maketx call -pkgpath gno.land/r/test/caller -func Box -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 stdout '"alice alice alice alice" string'
 
+# So does a declared interface, through each source.
+gnokey maketx call -pkgpath gno.land/r/test/caller -func BoxDeclared -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '"alice alice alice alice" string'
+
 -- members/gnomod.toml --
 module = "gno.land/r/test/members"
 gno = "0.9"
@@ -76,6 +101,25 @@ func Lists() [][]string { return [][]string{list} }
 func Map() map[string][]string { return map[string][]string{"k": list} }
 
 func First() string { return list[0] }
+
+var settings = map[string]string{"k": "orig"}
+
+func Settings() map[string]string { return settings }
+
+func AllSettings() []map[string]string { return []map[string]string{settings} }
+
+func Setting() string { return settings["k"] }
+
+// Names has a method writing through it, under the realm of Holder's receiver.
+type Names []string
+
+type Holder struct{ N int }
+
+var holder = &Holder{}
+
+func StoredHolder() *Holder { return holder }
+
+func (h *Holder) Take(a, _ Names) { a[0] = "changed" }
 
 -- vault/gnomod.toml --
 module = "gno.land/r/test/vault"
@@ -104,6 +148,10 @@ package pun
 type L []string
 
 func (l L) Set(i int, v string) { l[i] = v }
+
+type M map[string]string
+
+func (m M) Put(k, v string) { m[k] = v }
 
 -- caller/gnomod.toml --
 module = "gno.land/r/test/caller"
@@ -158,6 +206,35 @@ func DeclRange(cur realm) {
 	}
 }
 
+func DeclArgBorrowed(cur realm) { members.StoredHolder().Take(pair()) }
+
+func settings() (map[string]string, int) { return members.Settings(), 0 }
+
+func retM() (pun.M, int) { return settings() }
+
+func MapReturn(cur realm) {
+	m, _ := retM()
+	m.Put("k", "changed")
+}
+
+func takeM(m pun.M, _ int) { m.Put("k", "changed") }
+
+func MapArg(cur realm) { takeM(settings()) }
+
+func MapComma(cur realm) {
+	src := map[string]map[string]string{"k": members.Settings()}
+	var m pun.M
+	m, _ = src["k"]
+	m.Put("k", "changed")
+}
+
+func MapRange(cur realm) {
+	var m pun.M
+	for _, m = range members.AllSettings() {
+		m.Put("k", "changed")
+	}
+}
+
 func mk() (struct{ Field string }, struct{ Field string }) {
 	return struct{ Field string }{"changed"}, struct{ Field string }{"changed"}
 }
@@ -201,6 +278,22 @@ func Box(cur realm) string {
 	for _, c = range members.Lists() {
 	}
 	return a.([]string)[0] + " " + b.([]string)[0] + " " + c.([]string)[0] + " " + boxParams(pair())
+}
+
+type I interface{}
+
+func boxDeclaredPair() (I, I) { return pair() }
+
+func boxDeclaredParams(a, _ I) string { return a.([]string)[0] }
+
+func BoxDeclared(cur realm) string {
+	a, _ := boxDeclaredPair()
+	var b I
+	b, _ = members.Map()["k"]
+	var c I
+	for _, c = range members.Lists() {
+	}
+	return a.([]string)[0] + " " + b.([]string)[0] + " " + c.([]string)[0] + " " + boxDeclaredParams(pair())
 }
 
 func ownPair() ([]string, []string) { return []string{"a"}, nil }

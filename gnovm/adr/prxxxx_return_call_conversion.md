@@ -29,10 +29,16 @@ statement or call, as `ATTR_ASSIGN_CONVERT` already does for `a, b = f()`:
   any return op reads the results, so named results and defers see the new type.
 - `g(f())`: `doOpPrecall` and `doOpDefer` convert on the operand stack, before a
   frame can move `m.Realm` to a receiver's realm.
-- Comma-ok: `doOpAssign`'s existing loop.
+- Comma-ok: `doOpAssign`'s existing loop, the `ok` slot included where it goes
+  into a declared bool.
 - Range: each write to the key or value target.
 
 A program with none of these shapes costs the same gas.
+
+A refusal is now a panic through `m.PanicString`, as the readonly refusals of
+`append`, `copy` and `delete` are, so a realm's `recover()` catches it. `T(x)`
+shares `convertValue`, so it changes with them. A package-level `var` has no call
+on the stack to unwind, so a refusal there stays a Go panic.
 
 ## Alternatives
 
@@ -49,9 +55,19 @@ A program with none of these shapes costs the same gas.
 ## Consequences
 
 - Consensus-affecting. A program moving another realm's stored value or building
-  another realm's type through these shapes now aborts, as the explicit
+  another realm's type through these shapes now panics, as the explicit
   conversion does, including an honest `return vault.Two()` over stored values of
   a type differing by name.
+- A `/p/` package reading its own package-level data through these shapes panics
+  too, since its caller's realm does not own that data:
+  `func Multi() (Names, bool) { return raw() }` fails as `Names(table)` does. A
+  deployed `/p/` package cannot be changed, so such a function stays unusable.
+- A program that recovers a refusal carries on: a range keeps the writes of the
+  iterations before it, and a `T(x)` that used to end the transaction no longer
+  does. An unrecovered refusal still reverts the whole transaction, after the
+  deferred functions run.
+- A comma-ok `ok` going into a declared bool has that type, as in Go, and pays one
+  conversion.
 - `var a, b T = f()` is `gno-fixes#342`'s.
 - A value of the wrong type stored before this change keeps its type, and
   `var m T = x` and `*p` still set the static type on it.

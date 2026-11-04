@@ -161,6 +161,7 @@ FLAT_OPS = {
     'BenchmarkOpReturnAfterCopy': ('ReturnAfterCopy', 'ReturnAfterCopy'),
     'BenchmarkOpReturnFromBlock': ('ReturnFromBlock', 'ReturnFromBlock'),
     'BenchmarkOpReturnToBlock': ('ReturnToBlock', 'ReturnToBlock'),
+    'BenchmarkOpReturnConvert': ('ReturnConvert', 'ReturnConvert'),
     'BenchmarkOpPanic2': ('Panic2', 'Panic2'),
     'BenchmarkOpChanType': ('ChanType', 'ChanType'),
     'BenchmarkOpMapType': ('MapType', 'MapType'),

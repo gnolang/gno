@@ -9,8 +9,10 @@ import (
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	// `g(f())`: convert before the frame can move m.Realm to a receiver's realm.
-	if convs, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
-		m.convertResults(convs)
+	if len(cx.Args) == 1 && cx.NumArgs > 1 {
+		if convs, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+			m.convertResults(convs)
+		}
 	}
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {

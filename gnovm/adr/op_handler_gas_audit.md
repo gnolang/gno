@@ -122,6 +122,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | doOpReturnAfterCopy | Number of return values; heap-defined results; realm | Many named results heap-defined + realm crossing | Per-result Copy + realm finalization |
 | doOpReturnFromBlock | Number of return values; fillValueTV complexity | Many named returns with RefValues/HeapItemValues | O(results) fillValueTV may deref recursively; store lookups |
 | doOpReturnToBlock | Number of return values | Many named returns | O(results) AssignToBlock + Copy |
+| doOpReturnConvert | Number of results; how many differ by name | Many results that all differ by name | O(results) walk with a Copy per conversion; each conversion is charged in convertValue |
 | doOpReturnCallDefers | Number of defers; capture count; variadic args; native vs Gno | Many defers with many captures + variadic params | Per-defer: PushFrameCall + NewBlock O(NumNames) + captures copy O(n) + popCopyArgs O(nvar) |
 | doOpDefer | Argument count; variadic expansion; BoundMethod receiver; captures | Variadic with many args + receiver + captures | MustPeekCallFrame O(frames); popCopyArgs O(nvar) slice alloc + element copy |
 | doOpPanic2 | Frame depth; exception chain depth | Deep call stack with nested exceptions | PopUntilLastCallFrame O(n frames); if unhandled: makeUnhandledPanicError O(numExceptions × Sprint cost) |
@@ -182,7 +183,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 8. doOpTypeAssert2 interface — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
 9. doOpFuncLit with captures — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
 10. doOpCall — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
-11. doOpReturn — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
+11. doOpReturn — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock + ReturnConvert
 12. doOpDefer — BenchmarkOpDefer_{1,10,100}Args
 13. doOpExec OpForLoop — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
 14. doOpExec OpRangeIter — BenchmarkOpRangeIter_{1,10,100,1000}

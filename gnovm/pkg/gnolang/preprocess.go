@@ -2299,7 +2299,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							mustAssignableTo(store, n, tv.T, pt)
 							// A result differing only by name needs the
 							// conversion a single argument gets.
-							if !isGeneric(pt) && pt.Kind() != InterfaceKind && isNamedConversion(tv.T, pt) {
+							if pt.Kind() != InterfaceKind && isNamedConversion(tv.T, pt) {
 								if convs == nil {
 									convs = make([]Type, len(argTVs))
 								}
@@ -2935,9 +2935,21 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if tt, ok := rt.(*tupleType); ok {
 								rt = tt.Elts[0]
 							}
+							var convs []Type
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
 							if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(rt, lt) {
-								n.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{lt, nil})
+								convs = []Type{lt, nil}
+							}
+							// bool and a declared bool both count as named, so
+							// isNamedConversion cannot see `ok` needs converting.
+							if dt, ok := evalStaticTypeOf(store, last, n.Lhs[1]).(*DeclaredType); ok {
+								if convs == nil {
+									convs = make([]Type, 2)
+								}
+								convs[1] = dt
+							}
+							if convs != nil {
+								n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
 							}
 						}
 					} else { // len(Lhs) == len(Rhs)
@@ -5063,34 +5075,6 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 
 // isNamedConversion returns true if assigning a value of type
 // xt (rhs) into a value of type t (lhs) entails an implicit type conversion.
-// setRangeConversions records on n.Key and n.Value the conversion each needs
-// from the type `for k, v = range x` yields, as `a, b = f()` does.
-func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
-	var kt, vt Type
-	switch bt := baseOf(evalStaticTypeOf(store, last, n.X)).(type) {
-	case *SliceType:
-		vt = bt.Elt
-	case *ArrayType:
-		vt = bt.Elt
-	case *PointerType:
-		vt = baseOf(bt.Elt).(*ArrayType).Elt
-	case *MapType:
-		kt, vt = bt.Key, bt.Value
-	}
-	for _, c := range []struct {
-		x Expr
-		t Type
-	}{{n.Key, kt}, {n.Value, vt}} {
-		if c.x == nil || c.t == nil {
-			continue
-		}
-		lt := evalStaticTypeOf(store, last, c.x)
-		if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(c.t, lt) {
-			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, lt)
-		}
-	}
-}
-
 // xt is the result of an expression type.
 //
 // In a few special cases, we should not perform the conversion:
@@ -5123,6 +5107,34 @@ func isNamedConversion(xt, t Type) bool {
 		}
 	}
 	return false
+}
+
+// setRangeConversions records on n.Key and n.Value the conversion each needs
+// from the type `for k, v = range x` yields, as `a, b = f()` does.
+func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
+	var kt, vt Type
+	switch bt := baseOf(evalStaticTypeOf(store, last, n.X)).(type) {
+	case *SliceType:
+		vt = bt.Elt
+	case *ArrayType:
+		vt = bt.Elt
+	case *PointerType:
+		vt = baseOf(bt.Elt).(*ArrayType).Elt
+	case *MapType:
+		kt, vt = bt.Key, bt.Value
+	}
+	for _, c := range []struct {
+		x Expr
+		t Type
+	}{{n.Key, kt}, {n.Value, vt}} {
+		if c.x == nil || c.t == nil {
+			continue
+		}
+		lt := evalStaticTypeOf(store, last, c.x)
+		if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(c.t, lt) {
+			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, lt)
+		}
+	}
 }
 
 // checkArrayAllocFits rejects a fixed-size array of element type et and the given

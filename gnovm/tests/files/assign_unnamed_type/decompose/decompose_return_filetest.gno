@@ -46,6 +46,24 @@ func param(a, b nmap) { println("param", kind(a), a.M(), kind(b)) }
 
 func vararg(xs ...nmap) { println("vararg", kind(xs[0]), kind(xs[1])) }
 
+type Flag bool
+
+func (Flag) M() string { return "flag" }
+
+type Mer interface{ M() string }
+
+var storedFlag Flag
+
+func kindFlag(x any) string {
+	switch x.(type) {
+	case Flag:
+		return "Flag"
+	case bool:
+		return "bool"
+	}
+	return "other"
+}
+
 func kind(x any) string {
 	switch x.(type) {
 	case nmap:
@@ -102,6 +120,19 @@ func main() {
 	o, _ = boxed.(map[string]int)
 	println("assert", kind(o), o.M())
 
+	// `ok` going into a declared bool and a package variable.
+	var flag Flag
+	_, flag = src["k"]
+	println("comma-flag", kindFlag(flag), flag.M())
+	_, flag = boxed.(map[string]int)
+	println("assert-flag", kindFlag(flag), flag.M())
+	o, flag = src["k"]
+	println("both", kind(o), kindFlag(flag))
+	_, storedFlag = src["k"]
+	println("pkgvar-flag", kindFlag(storedFlag))
+	var mer Mer = flag
+	println("iface-flag", mer.M())
+
 	// A result spread over parameters, a variadic one and a deferred call.
 	param(unamed())
 	vararg(unamed())
@@ -110,10 +141,13 @@ func main() {
 		defer param(unamed())
 	}()
 
-	// A range assignment over a slice, an array pointer and a map.
+	// A range assignment over a slice, an array, an array pointer and a map.
 	var rv nmap
 	for _, rv = range []map[string]int{{"a": 1}} {
 		println("range", kind(rv), rv.M())
+	}
+	for _, rv = range [1]map[string]int{{"a": 1}} {
+		println("rangearray", kind(rv), rv.M())
 	}
 	for _, rv = range &[1]map[string]int{{"a": 1}} {
 		println("rangeptr", kind(rv), rv.M())
@@ -139,10 +173,16 @@ func main() {
 // comma nmap nmap
 // missing nmap true
 // assert nmap nmap
+// comma-flag Flag flag
+// assert-flag Flag flag
+// both nmap Flag
+// pkgvar-flag Flag
+// iface-flag flag
 // param nmap nmap nmap
 // vararg nmap nmap
 // bound nmap nmap
 // param nmap nmap nmap
 // range nmap nmap
+// rangearray nmap nmap
 // rangeptr nmap nmap
 // rangemap T 2 nmap

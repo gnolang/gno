@@ -802,6 +802,15 @@ func (m *Machine) doOpConvert() {
 	m.PushValue(xv)
 }
 
+// Panics with msg, which a realm's recover() catches. With no call on the stack,
+// in a package-level var, nothing can recover and pushPanic has no frame to unwind.
+func (m *Machine) refuseConversion(msg string) {
+	if m.PeekCallFrame(1) == nil {
+		panic(msg)
+	}
+	m.PanicString(msg)
+}
+
 // convertValue converts xv, a copy the caller owns, to t in place. Besides
 // explicit conversions, it applies the implicit named<->unnamed conversion of
 // a multi-value assignment (see ATTR_ASSIGN_CONVERT), so both get the same gas
@@ -844,7 +853,7 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 				// Allow conversion from []byte to string
 				// As it does not modify the value stored in the slice.
 			} else {
-				panic("illegal conversion of readonly or externally stored value")
+				m.refuseConversion("illegal conversion of readonly or externally stored value")
 			}
 		}
 	}
@@ -857,7 +866,7 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 		// A nil pointer points at nothing, so it forges nothing.
 		isNilPtr := t.Kind() == PointerKind && xv.V == nil
 		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-			panic("illegal conversion to external realm type")
+			m.refuseConversion("illegal conversion to external realm type")
 		}
 	}
 
