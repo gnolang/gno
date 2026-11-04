@@ -665,6 +665,12 @@ func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath strin
 	if gm.Private && !gno.IsRealmPath(pkgPath) {
 		return ErrInvalidPackage("private packages must be realm packages")
 	}
+	// The informational [source] section. gnomod.File.Validate skips it so a
+	// bad one never makes a stored file unreadable; this is where it is refused.
+	// MsgRun does not reach here, so its behaviour is unchanged.
+	if err := gm.Source.Validate(); err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
 	if gm.Draft && height > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
 	}
