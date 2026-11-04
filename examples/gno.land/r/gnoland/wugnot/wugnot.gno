@@ -11,7 +11,7 @@ import (
 	"chain/banker"
 	"chain/runtime"
 	"chain/runtime/unsafe"
-	"math"
+	"math/overflow"
 	"strconv"
 	"strings"
 
@@ -66,11 +66,12 @@ func Withdraw(cur realm, amount uint256) {
 	// an int64 chain coin amount, so supply, and any single balance, is at most
 	// math.MaxInt64, and the balance check above has already refused anything
 	// larger.
-	require(amount <= math.MaxInt64, "Withdrawal exceeds the ugnot range: "+fmtAmount(amount)+" wugnot.")
+	ugnot, ok := overflow.Uint256ToInt64(amount)
+	require(ok, "Withdrawal exceeds the ugnot range: "+fmtAmount(amount)+" wugnot.")
 
 	// send swapped ugnots to qcaller
 	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend, cur)
-	send := chain.Coins{{"ugnot", int64(amount)}}
+	send := chain.Coins{{"ugnot", ugnot}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
 	checkErr(adm.Burn(caller, amount))
 }

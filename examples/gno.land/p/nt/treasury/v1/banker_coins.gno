@@ -4,7 +4,6 @@ import (
 	"chain"
 	"chain/banker"
 	"errors"
-	"math"
 	"math/overflow"
 	"strconv"
 
@@ -168,8 +167,9 @@ var ErrCoinAmountOutOfRange = errors.New("coins payment amounts must be in [1, M
 // coinAmount range-checks a uint256 amount down to a positive int64 chain
 // coin amount.
 func coinAmount(amount uint256) (int64, error) {
-	if amount == 0 || amount > math.MaxInt64 {
+	n, ok := overflow.Uint256ToInt64(amount)
+	if !ok || n == 0 {
 		return 0, ErrCoinAmountOutOfRange
 	}
-	return int64(amount), nil
+	return n, nil
 }
