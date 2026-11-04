@@ -338,6 +338,8 @@ func TestValoperProposal_RejectsOperatorAutoFrozenAfterProposalCreated(cur realm
 	testing.SetRealm(testing.NewUserRealm(registerMonitor(t)))
 	AutoFreezeValidator(cross(cur), opA, "auto", "evidence")
 
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	uassert.AbortsContains(t, cur, "is auto-frozen at execution", func() {
 		_ = executor.Execute(cross(cur))
 	})

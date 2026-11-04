@@ -1,4 +1,4 @@
-# ADR: Phase B — Monitor-Driven Automated Validator Freeze in `r/sys/validators/v3`
+# ADR: Phase B — Monitor-Driven Automated Validator Freeze in `r/sys/validators/v0`
 
 Companion to [PR #5887](https://github.com/gnolang/gno/pull/5887).
 Builds on Phase A ([PR #5886](https://github.com/gnolang/gno/pull/5886),
@@ -171,7 +171,7 @@ on a chain that had secp validators frozen across the upgrade.
 
 Not fixed here. The obvious in-realm fix — check
 `sysparams.GetValsetPubKeyTypes()` before republishing and refuse or skip —
-means duplicating valopers' bech32-decode + amino-type-URL helper into v3. The
+means duplicating valopers' bech32-decode + amino-type-URL helper into v0. The
 better fix is probably a layer down, in
 `r/sys/params.SetValsetProposal`, which would cover all three publishers
 (`newValoperChangeExecutor`, `RotateValoperSigningKey`, `publishValset`) at once
