@@ -22,22 +22,22 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 
 	type test struct {
 		name    string
-		balance int64
-		fn      func() int64
+		balance uint256
+		fn      func() uint256
 	}
 
 	// check balances #1.
 	{
 		tests := []test{
-			{"TotalSupply", 10_000_000_000, func() int64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10_000_000_000, func() int64 { return BalanceOf(admin) }},
-			{"BalanceOf(alice)", 0, func() int64 { return BalanceOf(alice) }},
-			{"Allowance(admin, alice)", 0, func() int64 { return Allowance(admin, alice) }},
-			{"BalanceOf(bob)", 0, func() int64 { return BalanceOf(bob) }},
+			{"TotalSupply", 10_000_000_000, func() uint256 { return TotalSupply() }},
+			{"BalanceOf(admin)", 10_000_000_000, func() uint256 { return BalanceOf(admin) }},
+			{"BalanceOf(alice)", 0, func() uint256 { return BalanceOf(alice) }},
+			{"Allowance(admin, alice)", 0, func() uint256 { return Allowance(admin, alice) }},
+			{"BalanceOf(bob)", 0, func() uint256 { return BalanceOf(bob) }},
 		}
 		for _, tc := range tests {
 			got := tc.fn()
-			uassert.Equal(t, got, tc.balance)
+			equal256(t, tc.balance, got, tc.name)
 		}
 	}
 
@@ -48,17 +48,25 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	// check balances #2.
 	{
 		tests := []test{
-			{"TotalSupply", 10_010_000_000, func() int64 { return TotalSupply() }},
-			{"BalanceOf(admin)", 10_000_000_000, func() int64 { return BalanceOf(admin) }},
-			{"BalanceOf(alice)", 0, func() int64 { return BalanceOf(alice) }},
-			{"Allowance(admin, alice)", 0, func() int64 { return Allowance(admin, alice) }},
-			{"BalanceOf(bob)", 10_000_000, func() int64 { return BalanceOf(bob) }},
+			{"TotalSupply", 10_010_000_000, func() uint256 { return TotalSupply() }},
+			{"BalanceOf(admin)", 10_000_000_000, func() uint256 { return BalanceOf(admin) }},
+			{"BalanceOf(alice)", 0, func() uint256 { return BalanceOf(alice) }},
+			{"Allowance(admin, alice)", 0, func() uint256 { return Allowance(admin, alice) }},
+			{"BalanceOf(bob)", 10_000_000, func() uint256 { return BalanceOf(bob) }},
 		}
 		for _, tc := range tests {
 			got := tc.fn()
-			uassert.Equal(t, got, tc.balance)
+			equal256(t, tc.balance, got, tc.name)
 		}
 	}
+}
+
+func TestAbove2Pow63(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	big := uint256(1) << 128
+	privateLedger.Mint(alice, big)
+	equal256(t, big, BalanceOf(alice))
+	uassert.Equal(t, "340282366920938463463374607431768211456\n", Render("balance/"+alice.String()))
 }
 
 func TestErrConditions(cur realm, t *testing.T) {
