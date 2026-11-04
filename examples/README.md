@@ -19,6 +19,12 @@ the audited examples set. They remain here as integration test fodder and
 history but are not shipped to mainnet/testnet genesis and have not been
 audited or modernized to the current interrealm spec.
 
+A package's version lives in the `module` line of its `gnomod.toml`, not in its
+directory name: `gno.land/p/nt/avl` declares `gno.land/p/nt/avl/v0`.
+[gnopm](https://github.com/moul/gnopm) keeps `gnomod.lock` describing the tree.
+After adding, moving or removing a package, run `make -C examples gnopm-sync`
+and commit `examples/gnomod.lock`; `make -C examples gnopm` is the CI check.
+
 ## Personal Realms & Shared Content
 
 **Prioritizing Shared Content:** As we expand our examples and use-cases, it's

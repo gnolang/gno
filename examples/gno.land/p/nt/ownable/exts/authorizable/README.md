@@ -75,4 +75,4 @@ func (a Authorizable) AssertPreviousOnAuthList(_ int, rlm realm)
 - Every method takes the caller's own captured `cur` as `rlm` and asserts `rlm.IsCurrent()`, blocking the designation-forgery read where a non-crossing wrapper makes the realm walk return the wrong address. The first `_ int` argument is an unused placeholder: pass `0`.
 - The superuser is authenticated by `rlm.Previous().Address()` matching the underlying `Ownable` owner, so `AddToAuthList` / `DeleteFromAuthList` succeed only when the owner is the crossing caller. Ownership transfer, renouncing, etc. come from the embedded [`Ownable`](../..).
 - `PreviousOnAuthList` / `AssertPreviousOnAuthList` are the user-facing gate: they check the address that crossed into your realm. `OnAuthList` checks the calling realm itself; use it only when a realm-to-realm caller should be listed directly.
-- The auth list is backed by a [`bptree`](../../../../bptree/v0), keyed by address string.
+- The auth list is backed by a [`bptree`](../../../bptree), keyed by address string.

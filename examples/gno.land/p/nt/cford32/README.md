@@ -71,4 +71,4 @@ func NewDecoder(r io.Reader) io.Reader
 - The compact uint64 encoding preserves lexicographic order with numeric order, making encoded IDs suitable as ordered keys.
 - The compact and full uint64 encodings are unambiguously distinguished by their first character: `0`-`f` indicates compact (7 bytes), `g`-`z` indicates full (13 bytes).
 - Values in `[0, 2^34)` have BOTH a compact and a full encoding. Pick one scheme per key space and stick to it: mixing both for the same value breaks the lexicographic-order property. `PutCompact` rolls over from compact to full at `2^34` automatically, which is safe as long as everything in that space is generated the same way.
-- For sequential IDs, see [`gno.land/p/nt/seqid/v0`](../../seqid/v0).
+- For sequential IDs, see [`gno.land/p/nt/seqid/v0`](../seqid).

@@ -76,8 +76,7 @@ tidy:
 # gnopm keeps a package's version in its gnomod.toml module line rather than in
 # its directory name, and gnomod.lock keeps superseded versions resolvable from
 # git history. `tool ci` is the guard: the lock describes the tree, every pin
-# reproduces, no pin is lost to a squash merge, and nothing edited a version the
-# chain already published.
+# reproduces, and no pin is lost to a squash merge.
 .PHONY: gnopm
 gnopm:
 	$(rundep) moul.io/gnopm tool ci

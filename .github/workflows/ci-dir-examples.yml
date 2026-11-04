@@ -10,6 +10,8 @@ on:
       - examples/**
       - misc/deployments/**
       - contribs/gnogenesis/**
+      # gnopm is pinned there; a bump alone must still run the gnopm job.
+      - misc/devdeps/**
       - .github/workflows/ci-dir-examples.yml
       # *.md is prose, except in the gno source trees where it is valid
       # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns)

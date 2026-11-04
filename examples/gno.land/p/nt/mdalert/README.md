@@ -78,4 +78,4 @@ func Warningf(title, format string, a ...any) string
 
 - Alert types are documented in the Markdown docs realm: [/r/docs/markdown#alerts](/r/docs/markdown#alerts).
 - Per-type helpers always render unfolded. For folded alerts use `New(...)` with `folded=true`.
-- `title` and `msg` are emitted into Markdown as-is. When either carries untrusted input (a `Render(path)` segment, user text), wrap it with `sanitize.InlineText` from [`gno.land/p/nt/markdown/sanitize/v0`](../../markdown/sanitize/v0) first, or it can inject structure into the rendered page. The `*f` variants format via `ufmt.Sprintf`, which supports only ufmt's verb subset (no `%b`, `%o`, `%w`, `%+v`).
+- `title` and `msg` are emitted into Markdown as-is. When either carries untrusted input (a `Render(path)` segment, user text), wrap it with `sanitize.InlineText` from [`gno.land/p/nt/markdown/sanitize/v0`](../markdown/sanitize) first, or it can inject structure into the rendered page. The `*f` variants format via `ufmt.Sprintf`, which supports only ufmt's verb subset (no `%b`, `%o`, `%w`, `%+v`).
