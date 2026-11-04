@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s\n\n[evil]: https://realm.example/home
+-- input.md --
+[evil](<gno-button x>)
+-- output.md --
+
+
+\[evil\](\<gno-button x>)
+
+-- output.html --
+<p>[evil](&lt;gno-button x&gt;)</p>

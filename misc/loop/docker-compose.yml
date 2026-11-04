@@ -59,6 +59,8 @@ services:
       - --with-analytics
       - --faucet-url=https://faucet-api.staging.gno.land
       - --help-remote=https://rpc.staging.gno.land
+      # Pinned to the img-src in traefik/gno.yml, not to the image's default.
+      - --ipfs-gateway=https://ipfs.filebase.io
     networks:
       - portal-loop
     labels:

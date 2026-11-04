@@ -818,8 +818,13 @@ func (wsc *wsConnection) readRoutine() {
 						))
 					} else {
 						// Single request: stream via NextWriter so the body never
-						// accumulates in heap as a complete byte slice.
-						wsc.streamChan <- wsStreamRequest{id: request.ID, result: streamable}
+						// accumulates in heap as a complete byte slice. The writer
+						// stops draining streamChan once the connection stops.
+						select {
+						case <-wsc.Quit():
+							return
+						case wsc.streamChan <- wsStreamRequest{id: request.ID, result: streamable}:
+						}
 					}
 
 					continue

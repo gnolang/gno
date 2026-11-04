@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button href="/r/test" label="Delete" variant="outline caution" />
+
+Order and duplicates do not matter: <gno-button href="/r/test" label="Same" variant="caution  outline caution" />
+-- output.html --
+<p><a href="/r/test" class="gno-button gno-button-outline gno-button-caution">Delete</a></p>
+<p>Order and duplicates do not matter: <a href="/r/test" class="gno-button gno-button-outline gno-button-caution">Same</a></p>

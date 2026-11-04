@@ -1,0 +1,14 @@
+-- input.md --
+Inline code stays literal: `<gno-icon name="star" />`
+
+```markdown
+<gno-icon name="star" />
+```
+
+    <gno-icon name="star" />
+-- output.html --
+<p>Inline code stays literal: <code>&lt;gno-icon name=&quot;star&quot; /&gt;</code></p>
+<pre><code class="language-markdown">&lt;gno-icon name=&quot;star&quot; /&gt;
+</code></pre>
+<pre><code>&lt;gno-icon name=&quot;star&quot; /&gt;
+</code></pre>

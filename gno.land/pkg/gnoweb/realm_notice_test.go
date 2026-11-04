@@ -41,6 +41,9 @@ func TestTrustedPathProblem(t *testing.T) {
 		"/p/nt/":              true,
 		"u/alice":             true,
 		"GnoLand":             true,
+		"*":                   false,
+		"gnoland/*":           true,
+		"*/home":              true,
 	}
 	for entry, want := range cases {
 		assert.Equal(t, want, trustedPathProblem(entry) != "", entry)

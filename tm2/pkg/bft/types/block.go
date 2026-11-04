@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -74,7 +75,7 @@ func (b *Block) ValidateBasic() error {
 		return errors.New("nil LastCommit")
 	}
 	if err := b.LastCommit.ValidateBasic(); err != nil {
-		return fmt.Errorf("wrong LastCommit")
+		return fmt.Errorf("wrong LastCommit: %w", err)
 	}
 	if err := ValidateHash(b.LastCommitHash); err != nil {
 		return fmt.Errorf("wrong Header.LastCommitHash: %w", err)
@@ -439,7 +440,11 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 		if precommit == nil {
 			continue
 		}
-		added, err := voteSet.AddVote(commit.GetVote(idx))
+		vote := commit.GetVote(idx)
+		// ValidatorAddress is not signed and is redundant with the
+		// precommit's position, so take it from the set, not the wire.
+		vote.ValidatorAddress, _ = vals.GetByIndex(idx)
+		added, err := voteSet.AddVote(vote)
 		if !added || err != nil {
 			panic(fmt.Sprintf("Failed to reconstruct LastCommit: %v", err))
 		}
@@ -588,6 +593,11 @@ func (commit *Commit) ValidateBasic() error {
 		if precommit.Round != round {
 			return fmt.Errorf("invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
+		}
+		// CanonicalizePartSetHeader panics on a Total outside the canonical
+		// uint32 range, a check precommits in a Commit never reach.
+		if total := precommit.BlockID.PartsHeader.Total; total < 0 || int64(total) > math.MaxUint32 {
+			return fmt.Errorf("invalid commit precommit PartSetHeader.Total: %d out of canonical uint32 range", total)
 		}
 	}
 	return nil

@@ -1,0 +1,6 @@
+-- input.md --
+<gno-button href="javascript:alert(1)" label="x" />
+This line must survive.
+-- output.html --
+<p><!-- raw HTML omitted -->
+This line must survive.</p>

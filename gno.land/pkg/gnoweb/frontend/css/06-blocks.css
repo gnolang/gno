@@ -82,13 +82,12 @@
 			grid-column: span 7;
 		}
 
-		&--explorer {
-			grid-column: span 10;
+		/* No dev links beside it: the bar takes their columns too. */
+		&.main-nav--full {
+			@media (--lg) {
+				grid-column: span 10;
+			}
 		}
-	}
-
-	.main-nav--explorer {
-		grid-column: span 10;
 	}
 
 	/* Realm notice: second row on community pages, on the header's own
@@ -243,6 +242,9 @@
 	.searchbar {
 		position: absolute;
 		inset: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
 		padding: var(--g-space-1-5);
 		padding-inline-end: var(--g-space-8);
 		font-size: var(--g-font-size-200);
@@ -258,6 +260,29 @@
 			width: 100%;
 			background-color: transparent;
 			outline: none;
+
+			&::placeholder {
+				color: var(--s-color-text-input-placeholder);
+				font-weight: var(--g-font-normal);
+			}
+
+			&:placeholder-shown {
+				text-overflow: ellipsis;
+			}
+		}
+
+		/* "/" shortcut hint, from md: no keyboard on mobile */
+		& > .shortcut {
+			order: -1;
+			flex-shrink: 0;
+
+			@media not all and (--md) {
+				display: none;
+			}
+		}
+
+		& > input:is(:focus, :not(:placeholder-shown)) + .shortcut {
+			display: none;
 		}
 
 		&:focus-within + .b-breadcrumb {
@@ -297,9 +322,12 @@
 	/* Submits the search, sits close to the network toggle */
 	.search-icon {
 		display: flex;
-		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
-			var(--g-space-1-5);
+		padding: var(--g-space-1-5);
 		cursor: pointer;
+
+		@media (--md) {
+			padding-inline-end: var(--g-space-0-5);
+		}
 
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
@@ -546,6 +574,11 @@
 		height: auto;
 	}
 
+	/* A page without tabs (the playground, a small listing) has no row. */
+	&:not(:has(.b-menu-link, .menu-toggle)) {
+		display: none;
+	}
+
 	/* Menu toggle button */
 	& .menu-toggle {
 		order: 3;
@@ -645,6 +678,21 @@
 				width: var(--g-space-4-5);
 				height: var(--g-space-4-5);
 			}
+
+			/* The lightning's ink stops short of its box, unlike the other
+			   tab icons: pull its label in to the same distance. From md to
+			   xl the labels are hidden, so the icon keeps its full box. */
+			&:has(> use[href="#ico-tx-link"]) {
+				margin-inline-end: -2px;
+
+				@media (--md) {
+					margin-inline-end: 0;
+				}
+
+				@media (--xl) {
+					margin-inline-end: -2px;
+				}
+			}
 		}
 
 		@media (--md) {
@@ -688,6 +736,51 @@
 
 		& > svg {
 			color: var(--s-color-bg-brand-default);
+		}
+	}
+}
+
+/* Five tabs (realm pages, with Run) are wider than the column beside the
+   omnibar: from xl, where they share its row, they keep their size, stay
+   aligned on the right, and run into the gap before the omnibar. Below,
+   they have a row of their own, from the left. Icons only once the screen
+   has room for them: phones show the five labels alone. */
+.b-main-menu:has(> .menu-dev > .b-menu-link:nth-child(5)) {
+	@media (--xl) {
+		justify-content: flex-end;
+	}
+}
+
+.menu-dev:has(> .b-menu-link:nth-child(5)) {
+	@media (--xl) {
+		flex-shrink: 0;
+	}
+
+	/* The last tab ends on the content's right edge. From lg, beside the
+	   omnibar, the tighter gap keeps five icons at full size. */
+	.b-menu-link:not(:last-child) .link {
+		@media (--lg) {
+			margin-inline-end: var(--g-space-4);
+		}
+
+		@media (--2xl) {
+			margin-inline-end: var(--g-space-6);
+		}
+	}
+
+	.link > svg {
+		display: none;
+
+		@media (--md) {
+			display: inline-block;
+		}
+
+		@media (--xl) {
+			display: none;
+		}
+
+		@media (--max) {
+			display: inline-block;
 		}
 	}
 }
@@ -740,7 +833,8 @@
 		}
 
 		/* Common link styles */
-		a {
+		a,
+		.kind-switch {
 			display: inline-block;
 			border: 1px solid var(--s-color-border-transparent);
 			border-radius: var(--s-rounded-sm);
@@ -754,6 +848,54 @@
 				color: var(--s-color-text-base);
 			}
 		}
+	}
+
+	/* View pill (playground): follows the path it works on, without a
+	   separator, like a mode label. */
+	.view {
+		display: flex;
+		align-items: center;
+		z-index: var(--g-z-1);
+
+		&:not(:first-child) {
+			margin-inline-start: var(--g-space-2);
+		}
+
+		.b-tag {
+			border-color: var(--s-color-border-tertiary);
+		}
+	}
+
+	/* First segment (r or p) on a namespaced page: the whole chip opens a
+	   menu, the chevron says so. It shares the link chip above, at the same
+	   specificity so these overrides win. */
+	.element .kind-switch {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		padding: var(--g-space-0-5) var(--g-space-1);
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		anchor-name: --kind-switch;
+
+		& > svg {
+			width: var(--g-space-2-5);
+			height: var(--g-space-2-5);
+			color: var(--s-color-text-secondary);
+		}
+	}
+
+	/* Lit on hover, focus, and while its menu is open */
+	.element .kind-switch:focus-visible,
+	&:has(#kind-switch-menu:popover-open) .kind-switch {
+		background-color: var(--s-color-bg-brand-default);
+		color: var(--s-color-text-base);
+	}
+
+	.kind-switch:is(:hover, :focus-visible) > svg,
+	&:has(#kind-switch-menu:popover-open) .kind-switch > svg {
+		color: currentColor;
 	}
 
 	/* Argument specific styles */
@@ -809,6 +951,20 @@
 			/* supports rules */
 			@supports not (field-sizing: content) {
 				width: 5rem !important;
+			}
+
+			/* On phones, a query followed by the playground pill is cut
+			   shorter, so the pill stays in view at the end. */
+			.query:has(~ .view) & {
+				max-width: 1ch;
+
+				@media (--sm) {
+					max-width: 4ch;
+				}
+
+				@media (--md) {
+					max-width: 10ch;
+				}
 			}
 
 			/* Placeholder styling */
@@ -1111,6 +1267,31 @@
 	}
 }
 
+/* Primary variant — the one action a view exists for (Run, Eval). */
+.b-btn--primary {
+	background-color: var(--s-color-bg-brand-default);
+	border-color: var(--s-color-border-brand-default);
+	color: var(--s-color-text-brand-default);
+	font-weight: var(--g-font-medium);
+
+	/* Keeps the brand fill: the generic .b-btn:hover surface would leave
+	   white text on a light grey, which reads as disabled. */
+	&:hover {
+		background-color: var(--s-color-bg-brand-default);
+		opacity: var(--g-opacity-90);
+	}
+
+	&:focus-visible {
+		outline: var(--s-focus-ring);
+		outline-offset: 2px;
+	}
+
+	/* Clear of the borderless inline links before it in a .b-btns row. */
+	.b-btns > &:not(:first-child) {
+		margin-inline-start: var(--g-space-2);
+	}
+}
+
 /* Input-style footprint — same width floor, content distribution and
    hover border as `.b-input` (action-page select). For btn-like
    triggers that need to read iso a form control. */
@@ -1321,8 +1502,11 @@
 			border-top: var(--s-border);
 		}
 
+		/* Narrow screens: the actions wrap under the path. */
 		& > :where(a, div) {
 			display: flex;
+			flex-wrap: wrap;
+			gap: var(--g-space-1) var(--g-space-3);
 			justify-content: space-between;
 			align-items: center;
 			padding: var(--g-space-2);
@@ -1336,7 +1520,7 @@
 			}
 
 			& > a {
-				flex: 1;
+				flex: 1 1 12rem;
 				min-width: 0;
 
 				&:hover {
@@ -1344,6 +1528,11 @@
 				}
 			}
 		}
+	}
+
+	/* Inline-flex keeps a long path at full width: cap it so it ellipsizes. */
+	.c-with-icon {
+		max-width: 100%;
 	}
 
 	.name {
@@ -1740,6 +1929,19 @@
 }
 
 /* ===== CODE COMPONENT & CHROMA ===== */
+/* Code frame shared by the read-only source view and the editable one. */
+.b-source-code > pre.chroma-chroma,
+.b-code-editor-area {
+	background-color: var(--s-color-bg-base);
+	border: var(--s-divider);
+	border-radius: var(--s-rounded);
+	font-size: var(--g-font-size-100);
+
+	@media (--md) {
+		font-size: var(--g-font-size-200);
+	}
+}
+
 .b-source-code {
 	font-family: var(--g-font-family-mono);
 
@@ -1747,16 +1949,11 @@
 	   background rule, so the code sits on the surface (white in light) with a
 	   visible border, like the overview frame — not blended into the page. */
 	> pre.chroma-chroma {
-		background-color: var(--s-color-bg-base);
-		border: var(--s-divider);
 		overflow: scroll;
-		border-radius: var(--s-rounded);
 		padding: var(--g-space-4) var(--g-space-1);
-		font-size: var(--g-font-size-100);
 
 		@media (--md) {
 			padding: var(--g-space-8) var(--g-space-3);
-			font-size: var(--g-font-size-200);
 		}
 
 		a {
@@ -1767,7 +1964,7 @@
 	}
 }
 
-[data-theme="dark"] .b-source-code > pre {
+[data-theme="dark"] .b-source-code > pre.chroma-chroma {
 	background-color: var(--s-color-bg-base);
 }
 
@@ -1883,7 +2080,8 @@ main.is-dev-mode .b-toc a {
    adds its own specifics afterwards (action: `.params`/`.b-alert`;
    state: outer column flow, audit chips, fields, footer CTA). */
 .b-action-function,
-.b-state-decl {
+.b-state-decl,
+.b-run-panel {
 	background-color: var(--s-color-bg-surface-secondary);
 	border-radius: var(--s-rounded);
 	padding: var(--g-space-4);
@@ -1923,10 +2121,15 @@ main.is-dev-mode .b-toc a {
 	}
 
 	/* On a narrow card the buttons move under the title instead of
-	   squeezing it */
+	   squeezing it. From 20rem of title up, the signature wraps under the
+	   name instead, so the buttons keep the title row. */
 	& > header {
 		flex-wrap: wrap;
 		gap: var(--g-space-2) var(--g-space-4);
+
+		& > .title {
+			flex: 1 1 20rem;
+		}
 
 		.signature {
 			& > code {
@@ -1940,25 +2143,9 @@ main.is-dev-mode .b-toc a {
 	}
 
 	.params {
-		display: flex;
-		flex-direction: column;
-		gap: var(--g-space-1);
-		align-items: stretch;
-		width: 100%;
 		margin-block: var(--g-space-6) var(--g-space-1);
 		font-size: var(--g-font-size-100);
 		color: var(--s-color-text-tertiary);
-
-		label {
-			background-color: var(--s-color-bg-surface-primary);
-		}
-
-		.b-input:has(input:focus),
-		.b-input:has(input:hover) {
-			label {
-				background-color: var(--s-color-bg-surface-secondary);
-			}
-		}
 	}
 
 	.b-alert {
@@ -1991,6 +2178,28 @@ main.is-dev-mode .b-toc a {
 	}
 }
 
+/* Stack of labelled inputs inside a card: a function's params, the run
+   page's command settings. */
+.b-action-function .params,
+.b-run-panel .params {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	align-items: stretch;
+	width: 100%;
+
+	label {
+		background-color: var(--s-color-bg-surface-primary);
+	}
+
+	.b-input:has(input:focus),
+	.b-input:has(input:hover) {
+		label {
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+	}
+}
+
 /* Shared lead-paragraph register for cards. Any card type can opt
    in via `<p class="description">…</p>`. */
 .b-action-function > .description,
@@ -2013,6 +2222,9 @@ main.is-dev-mode .b-toc a {
 	border-radius: var(--s-rounded);
 	background-color: var(--s-color-bg-base);
 	font-size: var(--g-font-size-100);
+	/* Inherited by everything the box holds: a long token (a key, a path)
+	   breaks instead of overflowing the box. */
+	overflow-wrap: anywhere;
 
 	pre {
 		padding: var(--g-space-4);
@@ -2034,6 +2246,120 @@ main.is-dev-mode .b-toc a {
 			color: var(--s-color-text-primary);
 		}
 	}
+}
+
+/* ===== RESULT PANEL =====
+   Output of an evaluation or a run (playground, action evaluator): a small
+   title over a `.b-code` box, like the result of an action function card. */
+.b-result {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+}
+
+.b-result-title {
+	font-size: var(--g-font-size-50);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-secondary);
+}
+
+.b-result-content {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--g-space-16);
+	max-height: var(--g-space-96);
+	overflow-y: auto;
+	padding: var(--g-space-4);
+	font-family: var(--g-font-family-mono);
+	white-space: pre-wrap;
+	color: var(--s-color-text-secondary);
+}
+
+/* An error result takes the caution alert colours; .b-code pre would
+   otherwise override the u-color-danger set on it. */
+.b-result:has(.u-color-danger) .b-code {
+	background-color: var(--s-color-bg-caution-weak);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-error);
+}
+
+.b-result .b-code .u-color-danger {
+	color: var(--s-color-text-caution);
+}
+
+/* ===== ACTION EVAL COMPONENT ===== */
+.b-action-eval {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-4);
+	margin-block: var(--g-space-8);
+
+	.b-content-h2 {
+		margin-bottom: 0;
+	}
+}
+
+.b-action-eval-form {
+	display: flex;
+	gap: var(--g-space-2);
+	align-items: stretch;
+}
+
+.b-action-eval-form .b-input--full {
+	flex: 1;
+}
+
+/* The Eval buttons and the evaluator's form, result and history are served
+   hidden until their controller shows them: they need JS. */
+.b-action-function .b-btn[hidden],
+.b-action-eval > [hidden] {
+	display: none;
+}
+
+.b-action-eval-history-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+}
+
+.b-action-eval-history-entry {
+	min-width: 0;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: var(--s-divider);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	overflow-wrap: anywhere;
+}
+
+.b-action-eval-history-expr {
+	gap: var(--g-space-2);
+	margin-bottom: var(--g-space-1);
+	font-size: var(--g-font-size-90);
+}
+
+.b-action-eval-history-rerun {
+	flex-shrink: 0;
+	min-width: var(--g-space-6);
+	min-height: var(--g-space-6);
+	cursor: pointer;
+	color: var(--s-color-text-tertiary);
+
+	&:hover {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* An error entry takes the caution colours, like the result panel above. */
+.b-action-eval-history-entry:has(.u-color-danger) {
+	background-color: var(--s-color-bg-caution-weak);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-error);
+}
+
+.b-action-eval-history-result {
+	margin: 0;
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-80);
+	color: var(--s-color-text-secondary);
+	white-space: pre-wrap;
 }
 
 /* ===== PACKAGES LIST COMPONENT ===== */
@@ -2603,7 +2929,8 @@ main.is-dev-mode .b-toc a {
 		margin-block-end: var(--g-space-2);
 	}
 
-	.gno-foreign__body {
+	.gno-foreign__body,
+	.gno-frame {
 		& > :first-child {
 			margin-block-start: 0;
 		}
@@ -2613,14 +2940,34 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
+	/* ===== GNO-ICON COMPONENT ===== */
+	/* Inline <gno-icon />: sized and colored by the surrounding text, so it
+	   follows headings, links and both themes. 1.15em matches .c-icon; the
+	   negative vertical-align centers the glyph on the x-height instead of
+	   sitting it on the baseline. */
+	.gno-icon {
+		display: inline-block;
+		width: 1.15em;
+		height: 1.15em;
+		vertical-align: -0.2em;
+	}
+
+	/* An icon opening a heading gets a little more room than a word space,
+	   so the glyph does not stick to the title. */
+	:is(h1, h2, h3, h4, h5, h6) > .gno-icon:first-child {
+		margin-inline-end: 0.15em;
+	}
+
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
+		--columns-gap: var(--g-space-10);
+		@media (--2xl) {
+			--columns-gap: var(--g-space-12);
+		}
+
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--g-space-10);
-		@media (--2xl) {
-			gap: var(--g-space-12);
-		}
+		gap: var(--columns-gap);
 
 		& > * {
 			flex-grow: 1;
@@ -2629,6 +2976,41 @@ main.is-dev-mode .b-toc a {
 			@media (--lg) {
 				flex-basis: var(--g-space-44);
 			}
+		}
+	}
+
+	/* ===== FRAME COMPONENT ===== */
+	/* A thin border around author content, no fill. Alone in a column: a card
+	   that fills the column, so cards in one row share a height. */
+	.gno-frame {
+		border: var(--s-border);
+		border-radius: var(--s-rounded);
+		padding: var(--g-space-6);
+		margin-block: var(--g-space-6);
+		@media (--lg) {
+			padding: var(--g-space-10);
+		}
+	}
+
+	.gno-column > .gno-frame:only-child {
+		height: 100%;
+		margin-block: 0;
+		padding: var(--g-space-5);
+	}
+
+	/* Stacked card rows keep the same spacing as the columns gap. */
+	.gno-columns:has(> .gno-column > .gno-frame:only-child) {
+		margin-block: var(--columns-gap);
+	}
+
+	/* In a frame, the frame's padding spaces a card grid at its edges. */
+	.gno-frame > .gno-columns:has(> .gno-column > .gno-frame:only-child) {
+		&:first-child {
+			margin-block-start: 0;
+		}
+
+		&:last-child {
+			margin-block-end: 0;
 		}
 	}
 }
@@ -3137,7 +3519,9 @@ main.is-dev-mode .b-toc a {
 			font-weight: var(--g-font-bold);
 			list-style: none;
 
-			svg {
+			/* The kind and chevron glyphs; a <gno-icon /> in the title keeps
+			   its own inline sizing. */
+			svg:not(.gno-icon) {
 				width: var(--g-space-6);
 				height: var(--g-space-6);
 
@@ -3225,6 +3609,113 @@ main.is-dev-mode .b-toc a {
 			color: var(--s-color-text-tip);
 		}
 	}
+
+	/* ===== BUTTON COMPONENT ===== */
+	/* <gno-button /> renders a link (<a class="gno-button">), so it keeps the
+	   link type icon. The rule below owns the shape (the .b-btn silhouette);
+	   each variant only sets the colors it consumes. */
+	.gno-button {
+		--gno-button-bg: var(--s-color-bg-brand-default);
+		--gno-button-border: var(--s-color-border-brand-default);
+		--gno-button-text: var(--s-color-text-base);
+		/* Neutral, not green: in dark the only green text that passes AA is
+		   the success token, so a green outline matched success outline. */
+		--gno-button-outline: var(--s-color-text-secondary);
+
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
+		max-width: 100%;
+		vertical-align: middle;
+		border: var(--g-space-px) solid var(--gno-button-border);
+		border-radius: var(--s-rounded-sm);
+		padding: var(--g-space-1) var(--g-space-2);
+		margin-block: var(--cr-space-0-5);
+		background-color: var(--gno-button-bg);
+		color: var(--gno-button-text);
+		font-weight: var(--g-font-medium);
+		line-height: var(--g-line-height-tight);
+		transition: box-shadow var(--g-transition-fast);
+
+		/* Hover thickens the border instead of fading the fill, so text
+		   contrast holds (AA) in every variant. */
+		&:hover {
+			box-shadow: 0 0 0 var(--g-space-px) var(--gno-button-border);
+			text-decoration: none;
+		}
+
+		&:focus-visible {
+			outline: var(--s-focus-ring);
+			outline-offset: 2px;
+		}
+
+		/* Link type icon: drawn in the button's own text color. The doubled
+		   class outranks the link icon spacing rules of .c-realm-view a
+		   (0,3,1), whose margins the button's gap replaces. */
+		&.gno-button > .tooltip {
+			margin: 0;
+			color: inherit;
+			border-color: currentColor;
+		}
+
+		/* Variants */
+		&.gno-button-caution {
+			--gno-button-bg: var(--s-color-bg-caution-weak);
+			--gno-button-border: var(--s-color-border-error);
+			--gno-button-text: var(--s-color-text-caution);
+			--gno-button-outline: var(--s-color-text-caution);
+		}
+
+		&.gno-button-warning {
+			--gno-button-bg: var(--s-color-bg-warning-weak);
+			--gno-button-border: var(--s-color-border-warning);
+			--gno-button-text: var(--s-color-text-warning);
+			--gno-button-outline: var(--s-color-text-warning);
+		}
+
+		&.gno-button-info {
+			--gno-button-bg: var(--s-color-bg-info-weak);
+			--gno-button-border: var(--s-color-border-info);
+			--gno-button-text: var(--s-color-text-info);
+			--gno-button-outline: var(--s-color-text-info);
+		}
+
+		&.gno-button-note {
+			--gno-button-bg: var(--s-color-bg-note-weak);
+			--gno-button-border: var(--s-color-border-note);
+			--gno-button-text: var(--s-color-text-note);
+			--gno-button-outline: var(--s-color-text-note);
+		}
+
+		/* The tip text token alone is under AA in dark (2.94:1 on its fill).
+		   70% of it with the primary text lightens it in dark (4.75:1) and
+		   keeps it purple in light; less tip would read as plain text. */
+		&.gno-button-tip {
+			--gno-button-bg: var(--s-color-bg-tip-weak);
+			--gno-button-border: var(--s-color-border-tip);
+			--gno-button-outline: color-mix(
+				in oklab,
+				var(--s-color-text-tip) 70%,
+				var(--s-color-text-primary)
+			);
+			--gno-button-text: var(--gno-button-outline);
+		}
+
+		&.gno-button-success {
+			--gno-button-bg: var(--s-color-bg-success-weak);
+			--gno-button-border: var(--s-color-border-success);
+			--gno-button-text: var(--s-color-text-success);
+			--gno-button-outline: var(--s-color-text-success);
+		}
+
+		/* Outline: no fill; the border is the only shape, so it takes the
+		   text color. */
+		&.gno-button-outline {
+			--gno-button-bg: transparent;
+			--gno-button-border: var(--gno-button-outline);
+			--gno-button-text: var(--gno-button-outline);
+		}
+	}
 }
 
 /* State-explorer Block-layer CSS lives co-located with its module under
@@ -3232,6 +3723,47 @@ main.is-dev-mode .b-toc a {
    @import at the top of main.css. The block originally sat at this
    position; cascade order is preserved (no rule below this point targets
    `.b-state-*`, and the rules above remain untouched). */
+
+/* ==========================================================================
+   CODE EDITOR - CodeMirror wrapper block
+   CodeMirror's own parts (gutter, content, cursor) are themed in
+   frontend/js/code-editor.ts: its .cm-* classes are added at runtime, so
+   PurgeCSS would strip them from this file.
+   ========================================================================== */
+/* The frame wraps the editor and, on the playground, its file tabs. */
+.b-code-editor-area {
+	margin-block-end: var(--g-space-6);
+	overflow: hidden;
+
+	&:focus-within {
+		outline: var(--s-focus-ring);
+		outline-offset: calc(-1 * var(--g-space-px));
+	}
+}
+
+.b-code-editor {
+	display: flex;
+	min-width: 0;
+
+	/* The code as served, in the source view's frame, until the editor
+	   replaces it (or for good, without JS). */
+	& > .b-source-code {
+		flex: 1;
+		min-width: 0;
+		max-height: 70vh;
+		overflow: auto;
+	}
+}
+
+/* Playground and run pages: full-width editor pages. */
+.b-playground,
+.b-run {
+	display: flex;
+	flex-direction: column;
+	min-height: 70vh;
+	grid-column: 1 / -1;
+	padding-bottom: var(--g-space-24);
+}
 
 /* ==========================================================================
    DOC EXAMPLE — collapsible code block in doc-context markdown rendering
@@ -3277,8 +3809,19 @@ main.is-dev-mode .b-toc a {
 /* ===== PACKAGE OVERVIEW ===== */
 /* Modeled on pkg.go.dev layout, using CUBE CSS blocks with semantic tokens. */
 
-/* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. */
-main.is-dev-mode > section:has(.c-overview-view) {
+/* A listing's rail opens on its <nav>, whose top margin stood in for the
+   header's when rails started at the top of the page. The rail now starts
+   level with the header, so the margin would push its title below the page's. */
+main.is-dev-mode > section:has(.c-listing-view) .b-sidebar .inner > nav {
+	@media (--lg) {
+		margin-block-start: 0;
+		padding-block-start: 0;
+	}
+}
+
+/* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. A directory
+   listing has the same header-and-rail layout, so it shares these rules. */
+main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	.b-content-h1 {
 		display: inline-flex;
 		align-items: center;
@@ -3816,6 +4359,211 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-info-weak);
 }
 
+/* ===== LISTING RAIL (ui/listing_rail) ===== */
+/* One rhythm between the rail's parts: the meta cards it reuses carry the
+   overview's bottom margin, which here would space them unevenly. */
+/* Sections sit 48px apart, heading margin included, as the overview rail's
+   Metadata and Package Index do. */
+.b-listing-rail {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-8);
+
+	& > .b-pkg-meta {
+		margin-block-end: 0;
+	}
+}
+
+/* ===== DEPENDENCY GRAPH (ui/pkg_graph) ===== */
+/* The package between what it imports and what imports it, read left to
+   right. From --lg it is two rows: the titles on one line, then the lists,
+   each bracketed by a rule on the side facing the package. The brackets run
+   the row's full height and the package sits at its middle, so the stubs
+   joining them always meet, however long either side runs. Each side spans
+   both rows through a subgrid. Below --lg the sides stack. */
+.b-depgraph {
+	--depgraph-gap: var(--g-space-6);
+	--depgraph-rule: 2px solid var(--s-color-border-secondary);
+
+	display: grid;
+	gap: var(--g-space-4);
+
+	@media (--lg) {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-rows: auto 1fr;
+		gap: var(--g-space-2) 0;
+	}
+}
+
+.b-depgraph--both {
+	@media (--lg) {
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	}
+}
+
+.b-depgraph__side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	min-width: 0;
+	padding-block-start: var(--g-space-3);
+	border-block-start: var(--depgraph-rule);
+
+	@media (--lg) {
+		display: grid;
+		grid-row: span 2;
+		grid-template-rows: subgrid;
+		padding-block-start: 0;
+		border-block-start: none;
+	}
+}
+
+.b-depgraph__body {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--g-space-2);
+	min-width: 0;
+
+	/* Lists run the side's width; a button keeps its own, at the size of
+	   the text around it. */
+	& > .b-pkg-list {
+		align-self: stretch;
+	}
+
+	& > .b-btn {
+		font-size: var(--g-font-size-100);
+	}
+}
+
+/* Columns are named outright: the package's explicit row would otherwise
+   place it first, in the first column, ahead of the auto-placed sides. */
+.b-depgraph__side--in {
+	@media (--lg) {
+		grid-column: 1;
+	}
+}
+
+.b-depgraph__side--in .b-depgraph__body {
+	@media (--lg) {
+		padding-inline-end: var(--depgraph-gap);
+		border-inline-end: var(--depgraph-rule);
+	}
+}
+
+.b-depgraph__side--out {
+	@media (--lg) {
+		grid-column: 3;
+
+		& .b-depgraph__title {
+			padding-inline-start: var(--depgraph-gap);
+		}
+
+		& .b-depgraph__body {
+			padding-inline-start: var(--depgraph-gap);
+			border-inline-start: var(--depgraph-rule);
+		}
+	}
+}
+
+.b-depgraph__title {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin: 0;
+	font-size: var(--g-font-size-100);
+	font-weight: var(--g-font-semibold);
+}
+
+/* A long side runs its full length, the page scrolling it: a box scrolling
+   inside a page that scrolls hides rows and clips their tags. A long path
+   wraps rather than pushing its kind out of view. */
+.b-depgraph__list {
+	font-size: var(--g-font-size-100);
+
+	& .b-pkg-list__link > :first-child {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	& .b-tag {
+		flex: none;
+	}
+}
+
+.b-depgraph__empty {
+	margin: 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+.b-depgraph__self {
+	display: flex;
+	align-items: center;
+	justify-self: start;
+
+	/* The package as a tag-sized node, at the graph's text size. */
+	& span {
+		padding: var(--g-space-1) var(--g-space-2);
+		border: var(--s-border);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-brand-weak);
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-semibold);
+	}
+
+	/* The stubs joining each bracket to the package. The package stays in
+	   view under the sticky header while a long side scrolls past: the
+	   brackets run the row's full height, so the stubs meet them anywhere. */
+	@media (--lg) {
+		position: sticky;
+		inset-block-start: calc(var(--s-header-offset) + var(--g-space-4));
+		grid-row: 2;
+		grid-column: 2;
+		align-self: start;
+		justify-self: center;
+
+		/* The overview's own sticky bar has no fixed height to clear. */
+		.c-overview-view & {
+			position: static;
+		}
+
+		&::before,
+		.b-depgraph--both &::after {
+			content: "";
+			width: var(--depgraph-gap);
+			border-block-start: var(--depgraph-rule);
+		}
+	}
+}
+
+/* A side with nothing to list ("Imports nothing.") gets no bracket and no
+   stub, which would join the package to nothing, and on the wide grid only
+   the width its sentence needs, the rest going to the side that lists. */
+.b-depgraph__side:has(> .b-depgraph__body > .b-depgraph__empty:only-child)
+.b-depgraph__body {
+	border-inline: none;
+}
+
+.b-depgraph:has(
+		.b-depgraph__side--in > .b-depgraph__body > .b-depgraph__empty:only-child
+	)
+	.b-depgraph__self::before,
+.b-depgraph:has(
+		.b-depgraph__side--out > .b-depgraph__body > .b-depgraph__empty:only-child
+	)
+	.b-depgraph__self::after {
+	border-color: transparent;
+}
+
+.b-depgraph--both:has(
+		.b-depgraph__side--in > .b-depgraph__body > .b-depgraph__empty:only-child
+	) {
+	@media (--lg) {
+		grid-template-columns: max-content auto minmax(0, 1fr);
+	}
+}
+
 /* Truncation notice (shown when symbol lists were capped). */
 .b-pkg-notice {
 	margin-block: 0 var(--g-space-6);
@@ -3860,9 +4608,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		color: var(--s-color-text-tertiary);
 	}
 
+	/* Carries errors as well as "No results": secondary, not tertiary, so it
+	   clears WCAG AA on both dropdown surfaces. */
 	.b-omnisearch-empty {
 		padding: var(--g-space-2);
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-size: var(--g-font-size-100);
 	}
 
@@ -3887,6 +4637,13 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		&[aria-selected="true"] {
 			background-color: var(--s-color-bg-base);
 			color: var(--s-color-text-primary);
+		}
+
+		/* Options stay out of the tab order, so this is the only focus cue:
+		   the background alone is ~1.2:1 and vanishes in forced colors. */
+		&[aria-selected="true"] {
+			outline: 2px solid var(--s-color-border-focus);
+			outline-offset: -2px;
 		}
 	}
 
@@ -3926,6 +4683,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 			background-color: var(--s-color-bg-info-default);
 			color: var(--s-color-text-base);
 		}
+
+		/* Indexer provenance: secondary on the tertiary surface is 3.8:1. */
+		&[data-type="i"] {
+			color: var(--s-color-text-primary);
+		}
 	}
 }
 
@@ -3941,4 +4703,113 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background-color: var(--s-color-bg-brand-default);
 	color: var(--s-color-text-base);
 	border-radius: var(--s-rounded-sm);
+}
+
+/* ===== POPOVER PANEL ===== */
+/* A native popover hung under the control that opens it (its anchor), in
+   the top layer: the breadcrumb's kind switch, the search keywords. Each
+   block names its anchor and which edge it aligns to. */
+.b-popover {
+	inset: auto;
+	top: anchor(bottom);
+	border: var(--s-border);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+}
+
+/* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
+/* Right-aligned instead when the menu would leave the screen */
+@position-try --kind-switch-end {
+	left: auto;
+	right: 0;
+}
+
+.b-kind-switch {
+	position-anchor: --kind-switch;
+	position-try-fallbacks: --kind-switch-end;
+	left: anchor(left);
+	margin: var(--g-space-1) var(--g-space-4) 0 0;
+	min-width: var(--g-space-64);
+	max-width: calc(100vw - 2 * var(--g-space-4));
+	overflow-wrap: anywhere;
+	padding: var(--g-space-1);
+
+	& .item {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: var(--g-space-2);
+		align-items: center;
+		padding: var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+
+		&:hover,
+		&:focus-visible {
+			background-color: var(--s-color-bg-surface-secondary);
+			color: var(--s-color-text-primary);
+		}
+
+		& > svg {
+			grid-row: span 2;
+			align-self: start;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+		}
+
+		& > .item-label {
+			grid-column: 2;
+		}
+	}
+
+	/* Label and path on one line */
+	& .item--inline {
+		grid-template-columns: auto auto 1fr;
+		align-items: baseline;
+
+		& > svg {
+			grid-row: auto;
+			align-self: center;
+		}
+
+		& > .item-label,
+		& > .item-path {
+			grid-column: auto;
+		}
+	}
+
+	/* Sets the global listing apart from the project's own links */
+	& > hr {
+		margin: var(--g-space-1) calc(-1 * var(--g-space-1));
+		border: 0;
+		border-block-start: var(--s-border);
+	}
+
+	& .item--primary {
+		font-weight: var(--g-font-semibold);
+	}
+
+	& .item-path {
+		grid-column: 2;
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-normal);
+		color: var(--s-color-text-tertiary);
+	}
+
+	& .item:is(:hover, :focus-visible) .item-path {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* Without anchor positioning (older browsers) the menu opens under the header,
+   at the breadcrumb's start, rather than in the window's corner. It follows
+   the rule above so that rule's inset reset does not override it. */
+@supports not (top: anchor(bottom)) {
+	.b-kind-switch {
+		top: var(--g-space-14);
+		left: var(--g-space-16);
+	}
 }

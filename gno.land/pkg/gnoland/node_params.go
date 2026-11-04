@@ -48,10 +48,16 @@ type internalWriteCtxKey struct{}
 
 // nodeParamsKeeper implements a minimal ParamfulKeeper for the "node" module.
 // It validates node-level parameters set through governance proposals.
-type nodeParamsKeeper struct{}
+type nodeParamsKeeper struct {
+	// requireFlushPoint, if set, is called when a delivered block writes a
+	// halt param (BaseApp.RequireFlushPoint): the binary started after the
+	// halt reads the halt params from the disk, so a block sync that holds
+	// its writes must write them from the block that scheduled the halt.
+	requireFlushPoint func()
+}
 
 // WillSetParam validates node parameters before they are written to the params store.
-func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+func (k nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch key {
 	case "p:halt_height":
 		h, ok := value.(int64)
@@ -67,11 +73,13 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if curHeight := safeBlockHeight(ctx); h > 0 && curHeight > 0 && h <= curHeight {
 			panic(fmt.Sprintf("halt_height %d must be greater than the current block height %d", h, curHeight))
 		}
+		k.haltParamWritten(ctx)
 	case "p:halt_min_version":
 		_, ok := value.(string)
 		if !ok {
 			panic(fmt.Sprintf("halt_min_version must be a string, got %T", value))
 		}
+		k.haltParamWritten(ctx)
 	case "valset:dirty":
 		// Just type-check; the bool value is opaque.
 		// Note: dirty has no ctx-sentinel gate because the realm side
@@ -124,6 +132,14 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if strings.HasPrefix(key, "valset:") {
 			panic(fmt.Sprintf("unknown valset key: %q", key))
 		}
+	}
+}
+
+// haltParamWritten asks for a flush point after a delivered block that writes
+// a valid halt param (see requireFlushPoint); CheckTx and Simulate write none.
+func (k nodeParamsKeeper) haltParamWritten(ctx sdk.Context) {
+	if k.requireFlushPoint != nil && ctx.Mode() == sdk.RunTxModeDeliver {
+		k.requireFlushPoint()
 	}
 }
 

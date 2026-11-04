@@ -1,0 +1,4 @@
+-- input.md --
+Use `<gno-button href="/r/test" label="Code" />` in markdown.
+-- output.html --
+<p>Use <code>&lt;gno-button href=&quot;/r/test&quot; label=&quot;Code&quot; /&gt;</code> in markdown.</p>

@@ -1,0 +1,4 @@
+-- input.md --
+## Title <gno-button href="/r/test" label="Heading" />
+-- output.html --
+<h2>Title <a href="/r/test" class="gno-button">Heading</a></h2>

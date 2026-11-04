@@ -49,6 +49,11 @@ func TestIndexLayout(t *testing.T) {
 			mode:     ViewModePackage,
 			viewType: DirectoryViewType,
 		},
+		{
+			name:     "Playground view",
+			mode:     ViewModePlayground,
+			viewType: "test-view",
+		},
 	}
 
 	for _, tt := range tests {
@@ -117,7 +122,31 @@ func TestEnrichHeaderData(t *testing.T) {
 	enrichedData := EnrichHeaderData(data, ViewModeHome)
 
 	assert.NotEmpty(t, enrichedData.Links.General, "expected general links to be populated")
-	assert.Len(t, enrichedData.Links.Dev, 4, "expected dev links with State and Actions for home mode")
+	assert.Len(t, enrichedData.Links.Dev, 5, "expected dev links with State, Actions, Run for home mode")
+}
+
+func TestEnrichHeaderData_PlaygroundCopy(t *testing.T) {
+	for _, tc := range []struct {
+		path   string
+		labels []string
+	}{
+		{"/r/demo/foo", []string{"Content", "State", "Source", "Actions", "Run"}},
+		{"/p/demo/foo", []string{"Content", "Source"}},
+	} {
+		data := HeaderData{CopyOf: &weburl.GnoURL{Path: tc.path}}
+		links := EnrichHeaderData(data, ViewModePlayground).Links.Dev
+
+		var labels []string
+		for _, link := range links {
+			labels = append(labels, link.Label)
+			assert.False(t, link.IsActive, "%s: %s should not be current", tc.path, link.Label)
+			assert.True(t, strings.HasPrefix(link.URL, tc.path), "%s: %s links to %s", tc.path, link.Label, link.URL)
+		}
+		assert.Equal(t, tc.labels, labels, tc.path)
+	}
+
+	// Without a copied package, the playground has no tabs.
+	assert.Empty(t, EnrichHeaderData(HeaderData{}, ViewModePlayground).Links.Dev)
 }
 
 func TestIsActive(t *testing.T) {
@@ -205,12 +234,13 @@ func TestStaticHeaderDevLinks_WithRealmMode(t *testing.T) {
 	}
 
 	// Test realm mode (default case)
-	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
-	assert.Len(t, links, 4, "expected Content, State, Source, and Actions links")
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false, false)
+	assert.Len(t, links, 5, "expected Content, State, Source, Actions, Run links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "State", links[1].Label)
 	assert.Equal(t, "Source", links[2].Label)
 	assert.Equal(t, "Actions", links[3].Label)
+	assert.Equal(t, "Run", links[4].Label)
 }
 
 func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
@@ -221,8 +251,8 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	}
 
 	// Test package mode
-	links := StaticHeaderDevLinks(u, ViewModePackage, false)
-	assert.Len(t, links, 2, "expected Content and Source links only")
+	links := StaticHeaderDevLinks(u, ViewModePackage, false, false)
+	assert.Len(t, links, 2, "expected Content, Source links")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
 }
@@ -235,7 +265,7 @@ func TestStaticHeaderDevLinks_SourceKeepsOpenFile(t *testing.T) {
 		WebQuery: url.Values{"source": {""}, "file": {"admin.gno"}},
 	}
 
-	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false, false)
 	source := links[2]
 	require.Equal(t, "Source", source.Label)
 	assert.Contains(t, source.URL, "file=admin.gno", "the Source tab must not drop the open file")
@@ -243,7 +273,7 @@ func TestStaticHeaderDevLinks_SourceKeepsOpenFile(t *testing.T) {
 
 	// With no file open, Source still points at the package overview.
 	u.WebQuery = url.Values{}
-	links = StaticHeaderDevLinks(u, ViewModeRealm, false)
+	links = StaticHeaderDevLinks(u, ViewModeRealm, false, false)
 	assert.NotContains(t, links[2].URL, "file=")
 }
 
@@ -254,7 +284,7 @@ func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
 		Path: "/r/test/pkg",
 	}
 
-	links := StaticHeaderDevLinks(u, ViewModeRealm, true)
+	links := StaticHeaderDevLinks(u, ViewModeRealm, true, false)
 	require.Len(t, links, 1, "static content should only have Content link")
 	assert.Equal(t, "Content", links[0].Label)
 }
@@ -267,8 +297,20 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 	}
 
 	// Test explorer mode
-	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
+	links := StaticHeaderDevLinks(u, ViewModeExplorer, false, false)
 	assert.Empty(t, links, "expected no links in explorer mode")
+}
+
+func TestStaticHeaderDevLinks_WithPlaygroundMode(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path: "/_/play",
+	}
+
+	// Test playground mode
+	links := StaticHeaderDevLinks(u, ViewModePlayground, false, false)
+	assert.Empty(t, links, "expected no links in playground mode")
 }
 
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
@@ -284,7 +326,16 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeRealm)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 4, "expected Content, State, Source, and Actions links")
+	assert.Len(t, enriched.Links.Dev, 5, "expected Content, State, Source, Actions, Run links")
+}
+
+func TestEnrichHeaderData_RootHasNoRealmPath(t *testing.T) {
+	t.Parallel()
+
+	data := HeaderData{RealmURL: weburl.GnoURL{Path: "/"}}
+
+	enriched := EnrichHeaderData(data, ViewModeHome)
+	assert.Empty(t, enriched.RealmPath)
 }
 
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
@@ -404,6 +455,61 @@ func TestIndexLayout_ThemePropagation(t *testing.T) {
 				assert.NotContains(t, output, `data-theme=`, "expected no data-theme attribute")
 			} else {
 				assert.Contains(t, output, tc.wantAttr, "expected HTML to contain %s", tc.wantAttr)
+			}
+		})
+	}
+}
+
+// TestIndexLayout_CSPNonce verifies how HeadData.CSPNonce is rendered into the
+// page head. When set, the layout must emit a <meta name="csp-nonce"> tag whose
+// content is the nonce; the frontend reads that tag and passes it to CodeMirror's
+// EditorView.cspNonce facet so CodeMirror's runtime-injected <style> elements
+// carry the nonce and pass a strict style-src CSP. When empty (non-strict mode,
+// where no CSP nonce is issued), the meta tag must be omitted entirely.
+func TestIndexLayout_CSPNonce(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		nonce string
+		want  string // "" means the meta tag must be absent
+	}{
+		{
+			name:  "nonce set renders csp-nonce meta",
+			nonce: "Ml2rzjv6QqQEexAw32Pbeg==",
+			want:  `<meta name="csp-nonce" content="Ml2rzjv6QqQEexAw32Pbeg==" />`,
+		},
+		{
+			name:  "empty nonce omits the meta tag",
+			nonce: "",
+			want:  "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := IndexData{
+				HeadData: HeadData{
+					Title:    "Test",
+					CSPNonce: tc.nonce,
+				},
+				Mode: ViewModeHome,
+				BodyView: &View{
+					Type:      "test-view",
+					Component: NewReaderComponent(strings.NewReader("testdata")),
+				},
+			}
+
+			var buf strings.Builder
+			require.NoError(t, IndexLayout(data).Render(&buf))
+			output := buf.String()
+
+			if tc.want == "" {
+				assert.NotContains(t, output, `name="csp-nonce"`, "expected no csp-nonce meta tag")
+			} else {
+				assert.Contains(t, output, tc.want, "expected csp-nonce meta tag")
 			}
 		})
 	}
@@ -830,4 +936,30 @@ func TestIndexLayout_FontPreloadsMatchStylesheet(t *testing.T) {
 		matched++
 	}
 	require.NotZero(t, matched, "expected the head to preload at least one stylesheet font")
+}
+
+// A listing offers Directory and Map; one too small for a map offers no tab
+// at all, since a single tab would choose between nothing. Explorer pages that
+// are not listings, such as chain-wide search, carry no Listing and no tabs.
+func TestEnrichHeaderData_ListingTabs(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{Path: "/r/demo"}
+	tabs := EnrichHeaderData(HeaderData{RealmURL: u, MapTab: true}, ViewModeExplorer).Links.Dev
+	require.Len(t, tabs, 2)
+	assert.Equal(t, "Directory", tabs[0].Label)
+	assert.Equal(t, "/r/demo", tabs[0].URL)
+	assert.True(t, tabs[0].IsActive)
+	assert.Equal(t, "/r/demo$map", tabs[1].URL)
+	assert.False(t, tabs[1].IsActive)
+
+	u.WebQuery = url.Values{"map": {""}}
+	tabs = EnrichHeaderData(HeaderData{RealmURL: u, MapTab: true}, ViewModeExplorer).Links.Dev
+	assert.False(t, tabs[0].IsActive)
+	assert.True(t, tabs[1].IsActive)
+
+	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: u, MapTab: false}, ViewModeExplorer).Links.Dev,
+		"a listing too small for a map has no tabs")
+	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: weburl.GnoURL{Path: "/"}}, ViewModeExplorer).Links.Dev,
+		"an explorer page that is not a listing has no tabs")
 }

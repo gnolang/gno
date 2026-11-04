@@ -265,7 +265,10 @@ func (p *FormParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 	// Check for closing tag
 	if tok.Data == formTagName {
 		if tok.Type == html.EndTagToken {
-			reader.AdvanceLine()
+			// AdvanceToEOL, not AdvanceLine: the next line must still go
+			// through every ancestor's Continue (in a blockquote, its `>`
+			// would otherwise open a nested quote).
+			reader.AdvanceToEOL()
 			return parser.Close
 		}
 		formNode.addElement(FormInput{Error: ErrFormInvalidTag})
@@ -580,11 +583,11 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 	// Build PkgPath with domain (like the action page does)
 	pkgPath := n.Domain + n.RealmName
 	data := components.CommandData{
-		FuncName:   n.ExecFunc,
-		PkgPath:    pkgPath,
-		ParamNames: paramNames,
-		ChainId:    chainId,
-		Remote:     remote,
+		FuncName: n.ExecFunc,
+		PkgPath:  pkgPath,
+		ArgKeys:  paramNames,
+		ChainId:  chainId,
+		Remote:   remote,
 	}
 
 	// Create and render the template component
