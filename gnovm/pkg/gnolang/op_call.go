@@ -8,6 +8,10 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
+	// `g(f())`: convert before the frame can move m.Realm to a receiver's realm.
+	if convs, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		m.convertResults(convs)
+	}
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
 		m.Panic(typedRuntimeError("runtime error: call of nil function"))
@@ -745,6 +749,33 @@ func (m *Machine) doOpReturnToBlock() {
 	m.PopValues(numResults)
 }
 
+// Converts the results of `return f()` to the types preprocess recorded.
+func (m *Machine) doOpReturnConvert() {
+	s := m.PopStmt().(*ReturnStmt)
+	m.convertResults(s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type))
+}
+
+// Converts the values on top of m.Values to convs, nil for none, in place, where
+// a GC run by Copy still counts them.
+func (m *Machine) convertResults(convs []Type) {
+	results := m.PeekValues(len(convs))
+	for i, t := range convs {
+		if t != nil {
+			results[i] = results[i].Copy(m.Alloc, m.Store)
+			m.convertValue(&results[i], t)
+		}
+	}
+}
+
+// Returns tv converted to the type preprocess recorded on the range target x.
+func (m *Machine) convertRangeTarget(x Expr, tv TypedValue) TypedValue {
+	if t, ok := x.GetAttribute(ATTR_ASSIGN_CONVERT).(Type); ok {
+		tv = tv.Copy(m.Alloc, m.Store)
+		m.convertValue(&tv, t)
+	}
+	return tv
+}
+
 func (m *Machine) doOpReturnCallDefers() {
 	cfr := m.MustPeekCallFrame(1)
 	dfr, ok := cfr.PopDefer()
@@ -937,6 +968,9 @@ func (m *Machine) doOpDefer() {
 	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
 	// the deferred call to one of g's results instead of to f.
 	numArgs := ds.Call.NumArgs
+	if convs, ok := ds.Call.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		m.convertResults(convs)
+	}
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.

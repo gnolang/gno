@@ -259,7 +259,7 @@ func (m *Machine) doOpExec(op Op) {
 				}
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, m.convertRangeTarget(bs.Value, ev), false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -438,7 +438,7 @@ func (m *Machine) doOpExec(op Op) {
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, m.convertRangeTarget(bs.Key, kv), false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -451,7 +451,7 @@ func (m *Machine) doOpExec(op Op) {
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, m.convertRangeTarget(bs.Value, vv), false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -650,6 +650,12 @@ EXEC_SWITCH:
 			} else {
 				m.PushOp(OpReturn)
 			}
+		}
+		// The results of `return f()` that need converting are converted
+		// before any of the return ops above reads them.
+		if cs.GetAttribute(ATTR_ASSIGN_CONVERT) != nil {
+			m.PushStmt(cs)
+			m.PushOp(OpReturnConvert)
 		}
 		// Evaluate results in order, if any.
 		for i := len(cs.Results) - 1; 0 <= i; i-- {

@@ -1,0 +1,221 @@
+# `return f()`, `g(f())`, a comma-ok assignment and a range assignment each convert
+# a value that differs from its target's type only by name, so none relabels a
+# value another realm stores or builds a value of a type another realm declares.
+
+loadpkg gno.land/r/test/members $WORK/members
+loadpkg gno.land/r/test/vault $WORK/vault
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/pun -pkgpath gno.land/p/test/pun -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/caller -gas-fee 10000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
+stdout OK!
+
+# A restart preprocesses the stored package again, so the conversion still holds.
+gnoland restart
+
+# `return f()` over another realm's stored slice.
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func ReturnCall -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+# The other three sources.
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func Decl -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeclPerName -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeclArg -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeclRange -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+gnokey query vm/qeval --data 'gno.land/r/test/members.First()'
+stdout 'data: \("alice" string\)'
+
+# Another realm's type built through each source.
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeReturn -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion to external realm type'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeComma -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion to external realm type'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeArg -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion to external realm type'
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeRange -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion to external realm type'
+
+gnokey query vm/qeval --data 'gno.land/r/test/vault.Read()'
+stdout 'data: \("trusted" string\)'
+
+# Values the calling realm owns still convert.
+gnokey maketx call -pkgpath gno.land/r/test/caller -func Own -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '"own-return own-decl" string'
+
+# An interface keeps the value as it is, so another realm's stored slice passes.
+gnokey maketx call -pkgpath gno.land/r/test/caller -func Box -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '"alice alice alice alice" string'
+
+-- members/gnomod.toml --
+module = "gno.land/r/test/members"
+gno = "0.9"
+
+-- members/members.gno --
+package members
+
+var list = []string{"alice", "bob"}
+
+func List() []string { return list }
+
+func Lists() [][]string { return [][]string{list} }
+
+func Map() map[string][]string { return map[string][]string{"k": list} }
+
+func First() string { return list[0] }
+
+-- vault/gnomod.toml --
+module = "gno.land/r/test/vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package vault
+
+type T struct{ Field string }
+
+func (t T) Get() string { return t.Field }
+
+var saved = T{Field: "trusted"}
+
+func Save(cur realm, t T) { saved = t }
+
+func Read() string { return saved.Get() }
+
+-- pun/gnomod.toml --
+module = "gno.land/p/test/pun"
+gno = "0.9"
+
+-- pun/pun.gno --
+package pun
+
+type L []string
+
+func (l L) Set(i int, v string) { l[i] = v }
+
+-- caller/gnomod.toml --
+module = "gno.land/r/test/caller"
+gno = "0.9"
+
+-- caller/caller.gno --
+package caller
+
+import (
+	"gno.land/p/test/pun"
+	"gno.land/r/test/members"
+	"gno.land/r/test/vault"
+)
+
+func pair() ([]string, []string) { return members.List(), nil }
+
+func ret() (pun.L, pun.L) { return pair() }
+
+func ReturnCall(cur realm) {
+	l, _ := ret()
+	var m pun.L = l
+	m.Set(0, "changed")
+}
+
+func Decl(cur realm) {
+	var r pun.L
+	r, _ = members.Map()["k"]
+	var m pun.L = r
+	m.Set(0, "changed")
+}
+
+func DeclPerName(cur realm) {
+	var r pun.L
+	r, _ = members.Map()["k"]
+	var m, n pun.L = r, nil
+	_ = n
+	m.Set(0, "changed")
+}
+
+func declParam(a, _ pun.L) {
+	var m pun.L = a
+	m.Set(0, "changed")
+}
+
+func DeclArg(cur realm) { declParam(pair()) }
+
+func DeclRange(cur realm) {
+	var r pun.L
+	for _, r = range members.Lists() {
+		var m pun.L = r
+		m.Set(0, "changed")
+	}
+}
+
+func mk() (struct{ Field string }, struct{ Field string }) {
+	return struct{ Field string }{"changed"}, struct{ Field string }{"changed"}
+}
+
+func retT() (vault.T, vault.T) { return mk() }
+
+func ForgeReturn(cur realm) {
+	v, _ := retT()
+	vault.Save(cross(cur), v)
+}
+
+func ForgeComma(cur realm) {
+	src := map[string]struct{ Field string }{"k": {"changed"}}
+	var v vault.T
+	v, _ = src["k"]
+	vault.Save(cross(cur), v)
+}
+
+func first(v, _ vault.T) vault.T { return v }
+
+func ForgeArg(cur realm) {
+	vault.Save(cross(cur), first(mk()))
+}
+
+func ForgeRange(cur realm) {
+	var v vault.T
+	for _, v = range []struct{ Field string }{{"changed"}} {
+		vault.Save(cross(cur), v)
+	}
+}
+
+func boxPair() (any, any) { return pair() }
+
+func boxParams(a, _ any) string { return a.([]string)[0] }
+
+func Box(cur realm) string {
+	a, _ := boxPair()
+	var b any
+	b, _ = members.Map()["k"]
+	var c any
+	for _, c = range members.Lists() {
+	}
+	return a.([]string)[0] + " " + b.([]string)[0] + " " + c.([]string)[0] + " " + boxParams(pair())
+}
+
+func ownPair() ([]string, []string) { return []string{"a"}, nil }
+
+func ownRet() (pun.L, pun.L) { return ownPair() }
+
+func Own(cur realm) string {
+	l, _ := ownRet()
+	l.Set(0, "own-return")
+
+	src := map[string][]string{"k": {"a"}}
+	var r pun.L
+	r, _ = src["k"]
+	var m pun.L = r
+	m.Set(0, "own-decl")
+
+	return l[0] + " " + m[0]
+}

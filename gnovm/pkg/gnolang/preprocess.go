@@ -2290,16 +2290,24 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isVarg {
 							panic("should not happen")
 						}
+						var convs []Type
 						for i, tv := range argTVs {
-							if hasVarg {
-								if (len(spts) - 1) <= i {
-									mustAssignableTo(store, n, tv.T, spts[len(spts)-1].Type.Elem())
-								} else {
-									mustAssignableTo(store, n, tv.T, spts[i].Type)
-								}
-							} else {
-								mustAssignableTo(store, n, tv.T, spts[i].Type)
+							pt := spts[min(i, len(spts)-1)].Type
+							if hasVarg && (len(spts)-1) <= i {
+								pt = pt.Elem()
 							}
+							mustAssignableTo(store, n, tv.T, pt)
+							// A result differing only by name needs the
+							// conversion a single argument gets.
+							if !isGeneric(pt) && pt.Kind() != InterfaceKind && isNamedConversion(tv.T, pt) {
+								if convs == nil {
+									convs = make([]Type, len(argTVs))
+								}
+								convs[i] = pt
+							}
+						}
+						if convs != nil {
+							n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
 						}
 					} else {
 						for i := range n.Args { // iterate args
@@ -2921,6 +2929,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							if convs != nil {
 								n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
 							}
+						} else {
+							// Comma-ok case: a, ok = m[k] or a, ok = x.(T).
+							rt := evalStaticTypeOf(store, last, n.Rhs[0])
+							if tt, ok := rt.(*tupleType); ok {
+								rt = tt.Elts[0]
+							}
+							lt := evalStaticTypeOf(store, last, n.Lhs[0])
+							if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(rt, lt) {
+								n.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{lt, nil})
+							}
 						}
 					} else { // len(Lhs) == len(Rhs)
 						switch n.Op {
@@ -3025,6 +3043,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *RangeStmt:
 				// NOTE: k,v already defined @ TRANS_BLOCK.
 				n.AssertCompatible(store, last)
+				if n.Op == ASSIGN {
+					setRangeConversions(store, last, n)
+				}
 				// `for _, cur = range rs` writes the same parameter slot as
 				// `cur = rs[0]` but is a RangeStmt, not an AssignStmt, so the
 				// rejection in the AssignStmt handler never sees it and no
@@ -3088,7 +3109,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									len(cft.Results),
 								))
 							}
-							// else, nothing more to do.
+							// A result whose type differs from the declared
+							// one only by name needs the conversion `return x`
+							// gets from checkOrConvertType, as for `a, b = f()`.
+							var convs []Type
+							for i, res := range cft.Results {
+								rt := evalStaticType(store, fnode.GetParentNode(nil), ft.Results[i].Type)
+								if rt.Kind() != InterfaceKind && isNamedConversion(res.Type, rt) {
+									if convs == nil {
+										convs = make([]Type, len(cft.Results))
+									}
+									convs[i] = rt
+								}
+							}
+							if convs != nil {
+								n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
+							}
 						} else {
 							panic(fmt.Sprintf("expected %d return values; got %d",
 								len(ft.Results),
@@ -5027,6 +5063,34 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 
 // isNamedConversion returns true if assigning a value of type
 // xt (rhs) into a value of type t (lhs) entails an implicit type conversion.
+// setRangeConversions records on n.Key and n.Value the conversion each needs
+// from the type `for k, v = range x` yields, as `a, b = f()` does.
+func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
+	var kt, vt Type
+	switch bt := baseOf(evalStaticTypeOf(store, last, n.X)).(type) {
+	case *SliceType:
+		vt = bt.Elt
+	case *ArrayType:
+		vt = bt.Elt
+	case *PointerType:
+		vt = baseOf(bt.Elt).(*ArrayType).Elt
+	case *MapType:
+		kt, vt = bt.Key, bt.Value
+	}
+	for _, c := range []struct {
+		x Expr
+		t Type
+	}{{n.Key, kt}, {n.Value, vt}} {
+		if c.x == nil || c.t == nil {
+			continue
+		}
+		lt := evalStaticTypeOf(store, last, c.x)
+		if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(c.t, lt) {
+			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, lt)
+		}
+	}
+}
+
 // xt is the result of an expression type.
 //
 // In a few special cases, we should not perform the conversion:
