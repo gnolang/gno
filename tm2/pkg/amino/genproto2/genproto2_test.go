@@ -854,3 +854,55 @@ func TestGenerateProtobuf3_CrossPkgQualifiedNames(t *testing.T) {
 		t.Fatalf("generated source does not parse: %v", err)
 	}
 }
+
+// TestSkipZeroGuard: generated code wraps a field tagged amino:"skip_zero"
+// in a test of its Go value wherever the tag matters, with == where that
+// is exact and reflect where == cannot compare, and is the same as without
+// the tag where amino already leaves the zero value out.
+func TestSkipZeroGuard(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	src, err := NewP3Context2(cdc).GenerateProtobuf3ForTypes("tests", tests.Package.ReflectTypes()...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+	for _, fn := range []string{"func (goo FuzzSkipZero) MarshalBinary2(", "func (goo FuzzSkipZero) SizeBinary2("} {
+		start := strings.Index(src, fn)
+		if start < 0 {
+			t.Fatalf("%s not found in generated source", fn)
+		}
+		body := src[start:]
+		if end := strings.Index(body, "\n}\n"); end >= 0 {
+			body = body[:end]
+		}
+
+		for _, guard := range []string{
+			"if goo.Addr != (SkipZeroAddr{}) {",
+			"if goo.Bytes != ([4]uint8{}) {",
+			"if goo.Ints != ([2]int64{}) {",
+			"if goo.Inners != ([2]SkipZeroInner{}) {",
+			"if goo.Inner != (SkipZeroInner{}) {",
+			"if !reflect.ValueOf(&goo.List).Elem().IsZero() {",
+			"if goo.Score != 0 {",
+		} {
+			if !strings.Contains(body, guard) {
+				t.Errorf("%s: missing skip_zero guard %q", fn, guard)
+			}
+		}
+		// Amino leaves these out at zero anyway, so each keeps its one
+		// usual check and no second guard.
+		for _, check := range []string{`goo.Name != ""`, "goo.Fixed != 0", "len(goo.Nums) != 0"} {
+			if n := strings.Count(body, check); n != 1 {
+				t.Errorf("%s: %q appears %d times, want 1", fn, check, n)
+			}
+		}
+		// The untagged controls are not guarded.
+		for _, control := range []string{"goo.PlainAddr != ", "goo.PlainInner != "} {
+			if strings.Contains(body, control) {
+				t.Errorf("%s: untagged field guarded: %q", fn, control)
+			}
+		}
+	}
+}

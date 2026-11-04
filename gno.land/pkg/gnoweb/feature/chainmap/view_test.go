@@ -80,7 +80,7 @@ func TestMapColoursRealmsByCalls(t *testing.T) {
 		"/r/a/some · 3 calls by 1 account",
 		"/r/a/idle · no calls",
 		">10–20<",
-		"last indexed block 20",
+		"Last indexed block 20",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("activity map lacks %q", want)
