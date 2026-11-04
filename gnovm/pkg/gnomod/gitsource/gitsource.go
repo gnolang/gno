@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -28,17 +27,15 @@ func Detect(dir string) (gnomod.Source, error) {
 	if err != nil {
 		return gnomod.Source{}, err
 	}
-	top, err := git(dir, "rev-parse", "--show-toplevel")
+	// --show-prefix resolves symlinks and case-insensitive filesystems the
+	// way git itself does, and answers "" at the top.
+	prefix, err := git(dir, "rev-parse", "--show-prefix")
 	if err != nil {
 		return gnomod.Source{}, err
 	}
-	rel, err := relPath(top, dir)
-	if err != nil {
-		return gnomod.Source{}, err
-	}
-	src := gnomod.Source{Repository: repo, Path: rel}
+	src := gnomod.Source{Repository: repo, Path: strings.TrimSuffix(prefix, "/")}
 	if err := src.Validate(); err != nil {
-		return gnomod.Source{}, err
+		return gnomod.Source{}, fmt.Errorf("%w; set [source] by hand", err)
 	}
 	return src, nil
 }
@@ -49,8 +46,15 @@ var scpLike = regexp.MustCompile(`^(?:[\w.-]+@)?([\w.-]+):([^/].*)$`)
 // repository: `git@github.com:o/r.git`, `ssh://git@github.com/o/r` and
 // `https://token@github.com/o/r.git` all become `https://github.com/o/r`.
 // Credentials are always dropped, since the result ends up on chain.
+//
+// The port of an http(s) remote is kept, since it names the web server; the
+// port of an ssh remote is not. A host without a dot is refused: it is an ssh
+// alias from ~/.ssh/config, or a Windows drive letter, not a web host.
 func NormalizeRemote(remote string) (string, error) {
 	remote = strings.TrimSpace(remote)
+	if strings.Contains(remote, `\`) {
+		return "", fmt.Errorf("remote %q is a local path", remote)
+	}
 	var host, p string
 	if m := scpLike.FindStringSubmatch(remote); m != nil && !strings.Contains(remote, "://") {
 		host, p = m[1], m[2]
@@ -60,41 +64,26 @@ func NormalizeRemote(remote string) (string, error) {
 			return "", fmt.Errorf("parse remote %q: %w", remote, err)
 		}
 		switch u.Scheme {
-		case "https", "http", "ssh", "git":
+		case "https", "http":
+			host = u.Host
+		case "ssh", "git":
+			host = u.Hostname()
 		default:
 			return "", fmt.Errorf("remote %q: unsupported scheme %q", remote, u.Scheme)
 		}
-		host, p = u.Hostname(), u.Path
+		// Escaped, so a %20 stays encoded and is refused by Validate rather
+		// than stored as a literal space.
+		p = u.EscapedPath()
+	}
+	host = strings.ToLower(host)
+	if !strings.Contains(host, ".") {
+		return "", fmt.Errorf("remote %q: host %q is not a web host (an ssh alias or a drive letter?)", remote, host)
 	}
 	p = strings.Trim(strings.TrimSuffix(strings.Trim(p, "/"), ".git"), "/")
 	if host == "" || p == "" {
 		return "", fmt.Errorf("remote %q: cannot derive a repository URL", remote)
 	}
 	return "https://" + host + "/" + p, nil
-}
-
-func relPath(top, dir string) (string, error) {
-	// git reports the toplevel with symlinks resolved; resolve dir the same
-	// way so a module under a symlinked checkout does not come out as "../..".
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return "", err
-	}
-	if d, err := filepath.EvalSymlinks(absDir); err == nil {
-		absDir = d
-	}
-	if t, err := filepath.EvalSymlinks(top); err == nil {
-		top = t
-	}
-	rel, err := filepath.Rel(top, absDir)
-	if err != nil {
-		return "", err
-	}
-	rel = filepath.ToSlash(rel)
-	if rel == "." {
-		rel = ""
-	}
-	return rel, nil
 }
 
 func git(dir string, args ...string) (string, error) {
