@@ -42,6 +42,9 @@ func TestDocsHandlerRoutes(t *testing.T) {
 		wantStatus  int
 		wantSnippet string // substring expected in the rendered body
 		wantAbsent  string // substring that must not appear in the body
+		wantEmpty   bool   // body must be empty (HEAD)
+		// wantLocation is the expected redirect target.
+		wantLocation string
 	}{
 		{
 			name:        "index renders README",
@@ -74,9 +77,25 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			wantSnippet: "",
 		},
 		{
-			name:       "HEAD request succeeds",
+			name:       "HEAD request succeeds with no body",
+			method:     http.MethodHead,
 			route:      "/docs",
 			wantStatus: http.StatusOK,
+			wantEmpty:  true,
+		},
+		{
+			// No section directory has a README.md of its own; the
+			// breadcrumb links to it, so it must not 404.
+			name:         "section directory redirects to the index",
+			route:        "/docs/builders",
+			wantStatus:   http.StatusFound,
+			wantLocation: "/docs",
+		},
+		{
+			name:         "section directory with trailing slash redirects",
+			route:        "/docs/resources/",
+			wantStatus:   http.StatusFound,
+			wantLocation: "/docs",
 		},
 		{
 			name:       "POST rejected with 405",
@@ -147,6 +166,12 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			}
 			if tc.wantAbsent != "" {
 				assert.NotContains(t, rec.Body.String(), tc.wantAbsent)
+			}
+			if tc.wantEmpty {
+				assert.Empty(t, rec.Body.String())
+			}
+			if tc.wantLocation != "" {
+				assert.Equal(t, tc.wantLocation, rec.Header().Get("Location"))
 			}
 		})
 	}
@@ -229,6 +254,7 @@ func TestDocsHandlerServesMarkdown(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "text/markdown; charset=utf-8", rec.Header().Get("Content-Type"))
 	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "Accept", rec.Header().Get("Vary"))
 
 	body := rec.Body.String()
 	assert.NotContains(t, body, "<html", "must be markdown source, not the rendered page")

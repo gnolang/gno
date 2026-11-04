@@ -40,8 +40,8 @@ Some lead paragraph.
 	if got[0].Items[0].Href != "users/discover-gnoland.md" {
 		t.Errorf("href[0] = %q", got[0].Items[0].Href)
 	}
-	if got[0].Items[1].Title != "Using `gnoweb`" {
-		t.Errorf("title with backticks preserved, got %q", got[0].Items[1].Title)
+	if got[0].Items[1].Title != "Using gnoweb" {
+		t.Errorf("backticks must be stripped from titles, got %q", got[0].Items[1].Title)
 	}
 	if got[1].Items[1].Href != "https://github.com/gnolang/gno/tree/master/examples" {
 		t.Errorf("external href = %q", got[1].Items[1].Href)
@@ -57,17 +57,28 @@ func TestSidebarFromReadme(t *testing.T) {
 	// The real README.md must yield the three canonical categories. If a
 	// category is renamed in README, update this test (and the gnoweb
 	// component that depends on the labels).
-	want := []string{"Use Gno.land", "Build on Gno.land", "References"}
+	//
+	// The item counts pin the parser against README.md: a bullet that stops
+	// matching (e.g. "-" changed to "*") silently drops out of the nav, so
+	// adding or removing a README entry must update its count here.
+	want := []struct {
+		title string
+		items int
+	}{
+		{"Use Gno.land", 6},
+		{"Build on Gno.land", 10},
+		{"References", 27},
+	}
 	got := Sidebar()
 	if len(got) != len(want) {
 		t.Fatalf("want %d sections, got %d", len(want), len(got))
 	}
 	for i, w := range want {
-		if got[i].Title != w {
-			t.Errorf("section[%d] = %q, want %q", i, got[i].Title, w)
+		if got[i].Title != w.title {
+			t.Errorf("section[%d] = %q, want %q", i, got[i].Title, w.title)
 		}
-		if len(got[i].Items) == 0 {
-			t.Errorf("section %q has no items", got[i].Title)
+		if len(got[i].Items) != w.items {
+			t.Errorf("section %q has %d items, want %d", got[i].Title, len(got[i].Items), w.items)
 		}
 	}
 

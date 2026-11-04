@@ -29,8 +29,8 @@ type SidebarItem struct {
 //   - [Title](href) - optional summary text
 //
 // Submatches: 1 = title, 2 = href, 3 = summary (may be empty). Backticks
-// and other inline markdown inside the title are kept verbatim so that the
-// renderer can decide how to display them.
+// are stripped from the title: the nav renders labels as plain text, where
+// a raw "`gnoweb`" reads as noise.
 var sidebarItemRE = regexp.MustCompile(`^\s*-\s+\[(.+?)\]\(([^)]+)\)(?:\s*-\s*(.*))?$`)
 
 // sidebarSectionRE matches a level-2 heading: "## Use Gno.land".
@@ -89,7 +89,7 @@ func parseSidebar(src []byte) []SidebarSection {
 		if m := sidebarItemRE.FindStringSubmatch(line); m != nil {
 			href := strings.TrimSpace(m[2])
 			cur.Items = append(cur.Items, SidebarItem{
-				Title:    strings.TrimSpace(m[1]),
+				Title:    strings.ReplaceAll(strings.TrimSpace(m[1]), "`", ""),
 				Href:     href,
 				Summary:  strings.TrimSpace(m[3]),
 				External: isExternalHref(href),

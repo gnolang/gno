@@ -77,6 +77,13 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	src, resolvedRel, ok := h.resolve(rel)
 	if !ok {
+		// A section directory (builders/, users/, ...) has no page of its
+		// own, yet every nested page's breadcrumb links to it: send it to
+		// the index, which lists each section.
+		if h.isDir(rel) {
+			http.Redirect(w, r, DocsURLPrefix, http.StatusFound)
+			return
+		}
 		h.renderError(w, r, http.StatusNotFound, "page not found")
 		return
 	}
@@ -88,6 +95,8 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// targets in the response resolve against this server rather than against
 	// the repository checkout; admonitions are left in their Docusaurus form,
 	// which is the source of truth.
+	// The same URL serves markdown or HTML depending on Accept.
+	w.Header().Add("Vary", "Accept")
 	if wantsMarkdown(r.Header.Get("Accept")) {
 		out := rewriteDocsLinks(src, resolvedRel)
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
@@ -178,9 +187,22 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodHead {
+		return
+	}
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
 		h.Logger.Error("docs index layout render failed", "error", err)
 	}
+}
+
+// isDir reports whether rel names a directory of the embedded docs tree.
+func (h *DocsHandler) isDir(rel string) bool {
+	rel = path.Clean(rel)
+	if rel == "." || strings.HasPrefix(rel, "..") {
+		return false
+	}
+	fi, err := fs.Stat(h.fsys, rel)
+	return err == nil && fi.IsDir()
 }
 
 // resolve maps a relative URL path (without the /docs/ prefix) to embedded
@@ -388,21 +410,6 @@ func buildSidebar(currentRel string, pageToc []*components.TocItem) ([]component
 		}
 		out = append(out, viewSec)
 	}
-
-	// /docs and /r/docs are two different things with near-identical names, and
-	// a newcomer landing on one has no way to discover the other. Cross-link
-	// them from the navigation and say what each one is, rather than renaming
-	// either — the two names are established and a rename is a separate call.
-	// /r/docs is on-chain, so it is flagged External to get the leaving-the-tree
-	// chrome even though it is the same host.
-	out = append(out, components.DocsSidebarSection{
-		Title: "Elsewhere",
-		Items: []components.DocsSidebarItem{{
-			Title:    "Live example realms (r/docs)",
-			Href:     "/r/docs",
-			External: true,
-		}},
-	})
 
 	return out, matched
 }
