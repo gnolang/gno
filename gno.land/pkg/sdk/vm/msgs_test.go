@@ -118,6 +118,13 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 			expectErr: std.InvalidCoinsError{},
 		},
 		{
+			name: "nil package",
+			msg: MsgAddPackage{
+				Creator: creator,
+			},
+			expectErr: InvalidPkgPathError{},
+		},
+		{
 			name: "empty files array",
 			msg: MsgAddPackage{
 				Creator: creator,
@@ -423,6 +430,13 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 				}},
 			},
 			expectErr: std.InvalidCoinsError{},
+		},
+		{
+			name: "nil package",
+			msg: MsgRun{
+				Caller: caller,
+			},
+			expectErr: InvalidPkgPathError{},
 		},
 		{
 			name: "empty package files",

@@ -55,6 +55,9 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
 	}
+	if msg.Package == nil {
+		return ErrInvalidPkgPath("missing package")
+	}
 	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
@@ -228,6 +231,9 @@ func (msg MsgRun) Type() string { return "run" }
 func (msg MsgRun) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
+	}
+	if msg.Package == nil {
+		return ErrInvalidPkgPath("missing package")
 	}
 
 	if msg.Package.Path != "" {
