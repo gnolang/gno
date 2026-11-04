@@ -122,3 +122,88 @@ func Test256Panics(t *testing.T) {
 		t.Errorf("Mulu256p(1<<200, 1<<55) = %d", got)
 	}
 }
+
+func TestConvert256(t *testing.T) {
+	var u64max uint256 = math.MaxUint64
+	checkI64 := func(name string, got int64, ok bool, want int64, wok bool) {
+		if got != want || ok != wok {
+			t.Errorf("%s = %d, %v; want %d, %v", name, got, ok, want, wok)
+		}
+	}
+	checkU64 := func(name string, got uint64, ok bool, want uint64, wok bool) {
+		if got != want || ok != wok {
+			t.Errorf("%s = %d, %v; want %d, %v", name, got, ok, want, wok)
+		}
+	}
+
+	// The wrapping conversion the reviewer pointed at: 1<<200 + 1 keeps its
+	// low bits, so it reads as 1, and the check reports it.
+	var big uint256 = 1<<200 + 1
+	got, ok := overflow.Uint256ToInt64(big)
+	checkI64("Uint256ToInt64(1<<200+1)", got, ok, 1, false)
+	got, ok = overflow.Uint256ToInt64(math.MaxInt64)
+	checkI64("Uint256ToInt64(MaxInt64)", got, ok, math.MaxInt64, true)
+	got, ok = overflow.Uint256ToInt64(math.MaxInt64 + 1)
+	checkI64("Uint256ToInt64(MaxInt64+1)", got, ok, math.MinInt64, false)
+
+	ugot, ok := overflow.Uint256ToUint64(u64max)
+	checkU64("Uint256ToUint64(MaxUint64)", ugot, ok, math.MaxUint64, true)
+	ugot, ok = overflow.Uint256ToUint64(u64max + 1)
+	checkU64("Uint256ToUint64(MaxUint64+1)", ugot, ok, 0, false)
+
+	var minI64 int256 = math.MinInt64
+	var maxI64 int256 = math.MaxInt64
+	got, ok = overflow.Int256ToInt64(minI64)
+	checkI64("Int256ToInt64(MinInt64)", got, ok, math.MinInt64, true)
+	got, ok = overflow.Int256ToInt64(minI64 - 1)
+	checkI64("Int256ToInt64(MinInt64-1)", got, ok, math.MaxInt64, false)
+	got, ok = overflow.Int256ToInt64(maxI64 + 1)
+	checkI64("Int256ToInt64(MaxInt64+1)", got, ok, math.MinInt64, false)
+	got, ok = overflow.Int256ToInt64(i256Min)
+	checkI64("Int256ToInt64(MinInt256)", got, ok, 0, false)
+
+	ugot, ok = overflow.Int256ToUint64(int256(u64max))
+	checkU64("Int256ToUint64(MaxUint64)", ugot, ok, math.MaxUint64, true)
+	ugot, ok = overflow.Int256ToUint64(int256(u64max + 1))
+	checkU64("Int256ToUint64(MaxUint64+1)", ugot, ok, 0, false)
+	ugot, ok = overflow.Int256ToUint64(-1)
+	checkU64("Int256ToUint64(-1)", ugot, ok, math.MaxUint64, false)
+
+	if r, ok := overflow.Int256ToUint256(i256Max); r != maxBits || !ok {
+		t.Errorf("Int256ToUint256(MaxInt256) = %d, %v", r, ok)
+	}
+	if r, ok := overflow.Int256ToUint256(-1); r != math.MaxUint256 || ok {
+		t.Errorf("Int256ToUint256(-1) = %d, %v", r, ok)
+	}
+	if r, ok := overflow.Uint256ToInt256(maxBits); r != i256Max || !ok {
+		t.Errorf("Uint256ToInt256(MaxInt256) = %d, %v", r, ok)
+	}
+	if r, ok := overflow.Uint256ToInt256(maxBits + 1); r != i256Min || ok {
+		t.Errorf("Uint256ToInt256(MaxInt256+1) = %d, %v", r, ok)
+	}
+}
+
+func TestConvert256Panics(t *testing.T) {
+	mustPanic := func(name string, fn func()) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("%s: expected panic", name)
+			}
+		}()
+		fn()
+	}
+	var u64max uint256 = math.MaxUint64
+	mustPanic("Uint256ToInt64p", func() { overflow.Uint256ToInt64p(1<<200 + 1) })
+	mustPanic("Uint256ToUint64p", func() { overflow.Uint256ToUint64p(u64max + 1) })
+	mustPanic("Uint256ToInt256p", func() { overflow.Uint256ToInt256p(maxBits + 1) })
+	mustPanic("Int256ToInt64p", func() { overflow.Int256ToInt64p(i256Min) })
+	mustPanic("Int256ToUint64p", func() { overflow.Int256ToUint64p(-1) })
+	mustPanic("Int256ToUint256p", func() { overflow.Int256ToUint256p(-1) })
+
+	if got := overflow.Uint256ToInt64p(42); got != 42 {
+		t.Errorf("Uint256ToInt64p(42) = %d", got)
+	}
+	if got := overflow.Int256ToUint256p(i256Max); got != maxBits {
+		t.Errorf("Int256ToUint256p(MaxInt256) = %d", got)
+	}
+}
