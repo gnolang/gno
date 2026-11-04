@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/holiman/uint256"
 )
 
 // ----------------------------------------
@@ -141,8 +142,6 @@ func (m *Machine) doOpLss() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
-	m.incrCPU256(lv.T, OpCPULssInt256, OpCPULss)
-
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntLss)
 
 	// set the result in lv.
@@ -162,8 +161,6 @@ func (m *Machine) doOpLeq() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
-	m.incrCPU256(lv.T, OpCPULssInt256, OpCPULeq)
-
 	// set the result in lv.
 	res := isLeq(m, lv, rv)
 	lv.T = UntypedBoolType
@@ -181,8 +178,6 @@ func (m *Machine) doOpGtr() {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
 
-	m.incrCPU256(lv.T, OpCPULssInt256, OpCPUGtr)
-
 	// set the result in lv.
 	res := isGtr(m, lv, rv)
 	lv.T = UntypedBoolType
@@ -199,8 +194,6 @@ func (m *Machine) doOpGeq() {
 	if debug {
 		debugAssertSameTypes(lv.T, rv.T)
 	}
-
-	m.incrCPU256(lv.T, OpCPULssInt256, OpCPUGeq)
 
 	// set the result in lv.
 	res := isGeq(m, lv, rv)
@@ -234,14 +227,13 @@ func (m *Machine) doOpAdd() {
 	default:
 		m.incrCPU(OpCPUAddInt)
 	}
-	m.incrCPU256(lv.T, OpCPUAddInt256, OpCPUAddInt)
 
 	// Per-N gas for BigInt/BigDec.
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntAdd)
 	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecAdd)
 
 	// add rv to lv.
-	addAssign(m.Alloc, lv, rv)
+	addAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpSub() {
@@ -261,13 +253,12 @@ func (m *Machine) doOpSub() {
 	default:
 		m.incrCPU(OpCPUSubInt)
 	}
-	m.incrCPU256(lv.T, OpCPUSubInt256, OpCPUSubInt)
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntSub)
 	m.incrCPUBigDec(lv, rv, OpCPUSlopeBigDecSub)
 
 	// sub rv from lv.
-	subAssign(m.Alloc, lv, rv)
+	subAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpBor() {
@@ -281,10 +272,9 @@ func (m *Machine) doOpBor() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBor)
-	m.incrCPU256(lv.T, OpCPUBorInt256, OpCPUBor)
 
 	// lv | rv
-	borAssign(m.Alloc, lv, rv)
+	borAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpXor() {
@@ -298,10 +288,9 @@ func (m *Machine) doOpXor() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntXor)
-	m.incrCPU256(lv.T, OpCPUXorInt256, OpCPUXor)
 
 	// lv ^ rv
-	xorAssign(m.Alloc, lv, rv)
+	xorAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpMul() {
@@ -321,13 +310,12 @@ func (m *Machine) doOpMul() {
 	default:
 		m.incrCPU(OpCPUMulInt)
 	}
-	m.incrCPU256(lv.T, OpCPUMulInt256, OpCPUMulInt)
 
 	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntMulQ)
 	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecMulQ)
 
 	// lv * rv
-	mulAssign(m.Alloc, lv, rv)
+	mulAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpQuo() {
@@ -347,13 +335,12 @@ func (m *Machine) doOpQuo() {
 	default:
 		m.incrCPU(OpCPUQuoInt)
 	}
-	m.incrCPU256(lv.T, OpCPUQuoInt256, OpCPUQuoInt)
 
 	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntQuoQ)
 	m.incrCPUBigDecQuad(lv, rv, OpCPUSlopeBigDecQuoQ)
 
 	// lv / rv
-	err := quoAssign(m.Alloc, lv, rv)
+	err := quoAssign(m, lv, rv)
 	if err != nil {
 		panic(err)
 	}
@@ -371,10 +358,9 @@ func (m *Machine) doOpRem() {
 
 	// Per-N gas for BigInt (quadratic, similar to Quo).
 	m.incrCPUBigIntQuad(lv, rv, OpCPUSlopeBigIntRemQ)
-	m.incrCPU256(lv.T, OpCPURemInt256, OpCPURem)
 
 	// lv % rv
-	err := remAssign(m.Alloc, lv, rv)
+	err := remAssign(m, lv, rv)
 	if err != nil {
 		panic(err)
 	}
@@ -412,8 +398,6 @@ func (m *Machine) doOpShl() {
 		m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShl)
 	}
 
-	m.incrCPU256(lv.T, OpCPUShlInt256, OpCPUShl)
-
 	// lv << rv
 	shlAssign(m, lv, rv)
 }
@@ -432,7 +416,6 @@ func (m *Machine) doOpShr() {
 
 	// Per-N gas for BigInt Shr: charge per-kilobit of input bit width.
 	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntShr)
-	m.incrCPU256(lv.T, OpCPUShrInt256, OpCPUShr)
 
 	// lv >> rv
 	shrAssign(m, lv, rv)
@@ -449,10 +432,9 @@ func (m *Machine) doOpBand() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBand)
-	m.incrCPU256(lv.T, OpCPUBandInt256, OpCPUBand)
 
 	// lv & rv
-	bandAssign(m.Alloc, lv, rv)
+	bandAssign(m, lv, rv)
 }
 
 func (m *Machine) doOpBandn() {
@@ -466,10 +448,9 @@ func (m *Machine) doOpBandn() {
 	}
 
 	m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntBandn)
-	m.incrCPU256(lv.T, OpCPUBandnInt256, OpCPUBandn)
 
 	// lv &^ rv
-	bandnAssign(m.Alloc, lv, rv)
+	bandnAssign(m, lv, rv)
 }
 
 // ----------------------------------------
@@ -541,9 +522,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	case Int256Kind, Uint256Kind:
 		// Charged here rather than in doOpEql, so that comparisons of
 		// arrays, structs, interface fields and switch cases pay it too.
-		if m != nil {
-			m.incrCPU(OpCPUEqlInt256 - OpCPUEql)
-		}
+		m.incrCPU256(OpCPUEqlInt256, OpCPUEql)
 		return lv.GetBits256() == rv.GetBits256()
 	case Float32Kind:
 		return softfloat.Feq32(lv.GetFloat32(), rv.GetFloat32())
@@ -681,6 +660,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
 	case Int256Kind, Uint256Kind:
+		m.incrCPU256(OpCPULssInt256, OpCPULss)
 		return bits256Cmp(lv, rv) < 0
 	case Float32Kind:
 		return softfloat.Flt32(lv.GetFloat32(), rv.GetFloat32())
@@ -728,6 +708,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
 	case Int256Kind, Uint256Kind:
+		m.incrCPU256(OpCPULssInt256, OpCPULeq)
 		return bits256Cmp(lv, rv) <= 0
 	case Float32Kind:
 		return softfloat.Fle32(lv.GetFloat32(), rv.GetFloat32())
@@ -775,6 +756,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
 	case Int256Kind, Uint256Kind:
+		m.incrCPU256(OpCPULssInt256, OpCPUGtr)
 		return bits256Cmp(lv, rv) > 0
 	case Float32Kind:
 		return softfloat.Fgt32(lv.GetFloat32(), rv.GetFloat32())
@@ -822,6 +804,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
 	case Int256Kind, Uint256Kind:
+		m.incrCPU256(OpCPULssInt256, OpCPUGeq)
 		return bits256Cmp(lv, rv) >= 0
 	case Float32Kind:
 		return softfloat.Fge32(lv.GetFloat32(), rv.GetFloat32())
@@ -925,12 +908,12 @@ func parseBigdecLiteral(s, kind string) BigdecValue {
 }
 
 // for doOpAdd and doOpAddAssign.
-func addAssign(alloc *Allocator, lv, rv *TypedValue) {
+func addAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
-		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
+		lv.V = m.Alloc.NewString(lv.GetString() + rv.GetString())
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:
@@ -954,7 +937,11 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256Add)
+		m.incrCPU256(OpCPUAddInt256, OpCPUAddInt)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		z.Add(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat32(softfloat.Fadd32(lv.GetFloat32(), rv.GetFloat32()))
@@ -976,7 +963,7 @@ func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpSub and doOpSubAssign.
-func subAssign(alloc *Allocator, lv, rv *TypedValue) {
+func subAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1003,7 +990,11 @@ func subAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256Sub)
+		m.incrCPU256(OpCPUSubInt256, OpCPUSubInt)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		z.Sub(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat32(softfloat.Fsub32(lv.GetFloat32(), rv.GetFloat32()))
@@ -1025,7 +1016,7 @@ func subAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpMul and doOpMulAssign.
-func mulAssign(alloc *Allocator, lv, rv *TypedValue) {
+func mulAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1052,7 +1043,11 @@ func mulAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256Mul)
+		m.incrCPU256(OpCPUMulInt256, OpCPUMulInt)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		z.Mul(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat32(softfloat.Fmul32(lv.GetFloat32(), rv.GetFloat32()))
@@ -1074,7 +1069,7 @@ func mulAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpQuo and doOpQuoAssign.
-func quoAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
+func quoAssign(m *Machine, lv, rv *TypedValue) *Exception {
 	expt := &Exception{
 		Value: typedRuntimeError("runtime error: division by zero"),
 	}
@@ -1138,10 +1133,20 @@ func quoAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 		}
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case Int256Type, Uint256Type:
+		m.incrCPU256(OpCPUQuoInt256, OpCPUQuoInt)
 		if rv.V == nil {
 			return expt
 		}
-		bits256Binary(alloc, lv, rv, bits256Quo(lv.T.Kind() == Int256Kind))
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		// Truncated toward zero as in Go; for int256, MinInt256 / -1
+		// wraps to MinInt256 and MinInt256 % -1 is 0. y is non-zero.
+		if lv.T.Kind() == Int256Kind {
+			z.SDiv(&x, &y)
+		} else {
+			z.Div(&x, &y)
+		}
+		lv.SetBits256(m.Alloc, &z)
 	case Float32Type:
 		// NOTE: gno doesn't fuse *+.
 		lv.SetFloat32(softfloat.Fdiv32(lv.GetFloat32(), rv.GetFloat32()))
@@ -1172,7 +1177,7 @@ func quoAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 }
 
 // for doOpRem and doOpRemAssign.
-func remAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
+func remAssign(m *Machine, lv, rv *TypedValue) *Exception {
 	expt := &Exception{
 		Value: typedRuntimeError("runtime error: division by zero"),
 	}
@@ -1236,10 +1241,18 @@ func remAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case Int256Type, Uint256Type:
+		m.incrCPU256(OpCPURemInt256, OpCPURem)
 		if rv.V == nil {
 			return expt
 		}
-		bits256Binary(alloc, lv, rv, bits256Rem(lv.T.Kind() == Int256Kind))
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		if lv.T.Kind() == Int256Kind {
+			z.SMod(&x, &y)
+		} else {
+			z.Mod(&x, &y)
+		}
+		lv.SetBits256(m.Alloc, &z)
 	case UntypedBigintType:
 		if rv.GetBigInt().Sign() == 0 {
 			return expt
@@ -1259,7 +1272,7 @@ func remAssign(alloc *Allocator, lv, rv *TypedValue) *Exception {
 }
 
 // for doOpBand and doOpBandAssign.
-func bandAssign(alloc *Allocator, lv, rv *TypedValue) {
+func bandAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1286,7 +1299,11 @@ func bandAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256And)
+		m.incrCPU256(OpCPUBandInt256, OpCPUBand)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		z.And(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).And(lb, rv.GetBigInt())
@@ -1300,7 +1317,7 @@ func bandAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpBandn and doOpBandnAssign.
-func bandnAssign(alloc *Allocator, lv, rv *TypedValue) {
+func bandnAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1327,7 +1344,12 @@ func bandnAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256AndNot)
+		m.incrCPU256(OpCPUBandnInt256, OpCPUBandn)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		y.Not(&y)
+		z.And(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).AndNot(lb, rv.GetBigInt())
@@ -1341,7 +1363,7 @@ func bandnAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpBor and doOpBorAssign.
-func borAssign(alloc *Allocator, lv, rv *TypedValue) {
+func borAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1368,7 +1390,11 @@ func borAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256Or)
+		m.incrCPU256(OpCPUBorInt256, OpCPUBor)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		z.Or(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Or(lb, rv.GetBigInt())
@@ -1382,7 +1408,7 @@ func borAssign(alloc *Allocator, lv, rv *TypedValue) {
 }
 
 // for doOpXor and doOpXorAssign.
-func xorAssign(alloc *Allocator, lv, rv *TypedValue) {
+func xorAssign(m *Machine, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
@@ -1409,7 +1435,11 @@ func xorAssign(alloc *Allocator, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
 	case Int256Type, Uint256Type:
-		bits256Binary(alloc, lv, rv, bits256Xor)
+		m.incrCPU256(OpCPUXorInt256, OpCPUXor)
+		x, y := lv.GetBits256(), rv.GetBits256()
+		var z uint256.Int
+		z.Xor(&x, &y)
+		lv.SetBits256(m.Alloc, &z)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()
 		lb = big.NewInt(0).Xor(lb, rv.GetBigInt())
@@ -1449,6 +1479,11 @@ func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
+		// The surcharge is otherwise charged in the 256-bit case below,
+		// which a negative count never reaches.
+		if is256Kind(lv.T.Kind()) {
+			m.incrCPU256(OpCPUShlInt256, OpCPUShl)
+		}
 		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
@@ -1513,6 +1548,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		}
 		lv.SetUint64(lv.GetUint64() << shift)
 	case Int256Type, Uint256Type:
+		m.incrCPU256(OpCPUShlInt256, OpCPUShl)
 		bits256Shl(m.Alloc, lv, shift)
 	case UntypedBigintType:
 		if shift > maxBigintShift {
@@ -1535,6 +1571,11 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
+		// The surcharge is otherwise charged in the 256-bit case below,
+		// which a negative count never reaches.
+		if is256Kind(lv.T.Kind()) {
+			m.incrCPU256(OpCPUShrInt256, OpCPUShr)
+		}
 		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
@@ -1599,6 +1640,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		}
 		lv.SetUint64(lv.GetUint64() >> shift)
 	case Int256Type, Uint256Type:
+		m.incrCPU256(OpCPUShrInt256, OpCPUShr)
 		bits256Shr(m.Alloc, lv, shift)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()

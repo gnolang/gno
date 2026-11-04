@@ -79,6 +79,115 @@ func TestGasInt256Ops(t *testing.T) {
 	zero := gasOf(a, a, (*Machine).doOpSub, false)
 	nonzero := gasOf(a, b, (*Machine).doOpSub, false)
 	assert.Equal(t, boxGas, nonzero-zero, "zero result")
+
+	// A negative shift count panics before the shift's 256-bit case, and
+	// still pays the surcharge (no box: nothing is built).
+	panicGas := func(lv TypedValue, op func(m *Machine)) (gas int64) {
+		defer func() {
+			require.NotNil(t, recover(), "negative shift count must panic")
+		}()
+		gm := store.NewGasMeter(math.MaxInt64)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath:  "test",
+			GasMeter: gm,
+			Alloc:    NewAllocator(math.MaxInt64),
+		})
+		defer func() { gas = gm.GasConsumed() }()
+		m.PushValue(lv)
+		m.PushValue(intTV(-1))
+		m.PushExpr(&BinaryExpr{})
+		op(m)
+		return 0
+	}
+	assert.Equal(t, int64(OpCPUShlInt256-OpCPUShl),
+		panicGas(a, (*Machine).doOpShl)-panicGas(ia, (*Machine).doOpShl), "shl, negative count")
+	assert.Equal(t, int64(OpCPUShrInt256-OpCPUShr),
+		panicGas(a, (*Machine).doOpShr)-panicGas(ia, (*Machine).doOpShr), "shr, negative count")
+}
+
+// TestGasInt256CompoundAssign checks that a compound assignment pays the
+// same surcharge as the binary operator: its flat OpCPU*Assign cost is the
+// same for every type, and the operator's 256-bit case adds the difference.
+func TestGasInt256CompoundAssign(t *testing.T) {
+	gasOf := func(src string) int64 {
+		gm := store.NewGasMeter(math.MaxInt64)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath:  "main",
+			GasMeter: gm,
+			Alloc:    NewAllocator(math.MaxInt64),
+		})
+		defer m.Release()
+		m.Alloc.SetGasMeter(gm)
+		m.RunFiles(m.MustParseFile("main.gno", "package main\n"+src))
+		before := gm.GasConsumed()
+		m.RunMain()
+		return gm.GasConsumed() - before
+	}
+	boxGas := allocGas(allocBits256)
+	cases := []struct {
+		op            string
+		cpu256, cpu64 int64
+	}{
+		{"+=", OpCPUAddInt256, OpCPUAddInt},
+		{"-=", OpCPUSubInt256, OpCPUSubInt},
+		{"*=", OpCPUMulInt256, OpCPUMulInt},
+		{"/=", OpCPUQuoInt256, OpCPUQuoInt},
+		{"%=", OpCPURemInt256, OpCPURem},
+		{"|=", OpCPUBorInt256, OpCPUBor},
+		{"^=", OpCPUXorInt256, OpCPUXor},
+		{"&=", OpCPUBandInt256, OpCPUBand},
+		{"&^=", OpCPUBandnInt256, OpCPUBandn},
+		{"<<=", OpCPUShlInt256, OpCPUShl},
+		{">>=", OpCPUShrInt256, OpCPUShr},
+	}
+	for _, c := range cases {
+		// Every result is non-zero, so it is boxed: 1000 & 7 would be 0, so
+		// & uses 1007. A shift count is a uint.
+		src := "func main() { var x, y T = 1000, 7; x " + c.op + " y; println(x) }"
+		switch c.op {
+		case "&=":
+			src = "func main() { var x, y T = 1000, 1007; x &= y; println(x) }"
+		case "<<=", ">>=":
+			src = "func main() { var x T = 1000; var y uint = 3; x " + c.op + " y; println(x) }"
+		}
+		g64 := gasOf(strings.ReplaceAll(src, "T", "uint64"))
+		g256 := gasOf(strings.ReplaceAll(src, "T", "uint256"))
+		// x and y are boxed by the conversion of their constants at
+		// preprocessing; only the result is built at run time.
+		assert.Equal(t, c.cpu256-c.cpu64+boxGas, g256-g64, c.op)
+	}
+
+	// A negative count panics before the shift's 256-bit case and still
+	// pays the surcharge, in a compound assignment as in an expression.
+	panicGas := func(src string) (gas int64) {
+		gm := store.NewGasMeter(math.MaxInt64)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath:  "main",
+			GasMeter: gm,
+			Alloc:    NewAllocator(math.MaxInt64),
+		})
+		m.Alloc.SetGasMeter(gm)
+		m.RunFiles(m.MustParseFile("main.gno", "package main\n"+src))
+		before := gm.GasConsumed()
+		defer func() {
+			require.NotNil(t, recover(), "negative shift count must panic")
+			gas = gm.GasConsumed() - before
+		}()
+		m.RunMain()
+		return 0
+	}
+	for _, c := range []struct {
+		op            string
+		cpu256, cpu64 int64
+	}{
+		{"<<=", OpCPUShlInt256, OpCPUShl},
+		{">>=", OpCPUShrInt256, OpCPUShr},
+	} {
+		src := "func main() { var x T = 1000; n := -1; x " + c.op + " n }"
+		g64 := panicGas(strings.ReplaceAll(src, "T", "uint64"))
+		g256 := panicGas(strings.ReplaceAll(src, "T", "uint256"))
+		assert.Equal(t, c.cpu256-c.cpu64, g256-g64, c.op+", negative count")
+	}
 }
 
 // TestBits256AccountingMatchesStrings checks that 256-bit values are

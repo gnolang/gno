@@ -96,8 +96,7 @@ func (m *Machine) doOpAddAssign() {
 	m.incrCPUBigDec(lv.TV, rv, OpCPUSlopeBigDecAdd)
 
 	// add rv to lv.
-	m.incrCPU256(lv.TV.T, OpCPUAddInt256, OpCPUAddInt)
-	addAssign(m.Alloc, lv.TV, rv)
+	addAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -115,8 +114,7 @@ func (m *Machine) doOpSubAssign() {
 	m.incrCPUBigDec(lv.TV, rv, OpCPUSlopeBigDecSub)
 
 	// sub rv from lv.
-	m.incrCPU256(lv.TV.T, OpCPUSubInt256, OpCPUSubInt)
-	subAssign(m.Alloc, lv.TV, rv)
+	subAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -134,8 +132,7 @@ func (m *Machine) doOpMulAssign() {
 	m.incrCPUBigDecQuad(lv.TV, rv, OpCPUSlopeBigDecMulQ)
 
 	// lv *= rv
-	m.incrCPU256(lv.TV.T, OpCPUMulInt256, OpCPUMulInt)
-	mulAssign(m.Alloc, lv.TV, rv)
+	mulAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -153,8 +150,7 @@ func (m *Machine) doOpQuoAssign() {
 	m.incrCPUBigDecQuad(lv.TV, rv, OpCPUSlopeBigDecQuoQ)
 
 	// lv /= rv
-	m.incrCPU256(lv.TV.T, OpCPUQuoInt256, OpCPUQuoInt)
-	err := quoAssign(m.Alloc, lv.TV, rv)
+	err := quoAssign(m, lv.TV, rv)
 	if err != nil {
 		panic(err)
 	}
@@ -175,8 +171,7 @@ func (m *Machine) doOpRemAssign() {
 	m.incrCPUBigIntQuad(lv.TV, rv, OpCPUSlopeBigIntRemQ)
 
 	// lv %= rv
-	m.incrCPU256(lv.TV.T, OpCPURemInt256, OpCPURem)
-	err := remAssign(m.Alloc, lv.TV, rv)
+	err := remAssign(m, lv.TV, rv)
 	if err != nil {
 		panic(err)
 	}
@@ -197,8 +192,7 @@ func (m *Machine) doOpBandAssign() {
 	m.incrCPUBigInt(lv.TV, rv, OpCPUSlopeBigIntBand)
 
 	// lv &= rv
-	m.incrCPU256(lv.TV.T, OpCPUBandInt256, OpCPUBand)
-	bandAssign(m.Alloc, lv.TV, rv)
+	bandAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -215,8 +209,7 @@ func (m *Machine) doOpBandnAssign() {
 	m.incrCPUBigInt(lv.TV, rv, OpCPUSlopeBigIntBandn)
 
 	// lv &^= rv
-	m.incrCPU256(lv.TV.T, OpCPUBandnInt256, OpCPUBandn)
-	bandnAssign(m.Alloc, lv.TV, rv)
+	bandnAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -233,8 +226,7 @@ func (m *Machine) doOpBorAssign() {
 	m.incrCPUBigInt(lv.TV, rv, OpCPUSlopeBigIntBor)
 
 	// lv |= rv
-	m.incrCPU256(lv.TV.T, OpCPUBorInt256, OpCPUBor)
-	borAssign(m.Alloc, lv.TV, rv)
+	borAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -251,8 +243,7 @@ func (m *Machine) doOpXorAssign() {
 	m.incrCPUBigInt(lv.TV, rv, OpCPUSlopeBigIntXor)
 
 	// lv ^= rv
-	m.incrCPU256(lv.TV.T, OpCPUXorInt256, OpCPUXor)
-	xorAssign(m.Alloc, lv.TV, rv)
+	xorAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
 	}
@@ -277,7 +268,6 @@ func (m *Machine) doOpShlAssign() {
 	}
 
 	// lv <<= rv
-	m.incrCPU256(lv.TV.T, OpCPUShlInt256, OpCPUShl)
 	shlAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
@@ -292,7 +282,6 @@ func (m *Machine) doOpShrAssign() {
 	m.incrCPUBigUnary(lv.TV, OpCPUSlopeBigIntShr)
 
 	// lv >>= rv
-	m.incrCPU256(lv.TV.T, OpCPUShrInt256, OpCPUShr)
 	shrAssign(m, lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(m, lv.Base.(Object), nil, nil)
