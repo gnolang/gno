@@ -90,7 +90,6 @@ FLAGS
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
   -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
-  -faucet ...	staging: amount the faucet at /faucet sends per claim, empty to disable
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -log-format console	log output format, can be `json` or `console`
@@ -135,6 +134,10 @@ the node's RPC under /rpc, and JSON-RPC posted to /, limited to public routes, s
 'gnokey -remote https://<host>' needs nothing else; and a faucet at /faucet. The
 node's own RPC listener stays on the loopback.
 
+The web listener binds every interface (0.0.0.0:8888), so a bare host serves it
+to its whole network. On a network you do not trust, narrow it with
+-web-listener 127.0.0.1:8888 and put a proxy in front.
+
 Additionally, you can specify an additional package directory to load.
 
 
@@ -147,7 +150,7 @@ FLAGS
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
   -extra-root ...	additional workspace root to include (repeatable); every package under it is eager-loaded
-  -faucet 10000000ugnot	staging: amount the faucet at /faucet sends per claim, empty to disable
+  -faucet 10000000ugnot	amount the faucet at /faucet sends per claim, empty to disable
   -genesis ...	load the given genesis file
   -interactive=false 	enable gnodev interactive mode
   -log-format json	log output format, can be `json` or `console`

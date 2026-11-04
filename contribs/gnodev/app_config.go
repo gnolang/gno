@@ -118,12 +118,15 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"gnoweb: enable HTML parsing in markdown rendering",
 	)
 
-	fs.StringVar(
-		&c.faucetAmount,
-		"faucet",
-		defaultCfg.faucetAmount,
-		"staging: amount the faucet at /faucet sends per claim, empty to disable",
-	)
+	// Only staging serves a faucet; in local mode the flag would be a no-op.
+	if defaultCfg.staging {
+		fs.StringVar(
+			&c.faucetAmount,
+			"faucet",
+			defaultCfg.faucetAmount,
+			"amount the faucet at /faucet sends per claim, empty to disable",
+		)
+	}
 
 	fs.StringVar(
 		&c.webHome,

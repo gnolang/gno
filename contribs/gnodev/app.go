@@ -19,11 +19,14 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpccfg "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -65,6 +68,7 @@ type App struct {
 	book          *address.Book
 	exportPath    string
 	proxy         *proxy.PathInterceptor
+	faucetKey     crypto.PrivKey
 
 	// XXX: move this
 	exported uint
@@ -318,6 +322,18 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 	}
 	nodeCfg.PackagesModifier = modifiers // add modifiers
 
+	// The faucet spends from a key of its own, generated here and never
+	// shown. Spending from the public deployer would let anyone holding its
+	// mnemonic drain the faucet, and race its sequence with every claim.
+	var extraBalances []gnoland.Balance
+	if ds.cfg.staging && ds.cfg.faucetAmount != "" {
+		ds.faucetKey = secp256k1.GenPrivKey()
+		extraBalances = append(extraBalances, gnoland.Balance{
+			Address: ds.faucetKey.PubKey().Address(),
+			Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e12)},
+		})
+	}
+
 	address := resolveUnixOrTCPAddr(nodeCfg.TMConfig.RPC.ListenAddress)
 
 	// Setup lazy proxy
@@ -341,7 +357,7 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		nodeCfg.TMConfig.RPC.ListenAddress = fmt.Sprintf("%s://%s", address.Network(), address.String())
 	}
 
-	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.loader, ds.paths...)
+	ds.devNode, err = setupDevNode(ctx, ds.cfg, nodeCfg, ds.loader, extraBalances, ds.paths...)
 	if err != nil {
 		return err
 	}
@@ -506,12 +522,13 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid -faucet amount %q: %w", ds.cfg.faucetAmount, err)
 			}
-			send, err := newFaucetSender(ds.cfg.chainId, amount, ds.devNode.Client)
+			send, err := newFaucetSender(ds.cfg.chainId, ds.faucetKey, amount, ds.devNode.Client)
 			if err != nil {
 				return nil, err
 			}
 			mux.Handle("/faucet", newFaucet(ds.logger.WithGroup(FaucetLogName), ds.cfg.chainId, amount, send))
-			ds.logger.WithGroup(FaucetLogName).Info("faucet enabled", "path", "/faucet", "amount", amount.String())
+			ds.logger.WithGroup(FaucetLogName).Info("faucet enabled", "path", "/faucet", "amount", amount.String(),
+				"account", ds.faucetKey.PubKey().Address().String())
 		}
 	}
 

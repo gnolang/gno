@@ -93,3 +93,30 @@ func TestFaucet(t *testing.T) {
 		})
 	}
 }
+
+// TestFaucet_PrunesCooldowns checks the cooldown map only holds claims still
+// inside their cooldown, so it does not grow with every address ever funded.
+func TestFaucet_PrunesCooldowns(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	f := newFaucet(discardLogger(), "test-chain", std.MustParseCoins("1ugnot"),
+		func(context.Context, crypto.Address) (string, error) { return "CAFE", nil })
+	f.now = func() time.Time { return now }
+
+	claim := func(seed byte) {
+		var to crypto.Address
+		to[0] = seed
+		req := httptest.NewRequest("POST", "/faucet", strings.NewReader(`{"address":"`+to.String()+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		f.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	}
+
+	claim(1)
+	claim(2)
+	assert.Len(t, f.last, 2)
+
+	now = now.Add(faucetCooldown)
+	claim(3)
+	assert.Len(t, f.last, 1, "claims past their cooldown are dropped")
+}

@@ -16,14 +16,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // faucetCooldown is how long an address waits between two claims. The GNOT on
-// a staging chain is worthless and the deployer's mnemonic is public, so this
-// is not a security boundary: it only stops one script from emptying the
-// faucet for everyone else.
+// a staging chain is worthless and addresses are free, so this is courtesy,
+// not a security boundary: a script cycling through fresh addresses still
+// drains the faucet, one claim at a time.
 const faucetCooldown = time.Minute
 
 // faucetSimulateGas only bounds the simulation that measures a claim's real
@@ -122,7 +123,15 @@ func (f *faucet) claim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f.last[to] = f.now()
+	// Entries past the cooldown decide nothing, so the map only ever holds
+	// the last minute's claimants.
+	now := f.now()
+	for addr, t := range f.last {
+		if now.Sub(t) >= faucetCooldown {
+			delete(f.last, addr)
+		}
+	}
+	f.last[to] = now
 	f.logger.Info("faucet sent", "to", to.String(), "amount", f.amount.String(), "hash", hash)
 	f.render(w, r, http.StatusOK, &faucetResult{Address: to.String(), Amount: f.amount.String(), TxHash: hash})
 }
@@ -173,22 +182,20 @@ This GNOT is worthless: it exists on this preview chain only.</p>
 <p><a href="/">back</a></p></body></html>
 `))
 
-// newFaucetSender spends from the default deployer, which every gnodev
-// funds at genesis. client is called on every send, since a reload replaces the
+// newFaucetSender spends from key, an account nothing else signs for, funded
+// at genesis. client is called on every send, since a reload replaces the
 // node's client.
 //
 // Gas is not guessed: the tx is simulated first, and the fee is sized from
 // the chain's own gas price.
-func newFaucetSender(chainID string, amount std.Coins, client func() rpcclient.Client) (faucetSender, error) {
-	signer, err := gnoclient.SignerFromBip39(DefaultDeployerSeed, chainID, "", 0, 0)
-	if err != nil {
+func newFaucetSender(chainID string, key crypto.PrivKey, amount std.Coins, client func() rpcclient.Client) (faucetSender, error) {
+	const name = "faucet"
+	kb := keys.NewInMemory()
+	if err := kb.ImportPrivKey(name, key, ""); err != nil {
 		return nil, fmt.Errorf("faucet signer: %w", err)
 	}
-	info, err := signer.Info()
-	if err != nil {
-		return nil, fmt.Errorf("faucet signer: %w", err)
-	}
-	from := info.GetAddress()
+	signer := gnoclient.SignerFromKeybase{Keybase: kb, Account: name, ChainID: chainID}
+	from := key.PubKey().Address()
 
 	return func(_ context.Context, to crypto.Address) (string, error) {
 		c := &gnoclient.Client{Signer: signer, RPCClient: client()}

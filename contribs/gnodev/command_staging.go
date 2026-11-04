@@ -31,6 +31,11 @@ var defaultStagingOptions = AppConfig{
 	// /rpc, and to JSON-RPC POSTs on /, through an allowlist of public
 	// routes, so a deployment is one hostname and one certificate, and
 	// gnokey -remote https://<host> works as is.
+	//
+	// On a bare host this listens on every interface, where local mode binds
+	// the loopback. The port broadcasts txs, pays out the faucet and serves
+	// /_events to any origin: pass -web-listener 127.0.0.1:8888 when running
+	// staging on a machine whose network you do not trust.
 	webListenerAddr:            "0.0.0.0:8888",
 	webIPFSGateway:             gnoweb.DefaultIPFSGateway,
 	nodeRPCListenerAddr:        "127.0.0.1:26657",
@@ -70,6 +75,10 @@ The web listener is the one port meant for the network. Next to gnoweb it serves
 the node's RPC under /rpc, and JSON-RPC posted to /, limited to public routes, so
 'gnokey -remote https://<host>' needs nothing else; and a faucet at /faucet. The
 node's own RPC listener stays on the loopback.
+
+The web listener binds every interface (0.0.0.0:8888), so a bare host serves it
+to its whole network. On a network you do not trust, narrow it with
+-web-listener 127.0.0.1:8888 and put a proxy in front.
 
 Additionally, you can specify an additional package directory to load.
 `,

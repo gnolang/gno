@@ -1,9 +1,12 @@
 package main
 
 import (
+	"flag"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -38,6 +41,12 @@ func TestRPCGateway(t *testing.T) {
 		{"uri route with query", "GET", `/rpc/abci_query?path="auth/gasprice"`, "", 200, `GET /abci_query?path="auth/gasprice" `},
 		{"route listing", "GET", "/rpc", "", 200, "GET / "},
 		{"route listing, slash", "GET", "/rpc/", "", 200, "GET / "},
+		{"route listing drops a jsonrpc body", "GET", "/rpc", `{"method":"unsafe_flush_mempool"}`, 200, "GET / "},
+		{"uri route drops a body", "GET", "/rpc/status", `{"method":"unsafe_flush_mempool"}`, 200, "GET /status "},
+		{"cors preflight", "OPTIONS", "/rpc", `{"method":"unsafe_flush_mempool"}`, 200, "OPTIONS / "},
+		{"cors preflight, uri route", "OPTIONS", "/rpc/status", "", 200, "OPTIONS /status "},
+		{"cors preflight, unsafe route", "OPTIONS", "/rpc/unsafe_flush_mempool", "", 403, ""},
+		{"put on the root", "PUT", "/rpc", `{"method":"status"}`, 405, ""},
 		{"uri unsafe", "GET", "/rpc/unsafe_write_heap_profile?filename=/etc/x", "", 403, ""},
 		{"uri cpu profiler", "GET", "/rpc/unsafe_start_cpu_profiler", "", 403, ""},
 		{"uri dial", "GET", "/rpc/dial_seeds", "", 403, ""},
@@ -71,27 +80,60 @@ func TestRPCGateway(t *testing.T) {
 	}
 }
 
+func TestRPCGateway_Unix(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "rpc.sock")
+	ln, err := net.Listen("unix", sock)
+	require.NoError(t, err)
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "node "+r.URL.Path)
+	})}
+	go srv.Serve(ln)
+	t.Cleanup(func() { srv.Close() })
+
+	gw, err := newRPCGateway("unix://"+sock, 1024)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	gw.ServeHTTP(rec, httptest.NewRequest("GET", "/status", nil))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "node /status", rec.Body.String())
+}
+
+func TestNewRPCGateway_BadAddress(t *testing.T) {
+	for _, addr := range []string{"", "tcp://", "unix://", "udp://127.0.0.1:26657"} {
+		_, err := newRPCGateway(addr, 1024)
+		assert.Error(t, err, addr)
+	}
+}
+
 func TestIsJSONRPCPost(t *testing.T) {
 	cases := []struct {
 		name        string
 		method      string
 		path        string
 		contentType string
+		preflight   string // Access-Control-Request-Method
 		want        bool
 	}{
-		{"gnokey", "POST", "/", "application/json", true},
-		{"with charset", "POST", "/", "application/json; charset=utf-8", true},
-		{"gnoweb form", "POST", "/", "application/x-www-form-urlencoded", false},
-		{"realm action form", "POST", "/r/demo/foo", "application/x-www-form-urlencoded", false},
-		{"json off the root", "POST", "/r/demo/foo", "application/json", false},
-		{"get", "GET", "/", "application/json", false},
-		{"no content type", "POST", "/", "", false},
+		{"gnokey", "POST", "/", "application/json", "", true},
+		{"cors preflight for a post", "OPTIONS", "/", "", "POST", true},
+		{"cors preflight for a get", "OPTIONS", "/", "", "GET", false},
+		{"cors preflight off the root", "OPTIONS", "/r/demo/foo", "", "POST", false},
+		{"with charset", "POST", "/", "application/json; charset=utf-8", "", true},
+		{"gnoweb form", "POST", "/", "application/x-www-form-urlencoded", "", false},
+		{"realm action form", "POST", "/r/demo/foo", "application/x-www-form-urlencoded", "", false},
+		{"json off the root", "POST", "/r/demo/foo", "application/json", "", false},
+		{"get", "GET", "/", "application/json", "", false},
+		{"no content type", "POST", "/", "", "", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(tc.method, tc.path, nil)
 			if tc.contentType != "" {
 				req.Header.Set("Content-Type", tc.contentType)
+			}
+			if tc.preflight != "" {
+				req.Header.Set("Access-Control-Request-Method", tc.preflight)
 			}
 			assert.Equal(t, tc.want, isJSONRPCPost(req))
 		})
@@ -110,4 +152,12 @@ func TestStagingDefaults(t *testing.T) {
 	assert.False(t, cfg.unsafeAPI, "/reset and /reload must stay off")
 	assert.NotEmpty(t, cfg.faucetAmount, "staging ships a faucet")
 	assert.Empty(t, defaultLocalAppConfig.faucetAmount, "local mode has no faucet")
+
+	// -faucet does nothing outside staging, so local mode does not offer it.
+	local := flag.NewFlagSet("local", flag.ContinueOnError)
+	new(AppConfig).RegisterFlagsWith(local, defaultLocalAppConfig)
+	assert.Nil(t, local.Lookup("faucet"), "local mode must not register -faucet")
+	staging := flag.NewFlagSet("staging", flag.ContinueOnError)
+	new(AppConfig).RegisterFlagsWith(staging, defaultStagingOptions)
+	assert.NotNil(t, staging.Lookup("faucet"))
 }
