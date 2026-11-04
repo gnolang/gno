@@ -246,9 +246,9 @@ checker (`gnolang.Files256`), never from identifier spelling: a file uses
 unnamed struct type built from one.
 
 - Standard libraries keep their 256-bit APIs in dedicated files
-  (`strconv/int256.gno`, `math/overflow/overflow256_generated.gno`; the
-  untyped `math` constants are in `math/const256.gno`, which Go compiles
-  as is). The files that use 256-bit types are left out of the Go output
+  (`strconv/int256.gno`, `math/overflow/overflow256_generated.gno` and
+  `math/overflow/convert256.gno`; the untyped `math` constants are in
+  `math/const256.gno`, which Go compiles as is). The files that use 256-bit types are left out of the Go output
   whole. The transpile fails if another file of the package refers to
   anything they declare (`gnolang.RefsInto256Files`), or if a left-out file
   has an `init` function or calls a function (other than a conversion) in a
@@ -267,16 +267,22 @@ A package that calls a standard library function left out this way, such as
 `strconv.FormatUint256`, normally has a 256-bit type in it (the argument or
 result) and is skipped by the rules above; if it does not, its Go build fails
 with `undefined`, naming the function. In `examples/` on this branch, no package is skipped,
-and the two standard library files above are left out.
+and the three standard library files above are left out.
 
 ### Gas
 
 Each 256-bit operator has an `OpCPU*Int256` constant (`machine.go`). Every
-handler charges the operator's 64-bit cost as for any integer, then
-`incrCPU256` adds the difference. Unary `+` is a no-op and costs the same as
+handler charges the operator's 64-bit cost as for any integer, then the
+`int256`/`uint256` case of the operator's type switch adds the difference
+(`incrCPU256`), so other types pay nothing for it: no extra type test runs on
+an `int` operation. The 256-bit cases call the `holiman/uint256` methods
+directly rather than through a function value, so the operands stay on the
+Go stack: `+`, `-`, `*`, the bitwise operators and the shifts allocate only
+the result's box. `/` and `%` also allocate the division-by-zero exception
+that `quoAssign` and `remAssign` build up front for every type. Unary `+` is a no-op and costs the same as
 for any type. A compound assignment is charged its flat `OpCPU*Assign` cost
 plus the operator's surcharge: `x += y` on `uint256` costs
-`OpCPUAddAssign` + (221 − 81), that is 97 + 140. A conversion between a 256-bit kind and
+`OpCPUAddAssign` + (166 − 81), that is 97 + 85. A conversion between a 256-bit kind and
 another kind is charged `OpCPUConvertInt256` or, when a float is involved,
 `OpCPUConvertInt256Float`, instead of `OpCPUConvertNumeric`; retyping within
 the same kind keeps the ordinary cost.
@@ -287,27 +293,27 @@ handler is benchmarked next to the same handler on `int` in one run
 operands, the slowest divisor size and sign for `/` and `%`), and the
 existing reference constant is multiplied by the measured ratio, so the
 machine-speed factor cancels. The measurements were taken on an Apple
-M-series development machine.
+M4 Pro development machine.
 
 | op | int (ns) | 256 (ns) | 64-bit gas | 256-bit gas |
 |----|---------:|---------:|-----------:|------------:|
-| `+`, `++`, `--` | 36.7 | 99.8 | 81 | 221 |
-| `-` | 41.2 | 100.0 | 70 | 170 |
-| `*` | 40.7 | 95.6 | 71 | 167 |
-| `/` | 51.6 | 144.0 | 138 | 386 |
-| `%` | 60.2 | 152.6 | 142 | 360 |
-| `&` | 41.4 | 82.2 | 71 | 141 |
-| `\|` | 41.9 | 93.4 | 71 | 159 |
-| `^` | 39.2 | 94.2 | 71 | 171 |
-| `&^` | 41.0 | 95.0 | 71 | 165 |
-| `<<` | 40.5 | 83.4 | 80 | 165 |
-| `>>` | 39.8 | 82.4 | 79 | 164 |
-| `==` (`!=`: 83 + 15) | 51.4 | 59.4 | 93 | 108 |
-| `<` (`<=`, `>`, `>=`: 72 → 110) | 40.0 | 59.8 | 73 | 110 |
-| unary `-` | 44.1 | 63.6 | 69 | 100 |
-| unary `^` | 43.2 | 63.9 | 69 | 103 |
-| convert, integer | 30.2 | 54.7 | 151 | 274 |
-| convert, float | 32.5 | 135.9 | 151 | 632 |
+| `+`, `++`, `--` | 38.3 | 78.6 | 81 | 166 |
+| `-` | 39.0 | 86.2 | 70 | 155 |
+| `*` | 38.3 | 82.0 | 71 | 152 |
+| `/` | 54.5 | 135.3 | 138 | 343 |
+| `%` | 61.6 | 139.4 | 142 | 321 |
+| `&` | 41.5 | 83.0 | 71 | 142 |
+| `\|` | 41.2 | 83.7 | 71 | 144 |
+| `^` | 40.8 | 85.6 | 71 | 149 |
+| `&^` | 41.1 | 83.3 | 71 | 144 |
+| `<<` | 37.2 | 86.4 | 80 | 186 |
+| `>>` | 38.0 | 86.3 | 79 | 179 |
+| `==` (`!=`: 83 + 20) | 49.4 | 60.1 | 93 | 113 |
+| `<` (`<=`, `>`, `>=`: 72 → 105) | 40.0 | 57.8 | 73 | 105 |
+| unary `-` | 39.9 | 76.2 | 69 | 132 |
+| unary `^` | 41.0 | 74.3 | 69 | 125 |
+| convert, integer | 30.5 | 60.0 | 151 | 297 |
+| convert, float | 30.5 | 126.8 | 151 | 628 |
 
 Allocation is accounted for exactly as for strings, the other immutable
 value held in `V` and shared by its copies:
@@ -365,7 +371,7 @@ reference median of its worst case, and is then frozen for the launch.
 - `gno.land/pkg/sdk/vm/convert.go`: `maketx call` arguments are parsed from
   canonical decimal strings only (no `+`, no leading zero, no `-0`, at most
   78 characters) and range-checked.
-- Stdlib, all in Gno:
+- Stdlib, in Gno except one native:
   - `math.MaxInt256`, `math.MinInt256`, `math.MaxUint256` (untyped; see the
     restriction above);
   - `strconv.FormatInt256`, `FormatUint256`, `AppendInt256`,
@@ -373,11 +379,24 @@ reference median of its worst case, and is then frozen for the launch.
     counterparts without the bit-size argument, including their error
     precedence: syntax and unsigned overflow are checked digit by digit, left
     to right, and the first failure is returned; then underscores (base 0
-    only); then, for `ParseInt256`, the signed range;
+    only); then, for `ParseInt256`, the signed range. The digit loop is a
+    native (`parseUint256Digits`, `strconv/int256.go`): run in Gno it cost
+    about 11k gas per digit, about 848k for a 78-digit number, against
+    about 10k now. It returns the value, a status (ok, syntax or range, in
+    the order above) and whether it skipped underscores; base prefixes,
+    underscore placement and the errors stay in Gno. Its gas is a row of the
+    native gas table (169 + 6.29 per byte, `strconv_bench_test.go`, fitted by
+    `gen_native_table.py`);
   - `math/overflow`: `Add256`, `Sub256`, `Mul256`, `Div256` and the
     unsigned `Addu256` ... `Divu256`, returning `(result, ok)`, with the
     panicking `...p` variants. On overflow they return the wrapped result
-    and false; `Div` returns 0 and false for a zero divisor.
+    and false; `Div` returns 0 and false for a zero divisor. Checked
+    conversions out of the 256-bit types (`convert256.gno`):
+    `Uint256ToInt64`, `Uint256ToUint64`, `Uint256ToInt256`, `Int256ToInt64`,
+    `Int256ToUint64`, `Int256ToUint256`, returning `(value, ok)`, with `...p`
+    variants. A plain conversion of a variable wraps as in Go (with
+    `var x uint256 = 1<<200 + 1`, `int64(x)` is 1); these report it. A
+    constant conversion out of range is a compile error, as in Go.
 - Existing GRC20 interfaces are unchanged; a uint256-based token standard is
   separate work (`p/nt/grc20/v1`, on the `feat/grc20-uint256` branch).
 
@@ -466,10 +485,10 @@ fixed.
   the two new types.
 - Adding code to `strconv` grows that package, so code that imports it pays
   slightly more gas to load it (`stdlib_restart_compare.txtar`: 1985078 to
-  1993542 for the same call).
+  1995257 for the same call).
 - Chain coins (`std.Coin`, the banker) stay `int64`. A realm that holds
   256-bit balances keeps them in its own state; converting to coins needs an
-  explicit range check.
+  explicit range check, such as `overflow.Uint256ToInt64`.
 
 ## Key files
 
@@ -482,6 +501,8 @@ fixed.
 | `gnovm/pkg/gnolang/gotypecheck.go` | shims, `GoTypesSizes` |
 | `gnovm/pkg/gnolang/machine.go` | `OpCPU*Int256`, `incrCPU256` |
 | `gnovm/pkg/gnolang/gonative.go`, `misc/genstd/mapping.go` | native bindings |
+| `gnovm/stdlibs/strconv/int256.gno`, `int256.go` | formatting and parsing; the native digit loop |
+| `gnovm/stdlibs/math/overflow/overflow256_generated.gno`, `convert256.gno` | checked arithmetic and conversions |
 | `gno.land/pkg/sdk/vm/convert.go` | transaction arguments |
 | `gnovm/tests/files/int256/` | filetests |
 | `gno.land/pkg/integration/testdata/int256_args.txtar` | arguments, results, JSON, persistence across a restart |
