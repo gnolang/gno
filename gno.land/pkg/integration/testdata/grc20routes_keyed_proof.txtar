@@ -22,6 +22,8 @@
 loadpkg gno.land/r/demo/defi/grc20factory
 loadpkg gno.land/r/gnoland/wugnot
 loadpkg gno.land/r/nt/grc20routes/v0
+loadpkg gno.land/r/demo/zvictim $WORK/zvictim
+loadpkg gno.land/r/demo/zforger $WORK/zforger
 
 adduser alice
 
@@ -64,10 +66,6 @@ gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/dem
 stdout '\\"prefix\\":\[\\"BAR\\"\],\\"source\\":\\"proven\\"'
 stdout '\\"funcs\\":{\\"approve\\":\\"Approve\\",\\"transfer\\":\\"Transfer\\",\\"transfer_from\\":\\"TransferFrom\\"}'
 
-# The single-operation getter, which is all a wallet building one message needs.
-gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.Func(\"gno.land/r/demo/defi/grc20factory.BAR\",\"approve\")"
-stdout 'Approve'
-
 # ...and a token minted after the fact, which no proof ever named. One proof
 # covers the realm, not a token, which is what makes this tractable for a
 # factory already hosting dozens of them.
@@ -82,3 +80,58 @@ stdout '\\"prefix\\":\[\\"BAZ\\"\],\\"source\\":\\"proven\\"'
 gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.JSON(\"gno.land/r/gnoland/wugnot.wugnot\")"
 stdout '\\"pkg_path\\":\\"gno.land/r/gnoland/wugnot\\"'
 stdout '\\"prefix\\":\[\],\\"source\\":\\"convention\\"'
+
+# A realm prover is refused. grc20reg.Approve sets the CALLING realm's own
+# allowance on any registered token, so a realm could otherwise make both nonces
+# land without calling the token's realm at all. zvictim hosts two tokens and
+# exposes no Approve of any arity; it must not be markable as keyed.
+! gnokey maketx call -pkgpath gno.land/r/demo/zforger -func Forge -args gno.land/r/demo/zvictim.VICA -args gno.land/r/demo/zvictim.VICB -args 333 -args 444 -gas-fee 1000000ugnot -gas-wanted 40000000 -broadcast -chainid tendermint_test alice
+stderr 'a keyed proof must be sent by a signing user with MsgCall'
+
+gnokey query vm/qeval --data "gno.land/r/nt/grc20routes/v0.IsKeyedRealm(\"gno.land/r/demo/zvictim\")"
+stdout 'false'
+
+-- zvictim/gnomod.toml --
+module = "gno.land/r/demo/zvictim"
+gno = "0.9"
+
+-- zvictim/zvictim.gno --
+// zvictim hosts two registered tokens and exposes no write entry point.
+package zvictim
+
+import (
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/seqid/v0"
+
+	"gno.land/r/nt/grc20reg/v0"
+)
+
+var id seqid.ID
+
+func init(cur realm) {
+	a, _ := grc20.NewToken("Victim A", "VICA", 6, id.Next(), cur)
+	grc20reg.Register(cross(cur), a, "")
+	b, _ := grc20.NewToken("Victim B", "VICB", 6, id.Next(), cur)
+	grc20reg.Register(cross(cur), b, "")
+}
+
+-- zforger/gnomod.toml --
+module = "gno.land/r/demo/zforger"
+gno = "0.9"
+
+-- zforger/zforger.gno --
+package zforger
+
+import (
+	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/r/nt/grc20routes/v0"
+)
+
+// Forge runs the four proof calls from a realm, producing both allowances
+// through grc20reg instead of through the token's own realm.
+func Forge(cur realm, keyA, keyB string, nonceA, nonceB int64) {
+	grc20routes.BeginKeyedProof(cross(cur), keyA, keyB, nonceA, nonceB)
+	grc20reg.Approve(0, cur, keyA, grc20routes.ProbeAddress(), nonceA)
+	grc20reg.Approve(0, cur, keyB, grc20routes.ProbeAddress(), nonceB)
+	grc20routes.FinishKeyedProof(cross(cur), keyA, keyB)
+}

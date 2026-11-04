@@ -110,7 +110,6 @@ func TestCustomEntryPointNames(cur realm, t *testing.T) {
 	r, _ := Get(key)
 	uassert.Equal(t, "VoucherApprove", r.Func(OpApprove))
 	uassert.Equal(t, "", r.Func(OpTransferFrom), "an absent entry point is a declaration, not an omission")
-	uassert.Equal(t, "VoucherApprove", Func(key, OpApprove))
 	uassert.False(t, strings.Contains(JSON(key), "transfer_from"),
 		"an operation the realm does not expose is simply absent")
 }
@@ -124,9 +123,10 @@ func TestOperationsBeyondTheGrc20Three(cur realm, t *testing.T) {
 		With("deposit", "Deposit").
 		With("withdraw", "Withdraw"))
 
-	uassert.Equal(t, "Deposit", Func(key, "deposit"))
-	uassert.Equal(t, "Withdraw", Func(key, "withdraw"))
-	uassert.Equal(t, "Approve", Func(key, OpApprove), "the standard three survive With")
+	r, _ := Get(key)
+	uassert.Equal(t, "Deposit", r.Func("deposit"))
+	uassert.Equal(t, "Withdraw", r.Func("withdraw"))
+	uassert.Equal(t, "Approve", r.Func(OpApprove), "the standard three survive With")
 
 	// Entries are sorted, so the rendered object is stable.
 	uassert.True(t, strings.Contains(JSON(key),
@@ -138,8 +138,9 @@ func TestWithReplacesAnExistingBinding(cur realm, t *testing.T) {
 
 	Register(cross(cur), "REPL", Canonical().With(OpApprove, "ApproveV2"))
 
-	uassert.Equal(t, "ApproveV2", Func(key, OpApprove))
-	uassert.Equal(t, "Transfer", Func(key, OpTransfer))
+	r, _ := Get(key)
+	uassert.Equal(t, "ApproveV2", r.Func(OpApprove))
+	uassert.Equal(t, "Transfer", r.Func(OpTransfer))
 }
 
 func TestRegisterRequiresGrc20reg(cur realm, t *testing.T) {
@@ -176,6 +177,20 @@ func TestDestinationStripsSubRealmPath(cur realm, t *testing.T) {
 	uassert.Equal(t, "gno.land/r/demo/x", hostOf("gno.land/r/demo/x"))
 }
 
+// A sub path may itself contain a dot, so a key splits at its last one: the
+// symbol never has a dot, the sub path may.
+func TestSplitKeyKeepsDottedSubPath(cur realm, t *testing.T) {
+	for _, tc := range []struct{ key, path, symbol string }{
+		{"gno.land/r/demo/x.FOO", "gno.land/r/demo/x", "FOO"},
+		{"gno.land/r/demo/x#admin.FOO", "gno.land/r/demo/x#admin", "FOO"},
+		{"gno.land/r/demo/x#a.b.FOO", "gno.land/r/demo/x#a.b", "FOO"},
+	} {
+		path, symbol := splitKey(tc.key)
+		uassert.Equal(t, tc.path, path, tc.key)
+		uassert.Equal(t, tc.symbol, symbol, tc.key)
+	}
+}
+
 // -------------------------------------------------------------------- proven
 
 // The case the whole proven path exists for: a realm that hosts several tokens
@@ -184,8 +199,8 @@ func TestKeyedProofCoversEveryTokenOnTheRealm(cur realm, t *testing.T) {
 	prover := testutils.TestAddress("prover")
 	keyA := mint(0, cur, "PKA")
 	keyB := mint(0, cur, "PKB")
-	keyC := mint(0, cur, "PKC") // never named in the proof
-	testing.SetOriginCaller(prover)
+	keyC := mint(0, cur, "PKC")                    // never named in the proof
+	testing.SetRealm(testing.NewUserRealm(prover)) // arrive as a direct MsgCall
 
 	BeginKeyedProof(cross(cur), keyA, keyB, 111, 222)
 	approveAs("PKA", prover, 111)
@@ -212,7 +227,7 @@ func TestKeyedProofFailsWhenOnlyOneTokenMoves(cur realm, t *testing.T) {
 	prover := testutils.TestAddress("half")
 	keyA := mint(0, cur, "HFA")
 	keyB := mint(0, cur, "HFB")
-	testing.SetOriginCaller(prover)
+	testing.SetRealm(testing.NewUserRealm(prover)) // arrive as a direct MsgCall
 
 	BeginKeyedProof(cross(cur), keyA, keyB, 333, 444)
 	approveAs("HFA", prover, 333) // only one of the two
@@ -227,8 +242,8 @@ func TestKeyedProofRejectsPreExistingAllowance(cur realm, t *testing.T) {
 	prover := testutils.TestAddress("stale")
 	keyA := mint(0, cur, "STA")
 	keyB := mint(0, cur, "STB")
-	approveAs("STA", prover, 555) // parked before the proof opens
-	testing.SetOriginCaller(prover)
+	approveAs("STA", prover, 555)                  // parked before the proof opens
+	testing.SetRealm(testing.NewUserRealm(prover)) // arrive as a direct MsgCall
 
 	uassert.AbortsWithMessage(t, cur,
 		"grc20routes: nonce already parked on the probe; pick another",
@@ -239,7 +254,7 @@ func TestKeyedProofRejectsMismatchedInputs(cur realm, t *testing.T) {
 	prover := testutils.TestAddress("bad")
 	keyA := mint(0, cur, "BDA")
 	keyB := mint(0, cur, "BDB")
-	testing.SetOriginCaller(prover)
+	testing.SetRealm(testing.NewUserRealm(prover)) // arrive as a direct MsgCall
 
 	uassert.AbortsWithMessage(t, cur, "grc20routes: keyed proof needs two different tokens",
 		func() { BeginKeyedProof(cross(cur), keyA, keyA, 1, 2) })
@@ -257,12 +272,12 @@ func TestKeyedProofIsPerProver(cur realm, t *testing.T) {
 
 	keyA := mint(0, cur, "PPA")
 	keyB := mint(0, cur, "PPB")
-	testing.SetOriginCaller(alice)
+	testing.SetRealm(testing.NewUserRealm(alice)) // arrive as a direct MsgCall
 	BeginKeyedProof(cross(cur), keyA, keyB, 11, 22)
 
 	// Bob cannot finish a proof he did not open, and Alice's allowances are not
 	// his to borrow.
-	testing.SetOriginCaller(bob)
+	testing.SetRealm(testing.NewUserRealm(bob)) // arrive as a direct MsgCall
 	uassert.AbortsWithMessage(t, cur, "grc20routes: no proof in progress for "+selfPath,
 		func() { FinishKeyedProof(cross(cur), keyA, keyB) })
 }
@@ -279,7 +294,7 @@ func TestDeclaredBeatsProven(cur realm, t *testing.T) {
 
 	// ...and then someone proves the realm is keyed, which would otherwise
 	// resolve PRA to Keyed("PRA").
-	testing.SetOriginCaller(prover)
+	testing.SetRealm(testing.NewUserRealm(prover)) // arrive as a direct MsgCall
 	BeginKeyedProof(cross(cur), keyA, keyB, 77, 88)
 	approveAs("PRA", prover, 77)
 	approveAs("PRB", prover, 88)
@@ -398,4 +413,74 @@ func TestRouteAlwaysPointsAtItsOwnRealm(cur realm, t *testing.T) {
 
 	uassert.Equal(t, selfPath, PkgPath(key))
 	uassert.True(t, strings.HasPrefix(key, selfPath+"."))
+}
+
+// ------------------------------------------------------------- review fixes
+
+// grc20reg.Approve sets the CALLING REALM's own allowance on any registered
+// token, so a realm prover could make both nonces land without calling the
+// token's realm at all. Only a signing user may prove.
+func TestKeyedProofRefusesARealmProver(cur realm, t *testing.T) {
+	keyA := mint(0, cur, "RPA")
+	keyB := mint(0, cur, "RPB")
+
+	uassert.AbortsWithMessage(t, cur,
+		"grc20routes: a keyed proof must be sent by a signing user with MsgCall",
+		func() { BeginKeyedProof(cross(cur), keyA, keyB, 1, 2) })
+	uassert.AbortsWithMessage(t, cur,
+		"grc20routes: a keyed proof must be sent by a signing user with MsgCall",
+		func() { FinishKeyedProof(cross(cur), keyA, keyB) })
+}
+
+// A sub identity's token routes to the host realm, where the same symbol may
+// name the host's own token. Without a declaration nothing can say which call
+// reaches it, so it gets no route at all, and cannot be named in a proof.
+func TestSubIdentityTokenGetsNoGuessedRoute(cur realm, t *testing.T) {
+	sub := cur.Sub("a.b")
+	subKey := mint(0, sub, "SUBTK")
+	hostKey := mint(0, cur, "SUBH")
+
+	urequire.Equal(t, selfPath+"#a.b.SUBTK", subKey)
+	uassert.Equal(t, selfPath, PkgPath(subKey), "the MsgCall destination is the host realm")
+
+	r, source := Get(subKey)
+	uassert.Equal(t, SourceNone, source)
+	uassert.Equal(t, 0, len(r.Funcs))
+	uassert.Equal(t, 0, len(r.Prefix))
+	uassert.Equal(t,
+		`{"token_key":"`+subKey+`","pkg_path":"`+selfPath+`","prefix":[],"source":"none","funcs":{}}`,
+		JSON(subKey))
+
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("subprover"))) // arrive as a direct MsgCall
+	uassert.AbortsWithMessage(t, cur,
+		"grc20routes: keyed proof takes tokens of the realm's own identity, not a sub identity",
+		func() { BeginKeyedProof(cross(cur), subKey, hostKey, 777, 888) })
+}
+
+// The rendered call is something a reader copies out of a code span, so the
+// prefix argument must not be markdown-escaped there.
+func TestRenderedPrefixArgumentIsVerbatim(cur realm, t *testing.T) {
+	key := mint(0, cur, "A_B")
+	Register(cross(cur), "A_B", Keyed("A_B"))
+
+	uassert.True(t, strings.Contains(Render(key), "`Approve(cur, A_B, spender, amount)`"))
+}
+
+// A realm the proof misdescribes can take itself out of the proven path for
+// good, which per-token Register cannot do. Last in the file: it closes this
+// realm to proofs.
+func TestRefuseKeyedProof(cur realm, t *testing.T) {
+	keyA := mint(0, cur, "RFA")
+	keyB := mint(0, cur, "RFB")
+	urequire.True(t, IsKeyedRealm(selfPath), "proven by the tests above")
+
+	RefuseKeyedProof(cross(cur))
+	uassert.False(t, IsKeyedRealm(selfPath))
+	_, source := Get(keyA)
+	uassert.Equal(t, SourceConvention, source, "every token drops back at once")
+
+	prover := testutils.TestAddress("refused")
+	testing.SetRealm(testing.NewUserRealm(prover)) // arrive as a direct MsgCall
+	uassert.AbortsWithMessage(t, cur, "grc20routes: realm refuses keyed proofs: "+selfPath,
+		func() { BeginKeyedProof(cross(cur), keyA, keyB, 5, 6) })
 }

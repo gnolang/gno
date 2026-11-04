@@ -51,19 +51,38 @@
 //
 //   - The destination realm is never an argument. It is the package-path half of
 //     the registry key, so a route can only ever point at the token's own realm.
+//
 //   - Proving keyedness requires moving TWO different tokens' allowances at the
 //     same realm, to two prover-chosen nonces. A realm whose Approve takes no
 //     leading argument reaches one token and cannot do it. Only a realm that
 //     really does route by its leading argument can.
+//
 //   - Entry point names on the proven path are forced to the canonical ones. The
 //     prover names nothing. The only thing established is "this realm is keyed by
 //     symbol", which is exactly what the two-token effect shows.
 //
-// Residual, stated plainly: a realm exposing a separately-named approve per
-// token (ApproveFOO, ApproveBAR) could satisfy the two-token proof without being
-// keyed, and consumers would then build a call that aborts on arity. No funds
-// move, and the realm can correct it permanently with Register. Nothing in this
-// package can cause a token to move.
+//   - The prover must be a signing user (MsgCall, IsUserCall). A realm prover is
+//     refused, because grc20reg.Approve sets the calling REALM's own allowance on
+//     any registered token, which would let it produce both nonces without ever
+//     calling the token's realm.
+//
+// What the proof observes is two allowances, not the arguments that produced
+// them, so the only claim it supports is "keyed by its registry SYMBOL". It can
+// be satisfied by a realm that is not keyed that way, in three ways:
+//
+//   - separately-named approves per token (ApproveFOO, ApproveBAR);
+//   - a realm keyed by some other identifier (an IBC denom, say), proven by a
+//     prover who passes that identifier instead of the symbol the procedure
+//     names;
+//   - a signer allowed to send MsgRun: the ephemeral realm's address is the
+//     signer's own, so grc20reg.Approve run from it lands where the proof looks.
+//     Mainnet gates MsgRun.
+//
+// In every case consumers then build a call that aborts (on arity, or on an
+// unknown key). No funds move. A realm that can call this one ends it for good
+// with RefuseKeyedProof; one that cannot has no remedy here, which is why the
+// prover is held to a signing user. Nothing in this package can cause a token
+// to move.
 //
 // # What can and cannot be forged
 //
@@ -85,11 +104,15 @@
 //     single-token realm therefore cannot be marked keyed at all.
 //   - The destination is never an argument on either path: it is the package-path
 //     half of the key. There is no input that aims a route at another realm.
+//   - A token registered under a sub identity ("<path>#<sub>.<SYM>") is never
+//     given a proven or conventional route. Its MsgCall destination is the host
+//     realm, where the same symbol may name the host's own token, so any route
+//     built for it without the realm's say-so could approve the wrong token. It
+//     resolves to its declaration, or to nothing.
 //
-// What an attacker CAN do is grief a realm that hosts two tokens behind
-// separately-named approves (ApproveFOO, ApproveBAR) into being marked keyed.
-// Consumers then build a call that aborts on arity. No funds move, and the realm
-// ends it permanently with Register, which outranks any proof.
+// What an attacker CAN do is grief a realm into being marked keyed by one of the
+// three shapes above. Consumers then build a call that aborts. No funds move,
+// and a realm that can call this one ends it permanently with RefuseKeyedProof.
 //
 // # Consuming it
 //
@@ -107,10 +130,8 @@
 //
 //	MsgCall{PkgPath: pkg_path, Func: funcs.approve, Args: prefix + [spender, amount]}
 //
-// Func answers for one operation if the whole route is more than you need:
-//
-//	gnokey query vm/qeval --data \
-//	  'gno.land/r/nt/grc20routes/v0.Func("gno.land/r/gnoland/wugnot.wugnot","approve")'
+// There is deliberately no getter for an entry point name alone: without the
+// prefix it builds a call that is one argument short on a keyed realm.
 //
 // # Declaring a route (new realms)
 //
@@ -157,6 +178,10 @@ var (
 	// every token that realm hosts, present and future.
 	provenKeyed = avl.NewTree()
 
+	// refused holds realm paths that called RefuseKeyedProof. No proof can mark
+	// them, ever again.
+	refused = avl.NewTree()
+
 	// pending holds in-flight proofs, keyed by "<prover>/<realmPath>".
 	pending = avl.NewTree()
 
@@ -168,6 +193,7 @@ var (
 const (
 	registerEvent = "register"
 	provenEvent   = "proven"
+	refusedEvent  = "refused"
 
 	// Operation names. These three are the GRC20 write set and the only ones
 	// this realm gives special treatment: they are what Canonical() fills in and
@@ -188,6 +214,7 @@ const (
 	SourceDeclared   = "declared"   // the token's own realm said so
 	SourceProven     = "proven"     // shown by effect on chain
 	SourceConvention = "convention" // nothing recorded; the canonical shape
+	SourceNone       = "none"       // a sub-identity token nothing was declared for
 
 	maxIdentLen  = 64
 	maxOpLen     = 32
@@ -352,14 +379,20 @@ type proof struct {
 //
 // Nothing about this is permissioned: approving is something any holder may do,
 // and a realm that is not keyed cannot make two different tokens' allowances
-// land at once.
+// land at once. The prover must be a signing user, though: see mustUserCall.
 func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int64) {
-	prover := cur.Previous().Address()
+	prover := mustUserCall(cur)
 
 	pathA := mustToken(tokenKeyA)
 	pathB := mustToken(tokenKeyB)
 	if pathA != pathB {
 		panic("grc20routes: both tokens must live in the same realm")
+	}
+	if isSubToken(tokenKeyA) || isSubToken(tokenKeyB) {
+		panic("grc20routes: keyed proof takes tokens of the realm's own identity, not a sub identity")
+	}
+	if refused.Has(pathA) {
+		panic("grc20routes: realm refuses keyed proofs: " + pathA)
 	}
 	if tokenKeyA == tokenKeyB {
 		panic("grc20routes: keyed proof needs two different tokens")
@@ -385,11 +418,11 @@ func BeginKeyedProof(cur realm, tokenKeyA, tokenKeyB string, nonceA, nonceB int6
 // FinishKeyedProof commits the proof opened by BeginKeyedProof, if both probe
 // allowances now read exactly the nonces that were claimed.
 //
-// On success every token hosted by that realm — including ones registered
-// later — resolves to Keyed(<its own symbol>), unless its realm has declared
-// something else.
+// On success every token that realm hosts under its own identity — including
+// ones registered later — resolves to Keyed(<its own symbol>), unless its realm
+// has declared something else. Tokens under a sub identity are not covered.
 func FinishKeyedProof(cur realm, tokenKeyA, tokenKeyB string) {
-	prover := cur.Previous().Address()
+	prover := mustUserCall(cur)
 	pathA := mustToken(tokenKeyA)
 
 	pk := pendingKey(prover, pathA)
@@ -413,9 +446,43 @@ func FinishKeyedProof(cur realm, tokenKeyA, tokenKeyB string) {
 	}
 
 	pending.Remove(pk)
+	if refused.Has(pathA) {
+		panic("grc20routes: realm refuses keyed proofs: " + pathA)
+	}
 	provenKeyed.Set(pathA, true)
 
 	chain.Emit(provenEvent, "pkgpath", pathA, "prover", prover.String())
+}
+
+// RefuseKeyedProof is how a realm that is not keyed by symbol takes itself out
+// of the proven path, for good: any existing proof is dropped, and no later one
+// can mark it. Per-token Register cannot do this, because a proof covers the
+// whole realm, including tokens registered later.
+//
+// It acts on the caller's own host realm and nothing else.
+func RefuseKeyedProof(cur realm) {
+	rlmPath := cur.Previous().PkgPath()
+	if rlmPath == "" {
+		panic("grc20routes: caller is not a realm")
+	}
+	host := hostOf(rlmPath)
+	refused.Set(host, true)
+	provenKeyed.Remove(host)
+	chain.Emit(refusedEvent, "pkgpath", host)
+}
+
+// mustUserCall returns the prover, who must be a signing user calling in
+// directly. A realm is refused: grc20reg.Approve sets the calling realm's own
+// allowance on ANY registered token, so a realm prover could make both nonces
+// land without ever calling the token's realm. A user's own allowance can only
+// be moved by the token's realm, or by a MsgRun signed by that user (see the
+// package doc).
+func mustUserCall(cur realm) address {
+	prev := cur.Previous()
+	if !prev.IsUserCall() {
+		panic("grc20routes: a keyed proof must be sent by a signing user with MsgCall")
+	}
+	return prev.Address()
 }
 
 func pendingKey(prover address, pkgPath string) string {
@@ -432,6 +499,11 @@ func allowanceOf(tokenKey string, owner address) int64 {
 // SourceProven, or SourceConvention when nothing is recorded and the canonical
 // shape is assumed.
 //
+// A token registered under a sub identity gets SourceNone and an empty route
+// unless its realm declared one: its destination is the host realm, where its
+// symbol may name a different token, so nothing short of a declaration can say
+// which call reaches it.
+//
 // Panics if tokenKey is not a registered token.
 func Get(tokenKey string) (Route, string) {
 	pkgPath := mustToken(tokenKey)
@@ -439,8 +511,11 @@ func Get(tokenKey string) (Route, string) {
 	if v := declared.Get(tokenKey); v != nil {
 		return *(v.(*Route)), SourceDeclared
 	}
+	if isSubToken(tokenKey) {
+		return Route{}, SourceNone
+	}
 	if provenKeyed.Has(pkgPath) {
-		_, symbol := fqname.Parse(tokenKey)
+		_, symbol := splitKey(tokenKey)
 		return Keyed(symbol), SourceProven
 	}
 	return Canonical(), SourceConvention
@@ -489,19 +564,6 @@ func JSON(tokenKey string) string {
 	)
 }
 
-// Func returns the entry point for one operation on tokenKey, or "" if the token
-// does not expose that operation to users. The single-value form of Get, for
-// consumers that want one answer rather than the whole route:
-//
-//	gnokey query vm/qeval --data \
-//	  'gno.land/r/nt/grc20routes/v0.Func("gno.land/r/gnoland/wugnot.wugnot","approve")'
-//
-// Panics if tokenKey is not a registered token.
-func Func(tokenKey, op string) string {
-	r, _ := Get(tokenKey)
-	return r.Func(op)
-}
-
 // mustToken returns the destination realm for tokenKey, panicking if the token
 // is not in grc20reg.
 //
@@ -515,8 +577,26 @@ func mustToken(tokenKey string) string {
 	if grc20reg.Get(tokenKey) == nil {
 		panic("grc20routes: unknown token: " + tokenKey)
 	}
-	pkgPath, _ := fqname.Parse(tokenKey)
+	pkgPath, _ := splitKey(tokenKey)
 	return hostOf(pkgPath)
+}
+
+// splitKey splits a registry key at its LAST dot. A symbol never contains one
+// (see validateSymbol), but a sub identity may ("<path>#a.b.<SYM>"), and
+// fqname.Parse splits at the first dot after the last slash, which would carry
+// part of the sub path into the symbol.
+func splitKey(tokenKey string) (pkgPath, symbol string) {
+	i := strings.LastIndex(tokenKey, ".")
+	if i < 0 {
+		return tokenKey, ""
+	}
+	return tokenKey[:i], tokenKey[i+1:]
+}
+
+// isSubToken reports whether tokenKey was registered under a sub identity.
+func isSubToken(tokenKey string) bool {
+	pkgPath, _ := splitKey(tokenKey)
+	return pkgPath != hostOf(pkgPath)
 }
 
 // hostOf drops the "#subpath" a realm carries under a sub identity.
@@ -676,7 +756,7 @@ func Render(path string) string {
 	declared.Iterate("", "", func(key string, v any) bool {
 		n++
 		r := v.(*Route)
-		rlmPath, symbol := fqname.Parse(key)
+		rlmPath, symbol := splitKey(key)
 		s += "- " + fqname.RenderLink(rlmPath, symbol) + " — "
 		for i, e := range r.Funcs {
 			if i > 0 {
@@ -698,7 +778,7 @@ func Render(path string) string {
 
 func renderToken(tokenKey string) string {
 	r, source := Get(tokenKey)
-	pkgPath, symbol := fqname.Parse(tokenKey)
+	pkgPath, symbol := splitKey(tokenKey)
 
 	s := ufmt.Sprintf("# %s\n\n", md.EscapeText(symbol))
 	s += "- token key: " + md.InlineCode(tokenKey) + "\n"
@@ -706,6 +786,9 @@ func renderToken(tokenKey string) string {
 	s += "- source: " + source + "\n"
 	if source == SourceConvention {
 		s += "- _nothing recorded for this token; the canonical shape is assumed_\n"
+	}
+	if source == SourceNone {
+		s += "- _registered under a sub identity and nothing declared; no route is known_\n"
 	}
 	s += "\n## Entry points\n\n"
 	if len(r.Funcs) == 0 {
@@ -734,7 +817,10 @@ func opTail(op string) string {
 func renderEntry(e Entry, prefix []string) string {
 	args := "cur"
 	for _, p := range prefix {
-		args += ", " + md.EscapeText(p)
+		// Validated to a character set with no backtick, and inside a code
+		// span, so it goes out verbatim: escaping would put backslashes into
+		// the argument a reader copies.
+		args += ", " + p
 	}
 	return ufmt.Sprintf("- %s: `%s(%s%s)`\n", e.Op, e.Func, args, opTail(e.Op))
 }
