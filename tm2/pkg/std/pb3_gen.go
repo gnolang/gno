@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 var _ fmt.Stringer
@@ -1175,20 +1176,22 @@ func (goo *Fee) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) erro
 
 func (goo Signature) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	{
-		repr, err := goo.SessionAddr.MarshalAmino()
-		if err != nil {
-			return offset, err
-		}
-		if repr != "" {
-			{
-				before := offset
-				offset = amino.PrependString(buf, offset, string(repr))
-				valueLen := before - offset
-				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
-				} else {
-					offset = before
+	if goo.SessionAddr != (crypto.Address{}) {
+		{
+			repr, err := goo.SessionAddr.MarshalAmino()
+			if err != nil {
+				return offset, err
+			}
+			if repr != "" {
+				{
+					before := offset
+					offset = amino.PrependString(buf, offset, string(repr))
+					valueLen := before - offset
+					if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+						offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+					} else {
+						offset = before
+					}
 				}
 			}
 		}
@@ -1234,13 +1237,15 @@ func (goo Signature) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if len(goo.Signature) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Signature)
 	}
-	{
-		repr, err := goo.SessionAddr.MarshalAmino()
-		if err != nil {
-			return 0, err
-		}
-		if repr != "" {
-			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	if goo.SessionAddr != (crypto.Address{}) {
+		{
+			repr, err := goo.SessionAddr.MarshalAmino()
+			if err != nil {
+				return 0, err
+			}
+			if repr != "" {
+				s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+			}
 		}
 	}
 	return s, nil

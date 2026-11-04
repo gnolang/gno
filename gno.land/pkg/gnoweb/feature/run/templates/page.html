@@ -1,0 +1,123 @@
+{{/* ===================================================================================
+UI - Run (maketx run) scratchpad
+The script and the command are complete as served: the controller turns the
+script into an editor and keeps the command in step with the fields.
+=================================================================================== */}}
+{{ define "renderPage" }}
+<div class="b-run" data-controller="run" data-run-script-value="{{ .Script }}">
+
+  <header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+    <h1 class="title b-content-h1">Run Script</h1>
+    <div class="header-info">
+      {{/* Reset, Download and the script switch are shown by the
+      controller: without JS they do nothing. */}}
+      <div class="b-btns" data-run-target="js-only" hidden>
+        <button type="button" class="b-inline-btn c-with-icon" data-action="click->run#resetCode" title="Reset to initial script template">
+          <svg class="c-icon"><use href="#ico-restore"></use></svg>
+          <span>Reset</span>
+        </button>
+        <button type="button" class="b-inline-btn c-with-icon" data-action="click->run#downloadCode" title="Download script as .gno file">
+          <svg class="c-icon"><use href="#ico-ddl"></use></svg>
+          <span>Download</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Code editor: the highlighted script until the editor replaces it -->
+  <div class="b-code-editor-area">
+    <div class="b-code-editor" data-run-target="editor">
+      <div class="b-source-code">
+        {{- with .ScriptHTML }}{{ . }}{{ else }}<pre class="chroma-chroma">{{ .Script }}</pre>{{ end -}}
+      </div>
+    </div>
+  </div>
+
+  <!-- Command settings: the mode and key are $help's, stored by the same
+  controller. Shown by the run controller: without JS they change nothing. -->
+  <div class="b-run-panel" data-controller="action-header" data-run-target="js-only" hidden>
+    <h2 class="b-content-h2">Command Settings</h2>
+    <div class="params">
+      <div class="b-input">
+        <select id="run-mode" aria-label="Command mode" data-action-header-target="mode" data-action="change->action-header#updateMode">
+          <option value="secure" selected="selected">Mode: Full Security</option>
+          <option value="fast">Mode: Fast</option>
+        </select>
+        <svg>
+          <use href="#ico-arrow-down"></use>
+        </svg>
+      </div>
+      <div class="b-input">
+        <label for="run-key">Key&nbsp;/&nbsp;Address</label>
+        <input type="text" id="run-key" data-action-header-target="address"
+          data-action="input->action-header#updateAddress"
+          placeholder="ADDRESS" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-gas-wanted">Gas wanted</label>
+        <input type="text" id="run-gas-wanted" data-run-target="gasWanted"
+          value="{{ .Gas.Wanted }}" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-gas-fee">Gas fee</label>
+        <input type="text" id="run-gas-fee" data-run-target="gasFee"
+          value="{{ .Gas.Fee }}" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+      <div class="b-input">
+        <label for="run-send">Send coins (optional)</label>
+        <input type="text" id="run-send" data-run-target="send"
+          placeholder="0ugnot" class="u-font-mono"
+          autocomplete="off" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Generated command -->
+  <div class="b-run-panel">
+    <h2 class="b-content-h2">Generated Command</h2>
+    <div class="b-run-command-header">
+      <p>Running it signs a transaction with <code class="u-font-mono" data-run-target="address-arg">ADDRESS</code>
+        and broadcasts it to the <code class="u-font-mono">{{ .ChainId }}</code> chain, which charges its gas fee,
+        even when the script runs out of gas: raise <code class="u-font-mono">-gas-wanted</code> and <code class="u-font-mono">-gas-fee</code> for a heavier one.</p>
+      <div class="b-btn b-switch" data-run-target="js-only" hidden>
+        <input type="checkbox" id="run-include-script" class="u-sr-only" data-run-target="includeScript" checked />
+        <label for="run-include-script">Add the script to the command</label>
+        <label for="run-include-script">Remove the script from the command</label>
+      </div>
+    </div>
+    <div class="b-code u-mb-2">
+      <button type="button" data-controller="copy" data-action="click->copy#copy"
+        data-copy-remote-value="run-cmd" class="btn-copy"
+        aria-label="Copy Command">
+        {{ template "ui/copy" }}
+      </button>
+      {{/* One span per mode, as $help's commands: the controller shows the
+      mode picked and moves the copy target to it. Each span holds the whole
+      text it copies, so the slots the fields fill are repeated in both. */}}
+      <pre><code class="u-font-mono"><span data-run-target="mode" data-run-mode-value="fast" class="u-hidden">{{ template "ui/insecure_warning" }}
+
+{{ template "run/heredoc" . }}gnokey maketx run -gas-fee {{ template "run/gas" . }} -chainid "{{ .ChainId }}" -remote "{{ .Remote }}" <span data-run-target="address-arg">ADDRESS</span> script.gno</span><span data-run-target="mode" data-run-mode-value="secure" data-copy-target="run-cmd" class="u-inline">{{ template "run/heredoc" . }}gnokey query -remote "{{ .Remote }}" auth/accounts/<span data-run-target="address-arg">ADDRESS</span>
+gnokey maketx run -gas-fee {{ template "run/gas" . }} -broadcast=false <span data-run-target="address-arg">ADDRESS</span> script.gno &gt; run.tx
+gnokey sign -tx-path run.tx -chainid "{{ .ChainId }}" -account-number ACCOUNTNUMBER -account-sequence SEQUENCENUMBER <span data-run-target="address-arg">ADDRESS</span>
+gnokey broadcast -remote "{{ .Remote }}" run.tx</span></code></pre>
+    </div>
+  </div>
+
+</div>
+{{ end }}
+
+{{/* The heredoc that writes script.gno, or the line that asks for it. */}}
+{{ define "run/heredoc" -}}
+<span data-run-target="heredoc">cat &gt; script.gno &lt;&lt;'GNO_EOF'
+{{ .Script }}GNO_EOF
+
+</span>
+{{- end }}
+
+{{/* The fee, the gas and the optional coins sent, in the order of $help. */}}
+{{ define "run/gas" -}}
+<span data-run-target="gas-fee-arg">{{ .Gas.Fee }}</span> -gas-wanted <span data-run-target="gas-wanted-arg">{{ .Gas.Wanted }}</span><span data-run-target="send-arg"></span>
+{{- end }}

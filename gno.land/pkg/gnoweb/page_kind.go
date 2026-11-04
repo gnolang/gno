@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
@@ -154,17 +155,24 @@ func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
 // not name them: what the package is and whose namespace it sits in, as in
 // "games/chess · realm by nym". An address namespace is shortened the way the
 // user page shows it. The bare listings are "Realms", "Packages" and
-// "Users"; any other path, an alias's, names itself without its slashes. The
+// "Users", the playground's "Playground", or "r/demo/foo · Playground" for a
+// copy; any other path, an alias's, names itself without its slashes. The
 // title is capped like an h1, since a path can be as long as a link cares.
-func pathTitle(u *weburl.GnoURL) string {
-	return md.TruncateTitle(pathName(u))
+// domain is the chain's, which a copy's ?from= may start with.
+func pathTitle(u *weburl.GnoURL, domain string) string {
+	return md.TruncateTitle(pathName(u, domain))
 }
 
 // pathName is pathTitle before it is capped.
-func pathName(u *weburl.GnoURL) string {
+func pathName(u *weburl.GnoURL, domain string) string {
 	pkg, ok := packagePath(u)
 	switch {
 	case ok:
+	case u.IsPlayground():
+		if from := playground.ParseFrom(domain, u.Query.Get("from")); from != nil {
+			return strings.TrimPrefix(from.Path, "/") + " · Playground"
+		}
+		return "Playground"
 	case u.IsRealm():
 		return "Realms"
 	case u.IsPure():

@@ -402,8 +402,10 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 			// but perhaps we are aiming for as much compatibility here.
 			// JAE: I vote we depart from encoding/json, than carry a vuln.
 
-			// Set to the zero value only if not omitempty
-			if !field.JSONOmitEmpty {
+			// Set to the zero value only if not omitempty. A missing
+			// amino:"skip_zero" field is always its zero value, which is
+			// what defaultValue gives for every type the tag allows.
+			if !field.JSONOmitEmpty || field.SkipZero {
 				// Set nil/zero on frv.
 				frv.Set(defaultValue(frv.Type()))
 			}
