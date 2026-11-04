@@ -67,8 +67,9 @@ func parseGnomodForHash(mpkg *std.MemPackage) (*gnomod.File, error) {
 // gnomod.toml is parsed and re-encoded canonically after keeperOwnedGnomod
 // resets what the keeper stamps at submit. That makes the submitter's copy and
 // the stored copy agree while still binding the fields the AUTHOR declares --
-// private, draft, ignore, replace and the gno version -- which excluding the
-// file outright did not. A realm approved as private could otherwise be
+// private, draft, ignore, replace, the gno version and the [source] repository
+// and path -- which excluding the file outright did not. [source] revision is
+// left out too: publish tooling stamps it on the uploaded copy only. A realm approved as private could otherwise be
 // re-parked as public with the same .gno files and the same hash, and
 // checkGnomodConstraints does not catch it on a first deployment: its guard is
 // `priorPrivate && !gm.Private`, and priorPrivate is false when nothing is live
@@ -104,6 +105,11 @@ func PackageContentHash(mpkg *std.MemPackage) (string, error) {
 // value type; Replace is shared with the caller and never written.
 func packageContentHash(mpkg *std.MemPackage, gm gnomod.File) string {
 	keeperOwnedGnomod(&gm, mpkg.Path)
+	// [source] revision is not keeper-owned, but it is stamped by publish
+	// tooling on the uploaded copy only, so an approver hashing their checkout
+	// with -pkgdir never has it. It names a commit, not code the chain runs.
+	// Repository and path are committed with the package and stay bound.
+	gm.Source.Revision = ""
 	canonical := gm.WriteString()
 
 	files := make([]*std.MemFile, 0, len(mpkg.Files))
