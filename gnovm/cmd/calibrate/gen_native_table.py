@@ -208,6 +208,9 @@ NATIVE_SPECS = [
      r"BenchmarkNative_Markdown_CodeFence_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/markdown", "EscapeBlockHazards", 0, "LenString",
      r"BenchmarkNative_Markdown_EscapeBlockHazards_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # ---- strconv (pure CPU, per-digit slope on the input string) ----
+    ("strconv", "parseUint256Digits", 0, "LenString",
+     r"BenchmarkNative_Strconv_ParseUint256Digits_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
     # ---- IBC crypto stdlibs ----
     ("crypto/keccak256", "sum256", 0, "LenBytes",

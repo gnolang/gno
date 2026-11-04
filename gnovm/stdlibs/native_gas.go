@@ -94,7 +94,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 73 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
@@ -184,6 +184,11 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazards", Base: 136, Slope: 27361, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=136ns slope=26.72ns/N (=27361/1024) R²=1.000 — shape `[a]: u\n(x\n` (post bracket-walker worst case, scanLRDTail paren-title budget exhausts)
 	{Pkg: "chain/markdown", Fn: "EscapeBlockHazardsRich", Base: 136, Slope: 27597, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=136ns slope=26.95ns/N (=27597/1024) R²=1.000 — same worst case as EscapeBlockHazards (bracket walker dominates); ~1% above strict variant despite skipping two per-line checks (within measurement noise)
 	{Pkg: "chain/markdown", Fn: "MaxForeignBlocksPerConvert", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                // flat: returns a compile-time constant, no input
+
+	// strconv: the digit loop of ParseUint256/ParseInt256, one 256-bit
+	// multiply-add per byte (strconv_bench_test.go, worst case: a string
+	// valid to its end). Measured on Apple M4 Pro; same re-calibration caveat.
+	{Pkg: "strconv", Fn: "parseUint256Digits", Base: 169, Slope: 6442, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=160.5ns (floored to the 1-byte median 168.8ns) slope=6.2909ns/N (=6442/1024) R²=1.000
 
 	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
 	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},       // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes

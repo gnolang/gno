@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/cmd/calibrate
+cpu: Apple M4 Pro
+BenchmarkNative_Strconv_ParseUint256Digits_1-12         	 1238332	       168.1 ns/op	   5.95 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_1-12         	 1416876	       169.2 ns/op	   5.91 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_1-12         	 1414753	       168.8 ns/op	   5.92 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_10-12        	 1000000	       221.3 ns/op	  45.19 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_10-12        	 1000000	       220.9 ns/op	  45.27 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_10-12        	 1000000	       243.3 ns/op	  41.09 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_100-12       	  310050	       775.7 ns/op	 128.92 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_100-12       	  309216	       786.7 ns/op	 127.11 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_100-12       	  308319	       775.2 ns/op	 129.01 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_1000-12      	   37932	      6359 ns/op	 157.25 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_1000-12      	   38179	      6349 ns/op	 157.51 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_1000-12      	   38118	      6293 ns/op	 158.91 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_10000-12     	    3944	     61980 ns/op	 161.34 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_10000-12     	    3814	     64225 ns/op	 155.70 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_10000-12     	    3637	     64252 ns/op	 155.64 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_100000-12    	     378	    654506 ns/op	 152.79 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_100000-12    	     381	    638711 ns/op	 156.57 MB/s
+BenchmarkNative_Strconv_ParseUint256Digits_100000-12    	     374	    639154 ns/op	 156.46 MB/s
+PASS
+ok  	github.com/gnolang/gno/gnovm/cmd/calibrate	5.516s

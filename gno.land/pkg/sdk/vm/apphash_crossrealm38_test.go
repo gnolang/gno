@@ -237,8 +237,11 @@ import (
 // versions of strconv and math, this branch reproduces the previous root.
 // Re-derived when the 256-bit helpers and constants moved to files of their
 // own (math/overflow/overflow256_generated.gno, math/const256.gno), so that
-// tools turning Gno into Go can leave them out whole.
-const expectedCrossrealm38Hash = "157ad7ea8ccbd52cb67f7c7240955dd0ea5b73f3d4ca00e1684c1347ebf2e37f"
+// tools turning Gno into Go can leave them out whole. Re-derived again when
+// strconv's ParseUint256 digit loop became a native (strconv/int256.gno) and
+// math/overflow gained checked 256-bit conversions (convert256.gno and its
+// tests): stdlib source bytes only, crossrealm38 uses neither.
+const expectedCrossrealm38Hash = "7cff1aab0e8de2b943f688d30f24c5830b943a2e0ff1545cd739ad8ad72ecf8d"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
