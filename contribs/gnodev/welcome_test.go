@@ -1,10 +1,14 @@
 package main
 
 import (
+	"flag"
+	"io"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStagingHomeMarkdown(t *testing.T) {
@@ -88,4 +92,21 @@ func TestStagingHomeMarkdownChainIDIsNotIncidentallyPresent(t *testing.T) {
 
 	assert.Contains(t, got, "**Chain ID**: `dev`")
 	assert.True(t, strings.Contains(got, "gnodev"), "the page does mention gnodev, which is why a bare \"dev\" assertion is vacuous")
+}
+
+// TestStagingHomeMarkdownRunYourOwnParses: the "Run your own" command is meant
+// to be copied, so every flag in it has to exist on `gnodev staging` as built.
+// It once advertised -state-dir, which only #6226 adds.
+func TestStagingHomeMarkdownRunYourOwnParses(t *testing.T) {
+	t.Parallel()
+
+	got := stagingHomeMarkdown("dev", "")
+	m := regexp.MustCompile("(?m)^gnodev staging (.*)$").FindStringSubmatch(got)
+	require.NotNil(t, m, "the page should show a gnodev staging command")
+
+	var cfg StagingAppConfig
+	fs := flag.NewFlagSet("staging", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	cfg.RegisterFlags(fs)
+	assert.NoError(t, fs.Parse(strings.Fields(m[1])))
 }

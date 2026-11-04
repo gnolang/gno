@@ -94,9 +94,8 @@ func stagingHomeMarkdown(chainID, rpcRemote string) string {
 	b.WriteString("## Run your own\n\n")
 	b.WriteString("This chain is one command. There is no compose file, no reverse-proxy dance and " +
 		"no second container:\n\n")
-	b.WriteString("```\ngnodev staging -chain-id my-preview -state-dir ./data\n```\n\n")
-	b.WriteString("Point it at your own contracts by passing their directory, and every transaction " +
-		"anyone sends is appended to `./data` and replayed the next time it starts. Use `gnodev` on " +
+	b.WriteString("```\ngnodev staging -chain-id my-preview\n```\n\n")
+	b.WriteString("Point it at your own contracts by passing their directory. Use `gnodev` on " +
 		"its own for local development, and `gnoland` only if you are running a validator on a real " +
 		"network.\n\n")
 
