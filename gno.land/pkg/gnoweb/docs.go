@@ -109,21 +109,18 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	src = rewriteDocsLinks(src, resolvedRel)
 
 	// Theme cookie (mirrors HTTPHandler.Get to avoid FOUC).
-	var theme string
-	if c, err := r.Cookie("theme"); err == nil {
-		if c.Value == "light" || c.Value == "dark" {
-			theme = c.Value
-		}
-	}
+	theme := readWhitelistedCookie(r, "theme", "light", "dark")
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath:    h.Static.AssetsPath,
-			ChromaPath:    h.Static.ChromaPath,
-			ChainId:       h.Static.ChainId,
-			Remote:        h.Static.RemoteHelp,
-			AssetsVersion: h.Static.AssetsVersion,
-			Title:         h.Static.Domain + " - " + r.URL.Path,
+			AssetsPath:        h.Static.AssetsPath,
+			ChromaPath:        h.Static.ChromaPath,
+			ChainId:           h.Static.ChainId,
+			Remote:            h.Static.RemoteHelp,
+			AssetsVersion:     h.Static.AssetsVersion,
+			Title:             h.Static.Domain + " - " + r.URL.Path,
+			AnalyticsHostname: h.Static.AnalyticsHostname,
+			CSPNonce:          CSPNonceFromContext(r.Context()),
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
