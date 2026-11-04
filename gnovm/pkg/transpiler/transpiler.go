@@ -50,21 +50,23 @@ func PackageDirLocation(s string) string {
 type ImportResolver func(importPath string) (relPath string, ok bool)
 
 // DefaultResolver returns "examples/<path>" for non-stdlibs and
-// "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it also
-// checks the resolved path exists on disk, and falls back to the directory
-// that declares importPath in examples/, which does not have to repeat the
-// version the module path carries.
+// "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it checks a
+// stdlib exists on disk, and resolves anything else to the directory under
+// examples/ that declares importPath, which does not have to repeat the version
+// the module path carries. A directory declaring another module does not
+// answer, so gno.land/p/nt/avl does not resolve to the directory declaring
+// gno.land/p/nt/avl/v0.
 func DefaultResolver(rootDir string) ImportResolver {
 	return func(importPath string) (string, bool) {
 		rel := PackageDirLocation(importPath)
 		if rootDir == "" {
 			return rel, true
 		}
-		if _, err := os.Stat(filepath.Join(rootDir, rel)); err == nil {
-			return rel, true
-		}
 		if gno.IsStdlib(importPath) {
-			return "", false
+			if _, err := os.Stat(filepath.Join(rootDir, rel)); err != nil {
+				return "", false
+			}
+			return rel, true
 		}
 		dir := gnomod.FindModuleDir(filepath.Join(rootDir, "examples"), importPath)
 		if dir == "" {
