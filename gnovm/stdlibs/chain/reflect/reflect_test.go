@@ -68,21 +68,20 @@ func (f *objectFixture) persist(oo gno.Object) {
 	f.m.Realm.FinalizeRealmTransaction(f.tx)
 }
 
-// vmInfo names X_objectInfo's six results. Tests read the fields they care
+// vmInfo names X_objectInfo's five results. Tests read the fields they care
 // about by name instead of positioning them behind a row of blank identifiers.
 type vmInfo struct {
-	id, addr, pkgPath, typ string
-	stamped, hasIdentity   bool
+	id, addr, pkgPath    string
+	stamped, hasIdentity bool
 }
 
 func readVMInfo(m *gno.Machine, tv gno.TypedValue) vmInfo {
-	id, addr, pkgPath, typ, stamped, hasIdentity := X_objectInfo(m, tv)
+	id, addr, pkgPath, stamped, hasIdentity := X_objectInfo(m, tv)
 
 	return vmInfo{
 		id:          id,
 		addr:        addr,
 		pkgPath:     pkgPath,
-		typ:         typ,
 		stamped:     stamped,
 		hasIdentity: hasIdentity,
 	}
@@ -202,29 +201,77 @@ func TestFuncValueIsAnObject(t *testing.T) {
 	require.Equal(t, "", got.addr)
 }
 
-// A value's own type may be a declared pointer type, as in `type P *Token`.
-// The pointer is then that type's Base, not the type itself, and failing to
-// unwrap it leaves an ordinary named pointer reporting no type name at all.
-func TestDeclaredPointerTypeReportsThePointeeName(t *testing.T) {
-	f := newObjectFixture(t, "gno.land/r/demo/reflect_declptr")
+// A map is a reference like a func value: TypedValue.Copy shares the
+// *MapValue, so every holder holds the same object.
+func TestMapValueIsAnObject(t *testing.T) {
+	f := newObjectFixture(t, "gno.land/r/demo/reflect_map")
+	mt := &gno.MapType{Key: gno.StringType, Value: gno.IntType}
+	mv := f.alloc.NewMap(mt)
+	f.own(mv)
+	tv := gno.TypedValue{T: mt, V: mv}
+
+	got := readVMInfo(f.m, tv)
+	require.True(t, got.hasIdentity, "a map is an object")
+	require.False(t, got.stamped, "and is unstamped until persisted")
+
+	f.persist(mv)
+
+	got = readVMInfo(f.m, tv)
+	require.True(t, got.stamped)
+	require.Equal(t, mv.GetObjectID().String(), got.id)
+	require.Equal(t, got, readVMInfo(f.m, tv.Copy(f.alloc)), "a copy of a map value is the same map")
+}
+
+// One heap item reached through several pointer types is one object, and
+// every route must give the same answer, or a map keyed by Object counts it
+// once per spelling. The type the caller used is not part of the answer.
+func TestPointerTypeDoesNotChangeTheAnswer(t *testing.T) {
+	f := newObjectFixture(t, "gno.land/r/demo/reflect_ptrtype")
 	oo, tv := f.newStandaloneObject()
 	f.persist(oo)
 
-	const want = "gno.land/r/demo/reflect_declptr.Token"
-	token := &gno.DeclaredType{PkgPath: "gno.land/r/demo/reflect_declptr", Name: "Token"}
+	token := &gno.DeclaredType{PkgPath: "gno.land/r/demo/reflect_ptrtype", Name: "Token"}
+	alias := &gno.DeclaredType{PkgPath: "gno.land/r/demo/reflect_ptrtype", Name: "Alias"}
 	pointer := &gno.PointerType{Elt: token}
 
 	tv.T = pointer
-	require.Equal(t, want, readVMInfo(f.m, tv).typ, "*Token")
+	want := readVMInfo(f.m, tv)
+	require.True(t, want.stamped)
 
-	// type P *Token. Same object, same answer: P is one of several spellings
-	// that reach the Token, and the Token is what has the identity.
-	tv.T = &gno.DeclaredType{PkgPath: "gno.land/r/demo/reflect_declptr", Name: "P", Base: pointer}
-	require.Equal(t, want, readVMInfo(f.m, tv).typ, "type P *Token")
+	for name, typ := range map[string]gno.Type{
+		"*Alias":           &gno.PointerType{Elt: alias},
+		"type P *Token":    &gno.DeclaredType{PkgPath: token.PkgPath, Name: "P", Base: pointer},
+		"*struct{}":        &gno.PointerType{Elt: &gno.StructType{}},
+		"foreign *Builder": &gno.PointerType{Elt: &gno.DeclaredType{PkgPath: "strings", Name: "Builder"}},
+	} {
+		tv.T = typ
+		require.Equal(t, want, readVMInfo(f.m, tv), name)
+	}
+}
 
-	// A pointer to something with no declared name still has no name.
-	tv.T = &gno.PointerType{Elt: &gno.StructType{}}
-	require.Equal(t, "", readVMInfo(f.m, tv).typ, "pointer to an anonymous struct")
+// An object persisted by a stdlib or a p/ package has no creating realm, and
+// GetRealmByID would resolve its package anyway. Those report "never" until
+// someone settles whether immutable-package objects should be addressable,
+// since an address once handed out cannot be withdrawn. A zero PkgID with a
+// clock tick, the state DeriveObjectCryptoAddr panics on, lands here too.
+func TestNonRealmObjectsHaveNoIdentity(t *testing.T) {
+	f := newObjectFixture(t, "gno.land/r/demo/reflect_nonrealm")
+
+	for _, pkgID := range []gno.PkgID{
+		gno.PkgIDFromPkgPath("strings"),
+		gno.PkgIDFromPkgPath("gno.land/p/demo/avl"),
+		{},
+	} {
+		hiv := f.alloc.NewHeapItem(nil, gno.TypedValue{})
+		hiv.SetPkgID(pkgID)
+		hiv.SetNewTime(5)
+		tv := gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}
+
+		require.NotPanics(t, func() {
+			got := readVMInfo(f.m, tv)
+			require.Equal(t, vmInfo{}, got, pkgID.String())
+		})
+	}
 }
 
 // Every value with no identity of its own reports the same way: nothing, no
@@ -253,6 +300,10 @@ func TestObjectInfoValuesWithoutIdentity(t *testing.T) {
 		{
 			name: "nil pointer",
 			tv:   gno.TypedValue{V: gno.PointerValue{}},
+		},
+		{
+			name: "nil map",
+			tv:   gno.TypedValue{T: &gno.MapType{Key: gno.StringType, Value: gno.IntType}},
 		},
 		{
 			// &x.Field. Resolving it to the struct would make every field of x
@@ -285,7 +336,6 @@ func TestObjectInfoValuesWithoutIdentity(t *testing.T) {
 			require.Equal(t, "", got.id)
 			require.Equal(t, "", got.addr, "a value with no identity must never get an address")
 			require.Equal(t, "", got.pkgPath)
-			require.Equal(t, "", got.typ)
 			require.False(t, got.stamped)
 			require.False(t, got.hasIdentity, "a value with no identity must not claim one is coming")
 		})

@@ -733,24 +733,27 @@ type Object struct { /* unexported */ }
 func (o Object) Address() address
 func (o Object) ID() string
 func (o Object) PkgPath() string
-func (o Object) Type() string
 func (o Object) String() string
 func (o Object) IsZero() bool
 ```
 Opaque, comparable and safe as a map key. `Of` is the only thing that returns a
 non-zero one, so a realm cannot mint an identity and pass it off as VM-issued.
+Two `Object`s are equal exactly when they name the same object, whichever
+pointer type the value was reached through, which is why an `Object` carries no
+type: `p` and `(*Alias)(p)` are one object.
 
 - `Address` is the object's gno.land address: deterministic, unique per object,
   stable for as long as the object lives, and never colliding with a realm's
   package address. It has no signing key.
 - `ID` is the VM's own `<realm-id>:<clock-tick>` spelling, for matching against
   a storage dump. Do not parse it.
-- `PkgPath` is the realm that created the object. `Type` is its declared type as
-  `<pkgpath>.<Name>`. These differ when a realm instantiates a type from a `p/`
-  package, and together with the address they are what a page needs to link to
-  an object.
+- `PkgPath` is the realm whose storage clock minted the ID, which is the realm
+  that owns the object. That is usually the realm whose code allocated it, but
+  not always: an object allocated by a `maketx run` script or inside a stdlib
+  function is stamped to the realm that persists it. Read it as "whose object
+  this is", not "whose code made it".
 - `String` renders a line for humans:
-  `gno.land/r/demo/foo.Token#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)`.
+  `gno.land/r/demo/foo#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)`.
 
 ### Of
 ```go
@@ -763,6 +766,10 @@ applies.
 An object's identity is not complete when the object is created: the VM stamps
 it when the owning realm persists the object, which happens when a realm frame
 returns. So an object the running call created reports `ok == false` until then.
+"Until then" is about the same value, stored somewhere the realm persists:
+`&T{}`, a func or map literal and a method value like `tok.Method` allocate a
+fresh object each time they are evaluated, so store the value first and ask
+about what you stored.
 
 **Always check `ok`.** The zero `Object`'s `Address()` is the empty address: not
 an account anyone can reach, immutable once it is in an event, and a transfer
@@ -778,10 +785,13 @@ whether or not it has been stamped yet. It is a **second native call**, charged
 the same whichever answer it gives, so reach for it only on the branch where
 `Of` returned false: on the common path `Of` succeeds and one call has already
 produced everything the VM knows. True for a pointer to a standalone
-object (`new(T)`, `&T{...}`) and for a func or method value, which are
-references and so are addressable separately from whatever holds them. False for
-a pointer into a struct field or array element, a slice, a scalar and a nil
-pointer, none of which has an identity separate from what it is part of.
+object (`new(T)`, `&T{...}`) and for a func value, method value or map, which
+are references and so are addressable separately from whatever holds them.
+False for a pointer into a struct field or array element, a slice, a struct or
+array by value, a scalar and a nil pointer, none of which has an identity
+separate from what it is part of. Also false for an object belonging to a stdlib
+or a `p/` package, such as `strings.ToUpper`: only objects a realm persisted are
+addressable.
 
 ### Addressable
 ```go

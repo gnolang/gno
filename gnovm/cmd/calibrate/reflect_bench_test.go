@@ -53,7 +53,7 @@ func newReflectObjectInfoBench(b *testing.B, stamped bool) *dispatchHarness {
 	m.Store = tx
 	m.Blocks[0].Values[0] = gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}
 
-	return &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/reflect", "objectInfo"), nReturns: 6}
+	return &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/reflect", "objectInfo"), nReturns: 5}
 }
 
 func BenchmarkNative_Reflect_ObjectInfo_Stamped(b *testing.B) {
@@ -77,7 +77,7 @@ func BenchmarkNative_Reflect_ObjectInfo_Unstamped(b *testing.B) {
 func BenchmarkNative_Reflect_ObjectInfo_NoIdentity(b *testing.B) {
 	m := newDispatchMachine(1)
 	m.Blocks[0].Values[0] = gno.TypedValue{T: gno.StringType}
-	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/reflect", "objectInfo"), nReturns: 6}
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/reflect", "objectInfo"), nReturns: 5}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		h.call()

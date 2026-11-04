@@ -42,10 +42,15 @@ type Addressable interface {
 }
 
 // Object is what the VM knows about one persisted value: its identity, its
-// address, the realm that created it, and its type.
+// address, and the realm whose clock minted that identity.
 //
 // It is opaque, comparable, and safe as a map key. Two Objects are equal if and
-// only if they name the same object. The zero Object names nothing.
+// only if they name the same object, however the value was reached: p,
+// (*Alias)(p) and a p held behind an interface all give one Object. That is
+// why an Object carries no type. The type of the value handed to [Of] is a
+// property of the path the caller took, not of the object, and letting it into
+// the comparison would make one object count once per spelling. The zero
+// Object names nothing.
 //
 // An Object cannot be constructed: [Of] is the only thing that returns a
 // non-zero one. That is the property this package exists for, so Object is
@@ -58,8 +63,7 @@ type Addressable interface {
 type Object struct {
 	id      string // "<realm-id>:<clock-tick>", the VM's own spelling
 	addr    string // bech32, derived from id
-	pkgPath string // the realm that created the object
-	typ     string // "<pkgpath>.<Name>" of the object's declared type
+	pkgPath string // the realm whose clock minted id
 }
 
 // Of returns what the VM knows about the object v refers to.
@@ -94,19 +98,23 @@ type Object struct {
 // That covers the case this package is for: a realm hands out a *Thing and
 // wants the VM's name for that Thing.
 //
-// A func value or a bound method value, which are references in the same sense
-// a pointer is: two variables holding one closure hold the same object, so
-// every holder agrees on its address and a stored callback is addressable
-// separately from whatever holds it.
+// A func value, a bound method value or a map, which are references in the
+// same sense a pointer is: two variables holding one closure, or one map, hold
+// the same object, so every holder agrees on its address and a stored callback
+// or index is addressable separately from whatever holds it.
+//
+// Only objects a realm persisted qualify. An object belonging to a stdlib or a
+// p/ package, such as the func value strings.ToUpper, reports false, and
+// [HasIdentity] reports false too.
 //
 // Everything else reports false, on purpose. A pointer into a struct field or
 // an array element resolves to the container, and lending a value its
 // container's identity would make every sibling answer the same address. A
 // slice resolves to its backing array, which every other view of it shares. A
-// struct, map or array arriving by value may be the persisted object or a copy
-// of it depending on how it got here, which is the question this package will
-// not guess at. A scalar, a nil pointer and a nil interface have no object at
-// all.
+// struct or array arriving by value may be the persisted object or a copy of it
+// depending on how it got here, which is the question this package will not
+// guess at. A scalar, a nil pointer, a nil map and a nil interface have no
+// object at all.
 //
 // This list is meant to grow, and to only ever grow. Teaching a kind of value
 // to report its identity is a compatible change; taking one back is not,
@@ -128,12 +136,19 @@ type Object struct {
 // unusable address. Two things a realm can do: read the address later, from a
 // call that runs after the boundary; or refuse, and make the caller split the
 // work across two calls.
+//
+// "Later" means the same value, kept somewhere the realm persists. It does not
+// mean evaluating the same expression again: &T{}, a func literal, a map
+// literal and a method value such as tok.Method each allocate a fresh object
+// every time they are evaluated, so Of(tok.Method) asked twice asks about two
+// objects, neither of which is ever stored. Store the value first, then ask
+// about what you stored.
 func Of(v any) (obj Object, ok bool) {
-	id, addr, pkgPath, typ, stamped, _ := objectInfo(v)
+	id, addr, pkgPath, stamped, _ := objectInfo(v)
 	if !stamped {
 		return Object{}, false
 	}
-	return Object{id: id, addr: addr, pkgPath: pkgPath, typ: typ}, true
+	return Object{id: id, addr: addr, pkgPath: pkgPath}, true
 }
 
 // HasIdentity reports whether v is the kind of value that gets an identity of
@@ -147,7 +162,7 @@ func Of(v any) (obj Object, ok bool) {
 // common path Of succeeds and one call has already produced everything the VM
 // knows, this bool included.
 func HasIdentity(v any) bool {
-	_, _, _, _, _, has := objectInfo(v)
+	_, _, _, _, has := objectInfo(v)
 	return has
 }
 
@@ -175,28 +190,28 @@ func (o Object) Address() address { return address(o.addr) }
 // the VM's business, and this package will not promise their shape.
 func (o Object) ID() string { return o.id }
 
-// PkgPath returns the path of the realm that created the object, which is the
-// realm whose storage clock minted its identity and which owns its persistence.
+// PkgPath returns the path of the realm whose storage clock minted the
+// object's identity, which is the realm that owns its persistence.
 //
-// This is not necessarily where the object's type is declared: a realm that
-// instantiates a type from a p/ package creates an object of that type under
-// its own path. Compare with [Object.Type] when that distinction matters.
+// That is usually, but not always, the realm whose code allocated it. An
+// object allocated by a maketx run script, or inside a stdlib function, has no
+// lasting realm of its own, and the VM stamps it to the realm that persists it
+// (see Realm.assignNewObjectID). Read PkgPath as "whose object this is", not as
+// "whose code made it".
+//
+// Nor is it where the object's type is declared: a realm that instantiates a
+// type from a p/ package creates an object of that type under its own path.
 func (o Object) PkgPath() string { return o.pkgPath }
-
-// Type returns the object's declared type as "<pkgpath>.<Name>", for example
-// "gno.land/p/demo/tokens.Token". It is "" for an object the VM has no such
-// name for: a pointer to an anonymous struct, and any func or method value.
-func (o Object) Type() string { return o.typ }
 
 // IsZero reports whether o names no object.
 func (o Object) IsZero() bool { return o.id == "" }
 
-// String returns a line meant for a human: the type, the clock tick that
-// distinguishes the object from every other object of its realm, and the
+// String returns a line meant for a human: the owning realm, the clock tick
+// that distinguishes the object from every other object of that realm, and the
 // address. The ticks of a realm are not consecutive; do not read one as a
 // count.
 //
-//	gno.land/r/demo/foo.Token#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)
+//	gno.land/r/demo/foo#7 (g1w4ek2u3jta047h6lta047h6lta047h6l9ht8xq)
 //
 // It is for logs and rendered pages. Emit [Object.Address] into events and use
 // it as a key; this is not stable output to parse.
@@ -204,11 +219,7 @@ func (o Object) String() string {
 	if o.IsZero() {
 		return "<no object>"
 	}
-	name := o.typ
-	if name == "" {
-		name = "<untyped>"
-	}
-	return name + "#" + o.seq() + " (" + o.addr + ")"
+	return o.pkgPath + "#" + o.seq() + " (" + o.addr + ")"
 }
 
 // seq returns the clock-tick half of the ID, the part that differs between two
@@ -225,5 +236,5 @@ func (o Object) seq() string {
 // objectInfo is the native binding. One call, because a caller that wants the
 // address almost always wants to record where the object came from next to it,
 // and the realm lookup that PkgPath needs is a cache hit in the common case.
-// The exported API above is a rearrangement of these six values.
-func objectInfo(v any) (id, addr, pkgPath, typ string, stamped, hasIdentity bool) // injected
+// The exported API above is a rearrangement of these five values.
+func objectInfo(v any) (id, addr, pkgPath string, stamped, hasIdentity bool) // injected

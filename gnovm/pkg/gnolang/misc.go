@@ -214,6 +214,12 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 // PkgID encoding or the NewTime semantics moves every object address in
 // existence and needs a migration. Preimage shape taken from #6139 so the two
 // approaches stay interchangeable.
+//
+// Byte for byte the preimage is "objectid:RID" + uppercase hex of the PkgID
+// hashlet + ":" + decimal NewTime, because the PkgID goes through
+// PkgID.String(). That is not ObjectID.String(), which spells the hashlet in
+// lowercase hex with no prefix, so "objectid:" + an Object's ID() hashes to a
+// different address. Derive from the ObjectID, never from its rendering.
 func DeriveObjectCryptoAddr(oid ObjectID) crypto.Address {
 	if !oid.IsFinalized() || oid.PkgID.IsZero() {
 		panic("objectID is not fully stamped: " + oid.String())

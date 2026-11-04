@@ -1213,16 +1213,15 @@ var nativeFuncs = [...]NativeFunc{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
 			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
 			{NameExpr: *gno.Nx("r2"), Type: gno.X("string")},
-			{NameExpr: *gno.Nx("r3"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("bool")},
 			{NameExpr: *gno.Nx("r4"), Type: gno.X("bool")},
-			{NameExpr: *gno.Nx("r5"), Type: gno.X("bool")},
 		},
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
-			r0, r1, r2, r3, r4, r5 := libs_chain_reflect.X_objectInfo(
+			r0, r1, r2, r3, r4 := libs_chain_reflect.X_objectInfo(
 				m,
 				p0)
 
@@ -1250,11 +1249,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r4).Elem(),
-			))
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r5).Elem(),
 			))
 		},
 	},

@@ -25,7 +25,7 @@ func main(cur realm) {
 	a, _ := reflect.Of(first)
 	b, _ := reflect.Of(second)
 
-	// The human-readable rendering: which type, which one of them, and where
+	// The human-readable rendering: whose object, which one of them, and where
 	// to find it.
 	println("first  ", a.String())
 	println("second ", b.String())
@@ -36,13 +36,11 @@ func main(cur realm) {
 	println("address    ", a.Address())
 	println("id         ", a.ID())
 	println("created by ", a.PkgPath())
-	println("type       ", a.Type())
 	println("")
 
-	// Two objects of one type in one realm. The realm chose neither address and
+	// Two objects in one realm. The realm chose neither address and
 	// could not have made them collide.
 	println("distinct addresses:", a.Address() != b.Address())
-	println("same type:         ", a.Type() == b.Type())
 	println("same realm:        ", a.PkgPath() == b.PkgPath())
 	println("")
 
@@ -65,16 +63,14 @@ func main(cur realm) {
 }
 
 // Output:
-// first   gno.land/r/demo/reflectid.Account#8 (g1delmyrysc3x2xdq92j2ttmykkfj5rs6r682dw0)
-// second  gno.land/r/demo/reflectid.Account#10 (g1y6em47cffhtec6cg0a60q60gww5twxg2plgwkv)
+// first   gno.land/r/demo/reflectid#8 (g1delmyrysc3x2xdq92j2ttmykkfj5rs6r682dw0)
+// second  gno.land/r/demo/reflectid#10 (g1y6em47cffhtec6cg0a60q60gww5twxg2plgwkv)
 //
 // address     g1delmyrysc3x2xdq92j2ttmykkfj5rs6r682dw0
 // id          0f0fab98e0c5e59ebb5c1cae1ba307b5adcb6026:8
 // created by  gno.land/r/demo/reflectid
-// type        gno.land/r/demo/reflectid.Account
 //
 // distinct addresses: true
-// same type:          true
 // same realm:         true
 //
 // stable across reads: true

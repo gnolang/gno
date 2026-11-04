@@ -16,10 +16,18 @@ import (
 // It is a pure read. Nothing here allocates, persists, or advances a realm
 // clock, so calling it has no effect on the object's lifecycle and repeated
 // calls agree.
-func X_objectInfo(m *gno.Machine, v gno.TypedValue) (id, addr, pkgPath, typ string, stamped, hasIdentity bool) {
+//
+// There is deliberately no type among the results. The only type at hand is
+// the one the caller reached the object through, and one object is reachable
+// through many: (*Alias)(p) and p name the same heap item. Reporting that type
+// would make two Objects for one object compare unequal. Nor does the heap
+// item keep a type of its own that could stand in: an assignment through a
+// converted pointer overwrites the stored value's T (TypedValue.Assign copies
+// tv2 whole), so even that changes over the object's life.
+func X_objectInfo(m *gno.Machine, v gno.TypedValue) (id, addr, pkgPath string, stamped, hasIdentity bool) {
 	oo := ownObject(m, v)
 	if oo == nil {
-		return "", "", "", "", false, false
+		return "", "", "", false, false
 	}
 
 	oid := oo.GetObjectID()
@@ -28,13 +36,24 @@ func X_objectInfo(m *gno.Machine, v gno.TypedValue) (id, addr, pkgPath, typ stri
 		// has not persisted the object yet and the clock half is still zero.
 		// It is an object; it does not have an identity yet, and an address
 		// cannot be derived from half an ID.
-		return "", "", "", "", false, true
+		return "", "", "", false, true
+	}
+
+	if !oid.PkgID.IsRealmPkg() {
+		// Persisted by a stdlib or a p/ package, not by a realm: a top-level
+		// func of strings, say. GetRealmByID would resolve it anyway and
+		// report "strings" as the creating realm, which is not a realm. Whether
+		// immutable-package objects should be addressable has not been
+		// settled, so report "never"; widening that later is compatible,
+		// withdrawing an address already in a balance is not. IsRealmPkg also
+		// rejects a zero PkgID, the other half of DeriveObjectCryptoAddr's
+		// precondition.
+		return "", "", "", false, false
 	}
 
 	return oid.String(),
 		gno.DeriveObjectCryptoAddr(oid).String(),
 		creatingRealmPath(m, oid),
-		declaredTypeName(v),
 		true, true
 }
 
@@ -52,9 +71,10 @@ func X_objectInfo(m *gno.Machine, v gno.TypedValue) (id, addr, pkgPath, typ stri
 //     container's address as its own.
 //   - A slice, which resolves to its backing array and so is shared by every
 //     other view of that array.
-//   - A struct, map, array, func or bound method arriving by value. Whether
-//     such a value is the persisted object or a copy of it depends on how it
-//     got here, which is exactly the question this package will not guess at.
+//   - A struct or an array arriving by value. TypedValue.Copy clones both, so
+//     whether such a value is the persisted object or a copy of it depends on
+//     how it got here, which is exactly the question this package will not
+//     guess at.
 //   - Anything with no object behind it: a scalar, a nil pointer, a nil
 //     interface.
 //
@@ -81,7 +101,15 @@ func ownObject(m *gno.Machine, tv gno.TypedValue) gno.Object {
 		return cv
 
 	case *gno.BoundMethodValue:
-		// Same, for a method value bound to a receiver.
+		// Same, for a method value bound to a receiver. Note that evaluating
+		// tok.Method allocates a fresh one every time, so it is the stored
+		// method value that gets an identity, never the expression.
+		return cv
+
+	case *gno.MapValue:
+		// A map is a reference too: TypedValue.Copy shares the *MapValue
+		// between holders rather than cloning it, so every variable holding
+		// one map holds the same object.
 		return cv
 	}
 
@@ -101,44 +129,10 @@ func ownObject(m *gno.Machine, tv gno.TypedValue) gno.Object {
 // that only wanted the address is never denied it by a lookup it did not ask
 // for.
 func creatingRealmPath(m *gno.Machine, oid gno.ObjectID) string {
-	if m.Store == nil {
-		return ""
-	}
-
 	rlm := m.Store.GetRealmByID(oid.PkgID)
 	if rlm == nil {
 		return ""
 	}
 
 	return rlm.Path
-}
-
-// declaredTypeName renders the value's declared type as "<pkgpath>.<Name>".
-//
-// The value is a pointer, so the name wanted is the pointee's: a *Token reports
-// the realm's Token, not "*Token". A type that is not a declared type, such as
-// a pointer to an anonymous struct, has no such name and reports "".
-//
-// The value's own type may itself be declared, as in `type P *Token`, in which
-// case the pointer is that type's Base. Unwrap it first, or a perfectly
-// ordinary named pointer type reports no name at all. The answer stays the
-// pointee's name: the object here is the Token, and P is one of possibly
-// several spellings that reach it.
-func declaredTypeName(tv gno.TypedValue) string {
-	t := tv.T
-	if dt, ok := t.(*gno.DeclaredType); ok {
-		t = dt.Base
-	}
-
-	pt, ok := t.(*gno.PointerType)
-	if !ok {
-		return ""
-	}
-
-	dt, ok := pt.Elt.(*gno.DeclaredType)
-	if !ok {
-		return ""
-	}
-
-	return dt.PkgPath + "." + string(dt.Name)
 }

@@ -39,9 +39,8 @@ func HasIdentity(v any) bool
 
 func (o Object) Address() address // g1…, derived from the identity
 func (o Object) ID() string       // "<realm-id>:<clock-tick>"
-func (o Object) PkgPath() string  // the realm that created it
-func (o Object) Type() string     // "<pkgpath>.<Name>"
-func (o Object) String() string   // "gno.land/r/demo/foo.Token#7 (g1…)"
+func (o Object) PkgPath() string  // the realm whose clock minted the ID
+func (o Object) String() string   // "gno.land/r/demo/foo#7 (g1…)"
 func (o Object) IsZero() bool
 ```
 
@@ -50,6 +49,13 @@ func (o Object) IsZero() bool
 An object address is an ordinary gno.land address, derived by hashing
 `objectid:<pkgid>:<newtime>`, the same shape as a package address's
 `pkgPath:<path>` and in a disjoint preimage space.
+
+`<pkgid>` is spelled by `PkgID.String()`, which is `RID` followed by uppercase
+hex, and `<newtime>` in decimal. That is deliberately not the spelling of
+`Object.ID()` (`ObjectID.MarshalAmino`: lowercase hex, no prefix), so hashing
+`"objectid:" + obj.ID()` gives a different address. Both spellings are fixed by
+#6139, whose preimage this one copies, and `DeriveObjectCryptoAddr`'s godoc
+spells the preimage out byte for byte.
 
 Being an address, not a bespoke identifier, is what makes an object usable by
 code that has never heard of objects. `grc20`'s `Transfer(_ int, rlm realm, to
@@ -91,16 +97,30 @@ comes from the VM, never from satisfying an interface.
 
 ### 3. Provenance travels with the address
 
-`PkgPath()` answers "which realm created this", resolved through
-`Store.GetRealmByID(PkgID)`. `Type()` answers "what is it", from the value's
-`*DeclaredType`. Together with the address they are enough to render a
-deep link to an object or its funds, which is the case that motivated them: a
+`PkgPath()` answers "whose object is this", resolved through
+`Store.GetRealmByID(PkgID)`. Together with the address it is enough to render a
+deep link to an object or its funds, which is the case that motivated it: a
 governance proposal whose fund address and executable body are both separately
 addressable and separately linkable.
 
-The two can differ, and the difference is information: a realm that
-instantiates a type from a `p/` package creates the object under its own path,
-so `PkgPath()` is the realm and `Type()` names the package.
+It is the realm whose clock minted the ID, which is usually but not always the
+realm whose code allocated the object: `Realm.assignNewObjectID` re-stamps an
+object allocated by a `maketx run` script, or inside a stdlib function, to the
+realm that persists it.
+
+**No `Type()`.** An earlier revision carried the pointee's declared type name
+in `Object`. Review showed that broke the one promise `Object` makes, that two
+Objects are equal exactly when they name one object: `Of(p)` and
+`Of((*Alias)(p))` share an ID and an address but differed in type, so a map
+keyed by `Object` counted one object once per pointer type, and a realm's
+`type Mine strings.Builder` made a `strings.Builder` report as the realm's own
+`Mine`. There is no
+canonical type to report instead. The type at hand is the caller's route to the
+object, and the heap item's stored `Value.T` is not stable either: an
+assignment through a converted pointer replaces it wholesale
+(`TypedValue.Assign` copies `tv2`, `T` included). So the type is out, which is
+also what keeps the native's output fixed-size for gas. Adding a canonical type
+later, if the VM ever records one, is compatible; shipping a wrong one is not.
 
 **Source position is not available and is not added.** `DeclaredType.ParentLoc`
 is blank for every package-level type (`declareWith` in `types.go` keeps it
@@ -115,9 +135,10 @@ plus type name plus address is enough to link to a thing.
 |---|---|---|
 | pointer to a standalone object, persisted | true | true |
 | pointer to a standalone object, created by the running call | true | false |
-| func value or bound method, persisted | true | true |
+| func value, bound method or map, persisted | true | true |
+| any of the above, persisted by a stdlib or `p/` package | false | false |
 | pointer into a struct field or array element | false | false |
-| slice | false | false |
+| slice, struct or array by value | false | false |
 | scalar, nil pointer, nil interface | false | false |
 
 `Of` never panics and never invents an address. `HasIdentity` splits its two
@@ -127,16 +148,26 @@ false cases into "ask again after the realm boundary" and "nothing to wait for".
 `""` for a pointer into a container or a slice, and a panic for a scalar. The
 two that need different handling are the two that are indistinguishable.
 
-Func values and bound methods are included because a func value is a reference:
-two variables holding one closure hold the same object, so every holder agrees
-on the address. That is what makes a stored callback addressable separately
-from the struct that holds it, which is the "link to this exact lambda" case.
+Func values, bound methods and maps are included because they are references:
+`TypedValue.Copy` shares the pointer rather than cloning, so two variables
+holding one closure or one map hold the same object and every holder agrees on
+the address. That is what makes a stored callback addressable separately from
+the struct that holds it, which is the "link to this exact lambda" case. A
+method value is the one to be careful with: evaluating `tok.Method` allocates a
+fresh `BoundMethodValue` every time, so it is the stored method value that gets
+an identity, never the expression.
+
+Objects whose `PkgID` is not a realm's (`!PkgID.IsRealmPkg()`: a stdlib or a
+`p/` package) report "never". `GetRealmByID` would resolve their package and
+report, say, `strings` as the creating realm of `strings.ToUpper`. Whether
+immutable-package objects should be addressable is unsettled, so they are left
+out under the same only-grow rule.
 
 A pointer into a struct field or an array element resolves to the container,
 so lending it the container's address would make every sibling answer the same
-one. A slice resolves to its backing array. A struct, map or array arriving by
-value may be the persisted object or a copy of it, depending on how it got
-there. The set is meant to grow and only to grow: widening is compatible,
+one. A slice resolves to its backing array. A struct or array arriving by value is
+cloned by `TypedValue.Copy`, so it may be the persisted object or a copy of it,
+depending on how it got there. The set is meant to grow and only to grow: widening is compatible,
 withdrawing an answer is not, because by then that address is in a balance.
 
 ### 5. The stamping window is reported, not papered over
@@ -160,8 +191,10 @@ treats it as real directs funds at a string that is not an account.
 
 - No change to `misc/genstd`. The native's Go parameter is `gno.TypedValue`,
   which already matches any Gno parameter type and links through with no
-  Go2Gno conversion, while the Gno side declares `any` and
-  `GnoTypeExpression` maps it to `gno.AnyT()`. Pinned by the existing
+  Go2Gno conversion, while the Gno side declares `any`, which the generated
+  binding spells `gno.X("any")` and resolves through uverse
+  (`GnoTypeExpression` emits `gno.AnyT()` only for a type spelled
+  `interface{}`). Pinned by the existing
   `misc/genstd/testdata/linkFunctions_TypedValue`. #6139 instead widens
   `mapping.isTypedValue` so a *Go* `any` parameter is treated as a raw
   TypedValue, which is unnecessary and makes every future native declaring a Go
