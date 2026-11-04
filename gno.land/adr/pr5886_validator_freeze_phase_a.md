@@ -1,4 +1,4 @@
-# ADR: Phase A — Manual Validator Freeze/Unfreeze in `r/sys/validators/v3`
+# ADR: Phase A — Manual Validator Freeze/Unfreeze in `r/sys/validators/v0`
 
 Companion to [PR #5886](https://github.com/gnolang/gno/pull/5886).
 Phase B (automated freeze via off-chain monitors) is
@@ -6,8 +6,9 @@ Phase B (automated freeze via off-chain monitors) is
 
 ## Context
 
-`r/sys/validators/v3` today has exactly one way to change the valset: a GovDAO
-proposal (`NewValidatorProposalRequest`), which applies operator-keyed
+`r/sys/validators/v0` (named `v3` until #6162 versioned it under `v0`)
+today has exactly one way to change the valset: a GovDAO proposal
+(`NewValidatorProposalRequest`), which applies operator-keyed
 `ValoperChange` deltas and republishes the full set through
 `sysparams.SetValsetProposal`.
 

@@ -302,6 +302,8 @@ func TestValoperProposal_RejectsOperatorFrozenAfterProposalCreated(cur realm, t 
 	// ...opA is frozen before the vote lands.
 	doFreeze(cur, opA, "frozen mid-flight")
 
+	testing.SetRealm(testing.NewCodeRealm(asGovDAOProxy))
+
 	uassert.AbortsContains(t, cur, "is frozen at execution", func() {
 		_ = executor.Execute(cross(cur))
 	})
