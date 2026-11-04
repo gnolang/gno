@@ -804,14 +804,18 @@ func (m *Machine) doOpConvert() {
 	// Gas based on conversion variant. Both directions allocate and copy,
 	// so they share the same flat cost; []byte→string additionally pays a
 	// per-byte slope below (string→[]byte's copy is covered by alloc gas).
-	if xv.T != nil && xv.T.Kind() == StringKind && t.Kind() == SliceKind {
+	var xk Kind
+	if xv.T != nil {
+		xk = xv.T.Kind()
+	}
+	tk := t.Kind()
+	if xk == StringKind && tk == SliceKind {
 		m.incrCPU(OpCPUConvertStrBytes) // string -> []byte
-	} else if xv.T != nil && xv.T.Kind() == SliceKind && t.Kind() == StringKind {
+	} else if xk == SliceKind && tk == StringKind {
 		m.incrCPU(OpCPUConvertStrBytes) // []byte -> string
-	} else if xv.T != nil && (is256Type(xv.T) || is256Type(t)) && xv.T.Kind() != t.Kind() {
+	} else if xk != tk && xv.T != nil && (is256Kind(xk) || is256Kind(tk)) {
 		// To or from int256/uint256; floats go through math/big.
-		if k := xv.T.Kind(); k == Float32Kind || k == Float64Kind ||
-			t.Kind() == Float32Kind || t.Kind() == Float64Kind {
+		if xk == Float32Kind || xk == Float64Kind || tk == Float32Kind || tk == Float64Kind {
 			m.incrCPU(OpCPUConvertInt256Float)
 		} else {
 			m.incrCPU(OpCPUConvertInt256)

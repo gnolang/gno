@@ -74,26 +74,27 @@ func TestBits256Arithmetic(t *testing.T) {
 			do   func(lv, rv *TypedValue) *Exception
 			ref  func(a, b *big.Int) *big.Int // nil result: division by zero
 		}
+		om := NewMachine("test", nil) // operators charge the 256-bit surcharge on it
 		ops := []binop{
-			{"+", func(lv, rv *TypedValue) *Exception { addAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) }},
-			{"-", func(lv, rv *TypedValue) *Exception { subAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Sub(a, b) }},
-			{"*", func(lv, rv *TypedValue) *Exception { mulAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Mul(a, b) }},
-			{"/", func(lv, rv *TypedValue) *Exception { return quoAssign(nil, lv, rv) }, func(a, b *big.Int) *big.Int {
+			{"+", func(lv, rv *TypedValue) *Exception { addAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) }},
+			{"-", func(lv, rv *TypedValue) *Exception { subAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Sub(a, b) }},
+			{"*", func(lv, rv *TypedValue) *Exception { mulAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Mul(a, b) }},
+			{"/", func(lv, rv *TypedValue) *Exception { return quoAssign(om, lv, rv) }, func(a, b *big.Int) *big.Int {
 				if b.Sign() == 0 {
 					return nil
 				}
 				return new(big.Int).Quo(a, b)
 			}},
-			{"%", func(lv, rv *TypedValue) *Exception { return remAssign(nil, lv, rv) }, func(a, b *big.Int) *big.Int {
+			{"%", func(lv, rv *TypedValue) *Exception { return remAssign(om, lv, rv) }, func(a, b *big.Int) *big.Int {
 				if b.Sign() == 0 {
 					return nil
 				}
 				return new(big.Int).Rem(a, b)
 			}},
-			{"&", func(lv, rv *TypedValue) *Exception { bandAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).And(a, b) }},
-			{"|", func(lv, rv *TypedValue) *Exception { borAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Or(a, b) }},
-			{"^", func(lv, rv *TypedValue) *Exception { xorAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Xor(a, b) }},
-			{"&^", func(lv, rv *TypedValue) *Exception { bandnAssign(nil, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).AndNot(a, b) }},
+			{"&", func(lv, rv *TypedValue) *Exception { bandAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).And(a, b) }},
+			{"|", func(lv, rv *TypedValue) *Exception { borAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Or(a, b) }},
+			{"^", func(lv, rv *TypedValue) *Exception { xorAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).Xor(a, b) }},
+			{"&^", func(lv, rv *TypedValue) *Exception { bandnAssign(om, lv, rv); return nil }, func(a, b *big.Int) *big.Int { return new(big.Int).AndNot(a, b) }},
 		}
 		for _, op := range ops {
 			for _, a := range vals {
@@ -443,7 +444,7 @@ func TestBits256CanonicalZero(t *testing.T) {
 	// A zero default and the result of arithmetic share one key and encoding.
 	zero := TypedValue{T: Uint256Type}
 	a, b := tv256(Uint256Type, big.NewInt(9)), tv256(Uint256Type, big.NewInt(9))
-	subAssign(nil, &a, &b)
+	subAssign(NewMachine("test", nil), &a, &b)
 	require.Nil(t, a.V)
 	require.Equal(t, amino.MustMarshal(zero), amino.MustMarshal(a))
 }

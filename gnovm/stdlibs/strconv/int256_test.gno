@@ -117,6 +117,19 @@ func TestParseUint256(t *testing.T) {
 		{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16, math.MaxUint256, nil},
 		{"1" + zeros(64), 16, math.MaxUint256, strconv.ErrRange},
 		{"1" + zeros(255), 2, 1 << 255, nil},
+		// Checks run per digit, left to right: a prefix that already
+		// overflows is ErrRange even if an invalid character follows, and
+		// an invalid character is ErrSyntax before underscores are checked.
+		{maxUint256Str + "0x", 10, math.MaxUint256, strconv.ErrRange},
+		{"1x" + maxUint256Str, 10, 0, strconv.ErrSyntax},
+		{"1__x", 0, 0, strconv.ErrSyntax},
+		{"0x_1_f", 0, 31, nil},
+		{"0x1__f", 0, 0, strconv.ErrSyntax},
+		{"0XFF", 0, 255, nil},
+		{"Zz", 36, 35*36 + 35, nil},
+		{"9", 8, 0, strconv.ErrSyntax},
+		{zeros(1000) + "7", 10, 7, nil},
+		{zeros(1000) + maxUint256Str, 10, math.MaxUint256, nil},
 	}
 	for _, tt := range tests {
 		out, err := strconv.ParseUint256(tt.in, tt.base)

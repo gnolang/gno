@@ -60,8 +60,8 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.RefValue",
-//     +            "Hash": "4b1d53fb854af62a8639eb442d0e0b160ceaf6e1",
-//     +            "ObjectID": "c3ac87e8cb3cc9276228f74d38694a208cacb99b:880"
+//     +            "Hash": "ffc5f01a4029227364534d67f974234cd8e3cc01",
+//     +            "ObjectID": "c3ac87e8cb3cc9276228f74d38694a208cacb99b:881"
 //     +        }
 //     +    }
 //      }
@@ -80,7 +80,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "77f76390147dcb12d9de104eb549c3a959934c1c",
-//     +                "Hash": "6dd983ca489956a85e298f0ca21971fabe4f6c2b",
+//     +                "Hash": "fd8e63c88617fecbae257d619f6f935804365144",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                  }
 //              },

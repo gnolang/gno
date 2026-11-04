@@ -134,41 +134,12 @@ func ParseUint256(s string, base int) (uint256, error) {
 		return 0, baseError(fnParseUint256, s0, base)
 	}
 
-	// Cutoff is the smallest number such that cutoff*base > maxUint256.
-	cutoff := uint256(maxUint256)/uint256(base) + 1
-
-	underscores := false
-	var n uint256
-	for _, c := range []byte(s) {
-		var d byte
-		switch {
-		case c == '_' && base0:
-			underscores = true
-			continue
-		case '0' <= c && c <= '9':
-			d = c - '0'
-		case 'a' <= lower(c) && lower(c) <= 'z':
-			d = lower(c) - 'a' + 10
-		default:
-			return 0, syntaxError(fnParseUint256, s0)
-		}
-
-		if d >= byte(base) {
-			return 0, syntaxError(fnParseUint256, s0)
-		}
-
-		if n >= cutoff {
-			// n*base overflows
-			return maxUint256, rangeError(fnParseUint256, s0)
-		}
-		n *= uint256(base)
-
-		n1 := n + uint256(d)
-		if n1 < n {
-			// n+d overflows
-			return maxUint256, rangeError(fnParseUint256, s0)
-		}
-		n = n1
+	n, status, underscores := parseUint256Digits(s, base, base0)
+	switch status {
+	case digitsSyntax:
+		return 0, syntaxError(fnParseUint256, s0)
+	case digitsRange:
+		return maxUint256, rangeError(fnParseUint256, s0)
 	}
 
 	if underscores && !underscoreOK(s0) {
@@ -231,3 +202,17 @@ func ParseInt256(s string, base int) (i int256, err error) {
 	}
 	return n, nil
 }
+
+// Status values of parseUint256Digits. Keep in sync with int256.go.
+const (
+	digitsOK     = 0
+	digitsSyntax = 1
+	digitsRange  = 2
+)
+
+// parseUint256Digits is the digit loop of ParseUint256, run natively (see
+// int256.go). It reads s in base 2 to 36 left to right and stops at the first
+// digit that is invalid (digitsSyntax) or makes the value overflow a uint256
+// (digitsRange), checked in that order for each digit. With skipUnderscores,
+// '_' is skipped and reported in underscores. On failure n is 0.
+func parseUint256Digits(s string, base int, skipUnderscores bool) (n uint256, status int, underscores bool) // injected

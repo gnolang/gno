@@ -582,44 +582,6 @@ func convertUntypedBigintTo256(dst *TypedValue, bi *big.Int, t Type) {
 // ----------------------------------------
 // Arithmetic
 
-// bits256Binary applies op to the bits of lv and rv and stores the result in
-// lv.
-func bits256Binary(alloc *Allocator, lv, rv *TypedValue, op func(z, x, y *uint256.Int)) {
-	x, y := lv.GetBits256(), rv.GetBits256()
-	var z uint256.Int
-	op(&z, &x, &y)
-	lv.SetBits256(alloc, &z)
-}
-
-func bits256Add(z, x, y *uint256.Int) { z.Add(x, y) }
-func bits256Sub(z, x, y *uint256.Int) { z.Sub(x, y) }
-func bits256Mul(z, x, y *uint256.Int) { z.Mul(x, y) }
-func bits256And(z, x, y *uint256.Int) { z.And(x, y) }
-func bits256Or(z, x, y *uint256.Int)  { z.Or(x, y) }
-func bits256Xor(z, x, y *uint256.Int) { z.Xor(x, y) }
-func bits256AndNot(z, x, y *uint256.Int) {
-	var ny uint256.Int
-	ny.Not(y)
-	z.And(x, &ny)
-}
-
-// bits256Quo and bits256Rem truncate toward zero as Go does. The divisor is
-// already known to be non-zero. For int256, MinInt256 / -1 wraps to
-// MinInt256 and MinInt256 % -1 is 0, as in Go.
-func bits256Quo(signed bool) func(z, x, y *uint256.Int) {
-	if signed {
-		return func(z, x, y *uint256.Int) { z.SDiv(x, y) }
-	}
-	return func(z, x, y *uint256.Int) { z.Div(x, y) }
-}
-
-func bits256Rem(signed bool) func(z, x, y *uint256.Int) {
-	if signed {
-		return func(z, x, y *uint256.Int) { z.SMod(x, y) }
-	}
-	return func(z, x, y *uint256.Int) { z.Mod(x, y) }
-}
-
 // bits256Shl shifts left; counts of 256 or more give 0.
 func bits256Shl(alloc *Allocator, lv *TypedValue, shift uint64) {
 	x := lv.GetBits256()

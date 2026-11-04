@@ -191,7 +191,9 @@ func BenchmarkOp256_Rem_Signed128(b *testing.B) {
 }
 
 func BenchmarkOp256_Band(b *testing.B) {
-	benchBinaryOp(b, tv256(Uint256Type, bench256A), tv256(Uint256Type, bench256B), (*Machine).doOpBand)
+	// A and B share no set bit, so A & B would be zero, which is stored
+	// without boxing; A & A keeps the result full width.
+	benchBinaryOp(b, tv256(Uint256Type, bench256A), tv256(Uint256Type, bench256A), (*Machine).doOpBand)
 }
 
 func BenchmarkOp256_Bor(b *testing.B) {
