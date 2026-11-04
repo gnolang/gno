@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -300,6 +301,54 @@ func TestAnteHandlerMultisigTotalKeys(t *testing.T) {
 	checkInvalidTx(t, anteHandler, env.ctx, decoded, false, std.InvalidPubKeyError{})
 }
 
+// A threshold key holding no keys of its own counts zero leaves, so
+// TxSigLimit admits any number of signatures carrying one. Simulate skips
+// verifying them, and must skip building their sign bytes too: each build is
+// unmetered and as large as the transaction, so building them all makes one
+// query's cost quadratic in its size.
+func TestAnteHandlerSimulateSkipsSignBytes(t *testing.T) {
+	// Not parallel: MemStats also counts what concurrent tests allocate.
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	// allocated returns the bytes simulate allocates for n leafless signatures.
+	allocated := func(n int) uint64 {
+		tx := leaflessTx(t, env, n, n+1, std.NewFee(10_000_000, std.NewCoin("atom", 150)))
+		var decoded std.Tx
+		require.NoError(t, amino.Unmarshal(amino.MustMarshal(tx), &decoded))
+
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		_, res, abort := anteHandler(env.ctx, decoded, true)
+		runtime.ReadMemStats(&after)
+		require.False(t, abort, "%v", res.Error)
+		return after.TotalAlloc - before.TotalAlloc
+	}
+
+	small, large := allocated(100), allocated(400)
+	// Four times the signatures in a four times larger transaction: linear
+	// work allocates about four times as much, a build per signature sixteen.
+	require.Less(t, large, 8*small, "100 signatures allocated %d bytes, 400 allocated %d", small, large)
+}
+
+// RequireSigForSimulate reads the whole transaction, so the ante handler asks
+// it once per transaction, never once per signature.
+func TestAnteHandlerAsksRequireSigForSimulateOnce(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	calls := 0
+	opts := defaultAnteOptions()
+	opts.RequireSigForSimulate = func(std.Tx) bool { calls++; return false }
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, opts)
+
+	tx := leaflessTx(t, env, 5, 1, tu.NewTestFee())
+
+	_, res, abort := anteHandler(env.ctx, tx, true)
+	require.False(t, abort, "%v", res.Error)
+	require.Equal(t, 1, calls)
+}
+
 // The other half of "the signature field is untrusted bytes", and the half a
 // failed amino decode does not cover: a bit array whose ExtraBitsStored runs
 // past its Elems decodes perfectly well, and only then makes Size() claim more
@@ -386,4 +435,22 @@ func TestAnteHandlerMultisigNilNestedConstituent(t *testing.T) {
 		"the nil constituent survives the wire round-trip")
 
 	checkInvalidTx(t, anteHandler, env.ctx, decoded, false, std.InvalidPubKeyError{})
+}
+
+// leaflessTx returns a transaction from n funded accounts, each keyed by a
+// threshold key holding no keys, signed by nothing. K counts up from k0, so
+// each key has an address of its own.
+func leaflessTx(t *testing.T, env testEnv, n, k0 int, fee std.Fee) std.Tx {
+	t.Helper()
+
+	addrs := make([]crypto.Address, n)
+	sigs := make([]std.Signature, n)
+	for i := range n {
+		pub := multisig.PubKeyMultisigThreshold{K: uint(k0 + i)}
+		require.Equal(t, 0, std.CountSubKeys(pub))
+		_, acc := newFundedTx(t, env, pub)
+		addrs[i] = acc.GetAddress()
+		sigs[i] = std.Signature{PubKey: pub, Signature: multisig.NewMultisig(0).Marshal()}
+	}
+	return std.Tx{Msgs: []std.Msg{tu.NewTestMsg(addrs...)}, Fee: fee, Signatures: sigs}
 }

@@ -161,19 +161,21 @@ func (st *Store) LastCommitID() types.CommitID {
 func (st *Store) GetStoreOptions() types.StoreOptions     { return st.opts }
 func (st *Store) SetStoreOptions(opts types.StoreOptions) { st.opts = opts }
 
-// loadImmutableView loads the tree read-only and installs an immutable view
-// at ver (0 = the latest version). LoadReadonly skips fast-index maintenance —
-// a load on this path must never write (the DB may be a snapshot, and a
-// concurrent commit could otherwise be misread as a stale index; see
+// loadImmutableView installs an immutable view at ver (0 = the latest
+// version). An explicit ver reads that version's root directly; only ver == 0
+// loads the tree read-only, whose version discovery scans every root key to
+// find the latest. LoadReadonly skips fast-index maintenance — a load on this
+// path must never write (the DB may be a snapshot, and a concurrent commit
+// could otherwise be misread as a stale index; see
 // bptree.MutableTree.LoadReadonly). The view is loaded UNREGISTERED: it is
 // long-lived and never Closed, so registering it would pin its version
 // against pruning forever.
 func (st *Store) loadImmutableView(ver int64) error {
-	latestV, err := st.mtree.LoadReadonly()
-	if err != nil {
-		return err
-	}
 	if ver == 0 {
+		latestV, err := st.mtree.LoadReadonly()
+		if err != nil {
+			return err
+		}
 		ver = latestV
 	}
 	iTree, err := st.mtree.GetImmutableUnregistered(ver)

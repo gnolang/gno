@@ -31,7 +31,7 @@ func InAllowedDAOs(pkg string) bool {
 
 Failing open is deliberate. It is the bootstrap window: at genesis the member
 set has to be seeded before any DAO exists to authorize the seeding.
-`v3/loader/loader.gno` documents this, and `misc/deployments/gnoland1/gen-genesis.sh`
+`v3/loader/loader.gno` documents this, and `misc/deployments/betanet/gen-genesis.sh`
 is meant to close the window at its step 3 of 7, by running a lockdown `MsgRun`. Because
 that `MsgRun` is a *genesis transaction*, no live chain is ever left in the
 fail-open state with users transacting against it.
@@ -736,7 +736,7 @@ owner decision rather than a surgical fix:
 ## Out of scope
 
 - Global description sanitization across `examples/`.
-- `misc/deployments/gnoland1/govdao_prop1.gno` (does not currently build).
+- `misc/deployments/betanet/govdao_prop1.gno` (does not currently build).
 - The dead `memberstore.NewChangeTiersRequest` path and the unused
   `Proposal.allowedDAOs` field.
 

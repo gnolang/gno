@@ -1,7 +1,7 @@
 // govdao_prop1_mainnet.gno runs as a MsgRun at genesis to bootstrap the
 // mainnet governance state. Mainnet is a fresh chain (no hardfork, no
 // historical replay), so this bootstrap is minimal compared to
-// gnoland1's (see misc/deployments/gnoland1/govdao_prop1.gno):
+// gnoland1's (see misc/deployments/betanet/govdao_prop1.gno):
 //
 //   - NO validator-set seed via a realm: the consensus valset comes from
 //     GenesisDoc.Validators (the build script sets it via `gnogenesis

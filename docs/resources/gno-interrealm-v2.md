@@ -50,8 +50,8 @@ This document defines:
 Every executing frame in Gno carries two pieces of state:
 
 **Realm-context** — *who is acting*. Surfaced by
-`runtime.CurrentRealm()` and `runtime.PreviousRealm()`. Changes only
-on explicit `fn(cross, ...)` cross-calls into a crossing function
+`unsafe.CurrentRealm()` and `unsafe.PreviousRealm()`. Changes only
+on explicit `fn(cross(cur), ...)` cross-calls into a crossing function
 (one declared as `func fn(cur realm, ...)`).
 
 **Realm-storage-context** (`m.Realm` in VM internals) — *who has
@@ -59,7 +59,7 @@ write authority right now*. Determines which realm a mutation
 attributes to and which realm pays storage rent for new objects.
 Changes on:
 
-- Explicit `cross` cross-calls (matches realm-context after).
+- Explicit `cross(cur)` cross-calls (matches realm-context after).
 - Implicit borrows (described in §4). Borrows do NOT change
   realm-context.
 
@@ -70,16 +70,16 @@ next cross-call.
 
 | Call shape | Realm-context | Storage-context | Boundary | Finalizes |
 |---|---|---|---|---|
-| `fn(cross, ...)` into same realm | shifts† | unchanged | yes | yes |
-| `fn(cross, ...)` into different realm | shifts | shifts | yes | yes |
+| `fn(cross(cur), ...)` into same realm | shifts† | unchanged | yes | yes |
+| `fn(cross(cur), ...)` into different realm | shifts | shifts | yes | yes |
 | `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | unchanged | unchanged | no | no |
 | Non-crossing call of `/r/X`-declared callable from `/r/Y` | unchanged | shifts to `/r/X` (borrow rule #1) | yes | yes |
 | Stdlib/`/p/` method on real foreign-stamped receiver | unchanged | shifts to receiver's stamp (borrow rule #2) | yes | yes |
 | Stdlib/`/p/` method on primitive/nil/unstamped receiver | unchanged | unchanged | no | no |
 | Stdlib/`/p/` top-level function | unchanged | unchanged | no | no |
 
-† `runtime.CurrentRealm()` returns the same realm, but
-`runtime.PreviousRealm()` shifts: the prior current becomes the new
+† `unsafe.CurrentRealm()` returns the same realm, but
+`unsafe.PreviousRealm()` shifts: the prior current becomes the new
 previous.
 
 The "Boundary" and "Finalizes" columns are explained in §6 and §7.
@@ -150,6 +150,15 @@ Two practical consequences:
    declaring-borrow on call, putting `m.Realm` at the home realm
    for the allocation). See `gnovm/pkg/gnolang/alloc.go`
    `checkConstructionTime`.
+
+   Conversions to a foreign `/r/`-declared type are refused too, with
+   `illegal conversion to external realm type`, directly or through
+   one pointer level, unless its underlying type is a primitive, func,
+   or chan type; a nil pointer is let through. See §8.2.
+
+   Holding such a value is still not authority: `var u v.UserT` in
+   another realm is allowed (stamped with `v`'s PkgID), and `&u` can be
+   passed back to `v`. Never treat a non-nil `*UserT` as authorization.
 
 3. **Copies are type-driven, not source-propagated.**
    `{Array,Struct}Value.Copy` stamps the copy from the *declared type*
@@ -331,7 +340,7 @@ top-level frame of a transaction (one of `/r/` or `/e/`).
 
 ## 5. Crossing Functions and Crossing-Methods
 
-Realm-context changes occur only through explicit `fn(cross, ...)`
+Realm-context changes occur only through explicit `fn(cross(cur), ...)`
 cross-calls into **crossing functions** — functions declared with
 `cur realm` as the first parameter:
 
@@ -413,16 +422,16 @@ Captured realm values must not survive past the transaction:
 To remember a caller across transactions, store `cur.Address()` or
 `cur.PkgPath()` (plain strings).
 
-### 5.4 Parity with `runtime.{Current,Previous}Realm()`
+### 5.4 Parity with `unsafe.{Current,Previous}Realm()`
 
 At every comparable position:
 
 - `cur.Address()` and `cur.PkgPath()` agree with
-  `runtime.CurrentRealm()`.
+  `unsafe.CurrentRealm()`.
 - `cur.Previous().Address()` and `cur.Previous().PkgPath()` agree
-  with `runtime.PreviousRealm()`.
+  with `unsafe.PreviousRealm()`.
 
-The two APIs differ only in shape: `runtime.CurrentRealm()` returns
+The two APIs differ only in shape: `unsafe.CurrentRealm()` returns
 a struct, `cur realm` is the interface. They are **distinct types**
 — not assignable to each other — but surface the same identity.
 
@@ -513,9 +522,9 @@ Design rationale, alternatives, and the full guard analysis:
 ## 6. Realm Boundaries
 
 A **realm boundary** is a transition point in the call frame stack
-where `m.Realm` (or `runtime.CurrentRealm()`) changes:
+where `m.Realm` (or `unsafe.CurrentRealm()`) changes:
 
-- Every explicit `fn(cross, ...)` is a boundary (even when crossing
+- Every explicit `fn(cross(cur), ...)` is a boundary (even when crossing
   into the same realm — the previous-realm-stack shifts).
 - Every implicit borrow (borrow rule #1 or borrow rule #2 firing) is a boundary
   when storage-context changes.
@@ -584,17 +593,21 @@ recoverability difference.
 ### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
 ```go
-if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
-    if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+    isNilPtr := t.Kind() == PointerKind && xv.V == nil
+    if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
         panic("illegal conversion to external realm type")
     }
 }
 ```
 
 A realm cannot forge values of `/r/`-declared types it doesn't
-declare. Combined with the construction-time check (§3.2), this
-ensures every real instance of a `/r/`-declared type traces back to
-its home realm's allocator.
+declare. The target is looked through one pointer level, so pointer
+conversions are refused too; a nil pointer points at nothing and is
+let through. Combined with the construction-time check (§3.2),
+this prevents another realm from populating a forged instance through
+construction or conversion. It may still hold a zero value it
+declared itself (§3.2).
 
 ## 9. Panic and Cross-Realm Boundary
 
@@ -705,8 +718,8 @@ realm:
 ```go
 // PKGPATH: gno.land/r/test/test
 func Public(cur realm) {
-    runtime.PreviousRealm()  // origin user, pkgpath=""
-    runtime.CurrentRealm()   // /r/test/test
+    cur.Previous().PkgPath()  // origin user, pkgpath=""
+    cur.PkgPath()             // "gno.land/r/test/test"
 }
 ```
 
@@ -724,14 +737,17 @@ ephemeral realm:
 
 ```go
 // PKGPATH: gno.land/e/g1user/run
-import "gno.land/r/realmA"
+import (
+    "chain/runtime/unsafe"
+    "gno.land/r/realmA"
+)
 
-func main() {
-    runtime.PreviousRealm()   // g1user, pkgpath=""
-    runtime.CurrentRealm()    // g1user, pkgpath="gno.land/e/g1user/run"
+func main(cur realm) {
+    unsafe.PreviousRealm()   // g1user, pkgpath=""
+    unsafe.CurrentRealm()    // g1user, pkgpath="gno.land/e/g1user/run"
 
     realmA.PublicNoncrossing()    // runs inside ephemeral, no boundary
-    realmA.PublicCrossing(cross)  // crosses into realmA
+    realmA.PublicCrossing(cross(cur))  // crosses into realmA
 }
 ```
 
@@ -743,13 +759,13 @@ so coins sent to the ephemeral realm flow back to the user.
 
 A new realm's `init()` and global-variable declarations run with:
 
-- `runtime.PreviousRealm()` = the deployer (only available during
+- `unsafe.PreviousRealm()` = the deployer (only available during
   init — save it if you need it later).
-- `runtime.CurrentRealm()` = the new realm itself.
+- `unsafe.CurrentRealm()` = the new realm itself.
 
 After init completes, the deployer identity is no longer accessible
-through `runtime.PreviousRealm()`. To remember the deployer,
-capture `runtime.PreviousRealm().Address()` (string) into a
+through `unsafe.PreviousRealm()`. To remember the deployer,
+capture `unsafe.PreviousRealm().Address()` (string) into a
 package-level variable during init.
 
 The same flow applies to `/p/` package init, except after init
@@ -768,10 +784,10 @@ completes the `/p/`'s realm is frozen.
 - Cross-realm panic abort:
   `gnovm/pkg/gnolang/op_call.go` doOpReturnCallDefers and
   PopUntilLastReviveFrame
-- `runtime.CurrentRealm()` / `PreviousRealm()`:
-  `gnovm/stdlibs/chain/runtime/native.gno`
+- `unsafe.CurrentRealm()` / `PreviousRealm()`:
+  `gnovm/stdlibs/chain/runtime/unsafe/unsafe.gno`
 - `cur realm` capability validation:
-  `gnovm/stdlibs/uverse_realm.gno`, the `IsCurrent()` impl checks
+  `gnovm/pkg/gnolang/uverse.go`, the `IsCurrent()` impl checks
   HIV pointer identity against the topmost live crossing frame.
 
 For the historical evolution of the design (interrealm v1 → v2

@@ -484,15 +484,11 @@ func TestLoadGenesisParamsFile_RealmSection(t *testing.T) {
 		assert.Contains(t, err.Error(), "is not a realm path")
 	})
 
-	t.Run("a colon in the name is refused", func(t *testing.T) {
+	t.Run("a colon in the name is accepted", func(t *testing.T) {
 		t.Parallel()
-		// This used to pass the loader and then panic the node at boot, which is
-		// the outcome the loader guard exists to prevent. The loader had a copy
-		// of the realm-path rule and neither of the other two.
-		err := load(t, "[\"vm:gno.land/r/demo/foo\"]\n  \"a:b\" = \"x\"\n")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "must not contain a colon")
-		assert.Contains(t, err.Error(), "vm:gno.land/r/demo/foo", "the error must name the section")
+		// The loader and the boot-time check apply the same rule, so a name the
+		// loader accepts cannot panic the node at boot.
+		require.NoError(t, load(t, "[\"vm:gno.land/r/demo/foo\"]\n  \"a:b\" = \"x\"\n"))
 	})
 
 	t.Run("a realm path is accepted and reaches RealmParams", func(t *testing.T) {

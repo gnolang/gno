@@ -1,0 +1,12 @@
+-- input.md --
+> [!NOTE] Read <gno-button href="/r/test" label="the guide" variant="info" />
+> Body with a real <gno-button href="/r/test" label="button" />
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Read the guide<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>Body with a real <a href="/r/test" class="gno-button">button</a></p>
+</div>
+</details>

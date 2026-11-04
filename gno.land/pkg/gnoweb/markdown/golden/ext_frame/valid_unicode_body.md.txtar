@@ -1,0 +1,8 @@
+-- input.md --
+<gno-frame>
+日本語 🎉 ‮evil
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>日本語 🎉 ‮evil</p>
+</section>

@@ -4,6 +4,8 @@ version: 2
 
 env:
   - TAG_VERSION={{ if index .Env "TAG_VERSION"  }}{{ .Env.TAG_VERSION }}{{ else }}latest{{ end }}
+  # A local `goreleaser build --snapshot` has no workflow to compute it.
+  - BUILD_VERSION={{ if index .Env "BUILD_VERSION" }}{{ .Env.BUILD_VERSION }}{{ else }}develop{{ end }}
   # supported in next versions -> https://github.com/goreleaser/goreleaser/issues/5059
   # - TAG_VERSION="{{ envOrDefault "TAG_VERSION" "latest" }}"
 
@@ -15,6 +17,13 @@ builds:
   - id: gno
     main: ./gnovm/cmd/gno
     binary: gno
+    ldflags:
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -26,6 +35,13 @@ builds:
   - id: gnoland
     main: ./gno.land/cmd/gnoland
     binary: gnoland
+    ldflags:
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -38,7 +54,12 @@ builds:
     main: ./gno.land/cmd/gnokey
     binary: gnokey
     ldflags:
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Version }}
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -50,6 +71,13 @@ builds:
   - id: gnoweb
     main: ./gno.land/cmd/gnoweb
     binary: gnoweb
+    ldflags:
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -131,7 +159,15 @@ builds:
       - arm64
 
 gomod:
-  proxy: true
+  # Keep this off. Every contribs/* build below is its own Go module that resolves
+  # the monorepo through `replace github.com/gnolang/gno => ../..`, and none of them
+  # is published to the module proxy, so they cannot be built from it.
+  #
+  # goreleaser <= v2.18.1 only ever validated the root go.mod (which has no replace),
+  # so `proxy: true` was accepted and silently did nothing. v2.18.2 validates each
+  # build's own module (goreleaser/goreleaser#7096) and now fails the run outright
+  # with "cannot use the go.mod replace directive with go mod proxy enabled".
+  proxy: false
 
 archives:
   # https://goreleaser.com/customization/archive/

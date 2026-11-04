@@ -21,6 +21,7 @@ type SourceData struct {
 	FileLines    int
 	FileCounter  int
 	FileDownload string
+	FileEdit     string
 	FileSource   Component
 }
 
@@ -45,7 +46,6 @@ func (d SourceData) ArticleClasses() string {
 
 type SourceTocData struct {
 	Icon         string
-	OverviewLink string
 	ReadmeFile   SourceTocItem
 	LicenseFile  SourceTocItem
 	GnoFiles     []SourceTocItem
@@ -69,14 +69,14 @@ type sourceViewParams struct {
 	FileCounter  int
 	PkgPath      string
 	FileDownload string
+	FileEdit     string
 	ComponentTOC Component
 }
 
 // SourceView creates a new View for displaying source code and its table of contents.
 func SourceView(data SourceData) *View {
 	tocData := SourceTocData{
-		Icon:         "file",
-		OverviewLink: data.PkgPath + "$source",
+		Icon: "file",
 	}
 
 	for _, file := range data.Files {
@@ -119,7 +119,10 @@ func SourceView(data SourceData) *View {
 		FileCounter:  data.FileCounter,
 		PkgPath:      data.PkgPath,
 		FileDownload: data.FileDownload,
+		FileEdit:     data.FileEdit,
 	}
 
-	return NewTemplateView(SourceViewType, "renderSource", viewData)
+	view := NewTemplateView(SourceViewType, "renderSource", viewData)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

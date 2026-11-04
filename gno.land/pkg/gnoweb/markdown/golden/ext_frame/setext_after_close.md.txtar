@@ -1,0 +1,10 @@
+-- input.md --
+<gno-frame>
+x
+</gno-frame>
+===
+-- output.html --
+<section class="gno-frame">
+<p>x</p>
+</section>
+<p>===</p>

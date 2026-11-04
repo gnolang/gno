@@ -1,0 +1,8 @@
+-- input.md --
+<GNO-Frame>
+content
+</Gno-FRAME>
+-- output.html --
+<section class="gno-frame">
+<p>content</p>
+</section>

@@ -1,0 +1,59 @@
+-- input.md --
+ $$
+a
+$$
+
+   \\[
+b
+\\]
+
+    $$
+    indented code, not math
+    $$
+
+>  $$
+>  c
+>  $$
+
+- item
+
+   $$
+   d
+   $$
+
+1. item
+    $$
+    e
+    $$
+
+-- output.html --
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi></mrow><annotation encoding="application/x-tex">
+a
+</annotation></semantics></math>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi></mrow><annotation encoding="application/x-tex">
+b
+</annotation></semantics></math>
+<pre><code>$$
+indented code, not math
+$$
+</code></pre>
+<blockquote>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>c</mi></mrow><annotation encoding="application/x-tex">
+ c
+</annotation></semantics></math>
+</blockquote>
+<ul>
+<li>
+<p>item</p>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">
+ d
+</annotation></semantics></math>
+</li>
+</ul>
+<ol>
+<li>item
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>e</mi></mrow><annotation encoding="application/x-tex">
+ e
+</annotation></semantics></math>
+</li>
+</ol>
