@@ -30,6 +30,8 @@ func TestIndexDir(t *testing.T) {
 	avl := writeModule(t, root, "gno.land/p/nt/avl", "gno.land/p/nt/avl/v0")
 	minisocial := writeModule(t, root, "gno.land/r/docs/minisocial/v1", "gno.land/r/docs/minisocial/v1")
 	shadowed := writeModule(t, root, "quarantined/gno.land/p/nt/avl", "gno.land/p/nt/avl/v0")
+	restored := writeModule(t, root, ".gnopm/gno.land/p/nt/avl/v0", "gno.land/p/nt/avl/v0")
+	onlyRestored := writeModule(t, root, ".gnopm/gno.land/p/nt/seqid/v0", "gno.land/p/nt/seqid/v0")
 
 	index, err := IndexDir(root)
 	require.NoError(t, err)
@@ -42,6 +44,10 @@ func TestIndexDir(t *testing.T) {
 	assert.Equal(t, minisocial, index["gno.land/r/docs/minisocial/v1"])
 	// The first in lexical order wins a duplicate module path.
 	assert.NotEqual(t, shadowed, index["gno.land/p/nt/avl/v0"])
+	// The tree wins over a copy gnopm restored into .gnopm/, even though
+	// .gnopm/ sorts first, and the restored copy answers when it is the only one.
+	assert.NotEqual(t, restored, index["gno.land/p/nt/avl/v0"])
+	assert.Equal(t, onlyRestored, index["gno.land/p/nt/seqid/v0"])
 }
 
 func TestIndexDirMissingRoot(t *testing.T) {
