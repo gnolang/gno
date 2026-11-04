@@ -39,7 +39,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		newModDownloadCmd(io),
 		// edit
 		newModGraphCmd(io),
-		newModInitCmd(),
+		newModInitCmd(io),
 		newModTidy(io),
 		// vendor
 		// verify
@@ -89,11 +89,11 @@ func (c *modInitCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.source,
 		"source",
 		false,
-		"fill the [source] section from the git checkout's origin remote",
+		"write a [source] section with repository and path derived from the git checkout's origin remote",
 	)
 }
 
-func newModInitCmd() *commands.Command {
+func newModInitCmd(io commands.IO) *commands.Command {
 	cfg := &modInitCfg{}
 
 	return commands.NewCommand(
@@ -104,7 +104,7 @@ func newModInitCmd() *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execModInit(cfg, args)
+			return execModInit(cfg, args, io)
 		},
 	)
 }
@@ -308,7 +308,7 @@ func parseRemoteOverrides(arg string) (map[string]string, error) {
 	return res, nil
 }
 
-func execModInit(cfg *modInitCfg, args []string) error {
+func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	if len(args) > 1 {
 		return flag.ErrHelp
 	}
@@ -342,7 +342,7 @@ func execModInit(cfg *modInitCfg, args []string) error {
 	modfile.Module = modPath
 	modfile.Gno = gno.GnoVerLatest
 	if cfg.source {
-		if err := fillSource(modfile, rootDir); err != nil {
+		if err := fillSource(modfile, rootDir, "gnomod.toml", io); err != nil {
 			return fmt.Errorf("create gnomod.toml: %w", err)
 		}
 	}
@@ -351,17 +351,25 @@ func execModInit(cfg *modInitCfg, args []string) error {
 	return nil
 }
 
-// fillSource sets the repository and path of gm's [source] section from the
-// git checkout holding dir. Any revision is dropped: it is stamped at deploy
-// time (gnokey maketx addpkg), since a committed one goes stale.
+// fillSource replaces gm's [source] section with the repository and path
+// derived from the git checkout holding dir, and prints what it wrote.
+//
+// The whole section is replaced: a hand-written repository (an upstream when
+// origin is a fork) is overwritten, and any revision is dropped, since a
+// committed one goes stale. Stamping a revision is left to publish tooling,
+// on the uploaded copy.
 //
 // It is opt-in on purpose. The remote of a private repository is not
 // something to put on chain by accident.
-func fillSource(gm *gnomod.File, dir string) error {
+func fillSource(gm *gnomod.File, dir, relpath string, io commands.IO) error {
 	src, err := gitsource.Detect(dir)
 	if err != nil {
 		return fmt.Errorf("detect source: %w", err)
 	}
+	if old := gm.Source; !old.IsZero() && old != src {
+		io.ErrPrintfln("%s: replacing [source] repository=%q path=%q revision=%q", relpath, old.Repository, old.Path, old.Revision)
+	}
+	io.ErrPrintfln("%s: [source] repository=%q path=%q", relpath, src.Repository, src.Path)
 	gm.Source = src
 	return nil
 }
@@ -389,7 +397,7 @@ func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.source,
 		"source",
 		false,
-		"set or refresh the [source] section from the git checkout's origin remote",
+		"replace the [source] section with repository and path derived from the git checkout's origin remote (drops a hand-written repository and any revision)",
 	)
 }
 
@@ -443,10 +451,15 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 			return err
 		}
 
+		// gnomod.File.Validate skips [source] so a bad one never makes the file
+		// unreadable; check it here, where the file is written. With -source
+		// it is about to be replaced, so an invalid one is what we fix.
 		if cfg.source {
-			if err := fillSource(gm, pkgdir); err != nil {
+			if err := fillSource(gm, pkgdir, relpath, io); err != nil {
 				return fmt.Errorf("%s: %w", relpath, err)
 			}
+		} else if err := gm.Source.Validate(); err != nil {
+			return fmt.Errorf("%s: %w (fix it, or run 'gno mod tidy -source')", relpath, err)
 		}
 
 		if fname == "gno.mod" {
