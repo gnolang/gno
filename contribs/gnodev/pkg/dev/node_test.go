@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -850,6 +851,33 @@ func TestNode_Reset_InvokesResetState(t *testing.T) {
 	before := resets
 	require.NoError(t, node.Reset(context.Background()))
 	assert.Equal(t, before+1, resets, "Reset must invoke ResetState exactly once")
+}
+
+// A configured ValidatorKey must be the node's sole validator, and must
+// survive node rebuilds instead of being replaced by a generated key.
+func TestNode_ValidatorKey(t *testing.T) {
+	t.Parallel()
+
+	valKey := ed25519.GenPrivKey()
+
+	cfg, holder := newTestingNodeConfig(t)
+	cfg.ValidatorKey = valKey
+
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder)
+
+	requireValidator := func() {
+		t.Helper()
+
+		res, err := node.Client().Validators(context.Background(), nil)
+		require.NoError(t, err)
+		require.Len(t, res.Validators, 1)
+		require.Equal(t, valKey.PubKey(), res.Validators[0].PubKey)
+	}
+
+	requireValidator()
+
+	require.NoError(t, node.Reload(context.Background()))
+	requireValidator()
 }
 
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {

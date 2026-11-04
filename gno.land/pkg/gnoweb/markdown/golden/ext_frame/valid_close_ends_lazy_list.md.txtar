@@ -1,0 +1,14 @@
+-- input.md --
+<gno-frame>
+- item
+lazy
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<ul>
+<li>item
+lazy</li>
+</ul>
+</section>
+<p>after</p>

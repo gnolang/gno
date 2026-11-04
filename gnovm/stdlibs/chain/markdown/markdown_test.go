@@ -239,6 +239,26 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
+		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\\\t</gno-columns>\n"}, // tab = 4 columns: line-start backslash
+		{"ext-delimiter-2-spaces", "  <gno-card>\n", "  \\<gno-card>\n"},
+		{"ext-delimiter-4-spaces", "    <gno-card>\n", "\\    <gno-card>\n"},
+		{"gno-button-mid-line", "hi <gno-button href=\"/r/x\" label=\"x\" />\n", "hi \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-list-marker", "- <GNO-BUTTON href=\"/r/x\" label=\"x\" />\n", "\\- \\<GNO-BUTTON href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-nbsp", "\u00a0<gno-button />\n", "\u00a0\\<gno-button />\n"},
+		{"gno-button-after-formfeed", "\f<gno-button />\n", "\f\\<gno-button />\n"},
+		{"gno-button-already-escaped", "a \\<gno-button />\n", "a \\<gno-button />\n"},
+		{"gno-button-after-escaped-backslash", "a \\\\<gno-button />\n", "a \\\\\\<gno-button />\n"},
+		{"gno-button-in-code-span", "use `<gno-button />` here\n", "use `\\<gno-button />` here\n"}, // backslash shows: safe over pretty
+		{"gno-button-after-backtick-in-html", "a <span title=\"`\"><gno-button /> `\n", "a <span title=\"`\">\\<gno-button /> `\n"},
+		{"gno-button-four-spaces", "    <gno-button />\n", "    \\<gno-button />\n"},
+		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"}, // the tracker may see a fence goldmark does not
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
 		{"html-type1-pre", "<pre>x</pre>\n", "\\<pre>x</pre>\n"},
@@ -306,6 +326,17 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
+		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
+		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
+		{"gno-button-in-heading", "# <gno-button />\n", "# \\<gno-button />\n"},
+		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"},
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},

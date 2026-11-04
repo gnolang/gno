@@ -1,0 +1,7 @@
+-- input.md --
+{Read the blog}(/r/gnoland/blog)
+
+{Delete | caution outline}(/r/test)
+-- output.html --
+<p>{Read the blog}(/r/gnoland/blog)</p>
+<p>{Delete | caution outline}(/r/test)</p>

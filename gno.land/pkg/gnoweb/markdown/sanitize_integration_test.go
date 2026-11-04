@@ -331,7 +331,7 @@ func renderMarkdown(t *testing.T, src string) string {
 	t.Helper()
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
-	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl, Links: FollowInternalLinks}))
 	// Mirror gnoweb's production extension chain (render_config.go:43-54)
 	// so goldens exercise the same parser configuration users hit. Without
 	// extension.Table, the table-related fixtures would render as plain

@@ -145,7 +145,7 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	indexData.HeaderData = components.HeaderData{
-		Breadcrumb: generateBreadcrumbPaths(gnourl),
+		Breadcrumb: generateBreadcrumbPaths(gnourl, h.Static.Domain),
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
@@ -154,7 +154,7 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var content bytes.Buffer
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, src, RealmRenderContext{
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, src, RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
 		Domain:  h.Static.Domain,
@@ -165,7 +165,7 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sections, matched := buildSidebar(resolvedRel, toc.Items)
+	sections, matched := buildSidebar(resolvedRel, meta.Toc.Items)
 	docsData := components.DocsData{
 		ComponentContent: components.NewReaderComponent(&content),
 		Sections:         sections,
@@ -175,7 +175,7 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The index is the exception: its headings are the section captions the
 	// tree already shows.
 	if !matched && resolvedRel != "README.md" {
-		docsData.PageToc = toc.Items
+		docsData.PageToc = meta.Toc.Items
 	}
 	indexData.BodyView = components.DocsView(docsData)
 

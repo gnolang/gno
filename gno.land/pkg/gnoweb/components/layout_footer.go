@@ -29,6 +29,7 @@ func EnrichFooterData(data FooterData) FooterData {
 				{Label: "About", URL: "/about"},
 				// See StaticHeaderGeneralLinks: /docs is served locally.
 				{Label: "Docs", URL: "/docs"},
+				{Label: "Build with AI", URL: gnoMCPSite, Outbound: OutboundGnoMCP},
 				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
 				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
 				{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},
@@ -40,7 +41,7 @@ func EnrichFooterData(data FooterData) FooterData {
 				{Label: "GitHub", URL: "https://github.com/gnolang/gno", Outbound: OutboundGitHub},
 				{Label: "Twitter", URL: "https://twitter.com/_gnoland", Outbound: OutboundTwitter},
 				{Label: "Discord", URL: "https://discord.com/invite/gnoland", Outbound: OutboundDiscord},
-				{Label: "Bubble Rumble", URL: "https://bubblerumble.net/", Outbound: OutboundBubbleRumble},
+				{Label: "gno.world", URL: "https://gno.world/", Outbound: OutboundGnoWorld},
 				{Label: "YouTube", URL: "https://www.youtube.com/@_gnoland", Outbound: OutboundYouTube},
 			},
 		},

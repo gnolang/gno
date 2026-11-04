@@ -1,0 +1,14 @@
+-- input.md --
+<gno-foreign>
+<gno-frame>
+foreign frame
+</gno-frame>
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<section class="gno-frame">
+<p>foreign frame</p>
+</section>
+</div>
+</div>

@@ -15,6 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// advertisedElsewhere returns the address of the same peer on another IP,
+// as another node could advertise it
+func advertisedElsewhere(addr *types.NetAddress) *types.NetAddress {
+	return &types.NetAddress{
+		ID:   addr.ID,
+		IP:   net.ParseIP("203.0.113.7"),
+		Port: addr.Port,
+	}
+}
+
 // generateNetAddr generates dummy net addresses
 func generateNetAddr(t *testing.T, count int) []*types.NetAddress {
 	t.Helper()

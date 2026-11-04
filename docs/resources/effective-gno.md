@@ -632,22 +632,66 @@ store each node separately (accessing a value loads only the search path).
 This makes `avl.Tree` significantly more efficient in both gas usage and
 runtime performance for large or growing datasets.
 
+That same "all entries in one object" is also what a **write** costs. Changing one
+entry of a map marks the whole object dirty, so the transaction is charged for
+re-persisting all of it: a map update is O(n) in the entries the map holds. An
+`avl.Tree` marks only the nodes on the search path, so its update is O(log n).
+The two costs run in opposite directions, and that is what decides between them:
+
+| one update, cold | n = 100 | n = 1,000 | n = 10,000 | bytes/entry |
+|---|--:|--:|--:|--:|
+| `map[string]string` | 118,685 | 1,034,165 | 10,195,084 | 153 |
+| `avl.Tree` | 267,504 | 364,210 | 463,823 | 2,029 |
+
+The map really is O(n): it fits `17k + 1017n` to within 0.06% across those
+three decades. On bytes it is the cheaper structure at every size, 153 against
+2,029 per entry. On the update it is cheaper only while it stays small, and the
+crossover is measured rather than extrapolated: the suite carries n = 220, 280
+and 300, and the map passes `avl.Tree` between 280 (map 301,609, AVL 315,224)
+and 300. So **under roughly 250 entries a map wins on both counts**, however
+often it is written; above that the gap only widens, and at n = 10,000 a map
+update costs 22x what the tree charges, on every call that touches one record.
+
+Gas figures are from the [`gnobench` storage
+suite](https://github.com/moul/gno-contracts/blob/main/gnobench/reports/storage.md)
+(gas from workload `tx_write`, bytes from `insert_rand`, both group `kv`, mode
+cold, string values; the gas figure is the marginal cost over a transaction
+that never touches the container), run 2026-10-26 against `gnolang/gno`
+`4f6104831`; raw rows are in
+[`gnobench/results/storage/`](https://github.com/moul/gno-contracts/tree/main/gnobench/results/storage).
+
 **Key differences**:
 
-- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
-- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
+- **AVL Trees**: O(log n) lookup, O(log n) update, lazy loading, iterate in
+  **sorted key order**.
+- **Maps**: O(1) lookup, O(n) update, type safety, iterate in **insertion
+  order**.
+
+Note on iteration order: unlike Go, where ranging over a map is deliberately
+randomised, a Gno map iterates deterministically in insertion order, and a key
+that is deleted and re-added moves to the end. A `MapValue` holds a `MapList`,
+a linked list appended to at the tail (`gnovm/pkg/gnolang/values.go`), and
+`OpRangeIterMap` walks it from `List.Head`
+(`gnovm/pkg/gnolang/op_exec.go`); the order is preserved across persistence by
+`MapList.MarshalAmino`. So ranging over a map is not a consensus hazard. What
+you give up is *key* order, not determinism.
 
 **Use `avl.Tree` when you need**:
 
 - Lazy loading (efficient for large datasets - only loads the search path)
 - Efficient range queries (find all keys between "bob" and "charlie")
 - Data that grows over time (user registries, leaderboards)
+- Data above a few hundred entries that is updated in place, where the map's
+  O(n) write dominates
 - Sorted iteration by key value
 
 **Use `map` when you need**:
 
 - O(1) fast lookups
-- Small bounded datasets (e.g.: configuration values)
+- Small bounded datasets, roughly **under 250 entries** (e.g.: configuration
+  values). Below the crossover a map is cheaper on gas and on storage deposit
+  alike
+- Deterministic insertion-order iteration
 - Type safety (AVL values are `any` and require type assertions)
 
 ```go
@@ -655,7 +699,7 @@ runtime performance for large or growing datasets.
 users := make(map[string]User)
 users["bob"] = User{}
 users["alice"] = User{}
-for name := range users { // unspecified order
+for name := range users { // insertion order: bob, then alice
 	// ...
 }
 user := users["alice"] // O(1) direct access

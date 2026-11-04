@@ -116,3 +116,7 @@ The system supports dark/light themes via CSS custom properties and `[data-theme
 ### JavaScript Dependencies
 - esbuild for bundling
 - TypeScript for type safety
+
+## Share cards
+
+The community share cards (`static/imgs/og-community-*.png`) are drawn by `og-cards/generate.sh`, which holds their wording. After changing it, run `make og-cards static` from `gno.land/pkg/gnoweb` (macOS: needs `swift` and Go).

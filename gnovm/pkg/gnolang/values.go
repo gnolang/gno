@@ -405,6 +405,12 @@ func (av *ArrayValue) GetLength() int {
 
 // et is only required for .List byte-arrays.
 func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
+	return av.getElementPointer(store, ii, et, nil, 0)
+}
+
+// getElementPointer is GetElementPointer carrying fillValueTV's visited set, so
+// that filling an element of a base reached mid-walk cannot restart the walk.
+func (av *ArrayValue) getElementPointer(store Store, ii int, et Type, seen map[*TypedValue]struct{}, depth int) PointerValue {
 	if ii < 0 {
 		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
 	}
@@ -412,7 +418,7 @@ func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerVal
 		if ii >= len(av.List) {
 			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
 		}
-		ev := fillValueTV(store, &av.List[ii]) // by reference
+		ev := fillValueTVGuarded(store, &av.List[ii], seen, depth) // by reference
 		return PointerValue{
 			TV:    ev,
 			Base:  av,
@@ -551,7 +557,13 @@ func (sv *StructValue) GetPointerTo(store Store, path ValuePath) PointerValue {
 }
 
 func (sv *StructValue) GetPointerToInt(store Store, index int) PointerValue {
-	fv := fillValueTV(store, &sv.Fields[index])
+	return sv.getPointerToInt(store, index, nil, 0)
+}
+
+// getPointerToInt is GetPointerToInt carrying fillValueTV's visited set; see
+// (*ArrayValue).getElementPointer.
+func (sv *StructValue) getPointerToInt(store Store, index int, seen map[*TypedValue]struct{}, depth int) PointerValue {
+	fv := fillValueTVGuarded(store, &sv.Fields[index], seen, depth)
 	return PointerValue{
 		TV:    fv,
 		Base:  sv,
@@ -2993,9 +3005,17 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	vv := fillValueTV(store, &b.Values[index])
+	return b.getPointerToInt(store, index, nil, 0)
+}
+
+// getPointerToInt is GetPointerToInt carrying fillValueTV's visited set; see
+// (*ArrayValue).getElementPointer.
+func (b *Block) getPointerToInt(store Store, index int, seen map[*TypedValue]struct{}, depth int) PointerValue {
+	vv := fillValueTVGuarded(store, &b.Values[index], seen, depth)
 	if hiv, ok := vv.V.(*HeapItemValue); ok {
-		fillValueTV(store, &hiv.Value)
+		// hiv.Value is the slot the returned pointer names, which filling vv
+		// does not reach.
+		fillValueTVGuarded(store, &hiv.Value, seen, depth)
 		return PointerValue{
 			TV:    &hiv.Value,
 			Base:  vv.V,
@@ -3343,9 +3363,41 @@ func typedRuntimeError(msg string) TypedValue {
 
 // returns the same tv instance for convenience.
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	return fillValueTVGuarded(store, tv, nil, 0)
+}
+
+// fillGuardDepth is how deep the walk descends before it starts recording the
+// slots it has seen. Every fill the VM evaluates on the hot path is shallower
+// than this and pays a compare, not a map; a cycle keeps recursing until the
+// walk reaches this depth and is then caught within one more turn around it.
+const fillGuardDepth = 32
+
+// fillValueTVGuarded is fillValueTV threading seen, the slots it has already
+// started filling. The walk goes from a pointer to the slot it points at and
+// back into that slot's value, so a value that refers to the slot holding it
+// (`var x any; x = &x`, `s.a = &s.a`, `arr[0] = &arr[0]`) would otherwise
+// recurse until the stack overflows. Reaching a slot again means the walk has
+// come full circle: everything on that circle is in memory already, so there is
+// no RefValue left to resolve and nothing left to fill.
+//
+// Keying on the slot address holds only while one ObjectID yields one Go
+// instance for the walk, which defaultStore guarantees by caching objects.
+func fillValueTVGuarded(store Store, tv *TypedValue, seen map[*TypedValue]struct{}, depth int) *TypedValue {
+	if seen == nil {
+		depth++
+		if depth > fillGuardDepth && canRefillTV(tv) {
+			seen = map[*TypedValue]struct{}{tv: {}}
+		}
+	} else if canRefillTV(tv) {
+		if _, dup := seen[tv]; dup {
+			return tv
+		}
+		seen[tv] = struct{}{}
+	}
+	// Every arm below that descends needs its shape in canRefillTV.
 	switch cv := tv.V.(type) {
 	case *HeapItemValue:
-		fillValueTV(store, &cv.Value)
+		fillValueTVGuarded(store, &cv.Value, seen, depth)
 	case RefValue:
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
@@ -3374,7 +3426,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// loading speed, we do the following for now:
 		switch cbv := cv.Base.(type) {
 		case *HeapItemValue:
-			fillValueTV(store, &cbv.Value)
+			fillValueTVGuarded(store, &cbv.Value, seen, depth)
 			cv.TV = &cbv.Value
 		case RefValue:
 			base := store.GetObject(cbv.ObjectID).(Value)
@@ -3382,17 +3434,17 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			switch cbv := base.(type) {
 			case *ArrayValue:
 				et := baseOf(tv.T).(*PointerType).Elt
-				epv := cbv.GetElementPointer(store, cv.Index, et)
+				epv := cbv.getElementPointer(store, cv.Index, et, seen, depth)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
-				fpv := cbv.GetPointerToInt(store, cv.Index)
+				fpv := cbv.getPointerToInt(store, cv.Index, seen, depth)
 				cv.TV = fpv.TV // TODO optimize?
 			case *BoundMethodValue:
 				panic("should not happen")
 			case *MapValue:
 				panic("should not happen")
 			case *Block:
-				vpv := cbv.GetPointerToInt(store, cv.Index)
+				vpv := cbv.getPointerToInt(store, cv.Index, seen, depth)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
 				/* Structs and blocks don't need explicit
@@ -3403,7 +3455,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				wraps a single value (no index), so there's no
 				GetPointerToInt call — it just takes &cbv.Value
 				directly, skipping the fill step. */
-				fillValueTV(store, &cbv.Value)
+				fillValueTVGuarded(store, &cbv.Value, seen, depth)
 				cv.TV = &cbv.Value
 			default:
 				panic("should not happen")
@@ -3414,6 +3466,31 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// do nothing
 	}
 	return tv
+}
+
+// canRefillTV reports whether filling tv can reach tv again, which is the only
+// case worth the visited set's bookkeeping. A pointer descends only into a heap
+// item or into the store, and a heap item only into a value of those same two
+// shapes; anything else ends the descent. Most fills are of the latter kind —
+// an escaped local holding an int, a string, a struct — and stay allocation-free.
+//
+// Keep this in step with the recursion in fillValueTVGuarded: every arm there
+// that descends must appear here, or the visited set stays unarmed for that
+// shape and a cycle through it overflows the stack.
+func canRefillTV(tv *TypedValue) bool {
+	switch cv := tv.V.(type) {
+	case PointerValue:
+		switch cv.Base.(type) {
+		case *HeapItemValue, RefValue:
+			return true
+		}
+	case *HeapItemValue:
+		switch cv.Value.V.(type) {
+		case PointerValue, *HeapItemValue:
+			return true
+		}
+	}
+	return false
 }
 
 // ----------------------------------------

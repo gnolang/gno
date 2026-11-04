@@ -27,3 +27,13 @@ func TestMapClientErrorTooLarge(t *testing.T) {
 		}
 	}
 }
+
+// Not-found sentinels map to 404 so fragments show the message instead of a
+// logged internal error.
+func TestMapClientErrorNotFound(t *testing.T) {
+	for _, msg := range []string{ClientErrPackageNotFound, ClientErrFileNotFound, ClientErrObjectNotFound} {
+		if status, got := mapClientError(errors.New(msg)); status != http.StatusNotFound || got != msg {
+			t.Errorf("mapClientError(%q) = (%d, %q), want (404, %q)", msg, status, got, msg)
+		}
+	}
+}

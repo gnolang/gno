@@ -4,9 +4,11 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSourceView(t *testing.T) {
@@ -286,6 +288,81 @@ func TestHelpView(t *testing.T) {
 	assert.NoError(t, view.Render(io.Discard))
 }
 
+// TestHelpViewArgSlots checks each printed arg shares its position with its
+// param's input, in the maketx call and qeval commands alike.
+func TestHelpViewArgSlots(t *testing.T) {
+	params := []*doc.JSONField{{Name: "_", Type: "int"}, {Name: "_", Type: "int"}}
+	view := HelpView(HelpData{
+		PkgPath: "gno.land/r/demo/foo",
+		Functions: []HelpFunction{
+			{JSONFunc: &doc.JSONFunc{Name: "Get", Params: params}},
+			{JSONFunc: &doc.JSONFunc{Name: "Set", Params: params, Crossing: true}},
+		},
+	})
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+
+	for _, pos := range []string{"0", "1"} {
+		assert.Equal(t, 2, strings.Count(html, `data-action-function-param-value="_" data-action-function-arg-value="`+pos+`"`), "one input per function")
+		assert.Equal(t, 1, strings.Count(html, `data-action-function-arg-value="`+pos+`" data-action-function-type-value="int"></span>`), "the qeval slot")
+		assert.Equal(t, 2, strings.Count(html, `data-action-function-arg-value="`+pos+`"></span>`), "both modes' maketx call slots")
+	}
+}
+
+// TestHelpViewEval pins what the Actions page's eval scripts read from the
+// markup: each param's type, the live result's texts and the evaluator's
+// entry in the functions list.
+func TestHelpViewEval(t *testing.T) {
+	view := HelpView(HelpData{
+		RealmName: "dao",
+		PkgPath:   "gno.land/r/gov/dao",
+		Remote:    "https://rpc.example:443",
+		Functions: []HelpFunction{{JSONFunc: &doc.JSONFunc{
+			Name:      "AmendBylawsPayload",
+			Signature: "func AmendBylawsPayload(daoID uint64, path, proposed string) string",
+			Params: []*doc.JSONField{
+				{Name: "daoID", Type: "uint64"},
+				{Name: "path", Type: "string"},
+				{Name: "proposed", Type: "string"},
+			},
+		}}},
+	})
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+
+	for _, want := range []string{
+		`data-action-function-param-value="daoID" data-action-function-arg-value="0" data-action-function-type-value="uint64"`,
+		`data-action-function-param-value="proposed" data-action-function-arg-value="2" data-action-function-type-value="string"`,
+		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
+		// The qeval command's args share a position with their param's
+		// input and carry its type, to be written as Gno literals.
+		`data-action-function-param-value="path" data-action-function-arg-value="1" data-action-function-type-value="string"`,
+		`data-action-function-target="arg" data-action-function-arg-value="1" data-action-function-type-value="string"`,
+		`-remote "https://rpc.example:443" -data`,
+		`href="#expression-evaluator"`,
+		`<use href="#ico-eval"></use>`,
+		`id="expression-evaluator"`,
+	} {
+		assert.Contains(t, html, want)
+	}
+	// The Eval button reads the params, not the signature, and nothing
+	// reads the node address from the page any more.
+	assert.NotContains(t, html, `data-action-function-sig-param`)
+	assert.NotContains(t, html, `data-action-function-target="remote"`)
+	// The evaluator's own entry in the Functions list carries the eval icon.
+	assert.Regexp(t, `href="#expression-evaluator">\s*<svg class="c-icon">\s*<use href="#ico-eval">`, html)
+	// The evaluator is listed after the functions.
+	assert.Less(t, strings.Index(html, `href="#func-AmendBylawsPayload"`), strings.Index(html, `href="#expression-evaluator"`))
+	// What works only with JS is served hidden, for the controllers to show:
+	// the Eval button, the evaluator's form and its result.
+	assert.Contains(t, html, `data-action-function-target="eval-button" title="Evaluate function (read-only)" hidden>`)
+	assert.Contains(t, html, `class="b-action-eval-form" data-action-eval-target="js-only" hidden>`)
+	assert.Contains(t, html, `<section class="b-result" data-action-eval-target="js-only" hidden>`)
+	assert.Contains(t, html, `<noscript><p class="u-color-tertiary">The evaluator needs JavaScript.</p></noscript>`)
+}
+
 func TestDirectoryView(t *testing.T) {
 	pkgPath := "example/path"
 	files := []string{"file1.gno", "file2.gno"}
@@ -348,9 +425,8 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 
 func TestUserView(t *testing.T) {
 	data := UserData{
-		Username:   "testuser",
-		Handlename: "Test User",
-		Bio:        "This is a test user.",
+		Username: "testuser",
+		Bio:      "This is a test user.",
 		Links: []UserLink{
 			{Type: UserLinkTypeLink, URL: "https://example.com"},
 			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
@@ -390,4 +466,47 @@ func TestUserView(t *testing.T) {
 	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+// The view escapes the identity whatever reaches it, in text, in the title
+// attributes and in the copy button's data attribute, and splits an address by
+// runes, so a multi-byte one is never cut into invalid UTF-8.
+func TestUserView_EscapesIdentity(t *testing.T) {
+	const hostile = `"><script>alert(1)</script>`
+	const escaped = `&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`
+
+	render := func(data UserData) string {
+		t.Helper()
+		data.Content = NewReaderComponent(strings.NewReader(""))
+		var buf strings.Builder
+		assert.NoError(t, UserView(data).Render(&buf))
+		return buf.String()
+	}
+
+	t.Run("name", func(t *testing.T) {
+		out := render(UserData{Username: hostile, Address: hostile, CurrentName: hostile})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.Contains(t, out, `<h1 class="title title--long">`+escaped+`</h1>`)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped+`"`)
+		// The address line's two halves are escaped each, around the one
+		// literal break point.
+		assert.Contains(t, out, `title="`+escaped+`">&#34;&gt;&lt;script&gt;ale<wbr><span class="address-end" data-controller="copy">rt(1)&lt;/script&gt;<button`)
+		assert.Contains(t, out, `now <a href="/u/%22%3e%3cscript%3ealert%281%29%3c/script%3e">@`+escaped+`</a>`)
+	})
+
+	t.Run("address only", func(t *testing.T) {
+		addr := hostile + strings.Repeat("é", 20) + "\u202e"
+		out := render(UserData{Address: addr})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.True(t, utf8.ValidString(out), "the halves are cut on rune boundaries")
+		assert.Contains(t, out, `<h1 class="title title--address u-font-mono" title="`+escaped)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped)
+	})
+}
+
+func TestUserData_LongName(t *testing.T) {
+	assert.False(t, UserData{Username: strings.Repeat("a", 16)}.LongName())
+	assert.True(t, UserData{Username: strings.Repeat("a", 17)}.LongName())
+	// Counted in runes, not bytes.
+	assert.False(t, UserData{Username: strings.Repeat("é", 16)}.LongName())
 }
