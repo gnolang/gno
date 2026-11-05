@@ -872,6 +872,30 @@ func TestDecodeObjectJSONWithType_LabelsStructFields(t *testing.T) {
 	assert.Equal(t, nodes, pointee.Nodes)
 	_, err = DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(1), DefaultPageRenderConfig())
 	assert.Error(t, err)
+
+	// A pointer to field 1 of a struct, where field 1 is a User.
+	const outerJSON = `{
+		"objectid": "ffffffffffffffffffffffffffffffffffffffff:12",
+		"value": {
+			"@type": "/gno.StructValue",
+			"Fields": [
+				{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AQAAAAAAAAA="},
+				{
+					"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo/x.User"},
+					"V": {
+						"@type": "/gno.StructValue",
+						"Fields": [
+							{"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "alice"}},
+							{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "HgAAAAAAAAA="}
+						]
+					}
+				}
+			]
+		}
+	}`
+	pointee, err = DecodeObjectFull([]byte(outerJSON), []byte(typeJSON), intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	assert.Equal(t, nodes, pointee.Nodes)
 }
 
 // TestDecodeObjectJSONWithType_NilTypeFallsBack: a missing/empty type
