@@ -59,16 +59,13 @@ import (
 	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/grc721/v0"
 	"gno.land/p/nt/grc1155/v0"
-	"gno.land/p/nt/seqid/v0"
 )
-
-var nextTokenID seqid.ID
 
 // grc20.NewToken and grc721.NewToken must be constructed from a realm
 // context (init or a crossing function) because they assert cur.IsCurrent().
 func init(cur realm) {
 	// GRC20 token
-	myToken, myLedger := grc20.NewToken("My Token", "MTK", 6, nextTokenID.Next(), cur)
+	myToken, myLedger := grc20.NewToken("My Token", "MTK", 6, cur)
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 	// GRC721 NFT
