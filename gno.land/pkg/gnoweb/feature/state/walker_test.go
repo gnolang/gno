@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -653,14 +654,6 @@ func TestDecodeArrayBytes(t *testing.T) {
 	assert.Equal(t, 5, *a.Length)
 	assert.Equal(t, "[5]byte{...}", a.Value, "byte arrays summarized, not expanded")
 	assert.False(t, a.Expandable)
-
-	// A pointer to element 1 of a stored byte array points to one uint8.
-	v, err := pointedTo(&gno.ArrayValue{Data: []byte("hello")}, intPtr(1))
-	require.NoError(t, err)
-	elem := decodeValueChildren(DefaultPageRenderConfig(), v)
-	require.Len(t, elem, 1)
-	assert.Equal(t, "uint8", elem[0].Type)
-	assert.Equal(t, "101", elem[0].Value, "'e'")
 }
 
 // TestDecodePrimitives_Variants exercises every primitive type kind that
@@ -870,8 +863,6 @@ func TestDecodeObjectJSONWithType_LabelsStructFields(t *testing.T) {
 	pointee, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(0), DefaultPageRenderConfig())
 	require.NoError(t, err)
 	assert.Equal(t, nodes, pointee.Nodes)
-	_, err = DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(1), DefaultPageRenderConfig())
-	assert.Error(t, err)
 
 	// A pointer to field 1 of a struct, where field 1 is a User.
 	const outerJSON = `{
@@ -1036,12 +1027,67 @@ func TestDecodeObjectJSON_Array(t *testing.T) {
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "10", nodes[0].Value)
 	assert.Equal(t, "20", nodes[1].Value)
+}
 
-	// A pointer to element 1 of the stored array decodes only that element.
-	root, err := DecodeObject(context.Background(), []byte(fixture), intPtr(1), DefaultPageRenderConfig())
-	require.NoError(t, err)
-	require.Len(t, root.Children, 1)
-	assert.Equal(t, "20", root.Children[0].Value)
+func TestPointedTo(t *testing.T) {
+	t.Parallel()
+
+	intTV := func(n int64) gno.TypedValue {
+		tv := gno.TypedValue{T: gno.IntType}
+		tv.SetInt(n)
+		return tv
+	}
+	list := []gno.TypedValue{intTV(10), intTV(20)}
+	e := gno.TypedValue{T: gno.Uint8Type}
+	e.SetUint8('e')
+	hiv := &gno.HeapItemValue{Value: intTV(7)}
+
+	t.Run("ok", func(t *testing.T) {
+		cases := []struct {
+			name     string
+			v        gno.Value
+			ptrIndex *int
+			want     gno.Value
+		}{
+			{"nil index", &gno.StructValue{Fields: list}, nil, &gno.StructValue{Fields: list}},
+			{"struct field", &gno.StructValue{Fields: list}, intPtr(1), &gno.HeapItemValue{Value: intTV(20)}},
+			{"array element", &gno.ArrayValue{List: list}, intPtr(1), &gno.HeapItemValue{Value: intTV(20)}},
+			{"byte array element", &gno.ArrayValue{Data: []byte("hello")}, intPtr(1), &gno.HeapItemValue{Value: e}},
+			{"block value", &gno.Block{Values: list}, intPtr(1), &gno.HeapItemValue{Value: intTV(20)}},
+			{"heap item", hiv, intPtr(0), hiv},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				v, err := pointedTo(c.v, c.ptrIndex)
+				require.NoError(t, err)
+				assert.Equal(t, c.want, v)
+			})
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		cases := []struct {
+			name     string
+			v        gno.Value
+			ptrIndex *int
+			indexErr bool // ErrInvalidPointerIndex: the handlers answer 400
+		}{
+			{"negative", &gno.StructValue{Fields: list}, intPtr(-1), true},
+			{"struct out of range", &gno.StructValue{Fields: list}, intPtr(2), true},
+			{"array out of range", &gno.ArrayValue{List: list}, intPtr(2), true},
+			{"byte array out of range", &gno.ArrayValue{Data: []byte("hello")}, intPtr(5), true},
+			{"block out of range", &gno.Block{Values: list}, intPtr(2), true},
+			{"heap item out of range", hiv, intPtr(1), true},
+			{"wrong base", &gno.MapValue{}, intPtr(0), false},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				_, err := pointedTo(c.v, c.ptrIndex)
+				require.Error(t, err)
+				assert.Equal(t, c.indexErr, errors.Is(err, ErrInvalidPointerIndex))
+			})
+		}
+	})
 }
 
 // ---- Robustness tests (graceful failure modes) --------------------------
