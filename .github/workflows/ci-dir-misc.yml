@@ -42,6 +42,7 @@ jobs:
           - autocounterd
           - genproto
           - genstd
+          - gnopreview
           - goscan
           - loop
     name: ${{ matrix.program }}
