@@ -1043,6 +1043,7 @@ func TestPointedTo(t *testing.T) {
 	hiv := &gno.HeapItemValue{Value: intTV(7)}
 
 	t.Run("ok", func(t *testing.T) {
+		t.Parallel()
 		cases := []struct {
 			name     string
 			v        gno.Value
@@ -1058,6 +1059,7 @@ func TestPointedTo(t *testing.T) {
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
+				t.Parallel()
 				v, err := pointedTo(c.v, c.ptrIndex)
 				require.NoError(t, err)
 				assert.Equal(t, c.want, v)
@@ -1066,6 +1068,7 @@ func TestPointedTo(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
 		cases := []struct {
 			name     string
 			v        gno.Value
@@ -1082,6 +1085,7 @@ func TestPointedTo(t *testing.T) {
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
+				t.Parallel()
 				_, err := pointedTo(c.v, c.ptrIndex)
 				require.Error(t, err)
 				assert.Equal(t, c.indexErr, errors.Is(err, ErrInvalidPointerIndex))
