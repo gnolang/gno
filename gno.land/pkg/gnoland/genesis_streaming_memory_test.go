@@ -300,9 +300,8 @@ func fileSize(t *testing.T, path string) int64 {
 // equivalent to the source genesis.json.
 //
 // "Semantically equivalent" means: same fields, same values, same array
-// orderings — but NOT byte-equivalent. Whitespace, key order in objects,
-// and unknown top-level fields ignored by the walker (initial_height) are
-// expected differences. Anything else is a bug.
+// orderings — but NOT byte-equivalent. Whitespace and key order in objects
+// are expected differences. Anything else is a bug.
 func TestServeGenesis_SemanticEquivalenceWithSource(t *testing.T) {
 	src := requireRealFixture(t)
 
@@ -347,20 +346,10 @@ func TestServeGenesis_SemanticEquivalenceWithSource(t *testing.T) {
 
 	served := decodeJSONNumberAware(t, envelope.Result.Genesis)
 
-	// 3. Strip known-ignored top-level fields from the source so we compare
-	// apples to apples. The walker silently consumes these (they don't
-	// belong to GenesisDoc); the existing GenesisDocFromJSON path does the
-	// same.
-	ignoredTopLevel := map[string]struct{}{
-		"initial_height": {},
-	}
 	srcMap, ok := source.(map[string]any)
 	require.True(t, ok, "source genesis must be a JSON object at top level")
-	for k := range ignoredTopLevel {
-		delete(srcMap, k)
-	}
 
-	// 4. Verify balance and tx arrays match in length AND order before
+	// 3. Verify balance and tx arrays match in length AND order before
 	// the structural comparison — this gives a clear failure message if
 	// the streaming path drops or reorders elements (which would be a
 	// catastrophic bug for genesis tx ordering).
@@ -376,7 +365,7 @@ func TestServeGenesis_SemanticEquivalenceWithSource(t *testing.T) {
 	assertOrderedArrayEqual(t, srcAppState, servedAppState, "balances")
 	assertOrderedArrayEqual(t, srcAppState, servedAppState, "txs")
 
-	// 5. Full structural equality after the targeted checks above. If we
+	// 4. Full structural equality after the targeted checks above. If we
 	// reach here and these still differ, it'll be in app_state's small
 	// fields (auth/bank/vm) or a top-level field we missed.
 	if !reflect.DeepEqual(source, served) {
