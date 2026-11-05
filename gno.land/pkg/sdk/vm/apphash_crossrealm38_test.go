@@ -237,7 +237,12 @@ import (
 // behavior is unchanged; the zrealm_crossrealm38.gno filetest still passes.
 // Moved again when review took Type() out of chain/reflect's Object, for the
 // same reason: the reflect.gno bytes changed, nothing crossrealm38 runs did.
-const expectedCrossrealm38Hash = "b6fccef04321e634d58f4ad6e18d5f0fd298faac36457e8a675f6b6a8b321380"
+// Moved a third time by this branch, which edits reflect.gno's package comment
+// and adds NewObjectBanker to banker.gno. Both are .gno sources in genesis
+// state; banker.go, the gas row and the generated binding are not. crossrealm38
+// constructs no banker and imports neither package, so again only the committed
+// source bytes moved.
+const expectedCrossrealm38Hash = "271081fdb8c254ecb265a3414d758c3748ab113f9cb38316f8bdb94ffb33099e"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
