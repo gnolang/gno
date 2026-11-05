@@ -228,7 +228,14 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+// Bumped by chain/runtime.ObjectID. Its declaration lives in
+// chain/runtime/native.gno, and stdlib .gno source bytes are committed into
+// genesis state, so adding a function moves the root whether or not anything
+// calls it. Only the .gno side counts: native.go and native_test.go are Go,
+// outside the mempackage, and the gas row is not committed state either.
+// crossrealm38 calls ObjectID nowhere and its behavior is unchanged; the
+// zrealm_crossrealm38.gno filetest still passes.
+const expectedCrossrealm38Hash = "aad027f1f349dee83ff37f196526986452de00bf29e49f753e4ce3b3e7cbd01c"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

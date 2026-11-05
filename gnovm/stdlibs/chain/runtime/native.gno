@@ -36,3 +36,35 @@ func GetSessionInfo() (pubKeyAddr address, expiresAt int64, allowPaths []string,
 
 // Variations which don't use named types.
 func getSessionInfo() (pubKeyAddr string, expiresAt int64, allowPaths []string, isSession bool)
+
+// ObjectID returns the identity the VM minted for the object v refers to,
+// formatted as "<realm-id>:<clock-tick>", or "" when v names no object that
+// has one.
+//
+// It exists because an identifier a realm chooses is an identifier a realm can
+// choose twice (gnolang/gno#6026). This one is not chosen: the VM assigns it
+// while persisting the object, from the owning realm's storage clock, so two
+// objects a realm created under one name still differ here.
+//
+// Only a pointer to a standalone object answers. A pointer into a struct field
+// or an array element resolves to its container, and a slice to its backing
+// array, so lending either the container's identity would have every sibling
+// report the same one; both get "" instead. The set of shapes that answer is
+// meant to grow and only to grow: widening it later is compatible, taking an
+// answer back is not.
+//
+// "" covers two situations a caller should tell apart, and the right way to
+// tell them apart is to know what was passed:
+//
+//   - v is a pointer to an object the running call created. Identity is minted
+//     when the realm frame returns, so ask again from a later call. Objects
+//     created in init are stamped by the time any call runs.
+//   - v has nothing to wait for: a scalar, a nil pointer, a value owned by a
+//     stdlib or a p/ package.
+//
+// It never panics and never advances a realm's clock, so repeated calls agree
+// and reading an identity has no effect on the object's lifecycle.
+//
+// The string is an identifier, not an account: it is not an address and
+// nothing can be sent to it.
+func ObjectID(v any) string // injected
