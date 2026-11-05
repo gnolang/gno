@@ -57,12 +57,14 @@ that relies on `main` being transparent, so it is deferred.
 body realm is the next call frame's `LastRealm` (`m.Realm` for the innermost).
 A frame counts when its body owns storage and differs from the nearest
 storage-owning realm below it; the first such frame is the entry. It also
-counts when it runs a function declared in the very realm its body runs in,
-named or literal, above the entry. `/p/` and stdlib bodies never count and
-never become the caller, so they are transparent in both directions, and that
-includes a `/p/` method borrowed into the realm; basic frames
-(for/range/switch) never count. So the assertion holds only in the entry
-function itself, or in `/p/` or stdlib code it calls.
+counts when it runs the realm's own code above the entry: a function declared
+in the very realm its body runs in, named or literal, or a `/p/` or stdlib
+value that carries that realm's state, i.e. a closure or a bound method whose
+receiver the realm stamped (borrow rules #3 and #2). Receiver-less `/p/` and
+stdlib functions never count and never become the caller, so they are
+transparent in both directions; basic frames (for/range/switch) never count.
+So the assertion holds only in the entry function itself, or in stateless
+`/p/` or stdlib code it calls.
 
 The own-function rule is deliberate. Code a realm declared is the only code an
 outsider can hand back to it: a named function by naming it (`SetHook(cross,
@@ -72,7 +74,14 @@ guarded path, that code runs with one boundary on the stack and the walk
 cannot tell it from the realm's own control flow (a vault whose refund path
 fires a stored hook after returning the envelope re-mints against the same
 envelope when the hook is its own `Deposit`). A `/p/` body cannot name realm
-code, so it gives an outsider no lever. Master skipped closure frames, so it
+code, but that is not the lever: what is handed back is a value, and a `/p/`
+method value bound to a realm-stamped object (`vault.Wrapper.Deposit`) or a
+`/p/` closure over the realm's state, whether the realm or the script built
+it, runs with the realm's storage just like its own closure. Treating those
+as transparent let one envelope mint three times
+(`assertorigincall_p_value_handback.txtar`), so they count as the realm's own.
+A receiver-less `/p/` function carries no state and gives an outsider no
+lever. Master skipped closure frames, so it
 had that gap for exported closure variables and for foreign closures; this
 closes both. The `/p/`-closure-runner shape from #6211's review is therefore
 a stated non-goal: move the assertion to the entry function's first line.
@@ -102,6 +111,12 @@ caller `p`: one more realm unless `p` is the entry realm itself.
   the VM cannot tell a value the realm built from one it was handed. Strict
   is a deliberate choice, not a necessity; the security guide (§5.3, §5.9)
   records what a realm would have to police itself under the lenient rule.
+- **Count `/p/` frames by declaring package only (an earlier revision).**
+  Lets a `/p/` method value or closure carrying the realm's state be handed
+  back through a stored hook; reproduced as a triple mint. Counting every `/p/`
+  closure or method regardless of its stamp would also close it, but a closure
+  or receiver stamped by another realm already borrows into that realm and
+  counts as a boundary there, so the stamp check is the same width.
 - **Refuse `/p/` and stdlib frames too (nothing above the entry).** Airtight
   in the same way, but a `/p/` wrapper around the assertion is harmless, since
   `/p/` code cannot reach the realm's guarded code, and the entry-realm check
@@ -116,8 +131,10 @@ caller `p`: one more realm unless `p` is the entry realm itself.
 
 ## Consequences
 
-- Contract change: the assertion must sit in the entry function (or `/p/`
-  or stdlib code it calls). A realm's own closure between the two, which
+- Contract change: the assertion must sit in the entry function (or
+  stateless `/p/` or stdlib code it calls). A `/p/` method on the realm's own
+  object, e.g. `Wrapper.Deposit()` called from the entry, is refused too
+  (`assertorigincall_p_value_handback.txtar`). A realm's own closure between the two, which
   master let through, is refused (`assertorigincall.txtar` 24-26,
   `assertorigincall_p_closure_helper.txtar`, `std14`); its own named
   function stays refused as on master (case 1, `std13`).
@@ -128,10 +145,10 @@ caller `p`: one more realm unless `p` is the entry realm itself.
 - Less exposure than master in the direction that matters, but NOT a subset
   of it. Every interposing realm counts, every closure counts, and nothing an
   outsider can hand back to the realm can sit between the entry and the
-  assertion. What is newly ADMITTED is the assertion hosted in `/p/` or
-  stdlib code, reachable through an arbitrarily deep `/p/` chain: master
-  counted those frames and refused them, so `/p/` guard helpers did not work
-  at all. The admitted set therefore grows here by design, and
+  assertion. What is newly ADMITTED is the assertion hosted in receiver-less
+  `/p/` or stdlib functions, reachable through an arbitrarily deep `/p/`
+  chain: master counted those frames and refused them, so `/p/` guard
+  helpers did not work at all. The admitted set therefore grows here by design, and
   `assertorigincall_p_closure_helper.txtar` pins both directions — without
   its `DepositViaGuard` cases the whole file passes unchanged on master. The
   cost is that an entry function no longer tells its author whether the

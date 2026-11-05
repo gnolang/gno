@@ -1,0 +1,168 @@
+loadpkg gno.land/p/demo/wrap $WORK/p/demo/wrap
+loadpkg gno.land/r/vault $WORK/r/vault
+loadpkg gno.land/r/vault2 $WORK/r/vault2
+
+gnoland start
+
+## A /p/ value that carries a realm's state is that realm's own code: a bound
+## method on an object the realm holds, or a /p/ closure. Either can be handed
+## back to the realm through a stored hook, so neither is transparent. Before
+## this was pinned, both hand-backs below passed AssertOriginCall and one
+## envelope minted three times.
+
+## Honest deposit, assertion in the entry: OK
+gnokey maketx call -pkgpath gno.land/r/vault -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout '\(1 int\)'
+
+## vault.DepositDirect -> Wrapper.Deposit (/p/ method on a vault-stamped
+## object, asserts): the method is vault's own frame above the entry: PANIC
+! gnokey maketx call -pkgpath gno.land/r/vault -func DepositDirect -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## attacker: a script hands vault a /p/ method value bound to vault.Wrapper.
+gnokey maketx run -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1 $WORK/run/method.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/vault -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+gnokey maketx call -pkgpath gno.land/r/vault -func ClearHooks -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1
+
+## attacker: a script hands vault a /p/ closure vault constructed (rule #3).
+gnokey maketx run -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1 $WORK/run/closure.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/vault -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+gnokey maketx call -pkgpath gno.land/r/vault -func ClearHooks -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1
+
+## attacker: a script builds the /p/ closure itself over vault.Wrapper.
+gnokey maketx run -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1 $WORK/run/foreign.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/vault -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+gnokey maketx call -pkgpath gno.land/r/vault -func ClearHooks -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1
+
+## Every refused call above reverted: still one mint.
+gnokey maketx call -pkgpath gno.land/r/vault -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stdout '\(2 int\)'
+
+## Control: the same hand-back with a closure vault2 declared itself: PANIC
+gnokey maketx run -gas-fee 250001ugnot -gas-wanted 5_000_000 -chainid tendermint_test test1 $WORK/run/own.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/vault2 -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+-- p/demo/wrap/wrap.gno --
+package wrap
+
+import "chain/runtime"
+
+type W struct{ Minted int }
+
+func New() *W { return &W{} }
+
+// Deposit mints against the origin envelope; guarded by AssertOriginCall.
+func (w *W) Deposit() {
+	runtime.AssertOriginCall()
+	w.Minted++
+}
+
+// Depositor returns a /p/ closure over w (borrow rule #3).
+func Depositor(w *W) func() {
+	return func() {
+		runtime.AssertOriginCall()
+		w.Minted++
+	}
+}
+
+-- r/vault/vault.gno --
+package vault
+
+import (
+	"chain/runtime"
+
+	"gno.land/p/demo/wrap"
+)
+
+var Wrapper = wrap.New()
+var Dep = wrap.Depositor(Wrapper)
+var hooks []func()
+
+func SetHook(cur realm, f func()) { hooks = append(hooks, f) }
+
+func ClearHooks(cur realm) { hooks = nil }
+
+func Deposit(cur realm) int {
+	runtime.AssertOriginCall()
+	Wrapper.Minted++
+	for _, h := range hooks {
+		h()
+	}
+	return Wrapper.Minted
+}
+
+func DepositDirect(cur realm) int {
+	Wrapper.Deposit()
+	return Wrapper.Minted
+}
+
+-- r/vault2/vault2.gno --
+package vault2
+
+import "chain/runtime"
+
+var Minted int
+var Own = func() { runtime.AssertOriginCall(); Minted++ }
+var hooks []func()
+
+func SetHook(cur realm, f func()) { hooks = append(hooks, f) }
+
+func Deposit(cur realm) int {
+	runtime.AssertOriginCall()
+	Minted++
+	for _, h := range hooks {
+		h()
+	}
+	return Minted
+}
+
+-- run/method.gno --
+package main
+
+import "gno.land/r/vault"
+
+func main(cur realm) {
+	vault.SetHook(cross(cur), vault.Wrapper.Deposit)
+	println("OK!")
+}
+
+-- run/closure.gno --
+package main
+
+import "gno.land/r/vault"
+
+func main(cur realm) {
+	vault.SetHook(cross(cur), vault.Dep)
+	println("OK!")
+}
+
+-- run/foreign.gno --
+package main
+
+import (
+	"gno.land/p/demo/wrap"
+	"gno.land/r/vault"
+)
+
+func main(cur realm) {
+	vault.SetHook(cross(cur), wrap.Depositor(vault.Wrapper))
+	println("OK!")
+}
+
+-- run/own.gno --
+package main
+
+import "gno.land/r/vault2"
+
+func main(cur realm) {
+	vault2.SetHook(cross(cur), vault2.Own)
+	println("OK!")
+}

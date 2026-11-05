@@ -626,7 +626,7 @@ coins.Add(otherCoins)
 ```go
 func AssertOriginCall()
 ```
-Panics unless called from the exported function a `MsgCall` named, with no other realm between the message and that function and nothing of the realm's own between that function and the call: not a named helper, not a closure, not a deferred function, since any function the realm declares is a value a script can hand back to it. `/p/` and stdlib helpers are transparent. Call it as the first statement of the entry function. Panics on `MsgRun` calls. It is not a re-entrancy lock and not an immediate-caller check: for those use `cur.Previous()`.
+Panics unless called from the exported function a `MsgCall` named, with no other realm between the message and that function and nothing of the realm's own between that function and the call: not a named helper, not a closure, not a deferred function, since any function the realm declares is a value a script can hand back to it. That includes a `/p/` closure or a `/p/` method on the realm's own object, which carry its state; only receiver-less `/p/` and stdlib functions are transparent. Call it as the first statement of the entry function. Panics on `MsgRun` calls. It is not a re-entrancy lock and not an immediate-caller check: for those use `cur.Previous()`.
 
 ##### Usage
 ```go

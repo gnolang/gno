@@ -858,7 +858,8 @@ Alternatives considered:
   intermediary realm, no MsgRun", and must be the first statement of the
   exported function the message names: nothing of your own, named or
   literal, may sit between that function and the call, since any function
-  you declare is a value a script can hand back to you (`/p/` helpers are
+  you declare is a value a script can hand back to you, and so is a `/p/`
+  closure or method on your state (receiver-less `/p/` functions are
   transparent). It is not a re-entrancy lock. Correct, but stricter than
   most realms want:
   rejects `testing.NewUserRealm`-based unit tests in some configurations and

@@ -40,8 +40,8 @@ stderr 'invalid non-origin call'
 stderr 'invalid non-origin call'
 
 ## Borrow rule #2: a /p/ method on a wug-stamped object runs as wug and fires
-## wug's stored callback. The method is transparent, the callback is wug's
-## own closure above the entry: PANIC
+## wug's stored callback. The method carries wug's state and the callback is
+## wug's own closure, both above the entry: PANIC
 ! gnokey maketx call -pkgpath gno.land/r/wug -func FireOwn -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 

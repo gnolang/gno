@@ -2910,12 +2910,14 @@ func ownsItsStorage(r *Realm) bool {
 // isRealmBoundary, which serves finalization and fires on /p/ and stdlib
 // frozen realms too.
 //
-// The own-function rule exists because code a realm declared is the only code
-// an outsider can hand back to it: a named function by naming it
+// The own-function rule exists because an outsider can hand a realm back any
+// callable that carries the realm's state: a named function by naming it
 // (`SetHook(cross, rlm.Withdraw)`), a closure through an exported variable or
-// a return value. A /p/ body cannot name realm code, so a /p/ declaration
-// borrowed into the realm (a method on an object the realm stamped) stays
-// transparent. So an origin call is asserted from the entry function itself.
+// a return value, and equally a /p/ method value bound to an object the realm
+// stamped (`rlm.Wrapper.Deposit`, borrow rule #2) or a /p/ closure over its
+// state (rule #3), whoever declared the code. Those count too. Only a
+// receiver-less /p/ or stdlib function carries no state and stays transparent.
+// So an origin call is asserted from the entry function itself.
 //
 // start is where the program begins: 0 on chain, where the message sits below
 // Frames[0]; the test runtime passes the index after the test function, whose
@@ -2948,7 +2950,7 @@ func (m *Machine) NumCallBoundaryFrames(start int) int {
 	// store; a storage-owning ID is never zero, so zero means no caller yet.
 	count := 0
 	var callerID PkgID
-	fn := m.Frames[first].Func // the function whose body realm is read next
+	fr := &m.Frames[first] // the call whose body realm is read next
 	for i := first + 1; i <= len(m.Frames); i++ {
 		body := m.Realm
 		if i < len(m.Frames) {
@@ -2958,22 +2960,37 @@ func (m *Machine) NumCallBoundaryFrames(start int) int {
 			body = m.Frames[i].LastRealm
 		}
 		if ownsItsStorage(body) {
-			if body.ID != callerID || isOwnFunc(fn, body) {
+			if body.ID != callerID || m.isOwnFunc(fr, body) {
 				count++
 			}
 			callerID = body.ID
 		}
 		if i < len(m.Frames) {
-			fn = m.Frames[i].Func
+			fr = &m.Frames[i]
 		}
 	}
 	return count
 }
 
-// isOwnFunc reports whether fv was declared in the realm whose storage its
-// body runs in. See NumCallBoundaryFrames.
-func isOwnFunc(fv *FuncValue, body *Realm) bool {
-	return fv.PkgPath == body.Path
+// isOwnFunc reports whether the call fr is the own code of the realm its body
+// runs in: a function that realm declared, or a closure or bound method
+// stamped by it, whatever package declared the code. The receiver's object was
+// loaded when fr was pushed, so reading it here is a cache hit. See
+// NumCallBoundaryFrames.
+func (m *Machine) isOwnFunc(fr *Frame, body *Realm) bool {
+	fv := fr.Func
+	if fv.PkgPath == body.Path {
+		return true
+	}
+	if fv.IsClosure {
+		return fv.GetObjectInfo().ID.PkgID == body.ID
+	}
+	if fr.Receiver.IsDefined() {
+		if obj := fr.Receiver.GetFirstObject(m.Store); obj != nil {
+			return obj.GetObjectInfo().ID.PkgID == body.ID
+		}
+	}
+	return false
 }
 
 // Returns the current frame.
