@@ -1456,10 +1456,14 @@ func (m *Machine) incrCPU(cycles int64) {
 }
 
 // chargeCPUGas charges cycles of CPU gas against gm (1 cycle = 1 gas via
-// GasFactorCPU); nil gm is a no-op. It meters work that runs outside the
-// Machine op loop — the interface-satisfaction BFS (checkImplementedBy) —
-// during both preprocess (gm from preprocessGasMeterOf) and runtime
-// (gm = m.GasMeter). May panic with OutOfGasError.
+// GasFactorCPU); nil gm is a no-op. It meters work done where no Machine is
+// at hand — the interface-satisfaction BFS (checkImplementedBy), the element
+// copies of ArrayValue.Copy and StructValue.Copy, and the zero-fills of
+// fillDefaultList and fillDefaultStructFields — during both preprocess (gm
+// from preprocessGasMeterOf) and runtime (gm = m.GasMeter, which the
+// allocator's meter mirrors). Unlike Machine.incrCPU it does not add to
+// m.Cycles, so cycle telemetry leaves this work out. May panic with
+// OutOfGasError.
 func chargeCPUGas(gm store.GasMeter, cycles int64) {
 	if gm != nil {
 		gm.ConsumeGas(overflow.Mulp(cycles, GasFactorCPU), "CPUCycles")
@@ -1628,7 +1632,7 @@ const (
 	OpCPUSticky            = 1 // not a real op
 	OpCPUBody              = 73
 	OpCPUForLoop           = 48  // base from fit; per-heap-var added in handler
-	OpCPURangeIter         = 232 // base from fit; per-element added in handler
+	OpCPURangeIter         = 232 // base from a key-only fit; a range reading the element pays ArrayValue.Copy
 	OpCPURangeIterString   = 78  // flat (called once per rune)
 	OpCPURangeIterMap      = 73  // flat (called once per entry)
 	OpCPURangeIterArrayPtr = 239
@@ -1640,16 +1644,15 @@ const (
 	OpCPUSlopeDefine          = 79  // per LHS variable (fit: 79.2)
 	OpCPUSlopeAssign          = 86  // per LHS variable (fit: 86.2)
 	OpCPUSlopeMapLit          = 335 // per map entry (fit: 335.0)
-	OpCPUSlopeArrayLit        = 52  // per element (max of int=52, uint8=9)
+	OpCPUSlopeArrayLit        = 35  // per element (max of int=32.9, keyed=34.5, uint8=6.4; refit, see prxxxx_copy_element_gas.md)
 	OpCPUSlopeSliceLit        = 28  // per element (fit: 28.5)
 	OpCPUSlopeSliceLit2       = 31  // per alloc size (fit: 31.4)
-	OpCPUSlopeStructLit       = 51  // per field (max of unnamed=29, named=51)
+	OpCPUSlopeStructLit       = 46  // per field (max of unnamed=28.2, named=45.6; refit, see prxxxx_copy_element_gas.md)
 	OpCPUSlopeFuncLit         = 34  // per capture (fit: 34.0)
 	OpCPUSlopeCallParam       = 53  // per param in OpCall (fit: 52.5)
 	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
 	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
-	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
-	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
+	OpCPUSlopeTypeAssertIface = 355 // per interface method (max of TypeAssert1=348.9, TypeAssert2=355.3)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
 	OpCPUSlopeConvertBytesStr = 4   // per byte bytes→string; same memcpy OpCPUSlopeCopyPrimitive prices
@@ -1671,14 +1674,16 @@ const (
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
 	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
-	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
-	// path. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
+	// copyDataToList/copyListToData helpers, and ArrayValue.Copy of a byte
+	// array. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
 	// 8168).
 	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element
 	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
-	// copy path — Copy in append and Assign2 general case. Under-charges
-	// the RefValue case where Copy hits the store; that worst-case is
-	// paid via store gas when the store loads the object.
+	// copy path — each element append and copy move with Copy, and each
+	// element or field ArrayValue.Copy and StructValue.Copy duplicate — and
+	// for each zero value fillDefaultList and fillDefaultStructFields write.
+	// Under-charges the RefValue case where Copy hits the store; that
+	// worst-case is paid via store gas when the store loads the object.
 	OpCPUSlopeCopyElement = 40 // per element
 	// OpCPUSlopeEnterCrossing: per call frame visited by the
 	// doOpEnterCrossing ancestor walk. gas = depth * slope.

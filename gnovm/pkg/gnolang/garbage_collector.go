@@ -515,12 +515,11 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// Visit the blank slot. `_ = expr` assigns through GetBlankRef, so the
-	// block pins expr for its whole life even though nothing can read it
-	// back. Skipping it made `_ = make([]byte, n)` per recursion level a
-	// cap bypass: the value stays live on the Go heap while Reset()+Recount()
-	// cannot see it (200 levels x 300KB held 60MB under a 1MB cap, while the
-	// same expression bound to a name was correctly refused).
+	// Visit the blank slot. Assign2 and map ranges store nothing there,
+	// and a list or string range defining `_` writes only an int index or
+	// a rune, but the block pins whatever lands there even though nothing
+	// can read it back. Skipping it would leave such a value live on the
+	// Go heap that Reset()+Recount() cannot see.
 	if v := b.Blank.V; v != nil {
 		stop = vis(v)
 		if stop {

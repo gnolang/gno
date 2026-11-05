@@ -437,25 +437,26 @@ func (m *Machine) doOpArrayLit() {
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
 	m.Alloc.checkConstructionTime(at)
 	bt := baseOf(at).(*ArrayType)
-	// construct array value.
-	av := defaultArrayValue(m.Alloc, at)
+	// construct array value. The elements given are copied in below, and
+	// fillDefaultList writes the rest.
+	av := newArrayValue(m.Alloc, at)
+	al, ad := av.List, av.Data
+	// al is a Go local until av is pushed below; anchor it so the
+	// element copies and defaults are counted as they are made (see
+	// doOpSliceLit). Data arrays hold no TypedValues and are allocated
+	// whole, so they need no anchor.
+	if al != nil {
+		m.Alloc.PushAnchor(al)
+		defer m.Alloc.PopAnchor()
+	}
 	if 0 < ne {
-		al, ad := av.List, av.Data
-		// al is a Go local until av is pushed below; anchor it so the
-		// element copies are counted as they are made (see doOpSliceLit).
-		// Data arrays hold no TypedValues and are allocated whole, so
-		// they need no anchor.
-		if al != nil {
-			m.Alloc.PushAnchor(al)
-			defer m.Alloc.PopAnchor()
-		}
 		vs := m.PopValues(ne)
 		set := make([]bool, bt.Len)
 		var idx int64
 		for i, v := range vs {
 			if kx := x.Elts[i].Key; kx != nil {
-				// XXX why convert?
-				k := kx.(*ConstExpr).ConvertGetInt()
+				// preprocess converted every key to an int ConstExpr.
+				k := kx.(*ConstExpr).GetInt()
 				if set[k] {
 					// array index has already been assigned
 					panic(fmt.Sprintf("duplicate index %d in array or slice literal", k))
@@ -481,6 +482,9 @@ func (m *Machine) doOpArrayLit() {
 				idx++
 			}
 		}
+	}
+	if al != nil {
+		fillDefaultList(m.Alloc, al, bt.Elt, getDeclaredPkgID(at))
 	}
 	// pop array type.
 	if debug {
@@ -709,8 +713,8 @@ func (m *Machine) doOpStructLit() {
 		}
 		m.PopCopyValues(fs)
 	} else {
-		// field values are by name and may be out of order.
-		fillDefaultStructFields(m.Alloc, st, fs)
+		// field values are by name and may be out of order; the fields
+		// not named are filled with defaults after.
 		fsset := make([]bool, len(fs))
 		ftvs := m.PopValues(el)
 		for i := range el {
@@ -731,6 +735,7 @@ func (m *Machine) doOpStructLit() {
 			fsset[fnx.Path.Index] = true
 			fs[fnx.Path.Index] = ftv.Copy(m.Alloc, m.Store)
 		}
+		fillDefaultStructFields(m.Alloc, st, fs)
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st

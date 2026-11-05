@@ -1834,6 +1834,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
+						case "len", "cap":
+							// As in Go, a deferred len or cap is refused:
+							// its result has nowhere to go.
+							if ftype == TRANS_DEFER_CALL {
+								panic("defer discards result of " + fv.Name)
+							}
+							// As in Go, len and cap of an array, or of a
+							// pointer to one, are constant when the operand
+							// holds no call, and the operand is then not
+							// evaluated. For an array this also spares the
+							// copy of the whole array a call would pass.
+							if len(n.Args) == 1 && !n.Varg {
+								if _, ok := arrayOrPtrToArray(evalStaticTypeOf(store, last, n.Args[0])); ok && !hasCallOrFuncLit(store, last, n.Args[0]) {
+									return evalConst(store, last, n), TRANS_CONTINUE
+								}
+							}
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
@@ -3696,6 +3712,56 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					// adjust NameExpr type.
 					nx.Type = NameExprTypeHeapUse
 				}
+			case *SliceExpr:
+				// Slicing an array aliases the variable holding it, as
+				// &x does. For a for loop's init variable that moves it
+				// to the heap, where each iteration gets its own copy,
+				// so a slice kept from one iteration keeps that
+				// iteration's array, as in Go 1.22.
+				t, _ := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+				if _, ok := baseOf(t).(*ArrayType); !ok {
+					break
+				}
+				// Walk to the variable holding the array through array
+				// elements and struct fields only: past a pointer, a
+				// slice or a map, the array lives outside the variable.
+				x := n.X
+			walk:
+				for {
+					var inner Expr
+					switch tx := x.(type) {
+					case *IndexExpr:
+						inner = tx.X
+					case *SelectorExpr:
+						inner = tx.X
+					default:
+						break walk
+					}
+					if it, ok := inner.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
+						switch baseOf(it).(type) {
+						case *ArrayType, *StructType:
+						default:
+							break walk
+						}
+					}
+					x = inner
+				}
+				nx, ok := x.(*NameExpr)
+				if !ok || nx.Path.Type != VPBlock {
+					break
+				}
+				fs, ok := last.GetBlockNodeForPath(nil, nx.Path).(*ForStmt)
+				if !ok {
+					break
+				}
+				if as, ok := fs.Init.(*AssignStmt); ok && as.Op == DEFINE &&
+					slices.ContainsFunc(as.Lhs, func(lx Expr) bool {
+						lnx, ok := lx.(*NameExpr)
+						return ok && lnx.Name == nx.Name
+					}) {
+					addAttrHeapUse(fs, nx.Name)
+					nx.Type = NameExprTypeHeapUse
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -4502,6 +4568,29 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 	}
 }
 
+// hasCallOrFuncLit reports whether x contains a function call or a function
+// literal. A conversion is not a call, as in Go's rule for constant len and
+// cap, but a call inside its operand is. It errs towards true: an expression
+// it rejects is evaluated as written.
+func hasCallOrFuncLit(store Store, last BlockNode, x Expr) bool {
+	found := false
+	Transcribe(x, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch n := n.(type) {
+		case *CallExpr:
+			if _, ok := baseOf(evalStaticTypeOf(store, last, n.Func)).(*TypeType); ok {
+				return n, TRANS_CONTINUE
+			}
+			found = true
+			return n, TRANS_EXIT
+		case *FuncLitExpr:
+			found = true
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
 // Evaluate constant expressions. Assumes all operands are already defined
 // consts; the machine doesn't know whether a value is const or not, so this
 // function always returns a *ConstExpr, even if the operands aren't actually
@@ -4523,19 +4612,20 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	var cx *ConstExpr
 	if clx, ok := x.(*CallExpr); ok {
-		t := evalStaticTypeOf(store, last, clx.Args[0])
-		if ar, ok := unwrapPointerType(baseOf(t)).(*ArrayType); ok {
-			fv := clx.Func.(*ConstExpr).V.(*FuncValue)
-			switch fv.Name {
-			case "cap", "len":
+		// Only len and cap fold here: a conversion such as (*A)(nil) also
+		// has one argument of pointer-to-array type.
+		var fv *FuncValue
+		if fx, ok := clx.Func.(*ConstExpr); ok {
+			fv, _ = fx.V.(*FuncValue)
+		}
+		if fv != nil && fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+			if ar, ok := arrayOrPtrToArray(evalStaticTypeOf(store, last, clx.Args[0])); ok {
 				tv := TypedValue{T: IntType}
 				tv.SetInt(int64(ar.Len))
 				cx = &ConstExpr{
 					Source:     x,
 					TypedValue: tv,
 				}
-			default:
-				panic(fmt.Sprintf("unexpected const func %s", fv.Name))
 			}
 		}
 	}
@@ -6166,8 +6256,11 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 			}
 			deps[name] = struct{}{}
 		}
+		vd, isValueDecl := decl.(*ValueDecl)
+		isConstDecl := isValueDecl && vd.Const
 
-		_ = TranscribeB(fn, decl, func(
+		var visit TransformB
+		visit = func(
 			ns []Node,
 			stack []BlockNode,
 			last BlockNode,
@@ -6217,6 +6310,16 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 					}
 					addDep(n.Name)
+				case *ConstExpr:
+					// A folded constant hides its source from the
+					// transcriber, but len or cap of an array still refers
+					// to its operand, at any depth of the fold (len(a)-1),
+					// and Go's initialization order counts that reference.
+					// A source that is a bare name refers to a const, and
+					// consts, like const decls, gate nothing here.
+					if _, isName := n.Source.(*NameExpr); n.Source != nil && !isName && !isConstDecl {
+						TranscribeB(last, n.Source, visit)
+					}
 				case *SelectorExpr:
 					// Track same-package method calls so that resolveEffectiveDeps
 					// can transitively discover vars referenced in method bodies.
@@ -6274,7 +6377,8 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 				}
 			}
 			return n, TRANS_CONTINUE
-		})
+		}
+		_ = TranscribeB(fn, decl, visit)
 
 		if deps != nil {
 			decl.SetAttribute(ATTR_DECL_DEPS, deps)

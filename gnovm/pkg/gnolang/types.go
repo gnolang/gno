@@ -1027,7 +1027,7 @@ func (it *InterfaceType) panicUnflattened(im FieldType) {
 func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 	// Charge gas for the per-method interface implementation verification.
 	// Each method is looked up on a shared embedWalk
-	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
+	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (355 gas)
 	// mirrors the runtime type-assertion charge in op_expressions.go.
 	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
 	// One walk of ot's embedding graph serves every method lookup below: the
@@ -1562,6 +1562,12 @@ func unwrapPointerType(t Type) Type {
 		return pt.Elem()
 	}
 	return t
+}
+
+// arrayOrPtrToArray returns the array type t is, or points to.
+func arrayOrPtrToArray(t Type) (*ArrayType, bool) {
+	at, ok := baseOf(unwrapPointerType(baseOf(t))).(*ArrayType)
+	return at, ok
 }
 
 // NOTE: it may be faster to switch on baseOf().

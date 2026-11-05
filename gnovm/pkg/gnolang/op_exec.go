@@ -163,8 +163,10 @@ func (m *Machine) doOpExec(op Op) {
 				}
 				// For-loop init re-allocates the heap slot in the
 				// current realm. HIV is a wrapper; pass nil.
+				// Copy gives the next iteration its own array or
+				// struct, as Go 1.22 does.
 				newHIV := &HeapItemValue{
-					Value: hiv.Value,
+					Value: hiv.Value.Copy(m.Alloc, m.Store),
 				}
 				m.Alloc.stampPkgID(&newHIV.ObjectInfo, nil)
 				last.Values[i].V = newHIV
@@ -212,6 +214,8 @@ func (m *Machine) doOpExec(op Op) {
 			} else {
 				dv = xv
 				// A key-only range reads no element, so it needs no copy.
+				// The copy is the only part of init whose cost grows with
+				// the length, and Copy charges it per element.
 				if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 					*xv = xv.Copy(m.Alloc, m.Store)
 				}
@@ -221,7 +225,6 @@ func (m *Machine) doOpExec(op Op) {
 				m.PopFrameAndReset()
 				return
 			}
-			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
 			bs.NumValues = fr.NumValues + 1
@@ -434,7 +437,10 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			next := bs.NextItem
-			if bs.Key != nil {
+			// Nothing reads "_", so a key or value bound to it is neither
+			// loaded nor copied; a list range above skips a blank value the
+			// same way.
+			if bs.Key != nil && !isBlankIdentifier(bs.Key) {
 				kv := *fillValueTV(m.Store, &next.Key)
 				switch bs.Op {
 				case ASSIGN:
@@ -447,7 +453,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil {
+			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
@@ -577,7 +583,13 @@ EXEC_SWITCH:
 		b := m.acquireBlock(cs, m.LastBlock())
 		numInit := 0
 		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
-			numInit = len(as.Lhs)
+			// "_" takes no block slot, so counting it would make the
+			// per-iteration copy step past the init variables.
+			for _, lx := range as.Lhs {
+				if !isBlankIdentifier(lx) {
+					numInit++
+				}
+			}
 		}
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
