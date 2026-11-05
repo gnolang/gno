@@ -23,12 +23,36 @@
 // # What an address buys
 //
 // An object address is an ordinary gno.land address, so an object can be named
-// anywhere an address is expected. Today that already means it can hold GRC20
-// balances, since a token's Transfer takes a plain address, and it can receive
-// ugnot. It cannot yet spend: a banker's sender is pinned to the realm's own
-// package address, so letting a realm move funds held by an object it owns is a
-// separate change. Until then, treat an object address as an account that
-// receives and does not release.
+// anywhere an address is expected. It can hold GRC20 balances, since a token's
+// Transfer takes a plain address, and it can receive ugnot.
+//
+// It can also spend. [chain/banker.NewObjectBanker] gives the realm whose
+// storage clock minted an object's identity, and only that realm, a banker
+// bound to that object's address. The rule is an equality between the PkgID
+// inside the identity and the hash of the calling realm's path, both computed
+// by the VM, so it needs no realm state and cannot drift.
+//
+// # The address outlives the object
+//
+// A realm's storage clock only moves forward, so a tick is never handed out
+// twice and an object address is never reassigned. Deleting an object, or
+// dropping the last reference to it, therefore leaves its address and its
+// balance exactly where they were: the bank knows nothing about objects.
+//
+// NewObjectBanker takes an [Object], not an object, for that reason. An Object
+// is an immutable snapshot and is all the authority check reads, so a realm
+// that keeps one can wind an address down long after the object is gone.
+//
+// The corollary is an obligation on the realm. Send value to an object's
+// address and keep no Object for it, and that value is unreachable forever.
+// There is no recovery path, and there should not be one: a recovery path is a
+// way for someone other than the minting realm to reach the address.
+//
+// Upgrading a realm in place costs its objects nothing, because a redeploy
+// takes over the realm persisted at the path and keeps its clock. Moving to a
+// new path is a migration: the new path has a different PkgID and a disjoint
+// address space, so the old code must drain its object addresses or stay
+// callable.
 package reflect
 
 // Addressable is anything that can be named by an address: a user, a realm, or
@@ -175,7 +199,8 @@ func HasIdentity(v any) bool {
 // preimages.
 //
 // The address has no signing key, so nothing can sign for it. Coins sent to it
-// are held by the object and, today, cannot be moved. See the package comment.
+// are held by the object and are moved by its owning realm, through
+// [chain/banker.NewObjectBanker]. See the package comment.
 //
 // The zero Object's address is the empty address. That is the one case to guard
 // against, and checking [Of]'s ok is how.

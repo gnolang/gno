@@ -123,6 +123,7 @@ functionalities and safety features within your packages and realms.
 2. `BankerTypeOriginSend` - full access to coins sent with the transaction that called the banker
 3. `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
 4. `BankerTypeRealmIssue` - able to issue new coins
+5. `BankerTypeObjectSend` - send-only access to one object's address, see `NewObjectBanker`
 
 ### Events
 
@@ -735,11 +736,22 @@ that identity gives an ordinary gno.land address.
 
 Being an ordinary address is the point: an object can be named anywhere an
 address is expected, by code that has never heard of objects. It can hold GRC20
-balances today, since a token's `Transfer` takes a plain `address`, and it can
-receive ugnot. It cannot yet **spend**: a banker's sender is pinned to the
-calling realm's own package address, so letting a realm move funds held by an
-object it owns is a separate change. Until then, treat an object address as an
-account that receives and does not release.
+balances, since a token's `Transfer` takes a plain `address`, and it can
+receive ugnot.
+
+It can also **spend**. `banker.NewObjectBanker(obj, cur)` gives the realm whose
+storage clock minted the object's identity, and only that realm, a banker bound
+to that object's address. The check is an equality between the PkgID inside the
+identity and the hash of the calling realm's path, both computed by the VM.
+
+The address **outlives the object**. A realm's storage clock only moves
+forward, so a tick is never handed out twice and an address is never reassigned;
+deleting an object leaves its address and its balance untouched. That is why
+`NewObjectBanker` takes an `Object` snapshot rather than the object, and why a
+realm that funds an object and keeps no `Object` for it has stranded the balance
+permanently. Upgrading a realm in place keeps its clock and so keeps every
+address; moving to a new path is a migration, because the new path has a
+disjoint address space.
 
 ### Object
 ```go
@@ -845,6 +857,7 @@ const (
     BankerTypeOriginSend
     BankerTypeRealmSend
     BankerTypeRealmIssue
+    BankerTypeObjectSend
 )
 
 type Banker interface {
@@ -871,6 +884,44 @@ Returns `Banker` of the specified type. Signature: `func NewBanker(bt BankerType
 
 ```go
 banker := banker.NewBanker(banker.<BankerType>, cur)
+```
+
+`NewBanker` also panics on `BankerTypeObjectSend`; use `NewObjectBanker`.
+
+### NewObjectBanker
+Returns a `Banker` that spends from an object's address instead of the realm's
+own. Signature: `func NewObjectBanker(obj reflect.Object, rlm realm) Banker`.
+
+An object address is spendable by exactly one realm: the realm whose storage
+clock minted the object's identity, which is `obj.PkgPath()`. `NewObjectBanker`
+panics for any other realm, for a sub-realm token, for the zero `Object`, and
+for an object still inside the stamping window.
+
+The returned banker sends and nothing else. `IssueCoin` and `RemoveCoin` panic,
+because a denom is namespaced by a realm path and an object has none. Reads work
+as on any banker. There is no origin-send variant: a message's send-envelope is
+credited to the realm's address, never to an object's.
+
+`obj` is a snapshot, so this works after the object itself is gone. That is the
+only way to wind down the balance of a deleted object, and it is why a realm
+that funds an object should persist its `reflect.Object`.
+
+Holding one is an irrevocable grant over that one address, with the same force
+as `NewBanker`'s grant over the realm address and a smaller blast radius.
+
+##### Parameters
+- `obj` **reflect.Object** - the object whose address to spend from, from `reflect.Of`
+- `rlm` **realm** - the calling realm capability, typically the crossing function's `cur`
+
+##### Usage
+
+```go
+obj, ok := reflect.Of(myThing)
+if !ok {
+    panic("no identity yet")
+}
+b := banker.NewObjectBanker(obj, cur)
+b.SendCoins(obj.Address(), to, chain.Coins{{"ugnot", amount}})
 ```
 
 ### NewReadonlyBanker
