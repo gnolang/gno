@@ -22,7 +22,7 @@ func handlerStatusJSON(logger *slog.Logger, cli *client.RPCClient) http.Handler 
 			return "", "", errors.Wrap(err, "query node status")
 		}
 
-		return status.NodeInfo.Version, status.NodeInfo.Network, nil
+		return status.BuildVersion, status.NodeInfo.Network, nil
 	}
 
 	queryHeight := func(ctx context.Context) (int64, error) {
