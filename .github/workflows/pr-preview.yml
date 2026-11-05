@@ -1,0 +1,143 @@
+# Renders what a pull request changed with gnodev/gnoweb and stores the result
+# as a static site, so reviewers can look at a realm instead of imagining it.
+#
+# This is the UNTRUSTED half: it runs the pull request's own code (gnodev, the
+# realms, misc/gnopreview) and therefore has a read-only token and no secrets.
+# It only produces an artifact. Publishing it — pushing to gnolang/gno-previews,
+# writing the PR comment — happens in pr-preview-publish.yml, which never runs
+# PR code, builds the comment itself from the default branch's gnopreview, and
+# holds a snapshot from an untrusted author until a maintainer approves it.
+#
+# No artifact means no comment: a PR that changes neither a realm, a realm
+# dependency nor gnoweb is silently skipped.
+name: pr / preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      # Realms and the packages they may import.
+      - examples/gno.land/**
+      # gnoweb itself, and the node that serves it in the preview.
+      - gno.land/pkg/gnoweb/**
+      - gno.land/cmd/gnoweb/**
+      - contribs/gnodev/**
+      # The preview tooling.
+      - misc/gnopreview/**
+      - .github/workflows/pr-preview.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    # Always on here; elsewhere only where the repository variable
+    # GNOWEB_PREVIEW_BASE_URL is set, so a fork's own pull requests do not pay
+    # for a gnodev build nobody asked for. The name check is what keeps pull
+    # requests *from* forks rendering: GitHub's variables settings page says
+    # repository variables are not passed to a pull_request run from a fork,
+    # and gating on the variable alone would then skip most of the pull
+    # requests this exists for. Correct either way, so not relied on.
+    if: github.repository == 'gnolang/gno' || vars.GNOWEB_PREVIEW_BASE_URL != ''
+    runs-on: ubuntu-latest
+    # A render takes about a minute; this bounds a hung gnodev or browser,
+    # which would otherwise hold the runner for GitHub's six-hour default.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+
+      - name: Collect the changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # On a pull_request event the checkout is refs/pull/<N>/merge, whose
+          # first parent is the base tree the merge was computed against. That,
+          # not the merge base, is what the head tree has to be compared with:
+          # against the merge base, everything that landed on master in between
+          # shows up as a change this pull request made. Measured on one open PR:
+          # 6 master commits, touching a package under examples/.
+          # HEAD^1 resolves on any commit, so the merge is detected with HEAD^2,
+          # which only a merge commit has: a local run on a branch tip must fall
+          # back to the merge base rather than silently taking its own parent.
+          if base=$(git rev-parse --verify -q 'HEAD^2' >/dev/null && git rev-parse 'HEAD^1'); then
+            echo "base is the merge's own base parent"
+          else
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          fi
+          # --no-renames: a file moved between packages is a change to both,
+          # and rename detection would report only where it went.
+          git diff --no-renames --name-only "$base" HEAD > changed.txt
+          echo "changed files: $(wc -l < changed.txt) (base $base)"
+          # A checkout of that base, so a changed realm can be rendered as it
+          # looks today as well as as this branch renders it. Both passes use
+          # the head's gnodev and the head's assets, so the pair differs by the
+          # realm change alone.
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+
+      # Decide before paying for a gnodev build. The paths filter above is
+      # coarse (a *_test.gno edit matches examples/**); the plan is exact.
+      - name: Plan the preview
+        id: plan
+        # `shell: bash` for pipefail: the default `bash -e` takes the pipeline's
+        # exit status from tee, so a gnopreview that fails leaves plan.json empty
+        # and the jq gate below it reads nothing and never sets skip.
+        shell: bash
+        run: |
+          cd misc/gnopreview && go build -o "$RUNNER_TEMP/gnopreview" . && cd -
+          "$RUNNER_TEMP/gnopreview" plan -changed changed.txt | tee plan.json
+          if [ "$(jq -r 'if .gnoweb or (.realms | length > 0) then "yes" else "no" end' plan.json)" = "no" ]; then
+            echo "nothing to preview — no realm, realm dependency or gnoweb change"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build gnodev
+        if: steps.plan.outputs.skip != 'true'
+        run: cd contribs/gnodev && go build -o "$RUNNER_TEMP/gnodev" .
+
+      # google-chrome ships with the ubuntu-latest image, and a missing browser
+      # costs the comment its images, not the preview. No -base-url: the
+      # comment.md this writes is for local runs, and the publishing job
+      # builds the one it posts from preview.json, with a URL it trusts.
+      - name: Render the snapshot
+        if: steps.plan.outputs.skip != 'true'
+        env:
+          GNODEV: ${{ runner.temp }}/gnodev
+          GNOROOT: ${{ github.workspace }}
+        run: |
+          "$RUNNER_TEMP/gnopreview" render \
+            -changed changed.txt \
+            -base-root "$RUNNER_TEMP/base" \
+            -out _preview
+          rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*
+          du -sh _preview
+
+      # The render step deletes the logs on success, and no later step runs on
+      # failure — so without this a gnodev that never came up leaves nothing to
+      # read but "not ready".
+      - name: Show the gnodev log
+        if: failure()
+        run: |
+          for f in _preview/gnodev.log _preview/gnodev-base.log; do
+            [ -f "$f" ] || continue
+            echo "::group::$f"; tail -100 "$f"; echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.plan.outputs.skip != 'true'
+        with:
+          name: pr-preview
+          path: _preview
+          retention-days: 3
+          if-no-files-found: error
