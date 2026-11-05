@@ -41,6 +41,12 @@ const (
 	btRealmSend
 	// Can issue and remove realm coins.
 	btRealmIssue
+	// Can send from one object's address, and nothing else. The
+	// authority check runs once, in X_objectBankerAddress, at
+	// construction; from there on the banker is pinned to the address it
+	// verified, exactly as btRealmSend is pinned to the realm address the
+	// VM handed it.
+	btObjectSend
 )
 
 func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
@@ -113,7 +119,12 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 		}
 		ctx.Banker.SendCoins(from, to, amt)
 		*ctx.OriginSendSpent = spent
-	case btRealmSend, btRealmIssue:
+	case btRealmSend, btRealmIssue, btObjectSend:
+		// `from` is pinned to the banker's bound address by banker.gno's
+		// SendCoins, and that address was set at construction from a value
+		// the VM produced: rlm.Address() for a realm banker,
+		// X_objectBankerAddress's verified derivation for an object one.
+		// The trust chain is the same for both, so the arm is.
 		ctx.Banker.SendCoins(from, to, amt)
 	default:
 		panic(fmt.Sprintf("invalid banker type %d in bankerSendCoins", bt))
@@ -148,4 +159,50 @@ func CompactCoins(denoms []string, amounts []int64) std.Coins {
 		coins[i] = std.Coin{Denom: denoms[i], Amount: amounts[i]}
 	}
 	return coins
+}
+
+// X_objectBankerAddress resolves objID to an object address, but only for the
+// realm that minted it.
+//
+// It is the authority check behind [NewObjectBanker], and it is deliberately
+// the only thing the Gno side takes from the reflect.Object it was handed.
+// Nothing about the Object's struct is trusted: objID is parsed back into an
+// ObjectID, re-rendered and compared so a malformed or partial spelling cannot
+// get through, the PkgID half is compared against the hash of the calling
+// realm's own path, and the address is re-derived from the parsed ID by the
+// same DeriveObjectCryptoAddr that minted it in the first place.
+//
+// A realm that fabricates an Object therefore gains nothing. An ID naming
+// another realm's object fails the PkgID comparison. An ID naming an
+// unminted tick of the realm's *own* namespace passes, and yields an address
+// inside the address space that realm already controls in full, every member
+// of which it could mint on demand; there is no address reachable this way
+// that honest use would not also reach.
+//
+// It is a pure read. No clock advances, nothing is persisted, and the object
+// the ID names need not exist any more — which is the point, since winding
+// down a deleted object's balance is otherwise impossible.
+func X_objectBankerAddress(m *gno.Machine, rlmPkgPath, objID string) string {
+	var oid gno.ObjectID
+	if err := oid.UnmarshalAmino(objID); err != nil || oid.String() != objID {
+		// Round-tripping is the length and shape check UnmarshalAmino does
+		// not do: hex.Decode accepts a short hashlet by leaving the tail
+		// zeroed, which would alias distinct realms onto one PkgID.
+		m.PanicString(fmt.Sprintf("invalid object identity %q", objID))
+		return ""
+	}
+	if !oid.IsFinalized() {
+		// NewTime is zero: the object was allocated but the owning realm has
+		// never persisted it, so it has no address to spend from. Reached by
+		// passing an ID that was written down during the stamping window.
+		m.PanicString(fmt.Sprintf("object %q has no identity yet: it was never persisted", objID))
+		return ""
+	}
+	if want := gno.PkgIDFromPkgPath(rlmPkgPath); oid.PkgID != want {
+		m.PanicString(fmt.Sprintf(
+			"object %q was not minted by %q: only the realm whose clock minted an object can spend from its address",
+			objID, rlmPkgPath))
+		return ""
+	}
+	return gno.DeriveObjectCryptoAddr(oid).String()
 }

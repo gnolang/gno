@@ -173,6 +173,44 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/banker",
+		"objectBankerAddress",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			r0 := libs_chain_banker.X_objectBankerAddress(
+				m,
+				p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"chain/banker",
 		"bankerGetCoins",
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("p0"), Type: gno.X("uint8")},
@@ -2683,10 +2721,10 @@ var initOrder = [...]string{
 	"math",
 	"strconv",
 	"chain",
+	"chain/reflect",
 	"chain/banker",
 	"chain/markdown",
 	"chain/params",
-	"chain/reflect",
 	"chain/runtime",
 	"chain/runtime/unsafe",
 	"crypto/bech32",

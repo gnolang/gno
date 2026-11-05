@@ -2,6 +2,7 @@ package banker
 
 import (
 	"chain"
+	"chain/reflect"
 	"strconv"
 	"strings"
 )
@@ -73,6 +74,10 @@ const (
 	BankerTypeRealmSend
 	// Can issue and remove realm coins.
 	BankerTypeRealmIssue
+	// Can send from one object's coins, and nothing else. Constructed
+	// only by [NewObjectBanker], which is where the authority rule
+	// lives; NewBanker refuses this type.
+	BankerTypeObjectSend
 
 	maxBanker
 )
@@ -87,6 +92,8 @@ func (b BankerType) String() string {
 		return "BankerTypeRealmSend"
 	case BankerTypeRealmIssue:
 		return "BankerTypeRealmIssue"
+	case BankerTypeObjectSend:
+		return "BankerTypeObjectSend"
 	default:
 		panic("invalid BankerType: " + strconv.Itoa(int(b)))
 	}
@@ -117,6 +124,9 @@ func NewReadonlyBanker() Banker {
 func NewBanker(bt BankerType, rlm realm) Banker {
 	if bt == BankerTypeReadonly {
 		panic("use NewReadonlyBanker for BankerTypeReadonly")
+	}
+	if bt == BankerTypeObjectSend {
+		panic("use NewObjectBanker for BankerTypeObjectSend")
 	}
 	if bt >= maxBanker {
 		panic("invalid banker type")
@@ -169,6 +179,86 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	}
 	return b
 }
+
+// NewObjectBanker returns a Banker that spends from obj's address instead of
+// the realm's own, so a realm can move the value an object it owns has
+// received.
+//
+// # The authority rule
+//
+// An object address is spendable by exactly one realm: the realm whose storage
+// clock minted the object's identity, which is [reflect.Object.PkgPath]. That
+// realm, and nothing else, can construct a banker for the address.
+//
+// The rule is not a policy this package picked; it is the only one the VM can
+// enforce without a new registry. An ObjectID is `{PkgID, NewTime}`, PkgID is
+// the hash of the owning realm's package path, and a realm value proves which
+// realm is running. So "is this object mine" is an equality between two
+// PkgIDs, computed by the VM from facts no realm supplies, and it stays true
+// for the life of the address. Any other rule — an owner field, a transferable
+// capability, a registry of delegates — is realm state, which the realm that
+// holds it can get wrong, and which an object address would then outlive.
+//
+// rlm must be the caller's own live `cur`, exactly as for [NewBanker], and it
+// must not be a sub-realm token: an object belongs to its host realm, and a
+// sub identity is a different address with no claim on it.
+//
+// # What it can do, and what it deliberately cannot
+//
+// The returned banker sends, and does nothing else. `IssueCoin` and
+// `RemoveCoin` panic: a denom is namespaced by a realm path, objects have no
+// path of their own, and minting into an object's name is a realm act with a
+// realm's authority already available through [NewBanker]. `GetCoins` and
+// `GetCoin` read any address, as they do on every banker.
+//
+// There is no `BankerTypeOriginSend` equivalent. The send-envelope of a
+// message is credited to the realm's package address, never to an object's, so
+// an object-scoped origin-send banker would have nothing to spend.
+//
+// # Lifecycle
+//
+// obj is a snapshot, so this works on an object that no longer exists. A realm
+// that keeps the [reflect.Object] in its own state can still move the address's
+// balance after the object it described has been deleted or has become
+// unreachable, which is the only way a funded address can be wound down. The
+// realm clock never reissues a tick, so the address is never reassigned to a
+// different object. See `gnovm/adr/chain_reflect_object_identity.md`.
+//
+// Holding this banker is an irrevocable grant over that one address, with the
+// same force as [NewBanker]'s grant over the realm address; the SECURITY note
+// at the top of this package applies unchanged.
+func NewObjectBanker(obj reflect.Object, rlm realm) Banker {
+	// Same gate as NewBanker, same reason: a stale handle such as
+	// cur.Previous() would otherwise let a callee authorize against the
+	// caller's realm, and here that means against the caller's objects.
+	if !rlm.IsCurrent() {
+		panic("object banker can only be instantiated for the current realm")
+	}
+	pkgPath := rlm.PkgPath()
+	// A sub-realm token is a distinct address synthesized from "host#subpath".
+	// Its PkgID is not the host's, so the ownership check below would reject
+	// it anyway; refuse here to say why rather than report a mismatch.
+	if _, _, isSub := chain.SplitPkgSubPath(pkgPath); isSub {
+		panic("BankerTypeObjectSend not supported for sub-realm tokens")
+	}
+	// objectBankerAddress is the whole authority check. It is given the
+	// realm's path and the object's VM identity, and re-derives everything
+	// from them: a forged Object buys nothing, because an ID naming another
+	// realm's object is rejected and an ID naming this realm's own namespace
+	// yields an address this realm already controls.
+	return banker{
+		bt:      BankerTypeObjectSend,
+		pkgAddr: address(objectBankerAddress(pkgPath, obj.ID())),
+		pkgPath: pkgPath,
+	}
+}
+
+// objectBankerAddress verifies that objID names an object minted by
+// rlmPkgPath's storage clock and returns that object's address. It panics,
+// rather than returning an empty address, on anything else: an unparseable
+// ID, the zero Object's empty ID, an object still inside the stamping window,
+// or an object belonging to another realm.
+func objectBankerAddress(rlmPkgPath, objID string) string
 
 // These are native bindings to the banker's functions.
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
