@@ -272,11 +272,17 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 	EnrichLinks(nodes, u.Path, ViewModePretty)
 
 	crumbs := []StateCrumb{{Label: shortPackageLabel(u.Path), Href: RealmStateHref(u.Path)}}
+	countLabel := fmt.Sprintf("Object %s", TruncOID(oid, 8, 6))
+	if ptrIndex != nil {
+		// The back link goes to the whole object.
+		crumbs = []StateCrumb{{Label: countLabel, Href: stateObjectHref(u.Path, oid, tid, nil, ViewModePretty)}}
+		countLabel += fmt.Sprintf(", index %d", *ptrIndex)
+	}
 
 	data := StateData{
 		PkgPath:      u.Path,
 		Nodes:        nodes,
-		CountLabel:   fmt.Sprintf("Object %s", TruncOID(oid, 8, 6)),
+		CountLabel:   countLabel,
 		Crumbs:       crumbs,
 		Sidebar:      BuildObjectSidebar(u.Path, oid, tid, decoded.Info, nodes),
 		KindCounts:   ComputeKindCounts(nodes),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -203,6 +204,15 @@ func TestServePageObjectHappyPath(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), `&#34;test&#34;`) {
 		t.Errorf("idx=0: body shows field 1, not only the pointee field 0\n%s", head(rec.Body.String(), 800))
+	}
+	// The label shows the index and the back link goes to the whole object.
+	body = rec.Body.String()
+	if !strings.Contains(body, "<span>Object abcdef01…cdef01:1, index 0</span>") {
+		t.Errorf("idx=0: label missing the index\n%s", head(body, 800))
+	}
+	backHref := html.EscapeString(string(stateObjectHref("/r/demo", validOID, "", nil, ViewModePretty)))
+	if !strings.Contains(body, `<a class="back-link" href="`+backHref+`"`) {
+		t.Errorf("idx=0: back link is not %s\n%s", backHref, head(body, 800))
 	}
 }
 
