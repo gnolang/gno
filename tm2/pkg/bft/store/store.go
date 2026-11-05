@@ -214,16 +214,13 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	seenCommitBytes := amino.MustMarshal(seenCommit)
 	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
 
-	// Save new BlockStoreStateJSON descriptor
+	// Save new BlockStoreStateJSON descriptor. This also flushes the database.
 	BlockStoreStateJSON{Height: height}.Save(bs.db)
 
 	// Done!
 	bs.mtx.Lock()
 	bs.height = height
 	bs.mtx.Unlock()
-
-	// Flush
-	bs.db.SetSync(nil, nil)
 }
 
 func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
