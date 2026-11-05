@@ -83,8 +83,15 @@ func TestRunApp(t *testing.T) {
 			errShouldContain: "listen tcp",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
-			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
+			args:           []string{"run", "../../tests/integ/invalid_assign/main.gno"},
+			stderrShouldBe: "../../tests/integ/invalid_assign/main.gno:7:6-13: cannot use bool as main.C without explicit conversion (code=gnoPreprocessError)\n",
+			errShouldBe:    "exit code: 1",
+		},
+		{
+			// preprocess errors are reported as errors, not Go panics.
+			args:           []string{"run", "../../tests/integ/run_preprocess_error/"},
+			stderrShouldBe: "../../tests/integ/run_preprocess_error/main.gno:4:6-19: bigint underflows target kind (code=gnoPreprocessError)\n",
+			errShouldBe:    "exit code: 1",
 		},
 		{
 			args:                []string{"run", "-expr", "Context()", "../../tests/integ/context/context.gno"},
