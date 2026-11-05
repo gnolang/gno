@@ -62,13 +62,11 @@ func DecodeObject(ctx context.Context, raw []byte, ptrIndex *int, cfg RenderConf
 		return StateNode{}, fmt.Errorf("decode object JSON: %w", cerr)
 	}
 
-	if ptrIndex != nil {
-		v, perr := pointedTo(resp.Value, *ptrIndex)
-		if perr != nil {
-			return StateNode{}, fmt.Errorf("decode object JSON: %w", perr)
-		}
-		resp.Value = v
+	v, perr := pointedTo(resp.Value, ptrIndex)
+	if perr != nil {
+		return StateNode{}, fmt.Errorf("decode object JSON: %w", perr)
 	}
+	resp.Value = v
 
 	root = StateNode{
 		Name:     "(object)",

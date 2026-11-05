@@ -1169,8 +1169,12 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 // to in its stored Base object v: a struct field, an array element or a
 // block value. It is wrapped in a HeapItemValue so both decode paths show
 // it like the value of a pointer to a heap item, which is returned as is
-// (its one value is at Index 0).
-func pointedTo(v gno.Value, index int) (gno.Value, error) {
+// (its one value is at Index 0). A nil ptrIndex returns v as is.
+func pointedTo(v gno.Value, ptrIndex *int) (gno.Value, error) {
+	if ptrIndex == nil {
+		return v, nil
+	}
+	index := *ptrIndex
 	if index < 0 {
 		return nil, fmt.Errorf("%w: %d", ErrInvalidPointerIndex, index)
 	}
@@ -1225,13 +1229,11 @@ func DecodeObjectFull(rawObject, rawType []byte, ptrIndex *int, cfg RenderConfig
 
 	info := objectInfoOf(resp.Value)
 
-	if ptrIndex != nil {
-		v, perr := pointedTo(resp.Value, *ptrIndex)
-		if perr != nil {
-			return nil, fmt.Errorf("decode object JSON: %w", perr)
-		}
-		resp.Value = v
+	v, perr := pointedTo(resp.Value, ptrIndex)
+	if perr != nil {
+		return nil, fmt.Errorf("decode object JSON: %w", perr)
 	}
+	resp.Value = v
 
 	var nodes []StateNode
 	if len(rawType) == 0 {

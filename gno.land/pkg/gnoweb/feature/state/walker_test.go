@@ -655,7 +655,7 @@ func TestDecodeArrayBytes(t *testing.T) {
 	assert.False(t, a.Expandable)
 
 	// A pointer to element 1 of a stored byte array points to one uint8.
-	v, err := pointedTo(&gno.ArrayValue{Data: []byte("hello")}, 1)
+	v, err := pointedTo(&gno.ArrayValue{Data: []byte("hello")}, intPtr(1))
 	require.NoError(t, err)
 	elem := decodeValueChildren(DefaultPageRenderConfig(), v)
 	require.Len(t, elem, 1)
