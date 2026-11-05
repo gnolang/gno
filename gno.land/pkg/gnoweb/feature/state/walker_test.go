@@ -1504,6 +1504,26 @@ func TestStructTypeIDForwarding(t *testing.T) {
 		"original tid forwarded onto the ref node lacking an intrinsic TypeID")
 }
 
+// TestPointeeOfInterfaceFieldKeepsConcreteType: for &w.F where F is
+// declared as an interface, the tid is the interface but the row shows
+// the concrete type of the value in F.
+func TestPointeeOfInterfaceFieldKeepsConcreteType(t *testing.T) {
+	t.Parallel()
+
+	concrete := gno.TypedValue{T: &gno.DeclaredType{PkgPath: "gno.land/r/x/ifc", Name: "T", Base: gno.IntType}}
+	concrete.SetInt(7)
+	w := &gno.StructValue{Fields: []gno.TypedValue{concrete}}
+	stringer := &gno.DeclaredType{PkgPath: "gno.land/r/x/ifc", Name: "Stringer", Base: &gno.InterfaceType{}}
+
+	v, err := pointedTo(w, intPtr(0))
+	require.NoError(t, err)
+	nodes := decodeValueChildrenTyped(v, stringer, "gno.land/r/x/ifc.Stringer", DefaultPageRenderConfig())
+	require.Len(t, nodes, 1)
+	assert.Equal(t, "ifc.T", nodes[0].Type)
+	assert.Equal(t, KindPrimitive, nodes[0].Kind)
+	assert.Equal(t, "7", nodes[0].Value)
+}
+
 // TestPeekTopLevelKind pins the cheap kind/type classifier used by the
 // full sidebar TOC. It must match what a full decodeTypedValueAt would
 // have assigned, without walking the value's children.
