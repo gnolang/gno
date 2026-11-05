@@ -32,7 +32,7 @@ scripts cannot start loading until the metadata and overwriter are set).
 | Key | Source | Cardinality |
 |---|---|---|
 | `schema_version` | constant in `sa-bootstrap.ts` | 1 (bump on incompatible taxonomy / metadata change) |
-| `page_type` | `components.ClassifyPageType(mode, view)` | 11: home, user, pure, realm, source, help, directory, status, redirect, explorer, other |
+| `page_type` | `components.ClassifyPageType(mode, view)` | 14: home, user, pure, realm, source, help, directory, deps, status, redirect, run, playground, explorer, other |
 | `chain_id` | `cfg.ChainID` (env constant) | low (one per deployment) |
 
 ## Path sanitization
@@ -105,7 +105,7 @@ The real browser URL is never modified.
 
 | Event | Trigger | Payload |
 |---|---|---|
-| `copy_action` | Click on any `button[data-controller~="copy"]`; kind inferred from `data-copy-*` attributes | `{kind: 'link' \| 'source' \| 'func_signature' \| 'gnokey_command' \| 'unknown'}` |
+| `copy_action` | Click on any `button[data-controller~="copy"]`; kind inferred from `data-copy-*` attributes | `{kind: 'link' \| 'source' \| 'func_signature' \| 'gnokey_command' \| 'run_command' \| 'unknown'}` |
 
 ### Outbound
 
