@@ -718,6 +718,12 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	for _, msg := range msgs {
+		// An empty Any (0a 00) decodes to a nil message, and is canonical, so
+		// it reaches here; reject it instead of letting ValidateBasic
+		// dereference it and the recover in runTx report an internal error.
+		if msg == nil {
+			return std.ErrUnknownRequest("nil message in tx")
+		}
 		// Validate the Msg.
 		if err := msg.ValidateBasic(); err != nil {
 			return err
@@ -725,6 +731,15 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	return nil
+}
+
+// txDecodeFailure is the Error and Log of a tx whose bytes do not decode, or
+// are not the canonical encoding of what they decode to. Log carries the
+// reason alone: a stack trace would make the cheapest rejection several times
+// costlier, and a byzantine proposer could have every result in a block of
+// garbage txs store one.
+func txDecodeFailure(err error) (abci.Error, string) {
+	return ABCIError(std.ErrTxDecode(err.Error())), clipLog(err.Error())
 }
 
 // retrieve the context for the tx w/ txBytes and other memoized values.
@@ -1014,7 +1029,7 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	if decoded != nil {
 		tx = *decoded
 	} else if err := amino.Unmarshal(txBytes, &tx); err != nil {
-		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 	zeroFee = app.isSponsoredTx(tx)
@@ -1022,6 +1037,17 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
+		return
+	}
+
+	// A tx is identified by the hash of its bytes while its signatures cover
+	// the sign doc, so only the canonical encoding of a tx is accepted: any
+	// other byte string decoding to the same tx is the same tx under another
+	// hash. The check re-encodes the tx, which for some values costs far more
+	// than decoding them, so it runs only once ValidateBasic has passed. See
+	// tm2/adr/pr6406_canonical_tx_enforcement.md.
+	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 

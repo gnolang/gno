@@ -102,7 +102,7 @@ network. Set them with `gnoland config set <key> <value>`.
 | `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
 | `consensus.timeout_commit` | Chain-wide; must match the network |
 | `halt_height` | Stop this node after committing that block. Normally left unset — a network-wide halt is scheduled by governance instead. See [UPGRADES.md](UPGRADES.md) |
-| `skip_upgrade_height` | Bypass the post-halt binary-version checks at that height. See [UPGRADES.md](UPGRADES.md) |
+| `skip_upgrade_height` | Bypass both `halt_min_version` startup checks, before and after the halt, while it equals the governance `halt_height`. Set it back to `0` once past the halt. See [UPGRADES.md](UPGRADES.md#restart-gates) |
 
 Networks pin several of these; always start from the `config.toml` in the
 network's deployment directory rather than from the defaults.
@@ -244,7 +244,7 @@ expected outcomes, depending on which binary you hold.
 
 [UPGRADES.md](UPGRADES.md) covers what you need as an operator: how the halt
 height is set, what the halt looks like in your logs, why the process stays
-alive after halting, which binary version the node reports and where that value
+alive after halting at the tip, which binary version the node reports and where that value
 comes from, and what to do when the state format changes and the chain is
 rebuilt from a replayed genesis.
 

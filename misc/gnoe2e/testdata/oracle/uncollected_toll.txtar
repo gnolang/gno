@@ -13,7 +13,7 @@
 # those three refusals would land exactly on it and refuse a fourth package
 # outright. The fourth going live is what says the count follows the money.
 
-gpao start -start-height 1 -max-spend 3000000ugnot
+gpao start -start-height 1 -max-spend 300000ugnot
 
 # Compared against itself at the end rather than against a literal, because
 # what this proves is that nothing moved, and the figure it started from does

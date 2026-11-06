@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -326,4 +329,178 @@ func TestClient_SendBatchRequest(t *testing.T) {
 		assert.Nil(t, resp.Result)
 		assert.Nil(t, resp.Error)
 	}
+}
+
+// TestClient_toClientAddress_preservesPath covers serving an RPC behind a URL
+// prefix, which is how a chain and its web UI share one hostname and one
+// certificate. The "/" to "." encoding exists for unix sockets, whose address
+// is a filesystem path and so gives the request URL no host; applying it to a
+// tcp/http address turned "http://host:26657/rpc" into "http://host:26657.rpc",
+// which does not parse.
+func TestClient_toClientAddress_preservesPath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		remoteAddr string
+		want       string
+	}{
+		{"http with a path", "http://127.0.0.1:26657/rpc", "http://127.0.0.1:26657/rpc"},
+		{"https with a path", "https://gno.example/rpc", "https://gno.example:443/rpc"},
+		{"http with a nested path", "http://127.0.0.1:8888/gno/rpc", "http://127.0.0.1:8888/gno/rpc"},
+		{"plain host is unchanged", "http://127.0.0.1:26657", "http://127.0.0.1:26657"},
+		{"tcp is unchanged", "tcp://127.0.0.1:26657", "http://127.0.0.1:26657"},
+		// A unix socket still gets its path encoded into the hostname, only
+		// so the URL has a host; makeHTTPDialer dials the raw remote.
+		{"unix socket keeps the encoding", "unix:///var/run/gno.sock", "http://.var.run.gno.sock"},
+		{"unixpacket socket keeps the encoding", "unixpacket:///tmp/node.sock", "http://.tmp.node.sock"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := toClientAddress(tt.remoteAddr)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestClient_makeHTTPDialer_stripsPath: a URL path belongs to the request, not
+// to the dial target. net.Dial("tcp", "127.0.0.1:26657/rpc") reads "/rpc" as
+// the port and fails with "unknown port".
+func TestClient_makeHTTPDialer_stripsPath(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(ts.Close)
+
+	// ts.URL is http://127.0.0.1:PORT; dialing it with a path must still reach
+	// the listener rather than treating the path as part of the address.
+	conn, err := makeHTTPDialer(ts.URL + "/rpc")
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.NoError(t, conn.Close())
+}
+
+// TestClient_makeHTTPDialer_stripsPathFamilies: tcp4 and tcp6 are dialed as
+// tcp, so they need the same strip; without it "tcp4://127.0.0.1:26657/rpc"
+// fails with "lookup tcp4/26657/rpc: unknown port".
+func TestClient_makeHTTPDialer_stripsPathFamilies(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		network string
+		addr    string
+	}{
+		{"tcp", "127.0.0.1:0"},
+		{"tcp4", "127.0.0.1:0"},
+		{"tcp6", "[::1]:0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.network, func(t *testing.T) {
+			t.Parallel()
+
+			ln, err := net.Listen(tt.network, tt.addr)
+			if err != nil {
+				t.Skipf("cannot listen on %s: %v", tt.network, err)
+			}
+			t.Cleanup(func() { ln.Close() })
+
+			conn, err := makeHTTPDialer(tt.network + "://" + ln.Addr().String() + "/rpc")
+			require.NoError(t, err)
+			require.NoError(t, conn.Close())
+		})
+	}
+}
+
+// TestClient_unixSocket sends a request end to end over each unix socket
+// family the server's Listen accepts.
+func TestClient_unixSocket(t *testing.T) {
+	t.Parallel()
+
+	for _, network := range []string{"unix", "unixpacket"} {
+		t.Run(network, func(t *testing.T) {
+			t.Parallel()
+
+			// t.TempDir can exceed the ~104 byte sun_path limit on macOS.
+			dir, err := os.MkdirTemp("", "rpc")
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(dir) })
+			sock := filepath.Join(dir, "node.sock")
+
+			ln, err := net.Listen(network, sock)
+			if err != nil {
+				t.Skipf("cannot listen on %s: %v", network, err)
+			}
+
+			request := types.RPCRequest{JSONRPC: "2.0", ID: types.JSONRPCIntID(1)}
+			srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				assert.NoError(t, json.NewEncoder(w).Encode(types.RPCResponse{JSONRPC: "2.0", ID: request.ID}))
+			})}
+			go srv.Serve(ln)
+			t.Cleanup(func() { srv.Close() })
+
+			c, err := NewClient(network + "://" + sock)
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			resp, err := c.SendRequest(ctx, request)
+			require.NoError(t, err)
+			assert.Equal(t, request.ID, resp.ID)
+		})
+	}
+}
+
+// TestClient_toClientAddress_schemes covers each scheme family, and that a
+// remote with no host is rejected rather than sent to localhost:80.
+func TestClient_toClientAddress_schemes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		remoteAddr string
+		want       string
+		wantErr    bool
+	}{
+		{"tcp", "tcp://127.0.0.1:26657/rpc", "http://127.0.0.1:26657/rpc", false},
+		{"tcp4", "tcp4://127.0.0.1:26657/rpc", "http://127.0.0.1:26657/rpc", false},
+		{"tcp6", "tcp6://[::1]:26657/rpc", "http://[::1]:26657/rpc", false},
+		{"unix", "unix:///var/run/gno.sock", "http://.var.run.gno.sock", false},
+		{"unixpacket", "unixpacket:///var/run/gno.sock", "http://.var.run.gno.sock", false},
+		{"scheme-less host", "127.0.0.1:26657", "http://127.0.0.1:26657", false},
+		{"scheme-less port only", ":26657", "http://:26657", false},
+		{"scheme-less path", "/var/run/gno.sock", "", true},
+		{"http without host", "http:///rpc", "", true},
+		{"https without host", "https://", "", true},
+		{"tcp without host", "tcp:///rpc", "", true},
+		{"tcp4 without host", "tcp4:///rpc", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := toClientAddress(tt.remoteAddr)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestClient_NewClient_noHost(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewClient("/var/run/gno.sock")
+	require.ErrorContains(t, err, "invalid RPC URL")
 }
