@@ -1,0 +1,70 @@
+# gno mod init/tidy -source derive [source] from the git origin remote.
+
+[!exec:git] skip 'git not installed'
+env GIT_CEILING_DIRECTORIES=$WORK
+
+# Outside a git checkout: an error, and no file is written.
+cd $WORK/norepo
+! gno mod init -source gno.land/r/demo/norepo
+stderr 'detect source'
+! exists gnomod.toml
+
+# Inside a checkout: repository from origin, credentials dropped, path from
+# the package directory.
+cd $WORK/repo
+exec git init -q
+exec git remote add origin https://x-access-token:secret@github.com/someone/contracts.git
+cd r/app
+gno mod init -source gno.land/r/someone/app
+stderr 'repository="https://github.com/someone/contracts" path="r/app"'
+cmp gnomod.toml $WORK/want_app.toml
+! grep secret gnomod.toml
+
+# tidy without -source refuses an invalid hand-written section...
+cd $WORK/repo/r/lib
+! gno mod tidy
+stderr 'must be an https URL'
+stderr 'gno mod tidy -source'
+
+# ...and -source fixes it, replacing the whole section, revision included.
+gno mod tidy -source
+stderr 'replacing \[source\]'
+cmp gnomod.toml $WORK/want_lib.toml
+
+# -recursive gives each package its own path.
+cd $WORK/repo
+gno mod tidy -recursive -source
+cmp r/app/gnomod.toml $WORK/want_app.toml
+cmp r/lib/gnomod.toml $WORK/want_lib.toml
+
+-- norepo/x.gno --
+package norepo
+
+-- repo/r/app/app.gno --
+package app
+
+-- repo/r/lib/gnomod.toml --
+module = "gno.land/r/someone/lib"
+gno = "0.9"
+
+[source]
+  repository = "git@github.com:someone/contracts.git"
+  revision = "3cc494ec4d1f"
+
+-- repo/r/lib/lib.gno --
+package lib
+
+-- want_app.toml --
+module = "gno.land/r/someone/app"
+gno = "0.9"
+
+[source]
+  repository = "https://github.com/someone/contracts"
+  path = "r/app"
+-- want_lib.toml --
+module = "gno.land/r/someone/lib"
+gno = "0.9"
+
+[source]
+  repository = "https://github.com/someone/contracts"
+  path = "r/lib"

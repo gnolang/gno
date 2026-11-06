@@ -13,6 +13,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod/gitsource"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
@@ -38,7 +39,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		newModDownloadCmd(io),
 		// edit
 		newModGraphCmd(io),
-		newModInitCmd(),
+		newModInitCmd(io),
 		newModTidy(io),
 		// vendor
 		// verify
@@ -79,16 +80,31 @@ func newModGraphCmd(io commands.IO) *commands.Command {
 	)
 }
 
-func newModInitCmd() *commands.Command {
+type modInitCfg struct {
+	source bool
+}
+
+func (c *modInitCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.source,
+		"source",
+		false,
+		"write a [source] section with repository and path derived from the git checkout's origin remote",
+	)
+}
+
+func newModInitCmd(io commands.IO) *commands.Command {
+	cfg := &modInitCfg{}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init <module-path>",
+			ShortUsage: "init [flags] <module-path>",
 			ShortHelp:  "initialize gno.mod file in current directory",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execModInit(args)
+			return execModInit(cfg, args, io)
 		},
 	)
 }
@@ -292,7 +308,7 @@ func parseRemoteOverrides(arg string) (map[string]string, error) {
 	return res, nil
 }
 
-func execModInit(args []string) error {
+func execModInit(cfg *modInitCfg, args []string, io commands.IO) error {
 	if len(args) > 1 {
 		return flag.ErrHelp
 	}
@@ -325,14 +341,43 @@ func execModInit(args []string) error {
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
 	modfile.Gno = gno.GnoVerLatest
+	if cfg.source {
+		if err := fillSource(modfile, rootDir, "gnomod.toml", io); err != nil {
+			return fmt.Errorf("create gnomod.toml: %w", err)
+		}
+	}
 	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
 
+	return nil
+}
+
+// fillSource replaces gm's [source] section with the repository and path
+// derived from the git checkout holding dir, and prints what it wrote.
+//
+// The whole section is replaced: a hand-written repository (an upstream when
+// origin is a fork) is overwritten, and any revision is dropped, since a
+// committed one goes stale. Stamping a revision is left to publish tooling,
+// on the uploaded copy.
+//
+// It is opt-in on purpose. The remote of a private repository is not
+// something to put on chain by accident.
+func fillSource(gm *gnomod.File, dir, relpath string, io commands.IO) error {
+	src, err := gitsource.Detect(dir)
+	if err != nil {
+		return fmt.Errorf("detect source: %w", err)
+	}
+	if old := gm.Source; !old.IsZero() && old != src {
+		io.ErrPrintfln("%s: replacing [source] repository=%q path=%q revision=%q", relpath, old.Repository, old.Path, old.Revision)
+	}
+	io.ErrPrintfln("%s: [source] repository=%q path=%q", relpath, src.Repository, src.Path)
+	gm.Source = src
 	return nil
 }
 
 type modTidyCfg struct {
 	verbose   bool
 	recursive bool
+	source    bool
 }
 
 func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -347,6 +392,12 @@ func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
 		"recursive",
 		false,
 		"walk subdirs for gno.mod files",
+	)
+	fs.BoolVar(
+		&c.source,
+		"source",
+		false,
+		"replace the [source] section with repository and path derived from the git checkout's origin remote (drops a hand-written repository and any revision)",
 	)
 }
 
@@ -398,6 +449,17 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 		gm, err := gnomod.ParseFilepath(fpath)
 		if err != nil {
 			return err
+		}
+
+		// gnomod.File.Validate skips [source] so a bad one never makes the file
+		// unreadable; check it here, where the file is written. With -source
+		// it is about to be replaced, so an invalid one is what we fix.
+		if cfg.source {
+			if err := fillSource(gm, pkgdir, relpath, io); err != nil {
+				return fmt.Errorf("%s: %w", relpath, err)
+			}
+		} else if err := gm.Source.Validate(); err != nil {
+			return fmt.Errorf("%s: %w (fix it, or run 'gno mod tidy -source')", relpath, err)
 		}
 
 		if fname == "gno.mod" {
