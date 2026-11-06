@@ -2746,6 +2746,59 @@ func TestInitChainer_InitialHeightMismatch(t *testing.T) {
 	})
 }
 
+// TestInitChainer_StreamingInitialHeightMismatch holds the streaming loader to
+// the rule TestInitChainer_InitialHeightMismatch holds the in-memory one to.
+func TestInitChainer_StreamingInitialHeightMismatch(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		appHeight     string // raw JSON; empty leaves the field out
+		reqHeight     int64
+		expectedPanic string
+	}{
+		{name: "mismatch is rejected", appHeight: `"200"`, reqHeight: 100, expectedPanic: "InitialHeight mismatch"},
+		{name: "app height below doc height is rejected", appHeight: `"50"`, reqHeight: 100, expectedPanic: "InitialHeight mismatch"},
+		{name: "unset doc height is a mismatch", appHeight: `"200"`, reqHeight: 0, expectedPanic: "InitialHeight mismatch"},
+		{name: "bare number is rejected", appHeight: `100`, reqHeight: 100, expectedPanic: "decode initial_height"},
+		{name: "match is accepted", appHeight: `"100"`, reqHeight: 100},
+		{name: "unset app height is accepted", reqHeight: 100},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			small := defaultSmallFields(t)
+			if tc.appHeight != "" {
+				small["initial_height"] = tc.appHeight
+			}
+			ref, err := OpenGenesisStateRef(writeTestCache(t, nil, nil, small))
+			require.NoError(t, err)
+
+			app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+			require.NoError(t, err)
+			if tc.expectedPanic != "" {
+				defer func() {
+					perr, ok := recover().(error)
+					require.True(t, ok, "InitChain must panic with an error")
+					assert.ErrorContains(t, perr, tc.expectedPanic)
+				}()
+			}
+			resp := app.InitChain(abci.RequestInitChain{
+				ChainID:       "test-chain",
+				Time:          time.Now(),
+				InitialHeight: tc.reqHeight,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     defaultBlockParams(),
+					Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+				},
+				AppState: ref,
+			})
+			require.Empty(t, tc.expectedPanic, "InitChain must panic")
+			require.Nil(t, resp.Error, "InitChain response: %v", resp.Error)
+		})
+	}
+}
+
 // TestInitChainer_StrictReplay verifies that StrictReplay refuses to boot
 // when any non-skipped genesis tx fails replay, and that intentionally
 // skipped txs (metadata.Failed = true) are not counted as failures.
@@ -3742,6 +3795,20 @@ func writeMinimalGenesisFile(t *testing.T, chainID string, state GnoGenesisState
 	return dst
 }
 
+// defaultSmallFields returns DefaultGenState's auth, bank and vm as the raw JSON
+// a genesis cache holds them in, for writeTestCache.
+func defaultSmallFields(t *testing.T) map[string]string {
+	t.Helper()
+	def := DefaultGenState()
+	small := map[string]string{}
+	for k, v := range map[string]any{"auth": def.Auth, "bank": def.Bank, "vm": def.VM} {
+		bz, err := amino.MarshalJSON(v)
+		require.NoError(t, err)
+		small[k] = string(bz)
+	}
+	return small
+}
+
 // Both genesis paths must call RecomputeSupply. Pinned through the mock rather than
 // by calling RecomputeSupply directly: a test that invokes it itself proves the
 // function works, not that InitChainer uses it, and would pass with every call site
@@ -3766,13 +3833,7 @@ func TestInitChainerSeedsSupply(t *testing.T) {
 			t.Helper()
 			// Marshalled from the same defaults the in-memory case uses, so the two
 			// cases differ only in how genesis is delivered.
-			def := DefaultGenState()
-			small := map[string]string{}
-			for k, v := range map[string]any{"auth": def.Auth, "bank": def.Bank, "vm": def.VM} {
-				bz, err := amino.MarshalJSON(v)
-				require.NoError(t, err)
-				small[k] = string(bz)
-			}
+			small := defaultSmallFields(t)
 			holder := crypto.AddressFromPreimage([]byte("streamed-holder"))
 			bal := fmt.Sprintf("%q", holder.String()+"=10ugnot")
 			ref, err := OpenGenesisStateRef(writeTestCache(t, []string{bal}, nil, small))

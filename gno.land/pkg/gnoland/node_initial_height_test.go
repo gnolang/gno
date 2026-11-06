@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -26,14 +27,43 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 	const initialHeight = int64(100)
 
 	td := t.TempDir()
-	tmcfg := NewDefaultTMConfig(td)
+	tmConfig := NewDefaultTMConfig(td)
 
 	pv := bft.NewMockPV()
-	pk := pv.PubKey()
+	genesis := initialHeightGenesisDoc(tmConfig.ChainID(), pv, initialHeight)
+	genesis.AppState = DefaultGenState()
 
-	genesis := &bft.GenesisDoc{
+	assertBootsAtInitialHeight(t, tmConfig, pv, genesis, initialHeight)
+}
+
+// TestNodeBootWithInitialHeight_Streaming boots the same node from a genesis
+// file read by the loader `gnoland start` uses, so the height has to survive
+// the file before the handshake can hand it to the app.
+func TestNodeBootWithInitialHeight_Streaming(t *testing.T) {
+	const initialHeight = int64(100)
+
+	td := t.TempDir()
+	tmConfig := NewDefaultTMConfig(td)
+
+	pv := bft.NewMockPV()
+	file := initialHeightGenesisDoc(tmConfig.ChainID(), pv, initialHeight)
+	state := DefaultGenState()
+	state.InitialHeight = initialHeight
+	file.AppState = state
+	src := filepath.Join(td, "genesis.json")
+	require.NoError(t, file.SaveAs(src))
+
+	genesis, err := LoadStreamingGenesisDoc(src, filepath.Join(td, "genesis-cache"), nil)
+	require.NoError(t, err)
+
+	assertBootsAtInitialHeight(t, tmConfig, pv, genesis, initialHeight)
+}
+
+func initialHeightGenesisDoc(chainID string, pv bft.PrivValidator, initialHeight int64) *bft.GenesisDoc {
+	pk := pv.PubKey()
+	return &bft.GenesisDoc{
 		GenesisTime:   time.Now(),
-		ChainID:       tmcfg.ChainID(),
+		ChainID:       chainID,
 		InitialHeight: initialHeight,
 		ConsensusParams: abci.ConsensusParams{
 			Block: defaultBlockParams(),
@@ -46,13 +76,16 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 				Name:    "self",
 			},
 		},
-		AppState: DefaultGenState(),
 	}
+}
+
+func assertBootsAtInitialHeight(t *testing.T, tmConfig *tmcfg.Config, pv bft.PrivValidator, genesis *bft.GenesisDoc, initialHeight int64) {
+	t.Helper()
 
 	cfg := &InMemoryNodeConfig{
 		PrivValidator: pv,
 		Genesis:       genesis,
-		TMConfig:      tmcfg,
+		TMConfig:      tmConfig,
 		DB:            memdb.NewMemDB(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
