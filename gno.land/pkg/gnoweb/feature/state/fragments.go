@@ -54,6 +54,11 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	if err := ValidateOID(oid); err != nil {
 		return writeFragError(w, "Invalid object ID", "Please retry from the page.")
 	}
+	// &idx= is set for a pointer into the object: decode only its pointee.
+	ptrIndex, err := ValidatePointerIndex(u.WebQuery.Get("idx"))
+	if err != nil {
+		return writeFragError(w, "Invalid pointer index", "Please retry from the page.")
+	}
 
 	raw, err := h.deps.Client.StateObject(ctx, oid, 0)
 	if err != nil {
@@ -76,10 +81,12 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	)
 	if tid != "" {
 		if rawType, terr := h.deps.Client.StateType(ctx, tid, 0); terr == nil && len(rawType) > 0 {
-			if decoded, derr := DecodeObjectFull(raw, rawType, DefaultFragmentRenderConfig()); derr == nil {
+			if decoded, derr := DecodeObjectFull(raw, rawType, ptrIndex, DefaultFragmentRenderConfig()); derr == nil {
 				root = StateNode{Name: "(object)", Kind: KindStruct, ObjectID: oid, Children: decoded.Nodes}
 				root.Length = intPtr(len(decoded.Nodes))
 				typed = true
+			} else if errors.Is(derr, ErrInvalidPointerIndex) {
+				return writeFragError(w, "Invalid pointer index", "Please retry from the page.")
 			} else {
 				h.deps.Logger.Debug("frag=node typed decode failed; falling back", "oid", oid, "tid", tid, "err", derr)
 			}
@@ -88,7 +95,10 @@ func (h *Handler) serveFragNode(ctx context.Context, w http.ResponseWriter, u *w
 	if !typed {
 		// Depth ≤3; deeper exploration requires the user to expand a nested
 		// node (new fragment GET).
-		root, err = DecodeObject(ctx, raw, DefaultFragmentRenderConfig())
+		root, err = DecodeObject(ctx, raw, ptrIndex, DefaultFragmentRenderConfig())
+		if errors.Is(err, ErrInvalidPointerIndex) {
+			return writeFragError(w, "Invalid pointer index", "Please retry from the page.")
+		}
 		if err != nil {
 			h.deps.Logger.Error("frag=node decode failed", "oid", oid, "err", err)
 			return writeFragError(w, "Could not decode object", "Please retry.")

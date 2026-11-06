@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -229,6 +230,7 @@ func TestPermanentLinkPresentForEveryHxGet(t *testing.T) {
 		Nodes: []StateNode{
 			{Name: "A", Kind: KindStruct, ObjectID: "abc:1", Expandable: true, Anchor: "a"},
 			{Name: "B", Kind: KindMap, ObjectID: "def:2", Expandable: true, Anchor: "b"},
+			{Name: "P", Kind: KindPointer, ObjectID: "ptrbase:3", Expandable: true, Anchor: "p", PointerIndex: intPtr(1)},
 			{Name: "Fn", Kind: KindFunc, Source: &SourceLocation{File: "f.gno", StartLine: 5, EndLine: 9}},
 		},
 	}
@@ -248,6 +250,18 @@ func TestPermanentLinkPresentForEveryHxGet(t *testing.T) {
 	}
 	if fallbacks < hxGetCount {
 		t.Errorf("no-JS fallback count %d < hx-get count %d — some htmx rows are dead-ends without JS", fallbacks, hxGetCount)
+	}
+
+	// Every link to the pointer's Base carries its Index, so it opens the
+	// pointee, not the whole object.
+	ptrLinks := regexp.MustCompile(`(?:hx-get|href)="([^"]*ptrbase[^"]*)"`).FindAllStringSubmatch(out, -1)
+	if len(ptrLinks) == 0 {
+		t.Fatalf("expected links to the pointer's Base in output\n%s", head(out, 1500))
+	}
+	for _, m := range ptrLinks {
+		if !strings.Contains(m[1], "idx=1") {
+			t.Errorf("link to the pointer's Base lacks idx=1: %s", m[1])
+		}
 	}
 }
 

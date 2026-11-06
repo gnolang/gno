@@ -23,14 +23,15 @@ const (
 )
 
 var (
-	ErrInvalidOID    = errors.New("invalid object id")
-	ErrInvalidTID    = errors.New("invalid type id")
-	ErrInvalidFile   = errors.New("invalid file")
-	ErrInvalidHeight = errors.New("invalid height")
-	ErrInvalidLine   = errors.New("invalid line")
-	ErrInvalidOffset = errors.New("invalid offset")
-	ErrInvalidLimit  = errors.New("invalid limit")
-	ErrInvalidSearch = errors.New("invalid search")
+	ErrInvalidOID          = errors.New("invalid object id")
+	ErrInvalidTID          = errors.New("invalid type id")
+	ErrInvalidFile         = errors.New("invalid file")
+	ErrInvalidHeight       = errors.New("invalid height")
+	ErrInvalidLine         = errors.New("invalid line")
+	ErrInvalidOffset       = errors.New("invalid offset")
+	ErrInvalidLimit        = errors.New("invalid limit")
+	ErrInvalidSearch       = errors.New("invalid search")
+	ErrInvalidPointerIndex = errors.New("invalid pointer index")
 )
 
 func ValidateOID(s string) error {
@@ -48,6 +49,22 @@ func ValidateTID(s string) error {
 		return ErrInvalidTID
 	}
 	return nil
+}
+
+// ValidatePointerIndex parses the attacker-controlled &idx= param: the
+// Index of a pointer into the object &oid=. Empty input → nil (the whole
+// object). Only canonical decimal is accepted (no sign, no leading zeros)
+// so each pointee has one URL. The decoder checks the index against the
+// object.
+func ValidatePointerIndex(s string) (*int, error) {
+	if s == "" {
+		return nil, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 || strconv.Itoa(n) != s {
+		return nil, ErrInvalidPointerIndex
+	}
+	return &n, nil
 }
 
 func ValidateFile(s string) error {
