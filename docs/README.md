@@ -63,6 +63,7 @@ Learn about core concepts found in Gno.land & Gno.
 - [Glossary of Gno terms](resources/glossary.md) - List of common terms found in the Gno.land ecosystem, from technical concepts to tools and components.
 - [Go - Gno compatibility](resources/go-gno-compatibility.md) - A detailed compatibility list between Go and Gno features, including supported keywords, types, and standard libraries.
 - [GnoConnect Specification](resources/gnoconnect.md) - Standard for connecting wallets, clients, and SDKs to Gno blockchains.
+- [Sign-data](resources/sign-data.md) - The off-chain proof that an address is yours: its document, and what wallets and services check.
 - [Gno Examples](https://github.com/gnolang/gno/tree/master/examples) - A large library of existing pure packages and realms to use and learn from.
 - [Gno Workshops](https://github.com/gnolang/workshops) - Previous workshops and presentations by the Gno.land team and the community.
 - [Awesome Gno](https://github.com/gnoverse/awesome-gno) - Curated, ever-growing collection of the best Gno tools, libraries, projects, and resources from the community.
