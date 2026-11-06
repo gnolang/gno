@@ -179,6 +179,10 @@ type ObjectInfo struct {
 
 	LastObjectSize int64 //
 
+	// Owner's mutable(x) grant: foreign /p/-method writes may borrow (rule #2).
+	// Amino numbers fields by position; keep after LastObjectSize (field 8).
+	IsMutable bool `json:",omitempty"`
+
 	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
@@ -208,6 +212,7 @@ func (oi *ObjectInfo) Copy() ObjectInfo {
 		ModTime:        oi.ModTime,
 		RefCount:       oi.RefCount,
 		IsEscaped:      oi.IsEscaped,
+		IsMutable:      oi.IsMutable,
 		LastObjectSize: oi.LastObjectSize,
 		isDirty:        oi.isDirty,
 		isDeleted:      oi.isDeleted,
@@ -299,8 +304,11 @@ func (oi *ObjectInfo) SetNewTime(t uint64) {
 // SetPkgID stamps only the PkgID portion of the ObjectID,
 // preserving any pre-existing NewTime. Used by allocator
 // constructors to stamp authority at allocation.
+// SetPkgID stamps or re-stamps the owner. A re-stamp (adoption) is a new
+// owner, and grants do not transfer: the adopter never wrote mutable(x).
 func (oi *ObjectInfo) SetPkgID(p PkgID) {
 	oi.ID.PkgID = p
+	oi.IsMutable = false
 }
 
 func (oi *ObjectInfo) GetModTime() uint64 {

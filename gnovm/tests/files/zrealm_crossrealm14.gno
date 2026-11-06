@@ -8,7 +8,8 @@ import (
 func main(cur realm) {
 	// even though we are running within a realm,
 	// we aren't storing the result of crossrealm.Make1(),
-	// so this should print fine.
+	// so this should print fine. Make1 grants the container,
+	// so the /p/ method Touch may write it.
 	crossrealm.Make1().Touch().Print()
 }
 

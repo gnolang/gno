@@ -1843,6 +1843,45 @@ func makeUverseNode() {
 			m.PushValue(*arg0.TV)
 		},
 	)
+	// mutable(x): the owner's persisted grant that lets foreign holders write
+	// through x's /p/ methods (borrow rule #2 in PushFrameCall). Owner-only.
+	defNative("mutable",
+		Flds( // param
+			"x", GenT("X", nil),
+		),
+		Flds( // result
+			"result", GenT("X", nil),
+		),
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1(m.Store)
+			tv := arg0.TV
+			obj := tv.GetFirstObject(m.Store)
+			if obj == nil {
+				m.PanicString("mutable: value is not backed by a realm object")
+				return
+			}
+			// Same ownership test as the write gate; no stdlib self-exemption.
+			if m.isReadonly(tv, PkgID{}) {
+				m.PanicString("mutable: only the owning realm may grant write access to its object")
+				return
+			}
+			oi := obj.GetObjectInfo()
+			// Library code may grant only what it just built (a constructor
+			// handing out a handle); a realm's stored objects are granted by
+			// the realm's own code, where reviewers look for mutable(x).
+			if callerPkg := m.LastFrame().LastPackage; callerPkg != nil && callerPkg.PkgID.IsImmutablePkg() && oi.GetIsReal() {
+				m.PanicString("mutable: library code cannot grant a stored object; the owning realm must call mutable(x) itself")
+				return
+			}
+			if !oi.IsMutable {
+				oi.IsMutable = true
+				if m.Realm != nil && obj.GetIsReal() {
+					m.Realm.MarkDirty(obj)
+				}
+			}
+			m.PushValue(*tv)
+		},
+	)
 	defNative("attach",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]

@@ -83,7 +83,7 @@ var (
 
 func init(cur realm) {
 	Token, ledger = grc20.NewToken("WToken", "WTK", 4, 0, cur)
-	Key = grc20reg.Register(cross(cur), Token, "")
+	Key = grc20reg.Register(cross(cur), mutable(Token), "")
 }
 
 // MintTo credits a realm's own address, so the test can fund both the

@@ -22,7 +22,7 @@ var registry = avl.NewTree() // rlmPath.symbol -> *Token
 // know:
 //
 //	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
-//	key := grc20reg.Register(cross(cur), Token, "")
+//	key := grc20reg.Register(cross(cur), mutable(Token), "") // mutable: holders may write through the token
 
 // Register records token under its rlmPath.symbol key and returns that key.
 // Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
