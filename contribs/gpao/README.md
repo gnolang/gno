@@ -147,12 +147,22 @@ curl http://127.0.0.1:8546/status/gno.land/r/you/yours   # one package
 ```
 
 `status` is one of `rejected` (the code did not pass), `pending` (will be
-retried), `gave_up` (retried to the cap, needs a human), `blocked` (nothing
-wrong with the package -- the oracle has hit `--max-spend`, cannot pay the
-fee at all, or its `--gas-fee` is below the chain's gas price; see
+retried), `gave_up` (retried to the cap, needs a human), `deferred` (the
+`--gas-fee` is below the chain's gas price for this package; retried every 5
+minutes for an hour), `blocked` (nothing wrong with the package -- the oracle
+has hit `--max-spend`, cannot pay the fee at all, or a `deferred` package ran
+out of retries or found the retry list full; see
 [Funding the approver](#funding-the-approver)), `approved`, or `unknown` (never
 seen). `blocked` is the one worth separating: it means to go and ask the
 operator, not to go and fix your code.
+
+Whether the fee is enough depends on the package: the chain compares
+`--gas-fee` over the approval's gas against its gas price, so a heavy package
+or a price spike gets the same refusal. Both are `deferred` rather than
+holding the queue. A spike clears by itself within the hour; a package too
+heavy for the fee ends `blocked`, and the log names the `--start-height` a
+restart with a higher `--gas-fee` needs to pick it up. At most 32 packages
+are deferred at once; past that they are `blocked` straight away.
 
 Off by default, and unauthenticated when on. Everything it reports concerns a
 package submitted in a public transaction, so there is nothing here its

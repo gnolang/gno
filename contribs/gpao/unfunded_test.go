@@ -267,12 +267,12 @@ func TestAnEmptyPursePausesRatherThanRetiringPackages(t *testing.T) {
 	awaitStatus(t, o, later.Path, statusApproved)
 }
 
-// TestAHeavyPackageIsSkippedNotHeldAgainstTheQueue: the chain checks
+// TestAHeavyPackageIsDeferredNotHeldAgainstTheQueue: the chain checks
 // -gas-fee over each package's GasWanted against its gas price, so whether
 // the fee suffices depends on the package. A heavy one refused at CheckTx is
-// blocked and skipped -- no attempt, nothing seen, nothing spent -- and the
-// light one behind it is approved.
-func TestAHeavyPackageIsSkippedNotHeldAgainstTheQueue(t *testing.T) {
+// deferred -- no enable attempt, nothing seen, nothing spent -- and the light
+// one behind it is approved.
+func TestAHeavyPackageIsDeferredNotHeldAgainstTheQueue(t *testing.T) {
 	f := newPurseFixture(t, 1)
 
 	const heavyPath = "gno.land/r/purse/heavy"
@@ -280,14 +280,13 @@ func TestAHeavyPackageIsSkippedNotHeldAgainstTheQueue(t *testing.T) {
 		"func init() { for i := 0; i < 300000; i++ { n++ } }\n\n"+
 		"func F(cur realm) int { return n }\n")
 	light := f.pkg("light")
-	heavyHeight := f.park(t, heavy)
+	f.park(t, heavy)
 	f.park(t, light)
 
 	o := f.oracle(t, 1)
 	// At this chain's 1ugnot per 1000 gas, this covers 1e8 gas: the light
 	// package, not the heavy one's init.
 	o.gasFee = std.NewCoin(ugnotDenom, 100_000)
-	stderr := captureStderr(t, o)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan struct{})
@@ -301,16 +300,76 @@ func TestAHeavyPackageIsSkippedNotHeldAgainstTheQueue(t *testing.T) {
 	<-done
 
 	status := o.status.get(heavyPath)
-	assert.Equal(t, statusBlocked, status.Status)
+	assert.Equal(t, statusDeferred, status.Status)
 	assert.Contains(t, status.Reason, "below the chain's gas price")
-	assert.Zero(t, status.Attempt, "an underpriced fee must not be counted as an attempt")
+	assert.Equal(t, 1, status.Attempt)
 	key := candidateKey(heavy)
 	assert.NotContains(t, o.seen, key)
-	assert.NotContains(t, o.failedEnable, key)
+	assert.NotContains(t, o.failedEnable, key,
+		"an underpriced fee must not spend one of the package's enable attempts")
+	require.Len(t, o.deferred, 1)
+	assert.Equal(t, heavyPath, o.deferred[0].path)
 	assert.Equal(t, o.gasFee.Amount, o.spent,
 		"only the light approval was charged; the CheckTx refusal was free")
-	assert.Contains(t, stderr.String(), fmt.Sprintf("-start-height %d", heavyHeight),
-		"a restart from anywhere later would lose the skipped package")
+}
+
+// newDeferringOracle parks a package and returns an oracle whose -gas-fee is
+// below what the chain asks for it, ready to drive synchronously.
+func newDeferringOracle(t *testing.T) (*oracle, *std.MemPackage, int64) {
+	t.Helper()
+	f := newPurseFixture(t, 1)
+	mpkg := f.pkg("underpriced")
+	height := f.park(t, mpkg)
+
+	o := f.oracle(t, 1)
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered)
+	o.blockMaxGas = maxGas
+	// The test chain prices gas at 1ugnot per 1000, so this covers 1000 gas.
+	o.gasFee = std.NewCoin(ugnotDenom, 1)
+	return o, mpkg, height
+}
+
+// TestADeferredApprovalIsRetried: once the fee covers the package -- here by
+// raising it, standing in for a price that fell back -- the next pass approves
+// it, with no restart and nothing resubmitted.
+func TestADeferredApprovalIsRetried(t *testing.T) {
+	o, mpkg, height := newDeferringOracle(t)
+
+	o.handleCandidate(t.Context(), candidate{mpkg: mpkg, height: height})
+	require.Equal(t, statusDeferred, o.status.get(mpkg.Path).Status)
+
+	o.gasFee = std.MustParseCoin(defaultGasFee)
+	o.retryDeferred(t.Context())
+
+	assert.Equal(t, statusApproved, o.status.get(mpkg.Path).Status)
+	assert.Empty(t, o.deferred)
+	assert.Contains(t, o.seen, candidateKey(mpkg))
+}
+
+// TestADeferredApprovalIsBlockedOnceItsRetriesRunOut: a package the fee never
+// covers frees its slot after maxDeferredRetries, blocked with the height a
+// restart needs.
+func TestADeferredApprovalIsBlockedOnceItsRetriesRunOut(t *testing.T) {
+	o, mpkg, height := newDeferringOracle(t)
+	stderr := captureStderr(t, o)
+
+	o.handleCandidate(t.Context(), candidate{mpkg: mpkg, height: height})
+	for range maxDeferredRetries - 1 {
+		o.retryDeferred(t.Context())
+		require.Equal(t, statusDeferred, o.status.get(mpkg.Path).Status)
+	}
+	o.retryDeferred(t.Context())
+
+	status := o.status.get(mpkg.Path)
+	assert.Equal(t, statusBlocked, status.Status)
+	assert.Contains(t, status.Reason, "retry window ran out")
+	assert.Equal(t, maxDeferredRetries+1, status.Attempt)
+	assert.Empty(t, o.deferred)
+	assert.NotContains(t, o.seen, candidateKey(mpkg),
+		"blocked is left unseen, so a restart can still approve it")
+	assert.Zero(t, o.spent, "every refusal was CheckTx's, and free")
+	assert.Contains(t, stderr.String(), fmt.Sprintf("-start-height %d", height))
 }
 
 // TestReachingMaxSpendPausesRatherThanDroppingPackages: the bound only moves on
