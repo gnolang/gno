@@ -53,10 +53,86 @@ func New(options ...Option) *Permissions {
 	return ps
 }
 
+// Clone returns a deep copy of src allocated in the caller's realm.
+// It panics if src has validators, which can't be cloned.
+// This is a plain function and not a method which would allocate the copy back
+// in the source's realm.
+func Clone(src *Permissions) *Permissions {
+	if src == nil {
+		panic("permissions is required")
+	}
+	if src.validators.Size() > 0 {
+		panic("permissions with validators cannot be cloned")
+	}
+
+	dst := New()
+	dst.superRole = src.superRole
+	dst.singleUserRole = src.singleUserRole
+	dst.public = copyPermissionSet(src.public)
+	copyGroup(dst.group, src.group)
+	return dst
+}
+
+// copyGroup copies the roles, role members and users of src into dst.
+// If this functionality is useful elsewhere, then it can be moved to groups.Group .
+func copyGroup(dst, src *groups.Group) {
+	src.IterateRoles(0, src.RoleCount(), func(rr *groups.ReadonlyRole) bool {
+		role, err := dst.AddRole(rr.Name())
+		if err != nil {
+			panic(err)
+		}
+
+		// Role permissions live in the role meta as a value type; copy the
+		// backing array so the clone shares nothing with src.
+		if perms, ok := rr.Meta().(boards.PermissionSet); ok {
+			role.SetMeta(copyPermissionSet(perms))
+		}
+
+		members, dstMembers := rr.Members(), role.Members()
+		members.IterateByOffset(0, members.Size(), func(addr address) bool {
+			dstMembers.Add(addr)
+			return false
+		})
+		return false
+	})
+
+	src.Iterate(0, src.Size(), func(addr address) bool {
+		dst.Add(addr)
+		return false
+	})
+}
+
+// copyPermissionSet copies s without converting it, since s can be stored in
+// another realm.
+func copyPermissionSet(s boards.PermissionSet) boards.PermissionSet {
+	if s == nil {
+		return nil
+	}
+
+	dst := make(boards.PermissionSet, len(s))
+	for i, v := range s {
+		dst[i] = v
+	}
+	return dst
+}
+
 // ValidateFunc adds a custom permission validator function.
 // If an existing permission function exists it's overwritten by the new one.
 func (ps *Permissions) ValidateFunc(p boards.Permission, fn ValidatorFunc) {
 	ps.validators.Set(p.String(), fn)
+}
+
+// CopyValidators copies the validator functions of src.
+// Existing validators for the same permissions are overwritten.
+func (ps *Permissions) CopyValidators(src *Permissions) {
+	if src == nil {
+		panic("permissions is required")
+	}
+
+	src.validators.IterateByOffset(0, src.validators.Size(), func(p string, fn any) bool {
+		ps.validators.Set(p, fn)
+		return false
+	})
 }
 
 // SetPublicPermissions assigns permissions that are available to anyone.
