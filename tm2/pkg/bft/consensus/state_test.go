@@ -199,17 +199,12 @@ func TestStateEnterProposeYesPrivValidator(t *testing.T) {
 
 	// Wait for new round so proposer is set.
 	ensureNewRound(newRoundCh, height, round)
-	ensureNewProposal(proposalCh, height, round)
-
-	// Check that Proposal, ProposalBlock, ProposalBlockParts are set.
-	rs := cs.GetRoundState()
-	if rs.Proposal == nil {
-		t.Error("rs.Proposal should be set")
-	}
-	if rs.ProposalBlock == nil {
+	// The event is built from ProposalBlock and ProposalBlockParts.
+	blockID := ensureNewProposal(proposalCh, height, round)
+	if len(blockID.Hash) == 0 {
 		t.Error("rs.ProposalBlock should be set")
 	}
-	if rs.ProposalBlockParts.Total() == 0 {
+	if blockID.PartsHeader.Total == 0 {
 		t.Error("rs.ProposalBlockParts should be set")
 	}
 
@@ -426,9 +421,7 @@ func TestStateFullRound1(t *testing.T) {
 
 	ensureNewRound(newRoundCh, height, round)
 
-	ensureNewProposal(propCh, height, round)
-
-	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
+	propBlockHash := ensureNewProposal(propCh, height, round).Hash
 
 	ensurePrevote(voteCh, height, round) // wait for prevote
 	validatePrevote(cs, round, vss[0], propBlockHash)
