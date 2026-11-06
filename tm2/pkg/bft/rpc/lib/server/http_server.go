@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -135,10 +136,30 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) error {
 //
 // ctx is forwarded to result.StreamJSON so that long streams can be aborted
 // when the client disconnects.
+//
+// The server-wide WriteTimeout is cleared for the duration, and that is the
+// point of streaming rather than an optimisation on top of it. A streamed
+// result has no bounded size, so any finite write deadline is a size cap
+// wearing a clock: gno.land's mainnet genesis is over 250MB and the 30s
+// default (see DefaultConfig) cuts it mid-JSON, at a different byte offset on
+// every run, leaving a 200 response whose body no client can parse. Streaming
+// the result solved the memory half of that and left this half in place.
+//
+// Cleared rather than raised, because any larger number is the same bug with a
+// bigger genesis. What still bounds the connection is the client and, once the
+// response is done, IdleTimeout.
 func WriteStreamingRPCResponseHTTP(ctx context.Context, w http.ResponseWriter, id types.JSONRPCID, result types.StreamableResult) error {
 	idBytes, err := json.Marshal(id)
 	if err != nil {
 		return fmt.Errorf("unable to marshal JSON-RPC id: %w", err)
+	}
+
+	// Best-effort: a ResponseWriter that cannot carry a deadline (an
+	// httptest.Recorder, a wrapper that does not Unwrap) simply keeps whatever
+	// it had, which is the behaviour before this line existed.
+	if err := http.NewResponseController(w).SetWriteDeadline(time.Time{}); err != nil &&
+		!stderrors.Is(err, http.ErrNotSupported) {
+		return fmt.Errorf("unable to clear the write deadline for a streamed response: %w", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -253,6 +274,17 @@ type ResponseWriterWrapper struct {
 func (w *ResponseWriterWrapper) WriteHeader(status int) {
 	w.Status = status
 	w.ResponseWriter.WriteHeader(status)
+}
+
+// Unwrap lets http.ResponseController reach the writer net/http handed us.
+//
+// Without it the controller stops at this wrapper and every one of its methods
+// returns http.ErrNotSupported, which is silent: SetWriteDeadline looks like it
+// worked and the original deadline stays armed. Every handler on this server is
+// wrapped, so that applied to all of them, and it is what kept the streamed
+// /genesis response subject to WriteTimeout after it was made streamable.
+func (w *ResponseWriterWrapper) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 // implements http.Hijacker
