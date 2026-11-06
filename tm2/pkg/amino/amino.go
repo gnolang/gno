@@ -204,6 +204,15 @@ func MustUnmarshalAny(bz []byte, ptr any) {
 	gcdc.MustUnmarshalAny(bz, ptr)
 }
 
+// UnmarshalAnyBinary2 decodes an Any-wrapped value into ptr, a pointer to
+// an interface, through the concrete type's generated UnmarshalBinary2
+// when it has one, falling back to reflection otherwise. The bytes are
+// the same as those MustUnmarshal accepts for an interface pointer.
+func UnmarshalAnyBinary2(bz []byte, ptr any) error {
+	gcdc.doAutoseal()
+	return gcdc.UnmarshalAnyBinary2(bz, ptr, 0)
+}
+
 func UnmarshalAnySized(bz []byte, ptr any) error {
 	return gcdc.UnmarshalAnySized(bz, ptr)
 }
@@ -827,7 +836,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 
 	// Check assignability. rv was set at function entry (above).
 	rvElem := rv.Elem()
-	if !irvSet.Type().AssignableTo(rvElem.Type()) {
+	if !cachedAssignableTo(irvSet.Type(), rvElem.Type()) {
 		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v", irvSet.Type(), rvElem.Type())
 	}
 
@@ -846,11 +855,56 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	// registry where a concrete's interface implementation could change
 	// between checks. Without it, the genproto2 path would silently
 	// rv.Set() a now-unassignable value while reflect would error.
-	if !irvSet.Type().AssignableTo(rvElem.Type()) {
+	// Both checks go through cachedAssignableTo, which memoizes the answer per
+	// type pair: reflect's AssignableTo walks both method sets on every
+	// call and dominated decode CPU on interface-heavy values.
+	if !cachedAssignableTo(irvSet.Type(), rvElem.Type()) {
 		return fmt.Errorf("UnmarshalAnyBinary2: decoded type %v is not assignable to %v (post-decode check)", irvSet.Type(), rvElem.Type())
+	}
+	// rvElem.Set would redo the method-set walk; a registered setter
+	// stores the value with a plain type assertion instead.
+	if set, ok := interfaceSetters.Load(rv.Type()); ok && set.(func(ptr, v any) bool)(ptr, irvSet.Interface()) {
+		return nil
 	}
 	rvElem.Set(irvSet)
 	return nil
+}
+
+// assignableCache memoizes reflect.Type.AssignableTo per (from, to) pair.
+// Assignability is a static property of two Go types, so a cached answer
+// can never go stale.
+var assignableCache sync.Map // [2]reflect.Type -> bool
+
+func cachedAssignableTo(from, to reflect.Type) bool {
+	k := [2]reflect.Type{from, to}
+	if ok, hit := assignableCache.Load(k); hit {
+		return ok.(bool)
+	}
+	ok := from.AssignableTo(to)
+	assignableCache.Store(k, ok)
+	return ok
+}
+
+// interfaceSetters maps a *I type to a function storing a value into a *I.
+var interfaceSetters sync.Map // reflect.Type -> func(ptr, v any) bool
+
+// RegisterInterfaceSetter lets UnmarshalAnyBinary2 store decoded values
+// into fields of interface type I with a type assertion rather than
+// reflect.Value.Set, which re-checks the method set on every call.
+// It is an optimization only: unregistered interfaces take the reflect
+// path and decode to the same value. Call it from an init function.
+func RegisterInterfaceSetter[I any]() {
+	rt := reflect.TypeOf((*I)(nil))
+	if rt.Elem().Kind() != reflect.Interface {
+		panic(fmt.Sprintf("amino.RegisterInterfaceSetter: %v is not an interface type", rt.Elem()))
+	}
+	interfaceSetters.Store(rt, func(ptr, v any) bool {
+		x, ok := v.(I)
+		if ok {
+			*(ptr.(*I)) = x
+		}
+		return ok
+	})
 }
 
 func copyBytes(bz []byte) []byte {
