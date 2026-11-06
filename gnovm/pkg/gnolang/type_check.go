@@ -1056,14 +1056,53 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			shouldPanic = false
 		}
 	case *StarExpr, *SelectorExpr:
-		shouldPanic = false
+		shouldPanic = !isAddressable(store, last, clx)
 	case *IndexExpr:
+		// a map index expression is assignable without being addressable.
 		xt := evalStaticTypeOf(store, last, clx.X)
-		shouldPanic = xt != nil && xt.Kind() == StringKind
+		shouldPanic = xt != nil && xt.Kind() != MapKind &&
+			!isAddressable(store, last, clx)
 	default:
 	}
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
+	}
+}
+
+// isAddressable reports whether x is addressable per the Go spec: a variable,
+// a pointer indirection, a slice indexing operation, or a field selector or
+// array indexing operation of an addressable operand. Assigning to, taking
+// the address of, slicing (if an array) and auto-referencing x for a pointer
+// method all require it. go/types enforces this too, but the VM must not rely
+// on it: ArrayValue.Copy shares interface-held values, which is only sound if
+// nothing can write through them.
+func isAddressable(store Store, last BlockNode, x Expr) bool {
+	switch cx := x.(type) {
+	case *NameExpr, *StarExpr:
+		return true
+	case *SelectorExpr:
+		switch cx.Path.Type {
+		case VPBlock: // package-qualified variable
+			return true
+		case VPField:
+			return isAddressable(store, last, cx.X)
+		case VPDerefField, VPSubrefField: // field reached through a pointer
+			return true
+		default: // method value
+			return false
+		}
+	case *IndexExpr:
+		// p[i] on a pointer to array is already rewritten to (*p)[i].
+		switch baseOf(evalStaticTypeOf(store, last, cx.X)).(type) {
+		case *SliceType:
+			return true
+		case *ArrayType:
+			return isAddressable(store, last, cx.X)
+		default: // map or string
+			return false
+		}
+	default: // e.g. a type assertion, call or composite literal
+		return false
 	}
 }
 
