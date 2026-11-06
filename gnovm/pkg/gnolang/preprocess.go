@@ -1662,6 +1662,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
 							}
+						} else if ct.Kind() == StringKind && at == UntypedBigintType {
+							bi := arg0.GetBigInt()
+							s := "\uFFFD"
+							if bi.IsInt64() {
+								s = runeStrFromInt64(bi.Int64())
+							}
+							arg0.TypedValue = TypedValue{T: ct, V: StringValue(s)}
+							setConstAttrs(arg0)
+							constConverted = true
 						} else if ct.Kind() == Float32Kind || ct.Kind() == Float64Kind {
 							// Convert float-valued and untyped-int constants
 							// directly to the target type: constant conversion
