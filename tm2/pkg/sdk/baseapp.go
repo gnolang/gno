@@ -699,6 +699,15 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	return nil
 }
 
+// txDecodeFailure is the Error and Log of a tx whose bytes do not decode, or
+// are not the canonical encoding of what they decode to. Log carries the
+// reason alone: a stack trace would make the cheapest rejection several times
+// costlier, and a byzantine proposer could have every result in a block of
+// garbage txs store one.
+func txDecodeFailure(err error) (abci.Error, string) {
+	return ABCIError(std.ErrTxDecode(err.Error())), clipLog(err.Error())
+}
+
 // retrieve the context for the tx w/ txBytes and other memoized values.
 func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context) {
 	ctx = app.getState(mode).ctx.
@@ -922,21 +931,26 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		}
 	}()
 
-	// A tx is identified by the hash of its bytes while its signatures cover
-	// the sign doc, so only the canonical encoding of a tx is accepted: any
-	// other byte string decoding to the same tx is the same tx under another
-	// hash. See tm2/adr/pr6406_canonical_tx_enforcement.md.
 	var tx Tx
-	if err := amino.UnmarshalCanonical(txBytes, &tx); err != nil {
-		// Field by field, so nothing already set on result is lost.
-		decodeErr := ABCIResultFromError(std.ErrTxDecode(err.Error()))
-		result.Error, result.Log = decodeErr.Error, decodeErr.Log
+	if err := amino.Unmarshal(txBytes, &tx); err != nil {
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
+		return
+	}
+
+	// A tx is identified by the hash of its bytes while its signatures cover
+	// the sign doc, so only the canonical encoding of a tx is accepted: any
+	// other byte string decoding to the same tx is the same tx under another
+	// hash. The check re-encodes the tx, which for some values costs far more
+	// than decoding them, so it runs only once ValidateBasic has passed. See
+	// tm2/adr/pr6406_canonical_tx_enforcement.md.
+	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 

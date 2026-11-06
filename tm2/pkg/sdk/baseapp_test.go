@@ -652,7 +652,15 @@ func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
 		require.False(t, res.IsOK())
 		assert.Equal(t, std.TxDecodeError{}, res.Error)
 		assert.Contains(t, res.Log, "non-canonical encoding")
+		assert.NotContains(t, res.Log, "Stack Trace")
 	}
+
+	// Undecodable bytes: Log carries the reason, without a stack trace, which
+	// every result in a block of garbage txs would otherwise store.
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: []byte{0xff}})
+	assert.Equal(t, std.TxDecodeError{}, res.Error)
+	assert.NotEmpty(t, res.Log)
+	assert.NotContains(t, res.Log, "Stack Trace")
 }
 
 // TestRunTxRejectsNilMsg: an empty Any is the canonical encoding of a nil
