@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -89,4 +91,50 @@ func TestSDKBankerRefusesUserAccount(t *testing.T) {
 	NewSDKBanker(env.vmk, ctx).SendCoins(pkgAddr.Bech32(), payee.Bech32(), five)
 	NewRunSDKBanker(env.vmk, ctx, user, five, false).SendCoins(user.Bech32(), payee.Bech32(), five)
 	require.Equal(t, int64(10), env.bankk.GetCoins(ctx, payee).AmountOf("ugnot"))
+}
+
+// A capped send is refused as invalid before it is counted when its coins are
+// not sorted, unique and positive, so a denom listed twice cannot pass the cap
+// once per entry and a non-positive coin cannot add to it, whatever the order.
+func TestRunSDKBankerValidatesBeforeCounting(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	from := crypto.AddressFromPreimage([]byte("count-runner"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, from))
+	env.bankk.SetCoins(ctx, from, std.MustParseCoins("1000ugnot"))
+	payee := crypto.AddressFromPreimage([]byte("count-payee"))
+	five := std.MustParseCoins("5ugnot")
+	invalid := std.InvalidCoinsError{}.Error()
+
+	for _, amt := range []std.Coins{
+		{{Denom: "ugnot", Amount: 3}, {Denom: "ugnot", Amount: 3}},
+		{{Denom: "ugnot", Amount: 2}, {Denom: "ugnot", Amount: 2}},
+		{{Denom: "aaa", Amount: -1}, {Denom: "ugnot", Amount: 100}},
+		{{Denom: "ugnot", Amount: 100}, {Denom: "zzz", Amount: -1}},
+	} {
+		bnk := NewRunSDKBanker(env.vmk, ctx, from, five, false)
+		require.PanicsWithError(t, invalid, func() {
+			bnk.SendCoins(from.Bech32(), payee.Bech32(), amt)
+		}, amt.String())
+		require.Equal(t, int64(5), bnk.left["ugnot"], amt.String())
+	}
+
+	// The refusal stays bounded: it does not render every coin of the send.
+	long := strings.Repeat("a", 1<<20)
+	many := std.Coins{{Denom: "ugnot", Amount: -1}}
+	for range 256 {
+		many = append(many, std.Coin{Denom: long, Amount: 1})
+	}
+	r := func() (r any) {
+		defer func() { r = recover() }()
+		NewRunSDKBanker(env.vmk, ctx, from, five, false).SendCoins(from.Bech32(), payee.Bech32(), many)
+		return nil
+	}()
+	require.ErrorIs(t, r.(error), std.InvalidCoinsError{})
+	require.Less(t, len(fmt.Sprintf("%+v", r)), 4096)
+
+	bnk := NewRunSDKBanker(env.vmk, ctx, from, five, false)
+	bnk.SendCoins(from.Bech32(), payee.Bech32(), five)
+	require.Equal(t, int64(5), env.bankk.GetCoins(ctx, payee).AmountOf("ugnot"))
 }

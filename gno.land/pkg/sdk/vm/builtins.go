@@ -93,18 +93,21 @@ func (bnk *RunSDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.
 	// A zero send moves nothing, and the bank does not validate its denom.
 	counted := bnk.left != nil && to != from && !amt.IsZero()
 	if counted {
+		// Refuse what the bank's SubtractCoins refuses before counting: once amt
+		// is sorted, unique and positive, each denom meets its budget once and
+		// no coin can raise it. Validate's error names at most two denoms, each
+		// within MaxDenomLength; amt.String() would render every coin, unmetered.
+		if err := amt.Validate(); err != nil {
+			panic(std.ErrInvalidCoins(err.Error()))
+		}
 		for _, c := range amt {
 			if c.Amount > bnk.left[c.Denom] {
 				panic("run sends more coins than its max send allows")
 			}
-		}
-	}
-	bnk.send(from, to, amt)
-	if counted {
-		for _, c := range amt {
 			bnk.left[c.Denom] -= c.Amount
 		}
 	}
+	bnk.send(from, to, amt)
 }
 
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {
