@@ -51,3 +51,32 @@ func TestRpcURLFromPkgPath(t *testing.T) {
 		})
 	}
 }
+
+func TestOverrideDomainsRPCs(t *testing.T) {
+	t.Run("populates a nil override map", func(t *testing.T) {
+		gpf := &gnoPackageFetcher{}
+		gpf.OverrideDomainsRPCs(map[string]string{"gno.land": "http://localhost:26657"})
+
+		res, err := rpcURLFromPkgPath("gno.land/p/nt/avl/v0", gpf.remoteOverrides)
+		require.NoError(t, err)
+		require.Equal(t, "http://localhost:26657", res)
+	})
+
+	t.Run("merges onto existing overrides", func(t *testing.T) {
+		gpf := &gnoPackageFetcher{remoteOverrides: map[string]string{"gno.land": "https://old:443"}}
+		gpf.OverrideDomainsRPCs(map[string]string{
+			"gno.land":    "http://localhost:26657",
+			"example.com": "http://localhost:8080",
+		})
+		require.Equal(t, map[string]string{
+			"gno.land":    "http://localhost:26657",
+			"example.com": "http://localhost:8080",
+		}, gpf.remoteOverrides)
+	})
+
+	t.Run("empty input is a no-op", func(t *testing.T) {
+		gpf := &gnoPackageFetcher{}
+		gpf.OverrideDomainsRPCs(nil)
+		require.Nil(t, gpf.remoteOverrides)
+	})
+}
