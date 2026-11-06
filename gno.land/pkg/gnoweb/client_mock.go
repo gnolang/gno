@@ -19,6 +19,10 @@ type MockPackage struct {
 	Functions []*doc.JSONFunc
 	// Imports are what vm/qdoc reports the package imports.
 	Imports []string
+	// PackageDoc is the doc comment vm/qdoc reports, as markdown.
+	PackageDoc string
+	// Height is the block the package was deployed in; 0 is genesis.
+	Height int
 	// Inert stages a package that was submitted but not yet approved. The
 	// other methods still refuse it the way the chain does -- Render and the
 	// file queries read the live key space -- so a test gets the real shape.
@@ -60,7 +64,7 @@ func (m *MockClient) PackageMeta(ctx context.Context, path string) (*vm.PackageM
 	if !exists {
 		return &vm.PackageMeta{Path: path, Status: vm.PackageStatusAbsent}, nil
 	}
-	meta := &vm.PackageMeta{Path: path, Status: vm.PackageStatusLive, Pending: pkg.Pending}
+	meta := &vm.PackageMeta{Path: path, Status: vm.PackageStatusLive, Pending: pkg.Pending, Height: pkg.Height}
 	if pkg.Inert {
 		meta.Status = vm.PackageStatusInert
 		meta.Pending = true
@@ -181,7 +185,7 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		// read, so the chain answers not-found for them too.
 		return nil, ErrClientPackageNotFound
 	}
-	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports}, nil
+	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports, PackageDoc: pkg.PackageDoc}, nil
 }
 
 // StatePkg returns mock package state data for testing.

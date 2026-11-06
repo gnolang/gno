@@ -1,0 +1,38 @@
+{{/* ===================================================================================
+UI - File list
+
+A package's files, one row each: the name, what the file declares (its first
+exported names, or what it is for), the actions it adds and the part it plays.
+The overview's Source Files section and the Content tab of a package with no
+rendered page share it. Accepts: []FileLink.
+=================================================================================== */}}
+{{ define "ui/file_list" }}
+<ul class="b-pkg-list b-pkg-list--files">
+  {{ range . }}
+  <li class="b-pkg-list__item">
+    <a href="{{ .Link }}" class="b-pkg-list__link">
+      <span class="c-with-icon u-font-mono">
+        <svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg>
+        <span title="{{ .Name }}">{{ .Name }}</span>
+      </span>
+      <span class="b-pkg-list__desc"{{ with .Detail }} title="{{ . }}"{{ end }}>{{ .Summary }}</span>
+      <span class="b-pkg-list__tags">
+        {{ with .Actions }}<span class="b-pkg-list__stat" title="Exported crossing functions: each call sends a transaction.">{{ . }} {{ if eq . 1 }}action{{ else }}actions{{ end }}</span>{{ end }}
+        {{ if .Render }}<span class="b-tag" title="Declares Render(), which draws the Content tab.">render</span>{{ end }}
+        {{ if .State }}<span class="b-tag" title="Declares package variables, kept on chain as the realm's state.">state</span>{{ end }}
+        {{ if .IsReadme }}<span class="b-tag">readme</span>{{ end }}
+        {{ if .IsLicense }}<span class="b-tag">license</span>{{ end }}
+        {{ if .IsConfig }}<span class="b-tag">config</span>{{ end }}
+        {{ if .IsTest }}<span class="b-tag">test</span>{{ end }}
+      </span>
+    </a>
+  </li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{/* Said once, where the doc would have shown: without it a row's blank or
+     "no exports" would read as a fact about the package. */}}
+{{ define "ui/doc_unavailable" }}
+<p class="b-pkg-notice" role="status">The package documentation could not be loaded: its symbols and what each file declares are missing.</p>
+{{ end }}

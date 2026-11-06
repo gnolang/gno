@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -110,30 +111,112 @@ func TestExtractSynopsis(t *testing.T) {
 	}
 }
 
+var (
+	renderParams  = []*doc.JSONField{{Name: "path", Type: "string"}}
+	renderResults = []*doc.JSONField{{Type: "string"}}
+)
+
 func TestBuildFileLinks(t *testing.T) {
 	t.Parallel()
-	got := buildFileLinks("/r/demo/foo", []string{"foo.gno", "foo_test.gno", "README.md", "LICENSE"})
+	link := func(f string) string { return "/r/demo/foo$source&file=" + f }
+	jdoc := &doc.JSONDocumentation{
+		Types: []*doc.JSONType{{Name: "Post", File: "foo.gno"}, {Name: "store", File: "foo.gno"}},
+		Funcs: []*doc.JSONFunc{
+			{Name: "Render", File: "render.gno", Params: renderParams, Results: renderResults},
+			{Name: "AddPost", File: "foo.gno", Crossing: true},
+			{Name: "Delete", File: "foo.gno", Crossing: true},
+			{Name: "Title", Type: "Post", File: "foo.gno", Crossing: true}, // a method: neither a name nor an action
+			{Name: "helper", File: "foo.gno", Crossing: true},              // unexported: neither
+		},
+		Values: []*doc.JSONValueDecl{
+			{File: "foo.gno", Values: []*doc.JSONValue{{Name: "posts"}}},
+			{File: "render.gno", Const: true, Values: []*doc.JSONValue{{Name: "Title"}}},
+		},
+	}
+	files := []string{"foo.gno", "render.gno", "empty.gno", "foo_test.gno", "README.md", "LICENSE", "gnomod.toml"}
+	got := buildFileLinks("/r/demo/foo", files, jdoc, true)
 	require.Equal(t, []FileLink{
-		{Name: "foo.gno", Link: "/r/demo/foo$source&file=foo.gno"},
-		{Name: "foo_test.gno", Link: "/r/demo/foo$source&file=foo_test.gno", IsTest: true},
-		{Name: "README.md", Link: "/r/demo/foo$source&file=README.md", IsReadme: true},
-		{Name: "LICENSE", Link: "/r/demo/foo$source&file=LICENSE", IsLicense: true},
+		{
+			Name: "foo.gno", Link: link("foo.gno"), FileClass: FileClass{IsGno: true},
+			Summary: "Post, AddPost() +1", Detail: "Post, AddPost(), Delete()", Actions: 2, State: true,
+		},
+		{
+			Name: "render.gno", Link: link("render.gno"), FileClass: FileClass{IsGno: true},
+			Summary: "Render(), Title", Render: true, // a const is no state
+		},
+		{
+			Name: "empty.gno", Link: link("empty.gno"), FileClass: FileClass{IsGno: true},
+			Summary: "no exports", Detail: "Nothing exported at the top level",
+		},
+		{Name: "foo_test.gno", Link: link("foo_test.gno"), FileClass: FileClass{IsGno: true, IsTest: true}},
+		{Name: "README.md", Link: link("README.md"), FileClass: FileClass{IsReadme: true}, Summary: "Documentation"},
+		{Name: "LICENSE", Link: link("LICENSE"), FileClass: FileClass{IsLicense: true}},
+		{Name: "gnomod.toml", Link: link("gnomod.toml"), FileClass: FileClass{IsConfig: true}, Summary: "Module path and Gno version"},
 	}, got)
+
+	// A pure package has no state and no rendered page, whatever it declares.
+	pure := buildFileLinks("/p/demo/foo", []string{"foo.gno", "render.gno"}, jdoc, false)
+	require.False(t, pure[0].State)
+	require.False(t, pure[1].Render)
+
+	// Without the doc, a row claims nothing about what the file declares.
+	unknown := buildFileLinks("/r/demo/foo", []string{"foo.gno", "gnomod.toml"}, nil, true)
+	require.Empty(t, unknown[0].Summary)
+	require.Zero(t, unknown[0].Actions)
+	require.Equal(t, "Module path and Gno version", unknown[1].Summary)
 }
 
-func TestBuildSubpackages(t *testing.T) {
+// TestBuildFileLinks_CapsDetail pins the tooltip's bound: a file declaring
+// hundreds of names spells out maxDetailNames of them and counts the rest.
+func TestBuildFileLinks_CapsDetail(t *testing.T) {
 	t.Parallel()
-	got := buildSubpackages("/r/demo/foo", []string{
+	jdoc := &doc.JSONDocumentation{}
+	for i := range 30 {
+		jdoc.Types = append(jdoc.Types, &doc.JSONType{Name: fmt.Sprintf("T%02d", i), File: "big.gno"})
+	}
+	got := buildFileLinks("/p/demo/big", []string{"big.gno"}, jdoc, false)[0]
+	require.Equal(t, "T00, T01 +28", got.Summary)
+	require.True(t, strings.HasSuffix(got.Detail, ", T11 and 18 more"), got.Detail)
+}
+
+func TestRenderShape(t *testing.T) {
+	t.Parallel()
+	str := func(name string) *doc.JSONField { return &doc.JSONField{Name: name, Type: "string"} }
+	tests := []struct {
+		name         string
+		fn           doc.JSONFunc
+		ok, crossing bool
+	}{
+		{"plain", doc.JSONFunc{Name: "Render", Params: renderParams, Results: renderResults}, true, false},
+		{"crossing", doc.JSONFunc{Name: "Render", Params: []*doc.JSONField{{Name: "cur", Type: "realm"}, str("path")}, Results: renderResults}, true, true},
+		{"method", doc.JSONFunc{Name: "Render", Type: "Page", Params: renderParams, Results: renderResults}, false, false},
+		{"no path", doc.JSONFunc{Name: "Render", Results: renderResults}, false, false},
+		{"no page", doc.JSONFunc{Name: "Render", Params: renderParams}, false, false},
+		{"other name", doc.JSONFunc{Name: "Draw", Params: renderParams, Results: renderResults}, false, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ok, crossing := RenderShape(&tc.fn)
+			require.Equal(t, tc.ok, ok)
+			require.Equal(t, tc.crossing, crossing)
+		})
+	}
+	require.False(t, DeclaresRender(nil))
+	require.True(t, DeclaresRender(&doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{Name: "Render", Params: renderParams, Results: renderResults}}}))
+}
+
+func TestChildPackages(t *testing.T) {
+	t.Parallel()
+	got := ChildPackages("/r/demo/foo", []string{
 		"/r/demo/foo",
 		"/r/demo/foo/bar",
 		"/r/demo/foo/bar/baz",
 		"/r/demo/foo/qux/",
+		"/r/demo/foo/bar",
 		"/r/demo/other",
 	})
-	require.Equal(t, []SubpackageLink{
-		{Name: "bar", Path: "/r/demo/foo/bar"},
-		{Name: "qux", Path: "/r/demo/foo/qux"},
-	}, got)
+	require.Equal(t, []string{"/r/demo/foo/bar", "/r/demo/foo/qux"}, got)
 }
 
 func TestBuildOverviewTOC(t *testing.T) {
@@ -143,7 +226,7 @@ func TestBuildOverviewTOC(t *testing.T) {
 	values := []ValueGroup{{Kind: "const"}, {Kind: "var"}}
 	graph := DepGraph{Imports: []ImportLink{{Path: "strings"}}}
 	files := []FileLink{{Name: "foo.gno", Link: "/r/demo/foo$source&file=foo.gno"}}
-	subpacks := []SubpackageLink{{Name: "sub", Path: "/r/demo/foo/sub"}}
+	subpacks := []PackageCard{{Path: "/r/demo/foo/sub", Realm: true}}
 	quality := PackageQuality{HasPkgDoc: true, HasReadme: true}
 
 	toc := buildOverviewTOC(quality, true, funcs, types, values, graph, files, subpacks)
@@ -270,7 +353,8 @@ func TestClassifyFile(t *testing.T) {
 		{"readme", "README.md", FileClass{IsReadme: true}},
 		{"license", "LICENSE", FileClass{IsLicense: true}},
 		{"license md", "LICENSE.md", FileClass{IsLicense: true}},
-		{"plain", "gnomod.toml", FileClass{}},
+		{"config", "gnomod.toml", FileClass{IsConfig: true}},
+		{"plain", "notes.txt", FileClass{}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

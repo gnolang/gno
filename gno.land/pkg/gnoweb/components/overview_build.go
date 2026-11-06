@@ -112,31 +112,10 @@ func extractSynopsis(packageDoc string) string {
 	return first
 }
 
-// buildFileLinks turns file names into URL-backed entries for the Files section.
-func buildFileLinks(pkgPath string, files []string) []FileLink {
-	out := make([]FileLink, 0, len(files))
-	for _, f := range files {
-		link := pkgPath + "$source&file=" + f
-		entry := FileLink{Name: f, Link: link}
-		c := ClassifyFile(f)
-		switch {
-		case c.IsTest:
-			entry.IsTest = true
-		case c.IsReadme:
-			entry.IsReadme = true
-		}
-		if c.IsLicense {
-			entry.IsLicense = true
-		}
-		out = append(out, entry)
-	}
-	return out
-}
-
-// buildSubpackages keeps direct children only (one level deep) and drops self.
-// Input paths are expected to be domain-relative (e.g. "/r/demo/foo/bar").
-func buildSubpackages(self string, paths []string) []SubpackageLink {
-	out := make([]SubpackageLink, 0)
+// ChildPackages keeps the paths one level below self, without self, each once
+// and in the order given. Paths are domain-relative (e.g. "/r/demo/foo/bar").
+func ChildPackages(self string, paths []string) []string {
+	out := make([]string, 0)
 	seen := map[string]bool{self: true}
 	selfPrefix := self + "/"
 	for _, p := range paths {
@@ -149,7 +128,7 @@ func buildSubpackages(self string, paths []string) []SubpackageLink {
 		if rel == p || rel == "" || strings.Contains(rel, "/") {
 			continue
 		}
-		out = append(out, SubpackageLink{Name: rel, Path: p})
+		out = append(out, p)
 	}
 	return out
 }
@@ -158,7 +137,7 @@ func buildSubpackages(self string, paths []string) []SubpackageLink {
 // hasReadmeSection tells whether the README section was actually rendered. The
 // file being listed is not enough: its fetch may have failed, and the #readme
 // entry must not point at a section the template never emitted.
-func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, graph DepGraph, files []FileLink, subpacks []SubpackageLink) []*TocItem {
+func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, graph DepGraph, files []FileLink, subpacks []PackageCard) []*TocItem {
 	var toc []*TocItem
 	if quality.HasPkgDoc {
 		toc = append(toc, &TocItem{Title: "Overview", ID: "overview"})
@@ -310,10 +289,9 @@ func BuildOverview(in OverviewInput) OverviewData {
 	}
 
 	stats := computeStats(in.Files, in.Doc, imports)
-	files := buildFileLinks(in.URL.Path, in.Files)
-	subpacks := buildSubpackages(in.URL.Path, in.Subpaths)
+	files := buildFileLinks(in.URL.Path, in.Files, in.Doc, in.URL.IsRealm())
 	graph := DepGraph{Name: in.URL.Path, Imports: imports, LookupURL: in.DepsURL}
-	toc := buildOverviewTOC(quality, in.Readme != nil, funcs, types, values, graph, files, subpacks)
+	toc := buildOverviewTOC(quality, in.Readme != nil, funcs, types, values, graph, files, in.Subpackages)
 
 	pkgDocSynopsis := ""
 	var pkgDocComp Component
@@ -342,9 +320,10 @@ func BuildOverview(in OverviewInput) OverviewData {
 		Vars:             vars,
 		Graph:            graph,
 		Files:            files,
-		Subpackages:      subpacks,
+		Subpackages:      in.Subpackages,
 		Bugs:             bugs,
 		SymbolsTruncated: symbolsTruncated,
+		DocUnavailable:   in.Doc == nil,
 		ComponentTOC:     NewTemplateComponent("ui/toc_realm", &RealmTOCData{Items: toc}),
 	}
 }
