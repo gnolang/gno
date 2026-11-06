@@ -54,6 +54,11 @@ type AnteOptions struct {
 	// message selected by this predicate must carry a real signature, not a
 	// pubkey-only placeholder.
 	RequireSigForSimulate func(tx std.Tx) bool
+
+	// SigVerifyCache, when set, lets CheckTx and mempool recheck skip a
+	// signature verification that already succeeded on this node. DeliverTx
+	// never consults it. See SigVerifyCache for what the key covers.
+	SigVerifyCache *SigVerifyCache
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -316,7 +321,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				return newCtx, res, true
 			}
 
-			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+			// Looked up after gas is charged, so a hit never changes gas.
+			// CheckTx only: DeliverTx always verifies.
+			var cacheKey [32]byte
+			useCache := verifySig && opts.SigVerifyCache != nil && newCtx.Mode() == sdk.RunTxModeCheck
+			cached := false
+			if useCache {
+				cacheKey = sigVerifyKey(pubKey, signBytes, sig.Signature)
+				cached = opts.SigVerifyCache.has(cacheKey)
+			}
+
+			if verifySig && !cached && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 				// Either payload rendering is accepted; std.VerifySignaturePayload
 				// holds the argument for why that is safe.
 				//
@@ -335,6 +350,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
 					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
 				}
+				// Verified over the legacy rendering: not cached, the key
+				// covers the current sign bytes only.
+			} else if useCache && !cached {
+				opts.SigVerifyCache.add(cacheKey)
 			}
 			if isSession {
 				sigAcc.SetSequence(sigAcc.GetSequence() + 1)

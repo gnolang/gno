@@ -85,6 +85,10 @@ func (c AppOptions) validate() error {
 // and the test that checks the counter from drifting apart.
 const genesisSignerFunding int64 = 10_000_000_000
 
+// sigVerifyCacheSize bounds the node-local verified-signature cache used by
+// CheckTx and mempool recheck (auth.SigVerifyCache).
+const sigVerifyCacheSize = 10_000
+
 func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -165,6 +169,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// code-bearing messages, so gas estimation for every other message
 		// type keeps working without a key.
 		RequireSigForSimulate: txCarriesCode,
+		// Rechecking a 5000-deep mempool re-verified every pending
+		// signature after every block. Twice the default mempool size, so
+		// a full mempool fits with room for churn; about 1 MB.
+		SigVerifyCache: auth.NewSigVerifyCache(sigVerifyCacheSize),
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
