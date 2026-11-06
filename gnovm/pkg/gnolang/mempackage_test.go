@@ -320,7 +320,7 @@ func TestMemPackage_Validate(t *testing.T) {
 			"expected user package path for \"MPUserProd\" but got \"gno.land/r/path/alice-_bob\"",
 		},
 		{
-			"futureproof_x", // XXX: we currently accept mempackages with any single-letter path, meaning that we need another layer of validation later.
+			"unknown_letter_x", // only r, p and e name a kind the VM knows.
 			&std.MemPackage{
 				Type:  MPUserProd,
 				Name:  "hey",
@@ -328,7 +328,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: heyPackageFiles,
 			},
 			"",
-			"",
+			"expected user package path for \"MPUserProd\" but got \"gno.land/x/path/hey\"",
 		},
 		{
 			"custom_domain",
