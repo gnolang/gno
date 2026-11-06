@@ -5,7 +5,8 @@ the codebase (e.g. `// SECURITY (Class-4 captured callback)`) and the
 companion `SECURITY_GUIDE.md`. It assumes you have read
 [`gno-interrealm.md`](./gno-interrealm.md) — the language here uses that
 document's vocabulary (realm-context, crossing function, captured realm
-value, `IsCurrent()`).
+value). `IsCurrent()` is covered in
+[`gno-interrealm-v2.md`](./gno-interrealm-v2.md).
 
 A `cur realm` value is a **language-enforced capability token**: the
 runtime mints one per crossing frame, refuses to persist it, and
@@ -28,8 +29,7 @@ protections.
 
 - **Classes 1a/1b**: never declare an interface method that takes
   `cur realm`. Take `caller address` instead, and let the calling code
-  derive the address from `cur.Previous().Address()` under an
-  `IsCurrent()` guard at the call site.
+  derive the address from `cur.Previous().Address()` at the call site.
 - **Class 2**: never trust an `address` or `pkgPath` parameter as
   caller-identity; derive it inside the function from
   `rlm.Previous().Address()` under `rlm.IsCurrent()`. Never trust
