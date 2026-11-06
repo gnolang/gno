@@ -526,3 +526,60 @@ func TestBlockStore_ContiguousAfterInitialHeight(t *testing.T) {
 		bs.SaveBlock(skippedBlock, skippedParts, skippedSC)
 	}, "non-contiguous height must still panic after InitialHeight is set")
 }
+
+// syncCountingDB counts the writes that force a flush to disk, whether issued
+// directly on the DB or by committing a batch.
+type syncCountingDB struct {
+	dbm.DB
+	syncs int
+}
+
+func (db *syncCountingDB) SetSync(key, value []byte) error {
+	db.syncs++
+	return db.DB.SetSync(key, value)
+}
+
+func (db *syncCountingDB) DeleteSync(key []byte) error {
+	db.syncs++
+	return db.DB.DeleteSync(key)
+}
+
+func (db *syncCountingDB) NewBatch() dbm.Batch {
+	return &syncCountingBatch{Batch: db.DB.NewBatch(), db: db}
+}
+
+func (db *syncCountingDB) NewBatchWithSize(size int) dbm.Batch {
+	return &syncCountingBatch{Batch: db.DB.NewBatchWithSize(size), db: db}
+}
+
+type syncCountingBatch struct {
+	dbm.Batch
+	db *syncCountingDB
+}
+
+func (b *syncCountingBatch) WriteSync() error {
+	b.db.syncs++
+	return b.Batch.WriteSync()
+}
+
+// SaveBlock runs once per height on the fast-sync and consensus critical
+// paths, so every flush it issues is an fsync paid on every block.
+func TestSaveBlockFlushesOnce(t *testing.T) {
+	t.Parallel()
+
+	state, _, cleanup := makeStateAndBlockStore(log.NewNoopLogger())
+	defer cleanup()
+
+	db := &syncCountingDB{DB: memdb.NewMemDB()}
+	bs := NewBlockStore(db)
+
+	block := makeBlock(1, state, new(types.Commit))
+	partSet := block.MakePartSet(2)
+	require.True(t, partSet.Total() > 1, "need multiple parts for this test")
+	bs.SaveBlock(block, partSet, makeTestCommit(1, tmtime.Now()))
+
+	assert.Equal(t, 1, db.syncs, "SaveBlock should flush to disk exactly once")
+	assert.Equal(t, int64(1), LoadBlockStoreStateJSON(db).Height)
+	assert.Equal(t, block.Hash(), bs.LoadBlock(1).Hash())
+	assert.Equal(t, int64(1), NewBlockStore(db).Height(), "a reopened store should see the saved height")
+}
