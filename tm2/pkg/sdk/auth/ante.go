@@ -659,31 +659,6 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
 }
 
-// GetSignBytes returns the amount/gas rendering of the signature payload for a
-// given transaction and account. It is a signing helper only: a verifier must
-// also accept the gas_wanted/gas_fee rendering, see std.VerifySignaturePayload.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var (
-		accNum      uint64
-		accSequence uint64
-	)
-	if !genesis {
-		accNum = acc.GetAccountNumber()
-		accSequence = acc.GetSequence()
-	}
-
-	return std.GetSignaturePayload(
-		std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      accSequence,
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
-		},
-	)
-}
-
 func abciResult(err error) sdk.Result {
 	return sdk.ABCIResultFromError(err)
 }

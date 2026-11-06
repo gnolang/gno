@@ -5,51 +5,14 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/store"
 
-	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
-
-type (
-	fireEventDelegate      func(events.Event)
-	addListenerDelegate    func(string, events.EventCallback)
-	removeListenerDelegate func(string)
-)
-
-type mockEventSwitch struct {
-	service.BaseService
-
-	fireEventFn      fireEventDelegate
-	addListenerFn    addListenerDelegate
-	removeListenerFn removeListenerDelegate
-}
-
-func (m *mockEventSwitch) FireEvent(ev events.Event) {
-	if m.fireEventFn != nil {
-		m.fireEventFn(ev)
-	}
-}
-
-func (m *mockEventSwitch) AddListener(
-	listenerID string,
-	cb events.EventCallback,
-) {
-	if m.addListenerFn != nil {
-		m.addListenerFn(listenerID, cb)
-	}
-}
-
-func (m *mockEventSwitch) RemoveListener(listenerID string) {
-	if m.removeListenerFn != nil {
-		m.removeListenerFn(listenerID)
-	}
-}
 
 type mockVMKeeper struct {
 	addPackageFn                func(sdk.Context, vm.MsgAddPackage) error
@@ -323,6 +286,7 @@ func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr
 	*ptr = v
 	return true
 }
+
 func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
 	v, ok := m.strings[key]
 	if !ok {
@@ -331,15 +295,19 @@ func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, pt
 	*ptr = v
 	return true
 }
+
 func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
 	return false
 }
+
 func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
 	return false
 }
+
 func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
 	return false
 }
+
 func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
 	return false
 }
@@ -347,15 +315,19 @@ func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value str
 func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) int {
 	return 0
 }

@@ -30,8 +30,8 @@
 ## What is already proposed for Tendermint2:
 
 * Complete Amino. -> multiplier of productivity for SDK development, to not
-  have to think about protobuf at all. Use "genproto" to even auto-generate
-  proto3 for encoding/decoding optimization through protoc.
+  have to think about protobuf at all. Use "genproto2" to auto-generate
+  proto3 schemas and direct proto3 encoding/decoding code.
     - MISSION: be the basis for improving the encoding standard from proto3, because
       proto3 length-prefixing is slow, and we need "proto4" or "amino2".
     - LOOK at the auto-generated proto files!

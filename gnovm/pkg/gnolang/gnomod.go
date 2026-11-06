@@ -23,9 +23,7 @@ var gnomodTemplateOnce = sync.OnceValue(func() *template.Template {
 	return template.Must(template.New("").Parse(gnomodTemplate))
 })
 
-func GenGnoModLatest(pkgPath string) string  { return genGnoMod(pkgPath, GnoVerLatest) }
-func GenGnoModTesting(pkgPath string) string { return genGnoMod(pkgPath, GnoVerTesting) }
-func GenGnoModDefault(pkgPath string) string { return genGnoMod(pkgPath, GnoVerDefault) }
+func GenGnoModLatest(pkgPath string) string { return genGnoMod(pkgPath, GnoVerLatest) }
 
 func genGnoMod(pkgPath string, gnoVersion string) string {
 	var bld strings.Builder
@@ -40,9 +38,7 @@ func genGnoMod(pkgPath string, gnoVersion string) string {
 }
 
 const (
-	GnoVerLatest  = `0.9` // current version
-	GnoVerTesting = `0.9` // version of our tests
-	GnoVerDefault = `0.9` // auto generated gnomod.toml
+	GnoVerLatest = `0.9` // current version
 )
 
 // ========================================

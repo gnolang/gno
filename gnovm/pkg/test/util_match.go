@@ -7,20 +7,14 @@ package test
 // license that can be found in the LICENSE file.
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
-	"unicode"
 )
 
 type filterMatch interface {
 	// matches checks the name against the receiver's pattern strings using the
 	// given match function.
 	matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool)
-
-	// verify checks that the receiver's pattern strings are valid filters by
-	// calling the given match function.
-	verify(name string, matchString func(pat, str string) (bool, error)) error
 }
 
 // simpleMatch matches a test name if all of the pattern strings match in
@@ -42,19 +36,6 @@ func (m simpleMatch) matches(name []string, matchString func(pat, str string) (b
 	return true, len(name) < len(m)
 }
 
-func (m simpleMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
-	for i, s := range m {
-		m[i] = rewrite(s)
-	}
-	// Verify filters before doing any processing.
-	for i, s := range m {
-		if _, err := matchString(s, "non-empty"); err != nil {
-			return fmt.Errorf("element %d of %s (%q): %w", i, name, s, err)
-		}
-	}
-	return nil
-}
-
 func (m alternationMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
 	for _, m := range m {
 		if ok, partial = m.matches(name, matchString); ok {
@@ -62,15 +43,6 @@ func (m alternationMatch) matches(name []string, matchString func(pat, str strin
 		}
 	}
 	return false, false
-}
-
-func (m alternationMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
-	for i, m := range m {
-		if err := m.verify(name, matchString); err != nil {
-			return fmt.Errorf("alternation %d of %w", i, err)
-		}
-	}
-	return nil
 }
 
 func splitRegexp(s string) filterMatch {
@@ -121,48 +93,6 @@ func splitRegexp(s string) filterMatch {
 		return a
 	}
 	return append(b, a)
-}
-
-// rewrite rewrites a subname to having only printable characters and no white
-// space.
-func rewrite(s string) string {
-	b := []byte{}
-	for _, r := range s {
-		switch {
-		case isSpace(r):
-			b = append(b, '_')
-		case !unicode.IsPrint(r):
-			s := simpleQuoteRune(r)
-			b = append(b, s[1:len(s)-1]...)
-		default:
-			b = append(b, string(r)...)
-		}
-	}
-	return string(b)
-}
-
-// simpleQuoteRune does not follow the original strconv.QuoteRune.
-func simpleQuoteRune(r rune) string {
-	return "."
-}
-
-func isSpace(r rune) bool {
-	if r < 0x2000 {
-		switch r {
-		// Note: not the same as Unicode Z class.
-		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0, 0x1680:
-			return true
-		}
-	} else {
-		if r <= 0x200a {
-			return true
-		}
-		switch r {
-		case 0x2028, 0x2029, 0x202f, 0x205f, 0x3000:
-			return true
-		}
-	}
-	return false
 }
 
 var (
