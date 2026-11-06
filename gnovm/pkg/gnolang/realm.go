@@ -1706,6 +1706,7 @@ func copyValueWithRefs(val Value) Value {
 			NativePkg:  cv.NativePkg,
 			NativeName: cv.NativeName,
 			Crossing:   cv.Crossing,
+			Version:    cv.Version,
 		}
 	case *BoundMethodValue:
 		var fnc *FuncValue // nil for a lazy interface bind (resolved at call)

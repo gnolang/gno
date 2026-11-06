@@ -14,6 +14,7 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -251,6 +252,7 @@ type gnoImporterResult struct {
 type gnoImporter struct {
 	// when importing self (from xxx_test package) include *_test.gno.
 	pkgPath   string
+	mod       *gnomod.File // the root package's gnomod.toml, once parsed
 	tcmode    TypeCheckMode
 	testing   bool             // if true, use tgetter for stdlibs.
 	getter    MemPackageGetter // used for stdlibs if !.testing, and everything else.
@@ -383,6 +385,15 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
+	upgradeable := mod != nil && mod.Upgradeable()
+	if upgradeable && gimp.rootIsImmutableRealm() {
+		// An immutable realm may not depend on code that can change under
+		// it (CONSTITUTION, Realm Upgrading).
+		err := ImportUpgradeableError{PkgPath: pkgPath}
+		result.err = err
+		result.pending = false
+		return nil, err
+	}
 	wtests := gimp.testing && gimp.pkgPath == pkgPath
 	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
 	if errs != nil {
@@ -390,7 +401,9 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, errs
 	}
-	if canPerm {
+	// That verdict depends on the root, so an upgradeable realm is not
+	// cached across roots: a hit would skip it.
+	if canPerm && !upgradeable {
 		gimp.permCache[ck] = pkg
 	}
 	result.pkg = pkg
@@ -402,12 +415,45 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 // Minimal AST mutation(s) for Go.
 // Supports init(cur realm), main(cur realm) by removing the param and
 // inserting `var cur realm; _ = cur` so go/types sees the cur variable.
-func prepareGoGno0p9(f *ast.File) (err error) {
+func prepareGoGno0p9(fset *token.FileSet, f *ast.File) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
 		case *ast.FuncDecl:
 			name := gon.Name.String()
-			if gon.Recv == nil && (name == "main" || name == "init") {
+			// migrate follows init's rules (many declarations, not
+			// referenceable); go/types only knows them for init. Its
+			// trailing `from int` is stripped here and declared in the
+			// body, as `cur realm` is below.
+			if gon.Recv == nil && name == "migrate" {
+				gon.Name.Name = "init"
+				params := gon.Type.Params.List
+				n := len(params)
+				if n == 0 || n > 2 || !isIdentType(params[n-1].Type, "int") ||
+					len(params[n-1].Names) > 1 || gon.Type.Results.NumFields() > 0 ||
+					(n == 2 && !isIdentType(params[0].Type, "realm")) {
+					err = fmt.Errorf("%s: migrate must be declared as migrate(from int) or migrate(cur realm, from int)",
+						fset.Position(gon.Pos()))
+					return false
+				}
+				from := params[n-1]
+				gon.Type.Params.List = params[:n-1]
+				if len(from.Names) == 1 && from.Names[0].Name != "_" {
+					insert := gon.Type.End()
+					fromName := from.Names[0].Name
+					gon.Body.List = append([]ast.Stmt{
+						&ast.DeclStmt{Decl: &ast.GenDecl{Tok: token.VAR, TokPos: insert, Specs: []ast.Spec{&ast.ValueSpec{
+							Names: []*ast.Ident{{Name: fromName, NamePos: insert}},
+							Type:  &ast.Ident{Name: "int", NamePos: insert},
+						}}}},
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{&ast.Ident{Name: "_", NamePos: insert}},
+							Tok: token.ASSIGN, TokPos: insert,
+							Rhs: []ast.Expr{&ast.Ident{Name: fromName, NamePos: insert}},
+						},
+					}, gon.Body.List...)
+				}
+			}
+			if gon.Recv == nil && (name == "main" || IsPkgInitFunc(Name(name))) {
 				if len(gon.Type.Params.List) == 1 { // `cur realm`
 					gon.Type.Params.List = nil
 				} else {
@@ -452,6 +498,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	if err != nil {
 		return nil, err
 	}
+	if mpkg.Path == gimp.pkgPath {
+		gimp.mod = mod
+	}
 	if gimp.tcmode.RequiresLatestGnoMod() {
 		if mod == nil {
 			panic(fmt.Sprintf("gnomod.toml not found for package %q", mpkg.Path))
@@ -482,9 +531,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
-		err := prepareGoGno0p9(gof)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error: %v", err))
+		if err := prepareGoGno0p9(gofset, gof); err != nil {
+			return nil, err
 		}
 	}
 
@@ -586,6 +634,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	return pkg, multierr.Combine(gimp.errors[numErrs:]...)
 }
 
+// isIdentType reports whether t is the bare identifier name.
+func isIdentType(t ast.Expr, name string) bool {
+	id, ok := t.(*ast.Ident)
+	return ok && id.Name == name
+}
+
 // Ensure uniqueness of declarations,
 // e.g. test/stdlibs overriding stdlibs.
 func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
@@ -594,10 +648,10 @@ func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
 	kept := gof.Decls[:0]
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
-		// ignore methods, init and blank functions
+		// ignore methods, initializers and blank functions
 		if ok &&
 			fd.Recv == nil &&
-			fd.Name.Name != "init" &&
+			!IsPkgInitFunc(Name(fd.Name.Name)) &&
 			fd.Name.Name != "_" {
 			// if declaration is duplicate, delete this one. doesn't
 			// matter which one (whether Go native or gno) for
@@ -758,17 +812,26 @@ type ImportError interface {
 	GetMsg() string
 }
 
-func (e ImportNotFoundError) assertImportError() {}
-func (e ImportPrivateError) assertImportError()  {}
-func (e ImportDraftError) assertImportError()    {}
-func (e ImportCycleError) assertImportError()    {}
+func (e ImportNotFoundError) assertImportError()    {}
+func (e ImportPrivateError) assertImportError()     {}
+func (e ImportUpgradeableError) assertImportError() {}
+func (e ImportDraftError) assertImportError()       {}
+func (e ImportCycleError) assertImportError()       {}
 
 var (
 	_ ImportError = ImportNotFoundError{}
 	_ ImportError = ImportPrivateError{}
+	_ ImportError = ImportUpgradeableError{}
 	_ ImportError = ImportDraftError{}
 	_ ImportError = ImportCycleError{}
 )
+
+// rootIsImmutableRealm reports whether the package being checked is a realm
+// whose code can never change: neither private nor upgradeable. Packages
+// without a gnomod.toml are not held to the rule.
+func (gimp *gnoImporter) rootIsImmutableRealm() bool {
+	return IsRealmPath(gimp.pkgPath) && gimp.mod != nil && !gimp.mod.Mutable()
+}
 
 // ImportNotFoundError implements ImportError
 type ImportNotFoundError struct {
@@ -809,6 +872,20 @@ func (e ImportPrivateError) GetMsg() string {
 }
 
 func (e ImportPrivateError) Error() string { return importErrorString(e) }
+
+// ImportUpgradeableError implements ImportError
+type ImportUpgradeableError struct {
+	Location string
+	PkgPath  string
+}
+
+func (e ImportUpgradeableError) GetLocation() string { return e.Location }
+
+func (e ImportUpgradeableError) GetMsg() string {
+	return fmt.Sprintf("import path %q is upgradeable and cannot be imported by an immutable realm", e.PkgPath)
+}
+
+func (e ImportUpgradeableError) Error() string { return importErrorString(e) }
 
 // ImportCycleError implements ImportError
 type ImportCycleError struct {

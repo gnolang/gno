@@ -17,6 +17,15 @@ type File struct {
 	// It is intended to be set by the `gno` cli when initializing or upgrading a module.
 	Gno string `toml:"gno" json:"gno"`
 
+	// Version steps a redeploy: N+1 over a live N carries the realm's globals
+	// into the new code (see gnolang's upgrade.go). Zero on both sides is the
+	// old private redeploy, which starts the globals over.
+	Version int `toml:"version,omitempty" json:"version,omitempty"`
+
+	// Upgrade names who may redeploy a public realm. Absent, the realm is
+	// immutable, and cannot become upgradeable later. Requires Version.
+	Upgrade *Upgrade `toml:"upgrade,omitempty" json:"upgrade,omitempty"`
+
 	// Ignore indicate that the module will be ignored by the gno toolchain but still usable in development environments.
 	Ignore bool `toml:"ignore,omitempty" json:"ignore,omitempty"`
 
@@ -63,6 +72,23 @@ type AddPkg struct {
 	MaxDeposit string `toml:"max_deposit,omitempty" json:"max_deposit,omitempty"`
 	// XXX: GnoVersion // gno version at add time?
 	// XXX: Consider things like IsUsingBanker or other security-awareness flags
+}
+
+// Upgrade is the [upgrade] section of gnomod.toml.
+type Upgrade struct {
+	// Authority is the address that may redeploy the realm.
+	Authority string `toml:"authority" json:"authority"`
+}
+
+// Upgradeable reports whether the realm names an upgrade authority.
+func (f *File) Upgradeable() bool {
+	return f.Upgrade != nil && f.Upgrade.Authority != ""
+}
+
+// Mutable reports whether the realm's code can be replaced: private, or
+// upgradeable. The Constitution's realm-upgrading rules key on this.
+func (f *File) Mutable() bool {
+	return f.Private || f.Upgradeable()
 }
 
 type Replace struct {
