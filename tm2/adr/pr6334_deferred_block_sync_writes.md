@@ -107,7 +107,9 @@ store's own iterators walk its tree through point reads, its database iterators
 run only at load and state import (`fast_index.go:155`, `nodedb.go:479`;
 `nodedb.go:449` has no caller outside tests), its pruning reads through point
 reads (`tm2/pkg/bptree/prune.go`), `CheckTx` runs no messages
-(`baseapp.go:718`), and queries read stores built without the collector
+(`baseapp.go:718`) except a sponsored 0-fee tx's first admission
+(`RunTxModeCheckExecute`, see `pr5382_zero_fee_tx_admission_and_settlement.md`),
+and queries read stores built without the collector
 (`rootmulti/store.go:413-447`). But `runTx` turns a panic into a failed
 transaction (`baseapp.go:828-859`), and so does the VM for its messages
 (`gno.land/pkg/sdk/vm/keeper.go:1435-1469`); here that would be a result no

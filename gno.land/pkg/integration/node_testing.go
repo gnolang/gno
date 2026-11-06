@@ -98,6 +98,9 @@ func TestingMinimalNodeConfig(gnoroot string) *gnoland.InMemoryNodeConfig {
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
 			CacheStdlibLoad:        true,
 		},
+		// Only matters where a test opens the credit window, as the txtar
+		// runner does; the genesis above keeps it closed.
+		AllowZeroFeeTxs: true,
 	}
 }
 

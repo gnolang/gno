@@ -424,7 +424,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 				"invalid max_deposit %q in stored gnomod.toml: %v", gm.AddPkg.MaxDeposit, err))
 		}
 	}
-	if err := vm.processStorageDeposit(ctx, creator, declaredDeposit, gnostore, params); err != nil {
+	if err := vm.processStorageDeposit(ctx, creator, declaredDeposit, gnostore, params, ""); err != nil {
 		return err
 	}
 
