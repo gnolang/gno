@@ -1,0 +1,1 @@
+import{BaseController as o}from"./controller.js";var i=class extends o{connect(){let e=this.element,t=e.querySelector('[aria-current="page"]');if(!t)return;let n=t.getBoundingClientRect().top-e.getBoundingClientRect().top;n>e.clientHeight/2&&(e.scrollTop+=n-e.clientHeight/4)}};export{i as DocsNavController};
