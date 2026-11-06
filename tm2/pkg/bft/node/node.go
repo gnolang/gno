@@ -178,6 +178,13 @@ func WithEarlyStart() Option {
 	}
 }
 
+// WithCodeExecutionQueryPaths sets the RPC Environment's CodeExecutionQueryPaths.
+func WithCodeExecutionQueryPaths(paths ...string) Option {
+	return func(n *Node) {
+		n.codeExecutionQueryPaths = paths
+	}
+}
+
 // ------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
@@ -214,7 +221,8 @@ type Node struct {
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
 
-	earlyStart bool // start RPC+P2P before genesis time, defer only consensus
+	earlyStart              bool // start RPC+P2P before genesis time, defer only consensus
+	codeExecutionQueryPaths []string
 }
 
 // initDBs opens the block store's and the state's databases, wrapped so that
@@ -894,6 +902,8 @@ func (n *Node) configureRPC() {
 		GetFastSync:   n.consensusReactor.FastSync,
 		Logger:        n.Logger.With("module", "rpc"),
 		Config:        *n.config.RPC,
+
+		CodeExecutionQueryPaths: n.codeExecutionQueryPaths,
 	}
 }
 

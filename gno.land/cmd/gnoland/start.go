@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -293,7 +294,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Create a default node, with the given setup
-	opts := []node.Option{}
+	opts := []node.Option{node.WithCodeExecutionQueryPaths(vm.CodeExecutionQueryPaths...)}
 	if c.earlyStart {
 		opts = append(opts, node.WithEarlyStart())
 	}

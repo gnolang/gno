@@ -114,6 +114,15 @@ const (
 	QueryInertPaths = "qinertpaths"
 )
 
+// CodeExecutionQueryPaths are the query paths that run code in a machine,
+// through withQueryEvalMachine. A node refuses them over RPC when its
+// rpc.allow_code_execution is false.
+var CodeExecutionQueryPaths = []string{
+	RouterKey + "/" + QueryRender,
+	RouterKey + "/" + QueryEval,
+	RouterKey + "/" + QueryEvalJSON,
+}
+
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	path := secondPart(req.Path)
 	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
