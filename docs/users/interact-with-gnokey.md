@@ -449,6 +449,31 @@ After running this command, the chain will execute the script and apply any stat
 changes. Additionally, by using `println`, which is only available in the `Run`
 & testing context, we will be able to see the return value of the function called.
 
+### Sending coins from a script
+
+A run can send coins from your account to another address only up to
+`-max-send`, summed over the whole run, whichever code makes the transfer.
+Without the flag such a send fails with
+`run sends more coins than its max send allows`.
+
+The [storage deposit](../resources/storage-deposit.md) is not a send, yet a
+script you have not read can move it away too. A realm the script calls can
+store data paid from your deposit, and whoever frees that data later gets the
+deposit back while `ugnot` transfers are unrestricted. `-max-deposit` caps it,
+and without the flag the cap is the chain's `vm:p:default_deposit` parameter,
+100,000,000ugnot by default. Set both flags to what the script needs.
+
+```bash
+gnokey maketx run \
+-max-send 1000ugnot \
+-max-deposit 1000000ugnot \
+-gas-fee 1000000ugnot \
+-gas-wanted 20000000 \
+-chainid staging \
+-remote "https://rpc.staging.gno.land:443" \
+mykey ./script.gno
+```
+
 ### The power of `Run`
 
 Specifically, the above example could have been replaced with a simple `maketx call`

@@ -425,6 +425,22 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			expectErr: std.InvalidCoinsError{},
 		},
 		{
+			name: "invalid MaxSend coins",
+			msg: MsgRun{
+				Caller: caller,
+				Package: &std.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: pkgFiles,
+				},
+				MaxSend: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: -1000,
+				}},
+			},
+			expectErr: std.InvalidCoinsError{},
+		},
+		{
 			name: "empty package files",
 			msg: MsgRun{
 				Caller: caller,

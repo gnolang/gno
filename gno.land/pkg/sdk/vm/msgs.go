@@ -194,6 +194,9 @@ type MsgRun struct {
 	Send       std.Coins       `json:"send" yaml:"send"`
 	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 	Package    *std.MemPackage `json:"package" yaml:"package"`
+	// MaxSend caps the coins the run may send out of Caller's account; empty
+	// refuses every transfer outside replayed history.
+	MaxSend std.Coins `json:"max_send,omitempty" yaml:"max_send,omitempty"`
 }
 
 var _ std.Msg = MsgRun{}
@@ -247,6 +250,9 @@ func (msg MsgRun) ValidateBasic() error {
 	}
 	if !msg.MaxDeposit.IsValid() {
 		return std.ErrInvalidCoins(msg.MaxDeposit.String())
+	}
+	if !msg.MaxSend.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxSend.String())
 	}
 	return nil
 }

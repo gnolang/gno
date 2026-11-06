@@ -2057,6 +2057,82 @@ func GetHeight(cur realm) int64 { return height }
 		assert.Contains(t, resp.Log, "run_submitters")
 	})
 
+	// A run signed before MaxSend existed carries none, and replay must still
+	// move what it moved on the source chain.
+	t.Run("historical MsgRun without MaxSend replays its send", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db    = memdb.NewMemDB()
+			key   = getDummyKey(t)
+			payee = crypto.AddressFromPreimage([]byte("replay-payee"))
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		runPath := "gno.land/e/" + key.PubKey().Address().String() + "/run"
+		runMsg := vm.MsgRun{
+			Caller: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "main",
+				Path: runPath,
+				Files: []*std.MemFile{
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(runPath)},
+					{Name: "main.gno", Body: `package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), "` + payee.String() + `", chain.Coins{{"ugnot", 5}})
+}
+`},
+				},
+			},
+		}
+		tx := createAndSignTx(t, []std.Msg{runMsg}, "old-chain", key)
+
+		require.NotPanics(t, func() {
+			app.InitChain(abci.RequestInitChain{
+				ChainID:       "new-chain",
+				Time:          time.Now(),
+				InitialHeight: 100,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     defaultBlockParams(),
+					Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+				},
+				AppState: GnoGenesisState{
+					Txs: []TxWithMetadata{{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain",
+						},
+					}},
+					Balances: []Balance{{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					}},
+					Auth:          auth.DefaultGenesisState(),
+					Bank:          bank.DefaultGenesisState(),
+					VM:            vm.DefaultGenesisState(),
+					PastChainIDs:  []string{"old-chain"},
+					InitialHeight: 100,
+				},
+			})
+		})
+		app.Commit()
+
+		qres := app.Query(abci.RequestQuery{Path: fmt.Sprintf("bank/balances/%s", payee)})
+		require.True(t, qres.IsOK(), "bank query response: %v", qres)
+		assert.Contains(t, string(qres.Data), `"5ugnot"`)
+	})
+
 	// The same carve-out has to cover a FRESH chain's own genesis txs, not just
 	// replayed history.
 	//
