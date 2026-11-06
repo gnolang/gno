@@ -1,6 +1,11 @@
 package components
 
-import "testing"
+import (
+	"math"
+	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
 
 // Gas is written in the unit its rounded value reads best in: 999,600 is
 // 1.0 M, never "1000 k".
@@ -13,6 +18,131 @@ func TestFormatGas(t *testing.T) {
 	} {
 		if got := FormatGas(in); got != want {
 			t.Errorf("FormatGas(%d) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// The fee is TxGasWanted at the price times the headroom, rounded up, in the
+// price's denom; a price that cannot be used falls back and says so.
+func TestNewTxGas(t *testing.T) {
+	t.Parallel()
+
+	price := func(amount, gas int64, denom string) std.GasPrice {
+		return std.GasPrice{Gas: gas, Price: std.Coin{Denom: denom, Amount: amount}}
+	}
+	for name, tc := range map[string]struct {
+		price     std.GasPrice
+		fee       string
+		estimated bool
+	}{
+		"chain default":        {price(1, 1000, "ugnot"), "30000ugnot", false},
+		"rounds up":            {price(1, 700, "ugnot"), "42858ugnot", false}, // 42,857.14
+		"at the cap":           {price(1, 30, "ugnot"), "1000000ugnot", false},
+		"capped":               {price(1, 29, "ugnot"), "1000000ugnot", false},
+		"34ugnot, capped":      {price(34, 1000, "ugnot"), "1000000ugnot", false},
+		"gas alone at the cap": {price(100, 1000, "ugnot"), "1000000ugnot", false},
+		"gas alone over it":    {price(101, 1000, "ugnot"), "30000ugnot", true},
+		"other denom, no cap":  {price(1000, 1, "foo"), "30000000000foo", false},
+		"risen price":          {price(3, 1000, "ugnot"), "90000ugnot", false},
+		"other denom":          {price(2, 1000, "foo"), "60000foo", false},
+		"huge gas, cheap":      {price(1, math.MaxInt64, "ugnot"), "1ugnot", false},
+		"zero value":           {std.GasPrice{}, "30000ugnot", true},
+		"zero amount":          {price(0, 1000, "ugnot"), "30000ugnot", true},
+		"zero gas":             {price(1, 0, "ugnot"), "30000ugnot", true},
+		"negative gas":         {price(1, -1000, "ugnot"), "30000ugnot", true},
+		"invalid denom":        {price(1, 1000, "u gnot"), "30000ugnot", true},
+		"fee overflows":        {price(math.MaxInt64, 1, "ugnot"), "30000ugnot", true},
+	} {
+		got := NewTxGas(tc.price, GasUse{})
+		if got.Secure.Fee.String() != tc.fee || got.Estimated != tc.estimated || got.Secure.Wanted != TxGasWanted || got.Fast != got.Secure {
+			t.Errorf("%s: NewTxGas(%v) = %+v, want fee %s, estimated %v", name, tc.price, got, tc.fee, tc.estimated)
+		}
+		if tc.estimated && got.Price != FallbackGasPrice {
+			t.Errorf("%s: price %v, want the fallback", name, got.Price)
+		}
+	}
+}
+
+// Recent calls size the gas at twice the most one used, rounded up to 100 k,
+// at least 1 M and at most what 1 GNOT pays for, up to 1,000 M: the fast-mode
+// gas below or above TxGasWanted, the secure-mode gas above it only, as it
+// does not simulate. Too few calls, or a size of TxGasWanted, keep it and say
+// nothing about them.
+func TestNewTxGasFromUse(t *testing.T) {
+	t.Parallel()
+
+	use := func(most int64, calls int) GasUse { return GasUse{Max: most, Calls: calls} }
+	ugnot := func(wanted, fee int64) GasFee { return GasFee{Wanted: wanted, Fee: std.NewCoin("ugnot", fee)} }
+	base := ugnot(TxGasWanted, 30_000)
+	for name, tc := range map[string]struct {
+		use          GasUse
+		secure, fast GasFee
+		used         bool
+	}{
+		"none":                  {GasUse{}, base, base, false},
+		"too few":               {use(1_380_000, 2), base, base, false},
+		"twice the most":        {use(1_380_000, 3), base, ugnot(2_800_000, 8_400), true},
+		"rounds up":             {use(1_234_567, 20), base, ugnot(2_500_000, 7_500), true},
+		"floor":                 {use(100_000, 5), base, ugnot(1_000_000, 3_000), true},
+		"below the ceiling":     {use(4_950_000, 5), base, ugnot(9_900_000, 29_700), true},
+		"rounds to the ceiling": {use(4_950_001, 5), base, base, false},
+		// A GovDAO vote on mainnet, valopers.Register on onyx.
+		"raises both":    {use(18_800_000, 13), ugnot(37_600_000, 112_800), ugnot(37_600_000, 112_800), true},
+		"raises further": {use(83_000_000, 20), ugnot(166_000_000, 498_000), ugnot(166_000_000, 498_000), true},
+		// At most the old hardcoded gas and fee, whatever the indexer says.
+		"at the old gas": {use(math.MaxInt64, 20), ugnot(1_000_000_000, 1_000_000), ugnot(1_000_000_000, 1_000_000), true},
+	} {
+		want := TxGas{Secure: tc.secure, Fast: tc.fast, Price: FallbackGasPrice}
+		if tc.used {
+			want.Used = tc.use
+		}
+		if got := NewTxGas(FallbackGasPrice, tc.use); got != want {
+			t.Errorf("%s: NewTxGas(%+v) = %+v, want %+v", name, tc.use, got, want)
+		}
+	}
+
+	// At a higher price, 1 GNOT pays for less gas: the raise stops there,
+	// at a fee capped at 1 GNOT that still pays the gas.
+	high := std.GasPrice{Gas: 1_000, Price: std.NewCoin("ugnot", 34)}
+	raised := NewTxGas(high, use(83_000_000, 20))
+	if raised.Secure.Wanted != 29_400_000 || raised.Secure.Fee.Amount != 1_000_000 || raised.Fast != raised.Secure {
+		t.Errorf("high price: %+v, want 29.4 M gas for 1 GNOT in both modes", raised)
+	}
+
+	// Another denom has no 1 GNOT cap: a measure lowers the fast-mode gas
+	// but never raises either mode.
+	foo := std.GasPrice{Gas: 1, Price: std.NewCoin("foo", 100_000_000_000)}
+	if got := NewTxGas(foo, use(500_000_000, 20)); got.Secure.Wanted != TxGasWanted || got.Fast.Wanted != TxGasWanted || got.Secure.Fee.IsZero() {
+		t.Errorf("other denom: %+v, want 10 M in both modes and a fee", got)
+	}
+
+	// A price whose gas alone costs more than 1 GNOT falls back for both
+	// modes, so a page shows one price and no fee above the secure one.
+	steep := std.GasPrice{Gas: 9, Price: std.NewCoin("ugnot", 1)}
+	want := TxGas{Secure: base, Fast: ugnot(2_800_000, 8_400), Price: FallbackGasPrice, Estimated: true, Used: use(1_380_000, 3)}
+	if got := NewTxGas(steep, use(1_380_000, 3)); got != want {
+		t.Errorf("steep price: %+v, want %+v", got, want)
+	}
+}
+
+// What the command and the note under it show.
+func TestTxGasText(t *testing.T) {
+	t.Parallel()
+
+	g := NewTxGas(FallbackGasPrice, GasUse{})
+	fee := func(c std.Coin) string { return GasFee{Fee: c}.FeeText() }
+	for _, tc := range []struct{ name, got, want string }{
+		{"flag", g.Secure.WantedFlag(), "10_000_000"},
+		{"fee", g.Secure.FeeText(), "0.03 GNOT"},
+		{"price", g.Price.String(), "1ugnot/1000gas"},
+		{"zero", fee(std.NewCoin("ugnot", 0)), "0 GNOT"},
+		{"one ugnot", fee(std.NewCoin("ugnot", 1)), "0.000001 GNOT"},
+		{"one GNOT", fee(std.NewCoin("ugnot", 1_000_000)), "1 GNOT"},
+		{"fraction", fee(std.NewCoin("ugnot", 1_234_567_890)), "1234.56789 GNOT"},
+		{"other denom", fee(std.NewCoin("foo", 1_234_567)), "1234567foo"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, tc.got, tc.want)
 		}
 	}
 }

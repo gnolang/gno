@@ -9,6 +9,8 @@ import (
 	gopath "path"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -16,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/sync/singleflight"
 )
 
 var (
@@ -121,6 +124,10 @@ type ClientAdapter interface {
 	// It is for gnoweb's own expressions, and queries like any page.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 
+	// GasPrice returns the chain's current gas price (`auth/gasprice`),
+	// which the chain adjusts every block.
+	GasPrice(ctx context.Context) (std.GasPrice, error)
+
 	// PublicEval is Eval for an expression a reader wrote (/_/api/eval): it
 	// queries within its own, smaller pool, so readers' evals cannot starve
 	// the pages, and its failures log at Debug, without the expression.
@@ -132,12 +139,30 @@ type rpcClient struct {
 	logger   *slog.Logger
 	client   *client.RPCClient
 	rpcSlots chan struct{}
+
+	// gasMu guards the cached gas price; it is never held across the query.
+	gasMu    sync.Mutex
+	gasPrice std.GasPrice
+	gasOK    bool      // gasPrice was read at least once
+	gasAt    time.Time // last query, failed or not
+	// gasBusy is set while a background refresh of the gas price is in
+	// flight; gasFirst joins the callers of a read with no price yet.
+	gasBusy  atomic.Bool
+	gasFirst singleflight.Group
+
 	// evalSlots caps PublicEval's queries among rpcSlots' at a quarter: a
 	// public eval takes one of each, so it counts against the cap like any
 	// query, and a burst of them, whose expressions are readers', leaves
 	// most slots to the pages.
 	evalSlots chan struct{}
 }
+
+// gasPriceTTL is how long a gas price is served before it is refreshed. The
+// price moves per block and the fee carries a margin, so a stale one is fine.
+const gasPriceTTL = 30 * time.Second
+
+// gasPriceTimeout bounds the query.
+const gasPriceTimeout = 2 * time.Second
 
 var _ ClientAdapter = (*rpcClient)(nil)
 
@@ -181,6 +206,60 @@ func (c *rpcClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byt
 
 func (c *rpcClient) evalData(pkgPath, expr string) []byte {
 	return fmt.Appendf(nil, "%s/%s.%s", c.domain, strings.Trim(pkgPath, "/"), expr)
+}
+
+// GasPrice answers the last price read from auth/gasprice. Once one exists
+// it is returned at once, and a stale one is refreshed in the background;
+// only the first read waits, bounded by gasPriceTimeout. A failed query
+// keeps the last price and is retried after gasPriceTTL.
+func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
+	c.gasMu.Lock()
+	gp, ok, at := c.gasPrice, c.gasOK, c.gasAt
+	c.gasMu.Unlock()
+
+	stale := time.Since(at) >= gasPriceTTL
+	if !ok && stale {
+		// No price yet: every caller waits for the one read, rather than
+		// getting no price while the node is answering.
+		v, err, _ := c.gasFirst.Do("", func() (any, error) { return c.queryGasPrice(ctx) })
+		if err != nil {
+			return std.GasPrice{}, err
+		}
+		return v.(std.GasPrice), nil
+	}
+	if stale && c.gasBusy.CompareAndSwap(false, true) {
+		go func() {
+			defer c.gasBusy.Store(false)
+			c.queryGasPrice(ctx)
+		}()
+	}
+	if !ok {
+		return std.GasPrice{}, errors.New("gas price unavailable")
+	}
+	return gp, nil
+}
+
+// queryGasPrice reads auth/gasprice and caches it. The query is detached from
+// the caller's cancellation: its answer is shared, and a refresh outlives
+// the request that started it.
+func (c *rpcClient) queryGasPrice(ctx context.Context) (std.GasPrice, error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gasPriceTimeout)
+	defer cancel()
+	var gp std.GasPrice
+	res, err := c.query(ctx, "auth/gasprice", nil, 0)
+	if err == nil {
+		err = amino.UnmarshalJSON(res, &gp)
+	}
+
+	c.gasMu.Lock()
+	defer c.gasMu.Unlock()
+	c.gasAt = time.Now()
+	if err != nil {
+		c.logger.Warn("gas price unavailable", "error", err)
+		return std.GasPrice{}, fmt.Errorf("unable to query gas price: %w", err)
+	}
+	c.gasPrice, c.gasOK = gp, true
+	return gp, nil
 }
 
 // validFileName reports whether vm/qfile reads name as a file of the package

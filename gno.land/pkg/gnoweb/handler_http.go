@@ -33,6 +33,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -192,6 +193,8 @@ type HTTPHandler struct {
 	pkgFiles packageFileCache
 	// counterparts caches the project listings behind the breadcrumb switch.
 	counterparts counterpartCache
+	// gasUse sizes the gas of copied commands from recent calls.
+	gasUse gasUseCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -224,6 +227,10 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
 	h.trustedProxies = trustedProxies
+	h.gasUse.logger = logger
+	if cfg.Indexer != nil {
+		h.gasUse.recent = cfg.Indexer.RecentByPackage
+	}
 	h.Playground = playground.New(playground.Deps{
 		Client:   &playgroundClientAdapter{cfg.ClientAdapter},
 		Packages: playgroundPackages{h},
@@ -702,7 +709,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.Value))
 		}
 		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget, pr)
+		return h.GetMarkdownView(ctx, gnourl, aliasTarget, pr)
 	case servesDeps:
 		return h.GetDepsView(r, gnourl)
 	case isPackageURL(gnourl):
@@ -723,11 +730,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, pr *pageRender) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(ctx context.Context, gnourl *weburl.GnoURL, alias AliasTarget, pr *pageRender) (int, *components.View) {
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), h.renderContext(pr))
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), h.renderContext(ctx, pr))
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
@@ -844,7 +851,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	}
 
 	var content bytes.Buffer
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(pr))
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(ctx, pr))
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
@@ -1126,7 +1133,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL, pr
 			continue
 		}
 		namespace = ns
-		if _, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(pr)); err != nil {
+		if _, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(ctx, pr)); err != nil {
 			h.Logger.Debug("unable to render user realm", "username", ns, "error", err)
 		}
 		break
@@ -1250,12 +1257,22 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		}
 	}
 
+	// Only a page with commands to price asks for the gas price and use: a
+	// crossing function's, the only kind that renders one.
+	pkgPath := path.Join(h.Static.Domain, gnourl.Path)
+	var price std.GasPrice
+	var uses map[string]components.GasUse
+	if slices.ContainsFunc(fsigs, func(fn *doc.JSONFunc) bool { return fn.Crossing }) {
+		price, uses = h.gasPrice(ctx), h.gasUse.get(ctx, pkgPath)
+	}
+
 	// Wrap each function with its pre-rendered documentation Component.
 	functions := make([]components.HelpFunction, 0, len(fsigs))
 	for _, fn := range fsigs {
 		functions = append(functions, components.HelpFunction{
 			JSONFunc:     fn,
 			DocComponent: renderDoc(fn.Doc),
+			Gas:          components.NewTxGas(price, uses[fn.Name]),
 		})
 	}
 
@@ -1267,7 +1284,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		RealmName:    realmName,
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
-		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
+		PkgPath:   pkgPath,
 		Remote:    h.Static.RemoteHelp,
 		Functions: functions,
 		Doc:       renderDoc(jdoc.PackageDoc),
@@ -1286,7 +1303,7 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	}
 
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, h.renderContext(pr)); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, h.renderContext(ctx, pr)); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}

@@ -50,6 +50,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		return vals.Has(key)
 	}
 	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
+	funcs["FormatGas"] = FormatGas
 	funcs["hasPrefix"] = strings.HasPrefix
 	funcs["split"] = strings.Split
 	// add returns the sum of two integers — used by recursive templates that

@@ -1,7 +1,9 @@
 package markdown
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/yuin/goldmark/parser"
 )
 
@@ -9,6 +11,7 @@ var (
 	gUrlContextKey           = parser.NewContextKey()
 	gChainIdContextKey       = parser.NewContextKey()
 	gRemoteContextKey        = parser.NewContextKey()
+	gGasContextKey           = parser.NewContextKey()
 	gDomainContextKey        = parser.NewContextKey()
 	gIPFSGatewayContextKey   = parser.NewContextKey()
 	gForeignOriginContextKey = parser.NewContextKey()
@@ -19,7 +22,10 @@ type GnoContext struct {
 	GnoURL  *weburl.GnoURL
 	ChainId string
 	Remote  string
-	Domain  string
+	// Gas prices the command calling fn in pkgPath; it is called only by a
+	// page that shows one. nil prices it at components.FallbackGasPrice.
+	Gas    func(pkgPath, fn string) components.TxGas
+	Domain string
 	// IPFSGateway is the gateway origin (e.g. "https://ipfs.filebase.io")
 	// that ipfs:// URLs and URLs on the gateways in ipfsRewrittenGateways are
 	// rewritten to. Empty disables the rewrite.
@@ -34,6 +40,7 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx.Set(gUrlContextKey, mdctx.GnoURL)
 	ctx.Set(gChainIdContextKey, mdctx.ChainId)
 	ctx.Set(gRemoteContextKey, mdctx.Remote)
+	ctx.Set(gGasContextKey, mdctx.Gas)
 	ctx.Set(gDomainContextKey, mdctx.Domain)
 	ctx.Set(gIPFSGatewayContextKey, mdctx.IPFSGateway)
 	ctx.Set(gLinkPolicyContextKey, mdctx.Links)
@@ -50,8 +57,9 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	remote, _ := getRemoteFromContext(ctx)
 	domain, _ := getDomainFromContext(ctx)
 	gateway, _ := getIPFSGatewayFromContext(ctx)
+	gas, _ := ctx.Get(gGasContextKey).(func(string, string) components.TxGas)
 	return GnoContext{
-		GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain,
+		GnoURL: url, ChainId: chainId, Remote: remote, Gas: gas, Domain: domain,
 		IPFSGateway: gateway, Links: getLinkPolicyFromContext(ctx),
 	}
 }
@@ -79,6 +87,16 @@ func getRemoteFromContext(ctx parser.Context) (remote string, ok bool) {
 		return "", false
 	}
 	return
+}
+
+// getGasFromContext prices the command calling fn in pkgPath with the
+// context's gas lookup, or at
+// components.FallbackGasPrice when the context carries none.
+func getGasFromContext(ctx parser.Context, pkgPath, fn string) components.TxGas {
+	if gas, _ := ctx.Get(gGasContextKey).(func(string, string) components.TxGas); gas != nil {
+		return gas(pkgPath, fn)
+	}
+	return components.NewTxGas(std.GasPrice{}, components.GasUse{})
 }
 
 // getDomainFromContext retrieves the Domain from the parser context
