@@ -25,7 +25,7 @@ you'll need a wallet:
 
 ### Useful Resources
 
-- [Staging network](https://staging.gno.land) - A rolling development testnet running the latest code from master
+- [Testnet](https://latest.testnets.gno.land) - The current testnet, which runs mainnet's code and has a faucet
 - [Faucet Hub](https://faucet.gno.land) - Get testnet tokens for experimenting
 - [Awesome Gno](https://github.com/gnoverse/awesome-gno) - A curated list of tools, tutorials, and projects
 

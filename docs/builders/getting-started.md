@@ -279,7 +279,6 @@ network dropdown and every `gnokey` command's `-remote` and
 | Network    | `-chainid`   | `-remote`                                     |
 |------------|--------------|-----------------------------------------------|
 | Local      | `dev`        | `http://localhost:26657`                      |
-| Staging    | `staging`    | `https://rpc.staging.gno.land:443`            |
 | Testnet    | `onyx-1`     | `https://rpc.onyx.testnets.gno.land:443`      |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
