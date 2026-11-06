@@ -157,6 +157,10 @@ func TestAliasHeaderSearchScope(t *testing.T) {
 		// builds its requests on this action, and `<path>$search` is a 404.
 		{"/r/mock/a,b", "/"},
 	} {
+		// The search stays chain-wide, so no keyword about the package works.
+		if strings.Contains(get(tc.page), "data-searchbar-package-value") {
+			t.Errorf("%s: names a package its search does not reach", tc.page)
+		}
 		m := headerAction.FindStringSubmatch(get(tc.page))
 		if m == nil {
 			t.Fatalf("%s: no header form action", tc.page)
@@ -168,6 +172,31 @@ func TestAliasHeaderSearchScope(t *testing.T) {
 		t.Logf("page %-7s no-JS action %-22q scoped=%v | JS href %-16q scoped=%v", tc.page, noJS, noJSScoped, js, jsScoped)
 		if noJS != js || noJSScoped != jsScoped {
 			t.Errorf("page %s: no-JS form searches %q (scoped=%v), JS searches %q (scoped=%v)", tc.page, noJS, noJSScoped, js, jsScoped)
+		}
+	}
+}
+
+// TestHeaderNamesThePackageOnlyOnAPackagePage checks the omnibar is told of a
+// package only on a page that shows one: a listing or a 404 has the same URL
+// shape, and the keywords about a package answer "not found" there.
+func TestHeaderNamesThePackageOnlyOnAPackagePage(t *testing.T) {
+	t.Parallel()
+
+	handler := newSearchPageHandler(t)
+	cases := []struct{ target, want string }{
+		{"/r/mock/path", `data-searchbar-package-value="/r/mock/path"`},
+		{"/r/mock/path$source", `data-searchbar-package-value="/r/mock/path"`},
+		{"/r/mock", ""},      // a namespace listing
+		{"/r/mock/nope", ""}, // a 404
+		{"/", ""},            // no package at all
+	}
+	for _, tc := range cases {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.target, nil))
+		if tc.want == "" {
+			require.NotContains(t, rr.Body.String(), "data-searchbar-package-value", tc.target)
+		} else {
+			require.Contains(t, rr.Body.String(), tc.want, tc.target)
 		}
 	}
 }

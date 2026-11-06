@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -66,6 +67,36 @@ func TestServeJSONShape(t *testing.T) {
 			t.Errorf("selector %q advertised without an indexer", s.Name)
 		}
 	}
+	// So do the narrowing qualifiers and the headings, so the omnibar
+	// suggests them without a list of its own.
+	if len(resp.Filters) != len(filterKeywords) || len(resp.KeywordGroups) != len(keywordGroups) {
+		t.Fatalf("filters = %d, groups = %d, want %d and %d", len(resp.Filters), len(resp.KeywordGroups), len(filterKeywords), len(keywordGroups))
+	}
+	headed := func(group string) bool {
+		return slices.ContainsFunc(keywordGroups, func(g KeywordGroup) bool { return g.Key == group })
+	}
+	for _, f := range resp.Filters {
+		if f.Hint == "" || f.Label == "" || f.Help == "" || !headed(f.Group) {
+			t.Errorf("filter %+v: no hint, label, help or heading to show", f)
+		}
+		if f.Scope != ScopeGlobal || f.Source != SourceChain {
+			t.Errorf("filter %q: scope %q, source %q, want global and chain", f.Name, f.Scope, f.Source)
+		}
+		// The omnibar matches these literally: another word drops the list.
+		if f.Complete != "" && f.Complete != CompleteNamespace && f.Complete != CompletePath {
+			t.Errorf("filter %q: unknown value list %q", f.Name, f.Complete)
+		}
+	}
+	// Each keyword says what it does: the omnibar shows nothing else. One
+	// that works anywhere also has a heading, or no list shows it.
+	for _, s := range append(chainSelectors(), indexerSelectors()...) {
+		if s.Help == "" {
+			t.Errorf("selector %q has no help", s.Name)
+		}
+		if s.Scope == ScopeGlobal && !headed(s.Group) {
+			t.Errorf("selector %q: group %q has no heading", s.Name, s.Group)
+		}
+	}
 }
 
 func TestServeJSONRejectsAHostileQuery(t *testing.T) {
@@ -111,7 +142,9 @@ func TestServePageRendersWithoutJavaScript(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 	out := body.String()
-	for _, want := range []string{"b-omni", "/r/alice/blog", "Search keywords"} {
+	// The keywords popover lists the filters from the same table as the
+	// JSON answer, so the page and the omnibar cannot disagree.
+	for _, want := range []string{"b-omni", "/r/alice/blog", "Search keywords", "author:‹name›", "Only realms, or only packages"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("rendered page missing %q", want)
 		}
