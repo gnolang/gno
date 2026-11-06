@@ -22,7 +22,7 @@ func TestWriteListOfEndpoints(t *testing.T) {
 	// so the page must not echo it.
 	req := httptest.NewRequest(http.MethodGet, "http://attacker.example/", nil)
 	rec := httptest.NewRecorder()
-	makeJSONRPCHandler(funcMap, log.NewNoopLogger())(rec, req)
+	makeJSONRPCHandler(funcMap, log.NewNoopLogger(), 0)(rec, req)
 	res := rec.Result()
 	assert.Equal(t, res.StatusCode, 200, "Should always return 200")
 	blob, err := io.ReadAll(res.Body)

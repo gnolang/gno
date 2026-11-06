@@ -153,7 +153,7 @@ func TestServeGenesis_PeakHeapBound(t *testing.T) {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -208,7 +208,7 @@ func TestServeGenesis_ConcurrentPeakHeapBound(t *testing.T) {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -323,7 +323,7 @@ func TestServeGenesis_SemanticEquivalenceWithSource(t *testing.T) {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 

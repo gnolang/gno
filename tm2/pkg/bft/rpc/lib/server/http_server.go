@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -156,20 +157,49 @@ func WriteStreamingRPCResponseHTTP(ctx context.Context, w http.ResponseWriter, i
 	return nil
 }
 
-// WriteRPCResponseArrayHTTP will do the same as WriteRPCResponseHTTP, except it
-// can write arrays of responses for batched request/response interactions via
-// the JSON RPC.
-func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) error {
-	jsonBytes, err := json.MarshalIndent(res, "", "  ")
-	if err != nil {
+// batchWriter writes the answers of a batch one at a time, in the bytes
+// json.MarshalIndent(answers, "", "  ") gives the whole slice.
+type batchWriter struct {
+	w       io.Writer
+	written bool
+	enc     *json.Encoder
+}
+
+// write appends resp to the array, opening it on the first answer.
+func (b *batchWriter) write(resp types.RPCResponse) error {
+	sep := ",\n  "
+	if !b.written {
+		sep = "[\n  "
+		b.enc = json.NewEncoder(dropNewline{b.w})
+		b.enc.SetIndent("  ", "  ")
+		b.written = true
+	}
+	if _, err := io.WriteString(b.w, sep); err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	if _, err := w.Write(jsonBytes); err != nil {
-		return err
+	if err := b.enc.Encode(resp); err != nil {
+		// A marshal error writes nothing, so the error answer takes the slot.
+		return b.enc.Encode(types.RPCInternalError(resp.ID, err))
 	}
 	return nil
+}
+
+// dropNewline forwards what json.Encoder.Encode writes, without the newline
+// it ends each value with; Encode writes each value in a single Write.
+type dropNewline struct{ w io.Writer }
+
+func (d dropNewline) Write(p []byte) (int, error) {
+	n, err := d.w.Write(p[:len(p)-1])
+	if err == nil {
+		n++
+	}
+	return n, err
+}
+
+// close ends the array; it must follow at least one write.
+func (b *batchWriter) close() error {
+	_, err := io.WriteString(b.w, "\n]")
+	return err
 }
 
 // -----------------------------------------------------------------------------
@@ -253,6 +283,12 @@ type ResponseWriterWrapper struct {
 func (w *ResponseWriterWrapper) WriteHeader(status int) {
 	w.Status = status
 	w.ResponseWriter.WriteHeader(status)
+}
+
+// Unwrap lets http.ResponseController reach the wrapped writer, so a batch
+// can flush each answer.
+func (w *ResponseWriterWrapper) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 // implements http.Hijacker
