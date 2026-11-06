@@ -34,6 +34,7 @@ type AppConfig struct {
 	webAnalytics         bool
 	webAnalyticsHostname string
 	webIPFSGateway       string
+	faucetAmount         string
 
 	// Loader
 	noExamples                 bool
@@ -116,6 +117,16 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		defaultCfg.webWithHTML,
 		"gnoweb: enable HTML parsing in markdown rendering",
 	)
+
+	// Only staging serves a faucet; in local mode the flag would be a no-op.
+	if defaultCfg.staging {
+		fs.StringVar(
+			&c.faucetAmount,
+			"faucet",
+			defaultCfg.faucetAmount,
+			"amount the faucet at /faucet sends per claim, empty to disable",
+		)
+	}
 
 	fs.StringVar(
 		&c.webHome,

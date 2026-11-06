@@ -59,7 +59,9 @@ func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) 
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, loader *packages.Loader, paths ...string) (*gnodev.Node, error) {
+// extraBalances are appended after any -genesis or -txs-file override, so
+// they are funded whatever the source of the rest of the state.
+func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, loader *packages.Loader, extraBalances []gnoland.Balance, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -84,6 +86,8 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 
 		logger.Info("genesis file loaded", "path", cfg.genesisFile, "txs", len(stateTxs))
 	}
+
+	nodeConfig.BalancesList = append(nodeConfig.BalancesList, extraBalances...)
 
 	if len(paths) > 0 {
 		logger.Info("packages", "paths", paths)
@@ -117,6 +121,10 @@ func setupDevNodeConfig(
 	config.Emitter = emitter
 	config.BalancesList = balances.List()
 	config.TMConfig.RPC.ListenAddress = cfg.nodeRPCListenerAddr
+	// DefaultNodeConfig starts from tm2's TestConfig, which turns on the
+	// unsafe_* routes. Two of them write a profile to any path the caller
+	// names, unauthenticated, and nothing in gnodev needs any of them.
+	config.TMConfig.RPC.Unsafe = false
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
