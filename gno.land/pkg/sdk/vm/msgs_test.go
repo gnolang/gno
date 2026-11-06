@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -123,6 +124,45 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 				Creator: creator,
 			},
 			expectErr: InvalidPkgPathError{},
+		},
+		{
+			name: "package type as gnokey sends it",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &std.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+					Type:  gno.MPUserAll,
+				},
+			},
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","max_deposit":"","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}","name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test","type":{"@type":"/gno.MemPackageType","value":"MPUserAll"}},"send":""}`,
+		},
+		{
+			name: "package type of another registered type",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &std.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+					Type:  infoPayload(),
+				},
+			},
+			expectErr: InvalidPackageError{},
+		},
+		{
+			name: "package info set",
+			msg: MsgAddPackage{
+				Creator: creator,
+				Package: &std.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: files,
+					Info:  infoPayload(),
+				},
+			},
+			expectErr: InvalidPackageError{},
 		},
 		{
 			name: "empty files array",
@@ -437,6 +477,32 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 				Caller: caller,
 			},
 			expectErr: InvalidPkgPathError{},
+		},
+		{
+			name: "package type of another registered type",
+			msg: MsgRun{
+				Caller: caller,
+				Package: &std.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: pkgFiles,
+					Type:  infoPayload(),
+				},
+			},
+			expectErr: InvalidPackageError{},
+		},
+		{
+			name: "package info set",
+			msg: MsgRun{
+				Caller: caller,
+				Package: &std.MemPackage{
+					Name:  pkgName,
+					Path:  pkgPath,
+					Files: pkgFiles,
+					Info:  infoPayload(),
+				},
+			},
+			expectErr: InvalidPackageError{},
 		},
 		{
 			name: "empty package files",

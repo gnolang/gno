@@ -1,11 +1,14 @@
 package gnoland
 
 import (
+	"bytes"
 	"encoding/binary"
+	"math/big"
 	"slices"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -177,6 +180,33 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 
 	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: canonical})
 	require.True(t, deliver.IsOK(), deliver.Log)
+}
+
+// MemPackage.Type and Info are `any`, and some registered types cost far more
+// to re-encode than to decode, so ValidateBasic must refuse them before runTx's
+// canonical check. These bytes are non-canonical (1e000009 re-encodes as
+// 1000000000), so a decode error here would mean the re-encode ran first.
+func TestTxPackageAnyFieldsRefusedBeforeReencode(t *testing.T) {
+	t.Parallel()
+
+	app, _, _ := canonicalSendApp(t)
+	creator := crypto.AddressFromPreimage([]byte("creator"))
+	placeholder := gno.BigdecValue{V: big.NewRat(12345678, 1)}
+	for name, pkg := range map[string]*std.MemPackage{
+		"Info": {Name: "p", Path: "gno.land/r/x/p", Info: placeholder},
+		"Type": {Name: "p", Path: "gno.land/r/x/p", Type: placeholder},
+	} {
+		bz, err := amino.Marshal(std.Tx{Msgs: []std.Msg{vm.MsgAddPackage{Creator: creator, Package: pkg}}})
+		require.NoError(t, err)
+		require.Equal(t, 1, bytes.Count(bz, []byte("12345678")), name)
+		bz = bytes.Replace(bz, []byte("12345678"), []byte("1e000009"), 1)
+		require.ErrorContains(t, amino.UnmarshalCanonical(bz, new(std.Tx)), "non-canonical encoding", name)
+
+		check := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+		assert.Equal(t, vm.InvalidPackageError{}, check.Error, name)
+		deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: bz})
+		assert.Equal(t, vm.InvalidPackageError{}, deliver.Error, name)
+	}
 }
 
 // A nil *std.MemPackage inside MsgAddPackage or MsgRun is a non-nil message

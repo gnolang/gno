@@ -58,6 +58,9 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Package == nil {
 		return ErrInvalidPkgPath("missing package")
 	}
+	if err := validatePackageAnyFields(msg.Package); err != nil {
+		return err
+	}
 	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
@@ -70,6 +73,19 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	// Validate: ensure the package contains at least one file.
 	if len(msg.Package.Files) == 0 {
 		return ErrInvalidFile("no files in MsgAddPackage")
+	}
+	return nil
+}
+
+// validatePackageAnyFields refuses a non-nil Info and a Type other than a
+// gno.MemPackageType. Both fields are typed `any`, and runTx re-encodes the tx
+// once ValidateBasic passes; see tm2/adr/pr6406_canonical_tx_enforcement.md.
+func validatePackageAnyFields(pkg *std.MemPackage) error {
+	if pkg.Info != nil {
+		return errInvalidMemPackage(gno.ErrMemPackageInfo)
+	}
+	if _, ok := pkg.Type.(gno.MemPackageType); pkg.Type != nil && !ok {
+		return ErrInvalidPackage(fmt.Sprintf("package type must be a MemPackageType, not %T", pkg.Type))
 	}
 	return nil
 }
@@ -234,6 +250,9 @@ func (msg MsgRun) ValidateBasic() error {
 	}
 	if msg.Package == nil {
 		return ErrInvalidPkgPath("missing package")
+	}
+	if err := validatePackageAnyFields(msg.Package); err != nil {
+		return err
 	}
 
 	if msg.Package.Path != "" {
