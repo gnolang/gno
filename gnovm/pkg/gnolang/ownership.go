@@ -548,7 +548,7 @@ func (tv *TypedValue) isReadonlyBy(rid, ownPkgID PkgID, seen map[*HeapItemValue]
 	// tv is an object residing in external realm — unless it is the
 	// executing package's own package-level data (stamped ownPkgID),
 	// which the package may always read/copy regardless of m.Realm.
-	if tvoid.PkgID != rid && tvoid.PkgID != ownPkgID {
+	if !tvoid.PkgID.eq(rid) && !tvoid.PkgID.eq(ownPkgID) {
 		return true
 	}
 	return false
