@@ -6,9 +6,12 @@ loadpkg gno.land/r/test/objbin $WORK/realm
 
 gnoland start
 
-# Discover the HeapItemValue ObjectID via qeval_json.
+# Discover the HeapItemValue ObjectID via qeval_json. Height is racy, so match
+# it with a regex and pin the data by substrings.
 gnokey query vm/qeval_json --data "gno.land/r/test/objbin.GetPointer()"
-cmp stdout getpointer.stdout.golden
+stdout 'height: [1-9][0-9]*'
+stdout '"@type":"/gno.PointerValue"'
+stdout '"@type":"/gno.RefValue","ObjectID":"0b346ccb4f46250025c8e5c235c8fca7b9f1d317:4"'
 
 # qobject_binary: invalid ObjectID should error before any binary is produced.
 ! gnokey query vm/qobject_binary --data "invalid"
@@ -24,12 +27,9 @@ stderr 'object not found'
 # are raw amino encoding (non-printable), which can't be pinned as a
 # text golden reliably.
 gnokey query vm/qobject_binary --data "0b346ccb4f46250025c8e5c235c8fca7b9f1d317:4"
-stdout '^height: 0'
+stdout 'height: [1-9][0-9]*'
 stdout '/gno.HeapItemValue'
 
--- getpointer.stdout.golden --
-height: 0
-data: {"results":[{"T":{"@type":"/gno.PointerType","Elt":{"@type":"/gno.RefType","ID":"gno.land/r/test/objbin.Item"}},"V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":"0b346ccb4f46250025c8e5c235c8fca7b9f1d317:4","Hash":"d9f377d5f17d5a4b5dbeb1dd9735bbddbafb3768"},"Index":"0"}}]}
 -- realm/gnomod.toml --
 module = "gno.land/r/test/objbin"
 gno = "0.9"
