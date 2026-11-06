@@ -279,3 +279,29 @@ func TestDoOpStructType_EmbedNames(t *testing.T) {
 		}
 	}
 }
+
+func TestDeclaredTypeTypeIDCacheHitDoesNotAllocate(t *testing.T) {
+	if debugAssert {
+		t.Skip("debugAssert deliberately recomputes the cached TypeID")
+	}
+	dt := &DeclaredType{PkgPath: "gno.land/r/demo", Name: "Counter"}
+	if got, want := dt.TypeID(), TypeID("gno.land/r/demo.Counter"); got != want {
+		t.Fatalf("TypeID() = %q, want %q", got, want)
+	}
+
+	if got := testing.AllocsPerRun(1000, func() { _ = dt.TypeID() }); got != 0 {
+		t.Fatalf("cached TypeID() allocated %v times per call, want 0", got)
+	}
+}
+
+func BenchmarkDeclaredTypeTypeIDCacheHit(b *testing.B) {
+	dt := &DeclaredType{PkgPath: "gno.land/r/demo", Name: "Counter"}
+	want := dt.TypeID()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if got := dt.TypeID(); got != want {
+			b.Fatalf("TypeID() = %q, want %q", got, want)
+		}
+	}
+}
