@@ -74,14 +74,33 @@ func TestPreprocessClosureScanGas(t *testing.T) {
 
 	// A closure captures each name once, so distinct names pay a capture
 	// apiece under every closure, while repeated reads of one name share it.
+	// Each closure's block also pays for the slots it copies as it grows,
+	// which past blockValuesGrowThreshold happens every
+	// blockValuesGrowIncrement captures.
 	t.Run("charges_each_new_capture", func(t *testing.T) {
-		const names, depth = 32, 8
-		same := closureScanGas(t, captureNamesSrc(names, depth, false))
-		distinct := closureScanGas(t, captureNamesSrc(names, depth, true))
-		t.Logf("CPU gas for %d names under %d closures: one name %d, distinct %d", names, depth, same, distinct)
+		for _, c := range []struct{ names, depth int }{{32, 8}, {1200, 2}} {
+			same := closureScanGas(t, captureNamesSrc(c.names, c.depth, false))
+			distinct := closureScanGas(t, captureNamesSrc(c.names, c.depth, true))
+			t.Logf("CPU gas for %d names under %d closures: one name %d, distinct %d", c.names, c.depth, same, distinct)
 
-		require.Equal(t, int64((names-1)*depth)*OpCPUSlopePreprocessClosureCapture, distinct-same)
+			captures := int64((c.names - 1) * c.depth)
+			copies := int64(c.depth * growthCopies(c.names))
+			require.Equal(t, captures*OpCPUSlopePreprocessClosureCapture+copies*OpCPUSlopePreprocessCaptureGrowCopy, distinct-same)
+		}
 	})
+}
+
+// growthCopies counts the slots growBlockValues copies while an empty block
+// takes n defines one at a time, as a closure's block does for n captures.
+func growthCopies(n int) (copied int) {
+	var values []TypedValue
+	for i := 1; i <= n; i++ {
+		if cap(values) < i {
+			copied += len(values)
+		}
+		values = growBlockValues(values, i)
+	}
+	return copied
 }
 
 // measurePreprocessClosureScanGas returns the scan gas of refs reads of x
@@ -106,12 +125,12 @@ func captureNamesSrc(names, depth int, distinct bool) string {
 		if i > 0 {
 			params.WriteString(", ")
 		}
-		fmt.Fprintf(&params, "a%04d int", i)
+		fmt.Fprintf(&params, "a%05d int", i)
 		ref := 0
 		if distinct {
 			ref = i
 		}
-		fmt.Fprintf(&refs, "_ = a%04d\n", ref)
+		fmt.Fprintf(&refs, "_ = a%05d\n", ref)
 	}
 	return "package closure_scan\n\nfunc measure(" + params.String() + ") {\n" +
 		strings.Repeat("_ = func() {\n", depth) + refs.String() + strings.Repeat("}\n", depth) + "}\n"

@@ -30,7 +30,7 @@ Keep the capture algorithm and charge its existing work:
   before checking `found`.
 - `OpCPUSlopePreprocessClosureScan` is 5 CPU gas per scanned frame.
 - `addHeapCapture` reports whether it added a capture, and each one it adds
-  costs `OpCPUSlopePreprocessClosureCapture`, 2100 CPU gas. A capture is
+  costs `OpCPUSlopePreprocessClosureCapture`, 2500 CPU gas. A capture is
   added once per name per closure crossed, so distinct names under deep
   closures did that work for free: 2000 names under 100 closures took about
   eight times as long to preprocess as one name read 2000 times, for 0.4%
@@ -38,6 +38,15 @@ Keep the capture algorithm and charge its existing work:
   block instead of climbing from the closure back to it, which removes an
   O(D) walk from every capture and no longer stops at a closure's own later
   declaration of the same name.
+- `addHeapCapture` also reports the block slots its define copied, at
+  `OpCPUSlopePreprocessCaptureGrowCopy`, 25 CPU gas each. `growBlockValues`
+  doubles a block up to 512 slots and then grows it 256 at a time, copying
+  every earlier slot each time, so a capture cost more the more captures its
+  closure already held: at 60000 names under 8 closures, about twice the
+  flat charge.
+- The `IsAssignable` check on a plain assignment asks the block the name's
+  path resolves to, not the first block holding that name. A local `f`
+  declared later in the block let `f = ...` overwrite the package func `f`.
 - The string branches of `append` and `copy` preprocess their rewritten
   argument with `preprocess1(store, ...)`. Before, they called
   `Preprocess(nil, ...)`, which had no meter, and its coda ran with a stack
@@ -72,26 +81,49 @@ checked in as `gnovm/cmd/calibrate/closurescan_bench_m5_arm64.txt`.
 The provisional slope 4 covered the deep cases but fell below the shallow
 not-found confidence bound after conversion, so the final value is 5.
 
-`BenchmarkClosureCapture` preprocesses a file reading `names` distinct
-parameters under `depth` closures, and the same file reading the first
-parameter `names` times. The two have the same bytes and the same scans, so
-the time difference over `(names−1)·depth` is the cost of one capture,
-garbage collection included. Allocation gas covers none of it. On a Ryzen 7
-7840U, unpinned, `-count=10`, the 95% upper bound is 1338 ns at 2000 names
-and depth 100, against about 850 ns at the smaller sizes. That box's largest
-per-element machine factor, 1.52, gives 2034 reference-ns, rounded up to
-2100 because a scalar factor ports allocation-heavy work poorly. A run
-pinned to one core, with GC on the measured core, gave 1746 ns. The raw
-output is `gnovm/cmd/calibrate/closurecapture_bench_7840u_amd64.txt`; a
-reference-hardware run should confirm the value.
+`BenchmarkGrowBlockValues` times `growBlockValues` reallocating a full block
+of 512 to 65536 slots. `BenchmarkClosureCapture` preprocesses a file reading
+`names` distinct parameters under `depth` closures, and the same file reading
+the first parameter `names` times. The two have the same bytes and the same
+scans, so the time difference over `(names−1)·depth` is the cost of one
+capture, garbage collection included. Allocation gas covers none of it. Both
+ran on a Ryzen 7 7840U, unpinned, `-count=10`, and use that box's largest
+per-element machine factor, 1.52.
+
+| Case | 95% upper | Reference | Copies per capture | Fit |
+| --- | ---: | ---: | ---: | ---: |
+| grow, 512 slots | 16.3 ns/slot | 24.8 | | 25 |
+| capture, 32 names, depth 8 | 902 ns | 1370 | 1.0 | 1345 |
+| capture, 2000 names, depth 100 | 1592 ns | 2419 | 3.7 | 2327 |
+| capture, 60000 names, depth 8 | 3565 ns | 5418 | 117.3 | 2486 |
+
+A capture's fit is its reference upper bound less its copies at 25 each; the
+largest, 2486, rounds up to 2500. The raw output is
+`gnovm/cmd/calibrate/closurecapture_bench_7840u_amd64.txt`; a
+reference-hardware run should confirm both values.
+
+These runs were unpinned, while the 1.52 factor comes from literal families
+timed pinned to one core. Pinning slows the capture benchmark more than the
+literal families, because the collector loses its idle cores. A review run
+pinned to one core, with that session's own pinned factor, fit 2243 at 2000
+names under 100 closures, 2491 on the mean (2712 at most) at 10000 names
+under 120 closures, and 3562 at 60000 names under 8 closures. The 60000-name
+source is 1,380,159 bytes, past `MaxTxBytes`; 43000 names is the most one
+transaction carries at depth 8. The reference run should settle which mode
+the constant follows.
 
 ## Alternatives considered
 
-- Rewrite or cache the capture search. Rejected because this change is resource
-  bounding, not a semantic rewrite. Capture selection, `depth`, `ValuePath`
-  updates, `addAttrHeapUse`, `addHeapCapture`, and the `dbn = flx` sequence must
-  remain unchanged; an earlier rewrite also changed the behavior covered by
-  `heap_alloc_gotoloop9`.
+- Rewrite or cache the capture search. Rejected because the charge only needs
+  to price the existing search. Capture selection, `depth`, `ValuePath`
+  updates, `addAttrHeapUse` and the `dbn = flx` sequence stay as they were; an
+  earlier rewrite also changed the behavior covered by `heap_alloc_gotoloop9`.
+- Change `growBlockValues` to keep doubling past its threshold, so captures
+  stop copying their closure's whole block every 256 defines. Rejected
+  because `cap(Block.Values)` is what runtime allocation gas charges for
+  every block, so the growth policy is part of the gas schedule well beyond
+  preprocess. Charging the slots copied prices the same work without moving
+  that schedule.
 - Charge only successful capture searches. Rejected because not-found searches
   still scan frames; omitting them would retain an unmetered path.
 - Add a source-size flat charge. Rejected because equal-size sources can cause
@@ -105,10 +137,10 @@ reference-hardware run should confirm the value.
 - Metered preprocessing now charges exactly 5 CPU gas per frame actually
   visited. For `N` references at closure depth `D`, the added charge follows
   the existing O(N×D²) work instead of changing that work.
-- Each capture added costs 2100 CPU gas, so a package pays for every name
-  each closure captures. 2000 distinct names under 100 closures went from
-  0.18 to 1.31 gas per ns of preprocessing on the calibration box, against
-  1.0 for one name read 2000 times.
+- Each capture added costs 2500 CPU gas plus 25 per block slot it copies,
+  so a package pays for every name each closure captures. 2000 distinct
+  names under 100 closures went from 54.0M to 572.6M CPU gas, against 54.2M
+  for one name read 2000 times.
 - If the store, preprocess allocator, or allocator meter is nil,
   `preprocessGasMeterOf` returns nil and `chargeCPUGas` remains a no-op. Normal
   off-chain tests, filetests, and tooling without a preprocess meter retain

@@ -75,9 +75,10 @@ func BenchmarkFindFirstClosure(b *testing.B) {
 // names times and with names distinct names, and reports the time difference
 // per extra capture. Both sources have the same bytes and the same scans, so
 // the difference is what addHeapCapture spends on each new capture, garbage
-// collection included.
+// collection included. copies/capture is the block slots each extra capture
+// copies on average, which OpCPUSlopePreprocessCaptureGrowCopy prices apart.
 func BenchmarkClosureCapture(b *testing.B) {
-	for _, c := range []struct{ names, depth int }{{32, 8}, {200, 20}, {2000, 100}} {
+	for _, c := range []struct{ names, depth int }{{32, 8}, {200, 20}, {2000, 100}, {60000, 8}} {
 		b.Run(fmt.Sprintf("names=%d/depth=%d", c.names, c.depth), func(b *testing.B) {
 			same := captureNamesSrc(c.names, c.depth, false)
 			distinct := captureNamesSrc(c.names, c.depth, true)
@@ -86,6 +87,32 @@ func BenchmarkClosureCapture(b *testing.B) {
 				spent += timePreprocess(b, distinct) - timePreprocess(b, same)
 			}
 			b.ReportMetric(float64(spent.Nanoseconds())/float64((c.names-1)*c.depth*b.N), "ns/capture")
+			b.ReportMetric(float64(growthCopies(c.names))/float64(c.names-1), "copies/capture")
+		})
+	}
+}
+
+var benchmarkGrowBlockValuesSink []TypedValue
+
+// BenchmarkGrowBlockValues times growBlockValues reallocating a full block
+// of n slots, as a capture does once its closure's block is full, and
+// reports the time per slot copied, the new block's zeroing and garbage
+// collection included.
+func BenchmarkGrowBlockValues(b *testing.B) {
+	for _, n := range []int{512, 4096, 32768, 65536} {
+		b.Run(fmt.Sprintf("slots=%d", n), func(b *testing.B) {
+			full := growBlockValues(nil, n)
+			if cap(full) != n {
+				b.Fatalf("cap %d, want a full block of %d", cap(full), n)
+			}
+			for i := range full {
+				full[i] = TypedValue{T: IntType}
+			}
+			b.ResetTimer()
+			for range b.N {
+				benchmarkGrowBlockValuesSink = growBlockValues(full, n+1)
+			}
+			b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*n), "ns/slot")
 		})
 	}
 }

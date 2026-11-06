@@ -2854,7 +2854,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
 						if ne, ok := lh.(*NameExpr); ok {
-							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
+							// Ask the block the name resolves to: a
+							// name declared later in this block does
+							// not shadow the one assigned here.
+							if !last.GetBlockNodeForPath(store, ne.Path).GetStaticBlock().IsAssignable(store, ne.Name) {
 								panic("not assignable")
 							}
 						}
@@ -3816,9 +3819,10 @@ func codaHeapDefinesByUse(store Store, ctx BlockNode, bn BlockNode) {
 					addAttrHeapUse(dbn, n.Name)
 					// The path must stay same for now,
 					// used later in codaHeapUsesDemoteDefines.
-					idx, added := addHeapCapture(decl, flx, depth, n)
+					idx, added, copied := addHeapCapture(decl, flx, depth, n)
 					if added {
-						chargeCPUGas(gasm, OpCPUSlopePreprocessClosureCapture)
+						chargeCPUGas(gasm, OpCPUSlopePreprocessClosureCapture+
+							int64(copied)*OpCPUSlopePreprocessCaptureGrowCopy)
 					}
 					// adjust NameExpr type.
 					n.Type = NameExprTypeHeapUse
@@ -3858,8 +3862,12 @@ func hasAttrHeapUse(bn BlockNode, name Name) bool {
 // adds ~name to func lit static block and to heap captures atomically, and
 // reports whether it added one. decl is the block declaring name: reading the
 // slot there rather than climbing from fle's parent keeps a capture's cost
-// independent of how many closures it crosses.
-func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16, added bool) {
+// independent of how many closures it crosses. copied counts the block slots
+// the define moved: growBlockValues copies them all when it reallocates,
+// every blockValuesGrowIncrement captures once the block is past
+// blockValuesGrowThreshold, so a closure's captures cost more the more it
+// already holds.
+func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16, added bool, copied int) {
 	if depth <= 0 {
 		panic("invalid depth")
 	}
@@ -3871,7 +3879,7 @@ func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (
 		if !ok {
 			panic("~name not added to fle atomically")
 		}
-		return idx, false // already exists
+		return idx, false, 0 // already exists
 	}
 
 	// define ~name to fle.
@@ -3881,7 +3889,11 @@ func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (
 	}
 
 	tv := decl.GetSlot(nil, name, true)
+	before := fle.Block.Values
 	fle.Define("~"+name, tv.Copy(nil, nil))
+	if cap(fle.Block.Values) != cap(before) {
+		copied = len(before)
+	}
 
 	// add name to fle.HeapCaptures.
 	// NOTE: this doesn't work with shadowing, see define1.gno.
@@ -3907,7 +3919,7 @@ func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (
 	if !found {
 		panic("should not happen, idx not found")
 	}
-	return idx, true
+	return idx, true, copied
 }
 
 // finds the first FuncLitExpr in the stack after (excluding) stop.  returns

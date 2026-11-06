@@ -1672,10 +1672,18 @@ const (
 	OpCPUSlopePreprocessClosureScan = 5 // per block-stack frame scanned
 	// Closure capture added by addHeapCapture, at preprocess: the ~name
 	// define, its map entries and the garbage they leave. Read from
-	// BenchmarkClosureCapture: max 95% upper ns/capture over all cases.
-	// Dev-box fit (closurecapture_bench_7840u_amd64.txt, machine factor
-	// 1.52): 2034 reference-ns (2000 names, depth 100), rounded up to 2100.
-	OpCPUSlopePreprocessClosureCapture = 2100 // per capture added
+	// BenchmarkClosureCapture: max over all cases of the 95% upper
+	// ns/capture less the block growth OpCPUSlopePreprocessCaptureGrowCopy
+	// prices. Dev-box fit (closurecapture_bench_7840u_amd64.txt, machine
+	// factor 1.52): 2486 reference-ns (60000 names, depth 8), rounded up.
+	OpCPUSlopePreprocessClosureCapture = 2500 // per capture added
+	// Block slot copied when a capture grows the closure's block
+	// (growBlockValues), at preprocess: the copy, the new block's zeroing
+	// and the garbage left behind. Read from BenchmarkGrowBlockValues: max
+	// 95% upper ns/slot over all cases. Dev-box fit
+	// (closurecapture_bench_7840u_amd64.txt, machine factor 1.52): 24.8
+	// reference-ns (512 slots).
+	OpCPUSlopePreprocessCaptureGrowCopy = 25 // per slot copied
 	// Interface-satisfaction BFS (embedWalk), at preprocess and runtime.
 	// Read from BenchmarkOpEmbedWalk by cmd/calibrate/gen_analysis.py
 	// (SECTION 2b), picks at MaxEmbedDepth = 8, rounded up so all are floors.

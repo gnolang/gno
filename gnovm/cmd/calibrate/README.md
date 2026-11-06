@@ -80,4 +80,5 @@ constants; SECTION 2b of the report reads their three slopes from
 run behind `OpCPUSlopePreprocessClosureScan`; its header gives the rule that
 turns `BenchmarkFindFirstClosure` ns/frame into the slope.
 `closurecapture_bench_7840u_amd64.txt` does the same for
-`OpCPUSlopePreprocessClosureCapture` from `BenchmarkClosureCapture`.
+`OpCPUSlopePreprocessCaptureGrowCopy` from `BenchmarkGrowBlockValues`, and
+for `OpCPUSlopePreprocessClosureCapture` from `BenchmarkClosureCapture`.
