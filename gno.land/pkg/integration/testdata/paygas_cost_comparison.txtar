@@ -24,20 +24,21 @@ stdout 'GAS USED:   \d+'
 ## --- CALL 2: normal fee, same operation (overwrite) ---
 gnokey maketx call -pkgpath gno.land/r/test/work -func SetValue -args "value2" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'GAS USED:   1337476$'
+stdout 'GAS USED:   1337046$'
 ! stdout 'STORAGE DELTA'
 
 ## --- CALL 3: PayGas, same operation via wrapper ---
 gnokey maketx call -pkgpath gno.land/r/test/wrapper -func SponsoredSetValue -args "value3" -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'GAS USED:   1432020$'
+stdout 'GAS USED:   1431590$'
 ! stdout 'STORAGE DELTA'
 
 ## Calls 2 and 3 do the same base work: overwrite a 6-byte string with another,
-## with no storage change. Call 3 uses 94,544 more gas: loading the wrapper, its
-## cross-realm call, PayGas and PayStorage (settlement runs on its own meter and
-## is not in GAS USED). Both numbers are pinned so a change in that overhead
-## fails here; update them together.
+## with no storage change. Call 3 uses 94,544 more gas: the wrapper's cost
+## (loading it, its cross-realm call, PayGas and PayStorage) minus the ante's fee
+## deduction, which a 0-fee tx skips. Settlement runs on its own meter and is not
+## in GAS USED. Both numbers are pinned so a change in either fails here; update
+## them together.
 
 -- work/gnomod.toml --
 module = "work"

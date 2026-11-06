@@ -18,7 +18,7 @@ stdout '"1000000000ugnot"'
 ## deploy with a 0 fee
 gnokey maketx addpkg -pkgdir $WORK/initsponsor -pkgpath gno.land/r/test/initsponsor -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test user1
 stdout OK!
-stdout 'GAS USED:   2933076$'
+stdout 'GAS USED:   2932646$'
 stdout 'STORAGE DELTA:  2959 bytes'
 stdout 'STORAGE FEE:    0ugnot'
 stdout 'SPONSORED STORAGE: 295900ugnot'
@@ -33,10 +33,10 @@ stdout 'hello'
 gnokey query bank/balances/$user1_user_addr
 stdout '"1000000000ugnot"'
 
-## the realm paid the gas and the deposit: 10000000 - 2934 (2933076 gas at
+## the realm paid the gas and the deposit: 10000000 - 2933 (2932646 gas at
 ## 1ugnot per 1000 gas, rounded up) - 295900
 gnokey query bank/balances/g1p7zga756l2u8gqjhgh5q2y38tyg0gsge46sey4
-stdout '"9701166ugnot"'
+stdout '"9701167ugnot"'
 
 -- initsponsor/gnomod.toml --
 module = "gno.land/r/test/initsponsor"
