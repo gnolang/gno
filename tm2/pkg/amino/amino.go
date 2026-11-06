@@ -734,8 +734,9 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 // Unlike unmarshalAnyBinary2, this errors (not falls through) if the
 // concrete type does not implement PBMessager2.
 // UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value.
-// anyDepth is incremented by 1 (the sole increment point for depth
-// tracking); exceeding maxAnyDepth returns an error.
+// anyDepth is incremented by 1 (NestDepth is the other increment point,
+// for structs that can contain themselves); exceeding maxAnyDepth returns
+// an error.
 func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any, anyDepth int) error {
 	return cdc.unmarshalAnyBinary2Depth(bz, ptr, anyDepth+1)
 }

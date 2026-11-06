@@ -10,9 +10,21 @@ import (
 const bdOptionByte = 0x01
 
 // maxAnyDepth is the maximum nesting depth for interface/Any decoding.
-// Each interface field traversal increments depth; exceeding this limit
+// Each interface field traversal increments depth, as does each level of a
+// struct that can contain itself (StructInfo.Recursive); exceeding this limit
 // returns an error instead of risking stack overflow from malicious input.
 const maxAnyDepth = 64
+
+// NestDepth counts one level of a struct that can contain itself and returns
+// the new depth, or an error once it passes maxAnyDepth. Generated decoders
+// call it on entry for such types, as decodeReflectBinaryStruct does.
+func NestDepth(anyDepth int) (int, error) {
+	anyDepth++
+	if anyDepth > maxAnyDepth {
+		return anyDepth, fmt.Errorf("exceeded max nesting depth %d", maxAnyDepth)
+	}
+	return anyDepth, nil
+}
 
 // ----------------------------------------
 // cdc.decodeReflectBinary
@@ -972,6 +984,11 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 		}()
 	}
 	_n := 0 //nolint: ineffassign
+	if info.Recursive {
+		if anyDepth, err = NestDepth(anyDepth); err != nil {
+			return
+		}
+	}
 
 	// NOTE: The "Struct" typ3 doesn't get read here.
 	// It's already implied, either by struct-key or list-element-type-byte.
