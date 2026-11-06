@@ -933,9 +933,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					}
 					// check second value
 					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil { // see composite3.gno
-						if dt.Kind() != BoolKind { // typed, not bool
-							panic(fmt.Sprintf("want bool type got %v", dt))
-						}
+						mustAssignableTo(store, x, UntypedBoolType, dt)
 					}
 				}
 				cx.HasOK = true
@@ -961,9 +959,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					}
 
 					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil {
-						if dt.Kind() != BoolKind { // typed, not bool
-							panic(fmt.Sprintf("want bool type got %v", dt))
-						}
+						mustAssignableTo(store, x, UntypedBoolType, dt)
 					}
 				}
 				cx.HasOK = true
