@@ -232,7 +232,7 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 			// starts: unrecovered, it would take the whole server down.
 			defer func() {
 				if r := recover(); r != nil {
-					h.deps.Logger.Error("omnisearch: discovery panicked", "panic", r)
+					h.deps.Logger.Error("omnisearch: discovery panicked", "panic", fmt.Sprintf("%.512v", r))
 					also <- nil
 				}
 			}()

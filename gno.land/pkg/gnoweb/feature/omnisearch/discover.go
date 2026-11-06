@@ -104,7 +104,8 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 			g.Results = append(g.Results, Result{
 				Title:  rel,
 				Detail: namespaceOf(rel),
-				Opaque: true,
+				// An address is cut in the middle; a name reads whole.
+				Opaque: isAddress(namespaceOf(rel)),
 				Href:   safePathHref(rel),
 				Tags:   []string{k.is},
 			})

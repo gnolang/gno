@@ -103,7 +103,6 @@ func (m *mockIndexer) LatestBlockHeight(context.Context) (int, error) {
 	}
 	return 185214, nil
 }
-func (m *mockIndexer) URL() string { return "https://indexer.example/graphql/query" }
 
 func (m *mockIndexer) TxByHash(context.Context, string) (*indexer.Tx, error) {
 	return m.tx, m.err
@@ -1224,5 +1223,28 @@ func TestRowIcon(t *testing.T) {
 		if got := rowIcon(tt.r); got != tt.want {
 			t.Errorf("rowIcon(%+v) = %q, want %q", tt.r, got, tt.want)
 		}
+	}
+}
+
+// A discovery row cuts its namespace in the middle only when it is an
+// address: a name, however long, reads whole and the stylesheet ends it.
+func TestDiscoveryCutsOnlyAddressNamespaces(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p"
+	dir := &mockDirectory{realms: []string{"gno.land/r/leon-community/leonapp", "gno.land/r/" + addr + "/leonapp"}}
+	h := newHandlerWithDir(t, newDiscoveryClient(), dir, nil)
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "leonapp", ""))
+	details := map[string]string{}
+	for _, g := range groups {
+		for _, r := range g.Results {
+			details[r.Title] = shortDetail(r)
+		}
+	}
+	if got := details["/r/leon-community/leonapp"]; got != "leon-community" {
+		t.Errorf("name namespace = %q, want it whole", got)
+	}
+	if got := details["/r/"+addr+"/leonapp"]; got != "g1edq4…leuc8p" {
+		t.Errorf("address namespace = %q, want it cut in the middle", got)
 	}
 }
