@@ -156,6 +156,13 @@ func TestSwitchClosesRejectedDuplicateIPConn(t *testing.T) {
 	// The first connection takes the only slot this IP gets.
 	dialAndStart(t, serverTr, "first", make(chan error, 1))
 
+	// Wait for the first to occupy the slot. The transport hands handshaked
+	// connections to the switch in completion order, so the second may
+	// otherwise get there first and the first is the one rejected.
+	require.Eventually(t, func() bool {
+		return sw.Peers().NumInbound() == 1
+	}, 10*time.Second, 20*time.Millisecond)
+
 	// The second is rejected. Our end must notice.
 	rejected := make(chan error, 1)
 	dialAndStart(t, serverTr, "second", rejected)
