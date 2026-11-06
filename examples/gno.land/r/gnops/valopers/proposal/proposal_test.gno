@@ -46,8 +46,8 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 	// them exercises the operator/signer separation.
 	opAddr := g1user
 
-	// Set origin caller for valoper operations: must equal the
-	// operator address (post-genesis squat guard in Register).
+	// Call valoper operations as the operator: Register's post-genesis
+	// squat guard requires it as the immediate caller.
 	testing.SetRealm(testing.NewUserRealm(opAddr))
 
 	t.Run("remove an unexisting validator", func(t *testing.T) {

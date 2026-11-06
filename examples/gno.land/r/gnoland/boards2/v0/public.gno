@@ -586,14 +586,14 @@ func RemoveMember(cur realm, boardID boards.ID, member address) {
 		chain.Emit(
 			"MemberRemoved",
 			"caller", caller.String(),
-			"origin", origin.String(), // When origin and caller match it means self removal
+			"origin", origin.String(), // Informational only, never used for authorization
 			"boardID", boardID.String(),
 			"member", member.String(),
 		)
 	}
 
 	// Members can remove themselves without permission
-	if origin == member {
+	if caller == member {
 		removeMember()
 		return
 	}
