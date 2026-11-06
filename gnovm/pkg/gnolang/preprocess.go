@@ -792,7 +792,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			if bn, ok := n.(BlockNode); ok {
 				// codaGotoLoopDefines(ctx, bn)
-				codaHeapDefinesByUse(ctx, bn)
+				codaHeapDefinesByUse(store, ctx, bn)
 				codaHeapUsesDemoteDefines(ctx, bn)
 				codaPackageSelectors(bn)
 				return n, TRANS_SKIP
@@ -1346,7 +1346,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
-						if last.GetIsConst(store, n.Name) {
+						if last.GetIsConstAt(store, n.Path) {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
@@ -1422,7 +1422,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return cx, TRANS_CONTINUE
 					}
 					// Is const decl or type decl. Not (import) packages.
-					if last.GetIsConst(store, n.Name) {
+					if last.GetIsConstAt(store, n.Path) {
 						// n.Name may refer to either
 						// a value OR a type. But don't change
 						// this behavior, it's reasonable for
@@ -1864,7 +1864,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									etx := ftx.Params[1].Type
 									bsx := toConstTypeExpr(last, etx, gByteSliceType)
 									args1 = Call(bsx, args1)
-									args1 = Preprocess(nil, last, args1).(Expr)
+									args1 = preprocess1(store, last, args1).(Expr)
 									n.Args[1] = args1
 								}
 							} else {
@@ -1899,7 +1899,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
 									bsx := toConstTypeExpr(last, args1, gByteSliceType)
 									args1 = Call(bsx, args1)
-									args1 = Preprocess(nil, last, args1).(Expr)
+									args1 = preprocess1(store, last, args1).(Expr)
 									n.Args[1] = args1
 								}
 							}
@@ -3659,7 +3659,8 @@ func codaGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // capture.
 // Also happens to declare all package and file names
 // as heap use, so that functions added later may use them.
-func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
+func codaHeapDefinesByUse(store Store, ctx BlockNode, bn BlockNode) {
+	gasm := preprocessGasMeterOf(store)
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3785,9 +3786,11 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 				}
 				// Find the block where name is defined.
 				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				for {
+				decl := dbn
+				for first := true; ; first = false {
 					// If used as closure capture, mark as heap use.
-					flx, depth, found := findFirstClosure(stack, dbn)
+					flx, depth, found, scanned := findFirstClosure(stack, dbn)
+					chargeCPUGas(gasm, int64(scanned)*OpCPUSlopePreprocessClosureScan)
 					if !found {
 						return n, TRANS_CONTINUE
 					}
@@ -3802,8 +3805,10 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					// Ignore type declaration names.
 					// Types cannot be passed ergo cannot be captured.
 					// (revisit when types become first class objects)
-					st := dbn.GetStaticTypeOf(nil, n.Name)
-					if st.Kind() == TypeKind {
+					// Only the defining block needs the check: every
+					// later dbn is a closure, whose lookup would climb
+					// back to the same declaration, unmetered.
+					if first && dbn.GetStaticTypeOf(nil, n.Name).Kind() == TypeKind {
 						return n, TRANS_CONTINUE
 					}
 
@@ -3811,7 +3816,10 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					addAttrHeapUse(dbn, n.Name)
 					// The path must stay same for now,
 					// used later in codaHeapUsesDemoteDefines.
-					idx := addHeapCapture(dbn, flx, depth, n)
+					idx, added := addHeapCapture(decl, flx, depth, n)
+					if added {
+						chargeCPUGas(gasm, OpCPUSlopePreprocessClosureCapture)
+					}
 					// adjust NameExpr type.
 					n.Type = NameExprTypeHeapUse
 					n.Path.SetDepth(uint8(depth))
@@ -3847,8 +3855,11 @@ func hasAttrHeapUse(bn BlockNode, name Name) bool {
 	return ok
 }
 
-// adds ~name to func lit static block and to heap captures atomically.
-func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16) {
+// adds ~name to func lit static block and to heap captures atomically, and
+// reports whether it added one. decl is the block declaring name: reading the
+// slot there rather than climbing from fle's parent keeps a capture's cost
+// independent of how many closures it crosses.
+func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16, added bool) {
 	if depth <= 0 {
 		panic("invalid depth")
 	}
@@ -3860,7 +3871,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		if !ok {
 			panic("~name not added to fle atomically")
 		}
-		return // already exists
+		return idx, false // already exists
 	}
 
 	// define ~name to fle.
@@ -3869,7 +3880,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		panic("~name already defined in fle")
 	}
 
-	tv := dbn.GetSlot(nil, name, true)
+	tv := decl.GetSlot(nil, name, true)
 	fle.Define("~"+name, tv.Copy(nil, nil))
 
 	// add name to fle.HeapCaptures.
@@ -3896,15 +3907,16 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	if !found {
 		panic("should not happen, idx not found")
 	}
-	return
+	return idx, true
 }
 
 // finds the first FuncLitExpr in the stack after (excluding) stop.  returns
 // the depth of first closure, 1 if last stack item itself is a closure, or 0
 // if not found.
-func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
+func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool, scanned int) {
 	faux := 0 // count faux block
 	for i := len(stack) - 1; i >= 0; i-- {
+		scanned++
 		stbn := stack[i]
 		switch stbn := stbn.(type) {
 		case *FuncLitExpr:

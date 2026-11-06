@@ -1457,8 +1457,10 @@ func (m *Machine) incrCPU(cycles int64) {
 
 // chargeCPUGas charges cycles of CPU gas against gm (1 cycle = 1 gas via
 // GasFactorCPU); nil gm is a no-op. It meters work done where no Machine is
-// at hand — the interface-satisfaction BFS (checkImplementedBy), the element
-// copies of ArrayValue.Copy and StructValue.Copy, and the zero-fills of
+// at hand — the interface-satisfaction BFS (checkImplementedBy), the
+// closure-stack scan (findFirstClosure) and the captures it adds
+// (addHeapCapture), the element copies of
+// ArrayValue.Copy and StructValue.Copy, and the zero-fills of
 // fillDefaultList and fillDefaultStructFields — during both preprocess (gm
 // from preprocessGasMeterOf) and runtime (gm = m.GasMeter, which the
 // allocator's meter mirrors). Unlike Machine.incrCPU it does not add to
@@ -1662,6 +1664,18 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+
+	// Closure-capture stack scan (findFirstClosure), at preprocess.
+	// Read from BenchmarkFindFirstClosure: max 95% upper ns/frame over all
+	// cases, rounded up. Dev-box fit (closurescan_bench_m5_arm64.txt,
+	// machine factor 2.1): 4.29 reference-ns (depth 1, not found).
+	OpCPUSlopePreprocessClosureScan = 5 // per block-stack frame scanned
+	// Closure capture added by addHeapCapture, at preprocess: the ~name
+	// define, its map entries and the garbage they leave. Read from
+	// BenchmarkClosureCapture: max 95% upper ns/capture over all cases.
+	// Dev-box fit (closurecapture_bench_7840u_amd64.txt, machine factor
+	// 1.52): 2034 reference-ns (2000 names, depth 100), rounded up to 2100.
+	OpCPUSlopePreprocessClosureCapture = 2100 // per capture added
 	// Interface-satisfaction BFS (embedWalk), at preprocess and runtime.
 	// Read from BenchmarkOpEmbedWalk by cmd/calibrate/gen_analysis.py
 	// (SECTION 2b), picks at MaxEmbedDepth = 8, rounded up so all are floors.

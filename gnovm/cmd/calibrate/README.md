@@ -76,4 +76,8 @@ On other hardware pass a third argument, measured-ns per reference-ns, taken as
 across ops is what makes the factor trustworthy. `embedwalk_bench_m5_arm64.txt`
 is such a dev-box run (factor 2.1 → `0.476`) behind the `OpCPUSlopeEmbed*`
 constants; SECTION 2b of the report reads their three slopes from
-`BenchmarkOpEmbedWalk`.
+`BenchmarkOpEmbedWalk`. `closurescan_bench_m5_arm64.txt` is the same kind of
+run behind `OpCPUSlopePreprocessClosureScan`; its header gives the rule that
+turns `BenchmarkFindFirstClosure` ns/frame into the slope.
+`closurecapture_bench_7840u_amd64.txt` does the same for
+`OpCPUSlopePreprocessClosureCapture` from `BenchmarkClosureCapture`.
