@@ -1,0 +1,52 @@
+# Test gnokey list -multisig-members display modes (none|short|full).
+# ms2 has 2 members (below the short limit of 3).
+# ms4 has 4 members (above the short limit, triggering truncation in short mode).
+
+# Setup: create member keys from known mnemonics.
+adduserfrom alice 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast'
+adduserfrom bob 'wage renew timber answer someone model torch cake ostrich sort appear walk kiss expose magnet crisp keen skin enter opinion desk dice lyrics reflect'
+
+# Create a 2-member multisig.
+gnokey add multisig ms2 --multisig alice --multisig bob --threshold 1
+stdout 'Key "ms2" saved to disk\.'
+
+# none: bech32 pubkey shown; no member lines.
+gnokey list -multisig-members=none
+stdout 'ms2 \(multi\).*pub: gpub1'
+! stdout '  gpub1'
+
+# short with 2 members (below limit): bech32 + all members; no truncation hint.
+gnokey list -multisig-members=short
+stdout 'ms2 \(multi\).*pub: gpub1'
+stdout '  gpub1'
+! stdout '\.\.\. and'
+
+# full: bech32 + all members; no truncation hint.
+gnokey list -multisig-members=full
+stdout 'ms2 \(multi\).*pub: gpub1'
+stdout '  gpub1'
+! stdout '\.\.\. and'
+
+# Default (no flag) behaves like short.
+gnokey list
+stdout 'ms2 \(multi\).*pub: gpub1'
+stdout '  gpub1'
+! stdout '\.\.\. and'
+
+# Add two more members to test truncation.
+adduserfrom charlie 'public donor train assault valve arrange local remain topple inspire tenant nose talent film shoulder mail rose plate banner wet apart over cube song'
+adduserfrom dave 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+
+# Create a 4-member multisig.
+gnokey add multisig ms4 --multisig alice --multisig bob --multisig charlie --multisig dave --threshold 1
+stdout 'Key "ms4" saved to disk\.'
+
+# short with 4 members (above limit): first 3 shown; truncation hint for the remaining 1.
+gnokey list -multisig-members=short
+stdout 'ms4 \(multi\).*pub: gpub1'
+stdout '\.\.\. and 1 more \(use -multisig-members=full to see all\)'
+
+# full with 4 members: all shown; no truncation hint.
+gnokey list -multisig-members=full
+stdout 'ms4 \(multi\).*pub: gpub1'
+! stdout '\.\.\. and'
