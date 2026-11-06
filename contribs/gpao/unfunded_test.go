@@ -155,6 +155,17 @@ func (f *purseFixture) oracle(t *testing.T, startHeight int64) *oracle {
 	return o
 }
 
+// captureStderr sends the oracle's stderr to a buffer, to be read only once its
+// run has returned.
+func captureStderr(t *testing.T, o *oracle) *bytes.Buffer {
+	t.Helper()
+	var stderr bytes.Buffer
+	tio := testIO(t)
+	tio.SetErr(commands.WriteNopCloser(&stderr))
+	o.io = tio
+	return &stderr
+}
+
 // awaitStatus waits for a verdict, and reports rather than hanging.
 func awaitStatus(t *testing.T, o *oracle, path, want string) {
 	t.Helper()
@@ -256,20 +267,27 @@ func TestAnEmptyPursePausesRatherThanRetiringPackages(t *testing.T) {
 	awaitStatus(t, o, later.Path, statusApproved)
 }
 
-// TestAnUnderpricedFeePausesRatherThanRetiringPackages: a -gas-fee below the
-// chain's gas price is refused at CheckTx, and every package behind would be
-// refused the same way. So it holds like an empty purse: blocked on the package
-// in hand, no attempt, nothing seen, nothing spent, and the queue left unread.
-func TestAnUnderpricedFeePausesRatherThanRetiringPackages(t *testing.T) {
+// TestAHeavyPackageIsSkippedNotHeldAgainstTheQueue: the chain checks
+// -gas-fee over each package's GasWanted against its gas price, so whether
+// the fee suffices depends on the package. A heavy one refused at CheckTx is
+// blocked and skipped -- no attempt, nothing seen, nothing spent -- and the
+// light one behind it is approved.
+func TestAHeavyPackageIsSkippedNotHeldAgainstTheQueue(t *testing.T) {
 	f := newPurseFixture(t, 1)
 
-	first, second := f.pkg("first"), f.pkg("second")
-	f.park(t, first)
-	f.park(t, second)
+	const heavyPath = "gno.land/r/purse/heavy"
+	heavy := chainPackage(heavyPath, "package heavy\n\nvar n int\n\n"+
+		"func init() { for i := 0; i < 300000; i++ { n++ } }\n\n"+
+		"func F(cur realm) int { return n }\n")
+	light := f.pkg("light")
+	heavyHeight := f.park(t, heavy)
+	f.park(t, light)
 
 	o := f.oracle(t, 1)
-	// The test chain prices gas at 1ugnot per 1000, so this covers 1000 gas.
-	o.gasFee = std.NewCoin(ugnotDenom, 1)
+	// At this chain's 1ugnot per 1000 gas, this covers 1e8 gas: the light
+	// package, not the heavy one's init.
+	o.gasFee = std.NewCoin(ugnotDenom, 100_000)
+	stderr := captureStderr(t, o)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan struct{})
@@ -278,21 +296,21 @@ func TestAnUnderpricedFeePausesRatherThanRetiringPackages(t *testing.T) {
 		_ = o.run(ctx)
 	}()
 
-	awaitStatus(t, o, first.Path, statusBlocked)
-	// Long enough for a walk past the held package to show.
-	time.Sleep(time.Second)
+	awaitStatus(t, o, light.Path, statusApproved)
 	cancel()
 	<-done
 
-	status := o.status.get(first.Path)
+	status := o.status.get(heavyPath)
+	assert.Equal(t, statusBlocked, status.Status)
 	assert.Contains(t, status.Reason, "below the chain's gas price")
 	assert.Zero(t, status.Attempt, "an underpriced fee must not be counted as an attempt")
-	assert.Equal(t, statusUnknown, o.status.get(second.Path).Status,
-		"the package behind has to wait, not be refused the same way")
-	key := candidateKey(first)
+	key := candidateKey(heavy)
 	assert.NotContains(t, o.seen, key)
 	assert.NotContains(t, o.failedEnable, key)
-	assert.Zero(t, o.spent, "a CheckTx refusal charges nothing")
+	assert.Equal(t, o.gasFee.Amount, o.spent,
+		"only the light approval was charged; the CheckTx refusal was free")
+	assert.Contains(t, stderr.String(), fmt.Sprintf("-start-height %d", heavyHeight),
+		"a restart from anywhere later would lose the skipped package")
 }
 
 // TestReachingMaxSpendPausesRatherThanDroppingPackages: the bound only moves on
@@ -309,11 +327,7 @@ func TestReachingMaxSpendPausesRatherThanDroppingPackages(t *testing.T) {
 	o := f.oracle(t, 1)
 	// Room for exactly one approval, with the balance for ten.
 	o.maxSpend = purseFee
-	// Read only after the run has returned.
-	var stderr bytes.Buffer
-	tio := testIO(t)
-	tio.SetErr(commands.WriteNopCloser(&stderr))
-	o.io = tio
+	stderr := captureStderr(t, o)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan struct{})

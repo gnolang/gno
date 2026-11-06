@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"io"
 	"testing"
 	"time"
@@ -219,20 +218,12 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 	before, _, err := client.QueryBalance(who)
 	require.NoError(t, err)
 
-	// An underpriced fee holds the candidate, so it is stopped by cancelling.
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		o.handleCandidate(ctx, candidate{mpkg: mpkg})
-	}()
-	// Only CheckTx raises InsufficientFeeError (simulate skips the fee check),
-	// so blocked here means the arm reached BroadcastTxCommit.
-	awaitStatus(t, o, pkgPath, statusBlocked)
-	cancel()
-	<-done
+	o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
 
 	status := o.status.get(pkgPath)
+	// Only CheckTx raises InsufficientFeeError (simulate skips the fee check),
+	// so blocked here means the arm reached BroadcastTxCommit.
+	require.Equal(t, statusBlocked, status.Status)
 	require.Contains(t, status.Reason, "below the chain's gas price")
 
 	after, _, err := client.QueryBalance(who)

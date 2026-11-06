@@ -338,7 +338,14 @@ func (o *oracle) run(ctx context.Context) error {
 	// so concurrency would be safe; it stays serial because verification is the
 	// expensive thing this daemon does and running several at once would make
 	// each slower and the budget harder to interpret.
-	go o.runVerifier(ctx)
+	//
+	// Wait for runVerifier() to return before run() does.
+	verifierDone := make(chan struct{})
+	go func() {
+		defer close(verifierDone)
+		o.runVerifier(ctx)
+	}()
+	defer func() { <-verifierDone }()
 
 	for {
 		select {
@@ -454,6 +461,11 @@ func (o *oracle) runVerifier(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case c := <-o.candidates:
+			// select picks at random when both are ready: do not start a
+			// candidate under a context that is already done.
+			if ctx.Err() != nil {
+				return
+			}
 			o.handleCandidate(ctx, c)
 		}
 	}
@@ -634,15 +646,17 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		}
 		err = o.enable(path, pkgHash, c.height)
 	}
-	// An underpriced -gas-fee, refused at CheckTx for free. Held like an empty
-	// purse, since every package behind would fail the same way, but until
-	// shutdown: a balance cannot fix a ratio, only a restart with a higher fee.
+	// -gas-fee over this package's GasWanted is below the chain's gas price,
+	// refused at CheckTx for free. Skipped, not held: the fee is fixed and the
+	// gas is the package's, so a heavy one must not stall the queue. Nothing
+	// was charged: no attempt counted, and left unseen so a restart can pick
+	// it up.
 	if errors.As(err, &std.InsufficientFeeError{}) {
 		o.status.record(path, statusBlocked,
-			"the oracle's gas fee is below the chain's gas price; the oracle is paused", 0)
-		o.errf("gpao: paused on %q: -gas-fee %s is below the chain's gas price. "+
-			"Raise it and restart: %v", path, o.gasFee, err)
-		<-ctx.Done()
+			"the oracle's gas fee is below the chain's gas price for this package", 0)
+		o.errf("gpao: not approving %q: -gas-fee %s is below the chain's gas "+
+			"price for it. Raise it and restart with -start-height %d to pick "+
+			"it up: %v", path, o.gasFee, c.height, err)
 		return
 	}
 	if err != nil {
