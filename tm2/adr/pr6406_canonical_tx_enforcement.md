@@ -25,9 +25,13 @@ execute blocks produced under an earlier rule set.
 
 ## Decision
 
-`BaseApp.runTx` decodes every tx, in every mode, with
-`amino.UnmarshalCanonical`, and returns `std.ErrTxDecode` with the first
-differing byte in `Log` when the bytes are not the canonical encoding. There
+`BaseApp.runTx` decodes every tx, in every mode, with `amino.Unmarshal`, runs
+`validateBasicTxMsgs` on it, and only then checks with `amino.CheckCanonical`
+that the bytes are the tx's canonical encoding, returning `std.ErrTxDecode`
+with the first differing byte in `Log` when they are not. `CheckCanonical` is
+the second half of `amino.UnmarshalCanonical`, split out so that validation
+comes first: the check re-encodes the tx, and for some values the re-encoding
+costs far more than the decoding did (see the cost under Consequences). There
 is no height gate and no new parameter.
 
 `validateBasicTxMsgs` rejects a nil message with `std.ErrUnknownRequest`.
@@ -46,14 +50,26 @@ registers already return clean errors. A delivered tx's error type is part of
 its result, and so of the block's results hash, which is why the guard rides
 this halt rather than a rolling release.
 
+The same two methods refuse, with `ErrInvalidPackage`, a non-nil
+`MemPackage.Info` and a `MemPackage.Type` that is not a `gno.MemPackageType`.
+Both fields are typed `any`, so they decode to any registered type. The keeper
+already refuses `Info` at execution and overwrites `Type`, and gnokey sends
+`Type` as a `MemPackageType`, so no client loses anything; what the check buys
+is that no other value reaches the re-encoding (found in review of this
+change).
+
 The rule reaches a chain through the coordinated halt mechanism from #5368,
 which gnoland-1 already runs: a GovDAO halt with `halt_min_version` set to
 the enforcing release, so an old binary cannot restart past the halt and a
 new one cannot start early, with the entry in the chain's upgrades ledger
 (`misc/deployments/mainnet.gno.land/upgrades.json`) written once the chain
-runs the release (#6381). From the halt height on, every included tx is
-canonical by construction; blocks before it are replayed by the binaries that
-produced them. The release it rides is the next coordinated release on the
+runs the release (#6381). From block `halt_height + 2` on, every included tx
+is canonical by construction. Block `halt_height + 1` is filled by the old
+binaries' mempools and executed by the enforcing release (see "What a halt
+actually looks like" in `gno.land/cmd/gnoland/UPGRADES.md`), so a non-canonical
+tx they admitted lands there and fails as a decode error. Blocks up to the
+halt height are replayed by the binaries that produced them. The release it
+rides is the next coordinated release on the
 mainnet line after `v1.5.1`, the current rolling release; its release page
 and the halt announcement name the height once the proposal has executed.
 Merge order:
@@ -93,19 +109,27 @@ merge rather than discovered at it.
 - **Clients** must emit canonical amino: coins strings in Go's rendering
   (sorted by denom, no whitespace), lowercase bech32, no explicit defaults,
   no padded varints. The decode error names the first differing byte.
-- **The check costs about as much again as decoding**, and on the inputs an
-  attacker picks signature verification is never reached, so that is the
-  relevant comparison (measured in review of #6404, `Unmarshal` against
-  `UnmarshalCanonical` on the same bytes): 1 KB memo 3.5 to 5.6 µs, 100 KB
-  memo 23.5 to 32.3 µs, 999 KB memo 121.5 to 190.0 µs, 797 KB with 7000
-  messages 8.1 to 14.9 ms. It is bounded: the mempool rejects txs over
-  `maxTxBytes` before `CheckTx` reaches the app, `Marshal` runs only after
-  `Unmarshal` succeeded so garbage stays cheap, and the pre-existing unpriced
-  decode is the larger term.
-- **`Log` on decode failures.** Decode errors now go through
-  `ABCIResultFromError`, so `Log` carries the reason where it used to be
-  empty. `Log` is excluded from `ResultsHash`; this is a visible RPC response
-  change only.
+- **The check costs about as much again as decoding, on a tx that passes
+  `ValidateBasic`**, and on the inputs an attacker picks signature
+  verification is never reached, so that is the relevant comparison (measured
+  in review of #6404, `Unmarshal` against `UnmarshalCanonical` on the same
+  bytes): 1 KB memo 3.5 to 5.6 µs, 100 KB memo 23.5 to 32.3 µs, 999 KB memo
+  121.5 to 190.0 µs, 797 KB with 7000 messages 8.1 to 14.9 ms. It is bounded:
+  the mempool rejects txs over `maxTxBytes` before `CheckTx` reaches the app,
+  and `Marshal` runs only after `Unmarshal` and `validateBasicTxMsgs` succeeded,
+  so garbage and refused messages stay cheap. The order is what bounds it. Run
+  before validation, the re-encoding took a 113-byte unsigned `MsgAddPackage`
+  whose `Info` holds a `BigdecValue` written `1e999999` from 21 ms of
+  `CheckTx` to 102 ms, and a `BigintValue` written as 499,998 hex digits from
+  3.4 ms of decoding to 166 ms. The 21 ms that remains is the decode itself,
+  and predates this change: `BigdecValue.UnmarshalAmino` accepts an exponent
+  form `MarshalAmino` never emits.
+- **`Log` on decode failures** carries the decode error's message, clipped,
+  where it used to be empty. It deliberately skips `ABCIResultFromError`,
+  whose `%#v` adds a stack trace: that made rejecting one undecodable byte cost
+  8.8 µs instead of 2.3 µs, and grew each such result in a byzantine
+  proposer's block from 24 stored bytes to 496. `Log` is excluded from
+  `ResultsHash`; this is a visible RPC response change only.
 - **Tests** cover the four encoding classes on a local struct (amino), a
   padded tag and a nil message through `runTx` (baseapp), and on a real app
   with a signed tx: an explicit empty memo, a padded tag, a padded value
@@ -117,4 +141,10 @@ merge rather than discovered at it.
   decode error where they used to deliver, and the app-hash, tampered
   signature and per-byte gas comparisons that held only while they delivered
   are gone. A nil `Package` in `MsgAddPackage` and `MsgRun` is refused as a
-  bad request in both modes, with no recovered panic.
+  bad request in both modes, with no recovered panic. A `MsgAddPackage` whose
+  `Info` or `Type` holds a `BigdecValue` written non-canonically is refused by
+  `ValidateBasic` in both modes, not as a decode error, which fails if the
+  canonical check runs first, and `addpkg_mempackage_info.txtar` now expects
+  its `Info` payload refused at `CheckTx` rather than by the keeper at
+  `DeliverTx`, with the same `InvalidPackageError`. Decode errors carry no
+  stack trace in `Log`.
