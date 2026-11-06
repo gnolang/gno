@@ -664,7 +664,7 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
 	var tx Tx
 	if err := decodeTx(req.Tx, &tx); err != nil {
-		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		res.Error, res.Log = txDecodeFailure(err)
 		return
 	}
 

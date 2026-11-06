@@ -904,11 +904,16 @@ func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
 	}
 
 	// Undecodable bytes: Log carries the reason, without a stack trace, which
-	// every result in a block of garbage txs would otherwise store.
-	res := app.DeliverTx(abci.RequestDeliverTx{Tx: []byte{0xff}})
-	assert.Equal(t, std.TxDecodeError{}, res.Error)
-	assert.NotEmpty(t, res.Log)
-	assert.NotContains(t, res.Log, "Stack Trace")
+	// every result in a block of garbage txs would otherwise store. CheckTx
+	// decodes on its own, to pick the run mode, so it is checked too.
+	for _, res := range []abci.ResponseBase{
+		app.CheckTx(abci.RequestCheckTx{Tx: []byte{0xff}}).ResponseBase,
+		app.DeliverTx(abci.RequestDeliverTx{Tx: []byte{0xff}}).ResponseBase,
+	} {
+		assert.Equal(t, std.TxDecodeError{}, res.Error)
+		assert.NotEmpty(t, res.Log)
+		assert.NotContains(t, res.Log, "Stack Trace")
+	}
 }
 
 // TestRunTxRejectsNilMsg: an empty Any is the canonical encoding of a nil
