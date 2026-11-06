@@ -1,0 +1,134 @@
+# A compiler or tooling directive in a submitted package is rejected at every
+# user-facing entry point. See gnovm/adr/pr6078_forbid_directives.md.
+# -simulate skip so the assertions bind CheckTx/DeliverTx, not the simulate query.
+
+## start a new node
+gnoland start
+
+## addpkg: a //go:build line is rejected.
+! gnokey maketx addpkg -pkgdir $WORK/tagged -pkgpath gno.land/r/$test1_user_addr/tagged -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
+## addpkg: the legacy // +build form is rejected too.
+! gnokey maketx addpkg -pkgdir $WORK/legacy -pkgpath gno.land/r/$test1_user_addr/legacy -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
+## addpkg: a constraint hidden behind a block comment that itself contains a
+## "package" line is still rejected. go/parser honours this one, so a header
+## scan that stopped at the first "package" line would let it through.
+! gnokey maketx addpkg -pkgdir $WORK/sneaky -pkgpath gno.land/r/$test1_user_addr/sneaky -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
+## addpkg: the same package without the line is accepted, so the rejection
+## above is the constraint and not something else about the package.
+gnokey maketx addpkg -pkgdir $WORK/clean -pkgpath gno.land/r/$test1_user_addr/clean -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stdout 'OK!'
+
+## addpkg: a pragma mid-file is rejected too, not just header constraints.
+! gnokey maketx addpkg -pkgdir $WORK/pragma -pkgpath gno.land/r/$test1_user_addr/pragma -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
+## addpkg: the block form of a line directive is rejected too. Go honours
+## /*line*/ anywhere in a file, so a "//"-only rule would leave it open.
+! gnokey maketx addpkg -pkgdir $WORK/blockline -pkgpath gno.land/r/$test1_user_addr/blockline -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stderr 'directives are not supported'
+
+## addpkg: //nolint is the one allowed directive, so this must be accepted.
+gnokey maketx addpkg -pkgdir $WORK/nolint -pkgpath gno.land/r/$test1_user_addr/nolint -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
+
+stdout 'OK!'
+
+## maketx run: the same rule at the other entry point.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1 $WORK/script/script.gno
+
+stderr 'directives are not supported'
+
+-- tagged/gnomod.toml --
+module = "tagged"
+gno = "0.9"
+
+-- tagged/tagged.gno --
+//go:build ignore
+
+package tagged
+
+func F() int { return 1 }
+
+-- legacy/gnomod.toml --
+module = "legacy"
+gno = "0.9"
+
+-- legacy/legacy.gno --
+// +build linux
+
+package legacy
+
+func F() int { return 1 }
+
+-- sneaky/gnomod.toml --
+module = "sneaky"
+gno = "0.9"
+
+-- sneaky/sneaky.gno --
+/*
+package sneaky
+*/
+//go:build ignore
+
+package sneaky
+
+func F() int { return 1 }
+
+-- pragma/gnomod.toml --
+module = "pragma"
+gno = "0.9"
+
+-- pragma/pragma.gno --
+package pragma
+
+//go:noinline
+func F() int { return 1 }
+
+-- blockline/gnomod.toml --
+module = "blockline"
+gno = "0.9"
+
+-- blockline/blockline.gno --
+package blockline
+
+/*line forged.gno:999:1*/
+func F() int { return 1 }
+
+-- nolint/gnomod.toml --
+module = "nolint"
+gno = "0.9"
+
+-- nolint/nolint.gno --
+package nolint
+
+//nolint:gosec
+func F() int { return 1 }
+
+-- clean/gnomod.toml --
+module = "clean"
+gno = "0.9"
+
+-- clean/clean.gno --
+package clean
+
+func F() int { return 1 }
+
+-- script/script.gno --
+//go:build ignore
+
+package main
+
+func main() {
+	println("should not run")
+}
