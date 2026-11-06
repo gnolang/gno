@@ -19,6 +19,16 @@ func assertNoPlusPrefix(s string) {
 	}
 }
 
+// assertIntegerArgFormat refuses an integer argument that is not the one spelling
+// its value formats to, such as "-0" or "007", so one value has one argument.
+func assertIntegerArgFormat(kind, arg, want string) {
+	if arg != want {
+		panic(fmt.Sprintf(
+			"error parsing %s %q: not in canonical form, want %q",
+			kind, arg, want))
+	}
+}
+
 // maxFloatArgLen bounds a float argument before apd sees it. apd converts the
 // whole mantissa to a big.Int before it reads the exponent, work that grows
 // with the square of the digit count while nothing charges gas for it.
@@ -51,103 +61,103 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetString(gno.StringValue(arg))
 			return
 		case gno.IntType:
-			assertNoPlusPrefix(arg)
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int", arg, strconv.FormatInt(i64, 10))
 			tv.SetInt(i64)
 			return
 		case gno.Int8Type:
-			assertNoPlusPrefix(arg)
 			i8, err := strconv.ParseInt(arg, 10, 8)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int8 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int8", arg, strconv.FormatInt(i8, 10))
 			tv.SetInt8(int8(i8))
 			return
 		case gno.Int16Type:
-			assertNoPlusPrefix(arg)
 			i16, err := strconv.ParseInt(arg, 10, 16)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int16 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int16", arg, strconv.FormatInt(i16, 10))
 			tv.SetInt16(int16(i16))
 			return
 		case gno.Int32Type:
-			assertNoPlusPrefix(arg)
 			i32, err := strconv.ParseInt(arg, 10, 32)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int32 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int32", arg, strconv.FormatInt(i32, 10))
 			tv.SetInt32(int32(i32))
 			return
 		case gno.Int64Type:
-			assertNoPlusPrefix(arg)
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int64 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int64", arg, strconv.FormatInt(i64, 10))
 			tv.SetInt64(i64)
 			return
 		case gno.UintType:
-			assertNoPlusPrefix(arg)
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint", arg, strconv.FormatUint(u64, 10))
 			tv.SetUint(u64)
 			return
 		case gno.Uint8Type:
-			assertNoPlusPrefix(arg)
 			u8, err := strconv.ParseUint(arg, 10, 8)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint8 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint8", arg, strconv.FormatUint(u8, 10))
 			tv.SetUint8(uint8(u8))
 			return
 		case gno.Uint16Type:
-			assertNoPlusPrefix(arg)
 			u16, err := strconv.ParseUint(arg, 10, 16)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint16 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint16", arg, strconv.FormatUint(u16, 10))
 			tv.SetUint16(uint16(u16))
 			return
 		case gno.Uint32Type:
-			assertNoPlusPrefix(arg)
 			u32, err := strconv.ParseUint(arg, 10, 32)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint32 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint32", arg, strconv.FormatUint(u32, 10))
 			tv.SetUint32(uint32(u32))
 			return
 		case gno.Uint64Type:
-			assertNoPlusPrefix(arg)
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint64 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint64", arg, strconv.FormatUint(u64, 10))
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
@@ -238,10 +248,20 @@ func convertFloat(value string, precision int) float64 {
 	if err != nil {
 		panic(fmt.Sprintf("error parsing float%d %q: %v", precision, value, err))
 	}
+	// apd reads NaN and Infinity in any letter case. A NaN or ±Inf argument
+	// passes range checks like `x < 0` in the callee, so refuse them here.
+	if dec.Form != apd.Finite {
+		panic(fmt.Sprintf("error parsing float%d %q: NaN and Inf are not accepted", precision, value))
+	}
 
 	f64, err := strconv.ParseFloat(dec.String(), precision)
 	if err != nil {
 		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
+	}
+	// -0 (or a negative value that underflows to it) arrives as +0, so the
+	// callee never sees a second zero that only Signbit can tell apart.
+	if f64 == 0 {
+		f64 = 0
 	}
 
 	return f64
