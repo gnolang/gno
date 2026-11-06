@@ -1,0 +1,458 @@
+# In-place state migration for coordinated chain upgrades
+
+## Status
+
+Draft. Proposed design, nothing implemented.
+
+## Context
+
+### Where the chain is today
+
+`gnoland-1` is live. The halt mechanism from [#5368](https://github.com/gnolang/gno/pull/5368)
+([pr5368_govdao_halt_height.md](./pr5368_govdao_halt_height.md)) works and has
+been exercised three times in production within a week:
+
+| `halt_height` | date | back after |
+|---|---|---|
+| 36300 | 2026-09-14 | 6m12s |
+| 113000 | 2026-09-17 | 6m11s |
+| 162200 | 2026-09-19 | 5m43s |
+
+Every one shipped with an **empty** `halt_min_version`, i.e. no restart gate at
+all — which was the only safe choice, because no binary of that period reported a
+version string that would have parsed.
+[#6177](https://github.com/gnolang/gno/pull/6177) fixed that.
+
+So the chain can stop together. It has no way to *change state* while stopped
+other than rebuilding it.
+
+### What exists
+
+| Piece | Where |
+|---|---|
+| `node:p:halt_height`, `node:p:halt_min_version` | `gno.land/pkg/gnoland/node_params.go` |
+| Arming the halt | `app.go:1151-1162` (EndBlocker, `req.Height == haltHeight`) |
+| Stopping | `tm2/pkg/sdk/baseapp.go:596` (BeginBlock panics at `haltHeight+1`) |
+| Startup gates | `node_params.go:135-182` (`checkNodeStartupParams`) |
+| Governance entry point | `examples/gno.land/r/sys/params/halt.gno:36` |
+
+### What does not exist
+
+`gno.land/cmd/gnoland/UPGRADES.md` states it plainly: there is no migrate
+function and no upgrade-handler framework. `halt_min_version` gates startup and
+does nothing else. There is no way to change state at all.
+
+### Not a complement to replay upgrades
+
+Replay upgrades have two existing paths today, both rebuilding state by
+re-executing history rather than transforming it:
+
+- **into a fresh genesis** — built by `gnogenesis fork`: a new chain carrying the
+  whole transaction history, re-executed under the new rules at `InitChain`.
+  Never used on mainnet nor testnet. See
+  [pr5511_chain_upgrade_genesis_replay.md](./pr5511_chain_upgrade_genesis_replay.md).
+- **in place** — [#5377](https://github.com/gnolang/gno/pull/5377)
+  (`gnoland start --migrate`), which replays the local block store under the new
+  binary and swaps the app DB. Still open.
+
+This ADR does not treat either as an existing mechanism to extend, fall back on,
+or interoperate with. In-place migration is the upgrade path. The one thing it
+does need from outside itself is a way to join a chain past an upgrade height,
+which neither of these provides; see *Syncing past an upgrade height*.
+
+### Why Cosmos SDK's design does not port wholesale
+
+Cosmos splits upgrades into three layers: a named plan (`x/upgrade`), named
+handlers, and per-module `ConsensusVersion` + `VersionMap` migrations, plus
+`StoreUpgrades` applied at store-load time.
+
+Two of those exist for reasons gno does not share.
+
+**Per-module consensus versions exist because modules are shipped to strangers.**
+`x/bank`'s author cannot know what state any given chain holds, so the module
+carries its own version and its own migration chain. In gno, `gnovm/`,
+`gno.land/` and `tm2/` are one Go module (`module github.com/gnolang/gno`); the
+separate modules in the repository are all tooling under `contribs/` and
+`misc/`, and no keeper lives in one. So `tm2/pkg/sdk/bank` cannot be imported
+without the whole repository, and nothing does. Every keeper ships in one binary,
+in one release, cut by the people who changed them.
+
+**Store upgrades operate on module substores.** gno mounts exactly two, both
+permanent:
+
+```go
+mainKey := store.NewStoreKey("main")   // params, auth, bank, gasprice, vm's merkleized side
+baseKey := store.NewStoreKey("base")   // the VM object graph, raw dbadapter
+```
+
+`params`, `auth`, `bank`, `gasprice` and `vm` all share the `main` store. There
+is no per-module partition for a `VersionMap` to key on, and no substore to add,
+rename or delete. `StoreUpgrades`, `StoreLoader` and `upgrade-info.json` have
+nothing to do here.
+
+What does carry over is the shape of the plan: a name, a height, and a handler
+keyed to that name, run once inside a block.
+
+## Decision
+
+Add a registry of upgrade handlers, and a BeginBlocker that runs the one named by
+`halt_min_version` in the block after the halt. That is the whole of it.
+
+No new param and no new state. `halt_min_version` is both the version floor it
+is today and the key a handler is registered under, so no param is added,
+renamed or given a new meaning. It is not cleared on the ordinary path, so
+between the halt and the next halt proposal it both records the applied upgrade
+and refuses an older binary — which is why nothing has to be stored beside it.
+That window is narrower than it reads; Open questions has it. The halt itself is
+untouched: governance sets the height, the EndBlocker arms it, `BeginBlock`
+stops the node, exactly as today.
+
+## Design
+
+### 1. The plan
+
+The two params that exist today, unchanged in name, type and wire format:
+
+| Param | Type | Meaning |
+|---|---|---|
+| `node:p:halt_height` | `int64` | height to stop at; `0` cancels |
+| `node:p:halt_min_version` | `string` | version floor **and** upgrade registry key |
+
+`NewSetHaltRequest(cur, height, minVersion)` keeps its signature. Nothing about
+the public surface moves.
+
+An empty `halt_min_version` leaves no key to look up, so an upgrade on an
+unversioned binary carries no migration.
+
+### 2. Handlers
+
+The code that performs one upgrade's state change, written once for a specific
+release and run once, inside the block that follows the halt. Each is registered
+under the version that introduced it — the value `halt_min_version` carries — so
+naming that version in a proposal is what selects the code that runs.
+
+```go
+// gno.land/pkg/gnoland/upgrades
+
+// Env is everything a handler may reach. No such aggregate exists today: the
+// keepers and store keys are locals in NewAppWithOptions, so building this and
+// threading it to the BeginBlocker is part of the work.
+type Env struct {
+	Params   params.ParamsKeeperI
+	Account  auth.AccountKeeperI
+	Bank     bank.BankKeeperI
+	GasPrice auth.GasPriceKeeperI
+	VM       *vm.VMKeeper
+
+	// Store keys, for what the keepers do not expose. Keepers alone are not
+	// enough: ctx.Store(BaseKey) is the VM object graph, and walking it to
+	// re-encode objects has no keeper method behind it.
+	MainKey store.StoreKey
+	BaseKey store.StoreKey
+}
+
+type Handler func(ctx sdk.Context, env Env) error
+
+type Upgrade struct {
+	Version string  // the release tag; what halt_min_version carries
+	Handler Handler // the code of the migration
+}
+```
+
+Suggested layout, for clarity and isolation — each upgrade declares itself in
+its own package, so its handler and whatever it touches stay reviewable on
+their own:
+
+```go
+// gno.land/pkg/gnoland/upgrades/v1_3_0/upgrade.go
+
+const Version = "v1.3.0"
+
+var Upgrade = upgrades.Upgrade{
+	Version: Version,
+	Handler: migrate,
+}
+
+func migrate(ctx sdk.Context, env upgrades.Env) error { ... }
+```
+
+Registered in one place, as a package-level literal:
+
+```go
+// gno.land/pkg/gnoland/app.go
+
+// A slice, not a map keyed by version: the key would restate Version. Nothing
+// iterates it -- the BeginBlocker looks up one entry, and a replay's sequencing
+// comes from the halt heights -- so declaration order is for the reader. An
+// init() could assert the invariants (version parses, strictly increasing, no
+// duplicates...).
+// TODO use a map finally?
+var Upgrades = []upgrades.Upgrade{
+	v130.Upgrade,
+	v140.Upgrade,
+}
+```
+
+Read in one place: the BeginBlocker (*Where it hooks*), to find the handler
+named by `halt_min_version`.
+
+An entry may be dropped once no chain the binary serves still sits at it — which
+in practice means keeping the most recent. More may be needed: a binary able to
+replay across several upgrade heights must carry the handler for each one it
+crosses. Whether it can is decided by whether those upgrades changed the stored
+encoding — which nothing here marks, so it stays a judgement for whoever
+prunes.
+
+Only upgrades that migrate state register anything. A coordinated upgrade that
+breaks consensus without touching state needs a floor and nothing else, so
+`halt_min_version` is set and no entry exists.
+
+A handler is arbitrary Go with `Env` in hand, so its reach is whatever the store
+allows — deploy a package, rewrite params, seed data, replace the valoper set,
+walk and re-encode objects. There is no fixed list, and no attempt to define
+one. The only known limit is changing the code and/or the state of an
+already-deployed realm, for the reason in Open questions.
+
+### Where it hooks
+
+`BaseApp.BeginBlock` calls its beginBlocker at `baseapp.go:623`, after the halt
+check (`:596`) and once `deliverState` is prepared. The new one goes in `app.go`
+beside the existing `EndBlocker`, built the same way: a constructor taking what
+it needs — `prmk` and the `Env` — and returning the `sdk.BeginBlocker` closure
+(`tm2/pkg/sdk/abci.go:12`), wired with `baseApp.SetBeginBlocker`
+(`tm2/pkg/sdk/options.go:68`) next to the `SetEndBlocker` call at `app.go:262`.
+
+It runs at `haltHeight > 0 && req.Height == haltHeight+1`, mirroring the
+EndBlocker's existing arming at `app.go:1151-1162`. The `> 0` half is not
+decoration: `halt_height` is `0` on a chain that has never been halted, and
+without it every such chain would enter the branch at block 1.
+
+```
+read node:p:halt_height
+  0        → no halt configured; nothing to do
+read node:p:halt_min_version, at haltHeight+1
+  ""       → nothing to look up; no migration possible
+  entry    → run the handler
+  no entry → nothing to migrate
+```
+
+`haltHeight` here is the param, not `BaseApp.haltHeight`. The field cannot serve
+as the trigger on either count: it is node-local and never in state, so a
+handler keyed on it would run on some validators and not others, and it is
+zeroed on restart, so at `H+1` — the one block the handler must run in — it
+reads `0` on every node that just came back. It also has a second writer, the
+`halt_height` in `config.toml` (`config.go:310`, applied at `start.go:288-293`),
+which is one operator's lever and writes no param. Reading the param is
+therefore also what keeps a config halt from running a migration nobody
+proposed.
+
+### Timeline
+
+```
+  H      EndBlocker arms the halt (existing code, unchanged)
+  H+1    BeginBlock panics; nodes stop            [existing]
+  ---    operators swap binaries
+  boot   checkNodeStartupParams: version gates [existing, unchanged]
+  H+1    BeginBlocker runs the handler, in consensus
+```
+
+### Why the handler must run inside a block
+
+It is tempting to migrate at startup, outside consensus, so that block history
+stays replayable by any binary. It does not work: a node syncing from genesis
+rebuilds state by executing blocks, so it arrives at `H` in the *old* format and
+must apply the same transformation at the same boundary to reach the same
+AppHash. The handler is needed either way — and running it outside consensus
+means a node that migrates differently diverges silently instead of failing at a
+block.
+
+So the handler runs in-block, and what follows is a consequence rather than a
+choice.
+
+## Consequences
+
+**No dry run exists.** A handler is arbitrary code that commits inside a block
+on every validator. An operator can rehearse one against a copy of the app DB,
+but nothing in the protocol does so, and nothing makes a rehearsal a
+precondition for the proposal that schedules the halt.
+
+**The handler must be deterministic and bounded.** It runs on every validator
+inside a block, so anything short of byte-identical output forks the chain, and
+an OOM or a block-timeout blowout stops it. Nothing in the design enforces
+either; both are on whoever writes the handler.
+
+**There is no rollback.** A bad migration commits. Recovery is
+restore-from-backup at the halt height, on every validator.
+
+## Syncing past an upgrade height
+
+A node joining the network replays history, and an upgrade height is where that
+breaks. Two distinct problems:
+
+**1. The encoding changed.** The handler fixes the boundary at `H`, but not what
+came before it. Blocks 1..H were committed under the old encoding, so replaying
+block 5 needs a binary that still produces it — which one carrying only the new
+encoding does not. Sync fails on the first AppHash it cannot reproduce.
+
+**2. The halt is still armed.** The EndBlocker arms on `req.Height == haltHeight`
+from committed state, and `halt_height` is never cleared. A node syncing
+`gnoland-1` from genesis therefore executes block 36170 (which sets
+`halt_height = 36300`), arms at 36300, and stops entering 36301 — the same halt
+the original upgrade produced. Block 36300 is committed first and
+`app.haltHeight` is in-memory, so a restart gets past it: one manual restart per
+historical halt height.
+
+### How Cosmos handles it
+
+Twice:
+
+| Node | Mechanism |
+|---|---|
+| ordinary | **state sync** — restore a recent snapshot, never execute a pre-upgrade block |
+| archive, from genesis | **cosmovisor** — read `upgrade-info.json`, swap to `upgrades/<name>/bin/<daemon>`, restart; blocks 1..H1 run under v1, H1..H2 under v2 |
+
+The binary boundary does the versioning. Note what this makes of problem 2: the
+stop is **the signal, not a fault** — it is what tells cosmovisor which binary to
+run next.
+
+### How gno could handle it
+
+gno has neither mechanism: no ABCI state-sync surface in `tm2` (`ListSnapshots`,
+`OfferSnapshot`, `LoadSnapshotChunk`, `ApplySnapshotChunk` are absent, so there
+is nothing a `gnoland snapshot dump` could dump), and nothing cosmovisor-shaped
+in `contribs/`. One of the following must exist before any upgrade may change a
+stored encoding, in increasing order of cost:
+
+- **Manual snapshots.** No code at all: archive a stopped node's data dir — app
+  DB, TM state DB, block store — and a joining node unpacks it and syncs forward,
+  never executing a pre-upgrade block. Several Cosmos chains run exactly this,
+  outside the protocol. The cost is trust: the tarball is unverified, so
+  operators trust whoever published it, where state sync verifies chunks against
+  the AppHash.
+- **A supervisor.** Preserves sync-from-genesis, which is the only way to join
+  today. It needs the halt to be machine-detectable and a per-upgrade binary
+  layout.
+- **State sync.** The largest build, and the only one that makes
+  sync-from-genesis optional rather than mandatory — which is in turn the only
+  thing that would let historical encodings be dropped rather than kept.
+
+Whichever is chosen, problem 2 must not be "fixed" by suppressing the arming
+during catch-up. That lets a single binary sync straight through, producing
+exactly the replay that cannot reach the right AppHash. What the stop needs is to
+become machine-readable, so a supervisor can act on it rather than the node
+idling until an operator notices.
+
+Except for manual snapshots, which exist today, both a supervisor and state sync
+would require real work, and neither is part of this ADR.
+
+## Alternatives considered
+
+**Port Cosmos's module layer wholesale.** Rejected: builds a module manager,
+configurator and per-module registry to serve four keepers sharing one store
+key, for a modularity property gno does not have.
+
+**A state-format counter**, an integer describing the shape of the stored data,
+carried per upgrade and compared against a value derived from the upgrade
+registry.
+Rejected: the derived value is the maximum over the entries, so pruning one
+lowers it and every node reads the chain as newer than the binary — refusing to
+start, all at once. Avoiding that means a hand-maintained high-water constant
+whose only failure mode bricks the chain, or keeping pruned entries as
+headstones. The existing version floor needs neither, and answers the same
+question.
+
+Two counters, one per store, were considered alongside and rejected for the same
+reason as per-module consensus versions: there is no independent axis. Both
+stores are written by one binary, migrated by one handler that commits atomically
+inside a block, and released together.
+
+**A separate `node:p:upgrade_name` param**, as Cosmos has. Rejected. It would
+break `NewSetHaltRequest`'s public realm signature and add a second source of
+truth for the question `halt_min_version` already answers.
+
+Cosmos's `Plan` is `{Name, Height, Info}` and has never had a version field, but
+that is unavailability rather than preference: `x/upgrade` ships to hundreds of
+chains with their own binaries and tag schemes, so the SDK has no equivalent of
+`tm2/pkg/version.Version` to read, and no guarantee any chain's string is even
+semver. A name is opaque, so it works everywhere. gno has exactly what the SDK
+lacks — one binary, one release process, one version string it controls and can
+parse — so the name would carry no information the version does not.
+
+## Open questions
+
+1. **Can a handler change the code of a deployed realm?** Deploying a *new*
+   package is fine — nothing occupies the path. Replacing one is the question,
+   and it has two layers.
+
+   `AddPackage` refuses outright: `if pv != nil && !pv.Private` returns
+   `ErrPkgAlreadyExists` (`gno.land/pkg/sdk/vm/keeper.go:801-805`). That is a
+   keeper policy, not a store limitation, and a handler holds `Env.VM` and
+   `Env.BaseKey`, so it could write beneath it.
+
+   The layer that matters is what happens next. A realm's stored objects were
+   created under the old code's type declarations, and those declarations live
+   in the store too. Replacing the code leaves existing objects typed by
+   definitions the new code may no longer declare, or declare differently, and
+   nothing defines what the VM does with them.
+
+   The two are really one operation: changing a realm's code generally means
+   rewriting its stored objects to match, and a handler is where that rewrite
+   would live. It has the store, so the state side is not the obstacle. The
+   question is whether the VM will accept new declarations at a path whose
+   objects are still typed by the old ones, and in which order the code and the
+   objects have to move. Until that has an answer, a handler can add realms and
+   rewrite ordinary state but cannot evolve a realm in place — which is a large
+   part of what an upgrade is usually for.
+
+   Deferred to a subsequent ADR by decision, rather than left open here. It
+   needs tooling that does not exist — some way to express the rewrite of stored
+   objects alongside the code change, and to verify the result before it reaches
+   a validator — and that is a body of work of its own.
+2. **Should the chain record which upgrades it has applied**, and check that
+   record at startup so a binary can refuse a chain it does not understand? That
+   is Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`. Right after an
+   upgrade it is redundant: `halt_min_version` still reads `"v1.5.0"`, and the
+   post-halt gate (`node_params.go:159-167`) refuses anything older.
+
+   **It stops being redundant at the next halt proposal.** Nothing has to be
+   cleared for the floor to go. Setting `halt_height = H2` and
+   `halt_min_version = "v1.6.0"` puts `lastBlockHeight < haltHeight` again, so
+   startup leaves Check 1 for Check 2 (`node_params.go:172`), which refuses only
+   binaries that *meet* the new floor — and a v1.4.0 binary then starts on
+   v1.5.0-migrated data. Cancelling gets there by a shorter route: the gate
+   returns early on `haltHeight == 0` (`node_params.go:147`), so
+   `NewSetHaltRequest(cur, 0, "v1.5.0")` leaves the version in state and gates
+   nothing with it.
+
+   So `halt_min_version` names the floor of the most recent halt *proposal*,
+   which is the applied upgrade only until the next one is scheduled. A record
+   is what would tell the two apart.
+
+3. **Should the new code be an SDK module in `tm2/pkg/sdk/upgrade`?** Nothing
+   about "register a handler under a version, run it at a height" is
+   gno-specific, and `tm2/pkg/sdk` is where the generic modules live — `auth`,
+   `bank`, `params` — while `gno.land/pkg/sdk` holds only `vm`. The split would
+   be the mechanism in tm2, the `Upgrades` list and the handler bodies in
+   gno.land, as Cosmos divides `x/upgrade` from a chain's own app.
+
+   **The question is only about the new code.** Pulling the existing halt
+   machinery in behind it is a separate and worse proposition:
+
+   - `skip_upgrade_height` does not belong to a module. It is a `BaseConfig`
+     field consumed by `gnoland start` and threaded through `NewApp`, and the
+     start command is global — it is not scoped to any module and has no reason
+     to learn about one.
+   - The EndBlocker arming, the `BeginBlock` panic and the startup gates work,
+     and have now been exercised three times on mainnet. Moving working
+     consensus-path code to reshape it buys structure and spends risk.
+
+   The halt params are not in question either way: they stay `node:p:*`,
+   validated by the `nodeParamsKeeper` registered under that prefix, and any
+   holder of a `ParamsKeeperI` reads them.
+
+   **It does reopen §2's handler signature.** A generic package cannot name
+   `vm.VMKeeper`, so `Env` cannot live in it, and `Handler` loses its typed
+   access to the keepers — which is exactly why Cosmos's `UpgradeHandler` carries
+   none and its handlers close over the app instead, through a per-upgrade
+   constructor. Choosing tm2 means accepting that shape; keeping the mechanism in
+   gno.land is what makes a typed `Env` possible at all.
