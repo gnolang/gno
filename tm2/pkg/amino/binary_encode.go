@@ -523,6 +523,11 @@ func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv refl
 		finfo := field.TypeInfo
 		// Get dereferenced field value and info.
 		frv := rv.Field(field.Index)
+		if field.SkipZero && frv.IsZero() {
+			// amino:"skip_zero" judges the Go value, before any repr
+			// conversion below could turn a zero value into bytes.
+			continue
+		}
 		dfrv, frvIsPtr, _ := maybeDerefValue(frv)
 		if !field.WriteEmpty && isNonstructDefaultValue(frv) {
 			// Do not encode default value fields
