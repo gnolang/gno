@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -210,30 +209,6 @@ func TestWouldExceedSpend(t *testing.T) {
 			assert.Equal(t, tt.want, o.wouldExceedSpend())
 		})
 	}
-}
-
-// TestDeferredListIsBounded pins the cap: past maxDeferred, a refusal is
-// blocked rather than deferred, and a resubmitted path frees its slot.
-func TestDeferredListIsBounded(t *testing.T) {
-	t.Parallel()
-
-	o := &oracle{status: newStatusBoard(), io: testIO(t)}
-	for i := range maxDeferred {
-		o.deferApproval(&deferredApproval{path: fmt.Sprintf("gno.land/r/x/p%d", i), attempt: 1})
-	}
-	require.Len(t, o.deferred, maxDeferred)
-
-	const over = "gno.land/r/x/over"
-	o.deferApproval(&deferredApproval{path: over, attempt: 1})
-	assert.Len(t, o.deferred, maxDeferred)
-	status := o.status.get(over)
-	assert.Equal(t, statusBlocked, status.Status)
-	assert.Contains(t, status.Reason, "retry list is full")
-
-	o.dropDeferred("gno.land/r/x/p0")
-	assert.Len(t, o.deferred, maxDeferred-1)
-	o.deferApproval(&deferredApproval{path: over, attempt: 1})
-	assert.Equal(t, statusDeferred, o.status.get(over).Status)
 }
 
 // TestAffordance pins that the reported count is the lesser of the two bounds,

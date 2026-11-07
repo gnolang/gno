@@ -267,12 +267,12 @@ func TestAnEmptyPursePausesRatherThanRetiringPackages(t *testing.T) {
 	awaitStatus(t, o, later.Path, statusApproved)
 }
 
-// TestAHeavyPackageIsDeferredNotHeldAgainstTheQueue: the chain checks
+// TestAHeavyPackageIsLeftPendingNotHeldAgainstTheQueue: the chain checks
 // -gas-fee over each package's GasWanted against its gas price, so whether
 // the fee suffices depends on the package. A heavy one refused at CheckTx is
-// deferred -- no enable attempt, nothing seen, nothing spent -- and the light
-// one behind it is approved.
-func TestAHeavyPackageIsDeferredNotHeldAgainstTheQueue(t *testing.T) {
+// left pending for a re-offer -- no enable attempt, nothing seen, nothing
+// spent -- and the light one behind it is approved.
+func TestAHeavyPackageIsLeftPendingNotHeldAgainstTheQueue(t *testing.T) {
 	f := newPurseFixture(t, 1)
 
 	const heavyPath = "gno.land/r/purse/heavy"
@@ -300,22 +300,21 @@ func TestAHeavyPackageIsDeferredNotHeldAgainstTheQueue(t *testing.T) {
 	<-done
 
 	status := o.status.get(heavyPath)
-	assert.Equal(t, statusDeferred, status.Status)
+	assert.Equal(t, statusPending, status.Status)
 	assert.Contains(t, status.Reason, "below the chain's gas price")
-	assert.Equal(t, 1, status.Attempt)
 	key := candidateKey(heavy)
 	assert.NotContains(t, o.seen, key)
 	assert.NotContains(t, o.failedEnable, key,
 		"an underpriced fee must not spend one of the package's enable attempts")
-	require.Len(t, o.deferred, 1)
-	assert.Equal(t, heavyPath, o.deferred[0].path)
+	require.Contains(t, o.stranded, heavyPath, "left for a re-offer")
+	assert.True(t, o.stranded[heavyPath].verified)
 	assert.Equal(t, o.gasFee.Amount, o.spent,
 		"only the light approval was charged; the CheckTx refusal was free")
 }
 
-// newDeferringOracle parks a package and returns an oracle whose -gas-fee is
+// newUnderpricedOracle parks a package and returns an oracle whose -gas-fee is
 // below what the chain asks for it, ready to drive synchronously.
-func newDeferringOracle(t *testing.T) (*oracle, *std.MemPackage, int64) {
+func newUnderpricedOracle(t *testing.T) (*oracle, *std.MemPackage, int64) {
 	t.Helper()
 	f := newPurseFixture(t, 1)
 	mpkg := f.pkg("underpriced")
@@ -330,46 +329,45 @@ func newDeferringOracle(t *testing.T) (*oracle, *std.MemPackage, int64) {
 	return o, mpkg, height
 }
 
-// TestADeferredApprovalIsRetried: once the fee covers the package -- here by
-// raising it, standing in for a price that fell back -- the next pass approves
-// it, with no restart and nothing resubmitted.
-func TestADeferredApprovalIsRetried(t *testing.T) {
-	o, mpkg, height := newDeferringOracle(t)
+// TestAVerifiedPendingApprovalIsReofferedWithoutVerifying: once the fee covers
+// the package -- here by raising it, standing in for a price that fell back --
+// the next re-offer approves it, with no restart and nothing resubmitted, and
+// without verifying the same bytes again: the verifier is broken before it.
+func TestAVerifiedPendingApprovalIsReofferedWithoutVerifying(t *testing.T) {
+	o, mpkg, height := newUnderpricedOracle(t)
 
 	o.handleCandidate(t.Context(), candidate{mpkg: mpkg, height: height})
-	require.Equal(t, statusDeferred, o.status.get(mpkg.Path).Status)
+	require.Equal(t, statusPending, o.status.get(mpkg.Path).Status)
+	require.True(t, o.stranded[mpkg.Path].verified)
 
+	o.cfg.prepareBudget = time.Nanosecond // every verification ends unavailable
 	o.gasFee = std.MustParseCoin(defaultGasFee)
-	o.retryDeferred(t.Context())
+	o.reofferStranded(t.Context())
 
 	assert.Equal(t, statusApproved, o.status.get(mpkg.Path).Status)
-	assert.Empty(t, o.deferred)
+	assert.Empty(t, o.stranded)
 	assert.Contains(t, o.seen, candidateKey(mpkg))
 }
 
-// TestADeferredApprovalIsBlockedOnceItsRetriesRunOut: a package the fee never
-// covers frees its slot after maxDeferredRetries, blocked with the height a
-// restart needs.
-func TestADeferredApprovalIsBlockedOnceItsRetriesRunOut(t *testing.T) {
-	o, mpkg, height := newDeferringOracle(t)
-	stderr := captureStderr(t, o)
+// TestAVerifiedPendingApprovalGivesUpAfterMaxReoffers: a package the fee never
+// covers is offered maxReoffers times, all refused for free, then given up.
+func TestAVerifiedPendingApprovalGivesUpAfterMaxReoffers(t *testing.T) {
+	o, mpkg, height := newUnderpricedOracle(t)
 
 	o.handleCandidate(t.Context(), candidate{mpkg: mpkg, height: height})
-	for range maxDeferredRetries - 1 {
-		o.retryDeferred(t.Context())
-		require.Equal(t, statusDeferred, o.status.get(mpkg.Path).Status)
+	for range maxReoffers {
+		o.reofferStranded(t.Context())
+		require.Equal(t, statusPending, o.status.get(mpkg.Path).Status)
 	}
-	o.retryDeferred(t.Context())
+	o.reofferStranded(t.Context())
 
 	status := o.status.get(mpkg.Path)
-	assert.Equal(t, statusBlocked, status.Status)
-	assert.Contains(t, status.Reason, "retry window ran out")
-	assert.Equal(t, maxDeferredRetries+1, status.Attempt)
-	assert.Empty(t, o.deferred)
-	assert.NotContains(t, o.seen, candidateKey(mpkg),
-		"blocked is left unseen, so a restart can still approve it")
+	assert.Equal(t, statusGaveUp, status.Status)
+	assert.Contains(t, status.Reason, "not offered again")
+	assert.Empty(t, o.stranded)
+	assert.NotContains(t, o.failedEnable, candidateKey(mpkg),
+		"an underpriced fee must not spend one of the package's enable attempts")
 	assert.Zero(t, o.spent, "every refusal was CheckTx's, and free")
-	assert.Contains(t, stderr.String(), fmt.Sprintf("-start-height %d", height))
 }
 
 // TestReachingMaxSpendPausesRatherThanDroppingPackages: the bound only moves on

@@ -222,8 +222,8 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 
 	status := o.status.get(pkgPath)
 	// Only CheckTx raises InsufficientFeeError (simulate skips the fee check),
-	// so deferred here means the arm reached BroadcastTxCommit.
-	require.Equal(t, statusDeferred, status.Status)
+	// so this reason means the arm reached BroadcastTxCommit.
+	require.Equal(t, statusPending, status.Status)
 	require.Contains(t, status.Reason, "below the chain's gas price")
 
 	after, _, err := client.QueryBalance(who)

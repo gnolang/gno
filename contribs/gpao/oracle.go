@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
@@ -75,10 +74,6 @@ type oracle struct {
 	// field rather than a constant so a test need not spend it: see
 	// defaultFundsPollInterval.
 	fundsPollInterval time.Duration
-
-	// deferred holds approvals refused for an underpriced fee, retried every
-	// deferredRetryInterval. Touched only by the verifier goroutine.
-	deferred []*deferredApproval
 
 	// blockMaxGas is the chain's Block.MaxGas. It bounds both the probe used for
 	// estimation and the resulting gas-wanted, because the ante refuses a
@@ -162,19 +157,6 @@ const maxEnableAttempts = 3
 // balance. Long: the cure is a human sending a transaction, and QueryBalance
 // walks every denom the address holds, which anyone can add to.
 const defaultFundsPollInterval = 30 * time.Second
-
-// Bounds on the deferred list. Whether -gas-fee covers a package depends on its
-// GasWanted and on the gas price, and gpao reads neither price, so a heavy
-// package and a price spike look the same: both are retried. The price falls
-// back within a minute of congestion ending, so the interval can be long; the
-// window (interval times retries, an hour) is what has to outlast congestion.
-// Anyone can park heavy packages, which never clear: the cap bounds the
-// simulations a pass costs, and the retry count frees their slots.
-const (
-	deferredRetryInterval = 5 * time.Minute
-	maxDeferredRetries    = 12
-	maxDeferred           = 32
-)
 
 // candidateQueueSize bounds how far the block reader may run ahead of the
 // verifier. Generous, because its first job is absorbing a bursty block; past
@@ -510,13 +492,9 @@ func deliverTxCount(r *ctypes.ResultBlockResults) int {
 	return len(r.Results.DeliverTxs)
 }
 
-// runVerifier drains the candidate queue, one package at a time. Between
-// candidates, on each reoffer tick it verifies again what it left pending
-// (reofferStranded), and on each retry tick it retries the deferred approvals.
+// runVerifier drains the candidate queue, one package at a time, and on each
+// reoffer tick offers again what it left pending (reofferStranded).
 func (o *oracle) runVerifier(ctx context.Context, reoffer <-chan time.Time) {
-	retry := time.NewTicker(deferredRetryInterval)
-	defer retry.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -535,8 +513,6 @@ func (o *oracle) runVerifier(ctx context.Context, reoffer <-chan time.Time) {
 			}
 		case <-reoffer:
 			o.reofferStranded(ctx)
-		case <-retry.C:
-			o.retryDeferred(ctx)
 		}
 	}
 }
@@ -598,16 +574,22 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 	if _, done := o.seen[key]; done {
 		return
 	}
-	// A newer submission supersedes a deferred one: retrying the old hash
-	// would be refused, and its verdict would overwrite this one's.
-	o.dropDeferred(path)
-	defer o.track(path, c.height)
+	verified := false
+	defer func() { o.track(path, c.height, verified) }()
 	// Bounded on its own clock: a node that stops answering here only means
 	// the package is verified, and verifying reports the node as unavailable.
 	settleCtx, cancel := context.WithTimeout(ctx, o.settledTimeout)
 	settled := o.recordIfSettled(settleCtx, path, key)
 	cancel()
 	if settled {
+		return
+	}
+	// A re-offer of a submission that passed: still parked at the same height,
+	// so these are the same bytes, and verifying again would reach the same
+	// verdict. Only the enable is left.
+	if s, ok := o.stranded[path]; ok && s.height == c.height && s.verified {
+		verified = true
+		o.approveVerified(ctx, c, key)
 		return
 	}
 
@@ -658,29 +640,29 @@ func (o *oracle) handleCandidate(ctx context.Context, c candidate) {
 		o.logf("gpao: %q rejected, not approving: %v", path, err)
 		return
 	}
+	verified = true
+	o.approveVerified(ctx, c, key)
+}
 
+// approveVerified enables a submission that passed verification, and files the
+// outcome. Shared by new candidates and by re-offers of a verified submission
+// (see reoffer), which skip verifying the same bytes again.
+func (o *oracle) approveVerified(ctx context.Context, c candidate, key string) {
+	path := c.mpkg.Path
 	// Checked, not assigned: a package whose gnomod.toml cannot be parsed has
 	// no hash to approve, and an empty one would ride into MsgEnablePackage as
 	// "names no source" -- rejected on chain after the fee, three times, before
 	// being filed as a generic enable failure. It is a verdict about the
 	// package, so it is recorded as one.
-	pkgHash, err := vm.PackageContentHash(mpkg)
+	pkgHash, err := vm.PackageContentHash(c.mpkg)
 	if err != nil {
 		o.seen[key] = struct{}{}
 		o.status.record(path, statusRejected, "cannot hash the submitted source: "+err.Error(), 0)
 		o.errf("gpao: not approving %q: %v", path, err)
 		return
 	}
-	o.approveVerified(ctx, &deferredApproval{path: path, key: key, pkgHash: pkgHash, height: c.height})
-}
-
-// approveVerified enables a package that passed verification, and files the
-// outcome. Shared by new candidates and deferred retries, so both meet the
-// same spend bound, funds pause and fee deferral.
-func (o *oracle) approveVerified(ctx context.Context, d *deferredApproval) {
-	path, key := d.path, d.key
 	// Asked again: the package may have gone live while it was being verified,
-	// or, for a deferred one, while it waited.
+	// or since it was left pending.
 	if o.recordIfSettled(ctx, path, key) {
 		return
 	}
@@ -700,13 +682,13 @@ func (o *oracle) approveVerified(ctx context.Context, d *deferredApproval) {
 		o.errf("gpao: paused on %q: it would take this run past its "+
 			"-max-spend of %d%s (already spent %d). Restart, raising the bound "+
 			"if needed, with -start-height %d to pick this package up.",
-			path, o.maxSpend, o.gasFee.Denom, o.spent, d.height)
+			path, o.maxSpend, o.gasFee.Denom, o.spent, c.height)
 		<-ctx.Done()
 		return
 	}
 
 	o.logf("gpao: broadcasting approval for %q", path)
-	err := o.enable(path, d.pkgHash, d.height)
+	err = o.enable(path, pkgHash, c.height)
 	// Retried rather than recorded, so an approver with no money holds this
 	// candidate instead of consuming it. auth.DeductFees alone raises this type,
 	// and MsgEnablePackage names the approver as its sole signer, so it means
@@ -725,17 +707,7 @@ func (o *oracle) approveVerified(ctx context.Context, d *deferredApproval) {
 		if !o.waitForFunds(ctx) {
 			return
 		}
-		err = o.enable(path, d.pkgHash, d.height)
-	}
-	// -gas-fee over this package's GasWanted is below the chain's gas price,
-	// refused at CheckTx for free. Deferred, not held: the fee is fixed and the
-	// gas is the package's, so a heavy one must not stall the queue, and a
-	// price spike clears by itself. Nothing was charged, so no enable attempt
-	// is counted.
-	if errors.As(err, &std.InsufficientFeeError{}) {
-		d.attempt++
-		o.deferApproval(d)
-		return
+		err = o.enable(path, pkgHash, c.height)
 	}
 	if err != nil {
 		// Left unseen until the count runs out, for the reason at
@@ -744,68 +716,28 @@ func (o *oracle) approveVerified(ctx context.Context, d *deferredApproval) {
 		//
 		// As with overBudget, it is what makes a later offer of the same bytes
 		// effective instead of a silent no-op.
-		if n, giveUp := o.recordEnableFailure(key); giveUp {
-			o.status.record(path, statusGaveUp, err.Error(), n)
+		//
+		// -gas-fee over this package's GasWanted below the chain's gas price is
+		// refused at CheckTx for free, so it is not counted: the fee is fixed and
+		// the gas is the package's, so a heavy one must not stall the queue, and
+		// a price spike clears by itself. The re-offer gives up after
+		// maxReoffers.
+		reason := err.Error()
+		if errors.As(err, &std.InsufficientFeeError{}) {
+			reason = "the oracle's gas fee is below the chain's gas price for this package"
+		} else if n, giveUp := o.recordEnableFailure(key); giveUp {
+			o.status.record(path, statusGaveUp, reason, n)
 			o.errf("gpao: failed to approve %q %d times, giving up on it this run "+
 				"(needs a human): %v", path, n, err)
 			return
 		}
-		o.status.record(path, statusPending, err.Error(), o.failedEnable[key])
+		o.status.record(path, statusPending, reason, o.failedEnable[key])
 		o.errf("gpao: failed to approve %q, leaving it pending: %v", path, err)
 		return
 	}
 	o.status.record(path, statusApproved, "", 0)
 	o.seen[key] = struct{}{}
 	o.logf("gpao: %q approved and enabled", path)
-}
-
-// deferredApproval is a verified package to enable. attempt counts its enables
-// refused for an underpriced fee.
-type deferredApproval struct {
-	path, key, pkgHash string
-	height             int64
-	attempt            int
-}
-
-// deferApproval puts d on the deferred list, or blocks it when the list is
-// full or d has used its retries. Blocked is left unseen, so a restart from
-// d.height can still pick it up.
-func (o *oracle) deferApproval(d *deferredApproval) {
-	const reason = "the oracle's gas fee is below the chain's gas price for this package"
-	if d.attempt <= maxDeferredRetries && len(o.deferred) < maxDeferred {
-		o.deferred = append(o.deferred, d)
-		o.status.record(d.path, statusDeferred, reason+"; retrying", d.attempt)
-		o.logf("gpao: deferring %q: %s; retrying every %s",
-			d.path, reason, deferredRetryInterval)
-		return
-	}
-	why := "the retry list is full"
-	if d.attempt > maxDeferredRetries {
-		why = "retried until the retry window ran out"
-	}
-	o.status.record(d.path, statusBlocked, reason+"; "+why, d.attempt)
-	o.errf("gpao: not approving %q: %s, and %s. Raise -gas-fee %s and restart "+
-		"with -start-height %d to pick it up.", d.path, reason, why, o.gasFee, d.height)
-}
-
-// dropDeferred removes path from the deferred list, if it is there.
-func (o *oracle) dropDeferred(path string) {
-	o.deferred = slices.DeleteFunc(o.deferred, func(d *deferredApproval) bool {
-		return d.path == path
-	})
-}
-
-// retryDeferred gives each deferred approval one more try, through the same
-// path as a new candidate: refused again, it is deferred again.
-func (o *oracle) retryDeferred(ctx context.Context) {
-	pending := o.deferred
-	o.deferred = nil
-	for _, d := range pending {
-		if ctx.Err() != nil {
-			return
-		}
-		o.approveVerified(ctx, d)
-	}
 }
 
 // queryLatestHeight reads the chain's latest committed height, and reports

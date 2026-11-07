@@ -21,7 +21,6 @@ const (
 	statusPending  = "pending"  // no verdict yet; will be retried
 	statusGaveUp   = "gave_up"  // retried to the cap, needs a human
 	statusBlocked  = "blocked"  // nothing wrong with the package; the oracle cannot proceed
-	statusDeferred = "deferred" // fee below the chain's gas price; retried later by itself
 	statusApproved = "approved" // enabled on-chain by this oracle
 	statusUnknown  = "unknown"  // never seen
 )
