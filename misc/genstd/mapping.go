@@ -29,6 +29,19 @@ type mappingType struct {
 	// gno.TypedValue. This prevents the generated code from performing
 	// Go2Gno/Gno2Go reflection-based conversion.
 	IsTypedValue bool
+
+	// BoxedTypedValue is set, on a parameter only, when both sides declare the
+	// empty interface. The dispatcher still hands over the raw gno.TypedValue,
+	// unconverted, but boxes it in the native's any parameter.
+	//
+	// It exists so a native that wants the machine value of an any parameter
+	// can have it without declaring gno.TypedValue in its own signature. The
+	// transpiler (gnovm/pkg/transpiler) rewrites a native call into a direct
+	// Go call that passes the gno argument through as it is declared in gno,
+	// so a go parameter type that the gno one is not assignable to does not
+	// compile under `gno tool transpile --gobuild`. any is assignable to any;
+	// gno.TypedValue is not.
+	BoxedTypedValue bool
 }
 
 func (mt mappingType) GoQualifiedName() string {
@@ -100,18 +113,29 @@ func (m *mapping) loadParamsResults(gnof, gof funcDecl) {
 		gofpl = gofpl[1:]
 	}
 	if gnof.Type.Params != nil {
-		m._loadParamsResults(&m.Params, gnof.Type.Params.List, gofpl)
+		m._loadParamsResults(&m.Params, gnof.Type.Params.List, gofpl, false)
 	}
 	if gnof.Type.Results != nil {
-		m._loadParamsResults(&m.Results, gnof.Type.Results.List, gof.Type.Results.List)
+		m._loadParamsResults(&m.Results, gnof.Type.Results.List, gof.Type.Results.List, true)
 	}
 }
 
-func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field) {
+func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field, results bool) {
 	iterFields(gnol, gol, func(gnoe, goe ast.Expr) error {
-		if m.isTypedValue(goe) {
+		switch {
+		case m.isTypedValue(goe):
 			*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true})
-		} else {
+		case isEmptyInterface(gnoe) && isEmptyInterface(goe):
+			if results {
+				// The dispatcher would have to assert the returned any back to
+				// a gno.TypedValue to push it, which is a runtime check the go
+				// side could fail. Declare the result as gno.TypedValue
+				// instead; a result is not a call argument, so the transpiler
+				// never has to assign to it.
+				panic("result of empty interface type is not supported; declare it as gno.TypedValue")
+			}
+			*dst = append(*dst, mappingType{Type: gnoe, IsTypedValue: true, BoxedTypedValue: true})
+		default:
 			*dst = append(*dst, mappingType{Type: gnoe})
 		}
 		return nil
@@ -129,8 +153,34 @@ func (m *mapping) isGnoMachine(field *ast.Field) bool {
 }
 
 // isTypedValue checks whether e is type gno.TypedValue.
+//
+// As a *result* type it is unproblematic: the transpiled caller assigns the
+// result to a variable of the gno-declared type, and gno.TypedValue is
+// assignable to the empty interface, which is the only gno type a native
+// returns this way.
+//
+// As a *parameter* type it is a hazard, and was a live bug once
+// (chain/reflect.objectInfo). It matches every gno parameter type, so genstd
+// links it, but the transpiler emits a direct Go call passing the argument
+// with the type gno gave it, and nothing is assignable to gno.TypedValue. Such
+// a native compiles and runs under the interpreter and fails
+// `gno tool transpile --gobuild` the day any gno code reaches it. For a
+// parameter, declare the empty interface on both sides instead and assert; see
+// [mappingType.BoxedTypedValue].
 func (m *mapping) isTypedValue(e ast.Expr) bool {
 	return m.isGnoType(e, false, "TypedValue")
+}
+
+// isEmptyInterface checks whether e is the empty interface, however it is
+// spelled.
+func isEmptyInterface(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Ident:
+		return e.Name == "any"
+	case *ast.InterfaceType:
+		return e.Methods == nil || len(e.Methods.List) == 0
+	}
+	return false
 }
 
 func (m *mapping) isGnoType(e ast.Expr, star bool, typeName string) bool {
@@ -308,6 +358,10 @@ func basicLitsEqual(x1, x2 ast.Expr) bool {
 //
 // If a Go parameter is [gnolang.TypedValue], it always matches any
 // corresponding parameter in Gno.
+//
+// A Go parameter declared as the empty interface matches a Gno parameter
+// declared as the empty interface, and is likewise handed the machine value
+// unconverted. See [mappingType.BoxedTypedValue].
 func (m *mapping) signaturesMatch(gnof, gof funcDecl) bool {
 	if gnof.Type.TypeParams != nil || gof.Type.TypeParams != nil {
 		panic("type parameters not supported")
@@ -338,6 +392,11 @@ func (m *mapping) fieldListsMatch(gnofl, gofl *ast.FieldList) bool {
 	err := iterFields(gnofl.List, gofl.List, func(gnoe, goe ast.Expr) error {
 		// if the go type is gno.TypedValue, we just don't perform reflect-based conversion.
 		if m.isTypedValue(goe) {
+			return nil
+		}
+		// an empty interface on both sides is also passed through unconverted,
+		// boxed in the go any. See mappingType.BoxedTypedValue.
+		if isEmptyInterface(gnoe) && isEmptyInterface(goe) {
 			return nil
 		}
 		return m.typesEqual(gnoe, goe)

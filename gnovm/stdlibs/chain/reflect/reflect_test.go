@@ -398,3 +398,28 @@ func TestDeriveObjectCryptoAddrIsDeterministic(t *testing.T) {
 		require.Panics(t, func() { gno.DeriveObjectCryptoAddr(oid) })
 	}
 }
+
+// The parameter is any so that `gno tool transpile --gobuild` can emit a direct
+// Go call to this native; the dispatcher is the only thing that ever puts a
+// gno.TypedValue in it. Everything else is a value that reached the symbol
+// outside the VM, where there is no object identity to report, so it gets the
+// same answer as a value that has none rather than a panic.
+func TestObjectInfoRejectsNonMachineValues(t *testing.T) {
+	t.Parallel()
+
+	for _, v := range []any{
+		nil,
+		"gno.land/r/demo/reflect",
+		42,
+		&struct{}{},
+		gno.ObjectID{},
+		&gno.TypedValue{},
+	} {
+		id, addr, pkgPath, stamped, hasIdentity := X_objectInfo(nil, v)
+		require.Equal(t, "", id)
+		require.Equal(t, "", addr)
+		require.Equal(t, "", pkgPath)
+		require.False(t, stamped)
+		require.False(t, hasIdentity)
+	}
+}

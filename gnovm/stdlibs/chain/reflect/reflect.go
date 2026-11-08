@@ -6,12 +6,23 @@ import (
 
 // X_objectInfo reads everything the VM knows about the object behind v.
 //
-// The parameter is a gno.TypedValue, which genstd links straight through with
-// no Go2Gno conversion: the Gno side declares any and the binding hands
-// the value over untouched. That is what lets this native look at the object a
-// value refers to instead of at a converted copy of it, and it needs no change
-// to genstd: a Go gno.TypedValue parameter already matches any Gno parameter
-// type (see mapping.signaturesMatch).
+// The parameter is declared any, the same as on the Gno side, and genstd hands
+// over the machine's own gno.TypedValue boxed in it, with no Go2Gno conversion
+// (see mappingType.BoxedTypedValue). That is what lets this native look at the
+// object a value refers to instead of at a converted copy of it.
+//
+// Declaring gno.TypedValue here instead would read better and does link under
+// the interpreter, but it does not survive `gno tool transpile --gobuild`: the
+// transpiler rewrites objectInfo(v) into a direct Go call X_objectInfo(nil, v)
+// that passes the Gno argument as the Gno side declares it, so the Go
+// parameter has to be a type the Gno one is assignable to. Every other native
+// in the tree already satisfies that by having the two sides spell the same
+// type; this is the first one whose Gno type is an interface.
+//
+// The assertion below therefore fails in exactly one place: the Go program the
+// transpiler emits, which has no VM behind it. There is no object identity
+// outside the VM, so the honest answer there is the one for a value that has
+// none.
 //
 // It is a pure read. Nothing here allocates, persists, or advances a realm
 // clock, so calling it has no effect on the object's lifecycle and repeated
@@ -24,8 +35,13 @@ import (
 // item keep a type of its own that could stand in: an assignment through a
 // converted pointer overwrites the stored value's T (TypedValue.Assign copies
 // tv2 whole), so even that changes over the object's life.
-func X_objectInfo(m *gno.Machine, v gno.TypedValue) (id, addr, pkgPath string, stamped, hasIdentity bool) {
-	oo := ownObject(m, v)
+func X_objectInfo(m *gno.Machine, v any) (id, addr, pkgPath string, stamped, hasIdentity bool) {
+	tv, ok := v.(gno.TypedValue)
+	if !ok {
+		return "", "", "", false, false
+	}
+
+	oo := ownObject(m, tv)
 	if oo == nil {
 		return "", "", "", false, false
 	}

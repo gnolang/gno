@@ -1257,7 +1257,7 @@ var nativeFuncs = [...]NativeFunc{
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
-			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+			var p0 any = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 
 			r0, r1, r2, r3, r4 := libs_chain_reflect.X_objectInfo(
 				m,
