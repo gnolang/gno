@@ -43,6 +43,30 @@ func (n *NativeFunc) HasMachineParam() bool {
 	return n.hasMachine
 }
 
+// rawTypedValueParams records, for the bindings that have any, which
+// parameters the Go implementation declares as gno.TypedValue. genstd hands
+// those straight through with no Gno2Go conversion, whatever the Gno
+// parameter type is (see mapping.signaturesMatch), so the Gno signature alone
+// does not say which ones they are.
+//
+// Keyed by "<gno import path>.<gno func name>"; a binding with no such
+// parameter is absent rather than present with an all-false slice.
+var rawTypedValueParams = map[string][]bool{
+	"chain/runtime.ObjectID": {true},
+}
+
+// ParamIsRawTypedValue reports whether the i-th Gno parameter of this binding
+// reaches the Go implementation as a raw gno.TypedValue.
+//
+// A caller that generates Go code calling the implementation directly, like
+// the transpiler, needs this: for such a parameter the Go signature is
+// gno.TypedValue and not the Go spelling of the Gno type, so the argument has
+// to be adapted rather than passed through.
+func (n *NativeFunc) ParamIsRawTypedValue(i int) bool {
+	tv := rawTypedValueParams[n.gnoPkg+"."+string(n.gnoFunc)]
+	return i < len(tv) && tv[i]
+}
+
 var nativeFuncs = [...]NativeFunc{
 	{
 		"chain",
