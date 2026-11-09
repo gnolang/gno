@@ -662,11 +662,14 @@ func (vals *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height i
 			continue // OK, some precommits can be missing.
 		}
 		_, val := vals.GetByIndex(idx)
-		// The address is not signed, so a mismatch here is a tampered
-		// commit; reject it before fast sync can persist it as the
-		// seen-commit.
+		// Neither the address nor the index is signed, so a mismatch here
+		// is a tampered commit; reject it before fast sync can persist it as
+		// the seen-commit.
 		if precommit.ValidatorAddress != val.Address {
 			return fmt.Errorf("invalid commit -- invalid validator address: %v", precommit)
+		}
+		if precommit.ValidatorIndex != idx {
+			return fmt.Errorf("invalid commit -- invalid validator index: %v", precommit)
 		}
 		// Validate signature.
 		precommitSignBytes := commit.VoteSignBytes(chainID, idx)

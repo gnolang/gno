@@ -108,5 +108,6 @@ stop crashing and keep accepting and storing tampered commits, and the
   `GetByAddress`. A commit that reaches it has passed `VerifyCommit`, so an
   address absent from the old set is a validator the old set did not hold, and
   the precommit is skipped rather than misattributed.
-- The `MedianTime` and `ValidatorIndex` defect (dora 80d38d04, gno-fixes #127)
-  is a different field on a different path and stays out of scope.
+- `VerifyCommit` also refuses a precommit whose `ValidatorIndex` is not its
+  position, the other unsigned field. See
+  `prxxxx_mediantime_positional_index.md`.
