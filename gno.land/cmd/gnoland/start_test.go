@@ -81,8 +81,9 @@ func TestStart_Lazy(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		additionalArgs []string
+		name                string
+		additionalArgs      []string
+		refuseCodeExecution bool
 	}{
 		{
 			name:           "with skip-failing-genesis-txs",
@@ -93,8 +94,9 @@ func TestStart_Lazy(t *testing.T) {
 			additionalArgs: []string{"--skip-genesis-sig-verification"},
 		},
 		{
-			name:           "with 2 skips",
-			additionalArgs: []string{"--skip-genesis-sig-verification", "--skip-failing-genesis-txs"},
+			name:                "with 2 skips",
+			additionalArgs:      []string{"--skip-genesis-sig-verification", "--skip-failing-genesis-txs"},
+			refuseCodeExecution: true,
 		},
 		// XXX: {name: "no args", additionalArgs: []string{}}, // not compatible with current genesis.
 	}
@@ -115,11 +117,13 @@ func TestStart_Lazy(t *testing.T) {
 
 			// Prepare the config
 			prepareNodeRPC(t, nodeDir, sockAddr)
-			require.NoError(t, newRootCmd(commands.NewTestIO()).ParseAndRun(context.Background(), []string{
-				"config", "set",
-				"--config-path", constructConfigPath(nodeDir),
-				"rpc.allow_code_execution", "false",
-			}))
+			if tc.refuseCodeExecution {
+				require.NoError(t, newRootCmd(commands.NewTestIO()).ParseAndRun(context.Background(), []string{
+					"config", "set",
+					"--config-path", constructConfigPath(nodeDir),
+					"rpc.allow_code_execution", "false",
+				}))
+			}
 
 			args := []string{
 				"start",
@@ -189,9 +193,14 @@ func TestStart_Lazy(t *testing.T) {
 				require.Greater(c, len(paths), 1, "query qpaths: no package has been loaded")
 			}, time.Until(deadline), time.Millisecond*500, "rpc: unable to call rpc vm/qpaths")
 
-			// vm/qpaths runs no code and is served; vm/qrender runs code and is refused.
+			// vm/qpaths runs no code and is always served; vm/qrender runs code
+			// and is refused only when the config says so.
 			_, err = cli.ABCIQuery(gCtx, "vm/qrender", []byte("gno.land/r/none:"))
-			require.ErrorContains(t, err, "rpc.allow_code_execution = false")
+			if tc.refuseCodeExecution {
+				require.ErrorContains(t, err, "rpc.allow_code_execution = false")
+			} else {
+				require.NoError(t, err)
+			}
 
 			t.Logf("node: stopping - time left %s", time.Until(deadline))
 
