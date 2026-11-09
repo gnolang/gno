@@ -1959,6 +1959,105 @@ func GetHeight(cur realm) int64 { return height }
 		assert.Contains(t, string(resp.Data), "(42 int64)")
 	})
 
+	// A historical deploy must replay even when today's deploy gate would
+	// refuse its source. gnoland-1's history holds packages with builtin-named
+	// parameters (`p/onbloc/diff/v0` is in genesis itself), admitted before the
+	// reserved-name rule existed; a fork replays them through InitChain under
+	// the NEW binary, so without TypeCheckOptions.AlreadyOnChain the node
+	// panics at InitChain on its own history.
+	t.Run("historical deploy with a reserved name replays", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db      = memdb.NewMemDB()
+			key     = getDummyKey(t)
+			chainID = "new-chain"
+
+			path = "gno.land/r/demo/reservedname"
+			body = `package reservedname
+
+func L(cur realm, len int) int { return len }
+`
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		msg := vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "reservedname",
+				Path: path,
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: body},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+				},
+			},
+		}
+		tx := createAndSignTx(t, []std.Msg{msg}, "old-chain", key)
+
+		app.InitChain(abci.RequestInitChain{
+			ChainID:       chainID,
+			Time:          time.Now(),
+			InitialHeight: 100,
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+			},
+			AppState: GnoGenesisState{
+				Txs: []TxWithMetadata{{
+					Tx: tx,
+					Metadata: &GnoTxMetadata{
+						Timestamp:   time.Now().Unix(),
+						BlockHeight: 42,
+						ChainID:     "old-chain",
+					},
+				}},
+				Balances: []Balance{{
+					Address: key.PubKey().Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				}},
+				Auth:          auth.DefaultGenesisState(),
+				Bank:          bank.DefaultGenesisState(),
+				VM:            vm.DefaultGenesisState(),
+				PastChainIDs:  []string{"old-chain"},
+				InitialHeight: 100,
+			},
+		})
+
+		callTx := createAndSignTx(t, []std.Msg{vm.MsgCall{
+			Caller:  key.PubKey().Address(),
+			PkgPath: path,
+			Func:    "L",
+			Args:    []string{"5"},
+		}}, chainID, key)
+		marshalledTx, err := amino.Marshal(callTx)
+		require.NoError(t, err)
+
+		resp := app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledTx})
+		require.True(t, resp.IsOK(), "DeliverTx failed: %s", resp.Log)
+		assert.Contains(t, string(resp.Data), "(5 int)")
+
+		// The same source submitted live is still refused: the exemption is
+		// for replay only.
+		live := createAndSignTx(t, []std.Msg{vm.MsgAddPackage{
+			Creator: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "reservedname2",
+				Path: path + "2",
+				Files: []*std.MemFile{
+					{Name: "file.gno", Body: strings.ReplaceAll(body, "reservedname", "reservedname2")},
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path + "2")},
+				},
+			},
+		}}, chainID, key)
+		marshalledLive, err := amino.Marshal(live)
+		require.NoError(t, err)
+		resp = app.DeliverTx(abci.RequestDeliverTx{Tx: marshalledLive})
+		require.False(t, resp.IsOK(), "a live deploy with a reserved name was admitted")
+		assert.Contains(t, resp.Log, "builtin identifiers cannot be shadowed: len")
+	})
+
 	// A historical MsgRun must replay even when run_submitters excludes its signer.
 	//
 	// This is the carve-out in checkCodePolicy, and it is load-bearing for every

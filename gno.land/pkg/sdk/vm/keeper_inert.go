@@ -306,9 +306,10 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		// returns the production blob only, and resolving test-stdlib imports
 		// would make this consensus path depend on node-local state. #5888
 		// predates that change on master and passed a test getter here.
-		ProdOnly: true,
-		Mode:     gno.TCLatestStrict,
-		Cache:    vm.getTypeCheckCache(ctx),
+		ProdOnly:       true,
+		Mode:           gno.TCLatestStrict,
+		Cache:          vm.getTypeCheckCache(ctx),
+		AlreadyOnChain: auth.IsGenesisReplay(ctx), // see AddPackage
 	}
 	if _, err = gno.TypeCheckMemPackage(memPkg, opts); err != nil {
 		return ErrTypeCheck(err)
