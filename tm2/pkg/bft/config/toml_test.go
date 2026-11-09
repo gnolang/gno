@@ -167,6 +167,22 @@ func TestTOML_LoadConfig(t *testing.T) {
 		assert.Equal(t, defaultConfig.TxEventStore.EventStoreType, cfg.TxEventStore.EventStoreType)
 		assert.Empty(t, defaultConfig.TxEventStore.Params, cfg.TxEventStore.Params)
 	})
+
+	t.Run("config without a key keeps its default", func(t *testing.T) {
+		t.Parallel()
+
+		// A config.toml written before rpc.allow_code_execution existed
+		configFile, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		_, writeErr := configFile.WriteString("[rpc]\nladdr = \"tcp://127.0.0.1:26657\"\n")
+		require.NoError(t, writeErr)
+
+		cfg, loadErr := LoadConfigFile(configFile.Name())
+		require.NoError(t, loadErr)
+
+		assert.True(t, cfg.RPC.AllowCodeExecution)
+	})
 }
 
 func TestTOML_ConfigComments(t *testing.T) {

@@ -266,6 +266,17 @@ key in `data`: `path=".store/main/key"&data="<base64 key>"`. The module paths â€
 at height 1 or below is an error, and a `height` of `0` is rewritten to the
 chain tip before that check.
 
+A node with `rpc.allow_code_execution = false` refuses the queries that run
+code: `.app/simulate`, `vm/qeval`, `vm/qeval_json` and `vm/qrender`. Anyone
+can send these queries and none pays a fee, so the node pays for the code they
+run in CPU time and memory. `false` lets an operator stop that work on a node
+with no use for it. A refused query returns an `error`, with HTTP 403 on the
+URI transport. The default is `true`.
+
+Use `false` on a node that only takes transactions: `broadcast_tx_*` still
+works, and `gnokey maketx` needs `-simulate skip`. Keep `true` on a node behind
+gnoweb, which renders pages through `vm/qrender`.
+
 ### `abci_info`
 
 Takes nothing. Returns `response`, with the last block height at
