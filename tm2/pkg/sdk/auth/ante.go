@@ -181,15 +181,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// actual outflow at execution time, so correctness is unchanged —
 		// this pre-check is purely a gas-efficiency optimization.
 		if da, ok := sessionAccounts[signerAddrs[0]]; ok {
-			total := std.Coins{}
-			if !tx.Fee.GasFee.IsZero() {
-				total = total.Add(std.Coins{tx.Fee.GasFee})
-			}
-			for _, msg := range tx.GetMsgs() {
-				if est, ok := msg.(std.SpendEstimator); ok {
-					total = total.Add(est.SpendForSigner(signerAddrs[0]))
-				}
-			}
+			total := sessionSpendTotal(tx, signerAddrs[0])
 			if err := CheckSessionSpend(da, total, newCtx.BlockTime().Unix()); err != nil {
 				return newCtx, abciResult(err), true
 			}
