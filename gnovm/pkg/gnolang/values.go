@@ -218,6 +218,14 @@ func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 		bdv.V = nil
 		return nil
 	}
+	// Only accept the characters of big.Rat.RatString, which is all MarshalAmino
+	// emits here. SetString also takes exponents, and expands them: the 8 bytes
+	// "1e999999" build a 1,000,000-digit numerator, and this runs while a
+	// transaction is decoded, before anyone has paid for it. Every exponent needs
+	// a letter, so a number that passes can't outgrow the string it came from.
+	if strings.Trim(s, "0123456789-/") != "" {
+		return fmt.Errorf("invalid BigdecValue: %q", s)
+	}
 	r := new(big.Rat)
 	if _, ok := r.SetString(s); !ok {
 		return fmt.Errorf("invalid BigdecValue: %q", s)
