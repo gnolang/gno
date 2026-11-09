@@ -1,6 +1,6 @@
 package main
 
-// The type-switch var is Reserved, and checked, in each clause.
+// The type-switch var is a binding per clause, refused at the deploy gate.
 
 func main() {
 	switch len := any(1).(type) {

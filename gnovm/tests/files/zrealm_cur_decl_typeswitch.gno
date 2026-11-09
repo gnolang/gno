@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/demo/curdecltypeswitch
 package curdecltypeswitch
 
-// A type switch's `cur := x.(type)` is a binding, Reserved and refused in
-// each clause.
+// A type switch's `cur := x.(type)` is a binding per clause, refused at the
+// deploy gate.
 
 func main(cur realm) {
 	var x any = cur

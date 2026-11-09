@@ -10,9 +10,9 @@ package curalias
 // the cur-call provenance check would then accept by name, with no assignment
 // and no address taken anywhere for the write-shape rules to see.
 //
-// `cur` is now reserved by name (StaticBlock.Reserve), so a second parameter
-// named `cur` is refused before any type resolves; the alias rule is pinned
-// here through position 0, where `c` resolves to realm and is not `cur`.
+// The deploy gate (checkDeclNames) now refuses a second parameter named
+// `cur` before any type resolves; the alias rule is pinned here through
+// position 0, where `c` resolves to realm and is not `cur`.
 
 type R = realm
 

@@ -2,8 +2,8 @@
 package curalias2
 
 // The second rule, reached through an alias: a realm parameter after position
-// 0 may not be named `cur`, however its type was spelled. A function type is
-// used because a FuncDecl's `cur` is refused earlier, by name, in Reserve.
+// 0 may not be named `cur`, however its type was spelled. Preprocess reaches
+// it through a function type; the deploy gate refuses the name at every site.
 
 type R = realm
 

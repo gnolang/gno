@@ -625,7 +625,7 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					last.Reserve(false, rx, &n.Type, NSFuncResult, i)
 				}
 			case *SwitchStmt:
-				// n.Varname is Reserved (and checked) in each clause.
+				// n.Varname is declared in each clause.
 			case *SwitchClauseStmt:
 				blen := len(n.Body)
 				if blen > 0 {

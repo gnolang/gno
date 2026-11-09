@@ -180,19 +180,18 @@ type TypeCheckOptions struct {
 	// keep checking test files.
 	ProdOnly bool
 
-	// AlreadyOnChain marks source the chain has ALREADY admitted, re-read
-	// from the store rather than submitted. Node start re-type-checks every
-	// stored stdlib (VMKeeper.Initialize), and that source was written at
-	// genesis, so a rule added after it would refuse a package the chain has
-	// been running — the node simply fails to start, and the only way out is
-	// a genesis replay.
+	// AlreadyOnChain marks source the chain has ALREADY admitted: re-read
+	// from the store (node start re-checks every stored stdlib), or replayed
+	// from genesis (every tx InitChain delivers, including the history a
+	// hardfork carries). A rule added since would refuse a package the chain
+	// has been running, and the node would not start.
 	//
 	// Rules that gate ADMISSION are therefore skipped here: they ran when the
 	// source was admitted, under whatever binary admitted it. Everything the
 	// type-checker does to decide what a package MEANS still runs.
 	//
-	// Defaults false. Set it only where the source is read back from the
-	// store; never on AddPackage or Run.
+	// Defaults false. AddPackage, Run and EnablePackage set it from
+	// auth.IsGenesisReplay, so a live deploy is always checked.
 	AlreadyOnChain bool
 }
 
@@ -427,11 +426,14 @@ func prepareGoGno0p9(f *ast.File, synth map[*ast.Ident]struct{}) (err error) {
 		case *ast.FuncDecl:
 			name := gon.Name.String()
 			if gon.Recv == nil && (name == "main" || name == "init") {
-				if len(gon.Type.Params.List) == 1 { // `cur realm`
-					gon.Type.Params.List = nil
-				} else {
+				// Only the literal `cur realm` is stripped. Any other
+				// parameter stays for go/types to judge: stripped, a
+				// `func main(panic func(string))` would bind `panic` for
+				// the VM while the checker still saw the builtin.
+				if !isCurRealmParam(gon.Type.Params) {
 					return true
 				}
+				gon.Type.Params.List = nil
 				insert := gon.Type.End()
 				// var cur realm
 				curName := &ast.Ident{Name: "cur", NamePos: insert}
@@ -459,6 +461,21 @@ func prepareGoGno0p9(f *ast.File, synth map[*ast.Ident]struct{}) (err error) {
 		return true
 	})
 	return err
+}
+
+// isCurRealmParam reports whether params is exactly `(cur realm)`, spelled
+// as such. An alias of realm is not stripped; go/types then sees the
+// parameter and checkDeclNames judges it like any other first parameter.
+func isCurRealmParam(params *ast.FieldList) bool {
+	if params == nil || len(params.List) != 1 {
+		return false
+	}
+	p := params.List[0]
+	if len(p.Names) != 1 || p.Names[0].Name != "cur" {
+		return false
+	}
+	t, ok := p.Type.(*ast.Ident)
+	return ok && t.Name == "realm"
 }
 
 // Assumes that the code is Gno 0.9.
@@ -556,8 +573,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 	// Only the package being admitted: an import is already on chain, and
 	// this rule may not retroactively refuse it. Nor may it refuse source
-	// the store is merely handing back (AlreadyOnChain).
-	if mpkg.Path == gimp.pkgPath && !gimp.onChain {
+	// the store is merely handing back (AlreadyOnChain), nor a stdlib,
+	// which LoadStdlib type-checks without admitting anything. By type,
+	// since IsStdlib(path) is also true of a filetest's `main`.
+	if mpkg.Path == gimp.pkgPath && !gimp.onChain && !mpkg.Type.(MemPackageType).IsStdlib() {
 		if err := checkDeclNames(pkg, gofset, pgofs, gmgof, info, synthetic); err != nil {
 			gimp.Error(err)
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -889,8 +908,8 @@ func importErrorString(err ImportError) string {
 // preprocess re-runs every stored package at node boot
 // (PreprocessAllFilesAndSaveBlockNodes). A rejection added there refuses
 // source the chain already accepted, so an upgraded node fails to start on
-// a package it has been serving for months. The gate sees source being
-// admitted, plus the binary's own stdlibs — which ship with the rule.
+// a package it has been serving for months. The gate sees only source being
+// admitted: not stdlibs, not imports, not a genesis replay.
 //
 // go/types' Defs is its own record of every defining identifier, so no
 // binding form — parameter, result, receiver, range, type switch, for-init,
@@ -937,9 +956,11 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 		add(obj)
 	}
 	for node, obj := range info.Implicits {
-		// Only the type-switch guard: the other implicit objects name an
-		// imported package, which is not this source's binding to choose.
-		if _, ok := node.(*ast.CaseClause); ok {
+		// The type-switch guard, and an import's implicit package name:
+		// `import ".../cur"` binds `cur` in file scope exactly as an alias
+		// would, so `cur.Previous()` would call whatever that package defines.
+		switch node.(type) {
+		case *ast.CaseClause, *ast.ImportSpec:
 			add(obj)
 		}
 	}
