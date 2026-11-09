@@ -169,7 +169,7 @@ func TestWriteStreamingRPCResponseHTTP_WritesEnvelope(t *testing.T) {
 		[]byte(`"chunk_b":"second"}`),
 	}}
 
-	err := WriteStreamingRPCResponseHTTP(context.Background(), rec, types.JSONRPCStringID("1"), body)
+	err := WriteStreamingRPCResponseHTTP(httptest.NewRequest(http.MethodGet, "/", nil), rec, types.JSONRPCStringID("1"), body)
 	require.NoError(t, err)
 
 	res := rec.Result()
@@ -201,7 +201,7 @@ func TestWriteStreamingRPCResponseHTTP_PropagatesWriteError(t *testing.T) {
 	body := &streamingResult{chunks: [][]byte{[]byte(`{"x":1}`)}}
 
 	require.NotPanics(t, func() {
-		err := WriteStreamingRPCResponseHTTP(context.Background(), w, types.JSONRPCStringID("1"), body)
+		err := WriteStreamingRPCResponseHTTP(httptest.NewRequest(http.MethodGet, "/", nil), w, types.JSONRPCStringID("1"), body)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, io.ErrClosedPipe),
 			"expected returned error to wrap io.ErrClosedPipe, got %v", err)

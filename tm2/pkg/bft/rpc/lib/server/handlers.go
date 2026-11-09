@@ -144,6 +144,14 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger, maxBat
 			return
 		}
 
+		// net/http discards a HEAD body, so a batch's answers would reach nobody: it
+		// gets the status and headers before its first call.
+		if r.Method == http.MethodHead && bytes.HasPrefix(bytes.TrimSpace(b), []byte("[")) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		// --- Branch 1: Attempt to Unmarshal as a Batch (Slice) of raw messages ---
 		var rawRequests []json.RawMessage
 		if err := json.Unmarshal(b, &rawRequests); err == nil {
@@ -187,7 +195,7 @@ func makeJSONRPCHandler(funcMap map[string]*RPCFunc, logger *slog.Logger, maxBat
 		if err := json.Unmarshal(b, &request); err == nil {
 			resp, streamable := processRequest(r, request, funcMap, logger)
 			if streamable != nil {
-				if werr := WriteStreamingRPCResponseHTTP(r.Context(), w, request.ID, streamable); werr != nil {
+				if werr := WriteStreamingRPCResponseHTTP(r, w, request.ID, streamable); werr != nil {
 					logger.Error("failed to write RPC response", "err", werr)
 				}
 				return
@@ -457,7 +465,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 			return
 		}
 		if streamable, ok := result.(types.StreamableResult); ok {
-			if werr := WriteStreamingRPCResponseHTTP(r.Context(), w, types.JSONRPCStringID(""), streamable); werr != nil {
+			if werr := WriteStreamingRPCResponseHTTP(r, w, types.JSONRPCStringID(""), streamable); werr != nil {
 				logger.Error("failed to write RPC response", "err", werr)
 			}
 			return

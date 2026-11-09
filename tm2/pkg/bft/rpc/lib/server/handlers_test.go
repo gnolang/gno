@@ -110,9 +110,13 @@ func (r *streamableTestResult) StreamJSON(_ context.Context, w io.Writer) error 
 	return err
 }
 
+// streamCalls counts the calls of the "stream" method of streamingTestMux.
+var streamCalls atomic.Int64
+
 func streamingTestMux() *http.ServeMux {
 	funcMap := map[string]*rs.RPCFunc{
 		"stream": rs.NewRPCFunc(func(ctx *types.Context) (*streamableTestResult, error) {
+			streamCalls.Add(1)
 			return &streamableTestResult{Greeting: "hello"}, nil
 		}, ""),
 	}
@@ -164,6 +168,57 @@ func TestStreamableResult_JSONRPCPost(t *testing.T) {
 	require.Contains(t, string(body), `"streamed":true`,
 		"streamed body must reach the wire on the JSON-RPC POST path (got %s)", body)
 	require.Contains(t, string(body), `"id":"42"`)
+}
+
+// TestStreamableResult_HeadDoesNotStream checks that a HEAD request gets the
+// status and headers of a streamed result and no body, on the route and on the
+// JSON-RPC path, whose call a HEAD request carries in its body.
+func TestStreamableResult_HeadDoesNotStream(t *testing.T) {
+	mux := streamingTestMux()
+	call := `{"jsonrpc":"2.0","method":"stream","id":"1"}`
+
+	for _, path := range []string{"/stream", "/"} {
+		req := httptest.NewRequest(http.MethodHead, path, strings.NewReader(call))
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code, path)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"), path)
+		assert.Zero(t, rec.Body.Len(), "HEAD %s streamed %q", path, rec.Body)
+	}
+}
+
+// TestJSONRPCBatch_HeadRunsNoCall checks that a HEAD batch gets the status and
+// headers before its first call, while every other method runs the batch and
+// a single HEAD call still runs.
+func TestJSONRPCBatch_HeadRunsNoCall(t *testing.T) {
+	mux := streamingTestMux()
+	batch := `[{"jsonrpc":"2.0","method":"stream","id":"1"},{"jsonrpc":"2.0","method":"stream","id":"2"}]`
+
+	for _, body := range []string{batch, " \n" + batch} {
+		streamCalls.Store(0)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/", strings.NewReader(body)))
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+		assert.Zero(t, rec.Body.Len(), "HEAD batch answered %q", rec.Body)
+		assert.Zero(t, streamCalls.Load(), "HEAD batch %q ran a call", body)
+	}
+
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		streamCalls.Store(0)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(method, "/", strings.NewReader(batch)))
+
+		assert.NotZero(t, rec.Body.Len(), method)
+		assert.EqualValues(t, 2, streamCalls.Load(), method)
+	}
+
+	streamCalls.Store(0)
+	single := `{"jsonrpc":"2.0","method":"stream","id":"1"}`
+	mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodHead, "/", strings.NewReader(single)))
+	assert.EqualValues(t, 1, streamCalls.Load())
 }
 
 // TestStreamableResult_BatchPostReturnsError verifies that a batched JSON-RPC

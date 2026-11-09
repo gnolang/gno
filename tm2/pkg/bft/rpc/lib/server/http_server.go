@@ -3,7 +3,6 @@ package rpcserver
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -134,9 +133,12 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) error {
 // whole result in memory. Returns the first write error encountered (no
 // panics), mirroring the contract of WriteRPCResponseHTTP.
 //
-// ctx is forwarded to result.StreamJSON so that long streams can be aborted
-// when the client disconnects.
-func WriteStreamingRPCResponseHTTP(ctx context.Context, w http.ResponseWriter, id types.JSONRPCID, result types.StreamableResult) error {
+// r's context is forwarded to result.StreamJSON so that long streams can be
+// aborted when the client disconnects.
+//
+// A HEAD request gets the status and headers only: net/http discards a HEAD
+// body without sending it, so nothing would bound the work of streaming it.
+func WriteStreamingRPCResponseHTTP(r *http.Request, w http.ResponseWriter, id types.JSONRPCID, result types.StreamableResult) error {
 	idBytes, err := json.Marshal(id)
 	if err != nil {
 		return fmt.Errorf("unable to marshal JSON-RPC id: %w", err)
@@ -144,11 +146,14 @@ func WriteStreamingRPCResponseHTTP(ctx context.Context, w http.ResponseWriter, i
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	if r.Method == http.MethodHead {
+		return nil
+	}
 
 	if _, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
 		return err
 	}
-	if err := result.StreamJSON(ctx, w); err != nil {
+	if err := result.StreamJSON(r.Context(), w); err != nil {
 		return err
 	}
 	if _, err := w.Write([]byte(`}`)); err != nil {
