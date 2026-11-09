@@ -51,9 +51,8 @@ The setting is node-local and nothing inside a block calls `ABCIQuery`, so
 nodes with different values commit the same blocks. A `config.toml` written
 before the key existed loads `true`. A node set to `false` still accepts
 transactions through `broadcast_tx_*`, since `CheckTx` runs no message, while
-`gnokey maketx` needs `-simulate skip` and gnoweb cannot render through it.
-gnoweb's function preview shows the refusal as an error. A VM query added
-later that builds a machine is refused only once it joins the VM handler's
+`gnokey maketx` needs `-simulate skip` and gnoweb cannot render or evaluate
+through it. A VM query added later that builds a machine is refused only once it joins the VM handler's
 `QueryRunsCode`. An application that does not implement
 `abci.CodeExecutionQuerier` has nothing refused.
 
