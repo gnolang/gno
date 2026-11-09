@@ -1686,6 +1686,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 
+						// A constant converted to an interface must satisfy it, just as a
+						// non-constant operand does in the interface case below. In
+						// particular, this enforces realm's hidden seal marker before the
+						// expression is relabelled with the interface type.
+						if _, ctIsIface := baseOf(ct).(*InterfaceType); ctIsIface {
+							mustAssignableTo(store, n, at, ct)
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// The conversion is legal, set the target type.
