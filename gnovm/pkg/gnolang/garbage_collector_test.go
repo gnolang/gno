@@ -40,8 +40,11 @@ func TestGarbageCollect_VisitsOperandStack(t *testing.T) {
 	// the array is parked on the stack. Measuring the real path matters:
 	// re-implementing the root walk in the test would make this assertion
 	// pass with the m.Values loop deleted from GarbageCollect.
-	gasParked := gcGasForOperandStack(t, maxBytes, n, true)
-	gasEmpty := gcGasForOperandStack(t, maxBytes, n, false)
+	parkArray := func(m *Machine) TypedValue {
+		return TypedValue{T: &ArrayType{Len: n, Elt: Uint8Type}, V: m.Alloc.NewDataArray(Uint8Type, n)}
+	}
+	gasParked := gcGasOfRoot(t, maxBytes, parkArray)
+	gasEmpty := gcGasOfRoot(t, maxBytes, nil)
 	require.Greater(t, gasParked, gasEmpty,
 		"operand-stack object not counted in GC visit gas: parked=%d empty=%d", gasParked, gasEmpty)
 
@@ -54,16 +57,15 @@ func TestGarbageCollect_VisitsOperandStack(t *testing.T) {
 	})
 }
 
-// gcGasForOperandStack returns the gas a single GarbageCollect consumes on a
-// fresh machine, optionally with an n-byte data array parked on the operand
-// stack. Only the GC charge is measured: the array is allocated before the
-// meter is read, and Recount (unlike Allocate) charges no gas.
-func gcGasForOperandStack(t *testing.T, maxBytes int64, n int, park bool) int64 {
+// gcGasOfRoot returns the gas a single GarbageCollect consumes on a fresh
+// machine whose operand stack holds root's value, or nothing when root is nil.
+// Only the GC charge is measured: root runs before the meter is read, and
+// Recount (unlike Allocate) charges no gas.
+func gcGasOfRoot(t *testing.T, maxBytes int64, root func(m *Machine) TypedValue) int64 {
 	t.Helper()
 	m := newOperandStackTestMachine(t, maxBytes, true)
-	if park {
-		av := m.Alloc.NewDataArray(Uint8Type, n)
-		m.PushValue(TypedValue{T: &ArrayType{Len: n, Elt: Uint8Type}, V: av})
+	if root != nil {
+		m.PushValue(root(m))
 	}
 	before := m.GasMeter.GasConsumed()
 	_, ok := m.GarbageCollect()
@@ -362,4 +364,65 @@ func TestAllocatorAnchors_Unwind(t *testing.T) {
 	require.Equal(t, 0, nilAlloc.AnchorDepth())
 	nilAlloc.TruncateAnchors(0)
 	nilAlloc.PopAnchor()
+}
+
+// TestGarbageCollect_SharedObjectsSameGas checks that two machines collecting
+// the same shared object pay the same GC gas and leave it unstamped.
+func TestGarbageCollect_SharedObjectsSameGas(t *testing.T) {
+	lenIdx, ok := UverseNode().GetLocalIndex("len")
+	require.True(t, ok)
+	lenFV := Uverse().GetBlock(nil).Values[lenIdx].V.(*FuncValue)
+	funcRoot := func(fv *FuncValue) func(*Machine) TypedValue {
+		return func(*Machine) TypedValue { return TypedValue{T: fv.GetType(nil), V: fv} }
+	}
+	// Preprocess folds a builtin callee into a copy in the shared node cache,
+	// and that copy is what fr.Func holds for a real call.
+	lenCopy := lenFV.Copy(nil)
+	// Every machine shares a uverse method's original; GetValueAt hands out a
+	// copy, so GC never reaches the original.
+	strPath := gAddressType.GetPathForName("String")
+	strMethod := gAddressType.Methods[strPath.Index].V.(*FuncValue)
+
+	tests := []struct {
+		name   string
+		shared Object
+		root   func(m *Machine) TypedValue
+	}{
+		{"builtin func", lenFV, funcRoot(lenFV)},
+		{"preprocessed builtin copy", lenCopy, funcRoot(lenCopy)},
+		{
+			"uverse method handout", strMethod,
+			func(*Machine) TypedValue { return gAddressType.GetValueAt(nil, nil, strPath) },
+		},
+		{
+			// The previous realm of the `cur` preprocess builds for main and
+			// init, until doOpCall swaps in the transaction's origin.
+			"origin realm placeholder", originPlaceholderHIV(),
+			func(m *Machine) TypedValue {
+				return NewConcreteRealm(m.Alloc, "gno.land/r/test/gcshared", gOriginRealmTV)
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// A freshly started node holds every shared object at cycle 0.
+			tc.shared.SetLastGCCycle(0)
+			require.Equal(t, gcGasOfRoot(t, 1<<20, tc.root), gcGasOfRoot(t, 1<<20, tc.root),
+				"GC gas depends on an earlier machine in the process")
+			require.Zero(t, tc.shared.GetLastGCCycle(),
+				"GC wrote its cycle into an object every machine shares")
+		})
+	}
+}
+
+// TestGarbageCollect_CountsUverseMethodCopy checks that a uverse method, which
+// each call copies, is still counted against the machine that holds it.
+func TestGarbageCollect_CountsUverseMethodCopy(t *testing.T) {
+	path := gAddressType.GetPathForName("String")
+	method := gAddressType.GetValueAt(nil, nil, path)
+	// Both roots fill one stack slot, so only the visit differs.
+	require.Greater(t,
+		gcGasOfRoot(t, 1<<20, func(*Machine) TypedValue { return method }),
+		gcGasOfRoot(t, 1<<20, func(*Machine) TypedValue { return TypedValue{T: IntType} }),
+		"GC skipped a uverse method copy only one machine holds")
 }
