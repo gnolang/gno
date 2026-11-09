@@ -1660,17 +1660,16 @@ mechanics.
 - Credit-by-vote is the manual fallback for a griefed transfer: 7 days, for an `unescrow` denom never above the
   lock (free escrow); for a `mint` denom the credit reuses the supply its sweep entry already booked. As built it replaces
   a **sweep entry** booked at the receipt after the route's enrolment, for the entry's current whole amount (at
-  least the current fee), or completes a pending asynchronous ack for exactly what the packet carried; a sweep entry
-  moved from a claim cannot be re-credited. It checks that its client is one of the route's — the current client or
+  least the current fee); a sweep entry moved from a claim cannot be re-credited, and a packet whose asynchronous ack
+  is still unwritten is not credited (see Known limits). It checks that its client is one of the route's — the current client or
   one a replacement retired — through an index (`Route.HasClient`), in logarithmic work whatever the number of
   replacements.
 - **IBC terminal-state rules.** A claim is keyed by its packet and created in the same transaction as the receipt.
-  A credit-by-vote is only for a packet whose acknowledgement on gno.land is a **success** (or an asynchronous ack
-  still unwritten, which the credit completes as success in the same transaction); an error-acked packet is
-  refunded at its source and is never credited. Credits are deduplicated against every claim and payment of the
-  same packet. A void never creates a refund on the source: a successfully acknowledged packet is final there, so a
-  voided forged claim is booked as lost or withheld on gno.land only. Escrow is reserved for open claims so voids
-  and payouts never double-spend it.
+  A credit-by-vote is only for a packet whose acknowledgement on gno.land is a **success**; an error-acked packet is
+  refunded at its source and is never credited, and one whose asynchronous ack is still unwritten is not credited.
+  Credits are deduplicated against every claim and payment of the same packet. A void never creates a refund on
+  the source: a successfully acknowledged packet is final there, so a voided forged claim is booked as lost or
+  withheld on gno.land only. Escrow is reserved for open claims so voids and payouts never double-spend it.
 - **Recognized losses.** A loss enters a packet-keyed **loss ledger** per route and denom (packet, amount, chain,
   incident) only through a decided void or a §7.12 reconciliation outcome — a forged payout already paid, a refund
   paid for a delivered packet, a forged delivery. Monitors and guardians cannot record one. Each loss is stored
@@ -2233,8 +2232,7 @@ reconciliation.
     budget — on gno.land the first batch with the replacement itself (64 steps), the rest by anyone
     (`transfer.PrepareReplacement(route, n)`); on Ethereum by anyone (`prepareIncident`), over the retired client's
     processed list from its first suspect entry. Until it has walked every
-    record: on gno.land no settlement, sweep payment, credit by vote (a sweep entry's replacement or a pending
-    asynchronous ack's completion) or reopening applies on the route (each is refused as "not prepared"); on
+    record: on gno.land no settlement, sweep payment, credit by vote or reopening applies on the route (each is refused as "not prepared"); on
     Ethereum kind 12 pays no refund (they stay parked) and, the route being closed, nothing else pays. Ethereum's
     reopening (kind 13) waits for every incident's records to be settled, not for its preparation: once none is
     left unsettled there is nothing left for preparation to reserve, so the route may reopen with an incident still
@@ -2599,10 +2597,12 @@ Further trust assumptions of the built controls, each stated where its rule is:
 - **An unpaid recapitalization authorization** is revoked when the route reopens, which accepts the rest as a
   deficit.
 - **Payouts to a recipient blocked after its credit** are still paid: the blocklist is checked at receive.
-- **The credit-by-vote path completing a pending asynchronous ack** cannot be exercised end to end with the
-  shipped transfer app, which never answers asynchronously; a test implementation keeping the controls that
-  answers every receive asynchronously drives it (gno-realms `z9j2`: the credit completes the ack and, for a minted
-  denom, records its trace and creates its voucher as a receive does, so a new denom's first packet is claimable).
+- **No credit by vote completes an asynchronous ack.** Neither shipped transfer implementation answers a receive
+  asynchronously, so no transfer packet waits for one, and the controls keep no path for it (an unreachable path,
+  removed in review of gno-realms #85): a credit by vote needs the packet's success ack. An implementation that
+  answers asynchronously brings its own way to complete what it leaves pending; the core keeps the generic support
+  (the app that registered the port writes the ack, on a retired client too). gno-realms `z9j2` checks that such a
+  credit is refused, nothing booked.
 - **Pre-recovery consensus states of a Tendermint client** stay usable, as in ibc-go; only the Ethereum light
   client marks them untrusted, and only Ethereum clients prove settlement outcomes.
 - **A freshly constructed client starts unquarantined** on Ethereum: a client installed by kind 6, kind 10 or the
@@ -2672,7 +2672,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 19j | Both, differing | **Who bears an accepted deficit after reopening**: on gno.land `ClaimRefunds` pays queued refunds FIFO against the lock less `ProvenOwed`, so an accepted deficit can fall on a later genuine refund rather than the one whose backing a forged success released; Ethereum's sibling-reservation guard holds every refund until backing is restored | Documented, no code change; operators recapitalize before accepting a deficit, or accept FIFO assignment |
 | 19h | Both, differing | **Seat swaps**: gno.land checks only the final seat arrangement, so a decision may move a key between seats; Ethereum refuses any new key already holding any seat at execution | Recorded as built; on Ethereum a swap takes two decisions |
 | 20 | gno.land | **Ethereum-bound decisions are not deferred by gno-side holds** | Their delay and deferral run on Ethereum |
-| 21 | gno.land | **Conservative choices**: a route with an unresolved loss takes no new exposure; a credit by vote only replaces a sweep entry booked after enrolment or completes a pending asynchronous ack for exactly what the packet carried, either one refused until a replacement's preparation has finished; only a withheld void is restored; a voucher return waits until its denom is enabled; a flag may stand on any Ethereum client; any change of the fee floor or the Ethereum token waits 7 days; settlements apply only to retired clients' sends | Where the design was silent, the stricter option |
+| 21 | gno.land | **Conservative choices**: a route with an unresolved loss takes no new exposure; a credit by vote only replaces a sweep entry booked after enrolment, refused until a replacement's preparation has finished; only a withheld void is restored; a voucher return waits until its denom is enabled; a flag may stand on any Ethereum client; any change of the fee floor or the Ethereum token waits 7 days; settlements apply only to retired clients' sends | Where the design was silent, the stricter option |
 | 22 | gno.land | **Fee-collector bar**: no implementation is registered, by either proxy, at a route's current fee-collector address (this reaches every route) | A collector becoming a bridge realm would stop the route's GRC20 sends and claims |
 | 23 | gno.land | **Settlement action 4 needs a paid refund** (an unpaid one is action 2), on gno.land's settlement and in `ibcgov`'s Ethereum builder alike; **an unprepared settlement is refused** (spent) | Each item names one exact remedy; nothing pays before preparation |
 | 24 | Ethereum | **Refuses guardian vacancies** (kind 3 to no key spent at recording; §7.4 allows them under the replacement delays) | Stricter: a seat is always held (project-owner decision) |
