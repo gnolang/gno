@@ -109,8 +109,8 @@ func TestStateProposalNonCanonicalPartSet(t *testing.T) {
 }
 
 // A block whose parts carry a trailing field must get a nil prevote: the decode
-// fails after filling the block, and committing it would store parts that
-// LoadBlock cannot decode back.
+// fails after filling the block, and fast sync, which re-chunks the block,
+// cannot verify a commit for these parts.
 func TestStateProposalUndecodablePartSet(t *testing.T) {
 	t.Parallel()
 
@@ -192,7 +192,7 @@ func TestStateProposalOfSeveralParts(t *testing.T) {
 
 // A node that dropped a proposal block in the propose step must still commit
 // it once +2/3 precommit it, as unpatched validators do, rather than wait at
-// the height for good.
+// the height for good, and load it back from its store.
 func TestStateCommitsDroppedNonCanonicalBlock(t *testing.T) {
 	t.Parallel()
 
@@ -278,12 +278,16 @@ func TestStateCommitsDroppedNonCanonicalBlock(t *testing.T) {
 			signAddVotes(cs1, types.PrecommitType, propBlock.Hash(), otherParts.Header(), vs2, vs3, vs4)
 			ensureNewRound(newRoundCh, height+1, 0)
 			drainEvents(t, newRoundCh)
+			if !cs1.blockStore.LoadBlock(height).HashesTo(propBlock.Hash()) {
+				t.Fatal("the committed block does not load back from the store")
+			}
 		})
 	}
 }
 
 // A node that reaches the commit step before a dropped block's parts arrive
-// must take the block +2/3 precommitted, rather than wait for good.
+// must take the block +2/3 precommitted, rather than wait for good, and load it
+// back from its store.
 func TestStateCommitStepTakesNonCanonicalParts(t *testing.T) {
 	t.Parallel()
 
@@ -294,6 +298,11 @@ func TestStateCommitStepTakesNonCanonicalParts(t *testing.T) {
 		{"padded", paddedPartSet},
 		{"trailing field", trailingFieldPartSet},
 		{"DataHash left out", unfilledPartSet(func(b *types.Block) { b.DataHash = nil })},
+		{"DataHash left out, trailing field", func(b *types.Block) *types.PartSet {
+			unfilled := amino.DeepCopy(b).(*types.Block)
+			unfilled.DataHash = nil
+			return trailingFieldPartSet(unfilled)
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -327,6 +336,9 @@ func TestStateCommitStepTakesNonCanonicalParts(t *testing.T) {
 			}
 			ensureNewRound(newRoundCh, height+1, 0)
 			drainEvents(t, newRoundCh, validBlockCh)
+			if !cs1.blockStore.LoadBlock(height).HashesTo(propBlock.Hash()) {
+				t.Fatal("the committed block does not load back from the store")
+			}
 		})
 	}
 }
