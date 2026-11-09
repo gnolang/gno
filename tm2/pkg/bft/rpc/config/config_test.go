@@ -16,6 +16,7 @@ func TestDefaultRPCConfig(t *testing.T) {
 	// Zero preserves the historical idle behavior: net/http falls back to
 	// the read timeout as the keep-alive idle deadline.
 	assert.Equal(t, time.Duration(0), cfg.IdleTimeout)
+	assert.True(t, cfg.AllowCodeExecution)
 	require.NoError(t, cfg.ValidateBasic())
 }
 

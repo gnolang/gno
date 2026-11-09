@@ -467,12 +467,32 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 }
 
+// QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
+// runs code for path: .app/simulate runs a whole transaction, and a custom
+// route runs code when its handler implements abci.CodeExecutionQuerier and
+// says so.
+func (app *BaseApp) QueryRunsCode(reqPath string) bool {
+	path := splitPath(reqPath)
+	if len(path) == 0 {
+		return false
+	}
+	if path[0] == ".app" {
+		return len(path) >= 2 && path[1] == appQuerySimulate
+	}
+	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
+	return ok && h.QueryRunsCode(reqPath)
+}
+
+// appQuerySimulate is the .app query that runs a whole transaction.
+const appQuerySimulate = "simulate"
+
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
 		var result Result
 
+		// A case that runs code also belongs in QueryRunsCode.
 		switch path[1] {
-		case "simulate":
+		case appQuerySimulate:
 			result = app.Simulate(req.Data)
 
 			res.Height = req.Height
