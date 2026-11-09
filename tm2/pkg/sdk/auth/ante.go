@@ -220,6 +220,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		verifySig := !simulate ||
 			(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 
+		// The last payload built and the account number and sequence it was
+		// built for: each signer's differs from it in those two values only.
+		var prevSignBytes []byte
+		var prevAccNum, prevAccSeq uint64
+
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				continue
@@ -304,18 +309,28 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accSeq = sigAcc.GetSequence()
 			}
 			// Built only when verified: the build is unmetered and simulate skips
-			// verification. verifySig is true on every consensus path.
+			// verification. verifySig is true on every consensus path. Only the
+			// first signer encodes the msgs, so a bad signature after valid ones
+			// costs one encoding, not one per signer.
 			var signBytes []byte
 			if verifySig {
 				var err error
-				signBytes, err = tx.GetSignBytes(
-					newCtx.ChainID(),
-					accNum,
-					accSeq,
-				)
+				if prevSignBytes == nil {
+					signBytes, err = tx.GetSignBytes(
+						newCtx.ChainID(),
+						accNum,
+						accSeq,
+					)
+				} else {
+					signBytes, err = std.GetSignaturePayloadFrom(
+						tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+						prevSignBytes, prevAccNum, prevAccSeq,
+					)
+				}
 				if err != nil {
 					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
 				}
+				prevSignBytes, prevAccNum, prevAccSeq = signBytes, accNum, accSeq
 			}
 
 			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
@@ -332,11 +347,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				// The legacy encoding cannot fail once the one above succeeded
 				// -- the two differ only in the fee's plain fields -- so lerr
 				// carries nothing the first marshal did not already report.
-				// Gas was charged above for one verification.
-				legacySignBytes, lerr := tx.GetSignBytesLegacy(
-					newCtx.ChainID(),
-					accNum,
-					accSeq,
+				// Gas was charged above for one verification, so the legacy
+				// payload reuses signBytes rather than encoding the msgs again.
+				legacySignBytes, lerr := std.GetSignaturePayloadLegacyFrom(
+					tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+					signBytes,
 				)
 				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
 					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
