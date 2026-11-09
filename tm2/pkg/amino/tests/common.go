@@ -592,6 +592,12 @@ var StructTypes = []any{
 	(*FuzzUnsafeFloat)(nil),
 	(*FuzzFixedInt)(nil),
 	(*FuzzContainsAminoMarshaler)(nil),
+	// amino:"skip_zero" leaves a zero Go value unset in the pb message too,
+	// so with generated pbbindings these pass the proto byte comparison.
+	(*FuzzSkipZero)(nil),
+	(*SkipZeroInterface)(nil),
+	(*SkipZeroHolder)(nil),
+	(*SkipZeroElems)(nil),
 	// AminoMarshaler list element types (slice/array of AminoMarshaler with
 	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
 	(*ContainerWithAminoLists)(nil),
