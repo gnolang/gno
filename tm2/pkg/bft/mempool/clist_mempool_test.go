@@ -525,6 +525,98 @@ func TestMempoolMaxPendingTxsBytes(t *testing.T) {
 	assert.EqualValues(t, 0, mempool.TxsBytes())
 }
 
+func TestMempoolNoDuplicateAfterCacheEviction(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	config := cfg.TestMempoolConfig()
+	// perBlock below has to divide this exactly, or the blocks never fill the cache.
+	config.CacheSize = 1000
+	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
+	defer cleanup()
+
+	tx := types.Tx("duplicate-me")
+	err := mempool.CheckTxWithInfo(tx, nil, TxInfo{SenderID: 1})
+	require.NoError(t, err)
+
+	// Commit blocks of transactions this node never checked. Update pushes each
+	// into the cache, which drops tx while it is still listed.
+	const perBlock = 100
+	for height := 1; height <= config.CacheSize/perBlock; height++ {
+		block := make(types.Txs, perBlock)
+		for i := range block {
+			txBytes := make([]byte, 8)
+			binary.BigEndian.PutUint64(txBytes, uint64(height*perBlock+i))
+			block[i] = txBytes
+		}
+		err = mempool.Update(int64(height), block, abciResponses(perBlock, nil), nil, 0)
+		require.NoError(t, err)
+	}
+	require.Equal(t, 1, mempool.Size())
+
+	// The cache no longer holds tx, so the resubmission reaches the app again.
+	err = mempool.CheckTxWithInfo(tx, nil, TxInfo{SenderID: 2})
+	require.NoError(t, err)
+
+	found := 0
+	var memTx *mempoolTx
+	for e := mempool.txs.Front(); e != nil; e = e.Next() {
+		if cur := e.Value.(*mempoolTx); txKey(cur.tx) == txKey(tx) {
+			found++
+			memTx = cur
+		}
+	}
+	require.Equal(t, 1, found)
+	assert.Equal(t, 1, mempool.Size())
+	assert.EqualValues(t, len(tx), mempool.TxsBytes())
+
+	// The resubmitting peer is recorded on the entry already in the list.
+	_, ok := memTx.senders.Load(uint16(2))
+	assert.True(t, ok)
+
+	// Committing tx removes every copy of it, and the byte count follows.
+	err = mempool.Update(int64(config.CacheSize/perBlock+1), types.Txs{tx}, abciResponses(1, nil), nil, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, mempool.Size())
+	assert.EqualValues(t, 0, mempool.TxsBytes())
+}
+
+func TestMempoolNoDuplicateWithoutCache(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	config := cfg.TestMempoolConfig()
+	config.CacheSize = 0
+	require.NoError(t, config.ValidateBasic())
+	mempool, cleanup := newMempoolWithAppAndConfig(cc, config)
+	defer cleanup()
+
+	// Nothing filters a resubmission once the cache is off.
+	tx := types.Tx("re-gossiped")
+	for i := range 3 {
+		err := mempool.CheckTxWithInfo(tx, nil, TxInfo{SenderID: uint16(i + 1)})
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 1, mempool.Size())
+	assert.EqualValues(t, len(tx), mempool.TxsBytes())
+}
+
+func TestMempoolReapMaxTxsLimit(t *testing.T) {
+	app := kvstore.NewKVStoreApplication()
+	cc := proxy.NewLocalClientCreator(app)
+	mempool, cleanup := newMempoolWithApp(cc)
+	defer cleanup()
+
+	const listed = 5
+	checkTxs(t, mempool, listed, UnknownPeerID, true)
+	require.Equal(t, listed, mempool.Size())
+
+	// /unconfirmed_txs?limit=n passes n straight through, so n is a cap.
+	for limit := range listed + 1 {
+		assert.Len(t, mempool.ReapMaxTxs(limit), limit, "ReapMaxTxs(%d)", limit)
+	}
+	// A negative limit means everything.
+	assert.Len(t, mempool.ReapMaxTxs(-1), listed)
+}
+
 func checksumIt(data []byte) string {
 	h := sha256.New()
 	h.Write(data)

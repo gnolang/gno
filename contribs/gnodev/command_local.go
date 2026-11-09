@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/mattn/go-isatty"
@@ -31,6 +32,7 @@ var defaultLocalAppConfig = AppConfig{
 	chainDomain:         DefaultDomain,
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
+	webIPFSGateway:      gnoweb.DefaultIPFSGateway,
 	nodeRPCListenerAddr: "127.0.0.1:26657",
 	deployKey:           defaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),

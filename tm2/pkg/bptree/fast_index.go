@@ -228,7 +228,7 @@ func (ndb *nodeDB) dropFastIndex() (err error) {
 // is an out-of-contract reader racing a newer commit — rebuilding from its
 // outdated root would rewrite the whole index to old values under a stamp
 // later commits re-validate, exactly the gno#6011 poisoning (in-contract
-// query paths use LoadReadonly and never reach here) — or (b) the DB was
+// query paths never call Load and never reach here) — or (b) the DB was
 // externally rewound (partial restore, manual surgery), in which case
 // old-timeline entries may exist that would regain trust as the chain
 // re-passes their versions, and the operator must decide: delete the stamp

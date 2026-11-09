@@ -50,11 +50,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: false # zizmor: cache-poisoning — this job publishes artifacts
@@ -122,7 +122,7 @@ jobs:
             echo "${name}: ${got}"
           done
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
@@ -135,7 +135,7 @@ jobs:
       id-token: write # to sign the provenance attestation (keyless, sigstore)
       attestations: write # to store it on the repository
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history, so the notes step can ask which tag precedes this one.
           # blob:none keeps that cheap: commits and tags, no file contents.
@@ -143,7 +143,7 @@ jobs:
           filter: blob:none
           persist-credentials: false
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
           merge-multiple: true
@@ -268,21 +268,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
-          # "Latest" — the page misc/deployments/*/VALIDATOR.md sends operators
-          # to. Mark pre-releases as such, matching goreleaser's `prerelease:
-          # auto`.
-          PRERELEASE=""
-          case "${TAG}" in
-            v*-*) PRERELEASE="--prerelease" ;;
-          esac
+          # Every release starts as a pre-release, the final one included: it
+          # is published days before the chain switches to it, and until then
+          # the release the chain runs keeps "Latest" and misc/install.sh's
+          # default. misc/release/promote-release.sh makes a final a full
+          # release and Latest (RELEASING.md, "Publishing early, promoting once
+          # the switch is set").
           gh release create "${TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
             --draft \
             --title "${TAG}" \
             --notes-file notes.md \
             --verify-tag \
-            ${PRERELEASE}
+            --prerelease
 
       - name: Upload release assets
         env:
@@ -296,13 +294,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # "Latest" may only move forward: GitHub would otherwise give it to
-          # whichever release was published last, so a backport cut after a
-          # newer line would take it. Only the highest final tag gets it. The
-          # tags are fetched again: the checkout's are minutes old by now, and
-          # a final tag pushed meanwhile must keep Latest from this one.
-          git fetch --quiet --force --tags origin
-          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
-          LATEST="--latest=false"
-          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
-          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false ${LATEST}
+          # Published as a pre-release even from a draft made by hand without
+          # the flag, and never Latest, which GitHub would otherwise give a
+          # full release on publication. Only misc/release/promote-release.sh
+          # promotes a release.
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease --latest=false

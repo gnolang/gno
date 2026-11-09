@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -153,8 +154,9 @@ type txDispatcher struct {
 	listenerID string
 	sub        <-chan events.Event
 
-	mtx     sync.Mutex
-	waiters map[string]*txWaiter // string(types.Tx) -> *txWaiter
+	mtx sync.Mutex
+	// string(types.Tx) -> one waiter per caller, each with its own deadline.
+	waiters map[string][]*txWaiter
 }
 
 func newTxDispatcher(evsw events.EventSwitch) *txDispatcher {
@@ -165,7 +167,7 @@ func newTxDispatcher(evsw events.EventSwitch) *txDispatcher {
 		evsw:       evsw,
 		listenerID: listenerID,
 		sub:        sub,
-		waiters:    make(map[string]*txWaiter),
+		waiters:    make(map[string][]*txWaiter),
 	}
 	td.BaseService = *service.NewBaseService(nil, "txDispatcher", td)
 	err := td.Start()
@@ -210,37 +212,55 @@ func (td *txDispatcher) notifyTxEvent(txEvent types.EventTx) {
 	defer td.mtx.Unlock()
 
 	tx := txEvent.Result.Tx
-	waiter, ok := td.waiters[string(tx)]
+	waiters, ok := td.waiters[string(tx)]
 	if !ok {
 		return // nothing to do
 	}
-	waiter.txRes = txEvent.Result
-	close(waiter.waitCh)
+	// fireEvents emits one EventTx per tx index, so a block carrying one tx twice
+	// arrives here twice. Dropping the waiters makes the second arrival a no-op.
+	delete(td.waiters, string(tx))
+	for _, waiter := range waiters {
+		waiter.txRes = txEvent.Result
+		close(waiter.waitCh)
+	}
 }
 
 // blocking
-// If the tx is already being waited on, returns the result from the original request.
-// Upon result or timeout, the tx is forgotten from txDispatcher, and can be re-requested.
+// Every caller waiting on one tx gets the same result, under its own timeout.
+// Upon result or timeout, the caller is forgotten and can re-request.
 // If the tx times out, an error is returned.
 // Quit can optionally be provided to terminate early (e.g. if the caller disconnects).
 func (td *txDispatcher) getTxResult(tx types.Tx, timeout time.Duration, quit chan struct{}) (types.TxResult, error) {
-	// Get or create waiter.
+	waiter := newTxWaiter(tx, timeout)
+
 	td.mtx.Lock()
-	waiter, ok := td.waiters[string(tx)]
-	if !ok {
-		waiter = newTxWaiter(tx, timeout)
-		td.waiters[string(tx)] = waiter
-	}
+	td.waiters[string(tx)] = append(td.waiters[string(tx)], waiter)
 	td.mtx.Unlock()
 
 	select {
 	case <-waiter.waitCh:
 		return waiter.txRes, nil
 	case <-waiter.timeCh:
+		td.forget(waiter)
 		return types.TxResult{}, errors.New("request timeout")
 	case <-quit:
+		td.forget(waiter)
 		return types.TxResult{}, errors.New("caller quit")
 	}
+}
+
+// forget drops one caller's waiter. A waiter notifyTxEvent already resolved is gone.
+func (td *txDispatcher) forget(waiter *txWaiter) {
+	td.mtx.Lock()
+	defer td.mtx.Unlock()
+
+	key := string(waiter.tx)
+	rest := slices.DeleteFunc(td.waiters[key], func(w *txWaiter) bool { return w == waiter })
+	if len(rest) == 0 {
+		delete(td.waiters, key)
+		return
+	}
+	td.waiters[key] = rest
 }
 
 type txWaiter struct {

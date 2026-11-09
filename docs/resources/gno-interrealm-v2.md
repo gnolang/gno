@@ -151,6 +151,15 @@ Two practical consequences:
    for the allocation). See `gnovm/pkg/gnolang/alloc.go`
    `checkConstructionTime`.
 
+   Conversions to a foreign `/r/`-declared type are refused too, with
+   `illegal conversion to external realm type`, directly or through
+   one pointer level, unless its underlying type is a primitive, func,
+   or chan type; a nil pointer is let through. See §8.2.
+
+   Holding such a value is still not authority: `var u v.UserT` in
+   another realm is allowed (stamped with `v`'s PkgID), and `&u` can be
+   passed back to `v`. Never treat a non-nil `*UserT` as authorization.
+
 3. **Copies are type-driven, not source-propagated.**
    `{Array,Struct}Value.Copy` stamps the copy from the *declared type*
    (`getDeclaredPkgID`), mirroring the allocation rule: a `/r/`-declared
@@ -584,17 +593,21 @@ recoverability difference.
 ### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
 ```go
-if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
-    if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+    isNilPtr := t.Kind() == PointerKind && xv.V == nil
+    if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
         panic("illegal conversion to external realm type")
     }
 }
 ```
 
 A realm cannot forge values of `/r/`-declared types it doesn't
-declare. Combined with the construction-time check (§3.2), this
-ensures every real instance of a `/r/`-declared type traces back to
-its home realm's allocator.
+declare. The target is looked through one pointer level, so pointer
+conversions are refused too; a nil pointer points at nothing and is
+let through. Combined with the construction-time check (§3.2),
+this prevents another realm from populating a forged instance through
+construction or conversion. It may still hold a zero value it
+declared itself (§3.2).
 
 ## 9. Panic and Cross-Realm Boundary
 
