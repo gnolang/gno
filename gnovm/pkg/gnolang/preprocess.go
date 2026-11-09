@@ -484,6 +484,11 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 				nx := &n.NameExpr
 				nn := nx.Name
 				if nn == "." {
+					// Dot imports inject a dependency's full exported surface
+					// into file scope. Deployed importers are immutable while
+					// dependencies can gain exports, so a later export could
+					// shadow or collide with a name in an already-deployed
+					// package. See #6076.
 					panic("dot imports not allowed in gno")
 				}
 				if nn == "" { // use default
@@ -787,7 +792,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			}
 			if bn, ok := n.(BlockNode); ok {
 				// codaGotoLoopDefines(ctx, bn)
-				codaHeapDefinesByUse(ctx, bn)
+				codaHeapDefinesByUse(store, ctx, bn)
 				codaHeapUsesDemoteDefines(ctx, bn)
 				codaPackageSelectors(bn)
 				return n, TRANS_SKIP
@@ -1341,7 +1346,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return n, TRANS_CONTINUE
 					case *ArrayType, *SliceType:
 						fillNameExprPath(last, n, false)
-						if last.GetIsConst(store, n.Name) {
+						if last.GetIsConstAt(store, n.Path) {
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
@@ -1417,7 +1422,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						return cx, TRANS_CONTINUE
 					}
 					// Is const decl or type decl. Not (import) packages.
-					if last.GetIsConst(store, n.Name) {
+					if last.GetIsConstAt(store, n.Path) {
 						// n.Name may refer to either
 						// a value OR a type. But don't change
 						// this behavior, it's reasonable for
@@ -1681,6 +1686,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 
+						// A constant converted to an interface must satisfy it, just as a
+						// non-constant operand does in the interface case below. In
+						// particular, this enforces realm's hidden seal marker before the
+						// expression is relabelled with the interface type.
+						if _, ctIsIface := baseOf(ct).(*InterfaceType); ctIsIface {
+							mustAssignableTo(store, n, at, ct)
+						}
+
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// The conversion is legal, set the target type.
@@ -1829,6 +1842,22 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
+						case "len", "cap":
+							// As in Go, a deferred len or cap is refused:
+							// its result has nowhere to go.
+							if ftype == TRANS_DEFER_CALL {
+								panic("defer discards result of " + fv.Name)
+							}
+							// As in Go, len and cap of an array, or of a
+							// pointer to one, are constant when the operand
+							// holds no call, and the operand is then not
+							// evaluated. For an array this also spares the
+							// copy of the whole array a call would pass.
+							if len(n.Args) == 1 && !n.Varg {
+								if _, ok := arrayOrPtrToArray(evalStaticTypeOf(store, last, n.Args[0])); ok && !hasCallOrFuncLit(store, last, n.Args[0]) {
+									return evalConst(store, last, n), TRANS_CONTINUE
+								}
+							}
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
@@ -1843,7 +1872,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									etx := ftx.Params[1].Type
 									bsx := toConstTypeExpr(last, etx, gByteSliceType)
 									args1 = Call(bsx, args1)
-									args1 = Preprocess(nil, last, args1).(Expr)
+									args1 = preprocess1(store, last, args1).(Expr)
 									n.Args[1] = args1
 								}
 							} else {
@@ -1878,7 +1907,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
 									bsx := toConstTypeExpr(last, args1, gByteSliceType)
 									args1 = Call(bsx, args1)
-									args1 = Preprocess(nil, last, args1).(Expr)
+									args1 = preprocess1(store, last, args1).(Expr)
 									n.Args[1] = args1
 								}
 							}
@@ -2841,7 +2870,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.Op == ASSIGN {
 					for _, lh := range n.Lhs {
 						if ne, ok := lh.(*NameExpr); ok {
-							if !last.GetStaticBlock().IsAssignable(store, ne.Name) {
+							// Ask the block the name resolves to: a
+							// name declared later in this block does
+							// not shadow the one assigned here.
+							if !last.GetBlockNodeForPath(store, ne.Path).GetStaticBlock().IsAssignable(store, ne.Name) {
 								panic("not assignable")
 							}
 						}
@@ -3684,7 +3716,8 @@ func codaGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // capture.
 // Also happens to declare all package and file names
 // as heap use, so that functions added later may use them.
-func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
+func codaHeapDefinesByUse(store Store, ctx BlockNode, bn BlockNode) {
+	gasm := preprocessGasMeterOf(store)
 	// Iterate over all nodes recursively.
 	_ = TranscribeB(ctx, bn, func(
 		ns []Node,
@@ -3737,6 +3770,56 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					// adjust NameExpr type.
 					nx.Type = NameExprTypeHeapUse
 				}
+			case *SliceExpr:
+				// Slicing an array aliases the variable holding it, as
+				// &x does. For a for loop's init variable that moves it
+				// to the heap, where each iteration gets its own copy,
+				// so a slice kept from one iteration keeps that
+				// iteration's array, as in Go 1.22.
+				t, _ := n.X.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+				if _, ok := baseOf(t).(*ArrayType); !ok {
+					break
+				}
+				// Walk to the variable holding the array through array
+				// elements and struct fields only: past a pointer, a
+				// slice or a map, the array lives outside the variable.
+				x := n.X
+			walk:
+				for {
+					var inner Expr
+					switch tx := x.(type) {
+					case *IndexExpr:
+						inner = tx.X
+					case *SelectorExpr:
+						inner = tx.X
+					default:
+						break walk
+					}
+					if it, ok := inner.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
+						switch baseOf(it).(type) {
+						case *ArrayType, *StructType:
+						default:
+							break walk
+						}
+					}
+					x = inner
+				}
+				nx, ok := x.(*NameExpr)
+				if !ok || nx.Path.Type != VPBlock {
+					break
+				}
+				fs, ok := last.GetBlockNodeForPath(nil, nx.Path).(*ForStmt)
+				if !ok {
+					break
+				}
+				if as, ok := fs.Init.(*AssignStmt); ok && as.Op == DEFINE &&
+					slices.ContainsFunc(as.Lhs, func(lx Expr) bool {
+						lnx, ok := lx.(*NameExpr)
+						return ok && lnx.Name == nx.Name
+					}) {
+					addAttrHeapUse(fs, nx.Name)
+					nx.Type = NameExprTypeHeapUse
+				}
 			case *NameExpr:
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
@@ -3760,9 +3843,11 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 				}
 				// Find the block where name is defined.
 				dbn := last.GetBlockNodeForPath(nil, n.Path)
-				for {
+				decl := dbn
+				for first := true; ; first = false {
 					// If used as closure capture, mark as heap use.
-					flx, depth, found := findFirstClosure(stack, dbn)
+					flx, depth, found, scanned := findFirstClosure(stack, dbn)
+					chargeCPUGas(gasm, int64(scanned)*OpCPUSlopePreprocessClosureScan)
 					if !found {
 						return n, TRANS_CONTINUE
 					}
@@ -3777,8 +3862,10 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					// Ignore type declaration names.
 					// Types cannot be passed ergo cannot be captured.
 					// (revisit when types become first class objects)
-					st := dbn.GetStaticTypeOf(nil, n.Name)
-					if st.Kind() == TypeKind {
+					// Only the defining block needs the check: every
+					// later dbn is a closure, whose lookup would climb
+					// back to the same declaration, unmetered.
+					if first && dbn.GetStaticTypeOf(nil, n.Name).Kind() == TypeKind {
 						return n, TRANS_CONTINUE
 					}
 
@@ -3786,7 +3873,11 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 					addAttrHeapUse(dbn, n.Name)
 					// The path must stay same for now,
 					// used later in codaHeapUsesDemoteDefines.
-					idx := addHeapCapture(dbn, flx, depth, n)
+					idx, added, copied := addHeapCapture(decl, flx, depth, n)
+					if added {
+						chargeCPUGas(gasm, OpCPUSlopePreprocessClosureCapture+
+							int64(copied)*OpCPUSlopePreprocessCaptureGrowCopy)
+					}
 					// adjust NameExpr type.
 					n.Type = NameExprTypeHeapUse
 					n.Path.SetDepth(uint8(depth))
@@ -3822,8 +3913,15 @@ func hasAttrHeapUse(bn BlockNode, name Name) bool {
 	return ok
 }
 
-// adds ~name to func lit static block and to heap captures atomically.
-func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16) {
+// adds ~name to func lit static block and to heap captures atomically, and
+// reports whether it added one. decl is the block declaring name: reading the
+// slot there rather than climbing from fle's parent keeps a capture's cost
+// independent of how many closures it crosses. copied counts the block slots
+// the define moved: growBlockValues copies them all when it reallocates,
+// every blockValuesGrowIncrement captures once the block is past
+// blockValuesGrowThreshold, so a closure's captures cost more the more it
+// already holds.
+func addHeapCapture(decl BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (idx uint16, added bool, copied int) {
 	if depth <= 0 {
 		panic("invalid depth")
 	}
@@ -3835,7 +3933,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		if !ok {
 			panic("~name not added to fle atomically")
 		}
-		return // already exists
+		return idx, false, 0 // already exists
 	}
 
 	// define ~name to fle.
@@ -3844,8 +3942,12 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 		panic("~name already defined in fle")
 	}
 
-	tv := dbn.GetSlot(nil, name, true)
+	tv := decl.GetSlot(nil, name, true)
+	before := fle.Block.Values
 	fle.Define("~"+name, tv.Copy(nil, nil))
+	if cap(fle.Block.Values) != cap(before) {
+		copied = len(before)
+	}
 
 	// add name to fle.HeapCaptures.
 	// NOTE: this doesn't work with shadowing, see define1.gno.
@@ -3871,15 +3973,16 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, depth int, nx *NameExpr) (i
 	if !found {
 		panic("should not happen, idx not found")
 	}
-	return
+	return idx, true, copied
 }
 
 // finds the first FuncLitExpr in the stack after (excluding) stop.  returns
 // the depth of first closure, 1 if last stack item itself is a closure, or 0
 // if not found.
-func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
+func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool, scanned int) {
 	faux := 0 // count faux block
 	for i := len(stack) - 1; i >= 0; i-- {
+		scanned++
 		stbn := stack[i]
 		switch stbn := stbn.(type) {
 		case *FuncLitExpr:
@@ -4543,6 +4646,29 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 	}
 }
 
+// hasCallOrFuncLit reports whether x contains a function call or a function
+// literal. A conversion is not a call, as in Go's rule for constant len and
+// cap, but a call inside its operand is. It errs towards true: an expression
+// it rejects is evaluated as written.
+func hasCallOrFuncLit(store Store, last BlockNode, x Expr) bool {
+	found := false
+	Transcribe(x, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		switch n := n.(type) {
+		case *CallExpr:
+			if _, ok := baseOf(evalStaticTypeOf(store, last, n.Func)).(*TypeType); ok {
+				return n, TRANS_CONTINUE
+			}
+			found = true
+			return n, TRANS_EXIT
+		case *FuncLitExpr:
+			found = true
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
 // Evaluate constant expressions. Assumes all operands are already defined
 // consts; the machine doesn't know whether a value is const or not, so this
 // function always returns a *ConstExpr, even if the operands aren't actually
@@ -4564,19 +4690,20 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// TODO: some check or verification for ensuring x
 	var cx *ConstExpr
 	if clx, ok := x.(*CallExpr); ok {
-		t := evalStaticTypeOf(store, last, clx.Args[0])
-		if ar, ok := unwrapPointerType(baseOf(t)).(*ArrayType); ok {
-			fv := clx.Func.(*ConstExpr).V.(*FuncValue)
-			switch fv.Name {
-			case "cap", "len":
+		// Only len and cap fold here: a conversion such as (*A)(nil) also
+		// has one argument of pointer-to-array type.
+		var fv *FuncValue
+		if fx, ok := clx.Func.(*ConstExpr); ok {
+			fv, _ = fx.V.(*FuncValue)
+		}
+		if fv != nil && fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+			if ar, ok := arrayOrPtrToArray(evalStaticTypeOf(store, last, clx.Args[0])); ok {
 				tv := TypedValue{T: IntType}
 				tv.SetInt(int64(ar.Len))
 				cx = &ConstExpr{
 					Source:     x,
 					TypedValue: tv,
 				}
-			default:
-				panic(fmt.Sprintf("unexpected const func %s", fv.Name))
 			}
 		}
 	}
@@ -5725,8 +5852,8 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			d.Name = pv.PkgName
 		case blankIdentifier: // no definition
 			return
-		case ".": // dot import
-			panic("dot imports not allowed in Gno")
+		case ".": // see initStaticBlocks2 (+ #6076): dot imports not allowed
+			panic("dot imports not allowed in gno")
 		}
 		// NOTE imports usually must happen with a file,
 		// and so last is usually a *FileNode, but for
@@ -6244,8 +6371,11 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 			}
 			deps[name] = struct{}{}
 		}
+		vd, isValueDecl := decl.(*ValueDecl)
+		isConstDecl := isValueDecl && vd.Const
 
-		_ = TranscribeB(fn, decl, func(
+		var visit TransformB
+		visit = func(
 			ns []Node,
 			stack []BlockNode,
 			last BlockNode,
@@ -6295,6 +6425,16 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 					}
 					addDep(n.Name)
+				case *ConstExpr:
+					// A folded constant hides its source from the
+					// transcriber, but len or cap of an array still refers
+					// to its operand, at any depth of the fold (len(a)-1),
+					// and Go's initialization order counts that reference.
+					// A source that is a bare name refers to a const, and
+					// consts, like const decls, gate nothing here.
+					if _, isName := n.Source.(*NameExpr); n.Source != nil && !isName && !isConstDecl {
+						TranscribeB(last, n.Source, visit)
+					}
 				case *SelectorExpr:
 					// Track same-package method calls so that resolveEffectiveDeps
 					// can transitively discover vars referenced in method bodies.
@@ -6352,7 +6492,8 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 				}
 			}
 			return n, TRANS_CONTINUE
-		})
+		}
+		_ = TranscribeB(fn, decl, visit)
 
 		if deps != nil {
 			decl.SetAttribute(ATTR_DECL_DEPS, deps)

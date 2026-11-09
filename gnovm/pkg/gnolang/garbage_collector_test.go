@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"io"
+	"strings"
 	"testing"
 
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -115,6 +116,211 @@ func TestGarbageCollect_VisitsAnchoredBuffer(t *testing.T) {
 	require.PanicsWithValue(t, "allocation limit exceeded", func() {
 		m.Alloc.Allocate(n)
 	})
+}
+
+// TestGarbageCollect_VisitsBlankSlot pins the visit of Block.Blank: the block
+// holds whatever lands there, so the collection must count it.
+func TestGarbageCollect_VisitsBlankSlot(t *testing.T) {
+	const maxBytes = 1 << 20 // 1 MiB
+	const n = 600_000        // one data array: > half the cap
+
+	m := newOperandStackTestMachine(t, maxBytes, false)
+	av := m.Alloc.NewDataArray(Uint8Type, n)
+	b := &Block{Blank: TypedValue{T: &ArrayType{Len: n, Elt: Uint8Type}, V: av}}
+	m.Blocks = append(m.Blocks, b)
+
+	_, ok := m.GarbageCollect()
+	require.True(t, ok)
+	_, after := m.Alloc.Status()
+	require.GreaterOrEqual(t, after, int64(n),
+		"GC dropped a value held only by a block's blank slot: after=%d", after)
+}
+
+// TestStructValueCopy_AnchorHoldsThroughNewStruct pins the anchor in
+// StructValue.Copy across its NewStruct call: the field buffer is a Go local
+// until NewStruct wraps it, so a collection NewStruct triggers must still
+// count the fields already copied into it.
+func TestStructValueCopy_AnchorHoldsThroughNewStruct(t *testing.T) {
+	const n = 600_000
+
+	m := newOperandStackTestMachine(t, 1<<30, false)
+	at := &ArrayType{Len: n, Elt: Uint8Type}
+	st := &StructType{Fields: []FieldType{{Name: "F", Type: at}}}
+	// The source is built off the allocator, so only the copy is charged.
+	src := &StructValue{Fields: []TypedValue{{T: at, V: &ArrayValue{Data: make([]byte, n)}}}}
+
+	// Room for the field buffer and the copied array, one byte short of the
+	// struct header: NewStruct is the allocation that collects.
+	_, before := m.Alloc.Status()
+	m.Alloc.maxBytes = before + allocStructField + allocArray + n + allocStruct - 1
+	counted := int64(-1)
+	m.Alloc.SetGCFn(func() (int64, bool) {
+		left, ok := m.GarbageCollect()
+		_, counted = m.Alloc.Status()
+		return left, ok
+	})
+
+	func() {
+		defer func() { _ = recover() }()
+		src.Copy(m.Alloc, nil, st, nil)
+	}()
+	require.GreaterOrEqual(t, counted, int64(n),
+		"collection in NewStruct dropped the copied field: counted=%d", counted)
+}
+
+// TestDefaultStructValue_AnchorHoldsThroughNewStruct pins the same anchor for
+// a zero value: defaultStructValue's field buffer is a Go local until
+// NewStruct wraps it, so a collection NewStruct triggers must still count the
+// fields already filled.
+func TestDefaultStructValue_AnchorHoldsThroughNewStruct(t *testing.T) {
+	const n = 600_000
+
+	m := newOperandStackTestMachine(t, 1<<30, false)
+	at := &ArrayType{Len: n, Elt: Uint8Type}
+	st := &StructType{Fields: []FieldType{{Name: "F", Type: at}}}
+
+	// Room for the field buffer and the zero array, one byte short of the
+	// struct header: NewStruct is the allocation that collects.
+	_, before := m.Alloc.Status()
+	m.Alloc.maxBytes = before + allocStructField + allocArray + n + allocStruct - 1
+	counted := int64(-1)
+	m.Alloc.SetGCFn(func() (int64, bool) {
+		left, ok := m.GarbageCollect()
+		_, counted = m.Alloc.Status()
+		return left, ok
+	})
+
+	func() {
+		defer func() { _ = recover() }()
+		defaultStructValue(m.Alloc, st)
+	}()
+	require.GreaterOrEqual(t, counted, int64(n),
+		"collection in NewStruct dropped the zero-filled field: counted=%d", counted)
+}
+
+// TestNew_AnchorHoldsThroughPointer pins the anchor in the new builtin: its
+// zero value is a Go local until the pointer is pushed, so a collection the
+// pointer allocation triggers must still count it.
+func TestNew_AnchorHoldsThroughPointer(t *testing.T) {
+	const n = 600_000
+
+	m := newOperandStackTestMachine(t, 1<<30, false)
+	at := &ArrayType{Len: n, Elt: Uint8Type}
+	fv := UverseNode().GetSlot(nil, "new", true).V.(*FuncValue)
+	// new reads its type argument from the last block's first slot.
+	m.Blocks = append(m.Blocks, &Block{Values: []TypedValue{asValue(at)}})
+
+	// Room for the zero array, one byte short of the pointer: AllocatePointer
+	// is the allocation that collects.
+	_, before := m.Alloc.Status()
+	m.Alloc.maxBytes = before + allocArray + n + allocPointer - 1
+	counted := int64(-1)
+	m.Alloc.SetGCFn(func() (int64, bool) {
+		left, ok := m.GarbageCollect()
+		_, counted = m.Alloc.Status()
+		return left, ok
+	})
+
+	func() {
+		defer func() { _ = recover() }()
+		fv.nativeBody(m)
+	}()
+	require.GreaterOrEqual(t, counted, int64(n),
+		"collection in new dropped the zero value: counted=%d", counted)
+}
+
+// TestByteSlices_AnchorHoldsThroughNewSlice pins the anchor each byte branch
+// of make and append holds on its new data array: the array is a Go local
+// until the slice is pushed, so a collection NewSlice triggers must still
+// count it.
+func TestByteSlices_AnchorHoldsThroughNewSlice(t *testing.T) {
+	const n = 600_000
+	bt := &SliceType{Elt: Uint8Type}
+	bytes := func(l, c int) TypedValue {
+		return TypedValue{T: bt, V: &SliceValue{Base: &ArrayValue{Data: make([]byte, c)}, Length: l, Maxcap: c}}
+	}
+	sizes := func(ns ...int) TypedValue {
+		tvs := make([]TypedValue, len(ns))
+		for i, x := range ns {
+			tvs[i] = typedInt(x)
+		}
+		return TypedValue{
+			T: &SliceType{Elt: &InterfaceType{}, Vrd: true},
+			V: &SliceValue{Base: &ArrayValue{List: tvs}, Length: len(ns), Maxcap: len(ns)},
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		native Name
+		params []TypedValue // the native's parameter block
+		newLen int64        // bytes in the array it builds
+	}{
+		{"make([]byte, n)", "make", []TypedValue{asValue(bt), sizes(n)}, n},
+		{"make([]byte, 0, n)", "make", []TypedValue{asValue(bt), sizes(0, n)}, n},
+		{"append(nil, b...)", "append", []TypedValue{{T: bt}, bytes(n, n)}, n},
+		{"append(b, c...) past cap(b)", "append", []TypedValue{bytes(1, 1), bytes(n, n)}, n + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newOperandStackTestMachine(t, 1<<30, false)
+			fv := UverseNode().GetSlot(nil, tc.native, true).V.(*FuncValue)
+			m.Blocks = append(m.Blocks, &Block{Values: tc.params})
+
+			// Count what is live, operands included, then leave room for the
+			// new array, one byte short of its slice: NewSlice is the
+			// allocation that collects.
+			m.GarbageCollect()
+			_, base := m.Alloc.Status()
+			m.Alloc.maxBytes = base + allocArray + tc.newLen + allocSlice - 1
+			counted := int64(-1)
+			m.Alloc.SetGCFn(func() (int64, bool) {
+				left, ok := m.GarbageCollect()
+				_, counted = m.Alloc.Status()
+				return left, ok
+			})
+
+			func() {
+				defer func() { _ = recover() }()
+				fv.nativeBody(m)
+			}()
+			require.GreaterOrEqual(t, counted, base+tc.newLen,
+				"collection in NewSlice dropped the data array: counted=%d base=%d", counted, base)
+		})
+	}
+}
+
+// TestAppendString_AnchorHoldsTempCopy pins the anchor on the byte copy
+// append(b, s...) makes of s: the copy is a Go local until append returns, so
+// the collection the result's allocation triggers must still count it.
+func TestAppendString_AnchorHoldsTempCopy(t *testing.T) {
+	const n = 600_000
+
+	m := newOperandStackTestMachine(t, 1<<30, false)
+	fv := UverseNode().GetSlot(nil, "append", true).V.(*FuncValue)
+	// append reads x and the variadic args from the last block's two slots.
+	m.Blocks = append(m.Blocks, &Block{Values: []TypedValue{
+		{T: &SliceType{Elt: Uint8Type}},
+		typedString(strings.Repeat("x", n)),
+	}})
+
+	// Count what is live before append runs, then leave room for the copy
+	// and its slice but not for the result: the result's array is the
+	// allocation that collects.
+	m.GarbageCollect()
+	_, base := m.Alloc.Status()
+	m.Alloc.maxBytes = base + allocArray + n + 1000
+	counted := int64(-1)
+	m.Alloc.SetGCFn(func() (int64, bool) {
+		left, ok := m.GarbageCollect()
+		_, counted = m.Alloc.Status()
+		return left, ok
+	})
+
+	func() {
+		defer func() { _ = recover() }()
+		fv.nativeBody(m)
+	}()
+	require.GreaterOrEqual(t, counted, base+n,
+		"collection in append dropped the copy of s: counted=%d base=%d", counted, base)
 }
 
 // TestAllocatorAnchors_Unwind pins the contract Machine.runOnce relies on to

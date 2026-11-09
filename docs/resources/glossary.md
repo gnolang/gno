@@ -120,12 +120,13 @@ spam.
 See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
-The amount paid per unit of gas, denominated in ugnot. For example,
-"1000000ugnot" means 1 GNOT per unit of gas.
+The whole fee paid for a transaction, one flat amount in ugnot. See
+[Gas Fee](./gas-fees.md#gas-fee).
 
 ### Gas Wanted
-The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit, it fails without changing state.
+The maximum amount of gas a transaction is allowed to consume. A transaction
+that exceeds it fails and its effects are rolled back. See
+[Gas Wanted](./gas-fees.md#gas-wanted).
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.
@@ -146,11 +147,6 @@ A simple web interface that lets you write, test, and experiment with your Gno
 code to improve your understanding of the Gno language. You can share your code,
 run unit tests, deploy your realms and packages, and execute functions.
 Try out [Gno Playground](https://play.gno.land/).
-
-### Gno Studio Connect
-A tool that provides seamless access to realms, making it simple to explore,
-interact, and engage with Gno.land's smart contracts through function calls.
-Try out [Gno Studio Connect](https://gno.studio/connect).
 
 ### Gno Test
 Gno.land's built-in testing framework that enables developers to write and

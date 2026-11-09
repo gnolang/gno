@@ -27,7 +27,7 @@ func init(cur realm) {
 	testing.SetOriginCaller(g1user)
 	daoinit.InitWithUsers(cross(cur), g1user)
 
-	// Register a validator: OriginCaller must equal operator addr (squat guard).
+	// Register a validator: the squat guard requires the operator as caller.
 	testing.SetOriginCaller(validAddress)
 	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 

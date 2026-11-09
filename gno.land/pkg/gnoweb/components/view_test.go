@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSourceView(t *testing.T) {
@@ -285,6 +286,81 @@ func TestHelpView(t *testing.T) {
 	assert.Equal(t, data.RealmName, helpViewParams.RealmName, "expected realm name %s, got %s", data.RealmName, helpViewParams.RealmName)
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+// TestHelpViewArgSlots checks each printed arg shares its position with its
+// param's input, in the maketx call and qeval commands alike.
+func TestHelpViewArgSlots(t *testing.T) {
+	params := []*doc.JSONField{{Name: "_", Type: "int"}, {Name: "_", Type: "int"}}
+	view := HelpView(HelpData{
+		PkgPath: "gno.land/r/demo/foo",
+		Functions: []HelpFunction{
+			{JSONFunc: &doc.JSONFunc{Name: "Get", Params: params}},
+			{JSONFunc: &doc.JSONFunc{Name: "Set", Params: params, Crossing: true}},
+		},
+	})
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+
+	for _, pos := range []string{"0", "1"} {
+		assert.Equal(t, 2, strings.Count(html, `data-action-function-param-value="_" data-action-function-arg-value="`+pos+`"`), "one input per function")
+		assert.Equal(t, 1, strings.Count(html, `data-action-function-arg-value="`+pos+`" data-action-function-type-value="int"></span>`), "the qeval slot")
+		assert.Equal(t, 2, strings.Count(html, `data-action-function-arg-value="`+pos+`"></span>`), "both modes' maketx call slots")
+	}
+}
+
+// TestHelpViewEval pins what the Actions page's eval scripts read from the
+// markup: each param's type, the live result's texts and the evaluator's
+// entry in the functions list.
+func TestHelpViewEval(t *testing.T) {
+	view := HelpView(HelpData{
+		RealmName: "dao",
+		PkgPath:   "gno.land/r/gov/dao",
+		Remote:    "https://rpc.example:443",
+		Functions: []HelpFunction{{JSONFunc: &doc.JSONFunc{
+			Name:      "AmendBylawsPayload",
+			Signature: "func AmendBylawsPayload(daoID uint64, path, proposed string) string",
+			Params: []*doc.JSONField{
+				{Name: "daoID", Type: "uint64"},
+				{Name: "path", Type: "string"},
+				{Name: "proposed", Type: "string"},
+			},
+		}}},
+	})
+	var buf strings.Builder
+	require.NoError(t, view.Render(&buf))
+	html := buf.String()
+
+	for _, want := range []string{
+		`data-action-function-param-value="daoID" data-action-function-arg-value="0" data-action-function-type-value="uint64"`,
+		`data-action-function-param-value="proposed" data-action-function-arg-value="2" data-action-function-type-value="string"`,
+		`data-qeval-unavailable="(live result unavailable, try again shortly)"`,
+		// The qeval command's args share a position with their param's
+		// input and carry its type, to be written as Gno literals.
+		`data-action-function-param-value="path" data-action-function-arg-value="1" data-action-function-type-value="string"`,
+		`data-action-function-target="arg" data-action-function-arg-value="1" data-action-function-type-value="string"`,
+		`-remote "https://rpc.example:443" -data`,
+		`href="#expression-evaluator"`,
+		`<use href="#ico-eval"></use>`,
+		`id="expression-evaluator"`,
+	} {
+		assert.Contains(t, html, want)
+	}
+	// The Eval button reads the params, not the signature, and nothing
+	// reads the node address from the page any more.
+	assert.NotContains(t, html, `data-action-function-sig-param`)
+	assert.NotContains(t, html, `data-action-function-target="remote"`)
+	// The evaluator's own entry in the Functions list carries the eval icon.
+	assert.Regexp(t, `href="#expression-evaluator">\s*<svg class="c-icon">\s*<use href="#ico-eval">`, html)
+	// The evaluator is listed after the functions.
+	assert.Less(t, strings.Index(html, `href="#func-AmendBylawsPayload"`), strings.Index(html, `href="#expression-evaluator"`))
+	// What works only with JS is served hidden, for the controllers to show:
+	// the Eval button, the evaluator's form and its result.
+	assert.Contains(t, html, `data-action-function-target="eval-button" title="Evaluate function (read-only)" hidden>`)
+	assert.Contains(t, html, `class="b-action-eval-form" data-action-eval-target="js-only" hidden>`)
+	assert.Contains(t, html, `<section class="b-result" data-action-eval-target="js-only" hidden>`)
+	assert.Contains(t, html, `<noscript><p class="u-color-tertiary">The evaluator needs JavaScript.</p></noscript>`)
 }
 
 func TestDirectoryView(t *testing.T) {

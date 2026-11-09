@@ -103,7 +103,7 @@ import (
 
 func main(cur realm) {
 	// member's address — used as the OPERATOR address of the valoper
-	// profile (squat guard requires OriginCaller == operator addr).
+	// profile (squat guard requires this run realm's address == operator addr).
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 
 	// Deterministic ed25519 pubkey from seed "e2e-valset-test-validator-seed-v1".

@@ -1563,6 +1563,10 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
+	// History replayed from a past chain carries its source block height, and
+	// a run there signed before MaxSend existed carries none: it runs uncapped,
+	// as it did. A fresh chain's own genesis runs at height 0 and is capped.
+	uncapped := auth.IsGenesisReplay(ctx) && ctx.BlockHeight() > 0 && len(msg.MaxSend) == 0
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -1579,7 +1583,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
 		// the recipient empty is fail-closed: nothing can spend against an
 		// envelope that never moved.
-		Banker:         NewSDKBanker(vm, ctx),
+		Banker:         NewRunSDKBanker(vm, ctx, caller, msg.MaxSend, uncapped),
 		Params:         NewSDKParams(vm.prmk, ctx),
 		EventLogger:    ctx.EventLogger(),
 		SessionAccount: getSessionAccount(ctx, caller),

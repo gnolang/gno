@@ -1027,7 +1027,7 @@ func (it *InterfaceType) panicUnflattened(im FieldType) {
 func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 	// Charge gas for the per-method interface implementation verification.
 	// Each method is looked up on a shared embedWalk
-	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
+	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (355 gas)
 	// mirrors the runtime type-assertion charge in op_expressions.go.
 	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
 	// One walk of ot's embedding graph serves every method lookup below: the
@@ -1564,6 +1564,12 @@ func unwrapPointerType(t Type) Type {
 	return t
 }
 
+// arrayOrPtrToArray returns the array type t is, or points to.
+func arrayOrPtrToArray(t Type) (*ArrayType, bool) {
+	at, ok := baseOf(unwrapPointerType(baseOf(t))).(*ArrayType)
+	return at, ok
+}
+
 // NOTE: it may be faster to switch on baseOf().
 func (dt *DeclaredType) Kind() Kind {
 	return dt.Base.Kind()
@@ -1741,26 +1747,40 @@ type structSurface struct {
 
 // reachableSurface returns the (fields, methods) contribution of t when
 // it appears as an embedded field's type. Counts through DeclaredType
-// (its Methods → methods bucket; its Base → recurse), PointerType
+// (its Methods → methods bucket; its Base → followed), PointerType
 // (passthrough), structs (effective fields go to fields bucket,
 // effective promoted methods to methods bucket), and interfaces
 // (effective methods go to methods bucket). fullyResolved is false if
-// any sub-walk hit a cycle break.
+// this walk or any sub-walk hit a cycle break.
 func reachableSurface(t Type, visited map[Type]struct{}) (structSurface, bool) {
-	switch ct := t.(type) {
-	case *DeclaredType:
-		sub, ok := reachableSurface(ct.Base, visited)
-		sub.methods += len(ct.Methods)
-		return sub, ok
-	case *PointerType:
-		return reachableSurface(ct.Elt, visited)
-	case *StructType:
-		return effectiveStructSurface(ct, visited)
-	case *InterfaceType:
-		n, ok := effectiveInterfaceMethods(ct, visited)
-		return structSurface{methods: n}, ok
+	methods := 0
+	// Brent's cycle detection: meeting mark again means a named type points
+	// back to itself, as `type A *A` does.
+	mark, power, steps := t, 1, 0
+	for {
+		switch ct := t.(type) {
+		case *DeclaredType:
+			methods += len(ct.Methods)
+			t = ct.Base
+		case *PointerType:
+			t = ct.Elt
+		case *StructType:
+			sub, ok := effectiveStructSurface(ct, visited)
+			sub.methods += methods
+			return sub, ok
+		case *InterfaceType:
+			n, ok := effectiveInterfaceMethods(ct, visited)
+			return structSurface{methods: methods + n}, ok
+		default:
+			return structSurface{methods: methods}, true
+		}
+		if t == mark {
+			return structSurface{methods: methods}, false
+		}
+		if steps++; steps == power {
+			mark, power, steps = t, power*2, 0
+		}
 	}
-	return structSurface{}, true
 }
 
 // effectiveInterfaceMethods returns (count, fullyResolved) for it.

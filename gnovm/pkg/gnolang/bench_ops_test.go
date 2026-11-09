@@ -39,8 +39,19 @@ func benchMachine() *Machine {
 	// overwritten by NewMachineWithOptions (which sets alloc.gasMeter
 	// to opts.GasMeter). We intentionally don't set opts.GasMeter
 	// to avoid enabling CPU gas metering via incrCPU.
-	alloc.SetGasMeter(benchAllocMeter)
+	alloc.SetGasMeter(allocOnlyMeter{benchAllocMeter})
 	return m
+}
+
+// allocOnlyMeter drops the CPU gas that Copy and the zero-fills charge
+// through the allocator's meter, so alloc-gas/op stays allocation gas:
+// gen_analysis.py subtracts it from the measured time to fit CPU slopes.
+type allocOnlyMeter struct{ store.GasMeter }
+
+func (gm allocOnlyMeter) ConsumeGas(amount store.Gas, descriptor string) {
+	if descriptor != "CPUCycles" {
+		gm.GasMeter.ConsumeGas(amount, descriptor)
+	}
 }
 
 func reportBenchops(b *testing.B) {
@@ -1266,10 +1277,11 @@ func BenchmarkOpSliceLit_1000(b *testing.B) { benchOpSliceLit(b, 1000) }
 
 // ---------------------------------------------------------------------------
 // doOpArrayLit: PopExpr(CompositeLitExpr), PopValues(N), peek type at bottom, push array.
-// Parameterized by element count.
+// Parameterized by element count; keyed gives every element an index key,
+// [N]int{0: x, 1: y, ...}, which reads each key per element.
 // ---------------------------------------------------------------------------
 
-func benchOpArrayLit(b *testing.B, n int) {
+func benchOpArrayLit(b *testing.B, n int, keyed bool) {
 	b.Helper()
 	m := benchMachine()
 	defer m.Release()
@@ -1278,6 +1290,9 @@ func benchOpArrayLit(b *testing.B, n int) {
 	elts := make([]KeyValueExpr, n)
 	for i := range n {
 		elts[i] = KeyValueExpr{Value: &ConstExpr{}}
+		if keyed {
+			elts[i].Key = &ConstExpr{TypedValue: typedInt(i)}
+		}
 	}
 	litExpr := &CompositeLitExpr{Elts: elts}
 
@@ -1305,10 +1320,15 @@ func benchOpArrayLit(b *testing.B, n int) {
 	reportBenchops(b)
 }
 
-func BenchmarkOpArrayLit_1(b *testing.B)    { benchOpArrayLit(b, 1) }
-func BenchmarkOpArrayLit_10(b *testing.B)   { benchOpArrayLit(b, 10) }
-func BenchmarkOpArrayLit_100(b *testing.B)  { benchOpArrayLit(b, 100) }
-func BenchmarkOpArrayLit_1000(b *testing.B) { benchOpArrayLit(b, 1000) }
+func BenchmarkOpArrayLit_1(b *testing.B)    { benchOpArrayLit(b, 1, false) }
+func BenchmarkOpArrayLit_10(b *testing.B)   { benchOpArrayLit(b, 10, false) }
+func BenchmarkOpArrayLit_100(b *testing.B)  { benchOpArrayLit(b, 100, false) }
+func BenchmarkOpArrayLit_1000(b *testing.B) { benchOpArrayLit(b, 1000, false) }
+
+func BenchmarkOpArrayLit_Keyed_1(b *testing.B)    { benchOpArrayLit(b, 1, true) }
+func BenchmarkOpArrayLit_Keyed_10(b *testing.B)   { benchOpArrayLit(b, 10, true) }
+func BenchmarkOpArrayLit_Keyed_100(b *testing.B)  { benchOpArrayLit(b, 100, true) }
+func BenchmarkOpArrayLit_Keyed_1000(b *testing.B) { benchOpArrayLit(b, 1000, true) }
 
 // ---------------------------------------------------------------------------
 // doOpStructLit: PopExpr(CompositeLitExpr), PopValues(nFields), peek type, push struct.
@@ -1368,8 +1388,9 @@ func BenchmarkOpStructLit_1000(b *testing.B) { benchOpStructLit(b, 1000) }
 
 // ---------------------------------------------------------------------------
 // doOpStructLit (named fields): S{X: 1, Y: 2}.
-// Named field path calls defaultStructFields, allocates fsset []bool,
-// and does per-field Copy + index lookup.
+// Named field path allocates fsset []bool, does per-field Copy + index
+// lookup, then fillDefaultStructFields defaults the fields not named (none
+// here, so the fit holds no zero-fill).
 // Parameterized by number of fields.
 // ---------------------------------------------------------------------------
 
@@ -5423,7 +5444,9 @@ func BenchmarkOpBody(b *testing.B) {
 	reportBenchops(b)
 }
 
-// --- OpRangeIter: array copy + iteration init ---
+// --- OpRangeIter: iteration init of a key-only range over an array by value ---
+// A key-only range copies nothing; one that reads the element pays
+// ArrayValue.Copy's per-element charge instead.
 
 func benchOpRangeIter(b *testing.B, n int) {
 	b.Helper()
@@ -5471,7 +5494,7 @@ func benchOpRangeIter(b *testing.B, n int) {
 		bm.SwitchOpCode(bmTarget)
 		m.doOpExec(OpRangeIter)
 		bm.SwitchOpCode(bmSetup)
-		// For n>0: copies array, iterates once (empty body), terminates.
+		// For n>0: iterates once (empty body), terminates.
 		// Stacks should be restored by PopFrameAndReset.
 		m.Values = m.Values[:0]
 		m.Stmts = m.Stmts[:0]
@@ -5964,11 +5987,12 @@ func BenchmarkOpInterfaceType_1000(b *testing.B) { benchOpInterfaceType(b, 1000)
 // Copy helpers: calibrate OpCPUSlopeCopyPrimitive and OpCPUSlopeCopyElement.
 //
 // Primitive slope (OpCPUSlopeCopyPrimitive): per-byte/Uint8-element cost for
-//   copyDataToList, copyListToData, raw memcpy, and Assign2 DataByteType path.
-//   Calibrated via BenchmarkOpCopyDataToList_* (slower helper).
+//   copyDataToList, copyListToData, raw memcpy, and ArrayValue.Copy of a byte
+//   array. Calibrated via BenchmarkOpCopyDataToList_* (slower helper).
 //
-// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for Copy
-//   and Assign2 general path. Calibrated via BenchmarkOpUnrefCopy_Int_*
+// Element slope (OpCPUSlopeCopyElement): per-TypedValue cost for each element
+//   append and copy move with Copy, and each element or field ArrayValue.Copy
+//   and StructValue.Copy duplicate. Calibrated via BenchmarkOpUnrefCopy_Int_*
 //   (non-RefValue case); under-charges worst-case RefValue store-hit.
 //
 // These benchmarks use the standard benchMachine / reportBenchops wiring so

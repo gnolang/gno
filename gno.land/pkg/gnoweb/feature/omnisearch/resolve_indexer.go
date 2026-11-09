@@ -34,10 +34,11 @@ func indexerSelectors() []*Selector {
 			},
 		},
 		{
-			Name:  "account",
-			Hint:  "account:<address>",
-			Label: "Account activity",
-			Scope: ScopeGlobal,
+			Name:    "account",
+			Hint:    "account:<address>",
+			Label:   "Account activity",
+			Scope:   ScopeGlobal,
+			Accepts: addressPattern(),
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				// A partial address never matches, yet walks every height
 				// band: one per debounced keystroke while it is typed.
@@ -66,6 +67,8 @@ func indexerSelectors() []*Selector {
 				return []Result{{
 					Title:  "block " + strconv.Itoa(b.Height),
 					Detail: b.Hash,
+					Opaque: true,
+					Kind:   KindBlock,
 					Tags: []string{
 						b.ChainID,
 						strconv.Itoa(b.NumTxs) + " tx",
@@ -149,6 +152,7 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 			out = append(out, Result{
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
+				Opaque: true,
 				Href:   chainPathHref(path, h.deps.Domain),
 				Tags:   batchTags(batch, "mentions", "block "+strconv.Itoa(tx.Height)),
 			})
@@ -217,6 +221,7 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 			out = append(out, Result{
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
+				Opaque: true,
 				Href:   chainPathHref(path, h.deps.Domain),
 				Tags:   batchTags(batch, "contains "+term, "block "+strconv.Itoa(tx.Height)),
 			})
@@ -233,6 +238,8 @@ func (h *Handler) txResults(txs []indexer.Tx) []Result {
 		r := Result{
 			Title:  txTitle(tx),
 			Detail: txDetail(tx),
+			Opaque: true,
+			Kind:   KindTx,
 			Tags: []string{
 				"block " + strconv.Itoa(tx.Height),
 				strconv.Itoa(tx.GasUsed) + " gas",
@@ -241,8 +248,8 @@ func (h *Handler) txResults(txs []indexer.Tx) []Result {
 		if !tx.Success {
 			r.Tags = append([]string{"failed"}, r.Tags...)
 		}
-		if len(tx.Messages) > 0 {
-			if p := tx.Messages[0].Path(); p != "" {
+		if m, ok := leadMessage(tx); ok {
+			if p := m.Path(); p != "" {
 				r.Href = chainPathHref(p, h.deps.Domain)
 			}
 		}
@@ -253,10 +260,10 @@ func (h *Handler) txResults(txs []indexer.Tx) []Result {
 
 // txTitle summarises by first message, and says when there are more.
 func txTitle(tx indexer.Tx) string {
-	if len(tx.Messages) == 0 {
+	m, ok := leadMessage(tx)
+	if !ok {
 		return tx.Hash
 	}
-	m := tx.Messages[0]
 	var head string
 	switch m.Type() {
 	case "MsgCall":
@@ -277,13 +284,29 @@ func txTitle(tx indexer.Tx) string {
 }
 
 func txDetail(tx indexer.Tx) string {
-	if len(tx.Messages) == 0 {
+	m, ok := leadMessage(tx)
+	if !ok {
 		return ""
 	}
-	if s := tx.Messages[0].Signer(); s != "" {
+	if s := m.Signer(); s != "" {
 		return s
 	}
 	return tx.Hash
+}
+
+// leadMessage is the message a row is named and linked by: the first the
+// indexer could decode. A session message ahead of a call must not turn the
+// row into "UnexpectedMessage (+1 more)" with no link.
+func leadMessage(tx indexer.Tx) (indexer.Message, bool) {
+	for _, m := range tx.Messages {
+		if m.Type() != "UnexpectedMessage" {
+			return m, true
+		}
+	}
+	if len(tx.Messages) > 0 {
+		return tx.Messages[0], true
+	}
+	return indexer.Message{}, false
 }
 
 // chainPathHref turns a chain-qualified path back into a gnoweb link, or

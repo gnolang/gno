@@ -234,6 +234,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			// accNum/accSeq sign-bytes logic below still uses source values.
 			if !opts.VerifyGenesisSignatures {
 				if IsGenesisReplay(ctx) {
+					// The signer's address commits to this key, and the VM
+					// banker tells a user account by it.
+					if acc := signerAccs[i]; acc.GetPubKey() == nil && sig.PubKey != nil && sig.PubKey.Address() == acc.GetAddress() {
+						acc.SetPubKey(sig.PubKey)
+						ak.SetAccount(newCtx, acc)
+					}
 					continue
 				}
 			}

@@ -50,6 +50,9 @@ type realm interface {
     Sub(subpath string) realm
     Subpath() string
     String() string
+    // seal mirrors the VM's undeclarable .seal marker so go/types rejects
+    // structural forgeries that reproduce only realm's public methods.
+    seal()
 }
 type Realm = realm
 

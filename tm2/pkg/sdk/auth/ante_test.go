@@ -1009,6 +1009,29 @@ func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
 
 	// flag ON AND replay key set: signature verification is skipped.
 	checkValidTx(t, skipHandler, ctxReplay, tx, false)
+	// The skipped signature still stores its key, so a VM banker later tells
+	// this account for a user's.
+	require.Equal(t, priv.PubKey(), env.acck.GetAccount(ctx, addr).GetPubKey())
+
+	// A skipped signature carrying a key its signer's address does not
+	// commit to stores nothing.
+	_, _, other := tu.KeyTestPubAddr()
+	otherAcc := env.acck.NewAccountWithAddress(ctx, other)
+	otherAcc.SetCoins(tu.NewTestCoins())
+	env.acck.SetAccount(ctx, otherAcc)
+	otherTx := tu.NewTestTxWithSignBytes([]std.Msg{tu.NewTestMsg(other)}, []crypto.PrivKey{priv}, fee, signPayload, "")
+	checkValidTx(t, skipHandler, ctxReplay, otherTx, false)
+	require.Nil(t, env.acck.GetAccount(ctx, other).GetPubKey())
+
+	// A skipped signature carrying no key is accepted and stores nothing.
+	_, _, keyless := tu.KeyTestPubAddr()
+	keylessAcc := env.acck.NewAccountWithAddress(ctx, keyless)
+	keylessAcc.SetCoins(tu.NewTestCoins())
+	env.acck.SetAccount(ctx, keylessAcc)
+	keylessTx := tu.NewTestTxWithSignBytes([]std.Msg{tu.NewTestMsg(keyless)}, []crypto.PrivKey{priv}, fee, signPayload, "")
+	keylessTx.Signatures[0].PubKey = nil
+	checkValidTx(t, skipHandler, ctxReplay, keylessTx, false)
+	require.Nil(t, env.acck.GetAccount(ctx, keyless).GetPubKey())
 
 	// flag OFF and no replay key (a fully normal node): the feature is
 	// inert — the invalid signature is verified and rejected.

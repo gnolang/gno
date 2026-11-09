@@ -30,6 +30,12 @@ func (ctx *P3Context2) generateUnmarshal(sb *strings.Builder, info *amino.TypeIn
 
 	// Handle struct types.
 	if info.Type.Kind() == reflect.Struct {
+		if info.Recursive {
+			// Count each level of a type that can contain itself, as
+			// decodeReflectBinaryStruct does.
+			sb.WriteString("\tanyDepth, err := amino.NestDepth(anyDepth)\n")
+			sb.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
+		}
 		ctx.writeStructUnmarshalBody(sb, info, "goo")
 		sb.WriteString("\treturn nil\n")
 		sb.WriteString("}\n\n")

@@ -792,6 +792,14 @@ func TestConfig_Get_RPC(t *testing.T) {
 			false,
 		},
 		{
+			"max batch requests",
+			"rpc.max_batch_requests",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.RPC.MaxBatchRequests, unmarshalJSONCommon[int](t, value))
+			},
+			false,
+		},
+		{
 			"max header bytes",
 			"rpc.max_header_bytes",
 			func(loadedCfg *config.Config, value []byte) {

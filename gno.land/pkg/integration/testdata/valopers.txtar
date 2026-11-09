@@ -15,7 +15,7 @@ stdout '/tm.PubKeyEd25519'
 gnokey maketx run  -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
 
 # add a valoper with a bad operator address (not the caller's). The
-# post-genesis squat guard rejects: OriginCaller (test1) != addr.
+# post-genesis squat guard rejects: the caller (test1) != addr.
 ! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args 1ut590acnamvhkrh4qz6dz9zt9e3hyu499u0gvl -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -chainid=tendermint_test test1
 stderr 'caller must equal operator address'
 
@@ -32,7 +32,7 @@ stderr 'panic: invalid checksum'
 stderr 'consensus pubkey type is not allowed for validators'
 
 # add a valoper with a valid ed25519 signing key. The address arg is the
-# test1 user's address (= operator) and matches OriginCaller, so the squat
+# test1 user's address (= operator) and matches the caller, so the squat
 # guard passes. chain.PubKeyAddress(pubKey) derives the signing address
 # g10ddhfxv47lhyhpj426u57ckxwl0qtrk6c9rs5v; v0's executor resolves operator
 # -> signing-key via valoperCache at proposal-execute time.

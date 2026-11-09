@@ -169,7 +169,12 @@ func LengthOnly(cur realm) {
 	}
 	_ = len(B)
 	_ = cap(B)
+	// A call in the operand keeps len from folding to a constant, so this
+	// one reaches the builtin, which takes its argument without a copy.
+	_ = len(getB())
 }
+
+func getB() [100]Inner { return B }
 
 func Get() string {
 	return strconv.Itoa(G.I.X) + " " + strconv.Itoa(G.A[0]) + " " +

@@ -218,6 +218,14 @@ func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 		bdv.V = nil
 		return nil
 	}
+	// Only accept the characters of big.Rat.RatString, which is all MarshalAmino
+	// emits here. SetString also takes exponents, and expands them: the 8 bytes
+	// "1e999999" build a 1,000,000-digit numerator, and this runs while a
+	// transaction is decoded, before anyone has paid for it. Every exponent needs
+	// a letter, so a number that passes can't outgrow the string it came from.
+	if strings.Trim(s, "0123456789-/") != "" {
+		return fmt.Errorf("invalid BigdecValue: %q", s)
+	}
 	r := new(big.Rat)
 	if _, ok := r.SetString(s); !ok {
 		return fmt.Errorf("invalid BigdecValue: %q", s)
@@ -323,6 +331,10 @@ func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *R
 		pv.assertBaseNotPoisoned()
 	}
 	// Special cases.
+	if pv.Index == PointerIndexBlockBlank {
+		// Nothing reads "_", so skip the copy of tv2.
+		return
+	}
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
@@ -466,11 +478,17 @@ func (av *ArrayValue) Copy(alloc *Allocator, store Store, t Type, active map[Obj
 	*/
 	var cp *ArrayValue
 	if av.Data == nil {
+		chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(len(av.List)))
 		cp = alloc.NewListArray(t, len(av.List))
+		// cp is a Go local until the caller roots it, so anchor its list
+		// while the elements are copied, as defaultArrayValue does.
+		alloc.PushAnchor(cp.List)
 		for i, tv := range av.List {
 			cp.List[i] = tv.copy(alloc, store, active)
 		}
+		alloc.PopAnchor()
 	} else {
+		chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyPrimitive*int64(len(av.Data)))
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
@@ -615,11 +633,16 @@ func (sv *StructValue) Copy(alloc *Allocator, store Store, t Type, active map[Ob
 		return sv
 	}
 	*/
+	chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(len(sv.Fields)))
 	fields := alloc.NewStructFields(len(sv.Fields))
+	// fields is a Go local until NewStruct wraps it, which allocates too, so
+	// the anchor holds until after it. See ArrayValue.Copy.
+	alloc.PushAnchor(fields)
 	for i, field := range sv.Fields {
 		fields[i] = field.copy(alloc, store, active)
 	}
 	cp := alloc.NewStruct(t, fields)
+	alloc.PopAnchor()
 	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
 		cp.ObjectInfo.SetPkgID(pid)
 	}
@@ -2499,9 +2522,16 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		pv := mv.getPointerForComputedKey(alloc, key, isNaN, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
-			if vt.Kind() != InterfaceKind {
-				// this will get assigned over but the zero-init still
-				// walks struct fields; use the caller's alloc.
+			switch vt.Kind() {
+			case InterfaceKind:
+			case ArrayKind, StructKind:
+				// Only an assignment writes an array or struct entry,
+				// `m[k] = v` or a range clause assigning to m[k], and
+				// its Assign2 follows at once, so a zero value here
+				// would be filled and charged per element for nothing.
+			default:
+				// An op-assignment such as m[k] += 1 reads this zero
+				// value; use the caller's alloc.
 				*pv.TV = defaultTypedValue(alloc, vt)
 			}
 		}
@@ -2584,7 +2614,7 @@ func (tv *TypedValue) GetLength() int {
 		case *MapType:
 			return 0
 		case *PointerType:
-			if at, ok := bt.Elt.(*ArrayType); ok {
+			if at, ok := arrayOrPtrToArray(bt); ok {
 				return at.Len
 			}
 			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
@@ -2625,7 +2655,7 @@ func (tv *TypedValue) GetCapacity() int {
 		case *SliceType:
 			return 0
 		case *PointerType:
-			if at, ok := bt.Elt.(*ArrayType); ok {
+			if at, ok := arrayOrPtrToArray(bt); ok {
 				return at.Len
 			}
 			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
@@ -3247,14 +3277,52 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	return tvs
 }
 
-// fillDefaultStructFields writes st's zero values into tvs, which must have
-// len(st.Fields) entries. The caller is responsible for anchoring tvs (see
+// fillDefaultStructFields writes st's zero values into the fields of tvs still
+// undefined, which must have len(st.Fields) entries, and charges
+// OpCPUSlopeCopyElement for each before writing any. An interface field's
+// zero value is the undefined TypedValue itself, so it is neither written nor
+// charged. The caller is responsible for anchoring tvs (see
 // Allocator.anchors) — doOpStructLit keeps its own anchor for the whole op.
 func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue) {
+	n := 0
 	for i, ft := range st.Fields {
-		if ft.Type.Kind() != InterfaceKind {
+		if ft.Type.Kind() != InterfaceKind && tvs[i].IsUndefined() {
+			n++
+		}
+	}
+	chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(n))
+	for i, ft := range st.Fields {
+		if ft.Type.Kind() != InterfaceKind && tvs[i].IsUndefined() {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
 			inheritDefaultPkgID(tvs[i], st.GetPkgID())
+		}
+	}
+}
+
+// fillDefaultList writes et's zero value into the slots of tvs still
+// undefined, and charges OpCPUSlopeCopyElement for each before writing any.
+// tvs must be freshly allocated, so that an undefined slot is one nothing was
+// written to. An interface's zero value is the undefined TypedValue itself,
+// so it is neither written nor charged. The caller is responsible for
+// anchoring tvs (see Allocator.anchors).
+func fillDefaultList(alloc *Allocator, tvs []TypedValue, et Type, pid PkgID) {
+	if et.Kind() == InterfaceKind {
+		return
+	}
+	n := 0
+	for i := range tvs {
+		if tvs[i].IsUndefined() {
+			n++
+		}
+	}
+	chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(n))
+	stamp := pid.IsRealmPkg()
+	for i := range tvs {
+		if tvs[i].IsUndefined() {
+			tvs[i] = defaultTypedValue(alloc, et)
+			if stamp {
+				inheritDefaultPkgID(tvs[i], pid)
+			}
 		}
 	}
 }
@@ -3275,32 +3343,37 @@ func inheritDefaultPkgID(tv TypedValue, pid PkgID) {
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
-	return alloc.NewStruct(
-		st,
-		defaultStructFields(alloc, st),
-	)
+	fields := defaultStructFields(alloc, st)
+	// fields is a Go local until NewStruct wraps it, which allocates too, so
+	// anchor it across that call. See StructValue.Copy.
+	alloc.PushAnchor(fields)
+	sv := alloc.NewStruct(st, fields)
+	alloc.PopAnchor()
+	return sv
 }
 
 func defaultArrayValue(alloc *Allocator, t Type) *ArrayValue {
-	at := baseOf(t).(*ArrayType)
-	if at.Elt.Kind() == Uint8Kind {
-		return alloc.NewDataArray(t, at.Len)
-	}
-	av := alloc.NewListArray(t, at.Len)
-	tvs := av.List
-	if et := at.Elem(); et.Kind() != InterfaceKind {
+	av := newArrayValue(alloc, t)
+	if av.List != nil {
 		// av is a Go local until the caller roots it, so anchor its list
 		// while the defaults are built: without it a GC part-way through
 		// drops the elements already written and the cap is re-granted
 		// once per element. See Allocator.anchors.
-		alloc.PushAnchor(tvs)
-		for i := range at.Len {
-			tvs[i] = defaultTypedValue(alloc, et)
-			inheritDefaultPkgID(tvs[i], getDeclaredPkgID(t))
-		}
+		alloc.PushAnchor(av.List)
+		fillDefaultList(alloc, av.List, baseOf(t).(*ArrayType).Elt, getDeclaredPkgID(t))
 		alloc.PopAnchor()
 	}
 	return av
+}
+
+// newArrayValue allocates an array of type t whose elements are undefined,
+// for fillDefaultList to complete; a byte array's Data is already zero.
+func newArrayValue(alloc *Allocator, t Type) *ArrayValue {
+	at := baseOf(t).(*ArrayType)
+	if at.Elt.Kind() == Uint8Kind {
+		return alloc.NewDataArray(t, at.Len)
+	}
+	return alloc.NewListArray(t, at.Len)
 }
 
 func defaultTypedValue(alloc *Allocator, t Type) TypedValue {

@@ -181,6 +181,64 @@ func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
 	})
 }
 
+// An integer argument must be the one spelling strconv.Format* gives its
+// value, so "0" and "-0", or "7" and "007", are not two arguments for one value.
+func TestConvertIntCanonicalForm(t *testing.T) {
+	t.Parallel()
+
+	intTypes := []gnolang.Type{
+		gnolang.IntType, gnolang.Int8Type, gnolang.Int16Type, gnolang.Int32Type, gnolang.Int64Type,
+		gnolang.UintType, gnolang.Uint8Type, gnolang.Uint16Type, gnolang.Uint32Type, gnolang.Uint64Type,
+	}
+	for _, argT := range intTypes {
+		t.Run(argT.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, arg := range []string{"0", "7", "127"} {
+				assert.NotPanics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+			for _, arg := range []string{"-0", "00", "007", "-007", "+7"} {
+				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+		})
+	}
+
+	assert.PanicsWithValue(t, `error parsing int "007": not in canonical form, want "7"`, func() {
+		convertArgToGno("007", gnolang.IntType)
+	})
+	assert.NotPanics(t, func() { convertArgToGno("-7", gnolang.Int8Type) })
+}
+
+// A float argument must be finite, and a negative zero arrives as +0: NaN and
+// ±Inf defeat ordinary range checks in the callee, and -0 is a second value
+// for zero that only Signbit and formatting can tell apart.
+func TestConvertFloatSpecialValues(t *testing.T) {
+	t.Parallel()
+
+	for _, argT := range []gnolang.Type{gnolang.Float32Type, gnolang.Float64Type} {
+		t.Run(argT.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, arg := range []string{"NaN", "nan", "NAN", "-NaN", "sNaN", "Inf", "inf", "-Inf", "-inf", "Infinity"} {
+				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+			for _, arg := range []string{"-0", "-0.0", "-1e-400"} {
+				tv := convertArgToGno(arg, argT)
+				if argT == gnolang.Float32Type {
+					assert.Equal(t, uint32(0), tv.GetFloat32(), arg)
+				} else {
+					assert.Equal(t, uint64(0), tv.GetFloat64(), arg)
+				}
+			}
+			assert.NotPanics(t, func() { convertArgToGno("-1.5", argT) })
+		})
+	}
+
+	assert.PanicsWithValue(t, `error parsing float64 "nan": NaN and Inf are not accepted`, func() {
+		convertArgToGno("nan", gnolang.Float64Type)
+	})
+}
+
 // ============================================================================
 // Error Type Tests
 // ============================================================================
