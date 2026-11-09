@@ -1,10 +1,8 @@
 package gnoland
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -46,15 +44,12 @@ func legacyTxBytes(t *testing.T, tx std.Tx) []byte {
 }
 
 // TestDeliverTxZeroSessionAddr: a master-key signature leaves its zero
-// SessionAddr off the wire, and the chain still takes the same transaction
-// encoded the old way, as wallets built before the change keep sending it.
-// Delivered to two identical chains, the two encodings do the same thing
-// and reach the same app hash; the old one only costs more gas, for its
-// extra bytes.
-//
-// Accepting the old encoding is the behaviour before #6406, which refuses
-// any encoding of a transaction but the canonical one; it flips the
-// oldRes assertion below to expect std.ErrTxDecode.
+// SessionAddr off the wire (#6399). Wallets built before that change still
+// write it, as the zero address's bech32 string, and those bytes decode to
+// the same signed transaction under another hash. Since the chain takes only
+// the canonical encoding (#6406), the old bytes are refused as a decode error
+// in CheckTx and DeliverTx, where before they delivered and only cost more
+// gas; the new bytes deliver.
 func TestDeliverTxZeroSessionAddr(t *testing.T) {
 	t.Parallel()
 
@@ -76,41 +71,20 @@ func TestDeliverTxZeroSessionAddr(t *testing.T) {
 		Address: from,
 		Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
 	}}
-	deliver := func(txBytes []byte) (abci.ResponseDeliverTx, []byte) {
-		t.Helper()
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	initRes := app.InitChain(abci.RequestInitChain{
+		ChainID:         "test-chain",
+		ConsensusParams: &abci.ConsensusParams{Block: defaultBlockParams()},
+		AppState:        state,
+	})
+	require.True(t, initRes.IsOK(), "InitChain failed: %v", initRes.Error)
+	app.BeginBlock(abci.RequestBeginBlock{
+		Header: &bft.Header{ChainID: "test-chain", Height: 1},
+	})
 
-		app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
-		require.NoError(t, err)
-		initRes := app.InitChain(abci.RequestInitChain{
-			ChainID:         "test-chain",
-			ConsensusParams: &abci.ConsensusParams{Block: defaultBlockParams()},
-			AppState:        state,
-		})
-		require.True(t, initRes.IsOK(), "InitChain failed: %v", initRes.Error)
-		app.BeginBlock(abci.RequestBeginBlock{
-			Header: &bft.Header{ChainID: "test-chain", Height: 1},
-		})
-		res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
-		app.EndBlock(abci.RequestEndBlock{Height: 1})
-		return res, app.Commit().Data
-	}
-	newRes, newHash := deliver(newBz)
-	oldRes, oldHash := deliver(oldBz)
+	requireSameTxRejected(t, app, newBz, oldBz, "old encoding")
+
+	newRes := app.DeliverTx(abci.RequestDeliverTx{Tx: newBz})
 	require.True(t, newRes.IsOK(), "new encoding: %+v", newRes)
-	require.True(t, oldRes.IsOK(), "old encoding: %+v", oldRes)
-	assert.Equal(t, newHash, oldHash)
-
-	// The signature was checked, not skipped: the old encoding with a
-	// signature byte flipped is refused.
-	tampered := tx
-	tampered.Signatures = []std.Signature{tx.Signatures[0]}
-	tampered.Signatures[0].Signature = bytes.Clone(tx.Signatures[0].Signature)
-	tampered.Signatures[0].Signature[0] ^= 1
-	badRes, _ := deliver(legacyTxBytes(t, tampered))
-	assert.IsType(t, std.UnauthorizedError{}, badRes.Error, "tampered: %+v", badRes)
-
-	// The ante handler charges tx_size_cost_per_byte for every byte, 43 × 10
-	// = 430 gas at the default.
-	perByte := state.Auth.Params.TxSizeCostPerByte
-	assert.Equal(t, int64(len(oldBz)-len(newBz))*perByte, oldRes.GasUsed-newRes.GasUsed)
 }
