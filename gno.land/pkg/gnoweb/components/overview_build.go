@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 )
 
-// computeStats derives numeric counters from the file list and qdoc payload.
 // bugsNotInDoc returns the BUG notes not already visible in the rendered package
 // doc. go/doc leaves a note's body in Doc when the note lives inside the package
 // comment, so without this the same text would render both inline and in the
@@ -29,6 +28,7 @@ func bugsNotInDoc(bugs []string, packageDoc string) []string {
 	return out
 }
 
+// computeStats derives numeric counters from the file list and qdoc payload.
 func computeStats(files []string, jdoc *doc.JSONDocumentation, imports []ImportLink) PackageStats {
 	s := PackageStats{
 		FileCount:   len(files),
@@ -155,12 +155,15 @@ func buildSubpackages(self string, paths []string) []SubpackageLink {
 }
 
 // buildOverviewTOC builds the hierarchical table-of-contents items used by the sidebar.
-func buildOverviewTOC(quality PackageQuality, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, imports []ImportLink, subpacks []SubpackageLink) []*TocItem {
+// hasReadmeSection tells whether the README section was actually rendered. The
+// file being listed is not enough: its fetch may have failed, and the #readme
+// entry must not point at a section the template never emitted.
+func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, graph DepGraph, files []FileLink, subpacks []SubpackageLink) []*TocItem {
 	var toc []*TocItem
 	if quality.HasPkgDoc {
 		toc = append(toc, &TocItem{Title: "Overview", ID: "overview"})
 	}
-	if quality.HasReadme {
+	if hasReadmeSection {
 		toc = append(toc, &TocItem{Title: "README", ID: "readme"})
 	}
 	hasConst, hasVar := false, false
@@ -196,10 +199,16 @@ func buildOverviewTOC(quality PackageQuality, funcs []FuncEntry, types []TypeEnt
 		}
 		toc = append(toc, item)
 	}
-	if len(imports) > 0 {
-		toc = append(toc, &TocItem{Title: "Imports", ID: "imports"})
+	if graph.Shown() {
+		toc = append(toc, &TocItem{Title: "Dependencies", ID: "imports"})
 	}
-	toc = append(toc, &TocItem{Title: "Files", ID: "files"})
+	// The file entries link straight into the source view, so a reader reaches a
+	// file from the sidebar instead of scrolling down to the Files section.
+	filesItem := &TocItem{Title: "Files", ID: "files"}
+	for _, f := range files {
+		filesItem.Items = append(filesItem.Items, &TocItem{Title: f.Name, Link: f.Link, Icon: "file"})
+	}
+	toc = append(toc, filesItem)
 	if len(subpacks) > 0 {
 		toc = append(toc, &TocItem{Title: "Directories", ID: "subpackages"})
 	}
@@ -281,7 +290,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 	if in.Doc != nil {
 		importPaths = in.Doc.Imports
 	}
-	imports := buildImports(importPaths, in.Domain)
+	imports := ImportLinks(importPaths, in.Domain)
 	funcs, types := buildSymbols(in.Doc, in.DocRenderer, in.URL.Path)
 	values := buildValues(in.Doc, in.DocRenderer, in.URL.Path)
 	funcs, fTrunc := capSymbols(funcs, maxOverviewSymbols)
@@ -303,7 +312,8 @@ func BuildOverview(in OverviewInput) OverviewData {
 	stats := computeStats(in.Files, in.Doc, imports)
 	files := buildFileLinks(in.URL.Path, in.Files)
 	subpacks := buildSubpackages(in.URL.Path, in.Subpaths)
-	toc := buildOverviewTOC(quality, funcs, types, values, imports, subpacks)
+	graph := DepGraph{Name: in.URL.Path, Imports: imports, LookupURL: in.DepsURL}
+	toc := buildOverviewTOC(quality, in.Readme != nil, funcs, types, values, graph, files, subpacks)
 
 	pkgDocSynopsis := ""
 	var pkgDocComp Component
@@ -330,7 +340,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 		Types:            types,
 		Consts:           consts,
 		Vars:             vars,
-		Imports:          imports,
+		Graph:            graph,
 		Files:            files,
 		Subpackages:      subpacks,
 		Bugs:             bugs,

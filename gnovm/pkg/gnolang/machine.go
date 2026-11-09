@@ -314,15 +314,14 @@ func (m *Machine) setRealm(r *Realm) {
 }
 
 // assertBorrowedRealm panics (debug builds only) when a borrow rule is about
-// to set m.Realm to nil for a package that MUST carry a realm — /r/, /p/, or
-// stdlib (IsRealmPath || isImmutableLibraryPath). That would silently put the
-// machine in "single-user mode" (IsReadonly/isExternalRealm short-circuit on
-// nil m.Realm) and reopen the nil-realm cross-realm write hole. _test overlays
-// and uverse legitimately have no realm and are excluded (neither predicate
-// matches them).
+// to set m.Realm to nil for a package that MUST carry a realm — /r/, /e/, /p/, or
+// stdlib. That would silently put the machine in "single-user mode"
+// (IsReadonly/isExternalRealm short-circuit on nil m.Realm) and reopen the
+// nil-realm cross-realm write hole. _test overlays and uverse legitimately
+// have no realm and are excluded (none of the predicates match them).
 func assertBorrowedRealm(pkgPath string, r *Realm) {
 	if debugAssert && r == nil &&
-		(IsRealmPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
+		(IsRealmPath(pkgPath) || IsEphemeralPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
 		panic("borrow rule set m.Realm=nil for realm-bearing package: " + pkgPath)
 	}
 }
@@ -2676,10 +2675,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// Not cross nor crossing. Three borrow rules apply (the first
 	// applicable one fires):
 	//
-	//   #1. /r/-declared function/method/closure → borrow to the
+	//   #1. /r/- or /e/-declared function/method/closure → borrow to the
 	//       callable's declaring realm (any receiver shape, or top-level
 	//       function). /r/attacker code runs with /r/attacker's
-	//       authority, not victim's.
+	//       authority, not victim's. Ephemeral MsgRun code must likewise
+	//       regain its own authority when called back by another realm.
 	//
 	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
 	//       foreign-stamped object, borrow to the receiver's constructing
@@ -2698,7 +2698,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// also keeps the nil-realm write hole closed: a tx's entry realm is
 	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
 	// by the readonly gate against the caller's realm.
-	if IsRealmPath(pv.PkgPath) {
+	if IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
 			r := pv.GetRealm()
 			assertBorrowedRealm(pv.PkgPath, r)
@@ -2730,8 +2730,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//
 	// IsClosure gates this: top-level FuncDecls also carry a stamped
 	// PkgID (= the declaring package), but they don't represent a
-	// closed-over capability — borrow rule #1 already handles the /r/-declared
-	// case, and /p/-declared FuncDecls shouldn't shift the realm.
+	// closed-over capability — borrow rule #1 handles /r/ and /e/ declarations,
+	// and /p/-declared FuncDecls shouldn't shift the realm.
 	//
 	// Stdlib-stamped closures are skipped, mirroring borrow rule #2's
 	// stdlib-receiver skip: stdlib owns no mutable state and runs with the
@@ -3325,10 +3325,9 @@ func (m *Machine) Panic(etv TypedValue) {
 	panic(ex)
 }
 
-// This function does not go-panic:
-// caller must return manually.
-// It should ONLY be called from doOp* Op handlers,
-// and should return immediately from the origin Op.
+// pushPanic schedules VM panic unwinding instead of panicking in Go.
+// If no call frame exists, it terminates via the unhandled-panic path.
+// Callers must be doOp* handlers and return immediately after calling it.
 func (m *Machine) pushPanic(etv TypedValue) {
 	// Construct a new exception.
 	ex := &Exception{
@@ -3337,6 +3336,11 @@ func (m *Machine) pushPanic(etv TypedValue) {
 	}
 	// Pop after capturing stacktrace.
 	fr := m.PopUntilLastCallFrame()
+	if fr == nil {
+		// No call frame during package var init: nothing to unwind.
+		m.Exception = ex.WithPrevious(m.Exception)
+		panic(m.makeUnhandledPanicError())
+	}
 	// Link ex.Previous.
 	if m.Exception == nil {
 		// Recall the last m.Exception before frame.

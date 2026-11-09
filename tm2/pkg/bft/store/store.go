@@ -42,11 +42,28 @@ func NewBlockStore(db dbm.DB) *BlockStore {
 	}
 }
 
+// DB returns the database the store reads and writes.
+func (bs *BlockStore) DB() dbm.DB { return bs.db }
+
 // Height returns the last known contiguous block height.
 func (bs *BlockStore) Height() int64 {
 	bs.mtx.RLock()
 	defer bs.mtx.RUnlock()
 	return bs.height
+}
+
+// LowerHeight lowers the store's height to height, on disk and in memory. The
+// records above it stay in place, unread, until SaveBlock saves those heights
+// again over them. The handshake calls it after a crash in a block-sync flush
+// point (see FlushPoint).
+func (bs *BlockStore) LowerHeight(height int64) {
+	if height < 0 || height >= bs.Height() {
+		panic(fmt.Sprintf("BlockStore can only lower its height: %d to %d", bs.Height(), height))
+	}
+	BlockStoreStateJSON{Height: height}.Save(bs.db)
+	bs.mtx.Lock()
+	bs.height = height
+	bs.mtx.Unlock()
 }
 
 // LoadBlock returns the block with the given height.
@@ -177,45 +194,54 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 		panic("BlockStore can only save complete block part sets")
 	}
 
+	// Stage every write for this height in one batch and flush it with a
+	// single fsync. Consensus, and block sync when its writes are not held
+	// (see HoldingDB), call this once per block on the critical path, so each
+	// extra flush is paid on every height; the batch also makes the save
+	// atomic, so a crash cannot leave a height whose meta is on disk without
+	// its parts. While block sync holds the database, the batch joins the
+	// held writes and reaches the disk at the next flush point instead.
+	batch := bs.db.NewBatch()
+	defer batch.Close()
+
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
 	metaBytes := amino.MustMarshal(blockMeta)
-	bs.db.Set(calcBlockMetaKey(height), metaBytes)
+	mustSet(batch, calcBlockMetaKey(height), metaBytes)
 
 	// Save block parts
 	for i := range blockParts.Total() {
 		part := blockParts.GetPart(i)
-		bs.saveBlockPart(height, i, part)
+		mustSet(batch, calcBlockPartKey(height, i), amino.MustMarshal(part))
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	blockCommitBytes := amino.MustMarshal(block.LastCommit)
-	bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes)
+	mustSet(batch, calcBlockCommitKey(height-1), blockCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	seenCommitBytes := amino.MustMarshal(seenCommit)
-	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
+	mustSet(batch, calcSeenCommitKey(height), seenCommitBytes)
 
 	// Save new BlockStoreStateJSON descriptor
-	BlockStoreStateJSON{Height: height}.Save(bs.db)
+	mustSet(batch, blockStoreKey, BlockStoreStateJSON{Height: height}.bytes())
+
+	// Flush
+	if err := batch.WriteSync(); err != nil {
+		panic(fmt.Sprintf("failed to save block at height %d: %v", height, err))
+	}
 
 	// Done!
 	bs.mtx.Lock()
 	bs.height = height
 	bs.mtx.Unlock()
-
-	// Flush
-	bs.db.SetSync(nil, nil)
 }
 
-func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
-	// Allow the genesis block at any height when the store is empty (InitialHeight > 1).
-	if bs.Height() != 0 && height != bs.Height()+1 {
-		panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
+func mustSet(batch dbm.Batch, key, value []byte) {
+	if err := batch.Set(key, value); err != nil {
+		panic(fmt.Sprintf("failed to stage block store write: %v", err))
 	}
-	partBytes := amino.MustMarshal(part)
-	bs.db.Set(calcBlockPartKey(height, index), partBytes)
 }
 
 //-----------------------------------------------------------------------------
@@ -247,11 +273,17 @@ type BlockStoreStateJSON struct {
 
 // Save persists the blockStore state to the database as JSON.
 func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
+	if err := db.SetSync(blockStoreKey, bsj.bytes()); err != nil {
+		panic(fmt.Sprintf("Could not save the block store state: %v", err))
+	}
+}
+
+func (bsj BlockStoreStateJSON) bytes() []byte {
 	bytes, err := amino.MarshalJSON(bsj)
 	if err != nil {
 		panic(fmt.Sprintf("Could not marshal state bytes: %v", err))
 	}
-	db.SetSync(blockStoreKey, bytes)
+	return bytes
 }
 
 // LoadBlockStoreStateJSON returns the BlockStoreStateJSON as loaded from disk.
@@ -272,4 +304,48 @@ func LoadBlockStoreStateJSON(db dbm.DB) BlockStoreStateJSON {
 		panic(fmt.Sprintf("Could not unmarshal bytes: %X", bytes))
 	}
 	return bsj
+}
+
+//-----------------------------------------------------------------------------
+
+var flushPointKey = []byte("blockStoreFlushPoint")
+
+// FlushPoint is the record a block-sync flush point writes with the block
+// store's batch, its first write: the window it writes, from the last flush
+// point's height to its own. A crash before its second write, the state's,
+// leaves the block store ahead of the state by that window; the record lets
+// the handshake tell that shape from any other, such as a partial restore,
+// which it refuses as before.
+type FlushPoint struct {
+	From int64 `json:"from"`
+	To   int64 `json:"to"`
+}
+
+// Save writes the record to db, without a sync: it rides in the batch of the
+// block store's held writes.
+func (fp FlushPoint) Save(db dbm.DB) {
+	bytes, err := amino.MarshalJSON(fp)
+	if err != nil {
+		panic(fmt.Sprintf("Could not marshal the flush point: %v", err))
+	}
+	if err := db.Set(flushPointKey, bytes); err != nil {
+		panic(fmt.Sprintf("Could not save the flush point: %v", err))
+	}
+}
+
+// FlushPoint returns the last block-sync flush point's record, and false if
+// there is none.
+func (bs *BlockStore) FlushPoint() (FlushPoint, bool) {
+	bytes, err := bs.db.Get(flushPointKey)
+	if err != nil {
+		panic(err)
+	}
+	if len(bytes) == 0 {
+		return FlushPoint{}, false
+	}
+	var fp FlushPoint
+	if err := amino.UnmarshalJSON(bytes, &fp); err != nil {
+		panic(fmt.Sprintf("Could not unmarshal the flush point: %X", bytes))
+	}
+	return fp, true
 }

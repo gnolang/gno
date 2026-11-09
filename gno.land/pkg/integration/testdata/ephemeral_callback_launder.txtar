@@ -1,0 +1,68 @@
+# MsgRun callbacks run with their ephemeral realm's storage authority.
+
+loadpkg gno.land/r/demo/xtreasury $WORK/xtreasury
+
+## start a new node
+gnoland start
+
+## The read-only visitor must not be able to mutate treasury state.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/script.gno
+stderr 'cannot directly modify readonly tainted object'
+
+## Verify persisted state after the rejected transaction.
+gnokey query vm/qeval --data 'gno.land/r/demo/xtreasury.TreasuryBalance()'
+stdout '1000'
+
+## A visitor can still read foreign state and write its own ephemeral globals.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/read.gno
+stdout 'visited: 1000'
+stdout 'after: 1000'
+stdout 'OK!'
+
+-- xtreasury/gnomod.toml --
+module = "gno.land/r/demo/xtreasury"
+gno = "0.9"
+
+-- xtreasury/xtreasury.gno --
+package xtreasury
+
+type Account struct {
+	Owner   string
+	Balance int
+}
+
+var treasury = &Account{Owner: "system", Balance: 1000}
+
+func Inspect(visit func(*Account)) { visit(treasury) }
+
+func TreasuryBalance() int { return treasury.Balance }
+
+-- script/script.gno --
+package main
+
+import "gno.land/r/demo/xtreasury"
+
+func steal(a *xtreasury.Account) {
+	a.Balance = 999999999
+}
+
+func main() {
+	println("before:", xtreasury.TreasuryBalance())
+	xtreasury.Inspect(steal)
+	println("after:", xtreasury.TreasuryBalance())
+}
+
+-- script/read.gno --
+package main
+
+import "gno.land/r/demo/xtreasury"
+
+var balance int
+
+func read(a *xtreasury.Account) { balance = a.Balance }
+
+func main() {
+	xtreasury.Inspect(read)
+	println("visited:", balance)
+	println("after:", xtreasury.TreasuryBalance())
+}

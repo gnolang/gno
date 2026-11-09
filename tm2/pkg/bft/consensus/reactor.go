@@ -488,8 +488,13 @@ OUTER_LOOP:
 			if prs.ProposalBlockParts == nil {
 				blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
 				if blockMeta == nil {
-					panic(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
-						prs.Height, conR.conS.blockStore.Height()))
+					// A peer announces its own height, so it may name one this node
+					// never stored: any height below InitialHeight on a chain that
+					// started above 1. This routine has no recover.
+					heightLogger.Error("Failed to load block meta for peer block parts",
+						"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockStore.Height())
+					time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+					continue OUTER_LOOP
 				}
 				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				// continue the loop since prs is a copy and not effected by this initialization
@@ -637,7 +642,11 @@ OUTER_LOOP:
 			// which contains precommit signatures for prs.Height.
 			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
 			if commit == nil {
+				// The peer names its own height, so this is nil for every height
+				// below InitialHeight. The sleep is what keeps the loop off the
+				// CPU while the peer sits there.
 				logger.Warn("Failed to load block commit for catchup", "height", prs.Height)
+				time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 				continue OUTER_LOOP
 			}
 			if ps.PickSendVote(commit) {

@@ -24,6 +24,26 @@ func StatusErrorComponent(message string) *View {
 	)
 }
 
+// StatusUserNotFoundComponent is the 404 of a /u/ page. It names the user that
+// was asked for when name is one that could be registered; otherwise, as for a
+// segment that is no name at all, it says so without echoing it.
+func StatusUserNotFoundComponent(name string) *View {
+	body := "This is not a valid user name or address."
+	if name != "" {
+		body = "No user is registered as " + name + "."
+	}
+	return NewTemplateView(
+		StatusViewType,
+		"status",
+		StatusData{
+			Title:      "Error: user not found",
+			Body:       body,
+			ButtonURL:  "/",
+			ButtonText: "Go Back Home",
+		},
+	)
+}
+
 // StatusNoRenderComponent returns a view for non-error notifications when Render() is not implemented.
 // StatusPendingApprovalComponent is shown for a package that was submitted but
 // has not been approved yet.

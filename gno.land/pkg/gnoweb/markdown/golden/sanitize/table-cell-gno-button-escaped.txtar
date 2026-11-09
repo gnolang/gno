@@ -1,0 +1,21 @@
+// MARKDOWNFUNC: TableCell
+// CONTEXT: | %s | b |\n|---|---|\n| c | d |
+-- input.md --
+<gno-button href="https://evil.example" label="Claim" />
+-- output.md --
+\<gno\-button href="https://evil\.example" label="Claim" /\>
+-- output.html --
+<table>
+<thead>
+<tr>
+<th>&lt;gno-button href=&quot;https://evil.example&quot; label=&quot;Claim&quot; /&gt;</th>
+<th>b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c</td>
+<td>d</td>
+</tr>
+</tbody>
+</table>

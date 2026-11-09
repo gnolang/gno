@@ -1,0 +1,65 @@
+{{/* ===================================================================================
+UI - One answered group
+
+A section of the listing: its heading names the kind and the count, as the
+overview's sections do, and its rows are a listing's rows.
+=================================================================================== */}}
+{{ define "omnisearch/group" }}
+{{/* No aria-label: it would promote each group to a landmark and
+     make a screen reader read the heading twice. The h2 titles it. */}}
+{{ $i := .Index }}{{ with .Group }}
+<section class="b-pkg-section b-omni-group" id="results-{{ $i }}">
+  <h2 class="b-pkg-section__header">
+    <span>{{ .Label }}</span>
+    {{/* One pill per heading: an indexer group says so inside its count. */}}
+    {{ if isIndexer .Source }}
+    <span class="count b-omni-count--indexer" title="From an indexer, not from the chain">{{ len .Results }} · indexer</span>
+    {{ else }}<span class="count">{{ len .Results }}</span>{{ end }}
+  </h2>
+
+  {{ with .Err }}
+  {{/* A group that failed still renders. Dropping it would leave the reader
+       thinking the answer was "nothing" when it was "could not ask". */}}
+  <p class="b-omni-notice" role="status">Could not answer: {{ errText . }}</p>
+  {{ end }}
+
+  {{ if .Truncated }}
+  <p class="b-omni-group__notice">{{ or .Notice "Showing part of the answer: more may exist." }}</p>
+  {{ end }}
+
+  {{ if .Results }}
+  <ul class="b-list">
+    {{ range .Results }}{{ template "omnisearch/result" . }}{{ end }}
+  </ul>
+  {{ end }}
+</section>
+{{ end }}
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - One result row
+
+A listing row: icon and name on the left, details and tags on the right. Href
+may be empty: a transaction has no page in gnoweb, and a chain-listed path
+that is not a realm or package gets no link. A row without a link is still an
+answer, so it renders as text rather than as a dead anchor.
+=================================================================================== */}}
+{{ define "omnisearch/result" }}
+<li>
+  <div>
+    {{ if .Href }}<a href="{{ .Href }}">{{ else }}<span class="b-omni-plain">{{ end }}
+      <span class="c-with-icon">
+        <svg class="c-icon" aria-hidden="true"><use href="#{{ rowIcon . }}"></use></svg>
+        <span class="name">{{ .Title }}</span>
+      </span>
+    {{ if .Href }}</a>{{ else }}</span>{{ end }}
+    {{ if or .Detail .Tags }}
+    <span class="c-inline b-omni-meta">
+      {{ if .Detail }}<span class="detail" title="{{ .Detail }}">{{ shortDetail . }}</span>{{ end }}
+      {{ range .Tags }}<span class="b-tag--tertiary">{{ . }}</span>{{ end }}
+    </span>
+    {{ end }}
+  </div>
+</li>
+{{ end }}

@@ -26,16 +26,14 @@ _while_sentry_down() { assert_chain_halted val1 30; }
 
 rotate_sentry_ip sentry1 _while_sentry_down
 
-# BUG: once peer discovery handles sentry IP rotation correctly, val4 and val5
-# should reconnect and the chain should resume. On unpatched master, val4/val5
-# retain the old sentry IP and cannot discover the new one, so the chain
-# remains halted. When fixed, replace the assertion below with:
-#   assert_chain_advances val1 120 2
-#   sync_target="$(node_height val1)"
-#   wait_for_height val4 "$sync_target" 120
-#   wait_for_height val5 "$sync_target" 120
-#   assert_chain_advances val4 60 2
-#   assert_chain_advances val5 60 2
-assert_chain_halted val1 30
+# Once the sentry is back under a new IP, val4 and val5 must re-resolve its
+# hostname on redial, reconnect, and bring the validator set back above the
+# 2/3 threshold, so the chain resumes and both catch up to the chain head.
+assert_chain_advances val1 120 2
+sync_target="$(node_height val1)"
+wait_for_height val4 "$sync_target" 120
+wait_for_height val5 "$sync_target" 120
+assert_chain_advances val4 60 2
+assert_chain_advances val5 60 2
 
 print_cluster_status

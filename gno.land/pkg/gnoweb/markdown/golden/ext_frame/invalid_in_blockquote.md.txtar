@@ -1,0 +1,10 @@
+-- input.md --
+> <gno-frame>
+> inside quote
+> </gno-frame>
+-- output.html --
+<blockquote>
+<!-- unexpected/invalid frame tag omitted -->
+<p>inside quote</p>
+<!-- unexpected/invalid frame tag omitted -->
+</blockquote>

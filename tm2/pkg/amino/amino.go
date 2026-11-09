@@ -172,6 +172,14 @@ func MustUnmarshal(bz []byte, ptr any) {
 	gcdc.MustUnmarshal(bz, ptr)
 }
 
+func UnmarshalCanonical(bz []byte, ptr any) error {
+	return gcdc.UnmarshalCanonical(bz, ptr)
+}
+
+func CheckCanonical(bz []byte, ptr any) error {
+	return gcdc.CheckCanonical(bz, ptr)
+}
+
 func UnmarshalSized(bz []byte, ptr any) error {
 	return gcdc.UnmarshalSized(bz, ptr)
 }
@@ -1138,6 +1146,57 @@ func (cdc *Codec) MustUnmarshal(bz []byte, ptr any) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// UnmarshalCanonical decodes bz into ptr like Unmarshal, then rejects bz
+// unless it is byte-for-byte what Marshal produces for the decoded value.
+//
+// Amino, like protobuf, accepts several encodings of one value: a default
+// field written out (an empty string as `tag 0x00`) instead of omitted, a
+// non-minimal varint for a tag, a length or a number, and so on. Anything
+// that identifies a message by hashing its wire bytes, such as a transaction
+// in a block, must check it with this function or with CheckCanonical, or the
+// same message circulates under as many hashes as it has encodings. On
+// untrusted input prefer Unmarshal, then validation, then CheckCanonical:
+// re-encoding a value can cost far more than decoding it.
+func (cdc *Codec) UnmarshalCanonical(bz []byte, ptr any) error {
+	// Unmarshal accepts **T as well as *T, and its reflect path decodes
+	// through any depth of pointers; Marshal takes one level and panics on
+	// more. Refuse the deeper forms here, before decoding.
+	rv := reflect.ValueOf(ptr)
+	if rv.Kind() != reflect.Pointer {
+		return ErrNoPointer
+	}
+	if rv.Elem().Kind() == reflect.Pointer && rv.Type().Elem().Elem().Kind() == reflect.Pointer {
+		return fmt.Errorf("UnmarshalCanonical: nested pointers not allowed (%v)", rv.Type())
+	}
+	if err := cdc.Unmarshal(bz, ptr); err != nil {
+		return err
+	}
+	if rv.Elem().Kind() == reflect.Pointer {
+		ptr = rv.Elem().Interface()
+	}
+	return cdc.CheckCanonical(bz, ptr)
+}
+
+// CheckCanonical rejects bz unless it is byte-for-byte what Marshal produces
+// for ptr, a *T holding the value bz was decoded into. It is
+// UnmarshalCanonical without the Unmarshal, for a caller that validates the
+// decoded value before paying for the re-encoding.
+func (cdc *Codec) CheckCanonical(bz []byte, ptr any) error {
+	canonical, err := cdc.Marshal(ptr)
+	if err != nil {
+		return fmt.Errorf("re-encoding %v: %w", reflect.TypeOf(ptr).Elem(), err)
+	}
+	if !bytes.Equal(bz, canonical) {
+		i := 0
+		for i < len(bz) && i < len(canonical) && bz[i] == canonical[i] {
+			i++
+		}
+		return fmt.Errorf("non-canonical encoding of %v: first difference at byte %d (%d bytes given, %d canonical)",
+			reflect.TypeOf(ptr).Elem(), i, len(bz), len(canonical))
+	}
+	return nil
 }
 
 // UnmarshalAny decodes the registered object

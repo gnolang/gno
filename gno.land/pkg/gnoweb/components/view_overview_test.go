@@ -2,6 +2,7 @@ package components
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -57,4 +58,29 @@ func TestOverviewView_TypeCardFoldsMethodNamesIntoDataName(t *testing.T) {
 	require.NoError(t, OverviewView(data).Render(&buf))
 	require.Contains(t, buf.String(), `data-name="Config Load"`,
 		"type card data-name must fold in method names so the filter can find methods")
+}
+
+// Only the stdlib row leaves the site.
+func TestOverviewView_StdlibImportLeavesTheSite(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	data := BuildOverview(OverviewInput{
+		URL:         u,
+		Files:       []string{"foo.gno"},
+		Doc:         &doc.JSONDocumentation{Imports: []string{"gno.land/p/demo/avl", "strings"}},
+		DocRenderer: noopRenderer{},
+		Domain:      "gno.land",
+	})
+
+	var buf bytes.Buffer
+	require.NoError(t, OverviewView(data).Render(&buf))
+	out := buf.String()
+
+	require.Contains(t, out, `href="`+stdlibSourceBase+`strings" class="b-pkg-list__link" rel="noopener noreferrer"`)
+	require.Contains(t, out, `<a href="/p/demo/avl" class="b-pkg-list__link">`,
+		"an on-site import carries no rel and no external icon")
+	require.Equal(t, 1, strings.Count(out, `<use href="#ico-external-link">`),
+		"only the stdlib row is marked outbound")
 }
