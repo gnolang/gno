@@ -146,6 +146,5 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		dbProvider,
 		evsw,
 		logger,
-		node.WithCodeExecutionQueryPaths(vm.CodeExecutionQueryPaths...),
 	)
 }

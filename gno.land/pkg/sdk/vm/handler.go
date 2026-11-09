@@ -114,22 +114,37 @@ const (
 	QueryInertPaths = "qinertpaths"
 )
 
-// CodeExecutionQueryPaths are the query paths that run code in a machine,
-// through withQueryEvalMachine. A node refuses them over RPC when its
-// rpc.allow_code_execution is false.
-var CodeExecutionQueryPaths = []string{
-	RouterKey + "/" + QueryRender,
-	RouterKey + "/" + QueryEval,
-	RouterKey + "/" + QueryEvalJSON,
+// queryEndpoint returns the endpoint Query serves for path: its second
+// segment, cut at '?'. ok is false when Query serves nothing for path.
+func queryEndpoint(path string) (endpoint string, ok bool) {
+	endpoint, ok = secondPart(path)
+	if i := strings.IndexByte(endpoint, '?'); i >= 0 { // cut query
+		endpoint = endpoint[:i]
+	}
+	return endpoint, ok
+}
+
+// QueryRunsCode implements abci.CodeExecutionQuerier: these endpoints run code
+// in a machine, through withQueryEvalMachine.
+func (vh vmHandler) QueryRunsCode(path string) bool {
+	endpoint, ok := queryEndpoint(path)
+	if !ok {
+		return false
+	}
+	switch endpoint {
+	case QueryRender, QueryEval, QueryEvalJSON:
+		return true
+	}
+	return false
 }
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	path := secondPart(req.Path)
-	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
-		path = path[:i]
+	endpoint, ok := queryEndpoint(req.Path)
+	if !ok {
+		panic("should not happen")
 	}
-
-	switch path {
+	// A case that runs code in a machine also belongs in QueryRunsCode.
+	switch endpoint {
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
@@ -159,10 +174,11 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 	case QueryTypeJSON:
 		res = vh.queryType(ctx, req)
 	default:
+		second, _ := secondPart(req.Path)
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
 				"unknown vm query endpoint %s in %s",
-				secondPart(req.Path), req.Path)))
+				second, req.Path)))
 	}
 
 	return res
@@ -422,15 +438,12 @@ func abciResult(err error) sdk.Result {
 	return res
 }
 
-// returns the second component of a path.
-func secondPart(path string) string {
+// returns the second component of a path, and false when the first
+// component is not "vm".
+func secondPart(path string) (string, bool) {
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
-		return ""
-	} else {
-		if parts[0] != "vm" {
-			panic("should not happen")
-		}
-		return parts[1]
+		return "", true
 	}
+	return parts[1], parts[0] == "vm"
 }

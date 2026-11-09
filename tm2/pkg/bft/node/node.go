@@ -178,13 +178,6 @@ func WithEarlyStart() Option {
 	}
 }
 
-// WithCodeExecutionQueryPaths sets the RPC Environment's CodeExecutionQueryPaths.
-func WithCodeExecutionQueryPaths(paths ...string) Option {
-	return func(n *Node) {
-		n.codeExecutionQueryPaths = paths
-	}
-}
-
 // ------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
@@ -221,8 +214,8 @@ type Node struct {
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
 
-	earlyStart              bool // start RPC+P2P before genesis time, defer only consensus
-	codeExecutionQueryPaths []string
+	earlyStart    bool                   // start RPC+P2P before genesis time, defer only consensus
+	queryRunsCode func(path string) bool // from an abci.CodeExecutionQuerier app; nil otherwise
 }
 
 // initDBs opens the block store's and the state's databases, wrapped so that
@@ -600,9 +593,14 @@ func NewNode(config *cfg.Config,
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create blockchain reactor")
 	}
+	var queryRunsCode func(path string) bool
 	if local, ok := clientCreator.(interface{ LocalApp() abci.Application }); ok {
-		if app, ok := local.LocalApp().(abci.DeferredCommitter); ok {
-			bcReactor.SetDeferredWrites(app)
+		app := local.LocalApp()
+		if dc, ok := app.(abci.DeferredCommitter); ok {
+			bcReactor.SetDeferredWrites(dc)
+		}
+		if q, ok := app.(abci.CodeExecutionQuerier); ok {
+			queryRunsCode = q.QueryRunsCode
 		}
 	}
 
@@ -735,6 +733,7 @@ func NewNode(config *cfg.Config,
 		txEventStore:      txEventStore,
 		eventStoreService: eventStoreService,
 		firstBlockSignal:  cFirstBlock,
+		queryRunsCode:     queryRunsCode,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -902,8 +901,7 @@ func (n *Node) configureRPC() {
 		GetFastSync:   n.consensusReactor.FastSync,
 		Logger:        n.Logger.With("module", "rpc"),
 		Config:        *n.config.RPC,
-
-		CodeExecutionQueryPaths: n.codeExecutionQueryPaths,
+		QueryRunsCode: n.queryRunsCode,
 	}
 }
 

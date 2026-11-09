@@ -480,6 +480,46 @@ func newTestHandler(proc func(Context, Msg) Result) Handler {
 	}
 }
 
+// codeQueryHandler is a handler whose query "code/run" runs code.
+type codeQueryHandler struct{ testHandler }
+
+func (codeQueryHandler) QueryRunsCode(path string) bool { return path == "code/run" }
+
+func TestQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t, func(bapp *BaseApp) {
+		bapp.Router().AddRoute("code", codeQueryHandler{})
+		bapp.Router().AddRoute("plain", testHandler{})
+	})
+
+	runsCode := []string{
+		".app/simulate",
+		"/.app/simulate",
+		".app/simulate/x",
+		"code/run",
+	}
+	runsNoCode := []string{
+		"",
+		"/",
+		".app",
+		".app/version",
+		".app/simulatex",
+		".app/simulate?x", // handleQueryApp reads "simulate?x", an unknown query
+		"//.app/simulate", // routed to the empty name, which has no handler
+		".store/main/key",
+		"code/other",
+		"plain/run", // its handler does not implement abci.CodeExecutionQuerier
+		"none/run",
+	}
+	for _, path := range runsCode {
+		assert.True(t, app.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, app.QueryRunsCode(path), "path %q", path)
+	}
+}
+
 type msgCounterHandler struct {
 	t          *testing.T
 	capKey     store.StoreKey

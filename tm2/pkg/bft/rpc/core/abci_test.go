@@ -42,56 +42,49 @@ func (c *recordingQueryConn) received() []string {
 	return append([]string(nil), c.paths...)
 }
 
+// codeRunningPaths are the paths newCodeExecutionEnv's app runs code on.
+var codeRunningPaths = []string{".app/simulate", "vm/qeval", "vm/qeval_json"}
+
 // newCodeExecutionEnv returns an Environment whose app runs code on
-// vm/qeval and vm/qeval_json, beside .app/simulate.
+// codeRunningPaths.
 func newCodeExecutionEnv(allow bool) (*Environment, *recordingQueryConn) {
 	conn := &recordingQueryConn{}
 	rpcConfig := cfg.DefaultRPCConfig()
 	rpcConfig.AllowCodeExecution = allow
 	return &Environment{
-		ProxyAppQuery:           conn,
-		Logger:                  log.NewNoopLogger(),
-		Config:                  *rpcConfig,
-		CodeExecutionQueryPaths: []string{"vm/qeval", "vm/qeval_json"},
+		ProxyAppQuery: conn,
+		Logger:        log.NewNoopLogger(),
+		Config:        *rpcConfig,
+		QueryRunsCode: func(path string) bool { return slices.Contains(codeRunningPaths, path) },
 	}, conn
 }
 
 func TestABCIQuery_AllowCodeExecution(t *testing.T) {
 	t.Parallel()
 
-	runsCode := []string{
-		".app/simulate",
-		"/.app/simulate",
-		".app/simulate/x",
-		"vm/qeval",
-		"/vm/qeval",
-		"vm/qeval?x=1",
-		"vm/qeval/x",
-		"vm/qeval_json",
-		"vm/qeval_json?x=1",
-	}
-	runsNoCode := []string{
-		".app/version",
-		".app/simulatex",
-		"vm/qfile",
-		"vm/qevalx",
-		"vm/qeva",
-		"vmx/qeval",
-		"vm",
-		"auth/accounts/g1x",
-	}
+	runsCode := codeRunningPaths
+	runsNoCode := []string{".app/version", "vm/qfile", "auth/accounts/g1x"}
 
-	t.Run("true serves every path", func(t *testing.T) {
-		t.Parallel()
+	for name, setup := range map[string]func(*Environment){
+		"true serves every path": func(*Environment) {},
+		"false serves every path for an app that cannot tell": func(env *Environment) {
+			env.Config.AllowCodeExecution = false
+			env.QueryRunsCode = nil
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-		env, conn := newCodeExecutionEnv(true)
-		all := slices.Concat(runsCode, runsNoCode)
-		for _, path := range all {
-			_, err := env.ABCIQuery(&rpctypes.Context{}, path, nil, 0, false)
-			assert.NoError(t, err, "path %q", path)
-		}
-		assert.Equal(t, all, conn.received())
-	})
+			env, conn := newCodeExecutionEnv(true)
+			setup(env)
+			all := slices.Concat(runsCode, runsNoCode)
+			for _, path := range all {
+				_, err := env.ABCIQuery(&rpctypes.Context{}, path, nil, 0, false)
+				assert.NoError(t, err, "path %q", path)
+			}
+			assert.Equal(t, all, conn.received())
+		})
+	}
 
 	t.Run("false refuses the paths that run code", func(t *testing.T) {
 		t.Parallel()

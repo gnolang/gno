@@ -584,6 +584,38 @@ var myStructInst = myStruct{a: 1000}
 	assert.NotEmpty(t, res.Data, "binary response should not be empty")
 }
 
+func TestVmHandlerQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	runsCode := []string{
+		"vm/qrender",
+		"vm/qrender?x",
+		"vm/qeval",
+		"vm/qeval?x=1",
+		"vm/qeval/x",
+		"vm/qeval?x/y",
+		"vm/qeval_json",
+		"vm/qeval_json?x=1",
+	}
+	runsNoCode := []string{
+		"vm",
+		"vm/",
+		"vm/qfile",
+		"vm/qfuncs",
+		"vm/qevalx",
+		"vm/qeva",
+		"/vm/qeval", // Query panics on it before serving anything
+		"vmx/qeval",
+	}
+	vh := NewHandler(nil)
+	for _, path := range runsCode {
+		assert.True(t, vh.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, vh.QueryRunsCode(path), "path %q", path)
+	}
+}
+
 func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
 	env := setupTestEnv()
 	vmHandler := env.vmh
