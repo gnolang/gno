@@ -584,6 +584,23 @@ var myStructInst = myStruct{a: 1000}
 	assert.NotEmpty(t, res.Data, "binary response should not be empty")
 }
 
+func Test_secondPart(t *testing.T) {
+	t.Parallel()
+
+	for path, want := range map[string]string{
+		"vm/qeval":     "qeval",
+		"vm/qeval/x":   "qeval",
+		"vm/qeval?x/y": "qeval?x",
+		"vm/":          "",
+		"vm":           "",
+		"/vm/qeval":    "",
+		"/vm/vm":       "",
+		"vmx/qeval":    "",
+	} {
+		assert.Equal(t, want, secondPart(path), "path %q", path)
+	}
+}
+
 // BaseApp drops one leading "/" to pick a route, so "/vm/..." reaches this
 // handler with its first segment empty. It is an unknown endpoint, as it is for
 // the auth and bank handlers.

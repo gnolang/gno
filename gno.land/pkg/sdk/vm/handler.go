@@ -413,10 +413,11 @@ func abciResult(err error) sdk.Result {
 	return res
 }
 
-// returns the path after its "vm/" prefix, or "" when it has none.
+// returns the second component of a path, or "" when the first is not "vm".
 func secondPart(path string) string {
 	if !strings.HasPrefix(path, "vm/") {
 		return ""
 	}
-	return path[len("vm/"):]
+	second, _, _ := strings.Cut(path[len("vm/"):], "/")
+	return second
 }
