@@ -128,6 +128,11 @@ type ConsensusState struct {
 	// addProposalBlockPart refused, for a replayed precommit to lock on.
 	droppedParts *types.PartSet
 
+	// proposalCheck is ValidateBlock's result for proposalChecked, so that
+	// prevote, voteTime, precommit and commit check a proposal block once.
+	proposalChecked *types.Block
+	proposalCheck   error
+
 	// state changes may be triggered by: msgs from peers,
 	// msgs from ourself, or by timeouts
 	peerMsgQueue     chan msgInfo
@@ -595,6 +600,8 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	cs.LockedBlock = nil
 	cs.LockedBlockParts = nil
 	cs.droppedParts = nil
+	cs.proposalChecked = nil
+	cs.proposalCheck = nil
 	cs.ValidRound = -1
 	cs.ValidBlock = nil
 	cs.ValidBlockParts = nil
@@ -1086,7 +1093,7 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 	}
 
 	// Validate proposal block
-	err := cs.state.ValidateBlock(cs.ProposalBlock)
+	err := cs.validateProposalBlock()
 	if err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
@@ -1199,7 +1206,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if cs.ProposalBlock.HashesTo(blockID.Hash) && cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.Hash)
 		// Validate the block.
-		if err := cs.state.ValidateBlock(cs.ProposalBlock); err != nil {
+		if err := cs.validateProposalBlock(); err != nil {
 			panic(fmt.Sprintf("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1413,7 +1420,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	if !block.HashesTo(blockID.Hash) {
 		panic("Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
 	}
-	if err := cs.state.ValidateBlock(block); err != nil {
+	if err := cs.validateProposalBlock(); err != nil {
 		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
 	}
 
@@ -1895,12 +1902,12 @@ func (cs *ConsensusState) voteTime() time.Time {
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://docs.cometbft.com/v0.38/spec/consensus/bft-time
 		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
-	} else if cs.ProposalBlock != nil {
+	} else if cs.ProposalBlock != nil && cs.validateProposalBlock() == nil {
+		// An invalid block's time is its proposer's pick, and nil votes count
+		// toward the next block's time, so only a valid block sets the floor.
 		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
 	}
-	// The proposer picks the block time, and the node still signs a nil vote
-	// for a block ValidateBlock rejects. Past maxVoteTime, Vote.SignBytes
-	// panics and halts consensus.
+	// Past maxVoteTime, Vote.SignBytes panics and halts consensus.
 	if minVoteTime.After(maxVoteTime) {
 		minVoteTime = maxVoteTime
 	}
@@ -1909,6 +1916,15 @@ func (cs *ConsensusState) voteTime() time.Time {
 		return now
 	}
 	return minVoteTime
+}
+
+// validateProposalBlock runs ValidateBlock on cs.ProposalBlock once per block.
+func (cs *ConsensusState) validateProposalBlock() error {
+	if cs.proposalChecked != cs.ProposalBlock {
+		cs.proposalChecked = cs.ProposalBlock
+		cs.proposalCheck = cs.state.ValidateBlock(cs.ProposalBlock)
+	}
+	return cs.proposalCheck
 }
 
 func (cs *ConsensusState) existingSignedVote(type_ types.SignedMsgType, address crypto.Address) *types.Vote {

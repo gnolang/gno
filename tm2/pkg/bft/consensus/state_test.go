@@ -398,7 +398,7 @@ func TestStateBadProposal(t *testing.T) {
 }
 
 // A proposed block whose time is the latest amino encodes must not stop the
-// node from signing its nil votes, stamped with the block time plus TimeIotaMS.
+// node from signing its nil votes, and they carry the local clock.
 func TestStateProposalBlockTimeAtEncodingLimit(t *testing.T) {
 	t.Parallel()
 
@@ -441,9 +441,9 @@ func TestStateProposalBlockTimeAtEncodingLimit(t *testing.T) {
 	// ValidateBlock rejects the block, so the node prevotes nil.
 	ensurePrevote(voteCh, height, round)
 	validatePrevote(cs1, round, vss[0], nil)
-	prevote := cs1.Votes.Prevotes(round).GetByAddress(vss[0].PubKey().Address())
-	if !prevote.Timestamp.Equal(maxVoteTime) {
-		t.Fatalf("expected prevote time %v, got %v", maxVoteTime, prevote.Timestamp)
+	address := vss[0].PubKey().Address()
+	if ts := cs1.Votes.Prevotes(round).GetByAddress(address).Timestamp; !ts.Before(propBlock.Time) {
+		t.Fatalf("prevote time %v, want the local clock", ts)
 	}
 
 	signAddVotes(cs1, types.PrevoteType, propBlock.Hash(), propBlockParts.Header(), vs2)
@@ -451,6 +451,63 @@ func TestStateProposalBlockTimeAtEncodingLimit(t *testing.T) {
 
 	ensurePrecommit(voteCh, height, round)
 	validatePrecommit(t, cs1, round, -1, vss[0], nil, nil)
+	if ts := cs1.Votes.Precommits(round).GetByAddress(address).Timestamp; !ts.Before(propBlock.Time) {
+		t.Fatalf("precommit time %v, want the local clock", ts)
+	}
+}
+
+// An invalid block that completes after the node prevoted is never checked by
+// the prevote step, and the nil precommit must not take its time either.
+func TestStateLateInvalidProposalBlockTime(t *testing.T) {
+	t.Parallel()
+
+	cs1, vss := randConsensusState(2)
+	height, round := cs1.Height, cs1.Round
+	vs2 := vss[1]
+
+	partSize := types.BlockPartSizeBytes
+
+	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
+	voteCh := subscribe(cs1.evsw, types.EventVote{})
+
+	propBlock, _ := cs1.createProposalBlock()
+
+	// make the second validator the proposer by incrementing round
+	round++
+	incrementRound(vss[1:]...)
+
+	propBlock.Time = time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC)
+	propBlockParts := propBlock.MakePartSet(partSize)
+	blockID := types.BlockID{Hash: propBlock.Hash(), PartsHeader: propBlockParts.Header()}
+	proposal := types.NewProposal(vs2.Height, round, -1, blockID)
+	if err := vs2.SignProposal(config.ChainID(), proposal); err != nil {
+		t.Fatal("failed to sign proposal", err)
+	}
+
+	startFrom(cs1, height, round)
+	defer func() {
+		cs1.Stop()
+		cs1.Wait()
+	}()
+	defer ensureDrainedChannels(t, proposalCh, voteCh)
+
+	// No proposal yet, so the node prevotes nil when propose times out.
+	ensurePrevote(voteCh, height, round)
+	validatePrevote(cs1, round, vss[0], nil)
+
+	if err := cs1.SetProposalAndBlock(proposal, propBlock, propBlockParts, "some peer"); err != nil {
+		t.Fatal(err)
+	}
+	ensureProposal(proposalCh, height, round, blockID)
+
+	signAddVotes(cs1, types.PrevoteType, propBlock.Hash(), propBlockParts.Header(), vs2)
+	ensurePrevote(voteCh, height, round)
+
+	ensurePrecommit(voteCh, height, round)
+	validatePrecommit(t, cs1, round, -1, vss[0], nil, nil)
+	if ts := cs1.Votes.Precommits(round).GetByAddress(vss[0].PubKey().Address()).Timestamp; !ts.Before(propBlock.Time) {
+		t.Fatalf("precommit time %v, want the local clock", ts)
+	}
 }
 
 // A vote time derived from a locked block is capped too.
@@ -464,6 +521,43 @@ func TestVoteTimeLockedBlockAtEncodingLimit(t *testing.T) {
 		if got := cs1.voteTime(); !got.Equal(maxVoteTime) {
 			t.Fatalf("locked at %v: vote time %v, want %v", locked, got, maxVoteTime)
 		}
+	}
+}
+
+// A valid proposal block at the encoding limit still needs the maxVoteTime cap.
+func TestVoteTimeValidProposalBlockAtEncodingLimit(t *testing.T) {
+	t.Parallel()
+
+	cs1, _ := randConsensusState(1)
+	cs1.state.LastBlockTime = maxVoteTime
+	cs1.ProposalBlock, _ = cs1.createProposalBlock()
+	if got := cs1.voteTime(); !got.Equal(maxVoteTime) {
+		t.Fatalf("vote time %v, want %v", got, maxVoteTime)
+	}
+}
+
+// voteTime takes a proposal block's time only from a block ValidateBlock
+// accepts; an invalid block's time is the proposer's pick.
+func TestVoteTimeInvalidProposalBlock(t *testing.T) {
+	t.Parallel()
+
+	cs1, _ := randConsensusState(1)
+	// A first block is valid at the genesis time, so move that to the future.
+	future := time.Now().Add(time.Hour).UTC()
+	cs1.state.LastBlockTime = future
+	timeIota := time.Duration(cs1.state.ConsensusParams.Block.TimeIotaMS) * time.Millisecond
+
+	valid, _ := cs1.createProposalBlock()
+	cs1.ProposalBlock = valid
+	if got := cs1.voteTime(); !got.Equal(future.Add(timeIota)) {
+		t.Fatalf("valid block: vote time %v, want %v", got, future.Add(timeIota))
+	}
+
+	invalid, _ := cs1.createProposalBlock()
+	invalid.AppHash = append([]byte{1}, invalid.AppHash...)
+	cs1.ProposalBlock = invalid
+	if got := cs1.voteTime(); !got.Before(future) {
+		t.Fatalf("invalid block: vote time %v, want the local clock", got)
 	}
 }
 
