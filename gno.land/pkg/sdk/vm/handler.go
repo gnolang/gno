@@ -418,10 +418,6 @@ func secondPart(path string) string {
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
 		return ""
-	} else {
-		if parts[0] != "vm" {
-			panic("should not happen")
-		}
-		return parts[1]
 	}
+	return parts[1]
 }

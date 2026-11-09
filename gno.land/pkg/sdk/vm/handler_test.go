@@ -584,6 +584,21 @@ var myStructInst = myStruct{a: 1000}
 	assert.NotEmpty(t, res.Data, "binary response should not be empty")
 }
 
+// BaseApp drops one leading "/" to pick a route, so "/vm/..." reaches this
+// handler with its first segment empty. It is an unknown endpoint, as it is for
+// the auth and bank handlers.
+func TestVmHandlerQuery_LeadingSlash(t *testing.T) {
+	env := setupTestEnv()
+	for _, path := range []string{"/vm/qeval", "/vm/qrender", "/vm/qfile"} {
+		var res abci.ResponseQuery
+		require.NotPanics(t, func() {
+			res = env.vmh.Query(env.ctx, abci.RequestQuery{Path: path, Data: []byte("gno.land/r/x.F()")})
+		}, "path %q", path)
+		assert.False(t, res.IsOK(), "path %q", path)
+		assert.Contains(t, res.Error.Error(), "unknown request", "path %q", path)
+	}
+}
+
 func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
 	env := setupTestEnv()
 	vmHandler := env.vmh
