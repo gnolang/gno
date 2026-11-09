@@ -37,14 +37,22 @@ func main(cur realm) {
 		v, _ = src["k"]
 		_ = v
 	}))
-	n := 0
+	// A refused range writes nothing from its iteration, the key included.
+	n, i, k := 0, -1, "unset"
 	println(catch(func() {
 		var v launderrvictim.Immutable
-		for _, v = range []struct{ Field string }{{"x"}} {
+		for i, v = range []struct{ Field string }{{"x"}} {
 			n++
 		}
 		_ = v
-	}), n)
+	}), n, i)
+	println(catch(func() {
+		var v launderrvictim.Immutable
+		for k, v = range map[string]struct{ Field string }{"key0": {"x"}} {
+			n++
+		}
+		_ = v
+	}), n, k)
 	println("after")
 }
 
@@ -55,5 +63,6 @@ func main(cur realm) {
 // illegal conversion to external realm type
 // illegal conversion to external realm type
 // illegal conversion to external realm type
-// illegal conversion to external realm type 0
+// illegal conversion to external realm type 0 -1
+// illegal conversion to external realm type 0 unset
 // after

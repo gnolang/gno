@@ -66,6 +66,11 @@ on the stack to unwind, so a refusal there stays a Go panic.
   iterations before it, and a `T(x)` that used to end the transaction no longer
   does. An unrecovered refusal still reverts the whole transaction, after the
   deferred functions run.
+- A range assignment reads and converts its values before writing the key, as Go
+  evaluates an assignment's operands first, so a refused value writes nothing from
+  its iteration. A key target aliasing the ranged element now reads it as Go does:
+  `for s[1], v = range s` gives `v` the 0 iteration 0 wrote to `s[1]`, where it
+  read its own key's 1 before.
 - A comma-ok `ok` going into a declared bool has that type, as in Go, and pays one
   conversion.
 - `var a, b T = f()` is `gno-fixes#342`'s.

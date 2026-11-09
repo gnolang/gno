@@ -230,6 +230,29 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
+			// Read the element, and convert it, before the key is written,
+			// as an assignment evaluates its operands first: a refused
+			// conversion then writes nothing from its iteration.
+			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			var ev TypedValue
+			if hasValue {
+				// In Go, `for i, v := range nilPtrToArray` panics because
+				// reading `v` requires dereferencing the nil pointer.
+				if op == OpRangeIterArrayPtr && xv.V == nil {
+					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
+					return
+				}
+				var ok bool
+				ev, ok = xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
+				if !ok {
+					iv := TypedValue{T: IntType}
+					iv.SetInt(int64(bs.ListIndex))
+					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
+				}
+				if bs.Op == ASSIGN {
+					ev = m.convertRangeTarget(bs.Value, ev)
+				}
+			}
 			if bs.Key != nil {
 				iv := TypedValue{T: IntType}
 				iv.SetInt(int64(bs.ListIndex))
@@ -244,22 +267,10 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
-				// In Go, `for i, v := range nilPtrToArray` panics because
-				// reading `v` requires dereferencing the nil pointer.
-				if op == OpRangeIterArrayPtr && xv.V == nil {
-					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
-					return
-				}
-				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
-				if !ok {
-					iv := TypedValue{T: IntType}
-					iv.SetInt(int64(bs.ListIndex))
-					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
-				}
+			if hasValue {
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, m.convertRangeTarget(bs.Value, ev), false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
@@ -434,11 +445,26 @@ func (m *Machine) doOpExec(op Op) {
 			fallthrough
 		case -1: // assign list element.
 			next := bs.NextItem
+			// Read and convert both before either is written, as an
+			// assignment does: a refused conversion writes nothing from its
+			// iteration.
+			var kv, vv TypedValue
 			if bs.Key != nil {
-				kv := *fillValueTV(m.Store, &next.Key)
+				kv = *fillValueTV(m.Store, &next.Key)
+				if bs.Op == ASSIGN {
+					kv = m.convertRangeTarget(bs.Key, kv)
+				}
+			}
+			if bs.Value != nil {
+				vv = *fillValueTV(m.Store, &next.Value)
+				if bs.Op == ASSIGN {
+					vv = m.convertRangeTarget(bs.Value, vv)
+				}
+			}
+			if bs.Key != nil {
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, m.convertRangeTarget(bs.Key, kv), false)
+					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
@@ -448,10 +474,9 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			}
 			if bs.Value != nil {
-				vv := *fillValueTV(m.Store, &next.Value)
 				switch bs.Op {
 				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, m.convertRangeTarget(bs.Value, vv), false)
+					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
