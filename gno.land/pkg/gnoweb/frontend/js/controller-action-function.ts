@@ -231,10 +231,12 @@ export class ActionFunctionController extends BaseController {
 	private async _fetchQEval(remote: string, data: string): Promise<string> {
 		try {
 			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
-			if (!response.ok) return "";
+			// A node that refuses the query answers with a JSON-RPC error,
+			// over HTTP 403 when it does not allow code execution.
+			const json = await (await fetch(url)).json();
+			if (json.error) return `Error: ${json.error.data}`;
 
-			const result = (await response.json()).result.response.ResponseBase;
+			const result = json.result.response.ResponseBase;
 			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
 		} catch {
 			return "";
