@@ -14,6 +14,8 @@ func mk() (struct{ Field string }, bool) { return struct{ Field string }{"x"}, t
 
 func ret() (launderrvictim.Immutable, bool) { return mk() }
 
+func take(launderrvictim.Immutable, bool) {}
+
 func catch(f func()) (msg string) {
 	defer func() { msg = recover().(string) }()
 	f()
@@ -27,6 +29,22 @@ func main(cur realm) {
 	}))
 	println(catch(func() { _, _ = ret() }))
 	println(catch(func() { launderattack.Convert(laundervictim.GetImm()) }))
+	println(catch(func() { take(mk()) }))
+	println(catch(func() { defer take(mk()) }))
+	println(catch(func() {
+		var v launderrvictim.Immutable
+		src := map[string]struct{ Field string }{"k": {"x"}}
+		v, _ = src["k"]
+		_ = v
+	}))
+	n := 0
+	println(catch(func() {
+		var v launderrvictim.Immutable
+		for _, v = range []struct{ Field string }{{"x"}} {
+			n++
+		}
+		_ = v
+	}), n)
 	println("after")
 }
 
@@ -34,4 +52,8 @@ func main(cur realm) {
 // illegal conversion to external realm type
 // illegal conversion to external realm type
 // illegal conversion of readonly or externally stored value
+// illegal conversion to external realm type
+// illegal conversion to external realm type
+// illegal conversion to external realm type
+// illegal conversion to external realm type 0
 // after

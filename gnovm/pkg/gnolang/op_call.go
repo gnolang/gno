@@ -9,6 +9,8 @@ import (
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
 	// `g(f())`: convert before the frame can move m.Realm to a receiver's realm.
+	// The length check holds wherever preprocess set the attribute, and spares
+	// every other call the attribute lookup.
 	if len(cx.Args) == 1 && cx.NumArgs > 1 {
 		if convs, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 			m.convertResults(convs)
@@ -970,8 +972,11 @@ func (m *Machine) doOpDefer() {
 	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
 	// the deferred call to one of g's results instead of to f.
 	numArgs := ds.Call.NumArgs
-	if convs, ok := ds.Call.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
-		m.convertResults(convs)
+	// The length check is doOpPrecall's.
+	if len(ds.Call.Args) == 1 && numArgs > 1 {
+		if convs, ok := ds.Call.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+			m.convertResults(convs)
+		}
 	}
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)

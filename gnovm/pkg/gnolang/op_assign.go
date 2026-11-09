@@ -53,13 +53,7 @@ func (m *Machine) doOpAssign() {
 	// the results are still on m.Values: Copy can allocate and so run GC,
 	// which counts live bytes from m.Values and would miss popped ones.
 	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
-		results := m.Values[len(m.Values)-len(s.Lhs):]
-		for i, t := range convs {
-			if t != nil {
-				results[i] = results[i].Copy(m.Alloc, m.Store)
-				m.convertValue(&results[i], t)
-			}
-		}
+		m.convertResults(convs)
 	}
 
 	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.

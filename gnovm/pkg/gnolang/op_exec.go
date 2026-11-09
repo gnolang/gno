@@ -652,7 +652,9 @@ EXEC_SWITCH:
 			}
 		}
 		// The results of `return f()` that need converting are converted
-		// before any of the return ops above reads them.
+		// before any of the return ops above reads them. The length check
+		// holds wherever preprocess set the attribute, and spares every
+		// other return the attribute lookup.
 		if len(cs.Results) == 1 && len(ft.Results) > 1 && cs.GetAttribute(ATTR_ASSIGN_CONVERT) != nil {
 			m.PushStmt(cs)
 			m.PushOp(OpReturnConvert)

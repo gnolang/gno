@@ -2299,11 +2299,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							mustAssignableTo(store, n, tv.T, pt)
 							// A result differing only by name needs the
 							// conversion a single argument gets.
-							if pt.Kind() != InterfaceKind && isNamedConversion(tv.T, pt) {
+							if c := namedConversionTo(tv.T, pt); c != nil {
 								if convs == nil {
 									convs = make([]Type, len(argTVs))
 								}
-								convs[i] = pt
+								convs[i] = c
 							}
 						}
 						if convs != nil {
@@ -2918,12 +2918,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// header, a method.
 							var convs []Type
 							for i, rhsType := range cft.Results {
-								lt := evalStaticTypeOf(store, last, n.Lhs[i])
-								if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(rhsType.Type, lt) {
+								if c := namedConversionTo(rhsType.Type, evalStaticTypeOf(store, last, n.Lhs[i])); c != nil {
 									if convs == nil {
 										convs = make([]Type, len(n.Lhs))
 									}
-									convs[i] = lt
+									convs[i] = c
 								}
 							}
 							if convs != nil {
@@ -2936,9 +2935,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								rt = tt.Elts[0]
 							}
 							var convs []Type
-							lt := evalStaticTypeOf(store, last, n.Lhs[0])
-							if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(rt, lt) {
-								convs = []Type{lt, nil}
+							if c := namedConversionTo(rt, evalStaticTypeOf(store, last, n.Lhs[0])); c != nil {
+								convs = []Type{c, nil}
 							}
 							// bool and a declared bool both count as named, so
 							// isNamedConversion cannot see `ok` needs converting.
@@ -3127,11 +3125,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							var convs []Type
 							for i, res := range cft.Results {
 								rt := evalStaticType(store, fnode.GetParentNode(nil), ft.Results[i].Type)
-								if rt.Kind() != InterfaceKind && isNamedConversion(res.Type, rt) {
+								if c := namedConversionTo(res.Type, rt); c != nil {
 									if convs == nil {
 										convs = make([]Type, len(cft.Results))
 									}
-									convs[i] = rt
+									convs[i] = c
 								}
 							}
 							if convs != nil {
@@ -5109,6 +5107,16 @@ func isNamedConversion(xt, t Type) bool {
 	return false
 }
 
+// namedConversionTo returns t where a value of type xt reaching t needs the
+// named<->unnamed conversion `t = x` gets, and nil otherwise, an interface t
+// included.
+func namedConversionTo(xt, t Type) Type {
+	if t != nil && t.Kind() != InterfaceKind && isNamedConversion(xt, t) {
+		return t
+	}
+	return nil
+}
+
 // setRangeConversions records on n.Key and n.Value the conversion each needs
 // from the type `for k, v = range x` yields, as `a, b = f()` does.
 func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
@@ -5130,9 +5138,8 @@ func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
 		if c.x == nil || c.t == nil {
 			continue
 		}
-		lt := evalStaticTypeOf(store, last, c.x)
-		if lt != nil && lt.Kind() != InterfaceKind && isNamedConversion(c.t, lt) {
-			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, lt)
+		if t := namedConversionTo(c.t, evalStaticTypeOf(store, last, c.x)); t != nil {
+			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, t)
 		}
 	}
 }
