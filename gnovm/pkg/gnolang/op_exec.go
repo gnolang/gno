@@ -237,6 +237,10 @@ func (m *Machine) doOpExec(op Op) {
 			// as an assignment evaluates its operands first: a refused
 			// conversion then writes nothing from its iteration.
 			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			var vt Type
+			if hasValue && bs.Op == ASSIGN {
+				vt = rangeConversion(bs.Value)
+			}
 			var ev TypedValue
 			if hasValue {
 				// In Go, `for i, v := range nilPtrToArray` panics because
@@ -252,8 +256,12 @@ func (m *Machine) doOpExec(op Op) {
 					iv.SetInt(int64(bs.ListIndex))
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
-				if bs.Op == ASSIGN {
-					ev = m.convertRangeTarget(bs.Value, ev)
+				if vt != nil {
+					// Writing the copy copies it again, which can run
+					// GC: anchor it until it is written.
+					anchored := make([]TypedValue, 1)
+					m.Alloc.PushAnchor(anchored)
+					ev = m.convertInto(&anchored[0], ev, vt)
 				}
 			}
 			if bs.Key != nil {
@@ -281,6 +289,9 @@ func (m *Machine) doOpExec(op Op) {
 				default:
 					panic("should not happen")
 				}
+			}
+			if vt != nil {
+				m.Alloc.PopAnchor()
 			}
 			bs.NextBodyIndex++
 			fallthrough
@@ -456,17 +467,31 @@ func (m *Machine) doOpExec(op Op) {
 			// Read and convert both before either is written, as an
 			// assignment does: a refused conversion writes nothing from its
 			// iteration.
+			var kt, vt Type
+			if hasKey && bs.Op == ASSIGN {
+				kt = rangeConversion(bs.Key)
+			}
+			if hasValue && bs.Op == ASSIGN {
+				vt = rangeConversion(bs.Value)
+			}
 			var kv, vv TypedValue
+			// Converting the value and writing either copies, which can
+			// run GC: anchor both converted copies until both are written.
+			var anchored []TypedValue // key, value
+			if kt != nil || vt != nil {
+				anchored = make([]TypedValue, 2)
+				m.Alloc.PushAnchor(anchored)
+			}
 			if hasKey {
 				kv = *fillValueTV(m.Store, &next.Key)
-				if bs.Op == ASSIGN {
-					kv = m.convertRangeTarget(bs.Key, kv)
+				if kt != nil {
+					kv = m.convertInto(&anchored[0], kv, kt)
 				}
 			}
 			if hasValue {
 				vv = *fillValueTV(m.Store, &next.Value)
-				if bs.Op == ASSIGN {
-					vv = m.convertRangeTarget(bs.Value, vv)
+				if vt != nil {
+					vv = m.convertInto(&anchored[1], vv, vt)
 				}
 			}
 			if hasKey {
@@ -492,6 +517,9 @@ func (m *Machine) doOpExec(op Op) {
 				default:
 					panic("should not happen")
 				}
+			}
+			if anchored != nil {
+				m.Alloc.PopAnchor()
 			}
 			bs.NextBodyIndex++
 			fallthrough

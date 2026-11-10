@@ -764,20 +764,32 @@ func (m *Machine) doOpReturnConvert() {
 func (m *Machine) convertResults(convs []Type) {
 	results := m.PeekValues(len(convs))
 	for i, t := range convs {
-		if t != nil {
-			results[i] = results[i].Copy(m.Alloc, m.Store)
-			m.convertValue(&results[i], t)
-		}
+		m.convertCopy(&results[i], t)
 	}
 }
 
-// Returns tv converted to the type preprocess recorded on the range target x.
-func (m *Machine) convertRangeTarget(x Expr, tv TypedValue) TypedValue {
-	if t, ok := x.GetAttribute(ATTR_ASSIGN_CONVERT).(Type); ok {
-		tv = tv.Copy(m.Alloc, m.Store)
-		m.convertValue(&tv, t)
+// Replaces *tv with a copy converted to t, nil for none. A GC does not count
+// the copy while only a Go variable holds it, and writing it copies it again,
+// which can run GC.
+func (m *Machine) convertCopy(tv *TypedValue, t Type) {
+	if t != nil {
+		*tv = tv.Copy(m.Alloc, m.Store)
+		m.convertValue(tv, t)
 	}
-	return tv
+}
+
+// Returns tv converted to t through slot, which the caller has anchored so a
+// GC still counts the copy until the caller writes it.
+func (m *Machine) convertInto(slot *TypedValue, tv TypedValue, t Type) TypedValue {
+	*slot = tv
+	m.convertCopy(slot, t)
+	return *slot
+}
+
+// Returns the type preprocess recorded on the range target x, nil for none.
+func rangeConversion(x Expr) Type {
+	t, _ := x.GetAttribute(ATTR_ASSIGN_CONVERT).(Type)
+	return t
 }
 
 func (m *Machine) doOpReturnCallDefers() {
