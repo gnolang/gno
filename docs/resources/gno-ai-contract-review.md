@@ -89,18 +89,20 @@ Keep such fields unexported **and** do not return aliased pointers to them.
 
 ### 8. `/p/`-type with mutation methods returned as pointer
 
-This is the subtlest case. A `/p/` library type whose fields are all **unexported** can
-still be a write-authority leak if it has exported mutation methods and you return a pointer
-to an instance stored in your realm.
+This is the subtlest case. A `/p/` library type whose fields are all **unexported** is
+still a write-authority leak if it has exported mutation methods, you return a pointer
+to an instance stored in your realm, **and the realm granted that instance with
+`mutable(x)`**. Without the grant the pointer is a view and the write is refused.
 
 ```go
 // avl.Tree fields are all unexported — looks safe.
 // But Tree has exported mutation methods: Set, Remove, etc.
-var store = avl.NewTree()
+var store = mutable(avl.NewTree())
 
 // WRONG: attacker calls store.Set(key, value) on the returned pointer.
-// Borrow rule #2 fires (tree was allocated in this realm) → m.Realm = /r/V
-// for the method body → the write inside Set commits under your authority.
+// The tree is granted, so borrow rule #2 fires → m.Realm = /r/V for the
+// method body → the write inside Set commits under your authority.
+// Without mutable(...) the same call is refused.
 func GetStore() *avl.Tree { return store }
 
 // RIGHT: never return the tree pointer. Expose only what you control.
@@ -108,8 +110,10 @@ func GetValue(key string) (any, bool) { return store.Get(key) }
 ```
 
 The rule: **any exported method on a `/p/` type that writes to its receiver is a
-mutator**. If you return a pointer to an instance, that mutator is now callable by
-anyone with the authority of your realm.
+mutator**. If you grant an instance and return a pointer to it, that mutator is now
+callable by anyone with the authority of your realm. Check every `mutable(` line, and
+every `/p/` constructor the realm calls with its own object: a `/p/`-built handle over
+it (a grc20 teller) writes it too.
 
 #### Sub-case: exported pointer fields
 
@@ -122,20 +126,19 @@ type Container struct {
 }
 
 // r/V
-var c = &Container{Items: avl.NewTree()}
+var c = &Container{Items: mutable(avl.NewTree())}
 func GetContainer() *Container { return c }
 
-// Attacker: c.Items.Set(key, value) → borrow rule #2 on Items
-// (Items was allocated in /r/V) → write commits.
+// Attacker: c.Items.Set(key, value) → Items is granted → borrow rule #2
+// → write commits.
 ```
 
-Readonly taint on `c` does NOT block this: method dispatch is not a write operation,
-so the taint check does not fire. Borrow rule #2 fires first on method entry and
-authorizes the writes inside the method body.
+The grant is on `Items`, not on `c`: an ungranted `c` does not protect a granted
+object reachable through its exported field.
 
 **Rule**: treat every exported pointer field of a `/p/` type as if it were a direct
-pointer to mutable state. If the pointed-to type has any mutation method, it is a
-live mutator handle. Never return the containing struct as a pointer.
+pointer to that object. If the object is granted and its type has any mutation
+method, it is a live mutator handle.
 
 ### 9. `unsafe.PreviousRealm()` — old API, skips frame verification
 

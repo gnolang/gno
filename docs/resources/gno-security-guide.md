@@ -241,21 +241,20 @@ you granted it.
 
 #### 5.1a `/p/`-type with unexported fields but exported mutation methods
 
-The taint-bypasses-method-dispatch gap applies even when the `/p/`-type
-has *no exported fields at all*. If every field is unexported but the
-type has exported methods that mutate the receiver, returning a pointer
-to an instance stored in your realm is equivalent to publishing those
-mutators as your own API.
+A grant matters even when the `/p/`-type has *no exported fields at
+all*. If every field is unexported but the type has exported methods
+that mutate the receiver, granting an instance with `mutable(x)` and
+returning a pointer to it publishes those mutators as your own API.
 
 `avl.Tree` is the canonical example. All fields (`root`, `size`) are
 unexported — a naive reviewer sees no exposed state. But `Tree.Set`,
 `Tree.Remove`, and `Tree.ReverseIterate` all mutate or traverse the
-tree. An attacker who receives a `*avl.Tree` pointer can call
-`tree.Set(key, value)`, borrow rule #2 fires (the tree was allocated
-in `/r/V`), and the write commits under victim authority.
+tree. An attacker who receives a pointer to a granted `*avl.Tree` can
+call `tree.Set(key, value)`, borrow rule #2 fires, and the write
+commits under victim authority.
 
 ```go
-var store = avl.NewTree()
+var store = mutable(avl.NewTree())
 
 // WRONG — all fields unexported, but exported methods are mutators
 func GetStore() *avl.Tree { return store }
@@ -278,17 +277,24 @@ type Container struct {
 }
 
 // r/V
-var c = &Container{Items: avl.NewTree()}
+var c = &Container{Items: mutable(avl.NewTree())}
 func GetContainer() *Container { return c }
 
 // Attacker: GetContainer().Items.Set(key, value)
-// Readonly taint on c does NOT block method dispatch.
-// Borrow rule #2 fires on Items (allocated in /r/V) → write commits.
+// The grant is on Items, not on c: borrow rule #2 fires → write commits.
 ```
 
 **Rule**: treat every exported pointer field of a `/p/` type as a live
-mutator handle if the pointed-to type has any mutation method. Never
-return the containing struct as a pointer.
+mutator handle if the pointed-to object is granted and its type has any
+mutation method.
+
+#### 5.1c A granted type's methods that write their arguments
+
+Inside a `/p/` method on a granted object the storage is the owner's,
+so a method that writes one of its *arguments* (`h.CopyInto(dst)`)
+writes any object of the same owner, granted or not. Read the method
+set of a type before you grant an instance; library authors should not
+give a handle type methods that write other objects they are passed.
 
 ### 5.2 Embedding a `/p/`-type with concrete-callback higher-order methods
 
@@ -467,13 +473,19 @@ victim data into their own context. Even the local copy is sticky.
 
 ## 7. Properties That Surprised Us (Worth Knowing)
 
-### 7.1 Bound method values carry the receiver's PkgID
+### 7.1 Bound method values act for the realm that bound them
 
 `mv := victim.Apply` (bound method value) is a function value that
-remembers the receiver. When `mv()` is invoked later — even stored
-in attacker state, boxed into an interface, retrieved through
-indirection — `PushFrameCall` sees the receiver and borrow rule #2 fires
-based on the receiver's `PkgID`.
+remembers the receiver and the realm whose frame bound it. When `mv()`
+is invoked later — even stored in attacker state, boxed into an
+interface, or passed as a callback into another realm's call — a
+`/p/` method first returns to the binding realm, and then borrow
+rule #2 applies as for a direct call: it borrows to the receiver's
+owner only if the receiver is granted. A method value an attacker
+realm binds on your view is refused wherever it runs. One case stays
+open: a value bound by a `maketx run` script and *stored* by your realm
+is re-stamped to your realm, so calling it later runs as you. Do not
+store and call function values that callers supply.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`
@@ -481,9 +493,10 @@ go through different paths.
 
 **Implication**: if you ever return a bound method value of a
 `/p/`-type pointing into your state, an attacker can store and
-invoke it later — borrow rule #2 will still borrow to your realm. Don't
-return bound method values of `/p/`-types unless you know the
-method body is safe under attacker invocation.
+invoke it later and it writes as your realm, granted receiver or
+not: your realm bound it. Don't return bound method values of
+`/p/`-types unless you know the method body is safe under attacker
+invocation.
 
 ### 7.2 Conversion-time panic is not Gno-recoverable
 
@@ -616,9 +629,9 @@ func SetOwner(cur realm, newOwner address) {
 
 // NO method like:
 //   func GetCounter() *Counter { return gCounter }
-// because that exposes an aliased pointer (the read methods on
-// *Counter would borrow rule #2 back, and any mutator method
-// on *Counter would let attackers write under our authority).
+// because that exposes an aliased pointer: Counter is declared in
+// this realm, so its methods run under our authority for any
+// caller (borrow rule #1; no mutable() grant is involved).
 ```
 
 This realm passes the checklist. Attackers can:

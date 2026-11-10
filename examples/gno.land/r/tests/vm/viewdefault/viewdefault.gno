@@ -25,6 +25,10 @@ func init() {
 // GetView returns a reference the caller can read but not write through.
 func GetView() *avl.Tree { return view }
 
+// ViewSetter hands out a method value bound here: it writes view as this
+// realm, so handing it out is a grant even though view itself is not granted.
+func ViewSetter() func(string, any) bool { return view.Set }
+
 // GetHandle returns a reference the caller may write through.
 func GetHandle() *avl.Tree { return mutable(handle) }
 

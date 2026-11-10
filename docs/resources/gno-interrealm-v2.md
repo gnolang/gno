@@ -74,7 +74,8 @@ next cross-call.
 | `fn(cross(cur), ...)` into different realm | shifts | shifts | yes | yes |
 | `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | unchanged | unchanged | no | no |
 | Non-crossing call of `/r/X`-declared callable from `/r/Y` | unchanged | shifts to `/r/X` (borrow rule #1) | yes | yes |
-| Stdlib/`/p/` method on real foreign-stamped receiver | unchanged | shifts to receiver's stamp (borrow rule #2) | yes | yes |
+| `/p/` method on foreign-stamped receiver granted with `mutable(x)` | unchanged | shifts to receiver's stamp (borrow rule #2) | yes | yes |
+| `/p/` method on foreign-stamped receiver without a grant (a view) | unchanged | unchanged; writes refused | no | no |
 | Stdlib/`/p/` method on primitive/nil/unstamped receiver | unchanged | unchanged | no | no |
 | Stdlib/`/p/` top-level function | unchanged | unchanged | no | no |
 
@@ -223,12 +224,15 @@ attacker's body fail the readonly check.
 ### 4.2 Borrow rule #2 — Storage-realm borrow (stdlib / `/p/` methods)
 
 ```go
+// a method value first returns to the realm that bound it (bindPID)
 if recv.IsDefined() {
-    obj := recv.GetFirstObject(m.Store)
+    obj := recv.GetGrantObject(m.Store)
     if obj != nil {
-        recvOID := obj.GetObjectInfo().ID
-        if !recvOID.IsZero() &&
-            (m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
+        oi := obj.GetObjectInfo()
+        recvOID := oi.ID
+        if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
+            (m.Realm == nil || recvOID.PkgID != m.Realm.ID) &&
+            (oi.IsMutable || recvOID.PkgID.IsImmutablePkg()) {
             recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
             objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
             m.setRealm(objpv.GetRealm())
@@ -237,10 +241,11 @@ if recv.IsDefined() {
 }
 ```
 
-A non-`/r/`-declared method (stdlib or `/p/`) called on a defined
-receiver whose `PkgID` differs from `m.Realm.ID` shifts `m.Realm` to
-the receiver's allocating realm for the call duration. This lets
-generic library helpers operate on caller-owned state:
+A `/p/`-declared method called on a defined receiver whose `PkgID`
+differs from `m.Realm.ID` shifts `m.Realm` to the receiver's allocating
+realm for the call duration, **if the owner granted the receiver with
+`mutable(x)`** (see "Views and handles" in gno-interrealm.md). This lets
+generic library helpers operate on state the owner handed out:
 
 - `bptree.Set(...)` mutates the bptree even though `bptree` lives
   in `/p/`.
@@ -250,6 +255,10 @@ generic library helpers operate on caller-owned state:
 
 **Borrow rule #2 does NOT fire when:**
 
+- The receiver is foreign-owned and not granted: the reference is a
+  view, `m.Realm` stays the caller's, and the method's writes are refused.
+- The receiver is stdlib-stamped: stdlib methods run with the caller's
+  authority.
 - The receiver has no object identity (`GetFirstObject` returns nil):
   primitive-underlying defined types (`type Mutator int`),
   nil-pointer receivers, nil-valued slice/map/func defined types.

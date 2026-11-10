@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_mv_stored_bound_mv
 package launderrh_mv_stored_bound_mv
 
+// UPDATED (view-by-default): a method value acts for the realm that bound
+// it. The attacker bound captured.BumpToPwn, so when the victim's hook loop
+// calls it the write runs with the attacker's storage and is refused; the
+// expected output pins the refusal. The original analysis is kept for context.
+
 // Stored bound-method-value laundering probe.
 //
 // 1. Attacker reads victim's exposed /p/-typed pointer field
@@ -39,4 +44,6 @@ func main(cur realm) {
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-bound-mv
+
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,0)>.Field

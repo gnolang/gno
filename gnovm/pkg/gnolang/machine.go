@@ -2564,6 +2564,12 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
+	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer)
+}
+
+// pushFrameCall is PushFrameCall for a method value: bindPID is the realm
+// whose frame formed it (the BoundMethodValue's stamp), zero for a plain func.
+func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer bool) {
 	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
@@ -2691,6 +2697,10 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//       always borrows so the post-init immutability gate reports the
 	//       write.
 	//
+	//       A method value (x.M bound earlier, then called) first returns
+	//       to the realm whose frame bound it, so the grant test above runs
+	//       from the binder's side, not from a borrowed caller's.
+	//
 	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
 	//       package, borrow to the realm context that was active when
 	//       the closure was constructed (and will be stored).
@@ -2711,6 +2721,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 			m.setRealm(r)
 		}
 		return
+	}
+	// Rule #2 prelude: a method value starts from its binder's realm, else a
+	// caller's `view.Set` run as a callback in a borrowed call writes the view.
+	if bindPID.IsRealmPkg() && (m.Realm == nil || bindPID != m.Realm.ID) {
+		m.borrowToPkg(bindPID)
 	}
 	if recv.IsDefined() {
 		obj := recv.GetGrantObject(m.Store)
@@ -2751,15 +2766,18 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if fv.IsClosure {
 		pid := fv.GetObjectInfo().ID.PkgID
 		if !pid.IsZero() && !pid.IsStdlibPkg() && (m.Realm == nil || pid != m.Realm.ID) {
-			pkgOID := ObjectIDFromPkgID(pid)
-			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
-				if objpv, ok := pobj.(*PackageValue); ok {
-					r := objpv.GetRealm()
-					assertBorrowedRealm(objpv.PkgPath, r)
-					m.setRealm(r)
-				}
-			}
+			m.borrowToPkg(pid)
 		}
+	}
+}
+
+// borrowToPkg switches m.Realm to pid's package realm; no-op if the package
+// value is not in the store.
+func (m *Machine) borrowToPkg(pid PkgID) {
+	if objpv, ok := m.Store.GetObject(ObjectIDFromPkgID(pid)).(*PackageValue); ok {
+		r := objpv.GetRealm()
+		assertBorrowedRealm(objpv.PkgPath, r)
+		m.setRealm(r)
 	}
 }
 

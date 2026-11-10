@@ -61,7 +61,13 @@ property of the object, so it survives the store.
 5. **Both directions.** A passing its own `*avl.Tree` into
    `X.Register(cross(cur), t)` gives X a view unless A wrote `mutable(t)`,
    whether the tree was stored earlier or allocated in this transaction.
-6. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
+6. **A method value acts for the realm that bound it.** Calling a bound
+   `/p/` method first sets `m.Realm` to the `BoundMethodValue`'s stamp (the
+   realm whose frame formed it), then rule #2 applies. Without this, `v.Set`
+   bound by a caller on a view and passed as a callback into a granted
+   object's method (`h.Iterate("", "", v.Set)`) ran under the owner's storage
+   and wrote the view. A direct `x.M()` binds and calls in one frame: no-op.
+7. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
 
 Persistence: `IsMutable` is amino field 8, `json:",omitempty"`, so unflagged
 objects hash as before. Amino numbers fields by struct position, so the field
@@ -112,6 +118,19 @@ idea with syntax; both keep the flag as the mechanism.
   granted `users`, every `*avl.Tree` to it is a handle, and there is no
   revoke. A realm that needs a view of granted data hands out a wrapper
   (`rotree.Wrap`, or a type-specific one), not the object.
+- Inside a `/p/` method on a granted object the storage is the owner's for
+  the whole body, so a method that writes one of its arguments writes any
+  object of that owner. This is the library's own code, which the owner
+  accepted by granting; it is guidance (security guide §5.1c), not a VM rule.
+- A method value an owner binds on its own ungranted `/p/` object and hands
+  out now writes as the owner (it was refused before decision 6): handing out
+  a method value is a grant, like handing out a closure.
+- Known-open: a function value bound by a `maketx run` script is re-stamped
+  to the realm that stores it (adoption), so a realm that stores and later
+  calls caller-supplied function values runs them as itself
+  (`view_method_value_adopted.txtar`). Closing it needs an adopted-stamp
+  mark on the object (amino field 9); until then the guidance stands: do not
+  store and call function values from callers.
 - Reads are unchanged. A borrowed method call reads one more flag from the
   object info it already loaded.
 - Forgetting the grant fails loudly at the first foreign write instead of
@@ -146,6 +165,10 @@ idea with syntax; both keep the flag as the mechanism.
   commit after the grant.
 - `zrealm_view_grant_hiv_foreign.gno`: a heap item holding another realm's
   pointer cannot be granted; the ownership gate fires before the descent.
+- `zrealm_view_callback.gno`: a caller's `v.Set` passed as a callback into a
+  granted handle's `Iterate` is refused; `h.Set` bound the same way commits.
+- `zrealm_launder_rdata_mv_stored_bound_mv.gno`: an attacker-bound method
+  value stored as a victim hook is refused when the victim runs it.
 - `view_grant_field_persists.txtar`: a grant through a field address holds
   in later transactions, for both setters.
 - `view_default_grant_persists.txtar`: a stored handle is still a handle in

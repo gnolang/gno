@@ -209,8 +209,8 @@ func unsafePreviousRealmHits(dir string) ([]Hit, error) {
 // pkgMutablePointerHits flags a pointer to a /p/ type whose exported methods
 // mutate the receiver (avl.Tree) exposed as an exported function return
 // (guide §5.1a) or an exported struct field / package var (guide §5.1b).
-// Readonly taint does not block method dispatch, so such a handle publishes
-// the type's mutators under the realm's authority.
+// If the realm granted the object with mutable(x), such a handle publishes
+// the type's mutators under the realm's authority; ungranted it is a view.
 func pkgMutablePointerHits(dir string) ([]Hit, error) {
 	files, err := gnoFiles(dir)
 	if err != nil {

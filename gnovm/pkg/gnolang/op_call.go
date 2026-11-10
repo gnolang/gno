@@ -35,7 +35,7 @@ func (m *Machine) doOpPrecall() {
 		if fv.IsLazy() {
 			fn, recv = resolveLazyBound(m, fv)
 		}
-		m.PushFrameCall(cx, fn, recv, false)
+		m.pushFrameCall(cx, fn, recv, fv.ObjectInfo.ID.PkgID, false)
 		m.PushOp(OpCall)
 		isCrossing := fn.IsCrossing()
 		if isCrossing {
@@ -729,10 +729,12 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Resolve the deferred callable, mirroring doOpPrecall's dispatch.
 	var fv *FuncValue
 	var recv TypedValue // receiver for PushFrameCall: the bound receiver, or zero for a plain func
+	var bindPID PkgID
 	switch cv := dfr.Callable.(type) {
 	case *FuncValue:
 		fv = cv // plain func: no receiver, recv stays zero
 	case *BoundMethodValue:
+		bindPID = cv.ObjectInfo.ID.PkgID
 		// A lazy interface bind resolves its concrete method + receiver now, at
 		// the deferred call — Go's call-time dispatch on the operand's current
 		// value (nil derefs raise within the walk, caught by the Run loop). A
@@ -750,7 +752,7 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	// Call last deferred call.
 	ft := fv.GetType(m.Store)
-	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
+	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.

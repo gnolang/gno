@@ -868,11 +868,18 @@ constructor handing out a handle does (grc20's tellers return
 realm's state is therefore either a `mutable(` line in that realm or a `/p/`
 constructor the realm calls with its own object, which wraps it in a granted
 handle (the teller shape): review both. Function values are the exception to
-the view rule: a closure or method value handed out runs under its declaring
-realm (borrow rules #1 and #3), so handing one out is a grant of whatever it
-reaches. One receiver borrows without
-a grant: an object owned by a `/p/` package, whose own post-init immutability
-gate reports the write.
+the view rule: a closure runs under the realm that created it (borrow rules #1
+and #3) and a method value under the realm that bound it, so handing one out
+is a grant of whatever it reaches. The same rule protects views: `v.Set` bound
+by a caller on a view is refused wherever it is called, including as a
+callback inside a granted object's method (`h.Iterate("", "", v.Set)`).
+
+A `/p/` method on a granted object runs with the owner's storage for its whole
+body, so a method that writes one of its arguments writes any object of that
+owner. Read a type's method set before granting an instance of it.
+
+One receiver borrows without a grant: an object owned by a `/p/` package,
+whose own post-init immutability gate reports the write.
 
 ## `panic()` and `revive(fn)`
 

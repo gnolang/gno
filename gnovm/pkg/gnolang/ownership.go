@@ -411,7 +411,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 // mark, and borrow rule #2 reads, the same object.
 func (tv *TypedValue) GetGrantObject(store Store) Object {
 	obj := tv.GetFirstObject(store)
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		hiv, ok := obj.(*HeapItemValue)
 		if !ok {
 			return obj
