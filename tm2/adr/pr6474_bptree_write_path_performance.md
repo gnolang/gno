@@ -1,4 +1,4 @@
-# PRXXXX: B+32 write-path performance — serialization, mini merkle, node layout, prefixed leaf keys
+# PR6474: B+32 write-path performance — serialization, mini merkle, node layout, prefixed leaf keys
 
 ## Status
 
