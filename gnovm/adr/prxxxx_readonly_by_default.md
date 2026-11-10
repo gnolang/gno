@@ -144,6 +144,10 @@ idea with syntax; both keep the flag as the mechanism.
 - `zrealm_view_grant_field.gno`: `mutable(&s.field)` marks the object holding the
   field, the one rule #2 inspects for a method on the pointer; both setters
   commit after the grant.
+- `zrealm_view_grant_hiv_foreign.gno`: a heap item holding another realm's
+  pointer cannot be granted; the ownership gate fires before the descent.
+- `view_grant_field_persists.txtar`: a grant through a field address holds
+  in later transactions, for both setters.
 - `view_default_grant_persists.txtar`: a stored handle is still a handle in
   the next transaction; a stored view is still a view.
 - `TestCodecParity_Gnolang/ObjectInfo/mutable`: field 8 marshals identically
