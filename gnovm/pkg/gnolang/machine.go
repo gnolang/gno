@@ -2713,7 +2713,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		return
 	}
 	if recv.IsDefined() {
-		obj := recv.GetFirstObject(m.Store)
+		obj := recv.GetGrantObject(m.Store)
 		if obj != nil {
 			oi := obj.GetObjectInfo()
 			recvOID := oi.ID

@@ -230,8 +230,10 @@ func ReadUsers() *rotree.ReadOnlyTree { return rotree.Wrap(users, nil) } // view
 **Rule**: a reference that leaves your realm is a view by default.
 Write `mutable(x)` only where you mean to publish that object's
 mutators as your own API, and treat every `mutable(` in a realm as a
-line reviewers must read; `/p/` code cannot grant your stored objects
-for you. The grant belongs to the object: once granted, every reference
+line reviewers must read, together with every `/p/` constructor you call
+with your own object, since a `/p/`-built handle over it writes it too.
+A closure or method value you hand out is a grant of whatever it reaches
+(borrow rules #1 and #3 are unchanged). The grant belongs to the object: once granted, every reference
 to it is a handle, from every getter, with no revoke, so a view of
 granted data is a wrapper, not the object. The same applies to
 arguments: a value you pass into another realm is a view there unless

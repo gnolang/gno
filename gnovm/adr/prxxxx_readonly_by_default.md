@@ -38,7 +38,10 @@ property of the object, so it survives the store.
    owner may grant (`PkgID == m.Realm.ID`), else panic. Real objects are
    marked dirty; unreal ones carry the flag into their first save. The grant
    unit is the pointer's base object (`GetFirstObject`, the same object rule
-   #2 inspects): `mutable(&s.field)` grants `s`.
+   #2 inspects): `mutable(&s.field)` grants `s`; a pointer to a heap-held
+   value resolves to the value inside the heap item (`GetGrantObject`), so
+   `mutable(p)`, `mutable(&p.field)` and the receiver rule #2 inspects name
+   one object.
 2. **Borrow rule #2 needs the grant.** For a `/p/` method on a foreign-owned
    receiver, real or not, `PushFrameCall` borrows to the owner only if
    `IsMutable` is set. Otherwise `m.Realm` stays the caller's and the method's
@@ -100,8 +103,11 @@ idea with syntax; both keep the flag as the mechanism.
   grc20's four writing tellers, `allowancesender.New`, `crossrealm.Make1`,
   `owned.LibFactory`. The 26 `zrealm_launder_*` fixtures, which pinned the
   loophole as "known-open", now pin the refusal.
-- A user identifier named `mutable` is now a shadowing error (one quarantined
-  test renamed).
+- `mutable` is a uverse name and cannot be shadowed, like `cross`: a stored
+  package that declares a `mutable` identifier fails preprocessing, and the
+  node re-preprocesses every stored package at boot. The upgrade therefore
+  scans chain state for such declarations first (none in tree outside one
+  renamed quarantined test).
 - The grant belongs to the object, not the reference: once any getter has
   granted `users`, every `*avl.Tree` to it is a handle, and there is no
   revoke. A realm that needs a view of granted data hands out a wrapper
@@ -135,6 +141,9 @@ idea with syntax; both keep the flag as the mechanism.
   stored tree and for one allocated in the same transaction.
 - `zrealm_view_grant_library.gno`: `/p/` code cannot grant a stored object;
   a `/p/` constructor can grant the object it returns.
+- `zrealm_view_grant_field.gno`: `mutable(&s.field)` marks the object holding the
+  field, the one rule #2 inspects for a method on the pointer; both setters
+  commit after the grant.
 - `view_default_grant_persists.txtar`: a stored handle is still a handle in
   the next transaction; a stored view is still a view.
 - `TestCodecParity_Gnolang/ObjectInfo/mutable`: field 8 marshals identically

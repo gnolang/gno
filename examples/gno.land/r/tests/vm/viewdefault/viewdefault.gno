@@ -12,6 +12,9 @@ var (
 	view   = avl.NewTree() // handed out as a view
 	handle = avl.NewTree() // handed out with a grant
 	inbox  *avl.Tree       // a caller's tree, stored by Store
+
+	// pair is handed out as a view until GrantPairA grants it by field address.
+	pair = viewgrant.NewPair()
 )
 
 func init() {
@@ -42,6 +45,13 @@ func PublishView() *avl.Tree { return viewgrant.Publish(view) }
 
 // NewViewWriter hands out a fresh /p/-built handle onto the stored view.
 func NewViewWriter() *viewgrant.Writer { return viewgrant.NewWriter(view) }
+
+// GetPair hands out pair as a view.
+func GetPair() *viewgrant.Pair { return pair }
+
+// GrantPairA grants through a field address: the grant unit is the object
+// that holds the field, so both SetA and SetB become handles.
+func GrantPairA(cur realm) { mutable(&pair.A) }
 
 func WriteInbox(cur realm) { inbox.Set("from", "viewdefault") }
 

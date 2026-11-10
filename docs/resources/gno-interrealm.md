@@ -864,8 +864,13 @@ is a wrapper such as `rotree.Wrap`, not the object.
 Only the owning realm may grant: calling it on an object another realm
 allocated panics. `/p/` code may grant only an object it just built, as a
 constructor handing out a handle does (grc20's tellers return
-`mutable(&fnTeller{...})`); on a stored object it panics, so every grant of a
-realm's state is a `mutable(` line in that realm. One receiver borrows without
+`mutable(&fnTeller{...})`); on a stored object it panics. A grant of a
+realm's state is therefore either a `mutable(` line in that realm or a `/p/`
+constructor the realm calls with its own object, which wraps it in a granted
+handle (the teller shape): review both. Function values are the exception to
+the view rule: a closure or method value handed out runs under its declaring
+realm (borrow rules #1 and #3), so handing one out is a grant of whatever it
+reaches. One receiver borrows without
 a grant: an object owned by a `/p/` package, whose own post-init immutability
 gate reports the write.
 

@@ -405,6 +405,26 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
+// GetGrantObject is GetFirstObject with one difference: a pointer to a
+// heap-held value (the result of `&T{}` or an escaped variable) resolves to
+// the object inside the heap item, so `mutable(p)` and `mutable(&p.field)`
+// mark, and borrow rule #2 reads, the same object.
+func (tv *TypedValue) GetGrantObject(store Store) Object {
+	obj := tv.GetFirstObject(store)
+	for i := 0; i < 8; i++ {
+		hiv, ok := obj.(*HeapItemValue)
+		if !ok {
+			return obj
+		}
+		inner := hiv.Value.GetFirstObject(store)
+		if inner == nil {
+			return obj
+		}
+		obj = inner
+	}
+	return obj
+}
+
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:

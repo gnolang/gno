@@ -14,3 +14,20 @@ type Writer struct{ t *avl.Tree }
 func NewWriter(t *avl.Tree) *Writer { return mutable(&Writer{t: t}) }
 
 func (w *Writer) Set(k, v string) { w.t.Set(k, v) }
+
+// Pair holds two trees behind one heap-held struct, for grant-target probes.
+type Pair struct{ A, B *avl.Tree }
+
+func NewPair() *Pair { return &Pair{A: avl.NewTree(), B: avl.NewTree()} }
+
+func (p *Pair) SetA(k, v string) { p.A.Set(k, v) }
+func (p *Pair) SetB(k, v string) { p.B.Set(k, v) }
+func (p *Pair) Get(k string) string {
+	if v := p.A.Get(k); v != nil {
+		return v.(string)
+	}
+	if v := p.B.Get(k); v != nil {
+		return v.(string)
+	}
+	return ""
+}

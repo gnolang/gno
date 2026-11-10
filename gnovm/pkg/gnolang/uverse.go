@@ -1855,7 +1855,7 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			tv := arg0.TV
-			obj := tv.GetFirstObject(m.Store)
+			obj := tv.GetGrantObject(m.Store)
 			if obj == nil {
 				m.PanicString("mutable: value is not backed by a realm object")
 				return
