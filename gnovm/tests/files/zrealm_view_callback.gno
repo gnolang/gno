@@ -14,7 +14,9 @@ func main(cur realm) {
 	h.Set("a", "from-caller")
 	// The refusal unwinds through the owner's borrowed frames: revive, not recover.
 	println("view callback:", revive(func() { h.Iterate("", "", v.Set) }))
-	println("view:", v.Get("k"), v.Get("a"), v.Size())
+	// Same through a defer statement inside the owner's granted handle.
+	println("deferred callback:", revive(func() { viewdefault.NewViewWriter().Deferred(v.Set) }))
+	println("view:", v.Get("k"), v.Get("a"), v.Get("d"), v.Size())
 	v.Iterate("", "", h.Set)
 	println("handle:", h.Get("k"), h.Size())
 	// Bound by the owner and handed out: writes the view as the owner.
@@ -24,6 +26,7 @@ func main(cur realm) {
 
 // Output:
 // view callback: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
-// view: v0 undefined 1
+// deferred callback: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
+// view: v0 undefined undefined 1
 // handle: v0 2
 // owner-bound: owner-bound

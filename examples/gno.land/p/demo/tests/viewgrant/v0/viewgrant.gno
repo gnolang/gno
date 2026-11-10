@@ -15,6 +15,9 @@ func NewWriter(t *avl.Tree) *Writer { return mutable(&Writer{t: t}) }
 
 func (w *Writer) Set(k, v string) { w.t.Set(k, v) }
 
+// Deferred calls fn from a defer statement, for callback probes.
+func (w *Writer) Deferred(fn func(string, any) bool) { defer fn("d", "deferred") }
+
 // Pair holds two trees behind one heap-held struct, for grant-target probes.
 type Pair struct{ A, B *avl.Tree }
 
