@@ -110,8 +110,19 @@ idea with syntax; both keep the flag as the mechanism.
   object info it already loaded.
 - Forgetting the grant fails loudly at the first foreign write instead of
   silently granting authority.
-- Best landed before mainnet genesis; afterwards it needs a gnomod `gno`
-  version gate, which does not exist yet.
+- Consensus-breaking: it ships in a coordinated upgrade. Realm source
+  already on chain cannot be edited, so the upgrade's state migration sets
+  `IsMutable` on every object a deployed realm hands out as a write handle
+  today. In tree that set is the `*grc20.Token` objects registered through
+  `grc20reg.Register` (wugnot, foo20, test20, grc20factory) and read back by
+  `grc20reg.Get`/`MustGet` and `grc20factory.Bank`/`ListTokens` for
+  `RealmTeller`; the migration list for a live chain is the same query run
+  over its state. Objects nobody hands out need nothing: unflagged objects
+  hash as before.
+- Realm-declared methods on an exported object are unchanged: borrow rule #1
+  still runs them under the declaring realm, so a realm's own API on its own
+  objects keeps working, and the view default covers `/p/`-typed references
+  only.
 
 ## Tests
 
