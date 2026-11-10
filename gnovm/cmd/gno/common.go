@@ -232,8 +232,6 @@ func guessIssueFromError(dir, pkgPath string, err error, code gnoCode) gnoIssue 
 		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
 		issue.Msg = err.Error()
 	} else {
-		// LOC is the whole location (PATH[/FILE]:SPAN); rebuild it
-		// from its parts so that the file path can be resolved.
 		errPath := match.Get("PATH")
 		if errFile := match.Get("FILE"); errFile != "" {
 			errPath += "/" + errFile

@@ -94,6 +94,22 @@ func TestRunApp(t *testing.T) {
 			errShouldBe:    "exit code: 1",
 		},
 		{
+			// duplicate declarations across files are reported as
+			// errors, not Go panics.
+			args: []string{
+				"run", "-pkgpath", "example.com/main",
+				"../../tests/integ/run_duplicate_decl/a.gno",
+				"../../tests/integ/run_duplicate_decl/b.gno",
+			},
+			stderrShouldBe: `running package "example.com/main": redeclarations for identifiers: "helper" (code=gnoPreprocessError)` + "\n",
+			errShouldBe:    "exit code: 1",
+		},
+		{
+			// runtime panics during package initialization are re-thrown.
+			args:                 []string{"run", "../../tests/integ/run_init_panic/"},
+			recoverShouldContain: "boom",
+		},
+		{
 			args:                []string{"run", "-expr", "Context()", "../../tests/integ/context/context.gno"},
 			stdoutShouldContain: "Context worked",
 		},

@@ -495,9 +495,11 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 	return pn, pv
 }
 
-type redeclarationErrors []Name
+// RedeclarationErrors lists the identifiers declared more than once in a
+// package.
+type RedeclarationErrors []Name
 
-func (r redeclarationErrors) Error() string {
+func (r RedeclarationErrors) Error() string {
 	var b strings.Builder
 	b.WriteString("redeclarations for identifiers: ")
 	for idx, s := range r {
@@ -509,7 +511,7 @@ func (r redeclarationErrors) Error() string {
 	return b.String()
 }
 
-func (r redeclarationErrors) add(newI Name) redeclarationErrors {
+func (r RedeclarationErrors) add(newI Name) RedeclarationErrors {
 	if slices.Contains(r, newI) {
 		return r
 	}
@@ -519,7 +521,7 @@ func (r redeclarationErrors) add(newI Name) redeclarationErrors {
 // checkDuplicates returns an error if there are duplicate declarations in the fset.
 func checkDuplicates(fset *FileSet) error {
 	defined := make(map[Name]struct{}, 128)
-	var duplicated redeclarationErrors
+	var duplicated RedeclarationErrors
 	for _, f := range fset.Files {
 		for _, d := range f.Decls {
 			var name Name
