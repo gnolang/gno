@@ -61,8 +61,8 @@ func TestNodePointerBytes(t *testing.T) {
 		name string
 		typ  reflect.Type
 	}{
-		{"InnerNode", reflect.TypeOf(InnerNode{})},
-		{"LeafNode", reflect.TypeOf(LeafNode{})},
+		{"InnerNode", reflect.TypeFor[InnerNode]()},
+		{"LeafNode", reflect.TypeFor[LeafNode]()},
 	} {
 		size := tc.typ.Size()
 		pb := ptrBytes(tc.typ)
