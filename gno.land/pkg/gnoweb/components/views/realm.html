@@ -1,7 +1,7 @@
 {{ define "renderRealm" }}
 <!-- Aside Content - ToC -->
 {{ with render .ComponentTOC }}
-{{ template "layout/aside" .}}
+{{ template "layout/aside" (dict "Title" "Contents" "Content" .) }}
 {{ end }}
 
 <!-- Realm Content -->

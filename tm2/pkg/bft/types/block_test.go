@@ -5,6 +5,7 @@ import (
 	// number generator here and we can run the tests a bit faster
 	"crypto/rand"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -327,6 +328,59 @@ func TestCommitValidateBasic(t *testing.T) {
 			assert.Equal(t, tc.expectErr, com.ValidateBasic() != nil, "Validate Basic had an unexpected result")
 		})
 	}
+}
+
+func TestCommitValidateBasicPartSetHeaderTotal(t *testing.T) {
+	t.Parallel()
+
+	// CanonicalizePartSetHeader panics on a Total outside the canonical
+	// uint32 range, so ValidateBasic must refuse the commit instead.
+	maxInt64 := int64(math.MaxInt64)
+	maxUint32 := int64(math.MaxUint32)
+
+	type testCase struct {
+		name      string
+		total     int
+		expectErr bool
+	}
+	testCases := []testCase{
+		{"Negative total", -1, true},
+		{"Max int total", int(maxInt64), true},
+	}
+	if strconv.IntSize == 64 {
+		// Total is a platform int: values above uint32 exist, and the
+		// canonicalization panic is reachable, only where int is 64 bits.
+		testCases = append(testCases,
+			testCase{"Largest canonical total", int(maxUint32), false},
+			testCase{"Smallest out-of-range total", int(maxUint32 + 1), true},
+		)
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			com := randCommit()
+			com.Precommits[0].BlockID.PartsHeader.Total = tc.total
+			assert.Equal(t, tc.expectErr, com.ValidateBasic() != nil, "Validate Basic had an unexpected result")
+		})
+	}
+}
+
+func TestVerifyCommitRejectsOutOfRangePartsHeaderTotal(t *testing.T) {
+	t.Parallel()
+
+	lastID := makeBlockIDRandom()
+	h := int64(3)
+	voteSet, valSet, vals := randVoteSet(h-1, 1, PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals)
+	require.NoError(t, err)
+
+	// The panic fires while the sign bytes are built, before the signature is
+	// checked, so the crafted commit needs no valid signature.
+	maxInt64 := int64(math.MaxInt64)
+	commit.Precommits[0].BlockID.PartsHeader.Total = int(maxInt64)
+	err = valSet.VerifyCommit(voteSet.ChainID(), commit.BlockID, h-1, commit)
+	require.Error(t, err)
 }
 
 func TestHeaderByteSize(t *testing.T) {

@@ -1,18 +1,47 @@
 {{ define "renderUser" }}
-<aside class="b-sidebar sidebar">
+<aside class="b-sidebar sidebar" aria-label="Profile">
   <div class="b-user-sidebar">
     <div class="user-info">
       <div class="user-avatar">
         {{ template "ui/gnome" }}
       </div>
-      <div>
-        <h1 class="title">
-          {{ .Handlename }}
-        </h1>
-        <p class="subtitle">
-          {{ .Username }}
-        </p>
+      <div class="user-identity">
+        {{- /* An address breaks only at its middle (splitHalf + <wbr>), into two
+        equal halves, when it cannot fit one line. */ -}}
+        {{ if .Username }}
+        <p class="label">Gnome</p>
+        <h1 class="title{{ if .LongName }} title--long{{ end }}">{{ .Username }}</h1>
+        {{ else if .Address }}
+        <p class="label">{{ if .Unregistered }}Unregistered address{{ else }}Address{{ end }}</p>
+        {{ $halves := splitHalf .Address }}
+        <h1 class="title title--address u-font-mono" title="{{ .Address }}">{{ index $halves 0 }}<wbr>{{ index $halves 1 }}</h1>
+        {{ end }}
       </div>
+      {{ if .Username }}
+      {{ with .Address }}
+      <p class="subtitle">
+        {{- /* the copy button stays glued to the end so it never drifts away from the text */ -}}
+        {{ $halves := splitHalf . }}
+        <span class="address u-font-mono" title="{{ . }}">{{ index $halves 0 }}<wbr><span class="address-end" data-controller="copy">{{ index $halves 1 }}<button type="button" class="b-inline-btn b-copy-btn" data-action="click->copy#copy"
+          data-copy-text-value="{{ . }}" data-copy-copied-value="Address copied" aria-label="Copy address" title="Copy address">
+          {{- template "ui/copy" -}}
+        </button><span class="u-sr-only" role="status" data-copy-target="status"></span></span></span>
+      </p>
+      {{ else }}
+      <p class="subtitle">Address unavailable</p>
+      {{ end }}
+      {{ with .CurrentName }}
+      <p class="subtitle">now <a href="/u/{{ . }}">@{{ . }}</a></p>
+      {{ end }}
+      {{ else if .Address }}
+      <p class="subtitle" data-controller="copy">
+        <button type="button" class="b-inline-btn b-copy-btn c-with-icon" data-action="click->copy#copy"
+          data-copy-text-value="{{ .Address }}" data-copy-copied-value="Address copied" aria-label="Copy address" title="Copy address">
+          {{- template "ui/copy" -}}<span>Copy address</span>
+        </button>
+        <span class="u-sr-only" role="status" data-copy-target="status"></span>
+      </p>
+      {{ end }}
     </div>
 
     <a href="#user-contributions-packages" role="button" aria-controls="user-contributions-packages" class="b-btn">
@@ -21,14 +50,15 @@
         {{ .PackageCount }}
       </span>
     </a>
+  </div>
 </aside>
 
 <md-renderer class="c-realm-view">
-  <a href="../r/{{ .Username }}/home" class="b-btn c-with-icon">
+  <a href="../r/{{ .Namespace }}/home" class="b-btn c-with-icon">
     <svg class="c-icon">
       <use href="#ico-realm"></use>
     </svg>
-    {{ .Username }}/home
+    {{ .HomeLabel }}/home
   </a>
   {{ render .Content }}
 </md-renderer>
@@ -38,7 +68,7 @@
     Contributions
   </h2>
   <nav>
-    <div class="packages-tabs">
+    <div class="b-packages-tabs">
       <label>
         <input type="radio" id="contributions-filter-packages" name="contributions-filter" value="packages" checked
           class="u-sr-only" />

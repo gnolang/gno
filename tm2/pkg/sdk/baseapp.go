@@ -80,6 +80,12 @@ type BaseApp struct {
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
 
+	// Deferred commits during block sync (deferred.go). heldHeader is the
+	// header of the last held commit, published to queries once written.
+	deferAllowed  bool
+	flushRequired atomic.Bool
+	heldHeader    abci.Header
+
 	// application's version string
 	appVersion string
 }
@@ -259,6 +265,11 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
+	if app.deferringCommits() {
+		// Queries answer from the disk: WriteCommits publishes the header.
+		app.heldHeader = header
+		return
+	}
 	app.lastBlockHeader.Store(&headerSnapshot{header: header})
 }
 
@@ -326,7 +337,7 @@ func (app *BaseApp) getMaximumBlockGas() int64 {
 
 // Info implements the ABCI interface.
 func (app *BaseApp) Info(req abci.RequestInfo) (res abci.ResponseInfo) {
-	lastCommitID := app.cms.LastCommitID()
+	lastCommitID := app.writtenCommitID()
 
 	res.Data = []byte(app.Name())
 	res.LastBlockHeight = lastCommitID.Version
@@ -456,12 +467,32 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 }
 
+// QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
+// runs code for path: .app/simulate runs a whole transaction, and a custom
+// route runs code when its handler implements abci.CodeExecutionQuerier and
+// says so.
+func (app *BaseApp) QueryRunsCode(reqPath string) bool {
+	path := splitPath(reqPath)
+	if len(path) == 0 {
+		return false
+	}
+	if path[0] == ".app" {
+		return len(path) >= 2 && path[1] == appQuerySimulate
+	}
+	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
+	return ok && h.QueryRunsCode(reqPath)
+}
+
+// appQuerySimulate is the .app query that runs a whole transaction.
+const appQuerySimulate = "simulate"
+
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
 		var result Result
 
+		// A case that runs code also belongs in QueryRunsCode.
 		switch path[1] {
-		case "simulate":
+		case appQuerySimulate:
 			result = app.Simulate(req.Data)
 
 			res.Height = req.Height
@@ -494,7 +525,11 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 
 	// when a client did not provide a query height, manually inject the latest
 	if req.Height == 0 {
-		req.Height = app.LastBlockHeight()
+		req.Height = app.writtenCommitID().Version
+	}
+	if app.nothingWritten() {
+		res.Error = ABCIError(errNothingWritten)
+		return
 	}
 
 	if req.Height <= 1 && req.Prove {
@@ -546,7 +581,11 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 	// when a client did not provide a query height, manually inject the latest
 	if req.Height == 0 {
-		req.Height = app.LastBlockHeight()
+		req.Height = app.writtenCommitID().Version
+	}
+	if app.nothingWritten() {
+		res.Error = ABCIError(errNothingWritten)
+		return
 	}
 
 	if req.Height <= 1 && req.Prove {
@@ -559,7 +598,7 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		res.Error = ABCIError(std.ErrInternal(
 			fmt.Sprintf(
 				"failed to load state at height %d; %s (latest height: %d)",
-				req.Height, err, app.LastBlockHeight(),
+				req.Height, err, app.writtenCommitID().Version,
 			),
 		))
 		return
@@ -620,7 +659,9 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 	app.deliverState.ctx = app.deliverState.ctx.WithBlockGasMeter(gasMeter)
 
 	if app.beginBlocker != nil {
+		app.clearRefusedIterators()
 		res = app.beginBlocker(app.deliverState.ctx, req)
+		app.checkRefusedIterators()
 	}
 
 	// set the signed validators for addition to context in deliverTx
@@ -646,8 +687,10 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 
 // DeliverTx implements the ABCI interface.
 func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliverTx) {
+	app.clearRefusedIterators()
 	ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
 	result := app.runTx(ctx, req.Tx)
+	app.checkRefusedIterators()
 	res.ResponseBase = result.ResponseBase
 	res.GasWanted = result.GasWanted
 	res.GasUsed = result.GasUsed
@@ -661,6 +704,12 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	for _, msg := range msgs {
+		// An empty Any (0a 00) decodes to a nil message, and is canonical, so
+		// it reaches here; reject it instead of letting ValidateBasic
+		// dereference it and the recover in runTx report an internal error.
+		if msg == nil {
+			return std.ErrUnknownRequest("nil message in tx")
+		}
 		// Validate the Msg.
 		if err := msg.ValidateBasic(); err != nil {
 			return err
@@ -668,6 +717,15 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	return nil
+}
+
+// txDecodeFailure is the Error and Log of a tx whose bytes do not decode, or
+// are not the canonical encoding of what they decode to. Log carries the
+// reason alone: a stack trace would make the cheapest rejection several times
+// costlier, and a byzantine proposer could have every result in a block of
+// garbage txs store one.
+func txDecodeFailure(err error) (abci.Error, string) {
+	return ABCIError(std.ErrTxDecode(err.Error())), clipLog(err.Error())
 }
 
 // retrieve the context for the tx w/ txBytes and other memoized values.
@@ -895,13 +953,24 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 
 	var tx Tx
 	if err := amino.Unmarshal(txBytes, &tx); err != nil {
-		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
+		return
+	}
+
+	// A tx is identified by the hash of its bytes while its signatures cover
+	// the sign doc, so only the canonical encoding of a tx is accepted: any
+	// other byte string decoding to the same tx is the same tx under another
+	// hash. The check re-encodes the tx, which for some values costs far more
+	// than decoding them, so it runs only once ValidateBasic has passed. See
+	// tm2/adr/pr6406_canonical_tx_enforcement.md.
+	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 
@@ -988,7 +1057,9 @@ func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBloc
 		// we need to load consensusParams to the end blocker Context
 		// end blocker use consensusParams to calculat the gas price changes.
 		ctx := app.deliverState.ctx.WithConsensusParams(app.consensusParams)
+		app.clearRefusedIterators()
 		res = app.endBlocker(ctx, req)
+		app.checkRefusedIterators()
 	}
 
 	return

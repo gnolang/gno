@@ -1,0 +1,10 @@
+-- input.md --
+Open tag only: <gno-icon name="star">
+
+Open and close: <gno-icon name="star"></gno-icon>
+
+Close only: </gno-icon>
+-- output.html --
+<p>Open tag only: <!-- gno-icon: write it self-closing, <gno-icon name="…" /> --></p>
+<p>Open and close: <!-- gno-icon: write it self-closing, <gno-icon name="…" /> --><!-- raw HTML omitted --></p>
+<p>Close only: <!-- raw HTML omitted --></p>

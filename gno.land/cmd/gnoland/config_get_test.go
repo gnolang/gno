@@ -800,6 +800,14 @@ func TestConfig_Get_RPC(t *testing.T) {
 			false,
 		},
 		{
+			"allow code execution",
+			"rpc.allow_code_execution",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.RPC.AllowCodeExecution, unmarshalJSONCommon[bool](t, value))
+			},
+			false,
+		},
+		{
 			"TLS cert file",
 			"rpc.tls_cert_file",
 			func(loadedCfg *config.Config, value []byte) {

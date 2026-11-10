@@ -1,0 +1,4 @@
+-- input.md --
+<gno-frame>x</gno-frame>
+-- output.html --
+<p><!-- raw HTML omitted -->x<!-- raw HTML omitted --></p>

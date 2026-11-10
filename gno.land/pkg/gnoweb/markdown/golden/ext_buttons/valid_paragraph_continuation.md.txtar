@@ -1,0 +1,13 @@
+-- input.md --
+<gno-button href="/r/test" label="First line" />
+continues the same paragraph.
+
+A paragraph
+<gno-button href="/r/test" label="mid-paragraph" />
+still the same paragraph.
+-- output.html --
+<p><a href="/r/test" class="gno-button">First line</a>
+continues the same paragraph.</p>
+<p>A paragraph
+<a href="/r/test" class="gno-button">mid-paragraph</a>
+still the same paragraph.</p>

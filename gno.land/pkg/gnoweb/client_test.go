@@ -2,12 +2,20 @@ package gnoweb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestCheckResponseSizeRejectsOversized — defense in depth against a
@@ -92,6 +100,7 @@ func TestStateErrorSentinelPact(t *testing.T) {
 		substr   string
 	}{
 		{"package not found", ErrClientPackageNotFound, state.ClientErrPackageNotFound},
+		{"file not found", ErrClientFileNotFound, state.ClientErrFileNotFound},
 		{"object not found", ErrClientObjectNotFound, state.ClientErrObjectNotFound},
 		{"timeout", ErrClientTimeout, state.ClientErrTimeout},
 		{"bad request", ErrClientBadRequest, state.ClientErrBadRequest},
@@ -103,5 +112,180 @@ func TestStateErrorSentinelPact(t *testing.T) {
 					tc.sentinel.Error(), tc.substr)
 			}
 		})
+	}
+}
+
+// pathsCaller is a JSON-RPC caller that records the abci_query path it is
+// sent and answers with a fixed listing.
+type pathsCaller struct {
+	gotPath string
+	listing string
+}
+
+func (p *pathsCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rpctypes.RPCResponse, error) {
+	var params struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return nil, err
+	}
+	p.gotPath = params.Path
+
+	result, err := amino.MarshalJSON(&ctypes.ResultABCIQuery{
+		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: []byte(p.listing)}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &rpctypes.RPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}, nil
+}
+
+func (p *pathsCaller) SendBatch(context.Context, rpctypes.RPCRequests) (rpctypes.RPCResponses, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (p *pathsCaller) Close() error { return nil }
+
+// The node reads qpaths' cap off the query string and silently applies its
+// own default (1000) without one, so `limit` must reach it there.
+func TestListPathsForwardsLimit(t *testing.T) {
+	t.Parallel()
+
+	caller := &pathsCaller{listing: "gno.land/r/demo/a\ngno.land/r/demo/b"}
+	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0)
+
+	paths, err := c.ListPaths(context.Background(), "gno.land/r", 10_000)
+	if err != nil {
+		t.Fatalf("ListPaths: %v", err)
+	}
+	if caller.gotPath != "vm/qpaths?limit=10000" {
+		t.Fatalf("query path = %q, want %q", caller.gotPath, "vm/qpaths?limit=10000")
+	}
+	if want := []string{"/r/demo/a", "/r/demo/b"}; strings.Join(paths, ",") != strings.Join(want, ",") {
+		t.Fatalf("paths = %v, want %v (domain-relative)", paths, want)
+	}
+
+	// No limit leaves the node's default alone rather than sending `limit=0`.
+	if _, err := c.ListPaths(context.Background(), "gno.land/r", 0); err != nil {
+		t.Fatalf("ListPaths: %v", err)
+	}
+	if caller.gotPath != "vm/qpaths" {
+		t.Fatalf("query path = %q, want %q", caller.gotPath, "vm/qpaths")
+	}
+}
+
+// Before ListPaths forwarded its limit, /u/<user> got the node's default of
+// 1000 paths per namespace. Forwarding MaxUserContributions must not lower
+// that: the page counts what it receives as the total.
+func TestUserContributionsKeepNodeDefault(t *testing.T) {
+	t.Parallel()
+
+	caller := &pathsCaller{listing: "gno.land/r/alice/a"}
+	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0)
+	if _, err := c.ListPaths(context.Background(), "@alice", MaxUserContributions); err != nil {
+		t.Fatal(err)
+	}
+	if caller.gotPath != "vm/qpaths?limit=1000" {
+		t.Fatalf("query path = %q, want the node default of 1000", caller.gotPath)
+	}
+}
+
+func TestValidFileName(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]bool{
+		"render.gno":          true,
+		"gnomod.toml":         true,
+		"README.md":           true,
+		"README":              true,
+		"LICENSE":             true,
+		".gitignore":          true,
+		"init":                false, // no dot: vm/qfile reads it as a child package
+		".":                   false,
+		"..":                  false,
+		"../other/render.gno": false,
+		"sub/render.gno":      false,
+		"/render.gno":         false,
+		"render.gno/":         false,
+	}
+	for name, want := range cases {
+		if got := validFileName(name); got != want {
+			t.Errorf("validFileName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
+// errCaller answers every abci_query with a node error.
+type errCaller struct{ pathsCaller }
+
+func (e *errCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rpctypes.RPCResponse, error) {
+	result, err := amino.MarshalJSON(&ctypes.ResultABCIQuery{
+		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Error: abci.StringError("name NoSuchThing not declared")}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &rpctypes.RPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}, nil
+}
+
+// Public evals stay within MaxConcurrentRPC, and a quarter of it: with
+// every shared slot held, one waits like any query; with every eval slot
+// held, pages and gnoweb's own evals (the /u/ user lookup) still query.
+func TestEvalSlotsStayUnderTheRPCCap(t *testing.T) {
+	t.Parallel()
+
+	newClient := func() *rpcClient {
+		return NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(&pathsCaller{listing: "(1 int)"}), "gno.land", 4).(*rpcClient)
+	}
+	hold := func(t *testing.T, slots chan struct{}) {
+		t.Helper()
+		for range cap(slots) {
+			release, err := acquireRPCSlot(context.Background(), slots)
+			require.NoError(t, err)
+			t.Cleanup(release)
+		}
+	}
+
+	c := newClient()
+	require.Equal(t, 1, cap(c.evalSlots), "a quarter of 4")
+
+	hold(t, c.rpcSlots)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := c.PublicEval(ctx, "r/demo/counter", "Get()")
+	require.ErrorIs(t, err, ErrClientTimeout, "an eval must not query past the cap")
+	require.Len(t, c.evalSlots, 0, "a waiting eval gives its eval slot back")
+
+	c = newClient()
+	hold(t, c.evalSlots)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = c.ListPaths(ctx, "gno.land/r/", 0)
+	require.NoError(t, err, "pages query while evals hold their slots")
+	_, err = c.Eval(ctx, UserRegistryPath, `ResolveAny("alice")`)
+	require.NoError(t, err, "gnoweb's own evals query while readers' hold their slots")
+}
+
+// A failed public eval is the reader's input: it logs at Debug only,
+// without the expression, while other failed queries still log at Error.
+func TestFailedEvalLogsAtDebug(t *testing.T) {
+	t.Parallel()
+
+	var logs strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	c := NewRPCClientAdapter(logger, client.NewRPCClient(&errCaller{}), "gno.land", 0)
+
+	if _, err := c.PublicEval(context.Background(), "r/demo/counter", "NoSuchThing()"); !errors.Is(err, ErrClientResponse) {
+		t.Fatalf("PublicEval error = %v, want ErrClientResponse", err)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("failed eval logged above Debug: %s", logs.String())
+	}
+
+	if _, err := c.Realm(context.Background(), "r/demo/counter", ""); !errors.Is(err, ErrClientResponse) {
+		t.Fatalf("Realm error = %v, want ErrClientResponse", err)
+	}
+	if !strings.Contains(logs.String(), "level=ERROR") {
+		t.Fatalf("failed render not logged at Error: %q", logs.String())
 	}
 }

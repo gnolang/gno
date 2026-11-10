@@ -28,8 +28,7 @@ Stay updated and connected with the Gno.land community:
 
 Power up your Gno.land journey with these tools:
 
-- [Gno Studio](https://gno.studio/) - Web IDE for Gno development
-  - [Gno Studio Connect](https://gno.studio/connect) - Interact with any Gno.land app with a web wallet
+- [gnoweb](explore-with-gnoweb.md) - Browse any realm and build its function calls from the `$help` tab
 - [Editor Setup](../builders/editor-setup.md) - Configure your editor with LSP support
 - [Gno Playground](https://play.gno.land/) - Try Gno code in your browser
 - [Faucet Hub](https://faucet.gno.land/) - Get testnet tokens
@@ -37,7 +36,8 @@ Power up your Gno.land journey with these tools:
 ## Monitoring & Analytics
 
 - [Block Explorer](https://gnoscan.io/) - Transaction history and block details
-- [Network Status](https://status.gnoteam.com/) - Health and status of Gno.land networks
+- [Network Status](https://status.gno.land/) - Service health, incidents and scheduled maintenance
+- [Gnockpit](https://gnockpit.gno.land/) - Live mainnet dashboard: chain state, recent blocks, validators and peers
 
 ## Educational Resources
 

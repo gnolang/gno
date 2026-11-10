@@ -1,0 +1,32 @@
+-- input.md --
+<gno-foreign>
+<gno-foreign>
+<gno-foreign>
+<gno-foreign>
+<gno-frame>
+too deep
+</gno-frame>
+</gno-foreign>
+</gno-foreign>
+</gno-foreign>
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<!-- unexpected/invalid frame tag omitted -->
+<p>too deep</p>
+<!-- unexpected/invalid frame tag omitted -->
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>

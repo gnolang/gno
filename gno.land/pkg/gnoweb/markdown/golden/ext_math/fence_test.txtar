@@ -1,0 +1,36 @@
+-- input.md --
+A fence whose info string is `math` is display math, as on GitHub:
+
+```math
+\sqrt{x^2 + 1}
+```
+
+One the converter rejects is shown as the code block it would be without math:
+
+```math
+\begin{matrix}
+a & b
+```
+
+Other fences are code:
+
+```Math
+x^2
+```
+
+```latex
+x^2
+```
+-- output.html --
+<p>A fence whose info string is <code>math</code> is display math, as on GitHub:</p>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msqrt><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><mn>1</mn></mrow></msqrt></mrow><annotation encoding="application/x-tex">\sqrt{x^2 + 1}
+</annotation></semantics></math>
+<p>One the converter rejects is shown as the code block it would be without math:</p>
+<pre><code class="language-math">\begin{matrix}
+a &amp; b
+</code></pre>
+<p>Other fences are code:</p>
+<pre><code class="language-Math">x^2
+</code></pre>
+<pre><code class="language-latex">x^2
+</code></pre>

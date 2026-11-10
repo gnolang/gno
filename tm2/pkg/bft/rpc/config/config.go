@@ -33,9 +33,9 @@ type RPCConfig struct {
 	// A list of non simple headers the client is allowed to use with cross-domain requests.
 	CORSAllowedHeaders []string `json:"cors_allowed_headers" toml:"cors_allowed_headers" comment:"A list of non simple headers the client is allowed to use with cross-domain requests"`
 
-	// TCP or UNIX socket address for the gRPC server to listen on
-	// NOTE: This server only supports /broadcast_tx_commit
-	GRPCListenAddress string `json:"grpc_laddr" toml:"grpc_laddr" comment:"TCP or UNIX socket address for the gRPC server to listen on\n NOTE: This server only supports /broadcast_tx_commit"`
+	// Unused: no gRPC server is started from this address. Kept so
+	// "gnoland config get/set rpc.grpc_laddr" keeps working.
+	GRPCListenAddress string `json:"grpc_laddr" toml:"grpc_laddr" comment:"Unused: no gRPC server is started from this address"`
 
 	// Maximum number of simultaneous connections.
 	// Does not include RPC (HTTP&WebSocket) connections. See max_open_connections
@@ -44,8 +44,9 @@ type RPCConfig struct {
 	// 0 - unlimited.
 	GRPCMaxOpenConnections int `json:"grpc_max_open_connections" toml:"grpc_max_open_connections" comment:"Maximum number of simultaneous connections.\n Does not include RPC (HTTP&WebSocket) connections. See max_open_connections\n If you want to accept a larger number than the default, make sure\n you increase your OS limits.\n 0 - unlimited.\n Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}\n 1024 - 40 - 10 - 50 = 924 = ~900"`
 
-	// Activate unsafe RPC commands like /dial_persistent_peers and /unsafe_flush_mempool
-	Unsafe bool `json:"unsafe" toml:"unsafe" comment:"Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool"`
+	// Activate the unsafe_* RPC endpoints: unsafe_flush_mempool and the three
+	// pprof profiler endpoints. Two of those write to a caller-supplied path.
+	Unsafe bool `json:"unsafe" toml:"unsafe" comment:"Activate the unsafe_* RPC endpoints: unsafe_flush_mempool and the three pprof profiler endpoints.\n Two of the profiler endpoints create a file at a caller-supplied path."`
 
 	// Maximum number of simultaneous connections (including WebSocket).
 	// Does not include gRPC connections. See grpc_max_open_connections
@@ -73,6 +74,10 @@ type RPCConfig struct {
 
 	// Maximum size of request header, in bytes
 	MaxHeaderBytes int `json:"max_header_bytes" toml:"max_header_bytes" comment:"Maximum size of request header, in bytes"`
+
+	// Whether abci_query serves the paths that run code on the node, such as
+	// ".app/simulate" and "vm/qeval". false refuses them; every other path stays open.
+	AllowCodeExecution bool `json:"allow_code_execution" toml:"allow_code_execution" comment:"Whether abci_query serves the paths that run code on the node, such as\n \".app/simulate\" and \"vm/qeval\". false refuses them; every other path stays open."`
 
 	// The path to a file containing certificate that is used to create the HTTPS server.
 	// Might be either absolute path or path related to tendermint's config directory.
@@ -110,6 +115,8 @@ func DefaultRPCConfig() *RPCConfig {
 
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
+
+		AllowCodeExecution: true,
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",
