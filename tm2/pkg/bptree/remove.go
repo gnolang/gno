@@ -69,7 +69,9 @@ func leafRemove(leaf *LeafNode, key []byte) removeResult {
 	leaf.valueHashes[n-1] = Hash{}
 	leaf.valueKeys[n-1] = nil
 	leaf.numKeys--
-	leaf.RebuildMiniMerkle()
+	// The surviving entries keep their slot hashes; only the ancestors of
+	// [pos, n-1] change.
+	leaf.miniTree.removeSlot(pos, n)
 
 	return removeResult{found: true, oldValue: oldVH, oldValueKey: oldVK, underflow: leaf.numKeys < MinKeys}
 }

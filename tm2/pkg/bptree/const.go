@@ -38,9 +38,22 @@ const (
 	// version it is complete for.
 	PrefixFast byte = 'F'
 
-	// Node type bytes for serialization.
+	// Node type bytes for serialization. The type byte doubles as the record
+	// format discriminator: readers accept every type ever written, writers
+	// emit the newest. It is NOT part of the Merkle commitment (node hashes
+	// come from the mini-merkle over keys and value hashes, never from the
+	// serialized bytes), so adding a format changes no app hash and no proof.
 	TypeInner byte = 0x01
-	TypeLeaf  byte = 0x02
+	// TypeLeaf is the original leaf layout, with each key stored in full.
+	// Still read; superseded by TypeLeafPrefixed for writes.
+	TypeLeaf byte = 0x02
+	// TypeLeafPrefixed stores a leaf's keys as one common prefix plus a
+	// per-slot suffix. Leaf keys are sorted and, at B=32, a leaf holds 32
+	// ADJACENT keys — which in a structured keyspace means they share a long
+	// prefix. gno.land's main store keys are "oid:<40 hex pkgid>:<n>", so a
+	// leaf covering one realm's objects repeats the same ~44 bytes 32 times
+	// under TypeLeaf. This is what writers emit.
+	TypeLeafPrefixed byte = 0x03
 )
 
 // Hash is a fixed-size SHA256 hash.
