@@ -945,11 +945,23 @@ func TestValSetUpdatesOtherErrors(t *testing.T) {
 			[]testVal{{"v1", 10}, {"v2", 20}, {"v3", 30}},
 			[]testVal{{"v1", 0}, {"v2", 0}, {"v3", 0}},
 		},
+		{ // grow the set past MaxVotesCount
+			testValSet(MaxVotesCount, 10),
+			[]testVal{{"new", 10}},
+		},
 	}
 
 	for i, tt := range testCases {
 		executeValSetErrTestCase(t, i, tt)
 	}
+}
+
+func TestValSetUpdateSwapAtMaxVotesCount(t *testing.T) {
+	t.Parallel()
+
+	valSet := createNewValidatorSet(testValSet(MaxVotesCount, 10))
+	assert.NoError(t, valSet.UpdateWithChangeSet(createNewValidatorList([]testVal{{"v1", 0}, {"new", 10}})))
+	assert.Equal(t, MaxVotesCount, valSet.Size())
 }
 
 func TestValSetUpdatesBasicTestsExecute(t *testing.T) {
@@ -1264,9 +1276,9 @@ func TestValSetUpdatePriorityOrderTests(t *testing.T) {
 
 		7: randTestVSetCfg(1000, 1000),
 
-		8: randTestVSetCfg(10000, 1000),
+		8: randTestVSetCfg(MaxVotesCount-1000, 1000),
 
-		9: randTestVSetCfg(1000, 10000),
+		9: randTestVSetCfg(1000, MaxVotesCount-1000),
 	}
 
 	for _, cfg := range testCases {

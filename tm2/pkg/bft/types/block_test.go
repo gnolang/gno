@@ -366,6 +366,53 @@ func TestCommitValidateBasicPartSetHeaderTotal(t *testing.T) {
 	}
 }
 
+func TestCommitValidateBasicPrecommitsCount(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		size      int
+		expectErr bool
+	}{
+		{"At MaxVotesCount", MaxVotesCount, false},
+		{"Above MaxVotesCount", MaxVotesCount + 1, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Nil precommits pass the per-entry checks; only the cap rejects.
+			com := randCommit()
+			com.Precommits = append(com.Precommits, make([]*CommitSig, tc.size-len(com.Precommits))...)
+			err := com.ValidateBasic()
+			if tc.expectErr {
+				require.ErrorContains(t, err, "too many precommits")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBlockValidateBasicRejectsOversizedLastCommit(t *testing.T) {
+	t.Parallel()
+
+	// An otherwise valid block with all-nil precommits past the cap, decoded
+	// as a peer would send it.
+	commit := NewCommit(makeBlockIDRandom(), make([]*CommitSig, MaxVotesCount+1))
+	block := MakeBlock(int64(3), []Tx{Tx("foo"), Tx("bar")}, commit)
+	block.Header.LastBlockID = makeBlockIDRandom()
+	block.ProposerAddress = crypto.AddressFromPreimage([]byte("proposer_address"))
+
+	wire, err := amino.MarshalSized(block)
+	require.NoError(t, err)
+	var dec Block
+	require.NoError(t, amino.UnmarshalSized(wire, &dec))
+	require.Len(t, dec.LastCommit.Precommits, MaxVotesCount+1)
+
+	require.ErrorContains(t, dec.ValidateBasic(), "too many precommits")
+	require.Nil(t, dec.LastCommit.hash, "LastCommit was hashed before the count check")
+}
+
 func TestVerifyCommitRejectsOutOfRangePartsHeaderTotal(t *testing.T) {
 	t.Parallel()
 

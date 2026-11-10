@@ -397,6 +397,30 @@ func TestStateBadProposal(t *testing.T) {
 	signAddVotes(cs1, types.PrecommitType, propBlock.Hash(), propBlock.MakePartSet(partSize).Header(), vs2)
 }
 
+// A proposal block whose LastCommit has more than MaxVotesCount precommits is
+// dropped.
+func TestStateRejectsProposalBlockWithOversizedLastCommit(t *testing.T) {
+	t.Parallel()
+
+	cs1, _ := randConsensusState(1)
+	propBlock, _ := cs1.createProposalBlock()
+	lastBlockID := types.BlockID{
+		Hash:        bytes.Repeat([]byte{1}, 32),
+		PartsHeader: types.PartSetHeader{Total: 1, Hash: bytes.Repeat([]byte{2}, 32)},
+	}
+	propBlock.LastCommit = types.NewCommit(lastBlockID, make([]*types.CommitSig, types.MaxVotesCount+1))
+	propBlock.LastCommitHash = nil
+	parts := propBlock.MakePartSet(types.BlockPartSizeBytes)
+
+	cs1.ProposalBlockParts = types.NewPartSetFromHeader(parts.Header())
+	var err error
+	for i := range parts.Total() {
+		_, err = cs1.addProposalBlockPart(&BlockPartMessage{Height: cs1.Height, Round: cs1.Round, Part: parts.GetPart(i)}, "peer")
+	}
+	require.ErrorContains(t, err, "too many precommits")
+	require.Nil(t, cs1.ProposalBlock)
+}
+
 // A proposed block whose time is the latest amino encodes must not stop the
 // node from signing its nil votes, and they carry the local clock.
 func TestStateProposalBlockTimeAtEncodingLimit(t *testing.T) {

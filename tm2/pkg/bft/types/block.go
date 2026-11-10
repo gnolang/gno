@@ -571,6 +571,12 @@ func (commit *Commit) ValidateBasic() error {
 	if len(commit.Precommits) == 0 {
 		return errors.New("No precommits in commit")
 	}
+	// A commit has one entry per validator. A nil entry costs a peer 2 wire
+	// bytes, so bound the count before Hash() walks them.
+	if len(commit.Precommits) > MaxVotesCount {
+		return fmt.Errorf("commit has too many precommits: %d, max: %d",
+			len(commit.Precommits), MaxVotesCount)
+	}
 	height, round := commit.Height(), commit.Round()
 
 	// Validate the precommits.

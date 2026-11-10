@@ -571,6 +571,10 @@ func (vals *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes
 	if numNewValidators == 0 && len(vals.Validators) == len(deletes) {
 		return errors.New("applying the validator changes would result in empty set")
 	}
+	// Commit.ValidateBasic refuses commits with more precommits than this.
+	if size := len(vals.Validators) + numNewValidators - len(deletes); size > MaxVotesCount {
+		return fmt.Errorf("applying the validator changes would result in %d validators, max: %d", size, MaxVotesCount)
+	}
 
 	// Compute the priorities for updates.
 	computeNewPriorities(updates, vals, updatedTotalVotingPower)
