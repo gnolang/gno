@@ -87,14 +87,15 @@ cat "$f"
 // readelfDynamic is readelf's output for a dynamic binary that needs the
 // given glibc symbol versions.
 func readelfDynamic(versions ...string) string {
-	out := "Program Headers:\n  INTERP 0x318 0x400318 0x400318 0x1c 0x1c R 0x1\n" +
+	var out strings.Builder
+	out.WriteString("Program Headers:\n  INTERP 0x318 0x400318 0x400318 0x1c 0x1c R 0x1\n" +
 		"      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]\n" +
 		"Version needs section '.gnu.version_r' contains 1 entry:\n" +
-		" Addr: 0x0  Offset: 0x0  Link: 6 (.dynstr)\n  000000: Version: 1  File: libc.so.6  Cnt: 3\n"
+		" Addr: 0x0  Offset: 0x0  Link: 6 (.dynstr)\n  000000: Version: 1  File: libc.so.6  Cnt: 3\n")
 	for _, v := range versions {
-		out += "  0x0010:   Name: " + v + "  Flags: none  Version: 2\n"
+		out.WriteString("  0x0010:   Name: " + v + "  Flags: none  Version: 2\n")
 	}
-	return out
+	return out.String()
 }
 
 const readelfStatic = "Program Headers:\n  LOAD 0x0 0x400000 0x400000 0x1000 0x1000 R E 0x1000\n\nNo version information found in this file.\n"
