@@ -581,6 +581,10 @@ Before deploying a realm:
   whose type has `Iterate(cb func(*T))` / `Apply(fn func(*T))` /
   similar concretely-typed callback methods.
 
+- [ ] No function calls `mutable` on, or writes through, a reference
+  it received as an argument: every `mutable(` names my own variable
+  (see §5.1d).
+
 - [ ] No function treats a non-nil pointer to one of my types as
   proof of authorization (see §7.3).
 
