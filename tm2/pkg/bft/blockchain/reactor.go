@@ -62,6 +62,11 @@ const (
 	// MaxBlockSizeBytes (100MB), far larger than any real block.
 	maxMsgSize = int(types.MaxBlockDataBytesLimit) + maxBlockMsgOverhead
 
+	// maxSmallMsgSize bounds every message of this reactor but a block
+	// response: each carries one height, and at math.MaxInt64 the largest is
+	// 34 bytes.
+	maxSmallMsgSize = 64
+
 	// blockRequestsKey is the peer data key of the heights the peer
 	// requested and respondRoutine has yet to answer.
 	blockRequestsKey = "BlockchainReactor.blockRequests"
@@ -306,6 +311,14 @@ func (bcR *BlockchainReactor) blockResponse(peer p2p.PeerConn, height int64) []b
 
 // Receive implements Reactor by handling 4 types of messages (look below).
 func (bcR *BlockchainReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
+	// Decoding a block costs work per tx, about 170 bytes of allocation for an
+	// empty tx that takes 2 bytes on the wire. So a message over
+	// maxSmallMsgSize is decoded only from a peer the pool is waiting on.
+	if len(msgBytes) > maxSmallMsgSize && !bcR.pool.IsWaitingOn(src.ID()) {
+		bcR.Logger.Debug("Dropping a large message from a peer we asked nothing", "src", src, "bytes", len(msgBytes))
+		return
+	}
+
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		bcR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
@@ -491,6 +504,9 @@ FOR_LOOP:
 			// currently necessary.
 			err := state.Validators.VerifyCommit(
 				chainID, firstID, first.Height, second.LastCommit)
+			if err == nil {
+				err = first.ValidateBasic()
+			}
 			if err != nil {
 				bcR.Logger.Error("Error in validation", "err", err)
 				peerID := bcR.pool.RedoRequest(first.Height)
@@ -612,7 +628,8 @@ type bcBlockResponseMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *bcBlockResponseMessage) ValidateBasic() error {
-	return m.Block.ValidateBasic()
+	// The body is hashed only once a commit has signed the header, in poolRoutine.
+	return m.Block.ValidateHeaderBasic()
 }
 
 func (m *bcBlockResponseMessage) String() string {

@@ -26,6 +26,7 @@ func TestBlockValidateBasic(t *testing.T) {
 	t.Parallel()
 
 	require.Error(t, (*Block)(nil).ValidateBasic())
+	require.Error(t, (*Block)(nil).ValidateHeaderBasic())
 
 	txs := []Tx{Tx("foo"), Tx("bar")}
 	lastID := makeBlockIDRandom()
@@ -35,36 +36,45 @@ func TestBlockValidateBasic(t *testing.T) {
 	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals)
 	require.NoError(t, err)
 
+	// headerErr is what ValidateHeaderBasic returns, which compares no hash
+	// against the body.
 	testCases := []struct {
 		testName      string
 		malleateBlock func(*Block)
 		expErr        bool
+		headerErr     bool
 	}{
-		{"Make Block", func(blk *Block) {}, false},
-		{"Make Block w/ proposer Addr", func(blk *Block) { blk.ProposerAddress = valSet.GetProposer().Address }, false},
-		{"Negative Height", func(blk *Block) { blk.Height = -1 }, true},
-		{"Increase NumTxs", func(blk *Block) { blk.NumTxs++ }, true},
+		{"Make Block", func(blk *Block) {}, false, false},
+		{"Make Block w/ proposer Addr", func(blk *Block) { blk.ProposerAddress = valSet.GetProposer().Address }, false, false},
+		{"Negative Height", func(blk *Block) { blk.Height = -1 }, true, true},
+		{"Increase NumTxs", func(blk *Block) { blk.NumTxs++ }, true, true},
 		{"Remove 1/2 the commits", func(blk *Block) {
 			blk.LastCommit.Precommits = commit.Precommits[:commit.Size()/2]
 			blk.LastCommit.hash = nil // clear hash or change wont be noticed
-		}, true},
-		{"Remove LastCommitHash", func(blk *Block) { blk.LastCommitHash = []byte("something else") }, true},
+		}, true, false},
+		{"Remove LastCommitHash", func(blk *Block) { blk.LastCommitHash = []byte("something else") }, true, true},
+		{"Empty LastCommitHash", func(blk *Block) { blk.LastCommitHash = nil }, true, true},
 		{"Tampered Data", func(blk *Block) {
 			blk.Data.Txs[0] = Tx("something else")
 			blk.Data.hash = nil // clear hash or change wont be noticed
-		}, true},
+		}, true, false},
 		{"Tampered DataHash", func(blk *Block) {
 			blk.DataHash = random.RandBytes(len(blk.DataHash))
-		}, true},
+		}, true, false},
+		{"Empty DataHash", func(blk *Block) { blk.DataHash = nil }, true, true},
 	}
 	for i, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
-			block := MakeBlock(h, txs, commit)
+			// Each case gets its own txs and commit, which some cases change.
+			lastCommit := NewCommit(commit.BlockID, append([]*CommitSig(nil), commit.Precommits...))
+			block := MakeBlock(h, append([]Tx(nil), txs...), lastCommit)
 			block.Header.LastBlockID = lastID
 			block.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
+			err := block.ValidateHeaderBasic()
+			assert.Equal(t, tc.headerErr, err != nil, "#%d header: %v", i, err)
 			err = block.ValidateBasic()
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})

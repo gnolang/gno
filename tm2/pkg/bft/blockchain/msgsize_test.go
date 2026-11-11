@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"math"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -77,6 +78,23 @@ func TestMaxMsgSizeFitsLargestBlockResponse(t *testing.T) {
 	// And the same message must survive the receive-side decode limit.
 	_, err = decodeMsg(msgBytes)
 	assert.NoError(t, err)
+}
+
+// TestMaxSmallMsgSizeFitsOtherMessages pins the bound Receive drops a message
+// by when the pool is waiting on nothing from its sender: every message but a
+// block response must fit it at its largest height, or a node stops hearing
+// the status of the peers it has not asked yet.
+func TestMaxSmallMsgSizeFitsOtherMessages(t *testing.T) {
+	t.Parallel()
+
+	for _, msg := range []BlockchainMessage{
+		&bcBlockRequestMessage{Height: math.MaxInt64},
+		&bcNoBlockResponseMessage{Height: math.MaxInt64},
+		&bcStatusRequestMessage{Height: math.MaxInt64},
+		&bcStatusResponseMessage{Height: math.MaxInt64},
+	} {
+		assert.LessOrEqual(t, len(amino.MustMarshalAny(msg)), maxSmallMsgSize, "%T", msg)
+	}
 }
 
 // TestSendBufferBytesAdmitBlockResponses pins the send budget to maxMsgSize,
