@@ -1474,7 +1474,7 @@ func getUnsavedChildObjects(val Value) []Object {
 // copyTypeWithRefs
 
 func copyMethods(methods []TypedValue) []TypedValue {
-	res := make([]TypedValue, len(methods))
+	res := sliceLike(methods)
 	for i, mtv := range methods {
 		// NOTE: this works because copyMethods/copyTypeWithRefs
 		// gets called AFTER the file block (method closure)
@@ -1507,8 +1507,20 @@ func PersistedTypeFormForTypeValue(typ Type) Type {
 	return refOrCopyType(typ)
 }
 
+// sliceLike returns a zeroed slice of len(src), or nil if src is nil, so that
+// a copy keeps the nil-ness of its source. A copied object is then
+// structurally identical to a decode of its bytes (amino leaves empty slices
+// nil), which the decoded-object cache relies on: FuncType.IsZero, for one,
+// tells nil from empty.
+func sliceLike[T any](src []T) []T {
+	if src == nil {
+		return nil
+	}
+	return make([]T, len(src))
+}
+
 func copyFieldsWithRefs(fields []FieldType) []FieldType {
-	fieldsCpy := make([]FieldType, len(fields))
+	fieldsCpy := sliceLike(fields)
 	for i, field := range fields {
 		fieldsCpy[i] = FieldType{
 			Name:     field.Name,
@@ -1588,7 +1600,7 @@ func copyTypeWithRefs(typ Type) Type {
 	case blockType:
 		return blockType{}
 	case *tupleType:
-		elts2 := make([]Type, len(ct.Elts))
+		elts2 := sliceLike(ct.Elts)
 		for i, elt := range ct.Elts {
 			elts2[i] = refOrCopyType(elt)
 		}
@@ -1645,7 +1657,7 @@ func copyValueWithRefs(val Value) Value {
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
-			list := make([]TypedValue, len(cv.List))
+			list := sliceLike(cv.List)
 			for i, etv := range cv.List {
 				list[i] = refOrCopyValue(etv)
 			}
@@ -1667,7 +1679,7 @@ func copyValueWithRefs(val Value) Value {
 			Maxcap: cv.Maxcap,
 		}
 	case *StructValue:
-		fields := make([]TypedValue, len(cv.Fields))
+		fields := sliceLike(cv.Fields)
 		for i, ftv := range cv.Fields {
 			fields[i] = refOrCopyValue(ftv)
 		}
@@ -1681,7 +1693,7 @@ func copyValueWithRefs(val Value) Value {
 		if cv.Parent != nil {
 			parent = toRefValue(cv.Parent)
 		}
-		captures := make([]TypedValue, len(cv.Captures))
+		captures := sliceLike(cv.Captures)
 		for i, ctv := range cv.Captures {
 			captures[i] = refOrCopyValue(ctv)
 		}
@@ -1741,7 +1753,7 @@ func copyValueWithRefs(val Value) Value {
 		return toTypeValue(refOrCopyType(cv.Type))
 	case *PackageValue:
 		block := toRefValue(cv.Block)
-		fblocks := make([]Value, len(cv.FBlocks))
+		fblocks := sliceLike(cv.FBlocks)
 		for i, fb := range cv.FBlocks {
 			fblocks[i] = toRefValue(fb)
 		}
@@ -1757,7 +1769,7 @@ func copyValueWithRefs(val Value) Value {
 		}
 	case *Block:
 		source := toRefNode(cv.Source)
-		vals := make([]TypedValue, len(cv.Values))
+		vals := sliceLike(cv.Values)
 		for i, tv := range cv.Values {
 			vals[i] = refOrCopyValue(tv)
 		}

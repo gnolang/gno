@@ -198,6 +198,7 @@ type defaultStore struct {
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
 	aminoCache     *ristretto.Cache[[]byte, Type]
+	objectCache    *objectDecodeCache // see store_objcache.go
 
 	// transient
 	opslog  io.Writer // for logging store operations.
@@ -247,6 +248,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		nativeResolver: nil,
 		gasConfig:      DefaultGasConfig(),
 		aminoCache:     globalAminoCache(),
+		objectCache:    globalObjectDecodeCache(),
 	}
 	InitStoreCaches(ds)
 	return ds
@@ -286,10 +288,11 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 		nativeResolver: ds.nativeResolver,
 
 		// gas
-		gctx:       gctx,
-		gasMeter:   gasMeter,
-		gasConfig:  ds.gasConfig,
-		aminoCache: ds.aminoCache,
+		gctx:        gctx,
+		gasMeter:    gasMeter,
+		gasConfig:   ds.gasConfig,
+		aminoCache:  ds.aminoCache,
+		objectCache: ds.objectCache,
 
 		// transient
 		current: nil,
@@ -580,9 +583,9 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			trace.Store("DECODE_OBJ", gas, []byte(key), len(hashbz),
 				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
 		}
-		amino.MustUnmarshal(bz, &oo)
-		// Must precede GetShallowSize below: it charges by capacity.
-		normalizeDecodedCap(oo)
+		// Decode, or copy a cached decode of the same bytes. Gas was
+		// charged above either way; see store_objcache.go.
+		oo = ds.objectCache.decode(bz)
 		if debug {
 			debug.Printf("loadObjectSafe by oid: %v, type of oo: %v\n", oid, reflect.TypeOf(oo))
 		}
