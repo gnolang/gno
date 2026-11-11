@@ -1549,35 +1549,29 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
 		},
-		false,
-		0,
+		true,
+		10,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
 				p0  string
 				rp0 = reflect.ValueOf(&p0).Elem()
-				p1  []byte
-				rp1 = reflect.ValueOf(&p1).Elem()
+				p1  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV)
 				p2  []byte
 				rp2 = reflect.ValueOf(&p2).Elem()
-				p3  []byte
-				rp3 = reflect.ValueOf(&p3).Elem()
+				p3  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV)
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
 			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
-			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
-			tv1.DeepFill(m.Store)
-			gno.Gno2GoValue(tv1, rp1)
 			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
 			tv2.DeepFill(m.Store)
 			gno.Gno2GoValue(tv2, rp2)
-			tv3 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 3, "")).TV
-			tv3.DeepFill(m.Store)
-			gno.Gno2GoValue(tv3, rp3)
 
-			r0 := libs_crypto_cometbls.X_verifyZKP(p0, p1, p2, p3)
+			r0 := libs_crypto_cometbls.X_verifyZKP(
+				m,
+				p0, p1, p2, p3)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
@@ -1597,30 +1591,24 @@ var nativeFuncs = [...]NativeFunc{
 		[]gno.FieldTypeExpr{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
 		},
-		false,
-		0,
+		true,
+		5,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
-				p0  []byte
-				rp0 = reflect.ValueOf(&p0).Elem()
+				p0  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
 				p1  []byte
 				rp1 = reflect.ValueOf(&p1).Elem()
-				p2  []byte
-				rp2 = reflect.ValueOf(&p2).Elem()
+				p2  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV)
 			)
 
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
 			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
 			tv1.DeepFill(m.Store)
 			gno.Gno2GoValue(tv1, rp1)
-			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
-			tv2.DeepFill(m.Store)
-			gno.Gno2GoValue(tv2, rp2)
 
-			r0 := libs_crypto_ed25519.X_verify(p0, p1, p2)
+			r0 := libs_crypto_ed25519.X_verify(
+				m,
+				p0, p1, p2)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,

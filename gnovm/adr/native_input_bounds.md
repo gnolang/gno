@@ -95,6 +95,22 @@ payload would just move to the unmetered operand.
   builtin, charged the flat `OpCPUCallNativeBody` of 2,205 — an uverse-pricing
   artifact, not the cost of the comparison. It is noise next to the
   `pairingCheck` (457,574) that a realm doing EC verification also pays.
+- A later fix bounded two more natives in Go, before the copy: each takes its
+  unpriced operands as `gno.TypedValue`, which the dispatcher hands over
+  uncopied. `crypto/ed25519.verify` slopes on the message only, so `X_verify`
+  returns false unless the public key is 32 bytes and the signature 64. A
+  wrong-size key used to reach Go's `ed25519.Verify`, whose panic no realm can
+  recover; it now returns false, the one result this section changes.
+  `crypto/cometbls.verifyZKP` is flat, so `X_verifyZKP` copies
+  `trustedValidatorsHash` and `zkp` only up to one byte past the 32 and 384
+  bytes the native accepts, and the native still rejects them with the same
+  error at the same step. `chainID` needs no bound: a `string` reaches a native
+  uncopied. The bounds sit in Go rather than in `ed25519.gno` and
+  `cometbls.gno` because stdlib source enters state only at genesis: a chain
+  upgraded in place keeps the wrappers it stored, while every node runs the
+  natives its binary carries. Each native fills its operands from the store
+  before the check, as the dispatcher fills every other operand, and no `.gno`
+  byte or gas row changes, so an honest call costs the gas it cost before.
 - `crypto/merkle.innerHash` is the first production row to use a pre-call
   `Slope2` on a second parameter. `gen_native_table.py` grew a `NATIVE_SPECS_PAIR`
   shape that fits a symmetric two-operand sweep and emits both slopes, and it
@@ -128,10 +144,6 @@ payload would just move to the unmetered operand.
 Same class, left as separate work — all measured through the dispatcher as
 above, all reachable from any realm:
 
-- `crypto/cometbls.verifyZKP` is flat at 2.63 ms with one `string` and three
-  `[]byte` parameters, all length-validated after conversion. The large base
-  makes the ratio small (~4x at 64 MiB), and the schema's two slopes cannot
-  cover four parameters, so bounding in the wrapper is the likely answer.
 - `chain.pubKeyAddress` is flat at 2,631 with an unbounded bech32 `string`
   (reported separately).
 
