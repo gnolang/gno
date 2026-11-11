@@ -1193,6 +1193,10 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 
 	// At this point, +2/3 prevoted for a particular block.
 
+	// The polka may name our locked block under another cut: move the lock to
+	// the BlockPartSizeBytes cut, or unlock and fall through.
+	cs.repairLockedParts(logger, blockID)
+
 	// If we're already locked on that block, precommit it, and update the LockedRound
 	if cs.LockedBlock.HashesTo(blockID.Hash) && cs.LockedBlockParts.HasHeader(blockID.PartsHeader) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
@@ -1299,6 +1303,8 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 		cs.ProposalBlockParts = cs.LockedBlockParts
 	}
 
+	cs.repairProposalParts(logger, blockID)
+
 	// If we don't have the block being committed, set up to get it.
 	if !cs.ProposalBlock.HashesTo(blockID.Hash) || !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
@@ -1319,6 +1325,47 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 		// else {
 		// We just need to keep waiting.
 		// }
+	}
+}
+
+// repairLockedParts swaps LockedBlockParts for LockedBlock's BlockPartSizeBytes
+// cut when blockID names the locked block under that cut, or unlocks and
+// returns true when blockID names the locked block under any other cut.
+func (cs *ConsensusState) repairLockedParts(logger *slog.Logger, blockID types.BlockID) (unlocked bool) {
+	if !cs.LockedBlock.HashesTo(blockID.Hash) || cs.LockedBlockParts.HasHeader(blockID.PartsHeader) {
+		return false
+	}
+	if partSet := cs.LockedBlock.MakePartSet(types.BlockPartSizeBytes); partSet.HasHeader(blockID.PartsHeader) {
+		logger.Info("Locked block under a different parts header. Rebuilding locked parts", "hash", blockID.Hash)
+		cs.LockedBlockParts = partSet
+		// The node proposes its valid block, so keep it on the cut it prevotes.
+		if cs.ValidBlock.HashesTo(blockID.Hash) {
+			cs.ValidBlockParts = partSet
+		}
+		return false
+	}
+	logger.Info("Locked block whose parts header cannot be rebuilt. Unlocking", "hash", blockID.Hash)
+	cs.LockedRound = -1
+	cs.LockedBlock = nil
+	cs.LockedBlockParts = nil
+	return true
+}
+
+// repairProposalParts swaps ProposalBlockParts for ProposalBlock's
+// BlockPartSizeBytes cut when blockID names the block under that cut, or drops
+// the block when blockID names it under any other cut. A header no whole block
+// fills is left to the caller, so addVote keeps the block as its swap does.
+func (cs *ConsensusState) repairProposalParts(logger *slog.Logger, blockID types.BlockID) {
+	if !cs.ProposalBlock.HashesTo(blockID.Hash) || cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) ||
+		blockID.PartsHeader.Total > cs.maxBlockParts() {
+		return
+	}
+	if partSet := cs.ProposalBlock.MakePartSet(types.BlockPartSizeBytes); partSet.HasHeader(blockID.PartsHeader) {
+		logger.Info("Proposal block under a different parts header. Rebuilding parts", "hash", blockID.Hash)
+		cs.ProposalBlockParts = partSet
+	} else {
+		logger.Info("Proposal block whose parts header cannot be rebuilt. Set ProposalBlock=nil", "hash", blockID.Hash)
+		cs.ProposalBlock = nil
 	}
 }
 
@@ -1777,18 +1824,26 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 			// NOTE: If vote.Round > cs.Round, we'll deal with it when we get to vote.Round
 			if (cs.LockedBlock != nil) &&
 				(cs.LockedRound < vote.Round) &&
-				(vote.Round <= cs.Round) &&
-				!cs.LockedBlock.HashesTo(blockID.Hash) {
-				cs.Logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
-				cs.LockedRound = -1
-				cs.LockedBlock = nil
-				cs.LockedBlockParts = nil
-				cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
+				(vote.Round <= cs.Round) {
+				// A polka for our locked block under another cut moves the lock to the
+				// BlockPartSizeBytes cut, or unlocks.
+				unlocked := cs.repairLockedParts(cs.Logger.With("lockedRound", cs.LockedRound, "POLRound", vote.Round), blockID)
+				if !unlocked && !cs.LockedBlock.HashesTo(blockID.Hash) {
+					cs.Logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
+					cs.LockedRound = -1
+					cs.LockedBlock = nil
+					cs.LockedBlockParts = nil
+					unlocked = true
+				}
+				if unlocked {
+					cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
+				}
 			}
 
 			// Update Valid* if we can.
 			// NOTE: our proposal block may be nil or not what received a polka..
 			if len(blockID.Hash) != 0 && (cs.ValidRound < vote.Round) && (vote.Round == cs.Round) {
+				cs.repairProposalParts(cs.Logger, blockID)
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
 					cs.Logger.Info(
 						"Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
