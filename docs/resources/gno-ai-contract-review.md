@@ -113,7 +113,9 @@ The rule: **any exported method on a `/p/` type that writes to its receiver is a
 mutator**. If you grant an instance and return a pointer to it, that mutator is now
 callable by anyone with the authority of your realm. Check every `mutable(` line, and
 every `/p/` constructor the realm calls with its own object: a `/p/`-built handle over
-it (a grc20 teller) writes it too.
+it (a grc20 teller) writes it too. Flag any function that calls `mutable` on, or
+writes through, a reference it received as an argument: a caller can pass the realm's
+own object back, so the realm grants or writes whichever of its objects the caller picked.
 
 #### Sub-case: exported pointer fields
 

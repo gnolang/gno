@@ -98,6 +98,13 @@ idea with syntax; both keep the flag as the mechanism.
 - **Per-reference grant.** Cannot survive the store; handles are kept across
   transactions.
 - **Wrapper types like `rotree`.** Per type, hand-rolled, inverse default.
+- **Restrict what `mutable` may wrap** (not a parameter; or only an object
+  written out on the spot, `mutable(&T{...})`, so an object is writable from
+  birth or never). Closes `func Share(cur realm, t *T) *T { return mutable(t) }`,
+  where a caller passes the realm's own object back. Not done: a realm that
+  writes through a caller-supplied reference has the same exposure without
+  `mutable`, so it is guidance (security guide §5.1d). It can only be
+  tightened before release, never after.
 
 ## Consequences
 

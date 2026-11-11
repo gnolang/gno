@@ -296,6 +296,22 @@ writes any object of the same owner, granted or not. Read the method
 set of a type before you grant an instance; library authors should not
 give a handle type methods that write other objects they are passed.
 
+#### 5.1d Acting on a reference a caller passed in
+
+A caller can pass your realm's own object back to you. Inside your
+function the running realm is yours, so anything you do to that argument
+you do to your own state:
+
+```go
+func Share(cur realm, t *avl.Tree) *avl.Tree { return mutable(t) } // grants whichever of your trees the caller picked
+func Touch(cur realm, t *avl.Tree)           { t.Set("k", "v") }   // writes whichever of your trees the caller picked
+```
+
+`mutable(t)` on a caller's own tree panics, so it only ever succeeds on
+yours. **Rule**: never write through, or call `mutable` on, a reference
+received as an argument; name the realm's own variable instead
+(`mutable(shared)`).
+
 ### 5.2 Embedding a `/p/`-type with concrete-callback higher-order methods
 
 The (B)-class vector. Even if your container is `/r/`-declared, if
