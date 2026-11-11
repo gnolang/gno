@@ -40,8 +40,17 @@ type PebbleDB struct {
 	db *pebble.DB
 }
 
+// blockCacheSize replaces pebble's 8 MiB default. Every Get walks a table's
+// index block before its data block, and a store of 1M avl keys already has
+// about 40 MiB of index blocks, so at 8 MiB the cache held almost none of them
+// and Gets missed it on nearly every block read. The cache fills only as
+// blocks are read, so a small DB stays small.
+const blockCacheSize = 64 << 20
+
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
-	return NewPebbleDBWithOpts(name, dir, &pebble.Options{})
+	cache := pebble.NewCache(blockCacheSize)
+	defer cache.Unref() // pebble.Open takes its own reference
+	return NewPebbleDBWithOpts(name, dir, &pebble.Options{Cache: cache})
 }
 
 func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB, error) {
