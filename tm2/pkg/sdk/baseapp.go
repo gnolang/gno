@@ -964,10 +964,23 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
-
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
+		return
+	}
+
+	// The signature does not cover invalid UTF-8 bytes in a string; see
+	// std.ValidateUTF8. Refused before the ante handler, so a relayer's
+	// rewritten copy costs the signer no fee and no sequence. The walk renders
+	// values, which for some costs far more than decoding them, so it runs on
+	// what ValidateBasic accepted, and skips the signatures: they hold no text,
+	// and nothing has bounded their count yet.
+	signed := tx
+	signed.Signatures = nil
+	if err := std.ValidateUTF8(signed); err != nil {
+		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		result.Log = err.Error() // names the field; Log is not in the results hash
 		return
 	}
 
