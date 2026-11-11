@@ -293,8 +293,8 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 		return fmt.Errorf("unable to marshal discovery response, %w", err)
 	}
 
-	// Send the response to the peer
-	if !peer.Send(Channel, preparedResp) {
+	// Receive must keep reading pings even when the shared send budget is full.
+	if !peer.TrySend(Channel, preparedResp) {
 		return fmt.Errorf("unable to send discovery response to peer %s", peer.ID())
 	}
 

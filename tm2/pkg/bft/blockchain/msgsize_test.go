@@ -5,6 +5,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,4 +77,16 @@ func TestMaxMsgSizeFitsLargestBlockResponse(t *testing.T) {
 	// And the same message must survive the receive-side decode limit.
 	_, err = decodeMsg(msgBytes)
 	assert.NoError(t, err)
+}
+
+// TestSendBufferBytesAdmitBlockResponses pins the send budget to maxMsgSize,
+// the largest message this reactor sends: the smallest nonzero budget
+// ValidateBasic accepts admits one block response, the default two.
+func TestSendBufferBytesAdmitBlockResponses(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, maxMsgSize, p2pcfg.MinSendBufferBytes,
+		"MinSendBufferBytes must track the largest block response")
+	assert.LessOrEqual(t, 2*maxMsgSize, conn.DefaultMConnConfig().MaxSendBufferBytes,
+		"the default send budget must admit two block responses")
 }
