@@ -50,6 +50,9 @@ func StoreAndWrite(cur realm, t *avl.Tree) {
 	t.Set("from", "viewdefault")
 }
 
+// RunHook calls a caller's function value from this realm's own code.
+func RunHook(cur realm, fn func()) { fn() }
+
 // PublishView asks library code to grant the stored view.
 func PublishView() *avl.Tree { return viewgrant.Publish(view) }
 

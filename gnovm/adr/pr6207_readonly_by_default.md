@@ -68,9 +68,10 @@ property of the object, so it survives the store.
    object's method (`h.Iterate("", "", v.Set)`) ran under the owner's storage
    and wrote the view. A direct `x.M()` binds and calls in one frame: no-op.
    Bound by the receiver's owner, it starts instead from the realm whose code
-   makes the call (the nearest `/r/`- or `/e/`-declared frame; `/p/` frames
-   and closures act for their caller), so an ungranted receiver is written
-   only when binder and calling realm both own it.
+   makes the call: the owner only if every frame down to the nearest `/r/`-
+   or `/e/`-declared one runs as the owner, else the first other realm on
+   the way (a borrowed `/p/` frame, another realm's closure). An ungranted
+   receiver is written only when binder and calling realm both own it.
 7. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
 
 Persistence: `IsMutable` is amino field 8, `json:",omitempty"`, so unflagged

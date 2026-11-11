@@ -18,6 +18,9 @@ func (w *Writer) Set(k, v string) { w.t.Set(k, v) }
 // Deferred calls fn from a defer statement, for callback probes.
 func (w *Writer) Deferred(fn func(string, any) bool) { defer fn("d", "deferred") }
 
+// Wrap returns a closure built for the caller that calls fn.
+func Wrap(fn func(string, any) bool) func() { return func() { fn("w", "wrapped") } }
+
 // Pair holds two trees behind one heap-held struct, for grant-target probes.
 type Pair struct{ A, B *avl.Tree }
 

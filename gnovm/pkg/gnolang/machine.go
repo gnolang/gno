@@ -2736,7 +2736,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	if bindPID.IsRealmPkg() {
 		var cr *Realm
 		if oi != nil && oi.ID.PkgID == bindPID {
-			cr = m.callingRealm()
+			cr = m.callingRealm(bindPID)
 		}
 		if cr != nil {
 			m.setRealm(cr)
@@ -2794,18 +2794,19 @@ func (m *Machine) borrowToPkg(pid PkgID) {
 	}
 }
 
-// callingRealm returns the realm whose own code makes the call on top of the
-// stack: the body realm of the nearest /r/- or /e/-declared frame below it.
-// /p/ and stdlib frames act for their caller and are skipped, closures too:
-// one built inside a borrowed call carries the borrowed realm's stamp.
-func (m *Machine) callingRealm() *Realm {
+// callingRealm returns the realm an owner-bound method value is called for:
+// owner's, only if every frame from the call down to the nearest /r/- or
+// /e/-declared one runs as owner; else the first other realm on the way, so
+// neither a borrowed /p/ frame nor another realm's closure passes as owner.
+func (m *Machine) callingRealm(owner PkgID) *Realm {
 	rlm := m.Frames[len(m.Frames)-1].LastRealm
 	for i := len(m.Frames) - 2; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.Func == nil {
 			continue
 		}
-		if IsRealmPath(fr.Func.PkgPath) || IsEphemeralPath(fr.Func.PkgPath) {
+		if rlm == nil || rlm.ID != owner ||
+			IsRealmPath(fr.Func.PkgPath) || IsEphemeralPath(fr.Func.PkgPath) {
 			return rlm
 		}
 		rlm = fr.LastRealm
