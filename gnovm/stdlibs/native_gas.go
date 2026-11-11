@@ -77,7 +77,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 73 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 74 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
@@ -100,10 +100,17 @@ type nativeGasEntry struct {
 // argument covers the flat part only. The two borrowed PostSlopes come from
 // measured sys/params getters rather than from a setter, and the four scalar
 // getters carry no length term at all.
+//
+// crypto/secp256k1.recoverPubkey is not fitted either, so re-running the
+// fitter drops it too. Its flat charge is derived from the crypto/secp256k1
+// verify row: the slowest recovery's ratio to a 64-byte verify (median of
+// paired rounds, BenchmarkNative_Secp256k1_RecoverPubkey_PerVerify), times
+// that row at 64 bytes, times 1.2. Re-fit verify first, then re-derive it.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
 	{Pkg: "crypto/secp256k1", Fn: "verify", Base: 225693, Slope: 25871, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                  // PRELIMINARY fit base=225693ns slope=25.27ns/N (=25871/1024); measured on Xeon Silver 4114 — must be re-fit on the M2 ARM64 reference machine via gen_native_table.py before merge.
+	{Pkg: "crypto/secp256k1", Fn: "recoverPubkey", Base: 350000, SlopeIdx: -1, SlopeKind: SizeFlat},                                                            // PRELIMINARY flat (fixed-size array inputs), derived, not fitted (see above): the slowest recovery, a dense-s input, takes 1.279x a 64-byte verify (paired timing, Apple M1 Pro) x the verify row at 64 B (227,309) x 1.2 = 348,874; see cmd/calibrate/secp256k1_recover_bench_m1pro.txt. Re-derive after the verify row is re-fit on the reference machine.
 	{Pkg: "chain", Fn: "packageAddress", Base: 552, Slope: 15201, SlopeIdx: 0, SlopeKind: SizeLenString},                                                       // fit base=552.1ns slope=14.8448ns/N (=15201/1024) R²=0.998; realm.Sub mirrors this — keep gno.OpCPUSubRealmBase/Slope in sync (TestSubRealmGasMirrorsPackageAddress)
 	{Pkg: "chain", Fn: "deriveStorageDepositAddr", Base: 541, Slope: 471, SlopeIdx: 0, SlopeKind: SizeLenString},                                               // fit base=540.9ns slope=0.4602ns/N (=471/1024) R²=0.994
 	{Pkg: "chain", Fn: "pubKeyAddress", Base: 2631, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                         // flat, median 2631.0ns

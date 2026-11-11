@@ -209,7 +209,11 @@ import (
 // stdlib set, shifting the iavlStore Merkle root. This is the intended
 // consensus-breaking change of adding a new stdlib; the zrealm_crossrealm38.gno
 // filetest still passes.
-const expectedCrossrealm38Hash = "9b3516aa56fb12e03f97c7579107ff7266a61356a924d89b20f4d44ad97fd381"
+//
+// Bumped again by crypto/secp256k1.RecoverPubkey: recover.gno, its
+// recover_test.gno and the package doc line are stdlib source, which genesis
+// state holds. crossrealm38 does not import the package.
+const expectedCrossrealm38Hash = "01fdaa912704c69bd6f6b8c596173c086929fa0f29970133946684d527edc35c"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

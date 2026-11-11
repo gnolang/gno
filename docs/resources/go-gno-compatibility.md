@@ -377,6 +377,7 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 | `crypto/keccak256`       | Keccak-256 hashing (`Sum256`).                                                                  |
 | `crypto/merkle`          | Merkle tree hashing and proofs (`HashFromByteSlices`, `LeafHash`, `VerifySimpleProof`).         |
 | `crypto/modexp`          | Big-integer modular exponentiation (`ModExp`).                                                  |
+| `crypto/secp256k1`       | secp256k1 signature verification and Ethereum-style key recovery (`Verify`, `RecoverPubkey`).   |
 | `math/overflow`          | Overflow-checked integer arithmetic (`Add`, `Sub`, `Mul`, `Div`, …).                            |
 | `sys/params`             | System-parameter setters and getters (`SetSysParam*`, `GetSysParam*`, `UpdateSysParamStrings`). |
 

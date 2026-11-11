@@ -1,0 +1,149 @@
+# crypto/secp256k1.RecoverPubkey through the keeper. A realm imports the
+# package and, on each call, counts the attempt and emits an event before it
+# recovers signer 0 of gnovm/stdlibs/crypto/secp256k1/testdata (private key 1),
+# then checks the key's Ethereum address and counts the recovery.
+#
+# - A refused signature, a call short of gas, and a transaction whose second
+#   message is refused all fail: the realm keeps none of what they wrote before
+#   failing, and none of their events is returned (the successful calls return
+#   RecoveryAttempt and Recovered). The failed transaction still pays its fee
+#   and uses its sequence number.
+# - The same call uses the same gas before and after a restart, so a recovery
+#   that took a different path cold and warm would show (the pattern of
+#   stdlib_ibc_crypto_determinism.txtar). The first call is left out: it
+#   writes the counters' first non-zero values, which store more bytes.
+#
+# EXACT_GAS moves with any gas change on the base branch, including the
+# recoverPubkey row in gnovm/stdlibs/native_gas.go; re-derive it then.
+
+env CALL_GAS=10_000_000
+env EXACT_GAS=3688995
+env SHORT_GAS=3388995
+
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/secprecover -pkgpath gno.land/r/test/secprecover -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/secprecover -func Recover -args 0 -gas-fee 1000000ugnot -gas-wanted $CALL_GAS -chainid=tendermint_test test1
+stdout OK!
+stdout '"0x7e5f4552091a69125d5dfcb7b8c2659029395bdf" string'
+stdout 'EVENTS:.*"type":"RecoveryAttempt".*"type":"Recovered"'
+
+gnokey maketx call -pkgpath gno.land/r/test/secprecover -func Recover -args 0 -gas-fee 1000000ugnot -gas-wanted $CALL_GAS -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+gnokey query vm/qrender --data 'gno.land/r/test/secprecover:'
+stdout 'attempts: 2, recovered: 2'
+
+# Recovery ID 2 is refused after the attempt was counted and its event
+# emitted: the transaction fails and keeps neither, and returns no events.
+! gnokey maketx call -pkgpath gno.land/r/test/secprecover -func Recover -args 2 -simulate skip -gas-fee 1000000ugnot -gas-wanted $CALL_GAS -chainid=tendermint_test test1
+stderr 'signature refused'
+stdout 'EVENTS:     \[\]'
+
+# 300,000 gas short of the call: it runs out of gas while writing the realm's
+# state after the call returned (WriteFlat), so after the recovery and both
+# counter updates, and keeps nothing.
+! gnokey maketx call -pkgpath gno.land/r/test/secprecover -func Recover -args 0 -simulate skip -gas-fee 1000000ugnot -gas-wanted $SHORT_GAS -chainid=tendermint_test test1
+stderr 'out of gas'
+stderr 'during operation: WriteFlat'
+stdout 'EVENTS:     \[\]'
+
+gnokey query vm/qrender --data 'gno.land/r/test/secprecover:'
+stdout 'attempts: 2, recovered: 2'
+
+# Two messages: the first recovers, updates both counters and emits both
+# events, the second is refused. The transaction fails as a whole, so the first
+# message's writes and events go too, while the fee is paid and the sequence
+# number used.
+gnokey query auth/accounts/$user1_user_addr
+stdout '"coins": "1000000000ugnot",'
+stdout '"sequence": "'${user1_account_seq}'"'
+
+gnokey sign -tx-path $WORK/later/later.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+! gnokey broadcast $WORK/later/later.tx -quiet=false
+stderr 'msg:0,success:true'
+stderr 'msg:1,success:false'
+stderr 'signature refused'
+stdout 'EVENTS:     \[\]'
+
+gnokey query vm/qrender --data 'gno.land/r/test/secprecover:'
+stdout 'attempts: 2, recovered: 2'
+
+gnokey query auth/accounts/$user1_user_addr
+stdout '"coins": "999000000ugnot",'
+stdout '"sequence": "1"'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/secprecover -func Recover -args 0 -gas-fee 1000000ugnot -gas-wanted $CALL_GAS -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS USED:\s+'${EXACT_GAS}
+
+gnokey query vm/qrender --data 'gno.land/r/test/secprecover:'
+stdout 'attempts: 3, recovered: 3'
+
+-- secprecover/gnomod.toml --
+module = "gno.land/r/test/secprecover"
+gno = "0.9"
+
+-- secprecover/secprecover.gno --
+package secprecover
+
+import (
+	"chain"
+	"crypto/keccak256"
+	"crypto/secp256k1"
+	"encoding/hex"
+	"strconv"
+)
+
+// Signer 0 of gnovm/stdlibs/crypto/secp256k1/testdata: private key 1.
+const (
+	digestHex = "4c358ead6f3ea252278a6c0e69069eecec31c517786eba631a79352dc8f61c56"
+	rsHex     = "a1842bb853abc7b49fe40f5af46b0f75aa6c962219e689f5a7ccea2b81d4f4e81091ef7e7b447cac51d460e19a242e5237810ddc1373a925bfd83f77263d0c2f"
+	signer    = "7e5f4552091a69125d5dfcb7b8c2659029395bdf"
+)
+
+var attempts, recovered int
+
+// Recover recovers the signer of the corpus signature under the given
+// recovery ID and returns its Ethereum address. It counts the attempt and
+// emits an event first, so a failure has something to roll back.
+func Recover(cur realm, id int) string {
+	attempts++
+	chain.Emit("RecoveryAttempt", "id", strconv.Itoa(id))
+	digest, err := hex.DecodeString(digestHex)
+	if err != nil {
+		panic(err)
+	}
+	sig, err := hex.DecodeString(rsHex)
+	if err != nil {
+		panic(err)
+	}
+	key, ok := secp256k1.RecoverPubkey(digest, append(sig, byte(id)))
+	if !ok {
+		panic("signature refused")
+	}
+	h := keccak256.Sum256(key[1:])
+	addr := hex.EncodeToString(h[12:])
+	if addr != signer {
+		panic("recovered " + addr + ", not the signer")
+	}
+	recovered++
+	chain.Emit("Recovered", "address", "0x"+addr)
+	return "0x" + addr
+}
+
+func Render(_ string) string {
+	return "attempts: " + strconv.Itoa(attempts) + ", recovered: " + strconv.Itoa(recovered)
+}
+
+-- later/later.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/secprecover","func":"Recover","args":["0"]},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/secprecover","func":"Recover","args":["2"]}],"fee":{"gas_wanted":"10000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}

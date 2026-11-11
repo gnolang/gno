@@ -43,6 +43,11 @@ NATIVE_SPECS = [
      r"BenchmarkNative_SHA256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/ed25519", "verify", 1, "LenBytes",
      r"BenchmarkNative_Ed25519_Verify_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # crypto/secp256k1.recoverPubkey has no spec: its row is derived from this
+    # one (see the row in gnovm/stdlibs/native_gas.go), so re-fit this row
+    # first, then re-derive it.
+    ("crypto/secp256k1", "verify", 1, "LenBytes",
+     r"BenchmarkNative_Secp256k1_Verify_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain", "packageAddress", 0, "LenString",
      r"BenchmarkNative_Chain_PackageAddress_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain", "deriveStorageDepositAddr", 0, "LenString",
