@@ -73,6 +73,69 @@ func (st *go256State) skipBuild(dir string) (string, bool) {
 	return reason, ok
 }
 
+// skipBuildArg is skipBuild for a command-line argument, a package directory
+// or a single file, which is judged by the package in its directory.
+func (st *go256State) skipBuildArg(path string) (string, bool) {
+	if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
+		dir := absDir(filepath.Dir(path))
+		if st.leftOut[dir][filepath.Base(path)] {
+			return "left out: uses int256/uint256, which Go lacks", true
+		}
+		path = dir
+	}
+	return st.skipBuild(path)
+}
+
+// transpileFileArg transpiles a single file given on the command line. The
+// package in its directory, and the packages it imports, are analyzed as
+// for a package argument (without transpiling them), so a file that uses
+// 256-bit types, or whose package imports one that does, is not built as
+// Go, and a standard library file left out of the Go output stays out.
+func transpileFileArg(path string, opts *transpileOptions) error {
+	dir := filepath.Dir(path)
+	leftOut, err := opts.go256.analyzeDeep(dir, opts, map[string]bool{})
+	if err != nil {
+		return fmt.Errorf("%s: %w", dir, err)
+	}
+	if leftOut[filepath.Base(path)] {
+		if opts.cfg.verbose {
+			opts.io.ErrPrintfln("%s (left out: uses int256/uint256, which Go lacks)", filepath.Clean(path))
+		}
+		return nil
+	}
+	return transpileFile(path, opts)
+}
+
+// analyzeDeep analyzes the packages imported by the package at dirPath,
+// recursively, then that package (see analyze).
+func (st *go256State) analyzeDeep(dirPath string, opts *transpileOptions, seen map[string]bool) (map[string]bool, error) {
+	dir := absDir(dirPath)
+	if seen[dir] {
+		return st.leftOut[dir], nil
+	}
+	seen[dir] = true
+	pkgPath, known := st.importPathOf(dir, opts.cfg.rootDir)
+	if !known {
+		pkgPath = st.placeholderPath(dir)
+	}
+	st.typeCheck(dir, pkgPath, opts) // records the imports
+	for _, imp := range st.imports[dir] {
+		if _, err := st.analyzeDeep(imp, opts, seen); err != nil {
+			return nil, fmt.Errorf("%s: %w", imp, err)
+		}
+	}
+	return st.analyze(dir, opts)
+}
+
+// placeholderPath gives a package with no gnomod.toml, whose import path is
+// unknown, a path of its own to be type-checked under. Nothing can import
+// it; the path is not a standard library's.
+func (st *go256State) placeholderPath(dir string) string {
+	p := fmt.Sprintf("gno.land/r/transpile/unknown%d", len(st.pkgPaths))
+	st.pkgPaths[dir] = p
+	return p
+}
+
 // SkippedPackages returns the packages not built as Go, with the reason for
 // each, sorted by directory.
 func (st *go256State) SkippedPackages() []string {
@@ -153,7 +216,7 @@ func (st *go256State) analyze(dirPath string, opts *transpileOptions) (leftOut m
 	dir := absDir(dirPath)
 	pkgPath, known := st.importPathOf(dir, opts.cfg.rootDir)
 	if !known {
-		return nil, nil
+		pkgPath = st.placeholderPath(dir)
 	}
 	files256, ok := st.files256(dir, pkgPath, opts)
 

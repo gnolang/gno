@@ -167,7 +167,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 				io.ErrPrintln(filepath.Clean(path))
 			}
 
-			err = transpileFile(path, opts)
+			err = transpileFileArg(path, opts)
 		}
 		if err != nil {
 			var fileErrlist scanner.ErrorList
@@ -184,7 +184,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 			if slices.Contains(opts.skipped, pkgPath) {
 				continue
 			}
-			if reason, skip := opts.go256.skipBuild(pkgPath); skip {
+			if reason, skip := opts.go256.skipBuildArg(pkgPath); skip {
 				if cfg.verbose {
 					io.ErrPrintfln("%s [build skipped: %s]", filepath.Clean(pkgPath), reason)
 				}
@@ -254,7 +254,14 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 			return err
 		}
 	}
-	leftOut, err := opts.go256.analyze(dirPath, opts)
+	analyze := opts.go256.analyze
+	if opts.cfg.skipImports {
+		// The imports were not transpiled, so not analyzed either.
+		analyze = func(dir string, opts *transpileOptions) (map[string]bool, error) {
+			return opts.go256.analyzeDeep(dir, opts, map[string]bool{})
+		}
+	}
+	leftOut, err := analyze(dirPath, opts)
 	if err != nil {
 		return fmt.Errorf("%s: %w", dirPath, err)
 	}

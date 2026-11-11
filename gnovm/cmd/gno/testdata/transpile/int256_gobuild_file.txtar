@@ -1,0 +1,42 @@
+# A file given on its own is judged by its package: one that uses
+# int256/uint256, or imports a package that does, is transpiled but not built
+# as Go; a plain file is built as before.
+env GNOROOT=$WORK
+
+gno tool transpile -v -gobuild examples/gno.land/r/test/direct/a.gno examples/gno.land/r/test/user/u.gno plain/main.gno
+! stdout .+
+
+stderr 'examples/gno.land/r/test/direct/a.gno \[build skipped: uses int256/uint256, which Go lacks \(a.gno\)\]'
+exists examples/gno.land/r/test/direct/a.gno.gen.go
+stderr 'examples/gno.land/r/test/user/u.gno \[build skipped: imports gno.land/r/test/direct, which is not built as Go\]'
+exists examples/gno.land/r/test/user/u.gno.gen.go
+stderr 'plain/main.gno \[build\]'
+! stderr 'plain/main.gno \[build skipped'
+
+-- examples/gno.land/r/test/direct/gnomod.toml --
+module = "gno.land/r/test/direct"
+gno = "0.9"
+-- examples/gno.land/r/test/direct/a.gno --
+package direct
+
+type Amount struct{ v uint256 }
+-- examples/gno.land/r/test/direct/b.gno --
+package direct
+
+func Zero() Amount { return Amount{} }
+-- examples/gno.land/r/test/user/gnomod.toml --
+module = "gno.land/r/test/user"
+gno = "0.9"
+-- examples/gno.land/r/test/user/u.gno --
+package user
+
+import "gno.land/r/test/direct"
+
+func Get() direct.Amount { return direct.Zero() }
+-- plain/main.gno --
+package main
+
+func main() {
+	var x = 1
+	_ = x
+}
