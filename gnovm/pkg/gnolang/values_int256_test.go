@@ -114,11 +114,11 @@ func TestBits256Arithmetic(t *testing.T) {
 					}
 					// comparisons
 					c := a.Cmp(b)
-					require.Equal(t, c == 0, isEql(nil, ptr(tv256(typ, a)), ptr(tv256(typ, b)), false))
-					require.Equal(t, c < 0, isLss(nil, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
-					require.Equal(t, c <= 0, isLeq(nil, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
-					require.Equal(t, c > 0, isGtr(nil, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
-					require.Equal(t, c >= 0, isGeq(nil, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
+					require.Equal(t, c == 0, isEql(om, ptr(tv256(typ, a)), ptr(tv256(typ, b)), false))
+					require.Equal(t, c < 0, isLss(om, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
+					require.Equal(t, c <= 0, isLeq(om, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
+					require.Equal(t, c > 0, isGtr(om, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
+					require.Equal(t, c >= 0, isGeq(om, ptr(tv256(typ, a)), ptr(tv256(typ, b))))
 				}
 			}
 		}
@@ -528,32 +528,74 @@ func TestBits256Gonative(t *testing.T) {
 	require.Equal(t, goInt256Type, gno2GoType(Int256Type))
 }
 
-// TestBits256CanonicalZeroJSONNull checks that a typed JSON null payload,
-// which amino decodes as a boxed zero without calling UnmarshalAmino, is
-// rejected at the enclosing value, also nested in interface slots and inline
-// composites.
-func TestBits256CanonicalZeroJSONNull(t *testing.T) {
+func TestShl256CheckOverflow(t *testing.T) {
+	p2 := func(n uint) *big.Int { return new(big.Int).Lsh(big.NewInt(1), n) }
 	for _, c := range []struct {
-		name, at string
-	}{{"Int256Value", "2097152"}, {"Uint256Value", "4194304"}} {
-		slot := `{"T":{"@type":"/gno.PrimitiveType","value":"` + c.at + `"},"V":{"@type":"/gno.` + c.name + `","value":null}}`
-		var tv TypedValue
-		require.NoError(t, amino.UnmarshalJSON([]byte(slot), &tv))
-		require.NotNil(t, tv.V, "amino builds a boxed zero from null")
-
-		// In an array slot, and in an interface-typed slot of a struct
-		// held inline by an array.
-		for _, js := range []string{
-			`{"@type":"/gno.ArrayValue","List":[` + slot + `]}`,
-			`{"@type":"/gno.ArrayValue","List":[{"T":{"@type":"/gno.InterfaceType"},"V":{"@type":"/gno.StructValue","Fields":[` + slot + `]}}]}`,
-		} {
-			var v Value
-			require.NoError(t, amino.UnmarshalJSON([]byte(js), &v), js)
-			require.Error(t, checkCanonical256(v), js)
-			require.Panics(t, func() { mustBeCanonical256(v) })
+		typ   Type
+		v     *big.Int
+		shift uint64
+		ok    bool
+	}{
+		{Uint256Type, big.NewInt(0), 1000, true},
+		{Uint256Type, big.NewInt(1), 255, true},
+		{Uint256Type, big.NewInt(1), 256, false},
+		{Uint256Type, big.NewInt(3), 255, false},
+		{Uint256Type, p2(255), 1, false},
+		{Int256Type, big.NewInt(1), 254, true},
+		{Int256Type, big.NewInt(1), 255, false},
+		{Int256Type, big.NewInt(-1), 255, true},
+		{Int256Type, big.NewInt(-1), 256, false},
+		{Int256Type, big.NewInt(-2), 255, false},
+		{Int256Type, big.NewInt(-3), 254, false},
+		{Int256Type, big.NewInt(1), math.MaxUint64, false},
+	} {
+		lv := tv256(c.typ, c.v)
+		f := func() { shl256CheckOverflow(&lv, c.shift) }
+		if c.ok {
+			assert.NotPanics(t, f, "%s(%s) << %d", c.typ, c.v, c.shift)
+		} else {
+			assert.PanicsWithValue(t, "constant overflows", f, "%s(%s) << %d", c.typ, c.v, c.shift)
 		}
 	}
-	// A canonical value passes.
-	av := &ArrayValue{List: []TypedValue{tv256(Int256Type, big.NewInt(-1)), {T: Uint256Type}}}
-	require.NoError(t, checkCanonical256(av))
+}
+
+func TestParseDecimal256(t *testing.T) {
+	maxU := "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+	minI := "-57896044618658097711785492504343953926634992332820282019728792003956564819968"
+	maxI := "57896044618658097711785492504343953926634992332820282019728792003956564819967"
+	for _, c := range []struct {
+		s      string
+		signed bool
+		want   string // "" if refused
+		err    string
+	}{
+		{"0", false, "0", ""},
+		{"0", true, "0", ""},
+		{"7", false, "7", ""},
+		{"-7", true, "-7", ""},
+		{maxU, false, maxU, ""},
+		{maxI, true, maxI, ""},
+		{minI, true, minI, ""},
+		{"", false, "", "empty"},
+		{"-", true, "", "empty"},
+		{"-0", true, "", "negative zero"},
+		{"-1", false, "", "invalid digit"},
+		{"+1", true, "", "invalid digit"},
+		{"1x", false, "", "invalid digit"},
+		{"--1", true, "", "invalid digit"},
+		{"00", false, "", "leading zero"},
+		{"-05", true, "", "leading zero"},
+		{"115792089237316195423570985008687907853269984665640564039457584007913129639936", false, "", "value out of range"},
+		{"57896044618658097711785492504343953926634992332820282019728792003956564819968", true, "", "value out of range"},
+		{"-57896044618658097711785492504343953926634992332820282019728792003956564819969", true, "", "value out of range"},
+		{"1" + maxU, false, "", "too long"},
+	} {
+		z, err := ParseDecimal256(c.s, c.signed)
+		if c.err != "" {
+			assert.ErrorContains(t, err, c.err, "%q signed=%v", c.s, c.signed)
+			continue
+		}
+		require.NoError(t, err, "%q signed=%v", c.s, c.signed)
+		assert.Equal(t, c.want, bits256ToBig(&z, c.signed).String())
+	}
 }

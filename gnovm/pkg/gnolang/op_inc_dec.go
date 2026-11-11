@@ -66,7 +66,7 @@ func (m *Machine) doOpInc() {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + 1)
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUIncInt256, OpCPUIncInt)
+		m.incrCPU(OpCPUIncInt256 - OpCPUIncInt)
 		x := lv.GetBits256()
 		x.AddUint64(&x, 1)
 		lv.SetBits256(m.Alloc, &x)
@@ -145,7 +145,7 @@ func (m *Machine) doOpDec() {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - 1)
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUDecInt256, OpCPUDecInt)
+		m.incrCPU(OpCPUDecInt256 - OpCPUDecInt)
 		x := lv.GetBits256()
 		x.SubUint64(&x, 1)
 		lv.SetBits256(m.Alloc, &x)

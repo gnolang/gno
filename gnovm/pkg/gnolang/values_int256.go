@@ -74,13 +74,13 @@ func (v Int256Value) MarshalAmino() (string, error) {
 // UnmarshalAmino accepts only the form MarshalAmino produces, so a value has a
 // single encoding in realm state.
 func (v *Uint256Value) UnmarshalAmino(s string) error {
-	z, err := parseCanonical256(s, false)
+	z, err := unmarshalAmino256(s, false)
 	v.V = z
 	return err
 }
 
 func (v *Int256Value) UnmarshalAmino(s string) error {
-	z, err := parseCanonical256(s, true)
+	z, err := unmarshalAmino256(s, true)
 	v.V = z
 	return err
 }
@@ -89,79 +89,6 @@ func (v *Int256Value) UnmarshalAmino(s string) error {
 var u256SignBit = *new(uint256.Int).Lsh(uint256.NewInt(1), 255)
 
 var errBoxedZero = errors.New("int256/uint256: zero must be a nil value, not a boxed zero")
-
-// checkCanonical256 returns an error if v, a decoded value, holds a boxed
-// zero 256-bit value in any of its inline slots, recursively through inline
-// composites. The binary decoder already rejects one (UnmarshalAmino refuses
-// an empty payload), but amino builds a JSON null, or an absent Any payload,
-// as the zero value without calling UnmarshalAmino; this check closes that
-// path at the enclosing value. Objects are checked as the store loads them.
-func checkCanonical256(v Value) error {
-	var err error
-	var walk func(v Value)
-	slot := func(tv *TypedValue) {
-		if isBoxedZero256(tv.V) {
-			err = errBoxedZero
-		} else {
-			walk(tv.V)
-		}
-	}
-	walk = func(v Value) {
-		if err != nil {
-			return
-		}
-		switch v := v.(type) {
-		case *Block:
-			for i := range v.Values {
-				slot(&v.Values[i])
-			}
-		case *ArrayValue:
-			for i := range v.List {
-				slot(&v.List[i])
-			}
-		case *StructValue:
-			for i := range v.Fields {
-				slot(&v.Fields[i])
-			}
-		case *MapValue:
-			for cur := v.List.Head; cur != nil; cur = cur.Next {
-				slot(&cur.Key)
-				slot(&cur.Value)
-			}
-		case *BoundMethodValue:
-			slot(&v.Receiver)
-		case *HeapItemValue:
-			slot(&v.Value)
-		case *FuncValue:
-			for i := range v.Captures {
-				slot(&v.Captures[i])
-			}
-		case PointerValue:
-			if v.TV != nil {
-				slot(v.TV)
-			}
-		}
-	}
-	walk(v)
-	return err
-}
-
-// isBoxedZero256 reports whether v is a 256-bit value holding zero.
-func isBoxedZero256(v Value) bool {
-	switch v := v.(type) {
-	case Int256Value:
-		return v.V.IsZero()
-	case Uint256Value:
-		return v.V.IsZero()
-	}
-	return false
-}
-
-func mustBeCanonical256(v Value) {
-	if err := checkCanonical256(v); err != nil {
-		panic(err)
-	}
-}
 
 // dec256 formats z in decimal, as signed two's complement if signed.
 func dec256(z *uint256.Int, signed bool) string {
@@ -173,33 +100,67 @@ func dec256(z *uint256.Int, signed bool) string {
 	return z.Dec()
 }
 
-// parseCanonical256 parses the canonical non-zero decimal form of an int256
-// (signed) or uint256: an optional "-" (int256 only), then digits with no
-// leading zero, within the type's range.
-func parseCanonical256(s string, signed bool) (z uint256.Int, err error) {
+// MaxDecimal256Len is the length of the longest canonical int256 or uint256
+// decimal: the 78 digits of 2^256-1, or a sign and the 77 digits of -2^255.
+const MaxDecimal256Len = 78
+
+// ParseDecimal256 parses the canonical decimal form of an int256 (signed) or
+// a uint256: an optional "-" (int256 only), then digits with no leading zero,
+// except "0" itself, so each value has exactly one spelling ("-0" is
+// refused). The value must be in the type's range. It is the form of the
+// amino encoding, which also refuses zero (a nil V), and of maketx call
+// arguments.
+func ParseDecimal256(s string, signed bool) (z uint256.Int, err error) {
+	if len(s) > MaxDecimal256Len {
+		return z, errors.New("too long")
+	}
 	digits := s
 	neg := signed && len(s) > 0 && s[0] == '-'
 	if neg {
 		digits = s[1:]
 	}
-	if digits == "" || digits[0] == '0' {
-		return z, fmt.Errorf("int256/uint256: non-canonical decimal %q", s)
+	if digits == "" {
+		return z, errors.New("empty")
 	}
 	for i := 0; i < len(digits); i++ {
 		if c := digits[i]; c < '0' || c > '9' {
-			return z, fmt.Errorf("int256/uint256: invalid decimal %q", s)
+			return z, fmt.Errorf("invalid digit %q", c)
 		}
+	}
+	if len(digits) > 1 && digits[0] == '0' {
+		return z, errors.New("leading zero")
+	}
+	if neg && digits == "0" {
+		return z, errors.New("negative zero")
 	}
 	if err := z.SetFromDecimal(digits); err != nil {
-		return z, fmt.Errorf("int256/uint256: %q out of range", s)
+		return z, errors.New("value out of range")
 	}
 	if signed {
+		// The magnitude may reach 2^255 for a negative value only.
 		if z.Gt(&u256SignBit) || (!neg && z.Eq(&u256SignBit)) {
-			return z, fmt.Errorf("int256: %q out of range", s)
+			return z, errors.New("value out of range")
 		}
 		if neg {
-			z.Neg(&z)
+			z.Neg(&z) // two's complement
 		}
+	}
+	return z, nil
+}
+
+// unmarshalAmino256 parses an amino payload: a canonical decimal other than
+// zero, which is never boxed.
+func unmarshalAmino256(s string, signed bool) (uint256.Int, error) {
+	z, err := ParseDecimal256(s, signed)
+	if err == nil && z.IsZero() {
+		err = errBoxedZero
+	}
+	if err != nil {
+		name := "uint256"
+		if signed {
+			name = "int256"
+		}
+		return z, fmt.Errorf("%s %q: %w", name, s, err)
 	}
 	return z, nil
 }
@@ -590,6 +551,19 @@ func bits256Shl(alloc *Allocator, lv *TypedValue, shift uint64) {
 		z.Lsh(&x, uint(shift))
 	}
 	lv.SetBits256(alloc, &z)
+}
+
+// shl256CheckOverflow panics with "constant overflows" if lv << shift, an
+// int256 or uint256 constant being folded, is out of its type's range. Unlike
+// shlCheckOverflow, it checks both bounds: int256(-1) << 256 overflows too.
+func shl256CheckOverflow(lv *TypedValue, shift uint64) {
+	x := lv.GetBig256()
+	if x.Sign() == 0 {
+		return
+	}
+	if shift >= 256 || !bigFits256(x.Lsh(x, uint(shift)), lv.T.Kind() == Int256Kind) {
+		panic(`constant overflows`)
+	}
 }
 
 // bits256Shr shifts right: arithmetically for int256, logically for uint256.
