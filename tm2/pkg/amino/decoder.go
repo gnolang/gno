@@ -361,6 +361,22 @@ func decodeSecondsAndNanos(bz []byte) (s int64, ns int32, n int, err error) {
 // Byte Slices and Strings
 
 func DecodeByteSlice(bz []byte) (bz2 []byte, n int, err error) {
+	var src []byte
+	src, n, err = decodeByteSliceNoCopy(bz)
+	if err != nil {
+		return
+	}
+	bz2 = make([]byte, len(src))
+	copy(bz2, src)
+	return
+}
+
+// decodeByteSliceNoCopy is DecodeByteSlice without the copy: bz2 aliases bz.
+// Use it only for bytes that are decoded further and then dropped (a nested
+// struct, an Any value, a skipped field). Every decoder that keeps bytes in
+// the result (DecodeByteSlice, DecodeString, byte arrays) copies them, so
+// the decoded value never aliases the input.
+func decodeByteSliceNoCopy(bz []byte) (bz2 []byte, n int, err error) {
 	var count uint64
 	var _n int
 	count, _n, err = DecodeUvarint(bz)
@@ -373,15 +389,14 @@ func DecodeByteSlice(bz []byte) (bz2 []byte, n int, err error) {
 		err = fmt.Errorf("insufficient bytes decoding []byte of length %v: have %d", count, len(bz))
 		return
 	}
-	bz2 = make([]byte, count)
-	copy(bz2, bz[0:count])
+	bz2 = bz[:count:count]
 	n += int(count)
 	return
 }
 
 func DecodeString(bz []byte) (s string, n int, err error) {
 	var bz2 []byte
-	bz2, n, err = DecodeByteSlice(bz)
+	bz2, n, err = decodeByteSliceNoCopy(bz)
 	s = string(bz2)
 	return
 }

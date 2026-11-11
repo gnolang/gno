@@ -916,11 +916,11 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 // Misc.
 
 func typeURLtoFullname(typeURL string) (string, error) {
-	parts := strings.Split(typeURL, "/")
-	if len(parts) == 1 {
+	i := strings.LastIndexByte(typeURL, '/')
+	if i < 0 {
 		return "", fmt.Errorf("invalid type_url %q: must contain at least one slash and be followed by the full name", typeURL)
 	}
-	return parts[len(parts)-1], nil
+	return typeURL[i+1:], nil
 }
 
 // mustTypeURLtoFullname is for callers (registration paths) where a malformed

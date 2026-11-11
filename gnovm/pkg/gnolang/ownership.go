@@ -45,20 +45,28 @@ type ObjectID struct {
 }
 
 func (oid ObjectID) MarshalAmino() (string, error) {
-	pid := hex.EncodeToString(oid.PkgID.Hashlet[:])
-	return fmt.Sprintf("%s:%d", pid, oid.NewTime), nil
+	// Same output as fmt.Sprintf("%s:%d", hex(pkgid), newtime), in one
+	// allocation: this runs for every ObjectID of every stored object, twice
+	// (size pass and write pass of the generated encoder).
+	var buf [2*HashSize + 1 + 20]byte
+	hex.Encode(buf[:2*HashSize], oid.PkgID.Hashlet[:])
+	buf[2*HashSize] = ':'
+	b := strconv.AppendUint(buf[:2*HashSize+1], oid.NewTime, 10)
+	return string(b), nil
 }
 
 func (oid *ObjectID) UnmarshalAmino(oids string) error {
-	parts := strings.Split(oids, ":")
-	if len(parts) != 2 {
+	// Same checks as strings.Split(oids, ":") with len(parts) == 2, without
+	// allocating the parts slice.
+	pid, nt, ok := strings.Cut(oids, ":")
+	if !ok || strings.IndexByte(nt, ':') >= 0 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
-	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
+	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(pid))
 	if err != nil {
 		return err
 	}
-	newTime, err := strconv.Atoi(parts[1])
+	newTime, err := strconv.Atoi(nt)
 	if err != nil {
 		return err
 	}
