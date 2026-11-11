@@ -747,7 +747,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 
 	if err != nil {
 		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
-			"peer", peerID, "err", err, "msg", msg)
+			"peer", peerID, "type", reflect.TypeOf(msg), "err", err)
 	}
 }
 

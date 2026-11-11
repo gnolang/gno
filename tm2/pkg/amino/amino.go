@@ -781,7 +781,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
 	}
 	if !IsASCIIText(typeURL) {
-		return fmt.Errorf("UnmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
+		return fmt.Errorf("UnmarshalAnyBinary2: invalid type_url string bytes %s", errTypeURL(typeURL))
 	}
 	bz = bz[n:]
 
@@ -811,7 +811,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	// Look up concrete type.
 	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
 	if err != nil {
-		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+		return fmt.Errorf("UnmarshalAnyBinary2: unrecognized type_url %s", errTypeURL(typeURL))
 	}
 
 	// Construct concrete value.
@@ -1095,20 +1095,18 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0, 0)
 	if err != nil {
 		return fmt.Errorf(
-			"unmarshal to %v failed after %d bytes (%w): %X",
+			"unmarshal to %v failed after %d bytes (%w)",
 			info.Type,
 			n+nWrap,
 			err,
-			bz,
 		)
 	}
 	if n != len(bz) {
 		return fmt.Errorf(
-			"unmarshal to %v: trailing bytes after top-level unmarshal. Expected to read %v, only read %v: %X",
+			"unmarshal to %v: trailing bytes after top-level unmarshal. Expected to read %v, only read %v",
 			info.Type,
 			len(bz),
 			n+nWrap,
-			bz,
 		)
 	}
 
@@ -1261,7 +1259,7 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		return true, fmt.Errorf("unmarshalAnyBinary2: decode TypeURL: %w", err)
 	}
 	if !IsASCIIText(typeURL) {
-		return true, fmt.Errorf("unmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
+		return true, fmt.Errorf("unmarshalAnyBinary2: invalid type_url string bytes %s", errTypeURL(typeURL))
 	}
 	bz = bz[n:]
 
@@ -1294,7 +1292,7 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	// registry and would fail identically.
 	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
 	if err != nil {
-		return true, fmt.Errorf("unmarshalAnyBinary2: type lookup for %q: %w", typeURL, err)
+		return true, fmt.Errorf("unmarshalAnyBinary2: unrecognized type_url %s", errTypeURL(typeURL))
 	}
 
 	// Construct concrete value and check for PBMessager2.

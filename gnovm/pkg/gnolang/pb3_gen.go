@@ -295,7 +295,7 @@ func (goo *StringValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		repr = StringValue(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = StringValue(repr)
 	return nil
@@ -351,7 +351,7 @@ func (goo *BigintValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -406,7 +406,7 @@ func (goo *BigdecValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -2950,7 +2950,7 @@ func (goo *ObjectID) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -3260,7 +3260,7 @@ func (goo *ValueHash) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -13904,7 +13904,7 @@ func (goo *PrimitiveType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		repr = PrimitiveType(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = PrimitiveType(repr)
 	return nil
@@ -15489,7 +15489,7 @@ func (goo *MemPackageType) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 		repr = MemPackageType(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = MemPackageType(repr)
 	return nil
@@ -15539,7 +15539,7 @@ func (goo *MemPackageFilter) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 		repr = MemPackageFilter(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = MemPackageFilter(repr)
 	return nil
