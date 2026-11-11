@@ -1376,18 +1376,6 @@ func (m *Machine) incrCPUBigInt(lv, rv *TypedValue, slopePerKb int64) {
 	}
 }
 
-// incrCPU256 charges the extra CPU of a 256-bit operation, cost256, over the
-// 64-bit cost of the operator, cost64, which is already charged: by the
-// handler's per-kind charge, at dispatch, or by the flat OpCPU*Assign cost
-// for compound assignments. It is called from the int256/uint256 case of the
-// operator's type switch, so no other type pays for the check. m is nil in
-// unit tests that call the operator functions directly.
-func (m *Machine) incrCPU256(cost256, cost64 int64) {
-	if m != nil {
-		m.incrCPU(cost256 - cost64)
-	}
-}
-
 // incrCPUBigIntQuad charges quadratic CPU gas for BigInt Mul.
 // gas = (bits/32)^2 * slope / 32. Uses overflow.Mulp so a future
 // maxAllocTx bump (current 500MB caps bit-length at ~4B, safe under
@@ -1578,7 +1566,8 @@ const (
 
 	// int256/uint256 operators: the full cost of the 256-bit operation.
 	// Every handler charges the 64-bit cost as for any integer, then the
-	// operator's int256/uint256 case adds the difference (incrCPU256).
+	// operator's int256/uint256 case adds the difference
+	// (m.incrCPU(OpCPU*Int256 - OpCPU*)).
 	//
 	// Ratio-scaled, like OpCPULazyBoundResolve: each 256-bit handler was
 	// benchmarked next to the same handler on int (bench_int256_test.go,

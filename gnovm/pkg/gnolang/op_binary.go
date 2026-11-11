@@ -522,7 +522,7 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	case Int256Kind, Uint256Kind:
 		// Charged here rather than in doOpEql, so that comparisons of
 		// arrays, structs, interface fields and switch cases pay it too.
-		m.incrCPU256(OpCPUEqlInt256, OpCPUEql)
+		m.incrCPU(OpCPUEqlInt256 - OpCPUEql)
 		return lv.GetBits256() == rv.GetBits256()
 	case Float32Kind:
 		return softfloat.Feq32(lv.GetFloat32(), rv.GetFloat32())
@@ -660,7 +660,7 @@ func isLss(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() < rv.GetUint64())
 	case Int256Kind, Uint256Kind:
-		m.incrCPU256(OpCPULssInt256, OpCPULss)
+		m.incrCPU(OpCPULssInt256 - OpCPULss)
 		return bits256Cmp(lv, rv) < 0
 	case Float32Kind:
 		return softfloat.Flt32(lv.GetFloat32(), rv.GetFloat32())
@@ -708,7 +708,7 @@ func isLeq(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() <= rv.GetUint64())
 	case Int256Kind, Uint256Kind:
-		m.incrCPU256(OpCPULssInt256, OpCPULeq)
+		m.incrCPU(OpCPULssInt256 - OpCPULeq)
 		return bits256Cmp(lv, rv) <= 0
 	case Float32Kind:
 		return softfloat.Fle32(lv.GetFloat32(), rv.GetFloat32())
@@ -756,7 +756,7 @@ func isGtr(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() > rv.GetUint64())
 	case Int256Kind, Uint256Kind:
-		m.incrCPU256(OpCPULssInt256, OpCPUGtr)
+		m.incrCPU(OpCPULssInt256 - OpCPUGtr)
 		return bits256Cmp(lv, rv) > 0
 	case Float32Kind:
 		return softfloat.Fgt32(lv.GetFloat32(), rv.GetFloat32())
@@ -804,7 +804,7 @@ func isGeq(m *Machine, lv, rv *TypedValue) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() >= rv.GetUint64())
 	case Int256Kind, Uint256Kind:
-		m.incrCPU256(OpCPULssInt256, OpCPUGeq)
+		m.incrCPU(OpCPULssInt256 - OpCPUGeq)
 		return bits256Cmp(lv, rv) >= 0
 	case Float32Kind:
 		return softfloat.Fge32(lv.GetFloat32(), rv.GetFloat32())
@@ -937,7 +937,7 @@ func addAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() + rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUAddInt256, OpCPUAddInt)
+		m.incrCPU(OpCPUAddInt256 - OpCPUAddInt)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		z.Add(&x, &y)
@@ -990,7 +990,7 @@ func subAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() - rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUSubInt256, OpCPUSubInt)
+		m.incrCPU(OpCPUSubInt256 - OpCPUSubInt)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		z.Sub(&x, &y)
@@ -1043,7 +1043,7 @@ func mulAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() * rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUMulInt256, OpCPUMulInt)
+		m.incrCPU(OpCPUMulInt256 - OpCPUMulInt)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		z.Mul(&x, &y)
@@ -1133,7 +1133,7 @@ func quoAssign(m *Machine, lv, rv *TypedValue) *Exception {
 		}
 		lv.SetUint64(lv.GetUint64() / rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUQuoInt256, OpCPUQuoInt)
+		m.incrCPU(OpCPUQuoInt256 - OpCPUQuoInt)
 		if rv.V == nil {
 			return expt
 		}
@@ -1241,7 +1241,7 @@ func remAssign(m *Machine, lv, rv *TypedValue) *Exception {
 		}
 		lv.SetUint64(lv.GetUint64() % rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPURemInt256, OpCPURem)
+		m.incrCPU(OpCPURemInt256 - OpCPURem)
 		if rv.V == nil {
 			return expt
 		}
@@ -1299,7 +1299,7 @@ func bandAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() & rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUBandInt256, OpCPUBand)
+		m.incrCPU(OpCPUBandInt256 - OpCPUBand)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		z.And(&x, &y)
@@ -1344,7 +1344,7 @@ func bandnAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() &^ rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUBandnInt256, OpCPUBandn)
+		m.incrCPU(OpCPUBandnInt256 - OpCPUBandn)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		y.Not(&y)
@@ -1390,7 +1390,7 @@ func borAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() | rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUBorInt256, OpCPUBor)
+		m.incrCPU(OpCPUBorInt256 - OpCPUBor)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		z.Or(&x, &y)
@@ -1435,7 +1435,7 @@ func xorAssign(m *Machine, lv, rv *TypedValue) {
 	case Uint64Type:
 		lv.SetUint64(lv.GetUint64() ^ rv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUXorInt256, OpCPUXor)
+		m.incrCPU(OpCPUXorInt256 - OpCPUXor)
 		x, y := lv.GetBits256(), rv.GetBits256()
 		var z uint256.Int
 		z.Xor(&x, &y)
@@ -1482,7 +1482,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		// The surcharge is otherwise charged in the 256-bit case below,
 		// which a negative count never reaches.
 		if is256Kind(lv.T.Kind()) {
-			m.incrCPU256(OpCPUShlInt256, OpCPUShl)
+			m.incrCPU(OpCPUShlInt256 - OpCPUShl)
 		}
 		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
@@ -1548,7 +1548,10 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		}
 		lv.SetUint64(lv.GetUint64() << shift)
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUShlInt256, OpCPUShl)
+		m.incrCPU(OpCPUShlInt256 - OpCPUShl)
+		if m.Stage == StagePre {
+			shl256CheckOverflow(lv, shift)
+		}
 		bits256Shl(m.Alloc, lv, shift)
 	case UntypedBigintType:
 		if shift > maxBigintShift {
@@ -1574,7 +1577,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		// The surcharge is otherwise charged in the 256-bit case below,
 		// which a negative count never reaches.
 		if is256Kind(lv.T.Kind()) {
-			m.incrCPU256(OpCPUShrInt256, OpCPUShr)
+			m.incrCPU(OpCPUShrInt256 - OpCPUShr)
 		}
 		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
@@ -1640,7 +1643,7 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		}
 		lv.SetUint64(lv.GetUint64() >> shift)
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUShrInt256, OpCPUShr)
+		m.incrCPU(OpCPUShrInt256 - OpCPUShr)
 		bits256Shr(m.Alloc, lv, shift)
 	case UntypedBigintType:
 		lb := lv.GetBigInt()

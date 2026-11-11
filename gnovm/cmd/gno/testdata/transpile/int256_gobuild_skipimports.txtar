@@ -1,0 +1,28 @@
+# With -skip-imports the imported packages are not transpiled, but they are
+# still analyzed: a package importing one that uses int256/uint256 is not
+# built as Go.
+env GNOROOT=$WORK
+
+gno tool transpile -v -gobuild -skip-imports ./examples/gno.land/r/test/user
+! stdout .+
+stderr 'examples/gno.land/r/test/user \[build skipped: imports gno.land/r/test/direct, which is not built as Go\]'
+! exists examples/gno.land/r/test/direct/a.gno.gen.go
+
+-- examples/gno.land/r/test/direct/gnomod.toml --
+module = "gno.land/r/test/direct"
+gno = "0.9"
+-- examples/gno.land/r/test/direct/a.gno --
+package direct
+
+type Amount struct{ v uint256 }
+
+func Zero() Amount { return Amount{} }
+-- examples/gno.land/r/test/user/gnomod.toml --
+module = "gno.land/r/test/user"
+gno = "0.9"
+-- examples/gno.land/r/test/user/u.gno --
+package user
+
+import "gno.land/r/test/direct"
+
+func Get() direct.Amount { return direct.Zero() }

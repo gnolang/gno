@@ -48,7 +48,7 @@ func (m *Machine) doOpUneg() {
 	case Uint64Type:
 		xv.SetUint64(-xv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUUnegInt256, OpCPUUneg)
+		m.incrCPU(OpCPUUnegInt256 - OpCPUUneg)
 		x := xv.GetBits256()
 		x.Neg(&x)
 		xv.SetBits256(m.Alloc, &x)
@@ -124,7 +124,7 @@ func (m *Machine) doOpUxor() {
 	case Uint64Type:
 		xv.SetUint64(^xv.GetUint64())
 	case Int256Type, Uint256Type:
-		m.incrCPU256(OpCPUUxorInt256, OpCPUUxor)
+		m.incrCPU(OpCPUUxorInt256 - OpCPUUxor)
 		x := xv.GetBits256()
 		x.Not(&x)
 		xv.SetBits256(m.Alloc, &x)

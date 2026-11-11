@@ -1,0 +1,20 @@
+# A standard library file that uses int256/uint256, given on its own, is left
+# out of the Go output and not built; the package's other files are built.
+env GNOROOT=$WORK
+
+gno tool transpile -v -gobuild gnovm/stdlibs/fakestd/wide.gno gnovm/stdlibs/fakestd/narrow.gno
+! stdout .+
+stderr 'gnovm/stdlibs/fakestd/wide.gno \(left out: uses int256/uint256, which Go lacks\)'
+stderr 'gnovm/stdlibs/fakestd/wide.gno \[build skipped: left out: uses int256/uint256, which Go lacks\]'
+! exists gnovm/stdlibs/fakestd/wide.gno.gen.go
+stderr 'gnovm/stdlibs/fakestd/narrow.gno \[build\]'
+exists gnovm/stdlibs/fakestd/narrow.gno.gen.go
+
+-- gnovm/stdlibs/fakestd/wide.gno --
+package fakestd
+
+func Wide(x uint256) uint256 { return x + 1 }
+-- gnovm/stdlibs/fakestd/narrow.gno --
+package fakestd
+
+func Narrow(x int) int { return x + 1 }

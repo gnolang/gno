@@ -232,59 +232,19 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-// maxInt256ArgLen is the longest canonical int256/uint256 argument: the 78
-// digits of 2^256-1, or a sign and the 77 digits of -2^255.
-const maxInt256ArgLen = 78
-
-// convertInt256Arg parses an int256 (signed) or uint256 argument. Only the
-// canonical decimal form is accepted: an optional "-" for int256, then digits
-// with no leading zero (except "0" itself), so each value has exactly one
-// spelling. The value must be in the type's range.
+// convertInt256Arg parses an int256 (signed) or uint256 argument, in the
+// canonical decimal form only (gno.ParseDecimal256).
 func convertInt256Arg(arg string, signed bool) uint256.Int {
-	name := "uint256"
-	if signed {
-		name = "int256"
-	}
-	if len(arg) > maxInt256ArgLen {
-		panic(fmt.Sprintf("error parsing %s %q: too long", name, arg))
-	}
-	digits := arg
-	if signed && strings.HasPrefix(digits, "-") {
-		digits = digits[1:]
-		if digits == "0" {
-			panic(fmt.Sprintf("error parsing %s %q: negative zero", name, arg))
+	z, err := gno.ParseDecimal256(arg, signed)
+	if err != nil {
+		name := "uint256"
+		if signed {
+			name = "int256"
 		}
-	}
-	if digits == "" {
-		panic(fmt.Sprintf("error parsing %s %q: empty", name, arg))
-	}
-	for i := 0; i < len(digits); i++ {
-		if c := digits[i]; c < '0' || c > '9' {
-			panic(fmt.Sprintf("error parsing %s %q: invalid digit %q", name, arg, c))
-		}
-	}
-	if len(digits) > 1 && digits[0] == '0' {
-		panic(fmt.Sprintf("error parsing %s %q: leading zero", name, arg))
-	}
-	var z uint256.Int
-	if err := z.SetFromDecimal(digits); err != nil {
-		panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
-	}
-	if signed {
-		// The magnitude may reach 2^255 for a negative value only.
-		neg := len(digits) < len(arg)
-		if z.Gt(&int256SignBit) || (!neg && z.Eq(&int256SignBit)) {
-			panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
-		}
-		if neg {
-			z.Neg(&z) // two's complement
-		}
+		panic(fmt.Sprintf("error parsing %s %q: %v", name, arg, err))
 	}
 	return z
 }
-
-// int256SignBit is 2^255, the magnitude of the smallest int256.
-var int256SignBit = *new(uint256.Int).Lsh(uint256.NewInt(1), 255)
 
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)

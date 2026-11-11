@@ -52,13 +52,13 @@ restriction applies to `int256` constants (see "go/types").
   signedness.
 - Zero is a nil `V`. Every operation stores a zero result as nil, and a boxed
   zero is neither produced nor accepted: `MarshalAmino` refuses it and
-  `UnmarshalAmino` rejects it. Amino can still build one without calling
-  `UnmarshalAmino`, from a JSON `null` payload or an absent binary payload,
-  so `checkCanonical256` checks the enclosing value, recursively through
-  inline slots, interfaces and composites, and the store runs it on every
-  object it loads. Zero therefore has exactly one encoding
-  (`TestBits256CanonicalZero`, `TestBits256CanonicalZeroJSONNull`,
-  `TestBits256Amino`).
+  `UnmarshalAmino` rejects it. Zero therefore has exactly one encoding
+  (`TestBits256CanonicalZero`, `TestBits256Amino`). Amino can build a boxed
+  zero without calling `UnmarshalAmino`, from a JSON `null` payload or an
+  absent binary payload, but only from bytes `MarshalAmino` did not write.
+  The store holds only what the node itself encoded, so it never loads one,
+  and objects are not walked for one on load: that walk would cost every
+  object load, in every package.
 - Values are immutable: an operation builds a new value and never writes
   through an existing one. Copying a `TypedValue` shares the boxed array,
   which is safe because nothing mutates it.
@@ -226,6 +226,13 @@ rejected by go/types.
 With go/types' errors kept, the preprocessor's constant folding is
 unchanged for every existing kind: no constant check was added there, so
 query paths that preprocess without go/types keep their current behaviour.
+A constant `<<` on `int256` or `uint256` is checked as on the other integer
+kinds (`shlCheckOverflow`, issue #3128): folding panics with `constant
+overflows` when the exact result is outside the type's range, on either side
+for `int256` (`shl256CheckOverflow`, `err_fold_shift.gno`), so
+`uint256(1) << 256` is rejected even where go/types does not run. As on the
+other kinds, `+`, `-`, `*` and negation have no such check when folding, and
+wrap (`err_fold_add.gno`, `err_fold_neg.gno`).
 
 **Tooling.** `gno lint`, `gno test` and the node all type-check through
 `TypeCheckMemPackage`, so they use the same shims and sizes. An external
@@ -260,6 +267,16 @@ unnamed struct type built from one.
   package is printed with its reason (`[build skipped: uses int256/uint256,
   which Go lacks (files)]` or `[build skipped: imports P, which is not
   built as Go]`).
+- A package with no `gnomod.toml`, whose import path is unknown, is
+  type-checked under a placeholder path of its own, so the rules above apply
+  to it too (`int256_gobuild_nomod.txtar`).
+- A single `.gno` file given as an argument is judged by the package in its
+  directory, whose imports are analyzed first: the file is not built as Go
+  if that package is not, and a left-out standard library file is neither
+  transpiled nor built (`int256_gobuild_file.txtar`,
+  `int256_gobuild_stdlib_file.txtar`). With `-skip-imports`, the imports of
+  a package argument are not transpiled but are still analyzed, so the
+  transitive rule holds (`int256_gobuild_skipimports.txtar`).
 - A package the tool cannot type-check is built as before, and the Go build
   reports its errors.
 
@@ -274,7 +291,7 @@ and the three standard library files above are left out.
 Each 256-bit operator has an `OpCPU*Int256` constant (`machine.go`). Every
 handler charges the operator's 64-bit cost as for any integer, then the
 `int256`/`uint256` case of the operator's type switch adds the difference
-(`incrCPU256`), so other types pay nothing for it: no extra type test runs on
+(`m.incrCPU(OpCPU*Int256 - OpCPU*)`), so other types pay nothing for it: no extra type test runs on
 an `int` operation. The 256-bit cases call the `holiman/uint256` methods
 directly rather than through a function value, so the operands stay on the
 Go stack: `+`, `-`, `*`, the bitwise operators and the shifts allocate only
@@ -370,7 +387,8 @@ reference median of its worst case, and is then frozen for the launch.
   `misc/genstd`.
 - `gno.land/pkg/sdk/vm/convert.go`: `maketx call` arguments are parsed from
   canonical decimal strings only (no `+`, no leading zero, no `-0`, at most
-  78 characters) and range-checked.
+  78 characters) and range-checked, by `gnolang.ParseDecimal256`, the parser
+  amino decoding also uses (which in addition refuses zero).
 - Stdlib, in Gno except one native:
   - `math.MaxInt256`, `math.MinInt256`, `math.MaxUint256` (untyped; see the
     restriction above);
@@ -499,7 +517,7 @@ fixed.
 | `gnovm/pkg/gnolang/op_binary.go`, `op_unary.go`, `op_inc_dec.go`, `op_assign.go` | operators |
 | `gnovm/pkg/gnolang/values_conversions.go` | conversion dispatch, untyped constants |
 | `gnovm/pkg/gnolang/gotypecheck.go` | shims, `GoTypesSizes` |
-| `gnovm/pkg/gnolang/machine.go` | `OpCPU*Int256`, `incrCPU256` |
+| `gnovm/pkg/gnolang/machine.go` | `OpCPU*Int256` |
 | `gnovm/pkg/gnolang/gonative.go`, `misc/genstd/mapping.go` | native bindings |
 | `gnovm/stdlibs/strconv/int256.gno`, `int256.go` | formatting and parsing; the native digit loop |
 | `gnovm/stdlibs/math/overflow/overflow256_generated.gno`, `convert256.gno` | checked arithmetic and conversions |

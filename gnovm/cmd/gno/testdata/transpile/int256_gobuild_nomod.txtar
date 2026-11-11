@@ -1,0 +1,27 @@
+# A package with no gnomod.toml has no known import path: it is still
+# type-checked, so its use of int256/uint256 is found and its build skipped.
+env GNOROOT=$WORK
+
+gno tool transpile -v -gobuild ./nomod ./nomodplain
+! stdout .+
+
+stderr 'nomod \[build skipped: uses int256/uint256, which Go lacks \(a.gno\)\]'
+exists nomod/a.gno.gen.go
+exists nomod/b.gno.gen.go
+
+# Without a 256-bit type, it is built as before.
+! stderr 'nomodplain \[build skipped'
+exists nomodplain/plain.gno.gen.go
+
+-- nomod/a.gno --
+package nomod
+
+type Amount struct{ v uint256 }
+-- nomod/b.gno --
+package nomod
+
+func Zero() Amount { return Amount{} }
+-- nomodplain/plain.gno --
+package nomodplain
+
+func One() int { return 1 }
