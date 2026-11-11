@@ -3,10 +3,15 @@ package viewcallback
 
 import "gno.land/r/tests/vm/viewdefault"
 
-// A method value acts for the realm that bound it. v.Set bound here on a view
-// stays refused when a granted handle's Iterate calls it back under the
-// owner's storage; h.Set bound here on the handle still commits; a method
-// value the owner bound and handed out writes as the owner.
+// A method value of a /p/ method writes an ungranted receiver only when the
+// realm that bound it and the realm whose code calls it both own the receiver.
+
+// caught recovers a refusal raised with no borrowed frame in between.
+func caught(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
+}
 
 func main(cur realm) {
 	h := viewdefault.GetHandle()
@@ -19,9 +24,16 @@ func main(cur realm) {
 	println("view:", v.Get("k"), v.Get("a"), v.Get("d"), v.Size())
 	v.Iterate("", "", h.Set)
 	println("handle:", h.Get("k"), h.Size())
-	// Bound by the owner and handed out: writes the view as the owner.
-	viewdefault.ViewSetter()("o", "owner-bound")
-	println("owner-bound:", v.Get("o"))
+	// Bound by the owner on its ungranted view and handed out: still a view,
+	// called directly or from inside the owner's granted handle.
+	println("owner-bound:", caught(func() { viewdefault.ViewSetter()("o", "x") }))
+	println("owner-bound callback:", revive(func() { h.Iterate("", "", viewdefault.ViewSetter()) }))
+	println("view:", v.Get("o"), v.Get("a"), v.Size())
+	// On a granted object it writes; the owner's own code runs its own.
+	viewdefault.HandleSetter()("g", "granted")
+	println("granted:", h.Get("g"))
+	viewdefault.CopyToView(cross(cur))
+	println("owner's own:", v.Get("a"), v.Get("g"), v.Size())
 }
 
 // Output:
@@ -29,4 +41,8 @@ func main(cur realm) {
 // deferred callback: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
 // view: v0 undefined undefined 1
 // handle: v0 2
-// owner-bound: owner-bound
+// owner-bound: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
+// owner-bound callback: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): tree<VPBlock(1,0)>.node
+// view: undefined undefined 1
+// granted: granted
+// owner's own: from-caller granted 3

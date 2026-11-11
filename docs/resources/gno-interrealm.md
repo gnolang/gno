@@ -867,12 +867,15 @@ constructor handing out a handle does (grc20's tellers return
 `mutable(&fnTeller{...})`); on a stored object it panics. A grant of a
 realm's state is therefore either a `mutable(` line in that realm or a `/p/`
 constructor the realm calls with its own object, which wraps it in a granted
-handle (the teller shape): review both. Function values are the exception to
-the view rule: a closure runs under the realm that created it (borrow rules #1
-and #3) and a method value under the realm that bound it, so handing one out
-is a grant of whatever it reaches. The same rule protects views: `v.Set` bound
-by a caller on a view is refused wherever it is called, including as a
-callback inside a granted object's method (`h.Iterate("", "", v.Set)`).
+handle (the teller shape): review both. A closure is the exception to the
+view rule: it runs under the realm that created it (borrow rules #1 and #3),
+so handing one out is a grant of whatever it reaches. A method value of a
+`/p/` method is not: it writes an ungranted receiver only when the realm that
+bound it and the realm whose code calls it both own the receiver. `v.Set`
+bound by a caller on a view is refused wherever it is called, including as a
+callback inside a granted object's method (`h.Iterate("", "", v.Set)`), and
+`view.Set` bound by the owner and handed out is refused when the holder calls
+it; the owner hands out a writer with `mutable(view).Set`.
 
 A `/p/` method on a granted object runs with the owner's storage for its whole
 body, so a method that writes one of its arguments writes any object of that

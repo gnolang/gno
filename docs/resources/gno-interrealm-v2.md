@@ -224,7 +224,8 @@ attacker's body fail the readonly check.
 ### 4.2 Borrow rule #2 — Storage-realm borrow (stdlib / `/p/` methods)
 
 ```go
-// a method value first returns to the realm that bound it (bindPID)
+// a method value first returns to the realm that bound it (bindPID), or,
+// bound by the receiver's owner, to the realm whose code makes the call
 if recv.IsDefined() {
     obj := recv.GetGrantObject(m.Store)
     if obj != nil {
@@ -656,11 +657,12 @@ binding time**.
 
 Two practical implications:
 
-1. **Storing a bound method value isn't a safety boundary.** A
-   `/p/`-method bound to a victim-stamped receiver, stored anywhere,
-   still borrow rule #2 borrows to victim when invoked. Verified in
-   `zrealm_launder_rdata_mv_stored_bound_mv.gno` and
-   `_attacker_stored_mv.gno`.
+1. **A bound `/p/` method writes only a granted receiver for a foreign
+   caller.** It first returns to the realm that bound it, or, bound by
+   the receiver's owner, to the realm whose code makes the call; then
+   borrow rule #2 applies as for a direct call. Verified in
+   `zrealm_view_callback.gno` and
+   `zrealm_launder_rdata_mv_stored_bound_mv.gno`.
 
 2. **Method expressions are different.** `me := (*T).M` is an
    *unbound* method value with the receiver as an explicit first
@@ -669,9 +671,9 @@ Two practical implications:
    receiver the same way. Verified in
    `zrealm_launder_rdata_mv_method_expr.gno`.
 
-Realm authors should treat bound method values of `/p/`-types over
-their internal state as **publishing the underlying method to any
-holder** — equivalent to returning a setter closure.
+A bound method value of a `/p/`-type over a realm's internal state
+publishes nothing by itself; `mutable(x).M` publishes the method to any
+holder, like returning a setter closure.
 
 ## 11. Guidelines
 

@@ -2568,7 +2568,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 }
 
 // pushFrameCall is PushFrameCall for a method value: bindPID is the realm
-// whose frame formed it (the BoundMethodValue's stamp), zero for a plain func.
+// whose frame formed it (the BoundMethodValue's stamp), zero for a plain func
+// or a plain x.M(...) call.
 func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer bool) {
 	withCross := cx.IsWithCross()
 	numValues := 0
@@ -2699,7 +2700,9 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	//
 	//       A method value (x.M bound earlier, then called) first returns
 	//       to the realm whose frame bound it, so the grant test above runs
-	//       from the binder's side, not from a borrowed caller's.
+	//       from the binder's side, not from a borrowed caller's. Bound by
+	//       the receiver's owner it returns to the realm whose code calls
+	//       it instead, so handing one out grants nothing by itself.
 	//
 	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
 	//       package, borrow to the realm context that was active when
@@ -2722,25 +2725,35 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		}
 		return
 	}
-	// Rule #2 prelude: a method value starts from its binder's realm, else a
-	// caller's `view.Set` run as a callback in a borrowed call writes the view.
-	if bindPID.IsRealmPkg() && (m.Realm == nil || bindPID != m.Realm.ID) {
-		m.borrowToPkg(bindPID)
-	}
+	var oi *ObjectInfo
 	if recv.IsDefined() {
-		obj := recv.GetGrantObject(m.Store)
-		if obj != nil {
-			oi := obj.GetObjectInfo()
-			recvOID := oi.ID
-			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
-				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) &&
-				(oi.IsMutable || recvOID.PkgID.IsImmutablePkg()) {
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				r := objpv.GetRealm()
-				assertBorrowedRealm(objpv.PkgPath, r)
-				m.setRealm(r)
-			}
+		if obj := recv.GetGrantObject(m.Store); obj != nil {
+			oi = obj.GetObjectInfo()
+		}
+	}
+	// Rule #2 prelude (see "A method value" above): start from the binder,
+	// or from the calling realm when the binder owns the receiver.
+	if bindPID.IsRealmPkg() {
+		var cr *Realm
+		if oi != nil && oi.ID.PkgID == bindPID {
+			cr = m.callingRealm()
+		}
+		if cr != nil {
+			m.setRealm(cr)
+		} else if m.Realm == nil || bindPID != m.Realm.ID {
+			m.borrowToPkg(bindPID)
+		}
+	}
+	if oi != nil {
+		recvOID := oi.ID
+		if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
+			(m.Realm == nil || recvOID.PkgID != m.Realm.ID) &&
+			(oi.IsMutable || recvOID.PkgID.IsImmutablePkg()) {
+			recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+			objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+			r := objpv.GetRealm()
+			assertBorrowedRealm(objpv.PkgPath, r)
+			m.setRealm(r)
 		}
 	}
 	// borrow rule #3: closure capture-realm borrow.
@@ -2779,6 +2792,25 @@ func (m *Machine) borrowToPkg(pid PkgID) {
 		assertBorrowedRealm(objpv.PkgPath, r)
 		m.setRealm(r)
 	}
+}
+
+// callingRealm returns the realm whose own code makes the call on top of the
+// stack: the body realm of the nearest /r/- or /e/-declared frame below it.
+// /p/ and stdlib frames act for their caller and are skipped, closures too:
+// one built inside a borrowed call carries the borrowed realm's stamp.
+func (m *Machine) callingRealm() *Realm {
+	rlm := m.Frames[len(m.Frames)-1].LastRealm
+	for i := len(m.Frames) - 2; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func == nil {
+			continue
+		}
+		if IsRealmPath(fr.Func.PkgPath) || IsEphemeralPath(fr.Func.PkgPath) {
+			return rlm
+		}
+		rlm = fr.LastRealm
+	}
+	return rlm
 }
 
 func (m *Machine) PopFrame() Frame {

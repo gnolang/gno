@@ -25,9 +25,15 @@ func init() {
 // GetView returns a reference the caller can read but not write through.
 func GetView() *avl.Tree { return view }
 
-// ViewSetter hands out a method value bound here: it writes view as this
-// realm, so handing it out is a grant even though view itself is not granted.
+// ViewSetter hands out a method value bound here on the ungranted view: it
+// acts for the realm whose code calls it, so the caller gets no write.
 func ViewSetter() func(string, any) bool { return view.Set }
+
+// HandleSetter hands out a method value on a granted object: it writes.
+func HandleSetter() func(string, any) bool { return mutable(handle).Set }
+
+// CopyToView runs this realm's own method value from library code it called.
+func CopyToView(cur realm) { handle.Iterate("", "", view.Set) }
 
 // GetHandle returns a reference the caller may write through.
 func GetHandle() *avl.Tree { return mutable(handle) }

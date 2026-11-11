@@ -67,6 +67,10 @@ property of the object, so it survives the store.
    bound by a caller on a view and passed as a callback into a granted
    object's method (`h.Iterate("", "", v.Set)`) ran under the owner's storage
    and wrote the view. A direct `x.M()` binds and calls in one frame: no-op.
+   Bound by the receiver's owner, it starts instead from the realm whose code
+   makes the call (the nearest `/r/`- or `/e/`-declared frame; `/p/` frames
+   and closures act for their caller), so an ungranted receiver is written
+   only when binder and calling realm both own it.
 7. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
 
 Persistence: `IsMutable` is amino field 8, `json:",omitempty"`, so unflagged
@@ -130,8 +134,10 @@ idea with syntax; both keep the flag as the mechanism.
   object of that owner. This is the library's own code, which the owner
   accepted by granting; it is guidance (security guide §5.1c), not a VM rule.
 - A method value an owner binds on its own ungranted `/p/` object and hands
-  out now writes as the owner (it was refused before decision 6): handing out
-  a method value is a grant, like handing out a closure.
+  out is refused when another realm's code calls it, directly or as a
+  callback inside the owner's granted handle; the owner writes
+  `mutable(x).M` to hand out a writer. `mutable(` stays the only way a
+  `/p/` method writes for a foreign caller; closures are unchanged.
 - Known-open: a function value bound by a `maketx run` script is re-stamped
   to the realm that stores it (adoption), so a realm that stores and later
   calls caller-supplied function values runs them as itself

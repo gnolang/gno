@@ -35,7 +35,7 @@ func (m *Machine) doOpPrecall() {
 		if fv.IsLazy() {
 			fn, recv = resolveLazyBound(m, fv)
 		}
-		m.pushFrameCall(cx, fn, recv, fv.ObjectInfo.ID.PkgID, false)
+		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false)
 		m.PushOp(OpCall)
 		isCrossing := fn.IsCrossing()
 		if isCrossing {
@@ -690,6 +690,16 @@ func (m *Machine) doOpReturnToBlock() {
 	}
 }
 
+// methodValueBinder returns the realm stamp of a method value being called,
+// or zero for a plain x.M(...) call: that one is bound and called in one
+// step by the current realm, so it has no earlier binder to return to.
+func methodValueBinder(cx *CallExpr, bmv *BoundMethodValue) PkgID {
+	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
+		return PkgID{}
+	}
+	return bmv.ObjectInfo.ID.PkgID
+}
+
 func (m *Machine) doOpReturnCallDefers() {
 	cfr := m.MustPeekCallFrame(1)
 	dfr, ok := cfr.PopDefer()
@@ -734,7 +744,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	case *FuncValue:
 		fv = cv // plain func: no receiver, recv stays zero
 	case *BoundMethodValue:
-		bindPID = cv.ObjectInfo.ID.PkgID
+		bindPID = methodValueBinder(&dfr.Source.Call, cv)
 		// A lazy interface bind resolves its concrete method + receiver now, at
 		// the deferred call — Go's call-time dispatch on the operand's current
 		// value (nil derefs raise within the walk, caught by the Run loop). A
