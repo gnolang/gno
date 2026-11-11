@@ -494,19 +494,19 @@ victim data into their own context. Even the local copy is sticky.
 
 `mv := victim.Apply` (bound method value) is a function value that
 remembers the receiver and the realm whose frame bound it. When `mv()`
-is invoked later — even stored in attacker state, boxed into an
-interface, or passed as a callback into another realm's call — a
-`/p/` method first returns to the binding realm, and then borrow
-rule #2 applies as for a direct call: it borrows to the receiver's
-owner only if the receiver is granted. A method value an attacker
-realm binds on your view is refused wherever it runs. A method value
-your realm binds on its own ungranted object and hands out is refused
-as well when another realm's code calls it, directly or as a callback
-inside one of your granted handles: bound by the receiver's owner, it
-starts from the realm whose code makes the call. One case stays
-open: a value bound by a `maketx run` script and *stored* by your realm
-is re-stamped to your realm, so calling it later runs as you. Do not
-store and call function values that callers supply.
+is invoked later — stored in attacker state, boxed into an interface,
+or passed as a callback into another realm's call — a `/p/` or stdlib
+method keeps the binder's authority only while every frame down to the
+nearest realm-declared one runs as the binder. Otherwise it runs
+view-only: it can write no realm's stored objects, neither the
+receiver nor an argument. A granted receiver borrows as in a direct
+call. So a method value an attacker binds on your view is refused
+wherever it runs, and one your realm binds and hands out is refused
+when another realm's code calls it, directly, wrapped in that realm's
+closure, or as a callback inside one of your granted handles. One case
+stays open: a value bound by a `maketx run` script and *stored* by your
+realm is re-stamped to your realm, so calling it later runs as you. Do
+not store and call function values that callers supply.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`
@@ -515,8 +515,11 @@ go through different paths.
 **Implication**: returning `view.Set` for a `/p/`-type in your state
 hands out no write; it works only when your own code calls it. To
 hand out a writer, grant the object (`return mutable(view).Set`) and
-read §5.1 for what a grant covers. A closure, or a method value of a
-method your realm declares, still runs as your realm.
+read §5.1 for what a grant covers. To write your own object from
+inside another realm's handle, pass a closure
+(`func(k string, v any) bool { return mine.Set(k, v) }`), not
+`mine.Set`. A closure, or a method value of a method your realm
+declares, still runs as your realm.
 
 ### 7.2 Conversion-time panic is not Gno-recoverable
 

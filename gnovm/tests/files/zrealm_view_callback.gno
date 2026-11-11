@@ -9,18 +9,11 @@ import (
 // A method value of a /p/ method writes an ungranted receiver only when the
 // realm that bound it and the realm whose code calls it both own the receiver.
 
-// caught recovers a refusal raised with no borrowed frame in between.
-func caught(fn func()) (r any) {
-	defer func() { r = recover() }()
-	fn()
-	return nil
-}
-
 func main(cur realm) {
 	h := viewdefault.GetHandle()
 	v := viewdefault.GetView()
 	h.Set("a", "from-caller")
-	// The refusal unwinds through the owner's borrowed frames: revive, not recover.
+	// A refused method value left its caller's realm: revive, not recover.
 	println("view callback:", revive(func() { h.Iterate("", "", v.Set) }))
 	// Same through a defer statement inside the owner's granted handle.
 	println("deferred callback:", revive(func() { viewdefault.NewViewWriter().Deferred(v.Set) }))
@@ -29,7 +22,7 @@ func main(cur realm) {
 	println("handle:", h.Get("k"), h.Size())
 	// Bound by the owner on its ungranted view and handed out: still a view,
 	// called directly or from inside the owner's granted handle.
-	println("owner-bound:", caught(func() { viewdefault.ViewSetter()("o", "x") }))
+	println("owner-bound:", revive(func() { viewdefault.ViewSetter()("o", "x") }))
 	println("owner-bound callback:", revive(func() { h.Iterate("", "", viewdefault.ViewSetter()) }))
 	// Wrapped in a caller's /p/ closure and run by the owner's own code.
 	println("owner-bound hook:", revive(func() { viewdefault.RunHook(cross(cur), viewgrant.Wrap(viewdefault.ViewSetter())) }))

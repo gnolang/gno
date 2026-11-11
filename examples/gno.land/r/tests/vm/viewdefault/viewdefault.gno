@@ -4,6 +4,8 @@
 package viewdefault
 
 import (
+	"encoding/base64"
+
 	"gno.land/p/demo/tests/viewgrant/v0"
 	"gno.land/p/nt/avl/v0"
 )
@@ -77,3 +79,11 @@ func Read(k string) string {
 	}
 	return ""
 }
+
+// secret is handed out as a view; Encoder hands out a stdlib method value
+// that writes its first argument.
+var secret = []byte("secret-bytes")
+
+func Secret() []byte                 { return secret }
+func SecretString() string           { return string(secret) }
+func Encoder() func(dst, src []byte) { return base64.StdEncoding.Encode }

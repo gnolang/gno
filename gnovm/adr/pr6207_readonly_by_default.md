@@ -61,17 +61,17 @@ property of the object, so it survives the store.
 5. **Both directions.** A passing its own `*avl.Tree` into
    `X.Register(cross(cur), t)` gives X a view unless A wrote `mutable(t)`,
    whether the tree was stored earlier or allocated in this transaction.
-6. **A method value acts for the realm that bound it.** Calling a bound
-   `/p/` method first sets `m.Realm` to the `BoundMethodValue`'s stamp (the
-   realm whose frame formed it), then rule #2 applies. Without this, `v.Set`
-   bound by a caller on a view and passed as a callback into a granted
-   object's method (`h.Iterate("", "", v.Set)`) ran under the owner's storage
-   and wrote the view. A direct `x.M()` binds and calls in one frame: no-op.
-   Bound by the receiver's owner, it starts instead from the realm whose code
-   makes the call: the owner only if every frame down to the nearest `/r/`-
-   or `/e/`-declared one runs as the owner, else the first other realm on
-   the way (a borrowed `/p/` frame, another realm's closure). An ungranted
-   receiver is written only when binder and calling realm both own it.
+6. **A method value writes only for its binder and its caller together.**
+   The `BoundMethodValue`'s stamp names the realm whose frame formed it.
+   Calling one keeps that realm's authority only while every frame down to
+   the nearest `/r/`- or `/e/`-declared one runs as the binder; otherwise
+   the call runs view-only (`m.Realm` nil, the write guard refusing every
+   stored object), so neither the binder's objects nor the caller's can be
+   written through it. A granted receiver borrows as in a direct call, and
+   a direct `x.M()` binds and calls in one frame: no-op. This refuses
+   `h.Iterate("", "", v.Set)` with a caller's `v.Set` on a view, an owner's
+   `view.Set` handed out, and an owner's `base64.StdEncoding.Encode` handed
+   out and called with the owner's own slice as `dst`.
 7. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
 
 Persistence: `IsMutable` is amino field 8, `json:",omitempty"`, so unflagged
@@ -134,11 +134,11 @@ idea with syntax; both keep the flag as the mechanism.
   the whole body, so a method that writes one of its arguments writes any
   object of that owner. This is the library's own code, which the owner
   accepted by granting; it is guidance (security guide §5.1c), not a VM rule.
-- A method value an owner binds on its own ungranted `/p/` object and hands
-  out is refused when another realm's code calls it, directly or as a
-  callback inside the owner's granted handle; the owner writes
-  `mutable(x).M` to hand out a writer. `mutable(` stays the only way a
-  `/p/` method writes for a foreign caller; closures are unchanged.
+- A method value handed to another realm writes nothing stored unless its
+  receiver is granted: the owner writes `mutable(x).M` to hand out a
+  writer. It is refused as well inside another realm's borrowed frame, even
+  on the caller's own object (`h.Iterate("", "", mine.Set)`); a closure the
+  caller declares does that. Closures are unchanged.
 - Known-open: a function value bound by a `maketx run` script is re-stamped
   to the realm that stores it (adoption), so a realm that stores and later
   calls caller-supplied function values runs them as itself

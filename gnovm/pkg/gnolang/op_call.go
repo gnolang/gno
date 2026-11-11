@@ -570,6 +570,10 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 	if cfr.WithCross {
 		return true
 	}
+	// A frame that entered view-only left its caller's realm.
+	if m.viewOnly {
+		return !cfr.LastViewOnly
+	}
 	crlm := m.Realm
 	if crlm != nil {
 		prlm := cfr.LastRealm

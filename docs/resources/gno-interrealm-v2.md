@@ -224,8 +224,7 @@ attacker's body fail the readonly check.
 ### 4.2 Borrow rule #2 — Storage-realm borrow (stdlib / `/p/` methods)
 
 ```go
-// a method value first returns to the realm that bound it (bindPID), or,
-// bound by the receiver's owner, to the realm whose code makes the call
+// a method value not called by its binder's own code runs view-only
 if recv.IsDefined() {
     obj := recv.GetGrantObject(m.Store)
     if obj != nil {
@@ -658,10 +657,10 @@ binding time**.
 Two practical implications:
 
 1. **A bound `/p/` method writes only a granted receiver for a foreign
-   caller.** It first returns to the realm that bound it, or, bound by
-   the receiver's owner, to the realm whose code makes the call; then
+   caller.** It keeps its binder's authority only while the binder's own
+   code calls it and otherwise runs view-only; with a granted receiver
    borrow rule #2 applies as for a direct call. Verified in
-   `zrealm_view_callback.gno` and
+   `zrealm_view_callback.gno`, `zrealm_view_method_value_arg.gno` and
    `zrealm_launder_rdata_mv_stored_bound_mv.gno`.
 
 2. **Method expressions are different.** `me := (*T).M` is an
