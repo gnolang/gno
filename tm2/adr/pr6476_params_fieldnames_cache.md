@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Proposed in #6476.
 
 ## Context
 
