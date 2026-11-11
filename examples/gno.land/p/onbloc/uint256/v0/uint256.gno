@@ -1,5 +1,9 @@
 // Ported from https://github.com/holiman/uint256
 // This package provides a 256-bit unsigned integer type, Uint256, and associated functions.
+//
+// Gno now has a native uint256 type (with math/overflow's checked Addu256,
+// Subu256, ... and strconv.FormatUint256/ParseUint256); prefer it in new code.
+// This package keeps working for existing code. See the README.
 package uint256
 
 import (

@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: This proposal is looking to change the actual govDAO implementation. Reason: %s\n\n**Law after the install: Supermajority 80%%.** impl/v1 decides with this law.\n\n## Stats
+-- input.md --
+routine upgrade
+
+<!--
+-- output.md --
+routine upgrade  \<\!\-\-
+-- output.html --
+<p>This proposal is looking to change the actual govDAO implementation. Reason: routine upgrade  &lt;!--</p>
+<p><strong>Law after the install: Supermajority 80%.</strong> impl/v1 decides with this law.</p>
+<h2>Stats</h2>

@@ -1,0 +1,181 @@
+# impl/v0's law cannot be read, so the install proposal carries the law
+# impl/v1 will use. The DAO votes on it under v0's law, and impl/v1 decides
+# with it from its first decision: there is no window at the default law.
+#
+# Three T1 members: two YES votes are 66.67%, which passes the default
+# 66.66% supermajority and fails an 80% one.
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/impl/v1
+loadpkg gno.land/r/gov/dao/loader/v0
+loadpkg gno.land/r/test/setup $WORK/setup
+
+adduser alice
+adduser bob
+adduser carol
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/setup -func Bootstrap -args $alice_user_addr -args $bob_user_addr -args $carol_user_addr -args '' -args '' -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## Under v0, the DAO raises its law to 80% (proposal 0).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v0_law80.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 0 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## v0 now needs 80%: two of three is not enough (proposal 1).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v0_law80.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 80'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## An install carrying a law weaker than impl/v1's default is refused.
+! gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/install_weak.gno
+stderr 'Supermajority must be in \[66.66, 100\], got 50'
+
+## Install impl/v1 carrying 80% (proposal 2). The reason tries to hide the law
+## line behind an HTML comment; it is escaped, so the law line stays visible.
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/install80.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
+stdout 'Law after the install: Supermajority 80%'
+stdout 'routine upgrade +\\<\\!\\-\\-'
+! stdout '<!--'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+
+## impl/v1's first decision already uses 80%: two of three is refused
+## (proposal 3, a v1 law change to 90%).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law90.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 80'
+
+## With all three it passes, and the new law then stands (proposal 4: two of
+## three cannot pass a 90% law).
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law90.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 4 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 90'
+
+-- setup/gnomod.toml --
+module = "gno.land/r/test/setup"
+gno = "0.9"
+
+-- setup/setup.gno --
+package setup
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+// Bootstrap seeds the member set while AllowedDAOs is still empty (the
+// genesis window r/gov/dao/loader/v0 leaves open), then locks it to impl/v0.
+func Bootstrap(cur realm, t1a, t1b, t1c, t2, t3 address) {
+	ms := memberstore.Get(0, cur)
+	for _, a := range []address{t1a, t1b, t1c} {
+		if a != "" {
+			ms.SetMember(memberstore.T1, a, memberstore.NewMember(3))
+		}
+	}
+	if t2 != "" {
+		ms.SetMember(memberstore.T2, t2, memberstore.NewMember(2))
+	}
+	if t3 != "" {
+		ms.SetMember(memberstore.T3, t3, memberstore.NewMember(0))
+	}
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(nil, []string{"gno.land/r/gov/dao/impl/v0"}))
+}
+
+type myFilter struct{ OnlyMe bool }
+
+// NewUnknownFilterRequest builds a proposal whose filter no impl knows.
+func NewUnknownFilterRequest(cur realm) dao.ProposalRequest {
+	e := dao.NewSimpleExecutor(0, cur, func(cur realm) error { return nil }, "does nothing")
+	return dao.NewProposalRequestWithFilter("Filtered", "a filter impl/v1 does not know", e, myFilter{OnlyMe: true})
+}
+
+-- run/v0_law80.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	implv0 "gno.land/r/gov/dao/impl/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), implv0.NewChangeLawRequest(cross(cur), implv0.NewLaw(80)))
+}
+
+-- run/install_weak.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), impl.NewInstallRequest(cross(cur), "install impl/v1", impl.NewLaw(50)))
+}
+
+-- run/install80.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	req := impl.NewInstallRequest(cross(cur), "routine upgrade\n\n<!--", impl.NewLaw(80))
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/v1_law90.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), impl.NewChangeLawRequest(cross(cur), impl.NewLaw(90)))
+}

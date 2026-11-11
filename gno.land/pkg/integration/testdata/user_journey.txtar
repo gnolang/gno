@@ -67,15 +67,15 @@ stdout 'data: "\d+ugnot"' # Send tx + Gas used
 
 # user1 & user2 balances should be empty
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user_addr}\")"
-stdout '0 int64'
+stdout '0 uint256'
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user_addr}\")"
-stdout '0 int64'
+stdout '0 uint256'
 
 # user2 make a deposit of 1e7ugnot
 gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000000ugnot -gas-fee 900001ugnot -gas-wanted 9_000_000  -chainid=tendermint_test user2
 stdout 'OK!'
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user_addr}\")"
-stdout '10000000 int64'
+stdout '10000000 uint256'
 
 # user2 transfers 1e7ugnot to user1
 gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Transfer -args ${user1_user_addr} -args 10000000 -gas-fee 690001ugnot -gas-wanted 6_900_000 -chainid=tendermint_test user2
@@ -83,9 +83,9 @@ stdout 'OK!'
 
 # Verify users' new balances
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user1_user_addr}\")"
-stdout '10000000 int64'
+stdout '10000000 uint256'
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"${user2_user_addr}\")"
-stdout '0 int64'
+stdout '0 uint256'
 
 # user1 withdraw 1e7ugnot
 gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 10000000 -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test user1
@@ -108,7 +108,7 @@ stdout 'OK!'
 
 # Verify user1's MAT balance
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user1_user_addr\")"
-stdout '1000 int64'
+stdout '1000 uint256'
 
 # Approve disperse Realm to spend 500 MAT on behalf of user1
 gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Approve -args MAT -args "$DISPERSE_REALM_ADDR" -args 500 -gas-fee 870001ugnot -gas-wanted 8_700_000 -chainid=tendermint_test user1
@@ -116,7 +116,7 @@ stdout 'OK!'
 
 # Check disperse Realm allowance to spend MAT on behalf of user1
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.Allowance(\"MAT\", \"$user1_user_addr\", \"$DISPERSE_REALM_ADDR\")"
-stdout '500 int64'
+stdout '500 uint256'
 
 # Disperse 490 MAT to user2 and 10 to user3
 gnokey maketx call -pkgpath gno.land/r/demo/disperse -func DisperseGRC20String -args "$user2_user_addr,$user3_user_addr" -args '490MAT,10MAT' -gas-fee 1300001ugnot -gas-wanted 13_000_000 -chainid=tendermint_test user1
@@ -124,9 +124,9 @@ stdout 'OK!'
 
 # Verify user2's and user3's MAT balances
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user2_user_addr\")"
-stdout '490 int64'
+stdout '490 uint256'
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
-stdout '10 int64'
+stdout '10 uint256'
 
 # user3 requests MAT from the faucet
 gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Faucet -args MAT -gas-fee 990001ugnot -gas-wanted 9_900_000 -chainid=tendermint_test user3
@@ -134,7 +134,7 @@ stdout 'OK!'
 
 # Verify user3's MAT balance
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
-stdout '20 int64'
+stdout '20 uint256'
 
 # user2 transfers 200 MAT to user3
 gnokey maketx call -pkgpath gno.land/r/demo/defi/grc20factory -func Transfer -args MAT -args "$user3_user_addr" -args 200 -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test user2
@@ -142,9 +142,9 @@ stdout 'OK!'
 
 # Verify user2's and user3's MAT balances
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user2_user_addr\")"
-stdout '290 int64'
+stdout '290 uint256'
 gnokey query vm/qeval --data "gno.land/r/demo/defi/grc20factory.BalanceOf(\"MAT\", \"$user3_user_addr\")"
-stdout '220 int64'
+stdout '220 uint256'
 
 ###########################
 # Users discuss on Boards #

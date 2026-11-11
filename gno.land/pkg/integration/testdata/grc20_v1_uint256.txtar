@@ -1,0 +1,109 @@
+# grc20 v1: uint256 amounts through maketx call, balances and allowances held
+# in avl as uint256 values, surviving a node restart, and the supply cap.
+
+loadpkg gno.land/p/nt/grc20/v1
+loadpkg gno.land/r/nt/grc20reg/v1
+loadpkg gno.land/r/test/bigtoken $WORK/bigtoken
+
+adduser alice
+
+gnoland start
+
+## Mint MaxUint256 - 1 to test1, then the last unit.
+gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Mint -args 115792089237316195423570985008687907853269984665640564039457584007913129639934 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+stdout '"key":"value","value":"115792089237316195423570985008687907853269984665640564039457584007913129639934"'
+gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Mint -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+## The supply is at MaxUint256: one more is refused, not wrapped.
+! gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Mint -args 1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'mint overflow'
+
+## Transfer 2^64 (above any int64) to alice, and approve her for MaxUint256.
+gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Transfer -args $alice_user_addr -args 18446744073709551616 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Approve -args $alice_user_addr -args 115792089237316195423570985008687907853269984665640564039457584007913129639935 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+## A non-canonical amount is refused by the argument parser.
+! gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Transfer -args $alice_user_addr -args -1 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'error parsing uint256'
+
+## State is persisted: restart the node and read it back.
+gnoland restart
+
+gnokey query vm/qeval --data "gno.land/r/test/bigtoken.BalanceOf(\"$alice_user_addr\")"
+stdout '\(18446744073709551616 uint256\)'
+gnokey query vm/qeval --data "gno.land/r/test/bigtoken.BalanceOf(\"$test1_user_addr\")"
+stdout '\(115792089237316195423570985008687907853269984665640564039439137263839420088319 uint256\)'
+gnokey query vm/qeval --data "gno.land/r/test/bigtoken.Allowance(\"$test1_user_addr\", \"$alice_user_addr\")"
+stdout '\(115792089237316195423570985008687907853269984665640564039457584007913129639935 uint256\)'
+gnokey query vm/qrender --data 'gno.land/r/test/bigtoken:'
+stdout 'Total supply..: 115792089237316195423570985008687907853269984665640564039457584007913129639935'
+stdout 'Known accounts..: 2'
+gnokey query vm/qrender --data 'gno.land/r/nt/grc20reg/v1:gno.land/r/test/bigtoken.BIG'
+stdout 'total supply: 115792089237316195423570985008687907853269984665640564039457584007913129639935'
+
+## After the restart, alice spends from the allowance; an overdraft is refused.
+gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func TransferFrom -args $test1_user_addr -args $alice_user_addr -args 18446744073709551616 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qeval --data "gno.land/r/test/bigtoken.BalanceOf(\"$alice_user_addr\")"
+stdout '\(36893488147419103232 uint256\)'
+gnokey query vm/qeval --data "gno.land/r/test/bigtoken.Allowance(\"$test1_user_addr\", \"$alice_user_addr\")"
+stdout '\(115792089237316195423570985008687907853269984665640564039439137263839420088319 uint256\)'
+! gnokey maketx call -pkgpath gno.land/r/test/bigtoken -func Transfer -args $test1_user_addr -args 36893488147419103233 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'insufficient balance'
+
+-- bigtoken/gnomod.toml --
+module = "gno.land/r/test/bigtoken"
+gno = "0.9"
+
+-- bigtoken/bigtoken.gno --
+package bigtoken
+
+import (
+	"gno.land/p/nt/grc20/v1"
+	"gno.land/r/nt/grc20reg/v1"
+)
+
+var (
+	token  *grc20.Token
+	ledger *grc20.PrivateLedger
+	teller grc20.Teller
+)
+
+func init(cur realm) {
+	token, ledger = grc20.NewToken("Big", "BIG", 18, 0, cur)
+	teller = ledger.CallerTeller()
+	grc20reg.Register(cross(cur), token, "")
+}
+
+// Mint is unrestricted: this is a test token.
+func Mint(cur realm, amount uint256) {
+	checkErr(ledger.Mint(cur.Previous().Address(), amount))
+}
+
+func BalanceOf(owner address) uint256 { return token.BalanceOf(owner) }
+
+func Allowance(owner, spender address) uint256 { return token.Allowance(owner, spender) }
+
+func Transfer(cur realm, to address, amount uint256) {
+	checkErr(teller.Transfer(0, cur, to, amount))
+}
+
+func Approve(cur realm, spender address, amount uint256) {
+	checkErr(teller.Approve(0, cur, spender, amount))
+}
+
+func TransferFrom(cur realm, from, to address, amount uint256) {
+	checkErr(teller.TransferFrom(0, cur, from, to, amount))
+}
+
+func Render(path string) string { return token.RenderHome() }
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}

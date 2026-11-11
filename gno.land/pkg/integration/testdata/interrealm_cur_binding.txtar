@@ -93,9 +93,9 @@ gno = "0.9"
 -- wrapper/wrapper.gno --
 package wrapper
 
-import "gno.land/r/nt/grc20reg/v0"
+import "gno.land/r/nt/grc20reg/v1"
 
-func Send(cur realm, to address, amount int64) {
+func Send(cur realm, to address, amount uint256) {
 	cur = cur.Previous()
 	grc20reg.Transfer(0, cur, "gno.land/r/gnoland/wugnot.wugnot", to, amount)
 }

@@ -1,14 +1,17 @@
 // foo20 is a GRC20 token contract where all the grc20.Teller methods are
 // proxified with top-level functions. see also gno.land/r/demo/bar20.
+//
+// It is built on gno.land/p/nt/grc20/v1, so every amount is a uint256, and is
+// registered in gno.land/r/nt/grc20reg/v1.
 package foo20
 
 import (
+	"strconv"
 	"strings"
 
-	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/grc20/v1"
 	"gno.land/p/nt/ownable/v0"
-	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/r/nt/grc20reg/v1"
 )
 
 var (
@@ -26,27 +29,27 @@ func init(cur realm) {
 	grc20reg.Register(cross(cur), Token, "")
 }
 
-func TotalSupply() int64 {
+func TotalSupply() uint256 {
 	return userTeller.TotalSupply()
 }
 
-func BalanceOf(owner address) int64 {
+func BalanceOf(owner address) uint256 {
 	return userTeller.BalanceOf(owner)
 }
 
-func Allowance(owner, spender address) int64 {
+func Allowance(owner, spender address) uint256 {
 	return userTeller.Allowance(owner, spender)
 }
 
-func Transfer(cur realm, to address, amount int64) {
+func Transfer(cur realm, to address, amount uint256) {
 	checkErr(userTeller.Transfer(0, cur, to, amount))
 }
 
-func Approve(cur realm, spender address, amount int64) {
+func Approve(cur realm, spender address, amount uint256) {
 	checkErr(userTeller.Approve(0, cur, spender, amount))
 }
 
-func TransferFrom(cur realm, from, to address, amount int64) {
+func TransferFrom(cur realm, from, to address, amount uint256) {
 	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
 }
 
@@ -54,16 +57,16 @@ func TransferFrom(cur realm, from, to address, amount int64) {
 // For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet(cur realm) {
 	caller := cur.Previous().Address()
-	amount := int64(1_000 * 10_000) // 1k
+	amount := uint256(1_000 * 10_000) // 1k
 	checkErr(privateLedger.Mint(caller, amount))
 }
 
-func Mint(cur realm, to address, amount int64) {
+func Mint(cur realm, to address, amount uint256) {
 	Ownable.AssertOwnedBy(cur.Previous().Address())
 	checkErr(privateLedger.Mint(to, amount))
 }
 
-func Burn(cur realm, from address, amount int64) {
+func Burn(cur realm, from address, amount uint256) {
 	Ownable.AssertOwnedBy(cur.Previous().Address())
 	checkErr(privateLedger.Burn(from, amount))
 }
@@ -78,7 +81,7 @@ func Render(path string) string {
 	case c == 2 && parts[0] == "balance":
 		owner := address(parts[1])
 		balance := userTeller.BalanceOf(owner)
-		return ufmt.Sprintf("%d\n", balance)
+		return strconv.FormatUint256(balance, 10) + "\n"
 	default:
 		return "404\n"
 	}
