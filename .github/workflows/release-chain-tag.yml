@@ -32,7 +32,13 @@ jobs:
     strategy:
       matrix:
         include:
+          # A native build has cgo on, so its binaries need at most the build
+          # system's glibc, and may need exactly that. ubuntu:22.04's is 2.35,
+          # Ubuntu 22.04's, so they start there and on any newer glibc (see the
+          # glibc step below). A container, not the ubuntu-22.04 runner, which
+          # GitHub retires on 2027-04-17 (actions/runner-images#14254).
           - os: ubuntu-latest
+            container: ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
             goos: linux
             goarch: amd64
             native: true # runs on the builder, so the version can be asserted
@@ -47,9 +53,28 @@ jobs:
             goarch: arm64
             native: true
     runs-on: ${{ matrix.os }}
+    # Empty for the other rows, which then run on the runner itself.
+    container: ${{ matrix.container }}
     permissions:
       contents: read
     steps:
+      # The image has no compiler, and Go turns cgo off by itself when it finds
+      # none, which would drop lmdb, mdbx and Ledger support without failing
+      # anything: the build requires cgo instead. git lets actions/checkout
+      # clone, and perl provides shasum. The job runs as root in a workspace
+      # the runner's user owns, which git refuses, and go build then fails on
+      # its VCS stamping: the system config, which every later step in the
+      # container reads, marks the workspace safe.
+      - name: Install the build tools in the container
+        if: matrix.container
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates gcc git libc6-dev perl
+          git config --system --add safe.directory "${GITHUB_WORKSPACE}"
+          echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
@@ -121,6 +146,47 @@ jobs:
             fi
             echo "${name}: ${got}"
           done
+
+      # A Linux binary built with cgo needs at most the glibc of the system
+      # that built it, and may need exactly that: v1.7.0's, built on Ubuntu
+      # 24.04 (glibc 2.39), needed 2.38 and did not start on Ubuntu 22.04
+      # (2.35) or Debian 12 (2.36). This fails the run before a binary that
+      # needs more than 2.35 reaches the release, as a change of build system
+      # could make one. readelf reads any ELF, so the cross-compiled arm64
+      # binaries, static without cgo, are checked too. shell: bash adds
+      # pipefail, so a readelf failure fails the step.
+      - name: Assert the Linux binaries start on glibc 2.35
+        if: matrix.goos == 'linux'
+        shell: bash
+        env:
+          MAX_GLIBC: GLIBC_2.35
+        run: |
+          checked=0
+          for bin in dist/*_linux_*; do
+            case "${bin}" in *.txt) continue ;; esac
+            [ -e "${bin}" ] || break # no match: the glob stays as written
+            info="$(readelf --program-headers --version-info --wide "${bin}")"
+            checked=$((checked + 1))
+            # A static binary has no program interpreter.
+            if ! grep -q 'Requesting program interpreter' <<<"${info}"; then
+              echo "${bin}: static"
+              continue
+            fi
+            need="$({ grep -oE 'GLIBC_[0-9]+(\.[0-9]+)+' <<<"${info}" || true; } | sort -uV | tail -n 1)"
+            if [ -z "${need}" ]; then
+              echo "::error::${bin} is dynamic, but needs no glibc symbol version: readelf's output was not understood"
+              exit 1
+            fi
+            if [ "$(printf '%s\n%s\n' "${need}" "${MAX_GLIBC}" | sort -V | tail -n 1)" != "${MAX_GLIBC}" ]; then
+              echo "::error::${bin} needs ${need}, newer than ${MAX_GLIBC}: it would not start on a system with glibc ${MAX_GLIBC#GLIBC_}, such as Ubuntu 22.04"
+              exit 1
+            fi
+            echo "${bin}: needs ${need}"
+          done
+          if [ "${checked}" -eq 0 ]; then
+            echo "::error::no Linux binary in dist/"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
