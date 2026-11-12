@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed as a contribution to #5688, which adds `crypto/secp256k1` with
+Proposed in #6484, stacked on #5688, which adds `crypto/secp256k1` with
 `Verify`. This adds `RecoverPubkey` to the same package.
 
 ## Context
