@@ -1001,7 +1001,9 @@ func (d *Decoder) valueFromToml(mtype reflect.Type, tval any, mval1 *reflect.Val
 			}
 		}
 
-		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to a tree", tval, tval)
+		// The value stays out of the message, here and in the two cases below:
+		// rendering a tree costs the square of its depth.
+		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %T to %v", tval, mtype)
 	case []*Tree:
 		if isTreeSequence(mtype) {
 			return d.valueFromTreeSlice(mtype, t)
@@ -1014,7 +1016,7 @@ func (d *Decoder) valueFromToml(mtype reflect.Type, tval any, mval1 *reflect.Val
 				return d.valueFromToml(mval1.Elem().Type(), t, &ival)
 			}
 		}
-		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to trees", tval, tval)
+		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %T to %v", tval, mtype)
 	case []any:
 		d.visitor.visit()
 		if isOtherSequence(mtype) {
@@ -1028,7 +1030,7 @@ func (d *Decoder) valueFromToml(mtype reflect.Type, tval any, mval1 *reflect.Val
 				return d.valueFromToml(mval1.Elem().Type(), t, &ival)
 			}
 		}
-		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to a slice", tval, tval)
+		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %T to %v", tval, mtype)
 	default:
 		d.visitor.visit()
 		mvalPtr := reflect.New(mtype)

@@ -1,0 +1,6 @@
+Strikethrough runs count against the same cap of 4 as emphasis: one '~~'
+span and one '*' span reach it, and the '~' runs after it render as text.
+-- input.md --
+~~a~~ *b* ~c~ ~d~
+-- output.html --
+<p><del>a</del> <em>b</em> ~c~ ~d~</p>

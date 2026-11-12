@@ -31,6 +31,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1155,6 +1156,15 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	selArgs := make(map[string]string)
 	selFn := gnourl.WebQuery.Get("func")
 	selSend := gnourl.WebQuery.Get(".send")
+	// The send value is printed into the gnokey command the page offers to
+	// copy, so only a coin list gnokey would parse is kept, in canonical form:
+	// ParseCoins accepts whitespace, newlines included, that the copy button
+	// would otherwise split the command on.
+	if coins, err := std.ParseCoins(selSend); err != nil {
+		selSend = ""
+	} else {
+		selSend = coins.String()
+	}
 	if selFn != "" {
 		for _, fn := range fsigs {
 			if selFn != fn.Name {

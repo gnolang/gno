@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/token"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -38,6 +39,7 @@ var (
 	ErrFormDuplicateName    = errors.New("name already used")
 	ErrFormInvalidAttribute = errors.New("invalid attribute for input type")
 	ErrFormMissingValue     = errors.New("missing 'value' attribute")
+	ErrFormInvalidExec      = errors.New("'exec' attribute is not an exported function name")
 )
 
 var (
@@ -240,9 +242,16 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 		node.Domain = domain
 	}
 
-	// Handle exec attribute
-	if exec, ok := ExtractAttr(tok.Attr, "exec"); ok {
+	// The exec name is printed into the gnokey command the page offers to
+	// copy, so only a name MsgCall can reach is accepted: an exported
+	// identifier. Anything else would never run on chain anyway.
+	exec, _ := ExtractAttr(tok.Attr, "exec")
+	switch {
+	case exec == "":
+	case token.IsIdentifier(exec) && token.IsExported(exec):
 		node.ExecFunc = exec
+	default:
+		node.Error = fmt.Errorf("%q: %w", exec, ErrFormInvalidExec)
 	}
 
 	return node, parser.Continue
@@ -492,8 +501,16 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		fmt.Fprintf(w, `<div data-controller="action-function" data-action-function-name-value="%s" data-action-function-pkgpath-value="%s">`+"\n", HTMLEscapeString(n.ExecFunc), HTMLEscapeString(pkgPath))
 	}
 
-	// Track select elements that have been rendered
-	renderedSelects := make(map[string]bool)
+	// Group select options by name in one pass, so rendering every select
+	// stays linear in the number of elements. A name leaves the map once its
+	// select is rendered, at the first element of that name.
+	selectOptions := make(map[string][]FormSelect)
+	for _, elem := range n.Elements {
+		if opt, ok := elem.(FormSelect); ok {
+			selectOptions[opt.Name] = append(selectOptions[opt.Name], opt)
+		}
+	}
+
 	lastDescID := ""
 
 	// Render elements
@@ -510,9 +527,9 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		case FormTextarea:
 			r.renderTextarea(w, e, i, &lastDescID, isExec)
 		case FormSelect:
-			if !renderedSelects[e.Name] {
-				r.renderSelect(w, n.Elements, e, i, &lastDescID, isExec)
-				renderedSelects[e.Name] = true
+			if options, ok := selectOptions[e.Name]; ok {
+				r.renderSelect(w, options, e, i, &lastDescID, isExec)
+				delete(selectOptions, e.Name)
 			}
 		}
 	}
@@ -727,7 +744,7 @@ func (r *FormRenderer) renderTextarea(w util.BufWriter, e FormTextarea, idx int,
 `, HTMLEscapeString(e.Value))
 }
 
-func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e FormSelect, idx int, lastDescID *string, isExec bool) {
+func (r *FormRenderer) renderSelect(w util.BufWriter, options []FormSelect, e FormSelect, idx int, lastDescID *string, isExec bool) {
 	if e.Description != "" {
 		descID := fmt.Sprintf("desc_%s_%d", e.Name, idx)
 		fmt.Fprintf(w, `<div id="%s" class="gno-form_description">%s</div>`+"\n",
@@ -771,15 +788,12 @@ func (r *FormRenderer) renderSelect(w util.BufWriter, elements []FormElement, e 
 	fmt.Fprintf(w, `<option value="">%s</option>`+"\n",
 		HTMLEscapeString(defaultOptionText))
 
-	// Collect all options for this select
-	for _, elem := range elements {
-		if opt, ok := elem.(FormSelect); ok && opt.Name == e.Name {
-			fmt.Fprintf(w, `<option value="%s"`, HTMLEscapeString(opt.Value))
-			if opt.Selected {
-				fmt.Fprint(w, ` selected`)
-			}
-			fmt.Fprintf(w, `>%s</option>`+"\n", HTMLEscapeString(opt.Value))
+	for _, opt := range options {
+		fmt.Fprintf(w, `<option value="%s"`, HTMLEscapeString(opt.Value))
+		if opt.Selected {
+			fmt.Fprint(w, ` selected`)
 		}
+		fmt.Fprintf(w, `>%s</option>`+"\n", HTMLEscapeString(opt.Value))
 	}
 
 	fmt.Fprintln(w, `</select>

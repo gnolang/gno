@@ -958,6 +958,7 @@ func findBracketSpans(s string) []bracketSpan {
 	// content (real links are short and rare relative to input size)
 	// while capping worst-case work at O(n).
 	scanBudget := 8 * len(s)
+	interruptAt := -1
 	for i < len(s) {
 		// Advance nextClose past i if needed.
 		if nextClose < i {
@@ -1051,7 +1052,7 @@ func findBracketSpans(s string) []bracketSpan {
 			}
 			// LRD candidate: [label]: url …  (only when `!` not prefixing AND only if line starts at line-start position)
 			if c == '[' && atLineStartAt(s, start) {
-				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget); ok {
+				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget, &interruptAt); ok {
 					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLRD})
 					i = end
 					atLineStart = (end > 0 && s[end-1] == '\n')
@@ -1303,7 +1304,9 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 // Shares the pass-1 scan budget so a caller can't chain
 // `[a]: u\n(x\n[b]: u\n(x\n…` (paren-title with no `)` anywhere — every
 // LRD candidate would otherwise let the title scan walk to EOF, O(n²)).
-func scanLRDTail(s string, i int, budget *int) (int, bool) {
+// `interruptAt` holds the line start of the last block interrupt found in
+// `s`, or -1, so a later candidate stops there without walking it again.
+func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 	// Need ':' immediately
 	if i >= len(s) || s[i] != ':' {
 		return 0, false
@@ -1408,7 +1411,8 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
 				break
 			}
-			if c == '\n' && isBlockInterrupt(s, i+1) {
+			if c == '\n' && (i+1 == *interruptAt || isBlockInterruptFn(s, i+1)) {
+				*interruptAt = i + 1
 				break
 			}
 			i++
@@ -1431,6 +1435,10 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	}
 	return end, true
 }
+
+// isBlockInterruptFn is isBlockInterrupt; only tests replace it, to count
+// the bytes it walks.
+var isBlockInterruptFn = isBlockInterrupt
 
 // isBlockInterrupt reports whether the line beginning at byte index
 // `lineStart` opens a CommonMark block-level construct that interrupts

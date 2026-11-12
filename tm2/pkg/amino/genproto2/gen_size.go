@@ -163,6 +163,15 @@ func (ctx *P3Context2) writeFieldSize(sb *strings.Builder, field amino.FieldInfo
 
 	accessor := fmt.Sprintf("%s.%s", recv, fname)
 
+	// Mirror writeFieldMarshal's amino:"skip_zero" guard.
+	if guard := ctx.skipZeroGuard(accessor, field); guard != "" {
+		field.SkipZero = false
+		fmt.Fprintf(sb, "\tif %s {\n", guard)
+		ctx.writeFieldSize(sb, field, recv)
+		sb.WriteString("\t}\n")
+		return
+	}
+
 	if field.UnpackedList {
 		ctx.writeUnpackedListSize(sb, accessor, finfo, fopts)
 		return
