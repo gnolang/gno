@@ -114,8 +114,8 @@ These anchors cover a value while it is built. A value already built and
 popped off the operand stack, such as a zero value `doOpValueDecl` made or the
 right-hand side of `:=` or `=`, is still a Go local while `Assign2` copies it,
 so `var a [30][1000]int` completes under a 2 MB cap where `a := *p` from
-`new` is refused. That window belongs with the operands `doOpAssign` pops
-into Go locals, a separate change.
+`new` is refused. A multi-target `=` keeps these values on the operand stack
+until it returns; a single-target `=`, `:=` and `var` still pop them first.
 
 A three-clause `for` loop gives each iteration its own copy of a variable its
 init declares, as Go 1.22 does, once that variable lives on the heap. The heap
