@@ -176,6 +176,10 @@ func UnmarshalCanonical(bz []byte, ptr any) error {
 	return gcdc.UnmarshalCanonical(bz, ptr)
 }
 
+func CheckCanonical(bz []byte, ptr any) error {
+	return gcdc.CheckCanonical(bz, ptr)
+}
+
 func UnmarshalSized(bz []byte, ptr any) error {
 	return gcdc.UnmarshalSized(bz, ptr)
 }
@@ -1151,8 +1155,10 @@ func (cdc *Codec) MustUnmarshal(bz []byte, ptr any) {
 // field written out (an empty string as `tag 0x00`) instead of omitted, a
 // non-minimal varint for a tag, a length or a number, and so on. Anything
 // that identifies a message by hashing its wire bytes, such as a transaction
-// in a block, must decode it with this function, or the same message
-// circulates under as many hashes as it has encodings.
+// in a block, must check it with this function or with CheckCanonical, or the
+// same message circulates under as many hashes as it has encodings. On
+// untrusted input prefer Unmarshal, then validation, then CheckCanonical:
+// re-encoding a value can cost far more than decoding it.
 func (cdc *Codec) UnmarshalCanonical(bz []byte, ptr any) error {
 	// Unmarshal accepts **T as well as *T, and its reflect path decodes
 	// through any depth of pointers; Marshal takes one level and panics on
@@ -1170,6 +1176,14 @@ func (cdc *Codec) UnmarshalCanonical(bz []byte, ptr any) error {
 	if rv.Elem().Kind() == reflect.Pointer {
 		ptr = rv.Elem().Interface()
 	}
+	return cdc.CheckCanonical(bz, ptr)
+}
+
+// CheckCanonical rejects bz unless it is byte-for-byte what Marshal produces
+// for ptr, a *T holding the value bz was decoded into. It is
+// UnmarshalCanonical without the Unmarshal, for a caller that validates the
+// decoded value before paying for the re-encoding.
+func (cdc *Codec) CheckCanonical(bz []byte, ptr any) error {
 	canonical, err := cdc.Marshal(ptr)
 	if err != nil {
 		return fmt.Errorf("re-encoding %v: %w", reflect.TypeOf(ptr).Elem(), err)

@@ -25,6 +25,15 @@ type Application interface {
 	Close() error
 }
 
+// CodeExecutionQuerier is an Application, or a route handler inside one, that
+// reports which query paths run code on the node. A node whose
+// rpc.allow_code_execution is false refuses those queries over RPC.
+// QueryRunsCode is called outside the ABCI connection's lock, so it must read
+// nothing that a block can change.
+type CodeExecutionQuerier interface {
+	QueryRunsCode(path string) bool
+}
+
 // DeferredCommitter is an Application that can hold its commits in memory
 // across blocks and write them when the node says so. During block sync the
 // node holds its own writes too, and writes all of them at flush points: its
