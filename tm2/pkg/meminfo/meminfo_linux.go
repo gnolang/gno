@@ -1,4 +1,4 @@
-package testutils
+package meminfo
 
 import (
 	"os"
@@ -11,27 +11,27 @@ import (
 // cgroupMount is where cgroup v2 is mounted on every distribution that ships it.
 const cgroupMount = "/sys/fs/cgroup"
 
-// ReadMemInfo reports the memory this process may use, from /proc/meminfo
+// Read reports the memory this process may use, from /proc/meminfo
 // narrowed by the memory limits of its cgroup and of every cgroup above it. It
 // returns false if either figure is missing from /proc/meminfo, or if memory is
 // under a cgroup v1 controller: its limits are not read here, and the host
 // figures can sit far beyond them.
-func ReadMemInfo() (MemInfo, bool) {
+func Read() (Info, bool) {
 	// A few kB of virtual file; read it whole rather than scanning it.
 	bz, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
-		return MemInfo{}, false
+		return Info{}, false
 	}
 	mi, ok := parseMemInfo(string(bz))
 	if !ok {
-		return MemInfo{}, false
+		return Info{}, false
 	}
 
 	// Unreadable, this parses as no cgroup at all, and the host figures stand.
 	cg, _ := os.ReadFile("/proc/self/cgroup")
 	rel, v1memory := parseProcCgroup(string(cg))
 	if v1memory {
-		return MemInfo{}, false
+		return Info{}, false
 	}
 	for _, dir := range cgroupDirs(cgroupMount, rel) {
 		if limit, used, ok := cgroupMemory(dir); ok {
@@ -45,8 +45,8 @@ func ReadMemInfo() (MemInfo, bool) {
 
 // parseMemInfo reads MemTotal and MemAvailable out of the contents of
 // /proc/meminfo, reporting false unless both are there.
-func parseMemInfo(s string) (MemInfo, bool) {
-	var mi MemInfo
+func parseMemInfo(s string) (Info, bool) {
+	var mi Info
 	var found int
 	for line := range strings.Lines(s) {
 		key, rest, ok := strings.Cut(line, ":")
@@ -81,7 +81,7 @@ func parseMemInfo(s string) (MemInfo, bool) {
 // a caller sizing itself against it would be OOM-killed by the cgroup rather
 // than throttled by its own accounting. Total is narrowed as well as Available,
 // since callers scale their headroom off the memory they believe they have.
-func clampToCgroup(mi MemInfo, limit, used uint64) MemInfo {
+func clampToCgroup(mi Info, limit, used uint64) Info {
 	mi.Total = min(mi.Total, limit)
 	var free uint64
 	if limit > used {

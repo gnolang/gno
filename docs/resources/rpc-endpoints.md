@@ -26,7 +26,9 @@ curl -s -X POST https://rpc.gno.land:443/ \
   -d '{"jsonrpc":"2.0","id":1,"method":"block","params":{"height":"51942"}}'
 ```
 
-Both JSON-RPC transports also accept an array of request objects. HTTP answers
+Both JSON-RPC transports also accept an array of request objects, up to
+`rpc.max_batch_requests` of them, 1000 by default; a larger batch gets one
+-32600 error object instead of an array. HTTP answers
 a batch carrying at least one request with an array; WebSocket answers a one-element batch with the bare
 object. `params` takes either the object form above or a positional
 array, and the array form requires every parameter the endpoint declares. Send
@@ -219,8 +221,11 @@ timeout it returns an error while the transaction may still commit later.
 
 The first takes an optional `limit` and returns `n_txs`, `total`, `total_bytes`
 and `txs`.
-`limit` defaults to 30 and is capped at 100. The second takes nothing and
-returns the same shape with `txs` left null.
+`limit` defaults to 30 and is capped at 100. The response also stops before
+the tx that would take `txs` past 2,000,000 bytes of raw tx data, though it
+always carries the first; `total` and `total_bytes` still count the whole
+mempool. The second takes nothing and returns the same shape with `txs` left
+null.
 
 ## Application
 
@@ -297,7 +302,8 @@ JSON-RPC errors both use it. One endpoint departs from that, `status` with
 `heightGte` answering 409 on the URI transport. Other statuses come from the
 server rather than from an endpoint: an unregistered path gives a plain-text
 404, `/websocket` without a valid upgrade handshake gives a 400, and a handler
-panic gives a 500 whose body is still a JSON-RPC error.
+panic gives a 500 whose body is still a JSON-RPC error. Inside a batch, a
+request whose handler panics gets a -32603 error in its own slot instead.
 
 ## Not available
 

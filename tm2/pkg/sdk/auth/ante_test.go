@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1253,6 +1254,105 @@ func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
 		}}, "")
 		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
 	})
+}
+
+// A SIGNATURE MATCHING NEITHER RENDERING ENCODES THE MSGS ONCE. CheckTx rejects
+// it without collecting the fee, so a second full encoding of large msgs for
+// the legacy fallback would be work nobody pays for.
+func TestAnteHandlerBadSignatureEncodesMsgsOnce(t *testing.T) {
+	// Not parallel: the allocation count reads the whole process.
+	e := newSingleSignerEnv(t)
+
+	// Encoding renders every coin through fmt, so each encoding of these msgs
+	// costs at least one allocation per coin.
+	send := make(std.Coins, 10000)
+	for i := range send {
+		send[i] = std.NewCoin("ugnot", int64(i+1))
+	}
+	e.msgs = []std.Msg{tu.MockMsgCall{Caller: e.msgs[0].GetSigners()[0], Send: send}}
+	tx := std.NewTx(e.msgs, e.fee, []std.Signature{{
+		PubKey: e.priv.PubKey(), Signature: make([]byte, 64),
+	}}, "")
+
+	encode := func() {
+		_, err := std.GetSignaturePayload(e.signDoc())
+		require.NoError(t, err)
+	}
+	encode() // Fills the codec's type cache, which is not per-encoding work.
+	oneEncoding := allocations(encode)
+	rejection := allocations(func() {
+		checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	require.Greater(t, oneEncoding, uint64(len(send)))
+	require.Less(t, rejection, oneEncoding*3/2,
+		"rejecting took %d allocations, one encoding of the msgs %d", rejection, oneEncoding)
+}
+
+// A BAD SIGNATURE AFTER VALID ONES ALSO ENCODES THE MSGS ONCE. Each signer's
+// payload differs only in its account number and sequence, so encoding the
+// msgs once per signer would let seven accounts multiply the unpaid work.
+func TestAnteHandlerBadLastSignatureEncodesMsgsOnce(t *testing.T) {
+	// Not parallel: the allocation count reads the whole process.
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk,
+		DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	const signers = 7 // DefaultTxSigLimit
+	var privs []crypto.PrivKey
+	var msgs []std.Msg
+	for i := range signers {
+		priv, _, addr := tu.KeyTestPubAddr()
+		acc := env.acck.NewAccountWithAddress(env.ctx, addr)
+		acc.SetCoins(tu.NewTestCoins())
+		require.NoError(t, acc.SetAccountNumber(uint64(i)))
+		env.acck.SetAccount(env.ctx, acc)
+		privs = append(privs, priv)
+		msgs = append(msgs, tu.MockMsgCall{Caller: addr})
+	}
+	send := make(std.Coins, 10000)
+	for i := range send {
+		send[i] = std.NewCoin("ugnot", int64(i+1))
+	}
+	msgs[0] = tu.MockMsgCall{Caller: msgs[0].GetSigners()[0], Send: send}
+
+	fee := tu.NewTestFee()
+	fee.GasWanted = 1_000_000
+	tx := std.NewTx(msgs, fee, nil, "")
+	for i, priv := range privs {
+		sig := std.Signature{PubKey: priv.PubKey(), Signature: make([]byte, 64)}
+		if i < signers-1 {
+			signBytes, err := tx.GetSignBytes(env.ctx.ChainID(), uint64(i), 0)
+			require.NoError(t, err)
+			sig.Signature, err = priv.Sign(signBytes)
+			require.NoError(t, err)
+		}
+		tx.Signatures = append(tx.Signatures, sig)
+	}
+
+	encode := func() {
+		_, err := tx.GetSignBytes(env.ctx.ChainID(), 0, 0)
+		require.NoError(t, err)
+	}
+	encode() // Fills the codec's type cache, which is not per-encoding work.
+	oneEncoding := allocations(encode)
+	rejection := allocations(func() {
+		checkInvalidTx(t, anteHandler, env.ctx, tx, false, std.UnauthorizedError{})
+	})
+
+	require.Greater(t, oneEncoding, uint64(len(send)))
+	require.Less(t, rejection, oneEncoding*3/2,
+		"rejecting took %d allocations, one encoding of the msgs %d", rejection, oneEncoding)
+}
+
+// allocations returns the number of heap allocations the process made while f
+// ran.
+func allocations(f func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.Mallocs - before.Mallocs
 }
 
 // singleSignerEnv is a funded account with number 0 and sequence 0, the handler

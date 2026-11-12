@@ -1489,6 +1489,38 @@ func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
 	require.NotContains(t, body, "**foo**", "literal markdown syntax must not leak")
 }
 
+// The .send value lands in the gnokey command the page offers to copy, so a
+// link carrying anything but coins must not reach it.
+func TestGetHelpView_SendMustBeCoins(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{Name: "Hello"}}})
+
+	get := func(send string) string {
+		req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help&func=Hello&.send="+url.QueryEscape(send), nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+		return rec.Body.String()
+	}
+
+	body := get("1ugnot")
+	assert.Contains(t, body, `data-action-function-send-value="1ugnot"`)
+
+	body = get(`1ugnot" $(echo injected) "`)
+	assert.NotContains(t, body, "data-action-function-send-value")
+	assert.NotContains(t, body, "echo injected")
+
+	// ParseCoins accepts a newline between amount and denom; the copy button
+	// drops lines starting with "/", so a raw value would cut the command.
+	body = get("1\n/gno.land/r/demo/foo:abc")
+	assert.Contains(t, body, `data-action-function-send-value="1/gno.land/r/demo/foo:abc"`)
+
+	// Whitespace alone parses as no coins, so no coin warning.
+	body = get(" ")
+	assert.NotContains(t, body, "data-action-function-send-value")
+}
+
 func TestGetHelpView_RendersFunctionDocAsHTML(t *testing.T) {
 	t.Parallel()
 

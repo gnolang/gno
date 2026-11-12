@@ -104,6 +104,13 @@ func (r *Reactor) OnStart() error {
 					continue
 				}
 
+				// Keep the mark of every peer the node dialed and still holds
+				for _, p := range peers {
+					if p.IsOutbound() {
+						r.store.MarkConnected(p.SocketAddr())
+					}
+				}
+
 				// Generate a random peer index
 				randomPeer, _ := rand.Int(
 					rand.Reader,
@@ -147,15 +154,18 @@ func (r *Reactor) OnStop() {
 	}
 }
 
-// AddPeer requests the peer set from newly dialed peers, so a fresh
-// connection contributes addresses immediately instead of waiting for
-// the random discovery tick to select it
+// AddPeer records a newly dialed peer's address as connected in the store, and
+// requests its peer set, so a fresh connection contributes addresses
+// immediately instead of waiting for the random discovery tick to select it
 func (r *Reactor) AddPeer(peer p2p.PeerConn) {
 	if !peer.IsOutbound() {
 		// Inbound peers are not solicited: we did not choose them,
 		// and they are their own source
 		return
 	}
+
+	// The node dialed this address, and the peer proved its ID on it
+	r.store.MarkConnected(peer.SocketAddr())
 
 	go r.requestPeers(peer)
 }
@@ -283,8 +293,8 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 		return fmt.Errorf("unable to marshal discovery response, %w", err)
 	}
 
-	// Send the response to the peer
-	if !peer.Send(Channel, preparedResp) {
+	// Receive must keep reading pings even when the shared send budget is full.
+	if !peer.TrySend(Channel, preparedResp) {
 		return fmt.Errorf("unable to send discovery response to peer %s", peer.ID())
 	}
 

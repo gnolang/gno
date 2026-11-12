@@ -8,6 +8,36 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// sessionSpendTotal returns the gas fee plus every message's SpendForSigner
+// for signer, merged per denom. For the sorted, distinct, positive sets
+// ValidateBasic admits, it is the sum one std.Coins.Add per message gives,
+// without copying the running total for every message.
+func sessionSpendTotal(tx std.Tx, signer crypto.Address) std.Coins {
+	var total std.Coins
+	index := map[string]int{} // denom to its position in total
+	add := func(coins std.Coins) {
+		for _, coin := range coins {
+			i, ok := index[coin.Denom]
+			if !ok {
+				index[coin.Denom] = len(total)
+				total = append(total, coin)
+				continue
+			}
+			// Panics on overflow with the message std.Coins.Add gives.
+			total[i] = total[i].AddUnsafe(coin)
+		}
+	}
+	if !tx.Fee.GasFee.IsZero() {
+		add(std.Coins{tx.Fee.GasFee})
+	}
+	for _, msg := range tx.GetMsgs() {
+		if est, ok := msg.(std.SpendEstimator); ok {
+			add(est.SpendForSigner(signer))
+		}
+	}
+	return total.Sort()
+}
+
 // DeductSessionSpend checks and deducts spending from a session's spend limit.
 // If SpendLimit is empty, any non-zero amount is rejected — the session cannot
 // spend coins at all (useful when another signer pays gas, or for zero-send calls).

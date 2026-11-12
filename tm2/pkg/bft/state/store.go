@@ -269,10 +269,24 @@ func (valInfo *ValidatorsInfo) Bytes() []byte {
 // LoadValidators loads the ValidatorSet for a given height.
 // Returns NoValSetForHeightError if the validator set can't be found for this height.
 func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
+	vals, storedHeight, err := loadStoredValidators(db, height)
+	if err != nil {
+		return nil, err
+	}
+	if storedHeight != height {
+		vals.IncrementProposerPriority(int(height - storedHeight)) // mutate
+	}
+	return vals, nil
+}
+
+// loadStoredValidators returns the validator set stored at or below height
+// that LoadValidators replays to height, and the height it is stored at.
+func loadStoredValidators(db dbm.DB, height int64) (*types.ValidatorSet, int64, error) {
 	valInfo := loadValidatorsInfo(db, height)
 	if valInfo == nil {
-		return nil, NoValSetForHeightError{height}
+		return nil, 0, NoValSetForHeightError{height}
 	}
+	storedHeight := height
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
 		valInfo2 := loadValidatorsInfo(db, lastStoredHeight)
@@ -293,11 +307,11 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 				)
 			}
 		}
-		valInfo2.ValidatorSet.IncrementProposerPriority(int(height - lastStoredHeight)) // mutate
 		valInfo = valInfo2
+		storedHeight = lastStoredHeight
 	}
 
-	return valInfo.ValidatorSet, nil
+	return valInfo.ValidatorSet, storedHeight, nil
 }
 
 func lastStoredHeightFor(height, lastHeightChanged int64) int64 {

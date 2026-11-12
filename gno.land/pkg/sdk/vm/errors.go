@@ -25,9 +25,10 @@ type (
 	InvalidFileError      struct{ abciError }
 	ObjectNotFoundError   struct{ abciError }
 	// ExportSizeExceededError is returned when a query result's estimated
-	// serialized size exceeds maxQueryExportBytes. It exists so clients see a
-	// stable ABCI code for "response too large" rather than an untyped
-	// internal error; the VM-level cause is gno.ErrExportSizeExceeded.
+	// serialized size exceeds maxQueryExportBytes, or its answer exceeds
+	// maxQueryOutputBytes. It exists so clients see a stable ABCI code for
+	// "response too large" rather than an untyped internal error; the
+	// VM-level cause is gno.ErrExportSizeExceeded.
 	ExportSizeExceededError struct{ abciError }
 	// ExportDepthExceededError is the depth counterpart to
 	// ExportSizeExceededError: it is returned when a query result nests deeper

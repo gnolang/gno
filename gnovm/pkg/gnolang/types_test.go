@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -277,5 +278,46 @@ func TestDoOpStructType_EmbedNames(t *testing.T) {
 			t.Fatalf("field %d: got (name=%s, embedded=%v), want (name=%s, embedded=%v)",
 				i, f.Name, f.Embedded, w.name, w.embed)
 		}
+	}
+}
+
+// vm/qeval skips type-checking, so it can build `struct{ A }` over a named
+// type that points back to itself; building it must return, not recurse.
+func TestReachableSurface_PointerCycle(t *testing.T) {
+	for _, decls := range []string{"type A *A", "type A *B\ntype B *A"} {
+		for _, expr := range []string{"struct{ A }{}", "struct{ *A }{}"} {
+			m := NewMachine("testdata", nil)
+			m.RunFiles(m.MustParseFile("testdata.gno", "package testdata\n"+decls+"\n"))
+			if res := m.Eval(m.MustParseExpr(expr)); len(res) != 1 {
+				t.Fatalf("%q over %q: got %d results, want 1", expr, decls, len(res))
+			}
+			m.Release()
+		}
+	}
+}
+
+// A named type reached through two embedded fields counts once per field, so
+// the cut fires only on a cycle. qeval accepts the duplicate field name T. The
+// []int base reaches the walk's default case, which keeps T's methods too.
+func TestReachableSurface_RepeatIsNotCycle(t *testing.T) {
+	n := MaxInterfaceMethods/2 + 1 // over the cap only when counted twice
+	for _, base := range []string{"struct{}", "[]int"} {
+		var src strings.Builder
+		src.WriteString("package testdata\ntype T " + base + "\n")
+		for i := range n {
+			fmt.Fprintf(&src, "func (T) M%d() {}\n", i)
+		}
+		m := NewMachine("testdata", nil)
+		m.RunFiles(m.MustParseFile("testdata.gno", src.String()))
+		func() {
+			defer m.Release()
+			defer func() {
+				want := fmt.Sprintf("has %d promoted methods", 2*n)
+				if r := recover(); r == nil || !strings.Contains(fmt.Sprint(r), want) {
+					t.Fatalf("type T %s: want a panic naming %q, got %v", base, want, r)
+				}
+			}()
+			m.Eval(m.MustParseExpr("struct{ T; *T }{}"))
+		}()
 	}
 }

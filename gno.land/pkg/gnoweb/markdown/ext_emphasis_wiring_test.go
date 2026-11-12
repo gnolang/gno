@@ -15,4 +15,5 @@ func TestEmphasisGuard_GnoExtensionInstance(t *testing.T) {
 // The inner <gno-foreign> instance renders attacker-controlled body bytes.
 func TestEmphasisGuard_InnerForeignInstance(t *testing.T) {
 	assertEmphasisGuardActive(t, buildInnerForeignMarkdown(nil))
+	assertStrikethroughGuardActive(t, buildInnerForeignMarkdown(nil))
 }

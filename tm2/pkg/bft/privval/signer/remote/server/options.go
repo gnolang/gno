@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -29,7 +30,7 @@ func WithKeepAlivePeriod(period time.Duration) Option {
 }
 
 // WithResponseTimeout sets the timeout for sending response to the client.
-// If set to 0, no timeout is set. The default is 3 seconds.
+// If set to 0, only the handshake times out, after twice DefaultResponseTimeout. The default is 3 seconds.
 func WithResponseTimeout(timeout time.Duration) Option {
 	return func(rss *RemoteSignerServer) {
 		rss.responseTimeout = timeout
@@ -69,6 +70,7 @@ func NewRemoteSignerServer(
 		responseTimeout: DefaultResponseTimeout,
 		serverPrivKey:   ed25519.GenPrivKey(),
 	}
+	rss.idle = sync.NewCond(&rss.lock)
 
 	// Check if signer is nil.
 	if signer == nil {

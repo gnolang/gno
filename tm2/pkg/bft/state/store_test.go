@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -57,6 +59,162 @@ func TestStoreLoadValidators(t *testing.T) {
 	loadedVals, err = sm.LoadValidators(stateDB, sm.ValSetCheckpointInterval)
 	require.NoError(t, err)
 	assert.NotZero(t, loadedVals.Size())
+}
+
+// TestValidatorsCacheBoundsReplay checks that ValidatorsCache returns what
+// LoadValidators returns, replaying only the rounds above the nearest kept set.
+func TestValidatorsCacheBoundsReplay(t *testing.T) {
+	t.Parallel()
+
+	const checkpoint = sm.ValSetCheckpointInterval
+	stateDB := memdb.NewMemDB()
+	vals := make([]*types.Validator, 6)
+	for i := range vals {
+		vals[i], _ = types.RandValidator(false, int64(10*(i+1)))
+	}
+	set := types.NewValidatorSet(vals)
+	// Priorities spread wider than the window and off centre, so the replay
+	// has to rescale them first, as LoadValidators does.
+	for i, p := range []int64{9_000, -4_000, 350, 0, -77, 1_234} {
+		set.Validators[i].ProposerPriority = p
+	}
+	sm.SaveValidatorsInfo(stateDB, checkpoint, 1, set)
+	sm.SaveValidatorsInfo(stateDB, 2*checkpoint, 1, set)
+	// A second segment starts where the set changes rather than at a checkpoint.
+	changed := int64(2*checkpoint + 500)
+	set2 := set.Copy()
+	set2.Validators[0].ProposerPriority = -9_000
+	sm.SaveValidatorsInfo(stateDB, changed, changed, set2)
+
+	var cache sm.ValidatorsCache
+	for _, tc := range []struct {
+		height int64
+		rounds int64
+	}{
+		{checkpoint + checkpoint - 1, checkpoint - 1}, // first load replays the segment
+		{checkpoint + checkpoint - 2, 998},
+		{checkpoint + 50_001, 1},
+		{checkpoint + 1, 1},
+		{checkpoint + sm.ValidatorsCacheInterval, sm.ValidatorsCacheInterval},
+		{checkpoint + sm.ValidatorsCacheInterval + 1, 1},
+		{checkpoint + 2*sm.ValidatorsCacheInterval, sm.ValidatorsCacheInterval},
+		{checkpoint + checkpoint - 1, 999},
+		{checkpoint, 0},
+		{changed + 3_001, 3_001},
+		{changed + 2_500, 500},
+	} {
+		lastChanged := int64(1)
+		if tc.height > changed {
+			lastChanged = changed
+		}
+		sm.SaveValidatorsInfo(stateDB, tc.height, lastChanged, set)
+
+		want, err := sm.LoadValidators(stateDB, tc.height)
+		require.NoError(t, err)
+		got, rounds, err := cache.LoadValidatorsCounting(stateDB, tc.height)
+		require.NoError(t, err)
+		assert.Equal(t, want.Validators, got.Validators, "height %d", tc.height)
+		assert.Equal(t, want.Proposer, got.Proposer, "height %d", tc.height)
+		assert.Equal(t, tc.rounds, rounds, "height %d", tc.height)
+	}
+}
+
+// TestValidatorsCacheTwoDBs checks that one ValidatorsCache loading the same
+// height from two DBs returns each DB's own set.
+func TestValidatorsCacheTwoDBs(t *testing.T) {
+	t.Parallel()
+
+	const checkpoint = sm.ValSetCheckpointInterval
+	height := int64(checkpoint + 1_500)
+	var cache sm.ValidatorsCache
+	for range 2 {
+		stateDB := memdb.NewMemDB()
+		val, _ := types.RandValidator(false, 10)
+		set := types.NewValidatorSet([]*types.Validator{val})
+		sm.SaveValidatorsInfo(stateDB, checkpoint, 1, set)
+		sm.SaveValidatorsInfo(stateDB, height, 1, set)
+
+		want, err := sm.LoadValidators(stateDB, height)
+		require.NoError(t, err)
+		got, err := cache.LoadValidators(stateDB, height)
+		require.NoError(t, err)
+		assert.Equal(t, want.Validators, got.Validators)
+	}
+}
+
+// TestValidatorsCacheConcurrentLoads checks that loads running at once through
+// one ValidatorsCache return what LoadValidators returns. Run it with -race.
+func TestValidatorsCacheConcurrentLoads(t *testing.T) {
+	t.Parallel()
+
+	const checkpoint = sm.ValSetCheckpointInterval
+	stateDB := memdb.NewMemDB()
+	vals := make([]*types.Validator, 6)
+	for i := range vals {
+		vals[i], _ = types.RandValidator(false, int64(10*(i+1)))
+	}
+	set := types.NewValidatorSet(vals)
+	sm.SaveValidatorsInfo(stateDB, checkpoint, 1, set)
+
+	heights := make([]int64, 8)
+	wants := make([]*types.ValidatorSet, len(heights))
+	for i := range heights {
+		heights[i] = checkpoint + int64(i+1)*sm.ValidatorsCacheInterval + 500
+		sm.SaveValidatorsInfo(stateDB, heights[i], 1, set)
+		var err error
+		wants[i], err = sm.LoadValidators(stateDB, heights[i])
+		require.NoError(t, err)
+	}
+
+	var cache sm.ValidatorsCache
+	var wg sync.WaitGroup
+	for i, height := range heights {
+		wg.Go(func() {
+			got, err := cache.LoadValidators(stateDB, height)
+			if assert.NoError(t, err) {
+				assert.Equal(t, wants[i].Validators, got.Validators, "height %d", height)
+				assert.Equal(t, wants[i].Proposer, got.Proposer, "height %d", height)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+// TestValidatorsCacheMixedPowers checks that a kept set resumes without being
+// rescaled again, which voting powers far apart would show.
+func TestValidatorsCacheMixedPowers(t *testing.T) {
+	t.Parallel()
+
+	const checkpoint = sm.ValSetCheckpointInterval
+	stateDB := memdb.NewMemDB()
+	powers := []int64{100, 2, 100, 1_000_000_000, 1, 100, 1 << 40, 7, 1_000_000_000, 1}
+	vals := make([]*types.Validator, len(powers))
+	for i, power := range powers {
+		pk := ed25519.GenPrivKeyFromSecret([]byte{byte(i)})
+		vals[i] = types.NewValidator(pk.PubKey(), power)
+	}
+	set := types.NewValidatorSet(vals)
+	// Priorities far outside the window: with these powers, rescaling a kept
+	// set again on resume changes the priorities returned.
+	for i, p := range []int64{-383e12, 269e12, -284e12, 66e12, 262e12, 187e12, 138e12, 14e12, -169e12, 280e12} {
+		set.Validators[i].ProposerPriority = p
+	}
+	sm.SaveValidatorsInfo(stateDB, checkpoint, 1, set)
+
+	var cache sm.ValidatorsCache
+	for _, height := range []int64{
+		checkpoint + checkpoint - 1,
+		checkpoint + 3*sm.ValidatorsCacheInterval + 1,
+		checkpoint + 10*sm.ValidatorsCacheInterval + 999,
+	} {
+		sm.SaveValidatorsInfo(stateDB, height, 1, set)
+		want, err := sm.LoadValidators(stateDB, height)
+		require.NoError(t, err)
+		got, err := cache.LoadValidators(stateDB, height)
+		require.NoError(t, err)
+		assert.Equal(t, want.Validators, got.Validators, "height %d", height)
+		assert.Equal(t, want.Proposer, got.Proposer, "height %d", height)
+	}
 }
 
 // TestLoadValidatorsAtInitialHeight verifies that when a genesis has

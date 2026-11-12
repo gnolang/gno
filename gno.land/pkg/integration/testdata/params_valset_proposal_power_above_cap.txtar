@@ -1,0 +1,132 @@
+# A GovDAO valset proposal whose powers tm2 refuses is rejected at
+# EndBlock instead of halting the chain.
+#
+# Proposal 0 adds a validator at MaxInt64, above tm2's per-validator cap
+# (MaxTotalVotingPower = MaxInt64/8). Proposal 1 adds it at exactly
+# MaxTotalVotingPower, which the genesis validator's power 10 pushes over
+# the total cap.
+#
+# Verifies after each that:
+#   - valset:dirty is cleared and valset:current does not hold the key.
+#   - The chain keeps producing blocks past the H+2 transition.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v0
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+
+gnoland start
+
+# === PROPOSAL 0: POWER ABOVE THE PER-VALIDATOR CAP ===
+
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 85_000_000 -chainid=tendermint_test member $WORK/run/add_max_int64.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 0 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 35_000_000 -args 0 -chainid=tendermint_test member
+stdout OK!
+
+gnokey query params/node:valset:dirty
+stdout 'false'
+
+gnokey query params/node:valset:current
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+stdout OK!
+
+# === PROPOSAL 1: TOTAL POWER ABOVE THE CAP ===
+
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -chainid=tendermint_test member $WORK/run/add_at_cap.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 1 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 35_000_000 -args 1 -chainid=tendermint_test member
+stdout OK!
+
+gnokey query params/node:valset:dirty
+stdout 'false'
+
+gnokey query params/node:valset:current
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 890_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -chainid=tendermint_test member
+stdout OK!
+
+-- run/add_max_int64.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers"
+	"gno.land/r/gov/dao"
+	v0 "gno.land/r/sys/validators/v0"
+)
+
+func main(cur realm) {
+	const (
+		memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+		addPubKey  = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
+	)
+	valopers.Register(cross(cur), "power-cap-validator", "power above tm2's cap", "cloud", address(memberAddr), addPubKey)
+
+	pr := v0.NewValidatorProposalRequest(
+		cross(cur),
+		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 9223372036854775807)},
+		"Add validator at MaxInt64", "",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/add_at_cap.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v0 "gno.land/r/sys/validators/v0"
+)
+
+func main(cur realm) {
+	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
+
+	pr := v0.NewValidatorProposalRequest(
+		cross(cur),
+		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1152921504606846975)},
+		"Add validator at MaxTotalVotingPower", "",
+	)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- loader/load_govdao.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}
