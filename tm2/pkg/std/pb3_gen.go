@@ -46,6 +46,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*NoSignaturesError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GasOverflowError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*RestrictedTransferError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*QueryTimeoutError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionExpiredError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionNotFoundError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionLimitError)(nil)).Elem())
@@ -2217,6 +2218,38 @@ func (goo *RestrictedTransferError) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		switch fnum {
 		default:
 			return fmt.Errorf("unknown field number %d for RestrictedTransferError", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo QueryTimeoutError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo QueryTimeoutError) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	return s, nil
+}
+
+func (goo *QueryTimeoutError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = QueryTimeoutError{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			return fmt.Errorf("unknown field number %d for QueryTimeoutError", fnum)
 		}
 	}
 	return nil

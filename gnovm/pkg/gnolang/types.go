@@ -520,18 +520,9 @@ func (l FieldTypeList) StringForFunc() string {
 }
 
 func (l FieldTypeList) string(withName bool, sep string) string {
-	var bld strings.Builder
-	for i, ft := range l {
-		if i != 0 {
-			bld.WriteString(sep)
-		}
-		if withName {
-			bld.WriteString(ft.stampedName())
-			bld.WriteByte(' ')
-		}
-		bld.WriteString(ft.Type.String())
-	}
-	return bld.String()
+	var b strings.Builder
+	_ = streamTo(&b, func(mw *meteredWriter) { writeFieldTypes(mw, l, withName, sep) }) // a strings.Builder never fails a write
+	return b.String()
 }
 
 // Like TypeID() but without considering field names;
@@ -579,7 +570,7 @@ func (at *ArrayType) TypeID() TypeID {
 }
 
 func (at *ArrayType) String() string {
-	return fmt.Sprintf("[%d]%s", at.Len, at.Elt.String())
+	return typeString(at)
 }
 
 func (at *ArrayType) Elem() Type {
@@ -622,11 +613,7 @@ func (st *SliceType) TypeID() TypeID {
 }
 
 func (st *SliceType) String() string {
-	if st.Vrd {
-		return fmt.Sprintf("...%s", st.Elt.String())
-	} else {
-		return fmt.Sprintf("[]%s", st.Elt.String())
-	}
+	return typeString(st)
 }
 
 func (st *SliceType) Elem() Type {
@@ -667,7 +654,7 @@ func (pt *PointerType) String() string {
 	} else if pt.Elt == nil {
 		panic("invalid nil pointer element type")
 	} else {
-		return fmt.Sprintf("*%v", pt.Elt)
+		return typeString(pt)
 	}
 }
 
@@ -791,8 +778,7 @@ func (st *StructType) TypeID() TypeID {
 }
 
 func (st *StructType) String() string {
-	return fmt.Sprintf("struct{%s}",
-		FieldTypeList(st.Fields).String())
+	return typeString(st)
 }
 
 func (st *StructType) Elem() Type {
@@ -954,14 +940,7 @@ func (it *InterfaceType) GetMethodFieldType(mname Name) *FieldType {
 }
 
 func (it *InterfaceType) String() string {
-	if it.Generic != "" {
-		return fmt.Sprintf("<%s>{%s}",
-			it.Generic,
-			FieldTypeList(it.Methods).String())
-	} else {
-		return fmt.Sprintf("interface {%s}",
-			FieldTypeList(it.Methods).String())
-	}
+	return typeString(it)
 }
 
 func (it *InterfaceType) Elem() Type {
@@ -1141,16 +1120,7 @@ func (ct *ChanType) TypeID() TypeID {
 }
 
 func (ct *ChanType) String() string {
-	switch ct.Dir {
-	case SEND | RECV:
-		return "chan " + ct.Elt.String()
-	case SEND:
-		return "<-chan " + ct.Elt.String()
-	case RECV:
-		return "chan<- " + ct.Elt.String()
-	default:
-		panic("should not happen")
-	}
+	return typeString(ct)
 }
 
 func (ct *ChanType) Elem() Type {
@@ -1348,21 +1318,7 @@ func (ft *FuncType) TypeID() TypeID {
 }
 
 func (ft *FuncType) String() string {
-	switch len(ft.Results) {
-	case 0:
-		// XXX add ->()
-		return fmt.Sprintf("func(%s)", FieldTypeList(ft.Params).StringForFunc())
-	case 1:
-		// XXX add ->()
-		return fmt.Sprintf("func(%s) %s",
-			FieldTypeList(ft.Params).StringForFunc(),
-			ft.Results[0].Type.String())
-	default:
-		// XXX make ()->()
-		return fmt.Sprintf("func(%s) (%s)",
-			FieldTypeList(ft.Params).StringForFunc(),
-			FieldTypeList(ft.Results).StringForFunc())
-	}
+	return typeString(ft)
 }
 
 func (ft *FuncType) Elem() Type {
@@ -1425,9 +1381,7 @@ func (mt *MapType) TypeID() TypeID {
 }
 
 func (mt *MapType) String() string {
-	return fmt.Sprintf("map[%s]%s",
-		mt.Key.String(),
-		mt.Value.String())
+	return typeString(mt)
 }
 
 func (mt *MapType) Elem() Type {
@@ -2041,11 +1995,7 @@ func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 }
 
 func (dt *DeclaredType) String() string {
-	if dt.ParentLoc.IsZero() {
-		return fmt.Sprintf("%s.%s", dt.PkgPath, dt.Name)
-	} else {
-		return fmt.Sprintf("%s[%s].%s", dt.PkgPath, dt.ParentLoc.String(), dt.Name)
-	}
+	return typeString(dt)
 }
 
 func (dt *DeclaredType) Elem() Type {
@@ -2327,17 +2277,7 @@ func (tt *tupleType) TypeID() TypeID {
 }
 
 func (tt *tupleType) String() string {
-	ell := len(tt.Elts)
-	var s strings.Builder
-	s.WriteString("(")
-	for i, et := range tt.Elts {
-		s.WriteString(et.String())
-		if i != ell-1 {
-			s.WriteString(",")
-		}
-	}
-	s.WriteString(")")
-	return s.String()
+	return typeString(tt)
 }
 
 func (tt *tupleType) Elem() Type {

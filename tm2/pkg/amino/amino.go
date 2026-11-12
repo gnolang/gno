@@ -216,6 +216,14 @@ func MarshalJSONAny(o any) ([]byte, error) {
 	return gcdc.MarshalJSONAny(o)
 }
 
+func MarshalJSONTo(w io.Writer, o any) error {
+	return gcdc.MarshalJSONTo(w, o)
+}
+
+func MarshalJSONAnyTo(w io.Writer, o any) error {
+	return gcdc.MarshalJSONAnyTo(w, o)
+}
+
 func MustMarshalJSON(o any) []byte {
 	return gcdc.MustMarshalJSON(o)
 }
@@ -1365,30 +1373,45 @@ func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr any) {
 }
 
 func (cdc *Codec) JSONMarshal(o any) ([]byte, error) {
+	w := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(w)
+	if err := cdc.MarshalJSONTo(w, o); err != nil {
+		return nil, err
+	}
+	return copyBytes(w.Bytes()), nil
+}
+
+// MarshalJSONTo streams the output of MarshalJSON into w. The first write error
+// from w stops the encoding and is returned, and partial JSON may already be
+// in w.
+func (cdc *Codec) MarshalJSONTo(w io.Writer, o any) error {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(o)
 	if !rv.IsValid() {
-		return []byte("null"), nil
+		return writeStr(w, "null")
 	}
-	rt := rv.Type()
-	w := poolBytesBuffer.Get()
-	defer poolBytesBuffer.Put(w)
-	info, err := cdc.getTypeInfoWLock(rt)
+	info, err := cdc.getTypeInfoWLock(rv.Type())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err = cdc.encodeReflectJSON(w, info, rv, FieldOptions{}); err != nil {
-		return nil, err
-	}
-
-	return copyBytes(w.Bytes()), nil
+	return cdc.encodeReflectJSON(w, info, rv, FieldOptions{})
 }
 
 func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+	if err := cdc.MarshalJSONAnyTo(buf, o); err != nil {
+		return nil, err
+	}
+	return copyBytes(buf.Bytes()), nil
+}
+
+// MarshalJSONAnyTo is MarshalJSONAny streaming into w. See MarshalJSONTo.
+func (cdc *Codec) MarshalJSONAnyTo(w io.Writer, o any) error {
 	// o cannot be nil, otherwise we don't know what type it is.
 	if o == nil {
-		return nil, errors.New("MarshalJSONAny() requires non-nil argument")
+		return errors.New("MarshalJSONAny() requires non-nil argument")
 	}
 
 	// Dereference value if pointer.
@@ -1400,28 +1423,18 @@ func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
 
 	// rv cannot be an interface.
 	if rv.Kind() == reflect.Interface {
-		return nil, errors.New("MarshalJSONAny() requires registered concrete type")
+		return errors.New("MarshalJSONAny() requires registered concrete type")
 	}
 
 	// Make a temporary interface var, to contain the value of o.
 	ivar := rv.Interface()
-	var iinfo *TypeInfo
 	iinfo, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Encode as interface.
-	buf := poolBytesBuffer.Get()
-	defer poolBytesBuffer.Put(buf)
-
-	err = cdc.encodeReflectJSONInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
-	if err != nil {
-		return nil, err
-	}
-	bz := copyBytes(buf.Bytes())
-
-	return bz, nil
+	return cdc.encodeReflectJSONInterface(w, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
 }
 
 // MustMarshalJSON panics if an error occurs. Besides that behaves exactly like MarshalJSON.

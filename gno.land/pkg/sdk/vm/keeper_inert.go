@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Inert-package lifecycle: the second half of a deploy under the "inert" code
@@ -504,18 +503,18 @@ func (vm *VMKeeper) RejectPackage(ctx sdk.Context, msg MsgRejectPackage) error {
 // answers an operational question about a queue, not a browsing one.
 func (vm *VMKeeper) QueryInertPaths(ctx sdk.Context, prefix string, limit int) (paths []string, err error) {
 	// Named returns so the recover has somewhere to write. The iteration below
-	// is lazy and metered, and maxGasQuery is a real ceiling, so exhausting it
-	// panics with OutOfGasError -- and handleQueryCustom does not recover, so
-	// without this the panic leaves the ABCI Query rather than being reported
-	// as an error. Under "inert" anyone may park a package, so the size of the
-	// key space being walked is not the operator's to bound.
+	// is lazy and metered, and vm.QueryMaxGas is a real ceiling, so exhausting it
+	// panics with OutOfGasError. handleQueryCustom's recover would answer that
+	// as a generic internal error, so this reports it as out of gas. Under
+	// "inert" anyone may park a package, so the size of the key space being
+	// walked is not the operator's to bound.
 	defer doRecoverQueryNoMachine(&err)
 
 	if limit < 0 {
 		return nil, errors.New("cannot have negative limit value")
 	}
 
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	return collectWithLimit(gnostore.FindInertPathsByPrefix(prefix), limit), nil
 }
@@ -596,7 +595,7 @@ type PackageMeta struct {
 // path nobody ever used.
 func (vm *VMKeeper) QueryPackageMeta(ctx sdk.Context, pkgPath string) (res string, err error) {
 	defer doRecoverQueryNoMachine(&err)
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	info := PackageMeta{Path: pkgPath, Status: PackageStatusAbsent}

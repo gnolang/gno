@@ -349,6 +349,11 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")
 	}
+	// A node that refused the query sends no result. Decoding the empty value
+	// would read as a simulation that passed.
+	if bres.Response.Error != nil {
+		return nil, fmt.Errorf("simulate tx refused: %w: %s", bres.Response.Error, bres.Response.Log)
+	}
 
 	var result abci.ResponseDeliverTx
 	err = amino.Unmarshal(bres.Response.Value, &result)
