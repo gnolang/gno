@@ -60,7 +60,7 @@ func TestSmallOrderSessionKey(t *testing.T) {
 			if !stded25519.Verify(zero[:], signBytes, sig) {
 				continue
 			}
-			tx := std.NewTx(msgs, fee, []std.Signature{{SessionAddr: zero.Address(), Signature: sig}}, memo)
+			tx := std.NewTx(msgs, fee, []std.Signature{{PubKey: zero, SessionAddr: zero.Address(), Signature: sig}}, memo)
 			checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
 			return
 		}

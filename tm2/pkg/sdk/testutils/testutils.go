@@ -316,7 +316,9 @@ func NewSessionTestSignature(
 	require.NoError(t, err)
 
 	return std.Signature{
-		// PubKey omitted — stored on session account at creation.
+		// The ante handler requires the key, as gnokey sends it, even though
+		// the session account stored it at creation.
+		PubKey:      sessionPriv.PubKey(),
 		SessionAddr: sessionAddr,
 		Signature:   sig,
 	}

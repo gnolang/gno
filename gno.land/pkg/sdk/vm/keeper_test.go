@@ -2854,10 +2854,7 @@ func GetError() error { return nil }`
 			"nil error should not produce an @error field; got: %s", res)
 	})
 
-	t.Run("oog_in_error_method_graceful_degrade", func(t *testing.T) {
-		// Contract: if the result's .Error() method exhausts gas, the query
-		// must still return the successful Results JSON. The @error field
-		// is best-effort — on OOG we drop it rather than destroying results.
+	t.Run("oog_in_error_method_fails_query", func(t *testing.T) {
 		pkgPath := "gno.land/r/test/oogerror"
 		pkgBody := `package oogerror
 
@@ -2882,13 +2879,42 @@ func GetError() error { return &BigErr{} }`
 		require.NoError(t, env.vmk.AddPackage(ctx, msg))
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
-		require.NoError(t, err,
-			"OOG in .Error() must not fail the query; results should be preserved")
-		assert.Contains(t, res, `"results":`,
-			"results payload must be present")
-		assert.NotContains(t, res, `"@error"`,
-			"OOG in .Error() must graceful-degrade — @error omitted")
+		_, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		var oog types.OutOfGasError
+		require.ErrorAs(t, err, &oog)
+	})
+
+	t.Run("oog_in_nested_panic_error_fails_query", func(t *testing.T) {
+		// Error() panics with a value whose own Error() runs out of gas. The
+		// panic renderer recovers that out-of-gas and raises an
+		// UnhandledPanicError, so only the meter shows the budget ran out.
+		pkgPath := "gno.land/r/test/nestedoogerror"
+		pkgBody := `package nestedoogerror
+
+type Inner struct{}
+
+func (Inner) Error() string {
+	for {
+	}
+}
+
+type Outer struct{}
+
+func (Outer) Error() string { panic(Inner{}) }
+
+func GetError() error { return Outer{} }`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		_, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		var oog types.OutOfGasError
+		require.ErrorAs(t, err, &oog)
 	})
 
 	t.Run("typed_nil_error_graceful_degrade", func(t *testing.T) {
@@ -3310,7 +3336,7 @@ func TestVMKeeperJSONEdgeCases(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, initialBalance)
 
 	t.Run("qeval_json_oog_infinite_loop", func(t *testing.T) {
-		// An infinite-loop expression must exhaust maxGasQuery and surface
+		// An expression that loops forever must exhaust the query gas budget and surface
 		// as an OutOfGasError, not panic through the ABCI handler.
 		pkgPath := "gno.land/r/edge/oogloop"
 		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package oogloop
@@ -3643,7 +3669,7 @@ func TestVMKeeperQueryEvalBignumGas(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, res, "42")
 
-	// ~2M digits: the quadratic charge exceeds maxGasQuery (3e9) for both the
+	// ~2M digits: the quadratic charge exceeds the query gas budget for both the
 	// INT (OOG above ~1.23M digits) and FLOAT (~866K) slopes, so the parse
 	// never runs.
 	bigDigits := strings.Repeat("1", 2_000_000)
@@ -3705,14 +3731,13 @@ func maxDeliverableLiteralDigits(t *testing.T, pkgPath, suffix string) int {
 }
 
 // TestVMKeeperQueryEvalBignumResidualCeiling pins the residual that the
-// quadratic charge does NOT close, as a checked fact rather than a paragraph
-// in the ADR.
+// quadratic charge does NOT close under the default 3e9 query gas budget.
 //
-// The charge only starts refusing decimal INT literals around 1.23M digits,
-// well above the ~750K a default-configured node accepts in a 1MB JSON-RPC
-// body: no literal a node can receive is refused by gas alone, so the ceiling
-// is MaxBodyBytes, not maxGasQuery. The worst admitted payload is the
-// frac-shaped FLOAT, not the INT one (see OpCPUSlopeBigDecParse).
+// Under that budget the charge only starts refusing decimal INT literals
+// around 1.23M digits, well above the ~750K that fit in a default 1MB JSON-RPC
+// body. No literal a node can receive is refused by gas alone, so the ceiling
+// is MaxBodyBytes, not the query budget. The worst admitted payload is the
+// FLOAT with a long fraction, not the INT (see OpCPUSlopeBigDecParse).
 //
 // Gas is asserted (deterministic, consensus-relevant); wall time is only
 // reported, since CI timing is not a reliable assertion.
@@ -3737,7 +3762,7 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
 	env.vmk.CommitGnoTransactionStore(ctx)
 
-	const budget = int64(maxGasQuery)
+	const budget = int64(DefaultQueryMaxGas)
 
 	t.Run("charge_refuses_only_above_what_a_node_accepts", func(t *testing.T) {
 		const searchBound = 4_000_000
@@ -3797,7 +3822,7 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 				"the deliverable worst case is still admitted; if this flips, the residual is closed")
 			pct := 100 * float64(gas) / float64(budget)
 			require.InDelta(t, tc.wantPct, pct, 1.0,
-				"share of the query budget moved (slope %d, MaxBodyBytes, or maxGasQuery changed). "+
+				"share of the query budget moved (slope %d, MaxBodyBytes, or the budget changed). "+
 					"If this is the reference-HW recalibration that machine.go's TODO(calibration) "+
 					"asks for, update wantPct here and the residual table in the ADR together",
 				tc.slope)

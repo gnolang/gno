@@ -128,6 +128,11 @@ type ConsensusState struct {
 	// addProposalBlockPart refused, for a replayed precommit to lock on.
 	droppedParts *types.PartSet
 
+	// proposalCheck is ValidateBlock's result for proposalChecked, so that
+	// prevote, voteTime, precommit and commit check a proposal block once.
+	proposalChecked *types.Block
+	proposalCheck   error
+
 	// state changes may be triggered by: msgs from peers,
 	// msgs from ourself, or by timeouts
 	peerMsgQueue     chan msgInfo
@@ -595,6 +600,8 @@ func (cs *ConsensusState) updateToState(state sm.State) {
 	cs.LockedBlock = nil
 	cs.LockedBlockParts = nil
 	cs.droppedParts = nil
+	cs.proposalChecked = nil
+	cs.proposalCheck = nil
 	cs.ValidRound = -1
 	cs.ValidBlock = nil
 	cs.ValidBlockParts = nil
@@ -740,7 +747,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 
 	if err != nil {
 		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round,
-			"peer", peerID, "err", err, "msg", msg)
+			"peer", peerID, "type", reflect.TypeOf(msg), "err", err)
 	}
 }
 
@@ -1086,7 +1093,7 @@ func (cs *ConsensusState) defaultDoPrevote(height int64, round int) {
 	}
 
 	// Validate proposal block
-	err := cs.state.ValidateBlock(cs.ProposalBlock)
+	err := cs.validateProposalBlock()
 	if err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
@@ -1186,6 +1193,10 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 
 	// At this point, +2/3 prevoted for a particular block.
 
+	// The polka may name our locked block under another cut: move the lock to
+	// the BlockPartSizeBytes cut, or unlock and fall through.
+	cs.repairLockedParts(logger, blockID)
+
 	// If we're already locked on that block, precommit it, and update the LockedRound
 	if cs.LockedBlock.HashesTo(blockID.Hash) && cs.LockedBlockParts.HasHeader(blockID.PartsHeader) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
@@ -1199,7 +1210,7 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	if cs.ProposalBlock.HashesTo(blockID.Hash) && cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.Hash)
 		// Validate the block.
-		if err := cs.state.ValidateBlock(cs.ProposalBlock); err != nil {
+		if err := cs.validateProposalBlock(); err != nil {
 			panic(fmt.Sprintf("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1292,6 +1303,8 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 		cs.ProposalBlockParts = cs.LockedBlockParts
 	}
 
+	cs.repairProposalParts(logger, blockID)
+
 	// If we don't have the block being committed, set up to get it.
 	if !cs.ProposalBlock.HashesTo(blockID.Hash) || !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
@@ -1312,6 +1325,47 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 		// else {
 		// We just need to keep waiting.
 		// }
+	}
+}
+
+// repairLockedParts swaps LockedBlockParts for LockedBlock's BlockPartSizeBytes
+// cut when blockID names the locked block under that cut, or unlocks and
+// returns true when blockID names the locked block under any other cut.
+func (cs *ConsensusState) repairLockedParts(logger *slog.Logger, blockID types.BlockID) (unlocked bool) {
+	if !cs.LockedBlock.HashesTo(blockID.Hash) || cs.LockedBlockParts.HasHeader(blockID.PartsHeader) {
+		return false
+	}
+	if partSet := cs.LockedBlock.MakePartSet(types.BlockPartSizeBytes); partSet.HasHeader(blockID.PartsHeader) {
+		logger.Info("Locked block under a different parts header. Rebuilding locked parts", "hash", blockID.Hash)
+		cs.LockedBlockParts = partSet
+		// The node proposes its valid block, so keep it on the cut it prevotes.
+		if cs.ValidBlock.HashesTo(blockID.Hash) {
+			cs.ValidBlockParts = partSet
+		}
+		return false
+	}
+	logger.Info("Locked block whose parts header cannot be rebuilt. Unlocking", "hash", blockID.Hash)
+	cs.LockedRound = -1
+	cs.LockedBlock = nil
+	cs.LockedBlockParts = nil
+	return true
+}
+
+// repairProposalParts swaps ProposalBlockParts for ProposalBlock's
+// BlockPartSizeBytes cut when blockID names the block under that cut, or drops
+// the block when blockID names it under any other cut. A header no whole block
+// fills is left to the caller, so addVote keeps the block as its swap does.
+func (cs *ConsensusState) repairProposalParts(logger *slog.Logger, blockID types.BlockID) {
+	if !cs.ProposalBlock.HashesTo(blockID.Hash) || cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) ||
+		blockID.PartsHeader.Total > cs.maxBlockParts() {
+		return
+	}
+	if partSet := cs.ProposalBlock.MakePartSet(types.BlockPartSizeBytes); partSet.HasHeader(blockID.PartsHeader) {
+		logger.Info("Proposal block under a different parts header. Rebuilding parts", "hash", blockID.Hash)
+		cs.ProposalBlockParts = partSet
+	} else {
+		logger.Info("Proposal block whose parts header cannot be rebuilt. Set ProposalBlock=nil", "hash", blockID.Hash)
+		cs.ProposalBlock = nil
 	}
 }
 
@@ -1413,7 +1467,7 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	if !block.HashesTo(blockID.Hash) {
 		panic("Cannot finalizeCommit, ProposalBlock does not hash to commit hash")
 	}
-	if err := cs.state.ValidateBlock(block); err != nil {
+	if err := cs.validateProposalBlock(); err != nil {
 		panic(fmt.Sprintf("+2/3 committed an invalid block: %v", err))
 	}
 
@@ -1770,18 +1824,26 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 			// NOTE: If vote.Round > cs.Round, we'll deal with it when we get to vote.Round
 			if (cs.LockedBlock != nil) &&
 				(cs.LockedRound < vote.Round) &&
-				(vote.Round <= cs.Round) &&
-				!cs.LockedBlock.HashesTo(blockID.Hash) {
-				cs.Logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
-				cs.LockedRound = -1
-				cs.LockedBlock = nil
-				cs.LockedBlockParts = nil
-				cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
+				(vote.Round <= cs.Round) {
+				// A polka for our locked block under another cut moves the lock to the
+				// BlockPartSizeBytes cut, or unlocks.
+				unlocked := cs.repairLockedParts(cs.Logger.With("lockedRound", cs.LockedRound, "POLRound", vote.Round), blockID)
+				if !unlocked && !cs.LockedBlock.HashesTo(blockID.Hash) {
+					cs.Logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
+					cs.LockedRound = -1
+					cs.LockedBlock = nil
+					cs.LockedBlockParts = nil
+					unlocked = true
+				}
+				if unlocked {
+					cs.evsw.FireEvent(cstypes.EventUnlock{HRS: cs.RoundState.GetHRS()})
+				}
 			}
 
 			// Update Valid* if we can.
 			// NOTE: our proposal block may be nil or not what received a polka..
 			if len(blockID.Hash) != 0 && (cs.ValidRound < vote.Round) && (vote.Round == cs.Round) {
+				cs.repairProposalParts(cs.Logger, blockID)
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
 					cs.Logger.Info(
 						"Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
@@ -1883,6 +1945,9 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 	return vote, err
 }
 
+// maxVoteTime is the latest time amino encodes, 9999-12-31T23:59:59.999999999Z.
+var maxVoteTime = time.Unix(253402300799, 999999999).UTC()
+
 func (cs *ConsensusState) voteTime() time.Time {
 	now := tmtime.Now()
 	minVoteTime := now
@@ -1892,14 +1957,29 @@ func (cs *ConsensusState) voteTime() time.Time {
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://docs.cometbft.com/v0.38/spec/consensus/bft-time
 		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
-	} else if cs.ProposalBlock != nil {
+	} else if cs.ProposalBlock != nil && cs.validateProposalBlock() == nil {
+		// An invalid block's time is its proposer's pick, and nil votes count
+		// toward the next block's time, so only a valid block sets the floor.
 		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
+	}
+	// Past maxVoteTime, Vote.SignBytes panics and halts consensus.
+	if minVoteTime.After(maxVoteTime) {
+		minVoteTime = maxVoteTime
 	}
 
 	if now.After(minVoteTime) {
 		return now
 	}
 	return minVoteTime
+}
+
+// validateProposalBlock runs ValidateBlock on cs.ProposalBlock once per block.
+func (cs *ConsensusState) validateProposalBlock() error {
+	if cs.proposalChecked != cs.ProposalBlock {
+		cs.proposalChecked = cs.ProposalBlock
+		cs.proposalCheck = cs.state.ValidateBlock(cs.ProposalBlock)
+	}
+	return cs.proposalCheck
 }
 
 func (cs *ConsensusState) existingSignedVote(type_ types.SignedMsgType, address crypto.Address) *types.Vote {

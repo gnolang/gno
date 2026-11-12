@@ -718,6 +718,19 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"allow code execution updated",
+			[]string{
+				"rpc.allow_code_execution",
+				"false",
+			},
+			func(loadedCfg *config.Config, value string) {
+				boolVal, err := strconv.ParseBool(value)
+				require.NoError(t, err)
+
+				assert.Equal(t, boolVal, loadedCfg.RPC.AllowCodeExecution)
+			},
+		},
+		{
 			"TLS cert file updated",
 			[]string{
 				"rpc.tls_cert_file",
@@ -849,6 +862,27 @@ func TestConfig_Set_Application(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, types.PruneStrategy(value), loadedCfg.Application.PruneStrategy)
+			},
+		},
+		{
+			"query max gas updated",
+			[]string{"application.query_max_gas", "123456"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, int64(123456), loadedCfg.Application.QueryMaxGas)
+			},
+		},
+		{
+			"query max alloc updated",
+			[]string{"application.query_max_alloc", "654321"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, int64(654321), loadedCfg.Application.QueryMaxAlloc)
+			},
+		},
+		{
+			"query timeout updated",
+			[]string{"application.query_timeout", "1.5s"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, 1500*time.Millisecond, loadedCfg.Application.QueryTimeout)
 			},
 		},
 	}

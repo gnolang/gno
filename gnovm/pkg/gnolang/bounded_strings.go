@@ -1,11 +1,13 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 
-	"math/big"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Bounded printers — single source of truth for size-bounded
@@ -219,6 +221,10 @@ func BoundedSprintTV(tv TypedValue, m *Machine, lim int) string {
 // an adversarial panic value whose Error() OOGs surfaces as
 // "VM panic: <structural>" rather than ErrOutOfGas. The original
 // panic info is preserved, which is the more useful signal.
+//
+// The one exception is a query deadline (store.DeadlineExceededError):
+// it propagates, so the query answers a timeout. Only a query gas meter
+// raises it, so transactions are unaffected.
 func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
 	// Snapshot and tighten. boundedRenderAllocCap allows enough
 	// headroom for nested struct rendering at our lim cap; far
@@ -231,6 +237,10 @@ func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
 		m.Alloc.maxBytes = savedMax
 		m.Alloc.bytes = savedBytes
 		if r := recover(); r != nil {
+			var dl store.DeadlineExceededError
+			if err, isErr := r.(error); isErr && errors.As(err, &dl) {
+				panic(r)
+			}
 			s = ""
 			ok = false
 		}

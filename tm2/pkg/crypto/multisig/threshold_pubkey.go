@@ -214,9 +214,8 @@ func (pk PubKeyMultisigThreshold) String() string {
 }
 
 // VerifyBytes expects sig to be an amino encoded version of a MultiSignature.
-// Returns true iff the multisignature contains k or more signatures
-// for the correct corresponding keys,
-// and all signatures are valid. (Not just k of the signatures)
+// Returns true iff the multisignature contains exactly k signatures, one per
+// set bit, for the corresponding keys, and all of them are valid.
 // The multisig uses a bitarray, so multiple signatures for the same key is not
 // a concern.
 func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) bool {
@@ -226,25 +225,23 @@ func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) 
 	if pk.validate() != nil {
 		return false
 	}
+	// Canonically: the transaction's own canonical check sees these bytes as
+	// opaque, and any other encoding of the same multisignature would verify
+	// too, restating the transaction under a new hash. Shared with auth's gas
+	// consumer, as ValidateBasic is.
 	var sig Multisignature
-	err := amino.Unmarshal(marshalledSig, &sig)
+	err := amino.UnmarshalCanonical(marshalledSig, &sig)
 	if err != nil {
 		return false
 	}
 	// Establish the shape of the signature against this key before walking it:
-	// the bit array size against the constituent count, and exactly one
-	// signature per set bit. Shared with auth's gas consumer, which reaches the
-	// same structure first. See Multisignature.ValidateBasic.
-	if sig.ValidateBasic(len(pk.PubKeys)) != nil {
+	// the bit array size against the constituent count, one signature per set
+	// bit, and exactly K of them. Shared with auth's gas consumer, which reaches
+	// the same structure first. See Multisignature.ValidateBasic.
+	if sig.ValidateBasic(pk) != nil {
 		return false
 	}
 	size := sig.BitArray.Size()
-	// ensure at least k signatures are set. ValidateBasic has already equated the
-	// set bits with len(Sigs), so this also subsumes a separate length check on
-	// Sigs: nSigs is at most size by construction and at least K here.
-	if sig.BitArray.NumTrueBitsBefore(size) < int(pk.K) {
-		return false
-	}
 	// index in the list of signatures which we are concerned with.
 	sigIndex := 0
 	for i := range size {

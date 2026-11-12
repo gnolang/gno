@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -57,15 +58,195 @@ func TestWriteQuoteMatchesStrconv(t *testing.T) {
 		"unicode 世界 café \U0001F600",
 		"invalid \xff\x80 utf8",
 		strings.Repeat("a\"b\n", 600), // quoted form > 1 KiB → grow path
+		// Longer than quoteChunk: quoted chunk by chunk, with multibyte and
+		// invalid sequences landing on every possible chunk boundary.
+		strings.Repeat("世界\U0001F600é", 300),
+		strings.Repeat("\x80", 2000), // continuation bytes only: no rune start to cut at
+		strings.Repeat("a\xe4\xb8", 700),
+		strings.Repeat(" \x00\xf0\x9f\x98", 400),
+	}
+	// Pseudo-random strings over an alphabet of rune fragments.
+	frags := []string{"a", "\"", "\\", "\n", "\x00", "\x80", "\xbf", "\xe4", "\xe4\xb8", "世", "\U0001F600", "\xf0\x9f", " ", "\x7f"}
+	seed := uint32(1)
+	for range 50 {
+		var sb strings.Builder
+		for sb.Len() < 3000 {
+			seed = seed*1664525 + 1013904223
+			sb.WriteString(frags[seed>>16%uint32(len(frags))])
+		}
+		cases = append(cases, sb.String())
 	}
 	for _, s := range cases {
-		var b bytes.Buffer
-		mw := newUnmeteredWriter(&b)
-		mw.WriteQuote(s)
-		mw.Flush()
-		mw.Release()
-		require.Equal(t, strconv.Quote(s), b.String(), "input %q", s)
+		for _, prefix := range []string{"", "xxxxxxx"} { // shift chunk alignment within the buffer
+			require.Equal(t, prefix+strconv.Quote(s), quoteAfter(prefix, s), "input %q", s)
+		}
 	}
+}
+
+// quoteAfter writes prefix then WriteQuote(s) and returns the output.
+func quoteAfter(prefix, s string) string {
+	var b bytes.Buffer
+	mw := newUnmeteredWriter(&b)
+	mw.WriteString(prefix)
+	mw.WriteQuote(s)
+	mw.Flush()
+	mw.Release()
+	return b.String()
+}
+
+type limitWriter struct {
+	n, max int
+}
+
+var errLimit = fmt.Errorf("limit")
+
+func (w *limitWriter) Write(p []byte) (int, error) {
+	if w.n+len(p) > w.max {
+		return 0, errLimit
+	}
+	w.n += len(p)
+	return len(p), nil
+}
+
+// TestWriteStringTo checks that a failing writer stops the render with its own
+// error.
+func TestWriteStringTo(t *testing.T) {
+	tv := typedString(strings.Repeat("hello \"world\" ", 1000))
+	w := &limitWriter{max: 4096}
+	require.ErrorIs(t, tv.WriteStringTo(w), errLimit)
+	require.LessOrEqual(t, w.n, 4096)
+
+	// The writer refusing early must also spare the heap: a long string is
+	// quoted chunk by chunk, not copied whole before the first write.
+	const n = 8 << 20
+	long := typedString(strings.Repeat("a", n))
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	require.ErrorIs(t, long.WriteStringTo(&limitWriter{max: 4096}), errLimit)
+	runtime.ReadMemStats(&after)
+	// TotalAlloc is process-global, so only the order of magnitude is asserted.
+	require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(n/8))
+}
+
+// fanType returns a chain of depth anonymous structs, each with fan fields of
+// the one below: the shape of `type A1 = struct{ f0, f1 A0 }` aliases. Its
+// String() is fan^depth leaves long while the type is depth nodes in memory.
+func fanType(fan, depth int) Type {
+	var t Type = &DeclaredType{PkgPath: "gno.land/r/x", Name: "T", Base: IntType}
+	for range depth {
+		fields := make([]FieldType, fan)
+		for i := range fields {
+			fields[i] = FieldType{Name: Name(fmt.Sprintf("f%d", i)), Type: t}
+		}
+		t = &StructType{Fields: fields}
+	}
+	return t
+}
+
+// typeStringValues are values whose rendering carries a type string: a nil
+// pointer, an anonymous func, a bound method and a type value.
+func typeStringValues(elt Type) map[string]TypedValue {
+	pt := &PointerType{Elt: elt}
+	ft := &FuncType{
+		Params:  []FieldType{{Name: "x", Type: pt}, {Name: "y", Type: IntType}},
+		Results: []FieldType{{Type: &MapType{Key: StringType, Value: pt}}},
+	}
+	mt := &FuncType{
+		Params:  []FieldType{{Name: "r", Type: pt}, {Name: "s", Type: &SliceType{Elt: elt, Vrd: true}}},
+		Results: []FieldType{{Type: &ArrayType{Len: 3, Elt: elt}}, {Type: &ChanType{Dir: SEND, Elt: elt}}},
+	}
+	return map[string]TypedValue{
+		"nil pointer": {T: pt},
+		"func":        {T: ft, V: &FuncValue{Type: ft}},
+		"bound":       {T: ft, V: &BoundMethodValue{Func: &FuncValue{Name: "M", Type: mt}}},
+		"lazy bound":  {T: ft, V: &BoundMethodValue{Receiver: TypedValue{T: pt}, Method: "M"}},
+		"type":        {T: gTypeType, V: TypeValue{Type: &InterfaceType{Methods: []FieldType{{Name: "M", Type: ft}}}}},
+		"tuple":       {T: &tupleType{Elts: []Type{pt, elt}}},
+	}
+}
+
+// TestWriteStringToTypeString checks that a type inside a render is streamed
+// like the value around it: a capped writer stops the render before the type
+// string is built.
+func TestWriteStringToTypeString(t *testing.T) {
+	for name, tv := range typeStringValues(fanType(8, 6)) { // 8^6 leaves, ~2MB rendered
+		allocs := testing.AllocsPerRun(3, func() {
+			require.ErrorIs(t, tv.WriteStringTo(&limitWriter{max: 4096}), errLimit, name)
+		})
+		require.Less(t, allocs, 100.0, name)
+	}
+}
+
+// TestWriteType_MatchesString pins the type text of every Type kind writeType
+// prints. The composite Type.String() methods render through writeType, so both
+// are checked against the literal text: it reaches MsgCall result data and panic
+// messages, and changing it changes consensus.
+func TestWriteType_MatchesString(t *testing.T) {
+	renderType := func(ty Type) string {
+		var b bytes.Buffer
+		require.NoError(t, WriteTypeTo(&b, ty))
+		return b.String()
+	}
+
+	decl := &DeclaredType{PkgPath: "gno.land/r/x", Name: "T", Base: IntType}
+	declParent := &DeclaredType{
+		PkgPath:   "gno.land/r/x",
+		Name:      "G",
+		Base:      IntType,
+		ParentLoc: Location3("gno.land/r/x", "x.gno", Span{Pos: Pos{Line: 3, Column: 5}}),
+	}
+	ptr := &PointerType{Elt: IntType}
+	cases := map[string]struct {
+		ty   Type
+		want string
+	}{
+		"pointer":               {ptr, "*int"},
+		"array":                 {&ArrayType{Len: 3, Elt: IntType}, "[3]int"},
+		"slice":                 {&SliceType{Elt: IntType}, "[]int"},
+		"variadic slice":        {&SliceType{Elt: IntType, Vrd: true}, "...int"},
+		"map":                   {&MapType{Key: StringType, Value: ptr}, "map[string]*int"},
+		"chan both":             {&ChanType{Dir: SEND | RECV, Elt: IntType}, "chan int"},
+		"chan send":             {&ChanType{Dir: SEND, Elt: IntType}, "<-chan int"},
+		"chan recv":             {&ChanType{Dir: RECV, Elt: IntType}, "chan<- int"},
+		"struct named fields":   {&StructType{Fields: []FieldType{{Name: "a", Type: IntType}, {Name: "b", Type: StringType}}}, "struct{a int; b string}"},
+		"struct embedded field": {&StructType{Fields: []FieldType{{Name: "", Type: ptr}}}, "struct{ *int}"},
+		"struct stamped field":  {&StructType{Fields: []FieldType{{Name: "priv", Type: IntType, PkgPath: "gno.land/r/x"}}}, "struct{gno.land/r/x.priv int}"},
+		"interface":             {&InterfaceType{Methods: []FieldType{{Name: "M", Type: &FuncType{}}}}, "interface {M func()}"},
+		"interface generic":     {&InterfaceType{Generic: "T"}, "<T>{}"},
+		"func no result":        {&FuncType{Params: []FieldType{{Name: "x", Type: IntType}}}, "func(int)"},
+		"func one result":       {&FuncType{Params: []FieldType{{Name: "x", Type: IntType}}, Results: []FieldType{{Type: StringType}}}, "func(int) string"},
+		"func multi result":     {&FuncType{Params: []FieldType{{Name: "x", Type: ptr}}, Results: []FieldType{{Type: IntType}, {Type: StringType}}}, "func(*int) (int, string)"},
+		"tuple":                 {&tupleType{Elts: []Type{ptr, IntType}}, "(*int,int)"},
+		"declared":              {decl, "gno.land/r/x.T"},
+		"declared with parent":  {declParent, "gno.land/r/x[gno.land/r/x/x.gno:3:5-0:0].G"},
+	}
+	for name, c := range cases {
+		require.Equal(t, c.want, c.ty.String(), name)
+		require.Equal(t, c.want, renderType(c.ty), name)
+	}
+
+	// The func and bound method renderers stream the same text as String().
+	render := func(f func(w *meteredWriter)) string {
+		var b bytes.Buffer
+		require.NoError(t, streamTo(&b, f))
+		return b.String()
+	}
+	params := []FieldType{{Name: "a", Type: ptr}, {Name: "b", Type: declParent}}
+	mt := &FuncType{Params: params, Results: []FieldType{{Type: decl}, {Type: declParent}}}
+	for _, fv := range []*FuncValue{{}, {Name: "n"}, {Type: mt}, {Name: "n", Type: mt}} {
+		require.Equal(t, fv.String(), render(func(w *meteredWriter) { writeFuncValue(w, fv) }))
+	}
+	for _, bmv := range []*BoundMethodValue{
+		{Func: &FuncValue{Name: "M", Type: mt}},
+		{Func: &FuncValue{Name: "M", Type: &FuncType{Params: params[:1]}}},
+		{Func: &FuncValue{Name: "M", Type: RefType{ID: "x"}}},
+		{Receiver: TypedValue{T: decl}, Method: "M"},
+	} {
+		require.Equal(t, bmv.String(), render(func(w *meteredWriter) { writeBoundMethodValue(w, bmv) }))
+	}
+
+	require.ErrorIs(t, WriteTypeTo(&limitWriter{max: 4096}, fanType(8, 6)), errLimit)
 }
 
 // ─── fixture helpers ───
@@ -662,4 +843,18 @@ func BenchmarkProtectedString_Primitive_String(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = tv.String()
 	}
+}
+
+// FuzzWriteQuote pins the invariant the chunked quoting rests on: WriteQuote
+// writes exactly strconv.Quote(s), byte for byte, at any chunk alignment. The
+// seeds in TestWriteQuoteMatchesStrconv exercise known boundaries; this keeps
+// the equivalence under new inputs rather than a hand-written sample.
+func FuzzWriteQuote(f *testing.F) {
+	for _, s := range []string{"", "a", "\"\\\n", "\x00\x80\xbf", "世界\U0001F600", strings.Repeat("\x80", 2000)} {
+		f.Add(s, "")
+		f.Add(s, "xxxxxxx")
+	}
+	f.Fuzz(func(t *testing.T, s, prefix string) {
+		require.Equal(t, prefix+strconv.Quote(s), quoteAfter(prefix, s))
+	})
 }

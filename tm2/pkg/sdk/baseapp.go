@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -79,6 +80,10 @@ type BaseApp struct {
 
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
+
+	// Wall-clock limit of one custom-route query, 0 disables it. Node-local,
+	// never consensus. See SetQueryTimeout.
+	queryTimeout time.Duration
 
 	// Deferred commits during block sync (deferred.go). heldHeader is the
 	// header of the last held commit, published to queries once written.
@@ -467,12 +472,32 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 }
 
+// QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
+// runs code for path: .app/simulate runs a whole transaction, and a custom
+// route runs code when its handler implements abci.CodeExecutionQuerier and
+// says so.
+func (app *BaseApp) QueryRunsCode(reqPath string) bool {
+	path := splitPath(reqPath)
+	if len(path) == 0 {
+		return false
+	}
+	if path[0] == ".app" {
+		return len(path) >= 2 && path[1] == appQuerySimulate
+	}
+	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
+	return ok && h.QueryRunsCode(reqPath)
+}
+
+// appQuerySimulate is the .app query that runs a whole transaction.
+const appQuerySimulate = "simulate"
+
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
 		var result Result
 
+		// A case that runs code also belongs in QueryRunsCode.
 		switch path[1] {
-		case "simulate":
+		case appQuerySimulate:
 			result = app.Simulate(req.Data)
 
 			res.Height = req.Height
@@ -552,6 +577,10 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	// over the cap, answers as an error and leaves nothing in the node's log.
 	defer func() {
 		if r := recover(); r != nil {
+			if dl, ok := r.(store.DeadlineExceededError); ok {
+				res = ABCIResponseQueryFromError(dl)
+				return
+			}
 			res = ABCIResponseQueryFromError(std.ErrInternal(clipLog(fmt.Sprintf("recovered: %v", r))))
 		}
 	}()
@@ -596,6 +625,15 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
 	ctx := NewContext(RunTxModeCheck, cacheMS, app.getLastBlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	// Arm the wall-clock deadline that a query gas meter built from ctx checks
+	// (see QueryDeadline). Only here: .app/simulate, store queries and
+	// transactions never carry it.
+	if app.queryTimeout > 0 {
+		expired := new(atomic.Bool)
+		t := time.AfterFunc(app.queryTimeout, func() { expired.Store(true) })
+		defer t.Stop()
+		ctx = WithQueryDeadline(ctx, expired)
+	}
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
@@ -944,10 +982,23 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
-
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
+		return
+	}
+
+	// The signature does not cover invalid UTF-8 bytes in a string; see
+	// std.ValidateUTF8. Refused before the ante handler, so a relayer's
+	// rewritten copy costs the signer no fee and no sequence. The walk renders
+	// values, which for some costs far more than decoding them, so it runs on
+	// what ValidateBasic accepted, and skips the signatures: they hold no text,
+	// and nothing has bounded their count yet.
+	signed := tx
+	signed.Signatures = nil
+	if err := std.ValidateUTF8(signed); err != nil {
+		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		result.Log = err.Error() // names the field; Log is not in the results hash
 		return
 	}
 
@@ -1102,6 +1153,32 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 // SetHaltHeight sets the block height at which the node will halt after committing.
 func (app *BaseApp) SetHaltHeight(height uint64) {
 	app.haltHeight = height
+}
+
+// SetQueryTimeout sets the wall-clock limit of one custom-route query, such as
+// vm/qeval. Zero disables it. A query is not consensus, so this is node-local;
+// .app/simulate, CheckTx and DeliverTx never see it.
+func (app *BaseApp) SetQueryTimeout(d time.Duration) { app.queryTimeout = d }
+
+// QueryTimeout returns the limit SetQueryTimeout set.
+func (app *BaseApp) QueryTimeout() time.Duration { return app.queryTimeout }
+
+// queryDeadlineContextKey keys the expiry flag of a query in its Context.
+type queryDeadlineContextKey struct{}
+
+// QueryDeadline returns the expiry flag of the query ctx belongs to, or nil
+// outside a custom-route query or when no timeout is set. A handler that wants
+// to stop at the deadline builds its gas meter with store.NewDeadlineGasMeter
+// from it.
+func QueryDeadline(ctx Context) *atomic.Bool {
+	e, _ := ctx.Value(queryDeadlineContextKey{}).(*atomic.Bool)
+	return e
+}
+
+// WithQueryDeadline attaches a query expiry flag to ctx. handleQueryCustom sets
+// it, and a test can arm the same deadline on a keeper directly.
+func WithQueryDeadline(ctx Context, expired *atomic.Bool) Context {
+	return ctx.WithValue(queryDeadlineContextKey{}, expired)
 }
 
 func (app *BaseApp) Close() error {

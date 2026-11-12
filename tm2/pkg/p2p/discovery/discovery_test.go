@@ -267,6 +267,37 @@ func TestReactor_DiscoveryRound_MarksHeldPeers(t *testing.T) {
 func TestReactor_DiscoveryResponse(t *testing.T) {
 	t.Parallel()
 
+	t.Run("full send budget does not block receive", func(t *testing.T) {
+		t.Parallel()
+
+		peer := mock.GeneratePeers(t, 1)[0]
+		peer.SendFn = func(byte, []byte) bool {
+			t.Fatal("Receive used blocking Send")
+			return false
+		}
+		attempts := 0
+		peer.TrySendFn = func(chID byte, data []byte) bool {
+			require.Equal(t, Channel, chID)
+			var msg Message
+			require.NoError(t, amino.UnmarshalAny(data, &msg))
+			require.IsType(t, &Response{}, msg)
+			attempts++
+			return false // The shared byte budget or channel queue is full.
+		}
+
+		r := NewReactor(newTestStore(t))
+		r.SetSwitch(&mockSwitch{
+			peersFn: func() p2p.PeerSet {
+				return &mockPeerSet{listFn: func() []p2p.PeerConn {
+					return []p2p.PeerConn{peer}
+				}}
+			},
+		})
+
+		r.Receive(Channel, peer, amino.MustMarshalAny(&Request{}))
+		require.Equal(t, 1, attempts)
+	})
+
 	t.Run("discovery request received", func(t *testing.T) {
 		t.Parallel()
 
@@ -277,7 +308,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			capturedSend []byte
 
 			mockPeer = &mock.Peer{
-				SendFn: func(chID byte, data []byte) bool {
+				TrySendFn: func(chID byte, data []byte) bool {
 					require.Equal(t, Channel, chID)
 
 					capturedSend = data
@@ -367,7 +398,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			capturedSend []byte
 
 			mockPeer = &mock.Peer{
-				SendFn: func(chID byte, data []byte) bool {
+				TrySendFn: func(chID byte, data []byte) bool {
 					require.Equal(t, Channel, chID)
 
 					capturedSend = data
@@ -423,7 +454,7 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 			capturedSend []byte
 
 			mockPeer = &mock.Peer{
-				SendFn: func(chID byte, data []byte) bool {
+				TrySendFn: func(chID byte, data []byte) bool {
 					require.Equal(t, Channel, chID)
 
 					capturedSend = data

@@ -275,9 +275,9 @@ re-download; the node commits once peers send the parts again.
   prevoting the second chunking, and the validator restarted onto this binary
   mid-height. Alternative H closes both and was declined.
 - A patched node commits what +2/3 committed, so it stores the parts an
-  unpatched node stores. Under padded or trailing-field parts
-  `BlockStore.LoadBlock` panics at that height on either binary, and an
-  unfilled block loads but fails `ValidateBasic`.
+  unpatched node stores. `BlockStore.LoadBlock` decodes padded,
+  trailing-field and unfilled records as consensus does, and panics on a
+  record whose block does not hash to its meta.
 - `PartSetHeader.ValidateBasic`'s `MaxBlockPartsCount` bound stays as the
   only bound on `enterCommit`'s install, alternative I; the consensus bound is
   the one that tracks the chain's real limit.

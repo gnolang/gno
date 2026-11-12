@@ -124,6 +124,70 @@ func TestThresholdMultisigDuplicateSignatures(t *testing.T) {
 	require.False(t, multisigKey.VerifyBytes(msg, amino.MustMarshal(multisignature)))
 }
 
+// Every signature here is valid, and any K of them verify. Accepting more than
+// K would let whoever relays the signature drop the spares and still verify.
+func TestThresholdMultisigTakesExactlyK(t *testing.T) {
+	t.Parallel()
+
+	msg := []byte{1, 2, 3, 4, 5}
+	pubkeys, sigs := generatePubKeysAndSignatures(4, msg)
+	multisigKey := NewPubKeyMultisigThreshold(2, pubkeys)
+	signedBy := func(idx ...int) []byte {
+		multisignature := NewMultisig(len(pubkeys))
+		for _, i := range idx {
+			require.NoError(t, multisignature.AddSignatureFromPubKey(sigs[i], pubkeys[i], pubkeys))
+		}
+		return multisignature.Marshal()
+	}
+
+	require.True(t, multisigKey.VerifyBytes(msg, signedBy(0, 2)))
+	require.True(t, multisigKey.VerifyBytes(msg, signedBy(1, 3)))
+	require.False(t, multisigKey.VerifyBytes(msg, signedBy(0, 1, 2)))
+	require.False(t, multisigKey.VerifyBytes(msg, signedBy(0, 1, 2, 3)))
+}
+
+// A multisignature is amino nested in the transaction's signature bytes, which
+// the transaction's canonical check sees as opaque. Padding a varint in it
+// decodes to the same multisignature, at any nesting level, and must not
+// verify.
+func TestVerifyBytesTakesOnlyCanonicalMultisignature(t *testing.T) {
+	t.Parallel()
+
+	msg := []byte{1, 2, 3, 4, 5}
+	pubkeys, sigs := generatePubKeysAndSignatures(2, msg)
+	multisigKey := NewPubKeyMultisigThreshold(1, pubkeys)
+	multisignature := NewMultisig(len(pubkeys))
+	require.NoError(t, multisignature.AddSignatureFromPubKey(sigs[0], pubkeys[0], pubkeys))
+	canonical := multisignature.Marshal()
+	padded := padBitArrayVarint(t, canonical)
+
+	var decoded Multisignature
+	require.NoError(t, amino.Unmarshal(padded, &decoded))
+	require.Equal(t, *multisignature, decoded)
+
+	require.True(t, multisigKey.VerifyBytes(msg, canonical))
+	require.False(t, multisigKey.VerifyBytes(msg, padded))
+
+	outerPubs := []crypto.PubKey{multisigKey}
+	outerKey := NewPubKeyMultisigThreshold(1, outerPubs)
+	outer := func(inner []byte) []byte {
+		ms := NewMultisig(1)
+		require.NoError(t, ms.AddSignatureFromPubKey(inner, multisigKey, outerPubs))
+		return ms.Marshal()
+	}
+	require.True(t, outerKey.VerifyBytes(msg, outer(canonical)))
+	require.False(t, outerKey.VerifyBytes(msg, outer(padded)))
+}
+
+// padBitArrayVarint writes a multisignature's ExtraBitsStored as a two-byte
+// varint, so its BitArray field grows by one byte: 0a L 08 E becomes
+// 0a L+1 08 E|80 00.
+func padBitArrayVarint(t *testing.T, bz []byte) []byte {
+	t.Helper()
+	require.True(t, bz[0] == 0x0a && bz[1] < 0x7f && bz[2] == 0x08 && bz[3] < 0x80, "% x", bz[:4])
+	return append([]byte{0x0a, bz[1] + 1, 0x08, bz[3] | 0x80, 0x00}, bz[4:]...)
+}
+
 // TODO: Fully replace this test with table driven tests
 func TestMultiSigPubKeyEquality(t *testing.T) {
 	t.Parallel()
@@ -452,7 +516,8 @@ func TestVerifyBytesSignatureCountMismatch(t *testing.T) {
 
 	msg := []byte{1, 2, 3, 4}
 	pubkeys, sigs := generatePubKeysAndSignatures(3, msg)
-	pk := PubKeyMultisigThreshold{K: 1, PubKeys: pubkeys}
+	// K matches the set bits, so the threshold is not what refuses it.
+	pk := PubKeyMultisigThreshold{K: 3, PubKeys: pubkeys}
 
 	multisignature := NewMultisig(3)
 	for i := range 3 {

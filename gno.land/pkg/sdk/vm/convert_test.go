@@ -17,10 +17,11 @@ import (
 // mustStringifyJSONResults is a test-only unbounded wrapper: the size bound has
 // its own coverage in keeper_large_input_test.go, and these cases assert on the encoded
 // shape of small hand-built values. Deliberately test-only — production code
-// must never gain an unbounded variant; query paths pass maxQueryExportBytes.
+// must never gain an unbounded variant; query paths pass maxQueryExportBytes
+// and maxQueryOutputBytes.
 func mustStringifyJSONResults(t *testing.T, m *gnolang.Machine, tvs []gnolang.TypedValue, ft *gnolang.FuncType) string {
 	t.Helper()
-	s, err := stringifyJSONResults(m, tvs, ft, 0)
+	s, err := stringifyJSONResults(m, tvs, ft, 0, 0)
 	require.NoError(t, err)
 	return s
 }
@@ -326,10 +327,7 @@ var Value error = &panicError{}`
 		require.Contains(t, rep, `"results"`)
 	})
 
-	t.Run("out_of_gas_error_method_graceful_degrade", func(t *testing.T) {
-		// When .Error() runs out of gas, tryGetError must graceful-degrade
-		// (no @error) rather than re-panicking — re-panicking would discard
-		// the successful Results JSON that was already computed.
+	t.Run("out_of_gas_error_method_fails_query", func(t *testing.T) {
 		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 			PkgPath:  "testdata",
 			GasMeter: stypes.NewGasMeter(100_000),
@@ -358,15 +356,9 @@ var Value error = &gasError{}`
 		tv := tps[0]
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 
-		// Must NOT panic. Results must be present. @error must be absent.
-		var rep string
-		require.NotPanics(t, func() {
-			rep = mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
+		require.Panics(t, func() {
+			mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
 		})
-		require.Contains(t, rep, `"results":`,
-			"results payload must be preserved even when .Error() OOGs")
-		require.NotContains(t, rep, `"@error"`,
-			"@error must be omitted on OOG in .Error() — graceful degrade")
 	})
 }
 

@@ -209,14 +209,14 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 	var msg Message
 
 	if err := amino.UnmarshalAny(msgBytes, &msg); err != nil {
-		r.Logger.Error("unable to unmarshal discovery message", "err", err)
+		r.Logger.Error("unable to unmarshal discovery message", "bytes", len(msgBytes), "err", err)
 
 		return
 	}
 
 	// Validate the message
 	if err := msg.ValidateBasic(); err != nil {
-		r.Logger.Warn("unable to validate discovery message", "err", err)
+		r.Logger.Warn("unable to validate discovery message", "type", fmt.Sprintf("%T", msg), "err", err)
 
 		return
 	}
@@ -233,7 +233,7 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 		// Make the peers available for dialing on the switch
 		r.Switch.DialPeers(msg.Peers...)
 	default:
-		r.Logger.Warn("invalid message received", "msg", msgBytes)
+		r.Logger.Warn("invalid message received", "type", fmt.Sprintf("%T", msg), "bytes", len(msgBytes))
 	}
 }
 
@@ -293,8 +293,8 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 		return fmt.Errorf("unable to marshal discovery response, %w", err)
 	}
 
-	// Send the response to the peer
-	if !peer.Send(Channel, preparedResp) {
+	// Receive must keep reading pings even when the shared send budget is full.
+	if !peer.TrySend(Channel, preparedResp) {
 		return fmt.Errorf("unable to send discovery response to peer %s", peer.ID())
 	}
 

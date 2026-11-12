@@ -3,6 +3,7 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -97,15 +98,27 @@ func (dbv DataByteValue) String() string {
 // hint is needed (the debug paths pass no machine, so no gas is charged).
 func protectedStringOf(v protectedWriter, seen *seenValues) string {
 	var b bytes.Buffer
-	mw := newUnmeteredWriter(&b)
-	defer mw.Release()
-	v.WriteProtected(mw, seen)
-	// Flush explicitly (not deferred): b is read below via b.String(), and a
-	// deferred Flush would run only after the return value is evaluated,
-	// dropping the last buffered chunk. Streaming callers that hand the buffer
-	// to a downstream consumer (uversePrint, Fprint) defer Flush instead.
-	mw.Flush()
+	_ = writeProtectedTo(&b, v, seen) // a bytes.Buffer never fails a write
 	return b.String()
+}
+
+// writeProtectedTo streams v's protected form into w. See streamTo.
+func writeProtectedTo(w io.Writer, v protectedWriter, seen *seenValues) error {
+	return streamTo(w, func(mw *meteredWriter) { v.WriteProtected(mw, seen) })
+}
+
+// streamTo runs render on an unmetered writer over w. A write error from w
+// aborts the render (Flush panics *ParentWriteError) and is returned.
+func streamTo(w io.Writer, render func(*meteredWriter)) (err error) {
+	mw := newUnmeteredWriter(w)
+	defer mw.Release()
+	defer recoverParentWriteError(&err)
+	render(mw)
+	// Flush explicitly, not deferred, so w holds the whole render on return.
+	// Streaming callers that hand the buffer to a downstream consumer
+	// (uversePrint, Fprint) defer Flush instead.
+	mw.Flush()
+	return nil
 }
 
 func (av *ArrayValue) String() string {
@@ -276,4 +289,24 @@ func (tv TypedValue) String() string {
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	return protectedStringOf(tv, seen)
+}
+
+// WriteStringTo writes tv.String() into w without building the whole string. A
+// write error from w stops the render and is returned, so a w with a byte cap
+// bounds both the output and the heap of the render.
+func (tv TypedValue) WriteStringTo(w io.Writer) error {
+	return writeProtectedTo(w, tv, newSeenValues())
+}
+
+// WriteTypeTo writes t.String() without building the whole string.
+func WriteTypeTo(w io.Writer, t Type) error {
+	return streamTo(w, func(mw *meteredWriter) { writeType(mw, t) })
+}
+
+// typeString renders t with writeType. The composite Type.String() methods
+// return it, so type text has one printer whether it is built or streamed.
+func typeString(t Type) string {
+	var b strings.Builder
+	_ = WriteTypeTo(&b, t) // a strings.Builder never fails a write
+	return b.String()
 }

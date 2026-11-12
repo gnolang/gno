@@ -11,9 +11,18 @@ var (
 )
 
 // Message is the wrapper for the discovery message
+//
+// Only this package's types have assertMessage, so amino refuses a registered
+// type of any other package before decoding it, and neither its decode error
+// nor its ValidateBasic error, either of which can quote what a peer sent at
+// any length, reaches the log.
 type Message interface {
 	ValidateBasic() error
+	assertMessage()
 }
+
+func (*Request) assertMessage()  {}
+func (*Response) assertMessage() {}
 
 // Request is the peer discovery request.
 // It is empty by design, since it's used as
