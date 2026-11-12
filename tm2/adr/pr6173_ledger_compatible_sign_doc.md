@@ -106,14 +106,17 @@ The legacy encoding is computed only when the current one fails, so the ordinary
 path pays for one encoding and one curve operation, as before. Gas is charged
 once, before either attempt.
 
-That is the honest path. A signature that matches neither rendering costs two
-encodings and two curve operations, and none of it is metered: the first encoding
-happens before the signature gas is charged, and a transaction the ante handler
-rejects pays no fee. Measured on a 1 MB `MsgAddPackage`, one encoding plus
-`sortJSON` takes about 7 ms, so garbage-signature spam costs a node roughly twice
-what it did before dual verification. This amplifies a cost the attacker already
-did not pay rather than opening a new class of attack; the sunset switch below is
-the operator's lever against it.
+That is the honest path. A signature that matches neither rendering costs one
+encoding of the sign doc, two of the fee alone, one copy of the payload and two
+curve operations, and none of it is metered: the sign doc's encoding happens
+before the signature gas is charged, and a transaction the ante handler rejects
+pays no fee. The legacy payload is built from the current one by swapping only
+the fee object (`GetSignaturePayloadLegacyFrom`), so the msgs are encoded once.
+Measured on a 1 MB `MsgAddPackage`, one encoding plus `sortJSON` takes about
+7 ms, and garbage-signature spam adds the second curve operation, the two fee
+encodings and the copy to what it cost a node before dual verification. This
+amplifies a cost the attacker already did not pay rather than opening a new
+class of attack; the sunset switch below is the operator's lever against it.
 
 ## Consequences
 

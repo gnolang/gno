@@ -2,22 +2,28 @@ package merkle
 
 import (
 	"math/bits"
+
+	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 )
 
 // SimpleHashFromByteSlices computes a Merkle tree where the leaves are the byte slice,
 // in the provided order.
 func SimpleHashFromByteSlices(items [][]byte) []byte {
-	switch len(items) {
-	case 0:
+	if len(items) == 0 {
 		return nil
-	case 1:
-		return leafHash(items[0])
-	default:
-		k := getSplitPoint(len(items))
-		left := SimpleHashFromByteSlices(items[:k])
-		right := SimpleHashFromByteSlices(items[k:])
-		return innerHash(left, right)
 	}
+	root := simpleRoot(items)
+	return root[:]
+}
+
+// simpleRoot returns the root of non-empty items by value, so that no node
+// below it is allocated.
+func simpleRoot(items [][]byte) [tmhash.Size]byte {
+	if len(items) == 1 {
+		return leafHashArray(items[0])
+	}
+	k := getSplitPoint(len(items))
+	return innerHashArray(simpleRoot(items[:k]), simpleRoot(items[k:]))
 }
 
 // SimpleHashFromByteSliceIterative is an iterative alternative to

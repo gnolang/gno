@@ -1,4 +1,4 @@
-package testutils
+package meminfo
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// ReadMemInfo reports the machine's memory from sysctl. Available is free pages
+// Read reports the machine's memory from sysctl. Available is free pages
 // plus file-backed ones, the cache the kernel can drop without writing anything
 // out: the counterpart of Linux's MemAvailable, and the figure Chromium's
 // base::SysInfo uses on macOS.
@@ -14,7 +14,7 @@ import (
 // kern.memorystatus_level looks like the obvious source but is not: on macOS
 // it counts active and inactive pages as available, so it only falls once wired
 // memory or the compressor grows, long after the heap has.
-func ReadMemInfo() (MemInfo, bool) {
+func Read() (Info, bool) {
 	total, err1 := unix.SysctlUint64("hw.memsize")
 	// The page counters are in kernel pages, of vm.pagesize bytes: 16 KiB on
 	// Apple silicon, 4 KiB on Intel.
@@ -22,9 +22,9 @@ func ReadMemInfo() (MemInfo, bool) {
 	free, err3 := unix.SysctlUint32("vm.page_free_count")
 	fileBacked, err4 := unix.SysctlUint32("vm.page_pageable_external_count")
 	if errors.Join(err1, err2, err3, err4) != nil {
-		return MemInfo{}, false
+		return Info{}, false
 	}
-	mi := MemInfo{
+	mi := Info{
 		Total:     total,
 		Available: uint64(pageSize) * (uint64(free) + uint64(fileBacked)),
 	}

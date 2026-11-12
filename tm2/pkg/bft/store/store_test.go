@@ -1,10 +1,13 @@
 package store
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -148,8 +151,8 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		}
 	}
 
-	// save a block
-	block := makeBlock(bs.Height()+1, state, new(types.Commit))
+	// save a block, with a last commit that the eraseCommitInDB row can erase
+	block := makeBlock(bs.Height()+1, state, makeTestCommit(10, tmtime.Now()))
 	validPartSet := block.MakePartSet(2)
 	seenCommit := makeTestCommit(10, tmtime.Now())
 	bs.SaveBlock(block, partSet, seenCommit)
@@ -185,7 +188,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		eraseSeenCommitInDB   bool
 	}{
 		{
-			block:      newBlock(header1, commitAtH10),
+			block:      block,
 			parts:      validPartSet,
 			seenCommit: seenCommit1,
 		},
@@ -212,7 +215,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
-			block:             newBlock(header1, commitAtH10),
+			block:             block,
 			parts:             validPartSet,
 			seenCommit:        seenCommit1,
 			corruptCommitInDB: true, // Corrupt the DB's commit entry
@@ -220,7 +223,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
-			block:            newBlock(header1, commitAtH10),
+			block:            block,
 			parts:            validPartSet,
 			seenCommit:       seenCommit1,
 			wantPanic:        "Error reading block meta",
@@ -228,7 +231,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
-			block:      newBlock(header1, commitAtH10),
+			block:      block,
 			parts:      validPartSet,
 			seenCommit: seenCommit1,
 
@@ -237,7 +240,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
-			block:      newBlock(header1, commitAtH10),
+			block:      block,
 			parts:      validPartSet,
 			seenCommit: seenCommit1,
 
@@ -246,7 +249,7 @@ func TestBlockStoreSaveLoadBlock(t *testing.T) {
 		},
 
 		{
-			block:      newBlock(header1, commitAtH10),
+			block:      block,
 			parts:      validPartSet,
 			seenCommit: seenCommit1,
 
@@ -525,6 +528,49 @@ func TestBlockStore_ContiguousAfterInitialHeight(t *testing.T) {
 	assert.Panics(t, func() {
 		bs.SaveBlock(skippedBlock, skippedParts, skippedSC)
 	}, "non-contiguous height must still panic after InitialHeight is set")
+}
+
+// TestLoadBlockStoredEncodings checks which stored part sets LoadBlock decodes:
+// consensus commits whatever parts +2/3 precommitted, so those must load, while
+// an encoding that decodes to another or half-filled block must panic. It runs
+// serially: Hash memoizes into the shared block, which SaveBlock marshals.
+func TestLoadBlockStoredEncodings(t *testing.T) {
+	withPrefix := func(bz []byte) []byte {
+		return append(binary.AppendUvarint(nil, uint64(len(bz))), bz...)
+	}
+	body := amino.MustMarshal(block)
+	sized := withPrefix(body)
+	header := amino.MustMarshal(&types.Block{Header: block.Header})
+	require.True(t, bytes.HasPrefix(body, header), "the header is the first field")
+	unfilled := amino.DeepCopy(block).(*types.Block)
+	unfilled.DataHash = nil
+	unknownField := []byte{15<<3 | byte(amino.Typ3Varint), 0x01}
+
+	for name, tc := range map[string]struct {
+		record []byte
+		loads  bool
+	}{
+		"zero length prefix":                        {append([]byte{0x00}, sized...), false},
+		"overflowing length prefix":                 {append(bytes.Repeat([]byte{0x80}, 10), sized...), false},
+		"bytes after the block":                     {append(slices.Clone(sized), 0xEE), true},
+		"unknown field after the last":              {withPrefix(slices.Concat(body, unknownField)), true},
+		"unknown field after the last, no DataHash": {withPrefix(slices.Concat(amino.MustMarshal(unfilled), unknownField)), true},
+		"no DataHash":                               {withPrefix(amino.MustMarshal(unfilled)), true},
+		"no Data, unknown field after the last":     {withPrefix(slices.Concat(amino.MustMarshal(&types.Block{Header: block.Header, LastCommit: block.LastCommit}), unknownField)), false},
+		"unknown field after the header":            {withPrefix(slices.Concat(header, unknownField, body[len(header):])), false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			bs, _ := freshBlockStore()
+			bs.SaveBlock(block, types.NewPartSetFromData(tc.record, types.BlockPartSizeBytes), seenCommit1)
+			if tc.loads {
+				loaded := bs.LoadBlock(block.Height)
+				require.NoError(t, loaded.ValidateBasic())
+				require.Equal(t, block.Hash(), loaded.Hash())
+			} else {
+				require.Panics(t, func() { bs.LoadBlock(block.Height) })
+			}
+		})
+	}
 }
 
 // syncCountingDB counts the writes that force a flush to disk, whether issued

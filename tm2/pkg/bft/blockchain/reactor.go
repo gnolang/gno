@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"runtime/debug"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -60,6 +61,20 @@ const (
 	// bounds the per-connection recving-buffer exposure; it was previously
 	// MaxBlockSizeBytes (100MB), far larger than any real block.
 	maxMsgSize = int(types.MaxBlockDataBytesLimit) + maxBlockMsgOverhead
+
+	// maxSmallMsgSize bounds every message of this reactor but a block
+	// response: each carries one height, and at math.MaxInt64 the largest is
+	// 34 bytes.
+	maxSmallMsgSize = 64
+
+	// blockRequestsKey is the peer data key of the heights the peer
+	// requested and respondRoutine has yet to answer.
+	blockRequestsKey = "BlockchainReactor.blockRequests"
+
+	// sendRetryDelay paces sending again a block request or response that
+	// failed to queue. Neither is ever asked for twice, so neither is dropped
+	// while its peer is connected.
+	sendRetryDelay = 100 * time.Millisecond
 )
 
 // SwitchToConsensusFn is a callback method that is meant to
@@ -201,11 +216,24 @@ func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 	}
 }
 
-// AddPeer implements Reactor by sending our state to peer.
+// InitPeer implements Reactor by creating the peer's block request queue.
+// The queue exists before the peer starts, so a request arriving before
+// AddPeer waits in it.
+func (bcR *BlockchainReactor) InitPeer(peer p2p.PeerConn) p2p.PeerConn {
+	peer.Set(blockRequestsKey, make(chan int64, maxPendingRequestsPerPeer))
+	return peer
+}
+
+// AddPeer implements Reactor by sending our state to peer and starting the
+// peer's respondRoutine.
 func (bcR *BlockchainReactor) AddPeer(peer p2p.PeerConn) {
 	msgBytes := amino.MustMarshalAny(&bcStatusResponseMessage{bcR.store.Height()})
 	peer.Send(BlockchainChannel, msgBytes)
 	// it's OK if send fails. will try later in poolRoutine
+
+	if requests, ok := peer.Get(blockRequestsKey).(chan int64); ok {
+		go bcR.respondRoutine(peer, requests)
+	}
 
 	// peer is added to the pool once we receive the first
 	// bcStatusResponseMessage from the peer and call pool.SetPeerHeight
@@ -216,27 +244,81 @@ func (bcR *BlockchainReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 	bcR.pool.RemovePeer(peer.ID())
 }
 
-// respondToPeer loads a block and sends it to the requesting peer,
-// if we have it. Otherwise, we'll respond saying we don't have it.
-// According to the Tendermint spec, if all nodes are honest,
-// no node should be requesting for a block that's non-existent.
-func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage,
-	src p2p.PeerConn,
-) (queued bool) {
-	block := bcR.store.LoadBlock(msg.Height)
-	if block != nil {
-		msgBytes := amino.MustMarshalAny(&bcBlockResponseMessage{Block: block})
-		return src.TrySend(BlockchainChannel, msgBytes)
+// respondToPeer queues the requested height for the peer's respondRoutine.
+// Receive runs on the peer's recvRoutine, so it must not wait for send
+// budget: the peer's pings would go unread, and the wait would be credited
+// to the pong deadline. A request beyond maxPendingRequestsPerPeer, more than
+// an honest requester keeps with us, is dropped.
+func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage, src p2p.PeerConn) {
+	requests, _ := src.Get(blockRequestsKey).(chan int64)
+	select {
+	case requests <- msg.Height:
+	default:
+		bcR.Logger.Debug("Too many block requests in flight, drop one", "src", src, "height", msg.Height)
+	}
+}
+
+// respondRoutine answers the peer's requests in order until the peer or the
+// reactor stops, sending again a response Send fails to queue. The response
+// it waits on is held outside the send budget.
+func (bcR *BlockchainReactor) respondRoutine(peer p2p.PeerConn, requests <-chan int64) {
+	// LoadBlock panics on a block it cannot read. Stop the peer that asked
+	// for it, as recvRoutine's recover did when Receive answered requests,
+	// rather than the node.
+	defer func() {
+		if r := recover(); r != nil {
+			bcR.Logger.Error("Failed to answer a block request", "peer", peer, "err", r, "stack", string(debug.Stack()))
+			bcR.Switch.StopPeerForError(peer, fmt.Errorf("answering a block request: %v", r))
+		}
+	}()
+
+	for {
+		var height int64
+		select {
+		case <-peer.Quit():
+			return
+		case <-bcR.Quit():
+			return
+		case height = <-requests:
+		}
+
+		msgBytes := bcR.blockResponse(peer, height)
+		for !peer.Send(BlockchainChannel, msgBytes) {
+			select {
+			case <-peer.Quit():
+				return
+			case <-bcR.Quit():
+				return
+			case <-time.After(sendRetryDelay):
+			}
+		}
+	}
+}
+
+// blockResponse returns the response to a request for height: the block if
+// we have it, a bcNoBlockResponseMessage otherwise. According to the
+// Tendermint spec, if all nodes are honest, no node should be requesting a
+// block that's non-existent.
+func (bcR *BlockchainReactor) blockResponse(peer p2p.PeerConn, height int64) []byte {
+	if block := bcR.store.LoadBlock(height); block != nil {
+		return amino.MustMarshalAny(&bcBlockResponseMessage{Block: block})
 	}
 
-	bcR.Logger.Info("Peer asking for a block we don't have", "src", src, "height", msg.Height)
+	bcR.Logger.Info("Peer asking for a block we don't have", "src", peer, "height", height)
 
-	msgBytes := amino.MustMarshalAny(&bcNoBlockResponseMessage{Height: msg.Height})
-	return src.TrySend(BlockchainChannel, msgBytes)
+	return amino.MustMarshalAny(&bcNoBlockResponseMessage{Height: height})
 }
 
 // Receive implements Reactor by handling 4 types of messages (look below).
 func (bcR *BlockchainReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
+	// Decoding a block costs work per tx, about 170 bytes of allocation for an
+	// empty tx that takes 2 bytes on the wire. So a message over
+	// maxSmallMsgSize is decoded only from a peer the pool is waiting on.
+	if len(msgBytes) > maxSmallMsgSize && !bcR.pool.IsWaitingOn(src.ID()) {
+		bcR.Logger.Debug("Dropping a large message from a peer we asked nothing", "src", src, "bytes", len(msgBytes))
+		return
+	}
+
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		bcR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
@@ -269,6 +351,26 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 	}
 }
 
+// peerRequest is a block request and the connection it was made for.
+type peerRequest struct {
+	BlockRequest
+	peer p2p.PeerConn
+}
+
+// trySendRequest sends a block request to the connection it was made for
+// without blocking. It reports false only when that connection still holds
+// the peer's ID but had no room for it. A request whose connection is gone
+// is dropped, even when a new connection holds the ID: the pool redoes the
+// peer's requests when it removes it, and stops a peer whose block it did
+// not ask that peer for.
+func (bcR *BlockchainReactor) trySendRequest(request peerRequest) bool {
+	if request.peer == nil || bcR.Switch.Peers().Get(request.PeerID) != request.peer {
+		return true
+	}
+
+	return request.peer.TrySend(BlockchainChannel, amino.MustMarshalAny(&bcBlockRequestMessage{request.Height}))
+}
+
 // Handle messages from the poolReactor telling the reactor what to do.
 // NOTE: Don't sleep in the FOR_LOOP or otherwise slow it down!
 func (bcR *BlockchainReactor) poolRoutine() {
@@ -294,22 +396,31 @@ func (bcR *BlockchainReactor) poolRoutine() {
 	}
 
 	go func() {
+		// This goroutine serves every peer, so it keeps the requests TrySend
+		// could not queue instead of blocking on one peer.
+		var unsent []peerRequest
+		retryTicker := time.NewTicker(sendRetryDelay)
+		defer retryTicker.Stop()
+
 		for {
 			select {
 			case <-bcR.Quit():
 				return
 			case <-bcR.pool.Quit():
 				return
-			case request := <-bcR.requestsCh:
-				peer := bcR.Switch.Peers().Get(request.PeerID)
-				if peer == nil {
-					continue
+			case req := <-bcR.requestsCh:
+				request := peerRequest{req, bcR.Switch.Peers().Get(req.PeerID)}
+				if !bcR.trySendRequest(request) {
+					unsent = append(unsent, request)
 				}
-				msgBytes := amino.MustMarshalAny(&bcBlockRequestMessage{request.Height})
-				queued := peer.TrySend(BlockchainChannel, msgBytes)
-				if !queued {
-					bcR.Logger.Debug("Send queue is full, drop block request", "peer", peer.ID(), "height", request.Height)
+			case <-retryTicker.C:
+				kept := unsent[:0]
+				for _, request := range unsent {
+					if !bcR.trySendRequest(request) {
+						kept = append(kept, request)
+					}
 				}
+				unsent = kept
 			case err := <-bcR.errorsCh:
 				peer := bcR.Switch.Peers().Get(err.peerID)
 				if peer != nil {
@@ -393,6 +504,9 @@ FOR_LOOP:
 			// currently necessary.
 			err := state.Validators.VerifyCommit(
 				chainID, firstID, first.Height, second.LastCommit)
+			if err == nil {
+				err = first.ValidateBasic()
+			}
 			if err != nil {
 				bcR.Logger.Error("Error in validation", "err", err)
 				peerID := bcR.pool.RedoRequest(first.Height)
@@ -514,7 +628,8 @@ type bcBlockResponseMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *bcBlockResponseMessage) ValidateBasic() error {
-	return m.Block.ValidateBasic()
+	// The body is hashed only once a commit has signed the header, in poolRoutine.
+	return m.Block.ValidateHeaderBasic()
 }
 
 func (m *bcBlockResponseMessage) String() string {

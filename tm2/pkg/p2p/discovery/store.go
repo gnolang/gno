@@ -17,10 +17,27 @@ import (
 // defaultMaxPeers is the default maximum number of peers kept in the address book.
 const defaultMaxPeers = 1000
 
+// connectedExpiry is how long a connection keeps an address ahead of shared
+// ones after the node last held it.
+const connectedExpiry = 24 * time.Hour
+
 // knownAddress wraps a peer address with metadata used for eviction.
 type knownAddress struct {
 	Addr     *types.NetAddress
-	LastSeen time.Time
+	LastSeen time.Time // when a peer last shared the address
+
+	// LastConnected is when the node last held a connection it dialed to the
+	// address, zero if it never has
+	LastConnected time.Time
+
+	// queued is when MarkConnected last asked for this mark to be saved
+	queued time.Time
+}
+
+// connected reports whether the node held a connection it dialed to the
+// address within connectedExpiry of now.
+func (ka *knownAddress) connected(now time.Time) bool {
+	return now.Sub(ka.LastConnected) < connectedExpiry
 }
 
 // storeJSON is the on-disk representation of the peer store.
@@ -29,8 +46,9 @@ type storeJSON struct {
 }
 
 type storeEntry struct {
-	Addr     string `json:"addr"`
-	LastSeen int64  `json:"last_seen"`
+	Addr          string `json:"addr"`
+	LastSeen      int64  `json:"last_seen"`
+	LastConnected int64  `json:"last_connected,omitempty"`
 }
 
 // StoreOption configures the peer Store.
@@ -46,7 +64,7 @@ func WithLogger(logger *slog.Logger) StoreOption {
 }
 
 // WithMaxPeers sets the maximum number of peers the store keeps.
-// When the limit is reached, the oldest entries are evicted.
+// When the limit is reached, entries are evicted, see evict.
 func WithMaxPeers(maxPeers int) StoreOption {
 	return func(s *Store) {
 		if maxPeers > 0 {
@@ -96,7 +114,7 @@ func NewStore(filePath string, self types.NetAddress, opts ...StoreOption) (*Sto
 
 // AddPeers adds the given peer addresses to the store.
 // The node's own address is ignored, as are nil entries.
-// When the store exceeds its capacity, the oldest entries are evicted.
+// When the store exceeds its capacity, entries are evicted, see evict.
 func (s *Store) AddPeers(addrs ...*types.NetAddress) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -107,15 +125,45 @@ func (s *Store) AddPeers(addrs ...*types.NetAddress) {
 		}
 
 		key := addr.String()
-		if _, exists := s.peers[key]; !exists {
-			s.dirty = true
-			s.generation++
+		if ka, exists := s.peers[key]; exists {
+			ka.LastSeen = time.Now()
+
+			continue
 		}
+
+		s.dirty = true
+		s.generation++
 
 		s.peers[key] = &knownAddress{Addr: addr, LastSeen: time.Now()}
 	}
 
 	s.evict()
+}
+
+// MarkConnected records that the node holds a connection it dialed to the given
+// address. An address the store does not hold is ignored.
+func (s *Store) MarkConnected(addr *types.NetAddress) {
+	if addr == nil {
+		return
+	}
+
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	ka, exists := s.peers[addr.String()]
+	if !exists {
+		return
+	}
+
+	ka.LastConnected = time.Now()
+
+	// Save a new mark, or one half the expiry newer than the last one queued
+	// for saving, rather than every renewal
+	if ka.LastConnected.Sub(ka.queued) >= connectedExpiry/2 {
+		ka.queued = ka.LastConnected
+		s.dirty = true
+		s.generation++
+	}
 }
 
 // GetPeers returns all stored peer addresses.
@@ -155,10 +203,16 @@ func (s *Store) Save() error {
 
 	entries := make([]storeEntry, 0, len(s.peers))
 	for _, ka := range s.peers {
-		entries = append(entries, storeEntry{
+		entry := storeEntry{
 			Addr:     ka.Addr.String(),
 			LastSeen: ka.LastSeen.Unix(),
-		})
+		}
+
+		if !ka.LastConnected.IsZero() {
+			entry.LastConnected = ka.LastConnected.Unix()
+		}
+
+		entries = append(entries, entry)
 	}
 	s.mtx.Unlock()
 
@@ -191,7 +245,10 @@ func (s *Store) Flush() error {
 	return s.Save()
 }
 
-// evict removes the oldest entries until the store fits within maxPeers.
+// evict removes entries until the store fits within maxPeers. Addresses the
+// node has not held a connection to within connectedExpiry go first, those
+// shared longest ago leading, then the ones it held longest ago. So an address
+// a peer only shares never displaces one the node held within connectedExpiry.
 // Caller must hold the mutex.
 func (s *Store) evict() {
 	if len(s.peers) <= s.maxPeers {
@@ -203,9 +260,21 @@ func (s *Store) evict() {
 		entries = append(entries, ka)
 	}
 
-	// Sort oldest first.
+	// Sort in eviction order
+	now := time.Now()
 	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].LastSeen.Before(entries[j].LastSeen)
+		a, b := entries[i], entries[j]
+		aConnected, bConnected := a.connected(now), b.connected(now)
+
+		if aConnected != bConnected {
+			return !aConnected
+		}
+
+		if !aConnected {
+			return a.LastSeen.Before(b.LastSeen)
+		}
+
+		return a.LastConnected.Before(b.LastConnected)
 	})
 
 	toRemove := len(s.peers) - s.maxPeers
@@ -264,10 +333,16 @@ func (s *Store) load() error {
 			lastSeen = now
 		}
 
-		s.peers[addr.String()] = &knownAddress{
+		ka := &knownAddress{
 			Addr:     addr,
 			LastSeen: lastSeen,
 		}
+
+		if entry.LastConnected != 0 {
+			ka.LastConnected = time.Unix(entry.LastConnected, 0)
+		}
+
+		s.peers[addr.String()] = ka
 	}
 
 	return nil

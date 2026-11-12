@@ -360,6 +360,68 @@ func TestVmHandlerQuery_File(t *testing.T) {
 	}
 }
 
+func TestVmHandlerQuery_OutputLimit(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins("1000000000ugnot"))
+
+	// Render answers the limit plus the length of its path. A 1 MiB function
+	// name makes big.gno, its qfuncs and its qdoc exceed the limit.
+	const pkgPath = "gno.land/r/big"
+	files := []*std.MemFile{
+		{Name: "README.md", Body: strings.Repeat("r", maxQueryOutputBytes)},
+		{Name: "big.gno", Body: `package big
+
+import "strings"
+
+func Render(path string) string {
+	return strings.Repeat("a", ` + fmt.Sprint(maxQueryOutputBytes) + `+len(path))
+}
+
+func F` + strings.Repeat("f", maxQueryOutputBytes) + `() {}
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	msg.MaxDeposit = std.MustParseCoins("1000000000ugnot")
+	require.NoError(t, env.vmk.AddPackage(ctx, msg))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	tt := []struct {
+		path, data string
+		refused    bool
+	}{
+		{"vm/qrender", pkgPath + ":", false},
+		{"vm/qrender", pkgPath + ":over", true},
+		{"vm/qfile", pkgPath + "/README.md", false},
+		{"vm/qfile", pkgPath + "/big.gno", true},
+		{"vm/qfuncs", pkgPath, true},
+		{"vm/qdoc", pkgPath, true},
+		// The value is 1,000,000 bytes and renders as 4,000,011.
+		{"vm/qeval", pkgPath + ".string(make([]byte, 1000000))", true},
+		// The same value answers 6,000,107 bytes of JSON.
+		{"vm/qeval_json", pkgPath + ".string(make([]byte, 1000000))", true},
+	}
+	for _, tc := range tt {
+		t.Run(tc.path+" "+tc.data[len(pkgPath):], func(t *testing.T) {
+			res := env.vmh.Query(env.ctx, abci.RequestQuery{Path: tc.path, Data: []byte(tc.data)})
+			if !tc.refused {
+				require.True(t, res.IsOK(), "should not have error: %v", res.Error)
+				assert.Len(t, res.Data, maxQueryOutputBytes)
+				return
+			}
+			require.False(t, res.IsOK(), "should have an error")
+			assert.ErrorIs(t, res.Error, ExportSizeExceededError{})
+			assert.Contains(t, res.Log, fmt.Sprintf("exceeds %d bytes", maxQueryOutputBytes))
+			assert.Empty(t, res.Data)
+		})
+	}
+}
+
 func TestVmHandlerQuery_EvalJSON(t *testing.T) {
 	tt := []struct {
 		input              []byte

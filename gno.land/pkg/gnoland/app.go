@@ -1268,6 +1268,19 @@ func EndBlocker(
 			}
 		}
 
+		// ApplyBlock enforces the same bounds after this block is stored, so
+		// running the apply call here whole-rejects what consensus would refuse.
+		if liveSet, ok := liveValset(currentSet); ok {
+			if err := bft.NewValidatorSetFromABCIValidatorUpdates(liveSet).UpdateWithABCIValidatorUpdates(diff); err != nil {
+				app.Logger().Error(
+					"valset proposal would fail consensus apply; rejecting whole proposal",
+					"err", err,
+				)
+				prmk.SetBool(ctx, valsetDirtyPath, false)
+				return abci.ResponseEndBlock{}
+			}
+		}
+
 		app.Logger().Info("valset changes to be applied", "count", len(diff))
 
 		// Whole-apply: advance valset:current = proposed (no filter losses
@@ -1287,6 +1300,35 @@ func EndBlocker(
 			ValidatorUpdates: diff,
 		}
 	}
+}
+
+// liveValset returns the validators valset:current holds, and false when an
+// address repeats: storing sorts the entries, so which one applied is lost.
+func liveValset(current abci.ValidatorUpdates) (abci.ValidatorUpdates, bool) {
+	seen := make(map[string]bool, len(current))
+	live := make(abci.ValidatorUpdates, 0, len(current))
+	var total int64
+	for _, u := range current {
+		addr := u.Address.String()
+		if seen[addr] {
+			return nil, false
+		}
+		seen[addr] = true
+		if u.Power == 0 {
+			continue
+		}
+		// The set constructor panics on a power or total above the cap; report
+		// that as corruption.
+		if u.Power > bft.MaxTotalVotingPower {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): power %d for %s exceeds %d", u.Power, u.Address, bft.MaxTotalVotingPower))
+		}
+		total += u.Power
+		if total > bft.MaxTotalVotingPower {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): total voting power exceeds %d", bft.MaxTotalVotingPower))
+		}
+		live = append(live, u)
+	}
+	return live, true
 }
 
 // txCodeMsgSigners collects the signers of tx's code-bearing messages, split by
