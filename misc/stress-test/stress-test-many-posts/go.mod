@@ -33,7 +33,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/emicklei/dot v1.11.0 // indirect
 	github.com/erigontech/mdbx-go v0.40.1 // indirect
 	github.com/getsentry/sentry-go v0.35.0 // indirect
 	github.com/gnolang/gno v0.1.2-0.20240826090356-651f5aac3706 // indirect

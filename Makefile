@@ -94,7 +94,7 @@ fix:
 	@# The misc/ entries must track the ci-dir-misc.yml matrix, which lints
 	@# each of them as its own module, plus gnoe2e, which CI lints from its own
 	@# workflow rather than that matrix. Only those with their own go.mod need
-	@# listing -- genproto, genstd and goscan have none, so the root `go fix
+	@# listing -- genstd and goscan have none, so the root `go fix
 	@# ./...` above already covers them. audit-pattern-harness was linted by CI
 	@# and missing here, so its CI failure told the reader to run a target that
 	@# could not fix it.

@@ -28,7 +28,7 @@ FUZZTIME ?= 1h
 
 # Run both fuzzers concurrently for FUZZTIME total:
 #   - Property fuzz: TestCodec{Struct,Def,AminoTags} with gofuzz-generated values,
-#     asserting amino-reflect / pbbindings / genproto2 byte parity and roundtrip.
+#     asserting amino-reflect / genproto2 byte parity and roundtrip.
 #   - Coverage fuzz: FuzzUnmarshalBinary2 with random bytes, asserting no panics.
 # Usage: make fuzz [FUZZTIME=30m]
 #        make fuzz FUZZTIME=0    # run forever (Ctrl-C to stop)

@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	r "github.com/gnolang/gno/tm2/pkg/regx"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -1993,25 +1992,6 @@ func (dt *DeclaredType) TypeID() TypeID {
 	return dt.typeid
 }
 
-var (
-	Re_declaredTypeID = r.G(
-		r.N("PATH", r.P(r.CN(r.E(`[.`)))),
-		r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
-		r.E(`.`),
-		r.N("NAME", r.P(`.`)))
-
-	// Compile at init to avoid runtime compilation.
-	ReDeclaredTypeID = Re_declaredTypeID.Compile()
-)
-
-func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
-	match := ReDeclaredTypeID.Match(tid)
-	if match == nil {
-		return
-	}
-	return match.Get("PATH"), match.Get("LOC"), match.Get("NAME"), true
-}
-
 func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
 	if loc.IsZero() { // package/file decl
 		return typeidf("%s.%s", pkgPath, name)
@@ -2403,85 +2383,6 @@ const (
 	TupleKind    // not in go.
 	RefTypeKind  // not in go.
 )
-
-// This is generally slower than switching on baseOf(t).
-func KindOf(t Type) Kind {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
-		case InvalidType:
-			panic("invalid type has no kind")
-		case BoolType, UntypedBoolType:
-			return BoolKind
-		case StringType, UntypedStringType:
-			return StringKind
-		case IntType:
-			return IntKind
-		case Int8Type:
-			return Int8Kind
-		case Int16Type:
-			return Int16Kind
-		case Int32Type, UntypedRuneType:
-			return Int32Kind
-		case Int64Type:
-			return Int64Kind
-		case UintType:
-			return UintKind
-		case Uint8Type, DataByteType:
-			return Uint8Kind
-		case Uint16Type:
-			return Uint16Kind
-		case Uint32Type:
-			return Uint32Kind
-		case Uint64Type:
-			return Uint64Kind
-		case Float32Type:
-			return Float32Kind
-		case Float64Type:
-			return Float64Kind
-		case UntypedBigintType:
-			return BigintKind
-		case UntypedBigdecType:
-			return BigdecKind
-		default:
-			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
-		}
-	case *DeclaredType:
-		panic("unexpected nested DeclaredType")
-	case FieldType:
-		panic("FieldType is a pseudotype")
-	case *ArrayType:
-		return ArrayKind
-	case *SliceType:
-		return SliceKind
-	case *PointerType:
-		return PointerKind
-	case *StructType:
-		return StructKind
-	case *PackageType:
-		return PackageKind
-	case *InterfaceType:
-		return InterfaceKind
-	case *ChanType:
-		return ChanKind
-	case *FuncType:
-		return FuncKind
-	case *MapType:
-		return MapKind
-	case *TypeType:
-		return TypeKind
-	case blockType:
-		return BlockKind
-	case heapItemType:
-		return HeapItemKind
-	case *tupleType:
-		return TupleKind
-	case RefType:
-		return RefTypeKind
-	default:
-		panic(fmt.Sprintf("unexpected type %#v", t))
-	}
-}
 
 // ----------------------------------------
 // main type-assertion functions.

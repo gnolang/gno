@@ -573,38 +573,6 @@ func OnDisconnect(onDisconnect func(remoteAddr string)) func(*wsConnection) {
 	}
 }
 
-// WriteWait sets the amount of time to wait before a websocket write times out.
-// It should only be used in the constructor - not Goroutine-safe.
-func WriteWait(writeWait time.Duration) func(*wsConnection) {
-	return func(wsc *wsConnection) {
-		wsc.writeWait = writeWait
-	}
-}
-
-// WriteChanCapacity sets the capacity of the websocket write channel.
-// It should only be used in the constructor - not Goroutine-safe.
-func WriteChanCapacity(capacity int) func(*wsConnection) {
-	return func(wsc *wsConnection) {
-		wsc.writeChanCapacity = capacity
-	}
-}
-
-// ReadWait sets the amount of time to wait before a websocket read times out.
-// It should only be used in the constructor - not Goroutine-safe.
-func ReadWait(readWait time.Duration) func(*wsConnection) {
-	return func(wsc *wsConnection) {
-		wsc.readWait = readWait
-	}
-}
-
-// PingPeriod sets the duration for sending websocket pings.
-// It should only be used in the constructor - not Goroutine-safe.
-func PingPeriod(pingPeriod time.Duration) func(*wsConnection) {
-	return func(wsc *wsConnection) {
-		wsc.pingPeriod = pingPeriod
-	}
-}
-
 // ReadLimit sets the maximum size for reading message.
 // It should only be used in the constructor - not Goroutine-safe.
 func ReadLimit(readLimit int64) func(*wsConnection) {

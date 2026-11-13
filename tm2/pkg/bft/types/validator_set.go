@@ -767,11 +767,6 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 // -----------------
 // ErrTooMuchChange
 
-func IsErrTooMuchChange(err error) bool {
-	_, ok := errors.Cause(err).(tooMuchChangeError)
-	return ok
-}
-
 type tooMuchChangeError struct {
 	got    int64
 	needed int64

@@ -175,14 +175,6 @@ func (f *deprecatedModFile) add(errs *modfile.ErrorList, block *modfile.LineBloc
 	}
 }
 
-// Validate validates gno.mod
-func (f *deprecatedModFile) Validate() error {
-	if f.Module == nil {
-		return errors.New("requires module")
-	}
-	return nil
-}
-
 // An input represents a single input file being parsed.
 type input struct {
 	// Lexing state.
