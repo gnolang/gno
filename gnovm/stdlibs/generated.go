@@ -11,6 +11,7 @@ import (
 	libs_chain_banker "github.com/gnolang/gno/gnovm/stdlibs/chain/banker"
 	libs_chain_markdown "github.com/gnolang/gno/gnovm/stdlibs/chain/markdown"
 	libs_chain_params "github.com/gnolang/gno/gnovm/stdlibs/chain/params"
+	libs_chain_reflect "github.com/gnolang/gno/gnovm/stdlibs/chain/reflect"
 	libs_chain_runtime "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime"
 	libs_chain_runtime_unsafe "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
 	libs_crypto_bn254 "github.com/gnolang/gno/gnovm/stdlibs/crypto/bn254"
@@ -168,6 +169,44 @@ var nativeFuncs = [...]NativeFunc{
 			libs_chain.X_emit(
 				m,
 				p0, p1)
+		},
+	},
+	{
+		"chain/banker",
+		"objectBankerAddress",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("string")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  string
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+
+			r0 := libs_chain_banker.X_objectBankerAddress(
+				m,
+				p0, p1)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
 		},
 	},
 	{
@@ -1199,6 +1238,55 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"chain/reflect",
+		"objectInfo",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r1"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r2"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("r3"), Type: gno.X("bool")},
+			{NameExpr: *gno.Nx("r4"), Type: gno.X("bool")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var p0 any = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0, r1, r2, r3, r4 := libs_chain_reflect.X_objectInfo(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r2).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r3).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r4).Elem(),
 			))
 		},
 	},
@@ -2633,6 +2721,7 @@ var initOrder = [...]string{
 	"math",
 	"strconv",
 	"chain",
+	"chain/reflect",
 	"chain/banker",
 	"chain/markdown",
 	"chain/params",

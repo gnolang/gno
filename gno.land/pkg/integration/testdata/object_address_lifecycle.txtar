@@ -1,0 +1,153 @@
+# Lifecycle of an object address, across transactions, with real ugnot.
+#
+# 6214 gave an object an address and left three questions open: what the
+# address means when the object is deleted, when the realm is upgraded, and
+# when it stops being reachable. This pins the answers that are observable
+# from outside the VM.
+#
+#   1. The address is minted from {PkgID, NewTime}. NewTime comes from
+#      Realm.Time, which assignNewObjectID only ever increments and which
+#      deletion does not touch, so a tick is never handed out twice and an
+#      address is never reassigned to a second object.
+#   2. Deleting the object does not delete the address. The balance stays
+#      where it is, and the owning realm can still move it, because
+#      NewObjectBanker reads a reflect.Object snapshot and never the object.
+#   3. Which makes the snapshot the thing that matters: a realm that funds an
+#      object and keeps no reflect.Object for it has stranded the balance.
+#      That obligation is the realm's, and it is stated in the ADR.
+
+loadpkg gno.land/r/test/objvault $WORK/objvault
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# tx1: vault 0 was created by init, so it is stamped by now and has an
+# address. Send 700000ugnot to the realm and have it forward the envelope to
+# that address.
+gnokey maketx call -pkgpath gno.land/r/test/objvault -func Fund -args 0 -args 700000 -send 700000ugnot -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test user1
+stdout OK!
+
+# The coins are on the object, not on the realm.
+gnokey query vm/qeval --data "gno.land/r/test/objvault.Balance(0)"
+stdout '\(700000 int64\)'
+
+# tx2: remember vault 0's identity in realm state. This is the whole
+# precaution: from here the address is reachable without the object.
+gnokey maketx call -pkgpath gno.land/r/test/objvault -func Remember -args 0 -gas-fee 1000000ugnot -gas-wanted 2500000 -chainid=tendermint_test user1
+stdout OK!
+
+# tx3: drop the vault. The realm no longer holds a reference to it, so it is
+# deleted at finalization.
+gnokey maketx call -pkgpath gno.land/r/test/objvault -func Forget -args 0 -gas-fee 1000000ugnot -gas-wanted 2500000 -chainid=tendermint_test user1
+stdout OK!
+
+# The address and its balance are untouched by the deletion.
+gnokey query vm/qeval --data "gno.land/r/test/objvault.SavedBalance()"
+stdout '\(700000 int64\)'
+
+# tx4: create a new vault, after the deletion. If the clock reused the freed
+# tick, the new object would land on the dead one's address and inherit its
+# balance.
+gnokey maketx call -pkgpath gno.land/r/test/objvault -func New -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test user1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/test/objvault.Report()"
+stdout 'reused=false sameaddr=false'
+
+# The new vault starts empty; it did not inherit anything.
+gnokey query vm/qeval --data "gno.land/r/test/objvault.Balance(1)"
+stdout '\(0 int64\)'
+
+# tx5: wind the dead object's balance down. This is the operation 6214 could
+# not express at all: there is no object left to hand to anything, only the
+# snapshot, and the snapshot is enough.
+gnokey maketx call -pkgpath gno.land/r/test/objvault -func Drain -args g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4 -gas-fee 1000000ugnot -gas-wanted 3000000 -chainid=tendermint_test user1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/test/objvault.SavedBalance()"
+stdout '\(0 int64\)'
+
+-- objvault/gnomod.toml --
+module = "gno.land/r/test/objvault"
+gno = "0.9"
+
+-- objvault/objvault.gno --
+package objvault
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/reflect"
+	"strconv"
+)
+
+type Vault struct{ n int }
+
+var (
+	vaults []*Vault
+	// saved is vault 0's identity, kept so its address survives the object.
+	saved reflect.Object
+)
+
+func init() {
+	vaults = append(vaults, &Vault{0})
+}
+
+func objOf(v *Vault) reflect.Object {
+	o, ok := reflect.Of(v)
+	if !ok {
+		panic("vault has no identity yet")
+	}
+	return o
+}
+
+// New appends a vault. Its address exists from the next transaction on.
+func New(cur realm) {
+	vaults = append(vaults, &Vault{len(vaults)})
+}
+
+// Fund forwards this message's send-envelope to vault n's address. The
+// envelope is credited to the realm, and the realm hands it straight to the
+// object: an object address is an ordinary recipient.
+func Fund(cur realm, n int, amount int64) {
+	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
+	b.SendCoins(cur.Address(), objOf(vaults[n]).Address(), chain.Coins{{"ugnot", amount}})
+}
+
+// Remember stores vault n's identity.
+func Remember(cur realm, n int) {
+	saved = objOf(vaults[n])
+}
+
+// Forget drops vault n. Nothing references the object afterwards, so it is
+// deleted when the realm finalizes.
+func Forget(cur realm, n int) {
+	vaults[n] = nil
+}
+
+// Drain empties the remembered address. There is no object behind it any
+// more; NewObjectBanker never needed one.
+func Drain(cur realm, to address) {
+	b := banker.NewObjectBanker(saved, cur)
+	amount := banker.NewReadonlyBanker().GetCoin(saved.Address(), "ugnot")
+	b.SendCoins(saved.Address(), to, chain.Coins{{"ugnot", amount}})
+}
+
+func Balance(n int) int64 {
+	return banker.NewReadonlyBanker().GetCoin(objOf(vaults[n]).Address(), "ugnot")
+}
+
+func SavedBalance() int64 {
+	return banker.NewReadonlyBanker().GetCoin(saved.Address(), "ugnot")
+}
+
+// Report compares the remembered identity with the newest one.
+func Report() string {
+	latest := objOf(vaults[len(vaults)-1])
+	return "saved=" + saved.ID() +
+		" latest=" + latest.ID() +
+		" reused=" + strconv.FormatBool(saved.ID() == latest.ID()) +
+		" sameaddr=" + strconv.FormatBool(saved.Address() == latest.Address())
+}

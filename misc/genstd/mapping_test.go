@@ -143,6 +143,41 @@ func Test_linkFunctions_TypedValue(t *testing.T) {
 	assert.Len(t, mappings[2].Results, 1)
 }
 
+func Test_linkFunctions_AnyParam(t *testing.T) {
+	chdir(t, "testdata/linkFunctions_AnyParam")
+
+	pkgs, err := walkStdlibs(".")
+	require.NoError(t, err)
+
+	mappings := linkFunctions(pkgs)
+	require.Len(t, mappings, 3)
+
+	// any on both sides: linked, unconverted, and boxed in the go any, so the
+	// transpiled direct call X_f(nil, v) type-checks. See reflect.X_objectInfo.
+	assert.Equal(t, "AnyParam", mappings[0].GnoFunc)
+	assert.False(t, mappings[0].MachineParam)
+	_ = assert.Len(t, mappings[0].Params, 1) &&
+		assert.True(t, mappings[0].Params[0].IsTypedValue) &&
+		assert.True(t, mappings[0].Params[0].BoxedTypedValue) &&
+		assert.Equal(t, `gno.X("any")`, mappings[0].Params[0].GnoTypeExpression())
+
+	// interface{} spells the same type.
+	assert.Equal(t, "AnyParamIface", mappings[1].GnoFunc)
+	_ = assert.Len(t, mappings[1].Params, 1) &&
+		assert.True(t, mappings[1].Params[0].IsTypedValue) &&
+		assert.True(t, mappings[1].Params[0].BoxedTypedValue) &&
+		assert.Equal(t, `gno.AnyT()`, mappings[1].Params[0].GnoTypeExpression())
+
+	// an any parameter next to an ordinary one: only the any is boxed.
+	assert.Equal(t, "MixedParams", mappings[2].GnoFunc)
+	assert.True(t, mappings[2].MachineParam)
+	_ = assert.Len(t, mappings[2].Params, 2) &&
+		assert.False(t, mappings[2].Params[0].IsTypedValue) &&
+		assert.False(t, mappings[2].Params[0].BoxedTypedValue) &&
+		assert.True(t, mappings[2].Params[1].IsTypedValue) &&
+		assert.True(t, mappings[2].Params[1].BoxedTypedValue)
+}
+
 func Test_linkFunctions_noMatch(t *testing.T) {
 	chdir(t, "testdata/linkFunctions_noMatch")
 
