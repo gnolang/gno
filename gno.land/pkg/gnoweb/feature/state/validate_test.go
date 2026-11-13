@@ -12,7 +12,7 @@ func TestValidateOID(t *testing.T) {
 }
 
 func TestValidateTID(t *testing.T) {
-	// A Gno TypeID is a human-readable string, not a hash — getTypeID
+	// A Gno TypeID is a human-readable string, not a hash — utils.GetTypeIDQueryString
 	// emits these into Inspect links, so each must be accepted.
 	good := []string{
 		"gno.land/r/demo/stateshowcase.User",

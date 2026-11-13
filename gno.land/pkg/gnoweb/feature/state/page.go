@@ -11,6 +11,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm/utils"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"golang.org/x/sync/errgroup"
 )
@@ -118,11 +119,11 @@ func (h *Handler) servePackagePage(ctx context.Context, w http.ResponseWriter, r
 		if offset >= setTotal {
 			offset = 0
 		}
-		start, end := clampSliceWindow(offset, pageLimit, setTotal)
+		start, end := utils.ClampSliceWindow(offset, pageLimit, setTotal)
 		indices = matches[start:end]
 	} else {
 		setTotal = realmTotal
-		start, end := clampSliceWindow(offset, pageLimit, realmTotal)
+		start, end := utils.ClampSliceWindow(offset, pageLimit, realmTotal)
 		indices = make([]int, 0, end-start)
 		for i := start; i < end; i++ {
 			indices = append(indices, i)

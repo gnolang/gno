@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"html/template"
-	"math"
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm/utils"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
@@ -118,16 +118,6 @@ type SourceLocation struct {
 
 // ---- Public entry points ----
 
-type pkgResponse struct {
-	Names  []string         `json:"names"`
-	Values []gno.TypedValue `json:"values"`
-}
-
-type objectResponse struct {
-	ObjectID string    `json:"objectid"`
-	Value    gno.Value `json:"value"`
-}
-
 // decodeValueChildrenTyped is decodeValueChildren plus an outer Type
 // used to resolve struct field names; originalTid is forwarded into
 // nested ref nodes so subsequent fetch rounds still resolve names. cfg
@@ -156,7 +146,7 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string, cfg R
 
 	// Direct StructValue under a known StructType: label fields directly.
 	if sv, ok := v.(*gno.StructValue); ok {
-		bt := baseType(t)
+		bt := gno.BaseOf(t)
 		if st, ok := bt.(*gno.StructType); ok {
 			total := len(sv.Fields)
 			shown := min(total, childCap)
@@ -211,7 +201,7 @@ func peekTopLevelKind(tv gno.TypedValue) (kind, typeLabel string) {
 	if tv.T == nil {
 		return KindNil, "<nil>"
 	}
-	bt := baseType(tv.T)
+	bt := gno.BaseOf(tv.T)
 	if _, isFunc := bt.(*gno.FuncType); isFunc {
 		if _, ok := tv.V.(gno.RefValue); ok {
 			return KindFunc, funcSignature(tv.T)
@@ -236,26 +226,6 @@ func truncatedChildrenNode(remaining int) StateNode {
 	}
 }
 
-// clampSliceWindow returns a safe [offset:end] window into a backing list of
-// the given length, guarding against chain-supplied negative or out-of-range
-// Offset/Length and against offset+length overflow.
-func clampSliceWindow(offset, length, listLen int) (int, int) {
-	if offset < 0 {
-		offset = 0
-	}
-	if offset > listLen {
-		offset = listLen
-	}
-	if length < 0 {
-		length = 0
-	}
-	end := offset + length
-	if end < offset || end > listLen { // overflow or past end
-		end = listLen
-	}
-	return offset, end
-}
-
 func decodeTypedValue(name string, tv gno.TypedValue) StateNode {
 	return decodeTypedValueAt(0, name, tv)
 }
@@ -273,7 +243,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 			}
 			return StateNode{
 				Name: name, Type: t, Kind: KindRef,
-				Expandable: true, ObjectID: rv.ObjectID.String(), TypeID: getTypeID(tv.T),
+				Expandable: true, ObjectID: rv.ObjectID.String(), TypeID: utils.GetTypeIDQueryString(tv.T),
 			}
 		}
 		return tooDeepNode(name)
@@ -284,8 +254,8 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 
 	tName := typeName(tv.T)
 	kind := typeKind(tv.T)
-	bt := baseType(tv.T)
-	typeID := getTypeID(tv.T)
+	bt := gno.BaseOf(tv.T)
+	typeID := utils.GetTypeIDQueryString(tv.T)
 
 	// FuncType stored as RefValue → expandable to fetch source on detail page.
 	if _, isFunc := bt.(*gno.FuncType); isFunc {
@@ -422,7 +392,7 @@ func decodeValueChildren(cfg RenderConfig, v gno.Value) []StateNode {
 		// the visible window as elements. If the array is itself a stored
 		// ref, expose a single ref node so the user can navigate.
 		if av, ok := cv.Base.(*gno.ArrayValue); ok && av.Data == nil {
-			offset, end := clampSliceWindow(cv.Offset, cv.Length, len(av.List))
+			offset, end := utils.ClampSliceWindow(cv.Offset, cv.Length, len(av.List))
 			window := av.List[offset:end]
 			total := len(window)
 			shown := min(total, childCap)
@@ -551,7 +521,7 @@ func decodePrimitive(name, tName string, pt gno.PrimitiveType, tv gno.TypedValue
 	if tv.V == nil && tv.N == [8]byte{} {
 		return StateNode{Name: name, Type: tName, Kind: KindPrimitive, Value: zeroValueFor(pt)}
 	}
-	return StateNode{Name: name, Type: tName, Kind: KindPrimitive, Value: primitiveDisplay(pt, tv)}
+	return StateNode{Name: name, Type: tName, Kind: KindPrimitive, Value: utils.PrimitiveString(pt, tv)}
 }
 
 func decodeStruct(depth int, name, tName, typeID string, bt gno.Type, sv *gno.StructValue) StateNode {
@@ -627,7 +597,7 @@ func decodeSlice(depth int, name, tName string, sv *gno.SliceValue) StateNode {
 				Length: intPtr(length),
 			}
 		}
-		offset, end := clampSliceWindow(sv.Offset, length, len(av.List))
+		offset, end := utils.ClampSliceWindow(sv.Offset, length, len(av.List))
 		window := av.List[offset:end]
 		total := len(window)
 		shown := min(total, maxChildrenPerNode)
@@ -746,7 +716,7 @@ func typeName(t gno.Type) string {
 	}
 	switch tt := t.(type) {
 	case gno.PrimitiveType:
-		return primitiveTypeName(tt)
+		return utils.PrimitiveTypeName(tt)
 	case *gno.PointerType:
 		return "*" + typeName(tt.Elt)
 	case *gno.ArrayType:
@@ -818,14 +788,6 @@ func typeKind(t gno.Type) string {
 	return "unknown"
 }
 
-// baseType unwraps DeclaredType to its underlying base type.
-func baseType(t gno.Type) gno.Type {
-	if dt, ok := t.(*gno.DeclaredType); ok {
-		return dt.Base
-	}
-	return t
-}
-
 // structFieldNames returns field names for a StructType (unwrapping DeclaredType).
 func structFieldNames(t gno.Type) []string {
 	switch tt := t.(type) {
@@ -839,28 +801,6 @@ func structFieldNames(t gno.Type) []string {
 		return structFieldNames(tt.Base)
 	}
 	return nil
-}
-
-// getTypeID returns a TypeID for qtype_json lookup, drilling through
-// PointerType so `*foo.Bar` resolves to Bar's TypeID.
-func getTypeID(t gno.Type) string {
-	if t == nil {
-		return ""
-	}
-	switch tt := t.(type) {
-	case gno.RefType:
-		return tt.ID.String()
-	case *gno.DeclaredType:
-		// Mirror DeclaredTypeID: package/file decls are PkgPath.Name;
-		// non-package-level decls disambiguate with [ParentLoc].
-		if tt.ParentLoc.IsZero() {
-			return tt.PkgPath + "." + string(tt.Name)
-		}
-		return tt.PkgPath + "[" + tt.ParentLoc.String() + "]." + string(tt.Name)
-	case *gno.PointerType:
-		return getTypeID(tt.Elt)
-	}
-	return ""
 }
 
 // realmTypeID is the uverse realm type's TypeID, carried by the implicit
@@ -940,85 +880,6 @@ func extractFuncSource(fv *gno.FuncValue) *SourceLocation {
 
 // ---- Primitive display ----
 
-func primitiveTypeName(pt gno.PrimitiveType) string {
-	switch pt {
-	case gno.BoolType:
-		return "bool"
-	case gno.UntypedBoolType:
-		return "untyped bool"
-	case gno.StringType:
-		return "string"
-	case gno.UntypedStringType:
-		return "untyped string"
-	case gno.IntType:
-		return "int"
-	case gno.Int8Type:
-		return "int8"
-	case gno.Int16Type:
-		return "int16"
-	case gno.Int32Type:
-		return "int32"
-	case gno.Int64Type:
-		return "int64"
-	case gno.UintType:
-		return "uint"
-	case gno.Uint8Type:
-		return "uint8"
-	case gno.Uint16Type:
-		return "uint16"
-	case gno.Uint32Type:
-		return "uint32"
-	case gno.Uint64Type:
-		return "uint64"
-	case gno.Float32Type:
-		return "float32"
-	case gno.Float64Type:
-		return "float64"
-	case gno.UntypedRuneType:
-		return "rune"
-	case gno.UntypedBigintType:
-		return "untyped bigint"
-	case gno.UntypedBigdecType:
-		return "untyped bigdec"
-	case gno.DataByteType:
-		return "databyte"
-	}
-	return fmt.Sprintf("prim(%d)", pt)
-}
-
-func primitiveDisplay(pt gno.PrimitiveType, tv gno.TypedValue) string {
-	switch pt {
-	case gno.BoolType, gno.UntypedBoolType:
-		if tv.GetBool() {
-			return "true"
-		}
-		return "false"
-	case gno.IntType:
-		return strconv.FormatInt(tv.GetInt(), 10)
-	case gno.Int8Type:
-		return strconv.FormatInt(int64(tv.GetInt8()), 10)
-	case gno.Int16Type:
-		return strconv.FormatInt(int64(tv.GetInt16()), 10)
-	case gno.Int32Type, gno.UntypedRuneType:
-		return strconv.FormatInt(int64(tv.GetInt32()), 10)
-	case gno.Int64Type:
-		return strconv.FormatInt(tv.GetInt64(), 10)
-	case gno.UintType, gno.Uint64Type:
-		return strconv.FormatUint(tv.GetUint64(), 10)
-	case gno.Uint8Type, gno.DataByteType:
-		return strconv.FormatUint(uint64(tv.GetUint8()), 10)
-	case gno.Uint16Type:
-		return strconv.FormatUint(uint64(tv.GetUint16()), 10)
-	case gno.Uint32Type:
-		return strconv.FormatUint(uint64(tv.GetUint32()), 10)
-	case gno.Float32Type:
-		return strconv.FormatFloat(float64(math.Float32frombits(tv.GetFloat32())), 'g', -1, 32)
-	case gno.Float64Type:
-		return strconv.FormatFloat(math.Float64frombits(tv.GetFloat64()), 'g', -1, 64)
-	}
-	return tv.String()
-}
-
 func zeroValueFor(pt gno.PrimitiveType) string {
 	switch pt {
 	case gno.BoolType, gno.UntypedBoolType:
@@ -1081,7 +942,7 @@ func previewTypedValue(tv gno.TypedValue) string {
 	if tv.T == nil {
 		return "nil"
 	}
-	bt := baseType(tv.T)
+	bt := gno.BaseOf(tv.T)
 	if pt, ok := bt.(gno.PrimitiveType); ok {
 		if pt == gno.StringType || pt == gno.UntypedStringType {
 			s := tv.GetString()
@@ -1090,7 +951,7 @@ func previewTypedValue(tv gno.TypedValue) string {
 			}
 			return strconv.Quote(s)
 		}
-		return primitiveDisplay(pt, tv)
+		return utils.PrimitiveString(pt, tv)
 	}
 	return typeName(tv.T)
 }
@@ -1166,7 +1027,7 @@ func objectInfoOf(v gno.Value) StateObjectInfoView {
 func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *DecodedObject, err error) {
 	defer recoverToErr(nil, "decode object JSON", &err)
 
-	var resp objectResponse
+	var resp utils.ObjectResponse
 	if cerr := amino.UnmarshalJSON(rawObject, &resp); cerr != nil {
 		return nil, fmt.Errorf("decode object JSON: %w", cerr)
 	}
@@ -1177,10 +1038,7 @@ func DecodeObjectFull(rawObject, rawType []byte, cfg RenderConfig) (decoded *Dec
 	if len(rawType) == 0 {
 		nodes = decodeValueChildren(cfg, resp.Value)
 	} else {
-		var typeResp struct {
-			TypeID string   `json:"typeid"`
-			Type   gno.Type `json:"type"`
-		}
+		var typeResp utils.TypeResponse
 		if cerr := amino.UnmarshalJSON(rawType, &typeResp); cerr != nil || typeResp.Type == nil {
 			nodes = decodeValueChildren(cfg, resp.Value)
 		} else {
