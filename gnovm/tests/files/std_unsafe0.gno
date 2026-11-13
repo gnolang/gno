@@ -13,8 +13,8 @@ func main() {
 	caller := unsafe.OriginCaller()
 	println("caller:", caller)
 
-	cur := unsafe.CurrentRealm()
-	println("cur:", cur.String())
+	crlm := unsafe.CurrentRealm()
+	println("cur:", crlm.String())
 
 	prev := unsafe.PreviousRealm()
 	println("prev:", prev.String())

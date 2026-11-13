@@ -31,3 +31,4 @@ Notes
 - `v1.3.0`, `v1.4.0` and `v1.5.0` were tagged after the fact, on 2026-09-22. At each halt, validators pulled the `chain-mainnet` image current at the time (`ran_as` in `upgrades.json`): the same code as the `:v1.x.0` images, reporting an unparseable version.
 - `halt_min_version` is *(not set)* for those three halts: the proposals set no floor. From `v1.7.0` on, every halt proposal names the version.
 - `v1.6.0` is tagged, but mainnet never ran it: its changes reach mainnet with `v1.7.0`.
+- The first release after `v1.7.0` that carries [#6208](https://github.com/gnolang/gno/pull/6208) refuses deploys that bind a builtin name or `cur`, and 33 packages in this chain's history do. It replays genesis, but not the blocks that admitted them, so a node joining from genesis runs `v1.7.0` up to that release's halt height and that release from there. Fill in the version once the row exists.

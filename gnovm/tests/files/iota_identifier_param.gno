@@ -10,3 +10,6 @@ func main() {
 
 // Error:
 // main/iota_identifier_param.gno:3:1-5:2: builtin identifiers cannot be shadowed: iota
+
+// TypeCheckError:
+// main/iota_identifier_param.gno:3:8: builtin identifiers cannot be shadowed: iota

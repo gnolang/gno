@@ -179,6 +179,20 @@ type TypeCheckOptions struct {
 	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
 	// keep checking test files.
 	ProdOnly bool
+
+	// AlreadyOnChain marks source the chain has ALREADY admitted: re-read
+	// from the store (node start re-checks every stored stdlib), or replayed
+	// from genesis (every tx InitChain delivers, including the history a
+	// hardfork carries). A rule added since would refuse a package the chain
+	// has been running, and the node would not start.
+	//
+	// Rules that gate ADMISSION are therefore skipped here: they ran when the
+	// source was admitted, under whatever binary admitted it. Everything the
+	// type-checker does to decide what a package MEANS still runs.
+	//
+	// Defaults false. AddPackage, Run and EnablePackage set it from
+	// auth.IsGenesisReplay, so a live deploy is always checked.
+	AlreadyOnChain bool
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -201,6 +215,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		getter:    gimpGetterWrapper{nil, opts.Getter},
 		tgetter:   gimpGetterWrapper{mpkg, opts.TestGetter},
 		cache:     map[string]*gnoImporterResult{},
+		onChain:   opts.AlreadyOnChain,
 		permCache: opts.Cache,
 		fset:      opts.Fset,
 		cfg: &types.Config{
@@ -256,6 +271,7 @@ type gnoImporter struct {
 	getter    MemPackageGetter // used for stdlibs if !.testing, and everything else.
 	tgetter   MemPackageGetter // used for stdlibs if .testing
 	cache     map[string]*gnoImporterResult
+	onChain   bool // see TypeCheckOptions.AlreadyOnChain
 	permCache TypeCheckCache
 	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
@@ -402,24 +418,33 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 // Minimal AST mutation(s) for Go.
 // Supports init(cur realm), main(cur realm) by removing the param and
 // inserting `var cur realm; _ = cur` so go/types sees the cur variable.
-func prepareGoGno0p9(f *ast.File) (err error) {
+// synth collects the `cur` identifiers this function invents, which are
+// not source bindings and must not be judged as such (checkDeclNames).
+func prepareGoGno0p9(f *ast.File, synth map[*ast.Ident]struct{}) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
 		case *ast.FuncDecl:
 			name := gon.Name.String()
 			if gon.Recv == nil && (name == "main" || name == "init") {
-				if len(gon.Type.Params.List) == 1 { // `cur realm`
-					gon.Type.Params.List = nil
-				} else {
+				// Only the literal `cur realm` is stripped. Any other
+				// parameter stays for go/types to judge: stripped, a
+				// `func main(panic func(string))` would bind `panic` for
+				// the VM while the checker still saw the builtin.
+				if !isCurRealmParam(gon.Type.Params) {
 					return true
 				}
+				gon.Type.Params.List = nil
 				insert := gon.Type.End()
 				// var cur realm
+				curName := &ast.Ident{Name: "cur", NamePos: insert}
+				if synth != nil {
+					synth[curName] = struct{}{}
+				}
 				decl := &ast.DeclStmt{Decl: &ast.GenDecl{
 					Tok:    token.VAR,
 					TokPos: insert,
 					Specs: []ast.Spec{&ast.ValueSpec{
-						Names: []*ast.Ident{{Name: "cur", NamePos: insert}},
+						Names: []*ast.Ident{curName},
 						Type:  &ast.Ident{Name: "realm", NamePos: insert},
 					}},
 				}}
@@ -436,6 +461,21 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 		return true
 	})
 	return err
+}
+
+// isCurRealmParam reports whether params is exactly `(cur realm)`, spelled
+// as such. An alias of realm is not stripped; go/types then sees the
+// parameter and checkDeclNames judges it like any other first parameter.
+func isCurRealmParam(params *ast.FieldList) bool {
+	if params == nil || len(params.List) != 1 {
+		return false
+	}
+	p := params.List[0]
+	if len(p.Names) != 1 || p.Names[0].Name != "cur" {
+		return false
+	}
+	t, ok := p.Type.(*ast.Ident)
+	return ok && t.Name == "realm"
 }
 
 // Assumes that the code is Gno 0.9.
@@ -481,8 +521,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Prepare for Go type-checking.
+	synthetic := map[*ast.Ident]struct{}{}
 	for _, gof := range allgofs {
-		err := prepareGoGno0p9(gof)
+		err := prepareGoGno0p9(gof, synthetic)
 		if err != nil {
 			panic(fmt.Sprintf("unexpected error: %v", err))
 		}
@@ -516,11 +557,31 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+	info := &types.Info{
+		Defs: map[*ast.Ident]types.Object{},
+		// A type-switch guard declares one variable per clause, which
+		// go/types records here and not in Defs.
+		Implicits: map[ast.Node]types.Object{},
+		// `cur, x := ...` ASSIGNS cur, so it lands here, not in Defs.
+		Uses: map[*ast.Ident]types.Object{},
+	}
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
 		return
+	}
+	// Only the package being admitted: an import is already on chain, and
+	// this rule may not retroactively refuse it. Nor may it refuse source
+	// the store is merely handing back (AlreadyOnChain), nor a stdlib,
+	// which LoadStdlib type-checks without admitting anything. By type,
+	// since IsStdlib(path) is also true of a filetest's `main`.
+	if mpkg.Path == gimp.pkgPath && !gimp.onChain && !mpkg.Type.(MemPackageType).IsStdlib() {
+		if err := checkDeclNames(pkg, gofset, pgofs, gmgof, info, synthetic); err != nil {
+			gimp.Error(err)
+			errs = multierr.Combine(gimp.errors[numErrs:]...)
+			return
+		}
 	}
 	if wtests != nil && !*wtests {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -833,4 +894,180 @@ func importErrorString(err ImportError) string {
 	} else {
 		return msg
 	}
+}
+
+//----------------------------------------
+// Reserved declaration names.
+//
+// A binding may not shadow a builtin, and `cur` may only name a crossing
+// function's first parameter. The rule protects readers, not the VM: in
+// contract code a reviewer reads `panic`, `cross`, `len` as VM semantics,
+// and Go lets any of them be rebound.
+//
+// It lives HERE, in the deploy gate, and not in preprocess, because
+// preprocess re-runs every stored package at node boot
+// (PreprocessAllFilesAndSaveBlockNodes). A rejection added there refuses
+// source the chain already accepted, so an upgraded node fails to start on
+// a package it has been serving for months. The gate sees only source being
+// admitted: not stdlibs, not imports, not a genesis replay.
+//
+// go/types' Defs is its own record of every defining identifier, so no
+// binding form — parameter, result, receiver, range, type switch, for-init,
+// local type, closure parameter — can be missed here or added later without
+// being covered.
+
+// checkDeclNames reports the first offending binding in files, skipping the
+// synthetic .gnobuiltins file, which declares the builtins themselves.
+func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, synthetic map[*ast.Ident]struct{}) error {
+	// `realm` is an alias declared in the injected .gnobuiltins.gno;
+	// types.Identical sees through it, so an alias of the alias counts too.
+	var realmType types.Type
+	if tn, _ := pkg.Scope().Lookup("realm").(*types.TypeName); tn != nil {
+		realmType = tn.Type()
+	}
+	var skip *token.File
+	if builtins != nil {
+		skip = fset.File(builtins.Pos())
+	}
+	firstParam := firstParamIdents(files, builtins)
+	var bad []types.Object
+	add := func(obj types.Object) {
+		if obj == nil || fset.File(obj.Pos()) == skip || !shadowsAName(obj) {
+			return
+		}
+		if declNameRefused(Name(obj.Name())) {
+			bad = append(bad, obj)
+		}
+	}
+	for id, obj := range info.Defs {
+		if _, ok := synthetic[id]; ok {
+			continue
+		}
+		// The one legal `cur`: a crossing function's first parameter. Both
+		// halves are needed — position alone admits `func(x int, cur realm)`,
+		// type alone admits `func(cur int)` — and the type is read from
+		// go/types, so an alias for realm is held to the same rule.
+		if id.Name == "cur" {
+			if _, ok := firstParam[id]; ok && obj != nil && realmType != nil &&
+				types.Identical(obj.Type(), realmType) {
+				continue
+			}
+		}
+		add(obj)
+	}
+	for node, obj := range info.Implicits {
+		// The type-switch guard, and an import's implicit package name:
+		// `import ".../cur"` binds `cur` in file scope exactly as an alias
+		// would, so `cur.Previous()` would call whatever that package defines.
+		switch node.(type) {
+		case *ast.CaseClause, *ast.ImportSpec:
+			add(obj)
+		}
+	}
+	if err := checkCurRebind(fset, files, builtins, info, realmType); err != nil {
+		return err
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	// Both maps are maps; order the report so two nodes word it identically.
+	slices.SortFunc(bad, func(a, b types.Object) int { return int(a.Pos()) - int(b.Pos()) })
+	obj := bad[0]
+	if isContextualKeyword(Name(obj.Name())) {
+		return fmt.Errorf("%s: %s", fset.Position(obj.Pos()), curReservedMsg)
+	}
+	return fmt.Errorf("%s: builtin identifiers cannot be shadowed: %s", fset.Position(obj.Pos()), obj.Name())
+}
+
+func declNameRefused(n Name) bool {
+	if n == "" || n == blankIdentifier || strings.HasPrefix(string(n), ".") {
+		return false
+	}
+	return isUverseName(n) || isContextualKeyword(n)
+}
+
+// firstParamIdents collects the first parameter name of every function type,
+// the only position where `cur` may be bound.
+func firstParamIdents(files []*ast.File, builtins *ast.File) map[*ast.Ident]struct{} {
+	out := map[*ast.Ident]struct{}{}
+	for _, f := range files {
+		if f == builtins {
+			continue
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			ft, ok := n.(*ast.FuncType)
+			if !ok || ft.Params == nil || len(ft.Params.List) == 0 {
+				return true
+			}
+			if p := ft.Params.List[0]; len(p.Names) > 0 {
+				out[p.Names[0]] = struct{}{}
+			}
+			return true
+		})
+	}
+	return out
+}
+
+// shadowsAName reports whether obj's name enters a scope where it can
+// displace a builtin. A struct field, an embedded field, a method and a
+// label each live in their own namespace — `type T struct{ bool bool }`
+// and `func (T) len() int` shadow nothing, and Go accepts both.
+func shadowsAName(obj types.Object) bool {
+	switch obj := obj.(type) {
+	case *types.Var:
+		return !obj.IsField()
+	case *types.Func:
+		return obj.Signature().Recv() == nil
+	case *types.Label:
+		return false
+	}
+	return true
+}
+
+// checkCurRebind refuses `cur, x := ...`, where `cur` already names the
+// crossing parameter. `:=` with at least one new variable ASSIGNS the
+// existing `cur` rather than declaring it, so go/types records that ident in
+// Uses, not Defs, and checkDeclNames never sees it. Rebinding the slot makes
+// the frame describe a realm it is not executing as.
+//
+// Here and not in preprocess: preprocess re-runs every stored package at node
+// boot, and master accepted this shape, so a rejection there stops an
+// upgraded node from starting. doOpCall carries the runtime check that
+// actually blocks a rebound cur from taking a caller's identity.
+func checkCurRebind(fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, realmType types.Type) error {
+	if realmType == nil {
+		return nil
+	}
+	var bad *ast.Ident
+	for _, f := range files {
+		if f == builtins {
+			continue
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			as, ok := n.(*ast.AssignStmt)
+			if !ok || as.Tok != token.DEFINE {
+				return true
+			}
+			for _, lh := range as.Lhs {
+				id, ok := lh.(*ast.Ident)
+				if !ok || id.Name != "cur" {
+					continue
+				}
+				// Defs means a fresh declaration, which checkDeclNames
+				// already refuses; Uses means this assigns the parameter.
+				obj := info.Uses[id]
+				if obj == nil || !types.Identical(obj.Type(), realmType) {
+					continue
+				}
+				if bad == nil || id.Pos() < bad.Pos() {
+					bad = id
+				}
+			}
+			return true
+		})
+	}
+	if bad == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: cannot reassign the crossing `cur` parameter: it names the realm this frame is executing as, and that binding is fixed for the life of the frame", fset.Position(bad.Pos()))
 }
