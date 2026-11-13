@@ -1300,3 +1300,37 @@ func (e singleSignerEnv) signDoc() std.SignDoc {
 		Msgs:          e.msgs,
 	}
 }
+
+// A simulation is metered at the block max; everything else at GasWanted.
+func TestAnteHandlerSimulationGasLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		simulate  bool
+		maxGas    int64
+		wantLimit int64
+	}{
+		{"deliver meters at gas wanted", false, 10_000_000, 50_000},
+		{"simulate meters at the block max", true, 10_000_000, 10_000_000},
+		{"simulate with no block max keeps gas wanted", true, -1, 50_000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			e := newSingleSignerEnv(t)
+			cp := e.ctx.ConsensusParams() // a copy
+			cp.Block.MaxGas = tt.maxGas
+			e.ctx = e.ctx.WithConsensusParams(cp)
+			require.Equal(t, int64(50_000), e.fee.GasWanted)
+			tx := tu.NewTestTx(t, e.ctx.ChainID(), e.msgs,
+				[]crypto.PrivKey{e.priv}, []uint64{0}, []uint64{0}, e.fee)
+
+			newCtx, res, abort := e.anteHandler(e.ctx, tx, tt.simulate)
+			require.False(t, abort, res.Log)
+			assert.Equal(t, tt.wantLimit, newCtx.GasMeter().Limit())
+			assert.Equal(t, e.fee.GasWanted, res.GasWanted, "GasWanted reported is the tx's own")
+		})
+	}
+}
