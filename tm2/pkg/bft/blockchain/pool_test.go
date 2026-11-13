@@ -14,10 +14,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
-func init() {
-	peerTimeout = 2 * time.Second
-}
-
 type testPeer struct {
 	id        p2pTypes.ID
 	height    int64
@@ -114,6 +110,7 @@ func TestBlockPoolBasic(t *testing.T) {
 	}()
 
 	// Pull from channels
+	deadline := time.After(30 * time.Second)
 	for {
 		select {
 		case err := <-errorsCh:
@@ -125,6 +122,8 @@ func TestBlockPoolBasic(t *testing.T) {
 			}
 
 			peers[request.PeerID].inputChan <- inputData{t, pool, request}
+		case <-deadline:
+			t.Fatal("no request for block 300 within 30s")
 		}
 	}
 }
@@ -138,6 +137,7 @@ func TestBlockPoolTimeout(t *testing.T) {
 	requestsCh := make(chan BlockRequest, 1000)
 	pool := NewBlockPool(start, requestsCh, errorsCh)
 	pool.SetLogger(log.NewTestingLogger(t))
+	pool.peerTimeout = 2 * time.Second // the peers never answer
 	err := pool.Start()
 	if err != nil {
 		t.Error(err)
@@ -173,6 +173,7 @@ func TestBlockPoolTimeout(t *testing.T) {
 	// Pull from channels
 	counter := 0
 	timedOut := map[p2pTypes.ID]struct{}{}
+	deadline := time.After(30 * time.Second)
 	for {
 		select {
 		case err := <-errorsCh:
@@ -186,6 +187,8 @@ func TestBlockPoolTimeout(t *testing.T) {
 			}
 		case request := <-requestsCh:
 			t.Logf("Pulled new BlockRequest %+v", request)
+		case <-deadline:
+			t.Fatalf("%d of %d peers timed out within 30s", counter, len(peers))
 		}
 	}
 }
