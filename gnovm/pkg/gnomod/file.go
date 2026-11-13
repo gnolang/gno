@@ -38,6 +38,14 @@ type File struct {
 	// If this value is set, the module cannot be added to the chain.
 	Replace []Replace `toml:"replace,omitempty" json:"replace,omitempty"`
 
+	// Source declares where the module's source code lives, so explorers can
+	// link a deployed package back to it. It is informational: the chain stores
+	// it as written and never fetches or verifies it.
+	//
+	// It is deliberately NOT checked by Validate: see Source.Validate for where
+	// it is checked and why.
+	Source Source `toml:"source,omitempty" json:"source,omitzero"`
+
 	// AddPkg is the addpkg section of the gnomod.toml file.
 	// It is filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
