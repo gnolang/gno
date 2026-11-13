@@ -120,36 +120,31 @@ cannot reach.
 {{/* ===================================================================================
 UI - Search keywords
 
-What the search bar understands besides a plain word, split by where it works:
-anywhere, or on a package page, where the package is the subject. The honest
-inventory of this deployment: indexer keywords are absent when no indexer is
-configured, so the rail never offers something the server will refuse. On a
-package page, a keyword that takes no argument is a link that runs it.
+What the search bar understands besides a plain word, grouped as the omnibar
+groups it: by what a keyword does, then those that work on a package page,
+where the package is the subject. The honest inventory of this deployment:
+indexer keywords are absent when no indexer is configured, so the rail never
+offers something the server will refuse. On a package page, a keyword that
+takes no argument is a link that runs it.
 =================================================================================== */}}
 {{ define "omnisearch/hints" }}
 <section class="b-omni-hints" aria-labelledby="omni-hints-heading">
   <h2 id="omni-hints-heading" class="b-sidebar-heading">Search keywords</h2>
   <p class="b-omni-hints__intro">Type a keyword in the search bar, followed by what you look for.</p>
 
-  <h3 class="b-omni-hints__title">Anywhere</h3>
+  {{ range keywordLists . }}
+  <h3 class="b-omni-hints__title">{{ .Label }}</h3>
   <ul>
-    {{ range .Selectors }}{{ if ne .Scope "package" }}{{ template "omnisearch/hint" (hintRow . "") }}{{ end }}{{ end }}
-    <li><code>author:&lt;name&gt;</code><span class="b-omni-hints__label">only this namespace or deployer</span></li>
-    <li><code>in:/r/&lt;path&gt;</code><span class="b-omni-hints__label">only this package</span></li>
-    <li><code>is:realm</code><span class="b-omni-hints__label">only realms, or <code>is:package</code></span></li>
+    {{ range .Rows }}{{ template "omnisearch/hint" . }}{{ end }}
   </ul>
-
-  <h3 class="b-omni-hints__title">On a package page</h3>
-  <ul>
-    {{ range .Selectors }}{{ if eq .Scope "package" }}{{ template "omnisearch/hint" (hintRow . $.PagePath) }}{{ end }}{{ end }}
-  </ul>
+  {{ end }}
 </section>
 {{ end }}
 
 {{ define "omnisearch/hint" }}
 <li>
   {{ with .Href }}<a href="{{ . }}"><code>{{ $.Hint }}</code></a>{{ else }}<code>{{ .Hint }}</code>{{ end }}
-  <span class="b-omni-hints__label">{{ .Label }}</span>
-  {{ if .Indexer }}<span class="b-omni-hints__src" title="Answered by an indexer, not by the chain">indexer</span>{{ end }}
+  <span class="b-omni-hints__label">{{ .Help }}</span>
+  {{ if .Indexer }}<span class="b-tag b-tag--indexer" title="Answered by an indexer, not by the chain">indexer</span>{{ end }}
 </li>
 {{ end }}

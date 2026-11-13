@@ -135,6 +135,9 @@ func TestDiscoveryExplainsWhatItWillNotRun(t *testing.T) {
 	for raw, want := range map[string]string{
 		"a":            "at least 2 characters",
 		"is:pkg util":  "is:pkg is not a kind",
+		"is:foo":       "is:foo is not a kind",
+		"is:realm":     "add a name, such as is:realm wugnot",
+		"is:package":   "add a name, such as is:package avl",
 		"author:b":     "at least 2 characters",
 		"is:PACKAGE u": "",
 	} {
@@ -239,6 +242,87 @@ func TestActionTagOnlyOnCallableFuncs(t *testing.T) {
 	}
 }
 
+// TestFilterValuesAreAccepted checks every value a filter offers is one
+// discover accepts, and that nothing else is.
+func TestFilterValuesAreAccepted(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	for _, f := range filterKeywords {
+		for _, v := range f.Values {
+			groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog "+f.Name+":"+strings.ToUpper(v), ""))
+			for _, g := range groups {
+				if g.Err != nil {
+					t.Errorf("%s offers %q and refuses it: %v", f.Name, v, g.Err)
+				}
+			}
+		}
+	}
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog is:user", ""))
+	if len(groups) != 1 || groups[0].Err == nil {
+		t.Errorf("is:user: groups = %+v, want one refusal", groups)
+	}
+	// Picked alone from the bar, a kind says what it still needs, not that
+	// it needs a qualifier.
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, "is:realm", ""))
+	if len(groups) != 1 || groups[0].Err == nil || !strings.Contains(groups[0].Err.Error(), "add a name, such as is:realm wugnot") {
+		t.Errorf("is:realm alone: groups = %+v, want a refusal asking for a name", groups)
+	}
+}
+
+func TestRegisterRefusesAKeywordWithNoHeading(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recover() == nil {
+			t.Error("a global selector with no group registered")
+		}
+	}()
+	h := &Handler{byName: map[string]*Selector{}}
+	h.register(SourceChain, &Selector{Name: "lost", Scope: ScopeGlobal, Group: "nowhere"})
+}
+
+// TestKeywordLists checks the keyword lists match the omnibar's: the
+// package's keywords first on its page, those that run alone leading.
+func TestKeywordLists(t *testing.T) {
+	t.Parallel()
+
+	selectors := []*Selector{
+		{Name: "func", Hint: "func:<name>", Scope: ScopePackage},
+		{Name: "imports", Hint: "imports", Scope: ScopePackage, Bare: true},
+		{Name: "render", Hint: "render:<text>", Scope: ScopeGlobal, Group: GroupText},
+	}
+
+	onPackage := keywordLists(SearchData{Selectors: selectors, PagePath: "/r/demo/foo"})
+	if onPackage[0].Label != "On this package" || onPackage[0].Rows[0].Hint != "imports" {
+		t.Errorf("on a package: first list = %+v", onPackage[0])
+	}
+
+	anywhere := keywordLists(SearchData{Selectors: selectors})
+	last := anywhere[len(anywhere)-1]
+	if last.Label != "On a package page" || last.Rows[0].Hint != "imports" {
+		t.Errorf("anywhere: last list = %+v", last)
+	}
+}
+
+// TestEmptyQueryListsTheKeywords checks the page the omnibar's last row opens
+// shows the list that row promises, not a button to it.
+func TestEmptyQueryListsTheKeywords(t *testing.T) {
+	t.Parallel()
+
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	page := handlePage(t, h, "/$search")
+	if !strings.Contains(page, `class="b-omni-hints"`) {
+		t.Error("the empty page lists no keywords")
+	}
+	if strings.Contains(page, "popovertarget") {
+		t.Error("the empty page keeps its keywords behind a button")
+	}
+	if page = handlePage(t, h, "/$search&q=blog"); !strings.Contains(page, "popovertarget") {
+		t.Error("a results page lost its Keywords button")
+	}
+}
+
 // The page a search was made from keeps its keywords, whatever the answer's
 // scope: a discovery search ignores the page, a reader on it does not.
 func TestKeywordsFollowThePage(t *testing.T) {
@@ -265,20 +349,6 @@ func TestRailToggleNamesTheFirstHeading(t *testing.T) {
 		if got == nil || want == nil || got[1] != strings.Fields(want[1])[0] {
 			t.Errorf("%s: toggle %q, first heading %q", raw, got, want)
 		}
-	}
-}
-
-// An empty search is when a reader needs the keywords most.
-func TestEmptySearchPrintsTheKeywords(t *testing.T) {
-	t.Parallel()
-
-	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
-	html := handlePage(t, h, "/$search")
-	if !strings.Contains(html, `class="b-omni-hints"`) {
-		t.Error("no keyword list on the empty page")
-	}
-	if strings.Contains(html, "popovertarget") {
-		t.Error("the empty page offers a popover of what it already shows")
 	}
 }
 
