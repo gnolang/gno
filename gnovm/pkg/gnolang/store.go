@@ -580,7 +580,12 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 			trace.Store("DECODE_OBJ", gas, []byte(key), len(hashbz),
 				fmt.Sprintf("cached=%v,meter=%v", fromCache, ds.gasMeter != nil))
 		}
-		amino.MustUnmarshal(bz, &oo)
+		// Decode through the generated UnmarshalBinary2 methods; plain
+		// amino.Unmarshal takes the reflection path for an interface
+		// pointer. The result is the same value.
+		if err := amino.UnmarshalAnyBinary2(bz, &oo); err != nil {
+			panic(err)
+		}
 		// Must precede GetShallowSize below: it charges by capacity.
 		normalizeDecodedCap(oo)
 		if debug {
