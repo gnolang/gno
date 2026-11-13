@@ -63,6 +63,7 @@ message FuncValue {
 	string native_pkg = 11 [json_name = "NativePkg"];
 	string native_name = 12 [json_name = "NativeName"];
 	bool crossing = 13 [json_name = "Crossing"];
+	sint64 version = 14 [json_name = "Version"];
 }
 
 message MapValue {

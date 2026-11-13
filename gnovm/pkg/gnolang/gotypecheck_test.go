@@ -662,3 +662,36 @@ func BenchmarkGoParseMemPackage_DuplicateDecls(b *testing.B) {
 		})
 	}
 }
+
+// TestTypeCheckMemPackage_upgradeableImportCached pins that the refusal of an
+// upgradeable import under an immutable realm survives the permanent cache: a
+// mutable importer type-checked first must not leave the upgradeable realm in
+// the cache, where a hit would skip the refusal.
+func TestTypeCheckMemPackage_upgradeableImportCached(t *testing.T) {
+	t.Parallel()
+
+	pkg := func(name, path, extra, body string) *std.MemPackage {
+		return &std.MemPackage{Type: MPUserProd, Name: name, Path: path, Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: "module = \"" + path + "\"\ngno = \"0.9\"\n" + extra},
+			{Name: name + ".gno", Body: body},
+		}}
+	}
+	auth := "version = 1\n[upgrade]\nauthority = \"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"\n"
+	vault := pkg("vault", "gno.land/r/demo/vault", auth, "package vault\nfunc Total() int64 { return 0 }\n")
+	client := pkg("client", "gno.land/r/demo/client", auth, "package client\nimport \"gno.land/r/demo/vault\"\nfunc T() int64 { return vault.Total() }\n")
+	immut := pkg("immut", "gno.land/r/demo/immut", "", "package immut\nimport \"gno.land/r/demo/vault\"\nfunc T() int64 { return vault.Total() }\n")
+	opts := func(c TypeCheckCache) TypeCheckOptions {
+		return TypeCheckOptions{Getter: mockPackageGetter{vault, client}, Mode: TCLatestStrict, ProdOnly: true, Cache: c}
+	}
+	cache := make(TypeCheckCache)
+	_, err := TypeCheckMemPackage(client, opts(cache))
+	require.NoError(t, err)
+	_, cached := cache["gno.land/r/demo/vault"]
+	require.False(t, cached, "an upgradeable realm must not be cached across roots")
+
+	const want = `import path "gno.land/r/demo/vault" is upgradeable and cannot be imported by an immutable realm`
+	_, err = TypeCheckMemPackage(immut, opts(cache))
+	assert.ErrorContains(t, err, want, "cache hit")
+	_, err = TypeCheckMemPackage(immut, opts(make(TypeCheckCache)))
+	assert.ErrorContains(t, err, want, "cache miss")
+}

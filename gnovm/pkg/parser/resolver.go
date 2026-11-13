@@ -501,7 +501,8 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 		r.declareList(n.Type.Results, ast.Var)
 
 		r.walkBody(n.Body)
-		if n.Recv == nil && n.Name.Name != "init" {
+		// migrate is init's counterpart on a versioned redeploy (gnolang.IsPkgInitFunc).
+		if n.Recv == nil && n.Name.Name != "init" && n.Name.Name != "migrate" {
 			r.declare(n, nil, r.pkgScope, ast.Fun, n.Name)
 		}
 

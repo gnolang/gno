@@ -1,0 +1,151 @@
+# A func value persisted under one version keeps running that version's code.
+#
+# A stored closure points into the source that compiled it. A versioned
+# redeploy archives the replaced source, so the closure resolves in that
+# version's own node space, on every node alike, and reads the realm's live
+# globals through the prior package block, which the carry keeps aliased to
+# the same heap items. Reassigning the global points it at the new code. A
+# stored named function is a captured value too, and stays at its version.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/demo/hooks -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/hooks -func Register -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/hooks -func Fire -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Last()'
+stdout '"v1 hook 1"'
+
+# Version 2 replaces the literal with a longer one at the same place and
+# changes Tag. The stored closure still runs v1's body, over the carried
+# counter, which the new code reads; the stored Tag still answers v1.
+gnokey maketx addpkg -pkgdir $WORK/v2 -pkgpath gno.land/r/demo/hooks -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/hooks -func Fire -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Last()'
+stdout '"v1 hook 2"'
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Counter()'
+stdout '2 int'
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.StoredTag()'
+stdout '"v1"'
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Tag()'
+stdout '"v2"'
+
+gnoland restart
+stdout 'node restarted successfully'
+gnokey maketx call -pkgpath gno.land/r/demo/hooks -func Fire -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Last()'
+stdout '"v1 hook 3"'
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.StoredTag()'
+stdout '"v1"'
+
+# Version 3 has no literal at all and reassigns both in migrate.
+gnokey maketx addpkg -pkgdir $WORK/v3 -pkgpath gno.land/r/demo/hooks -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/hooks -func Fire -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Last()'
+stdout '"v3 hook"'
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.StoredTag()'
+stdout '"v3"'
+
+gnoland restart
+stdout 'node restarted successfully'
+gnokey maketx call -pkgpath gno.land/r/demo/hooks -func Fire -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/hooks.Last()'
+stdout '"v3 hook"'
+
+-- v1/gnomod.toml --
+module = "gno.land/r/demo/hooks"
+gno = "0.9"
+private = true
+version = 1
+
+-- v1/hooks.gno --
+package hooks
+
+import "strconv"
+
+var (
+	counter int
+	hooks   []func() string
+	tag     func() string
+	last    string
+)
+
+func Tag() string { return "v1" }
+
+func Register(cur realm) {
+	hooks = append(hooks, func() string { counter++; return "v1 hook " + strconv.Itoa(counter) })
+	tag = Tag
+}
+
+func Fire(cur realm)    { last = hooks[0]() }
+func Last() string      { return last }
+func Counter() int      { return counter }
+func StoredTag() string { return tag() }
+
+-- v2/gnomod.toml --
+module = "gno.land/r/demo/hooks"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2/hooks.gno --
+package hooks
+
+import "strconv"
+
+var (
+	counter int
+	hooks   []func() string
+	tag     func() string
+	last    string
+)
+
+func Tag() string { return "v2" }
+
+func Audit(cur realm) {
+	hooks = append(hooks, func() string { counter += 10; return "v2 audit hook " + strconv.Itoa(counter) })
+	tag = Tag
+}
+
+func Fire(cur realm)    { last = hooks[0]() }
+func Last() string      { return last }
+func Counter() int      { return counter }
+func StoredTag() string { return tag() }
+
+-- v3/gnomod.toml --
+module = "gno.land/r/demo/hooks"
+gno = "0.9"
+private = true
+version = 3
+
+-- v3/hooks.gno --
+package hooks
+
+var (
+	counter int
+	hooks   []func() string
+	tag     func() string
+	last    string
+)
+
+func Tag() string { return "v3" }
+
+func v3hook() string { return "v3 hook" }
+
+func migrate(from int) {
+	hooks[0] = v3hook
+	tag = Tag
+}
+
+func Fire(cur realm)    { last = hooks[0]() }
+func Last() string      { return last }
+func Counter() int      { return counter }
+func StoredTag() string { return tag() }

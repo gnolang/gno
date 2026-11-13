@@ -70,9 +70,9 @@ func parseGnomodForHash(mpkg *std.MemPackage) (*gnomod.File, error) {
 // private, draft, ignore, replace and the gno version -- which excluding the
 // file outright did not. A realm approved as private could otherwise be
 // re-parked as public with the same .gno files and the same hash, and
-// checkGnomodConstraints does not catch it on a first deployment: its guard is
-// `priorPrivate && !gm.Private`, and priorPrivate is false when nothing is live
-// at the path yet.
+// checkGnomodConstraints does not catch it on a first deployment: its
+// private-override guard fires only when a private package is already live at
+// the path.
 //
 // What it does NOT bind is the [addpkg] section itself, and that is a limit of
 // the -pkgdir flow rather than an oversight: the approver's local copy has no
