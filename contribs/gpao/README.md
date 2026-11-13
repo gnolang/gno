@@ -94,6 +94,34 @@ set (for unattended/service deployments), otherwise prompts once interactively.
 | `--prepare-budget` | `1m` | How long the verifier may take to fetch a package's imports from the node before verification starts |
 | `--status-listen` | *(off)* | Address to serve the read-only status API on, e.g. `127.0.0.1:8546` |
 
+### Funding the approver
+
+Every approval costs the full `--gas-fee`, charged by the ante handler whether
+or not the message succeeds. The approver's balance in that denom bounds how
+many packages a run can activate just as `--max-spend` does, and gpao reports it
+at startup:
+
+```
+gpao: approver g1... holds 4900000000ugnot, 1000 approvals at 100000ugnot each (bound by -max-spend)
+```
+
+The count is whichever of the two runs out first, the balance or what is left
+of `--max-spend`, and the line names it.
+
+When the key cannot cover one more fee, gpao stops rather than walking past the
+packages it cannot approve. The one in hand is recorded `blocked`, keeps its
+retry allowance, and is not marked seen; the rest stay queued and unread. So
+funding the key resumes the run in place, with no restart and no resubmission:
+
+```sh
+curl http://127.0.0.1:8546/status/gno.land/r/you/yours
+# {"path":"...","status":"blocked","reason":"the approver cannot pay the approval fee; the oracle is paused until it is funded"}
+```
+
+No verdicts are issued while paused, rejections included, and block reads stop
+once the verify queue fills behind the held package. The balance is re-read
+every 30s.
+
 ### About `--status-listen`
 
 gpao decides things nobody else can see. That a package failed to typecheck,
@@ -120,9 +148,17 @@ curl http://127.0.0.1:8546/status/gno.land/r/you/yours   # one package
 
 `status` is one of `rejected` (the code did not pass), `pending` (will be
 retried), `gave_up` (retried to the cap, needs a human), `blocked` (nothing
-wrong with the package -- the oracle has hit `--max-spend`), `approved`, or
+wrong with the package -- the oracle has hit `--max-spend`, or cannot pay the
+fee at all; see [Funding the approver](#funding-the-approver)), `approved`, or
 `unknown` (never seen). `blocked` is the one worth separating: it means to go
 and ask the operator, not to go and fix your code.
+
+Whether the fee is enough depends on the package: the chain compares
+`--gas-fee` over the approval's gas against its gas price, so a heavy package
+or a price spike gets the same refusal. Neither holds the queue: the package is
+left `pending`, without counting an enable attempt, and its approval is offered
+again (see [Stranded packages](#stranded-packages)). A spike clears by itself;
+a package too heavy for the fee ends `gave_up` and needs a higher `--gas-fee`.
 
 Off by default, and unauthenticated when on. Everything it reports concerns a
 package submitted in a public transaction, so there is nothing here its
@@ -201,8 +237,11 @@ parked import holds back, is verified again with its bytes read from its block.
 A package waiting on a parked import is verified once the import goes live,
 whoever enabled it, and its status names that import meanwhile; one whose
 verification could not finish is verified again, and one importing a path the
-chain holds nowhere is verified and rejected. Each submission is verified again
-at most 3 times per run, after which its status says `gave_up`.
+chain holds nowhere is verified and rejected. One that passed verification but
+whose enable failed, for a fee below the chain's gas price or any other cause,
+is not verified again: the bytes at that height are the ones that passed, so
+only its approval is offered again. Each submission is offered again at most 3
+times per run, after which its status says `gave_up`.
 
 New blocks go first: a look stops as soon as a candidate is queued, and resumes
 where it stopped once the verifier has handled it, so a path late in order is
@@ -328,8 +367,10 @@ when its submitted bytes would not have verified: the live package is what the
 chain runs. And it ignores transactions that failed on chain, so a submission
 the chain rejected never leads to an approval.
 
-When the bound is reached the daemon says so and stops approving. It keeps
-watching blocks. Raise the bound or restart to continue.
+When the bound is reached the daemon pauses on the package in hand, recorded
+`blocked`, and the rest stay queued; block reads stop once the queue fills.
+Only a restart continues, raising the bound if needed, with the
+`--start-height` the log names so the held package is picked up again.
 
 ## Limitations
 

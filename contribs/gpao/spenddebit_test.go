@@ -127,7 +127,7 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 	// Control arm: a broadcast approval costs exactly one fee, counted at the
 	// send.
 	o.handleCandidate(t.Context(), candidate{mpkg: good})
-	assert.Equal(t, o.enableFee, o.spent,
+	assert.Equal(t, o.gasFee.Amount, o.spent,
 		"a broadcast approval must be counted, whether or not it succeeds -- the ante charges for it")
 	assert.Equal(t, statusApproved, o.status.get(goodPath).Status)
 }
@@ -221,9 +221,10 @@ func TestSpentIsRefundedWhenCheckTxRejects(t *testing.T) {
 	o.handleCandidate(t.Context(), candidate{mpkg: mpkg})
 
 	status := o.status.get(pkgPath)
+	// Only CheckTx raises InsufficientFeeError (simulate skips the fee check),
+	// so this reason means the arm reached BroadcastTxCommit.
 	require.Equal(t, statusPending, status.Status)
-	require.Contains(t, status.Reason, "broadcast:",
-		"the arm has to reach BroadcastTxCommit; an earlier return leaves the counter alone for another reason")
+	require.Contains(t, status.Reason, "below the chain's gas price")
 
 	after, _, err := client.QueryBalance(who)
 	require.NoError(t, err)
