@@ -132,6 +132,23 @@ func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amo
 	execctx.GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), denom, amount)
 }
 
+// X_bankerCallSend is the native for CallSend; see banker.gno. A cross frame
+// carries its own receipt; the message entry reads the send the keeper credited
+// to this realm (OriginSendRecipientPath), which also marks it observed.
+func X_bankerCallSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	coins, entry := m.CallReceived()
+	if !entry {
+		return ExpandCoins(coins)
+	}
+	ctx := execctx.GetContext(m)
+	_, payee := execctx.CurrentRealm(m)
+	if payee == "" || payee != ctx.OriginSendRecipientPath {
+		return nil, nil
+	}
+	ctx.MarkOriginSendObservedBy(payee)
+	return ExpandCoins(ctx.OriginSend)
+}
+
 func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
 	denoms = make([]string, len(c))
 	amounts = make([]int64, len(c))

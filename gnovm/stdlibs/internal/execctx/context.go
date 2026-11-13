@@ -183,4 +183,33 @@ func init() {
 		}
 		return ""
 	}
+	gno.CrossSendHandler = crossSend
+}
+
+// crossSend implements fn(cross(rlm, coins)) for the VM: decode the chain.Coins
+// value, drop zero coins (no send), reject anything std would, and move the
+// rest through the context's banker.
+func crossSend(m *gno.Machine, from, to string, send gno.TypedValue) std.Coins {
+	var coins std.Coins
+	for i := range send.GetLength() {
+		sv := send.GetPointerAtIndexInt(m.Store, i).Deref().V.(*gno.StructValue)
+		c := std.Coin{Denom: sv.Fields[0].GetString(), Amount: sv.Fields[1].GetInt64()}
+		if c.Amount != 0 {
+			coins = append(coins, c)
+		}
+	}
+	if len(coins) == 0 {
+		return nil
+	}
+	if err := coins.Validate(); err != nil {
+		m.PanicString("send: " + err.Error())
+		return nil
+	}
+	bank := GetContext(m).Banker
+	if bank == nil {
+		m.PanicString("send: no banker in this context")
+		return nil
+	}
+	bank.SendCoins(crypto.Bech32Address(from), crypto.Bech32Address(to), coins)
+	return coins
 }
