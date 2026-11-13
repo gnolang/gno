@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"maps"
@@ -19,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -398,6 +400,24 @@ func TestHealthEndpoints(t *testing.T) {
 			assert.Equal(t, http.StatusOK, response.Code)
 			assert.Equal(t, "application/json", response.Header().Get("Content-Type"))
 			assert.Contains(t, response.Body.String(), `{"status":"ready"}`)
+		})
+
+		t.Run("status.json should report the node", func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/status.json", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			var status struct {
+				Gnoland struct {
+					Height  int64  `json:"height"`
+					Version string `json:"version"`
+					ChainID string `json:"chain_id"`
+				} `json:"gnoland"`
+			}
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &status))
+			assert.Greater(t, status.Gnoland.Height, int64(0))
+			assert.Equal(t, "tendermint_test", status.Gnoland.ChainID)
+			assert.Equal(t, version.Version, status.Gnoland.Version)
 		})
 	})
 }
