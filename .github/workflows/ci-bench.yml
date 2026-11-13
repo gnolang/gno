@@ -1,0 +1,65 @@
+name: ci / bench
+
+# Runs a small, fixed set of Go benchmarks (misc/benchci/suite.txt) on the
+# pull request and on its merge base, in the same job on the same runner, and
+# fails on a large regression. See misc/benchci/README.md.
+
+on:
+  pull_request:
+    paths:
+      - gnovm/**/*.go
+      - tm2/**/*.go
+      - gno.land/**/*.go
+      - go.mod
+      - go.sum
+      - misc/benchci/**
+      - .github/workflows/ci-bench.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          path: head
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: head/go.mod
+          cache-dependency-path: head/go.sum
+      - name: Check out the merge base
+        env:
+          BASE_REF: ${{ github.base_ref || 'master' }}
+        run: |
+          base=$(git -C head merge-base HEAD "origin/$BASE_REF")
+          echo "base: $base"
+          git -C head worktree add --detach ../base "$base"
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260112171951-5abaabe9f1bd
+      - name: Run benchmarks
+        run: head/misc/benchci/run.sh base head out
+      - name: Check for regressions
+        run: head/misc/benchci/check.sh out/benchstat.csv
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f out/benchstat.txt ]; then
+            { echo '```'; cat out/benchstat.txt; echo '```'; } >>"$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: benchstat
+          path: |
+            out/*.txt
+            out/*.csv

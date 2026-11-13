@@ -53,8 +53,10 @@ var keySizes = []int{1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000,
 
 func requireDB(b *testing.B) {
 	b.Helper()
+	// Fail rather than skip: a skipped benchmark is silent without -v, so
+	// `go test -bench` would report PASS while measuring nothing.
 	if *flagDB == "" {
-		b.Skip("use -db=pebbledb, -db=lmdb, or -db=mdbx to run")
+		b.Fatal("-db is required: pass -db=pebbledb, -db=lmdb, or -db=mdbx")
 	}
 }
 
@@ -435,6 +437,7 @@ func BenchmarkIterSeek(b *testing.B) {
 // PebbleDB cache sweep (PebbleDB only)
 
 func BenchmarkStoreGetCacheSweep(b *testing.B) {
+	requireDB(b)
 	if *flagDB != "pebbledb" {
 		b.Skip("cache sweep is PebbleDB-only")
 	}
