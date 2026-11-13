@@ -410,7 +410,7 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 		// Decode second field value of Value
 		// Consume second field value, a byteslice.
 		lenbz := len(bz)
-		value, _n, err = DecodeByteSlice(bz)
+		value, _n, err = decodeByteSliceNoCopy(bz)
 		if slide(&bz, nil, _n) && err != nil {
 			return
 		}
@@ -692,7 +692,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 			if writeImplicit {
 				// Read bytes for implicit struct.
 				var ibz []byte
-				ibz, _n, err = DecodeByteSlice(bz)
+				ibz, _n, err = decodeByteSliceNoCopy(bz)
 				if slide(&bz, nil, _n) && err != nil {
 					return
 				}
@@ -907,7 +907,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 			if writeImplicit {
 				// Read bytes for implicit struct.
 				var ibz []byte
-				ibz, _n, err = DecodeByteSlice(bz)
+				ibz, _n, err = decodeByteSliceNoCopy(bz)
 				if slide(&bz, nil, _n) && err != nil {
 					return
 				}
@@ -1108,7 +1108,7 @@ func consumeAny(typ3 Typ3, bz []byte) (n int, err error) {
 	case Typ38Byte:
 		_, _n, err = DecodeInt64(bz)
 	case Typ3ByteLength:
-		_, _n, err = DecodeByteSlice(bz)
+		_, _n, err = decodeByteSliceNoCopy(bz)
 	case Typ34Byte:
 		_, _n, err = DecodeInt32(bz)
 	default:
@@ -1163,7 +1163,7 @@ func decodeMaybeBare(bz []byte, n *int, bare bool) ([]byte, error) {
 			_n  int
 			err error
 		)
-		buf, _n, err = DecodeByteSlice(bz)
+		buf, _n, err = decodeByteSliceNoCopy(bz)
 		if slide(&bz, nil, _n) && err != nil {
 			return bz, err
 		}

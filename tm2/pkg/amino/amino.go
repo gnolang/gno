@@ -544,6 +544,23 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 		return nil, errors.New("MarshalAny() requires non-nil argument")
 	}
 
+	// Genproto2 fast path for T and *T: size the whole Any envelope, then
+	// write value and envelope backward into a single buffer. No boxing of
+	// the dereferenced value, no intermediate value buffer, no final copy.
+	if pbm2, ok := o.(PBMarshaler2); ok && HasNativeGenproto2(reflect.TypeOf(o)) {
+		atomic.AddInt64(&cdc.stats.Genproto2Encodes, 1)
+		n, err := cdc.SizeAnyBinary2(pbm2)
+		if err != nil {
+			return nil, err
+		}
+		buf := make([]byte, n)
+		offset, err := cdc.MarshalAnyBinary2(pbm2, buf, n)
+		if err != nil {
+			return nil, err
+		}
+		return buf[offset:], nil
+	}
+
 	// Dereference value if pointer (before interface checks so *T and
 	// **T both resolve to T, which satisfies PBMarshaler2 via value receivers).
 	rv, _, _ := maybeDerefValue(reflect.ValueOf(o))
