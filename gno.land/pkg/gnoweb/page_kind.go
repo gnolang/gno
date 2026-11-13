@@ -229,6 +229,8 @@ type pageRender struct {
 	// listing is set when the page lists the paths under it: no package
 	// lives there.
 	listing bool
+	// redirect is set by a view that sends the reader to another page.
+	redirect string
 }
 
 // servedPage is what Get learns about the page it serves, for the head.

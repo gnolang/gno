@@ -83,7 +83,8 @@ func TestRoutes(t *testing.T) {
 			{"/about", ok, "blockchain"},
 			{"/r/gnoland/blog", ok, ""}, // Any content
 			{"/r/gnoland/blog$help", ok, "AdminSetAdminAddr"},
-			{"/r/gnoland/blog/", ok, "admin.gno"},
+			// A realm with Render has its Content tab: its files are the overview's.
+			{"/r/gnoland/blog/", found, "/r/gnoland/blog$source#files"},
 			{"/r/gnoland/blog/admin.gno", ok, ">func<"},
 			// Overview view: $source with no file should render the package overview.
 			{"/r/gnoland/blog$source", ok, "Package Index"},
@@ -105,13 +106,15 @@ func TestRoutes(t *testing.T) {
 			{"/r/tests/vm/deep/very/deep:bob", ok, "hi bob"},
 			{"/r/tests/vm/deep/very/deep:bob?arg1=val1&arg2=val2", ok, "hi bob?arg1=val1&amp;arg2=val2"},
 			{"/r/tests/vm/deep/very/deep$help", ok, "Render"},
-			{"/r/tests/vm/deep/very/deep/", ok, "render.gno"},
+			{"/r/tests/vm/deep/very/deep/", found, "/r/tests/vm/deep/very/deep$source#files"},
 			{"/r/tests/vm/deep/very/deep/render.gno", ok, ">package<"},
 			{"/contribute", ok, "Game of Realms"},
 			{"/game-of-realms", found, "/contribute"},
 			{"/gor", found, "/contribute"},
 			{"/blog", found, "/r/gnoland/blog"},
 			{"/r/docs/optional_render", http.StatusOK, "gnomod.toml"},
+			// Without Render, the files are the Content tab, slash or not.
+			{"/r/docs/optional_render/", http.StatusOK, "Module path and Gno version"},
 			{"/r/not/found/", notFound, ""},
 			{"/z/bad/request", badRequest, ""}, // not realm or pure
 			{"/아스키문자가아닌경로", notFound, ""},

@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 // chainmapDeps wires feature/chainmap. The indexer is the one configured for
@@ -21,10 +22,12 @@ import (
 // its own. A nil cfg.Indexer leaves the feature without one, which is the
 // switch.
 func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, trustedProxies []*net.IPNet) chainmap.Deps {
+	reader := chainReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain}
 	deps := chainmap.Deps{
-		Imports: importReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain},
-		Domain:  cfg.Meta.Domain,
-		Logger:  logger,
+		Imports:  reader,
+		Packages: reader,
+		Domain:   cfg.Meta.Domain,
+		Logger:   logger,
 	}
 	if cfg.Indexer == nil {
 		return deps
@@ -48,23 +51,51 @@ func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, trustedProxies []
 	return deps
 }
 
-// importReader adapts ClientAdapter to chainmap.ImportReader: a package's
-// non-test imports are what vm/qdoc reports. A missing package is both
-// chainmap's ErrNotLive and the client's not-found, so either side reads it.
-type importReader struct {
+// chainReader adapts ClientAdapter to chainmap's readers. What a package
+// imports and says about itself are what vm/qdoc reports. A missing package is
+// both chainmap's ErrNotLive and the client's not-found, so either side reads
+// it.
+type chainReader struct {
 	client ClientAdapter
 	domain string
 }
 
-func (r importReader) Imports(ctx context.Context, pkgPath string) ([]string, error) {
-	d, err := r.client.Doc(ctx, strings.TrimPrefix(pkgPath, r.domain), 0)
-	if errors.Is(err, ErrClientPackageNotFound) {
-		return nil, fmt.Errorf("%w: %w", chainmap.ErrNotLive, err)
-	}
+// Imports reads the package at pkgPath, a fully qualified path.
+func (r chainReader) Imports(ctx context.Context, pkgPath string) ([]string, error) {
+	d, err := r.doc(ctx, strings.TrimPrefix(pkgPath, r.domain))
 	if err != nil {
 		return nil, err
 	}
 	return d.Imports, nil
+}
+
+// Summary reads the package at pkgPath, a gnoweb path: its doc comment and
+// exported crossing functions from vm/qdoc, its deploy height from its
+// metadata.
+func (r chainReader) Summary(ctx context.Context, pkgPath string) (chainmap.PackageSummary, error) {
+	d, err := r.doc(ctx, pkgPath)
+	if err != nil {
+		return chainmap.PackageSummary{}, err
+	}
+	meta, err := r.client.PackageMeta(ctx, pkgPath)
+	if err != nil {
+		return chainmap.PackageSummary{}, err
+	}
+	s := chainmap.PackageSummary{Doc: d.PackageDoc, Height: meta.Height}
+	for _, fn := range d.Funcs {
+		if components.IsAction(fn) {
+			s.Actions = append(s.Actions, fn.Name)
+		}
+	}
+	return s, nil
+}
+
+func (r chainReader) doc(ctx context.Context, pkgPath string) (*doc.JSONDocumentation, error) {
+	d, err := r.client.Doc(ctx, pkgPath, 0)
+	if errors.Is(err, ErrClientPackageNotFound) {
+		return nil, fmt.Errorf("%w: %w", chainmap.ErrNotLive, err)
+	}
+	return d, err
 }
 
 // GetDepsView renders a package's dependencies: what it imports, and what
@@ -129,9 +160,9 @@ func (h *HTTPHandler) renderListing(ctx context.Context, gnourl *weburl.GnoURL, 
 	indexData.HeaderData.MapTab = mappable
 	if mappable && m != nil {
 		parts := h.ChainMap.Map(ctx, chainmap.Listing{Path: gnourl.Path, Paths: paths, Up: m.up, Metric: m.metric})
-		return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, &parts)
+		return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, &parts, nil)
 	}
-	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, nil)
+	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, nil, h.ChainMap.Cards(ctx, paths))
 }
 
 // GetMapView draws the listing below a path. A map exists only where the list

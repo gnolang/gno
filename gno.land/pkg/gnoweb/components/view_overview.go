@@ -111,35 +111,20 @@ func (l ImportLink) PathSegments() []string { return PathSegments(l.Path) }
 // two lookalike addresses are compared at a glance only when unbroken.
 func PathSegments(p string) []string { return strings.SplitAfter(p, "/") }
 
-// FileLink is a file entry rendered in the Files section.
-type FileLink struct {
-	Name      string
-	Link      string
-	IsTest    bool
-	IsReadme  bool
-	IsLicense bool
-}
-
-// SubpackageLink is a direct child package rendered in the Subdirectories section.
-type SubpackageLink struct {
-	Name     string
-	Path     string
-	Synopsis string
-}
-
 // OverviewInput aggregates the data required to build an OverviewData.
 type OverviewInput struct {
 	URL         *weburl.GnoURL
 	Files       []string
 	Doc         *doc.JSONDocumentation
 	Sources     map[string][]byte
-	Subpaths    []string
 	Readme      Component
 	Domain      string
 	DocRenderer DocRenderer
 	// DepsURL is the page listing the package's importers, set only when
 	// this deployment can compute them.
 	DepsURL string
+	// Subpackages are the packages one level below, as listing cards.
+	Subpackages []PackageCard
 }
 
 // OverviewData is the full payload passed to the overview template.
@@ -159,8 +144,12 @@ type OverviewData struct {
 	Consts      []ValueGroup
 	Vars        []ValueGroup
 	Files       []FileLink
-	Subpackages []SubpackageLink
+	Subpackages []PackageCard
 	Bugs        []string
+
+	// DocUnavailable is set when the package's doc could not be read: the
+	// page then lacks its symbols and the file details, and says so.
+	DocUnavailable bool
 
 	// SymbolsTruncated is set when funcs/types/values were capped at
 	// maxOverviewSymbols; the template then shows a "view full source" notice.

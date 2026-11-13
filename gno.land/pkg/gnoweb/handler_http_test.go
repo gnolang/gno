@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -196,7 +197,8 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path", Status: http.StatusOK, Contain: "[example.com]/r/mock/path"},
 
 		// Source page
-		{Path: "/r/mock/path/", Status: http.StatusOK, Contain: "Directory"},
+		// A realm with Render: its trailing slash opens its overview's files.
+		{Path: "/r/mock/path/", Status: http.StatusFound, Contain: "/r/mock/path$source#files"},
 		{Path: "/r/mock/path/render.gno", Status: http.StatusOK, Contain: "one more time"},
 		{Path: "/r/mock/path/LicEnse", Status: http.StatusOK, Contain: "my super license"},
 		{Path: "/r/mock/path$source&file=render.gno", Status: http.StatusOK, Contain: "one more time"},
@@ -552,18 +554,20 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 }
 
 // TestHTTPHandler_ExplorerPathsListBrowse verifies that the explorer paths-list
-// view (e.g. /r/<addr>/ listing a user's packages) links each entry's name to the
-// realm render (no trailing slash) and exposes a dedicated "Browse" button that
-// opens the directory listing (trailing slash), alongside Open/Source/Action.
+// view (e.g. /r/<addr>/ listing a user's packages) draws a card per package: its
+// name links to the realm render (no trailing slash), its buttons open, browse
+// (trailing slash), read and call it, and it says what the chain records.
 func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 	t.Parallel()
 
 	// A package under the /r/mock namespace; requesting the namespace itself
 	// (no direct files) falls through to the explorer paths-list view.
 	subPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/sub",
-		Files:  map[string]string{"sub.gno": `package sub`},
+		Domain:     "example.com",
+		Path:       "/r/mock/sub",
+		Files:      map[string]string{"sub.gno": `package sub`},
+		PackageDoc: "Package sub is a *demo* realm <script>alert(1)</script>.",
+		Height:     42,
 	}
 
 	handler, err := gnoweb.NewHTTPHandler(
@@ -580,12 +584,20 @@ func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 	// Explorer mode renders the package counter.
 	assert.Contains(t, body, "1 Package<")
 	// Main entry link points at the render, not the directory listing.
-	assert.Contains(t, body, `href="/r/mock/sub">`)
-	// Right-side inline buttons, including the new Browse (directory listing).
-	assert.Contains(t, body, `href="/r/mock/sub" class="b-inline-btn">Open</a>`)
-	assert.Contains(t, body, `href="/r/mock/sub/" class="b-inline-btn">Browse</a>`)
-	assert.Contains(t, body, `href="/r/mock/sub$source" class="b-inline-btn">Source</a>`)
-	assert.Contains(t, body, `href="/r/mock/sub$help" class="b-inline-btn">Action</a>`)
+	assert.Contains(t, body, `href="/r/mock/sub" class="b-pkg-card__name">`)
+	// The card's buttons: Open, Source, Actions. No Browse: a realm's files
+	// are its overview's, which Source opens.
+	assert.Contains(t, body, `href="/r/mock/sub" class="b-btn b-pkg-card__btn">`)
+	assert.NotContains(t, body, `href="/r/mock/sub/"`)
+	assert.Contains(t, body, `href="/r/mock/sub$source" class="b-btn b-pkg-card__btn">`)
+	assert.Contains(t, body, `href="/r/mock/sub$help" class="b-btn b-pkg-card__btn">`)
+	// The doc comment as plain text, without its package clause: raw HTML it
+	// holds is dropped, never run.
+	assert.Contains(t, body, `<p class="b-pkg-card__desc">Demo realm alert(1).</p>`)
+	assert.NotContains(t, body, "<script>alert(1)")
+	// What the chain records: deployed at block 42, and no tag.
+	assert.Contains(t, body, "Block 42")
+	assert.NotContains(t, body, ">read-only<")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.
@@ -2089,7 +2101,34 @@ func TestHTTPHandler_GetOverviewView_RendersSubpackages(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code)
-	assert.Contains(t, rr.Body.String(), "child", "a direct child must reach the Directories section")
+	// A direct child reaches the Directories section, as a listing card.
+	assert.Contains(t, rr.Body.String(), `<h3 class="b-pkg-card__title">`)
+	assert.Contains(t, rr.Body.String(), `href="/r/demo/foo/child$source" class="b-btn b-pkg-card__btn">`)
+}
+
+// TestHTTPHandler_GetOverviewView_DocUnavailable pins the degraded overview:
+// without the doc it still lists the files, says once what is missing, and no
+// row claims a file exports nothing.
+func TestHTTPHandler_GetOverviewView_DocUnavailable(t *testing.T) {
+	t.Parallel()
+	client := newOverviewStubClient(func(ctx context.Context, prefix string, limit int) ([]string, error) {
+		return nil, nil
+	})
+	client.docFunc = func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+		return nil, errors.New("qdoc unavailable")
+	}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil))
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, "foo.gno")
+	assert.Equal(t, 1, strings.Count(body, "The package documentation could not be loaded"))
+	assert.NotContains(t, body, "no exports")
+	assert.NotContains(t, body, "No documentation or exported symbols", "a failed read is not an empty package")
 }
 
 // TestHTTPHandler_GetOverviewView_DegradedOnListPathsFailure pins the swallow:
@@ -4423,7 +4462,7 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		{"/u/gnoland", false},
 		{"/u/alice", true},
 		{"/r/nym-sunny000/app", true},
-		{"/r/nym-sunny000/app/", true},
+		{"/p/nym-sunny000/lib/", true},
 		{"/r/nym-sunny000/app$help", true},
 		{"/r/nym-sunny000/app$source&file=render.gno", true},
 		{"/r/nym-sunny000/app?state", true},
@@ -4610,4 +4649,110 @@ func TestHTTPHandler_RunPageNodeError(t *testing.T) {
 	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
 	assert.NotContains(t, rr.Body.String(), `data-controller="run"`)
 	assert.NotContains(t, rr.Body.String(), `$run"`)
+}
+
+// TestHTTPHandler_DirectoryView pins the Content tab of a package with no
+// rendered page, and the trailing-slash address of one with a rendered page.
+func TestHTTPHandler_DirectoryView(t *testing.T) {
+	t.Parallel()
+	renderFn := &doc.JSONFunc{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Type: "string"}}}
+	withRender := &gnoweb.MockPackage{
+		Domain: "gno.land", Path: "/r/demo/page",
+		Files:     map[string]string{"page.gno": "package page"},
+		Functions: []*doc.JSONFunc{renderFn},
+	}
+	noRender := &gnoweb.MockPackage{
+		Domain: "gno.land", Path: "/r/demo/store",
+		Files: map[string]string{"store.gno": "package store", "gnomod.toml": `module = "gno.land/r/demo/store"`},
+		Functions: []*doc.JSONFunc{
+			{Name: "Set", Crossing: true, File: "store.gno"},
+			{Name: "Get", File: "store.gno"},
+		},
+	}
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		newTestHandlerConfig(t, gnoweb.NewMockClient(withRender, noRender)),
+	)
+	require.NoError(t, err)
+	get := func(target string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		return rr
+	}
+
+	t.Run("render realm slash opens the overview's files", func(t *testing.T) {
+		t.Parallel()
+		rr := get("/r/demo/page/")
+		assert.Equal(t, http.StatusFound, rr.Code)
+		assert.Equal(t, "/r/demo/page$source#files", rr.Header().Get("Location"))
+	})
+
+	t.Run("redirect keeps the height, drops the realm query", func(t *testing.T) {
+		t.Parallel()
+		rr := get("/r/demo/page/?height=7&tab=x")
+		assert.Equal(t, http.StatusFound, rr.Code)
+		assert.Equal(t, "/r/demo/page$height=7&source#files", rr.Header().Get("Location"))
+	})
+
+	for _, target := range []string{"/r/demo/store", "/r/demo/store/"} {
+		t.Run("no render realm "+target, func(t *testing.T) {
+			t.Parallel()
+			rr := get(target)
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, `<ul class="b-pkg-list b-pkg-list--files">`)
+			assert.Contains(t, body, `<span class="b-pkg-list__desc">Set(), Get()</span>`)
+			assert.Contains(t, body, ">1 action</span>")
+			assert.Contains(t, body, "Module path and Gno version")
+			assert.NotContains(t, body, "could not be loaded")
+		})
+	}
+}
+
+// TestHTTPHandler_DirectoryView_Queries pins what a directory page asks the
+// node: no README the file list does not name, and no doc for a path that
+// holds no package (a listing).
+func TestHTTPHandler_DirectoryView_Queries(t *testing.T) {
+	t.Parallel()
+	var readmeReads, docReads, listingDocReads atomic.Int32
+	client := &stubClient{
+		listFilesFunc: func(ctx context.Context, path string) ([]string, error) {
+			if path == "/p/demo/lib" {
+				return []string{"lib.gno"}, nil
+			}
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
+			switch path {
+			case "/p/demo/lib":
+				docReads.Add(1)
+			case "/p/demo":
+				listingDocReads.Add(1)
+			}
+			return &doc.JSONDocumentation{}, nil
+		},
+		fileFunc: func(ctx context.Context, path, filename string) ([]byte, gnoweb.FileMeta, error) {
+			if filename == gnoweb.ReadmeFileName {
+				readmeReads.Add(1)
+			}
+			return nil, gnoweb.FileMeta{}, gnoweb.ErrClientFileNotFound
+		},
+		listPathsFunc: func(ctx context.Context, prefix string, limit int) ([]string, error) {
+			return []string{"gno.land/p/demo/lib"}, nil
+		},
+	}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/p/demo/lib", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Zero(t, readmeReads.Load(), "no README.md in the file list: none to read")
+	assert.Equal(t, int32(1), docReads.Load())
+
+	// The listing's card reads its package's doc; the listing reads none of its own.
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/p/demo/", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Zero(t, listingDocReads.Load(), "a listing reads no doc")
 }

@@ -417,12 +417,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	// $play opens the package in the playground.
 	if gnourl.WebQuery.Has("play") && (gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
-		to := playground.CopyURL(gnourl.Path, gnourl.File)
-		http.Redirect(w, r, to, http.StatusFound)
-		components.RedirectView(components.RedirectData{
-			To:        to,
-			Analytics: h.Static.RedirectAnalytics(),
-		}).Render(w)
+		serveRedirect(w, r, playground.CopyURL(gnourl.Path, gnourl.File), h.Static)
 		return
 	}
 
@@ -548,6 +543,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
+	if sp.render.redirect != "" {
+		serveRedirect(w, r, sp.render.redirect, h.Static)
+		return
+	}
 	scrubHeaderOnError(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
@@ -712,7 +711,9 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		}
 		counterpart := h.startCounterpart(ctx, gnourl)
 		status, view := h.GetPackageView(ctx, gnourl, indexData, pr)
-		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
+		if pr.redirect == "" { // a redirect renders no header to wait for
+			indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
+		}
 		return status, view
 	case gnourl.IsPlayground():
 		return h.Playground.GetPlaygroundView(ctx, gnourl)
@@ -1388,10 +1389,14 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	return h.renderListing(ctx, gnourl, indexData, paths, truncated, nil)
 }
 
-// GetDirectoryView renders the directory view for a package, showing available files.
+// GetDirectoryView renders the files of a package: the Content tab of a pure
+// package or of a realm without Render. A realm with Render already has a
+// Content tab, so its trailing-slash address is sent to the files of its
+// overview. A path with no package lists the paths under it.
 func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	height := gnourl.Height()
+
 	files, err := h.Client.ListFiles(ctx, pkgPath, height)
 	if err != nil {
 		if !errors.Is(err, ErrClientPackageNotFound) {
@@ -1407,20 +1412,37 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 		return http.StatusOK, components.StatusErrorComponent("no files available")
 	}
 
+	// Asked once a package is known to live here, so a listing costs no doc
+	// read; the README is read beside it, as the file list names one.
+	var (
+		jdoc   *doc.JSONDocumentation
+		readme components.Component
+		g      errgroup.Group
+	)
+	g.Go(func() error {
+		jdoc = h.docOrNil(ctx, pkgPath, height)
+		return nil
+	})
+	if slices.Contains(files, ReadmeFileName) {
+		g.Go(func() error {
+			readme, _ = h.renderReadme(ctx, gnourl, pkgPath, pr)
+			return nil
+		})
+	}
+	g.Wait()
+
+	if gnourl.IsRealm() && gnourl.IsDir() && components.DeclaresRender(jdoc) {
+		// Only the height carries over: the realm's query is its Render's.
+		to := weburl.GnoURL{Path: pkgPath, WebQuery: url.Values{"source": {""}}}
+		pr.redirect = to.WithHeight(height).EncodeWebURL() + "#files"
+		return http.StatusFound, components.RedirectView(components.RedirectData{To: pr.redirect})
+	}
+
 	if gnourl.IsPure() {
 		indexData.Mode = components.ViewModePackage
 	}
 
-	// Get README.md file if it exists
-	readmeComp, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
-	return http.StatusOK, components.DirectoryView(
-		pkgPath,
-		files,
-		len(files),
-		components.DirLinkTypeSource,
-		indexData.Mode,
-		readmeComp,
-	)
+	return http.StatusOK, components.DirectoryView(pkgPath, files, jdoc, indexData.Mode, readme)
 }
 
 // rendererSnippetHighlighter adapts HTMLRenderer to SnippetHighlighter —
@@ -1937,6 +1959,10 @@ func (p playgroundPackages) PackageFiles(ctx context.Context, pkgPath string) ([
 	return out, nil
 }
 
+// subpackageCardsWait caps how long an overview waits for its Directories
+// cards, below a listing's own wait: they are not what the page is for.
+const subpackageCardsWait = 500 * time.Millisecond
+
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.
 // It fans out ListFiles, Doc, README and ListPaths in parallel, then builds
 // a pure OverviewData that the template renders.
@@ -1945,11 +1971,11 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	height := gnourl.Height()
 
 	var (
-		files    []string
-		sources  map[string][]byte
-		jdoc     *doc.JSONDocumentation
-		readme   components.Component
-		subpaths []string
+		files       []string
+		sources     map[string][]byte
+		jdoc        *doc.JSONDocumentation
+		readme      components.Component
+		subpackages []components.PackageCard
 	)
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -1963,13 +1989,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		return nil
 	})
 	g.Go(func() error {
-		d, err := h.Client.Doc(gctx, pkgPath, height)
-		if err != nil {
-			h.Logger.Warn("overview: qdoc failed — degraded mode", "path", pkgPath, "error", err)
-			jdoc = &doc.JSONDocumentation{}
-			return nil
-		}
-		jdoc = d
+		jdoc = h.docOrNil(gctx, pkgPath, height)
 		return nil
 	})
 	g.Go(func() error {
@@ -1986,12 +2006,17 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		if err != nil {
 			return nil
 		}
-		// Store returns domain-qualified paths (e.g. "gno.land/r/demo/foo/bar").
-		// buildSubpackages works on domain-relative paths.
-		subpaths = make([]string, 0, len(paths))
-		for _, p := range paths {
-			subpaths = append(subpaths, strings.TrimPrefix(p, h.Static.Domain))
+		// Store returns domain-qualified paths (e.g. "gno.land/r/demo/foo/bar");
+		// cards work on domain-relative ones.
+		rel := make([]string, len(paths))
+		for i, p := range paths {
+			rel[i] = strings.TrimPrefix(p, h.Static.Domain)
 		}
+		// The cards sit at the bottom of the page: they get a short wait, and
+		// one not ready by then fills in for the next reader.
+		cctx, cancel := context.WithTimeout(gctx, subpackageCardsWait)
+		defer cancel()
+		subpackages = h.ChainMap.Cards(cctx, components.ChildPackages(pkgPath, rel))
 		return nil
 	})
 
@@ -2009,14 +2034,28 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Files:       files,
 		Doc:         jdoc,
 		Sources:     sources,
-		Subpaths:    subpaths,
 		Readme:      readme,
 		Domain:      h.Static.Domain,
 		DocRenderer: h.Renderer,
+		DepsURL:     h.ChainMap.DepsURL(pkgPath),
+		Subpackages: subpackages,
 	}
-	in.DepsURL = h.ChainMap.DepsURL(pkgPath)
 	data := components.BuildOverview(in)
 	return http.StatusOK, components.OverviewView(data)
+}
+
+// docOrNil reads the package's doc, or nil when it cannot be read: a page
+// then lists the files without what they declare, and says so. A request
+// already given up is no failure worth a log line.
+func (h *HTTPHandler) docOrNil(ctx context.Context, pkgPath string, height int64) *doc.JSONDocumentation {
+	jdoc, err := h.Client.Doc(ctx, pkgPath, height)
+	if err != nil {
+		if ctx.Err() == nil {
+			h.Logger.Warn("qdoc failed, symbols left out", "path", pkgPath, "error", err)
+		}
+		return nil
+	}
+	return jdoc
 }
 
 // fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.
