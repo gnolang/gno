@@ -80,10 +80,20 @@ func TestCanonicalURLArgs(t *testing.T) {
 		"/r/gnoland/blog:t/news":                                       "/r/gnoland/blog:t/news",
 		"/r/gnoland:t/news":                                            "/r/gnoland:t/news",
 		"/news:latest":                                                 "/news:latest",
-		"/u/docs:x":                                                    "/docs",
+		// /docs is served by DocsHandler, not aliased: /u/docs is a plain
+		// user page and drops its args.
+		"/u/docs:x": "/u/docs",
 	} {
 		u, err := weburl.Parse(in)
 		require.NoError(t, err, in)
 		assert.Equal(t, "https://gno.land"+want, h.canonicalURL(u), in)
 	}
+
+	// An alias into /u/ is looked up once args are dropped, so the target
+	// with args still names the alias.
+	aliases := map[string]AliasTarget{"/team": {Value: "/u/team", Kind: GnowebPath}}
+	h.policy = newPagePolicy(nil, aliases, IndexNoCommunity, false)
+	u, err := weburl.Parse("/u/team:x")
+	require.NoError(t, err)
+	assert.Equal(t, "https://gno.land/team", h.canonicalURL(u))
 }

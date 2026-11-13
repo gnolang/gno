@@ -23,6 +23,7 @@ func TestClassifyPageType(t *testing.T) {
 		{"run view wins over realm mode", ViewModeRealm, RunViewType, "run"},
 		{"run view wins over package mode", ViewModePackage, RunViewType, "run"},
 		{"playground view", ViewModePlayground, PlaygroundViewType, "playground"},
+		{"docs view wins over realm mode", ViewModeRealm, DocsViewType, "docs"},
 		{"realm view falls through to mode", ViewModeRealm, RealmViewType, "realm"},
 		{"home mode", ViewModeHome, RealmViewType, "home"},
 		{"user mode", ViewModeUser, UserViewType, "user"},
