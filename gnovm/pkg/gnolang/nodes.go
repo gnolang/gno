@@ -143,6 +143,7 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_FUNC_LOCAL_TYPES      GnoAttribute = "ATTR_FUNC_LOCAL_TYPES" // []*DeclaredType on the PackageNode, set at predefine; see AddFuncLocalType.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -1319,6 +1320,20 @@ type PackageNode struct {
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
+}
+
+// FuncLocalTypes returns the function-local declared types collected at
+// predefine time (see ATTR_FUNC_LOCAL_TYPES).
+func (pn *PackageNode) FuncLocalTypes() []*DeclaredType {
+	fts, _ := pn.GetAttribute(ATTR_FUNC_LOCAL_TYPES).([]*DeclaredType)
+	return fts
+}
+
+// AddFuncLocalType records a function-local declared type minted at
+// predefine (tryPredefine); addpkg persists the collection. Invariant,
+// audited under -tags debugAssert: every mint path must append here.
+func (pn *PackageNode) AddFuncLocalType(dt *DeclaredType) {
+	pn.SetAttribute(ATTR_FUNC_LOCAL_TYPES, append(pn.FuncLocalTypes(), dt))
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing
