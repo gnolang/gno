@@ -166,6 +166,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// type keeps working without a key.
 		RequireSigForSimulate: txCarriesCode,
 	}
+	anteParamsCache := &checkTxParams{load: func(ctx sdk.Context) anteParams {
+		gasCfg := store.DefaultGasConfig()
+		vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
+		vmParams.ApplyToGasConfig(&gasCfg)
+		return anteParams{auth: acck.GetParams(ctx), vm: vmParams, gasCfg: gasCfg}
+	}}
 	authAnteHandler := auth.NewAnteHandler(
 		acck, bankk, auth.DefaultSigVerificationGasConsumer, authOptions)
 	baseApp.SetAnteHandler(
@@ -175,10 +181,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		) {
 			// Add last gas price in the context
 			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpk.LastGasPrice(ctx))
+			// Auth and vm params, decoded once per committed height for
+			// CheckTx and recheck, on every call otherwise (checkTxParams).
+			ap := anteParamsCache.get(ctx)
 			// Override auth params. acck.GetParams internally bypasses
 			// the gas meter (see tm2/pkg/sdk/auth/params.go) so this
 			// read costs nothing.
-			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, ap.auth)
 			// Apply VM gas config so all store operations (account
 			// reads/writes in ante, message handlers, etc.) use the
 			// governed depth parameters.
@@ -201,10 +210,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// and cost no gas, but the decode is real work on every
 			// code-bearing transaction. Nothing writes vm params between
 			// here and there, so the value is identical.
-			gasCfg := store.DefaultGasConfig()
-			vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
-			vmParams.ApplyToGasConfig(&gasCfg)
-			ctx = ctx.WithGasConfig(gasCfg)
+			vmParams := ap.vm
+			ctx = ctx.WithGasConfig(ap.gasCfg)
 
 			// During genesis (block height 0), automatically create accounts for signers
 			// if they don't exist. This allows packages with custom creators to be loaded.
