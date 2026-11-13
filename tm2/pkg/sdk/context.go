@@ -33,6 +33,7 @@ type Context struct {
 	minGasPrices  []GasPrice
 	consParams    *abci.ConsensusParams
 	eventLogger   *EventLogger
+	payGasInfo    *PayGasInfo // shared pointer for PayGas sponsorship
 }
 
 // Proposed rename, not done to avoid API breakage
@@ -50,9 +51,16 @@ func (c Context) Logger() *slog.Logger          { return c.logger }
 func (c Context) VoteInfos() []abci.VoteInfo    { return c.voteInfo }
 func (c Context) GasMeter() store.GasMeter      { return c.gasMeter }
 func (c Context) BlockGasMeter() store.GasMeter { return c.blockGasMeter }
-func (c Context) IsCheckTx() bool               { return c.mode == RunTxModeCheck }
-func (c Context) MinGasPrices() []GasPrice      { return c.minGasPrices }
-func (c Context) EventLogger() *EventLogger     { return c.eventLogger }
+
+// IsCheckTx reports the ante-only CheckTx mode. NOTE: it is deliberately FALSE
+// for RunTxModeCheckExecute — that mode runs messages, so callers gating
+// "skip real work during CheckTx" on this must keep executing under it (the
+// 0-fee admission path depends on message execution actually happening).
+// Use c.Mode() explicitly if you mean "any CheckTx".
+func (c Context) IsCheckTx() bool           { return c.mode == RunTxModeCheck }
+func (c Context) MinGasPrices() []GasPrice  { return c.minGasPrices }
+func (c Context) EventLogger() *EventLogger { return c.eventLogger }
+func (c Context) PayGasInfo() *PayGasInfo   { return c.payGasInfo }
 
 // clone the header before returning
 func (c Context) BlockHeader() abci.Header {
@@ -144,6 +152,11 @@ func (c Context) WithConsensusParams(params *abci.ConsensusParams) Context {
 
 func (c Context) WithEventLogger(em *EventLogger) Context {
 	c.eventLogger = em
+	return c
+}
+
+func (c Context) WithPayGasInfo(pgi *PayGasInfo) Context {
+	c.payGasInfo = pgi
 	return c
 }
 

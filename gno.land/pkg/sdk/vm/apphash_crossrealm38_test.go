@@ -228,7 +228,11 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped by realm transaction sponsorship (#5382): the PayGas and PayStorage
+// declarations (and their doc comments) are stdlib .gno source bytes committed
+// into genesis, so the root moves. crossrealm38 calls neither.
+const expectedCrossrealm38Hash = "5a714701e0830a8ab291d5147a1162bfeabfbfa95388d7bd97f084492590b5fb"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

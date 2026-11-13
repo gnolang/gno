@@ -1,0 +1,35 @@
+# chain/runtime payGas and payStorage (realm transaction sponsorship), measured
+# on Apple M1 Pro, Go 1.25. Each line is the fastest of 40 samples: two batches
+# of 20 interleaved rounds, each round one run of
+#
+#   go test -run '^$' -bench 'Runtime_Pay|PackageAddress' \
+#       -benchtime 200ms -count 1 .
+#
+# The machine was loaded (load average 12 to 31). Contention only adds time, so
+# the fastest sample tracks the uncontended cost: per-size medians moved by up
+# to 31% between the two batches, the fastest samples by at most 2%.
+#
+# The PackageAddress lines are a same-run anchor against the M2 snapshot in
+# native_bench_output.txt (that native's code has not changed since), not rows
+# to copy. Fit, without overwriting the committed M2 tables:
+#
+#   python3 gen_native_table.py sponsorship_bench_m1pro_arm64.txt \
+#       --md-out /dev/null --go-out /dev/null --no-plot
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/cmd/calibrate
+cpu: Apple M1 Pro
+BenchmarkNative_Chain_PackageAddress_1-10       	  419262	       568.0 ns/op
+BenchmarkNative_Chain_PackageAddress_10-10      	  288804	       832.2 ns/op
+BenchmarkNative_Chain_PackageAddress_100-10     	  110389	      2177 ns/op
+BenchmarkNative_Chain_PackageAddress_1000-10    	   14719	     15564 ns/op
+BenchmarkNative_Runtime_PayGas_12-10            	  218295	      1097 ns/op
+BenchmarkNative_Runtime_PayGas_32-10            	  130050	      1837 ns/op
+BenchmarkNative_Runtime_PayGas_64-10            	   80130	      2967 ns/op
+BenchmarkNative_Runtime_PayGas_128-10           	   44239	      5097 ns/op
+BenchmarkNative_Runtime_PayGas_256-10           	   21528	      9424 ns/op
+BenchmarkNative_Runtime_PayStorage_12-10        	  215464	      1091 ns/op
+BenchmarkNative_Runtime_PayStorage_32-10        	  126643	      1848 ns/op
+BenchmarkNative_Runtime_PayStorage_64-10        	   78372	      2968 ns/op
+BenchmarkNative_Runtime_PayStorage_128-10       	   41370	      5108 ns/op
+BenchmarkNative_Runtime_PayStorage_256-10       	   25317	      9434 ns/op
