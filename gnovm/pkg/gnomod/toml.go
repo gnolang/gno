@@ -7,16 +7,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/toml"
 )
 
-// maxDecodeErrBytes bounds the decoder's own error text. go-toml renders the
-// offending value into the message, and for a nested table that value is the
-// whole *Tree formatted with %v (marshal.go), which Tree.String indents by
-// depth — so the text is superlinear in key-path depth. tm2/pkg/toml bounds that
-// depth (maxKeyDepth), which takes the worst text a 4KB body can produce from
-// 2.7MB down to ~26KB, but that is still ~6x the body that caused it. Every
-// caller copies the text whole (sdk.clipLog splits it line by line before
-// capping it, so its cap does not save the allocation), and it reaches
-// consensus-visible logs. Nothing reads it programmatically; it is a diagnostic,
-// so truncate it at the source.
+// maxDecodeErrBytes bounds the decoder's own error text. go-toml quotes what it
+// cannot read into the message: a string in the wrong field makes the text as
+// long as the body, and an array under a table header several times it. Every
+// caller copies the text whole (sdk.clipLog splits it line by line before capping
+// it, so its cap does not save the allocation), and it reaches the transaction's
+// log. Nothing reads it programmatically; it is a diagnostic, so truncate it at
+// the source.
 const maxDecodeErrBytes = 1 << 10
 
 // ParseTomlBytes parses the gnomod.toml file from bytes.

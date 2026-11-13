@@ -930,6 +930,9 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
 	tids := make(map[TypeID]struct{})
+	// objects on the save walk's current path; see the cycle guard in
+	// saveUnsavedObjectRecursively.
+	inflight := make(map[Object]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -939,7 +942,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !co.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, co, tids)
+				rlm.saveUnsavedObjectRecursively(store, co, tids, inflight)
 			}
 		}
 	}
@@ -965,7 +968,19 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 // store unsaved children first.
 // ensure that the object and children does not have any private dependencies.
 // use a visited map to mark visited types when asserting there are no private dependencies.
-func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}) {
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}, inflight map[Object]struct{}) {
+	// An object already on the walk's path closes a cycle with no escaped
+	// node, which a deletion in the same transaction can leave: escape it so
+	// the walk stops here, and its own pending frame saves it.
+	if _, ok := inflight[oo]; ok {
+		rlm.MarkNewEscaped(oo)
+		// escaped objects have no owner.
+		oo.SetOwner(nil)
+		return
+	}
+	inflight[oo] = struct{}{}
+	defer delete(inflight, oo)
+
 	if debugAssert {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -1005,7 +1020,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch, visited)
+			rlm.saveUnsavedObjectRecursively(store, uch, visited, inflight)
 		}
 	}
 	// then, save self.

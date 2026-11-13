@@ -34,6 +34,39 @@ func (b *Block) ValidateBasic() error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
+	if err := b.validateHeaderBasic(); err != nil {
+		return err
+	}
+	if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
+		return fmt.Errorf("wrong Header.LastCommitHash. Expected %v, got %v",
+			b.LastCommit.Hash(),
+			b.LastCommitHash,
+		)
+	}
+	// NOTE: b.Data.Txs may be nil, but b.Data.Hash()
+	// still works fine
+	if !bytes.Equal(b.DataHash, b.Data.Hash()) {
+		return fmt.Errorf(
+			"wrong Header.DataHash. Expected %v, got %v",
+			b.Data.Hash(),
+			b.DataHash,
+		)
+	}
+	return nil
+}
+
+// ValidateHeaderBasic is ValidateBasic without hashing LastCommit or Data.
+func (b *Block) ValidateHeaderBasic() error {
+	if b == nil {
+		return errors.New("nil block")
+	}
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+
+	return b.validateHeaderBasic()
+}
+
+func (b *Block) validateHeaderBasic() error {
 	if len(b.ChainID) > MaxChainIDLen {
 		return fmt.Errorf("ChainID is too long. Max is %d, got %d", MaxChainIDLen, len(b.ChainID))
 	}
@@ -80,25 +113,15 @@ func (b *Block) ValidateBasic() error {
 	if err := ValidateHash(b.LastCommitHash); err != nil {
 		return fmt.Errorf("wrong Header.LastCommitHash: %w", err)
 	}
-	if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
-		return fmt.Errorf("wrong Header.LastCommitHash. Expected %v, got %v",
-			b.LastCommit.Hash(),
-			b.LastCommitHash,
-		)
+	// An empty hash over a non-empty body would make Hash compute it from that body.
+	if len(b.LastCommitHash) == 0 && len(b.LastCommit.Precommits) > 0 {
+		return errors.New("empty Header.LastCommitHash over a non-empty LastCommit")
 	}
-
-	// Validate the hash of the transactions.
-	// NOTE: b.Data.Txs may be nil, but b.Data.Hash()
-	// still works fine
 	if err := ValidateHash(b.DataHash); err != nil {
 		return fmt.Errorf("wrong Header.DataHash: %w", err)
 	}
-	if !bytes.Equal(b.DataHash, b.Data.Hash()) {
-		return fmt.Errorf(
-			"wrong Header.DataHash. Expected %v, got %v",
-			b.Data.Hash(),
-			b.DataHash,
-		)
+	if len(b.DataHash) == 0 && len(b.Data.Txs) > 0 {
+		return errors.New("empty Header.DataHash over non-empty Data.Txs")
 	}
 
 	// Basic validation of hashes related to application data.
@@ -570,6 +593,12 @@ func (commit *Commit) ValidateBasic() error {
 	}
 	if len(commit.Precommits) == 0 {
 		return errors.New("No precommits in commit")
+	}
+	// A commit has one entry per validator. A nil entry costs a peer 2 wire
+	// bytes, so bound the count before Hash() walks them.
+	if len(commit.Precommits) > MaxVotesCount {
+		return fmt.Errorf("commit has too many precommits: %d, max: %d",
+			len(commit.Precommits), MaxVotesCount)
 	}
 	height, round := commit.Height(), commit.Round()
 

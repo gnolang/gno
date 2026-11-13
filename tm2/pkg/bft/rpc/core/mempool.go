@@ -115,8 +115,18 @@ func (env *Environment) BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*
 	}, nil
 }
 
+// maxUnconfirmedTxsBytes bounds the tx bytes one UnconfirmedTxs response
+// carries. It is the default Block.MaxDataBytes, which bounds a whole
+// serialized block, so a response holds about one block's worth of txs at the
+// default consensus params.
+const maxUnconfirmedTxsBytes = types.MaxBlockDataBytes
+
 // UnconfirmedTxs gets unconfirmed transactions (maximum ?limit entries)
 // including their number.
+//
+// The response also stops before the tx that would take its tx bytes past
+// maxUnconfirmedTxsBytes, though it always carries the first tx; Total and
+// TotalBytes still describe the whole mempool.
 func (env *Environment) UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 	_, span := traces.Tracer().Start(ctx.Context(), "UnconfirmedTxs")
 	defer span.End()
@@ -124,6 +134,14 @@ func (env *Environment) UnconfirmedTxs(ctx *rpctypes.Context, limit int) (*ctype
 	limit = validatePerPage(limit)
 
 	txs := env.Mempool.ReapMaxTxs(limit)
+	var size int64
+	for i, tx := range txs {
+		size += int64(len(tx))
+		if i > 0 && size > maxUnconfirmedTxsBytes {
+			txs = txs[:i]
+			break
+		}
+	}
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      len(txs),
 		Total:      env.Mempool.Size(),

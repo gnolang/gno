@@ -43,6 +43,13 @@ type Config struct {
 
 const DefaultGnoLandPrefix = "gno.land/"
 
+// Over SSH the client declares its terminal size, and every view pads to it.
+// The caps are 8192 pixels of 4x8-pixel cells, wider and taller than 8K.
+const (
+	maxTerminalWidth  = 2048
+	maxTerminalHeight = 1024
+)
+
 func DefaultConfig() Config {
 	return Config{
 		Logger:          log.NewNoopLogger(),
@@ -155,6 +162,11 @@ func New(cfg Config, client *gnoclient.Client) tea.Model {
 
 		devMode: cfg.DevMode,
 	}
+}
+
+// Close stops the mouse zone worker New starts, which outlives the program.
+func (m model) Close() {
+	m.zone.Close()
 }
 
 func (m model) Init() tea.Cmd {
@@ -374,6 +386,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.WindowSizeMsg:
+		// SSH window changes and bubbletea's own terminal read both arrive
+		// here: views and child models take the size from m, never the session.
+		msg.Width = min(msg.Width, maxTerminalWidth)
+		msg.Height = min(msg.Height, maxTerminalHeight)
 		m.width = msg.Width
 
 		headerHeight := lipgloss.Height(m.headerView())

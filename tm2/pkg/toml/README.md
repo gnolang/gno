@@ -7,13 +7,14 @@ with resource bounds on decoding.
 
 `gnomod.toml` rides inside the `MemPackage` of a `MsgAddPackage` or `MsgRun`, so
 its body is caller-controlled, and upstream go-toml v1 has no resource bounds
-of any kind. Three axes were unbounded:
+of any kind. Four axes were unbounded:
 
 | axis | upstream behaviour |
 |---|---|
 | array / inline-table nesting | `parseRvalue`, `parseArray` and `parseInlineTable` are mutually recursive with no depth limit. Closing brackets are not needed to descend, so `a = [[[[…` recurses to EOF: ~400,000 openers (under 400KB) exhaust Go's 1GB goroutine stack. **A stack overflow is a fatal runtime error that no `recover()` can catch**, so every node processing the message dies. |
 | key-path depth | `parseAssign` re-walks the current table's key path for every assignment under it, so depth × assignments is quadratic in the document. 4KB reached 2.8ms; the shape spends no bracket at all. |
 | table count | `parseGroup` rescans `seenTableKeys` once per table, so a decode is O(n²) in the table count. 1MB of `[tNNNNNN]` headers took ~9s. |
+| type-mismatch text | `valueFromToml` renders the value into its error, and `Tree.String` is O(depth²). Inline tables and dotted keys multiply: 120 levels of 16-segment keys, a 4KB body, is a tree 1,920 levels deep, and rendering it allocated 62MB. |
 
 Upstream is not an option for fixing these: go-toml's `SECURITY.md` lists **all
 1.x as unsupported**, and its README declares v1 deprecated with "no active
@@ -22,8 +23,8 @@ development is expected on it".
 Migrating to go-toml v2 does not fix the class either — v2 has the same
 unbounded mutual recursion (it survives 900KB of `[` and fatally overflows at
 ~1MB, i.e. its only protection is that the payload barely does not fit in
-`MaxBlockTxBytes`), and it is *slower* on the other two axes (19.0s for 50k
-tables, vs ~9s on v1).
+`MaxBlockTxBytes`), and it is *slower* on key-path depth and table count (19.0s
+for 50k tables, vs ~9s on v1).
 
 ## The deviation from upstream
 
@@ -38,6 +39,8 @@ diff and re-applied if the vendored base ever moves. See the `Makefile`.
 3. **`parser.go` — O(1) duplicate-table check.** A `map` kept alongside
    `seenTableKeys`, making the table count linear rather than quadratic. This is
    a fix, not a limit: no document is rejected for it.
+4. **`marshal.go` — a type mismatch names a table or an array by its Go type.**
+   This is a fix, not a limit: no document changes between accepted and refused.
 
 Both limits are checked against the parser's **own state** rather than against
 raw bytes. That is the point of fixing this here instead of in each caller: a
@@ -49,7 +52,7 @@ the parsed path and the actual recursion is exact.
 
 Also carried, all unrelated to the bounds:
 
-4. **`tomltree_write.go` — an exact control-character escape.** Upstream wrote
+5. **`tomltree_write.go` — an exact control-character escape.** Upstream wrote
    `intRr := uint16(rr); if intRr < 0x001F`, which is wrong in two directions.
    The bound excluded U+001F itself, so that character was written raw into a
    basic string — and `lexStringAsString` refuses raw `0x00`–`0x1F`, so `Marshal`
@@ -61,9 +64,9 @@ Also carried, all unrelated to the bounds:
    after a further round trip (`gno.land/pkg/sdk/vm.PackageContentHash`), so an
    encoding that is not a fixpoint is an approval no approver can ever match.
    Covered by `TestBoundsMarshalRoundTripsEveryRune`.
-5. **Four `go vet` fixes** — `l.errorf(err.Error())` → `l.errorf("%s", err.Error())`
+6. **Four `go vet` fixes** — `l.errorf(err.Error())` → `l.errorf("%s", err.Error())`
    in `lexer.go`, so `go test ./tm2/pkg/toml/` is clean without `-vet=off`.
-6. **One test made timezone-robust** — `TestUnmarshalLocalDateTime` compared raw
+7. **One test made timezone-robust** — `TestUnmarshalLocalDateTime` compared raw
    wall-clock components against a `time.Local` decode, so it failed on any zone
    putting `1979-05-27T00:32` in a historical DST gap. It now normalizes both
    sides identically. Verified under UTC, Europe/Paris, Asia/Kolkata,
@@ -94,7 +97,8 @@ The rewrites are mechanical, but this is a parser on a consensus path, so they
 were checked rather than assumed: 600,000 generated documents (tables, table
 arrays, shared prefixes, quoted and dotted keys, every value shape, nesting)
 decode to byte-identical output and byte-identical error text against upstream
-`pelletier/go-toml`, and `Marshal` round-trips identically.
+`pelletier/go-toml`, and `Marshal` round-trips identically. Item 4 came after
+that check and changes the text of three messages.
 
 ## Tests
 

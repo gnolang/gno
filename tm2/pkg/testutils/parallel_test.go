@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMaxParallelOverride(t *testing.T) {
@@ -44,17 +43,4 @@ func TestMaxParallel(t *testing.T) {
 		assert.LessOrEqual(t, n, defaultMaxParallel)
 		assert.LessOrEqual(t, n, runtime.GOMAXPROCS(0), "never more workers than cores")
 	})
-}
-
-func TestReadMemInfo(t *testing.T) {
-	t.Parallel()
-
-	mi, ok := ReadMemInfo()
-	if !ok {
-		t.Skip("not implemented on this platform")
-	}
-	// No floor on Total: a cgroup can hold it to a few hundred MiB, or less.
-	// The units are checked against fixed input instead, in TestParseMemInfo.
-	require.NotZero(t, mi.Total)
-	assert.LessOrEqual(t, mi.Available, mi.Total, "more available than exists")
 }

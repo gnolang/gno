@@ -12,6 +12,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -32,9 +34,11 @@ type BroadcastCfg struct {
 	// max gas limit to use for simulation (optional).
 	simulateMaxGas int64
 
-	// simTxBytes, when set, is a separately signed tx to simulate with. See
-	// where it is built in maketx.go: simulation rewrites GasWanted, which
-	// invalidates the original signature.
+	// simTxBytes, when set, is a separately signed tx to simulate with. It is
+	// built in maketx.go only for code-bearing txs, whose signature the chain
+	// verifies when simulating: rewriting GasWanted invalidates the original
+	// one. Every other tx simulates with blanked signatures, see
+	// buildSimulationTxBytes.
 	simTxBytes   []byte
 	GasFeeMargin uint64
 }
@@ -176,19 +180,92 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 // buildSimulationTxBytes returns tx bytes to use for simulation, overriding
 // GasWanted to consensus maxGas. If maxGas is -1 (chain has no gas limit) it
 // falls back to MaxInt64. If maxGas is 0 (unknown, e.g. fetch failed) the
-// original bytes are returned unchanged. It also returns whether tx bytes were
-// rewritten.
+// original GasWanted is kept. It also returns whether GasWanted was rewritten.
+//
+// Unless the chain verifies signatures when simulating tx (see
+// txNeedsSimulationSignature), the signatures are blanked: the node simulating
+// is whichever RPC the user pointed at, and a real signature would hand it a tx
+// it can broadcast, even on a dry run that never does.
 func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, bool, error) {
 	simTx, rewritten := txWithGasWanted(tx, maxGas)
-	if !rewritten {
+	blank := len(tx.Signatures) > 0 && !txNeedsSimulationSignature(*tx)
+	if !rewritten && !blank {
 		return txBytes, false, nil
+	}
+	if simTx == nil {
+		cp := *tx
+		simTx = &cp
+	}
+	if blank {
+		simTx.Signatures = blankSignatures(tx.Signatures)
 	}
 	simBz, err := amino.Marshal(simTx)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "remarshaling tx binary bytes for simulation")
 	}
 
-	return simBz, true, nil
+	return simBz, rewritten, nil
+}
+
+// blankSignatures returns a copy of sigs with every signature byte zeroed. Keys,
+// session addresses and lengths are kept, since the ante handler charges gas by
+// key type and by tx size: the estimate does not move.
+func blankSignatures(sigs []std.Signature) []std.Signature {
+	out := make([]std.Signature, len(sigs))
+	for i, sig := range sigs {
+		out[i] = sig
+		out[i].Signature = blankSignature(sig.PubKey, sig.Signature)
+	}
+	return out
+}
+
+// blankSignature returns a zeroed copy of sig. A multisig signature is an
+// amino-encoded Multisignature that the gas consumer decodes and walks, so it
+// keeps its shape and only its constituents are zeroed, recursively. When pub
+// is nil, the chain resolves it from the account, so the signature's own shape
+// is used instead.
+func blankSignature(pub crypto.PubKey, sig []byte) []byte {
+	remainingKeys := multisig.MaxTotalKeys
+	return blankSignatureWithBudget(pub, sig, multisig.MaxNestingDepth, &remainingKeys)
+}
+
+func blankSignatureWithBudget(pub crypto.PubKey, sig []byte, remainingLevels int, remainingKeys *int) []byte {
+	if remainingLevels == 0 || *remainingKeys == 0 {
+		return make([]byte, len(sig))
+	}
+	(*remainingKeys)--
+
+	mpk, isMultisig := pub.(multisig.PubKeyMultisigThreshold)
+	if pub != nil && !isMultisig {
+		return make([]byte, len(sig))
+	}
+	var ms multisig.Multisignature
+	if amino.Unmarshal(sig, &ms) != nil {
+		return make([]byte, len(sig))
+	}
+	nkeys := ms.BitArray.Size()
+	if isMultisig {
+		if mpk.ValidateStructure() != nil {
+			return make([]byte, len(sig))
+		}
+		nkeys = len(mpk.PubKeys)
+	}
+	if (!isMultisig && (nkeys == 0 || nkeys > multisig.MaxTotalKeys)) || ms.ValidateBasic(nkeys) != nil {
+		return make([]byte, len(sig))
+	}
+
+	next := 0
+	for i := range ms.BitArray.Size() {
+		if ms.BitArray.GetIndex(i) {
+			var subkey crypto.PubKey
+			if isMultisig {
+				subkey = mpk.PubKeys[i]
+			}
+			ms.Sigs[next] = blankSignatureWithBudget(subkey, ms.Sigs[next], remainingLevels-1, remainingKeys)
+			next++
+		}
+	}
+	return ms.Marshal()
 }
 
 // txWithGasWanted returns a copy of tx with GasWanted raised to the

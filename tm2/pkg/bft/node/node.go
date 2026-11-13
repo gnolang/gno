@@ -953,10 +953,11 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 				// (we used to unsubscribe from all event subscriptions)
 			}),
 			rpcserver.ReadLimit(config.MaxBodyBytes),
+			rpcserver.MaxBatchRequests(n.config.RPC.MaxBatchRequests),
 		)
 		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
-		rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
+		rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger, n.config.RPC.MaxBatchRequests)
 		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
 			rebuildAddresses = true
 		}
