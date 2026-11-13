@@ -33,6 +33,10 @@ func resetValset(t *testing.T) {
 	testing.SetSysParamStrings(module, submodule, currKey, []string{})
 	testing.SetSysParamStrings(module, submodule, propKey, []string{})
 	testing.SetSysParamBool(module, submodule, dirtyKey, false)
+	// Realm globals outlive a top-level TestXxx, and Render now reads
+	// them — clear them here so a freeze in one test cannot show up in
+	// another test's Render output.
+	resetFreezeState()
 }
 
 func mustAddr(t *testing.T, pk string) address {
