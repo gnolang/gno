@@ -43,6 +43,11 @@ const (
 	ProxyLogName       = "Proxy"
 )
 
+// defaultContractsDir is the conventional directory for the operator's own
+// packages in staging mode. Its absence is not an error: a preview chain with
+// nothing but examples is a legitimate thing to run.
+const defaultContractsDir = "contracts"
+
 type App struct {
 	io          commands.IO
 	start       time.Time // Time when the server started
@@ -174,7 +179,24 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 
 	// Translate positional args into loader roots and path entries.
 	localPaths := make([]string, 0, len(dirs))
-	extraRoots := make([]string, 0, len(ds.cfg.extraRoots)+len(dirs))
+	extraRoots := make([]string, 0, len(ds.cfg.extraRoots)+len(dirs)+1)
+
+	// -contracts-dir is a root, not a package dir: it holds a tree and every
+	// package under it is loaded. Missing is only an error when the operator
+	// named it, since the staging default points at a directory most
+	// deployments will not have.
+	if dir := ds.cfg.contractsDir; dir != "" {
+		switch _, err := os.Stat(dir); {
+		case err == nil:
+			loaderLogger.Info("loading contracts", "dir", dir)
+			extraRoots = append(extraRoots, dir)
+		case dir != defaultContractsDir:
+			return fmt.Errorf("-contracts-dir %q: %w", dir, err)
+		default:
+			loaderLogger.Debug("no contracts dir, skipping", "dir", dir)
+		}
+	}
+
 	for _, r := range ds.cfg.extraRoots {
 		if _, err := os.Stat(r); err != nil {
 			loaderLogger.Warn("-extra-root invalid, skipping", "root", r, "err", err)
@@ -468,6 +490,22 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 				serveWeb(w, r)
 			}
 		})
+	}
+
+	// Serve the node's own RPC under /rpc on the gnoweb origin, so a deployment
+	// is one hostname and one certificate instead of two. A visitor points
+	// gnokey at https://<host>/rpc and needs nothing else.
+	//
+	// Staging only: in local mode the RPC listener is already reachable and the
+	// lazy proxy sits in front of it, which this would bypass.
+	if ds.cfg.staging {
+		rpcHandler, rpcErr := newRPCProxy(remote)
+		if rpcErr != nil {
+			return nil, fmt.Errorf("unable to setup rpc proxy: %w", rpcErr)
+		}
+		mux.Handle("/rpc", rpcHandler)
+		mux.Handle("/rpc/", rpcHandler)
+		ds.logger.WithGroup(WebLogName).Info("rpc proxied on the web origin", "path", "/rpc", "target", remote)
 	}
 
 	// Setup unsafe API
