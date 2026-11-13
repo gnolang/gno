@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"os"
 	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
@@ -194,8 +193,7 @@ func newTmkmsListenerPrivValidator(
 		return nil, err
 	}
 
-	protocol, address := osm.ProtocolAndAddress(cfg.ListenAddr)
-	rawLn, err := net.Listen(protocol, address)
+	rawLn, err := listenTmkms(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -213,14 +211,6 @@ func newTmkmsListenerPrivValidator(
 		if len(allowlist) > 0 {
 			logger.Warn("tmkms_listener: allowed_kms_pubkeys is ignored on a unix:// listener; " +
 				"access is controlled by filesystem permissions on the socket and its parent directory")
-		}
-		// Default umask leaves the socket world-writable on most distros;
-		// any local user could then connect and become the signer. Tighten
-		// to owner-only RW. Best-effort: ignore the error (some filesystems
-		// don't honor chmod on sockets) but log it.
-		if err := os.Chmod(address, 0o600); err != nil {
-			logger.Warn("tmkms_listener: chmod 0600 on unix socket failed; falling back to default perms",
-				"path", address, "err", err)
 		}
 		compatLn = upstream.NewUnixListener(t,
 			upstream.UnixListenerTimeoutReadWrite(cfg.TimeoutReadWrite))
@@ -247,4 +237,19 @@ func newTmkmsListenerPrivValidator(
 	}
 
 	return upstream.NewRetrySignerClient(sc, cfg.Retries, cfg.RetryTimeout), nil
+}
+
+// listenTmkms listens on cfg.ListenAddr. A unix:// socket gets its
+// configured mode before the listener is returned; failing to set it fails
+// the listen.
+func listenTmkms(cfg *TmkmsListenerConfig) (net.Listener, error) {
+	protocol, address := osm.ProtocolAndAddress(cfg.ListenAddr)
+	if protocol != "unix" {
+		return net.Listen(protocol, address)
+	}
+	mode, err := cfg.parseSocketMode()
+	if err != nil {
+		return nil, err
+	}
+	return listenUnixSocket(address, mode)
 }
