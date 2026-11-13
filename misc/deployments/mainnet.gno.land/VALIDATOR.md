@@ -27,7 +27,7 @@ export GNOROOT=~/gno
 chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.7.1
 ```
 
-`v1.7.1`'s `gnoland_linux_amd64` needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12 or later); on an older system, build it from the tag or use the container image. `gnoland_linux_arm64` is static and starts on any Linux.
+`v1.7.1`'s `gnoland_linux_amd64` needs glibc 2.34 or newer (Ubuntu 22.04, Debian 12, RHEL 9, Amazon Linux 2023 or later); on an older system, build it from the tag or use the container image. `gnoland_linux_arm64` is static and starts on any Linux.
 
 Or build it from the tag (`git checkout v1.7.1 && make -C gno.land install.gnoland install.gnokey`; `gnoland version` must print `v1.7.1`). Never from `master` or from the branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
 
