@@ -228,7 +228,16 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped by the crypto/bls12381 stdlib, and again by its
+// FastAggregateVerifyExcluding: its .gno sources (and its _test.gno, see above)
+// are committed into genesis state like every stdlib's, so the root moves.
+// crossrealm38 does not import it.
+//
+// Bumped again by the bls12381 review fixes: the caller-obligation doc text in
+// bls12381.gno and the identity-aggregate test in bls12381_test.gno are source
+// bytes in the root; the identity check itself is in bls12381.go, which is not.
+const expectedCrossrealm38Hash = "6c71bc7cc8d2108a152bf00966693e7051a35ed68e2332337bc15cc369b9342e"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

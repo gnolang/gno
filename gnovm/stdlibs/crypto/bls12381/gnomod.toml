@@ -1,0 +1,2 @@
+module = "crypto/bls12381"
+gno = "0.9"
