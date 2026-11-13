@@ -566,22 +566,29 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any, reqInit
 	case GnoGenesisState:
 		return cfg.applyInMemoryAppState(ctx, state, reqInitialHeight)
 	case *GenesisStateRef:
-		return cfg.applyStreamingAppState(ctx, state)
+		return cfg.applyStreamingAppState(ctx, state, reqInitialHeight)
 	default:
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 }
 
-func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGenesisState, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
-	// If GnoGenesisState.InitialHeight is set, it must match the authoritative
-	// GenesisDoc.InitialHeight (which comes in via req.InitialHeight). These
-	// fields are duplicated so tooling can read the app-level one; if they
-	// diverge, the genesis file is malformed.
-	if state.InitialHeight != 0 && state.InitialHeight != reqInitialHeight {
-		return nil, fmt.Errorf(
+// validateInitialHeight checks that GnoGenesisState.InitialHeight, if set,
+// matches the authoritative GenesisDoc.InitialHeight (which comes in via
+// req.InitialHeight). These fields are duplicated so tooling can read the
+// app-level one; if they diverge, the genesis file is malformed.
+func validateInitialHeight(stateInitialHeight, reqInitialHeight int64) error {
+	if stateInitialHeight != 0 && stateInitialHeight != reqInitialHeight {
+		return fmt.Errorf(
 			"InitialHeight mismatch: GnoGenesisState.InitialHeight=%d, GenesisDoc.InitialHeight=%d",
-			state.InitialHeight, reqInitialHeight,
+			stateInitialHeight, reqInitialHeight,
 		)
+	}
+	return nil
+}
+
+func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGenesisState, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
+	if err := validateInitialHeight(state.InitialHeight, reqInitialHeight); err != nil {
+		return nil, err
 	}
 
 	if err := validateGasReplayMode(state.GasReplayMode); err != nil {
@@ -671,7 +678,18 @@ func (cfg InitChainerConfig) enforceStrictReplay(report *replayReport) {
 // genesis element from on-disk JSONL via the ref's iterators, keeping peak
 // heap bounded to a single element regardless of total size. Small sibling
 // fields (auth, bank, vm) are eagerly amino-decoded out of the envelope.
-func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *GenesisStateRef) ([]abci.ResponseDeliverTx, error) {
+func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *GenesisStateRef, reqInitialHeight int64) ([]abci.ResponseDeliverTx, error) {
+	// Both panic rather than return, so the boot stops: see enforceStrictReplay.
+	var stateInitialHeight int64
+	if raw, ok := ref.SmallField("initial_height"); ok {
+		if err := amino.UnmarshalJSON(raw, &stateInitialHeight); err != nil {
+			panic(fmt.Errorf("decode initial_height: %w", err))
+		}
+	}
+	if err := validateInitialHeight(stateInitialHeight, reqInitialHeight); err != nil {
+		panic(err)
+	}
+
 	var bankState bank.GenesisState
 	if err := decodeSmallField(ref, appStateBankKey, &bankState); err != nil {
 		return nil, err
