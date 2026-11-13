@@ -1,0 +1,7 @@
+# test gnodev version subcommand
+
+gnodev version
+stdout 'gnodev version: testscript-version'
+cmp stderr empty
+
+-- empty --
