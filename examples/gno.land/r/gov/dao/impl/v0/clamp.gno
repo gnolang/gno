@@ -43,6 +43,16 @@ const (
 	// escapes one per proposal shown, so this is the bound that keeps a single
 	// oversized title from pricing the whole list out of the query cap.
 	maxRenderedTitle = 512
+	// A proposal description, the one slot on this page a member fills rather
+	// than a hostile executor. quoteMarkdown rewrites every line of it and the
+	// render pays for the rewrite: measured per render, a 100KB description
+	// costs 3,085,843,608 gas against the 3,000,000,000 cap, so an unclamped
+	// description leaves a proposal no voter can read. 8KB is around 1,200
+	// words of prose. The worst shape measured inside that bound, one footnote
+	// marker and 8188 newlines in the description and in the executor's text
+	// alike, costs 1,261,152,226 gas, under half the cap. The stored proposal
+	// keeps every byte; this bounds what one page renders.
+	maxRenderedDescription = 8192
 	// A Payment's String(). The canonical impls render a coin set or an
 	// amount plus a token key, then " to " and a bech32 address; a coin set
 	// is bounded by the number of denoms a proposer cares to list and each
@@ -60,7 +70,7 @@ const (
 // from the string they are handed — InlineCode picks a fence long enough to
 // outscan the backticks it can see. Cutting a value that has already been
 // escaped can slice the closing fence off and leave the span hanging open,
-// which is worse than not clamping at all. Both call sites read
+// which is worse than not clamping at all. renderCreationRealm reads
 // InlineCode(clampField(...)) for that reason, and the enormous-value case in
 // filetests/executor_disclosure_filetest.gno fails if the two are swapped.
 //

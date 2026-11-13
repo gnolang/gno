@@ -81,25 +81,11 @@ func main(cur realm) {
 //
 // --
 // ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-//
-//
-// Executor created in: `gno.land/r/sys/namereg/v0`
-//
-//
-//
-//
-// ---
-//
-// ### Stats
-// - **Proposal is open for votes**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 0%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
-//
-// [Detailed voting list](/r/gov/dao:0/votes)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm\
+// Executes: [`gno.land/r/sys/namereg/v0`](/r/sys/namereg/v0$source)\
+// Status: ACTIVE\
+// Eligible: T1, T2, T3\
+// Votes: YES 0.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao:0/votes))
 //
 // ---
 //
@@ -110,25 +96,11 @@ func main(cur realm) {
 // --
 // --
 // ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-//
-//
-// Executor created in: `gno.land/r/sys/namereg/v0`
-//
-//
-//
-//
-// ---
-//
-// ### Stats
-// - **Proposal is open for votes**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 100%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
-//
-// [Detailed voting list](/r/gov/dao:0/votes)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm\
+// Executes: [`gno.land/r/sys/namereg/v0`](/r/sys/namereg/v0$source)\
+// Status: ACTIVE\
+// Eligible: T1, T2, T3\
+// Votes: YES 100.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao:0/votes))
 //
 // ---
 //
@@ -139,25 +111,11 @@ func main(cur realm) {
 // --
 // --
 // ## Prop #0 - User Registry V0: Rename user \`nym\-alice123\` to \`alice\_new123\`
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-//
-//
-// Executor created in: `gno.land/r/sys/namereg/v0`
-//
-//
-//
-//
-// ---
-//
-// ### Stats
-// - **PROPOSAL HAS BEEN ACCEPTED**
-// - Tiers eligible to vote: T1, T2, T3
-// - YES PERCENT: 100%
-// - NO PERCENT: 0%
-// - ABSTAIN PERCENT: 0%
-//
-// [Detailed voting list](/r/gov/dao:0/votes)
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm\
+// Executes: [`gno.land/r/sys/namereg/v0`](/r/sys/namereg/v0$source)\
+// Status: ACCEPTED\
+// Eligible: T1, T2, T3\
+// Votes: YES 100.00%, NO 0.00%, ABSTAIN 0.00% ([detail](/r/gov/dao:0/votes))
 //
 // ---
 //
