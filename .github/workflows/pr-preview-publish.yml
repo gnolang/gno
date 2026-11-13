@@ -166,10 +166,17 @@ jobs:
             # A job naming an environment that does not exist creates it, with
             # no protection at all. Refuse rather than publish unreviewed.
             rules=$(gh api "repos/$REPO/environments/$env" --jq '[.protection_rules[]?.type] | join(",")' 2>/dev/null) || rules=
+            # Not an error. A preview is a convenience, and this workflow runs on
+            # workflow_run, so its runs are attributed to the default branch: failing
+            # here turns master red and emails the pull request's author, who cannot
+            # create an environment and has nothing to fix. Stand down with no
+            # environment set, and publish skips, exactly as it does for a closed pull
+            # request or an empty plan.
             case ",$rules," in
               *,required_reviewers,*) ;;
-              *) echo "::error::environment $env has no required reviewers (rules: '${rules:-none}'); refusing to publish PR #$PR"
-                 exit 1 ;;
+              *) echo "::notice::environment $env has no required reviewers (rules: '${rules:-none}'); not publishing a preview for PR #$PR"
+                 echo "No preview published: \`$env\` has no required reviewers, so fork previews cannot publish until a maintainer creates it." >> "$GITHUB_STEP_SUMMARY"
+                 exit 0 ;;
             esac
           fi
           echo "environment=$env" >> "$GITHUB_OUTPUT"
@@ -180,7 +187,11 @@ jobs:
 
   publish:
     needs: resolve
-    if: needs.resolve.outputs.pr
+    # environment too, not just pr: resolve stands down with pr set and environment
+    # empty when there is no review environment to publish through. A job whose
+    # `environment:` evaluates to empty runs with no environment at all, so it would
+    # hold no deploy key and fail at the previews checkout instead of skipping.
+    if: needs.resolve.outputs.pr && needs.resolve.outputs.environment
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: ${{ needs.resolve.outputs.environment }}
