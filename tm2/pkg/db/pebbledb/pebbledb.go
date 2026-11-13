@@ -40,8 +40,16 @@ type PebbleDB struct {
 	db *pebble.DB
 }
 
+// memTableSize replaces pebble's 4 MiB default. A 100-tx block of realm
+// writes is larger than 4 MiB, so the default rotated the memtable, flushed
+// it to L0 and re-ran L0 compactions on every block. Memtables start at
+// 256 KiB and only grow to this size under write load, so a DB that writes
+// little pays nothing; the worst case is MemTableStopWritesThreshold (2)
+// full memtables, 32 MiB per DB.
+const memTableSize = 16 << 20
+
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
-	return NewPebbleDBWithOpts(name, dir, &pebble.Options{})
+	return NewPebbleDBWithOpts(name, dir, &pebble.Options{MemTableSize: memTableSize})
 }
 
 func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB, error) {
