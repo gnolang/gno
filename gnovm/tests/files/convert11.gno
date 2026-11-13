@@ -26,6 +26,16 @@ func main() {
 	println(string(uint32(0x80000041)), string(uint32(0x7FFFFFFF)))
 	// untyped rune constants fold through the same conversion.
 	println(string('A' + 0x100000000))
+	println(string(1<<100), string(-1<<100))
+	println(string(1<<100+65), string(-(1<<100)+65))
+	println(string(1<<63), string(1<<64-1))
+	const large = 1<<100 + 65
+	const converted = string(large)
+	println(converted, string(large-1))
+	type text string
+	const named = text(1 << 100)
+	var s text = named
+	println(string(s), string(1<<100) == "\uFFFD")
 }
 
 // Output:
@@ -40,3 +50,8 @@ func main() {
 // � � �
 // � �
 // �
+// � �
+// � �
+// � �
+// � �
+// � true
