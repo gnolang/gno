@@ -44,6 +44,38 @@ func TestASCIITrim(t *testing.T) {
 	assert.Panics(t, func() { ASCIITrim("\xC2\xA2") })
 }
 
+func TestTrimN(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		s    string
+		n    int
+		want string
+	}{
+		{"shorter than n", "hello", 10, "hello"},
+		{"equal to n", "hello", 5, "hello"},
+		{"longer than n", "hello world", 8, "hello..."},
+		{"n equals three", "hello", 3, "..."},
+		{"n is four", "hello", 4, "h..."},
+		{"n two no room for ellipsis", "hello", 2, "he"},
+		{"n one no room for ellipsis", "hello", 1, "h"},
+		{"n zero", "hello", 0, ""},
+		{"n negative", "hello", -1, ""},
+		{"empty string", "", 5, ""},
+		{"empty string n zero", "", 0, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := TrimN(tt.s, tt.n)
+			require.Equal(t, tt.want, got)
+			require.LessOrEqual(t, len(got), max(tt.n, 0),
+				"result must fit within n bytes")
+		})
+	}
+}
+
 func TestStringSliceEqual(t *testing.T) {
 	t.Parallel()
 
