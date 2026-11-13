@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"reflect"
 
@@ -56,6 +57,16 @@ func parseID(idValue any) (JSONRPCID, error) {
 		// (https://golang.org/pkg/encoding/json/#Unmarshal),
 		// but the JSONRPC2.0 spec says the id SHOULD NOT contain
 		// decimals - so we truncate the decimals here.
+		//
+		// Converting a float64 that is NaN, +/-Inf, or has magnitude
+		// >= 2^63 with int(id) is platform-defined and on amd64
+		// silently saturates to math.MinInt64 (see Intel SDM Vol. 1
+		// SS4.8.4.2, CVTTSD2SI), which collapses distinct large IDs
+		// onto the same value instead of erroring. Reject those
+		// values explicitly.
+		if math.IsNaN(id) || math.IsInf(id, 0) || id < math.MinInt64 || id > math.MaxInt64 {
+			return nil, fmt.Errorf("JSON-RPC numeric ID (%v) is out of the representable int range", id)
+		}
 		return JSONRPCIntID(int(id)), nil
 	case nil:
 		return nil, errors.New("request ID cannot be nil")
