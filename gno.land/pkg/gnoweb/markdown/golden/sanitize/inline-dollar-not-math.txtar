@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: Winner: %s
+-- input.md --
+$x^{2} + ADMIN_{verified}$
+-- output.md --
+\$x^{2} \+ ADMIN\_{verified}\$
+-- output.html --
+<p>Winner: $x^{2} + ADMIN_{verified}$</p>
