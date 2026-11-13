@@ -83,25 +83,48 @@ func (ndb *nodeDB) deleteFastIndex(userKey []byte) error {
 	return ndb.batch.Delete(fastDBKey(userKey))
 }
 
-// fastGet attempts an advisory fast-index read for committed state at version
-// s (a committed snapshot, or the clean working tree at its committed
-// version). Returns (value, true) on a trusted hit, or (nil, false) to fall
-// back to the tree walk (miss / corrupt / too-short / entry newer than s). It
-// reads committed state only (never pendingVals or the staged batch).
-func (ndb *nodeDB) fastGet(userKey []byte, s int64) ([]byte, bool) {
+// fastLookup is the fast index's trust predicate: it returns the entry's
+// value for committed state at version s, or nil to mean "ask the tree"
+// (miss / corrupt / too-short / entry newer than s). nil NEVER means absent —
+// the index is not authoritative for absence.
+//
+// The returned slice ALIASES DB storage; callers that hand it outside must
+// copy. Shared by fastGet and fastHas so the trust rules — the
+// security-relevant part of this file — have one definition: a rule added to
+// one and not the other would make the two surfaces disagree, which is what
+// TestFastIndex_HasVersionGuard exists to catch.
+func (ndb *nodeDB) fastLookup(userKey []byte, s int64) []byte {
 	data, err := ndb.db.Get(fastDBKey(userKey))
 	if err != nil || data == nil {
-		return nil, false
+		return nil
 	}
 	payload, err := verifyChecksum(data)
 	if err != nil || len(payload) < 8 {
-		return nil, false
+		return nil
 	}
 	if vkVersion(payload) > s {
-		return nil, false // entry newer than the snapshot
+		return nil // entry newer than the snapshot
 	}
-	// payload = version(8) ‖ value; copy out (the re-slice aliases db storage).
-	return copyKey(payload[8:]), true
+	return payload[8:] // payload = version(8) ‖ value
+}
+
+// fastGet attempts an advisory fast-index read for committed state at version
+// s (a committed snapshot, or the clean working tree at its committed
+// version). Returns (value, true) on a trusted hit, or (nil, false) to fall
+// back to the tree walk. It reads committed state only (never pendingVals or
+// the staged batch).
+func (ndb *nodeDB) fastGet(userKey []byte, s int64) ([]byte, bool) {
+	value := ndb.fastLookup(userKey, s)
+	if value == nil {
+		return nil, false
+	}
+	return copyKey(value), true // the re-slice aliases db storage
+}
+
+// fastHas is fastGet for an existence check: same trust rules, but it never
+// copies the value out.
+func (ndb *nodeDB) fastHas(userKey []byte, s int64) bool {
+	return ndb.fastLookup(userKey, s) != nil
 }
 
 // setFastIndexVersion stages the index-complete-through stamp into the batch

@@ -166,8 +166,7 @@ func (imp *Importer) Add(node *ExportNode) error {
 		}
 		entries := imp.kvBuffer
 		leaf := &LeafNode{
-			numKeys:  node.NumKeys,
-			miniTree: NewMiniMerkle(),
+			numKeys: node.NumKeys,
 		}
 		for i := range nk {
 			leaf.keys[i] = entries[i].key
@@ -238,9 +237,8 @@ func (imp *Importer) Add(node *ExportNode) error {
 		}
 
 		inner := &InnerNode{
-			numKeys:  node.NumKeys,
-			height:   int16(node.Height),
-			miniTree: NewMiniMerkle(),
+			numKeys: node.NumKeys,
+			height:  int16(node.Height),
 		}
 
 		// Set separator keys
