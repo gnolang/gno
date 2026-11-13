@@ -237,6 +237,89 @@ func testDBIterator(t *testing.T, backend db.BackendType) {
 		[]int64(nil), "reverse iterator from 2 (ex) to 4")
 }
 
+func TestDBIteratorEmptyBounds(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(string(backend), func(t *testing.T) {
+			t.Parallel()
+
+			tdb := newTempDB(t, backend)
+			for i := range 3 {
+				require.NoError(t, tdb.Set(int642Bytes(int64(i)), nil))
+			}
+
+			cases := []struct {
+				name       string
+				open       func(start, end []byte) (db.Iterator, error)
+				start, end []byte
+				want       []int64
+			}{
+				{"forward from empty", tdb.Iterator, []byte{}, nil, []int64{0, 1, 2}},
+				{"reverse to empty", tdb.ReverseIterator, []byte{}, nil, []int64{2, 1, 0}},
+				{"forward to empty", tdb.Iterator, nil, []byte{}, nil},
+				{"reverse from empty", tdb.ReverseIterator, nil, []byte{}, nil},
+				{"forward from empty to empty", tdb.Iterator, []byte{}, []byte{}, nil},
+				{"reverse from empty to empty", tdb.ReverseIterator, []byte{}, []byte{}, nil},
+			}
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					itr, err := tc.open(tc.start, tc.end)
+					require.NoError(t, err)
+					verifyIterator(t, itr, tc.want, tc.name)
+				})
+			}
+		})
+	}
+}
+
+func TestDBIteratorEmptyKey(t *testing.T) {
+	t.Parallel()
+
+	k0, k1 := string(int642Bytes(0)), string(int642Bytes(1))
+	for _, backend := range db.BackendList() {
+		t.Run(string(backend), func(t *testing.T) {
+			t.Parallel()
+
+			if backend == db.BoltDBBackend {
+				t.Skip(`boltdb stores the empty key as "nil", which sorts among the other keys`)
+			}
+			tdb := newTempDB(t, backend)
+			for _, k := range []string{"", k0, k1} {
+				require.NoError(t, tdb.Set([]byte(k), nil))
+			}
+
+			cases := []struct {
+				name       string
+				open       func(start, end []byte) (db.Iterator, error)
+				start, end []byte
+				want       []string
+			}{
+				{"forward over all", tdb.Iterator, nil, nil, []string{"", k0, k1}},
+				{"reverse over all", tdb.ReverseIterator, nil, nil, []string{k1, k0, ""}},
+				{"forward from empty", tdb.Iterator, []byte{}, nil, []string{"", k0, k1}},
+				{"reverse to empty", tdb.ReverseIterator, []byte{}, nil, []string{k1, k0, ""}},
+				{"forward to empty", tdb.Iterator, nil, []byte{}, nil},
+				{"reverse from empty", tdb.ReverseIterator, nil, []byte{}, nil},
+				{"forward from empty to 0x00", tdb.Iterator, []byte{}, []byte{0x00}, []string{""}},
+				{"reverse from 0x00 to empty", tdb.ReverseIterator, []byte{}, []byte{0x00}, []string{""}},
+			}
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					itr, err := tc.open(tc.start, tc.end)
+					require.NoError(t, err)
+					var got []string
+					for ; itr.Valid(); itr.Next() {
+						got = append(got, string(itr.Key()))
+					}
+					require.NoError(t, itr.Close())
+					require.Equal(t, tc.want, got)
+				})
+			}
+		})
+	}
+}
+
 func verifyIterator(t *testing.T, itr db.Iterator, expected []int64, msg string) {
 	t.Helper()
 
