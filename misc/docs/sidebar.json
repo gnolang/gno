@@ -58,6 +58,7 @@
           "resources/glossary",
           "resources/go-gno-compatibility",
           "resources/gnoconnect",
+          "resources/sign-data",
           {
             "type": "link",
             "label": "Gno Examples",
