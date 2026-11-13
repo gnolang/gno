@@ -872,11 +872,14 @@ func BenchmarkNative_Runtime_GetSessionInfo(b *testing.B) {
 	}
 }
 
-// AssertOriginCall: requires Frames[0].LastPackage.PkgPath == "" and
-// NumCallFrames() <= 2.
+// AssertOriginCall: requires the entry package to be the synthetic "" package
+// and NumCallBoundaryFrames(0) == 1, so the frames run in one realm.
 func BenchmarkNative_Runtime_AssertOriginCall(b *testing.B) {
 	m := newDispatchMachine(0)
 	addContextAndFrames(m, "", "gno.land/r/x")
+	r := gno.NewRealm("gno.land/r/x")
+	m.Frames[1].LastRealm = r
+	m.Realm = r
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "AssertOriginCall"), nReturns: 0}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
