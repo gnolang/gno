@@ -2672,6 +2672,16 @@ func (vp ValuePath) IsDerefType() bool {
 	return vp.Type&0x10 > 0
 }
 
+// IsMethod reports whether the path selects a method rather than a field.
+func (vp ValuePath) IsMethod() bool {
+	switch vp.Type {
+	case VPValMethod, VPPtrMethod, VPInterface,
+		VPDerefValMethod, VPDerefPtrMethod, VPDerefInterface:
+		return true
+	}
+	return false
+}
+
 type ValuePather interface {
 	GetPathForName(Name) ValuePath
 }

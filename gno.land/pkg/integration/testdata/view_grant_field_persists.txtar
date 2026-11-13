@@ -1,0 +1,75 @@
+# A grant made through a field address (&pair.A) is the object holding the
+# field, and it persists: tx 1 stores a view, tx 2 is refused, tx 3 grants in
+# the owner's own frame, and tx 4/5 write through the stored reference.
+
+loadpkg gno.land/p/demo/tests/viewgrant/v0
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/owner -pkgpath gno.land/r/test/owner -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/holder -pkgpath gno.land/r/test/holder -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/holder -func Take -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+# tx 2: no grant yet, the /p/ method on the pair is a view.
+! gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteA -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'the owner must hand it out with mutable'
+
+# tx 3: the owner grants through a field address.
+gnokey maketx call -pkgpath gno.land/r/test/owner -func GrantField -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+# tx 4: the grant survives the transaction boundary.
+gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteA -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/test/holder:'
+stdout 'a=x b='
+
+# tx 5: the same grant also covers the sibling field.
+gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteB -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/test/holder:'
+stdout 'a=x b=y'
+
+-- owner/gnomod.toml --
+module = "gno.land/r/test/owner"
+gno = "0.9"
+
+-- owner/owner.gno --
+package owner
+
+import "gno.land/p/demo/tests/viewgrant/v0"
+
+var pair = viewgrant.NewPair()
+
+func GetPair() *viewgrant.Pair { return pair }
+
+func GrantField(cur realm) { mutable(&pair.A) }
+
+func Render(string) string { return "a=" + pair.Get("a") + " b=" + pair.Get("b") }
+
+-- holder/gnomod.toml --
+module = "gno.land/r/test/holder"
+gno = "0.9"
+
+-- holder/holder.gno --
+package holder
+
+import (
+	"gno.land/p/demo/tests/viewgrant/v0"
+	"gno.land/r/test/owner"
+)
+
+var pair *viewgrant.Pair
+
+func Take(cur realm) { pair = owner.GetPair() }
+
+func WriteA(cur realm) { pair.SetA("a", "x") }
+func WriteB(cur realm) { pair.SetB("b", "y") }
+
+func Render(string) string { return "a=" + pair.Get("a") + " b=" + pair.Get("b") }

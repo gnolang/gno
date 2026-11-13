@@ -35,6 +35,7 @@ type Machine struct {
 	Frames        []Frame       // func call stack
 	Package       *PackageValue // active package
 	Realm         *Realm        // active realm
+	viewOnly      bool          // no realm's stored objects may be written; implies Realm == nil
 	Alloc         *Allocator    // memory allocations
 	Exception     *Exception    // last exception
 	NumResults    int           // number of results returned
@@ -302,8 +303,16 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 //
 // Accepts nil — clears currentRealmID to PkgID{} which matches
 // "no realm context."
+// setViewOnly drops write authority: the code runs under no realm, and the
+// write guard refuses every stored object instead of none.
+func (m *Machine) setViewOnly() {
+	m.setRealm(nil)
+	m.viewOnly = true
+}
+
 func (m *Machine) setRealm(r *Realm) {
 	m.Realm = r
+	m.viewOnly = false
 	if r != nil {
 		m.Alloc.currentRealmID = r.ID
 		m.Alloc.currentRealmPath = r.Path
@@ -2564,6 +2573,13 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
+	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer)
+}
+
+// pushFrameCall is PushFrameCall for a method value: bindPID is the realm
+// whose frame formed it (the BoundMethodValue's stamp), zero for a plain func
+// or a plain x.M(...) call.
+func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer bool) {
 	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
@@ -2586,6 +2602,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		IsVarg:        cx.Varg,
 		LastPackage:   m.Package,
 		LastRealm:     m.Realm,
+		LastViewOnly:  m.viewOnly,
 		WithCross:     withCross,
 		DidCrossing:   false,
 		Defers:        nil,
@@ -2681,9 +2698,21 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//       authority, not victim's. Ephemeral MsgRun code must likewise
 	//       regain its own authority when called back by another realm.
 	//
-	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
-	//       foreign-stamped object, borrow to the receiver's constructing
-	//       realm (which is the same as its storage realm).
+	//   #2. Otherwise (/p/-declared) → if the receiver is a foreign-stamped
+	//       object its owner granted with mutable(x) (ObjectInfo.IsMutable),
+	//       borrow to the receiver's constructing realm (which is the same
+	//       as its storage realm). Without the grant the reference is a
+	//       view, real or not, and the method's writes hit the readonly
+	//       gate; a constructor that means to hand out a handle (a token's
+	//       teller) grants the fresh object itself. A /p/-owned receiver
+	//       always borrows so the post-init immutability gate reports the
+	//       write.
+	//
+	//       A method value (x.M bound earlier, then called) writes for its
+	//       binder only while every frame down to the nearest /r/ or /e/
+	//       one runs as the binder; otherwise it runs view-only, so neither
+	//       the binder's nor a caller's stored objects can be written
+	//       through it. A granted receiver borrows as in a direct call.
 	//
 	//   #3. Otherwise, if fv is a closure (FuncLit) declared in a /p/
 	//       package, borrow to the realm context that was active when
@@ -2706,18 +2735,26 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 		}
 		return
 	}
+	var oi *ObjectInfo
 	if recv.IsDefined() {
-		obj := recv.GetFirstObject(m.Store)
-		if obj != nil {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() && !recvOID.PkgID.IsStdlibPkg() &&
-				(m.Realm == nil || recvOID.PkgID != m.Realm.ID) {
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				r := objpv.GetRealm()
-				assertBorrowedRealm(objpv.PkgPath, r)
-				m.setRealm(r)
-			}
+		if obj := recv.GetGrantObject(m.Store); obj != nil {
+			oi = obj.GetObjectInfo()
+		}
+	}
+	granted := oi != nil && !oi.ID.IsZero() && !oi.ID.PkgID.IsStdlibPkg() &&
+		(oi.IsMutable || oi.ID.PkgID.IsImmutablePkg())
+	// Rule #2 prelude (see "A method value" above).
+	if bindPID.IsRealmPkg() && !granted && !m.calledBy(bindPID) {
+		m.setViewOnly()
+	}
+	if granted {
+		recvOID := oi.ID
+		if m.Realm == nil || recvOID.PkgID != m.Realm.ID {
+			recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+			objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+			r := objpv.GetRealm()
+			assertBorrowedRealm(objpv.PkgPath, r)
+			m.setRealm(r)
 		}
 	}
 	// borrow rule #3: closure capture-realm borrow.
@@ -2743,16 +2780,40 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	if fv.IsClosure {
 		pid := fv.GetObjectInfo().ID.PkgID
 		if !pid.IsZero() && !pid.IsStdlibPkg() && (m.Realm == nil || pid != m.Realm.ID) {
-			pkgOID := ObjectIDFromPkgID(pid)
-			if pobj := m.Store.GetObject(pkgOID); pobj != nil {
-				if objpv, ok := pobj.(*PackageValue); ok {
-					r := objpv.GetRealm()
-					assertBorrowedRealm(objpv.PkgPath, r)
-					m.setRealm(r)
-				}
-			}
+			m.borrowToPkg(pid)
 		}
 	}
+}
+
+// borrowToPkg switches m.Realm to pid's package realm; no-op if the package
+// value is not in the store.
+func (m *Machine) borrowToPkg(pid PkgID) {
+	if objpv, ok := m.Store.GetObject(ObjectIDFromPkgID(pid)).(*PackageValue); ok {
+		r := objpv.GetRealm()
+		assertBorrowedRealm(objpv.PkgPath, r)
+		m.setRealm(r)
+	}
+}
+
+// calledBy reports whether every frame from the call on top of the stack
+// down to the nearest /r/- or /e/-declared one runs as pid. A borrowed /p/
+// frame, another realm's closure or a view-only frame in between breaks it.
+func (m *Machine) calledBy(pid PkgID) bool {
+	rlm := m.Frames[len(m.Frames)-1].LastRealm
+	for i := len(m.Frames) - 2; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func == nil {
+			continue
+		}
+		if rlm == nil || rlm.ID != pid {
+			return false
+		}
+		if IsRealmPath(fr.Func.PkgPath) || IsEphemeralPath(fr.Func.PkgPath) {
+			return true
+		}
+		rlm = fr.LastRealm
+	}
+	return rlm != nil && rlm.ID == pid
 }
 
 func (m *Machine) PopFrame() Frame {
@@ -2837,6 +2898,7 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
 	m.setRealm(fr.LastRealm)
+	m.viewOnly = fr.LastViewOnly
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions
@@ -3085,7 +3147,7 @@ func panicIllegalPointerLHS(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		m.Panic(typedString(readonlyAccessPanic(lx)))
+		m.Panic(typedString(m.readonlyAccessPanic(lx)))
 	}
 	return pv
 }
@@ -3096,7 +3158,13 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 // through a method or crossing function re-enters via PushFrameCall, whose
 // implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
 // the target's owner.
-func readonlyAccessPanic(x Expr) string {
+func (m *Machine) readonlyAccessPanic(x Expr) string {
+	if m.Package != nil && m.Package.PkgID.IsImmutablePkg() && !m.Package.PkgID.IsStdlibPkg() {
+		// /p/ code writing an object another realm owns: no borrow happened
+		// because the owner never granted mutable(x). Stdlib receivers never
+		// borrow, so the hint would be wrong there.
+		return "cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): " + x.String()
+	}
 	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
 }
 
@@ -3123,8 +3191,12 @@ func (m *Machine) IsReadonly(tv *TypedValue) bool {
 }
 
 func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
-	//  m.Realm is nil → single user mode, nothing is readonly
-	if m.Realm == nil {
+	//  m.Realm is nil → single user mode, nothing is readonly; unless
+	//  view-only, where rid stays zero and every stored object is.
+	var rid PkgID
+	if m.Realm != nil {
+		rid = m.Realm.ID
+	} else if !m.viewOnly {
 		return false
 	}
 	//  - tv is a ref to package path
@@ -3137,14 +3209,14 @@ func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 	}
 	//  - tv is a real object residing in external realm (unless it is the
 	//    executing package's own data, stamped ownPkgID).
-	return tv.IsReadonlyBy(m.Realm.ID, ownPkgID)
+	return tv.IsReadonlyBy(rid, ownPkgID)
 }
 
 // isExternalRealm returns true if base is a real Object belonging to
 // a different realm than m.Realm. Used for NameExpr cross-realm checks
 // where we have a Base (Block) rather than a TypedValue.
 func (m *Machine) isExternalRealm(base Value) bool {
-	if m.Realm == nil {
+	if m.Realm == nil && !m.viewOnly {
 		return false
 	}
 	obj, ok := base.(Object)
@@ -3181,7 +3253,7 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if m.Package != nil && m.Package.PkgID.IsStdlibPkg() && oid.PkgID == m.Package.PkgID {
 		return false
 	}
-	return oid.PkgID != m.Realm.ID
+	return m.Realm == nil || oid.PkgID != m.Realm.ID
 }
 
 // resolvePointer resolves lx to a PointerValue from its lhsOperands (the values
@@ -3216,7 +3288,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 			ro = m.IsReadonly(xv)
 			if ro {
 				// Ensure we always panic, without expecting the caller to do it.
-				m.Panic(typedString(readonlyAccessPanic(lx)))
+				m.Panic(typedString(m.readonlyAccessPanic(lx)))
 			}
 			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {

@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_pdr_p_panic
 package launderrh_pdr_p_panic
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Vector 11: a /p/-helper called from attacker panics. Since no
 // realm boundary is crossed during unwind (the /p/-frame's LastRealm
 // = attacker), the panic is catchable by attacker's defer.
@@ -55,5 +60,7 @@ func main(cur realm) {
 // (before the panic) persist? Transaction abort should roll back
 // the realm transaction.
 
-// Error:
-// post-apply panic
+// Output:
+// before: ptr-orig
+// recovered: cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,0)>.Field
+// after recover: ptr-orig

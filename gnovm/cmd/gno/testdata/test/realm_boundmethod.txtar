@@ -38,8 +38,9 @@ import "gno.land/p/demo/counter"
 
 var c = counter.Counter{}
 
+// mutable: other realms may call Inc on the counter.
 func GetCounter() *counter.Counter {
-	return &c
+	return mutable(&c)
 }
 
 -- r/realm2/gnomod.toml --

@@ -2,13 +2,13 @@ package store
 
 import "gno.land/p/nt/avl/v0"
 
-var store = avl.NewTree()
+var store = mutable(avl.NewTree())
 
 // Vulnerable (guide §5.1a): the getter returns a pointer to a /p/ type whose
 // exported methods (Set, Remove) mutate the receiver. All of avl.Tree's fields
-// are unexported, so a naive reviewer sees no exposed state — but readonly
-// taint does not block method dispatch, so GetStore().Set(k, v) commits under
-// this realm's authority.
+// are unexported, so a naive reviewer sees no exposed state — but the tree is
+// granted with mutable(x), so GetStore().Set(k, v) commits under this realm's
+// authority.
 func GetStore() *avl.Tree {
 	return store
 }
@@ -21,7 +21,7 @@ type Container struct {
 	Label string
 }
 
-var container = &Container{Items: avl.NewTree(), Label: "box"}
+var container = &Container{Items: mutable(avl.NewTree()), Label: "box"}
 
 func GetContainer() *Container {
 	return container

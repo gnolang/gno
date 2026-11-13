@@ -175,11 +175,13 @@ func New(inner banker.Banker, payer address, limit chain.Coins) *AllowanceSender
 	if !payer.IsValid() {
 		panic("allowancesender: payer address is invalid")
 	}
-	return &AllowanceSender{
+	// The sender is a capability: the callee it is handed to spends
+	// through Send under the granter's authority, so grant it here.
+	return mutable(&AllowanceSender{
 		inner: inner,
 		payer: payer,
 		limit: limit,
-	}
+	})
 }
 
 // Send debits up to (cap - spent) per denom from payer to to via the
