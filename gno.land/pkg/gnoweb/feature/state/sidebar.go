@@ -78,7 +78,7 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, info StateObjectInfoView, n
 	if info.OwnerID != "" {
 		meta = append(meta, StateMetaEntry{
 			Section: "Lineage", Label: "Owner", Value: ShortenOID(info.OwnerID, oid),
-			Href: stateObjectHref(pkgPath, info.OwnerID, "", ""),
+			Href: stateObjectHref(pkgPath, info.OwnerID, "", nil, ""),
 			Mono: true,
 		})
 	}

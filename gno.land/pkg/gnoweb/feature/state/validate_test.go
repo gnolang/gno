@@ -47,6 +47,24 @@ func TestValidateTID(t *testing.T) {
 	}
 }
 
+func TestValidatePointerIndex(t *testing.T) {
+	if p, err := ValidatePointerIndex(""); err != nil || p != nil {
+		t.Fatalf("empty index: got (%v, %v), want (nil, nil)", p, err)
+	}
+	for s, want := range map[string]int{"0": 0, "1": 1, "42": 42} {
+		if p, err := ValidatePointerIndex(s); err != nil || p == nil || *p != want {
+			t.Fatalf("valid index %q: got (%v, %v), want %d", s, p, err, want)
+		}
+	}
+	// Non-canonical forms would give one pointee several URLs.
+	bad := []string{"-1", "+1", "01", "00", "-0", " 1", "abc"}
+	for _, s := range bad {
+		if _, err := ValidatePointerIndex(s); err == nil {
+			t.Fatalf("invalid index %q accepted", s)
+		}
+	}
+}
+
 func TestValidateFile(t *testing.T) {
 	good := []string{"foo.gno", "foo/bar.gno", "a_b-c.gno", "p/q/r.gno"}
 	for _, s := range good {
