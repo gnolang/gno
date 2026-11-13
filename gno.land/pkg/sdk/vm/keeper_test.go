@@ -21,6 +21,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcconfig "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -161,6 +162,42 @@ func TestNothing(t *testing.T) {}`,
 	assert.Equal(t, InvalidPackageError{}, tmerrors.Cause(err))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackageAll(pkgPath))
+}
+
+// A package var initializer that panics fails the tx with the runtime error
+// as its abci.Error. That error is hashed into LastResultsHash, so changing it
+// is state-breaking: before #6129 the same tx committed
+// "<error: runtime.errorString>".
+func TestVMKeeperAddPackage_VarInitPanicError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/initpanic"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "initpanic.gno",
+			Body: `package initpanic
+
+var (
+	a = ""
+	A = a[0]
+)`,
+		},
+	}
+
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+
+	require.Error(t, err)
+	assert.Equal(t,
+		abci.StringError("runtime error: index out of range [0] with length 0"),
+		sdk.ABCIError(err))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
 // Structural companion to addpkg_import_testdep_gas.txtar: importing a
@@ -3323,6 +3360,7 @@ func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
 
 	return searchFrom[start : start+end]
 }
+
 func TestQueryPkg(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
