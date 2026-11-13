@@ -33,32 +33,32 @@
 # ---- The closure, submitted in dependency order
 gpao start -start-height 1 -gas-fee 200000ugnot
 
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/bptree/v0 -pkgpath gno.land/p/nt/bptree/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/cford32/v0 -pkgpath gno.land/p/nt/cford32/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/seqid/v0 -pkgpath gno.land/p/nt/seqid/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/ufmt/v0 -pkgpath gno.land/p/nt/ufmt/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/gnoland/boards/v0 -pkgpath gno.land/p/gnoland/boards/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/gnoland/boards/exts/hub/v0 -pkgpath gno.land/p/gnoland/boards/exts/hub/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/avl/v0 -pkgpath gno.land/p/nt/avl/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/addrset/v0 -pkgpath gno.land/p/moul/addrset/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/groups/v0 -pkgpath gno.land/p/nt/groups/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/gnoland/boards/exts/permissions/v0 -pkgpath gno.land/p/gnoland/boards/exts/permissions/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/jeronimoalbi/mdform/v0 -pkgpath gno.land/p/jeronimoalbi/mdform/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/jeronimoalbi/pager/v0 -pkgpath gno.land/p/jeronimoalbi/pager/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/svg/v0 -pkgpath gno.land/p/nt/svg/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/leon/svgbtn/v0 -pkgpath gno.land/p/leon/svgbtn/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/markdown/sanitize/v0 -pkgpath gno.land/p/nt/markdown/sanitize/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/md/v0 -pkgpath gno.land/p/moul/md/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/mdtable/v0 -pkgpath gno.land/p/moul/mdtable/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/realmpath/v0 -pkgpath gno.land/p/moul/realmpath/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/txlink/v0 -pkgpath gno.land/p/moul/txlink/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/markdown/foreign/v0 -pkgpath gno.land/p/nt/markdown/foreign/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/mdalert/v0 -pkgpath gno.land/p/nt/mdalert/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/mux/v0 -pkgpath gno.land/p/nt/mux/v0 $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/bptree/rotree/v0 -pkgpath gno.land/p/nt/bptree/rotree/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/bptree -pkgpath gno.land/p/nt/bptree/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/cford32 -pkgpath gno.land/p/nt/cford32/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/seqid -pkgpath gno.land/p/nt/seqid/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/ufmt -pkgpath gno.land/p/nt/ufmt/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/gnoland/boards -pkgpath gno.land/p/gnoland/boards/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/gnoland/boards/exts/hub -pkgpath gno.land/p/gnoland/boards/exts/hub/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/avl -pkgpath gno.land/p/nt/avl/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/addrset -pkgpath gno.land/p/moul/addrset/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/groups -pkgpath gno.land/p/nt/groups/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/gnoland/boards/exts/permissions -pkgpath gno.land/p/gnoland/boards/exts/permissions/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/jeronimoalbi/mdform -pkgpath gno.land/p/jeronimoalbi/mdform/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/jeronimoalbi/pager -pkgpath gno.land/p/jeronimoalbi/pager/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/svg -pkgpath gno.land/p/nt/svg/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/leon/svgbtn -pkgpath gno.land/p/leon/svgbtn/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/markdown/sanitize -pkgpath gno.land/p/nt/markdown/sanitize/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/md -pkgpath gno.land/p/moul/md/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/mdtable -pkgpath gno.land/p/moul/mdtable/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/realmpath -pkgpath gno.land/p/moul/realmpath/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/moul/txlink -pkgpath gno.land/p/moul/txlink/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/markdown/foreign -pkgpath gno.land/p/nt/markdown/foreign/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/mdalert -pkgpath gno.land/p/nt/mdalert/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/mux -pkgpath gno.land/p/nt/mux/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/bptree/rotree -pkgpath gno.land/p/nt/bptree/rotree/v0 $USER_NAME
 gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/r/gov/dao -pkgpath gno.land/r/gov/dao $USER_NAME
 gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/r/sys/users -pkgpath gno.land/r/sys/users $USER_NAME
-gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/r/gnoland/boards2/v0 -pkgpath gno.land/r/gnoland/boards2/v0 $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/r/gnoland/boards2 -pkgpath gno.land/r/gnoland/boards2/v0 $USER_NAME
 
 # ---- The head of the closure is unreachable unless every link landed
 # Live. Everything above it had to be verified,

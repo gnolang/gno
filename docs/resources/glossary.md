@@ -35,7 +35,7 @@ for large or growing sorted indexes. The package is deployed under
 different workloads.
 
 See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for usage guidance
-and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
+and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
 
 ## B
 

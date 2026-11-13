@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs/chain/runtime"
@@ -486,8 +487,11 @@ func (opts *TestOptions) enableDebugger(m *gno.Machine) {
 			b, err = os.ReadFile(p)
 		}
 		if err != nil {
-			p = filepath.Join(opts.RootDir, "examples", ppath, name)
-			b, _ = os.ReadFile(p)
+			// examples/ is resolved by module path: a package's directory
+			// does not have to repeat the version its module path carries.
+			if dir := gnomod.FindModuleDir(filepath.Join(opts.RootDir, "examples"), ppath); dir != "" {
+				b, _ = os.ReadFile(filepath.Join(dir, name))
+			}
 		}
 		return string(b)
 	}

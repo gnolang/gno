@@ -19,6 +19,7 @@ import (
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	bfttypes "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -208,7 +209,11 @@ func TestRestartedChainIsVerifiedAgainstItsOwnGenesis(t *testing.T) {
 // examples/, as a chain deploys its own packages, and returns its RPC address.
 func nodeWithGenesisPackage(t *testing.T, pkgPath string) string {
 	t.Helper()
-	mpkg, err := gno.ReadMemPackage(filepath.Join(gnoenv.RootDir(), "examples", pkgPath), pkgPath, gno.MPUserAll)
+	// examples/ resolves by module path: the directory does not repeat the
+	// version the module path carries.
+	dir := gnomod.FindModuleDir(filepath.Join(gnoenv.RootDir(), "examples"), pkgPath)
+	require.NotEmpty(t, dir, "no module %q under examples/", pkgPath)
+	mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPUserAll)
 	require.NoError(t, err)
 	return nodeWithGenesis(t, mpkg)
 }

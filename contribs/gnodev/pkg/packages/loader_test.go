@@ -637,7 +637,9 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		// Fall back to gnoenv discovery. Test target is a stable example.
 		gnoroot = filepath.Join("..", "..", "..", "..")
 	}
-	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v0")
+	// The realm keeps its version in its gnomod.toml module line, not in its
+	// directory name.
+	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2")
 	if _, err := os.Stat(realmDir); err != nil {
 		t.Skipf("examples realm not available: %v", err)
 	}
@@ -650,7 +652,7 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 	l := New(Config{
 		Workspace: absRealm,
 		Examples:  true,
-		GnoRoot:   filepath.Join(absRealm, "..", "..", "..", "..", ".."),
+		GnoRoot:   filepath.Join(absRealm, "..", "..", "..", ".."),
 		Logger:    testLogger(),
 	})
 	pkgs, err := l.LoadWorkspace()
