@@ -69,7 +69,6 @@ import (
 	"chain"
 
 	"gno.land/p/nt/grc20/v0"
-	"gno.land/p/nt/seqid/v0"
 
 	"gno.land/r/nt/grc20reg/v0"
 )
@@ -77,11 +76,10 @@ import (
 var (
 	Token  *grc20.Token
 	ledger *grc20.PrivateLedger
-	id     seqid.ID
 )
 
 func init(cur realm) {
-	Token, ledger = grc20.NewToken("AliasTok", "ALIASTOK", 0, id.Next(), cur)
+	Token, ledger = grc20.NewToken("AliasTok", "ALIASTOK", 0, cur)
 	grc20reg.Register(cross(cur), Token, "ALIASTOK")
 	ledger.Mint(chain.PackageAddress("gno.land/r/gov/dao/treasury/v0"), 1000)
 }

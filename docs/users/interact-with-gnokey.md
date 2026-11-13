@@ -299,7 +299,7 @@ HEIGHT:     2
 STORAGE DELTA:  1043 bytes
 STORAGE FEE:    104300ugnot
 TOTAL TX COST:  112300ugnot
-EVENTS:     [{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum","coins":[{"denom":"ugnot","amount":1000}]},{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot.0000000"},{"key":"from","value":""},{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/nt/grc20/v0"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
+EVENTS:     [{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum","coins":[{"denom":"ugnot","amount":1000}]},{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot"},{"key":"id","value":"0a4270b76e39219aa1edf989b9f5930b4dd5fe25:18"},{"key":"from","value":""},{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/nt/grc20/v0"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
 INFO:
 TX HASH:    krIPGMvjzkSXndiLM2hC2Qad0sLDcw/HSGClk8Kwjmo=
 ```
@@ -1286,7 +1286,7 @@ var (
 )
 
 func init(cur realm) {
-        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, "token", cur)
+        Token, adm = grc20.NewToken("wrapped GNOT", "wugnot", 0, cur)
 }
 
 const (

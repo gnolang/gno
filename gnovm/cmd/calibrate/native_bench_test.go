@@ -227,3 +227,62 @@ func BenchmarkNative_Time_LoadTZData(b *testing.B) {
 		h.call()
 	}
 }
+
+// ----- chain/runtime.ObjectID(v any) string -----
+//
+// Flat. The stamped path hex-encodes a fixed 20-byte realm hash and formats a
+// uint64, so nothing scales with anything the caller controls, and the result
+// is a fixed-length string. The unstamped and no-object paths return earlier
+// and cost strictly less, so the stamped case sets the price.
+//
+// No store is needed: the base is a concrete heap item rather than a RefValue,
+// so PointerValue.GetBase resolves without a load, and an object load is
+// metered by the KVStore (gctx) rather than by this row.
+
+const objectIDBenchPkgPath = "gno.land/r/x/objectidbench"
+
+// newObjectIDBench builds the shape the native receives from Gno: a pointer to
+// a standalone heap item owned by a realm.
+func newObjectIDBench(b *testing.B, stamped bool) *dispatchHarness {
+	b.Helper()
+
+	alloc := gno.NewAllocator(math.MaxInt64)
+	hiv := alloc.NewHeapItem(nil, gno.TypedValue{})
+	hiv.SetPkgID(gno.PkgIDFromPkgPath(objectIDBenchPkgPath))
+	if stamped {
+		hiv.SetNewTime(7)
+	}
+
+	m := newDispatchMachine(1)
+	m.Blocks[0].Values[0] = gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}
+
+	return &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "ObjectID"), nReturns: 1}
+}
+
+func BenchmarkNative_Runtime_ObjectID_Stamped(b *testing.B) {
+	h := newObjectIDBench(b, true)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Runtime_ObjectID_Unstamped(b *testing.B) {
+	h := newObjectIDBench(b, false)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+// A value with no object behind it at all: the earliest return in the native,
+// and the floor the flat row must still cover.
+func BenchmarkNative_Runtime_ObjectID_NoObject(b *testing.B) {
+	m := newDispatchMachine(1)
+	m.Blocks[0].Values[0] = gno.TypedValue{T: gno.StringType}
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "ObjectID"), nReturns: 1}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}

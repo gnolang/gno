@@ -670,6 +670,42 @@ height := runtime.ChainHeight()
 ```
 ---
 
+### ObjectID
+```go
+func ObjectID(v any) string
+```
+Returns the identity the VM minted for the object `v` refers to, as
+`"<realm-id>:<clock-tick>"`, or `""` when `v` names no object that has one.
+
+The identity is assigned by the VM while persisting the object, so a realm
+cannot choose it, choose it twice or forge it. That is what it is for: an
+identifier a realm picks is one a realm can pick twice, which is how two
+independent tokens ended up sharing one name and emitting indistinguishable
+events.
+
+Only a pointer to a standalone object answers. A pointer into a struct field or
+an array element resolves to its container and a slice to its backing array, so
+both return `""` rather than borrowing an identity every sibling would share.
+
+`""` covers two situations, and which one applies follows from what was passed:
+
+- `v` points at an object the running call created. Identity is minted when the
+  realm frame returns, so ask again from a later call. Objects created in `init`
+  are stamped by the time any call runs.
+- `v` has nothing to wait for: a scalar, a nil pointer, or a value owned by a
+  stdlib or `p/` package.
+
+It never panics and never advances a realm's clock.
+
+The result is an identifier, **not an account**: it is not an address and
+nothing can be sent to it.
+
+##### Usage
+```go
+id := runtime.ObjectID(tok) // "095c1325...:10", or "" if not persisted yet
+```
+---
+
 ## chain/runtime/unsafe
 
 

@@ -206,3 +206,100 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 		})
 	}
 }
+
+// TestObjectID covers the shapes the native has to tell apart. The fixture
+// builds what the VM actually hands over — a pointer to a standalone heap
+// item — rather than a bare value the machine never produces.
+func TestObjectID(t *testing.T) {
+	const (
+		realmPath = "gno.land/r/x/objectidtest"
+		otherPath = "gno.land/r/x/objectidother"
+		purePath  = "gno.land/p/x/objectidpure"
+	)
+
+	// ptrTo wraps a heap item the way a Gno pointer to a standalone object
+	// does: PointerValue with the heap item itself as Base.
+	ptrTo := func(hiv *gno.HeapItemValue) gno.TypedValue {
+		return gno.TypedValue{V: gno.PointerValue{TV: &hiv.Value, Base: hiv}}
+	}
+	heapItem := func(pkgPath string, newTime uint64) *gno.HeapItemValue {
+		hiv := gno.NewAllocator(1<<20).NewHeapItem(nil, gno.TypedValue{})
+		hiv.SetPkgID(gno.PkgIDFromPkgPath(pkgPath))
+		if newTime != 0 {
+			hiv.SetNewTime(newTime)
+		}
+		return hiv
+	}
+
+	stamped := heapItem(realmPath, 7)
+	wantStamped := stamped.GetObjectID().String()
+
+	tests := []struct {
+		name string
+		tv   gno.TypedValue
+		want string
+	}{
+		{
+			name: "persisted realm object",
+			tv:   ptrTo(stamped),
+			want: wantStamped,
+		},
+		{
+			// The realm half is stamped at allocation, the clock half only
+			// when the owning realm persists the object. Half an ID names
+			// nothing, so the caller is told to ask again later.
+			name: "created by the running call",
+			tv:   ptrTo(heapItem(realmPath, 0)),
+			want: "",
+		},
+		{
+			// Immutable packages are outside what #6026 is about and
+			// reporting "" keeps the question open; widening is compatible.
+			name: "owned by a p/ package",
+			tv:   ptrTo(heapItem(purePath, 3)),
+			want: "",
+		},
+		{
+			// A pointer into a struct field resolves to the container, and
+			// every sibling field would report the container's identity.
+			name: "pointer into a struct",
+			tv: gno.TypedValue{V: gno.PointerValue{
+				TV:   &gno.TypedValue{},
+				Base: &gno.StructValue{},
+			}},
+			want: "",
+		},
+		{
+			name: "nil pointer",
+			tv:   gno.TypedValue{V: gno.PointerValue{}},
+			want: "",
+		},
+		{
+			name: "nil interface",
+			tv:   gno.TypedValue{},
+			want: "",
+		},
+		{
+			name: "string",
+			tv:   gno.TypedValue{T: gno.StringType},
+			want: "",
+		},
+	}
+
+	m := &gno.Machine{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ObjectID(m, tt.tv))
+		})
+	}
+
+	// Reading is pure: the same object answers the same thing every time.
+	assert.Equal(t, wantStamped, ObjectID(m, ptrTo(stamped)))
+
+	// What #6026 needs: two objects one realm minted under one name still
+	// differ, and no realm can reach across to another realm's answers.
+	second := heapItem(realmPath, 8)
+	foreign := heapItem(otherPath, 7)
+	assert.NotEqual(t, ObjectID(m, ptrTo(stamped)), ObjectID(m, ptrTo(second)))
+	assert.NotEqual(t, ObjectID(m, ptrTo(stamped)), ObjectID(m, ptrTo(foreign)))
+}
