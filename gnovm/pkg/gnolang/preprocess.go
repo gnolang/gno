@@ -1510,6 +1510,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							Op:    n.Op,
 							Right: rn,
 						}
+						// n2 stands for n: errors point at n's span.
+						n2.SetSpan(n.GetSpan())
 						// Mark the uint() conversion as a shift RHS so
 						// doOpCall can assert non-negative at runtime.
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
@@ -1675,7 +1677,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							case BigintKind, BigdecKind, Float32Kind, Float64Kind:
 								convertConst(store, last, n, arg0, ct)
 								constConverted = true
+							case Int32Kind:
+								if at == UntypedRuneType { // exact, may exceed int32
+									convertConst(store, last, n, arg0, ct)
+									constConverted = true
+								}
 							}
+						} else if ct.Kind() == StringKind && at == UntypedRuneType && arg0.V != nil {
+							// An untyped rune past int32 is not a code point:
+							// "\uFFFD" as gc, not the default type it overflows.
+							// An in-range rune keeps the machine path (its gas
+							// and allocation are pinned).
+							convertConst(store, last, n, arg0, ct)
+							constConverted = true
 						} else if ct.Kind() == SliceKind {
 							switch ct.Elem().Kind() {
 							case Uint8Kind, Int32Kind:
@@ -4610,29 +4624,35 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
-		// is constant?  From the machine?
-		m := NewMachineWithOptions(MachineOptions{
-			PkgPath:            ".dontcare",
-			Store:              store,
-			BoundedPanicRender: true,
-		})
-		cv := m.EvalStatic(last, x)
-		m.Release()
-		// The machine computes with runtime (IEEE) semantics, but a folded
-		// expression is a constant, and constants have no signed zero: a
-		// float -0 result (e.g. from negation) becomes +0.
-		if cv.T != nil {
-			switch cv.T.Kind() {
-			case Float32Kind:
-				if cv.GetFloat32() == softfloat.NegZero32 {
-					cv.SetFloat32(0)
-				}
-			case Float64Kind:
-				if cv.GetFloat64() == softfloat.NegZero64 {
-					cv.SetFloat64(0)
+		// An operation on constants folds exactly (constfold.go); anything
+		// else (a literal, a name, a conversion) is evaluated by a machine.
+		alloc := preprocessAllocOf(store)
+		cv, folded := foldConst(alloc.GetGasMeter(), alloc, x)
+		if !folded {
+			m := NewMachineWithOptions(MachineOptions{
+				PkgPath:            ".dontcare",
+				Store:              store,
+				BoundedPanicRender: true,
+			})
+			cv = m.EvalStatic(last, x)
+			m.Release()
+			// The machine computes with runtime (IEEE) semantics, but a
+			// folded expression is a constant, and constants have no signed
+			// zero: a float -0 result becomes +0.
+			if cv.T != nil {
+				switch cv.T.Kind() {
+				case Float32Kind:
+					if cv.GetFloat32() == softfloat.NegZero32 {
+						cv.SetFloat32(0)
+					}
+				case Float64Kind:
+					if cv.GetFloat64() == softfloat.NegZero64 {
+						cv.SetFloat64(0)
+					}
 				}
 			}
 		}
+		checkUntypedIntWidth(x, &cv)
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,
@@ -5166,7 +5186,7 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
-		ConvertUntypedTo(&cx.TypedValue, t)
+		ConvertUntypedTo(constMeterOf(preprocessGasMeterOf(store)), &cx.TypedValue, t)
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
