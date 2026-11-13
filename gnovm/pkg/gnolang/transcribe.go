@@ -20,6 +20,11 @@ const (
 const (
 	TRANS_ENTER TransStage = iota
 	TRANS_BLOCK
+	// TRANS_BLOCK2 is visited by ForStmt, RangeStmt and SwitchStmt only,
+	// after .Init, .X, and .Init and .X respectively: the clauses resolved
+	// before the statement's own declared names (init LHS, range
+	// key/value, type-switch var) come into scope, and before the children
+	// that see those names.
 	TRANS_BLOCK2
 	TRANS_LEAVE
 )
@@ -416,6 +421,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
+		// NOTE: special block case for after .Init.
+		cnn2, c2 = t(ns, ftype, index, cnn, TRANS_BLOCK2)
+		if stopOrSkip(nc, c2) {
+			nn = cnn2
+			return
+		} else {
+			cnn = cnn2.(*ForStmt)
+		}
 		if cnn.Cond != nil {
 			cnn.Cond = transcribe(t, nns, TRANS_FOR_COND, 0, cnn.Cond, &c).(Expr)
 			if stopOrSkip(nc, c) {
@@ -500,6 +513,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		cnn.X = transcribe(t, nns, TRANS_RANGE_X, 0, cnn.X, &c).(Expr)
 		if stopOrSkip(nc, c) {
 			return
+		}
+		// NOTE: special block case for after .X.
+		cnn2, c2 = t(ns, ftype, index, cnn, TRANS_BLOCK2)
+		if stopOrSkip(nc, c2) {
+			nn = cnn2
+			return
+		} else {
+			cnn = cnn2.(*RangeStmt)
 		}
 		if cnn.Key != nil {
 			cnn.Key = transcribe(t, nns, TRANS_RANGE_KEY, 0, cnn.Key, &c).(Expr)
