@@ -26,7 +26,6 @@ type stubIndexer struct {
 var errUnused = errors.New("not used by these tests")
 
 func (s stubIndexer) LatestBlockHeight(context.Context) (int, error) { return 77, nil }
-func (s stubIndexer) URL() string                                    { return "https://indexer.test/graphql/query" }
 func (s stubIndexer) DeploysQuoting(_ context.Context, _ string, lower, _ int) ([]indexer.Tx, error) {
 	if s.scans != nil {
 		s.scans.Add(1)
