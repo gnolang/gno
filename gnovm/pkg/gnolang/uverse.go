@@ -2008,7 +2008,7 @@ func uversePrint(m *Machine, xv PointerValue, newline bool) {
 	defer mw.Flush() // LIFO: runs before Release, after the loop (normal or panic).
 	xvl := xv.TV.GetLength()
 	for i := range xvl {
-		if i != 0 {
+		if newline && i != 0 { // only println separates operands
 			mw.WriteByte(' ')
 		}
 		ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
@@ -2059,7 +2059,7 @@ func formatUverseOutput(m *Machine, xv PointerValue, newline bool) []byte {
 		var buf bytes.Buffer
 
 		for i := range xvl {
-			if i != 0 { // Not the last item.
+			if newline && i != 0 { // only println separates operands
 				buf.WriteByte(' ')
 			}
 			ev := xv.TV.GetPointerAtIndexInt(m.Store, i).Deref()
