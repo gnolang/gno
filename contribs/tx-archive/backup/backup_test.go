@@ -237,6 +237,9 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 					blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(),
 					time.UnixMilli(txData.Metadata.Timestamp),
 				)
+				assert.Equal(t, int64(expectedBlock), txData.Metadata.BlockHeight)
+				assert.Equal(t, "test-chain", txData.Metadata.ChainID)
+				assert.False(t, txData.Metadata.Failed)
 			}
 
 			// Check for errors during scanning
