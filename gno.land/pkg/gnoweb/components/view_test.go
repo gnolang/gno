@@ -367,10 +367,9 @@ func TestDirectoryView(t *testing.T) {
 	pkgPath := "example/path"
 	files := []string{"file1.gno", "file2.gno"}
 	fileCounter := 2
-	linkType := DirLinkTypeSource
 	mode := ViewModePackage
 
-	view := DirectoryView(pkgPath, files, fileCounter, linkType, mode)
+	view := DirectoryView(pkgPath, files, fileCounter, mode)
 
 	assert.NotNil(t, view, "expected view to be non-nil")
 
@@ -388,39 +387,11 @@ func TestDirectoryView(t *testing.T) {
 	assert.NoError(t, view.Render(io.Discard))
 }
 
-func TestDirLinkType_LinkPrefix(t *testing.T) {
-	cases := []struct {
-		name     string
-		linkType DirLinkType
-		pkgPath  string
-		expected string
-	}{
-		{
-			name:     "Source link type",
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: "/r/test/pkg$source&file=",
-		},
-		{
-			name:     "File link type",
-			linkType: DirLinkTypeFile,
-			pkgPath:  "/r/test/pkg",
-			expected: "",
-		},
-		{
-			name:     "Invalid link type",
-			linkType: DirLinkType(999),
-			pkgPath:  "/r/test/pkg",
-			expected: "",
-		},
-	}
+func TestBuildFilesLinks(t *testing.T) {
+	t.Parallel()
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := tc.linkType.LinkPrefix(tc.pkgPath)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
+	got := buildFilesLinks([]string{"a.gno"}, "/r/test/pkg")
+	assert.Equal(t, FilesLinks{{Link: "/r/test/pkg$source&file=a.gno", Name: "a.gno"}}, got)
 }
 
 func TestUserView(t *testing.T) {
