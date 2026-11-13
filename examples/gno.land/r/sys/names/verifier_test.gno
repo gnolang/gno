@@ -20,27 +20,27 @@ var (
 
 func TestDefaultVerifier(t *testing.T) {
 	// Disabled: any case is true (regardless of paused or lookup).
-	uassert.True(t, verifier(false, false, alice, alice.String(), nil))
-	uassert.True(t, verifier(false, false, "", alice.String(), nil))
-	uassert.True(t, verifier(false, false, alice, "somerandomusername", nil))
+	uassert.True(t, verifier(false, false, alice, alice.String(), nil, nil))
+	uassert.True(t, verifier(false, false, "", alice.String(), nil, nil))
+	uassert.True(t, verifier(false, false, alice, "somerandomusername", nil, nil))
 
 	// Pre-Enable bypass takes priority over paused — even when paused=true,
 	// !isEnabled returns true. This is the documented "stage pause before
 	// Enable" behavior.
-	uassert.True(t, verifier(false, true, alice, alice.String(), nil))
-	uassert.True(t, verifier(false, true, alice, "anything", nil))
+	uassert.True(t, verifier(false, true, alice, alice.String(), nil, nil))
+	uassert.True(t, verifier(false, true, alice, "anything", nil, nil))
 
 	// Enabled: PA namespace check.
-	uassert.True(t, verifier(true, false, alice, alice.String(), nil))
+	uassert.True(t, verifier(true, false, alice, alice.String(), nil, nil))
 
 	// Enabled: non-PA namespaces denied when no registered-name lookup.
-	uassert.False(t, verifier(true, false, alice, "notregistered", nil))
-	uassert.False(t, verifier(true, false, alice, "alice", nil))
+	uassert.False(t, verifier(true, false, alice, "notregistered", nil, nil))
+	uassert.False(t, verifier(true, false, alice, "alice", nil, nil))
 
 	// Enabled: empty name/address.
-	uassert.False(t, verifier(true, false, address(""), "", nil))
-	uassert.False(t, verifier(true, false, alice, "", nil))
-	uassert.False(t, verifier(true, false, address(""), "something", nil))
+	uassert.False(t, verifier(true, false, address(""), "", nil, nil))
+	uassert.False(t, verifier(true, false, alice, "", nil, nil))
+	uassert.False(t, verifier(true, false, address(""), "something", nil, nil))
 }
 
 // TestRegisteredNameVerifier exercises the second authorization path —
@@ -56,22 +56,22 @@ func TestRegisteredNameVerifier(t *testing.T) {
 	}
 
 	// alice can deploy under "gnobody" (her registered name).
-	uassert.True(t, verifier(true, false, alice, "gnobody", aliceOwnsGnobody))
+	uassert.True(t, verifier(true, false, alice, "gnobody", aliceOwnsGnobody, nil))
 
 	// bob cannot deploy under "gnobody" (registered to alice, not bob).
-	uassert.False(t, verifier(true, false, bob, "gnobody", aliceOwnsGnobody))
+	uassert.False(t, verifier(true, false, bob, "gnobody", aliceOwnsGnobody, nil))
 
 	// Unknown name still rejects (lookup returns ok=false).
-	uassert.False(t, verifier(true, false, alice, "notregistered", aliceOwnsGnobody))
+	uassert.False(t, verifier(true, false, alice, "notregistered", aliceOwnsGnobody, nil))
 
 	// PA path still works alongside registered-name lookup. Tried first.
-	uassert.True(t, verifier(true, false, alice, alice.String(), aliceOwnsGnobody))
+	uassert.True(t, verifier(true, false, alice, alice.String(), aliceOwnsGnobody, nil))
 
 	// Disabled bypasses both paths entirely (returns true regardless).
-	uassert.True(t, verifier(false, false, bob, "gnobody", aliceOwnsGnobody))
+	uassert.True(t, verifier(false, false, bob, "gnobody", aliceOwnsGnobody, nil))
 
 	// Empty namespace + non-nil lookup: still rejects (early-out before lookup).
-	uassert.False(t, verifier(true, false, alice, "", aliceOwnsGnobody))
+	uassert.False(t, verifier(true, false, alice, "", aliceOwnsGnobody, nil))
 
 	// Lookup returns ok=true for current-but-mismatched address.
 	bobOwnsGnobody := func(name string) (address, bool) {
@@ -80,7 +80,7 @@ func TestRegisteredNameVerifier(t *testing.T) {
 		}
 		return "", false
 	}
-	uassert.False(t, verifier(true, false, alice, "gnobody", bobOwnsGnobody))
+	uassert.False(t, verifier(true, false, alice, "gnobody", bobOwnsGnobody, nil))
 }
 
 // TestPausedVerifier covers the emergency-halt semantic. When paused
@@ -98,37 +98,37 @@ func TestPausedVerifier(t *testing.T) {
 	t.Run("paused blocks PA namespaces", func(t *testing.T) {
 		// PA would normally succeed (addr.String() == namespace), but
 		// pause short-circuits before the PA check.
-		uassert.False(t, verifier(true, true, alice, alice.String(), nil))
-		uassert.False(t, verifier(true, true, alice, alice.String(), aliceOwnsGnobody))
+		uassert.False(t, verifier(true, true, alice, alice.String(), nil, nil))
+		uassert.False(t, verifier(true, true, alice, alice.String(), aliceOwnsGnobody, nil))
 	})
 
 	t.Run("paused blocks registered-name namespaces", func(t *testing.T) {
 		// Registered-name path would normally succeed, but pause
 		// short-circuits before the lookup is consulted.
-		uassert.False(t, verifier(true, true, alice, "gnobody", aliceOwnsGnobody))
+		uassert.False(t, verifier(true, true, alice, "gnobody", aliceOwnsGnobody, nil))
 	})
 
 	t.Run("paused blocks any other namespace too", func(t *testing.T) {
-		uassert.False(t, verifier(true, true, alice, "anything", aliceOwnsGnobody))
-		uassert.False(t, verifier(true, true, alice, "", aliceOwnsGnobody))
-		uassert.False(t, verifier(true, true, address(""), "anything", aliceOwnsGnobody))
+		uassert.False(t, verifier(true, true, alice, "anything", aliceOwnsGnobody, nil))
+		uassert.False(t, verifier(true, true, alice, "", aliceOwnsGnobody, nil))
+		uassert.False(t, verifier(true, true, address(""), "anything", aliceOwnsGnobody, nil))
 	})
 
 	t.Run("pre-Enable bypass takes priority over paused", func(t *testing.T) {
 		// !enabled is checked BEFORE paused in the verifier — the
 		// pre-Enable shortcut returns true regardless of pause state.
 		// This is the "pause is staged, applies on Enable" semantic.
-		uassert.True(t, verifier(false, true, alice, alice.String(), nil))
-		uassert.True(t, verifier(false, true, alice, "gnobody", aliceOwnsGnobody))
-		uassert.True(t, verifier(false, true, alice, "anything", nil))
+		uassert.True(t, verifier(false, true, alice, alice.String(), nil, nil))
+		uassert.True(t, verifier(false, true, alice, "gnobody", aliceOwnsGnobody, nil))
+		uassert.True(t, verifier(false, true, alice, "anything", nil, nil))
 	})
 
 	t.Run("paused=false with enabled=true behaves normally", func(t *testing.T) {
 		// Sanity: just confirms the false case doesn't accidentally do
 		// something different from the no-pause baseline.
-		uassert.True(t, verifier(true, false, alice, alice.String(), nil))
-		uassert.True(t, verifier(true, false, alice, "gnobody", aliceOwnsGnobody))
-		uassert.False(t, verifier(true, false, bob, "gnobody", aliceOwnsGnobody))
+		uassert.True(t, verifier(true, false, alice, alice.String(), nil, nil))
+		uassert.True(t, verifier(true, false, alice, "gnobody", aliceOwnsGnobody, nil))
+		uassert.False(t, verifier(true, false, bob, "gnobody", aliceOwnsGnobody, nil))
 	})
 }
 
@@ -210,4 +210,74 @@ func TestEnable(cur realm, t *testing.T) {
 		Enable(cross(cur))
 	})
 	uassert.True(t, IsEnabled())
+}
+
+// --- path 3: teams ----------------------------------------------------------
+
+// aliceOwnsTeam is a teamLookupFn where alice is in "shared"'s team and the
+// namespace has NOT retired its registered-name path.
+func aliceOwnsTeam(namespace string, addr address) (bool, bool) {
+	return namespace == "shared" && addr == alice, false
+}
+
+// aliceOwnsRetiredTeam is the same team, after the namespace retired path 2.
+func aliceOwnsRetiredTeam(namespace string, addr address) (bool, bool) {
+	if namespace != "shared" {
+		return false, false
+	}
+	return addr == alice, true
+}
+
+func bobOwnsShared(name string) (address, bool) {
+	if name == "shared" {
+		return bob, true
+	}
+	return "", false
+}
+
+func TestTeamVerifier(t *testing.T) {
+	// A team member deploys under the namespace.
+	uassert.True(t, verifier(true, false, alice, "shared", nil, aliceOwnsTeam))
+
+	// Someone who is not in the team does not.
+	uassert.False(t, verifier(true, false, bob, "shared", nil, aliceOwnsTeam))
+
+	// The team only covers its own namespace.
+	uassert.False(t, verifier(true, false, alice, "other", nil, aliceOwnsTeam))
+
+	// Paths 2 and 3 are OR'd while the namespace has not retired: bob holds the
+	// registered name, alice is in the team, and both may deploy. This is what
+	// lets a migration publish home before giving up the original key.
+	uassert.True(t, verifier(true, false, bob, "shared", bobOwnsShared, aliceOwnsTeam))
+	uassert.True(t, verifier(true, false, alice, "shared", bobOwnsShared, aliceOwnsTeam))
+}
+
+func TestRetiredNamespaceDropsTheRegisteredNamePath(t *testing.T) {
+	// Before retiring, the registered-name holder may deploy.
+	uassert.True(t, verifier(true, false, bob, "shared", bobOwnsShared, aliceOwnsTeam))
+
+	// After retiring, the same holder may not, and the team still may. This is
+	// the entire point of the mechanism: the name has not moved, and the
+	// original key has stopped being able to act.
+	uassert.False(t, verifier(true, false, bob, "shared", bobOwnsShared, aliceOwnsRetiredTeam))
+	uassert.True(t, verifier(true, false, alice, "shared", bobOwnsShared, aliceOwnsRetiredTeam))
+}
+
+func TestRetirementDoesNotTouchPersonalAddressNamespaces(t *testing.T) {
+	// The PA check sits above path 2, so a namespace that is literally an
+	// address keeps working no matter what any team says about it. Pinned
+	// because retiring reads like "this namespace is locked down" and must not
+	// be allowed to grow into that.
+	retiredEverything := func(namespace string, addr address) (bool, bool) {
+		return false, true
+	}
+	uassert.True(t, verifier(true, false, alice, alice.String(), nil, retiredEverything))
+}
+
+func TestPauseAndPreEnableStillOutrankTeams(t *testing.T) {
+	// Pause rejects a team member like everyone else.
+	uassert.False(t, verifier(true, true, alice, "shared", nil, aliceOwnsTeam))
+
+	// Pre-Enable passes everyone, including an address no team names.
+	uassert.True(t, verifier(false, false, bob, "shared", nil, aliceOwnsTeam))
 }
