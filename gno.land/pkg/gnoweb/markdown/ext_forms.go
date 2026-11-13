@@ -479,7 +479,9 @@ func (r *FormRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	headerLabel := "Form"
 	if n.ExecFunc != "" {
-		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(titleCase(n.ExecFunc)))
+		// The function's own name: title-casing it read CreatePost as
+		// Createpost. An exported name starts with a capital already.
+		headerLabel = fmt.Sprintf("Exec: %s", HTMLEscapeString(n.ExecFunc))
 	}
 	fmt.Fprintf(w, `<div class="gno-form_header">
 <span><span class="font-bold">%s</span> %s</span>
