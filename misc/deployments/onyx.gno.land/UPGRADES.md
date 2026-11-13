@@ -21,6 +21,7 @@ An entry is added once the chain runs the release — after the halt for a coord
 | [v1.5.1-rc.1](https://github.com/gnolang/gno/releases/tag/v1.5.1-rc.1) | [07e44776c](https://github.com/gnolang/gno/commit/07e44776c26187830b7dcbd2454991b5a1960378) | rolling | — | — | — | `sha256:231eedbda83b…` |
 | [v1.6.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.6.0-rc.1) | [c868ccab1](https://github.com/gnolang/gno/commit/c868ccab1f93f0542a4c10a9d9b49b6fabcc0d98) | 445000 | 2026-10-16T12:51:52Z | `v1.6.0-rc.1` | [#33](https://onyx.testnets.gno.land/r/gov/dao:33) | `sha256:4286ffcd805f…` |
 | [v1.7.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.7.0-rc.1) | [e4c2e7d9f](https://github.com/gnolang/gno/commit/e4c2e7d9fe0f6f7aeeda54885ca1fe5cea991319) | 754000 | 2026-10-29T12:38:27Z | `v1.7.0-rc.1` | [#35](https://onyx.testnets.gno.land/r/gov/dao:35) | `sha256:76d132a22044…` |
+| [v1.7.1-rc.1](https://github.com/gnolang/gno/releases/tag/v1.7.1-rc.1) | [83431a7f0](https://github.com/gnolang/gno/commit/83431a7f0261882541a8a8dcf1643e6f246bbbe5) | rolling | — | — | — | `sha256:e0cafdf68313…` |
 <!-- END GENERATED -->
 
 Notes
