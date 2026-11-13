@@ -12,19 +12,17 @@ Provides an `Ownable` object that gates privileged operations behind a single ow
 ```go
 package myrealm
 
-import (
-    "chain/runtime"
-
-    "gno.land/p/nt/ownable/v0"
-)
+import "gno.land/p/nt/ownable/v0"
 
 // The owner address is chosen explicitly at construction. A common
 // choice is the deployer, captured in init after confirming it is a
 // real user call.
 var owner *ownable.Ownable
 
-func init() {
-    caller := runtime.PreviousRealm()
+var fee int64
+
+func init(cur realm) {
+    caller := cur.Previous()
     if !caller.IsUserCall() {
         panic("must be deployed by a user")
     }
@@ -33,9 +31,6 @@ func init() {
 
 // SetFee is gated: only the current owner may call it.
 func SetFee(cur realm, newFee int64) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     owner.AssertOwnedBy(cur.Previous().Address())
     fee = newFee
 }
@@ -80,6 +75,6 @@ func (o *Ownable) DropOwnership(_ int, rlm realm) error // sets owner to "" — 
 ## Notes
 
 - Authority-mutating methods assert `rlm.IsCurrent()` and identify the caller as `rlm.Previous().Address()`, which must equal the current owner. The principal is therefore unforgeable: an attacker cannot supply an arbitrary caller address. Pass `0` as the placeholder first arg and your own `cur` as `rlm`.
-- Read helpers (`OwnedBy`, `AssertOwnedBy`) take a bare address; the caller extracts it, guarding with `cur.IsCurrent()` before reading `cur.Previous().Address()`.
+- Read helpers (`OwnedBy`, `AssertOwnedBy`) take a bare address; a crossing function passes `cur.Previous().Address()`.
 - `TransferOwnership` rejects an invalid `newOwner` with `ErrInvalidAddress`. Both mutators emit `OwnershipTransferEvent` with `from` and `to` fields.
 - `DropOwnership` is permanent: `owner` becomes `""`, so every owner-gated action becomes unreachable.
