@@ -6,12 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -464,6 +466,28 @@ func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *st
 			return fmt.Errorf("unable to load genesis txs file: %w", err)
 		}
 	}
+
+	// Build a set of package paths already present from the examples directory,
+	// then filter out any MsgAddPackage txs in genesisTxs that would duplicate them.
+	pkgPaths := make(map[string]struct{}, len(pkgsTxs))
+	for _, tx := range pkgsTxs {
+		for _, msg := range tx.Tx.Msgs {
+			if addPkg, ok := msg.(vm.MsgAddPackage); ok && addPkg.Package != nil {
+				pkgPaths[addPkg.Package.Path] = struct{}{}
+			}
+		}
+	}
+
+	genesisTxs = slices.DeleteFunc(genesisTxs, func(tx gnoland.TxWithMetadata) bool {
+		for _, msg := range tx.Tx.Msgs {
+			if addPkg, ok := msg.(vm.MsgAddPackage); ok && addPkg.Package != nil {
+				if _, exists := pkgPaths[addPkg.Package.Path]; exists {
+					return true
+				}
+			}
+		}
+		return false
+	})
 
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
