@@ -547,7 +547,7 @@ func boundedSprintBigDecValue(w *boundedBuf, bdv BigdecValue) {
 		return
 	}
 	if bdv.F != nil {
-		writeBoundedString(w, bdv.F.Text('g', -1), rem)
+		writeBoundedString(w, bigdecFloatString(bdv.F), rem)
 		return
 	}
 	if bdv.V == nil {

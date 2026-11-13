@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -70,7 +71,7 @@ func (biv BigintValue) String() string {
 
 func (bdv BigdecValue) String() string {
 	if bdv.F != nil {
-		return bdv.F.Text('g', -1)
+		return bigdecFloatString(bdv.F)
 	}
 	if bdv.V == nil {
 		return "0.0"
@@ -86,6 +87,60 @@ func (bdv BigdecValue) String() string {
 		}
 	}
 	return s
+}
+
+// bigdecFloatString renders f. Within ratOverflowBits it prints exactly. Past
+// it, exact digits cost time growing faster than |exp|, so it prints six
+// approximate significant digits instead, in a few dozen 64-bit operations
+// whatever the exponent:
+//
+//  1. Write f = mant * 2^exp and guess the decimal exponent e = exp*log10(2).
+//  2. Divide by 10^e as 2^e times 5^e. The 2^e is an exponent shift, and 5^e
+//     comes from repeated squaring. 10^e itself can overflow big.Float's
+//     exponent at the extremes; 5^e cannot.
+//  3. Multiply or divide by 10 until the mantissa lands in [1, 10), since the
+//     guess can be off by one.
+//  4. Print six digits, carrying a round-up to "10" into the exponent.
+func bigdecFloatString(f *big.Float) string {
+	var mant big.Float
+	exp := f.MantExp(&mant) // f = mant * 2^exp, 0.5 <= |mant| < 1
+	if exp >= -ratOverflowBits && exp <= ratOverflowBits {
+		return f.Text('g', -1)
+	}
+	e := (int64(exp) * 1292913986) >> 32 // exp * log10(2), in 32-bit fixed point
+	m := new(big.Float).SetPrec(64).Set(mant.Abs(&mant))
+	m.SetMantExp(m, exp-int(e))
+	p5 := new(big.Float).SetPrec(64).SetInt64(1)
+	b := new(big.Float).SetPrec(64).SetInt64(5)
+	for n := max(e, -e); ; b.Mul(b, b) {
+		if n&1 == 1 {
+			p5.Mul(p5, b)
+		}
+		if n >>= 1; n == 0 {
+			break
+		}
+	}
+	if e > 0 {
+		m.Quo(m, p5)
+	} else {
+		m.Mul(m, p5)
+	}
+	one, ten := big.NewFloat(1), big.NewFloat(10)
+	for ; m.Cmp(ten) >= 0; e++ {
+		m.Quo(m, ten)
+	}
+	for ; m.Cmp(one) < 0; e-- {
+		m.Mul(m, ten)
+	}
+	digits := m.Text('g', 6)
+	if digits == "10" { // m rounded up to the next power of ten
+		digits, e = "1", e+1
+	}
+	sign := ""
+	if f.Sign() < 0 {
+		sign = "-"
+	}
+	return fmt.Sprintf("%s%se%+d", sign, digits, e)
 }
 
 func (dbv DataByteValue) String() string {
