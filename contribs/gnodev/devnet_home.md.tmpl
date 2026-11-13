@@ -1,0 +1,156 @@
+# Your Gno.land devnet
+
+`gnodev` runs this chain on your machine. Save a `.gno` file and it reloads. Namespaces are not enforced, packages go live at once, and GNOT is free.
+
+---
+
+<gno-columns>
+
+## <gno-icon name="box" /> Your packages
+
+The ones you started gnodev with.
+
+{{range .Packages -}}
+- {{if .URL}}[{{.Name}}]({{.URL}}){{if .Realm}}\
+  [Actions]({{.URL}}$help) · [State]({{.URL}}$state){{end}}{{else}}{{.Name}}{{end}}
+{{else -}}
+None yet: run `gnodev` in a folder with a `gnomod.toml`.
+{{end -}}
+{{if .MorePackages}}- and {{.MorePackages}} more
+{{end}}
+<gno-columns-sep>
+
+## <gno-icon name="check-circle" /> Transactions
+
+Newest first, since the last reset.
+
+{{range .Txs -}}
+- `{{.Action}}`{{if .Target}} · {{.Target}}{{end}}{{if not .OK}} · failed{{end}} · {{.Gas}} gas
+{{else -}}
+None yet: run a command from a realm's Actions page.
+{{end}}
+<gno-columns-sep>
+
+## <gno-icon name="server" /> This chain
+
+Press `Ctrl+R` in gnodev to reset it.
+
+- Chain ID: `{{.ChainID}}`
+- RPC: `{{.RPC}}`
+- Accounts: your gnokey keys, funded at startup
+
+</gno-columns>
+
+---
+
+<gno-columns>
+
+## <gno-icon name="code-outline" /> Check your code
+
+Run these before you ship.
+
+<gno-button href="https://docs.gno.land/resources/gno-testing" label="Testing guide" />
+
+1. `gno fmt -w ./...`
+2. `gno lint ./...`
+3. `gno test ./...`
+
+<gno-columns-sep>
+
+## <gno-icon name="keyboard" /> Drive gnodev
+
+Press these in its terminal.
+
+<gno-button href="https://docs.gno.land/resources/gnodev" label="See all keys" />
+
+- `A` show balances
+- `P` `N` step through transactions
+- `Ctrl+S` save the state until you quit
+- `Ctrl+R` reset to the saved state, or to startup
+
+<gno-columns-sep>
+
+## <gno-icon name="lightbulb" /> Build with AI
+
+Let your agent use this chain.
+
+<gno-button href="https://mcp.gno.dev" label="Set up gnomcp" />
+
+1. Install gnomcp, restart your agent
+2. Point it at the local profile: it signs as `{{.Agent}}`, funded here
+3. Ask it to call your realm
+
+</gno-columns>
+
+---
+
+## <gno-icon name="terminal" /> From your terminal
+
+gnodev funds the gnokey keys it finds at startup, so add yours first. Then call your realm:
+
+```sh
+gnokey add alice
+
+gnokey maketx call \
+  -pkgpath "{{.Realm}}" \
+  -func "<Func>" \
+  -gas-fee 10000ugnot -gas-wanted 10000000 \
+  -chainid {{.ChainID}} -remote {{.RPC}} \
+  alice
+```
+
+A realm's Actions page writes a ready-to-run command for each function.
+
+Need a package only mainnet has? Start gnodev with its code; its state starts empty:
+
+```sh
+gnodev -remote gno.land=https://rpc.gno.land:443 .
+```
+
+---
+
+## <gno-icon name="rocket" /> Ship it to the testnet
+
+When it works here, deploy its folder to onyx under your address. A package of yours that it imports goes first, and the import then points at your address. Get test GNOT first: keys are not funded there. Onyx enables a deploy a few seconds after it lands.
+
+```sh
+gnokey maketx addpkg \
+  -pkgpath "gno.land/r/<your-g1-addr>/{{.RealmName}}" \
+  -pkgdir "{{.RealmDir}}" \
+  -gas-fee 40000ugnot -gas-wanted 20000000 \
+  -chainid onyx-1 -remote https://rpc.onyx.testnets.gno.land:443 \
+  alice
+```
+
+<gno-button href="https://faucet.gno.land" label="Open the faucet" /> <gno-button href="https://docs.gno.land/builders/getting-started#deploy-to-a-shared-network" label="Deploy guide" variant="outline" />
+
+---
+
+<gno-columns>
+
+## <gno-icon name="book" /> Learn
+
+- [Effective Gno](https://docs.gno.land/resources/effective-gno)
+- [Interrealm calls](https://docs.gno.land/resources/gno-interrealm)
+- [Testing](https://docs.gno.land/resources/gno-testing)
+- [Packages](https://docs.gno.land/resources/gno-packages)
+
+<gno-columns-sep>
+
+## <gno-icon name="search-outline" /> Reference
+
+- [gnodev](https://docs.gno.land/resources/gnodev)
+- [Networks and RPCs](https://docs.gno.land/resources/gnoland-networks/)
+- [Gas fees](https://docs.gno.land/resources/gas-fees)
+- [Security guide](https://docs.gno.land/resources/gno-security-guide)
+
+<gno-columns-sep>
+
+## <gno-icon name="users" /> Community
+
+- [Ask on Discord](https://discord.com/invite/gnoland)
+- [Awesome Gno projects](https://github.com/gnoverse/awesome-gno)
+- [Contribute](https://gno.land/contribute)
+- [Get a grant](https://github.com/gnolang/grants)
+
+</gno-columns>

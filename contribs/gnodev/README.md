@@ -13,7 +13,8 @@ Please note that this is a quick overview. For a more detailed guide, refer to t
 ## Features
 -  **In-Memory Node**: Gnodev starts an in-memory node, loading the workspace containing the current directory
    at startup; **examples** packages are resolved on demand upon a query or transaction.
--  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8888`](http://localhost:8888).
+-  **Web Interface Server**: Gnodev starts a `gnoweb` server on [`localhost:8888`](http://localhost:8888), whose
+   home lists your packages and their latest transactions.
 -  **Balances and Keybase Customization**: Set account balances, load them from a file, or add new accounts via a flag.
 -  **Hot Reload**: Monitors loaded package directories for file changes, reloading the
    package and automatically restarting the node as needed.
@@ -108,7 +109,7 @@ FLAGS
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
-  -web-home ...	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
+  -web-home ...	gnoweb: path to redirect / to; when empty, local mode shows its devnet home and staging the first package; `/` or `:none:` show the chain's home realm
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
@@ -159,7 +160,7 @@ FLAGS
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
-  -web-home :none:	gnoweb: set default home page, use `/` or `:none:` to use default web home redirect
+  -web-home :none:	gnoweb: path to redirect / to; when empty, local mode shows its devnet home and staging the first package; `/` or `:none:` show the chain's home realm
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
