@@ -20,6 +20,30 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "hello world!",
 		},
 		{
+			args:                []string{"run", "../../tests/integ/run_xflag/main.gno"},
+			stdoutShouldContain: "default",
+		},
+		{
+			args:                []string{"run", "-X", "main.myVar=overridden", "../../tests/integ/run_xflag/main.gno"},
+			stdoutShouldContain: "overridden",
+		},
+		{
+			args:             []string{"run", "-X", "invalidnoequals", "../../tests/integ/run_xflag/main.gno"},
+			errShouldContain: "invalid -X value",
+		},
+		{
+			args:             []string{"run", "-X", "myVar=nopkgpath", "../../tests/integ/run_xflag/main.gno"},
+			errShouldContain: "invalid -X value",
+		},
+		{
+			args:             []string{"run", "-X", "main.noSuchVar=x", "../../tests/integ/run_xflag/main.gno"},
+			errShouldContain: "no such package-level var: noSuchVar",
+		},
+		{
+			args:             []string{"run", "-X", "main.constVar=x", "../../tests/integ/run_xflag/main.gno"},
+			errShouldContain: "constVar is not a package-level string var",
+		},
+		{
 			args:             []string{"run", "../../tests/integ/does_not_exist"},
 			errShouldContain: "no such file or directory",
 		},
