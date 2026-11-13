@@ -41,7 +41,9 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   document level; a blockquote, list item or alert is not. This keeps the
   `BlockRich` guarantee: the sanitizer escapes a `<gno-…` at line start but
   not after `> ` or `- `, so without this rule sanitized user content could
-  draw a realm-styled frame inside a quote or a list.
+  draw a realm-styled frame inside a quote or a list. *(Since PR #6304 the
+  sanitizer escapes it after `> ` and list markers too; this rule stays as a
+  second guard.)*
 - **Empty attribute allowlist.** Any attribute (on the open or the close
   tag) or a self-closing form makes the tag invalid instead of silently
   ignored, so a later attribute (a variant, say) cannot be misread by an older
@@ -156,6 +158,9 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   of the document-level rule. That changes a Gno stdlib and the realm-side
   package, and every future gno-* tag would have to be checked against the
   same container shapes; the parser rule closes the hole where it opens.
+  *(Superseded by PR #6304 / ADR `pr6304_sanitize_gno_tags.md`: the sanitizer now
+  escapes `<gno-…>` tags at block start including after `>` and list markers, with
+  `<gno-icon />` exempted in containers, eliminating container-bypass risks).*
 
 ## Consequences
 
@@ -163,11 +168,12 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
 - `p/nt/markdown/sanitize` escapes a line-leading `<gno-…` (any case, 1-3
   space indent), and after a `>` or list marker a frame tag stays an inert
   comment (goldens `blockrich-gno-frame-*`, `block-gno-frame-escaped`). No
-  sanitizer change in this PR. Known gap on master, tracked in #6300: a
+  sanitizer change in this PR. *(Since PR #6304 a frame tag after a `>` or
+  list marker is escaped to text, which those goldens now show.)* Known gap on master, tracked in #6300: a
   fence indented under a list item makes the sanitizer
   skip the escape on the next unindented line, which goldmark parses at
   document level, so user content can open or close a frame there (the same
-  shape already reaches `<gno-columns>` tags today).
+  shape already reaches `<gno-columns>` tags today). *(Resolved in PR #6304).*
 - Frames cannot sit inside a list, a quote or an alert. Alerts, lists, quotes,
   code, forms and complete column grids (with one card per column at a time)
   inside a frame work.

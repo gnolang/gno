@@ -248,6 +248,12 @@ matter, but `chain/markdown` runs on chain: changing what `Block`,
 `RELEASING.md`). It is left to its own PR so gnoweb can ship icons without
 waiting for one.
 
+*(PR #6304 / ADR `pr6304_sanitize_gno_tags.md` extends the line-start
+escape to `<gno-…>` tags after list and quote markers and exempts
+`<gno-icon />` there, so an icon at the start of a list item or quote keeps
+rendering, as it did before. An icon at the start of a top-level line stays
+escaped.)*
+
 ### Tooling
 
 `markdown/icons/icons.txt` lists the imported upstream icons, one per line,

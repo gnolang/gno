@@ -228,7 +228,12 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped 2026-10-20 by PR #6304's doc edits to chain/markdown's
+// markdown.gno (the EscapeBlockHazards step list). Comments only: the
+// native's Go code changed too, but natives are not committed state, and
+// restoring master's markdown.gno alone restores acd1f9ce.
+const expectedCrossrealm38Hash = "d348e2078245d00e061f6f7b032963aacf19cd03469d7f4e6a32017cb4361344"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
