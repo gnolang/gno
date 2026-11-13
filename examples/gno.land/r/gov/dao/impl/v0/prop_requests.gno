@@ -78,6 +78,14 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 }
 
 func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+	req, _ := newAddMemberRequest(addr, tier, portfolio, false, cur)
+	return req
+}
+
+// newAddMemberRequest builds the request and returns the proposer's
+// membership: a member spends an invitation point, and a non-member is
+// accepted only when feePaid, through ProposeAddMember.
+func newAddMemberRequest(addr address, tier string, portfolio string, feePaid bool, rlm realm) (dao.ProposalRequest, *memberstore.Member) {
 	// Reject a non-bech32 address at proposal-build time (see AddMember): keeps
 	// an unauthenticable / injection-bearing key out of the member store.
 	if !addr.IsValid() {
@@ -96,12 +104,12 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
-	if member == nil {
+	member, _ := memberstore.Get(0, rlm).GetMember(unsafe.OriginCaller())
+	if member == nil && !feePaid {
 		panic("proposer is not a member")
 	}
 
-	if member.InvitationPoints <= 0 {
+	if member != nil && member.InvitationPoints <= 0 {
 		panic("proposer does not have enough invitation points for inviting new people to the board")
 	}
 
@@ -121,12 +129,14 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		if err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier)); err != nil {
 			return err
 		}
-		member.RemoveInvitationPoint()
+		if member != nil {
+			member.RemoveInvitationPoint()
+		}
 
 		return nil
 	}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
+	e := dao.NewSimpleExecutor(0, rlm, cb, ufmt.Sprintf("A new member with address %v is proposed to be on tier %v. Provided Portfolio information:\n\n%v", addr, tier, portfolio))
 
 	name := tryResolveAddr(addr)
 	return dao.NewProposalRequestWithFilter(
@@ -134,7 +144,7 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		ufmt.Sprintf("This is a proposal to add `%s` to **%s**.\n#### `%s`'s Portfolio:\n\n%s\n", name, tier, name, portfolio),
 		e,
 		FilterByTier{Tier: tier},
-	)
+	), member
 }
 
 func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.ProposalRequest {
@@ -306,6 +316,36 @@ func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) dao.Proposal
 			"This proposal is looking to update the list of GRC20 tokens used by the treasury.\n\nNew Token Keys:\n%s",
 			bulletList,
 		),
+		e,
+	)
+}
+
+// NewProposalFeeAmountRequest proposes a new non-member proposal fee, in
+// ugnot. Zero lets non-members propose for free.
+func NewProposalFeeAmountRequest(cur realm, newAmount int64, reason string) dao.ProposalRequest {
+	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
+	if member == nil {
+		panic("proposer is not a member")
+	}
+	if newAmount < 0 {
+		panic("proposal fee amount must not be negative")
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		panic("proposal fee amount change requires a reason")
+	}
+
+	cb := func(cur realm) error {
+		ProposalFeeAmount = newAmount
+		return nil
+	}
+
+	safeReason := sanitize.InlineText(clampField(reason, maxRenderedReason))
+	e := dao.NewSimpleExecutor(0, cur, cb, ufmt.Sprintf("The non-member proposal fee will be %dugnot.\n\nReason: %s", newAmount, safeReason))
+
+	return dao.NewProposalRequest(
+		"Proposal Fee Amount Change",
+		ufmt.Sprintf("This proposal sets the non-member proposal fee to %dugnot.\n\nReason: %s", newAmount, safeReason),
 		e,
 	)
 }
