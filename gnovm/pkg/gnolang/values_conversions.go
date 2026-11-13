@@ -1196,6 +1196,11 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
 	case StringKind, BigintKind, BigdecKind:
+	case Float32Kind, Float64Kind:
+		// As an untyped integer constant of the same value (e.g.
+		// var f float64 = 'a', which was rejected).
+		ConvertUntypedBigintTo(dst, BigintValue{V: big.NewInt(int64(sv))}, t)
+		return
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert untyped rune type to %s",
@@ -1261,6 +1266,9 @@ func ConvertUntypedRuneTo(dst *TypedValue, t Type) {
 		}
 		dst.SetUint32(uint32(sv))
 	case Uint64Kind:
+		if sv < 0 {
+			panic("rune underflows target kind")
+		}
 		dst.SetUint64(uint64(sv))
 	case StringKind:
 		panic("not yet implemented")
