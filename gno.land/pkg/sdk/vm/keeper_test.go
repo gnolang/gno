@@ -3695,6 +3695,24 @@ func TestVMKeeperQueryEvalBignumGas(t *testing.T) {
 	}
 }
 
+// TestVMKeeperQueryEvalExtremeExponent pins qeval on literals near big.Float's 2^31 exponent limit.
+func TestVMKeeperQueryEvalExtremeExponent(t *testing.T) {
+	pkgPath := "gno.land/r/test/extremeexp"
+	env := setupSizeGuardRealm(t, "addr1", pkgPath, "package extremeexp\n\nfunc Noop() {}\n")
+
+	// The refusal comes before the integer is built: F.Int would allocate
+	// 256 MB, which the gas meter does not charge.
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	_, err := env.vmk.QueryEval(env.ctx, pkgPath, "(1e646456992 << 0) % 7")
+	runtime.ReadMemStats(&after)
+	require.ErrorContains(t, err, "bigint overflows target kind")
+	require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(16<<20))
+	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "int(1e-646456992)")
+	require.ErrorContains(t, err, "cannot convert (const (1e-646456992 <untyped> bigdec)) to integer type")
+}
+
 // bigLitParseGas mirrors chargeBigLitParse: gas = (chars/10)^2 * slope / 10.
 func bigLitParseGas(chars int, slope int64) int64 {
 	d10 := int64(chars) / 10

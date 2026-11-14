@@ -265,9 +265,9 @@ func packageTypeOf(gnourl *weburl.GnoURL) string {
 	return ""
 }
 
-// maxOverviewSymbols caps how many top-level funcs, types, or value groups the
-// overview renders. SymbolsTruncated is set when the cap is hit so the template
-// can signal truncation to the reader.
+// maxOverviewSymbols caps how many top-level funcs, types, value groups, or
+// methods across all types the overview renders. SymbolsTruncated is set when
+// the cap is hit so the template can signal truncation to the reader.
 const maxOverviewSymbols = 500
 
 // capSymbols truncates s to at most limit items, reporting whether it was truncated.
@@ -276,6 +276,19 @@ func capSymbols[S ~[]E, E any](s S, limit int) (S, bool) {
 		return s[:limit], true
 	}
 	return s, false
+}
+
+// capMethods keeps at most limit methods across types, in order, reporting
+// whether any was dropped.
+func capMethods(types []TypeEntry, limit int) bool {
+	truncated := false
+	for i := range types {
+		var cut bool
+		types[i].Methods, cut = capSymbols(types[i].Methods, limit)
+		truncated = truncated || cut
+		limit -= len(types[i].Methods)
+	}
+	return truncated
 }
 
 // BuildOverview is pure: given fetched inputs, it returns the rendered OverviewData.
@@ -296,7 +309,8 @@ func BuildOverview(in OverviewInput) OverviewData {
 	funcs, fTrunc := capSymbols(funcs, maxOverviewSymbols)
 	types, tTrunc := capSymbols(types, maxOverviewSymbols)
 	values, vTrunc := capSymbols(values, maxOverviewSymbols)
-	symbolsTruncated := fTrunc || tTrunc || vTrunc
+	mTrunc := capMethods(types, maxOverviewSymbols)
+	symbolsTruncated := fTrunc || tTrunc || vTrunc || mTrunc
 
 	// Split value groups by kind so the template renders pre-shaped data
 	// (Constants/Variables sections + filter-tab counts) without filtering.

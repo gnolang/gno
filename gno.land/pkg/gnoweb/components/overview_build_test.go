@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -298,5 +299,39 @@ func TestBuildOverview_BoundsSymbols(t *testing.T) {
 	})
 
 	require.Len(t, data.Funcs, maxOverviewSymbols)
+	require.True(t, data.SymbolsTruncated)
+}
+
+// Methods count against the cap across types, the first types keeping theirs.
+func TestBuildOverview_BoundsMethodsAcrossTypes(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	build := func(perType ...int) OverviewData {
+		var jdoc doc.JSONDocumentation
+		for i, n := range perType {
+			name := fmt.Sprintf("T%d", i)
+			jdoc.Types = append(jdoc.Types, &doc.JSONType{Name: name, Kind: "struct"})
+			for j := range n {
+				jdoc.Funcs = append(jdoc.Funcs, &doc.JSONFunc{Name: fmt.Sprintf("M%d", j), Type: name})
+			}
+		}
+		return BuildOverview(OverviewInput{URL: u, DocRenderer: noopRenderer{}, Domain: "gno.land", Doc: &jdoc})
+	}
+
+	data := build(maxOverviewSymbols-100, 200)
+	require.Len(t, data.Types, 2)
+	require.Len(t, data.Types[0].Methods, maxOverviewSymbols-100)
+	require.Len(t, data.Types[1].Methods, 100)
+	require.True(t, data.SymbolsTruncated)
+
+	data = build(maxOverviewSymbols-100, 100)
+	require.Len(t, data.Types[1].Methods, 100)
+	require.False(t, data.SymbolsTruncated)
+
+	// A cut on the first type still shows the notice when a later one has none.
+	data = build(maxOverviewSymbols+100, 0)
+	require.Len(t, data.Types[0].Methods, maxOverviewSymbols)
 	require.True(t, data.SymbolsTruncated)
 }

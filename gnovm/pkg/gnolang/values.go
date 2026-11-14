@@ -127,10 +127,15 @@ const bigdecFloatMarshalPrefix = "f:"
 
 // BigdecValue holds an untyped bigdec constant in one of two representations:
 // an exact rational (V) for values that fit within ratGuard's bit limits, or
-// a bounded-precision big.Float (F) that gracefully handles extreme exponents.
+// a bounded-precision big.Float (F) whose binary exponent reaches ±2^31.
 // Exactly one of V or F is non-nil for a well-formed value. The float form
 // mirrors go/constant, which switches from big.Rat to a 512-bit big.Float
 // past the same 4096-bit threshold.
+//
+// Arithmetic on F costs the same at any exponent, but F.Text and F.Int write
+// out every digit or bit the exponent implies, unmetered. Print F with
+// bigdecFloatString and convert it with bigdecToBigInt, which both bound that
+// work past ratOverflowBits.
 type BigdecValue struct {
 	V *big.Rat
 	F *big.Float
