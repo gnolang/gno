@@ -627,9 +627,11 @@ def main():
             else: tag = 'ok'
         else:
             tag = ''
+        # 'none': machine.go declares no such constant, so the op is charged
+        # elsewhere, as Call (method) through OpCPUCall.
         p('%-50s %8.1f %8.1f %8.0f %8.1f %8s  %s' % (
             display, ns_pure, total_g, alloc_gas, cpu_g,
-            str(cur) if cur > 0 else '?', tag))
+            str(cur) if cur > 0 else ('none' if cur < 0 else '?'), tag))
 
     # ============================================================
     # SECTION 2: PARAMETERIZED OPS
@@ -903,7 +905,10 @@ def main():
     p('\t/* Flat constants (max across variants) */')
     for key in sorted(flat_by_key.keys()):
         cpu_g, display, ns_pure = flat_by_key[key]
-        p('\tOpCPU%-25s = %4d // %s (%.1f ns)' % (key, round(cpu_g), display, ns_pure))
+        line = 'OpCPU%-25s = %4d // %s (%.1f ns)' % (key, round(cpu_g), display, ns_pure)
+        # Commented out where machine.go declares no such constant, since
+        # runOnce charges that op elsewhere and would never read it.
+        p('\t' + line if key in gas_constants else '\t// ' + line)
 
     # --- Parameterized bases and slopes ---
     p()

@@ -267,7 +267,7 @@ func (m *Machine) doOpExec(op Op) {
 					// Writing the copy copies it again, which can run
 					// GC: anchor it until it is written. A conversion
 					// makes the copy.
-					anchored = make([]TypedValue, 1)
+					anchored = m.rangeAnchor[:1]
 					m.Alloc.PushAnchor(anchored)
 					if vt == nil {
 						ev = ev.Copy(m.Alloc, m.Store)
@@ -303,6 +303,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			if anchored != nil {
 				m.Alloc.PopAnchor()
+				clear(anchored)
 			}
 			bs.NextBodyIndex++
 			fallthrough
@@ -501,7 +502,7 @@ func (m *Machine) doOpExec(op Op) {
 			// both until both are written.
 			var anchored []TypedValue // key, value
 			if kt != nil || vt != nil || keyReaches && vv.V != nil {
-				anchored = make([]TypedValue, 2)
+				anchored = m.rangeAnchor[:2]
 				m.Alloc.PushAnchor(anchored)
 				kv = m.convertInto(&anchored[0], kv, kt)
 				vv = m.convertInto(&anchored[1], vv, vt)
@@ -532,6 +533,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			if anchored != nil {
 				m.Alloc.PopAnchor()
+				clear(anchored)
 			}
 			bs.NextBodyIndex++
 			fallthrough

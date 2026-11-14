@@ -52,6 +52,11 @@ type Machine struct {
 	// accounting is unaffected by pooling.
 	blockPool []*Block
 
+	// rangeAnchor holds what a range iteration reads ahead of its writes, as
+	// an Allocator anchor; see doOpExec. An iteration pushes and pops it
+	// within one op, so one per machine suffices.
+	rangeAnchor [2]TypedValue
+
 	// Configuration
 	Output   io.Writer
 	Store    Store
