@@ -1842,6 +1842,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (FUNC) CALL EXPR SPECIAL CASES:
 					//----------------------------------------
 
+					if namedCallee(store, last, n.Func) {
+						n.SetAttribute(ATTR_NAMED_CALLEE, true)
+					}
+
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
@@ -2733,6 +2737,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: this can happen with software upgrades,
 					// with multiple versions of the same package path.
 					n.Path = pn.GetPathForName(store, n.Sel)
+					if isFuncDeclAt(pn, n.Path.Index) {
+						n.SetAttribute(ATTR_NAMED_CALLEE, true)
+					}
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
@@ -6624,4 +6631,31 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		return n, TRANS_CONTINUE
 	})
 	store.SetBlockNodes(bns)
+}
+
+// namedCallee reports whether fx names another package's top-level function
+// (pkg.F, marked where the selector resolves), a method expression (T.M) or
+// a builtin, rather than reading a function value. A bare F is the calling
+// package's own, which pushFrameCall accepts by package.
+func namedCallee(store Store, last BlockNode, fx Expr) bool {
+	switch fx := fx.(type) {
+	case *ConstExpr:
+		return true
+	case *SelectorExpr:
+		if fx.GetAttribute(ATTR_NAMED_CALLEE) == true {
+			return true
+		}
+		_, ok := evalStaticTypeOf(store, last, fx.X).(*TypeType)
+		return ok
+	}
+	return false
+}
+
+func isFuncDeclAt(bn BlockNode, index uint16) bool {
+	nss := bn.GetNameSources()
+	if int(index) >= len(nss) {
+		return false
+	}
+	_, ok := nss[index].Origin.(*FuncDecl)
+	return ok
 }

@@ -159,13 +159,10 @@ while a `/p/` closure built under `/r/A` runs view-only when `/r/V`
 calls it (§2.3). Either way the closure's writes into `/r/V` are
 refused.
 
-The remaining gap: a top-level `/p/` function value (a `FuncDecl`, not
-a closure) that `/r/V` calls inherits `/r/V`'s authority, because a
-top-level `/p/` function always runs as its caller (known open; see
-`gnovm/adr/prxxxx_explicit_entry.md`). Give the callback a parameter
-type declared in `/r/V` itself, e.g. `fn func(*v.User)`. `/p/` code
-can't name `v.User`, and any `/r/A` implementation of a matching
-function runs under `/r/A`'s authority by borrow rule #1.
+A top-level `/p/` function value (a `FuncDecl`, not a closure) is the
+same: `fn(internalState)` calls a value, not a name in `/r/V`'s source,
+so it runs view-only. Only a call that names the function
+(`lib.Apply(internalState)`) acts for `/r/V`.
 
 Empirically verified across 60+ probe filetests:
 `gnovm/tests/files/zrealm_launder_rdata_*.gno`.

@@ -265,7 +265,9 @@ This lets library code operate on state the package itself owns:
   nil-pointer receivers, nil-valued slice/map/func defined types.
   This is the **no-anchor case** — `m.Realm` inherits the caller's
   value. (See §4.4 below for the attack-class implications.)
-- The call is a top-level `/p/` function (no receiver).
+- The call is a top-level `/p/` function (no receiver). Named in source
+  (`pkg.F(x)`) it runs as the caller; called through a value it runs
+  view-only (§4.3).
 
 ### 4.3 Library closures — no borrow, view-only when foreign
 
@@ -274,7 +276,10 @@ package is handled by borrow rule #1 and runs as that realm wherever it is
 called. A `/p/` or stdlib closure borrows nothing: called while the realm
 it was built under is current, it runs as that realm; called under any
 other realm, it runs view-only, so every write to a stored object is
-refused. A zero stamp counts as another realm.
+refused. A zero stamp counts as another realm. A top-level `/p/` or stdlib
+function, or a method expression, called through a value (variable, field,
+argument, package var) by code of another package runs view-only. A library
+calling its own function through a value (a stored default handler) does not.
 
 - A `/p/`-declared factory invoked while `m.Realm = /r/A` (e.g.
   `/p/X.MakeCounter()` called from `/r/A.init`) returns a closure built

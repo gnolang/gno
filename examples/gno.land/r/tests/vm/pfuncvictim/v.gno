@@ -1,0 +1,49 @@
+package pfuncvictim
+
+import (
+	"gno.land/p/demo/tests/launderattack/v0"
+	"gno.land/p/demo/tests/launderpkg/v0"
+)
+
+type Fn = func(*launderpkg.Immutable)
+
+type Holder struct{ F Fn }
+
+var gObj = &launderpkg.Immutable{Field: "victim-orig"}
+
+func Read() string { return gObj.Field }
+func Reset()       { gObj.Field = "victim-orig" }
+
+// Each runs a caller callback on the victim's own object; a /p/ callback
+// handed in must run view-only.
+func ApplyOne(f Fn)            { f(gObj) }
+func ApplyVar(fs ...Fn)        { fs[0](gObj) }
+func ApplySlice(fs []Fn)       { fs[0](gObj) }
+func ApplyStruct(h Holder)     { h.F(gObj) }
+func ApplyPtrStruct(h *Holder) { h.F(gObj) }
+func ApplyMap(m map[string]Fn) { m["a"](gObj) }
+func ApplyArr(a [1]Fn)         { a[0](gObj) }
+func ApplyAny(x any)           { x.(Fn)(gObj) }
+func ApplyAnySlice(x any)      { x.([]Fn)[0](gObj) }
+
+// Echo returns what it was given.
+func EchoSlice(fs []Fn) Fn { return fs[0] }
+
+var gStored Holder
+
+func Store(h Holder) { gStored = h }
+func RunStored()     { gStored.F(gObj) }
+
+func ApplyAnon(h struct{ F Fn }) { h.F(gObj) }
+
+// Call runs a caller callback (a common "notify" shape).
+func Call(f func()) { f() }
+
+// Hook is a package var: calling it reads a value, so it runs view-only.
+var Hook Fn
+
+func SetHook(f Fn) { Hook = f }
+func RunHook()     { Hook(gObj) }
+
+// ApplyNamed names the /p/ function in source, so it writes as the victim.
+func ApplyNamed() { launderattack.EvilWrite(gObj) }

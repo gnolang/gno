@@ -31,6 +31,11 @@ What the VM does now (`pushFrameCall`):
    view-only. A zero stamp counts as another realm.
 4. A method value not called by its binder's own code runs view-only, so the
    binder's objects and the caller's cannot be written through it.
+5. A top-level `/p/` or stdlib function, or a method expression, called through
+   a value (variable, field, argument, package var) by code of another package
+   runs view-only. A call that names it (`pkg.F(x)`, `T.M(x)`, marked by the
+   preprocessor as `ATTR_NAMED_CALLEE`) or comes from its own package (a
+   library's stored default handler) acts for the caller.
 
 A refused write from `/p/` code fails with `cannot modify object owned by another
 realm from library code (call a function of the owning realm)`.
@@ -47,6 +52,9 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
   publish.
 - **Public-method marker.** A per-method annotation moves the review burden to
   every caller and still cannot say which realm the method acts for.
+- **Stamping function values with their sender.** The stamp is lost inside a
+  slice, map, struct or variadic argument and when the value is sent from
+  view-only code, and a realm that hands a value back stamps it as its own.
 - **Parent/home limits.** Restricting where a borrowed call may write handles
   nesting, not identity, and still lets a foreign value act for the owner.
 
@@ -67,8 +75,9 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
 
 - A closure built by a `maketx run` script and stored by a realm is re-stamped
   to that realm, so calling it later runs as the realm.
-- A top-level `/p/` function value handed to a realm runs as that realm when
-  the realm calls it (a separate change stamps function values).
+- A library that calls a function value from its own package accepts it as
+  its own, so a realm passing an attacker-chosen function of library L into
+  L's callback API lets that function act for the realm.
 - A realm's plain non-crossing exported function that writes its own state is
   callable by anyone; such a function is public API by construction.
 
