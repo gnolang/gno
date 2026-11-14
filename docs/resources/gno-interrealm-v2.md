@@ -278,8 +278,9 @@ it was built under is current, it runs as that realm; called under any
 other realm, it runs view-only, so every write to a stored object is
 refused. A zero stamp counts as another realm. A top-level `/p/` or stdlib
 function, or a method expression, called through a value (variable, field,
-argument, package var) by code of another package runs view-only. A library
-calling its own function through a value (a stored default handler) does not.
+argument, package var) runs view-only, even on the caller's own data. Only an
+unexported function called from its own package (a stored default handler)
+is exempt, since no other package can pick it.
 
 - A `/p/`-declared factory invoked while `m.Realm = /r/A` (e.g.
   `/p/X.MakeCounter()` called from `/r/A.init`) returns a closure built

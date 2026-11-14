@@ -2748,11 +2748,13 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	if fv.IsClosure && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID {
 		m.setViewOnly()
 	}
-	// A top-level library function (or method expression) that code of another
-	// package did not name, read from a variable, field or argument, is a value
-	// too.
+	// A top-level library function or method expression called through a value
+	// (variable, field, argument) is a value too, unless the call names it or
+	// it is unexported and called from its own package (which alone could
+	// have picked it).
+	ownUnexported := fv.PkgPath == fr.LastPackage.PkgPath && !isUpper(string(fv.Name))
 	if !fv.IsClosure && !recv.IsDefined() && bindPID.IsZero() && m.Realm != nil &&
-		fv.PkgPath != m.Realm.Path && fv.PkgPath != fr.LastPackage.PkgPath &&
+		fv.PkgPath != m.Realm.Path && !ownUnexported &&
 		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
 		m.setViewOnly()
 	}

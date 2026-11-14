@@ -1,8 +1,11 @@
 package pfuncvictim
 
 import (
+	"sort"
+
 	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/p/demo/tests/launderpkg/v0"
+	"gno.land/p/demo/tests/pfuncbind"
 )
 
 type Fn = func(*launderpkg.Immutable)
@@ -47,3 +50,11 @@ func RunHook()     { Hook(gObj) }
 
 // ApplyNamed names the /p/ function in source, so it writes as the victim.
 func ApplyNamed() { launderattack.EvilWrite(gObj) }
+
+// Hof hands a caller callback to a /p/ helper that calls it.
+func Hof(f Fn) { pfuncbind.Apply(f, gObj) }
+
+// SortOwn sorts the victim's own slice through a stdlib function value.
+func SortOwn() { f := sort.Ints; f(gInts) }
+
+var gInts = []int{3, 1, 2}

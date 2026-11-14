@@ -32,10 +32,11 @@ What the VM does now (`pushFrameCall`):
 4. A method value not called by its binder's own code runs view-only, so the
    binder's objects and the caller's cannot be written through it.
 5. A top-level `/p/` or stdlib function, or a method expression, called through
-   a value (variable, field, argument, package var) by code of another package
-   runs view-only. A call that names it (`pkg.F(x)`, `T.M(x)`, marked by the
-   preprocessor as `ATTR_NAMED_CALLEE`) or comes from its own package (a
-   library's stored default handler) acts for the caller.
+   a value (variable, field, argument, package var) runs view-only. A call that
+   names it (`F(x)`, `pkg.F(x)`, `T.M(x)`, marked by the preprocessor as
+   `ATTR_NAMED_CALLEE`) acts for the caller, and so does an unexported function
+   called from its own package (a library's stored default handler), which no
+   other package can pick.
 
 A refused write from `/p/` code fails with `cannot modify object owned by another
 realm from library code (call a function of the owning realm)`.
@@ -67,6 +68,9 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
   longer keeps authority over another realm's object.
 - `p/moul/authz`'s `ContractAuthority` no longer guards at-most-once itself; the
   handler realm that stores and runs the action must enforce it.
+- A realm that calls a library function through its own variable or dispatch
+  table on its own data (`f := sort.Ints; f(xs)`) is refused; it calls the
+  function by name instead.
 - The fresh-object corner is documented, not special-cased: a `/p/` object
   a realm function builds and returns carries that realm's stamp from
   allocation, so the caller cannot write it either.
@@ -75,9 +79,9 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
 
 - A closure built by a `maketx run` script and stored by a realm is re-stamped
   to that realm, so calling it later runs as the realm.
-- A library that calls a function value from its own package accepts it as
-  its own, so a realm passing an attacker-chosen function of library L into
-  L's callback API lets that function act for the realm.
+- A `/p/` method whose receiver has no stored identity (a primitive type or a
+  fresh struct), reached through an interface the realm declares, runs as the
+  realm, so `m.Run(obj)` with an attacker's `m` writes `obj`.
 - A realm's plain non-crossing exported function that writes its own state is
   callable by anyone; such a function is public API by construction.
 

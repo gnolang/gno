@@ -6633,14 +6633,18 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 	store.SetBlockNodes(bns)
 }
 
-// namedCallee reports whether fx names another package's top-level function
-// (pkg.F, marked where the selector resolves), a method expression (T.M) or
-// a builtin, rather than reading a function value. A bare F is the calling
-// package's own, which pushFrameCall accepts by package.
+// namedCallee reports whether fx names a top-level function (F, or pkg.F
+// marked where the selector resolves), a method expression (T.M) or a
+// builtin, rather than reading a function value.
 func namedCallee(store Store, last BlockNode, fx Expr) bool {
 	switch fx := fx.(type) {
 	case *ConstExpr:
 		return true
+	case *NameExpr:
+		if fx.Path.Type != VPBlock {
+			return fx.Path.Type == VPUverse
+		}
+		return isFuncDeclAt(last.GetBlockNodeForPath(store, fx.Path), fx.Path.Index)
 	case *SelectorExpr:
 		if fx.GetAttribute(ATTR_NAMED_CALLEE) == true {
 			return true

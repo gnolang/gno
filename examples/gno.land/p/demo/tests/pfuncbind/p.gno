@@ -6,3 +6,9 @@ type Fn = func(*launderpkg.Immutable)
 
 // Bind returns a closure that calls f(x).
 func Bind(f func(Fn), x Fn) func() { return func() { f(x) } }
+
+// Apply runs f on x.
+func Apply(f Fn, x *launderpkg.Immutable) { f(x) }
+
+// Clobber is the package's own exported writer.
+func Clobber(x *launderpkg.Immutable) { x.Field = "pwnd-same-pkg" }
