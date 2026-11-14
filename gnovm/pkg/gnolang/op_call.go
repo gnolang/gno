@@ -809,6 +809,8 @@ func rangeValueAssign(bs *bodyStmt) (vt Type, keyReaches bool) {
 // GC, which then still counts them. assignRange pops the anchor.
 func (m *Machine) anchorRange(copyUnconverted bool, tvs []TypedValue, ts ...Type) []TypedValue {
 	anchored := m.rangeAnchor[:len(tvs)]
+	// An iteration that panicked and was recovered skipped assignRange's clear.
+	clear(anchored)
 	m.Alloc.PushAnchor(anchored)
 	for i, tv := range tvs {
 		if ts[i] == nil && copyUnconverted {
