@@ -3489,6 +3489,14 @@ func parseMultipleAssignFromOneExpr(
 		st = evalStaticType(store, bn, typeExpr)
 	}
 
+	// `var a, b T = f()`: a result whose type differs from T only by name
+	// needs the conversion `var a T = x` gets from checkOrConvertType, under
+	// the same rules: none into an interface. A `_` gets none either: its
+	// value is dropped, as `_, b = f()` drops it. Record it for
+	// doOpValueDecl, as `a, b = f()` does for doOpAssign.
+	_, isCall := valueExpr.(*CallExpr)
+	mayConvert := isCall && st != nil && st.Kind() != InterfaceKind
+	var convs []Type
 	for i := range nameExprs {
 		if st != nil {
 			tt := tuple.Elts[i]
@@ -3506,11 +3514,21 @@ func parseMultipleAssignFromOneExpr(
 				)
 			}
 			sts[i] = st
+			if mayConvert && nameExprs[i].Name != blankIdentifier &&
+				isNamedConversion(tt, st) {
+				if convs == nil {
+					convs = make([]Type, numNames)
+				}
+				convs[i] = st
+			}
 		} else {
 			// Set types as return types.
 			sts[i] = tuple.Elts[i]
 		}
 		tvs[i] = anyValue(sts[i])
+	}
+	if convs != nil {
+		n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
 	}
 }
 
