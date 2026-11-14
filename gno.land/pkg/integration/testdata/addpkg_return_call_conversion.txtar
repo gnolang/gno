@@ -13,8 +13,21 @@ stdout OK!
 gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/caller -gas-fee 10000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
 stdout OK!
 
+# `defer g(f())`, and a comma-ok `ok` into a declared bool, before a restart.
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeferArg -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+gnokey maketx call -pkgpath gno.land/r/test/caller -func OkDeclared -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '"B" string'
+
 # A restart preprocesses the stored package again, so the conversion still holds.
 gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func DeferArg -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'illegal conversion of readonly or externally stored value'
+
+gnokey maketx call -pkgpath gno.land/r/test/caller -func OkDeclared -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout '"B" string'
 
 # `return f()` over another realm's stored slice.
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func ReturnCall -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
@@ -204,6 +217,22 @@ func DeclRange(cur realm) {
 		var m pun.L = r
 		m.Set(0, "changed")
 	}
+}
+
+func DeferArg(cur realm) { defer declParam(pair()) }
+
+type B bool
+
+func OkDeclared(cur realm) string {
+	var ok B
+	_, ok = members.Map()["k"]
+	switch any(ok).(type) {
+	case B:
+		return "B"
+	case bool:
+		return "bool"
+	}
+	return "other"
 }
 
 func DeclArgBorrowed(cur realm) { members.StoredHolder().Take(pair()) }

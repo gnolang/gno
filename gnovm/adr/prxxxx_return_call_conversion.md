@@ -5,7 +5,8 @@
 Gno stores a value's type on the value, so a value assigned across types that
 differ only by name has to be converted, or it keeps the old type under the new
 static one. `x = y`, `return x`, `g(x)` and `T(x)` get the conversion from
-preprocess, and `a, b = f()` from `ATTR_ASSIGN_CONVERT`. These checked
+preprocess, and `a, b = f()` from `ATTR_ASSIGN_CONVERT`
+(`prxxxx_multi_assign_named_conversion.md`). These checked
 assignability, or only a count, and converted nothing:
 
 - `return f()` with several results
@@ -35,12 +36,14 @@ statement or call, as `ATTR_ASSIGN_CONVERT` already does for `a, b = f()`:
 
 A program with none of these shapes costs the same gas, except a range
 assignment whose key target is not a name, such as `s[i]` or `s[i].N`: it copies
-each array or struct element once more before writing the key.
+each array or struct element once more before writing the key. A refused `T(x)`
+also changes cost, as below: it now runs the deferred functions, and a recover
+there can catch it.
 
 A refusal is now a panic through `m.PanicString`, as the readonly refusals of
 `append`, `copy` and `delete` are, so a realm's `recover()` catches it. `T(x)`
 shares `convertValue`, so it changes with them. A package-level `var` has no call
-on the stack to unwind, so a refusal there stays a Go panic.
+on the stack, so nothing recovers a refusal there and the transaction aborts.
 
 ## Alternatives
 

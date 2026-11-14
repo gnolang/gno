@@ -135,7 +135,7 @@ which the runtime already reads off nodes.
 
   func Count() int { return calls } // 2000 after both 1000-iteration calls
   ```
-- The comma-ok forms `v, ok = m[k]` and `v, ok = x.(T)` still skip the
-  conversion when `v`'s type differs from the element or asserted type only
-  by name. That predates this change and is left for a follow-up; the same
-  attribute would cover it.
+- The comma-ok forms `v, ok = m[k]` and `v, ok = x.(T)` skipped the
+  conversion when `v`'s type differed from the element or asserted type only
+  by name. `prxxxx_return_call_conversion.md` closes that with the same
+  attribute.

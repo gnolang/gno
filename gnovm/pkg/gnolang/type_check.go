@@ -851,36 +851,12 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		return
 	}
 
-	xt := baseOf(evalStaticTypeOf(store, last, x.X))
-	// Ranging over a pointer to array iterates the array itself (int keys,
-	// array-element values), so unwrap it to the array type. Mirrors the
-	// PointerKind handling in preprocess.
-	if pt, ok := xt.(*PointerType); ok {
-		xt = baseOf(pt.Elem())
+	xkt, xvt := rangeYields(evalStaticTypeOf(store, last, x.X))
+	if kt != nil && xkt != nil {
+		mustAssignableTo(store, x, xkt, kt)
 	}
-	if kt != nil {
-		switch cxt := xt.(type) {
-		case *MapType:
-			mustAssignableTo(store, x, cxt.Key, kt)
-		case *SliceType, *ArrayType:
-			mustAssignableTo(store, x, IntType, kt)
-		case PrimitiveType:
-			if cxt.Kind() == StringKind {
-				mustAssignableTo(store, x, IntType, kt)
-			}
-		}
-	}
-	if vt != nil {
-		switch cxt := xt.(type) {
-		case *MapType:
-			mustAssignableTo(store, x, cxt.Value, vt)
-		case *SliceType, *ArrayType:
-			mustAssignableTo(store, x, cxt.Elem(), vt)
-		case PrimitiveType:
-			if cxt.Kind() == StringKind {
-				mustAssignableTo(store, x, Int32Type, vt) // rune
-			}
-		}
+	if vt != nil && xvt != nil {
+		mustAssignableTo(store, x, xvt, vt)
 	}
 }
 

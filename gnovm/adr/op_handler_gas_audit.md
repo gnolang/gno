@@ -169,7 +169,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 
 ## Benchmark gap analysis
 
-### Status: 350 benchmarks in bench_ops_test.go
+### Status: 414 benchmarks in bench_ops_test.go
 
 ### Covered
 

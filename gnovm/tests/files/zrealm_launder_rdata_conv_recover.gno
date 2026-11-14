@@ -16,13 +16,21 @@ func ret() (launderrvictim.Immutable, bool) { return mk() }
 
 func take(launderrvictim.Immutable, bool) {}
 
+// A nil pointer converts; a stored one is refused.
+type ImmP *launderrvictim.Immutable
+
 func catch(f func()) (msg string) {
-	defer func() { msg = recover().(string) }()
+	defer func() {
+		if r := recover(); r != nil {
+			msg = r.(string)
+		}
+	}()
 	f()
 	return "converted"
 }
 
 func main(cur realm) {
+	println(catch(func() {}))
 	println(catch(func() {
 		s := struct{ Field string }{"x"}
 		_ = launderrvictim.Immutable(s)
@@ -53,10 +61,20 @@ func main(cur realm) {
 		}
 		_ = v
 	}), n, k)
+	// A range refused on a later iteration keeps the earlier iterations' writes.
+	n, i = 0, -1
+	println(catch(func() {
+		var v ImmP
+		for i, v = range []*launderrvictim.Immutable{nil, launderrvictim.GetImm()} {
+			n++
+		}
+		_ = v
+	}), n, i)
 	println("after")
 }
 
 // Output:
+// converted
 // illegal conversion to external realm type
 // illegal conversion to external realm type
 // illegal conversion of readonly or externally stored value
@@ -65,4 +83,5 @@ func main(cur realm) {
 // illegal conversion to external realm type
 // illegal conversion to external realm type 0 -1
 // illegal conversion to external realm type 0 unset
+// illegal conversion of readonly or externally stored value 1 0
 // after

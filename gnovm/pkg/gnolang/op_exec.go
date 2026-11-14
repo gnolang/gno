@@ -237,15 +237,13 @@ func (m *Machine) doOpExec(op Op) {
 			// as an assignment evaluates its operands first: a refused
 			// conversion then writes nothing from its iteration.
 			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
-			var vt Type
 			// A key target other than a name, such as s[0] or s[1].N, can
 			// overwrite the element or write inside it before the value is
 			// written.
+			var vt Type
 			var keyReaches bool
-			if hasValue && bs.Op == ASSIGN {
-				vt = rangeConversion(bs.Value)
-				_, isName := bs.Key.(*NameExpr)
-				keyReaches = bs.Key != nil && !isName
+			if hasValue {
+				vt, keyReaches = rangeValueAssign(bs)
 			}
 			var ev TypedValue
 			var anchored []TypedValue
@@ -264,47 +262,16 @@ func (m *Machine) doOpExec(op Op) {
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
 				if vt != nil || keyReaches && ev.V != nil {
-					// Writing the copy copies it again, which can run
-					// GC: anchor it until it is written. A conversion
-					// makes the copy.
-					anchored = m.rangeAnchor[:1]
-					m.Alloc.PushAnchor(anchored)
-					if vt == nil {
-						ev = ev.Copy(m.Alloc, m.Store)
-					}
-					ev = m.convertInto(&anchored[0], ev, vt)
+					// A key target reaching the element can change it
+					// before the value is written: copy it, as a
+					// conversion does.
+					anchored = m.anchorRange(vt == nil, []TypedValue{ev}, vt)
+					ev = anchored[0]
 				}
 			}
-			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
-				case DEFINE:
-					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
-				default:
-					panic("should not happen")
-				}
-			}
-			if hasValue {
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
-				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
-				default:
-					panic("should not happen")
-				}
-			}
-			if anchored != nil {
-				m.Alloc.PopAnchor()
-				clear(anchored)
-			}
+			iv := TypedValue{T: IntType}
+			iv.SetInt(int64(bs.ListIndex))
+			m.assignRange(bs, bs.Key != nil, hasValue, iv, ev, anchored)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -486,10 +453,8 @@ func (m *Machine) doOpExec(op Op) {
 			if hasKey && bs.Op == ASSIGN {
 				kt = rangeConversion(bs.Key)
 			}
-			if hasValue && bs.Op == ASSIGN {
-				vt = rangeConversion(bs.Value)
-				_, isName := bs.Key.(*NameExpr)
-				keyReaches = bs.Key != nil && !isName
+			if hasValue {
+				vt, keyReaches = rangeValueAssign(bs)
 			}
 			var kv, vv TypedValue
 			if hasKey {
@@ -498,43 +463,12 @@ func (m *Machine) doOpExec(op Op) {
 			if hasValue {
 				vv = *fillValueTV(m.Store, &next.Value)
 			}
-			// Converting and writing either copies, which can run GC: anchor
-			// both until both are written.
 			var anchored []TypedValue // key, value
 			if kt != nil || vt != nil || keyReaches && vv.V != nil {
-				anchored = m.rangeAnchor[:2]
-				m.Alloc.PushAnchor(anchored)
-				kv = m.convertInto(&anchored[0], kv, kt)
-				vv = m.convertInto(&anchored[1], vv, vt)
+				anchored = m.anchorRange(false, []TypedValue{kv, vv}, kt, vt)
+				kv, vv = anchored[0], anchored[1]
 			}
-			if hasKey {
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
-				case DEFINE:
-					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, m.Store, kv, false)
-				default:
-					panic("should not happen")
-				}
-			}
-			if hasValue {
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
-				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, m.Store, vv, false)
-				default:
-					panic("should not happen")
-				}
-			}
-			if anchored != nil {
-				m.Alloc.PopAnchor()
-				clear(anchored)
-			}
+			m.assignRange(bs, hasKey, hasValue, kv, vv, anchored)
 			bs.NextBodyIndex++
 			fallthrough
 		default:

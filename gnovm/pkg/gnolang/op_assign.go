@@ -68,9 +68,7 @@ func (m *Machine) doOpAssign() {
 	// `a, b = f()` where a result differs from its Lhs only by name: convert
 	// it as `a = x` would, before any Lhs is written.
 	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
-		for i, t := range convs {
-			m.convertCopy(&rvs[i], t)
-		}
+		m.convertResults(convs)
 	}
 
 	offset := 0
