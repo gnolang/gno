@@ -8,6 +8,7 @@ import (
 
 	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/p/demo/tests/pfuncbind"
+	"gno.land/p/nt/avl/v0"
 )
 
 var gObj = &launderpkg.Immutable{Field: "victim-orig"}
@@ -20,20 +21,20 @@ type W struct{ Runner }
 
 type Sub interface{ Runner }
 
-func UseMV(r Runner)                    { f := r.Run; f(gObj) }
-func UseEmbed(r Runner)                 { w := W{r}; w.Run(gObj) }
-func UseEmbedPtr(r Runner)              { w := &W{r}; w.Run(gObj) }
-func UseDefer(r Runner)                 { defer r.Run(gObj) }
-func UseAssert(x any)                   { x.(Runner).Run(gObj) }
+func UseMV(r Runner)       { f := r.Run; f(gObj) }
+func UseEmbed(r Runner)    { w := W{r}; w.Run(gObj) }
+func UseEmbedPtr(r Runner) { w := &W{r}; w.Run(gObj) }
+func UseDefer(r Runner)    { defer r.Run(gObj) }
+func UseAssert(x any)      { x.(Runner).Run(gObj) }
 func UseSwitch(x any) {
 	switch v := x.(type) {
 	case Runner:
 		v.Run(gObj)
 	}
 }
-func UseMap(m map[string]Runner) { m["a"].Run(gObj) }
-func UseSub(r Sub)               { r.Run(gObj) }
-func UseMVArg(r Runner)          { call(r.Run) }
+func UseMap(m map[string]Runner)         { m["a"].Run(gObj) }
+func UseSub(r Sub)                       { r.Run(gObj) }
+func UseMVArg(r Runner)                  { call(r.Run) }
 func call(f func(*launderpkg.Immutable)) { f(gObj) }
 
 var gRunner Runner
@@ -56,3 +57,17 @@ var gF func(*launderpkg.Immutable)
 
 func StoreMV(r Runner) { gF = r.Run }
 func UseMVStored()     { gF(gObj) }
+
+type HandlerGen interface {
+	Handler() func(*launderpkg.Immutable)
+}
+
+func UseGen(g HandlerGen)                    { h := g.Handler(); h(gObj) }
+func ApplyOne(f func(*launderpkg.Immutable)) { f(gObj) }
+
+var gTree = avl.NewTree()
+
+// Tree hands out the victim's tree; ApplySet runs a caller's setter on it.
+func Tree() *avl.Tree                       { return gTree }
+func ApplySet(f func(k string, v any) bool) { f("k", "pwnd") }
+func TreeHas() bool                         { return gTree.Has("k") }

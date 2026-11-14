@@ -32,6 +32,11 @@ methods (`cur.Previous()`) and stdlib methods.
   It reads only the node cache, which holds every package from load or node
   start on, so it charges no gas and does not depend on cache state.
 - A direct call on a concrete type is unchanged: the realm's source names it.
+- A method value built while view-only has no stamp; called later it acts for
+  no realm and runs view-only. Otherwise a library could hand out
+  `victimTree.Set`, built inside a view-only call, and the victim would run it.
+- The check is a dot test on the path plus a cached lookup, memoized per
+  machine for the last function, so a loop of interface calls stays cheap.
 
 ## Alternatives rejected
 
@@ -63,6 +68,6 @@ methods (`cur.Previous()`) and stdlib methods.
 
 `gnovm/tests/files/zrealm_entry_iface_*.gno` pin each refused shape (primitive,
 pointer, struct value, stored, method value, assertion, switch, map, embedding,
-defer) and the allowed ones (an imported library, the realm's own wrapper).
-`gno.land/pkg/integration/testdata/iface_storedptr_2tx.txtar` pins the
-two-transaction stored pointer.
+defer, a stamp-less method value) and the allowed ones (an imported library, the realm's own wrapper).
+`iface_storedptr_2tx.txtar` and `iface_unstamped_mv.txtar` (integration) pin
+the two-transaction stored pointer and the stamp-less method value on chain.

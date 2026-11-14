@@ -11,6 +11,6 @@ type Runner interface{ Run(*launderpkg.Immutable) }
 
 var gObj = &launderpkg.Immutable{Field: "victim-orig"}
 
-func Read() string  { return gObj.Field }
-func Use(r Runner)  { r.Run(gObj) }
-func UseNamed()     { ifaceattack.Evil(0).Run(gObj) }
+func Read() string { return gObj.Field }
+func Use(r Runner) { r.Run(gObj) }
+func UseNamed()    { ifaceattack.Evil(0).Run(gObj) }

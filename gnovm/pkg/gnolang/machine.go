@@ -27,23 +27,28 @@ import (
 
 type Machine struct {
 	// State
-	Ops           []Op          // main operations
-	Values        []TypedValue  // buffer of values to be operated on
-	Exprs         []Expr        // pending expressions
-	Stmts         []Stmt        // pending statements
-	Blocks        []*Block      // block (scope) stack
-	Frames        []Frame       // func call stack
-	Package       *PackageValue // active package
-	Realm         *Realm        // active realm
-	viewOnly      bool          // no realm's stored objects may be written; implies Realm == nil
-	Alloc         *Allocator    // memory allocations
-	Exception     *Exception    // last exception
-	NumResults    int           // number of results returned
-	Cycles        int64         // number of "cpu" cycles
-	GCCycle       int64         // number of "gc" cycles
-	Stage         Stage         // pre for static eval, add for package init, run otherwise
-	ReviveEnabled bool          // true if revive() enabled (only in testing mode for now)
-	Lastline      int           // the line the VM is currently executing
+	Ops      []Op          // main operations
+	Values   []TypedValue  // buffer of values to be operated on
+	Exprs    []Expr        // pending expressions
+	Stmts    []Stmt        // pending statements
+	Blocks   []*Block      // block (scope) stack
+	Frames   []Frame       // func call stack
+	Package  *PackageValue // active package
+	Realm    *Realm        // active realm
+	viewOnly bool          // no realm's stored objects may be written; implies Realm == nil
+	libMemo  struct {      // last foreignLib answer
+		fv      *FuncValue
+		realm   *Realm
+		foreign bool
+	}
+	Alloc         *Allocator // memory allocations
+	Exception     *Exception // last exception
+	NumResults    int        // number of results returned
+	Cycles        int64      // number of "cpu" cycles
+	GCCycle       int64      // number of "gc" cycles
+	Stage         Stage      // pre for static eval, add for package init, run otherwise
+	ReviveEnabled bool       // true if revive() enabled (only in testing mode for now)
+	Lastline      int        // the line the VM is currently executing
 
 	Debugger Debugger
 
@@ -2760,14 +2765,19 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	}
 	// A /p/ method reached through an interface or a method value runs code the
 	// caller picked; it acts for the realm only if the realm's imports, direct or
-	// not, include its package.
-	viaIface := false
-	if sx, ok := cx.Func.(*SelectorExpr); ok {
+	// not, include its package. A method value built while view-only (zero
+	// stamp) acts for no realm at all.
+	viaIface, viaValue := false, recv.IsDefined()
+	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
 		viaIface = sx.Path.Type == VPInterface || sx.Path.Type == VPDerefInterface
+		viaValue = false
 	}
-	if (viaIface || !bindPID.IsZero()) && !pOwned && m.Realm != nil &&
+	if viaValue && bindPID.IsZero() && m.Realm != nil && fv.PkgPath != uversePkgPath {
+		m.setViewOnly()
+	}
+	if (viaIface || viaValue) && !pOwned && m.Realm != nil &&
 		fv.PkgPath != m.Realm.Path && fv.PkgPath != fr.LastPackage.PkgPath &&
-		IsPPackagePath(fv.PkgPath) && !m.realmImports(fv.PkgPath) {
+		m.foreignLib(fv) {
 		m.setViewOnly()
 	}
 	if pOwned {
@@ -2782,11 +2792,21 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	}
 }
 
-// realmImports reports whether the current realm imports path, directly or
-// not. Every package node is in the store's node cache from load on.
-func (m *Machine) realmImports(path string) bool {
-	pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(m.Realm.Path)).(*PackageNode)
-	return ok && pn.importClosure(m.Store)[path]
+// foreignLib reports whether fv is a /p/ function outside the current realm's
+// imports, direct or not. /r/ and /e/ functions never reach here; stdlib and
+// uverse paths have no dot in their first segment or are .uverse.
+func (m *Machine) foreignLib(fv *FuncValue) bool {
+	if m.libMemo.fv == fv && m.libMemo.realm == m.Realm {
+		return m.libMemo.foreign
+	}
+	first, _, _ := strings.Cut(fv.PkgPath, "/")
+	foreign := fv.PkgPath != uversePkgPath && strings.Contains(first, ".")
+	if foreign {
+		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(m.Realm.Path)).(*PackageNode)
+		foreign = !ok || !pn.importClosure(m.Store)[fv.PkgPath]
+	}
+	m.libMemo.fv, m.libMemo.realm, m.libMemo.foreign = fv, m.Realm, foreign
+	return foreign
 }
 
 // calledBy reports whether every frame from the call on top of the stack
