@@ -59,6 +59,54 @@ func TestBugsNotInDoc(t *testing.T) {
 	require.Nil(t, bugsNotInDoc(nil, "anything"))
 }
 
+func TestBugsNotInDoc_ScanBudget(t *testing.T) {
+	t.Parallel()
+	// Each note is charged the doc's length times its own: two 128-byte notes
+	// against a 1 MiB doc fill the budget, so the third is kept without a
+	// search, though its text is in the doc.
+	note := strings.Repeat("x", 128)
+	got := bugsNotInDoc([]string{note, note, note}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{note}, got)
+}
+
+func TestBugsNotInDoc_LongNoteCharged(t *testing.T) {
+	t.Parallel()
+	// A 16 KiB note against a 1 MiB doc is charged 16 GiB of comparisons, past
+	// the budget, so it is kept without a search, though its text is in the doc.
+	note := strings.Repeat("x", 16<<10)
+	got := bugsNotInDoc([]string{note}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{note}, got)
+}
+
+func TestBugsNotInDoc_ShortNoteChargedAs64(t *testing.T) {
+	t.Parallel()
+	// A two-byte note is charged as 64 bytes per doc byte: four fill the
+	// budget against a 1 MiB doc, so the fifth is kept without a search,
+	// though its text is in the doc.
+	got := bugsNotInDoc([]string{"xx", "xx", "xx", "xx", "xx"}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{"xx"}, got)
+}
+
+func TestBugsNotInDoc_SkippedNoteChargesNothing(t *testing.T) {
+	t.Parallel()
+	// A note past what is left of the budget is kept unchecked and charges
+	// nothing, so the next note still fits and is searched.
+	long := strings.Repeat("x", 16<<10)
+	got := bugsNotInDoc([]string{long, "x"}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{long}, got)
+}
+
+func TestBugsNotInDoc_NoteLongerThanDocFree(t *testing.T) {
+	t.Parallel()
+	// A note longer than the doc needs no search and charges nothing, so the
+	// four doc-length notes after it still fill the budget exactly. Charged,
+	// the long note would leave room for two of them.
+	doc := strings.Repeat("x", 8<<10)
+	long := strings.Repeat("y", 8<<10+1)
+	got := bugsNotInDoc([]string{long, doc, doc, doc, doc}, doc)
+	require.Equal(t, []string{long}, got)
+}
+
 func TestDeriveQuality(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
