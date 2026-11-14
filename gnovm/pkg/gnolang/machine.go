@@ -2758,6 +2758,16 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
 		m.setViewOnly()
 	}
+	// A library method reached through an interface runs code the caller's
+	// source does not name; unless the receiver is the realm's own object, it
+	// runs view-only like a function value.
+	if sx, ok := cx.Func.(*SelectorExpr); ok &&
+		(sx.Path.Type == VPInterface || sx.Path.Type == VPDerefInterface) &&
+		!pOwned && m.Realm != nil && fv.PkgPath != m.Realm.Path &&
+		fv.PkgPath != fr.LastPackage.PkgPath && fv.PkgPath != uversePkgPath &&
+		(oi == nil || oi.ID.PkgID != m.Realm.ID) {
+		m.setViewOnly()
+	}
 	if pOwned {
 		recvOID := oi.ID
 		if m.Realm == nil || recvOID.PkgID != m.Realm.ID {

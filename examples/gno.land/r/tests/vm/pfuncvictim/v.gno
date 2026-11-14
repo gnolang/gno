@@ -58,3 +58,13 @@ func Hof(f Fn) { pfuncbind.Apply(f, gObj) }
 func SortOwn() { f := sort.Ints; f(gInts) }
 
 var gInts = []int{3, 1, 2}
+
+// Runner is implemented by caller-chosen code; only Use's interface is named.
+type Runner interface{ Run(*launderpkg.Immutable) }
+
+var gRunner Runner
+
+func Use(r Runner)         { r.Run(gObj) }
+func StoreRunner(r Runner) { gRunner = r }
+func UseStored()           { gRunner.Run(gObj) }
+func UseNamed()            { pfuncbind.Evil(0).Run(gObj) }

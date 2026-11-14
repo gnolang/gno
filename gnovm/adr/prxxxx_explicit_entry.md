@@ -37,6 +37,10 @@ What the VM does now (`pushFrameCall`):
    `ATTR_NAMED_CALLEE`) acts for the caller, and so does an unexported function
    called from its own package (a library's stored default handler), which no
    other package can pick.
+6. A `/p/` or stdlib method reached through an interface (`r.Run(obj)`), on a
+   receiver that is not the current realm's own object, runs view-only: the
+   caller picked the code, the realm's source names only the interface.
+   Built-in methods (`cur.Previous()`) and same-package calls are exempt.
 
 A refused write from `/p/` code fails with `cannot modify object owned by another
 realm from library code (call a function of the owning realm)`.
@@ -71,6 +75,8 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
 - A realm that calls a library function through its own variable or dispatch
   table on its own data (`f := sort.Ints; f(xs)`) is refused; it calls the
   function by name instead.
+- A panic raised in a view-only frame cannot be recovered by the realm that
+  called it; the refused interface call aborts the transaction.
 - The fresh-object corner is documented, not special-cased: a `/p/` object
   a realm function builds and returns carries that realm's stamp from
   allocation, so the caller cannot write it either.
@@ -79,9 +85,10 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
 
 - A closure built by a `maketx run` script and stored by a realm is re-stamped
   to that realm, so calling it later runs as the realm.
-- A `/p/` method whose receiver has no stored identity (a primitive type or a
-  fresh struct), reached through an interface the realm declares, runs as the
-  realm, so `m.Run(obj)` with an attacker's `m` writes `obj`.
+- A struct value a caller hands in becomes the realm's own object once the
+  realm stores it, so its `/p/` method, later reached through the realm's
+  interface, runs as the realm (`zrealm_entry_iface_storedval.gno`). Refusing
+  every interface call breaks stdlib readers and ~40 example packages.
 - A realm's plain non-crossing exported function that writes its own state is
   callable by anyone; such a function is public API by construction.
 

@@ -164,6 +164,11 @@ same: `fn(internalState)` calls a value, not a name in `/r/V`'s source,
 so it runs view-only. Only a call that names the function
 (`lib.Apply(internalState)`) acts for `/r/V`.
 
+An interface works the same way: `r.Run(internalState)` with a caller's
+`r` runs the caller's `/p/` method view-only, unless the receiver is
+`/r/V`'s own stored object. Do not store a caller's interface value and
+call it later: once stored, a plain struct value is `/r/V`'s own object.
+
 Empirically verified across 60+ probe filetests:
 `gnovm/tests/files/zrealm_launder_rdata_*.gno`.
 

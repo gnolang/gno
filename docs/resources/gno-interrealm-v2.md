@@ -280,7 +280,9 @@ refused. A zero stamp counts as another realm. A top-level `/p/` or stdlib
 function, or a method expression, called through a value (variable, field,
 argument, package var) runs view-only, even on the caller's own data. Only an
 unexported function called from its own package (a stored default handler)
-is exempt, since no other package can pick it.
+is exempt, since no other package can pick it. A `/p/` or stdlib method
+reached through an interface runs view-only too, unless the receiver is
+the current realm's own object (§4.4).
 
 - A `/p/`-declared factory invoked while `m.Realm = /r/A` (e.g.
   `/p/X.MakeCounter()` called from `/r/A.init`) returns a closure built
@@ -304,6 +306,11 @@ and the readonly gate refuses V's node. The filetests
 `gnovm/tests/files/zrealm_launder_rdata_embed_p.gno` and
 `zrealm_launder_rdata_ptrfield_p.gno` pin the refusal. See
 `gno-security-guide.md` §3(B).
+
+A no-anchor receiver reached through an interface (`r.Run(obj)` with a
+caller's primitive or fresh `r`) runs view-only, as does any receiver the
+current realm does not own (`zrealm_entry_iface_*.gno`). A struct value
+the realm has stored is its own, so its method still runs as the realm.
 
 ### 4.5 When `m.Realm` is nil
 
