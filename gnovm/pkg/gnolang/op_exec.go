@@ -238,10 +238,17 @@ func (m *Machine) doOpExec(op Op) {
 			// conversion then writes nothing from its iteration.
 			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
 			var vt Type
+			// A key target other than a name, such as s[0] or s[1].N, can
+			// overwrite the element or write inside it before the value is
+			// written.
+			var keyReaches bool
 			if hasValue && bs.Op == ASSIGN {
 				vt = rangeConversion(bs.Value)
+				_, isName := bs.Key.(*NameExpr)
+				keyReaches = bs.Key != nil && !isName
 			}
 			var ev TypedValue
+			var anchored []TypedValue
 			if hasValue {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
@@ -256,11 +263,15 @@ func (m *Machine) doOpExec(op Op) {
 					iv.SetInt(int64(bs.ListIndex))
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
-				if vt != nil {
+				if vt != nil || keyReaches && ev.V != nil {
 					// Writing the copy copies it again, which can run
-					// GC: anchor it until it is written.
-					anchored := make([]TypedValue, 1)
+					// GC: anchor it until it is written. A conversion
+					// makes the copy.
+					anchored = make([]TypedValue, 1)
 					m.Alloc.PushAnchor(anchored)
+					if vt == nil {
+						ev = ev.Copy(m.Alloc, m.Store)
+					}
 					ev = m.convertInto(&anchored[0], ev, vt)
 				}
 			}
@@ -290,7 +301,7 @@ func (m *Machine) doOpExec(op Op) {
 					panic("should not happen")
 				}
 			}
-			if vt != nil {
+			if anchored != nil {
 				m.Alloc.PopAnchor()
 			}
 			bs.NextBodyIndex++
@@ -468,31 +479,32 @@ func (m *Machine) doOpExec(op Op) {
 			// assignment does: a refused conversion writes nothing from its
 			// iteration.
 			var kt, vt Type
+			// A key target other than a name, such as m[k], can replace the
+			// entry vv was read from before the value is written.
+			var keyReaches bool
 			if hasKey && bs.Op == ASSIGN {
 				kt = rangeConversion(bs.Key)
 			}
 			if hasValue && bs.Op == ASSIGN {
 				vt = rangeConversion(bs.Value)
+				_, isName := bs.Key.(*NameExpr)
+				keyReaches = bs.Key != nil && !isName
 			}
 			var kv, vv TypedValue
-			// Converting the value and writing either copies, which can
-			// run GC: anchor both converted copies until both are written.
-			var anchored []TypedValue // key, value
-			if kt != nil || vt != nil {
-				anchored = make([]TypedValue, 2)
-				m.Alloc.PushAnchor(anchored)
-			}
 			if hasKey {
 				kv = *fillValueTV(m.Store, &next.Key)
-				if kt != nil {
-					kv = m.convertInto(&anchored[0], kv, kt)
-				}
 			}
 			if hasValue {
 				vv = *fillValueTV(m.Store, &next.Value)
-				if vt != nil {
-					vv = m.convertInto(&anchored[1], vv, vt)
-				}
+			}
+			// Converting and writing either copies, which can run GC: anchor
+			// both until both are written.
+			var anchored []TypedValue // key, value
+			if kt != nil || vt != nil || keyReaches && vv.V != nil {
+				anchored = make([]TypedValue, 2)
+				m.Alloc.PushAnchor(anchored)
+				kv = m.convertInto(&anchored[0], kv, kt)
+				vv = m.convertInto(&anchored[1], vv, vt)
 			}
 			if hasKey {
 				switch bs.Op {

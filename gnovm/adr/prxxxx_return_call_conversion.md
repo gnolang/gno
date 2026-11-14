@@ -33,7 +33,9 @@ statement or call, as `ATTR_ASSIGN_CONVERT` already does for `a, b = f()`:
   into a declared bool.
 - Range: each write to the key or value target.
 
-A program with none of these shapes costs the same gas.
+A program with none of these shapes costs the same gas, except a range
+assignment whose key target is not a name, such as `s[i]` or `s[i].N`: it copies
+each array or struct element once more before writing the key.
 
 A refusal is now a panic through `m.PanicString`, as the readonly refusals of
 `append`, `copy` and `delete` are, so a realm's `recover()` catches it. `T(x)`
@@ -70,7 +72,8 @@ on the stack to unwind, so a refusal there stays a Go panic.
   evaluates an assignment's operands first, so a refused value writes nothing from
   its iteration. A key target aliasing the ranged element now reads it as Go does:
   `for s[1], v = range s` gives `v` the 0 iteration 0 wrote to `s[1]`, where it
-  read its own key's 1 before.
+  read its own key's 1 before; `for s[1].N, v = range s` likewise gives `v.N`
+  the 0 iteration 0 wrote, whether or not `v` needs a conversion.
 - A comma-ok `ok` going into a declared bool has that type, as in Go, and pays one
   conversion.
 - `var a, b T = f()` is `gno-fixes#342`'s.

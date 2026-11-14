@@ -143,7 +143,7 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
-	ATTR_ASSIGN_CONVERT        GnoAttribute = "ATTR_ASSIGN_CONVERT"   // []Type per value of `a, b = f()`, `a, ok = m[k]`, `return f()` or `g(f())`: the named<->unnamed conversion each needs, nil for none. A Type on a range's Key or Value.
+	ATTR_ASSIGN_CONVERT        GnoAttribute = "ATTR_ASSIGN_CONVERT"   // []Type per value of `a, b = f()`, `a, ok = m[k]`, `return f()` or `g(f())`: the named<->unnamed conversion each needs, nil for none. A one-element []Type on a range's Key or Value.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )

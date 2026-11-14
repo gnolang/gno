@@ -5266,7 +5266,7 @@ func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
 			continue
 		}
 		if t := namedConversionTo(c.t, evalStaticTypeOf(store, last, c.x)); t != nil {
-			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, t)
+			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{t})
 		}
 	}
 }

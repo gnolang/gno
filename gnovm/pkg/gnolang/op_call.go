@@ -778,8 +778,8 @@ func (m *Machine) convertCopy(tv *TypedValue, t Type) {
 	}
 }
 
-// Returns tv converted to t through slot, which the caller has anchored so a
-// GC still counts the copy until the caller writes it.
+// Returns tv converted to t, nil for none, through slot, which the caller has
+// anchored so a GC still counts it until the caller writes it.
 func (m *Machine) convertInto(slot *TypedValue, tv TypedValue, t Type) TypedValue {
 	*slot = tv
 	m.convertCopy(slot, t)
@@ -788,8 +788,10 @@ func (m *Machine) convertInto(slot *TypedValue, tv TypedValue, t Type) TypedValu
 
 // Returns the type preprocess recorded on the range target x, nil for none.
 func rangeConversion(x Expr) Type {
-	t, _ := x.GetAttribute(ATTR_ASSIGN_CONVERT).(Type)
-	return t
+	if ts, ok := x.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		return ts[0]
+	}
+	return nil
 }
 
 func (m *Machine) doOpReturnCallDefers() {
