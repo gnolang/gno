@@ -280,7 +280,9 @@ refused. A zero stamp counts as another realm. A top-level `/p/` or stdlib
 function, or a method expression, called through a value (variable, field,
 argument, package var) runs view-only, even on the caller's own data. Only an
 unexported function called from its own package (a stored default handler)
-is exempt, since no other package can pick it.
+is exempt, since no other package can pick it. A `/p/` method reached
+through an interface or a method value runs view-only too, unless the
+current realm imports its package, directly or through its imports.
 
 - A `/p/`-declared factory invoked while `m.Realm = /r/A` (e.g.
   `/p/X.MakeCounter()` called from `/r/A.init`) returns a closure built

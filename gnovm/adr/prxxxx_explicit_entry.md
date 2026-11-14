@@ -79,10 +79,8 @@ function writes the realm's own variable (`func Set(cur realm, k string, v any)`
 
 - A closure built by a `maketx run` script and stored by a realm is re-stamped
   to that realm, so calling it later runs as the realm.
-- A `/p/` method reached through an interface the realm declares runs as the
-  realm, so `r.Run(obj)` with a caller's `r` writes `obj`. Receiver ownership
-  cannot tell who picked the code (a struct value is copied under the realm, a
-  stored pointer becomes the realm's), nor can it cover `f := r.Run; f(obj)`.
+- A `/p/` method reached through an interface the realm declares: closed by
+  `prxxxx_iface_entry.md` (it acts for the realm only if the realm imports it).
 - A realm's plain non-crossing exported function that writes its own state is
   callable by anyone; such a function is public API by construction.
 

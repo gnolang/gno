@@ -164,6 +164,11 @@ same: `fn(internalState)` calls a value, not a name in `/r/V`'s source,
 so it runs view-only. Only a call that names the function
 (`lib.Apply(internalState)`) acts for `/r/V`.
 
+An interface or a method value works the same way: `r.Run(internalState)`
+or `f := r.Run; f(internalState)` with a caller's `r` runs view-only unless
+`/r/V` imports `r`'s package, directly or through its imports. A library in
+`/r/V`'s import tree is trusted, so a caller may still pick any of its types.
+
 Empirically verified across 60+ probe filetests:
 `gnovm/tests/files/zrealm_launder_rdata_*.gno`.
 

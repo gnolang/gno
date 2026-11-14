@@ -1,0 +1,48 @@
+# A caller's library pointer the realm stored in an earlier tx is the realm's
+# object, yet its method still runs view-only: the realm does not import it.
+
+loadpkg gno.land/r/tests/vm/pfuncvictim
+loadpkg gno.land/p/demo/tests/ifaceattack
+
+gnoland start
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/store.gno
+stdout OK!
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/use.gno
+stderr 'cannot modify object owned by another realm from library code'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/read.gno
+stdout 'victim: victim-orig'
+
+-- store.gno --
+package main
+
+import (
+	"gno.land/p/demo/tests/ifaceattack"
+	"gno.land/r/tests/vm/pfuncvictim"
+)
+
+func main() {
+	pfuncvictim.StoreRunner(&ifaceattack.EvilS{})
+	println("stored")
+}
+
+-- use.gno --
+package main
+
+import "gno.land/r/tests/vm/pfuncvictim"
+
+func main() {
+	pfuncvictim.UseStored()
+	println("victim:", pfuncvictim.Read())
+}
+
+-- read.gno --
+package main
+
+import "gno.land/r/tests/vm/pfuncvictim"
+
+func main() {
+	println("victim:", pfuncvictim.Read())
+}

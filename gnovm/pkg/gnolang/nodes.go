@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"unsafe"
 )
 
 // ----------------------------------------
@@ -1320,6 +1322,35 @@ type PackageNode struct {
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
+	// importTree caches importClosure (*map[string]bool). Not serialized.
+	importTree unsafe.Pointer
+}
+
+// importClosure returns every non-stdlib package pn imports, directly or
+// through another import. Stored packages never change, so the cache holds.
+func (pn *PackageNode) importClosure(store Store) map[string]bool {
+	if c := (*map[string]bool)(atomic.LoadPointer(&pn.importTree)); c != nil {
+		return *c
+	}
+	c := map[string]bool{}
+	var walk func(*PackageNode)
+	walk = func(p *PackageNode) {
+		for _, fn := range p.Files {
+			for _, d := range fn.Decls {
+				id, ok := d.(*ImportDecl)
+				if !ok || c[id.PkgPath] || IsStdlib(id.PkgPath) {
+					continue
+				}
+				c[id.PkgPath] = true
+				if q, ok := store.GetBlockNodeSafe(PackageNodeLocation(id.PkgPath)).(*PackageNode); ok {
+					walk(q)
+				}
+			}
+		}
+	}
+	walk(pn)
+	atomic.StorePointer(&pn.importTree, unsafe.Pointer(&c))
+	return c
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing

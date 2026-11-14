@@ -2758,6 +2758,18 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
 		m.setViewOnly()
 	}
+	// A /p/ method reached through an interface or a method value runs code the
+	// caller picked; it acts for the realm only if the realm's imports, direct or
+	// not, include its package.
+	viaIface := false
+	if sx, ok := cx.Func.(*SelectorExpr); ok {
+		viaIface = sx.Path.Type == VPInterface || sx.Path.Type == VPDerefInterface
+	}
+	if (viaIface || !bindPID.IsZero()) && !pOwned && m.Realm != nil &&
+		fv.PkgPath != m.Realm.Path && fv.PkgPath != fr.LastPackage.PkgPath &&
+		IsPPackagePath(fv.PkgPath) && !m.realmImports(fv.PkgPath) {
+		m.setViewOnly()
+	}
 	if pOwned {
 		recvOID := oi.ID
 		if m.Realm == nil || recvOID.PkgID != m.Realm.ID {
@@ -2768,6 +2780,13 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			m.setRealm(r)
 		}
 	}
+}
+
+// realmImports reports whether the current realm imports path, directly or
+// not. Every package node is in the store's node cache from load on.
+func (m *Machine) realmImports(path string) bool {
+	pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(m.Realm.Path)).(*PackageNode)
+	return ok && pn.importClosure(m.Store)[path]
 }
 
 // calledBy reports whether every frame from the call on top of the stack
