@@ -128,6 +128,44 @@ func (b *cappedBuffer) Write(p []byte) (int, error) {
 	return b.buf.Write(p)
 }
 
+// resultGasPerByte prices each byte of a message's result at a store write's
+// per-byte rate, as chain.Emit prices an event's: the block keeps, encodes and
+// stores the result with the tx.
+var resultGasPerByte = store.DefaultGasConfig().WriteCostPerByte
+
+// chargedBuffer collects a message's result, a MsgCall's printed values or a
+// MsgRun's output, charging resultGasPerByte for each byte before it keeps it,
+// so the tx's gas bounds the result.
+type chargedBuffer struct {
+	buf strings.Builder
+	gm  store.GasMeter
+}
+
+func (b *chargedBuffer) Write(p []byte) (int, error) {
+	b.gm.ConsumeGas(resultGasPerByte*int64(len(p)), "MsgCall result")
+	return b.buf.Write(p)
+}
+
+var resultSep = []byte{'\n'}
+
+// writeResults writes each of rtvs in String() form to w, one per line. A
+// value sharing a child renders it once per path to it, so the text can be
+// exponential in what the values hold: w must bound it. A write error from w
+// stops the render and is returned.
+func writeResults(w io.Writer, rtvs []gno.TypedValue) error {
+	for i, rtv := range rtvs {
+		if i > 0 {
+			if _, err := w.Write(resultSep); err != nil {
+				return err
+			}
+		}
+		if err := rtv.WriteStringTo(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // marshalJSONCapped runs an amino JSON marshal into a cappedBuffer of limit bytes.
 func marshalJSONCapped(limit int64, marshal func(io.Writer, any) error, v any) ([]byte, error) {
 	b := cappedBuffer{max: limit}
@@ -1424,12 +1462,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer doRecover(m, &err)
 	rtvs := m.Eval(xn)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
 
 	// Reject a send-envelope that nothing observed. The coins were credited
 	// to pkgAddr above; if no executing code ever read them, the callee has
@@ -1455,6 +1487,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
+	out := chargedBuffer{gm: ctx.GasMeter()}
+	_ = writeResults(&out, rtvs) // chargedBuffer never fails a write; it panics out of gas
+	// `\n\n` separates the results of a tx's msgs.
+	out.buf.WriteString("\n\n")
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
@@ -1465,9 +1501,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		},
 	)
 
-	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
-
-	return res, nil
+	return out.buf.String(), nil
 	// TODO pay for gas? TODO see context?
 }
 
@@ -1658,8 +1692,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		SessionAccount: getSessionAccount(ctx, caller),
 	}
 
-	buf := new(bytes.Buffer)
-	output := io.Writer(buf)
+	out := chargedBuffer{gm: ctx.GasMeter()}
+	output := io.Writer(&out)
 
 	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
 	gm := new(gnomod.File)
@@ -1680,7 +1714,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
 		if vm.Output != nil {
-			output = io.MultiWriter(buf, vm.Output)
+			output = io.MultiWriter(&out, vm.Output)
 		}
 		m := gno.NewMachineWithOptions(
 			gno.MachineOptions{
@@ -1717,7 +1751,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
 	m2.RunMainMaybeCrossing()
-	res = buf.String()
+	res = out.buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
 	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
@@ -1918,15 +1952,8 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// value of a few KB can render to gigabytes. The cap is on the bytes
 		// rendered, not on the value.
 		out := cappedBuffer{max: maxQueryOutputBytes}
-		for i, rtv := range rtvs {
-			if i > 0 {
-				if _, err := out.Write([]byte{'\n'}); err != nil {
-					return abciExportErr(err)
-				}
-			}
-			if err := rtv.WriteStringTo(&out); err != nil {
-				return abciExportErr(err)
-			}
+		if err := writeResults(&out, rtvs); err != nil {
+			return abciExportErr(err)
 		}
 		res = out.buf.String()
 		return nil
