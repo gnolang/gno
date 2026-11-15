@@ -2319,7 +2319,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isVarg {
 							panic("should not happen")
 						}
-						// Pair each of f's result types with the parameter it fills.
+						// Check each of f's results against the parameter it fills, and keep
+						// both types so the record below can tell which ones convert.
 						argTypes := make([]Type, len(argTVs))
 						paramTypes := make([]Type, len(argTVs))
 						for i, tv := range argTVs {
@@ -2945,7 +2946,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// statement keeps its shape, so this holds in every
 							// position it can sit in: a body, a for/if/switch
 							// header, a method.
-							// Pair each result's type with its Lhs's type.
 							resultTypes := make([]Type, len(cft.Results))
 							lhsTypes := make([]Type, len(cft.Results))
 							for i, rhsType := range cft.Results {
@@ -5215,7 +5215,6 @@ func needsAssignConversion(valueType, targetType Type) bool {
 // targetTypes[i] where a valueTypes[i] value converts to it, nil elsewhere. It
 // sets nothing when none converts.
 func recordAssignConversions(n Node, valueTypes, targetTypes []Type) {
-	// Allocate the list on the first value that converts.
 	var convertTo []Type
 	for i, targetType := range targetTypes {
 		if needsAssignConversion(valueTypes[i], targetType) {
@@ -5233,7 +5232,6 @@ func recordAssignConversions(n Node, valueTypes, targetTypes []Type) {
 // recordCommaOkConversions records on `a, ok = m[k]` or `a, ok = x.(T)` what a
 // and ok convert to.
 func recordCommaOkConversions(store Store, last BlockNode, n *AssignStmt) {
-	// The type m[k] or x.(T) gives a.
 	valueType := evalStaticTypeOf(store, last, n.Rhs[0])
 	if tuple, ok := valueType.(*tupleType); ok {
 		valueType = tuple.Elts[0]
@@ -5254,7 +5252,6 @@ func recordCommaOkConversions(store Store, last BlockNode, n *AssignStmt) {
 // recordReturnCallConversions records on `return f()` which of f's results
 // convert to the result types of the function holding the return.
 func recordReturnCallConversions(store Store, enclosingFunc BlockNode, enclosingType *FuncTypeExpr, calleeType *FuncType, n *ReturnStmt) {
-	// Pair each of f's result types with the type the function declares.
 	resultTypes := make([]Type, len(calleeType.Results))
 	declaredTypes := make([]Type, len(calleeType.Results))
 	for i, result := range calleeType.Results {
@@ -5272,7 +5269,6 @@ func rangeKeyValueTypes(rangedType Type) (keyType, valueType Type) {
 	if ptr, ok := base.(*PointerType); ok {
 		base = baseOf(ptr.Elem())
 	}
-	// A map gives key and value, a list index and element, a string index and rune.
 	switch typ := base.(type) {
 	case *MapType:
 		return typ.Key, typ.Value
