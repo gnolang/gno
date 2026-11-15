@@ -65,8 +65,8 @@ func (m *Machine) doOpAssign() {
 	lhsOperands, rvs := window[:total], window[total:]
 	defer m.PopValues(len(window))
 
-	// `a, b = f()` where a result differs from its Lhs only by name: convert
-	// it as `a = x` would, before any Lhs is written.
+	// `a, b = f()` or `a, ok = m[k]` where a value differs from its Lhs only
+	// by name: convert it as `a = x` would, before any Lhs is written.
 	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 		m.convertTopValues(convs)
 	}

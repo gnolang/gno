@@ -252,7 +252,8 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			iv := TypedValue{T: IntType}
 			iv.SetInt(int64(bs.ListIndex))
-			m.assignRangeIteration(bs, bs.Key != nil, hasValue, iv, ev, listElement)
+			hasKey := bs.Key != nil
+			m.assignRangeIteration(bs, hasKey, hasValue, iv, ev, listElement)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -629,10 +630,9 @@ EXEC_SWITCH:
 				m.PushOp(OpReturn)
 			}
 		}
-		// The results of `return f()` that need converting are converted
-		// before any of the return ops above reads them. The length check
-		// holds wherever preprocess set the attribute, and spares every
-		// other return the attribute lookup.
+		// For `return f()`, convert f's results before the return reads them.
+		// Only `return f()` carries ATTR_ASSIGN_CONVERT, so other returns
+		// skip the lookup.
 		if len(cs.Results) == 1 && len(ft.Results) > 1 && cs.GetAttribute(ATTR_ASSIGN_CONVERT) != nil {
 			m.PushStmt(cs)
 			m.PushOp(OpReturnConvert)

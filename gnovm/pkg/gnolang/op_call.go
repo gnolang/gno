@@ -8,7 +8,7 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
-	// Before the frame can move m.Realm to a receiver's realm.
+	// Convert now, while m.Realm is still the caller's: the call may change it.
 	m.convertResultsPassedAsArgs(cx)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
@@ -747,19 +747,18 @@ func (m *Machine) doOpReturnToBlock() {
 	m.PopValues(numResults)
 }
 
-// `return pair()` in `func ret() (pun.L, pun.L)`, where pair returns ([]string,
-// []string): converts each []string to pun.L, as `return pun.L(a), pun.L(b)`
-// would, so convertValue can refuse a []string another realm stores.
+// doOpReturnConvert converts the results of `return f()` to the types the
+// function declares, so convertValue's realm checks run on them, as on T(x).
 func (m *Machine) doOpReturnConvert() {
 	s := m.PopStmt().(*ReturnStmt)
 	m.convertTopValues(s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type))
 }
 
-// `g(f())`, where f returns ([]string, error) and g takes (pun.L, error):
-// converts f's []string to pun.L, as `g(pun.L(s), err)` would. f's results
-// sit on top of m.Values. The length check holds wherever preprocess set the
-// attribute, and spares every other call the attribute lookup.
+// convertResultsPassedAsArgs converts f's results in `g(f())` to g's parameter
+// types, so convertValue's realm checks run on them, as on T(x).
 func (m *Machine) convertResultsPassedAsArgs(cx *CallExpr) {
+	// One argument expression for several arguments is g(f()), the only call
+	// that carries ATTR_ASSIGN_CONVERT, so other calls skip the lookup.
 	if len(cx.Args) == 1 && cx.NumArgs > 1 {
 		if convertTo, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 			m.convertTopValues(convertTo)
@@ -767,10 +766,8 @@ func (m *Machine) convertResultsPassedAsArgs(cx *CallExpr) {
 	}
 }
 
-// Converts the last len(convertTo) values on m.Values, each to its convertTo
-// entry, and leaves a value whose entry is nil as it is: convertTo is {pun.L,
-// nil} for the ([]string, error) of `a, err = f()`. They are converted where
-// they sit, so a GC run by the copy still counts them.
+// convertTopValues converts each of the last values on the stack to its entry
+// in convertTo, skipping nil entries, in place so the GC still sees them.
 func (m *Machine) convertTopValues(convertTo []Type) {
 	values := m.PeekValues(len(convertTo))
 	for i, targetType := range convertTo {
@@ -780,36 +777,26 @@ func (m *Machine) convertTopValues(convertTo []Type) {
 	}
 }
 
-// Replaces *tv with a copy of it converted to targetType, as `T(x)` copies x: an
-// array or struct is copied, so a later write to the element it came from does
-// not show through, and the copy allocates what `T(x)` does.
+// copyAndConvert replaces *tv with a converted copy, as T(x) does, so a later
+// write to the original does not show through.
 func (m *Machine) copyAndConvert(tv *TypedValue, targetType Type) {
 	*tv = tv.Copy(m.Alloc, m.Store)
 	m.convertValue(tv, targetType)
 }
 
-// rangeSource says where a range iteration's value was read from.
+// rangeSource says what a range loop goes over.
 type rangeSource int
 
 const (
-	// listElement: the value is the element itself, which a key target such
-	// as s[1].N writes into.
-	listElement rangeSource = iota
-	// mapEntry: a key target such as m[k] replaces the entry the value came
-	// from and leaves the value as it was.
-	mapEntry
+	listElement rangeSource = iota // a slice or an array
+	mapEntry                       // a map
 )
 
-// Writes one iteration of `for k, v = range x` or `:=`: key into k where hasKey
-// and value into v where hasValue. With `var row pun.L` and x a [][]string, `for
-// _, row = range x` gives row pun.L(x[i]), so convertValue can refuse a row
-// another realm stores. Both are converted before either is written, as `k, v =
-// a, b` evaluates a and b first, so a refused conversion writes nothing.
+// assignRangeIteration writes one loop turn's key and value into the loop
+// variables. It converts both before writing either, so a refused conversion
+// writes neither.
 func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key, value TypedValue, source rangeSource) {
-	// Only `=` converts, since `:=` declares k and v with the types range
-	// yields. The types are read from bs.Key and bs.Value each iteration: a
-	// field on bodyStmt would grow every Block, and so the allocation each one
-	// is charged.
+	// Only `=` can need a conversion: `:=` makes variables of the right type.
 	var convertKeyTo, convertValueTo Type
 	keyCanOverwriteValue := false
 	if bs.Op == ASSIGN {
@@ -819,23 +806,22 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 		if hasValue {
 			convertValueTo = conversionRecordedOn(bs.Value)
 		}
-		// `for s[1].N, v = range s` writes into the element v gets before v is
-		// written, and `for m[k], v = range m` replaces the entry v gets. A
-		// key that is a plain name can do neither, and a value with a nil V, a
-		// number or a nil, carries all of itself where no key write reaches.
+		// Writing the key can change what v came from: the element in `for
+		// s[1].N, v = range s`, the map entry in `for m[k], v = range m`. Not
+		// when the key is a plain variable, or v a number, a bool or a nil.
 		_, keyIsName := bs.Key.(*NameExpr)
 		keyCanOverwriteValue = hasValue && bs.Key != nil && !keyIsName && value.V != nil
 	}
-	// A value only a Go variable holds is invisible to a GC, which the next
-	// allocation can run: a copy, a converted value, or a map value whose entry
-	// the key write replaces. anchored holds each where a GC counts it, until
-	// its target holds it.
+	// A copy or a converted value is new and held only in a Go variable the GC
+	// can't see, and so is a map value whose entry the key write replaces:
+	// anchor them until the loop variables hold them.
 	var anchored []TypedValue
 	if convertKeyTo != nil || convertValueTo != nil || keyCanOverwriteValue {
 		switch source {
-		case listElement: // the key is an int index, so only the value needs a slot
+		case listElement: // the key is an int, which never converts
 			anchored = make([]TypedValue, 1)
 			m.Alloc.PushAnchor(anchored)
+			// copyAndConvert copies too, so copy here only when nothing converts.
 			if convertValueTo == nil && keyCanOverwriteValue {
 				value = value.Copy(m.Alloc, m.Store)
 			}
@@ -862,7 +848,9 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 		m.assignRangeTarget(bs.Op, bs.Key, key)
 	}
 	if source == mapEntry && anchored != nil {
-		anchored[0] = TypedValue{} // k holds the key now, and a GC would count it twice
+		// The key target holds the key now: clear its slot, or a GC during
+		// the value write counts the key twice.
+		anchored[0] = TypedValue{}
 	}
 	if hasValue {
 		m.assignRangeTarget(bs.Op, bs.Value, value)
@@ -872,8 +860,8 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 	}
 }
 
-// Writes tv to the range target, `s[i]` or `v` for `=` and the variable v for
-// `:=`.
+// assignRangeTarget writes tv into a loop's key or value target, such as v or
+// s[i].
 func (m *Machine) assignRangeTarget(op Word, target Expr, tv TypedValue) {
 	switch op {
 	case ASSIGN:
@@ -886,12 +874,9 @@ func (m *Machine) assignRangeTarget(op Word, target Expr, tv TypedValue) {
 	}
 }
 
-// Returns the type preprocess recorded on the range target, pun.L for row in
-// `for _, row = range x`, and nil where the target needs no conversion.
+// conversionRecordedOn returns the type a value written to this range key or
+// value converts to, as the preprocessor recorded it, or nil.
 func conversionRecordedOn(target Expr) Type {
-	if target == nil {
-		return nil
-	}
 	if convertTo, ok := target.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 		return convertTo[0]
 	}
@@ -1090,6 +1075,8 @@ func (m *Machine) doOpDefer() {
 	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
 	// the deferred call to one of g's results instead of to f.
 	numArgs := ds.Call.NumArgs
+	// A deferred call skips doOpPrecall, so convert here, while m.Realm is
+	// still the deferring realm.
 	m.convertResultsPassedAsArgs(&ds.Call)
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
