@@ -242,6 +242,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 					return
 				}
+				// Read the element at the current index.
 				var ok bool
 				ev, ok = xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
 				if !ok {
@@ -250,6 +251,7 @@ func (m *Machine) doOpExec(op Op) {
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
 			}
+			// The key is the element's index.
 			iv := TypedValue{T: IntType}
 			iv.SetInt(int64(bs.ListIndex))
 			hasKey := bs.Key != nil
@@ -425,6 +427,7 @@ func (m *Machine) doOpExec(op Op) {
 			// same way.
 			hasKey := bs.Key != nil && !isBlankIdentifier(bs.Key)
 			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			// Read the current entry's key and value.
 			var kv, vv TypedValue
 			if hasKey {
 				kv = *fillValueTV(m.Store, &next.Key)

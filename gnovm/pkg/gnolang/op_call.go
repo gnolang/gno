@@ -751,6 +751,7 @@ func (m *Machine) doOpReturnToBlock() {
 // function declares, so convertValue's realm checks run on them, as on T(x).
 func (m *Machine) doOpReturnConvert() {
 	s := m.PopStmt().(*ReturnStmt)
+	// The return statement carries the type each result converts to.
 	m.convertTopValues(s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type))
 }
 
@@ -769,6 +770,7 @@ func (m *Machine) convertResultsPassedAsArgs(cx *CallExpr) {
 // convertTopValues converts each of the last values on the stack to its entry
 // in convertTo, skipping nil entries, in place so the GC still sees them.
 func (m *Machine) convertTopValues(convertTo []Type) {
+	// convertTo[i] is for the i-th of the values on top of the stack.
 	values := m.PeekValues(len(convertTo))
 	for i, targetType := range convertTo {
 		if targetType != nil {
@@ -800,6 +802,7 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 	var convertKeyTo, convertValueTo Type
 	keyCanOverwriteValue := false
 	if bs.Op == ASSIGN {
+		// Look up the types the preprocessor recorded on k and v.
 		if hasKey {
 			convertKeyTo = conversionRecordedOn(bs.Key)
 		}
@@ -825,6 +828,7 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 			if convertValueTo == nil && keyCanOverwriteValue {
 				value = value.Copy(m.Alloc, m.Store)
 			}
+			// Convert the value inside the anchor, then read it back.
 			anchored[0] = value
 			if convertValueTo != nil {
 				m.copyAndConvert(&anchored[0], convertValueTo)
@@ -833,6 +837,7 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 		case mapEntry:
 			anchored = make([]TypedValue, 2)
 			m.Alloc.PushAnchor(anchored)
+			// Convert the key and the value inside the anchor, then read them back.
 			anchored[0] = key
 			if convertKeyTo != nil {
 				m.copyAndConvert(&anchored[0], convertKeyTo)
@@ -844,6 +849,7 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 			key, value = anchored[0], anchored[1]
 		}
 	}
+	// Write the key first, then the value.
 	if hasKey {
 		m.assignRangeTarget(bs.Op, bs.Key, key)
 	}
@@ -855,6 +861,7 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 	if hasValue {
 		m.assignRangeTarget(bs.Op, bs.Value, value)
 	}
+	// Both are written, so the anchor can go.
 	if anchored != nil {
 		m.Alloc.PopAnchor()
 	}
@@ -864,9 +871,9 @@ func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key,
 // s[i].
 func (m *Machine) assignRangeTarget(op Word, target Expr, tv TypedValue) {
 	switch op {
-	case ASSIGN:
+	case ASSIGN: // through the target's address: v, s[i] or s[i].N
 		m.PopAsPointer(target).Assign2(m, m.Alloc, m.Store, m.Realm, tv, false)
-	case DEFINE:
+	case DEFINE: // into the loop variable `:=` declared
 		ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, target.(*NameExpr))
 		ptr.TV.Assign(m.Alloc, m.Store, tv, false)
 	default:
@@ -877,6 +884,7 @@ func (m *Machine) assignRangeTarget(op Word, target Expr, tv TypedValue) {
 // conversionRecordedOn returns the type a value written to this range key or
 // value converts to, as the preprocessor recorded it, or nil.
 func conversionRecordedOn(target Expr) Type {
+	// A range target carries a one-element list.
 	if convertTo, ok := target.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 		return convertTo[0]
 	}
