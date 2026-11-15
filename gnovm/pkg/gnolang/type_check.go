@@ -851,12 +851,12 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		return
 	}
 
-	xkt, xvt := rangeYields(evalStaticTypeOf(store, last, x.X))
-	if kt != nil && xkt != nil {
-		mustAssignableTo(store, x, xkt, kt)
+	yieldedKeyType, yieldedValueType := rangeKeyValueTypes(evalStaticTypeOf(store, last, x.X))
+	if kt != nil && yieldedKeyType != nil {
+		mustAssignableTo(store, x, yieldedKeyType, kt)
 	}
-	if vt != nil && xvt != nil {
-		mustAssignableTo(store, x, xvt, vt)
+	if vt != nil && yieldedValueType != nil {
+		mustAssignableTo(store, x, yieldedValueType, vt)
 	}
 }
 

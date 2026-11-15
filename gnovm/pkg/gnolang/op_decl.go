@@ -22,7 +22,7 @@ func (m *Machine) doOpValueDecl() {
 		// m.Values and would miss popped ones.
 		if len(s.Values) == 1 && len(s.NameExprs) > 1 {
 			if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
-				m.convertResults(convs)
+				m.convertTopValues(convs)
 			}
 		}
 		rvs = m.PopValues(len(s.NameExprs))

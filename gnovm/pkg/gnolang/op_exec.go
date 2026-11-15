@@ -252,7 +252,7 @@ func (m *Machine) doOpExec(op Op) {
 			}
 			iv := TypedValue{T: IntType}
 			iv.SetInt(int64(bs.ListIndex))
-			m.rangeStep(bs, bs.Key != nil, hasValue, iv, ev, listElement)
+			m.assignRangeIteration(bs, bs.Key != nil, hasValue, iv, ev, listElement)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -431,7 +431,7 @@ func (m *Machine) doOpExec(op Op) {
 			if hasValue {
 				vv = *fillValueTV(m.Store, &next.Value)
 			}
-			m.rangeStep(bs, hasKey, hasValue, kv, vv, mapEntry)
+			m.assignRangeIteration(bs, hasKey, hasValue, kv, vv, mapEntry)
 			bs.NextBodyIndex++
 			fallthrough
 		default:

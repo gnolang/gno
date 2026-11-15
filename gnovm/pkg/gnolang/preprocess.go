@@ -2319,19 +2319,19 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						if isVarg {
 							panic("should not happen")
 						}
-						xts := make([]Type, len(argTVs))
-						pts := make([]Type, len(argTVs))
+						argTypes := make([]Type, len(argTVs))
+						paramTypes := make([]Type, len(argTVs))
 						for i, tv := range argTVs {
-							pt := spts[min(i, len(spts)-1)].Type
+							paramType := spts[min(i, len(spts)-1)].Type
 							if hasVarg && (len(spts)-1) <= i {
-								pt = pt.Elem()
+								paramType = paramType.Elem()
 							}
-							mustAssignableTo(store, n, tv.T, pt)
-							xts[i], pts[i] = tv.T, pt
+							mustAssignableTo(store, n, tv.T, paramType)
+							argTypes[i], paramTypes[i] = tv.T, paramType
 						}
 						// A result differing only by name needs the
 						// conversion a single argument gets.
-						setNamedConversions(n, namedConversions(xts, pts))
+						recordAssignConversions(n, argTypes, paramTypes)
 					} else {
 						for i := range n.Args { // iterate args
 							if hasVarg {
@@ -2942,15 +2942,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// statement keeps its shape, so this holds in every
 							// position it can sit in: a body, a for/if/switch
 							// header, a method.
-							xts := make([]Type, len(cft.Results))
-							lts := make([]Type, len(cft.Results))
+							resultTypes := make([]Type, len(cft.Results))
+							lhsTypes := make([]Type, len(cft.Results))
 							for i, rhsType := range cft.Results {
-								xts[i], lts[i] = rhsType.Type, evalStaticTypeOf(store, last, n.Lhs[i])
+								resultTypes[i], lhsTypes[i] = rhsType.Type, evalStaticTypeOf(store, last, n.Lhs[i])
 							}
-							setNamedConversions(n, namedConversions(xts, lts))
+							recordAssignConversions(n, resultTypes, lhsTypes)
 						} else {
 							// Comma-ok case: a, ok = m[k] or a, ok = x.(T).
-							setCommaOkConversions(store, last, n)
+							recordCommaOkConversions(store, last, n)
 						}
 					} else { // len(Lhs) == len(Rhs)
 						switch n.Op {
@@ -3056,7 +3056,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// NOTE: k,v already defined @ TRANS_BLOCK.
 				n.AssertCompatible(store, last)
 				if n.Op == ASSIGN {
-					setRangeConversions(store, last, n)
+					recordRangeConversions(store, last, n)
 				}
 				// `for _, cur = range rs` writes the same parameter slot as
 				// `cur = rs[0]` but is a RangeStmt, not an AssignStmt, so the
@@ -3121,7 +3121,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									len(cft.Results),
 								))
 							}
-							setReturnCallConversions(store, fnode, ft, cft, n)
+							recordReturnCallConversions(store, fnode, ft, cft, n)
 						} else {
 							panic(fmt.Sprintf("expected %d return values; got %d",
 								len(ft.Results),
@@ -3496,9 +3496,9 @@ func parseMultipleAssignFromOneExpr(
 	// value is dropped, as `_, b = f()` drops it. Record it for
 	// doOpValueDecl, as `a, b = f()` does for doOpAssign.
 	_, isCall := valueExpr.(*CallExpr)
-	var cts []Type // the conversion targets, nil for a value converting to none
+	var targetTypes []Type // the declared type each name gets, nil for `_`
 	if isCall && st != nil {
-		cts = make([]Type, numNames)
+		targetTypes = make([]Type, numNames)
 	}
 	for i := range nameExprs {
 		if st != nil {
@@ -3517,8 +3517,8 @@ func parseMultipleAssignFromOneExpr(
 				)
 			}
 			sts[i] = st
-			if cts != nil && nameExprs[i].Name != blankIdentifier {
-				cts[i] = st
+			if targetTypes != nil && nameExprs[i].Name != blankIdentifier {
+				targetTypes[i] = st
 			}
 		} else {
 			// Set types as return types.
@@ -3526,7 +3526,7 @@ func parseMultipleAssignFromOneExpr(
 		}
 		tvs[i] = anyValue(sts[i])
 	}
-	setNamedConversions(n, namedConversions(tuple.Elts, cts))
+	recordAssignConversions(n, tuple.Elts, targetTypes)
 }
 
 // Identifies NameExprTypeHeapDefines.
@@ -5151,7 +5151,7 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 			// If one side is a declared type and the other is unnamed,
 			// convert right (xt) to the type of the left (t), unless t is
 			// an interface.
-			if namedConversionTo(xt, t) != nil {
+			if needsAssignConversion(xt, t) {
 				doConvertType(store, last, x, t)
 			}
 		}
@@ -5201,108 +5201,104 @@ func isNamedConversion(xt, t Type) bool {
 	return false
 }
 
-// namedConversionTo returns t where a value of type xt reaching t needs the
-// named<->unnamed conversion `t = x` gets, and nil otherwise, an interface t
-// included.
-func namedConversionTo(xt, t Type) Type {
-	if t != nil && t.Kind() != InterfaceKind && isNamedConversion(xt, t) {
-		return t
-	}
-	return nil
+// needsAssignConversion reports whether `var v T = x`, x of type valueType and T
+// targetType, converts x to T: one of the two is a declared type and the other
+// is unnamed, as `type T []string` and []string, and T is no interface.
+func needsAssignConversion(valueType, targetType Type) bool {
+	return targetType != nil && targetType.Kind() != InterfaceKind &&
+		isNamedConversion(valueType, targetType)
 }
 
-// namedConversions returns, for each i, the conversion a value of type xts[i]
-// reaching ts[i] needs per namedConversionTo, and nil when none of them needs
-// one. A nil ts[i] needs none.
-func namedConversions(xts, ts []Type) []Type {
-	var convs []Type
-	for i, t := range ts {
-		if c := namedConversionTo(xts[i], t); c != nil {
-			if convs == nil {
-				convs = make([]Type, len(ts))
+// recordAssignConversions records on n the type each of its values converts
+// to, where a value of type valueTypes[i] reaches a target of type
+// targetTypes[i]: for `a, err = f()`, with f returning ([]string, error) and a
+// a pun.L, it records {pun.L, nil}. It records nothing where no value
+// converts.
+func recordAssignConversions(n Node, valueTypes, targetTypes []Type) {
+	var convertTo []Type
+	for i, targetType := range targetTypes {
+		if needsAssignConversion(valueTypes[i], targetType) {
+			if convertTo == nil {
+				convertTo = make([]Type, len(targetTypes))
 			}
-			convs[i] = c
+			convertTo[i] = targetType
 		}
 	}
-	return convs
-}
-
-// setNamedConversions records convs on n for the op that converts its values,
-// unless it is nil.
-func setNamedConversions(n Node, convs []Type) {
-	if convs != nil {
-		n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
+	if convertTo != nil {
+		n.SetAttribute(ATTR_ASSIGN_CONVERT, convertTo)
 	}
 }
 
-// setCommaOkConversions records on n, `a, ok = m[k]` or `a, ok = x.(T)`, the
-// conversion a and ok each need.
-func setCommaOkConversions(store Store, last BlockNode, n *AssignStmt) {
-	rt := evalStaticTypeOf(store, last, n.Rhs[0])
-	if tt, ok := rt.(*tupleType); ok {
-		rt = tt.Elts[0]
+// recordCommaOkConversions records on n, `a, ok = m[k]` or `a, ok = x.(T)`, the
+// type a and ok each convert to: pun.L for a where m is a map[string][]string
+// and a a pun.L, and a declared bool type for ok.
+func recordCommaOkConversions(store Store, last BlockNode, n *AssignStmt) {
+	valueType := evalStaticTypeOf(store, last, n.Rhs[0])
+	if tuple, ok := valueType.(*tupleType); ok {
+		valueType = tuple.Elts[0]
 	}
-	convs := namedConversions(
-		[]Type{rt, nil},
-		[]Type{evalStaticTypeOf(store, last, n.Lhs[0]), nil})
+	convertTo := make([]Type, 2)
+	if lhsType := evalStaticTypeOf(store, last, n.Lhs[0]); needsAssignConversion(valueType, lhsType) {
+		convertTo[0] = lhsType
+	}
 	// bool and a declared bool both count as named, so isNamedConversion
 	// cannot see `ok` needs converting.
-	if dt, ok := evalStaticTypeOf(store, last, n.Lhs[1]).(*DeclaredType); ok {
-		if convs == nil {
-			convs = make([]Type, 2)
-		}
-		convs[1] = dt
+	if okType, ok := evalStaticTypeOf(store, last, n.Lhs[1]).(*DeclaredType); ok {
+		convertTo[1] = okType
 	}
-	setNamedConversions(n, convs)
+	if convertTo[0] != nil || convertTo[1] != nil {
+		n.SetAttribute(ATTR_ASSIGN_CONVERT, convertTo)
+	}
 }
 
-// setReturnCallConversions records on n, `return f()` in the function fnode of
-// type ft, the conversion `return x` would give each result of f, of type cft,
-// whose type differs from the declared one only by name.
-func setReturnCallConversions(store Store, fnode BlockNode, ft *FuncTypeExpr, cft *FuncType, n *ReturnStmt) {
-	xts := make([]Type, len(cft.Results))
-	rts := make([]Type, len(cft.Results))
-	for i, res := range cft.Results {
-		xts[i] = res.Type
-		rts[i] = evalStaticType(store, fnode.GetParentNode(nil), ft.Results[i].Type)
+// recordReturnCallConversions records on n, `return f()` in the function
+// funcNode declared by funcTypeExpr, the type each result of f converts to:
+// pun.L for the []string of f() ([]string, error) when the function returns
+// (pun.L, error). calledType is f's type.
+func recordReturnCallConversions(store Store, funcNode BlockNode, funcTypeExpr *FuncTypeExpr, calledType *FuncType, n *ReturnStmt) {
+	resultTypes := make([]Type, len(calledType.Results))
+	declaredTypes := make([]Type, len(calledType.Results))
+	for i, result := range calledType.Results {
+		resultTypes[i] = result.Type
+		declaredTypes[i] = evalStaticType(store, funcNode.GetParentNode(nil), funcTypeExpr.Results[i].Type)
 	}
-	setNamedConversions(n, namedConversions(xts, rts))
+	recordAssignConversions(n, resultTypes, declaredTypes)
 }
 
-// rangeYields returns the key and value types `for k, v := range x` yields for
-// x of type xt, a pointer to an array ranging over the array, and nil for both
-// where xt is no type a range covers.
-func rangeYields(xt Type) (kt, vt Type) {
-	bt := baseOf(xt)
-	if pt, ok := bt.(*PointerType); ok {
-		bt = baseOf(pt.Elem())
+// rangeKeyValueTypes returns the key and value types `for k, v := range x`
+// yields for x of type rangedType, a pointer to an array ranging over the
+// array, and nil for both where rangedType is no type a range covers.
+func rangeKeyValueTypes(rangedType Type) (keyType, valueType Type) {
+	base := baseOf(rangedType)
+	if ptr, ok := base.(*PointerType); ok {
+		base = baseOf(ptr.Elem())
 	}
-	switch bt := bt.(type) {
+	switch typ := base.(type) {
 	case *MapType:
-		return bt.Key, bt.Value
+		return typ.Key, typ.Value
 	case *SliceType, *ArrayType:
-		return IntType, bt.Elem()
+		return IntType, typ.Elem()
 	case PrimitiveType:
-		if bt.Kind() == StringKind {
+		if typ.Kind() == StringKind {
 			return IntType, Int32Type // rune
 		}
 	}
 	return nil, nil
 }
 
-// setRangeConversions records on n.Key and n.Value the conversion each needs
-// from the type `for k, v = range x` yields, as `a, b = f()` does.
-func setRangeConversions(store Store, last BlockNode, n *RangeStmt) {
-	kt, vt := rangeYields(evalStaticTypeOf(store, last, n.X))
-	for _, c := range []struct {
-		x Expr
-		t Type
-	}{{n.Key, kt}, {n.Value, vt}} {
-		if c.x == nil || c.t == nil {
-			continue
+// recordRangeConversions records on n.Key and n.Value of `for k, v = range x`
+// the type each converts to: pun.L on v where x is a [][]string and v a
+// pun.L.
+func recordRangeConversions(store Store, last BlockNode, n *RangeStmt) {
+	yieldedKeyType, yieldedValueType := rangeKeyValueTypes(evalStaticTypeOf(store, last, n.X))
+	if n.Key != nil && yieldedKeyType != nil {
+		if keyTargetType := evalStaticTypeOf(store, last, n.Key); needsAssignConversion(yieldedKeyType, keyTargetType) {
+			n.Key.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{keyTargetType})
 		}
-		if t := namedConversionTo(c.t, evalStaticTypeOf(store, last, c.x)); t != nil {
-			c.x.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{t})
+	}
+	if n.Value != nil && yieldedValueType != nil {
+		if valueTargetType := evalStaticTypeOf(store, last, n.Value); needsAssignConversion(yieldedValueType, valueTargetType) {
+			n.Value.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{valueTargetType})
 		}
 	}
 }
