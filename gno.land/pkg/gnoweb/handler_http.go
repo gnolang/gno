@@ -1850,6 +1850,18 @@ func scrubHeaderOnError(indexData *components.IndexData, status int) {
 	}
 }
 
+// MaxHeaderBytes caps a request's line and headers, to which net/http adds
+// 4 KiB; gnoweb and gnodev serve with it. Each breadcrumb link repeats the URL
+// before it, so a URL of L bytes writes up to 16 copies of it: 64 KiB made a
+// 5.4 MB breadcrumb. 16 KiB still holds the longest playground share link,
+// 8,000 characters. It does not bound a request body.
+const MaxHeaderBytes = 16 << 10
+
+// maxBreadcrumbParts bounds the links in each breadcrumb row. Every link
+// carries the segments before it, so the row grows with the square of its
+// segment count; the last link holds whatever is left.
+const maxBreadcrumbParts = 16
+
 func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.BreadcrumbData {
 	// The playground shows the package it was opened from (?from=), or its
 	// own path and shared code, then its pill. The z compression flag
@@ -1872,7 +1884,7 @@ func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.Bread
 		return data
 	}
 
-	// One linked part per path segment; the first one ("r", "p", "u") links to
+	// One linked part per path segment, up to maxBreadcrumbParts; the first one ("r", "p", "u") links to
 	// its listing, hence the trailing slash.
 	var data components.BreadcrumbData
 	split := strings.Split(url.Path, "/")
@@ -1880,11 +1892,20 @@ func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.Bread
 		if name == "" {
 			continue
 		}
-		u := strings.Join(split[:i+1], "/")
+
+		end := i + 1
+		if len(data.Parts) == maxBreadcrumbParts-1 {
+			end = len(split)
+			name = strings.TrimRight(strings.Join(split[i:end], "/"), "/")
+		}
+		u := strings.TrimRight(strings.Join(split[:end], "/"), "/")
 		if len(data.Parts) == 0 {
 			u += "/"
 		}
 		data.Parts = append(data.Parts, components.BreadcrumbPart{Name: name, URL: u})
+		if end == len(split) {
+			break
+		}
 	}
 
 	if url.IsRealm() || url.IsPure() {
@@ -1898,10 +1919,14 @@ func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.Bread
 			return a == ""
 		})
 
-		for i := range nonEmptyArgs {
+		for i := range min(len(nonEmptyArgs), maxBreadcrumbParts) {
+			end := i + 1
+			if i == maxBreadcrumbParts-1 {
+				end = len(nonEmptyArgs)
+			}
 			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
-				Name: nonEmptyArgs[i],
-				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:i+1], "/"),
+				Name: strings.Join(nonEmptyArgs[i:end], "/"),
+				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:end], "/"),
 			})
 		}
 	}

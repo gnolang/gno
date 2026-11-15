@@ -154,6 +154,31 @@ func TestHTTPHandler_Get_InvalidPathNotEchoedToLog(t *testing.T) {
 	assert.Contains(t, logs.String(), fmt.Sprintf("path_length=%d", len(path)))
 }
 
+// Each breadcrumb link carries the segments before it, so a row past the bound
+// folds the rest into its last link rather than growing with the square of
+// the segment count.
+func TestGenerateBreadcrumbPaths_Bounded(t *testing.T) {
+	t.Parallel()
+
+	segs := strings.Repeat("a/", 100) + "z"
+	u, err := weburl.Parse("/r/" + segs + "/:" + segs)
+	require.NoError(t, err)
+
+	data := gnoweb.GenerateBreadcrumbPaths(u, "")
+	require.Len(t, data.Parts, gnoweb.MaxBreadcrumbParts)
+	require.Len(t, data.ArgParts, gnoweb.MaxBreadcrumbParts)
+
+	// The path row shows "r" and 14 segments, then the 86 left and "z".
+	lastPart := data.Parts[len(data.Parts)-1]
+	require.Equal(t, "/r/"+segs, lastPart.URL)
+	require.Equal(t, strings.Repeat("a/", 86)+"z", lastPart.Name)
+
+	// The argument row shows 15 segments, then the 85 left and "z".
+	lastArg := data.ArgParts[len(data.ArgParts)-1]
+	require.Equal(t, u.Path+":"+segs, lastArg.URL)
+	require.Equal(t, strings.Repeat("a/", 85)+"z", lastArg.Name)
+}
+
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
 	t.Helper()
