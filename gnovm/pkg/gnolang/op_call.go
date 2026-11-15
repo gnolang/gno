@@ -791,53 +791,87 @@ func (m *Machine) convertInto(slot *TypedValue, tv TypedValue, t Type) TypedValu
 	return *slot
 }
 
-// Returns the conversion a range's value target needs, nil for none, and
-// whether its key target can reach the element the value was read from before
-// the value is written: a key target other than a name, such as s[0], s[0].N or
-// m[k], can overwrite or replace it.
-func rangeValueAssign(bs *bodyStmt) (vt Type, keyReaches bool) {
+// rangeConv is what every iteration of one range statement does beyond writing
+// its targets: the type its key and its value convert to, nil for none, and
+// whether the key target can reach the element or entry the value was read
+// from before the value is written, as s[0], s[0].N or m[k] can.
+type rangeConv struct {
+	Key, Value Type
+	KeyReaches bool
+}
+
+// Returns the rangeConv of the range statement bs runs. It is the same for
+// every iteration; bodyStmt does not hold it, since a field there would grow
+// every Block and so the allocation each one is charged.
+func rangeConvOf(bs *bodyStmt) rangeConv {
 	if bs.Op != ASSIGN {
-		return nil, false
+		return rangeConv{}
 	}
 	_, isName := bs.Key.(*NameExpr)
-	return rangeConversion(bs.Value), bs.Key != nil && !isName
-}
-
-// Anchors one slot of m.rangeAnchor per value in tvs, then fills slot i with
-// tvs[i] converted to ts[i], or, with none, copied where copyUnconverted is set.
-// A copy, and each write before the range's targets hold every value, can run
-// GC, which then still counts them. assignRange pops the anchor.
-func (m *Machine) anchorRange(copyUnconverted bool, tvs []TypedValue, ts ...Type) []TypedValue {
-	anchored := m.rangeAnchor[:len(tvs)]
-	// An iteration that panicked and was recovered skipped assignRange's clear.
-	clear(anchored)
-	m.Alloc.PushAnchor(anchored)
-	for i, tv := range tvs {
-		if ts[i] == nil && copyUnconverted {
-			tv = tv.Copy(m.Alloc, m.Store)
-		}
-		m.convertInto(&anchored[i], tv, ts[i])
+	return rangeConv{
+		Key:        rangeConversion(bs.Key),
+		Value:      rangeConversion(bs.Value),
+		KeyReaches: bs.Key != nil && !isName,
 	}
-	return anchored
 }
 
-// Writes one range iteration's key k to bs.Key where hasKey and its value v to
-// bs.Value where hasValue, key first, then pops anchored, nil for none, from
-// anchorRange. A two-slot anchor holds the key first: that slot is cleared once
-// the key target holds the key, so only the value stays counted.
-func (m *Machine) assignRange(bs *bodyStmt, hasKey, hasValue bool, k, v TypedValue, anchored []TypedValue) {
+// rangeSource says where a range iteration's value v was read from.
+type rangeSource int
+
+const (
+	// listElement: v is the element itself, which a key target such as
+	// s[1].N writes into.
+	listElement rangeSource = iota
+	// mapEntry: a key target such as m[k] replaces the entry v came from and
+	// leaves v as it was.
+	mapEntry
+)
+
+// Writes one range iteration's key k where hasKey and value v where hasValue.
+// Both are read and converted before either is written, as an assignment
+// evaluates its operands first, so a refused conversion writes nothing from its
+// iteration.
+func (m *Machine) rangeStep(bs *bodyStmt, hasKey, hasValue bool, k, v TypedValue, src rangeSource) {
+	conv := rangeConvOf(bs)
+	var kt, vt Type
+	if hasKey {
+		kt = conv.Key
+	}
+	if hasValue {
+		vt = conv.Value
+	}
+	reaches := hasValue && conv.KeyReaches && v.V != nil
+	// The reads stay anchored until written, so a GC run by a copy, a
+	// conversion or the key write still counts them: a list's value alone,
+	// its key being an index, and a map's key then value.
+	var anchored []TypedValue
+	if kt != nil || vt != nil || reaches {
+		switch src {
+		case listElement:
+			anchored = make([]TypedValue, 1)
+			m.Alloc.PushAnchor(anchored)
+			if vt == nil && reaches {
+				v = v.Copy(m.Alloc, m.Store)
+			}
+			v = m.convertInto(&anchored[0], v, vt)
+		case mapEntry:
+			anchored = make([]TypedValue, 2)
+			m.Alloc.PushAnchor(anchored)
+			k = m.convertInto(&anchored[0], k, kt)
+			v = m.convertInto(&anchored[1], v, vt)
+		}
+	}
 	if hasKey {
 		m.assignRangeTarget(bs.Op, bs.Key, k)
 	}
-	if len(anchored) == 2 {
-		anchored[0] = TypedValue{}
+	if src == mapEntry && anchored != nil {
+		anchored[0] = TypedValue{} // the key target holds it now
 	}
 	if hasValue {
 		m.assignRangeTarget(bs.Op, bs.Value, v)
 	}
 	if anchored != nil {
 		m.Alloc.PopAnchor()
-		clear(anchored)
 	}
 }
 
@@ -855,6 +889,9 @@ func (m *Machine) assignRangeTarget(op Word, x Expr, tv TypedValue) {
 
 // Returns the type preprocess recorded on the range target x, nil for none.
 func rangeConversion(x Expr) Type {
+	if x == nil {
+		return nil
+	}
 	if ts, ok := x.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 		return ts[0]
 	}

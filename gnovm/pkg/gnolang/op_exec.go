@@ -233,20 +233,8 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			// Read the element, and convert it, before the key is written,
-			// as an assignment evaluates its operands first: a refused
-			// conversion then writes nothing from its iteration.
 			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
-			// A key target other than a name, such as s[0] or s[1].N, can
-			// overwrite the element or write inside it before the value is
-			// written.
-			var vt Type
-			var keyReaches bool
-			if hasValue {
-				vt, keyReaches = rangeValueAssign(bs)
-			}
 			var ev TypedValue
-			var anchored []TypedValue
 			if hasValue {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
@@ -261,17 +249,10 @@ func (m *Machine) doOpExec(op Op) {
 					iv.SetInt(int64(bs.ListIndex))
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
-				if vt != nil || keyReaches && ev.V != nil {
-					// A key target reaching the element can change it
-					// before the value is written: copy it, as a
-					// conversion does.
-					anchored = m.anchorRange(vt == nil, []TypedValue{ev}, vt)
-					ev = anchored[0]
-				}
 			}
 			iv := TypedValue{T: IntType}
 			iv.SetInt(int64(bs.ListIndex))
-			m.assignRange(bs, bs.Key != nil, hasValue, iv, ev, anchored)
+			m.rangeStep(bs, bs.Key != nil, hasValue, iv, ev, listElement)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -443,19 +424,6 @@ func (m *Machine) doOpExec(op Op) {
 			// same way.
 			hasKey := bs.Key != nil && !isBlankIdentifier(bs.Key)
 			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
-			// Read and convert both before either is written, as an
-			// assignment does: a refused conversion writes nothing from its
-			// iteration.
-			var kt, vt Type
-			// A key target other than a name, such as m[k], can replace the
-			// entry vv was read from before the value is written.
-			var keyReaches bool
-			if hasKey && bs.Op == ASSIGN {
-				kt = rangeConversion(bs.Key)
-			}
-			if hasValue {
-				vt, keyReaches = rangeValueAssign(bs)
-			}
 			var kv, vv TypedValue
 			if hasKey {
 				kv = *fillValueTV(m.Store, &next.Key)
@@ -463,12 +431,7 @@ func (m *Machine) doOpExec(op Op) {
 			if hasValue {
 				vv = *fillValueTV(m.Store, &next.Value)
 			}
-			var anchored []TypedValue // key, value
-			if kt != nil || vt != nil || keyReaches && vv.V != nil {
-				anchored = m.anchorRange(false, []TypedValue{kv, vv}, kt, vt)
-				kv, vv = anchored[0], anchored[1]
-			}
-			m.assignRange(bs, hasKey, hasValue, kv, vv, anchored)
+			m.rangeStep(bs, hasKey, hasValue, kv, vv, mapEntry)
 			bs.NextBodyIndex++
 			fallthrough
 		default:

@@ -2950,22 +2950,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							setNamedConversions(n, namedConversions(xts, lts))
 						} else {
 							// Comma-ok case: a, ok = m[k] or a, ok = x.(T).
-							rt := evalStaticTypeOf(store, last, n.Rhs[0])
-							if tt, ok := rt.(*tupleType); ok {
-								rt = tt.Elts[0]
-							}
-							convs := namedConversions(
-								[]Type{rt, nil},
-								[]Type{evalStaticTypeOf(store, last, n.Lhs[0]), nil})
-							// bool and a declared bool both count as named, so
-							// isNamedConversion cannot see `ok` needs converting.
-							if dt, ok := evalStaticTypeOf(store, last, n.Lhs[1]).(*DeclaredType); ok {
-								if convs == nil {
-									convs = make([]Type, 2)
-								}
-								convs[1] = dt
-							}
-							setNamedConversions(n, convs)
+							setCommaOkConversions(store, last, n)
 						}
 					} else { // len(Lhs) == len(Rhs)
 						switch n.Op {
@@ -3136,16 +3121,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									len(cft.Results),
 								))
 							}
-							// A result whose type differs from the declared
-							// one only by name needs the conversion `return x`
-							// gets from checkOrConvertType, as for `a, b = f()`.
-							xts := make([]Type, len(cft.Results))
-							rts := make([]Type, len(cft.Results))
-							for i, res := range cft.Results {
-								xts[i] = res.Type
-								rts[i] = evalStaticType(store, fnode.GetParentNode(nil), ft.Results[i].Type)
-							}
-							setNamedConversions(n, namedConversions(xts, rts))
+							setReturnCallConversions(store, fnode, ft, cft, n)
 						} else {
 							panic(fmt.Sprintf("expected %d return values; got %d",
 								len(ft.Results),
@@ -5257,6 +5233,40 @@ func setNamedConversions(n Node, convs []Type) {
 	if convs != nil {
 		n.SetAttribute(ATTR_ASSIGN_CONVERT, convs)
 	}
+}
+
+// setCommaOkConversions records on n, `a, ok = m[k]` or `a, ok = x.(T)`, the
+// conversion a and ok each need.
+func setCommaOkConversions(store Store, last BlockNode, n *AssignStmt) {
+	rt := evalStaticTypeOf(store, last, n.Rhs[0])
+	if tt, ok := rt.(*tupleType); ok {
+		rt = tt.Elts[0]
+	}
+	convs := namedConversions(
+		[]Type{rt, nil},
+		[]Type{evalStaticTypeOf(store, last, n.Lhs[0]), nil})
+	// bool and a declared bool both count as named, so isNamedConversion
+	// cannot see `ok` needs converting.
+	if dt, ok := evalStaticTypeOf(store, last, n.Lhs[1]).(*DeclaredType); ok {
+		if convs == nil {
+			convs = make([]Type, 2)
+		}
+		convs[1] = dt
+	}
+	setNamedConversions(n, convs)
+}
+
+// setReturnCallConversions records on n, `return f()` in the function fnode of
+// type ft, the conversion `return x` would give each result of f, of type cft,
+// whose type differs from the declared one only by name.
+func setReturnCallConversions(store Store, fnode BlockNode, ft *FuncTypeExpr, cft *FuncType, n *ReturnStmt) {
+	xts := make([]Type, len(cft.Results))
+	rts := make([]Type, len(cft.Results))
+	for i, res := range cft.Results {
+		xts[i] = res.Type
+		rts[i] = evalStaticType(store, fnode.GetParentNode(nil), ft.Results[i].Type)
+	}
+	setNamedConversions(n, namedConversions(xts, rts))
 }
 
 // rangeYields returns the key and value types `for k, v := range x` yields for

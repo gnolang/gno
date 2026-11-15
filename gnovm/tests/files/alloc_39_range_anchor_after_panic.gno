@@ -2,9 +2,9 @@
 package main
 
 // Regression: a range iteration that panics after anchoring its key and value,
-// and is recovered, leaves nothing counted for the next range. Its anchor slots
-// are cleared before the next iteration fills them, so the collection the next
-// map range's key copy runs counts only what is live.
+// and is recovered, leaves nothing counted for the next range. The recovery
+// drops its anchor, so the collection the next map range's key copy runs counts
+// only what is live.
 const B = 600000
 
 const N = 300000
