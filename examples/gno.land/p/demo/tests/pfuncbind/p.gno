@@ -12,3 +12,8 @@ func Apply(f Fn, x *launderpkg.Immutable) { f(x) }
 
 // Clobber is the package's own exported writer.
 func Clobber(x *launderpkg.Immutable) { x.Field = "pwnd-same-pkg" }
+
+// Hook is a function type with a method that calls its receiver.
+type Hook func(*launderpkg.Immutable)
+
+func (h Hook) Do(x *launderpkg.Immutable) { h(x) }

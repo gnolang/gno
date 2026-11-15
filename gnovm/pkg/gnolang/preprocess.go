@@ -6656,6 +6656,11 @@ func namedCallee(store Store, last BlockNode, fx Expr) bool {
 }
 
 func isFuncDeclAt(bn BlockNode, index uint16) bool {
+	// A name declared inside a FuncDecl's own block is a receiver, parameter or
+	// result (its source is that FuncDecl too), never a declared function.
+	if _, ok := bn.(*FuncDecl); ok {
+		return false
+	}
 	nss := bn.GetNameSources()
 	if int(index) >= len(nss) {
 		return false

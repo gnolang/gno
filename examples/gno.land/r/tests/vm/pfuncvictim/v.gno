@@ -58,3 +58,13 @@ func Hof(f Fn) { pfuncbind.Apply(f, gObj) }
 func SortOwn() { f := sort.Ints; f(gInts) }
 
 var gInts = []int{3, 1, 2}
+
+// RunHookOn names Do, but Do then calls the caller's function value.
+func RunHookOn(h pfuncbind.Hook) { h.Do(gObj) }
+
+// VHook is the realm's own function type; Do calls the receiver value.
+type VHook func(*launderpkg.Immutable)
+
+func (h VHook) Do(x *launderpkg.Immutable) { h(x) }
+
+func RunVHook(h VHook) { h.Do(gObj) }
