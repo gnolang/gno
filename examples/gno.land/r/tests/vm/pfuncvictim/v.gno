@@ -67,3 +67,13 @@ var gRunner Runner
 func Use(r Runner)         { r.Run(gObj) }
 func StoreRunner(r Runner) { gRunner = r }
 func UseStored()           { gRunner.Run(gObj) }
+
+// RunHookOn names Do, but Do then calls the caller's function value.
+func RunHookOn(h pfuncbind.Hook) { h.Do(gObj) }
+
+// VHook is the realm's own function type; Do calls the receiver value.
+type VHook func(*launderpkg.Immutable)
+
+func (h VHook) Do(x *launderpkg.Immutable) { h(x) }
+
+func RunVHook(h VHook) { h.Do(gObj) }

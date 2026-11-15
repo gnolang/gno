@@ -183,6 +183,9 @@ type transpileCtx struct {
 	stdlibPath string
 
 	stdlibImports map[string]string // symbol -> import path
+
+	fset *token.FileSet
+	file *ast.File
 }
 
 func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.File, error) {
@@ -190,6 +193,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 
 	imports := astutil.Imports(fset, f)
 	ctx.stdlibImports = make(map[string]string)
+	ctx.fset, ctx.file = fset, f
 
 	// rewrite imports to point to stdlibs/ or examples/
 	for _, paragraph := range imports {
@@ -401,6 +405,9 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 			break
 		}
 		nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name))
+		if nat != nil {
+			ctx.wrapAnyArgs(nat, ce)
+		}
 		if nat != nil && nat.HasMachineParam() {
 			// Because it's an import, the symbol is always exported, so no need for the
 			// X_ prefix we add below.
@@ -423,6 +430,7 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		// controlled scope (standard libraries) this will work for our usecase.
 		nat := stdlibs.FindNative(ctx.stdlibPath, gno.Name(fe.Name))
 		if ctx.stdlibPath != "" && nat != nil {
+			ctx.wrapAnyArgs(nat, ce)
 			if nat.HasMachineParam() {
 				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
 			}
@@ -434,4 +442,22 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		}
 	}
 	return true
+}
+
+// wrapAnyArgs wraps each argument for an `any` parameter of a native, whose Go
+// side takes a gno.TypedValue, so the transpiled call type-checks.
+func (ctx *transpileCtx) wrapAnyArgs(nat *stdlibs.NativeFunc, ce *ast.CallExpr) {
+	for i, arg := range ce.Args {
+		if !nat.ParamIsAny(i) {
+			continue
+		}
+		astutil.AddNamedImport(ctx.fset, ctx.file, "__transpile_builtin", TranspileImportPath("builtin"))
+		ce.Args[i] = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("__transpile_builtin"),
+				Sel: ast.NewIdent("TypedValueOf"),
+			},
+			Args: []ast.Expr{arg},
+		}
+	}
 }
