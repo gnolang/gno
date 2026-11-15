@@ -808,8 +808,8 @@ func (m *Machine) doOpConvert() {
 }
 
 // convertValue converts xv, a copy the caller owns, to t in place. Besides
-// explicit conversions, it applies the implicit named<->unnamed conversion of
-// a multi-value assignment (see ATTR_ASSIGN_CONVERT), so both get the same gas
+// explicit conversions, it applies the implicit named<->unnamed conversion the
+// preprocessor records in ATTR_ASSIGN_CONVERT, so both get the same gas
 // and the same inter-realm checks. It never touches m.Values.
 func (m *Machine) convertValue(xv *TypedValue, t Type) {
 	// Gas based on conversion variant. Both directions allocate and copy,
