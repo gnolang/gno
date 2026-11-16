@@ -65,15 +65,10 @@ func (m *Machine) doOpAssign() {
 	lhsOperands, rvs := window[:total], window[total:]
 	defer m.PopValues(len(window))
 
-	// `a, b = f()` where a result differs from its Lhs only by name: convert
-	// it as `a = x` would, before any Lhs is written.
+	// `a, b = f()` or `a, ok = m[k]` where a value differs from its Lhs only
+	// by name: convert it as `a = x` would, before any Lhs is written.
 	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
-		for i, t := range convs {
-			if t != nil {
-				rvs[i] = rvs[i].Copy(m.Alloc, m.Store)
-				m.convertValue(&rvs[i], t)
-			}
-		}
+		m.convertTopValues(convs)
 	}
 
 	offset := 0

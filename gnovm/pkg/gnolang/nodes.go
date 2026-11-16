@@ -143,7 +143,11 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
-	ATTR_ASSIGN_CONVERT        GnoAttribute = "ATTR_ASSIGN_CONVERT"   // []Type per Lhs of `a, b = f()`: the named<->unnamed conversion each result needs, nil for none.
+	// ATTR_ASSIGN_CONVERT marks values going into a variable whose type differs
+	// from theirs only by name, so the VM converts them. On `a, b = f()`,
+	// `var a, b T = f()`, comma-ok, `return f()` and `g(f())`: one type per
+	// value, nil where none converts. On a range's key or value: one type.
+	ATTR_ASSIGN_CONVERT GnoAttribute = "ATTR_ASSIGN_CONVERT"
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -918,6 +922,10 @@ type RangeStmt struct {
 	IsMap      bool // if X is map type
 	IsString   bool // if X is string type
 	IsArrayPtr bool // if X is array-pointer type
+	// converts is set by preprocess when Key or Value records a conversion,
+	// so an iteration of the many loops that record none skips looking them
+	// up. Not persisted, as Attributes are not.
+	converts bool
 }
 
 type ReturnStmt struct {

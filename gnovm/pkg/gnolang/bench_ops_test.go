@@ -5223,6 +5223,27 @@ func BenchmarkOpReturnFromBlock(b *testing.B) {
 	reportBenchops(b)
 }
 
+// --- doOpReturnConvert: the walk over `return f()`'s results, each conversion
+// being charged in convertValue ---
+
+func BenchmarkOpReturnConvert(b *testing.B) {
+	m := benchMachine()
+	defer m.Release()
+	s := &ReturnStmt{}
+	s.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{nil})
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(TypedValue{T: IntType, N: i2n(1)})
+		m.PushStmt(s)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpReturnConvert()
+		bm.SwitchOpCode(bmSetup)
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
 // --- doOpReturnToBlock: assigns results back to function block ---
 
 func BenchmarkOpReturnToBlock(b *testing.B) {
