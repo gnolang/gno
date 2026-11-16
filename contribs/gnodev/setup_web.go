@@ -28,6 +28,7 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 		"helper_remote", appcfg.RemoteHelp,
 		"html", appcfg.UnsafeHTML,
 		"analytics", appcfg.Analytics,
+		"ipfs_gateway", appcfg.RenderConfig.IPFSGateway,
 		"chain_id", cfg.chainId,
 	)
 	return router, nil
@@ -39,6 +40,7 @@ func gnoWebAppConfig(cfg *AppConfig, remoteAddr string) *gnoweb.AppConfig {
 	appcfg.UnsafeHTML = cfg.webHTML
 	appcfg.Analytics = cfg.webAnalytics
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
+	appcfg.RenderConfig.IPFSGateway = cfg.webIPFSGateway
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
 	appcfg.NetworkKind = components.NetworkLocal

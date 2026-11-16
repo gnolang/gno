@@ -236,8 +236,12 @@ func (sw *MultiplexSwitch) OnStop() {
 		sw.stopAndRemovePeer(p, nil)
 	}
 
-	// Stop reactors
+	// Stop reactors, but for those already stopped (the node stops block
+	// sync first).
 	for _, reactor := range sw.reactors {
+		if !reactor.IsRunning() {
+			continue
+		}
 		if err := reactor.Stop(); err != nil {
 			sw.Logger.Error("unable to gracefully stop reactor", "err", err)
 		}

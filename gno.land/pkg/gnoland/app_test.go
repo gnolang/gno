@@ -4464,3 +4464,129 @@ func TestInitChainer_VestingFromABalanceSheetIsEnforced(t *testing.T) {
 	require.NoError(t, bankk.SendCoins(after, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
 	require.Zero(t, bankk.GetCoin(after, vester, ugnot.Denom))
 }
+
+// TestNodeParamsKeeperRequiresFlushPoint pins that a delivered write of a halt
+// param asks block sync for a flush point after the block, so that the
+// scheduled halt is on disk from the block that wrote it, and that nothing
+// else does: other node params, CheckTx and Simulate, or an invalid value.
+func TestNodeParamsKeeperRequiresFlushPoint(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		mode   sdk.RunTxMode
+		key    string
+		value  any
+		want   bool
+		panics bool
+	}{
+		{"halt height delivered", sdk.RunTxModeDeliver, "p:halt_height", int64(100), true, false},
+		{"halt min version delivered", sdk.RunTxModeDeliver, "p:halt_min_version", "v1.2.3", true, false},
+		{"halt height in CheckTx", sdk.RunTxModeCheck, "p:halt_height", int64(100), false, false},
+		{"halt height simulated", sdk.RunTxModeSimulate, "p:halt_height", int64(100), false, false},
+		{"another node param", sdk.RunTxModeDeliver, "valset:dirty", true, false, false},
+		{"invalid halt height", sdk.RunTxModeDeliver, "p:halt_height", "100", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			required := false
+			npk := nodeParamsKeeper{requireFlushPoint: func() { required = true }}
+			set := func() { npk.WillSetParam(sdk.Context{}.WithMode(tc.mode), tc.key, tc.value) }
+			if tc.panics {
+				assert.Panics(t, set)
+			} else {
+				assert.NotPanics(t, set)
+			}
+			assert.Equal(t, tc.want, required)
+		})
+	}
+}
+
+// TestAppDefersCommits pins gno.land's wiring of deferred commits: its app
+// holds its commits when block sync asks, its blocks run with them held, a
+// realm's deployment included, and a delivered block that writes the halt
+// height asks for a flush point after it, whose write puts the halt height on
+// the disk.
+func TestAppDefersCommits(t *testing.T) {
+	t.Parallel()
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	baseApp := app.(*sdk.BaseApp)
+
+	privKey := getDummyKey(t)
+	addr := privKey.PubKey().Address()
+	gen := gnoGenesisState(t)
+	gen.Balances = []Balance{{Address: addr, Amount: std.Coins{{Denom: "ugnot", Amount: 10_000_000_000}}}}
+	res := baseApp.InitChain(abci.RequestInitChain{
+		AppState:        gen,
+		ChainID:         "test-chain",
+		ConsensusParams: &abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 3_000_000_000}},
+	})
+	require.True(t, res.IsOK(), "%v", res.Error)
+	baseApp.Commit()
+
+	require.True(t, baseApp.DeferCommits(true), "gno.land's app does not defer its commits")
+	block := func(height int64, seq uint64, msg std.Msg) {
+		t.Helper()
+		baseApp.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: height}})
+		txBytes, err := amino.Marshal(createAndSignTxWithAccSeq(t, []std.Msg{msg}, "test-chain", privKey, 0, seq))
+		require.NoError(t, err)
+		res := baseApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+		require.True(t, res.IsOK(), "block %d: %s", height, res.Log)
+		baseApp.EndBlock(abci.RequestEndBlock{Height: height})
+		baseApp.Commit()
+	}
+
+	// A realm writing the halt height as r/sys/params does, which only a realm
+	// at that path may.
+	const path = "gno.land/r/sys/params"
+	block(2, 0, vm.NewMsgAddPackage(addr, path, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+		{Name: "halt.gno", Body: `package params
+
+import prms "sys/params"
+
+func SetHaltHeight(cur realm, height int64) { prms.SetSysParamInt64("node", "p", "halt_height", height) }
+`},
+	}))
+	require.False(t, baseApp.NeedsFlushPoint(), "a block writing no halt param asked for a flush point")
+
+	block(3, 1, vm.NewMsgCall(addr, nil, path, "SetHaltHeight", []string{"100"}))
+	require.True(t, baseApp.NeedsFlushPoint(), "a block writing the halt height asked for no flush point")
+	haltHeight := func() string {
+		return string(baseApp.Query(abci.RequestQuery{Path: "params/" + nodeParamHaltHeight}).Data)
+	}
+	require.Empty(t, haltHeight(), "the halt height answered from a held commit")
+
+	require.NoError(t, baseApp.WriteCommits())
+	require.False(t, baseApp.NeedsFlushPoint())
+	require.Equal(t, `"100"`, haltHeight())
+	require.False(t, baseApp.DeferCommits(false))
+}
+
+// TestAppDefersCommitsAfterRestart pins that a restarted gno.land app starts
+// and stops deferring with no block in between, as block sync does when the
+// node restarts at the tip: what the app writes while it loads is written
+// before its commits are held, not held as part of the window.
+func TestAppDefersCommitsAfterRestart(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	app, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+	res := app.(*sdk.BaseApp).InitChain(abci.RequestInitChain{
+		AppState:        gnoGenesisState(t),
+		ChainID:         "test-chain",
+		ConsensusParams: &abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 3_000_000_000}},
+	})
+	require.True(t, res.IsOK(), "%v", res.Error)
+	app.(*sdk.BaseApp).Commit()
+
+	restarted, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+	deferrer := restarted.(abci.DeferredCommitter)
+	require.True(t, deferrer.DeferCommits(true))
+	require.NotPanics(t, func() { deferrer.DeferCommits(false) })
+}
