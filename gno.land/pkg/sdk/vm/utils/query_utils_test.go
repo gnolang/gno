@@ -9,9 +9,9 @@ import (
 )
 
 // TestSliceWindowClampNegative exhaustively covers the chain-supplied edge
-// cases the slice/array windows guard against: negative or out-of-range
-// Offset/Length and offset+length overflow. The pre-clamp code would panic
-// on av.List[offset:end] when offset > len.
+// cases ClampSliceWindow guards against: negative or out-of-range
+// offset/length and offset+length overflow. Slicing with the raw values
+// would panic when offset > listLen.
 func TestSliceWindowClampNegative(t *testing.T) {
 	t.Parallel()
 
