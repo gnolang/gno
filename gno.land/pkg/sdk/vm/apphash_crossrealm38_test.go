@@ -243,7 +243,11 @@ import (
 //
 // Re-derived on the merge of the two, whose stdlib source changes both sit
 // inside the same MemPackage root.
-const expectedCrossrealm38Hash = "7f1465957ec46dcc42c56d3472049b62763d7ab4914e6581a1a57e701078f5ed"
+//
+// Re-derived for the mainnet release line, which keeps markdown.gno identical
+// to the source gnoland-1 holds in state, so the CodeFence comment is not in
+// it. With develop's markdown.gno, develop's value above still holds.
+const expectedCrossrealm38Hash = "91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
