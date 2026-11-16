@@ -748,3 +748,11 @@ func TestReadToken(cur realm, t *testing.T) {
 	uassert.Equal(t, tok.ID(), led.ReadToken().ID())
 	uassert.True(t, led.ReadToken() == tok, "ReadToken returns the same *Token")
 }
+
+func TestRenderHomeEscapesName(cur realm, t *testing.T) {
+	tok, _ := newTestToken("[Claim](https://evil.example) # PWNED", "PHISH", 0, cur)
+	uassert.Equal(t,
+		"# \\[Claim\\]\\(https://evil\\.example\\) \\# PWNED ($PHISH)\n\n",
+		strings.SplitAfterN(tok.RenderHome(), "\n\n", 2)[0],
+	)
+}

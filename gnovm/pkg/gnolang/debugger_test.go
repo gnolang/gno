@@ -157,6 +157,14 @@ func TestDebug(t *testing.T) {
 		{in: "b 5\n", out: "unknown source file"},
 	})
 
+	// Printing a missing key yields its zero value and leaves the
+	// program's map as it was.
+	runDebugTest(t, "../../tests/integ/debugger/sample_map.gno", []dtest{
+		{in: "b 8\nc\np m[1]\n", out: "(struct{(0 int)} main.S)"},
+		{in: "b 8\nc\np m[1]\np m\n", out: "(map{} map[int]main.S)"},
+		{in: "b 8\nc\np m[1]\nc\n", out: "0 0"},
+	})
+
 	runDebugTest(t, "../../tests/integ/debugger/sample2.gno", []dtest{
 		{in: "s\np tests\n", out: "(package(tests gno.land/p/demo/tests/v0) package{})"},
 		{in: "s\np tests.World\n", out: `("world" <untyped> string)`},

@@ -224,6 +224,8 @@ func getPropStatus(ps *proposalStatus) string {
 		return "ACCEPTED"
 	} else if ps.Denied {
 		return "REJECTED"
+	} else if ps.expired() {
+		return "EXPIRED"
 	}
 	return "ACTIVE"
 }

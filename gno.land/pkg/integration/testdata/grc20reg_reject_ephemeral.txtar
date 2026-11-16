@@ -1,0 +1,21 @@
+# A token created in an ephemeral MsgRun realm must not be registrable.
+
+loadpkg gno.land/r/nt/grc20reg/v0
+
+gnoland start
+
+! gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1 $WORK/run/register_ephemeral.gno
+stderr 'cannot register a token from an ephemeral realm'
+
+-- run/register_ephemeral.gno --
+package main
+
+import (
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/r/nt/grc20reg/v0"
+)
+
+func main(cur realm) {
+	token, _ := grc20.NewToken("Ephemeral", "EPH", 4, 0, cur)
+	grc20reg.Register(cross(cur), token, "")
+}

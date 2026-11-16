@@ -5,11 +5,14 @@ name: ci / misc
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     paths:
       - misc/**
       - .github/workflows/ci-dir-misc.yml
+      # The reusable workflow this one calls; see the note in
+      # ci-dir-examples.yml.
+      - .github/workflows/_ci-go.yml
       # This only runs `go test` on the Go programs under misc/, so every
       # *.md under it is prose (misc/deployments/, misc/val-scenarios/, ...).
       - '!**/*.md'

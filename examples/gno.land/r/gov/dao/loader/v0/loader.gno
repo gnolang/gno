@@ -2,8 +2,10 @@
 //
 // It intentionally does NOT add any members or set AllowedDAOs.  When the
 // allowedDAOs list in the DAO proxy is empty, InAllowedDAOs() returns true
-// for any caller (see r/gov/dao/proxy.gno), which lets a subsequent MsgRun
-// bootstrap the member set and then lock things down.
+// for any caller at height 0 (see r/gov/dao/proxy.gno), which lets a genesis
+// MsgRun bootstrap the member set and then lock things down. That MsgRun has
+// to be a genesis transaction: from the first block the empty list admits
+// nobody, on every chain but a dev one.
 //
 // Bootstrap flow (official network genesis or local dev):
 //

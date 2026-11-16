@@ -2,6 +2,7 @@ package impl
 
 import (
 	"chain"
+	"chain/runtime"
 	"chain/runtime/unsafe"
 	"errors"
 
@@ -11,6 +12,10 @@ import (
 )
 
 var ErrMemberNotFound = errors.New("member not found")
+
+// executionDeadlineBlocks is how many blocks after passing a proposal can still
+// execute: one week at gnoland-1's 3.55 s blocks.
+const executionDeadlineBlocks = 170_000
 
 type GovDAO struct {
 	pss    ProposalsStatuses
@@ -89,6 +94,9 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	if status.Denied || status.Accepted {
 		return errors.New(ufmt.Sprintf("proposal closed. Accepted: %v", status.Accepted))
 	}
+	if status.expired() {
+		return errors.New("proposal expired")
+	}
 
 	if !status.IsAllowed(tie) {
 		return errors.New("member on specified tier is not allowed to vote on this proposal")
@@ -113,6 +121,12 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 		return errors.New("voting can only be YES, NO, or ABSTAIN")
 	}
 
+	// The execution deadline runs from the vote that passes the proposal. Only a
+	// YES vote can, so only it pays for the YES tally.
+	if r.Option == dao.YesVote && status.PassedAt == 0 && status.YesPercent(0, rlm) >= law.Supermajority {
+		status.PassedAt = runtime.ChainHeight()
+	}
+
 	return nil
 }
 
@@ -134,6 +148,14 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 	}
 	if status.Denied || status.Accepted {
 		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
+	}
+
+	// An execution that aborts, such as a refused valset write, leaves the
+	// proposal open; the deadline keeps it from landing much later.
+	if status.expired() {
+		status.Denied = true
+		status.DeniedReason = ufmt.Sprintf("expired: not executed within %d blocks of passing", executionDeadlineBlocks)
+		return false, nil
 	}
 
 	if status.YesPercent(0, rlm) >= law.Supermajority {
@@ -173,6 +195,10 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 		status.DeniedReason = "execution failed: " + clampField(err.Error(), maxRenderedReason)
 	}
 	return err
+}
+
+func (g *GovDAO) IsMember(addr address) bool {
+	return memberstore.IsMember(addr)
 }
 
 func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {

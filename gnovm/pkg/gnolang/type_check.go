@@ -232,21 +232,11 @@ Main:
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
 						switch fv.Name {
-						case "len":
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
+							if _, ok := arrayOrPtrToArray(at); !ok {
+								assertValidConstValue(store, last, currExpr.Args[0])
 							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
 							break Main
 						}
 					}
@@ -1050,7 +1040,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			shouldPanic = false
 		} else if clx.Path.Type == VPUverse {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
-		} else if last.GetIsConst(store, clx.Name) {
+		} else if last.GetIsConstAt(store, clx.Path) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
 		} else {
 			shouldPanic = false

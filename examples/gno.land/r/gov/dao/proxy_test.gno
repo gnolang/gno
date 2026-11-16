@@ -21,7 +21,10 @@ const (
 	v3 = "gno.land/r/gov/dao/v3/impl"
 )
 
-const invalid = "gno.land/r/invalid/dao"
+const (
+	invalid = "gno.land/r/invalid/dao"
+	loader  = "gno.land/r/gov/dao/loader/v0"
+)
 
 var alice = testutils.TestAddress("alice")
 
@@ -129,6 +132,8 @@ func (dd *dummyDao) VoteOnProposal(_ int, rlm realm, r VoteRequest) error {
 func (dd *dummyDao) PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error) {
 	return true, nil
 }
+
+func (dd *dummyDao) IsMember(addr address) bool { return false }
 
 func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error {
 	return nil

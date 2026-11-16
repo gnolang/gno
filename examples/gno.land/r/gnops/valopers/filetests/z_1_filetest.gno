@@ -21,7 +21,7 @@ const (
 )
 
 func init(cur realm) {
-	// OriginCaller must equal the operator address (post-genesis squat guard).
+	// SetOriginCaller also sets the operator as the caller the squat guard checks.
 	testing.SetOriginCaller(validAddress)
 
 	// Register a validator and add the proposal

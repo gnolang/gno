@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,31 @@ func TestConfig_ValidateBasic(t *testing.T) {
 
 		cfg := DefaultAppConfig()
 		cfg.PruneStrategy = types.PruneEverythingStrategy
+
+		assert.NoError(t, cfg.ValidateBasic())
+	})
+
+	t.Run("negative query limits", func(t *testing.T) {
+		t.Parallel()
+
+		for name, set := range map[string]func(*AppConfig){
+			"gas":     func(c *AppConfig) { c.QueryMaxGas = -1 },
+			"alloc":   func(c *AppConfig) { c.QueryMaxAlloc = -1 },
+			"timeout": func(c *AppConfig) { c.QueryTimeout = -1 },
+		} {
+			cfg := DefaultAppConfig()
+			set(cfg)
+			assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidQueryLimit, name)
+		}
+	})
+
+	t.Run("valid query limits", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultAppConfig()
+		cfg.QueryMaxGas = 1
+		cfg.QueryMaxAlloc = 1
+		cfg.QueryTimeout = time.Millisecond
 
 		assert.NoError(t, cfg.ValidateBasic())
 	})

@@ -20,7 +20,7 @@ func TestWriteListOfEndpoints(t *testing.T) {
 
 	// The client picks the Host header, up to the server's MaxHeaderBytes,
 	// so the page must not echo it.
-	req := httptest.NewRequest(http.MethodGet, "http://other.example/", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://attacker.example/", nil)
 	rec := httptest.NewRecorder()
 	makeJSONRPCHandler(funcMap, log.NewNoopLogger(), 0)(rec, req)
 	res := rec.Result()

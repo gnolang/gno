@@ -20,7 +20,7 @@ name: ci / multiarch-determinism
 on:
   push:
     branches:
-      - master
+      - develop
     paths:
       - "misc/multiarch-determinism/**"
       - "gnovm/**"

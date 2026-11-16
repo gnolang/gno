@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 
@@ -23,23 +22,23 @@ var (
 	inPause       bool
 )
 
-func AdminSetAdminAddr(_ realm, addr address) {
-	assertIsAdmin()
+func AdminSetAdminAddr(cur realm, addr address) {
+	assertIsAdmin(cur.Previous().Address())
 	adminAddr = addr
 }
 
-func AdminSetInPause(_ realm, state bool) {
-	assertIsAdmin()
+func AdminSetInPause(cur realm, state bool) {
+	assertIsAdmin(cur.Previous().Address())
 	inPause = state
 }
 
-func AdminAddModerator(_ realm, addr address) {
-	assertIsAdmin()
+func AdminAddModerator(cur realm, addr address) {
+	assertIsAdmin(cur.Previous().Address())
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(_ realm, addr address) {
-	assertIsAdmin()
+func AdminRemoveModerator(cur realm, addr address) {
+	assertIsAdmin(cur.Previous().Address())
 	moderatorList.Set(addr.String(), false) // entry kept as a revocation record; isModerator checks the value
 }
 
@@ -61,9 +60,9 @@ func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, autho
 	)
 }
 
-func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
-	assertIsModerator()
-	caller := unsafe.OriginCaller()
+func ModAddPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
+	caller := cur.Previous().Address()
+	assertIsModerator(caller)
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
 
@@ -82,8 +81,8 @@ func addPost(caller address, slug, title, body, publicationDate, authors, tags s
 	checkErr(err)
 }
 
-func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
-	assertIsModerator()
+func ModEditPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
+	assertIsModerator(cur.Previous().Address())
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -91,23 +90,23 @@ func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags stri
 	checkErr(err)
 }
 
-func ModRemovePost(_ realm, slug string) {
-	assertIsModerator()
+func ModRemovePost(cur realm, slug string) {
+	assertIsModerator(cur.Previous().Address())
 	b.RemovePost(slug)
 }
 
-func ModAddCommenter(_ realm, addr address) {
-	assertIsModerator()
+func ModAddCommenter(cur realm, addr address) {
+	assertIsModerator(cur.Previous().Address())
 	commenterList.Set(addr.String(), true)
 }
 
-func ModDelCommenter(_ realm, addr address) {
-	assertIsModerator()
+func ModDelCommenter(cur realm, addr address) {
+	assertIsModerator(cur.Previous().Address())
 	commenterList.Set(addr.String(), false) // entry kept as a revocation record; isCommenter checks the value
 }
 
-func ModDelComment(_ realm, slug string, index int) {
-	assertIsModerator()
+func ModDelComment(cur realm, slug string, index int) {
+	assertIsModerator(cur.Previous().Address())
 	err := b.GetPost(slug).DeleteComment(index)
 	checkErr(err)
 }
@@ -130,23 +129,22 @@ func isCommenter(addr address) bool {
 	return active
 }
 
-func assertIsAdmin() {
-	caller := unsafe.OriginCaller()
+// assertIsAdmin panics unless caller is the blog admin. Callers pass the
+// address one frame up, so a realm the admin transacts with is not the admin.
+func assertIsAdmin(caller address) {
 	if !isAdmin(caller) {
 		panic(errNotAdmin.Error())
 	}
 }
 
-func assertIsModerator() {
-	caller := unsafe.OriginCaller()
+func assertIsModerator(caller address) {
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}
 	panic(errNotModerator.Error())
 }
 
-func assertIsCommenter() {
-	caller := unsafe.OriginCaller()
+func assertIsCommenter(caller address) {
 	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
 		return
 	}

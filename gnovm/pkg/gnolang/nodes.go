@@ -143,6 +143,7 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_ASSIGN_CONVERT        GnoAttribute = "ATTR_ASSIGN_CONVERT"   // []Type per Lhs of `a, b = f()`: the named<->unnamed conversion each result needs, nil for none.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -768,10 +769,6 @@ type Body []Stmt
 
 func (ss Body) GetBody() Body {
 	return ss
-}
-
-func (ss *Body) SetBody(nb Body) {
-	*ss = nb
 }
 
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
@@ -1415,13 +1412,6 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 			panic("PackageNode.PrepareNewValues() package mismatch")
 		}
 	}
-	// The FuncValue Body may have been altered during the preprocessing.
-	// We need to update body field from the source in the FuncValue accordingly.
-	for _, tv := range pn.Values {
-		if fv, ok := tv.V.(*FuncValue); ok {
-			fv.UpdateBodyFromSource()
-		}
-	}
 	pvl := len(block.Values)
 	pnl := len(pn.Values)
 	// copy new top-level defined values/types.
@@ -1614,7 +1604,6 @@ type BlockNode interface {
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
 	GetBody() Body
-	SetBody(Body)
 
 	// Utility methods for gno fix etc.
 	// Unlike GetType[Decl|Expr]For[Path|Expr] which are determined
@@ -2465,15 +2454,7 @@ func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
 }
 
-func (x *IfStmt) SetBody(b Body) {
-	panic("IfStmt has no body (but .Then and .Else do)")
-}
-
 func (x *SwitchStmt) GetBody() Body {
-	panic("SwitchStmt has no body (but its cases do)")
-}
-
-func (x *SwitchStmt) SetBody(b Body) {
 	panic("SwitchStmt has no body (but its cases do)")
 }
 
@@ -2481,15 +2462,7 @@ func (x *FileNode) GetBody() Body {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
-func (x *FileNode) SetBody(b Body) {
-	panic("FileNode has no body (but it does have .Decls)")
-}
-
 func (*PackageNode) GetBody() Body {
-	panic("PackageNode has no body")
-}
-
-func (*PackageNode) SetBody(b Body) {
 	panic("PackageNode has no body")
 }
 

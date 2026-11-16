@@ -94,6 +94,7 @@ func requireGitHubAPI(t *testing.T) {
 // checks every entry's commit against the commit its version's tag points to.
 func TestLedgerDigestsJobChecksCommits(t *testing.T) {
 	t.Parallel()
+	skipIfDropped(t, ledgerDigestsWorkflow)
 	requireGitHubAPI(t)
 
 	l, err := upgrades.Load(repoPath(t, "misc/deployments/mainnet.gno.land"))

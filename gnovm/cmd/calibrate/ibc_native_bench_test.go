@@ -3,7 +3,8 @@ package calibrate
 // Native function calibration benchmarks for the IBC crypto stdlibs (bn254,
 // cometbls, keccak256, merkle, modexp). Same harness conventions as
 // native_bench_test.go — drive the GnoVM native dispatcher end-to-end so the
-// measured ns/op feeds gen_native_table.py without special-casing.
+// measured ns/op feeds gen_native_table.py, whose BENCH_BYTES turns a count
+// in a bench name into the byte length the row slopes on.
 
 import (
 	"encoding/hex"
@@ -371,12 +372,11 @@ func encodeMerkleItems(items [][]byte) []byte {
 	return out
 }
 
+// benchMerkleHashFromByteSlices hashes nItems empty items: the cost is per
+// item, so the 4-byte empty item is the dearest per encoded byte.
 func benchMerkleHashFromByteSlices(b *testing.B, nItems int) {
 	b.Helper()
 	items := make([][]byte, nItems)
-	for i := range items {
-		items[i] = []byte("item-" + string(rune('a'+(i%26))))
-	}
 	encoded := encodeMerkleItems(items)
 	m := newDispatchMachine(1)
 	setBlockValueFromGo(m, 0, encoded)
@@ -394,12 +394,11 @@ func BenchmarkNative_Merkle_HashFromByteSlices_512(b *testing.B) {
 	benchMerkleHashFromByteSlices(b, 512)
 }
 
-func benchMerkleVerifySimpleProof(b *testing.B, total int) {
+func benchMerkleVerifySimpleProof(b *testing.B, total int, leaf []byte) {
 	b.Helper()
 	// 32-byte zero hash works for the Verify call path; the bench measures
-	// dispatch + per-aunt work, not cryptographic validity.
+	// dispatch + per-aunt and per-leaf-byte work, not cryptographic validity.
 	root := make([]byte, 32)
-	leaf := []byte("leaf-payload")
 	// log2(total) aunts, each 32 bytes.
 	auntLen := 0
 	for n := total; n > 1; n >>= 1 {
@@ -419,10 +418,55 @@ func benchMerkleVerifySimpleProof(b *testing.B, total int) {
 	}
 }
 
-func BenchmarkNative_Merkle_VerifySimpleProof_8(b *testing.B)  { benchMerkleVerifySimpleProof(b, 8) }
-func BenchmarkNative_Merkle_VerifySimpleProof_64(b *testing.B) { benchMerkleVerifySimpleProof(b, 64) }
+var merkleProofLeaf = []byte("leaf-payload")
+
+// total 1 carries no aunts: the fitter floors the base at the smallest
+// point, so the sweep starts at 0 aunt bytes.
+func BenchmarkNative_Merkle_VerifySimpleProof_1(b *testing.B) {
+	benchMerkleVerifySimpleProof(b, 1, merkleProofLeaf)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProof_8(b *testing.B) {
+	benchMerkleVerifySimpleProof(b, 8, merkleProofLeaf)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProof_64(b *testing.B) {
+	benchMerkleVerifySimpleProof(b, 64, merkleProofLeaf)
+}
+
 func BenchmarkNative_Merkle_VerifySimpleProof_1024(b *testing.B) {
-	benchMerkleVerifySimpleProof(b, 1024)
+	benchMerkleVerifySimpleProof(b, 1024, merkleProofLeaf)
+}
+
+// benchMerkleVerifySimpleProofLeaf sweeps the leaf length to fit Slope2.
+func benchMerkleVerifySimpleProofLeaf(b *testing.B, n int) {
+	b.Helper()
+	leaf := make([]byte, n)
+	for i := range leaf {
+		leaf[i] = byte(i)
+	}
+	b.SetBytes(int64(n))
+	benchMerkleVerifySimpleProof(b, 8, leaf)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProofLeaf_0(b *testing.B) {
+	benchMerkleVerifySimpleProofLeaf(b, 0)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProofLeaf_256(b *testing.B) {
+	benchMerkleVerifySimpleProofLeaf(b, 256)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProofLeaf_1024(b *testing.B) {
+	benchMerkleVerifySimpleProofLeaf(b, 1024)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProofLeaf_4096(b *testing.B) {
+	benchMerkleVerifySimpleProofLeaf(b, 4096)
+}
+
+func BenchmarkNative_Merkle_VerifySimpleProofLeaf_65536(b *testing.B) {
+	benchMerkleVerifySimpleProofLeaf(b, 65536)
 }
 
 // ----- crypto/cometbls.verifyZKP(chainID, tvh, hdr, zkp) -----

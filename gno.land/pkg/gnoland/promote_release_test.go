@@ -66,6 +66,7 @@ func TestReleasesArePublishedHeld(t *testing.T) {
 
 	t.Run("no image is published as latest", func(t *testing.T) {
 		t.Parallel()
+		skipIfDropped(t, releaseDockerWorkflow)
 
 		// Wherever a tag could come from (metadata-action's rules, its
 		// default, a bake override), the only latest in the workflow is the
@@ -83,6 +84,7 @@ func TestReleasesArePublishedHeld(t *testing.T) {
 
 	t.Run("promote-release.sh moves latest on images the release builds, never the node's", func(t *testing.T) {
 		t.Parallel()
+		skipIfDropped(t, releaseDockerWorkflow)
 
 		built := regexp.MustCompile(`(?m)^          - (\S+)$`).FindAllStringSubmatch(
 			grepOne(t, releaseDockerWorkflow, `(?ms)^        image:\n((?:          - \S+\n)+)`), -1)

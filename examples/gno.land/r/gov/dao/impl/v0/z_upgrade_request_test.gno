@@ -54,6 +54,8 @@ func (d *mockDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool
 	return true, nil
 }
 
+func (d *mockDAO) IsMember(addr address) bool { return false }
+
 func (d *mockDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Executor) error {
 	return nil
 }

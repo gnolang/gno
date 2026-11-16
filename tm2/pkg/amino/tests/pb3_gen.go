@@ -10207,7 +10207,7 @@ func (goo *AminoMarshalerStruct3) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 		repr = int32(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -10303,7 +10303,7 @@ func (goo *AminoMarshalerInt5) UnmarshalBinary2(cdc *amino.Codec, bz []byte, any
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -10458,7 +10458,7 @@ func (goo *AminoMarshalerStruct7) UnmarshalBinary2(cdc *amino.Codec, bz []byte, 
 		}
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after packed-slice repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -10513,7 +10513,7 @@ func (goo *ReprElem7) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 		repr = uint8(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -10562,7 +10562,7 @@ func (goo *IntDef) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 		repr = IntDef(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = IntDef(repr)
 	return nil
@@ -10658,7 +10658,7 @@ func (goo *IntSl) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 		}
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after packed-slice repr", len(bz))
 	}
 	*goo = IntSl(repr)
 	return nil
@@ -10744,7 +10744,7 @@ func (goo *ByteSl) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 		}
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after packed-slice repr", len(bz))
 	}
 	*goo = ByteSl(repr)
 	return nil
@@ -16559,7 +16559,7 @@ func (goo *EmptyReprOnZero) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -18303,7 +18303,7 @@ func (goo *SimpleAddress) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -18363,7 +18363,7 @@ func (goo *HostRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int)
 		}
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after packed-slice repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after packed-slice repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -18418,7 +18418,7 @@ func (goo *CounterRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		repr = uint8(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -18637,7 +18637,7 @@ func (goo *StructWithStringRepr) UnmarshalBinary2(cdc *amino.Codec, bz []byte, a
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }

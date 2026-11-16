@@ -184,8 +184,8 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 
 // MemPackage.Type and Info are `any`, and some registered types cost far more
 // to re-encode than to decode, so ValidateBasic must refuse them before runTx's
-// canonical check. These bytes are non-canonical (1e000009 re-encodes as
-// 1000000000), so a decode error here would mean the re-encode ran first.
+// canonical check. These bytes are non-canonical (00000009 re-encodes as 9), so
+// a decode error here would mean the re-encode ran first.
 func TestTxPackageAnyFieldsRefusedBeforeReencode(t *testing.T) {
 	t.Parallel()
 
@@ -199,7 +199,7 @@ func TestTxPackageAnyFieldsRefusedBeforeReencode(t *testing.T) {
 		bz, err := amino.Marshal(std.Tx{Msgs: []std.Msg{vm.MsgAddPackage{Creator: creator, Package: pkg}}})
 		require.NoError(t, err)
 		require.Equal(t, 1, bytes.Count(bz, []byte("12345678")), name)
-		bz = bytes.Replace(bz, []byte("12345678"), []byte("1e000009"), 1)
+		bz = bytes.Replace(bz, []byte("12345678"), []byte("00000009"), 1)
 		require.ErrorContains(t, amino.UnmarshalCanonical(bz, new(std.Tx)), "non-canonical encoding", name)
 
 		check := app.CheckTx(abci.RequestCheckTx{Tx: bz})

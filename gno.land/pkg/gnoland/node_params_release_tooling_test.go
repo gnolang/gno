@@ -192,7 +192,11 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			// The same thing in make syntax.
 			makeExpr = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
 		)
-		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
+		// The internal fork drops the upstream-only release workflows
+		// (124be791e), so only check the nightly when it is in this tree.
+		if _, err := os.Stat(filepath.Join("..", "..", "..", filepath.FromSlash(nightly))); !os.IsNotExist(err) {
+			assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
+		}
 		assert.Contains(t, repoFile(t, makefile), makeExpr, "%s computes a different fallback", makefile)
 
 		// goreleaser takes the value from the workflow, never from its dummy tag.
@@ -220,24 +224,25 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		t.Parallel()
 
 		const docker = releaseDockerWorkflow
-		chain, image := repoFile(t, workflow), repoFile(t, docker)
+		chain := repoFile(t, workflow)
+
+		// The internal fork drops release-docker.yml with the other
+		// upstream-only release workflows (124be791e), so its checks run only
+		// when it is in this tree.
+		_, err := os.Stat(filepath.Join("..", "..", "..", filepath.FromSlash(docker)))
+		hasDocker := !os.IsNotExist(err)
+		paths := []string{workflow}
+		if hasDocker {
+			paths = append(paths, docker)
+		}
 
 		// github.ref_name is the tag only when nothing but a tag push can
 		// start the run: a dispatch or a branch push names a branch. The block
 		// ends at the next top-level key, not at a comment line inside it.
-		for _, path := range []string{workflow, docker} {
+		for _, path := range paths {
 			on := grepOne(t, path, `(?ms)^on:\n(.*?)^[^\s#]`)
 			assert.Regexp(t, `\A  push:\n    tags:\n      - ["']?v\*["']?\n+\z`, on, "%s must run on v* tag pushes only", path)
 		}
-
-		// A final release is cut on its last candidate's commit, so an image tag
-		// named after the commit would move from the candidate's images to the
-		// final's. Images carry their version tag only: metadata-action's whole
-		// tag list is pinned here, and TestReleasesArePublishedHeld refuses
-		// latest anywhere in the workflow.
-		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
-		assert.Equal(t, "            type=ref,event=tag\n", tags,
-			"%s must tag images by version only, never by commit or as latest", docker)
 
 		// Every line that names TAG other than to expand it, comments aside:
 		// an env key in any YAML style, an assignment, a read, a loop variable
@@ -254,6 +259,20 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			"%s must set TAG once, for every job, to the tag that triggered the run", workflow)
 		assert.True(t, strings.Contains(chain, `if [ "$got" != "$GITHUB_REF_NAME" ]`),
 			"%s must check the binaries against the ref that started the run, not against TAG", workflow)
+
+		if !hasDocker {
+			return
+		}
+		image := repoFile(t, docker)
+
+		// A final release is cut on its last candidate's commit, so an image tag
+		// named after the commit would move from the candidate's images to the
+		// final's. Images carry their version tag only: metadata-action's whole
+		// tag list is pinned here, and TestReleasesArePublishedHeld refuses
+		// latest anywhere in the workflow.
+		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
+		assert.Equal(t, "            type=ref,event=tag\n", tags,
+			"%s must tag images by version only, never by commit or as latest", docker)
 
 		// Every line naming BUILD_VERSION, so a second env scope, a comment
 		// or a bake --set override cannot leave the pinned line inert; and

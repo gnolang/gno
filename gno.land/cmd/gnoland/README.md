@@ -70,7 +70,7 @@ Flags worth knowing on `gnoland start`:
 |------|--------------|
 | `-lazy` | Generate secrets, config, and genesis if missing (local dev only) |
 | `-genesis` | Path to `genesis.json` (default `genesis.json`) |
-| `-chainid` | Chain ID; must match the network's exactly (default `dev`) |
+| `-chainid` | Chain ID; must match the network's exactly (default `dev`). On `dev` and `tendermint_test`, `r/gov/dao` can still be initialized after genesis; on any other ID it must be set up by a genesis transaction |
 | `-data-dir` | Node data directory (default `gnoland-data`) |
 | `-log-level` | `debug`, `info`, `warn`, `error` — **default `debug`**, see above |
 | `-skip-genesis-sig-verification` | Don't panic on genesis txs with invalid signatures |
@@ -100,9 +100,17 @@ network. Set them with `gnoland config set <key> <value>`.
 | `rpc.laddr` | RPC listen address (default `tcp://127.0.0.1:26657`) — keep off the public internet |
 | `mempool.size` | Max transactions held in the mempool |
 | `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
+| `application.query_max_gas` / `application.query_max_alloc` | Gas and allocation (bytes) budget of one free VM query (`vm/qeval`, `vm/qrender`, ...). `0` (default) uses 3e9 gas / 1.5GB. Node-local, not consensus; a public RPC node can lower them |
+| `application.query_timeout` | Wall-clock limit of one free VM query, on top of its gas budget. `0` (default) derives it from `query_max_gas` at 2ns per gas, 6s for the default budget; set it on hardware slower than the gas calibration. A query past it fails with `QueryTimeoutError`. `.app/simulate` and transactions are not limited by it. Node-local, not consensus |
 | `consensus.timeout_commit` | Chain-wide; must match the network |
 | `halt_height` | Stop this node after committing that block. Normally left unset — a network-wide halt is scheduled by governance instead. See [UPGRADES.md](UPGRADES.md) |
 | `skip_upgrade_height` | Bypass both `halt_min_version` startup checks, before and after the halt, while it equals the governance `halt_height`. Set it back to `0` once past the halt. See [UPGRADES.md](UPGRADES.md#restart-gates) |
+
+Every `vm/q*` answer is limited to 1 MiB, envelope included. The renderers
+whose output can outgrow their input (`qeval`, `qfuncs`, `qtype_json` and the
+JSON endpoints) stop at that bound while writing. `qpaths` and `qinertpaths`
+return the leading paths that fit, with no error, so a short listing may be
+incomplete. The others are refused once built.
 
 Networks pin several of these; always start from the `config.toml` in the
 network's deployment directory rather than from the defaults.

@@ -48,22 +48,33 @@ func (m *Machine) doOpAssign() {
 	// exact pricing is wanted, add a per-LHS multi-assign surcharge constant
 	// instead (consensus-breaking, so best batched with other gas changes).
 
-	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.
-	rvs := m.PopValues(len(s.Lhs))
-
-	// The LHS operand frames sit just below, LHS_0 first. Pop the whole region
-	// once and resolve each LHS from its sub-slice in place.
+	// The RHS values sit on top in forward order, the LHS operand frames just
+	// below, LHS_0 first. Both stay on m.Values until the op returns or panics,
+	// so GC run by a Copy or an Assign2 still counts every destination, such as
+	// the map `f()[i]` writes into.
 	//
-	// INVARIANT: lhsOperands (like rvs) is a view into the live m.Values backing
-	// array, so nothing in the loop may push onto m.Values — an append would
-	// overwrite not-yet-resolved frames. resolvePointer and Assign2 run no
-	// bytecode, so they never push; the debug assert below guards regressions.
+	// INVARIANT: the deferred pop assumes the top len(window) slots stay in
+	// place, so no Go helper the op reaches may push to or pop from m.Values;
+	// the conversion below, resolvePointer and Assign2 reach none.
 	total := 0
 	for _, lx := range s.Lhs {
 		total += numStackValuesForPointer(lx)
 	}
-	lhsOperands := m.PopValues(total)
 	stackLen := len(m.Values)
+	window := m.PeekValues(total + len(s.Lhs))
+	lhsOperands, rvs := window[:total], window[total:]
+	defer m.PopValues(len(window))
+
+	// `a, b = f()` where a result differs from its Lhs only by name: convert
+	// it as `a = x` would, before any Lhs is written.
+	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		for i, t := range convs {
+			if t != nil {
+				rvs[i] = rvs[i].Copy(m.Alloc, m.Store)
+				m.convertValue(&rvs[i], t)
+			}
+		}
+	}
 
 	offset := 0
 	for i, lx := range s.Lhs {
@@ -78,7 +89,7 @@ func (m *Machine) doOpAssign() {
 		}
 		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
 		if debug && len(m.Values) != stackLen {
-			panic("doOpAssign: value stack grew mid-loop; lhsOperands/rvs aliases corrupted")
+			panic("doOpAssign: value stack changed mid-loop")
 		}
 	}
 }

@@ -29,33 +29,16 @@ func syskey(module, submodule, name string) string {
 	return module + ":" + submodule + ":" + name
 }
 
-// assertNotValsetKey rejects governance proposals that target the
-// node:valset:* key family. Those keys are reserved for the realm-side
-// gate in r/sys/params/valset.gno (SetValsetProposal) which checks
-// the immediate caller is gno.land/r/sys/validators/v0. Without this
-// guard, a generic NewSysParam*PropRequest("node","valset",...) would
-// let any GovDAO supermajority bypass the v0 authorization and write
-// validator-set state directly.
+// assertNotValsetKey rejects generic proposals on node:valset:*, which only
+// SetValsetProposal in valset.gno may write, for r/sys/validators/v0.
 func assertNotValsetKey(module, submodule string) {
 	if module == "node" && submodule == "valset" {
 		panic("node:valset:* is reserved for r/sys/validators/v0; use it instead of the generic factory")
 	}
 }
 
-// assertNotRunSubmittersKey rejects generic proposals that target
-// vm:p:run_submitters. Same shape as assertNotValsetKey above, and the same
-// reason: the key has a realm-side gate the generic factory would walk past.
-//
-// An empty run_submitters means the MsgRun gate is OFF. So a non-empty list is
-// the chain deciding who may run code, and a list that names nobody able to
-// create a GovDAO proposal cannot be changed back -- creating a proposal needs
-// MsgRun, because a ProposalRequest carries an Executor that MsgCall cannot
-// build from string arguments. The dedicated ProposeSetRunSubmitters in
-// run_submitters.gno refuses that list at proposal-creation time, where a human
-// can still act on the refusal.
-//
-// Reserving the key rather than adding the check to all nine factories keeps
-// the number of ways to write this parameter at one.
+// assertNotRunSubmittersKey rejects generic proposals on vm:p:run_submitters,
+// which only ProposeSetRunSubmitters may set, with its own checks.
 func assertNotRunSubmittersKey(module, submodule, name string) {
 	if module == "vm" && submodule == "p" && name == runSubmittersKey {
 		panic(runSubmittersKey + " is reserved for ProposeSetRunSubmitters in this realm; " +
@@ -92,6 +75,7 @@ func NewSysParamBoolPropRequest(cur realm, module, submodule, name string, value
 }
 
 func NewSysParamBytesPropRequest(cur realm, module, submodule, name string, value []byte) dao.ProposalRequest {
+	value = copyBytes(value)
 	return newPropRequest(cur, module, submodule, name,
 		func() { prms.SetSysParamBytes(module, submodule, name, value) },
 		"",
@@ -99,35 +83,31 @@ func NewSysParamBytesPropRequest(cur realm, module, submodule, name string, valu
 }
 
 func NewSysParamStringsPropRequest(cur realm, module, submodule, name string, value []string) dao.ProposalRequest {
-	return newPropRequest(cur, module, submodule, name,
-		func() { prms.SetSysParamStrings(module, submodule, name, value) },
-		"",
-	)
+	return NewSysParamStringsPropRequestWithTitle(cur, module, submodule, name, "", value)
 }
 
 func NewSysParamStringsPropRequestWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
+	value = copyStrings(value)
 	return newPropRequest(cur, module, submodule, name,
 		func() { prms.SetSysParamStrings(module, submodule, name, value) },
 		title,
 	)
 }
 func NewSysParamStringsPropRequestAddWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
-	return newPropRequest(cur, module, submodule, name,
-		func() { prms.UpdateSysParamStrings(module, submodule, name, value, true) },
-		title,
-	)
+	return newStringsUpdatePropRequest(cur, module, submodule, name, title, value, true)
 }
 func NewSysParamStringsPropRequestRemoveWithTitle(cur realm, module, submodule, name, title string, value []string) dao.ProposalRequest {
+	return newStringsUpdatePropRequest(cur, module, submodule, name, title, value, false)
+}
+func newStringsUpdatePropRequest(cur realm, module, submodule, name, title string, value []string, add bool) dao.ProposalRequest {
+	value = copyStrings(value)
 	return newPropRequest(cur, module, submodule, name,
-		func() { prms.UpdateSysParamStrings(module, submodule, name, value, false) },
+		func() { prms.UpdateSysParamStrings(module, submodule, name, value, add) },
 		title,
 	)
 }
 func newPropRequest(cur realm, module, submodule, name string, fn func(), title string) dao.ProposalRequest {
-	// The reserved-key checks live here rather than in each factory. Every
-	// generic factory returns through this one function, so a factory added
-	// later cannot forget them. The dedicated setters for those keys build their
-	// own request and never come here, which is what makes them the exception.
+	// Every generic factory goes through here, so none can skip these checks.
 	assertNotValsetKey(module, submodule)
 	assertNotRunSubmittersKey(module, submodule, name)
 
@@ -145,4 +125,24 @@ func newPropRequest(cur realm, module, submodule, name string, fn func(), title 
 	e := dao.NewSimpleExecutor(0, cur, callback, "")
 
 	return dao.NewProposalRequest(title, "This proposal wants to add a new key to sys/params: "+key, e)
+}
+
+// copyBytes returns src in a fresh array this realm owns.
+func copyBytes(src []byte) []byte {
+	if src == nil {
+		return nil
+	}
+	cp := make([]byte, len(src))
+	copy(cp, src)
+	return cp
+}
+
+// copyStrings returns src in a fresh array this realm owns.
+func copyStrings(src []string) []string {
+	if src == nil {
+		return nil
+	}
+	cp := make([]string, len(src))
+	copy(cp, src)
+	return cp
 }

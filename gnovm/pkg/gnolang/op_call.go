@@ -35,6 +35,13 @@ func (m *Machine) doOpPrecall() {
 		if fv.IsLazy() {
 			fn, recv = resolveLazyBound(m, fv)
 		}
+		// A value method runs on a copy of its receiver. A method value bound
+		// before stored children were loaded on copy shares the receiver's
+		// unread children by ref, so copy a real receiver here to keep the
+		// method from writing through them into the stored original. A receiver
+		// bound after that change is already an unloaded-free private copy
+		// (unreal), so this is a no-op for it.
+		recv = m.copyBoundReceiver(fv, recv)
 		m.PushFrameCall(cx, fn, recv, false)
 		m.PushOp(OpCall)
 		isCrossing := fn.IsCrossing()
@@ -104,7 +111,7 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 		prev = *argtv
 	}
 	crlm := NewConcreteRealm(m.Alloc, pkgPath, prev)
-	argtv.Assign(m.Alloc, crlm, false)
+	argtv.Assign(m.Alloc, m.Store, crlm, false)
 	m.LastFrame().Cur = crlm
 }
 
@@ -304,6 +311,22 @@ func (m *Machine) doOpEnterCrossing() {
 	// NOTE: this loop must never exit without setting fr1.DidCrossing or panicking.
 }
 
+// copyBoundReceiver copies the receiver of a stored bound-method value. One
+// bound before nested children were loaded on copy holds its receiver's unread
+// children as refs it shares with the original, so a value method would write
+// through them into the stored original; copying here (the receiver may still
+// be a ref, which Copy loads and duplicates) keeps the write on the copy. A
+// bound-method value bound after that change is in memory (unreal) and already
+// holds a private receiver copy, so this does not fire for it. For a pointer
+// receiver recv holds a pointer, which Copy duplicates shallowly, leaving the
+// pointed-to value shared as Go does.
+func (m *Machine) copyBoundReceiver(bmv *BoundMethodValue, recv TypedValue) TypedValue {
+	if bmv.GetIsReal() {
+		return recv.Copy(m.Alloc, m.Store)
+	}
+	return recv
+}
+
 func (m *Machine) doOpCall() {
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
@@ -311,6 +334,10 @@ func (m *Machine) doOpCall() {
 	fv := fr.Func
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
+	// Charge parameters and captures before acquiring the block, so an
+	// out-of-gas stops before that work. Matches doOpReturnCallDefers.
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
 	b := m.acquireBlock(fs, pb)
@@ -322,13 +349,11 @@ func (m *Machine) doOpCall() {
 			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := range fv.Captures {
-			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc, m.Store)
 		}
 	}
 
 	m.PushBlock(b)
-	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
-		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	m.resolveNativeBody(fv)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
@@ -371,7 +396,14 @@ func (m *Machine) doOpCall() {
 	if !fr.Receiver.IsUndefined() {
 		bft = ft.BoundType()
 	}
-	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	var args []TypedValue
+	if fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+		// len and cap read the length alone, and a copy of a stored array
+		// would load every element for nothing.
+		args = []TypedValue{*m.PopValue()}
+	} else {
+		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
@@ -639,7 +671,20 @@ func (m *Machine) doOpReturnAfterCopy() {
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
 	for i := range numResults {
-		rtv := results[i].Copy(m.Alloc)
+		// The caller reads the results off the value stack, so only a named
+		// result a closure captured outlives the frame and needs writing back.
+		// Copying every result would load the unread children of a stored
+		// aggregate into a slot nobody reads.
+		hiv, ok := fblock.Values[numParams+i].V.(*HeapItemValue)
+		if !ok {
+			continue
+		}
+		// `return r` of the named result r keeps r itself, so a pointer into r
+		// still sees what runs after the return.
+		rtv := results[i]
+		if hiv.Value.V != rtv.V {
+			rtv = rtv.Copy(m.Alloc, m.Store)
+		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
 
@@ -683,11 +728,21 @@ func (m *Machine) doOpReturnToBlock() {
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
-	results := m.PopValues(numResults)
+	results := m.PeekValues(numResults)
 	for i := range numResults {
 		rtv := results[i]
+		dst := &fblock.Values[numParams+i]
+		if hiv, ok := dst.V.(*HeapItemValue); ok {
+			dst = &hiv.Value
+		}
+		// `return r` of the named result r keeps r itself, so pointers
+		// into r still see what the deferred calls write.
+		if dst.V != rtv.V {
+			rtv = rtv.Copy(m.Alloc, m.Store)
+		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
+	m.PopValues(numResults)
 }
 
 func (m *Machine) doOpReturnCallDefers() {
@@ -710,7 +765,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				m.PopFrameAndReturn()
 				// assign exception as return of revive().
 				resx := m.PeekValue(1)
-				resx.Assign(m.Alloc, m.Exception.Value, false)
+				resx.Assign(m.Alloc, m.Store, m.Exception.Value, false)
 				m.Exception = nil // reset
 				return
 			}
@@ -742,6 +797,9 @@ func (m *Machine) doOpReturnCallDefers() {
 		} else {
 			fv, recv = cv.Func, dfr.Args[0]
 		}
+		// Copy a stored receiver so a deferred value method cannot write
+		// through its unread children into the stored original (see doOpPrecall).
+		recv = m.copyBoundReceiver(cv, recv)
 		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
 	default: // nil (deferred a nil func value)
 		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
@@ -750,6 +808,8 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	// Call last deferred call.
 	ft := fv.GetType(m.Store)
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
@@ -767,7 +827,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := range fv.Captures {
-			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc, m.Store)
 		}
 	}
 	m.PushBlock(b)
@@ -880,34 +940,40 @@ func (m *Machine) doOpDefer() {
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
+	dfr := Defer{Source: ds}
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		args := m.popCopyArgs(
+		dfr.Callable = cv
+		dfr.Args = m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{},
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
 		// statement. For a lazy interface bind, dispatch is resolved at the
 		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
 		// for a resolved bind, args[0] holds the copied receiver.
-		args := m.popCopyArgs(
+		dfr.Callable = cv
+		dfr.Args = m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			cv.Receiver,
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
-		cfr.PushDefer(Defer{Source: ds})
+		m.PopValues(numArgs)
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
+	cfr.PushDefer(dfr)
+	// The record and its Args live until the frame returns, but popCopyArgs
+	// and PushDefer allocate them as plain Go memory. Count them after
+	// PushDefer, so a GC triggered by this call already sees them in the frame.
+	m.Alloc.AllocateDefer(int64(len(dfr.Args)))
 	m.PopValue() // pop func
 }
 

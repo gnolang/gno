@@ -89,8 +89,8 @@ func MatchCharsetN(s string, firstLo, firstHi, restLo, restHi uint64, minLen, ma
 // CodeFence returns a string of N backticks where
 // N = max(minCount, longestBacktickRunInContent + 1).
 //
-// minCount < 1 is clamped to 1; never panics. On empty content,
-// returns strings.Repeat("`", max(minCount, 1)).
+// minCount is clamped to between 1 and 1024; never panics. On empty
+// content, returns that many backticks.
 //
 // INTERNAL. Used by p/nt/md/sanitize.CodeFence and moul/md
 // InlineCode / CodeBlock / LanguageCodeBlock bug fixes.

@@ -437,25 +437,26 @@ func (m *Machine) doOpArrayLit() {
 	at := m.PeekValue(1 + ne).V.(TypeValue).Type
 	m.Alloc.checkConstructionTime(at)
 	bt := baseOf(at).(*ArrayType)
-	// construct array value.
-	av := defaultArrayValue(m.Alloc, bt)
+	// construct array value. The elements given are copied in below, and
+	// fillDefaultList writes the rest.
+	av := newArrayValue(m.Alloc, at)
+	al, ad := av.List, av.Data
+	// al is a Go local until av is pushed below; anchor it so the
+	// element copies and defaults are counted as they are made (see
+	// doOpSliceLit). Data arrays hold no TypedValues and are allocated
+	// whole, so they need no anchor.
+	if al != nil {
+		m.Alloc.PushAnchor(al)
+		defer m.Alloc.PopAnchor()
+	}
 	if 0 < ne {
-		al, ad := av.List, av.Data
-		// al is a Go local until av is pushed below; anchor it so the
-		// element copies are counted as they are made (see doOpSliceLit).
-		// Data arrays hold no TypedValues and are allocated whole, so
-		// they need no anchor.
-		if al != nil {
-			m.Alloc.PushAnchor(al)
-			defer m.Alloc.PopAnchor()
-		}
 		vs := m.PopValues(ne)
 		set := make([]bool, bt.Len)
 		var idx int64
 		for i, v := range vs {
 			if kx := x.Elts[i].Key; kx != nil {
-				// XXX why convert?
-				k := kx.(*ConstExpr).ConvertGetInt()
+				// preprocess converted every key to an int ConstExpr.
+				k := kx.(*ConstExpr).GetInt()
 				if set[k] {
 					// array index has already been assigned
 					panic(fmt.Sprintf("duplicate index %d in array or slice literal", k))
@@ -464,7 +465,7 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[k] = v.GetUint8()
 				} else {
-					al[k] = v.Copy(m.Alloc)
+					al[k] = v.Copy(m.Alloc, m.Store)
 				}
 				idx = k + 1
 			} else {
@@ -476,11 +477,14 @@ func (m *Machine) doOpArrayLit() {
 				if al == nil {
 					ad[idx] = v.GetUint8()
 				} else {
-					al[idx] = v.Copy(m.Alloc)
+					al[idx] = v.Copy(m.Alloc, m.Store)
 				}
 				idx++
 			}
 		}
+	}
+	if al != nil {
+		fillDefaultList(m.Alloc, al, bt.Elt, getDeclaredPkgID(at))
 	}
 	// pop array type.
 	if debug {
@@ -597,7 +601,7 @@ func (m *Machine) doOpSliceLit2() {
 				// slice index has already been assigned
 				panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
 			}
-			es[idx] = vtv.Copy(m.Alloc)
+			es[idx] = vtv.Copy(m.Alloc, m.Store)
 		}
 		// fill in empty values.
 		ste := st.Elem()
@@ -647,10 +651,10 @@ func (m *Machine) doOpMapLit() {
 		// TODO: future optimization
 		// omitType := baseOf(mt).Elem().Kind() != InterfaceKind
 		for i := range ne {
-			ktv := kvs[i*2].Copy(m.Alloc)
+			ktv := kvs[i*2].Copy(m.Alloc, m.Store)
 			vtv := kvs[i*2+1]
 			ptr := mv.GetPointerForKey(m.Alloc, m.GasMeter, m.Store, ktv)
-			*ptr.TV = vtv.Copy(m.Alloc)
+			*ptr.TV = vtv.Copy(m.Alloc, m.Store)
 		}
 	}
 	// pop map type.
@@ -709,8 +713,8 @@ func (m *Machine) doOpStructLit() {
 		}
 		m.PopCopyValues(fs)
 	} else {
-		// field values are by name and may be out of order.
-		fillDefaultStructFields(m.Alloc, st, fs)
+		// field values are by name and may be out of order; the fields
+		// not named are filled with defaults after.
 		fsset := make([]bool, len(fs))
 		ftvs := m.PopValues(el)
 		for i := range el {
@@ -729,8 +733,9 @@ func (m *Machine) doOpStructLit() {
 				panic(fmt.Sprintf("duplicate field name %s in struct literal", fnx.Name))
 			}
 			fsset[fnx.Path.Index] = true
-			fs[fnx.Path.Index] = ftv.Copy(m.Alloc)
+			fs[fnx.Path.Index] = ftv.Copy(m.Alloc, m.Store)
 		}
+		fillDefaultStructFields(m.Alloc, st, fs)
 	}
 	// construct and push value.
 	m.PopValue() // baseOf() is st
@@ -796,9 +801,17 @@ func (m *Machine) doOpFuncLit() {
 }
 
 func (m *Machine) doOpConvert() {
-	xv := m.PopValue().Copy(m.Alloc)
+	xv := m.PopValue().Copy(m.Alloc, m.Store)
 	t := m.PopValue().GetType()
+	m.convertValue(&xv, t)
+	m.PushValue(xv)
+}
 
+// convertValue converts xv, a copy the caller owns, to t in place. Besides
+// explicit conversions, it applies the implicit named<->unnamed conversion of
+// a multi-value assignment (see ATTR_ASSIGN_CONVERT), so both get the same gas
+// and the same inter-realm checks. It never touches m.Values.
+func (m *Machine) convertValue(xv *TypedValue, t Type) {
 	// Gas based on conversion variant. Both directions allocate and copy,
 	// so they share the same flat cost; []byte→string additionally pays a
 	// per-byte slope below (string→[]byte's copy is covered by alloc gas).
@@ -823,7 +836,7 @@ func (m *Machine) doOpConvert() {
 	// victim authority. Blocking the conversion here (m.IsReadonly is
 	// the cross-realm ownership check) stops the launder before any
 	// method dispatch. See zrealm_launder_g_typepun.gno.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow conversion when xv.T is m.Realm's own
@@ -872,6 +885,5 @@ func (m *Machine) doOpConvert() {
 		}
 	}
 
-	ConvertTo(m.Alloc, m.Store, &xv, t, false)
-	m.PushValue(xv)
+	ConvertTo(m.Alloc, m.Store, xv, t, false)
 }

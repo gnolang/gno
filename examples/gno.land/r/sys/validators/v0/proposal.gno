@@ -13,13 +13,9 @@ import (
 	sysparams "gno.land/r/sys/params"
 )
 
-// ValoperChange is the operator-keyed input shape for the v0 valset
-// proposal builder. Power=0 removes; Power>0 adds (or upserts the
-// power on an op already in the active set — Tendermint's natural
-// ValidatorUpdate semantics).
-//
-// Each operator may appear AT MOST ONCE per proposal; duplicates are
-// rejected at create-time.
+// ValoperChange is one operator's entry in a valset proposal. Power 0 removes;
+// Power > 0 adds, or sets the power of an active operator. Each operator
+// appears at most once per proposal.
 type ValoperChange struct {
 	OperatorAddress address
 	Power           uint64
@@ -34,38 +30,13 @@ func NewValoperChange(operatorAddress address, power uint64) ValoperChange {
 
 const errNoValoperChanges = "no valoper changes proposed"
 
-// NewValidatorProposalRequest builds a GovDAO proposal that, when
-// executed, applies the deltas to the chain's effective valset and
-// publishes the new full set via SetValsetProposal.
+// NewValidatorProposalRequest builds a GovDAO proposal applying changes to the
+// effective valset through SetValsetProposal. Proposers reach it through
+// r/gnops/valopers/proposal.
 //
-// NON-CROSSING (no `cur realm`). Direct MsgCall is unsupported;
-// proposers route through r/gnops/valopers/proposal's facade
-// (which IS crossing and accepts user txs).
-//
-// Validation at creation time:
-//   - Each operator may appear AT MOST ONCE in changes; duplicates
-//     panic. Power changes for an op already in the active set use
-//     a single {op, newPower} entry (upsert), not the legacy
-//     remove/re-add pair.
-//   - Every ValoperChange's OperatorAddress must exist in
-//     valoperCache. Unknown operators panic.
-//   - Adds (Power > 0) require KeepRunning=true. An op that has
-//     called UpdateKeepRunning(false) signals opt-out; no proposal
-//     can keep them in the active set, period.
-//
-// Pubkey resolution at execution time: the executor callback
-// re-reads valoperCache for each entry to capture the CURRENT
-// signing pubkey/address — not the creation-time one. Defends
-// against a stale (now-retired) key publication if the operator
-// rotated while the proposal sat in GovDAO. Also re-checks
-// KeepRunning so an operator flipping to KeepRunning=false between
-// propose-create and propose-execute is honored. Removes are
-// unaffected (operator address is the lookup key, not signing
-// address).
-//
-// Emits ValidatorAdded / ValidatorRemoved events per entry on
-// successful execution. (Power-upsert on an existing op also emits
-// ValidatorAdded with the new power.)
+// At creation every operator must be known to valoperCache, appear once, and
+// have KeepRunning set if added. At execution the signing key and KeepRunning
+// are read again, so a rotation or opt-out during the vote is honored.
 func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
@@ -78,10 +49,13 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 		panic("max number of allowed validators per proposal is 40")
 	}
 
-	// Dedupe: each operator may appear at most once per proposal.
-	// Power changes are now expressed as a single {op, newPower}
-	// upsert entry, so the legacy [{op,0},{op,N}] pair is a duplicate
-	// and rejected.
+	// Snapshot: the caller can still write the array it passed. Copied before
+	// any check, so what is checked, described and executed is one array.
+	owned := make([]ValoperChange, len(changes))
+	copy(owned, changes)
+	changes = owned
+
+	// Each operator at most once; a power change is one upsert entry.
 	seen := map[string]bool{}
 	for _, c := range changes {
 		key := c.OperatorAddress.String()
@@ -91,9 +65,7 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 		seen[key] = true
 	}
 
-	// Creation-time validation: every operator must exist in cache,
-	// and adds require KeepRunning=true. KeepRunning=false is a
-	// binding opt-out; no proposal shape can override it.
+	// Every operator must be known, and an add needs KeepRunning.
 	for _, c := range changes {
 		rawCache := valoperCache.Get(c.OperatorAddress.String())
 		if rawCache == nil {
@@ -105,9 +77,7 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 		}
 	}
 
-	// Render description against creation-time data. Voters see the
-	// operator addresses being proposed; signing addresses are an
-	// implementation detail resolved at exec.
+	// Voters see operator addresses; signing keys resolve at execution.
 	var desc strings.Builder
 	desc.WriteString(description)
 	if len(description) > 0 {
@@ -125,18 +95,8 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 	return dao.NewProposalRequest(title, desc.String(), newValoperChangeExecutor(cur, changes))
 }
 
-// newValoperChangeExecutor builds the GovDAO executor that, on
-// approval, applies the captured ValoperChange deltas. Resolves
-// operator → signing addr/pubkey via valoperCache at execution time
-// for adds (so a mid-flight rotation doesn't publish a stale key).
-// Removes resolve the operator's CURRENT signing address (also via
-// cache) — operator-keyed removes are immune to rotation churn.
-//
-// Power>0 is an upsert against the effective valset map (keyed on
-// signing address): if the op is already present under that signing
-// address, the entry's voting power is overwritten. Tendermint
-// natively handles ValidatorUpdates as upserts, so a single-entry
-// power change is the canonical form.
+// newValoperChangeExecutor applies changes on approval, resolving each
+// operator's current signing key from valoperCache. Power > 0 upserts.
 func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 	callback := func(cur realm) error {
 		baseline := sysparams.GetValsetEffective()
@@ -165,16 +125,12 @@ func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 				continue
 			}
 
-			// Race-safety: operator may have flipped KeepRunning=false
-			// between propose-create and propose-execute. Re-check.
-			// The opt-out is binding regardless of proposal shape.
+			// KeepRunning may have been turned off during the vote.
 			if !entry.KeepRunning {
 				panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false at execution; refusing to add")
 			}
 
-			// Upsert at the current signing address. If the entry was
-			// already present (single-entry power change on an active
-			// validator), this overwrites the prior power.
+			// Upsert at the current signing address.
 			set[entry.SigningAddress] = validators.Validator{
 				Address:     entry.SigningAddress,
 				PubKey:      entry.SigningPubKey,

@@ -3,7 +3,7 @@ name: ci / contribs
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     paths:
       - contribs/**
@@ -13,6 +13,9 @@ on:
       - gnovm/**
       - tm2/**
       - .github/workflows/ci-dir-contribs.yml
+      # The reusable workflow this one calls; see the note in
+      # ci-dir-examples.yml.
+      - .github/workflows/_ci-go.yml
       # *.md is prose, except in the gno source trees where it is valid
       # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns).
       # Order matters: a later positive pattern wins over an earlier negation.

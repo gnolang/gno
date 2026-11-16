@@ -21,7 +21,7 @@ import (
 // MaxEmphasisDelimitersPerBlock caps '*', '_' and '~' delimiter runs pushed
 // onto the delimiter stack within one block. 1000 runs (500 emphasis spans) in
 // a single paragraph is far beyond any real document, while it bounds
-// ProcessDelimiters to O(cap^2) — a 1 MiB input drops from ~34 s to
+// ProcessDelimiters to O(cap^2) — the 1 MiB bomb drops from ~34 s to
 // sub-millisecond.
 const MaxEmphasisDelimitersPerBlock = 1000
 
