@@ -5289,11 +5289,13 @@ func recordRangeConversions(store Store, last BlockNode, n *RangeStmt) {
 	if n.Key != nil && yieldedKeyType != nil {
 		if keyTargetType := evalStaticTypeOf(store, last, n.Key); needsAssignConversion(yieldedKeyType, keyTargetType) {
 			n.Key.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{keyTargetType})
+			n.converts = true
 		}
 	}
 	if n.Value != nil && yieldedValueType != nil {
 		if valueTargetType := evalStaticTypeOf(store, last, n.Value); needsAssignConversion(yieldedValueType, valueTargetType) {
 			n.Value.SetAttribute(ATTR_ASSIGN_CONVERT, []Type{valueTargetType})
+			n.converts = true
 		}
 	}
 }

@@ -68,6 +68,14 @@ SelectStmt ->
 // for the same reason: it must record the X-only length so that a goto out of
 // the loop body leaves the value stack exactly where a continue does (see
 // PeekFrameAndContinueRange).
+// rangeConverts reports whether the range fr runs may convert its key or
+// value. A frame whose source is not a RangeStmt answers true, so the
+// conversions are looked up rather than skipped.
+func rangeConverts(fr *Frame) bool {
+	rs, ok := fr.Source.(*RangeStmt)
+	return !ok || rs.converts
+}
+
 func (m *Machine) rangeFrame() *Frame {
 	fr := m.LastFrame()
 	if debugAssert {
@@ -253,7 +261,7 @@ func (m *Machine) doOpExec(op Op) {
 			iv := TypedValue{T: IntType}
 			iv.SetInt(int64(bs.ListIndex))
 			hasKey := bs.Key != nil
-			m.assignRangeIteration(bs, hasKey, hasValue, iv, ev, listElement)
+			m.assignRangeIteration(bs, hasKey, hasValue, rangeConverts(fr), iv, ev, listElement)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -432,7 +440,7 @@ func (m *Machine) doOpExec(op Op) {
 			if hasValue {
 				vv = *fillValueTV(m.Store, &next.Value)
 			}
-			m.assignRangeIteration(bs, hasKey, hasValue, kv, vv, mapEntry)
+			m.assignRangeIteration(bs, hasKey, hasValue, rangeConverts(fr), kv, vv, mapEntry)
 			bs.NextBodyIndex++
 			fallthrough
 		default:

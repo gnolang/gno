@@ -552,10 +552,12 @@ the entry side:
 Finalization does not occur for non-crossing calls within the same
 storage-context (which don't cross a boundary).
 
-## 8. Conversion Guards (`doOpConvert`)
+## 8. Conversion Guards (`convertValue`)
 
-The VM's conversion operator (`op_expressions.go doOpConvert`)
-enforces two cross-realm invariants:
+The VM's conversions (`op_expressions.go convertValue`) enforce two
+cross-realm invariants. `T(x)` reaches them, and so do the implicit
+conversions of `a, b = f()`, `var a, b T = f()`, `return f()`,
+`g(f())`, comma-ok and range assignments:
 
 ### 8.1 Case 1 — Refuse foreign-readonly source
 
@@ -621,7 +623,7 @@ explicit `revive()` frames can catch a cross-boundary panic. Regular
 `makeUnhandledPanicError`.
 
 This means the readonly check, the construction-time check, and
-Case 1 of doOpConvert are all "transaction-fatal" defenses when
+Case 1 of convertValue are all "transaction-fatal" defenses when
 they fire across a realm boundary — there is no half-mutated state
 to clean up, and the attacker cannot recover-and-retry under a
 different guise.
@@ -776,7 +778,7 @@ completes the `/p/`'s realm is frozen.
 - Construction-time check: `gnovm/pkg/gnolang/alloc.go`
   checkConstructionTime
 - Conversion guards: `gnovm/pkg/gnolang/op_expressions.go`
-  doOpConvert (Case 1 and Case 2)
+  convertValue (Case 1 and Case 2)
 - Readonly check: `gnovm/pkg/gnolang/machine.go` IsReadonly,
   PopAsPointer2
 - Cross-realm panic abort:

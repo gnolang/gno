@@ -922,6 +922,10 @@ type RangeStmt struct {
 	IsMap      bool // if X is map type
 	IsString   bool // if X is string type
 	IsArrayPtr bool // if X is array-pointer type
+	// converts is set by preprocess when Key or Value records a conversion,
+	// so an iteration of the many loops that record none skips looking them
+	// up. Not persisted, as Attributes are not.
+	converts bool
 }
 
 type ReturnStmt struct {

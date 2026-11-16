@@ -794,16 +794,17 @@ const (
 
 // assignRangeIteration writes one loop turn's key and value into the loop
 // variables. It converts both before writing either, so a refused conversion
-// writes neither.
-func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key, value TypedValue, source rangeSource) {
+// writes neither. converts is false when preprocess recorded no conversion on
+// the loop's key or value, which spares the lookups.
+func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue, converts bool, key, value TypedValue, source rangeSource) {
 	// Only `=` can need a conversion: `:=` makes variables of the right type.
 	var convertKeyTo, convertValueTo Type
 	keyCanOverwriteValue := false
 	if bs.Op == ASSIGN {
-		if hasKey {
+		if hasKey && converts {
 			convertKeyTo = conversionRecordedOn(bs.Key)
 		}
-		if hasValue {
+		if hasValue && converts {
 			convertValueTo = conversionRecordedOn(bs.Value)
 		}
 		// Writing the key can change what v came from: the element in `for

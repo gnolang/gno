@@ -33,6 +33,18 @@ func main() {
 		println("arrayptr", c.N)
 		break
 	}
+	// Ranging a nil array pointer panics reading the value, before the key
+	// is written, so i keeps -1.
+	i := -1
+	func() {
+		defer func() { recover() }()
+		var p *[2]int
+		var w int
+		for i, w = range p {
+			_ = w
+		}
+	}()
+	println("nilptr", i)
 }
 
 // Output:
@@ -45,3 +57,4 @@ func main() {
 // convert 10
 // convert 0
 // arrayptr 7
+// nilptr -1
