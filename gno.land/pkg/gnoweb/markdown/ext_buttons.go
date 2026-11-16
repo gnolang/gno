@@ -74,14 +74,8 @@ func newButtonLink(t buttonTag) *ast.Link {
 
 	// The raw href goes to the link pipeline, whose resolveDestination
 	// decodes it once, exactly as it decodes a markdown link destination.
-	link := ast.NewLink()
-	link.Destination = bytes.Clone(t.href)
+	link := newRawLabelLink(bytes.Clone(t.href), []byte(label))
 	link.SetAttribute(linkClassAttr, buttonClass(strings.Fields(strings.ToLower(string(t.variant)))))
-
-	// Escaped on output, never parsed as markdown (raw).
-	labelNode := ast.NewString([]byte(label))
-	labelNode.SetRaw(true)
-	link.AppendChild(link, labelNode)
 	return link
 }
 
@@ -211,14 +205,15 @@ var ExtButtons = &buttonExtension{}
 
 // Extend registers the button parsers. Priorities sit just ahead of the
 // goldmark parsers they must pre-empt: raw HTML inline (400) and the HTML
-// block (900). Rendering goes through the link extension.
+// block (900), and ahead of the frame's HTML block wrapper (899). Rendering
+// goes through the link extension.
 func (e *buttonExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
 			util.Prioritized(&buttonParser{}, 399),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(newGnoTagLineParser(buttonTagPrefix), 899),
+			util.Prioritized(newGnoTagLineParser(buttonTagPrefix), 898),
 		),
 	)
 }

@@ -242,10 +242,10 @@ func (w *nodeTextWriter) text(b []byte) {
 	w.buf.Write(b)
 }
 
-var titleCaser = cases.Title(language.AmericanEnglish)
-
+// titleCase builds its Caser per call: a Caser keeps state and is not safe
+// for concurrent use, and pages render concurrently.
 func titleCase(s string) string {
-	return titleCaser.String(s)
+	return cases.Title(language.AmericanEnglish).String(s)
 }
 
 // trimTagLine strips 0-3 leading spaces (CM §4.5 indent tolerance) and

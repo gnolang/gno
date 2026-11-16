@@ -329,13 +329,7 @@ func (m *Machine) doOpCall() {
 	m.PushBlock(b)
 	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
 		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
-	if fv.nativeBody == nil && fv.NativePkg != "" {
-		// native function, unmarshaled so doesn't have nativeBody yet
-		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
-		if fv.nativeBody == nil {
-			panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
-		}
-	}
+	m.resolveNativeBody(fv)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
@@ -397,6 +391,16 @@ func (m *Machine) doOpCall() {
 	// the caller-supplied rlm with a fresh uverse-pkgPath realm and
 	// trip cross's IsCurrent-strict check.
 	m.installInheritedCur(fr, fv, b)
+}
+
+func (m *Machine) resolveNativeBody(fv *FuncValue) {
+	if fv.nativeBody != nil || fv.NativePkg == "" {
+		return
+	}
+	fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
+	if fv.nativeBody == nil {
+		panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
+	}
 }
 
 // installInheritedCur gives a crossing function entered WITHOUT cross() the
@@ -767,6 +771,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		}
 	}
 	m.PushBlock(b)
+	m.resolveNativeBody(fv)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		// Exec body.

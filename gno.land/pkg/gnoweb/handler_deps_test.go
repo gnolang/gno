@@ -164,7 +164,7 @@ func TestHTTPHandler_DepsListsCheckedImporters(t *testing.T) {
 	if strings.Contains(body, `href="/r/demo/mention"`) || strings.Contains(body, `href="/r/demo/gone"`) {
 		t.Error("a candidate the chain does not confirm must not be listed")
 	}
-	if !strings.Contains(body, "last indexed block 77") {
+	if !strings.Contains(body, "Last indexed block 77") {
 		t.Error("the page must state the indexer's freshness")
 	}
 	if !strings.Contains(body, `content="noindex, nofollow"`) || rr.Header().Get("X-Robots-Tag") != "noindex, nofollow" {

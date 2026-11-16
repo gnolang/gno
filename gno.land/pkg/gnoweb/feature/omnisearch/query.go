@@ -64,10 +64,6 @@ type Query struct {
 	// jsonPath marks a query from the omnibar rather than a page navigation,
 	// which is what gates the fan-out selectors.
 	jsonPath bool
-
-	// formAction is the bare path plus `$search`, never the current URL:
-	// `action=""` would re-submit the webargs already in the path.
-	formAction string
 }
 
 // ParseQuery validates and tokenises a raw `q` value. Each qualifier splits
