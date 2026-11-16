@@ -87,7 +87,7 @@ without installing from source:
 docker run -it ghcr.io/gnolang/gno/gnokey:latest --help
 
 # Run a gnoland node: always an explicit version, never `latest`
-docker run -it ghcr.io/gnolang/gno/gnoland:v1.5.1 start
+docker run -it ghcr.io/gnolang/gno/gnoland:v1.7.0 start
 ```
 
 `gnoland` has no `latest` tag on purpose: the version a network runs changes at each coordinated upgrade, and once the upgrade's halt is scheduled a node refuses to start a newer version before the upgrade height. Take the version from the network's upgrade ledger — for mainnet, `UPGRADES.md` in [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).

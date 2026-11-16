@@ -80,6 +80,10 @@ type RPCConfig struct {
 	// 0 - unlimited.
 	MaxBatchRequests int `json:"max_batch_requests" toml:"max_batch_requests" comment:"Maximum number of requests in one JSON-RPC batch, over HTTP or WebSocket.\n A larger batch is refused whole, with a single error response.\n 0 - unlimited."`
 
+	// Whether abci_query serves the paths that run code on the node, such as
+	// ".app/simulate" and "vm/qeval". false refuses them; every other path stays open.
+	AllowCodeExecution bool `json:"allow_code_execution" toml:"allow_code_execution" comment:"Whether abci_query serves the paths that run code on the node, such as\n \".app/simulate\" and \"vm/qeval\". false refuses them; every other path stays open."`
+
 	// The path to a file containing certificate that is used to create the HTTPS server.
 	// Might be either absolute path or path related to tendermint's config directory.
 	//
@@ -117,7 +121,8 @@ func DefaultRPCConfig() *RPCConfig {
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
 
-		MaxBatchRequests: 1000,
+		MaxBatchRequests:   1000,
+		AllowCodeExecution: true,
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",
