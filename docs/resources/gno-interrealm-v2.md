@@ -565,7 +565,7 @@ if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
         xvdt.PkgPath == m.Realm.Path {
         // allow: converting m.Realm's own declared type
     } else {
-        panic("illegal conversion of readonly or externally stored value")
+        m.PanicString("illegal conversion of readonly or externally stored value")
     }
 }
 ```
@@ -581,14 +581,12 @@ source.
 The carve-out for `xv.T.PkgPath == m.Realm.Path` allows legitimate
 conversion of m.Realm's own declared types.
 
-**Implementation note**: Case 1 panics with raw Go `panic(...)`
-rather than `m.Panic(...)`, which means it is **not catchable by
-Gno `defer { recover() }`**. This is an implementation inconsistency
-with the write-time readonly panic (which uses `m.Panic` and is
-catchable). Future cleanup may normalize this; in the meantime,
-realm code cannot recover from conversion panics. See
-`zrealm_launder_rdata_conv_iface_box.gno` for tests confirming the
-recoverability difference.
+**Implementation note**: both cases panic with `m.PanicString`,
+like the write-time readonly panic, so Gno `defer { recover() }`
+catches it inside a call. In a package-level `var` initializer no
+call is on the stack, so nothing recovers it and the transaction
+aborts. See `zrealm_launder_rdata_conv_recover.gno` and
+`zrealm_launder_rdata_conv_recover_pkg.gno`.
 
 ### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
@@ -596,7 +594,7 @@ recoverability difference.
 if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
     isNilPtr := t.Kind() == PointerKind && xv.V == nil
     if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-        panic("illegal conversion to external realm type")
+        m.PanicString("illegal conversion to external realm type")
     }
 }
 ```

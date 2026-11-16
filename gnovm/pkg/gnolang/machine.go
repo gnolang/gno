@@ -1269,6 +1269,7 @@ const (
 	OpReturnAfterCopy     Op = 0x1B // return ... (with named results)
 	OpReturnFromBlock     Op = 0x1C // return results (after defers)
 	OpReturnToBlock       Op = 0x1D // copy results to block (before defer) XXX rename to OpCopyResultsToBlock
+	OpReturnConvert       Op = 0x1E // convert the results of return f() in place
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -1928,6 +1929,9 @@ func (m *Machine) runOnce() (caught *Exception) {
 		case OpReturnToBlock:
 			m.incrCPU(OpCPUReturnToBlock)
 			m.doOpReturnToBlock()
+		case OpReturnConvert:
+			// Each conversion is charged inside convertValue.
+			m.doOpReturnConvert()
 		case OpDefer:
 			m.incrCPU(OpCPUDefer)
 			m.doOpDefer()

@@ -233,44 +233,27 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
-				case DEFINE:
-					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
-				default:
-					panic("should not happen")
-				}
-			}
-			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
+			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			var ev TypedValue
+			if hasValue {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
 					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 					return
 				}
-				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
+				var ok bool
+				ev, ok = xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
 				if !ok {
 					iv := TypedValue{T: IntType}
 					iv.SetInt(int64(bs.ListIndex))
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
-				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
-				default:
-					panic("should not happen")
-				}
 			}
+			iv := TypedValue{T: IntType}
+			iv.SetInt(int64(bs.ListIndex))
+			hasKey := bs.Key != nil
+			m.assignRangeIteration(bs, hasKey, hasValue, iv, ev, listElement)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -440,32 +423,16 @@ func (m *Machine) doOpExec(op Op) {
 			// Nothing reads "_", so a key or value bound to it is neither
 			// loaded nor copied; a list range above skips a blank value the
 			// same way.
-			if bs.Key != nil && !isBlankIdentifier(bs.Key) {
-				kv := *fillValueTV(m.Store, &next.Key)
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
-				case DEFINE:
-					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, m.Store, kv, false)
-				default:
-					panic("should not happen")
-				}
+			hasKey := bs.Key != nil && !isBlankIdentifier(bs.Key)
+			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			var kv, vv TypedValue
+			if hasKey {
+				kv = *fillValueTV(m.Store, &next.Key)
 			}
-			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
-				vv := *fillValueTV(m.Store, &next.Value)
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
-				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, m.Store, vv, false)
-				default:
-					panic("should not happen")
-				}
+			if hasValue {
+				vv = *fillValueTV(m.Store, &next.Value)
 			}
+			m.assignRangeIteration(bs, hasKey, hasValue, kv, vv, mapEntry)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -662,6 +629,13 @@ EXEC_SWITCH:
 			} else {
 				m.PushOp(OpReturn)
 			}
+		}
+		// For `return f()`, convert f's results before the return reads them.
+		// Only `return f()` carries ATTR_ASSIGN_CONVERT, so other returns
+		// skip the lookup.
+		if len(cs.Results) == 1 && len(ft.Results) > 1 && cs.GetAttribute(ATTR_ASSIGN_CONVERT) != nil {
+			m.PushStmt(cs)
+			m.PushOp(OpReturnConvert)
 		}
 		// Evaluate results in order, if any.
 		for i := len(cs.Results) - 1; 0 <= i; i-- {

@@ -8,6 +8,8 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
+	// Convert now, while m.Realm is still the caller's: the call may change it.
+	m.convertResultsPassedAsArgs(cx)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
 		m.Panic(typedRuntimeError("runtime error: call of nil function"))
@@ -745,6 +747,143 @@ func (m *Machine) doOpReturnToBlock() {
 	m.PopValues(numResults)
 }
 
+// doOpReturnConvert converts the results of `return f()` to the types the
+// function declares, so convertValue's realm checks run on them, as on T(x).
+func (m *Machine) doOpReturnConvert() {
+	s := m.PopStmt().(*ReturnStmt)
+	m.convertTopValues(s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type))
+}
+
+// convertResultsPassedAsArgs converts f's results in `g(f())` to g's parameter
+// types, so convertValue's realm checks run on them, as on T(x).
+func (m *Machine) convertResultsPassedAsArgs(cx *CallExpr) {
+	// One argument expression for several arguments is g(f()), the only call
+	// that carries ATTR_ASSIGN_CONVERT, so other calls skip the lookup.
+	if len(cx.Args) == 1 && cx.NumArgs > 1 {
+		if convertTo, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+			m.convertTopValues(convertTo)
+		}
+	}
+}
+
+// convertTopValues converts each of the last values on the stack to its entry
+// in convertTo, skipping nil entries, in place so the GC still sees them.
+func (m *Machine) convertTopValues(convertTo []Type) {
+	values := m.PeekValues(len(convertTo))
+	for i, targetType := range convertTo {
+		if targetType != nil {
+			m.copyAndConvert(&values[i], targetType)
+		}
+	}
+}
+
+// copyAndConvert replaces *tv with a converted copy, as T(x) does, so a later
+// write to the original does not show through.
+func (m *Machine) copyAndConvert(tv *TypedValue, targetType Type) {
+	*tv = tv.Copy(m.Alloc, m.Store)
+	m.convertValue(tv, targetType)
+}
+
+// rangeSource says what a range loop goes over.
+type rangeSource int
+
+const (
+	listElement rangeSource = iota // a slice or an array
+	mapEntry                       // a map
+)
+
+// assignRangeIteration writes one loop turn's key and value into the loop
+// variables. It converts both before writing either, so a refused conversion
+// writes neither.
+func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue bool, key, value TypedValue, source rangeSource) {
+	// Only `=` can need a conversion: `:=` makes variables of the right type.
+	var convertKeyTo, convertValueTo Type
+	keyCanOverwriteValue := false
+	if bs.Op == ASSIGN {
+		if hasKey {
+			convertKeyTo = conversionRecordedOn(bs.Key)
+		}
+		if hasValue {
+			convertValueTo = conversionRecordedOn(bs.Value)
+		}
+		// Writing the key can change what v came from: the element in `for
+		// s[1].N, v = range s`, the map entry in `for m[k], v = range m`. Not
+		// when the key is a plain variable, or v a number, a bool or a nil.
+		_, keyIsName := bs.Key.(*NameExpr)
+		keyCanOverwriteValue = hasValue && bs.Key != nil && !keyIsName && value.V != nil
+	}
+	// A copy or a converted value is new and held only in a Go variable the GC
+	// can't see, and so is a map value whose entry the key write replaces:
+	// anchor them until the loop variables hold them.
+	var anchored []TypedValue
+	if convertKeyTo != nil || convertValueTo != nil || keyCanOverwriteValue {
+		switch source {
+		case listElement: // the key is an int, which never converts
+			anchored = make([]TypedValue, 1)
+			m.Alloc.PushAnchor(anchored)
+			// copyAndConvert copies too, so copy here only when nothing converts.
+			if convertValueTo == nil && keyCanOverwriteValue {
+				value = value.Copy(m.Alloc, m.Store)
+			}
+			anchored[0] = value
+			if convertValueTo != nil {
+				m.copyAndConvert(&anchored[0], convertValueTo)
+			}
+			value = anchored[0]
+		case mapEntry:
+			anchored = make([]TypedValue, 2)
+			m.Alloc.PushAnchor(anchored)
+			anchored[0] = key
+			if convertKeyTo != nil {
+				m.copyAndConvert(&anchored[0], convertKeyTo)
+			}
+			anchored[1] = value
+			if convertValueTo != nil {
+				m.copyAndConvert(&anchored[1], convertValueTo)
+			}
+			key, value = anchored[0], anchored[1]
+		}
+	}
+	if hasKey {
+		m.assignRangeTarget(bs.Op, bs.Key, key)
+	}
+	if source == mapEntry && anchored != nil {
+		// The key target holds the key now: clear its slot, or a GC during
+		// the value write counts the key twice.
+		anchored[0] = TypedValue{}
+	}
+	if hasValue {
+		m.assignRangeTarget(bs.Op, bs.Value, value)
+	}
+	if anchored != nil {
+		m.Alloc.PopAnchor()
+	}
+}
+
+// assignRangeTarget writes tv into a loop's key or value target, such as v or
+// s[i].
+func (m *Machine) assignRangeTarget(op Word, target Expr, tv TypedValue) {
+	switch op {
+	case ASSIGN:
+		m.PopAsPointer(target).Assign2(m, m.Alloc, m.Store, m.Realm, tv, false)
+	case DEFINE:
+		ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, target.(*NameExpr))
+		ptr.TV.Assign(m.Alloc, m.Store, tv, false)
+	default:
+		panic("should not happen")
+	}
+}
+
+// conversionRecordedOn returns the type a value written to this range key or
+// value converts to, as the preprocessor recorded it, or nil.
+func conversionRecordedOn(target Expr) Type {
+	// recordRangeConversions stores one type here, as a one-element list.
+	if convertTo, ok := target.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		return convertTo[0]
+	}
+	return nil
+}
+
 func (m *Machine) doOpReturnCallDefers() {
 	cfr := m.MustPeekCallFrame(1)
 	dfr, ok := cfr.PopDefer()
@@ -937,6 +1076,9 @@ func (m *Machine) doOpDefer() {
 	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
 	// the deferred call to one of g's results instead of to f.
 	numArgs := ds.Call.NumArgs
+	// A deferred call skips doOpPrecall, so convert here, while m.Realm is
+	// still the deferring realm.
+	m.convertResultsPassedAsArgs(&ds.Call)
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.

@@ -808,8 +808,8 @@ func (m *Machine) doOpConvert() {
 }
 
 // convertValue converts xv, a copy the caller owns, to t in place. Besides
-// explicit conversions, it applies the implicit named<->unnamed conversion of
-// a multi-value assignment (see ATTR_ASSIGN_CONVERT), so both get the same gas
+// explicit conversions, it applies the implicit named<->unnamed conversion the
+// preprocessor records in ATTR_ASSIGN_CONVERT, so both get the same gas
 // and the same inter-realm checks. It never touches m.Values.
 func (m *Machine) convertValue(xv *TypedValue, t Type) {
 	// Gas based on conversion variant. Both directions allocate and copy,
@@ -849,7 +849,7 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 				// Allow conversion from []byte to string
 				// As it does not modify the value stored in the slice.
 			} else {
-				panic("illegal conversion of readonly or externally stored value")
+				m.PanicString("illegal conversion of readonly or externally stored value")
 			}
 		}
 	}
@@ -862,7 +862,7 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 		// A nil pointer points at nothing, so it forges nothing.
 		isNilPtr := t.Kind() == PointerKind && xv.V == nil
 		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-			panic("illegal conversion to external realm type")
+			m.PanicString("illegal conversion to external realm type")
 		}
 	}
 

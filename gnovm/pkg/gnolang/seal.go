@@ -185,8 +185,8 @@ func (s *sealer) sealExprTypes(n Node) {
 	if t, ok := n.GetAttribute(ATTR_TYPEOF_VALUE).(Type); ok {
 		s.sealType(t)
 	}
-	// doOpAssign and doOpValueDecl convert to these at run time (sealType
-	// skips the nils).
+	// The VM converts values to these types at run time; sealType skips the
+	// nil entries.
 	if ts, ok := n.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
 		for _, t := range ts {
 			s.sealType(t)
