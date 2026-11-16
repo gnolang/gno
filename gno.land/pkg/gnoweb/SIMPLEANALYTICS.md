@@ -32,7 +32,7 @@ scripts cannot start loading until the metadata and overwriter are set).
 | Key | Source | Cardinality |
 |---|---|---|
 | `schema_version` | constant in `sa-bootstrap.ts` | 1 (bump on incompatible taxonomy / metadata change) |
-| `page_type` | `components.ClassifyPageType(mode, view)` | 14: home, user, pure, realm, source, help, directory, deps, status, redirect, run, playground, explorer, other |
+| `page_type` | `components.ClassifyPageType(mode, view)` | 15: home, user, pure, realm, source, help, directory, deps, status, redirect, run, playground, docs, explorer, other |
 | `chain_id` | `cfg.ChainID` (env constant) | low (one per deployment) |
 
 ## Path sanitization
@@ -117,7 +117,6 @@ Two layers fire in parallel.
 
 | target | URL pattern |
 |---|---|
-| `docs` | docs.gno.land |
 | `faucet` | faucet.gno.land |
 | `status` | status.gno.land |
 | `github` | github.com/gnolang/* |

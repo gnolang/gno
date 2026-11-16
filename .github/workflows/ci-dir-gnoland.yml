@@ -10,6 +10,7 @@ on:
       - gnovm/**
       - tm2/**
       - examples/**
+      - docs/**
       - go.mod
       - .github/workflows/ci-dir-gnoland.yml
       # TestReleaseToolingMatchesTheParser in gno.land/pkg/gnoland holds the
@@ -24,6 +25,9 @@ on:
       - '!**/*.md'
       - examples/**/*.md
       - gnovm/stdlibs/**/*.md
+      # docs/ is embedded in gnoweb, whose tests assert on the doc prose
+      # (link targets, admonitions, the README-derived sidebar).
+      - docs/**/*.md
       # gno.land/pkg/upgrades validates every misc/deployments/*/upgrades.json
       # and checks its rendered UPGRADES.md, and TestReleaseToolingMatchesTheParser
       # pins the off-tag version shape of the build files.

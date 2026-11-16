@@ -1027,8 +1027,8 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 
 // isAliasTarget reports whether one of this gnoweb's own aliases points at
 // path. The operator published it on purpose, so the gate below must not 404 a
-// URL gnoweb itself advertises: "/docs" maps to "/u/docs", and `docs` is
-// neither a registered user nor a namespace holding a package.
+// URL gnoweb itself advertises: an operator alias such as "/team" -> "/u/team"
+// may name neither a registered user nor a namespace holding a package.
 func (h *HTTPHandler) isAliasTarget(path string) bool {
 	for _, target := range h.Aliases {
 		if target.Kind == GnowebPath && target.Value == path {
@@ -1667,7 +1667,7 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	}
 	// An alias's target, asked for by its own path, is the alias's page:
 	// /r/gnoland/home is /, so both name /. It is looked up once args are
-	// dropped, so /u/docs:x names /docs as /u/docs does.
+	// dropped, so with "/team" -> "/u/team", /u/team:x names /team as /u/team does.
 	if alias, ok := h.policy.aliasFor(&u); ok {
 		return h.Static.CanonicalOrigin + alias
 	}
