@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	abcicli "github.com/gnolang/gno/tm2/pkg/bft/abci/client"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/meminfo"
 )
 
 // gateApp is an application whose Query blocks until released. It turns the
@@ -85,9 +87,9 @@ func fire(t *testing.T, client interface {
 func TestReadOnlyClientAdmitsConcurrentQueries(t *testing.T) {
 	t.Parallel()
 
-	// The bound is GOMAXPROCS, so ask for exactly that many rather than a
+	// Ask for exactly the limit the connection starts at, rather than a
 	// number that happens to fit on this machine.
-	callers := maxConcurrentQueries()
+	callers := min(runtime.GOMAXPROCS(0), queryLimiterFloor)
 	if callers < 2 {
 		t.Skip("GOMAXPROCS is 1: this machine cannot run two queries at once")
 	}
@@ -234,7 +236,7 @@ func TestConsensusAndQueryConnectionsDoNotContend(t *testing.T) {
 }
 
 // TestQueryLimiterNeverZeroCapacity pins that a non-positive bound cannot
-// produce a zero-capacity channel, which would deadlock on first Lock. There is
+// produce a zero limit, which would deadlock on first Lock. There is
 // no unbounded mode: a bound that cannot be expressed defaults to one slot.
 func TestQueryLimiterNeverZeroCapacity(t *testing.T) {
 	t.Parallel()
@@ -244,4 +246,116 @@ func TestQueryLimiterNeverZeroCapacity(t *testing.T) {
 		l.Lock()
 		l.Unlock()
 	}
+}
+
+// TestQueryLimiterResize pins how the limit follows memory: up only while
+// saturated with the reserve plus queryMemMargin free, down while the reserve
+// is not, held in between, and never outside [min, max].
+func TestQueryLimiterResize(t *testing.T) {
+	t.Parallel()
+
+	const gib = 1 << 30
+	mem := meminfo.Info{Total: 16 * gib} // reserve 4 GiB; growing needs 5
+	l := newQueryLimiter(2)
+	l.max = 4
+	l.readMem = func() (meminfo.Info, bool) { return mem, true }
+	step := func(avail uint64, running int) int {
+		mem.Available, l.running, l.lastCheck = avail, running, time.Time{}
+		l.resize()
+		return l.limit
+	}
+
+	require.Equal(t, 2, step(8*gib, 1), "a free slot is no reason to grow")
+	require.Equal(t, 3, step(8*gib, 2), "saturated with memory to spare")
+	require.Equal(t, 4, step(5*gib, 3), "the reserve plus the margin is enough")
+	require.Equal(t, 4, step(8*gib, 4), "never past max")
+	require.Equal(t, 4, step(4*gib, 4), "between the thresholds the limit holds")
+	require.Equal(t, 3, step(3*gib, 4), "short of the reserve")
+	require.Equal(t, 2, step(3*gib, 4))
+	require.Equal(t, 2, step(0, 4), "never below min")
+
+	l.limit = 3
+	require.Equal(t, 3, step(5*gib-1, 3), "a byte short of the margin does not grow")
+
+	// Readings are paced: a second one within the interval changes nothing.
+	l.running = 3
+	mem.Available = 8 * gib
+	l.resize()
+	require.Equal(t, 3, l.limit)
+}
+
+// TestQueryLimiterLockGrows pins that a caller arriving at a saturated limiter
+// with memory to spare gets in, rather than waiting for a slot.
+func TestQueryLimiterLockGrows(t *testing.T) {
+	t.Parallel()
+
+	l := newQueryLimiter(1)
+	l.max = 2
+	l.readMem = func() (meminfo.Info, bool) { return meminfo.Info{Total: 16 << 30, Available: 8 << 30}, true }
+
+	l.Lock()
+	l.lastCheck = time.Time{}
+	done := make(chan struct{})
+	go func() { l.Lock(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("second caller blocked although memory allowed a second slot")
+	}
+}
+
+// TestQueryLimiterWaitersGrow pins that callers already queued count towards
+// saturation: a burst that arrives at once still ramps as slots free up, though
+// the reading after each Unlock lands in a waiter that finds a slot free.
+func TestQueryLimiterWaitersGrow(t *testing.T) {
+	t.Parallel()
+
+	l := newQueryLimiter(1)
+	l.max = 3
+	l.readMem = func() (meminfo.Info, bool) { return meminfo.Info{Total: 16 << 30, Available: 8 << 30}, true }
+
+	// Read while nothing runs, so the burst below meets a paced limiter.
+	l.Lock()
+	var admitted atomic.Int64
+	for range 3 {
+		go func() { l.Lock(); admitted.Add(1) }()
+	}
+	require.Eventually(t, func() bool {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		return l.waiting == 3
+	}, 5*time.Second, time.Millisecond)
+
+	l.mu.Lock()
+	l.lastCheck = time.Time{}
+	l.mu.Unlock()
+	// The woken waiter takes the freed slot, grows the limit to 2 for the two
+	// still queued, and wakes one of them for it.
+	l.Unlock()
+	require.Eventually(t, func() bool { return admitted.Load() == 2 }, 5*time.Second, time.Millisecond,
+		"the limit stayed at 1 with callers queued and memory to spare")
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	require.Equal(t, 2, l.limit)
+}
+
+// TestNewMemoryQueryLimiter pins the bounds the connection is built with: a
+// ramp from the floor to GOMAXPROCS where memory can be read, and GOMAXPROCS
+// fixed where it cannot.
+func TestNewMemoryQueryLimiter(t *testing.T) {
+	t.Parallel()
+
+	most := runtime.GOMAXPROCS(0)
+
+	unreadable := newMemoryQueryLimiter(func() (meminfo.Info, bool) { return meminfo.Info{}, false })
+	require.Equal(t, most, unreadable.limit, "no reading: the cores are the bound")
+	require.Equal(t, most, unreadable.min)
+	require.Equal(t, most, unreadable.max)
+
+	readable := newMemoryQueryLimiter(func() (meminfo.Info, bool) { return meminfo.Info{Total: 1, Available: 1}, true })
+	floor := min(most, queryLimiterFloor)
+	require.Equal(t, floor, readable.limit, "starts at the floor")
+	require.Equal(t, floor, readable.min)
+	require.Equal(t, most, readable.max)
+	require.Equal(t, floor < most, readable.readMem != nil, "reads memory only when there is room to ramp")
 }

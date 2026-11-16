@@ -1,11 +1,12 @@
 // This file is not from upstream go-toml: it is the regression suite for the
-// resource bounds this fork adds (maxNestingDepth, maxKeyDepth, and the O(1)
-// duplicate-table check). See README.md.
+// resource bounds this fork adds (maxNestingDepth, maxKeyDepth, the O(1)
+// duplicate-table check, and the type-mismatch text). See README.md.
 
 package toml
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -125,6 +126,52 @@ func TestBoundsTableCountIsLinear(t *testing.T) {
 	}
 	if _, err := Load(b.String()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A type mismatch names a table or an array by its Go type. Each inline-table
+// level adds up to maxKeyDepth tree levels, so these bodies fit in 4KB and
+// rendering the deep value into the message allocated about 60MB. Not parallel:
+// the test reads the process-wide allocation counter.
+func TestBoundsMismatchErrorOmitsValue(t *testing.T) {
+	type doc struct {
+		Scalar string `toml:"scalar"`
+	}
+
+	const (
+		levels   = 120
+		maxAlloc = 16 << 20
+	)
+	deep := strings.Repeat("{"+strings.Repeat("k.", maxKeyDepth-1)+"k=", levels) +
+		"1" + strings.Repeat("}", levels)
+
+	for _, tc := range []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{"table into a scalar", "scalar = " + deep, "Can't convert *toml.Tree to string"},
+		{"table array into a scalar", "scalar = [" + deep + "]", "Can't convert []*toml.Tree to string"},
+		{"mixed array into a scalar", "scalar = [1," + deep + "]", "Can't convert []interface {} to string"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			err := Unmarshal([]byte(tc.body), &doc{})
+			runtime.ReadMemStats(&after)
+
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("got %.200v, want error containing %q", err, tc.wantErr)
+			}
+			if got := after.TotalAlloc - before.TotalAlloc; got > maxAlloc {
+				t.Fatalf("decode allocated %d bytes, want at most %d", got, maxAlloc)
+			}
+		})
+	}
+
+	// The same tree under a key no field reads decodes.
+	if err := Unmarshal([]byte("other = "+deep), &doc{}); err != nil {
+		t.Fatalf("a deep table under an unread key: %.200v", err)
 	}
 }
 
