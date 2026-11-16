@@ -148,7 +148,9 @@ func ResolveTypeID(t gno.Type) string {
 
 // ClampSliceWindow returns a safe [offset:end] window into a backing list of
 // the given length, guarding against chain-supplied negative or out-of-range
-// Offset/Length and against offset+length overflow.
+// Offset/Length and against offset+length overflow. listLen must be >= 0,
+// as from len(); a negative listLen is not guarded and yields a window that
+// would panic when sliced.
 func ClampSliceWindow(offset, length, listLen int) (int, int) {
 	if offset < 0 {
 		offset = 0
