@@ -13,6 +13,9 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -293,3 +296,60 @@ func (m stubMsg) Type() string                 { return m.typ }
 func (m stubMsg) ValidateBasic() error         { return nil }
 func (m stubMsg) GetSignBytes() []byte         { return nil }
 func (m stubMsg) GetSigners() []crypto.Address { return nil }
+
+func TestBuildSimulationTxBytesBlanksSignatures(t *testing.T) {
+	k1, k2, k3 := secp256k1.GenPrivKey(), secp256k1.GenPrivKey(), secp256k1.GenPrivKey()
+	sign := func(k crypto.PrivKey) []byte {
+		sig, err := k.Sign([]byte("doc"))
+		require.NoError(t, err)
+		return sig
+	}
+
+	// 2-of-2 whose second constituent is itself a 1-of-2.
+	innerPubs := []crypto.PubKey{k2.PubKey(), k3.PubKey()}
+	inner := multisig.NewPubKeyMultisigThreshold(1, innerPubs)
+	innerSig := multisig.NewMultisig(2)
+	require.NoError(t, innerSig.AddSignatureFromPubKey(sign(k3), k3.PubKey(), innerPubs))
+	outerPubs := []crypto.PubKey{k1.PubKey(), inner}
+	outer := multisig.NewPubKeyMultisigThreshold(2, outerPubs)
+	outerSig := multisig.NewMultisig(2)
+	require.NoError(t, outerSig.AddSignatureFromPubKey(sign(k1), k1.PubKey(), outerPubs))
+	require.NoError(t, outerSig.AddSignatureFromPubKey(innerSig.Marshal(), inner, outerPubs))
+
+	session := crypto.AddressFromPreimage([]byte("session"))
+	send := bank.NewMsgSend(k1.PubKey().Address(), k2.PubKey().Address(), std.MustParseCoins("1ugnot"))
+	tx := std.Tx{
+		Msgs: []std.Msg{send},
+		Fee:  std.Fee{GasWanted: 10},
+		Signatures: []std.Signature{
+			{PubKey: k1.PubKey(), Signature: sign(k1), SessionAddr: session},
+			{PubKey: outer, Signature: outerSig.Marshal()},
+		},
+	}
+	orig := amino.MustMarshal(&tx)
+
+	for _, maxGas := range []int64{0, 25} {
+		simBz, rewritten, err := buildSimulationTxBytes(&tx, orig, maxGas)
+		require.NoError(t, err)
+		require.Equal(t, maxGas != 0, rewritten, "rewritten reports the GasWanted change only")
+		require.Equal(t, orig, amino.MustMarshal(&tx), "tx itself is untouched")
+
+		var sim std.Tx
+		require.NoError(t, amino.Unmarshal(simBz, &sim))
+		if maxGas == 0 {
+			require.Len(t, simBz, len(orig), "same size, same txSize gas")
+		}
+
+		require.Equal(t, tx.Signatures[0].PubKey, sim.Signatures[0].PubKey)
+		require.Equal(t, session, sim.Signatures[0].SessionAddr)
+		require.Equal(t, make([]byte, 64), sim.Signatures[0].Signature)
+
+		var ms, nested multisig.Multisignature
+		require.NoError(t, amino.Unmarshal(sim.Signatures[1].Signature, &ms))
+		require.Len(t, ms.Sigs, 2)
+		require.Equal(t, make([]byte, 64), ms.Sigs[0])
+		require.NoError(t, amino.Unmarshal(ms.Sigs[1], &nested), "nested multisig keeps its shape")
+		require.Len(t, nested.Sigs, 1)
+		require.Equal(t, make([]byte, 64), nested.Sigs[0])
+	}
+}

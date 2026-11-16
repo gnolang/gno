@@ -153,7 +153,7 @@ func TestServeGenesis_PeakHeapBound(t *testing.T) {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -208,7 +208,7 @@ func TestServeGenesis_ConcurrentPeakHeapBound(t *testing.T) {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -263,6 +263,66 @@ func TestServeGenesis_ConcurrentPeakHeapBound(t *testing.T) {
 	const bound = 250 * 1024 * 1024
 	require.Less(t, delta, uint64(bound),
 		"concurrent /genesis (×%d) peak heap delta %d B exceeds bound %d B — streaming path may be buffering per request",
+		concurrency, delta, bound)
+}
+
+// TestServeGenesis_ConcurrentHeadPeakHeapBound sends simultaneous HEAD requests
+// to the writer of a streamed result. net/http discards a HEAD body without
+// sending it, so no client read holds a stream back: a HEAD that streams reads
+// the whole cache at disk speed, and the concurrent requests pile up its
+// allocations.
+func TestServeGenesis_ConcurrentHeadPeakHeapBound(t *testing.T) {
+	src := requireRealFixture(t)
+
+	cacheRoot := t.TempDir()
+	doc, err := LoadStreamingGenesisDoc(src, cacheRoot, nil)
+	require.NoError(t, err)
+
+	res := &rpccore.ResultGenesis{Genesis: doc}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := rs.WriteStreamingRPCResponseHTTP(r, w, rpctypes.JSONRPCStringID(""), res); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer srv.Close()
+
+	const concurrency = 32
+
+	baseline := settledBaseline()
+	stop := peakHeapSampler(2 * time.Millisecond)
+
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	errs := make([]error, concurrency)
+
+	for i := range concurrency {
+		go func(idx int) {
+			defer wg.Done()
+			resp, err := http.Head(srv.URL + "/genesis")
+			if err != nil {
+				errs[idx] = err
+				return
+			}
+			resp.Body.Close()
+			if resp.StatusCode != 200 {
+				errs[idx] = io.EOF
+			}
+		}(i)
+	}
+	wg.Wait()
+	peak := stop()
+
+	for i, err := range errs {
+		require.NoError(t, err, "concurrent HEAD %d", i)
+	}
+
+	delta := peak - baseline
+	t.Logf("HEAD /genesis ×%d concurrent: baseline=%d peak=%d delta=%d",
+		concurrency, baseline, peak, delta)
+
+	const bound = 50 * 1024 * 1024
+	require.Less(t, delta, uint64(bound),
+		"concurrent HEAD /genesis (×%d) peak heap delta %d B exceeds bound %d B — a HEAD request is streaming the body",
 		concurrency, delta, bound)
 }
 
@@ -323,7 +383,7 @@ func TestServeGenesis_SemanticEquivalenceWithSource(t *testing.T) {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 

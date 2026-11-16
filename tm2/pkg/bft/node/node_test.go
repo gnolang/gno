@@ -3,14 +3,17 @@ package node
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -71,6 +74,42 @@ func TestNodeStartStop(t *testing.T) {
 		fmt.Println(err)
 		t.Fatal("timed out waiting for shutdown")
 	}
+}
+
+// TestNodeRPCBatchLimit verifies that a node started from the default config
+// refuses a batch one call over the default limit, over HTTP and WebSocket.
+func TestNodeRPCBatchLimit(t *testing.T) {
+	config, genesisFile := cfg.ResetTestRoot("node_rpc_batch_limit_test")
+	defer os.RemoveAll(config.RootDir)
+	config.RPC.ListenAddress = "tcp://127.0.0.1:0"
+
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
+	require.NoError(t, err)
+	require.NoError(t, n.Start())
+	defer n.Stop()
+
+	limit := config.RPC.MaxBatchRequests
+	require.Equal(t, 1000, limit)
+	call := `{"jsonrpc":"2.0","method":"health","id":"1"}`
+	batch := "[" + strings.Repeat(call+",", limit) + call + "]"
+	refusal := fmt.Sprintf("batch of %d requests exceeds the limit of %d", limit+1, limit)
+	addr := n.rpcListeners[0].Addr().String()
+
+	resp, err := http.Post("http://"+addr+"/", "application/json", strings.NewReader(batch))
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	assert.Contains(t, string(body), refusal)
+
+	c, _, err := websocket.DefaultDialer.Dial("ws://"+addr+"/websocket", nil)
+	require.NoError(t, err)
+	defer c.Close()
+	require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(batch)))
+	require.NoError(t, c.SetReadDeadline(time.Now().Add(5*time.Second)))
+	_, msg, err := c.ReadMessage()
+	require.NoError(t, err)
+	assert.Contains(t, string(msg), refusal)
 }
 
 // TestDefaultNewNodeWithGenesisProvider verifies that a custom GenesisDocProvider
