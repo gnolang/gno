@@ -82,6 +82,11 @@ func PrimitiveTypeName(pt gno.PrimitiveType) string {
 
 // PrimitiveString formats the bool or numeric value in tv.N as the primitive
 // type pt, for example "true", "-42" or "1.5". For other types, just return tv.String().
+//
+// It panics if pt is not a valid PrimitiveType, because tv.String() does. A
+// pt decoded from an untrusted or newer-version RPC response can be invalid,
+// so callers in that position must recover (as gnoweb does), unlike
+// PrimitiveTypeName, which returns a placeholder for unknown values.
 func PrimitiveString(pt gno.PrimitiveType, tv gno.TypedValue) string {
 	switch pt {
 	case gno.BoolType, gno.UntypedBoolType:
