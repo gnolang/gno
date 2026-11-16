@@ -36,7 +36,7 @@ func main(cur realm) {
 }
 
 // Output:
-// 2
+// 1
 // test123
 // (nil []string)
 // false

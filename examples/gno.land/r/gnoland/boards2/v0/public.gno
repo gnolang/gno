@@ -141,47 +141,41 @@ func CreateBoard(cur realm, name string, listed, open bool) boards.ID {
 
 	caller := cur.Previous().Address()
 	id := gBoardsSequence.Next()
-	args := boards.Args{caller, name, id, listed, open}
+	board := boards.New(id)
+	args := boards.Args{caller, name, board.ID, listed, open}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
 		assertRealmIsNotLocked()
 		assertBoardNameNotExists(name)
-		addBoard(id, caller, name, listed, open)
+
+		board.Name = name
+		board.Creator = caller
+		board.Meta = &BoardMeta{
+			HiddenThreads: boards.NewPostStorage(),
+		}
+
+		if open {
+			board.Permissions = createOpenBoardPermissions(caller)
+		} else {
+			board.Permissions = createBasicBoardPermissions(caller)
+		}
+
+		if err := gBoards.Add(board); err != nil {
+			panic(err)
+		}
+
+		// Listed boards are also indexed separately for easier iteration and pagination
+		if listed {
+			gListedBoardsByID.Set(board.ID.Key(), board)
+		}
+
+		chain.Emit(
+			"BoardCreated",
+			"caller", caller.String(),
+			"boardID", board.ID.String(),
+			"name", name,
+		)
 	})
-	return id
-}
-
-// addBoard creates a board and adds it to the realm storage.
-// It performs no permission or validation checks, so callers are responsible
-// for doing their own.
-func addBoard(id boards.ID, caller address, name string, listed, open bool) {
-	board := boards.New(id)
-	board.Name = name
-	board.Creator = caller
-	board.Meta = &BoardMeta{
-		HiddenThreads: boards.NewPostStorage(),
-	}
-
-	if open {
-		board.Permissions = createOpenBoardPermissions(caller)
-	} else {
-		board.Permissions = createBasicBoardPermissions(caller)
-	}
-
-	if err := gBoards.Add(board); err != nil {
-		panic(err)
-	}
-
-	// Listed boards are also indexed separately for easier iteration and pagination
-	if listed {
-		gListedBoardsByID.Set(board.ID.Key(), board)
-	}
-
-	chain.Emit(
-		"BoardCreated",
-		"caller", caller.String(),
-		"boardID", board.ID.String(),
-		"name", name,
-	)
+	return board.ID
 }
 
 // RenameBoard changes the name of an existing board.

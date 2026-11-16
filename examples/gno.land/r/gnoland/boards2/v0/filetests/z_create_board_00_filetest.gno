@@ -18,4 +18,4 @@ func main(cur realm) {
 }
 
 // Output:
-// ID = 2
+// ID = 1

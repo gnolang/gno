@@ -25,7 +25,6 @@ func main(cur realm) {
 }
 
 // Output:
-// 1 OpenDiscussions
-// 2 aaa123
-// 3 bbb123
-// 4 ccc123
+// 1 aaa123
+// 2 bbb123
+// 3 ccc123
