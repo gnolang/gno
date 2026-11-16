@@ -1,3 +1,12 @@
+// Package utils holds the response types of the vm/*_json ABCI queries and
+// helpers for presenting the decoded gno values.
+//
+// The response types must be decoded with amino.UnmarshalJSON. The keeper
+// encodes them with amino, and their gno.Type and gno.Value interface fields
+// carry amino type tags that encoding/json cannot resolve. Amino rejects
+// unknown fields, so a response from a newer node with an added field fails
+// to decode instead of being partially read, and it can panic on malformed
+// input, so callers decoding bytes from an untrusted node should recover.
 package utils
 
 import (
