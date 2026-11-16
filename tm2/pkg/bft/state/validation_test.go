@@ -2,6 +2,7 @@ package state_test
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -218,4 +219,31 @@ func TestValidateBlockCommit(t *testing.T) {
 		require.NoError(t, err, "height %d", height)
 		wrongPrecommitsCommit = types.NewCommit(blockID, []*types.CommitSig{goodVote.CommitSig(), badVote.CommitSig()})
 	}
+}
+
+func TestValidateBlockRejectsOutOfRangeLastCommitPartsHeaderTotal(t *testing.T) {
+	t.Parallel()
+
+	proxyApp := newTestApp()
+	require.NoError(t, proxyApp.Start())
+	defer proxyApp.Stop()
+
+	state, stateDB, privVals := makeState(2, 1)
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	proposerAddr := state.Validators.GetProposer().Address
+	state, _, lastCommit, err := makeAndCommitGoodBlock(state, 1, types.NewCommit(types.BlockID{}, nil), proposerAddr, blockExec, privVals)
+	require.NoError(t, err)
+
+	block, _ := state.MakeBlock(2, makeTxs(2), lastCommit, proposerAddr)
+	require.NoError(t, state.ValidateBlock(block))
+
+	// A proposer controls its block's LastCommit, and consensus validates the
+	// proposal with ValidateBlock before prevoting.
+	precommits := append([]*types.CommitSig{}, lastCommit.Precommits...)
+	crafted := *precommits[0]
+	maxInt64 := int64(math.MaxInt64)
+	crafted.BlockID.PartsHeader.Total = int(maxInt64)
+	precommits[0] = &crafted
+	block, _ = state.MakeBlock(2, makeTxs(2), types.NewCommit(lastCommit.BlockID, precommits), proposerAddr)
+	require.Error(t, state.ValidateBlock(block))
 }

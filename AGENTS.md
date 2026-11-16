@@ -53,7 +53,8 @@ make fmt                        # Format all code
 
 - After changing anything under `gnovm/stdlibs/`, `gnovm/tests/stdlibs/`, or the
   VM's execution context, always run the Gno example suite before declaring done:
-  - `cd examples && go run ../gnovm/cmd/gno test ./...`
+  - `cd examples && go run ../gnovm/cmd/gno test -p 4 ./...`
+  `-p 4` holds four GnoVM stores (~4 GiB); the default holds one per core.
   Go tests do not cover `.gno` filetests. A change can pass every `go test`
   target below and still leave `examples/` red — stdlib behavior reaches
   filetests through a different path.

@@ -57,3 +57,15 @@ func TestEmphasisGuardBoundsProductionRender(t *testing.T) {
 	n := strings.Count(out.String(), "<em>")
 	require.LessOrEqualf(t, n, md.MaxEmphasisDelimitersPerBlock, "<em> count = %d (emphasis guard not active in production renderer)", n)
 }
+
+// The production renderer loads extension.Strikethrough, whose '~' runs share
+// the emphasis cap: unbounded, they reopen the same quadratic.
+func TestStrikethroughGuardBoundsProductionRender(t *testing.T) {
+	t.Parallel()
+	gm := makeProductionRenderer()
+
+	var out bytes.Buffer
+	require.NoError(t, gm.Convert([]byte(strings.Repeat("*x* ~y~ ", md.MaxEmphasisDelimitersPerBlock*3)), &out))
+	n := strings.Count(out.String(), "<em>") + strings.Count(out.String(), "<del>")
+	require.LessOrEqualf(t, n, md.MaxEmphasisDelimitersPerBlock/2, "<em> + <del> count = %d (strikethrough not counted against the emphasis cap)", n)
+}
