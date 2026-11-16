@@ -440,10 +440,10 @@ func classifyQueryError(qerr error) (string, slog.Level, error) {
 	case errors.Is(qerr, vm.NoRenderDeclError{}):
 		return "render function not declared", slog.LevelWarn, ErrClientRenderNotDeclared
 	case errors.Is(qerr, vm.ExportSizeExceededError{}):
-		// The node refused the query because its response would exceed
-		// maxQueryExportBytes. That is the same "response too large" condition
-		// gnoweb's own maxRPCResponseSize cap reports, so route it to the same
-		// sentinel (state.mapClientError renders it as 502, not a generic 500).
+		// The node refused the query because its response is too large. That
+		// is the same condition gnoweb's own maxRPCResponseSize cap reports, so
+		// route it to the same sentinel (state.mapClientError renders it as 502,
+		// not a generic 500).
 		return "node refused oversized response", slog.LevelWarn,
 			fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
 	case errors.Is(qerr, vm.ExportDepthExceededError{}):
