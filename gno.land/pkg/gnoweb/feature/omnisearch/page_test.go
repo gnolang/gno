@@ -138,6 +138,7 @@ func TestDiscoveryExplainsWhatItWillNotRun(t *testing.T) {
 		"is:foo":       "is:foo is not a kind",
 		"is:realm":     "add a name, such as is:realm wugnot",
 		"is:package":   "add a name, such as is:package avl",
+		"is:realm a":   "at least 2 characters",
 		"author:b":     "at least 2 characters",
 		"is:PACKAGE u": "",
 	} {
@@ -261,12 +262,6 @@ func TestFilterValuesAreAccepted(t *testing.T) {
 	groups, _ := h.Search(context.Background(), mustQuery(t, h, "blog is:user", ""))
 	if len(groups) != 1 || groups[0].Err == nil {
 		t.Errorf("is:user: groups = %+v, want one refusal", groups)
-	}
-	// Picked alone from the bar, a kind says what it still needs, not that
-	// it needs a qualifier.
-	groups, _ = h.Search(context.Background(), mustQuery(t, h, "is:realm", ""))
-	if len(groups) != 1 || groups[0].Err == nil || !strings.Contains(groups[0].Err.Error(), "add a name, such as is:realm wugnot") {
-		t.Errorf("is:realm alone: groups = %+v, want a refusal asking for a name", groups)
 	}
 }
 
