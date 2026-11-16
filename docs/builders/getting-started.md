@@ -371,10 +371,17 @@ every byte of code and state your package adds locks 100ugnot, 318700ugnot for
 the 3187 bytes above.
 
 The testnet enables a new package a few seconds after `addpkg`; if `call`
-fails right after a deploy, wait and retry.
-`https://gpao.latest.testnets.gno.land/status/<pkgpath>` says why a package
-was refused. It only knows packages submitted since its service last
-restarted, so if it still reads `unknown` after a minute, ask on
+fails right after a deploy, wait and retry. `vm/qpkgmeta_json` says where a
+package stands:
+
+```sh
+gnokey query vm/qpkgmeta_json \
+  -data "gno.land/r/<your-g1-addr>/myrealm" \
+  -remote https://rpc.latest.testnets.gno.land:443
+```
+
+It reads `"status":"live"` once the package is enabled, and `"inert"` with a
+`reason` while it waits. If it is still inert after a minute, ask on
 [Discord](https://discord.com/invite/gnoland). Once enabled, the package is
 browsable at
 **`https://latest.testnets.gno.land/r/<your-g1-addr>/myrealm`**.
