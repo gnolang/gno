@@ -81,7 +81,7 @@ func PrimitiveTypeName(pt gno.PrimitiveType) string {
 }
 
 // PrimitiveString formats the bool or numeric value in tv.N as the primitive
-// type pt, for example "true", "-42" or "1.5". For other type, just return tv.String().
+// type pt, for example "true", "-42" or "1.5". For other types, just return tv.String().
 func PrimitiveString(pt gno.PrimitiveType, tv gno.TypedValue) string {
 	switch pt {
 	case gno.BoolType, gno.UntypedBoolType:
