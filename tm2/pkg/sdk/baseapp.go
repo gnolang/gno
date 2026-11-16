@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -754,6 +756,34 @@ func txDecodeFailure(err error) (abci.Error, string) {
 	return ABCIError(std.ErrTxDecode(err.Error())), clipLog(err.Error())
 }
 
+// zeroSessionAddrHint ends the Log of a tx refused as non-canonical when
+// writesZeroSessionAddr says an outdated client wrote it.
+const zeroSessionAddrHint = " (upgrade your client to gno v1.7.1+)"
+
+// writesZeroSessionAddr reports whether bz writes each of sigs' session
+// address out as the zero address, the way Go clients built before
+// gnolang/gno#6399 wrote every master-key signature: field 3 of the
+// signature, holding the zero address's bech32 string. The canonical encoding
+// leaves a zero session address out. It scans bz once and re-encodes nothing;
+// it only words the Log of a tx already refused, which is not part of the
+// results hash.
+func writesZeroSessionAddr(bz []byte, sigs []std.Signature) bool {
+	if len(sigs) == 0 {
+		return false
+	}
+	for _, sig := range sigs {
+		if !sig.SessionAddr.IsZero() {
+			return false
+		}
+	}
+	zero := crypto.AddressToBech32(crypto.Address{})
+	if len(zero) >= 0x80 {
+		return false // its length would not be a one-byte varint
+	}
+	field := append([]byte{3<<3 | 2, byte(len(zero))}, zero...)
+	return bytes.Count(bz, field) == len(sigs)
+}
+
 // retrieve the context for the tx w/ txBytes and other memoized values.
 func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context) {
 	ctx = app.getState(mode).ctx.
@@ -1010,6 +1040,9 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	// tm2/adr/pr6406_canonical_tx_enforcement.md.
 	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
 		result.Error, result.Log = txDecodeFailure(err)
+		if writesZeroSessionAddr(txBytes, tx.Signatures) {
+			result.Log += zeroSessionAddrHint
+		}
 		return
 	}
 

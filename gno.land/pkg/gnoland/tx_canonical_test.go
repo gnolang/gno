@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -125,8 +126,9 @@ func canonicalSendApp(t *testing.T) (abci.Application, []byte, []wireField) {
 }
 
 // requireSameTxRejected checks that bz decodes to the very tx canonical
-// encodes, then that both CheckTx and DeliverTx refuse it as non-canonical.
-func requireSameTxRejected(t *testing.T, app abci.Application, canonical, bz []byte, name string) {
+// encodes, then that both CheckTx and DeliverTx refuse it as non-canonical,
+// with the upgrade hint in Log exactly when upgradeHint is set.
+func requireSameTxRejected(t *testing.T, app abci.Application, canonical, bz []byte, name string, upgradeHint bool) {
 	t.Helper()
 
 	require.NotEqual(t, canonical, bz, name)
@@ -145,6 +147,15 @@ func requireSameTxRejected(t *testing.T, app abci.Application, canonical, bz []b
 	require.False(t, deliver.IsOK(), name)
 	assert.Equal(t, std.TxDecodeError{}, deliver.Error, name)
 	assert.Contains(t, deliver.Log, "non-canonical encoding", name)
+
+	const hint = "(upgrade your client to gno v1.7.1+)"
+	for _, log := range []string{check.Log, deliver.Log} {
+		if upgradeHint {
+			assert.True(t, strings.HasSuffix(log, hint), "%s: Log %q must end with the upgrade hint", name, log)
+		} else {
+			assert.NotContains(t, log, hint, name)
+		}
+	}
 }
 
 // A signed tx re-encoded non-canonically decodes to the same tx, so its
@@ -175,7 +186,7 @@ func TestTxNonCanonicalEncodingRejected(t *testing.T) {
 	mutations["padded first tag"] = slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
 
 	for name, bz := range mutations {
-		requireSameTxRejected(t, app, canonical, bz, name)
+		requireSameTxRejected(t, app, canonical, bz, name, false)
 	}
 
 	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: canonical})
