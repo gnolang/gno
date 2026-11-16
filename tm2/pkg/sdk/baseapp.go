@@ -1002,17 +1002,6 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 		return
 	}
 
-	// A tx is identified by the hash of its bytes while its signatures cover
-	// the sign doc, so only the canonical encoding of a tx is accepted: any
-	// other byte string decoding to the same tx is the same tx under another
-	// hash. The check re-encodes the tx, which for some values costs far more
-	// than decoding them, so it runs only once ValidateBasic has passed. See
-	// tm2/adr/pr6406_canonical_tx_enforcement.md.
-	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
-		result.Error, result.Log = txDecodeFailure(err)
-		return
-	}
-
 	// Single cache wrap for the entire transaction (ante + msgs).
 	// This avoids redundant IAVL reads between ante and msg phases.
 	// See gno.land/adr/BASEAPPCACHE.md for design details.

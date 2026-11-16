@@ -662,41 +662,16 @@ func TestCheckTxMalformedTypeURL(t *testing.T) {
 	require.False(t, res.IsOK(), "expected a decode error, got OK")
 }
 
-// TestRunTxRejectsNonCanonicalEncoding: runTx must reject, in CheckTx and
-// DeliverTx alike, bytes that decode to a tx but are not its canonical
-// encoding. The encoding classes are covered in amino; one is enough here.
-func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
+// TestRunTxDecodeFailureLog: for undecodable bytes, Log carries the reason,
+// without a stack trace, which every result in a block of garbage txs would
+// otherwise store.
+func TestRunTxDecodeFailureLog(t *testing.T) {
 	t.Parallel()
 
 	app := setupBaseApp(t)
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
 
-	canonical, err := amino.Marshal(newTxCounter(0, 0))
-	require.NoError(t, err)
-	require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: canonical}).IsOK())
-
-	// The first tag as a two-byte varint: the same tx under another hash.
-	require.Less(t, canonical[0], byte(0x80))
-	padded := slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
-	var decoded std.Tx
-	require.NoError(t, amino.Unmarshal(padded, &decoded))
-	reencoded, err := amino.Marshal(decoded)
-	require.NoError(t, err)
-	require.Equal(t, canonical, reencoded)
-
-	for _, res := range []abci.ResponseBase{
-		app.CheckTx(abci.RequestCheckTx{Tx: padded}).ResponseBase,
-		app.DeliverTx(abci.RequestDeliverTx{Tx: padded}).ResponseBase,
-	} {
-		require.False(t, res.IsOK())
-		assert.Equal(t, std.TxDecodeError{}, res.Error)
-		assert.Contains(t, res.Log, "non-canonical encoding")
-		assert.NotContains(t, res.Log, "Stack Trace")
-	}
-
-	// Undecodable bytes: Log carries the reason, without a stack trace, which
-	// every result in a block of garbage txs would otherwise store.
 	res := app.DeliverTx(abci.RequestDeliverTx{Tx: []byte{0xff}})
 	assert.Equal(t, std.TxDecodeError{}, res.Error)
 	assert.NotEmpty(t, res.Log)
