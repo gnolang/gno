@@ -33,11 +33,6 @@ func NewPropRequest(cur realm, changesFn func() []validators.Validator, title, d
 		panic("proposal requires at least one validator")
 	}
 
-	// Snapshot: the caller can still write the array changesFn returned.
-	snapshot := make([]validators.Validator, len(changes))
-	copy(snapshot, changes)
-	changes = snapshot
-
 	// List the validator addresses and the action to be taken for each one
 	var desc strings.Builder
 	desc.WriteString(description)

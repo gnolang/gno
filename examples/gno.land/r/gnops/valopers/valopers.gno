@@ -136,24 +136,24 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // consensus signing pubkey, from which the signing address is derived.
 //
 // Auth shape:
-//   - Post-genesis: cur.Previous() must be IsUser() and its address
-//     must equal addr (operator-slot squat guard). Genesis-mode txs
-//     (ChainHeight()==0) bypass it, so migration .jsonl txs succeed.
-//     Historical txs replay at their original height and are checked.
+//   - Post-genesis: OriginCaller must equal addr (operator-slot squat
+//     guard). Genesis-mode replay (ChainHeight()==0) bypasses, so
+//     migration .jsonl txs and historical Register replays succeed.
 //   - Signing-address uniqueness: derived(pubKey) must not already be
 //     in signingRegistry, active or retired.
 //   - Front-running guard: post-genesis, derived(pubKey) must not
 //     already be an active validator (a fresh registration cannot
 //     squat on the consensus address of an existing validator).
 //
-// The squat guard checks the immediate caller, not OriginCaller: a code
-// realm reached by the operator's own transaction has OriginCaller == addr
-// but is not the operator. It uses IsUser() (not IsUserCall) so it admits
-// the operator's own `maketx run` registrations, which the valset txtars
-// rely on; a foreign code realm is still rejected since it is not IsUser.
+// Why OriginCaller==addr is sufficient for the SQUAT guard (no
+// IsUserCall): squatting requires the attacker to satisfy
+// OriginCaller==victim, which requires the victim's signing key.
 //
-// The PAYMENT check is a different matter and does need IsUserCall,
-// see assertPaidCallIsDirect.
+// The PAYMENT check is a different matter and does need IsUserCall —
+// see assertPaidCallIsDirect. An earlier version of this comment
+// claimed the fee was "validated against banker.OriginSend in a way
+// that's symmetric to IsUserCall via direct comparison"; there was no
+// such comparison, and the fee was bypassable (reported by @D4ryl00).
 //
 // Auth-list seeding: the profile's Authorizable owner is set to addr
 // (NOT OriginCaller). At H>0 the squat guard makes them equal anyway;
@@ -162,10 +162,8 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 // post-genesis without needing the deployer's auth.
 func Register(cur realm, moniker string, description string, serverType string, addr address, pubKey string) {
 	// Operator-slot squat guard.
-	if runtime.ChainHeight() > 0 {
-		if !cur.Previous().IsUser() || cur.Previous().Address() != addr {
-			panic(ErrOperatorSquatGuard)
-		}
+	if runtime.ChainHeight() > 0 && unsafe.OriginCaller() != addr {
+		panic(ErrOperatorSquatGuard)
 	}
 
 	// Fee enforcement (read from sysparams; defaults to 0 until
@@ -589,7 +587,7 @@ func validatePubKey(pubKey string) error {
 // address-INDISTINGUISHABLE from its user. Inside `main(cur realm)` the
 // ephemeral realm's own address IS the caller's EOA address, so every
 // address-based guard in this realm accepts a `maketx run` — Register's
-// squat guard (Previous().Address() == addr) and UpdateSigningKey's auth-list check
+// squat guard (OriginCaller == addr) and UpdateSigningKey's auth-list check
 // (Previous().Address() on the list) both pass. Only the pkgPath differs,
 // and IsUserCall() is the check that reads it. It is therefore the only
 // PreviousRealm shape where the envelope is guaranteed to have landed here:

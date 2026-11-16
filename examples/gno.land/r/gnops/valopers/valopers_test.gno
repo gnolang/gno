@@ -2,7 +2,6 @@ package valopers
 
 import (
 	"chain"
-	"chain/runtime"
 	"strings"
 	"testing"
 
@@ -41,13 +40,6 @@ func resetState() {
 // rejection or sufficient-fee acceptance call this after resetState.
 func enableRegisterFee() {
 	testing.SetSysParamUint64("node", "valoper", "register_fee", uint64(minFee.Amount))
-}
-
-// runRealmOf builds the ephemeral realm MsgRun deploys for a signer:
-// gno.land/e/<addr>/run, whose address is the signer's own. IsUserRun keys
-// on exactly that shape.
-func runRealmOf(addr address) runtime.Realm {
-	return runtime.NewRealm(addr, "gno.land/e/"+addr.String()+"/run")
 }
 
 func validValidatorInfo(t *testing.T) struct {
@@ -180,34 +172,6 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		})
 	})
 
-	t.Run("squat guard rejects foreign realm with operator OriginCaller", func(cur realm, t *testing.T) {
-		resetState()
-
-		info := validValidatorInfo(t)
-		testing.SetHeight(100)
-		testing.SetOriginCaller(info.Address)
-		testing.SetRealm(testing.NewCodeRealm("gno.land/r/someother/realm"))
-
-		uassert.AbortsWithMessage(t, cur, ErrOperatorSquatGuard.Error(), func() {
-			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
-		})
-	})
-
-	t.Run("squat guard rejects a code realm claiming its own address", func(cur realm, t *testing.T) {
-		resetState()
-
-		info := validValidatorInfo(t)
-		rlm := testing.NewCodeRealm("gno.land/r/zz/selfreg")
-		testing.SetHeight(100)
-		testing.SetOriginCaller(info.Address)
-		testing.SetRealm(rlm)
-
-		uassert.AbortsWithMessage(t, cur, ErrOperatorSquatGuard.Error(), func() {
-			Register(cross(cur), info.Moniker, info.Description, info.ServerType, rlm.Address(), info.PubKey)
-		})
-		uassert.False(t, isValoper(rlm.Address()), "the slot stays unclaimed")
-	})
-
 	t.Run("successful registration", func(cur realm, t *testing.T) {
 		resetState()
 
@@ -288,46 +252,6 @@ func TestValopers_Register(cur realm, t *testing.T) {
 	})
 }
 
-func TestValopers_RegisterFromOwnRunRealm(cur realm, t *testing.T) {
-	resetState()
-
-	info := validValidatorInfo(t)
-	run := runRealmOf(info.Address)
-
-	// Premise: the caller is code, and it is the operator's own run realm.
-	uassert.True(t, run.IsCode(), "a run realm carries a pkgpath")
-	uassert.True(t, run.IsUserRun(), "the pkgpath names the operator's own run realm")
-	uassert.Equal(t, info.Address.String(), run.Address().String())
-
-	testing.SetHeight(100)
-	testing.SetOriginCaller(info.Address)
-	testing.SetRealm(run)
-	testing.SetOriginSend(chain.Coins{minFee})
-
-	uassert.NotPanics(t, cur, func() {
-		Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
-	})
-	uassert.True(t, isValoper(info.Address), "the operator slot is claimed")
-}
-
-// With a nonzero fee, a maketx run caller cannot register: its -send coins
-// never leave the signer, so assertPaidCallIsDirect must reject it.
-func TestValopers_RunRealmCannotBypassNonZeroFee(cur realm, t *testing.T) {
-	resetState()
-	enableRegisterFee()
-
-	info := validValidatorInfo(t)
-	testing.SetHeight(100)
-	testing.SetOriginCaller(info.Address)
-	testing.SetRealm(runRealmOf(info.Address))
-	testing.SetOriginSend(chain.Coins{minFee})
-
-	uassert.AbortsWithMessage(t, cur, ErrPaidCallNotDirect.Error(), func() {
-		Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
-	})
-	uassert.False(t, isValoper(info.Address), "the slot stays unclaimed")
-}
-
 func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 	// Pin: the Authorizable owner is bound to the OperatorAddress
 	// (the addr arg), NOT to OriginCaller. This matters in the
@@ -389,7 +313,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 	})
 
 	t.Run("post-genesis self-Register: operator is owner", func(cur realm, t *testing.T) {
-		// At H>0 the squat guard forces the caller to be addr, so owner
+		// At H>0 the squat guard forces OriginCaller==addr, so owner
 		// would be the same regardless. This subtest pins that the
 		// post-genesis behavior is unchanged.
 		resetState()

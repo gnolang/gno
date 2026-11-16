@@ -1,6 +1,7 @@
 package gnorkle
 
 import (
+	"chain/runtime/unsafe"
 	"errors"
 	"strings"
 
@@ -102,16 +103,10 @@ type PostMessageHandler interface {
 // HandleMessage handles a message from an agent and routes to either the logic that returns
 // feed definitions or the logic that allows a feed to ingest a message.
 //
-// rlm must be the hosting realm's cur. The agent is rlm.Previous(), the caller
-// that crossed into the host, so a host cannot name an agent of its choosing.
-//
 // TODO: Consider further message types that could allow administrative action such as modifying
 // a feed's whitelist without the owner of this oracle having to maintain a reference to it.
-func (i *Instance) HandleMessage(_ int, rlm realm, msg string, postHandler PostMessageHandler) (string, error) {
-	if !rlm.IsCurrent() {
-		return "", errors.New("rlm must be the hosting realm's cur")
-	}
-	caller := string(rlm.Previous().Address())
+func (i *Instance) HandleMessage(msg string, postHandler PostMessageHandler) (string, error) {
+	caller := string(unsafe.OriginCaller())
 
 	funcType, msg := message.ParseFunc(msg)
 

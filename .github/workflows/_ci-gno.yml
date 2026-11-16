@@ -68,29 +68,9 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
-      # GOMEMLIMIT caps the Go heap so the GC reclaims instead of letting RSS
-      # balloon past what a hosted runner has.
-      #
-      # Without it this step OOMs the runner. GitHub reports that as
-      # "The runner has received a shutdown signal" / exit 143 rather than as
-      # a lint error, with no diagnostic and a different package each run, so
-      # it reads like a flake. Measured on examples/ (peak RSS):
-      #
-      #   gno lint ./...                       8.7 - 9.3 GB   <- exceeds the runner
-      #   gno lint ./... GOMEMLIMIT=1GiB       ~6.3 GB
-      #
-      # The whole cost is one package: linting r/gnoland/boards2/v1 alone peaks
-      # at 7.6 GB, vs 31 - 518 MB for every other package in the tree. Batching
-      # or sharding therefore does not help; only bounding the heap does.
-      #
-      # ~5.6 GB of that is LIVE and cannot be collected, so this is a
-      # mitigation, not a cure -- the headroom on a standard runner is roughly
-      # 1 GB. The real fix is whatever makes linting boards2/v1 need 5.6 GB of
-      # live memory; see the accompanying issue. Costs ~60s of extra GC work.
       - run: go run ./gnovm/cmd/gno lint -C "${INPUTS_PATH}" -v ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
-          GOMEMLIMIT: 1GiB
 
   test:
     name: test

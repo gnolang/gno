@@ -1949,12 +1949,9 @@ start_temp_node() {
   # otherwise every measured amount is wrong by the parameter ratio and run 2
   # would agree with it. Step 9.3 then adds auth.params.unrestricted_addrs and
   # the same restricted_denoms to the shipping genesis, deliberately after
-  # this point: neither prices a fee. Fee collection goes through the bank
-  # keeper's unrestricted path, and so do storage deposits while genesis
-  # replays; a live chain charges them through SendCoinsVestingChecked. Each
-  # path skips the transfer restriction those two params configure. Comparing
-  # them here would fail on the exemption list, which cannot affect the
-  # measurement.
+  # this point: neither prices a fee (both fee collection and storage deposits
+  # go through the bank keeper's unrestricted path), and comparing them here
+  # would fail on the exemption list, which cannot affect the measurement.
   # vm/auth are plain `gnogenesis generate` defaults today, so this only
   # starts biting when the inert-package params land — patch vm.params on both
   # genesis files and this assertion holds you to it.

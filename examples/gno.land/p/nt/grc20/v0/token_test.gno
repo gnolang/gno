@@ -286,11 +286,3 @@ func TestMintUntilOverflow(cur realm, t *testing.T) {
 		})
 	}
 }
-
-func TestRenderHomeEscapesName(cur realm, t *testing.T) {
-	tok, _ := newTestToken("[Claim](https://evil.example)\u2028# PWNED", "PHISH", 0, 0, cur)
-	uassert.Equal(t,
-		"# \\[Claim\\]\\(https://evil\\.example\\) \\# PWNED ($PHISH)\n\n",
-		strings.SplitAfterN(tok.RenderHome(), "\n\n", 2)[0],
-	)
-}

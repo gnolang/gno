@@ -1386,8 +1386,8 @@ func NestedPrefix(s string) string {
 //   - 1 for inline code spans (`x`)
 //   - 3 for block fenced code (CommonMark §4.5 requires ≥3)
 //
-// `minCount` is clamped to between 1 and 1024. Empty content returns
-// that many backticks. Never panics.
+// `minCount < 1` is clamped to 1. Empty content returns
+// strings.Repeat("`", max(minCount, 1)). Never panics.
 //
 // Most realms should reach for InlineCode / CodeBlock /
 // LanguageCodeBlock below, which call CodeFence internally and emit

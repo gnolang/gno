@@ -21,7 +21,7 @@ const (
 )
 
 func init(cur realm) {
-	// SetOriginCaller also sets the operator as the caller the squat guard checks.
+	// OriginCaller must equal the operator address (post-genesis squat guard).
 	// validAddress here was chosen so that derive(validPubKey) == validAddress,
 	// so OperatorAddress == SigningAddress in this fixture.
 	testing.SetOriginCaller(validAddress)

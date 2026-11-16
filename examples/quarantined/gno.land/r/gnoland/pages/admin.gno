@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"chain/runtime/unsafe"
 	"strings"
 
 	"gno.land/p/nt/bptree/v0"
@@ -17,30 +18,30 @@ func init() {
 	adminAddr = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx" // govdao t1 multisig
 }
 
-func AdminSetAdminAddr(cur realm, addr address) {
-	assertIsAdmin(cur.Previous().Address())
+func AdminSetAdminAddr(_ realm, addr address) {
+	assertIsAdmin()
 	adminAddr = addr
 }
 
-func AdminSetInPause(cur realm, state bool) {
-	assertIsAdmin(cur.Previous().Address())
+func AdminSetInPause(_ realm, state bool) {
+	assertIsAdmin()
 	inPause = state
 }
 
-func AdminAddModerator(cur realm, addr address) {
-	assertIsAdmin(cur.Previous().Address())
+func AdminAddModerator(_ realm, addr address) {
+	assertIsAdmin()
 	moderatorList.Set(addr.String(), true)
 }
 
-func AdminRemoveModerator(cur realm, addr address) {
-	assertIsAdmin(cur.Previous().Address())
+func AdminRemoveModerator(_ realm, addr address) {
+	assertIsAdmin()
 	moderatorList.Set(addr.String(), false) // entry kept as a revocation record; isModerator checks the value
 }
 
-func ModAddPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
-	caller := cur.Previous().Address()
-	assertIsModerator(caller)
+func ModAddPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
+	assertIsModerator()
 
+	caller := unsafe.OriginCaller()
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
 
@@ -48,8 +49,8 @@ func ModAddPost(cur realm, slug, title, body, publicationDate, authors, tags str
 	checkErr(err)
 }
 
-func ModEditPost(cur realm, slug, title, body, publicationDate, authors, tags string) {
-	assertIsModerator(cur.Previous().Address())
+func ModEditPost(_ realm, slug, title, body, publicationDate, authors, tags string) {
+	assertIsModerator()
 
 	tagList := strings.Split(tags, ",")
 	authorList := strings.Split(authors, ",")
@@ -69,15 +70,15 @@ func isModerator(addr address) bool {
 	return active
 }
 
-// assertIsAdmin panics unless caller is the pages admin. Callers pass the
-// address one frame up, so a realm the admin transacts with is not the admin.
-func assertIsAdmin(caller address) {
+func assertIsAdmin() {
+	caller := unsafe.OriginCaller()
 	if !isAdmin(caller) {
 		panic("access restricted.")
 	}
 }
 
-func assertIsModerator(caller address) {
+func assertIsModerator() {
+	caller := unsafe.OriginCaller()
 	if isAdmin(caller) || isModerator(caller) {
 		return
 	}

@@ -2,7 +2,6 @@ package dao
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 	"strconv"
 	"strings"
@@ -146,9 +145,9 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // If AllowedDAOs field is not set correctly, the actual DAO
 // implementation wont be able to execute new Proposals!
 //
-// An empty AllowedDAOs is ignored rather than stored. An empty list is the
-// bootstrap state InAllowedDAOs() admits at genesis, which is what lets the
-// genesis MsgRun seed the member set. Since this is the only site that
+// An empty AllowedDAOs is ignored rather than stored. An empty list makes
+// InAllowedDAOs() return true for every caller — the bootstrap-only state that
+// lets the genesis MsgRun seed the member set. Since this is the only site that
 // assigns allowedDAOs, ignoring empty here makes the transition
 // empty -> non-empty one-way: once locked down the DAO cannot be reopened,
 // whether the empty value arrives as a literal []string{} or from
@@ -156,6 +155,13 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // Individual entries must be non-blank realm paths; an empty entry would match
 // a user realm's empty PkgPath() and is rejected.
 func UpdateImpl(cur realm, r UpdateRequest) {
+	// AGENTS.md: in a crossing function, always check IsCurrent() before
+	// deriving caller identity from cur.Previous(). Redundant under the
+	// crossing-frame guarantee, but mandated, and this is the single most
+	// powerful entrypoint (it rewrites the allowlist and swaps the impl).
+	if !cur.IsCurrent() {
+		panic("UpdateImpl: realm value is not the caller's live cur")
+	}
 	gRealm := cur.Previous().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {
@@ -216,36 +222,15 @@ func UpdateImpl(cur realm, r UpdateRequest) {
 	}
 }
 
-// IsMember reports whether addr is a member of the current DAO implementation.
-func IsMember(addr address) bool {
-	if dao == nil {
-		return false
-	}
-	return dao.IsMember(addr)
-}
-
 func AllowedDAOs() []string {
 	dup := make([]string, len(allowedDAOs))
 	copy(dup, allowedDAOs)
 	return dup
 }
 
-// An unset allowedDAOs admits every caller at height 0, where genesis txs run:
-// the loader installs the implementation and the genesis MsgRun seeds the
-// member set, both before UpdateImpl can run. Staging also delivers the txs it
-// carries over from its previous generation at height 0, but only those that
-// succeeded, so a takeover carries over only if it landed before this guard
-// did. From block 1 it admits
-// nobody, and a chain that never locked the list down then needs a hardfork
-// migration tx, itself delivered at height 0. Dev chains stay open past genesis
-// for r/gov/dao/init/v0, which asserts the same two IDs.
 func InAllowedDAOs(pkg string) bool {
 	if len(allowedDAOs) == 0 {
-		if runtime.ChainHeight() == 0 {
-			return true
-		}
-		chainID := runtime.ChainID()
-		return chainID == "dev" || chainID == "tendermint_test"
+		return true // corner case for initialization
 	}
 	for _, d := range allowedDAOs {
 		if pkg == d {

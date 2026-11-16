@@ -8,7 +8,7 @@ name: ci / tmkms-integration
 on:
   push:
     branches:
-      - develop
+      - master
   pull_request:
     paths:
       - tm2/pkg/bft/privval/upstream/**

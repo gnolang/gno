@@ -172,8 +172,13 @@ func Render(path string) string {
 	return sb.String()
 }
 
-// Get returns the Members store to an allowed DAO. rlm is the caller's cur;
-// IsCurrent rejects a stale one, so rlm.PkgPath() names the caller.
+// Get gets the Members store.
+//
+// rlm is the cur of an in-scope crossing frame, threaded by the caller.
+// The IsCurrent() check rejects stale or stashed realm values — a
+// malicious realm cannot replay an old cur to claim allowed-DAO
+// identity. After the check, rlm.PkgPath() is the authentic immediate
+// caller's realm.
 func Get(_ int, rlm realm) MembersByTier {
 	if !rlm.IsCurrent() {
 		panic("memberstore.Get: rlm is not the caller's live cur (stale capture or sibling frame)")
@@ -184,13 +189,6 @@ func Get(_ int, rlm realm) MembersByTier {
 	}
 
 	return members
-}
-
-// IsMember reports whether addr is a member of any tier. It is read-only, and
-// Render already publishes every member.
-func IsMember(addr address) bool {
-	m, _ := members.GetMember(addr)
-	return m != nil
 }
 
 // GetTier returns a tier by name. This is a read-only accessor.

@@ -3,7 +3,7 @@ name: ci / codegen-verify
 on:
   push:
     branches:
-      - develop
+      - master
     paths:
       - "**/*.go"
       - "go.mod"

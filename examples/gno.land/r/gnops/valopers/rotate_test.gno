@@ -22,10 +22,10 @@ const (
 
 // registerForRotation does the boilerplate setup that every rotation
 // test starts from: clear state, register the valoper as info.Address,
-// and return the info struct. It is a crossing function so that Register
-// sees the live user realm (info.Address) as its immediate caller, which
-// the post-genesis slot guard requires.
-func registerForRotation(cur realm, t *testing.T) struct {
+// and return the info struct. rlm is threaded into Register via
+// cross(rlm) — it's a non-first parameter so the helper stays a
+// regular (non-crossing) function.
+func registerForRotation(t *testing.T, rlm realm) struct {
 	Moniker     string
 	Description string
 	ServerType  string
@@ -37,12 +37,12 @@ func registerForRotation(cur realm, t *testing.T) struct {
 	info := validValidatorInfo(t)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 	testing.SetOriginSend(chain.Coins{minFee})
-	Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+	Register(cross(rlm), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
 	return info
 }
 
 func TestUpdateSigningKey_HappyPath(cur realm, t *testing.T) {
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 
 	// Advance past the throttle window. SkipHeights doesn't preserve
 	// the realm context across the boundary, so re-set it before the
@@ -79,7 +79,7 @@ func TestUpdateSigningKey_HappyPath(cur realm, t *testing.T) {
 }
 
 func TestUpdateSigningKey_ThrottleRejection(cur realm, t *testing.T) {
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 
 	// Try to rotate immediately, before throttle elapses.
@@ -103,7 +103,7 @@ func TestUpdateSigningKey_ThrottleRejection(cur realm, t *testing.T) {
 }
 
 func TestUpdateSigningKey_RejectsNonAuthListCaller(cur realm, t *testing.T) {
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 
 	// Switch to a caller not on the auth list.
@@ -118,7 +118,7 @@ func TestUpdateSigningKey_RejectsNonAuthListCaller(cur realm, t *testing.T) {
 }
 
 func TestUpdateSigningKey_RejectsReuseOfActiveKey(cur realm, t *testing.T) {
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 
@@ -140,7 +140,7 @@ func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testi
 	// this case: a genesis-seeded validator never went through
 	// Register or UpdateSigningKey, so its signing address is absent
 	// from signingRegistry.
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 
 	// Seed v0's valset:current with the address that rotateTargetPubKey
 	// derives to. ValsetEffective is read from valset:current when the
@@ -161,7 +161,7 @@ func TestUpdateSigningKey_RejectsRotationOntoActiveValidator(cur realm, t *testi
 }
 
 func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 
 	// First rotation: info.PubKey -> rotateTargetPubKey. info.PubKey
 	// becomes retired.
@@ -179,7 +179,7 @@ func TestUpdateSigningKey_RejectsReuseOfRetiredKey(cur realm, t *testing.T) {
 }
 
 func TestUpdateSigningKey_LastRotationHeightAdvances(cur realm, t *testing.T) {
-	info := registerForRotation(cross(cur), t)
+	info := registerForRotation(t, cur)
 	testing.SkipHeights(testRotationPeriodBlocks + 1)
 	testing.SetRealm(testing.NewUserRealm(info.Address))
 	UpdateSigningKey(cross(cur), info.Address, rotateTargetPubKey)

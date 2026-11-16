@@ -92,8 +92,7 @@ func updateInstructions(_ int, rlm realm, newInstructions string) error {
 // even a dao.NewSafeExecutor-wrapped one. Executor.Execute is an
 // exported method, so a returned Executor stays directly invocable by
 // its holder, and SafeExecutor's only gate (InAllowedDAOs) FAILS OPEN
-// while the allowedDAOs list is empty at genesis (height 0) or on the
-// `dev` and `tendermint_test` chain IDs, which is the documented
+// while the allowedDAOs list is empty, which is the documented
 // bootstrap state (see r/gov/dao/loader/v0). A sealed request has no
 // such conditional.
 //

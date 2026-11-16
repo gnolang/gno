@@ -122,9 +122,8 @@ merge rather than discovered at it.
   whose `Info` holds a `BigdecValue` written `1e999999` from 21 ms of
   `CheckTx` to 102 ms, and a `BigintValue` written as 499,998 hex digits from
   3.4 ms of decoding to 166 ms. The 21 ms that remains is the decode itself,
-  and predates this change: `BigdecValue.UnmarshalAmino` accepted an exponent
-  form `MarshalAmino` never emits, until
-  `gnovm/adr/prxxxx_bigdec_decode_expansion.md` refused it.
+  and predates this change: `BigdecValue.UnmarshalAmino` accepts an exponent
+  form `MarshalAmino` never emits.
 - **`Log` on decode failures** carries the decode error's message, clipped,
   where it used to be empty. It deliberately skips `ABCIResultFromError`,
   whose `%#v` adds a stack trace: that made rejecting one undecodable byte cost
@@ -143,10 +142,9 @@ merge rather than discovered at it.
   signature and per-byte gas comparisons that held only while they delivered
   are gone. A nil `Package` in `MsgAddPackage` and `MsgRun` is refused as a
   bad request in both modes, with no recovered panic. A `MsgAddPackage` whose
-  `Info` or `Type` holds a `BigdecValue` written non-canonically in digits (for
-  example `00000009`) is refused by `ValidateBasic` in both modes, not as a
-  decode error, which fails if the canonical check runs first, and
-  `addpkg_mempackage_info.txtar` now expects
+  `Info` or `Type` holds a `BigdecValue` written non-canonically is refused by
+  `ValidateBasic` in both modes, not as a decode error, which fails if the
+  canonical check runs first, and `addpkg_mempackage_info.txtar` now expects
   its `Info` payload refused at `CheckTx` rather than by the keeper at
   `DeliverTx`, with the same `InvalidPackageError`. Decode errors carry no
   stack trace in `Log`.

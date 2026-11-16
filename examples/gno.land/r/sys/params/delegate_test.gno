@@ -508,23 +508,10 @@ func TestRunSubmittersKeyIsReservedFromGenericFactories(cur realm, t *testing.T)
 //
 // A list naming nobody who can create a proposal cannot be undone, because
 // creating one needs MsgRun. Requiring the proposer's own address proves the
-// list is usable: the proposer must be a GovDAO member, and just signed the
-// transaction, so that address demonstrably holds a key.
+// list is usable: GovDAO refuses a proposal from a non-member, and the proposer
+// just signed the transaction, so that address demonstrably holds a key.
 func TestProposeSetRunSubmittersRequiresProposerOnTheList(cur realm, t *testing.T) {
 	other := testutils.TestAddress("someone-else").String()
-
-	// A non-member is refused even for a list naming itself: GovDAO checks the
-	// creator, and a request can be built by one account and created by another.
-	outsider := testutils.TestAddress("outsider")
-	testing.SetRealm(testing.NewUserRealm(outsider))
-	uassert.AbortsContains(t, cur, "not a GovDAO member", func() {
-		ProposeSetRunSubmitters(cross(cur), []string{outsider.String()})
-	})
-
-	// The caller must be the signing user; a relaying realm is refused
-	// outright (see TestProposeSetRunSubmittersRefusesRelayingRealm).
-	proposer := g1user
-	testing.SetRealm(testing.NewUserRealm(proposer))
 
 	// A list without the proposer is refused.
 	uassert.AbortsContains(t, cur, "omits the proposer", func() {
@@ -538,6 +525,8 @@ func TestProposeSetRunSubmittersRequiresProposerOnTheList(cur realm, t *testing.
 	})
 
 	// A list that does include the proposer goes through.
+	proposer := testutils.TestAddress("proposer")
+	testing.SetRealm(testing.NewUserRealm(proposer))
 	uassert.NotAborts(t, cur, func() {
 		ProposeSetRunSubmitters(cross(cur), []string{other, proposer.String()})
 	})

@@ -3,7 +3,7 @@ name: ci / tm2
 on:
   push:
     branches:
-      - develop
+      - master
   pull_request:
     paths:
       - tm2/**
@@ -11,9 +11,6 @@ on:
       # since this can affect test results
       - go.mod
       - .github/workflows/ci-dir-tm2.yml
-      # The reusable workflow this one calls; see the note in
-      # ci-dir-examples.yml.
-      - .github/workflows/_ci-go.yml
       # tm2 holds no gno source, so every *.md under it is prose.
       - '!**/*.md'
   workflow_dispatch:

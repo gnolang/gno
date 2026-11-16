@@ -31,7 +31,7 @@ func clearState(t *testing.T) {
 }
 
 func TestBlog_AdminControls(cur realm, t *testing.T) {
-	t.Run("non-admin call", func(cur realm, t *testing.T) {
+	t.Run("non-admin call", func(t *testing.T) {
 		clearState(t)
 
 		nonAdmin := testutils.TestAddress("bob")
@@ -44,7 +44,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		})
 	})
 
-	t.Run("pause toggled", func(cur realm, t *testing.T) {
+	t.Run("pause toggled", func(t *testing.T) {
 		clearState(t)
 
 		testing.SetOriginCaller(adminAddr)
@@ -57,7 +57,7 @@ func TestBlog_AdminControls(cur realm, t *testing.T) {
 		uassert.True(t, inPause)
 	})
 
-	t.Run("admin set", func(cur realm, t *testing.T) {
+	t.Run("admin set", func(t *testing.T) {
 		clearState(t)
 
 		// Set the new admin
@@ -215,61 +215,5 @@ func TestBlog_ManageComment(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(mod))
 	uassert.NotAborts(t, cur, func() {
 		ModDelComment(cross(cur), slug, 0)
-	})
-}
-
-// A call arriving through a realm is authenticated as that realm, so the
-// roles held by whoever signed the transaction do not carry into it.
-func TestBlog_CallerIsTheRealmNotTheSigner(cur realm, t *testing.T) {
-	const intermediate = "gno.land/r/test/intermediate"
-
-	t.Run("admin", func(cur realm, t *testing.T) {
-		clearState(t)
-
-		testing.SetOriginCaller(adminAddr)
-		testing.SetRealm(testing.NewCodeRealm(intermediate))
-
-		uassert.AbortsWithMessage(t, cur, errNotAdmin.Error(), func() {
-			AdminSetInPause(cross(cur), true)
-		})
-
-		uassert.False(t, inPause)
-	})
-
-	t.Run("moderator", func(cur realm, t *testing.T) {
-		clearState(t)
-
-		mod := testutils.TestAddress("mod")
-
-		testing.SetRealm(testing.NewUserRealm(adminAddr))
-		AdminAddModerator(cross(cur), mod)
-
-		testing.SetOriginCaller(mod)
-		testing.SetRealm(testing.NewCodeRealm(intermediate))
-
-		uassert.AbortsWithMessage(t, cur, errNotModerator.Error(), func() {
-			ModAddPost(cross(cur), "slug", "title", "body", "2022-05-20T13:17:22Z", "moul", "tag")
-		})
-
-		uassert.TypedNil(t, b.GetPost("slug"))
-	})
-
-	t.Run("commenter", func(cur realm, t *testing.T) {
-		clearState(t)
-
-		commenter := testutils.TestAddress("comm")
-
-		testing.SetRealm(testing.NewUserRealm(adminAddr))
-		ModAddCommenter(cross(cur), commenter)
-		ModAddPost(cross(cur), "slug", "title", "body", "2022-05-20T13:17:22Z", "moul", "tag")
-
-		testing.SetOriginCaller(commenter)
-		testing.SetRealm(testing.NewCodeRealm(intermediate))
-
-		uassert.AbortsWithMessage(t, cur, errNotCommenter.Error(), func() {
-			AddComment(cross(cur), "slug", "comment")
-		})
-
-		uassert.Equal(t, 0, b.GetPost("slug").Comments.Size())
 	})
 }

@@ -5,7 +5,6 @@ import (
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -140,8 +139,7 @@ func (tok *Token) IsApprovedForAll(owner, operator address) bool {
 
 func (tok *Token) RenderHome() string {
 	str := ""
-	// validName admits markdown, and whoever creates the token picks the name.
-	str += ufmt.Sprintf("# %s ($%s)\n\n", sanitize.InlineText(tok.name), tok.symbol)
+	str += ufmt.Sprintf("# %s ($%s)\n\n", tok.name, tok.symbol)
 	str += ufmt.Sprintf("* **Total supply**: %d\n", tok.ledger.totalSupply)
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", tok.KnownAccounts())
 

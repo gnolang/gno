@@ -30,7 +30,7 @@ func init(cur realm) {
 }
 
 func main(cur realm) {
-	// Register a validator: the squat guard requires the operator as caller.
+	// Register a validator: OriginCaller must equal operator addr (squat guard).
 	testing.SetOriginCaller(validAddress)
 	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 

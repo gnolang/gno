@@ -2,6 +2,7 @@ package ghverify
 
 import (
 	"chain"
+	"chain/runtime/unsafe"
 	"errors"
 
 	"gno.land/p/demo/gnorkle/feeds/static/v0"
@@ -16,7 +17,7 @@ const (
 )
 
 var (
-	ownerAddress address
+	ownerAddress = unsafe.OriginCaller()
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
@@ -24,9 +25,7 @@ var (
 	addressToHandleMap = bptree.NewBPTree32()
 )
 
-func init(cur realm) {
-	// During init, cur.Previous() is the account that deployed the realm.
-	ownerAddress = cur.Previous().Address()
+func init() {
 	oracle = gnorkle.NewInstance()
 	oracle.AddToWhitelist("", []string{string(ownerAddress)})
 }
@@ -72,7 +71,7 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
 func RequestVerification(cur realm, githubHandle string) {
-	gnoAddress := string(cur.Previous().Address())
+	gnoAddress := string(unsafe.OriginCaller())
 	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
 			gnoAddress,
@@ -94,7 +93,7 @@ func RequestVerification(cur realm, githubHandle string) {
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
 func GnorkleEntrypoint(cur realm, message string) string {
-	result, err := oracle.HandleMessage(0, cur, message, postHandler)
+	result, err := oracle.HandleMessage(message, postHandler)
 	if err != nil {
 		panic(err)
 	}
@@ -103,8 +102,8 @@ func GnorkleEntrypoint(cur realm, message string) string {
 }
 
 // SetOwner transfers ownership of the contract to the given address.
-func SetOwner(cur realm, owner address) {
-	if ownerAddress != cur.Previous().Address() {
+func SetOwner(_ realm, owner address) {
+	if ownerAddress != unsafe.OriginCaller() {
 		panic("only the owner can set a new owner")
 	}
 

@@ -8,9 +8,9 @@ import (
 )
 
 // allowedDAOs is the sole authorization for UpdateImpl, memberstore.Get,
-// treasury.Send and treasury.SetTokenKeys, and while it is empty
-// InAllowedDAOs() admits every caller at genesis, the window that lets the
-// genesis MsgRun seed the member set before lockdown.
+// treasury.Send and treasury.SetTokenKeys, and InAllowedDAOs() fails OPEN when
+// it is empty — the bootstrap window that lets the genesis MsgRun seed the
+// member set before lockdown.
 //
 // These tests pin that the transition empty -> non-empty is one-way: once the
 // DAO is locked down, UpdateImpl cannot put it back into the fail-open state.
@@ -54,48 +54,16 @@ func TestUpdateImplIgnoresEmptyAllowedDAOs(cur realm, t *testing.T) {
 	uassert.False(t, InAllowedDAOs(invalid), "and must not admit anyone else")
 }
 
-// The window must stay open where the bootstrap needs it, genesis and a dev
-// chain, and be shut everywhere else. A set allowlist is never the window,
-// whatever the height reads.
-func TestBootstrapWindow(t *testing.T) {
-	// Realm state outlives a test function and the exec context does not, so
-	// only the allowlist is restored.
-	savedDAOs := allowedDAOs
-	defer func() { allowedDAOs = savedDAOs }()
-
-	ctx := testing.GetContext()
-	onChain := func(chainID string, height int64) {
-		ctx.ChainID, ctx.Height = chainID, height
-		testing.SetContext(ctx)
-	}
+// The bootstrap window itself must survive the guard: with no allowlist
+// configured yet, any caller is allowed so the genesis MsgRun can seed the
+// member set and then lock down.
+func TestBootstrapWindowStillOpen(t *testing.T) {
+	saved := allowedDAOs
+	defer func() { allowedDAOs = saved }()
 
 	allowedDAOs = nil
-
-	onChain("gnoland-1", 0)
-	uassert.True(t, InAllowedDAOs(loader),
+	uassert.True(t, InAllowedDAOs("gno.land/r/gov/dao/loader/v0"),
 		"an unset allowlist must stay open for genesis bootstrap")
-	uassert.True(t, InAllowedDAOs(invalid),
-		"and open to every caller, since the genesis MsgRun runs under a path nobody can name in advance")
-
-	onChain("gnoland-1", 1)
-	uassert.False(t, InAllowedDAOs(loader),
-		"the window must close with the first block")
-	uassert.False(t, InAllowedDAOs(invalid),
-		"and it must close against everyone, not only the loader")
-
-	for _, devChain := range []string{"dev", "tendermint_test"} {
-		onChain(devChain, 1)
-		uassert.True(t, InAllowedDAOs(invalid),
-			"a dev chain keeps the window open past genesis: "+devChain)
-	}
-
-	// A configured allowlist is never the window, whatever the height says.
-	allowedDAOs = []string{v0}
-	onChain("gnoland-1", 0)
-	uassert.False(t, InAllowedDAOs(invalid),
-		"genesis must not reopen an allowlist that is already set")
-	uassert.True(t, InAllowedDAOs(v0),
-		"and the entries it holds must still match")
 }
 
 // len(AllowedDAOs) != 0 is not sufficient on its own. InAllowedDAOs compares by

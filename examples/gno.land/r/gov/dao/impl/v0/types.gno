@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"chain/runtime"
 	"strings"
 
 	"gno.land/p/nt/bptree/v0"
@@ -62,10 +61,6 @@ type proposalStatus struct {
 
 	DeniedReason string
 
-	// PassedAt is the block height of the vote that first brought YES to
-	// supermajority, or 0 before then; see expired.
-	PassedAt int64
-
 	TiersAllowedToVote []string
 }
 
@@ -89,13 +84,6 @@ func newProposalStatus(allowedToVote []string) *proposalStatus {
 		AllVotes:           newEmptyVoteStore(),
 		TiersAllowedToVote: allowedToVote,
 	}
-}
-
-// expired reports whether the proposal passed more than executionDeadlineBlocks
-// ago without being executed. One that has not passed by a vote, or passed at
-// height 0, has no deadline.
-func (ps *proposalStatus) expired() bool {
-	return ps.PassedAt != 0 && runtime.ChainHeight()-ps.PassedAt > executionDeadlineBlocks
 }
 
 // totalPower computes the total voting power dynamically from current members
@@ -172,8 +160,6 @@ func (ps *proposalStatus) String(_ int, rlm realm) string {
 			sb.WriteString(sanitize.InlineText(clampField(ps.DeniedReason, maxRenderedReason)))
 			sb.WriteString("\n")
 		}
-	} else if ps.expired() {
-		sb.WriteString(ufmt.Sprintf("- **PROPOSAL HAS EXPIRED**: not executed within %d blocks of passing\n", executionDeadlineBlocks))
 	} else {
 		sb.WriteString("- **Proposal is open for votes**\n")
 	}

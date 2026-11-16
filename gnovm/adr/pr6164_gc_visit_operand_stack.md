@@ -216,11 +216,18 @@ All deterministic and all fail-safe: the cap trips earlier, never later.
   lists, `Frame.LastRealm`, `Frame.Cur`. Not amplification vectors (aliased
   into visited slots, or realm objects excluded from GC by design);
   root-completeness items.
-- **Single-target assignment destinations.** The `len(s.Lhs) == 1` path of
-  `doOpAssign` pops its Lhs operand before `Assign2`, so a map, struct or
-  pointee reached only through that operand drops out of any collection the
-  copy runs, with everything already in it. The container was counted while
-  it sat on the stack, so the exposure is ~2x rather than N x.
+- **Assignment destinations that are not block slots.** `doOpAssign` pops
+  both its RHS values and its LHS operands, and `resolvePointer` derives
+  `pv.Base` for an `IndexExpr` / `SelectorExpr` / `StarExpr` /
+  `CompositeLitExpr` LHS from those popped operands. For a `NameExpr` LHS
+  the destination is a rooted block slot and the miss is one in-flight copy,
+  but for the other forms the destination is as invisible as the operands, so
+  the miss is N. Measured: ten `f()[0]` destinations taking ten copies of one
+  aliased 300 KB value build 3 MB under a 1 MB cap (60 MB at 200 terms). An
+  anchor does not fit here — the destinations are not a buffer this op
+  allocates — so closing it needs either an object anchor per destination or
+  the runtime-charging follow-up above, which removes the dependence on
+  GC seeing in-flight copies at all.
 - **`doOpArrayLit`'s anchor is defence in depth, not a closed vector.**
   `defaultArrayValue` allocates the destination at full size before the copy
   loop, and for a value element type a copy is the same size as the default
