@@ -293,6 +293,53 @@ func TestStateSignAddVoteRefusesConflictingSelfVote(t *testing.T) {
 	assert.Equal(t, vote, cs.Votes.Prevotes(round).GetByAddress(address))
 }
 
+func TestNilLastCommitWindow(t *testing.T) {
+	cs, _ := randConsensusState(1)
+	require.Nil(t, cs.LastCommit)
+	require.Equal(t, -1, cs.CommitRound)
+
+	// Advance once so the node sits above the initial height.
+	first := cs.state.Copy()
+	first.LastBlockHeight = cs.state.LastBlockHeight + 1
+	cs.updateToState(first)
+	require.Equal(t, int64(2), cs.Height)
+
+	// Stand in for what reconstructLastCommit puts there just before
+	// SwitchToConsensus calls updateToState.
+	cs.LastCommit = types.NewVoteSet(cs.state.ChainID, cs.Height-1, 0, types.PrecommitType, cs.Validators)
+	require.NotNil(t, cs.LastCommit)
+
+	advanced := cs.state.Copy()
+	advanced.LastBlockHeight = cs.state.LastBlockHeight + 1
+	cs.updateToState(advanced)
+
+	assert.Nil(t, cs.LastCommit)
+	assert.Equal(t, cstypes.RoundStepNewHeight, cs.Step)
+	assert.Equal(t, int64(3), cs.Height)
+}
+
+func TestAddVoteRejectsPreviousHeightPrecommitWithoutLastCommit(t *testing.T) {
+	t.Parallel()
+
+	cs, _ := randConsensusState(1)
+	require.Nil(t, cs.LastCommit)
+	require.Equal(t, cstypes.RoundStepNewHeight, cs.Step)
+
+	vote := &types.Vote{
+		Type:             types.PrecommitType,
+		Height:           cs.Height - 1,
+		Round:            0,
+		ValidatorAddress: cs.Validators.GetProposer().Address,
+		ValidatorIndex:   0,
+		Signature:        []byte("signature"),
+	}
+	require.NoError(t, vote.ValidateBasic())
+
+	added, err := cs.addVote(vote, "test-peer")
+	assert.False(t, added)
+	assert.Equal(t, ErrVoteHeightMismatch, err)
+}
+
 func TestStateBadProposal(t *testing.T) {
 	t.Parallel()
 
@@ -353,6 +400,76 @@ func TestStateBadProposal(t *testing.T) {
 	ensurePrecommit(voteCh, height, round)
 	validatePrecommit(t, cs1, round, -1, vss[0], nil, nil)
 	signAddVotes(cs1, types.PrecommitType, propBlock.Hash(), propBlock.MakePartSet(partSize).Header(), vs2)
+}
+
+// A proposed block whose time is the latest amino encodes must not stop the
+// node from signing its nil votes, stamped with the block time plus TimeIotaMS.
+func TestStateProposalBlockTimeAtEncodingLimit(t *testing.T) {
+	t.Parallel()
+
+	cs1, vss := randConsensusState(2)
+	height, round := cs1.Height, cs1.Round
+	vs2 := vss[1]
+
+	partSize := types.BlockPartSizeBytes
+
+	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
+	voteCh := subscribe(cs1.evsw, types.EventVote{})
+
+	propBlock, _ := cs1.createProposalBlock()
+
+	// make the second validator the proposer by incrementing round
+	round++
+	incrementRound(vss[1:]...)
+
+	propBlock.Time = maxVoteTime
+	propBlockParts := propBlock.MakePartSet(partSize)
+	blockID := types.BlockID{Hash: propBlock.Hash(), PartsHeader: propBlockParts.Header()}
+	proposal := types.NewProposal(vs2.Height, round, -1, blockID)
+	if err := vs2.SignProposal(config.ChainID(), proposal); err != nil {
+		t.Fatal("failed to sign proposal", err)
+	}
+
+	if err := cs1.SetProposalAndBlock(proposal, propBlock, propBlockParts, "some peer"); err != nil {
+		t.Fatal(err)
+	}
+
+	startFrom(cs1, height, round)
+	defer func() {
+		cs1.Stop()
+		cs1.Wait()
+	}()
+	defer ensureDrainedChannels(t, proposalCh, voteCh)
+
+	ensureProposal(proposalCh, height, round, blockID)
+
+	// ValidateBlock rejects the block, so the node prevotes nil.
+	ensurePrevote(voteCh, height, round)
+	validatePrevote(cs1, round, vss[0], nil)
+	prevote := cs1.Votes.Prevotes(round).GetByAddress(vss[0].PubKey().Address())
+	if !prevote.Timestamp.Equal(maxVoteTime) {
+		t.Fatalf("expected prevote time %v, got %v", maxVoteTime, prevote.Timestamp)
+	}
+
+	signAddVotes(cs1, types.PrevoteType, propBlock.Hash(), propBlockParts.Header(), vs2)
+	ensurePrevote(voteCh, height, round)
+
+	ensurePrecommit(voteCh, height, round)
+	validatePrecommit(t, cs1, round, -1, vss[0], nil, nil)
+}
+
+// A vote time derived from a locked block is capped too.
+func TestVoteTimeLockedBlockAtEncodingLimit(t *testing.T) {
+	t.Parallel()
+
+	cs1, _ := randConsensusState(1)
+	for _, locked := range []time.Time{maxVoteTime, maxVoteTime.Add(-time.Millisecond)} {
+		cs1.LockedBlock = &types.Block{Header: types.Header{Time: locked}}
+		cs1.ProposalBlock = nil
+		if got := cs1.voteTime(); !got.Equal(maxVoteTime) {
+			t.Fatalf("locked at %v: vote time %v, want %v", locked, got, maxVoteTime)
+		}
+	}
 }
 
 // ----------------------------------------------------------------------------------------------------

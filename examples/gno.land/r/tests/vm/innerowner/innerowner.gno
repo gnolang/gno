@@ -4,7 +4,7 @@
 // borrow rule 2 fires and m.Realm shifts to this realm.
 package innerowner
 
-import "gno.land/p/demo/tests/p_closurecap"
+import "gno.land/p/demo/tests/p_closurecap/v0"
 
 var inn *p_closurecap.Inner
 

@@ -1593,6 +1593,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2pTypes.ID) (added b
 			// fmt.Errorf("tryAddVote: Wrong height, not a LastCommit straggler commit.")
 			return added, ErrVoteHeightMismatch
 		}
+		if cs.LastCommit == nil {
+			return added, ErrVoteHeightMismatch
+		}
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
 			return added, err
@@ -1755,6 +1758,9 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 	return vote, err
 }
 
+// maxVoteTime is the latest time amino encodes, 9999-12-31T23:59:59.999999999Z.
+var maxVoteTime = time.Unix(253402300799, 999999999).UTC()
+
 func (cs *ConsensusState) voteTime() time.Time {
 	now := tmtime.Now()
 	minVoteTime := now
@@ -1766,6 +1772,12 @@ func (cs *ConsensusState) voteTime() time.Time {
 		minVoteTime = cs.LockedBlock.Time.Add(timeIota)
 	} else if cs.ProposalBlock != nil {
 		minVoteTime = cs.ProposalBlock.Time.Add(timeIota)
+	}
+	// The proposer picks the block time, and the node still signs a nil vote
+	// for a block ValidateBlock rejects. Past maxVoteTime, Vote.SignBytes
+	// panics and halts consensus.
+	if minVoteTime.After(maxVoteTime) {
+		minVoteTime = maxVoteTime
 	}
 
 	if now.After(minVoteTime) {

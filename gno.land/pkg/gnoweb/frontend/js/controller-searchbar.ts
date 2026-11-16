@@ -1,9 +1,81 @@
-import { BaseController, debounce } from "./controller.js";
+import { BaseController } from "./controller.js";
 
 type PathsResponse = {
 	realms: string[];
 	packages: string[];
 };
+
+// Shapes returned by `<path>$search&…&json`. The controller knows no
+// qualifier by name: the server owns the list, so a deployment without an
+// indexer simply advertises fewer of them and the omnibar offers fewer.
+type Selector = {
+	name: string;
+	hint: string;
+	label: string;
+	scope: string;
+	source: string;
+	bare?: boolean;
+	// A value this selector answers typed alone (a pasted address), as a
+	// pattern. The server matches the same one.
+	accepts?: string;
+};
+
+type SearchResult = {
+	title: string;
+	detail?: string;
+	href?: string;
+	tags?: string[];
+};
+
+type SearchGroup = {
+	label: string;
+	source: string;
+	results?: SearchResult[];
+	error?: string;
+	// notice says why a partial answer is partial; truncated marks one.
+	notice?: string;
+	truncated?: boolean;
+};
+
+type SearchResponse = {
+	selectors?: Selector[];
+	groups?: SearchGroup[];
+	unknown_filter?: string;
+	// error is the server refusing the query (429, 400), not a group's.
+	error?: string;
+};
+
+// isSearchResponse checks the fields the renderer dereferences. The answer
+// crosses a network (a proxy, a version skew), and one malformed field used
+// to throw on every keystroke for the life of the page.
+function isSearchResponse(v: unknown): v is SearchResponse {
+	const obj = (x: unknown): x is Record<string, unknown> =>
+		typeof x === "object" && x !== null;
+	const list = (x: unknown, ok: (e: unknown) => boolean): boolean =>
+		x === undefined || (Array.isArray(x) && x.every(ok));
+	return (
+		obj(v) &&
+		list(
+			v.selectors,
+			(s) =>
+				obj(s) &&
+				typeof s.name === "string" &&
+				(s.accepts === undefined || typeof s.accepts === "string"),
+		) &&
+		list(
+			v.groups,
+			(g) =>
+				obj(g) &&
+				list(
+					g.results,
+					(r) =>
+						obj(r) &&
+						typeof r.title === "string" &&
+						(r.href === undefined || typeof r.href === "string"),
+				),
+		)
+	);
+}
 
 type PageMatch = {
 	node: Text;
@@ -12,18 +84,37 @@ type PageMatch = {
 	snippet: string;
 };
 
-const CONTENT_SELECTOR = "md-renderer, .b-source-code";
+// Not the results page: its rows already answer the query.
+const CONTENT_SELECTOR = "md-renderer:not(.b-omni), .b-source-code";
 const SEARCH_ENDPOINT = "/search.json";
 const MIN_QUERY_LENGTH = 2;
 const RESULTS_PER_GROUP = 5;
 const MAX_PAGE_MATCHES = 10;
 const SNIPPET_RADIUS = 32;
 const SEARCH_DELAY = 120;
+// A qualified query costs a round trip, so it waits longer than the local
+// path filter, which costs nothing.
+const QUALIFIED_SEARCH_DELAY = 220;
 
 // Full Amino object ID: 40 hex + ":" + uint index (ObjectID.MarshalAmino).
 // Anchored to {40} to mirror the server's ValidateOID; shorter inputs fall
 // through to a normal text search.
 const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
+
+// A bech32 account address, as a namespace: ranked as a throwaway deploy.
+// Same shape as omnisearch addressPattern, whose prefix is `g` on every
+// shipped binary and which the rest of gnoweb assumes too.
+const ADDRESS_PATTERN = /^g1[02-9ac-hj-np-z]{38}$/;
+
+// Same patterns as omnisearch testWord and testNamespace.
+const TEST_WORD = /(^|[-_])test(s|ing|utils?)?([-_0-9]|$)/;
+const TEST_NAMESPACE = /test[0-9]/;
+
+// A version segment such as v0 or v12, skipped for a package's name.
+const VERSION_SEGMENT = /^v(0|[1-9]\d*)$/;
+
+// A leading `gno.land` host, with or without scheme.
+const GNO_LAND_HOST = /^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i;
 
 export class SearchbarController extends BaseController {
 	private realms: string[] = [];
@@ -35,6 +126,22 @@ export class SearchbarController extends BaseController {
 	private pageMatches: PageMatch[] = [];
 	private highlightEl: HTMLElement | null = null;
 	private runId = 0;
+	// What a results page filled the bar with, read from the bar: a text input
+	// drops a newline the URL's query kept, so the URL's is not what it holds.
+	// Declared: connect runs inside the base constructor, before an initializer.
+	private declare pageQuery: string;
+	private selectors: Selector[] = [];
+	// The selectors' `accepts` patterns, compiled with them, not per keystroke.
+	private accepting: RegExp[] = [];
+	private selectorsLoaded = false;
+	// null until the first probe answers. false means this deployment serves
+	// no `$search` endpoint, and the controller stops asking.
+	private searchAvailable: boolean | null = null;
+	private selectorProbe: Promise<void> | null = null;
+	private timer: ReturnType<typeof setTimeout> | undefined;
+	// The in-flight `$search&json` request. Aborting it also cancels the
+	// server's r.Context(), which matters for indexer-backed selectors.
+	private inflight: AbortController | null = null;
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -42,36 +149,84 @@ export class SearchbarController extends BaseController {
 			results: this.getTarget("results"),
 		});
 
-		const input = this.getDOMElement("input");
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		this.pageQuery = this.hasValue("query") ? (input?.value.trim() ?? "") : "";
 		input?.addEventListener("keydown", this.keynav.bind(this));
 		input?.addEventListener("focus", this.selectInput.bind(this));
+		input?.form?.addEventListener("mousedown", this.focusFromForm.bind(this));
 		document.addEventListener("click", this.onOutsideClick.bind(this));
 		document.addEventListener("keydown", this.onKeyShortcut.bind(this));
 	}
 
-	// search filters the (once-fetched) path list for the current input.
+	// search filters the (once-fetched) path list for the current input, or
+	// asks the server when the input carries a qualifier.
 	public search(): void {
-		this.debouncedSearch();
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		// The list on screen no longer answers the input: Enter before the
+		// next render must submit what was typed, not open an old row.
+		this.deselect();
+		this.activeIndex = -1;
+		input?.removeAttribute("aria-activedescendant");
+		this.schedule(input?.value.trim() ?? "");
 	}
 
 	// searchUrl keeps the bar usable as a direct path navigator on submit.
+	// preventDefault is called only on a path the controller actually
+	// handles. Calling it up front meant an unhandled input swallowed the
+	// submit and did nothing at all — worst of all on a deployment with no
+	// `$search` endpoint, where the form's own action would have worked.
 	public searchUrl(e: Event): void {
-		e.preventDefault();
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		const raw = input?.value.trim();
 		if (!raw) return;
+
+		const go = (href: string): void => {
+			e.preventDefault();
+			clearTimeout(this.timer);
+			window.location.href = href;
+		};
+
+		// A results page fills the bar from its URL: that query searches, or a
+		// link could send the reader off the site with one Enter.
+		if (raw === this.pageQuery) {
+			go(this.searchHref(raw));
+			return;
+		}
 
 		// OID-shaped input redirects to the state view for that object.
 		if (OID_PATTERN.test(raw) && !raw.startsWith("/")) {
 			const realmPath = this.currentRealmPath();
 			if (realmPath) {
-				window.location.href = `${realmPath}$state&oid=${encodeURIComponent(raw)}`;
+				go(`${realmPath}$state&oid=${encodeURIComponent(raw)}`);
 				return;
 			}
 		}
 
+		// A qualified query, or free text that names no path, is a search:
+		// send it to the results page, which is also the view a reader without
+		// JavaScript gets. Navigating `counter` to `/counter` was a dead end.
+		if (
+			this.isQualified(raw) ||
+			(this.searchAvailable !== false && !SearchbarController.isPathLike(raw))
+		) {
+			go(this.searchHref(raw));
+			return;
+		}
+
 		const target = SearchbarController.resolveTarget(raw);
-		if (target) window.location.href = target;
+		if (target) go(target);
+	}
+
+	// isPathLike reports input the bar navigates to rather than searches: a
+	// path (with or without its leading slash), an anchor or query (resolved
+	// against the site root), a gno.land link, or a URL.
+	static isPathLike(raw: string): boolean {
+		return (
+			/^[rpu]\//.test(raw) ||
+			/^[/#?]/.test(raw) ||
+			GNO_LAND_HOST.test(raw) ||
+			/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+		);
 	}
 
 	private currentRealmPath(): string | null {
@@ -102,23 +257,382 @@ export class SearchbarController extends BaseController {
 		}
 	}
 
-	private debouncedSearch = debounce((): void => {
-		const input = this.getDOMElement("input") as HTMLInputElement | null;
-		const q = input?.value.trim() ?? "";
-		if (q.length < MIN_QUERY_LENGTH) {
-			this.close();
-			return;
-		}
-		void this.run(q);
-	}, SEARCH_DELAY);
+	// One timer, with the delay chosen when it is scheduled. Two independent
+	// debounce closures could not cancel each other, so the keystroke that
+	// turned a query into a qualified one fired both of them: two identical
+	// requests, and two rate-limit tokens for one search.
+	private schedule(q: string): void {
+		clearTimeout(this.timer);
+		this.inflight?.abort();
+		this.timer = setTimeout(
+			() => {
+				const input = this.getDOMElement("input") as HTMLInputElement | null;
+				const current = input?.value.trim() ?? "";
+				if (current.length < MIN_QUERY_LENGTH) {
+					this.close();
+					return;
+				}
+				void this.run(current);
+			},
+			this.isQualified(q) ? QUALIFIED_SEARCH_DELAY : SEARCH_DELAY,
+		);
+	}
 
 	private async run(q: string): Promise<void> {
 		const id = ++this.runId;
 		const pageMatches = this.scanPage(q);
+		const drawLocal = (): void => {
+			this.pageMatches = pageMatches;
+			this.render(q, this.filter(q), pageMatches);
+		};
+
+		if (this.isQualified(q)) {
+			const ctl = new AbortController();
+			this.inflight = ctl;
+			// A pasted address waits on an account's walk, which can take
+			// seconds: what the path list knows shows in the meantime.
+			let answered = false;
+			if (this.isAccepted(q)) {
+				void this.ensureLoaded().then(() => {
+					if (!answered && id === this.runId) drawLocal();
+				});
+			}
+			const res = await this.fetchSearch(q, ctl.signal);
+			answered = true;
+			// A newer keystroke, or close(), superseded us.
+			if (id !== this.runId || ctl.signal.aborted) return;
+			if (res) {
+				this.pageMatches = pageMatches;
+				this.render(q, res.groups ?? [], pageMatches, {
+					unknownFilter: res.unknown_filter,
+					error: res.error,
+					fullPage: true,
+					highlight: this.highlightTerm(q),
+				});
+				return;
+			}
+			// The endpoint did not answer: fall through to the local path
+			// filter rather than showing the reader an empty dropdown.
+		}
+
 		await this.ensureLoaded();
-		if (id !== this.runId) return; // a newer keystroke superseded us
-		this.pageMatches = pageMatches;
-		this.draw(q, this.filter(q), pageMatches);
+		if (id !== this.runId) return;
+		drawLocal();
+	}
+
+	// searchHref builds on the form's action, the server's `SearchAction`, so
+	// the JS and no-JS paths share one source. The server already falls back
+	// to `/$search` on a path it cannot parse, where `<path>$search` is a 404.
+	private searchHref(q: string): string {
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		const action = input?.form?.getAttribute("action") || "/$search";
+		return `${action}&q=${encodeURIComponent(q)}`;
+	}
+
+	// isQualified reports whether a query carries a `key:value` token or names
+	// a no-argument selector, i.e. whether the server has to answer it.
+	private isQualified(q: string): boolean {
+		if (this.searchAvailable === false) return false;
+		// Mirrors ParseQuery exactly. The key must be a bare word: a gno path
+		// with arguments (/r/gnoland/pages:p/about) carries a colon too, and
+		// the bar is prefilled with the current path — treating that as a
+		// search turned Enter from "go there" into "search for a qualifier
+		// that does not exist".
+		if (q.split(/\s+/).some(SearchbarController.isQualifierToken)) return true;
+		const word = q.trim().toLowerCase();
+		return (
+			this.selectors.some((s) => s.bare && s.name === word) ||
+			this.isAccepted(q)
+		);
+	}
+
+	// isAccepted reports a value a selector answers typed alone.
+	private isAccepted(q: string): boolean {
+		return this.accepting.some((re) => re.test(q.trim()));
+	}
+
+	// pattern compiles an `accepts`, a Go regexp the browser may not read: one
+	// it refuses is left out, not a failure of the whole answer.
+	static pattern(source?: string): RegExp[] {
+		if (!source) return [];
+		try {
+			return [new RegExp(source)];
+		} catch {
+			return [];
+		}
+	}
+
+	// highlightTerm is what a server-answered row can contain: the free text,
+	// else the selector's value. No title contains `func:Render` as typed.
+	private highlightTerm(q: string): string {
+		const tokens = q.split(/\s+/).filter(Boolean);
+		const text = tokens.filter(
+			(t) =>
+				!SearchbarController.isQualifierToken(t) &&
+				!this.selectors.some((s) => s.bare && s.name === t.toLowerCase()),
+		);
+		if (text.length > 0) return text.join(" ");
+		const values = tokens
+			.filter(SearchbarController.isQualifierToken)
+			.map((t) => {
+				const at = t.indexOf(":");
+				return { key: t.slice(0, at).toLowerCase(), value: t.slice(at + 1) };
+			});
+		const named = values.find((v) =>
+			this.selectors.some((s) => s.name === v.key),
+		);
+		return (named ?? values[0])?.value ?? "";
+	}
+
+	// isQualifierToken must stay in step with ParseQuery's isQualifierKey.
+	static isQualifierToken(token: string): boolean {
+		const at = token.indexOf(":");
+		// An object ID led by a hex letter has a bare-word key too.
+		if (at < 0 || OID_PATTERN.test(token)) return false;
+		if (token.slice(at + 1).startsWith("//")) return false;
+		return /^[a-z][a-z0-9_-]*$/.test(token.slice(0, at).toLowerCase());
+	}
+
+	// fetchSearch asks the server. A failure returns null and is not retried
+	// for the life of the page when the endpoint itself is absent: an older
+	// gnoweb, or one behind a proxy that does not route `$search`, must not
+	// cost a request per keystroke.
+	private async fetchSearch(
+		q: string,
+		signal?: AbortSignal,
+	): Promise<SearchResponse | null> {
+		try {
+			const res = await fetch(`${this.searchHref(q)}&json`, {
+				headers: { Accept: "application/json" },
+				signal,
+			});
+			if (res.status === 404) {
+				this.searchAvailable = false;
+				return null;
+			}
+			// A refusal is the server's answer: shown, not replaced by the
+			// local path filter reading as "No results".
+			if (res.status === 429 || res.status === 400) {
+				const body = (await res.json().catch(() => null)) as {
+					error?: string;
+				} | null;
+				return { error: body?.error || `search refused (${res.status})` };
+			}
+			if (!res.ok) return null;
+			const data: unknown = await res.json();
+			if (!isSearchResponse(data)) return null;
+			this.searchAvailable = true;
+			if (data.selectors) {
+				this.selectors = data.selectors;
+				if (!this.selectorsLoaded) {
+					this.accepting = data.selectors.flatMap((s) =>
+						SearchbarController.pattern(s.accepts),
+					);
+				}
+				this.selectorsLoaded = true;
+			}
+			return data;
+		} catch {
+			return null;
+		}
+	}
+
+	// loadSelectors probes the endpoint once with an empty query so the hint
+	// list reflects what this deployment can actually answer.
+	private async loadSelectors(): Promise<void> {
+		if (this.selectorsLoaded || this.searchAvailable === false) return;
+		if (this.selectorProbe) return this.selectorProbe;
+		// The flag is set by fetchSearch on success, never here: setting it
+		// before the await meant one offline moment silently disabled every
+		// bare qualifier for the life of the page, with no retry.
+		this.selectorProbe = this.fetchSearch("")
+			.then(() => undefined)
+			.finally(() => {
+				this.selectorProbe = null;
+			});
+		return this.selectorProbe;
+	}
+
+	// beginDraw resets the dropdown for a fresh render; endDraw reveals it.
+	// Both render paths go through them so ARIA state cannot drift between
+	// the local filter and the server-answered one.
+	private beginDraw(): HTMLElement | null {
+		const results = this.getDOMElement("results");
+		if (!results) return null;
+		this.clearHighlight();
+		this.getDOMElement("input")?.removeAttribute("aria-activedescendant");
+		results.textContent = "";
+		this.items = [];
+		this.activeIndex = -1;
+		return results;
+	}
+
+	private endDraw(results: HTMLElement): void {
+		// In the combobox pattern DOM focus stays on the input; options are
+		// reached with the arrow keys. Without this, Tab walks every result.
+		for (const el of this.items) el.tabIndex = -1;
+		results.hidden = false;
+		this.getDOMElement("input")?.setAttribute("aria-expanded", "true");
+	}
+
+	// render is the single dropdown renderer. Both paths — the local path
+	// filter and the server's answer — hand it the same SearchGroup[], so
+	// ARIA bookkeeping and item collection cannot drift between them.
+	private render(
+		q: string,
+		groups: SearchGroup[],
+		pageMatches: PageMatch[],
+		opts: {
+			unknownFilter?: string;
+			error?: string;
+			fullPage?: boolean;
+			highlight?: string;
+		} = {},
+	): void {
+		const results = this.beginDraw();
+		if (!results) return;
+
+		// A query that could not be answered is not one that found nothing.
+		let unanswered = false;
+		if (opts.error) {
+			results.appendChild(this.buildNotice(opts.error));
+			unanswered = true;
+		}
+		if (opts.unknownFilter) {
+			results.appendChild(
+				this.buildNotice(
+					`"${opts.unknownFilter}:" is not a search qualifier here`,
+				),
+			);
+			unanswered = true;
+		}
+
+		for (const group of groups) {
+			const label =
+				group.source === "indexer"
+					? `${group.label}, from indexer`
+					: group.label;
+			const section = this.sectionWithLabel(label);
+
+			if (group.error) {
+				section.appendChild(this.buildNotice(group.error));
+				unanswered = true;
+			}
+			for (const r of group.results ?? []) {
+				section.appendChild(this.buildItem(r, opts.highlight ?? q, group));
+			}
+			if (group.truncated && group.notice) {
+				section.appendChild(this.buildNotice(group.notice));
+			}
+			results.appendChild(section);
+		}
+
+		// Counted before the full-results item, which is always there for a
+		// qualified query and would otherwise hide that nothing matched.
+		const answered =
+			groups.some((g) => (g.results?.length ?? 0) > 0) ||
+			pageMatches.length > 0;
+		if (!answered && !unanswered) {
+			results.appendChild(this.buildNotice("No results"));
+		}
+
+		// A qualified query always offers its own results page, the only view
+		// that works without JavaScript.
+		if (opts.fullPage) results.appendChild(this.buildFullPageItem(q));
+
+		if (pageMatches.length > 0) {
+			results.appendChild(this.buildPageSection(q, pageMatches));
+		}
+		this.endDraw(results);
+	}
+
+	// buildItem renders one row. Provenance belongs to the group, so it is
+	// read from there rather than repeated on every result.
+	private buildItem(
+		r: SearchResult,
+		q: string,
+		group: SearchGroup,
+	): HTMLElement {
+		const linkable = r.href?.startsWith("/") ?? false;
+		const item = document.createElement(linkable ? "a" : "div");
+		item.className = "b-omnisearch-item";
+		item.setAttribute("role", "option");
+
+		if (linkable && r.href) {
+			(item as HTMLAnchorElement).href = r.href;
+		} else {
+			// Announced but unreachable by the arrow keys — a transaction has
+			// no page in gnoweb — so it must not inflate the option count.
+			item.setAttribute("aria-disabled", "true");
+		}
+		// The name comes from the row's content, so the detail is read too;
+		// an aria-label would replace it. Provenance is spoken, not shown.
+		const tag = this.buildTag(r, group);
+		if (tag) item.appendChild(tag);
+		if (group.source === "indexer") {
+			const from = document.createElement("span");
+			from.className = "u-sr-only";
+			from.textContent = "from indexer: ";
+			item.appendChild(from);
+		}
+
+		const text = document.createElement("span");
+		text.className = "b-omnisearch-text";
+		this.fillHighlighted(text, r.title, q);
+		if (r.detail) {
+			const detail = document.createElement("small");
+			detail.textContent = ` ${r.detail}`;
+			text.appendChild(detail);
+		}
+		item.appendChild(text);
+
+		if (linkable) this.items.push(item);
+		return item;
+	}
+
+	// buildTag marks provenance for an indexer row, or the on-chain kind
+	// (r/p/u) for a path the local filter produced.
+	private buildTag(r: SearchResult, group: SearchGroup): HTMLElement | null {
+		const indexer = group.source === "indexer";
+		const type = indexer ? "i" : SearchbarController.typeOf(r.href ?? "");
+		if (!type) return null;
+
+		const tag = document.createElement("span");
+		tag.className = "b-omnisearch-tag";
+		tag.dataset.type = type;
+		tag.textContent = type;
+		// buildItem speaks the provenance; the glyph is decoration.
+		tag.setAttribute("aria-hidden", "true");
+		if (indexer) tag.title = "From an indexer, not from the chain";
+		return tag;
+	}
+
+	// buildNotice renders a message inside the listbox. It is an option
+	// because role="listbox" owns only options and groups — and a disabled
+	// one, because it is not reachable by the arrow keys and must not inflate
+	// the option count a screen reader announces.
+	private buildNotice(text: string): HTMLElement {
+		const el = document.createElement("div");
+		el.className = "b-omnisearch-empty";
+		el.setAttribute("role", "option");
+		el.setAttribute("aria-disabled", "true");
+		el.textContent = text;
+		return el;
+	}
+
+	private buildFullPageItem(q: string): HTMLElement {
+		const section = this.sectionWithLabel("All results");
+		const item = document.createElement("a");
+		item.className = "b-omnisearch-item";
+		item.setAttribute("role", "option");
+		item.href = this.searchHref(q);
+		const text = document.createElement("span");
+		text.className = "b-omnisearch-text";
+		text.textContent = `Open the full results page for "${q}"`;
+		item.appendChild(text);
+		section.appendChild(item);
+		this.items.push(item);
+		return section;
 	}
 
 	// ensureLoaded fetches the path list once and reuses it for every keystroke.
@@ -147,18 +661,21 @@ export class SearchbarController extends BaseController {
 	}
 
 	// filter ranks the cached lists by relevance and keeps the top results per
-	// group. Users are derived from the first path segment of the ranked matches.
-	private filter(q: string): {
-		apps: string[];
-		packages: string[];
-		users: string[];
-	} {
+	// group, in the shape the server returns, so one renderer serves both
+	// paths. Users are derived from the first path segment of the ranked matches.
+	private filter(q: string): SearchGroup[] {
 		const needle = q.toLowerCase();
 		const apps = SearchbarController.rank(this.realms, needle);
 		const packages = SearchbarController.rank(this.packages, needle);
 
 		const users: string[] = [];
 		const seen = new Set<string>();
+		// A pasted address names a user even with nothing deployed under it.
+		const pasted = SearchbarController.isAddress(q);
+		if (pasted) {
+			seen.add(needle);
+			users.push(`/u/${needle}`);
+		}
 		for (const p of apps.concat(packages)) {
 			const name = SearchbarController.firstSegment(p);
 			if (name && !seen.has(name)) {
@@ -167,29 +684,84 @@ export class SearchbarController extends BaseController {
 			}
 		}
 
-		return {
-			apps: apps.slice(0, RESULTS_PER_GROUP),
-			packages: packages.slice(0, RESULTS_PER_GROUP),
-			users: users.slice(0, RESULTS_PER_GROUP),
-		};
+		const toGroup = (label: string, paths: string[]): SearchGroup => ({
+			label,
+			source: "chain",
+			results: paths
+				.slice(0, RESULTS_PER_GROUP)
+				.map((path) => ({ title: path, href: path })),
+		});
+
+		const groups = [toGroup("Apps", apps), toGroup("Packages", packages)];
+		// Its account page is what an address is most often pasted for: the
+		// user row leads, as on the results page (omnisearch discover).
+		if (pasted) {
+			groups.unshift(toGroup("Users", users));
+		} else {
+			groups.push(toGroup("Users", users));
+		}
+		return groups.filter((g) => (g.results?.length ?? 0) > 0);
 	}
 
-	// rank returns the paths matching needle, most-relevant first: a match in the
-	// realm name (last segment) outranks one in the namespace/address, and a
-	// shallower path edges out a deeper one.
+	// rank returns the paths matching needle, most-relevant first: throwaway
+	// deploys last, then a match in the package name outranks one in the
+	// namespace/address, and a shallower path edges out a deeper one. The
+	// results page ranks with the same rules (omnisearch sortByRelevance).
 	static rank(paths: string[], needle: string): string[] {
-		const scored: Array<{ path: string; score: number }> = [];
+		const scored: Array<{ path: string; score: number; throwaway: boolean }> =
+			[];
 		for (const p of paths) {
 			const score = SearchbarController.relevance(p, needle);
-			if (score > 0) scored.push({ path: p, score });
+			if (score > 0)
+				scored.push({
+					path: p,
+					score,
+					throwaway: SearchbarController.isThrowaway(p, needle),
+				});
 		}
 		scored.sort(
 			(a, b) =>
+				Number(a.throwaway) - Number(b.throwaway) ||
 				b.score - a.score ||
 				a.path.length - b.path.length ||
-				a.path.localeCompare(b.path),
+				(a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
 		);
 		return scored.map((s) => s.path);
+	}
+
+	// isAddress checks a bech32 address's checksum (BIP-173), as the server
+	// does before linking /u/<address>: the shape alone lets a typo through.
+	static isAddress(s: string): boolean {
+		if (!ADDRESS_PATTERN.test(s)) return false;
+		const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+		const sep = s.lastIndexOf("1");
+		const hrp = [...s.slice(0, sep)].map((c) => c.charCodeAt(0));
+		const values = [
+			...hrp.map((c) => c >> 5),
+			0,
+			...hrp.map((c) => c & 31),
+			...[...s.slice(sep + 1)].map((c) => charset.indexOf(c)),
+		];
+		const gen = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+		let chk = 1;
+		for (const v of values) {
+			const top = chk >>> 25;
+			chk = ((chk & 0x1ffffff) << 5) ^ v;
+			for (let i = 0; i < 5; i++) if (((top >>> i) & 1) !== 0) chk ^= gen[i];
+		}
+		return chk === 1;
+	}
+
+	// isThrowaway mirrors omnisearch isThrowaway: a raw address namespace or
+	// one numbered after a test, or a segment that names a test; not when
+	// asked for.
+	static isThrowaway(path: string, needle: string): boolean {
+		const segs = path.toLowerCase().split("/").filter(Boolean);
+		const ns = segs[1] ?? "";
+		// A pasted address asks for that namespace; a needle inside it does not.
+		if (ADDRESS_PATTERN.test(ns) && ns !== needle) return true;
+		if (needle.includes("test")) return false;
+		return TEST_NAMESPACE.test(ns) || segs.some((s) => TEST_WORD.test(s));
 	}
 
 	// relevance scores how well a path matches needle; 0 means no match.
@@ -197,89 +769,19 @@ export class SearchbarController extends BaseController {
 		const lower = path.toLowerCase();
 		if (!lower.includes(needle)) return 0;
 		const segs = lower.split("/").filter(Boolean);
+		// A version segment (`/v0`) is not depth: the name is the one before.
+		if (segs.length > 1 && VERSION_SEGMENT.test(segs[segs.length - 1] ?? "")) {
+			segs.pop();
+		}
 		const name = segs[segs.length - 1] ?? "";
 		let score: number;
 		if (name === needle) score = 100;
+		else if (segs.includes(needle)) score = 90;
 		else if (name.startsWith(needle)) score = 80;
 		else if (name.includes(needle)) score = 60;
 		else if (segs.some((s) => s.startsWith(needle))) score = 40;
 		else score = 20;
 		return score - segs.length;
-	}
-
-	private draw(
-		q: string,
-		groups: { apps: string[]; packages: string[]; users: string[] },
-		pageMatches: PageMatch[],
-	): void {
-		const results = this.getDOMElement("results");
-		const input = this.getDOMElement("input");
-		if (!results) return;
-
-		this.clearHighlight();
-		input?.removeAttribute("aria-activedescendant");
-		results.textContent = "";
-		this.items = [];
-		this.activeIndex = -1;
-
-		const gnoland = this.buildLinkSection("gno.land", q, [
-			["Apps", groups.apps],
-			["Packages", groups.packages],
-			["Users", groups.users],
-		]);
-		if (gnoland) results.appendChild(gnoland);
-
-		if (pageMatches.length > 0) {
-			results.appendChild(this.buildPageSection(q, pageMatches));
-		}
-
-		if (this.items.length === 0) {
-			const empty = document.createElement("div");
-			empty.className = "b-omnisearch-empty";
-			empty.textContent = "No results";
-			results.appendChild(empty);
-		}
-		results.hidden = false;
-		input?.setAttribute("aria-expanded", "true");
-	}
-
-	private buildLinkSection(
-		title: string,
-		q: string,
-		groups: Array<[string, string[]]>,
-	): HTMLElement | null {
-		const filled = groups.filter(([, paths]) => paths.length > 0);
-		if (filled.length === 0) return null;
-
-		const section = this.sectionWithLabel(title);
-		for (const [label, paths] of filled) {
-			for (const path of paths) {
-				if (!path.startsWith("/")) continue;
-				const item = document.createElement("a");
-				item.className = "b-omnisearch-item";
-				item.href = path;
-				item.setAttribute("role", "option");
-				item.setAttribute("aria-label", `${label}: ${path}`);
-
-				const type = SearchbarController.typeOf(path);
-				if (type) {
-					const tag = document.createElement("span");
-					tag.className = "b-omnisearch-tag";
-					tag.dataset.type = type;
-					tag.textContent = type;
-					item.appendChild(tag);
-				}
-
-				const text = document.createElement("span");
-				text.className = "b-omnisearch-text";
-				this.fillHighlighted(text, path, q);
-				item.appendChild(text);
-
-				section.appendChild(item);
-				this.items.push(item);
-			}
-		}
-		return section;
 	}
 
 	private buildPageSection(q: string, matches: PageMatch[]): HTMLElement {
@@ -312,13 +814,16 @@ export class SearchbarController extends BaseController {
 		const label = document.createElement("span");
 		label.className = "b-omnisearch-label";
 		label.textContent = title;
+		// role="group" owns only options; the group already carries this
+		// text as its aria-label, so the span is decoration.
+		label.setAttribute("aria-hidden", "true");
 		section.appendChild(label);
 		return section;
 	}
 
 	// fillHighlighted writes text into el, emphasizing the first match of q.
 	private fillHighlighted(el: HTMLElement, text: string, q: string): void {
-		const at = text.toLowerCase().indexOf(q.toLowerCase());
+		const at = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
 		if (at < 0) {
 			el.textContent = text;
 			return;
@@ -332,9 +837,7 @@ export class SearchbarController extends BaseController {
 
 	private move(delta: number): void {
 		if (this.items.length === 0) return;
-		const prev = this.items[this.activeIndex];
-		prev?.removeAttribute("aria-selected");
-		prev?.removeAttribute("id");
+		this.deselect();
 		this.activeIndex =
 			(this.activeIndex + delta + this.items.length) % this.items.length;
 		const active = this.items[this.activeIndex];
@@ -348,7 +851,16 @@ export class SearchbarController extends BaseController {
 		);
 	}
 
+	// deselect drops the active row's option state; the list stays.
+	private deselect(): void {
+		const prev = this.items[this.activeIndex];
+		prev?.removeAttribute("aria-selected");
+		prev?.removeAttribute("id");
+	}
+
 	private close(): void {
+		clearTimeout(this.timer);
+		this.inflight?.abort();
 		this.runId++;
 		const results = this.getDOMElement("results");
 		if (results) {
@@ -368,7 +880,9 @@ export class SearchbarController extends BaseController {
 
 	// onKeyShortcut focuses the search bar when "/" is pressed outside any
 	// editable element, then opens the dropdown against the prefilled path so
-	// the action has visible feedback (a bare select() reads as a no-op).
+	// the action has visible feedback (a bare select() reads as a no-op). A
+	// results page already answers the query its bar holds, so the bar only
+	// takes the caret there, at the end, ready to refine it.
 	// Skips when modifiers are held or during IME composition so chorded
 	// shortcuts and CJK input keep working.
 	//
@@ -380,17 +894,36 @@ export class SearchbarController extends BaseController {
 		const target = e.target as HTMLElement | null;
 		if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
 		e.preventDefault();
-		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		if (!input) return;
+		input.focus();
+		if (this.pageQuery && input.value.trim() === this.pageQuery) {
+			input.setSelectionRange(input.value.length, input.value.length);
+			return;
+		}
 		this.search();
+	}
+
+	// focusFromForm focuses the input when a press lands elsewhere in the bar,
+	// such as the "/" hint or the gap after it, which sit beside the input.
+	private focusFromForm(e: MouseEvent): void {
+		const input = this.getDOMElement("input");
+		if (!input || e.target === input) return;
+		e.preventDefault();
+		input.focus();
 	}
 
 	// selectInput selects the whole input on focus so typing replaces the
 	// prefilled path instead of appending to it. Deferred via rAF so a mouse
 	// click's caret placement doesn't collapse the selection (a plain
-	// synchronous select() is lost on mousedown→focus→mouseup).
+	// synchronous select() is lost on mousedown→focus→mouseup). A results page
+	// holds its query instead, which a reader refines: the caret stays put.
 	private selectInput(): void {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
-		requestAnimationFrame(() => input?.select());
+		if (!this.pageQuery) requestAnimationFrame(() => input?.select());
+		// Learn the qualifier list on first focus, not on page load: a reader
+		// who never opens the bar costs no request.
+		void this.loadSelectors();
 	}
 
 	// scanPage collects up to MAX_PAGE_MATCHES occurrences of q in the page
@@ -488,10 +1021,7 @@ export class SearchbarController extends BaseController {
 	// realm paths copied from anywhere resolve locally; non-`gno.land` absolute
 	// URLs pass through, and relatives resolve against the origin.
 	static resolveTarget(input: string): string | null {
-		const stripped = input.replace(
-			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
-			"",
-		);
+		const stripped = input.replace(GNO_LAND_HOST, "");
 		try {
 			const url = new URL(stripped, window.location.origin);
 			if (url.protocol !== "http:" && url.protocol !== "https:") return null;

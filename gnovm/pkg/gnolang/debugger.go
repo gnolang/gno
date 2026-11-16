@@ -725,12 +725,15 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			}
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
-		tr, _, _, _, status := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name))
+		// nil meter: the debugger evaluates expressions out-of-band, not on a
+		// gas-metered consensus path, so this walk is intentionally unbilled.
+		tr, _, _, _, status := findEmbeddedFieldType(nil, x.T.GetPkgPath(), x.T, Name(n.Sel.Name))
 		if status != embedLookupFound {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
 		for _, vp := range tr {
-			x = x.GetPointerToFromTV(m.Alloc, m.Store, vp).Deref()
+			// nil meter, "" callerPath: out-of-band debugger evaluation.
+			x = x.getPointerToFromTV(nil, m.Alloc, m.Store, vp, "").Deref()
 		}
 		return x, nil
 	case *ast.IndexExpr:

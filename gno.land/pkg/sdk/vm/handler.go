@@ -31,6 +31,10 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	case MsgRun:
 		return vh.handleMsgRun(ctx, msg)
+	case MsgEnablePackage:
+		return vh.handleMsgEnablePackage(ctx, msg)
+	case MsgRejectPackage:
+		return vh.handleMsgRejectPackage(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -66,6 +70,24 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	return
 }
 
+// Handle MsgEnablePackage.
+func (vh vmHandler) handleMsgEnablePackage(ctx sdk.Context, msg MsgEnablePackage) sdk.Result {
+	err := vh.vm.EnablePackage(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	return sdk.Result{}
+}
+
+// Handle MsgRejectPackage.
+func (vh vmHandler) handleMsgRejectPackage(ctx sdk.Context, msg MsgRejectPackage) sdk.Result {
+	err := vh.vm.RejectPackage(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	return sdk.Result{}
+}
+
 // ----------------------------------------
 // Query
 
@@ -83,47 +105,98 @@ const (
 	QueryStorage      = "qstorage"
 	QueryPkgJSON      = "qpkg_json"
 	QueryTypeJSON     = "qtype_json"
+	// QueryPackageMetaJSON reports a path's status and submit-time metadata.
+	// Distinct from QueryPkgJSON, which dumps a live package's variables and
+	// cannot answer for one that is not live yet.
+	QueryPackageMetaJSON = "qpkgmeta_json"
+	// QueryInertPaths lists what is awaiting approval. Separate from QueryPaths,
+	// which ranges the live key space and cannot see it.
+	QueryInertPaths = "qinertpaths"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	path := secondPart(req.Path)
-	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
-		path = path[:i]
+// queryEndpoint returns the endpoint Query serves for path: its second
+// segment, cut at '?'. ok is false when Query serves nothing for path.
+func queryEndpoint(path string) (endpoint string, ok bool) {
+	endpoint, ok = secondPart(path)
+	if i := strings.IndexByte(endpoint, '?'); i >= 0 { // cut query
+		endpoint = endpoint[:i]
 	}
+	return endpoint, ok
+}
 
-	switch path {
+// QueryRunsCode implements abci.CodeExecutionQuerier: these endpoints run code
+// in a machine, through withQueryEvalMachine.
+func (vh vmHandler) QueryRunsCode(path string) bool {
+	endpoint, ok := queryEndpoint(path)
+	if !ok {
+		return false
+	}
+	switch endpoint {
+	case QueryRender, QueryEval, QueryEvalJSON:
+		return true
+	}
+	return false
+}
+
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	endpoint, ok := queryEndpoint(req.Path)
+	if !ok {
+		panic("should not happen")
+	}
+	// A case that runs code in a machine also belongs in QueryRunsCode.
+	switch endpoint {
 	case QueryRender:
-		res = vh.queryRender(ctx, req)
+		res = capQueryOutput(vh.queryRender(ctx, req))
 	case QueryFuncs:
-		res = vh.queryFuncs(ctx, req)
+		res = capQueryOutput(vh.queryFuncs(ctx, req))
 	case QueryEval:
-		res = vh.queryEval(ctx, req)
+		res = capQueryOutput(vh.queryEval(ctx, req))
 	case QueryEvalJSON:
-		res = vh.queryEvalJSON(ctx, req)
+		res = capQueryOutput(vh.queryEvalJSON(ctx, req))
 	case QueryObjectJSON:
 		res = vh.queryObjectJSON(ctx, req)
 	case QueryObjectBinary:
 		res = vh.queryObjectBinary(ctx, req)
 	case QueryFile:
-		res = vh.queryFile(ctx, req)
+		res = capQueryOutput(vh.queryFile(ctx, req))
 	case QueryDoc:
-		res = vh.queryDoc(ctx, req)
+		res = capQueryOutput(vh.queryDoc(ctx, req))
 	case QueryPaths:
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
 		res = vh.queryStorage(ctx, req)
 	case QueryPkgJSON:
 		res = vh.queryPkg(ctx, req)
+	case QueryPackageMetaJSON:
+		res = vh.queryPackageMeta(ctx, req)
+	case QueryInertPaths:
+		res = vh.queryInertPaths(ctx, req)
 	case QueryTypeJSON:
 		res = vh.queryType(ctx, req)
 	default:
+		second, _ := secondPart(req.Path)
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
 				"unknown vm query endpoint %s in %s",
-				secondPart(req.Path), req.Path)))
+				second, req.Path)))
 	}
 
 	return res
+}
+
+// maxQueryOutputBytes bounds a query answer whose length comes from chain data
+// or from the caller.
+const maxQueryOutputBytes = 1 << 20 // 1 MiB
+
+// capQueryOutput replaces an answer longer than maxQueryOutputBytes with an
+// ExportSizeExceededError. It runs after the query, so it bounds what one
+// answer adds to a batch, not what a single query allocates.
+func capQueryOutput(res abci.ResponseQuery) abci.ResponseQuery {
+	if len(res.Data) <= maxQueryOutputBytes {
+		return res
+	}
+	return sdk.ABCIResponseQueryFromError(ErrExportSizeExceeded(fmt.Sprintf(
+		"response size %d exceeds %d bytes", len(res.Data), maxQueryOutputBytes)))
 }
 
 // queryRender calls .Render(<path>) in readonly mode.
@@ -160,35 +233,39 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	return
 }
 
-// queryPaths retrieves paginated package paths based on request data.
-// data can be username prefixed by a @ or a path prefix.
-func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+// pathsLimit reads ?limit= from a query path, defaulted and capped.
+//
+// XXX: implement pagination
+func pathsLimit(reqPath string) (int, error) {
 	const defaultLimit = 1_000
 	const maxLimit = 10_000
 
-	target := string(req.Data)
-
 	var query string
-	if i := strings.IndexByte(req.Path, '?'); i >= 0 {
-		query = req.Path[i+1:]
+	if _, after, ok := strings.Cut(reqPath, "?"); ok {
+		query = after
 	}
-
 	params, _ := url.ParseQuery(query)
 
-	// XXX: implement pagination
-
-	// Get limit param, if any
-	limit := defaultLimit // default
+	limit := defaultLimit
 	if l := params.Get("limit"); len(l) > 0 {
 		var err error
 		if limit, err = strconv.Atoi(l); err != nil {
-			return sdk.ABCIResponseQueryFromError(fmt.Errorf("invalid limit argument"))
+			return 0, fmt.Errorf("invalid limit argument")
 		}
+		limit = min(limit, maxLimit)
+	}
+	return limit, nil
+}
 
-		limit = min(limit, maxLimit) // cap to maxLimit
+// queryPaths retrieves paginated package paths based on request data.
+// data can be username prefixed by a @ or a path prefix.
+func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	limit, err := pathsLimit(req.Path)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
 	}
 
-	paths, err := vh.vm.QueryPaths(ctx, target, limit)
+	paths, err := vh.vm.QueryPaths(ctx, string(req.Data), limit)
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}
@@ -307,6 +384,34 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 }
 
 // queryPkg returns the named block variables of a package as Amino JSON.
+// queryInertPaths answers vm/qinertpaths, newline-separated like vm/qpaths.
+func (vh vmHandler) queryInertPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	limit, err := pathsLimit(req.Path)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+
+	paths, err := vh.vm.QueryInertPaths(ctx, string(req.Data), limit)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+	res.Data = []byte(strings.Join(paths, "\n"))
+	return
+}
+
+// queryPackageMeta answers vm/qpkgmeta_json. An unknown path is a successful
+// response with status "absent", so a caller can tell it from a node that would
+// not answer.
+func (vh vmHandler) queryPackageMeta(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	result, err := vh.vm.QueryPackageMeta(ctx, string(req.Data))
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = []byte(result)
+	return
+}
+
 func (vh vmHandler) queryPkg(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	pkgPath := string(req.Data)
 	result, err := vh.vm.QueryPkg(ctx, pkgPath)
@@ -348,15 +453,12 @@ func abciResult(err error) sdk.Result {
 	return res
 }
 
-// returns the second component of a path.
-func secondPart(path string) string {
+// returns the second component of a path, and false when the first
+// component is not "vm".
+func secondPart(path string) (string, bool) {
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
-		return ""
-	} else {
-		if parts[0] != "vm" {
-			panic("should not happen")
-		}
-		return parts[1]
+		return "", true
 	}
+	return parts[1], parts[0] == "vm"
 }

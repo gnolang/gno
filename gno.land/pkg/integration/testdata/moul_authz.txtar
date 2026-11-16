@@ -1,4 +1,4 @@
-loadpkg gno.land/p/moul/authz
+loadpkg gno.land/p/moul/authz/v0
 loadpkg gno.land/r/testing/admin $WORK/admin
 loadpkg gno.land/r/testing/resource $WORK/resource
 
@@ -26,7 +26,7 @@ import (
 	"chain/runtime/unsafe"
 	"errors"
 
-	"gno.land/p/moul/authz"
+	"gno.land/p/moul/authz/v0"
 )
 
 type prop struct {
@@ -60,11 +60,21 @@ gno "0.9"
 package resource
 
 import (
-	"gno.land/p/moul/authz"
+	"gno.land/p/moul/authz/v0"
 	"gno.land/r/testing/admin"
 )
 
-var a *authz.Authorizer = authz.NewWithAuthority(authz.NewContractAuthority("gno.land/r/testing/admin", admin.HandlePrivilegedAction))
+// This is the async DAO-style flow: an arbitrary user proposes, the admin
+// realm queues the proposal, and ExecuteAction runs it later. A plain
+// NewContractAuthority would reject the user at the proposer (its default
+// proposer is the admin contract itself), so widen the proposer explicitly.
+// admin.HandlePrivilegedAction remains the trust boundary: it only accepts
+// proposals routed through this realm.
+var a *authz.Authorizer = authz.NewWithAuthority(authz.NewRestrictedContractAuthority(
+	"gno.land/r/testing/admin",
+	admin.HandlePrivilegedAction,
+	authz.NewAutoAcceptAuthority(),
+))
 
 var value = "init"
 

@@ -254,9 +254,17 @@ func (m *Machine) doOpShlAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 
-	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	// Per-N gas for BigInt Shl: charge per-kilobit of both the shift amount
+	// and the operand bit-width, mirroring doOpShl (and doOpShrAssign below).
+	// This runs only at statement execution with a concrete-typed lvalue
+	// (const targets are rejected; a variable can't hold an untyped bigint),
+	// so the branch is currently unreachable — kept symmetric with doOpShl so
+	// the operand-size undercharge can't creep back if that ever changes.
 	if lv.TV.T == UntypedBigintType {
-		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+		// Clamped for the same overflow reason as doOpShl.
+		shift := min(rv.GetUint(), uint64(maxBigintShift))
+		m.incrCPU(int64(shift) * OpCPUSlopeBigIntShl / 1024)
+		m.incrCPUBigUnary(lv.TV, OpCPUSlopeBigIntShl)
 	}
 
 	// lv <<= rv

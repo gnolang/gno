@@ -1,8 +1,6 @@
 package gnoweb
 
 import (
-	"strings"
-
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
@@ -21,6 +19,13 @@ type RenderConfig struct {
 	ChromaDarkStyle *chroma.Style
 	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
+	// IPFSGateway is the gateway origin, such as DefaultIPFSGateway, that
+	// ipfs:// URLs and URLs on the gateways in markdown's
+	// ipfsRewrittenGateways are rewritten to in realm markdown. Empty
+	// disables the rewrite. NewRouter rejects an invalid value;
+	// NewHTMLRenderer, which knows neither the chain domain nor the
+	// canonical origin, ignores a malformed one.
+	IPFSGateway string
 }
 
 // NewDefaultRenderConfig returns a RenderConfig with default styles and options.
@@ -34,12 +39,6 @@ func NewDefaultRenderConfig() (cfg RenderConfig) {
 
 // NewDefaultGoldmarkOptions returns the default Goldmark options for Markdown rendering.
 func NewDefaultGoldmarkOptions() []goldmark.Option {
-	// Only allow svg data image
-	allowSvgDataImage := func(uri string) bool {
-		const svgdata = "image/svg+xml"
-		return !strings.HasPrefix(uri, "data:") || strings.HasPrefix(uri, "data:"+svgdata)
-	}
-
 	return []goldmark.Option{
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithExtensions(
@@ -48,7 +47,9 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.Footnote,
 			extension.TaskList,
 			md.NewGnoExtension(
-				md.WithImageValidator(allowSvgDataImage),
+				md.WithImageValidator(md.AllowSvgDataImage),
+				// Display math must end at a footnote definition.
+				md.WithPeerBlockParsers(extension.NewFootnoteBlockParser()),
 			),
 		),
 	}

@@ -79,6 +79,9 @@ var (
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state. It also excludes _test paths.
 func IsRealmPath(pkgPath string) bool {
+	if !hasLetter(pkgPath, 'r') {
+		return false
+	}
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "r" {
 		return false
@@ -92,8 +95,18 @@ func IsRealmPath(pkgPath string) bool {
 // IsEphemeralPath determines whether the given pkgpath is for an ephemeral realm.
 // Ephemeral realms are temporary and don't persist state between transactions.
 func IsEphemeralPath(pkgPath string) bool {
+	if !hasLetter(pkgPath, 'e') {
+		return false
+	}
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	return match != nil && match.Get("LETTER") == "e"
+}
+
+// hasLetter checks a necessary condition for matching ReGnoUserPkgPath
+// with the given letter.
+func hasLetter(pkgPath string, letter byte) bool {
+	i := strings.IndexByte(pkgPath, '/')
+	return i >= 0 && i+2 < len(pkgPath) && pkgPath[i+1] == letter && pkgPath[i+2] == '/'
 }
 
 // IsSyntheticPath determines whether the given pkgPath is a compiler-internal
@@ -208,8 +221,7 @@ func IsTestFile(file string) bool {
 // enforced now without moving the packages. A future cleanup will
 // collapse the list as packages move under a single namespace.
 func IsTestPkgPath(pkgPath string) bool {
-	return pkgPath == "gno.land/p/demo/tests" ||
-		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+	return strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
 		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
 		pkgPath == "gno.land/r/tests/vm" ||
 		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
@@ -1168,6 +1180,11 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	return ValidateMemPackageAny(mpkg)
 }
 
+// ErrMemPackageInfo reports a std.MemPackage that arrived with its Info field
+// set. Callers match on it to name the refusal, since every other validation
+// failure here is about a path or a file.
+var ErrMemPackageInfo = errors.New("info field is not accepted")
+
 // Validates everything about mpkg, including that all files are within the
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
@@ -1195,6 +1212,11 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	// Check mpkg.Type/mptype.
 	mptype := mpkg.Type.(MemPackageType)
 	mptype.Validate(mpkg.Path)
+	// Info is amino field 5, typed any, so a message can carry any registered
+	// value there. Nothing produces or reads it, so refuse it.
+	if mpkg.Info != nil {
+		return fmt.Errorf("invalid package %q: %w", mpkg.Path, ErrMemPackageInfo)
+	}
 	// ...
 	goodFileXtns := goodFileXtns
 	if mptype.IsStdlib() { // Allow transpilation to work on stdlib with native functions.

@@ -99,6 +99,10 @@ import (
 // from `defer al.Close()`? And if so, does the tx commit with the
 // persisted allowance still in open (closed=false) state?
 func GrantWithOuterRecover(cur realm) {
+	// Acknowledge the provisioning envelope; MsgCall rejects an
+	// envelope no executing code ever observes.
+	_ = unsafe.OriginSend()
+
 	defer func() {
 		if r := recover(); r != nil {
 			println("OUTER_RECOVERED_FROM:", r)
