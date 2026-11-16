@@ -115,9 +115,9 @@ func PrimitiveString(pt gno.PrimitiveType, tv gno.TypedValue) string {
 	return tv.String()
 }
 
-// GetTypeIDQueryString returns a TypeID for qtype_json lookup, drilling through
-// PointerType so `*foo.Bar` resolves to Bar's TypeID.
-func GetTypeIDQueryString(t gno.Type) string {
+// ResolveTypeID returns the TypeID string for qtype_json lookup, drilling
+// through PointerType so `*foo.Bar` resolves to Bar's TypeID.
+func ResolveTypeID(t gno.Type) string {
 	if t == nil {
 		return ""
 	}
@@ -125,14 +125,9 @@ func GetTypeIDQueryString(t gno.Type) string {
 	case gno.RefType:
 		return tt.ID.String()
 	case *gno.DeclaredType:
-		// Mirror DeclaredTypeID: package/file decls are PkgPath.Name;
-		// non-package-level decls disambiguate with [ParentLoc].
-		if tt.ParentLoc.IsZero() {
-			return tt.PkgPath + "." + string(tt.Name)
-		}
-		return tt.PkgPath + "[" + tt.ParentLoc.String() + "]." + string(tt.Name)
+		return gno.DeclaredTypeID(tt.PkgPath, tt.ParentLoc, tt.Name).String()
 	case *gno.PointerType:
-		return GetTypeIDQueryString(tt.Elt)
+		return ResolveTypeID(tt.Elt)
 	}
 	return ""
 }

@@ -82,7 +82,7 @@ func TestPrimitiveString(t *testing.T) {
 	}
 }
 
-func TestGetTypeIDQueryString(t *testing.T) {
+func TestResolveTypeID(t *testing.T) {
 	t.Parallel()
 
 	declared := &gno.DeclaredType{PkgPath: "gno.land/r/demo/x", Name: "User", Base: &gno.StructType{}}
@@ -93,19 +93,19 @@ func TestGetTypeIDQueryString(t *testing.T) {
 		ParentLoc: gno.Location{PkgPath: "gno.land/r/demo/x", File: "x.gno", Span: gno.Span{Pos: gno.Pos{Line: 3, Column: 1}}},
 	}
 
-	assert.Equal(t, "gno.land/r/demo/x.User", GetTypeIDQueryString(gno.RefType{ID: "gno.land/r/demo/x.User"}))
-	assert.Equal(t, "gno.land/r/demo/x.User", GetTypeIDQueryString(declared))
+	assert.Equal(t, "gno.land/r/demo/x.User", ResolveTypeID(gno.RefType{ID: "gno.land/r/demo/x.User"}))
+	assert.Equal(t, "gno.land/r/demo/x.User", ResolveTypeID(declared))
 	// The same as the TypeID of the type, including a type which is not declared at the package level.
-	assert.Equal(t, declared.TypeID().String(), GetTypeIDQueryString(declared))
-	assert.Equal(t, local.TypeID().String(), GetTypeIDQueryString(local))
+	assert.Equal(t, declared.TypeID().String(), ResolveTypeID(declared))
+	assert.Equal(t, local.TypeID().String(), ResolveTypeID(local))
 	assert.NotEqual(t, declared.TypeID(), local.TypeID())
 	// Drill through a pointer.
-	assert.Equal(t, "gno.land/r/demo/x.User", GetTypeIDQueryString(&gno.PointerType{Elt: &gno.PointerType{Elt: declared}}))
+	assert.Equal(t, "gno.land/r/demo/x.User", ResolveTypeID(&gno.PointerType{Elt: &gno.PointerType{Elt: declared}}))
 
-	assert.Equal(t, "", GetTypeIDQueryString(nil))
-	assert.Equal(t, "", GetTypeIDQueryString(gno.IntType))
-	assert.Equal(t, "", GetTypeIDQueryString(&gno.StructType{}))
-	assert.Equal(t, "", GetTypeIDQueryString(&gno.SliceType{Elt: declared}))
+	assert.Equal(t, "", ResolveTypeID(nil))
+	assert.Equal(t, "", ResolveTypeID(gno.IntType))
+	assert.Equal(t, "", ResolveTypeID(&gno.StructType{}))
+	assert.Equal(t, "", ResolveTypeID(&gno.SliceType{Elt: declared}))
 }
 
 func TestPrimitiveTypeName(t *testing.T) {

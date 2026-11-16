@@ -1405,7 +1405,7 @@ func TestStructTypeIDForwarding(t *testing.T) {
 		}
 	}`
 
-	// Type: an anonymous StructType — utils.GetTypeIDQueryString returns "" for it, so the
+	// Type: an anonymous StructType — utils.ResolveTypeID returns "" for it, so the
 	// ref node has no intrinsic TypeID and must inherit the response tid.
 	const typeJSON = `{
 		"typeid": "gno.land/r/demo/x.User",

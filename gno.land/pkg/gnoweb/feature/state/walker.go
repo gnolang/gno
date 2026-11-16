@@ -243,7 +243,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 			}
 			return StateNode{
 				Name: name, Type: t, Kind: KindRef,
-				Expandable: true, ObjectID: rv.ObjectID.String(), TypeID: utils.GetTypeIDQueryString(tv.T),
+				Expandable: true, ObjectID: rv.ObjectID.String(), TypeID: utils.ResolveTypeID(tv.T),
 			}
 		}
 		return tooDeepNode(name)
@@ -255,7 +255,7 @@ func decodeTypedValueAt(depth int, name string, tv gno.TypedValue) StateNode {
 	tName := typeName(tv.T)
 	kind := typeKind(tv.T)
 	bt := gno.BaseOf(tv.T)
-	typeID := utils.GetTypeIDQueryString(tv.T)
+	typeID := utils.ResolveTypeID(tv.T)
 
 	// FuncType stored as RefValue → expandable to fetch source on detail page.
 	if _, isFunc := bt.(*gno.FuncType); isFunc {
