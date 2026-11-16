@@ -402,6 +402,76 @@ func TestStateBadProposal(t *testing.T) {
 	signAddVotes(cs1, types.PrecommitType, propBlock.Hash(), propBlock.MakePartSet(partSize).Header(), vs2)
 }
 
+// A proposed block whose time is the latest amino encodes must not stop the
+// node from signing its nil votes, stamped with the block time plus TimeIotaMS.
+func TestStateProposalBlockTimeAtEncodingLimit(t *testing.T) {
+	t.Parallel()
+
+	cs1, vss := randConsensusState(2)
+	height, round := cs1.Height, cs1.Round
+	vs2 := vss[1]
+
+	partSize := types.BlockPartSizeBytes
+
+	proposalCh := subscribe(cs1.evsw, cstypes.EventCompleteProposal{})
+	voteCh := subscribe(cs1.evsw, types.EventVote{})
+
+	propBlock, _ := cs1.createProposalBlock()
+
+	// make the second validator the proposer by incrementing round
+	round++
+	incrementRound(vss[1:]...)
+
+	propBlock.Time = maxVoteTime
+	propBlockParts := propBlock.MakePartSet(partSize)
+	blockID := types.BlockID{Hash: propBlock.Hash(), PartsHeader: propBlockParts.Header()}
+	proposal := types.NewProposal(vs2.Height, round, -1, blockID)
+	if err := vs2.SignProposal(config.ChainID(), proposal); err != nil {
+		t.Fatal("failed to sign proposal", err)
+	}
+
+	if err := cs1.SetProposalAndBlock(proposal, propBlock, propBlockParts, "some peer"); err != nil {
+		t.Fatal(err)
+	}
+
+	startFrom(cs1, height, round)
+	defer func() {
+		cs1.Stop()
+		cs1.Wait()
+	}()
+	defer ensureDrainedChannels(t, proposalCh, voteCh)
+
+	ensureProposal(proposalCh, height, round, blockID)
+
+	// ValidateBlock rejects the block, so the node prevotes nil.
+	ensurePrevote(voteCh, height, round)
+	validatePrevote(cs1, round, vss[0], nil)
+	prevote := cs1.Votes.Prevotes(round).GetByAddress(vss[0].PubKey().Address())
+	if !prevote.Timestamp.Equal(maxVoteTime) {
+		t.Fatalf("expected prevote time %v, got %v", maxVoteTime, prevote.Timestamp)
+	}
+
+	signAddVotes(cs1, types.PrevoteType, propBlock.Hash(), propBlockParts.Header(), vs2)
+	ensurePrevote(voteCh, height, round)
+
+	ensurePrecommit(voteCh, height, round)
+	validatePrecommit(t, cs1, round, -1, vss[0], nil, nil)
+}
+
+// A vote time derived from a locked block is capped too.
+func TestVoteTimeLockedBlockAtEncodingLimit(t *testing.T) {
+	t.Parallel()
+
+	cs1, _ := randConsensusState(1)
+	for _, locked := range []time.Time{maxVoteTime, maxVoteTime.Add(-time.Millisecond)} {
+		cs1.LockedBlock = &types.Block{Header: types.Header{Time: locked}}
+		cs1.ProposalBlock = nil
+		if got := cs1.voteTime(); !got.Equal(maxVoteTime) {
+			t.Fatalf("locked at %v: vote time %v, want %v", locked, got, maxVoteTime)
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------------------------------
 // FullRoundSuite
 

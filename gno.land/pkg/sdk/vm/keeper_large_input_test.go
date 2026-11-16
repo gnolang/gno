@@ -529,9 +529,7 @@ var gnomodBoundsCases = []struct {
 		// without delimiting anything. Measured unbounded: 4093 bytes reached 1333 levels
 		// and cost 11ms and 40MB per message against the ~5.2M gas charged over
 		// them — a full block of them was ~5.3s of CPU and ~19GB allocated,
-		// since the gas ceiling does not bind before the 2MB block-data one. The
-		// amplifier is go-toml rendering the whole *Tree into its error text
-		// (marshal.go:1031), which is O(depth²): 2.7MB from a 4KB body.
+		// since the gas ceiling does not bind before the 2MB block-data one.
 		name: "key path spanning lines",
 		body: func(pkgPath string) string {
 			var b strings.Builder

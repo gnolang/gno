@@ -75,7 +75,8 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 	}
 
 	block := new(types.Block)
-	buf := []byte{}
+	parts := make([]*types.Part, 0, blockMeta.BlockID.PartsHeader.Total)
+	var size int64
 	for i := range blockMeta.BlockID.PartsHeader.Total {
 		part := bs.LoadBlockPart(height, i)
 		// If the part is missing (e.g. since it has been deleted after we
@@ -83,13 +84,25 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 		if part == nil {
 			return nil
 		}
-		buf = append(buf, part.Bytes...)
+		parts = append(parts, part)
+		size += int64(len(part.Bytes))
 	}
-	err := amino.UnmarshalSized(buf, block)
-	if err != nil {
+	// Decode as ConsensusState.decodeBlockParts does, since consensus commits
+	// whatever parts +2/3 precommitted: ignore bytes after the block, and keep
+	// a block the decode filled before failing, as on an unknown trailing field.
+	_, err := amino.UnmarshalSizedReader(types.NewPartSetReader(parts), block, size)
+	// Hash before validating, as decodeBlockParts does: Hash fills a header
+	// hash the encoding left out. Being tolerant must not load some other
+	// block: a corrupt length prefix reads as length 0, or overflows, and
+	// decodes without an error.
+	hashes := block.HashesTo(blockMeta.BlockID.Hash)
+	if err != nil && (!hashes || block.ValidateBasic() != nil) {
 		// NOTE: The existence of meta should imply the existence of the
 		// block. So, make sure meta is only saved after blocks are saved.
 		panic(errors.Wrap(err, "Error reading block"))
+	}
+	if !hashes {
+		panic(fmt.Sprintf("Error reading block: stored block at height %v does not hash to %X", height, blockMeta.BlockID.Hash))
 	}
 	return block
 }
@@ -194,45 +207,54 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 		panic("BlockStore can only save complete block part sets")
 	}
 
+	// Stage every write for this height in one batch and flush it with a
+	// single fsync. Consensus, and block sync when its writes are not held
+	// (see HoldingDB), call this once per block on the critical path, so each
+	// extra flush is paid on every height; the batch also makes the save
+	// atomic, so a crash cannot leave a height whose meta is on disk without
+	// its parts. While block sync holds the database, the batch joins the
+	// held writes and reaches the disk at the next flush point instead.
+	batch := bs.db.NewBatch()
+	defer batch.Close()
+
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
 	metaBytes := amino.MustMarshal(blockMeta)
-	bs.db.Set(calcBlockMetaKey(height), metaBytes)
+	mustSet(batch, calcBlockMetaKey(height), metaBytes)
 
 	// Save block parts
 	for i := range blockParts.Total() {
 		part := blockParts.GetPart(i)
-		bs.saveBlockPart(height, i, part)
+		mustSet(batch, calcBlockPartKey(height, i), amino.MustMarshal(part))
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	blockCommitBytes := amino.MustMarshal(block.LastCommit)
-	bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes)
+	mustSet(batch, calcBlockCommitKey(height-1), blockCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	seenCommitBytes := amino.MustMarshal(seenCommit)
-	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
+	mustSet(batch, calcSeenCommitKey(height), seenCommitBytes)
 
 	// Save new BlockStoreStateJSON descriptor
-	BlockStoreStateJSON{Height: height}.Save(bs.db)
+	mustSet(batch, blockStoreKey, BlockStoreStateJSON{Height: height}.bytes())
+
+	// Flush
+	if err := batch.WriteSync(); err != nil {
+		panic(fmt.Sprintf("failed to save block at height %d: %v", height, err))
+	}
 
 	// Done!
 	bs.mtx.Lock()
 	bs.height = height
 	bs.mtx.Unlock()
-
-	// Flush
-	bs.db.SetSync(nil, nil)
 }
 
-func (bs *BlockStore) saveBlockPart(height int64, index int, part *types.Part) {
-	// Allow the genesis block at any height when the store is empty (InitialHeight > 1).
-	if bs.Height() != 0 && height != bs.Height()+1 {
-		panic(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
+func mustSet(batch dbm.Batch, key, value []byte) {
+	if err := batch.Set(key, value); err != nil {
+		panic(fmt.Sprintf("failed to stage block store write: %v", err))
 	}
-	partBytes := amino.MustMarshal(part)
-	bs.db.Set(calcBlockPartKey(height, index), partBytes)
 }
 
 //-----------------------------------------------------------------------------
@@ -264,13 +286,17 @@ type BlockStoreStateJSON struct {
 
 // Save persists the blockStore state to the database as JSON.
 func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
+	if err := db.SetSync(blockStoreKey, bsj.bytes()); err != nil {
+		panic(fmt.Sprintf("Could not save the block store state: %v", err))
+	}
+}
+
+func (bsj BlockStoreStateJSON) bytes() []byte {
 	bytes, err := amino.MarshalJSON(bsj)
 	if err != nil {
 		panic(fmt.Sprintf("Could not marshal state bytes: %v", err))
 	}
-	if err := db.SetSync(blockStoreKey, bytes); err != nil {
-		panic(fmt.Sprintf("Could not save the block store state: %v", err))
-	}
+	return bytes
 }
 
 // LoadBlockStoreStateJSON returns the BlockStoreStateJSON as loaded from disk.

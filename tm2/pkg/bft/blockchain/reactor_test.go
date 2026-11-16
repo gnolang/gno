@@ -55,6 +55,12 @@ type BlockchainReactorPair struct {
 }
 
 func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64) BlockchainReactorPair {
+	return newBlockchainReactorWithTxs(logger, genDoc, privVals, maxBlockHeight, makeTxs)
+}
+
+// newBlockchainReactorWithTxs is newBlockchainReactor with the txs of each
+// block supplied by makeTxs.
+func newBlockchainReactorWithTxs(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64, makeTxs func(height int64) []types.Tx) BlockchainReactorPair {
 	if len(privVals) != 1 {
 		panic("only support one validator")
 	}
@@ -99,7 +105,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 			lastCommit = types.NewCommit(lastBlockMeta.BlockID, []*types.CommitSig{voteCommitSig})
 		}
 
-		thisBlock := makeBlock(blockHeight, state, lastCommit)
+		thisBlock, _ := state.MakeBlock(blockHeight, makeTxs(blockHeight), lastCommit, state.Validators.GetProposer().Address)
 
 		thisParts := thisBlock.MakePartSet(types.BlockPartSizeBytes)
 		blockID := types.BlockID{Hash: thisBlock.Hash(), PartsHeader: thisParts.Header()}
@@ -188,6 +194,68 @@ func TestNoBlockResponse(t *testing.T) {
 			assert.True(t, block == nil)
 		}
 	}
+}
+
+// TestFastSyncBlocksLargerThanSendBudgetShare checks that a node keeps
+// answering a syncing peer whose requests in flight need more than the
+// connection's send budget. Dropping the responses that do not fit would
+// stall the sync.
+func TestFastSyncBlocksLargerThanSendBudgetShare(t *testing.T) {
+	t.Parallel()
+
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_send_budget_test")
+	defer os.RemoveAll(config.RootDir)
+	genDoc, privVals := randGenesisDoc(1, false, 30)
+
+	const (
+		maxBlockHeight = int64(25)
+		txSize         = 750_000 // two per block, under the 2MB MaxDataBytes default
+	)
+	bigTxs := func(height int64) (txs []types.Tx) {
+		for i := range 2 {
+			tx := make([]byte, txSize)
+			tx[0], tx[1], tx[2] = byte(height), byte(height>>8), byte(i)
+			txs = append(txs, tx)
+		}
+		return txs
+	}
+
+	var (
+		reactorPairs = make([]BlockchainReactorPair, 2)
+		options      = make(map[int][]p2p.SwitchOption)
+	)
+	for i := range reactorPairs {
+		height := int64(0)
+		if i == 0 {
+			height = maxBlockHeight
+		}
+		reactorPairs[i] = newBlockchainReactorWithTxs(log.NewNoopLogger(), genDoc, privVals, height, bigTxs)
+		options[i] = []p2p.SwitchOption{
+			p2p.WithReactor("BLOCKCHAIN", reactorPairs[i].reactor),
+		}
+	}
+	defer func() {
+		for _, r := range reactorPairs {
+			r.reactor.Stop()
+			r.app.Stop()
+		}
+	}()
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+	p2pTesting.MakeConnectedPeers(t, ctx, p2pTesting.TestingConfig{
+		Count:         2,
+		P2PCfg:        config.P2P,
+		SwitchOptions: options,
+		Channels:      []byte{BlockchainChannel},
+	})
+
+	// The pool applies a block once it holds the next one, so the last
+	// block stays unapplied.
+	syncer := reactorPairs[1].reactor
+	assert.Eventually(t, func() bool {
+		return syncer.store.Height() >= maxBlockHeight-1
+	}, 30*time.Second, 50*time.Millisecond, "sync stalled")
 }
 
 // NOTE: This is too hard to test without
