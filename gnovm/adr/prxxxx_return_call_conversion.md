@@ -45,6 +45,20 @@ A refusal is now a panic through `m.PanicString`, as the readonly refusals of
 shares `convertValue`, so it changes with them. A package-level `var` has no call
 on the stack, so nothing recovers a refusal there and the transaction aborts.
 
+The split between conversion refusals and the other readonly refusals was never
+a design choice. gnolang/gno#4060, the interrealm spec, raised every interrealm
+refusal as a Go `panic(string)`: a write into another realm's object, the
+crossing rules, and both conversion checks. Eleven days later b12310b7be, in
+gnolang/gno#4228, made `m.Panic` raise a VM exception and moved only the write
+refusal onto it. The conversion checks were plain `panic` calls, so that change
+did not reach them, and no commit, ADR or doc gives a reason to keep them
+apart. The spec section added the same week, "`panic()` and `revive(fn)`" in
+`docs/resources/gno-interrealm.md`, draws the line at a realm boundary instead:
+a panic is recoverable within one realm and aborts the program once it crosses
+into another. gnolang/gno#5167 then added the `append`, `copy` and `delete`
+refusals on `m.Panic`, following the write refusal. Conversion refusals now
+follow the same rule.
+
 ## Alternatives
 
 - Checking at `var m T = x` and `*p`. Both set the type for a reason: `*p` must
