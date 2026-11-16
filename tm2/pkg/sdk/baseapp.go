@@ -467,12 +467,32 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 }
 
+// QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
+// runs code for path: .app/simulate runs a whole transaction, and a custom
+// route runs code when its handler implements abci.CodeExecutionQuerier and
+// says so.
+func (app *BaseApp) QueryRunsCode(reqPath string) bool {
+	path := splitPath(reqPath)
+	if len(path) == 0 {
+		return false
+	}
+	if path[0] == ".app" {
+		return len(path) >= 2 && path[1] == appQuerySimulate
+	}
+	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
+	return ok && h.QueryRunsCode(reqPath)
+}
+
+// appQuerySimulate is the .app query that runs a whole transaction.
+const appQuerySimulate = "simulate"
+
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
 		var result Result
 
+		// A case that runs code also belongs in QueryRunsCode.
 		switch path[1] {
-		case "simulate":
+		case appQuerySimulate:
 			result = app.Simulate(req.Data)
 
 			res.Height = req.Height
@@ -684,6 +704,12 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	for _, msg := range msgs {
+		// An empty Any (0a 00) decodes to a nil message, and is canonical, so
+		// it reaches here; reject it instead of letting ValidateBasic
+		// dereference it and the recover in runTx report an internal error.
+		if msg == nil {
+			return std.ErrUnknownRequest("nil message in tx")
+		}
 		// Validate the Msg.
 		if err := msg.ValidateBasic(); err != nil {
 			return err
@@ -691,6 +717,15 @@ func validateBasicTxMsgs(msgs []Msg) error {
 	}
 
 	return nil
+}
+
+// txDecodeFailure is the Error and Log of a tx whose bytes do not decode, or
+// are not the canonical encoding of what they decode to. Log carries the
+// reason alone: a stack trace would make the cheapest rejection several times
+// costlier, and a byzantine proposer could have every result in a block of
+// garbage txs store one.
+func txDecodeFailure(err error) (abci.Error, string) {
+	return ABCIError(std.ErrTxDecode(err.Error())), clipLog(err.Error())
 }
 
 // retrieve the context for the tx w/ txBytes and other memoized values.
@@ -918,13 +953,24 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 
 	var tx Tx
 	if err := amino.Unmarshal(txBytes, &tx); err != nil {
-		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
 		result.Error = ABCIError(err)
+		return
+	}
+
+	// A tx is identified by the hash of its bytes while its signatures cover
+	// the sign doc, so only the canonical encoding of a tx is accepted: any
+	// other byte string decoding to the same tx is the same tx under another
+	// hash. The check re-encodes the tx, which for some values costs far more
+	// than decoding them, so it runs only once ValidateBasic has passed. See
+	// tm2/adr/pr6406_canonical_tx_enforcement.md.
+	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
+		result.Error, result.Log = txDecodeFailure(err)
 		return
 	}
 
