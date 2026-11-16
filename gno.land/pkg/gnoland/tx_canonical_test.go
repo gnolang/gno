@@ -124,6 +124,64 @@ func canonicalSendApp(t *testing.T) (abci.Application, []byte, []wireField) {
 	return app, canonical, top
 }
 
+// requireSameTxRejected checks that bz decodes to the very tx canonical
+// encodes, then that both CheckTx and DeliverTx refuse it as non-canonical.
+func requireSameTxRejected(t *testing.T, app abci.Application, canonical, bz []byte, name string) {
+	t.Helper()
+
+	require.NotEqual(t, canonical, bz, name)
+	var decoded std.Tx
+	require.NoError(t, amino.Unmarshal(bz, &decoded), name)
+	reencoded, err := amino.Marshal(decoded)
+	require.NoError(t, err)
+	require.Equal(t, canonical, reencoded, "%s: mutation must decode to the same signed tx", name)
+
+	check := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+	require.False(t, check.IsOK(), name)
+	assert.Equal(t, std.TxDecodeError{}, check.Error, name)
+	assert.Contains(t, check.Log, "non-canonical encoding", name)
+
+	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: bz})
+	require.False(t, deliver.IsOK(), name)
+	assert.Equal(t, std.TxDecodeError{}, deliver.Error, name)
+	assert.Contains(t, deliver.Log, "non-canonical encoding", name)
+}
+
+// A signed tx re-encoded non-canonically decodes to the same tx, so its
+// signatures still verify, but it hashes differently; before the canonical
+// check the chain included it under a hash the sender never computed. Every
+// variant must now fail to decode in CheckTx and DeliverTx, at every nesting
+// level, while the sender's own bytes still deliver.
+func TestTxNonCanonicalEncodingRejected(t *testing.T) {
+	t.Parallel()
+
+	app, canonical, top := canonicalSendApp(t)
+	withTop := func(i int, raw []byte) []byte {
+		fields := slices.Clone(top)
+		fields[i].raw = raw
+		return joinFields(fields, -1)
+	}
+	msgAny := splitFields(t, top[0].raw) // type_url, value
+	fee := splitFields(t, top[1].raw)    // gas_wanted, gas_fee
+	require.Less(t, canonical[0], byte(0x80))
+
+	mutations := map[string][]byte{
+		// Memo is field 4 and empty, so the encoder omitted it; write it out.
+		"explicit empty memo":             slices.Concat(canonical, []byte{0x22, 0x00}),
+		"fee: gas_wanted value padded":    withTop(1, joinFields(fee, 0)),
+		"message: type_url length padded": withTop(0, joinFields(msgAny, 0)),
+	}
+	// The first tag as a two-byte varint.
+	mutations["padded first tag"] = slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
+
+	for name, bz := range mutations {
+		requireSameTxRejected(t, app, canonical, bz, name)
+	}
+
+	deliver := app.DeliverTx(abci.RequestDeliverTx{Tx: canonical})
+	require.True(t, deliver.IsOK(), deliver.Log)
+}
+
 // MemPackage.Type and Info are `any`, and some registered types cost far more
 // to re-encode than to decode, so ValidateBasic must refuse them before runTx's
 // canonical check. These bytes are non-canonical (00000009 re-encodes as 9), so
