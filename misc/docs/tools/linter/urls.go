@@ -67,6 +67,7 @@ var skippedURLSubstrings = []string{
 	"youtu.be",
 	// Deployment-specific hosts whose uptime is not a CI concern.
 	"staging.gno.land",
+	"gpao.latest.testnets.gno.land",
 }
 
 // shouldCheckURL reports whether url is worth reaching out to from CI.

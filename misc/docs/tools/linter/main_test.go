@@ -111,6 +111,7 @@ func TestShouldCheckURL(t *testing.T) {
 		{"testnet rpc", "https://rpc.pearl.testnets.gno.land:443", false},
 		{"localhost", "http://localhost:26657", false},
 		{"staging deployment", "https://staging.gno.land", false},
+		{"testnet package approval service", "https://gpao.latest.testnets.gno.land/status/", false},
 		{"youtube", "https://youtube.com/watch?v=abc", false},
 	}
 
