@@ -252,8 +252,7 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 }
 
 func (tv TypeValue) String() string {
-	return fmt.Sprintf("typeval{%s}",
-		tv.Type.String())
+	return "typeval{" + BoundedTypeText(tv.Type, maxExprTypeTextBytes) + "}"
 }
 
 func (pv *PackageValue) String() string {
@@ -358,10 +357,9 @@ func WriteTypeTo(w io.Writer, t Type) error {
 	return streamTo(w, func(mw *meteredWriter) { writeType(mw, t) })
 }
 
-// typeString renders t with writeType. The composite Type.String() methods
-// return it, so type text has one printer whether it is built or streamed.
+// typeString renders t with writeType, cut at maxTypeTextBytes. The composite
+// Type.String() methods return it, so type text has one printer whether it is
+// built or streamed.
 func typeString(t Type) string {
-	var b strings.Builder
-	_ = WriteTypeTo(&b, t) // a strings.Builder never fails a write
-	return b.String()
+	return BoundedTypeText(t, maxTypeTextBytes)
 }

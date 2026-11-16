@@ -45,6 +45,44 @@ func (tid TypeID) String() string {
 	return string(tid)
 }
 
+// maxTypeIDBytes refuses a type whose id would pass it. Only a declared type's
+// id stops at its name, so any other id writes out everything it refers to, and
+// aliases make that exponential in the source declaring it.
+const maxTypeIDBytes = 16 << 10
+
+// typeIDWriter builds a type's id, refusing before it writes past maxTypeIDBytes,
+// so a list of children near the cap costs one cap and not their sum. A type read
+// back from the store is not refused: only a binary without the cap could have
+// written one past it, and refusing it would fail every call touching the object
+// that holds it.
+type typeIDWriter struct {
+	buf    strings.Builder
+	stored bool
+}
+
+func (w *typeIDWriter) write(parts ...string) {
+	for _, part := range parts {
+		if !w.stored && w.buf.Len()+len(part) > maxTypeIDBytes {
+			panic(fmt.Sprintf("type too large: its identity passes %d bytes", maxTypeIDBytes))
+		}
+		w.buf.WriteString(part)
+	}
+}
+
+func (w *typeIDWriter) typeID() TypeID {
+	return typeid(w.buf.String())
+}
+
+func newTypeID(parts ...string) TypeID {
+	return typeIDOf(false, parts...)
+}
+
+func typeIDOf(stored bool, parts ...string) TypeID {
+	w := typeIDWriter{stored: stored}
+	w.write(parts...)
+	return w.typeID()
+}
+
 func typeid(s string) (tid TypeID) {
 	x := TypeID(s)
 	if debug {
@@ -360,7 +398,7 @@ type FieldType struct {
 	// interface). Empty for exported methods, struct fields, and same-package
 	// methods (direct or same-package embeds); an empty value falls back to
 	// the enclosing interface's PkgPath. Used to keep unexported-method
-	// identity package-qualified (see ms.TypeIDForPackage) and to gate
+	// identity package-qualified (see ms.typeIDForPackage) and to gate
 	// unexported selection and interface satisfaction (see
 	// FindEmbeddedFieldType, checkImplementedBy).
 	PkgPath string
@@ -371,26 +409,13 @@ func (ft FieldType) Kind() Kind {
 }
 
 func (ft FieldType) TypeID() TypeID {
-	s := ""
 	if ft.Name == "" {
-		s += ft.Type.TypeID().String()
-	} else {
-		s += string(ft.Name) + " " + ft.Type.TypeID().String()
+		return newTypeID(ft.Type.TypeID().String())
 	}
-	return typeid(s)
+	return newTypeID(string(ft.Name), " ", ft.Type.TypeID().String())
 }
 
-func (ft FieldType) String() string {
-	tag := ""
-	if ft.Tag != "" {
-		tag = " " + strconv.Quote(string(ft.Tag))
-	}
-	if ft.Name == "" {
-		return fmt.Sprintf("(embedded) %s%s", ft.Type.String(), tag)
-	} else {
-		return fmt.Sprintf("%s %s%s", ft.Name, ft.Type.String(), tag)
-	}
-}
+func (ft FieldType) String() string { return BoundedTypeText(ft, maxTypeTextBytes) }
 
 func (ft FieldType) Elem() Type {
 	panic("FieldType is a pseudotype with no elements")
@@ -442,7 +467,7 @@ func (ft FieldType) stampedName() string {
 }
 
 // sortForPackage sorts the methods by their package-qualified identity name
-// (idName with pkgPath as the fallback) — the SAME key TypeIDForPackage emits
+// (idName with pkgPath as the fallback) — the SAME key typeIDForPackage emits
 // with. Keying the sort and the emission identically means the order does not
 // depend on whether a method's PkgPath is stamped (cross-package hoist) or
 // empty (same-package fallback), so the same logical interface always yields
@@ -461,36 +486,33 @@ func (l FieldTypeList) sortForPackage(pkgPath string) {
 // User should call sort for interface methods.
 // XXX how though?
 func (l FieldTypeList) TypeID() TypeID {
-	ll := len(l)
-	var s strings.Builder
+	var w typeIDWriter
 	for i, ft := range l {
-		if ft.Name == "" {
-			s.WriteString(ft.Type.TypeID().String())
-		} else {
-			s.WriteString(string(ft.Name) + " " + ft.Type.TypeID().String())
+		if i != 0 {
+			w.write(";")
 		}
-		if i != ll-1 {
-			s.WriteString(";")
+		if ft.Name != "" {
+			w.write(string(ft.Name), " ")
 		}
+		w.write(ft.Type.TypeID().String())
 	}
-	return typeid(s.String())
+	return w.typeID()
 }
 
 // For use in fields of packages, structs, and interfaces, where any
 // unexported lowercase fields are private and unequal to other package
-// types.
-func (l FieldTypeList) TypeIDForPackage(pkgPath string) TypeID {
-	ll := len(l)
-	var s strings.Builder
+// types. stored skips the id cap, see typeIDWriter.
+func (l FieldTypeList) typeIDForPackage(pkgPath string, stored bool) TypeID {
+	w := typeIDWriter{stored: stored}
 	for i, ft := range l {
+		if i != 0 {
+			w.write(";")
+		}
 		// idName qualifies an unexported method by its origin package
 		// (ft.PkgPath when flattened out of another package, else pkgPath).
-		s.WriteString(ft.idName(pkgPath) + " " + ft.Type.TypeID().String())
-		if i != ll-1 {
-			s.WriteString(";")
-		}
+		w.write(ft.idName(pkgPath), " ", ft.Type.TypeID().String())
 	}
-	return typeid(s.String())
+	return w.typeID()
 }
 
 func (l FieldTypeList) HasUnexported() bool {
@@ -520,23 +542,21 @@ func (l FieldTypeList) StringForFunc() string {
 }
 
 func (l FieldTypeList) string(withName bool, sep string) string {
-	var b strings.Builder
-	_ = streamTo(&b, func(mw *meteredWriter) { writeFieldTypes(mw, l, withName, sep) }) // a strings.Builder never fails a write
-	return b.String()
+	return boundedText(maxTypeTextBytes, func(mw *meteredWriter) { writeFieldTypes(mw, l, withName, sep) })
 }
 
 // Like TypeID() but without considering field names;
-// used for function parameters and results.
-func (l FieldTypeList) UnnamedTypeID() TypeID {
-	ll := len(l)
-	var s strings.Builder
+// used for function parameters and results. stored skips the id cap, see
+// typeIDWriter.
+func (l FieldTypeList) unnamedTypeID(stored bool) TypeID {
+	w := typeIDWriter{stored: stored}
 	for i, ft := range l {
-		s.WriteString(ft.Type.TypeID().String())
-		if i != ll-1 {
-			s.WriteString(";")
+		if i != 0 {
+			w.write(";")
 		}
+		w.write(ft.Type.TypeID().String())
 	}
-	return typeid(s.String())
+	return w.typeID()
 }
 
 func (l FieldTypeList) Types() []Type {
@@ -556,6 +576,7 @@ type ArrayType struct {
 	Vrd bool
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 }
 
 func (at *ArrayType) Kind() Kind {
@@ -564,7 +585,7 @@ func (at *ArrayType) Kind() Kind {
 
 func (at *ArrayType) TypeID() TypeID {
 	if at.typeid.IsZero() {
-		at.typeid = typeidf("[%d]%s", at.Len, at.Elt.TypeID().String())
+		at.typeid = typeIDOf(at.stored, "[", strconv.Itoa(at.Len), "]", at.Elt.TypeID().String())
 	}
 	return at.typeid
 }
@@ -598,6 +619,7 @@ type SliceType struct {
 	Vrd bool // used for *FuncType.HasVarg()
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 }
 
 func (st *SliceType) Kind() Kind {
@@ -607,7 +629,7 @@ func (st *SliceType) Kind() Kind {
 func (st *SliceType) TypeID() TypeID {
 	if st.typeid.IsZero() {
 		// same whether .Vrd or not.
-		st.typeid = typeidf("[]%s", st.Elt.TypeID().String())
+		st.typeid = typeIDOf(st.stored, "[]", st.Elt.TypeID().String())
 	}
 	return st.typeid
 }
@@ -635,6 +657,7 @@ type PointerType struct {
 	Elt Type
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 }
 
 func (pt *PointerType) Kind() Kind {
@@ -643,7 +666,7 @@ func (pt *PointerType) Kind() Kind {
 
 func (pt *PointerType) TypeID() TypeID {
 	if pt.typeid.IsZero() {
-		pt.typeid = typeidf("*%s", pt.Elt.TypeID().String())
+		pt.typeid = typeIDOf(pt.stored, "*", pt.Elt.TypeID().String())
 	}
 	return pt.typeid
 }
@@ -729,6 +752,7 @@ type StructType struct {
 	Fields  []FieldType
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 
 	// pkgID is the lazy-cached PkgID derived from PkgPath. Populated
 	// on first GetPkgID() call. Used by the allocator's
@@ -769,10 +793,7 @@ func (st *StructType) TypeID() TypeID {
 		// may have the same TypeID if and only if neither have
 		// unexported fields.  st.PkgPath is only included in field
 		// names that are not uppercase.
-		st.typeid = typeidf(
-			"struct{%s}",
-			FieldTypeList(st.Fields).TypeIDForPackage(st.PkgPath),
-		)
+		st.typeid = typeIDOf(st.stored, "struct{", FieldTypeList(st.Fields).typeIDForPackage(st.PkgPath, st.stored).String(), "}")
 	}
 	return st.typeid
 }
@@ -880,6 +901,7 @@ type InterfaceType struct {
 	Generic Name // for uverse "generics"
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 
 	// effectiveMethods caches the total method count counting through
 	// embedded interfaces. Same sentinel/caching semantics as
@@ -924,7 +946,7 @@ func (it *InterfaceType) TypeID() TypeID {
 		// (cross-package hoist) and unstamped (same-package fallback) entries
 		// of the same interface always produce one TypeID.
 		ms.sortForPackage(it.PkgPath)
-		it.typeid = typeid("interface{" + ms.TypeIDForPackage(it.PkgPath).String() + "}")
+		it.typeid = typeIDOf(it.stored, "interface{", ms.typeIDForPackage(it.PkgPath, it.stored).String(), "}")
 	}
 	return it.typeid
 }
@@ -1107,11 +1129,11 @@ func (ct *ChanType) TypeID() TypeID {
 	if ct.typeid.IsZero() {
 		switch ct.Dir {
 		case SEND | RECV:
-			ct.typeid = typeidf("chan{%s}", ct.Elt.TypeID().String())
+			ct.typeid = newTypeID("chan{", ct.Elt.TypeID().String(), "}")
 		case SEND:
-			ct.typeid = typeidf("<-chan{%s}", ct.Elt.TypeID().String())
+			ct.typeid = newTypeID("<-chan{", ct.Elt.TypeID().String(), "}")
 		case RECV:
-			ct.typeid = typeidf("chan<-{%s}", ct.Elt.TypeID().String())
+			ct.typeid = newTypeID("chan<-{", ct.Elt.TypeID().String(), "}")
 		default:
 			panic("should not happen")
 		}
@@ -1143,7 +1165,13 @@ type FuncType struct {
 	Results []FieldType
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 	bound  *FuncType
+
+	// specified marks the func type Specify builds for a uverse generic such
+	// as append or copy. It repeats its operands' types, each already under
+	// the id cap, a fixed number of times, so its own id skips the cap.
+	specified bool
 }
 
 // true for predefined func types that are not filled in yet.
@@ -1171,9 +1199,13 @@ func (ft *FuncType) Kind() Kind {
 // bound function type w/o receiver (if ft is a method).
 func (ft *FuncType) BoundType() *FuncType {
 	if ft.bound == nil {
+		// The bound type's id is a part of ft's, so it keeps ft's exemption
+		// from the id cap.
 		ft.bound = &FuncType{
-			Params:  ft.Params[1:],
-			Results: ft.Results,
+			Params:    ft.Params[1:],
+			Results:   ft.Results,
+			stored:    ft.stored,
+			specified: ft.specified,
 		}
 	}
 	return ft.bound
@@ -1296,8 +1328,9 @@ func (ft *FuncType) Specify(store Store, n Node, argTVs []TypedValue, isVarg boo
 		}
 	}
 	return &FuncType{
-		Params:  pfts,
-		Results: rfts,
+		Params:    pfts,
+		Results:   rfts,
+		specified: true,
 	}
 }
 
@@ -1308,11 +1341,8 @@ func (ft *FuncType) TypeID() TypeID {
 	ps := FieldTypeList(ft.Params)
 	rs := FieldTypeList(ft.Results)
 	if ft.typeid.IsZero() {
-		ft.typeid = typeidf(
-			"func(%s)(%s)",
-			ps.UnnamedTypeID(),
-			rs.UnnamedTypeID(),
-		)
+		uncapped := ft.stored || ft.specified
+		ft.typeid = typeIDOf(uncapped, "func(", ps.unnamedTypeID(uncapped).String(), ")(", rs.unnamedTypeID(uncapped).String(), ")")
 	}
 	return ft.typeid
 }
@@ -1363,6 +1393,7 @@ type MapType struct {
 	Value Type
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 }
 
 func (mt *MapType) Kind() Kind {
@@ -1371,11 +1402,7 @@ func (mt *MapType) Kind() Kind {
 
 func (mt *MapType) TypeID() TypeID {
 	if mt.typeid.IsZero() {
-		mt.typeid = typeidf(
-			"map[%s]%s",
-			mt.Key.TypeID().String(),
-			mt.Value.TypeID().String(),
-		)
+		mt.typeid = typeIDOf(mt.stored, "map[", mt.Key.TypeID().String(), "]", mt.Value.TypeID().String())
 	}
 	return mt.typeid
 }
@@ -2253,6 +2280,7 @@ type tupleType struct {
 	Elts []Type
 
 	typeid TypeID
+	stored bool // read back from the store, see typeIDWriter.
 }
 
 func (tt *tupleType) Kind() Kind {
@@ -2261,17 +2289,16 @@ func (tt *tupleType) Kind() Kind {
 
 func (tt *tupleType) TypeID() TypeID {
 	if tt.typeid.IsZero() {
-		ell := len(tt.Elts)
-		var s strings.Builder
-		s.WriteString("(")
+		w := typeIDWriter{stored: tt.stored}
+		w.write("(")
 		for i, et := range tt.Elts {
-			s.WriteString(et.TypeID().String())
-			if i != ell-1 {
-				s.WriteString(",")
+			if i != 0 {
+				w.write(",")
 			}
+			w.write(et.TypeID().String())
 		}
-		s.WriteString(")")
-		tt.typeid = typeid(s.String())
+		w.write(")")
+		tt.typeid = w.typeID()
 	}
 	return tt.typeid
 }
@@ -3392,4 +3419,36 @@ func getDeclaredPkgID(t Type) PkgID {
 			return PkgID{}
 		}
 	}
+}
+
+// ----------------------------------------
+// Type text
+
+const (
+	// maxTypeTextBytes cuts the text of one type, which can run before its id
+	// is built. On a type the source builds, text runs past its id by at most a
+	// quarter, so one under maxTypeIDBytes prints whole. A RefType part prints 9
+	// bytes past its id, and only before fillType replaces it.
+	maxTypeTextBytes = 2 * maxTypeIDBytes
+
+	// maxExprTypeTextBytes cuts a type's text inside an expression's text, where
+	// four source bytes can repeat it. A transaction's error keeps only its first
+	// 1024 bytes, so this cut never reaches one.
+	maxExprTypeTextBytes = 1 << 10
+
+	typeTextClipMark = "..."
+)
+
+// BoundedTypeText returns t's text, cut at limit bytes and marked if longer.
+func BoundedTypeText(t Type, limit int) string {
+	return boundedText(limit, func(mw *meteredWriter) { writeType(mw, t) })
+}
+
+// boundedText runs render, a writeType call, as one cut section of a writer
+// over a strings.Builder, so a subtree repeated many times costs what it adds
+// to the text and nothing once the text is full.
+func boundedText(limit int, render func(*meteredWriter)) string {
+	var b strings.Builder
+	_ = streamTo(&b, func(mw *meteredWriter) { writeBounded(mw, limit, render) }) // a strings.Builder never fails a write
+	return b.String()
 }

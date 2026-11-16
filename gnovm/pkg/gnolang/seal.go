@@ -33,7 +33,8 @@ package gnolang
 // performs no write at all. It is pure cache warming: every value written here
 // is the same value the lazy path would have computed, so nothing observable
 // changes — no gas is charged, no allocator is touched, and no struct layout or
-// amino encoding is affected.
+// amino encoding is affected. A type whose id passes maxTypeIDBytes panics here
+// rather than on first use.
 
 // sealer walks a type and block-node graph, filling every lazily-memoized cache
 // exactly once. The seen sets make it cycle-safe and keep repeated publication

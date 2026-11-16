@@ -172,9 +172,36 @@ func typeStringValues(elt Type) map[string]TypedValue {
 func TestWriteStringToTypeString(t *testing.T) {
 	for name, tv := range typeStringValues(fanType(8, 6)) { // 8^6 leaves, ~2MB rendered
 		allocs := testing.AllocsPerRun(3, func() {
-			require.ErrorIs(t, tv.WriteStringTo(&limitWriter{max: 4096}), errLimit, name)
+			// Under maxExprTypeTextBytes, where a type value's text is cut.
+			require.ErrorIs(t, tv.WriteStringTo(&limitWriter{max: 512}), errLimit, name)
 		})
 		require.Less(t, allocs, 100.0, name)
+	}
+}
+
+// A printed value's type is cut inside the render's own writer, so printing a
+// slice allocates nothing per element, whatever its element type.
+func TestFprintTypeTextPerElement(t *testing.T) {
+	dt := &DeclaredType{PkgPath: "gno.land/r/demo/boards", Name: "Post", Base: &StructType{}}
+	pt := &PointerType{Elt: dt}
+	ft := &FuncType{Params: []FieldType{{Name: "a", Type: IntType}}, Results: []FieldType{{Name: "r", Type: StringType}}}
+	for name, elem := range map[string]TypedValue{
+		"int":     typedInt(7),
+		"pointer": {T: pt},
+		"func":    {T: ft, V: &FuncValue{Type: ft, Name: "F", PkgPath: "gno.land/r/demo/x"}},
+	} {
+		elems := make([]TypedValue, 1000)
+		for i := range elems {
+			elems[i] = elem
+		}
+		tv := typedSlice(elem.T, elems...)
+		allocs := testing.AllocsPerRun(5, func() {
+			mw := newUnmeteredWriter(io.Discard)
+			tv.Fprint(mw, nil)
+			mw.Flush()
+			mw.Release()
+		})
+		require.Less(t, allocs, 10.0, name)
 	}
 }
 

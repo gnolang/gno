@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -729,8 +731,8 @@ func Wide(n int) []any {
 
 // TestQueryEval_TypeStringBounded covers a type that is small in memory but
 // large when rendered: aliased anonymous structs of 12 fields, 6 deep, render
-// to 12^6 leaves. qeval must stop the type string at the output cap too, not
-// build it whole first (917MB allocated before the fix).
+// to 12^6 leaves. qeval must not build the type string whole (917MB allocated
+// before the fix): Type.String cuts it at maxTypeTextBytes, under the output cap.
 func TestQueryEval_TypeStringBounded(t *testing.T) {
 	const pkgPath = "gno.land/r/typestr"
 	env := setupSizeGuardRealm(t, "typestraddr", pkgPath, "package typestr\n\nvar X int\n")
@@ -750,12 +752,12 @@ func TestQueryEval_TypeStringBounded(t *testing.T) {
 	runtime.GC()
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
-	_, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
 	runtime.ReadMemStats(&after)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, ExportSizeExceededError{})
-	// The render stops at the 1 MiB cap. TotalAlloc is process-global, so the
-	// bound is loose.
+	require.NoError(t, err)
+	assert.Contains(t, res, "...")
+	assert.Less(t, len(res), 64<<10)
+	// TotalAlloc is process-global, so the bound is loose.
 	assert.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(200<<20))
 }
 
@@ -820,7 +822,7 @@ func GetList() []*T { return List }
 func TestQueryFuncs_SizeGuard(t *testing.T) {
 	const pkgPath = "gno.land/r/widefunc"
 	env := setupSizeGuardRealm(t, "widefuncaddr", pkgPath,
-		"package widefunc\n\n"+typeChain(4, 4)+"\nfunc Wide(v, w T4) {}\n")
+		"package widefunc\n\n"+typeChain(4, 4, "\n")+"\nfunc Wide(v, w T4) {}\n")
 	fsigs, err := env.vmk.QueryFuncs(env.ctx, pkgPath)
 	require.NoError(t, err)
 	n := int64(len(fsigs[0].Params[0].Type))
@@ -931,7 +933,8 @@ func Bad() error { return allocErr{} }
 // it is refused past maxQueryOutputBytes, and a small doc is unchanged.
 func TestQueryDoc_SizeGuard(t *testing.T) {
 	const pkgPath = "gno.land/r/widedoc"
-	names := make([]string, 120)
+	// 12 names keep T's identity under the 16 KiB type cap.
+	names := make([]string, 12)
 	for i := range names {
 		names[i] = fmt.Sprintf("F%d", i)
 	}
@@ -950,16 +953,16 @@ func TestQueryDoc_SizeGuard(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, jsonDoc.JSON(), string(res.Data))
 
-	// 120 names × a ~1000 byte type is over 100KB of JSON.
-	lowerOutputBudget(t, 50_000)
+	// 12 names × a ~1000 byte type is over 12KB of JSON.
+	lowerOutputBudget(t, 5_000)
 	res = query()
 	require.False(t, res.IsOK())
 	assert.IsType(t, ExportSizeExceededError{}, res.Error)
 }
 
 // typeChain declares T0 and T1 to T<levels>, each a struct of width fields of the
-// level below, one per line.
-func typeChain(levels, width int) string {
+// level below, joined by sep.
+func typeChain(levels, width int, sep string) string {
 	decls := []string{"type T0 struct{ V int }"}
 	for l := 1; l <= levels; l++ {
 		var fields strings.Builder
@@ -968,5 +971,249 @@ func typeChain(levels, width int) string {
 		}
 		decls = append(decls, fmt.Sprintf("type T%d = struct{ %s}", l, fields.String()))
 	}
-	return strings.Join(decls, "\n")
+	return strings.Join(decls, sep)
+}
+
+// An alias writes out everything it refers to in a type's id and text, outside
+// the gas meter and the allocator, so a query or a transaction must fail with
+// little allocated.
+func TestTypeSizeAllocBound(t *testing.T) {
+	const pkgPath = "gno.land/r/test/typesize"
+	const maxBytes = 4 << 20
+	env := setupSizeGuardRealm(t, "typesize", pkgPath, "package typesize\n")
+
+	allocated := func(f func() error) (uint64, error) {
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		err := f()
+		runtime.ReadMemStats(&after)
+		return after.TotalAlloc - before.TotalAlloc, err
+	}
+	funcOf := func(param string, n int) string {
+		return "func(" + strings.Repeat(param+", ", n) + ")"
+	}
+
+	const typeTooLarge = "type too large"
+	for name, tc := range map[string]struct{ decls, stmt, wantErr string }{
+		"type assertion":             {typeChain(5, 8, "; "), "_, ok := any(1).(*T5); _ = ok; ", typeTooLarge},
+		"type error":                 {typeChain(5, 8, "; "), "var p *T5; p = 1; ", "cannot use"},
+		"recover in the query":       {typeChain(5, 8, "; "), "defer func() { recover() }(); _, ok := any(1).(*T5); _ = ok; ", typeTooLarge},
+		"func repeating an alias":    {typeChain(3, 4, "; "), "_, ok := any(1).(*" + funcOf("T3", 64) + "); _ = ok; ", typeTooLarge},
+		"unnamed struct":             {typeChain(3, 4, "; "), "_, ok := any(1).(*struct{a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p T3}); _ = ok; ", typeTooLarge},
+		"func nested past the depth": {typeChain(8, 8, "; "), "_, ok := any(1).(*" + funcOf("T8", 100) + "); _ = ok; ", "type func("},
+		"wrong argument count":       {typeChain(6, 8, "; "), "_ = " + funcOf("T6", 100) + " {}(1); ", "wrong argument count"},
+		"typed nil in a message":     {typeChain(6, 8, "; "), "_ = func() { " + strings.Repeat("_ = (*T6)(nil); ", 50) + "}(1); ", "wrong argument count"},
+	} {
+		t.Run("query "+name, func(t *testing.T) {
+			expr := "func() int { " + tc.decls + "; " + tc.stmt + "return 0 }()"
+			n, err := allocated(func() error {
+				_, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+				return err
+			})
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Less(t, n, uint64(maxBytes))
+		})
+	}
+
+	// A refusal ends the query and leaves the next one served.
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "func() int { type T = struct{ F int }; var v T; v.F = 7; return v.F }()")
+	require.NoError(t, err)
+	assert.Contains(t, res, "7")
+
+	txCtx := func(name string) (sdk.Context, crypto.Address) {
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(store.NewGasMeter(maxAllocTx)))
+		addr := crypto.AddressFromPreimage([]byte(name))
+		env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000)))
+		return ctx, addr
+	}
+	for name, body := range map[string]string{
+		"pointer":    "var p *T5\n_ = p\n",
+		"zero value": "var v T5\n_ = v\n",
+	} {
+		t.Run("MsgRun "+name, func(t *testing.T) {
+			ctx, addr := txCtx("typesizerunner")
+			runPath := "gno.land/e/" + addr.String() + "/run"
+			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(runPath)},
+				{Name: "script.gno", Body: "package main\n\nfunc main() {\n" + typeChain(5, 8, "\n") + "\n" + body + "}\n"},
+			}
+			n, err := allocated(func() error {
+				_, err := env.vmk.Run(ctx, NewMsgRun(addr, std.MustParseCoins(""), files))
+				return err
+			})
+			require.ErrorContains(t, err, typeTooLarge)
+			assert.Less(t, n, uint64(maxBytes))
+		})
+	}
+
+	addPackage := func(name, src string) (uint64, error) {
+		ctx, addr := txCtx("typesizedeployer")
+		path := "gno.land/r/test/" + name
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: "top.gno", Body: "package " + name + "\n\n" + src},
+		}
+		return allocated(func() error {
+			return env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, path, files))
+		})
+	}
+	deps := strings.Split(typeChain(5, 8, "\n"), "\n")
+	topFirst := slices.Clone(deps)
+	slices.Reverse(topFirst)
+	var throughDeclared strings.Builder
+	throughDeclared.WriteString("type T1 = struct{ F0, F1, F2, F3, F4, F5, F6, F7 int; D *D1 }\n")
+	for l := 1; l < 5; l++ {
+		throughDeclared.WriteString(fmt.Sprintf("type D%[1]d struct{ P *T%[2]d }\ntype T%[2]d = struct{ F0, F1, F2, F3, F4, F5, F6, F7 T%[1]d; D *D%[2]d }\n", l, l+1))
+	}
+	throughDeclared.WriteString("type D5 struct{}\n")
+	for name, src := range map[string]string{
+		"typesizedeps":     strings.Join(deps, "\n") + "\nvar P *T5\n",
+		"typesizetopfirst": strings.Join(topFirst, "\n") + "\nvar P *T5\n",
+		"typesizedeclared": throughDeclared.String(),
+	} {
+		t.Run("MsgAddPackage "+name, func(t *testing.T) {
+			n, err := addPackage(name, src)
+			require.ErrorContains(t, err, typeTooLarge)
+			assert.Less(t, n, uint64(maxBytes))
+		})
+	}
+
+	t.Run("types under the cap keep working", func(t *testing.T) {
+		src := typeChain(2, 8, "\n") + "\ntype Callback = func(*Event)\ntype Event struct{ Listeners []Listener }\ntype Listener = struct{ Cb Callback; Name string }\nvar P *T2\n"
+		_, err := addPackage("typesizesmall", src)
+		require.NoError(t, err)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "func() int { "+typeChain(2, 8, "; ")+"; var v T2; return v.F7.F7.V + 1 }()")
+		require.NoError(t, err)
+		assert.Contains(t, res, "1")
+	})
+}
+
+// A realm can recover a failed check and store or branch on its message, so the
+// message prints each type whole, as Type.String does.
+func TestRecoveredErrorKeepsItsTypes(t *testing.T) {
+	const pkgPath = "gno.land/r/test/typetext"
+	env := setupSizeGuardRealm(t, "typetext", pkgPath, "package typetext\n")
+	decls := typeChain(2, 8, "; ")
+	// About 11 KB of one type's text, its id under the cap.
+	wide := strings.ReplaceAll(typeChain(3, 7, "; "), "T", "U")
+	for name, tc := range map[string]struct {
+		stmt string
+		want int
+	}{
+		"type under the id cap": {wide + "; var a any = 1; _ = a.(*U3)", 11618},
+		"concrete assertion":    {"var a any = (*T2)(nil); _ = a.(*[1]T2)", 4305},
+		"assertion on nil":      {"var a any; _ = a.(*T2)", 2162},
+		"interface on nil":      {"var a any; _ = a.(interface{ M(T2) })", 2206},
+		"missing method":        {"var a any = (*T2)(nil); _ = a.(interface{ M(T2) })", 4343},
+		"declared interface":    {"type I interface{ M(T2) }; var a any = 1; _ = a.(I)", 2203},
+		"comparison":            {"var a, b any = []T2{}, []T2{}; _ = a == b", 2187},
+		"map key":               {"m := map[any]int{}; var a any = []T2{}; m[a] = 1", 2183},
+	} {
+		t.Run(name, func(t *testing.T) {
+			expr := "func() (n int) { " + decls + "; defer func() { n = len(recover().(error).Error()) }(); " + tc.stmt + "; return 0 }()"
+			res, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("(%d int)", tc.want), res)
+		})
+	}
+}
+
+// vm/qfuncs prints each parameter's and result's base type, which no meter
+// charges: 200 types of about 9 KiB would print 1.8 MiB, past the response cap.
+func TestQueryFuncsBoundsTypeText(t *testing.T) {
+	const pkgPath = "gno.land/r/test/qfuncs"
+	decls := typeChain(3, 8, "\n") + "\ntype D T3\n"
+	env := setupSizeGuardRealm(t, "qfuncs", pkgPath, "package qfuncs\n"+decls+
+		"func Small(a int, b string) bool { return false }\n"+
+		"func Params("+strings.Repeat("D, ", 100)+") {}\n"+
+		"func Results() ("+strings.Repeat("D, ", 100)+") { panic(0) }\n")
+	res := env.vmh.Query(env.ctx, abci.RequestQuery{Path: "vm/qfuncs", Data: []byte(pkgPath)})
+	require.False(t, res.IsOK())
+	assert.IsType(t, ExportSizeExceededError{}, res.Error)
+}
+
+// A restart preprocesses every stored package again, so a package at the cap must
+// boot, and one past it, which only an older binary could have stored, stops the boot.
+func TestTypeIDCapOnRestart(t *testing.T) {
+	const capID = 16 << 10
+	// struct{<name> int} adds 12 bytes to the name in its id.
+	structOfID := func(n int) string { return "struct{ " + strings.Repeat("A", n-12) + " int }" }
+	files := func(path, name, src string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: "top.gno", Body: "package " + name + "\n\n" + src},
+		}
+	}
+	txCtx := func(env testEnv, name string) (sdk.Context, crypto.Address) {
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(store.NewGasMeter(DefaultQueryMaxGas)))
+		addr := crypto.AddressFromPreimage([]byte(name))
+		env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000_000)))
+		return ctx, addr
+	}
+	restart := func(env testEnv) (recovered any) {
+		defer func() { recovered = recover() }()
+		env.vmk.gnoStore = nil
+		ms := env.ctx.MultiStore().MultiCacheWrap()
+		env.vmk.Initialize(log.NewNoopLogger(), ms)
+		ms.MultiWrite()
+		return nil
+	}
+
+	t.Run("at the cap", func(t *testing.T) {
+		env := setupTestEnv()
+		var paths []string
+		for i, src := range []string{
+			"type T = " + structOfID(capID) + "\nvar V T\n",
+			"func F(p " + structOfID(capID-8) + ") {}\n",
+			"type I interface{ M(p " + structOfID(capID-23) + ") }\n",
+			"func F(p ..." + structOfID(capID-10) + ") {}\n",
+			"var F = func(p " + structOfID(capID-8) + ") {}\n",
+		} {
+			name := fmt.Sprintf("typecap%d", i)
+			path := "gno.land/r/test/" + name
+			ctx, addr := txCtx(env, name)
+			require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, path, files(path, name, src))))
+			env.vmk.CommitGnoTransactionStore(ctx)
+			paths = append(paths, path)
+		}
+		require.Nil(t, restart(env))
+		for _, path := range paths {
+			res, err := env.vmk.QueryEval(env.ctx, path, "1+1")
+			require.NoError(t, err)
+			assert.Contains(t, res, "2")
+		}
+	})
+
+	t.Run("past the cap", func(t *testing.T) {
+		env := setupTestEnv()
+		const name, path = "typeover", "gno.land/r/test/typeover"
+		ctx, _ := txCtx(env, name)
+		env.vmk.getGnoTransactionStore(ctx).AddMemPackage(&std.MemPackage{
+			Type: gnolang.MPUserProd, Name: name, Path: path,
+			Files: files(path, name, "type T = "+structOfID(capID+1)+"\nvar V T\n"),
+		}, gnolang.MPUserProd)
+		env.vmk.CommitGnoTransactionStore(ctx)
+		assert.Contains(t, fmt.Sprint(restart(env)), "type too large")
+	})
+}
+
+// append and copy take a func type that repeats their operand's type, three
+// times and twice, so an element type at half the cap must still deploy and run.
+func TestTypeIDCapSpecifiedBuiltins(t *testing.T) {
+	const pkgPath = "gno.land/r/test/builtincap"
+	// 100 fields of 80-byte names: an id of 8507 bytes.
+	var fields strings.Builder
+	for i := range 100 {
+		fmt.Fprintf(&fields, "F%03d%s int; ", i, strings.Repeat("x", 76))
+	}
+	env := setupSizeGuardRealm(t, "builtincap", pkgPath, "package builtincap\n\n"+
+		"type S = struct{ "+fields.String()+"}\n\n"+
+		"var A, B []S\n\n"+
+		"func Add(cur realm, s S) { A = append(A, s) }\n\n"+
+		"func Cp(cur realm) int { return copy(A, B) }\n")
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "func() int { var a, b []S; a = append(a, S{}); return len(a) + copy(b, a) }()")
+	require.NoError(t, err)
+	assert.Equal(t, "(1 int)", res)
 }

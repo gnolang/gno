@@ -73,6 +73,57 @@ type meteredWriter struct {
 	gasMeter store.GasMeter
 	buf      [meteredWriterBufSize]byte
 	n        int
+
+	// While cut is set, a section of the render may write only left more
+	// bytes; the write that passes left is cut short and sets clipped, after
+	// which the section writes nothing. See writeBounded.
+	cut     bool
+	left    int
+	clipped bool
+}
+
+// admit returns how many of m bytes a cut section may still write.
+func (mw *meteredWriter) admit(m int) int {
+	if mw.clipped {
+		return 0
+	}
+	if m <= mw.left {
+		mw.left -= m
+		return m
+	}
+	k := mw.left
+	mw.left = 0
+	mw.clipped = true
+	return k
+}
+
+// admitText cuts s to what mw's cut section may still write, at a rune boundary.
+func admitText[S string | []byte](mw *meteredWriter, s S) S {
+	k := mw.admit(len(s))
+	for k > 0 && k < len(s) && !utf8.RuneStart(s[k]) {
+		k--
+	}
+	return s[:k]
+}
+
+// writeBounded runs render on w, keeping what it writes to limit bytes and
+// marking a cut. Nothing is buffered apart from w: the bytes past the cut are
+// never written, and the walks that render runs stop once clipped is set.
+// Sections do not nest: an inner call would clear the outer section on exit,
+// and the rest of the outer render would write uncut.
+func writeBounded(w *meteredWriter, limit int, render func(*meteredWriter)) {
+	w.cut, w.left, w.clipped = true, limit, false
+	render(w)
+	clipped := w.clipped
+	w.cut, w.clipped = false, false
+	if clipped {
+		w.WriteString(typeTextClipMark)
+	}
+}
+
+// writeBoundedType writes t's text into w, cut at limit bytes.
+func writeBoundedType(w *meteredWriter, t Type, limit int) {
+	writeBounded(w, limit, func(w *meteredWriter) { writeType(w, t) })
 }
 
 // meteredWriterPool recycles the (kilobyte-sized) meteredWriter structs so a
@@ -88,6 +139,7 @@ func newUnmeteredWriter(w io.Writer) *meteredWriter {
 	mw.parent = w
 	mw.n = 0
 	mw.gasMeter = nil
+	mw.cut, mw.clipped = false, false
 	return mw
 }
 
@@ -106,6 +158,7 @@ func newMeteredWriter(w io.Writer, m *Machine) *meteredWriter {
 	mw.parent = w
 	mw.n = 0
 	mw.gasMeter = m.GasMeter
+	mw.cut, mw.clipped = false, false
 	return mw
 }
 
@@ -179,6 +232,9 @@ func (mw *meteredWriter) reserve(need int) {
 // io.ByteWriter's canonical signature (and go vet's stdmethods check);
 // the error is always nil and callers ignore it.
 func (mw *meteredWriter) WriteByte(b byte) error {
+	if mw.cut && mw.admit(1) == 0 {
+		return nil
+	}
 	mw.reserve(1)
 	mw.buf[mw.n] = b
 	mw.n++
@@ -186,6 +242,9 @@ func (mw *meteredWriter) WriteByte(b byte) error {
 }
 
 func (mw *meteredWriter) WriteString(s string) {
+	if mw.cut {
+		s = admitText(mw, s)
+	}
 	for len(s) > 0 {
 		if mw.n == len(mw.buf) {
 			mw.Flush()
@@ -197,6 +256,9 @@ func (mw *meteredWriter) WriteString(s string) {
 }
 
 func (mw *meteredWriter) WriteBytes(p []byte) {
+	if mw.cut {
+		p = admitText(mw, p)
+	}
 	for len(p) > 0 {
 		if mw.n == len(mw.buf) {
 			mw.Flush()
@@ -222,22 +284,31 @@ func (mw *meteredWriter) Write(p []byte) (int, error) {
 
 func (mw *meteredWriter) WriteInt(i int64) {
 	mw.reserve(20) // len("-9223372036854775808")
-	mw.n = len(strconv.AppendInt(mw.buf[:mw.n], i, 10))
+	mw.appended(mw.n, len(strconv.AppendInt(mw.buf[:mw.n], i, 10)))
 }
 
 func (mw *meteredWriter) WriteUint(u uint64) {
 	mw.reserve(20) // len("18446744073709551615")
-	mw.n = len(strconv.AppendUint(mw.buf[:mw.n], u, 10))
+	mw.appended(mw.n, len(strconv.AppendUint(mw.buf[:mw.n], u, 10)))
 }
 
 func (mw *meteredWriter) WriteBool(b bool) {
 	mw.reserve(5) // len("false")
-	mw.n = len(strconv.AppendBool(mw.buf[:mw.n], b))
+	mw.appended(mw.n, len(strconv.AppendBool(mw.buf[:mw.n], b)))
 }
 
 func (mw *meteredWriter) WriteFloat(f float64, bitSize int) {
 	mw.reserve(32) // generous upper bound for 'g' formatting
-	mw.n = len(strconv.AppendFloat(mw.buf[:mw.n], f, 'g', -1, bitSize))
+	mw.appended(mw.n, len(strconv.AppendFloat(mw.buf[:mw.n], f, 'g', -1, bitSize)))
+}
+
+// appended keeps the ASCII bytes an Append* call wrote into buf[start:end],
+// or what a cut section admits of them.
+func (mw *meteredWriter) appended(start, end int) {
+	if mw.cut {
+		end = start + mw.admit(end-start)
+	}
+	mw.n = end
 }
 
 // WriteQuote writes the Go-quoted form of s (fmt %q-equivalent), matching
@@ -253,6 +324,11 @@ func (mw *meteredWriter) WriteFloat(f float64, bitSize int) {
 // copy of s is built. Quote escapes each rune on its own, so the output is
 // identical as long as no rune is split across chunks (see quoteCut).
 func (mw *meteredWriter) WriteQuote(s string) {
+	if mw.cut {
+		// Only a lone field's tag is quoted inside a cut section.
+		mw.WriteString(strconv.Quote(s))
+		return
+	}
 	if len(s) <= quoteChunk {
 		b := strconv.AppendQuote(mw.buf[:mw.n], s)
 		if len(b) <= len(mw.buf) {
@@ -389,7 +465,7 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 		case nil:
 			w.WriteString(nilStr)
 			w.WriteString(" ")
-			writeType(w, tv.T)
+			writeBoundedType(w, tv.T, maxTypeTextBytes)
 		case *FuncValue:
 			writeFuncValue(w, fv)
 		case *BoundMethodValue:
@@ -412,7 +488,7 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 		panic("not yet implemented")
 	case *TypeType:
 		w.WriteString("typeval{")
-		writeType(w, tv.V.(TypeValue).Type)
+		writeBoundedType(w, tv.V.(TypeValue).Type, maxExprTypeTextBytes)
 		w.WriteByte('}')
 	default:
 		// The remaining types may have a nil value.
@@ -420,7 +496,7 @@ func writeProtectedSprint(w *meteredWriter, tv TypedValue, seen *seenValues, con
 			w.WriteString("(")
 			w.WriteString(nilStr)
 			w.WriteString(" ")
-			writeType(w, tv.T)
+			writeBoundedType(w, tv.T, maxTypeTextBytes)
 			w.WriteString(")")
 			return
 		}
@@ -648,6 +724,10 @@ func (pv PointerValue) WriteProtected(w *meteredWriter, seen *seenValues) {
 // primitives the value is rendered the same way ProtectedSprint
 // would render it, except strings get quoted in the wrap form.
 func (tv TypedValue) WriteProtected(w *meteredWriter, seen *seenValues) {
+	tv.writeProtected(w, seen, maxTypeTextBytes)
+}
+
+func (tv TypedValue) writeProtected(w *meteredWriter, seen *seenValues, typeTextLimit int) {
 	if tv.IsUndefined() {
 		w.WriteString("(undefined)")
 		return
@@ -702,17 +782,22 @@ func (tv TypedValue) WriteProtected(w *meteredWriter, seen *seenValues) {
 	}
 
 	w.WriteByte(' ')
-	writeType(w, tv.T)
+	writeBoundedType(w, tv.T, typeTextLimit)
 	w.WriteByte(')')
 }
 
-// writeType streams t.String() into w, and is the printer behind the composite
-// Type.String() methods (see typeString). A type string is not bounded by the
-// type's size in memory: a chain of aliased anonymous structs, each with n
-// fields of the one below, is a few hundred bytes of source and renders to
-// n^depth bytes. Streaming it lets the cap on w's parent stop the render.
+// writeType streams t's text into w, and is the printer behind the composite
+// Type.String() methods (see typeString) and every type a render prints. A type
+// string is not bounded by the type's size in memory: a chain of aliased
+// anonymous structs, each with n fields of the one below, is a few hundred bytes
+// of source and renders to n^depth bytes. So a caller runs it inside a cut
+// section (see writeBounded), which drops what passes the cut and makes the walk
+// return, or over a parent with a byte cap, as WriteTypeTo's callers do.
 // DeclaredType and the other leaves print a name, bounded by their declaration.
 func writeType(w *meteredWriter, t Type) {
+	if w.clipped {
+		return // a cut section is full: leave the rest of the type unvisited
+	}
 	switch ct := t.(type) {
 	case *PointerType:
 		w.WriteByte('*')
@@ -783,6 +868,18 @@ func writeType(w *meteredWriter, t Type) {
 			writeType(w, et)
 		}
 		w.WriteByte(')')
+	case FieldType:
+		if ct.Name == "" {
+			w.WriteString("(embedded) ")
+		} else {
+			w.WriteString(string(ct.Name))
+			w.WriteByte(' ')
+		}
+		writeType(w, ct.Type)
+		if ct.Tag != "" {
+			w.WriteByte(' ')
+			w.WriteQuote(string(ct.Tag))
+		}
 	case *DeclaredType:
 		// Written in parts: a type string can hold a leaf per output byte or so.
 		w.WriteString(ct.PkgPath)
@@ -822,7 +919,7 @@ func writeFuncValue(w *meteredWriter, fv *FuncValue) {
 		w.WriteString(fv.String())
 		return
 	}
-	writeType(w, fv.Type)
+	writeBoundedType(w, fv.Type, maxTypeTextBytes)
 	w.WriteString("{...}")
 }
 
@@ -831,7 +928,7 @@ func writeFuncValue(w *meteredWriter, fv *FuncValue) {
 func writeBoundMethodValue(w *meteredWriter, bmv *BoundMethodValue) {
 	w.WriteByte('<')
 	if bmv.IsLazy() {
-		writeType(w, bmv.Receiver.T)
+		writeBoundedType(w, bmv.Receiver.T, maxTypeTextBytes)
 		w.WriteString(">.")
 		w.WriteString(string(bmv.Method))
 		w.WriteString("(?)(?)")
@@ -844,12 +941,12 @@ func writeBoundMethodValue(w *meteredWriter, bmv *BoundMethodValue) {
 		w.WriteString("(?)(?)")
 		return
 	}
-	writeType(w, ft.Params[0].Type)
+	writeBoundedType(w, ft.Params[0].Type, maxTypeTextBytes)
 	w.WriteString(">.")
 	w.WriteString(string(bmv.Func.Name))
 	w.WriteByte('(')
-	writeFieldTypes(w, ft.Params, false, ", ")
+	writeBounded(w, maxTypeTextBytes, func(w *meteredWriter) { writeFieldTypes(w, ft.Params, false, ", ") })
 	w.WriteString(")(")
-	writeFieldTypes(w, ft.Results, false, ", ")
+	writeBounded(w, maxTypeTextBytes, func(w *meteredWriter) { writeFieldTypes(w, ft.Results, false, ", ") })
 	w.WriteByte(')')
 }
