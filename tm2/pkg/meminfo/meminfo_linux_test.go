@@ -1,4 +1,4 @@
-package testutils
+package meminfo
 
 import (
 	"os"
@@ -15,14 +15,14 @@ func TestParseMemInfo(t *testing.T) {
 	for _, tt := range []struct {
 		name string
 		in   string
-		want MemInfo
+		want Info
 		ok   bool
 	}{
 		{
 			name: "both present",
 			in:   "MemTotal:       32950272 kB\nMemFree:         1048576 kB\nMemAvailable:   20971520 kB\n",
 			// kB, not bytes: a mix-up would be off by 1024 either way.
-			want: MemInfo{Total: 32950272 << 10, Available: 20 << 30},
+			want: Info{Total: 32950272 << 10, Available: 20 << 30},
 			ok:   true,
 		},
 		{
@@ -30,7 +30,7 @@ func TestParseMemInfo(t *testing.T) {
 			// when a caller most needs to know.
 			name: "nothing available",
 			in:   "MemTotal:       32950272 kB\nMemAvailable:          0 kB\n",
-			want: MemInfo{Total: 32950272 << 10},
+			want: Info{Total: 32950272 << 10},
 			ok:   true,
 		},
 		{
@@ -62,14 +62,14 @@ func TestClampToCgroup(t *testing.T) {
 	const host = 32 << 30
 	for _, tt := range []struct {
 		name              string
-		mi                MemInfo
+		mi                Info
 		limit, used       uint64
 		wantTotal, wantAv uint64
 	}{
 		{
 			// The case this exists for: a container far smaller than its host.
 			name: "limit below host",
-			mi:   MemInfo{Total: host, Available: 20 << 30},
+			mi:   Info{Total: host, Available: 20 << 30},
 			// A quarter of 4 GiB is a very different reserve from a quarter of
 			// 32, so Total has to be narrowed too, not just Available.
 			limit: 4 << 30, used: 1 << 30,
@@ -77,7 +77,7 @@ func TestClampToCgroup(t *testing.T) {
 		},
 		{
 			name: "host tighter than the limit",
-			mi:   MemInfo{Total: host, Available: 2 << 30},
+			mi:   Info{Total: host, Available: 2 << 30},
 			// The host is already short of memory; the cgroup's generous
 			// headroom does not conjure any.
 			limit: 16 << 30, used: 1 << 30,
@@ -85,7 +85,7 @@ func TestClampToCgroup(t *testing.T) {
 		},
 		{
 			name:  "usage at the limit",
-			mi:    MemInfo{Total: host, Available: 20 << 30},
+			mi:    Info{Total: host, Available: 20 << 30},
 			limit: 4 << 30, used: 4 << 30,
 			wantTotal: 4 << 30, wantAv: 0,
 		},
@@ -93,7 +93,7 @@ func TestClampToCgroup(t *testing.T) {
 			// memory.current can exceed memory.max transiently, before reclaim
 			// catches up. Must not underflow into a huge Available.
 			name:  "usage past the limit",
-			mi:    MemInfo{Total: host, Available: 20 << 30},
+			mi:    Info{Total: host, Available: 20 << 30},
 			limit: 4 << 30, used: 5 << 30,
 			wantTotal: 4 << 30, wantAv: 0,
 		},
