@@ -1,6 +1,6 @@
 # Interrealm Specification
 
-> **Start here:** [gno-interrealm-model.md](./gno-interrealm-model.md) states the model and its six rules on two pages; this document is the mechanism.
+> **Start here:** [gno-interrealm-whitepaper.md](./gno-interrealm-whitepaper.md) states the model and its six rules on two pages; this document is the mechanism.
 
 __This document is outdated, see 
 [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and

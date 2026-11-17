@@ -1,4 +1,4 @@
-# The interrealm model
+# Interrealm: a whitepaper
 
 A short statement of how realms protect their state. The mechanism and the
 full call-by-call table are in [gno-interrealm.md](./gno-interrealm.md); the

@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/thief
-// The token scenario of docs/resources/gno-interrealm-model.md: the crossing
+// The token scenario of docs/resources/gno-interrealm-whitepaper.md: the crossing
 // gate moves the caller's own tokens; reading the ledger is fine; a library
 // method on the token realm's ledger, called by another realm, is refused.
 package thief
