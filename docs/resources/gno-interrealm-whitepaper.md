@@ -116,18 +116,22 @@ and the realm that calls it (`caller`).
 ```go
 // p: gno.land/p/demo/ledger
 type Ledger struct{ bal map[address]int64 }
-func (l *Ledger) Move(from, to address, n int64) { l.bal[from] -= n; l.bal[to] += n }
-func (l *Ledger) Balance(a address) int64       { return l.bal[a] }
+func New() *Ledger                               { return &Ledger{bal: map[address]int64{}} }
+func (l *Ledger) Balance(a address) int64        { return l.bal[a] }                 // reads l.bal
+func (l *Ledger) Move(from, to address, n int64) { l.bal[from] -= n; l.bal[to] += n } // writes l.bal
 
 // victim: gno.land/r/demo/token
-var l = ledger.New()
-func Transfer(cur realm, to address, n int64) { l.Move(cur.Previous().Address(), to, n) }
-func Ledger() *ledger.Ledger                  { return l }
+var l = ledger.New()                            // token's ledger (R1)
+func Ledger() *ledger.Ledger { return l }       // hands out a pointer to it
+func Transfer(cur realm, to address, n int64) { // the gate
+	l.Move(cur.Previous().Address(), to, n)     // runs inside the crossing call: may write
+}
 
 // caller: gno.land/r/demo/thief
-token.Transfer(cross(cur), bob, 10)         // moves the thief's own tokens (R3, R6)
-token.Ledger().Balance(alice)               // fine: reading needs no gate (R2)
-token.Ledger().Move(alice, thief, 1e9)      // refused: writes token's ledger outside a crossing call into token (R1, R3)
+token.Transfer(cross(cur), bob, 10)    // through the gate: Move's writes run inside token's
+                                       // crossing call → moves the thief's own tokens (R3, R6)
+token.Ledger().Balance(alice)          // no gate, but Balance only reads → fine (R2)
+token.Ledger().Move(alice, thief, 1e9) // no gate, and Move writes: refused at `l.bal[from] -= n` (R1, R3)
 ```
 
 **An exported helper is not a gate.**
