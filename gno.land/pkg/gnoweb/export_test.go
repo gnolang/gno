@@ -20,4 +20,4 @@ func (h *HTTPHandler) SitemapLocs(ctx context.Context) []string {
 }
 
 // ResolveAlias returns t with a static page's file as it is on disk now.
-func ResolveAlias(t AliasTarget) AliasTarget { return t.resolve() }
+func ResolveAlias(t AliasTarget) (AliasTarget, error) { return t.resolve() }

@@ -23,11 +23,12 @@ The purpose of this solution is either:
 
 A line `<!-- latest-blogposts -->` in `home-override.md` is replaced by the three
 most recent posts of `r/gnoland/blog`, refreshed on every round of `gnoalias.sh`
-(hourly). The script only rewrites `home.md`: gnoweb re-reads a static alias
+(every 5 minutes). The script only rewrites `home.md`: gnoweb re-reads a static alias
 file when its modification time changes, so nothing restarts. If the query
-fails, the current page stays as it is. The posts come from mainnet; on a testnet, set
-`BLOG_LINK_BASE=https://gno.land` (see [docker-compose.yml](docker-compose.yml))
-so their links lead there.
+fails, the current page stays as it is, unless `home-override.md` was edited
+since: it is then served without the posts until a round succeeds. The posts come
+from mainnet and link to `https://gno.land`; on mainnet, set `BLOG_LINK_BASE=`
+(empty) to keep the links relative, since gnoweb marks an absolute one external.
 
 ## Prerequisites
 

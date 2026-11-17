@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -158,12 +159,11 @@ func isBlockIndicator(v string) bool {
 // can be replaced (ideally by renaming a new one over it) without restarting
 // gnoweb. If a later read fails, the last content read is kept.
 func NewStaticFileAlias(path string) (AliasTarget, error) {
-	content, err := os.ReadFile(path)
+	t, err := (&staticFile{path: path}).current()
 	if err != nil {
 		return AliasTarget{}, err
 	}
-	f := &staticFile{path: path, target: NewStaticAlias(string(content))}
-	return f.current(), nil
+	return t, nil
 }
 
 type staticFile struct {
@@ -173,6 +173,7 @@ type staticFile struct {
 	modTime time.Time // zero: read the file again on the next request
 	size    int64
 	target  AliasTarget
+	failing bool // the last read failed, and its error was returned then
 }
 
 // staticFileSettle is how old a file's modification time must be before a
@@ -181,18 +182,40 @@ type staticFile struct {
 // otherwise leave stale content until the next change.
 const staticFileSettle = 2 * time.Second
 
-func (f *staticFile) current() AliasTarget {
+// current returns the page as the file is now. A failed read keeps the last
+// page read, and its error is returned only when reads start failing.
+func (f *staticFile) current() (AliasTarget, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if info, err := os.Stat(f.path); err == nil && (!info.ModTime().Equal(f.modTime) || info.Size() != f.size) {
-		if content, err := os.ReadFile(f.path); err == nil {
-			f.target, f.size, f.modTime = NewStaticAlias(string(content)), info.Size(), info.ModTime()
-			if time.Since(f.modTime) < staticFileSettle {
-				f.modTime = time.Time{}
-			}
-		}
+	err := f.reload()
+	reported := f.failing
+	f.failing = err != nil
+	if reported {
+		err = nil
 	}
 	t := f.target
 	t.file = f
-	return t
+	return t, err
+}
+
+// reload reads the file again if its size or modification time changed.
+func (f *staticFile) reload() error {
+	info, err := os.Stat(f.path)
+	if err != nil || (info.ModTime().Equal(f.modTime) && info.Size() == f.size) {
+		return err
+	}
+	// A FIFO or device could block the read while f.mu is held.
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s: not a regular file", f.path)
+	}
+	content, err := os.ReadFile(f.path)
+	if err != nil {
+		return err
+	}
+	f.target, f.size, f.modTime = NewStaticAlias(string(content)), info.Size(), info.ModTime()
+	// Abs: a time ahead of the clock (skew) would otherwise never settle.
+	if time.Since(f.modTime).Abs() < staticFileSettle {
+		f.modTime = time.Time{}
+	}
+	return nil
 }

@@ -3,12 +3,12 @@
 ## Context
 
 The gno.land homepage is a static alias (`--aliases=/=static:home.md`).
-`misc/deployments/home-alias/gnoalias.sh` rewrites `home.md`, now hourly
-with the latest blog posts. gnoweb read the file once, at startup, so the
-script restarted gnoweb through the Docker socket mounted in its container:
-a short outage on each update, a container with root-equivalent access to
-its host, and a default command that restarted every `gnoweb:master`
-container, stopped ones included.
+`misc/deployments/home-alias/gnoalias.sh` rewrites `home.md`, now every five
+minutes with the latest blog posts. gnoweb read the file once, at startup,
+so the script restarted gnoweb through the Docker socket mounted in its
+container: a short outage on each update, a container with root-equivalent
+access to its host, and a default command that restarted every
+`gnoweb:master` container, stopped ones included.
 
 ## Decision
 
@@ -18,8 +18,13 @@ A static alias built from a file (`NewStaticFileAlias`, used by
 or modification time changed. A file modified less than two seconds before
 it was read is read again on the next request, so a write within the same
 timestamp tick, or an in-place write caught halfway, is not cached as
-current. If the file cannot be read, the last content read keeps being
-served. A missing file still fails at startup.
+current. The two seconds count on either side of the clock, so a
+modification time far ahead of it (clock skew) does not mean a read per
+request. If the file cannot be read, the last content read keeps being
+served, and gnoweb logs a warning when reads start failing. A path that
+stats as a FIFO or a device is not opened and counts as unreadable. A
+missing file still fails at startup, and so does a path that is not a
+regular file (`static:/dev/stdin`, `static:<(cmd)`), which master accepted.
 
 `gnoalias.sh` now only writes `home.md` (a new file renamed over the old
 one, so a read never sees half a file). Its reload command is optional, for

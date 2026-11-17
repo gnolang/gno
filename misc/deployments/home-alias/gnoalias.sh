@@ -5,10 +5,10 @@
 # gnoweb re-reads a static alias file when it changes, so writing home.md is
 # enough. reload_cmd is only for a gnoweb older than that.
 #
-# BLOG_LINK_BASE (optional): prefix for the blog post links, https://gno.land on
-# a testnet. The posts always come from mainnet: the testnet blogs are empty.
+# BLOG_LINK_BASE: prefix of the blog post links, which come from mainnet
+# (default https://gno.land). Set it empty on mainnet to keep them relative.
 
-SLEEPING_TIME=3600
+SLEEPING_TIME=300
 # home folder in this context
 ALIAS_HOME_FOLDER="${1:-./home}"
 # target rpc node url
@@ -29,7 +29,7 @@ qrender() {
 # <gno-columns> grid. Titles become bold paragraphs above their date, so they
 # stay out of the page's table of contents.
 latest_blogposts() {
-  qrender https://rpc.gno.land "gno.land/r/gnoland/blog:" | awk -v base="$BLOG_LINK_BASE" '
+  qrender https://rpc.gno.land "gno.land/r/gnoland/blog:" | awk -v base="${BLOG_LINK_BASE-https://gno.land}" '
     /^<gno-columns>$/ { on = 1 }
     !on { next }
     { gsub(/\]\(\/r\/gnoland\/blog/, "](" base "/r/gnoland/blog") }
@@ -56,15 +56,15 @@ check_gnoland_home() {
   # if this file exists bypass the script homepage manually.
   if [ -f home-override.md ]; then
     echo "Home page overriden by home-override.md"
-    # a failed blog query keeps the current page rather than dropping the posts
+    # a failed blog query keeps the current page, unless there is none yet or
+    # home-override.md was edited since: then it is served without the posts
     if ! render_override > out.md; then
       echo "Warn: failed to read the latest blog posts."
-      rm -f out.md
-      [ -f home.md ] && return 1
-      # first round: gnoweb cannot start without home.md, so serve the page
-      # without the posts until the next round
-      grep -vxF "$BLOG_MARKER" home-override.md > home.md
-      return 0
+      if [ -f home.md ] && [ ! home-override.md -nt home.md ]; then
+        rm -f out.md
+        return 1
+      fi
+      grep -vxF "$BLOG_MARKER" home-override.md > out.md
     fi
     if cmp -s out.md home.md; then # nothing changed since the last round
       rm out.md
