@@ -177,22 +177,14 @@ func (cfg *HTTPHandlerConfig) validate() error {
 			return errors.New("a `StoreRealm` needs a `Meta.Domain`")
 		}
 	}
-	if cfg.IPFSGateway != "" && !isOrigin(cfg.IPFSGateway) {
-		return fmt.Errorf("invalid `IPFSGateway` %q: want an origin such as https://ipfs-gateway.example", cfg.IPFSGateway)
+	// NewRouter has already normalized it; this catches a direct caller's.
+	gw, err := normalizeIPFSGateway(cfg.IPFSGateway, "", "")
+	if err != nil {
+		return fmt.Errorf("invalid `IPFSGateway`: %w", err) // not the value: it may carry a secret
 	}
+	cfg.IPFSGateway = gw
 	return nil
 }
-
-// isOrigin reports whether s is an http(s) origin and nothing more. The
-// host is held to hostname characters: it goes into the CSP header, where a
-// ';' or a quote would start another directive.
-func isOrigin(s string) bool {
-	u, err := url.Parse(s)
-	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && reOriginHost.MatchString(u.Host) &&
-		u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == "" && !u.ForceQuery
-}
-
-var reOriginHost = regexp.MustCompile(`^[A-Za-z0-9.-]+(:[0-9]+)?$`)
 
 // HTTPHandler processes HTTP requests for gnoweb.
 type HTTPHandler struct {

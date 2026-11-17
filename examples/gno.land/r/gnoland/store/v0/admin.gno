@@ -59,13 +59,13 @@ var (
 // Claim and SubmitRich panic. Stars and hiding keep working.
 func ProposePause(cur realm) dao.ProposalRequest {
 	return proposal(cur, "Pause the store", "Pauses new listings and listing updates in the store.",
-		func() error { paused = true; return nil })
+		func() error { paused = true; chain.Emit("StorePaused"); return nil })
 }
 
 // ProposeUnpause returns a GovDAO proposal that lifts a pause.
 func ProposeUnpause(cur realm) dao.ProposalRequest {
 	return proposal(cur, "Unpause the store", "Lets the store take new listings and listing updates again.",
-		func() error { paused = false; return nil })
+		func() error { paused = false; chain.Emit("StoreUnpaused"); return nil })
 }
 
 // ProposeHide returns a GovDAO proposal that hides the listing slug for
@@ -251,7 +251,7 @@ func unhide(path string) error {
 	byTitle.Set(titleKey(l.Title), l.Slug)
 	l.index()
 	l.announce(blockTime()) // a claim confirmed while hidden was never announced
-	chain.Emit("StoreUnhidden", "slug", l.Slug)
+	chain.Emit("StoreUnhidden", "slug", l.Slug, "path", l.Path)
 	return nil
 }
 

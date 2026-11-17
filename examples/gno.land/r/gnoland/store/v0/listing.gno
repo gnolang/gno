@@ -190,8 +190,9 @@ func upsert(l *listing, now int64) string {
 	}
 	if existing != nil {
 		if owner := titleHolder(l); owner != "" && owner != l.Slug {
-			// A hidden listing holds no title: it takes none from a claim.
-			if existing.hidden || blocks(lookup(&listings, owner), l) {
+			// A hidden listing holds no title, and only a realm listing
+			// itself for the first time takes one from a claim.
+			if existing.hidden || existing.selfListed || blocks(lookup(&listings, owner), l) {
 				return reasonTitleTaken
 			}
 			evictClaim(owner)

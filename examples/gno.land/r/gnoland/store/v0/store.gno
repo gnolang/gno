@@ -130,7 +130,11 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 	if l := lookup(&byPath, path); l != nil && l.core {
 		panic("store: a core listing cannot be claimed") // frozen in code (ADR §5)
 	}
-	if reason := upsert(newListing(path, slug, title, tagline, category, palette, kind), blockTime()); reason != "" {
+	l := newListing(path, slug, title, tagline, category, palette, kind)
+	if reason := upsert(l, blockTime()); reason != "" {
+		if holder := holderOf(l, reason); holder != "" {
+			reason += " (holder: " + holder + ")"
+		}
 		panic("store: " + reason)
 	}
 	chain.Emit("StoreClaimed", "path", path, "slug", lookup(&byPath, path).Slug, "kind", kind)

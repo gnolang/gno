@@ -308,6 +308,8 @@ func writeListing(b *strings.Builder, l *listing, now int64) {
 	b.WriteString(strconv.FormatBool(pending))
 	writeKey(b, "core")
 	b.WriteString(strconv.FormatBool(l.core))
+	writeKey(b, "confirmed")
+	b.WriteString(strconv.FormatBool(l.Confirmed))
 	writeKey(b, "icon")
 	writeString(b, r.Icon)
 	writeKey(b, "cover")
@@ -325,7 +327,8 @@ func writeInt(b *strings.Builder, n int64) {
 }
 
 // writeString writes s as a JSON string. <, > and & are escaped too, so the
-// output is safe to embed in HTML; U+2028 and U+2029 so it is safe in JS.
+// output is safe to embed in HTML; U+2028 and U+2029 so it is safe in JS;
+// [ and ] so gnoweb, which renders api/ as markdown, makes no link of it.
 func writeString(b *strings.Builder, s string) {
 	const hex = "0123456789abcdef"
 	b.WriteByte('"')
@@ -334,7 +337,7 @@ func writeString(b *strings.Builder, s string) {
 		case r == '"' || r == '\\':
 			b.WriteByte('\\')
 			b.WriteRune(r)
-		case r < 0x20 || r == '<' || r == '>' || r == '&' || r == 0x2028 || r == 0x2029:
+		case r < 0x20 || r == '<' || r == '>' || r == '&' || r == '[' || r == ']' || r == 0x2028 || r == 0x2029:
 			b.WriteString(`\u`)
 			for shift := 12; shift >= 0; shift -= 4 {
 				b.WriteByte(hex[(r>>uint(shift))&0xf])

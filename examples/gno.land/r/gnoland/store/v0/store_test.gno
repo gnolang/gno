@@ -91,7 +91,7 @@ func TestRegisterFromRealm(cur realm, t *testing.T) {
 	uassert.Equal(t, "gno.land/r/acme/swap", l.Path)
 	uassert.Equal(t, kindApp, l.Kind)
 	uassert.Equal(t, "acme", l.Namespace)
-	contains(t, listingJSON("acme-swap"), `{"slug":"acme-swap","kind":"app","path":"gno.land/r/acme/swap","title":"Acme Swap","tagline":"A tagline","category":"utilities","palette":4,"stars":0,"ranked":0,"fifth_ranked":0,"created":`+strconv.FormatInt(bySlugOrPanic("acme-swap").Created, 10)+`,"pending":false,"core":false,"icon":"","cover":""}`)
+	contains(t, listingJSON("acme-swap"), `{"slug":"acme-swap","kind":"app","path":"gno.land/r/acme/swap","title":"Acme Swap","tagline":"A tagline","category":"utilities","palette":4,"stars":0,"ranked":0,"fifth_ranked":0,"created":`+strconv.FormatInt(bySlugOrPanic("acme-swap").Created, 10)+`,"pending":false,"core":false,"confirmed":true,"icon":"","cover":""}`)
 	contains(t, Render("api/v1/category/utilities/1"), `"slug":"acme-swap"`)
 	contains(t, Render("c/utilities"), "**[Acme Swap](/r/acme/swap)** — A tagline")
 }
@@ -296,7 +296,7 @@ func TestTitleLookalikes(t *testing.T) {
 		{"Gno.land Blog", "Gno.ㅣand Blog"}, {"Gnoland", "Gno丨and"}, {"Gnoland", "Gnㅇland"}, {"Gnoland", "Gnهland"}, // Hangul, Han, Arabic
 		{"AEON", "ÆON"}, {"OEIL", "ŒIL"}, // ligatures
 		{"Gnoland", "Gnoﺍand"}, {"Gnoland", "Gno\uFB4Band"}, {"Gnoland", "Gnoￜand"}, {"Gnoland", "Gno\u1175and"}, // compatibility forms
-		{"Gnoland", "Gnoأand"},                             // alef with hamza
+		{"Gnoland", "Gnoأand"},                               // alef with hamza
 		{"ПОРТ", "ΠΟΡΤ"}, {"ГОРА", "ΓΟΡΑ"}, {"ПОРТ", "ΠОРТ"}, // Greek and Cyrillic, alike or mixed
 		{"カメラ", "力メラ"}, {"ヘルプ", "へルプ"}, // Han and hiragana drawn as katakana
 		{"Bob's Swap", "Bob’s Swap"}, // a typographic apostrophe
@@ -362,6 +362,7 @@ func TestClaim(cur realm, t *testing.T) {
 		return shelf
 	}
 	uassert.False(t, l.Confirmed)
+	contains(t, listingJSON(slug), `"confirmed":false`)
 	uassert.False(t, strings.Contains(newShelf(), `"`+slug+`"`), "a claim alone buys no exposure")
 	starAnon(cur, slug, "claimfan")
 	starFrom(cur, slug, "claimfana", "claimfanb")
@@ -832,6 +833,9 @@ func TestJSONEscaping(cur realm, t *testing.T) {
 	var b strings.Builder
 	writeString(&b, "<\"\\>&\x01\u2028é")
 	uassert.Equal(t, `"\u003c\"\\\u003e\u0026\u0001\u2028é"`, b.String())
+	b.Reset()
+	writeString(&b, "[Claim](https://example.org)")
+	uassert.Equal(t, `"\u005bClaim\u005d(https://example.org)"`, b.String()) // gnoweb renders api/ as markdown: no link
 
 	registerFrom(cur, "gno.land/r/escape/app", "escape-app", `A<"\>B`)
 	contains(t, listingJSON("escape-app"), `"title":"A\u003c\"\\\u003eB"`)
@@ -1374,4 +1378,30 @@ func TestUnhiddenClaimIsAnnounced(cur realm, t *testing.T) {
 	l := lookup(&byPath, path)
 	uassert.True(t, l.Confirmed && l.announced)
 	uassert.True(t, activity.newestFirst()[0].Listing == l)
+}
+
+// A listed realm takes no title from a claim by renaming itself.
+func TestRetitleKeepsClaims(cur realm, t *testing.T) {
+	owner := testutils.TestAddress("retitleowner")
+	lib := "gno.land/p/" + owner.String() + "/lib"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), lib, "retitle-lib", "Retitle Lib", "A tagline", "dev-tools", 1, kindPackage)
+	registerFrom(cur, "gno.land/r/retitler/app", "retitler", "Retitler")
+	registerFrom(cur, "gno.land/r/retitler/app", "", "Retitle Lib")
+	uassert.True(t, byPath.Has(lib))
+	uassert.Equal(t, "Retitler", bySlugOrPanic("retitler").Title)
+}
+
+// A refused Claim names the listing holding the title, which may show on
+// no page: the owner learns what to ask GovDAO to hide.
+func TestClaimNamesHolder(cur realm, t *testing.T) {
+	squatter := testutils.TestAddress("uuidsquatter")
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), "gno.land/p/"+squatter.String()+"/uuid", "uuid-squat", "UUID", "A tagline", "dev-tools", 1, kindPackage)
+
+	owner := testutils.TestAddress("uuidowner")
+	testing.SetRealm(testing.NewUserRealm(owner))
+	uassert.AbortsContains(t, cur, "store: title_taken (holder: uuid-squat)", func() {
+		Claim(cross(cur), "gno.land/p/"+owner.String()+"/uuid", "uuid", "UUID", "A tagline", "dev-tools", 1, kindPackage)
+	})
 }

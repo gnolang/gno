@@ -103,7 +103,8 @@ Constraints inherited from gnoweb:
   sessions. Pages work without JavaScript (ADR-003).
 - **CSP.** `img-src` is `'self' data:` plus a fixed host allowlist
   (`cspImgHost`, `gno.land/cmd/gnoweb/main.go`), plus the `-ipfs-gateway`
-  origin when the operator sets one. Other image URLs will not load.
+  origin (#6270, Filebase's by default) and its `*.ipfs.` and `*.ipns.`
+  subdomains. Other image URLs will not load.
 - **gnoweb serves many chains.** Whatever this adds must be absent, not
   broken, on a chain without a store realm.
 - **Trust is the operator's decision** (#6191): the `-trusted-paths` list,
@@ -313,14 +314,14 @@ Four fields are deliberately absent:
   field a stolen key would use first. Off-chain presence can come back
   later, gated like images (Follow-ups).
 
-**Owner images are `ipfs://CID` only**, served through the path gateway the
-operator sets with `-ipfs-gateway`, which gnoweb adds to the CSP `img-src`.
-No gateway is built in: `ipfs.io` now answers 429, and without a gateway
-every card shows its generated art. An image that fails to load is dropped
-in the browser, uncovering the generated art drawn under it (gnoweb's
-script; without JavaScript the broken image stays). A content address
-cannot change after anyone has looked at it (T3). A mutable `https` URL
-can; inline `data:` images would bloat every
+**Owner images are `ipfs://CID` only**, served through gnoweb's
+`-ipfs-gateway` (#6270), the gateway markdown's IPFS images use too, which
+gnoweb adds to the CSP `img-src`. It defaults to `https://ipfs.filebase.io`;
+set empty, every card shows its generated art. An image that fails to load
+is dropped in the browser, uncovering the generated art drawn under it
+(gnoweb's script; without JavaScript the broken image stays). A content
+address cannot change after anyone has looked at it (T3). A mutable
+`https` URL can; inline `data:` images would bloat every
 response and every page and cannot be checked by the realm; SVG from owners
 is never accepted. gnoweb's own generated visuals are SVG, because gnoweb
 writes them.
@@ -351,10 +352,11 @@ harmless to repeat.
 - A second call from the same realm updates the listing (title, tagline,
   category, palette) and keeps its slug and creation time; the slug
   argument is ignored.
-- An unconfirmed claim holding the slug or title an app's own `Register`
-  (or the seed, or a GovDAO unhide) asks for gives way: it is dropped, with
-  a `StoreClaimDropped` event, but only once the listing is sure to be
-  created, and never for a hidden listing, so a refused call drops nothing.
+- An unconfirmed claim holding the slug or title an app's own first
+  `Register` (or the seed, or a GovDAO unhide) asks for gives way: it is
+  dropped, with a `StoreClaimDropped` event, but only once the listing is
+  sure to be created, and never for a hidden listing, so a refused call
+  drops nothing.
   The app's `init` runs once, so a refusal there would keep the real app out
   for good, and a claim proves nothing.
 - An invalid call (bad field, slug or title taken, namespace full, store
@@ -364,13 +366,15 @@ harmless to repeat.
   would be.
 
 `Claim`, `SubmitRich` and `Star` run in ordinary transactions, not in
-`init`, so they panic on bad input: there, an error is the right answer.
+`init`, so they panic on bad input: there, an error is the right answer. A
+`Claim` refused for a taken slug or title names its holder, as
+`StoreRegisterRejected` does.
 
 Every successful `Register`, `Claim`, `Star`, `Unstar` and `SubmitRich`
-emits an event, as do GovDAO's hides, unhides, picks and successor, so an
-indexer can follow the store from its events rather than seeing only an
-`addpkg`. `StoreHidden` carries the path as well as the slug, since a hide
-releases the slug.
+emits an event, as do GovDAO's pauses, unpauses, hides, unhides, picks and
+successor, so an indexer can follow the store from its events rather than
+seeing only an `addpkg`. `StoreHidden` and `StoreUnhidden` carry the path as
+well as the slug, since a hide releases the slug.
 
 **Governance: GovDAO, through proposals the realm builds.** There is no
 admin address and no bootstrap key. Following the `r/sys/users` and
@@ -517,7 +521,10 @@ No free text means nothing to moderate.
   lists behind
   it (`{"key", "title", "count"}` each). A listing carries its total
   `stars`, its `ranked` stars, the facts earned reputation is made of
-  (`created`, `fifth_ranked` and `pending`, §2) and its `core` flag.
+  (`created`, `fifth_ranked` and `pending`, §2), its `core` flag and
+  whether it is `confirmed`: true means on the shelves, not that its path
+  was verified; false only shows on category pages, for claimed apps, and
+  a claim confirmed by stars turns back to false below three ranked stars.
   `home` also carries the block `height` and `time`, each activity event
   its `time`, and `moved_to` once GovDAO has named a successor.
   `api/v1/list/<key>/<page>` serves `top`,
@@ -951,9 +958,11 @@ render, unless markdown was asked for. `HTTPHandler.Store` is nil when
 `-store-realm` is empty: the nil-field switch of #6231, and nothing else
 checks a flag. The configuration is validated in `NewHTTPHandler`, so
 gnoweb refuses to start on a bad one: `-store-realm` must be a realm path
-and needs the chain's domain, and `-ipfs-gateway` must be a bare http(s)
-origin whose host holds only hostname characters, since it goes into the
-CSP header.
+and needs the chain's domain. The gateway is #6270's `-ipfs-gateway`,
+which `NewRouter` checks first: https only (http only on loopback), a DNS
+name or IPv4 host with no credentials, path, query or fragment, since it
+goes into the CSP header, and not on the chain domain or the canonical
+origin's host.
 
 **Nothing from the realm is trusted.** Every field is validated once per
 cache fill, before a template sees it (T7): listings, category keys, labels
@@ -1081,13 +1090,14 @@ grid of cards and previous/next links.
 
 #### Footprint in gnoweb's core
 
-About +210/−50 lines over 13 files, tests and built assets aside: the flags, the alias and the gateway's
-CSP entry (`main.go`), the config fields (`app.go`), their validation, the
-hook and wiring (`handler_http.go`), `HeaderData.StoreURL` and the
-header entry with its CSS, `components.IsVisibleRune`, exported so the
-store reuses the banner's invisible-character rule, and the image fallback
-in `frontend/js/index.ts`. `weburl`'s grammar,
-dispatch and the omnibar are untouched, and there is no new view mode.
+About +190/−56 lines over 15 files, tests and built assets aside: the
+`-store-realm` flag and the `/explore` alias (`main.go`; the gateway flag
+and its CSP entry come from #6270), the config fields (`app.go`), their
+validation, the hook and wiring (`handler_http.go`), `HeaderData.StoreURL`
+and the header entry with its CSS, `components.IsVisibleRune`, exported so
+the store reuses the banner's invisible-character rule, and the image
+fallback in `frontend/js/index.ts`. `weburl`'s grammar, dispatch and the
+omnibar are untouched, and there is no new view mode.
 
 ### 7. UX, UI and positioning
 
@@ -1265,9 +1275,10 @@ Source is one tab away. The store states this and does not claim more.
 **T3. Mutable image hosts.** A `https` image reviewed today can be replaced
 tomorrow.
 *Mitigations*: owner images are `ipfs://CID` only, checked by the realm and
-again by gnoweb, and served through the one gateway the operator sets
-(`-ipfs-gateway`), which joins the CSP `img-src`. No `https` images, no
-inline `data:`, no SVG from owners; CSP still bounds hosts.
+again by gnoweb, and served through gnoweb's `-ipfs-gateway` (#6270),
+which joins the CSP `img-src`: `https://ipfs.filebase.io` unless the
+operator sets another one, or none to show only generated art. No `https`
+images, no inline `data:`, no SVG from owners; CSP still bounds hosts.
 
 **T4. A listed realm's `Render()` impersonates the store or gnoweb, or
 costs too much.** A realm's markdown can mimic a gnoweb alert ("Verified by
@@ -1433,7 +1444,8 @@ gnoweb only queries category pages that exist in the cached taxonomy.
 
 **Lower severity.**
 - *Privacy*: owner images on IPFS gateways reveal reader IPs to the gateway,
-  as images on realm pages do today. Stars are public and reveal what an
+  Filebase's unless the operator sets another, as images on realm pages do
+  today. Stars are public and reveal what an
   address likes; starring goes through the Actions page, where the call is
   shown before it is signed.
 - *Deep links*: owners cannot supply links into Actions with prefilled
@@ -1633,8 +1645,9 @@ Epoch rotation gives a provable exposure guarantee with no state.
 - Indexer shelves inherit #6231's caveats (freshness, windowing).
 - The trusted tier inherits #6191's trust model, including its reliance on
   namespace enforcement and on the list being maintained.
-- Owner images show only where the operator sets `-ipfs-gateway`, and a
-  dead image falls back to the generated art only with JavaScript.
+- Owner images show only where `-ipfs-gateway` is set (Filebase's by
+  default), and a dead image falls back to the generated art only with
+  JavaScript.
 
 ## Plan
 
@@ -1663,18 +1676,17 @@ Each phase ships on its own.
    T11.
 2. **gnoweb, chain-only** (this PR): `feature/store`, `-store-realm`, the
    Content-tab hook with markdown fallback, the `/explore` alias, tiers and
-   earned reputation, `-ipfs-gateway` with the browser fallback, the
-   header icon, the fixed front page (the always-present hero: GovDAO's
-   pick, else trending, else a daily rotation; the Spotlight
-   with its launch fallback, pinned New and Top
-   with empty texts, then Trending, Recently updated, Rediscover over named
-   namespaces and gno.land essentials, all grids, no app twice, weekly momentum) and
-   their list pages, category pages, the Build lens, generative
-   covers, the Star and Surprise links, field validation and failure
-   caching. Next: `-store-deny`, the
-   names-enforcement startup check, liveness and private checks, flags, the
-   small-catalogue fallbacks. Design review against §7. Launch is gated
-   on the seed content and the "List your app" guide.
+   earned reputation, owner images through #6270's `-ipfs-gateway` with the
+   browser fallback, the header icon, the fixed front page (the
+   always-present hero: GovDAO's pick, else trending, else a daily rotation;
+   the Spotlight with its launch fallback, pinned New and Top with empty
+   texts, then Trending, Recently updated, Rediscover over named namespaces
+   and gno.land essentials, all grids, no app twice, weekly momentum) and
+   their list pages, category pages, the Build lens, generative covers, the
+   Star and Surprise links, field validation and failure caching. Next:
+   `-store-deny`, the names-enforcement startup check, liveness and private
+   checks, flags, the small-catalogue fallbacks. Design review against §7.
+   Launch is gated on the seed content and the "List your app" guide.
 3. **Indexer signals** (after #6231): trending, most used, rising, back in
    action, built on, per-app stats, indexer moments, candidates queue.
 4. **Spread**: the app band on realm pages, omnibar qualifiers, user-page
@@ -1740,9 +1752,8 @@ Each phase ships on its own.
   #6009), or devrels to start with? With zero-ops curation this matters less.
 - Off-chain apps (wallets, explorers) as gnoscope lists them: allow
   website-only listings for trusted namespaces?
-- IPFS gateway: which one should gno.land's deployments pass as
-  `-ipfs-gateway` (`ipfs.io` answers 429), and do we pin seed assets
-  ourselves?
+- IPFS gateway: `-ipfs-gateway` defaults to Filebase's (#6270), which can
+  stall on unpinned CIDs; do we pin trusted listings' images ourselves?
 - `richDelay` and the namespace cap are constants, permanent for `v0`
   (the reputation thresholds are gnoweb's): should `v1` read them from
   GovDAO parameters (`r/sys/params`)?

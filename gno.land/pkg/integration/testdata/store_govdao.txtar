@@ -71,6 +71,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -g
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 3 -chainid=tendermint_test test1
 stdout OK!
+stdout '\{"type":"StoreUnhidden","attrs":\[\{"key":"slug","value":"blog"\},\{"key":"path","value":"gno\.land/r/gnoland/blog"\}\],"pkg_path":"gno\.land/r/gnoland/store/v0"\}'
 gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/content-media/1'
 stdout '"slug":"blog"'
 
@@ -81,6 +82,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -g
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 4 -chainid=tendermint_test test1
 stdout OK!
+stdout '"type":"StorePaused"'
 ! gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/lib -args my-lib -args 'My Lib' -args 'A tagline' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
 stderr 'store: paused'
 gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unpause.gno
@@ -89,6 +91,7 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -g
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 5 -chainid=tendermint_test test1
 stdout OK!
+stdout '"type":"StoreUnpaused"'
 gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/lib -args my-lib -args 'My Lib' -args 'A tagline' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
 stdout OK!
 
