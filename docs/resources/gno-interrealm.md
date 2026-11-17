@@ -1,5 +1,7 @@
 # Interrealm Specification
 
+> **Start here:** [gno-interrealm-model.md](./gno-interrealm-model.md) states the model and its six rules on two pages; this document is the mechanism.
+
 __This document is outdated, see 
 [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and
 [`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md); for writes,

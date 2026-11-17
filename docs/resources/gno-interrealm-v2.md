@@ -1,5 +1,7 @@
 # Interrealm Specification — v2
 
+> **Start here:** [gno-interrealm-model.md](./gno-interrealm-model.md) states the model and its six rules on two pages; this document is the mechanism.
+
 > **Superseded for writes.** Borrow rules #1–#3 below are replaced for writes
 > by [`pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md): a
 > realm's stored state changes only during a crossing call into that realm.
