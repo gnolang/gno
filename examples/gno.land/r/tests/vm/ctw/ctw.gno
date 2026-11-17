@@ -52,5 +52,16 @@ func StartX(cur realm) *Local {
 func IncPending() { Pending.Inc() }
 
 // ForEach calls back a plain closure; ForEachX a crossing one.
-func ForEach(cur realm, f func(n int))              { f(1) }
+func ForEach(cur realm, f func(n int))             { f(1) }
 func ForEachX(cur realm, f func(cur realm, n int)) { f(cross(cur), 1) }
+
+// Iter is a stateful iterator of this realm's type: a caller cannot advance it
+// without crossing, since Next is this realm's code writing its object.
+type Iter struct{ i, n int }
+
+func NewIter(n int) *Iter { return &Iter{n: n} }
+
+func (it *Iter) Next() bool {
+	it.i++
+	return it.i <= it.n
+}

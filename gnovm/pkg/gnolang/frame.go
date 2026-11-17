@@ -23,21 +23,21 @@ type Frame struct {
 	NumBlocks int  // number of blocks in stack
 
 	// call frame
-	Func          *FuncValue               // function value
-	Receiver      TypedValue               // if bound method
-	NumArgs       int                      // number of arguments in call
-	IsVarg        bool                     // is form fncall(???, vargs...)
-	LastPackage   *PackageValue            // previous frame's package
-	LastRealm     *Realm                   // previous frame's realm
-	LastViewOnly  bool                     // previous frame's Machine.viewOnly
-	LastViewRealm *Realm                   // previous frame's Machine.viewRealm
-	LastScratch   map[*ObjectInfo]struct{} // previous frame's Allocator.scratch
-	WithCross     bool                     // true if called like cross(fn)(...). expects crossing() after.
-	DidCrossing   bool                     // true if crossing() was called.
-	Defers        []Defer                  // deferred calls
-	IsDefer       bool                     // was func defer called
-	IsRevive      bool                     // calling revive()
-	LastException *Exception               // previous m.exception
+	Func          *FuncValue    // function value
+	Receiver      TypedValue    // if bound method
+	NumArgs       int           // number of arguments in call
+	IsVarg        bool          // is form fncall(???, vargs...)
+	LastPackage   *PackageValue // previous frame's package
+	LastRealm     *Realm        // previous frame's realm
+	LastViewOnly  bool          // previous frame's Machine.viewOnly
+	LastViewRealm *Realm        // previous frame's Machine.viewRealm
+	LastScratch   uint32        // previous frame's Allocator.scratch
+	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
+	DidCrossing   bool          // true if crossing() was called.
+	Defers        []Defer       // deferred calls
+	IsDefer       bool          // was func defer called
+	IsRevive      bool          // calling revive()
+	LastException *Exception    // previous m.exception
 
 	// Cur is the captured *.grealm pointer-typed TypedValue for crossing
 	// frames; zero TypedValue for non-crossing frames. Set by doOpPrecall

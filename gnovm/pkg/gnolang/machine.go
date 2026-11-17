@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -322,15 +323,15 @@ func (m *Machine) setViewOnly() {
 
 // enterReadOnly runs realm r's code entered without crossing: it writes no
 // stored object and constructs objects owned by r. Objects allocated since
-// the read-only stretch began (the scratch set, reset by any crossing call)
+// the read-only stretch began (its scratch number, reset by any crossing call)
 // are no realm's stored state yet, so code in the stretch may write them.
 func (m *Machine) enterReadOnly(r *Realm) {
 	m.setViewOnly()
 	m.viewRealm = r
 	m.Alloc.currentRealmID = r.ID
 	m.Alloc.currentRealmPath = r.Path
-	if m.Alloc.scratch == nil {
-		m.Alloc.scratch = make(map[*ObjectInfo]struct{})
+	if m.Alloc.scratch == 0 {
+		m.Alloc.scratch = nextScratch()
 	}
 }
 
@@ -338,7 +339,7 @@ func (m *Machine) setRealm(r *Realm) {
 	m.Realm = r
 	m.viewOnly = false
 	m.viewRealm = nil
-	m.Alloc.scratch = nil
+	m.Alloc.scratch = 0
 	if r != nil {
 		m.Alloc.currentRealmID = r.ID
 		m.Alloc.currentRealmPath = r.Path
@@ -3652,12 +3653,11 @@ func (m *Machine) ExceptionStacktrace() string {
 // scratchOwn reports whether obj is an unreal object the active read-only
 // entry created; that entry may write it (rule: temporaries it made itself).
 func (m *Machine) scratchOwn(obj Object) bool {
-	if obj == nil || m.Alloc.scratch == nil {
+	if obj == nil || m.Alloc.scratch == 0 {
 		return false
 	}
 	oi := obj.GetObjectInfo()
-	_, ok := m.Alloc.scratch[oi]
-	return ok && !oi.GetIsReal()
+	return oi.scratch == m.Alloc.scratch && !oi.GetIsReal()
 }
 
 // scratchObject returns the object a write through tv lands in, if any.
@@ -3676,4 +3676,17 @@ func scratchObject(tv *TypedValue) Object {
 		return cv
 	}
 	return nil
+}
+
+// scratchSeq numbers read-only stretches across machines (package init and
+// main run on different ones). Only equality matters, so any unique value
+// is deterministic in effect; 0 means none.
+var scratchSeq atomic.Uint32
+
+func nextScratch() uint32 {
+	n := scratchSeq.Add(1)
+	if n == 0 {
+		n = scratchSeq.Add(1)
+	}
+	return n
 }

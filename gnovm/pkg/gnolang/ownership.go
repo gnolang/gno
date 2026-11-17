@@ -176,6 +176,9 @@ type ObjectInfo struct {
 
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
+	// scratch is the read-only stretch that allocated the object (0: none);
+	// it sits in IsEscaped's padding, so object sizes do not change.
+	scratch uint32
 
 	LastObjectSize int64 //
 

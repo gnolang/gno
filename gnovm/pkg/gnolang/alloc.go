@@ -38,9 +38,9 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
-	// scratch holds the objects the active read-only entry allocated; that
-	// entry may write them while unreal. Nil outside a read-only entry.
-	scratch map[*ObjectInfo]struct{}
+	// scratch numbers the active read-only stretch (0: none); objects
+	// allocated in it carry the number and it may write them while unreal.
+	scratch uint32
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
@@ -574,8 +574,8 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 // storage slots / lexical scopes owned by the executing realm, not
 // data of a particular type.
 func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
-	if alloc != nil && alloc.scratch != nil {
-		alloc.scratch[oi] = struct{}{}
+	if alloc != nil {
+		oi.scratch = alloc.scratch
 	}
 	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
 		oi.SetPkgID(pid)

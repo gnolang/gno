@@ -25,7 +25,8 @@ the realm's helpers, methods and the library code they name write as usual.
    callback) runs read-only. It may read anything, may construct objects (they
    belong to its realm), and may write objects allocated during the current
    read-only stretch, which ends at the next crossing call. It writes no stored
-   object, its own or the caller's.
+   object, its own or the caller's. The stretch number lives on the object
+   (in existing padding), so no side table holds garbage alive.
 2. A library method borrows its receiver's owner only for an object a library
    package owns; a realm's object is a view to library code.
 3. Library code a caller picked runs view-only: a function value, closure,
@@ -62,6 +63,8 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 - Constructors work without crossing; their objects are read-only to callers.
   A pointer handed out is a view; a value is the caller's copy.
 - A callback that writes its own realm is a crossing closure.
+- A realm's stateful iterator or builder cannot be advanced by callers without
+  crossing; hand out a library type by value (the caller's copy) instead.
 - Realm-declared types belong to their realm: a realm keeps its own data in
   its own or library types (`impl` got its own vote store).
 - Migrated: `gov/dao` (`DAO` methods crossing, `memberstore` crossing writers,
