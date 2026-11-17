@@ -380,8 +380,11 @@ gnokey query vm/qpkgmeta_json \
   -remote https://rpc.latest.testnets.gno.land:443
 ```
 
-It reads `"status":"live"` once the package is enabled, and `"inert"` with a
-`reason` while it waits. If it is still inert after a minute, ask on
+It reads `"status":"live"` once the package is enabled and `"inert"` until
+then. `"absent"` means the chain holds nothing at that path: check the path
+and the `addpkg` output. An inert package's `reason` covers only the chain's
+side: a package the approver refused still reads "waiting for a package
+approver to enable it". If it is still inert after a minute, ask on
 [Discord](https://discord.com/invite/gnoland). Once enabled, the package is
 browsable at
 **`https://latest.testnets.gno.land/r/<your-g1-addr>/myrealm`**.

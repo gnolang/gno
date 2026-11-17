@@ -61,12 +61,14 @@ gnokey maketx addpkg \
   -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 
 # 8. Call a realm function. The testnet enables a new package a few seconds
-#    after addpkg: if the call fails, wait and retry. To see where it
-#    stands, which reads "live" once enabled, "inert" and why while waiting:
+#    after addpkg: if the call fails, wait and retry. This query reads
+#    "live" once it is enabled, "inert" until then, "absent" if addpkg
+#    did not land:
 #      gnokey query vm/qpkgmeta_json \
 #        -data "gno.land/r/<your-g1-addr>/counter" \
 #        -remote https://rpc.latest.testnets.gno.land:443
-#    Still inert after a minute? Ask on Discord at
+#    Still inert after a minute? The approver may have refused it (its
+#    reason still says waiting): ask on Discord at
 #    https://discord.com/invite/gnoland
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
