@@ -3062,7 +3062,12 @@ func (m *Machine) NumCallBoundaryFrames() int {
 		if fr.Func == nil {
 			continue
 		}
-		if !fr.Func.IsClosure || fr.LastRealm == nil || ownsItsStorage(calleeRealm) && !sameRealm(fr.LastRealm, calleeRealm) {
+		// A realm's closure entered from another realm is a boundary even
+		// though it runs read-only (no realm switch).
+		foreignRealmCode := (IsRealmPath(fr.Func.PkgPath) || IsEphemeralPath(fr.Func.PkgPath)) &&
+			fr.LastRealm != nil && fr.LastRealm.Path != fr.Func.PkgPath
+		if !fr.Func.IsClosure || fr.LastRealm == nil || foreignRealmCode ||
+			ownsItsStorage(calleeRealm) && !sameRealm(fr.LastRealm, calleeRealm) {
 			count++
 		}
 		calleeRealm = fr.LastRealm
