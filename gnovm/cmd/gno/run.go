@@ -261,8 +261,11 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 				b, err = os.ReadFile(p)
 			}
 			if err != nil {
-				p = filepath.Join(cfg.rootDir, "examples", ppath, name)
-				b, err = os.ReadFile(p)
+				// examples/ is resolved by module path: a package's directory
+				// does not have to repeat the version its module path carries.
+				if dir := gnomod.FindModuleDir(filepath.Join(cfg.rootDir, "examples"), ppath); dir != "" {
+					b, err = os.ReadFile(filepath.Join(dir, name))
+				}
 			}
 			if err != nil {
 				return ""

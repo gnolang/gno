@@ -2,6 +2,7 @@ package transpiler
 
 import (
 	"go/ast"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -184,7 +185,7 @@ func foo() { _ = avl.NewTree("hey", 1) }
 //line foo.gno:1:1
 package foo
 
-import "github.com/gnolang/gno/examples/gno.land/p/nt/avl/v0"
+import "github.com/gnolang/gno/examples/gno.land/p/nt/avl"
 
 func foo() { _ = avl.NewTree("hey", 1) }
 `,
@@ -193,7 +194,7 @@ func foo() { _ = avl.NewTree("hey", 1) }
 					Path: &ast.BasicLit{
 						ValuePos: 21,
 						Kind:     9,
-						Value:    `"github.com/gnolang/gno/examples/gno.land/p/nt/avl/v0"`,
+						Value:    `"github.com/gnolang/gno/examples/gno.land/p/nt/avl"`,
 					},
 				},
 			},
@@ -432,5 +433,34 @@ func testfunc() {
 			assert.Equal(t, expectedOutput, res.Translated, "wrong output")
 			assert.Equal(t, c.expectedImports, res.Imports, "wrong imports")
 		})
+	}
+}
+
+func TestDefaultResolver(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	avl := filepath.Join(root, "examples", "gno.land", "p", "nt", "avl")
+	require.NoError(t, os.MkdirAll(avl, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(avl, "gnomod.toml"),
+		[]byte("module = \"gno.land/p/nt/avl/v0\"\ngno = \"0.9\"\n"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "gnovm", "stdlibs", "strings"), 0o755))
+
+	resolve := DefaultResolver(root)
+	for _, tc := range []struct {
+		importPath string
+		want       string
+		ok         bool
+	}{
+		{"gno.land/p/nt/avl/v0", "examples/gno.land/p/nt/avl", true},
+		// The directory exists but declares another module.
+		{"gno.land/p/nt/avl", "", false},
+		{"gno.land/p/nt/absent/v0", "", false},
+		{"strings", "gnovm/stdlibs/strings", true},
+		{"bytes", "", false},
+	} {
+		got, ok := resolve(tc.importPath)
+		assert.Equal(t, tc.ok, ok, tc.importPath)
+		assert.Equal(t, tc.want, got, tc.importPath)
 	}
 }

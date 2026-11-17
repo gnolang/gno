@@ -39,9 +39,9 @@ Common choices include:
 
 | Type | Good fit | Tradeoffs |
 |------|----------|-----------|
-| [`avl.Tree`](../../examples/gno.land/p/nt/avl/v0/README.md) | General sorted key/value indexes, range scans, offset pagination | `O(log n)` lookup, values are `any`, keys are strings |
-| [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/v0/doc.gno) | Large sorted indexes where higher fanout and fewer pointer dereferences help | More tuning surface; choose fanout intentionally when the default is not enough |
-| [`avl`](../../examples/gno.land/p/nt/avl/v0/README.md) or [`bptree/list`](../../examples/gno.land/p/nt/bptree/list/v0) | List-like APIs backed by tree storage | Still design keys and pagination around your product |
+| [`avl.Tree`](../../examples/gno.land/p/nt/avl/README.md) | General sorted key/value indexes, range scans, offset pagination | `O(log n)` lookup, values are `any`, keys are strings |
+| [`bptree.BPTree`](../../examples/gno.land/p/nt/bptree/doc.gno) | Large sorted indexes where higher fanout and fewer pointer dereferences help | More tuning surface; choose fanout intentionally when the default is not enough |
+| [`avl`](../../examples/gno.land/p/nt/avl/README.md) or [`bptree/list`](../../examples/gno.land/p/nt/bptree/list) | List-like APIs backed by tree storage | Still design keys and pagination around your product |
 
 ```go
 import "gno.land/p/nt/avl/v0"

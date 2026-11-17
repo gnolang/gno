@@ -14,6 +14,7 @@ import (
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -593,8 +594,8 @@ func TestPrepareRefusesABrokenStdlibWhereverItIsImported(t *testing.T) {
 // routing can tell the two apart.
 func TestVerifierPrefersTheChainOverADivergentDiskCopy(t *testing.T) {
 	const shadowed = "gno.land/p/nt/ownable/v0"
-	require.DirExists(t, filepath.Join(gnoenv.RootDir(), "examples", shadowed),
-		"the fixture needs a path that really is on disk; examples/ paths move "+
+	require.NotEmpty(t, gnomod.FindModuleDir(filepath.Join(gnoenv.RootDir(), "examples"), shadowed),
+		"the fixture needs a module that really is on disk; examples/ paths move "+
 			"(p/demo -> p/nt did), so repoint the constant rather than reading "+
 			"this as a routing failure")
 
