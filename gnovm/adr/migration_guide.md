@@ -254,8 +254,8 @@ different `/r/` realm. The same applies to `new(/r/foo.T)` and
 `make([]/r/foo.T, ...)`.
 
 **Mitigation:** call the type's home-realm constructor function (which
-runs under borrow rule #1 declaring-realm borrow, allocating in the home
-realm), not a literal. See `gov/dao/v3`'s `NewVoteRequest` /
+allocates in the home realm even when entered without crossing), not a
+literal. See `gov/dao/v3`'s `NewVoteRequest` /
 `NewUpdateRequest` pattern.
 
 This was the root cause of three call-site fixes during the
@@ -275,11 +275,11 @@ func crossingFn(fn func()) func() {
 }
 ```
 
-This added a useless realm boundary (with extra finalization) around
-every callback dispatch. Under current borrow rules, borrow rule #1 already
-shifts `m.Realm` to the closure's declaring realm — no extra cross
-needed. The shim is pure dead weight; removing it saves one finalize
-per call.
+This added a realm boundary (with extra finalization) around every
+callback dispatch. Since `pr6495_cross_to_write.md`, a realm's closure
+called from another realm runs read-only; a callback that must write its
+own realm is a crossing closure (`func(cur realm) {...}`) that the caller
+calls with `cross`, not a shim that crosses into itself.
 
 See `boards2/v1` `d4b567a64` for the removal.
 

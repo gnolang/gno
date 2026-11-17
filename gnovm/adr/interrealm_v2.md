@@ -1,5 +1,11 @@
 # Gno Interrealm Specification v2
 
+> **Superseded for writes.** Borrow rules #1–#3 below are replaced for writes
+> by [`pr6495_cross_to_write.md`](./pr6495_cross_to_write.md): a realm's stored
+> state changes only during a crossing call into that realm. Realm code entered
+> without crossing runs read-only, only a `/p/`-owned receiver borrows, and
+> library code a caller picked runs view-only. `mutable` is removed.
+
 The purpose of "Gno Interrealm Specification v2" is to improve the security of
 Gno code by (1) making interrealm cross calls more explicit and restrictive
 (`cross(cur)`) so as to prevent unexpected unauthorized cross calls from a
@@ -274,13 +280,13 @@ at checkConstructionTime.
     // PKGPATH: gno.land/r/myRealm
     var x *foreignRealm.MyStruct =
         foreignRealm.NewMyStruct()  <-- ObjectInfo.PkgID = /r/foreignRealm
-    x.Modify()                      <-- OK
+    x.Modify()                      <-- write fail: entered without crossing
+    x.Update(cross(cur))            <-- OK if Update is a crossing method
 ```
 
 Pointer-typed slots (`var x *foreignRealm.T`) follow the standard cross-realm
-pointer model: the pointee lives in /r/foreignRealm's heap, so /r/foreignRealm's
-own non-crossing helpers can mutate it through x. This is the canonical idiom,
-not a caveat.
+pointer model: the pointee lives in /r/foreignRealm's heap, so only
+/r/foreignRealm's crossing functions or methods can mutate it through x.
 
 ## `cross` -> `cross(cur)` Migration
 
@@ -332,8 +338,10 @@ func (gb *GRC20Banker) Send(_ int, rlm realm, p Payment) error {
 In `GRC20Banker` above the first parameter is `_ int` and the second parameter
 `rlm realm`.  The first parameter is ignored, it is only there to make `rlm
 realm` the second parameter (as if it were the first parameter it would make
-`*GRC20Banker.Send(...)` a crossing method. `_ int, rlm realm` is a common
-pattern in /examples now after the v2 refactor.
+`*GRC20Banker.Send(...)` a crossing method. `GRC20Banker` is `/p/` code, which
+cannot declare crossing functions. In a realm, since
+[`pr6495_cross_to_write.md`](./pr6495_cross_to_write.md), a writer is a crossing
+function authenticated by `cur.Previous()` and needs no `_ int, rlm realm`.
 
 __NOTE: Notice `rlm.IsCurrent()` is often required as the first assertion check,
 otherwise the caller can pass in something like `cur.Previous()` and the

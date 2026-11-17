@@ -1,7 +1,7 @@
 // Package innerowner persists an *Inner that lives in this realm.
 // Foreign-realm callers use GetInner() to obtain a pointer to it.
-// When they pass it as the receiver of a /p/ method, PushFrameCall's
-// borrow rule 2 fires and m.Realm shifts to this realm.
+// When they pass it as the receiver of a /p/ method, it is a view: the
+// method runs with the caller's authority and writes to it are refused.
 package innerowner
 
 import "gno.land/p/demo/tests/p_closurecap/v0"

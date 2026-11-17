@@ -4,7 +4,8 @@ This guide consolidates the practical security learnings from auditing
 cross-realm attack vectors in the Gno VM. It is the long-form companion
 to `gno-security.md` (which defines the numbered threat classes) and
 assumes the vocabulary of `gno-interrealm.md` (realm-context,
-realm-storage-context, borrow rules, `cur realm`, `IsCurrent()`).
+realm-storage-context, borrow rules, `cur realm`, `IsCurrent()`). For writes,
+`gnovm/adr/pr6495_cross_to_write.md` is the decision record.
 
 The goal: tell a realm author what they must do, and what they must
 *not* do, to keep their realm's state safe from external manipulation.
@@ -38,25 +39,29 @@ path is attacker-controlled.
 
 ## 2. Four Structural Defenses
 
-The single rule behind them: a realm's state is written only by code acting
-for that realm. Code acts for a realm only if it is written in that realm's
-source or that source calls it by name; code that arrived as a value from
-someone else never does.
+The single rule behind them: a realm's stored state changes only during a
+crossing call into that realm. Inside it, the realm's own code and the library
+code it names write as usual; code that arrived as a value from someone else
+never acts for the realm.
 
 The VM provides four independent defenses. A realm becomes
 exploitable when an API design defeats all of them at once.
 
-### 2.1 Declaration-Site Rule (borrow rule #1 of PushFrameCall)
+### 2.1 Entered Without Crossing Is Read-Only
 
-Any `/r/`-declared callable (function, method, closure) executes its
-body with `m.Realm` borrowed to its declaring `/r/`. Symmetric and
-unforgeable: attacker code declared in `/r/A` always runs with
-`m.Realm = /r/A`, regardless of who called it or with what receiver.
+An `/r/`-declared callable (function, method, closure) called while its
+realm is not current runs read-only: it reads anything, constructs
+objects owned by its realm, writes objects allocated during the current
+read-only stretch, and writes no stored object, its own or the caller's.
+The refusal reads `<realm>'s code was entered without crossing and is
+read-only (call its crossing function)`.
 
 Consequence: an attacker cannot get *their own code* to run with
-victim's authority by tricking the victim into calling it.
+victim's authority by tricking the victim into calling it, and cannot
+write the victim's state through the victim's exported non-crossing
+functions or methods. Writers are crossing functions.
 
-### 2.2 Storage-Site Rule (borrow rule #2 of PushFrameCall)
+### 2.2 Storage-Site Rule (library-owned receivers only)
 
 A `/p/`-declared method invoked on an object-bearing receiver borrows
 `m.Realm` to the receiver's package only when that package owns the
@@ -78,9 +83,11 @@ by changing hands, whether by storage, passing, or a higher-order
 method.
 
 Consequence: a library closure that arrives with another realm's values
-can write no stored object. A `/r/`-declared closure is different:
-borrow rule #1 runs it as its declaring realm wherever it is called,
-so the `FuncLit` to hand out is one your realm's source declares.
+can write no stored object. The same holds for a `/p/` function value,
+method value or method expression called through a value. An
+`/r/`-declared closure called from another realm runs read-only (§2.1);
+a callback that must write its own realm is a crossing closure
+(`func(cur realm) {...}`) called with `cross`.
 
 ### 2.4 Readonly Taint
 
@@ -114,7 +121,7 @@ Two reasons:
    attacker cannot declare `func (e Evil) Mutate(*v.User)` because
    `v.User` is unreachable to `/p/A`.
 2. Any `/r/`-attacker impl of an interface taking `*v.User` runs
-   with `m.Realm = /r/A` by borrow rule #1, so its writes hit readonly.
+   read-only when `/r/V` calls it (§2.1), so its writes are refused.
 
 ### (B) No `/p/`-type embedded in `/r/V`-data has higher-order methods with concretely-`/p/`-typed callbacks.
 
@@ -129,7 +136,7 @@ type Wrapper struct {
 then attackers reach `Inner` (it's exported), and `somelib.Node` may
 have `Iterate(cb func(*Node) bool)` or `Apply(fn func(*Node))`.
 `Apply`'s body runs under the caller's authority: the `*Node` is owned
-by `/r/V`, not by a `/p/` package, so borrow rule #2 does not fire and
+by `/r/V`, not by a `/p/` package, so it does not borrow and
 V's node is a view. When the attacker calls `Apply` with a top-level
 `/p/A.Evil` of signature `func(*somelib.Node)`, `Evil` inherits the
 attacker's realm, and its write to V's node is refused with `cannot
@@ -154,9 +161,9 @@ func ApplyHook(fn func(any)) {
 ```
 
 and an attacker passes a closure, the outcome depends on where it is
-declared: an `/r/A`-declared closure runs as `/r/A` by borrow rule #1,
-while a `/p/` closure built under `/r/A` runs view-only when `/r/V`
-calls it (§2.3). Either way the closure's writes into `/r/V` are
+declared: an `/r/A`-declared closure runs read-only (§2.1), while a
+`/p/` closure built under `/r/A` runs view-only when `/r/V` calls it
+(§2.3). Either way the closure's writes into `/r/V` are
 refused.
 
 A top-level `/p/` function value (a `FuncDecl`, not a closure) is the
@@ -217,8 +224,8 @@ Any pointer (slice header, map, struct pointer) returned by a getter
 is mutation-attempt surface. The readonly taint protects you from
 direct field writes (`Users()[0].Name = "x"` panics). A `/p/` method
 called on a reference that left your realm runs with the *caller's*
-authority, not yours: borrow rule #2 fires only for a receiver owned by
-a `/p/` package, so its write to your stored object is refused with
+authority, not yours: only a receiver owned by a `/p/` package
+borrows, so its write to your stored object is refused with
 `cannot modify object owned by another realm from library code
 (call a function of the owning realm)`.
 
@@ -233,9 +240,9 @@ func ReadUsers() *rotree.ReadOnlyTree    { return rotree.Wrap(users, nil) }
 **Rule**: a reference that leaves your realm is a view. To let another
 realm write, expose a crossing function that names your own variable
 (`SetUser` above); the caller calls that, and only your code performs
-the write. A closure declared in your realm runs as your realm wherever
-it is called, so handing one out publishes whatever it reaches. A
-method value of a `/p/` method (`view.Set`) runs view-only when another
+the write. A closure declared in your realm runs read-only when
+another realm calls it; a crossing closure you hand out is a writer
+anyone holding it can call with `cross`. A method value of a `/p/` method (`view.Set`) runs view-only when another
 realm's code calls it (§7.1). Fresh-object corner: a `/p/` object your
 function builds and returns carries your realm's stamp from allocation,
 so the caller cannot write it either.
@@ -313,19 +320,18 @@ keep the field unexported AND don't return aliased pointers to it.
 
 ```go
 func (v *MyService) ApplyHook(fn func()) {
-    // v.state holds /r/V authority; calling fn() runs with /r/V's
-    // m.Realm. If fn is a /p/A-declared top-level function, it
-    // inherits /r/V authority and can call any /r/V method as
-    // "self".
+    // fn runs view-only (library code) or read-only (another
+    // realm's code), so it writes no stored object; it still reads
+    // /r/V's state and can panic to abort the call.
     fn()
 }
 ```
 
-The (C)-class vector. Even `func()` is dangerous — the callback's
-body can call back into your own state-mutating methods.
+The (C)-class vector. The VM refuses the callback's writes, but it
+still runs inside your call and can make it fail or read what you hand it.
 
-**Rule**: never invoke a caller-supplied function/interface value
-while holding your own `m.Realm`. Either:
+**Rule**: do not build APIs around caller-supplied function or
+interface values. Either:
 - Type the callback parameter with one of your own `/r/V`-declared
   types so attackers can't supply a matching `/p/`-callback, OR
 - Do not invoke caller callbacks at all; design synchronous APIs.
@@ -384,9 +390,6 @@ the address inside:
 
 ```go
 func DoThing(cur realm) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     addr := cur.Previous().Address()
     log[addr] = ...
 }
@@ -409,12 +412,12 @@ the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
 `chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
 obtaining the previous realm. Using it in a crossing function that already
-receives `cur realm` is always wrong: it bypasses the `IsCurrent()` frame
-verification that makes `cur.Previous()` safe, and silently ignores the
-`cur` capability token the runtime minted for exactly this purpose.
+receives `cur realm` is always wrong: it walks the frame stack and answers
+from wherever it is called, while `cur.Previous()` names the realm that was
+current when `cur` was minted.
 
 ```go
-// WRONG: cur is accepted but never used; no IsCurrent() guard
+// WRONG: cur is accepted but never used
 import "chain/runtime/unsafe"
 
 func Set(cur realm, key, value string) {
@@ -424,7 +427,6 @@ func Set(cur realm, key, value string) {
 
 // RIGHT
 func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     caller := cur.Previous().Address()
     ...
 }
@@ -436,8 +438,8 @@ crossing functions (`func F(cur realm, ...)`) is a red flag. The
 in realms that have not yet been migrated to the `cur realm` API.
 
 **Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()` under a `cur.IsCurrent()` guard. Delete the
-`chain/runtime/unsafe` import.
+`cur.Previous()`; `cur.IsCurrent()` is always true there, so no guard is
+needed. Delete the `chain/runtime/unsafe` import.
 
 ---
 
@@ -448,7 +450,8 @@ model beyond naive expectations:
 
 ### 6.1 Cross-realm panic aborts the transaction
 
-A panic raised inside a realm-borrowed frame **cannot be caught by
+A panic raised across a realm boundary (a crossing call, realm code
+entered read-only, or a `/p/`-owned borrow) **cannot be caught by
 `recover()` in any other realm**. `PopFrameAndReturn` walks up frames
 through `PopUntilLastReviveFrame` (`op_call.go:530`); a regular
 `defer { recover() }` does not stop the unwind. The transaction
@@ -500,10 +503,10 @@ hands out no write; it works only when your own code calls it. To hand
 out a writer, expose a crossing function
 (`func Set(cur realm, k string, v any) { view.Set(k, v) }`); the caller
 calls that, and only your code writes. To write your own object from
-inside another realm's code, pass a closure
-(`func(k string, v any) bool { return mine.Set(k, v) }`), not
-`mine.Set`. A closure declared in your realm, or a method value of a
-method your realm declares, still runs as your realm.
+inside another realm's code, pass a crossing closure
+(`func(cur realm, k string, v any) { mine.Set(k, v) }`) that the other
+realm calls with `cross`. A plain closure declared in your realm, or a
+method value of a method your realm declares, runs read-only there.
 
 ### 7.2 Conversion-time panic is not Gno-recoverable
 
@@ -523,8 +526,8 @@ Allocating a foreign `/r/`-declared type with a composite literal,
 `cannot allocate <type> in realm <m.Realm>`. Attackers cannot
 populate impostor `*v.User` instances and pass them to victim
 APIs that expect a user pointer. Construction must go through
-constructors declared in the type's home realm (which trigger
-borrow rule #1 declaring-borrow on call). Converting to such a type,
+constructors declared in the type's home realm (which allocate under
+that realm even when entered without crossing). Converting to such a type,
 directly or through one pointer level like `(*v.User)(&Fake{...})`,
 panics with `illegal conversion to external realm type` (nil
 pointers excepted, as are types whose underlying type is a
@@ -549,7 +552,8 @@ Before deploying a realm:
 
 - [ ] Every exported function/method I expose does one of:
   - Pure read (returns primitives or values, no internal pointers).
-  - Takes `cur realm` and authenticates via `cur.IsCurrent()`.
+    Non-crossing functions and methods are read-only for other callers.
+  - Is crossing (`cur realm`) and authenticates via `cur.Previous()`.
   - Documented intentionally permissive (faucet, public mint).
 
 - [ ] No exported var or function returns a pointer aliasing
@@ -614,19 +618,13 @@ func Value() int {
     return gCounter.value
 }
 
-// Authenticated mutator. cur realm + IsCurrent() check.
+// Public mutator: crossing, so it may write the realm's state.
 func Increment(cur realm) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     gCounter.value++
 }
 
-// Authenticated owner-gated mutator.
+// Owner-gated mutator, authenticated by cur.Previous().
 func SetOwner(cur realm, newOwner address) {
-    if !cur.IsCurrent() {
-        panic("spoofed realm")
-    }
     if gCounter.owner != "" && cur.Previous().Address() != gCounter.owner {
         panic("not the owner")
     }
@@ -639,24 +637,23 @@ func SetOwner(cur realm, newOwner address) {
 
 // NO method like:
 //   func GetCounter() *Counter { return gCounter }
-// because that exposes an aliased pointer: Counter is declared in
-// this realm, so its methods run under our authority for any
-// caller (borrow rule #1).
+// because that exposes an aliased pointer. The VM refuses foreign
+// writes through it, but it publishes the type's whole method set.
 ```
 
 This realm passes the checklist. Attackers can:
 
 - Read `Value()` — returns a copy of the int (no taint, no harm).
-- Call `Increment(cur)` — runs under `/r/example/counter` borrow rule #1
-  borrow; bumps the value. This is the intended public API.
-- Call `SetOwner(cur, ...)` — gated by ownership check.
+- Call `Increment(cross(cur))` — crosses into `/r/example/counter`;
+  bumps the value. This is the intended public API.
+- Call `SetOwner(cross(cur), ...)` — gated by ownership check.
 
 Attackers cannot:
 
 - Write `gCounter.value` directly (unexported field).
 - Get `gCounter` and Apply-launder it (no Apply method, no exported
   pointer).
-- Forge a `cur realm` (the `IsCurrent()` check fails).
+- Forge a `cur realm` (only the runtime mints one, on a crossing call).
 - Spoof `cur.Previous().Address()` (it's the live crossing frame).
 
 ---

@@ -16,8 +16,8 @@ type Immutable struct {
 	Field string
 }
 
-// Read is /r/launderrvictim-declared, so calling it borrow rule #1 borrows
-// m.Realm to launderrvictim.
+// Read is /r/launderrvictim-declared; called from another realm it runs
+// read-only.
 func (i *Immutable) Read() string { return i.Field }
 
 var gImm *Immutable
@@ -204,10 +204,9 @@ func PanicAfterPushDefer(cur realm, h func(*Immutable)) {
 	panic("victim-induced panic")
 }
 
-// DeferApplyHook defers an ApplyHook call. The deferred ApplyHook
-// itself runs borrow rule #1 to /r/launderrvictim, and inside the
-// callback runs as borrow rule #1 of the attacker's realm — the standard
-// known-open Apply pattern, but now triggered via defer.
+// DeferApplyHook defers an ApplyHook call. The callback is the
+// attacker's, so it writes nothing of the victim's — the Apply pattern,
+// triggered via defer.
 func DeferApplyHook(cur realm, h func(*Immutable)) {
 	defer ApplyHook(cur, h)
 }
@@ -277,10 +276,8 @@ func ClearHooks(cur realm) {
 }
 
 // MakeWriterClosure constructs a /r/-victim-declared closure that
-// captures gImm and writes through it. The closure body is /r/-victim-
-// declared, so borrow rule #1 fires at invocation → m.Realm = /r/-victim →
-// write commits with victim authority. Returning this closure to an
-// attacker is "consenting to write" by the victim.
+// captures gImm and writes through it. Called by another realm it runs
+// read-only, so the write is refused; MakeWriterX is the crossing form.
 func MakeWriterClosure(value string) func() {
 	return func() {
 		gImm.Field = value
@@ -297,10 +294,9 @@ func MakeWriterX(value string) func(cur realm) {
 
 // MakeApplyTrampoline returns a closure that captures &gImm.Field
 // indirectly: it captures *Immutable, and dispatches a caller-supplied
-// callback fn on it. /r/-victim-declared body → borrow rule #1 → m.Realm =
-// /r/-victim. If `fn` is /p/-declared (e.g. EvilWrite), it inherits
-// victim authority. This is "victim returns a closure that's itself
-// an Apply-style trampoline" — a packaged Apply.
+// callback fn on it. Called by another realm the trampoline runs
+// read-only, and a /p/ fn (e.g. EvilWrite) picked by the caller runs
+// view-only, so neither writes gImm — a packaged Apply.
 func MakeApplyTrampoline() func(func(*Immutable)) {
 	return func(fn func(*Immutable)) {
 		fn(gImm)

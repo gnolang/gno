@@ -55,8 +55,8 @@ type TestRealmObject struct {
 var TestRealmObjectValue TestRealmObject
 
 // NewTestRealmObject returns a fresh heap-allocated TestRealmObject.
-// Non-crossing — relies on borrow rule #1 to set m.Realm = /r/tests/vm
-// inside the body so the composite literal passes checkConstructionTime.
+// Non-crossing: called from another realm it runs read-only but still
+// allocates under /r/tests/vm, so the composite literal is allowed.
 func NewTestRealmObject() *TestRealmObject {
 	return &TestRealmObject{Field: "initial"}
 }

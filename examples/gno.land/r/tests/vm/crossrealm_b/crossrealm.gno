@@ -60,10 +60,10 @@ func IncrGlobal() {
 }
 
 // TrySubOn attempts to mint a sub-realm token on a passed-in realm
-// value. Non-crossing (`_ int` discriminator), so the caller's cur
-// remains the topmost crossing cur — but borrow rule #1 runs this
-// body with m.Realm = crossrealm_b, so rlm.Sub must reject: a foreign
-// realm must not mint sub-identities in the caller's namespace.
+// value. Non-crossing, so the caller's cur stays the topmost crossing cur,
+// but this body runs as crossrealm_b's code (read-only, entered without
+// crossing), so rlm.Sub must reject: a foreign realm must not mint
+// sub-identities in the caller's namespace.
 func TrySubOn(_ int, rlm realm) {
 	rlm.Sub("stolen")
 }

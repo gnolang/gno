@@ -6,42 +6,28 @@ are considered, they should be added here systematically, and also duplicated
 in gno.land/pkg/integration/testdata/interrealm_v2.txtar.  That file should
 ideally be transcribed as a test file that makes use of revive() and "testing".
 
-This document has been updated for **interrealm spec v2** (see
-`gnovm/adr/interrealm_v2.md`).  The v1 case outcomes ("do not storage-cross"
-etc.) are preserved in the three sibling test files
-(`interrealm_final.txtar`, `interrealm_mix_call.txtar`, `interrealm_mix_run.txtar`)
-for historical comparison; the affirmative-coverage v2 test suite lives in
-`interrealm_v2.txtar`.
+This document tracks `gno.land/pkg/integration/testdata/interrealm_final.txtar`
+under **cross to write** (`gnovm/adr/pr6495_cross_to_write.md`): a realm's
+stored state changes only during a crossing call into that realm. Every case
+below reaches `bob.PrivateFunc` (or a `bob.Object` method) without crossing into
+`/r/bob`, so bob's code runs read-only and its write is refused with
+`gno.land/r/test/bob's code was entered without crossing and is read-only`,
+whatever the receiver is or where it is stored. Earlier outcomes (v1 "do not
+storage-cross", v2 "borrow rule #1 borrows") no longer apply.
 
 **Closure-capability case.** In `interrealm_final_omarsy.txtar`,
 `peter.F` (called from `/r/main`) builds a closure that captures an
-`/r/alice` slice; alice then stores and executes it. The closure
-case is labelled `ExecPreviouslyGood` for the path that earlier
-designs would have allowed.
+`/r/alice` slice; alice then stores and executes it. The closure was built
+under `/r/main`, so when alice calls it, it writes no `/r/alice` object:
+`ExecPreviouslyGood` and `ExecBad` both fail.
+To get a callback that writes `/r/A`'s state, `/r/A` mints a crossing
+closure and the caller calls it with `cross`.
 
-Under borrow rule #3 of `PushFrameCall`, a closure carries the authority of its
-minter. The closure was minted while `m.Realm = /r/main`, so it cannot
-write `/r/alice` — alice's execution does not raise the closure's
-authority. Both `ExecPreviouslyGood` and `ExecBad` fail with the
-readonly-taint error. To get a closure that writes `/r/A`'s state,
-`/r/A` itself must mint it.
-
-The two key v2 semantics changes relative to v1:
-
-1. **borrow rule #1 (declaring-realm borrow) fires uniformly** for every /r/-declared
-   callable — function, method on any receiver shape, closure whose
-   construction site was /r/X, or interface dispatch to an /r/X-declared
-   method.  m.Realm shifts to /r/X for the call duration.  v1 fired this only
-   for some method shapes; v2 makes it uniform, so the "do not storage-cross"
-   cases of v1 now correctly route writes back to the declaring realm at each
-   hop.
-
-2. **Construction-time enforcement.**  Foreign /r/-declared types cannot be
-   constructed via composite literal, `new(...)`, or `make(...)` from outside
-   the declaring realm.  Several v1 cases that used `new(alice.Object)` from a
-   caller realm now fail at construction time rather than at the later
-   storage-cross check.  Use a constructor function (e.g. `alice.NewObject()`)
-   to mint foreign-realm objects through the declaring realm.
+**Construction-time enforcement.** Foreign /r/-declared types cannot be
+constructed via composite literal, `new(...)`, or `make(...)` from outside the
+declaring realm. The cases that use `new(alice.Object)` from the caller realm
+fail at construction time. Use a constructor function (e.g.
+`alice.NewObject()`) to mint foreign-realm objects through the declaring realm.
 
 "Storage-crossing" is like (regular) crossing for method calls except it
 does not affect CurrentRealm()/PreviousRealm(). Since method calls can
@@ -61,13 +47,13 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 ## fn is declared /r/realm:
 
  * fn is (non-crossing) function declared in /r/realm:
-   - CASE rA1: function declared at package level                   -- borrow rule #1 borrows (succeeds)
-   - CASE rA2: function declared in func(...) (non-crossing)        -- borrow rule #1 borrows (succeeds)
-   - CASE rA3: function declared in func(cur realm, ...) (crossing) -- borrow rule #1 borrows (succeeds)
+   - CASE rA1: function declared at package level                   -- read-only refusal
+   - CASE rA2: function declared in func(...) (non-crossing)        -- read-only refusal
+   - CASE rA3: function declared in func(cur realm, ...) (crossing) -- read-only refusal
 
  * fn is method declared in /r/realm (nil or unreal receiver):
-   - CASE rB1: method has nil receiver                              -- borrow rule #1 borrows (succeeds)
-   - CASE rB2: method has nil receiver (external)                   -- borrow rule #1 borrows (succeeds)
+   - CASE rB1: method has nil receiver                              -- read-only refusal
+   - CASE rB2: method has nil receiver (external)                   -- read-only refusal
    - CASE rB3: method has unreal receiver (inline)                  -- construction-time panic
    - CASE rB4: method has unreal receiver (var)                     -- construction-time panic
 
@@ -84,27 +70,25 @@ TODO "implicit-cross" is a misnomer, replace all w/ "storage-cross".
 ## fn is declared in /p/package:
 
 These cases are similar to /r/realm except for CASE rA3 and rD1 since
-/p/package cannot contain crossing functions.
-
-Note that the test cases in interrealm_v2.txtar are similar but modified to
-account for the difference between realm and pure package.
+/p/package cannot contain crossing functions. A /p/ package cannot import
+/r/bob, so `bob.PrivateFunc` is passed in as an argument (`bob.Do2`).
 
  * fn is function declared in /p/package:
-   - CASE pA1: function declared at package level                   -- borrow rule #1 borrows at write site
-   - CASE pA2: function declared in func(...) (non-crossing)        -- borrow rule #1 borrows at write site
+   - CASE pA1: function declared at package level                   -- read-only refusal
+   - CASE pA2: function declared in func(...) (non-crossing)        -- read-only refusal
    - CASE pA3: function declared in func(cur realm, ...) (crossing) -- illegal crossing function (static)
 
  * fn is method declared in /p/package (nil or unreal receiver):
-   - CASE pB1: method has nil receiver                              -- borrow rule #1 borrows at write site
-   - CASE pB2: method has nil receiver (external)                   -- borrow rule #1 borrows at write site
-   - CASE pB3: method has unreal receiver (inline)                  -- borrow rule #1 borrows at write site
-   - CASE pB4: method has unreal receiver (var)                     -- borrow rule #1 borrows at write site
+   - CASE pB1: method has nil receiver                              -- read-only refusal
+   - CASE pB2: method has nil receiver (external)                   -- read-only refusal
+   - CASE pB3: method has unreal receiver (inline)                  -- read-only refusal
+   - CASE pB4: method has unreal receiver (var)                     -- read-only refusal
 
  * fn is method declared in /p/package:
-   - CASE pC1: method has real receiver                             -- borrow rule #2 + borrow rule #1 (succeeds)
-   - CASE pC2: method has real receiver (external)                  -- borrow rule #2 + borrow rule #1 (succeeds)
-   - CASE pC3: method has real receiver via closure                 -- borrow rule #2 + borrow rule #1 (succeeds)
-   - CASE pC4: method has real receiver via closure (external)      -- borrow rule #2 + borrow rule #1 (succeeds)
+   - CASE pC1: method has real receiver                             -- read-only refusal
+   - CASE pC2: method has real receiver (external)                  -- read-only refusal
+   - CASE pC3: method has real receiver via closure                 -- read-only refusal
+   - CASE pC4: method has real receiver via closure (external)      -- read-only refusal
 
 ----------------------------------------
 ## NOTEs
@@ -118,33 +102,19 @@ account for the difference between realm and pure package.
  * Function values are never parents except for the function's captured names.
  * TODO verify all of the above.
 
- * Under v2, "borrow rule #1 borrows (succeeds)" means: m.Realm shifts to the
-   declaring realm for the call duration; any write to the declaring realm's
-   own state from inside the body lands cleanly.  For the /r/ cases, the
-   write site is the called fn's body directly; for the /p/ cases, the called
-   fn invokes `bob.PrivateFunc` (which is /r/bob-declared), and borrow rule #1 fires
-   at THAT inner call — hence "at write site."
- * "borrow rule #2 + borrow rule #1 (succeeds)" describes /p/-methods invoked on a
-   defined foreign receiver: borrow rule #2 first shifts m.Realm to the receiver's
-   authoring realm, then the inner `bob.PrivateFunc` call fires borrow rule #1 to
-   /r/bob where the write lands.
- * "construction-time panic" replaces the v1 "FAIL: caller != bob" outcome for
-   cases that use `new(alice.Object)`.  The construction is rejected before
-   any of the storage-cross logic runs.  Under v2, `alice.NewObject()` (a
-   constructor function declared in /r/alice) is the only way for foreign
-   realms to obtain an `alice.Object`.
-	
-The pseudocode walkthrough below is the **v1** trace.  Under v2 the
-storage-realm annotations would be different — every /r/-declared callable
-pushes its own realm onto the storage stack (borrow rule #1), so e.g. in `bob.Do`
-the storage would be `[bob]` rather than `[]`, and inside `alice.TopFunc` it
-would be `[bob,alice]`.  The "FAIL: caller != bob" labels on rA1/rA2/rA3/rB1/rB2
-become SUCCESS because borrow rule #1 routes the inner `bob.PrivateFunc` write back
-to `/r/bob`; the rB3/rB4/rC1-rC4 labels become "PANIC: cannot allocate
-gno.land/r/alice.Object in realm gno.land/r/caller" at the `new(alice.Object)`
-line (construction-time enforcement).  The walkthrough is preserved as-is
-because it documents the *case structure* and v1 expectations.  For v2
-outcomes see the case-summary table above and `interrealm_v2.txtar`.
+ * "read-only refusal" means the call reaches bob's write without crossing
+   into `/r/bob`; bob's code runs read-only and the write panics with
+   `gno.land/r/test/bob's code was entered without crossing and is read-only`.
+   To make such a write succeed, call a crossing function of bob
+   (`bob.F(cross(cur))`).
+ * "construction-time panic" means `new(alice.Object)` in the caller realm
+   panics with `cannot allocate gno.land/r/test/alice.Object in realm
+   gno.land/r/test/callerrealm` before any call runs.
+
+The pseudocode walkthrough below is the **v1** trace, kept for its case
+structure; its storage annotations and "FAIL: caller != bob" / "SUCCESS"
+labels are v1 outcomes. For current outcomes see the case summary above and
+`interrealm_final.txtar`.
 
 ```go
 	//========================================
@@ -399,9 +369,7 @@ outcomes see the case-summary table above and `interrealm_v2.txtar`.
 	type Object struct {}
 	func (obj *Object) Method() { // CASE rB1, CASE pB1
 		// The effect of the three lines below should be the same.
-		// They can only succeed if present realm is already 
-		// They can only suc// bob and obj is nil or unreal; or if obj is attached
-		// to bob (thus making the present realm bob by storage-realm).
+		// They succeed only during a crossing call into bob.
 		private = -3
 		obj.method2()
 		PrivateFunc()

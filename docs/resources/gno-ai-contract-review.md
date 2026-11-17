@@ -17,11 +17,15 @@ func AdminAction(caller address) { ... }
 
 // RIGHT: derive identity from the live crossing frame
 func AdminAction(cur realm) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     addr := cur.Previous().Address()
     ...
 }
 ```
+
+A realm's stored state changes only during a crossing call into it, so every
+writer another caller reaches must be crossing. An exported non-crossing
+function or method is read-only for other callers; flag one that is meant to
+write. No `cur.IsCurrent()` guard is needed in a crossing function.
 
 ### 2. Payment guards — `IsUserCall()`, not `IsUser()`
 
@@ -36,7 +40,8 @@ if !cur.Previous().IsUserCall() { panic("not a direct user call") }
 ### 3. No exported pointers to mutable state
 
 ```go
-// WRONG: attacker can call mutator methods on returned pointer
+// WRONG: aliases internal state; foreign writes are refused, but every
+// method of the type is published and later changes widen it
 func GetAccount() *Account { return gAccount }
 
 // RIGHT: return a copy, or expose read-only accessors
@@ -46,8 +51,8 @@ func GetBalance() int { return gAccount.balance }
 ### 4. No caller-supplied callbacks invoked with realm authority
 
 ```go
-// WRONG: if fn is a top-level /p/-declared function, it inherits
-// the caller's m.Realm and can write to your state
+// WRONG: fn runs view-only or read-only, so it cannot write your
+// state, but it runs inside your call and can read or abort it
 func ApplyHook(fn func()) { fn() }
 
 // RIGHT: type the callback with your own /r/-declared type so
@@ -84,7 +89,8 @@ func Save(cur realm) { savedAddr = cur.Previous().Address() }
 ### 7. `/p/`-type with callback iterators
 
 If a realm field is a `/p/`-type with methods like `Iterate(cb func(*Node) bool)`,
-attackers can supply a top-level `/p/`-function that runs with your realm's authority.
+attackers can supply a top-level `/p/`-function as the callback. A function picked by
+the caller runs view-only, so its writes are refused, but it still reads every node.
 Keep such fields unexported **and** do not return aliased pointers to them.
 
 ### 8. `/p/`-type with mutation methods returned as pointer
@@ -139,11 +145,12 @@ you publish.
 
 ### 9. `unsafe.PreviousRealm()` — old API, skips frame verification
 
-Using `chain/runtime/unsafe.PreviousRealm()` directly bypasses the `cur.IsCurrent()`
-safety check. It should never appear alongside a `cur realm` parameter.
+`chain/runtime/unsafe.PreviousRealm()` walks the frame stack and answers from
+wherever it is called; `cur.Previous()` names the realm that was current when `cur`
+was minted. It should never appear alongside a `cur realm` parameter.
 
 ```go
-// WRONG: cur is accepted but ignored; no IsCurrent() guard
+// WRONG: cur is accepted but ignored
 import "chain/runtime/unsafe"
 func Set(cur realm, key, value string) {
     caller := unsafe.PreviousRealm().Address()
@@ -152,7 +159,6 @@ func Set(cur realm, key, value string) {
 
 // RIGHT
 func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     caller := cur.Previous().Address()
     ...
 }
@@ -235,7 +241,7 @@ Two cases where the swap is **wrong**, both found by making it:
 
 ## Review Checklist
 
-- [ ] Authenticated mutators take `cur realm` and call `cur.IsCurrent()`
+- [ ] Every writer other callers reach is crossing (`cur realm`) and authenticates with `cur.Previous()`; no `cur.IsCurrent()` guard
 - [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer to internal mutable state
@@ -255,7 +261,7 @@ Two cases where the swap is **wrong**, both found by making it:
 
 | Resource | Purpose |
 |----------|---------|
-| [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, borrow rules, and anti-patterns |
+| [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, write rules, and anti-patterns |
 | [`gno-security.md`](./gno-security.md) | Numbered threat-class taxonomy |
 | [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, borrow rules) |
 | [`effective-gno.md`](./effective-gno.md) | Idiomatic Gno patterns including payment guards |

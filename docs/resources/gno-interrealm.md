@@ -2,7 +2,9 @@
 
 __This document is outdated, see 
 [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and
-[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md)__
+[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md); for writes,
+[`gnovm/adr/pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md)
+is authoritative__
 
 ## Introduction
 
@@ -55,45 +57,48 @@ actor and who called them. The realm-context has an associated Gno address from
 which native coins can be sent and received. It changes only on explicit
 cross-calls (`fn(cross, ...)`).
 
-**Realm-storage-context** determines where new and modified objects are
-persisted during realm-transaction finalization. It changes on explicit
-cross-calls *and* on implicit borrow-crosses. The borrows are:
+**Realm-storage-context** determines which realm's stored objects may be
+written and where new objects are persisted during realm-transaction
+finalization. It changes on explicit cross-calls, and three implicit rules
+apply to non-crossing calls:
 
-  1. **Declaring-realm borrow** (any /r/-declared callable): when a function,
-     method, or closure declared in `/r/X` is invoked from a different
-     realm-storage-context, the storage-context soft-switches to `/r/X` for
-     the call duration. This applies to top-level functions, methods (on real,
-     unreal, or primitive receivers), and closures whose declaring site was in
-     `/r/X`. It does NOT change realm-context.
+  1. **Realm code entered without crossing runs read-only.** When a function,
+     method, or closure declared in `/r/X` is called while `/r/X` is not the
+     current storage-context (from another realm, a run script, or as a
+     callback), it may read anything and may construct objects, which belong
+     to `/r/X`. It may write objects allocated during the current read-only
+     stretch, which ends at the next crossing call; it writes no stored object,
+     `/r/X`'s or the caller's. Within a crossing call into `/r/X`, `/r/X`'s
+     helpers, methods and closures write as usual.
 
-  2. **Storage-realm borrow** (`/p/` methods on a `/p/`-owned receiver): a
-     non-`/r/`-declared method called on a receiver owned by a `/p/` package
-     soft-switches the storage-context to the receiver's package realm, where
-     the post-init immutability gate reports the write. A receiver owned by a
-     realm is a view: the storage-context stays the caller's and its writes are
-     refused. Stdlib methods run with the caller's authority.
+  2. **Library-owned receivers borrow.** A `/p/` method called on a receiver
+     owned by a `/p/` package soft-switches the storage-context to that
+     package, where the post-init immutability gate reports the write. A
+     receiver owned by a realm is a view: its writes are refused. Stdlib
+     methods run with the caller's authority.
 
-  3. **Library closures** (closures built by a `FuncLit` in `/p/` or a stdlib
-     package): no borrow. Called while the realm it was built under is current,
-     it runs as that realm; otherwise it runs view-only, writing no stored
-     object. An `/r/`-declared closure is covered by rule #1.
+  3. **Library code a caller picked runs view-only**: a `/p/` or stdlib
+     function value, closure, method value or method expression called
+     through a value; an interface call or method value whose package the
+     current realm does not import (directly or through its imports). A call
+     that names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`) acts for the
+     caller.
 
-After an explicit cross-call, both contexts refer to the same realm. They
-diverge under either implicit borrow — realm-context stays the same, storage
-moves.
+The realm-context never changes on these. A realm's stored state therefore
+changes only during a crossing call into that realm.
 
 | Call type | Realm-context changes? | Storage-context changes? | Boundary? | Finalizes? |
 |---|---|---|---|---|
 | `fn(cross, ...)` to same realm | Yes* | No | Yes | Yes |
 | `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
 | `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | No | No | No | No |
-| Non-crossing method in own (caller's) realm | No | No | No | No |
-| Non-crossing /r/-declared callable in foreign realm (method, top-level, closure) | No | Yes (declaring) | Yes | Yes |
-| Stdlib or /p/ method, receiver owned by a /p/ package | No | Yes (receiver's package) | Yes | Yes |
+| Non-crossing function or method in own (caller's) realm | No | No | No | No |
+| Non-crossing /r/-declared callable in foreign realm (method, top-level, closure) | No | Read-only; allocates in the declaring realm | Yes | No |
+| /p/ method, receiver owned by a /p/ package | No | Yes (receiver's package) | Yes | Yes |
 | Stdlib or /p/ method, realm-owned receiver (a view) | No | No; writes refused | No | No |
 | Stdlib or /p/ method, unreal/primitive receiver | No | No | No | No |
-| Stdlib or /p/ top-level function | No | No | No | No |
-| /p/-declared closure, invoked in a different realm than its minter | No | No; runs view-only | No | No |
+| Stdlib or /p/ top-level function, called by name | No | No | No | No |
+| /p/ or stdlib function value, closure or method value picked by a caller | No | No; runs view-only | Yes | No |
 
 \* `unsafe.CurrentRealm()` returns the same realm, but `unsafe.PreviousRealm()`
 shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
@@ -101,24 +106,16 @@ for definitions of boundary and finalization.
 
 ### The rule
 
-A realm's state is written only by code acting for that realm. Code acts for a
-realm only if it is written in that realm's source or that source calls it by
-name; code that arrived as a value from someone else never does.
+A realm's stored state changes only during a crossing call into that realm.
+Writers are crossing functions or methods, and `cur.Previous()` authenticates
+the caller. Refused writes fail with `<realm>'s code was entered without
+crossing and is read-only (call its crossing function)` or `cannot modify
+object owned by another realm from library code (call a function of the owning
+realm)`. A callback that must write its own realm is a crossing closure,
+called with `cross`.
 
-The VM enforces this in `pushFrameCall`. Borrow rule #1 is unchanged: a
-function, method or closure declared in an `/r/` realm runs under that realm.
-Borrow rule #2 borrows a `/p/` method to the receiver's owner only when the
-receiver is owned by a `/p/` package, whose immutability gate then reports the
-write. There is no rule #3: a closure not declared in an `/r/` realm, called
-while a realm other than the one it was built under is current, runs view-only.
-A method value not called by its binder also runs view-only. A refused write
-from `/p/` code fails with `cannot modify object owned by another realm from
-library code
-(call a function of the owning realm)`.
-
-The removed `mutable` builtin is not part of this model. A realm that wants
-another realm to write exposes crossing functions, and each crossing function
-writes the realm's own variable.
+The removed `mutable` builtin is not part of this model. See
+[ADR pr6495](../../gnovm/adr/pr6495_cross_to_write.md).
 
 ### Design Goals
 
@@ -163,8 +160,9 @@ realm-storage of a receiver should only matter for when elements reside in
 external realm-storage and direct dot-selector or index-expression access of
 sub-elements are desired of the aforementioned element.
 
-A method should be able to modify the receiver and associated objects of the
-same realm-storage as that of the receiver.
+During a crossing call into a realm, a method should be able to modify the
+receiver and associated objects of the same realm-storage as that of the
+receiver.
 
 A method should be able to create new objects that reside in the same realm by
 association in order to maintain storage realm consistency and encapsulation
@@ -338,19 +336,18 @@ Three states an `ObjectID` can be in:
 
 Two consequences follow:
 
-1. **Storage-realm borrow extends to unreal receivers.** Pre-interrealm-v2, the
-   storage-realm borrow only fired for *real* foreign receivers (the
-   "owning realm" was only knowable after finalization). With PkgID set
-   at allocation, an unreal foreign receiver — for example, a value just
-   returned from a foreign realm's constructor — carries its authoring
-   realm's PkgID immediately, and the borrow follows.
+1. **Ownership is known before persistence.** An unreal receiver — for
+   example, a value just returned from a foreign realm's constructor —
+   carries its authoring realm's PkgID immediately, so a library method
+   called on it treats it as a view exactly like a stored object.
 
 2. **Construction-time enforcement.** Composite literals (`/r/foo.T{...}`),
    `new(/r/foo.T)`, and `make([]/r/foo.T, ...)` of a foreign `/r/`-declared
    type panic when invoked outside the declaring realm. Authority cannot
    be forged by constructing values of a realm's types from elsewhere —
    construction must go through a realm-declared constructor function,
-   which borrow rule #1 temporarily activates the declaring realm for.
+   which allocates under its declaring realm even when entered without
+   crossing.
 
    Conversions to a foreign `/r/`-declared type are refused too, with
    `illegal conversion to external realm type`, directly or through one
@@ -387,14 +384,11 @@ by calling special syscall functions, but user processes cannot directly
 cross-call into other users' processes. This makes the GnoVM a more complete
 multi-user operating system than traditional operating systems.)
 
-Besides explicit realm crossing via the `fn(cross, ...)` Gno syntax, implicit
-realm crossing occurs when calling a method of a receiver object stored in an
-external realm. Implicitly crossing into (borrowing) a receiver object's
-storage realm allows the method to directly modify the receiver as well as all
-other objects directly reachable from the receiver stored in the same realm as
-the receiver. Unlike explicit crosses, implicit crosses do not shift or
-otherwise affect the current realm context; `unsafe.CurrentRealm()` does not
-change unless a method is called like `receiver.Method(cross, args...)`.
+Only an explicit cross-call lets a realm's stored state change. A non-crossing
+call into another realm's code runs read-only, and a library method on a
+realm's object treats it as a view; neither shifts the realm-context, so
+`unsafe.CurrentRealm()` does not change unless a method is called like
+`receiver.Method(cross, args...)`.
 
 Realms hold objects in residence and they also have a Gno address to send and
 receive coins from. Coins can only be spent from the current realm context.
@@ -455,7 +449,8 @@ matches.
 
 A function declared in p packages (or in stdlib) when called:
 
- * inherits the last realm for top-level functions.
+ * inherits the last realm for top-level functions called by name; called
+   through a value (variable, field, argument) it runs view-only.
  * inherits the last realm when a method is called on an unreal or primitive
    receiver.
  * borrows to the receiver's package only when the receiver is owned by a
@@ -467,6 +462,8 @@ A function declared in p packages (or in stdlib) when called:
    A `/p/`-declared closure invoked from `/r/B` after `/r/A` built it writes
    `/r/A`'s state only while `/r/A` is current; otherwise the write is
    refused, so a closure gains no authority by changing hands.
+ * runs view-only when reached through an interface or method value whose
+   package the current realm does not import, directly or not.
 
 A function declared in a realm package (`/r/X`) when called:
 
@@ -475,17 +472,16 @@ A function declared in a realm package (`/r/X`) when called:
    called with `cross(rlm)` as the first argument. The new realm is called the
    "current realm".
  * otherwise (non-crossing call of a `/r/X`-declared callable from a different
-   realm-storage-context) **implicitly declaring-borrows to `/r/X`** for the
-   call duration. This applies uniformly: top-level functions, methods on any
-   receiver shape (real, unreal, primitive), and closures whose
+   realm-storage-context) **runs read-only**: it reads anything, constructs
+   objects owned by `/r/X`, writes objects allocated during the current
+   read-only stretch, and writes no stored object. This applies uniformly:
+   top-level functions, methods on any receiver shape, and closures whose
    construction site was `/r/X`. The realm-context does NOT change.
 
-The declaring-realm borrow is the key safety mechanism that prevents an
-attacker-supplied value from running attacker's method body with victim's
-authority. When victim invokes `e.Method()` where `Method` is declared in
-`/r/attacker`, the borrow makes the method body run with `m.Realm = /r/attacker`,
-and any attempt to mutate victim-owned state from inside the body fails the
-`DidUpdate()` PkgID check.
+This prevents both directions of abuse. An attacker-supplied value's method,
+called by the victim, cannot write the victim's state; and an exported
+non-crossing function of the victim, called by the attacker, cannot write the
+victim's state either. To write, call the realm's crossing function.
 
 `unsafe.CurrentRealm()` returns the current realm-context that was last
 cross-called to. `unsafe.PreviousRealm()` returns the realm-context
@@ -499,58 +495,28 @@ called like `fn(cross(cur), ...)` or `fn(cur, ...)`. When called with
 `fn(cross(cur), ...)` there is technically a realm crossing and the current
 realm and previous realm returned are the same.
 
-The current realm and previous realm do not depend on any implicit crossing to
-the receiver's borrowed/storage realm even if the borrowed realm is the last
-realm of the call stack. In other words `unsafe.CurrentRealm()` may differ
-from the Machine's active storage realm (internally `m.Realm`, i.e. the borrow
-realm) when a method is called on a receiver residing in a foreign realm.
+The current realm and previous realm do not depend on any non-crossing call.
+In other words `unsafe.CurrentRealm()` may differ from the Machine's active
+storage realm (internally `m.Realm`) when a `/p/` method is called on a
+`/p/`-owned receiver, and code entered read-only has no storage realm at all.
 
 ### Implicit Realm-Storage Borrowing
 
-Besides (explicit) realm-context changes via the `fn(cross, ...)` cross-call
-syntax, implicit realm-storage-context changes occur in two scenarios. Both
-"borrow" the realm-storage-context for the duration of the call without
-changing the realm-context (so `unsafe.CurrentRealm()` and
-`unsafe.PreviousRealm()` are unaffected; the agency of the caller remains
-the same). In both cases the `DidUpdate()` guard in the runtime enforces
-that only objects belonging to the borrowed realm can be mutated; reachable
-objects in any *other* realm-storage cannot be modified.
+Only one implicit storage-context change remains: a `/p/` method
+called on a receiver owned by a `/p/` package borrows to that package, so the
+package's post-init immutability gate reports any write. It does not change the
+realm-context.
 
-**Declaring-realm borrow (for `/r/`-declared callables).** When a function,
-method, or closure declared in a realm package `/r/X` is invoked while the
-current realm-storage-context is something else, the storage-context
-soft-switches to `/r/X` for the call duration. This applies uniformly:
-top-level functions, methods on any receiver shape (real, unreal, or
-primitive), and closures whose construction-site package was `/r/X`. The
-rule is symmetric and unforgeable — invoking attacker-declared code from
-victim's realm-context will run that code under attacker's authority, not
-victim's, so attacker cannot mutate victim-owned state via direct field
-writes from inside the called body. This is the language-level defense
-against the "method on attacker-supplied value" attack class.
+A realm's object is never borrowed. A `/p/` method (`avl.Tree.Set`, a GRC20
+`Teller` method) called on it writes it only while that realm is current,
+which means during a crossing call into the realm; called from anywhere else
+the object is a view and the write is refused. Realm code entered without
+crossing runs read-only (rule 1 above), so an `/r/`-declared method called on
+a foreign object never writes it either.
 
-**Storage-realm borrow (for stdlib and `/p/` methods on foreign
-receivers).** When a non-`/r/`-declared method (stdlib or `/p/`) is called
-on a defined receiver whose authoring realm differs from the current
-realm-storage-context, the storage-context soft-switches to the receiver's
-authoring realm. This lets generic library methods — `bptree.Set`, the GRC20
-Teller methods, `strconv.Itoa` and similar — mutate state living in the
-caller's realm without requiring every helper to be re-declared per
-caller-realm.
-
-The receiver's *authoring realm* is its `PkgID`, stamped at allocation time
-(see "Storage = Authority" below). This means the storage-realm borrow
-applies to both real (finalized, persisted) receivers AND unreal
-(allocated but not yet persisted) receivers — any defined receiver carries
-its allocation-realm authority across calls.
-
-This split mirrors the two design intents: `/r/` packages contain
-realm-bound logic whose authority should follow the declaring realm; `/p/`
-and stdlib packages contain generic library code that should operate on
-caller-supplied data with caller-aligned storage-context. The result is
-that `/p/` package code can be copied verbatim into a realm package and
-behave identically (because both still see the same storage-realm borrow
-on real receivers), while `/r/` code copied between realms changes its
-authority (because the declaring-realm borrow follows the new home).
+`/p/` code still behaves the same when copied verbatim into a realm, with one
+difference to keep in mind: the copy becomes realm code, so a caller outside
+the realm runs it read-only.
 
 ### Crossing-Method Semantics
 
@@ -585,10 +551,9 @@ type Token struct {
     Balance int
 }
 
-// Non-crossing method on /r/-declared type: storage-context borrows
-// to /r/alice/tokens (the declaring realm), NOT the receiver's storage
-// realm. Debit can only mutate t.Balance when myToken itself is stored
-// in /r/alice/tokens.
+// Non-crossing method on /r/-declared type: writes only when called
+// inside a crossing call into /r/alice/tokens, on an object stored there.
+// Called from another realm it runs read-only.
 func (t *Token) Debit(amount int) {
     t.Balance -= amount
 }
@@ -609,26 +574,18 @@ import "gno.land/r/alice/tokens"
 var myToken *tokens.Token // persisted in /r/bob/bob
 
 func Spend(_ realm) {
-    // Non-crossing call on a /r/-declared method: storage-context
-    // borrows to /r/alice/tokens (the method's declaring realm), NOT
-    // to /r/bob/bob (the receiver's storage realm). Debit() runs with
-    // alice's authority and cannot mutate myToken (which is owned by
-    // /r/bob/bob).
-    myToken.Debit(10) // fails: declaring realm /r/alice/tokens ≠ myToken's storage /r/bob/bob
+    // Non-crossing call on a /r/-declared method from /r/bob/bob:
+    // Debit() runs read-only and cannot mutate myToken.
+    myToken.Debit(10) // fails: alice's code entered without crossing
 
-    // Crossing call: storage-context shifts to /r/alice/tokens (same
-    // target as the non-crossing form above for /r/-declared methods).
-    // Transfer() also CANNOT directly modify myToken.
+    // Crossing call: storage-context shifts to /r/alice/tokens.
+    // Transfer() also CANNOT directly modify myToken (owned by bob).
     myToken.Transfer(cross, "g1...", 10) // fails: receiver in external realm
 }
 ```
 
-Under the declaring-realm borrow rule, methods declared in `/r/` packages
-behave consistently regardless of whether they're called via `cross(rlm)` or
-non-crossing: the method's body always runs with the declaring realm's
-authority. Storage-realm borrow (mutating the receiver's surrounding state)
-only applies to stdlib and `/p/` methods — exactly the cases where the
-helper is intended to operate on caller-supplied data.
+A method declared in an `/r/` package never writes another realm's object, and
+writes its own realm's objects only during a crossing call into that realm.
 
 If you need a `/r/A`-declared method to mutate state stored in `/r/B`, the
 caller in `/r/B` must own the mutation: pass the data into the method as an
@@ -636,12 +593,11 @@ argument and let the method return the new value, or expose a method on
 `/r/B`'s own type that delegates internally. The pattern of "method on
 my-type, mutate via foreign-realm-stored receiver" is intentionally not
 supported, because it would allow foreign-realm code to run with the
-storage realm's authority — defeating the declaring-realm borrow's
-purpose.
+storage realm's authority.
 
-New unreal objects reachable from the borrowed realm (or current realm if there
-was no method call that borrowed) become persisted in the borrowed realm (or
-current realm) upon finalization of the foreign object's method (or function).
+New unreal objects reachable from the current realm become persisted in it
+upon finalization; an object constructed by realm code entered read-only is
+owned by that code's realm.
 (When you put an unlabeled photo in someone else's scrapbook the photo now
 belongs to the other person.) In the future the `attach()` function will
 prevent a new unreal object from being taken.
@@ -653,7 +609,8 @@ see [Message Types and Testing](#message-types-and-testing).
 
 A realm boundary is defined as a change in realm in the call frame stack
 from one realm to another, whether explicitly crossed with `fn(cross, ...)`
-or implicitly borrow-crossed into a different receiver's storage realm.
+or implicitly, by entering another realm's code read-only, borrowing to a
+`/p/`-owned receiver's package, or running picked library code view-only.
 A realm may cross into itself with an explicit cross-call.
 
 When a crossing-function or crossing-method is cross-called it shifts the
@@ -798,11 +755,10 @@ Objects returned from functions or methods carry no extra taint, but a
 `/p/` method called on a foreign-owned object runs with the caller's authority,
 so a write to the owner's object is refused; see "Views" below.
 
-Whether or not an object is readonly tainted it can always be mutated by a
-method declared in the realm that owns it (borrow rule #1 runs that method
-under the declaring realm). A `/p/`-declared method runs with the caller's
-authority, so a foreign caller cannot write the owner's object through it; the
-owner exposes a crossing function instead.
+Whether or not an object is readonly tainted it can be mutated by the realm
+that owns it during a crossing call into that realm. Called from elsewhere
+without crossing, the owner's methods run read-only and `/p/` methods treat
+the object as a view; the owner exposes a crossing function instead.
 
 ```go
 // /r/alice
@@ -846,8 +802,8 @@ A reference that crosses a realm boundary, as a return value or as an
 argument, is a **view**. Direct writes through it are refused by the readonly
 taint, and a `/p/` method called on it runs with the *caller's*
 storage-context, so its writes to the owner's object are refused as well.
-Borrow rule #2 fires only for a receiver owned by a `/p/` package, never for a
-realm's stored object; there is no exception that changes this.
+Only a receiver owned by a `/p/` package borrows, never a realm's stored
+object; there is no exception that changes this.
 
 A realm that wants another realm to write exposes crossing functions that name
 its own variables:
@@ -868,9 +824,10 @@ X.ReadUsers().Set("k", v)          // does not compile: ReadOnlyTree has no Set
 
 An argument keeps the same rule: writing through a caller-supplied reference
 writes whichever of your own objects the caller named, so name your own
-variable instead. A closure declared in an `/r/` realm acts for that realm
-wherever it is called, so handing one out hands out that realm's authority; a
-`/p/` or stdlib closure called by another realm's code runs view-only.
+variable instead. A closure declared in an `/r/` realm runs read-only when
+another realm calls it; to let a callback write its realm, make it a crossing
+closure (`func(cur realm) {...}`) called with `cross`. A `/p/` or stdlib
+closure called by another realm's code runs view-only.
 A method value of a `/p/` or stdlib method runs view-only when another realm's
 code calls it, writing no stored object, receiver or argument; only its
 binder's own code can write through it. A `/p/`-owned receiver borrows to its
@@ -948,14 +905,10 @@ import realm packages at all. And convenience/utility functions that are being
 staged before publishing as permanent p code should also reside in upgradeable
 realms.
 
-Generally you want your methods to be non-crossing. Because they should work
-for everyone. They are functions that are pre-bound to an object, and that
-object is like a quasi-realm in itself, that could possibly reside and migrate
-to other realms. This is consistent with any p code copied over to r realms;
-none of those methods would be crossing, and behavior would be the same; stored
-in any realm, mostly non-crossing methods that anyone can call. Why is a
-quasi-realm self-encapsulated object in need to modify the realm in which it is
-declared, by crossing? That's intrusive, but sometimes desired.
+Exported non-crossing functions and methods of a realm are read-only for other
+callers: use them for getters, constructors, and helpers your own crossing
+functions call. Anything another realm or a user calls to change the realm's
+state must be crossing, and authenticates the caller with `cur.Previous()`.
 
 You can always cross-call a method from a non-crossing method if you need it.
 

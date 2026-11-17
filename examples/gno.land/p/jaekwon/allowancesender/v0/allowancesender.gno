@@ -15,14 +15,15 @@
 //	al  := allowancesender.New(src, granterAddr,
 //	           chain.NewCoins(chain.NewCoin("ugnot", 1_000_000)))
 //	defer al.Close()
-//	bRealm.DoSomething(cross, func(to address, amt chain.Coins) {
+//	bRealm.DoSomething(cross(cur), func(cur realm, to address, amt chain.Coins) {
 //		al.Send(to, amt)
 //	})
 //
-// The granter keeps the sender and hands the callee a function literal
-// written in the granter's own source. A callee that stores the object
-// itself can read it (Cap, Spent, Remaining, Closed) but cannot spend
-// through it.
+// The granter keeps the sender and hands the callee a crossing closure
+// written in its own source; the callee spends by calling it with
+// fn(cross(cur), to, amt). A plain closure would run read-only in the
+// callee and could not spend. A callee that stores the object itself can
+// read it (Cap, Spent, Remaining, Closed) but cannot spend through it.
 //
 // On return (success or panic), `defer al.Close()` flips the closed
 // flag. If B persisted the granted function, B's stored reference is now

@@ -121,8 +121,8 @@ func (EvilAnyMutator) Run(x any) {
 }
 
 // EvilWrite is a top-level /p/-declared function value matching
-// `func(*launderpkg.Immutable)`. Top-level /p/ functions trigger
-// neither borrow rule #1 (not /r/-declared) nor borrow rule #2 (no receiver).
+// `func(*launderpkg.Immutable)`. Called through a value, a top-level /p/
+// function is code the caller picked and runs view-only.
 // Called back from a /p/-method body under a deferred chain it can still write
 // the owner's object (known open hole, see zrealm_launder_rdata_pdr_multilevel).
 func EvilWrite(i *launderpkg.Immutable) {

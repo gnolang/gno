@@ -1,5 +1,11 @@
 # Interrealm Specification — v2
 
+> **Superseded for writes.** Borrow rules #1–#3 below are replaced for writes
+> by [`pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md): a
+> realm's stored state changes only during a crossing call into that realm.
+> Realm code entered without crossing runs read-only, only a `/p/`-owned
+> receiver borrows, and library code a caller picked runs view-only.
+
 This is a standalone specification of Gno's interrealm semantics as
 implemented at current HEAD. It supersedes the historical narrative
 in [`gno-interrealm.md`](./gno-interrealm.md), which traced the
@@ -668,10 +674,10 @@ crossing function when it wants another realm to write.
   functions (`func F(cur realm, ...)`). Non-crossing functions
   cannot be invoked directly via `MsgCall`.
 - Utility functions that are common sequences of non-crossing logic
-  may be exposed as non-crossing functions.
-- Methods should generally be non-crossing — they describe behavior
-  on data and should work uniformly regardless of where the data
-  resides.
+  may be exposed as non-crossing functions; other callers run them
+  read-only.
+- A function or method that changes the realm's state for another
+  caller must be crossing and authenticate with `cur.Previous()`.
 
 ### 11.3 Public API checklist
 
@@ -681,8 +687,8 @@ For every exported function or method in your `/r/` realm:
   yes, call `rlm.IsCurrent()` before reading an identity out of it. Its
   own `cur` needs no check.
 - Does it return a pointer that aliases internal mutable state? If
-  yes, expect attackers to invoke any method on the returned pointer
-  type that borrow rule #2 borrows back to you.
+  yes, it is a view to other realms; return a read-only wrapper anyway
+  so callers do not mistake it for a writer.
 - Does it accept an interface or function-value parameter? If yes,
   gate with canonical-type check (`t.(*MyConcrete)` or an
   `IsCanonicalX` predicate). Embedding-based seal patterns are
