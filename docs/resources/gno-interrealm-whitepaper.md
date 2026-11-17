@@ -73,6 +73,12 @@ transaction (`math/rand`'s global source), which any code can advance.
 
 **R3. A realm's state changes only during a crossing call into it.**
 
+The VM does not classify functions as readers or writers. It checks each write
+as it happens (an assignment, a field or element update, a `delete`): a
+function that only reads always works, and one that writes fails at its first
+write it is not allowed to make. `Balance` and `Move` below look alike; only
+`Move` writes.
+
 **R4. Inside that call, code acts for the realm if the realm's source names it
 at the call site:** the realm's own functions and methods, library functions
 and methods it calls by name, and methods of types from packages it imports.
