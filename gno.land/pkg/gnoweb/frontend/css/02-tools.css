@@ -224,6 +224,7 @@
 	--s-color-text-brand-default: var(--g-color-light);
 	--s-color-text-link: var(--g-color-green-500);
 	--s-color-text-link-hover: var(--g-color-green-400);
+	--s-color-text-link-active: var(--g-color-green-400);
 
 	/* Form text */
 	--s-color-text-input: var(--g-color-gray-200);
@@ -248,11 +249,13 @@
 
 	/* Interactive borders */
 	--s-color-border-hover: var(--g-color-gray-600);
+	--s-color-border-focus: var(--g-color-green-400);
 	--s-color-border-active: var(--g-color-gray-500);
 
 	/* Form borders */
 	--s-color-border-input: var(--g-color-gray-700);
 	--s-color-border-input-hover: var(--g-color-gray-600);
+	--s-color-border-input-focus: var(--g-color-green-400);
 	--s-color-border-input-disabled: var(--g-color-gray-750);
 
 	/* Semantic borders */
