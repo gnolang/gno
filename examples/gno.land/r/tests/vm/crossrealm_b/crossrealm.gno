@@ -11,7 +11,8 @@ type fooer struct {
 	s string
 }
 
-func (f *fooer) SetS(newVal string) {
+// SetS crosses so another realm can change f's stored state.
+func (f *fooer) SetS(cur realm, newVal string) {
 	f.s = newVal
 }
 
@@ -53,7 +54,7 @@ func IncrementObject(cur realm) any {
 
 var n int
 
-// NOTE should be non-crossing
+// Non-crossing: called by another realm, its write is refused.
 func IncrGlobal() {
 	n++
 }

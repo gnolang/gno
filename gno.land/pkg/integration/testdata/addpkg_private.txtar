@@ -371,7 +371,7 @@ func SaveEmptyMapWithPrivateTypesToPublicRealm(cur realm) {
 
 func SaveNestedToPublicRealm(cur realm) {
     nested := publicrealm.CreateNestedStruct(cross(cur))
-    nested.SetPrivateRef(tree)
+    nested.SetPrivateRef(cross(cur), tree)
     publicrealm.SaveYourNested(cross(cur), nested)
 }
 
@@ -379,7 +379,7 @@ var savedNestedInPrivate *publicrealm.NestedStruct
 
 func SaveNestedToPublicRealmAfterSaving(cur realm) {
     nested := publicrealm.CreateNestedStruct(cross(cur))
-    nested.SetPrivateRef(tree)
+    nested.SetPrivateRef(cross(cur), tree)
     savedNestedInPrivate = nested
     publicrealm.SaveYourNested(cross(cur), nested)
 }
@@ -666,7 +666,7 @@ func CreateNestedStruct(cur realm) *NestedStruct {
     }
 }
 
-func (n *NestedStruct) SetPrivateRef(ref *avl.Tree) {
+func (n *NestedStruct) SetPrivateRef(cur realm, ref *avl.Tree) {
     n.Level1.Level2.PrivateRef = ref
 }
 

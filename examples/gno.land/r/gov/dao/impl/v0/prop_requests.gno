@@ -192,7 +192,7 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			return ufmt.Errorf("destination tier is missing from the member store: %s", toTier)
 		}
 
-		prevTier := mbt.RemoveMember(addr)
+		prevTier := memberstore.RemoveMember(cross(cur), addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -201,7 +201,7 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		if err := mbt.SetMember(toTier, addr, memberByTier(toTier)); err != nil {
+		if err := memberstore.SetMember(cross(cur), toTier, addr, memberByTier(toTier)); err != nil {
 			// Unreachable: both of SetMember's failures are ruled out above.
 			// Panicking is what makes it safe to be wrong about that.
 			panic("promotion failed after removal: " + err.Error())

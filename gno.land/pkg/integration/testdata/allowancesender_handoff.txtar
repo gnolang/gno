@@ -1,5 +1,6 @@
-# What a granter can hand another realm under the explicit-entry rule.
-# A function literal written in the granter's source spends within the cap,
+# What a granter can hand another realm under the cross to write rule.
+# A crossing function literal written in the granter's source, called by the
+# callee with cross(cur), runs as the granter and spends within the cap,
 # and is dead after the granter's Close. The sender object itself, handed
 # over or stored by the callee, cannot be spent through by the callee.
 
@@ -49,13 +50,13 @@ import (
 	"gno.land/p/jaekwon/allowancesender/v0"
 )
 
-var fn func(address, chain.Coins)
+var fn func(realm, address, chain.Coins)
 var obj *allowancesender.AllowanceSender
 
-func StoreFn(cur realm, f func(address, chain.Coins)) { fn = f }
+func StoreFn(cur realm, f func(realm, address, chain.Coins)) { fn = f }
 
 func CallStored(cur realm, amount int64) {
-	fn(cur.Address(), chain.NewCoins(chain.NewCoin("ugnot", amount)))
+	fn(cross(cur), cur.Address(), chain.NewCoins(chain.NewCoin("ugnot", amount)))
 }
 
 func UseObj(cur realm, al *allowancesender.AllowanceSender) {
@@ -94,12 +95,12 @@ func mk(cur realm) *allowancesender.AllowanceSender {
 func GrantAndStoreFn(cur realm) {
 	al := mk(cur)
 	defer al.Close()
-	callee.StoreFn(cross(cur), func(to address, amt chain.Coins) { al.Send(to, amt) })
+	callee.StoreFn(cross(cur), func(cur realm, to address, amt chain.Coins) { al.Send(to, amt) })
 }
 
 func GrantNoClose(cur realm) {
 	al := mk(cur)
-	callee.StoreFn(cross(cur), func(to address, amt chain.Coins) { al.Send(to, amt) })
+	callee.StoreFn(cross(cur), func(cur realm, to address, amt chain.Coins) { al.Send(to, amt) })
 }
 
 func GrantObject(cur realm) {

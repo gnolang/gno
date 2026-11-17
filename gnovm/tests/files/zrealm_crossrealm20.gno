@@ -16,9 +16,11 @@ func (f *fooer) Foo(cur realm) {
 	println("hello " + f.s + " " + unsafe.CurrentRealm().PkgPath())
 }
 
+// Bar is non-crossing: called by another realm it runs read-only, so it
+// prints and then its write to the stored f is refused.
 func (f *fooer) Bar() {
-	f.s = "Bar"
 	println("hello " + f.s + " " + unsafe.CurrentRealm().PkgPath())
+	f.s = "Bar"
 }
 
 var f *fooer
@@ -32,7 +34,7 @@ func init(cur realm) {
 	f.s = "C"
 	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.s = "D"
-	crossrealm.CallFooerGetterBar()
+	println("bar:", revive(func() { crossrealm.CallFooerGetterBar() }))
 }
 
 func main(cur realm) {
@@ -42,7 +44,8 @@ func main(cur realm) {
 // Output:
 // hello Foo gno.land/r/crossrealm
 // hello Foo gno.land/r/crossrealm
-// hello Bar gno.land/r/crossrealm
+// hello D gno.land/r/crossrealm
+// bar: gno.land/r/crossrealm's code was entered without crossing and is read-only (call its crossing function): f<VPBlock(1,0)>.s
 // .
 
 // Realm:

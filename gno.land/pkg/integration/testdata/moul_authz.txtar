@@ -7,15 +7,16 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 740001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
-
-gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 760001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
+# The async flow cannot queue: authz calls admin's non-crossing handler from
+# resource's Edit, so admin's code runs read-only and its append is refused.
+! gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 740001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
+stderr 'gno.land/r/testing/admin.s code was entered without crossing and is read-only'
 
 ! gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 760001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
-stderr 'already executed'
+stderr 'out of bounds'
 
 gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 190001ugnot -gas-wanted 1_900_000 -chainid tendermint_test alice
-stdout 'edited'
+stdout 'init'
 
 
 -- admin/gnomod.toml --

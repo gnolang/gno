@@ -23,7 +23,7 @@ import (
 	"gno.land/r/tests/vm/pfuncvictim"
 )
 
-func main() {
+func main(cur realm) {
 	pfuncvictim.StoreRunner(cross(cur), &ifaceattack.EvilS{})
 	println("stored")
 }
@@ -33,7 +33,7 @@ package main
 
 import "gno.land/r/tests/vm/pfuncvictim"
 
-func main() {
+func main(cur realm) {
 	pfuncvictim.UseStored(cross(cur))
 	println("victim:", pfuncvictim.Read())
 }
@@ -43,6 +43,6 @@ package main
 
 import "gno.land/r/tests/vm/pfuncvictim"
 
-func main() {
+func main(cur realm) {
 	println("victim:", pfuncvictim.Read())
 }

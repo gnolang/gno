@@ -19,7 +19,7 @@ import (
 	"gno.land/r/tests/vm/ifacevictim"
 )
 
-func main() {
+func main(cur realm) {
 	mk := ifaceattack.MakeH
 	ifacevictim.ApplyOne(cross(cur), mk())
 }
@@ -29,6 +29,6 @@ package main
 
 import "gno.land/r/tests/vm/ifacevictim"
 
-func main() {
+func main(cur realm) {
 	println("victim:", ifacevictim.Read())
 }

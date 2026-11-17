@@ -1,56 +1,28 @@
-# interrealm v2 borrow rule — exhaustive behavior reference.
-#
-# Affirmative-coverage counterpart to the pre-interrealm-v2 tests
-# interrealm_final.txtar / interrealm_mix_call.txtar /
-# interrealm_mix_run.txtar (which test the inverted pre-v2 borrow
-# semantics). Kept side-by-side so a reader can compare expectations.
+# Cross to write — behavior reference for calls between realms.
 #
 # Each case is a small function on /r/test/caller invoked via
 # `gnokey maketx call`. Cases that need to observe runtime state
 # write to /r/test/owned's package vars and the assertion reads
-# them via `vm/qrender` (since `println` side-effects are not
-# captured by maketx call's stdout).
+# them via `vm/qrender`.
 #
-# interrealm v2 rules under test (see gnovm/adr/interrealm_v2.md § "Storage = Authority" and
-# docs/resources/gno-interrealm.md § "Implicit Realm-Storage Borrowing"):
+# Rules under test:
 #
-#   borrow rule #1 — declaring-realm borrow:  any /r/X-declared callable
-#     (function, method on any receiver shape, closure, interface
-#     dispatch to /r/X-declared method) runs its body with
-#     m.Realm = /r/X for the call duration.
+#   A realm's stored state changes only during a crossing call into that
+#   realm (`fn(cross(cur), ...)`). Realm code entered without crossing —
+#   called by another realm, as a method, closure, bound method or
+#   interface dispatch — runs read-only: it may read anything and construct
+#   objects, may write objects created during the current read-only stretch,
+#   but writes no stored object. Refusal: "<realm>'s code was entered
+#   without crossing and is read-only".
 #
-#   borrow rule #2 — storage-realm borrow:  a /p/-declared (or stdlib)
-#     method invoked on a defined receiver whose authoring PkgID
-#     differs from m.Realm soft-switches m.Realm to the receiver's
-#     PkgID when the receiver is owned by a /p/ package; otherwise a
-#     /p/ method can read a foreign object but not write it, so the owner
-#     supplies a function. The L2 cases below write through such owner-written
-#     functions, so the write they show is rule #1's, not rule #2's.
+#   /p/ code writing an object owned by another realm is refused
+#   ("cannot modify object owned by another realm from library code").
 #
-#   Realm-context invariant:  Borrow shifts m.Realm but NOT
-#     unsafe.CurrentRealm()/PreviousRealm(); those track only
-#     explicit fn(cross, ...) crossings.
+#   Construction-time: composite literals and new() of foreign
+#   /r/-declared types panic at the call site.
 #
-#   Construction-time:  composite literals, new(), make() of foreign
-#     /r/-declared types panic at the call site.
-#
-#   Cross-realm write gate:  writes to an object owned by a realm
-#     other than m.Realm panic ("readonly tainted object"). The
-#     N_Readonly provenance taint has been removed; protection now
-#     rests on this storage-ownership check alone.
-#
-#   Copy semantics:  Copy preserves source PkgID when the source
-#     carries realm authority; when the source PkgID is
-#     non-realm (stdlib or /p/ init), the copy is restamped to the
-#     copying realm so a /r/-caller can mutate its own local copy of
-#     a /p/-init default value.
-#
-# Narrow filetests for behaviors that don't need integration:
-#   - gnovm/tests/files/zrealm_v2_construction_composite_fail.gno
-#   - gnovm/tests/files/zrealm_v2_construction_new_fail.gno
-#   - gnovm/tests/files/zrealm_v2_foreign_mutate_unreal_bytes.gno
-#   - gnovm/tests/files/zrealm_p_convert_readonly_ok_filetest.gno
-#   - gnovm/tests/files/exploit/realm_exploiter.gno
+#   Copy semantics: a copy of a /p/-init value is restamped to the copying
+#   realm, so a /p/ helper can mutate its own local copy.
 
 loadpkg gno.land/p/nt/ufmt/v0
 
@@ -80,106 +52,85 @@ stdout 'neighborLibA=0'
 
 
 ## ============================================================
-## borrow rule #1 — declaring-realm borrow
+## Realm code entered with and without crossing
 ## ============================================================
 
-## L1_FnTopLevel: top-level /r/-declared fn invoked from foreign realm.
-## Body's `global = n` succeeds (borrow rule #1 → m.Realm = /r/owned).
+## L1_FnTopLevel: top-level /r/-declared fn invoked from a foreign realm without
+## crossing: its `global = n` is refused.
 ##
 ##   func L1_FnTopLevel(cur realm) {
 ##       owned.MutateGlobal(5)
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_FnTopLevel -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'global=5 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_FnTopLevel -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_MethodRealSelf: method on real receiver writes to own field.
+## L1_MethodRealSelf: method on a stored receiver, called without crossing: refused.
 ##
 ##   func L1_MethodRealSelf(cur realm) {
 ##       owned.Real.Mutate()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodRealSelf -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'realValue=1 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodRealSelf -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_MethodRealForeignWrite: /r/owned method writes to a
-## /r/neighbor-owned field. borrow rule #1 shifts m.Realm to
-## /r/owned, the foreign-field write panics on readonly taint.
+## L1_MethodRealForeignWrite: /r/owned method writes a /r/neighbor-owned field without
+## crossing: refused.
 ##
 ##   func L1_MethodRealForeignWrite(cur realm) {
 ##       owned.OverwriteA(neighbor.Lib)
 ##   }
 ! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodRealForeignWrite -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stderr 'cannot directly modify readonly tainted object'
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_MethodUnrealSelf: method on UNREAL receiver succeeds in memory
-## but produces no persisted state delta (receiver discarded).
+## L1_MethodUnrealSelf: Factory's object was built in an earlier read-only stretch, so the
+## later non-crossing Mutate cannot write it.
 ##
 ##   func L1_MethodUnrealSelf(cur realm) {
 ##       r := owned.Factory()
 ##       r.Mutate()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodUnrealSelf -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'realValue=1 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MethodUnrealSelf -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_Closure: closure captured at /r/owned package-level. Borrow
-## fires on the closure's construction-site realm.
+## L1_Closure: closure declared in /r/owned, called without crossing: refused.
 ##
 ##   func L1_Closure(cur realm) {
 ##       owned.Closure()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_Closure -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'global=6 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_Closure -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_BoundMethod: bound-method dispatch (`f := obj.M; f()`) goes
-## through BoundMethodValue, still triggers borrow rule #1.
+## L1_BoundMethod: bound-method dispatch (`f := obj.M; f()`) is also entry without
+## crossing: refused.
 ##
 ##   func L1_BoundMethod(cur realm) {
 ##       f := owned.Real.Mutate
 ##       f()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_BoundMethod -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'realValue=2 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_BoundMethod -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_ValueReceiver: value-method dispatch creates a copy via
-## VPValMethod → StructValue.Copy (preserves source PkgID).
-## Borrow targets the declaring realm of the method, not
-## caller. The body writes its observation to owned.trace, asserted
-## via qrender below.
+## L1_ValueReceiver: the non-crossing body's write to owned.trace is refused.
 ##
 ##   func L1_ValueReceiver(cur realm) {
 ##       owned.RecordValueReceiverTrace()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_ValueReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'trace=L1_ValueReceiver:cur=gno.land/r/test/caller'
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_ValueReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_MultiHop: caller → neighbor.MutateOwnedVia → owned.Real.Mutate.
-## Two borrow rule #1 borrows on the stack; both unwind correctly.
+## L1_MultiHop: caller → neighbor.MutateOwnedVia → owned.Real.Mutate, all without
+## crossing: refused.
 ##
 ##   func L1_MultiHop(cur realm) {
 ##       neighbor.MutateOwnedVia(owned.Real)
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MultiHop -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'realValue=3 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_MultiHop -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
-## L1_CrossingExplicit: explicit fn(cross, ...) shifts BOTH realm-
-## context AND storage-context to /r/owned. Body's CurrentRealm
-## reports /r/owned, PreviousRealm reports /r/caller.
+## L1_CrossingExplicit: explicit fn(cross(cur), ...) enters /r/owned, which writes.
+## Body's CurrentRealm reports /r/owned, PreviousRealm reports /r/caller.
 ##
 ##   func L1_CrossingExplicit(cur realm) {
-##       owned.PublicSet(cross, 99)
+##       owned.PublicSet(cross(cur), 99)
 ##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func L1_CrossingExplicit -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
@@ -195,24 +146,20 @@ stderr 'cannot cur-call to external realm function'
 
 
 ## ============================================================
-## borrow rule #2 — a /p/-method write reaches a foreign receiver only
-## through a function its owner wrote (rule #1 runs that function)
+## /p/ methods reached through an owner's literal
 ## ============================================================
 
-## L2_PMethodOnOwnedReal: the owner hands over a function literal written in
-## its own source instead of granting the receiver. Calling it borrows m.Realm
-## to /r/owned (rule #1), so the /p/-method write succeeds.
+## L2_PMethodOnOwnedReal: the owner's literal, called without crossing, runs read-only, so
+## the /p/ method it calls cannot write the stored receiver.
 ##
 ##   func L2_PMethodOnOwnedReal(cur realm) {
 ##       owned.TouchLib()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnOwnedReal -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'libA=1 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnOwnedReal -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
 
-## L2_PMethodOnOwnedUnreal: the owner's own literal writes a fresh,
-## unreal container. It runs under /r/owned and the receiver is discarded.
+## L2_PMethodOnOwnedUnreal: the owner's literal builds a fresh container and the /p/
+## method writes it: a temporary of the current read-only stretch.
 ##
 ##   func L2_PMethodOnOwnedUnreal(cur realm) {
 ##       owned.TouchFactory()
@@ -221,20 +168,15 @@ gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnOwnedUnreal
 stdout OK!
 # unreal receiver — no persisted state delta
 
-## L2_PMethodOnNeighborReceiver: 3-realm geometry. The receiver lives in
-## /r/neighbor, which hands over its own literal; the borrow lands on
-## /r/neighbor (not /r/owned, not /r/caller).
+## L2_PMethodOnNeighborReceiver: 3-realm geometry; neighbor's literal is read-only too.
 ##
 ##   func L2_PMethodOnNeighborReceiver(cur realm) {
 ##       neighbor.TouchLib()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnNeighborReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/neighbor:"
-stdout 'neighborLibA=1'
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func L2_PMethodOnNeighborReceiver -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
 
-## L2_PMethodOnPrimitiveReceiver: primitive-receiver /p/-method does
-## NOT trigger borrow rule #2 (no Object identity to carry PkgID).
+## L2_PMethodOnPrimitiveReceiver: primitive-receiver /p/-method; nothing stored is written.
 ##
 ##   func L2_PMethodOnPrimitiveReceiver(cur realm) {
 ##       var p v2lib.PrimitiveCounter = 42
@@ -248,18 +190,15 @@ stdout OK!
 ## Interface dispatch
 ## ============================================================
 
-## IFACE_DispatchTargetsDeclaring: caller invokes Toucher.Touch()
-## where dynamic type is /r/owned.EvilToucher. VPInterface dispatch
-## still triggers borrow rule #1 to /r/owned.
+## IFACE_DispatchTargetsDeclaring: caller invokes Toucher.Touch() where the dynamic type
+## is /r/owned.EvilToucher; interface dispatch without crossing is refused.
 ##
 ##   func IFACE_DispatchTargetsDeclaring(cur realm) {
 ##       var t v2lib.Toucher = owned.NewEvilToucher()
 ##       t.Touch()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func IFACE_DispatchTargetsDeclaring -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'global=100 '
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func IFACE_DispatchTargetsDeclaring -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
 
 ## ============================================================
@@ -286,44 +225,37 @@ stderr 'cannot allocate gno.land/r/test/owned.Resource in realm gno.land/r/test/
 
 
 ## ============================================================
-## Readonly taint
+## Round-trip of a stored object
 ## ============================================================
 
-## READONLY_RoundTripSucceeds: caller reads owned.GlobalSlice and
-## passes it back through owned.MutateSlice. With the readonly taint
-## removed, borrow rule #1 puts m.Realm at /r/owned for the duration
-## of MutateSlice, and the indexed write to owned's own slice commits
-## under owned's authority — the round-trip now succeeds.
+## READONLY_RoundTripSucceeds: caller passes owned.GlobalSlice back through
+## owned.MutateSlice without crossing: refused.
 ##
 ##   func READONLY_RoundTripSucceeds(cur realm) {
 ##       owned.MutateSlice(owned.GlobalSlice)
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripSucceeds -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func READONLY_RoundTripSucceeds -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
 
 ## ============================================================
 ## Realm-context invariant
 ## ============================================================
 
-## CTX_BorrowDoesNotShiftCurrentRealm: borrow rule #1 shifts m.Realm
-## but NOT unsafe.CurrentRealm(). Inside the borrowed body,
-## CurrentRealm reports caller (or user for top-level user calls).
+## CTX_BorrowDoesNotShiftCurrentRealm: the non-crossing body's write to owned.trace is refused.
 ##
 ##   func CTX_BorrowDoesNotShiftCurrentRealm(cur realm) {
 ##       owned.Real.RecordRealmTraceForCTX()
 ##   }
-gnokey maketx call -pkgpath gno.land/r/test/caller -func CTX_BorrowDoesNotShiftCurrentRealm -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stdout OK!
-gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
-stdout 'trace=CTX:cur=gno.land/r/test/caller'
+! gnokey maketx call -pkgpath gno.land/r/test/caller -func CTX_BorrowDoesNotShiftCurrentRealm -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-only'
 
 
 ## ============================================================
 ## Defer/recover
 ## ============================================================
 
-## DEFER_BorrowUnwindAfterRecover: a borrowed-realm method panics.
+## DEFER_BorrowUnwindAfterRecover: a non-crossing /r/owned function panics.
 ## In Gno, cross-realm panics are NOT caught by ordinary recover()
 ## from a foreign realm — the runtime escalates them past defer/
 ## recover boundaries to enforce realm-boundary safety. The
@@ -347,16 +279,14 @@ stderr 'intentional panic for unwind test'
 ## Copy semantics
 ## ============================================================
 
-## COPY_PreservesPkgID: value-method dispatch copies the receiver
-## via StructValue.Copy; Copy preserves source PkgID. (Same
-## mechanism as L1_ValueReceiver, but the trace records the copy's
-## effective declaring realm rather than just the borrow target.)
+## COPY_PreservesPkgID: value-method dispatch copies the receiver; the copy keeps
+## its source realm. The trace is recorded through a crossing call.
 ##
 ##   func COPY_PreservesPkgID(cur realm) {
 ##       r := owned.Factory()
 ##       // value-method dispatch — Copy preserves PkgID:
 ##       id := (*r).Identify()
-##       owned.RecordCopyTrace(id)
+##       owned.RecordCopyTrace(cross(cur), id)
 ##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func COPY_PreservesPkgID -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
@@ -376,7 +306,7 @@ stdout 'trace=COPY:gno.land/r/test/owned'
 ##       if n != 42 {
 ##           panic("write did not take effect")
 ##       }
-##       owned.RecordCopyTrace("PInitRestamped")
+##       owned.RecordCopyTrace(cross(cur), "PInitRestamped")
 ##   }
 gnokey maketx call -pkgpath gno.land/r/test/caller -func COPY_PInitRestampedToCurRealm -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
 stdout OK!
@@ -498,9 +428,8 @@ func PublicSet(cur realm, n int) {
 		",prev=" + unsafe.PreviousRealm().PkgPath()
 }
 
-// RecordValueReceiverTrace is invoked from L1_ValueReceiver. It runs
-// under borrow rule #1 to /r/owned; from inside, CurrentRealm reports
-// the caller (the realm-context which borrow does NOT shift).
+// RecordValueReceiverTrace is invoked from L1_ValueReceiver without
+// crossing, so its write is refused.
 func RecordValueReceiverTrace() {
 	trace = "L1_ValueReceiver:cur=" + unsafe.CurrentRealm().PkgPath()
 }
@@ -524,22 +453,21 @@ func NewEvilToucher() *EvilToucher {
 }
 
 // PanicInsideBorrow is invoked by DEFER_BorrowUnwindAfterRecover.
-// Panics inside the borrow rule #1ed body; caller recovers.
+// Panics inside the non-crossing body; caller's recover cannot catch it.
 func PanicInsideBorrow() {
 	panic("intentional panic for unwind test")
 }
 
-// RecordDeferResume is called AFTER caller's recover. If m.Realm was
-// not restored, the write to `trace` (a /r/owned package var) would
-// fail. So the success of this call is the unwind correctness signal.
+// RecordDeferResume would run after caller's recover; it is never
+// reached because the panic is not recoverable across realms.
 func RecordDeferResume() {
 	trace = "DEFER:recovered-and-resumed"
 }
 
-// RecordCopyTrace — body of COPY_PreservesPkgID. Called from caller
-// through value-method dispatch (Identify equivalent); the body
+// RecordCopyTrace — crossing writer for the COPY cases. Called from caller
+// with the observed declaring realm; the body
 // records its observed declaring realm.
-func RecordCopyTrace(observed string) {
+func RecordCopyTrace(cur realm, observed string) {
 	trace = "COPY:" + observed
 }
 
@@ -590,7 +518,7 @@ import (
 	"gno.land/r/test/owned"
 )
 
-// ----- borrow rule #1 -----
+// ----- with and without crossing -----
 
 func L1_FnTopLevel(cur realm) {
 	owned.MutateGlobal(5)
@@ -630,7 +558,7 @@ func L1_CrossingExplicit(cur realm) {
 	owned.PublicSet(cross(cur), 99)
 }
 
-// ----- borrow rule #2 -----
+// ----- /p/ methods through an owner's literal -----
 
 func L2_PMethodOnOwnedReal(cur realm) {
 	owned.TouchLib()
@@ -666,7 +594,7 @@ func CONSTRUCT_NewFails(cur realm) {
 	_ = new(owned.Resource)
 }
 
-// ----- Readonly taint removed: foreign-slice round-trip now succeeds -----
+// ----- Round-trip of a stored object -----
 
 func READONLY_RoundTripSucceeds(cur realm) {
 	owned.MutateSlice(owned.GlobalSlice)
@@ -695,7 +623,7 @@ func COPY_PreservesPkgID(cur realm) {
 	r := owned.Factory()
 	// value-method dispatch — Copy preserves PkgID:
 	id := (*r).Identify()
-	owned.RecordCopyTrace(id)
+	owned.RecordCopyTrace(cross(cur), id)
 }
 
 func COPY_PInitRestampedToCurRealm(cur realm) {
@@ -703,7 +631,7 @@ func COPY_PInitRestampedToCurRealm(cur realm) {
 	if n != 42 {
 		panic("write did not take effect")
 	}
-	owned.RecordCopyTrace("PInitRestamped")
+	owned.RecordCopyTrace(cross(cur), "PInitRestamped")
 }
 
 

@@ -3,9 +3,9 @@
 # discovered during integration.
 #
 # WORKS (the supported pattern):
-#   - granter creates *AllowanceSender and hands the callee a function
-#     literal written in its own source that calls Send; the callee uses
-#     the literal WITHIN THE CALL.
+#   - granter creates *AllowanceSender and hands the callee a crossing
+#     function literal written in its own source that calls Send; the
+#     callee calls it with cross(cur) WITHIN THE CALL.
 #   - granter's defer al.Close() runs successfully.
 #   - cap-exceeded and negative-amount inputs are rejected.
 #
@@ -83,13 +83,13 @@ func Store(cur realm, al *allowancesender.AllowanceSender) {
 
 // SpendTo is the supported within-call pattern: callee uses the
 // allowance during the cross call without persisting.
-func SpendTo(cur realm, spend func(address, chain.Coins), to address, amount int64) {
-	spend(to, chain.NewCoins(chain.NewCoin("ugnot", amount)))
+func SpendTo(cur realm, spend func(realm, address, chain.Coins), to address, amount int64) {
+	spend(cross(cur), to, chain.NewCoins(chain.NewCoin("ugnot", amount)))
 }
 
 // SpendNegative exercises the negative-amount panic path.
-func SpendNegative(cur realm, spend func(address, chain.Coins), to address) {
-	spend(to, chain.Coins{chain.Coin{Denom: "ugnot", Amount: -50}})
+func SpendNegative(cur realm, spend func(realm, address, chain.Coins), to address) {
+	spend(cross(cur), to, chain.Coins{chain.Coin{Denom: "ugnot", Amount: -50}})
 }
 
 -- granter/gnomod.toml --
@@ -123,7 +123,7 @@ func GrantAndSpend(cur realm, limit int64, amount int64) {
 	defer al.Close()
 
 	caller := unsafe.PreviousRealm().Address()
-	spend := func(to address, amt chain.Coins) { al.Send(to, amt) }
+	spend := func(cur realm, to address, amt chain.Coins) { al.Send(to, amt) }
 	callee.SpendTo(cross(cur), spend, caller, amount)
 }
 
@@ -139,7 +139,7 @@ func GrantAndSpendNegative(cur realm) {
 	defer al.Close()
 
 	caller := unsafe.PreviousRealm().Address()
-	spend := func(to address, amt chain.Coins) { al.Send(to, amt) }
+	spend := func(cur realm, to address, amt chain.Coins) { al.Send(to, amt) }
 	callee.SpendNegative(cross(cur), spend, caller)
 }
 

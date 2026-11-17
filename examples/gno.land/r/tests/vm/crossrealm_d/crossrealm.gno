@@ -13,8 +13,8 @@ func init() {
 	counter = 100
 }
 
-// SetCounter: non-crossing. Calling this cross-realm triggers
-// the readonly check because it directly assigns a package var.
+// SetCounter: non-crossing. Called from another realm it runs read-only,
+// so its assignment to the package var is refused.
 func SetCounter(n int) {
 	counter = n
 }
