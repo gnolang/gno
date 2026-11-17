@@ -62,6 +62,13 @@ type AccountUnrestricter interface {
 	SetTokenLockWhitelisted(bool)
 }
 
+// AccountFreezer is an account governance can freeze. The ante handler rejects
+// every transaction a frozen account signs, so nothing it holds can move.
+type AccountFreezer interface {
+	IsFrozen() bool
+	SetFrozen(bool)
+}
+
 //----------------------------------------
 // BaseAccount
 

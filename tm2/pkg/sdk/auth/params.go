@@ -179,6 +179,12 @@ func (p Params) Validate() error {
 const (
 	// feeCollectorPath the params path for the fee collector account address
 	feeCollectorPath = "p:fee_collector"
+
+	// frozenAddrsPath lists the accounts governance has frozen. It is not a
+	// field of Params: the ante handler decodes Params on every transaction,
+	// and this list can hold thousands of addresses that only matter when it
+	// changes. The bit on each account is what enforcement reads.
+	frozenAddrsPath = "p:frozen_addrs"
 )
 
 func (ak AccountKeeper) FeeCollectorAddress(ctx sdk.Context) crypto.Address {
@@ -212,6 +218,11 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 }
 
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+	if key == frozenAddrsPath {
+		// Not a Params field, so there is no struct to decode or revalidate.
+		ak.applyFrozenAddrsChange(ctx, sdkparams.MustParamStrings("frozen_addrs", value))
+		return
+	}
 	params := ak.GetParams(ctx)
 	switch key {
 	case "p:max_memo_bytes":
@@ -314,4 +325,70 @@ func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs [
 		uacc.SetTokenLockWhitelisted(false)
 		ak.SetAccount(ctx, acc)
 	}
+}
+
+// applyFrozenAddrsChange sets the frozen bit on addresses entering the list and
+// clears it on those leaving. It runs before the params keeper writes newAddrs,
+// so the store still holds the previous list.
+//
+// Unlike the unrestricted list, nothing is skipped silently: an address with no
+// account gets one, so coins it receives later arrive frozen, and an account
+// that cannot carry the bit panics, failing the proposal rather than leaving an
+// address listed but spendable.
+//
+// The lists are walked in order, never a map: creating an account takes the
+// next account number, so the order has to be the same on every node.
+func (ak AccountKeeper) applyFrozenAddrsChange(ctx sdk.Context, newStrs []string) {
+	var oldStrs []string
+	ak.prmk.GetStrings(ctx, frozenAddrsPath, &oldStrs)
+	oldAddrs, newAddrs := parseAddrs(oldStrs), parseAddrs(newStrs)
+
+	setFrozen := func(addr crypto.Address, frozen bool) {
+		acc := ak.GetAccount(ctx, addr)
+		if acc == nil {
+			if !frozen {
+				return
+			}
+			acc = ak.NewAccountWithAddress(ctx, addr)
+		}
+		facc, ok := acc.(std.AccountFreezer)
+		if !ok {
+			panic(fmt.Sprintf("account %s cannot be frozen", addr))
+		}
+		facc.SetFrozen(frozen)
+		ak.SetAccount(ctx, acc)
+	}
+	for _, addr := range addrsNotIn(newAddrs, oldAddrs) {
+		setFrozen(addr, true)
+	}
+	for _, addr := range addrsNotIn(oldAddrs, newAddrs) {
+		setFrozen(addr, false)
+	}
+}
+
+func parseAddrs(ss []string) []crypto.Address {
+	addrs := make([]crypto.Address, len(ss))
+	for i, s := range ss {
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid address: %v", err))
+		}
+		addrs[i] = addr
+	}
+	return addrs
+}
+
+// addrsNotIn returns the addresses of a absent from b, in a's order.
+func addrsNotIn(a, b []crypto.Address) []crypto.Address {
+	in := make(map[crypto.Address]struct{}, len(b))
+	for _, addr := range b {
+		in[addr] = struct{}{}
+	}
+	var out []crypto.Address
+	for _, addr := range a {
+		if _, ok := in[addr]; !ok {
+			out = append(out, addr)
+		}
+	}
+	return out
 }

@@ -150,6 +150,13 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if !res.IsOK() {
 				return newCtx, res, true
 			}
+			// A frozen account may not sign anything, including through a
+			// session: signerAddr is the master either way. Checked before fees
+			// are deducted, so it cannot spend itself down on gas either.
+			if fa, ok := signerAccs[i].(std.AccountFreezer); ok && fa.IsFrozen() {
+				return newCtx, abciResult(std.ErrUnauthorized(
+					fmt.Sprintf("account %s is frozen", signerAddr))), true
+			}
 
 			if !stdSigs[i].SessionAddr.IsZero() {
 				sa := ak.GetSessionAccount(newCtx, signerAddr, stdSigs[i].SessionAddr)
