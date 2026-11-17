@@ -247,10 +247,19 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
 Congratulations! You have just uploaded a pure package to the testnet. The
-testnet enables a new package a few seconds after `addpkg`; if one is refused,
-`https://gpao.latest.testnets.gno.land/status/<pkgpath>` says why. It only knows
-packages submitted since its service last restarted, so if it still reads
-`unknown` after a minute, ask on [Discord](https://discord.com/invite/gnoland).
+testnet enables a new package a few seconds after `addpkg`. To see where it
+stands:
+
+```sh
+gnokey query vm/qpkgmeta_json \
+  -data "gno.land/p/examplenamespace/hello_world" \
+  -remote "https://rpc.latest.testnets.gno.land:443"
+```
+
+It reads `"status":"live"` once the package is enabled, `"inert"` until then,
+and `"absent"` if nothing landed at that path. A package the approver refused
+still reads "waiting for a package approver to enable it", so if it is still
+inert after a minute, ask on [Discord](https://discord.com/invite/gnoland).
 If you wish to deploy to a different network, find the list of all network
 configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
 
