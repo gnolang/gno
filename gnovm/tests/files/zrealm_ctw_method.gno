@@ -4,8 +4,6 @@ package ctw_method
 
 import "gno.land/r/tests/vm/ctw"
 
-
-
 func main(cur realm) {
 	ctw.Saved.Inc()
 }

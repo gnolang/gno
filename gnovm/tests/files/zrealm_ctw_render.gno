@@ -4,8 +4,6 @@ package ctw_render
 
 import "gno.land/r/tests/vm/ctw"
 
-
-
 func main(cur realm) {
 	println(ctw.Render(""))
 }

@@ -5,8 +5,6 @@ package ctw_pending
 
 import "gno.land/r/tests/vm/ctw"
 
-
-
 func main(cur realm) {
 	ctw.StartX(cross(cur))
 	ctw.IncPending()

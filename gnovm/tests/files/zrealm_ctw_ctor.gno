@@ -5,8 +5,6 @@ package ctw_ctor
 
 import "gno.land/r/tests/vm/ctw"
 
-
-
 func main(cur realm) {
 	l := ctw.NewLocal(5)
 	println(l.N)

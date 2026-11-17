@@ -4,8 +4,6 @@ package ctw_bump
 
 import "gno.land/r/tests/vm/ctw"
 
-
-
 func main(cur realm) {
 	ctw.Bump()
 }

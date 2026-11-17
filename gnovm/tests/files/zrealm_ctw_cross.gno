@@ -4,8 +4,6 @@ package ctw_cross
 
 import "gno.land/r/tests/vm/ctw"
 
-
-
 func main(cur realm) {
 	ctw.Add(cross(cur), 2)
 	println(ctw.Count, ctw.Saved.N)
