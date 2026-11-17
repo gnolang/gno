@@ -196,7 +196,7 @@ cross-realm in-place /p/ arithmetic work (#5736).
     borrow to the realm context that was active when the closure was
     *constructed* (and will be stored if persisted).
 
-Borrow rule #3 is superseded by prxxxx_explicit_entry.md.
+Borrow rule #3 is superseded by pr6495_cross_to_write.md.
 
 In other words, what storage realm context a /p/ declared closure runs on is
 determined by which realm context instantiated it, not where it ends up being
