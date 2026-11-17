@@ -1112,8 +1112,9 @@ func TestMathOpenRunBeforeTheOpener(t *testing.T) {
 	}
 }
 
-// A link title or a <...> destination is skipped whole: a parenthesis in it
-// does not hide the closer after the link, and a closer in it does not close.
+// A link title closed on its line or a <...> destination is skipped whole: a
+// parenthesis in it does not hide the closer after the link, and a closer in
+// it does not close. A title left open on its line is searched as text.
 func TestMathLinkTitlesAndPointyDestinations(t *testing.T) {
 	for _, src := range []string{
 		`$$ [a](x "(") b $$` + "\n",
@@ -1124,9 +1125,30 @@ func TestMathLinkTitlesAndPointyDestinations(t *testing.T) {
 	} {
 		assert.Equal(t, 1, strings.Count(renderMathMarkdown(t, src), "<math"), src)
 	}
+	// A title left open on its line may go on to the next: the closers after
+	// its quote still close, as on master, and one in the destination does
+	// not cut a wrapped title's link.
+	for src, n := range map[string]int{
+		`$$ [a](x "t) $$` + "\n":                                            1,
+		`\\( [a](x 't) \\)` + "\n":                                          1,
+		"$$ [a](x \"t) $$ see\nnext $$ y $$\n":                              2,
+		`Interval \\( [0,1](x 'y) \\) and` + "\nthen " + `\\( z \\)` + "\n": 2,
+	} {
+		assert.Equal(t, n, strings.Count(renderMathMarkdown(t, src), "<math"), src)
+	}
+	out := renderMathMarkdown(t, "Pay $5 [docs](/r/x 'it) now 10$ more\nand 3$ later\n")
+	assert.Contains(t, out, "now 10</annotation>")
+	out = renderMathMarkdown(t, "Pay $5 [Send](/r/demo/bank$help&func=Send \"Send\nmoney\")\n")
+	assert.NotContains(t, out, "<math")
+	assert.Contains(t, out, `<a href="/r/demo/bank$help&amp;func=Send" title="Send`+"\n"+`money">Send</a>`)
+	// Known limit: a closer inside the first line of a wrapped title closes
+	// there, and the link is lost (master keeps it).
+	out = renderMathMarkdown(t, "Pay $5 [a](x \"t$ u\nfoo\")\n")
+	assert.Contains(t, out, "5 [a](x &#34;t</annotation>")
+	assert.NotContains(t, out, "<a ")
 	// As in goldmark, a < does not end a <...> destination: the $ in it
 	// stays in the link.
-	out := renderMathMarkdown(t, "Pay $a [x](<y<z$w>) $\n")
+	out = renderMathMarkdown(t, "Pay $a [x](<y<z$w>) $\n")
 	assert.NotContains(t, out, "<math")
 	assert.Contains(t, out, `<a href="y%3Cz$w">x</a>`)
 	out = renderMathMarkdown(t, `Pay $$ [a](x "(") b $$ then`+"\nsee $$ below.\n")

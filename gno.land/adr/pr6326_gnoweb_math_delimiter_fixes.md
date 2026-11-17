@@ -36,12 +36,13 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
   `)` may follow; otherwise the brackets are text and the search goes on:
   `\\( [a,b](x \\) and [l](/r/y)` closes at the first `\\)` instead of
   hiding it until the link's `)`. A destination that may continue on the
-  next line, or holds a title or `<…>`, is still skipped to its balanced
-  `)` or the line end. A `(` left open in a destination read as no link
-  opens no link either, its destination ending at the same space, unless
-  `<` follows it (after optional spaces): a `<…>` destination may hold
-  spaces, so the outer destination is then skipped whole, as before.
-  Remembering those `(` keeps the scan linear when destinations nest.
+  next line, or holds a title or `<…>`, is still skipped to its closing `)`,
+  the line end, or a title left open on the line. A `(` left open in a
+  destination read as no link opens no link either, its destination ending
+  at the same space, unless `<` follows it (after optional spaces): a `<…>`
+  destination may hold spaces, so the outer destination is then skipped
+  whole, as before. Remembering those `(` keeps the scan linear when
+  destinations nest.
 - A search stopped at the `](` of the label the expression opened in does
   not go on to the next line: `[Send $10](…)` then `Balance: 100$` stays a
   link and text.
@@ -97,18 +98,33 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
   opener on. A run before it that goldmark gave to something else, a formula
   (`` \\(`\\) ``) or a raw HTML attribute, no longer opens a code span on
   the next line and hides its closer there.
-- A link title and a `<…>` destination are skipped as goldmark reads them:
-  a parenthesis inside neither opens nor closes (`$$ [a](x "(") b $$`), a
-  `$$` inside does not close, a `<` inside `<…>` does not end it while one
-  with no `>` on its line is no link, and the link ends at the first `)`
-  after the title. Each line remembers the `>` it last found, for all its
-  searches, so a line of `<` with no `>` is still read once.
+- A link title closed on its line and a `<…>` destination are skipped as
+  goldmark reads them: a parenthesis inside neither opens nor closes
+  (`$$ [a](x "(") b $$`), a `$$` inside does not close, a `<` inside `<…>`
+  does not end it while one with no `>` on its line is no link, and the link
+  ends at the first `)` after the title. Each line remembers the `>` it last
+  found, for all its searches, so a line of `<` with no `>` is still read
+  once.
 - Known limit, unchanged for `$`, now shared by the other closers: the
   search cache can answer "no closer" for an opener placed after a link
   destination still skipped to the line end (one without a space, or with a
-  title, that never closes on its line: `$$[0,1](x$$y$$`), leaving that math
-  as text. It never makes a formula cross a link. A destination with a space
-  and no title (`$$[0,1](x … $$y$$`) is no longer skipped.
+  closed title, that never closes on its line: `$$[0,1](x$$y$$`), leaving
+  that math as text. This limit never makes a formula cross a link. A
+  destination with a space and no title (`$$[0,1](x … $$y$$`) is no longer
+  skipped.
+- A title left open on its line may go on to the next, as goldmark reads it:
+  its destination is skipped and the search goes on in the title, so a
+  closer after the stray quote closes, as on master (`$$ [a](x "t) $$`,
+  `Pay $5 [docs](/r/x 'it) now 10$ more`), and one in the destination does
+  not cut the link (`Pay $5 [Send](/r/x$help "Send` then `money")`).
+- Known limit, new against master: the first line of a title that goes on
+  to the next is read as text. For `$`, a closer there closes, so
+  `Pay $5 [a](x "t$ u` then `foo")` loses its link, and a `](` there ends
+  the search; for every closer, a backtick there can open a code span for
+  the next line. Telling it from a stray quote would need the next line.
+- Known limit, as on master: a wrapped title's link that follows an opener
+  whose closer comes on the next line ends up inside the formula
+  (`Fee $5 [Send](/r/x$help "Send` then `money") or 10$.`).
 - Known limit: a code span is seen across the line break from the opener's
   line to the next only. One opened on the opener's line and closed on the
   next does not hide a closer that follows it on the opener's line

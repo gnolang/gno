@@ -580,16 +580,17 @@ func findClose(b []byte, ticks int, runs *tickRuns, notes *scanNotes, stopAtLabe
 }
 
 // linkEnd returns the index of the ) that ends the link destination, and
-// title, that the ( at b[o] opens, len(b) if they may end on a later line, or
-// -1 if goldmark reads no link there. A destination outside <...> ends at its
-// first space, which only a title or the ) may follow: "[a,b](x \\)" is
-// text, so a closer in it closes. Read as no link, the destination is read
-// again as text, and the ( it left open are returned as noLink, in place of
-// those passed in, which lie before them: their own destinations end at the
-// same space, so they open no link either, and need not be read a third time.
-// A ( followed by <...> could open one: the destination is then skipped whole.
-// A title, or a destination in <...>, is skipped whole too: a parenthesis in
-// it neither opens nor closes anything.
+// title, that the ( at b[o] opens, len(b) if they may end on a later line, the
+// index of a title left open on the line, or -1 if goldmark reads no link
+// there. A destination outside <...> ends at its first space, which only a
+// title or the ) may follow: "[a,b](x \\)" is text, so a closer in it closes.
+// Read as no link, the destination is read again as text, and the ( it left
+// open are returned as noLink, in place of those passed in, which lie before
+// them: their own destinations end at the same space, so they open no link
+// either, and need not be read a third time. A ( followed by <...> could open
+// one: the destination is then skipped whole. A title closed on its line, or a
+// destination in <...>, is skipped whole too: a parenthesis in it neither
+// opens nor closes anything.
 func linkEnd(b []byte, o int, noLink []int, gt *pointyMemo) (int, []int) {
 	i := o + 1 + util.TrimLeftSpaceLength(b[o+1:])
 	if i < len(b) && b[i] == '<' {
@@ -616,14 +617,8 @@ func linkEnd(b []byte, o int, noLink []int, gt *pointyMemo) (int, []int) {
 			}
 			noLink = noLink[:len(noLink)-1]
 		case util.IsSpace(c):
-			j := i + util.TrimLeftSpaceLength(b[i:])
-			switch {
-			case j == len(b) || b[j] == ')':
-				return j, noLink[:n]
-			case b[j] == '"' || b[j] == '\'' || b[j] == '(':
-				if e := linkTail(b, j); e >= 0 {
-					return e, noLink[:n]
-				}
+			if e := linkTail(b, i); e >= 0 {
+				return e, noLink[:n]
 			}
 			return -1, noLink[n:]
 		}
@@ -673,20 +668,22 @@ func pointyEnd(b []byte, i int, gt *pointyMemo) int {
 // linkTail returns the index of the ) that ends a link whose destination ends
 // before b[i]: spaces and a title may come first. As in goldmark, that is the
 // first ) after them, whatever parentheses the destination left open. It
-// returns len(b) if the link may end on a later line, or -1 if goldmark reads
-// no link.
+// returns len(b) if the link may end on a later line, the index of a title
+// left open on the line, so that the search goes on in it, or -1 if goldmark
+// reads no link.
 func linkTail(b []byte, i int) int {
 	i += util.TrimLeftSpaceLength(b[i:])
 	if i < len(b) && (b[i] == '"' || b[i] == '\'' || b[i] == '(') {
-		if i = titleEnd(b, i); i < 0 {
+		t := titleEnd(b, i)
+		if t < 0 {
 			return -1
 		}
-		i += util.TrimLeftSpaceLength(b[i:])
+		if t == len(b) {
+			return i
+		}
+		i = t + util.TrimLeftSpaceLength(b[t:])
 	}
-	switch {
-	case i == len(b):
-		return i
-	case b[i] == ')':
+	if i == len(b) || b[i] == ')' {
 		return i
 	}
 	return -1
