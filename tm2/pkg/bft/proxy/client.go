@@ -3,20 +3,14 @@ package proxy
 import (
 	"runtime"
 	"sync"
+	"time"
 
 	abcicli "github.com/gnolang/gno/tm2/pkg/bft/abci/client"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/counter"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/meminfo"
 )
-
-// maxConcurrentQueries bounds how many calls may be inside the application
-// through the read-only connection at once. Read per client rather than at
-// package init: since Go 1.25 the default GOMAXPROCS tracks the cgroup CPU limit
-// and moves when that limit does.
-func maxConcurrentQueries() int {
-	return runtime.GOMAXPROCS(0)
-}
 
 // ClientCreator creates ABCI clients for the three Tendermint connections.
 type ClientCreator interface {
@@ -56,8 +50,8 @@ func (l *localClientCreator) NewABCIClient() (abcicli.Client, error) {
 func (l *localClientCreator) LocalApp() abci.Application { return l.app }
 
 // NewReadOnlyABCIClient returns a client whose calls do not contend with
-// consensus or mempool, and do not serialise against each other: up to
-// maxConcurrentQueries of them may be inside the application at once.
+// consensus or mempool, and do not serialise against each other: as many of
+// them as newMemoryQueryLimiter admits may be inside the application at once.
 //
 // This rests on an invariant: everything reachable from Application.Query and
 // Application.Info is goroutine-safe (immutable DB snapshots, SyncGoMap
@@ -69,7 +63,7 @@ func (l *localClientCreator) LocalApp() abci.Application { return l.app }
 // to use on it. The one that cannot merely be documented is SetResponseCallback,
 // which readOnlyClient rejects.
 func (l *localClientCreator) NewReadOnlyABCIClient() (abcicli.Client, error) {
-	cli := abcicli.NewLocalClient(newQueryLimiter(maxConcurrentQueries()), l.app)
+	cli := abcicli.NewLocalClient(newMemoryQueryLimiter(meminfo.Read), l.app)
 	return readOnlyClient{Client: cli}, nil
 }
 
@@ -111,19 +105,134 @@ func (readOnlyClient) SetResponseCallback(abcicli.Callback) {
 // to 900 and is nowhere near a machine's capacity to execute 900 simultaneous
 // simulates. The limiter puts the ceiling back where it can be reasoned about.
 //
+// The bound moves between min and max with the machine's free memory, the way
+// the integration suite's nodeBudget does: a quarter of the memory is left to
+// everything else, and the limit goes up one slot while callers fill every slot
+// and the free memory covers that reserve plus queryMemMargin, down one while it
+// falls short of the reserve. The margin between the two thresholds is what
+// keeps the limit from oscillating.
+//
 // A limit of 1 makes this exactly the mutex it replaced.
 type queryLimiter struct {
-	slots chan struct{}
+	mu      sync.Mutex
+	freed   *sync.Cond // signalled on Unlock
+	running int
+	waiting int // callers blocked in Lock
+
+	// limit ratchets between min and max; see resize.
+	limit, min, max int
+	lastCheck       time.Time
+
+	readMem func() (meminfo.Info, bool)
 }
 
-func newQueryLimiter(n int) sync.Locker {
-	return &queryLimiter{slots: make(chan struct{}, max(n, 1))}
+// queryMemReadInterval paces memory readings, so that a burst of callers
+// deciding at once see one figure between them rather than each growing the
+// limit against it. It also bounds how fast the limit moves: a slot a second.
+const queryMemReadInterval = time.Second
+
+// queryMemReserveDiv leaves a quarter of the memory this process may use to
+// everything else, as nodeBudget's nodeMemReserveDiv does. It absorbs the
+// memory running queries have yet to take, which resize does not count.
+const queryMemReserveDiv = 4
+
+// queryMemMargin is the room above the reserve that a further slot needs: one
+// more query to grow into. A query's real cost is the application's business,
+// so this is a margin rather than a measurement, set well above what a typical
+// query holds.
+const queryMemMargin = 1 << 30
+
+// newQueryLimiter returns a limiter fixed at n slots, at least one.
+func newQueryLimiter(n int) *queryLimiter {
+	n = max(n, 1)
+	l := &queryLimiter{limit: n, min: n, max: n}
+	l.freed = sync.NewCond(&l.mu)
+	return l
+}
+
+// queryLimiterFloor is where the limit starts: the count CI validates, as
+// testutils' defaultMaxParallel is.
+const queryLimiterFloor = 4
+
+// newMemoryQueryLimiter returns a limiter that ramps from
+// min(GOMAXPROCS, queryLimiterFloor) towards GOMAXPROCS as readMem allows. Query
+// work is CPU-bound in the VM, so there is nothing to gain past GOMAXPROCS,
+// which is read here rather than at package init: since Go 1.25 its default
+// tracks the cgroup CPU limit and moves when that limit does.
+//
+// Where memory cannot be read the limiter is fixed at GOMAXPROCS, the bound
+// before the ramp existed: with no reading to go on, the machine's cores are
+// the only measure of what it can handle.
+func newMemoryQueryLimiter(readMem func() (meminfo.Info, bool)) *queryLimiter {
+	most := runtime.GOMAXPROCS(0)
+	floor := min(most, queryLimiterFloor)
+	if _, ok := readMem(); !ok || floor == most {
+		return newQueryLimiter(most)
+	}
+	l := newQueryLimiter(floor)
+	l.max = most
+	l.readMem = readMem
+	return l
 }
 
 // Lock blocks until a slot is free. localClient defers every Unlock, so a slot
 // is returned even when the application panics.
-func (q *queryLimiter) Lock()   { q.slots <- struct{}{} }
-func (q *queryLimiter) Unlock() { <-q.slots }
+func (q *queryLimiter) Lock() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for {
+		q.resize()
+		if q.running < q.limit {
+			q.running++
+			return
+		}
+		q.waiting++
+		q.freed.Wait()
+		q.waiting--
+	}
+}
+
+func (q *queryLimiter) Unlock() {
+	q.mu.Lock()
+	q.running--
+	q.mu.Unlock()
+	q.freed.Signal()
+}
+
+// resize moves the limit one step towards what the machine can take. Called
+// with q.mu held, from Lock only: a slot that a grown limit adds goes to the
+// caller that grew it or to a waiter it wakes, and a limit that shrinks takes
+// effect as running queries return.
+//
+// Unlike nodeBudget it does not count memory a running query has yet to take;
+// the reserve absorbs that overshoot.
+func (q *queryLimiter) resize() {
+	now := time.Now()
+	if q.readMem == nil || now.Sub(q.lastCheck) < queryMemReadInterval {
+		return
+	}
+	// Paced whether or not the reading succeeds, so a failing one never puts
+	// file reads on every query.
+	q.lastCheck = now
+	mi, ok := q.readMem()
+	if !ok {
+		return
+	}
+	reserve := mi.Total / queryMemReserveDiv
+	switch {
+	case mi.Available < reserve && q.limit > q.min:
+		q.limit--
+	case mi.Available >= reserve+queryMemMargin && q.limit < q.max && q.running+q.waiting >= q.limit:
+		// Only when the current limit is saturated: raising it while slots sit
+		// free buys nothing. Callers waiting for a slot count, since the reading
+		// after an Unlock lands in the waiter it woke, which always finds a slot
+		// free.
+		q.limit++
+		// The caller may be taking the slot Unlock freed, which leaves the new
+		// one to a waiter.
+		q.freed.Signal()
+	}
+}
 
 //-----------------------------------------------------------------
 // DefaultClientCreator

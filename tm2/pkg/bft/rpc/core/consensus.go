@@ -23,7 +23,7 @@ func (env *Environment) Validators(ctx *rpctypes.Context, heightPtr *int64) (*ct
 		return nil, err
 	}
 
-	validators, err := sm.LoadValidators(env.StateDB, height)
+	validators, err := env.validators.LoadValidators(env.StateDB, height)
 	if err != nil {
 		return nil, err
 	}

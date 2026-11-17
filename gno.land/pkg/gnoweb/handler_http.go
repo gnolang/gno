@@ -33,6 +33,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -470,7 +471,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// Looked up only once State.Handle returns a view: json, fragment
 		// and rate-limited answers render no header, so they pay for none.
 		indexData.HeaderData.Breadcrumb.Counterpart = h.startCounterpart(r.Context(), gnourl)()
-		scrubHeaderOnError(&indexData, status)
+		settleHeader(&indexData, status)
 		indexData.BodyView = view
 		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
@@ -516,7 +517,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// finalRobots keeps a page that asked for less at noindex, nofollow.
 		w.Header().Set("X-Robots-Tag", noIndexNoFollow.String())
 		w.Header().Set("Cache-Control", "max-age=5")
-		scrubHeaderOnError(&indexData, status)
+		settleHeader(&indexData, status)
 		indexData.BodyView = view
 		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
@@ -548,7 +549,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
-	scrubHeaderOnError(&indexData, status)
+	settleHeader(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
@@ -1235,6 +1236,15 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	selArgs := make(map[string]string)
 	selFn := gnourl.WebQuery.Get("func")
 	selSend := gnourl.WebQuery.Get(".send")
+	// The send value is printed into the gnokey command the page offers to
+	// copy, so only a coin list gnokey would parse is kept, in canonical form:
+	// ParseCoins accepts whitespace, newlines included, that the copy button
+	// would otherwise split the command on.
+	if coins, err := std.ParseCoins(selSend); err != nil {
+		selSend = ""
+	} else {
+		selSend = coins.String()
+	}
 	if selFn != "" {
 		for _, fn := range fsigs {
 			if selFn != fn.Name {
@@ -1786,15 +1796,22 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 	}
 }
 
-// scrubHeaderOnError keeps an error page's header from vouching for the
+// settleHeader sets what only the page's outcome tells. PackagePath names the
+// package a page shows, and an error page's header stops vouching for the
 // request. The Ask AI menu is dropped, as its prompts would send the assistant
 // to views that do not exist: the menu is built from HeaderData.Origin at
 // render time, and nothing else in the header reads it. The file web-query
 // value is dropped too, so a name the package does not hold is not echoed
 // back through the Source tab, which otherwise carries the open file, and so
 // are a playground copy's tabs, for a package that could not be copied.
-func scrubHeaderOnError(indexData *components.IndexData, status int) {
+func settleHeader(indexData *components.IndexData, status int) {
 	if status == http.StatusOK {
+		// Only the page's status and mode tell a package from a listing or a
+		// 404 at the same URL, and an alias keeps its search chain-wide.
+		u := &indexData.HeaderData.RealmURL
+		if indexData.Mode != components.ViewModeExplorer && indexData.SearchBase == "" && (u.IsRealm() || u.IsPure()) {
+			indexData.HeaderData.PackagePath = u.Path
+		}
 		return
 	}
 	indexData.HeaderData.Origin = ""
