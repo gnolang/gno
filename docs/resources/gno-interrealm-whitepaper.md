@@ -62,27 +62,37 @@ change what is inside.
 ## 4. The rules
 
 **R1. Every object belongs to one realm:** the realm that declares its type, or
-else the realm whose code was running when it was created. Libraries own no
-changeable objects.
+else the realm whose code was running when it was created. Only the declaring
+realm's code may build a value of its type (a composite literal elsewhere
+aborts the transaction). An object a run script creates has no owner until a
+realm stores it, and then belongs to that realm. Libraries own no stored
+objects; a standard-library package may keep state for the rest of a
+transaction (`math/rand`'s global source), which any code can advance.
 
 **R2. Reading needs no gate.** Any code may read any object it can reach.
 
 **R3. A realm's state changes only during a crossing call into it.**
 
-**R4. Inside that call, code acts for the realm if the realm's source names it:**
-the realm's own functions and methods, and library functions and methods it
-calls by name or through types from packages it imports. Code someone else
-handed in — a function value, a closure, a method value, an implementation of
-an interface from a package the realm does not import — acts for nobody and
-can change nothing.
+**R4. Inside that call, code acts for the realm if the realm's source names it
+at the call site:** the realm's own functions and methods, library functions
+and methods it calls by name, and methods of types from packages it imports.
+A function value acts for nobody and can change nothing — a closure or
+function someone handed in, an implementation of an interface from a package
+the realm does not import, and also a library function or method expression
+the realm itself put in a variable (`f := lib.Bump; f(x)` is refused; call
+`lib.Bump(x)`).
 
 **R5. A realm's code reached any other way is read-only.** Called by another
 realm, a run script or a library without crossing, it may read, build new
 objects and change the temporaries it builds; it changes no stored object.
+Its code is a wall for panics: a refused write, or any panic beneath it,
+aborts the transaction instead of returning to the caller's `recover`.
 
 **R6. Identity comes only from crossing.** In a crossing function, `cur` is the
 realm and `cur.Previous()` is whoever came through the gate. That is the one
-check a realm needs.
+check a realm needs. The current `cur` is a capability: code holding it can
+cross with the realm's identity (`f(cross(rlm))`) and spend its coins, so
+never pass `cur` to code you did not write.
 
 A refused write says which gate to use:
 
@@ -163,7 +173,8 @@ p := x.NewPtr(); p.Inc()          // refused: x's object (R1, R4)
 ## 6. Writing a realm
 
 - Every function that changes state takes `cur realm` first and checks
-  `cur.Previous()` if not everyone may call it.
+  `cur.Previous()` if not everyone may call it. Never hand `cur` to code you
+  did not write.
 - A crossing method runs as its realm for anyone who holds the object: check
   `cur.Previous()` there too.
 - Return values for callers to keep; return pointers only as read-only views.
