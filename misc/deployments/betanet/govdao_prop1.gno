@@ -33,11 +33,10 @@ import (
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
 func main(cur realm) {
-	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add temporary deployer as sole T1 member ----
 	// This gives the deployer 100% supermajority so proposals pass.
-	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, genesisDeployerAddr, &memberstore.Member{InvitationPoints: 0}))
 
 	// ---- 2. Register the initial validator set via governance proposal ----
 	// 7 validators — BFT >2/3 threshold (floor(2n/3)+1) means 5 nodes must be up for consensus.
@@ -107,10 +106,10 @@ func main(cur realm) {
 	// Temporarily manfred (moul) is the sole govDAO member. He will manually
 	// craft and execute proposals to onboard validators and additional members
 	// until the DAO is large enough for real multi-party governance.
-	must(ms.SetMember(memberstore.T1, address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), &memberstore.Member{InvitationPoints: 3})) // moul
+	must(memberstore.SetMember(cross(cur), memberstore.T1, address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), &memberstore.Member{InvitationPoints: 3})) // moul
 
 	// ---- 6. Remove the genesis deployer ----
-	ms.RemoveMember(genesisDeployerAddr)
+	memberstore.RemoveMember(cross(cur), genesisDeployerAddr)
 
 	// ---- 7. Lock down memberstore access ----
 	// From this point on, only gno.land/r/gov/dao/impl/v0 can call

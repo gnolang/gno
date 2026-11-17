@@ -13,7 +13,7 @@ func Init(cur realm) {
 
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	memberstore.Get(0, cur).DeleteAll()
+	memberstore.DeleteAll(cross(cur))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 
@@ -22,13 +22,13 @@ func InitWithUsers(cur realm, addrs ...address) {
 
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	memberstore.Get(0, cur).DeleteAll()
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
 	for _, a := range addrs {
 		if !a.IsValid() {
 			panic("invalid address: " + a.String())
 		}
-		memberstore.Get(0, cur).SetMember(memberstore.T1, a, memberstore.NewMember(3))
+		memberstore.SetMember(cross(cur), memberstore.T1, a, memberstore.NewMember(3))
 	}
 
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))

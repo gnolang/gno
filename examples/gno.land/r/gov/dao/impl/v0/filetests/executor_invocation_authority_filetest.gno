@@ -27,9 +27,8 @@ package execauthority
 //
 // Sections 2, 3 and 6 are the inversion: the forgery is now refused, the two
 // frames are no longer comparable, and the proxy identity is not mintable.
-// Section 5 keeps SafeExecutor characterized — it remains dead code that
-// cannot be wired as written, since its allowlist holds the impl path while
-// an executor's caller is the proxy.
+// Section 5 shows SafeExecutor now wired: impl crosses into the executor, so
+// the executor's caller is the impl path its allowlist holds.
 
 import (
 	"chain"
@@ -68,9 +67,9 @@ func probe(cur realm) error {
 }
 
 func init(cur realm) {
-	memberstore.Get(0, cur).DeleteAll()
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetMember(memberstore.T1, member, memberstore.NewMember(3))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetMember(cross(cur), memberstore.T1, member, memberstore.NewMember(3))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(
 		impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
@@ -120,11 +119,8 @@ func main(cur realm) {
 	_, missing := dao.GetProposal(pid + 1)
 	println("no proposal was created for the forged execution:", missing != nil)
 
-	// 5. SafeExecutor still cannot be wired as written: allowedDAOs holds the
-	// impl path, while an executor's caller is the proxy path, so its check
-	// rejects the APPROVED path. It remains dead code; the gate that works
-	// lives in SimpleExecutor.Execute and keys on the proxy, not on
-	// InAllowedDAOs.
+	// 5. SafeExecutor admits the approved path: allowedDAOs holds the impl
+	// path, and impl's crossing ExecuteProposal is now the executor's caller.
 	println("InAllowedDAOs(proxy path):", dao.InAllowedDAOs("gno.land/r/gov/dao"))
 	println("allowedDAOs holds instead:", dao.AllowedDAOs()[0])
 
@@ -135,10 +131,10 @@ func main(cur realm) {
 		"safe", "same approved path, wrapped in SafeExecutor",
 		dao.NewSafeExecutor(dao.NewSimpleExecutor(0, cur, probe, ""))))
 	dao.MustVoteOnProposal(cross(cur), dao.NewVoteRequest(dao.YesVote, spid))
-	println("SafeExecutor rejects the approved path:", !dao.ExecuteOrRejectProposal(cross(cur), spid))
-	println("and its callback never ran:", !seen.ran)
-	println("denial reason names the allowlist:",
-		strings.Contains(dao.Render(cross(cur), spid.String()), "execution only allowed by validated govDAOs"))
+	println("SafeExecutor admits the approved path:", dao.ExecuteOrRejectProposal(cross(cur), spid))
+	println("and its callback ran:", seen.ran)
+	println("no allowlist denial:",
+		!strings.Contains(dao.Render(cross(cur), spid.String()), "execution only allowed by validated govDAOs"))
 
 	// 6. The reachability precondition is now closed at the primitive. A
 	// realm-authored callback is stuck with its own current realm (the one
@@ -156,7 +152,7 @@ func main(cur realm) {
 	// which the forgery does not control -- but the attempt is now refused one
 	// layer earlier, at Execute, so the abort below never happens.
 	e := dao.NewSimpleExecutor(0, cur, func(cur realm) error {
-		memberstore.Get(0, cur).SetMember(memberstore.T1, outside, memberstore.NewMember(3))
+		memberstore.SetMember(cross(cur), memberstore.T1, outside, memberstore.NewMember(3))
 		return nil
 	}, "")
 	println("member-store escalation refused at Execute:", e.Execute(cross(cur)) != nil)
@@ -176,9 +172,9 @@ func main(cur realm) {
 // no proposal was created for the forged execution: true
 // InAllowedDAOs(proxy path): false
 // allowedDAOs holds instead: gno.land/r/gov/dao/impl/v0
-// SafeExecutor rejects the approved path: true
-// and its callback never ran: true
-// denial reason names the allowlist: true
+// SafeExecutor admits the approved path: true
+// and its callback ran: true
+// no allowlist denial: true
 // forged Execute refused again: true
 // no proxy identity was borrowed: true
 // member-store escalation refused at Execute: true

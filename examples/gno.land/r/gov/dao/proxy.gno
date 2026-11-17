@@ -67,7 +67,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	if dao == nil {
 		return -1, errors.New("DAO not initialized")
 	}
-	author, err := dao.PreCreateProposal(0, cur, r)
+	author, err := dao.PreCreateProposal(cross(cur), r)
 	if err != nil {
 		return -1, err
 	}
@@ -81,7 +81,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(0, cur, r, pid)
+	dao.PostCreateProposal(cross(cur), r, pid)
 
 	chain.Emit("ProposalCreated",
 		"id", strconv.FormatInt(int64(pid), 10),
@@ -103,7 +103,7 @@ func VoteOnProposal(cur realm, r VoteRequest) error {
 	if dao == nil {
 		return errors.New("DAO not initialized")
 	}
-	return dao.VoteOnProposal(0, cur, r)
+	return dao.VoteOnProposal(cross(cur), r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
@@ -244,7 +244,7 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 	if dao == nil {
 		return false
 	}
-	execute, err := dao.PreExecuteProposal(0, cur, pid)
+	execute, err := dao.PreExecuteProposal(cross(cur), pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -257,7 +257,7 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 		panic(err.Error())
 	}
 
-	err = dao.ExecuteProposal(0, cur, pid, prop.executor)
+	err = dao.ExecuteProposal(cross(cur), pid, prop.executor)
 	if err != nil {
 		if execErrorRejects {
 			return false

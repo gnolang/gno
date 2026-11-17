@@ -224,3 +224,48 @@ func GetTierPower(tierName string, members MembersByTier) float64 {
 	}
 	return tier.PowerHandler(members, tiers)
 }
+
+// Writers. A realm changes the member store only through these crossing
+// functions; the caller is the realm that crossed in, and it must be an
+// allowed DAO.
+
+func mustAllow(cur realm) {
+	caller := cur.Previous().PkgPath()
+	if !dao.InAllowedDAOs(caller) {
+		panic("this Realm is not allowed to change the Members data: " + caller)
+	}
+}
+
+// DeleteAll removes every tier and member.
+func DeleteAll(cur realm) {
+	mustAllow(cur)
+	members.DeleteAll()
+}
+
+// SetTier adds an empty tier.
+func SetTier(cur realm, tier string) error {
+	mustAllow(cur)
+	return members.SetTier(tier)
+}
+
+// SetMember adds addr to tier.
+func SetMember(cur realm, tier string, addr address, m *Member) error {
+	mustAllow(cur)
+	return members.SetMember(tier, addr, m)
+}
+
+// RemoveMember removes addr from whichever tier holds it.
+func RemoveMember(cur realm, addr address) string {
+	mustAllow(cur)
+	return members.RemoveMember(addr)
+}
+
+// RemoveInvitationPoint spends one of addr's invitation points.
+func RemoveInvitationPoint(cur realm, addr address) {
+	mustAllow(cur)
+	m, _ := members.GetMember(addr)
+	if m == nil {
+		panic("not a member: " + addr.String())
+	}
+	m.RemoveInvitationPoint()
+}

@@ -96,7 +96,8 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
+	proposer := unsafe.OriginCaller()
+	member, _ := memberstore.Get(0, cur).GetMember(proposer)
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -118,10 +119,10 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		// above: it panics at zero, and AddMember spends points from this same
 		// captured member, so a proposer can drain their own between creation
 		// and execution. That panics and reverts, which loses nothing.
-		if err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier)); err != nil {
+		if err := memberstore.SetMember(cross(cur), tier, addr, memberByTier(tier)); err != nil {
 			return err
 		}
-		member.RemoveInvitationPoint()
+		memberstore.RemoveInvitationPoint(cross(cur), proposer)
 
 		return nil
 	}
@@ -149,7 +150,7 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 	}
 
 	cb := func(cur realm) error {
-		memberstore.Get(0, cur).RemoveMember(addr)
+		memberstore.RemoveMember(cross(cur), addr)
 		return nil
 	}
 

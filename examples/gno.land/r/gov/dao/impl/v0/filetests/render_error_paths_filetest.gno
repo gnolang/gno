@@ -22,9 +22,9 @@ import (
 const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 func init(cur realm) {
-	memberstore.Get(0, cur).DeleteAll()
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetMember(cross(cur), memberstore.T1, user, memberstore.NewMember(3))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
 }
 

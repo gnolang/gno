@@ -46,7 +46,7 @@ import (
 const txAddr = address("${TX_ADDRESS}")
 
 func main(cur realm) {
-	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	// Proposal 1: remove val1 — individually valid.
 	r1 := valr.NewPropRequest(cross(cur), 

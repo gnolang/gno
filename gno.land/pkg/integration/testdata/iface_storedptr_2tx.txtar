@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-	pfuncvictim.StoreRunner(&ifaceattack.EvilS{})
+	pfuncvictim.StoreRunner(cross(cur), &ifaceattack.EvilS{})
 	println("stored")
 }
 
@@ -34,7 +34,7 @@ package main
 import "gno.land/r/tests/vm/pfuncvictim"
 
 func main() {
-	pfuncvictim.UseStored()
+	pfuncvictim.UseStored(cross(cur))
 	println("victim:", pfuncvictim.Read())
 }
 

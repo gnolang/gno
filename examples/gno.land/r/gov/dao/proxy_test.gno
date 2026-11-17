@@ -115,22 +115,22 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 type dummyDao struct{}
 
-func (dd *dummyDao) PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error) {
+func (dd *dummyDao) PreCreateProposal(cur realm, r ProposalRequest) (address, error) {
 	return unsafe.OriginCaller(), nil
 }
 
-func (dd *dummyDao) PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID) {
+func (dd *dummyDao) PostCreateProposal(cur realm, r ProposalRequest, pid ProposalID) {
 }
 
-func (dd *dummyDao) VoteOnProposal(_ int, rlm realm, r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(cur realm, r VoteRequest) error {
 	return nil
 }
 
-func (dd *dummyDao) PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error) {
+func (dd *dummyDao) PreExecuteProposal(cur realm, pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error {
+func (dd *dummyDao) ExecuteProposal(cur realm, pid ProposalID, e Executor) error {
 	return nil
 }
 

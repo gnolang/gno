@@ -56,7 +56,7 @@ func main(cur realm) {
 
 	// The scenario genesis leaves allowedDAOs empty, so the local transaction
 	// key can bootstrap itself as a GovDAO T1 member for this proposal.
-	must(memberstore.Get(0, cur).SetMember(memberstore.T1, txAddr, memberstore.NewMember(0)))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	r := valr.NewValidatorProposalRequest(cross(cur),
 		[]valr.ValoperChange{

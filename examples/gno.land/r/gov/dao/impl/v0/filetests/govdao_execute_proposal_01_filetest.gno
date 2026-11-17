@@ -21,9 +21,9 @@ var (
 
 func init(cur realm) {
 	// Initialize GovDAO members
-	memberstore.Get(0, cur).DeleteAll()
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetMember(cross(cur), memberstore.T1, user, memberstore.NewMember(3))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
 
 	// Create a dummy executor
@@ -39,7 +39,7 @@ func init(cur realm) {
 	renderPath = strconv.FormatUint(uint64(proposalID), 10)
 
 	// Register proposal with the local GovDAO instance
-	govdao.PostCreateProposal(0, cur, request, proposalID)
+	govdao.PostCreateProposal(cross(cur), request, proposalID)
 }
 
 func main(cur realm) {
@@ -51,7 +51,7 @@ func main(cur realm) {
 	// proxy explicitly rather than exercising a route no transaction takes.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao"))
 
-	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
+	err := govdao.ExecuteProposal(cross(cur), proposalID, executor)
 
 	println(err == nil)
 	println()

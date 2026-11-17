@@ -19,7 +19,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	// Try to execute a proposal that doesn't exist
-	govdao.ExecuteProposal(0, cur, 404, executor)
+	govdao.ExecuteProposal(cross(cur), 404, executor)
 }
 
 // Error:
