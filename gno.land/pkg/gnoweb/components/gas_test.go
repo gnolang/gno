@@ -61,18 +61,41 @@ func TestNewTxGas(t *testing.T) {
 			t.Errorf("%s: price %v, want the fallback", name, got.Price)
 		}
 	}
+
+	// A fee capped at 1 GNOT says so, as it no longer covers a rise times 3;
+	// one that lands on 1 GNOT exactly still does.
+	for p, capped := range map[std.GasPrice]bool{
+		price(1, 30, "ugnot"): false, price(1, 29, "ugnot"): true, price(100, 1000, "ugnot"): true, price(1, 1000, "ugnot"): false,
+	} {
+		if got := NewTxGas(p, GasUse{}); got.Secure.Capped != capped || got.Fast.Capped != capped {
+			t.Errorf("NewTxGas(%v) = %+v, want capped %v", p, got, capped)
+		}
+	}
+
+	// A price read but too high is kept for the note; an unusable one is not.
+	for p, tooHigh := range map[std.GasPrice]std.GasPrice{
+		price(101, 1000, "ugnot"): price(101, 1000, "ugnot"), price(math.MaxInt64, 1, "ugnot"): price(math.MaxInt64, 1, "ugnot"),
+		{}: {}, price(0, 1000, "ugnot"): {}, price(1, 1000, "u gnot"): {}, price(1, 1000, "ugnot"): {},
+	} {
+		if got := NewTxGas(p, GasUse{}); got.TooHigh != tooHigh {
+			t.Errorf("NewTxGas(%v).TooHigh = %v, want %v", p, got.TooHigh, tooHigh)
+		}
+	}
 }
 
 // Recent calls size the gas at twice the most one used, rounded up to 100 k,
 // at least 1 M and at most what 1 GNOT pays for, up to 1,000 M: the fast-mode
-// gas below or above TxGasWanted, the secure-mode gas above it only, as it
-// does not simulate. Too few calls, or a size of TxGasWanted, keep it and say
-// nothing about them.
+// gas below or above TxGasWanted, the secure-mode gas above it only, as
+// running short there means signing again. Too few calls only keep it from
+// being lowered; a size of TxGasWanted keeps it and says nothing about them.
 func TestNewTxGasFromUse(t *testing.T) {
 	t.Parallel()
 
 	use := func(most int64, calls int) GasUse { return GasUse{Max: most, Calls: calls} }
 	ugnot := func(wanted, fee int64) GasFee { return GasFee{Wanted: wanted, Fee: std.NewCoin("ugnot", fee)} }
+	capped := func(wanted int64) GasFee {
+		return GasFee{Wanted: wanted, Fee: std.NewCoin("ugnot", 1_000_000), Capped: true}
+	}
 	base := ugnot(TxGasWanted, 30_000)
 	for name, tc := range map[string]struct {
 		use          GasUse
@@ -89,8 +112,11 @@ func TestNewTxGasFromUse(t *testing.T) {
 		// A GovDAO vote on mainnet, valopers.Register on onyx.
 		"raises both":    {use(18_800_000, 13), ugnot(37_600_000, 112_800), ugnot(37_600_000, 112_800), true},
 		"raises further": {use(83_000_000, 20), ugnot(166_000_000, 498_000), ugnot(166_000_000, 498_000), true},
+		// Two GovDAO votes on onyx: too few to lower, but a raise needs no more.
+		"too few, raises": {use(16_920_000, 2), ugnot(33_900_000, 101_700), ugnot(33_900_000, 101_700), true},
 		// At most the old hardcoded gas and fee, whatever the indexer says.
-		"at the old gas": {use(math.MaxInt64, 20), ugnot(1_000_000_000, 1_000_000), ugnot(1_000_000_000, 1_000_000), true},
+		"at the old gas": {use(math.MaxInt64, 20), capped(1_000_000_000), capped(1_000_000_000), true},
+		"capped":         {use(200_000_000, 20), capped(400_000_000), capped(400_000_000), true},
 	} {
 		want := TxGas{Secure: tc.secure, Fast: tc.fast, Price: FallbackGasPrice}
 		if tc.used {
@@ -119,7 +145,7 @@ func TestNewTxGasFromUse(t *testing.T) {
 	// A price whose gas alone costs more than 1 GNOT falls back for both
 	// modes, so a page shows one price and no fee above the secure one.
 	steep := std.GasPrice{Gas: 9, Price: std.NewCoin("ugnot", 1)}
-	want := TxGas{Secure: base, Fast: ugnot(2_800_000, 8_400), Price: FallbackGasPrice, Estimated: true, Used: use(1_380_000, 3)}
+	want := TxGas{Secure: base, Fast: ugnot(2_800_000, 8_400), Price: FallbackGasPrice, Estimated: true, TooHigh: steep, Used: use(1_380_000, 3)}
 	if got := NewTxGas(steep, use(1_380_000, 3)); got != want {
 		t.Errorf("steep price: %+v, want %+v", got, want)
 	}

@@ -40,7 +40,7 @@ const TxGasWanted = 10_000_000
 const txFeeHeadroom = 3
 
 // Headroom is the factor the fee is multiplied by over the current price.
-func (g TxGas) Headroom() int { return txFeeHeadroom }
+func (g GasFee) Headroom() int { return txFeeHeadroom }
 
 // maxUgnotFee is the old hardcoded fee, 1 GNOT. A fee is capped at it, and a
 // price whose gas alone costs more is unusable.
@@ -60,7 +60,8 @@ const minTxGasWanted = 1_000_000
 // gasWantedStep is what gas sized from recent calls is rounded up to.
 const gasWantedStep = 100_000
 
-// minGasUseCalls is how many recent calls it takes to size the gas from them.
+// minGasUseCalls is how many recent calls it takes to lower the gas from
+// them. A raise needs one: a costly call among 20 sets the max anyway.
 const minGasUseCalls = 3
 
 // GasUse is what a function's recent successful calls used, as an indexer
@@ -74,14 +75,16 @@ type GasUse struct {
 type GasFee struct {
 	Wanted int64
 	Fee    std.Coin
+	// Capped is set when Fee is maxUgnotFee, short of the headroom.
+	Capped bool
 }
 
 // TxGas is the gas and fee the copied gnokey commands offer, and the price
 // the fees were worked out from.
 type TxGas struct {
 	// Secure is what the secure-mode commands offer: TxGasWanted, or more
-	// when Used asks for more. They broadcast without simulating, so they
-	// never ask for less.
+	// when Used asks for more. Running short there means signing again, so
+	// they never ask for less.
 	Secure GasFee
 	// Fast is what the fast-mode command offers: Secure, or less when Used
 	// sized it. gnokey simulates it first, so too little gas costs nothing.
@@ -89,6 +92,9 @@ type TxGas struct {
 	Price std.GasPrice
 	// Estimated is set when Price is FallbackGasPrice, not the chain's.
 	Estimated bool
+	// TooHigh is the chain's ugnot price when it was read but its gas
+	// alone costs more than maxUgnotFee, zero otherwise.
+	TooHigh std.GasPrice
 	// Used is what the gas was sized from, zero when it is TxGasWanted.
 	Used GasUse
 }
@@ -96,20 +102,22 @@ type TxGas struct {
 // NewTxGas prices TxGasWanted at price times txFeeHeadroom, rounded up and
 // capped at maxUgnotFee; a zero, invalid or overflowing price, or one whose
 // gas alone costs more than maxUgnotFee, falls back to FallbackGasPrice.
-// With minGasUseCalls recent calls or more, the commands ask for twice the
-// most gas one used, rounded up to gasWantedStep, at least minTxGasWanted and
-// at most what maxUgnotFee pays for, up to maxTxGasWanted: the fast-mode one
-// for less or more than TxGasWanted, the secure-mode ones for more only.
+// Recent calls size the commands at twice the most gas one used, rounded up
+// to gasWantedStep, at least minTxGasWanted and at most what maxUgnotFee pays
+// for, up to maxTxGasWanted: the fast-mode one for more than TxGasWanted, or
+// for less with minGasUseCalls calls, the secure-mode ones for more only.
 func NewTxGas(price std.GasPrice, use GasUse) TxGas {
 	g := TxGas{Price: price}
 	fee, ok := txFee(price, TxGasWanted)
 	if !ok {
+		if price.Price.Denom == "ugnot" && price.Gas > 0 && price.Price.Amount > 0 {
+			g.TooHigh = price
+		}
 		fee, _ = txFee(FallbackGasPrice, TxGasWanted)
 		g.Price, g.Estimated = FallbackGasPrice, true
 	}
-	g.Secure = GasFee{Wanted: TxGasWanted, Fee: fee}
-	g.Fast = g.Secure
-	if use.Calls < minGasUseCalls {
+	g.Secure, g.Fast = fee, fee
+	if use.Calls == 0 {
 		return g
 	}
 	// Indexer data is not consensus data. Lowering the gas costs nothing to
@@ -122,11 +130,10 @@ func NewTxGas(price std.GasPrice, use GasUse) TxGas {
 	}
 	fee, _ = txFee(g.Price, w) // w is within what maxUgnotFee pays for
 	switch {
-	case w < TxGasWanted:
-		g.Fast, g.Used = GasFee{Wanted: w, Fee: fee}, use
+	case w < TxGasWanted && use.Calls >= minGasUseCalls:
+		g.Fast, g.Used = fee, use
 	case w > TxGasWanted:
-		g.Secure, g.Used = GasFee{Wanted: w, Fee: fee}, use
-		g.Fast = g.Secure
+		g.Secure, g.Fast, g.Used = fee, fee, use
 	}
 	return g
 }
@@ -150,9 +157,9 @@ func maxWanted(p std.GasPrice) int64 {
 // maxUgnotFee. It reports false when the price is unusable for wanted: zero,
 // invalid, overflowing, or, in ugnot, asking more than maxUgnotFee for the
 // gas alone.
-func txFee(p std.GasPrice, wanted int64) (std.Coin, bool) {
+func txFee(p std.GasPrice, wanted int64) (GasFee, bool) {
 	if p.Gas <= 0 || p.Price.Amount <= 0 || !p.Price.IsValid() {
-		return std.Coin{}, false
+		return GasFee{}, false
 	}
 	den := big.NewInt(p.Gas)
 	ceilTimes := func(k int64) *big.Int { // ceil(wanted × amount × k / gas)
@@ -162,17 +169,17 @@ func txFee(p std.GasPrice, wanted int64) (std.Coin, bool) {
 	}
 	fee := ceilTimes(txFeeHeadroom)
 	if !fee.IsInt64() {
-		return std.Coin{}, false
+		return GasFee{}, false
 	}
 	if p.Price.Denom == "ugnot" && fee.Int64() > maxUgnotFee {
 		// Capped: the headroom shrinks, but the fee still pays the gas at
 		// the price read.
 		if ceilTimes(1).Cmp(big.NewInt(maxUgnotFee)) > 0 {
-			return std.Coin{}, false
+			return GasFee{}, false
 		}
-		return std.NewCoin(p.Price.Denom, maxUgnotFee), true
+		return GasFee{Wanted: wanted, Fee: std.NewCoin(p.Price.Denom, maxUgnotFee), Capped: true}, true
 	}
-	return std.NewCoin(p.Price.Denom, fee.Int64()), true
+	return GasFee{Wanted: wanted, Fee: std.NewCoin(p.Price.Denom, fee.Int64())}, true
 }
 
 // WantedFlag is the -gas-wanted value, grouped like Go literals: 10_000_000.

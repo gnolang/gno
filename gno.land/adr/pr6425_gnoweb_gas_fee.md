@@ -8,9 +8,9 @@ The gnokey commands gnoweb offers for copy-paste (the Actions page and the
 gas it used. The gas price is not a constant: tm2 moves it every block and
 the node answers it on `auth/gasprice` (`1ugnot/1000gas` on mainnet and onyx
 today). gnokey's default fast mode simulates before broadcasting and stops a
-call that would run out of gas, charging nothing (#6313). A wugnot Deposit
-uses 7 to 9 M gas on onyx; a small addpkg ~2.6 M on a local chain. An
-optional indexer (#6231) knows what recent calls used.
+call that would run out of gas, charging nothing (#1702, #4951). A wugnot
+Deposit uses 7 to 9 M gas on onyx; a small addpkg ~2.6 M on a local chain.
+An optional indexer (#6231) knows what recent calls used.
 
 ## Decision
 
@@ -20,10 +20,11 @@ optional indexer (#6231) knows what recent calls used.
   an indexer, the commands ask for twice the most gas any of the function's
   last 20 successful calls used, rounded up to 100 k, at least 1 M and at
   most what 1 GNOT pays for at the price, up to 1,000 M (the old hardcoded
-  gas). The fast-mode command takes it below or above 10 M; the
-  secure-mode commands (`-broadcast=false`, sign, `gnokey broadcast`), which
-  do not simulate, only above. Fewer than 3 calls, no indexer or no read yet
-  keep 10 M; a failed read keeps the last measure.
+  gas). The fast-mode command takes it above 10 M, or below with at least 3
+  calls; the secure-mode commands (`-broadcast=false`, sign, a dry run,
+  `gnokey broadcast`) only above, as a measure too low there means signing
+  again. A raise needs one call: a costly call among 20 sets the max anyway.
+  No indexer or no read yet keep 10 M; a failed read keeps the last measure.
 - **Fee.** `ceil(gas × price.Amount × 3 / price.Gas)` in the price's denom:
   30,000 ugnot (0.03 GNOT) for 10 M today. tm2 moves the price by at least
   one unit per busy block, so at 1 ugnot per 1,000 gas the first busy block
@@ -32,31 +33,34 @@ optional indexer (#6231) knows what recent calls used.
   full blocks. A fee that is too low is rejected at CheckTx, for free.
 - **Price.** Decided once, at 10 M. A ugnot fee is capped at 1 GNOT (the
   old hardcoded fee): the ×3 shrinks, but the fee still pays the gas at the
-  price read, up to 100 ugnot per 1,000 gas. Above that, or for a zero,
-  invalid or overflowing price, the price falls back to 1 ugnot per 1,000
-  gas, and the note says "an estimated … (the chain's price was
-  unavailable)". The same price is applied to the measured gas, so a page
-  shows one price.
+  price read, up to 100 ugnot per 1,000 gas, and the note says it is capped
+  instead of ×3. Above that, or for a zero, invalid or overflowing price,
+  the price falls back to 1 ugnot per 1,000 gas. For a ugnot price read but
+  too high, the note gives that fallback and the fee's ×3 or cap, then the
+  chain's price and says to raise `-gas-fee`, since the node would reject
+  the fee; otherwise it says "an estimated … (the chain's price was
+  unavailable)". The same price is applied to the
+  measured gas, so a page shows one price.
 - **Indexer data.** Only a successful single-`MsgCall` transaction into the
   package counts, with a Go identifier of at most 64 bytes for a function
   and a positive gas use. gnoweb re-checks every row: on onyx, the
   indexer's wugnot filter also returns `auth/create_session` rows (~1.36 M,
   typed `UnexpectedMessage`) that would pass for cheap Deposits.
 - **No page waits.** The price is fetched lazily (a `sync.OnceValue` in the
-  render context, called only by a `<gno-form exec>` or an Actions page
-  with a crossing function, the only kind that renders a command) and
-  cached stale-while-revalidate for 30 s; only its first read waits,
-  bounded at 2 s, every caller then waiting for that one read, and a failed
-  query keeps the last good price. Indexer reads never block a page: the
-  first view shows 10 M while one background read of the package's last 100
-  transactions fills a cache kept 5 minutes (30 s after a failure), with at
-  most 4 reads in flight and 1,024 packages. A full cache drops its expired
-  entries, at most every 30 s, and keeps nothing new while still full, so a
-  crawl over many packages cannot flush the live measures.
+  render context, called only by a `<gno-form exec>` or an Actions page with
+  a crossing function, the only kind that renders a command) and cached
+  stale-while-revalidate for 30 s; a read waits only while no price is
+  cached, at most 2 s, on one shared query each caller can leave, and a
+  failed query keeps the last good price. Indexer reads never block a page:
+  the first view shows 10 M while one background read of the package's last
+  100 transactions fills a cache kept 5 minutes (30 s after a failure), with
+  at most 4 reads in flight and 1,024 packages. A full cache drops the least
+  recently viewed package, which shows 10 M again until its next read; at
+  today's sizes (about 450 realms on mainnet, 850 on onyx) none is dropped.
 - **Note.** Each mode has its own two-line note under the command, which
   follows the mode switch and is never copied: the fee, the gas (and where
-  a measured gas comes from), the price, the ×3, no refund, and whether the
-  mode simulates.
+  a measured gas comes from), the price, the ×3 or the 1 GNOT cap, no
+  refund, and how the mode simulates.
 
 ## Trust model
 
@@ -76,9 +80,10 @@ make a command cost more than master did.
   simulates at broadcast, with the real arguments.
 - **A fixed lower fee** (e.g. `10000ugnot`): cheaper today, but a busy chain
   raises the price and the command fails with no hint why.
-- **Lower the secure-mode gas too**: a wrong measure would cost the fee of a
-  failed transaction. **Wait for the first indexer read**: a slow indexer
-  would slow pages. **Poll the indexer**: load for packages nobody views.
+- **Lower the secure-mode gas too**: a wrong measure would send the reader
+  back to signing, which this mode may do offline. **Wait for the first
+  indexer read**: a slow indexer would slow pages. **Poll the indexer**:
+  load for packages nobody views.
 
 ## Consequences
 
@@ -88,15 +93,23 @@ make a command cost more than master did.
   the indexer says so in both notes. A price in another denom than ugnot
   is never raised, as no 1 GNOT cap bounds it.
 - At most one `auth/gasprice` query per 30 s and one indexer read per
-  package per 5 minutes; none for pages without a command.
+  package per 5 minutes while it is among the 1,024 most recently viewed;
+  none for pages without a command.
 - The fallback is in ugnot: on a chain with another fee denom the fallback
   tx is rejected at CheckTx, which charges nothing. `auth/gasprice` does not
   expose the node's own `min_gas_prices`; a node with a higher floor also
   rejects at CheckTx.
-- In secure mode `gnokey broadcast` does not simulate: without an indexer,
-  or before a function has 3 measured calls, a call needing more than 10 M
-  gas (a GovDAO vote) is broadcast and charged the fee. The reader raises
-  `-gas-wanted` by hand there, as the note's "for up to 10 M gas" says;
-  the fast-mode command fails at simulation, for free.
-- gnoweb-only change. `-gas-wanted auto` (#3703) in gnokey stays the exact
-  answer; gnoweb can print it once that gnokey release is widespread.
+- `gnokey broadcast` does not simulate, so the secure-mode commands run
+  `gnokey broadcast -dry-run` (a flag every gnokey has) on the signed tx
+  first. Without an indexer, on a package's first view, or for a call that
+  needs more than its measure, a call that would run out of gas (a GovDAO
+  vote at 10 M) stops there, for free, and the reader raises `-gas-wanted`
+  and signs again; the fast-mode command fails at simulation, for free.
+  The dry run skips the price check (`ante.go`, `!simulate`): a fee the
+  price has outgrown since it was read (a rise past ×3, or past what a
+  capped fee covers) passes it and is rejected at CheckTx, also for free.
+- The `$run` page is untouched: it keeps its own editable defaults
+  (`components.RunGas`, 50 M gas for 0.1 GNOT) and has no dry run.
+- gnoweb-only change. Automatic gas in gnokey would be the exact answer
+  (#3703, a meta issue closed as not planned); gnoweb can print it if a
+  gnokey release offers it.

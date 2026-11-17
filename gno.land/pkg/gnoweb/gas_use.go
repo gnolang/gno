@@ -5,12 +5,12 @@ import (
 	"errors"
 	"go/token"
 	"log/slog"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -33,8 +33,8 @@ const (
 	// maxGasUseReads caps the reads in flight. Past it a page skips its read
 	// and a later page retries.
 	maxGasUseReads = 4
-	// maxGasUsePkgs bounds the cache. A full one drops its expired entries,
-	// at most once per gasUseRetry, and stores nothing while still full.
+	// maxGasUsePkgs bounds the cache. A full one drops the least recently
+	// viewed package, so a package someone views is back after one read.
 	maxGasUsePkgs = 1024
 	// maxGasUseFunc is the longest function name kept from the indexer.
 	maxGasUseFunc = 64
@@ -69,15 +69,14 @@ func gasUses(txs []indexer.Tx, pkgPath string) map[string]components.GasUse {
 // on a read: it gets what is cached, nil at first, while one background read
 // per package fills the cache for the next page.
 type gasUseCache struct {
-	// recent reads a package's recent transactions; nil without an indexer.
+	// recent reads a package's recent transactions; nil without an indexer,
+	// and then entries too.
 	recent func(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
 	logger *slog.Logger
 
 	reads   atomic.Int32 // reads in flight
 	sf      singleflight.Group
-	mu      sync.Mutex
-	entries map[string]gasUseEntry
-	sweep   time.Time        // when a full cache may next drop its expired entries
+	entries *lru.Cache[string, gasUseEntry]
 	now     func() time.Time // for tests; time.Now when nil
 }
 
@@ -130,41 +129,12 @@ func (c *gasUseCache) read(ctx context.Context, pkgPath string) {
 		last, _ := c.lookup(pkgPath)
 		e = gasUseEntry{uses: last.uses, expires: c.clock().Add(gasUseRetry)}
 	}
-	c.store(pkgPath, e)
-}
-
-// store keeps e unless the cache is full of live entries. A crawl over many
-// packages then fills it once, and stops there, instead of dropping every
-// live measure each time it is full.
-func (c *gasUseCache) store(pkgPath string, e gasUseEntry) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	now := c.clock()
-	if c.entries == nil {
-		c.entries = make(map[string]gasUseEntry)
-	}
-	if _, ok := c.entries[pkgPath]; !ok && len(c.entries) >= maxGasUsePkgs {
-		if now.Before(c.sweep) {
-			return
-		}
-		c.sweep = now.Add(gasUseRetry)
-		for k, old := range c.entries {
-			if !now.Before(old.expires) {
-				delete(c.entries, k)
-			}
-		}
-		if len(c.entries) >= maxGasUsePkgs {
-			return
-		}
-	}
-	c.entries[pkgPath] = e
+	c.entries.Add(pkgPath, e)
 }
 
 // lookup returns pkgPath's entry, and whether it is still fresh.
 func (c *gasUseCache) lookup(pkgPath string) (gasUseEntry, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	e, ok := c.entries[pkgPath]
+	e, ok := c.entries.Get(pkgPath)
 	return e, ok && c.clock().Before(e.expires)
 }
 

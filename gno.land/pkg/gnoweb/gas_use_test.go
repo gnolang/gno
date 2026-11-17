@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -117,7 +118,9 @@ type fakeClock struct{ ns atomic.Int64 }
 func (f *fakeClock) now() time.Time      { return time.Unix(0, f.ns.Load()) }
 func (f *fakeClock) add(d time.Duration) { f.ns.Add(int64(d)) }
 func newGasUseCache(idx *stubRecent, clock *fakeClock) *gasUseCache {
-	return &gasUseCache{recent: idx.recent, logger: newDiscardLogger(), now: clock.now}
+	c := &gasUseCache{recent: idx.recent, logger: newDiscardLogger(), now: clock.now}
+	c.entries, _ = lru.New[string, gasUseEntry](maxGasUsePkgs)
+	return c
 }
 
 // settle waits until pkgPath's entry is fresh.
@@ -226,43 +229,29 @@ func TestGasUseCacheReadCap(t *testing.T) {
 	require.Equal(t, maxGasUseReads+1, idx.count())
 }
 
-// Without an indexer nothing is read; with one, a full cache is cleared for
-// a new package, not for a refresh.
+// Without an indexer nothing is read; with one, a full cache makes room for
+// a new package by dropping the least recently viewed one, so a new package
+// is kept after one read instead of being read again on every view.
 func TestGasUseCacheBounds(t *testing.T) {
 	t.Parallel()
 
 	require.Nil(t, (&gasUseCache{}).get(context.Background(), testPkg), "no indexer")
 
 	clock := &fakeClock{}
-	c := newGasUseCache(&stubRecent{}, clock)
-	c.entries = make(map[string]gasUseEntry)
-	for i := range maxGasUsePkgs - 1 {
-		c.entries[testPkg+strconv.Itoa(i)] = gasUseEntry{expires: clock.now().Add(time.Hour)}
+	idx := &stubRecent{}
+	c := newGasUseCache(idx, clock)
+	for i := range maxGasUsePkgs {
+		c.entries.Add(testPkg+strconv.Itoa(i), gasUseEntry{expires: clock.now().Add(time.Hour)})
 	}
+	c.lookup(testPkg + "0") // viewed: no longer the least recent
+
 	c.get(context.Background(), testPkg)
 	c.settle(t, testPkg)
-	require.Len(t, c.entries, maxGasUsePkgs, "full, not over")
-
-	clock.add(gasUseTTL)
 	c.get(context.Background(), testPkg)
-	c.settle(t, testPkg)
-	require.Len(t, c.entries, maxGasUsePkgs, "a refresh clears nothing")
-
-	// Full of live entries: a new package is read but not kept, so a crawl
-	// cannot flush the live measures.
-	c.read(context.Background(), testPkg+"x")
-	_, kept := c.lookup(testPkg + "x")
-	require.False(t, kept, "full of live entries: not kept")
-	require.Len(t, c.entries, maxGasUsePkgs, "nothing dropped for it")
-
-	// Once they expire, a full cache drops them for a new package.
-	clock.add(time.Hour)
-	c.read(context.Background(), testPkg+"y")
-	_, kept = c.lookup(testPkg + "y")
-	require.True(t, kept, "expired entries swept for a new package")
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	require.Len(t, c.entries, 1, "only the new package left")
+	require.Equal(t, 1, idx.count(), "kept after one read")
+	require.Equal(t, maxGasUsePkgs, c.entries.Len(), "full, not over")
+	require.True(t, c.entries.Contains(testPkg+"0"), "a viewed package stays")
+	require.False(t, c.entries.Contains(testPkg+"1"), "the least recently viewed is dropped")
 }
 
 // A failed refresh keeps the last measure: one indexer timeout must not send

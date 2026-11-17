@@ -461,3 +461,33 @@ func TestGasPriceFirstReadIsShared(t *testing.T) {
 		t.Fatalf("%d queries, want 1", n)
 	}
 }
+
+// A caller waiting on the first read leaves when its own context ends, while
+// the read goes on for the others.
+func TestGasPriceFirstReadLeavesOnCancel(t *testing.T) {
+	t.Parallel()
+
+	gate := make(chan struct{})
+	caller := &gasCaller{price: `{"gas":"1000","price":"5ugnot"}`, gate: gate}
+	c := newGasClient(caller)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.GasPrice(ctx)
+		done <- err
+	}()
+	require.Eventually(t, func() bool { return caller.count() == 1 }, 5*time.Second, time.Millisecond)
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("caller still waiting on the first read after its context ended")
+	}
+	close(gate)
+	require.Eventually(t, func() bool {
+		gp, err := c.GasPrice(context.Background())
+		return err == nil && gp.Price.Amount == 5
+	}, 5*time.Second, time.Millisecond)
+	require.Equal(t, 1, caller.count())
+}

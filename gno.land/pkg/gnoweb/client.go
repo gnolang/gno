@@ -210,8 +210,8 @@ func (c *rpcClient) evalData(pkgPath, expr string) []byte {
 
 // GasPrice answers the last price read from auth/gasprice. Once one exists
 // it is returned at once, and a stale one is refreshed in the background;
-// only the first read waits, bounded by gasPriceTimeout. A failed query
-// keeps the last price and is retried after gasPriceTTL.
+// a read waits, bounded by gasPriceTimeout, only while none exists. A
+// failed query keeps the last price and is retried after gasPriceTTL.
 func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
 	c.gasMu.Lock()
 	gp, ok, at := c.gasPrice, c.gasOK, c.gasAt
@@ -221,11 +221,16 @@ func (c *rpcClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
 	if !ok && stale {
 		// No price yet: every caller waits for the one read, rather than
 		// getting no price while the node is answering.
-		v, err, _ := c.gasFirst.Do("", func() (any, error) { return c.queryGasPrice(ctx) })
-		if err != nil {
-			return std.GasPrice{}, err
+		ch := c.gasFirst.DoChan("", func() (any, error) { return c.queryGasPrice(ctx) })
+		select {
+		case res := <-ch:
+			if res.Err != nil {
+				return std.GasPrice{}, res.Err
+			}
+			return res.Val.(std.GasPrice), nil
+		case <-ctx.Done():
+			return std.GasPrice{}, ctx.Err()
 		}
-		return v.(std.GasPrice), nil
 	}
 	if stale && c.gasBusy.CompareAndSwap(false, true) {
 		go func() {

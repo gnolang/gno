@@ -34,6 +34,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -230,6 +231,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	h.gasUse.logger = logger
 	if cfg.Indexer != nil {
 		h.gasUse.recent = cfg.Indexer.RecentByPackage
+		h.gasUse.entries, _ = lru.New[string, gasUseEntry](maxGasUsePkgs) // errors only on a size <= 0
 	}
 	h.Playground = playground.New(playground.Deps{
 		Client:   &playgroundClientAdapter{cfg.ClientAdapter},
