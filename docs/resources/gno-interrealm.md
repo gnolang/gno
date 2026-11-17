@@ -83,8 +83,11 @@ apply to non-crossing calls:
      function value, closure, method value or method expression called
      through a value; an interface call or method value whose package the
      current realm does not import (directly or through its imports). A call
-     that names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`) acts for the
-     caller.
+     that names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`), or reads it from
+     a `/p/` or stdlib package-level variable (`lib.Table[k](x)`), acts for
+     the caller; a realm's own callback reached through such a call still
+     acts for the realm. A view-only frame is no realm boundary: the caller's
+     `recover` catches a panic raised in it.
 
 The realm-context never changes on these. A realm's stored state therefore
 changes only during a crossing call into that realm.

@@ -1722,7 +1722,7 @@ const (
 	// m.Frames), so cost is linear in the call depth reached. Per visit
 	// this is dearer than the superseded quadratic schedule's implied
 	// 1.2 gas/visit: that walk re-read the same few frames out of L1,
-	// whereas one pass streams a distinct 248-byte Frame per step.
+	// whereas one pass streams a distinct 264-byte Frame per step.
 	// Fit: 1.45 ns/frame from BenchmarkOpEnterCrossing_1..1000 (intercept
 	// ~580ns), measured on a host that reproduces the recorded M2 baseline
 	// for this same benchmark (0.55 vs 0.60 ns/visit on the superseded
@@ -2783,7 +2783,10 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	// A library closure built under another realm, or while view-only (zero
 	// stamp), arrived as a value: it acts for no realm, so it runs view-only.
 	// With no realm (single-user mode, or already view-only) nothing changes.
-	if fv.IsClosure && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID {
+	// A closure in a library's package variable named by the call is fixed
+	// after init, so it counts as named, like a declared function.
+	if fv.IsClosure && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
+		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
 		m.setViewOnly()
 	}
 	// A top-level library function or method expression called through a value
@@ -2845,13 +2848,17 @@ func (m *Machine) foreignLib(fv *FuncValue) bool {
 // calledBy reports whether every frame from the call on top of the stack
 // down to the nearest /r/- or /e/-declared one runs as pid. A borrowed /p/
 // frame, another realm's closure or a view-only frame in between breaks it.
+// Each frame visited costs OpCPUSlopeEnterCrossing, as in doOpEnterCrossing.
 func (m *Machine) calledBy(pid PkgID) bool {
+	var n int64
+	defer func() { m.incrCPU(n * OpCPUSlopeEnterCrossing) }()
 	rlm := m.Frames[len(m.Frames)-1].LastRealm
 	for i := len(m.Frames) - 2; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.Func == nil {
 			continue
 		}
+		n++
 		if rlm == nil || rlm.ID != pid {
 			return false
 		}
@@ -2917,6 +2924,28 @@ func (m *Machine) PopFrameAndReset() {
 	m.PopStmt() // may be sticky
 }
 
+// restoreRealmState puts the machine back in the realm state fr's caller ran in.
+func (m *Machine) restoreRealmState(fr *Frame) {
+	m.setRealm(fr.LastRealm)
+	m.viewOnly = fr.LastViewOnly
+	if fr.LastViewRealm != nil {
+		m.viewRealm = fr.LastViewRealm
+		m.Alloc.currentRealmID = fr.LastViewRealm.ID
+		m.Alloc.currentRealmPath = fr.LastViewRealm.Path
+	}
+	m.Alloc.scratch = fr.LastScratch
+}
+
+// popFrameRestore pops a call frame while a panic unwinds and restores its
+// caller's package and realm state, as PopFrameAndReturn does on a return.
+// A view-only frame is no realm boundary, so the frame that recovers may
+// have run under another state.
+func (m *Machine) popFrameRestore() {
+	fr := m.PopFrame()
+	m.Package = fr.LastPackage
+	m.restoreRealmState(&fr)
+}
+
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
@@ -2944,14 +2973,7 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
-	m.setRealm(fr.LastRealm)
-	m.viewOnly = fr.LastViewOnly
-	if fr.LastViewRealm != nil {
-		m.viewRealm = fr.LastViewRealm
-		m.Alloc.currentRealmID = fr.LastViewRealm.ID
-		m.Alloc.currentRealmPath = fr.LastViewRealm.Path
-	}
-	m.Alloc.scratch = fr.LastScratch
+	m.restoreRealmState(&fr)
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions
@@ -3658,6 +3680,18 @@ func (m *Machine) scratchOwn(obj Object) bool {
 	}
 	oi := obj.GetObjectInfo()
 	return oi.scratch == m.Alloc.scratch && !oi.GetIsReal()
+}
+
+// viewOwns reports whether tv belongs to the realm whose code runs read-only:
+// that code may read, and so convert, its own realm's values.
+func (m *Machine) viewOwns(tv *TypedValue) bool {
+	if m.viewRealm == nil {
+		return false
+	}
+	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
+		return rv.PkgPath == m.viewRealm.Path
+	}
+	return !tv.IsReadonlyBy(m.viewRealm.ID, PkgID{})
 }
 
 // scratchObject returns the object a write through tv lands in, if any.

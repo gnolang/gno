@@ -14,7 +14,7 @@ func main(cur realm) {
 	h := viewdefault.GetHandle()
 	viewdefault.HandleSet(cross(cur), "a", "1")
 	// The owner's stdlib method value, the owner's view as its out-parameter.
-	println("owner's arg:", revive(func() { viewdefault.Encoder()(viewdefault.Secret(), []byte("pwned!!!")) }))
+	println("owner's arg:", try(func() { viewdefault.Encoder()(viewdefault.Secret(), []byte("pwned!!!")) }))
 	println("secret:", viewdefault.SecretString())
 	// The caller's own tree from inside the owner's handle: refused as a
 	// method value, written through a closure the caller declares.
@@ -22,6 +22,14 @@ func main(cur realm) {
 	println("own tree, method value:", revive(func() { viewdefault.IterateHandle(cross(cur), local.Set) }))
 	h.Iterate("", "", func(k string, v any) bool { return local.Set(k, v) })
 	println("own tree, closure:", local.Size())
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

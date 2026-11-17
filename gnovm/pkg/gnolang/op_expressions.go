@@ -822,8 +822,8 @@ func (m *Machine) doOpConvert() {
 	// for a realm-owned receiver, so the write check would refuse it;
 	// refusing the conversion (m.IsReadonly) stops it earlier, before
 	// any method dispatch. See zrealm_launder_g_typepun.gno.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
-		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) && !m.viewOwns(&xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok && m.Realm != nil &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow conversion when xv.T is m.Realm's own
 			// declared type — the converting realm already has

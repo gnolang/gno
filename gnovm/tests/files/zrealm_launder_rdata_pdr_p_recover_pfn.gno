@@ -3,7 +3,8 @@ package launderrh_pdr_p_recover_pfn
 
 // Vector 8b: /p/ RecoverApply on a victim object runs the attacker's
 // top-level /p/ EvilWrite through a value, so EvilWrite runs view-only and
-// its write is refused. The refusal is not recovered: it aborts the call.
+// its write is refused. The view-only frame is no realm boundary, so
+// RecoverApply's own recover catches the refusal and nothing was written.
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
@@ -26,6 +27,5 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-
-// Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field
+// rec: non-nil
+// after:  ptr-orig

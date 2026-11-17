@@ -2,7 +2,11 @@
 // only during a crossing call into it.
 package ctw
 
-import "strings"
+import (
+	"strings"
+
+	"gno.land/p/demo/tests/libtable/v0"
+)
 
 var Count int
 
@@ -64,4 +68,51 @@ func NewIter(n int) *Iter { return &Iter{n: n} }
 func (it *Iter) Next() bool {
 	it.i++
 	return it.i <= it.n
+}
+
+// Conversions of this realm's own stored values are reads: fine without crossing.
+type (
+	Bag  []int
+	Rec  struct{ N int }
+	Rec2 Rec
+)
+
+var (
+	Rows = Bag{1, 2, 3}
+	rec  = &Rec{N: 7}
+)
+
+func RowCount() int { return len([]int(Rows)) }
+func RecN() int     { return (*Rec2)(rec).N }
+
+// This realm's own callbacks, reached through library code its crossing call
+// named: a closure in a package variable, a table entry, a local copy of a
+// named function, and the library's own table.
+var Boxes = []*libtable.Box{{N: 1}, {N: 2}}
+
+func ViaApply(cur realm)    { libtable.Apply(func() { Count++ }) }
+func ViaTable(cur realm)    { libtable.Table["run"](func() { Count++ }) }
+func ViaLocal(cur realm)    { each := libtable.Each; each(Boxes, func(b *libtable.Box) { b.N++ }) }
+func ViaDispatch(cur realm) { libtable.Dispatch("inc", Boxes[0]) }
+
+func BoxSum() (s int) {
+	for _, b := range Boxes {
+		s += b.N
+	}
+	return s
+}
+
+// Hook hands out a closure that writes this realm: a holder cannot run it
+// with this realm's authority.
+func Hook() func() { return func() { Count++ } }
+
+// Boom panics inside this realm's read-only entry.
+func Boom() { panic("boom") }
+
+// RecoverValue catches a panic from a library function called through a value.
+func RecoverValue(cur realm) (r any) {
+	defer func() { r = recover() }()
+	f := libtable.Panics
+	f()
+	return nil
 }

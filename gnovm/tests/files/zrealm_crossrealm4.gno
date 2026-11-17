@@ -15,8 +15,16 @@ func init() {
 func main(cur realm) {
 	// Modify is /r/tests/vm code entered without crossing, so it runs
 	// read-only and its write to the stored object is refused.
-	println("modify:", revive(func() { somevalue.Modify() }))
+	println("modify:", try(func() { somevalue.Modify() }))
 	println(somevalue)
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

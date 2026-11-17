@@ -28,7 +28,7 @@ func main(cur realm) {
 
 	// 2. Non-crossing set → refused. The panic crosses a realm boundary, so
 	//    recover() cannot catch it; revive does.
-	println("panic caught:", revive(func() { crossrealm_d.SetCounter(0) }))
+	println("panic caught:", try(func() { crossrealm_d.SetCounter(0) }))
 
 	// 3. Counter must still be 100.
 	println("counter after set+revive:", crossrealm_d.GetCounter(cross(cur)))
@@ -42,6 +42,14 @@ func main(cur realm) {
 	// 5. Verify the crossing setter works correctly for comparison.
 	crossrealm_d.SetCounterCrossing(cross(cur), 50)
 	println("after crossing set:", crossrealm_d.GetCounter(cross(cur))) // 50
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

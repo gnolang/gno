@@ -256,23 +256,23 @@ stderr 'gno.land/r/test/owned.s code was entered without crossing and is read-on
 ## ============================================================
 
 ## DEFER_BorrowUnwindAfterRecover: a non-crossing /r/owned function panics.
-## In Gno, cross-realm panics are NOT caught by ordinary recover()
-## from a foreign realm — the runtime escalates them past defer/
-## recover boundaries to enforce realm-boundary safety. The
-## equivalent capability is `revive(fn)` (see panic-revive spec).
-## This case demonstrates that an unrecovered cross-realm panic
-## leaks through caller's defer/recover and aborts the tx.
+## Entered without crossing it ran read-only and wrote nothing, so its frame
+## is no realm boundary: the caller's ordinary recover() catches the panic
+## and the caller resumes with its own authority. Only a crossing call is a
+## boundary (caught by `revive(fn)`, see panic-revive spec). Recording the
+## resume in /r/owned is a write, so it goes through owned's crossing writer.
 ##
 ##   func DEFER_BorrowUnwindAfterRecover(cur realm) {
 ##       defer func() {
 ##           if recover() != nil {
-##               owned.RecordDeferResume()
+##               owned.RecordDeferResume(cross(cur))
 ##           }
 ##       }()
 ##       owned.PanicInsideBorrow()
 ##   }
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func DEFER_BorrowUnwindAfterRecover -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
-stderr 'intentional panic for unwind test'
+gnokey maketx call -pkgpath gno.land/r/test/caller -func DEFER_BorrowUnwindAfterRecover -gas-fee 800001ugnot -gas-wanted 8_000_000 -chainid=tendermint_test test1
+gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
+stdout 'trace=DEFER:recovered-and-resumed'
 
 
 ## ============================================================
@@ -452,15 +452,15 @@ func NewEvilToucher() *EvilToucher {
 	return &EvilToucher{}
 }
 
-// PanicInsideBorrow is invoked by DEFER_BorrowUnwindAfterRecover.
-// Panics inside the non-crossing body; caller's recover cannot catch it.
+// PanicInsideBorrow is invoked by DEFER_BorrowUnwindAfterRecover. It panics
+// inside the non-crossing (read-only) body; the caller's recover catches it.
 func PanicInsideBorrow() {
 	panic("intentional panic for unwind test")
 }
 
-// RecordDeferResume would run after caller's recover; it is never
-// reached because the panic is not recoverable across realms.
-func RecordDeferResume() {
+// RecordDeferResume runs after the caller's recover: a crossing writer, since
+// the caller's deferred code cannot write this realm without crossing.
+func RecordDeferResume(cur realm) {
 	trace = "DEFER:recovered-and-resumed"
 }
 
@@ -611,7 +611,7 @@ func CTX_BorrowDoesNotShiftCurrentRealm(cur realm) {
 func DEFER_BorrowUnwindAfterRecover(cur realm) {
 	defer func() {
 		if recover() != nil {
-			owned.RecordDeferResume()
+			owned.RecordDeferResume(cross(cur))
 		}
 	}()
 	owned.PanicInsideBorrow()

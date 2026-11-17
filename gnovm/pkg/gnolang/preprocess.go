@@ -2737,7 +2737,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: this can happen with software upgrades,
 					// with multiple versions of the same package path.
 					n.Path = pn.GetPathForName(store, n.Sel)
-					if isFuncDeclAt(pn, n.Path.Index) {
+					if isNamedAt(pn, n.Path.Index) {
 						n.SetAttribute(ATTR_NAMED_CALLEE, true)
 					}
 					// Produce const expr if typed or untyped const.
@@ -6634,8 +6634,9 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 }
 
 // namedCallee reports whether fx names a top-level function (F, or pkg.F
-// marked where the selector resolves), a method expression (T.M) or a
-// builtin, rather than reading a function value.
+// marked where the selector resolves), a method expression (T.M), a builtin,
+// or a /p/ or stdlib package-level variable (or an element or field of one),
+// rather than reading a function value the caller was handed.
 func namedCallee(store Store, last BlockNode, fx Expr) bool {
 	switch fx := fx.(type) {
 	case *ConstExpr:
@@ -6644,15 +6645,56 @@ func namedCallee(store Store, last BlockNode, fx Expr) bool {
 		if fx.Path.Type != VPBlock {
 			return fx.Path.Type == VPUverse
 		}
-		return isFuncDeclAt(last.GetBlockNodeForPath(store, fx.Path), fx.Path.Index)
+		return isNamedAt(last.GetBlockNodeForPath(store, fx.Path), fx.Path.Index)
 	case *SelectorExpr:
 		if fx.GetAttribute(ATTR_NAMED_CALLEE) == true {
 			return true
 		}
-		_, ok := evalStaticTypeOf(store, last, fx.X).(*TypeType)
-		return ok
+		if _, ok := evalStaticTypeOf(store, last, fx.X).(*TypeType); ok {
+			return true
+		}
+		return libVar(store, last, fx.X)
+	case *IndexExpr:
+		return libVar(store, last, fx.X)
 	}
 	return false
+}
+
+// libVar reports whether x reads a /p/ or stdlib package-level variable, or
+// an element or field of one. Such a variable is fixed after the package's
+// init, so a function read from it is as much named as a declared one.
+func libVar(store Store, last BlockNode, x Expr) bool {
+	switch x := x.(type) {
+	case *NameExpr:
+		return x.Path.Type == VPBlock &&
+			isLibVarAt(last.GetBlockNodeForPath(store, x.Path), x.Path.Index)
+	case *SelectorExpr:
+		if x.GetAttribute(ATTR_NAMED_CALLEE) == true {
+			return true // pkg.Var, marked where the selector resolved
+		}
+		return libVar(store, last, x.X)
+	case *IndexExpr:
+		return libVar(store, last, x.X)
+	}
+	return false
+}
+
+// isNamedAt reports whether index in bn is a declared function or a /p/ or
+// stdlib package-level variable.
+func isNamedAt(bn BlockNode, index uint16) bool {
+	return isFuncDeclAt(bn, index) || isLibVarAt(bn, index)
+}
+
+// isLibVarAt reports whether index in bn is a package-level variable of a /p/
+// or stdlib package. A realm's variable does not count: the realm may store a
+// function it was handed and call it later.
+func isLibVarAt(bn BlockNode, index uint16) bool {
+	pn, ok := bn.(*PackageNode)
+	if !ok || IsRealmPath(pn.PkgPath) || IsEphemeralPath(pn.PkgPath) {
+		return false
+	}
+	nss := pn.GetNameSources()
+	return int(index) < len(nss) && nss[index].Type == NSValueDecl
 }
 
 func isFuncDeclAt(bn BlockNode, index uint16) bool {

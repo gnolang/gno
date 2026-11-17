@@ -1,25 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_pdr_victim_recover
 package launderrh_pdr_victim_recover
 
-// Vector 5: /r/-victim's RecoverAndRetry calls attacker callback
-// h(gImm), which panics with the readonly violation. Victim's own
-// defer attempts to recover the panic.
-//
-// Surprising finding (verified): victim's recover() does NOT catch
-// the panic. Trace:
-//  1. main → m.Realm = attacker
-//  2. RecoverAndRetry → borrow rule #1 → m.Realm = victim
-//  3. RecoverAndRetry schedules a defer (its own /r/-victim closure)
-//  4. RecoverAndRetry calls h(gImm) → borrow rule #1 → m.Realm = attacker
-//     (because h is /r/-attacker-declared)
-//  5. h body: i.Field = ... → readonly panic
-//  6. Unwind: at h's frame, LastRealm = victim, crlm = attacker →
-//     isRealmBoundary = true → PopUntilLastReviveFrame returns nil
-//     → makeUnhandledPanicError abort
-//
-// Victim's defer NEVER RUNS, because the panic crosses a realm
-// boundary before reaching it. This is correct/intentional: a
-// transaction touching readonly-foreign data aborts hard.
+// Vector 5: /r/-victim's RecoverAndRetry calls the attacker's callback
+// h(gImm), which panics with the readonly violation. The callback is the
+// attacker's code entered read-only, no realm boundary, so the victim's own
+// recover catches the panic and nothing was written. The attacker's direct
+// retry is refused too, caught by its own recover.
 
 import (
 	"gno.land/r/tests/vm/launderrvictim"
@@ -52,5 +38,7 @@ func main(cur realm) {
 	println("after: ", launderrvictim.ReadImm())
 }
 
-// Error:
-// gno.land/r/launderrh_pdr_victim_recover's code was entered without crossing and is read-only (call its crossing function): i<VPBlock(1,0)>.Field
+// Output:
+// before: rdata-original
+// recovered some exception (write was blocked)
+// retry blocked: true

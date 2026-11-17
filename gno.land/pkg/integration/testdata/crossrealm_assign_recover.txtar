@@ -3,8 +3,9 @@
 #
 # Under cross to write, vault's SetOwner called from another realm is
 # entered without crossing, so it runs read-only and owner=o is refused
-# before it lands in memory. The refusal crosses a realm boundary, so the
-# attacker's recover() cannot swallow it: the whole tx aborts.
+# before it lands in memory. The read-only frame is no realm boundary, so
+# the attacker's recover() does catch the refusal; it gains nothing: owner
+# is unchanged and the guarded withdraw rejects the attacker.
 #
 # The crossing setter (TransferOwnership) remains the way to change owner,
 # and its caller check rejects non-owners.
@@ -24,8 +25,13 @@ stdout 'owner: g1dao0000000000000000000000000000000000'
 ## deploy attack realm
 gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 420001ugnot -gas-wanted 5_600_000 -chainid=tendermint_test attacker
 
-## 1: assign+recover via exported non-crossing setter is refused.
+## 1: assign+recover via exported non-crossing setter is refused; the
+## recovered attacker reaches the guarded withdraw, which rejects it.
 ! gnokey maketx call -pkgpath gno.land/r/test/attack -func Attack -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
+stderr 'unauthorized'
+
+## 1b: without recover the refusal itself aborts the tx.
+! gnokey maketx call -pkgpath gno.land/r/test/attack -func AttackNoRecover -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'gno.land/r/test/vault.s code was entered without crossing and is read-only'
 
 ## owner unchanged.
@@ -111,14 +117,14 @@ import (
 func Attack(cur realm) {
 	myAddr := unsafe.CurrentRealm().Address()
 
-	// Step 1: try to hijack ownership. The write is refused, and the
-	// refusal crosses a realm boundary, so recover() cannot catch it.
+	// Step 1: try to hijack ownership. The write is refused; recover()
+	// catches the refusal, and owner is unchanged.
 	func() {
 		defer func() { _ = recover() }()
 		vault.SetOwner(myAddr)
 	}()
 
-	// Step 2: never reached.
+	// Step 2: the guarded path rejects the attacker.
 	vault.Withdraw(cross(cur), 1000000)
 }
 

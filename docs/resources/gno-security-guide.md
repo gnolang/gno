@@ -169,7 +169,10 @@ refused.
 A top-level `/p/` function value (a `FuncDecl`, not a closure) is the
 same: `fn(internalState)` calls a value, not a name in `/r/V`'s source,
 so it runs view-only. Only a call that names the function
-(`lib.Apply(internalState)`) acts for `/r/V`.
+(`lib.Apply(internalState)`), or reads it from a `/p/` package-level
+variable (`lib.Handlers[k](internalState)`, fixed after init), acts for
+`/r/V`; `/r/V`'s own callback reached through such a call keeps `/r/V`'s
+authority.
 
 An interface or a method value works the same way: `r.Run(internalState)`
 or `f := r.Run; f(internalState)` with a caller's `r` runs view-only unless
@@ -450,9 +453,10 @@ model beyond naive expectations:
 
 ### 6.1 Cross-realm panic aborts the transaction
 
-A panic raised across a realm boundary (a crossing call, realm code
-entered read-only, or a `/p/`-owned borrow) **cannot be caught by
-`recover()` in any other realm**. `PopFrameAndReturn` walks up frames
+A panic raised across a realm boundary (a crossing call or a `/p/`-owned
+borrow) **cannot be caught by `recover()` in any other realm**; a view-only
+frame writes nothing stored and is no boundary, so its panics are
+recoverable. `PopFrameAndReturn` walks up frames
 through `PopUntilLastReviveFrame` (`op_call.go:530`); a regular
 `defer { recover() }` does not stop the unwind. The transaction
 aborts entirely.

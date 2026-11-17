@@ -21,10 +21,10 @@ func main(cur realm) {
 	println("deferred callback:", revive(func() { viewdefault.CallDeferred(cross(cur), v.Set) }))
 	// A stranger's own code runs the owner's method value through h, which
 	// only reads h: no write, and the view is unchanged below.
-	println("stranger callback:", revive(func() { h.Iterate("", "", viewdefault.ViewSetter()) }))
+	println("stranger callback:", try(func() { h.Iterate("", "", viewdefault.ViewSetter()) }))
 	println("view:", v.Get("k"), v.Get("a"), v.Get("d"), v.Size())
 	// Bound by the owner on its view and called by a stranger: no write.
-	println("owner-bound:", revive(func() { viewdefault.ViewSetter()("o", "x") }))
+	println("owner-bound:", try(func() { viewdefault.ViewSetter()("o", "x") }))
 	println("owner-bound hook:", revive(func() { viewdefault.RunHook(cross(cur), viewgrant.Wrap(viewdefault.ViewSetter())) }))
 	// The owner's own code calling its own method value writes.
 	println("owner-bound callback:", revive(func() { viewdefault.HandleIterate(cross(cur), viewdefault.ViewSetter()) }))
@@ -32,6 +32,14 @@ func main(cur realm) {
 	viewdefault.CopyToView(cross(cur))
 	println("owner's own:", v.Get("own"))
 	println("handle:", h.Get("k"), h.Size())
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

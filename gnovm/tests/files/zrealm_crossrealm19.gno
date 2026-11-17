@@ -32,12 +32,20 @@ func init(cur realm) {
 	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cross-call to
 	// external realm function gno.land/r/crossrealm_test.Foo from
 	// gno.land/r/tests/vm/crossrealm
-	println("bar:", revive(func() { crossrealm.CallFooerBar() }))
+	println("bar:", try(func() { crossrealm.CallFooerBar() }))
 	println("bar crossing:", revive(func() { crossrealm.CallFooerBarCrossing(cross(cur)) }))
 }
 
 func main(cur realm) {
 	print(".")
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

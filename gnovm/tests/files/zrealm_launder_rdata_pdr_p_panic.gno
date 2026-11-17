@@ -3,7 +3,8 @@ package launderrh_pdr_p_panic
 
 // Vector 11: /p/ PanicAfterApply runs the attacker's top-level /p/
 // EvilWrite through a value, so EvilWrite runs view-only and its write is
-// refused before the post-apply panic. The refusal is not recovered.
+// refused before the post-apply panic. The view-only frame is no realm
+// boundary, so main's recover catches the refusal; nothing was written.
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
@@ -30,6 +31,5 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-
-// Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field
+// recovered: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field
+// after recover: ptr-orig

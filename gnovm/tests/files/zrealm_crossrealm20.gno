@@ -34,11 +34,19 @@ func init(cur realm) {
 	f.s = "C"
 	crossrealm.CallFooerGetterFooCross(cross(cur))
 	f.s = "D"
-	println("bar:", revive(func() { crossrealm.CallFooerGetterBar() }))
+	println("bar:", try(func() { crossrealm.CallFooerGetterBar() }))
 }
 
 func main(cur realm) {
 	print(".")
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

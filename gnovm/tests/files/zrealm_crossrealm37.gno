@@ -16,12 +16,20 @@ func main(cur realm) {
 	println("attacker: ", attacker)
 
 	// recover() cannot catch a panic crossing a realm boundary; revive can.
-	println("exception caught:", revive(func() { crossrealm_e.SetOwner(unsafe.CurrentRealm().Address()) }))
+	println("exception caught:", try(func() { crossrealm_e.SetOwner(unsafe.CurrentRealm().Address()) }))
 
 	owner := crossrealm_e.GetOwner()
 	println("owner == attacker: ", owner == attacker)
 
 	println("transfer:", revive(func() { crossrealm_e.TransferToken(cross(cur)) }))
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

@@ -14,12 +14,20 @@ func main(cur realm) {
 	println("before:", launderrvictim.ReadImm())
 
 	w := launderrvictim.MakeWriterClosure("pwnd-via-returned-closure")
-	println("plain closure:", revive(w))
+	println("plain closure:", try(w))
 	println("after:", launderrvictim.ReadImm())
 
 	wx := launderrvictim.MakeWriterX("written-via-crossing-closure")
 	wx(cross(cur))
 	println("after crossing closure:", launderrvictim.ReadImm())
+}
+
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
 }
 
 // Output:

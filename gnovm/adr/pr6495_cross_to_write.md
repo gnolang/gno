@@ -33,7 +33,10 @@ the realm's helpers, methods and the library code they name write as usual.
    method value or method expression called through a value; an interface
    call or method value whose package the realm does not import (directly or
    through its imports); a method value built while view-only. A call that
-   names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`) acts for the caller.
+   names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`), or reads it from a
+   `/p/` or stdlib package-level variable (`lib.Table[k](x)`, fixed after
+   init), acts for the caller. A realm's own function or closure reached
+   through library code its crossing call named still acts for the realm.
 4. A realm's closure entered from another realm counts as a call boundary for
    `AssertOriginCall`.
 
@@ -74,8 +77,9 @@ library code (call a function of the owning realm)`. `mutable` is removed.
   tests, deployment bootstraps, scripts and txtars.
 - `authz` handlers that run actions synchronously work; queueing an action in
   one realm and running it from another needs crossing action types.
-- A panic in read-only code crosses a realm boundary: `recover` in the caller
-  does not catch it, `revive` does.
+- A view-only or read-only frame writes nothing stored, so it is no realm
+  boundary: `recover` in the caller catches a panic raised in it (a refused
+  write included); only a crossing call is a boundary, caught by `revive`.
 
 ## Known open
 

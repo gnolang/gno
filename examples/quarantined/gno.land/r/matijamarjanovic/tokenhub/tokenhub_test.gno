@@ -195,9 +195,13 @@ func TestMustGetFunctions(cur realm, t *testing.T) {
 	retrievedToken := MustGetToken(key)
 	uassert.Equal(t, "Must Token", retrievedToken.GetName(), "Token name should match")
 
-	// MustGetToken dispatches into grc20reg across a borrow; that abort is not
-	// catchable by defer/recover, so capture it with revive().
-	r := revive(func() { MustGetToken("non_existent_token") })
+	// MustGetToken's panic rises through grc20reg's read-only frame, which is
+	// no realm boundary, so defer/recover catches it.
+	var r any
+	func() {
+		defer func() { r = recover() }()
+		MustGetToken("non_existent_token")
+	}()
 	uassert.True(t, r != nil, "MustGetToken should panic for non-existent token")
 	uassert.True(t, strings.Contains(r.(string), "unknown token"), "Panic message should mention unknown token")
 
