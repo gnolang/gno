@@ -59,8 +59,9 @@ without the script.
   realms, so that a new realm of a known project needs no change. For the same
   reason, packages under an address namespace stay out of the imports ranking.
 - **The scan copies gnoweb's chain map** (`feature/chainmap/activity.go`): same
-  rate probe, band width and window, in a language a lone script can run. Tuning
-  one does not reach the other.
+  rate probe, band width and window, in a language a lone script can run. One
+  difference: a chain shorter than the probe takes its rate from block 1, where
+  gnoweb scans it all. Tuning one does not reach the other.
 - **No relative dates, and no post counters.** They would change the page on
   every run, and each change costs a reload.
 - **Two audiences.** Mainnet greets visitors. A testnet is where people come to
@@ -72,7 +73,7 @@ without the script.
   binary as `build_version` (`v1.7.0-rc.1` on onyx); `node_info.version` is
   the protocol's (`v1.0.0-rc.0`). The line names the former, which a testnet
   can lag GitHub's newest candidate, and only a release tag goes into
-  its link.
+  its link: an untagged build leaves the line out.
 
 ## Alternatives considered
 

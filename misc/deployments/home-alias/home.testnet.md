@@ -59,7 +59,7 @@ Add a key (`gnokey list` prints its g1 address), and fund that address at the [f
 
 ```sh
 gnokey add alice
-mkdir myrealm && cd myrealm
+mkdir -p myrealm && cd myrealm
 cat > myrealm.gno <<'EOF'
 package myrealm
 

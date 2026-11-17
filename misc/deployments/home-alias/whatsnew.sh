@@ -207,16 +207,17 @@ block_time() {
 
 # Stops at the first failed band: a partial count must not pass for a full one.
 scan_week() {
-  local tip head probe lower upper
+  local tip head from probe lower upper
   tip=$(graphql '{ latestBlockHeight }' | jq -er '.data.latestBlockHeight | numbers') || return 1
   head=$(block_time "$tip") || return 1
-  # A chain younger than the probe, or than the window, counts from its first
-  # block, as gnoweb's windowStart does.
+  # A chain shorter than the probe takes its rate from block 1 (gnoweb counts it
+  # whole); one younger than the window counts from its first block, as
+  # gnoweb's windowStart does.
   lower=0
-  if [ "$tip" -gt "$RATE_PROBE" ]; then
-    probe=$(block_time $((tip - RATE_PROBE))) || return 1
-    lower=$((tip - RATE_PROBE * ACTIVITY_WINDOW / (head - probe)))
-  fi
+  from=$((tip > RATE_PROBE ? tip - RATE_PROBE : 1))
+  probe=$(block_time "$from") || return 1
+  [ "$probe" -lt "$head" ] || [ "$tip" -le "$RATE_PROBE" ] || return 1
+  [ "$probe" -ge "$head" ] || lower=$((tip - (tip - from) * ACTIVITY_WINDOW / (head - probe)))
   [ "$lower" -gt 0 ] || lower=0
   while [ "$lower" -lt "$tip" ]; do
     upper=$((lower + BAND_WIDTH))
@@ -268,7 +269,9 @@ live_rows() {
   done <<<"$1"
 }
 
-# One line per project, newest first; the week's count goes beside it.
+# One line per project, newest first; the week's count goes beside it. Only a
+# project's four newest deploys are checked: its refused redeploys must not use
+# up the checks of the others.
 source_deployed() {
   local rows height name path epoch
   rows=$(scan_week 'MsgAddPackage: { package: { path: { like: "." } } }' '... on MsgAddPackage { package { path } }' \
@@ -276,17 +279,18 @@ source_deployed() {
     awk -F'\t' -v skip="$DEPLOYED_SKIP" '/^[0-9]+\tgno\.land\/[rp]\/[a-z0-9_.\/-]+$/ && !index($0, "..") && (skip == "" || $2 !~ skip)' |
     sort -rn)
   { grep -c . <<<"$rows" || true; } >"$STATE_DIR/deployed-count"
-  live_rows "$rows" | short_paths | while IFS=$'\t' read -r height name path; do
+  live_rows "$(awk -F'\t' '{ split($2, p, "/"); if (n[p[3] "/" p[4]]++ < 4) print }' <<<"$rows")" | short_paths | while IFS=$'\t' read -r height name path; do
     epoch=$(block_time "$height")
     printf '%s\t%s\t%s\n' "$(jq -nr --argjson t "$epoch" '$t | strftime("%Y%m%d")')" "$(cut -d/ -f1,2 <<<"$name")" "$path"
   done
 }
 
 # The binary the chain runs, a candidate on a testnet. node_info.version is the
-# protocol's, not the release's. Only a release tag goes into the link.
+# protocol's, not the release's. Only a release tag goes into the link; any
+# other build answers an empty line, so that the old tag does not stay.
 source_version() {
   "${CURL[@]}" "$RPC_URL/status" |
-    jq -er '.result.build_version | select(test("^v[0-9.]+(-rc\\.[0-9]+)?$"))'
+    jq -er '.result.build_version | if test("^v[0-9.]+(-rc\\.[0-9]+)?$") then . else "" end'
 }
 
 source_shipped() {
@@ -480,10 +484,8 @@ render_builders() {
   [ -n "$recent$ranking$shipped" ] || return 0
 
   printf '## <gno-icon name="signal" /> Live on %s\n\n' "$NETWORK"
-  [ ! -s "$STATE_DIR/version" ] || {
-    tag=$(cat "$STATE_DIR/version")
-    printf 'Runs [%s](https://github.com/gnolang/gno/releases/tag/%s). ' "$tag" "$tag"
-  }
+  tag=$(cat "$STATE_DIR/version" 2>/dev/null || true)
+  [ -z "$tag" ] || printf 'Runs [%s](https://github.com/gnolang/gno/releases/tag/%s). ' "$tag" "$tag"
   printf 'Watch it on [Gnockpit](https://gnockpit.%s.testnets.gno.land) or [Gnoscan](https://gnoscan.io/?chainId=%s-1).\n\n' "$NETWORK" "$NETWORK"
   if is_recent activity && is_recent deployed-count; then
     IFS=$'\t' read -r users realms <"$STATE_DIR/activity"

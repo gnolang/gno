@@ -70,7 +70,7 @@ distinct addresses, and only those of the `USED_NAMESPACES` namespaces can appea
 
 Run it often: a source is only read once its interval has passed, whether or not
 its last read worked. One that fails keeps its previous content, except the
-rankings of the week, which go after seven days. The page is replaced atomically
+rankings and deployments of the week, which go after seven days. The page is replaced atomically
 and keeps its mode, only when its content changes, and never by an empty block.
 Point the script at the file itself, not at a symlink, and give each page its
 own `STATE_DIR`. It exits 0 once it has

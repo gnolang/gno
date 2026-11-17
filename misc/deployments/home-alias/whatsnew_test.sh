@@ -41,7 +41,7 @@ load() {
   : >"$work/bands"
   graphql() {
     case $1 in
-    *latestBlockHeight*) echo '{"data":{"latestBlockHeight":500}}' ;;
+    *latestBlockHeight*) echo "{\"data\":{\"latestBlockHeight\":${TIP:-500}}}" ;;
     *getBlocks*height*eq:\ -*) echo '{"data":{"getBlocks":null}}' ;;
     *getBlocks*) echo '{"data":{"getBlocks":[{"time":"2026-11-03T00:00:00Z"}]}}' ;;
     *getTransactions*)
@@ -54,6 +54,30 @@ load() {
   rc=$?
   check "a chain younger than the probe is scanned" '[ "$rc" = 0 ]'
   check "from its first block" 'grep -qx "gt: 0, lt: 501" "$work/bands"'
+  : >"$work/bands"
+  TIP=30000 scan_week 'MsgCall: {}' 'caller' '.caller' >/dev/null
+  rc=$?
+  check "but a long one whose block times do not increase fails" '[ "$rc" != 0 ] && [ ! -s "$work/bands" ]'
+  exit "$failed"
+) || failed=1
+
+# A chain under the rate probe but older than the window keeps to a week.
+(
+  load
+  : >"$work/bands"
+  graphql() {
+    case $1 in
+    *latestBlockHeight*) echo '{"data":{"latestBlockHeight":15000}}' ;;
+    *"eq: 1 }"*) echo '{"data":{"getBlocks":[{"time":"2026-10-20T00:00:00Z"}]}}' ;;
+    *getBlocks*) echo '{"data":{"getBlocks":[{"time":"2026-11-03T00:00:00Z"}]}}' ;;
+    *getTransactions*)
+      grep -oE 'gt: -?[0-9]+, lt: [0-9]+' <<<"$1" >>"$work/bands"
+      echo '{"data":{"getTransactions":[]}}'
+      ;;
+    esac
+  }
+  scan_week 'MsgCall: {}' 'caller' '.caller' >/dev/null
+  check "a quiet chain two weeks old is scanned from mid-chain" 'grep -qx "gt: 7501, lt: 15001" "$work/bands"'
   exit "$failed"
 ) || failed=1
 
@@ -83,6 +107,20 @@ load() {
   out=$(source_deployed)
   check "LIST_SIZE projects despite a busy one" '[ "$(grep -c . <<<"$out")" = "$LIST_SIZE" ]'
   check "the busy one once" '[ "$(grep -c "/r/busy/" <<<"$out")" = 1 ]'
+  exit "$failed"
+) || failed=1
+
+# A project refused again and again does not use up the vm/qfile checks.
+(
+  load
+  scan_week() {
+    for i in $(seq 40 -1 21); do printf '%s\tgno.land/r/alice/app/v%s\n' "$i" "$i"; done
+    printf '10\tgno.land/r/bob/x\n'
+  }
+  abci() { [ "${3#gno.land/r/alice/}" = "$3" ]; }
+  block_time() { echo 1762128000; }
+  out=$(source_deployed)
+  check "20 refused deploys of one project leave room for others" 'grep -q "/r/bob/x" <<<"$out"'
   exit "$failed"
 ) || failed=1
 
@@ -171,7 +209,10 @@ load() {
   CURL=(fake_curl)
   check "the running candidate" '[ "$(VERSION=v1.7.0-rc.1 source_version)" = v1.7.0-rc.1 ]'
   check "a final release" '[ "$(VERSION=v1.7.0 source_version)" = v1.7.0 ]'
-  check "no other string" '! VERSION=v1.7.0-dirty source_version >/dev/null'
+  check "no other string" 'out=$(VERSION=master.1234+abc1234 source_version) && [ -z "$out" ]'
+  printf '\n' >"$STATE_DIR/version"
+  printf '1\tA merged PR\n' >"$STATE_DIR/shipped"
+  check "and an untagged build drops the line" 'out=$(render_builders) && ! grep -q Runs <<<"$out"'
   exit "$failed"
 ) || failed=1
 
@@ -188,6 +229,8 @@ load() {
   check "the deploy block runs, with gnokey and gno stubbed" '[ "$rc" = 0 ]'
   check "and writes a realm" 'grep -q "^package myrealm$" "$work/deploy/myrealm/myrealm.gno"'
   check "with its module path" 'grep -q "gno.land/r/<your-g1-addr>/myrealm" "$work/deploy/myrealm/gnomod.toml"'
+  (cd "$work/deploy" && PATH="$work/deploy/bin:$PATH" bash -e block.sh >/dev/null 2>&1)
+  check "a second run still writes into myrealm/" '[ ! -e "$work/deploy/myrealm.gno" ] && [ ! -e "$work/deploy/gnomod.toml" ]'
   exit "$failed"
 ) || failed=1
 
