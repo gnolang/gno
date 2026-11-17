@@ -137,14 +137,14 @@ token.Ledger().Move(alice, thief, 1e9) // no gate, and Move writes: refused at `
 **An exported helper is not a gate.**
 ```go
 // victim
-func SetOwner(a address) { owner = a }                      // no `cur`: not a gate
-func ChangeOwner(cur realm, a address) {                    // a gate with a check
-	if cur.Previous().Address() != owner { panic("unauthorized") }
-	owner = a
+func SetFee(n int64) { fee = n }                            // no `cur`: not a gate
+func ChangeFee(cur realm, n int64) {                        // a gate with a check
+	if cur.Previous().Address() != admin { panic("unauthorized") }
+	fee = n
 }
 // caller
-x.SetOwner(attacker)              // refused: x's code entered without crossing (R5)
-x.ChangeOwner(cross(cur), me)     // runs, and the check decides (R3, R6)
+x.SetFee(0)                       // refused: x's code entered without crossing (R5)
+x.ChangeFee(cross(cur), 0)        // runs, and the check decides (R3, R6)
 ```
 
 **A plugin cannot borrow the host's authority.**
