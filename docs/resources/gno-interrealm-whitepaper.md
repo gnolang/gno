@@ -120,8 +120,8 @@ func Ledger() *ledger.Ledger                  { return l }
 
 // caller: gno.land/r/demo/thief
 token.Transfer(cross(cur), bob, 10)         // moves the thief's own tokens (R3, R6)
-token.Ledger().Balance(alice)               // reading is fine (R2)
-token.Ledger().Move(alice, thief, 1e9)      // refused: library code on token's object (R1, R4)
+token.Ledger().Balance(alice)               // fine: reading needs no gate (R2)
+token.Ledger().Move(alice, thief, 1e9)      // refused: writes token's ledger outside a crossing call into token (R1, R3)
 ```
 
 **An exported helper is not a gate.**
@@ -167,7 +167,7 @@ func NewVal() counter.Counter { return counter.Counter{} } // a copy: the caller
 func NewPtr() *counter.Counter { return &counter.Counter{} } // x's object: a view
 // caller
 v := x.NewVal(); v.Inc()          // fine: the caller's copy (R1)
-p := x.NewPtr(); p.Inc()          // refused: x's object (R1, R4)
+p := x.NewPtr(); p.Inc()          // refused: writes x's object outside a crossing call into x (R1, R3)
 ```
 
 ## 6. Writing a realm
