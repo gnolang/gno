@@ -570,9 +570,14 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 			// Translate in place.
 			scope2 := ast.NewScope(scope)
-			b = append(b,
-				_block(go2pbStmts(rootPkg, false, imports, scope2, pbof, goorf, goorfIsPtr, goorfType, field.FieldOptions, 0)...),
-			)
+			stmts := go2pbStmts(rootPkg, false, imports, scope2, pbof, goorf, goorfIsPtr, goorfType, field.FieldOptions, 0)
+			if field.SkipZero {
+				// amino:"skip_zero": leave the pb field unset, so proto3
+				// omits it, whenever the Go value is zero, as the reflect
+				// codec does (binary_encode.go encodeReflectBinaryStruct).
+				stmts = ifNotZero(imports, scope, goorf, stmts)
+			}
+			b = append(b, _block(stmts...))
 		}
 
 	default:
@@ -871,9 +876,18 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 			// Translate in place.
 			scope2 := ast.NewScope(scope)
-			b = append(b,
-				_block(pb2goStmts(rootPkg, false, imports, scope2, goorf, goorfIsPtr, goorfType, pbof, field.FieldOptions, 0)...),
-			)
+			stmts := pb2goStmts(rootPkg, false, imports, scope2, goorf, goorfIsPtr, goorfType, pbof, field.FieldOptions, 0)
+			if field.SkipZero {
+				// amino:"skip_zero": an unset pb field is the zero Go value,
+				// as a missing field is to the reflect codec, which never
+				// calls UnmarshalAmino for it (binary_decode.go
+				// decodeReflectBinaryStruct). Converting the unset field
+				// instead could fail, e.g. indexing an empty list as an array.
+				isSet := _not(_call(_sel(reflectElem(imports, scope, pbof), "IsZero")))
+				setZero := &ast.ExprStmt{X: _call(_sel(reflectElem(imports, scope, goorf), "SetZero"))}
+				stmts = []ast.Stmt{_ife(isSet, _block(stmts...), _block(setZero))}
+			}
+			b = append(b, _block(stmts...))
 		}
 
 	default:
@@ -881,6 +895,20 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 		b = append(b, _a(goor, "=", _call(_i(goorteFn()), maybeUnwrap(pbo))))
 	}
 	return b
+}
+
+// reflectElem returns the expression reflect.ValueOf(&x).Elem(), which the
+// code generated for amino:"skip_zero" asks whether x is zero, or zeroes x
+// with. x must be addressable.
+func reflectElem(imports *ast.GenDecl, scope *ast.Scope, x ast.Expr) ast.Expr {
+	reflect_ := addImportAuto(imports, scope, "reflect", "reflect")
+	return _call(_sel(_call(_sel(_i(reflect_), "ValueOf"), _ref(x)), "Elem"))
+}
+
+// ifNotZero wraps stmts to run only when x, an amino:"skip_zero" field, is
+// not zero.
+func ifNotZero(imports *ast.GenDecl, scope *ast.Scope, x ast.Expr, stmts []ast.Stmt) []ast.Stmt {
+	return []ast.Stmt{_if(_not(_call(_sel(reflectElem(imports, scope, x), "IsZero"))), stmts...)}
 }
 
 func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope *ast.Scope, goo ast.Expr, gooIsPtr bool, gooType *amino.TypeInfo) (b []ast.Stmt) {
@@ -992,9 +1020,13 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 
 				// Translate in place.
 				scope2 := ast.NewScope(scope)
-				b = append(b,
-					_block(isReprEmptyStmts(rootPkg, false, imports, scope2, goorf, goorfIsPtr, goorfType)...),
-				)
+				stmts := isReprEmptyStmts(rootPkg, false, imports, scope2, goorf, goorfIsPtr, goorfType)
+				if field.SkipZero {
+					// amino:"skip_zero": a zero Go value is left out, so it
+					// is empty whatever its repr.
+					stmts = ifNotZero(imports, scope, goorf, stmts)
+				}
+				b = append(b, _block(stmts...))
 			}
 		}
 

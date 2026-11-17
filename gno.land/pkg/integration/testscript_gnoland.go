@@ -34,6 +34,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/meminfo"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -137,9 +138,9 @@ type nodeBudget struct {
 	// budget never ramps.
 	reserve uint64
 
-	// readMem is [testutils.ReadMemInfo] and readHeld is [heldMemory], swapped
+	// readMem is [meminfo.Read] and readHeld is [heldMemory], swapped
 	// out by tests.
-	readMem  func() (testutils.MemInfo, bool)
+	readMem  func() (meminfo.Info, bool)
 	readHeld func() uint64
 }
 
@@ -160,9 +161,9 @@ func newNodeBudget() *nodeBudget {
 	// memory we cannot read, or a machine with no more cores than the count
 	// itself: there is nothing to ramp to, so no reading worth taking.
 	_, pinned := testutils.MaxParallelOverride()
-	mi, ok := testutils.ReadMemInfo()
+	mi, ok := meminfo.Read()
 	if pinned || !ok || n >= most {
-		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
+		return &nodeBudget{min: n, max: n, limit: n, readMem: meminfo.Read}
 	}
 	return &nodeBudget{
 		min: n,
@@ -171,7 +172,7 @@ func newNodeBudget() *nodeBudget {
 		// therefore the one worth assuming before any reading has been taken.
 		limit:    n,
 		reserve:  mi.Total / nodeMemReserveDiv,
-		readMem:  testutils.ReadMemInfo,
+		readMem:  meminfo.Read,
 		readHeld: heldMemory,
 	}
 }
