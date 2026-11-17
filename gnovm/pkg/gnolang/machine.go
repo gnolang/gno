@@ -2717,14 +2717,14 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		return
 	}
 
-	// Not cross nor crossing. Two borrow rules apply (the first
-	// applicable one fires):
+	// Not cross nor crossing. A realm's stored state changes only during a
+	// crossing call into it (pr6495_cross_to_write.md):
 	//
-	//   #1. /r/- or /e/-declared function/method/closure → borrow to the
-	//       callable's declaring realm (any receiver shape, or top-level
-	//       function). /r/attacker code runs with /r/attacker's
-	//       authority, not victim's. Ephemeral MsgRun code must likewise
-	//       regain its own authority when called back by another realm.
+	//   #1. /r/- or /e/-declared function/method/closure entered from another
+	//       realm (or from read-only code) runs read-only: it constructs its
+	//       realm's objects and writes only objects allocated in the current
+	//       read-only stretch, never stored ones. Its own realm's calls are
+	//       unchanged.
 	//
 	//   #2. Otherwise (/p/-declared) → only a /p/-owned receiver borrows,
 	//       so the post-init immutability gate reports the write. A
