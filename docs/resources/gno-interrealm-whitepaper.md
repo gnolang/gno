@@ -149,15 +149,25 @@ x.ChangeOwner(cross(cur), me)     // runs, and the check decides (R3, R6)
 
 **A plugin cannot borrow the host's authority.**
 ```go
-// p: gno.land/p/evil
+// p: gno.land/p/demo/shape (a library x uses)
+type Obj struct{ Field string }
+
+// p: gno.land/p/evil (written by the attacker)
 type T struct{}
-func (T) Run(o *x.Obj) { o.Field = "pwnd" }
-// victim
-type Runner interface{ Run(*Obj) }
-func Use(cur realm, r Runner) { r.Run(gObj) }
-// caller
-x.Use(cross(cur), evil.T{})       // refused: x does not import p/evil (R4)
+func (T) Run(o *shape.Obj) { o.Field = "pwnd" }     // writes o
+
+// victim: gno.land/r/x (imports p/demo/shape, never p/evil)
+type Runner interface{ Run(*shape.Obj) }
+var gObj = &shape.Obj{}                             // x's object (R1)
+func Use(cur realm, r Runner) { r.Run(gObj) }       // the gate: runs whatever Runner it is given
+
+// caller: gno.land/r/thief
+x.Use(cross(cur), evil.T{})  // through the gate, but r.Run is evil.T's code: the caller picked it,
+                             // x's source never names p/evil, so it acts for nobody (R4)
+                             // → refused at `o.Field = "pwnd"`
 ```
+Had x imported `p/evil` itself, `evil.T`'s methods would act for x: importing a
+package is how a realm says it trusts that code.
 
 **A callback that must change its own realm is a crossing closure.**
 ```go
