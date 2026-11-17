@@ -47,6 +47,7 @@ func (g *GovDAO) PreCreateProposal(cur realm, r dao.ProposalRequest) (address, e
 }
 
 func (g *GovDAO) PostCreateProposal(cur realm, r dao.ProposalRequest, pid dao.ProposalID) {
+	mustBeProxy(cur)
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Filter().(type) {
@@ -143,6 +144,9 @@ func (g *GovDAO) PreExecuteProposal(cur realm, pid dao.ProposalID) (bool, error)
 }
 
 func (g *GovDAO) ExecuteProposal(cur realm, pid dao.ProposalID, e dao.Executor) error {
+	// Executing crosses into e as this realm, a gov/dao subpackage that
+	// executors trust, so only the proxy may drive it.
+	mustBeProxy(cur)
 	if e == nil {
 		panic("an executor is required to execute the proposal")
 	}
@@ -187,6 +191,14 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 // prev's package address equals the origin — never a third-party realm
 // in the middle. Relaxing this to allow realm intermediaries would let
 // one member's vote be cast under another origin: keep the two in sync.
+// mustBeProxy panics unless the r/gov/dao proxy crossed in. These methods are
+// crossing, so any realm holding a GovDAO could otherwise call them.
+func mustBeProxy(cur realm) {
+	if cur.Previous().PkgPath() != "gno.land/r/gov/dao" {
+		panic("only the gno.land/r/gov/dao proxy may call this")
+	}
+}
+
 func (g *GovDAO) isValidCall(cur realm) bool {
 	proxy := cur.Previous()
 	if proxy.PkgPath() != "gno.land/r/gov/dao" {

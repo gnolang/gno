@@ -2,6 +2,8 @@
 package govdao
 
 import (
+	"testing"
+
 	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/impl/v0"
 )
@@ -19,6 +21,7 @@ func init(cur realm) {
 
 func main(cur realm) {
 	// Try to execute a proposal that doesn't exist
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao")) // stand in for the proxy
 	govdao.ExecuteProposal(cross(cur), 404, executor)
 }
 

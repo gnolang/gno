@@ -36,6 +36,7 @@ func TestDeniedReasonIsClampedBeforeStoring(cur realm, t *testing.T) {
 	pid := dao.ProposalID(987654)
 	g.pss.Set(pid.String(), newProposalStatus([]string{memberstore.T1}))
 
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao")) // stand in for the proxy
 	g.ExecuteProposal(cross(cur), pid, &hugeErrExecutor{msg: strings.Repeat("E", 50000)})
 
 	stored := g.pss.GetStatus(pid).DeniedReason

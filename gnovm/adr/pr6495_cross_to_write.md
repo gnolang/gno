@@ -59,7 +59,9 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 ## Consequences
 
 - Writers are crossing functions or methods; `cur.Previous()` authenticates
-  them, so the `(_ int, rlm realm)` + `IsCurrent()` idiom is not needed.
+  them, so the `(_ int, rlm realm)` + `IsCurrent()` idiom is not needed. A
+  crossing method runs as its realm for anyone holding the object, so it must
+  check `cur.Previous()` (gov/dao's impl admits only the proxy).
 - Constructors work without crossing; their objects are read-only to callers.
   A pointer handed out is a view; a value is the caller's copy.
 - A callback that writes its own realm is a crossing closure.
