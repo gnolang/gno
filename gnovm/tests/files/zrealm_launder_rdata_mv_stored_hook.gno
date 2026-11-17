@@ -19,16 +19,16 @@ import (
 )
 
 func main(cur realm) {
-	launderrvictim.ClearHooks()
+	launderrvictim.ClearHooks(cross(cur))
 	println("before:", launderrvictim.ReadImm())
 
-	launderrvictim.RegisterHook(func(i *launderrvictim.Immutable) {
+	launderrvictim.RegisterHook(cross(cur), func(i *launderrvictim.Immutable) {
 		i.Field = "pwnd-stored-rh-closure"
 	})
-	launderrvictim.RunHooks()
+	launderrvictim.RunHooks(cross(cur))
 
 	println("after: ", launderrvictim.ReadImm())
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// gno.land/r/launderrh_mv_stored_hook's code was entered without crossing and is read-only (call its crossing function): i<VPBlock(1,0)>.Field

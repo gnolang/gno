@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	ifacevictim.UseGen(ifaceattack.Gen{})
+	ifacevictim.UseGen(cross(cur), ifaceattack.Gen{})
 	println("victim:", ifacevictim.Read())
 }
 

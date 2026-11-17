@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.Use(ifaceattack.Evil(0))
+	pfuncvictim.Use(cross(cur), ifaceattack.Evil(0))
 	println("victim:", pfuncvictim.Read())
 }
 

@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_entry_pfunc_viewonly_from
 package zrealm_entry_pfunc_viewonly_from
 
-// A view-only closure calls the victim's ApplyOne with EvilWrite; the victim
-// then calls that value through a variable, so it runs view-only.
+// A view-only closure calls the victim's ApplyNC with EvilWrite; the victim's
+// code, entered without crossing, runs read-only and writes nothing.
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
@@ -11,8 +11,8 @@ import (
 )
 
 func main(cur realm) {
-	cl := pfuncbind.Bind(pfuncvictim.ApplyOne, launderattack.EvilWrite)
-	pfuncvictim.Call(cl)
+	cl := pfuncbind.Bind(pfuncvictim.ApplyNC, launderattack.EvilWrite)
+	pfuncvictim.Call(cross(cur), cl)
 	println("victim:", pfuncvictim.Read())
 }
 

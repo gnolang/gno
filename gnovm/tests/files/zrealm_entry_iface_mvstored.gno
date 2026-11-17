@@ -9,8 +9,8 @@ import (
 )
 
 func main(cur realm) {
-	ifacevictim.StoreMV(ifaceattack.Evil(0))
-	ifacevictim.UseMVStored()
+	ifacevictim.StoreMV(cross(cur), ifaceattack.Evil(0))
+	ifacevictim.UseMVStored(cross(cur))
 	println("victim:", ifacevictim.Read())
 }
 

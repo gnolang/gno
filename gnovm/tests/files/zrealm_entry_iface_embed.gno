@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	ifacevictim.UseEmbed(ifaceattack.Evil(0))
+	ifacevictim.UseEmbed(cross(cur), ifaceattack.Evil(0))
 	println("victim:", ifacevictim.Read())
 }
 

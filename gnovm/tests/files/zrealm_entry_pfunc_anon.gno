@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.ApplyAnon(struct{ F pfuncvictim.Fn }{F: launderattack.EvilWrite})
+	pfuncvictim.ApplyAnon(cross(cur), struct{ F pfuncvictim.Fn }{F: launderattack.EvilWrite})
 	println("victim:", pfuncvictim.Read())
 }
 

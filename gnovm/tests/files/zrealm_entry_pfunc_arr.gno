@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.ApplyArr([1]pfuncvictim.Fn{launderattack.EvilWrite})
+	pfuncvictim.ApplyArr(cross(cur), [1]pfuncvictim.Fn{launderattack.EvilWrite})
 	println("victim:", pfuncvictim.Read())
 }
 

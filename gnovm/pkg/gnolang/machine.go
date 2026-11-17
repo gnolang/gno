@@ -27,16 +27,17 @@ import (
 
 type Machine struct {
 	// State
-	Ops      []Op          // main operations
-	Values   []TypedValue  // buffer of values to be operated on
-	Exprs    []Expr        // pending expressions
-	Stmts    []Stmt        // pending statements
-	Blocks   []*Block      // block (scope) stack
-	Frames   []Frame       // func call stack
-	Package  *PackageValue // active package
-	Realm    *Realm        // active realm
-	viewOnly bool          // no realm's stored objects may be written; implies Realm == nil
-	libMemo  struct {      // last foreignLib answer
+	Ops       []Op          // main operations
+	Values    []TypedValue  // buffer of values to be operated on
+	Exprs     []Expr        // pending expressions
+	Stmts     []Stmt        // pending statements
+	Blocks    []*Block      // block (scope) stack
+	Frames    []Frame       // func call stack
+	Package   *PackageValue // active package
+	Realm     *Realm        // active realm
+	viewOnly  bool          // no realm's stored objects may be written; implies Realm == nil
+	viewRealm *Realm        // realm whose code runs read-only (constructs its objects)
+	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
 		realm   *Realm
 		foreign bool
@@ -311,13 +312,33 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // setViewOnly drops write authority: the code runs under no realm, and the
 // write guard refuses every stored object instead of none.
 func (m *Machine) setViewOnly() {
+	// Temporaries of an enclosing read-only entry stay writable: they are no
+	// realm's stored state yet.
+	scratch := m.Alloc.scratch
 	m.setRealm(nil)
 	m.viewOnly = true
+	m.Alloc.scratch = scratch
+}
+
+// enterReadOnly runs realm r's code entered without crossing: it writes no
+// stored object and constructs objects owned by r. Objects allocated since
+// the read-only stretch began (the scratch set, reset by any crossing call)
+// are no realm's stored state yet, so code in the stretch may write them.
+func (m *Machine) enterReadOnly(r *Realm) {
+	m.setViewOnly()
+	m.viewRealm = r
+	m.Alloc.currentRealmID = r.ID
+	m.Alloc.currentRealmPath = r.Path
+	if m.Alloc.scratch == nil {
+		m.Alloc.scratch = make(map[*ObjectInfo]struct{})
+	}
 }
 
 func (m *Machine) setRealm(r *Realm) {
 	m.Realm = r
 	m.viewOnly = false
+	m.viewRealm = nil
+	m.Alloc.scratch = nil
 	if r != nil {
 		m.Alloc.currentRealmID = r.ID
 		m.Alloc.currentRealmPath = r.Path
@@ -2608,6 +2629,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		LastPackage:   m.Package,
 		LastRealm:     m.Realm,
 		LastViewOnly:  m.viewOnly,
+		LastViewRealm: m.viewRealm,
+		LastScratch:   m.Alloc.scratch,
 		WithCross:     withCross,
 		DidCrossing:   false,
 		Defers:        nil,
@@ -2728,10 +2751,19 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
 	// by the readonly gate against the caller's realm.
 	if IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath) {
-		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
-			r := pv.GetRealm()
-			assertBorrowedRealm(pv.PkgPath, r)
-			m.setRealm(r)
+		r := pv.GetRealm()
+		assertBorrowedRealm(pv.PkgPath, r)
+		switch {
+		case m.Realm == nil && !m.viewOnly:
+			m.setRealm(r) // no realm context (genesis, tooling)
+		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
+			// the realm's own code
+		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
+			// the same realm's code inside its read-only entry
+		default:
+			// Entered without crossing: a realm's stored state changes only
+			// during a crossing call into it.
+			m.enterReadOnly(r)
 		}
 		return
 	}
@@ -2913,6 +2945,12 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Package = fr.LastPackage
 	m.setRealm(fr.LastRealm)
 	m.viewOnly = fr.LastViewOnly
+	if fr.LastViewRealm != nil {
+		m.viewRealm = fr.LastViewRealm
+		m.Alloc.currentRealmID = fr.LastViewRealm.ID
+		m.Alloc.currentRealmPath = fr.LastViewRealm.Path
+	}
+	m.Alloc.scratch = fr.LastScratch
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions
@@ -3167,18 +3205,20 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 }
 
 // The "tainted" wording in the message is historical; the failure is the
-// cross-realm ownership check (tvoid.PkgID != m.Realm.ID) — the target is
-// owned by a realm different from the one currently executing. Going
-// through a method or crossing function re-enters via PushFrameCall, whose
-// implicit borrow-realm switch (or hard cross-call) lines m.Realm up with
-// the target's owner.
+// cross-realm ownership check: the target is owned by a realm other than the
+// one writing. Only a crossing call into the owner lines them up.
 func (m *Machine) readonlyAccessPanic(x Expr) string {
 	if m.Package != nil && m.Package.PkgID.IsImmutablePkg() && !m.Package.PkgID.IsStdlibPkg() {
 		// /p/ code writing an object another realm owns: only that realm's
 		// own functions may write it. Stdlib receivers never borrow.
 		return "cannot modify object owned by another realm from library code (call a function of the owning realm): " + x.String()
 	}
-	return "cannot directly modify readonly tainted object (use a method or crossing function): " + x.String()
+	if m.viewRealm != nil {
+		// The realm's own code, entered without crossing.
+		return m.viewRealm.Path + "'s code was entered without crossing and is read-only" +
+			" (call its crossing function): " + x.String()
+	}
+	return "cannot directly modify readonly tainted object (call a crossing function of the owning realm): " + x.String()
 }
 
 // IsReadonly is the write-guard form, used at every mutation site
@@ -3212,6 +3252,10 @@ func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 	} else if !m.viewOnly {
 		return false
 	}
+	//  - tv is scratch of the active read-only entry
+	if m.viewOnly && m.scratchOwn(scratchObject(tv)) {
+		return false
+	}
 	//  - tv is a ref to package path
 	if rv, ok := tv.V.(RefValue); ok && rv.PkgPath != "" {
 		if rv.PkgPath == m.Package.PkgPath {
@@ -3234,6 +3278,9 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	}
 	obj, ok := base.(Object)
 	if !ok {
+		return false
+	}
+	if m.viewOnly && m.scratchOwn(obj) {
 		return false
 	}
 	oid := obj.GetObjectID()
@@ -3595,4 +3642,33 @@ func (m *Machine) ExceptionStacktrace() string {
 		builder.WriteString(last.StringWithStacktrace(m))
 	}
 	return builder.String()
+}
+
+// scratchOwn reports whether obj is an unreal object the active read-only
+// entry created; that entry may write it (rule: temporaries it made itself).
+func (m *Machine) scratchOwn(obj Object) bool {
+	if obj == nil || m.Alloc.scratch == nil {
+		return false
+	}
+	oi := obj.GetObjectInfo()
+	_, ok := m.Alloc.scratch[oi]
+	return ok && !oi.GetIsReal()
+}
+
+// scratchObject returns the object a write through tv lands in, if any.
+func scratchObject(tv *TypedValue) Object {
+	switch cv := tv.V.(type) {
+	case PointerValue:
+		if hiv, ok := cv.Base.(*HeapItemValue); ok {
+			return scratchObject(&hiv.Value)
+		}
+		obj, _ := cv.Base.(Object)
+		return obj
+	case *SliceValue:
+		obj, _ := cv.Base.(Object)
+		return obj
+	case Object:
+		return cv
+	}
+	return nil
 }

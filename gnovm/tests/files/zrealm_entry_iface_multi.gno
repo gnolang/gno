@@ -5,7 +5,7 @@ package zrealm_entry_iface_multi
 import "gno.land/r/tests/vm/ifacevictim"
 
 func main(cur realm) {
-	println(ifacevictim.WriteMulti())
+	println(ifacevictim.WriteMulti(cross(cur)))
 	println("victim:", ifacevictim.Read())
 }
 

@@ -42,5 +42,5 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-// rec: cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// rec: cannot directly modify readonly tainted object (call a crossing function of the owning realm): i<VPBlock(1,0)>.Field
 // after:  ptr-orig

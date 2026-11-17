@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.RunHookOn(launderattack.EvilWrite)
+	pfuncvictim.RunHookOn(cross(cur), launderattack.EvilWrite)
 	println("victim:", pfuncvictim.Read())
 }
 

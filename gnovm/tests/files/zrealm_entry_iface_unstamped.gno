@@ -10,7 +10,7 @@ import (
 
 func main(cur realm) {
 	mk := ifaceattack.MakeSet
-	ifacevictim.ApplySet(mk(ifacevictim.Tree()))
+	ifacevictim.ApplySet(cross(cur), mk(ifacevictim.Tree()))
 	println("victim has k:", ifacevictim.TreeHas())
 }
 

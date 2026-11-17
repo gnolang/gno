@@ -9,8 +9,8 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.SetHook(launderattack.EvilWrite)
-	pfuncvictim.RunHook()
+	pfuncvictim.SetHook(cross(cur), launderattack.EvilWrite)
+	pfuncvictim.RunHook(cross(cur))
 	println("victim:", pfuncvictim.Read())
 }
 

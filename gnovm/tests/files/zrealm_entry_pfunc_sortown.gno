@@ -7,7 +7,7 @@ package zrealm_entry_pfunc_sortown
 import "gno.land/r/tests/vm/pfuncvictim"
 
 func main(cur realm) {
-	pfuncvictim.SortOwn()
+	pfuncvictim.SortOwn(cross(cur))
 }
 
 // Error:

@@ -22,4 +22,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): bz<VPBlock(1,0)>[(const (0 int))]
+// gno.land/r/tests/vm/crossrealm_d's code was entered without crossing and is read-only (call its crossing function): bz<VPBlock(1,0)>[(const (0 int))]

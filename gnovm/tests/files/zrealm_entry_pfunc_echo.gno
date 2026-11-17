@@ -11,7 +11,7 @@ import (
 
 func main(cur realm) {
 	f := pfuncvictim.EchoSlice([]pfuncvictim.Fn{launderattack.EvilWrite})
-	pfuncvictim.ApplyOne(f)
+	pfuncvictim.ApplyOne(cross(cur), f)
 	println("victim:", pfuncvictim.Read())
 }
 

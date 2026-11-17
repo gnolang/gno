@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	ifacevictim.UseMV(ifaceattack.Evil(0))
+	ifacevictim.UseMV(cross(cur), ifaceattack.Evil(0))
 	println("victim:", ifacevictim.Read())
 }
 

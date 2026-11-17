@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.ApplyAnySlice([]pfuncvictim.Fn{launderattack.EvilWrite})
+	pfuncvictim.ApplyAnySlice(cross(cur), []pfuncvictim.Fn{launderattack.EvilWrite})
 	println("victim:", pfuncvictim.Read())
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.Hof(pfuncbind.Clobber)
+	pfuncvictim.Hof(cross(cur), pfuncbind.Clobber)
 	println("victim:", pfuncvictim.Read())
 }
 

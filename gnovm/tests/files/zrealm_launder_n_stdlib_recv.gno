@@ -26,4 +26,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): dst<VPBlock(1,1)>[di<VPBlock(1,3)> + (const (0 int))]
+// cannot directly modify readonly tainted object (call a crossing function of the owning realm): dst<VPBlock(1,1)>[di<VPBlock(1,3)> + (const (0 int))]

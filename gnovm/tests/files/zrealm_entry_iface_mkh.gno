@@ -10,7 +10,7 @@ import (
 
 func main(cur realm) {
 	mk := ifaceattack.MakeH
-	ifacevictim.ApplyOne(mk())
+	ifacevictim.ApplyOne(cross(cur), mk())
 	println("victim:", ifacevictim.Read())
 }
 

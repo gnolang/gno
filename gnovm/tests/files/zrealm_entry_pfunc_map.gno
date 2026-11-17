@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.ApplyMap(map[string]pfuncvictim.Fn{"a": launderattack.EvilWrite})
+	pfuncvictim.ApplyMap(cross(cur), map[string]pfuncvictim.Fn{"a": launderattack.EvilWrite})
 	println("victim:", pfuncvictim.Read())
 }
 

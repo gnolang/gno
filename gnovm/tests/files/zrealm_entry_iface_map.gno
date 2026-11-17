@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	ifacevictim.UseMap(map[string]ifacevictim.Runner{"a": ifaceattack.Evil(0)})
+	ifacevictim.UseMap(cross(cur), map[string]ifacevictim.Runner{"a": ifaceattack.Evil(0)})
 	println("victim:", ifacevictim.Read())
 }
 

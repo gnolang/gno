@@ -25,7 +25,7 @@ func main(cur realm) {
 }
 
 // Output:
-// owner's arg: cannot directly modify readonly tainted object (use a method or crossing function): dst<VPBlock(2,1)>[di<VPBlock(2,3)> + (const (0 int))]
+// owner's arg: cannot directly modify readonly tainted object (call a crossing function of the owning realm): dst<VPBlock(2,1)>[di<VPBlock(2,3)> + (const (0 int))]
 // secret: secret-bytes
 // own tree, method value: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
 // own tree, closure: 2

@@ -26,7 +26,7 @@ import (
 func main(cur realm) {
 	println("before:", launderrvictim.ReadImm())
 
-	launderrvictim.PanicAfterPushDefer(func(i *launderrvictim.Immutable) {
+	launderrvictim.PanicAfterPushDefer(cross(cur), func(i *launderrvictim.Immutable) {
 		i.Field = "pwnd-via-panic-defer"
 	})
 
@@ -35,4 +35,4 @@ func main(cur realm) {
 
 // Error:
 // victim-induced panic
-// 	cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// 	gno.land/r/launderrh_pdr_panic_defer's code was entered without crossing and is read-only (call its crossing function): i<VPBlock(1,0)>.Field

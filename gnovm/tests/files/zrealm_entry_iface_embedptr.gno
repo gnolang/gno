@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	ifacevictim.UseEmbedPtr(&ifaceattack.EvilS{})
+	ifacevictim.UseEmbedPtr(cross(cur), &ifaceattack.EvilS{})
 	println("victim:", ifacevictim.Read())
 }
 

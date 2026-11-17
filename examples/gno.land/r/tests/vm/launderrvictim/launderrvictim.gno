@@ -38,14 +38,14 @@ func ReadImm() string { return gImm.Field }
 // AnyMutator. This is the dangerous shape from Attack L: victim
 // boxes its own /r/-declared data through a /p/-defined interface
 // that the attacker can implement.
-func UseAnyMutator(m launderpkg.AnyMutator) {
+func UseAnyMutator(cur realm, m launderpkg.AnyMutator) {
 	m.Run(gImm)
 }
 
 // ApplyHook dispatches a caller-supplied callback on gImm. The
 // callback's parameter type is /r/launderrvictim-declared, so /p/
 // packages can't supply this hook — only /r/ realms can.
-func ApplyHook(h func(*Immutable)) {
+func ApplyHook(cur realm, h func(*Immutable)) {
 	h(gImm)
 }
 
@@ -192,14 +192,14 @@ func ReadBarePtrMapA() string     { return gBarePtrMap["a"].Field }
 // realm by PopFrameAndReturn — but wait, defers run BEFORE
 // PopFrameAndReturn. So m.Realm should still be victim's. Does
 // the deferred h then run under victim authority?
-func DeferCallback(h func(*Immutable)) {
+func DeferCallback(cur realm, h func(*Immutable)) {
 	defer h(gImm)
 }
 
 // PanicAfterPushDefer pushes a defer and then panics, so the defer
 // runs as part of panic unwinding. Tests that m.Realm is correctly
 // borrowed when the defer body invokes a foreign function.
-func PanicAfterPushDefer(h func(*Immutable)) {
+func PanicAfterPushDefer(cur realm, h func(*Immutable)) {
 	defer h(gImm)
 	panic("victim-induced panic")
 }
@@ -208,15 +208,15 @@ func PanicAfterPushDefer(h func(*Immutable)) {
 // itself runs borrow rule #1 to /r/launderrvictim, and inside the
 // callback runs as borrow rule #1 of the attacker's realm — the standard
 // known-open Apply pattern, but now triggered via defer.
-func DeferApplyHook(h func(*Immutable)) {
-	defer ApplyHook(h)
+func DeferApplyHook(cur realm, h func(*Immutable)) {
+	defer ApplyHook(cur, h)
 }
 
 // RecoverAndRetry: inside a victim method, defer a recover, write
 // something to gImm, then panic. After the recover, the function
 // returns normally. Tests that internal panic/recover doesn't leak
 // state.
-func RecoverAndRetry(h func(*Immutable)) (recovered any) {
+func RecoverAndRetry(cur realm, h func(*Immutable)) (recovered any) {
 	defer func() {
 		recovered = recover()
 	}()
@@ -227,7 +227,7 @@ func RecoverAndRetry(h func(*Immutable)) (recovered any) {
 // CallThenPanic invokes h synchronously and then panics. If h is
 // attacker-supplied and writes via captured pointer, this is just
 // a re-shape of ApplyHook.
-func CallThenPanic(h func(*Immutable)) {
+func CallThenPanic(cur realm, h func(*Immutable)) {
 	h(gImm)
 	panic("victim panic after callback")
 }
@@ -237,7 +237,7 @@ func CallThenPanic(h func(*Immutable)) {
 // the /p/-method defers the attacker callback. Three frames at
 // callback time: attacker.main → victim.CallPDeferApply →
 // /p/.DeferApply (deferred fn dispatches here).
-func CallPDeferApply(fn func(*launderpkg.Immutable)) {
+func CallPDeferApply(cur realm, fn func(*launderpkg.Immutable)) {
 	gWithPtr.Inner.DeferApply(fn)
 }
 
@@ -253,8 +253,8 @@ type ImmHook func(*Immutable)
 
 var gHooks []ImmHook
 
-func RegisterHook(h ImmHook) { gHooks = append(gHooks, h) }
-func RunHooks() {
+func RegisterHook(cur realm, h ImmHook) { gHooks = append(gHooks, h) }
+func RunHooks(cur realm) {
 	for _, h := range gHooks {
 		h(gImm)
 	}
@@ -264,14 +264,14 @@ type PlainHook func()
 
 var gPlainHooks []PlainHook
 
-func RegisterPlainHook(h PlainHook) { gPlainHooks = append(gPlainHooks, h) }
-func RunPlainHooks() {
+func RegisterPlainHook(cur realm, h PlainHook) { gPlainHooks = append(gPlainHooks, h) }
+func RunPlainHooks(cur realm) {
 	for _, h := range gPlainHooks {
 		h()
 	}
 }
 
-func ClearHooks() {
+func ClearHooks(cur realm) {
 	gHooks = nil
 	gPlainHooks = nil
 }
@@ -283,6 +283,14 @@ func ClearHooks() {
 // attacker is "consenting to write" by the victim.
 func MakeWriterClosure(value string) func() {
 	return func() {
+		gImm.Field = value
+	}
+}
+
+// MakeWriterX returns a crossing closure: called with cross, it runs as this
+// realm and writes; a plain closure called without crossing is read-only.
+func MakeWriterX(value string) func(cur realm) {
+	return func(cur realm) {
 		gImm.Field = value
 	}
 }

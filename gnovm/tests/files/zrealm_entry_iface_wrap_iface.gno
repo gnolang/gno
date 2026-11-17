@@ -5,7 +5,7 @@ package zrealm_entry_iface_wrap_iface
 import "gno.land/r/tests/vm/ifacewrapuse"
 
 func main(cur realm) {
-	println(ifacewrapuse.Iface())
+	println(ifacewrapuse.Iface(cross(cur)))
 }
 
 // Output:

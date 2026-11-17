@@ -34,16 +34,16 @@ import (
 var captured *launderpkg.Immutable
 
 func main(cur realm) {
-	launderrvictim.ClearHooks()
+	launderrvictim.ClearHooks(cross(cur))
 	println("before:", launderrvictim.ReadEmbed())
 
 	we := launderrvictim.GetWithEmbed()
 	captured = &we.Immutable
 
-	launderrvictim.RegisterHook(func(_ *launderrvictim.Immutable) {
+	launderrvictim.RegisterHook(cross(cur), func(_ *launderrvictim.Immutable) {
 		captured.Apply(launderattack.EvilWrite)
 	})
-	launderrvictim.RunHooks()
+	launderrvictim.RunHooks(cross(cur))
 
 	println("after: ", launderrvictim.ReadEmbed())
 }

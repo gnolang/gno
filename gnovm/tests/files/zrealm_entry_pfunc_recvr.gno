@@ -9,7 +9,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.RunVHook(launderattack.EvilWrite)
+	pfuncvictim.RunVHook(cross(cur), launderattack.EvilWrite)
 	println("victim:", pfuncvictim.Read())
 }
 

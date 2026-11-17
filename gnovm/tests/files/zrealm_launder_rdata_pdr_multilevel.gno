@@ -13,7 +13,7 @@ import (
 func main(cur realm) {
 	println("before:", launderrvictim.ReadPtr())
 
-	launderrvictim.CallPDeferApply(launderattack.EvilWrite)
+	launderrvictim.CallPDeferApply(cross(cur), launderattack.EvilWrite)
 
 	println("after: ", launderrvictim.ReadPtr())
 }

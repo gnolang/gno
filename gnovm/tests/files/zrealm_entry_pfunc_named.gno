@@ -6,7 +6,7 @@ package zrealm_entry_pfunc_named
 import "gno.land/r/tests/vm/pfuncvictim"
 
 func main(cur realm) {
-	pfuncvictim.ApplyNamed()
+	pfuncvictim.ApplyNamed(cross(cur))
 	println("victim:", pfuncvictim.Read())
 }
 

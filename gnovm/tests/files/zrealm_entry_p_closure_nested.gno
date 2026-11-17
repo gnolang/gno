@@ -18,6 +18,6 @@ func main(cur realm) {
 }
 
 // Output:
-// lit: cannot directly modify readonly tainted object (use a method or crossing function): v<VPBlock(1,0)>[(const (0 int))] 0
+// lit: gno.land/r/demo/entrynestclosure's code was entered without crossing and is read-only (call its crossing function): v<VPBlock(1,0)>[(const (0 int))] 0
 // maker: cannot modify object owned by another realm from library code (call a function of the owning realm): v<VPBlock(1,0)>[(const (0 int))] 0
 // zero-stamp inner: cannot modify object owned by another realm from library code (call a function of the owning realm): v<VPBlock(1,0)>[(const (0 int))] 0

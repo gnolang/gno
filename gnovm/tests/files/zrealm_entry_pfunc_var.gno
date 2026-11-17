@@ -7,7 +7,7 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.ApplyVar(launderattack.EvilWrite)
+	pfuncvictim.ApplyVar(cross(cur), launderattack.EvilWrite)
 	println("victim:", pfuncvictim.Read())
 }
 

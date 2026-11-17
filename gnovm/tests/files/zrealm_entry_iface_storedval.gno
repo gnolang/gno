@@ -9,8 +9,8 @@ import (
 )
 
 func main(cur realm) {
-	pfuncvictim.StoreRunner(ifaceattack.EvilV{})
-	pfuncvictim.UseStored()
+	pfuncvictim.StoreRunner(cross(cur), ifaceattack.EvilV{})
+	pfuncvictim.UseStored(cross(cur))
 	println("victim:", pfuncvictim.Read())
 }
 

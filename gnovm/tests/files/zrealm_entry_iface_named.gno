@@ -9,9 +9,9 @@ import (
 )
 
 func main(cur realm) {
-	ifaceimporter.UseNamed()
+	ifaceimporter.UseNamed(cross(cur))
 	println("named:", ifaceimporter.Read())
-	ifaceimporter.Use(ifaceattack.EvilV{})
+	ifaceimporter.Use(cross(cur), ifaceattack.EvilV{})
 	println("iface:", ifaceimporter.Read())
 }
 

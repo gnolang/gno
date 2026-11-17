@@ -23,4 +23,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): g<VPBlock(1,1)>.Field
+// gno.land/r/launderb's code was entered without crossing and is read-only (call its crossing function): g<VPBlock(1,1)>.Field
