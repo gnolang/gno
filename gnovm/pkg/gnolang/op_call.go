@@ -343,7 +343,7 @@ func (m *Machine) doOpCall() {
 			numParams := len(ft.Params)
 			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
-				dtv := defaultTypedValue(m.Alloc, rt.Type)
+				dtv := checkedDefaultTypedValue(m.Alloc, rt.Type)
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				// Write to existing heap item if result is heap defined.
 				ptr.TV.AssignToBlock(dtv)

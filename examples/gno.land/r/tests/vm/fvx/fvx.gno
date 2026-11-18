@@ -7,6 +7,8 @@ var Arr = [2]T{{N: 100}, {N: 200}}
 
 var one = &T{N: 1}
 
+var M = map[string]T{}
+
 func Ptr() *T      { return one }
 func New(n int) *T { return &T{N: n} }
 func (t T) Val() int { return t.N }
@@ -14,6 +16,8 @@ func (t T) Val() int { return t.N }
 type H [4]byte
 
 type A [2]T
+
+type S = struct{ N int }
 
 func Get() T { return *one }
 

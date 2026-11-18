@@ -9,5 +9,5 @@ func main(cur realm) {
 	println(fvx.Read(cross(cur), p))
 }
 
-// Output:
-// 5
+// Error:
+// cannot allocate gno.land/r/tests/vm/fvx.T in realm gno.land/r/fvmake
