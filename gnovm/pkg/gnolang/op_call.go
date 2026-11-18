@@ -372,6 +372,9 @@ func (m *Machine) doOpCall() {
 		bft = ft.BoundType()
 	}
 	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	if fvOn() {
+		m.fvLogValues("arg", args, "doOpCall")
+	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
@@ -619,6 +622,7 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
+	m.fvLogResults("doOpReturn", false)
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
 	// Finalize if exiting realm boundary.
@@ -638,6 +642,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
+	m.fvLogResults("doOpReturnAfterCopy", false)
 	for i := range numResults {
 		rtv := results[i].Copy(m.Alloc)
 		fblock.Values[numParams+i].AssignToBlock(rtv)
@@ -655,6 +660,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 // i.e. named result vars declared in func signatures,
 // because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
+	m.fvLogResults("doOpReturnFromBlock", true)
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	fv := cfr.Func
