@@ -283,7 +283,7 @@ func SaveMixedStructToPublicRealmWithNewPrivateData(cur realm) {
         Value: 0,
         Tree:  avl.NewTree(),
     })
-    publicrealm.SaveYourMixedStructVal(cross(cur), *mixed)
+    publicrealm.SaveYourMixedStructVal(cross(cur), mixed)
 }
 
 func EditMixedStructWithPublicRealm(cur realm) string {
@@ -635,8 +635,8 @@ func SaveYourClosure(cur realm, fn func() *avl.Tree) {
 
 var savedPublicStructVal PublicStruct
 
-func SaveYourMixedStructVal(cur realm, mixed PublicStruct) {
-    savedPublicStructVal.PrivateData = mixed
+func SaveYourMixedStructVal(cur realm, mixed *PublicStruct) {
+    savedPublicStructVal.PrivateData = *mixed
 }
 
 func SaveYourInterfaceMap(cur realm, m map[string]interface{}) {
