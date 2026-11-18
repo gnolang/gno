@@ -563,6 +563,12 @@ func (alloc *Allocator) checkBirth(t Type) {
 }
 
 func (alloc *Allocator) panicForeignAlloc(t Type) {
+	if st, ok := t.(*StructType); ok { // unnamed: say whose it is
+		panic(fmt.Sprintf(
+			"cannot allocate %s (declared in %s) in realm %s",
+			t.String(), st.PkgPath, alloc.currentRealmPath,
+		))
+	}
 	panic(fmt.Sprintf(
 		"cannot allocate %s in realm %s",
 		t.String(), alloc.currentRealmPath,
@@ -573,6 +579,23 @@ func (alloc *Allocator) panicForeignAlloc(t Type) {
 // (struct field, array element), that a realm other than rid declares; nil if none.
 // Same walk as fvForeign; pointers, slices, maps and interfaces hold nothing inline.
 func foreignHeldType(t Type, rid PkgID) Type {
+	var seen map[Type]struct{}
+	return foreignHeldTypeIn(t, rid, &seen)
+}
+
+// foreignHeldTypeIn examines each named or struct type once per top-level
+// call (seen is allocated on first use) and skips zero-length arrays.
+func foreignHeldTypeIn(t Type, rid PkgID, seen *map[Type]struct{}) Type {
+	switch t.(type) {
+	case *DeclaredType, *StructType:
+		if *seen == nil {
+			*seen = make(map[Type]struct{})
+		}
+		if _, ok := (*seen)[t]; ok {
+			return nil
+		}
+		(*seen)[t] = struct{}{}
+	}
 	foreign := func(pid PkgID) bool { return pid.IsRealmPkg() && pid != rid }
 	switch tt := t.(type) {
 	case *DeclaredType:
@@ -582,18 +605,21 @@ func foreignHeldType(t Type, rid PkgID) Type {
 				return tt
 			}
 		}
-		return foreignHeldType(tt.Base, rid)
+		return foreignHeldTypeIn(tt.Base, rid, seen)
 	case *StructType:
 		if foreign(tt.GetPkgID()) {
 			return tt
 		}
 		for _, f := range tt.Fields {
-			if ft := foreignHeldType(f.Type, rid); ft != nil {
+			if ft := foreignHeldTypeIn(f.Type, rid, seen); ft != nil {
 				return ft
 			}
 		}
 	case *ArrayType:
-		return foreignHeldType(tt.Elt, rid)
+		if tt.Len == 0 {
+			return nil
+		}
+		return foreignHeldTypeIn(tt.Elt, rid, seen)
 	}
 	return nil
 }
