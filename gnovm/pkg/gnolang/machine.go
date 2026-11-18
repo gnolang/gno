@@ -2760,8 +2760,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		switch {
 		case m.Realm == nil && !m.viewOnly:
 			m.setRealm(r) // no realm context (genesis, tooling)
-		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code
+		case m.Realm != nil && m.Realm.Path == pv.PkgPath && !m.unmadeValue(cx, fv, recv, bindPID):
+			// the realm's own code, named or a value this realm made
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
 		default:
@@ -2829,6 +2829,22 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			m.setRealm(r)
 		}
 	}
+}
+
+// unmadeValue reports whether the current realm's code arrived as a value it
+// did not make: a declared function or method expression not named by the call,
+// a closure with another (or no) maker, or a method value bound elsewhere.
+func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID) bool {
+	if fv.IsClosure {
+		return fv.GetObjectInfo().ID.PkgID != m.Realm.ID
+	}
+	if recv.IsDefined() {
+		if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
+			return false // x.M(...) names the method
+		}
+		return bindPID != m.Realm.ID
+	}
+	return cx.GetAttribute(ATTR_NAMED_CALLEE) != true
 }
 
 // foreignLib reports whether fv is a /p/ function outside the current realm's

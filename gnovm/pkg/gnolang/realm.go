@@ -2008,6 +2008,7 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		panic("unexpected already-finalized object id")
 	}
 	if oid.PkgID.IsZero() {
+		rlm.refuseFuncKeep(store, oo, false)
 		// Objects allocated outside any realm context (e.g. stdlib
 		// Block init when m.Realm is nil, non-realm filetests) reach
 		// finalize without an authority stamp. Route them to the
@@ -2017,6 +2018,7 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
 	} else if oid.PkgID != rlm.ID && isPkgEphemeralFromPkgID(store, oid.PkgID) {
+		rlm.refuseFuncKeep(store, oo, true)
 		// Objects allocated in ephemeral run-realms (`/e/.../run`,
 		// from gnokey maketx run) carry an ephemeral PkgID that won't
 		// exist after the tx. When such an object is being persisted
@@ -2055,6 +2057,35 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	targetRlm.Time++
 	oo.SetNewTime(targetRlm.Time)
 	return oo.GetObjectID()
+}
+
+// refuseFuncKeep aborts when a realm would adopt a function value no realm
+// made: a closure or method value with no maker (built read-only or view-only),
+// or a run script's value whose code is a library's (D19).
+func (rlm *Realm) refuseFuncKeep(store Store, oo Object, ephemeral bool) {
+	if !IsRealmPath(rlm.Path) {
+		return
+	}
+	var code string
+	switch fv := oo.(type) {
+	case *FuncValue:
+		if !fv.IsClosure {
+			return
+		}
+		code = fv.PkgPath
+	case *BoundMethodValue:
+		if fv.Func != nil {
+			code = fv.Func.PkgPath
+		} else if rt := fv.Receiver.T; rt != nil {
+			code = rt.GetPkgPath() // lazy bind: as resolveLazyBound reads it
+		}
+	default:
+		return
+	}
+	if ephemeral && (IsRealmPath(code) || IsEphemeralPath(code)) {
+		return
+	}
+	panic(fmt.Sprintf("cannot keep a function value made outside a realm in %s", rlm.Path))
 }
 
 //----------------------------------------
