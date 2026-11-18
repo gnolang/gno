@@ -469,6 +469,26 @@ func TestValopers_RenderSanitizesDescription(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(out2, "\n- Operator Address:"), "operator-address line must not merge into the heading")
 }
 
+func TestValopers_RenderEscapesPath(cur realm, t *testing.T) {
+	resetState()
+
+	const link = "[Claim your reward](https://evil.example)"
+
+	// The path segment is attacker-controlled: it must not reach the
+	// markdown output as a live link, in either error reply.
+	for _, path := range []string{"g1" + link, "x" + link} {
+		out := Render(path)
+		uassert.False(t, strings.Contains(out, "]("), "link syntax must be escaped: "+out)
+		uassert.True(t, strings.Contains(out, "\\["), "brackets must be backslash-escaped: "+out)
+	}
+
+	// A well-formed address is alphanumeric, so escaping leaves it unchanged.
+	const addr = "g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"
+	uassert.Equal(t, "unknown address "+addr, Render(addr))
+	bad := "x" + addr[1:]
+	uassert.Equal(t, "invalid address "+bad, Render(bad))
+}
+
 func TestValopers_UpdateMoniker(cur realm, t *testing.T) {
 	test2Address := testutils.TestAddress("test2")
 
