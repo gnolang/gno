@@ -228,7 +228,12 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Re-derived for the merge of master into the math/big stdlib PR: the new
+// math/big stdlib package adds its source to the genesis stdlib set, so the
+// committed multistore root moves again on top of master's value.
+// Re-derived once more for the MaxBytes bound in math/big's int.gno.
+const expectedCrossrealm38Hash = "a4703499b4041a282153e9b54fcc0583fc922055a4396e36e41d4f6a7fea89f7"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
