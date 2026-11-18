@@ -1,6 +1,7 @@
 package bls12381
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -338,14 +339,43 @@ func TestTrailingByte(t *testing.T) {
 	require.False(t, X_fastAggregateVerifyExcluding(aggregate, q, msg, cat(sig, []byte{0})))
 }
 
+// Off-subgroup keys that cancel out: pk+T and -T sum to pk, so pk's own
+// signature verifies unless each key's subgroup check refuses them.
 func TestOutsideSubgroup(t *testing.T) {
 	t.Parallel()
-	msg := make([]byte, 32)
-	pubkeys, aggregate, sig := committee(t, 4, msg, func(int) bool { return true })
-	bad := offSubgroupG1(t)
-	require.False(t, X_fastAggregateVerify(cat(pubkeys[0], bad), msg, sig))
-	require.False(t, X_fastAggregateVerifyExcluding(bad, nil, msg, sig))
-	require.False(t, X_fastAggregateVerifyExcluding(aggregate, bad, msg, sig))
+	msg := []byte("signing root")
+	pk, s := keyFrom(t, 0x1234567, msg)
+	q, _ := keyFrom(t, 0x89abcdef, msg)
+	sig := sigBytes(s)
+	tb := offSubgroupG1(t)
+	plusT := func(key []byte) []byte {
+		var p, tp bls.G1Affine
+		_, err := p.SetBytes(key)
+		require.NoError(t, err)
+		_, err = tp.SetBytes(tb) // SetBytes refuses it; decode without the check
+		require.Error(t, err)
+		dec := bls.NewDecoder(bytes.NewReader(tb), bls.NoSubgroupChecks())
+		require.NoError(t, dec.Decode(&tp))
+		var sum bls.G1Affine
+		sum.Add(&p, &tp)
+		b := sum.Bytes()
+		return b[:]
+	}
+	var tp, negT bls.G1Affine
+	require.NoError(t, bls.NewDecoder(bytes.NewReader(tb), bls.NoSubgroupChecks()).Decode(&tp))
+	negT.Neg(&tp)
+	nb := negT.Bytes()
+	minusT := nb[:]
+
+	// Controls: the same sums over subgroup points verify.
+	require.True(t, X_fastAggregateVerify(pk, msg, sig))
+	require.True(t, X_fastAggregateVerifyExcluding(keySum(t, pk, q), q, msg, sig))
+
+	require.False(t, X_fastAggregateVerify(cat(plusT(pk), minusT), msg, sig))
+	// Excluded keys q+T and -T subtract q from a valid aggregate.
+	require.False(t, X_fastAggregateVerifyExcluding(keySum(t, pk, q), cat(plusT(q), minusT), msg, sig))
+	// An off-subgroup aggregate pk+q+T minus an off-subgroup q+T is pk.
+	require.False(t, X_fastAggregateVerifyExcluding(plusT(keySum(t, pk, q)), plusT(q), msg, sig))
 }
 
 // A second encoding of a key fails the caller's Merkle proof, but one of a
