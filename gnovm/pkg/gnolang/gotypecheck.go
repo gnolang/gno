@@ -340,7 +340,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 	wtests := gimp.testing && gimp.pkgPath == pkgPath
 	if mod != nil && mod.Private && !wtests {
 		// If the package is private, we cannot import it.
-		// Exception: a package's own unit tests (xxx_test) may import it.
+		// Exception: a package's own tests and filetests may import it,
+		// directly or through a helper they import.
 		err := ImportPrivateError{PkgPath: pkgPath}
 		// NOTE: see comment above for ImportNotFoundError.
 		result.err = err
