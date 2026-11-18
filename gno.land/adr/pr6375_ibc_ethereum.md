@@ -90,7 +90,8 @@ Standard ICS20 has none of the controls below: it is all or nothing on the light
 ### The controls, one by one
 
 **Route.** Everything is scoped to one **route**, the pair of light clients transfers flow through; one governance
-channel serves exactly one Ethereum route (§7.6, Scope).
+channel serves exactly one Ethereum route (§7.6, Scope). gno.land's `ibcgov` runs one such channel per counterparty
+chain, each route governed on its own (gno-realms ADR 0007).
 
 **Limits and meters.** A bucket with a small hole: value leaves only as fast as the bucket refills. On gno.land,
 incoming value is booked as a **claim**, and anyone calls `Claim` to pay claims out within a **meter**: for gno-native
@@ -1493,7 +1494,13 @@ mechanics.
   and the guardian seats are global powers of the deployment. **One governance channel serves exactly one
   Ethereum transfer route, ever.** `IBCAdmin` replaces, recovers, settles and reopens only the route of the client
   it governs over (its kind 10 and emergency recovery name that client), so a second route would have no
-  Ethereum replacement or recovery path. The first enrolment on gno.land fixes the route — its key and its
+  Ethereum replacement or recovery path. **Several routes on gno.land (gno-realms ADR 0007).** One `ibcgov` serves
+  one route per counterparty chain (an Ethereum and an Arc route, say), each over its own clients, `IBCAdmin` and
+  governance channel, with its own epochs, expected transitions, guardian seats, flags and hold; the wire format is
+  unchanged, IBC's client binding keeping the routes apart. GovDAO and the governor decide for every route. A
+  route's hold defers its own queued decisions only; decisions on the shared core and transfer app are deferred by
+  any route's hold, to day 21 of the global hold that first deferred them at most, and a global unpause is deferred
+  rather than spent. Everything below holds per route. The first enrolment on gno.land fixes the route — its key and its
   deployment's identity (chain, ICS26 router with its commitments slot, and the `IBCAdmin` behind them) — and any
   further enrolment is refused when requested and again when it executes (`checkOneRoute`), before the binding or
   after it. Replacements keep the route's key and identity. Several routes, or a second Ethereum deployment, would
@@ -2834,8 +2841,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     finishing the reconciliation (§8.5).
   - Reconciliation needs operator work the code does not enforce (forged receive entitlements, §7.12) and
     governance judgement on off-chain evidence.
-  - One governance channel serves one Ethereum route; a second route or deployment needs a further `ibcgov` and
-    Ethereum support.
+  - One governance channel serves one Ethereum route; gno.land runs one per counterparty chain (gno-realms ADR
+    0007), and a second deployment on the same chain needs a further `ibcgov`.
   - Relayers must also call `Claim`, `ClaimRefunds`, `PrepareReplacement`, `ContinueReopen`, `Redispatch`,
     `ApplyEpochNotice` and `PruneGovRetirements`, and relay governance packets and epoch notices.
   - Records and consensus states grow without pruning.
