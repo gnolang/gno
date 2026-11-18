@@ -80,12 +80,31 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	res := xv.getPointerToFromTV(m.GasMeter, m.Alloc, m.Store, sx.Path, m.Package.PkgPath).Deref()
+	direct := false
+	if sx.Path.Type == VPValMethod || sx.Path.Type == VPDerefValMethod {
+		direct = m.isCalleeOfPendingCall(sx)
+	}
+	res := xv.getPointerToForCall(m.GasMeter, m.Alloc, m.Store, sx.Path, m.Package.PkgPath, direct).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+}
+
+// isCalleeOfPendingCall reports whether sx is the Func of a call being
+// evaluated now: that CallExpr sits under its unevaluated args on m.Exprs.
+func (m *Machine) isCalleeOfPendingCall(sx *SelectorExpr) bool {
+	low := 0
+	if len(m.Frames) > 0 {
+		low = m.LastFrame().NumExprs
+	}
+	for i := len(m.Exprs) - 1; i >= low; i-- {
+		if cx, ok := m.Exprs[i].(*CallExpr); ok && cx.Func == sx {
+			return len(m.Exprs)-1-i == len(cx.Args)
+		}
+	}
+	return false
 }
 
 func (m *Machine) doOpSlice() {

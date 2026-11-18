@@ -32,6 +32,7 @@ type Frame struct {
 	LastViewOnly  bool          // previous frame's Machine.viewOnly
 	LastViewRealm *Realm        // previous frame's Machine.viewRealm
 	LastScratch   uint32        // previous frame's Allocator.scratch
+	LastViewHold  PkgID         // previous frame's Allocator.viewHoldID
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
 	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls

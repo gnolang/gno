@@ -41,6 +41,9 @@ type Allocator struct {
 	// scratch numbers the active read-only stretch (0: none); objects
 	// allocated in it carry the number and it may write them while unreal.
 	scratch uint32
+	// viewHoldID is the realm whose values code may hold while view-only
+	// (setViewOnly clears currentRealmID): the realm current on entry.
+	viewHoldID PkgID
 	// fvCtx reports the innermost call frame's package and its caller's;
 	// set by NewMachine only when GNO_FV_LOG is set (see fvlog.go).
 	fvCtx func() (code, caller string)
@@ -557,9 +560,55 @@ func (alloc *Allocator) checkBirth(t Type) {
 	if alloc == nil {
 		return
 	}
-	if ft := foreignHeldType(t, alloc.currentRealmID); ft != nil {
-		alloc.panicForeignAlloc(ft)
+	if rid, ok := alloc.holdRealm(); ok {
+		if ft := foreignHeldType(t, rid); ft != nil {
+			alloc.panicForeignAlloc(ft)
+		}
 	}
+}
+
+// holdRealm returns the realm whose struct/array values may be born or copied
+// here: the current realm, else (view-only) the realm current on entry; ok is
+// false with no realm at all (tooling, package main, /p/ tests).
+func (alloc *Allocator) holdRealm() (rid PkgID, ok bool) {
+	if alloc == nil {
+		return PkgID{}, false
+	}
+	if !alloc.currentRealmID.IsZero() {
+		return alloc.currentRealmID, true
+	}
+	return alloc.viewHoldID, !alloc.viewHoldID.IsZero()
+}
+
+// refusedCopy returns the foreign type that makes a copy of t refused here,
+// or nil if the copy is allowed.
+func (alloc *Allocator) refusedCopy(t Type) Type {
+	rid, ok := alloc.holdRealm()
+	if !ok || t == nil {
+		return nil
+	}
+	switch baseOf(t).(type) {
+	case *StructType, *ArrayType:
+		return foreignHeldType(t, rid)
+	}
+	return nil
+}
+
+// checkCopy panics if a copy of a value of type t, made here, would hold
+// inline a struct or array value whose type another realm declares.
+func (alloc *Allocator) checkCopy(t Type) {
+	ft := alloc.refusedCopy(t)
+	if ft == nil {
+		return
+	}
+	var path string
+	switch ft := ft.(type) {
+	case *DeclaredType:
+		path = ft.PkgPath
+	case *StructType:
+		path = ft.PkgPath
+	}
+	panic(fmt.Sprintf("cannot copy %s outside realm %s (use a pointer)", ft.String(), path))
 }
 
 func (alloc *Allocator) panicForeignAlloc(t Type) {
