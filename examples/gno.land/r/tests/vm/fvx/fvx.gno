@@ -17,6 +17,8 @@ type H [4]byte
 
 type A [2]T
 
+type S = struct{ N int }
+
 func Get() T { return *one }
 
 // Read trusts the fields of whatever *T the caller hands in.
