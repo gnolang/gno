@@ -11,7 +11,7 @@ gnokey maketx addpkg -pkgdir $WORK/publicrealm -pkgpath gno.land/r/foobar/public
 stdout OK!
 
 # add the private realm
-gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 1100001ugnot -gas-wanted 24_000_000 -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/privaterealm -pkgpath gno.land/r/foobar/privaterealm -gas-fee 1100001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test $test1_user_addr
 stdout OK!
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveTreeToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
@@ -68,6 +68,10 @@ stderr 'cannot persist object of type defined in the private realm gno.land/r/fo
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveMixedStructToPublicRealmWithNewPrivateData -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot copy gno.land/r/foobar/privaterealm.PrivateData outside realm gno.land/r/foobar/privaterealm'
 
+# a public realm may still inspect and edit its own struct holding a pointer to private data
+gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func EditMixedStructPtrWithPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
+stdout 'Read Mixed Struct'
+
 # publicrealm may not hold a copy of privaterealm's struct value, even to read it
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func EditMixedStructWithPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot copy gno.land/r/foobar/privaterealm.PrivateData outside realm gno.land/r/foobar/privaterealm'
@@ -122,7 +126,7 @@ stderr 'cannot persist object from the private realm gno.land/r/foobar/privatere
 stderr 'cannot persist object of type defined in the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SaveEmptyStructToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
-stderr 'cannot copy struct\{PublicField string\} outside realm gno.land/r/foobar/privaterealm'
+stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
 
 ! gnokey maketx call -pkgpath gno.land/r/foobar/privaterealm -func SavePrivateMapToPublicRealm -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test $test1_user_addr
 stderr 'cannot persist object from the private realm gno.land/r/foobar/privaterealm'
@@ -285,6 +289,16 @@ func SaveMixedStructToPublicRealmWithNewPrivateData(cur realm) {
         Tree:  avl.NewTree(),
     })
     publicrealm.SaveYourMixedStructVal(cross(cur), mixed)
+}
+
+func EditMixedStructPtrWithPublicRealm(cur realm) string {
+    mixed := publicrealm.CreatePublicStruct(cross(cur), "mixed", nil, &PrivateData{
+        Name:  "array of private struct",
+        Value: 0,
+        Tree:  avl.NewTree(),
+    })
+    publicrealm.EditYourMixedStruct(cross(cur), mixed)
+    return mixed.Name
 }
 
 func EditMixedStructWithPublicRealm(cur realm) string {
