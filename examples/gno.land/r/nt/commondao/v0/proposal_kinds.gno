@@ -332,7 +332,7 @@ func (executionKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.P
 	// handle from args: its only use of the DAO is the Validate freeze read. No
 	// mutable handle means no host-identity pin is needed — the view is the
 	// host by construction.
-	return executionPropDefinition{dao: dao, title: a.title, body: a.body, fn: a.fn}, nil
+	return &executionPropDefinition{dao: dao, title: a.title, body: a.body, fn: a.fn}, nil
 }
 
 // executionPropDefinition defines a proposal that runs an arbitrary ExecFunc
