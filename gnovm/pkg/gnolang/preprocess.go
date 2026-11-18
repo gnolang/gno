@@ -2744,7 +2744,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
 					if ftype != TRANS_CALL_FUNC && isFuncDeclAt(pn, n.Path.Index) {
 						ft, _ := tt.(*FuncType)
-						checkForeignFuncValue(ctxpn.PkgPath, pv.PkgPath, n.Sel, ft != nil && ft.IsCrossing())
+						checkForeignFuncValue(ctxpn, pv.PkgPath, n.Sel, ft != nil && ft.IsCrossing())
 					}
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
@@ -2779,7 +2779,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if ftype != TRANS_CALL_FUNC {
 						if i, ok := dt.lookupMethod(n.Sel); ok {
 							fv := dt.Methods[i].V.(*FuncValue)
-							checkForeignFuncValue(ctxpn.PkgPath, dt.PkgPath, Name(string(dt.Name)+"."+string(n.Sel)), fv.IsCrossing())
+							checkForeignFuncValue(ctxpn, dt.PkgPath, Name(string(dt.Name)+"."+string(n.Sel)), fv.IsCrossing())
 						}
 					}
 				default:
@@ -6691,9 +6691,11 @@ func libVar(store Store, last BlockNode, x Expr) bool {
 
 // checkForeignFuncValue refuses, in /r/ or /e/ code, another realm's
 // non-crossing declared function or method expression used other than as the
-// callee: as a value it would carry no authority it could use (D19).
-func checkForeignFuncValue(ctxPath, declPath string, name Name, crossing bool) {
-	if crossing || ctxPath == declPath || !IsRealmPath(declPath) ||
+// callee: as a value it would carry no authority it could use (D19). Stored
+// source re-preprocessed at node start is exempt: it must not stop the node.
+func checkForeignFuncValue(ctxpn *PackageNode, declPath string, name Name, crossing bool) {
+	ctxPath := ctxpn.PkgPath
+	if crossing || ctxPath == declPath || ctxpn.GetAttribute(ATTR_STORED_SOURCE) == true || !IsRealmPath(declPath) ||
 		!(IsRealmPath(ctxPath) || IsEphemeralPath(ctxPath)) {
 		return
 	}

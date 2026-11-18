@@ -382,6 +382,8 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
+		// Source rules judge submitted source only; this one is already stored.
+		pn.SetAttribute(ATTR_STORED_SOURCE, true)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
@@ -389,6 +391,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
+		pn.DelAttribute(ATTR_STORED_SOURCE)
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot
 		// run files upon restart (only preprocess them).
