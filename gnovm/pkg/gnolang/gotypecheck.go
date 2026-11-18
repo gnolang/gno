@@ -418,28 +418,29 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 // Minimal AST mutation(s) for Go.
 // Supports init(cur realm), main(cur realm) by removing the param and
 // inserting `var cur realm; _ = cur` so go/types sees the cur variable.
-// synth collects the `cur` identifiers this function invents, which are
-// not source bindings and must not be judged as such (checkDeclNames).
-func prepareGoGno0p9(f *ast.File, synth map[*ast.Ident]struct{}) (err error) {
+// prep, if non-nil, records what was invented and what was removed, for
+// checkDeclNames.
+func prepareGoGno0p9(f *ast.File, prep *goPrep) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
 		case *ast.FuncDecl:
 			name := gon.Name.String()
 			if gon.Recv == nil && (name == "main" || name == "init") {
-				// Only the literal `cur realm` is stripped. Any other
-				// parameter stays for go/types to judge: stripped, a
-				// `func main(panic func(string))` would bind `panic` for
-				// the VM while the checker still saw the builtin.
-				if !isCurRealmParam(gon.Type.Params) {
+				// Strip any single parameter, never fewer shapes: this also
+				// runs on imports and replayed source, where a stored
+				// `init(_ realm)` must still check. go/types never sees the
+				// stripped names, so checkDeclNames judges them itself.
+				if len(gon.Type.Params.List) != 1 {
 					return true
 				}
-				gon.Type.Params.List = nil
 				insert := gon.Type.End()
 				// var cur realm
 				curName := &ast.Ident{Name: "cur", NamePos: insert}
-				if synth != nil {
-					synth[curName] = struct{}{}
+				if prep != nil {
+					prep.synthetic[curName] = struct{}{}
+					prep.stripped[f] = append(prep.stripped[f], gon.Type.Params.List[0])
 				}
+				gon.Type.Params.List = nil
 				decl := &ast.DeclStmt{Decl: &ast.GenDecl{
 					Tok:    token.VAR,
 					TokPos: insert,
@@ -463,19 +464,13 @@ func prepareGoGno0p9(f *ast.File, synth map[*ast.Ident]struct{}) (err error) {
 	return err
 }
 
-// isCurRealmParam reports whether params is exactly `(cur realm)`, spelled
-// as such. An alias of realm is not stripped; go/types then sees the
-// parameter and checkDeclNames judges it like any other first parameter.
-func isCurRealmParam(params *ast.FieldList) bool {
-	if params == nil || len(params.List) != 1 {
-		return false
-	}
-	p := params.List[0]
-	if len(p.Names) != 1 || p.Names[0].Name != "cur" {
-		return false
-	}
-	t, ok := p.Type.(*ast.Ident)
-	return ok && t.Name == "realm"
+// goPrep is what prepareGoGno0p9 hides from go/types.
+type goPrep struct {
+	// The `cur` identifiers it invents; not source bindings.
+	synthetic map[*ast.Ident]struct{}
+	// The main/init parameter it removes, per file; a source binding
+	// that go/types never records.
+	stripped map[*ast.File][]*ast.Field
 }
 
 // Assumes that the code is Gno 0.9.
@@ -521,9 +516,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	}
 
 	// STEP 3: Prepare for Go type-checking.
-	synthetic := map[*ast.Ident]struct{}{}
+	prep := &goPrep{
+		synthetic: map[*ast.Ident]struct{}{},
+		stripped:  map[*ast.File][]*ast.Field{},
+	}
 	for _, gof := range allgofs {
-		err := prepareGoGno0p9(gof, synthetic)
+		err := prepareGoGno0p9(gof, prep)
 		if err != nil {
 			panic(fmt.Sprintf("unexpected error: %v", err))
 		}
@@ -577,7 +575,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// which LoadStdlib type-checks without admitting anything. By type,
 	// since IsStdlib(path) is also true of a filetest's `main`.
 	if mpkg.Path == gimp.pkgPath && !gimp.onChain && !mpkg.Type.(MemPackageType).IsStdlib() {
-		if err := checkDeclNames(pkg, gofset, pgofs, gmgof, info, synthetic); err != nil {
+		if err := checkDeclNames(pkg, gofset, pgofs, gmgof, info, prep); err != nil {
 			gimp.Error(err)
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
 			return
@@ -918,7 +916,7 @@ func importErrorString(err ImportError) string {
 
 // checkDeclNames reports the first offending binding in files, skipping the
 // synthetic .gnobuiltins file, which declares the builtins themselves.
-func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, synthetic map[*ast.Ident]struct{}) error {
+func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, prep *goPrep) error {
 	// `realm` is an alias declared in the injected .gnobuiltins.gno;
 	// types.Identical sees through it, so an alias of the alias counts too.
 	var realmType types.Type
@@ -930,17 +928,34 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 		skip = fset.File(builtins.Pos())
 	}
 	firstParam := firstParamIdents(files, builtins)
-	var bad []types.Object
+	type binding struct {
+		pos  token.Pos
+		name string
+	}
+	var bad []binding
 	add := func(obj types.Object) {
 		if obj == nil || fset.File(obj.Pos()) == skip || !shadowsAName(obj) {
 			return
 		}
 		if declNameRefused(Name(obj.Name())) {
-			bad = append(bad, obj)
+			bad = append(bad, binding{obj.Pos(), obj.Name()})
+		}
+	}
+	// The parameter stripped from main/init: same rule, read from the AST.
+	for _, f := range files {
+		for _, field := range prep.stripped[f] {
+			for i, id := range field.Names {
+				if id.Name == "cur" && i == 0 && isRealmTypeExpr(fset, pkg, field.Type, realmType) {
+					continue
+				}
+				if declNameRefused(Name(id.Name)) {
+					bad = append(bad, binding{id.Pos(), id.Name})
+				}
+			}
 		}
 	}
 	for id, obj := range info.Defs {
-		if _, ok := synthetic[id]; ok {
+		if _, ok := prep.synthetic[id]; ok {
 			continue
 		}
 		// The one legal `cur`: a crossing function's first parameter. Both
@@ -971,12 +986,27 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 		return nil
 	}
 	// Both maps are maps; order the report so two nodes word it identically.
-	slices.SortFunc(bad, func(a, b types.Object) int { return int(a.Pos()) - int(b.Pos()) })
-	obj := bad[0]
-	if isContextualKeyword(Name(obj.Name())) {
-		return fmt.Errorf("%s: %s", fset.Position(obj.Pos()), curReservedMsg)
+	slices.SortFunc(bad, func(a, b binding) int { return int(a.pos) - int(b.pos) })
+	first := bad[0]
+	if isContextualKeyword(Name(first.name)) {
+		return fmt.Errorf("%s: %s", fset.Position(first.pos), curReservedMsg)
 	}
-	return fmt.Errorf("%s: builtin identifiers cannot be shadowed: %s", fset.Position(obj.Pos()), obj.Name())
+	return fmt.Errorf("%s: builtin identifiers cannot be shadowed: %s", fset.Position(first.pos), first.name)
+}
+
+// isRealmTypeExpr resolves a type expression go/types did not see (a
+// stripped main/init parameter) at package scope, so an alias of realm
+// counts as it does for every other first parameter.
+func isRealmTypeExpr(fset *token.FileSet, pkg *types.Package, expr ast.Expr, realmType types.Type) bool {
+	if realmType == nil {
+		return false
+	}
+	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}}
+	if err := types.CheckExpr(fset, pkg, expr.Pos(), expr, info); err != nil {
+		return false
+	}
+	tv := info.Types[expr]
+	return tv.IsType() && types.Identical(tv.Type, realmType)
 }
 
 func declNameRefused(n Name) bool {

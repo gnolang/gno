@@ -42,10 +42,12 @@ both. A `cur` is allowed only as a function type's first parameter whose type
 is `realm`, read from `go/types` so an alias of `realm` is held to the same
 rule; position alone would admit `func(x int, cur realm)`, type alone
 `func(cur int)`. The refusal is reported in source order, because `Defs` is a
-map. `prepareGoGno0p9` strips only a literal `cur realm` from `main` and
-`init` before `go/types` runs; any other parameter stays to be judged, since
-stripped, `func main(panic func(string))` would bind `panic` for the VM while
-the checker still saw the builtin.
+map. `prepareGoGno0p9` strips the single parameter of `main` and `init`
+before `go/types` runs, as on master, and records it; `checkDeclNames` judges
+the recorded names itself, since `func main(panic func(string))` would bind
+`panic` for the VM while the checker still saw the builtin. The strip is not
+narrowed: it also runs on imports and replayed source, where a stored
+`init(_ realm)` must keep type-checking.
 
 **The gate sees only source being admitted.** Not an import (already on
 chain), not a stdlib (`LoadStdlib` type-checks the binary's own, and node
@@ -55,7 +57,9 @@ not a genesis replay: `TypeCheckOptions.AlreadyOnChain`, set from
 `auth.IsGenesisReplay`, skips admission rules for the history a hardfork
 re-delivers through `InitChain`. gnoland-1's history holds 33 packages the
 gate refuses, `p/onbloc/diff/v0` in genesis itself; without the exemption the
-upgraded binary cannot replay the chain it upgrades. Everything the
+upgraded binary cannot replay the chain it upgrades. `IsGenesisReplay` is
+true for every `InitChain` tx, so a new chain's own genesis packages skip the
+rule too; `gno lint` holds in-tree ones to it. Everything the
 type-checker does to decide what a package MEANS still runs.
 
 **Nothing in preprocess may tighten.** `PreprocessAllFilesAndSaveBlockNodes`

@@ -64,8 +64,9 @@ or type-switch variable, and not as a parameter or result name in a function
 type or interface method.
 
 The check runs on production source when it is deployed (`addpkg` and
-`run`). `_test.gno` files, filetests, `vm/qeval` and `gno run` are not
-checked, and a package already on chain keeps its names.
+`run`). `_test.gno` files, filetests, `vm/qeval`, `gno run` and packages
+loaded at genesis are not checked, and a package already on chain keeps its
+names.
 
 The rule protects readers of contract code: Go would let `var panic =
 func(string) {}` turn a later `panic("unauthorized")` into a normal return,

@@ -33,13 +33,13 @@ func TestCheckDeclNames(t *testing.T) {
 		// the binding is implicit, and go/types records it in Implicits.
 		{"cur implicit import", "import \"gno.land/p/demo/cur\"\n\nfunc F() bool { return cur.Previous().IsUser() }", "contextual keyword"},
 		{"builtin implicit import", "import \"gno.land/p/demo/len\"\n\nfunc F() int { return len.N }", "cannot be shadowed: len"},
-		// prepareGoGno0p9 strips main's and init's `cur realm` before go/types
-		// runs. Only that literal shape is stripped: any other parameter
-		// stays, so the checker sees it and this rule judges it.
+		// prepareGoGno0p9 strips main's and init's single parameter before
+		// go/types runs, so the gate reads the stripped names itself.
 		{"main param builtin", "func main(panic func(string)) string { panic(\"x\"); return \"\" }", "cannot be shadowed: panic"},
 		{"main param cur int", "func main(cur int) {}", "contextual keyword"},
-		// init with any other parameter is a Go signature error first.
-		{"init param builtin", "func init(len int) {}", "init must have no arguments"},
+		{"init param builtin", "func init(len int) {}", "cannot be shadowed: len"},
+		{"init param cur int", "func init(cur int) {}", "contextual keyword"},
+		{"init param cur second", "func init(x, cur realm) {}", "contextual keyword"},
 		// `:=` with one new variable ASSIGNS cur, so go/types records it in
 		// Uses, not Defs; checkDeclNames alone never sees this shape.
 		{"cur same-scope rebind", "func F(cur realm) string { cur, y := cur, 1; _ = y; return cur.PkgPath() }", "cannot reassign the crossing"},
@@ -51,6 +51,9 @@ func TestCheckDeclNames(t *testing.T) {
 		{"crossing first param", "func F(cur realm) {}", ""},
 		{"main cur realm", "func main(cur realm) {}", ""},
 		{"init cur realm", "func init(cur realm) {}", ""},
+		{"init blank realm", "var N int\n\nfunc init(_ realm) { N = 7 }", ""},
+		{"init cur realm alias", "type R = realm\n\nfunc init(cur R) {}", ""},
+		{"main blank realm", "func main(_ realm) {}", ""},
 		{"aliased import", "import l \"gno.land/p/demo/len\"\n\nfunc F() int { return l.N }", ""},
 		{"blank", "func F() { _ = 1 }", ""},
 		{"ordinary names", "func F(n int) int { return n }", ""},
@@ -151,6 +154,32 @@ func TestCheckDeclNamesSkipsSourceAlreadyOnChain(t *testing.T) {
 	onChain.AlreadyOnChain = true
 	if _, err := TypeCheckMemPackage(mpkg(), onChain); err != nil {
 		t.Fatalf("source already on chain must still check: %v", err)
+	}
+}
+
+// An import is already on chain: the gate must not judge it, and the
+// main/init rewrite, which runs on imports too, must not refuse it either.
+func TestCheckDeclNamesSkipsImports(t *testing.T) {
+	for _, tc := range []struct{ name, body string }{
+		{"reserved name", "func Modf(f float64) (int float64, frac float64) { return 1, 0.5 }"},
+		{"init blank realm", "var N int\n\nfunc init(_ realm) { N = 7 }"},
+		{"init builtin param", "func init(len int) {}"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := TypeCheckMemPackage(&std.MemPackage{
+				Type: MPUserProd, Name: "probe", Path: "gno.land/r/demo/probe",
+				Files: []*std.MemFile{
+					{Name: "gnomod.toml", Body: "module = \"gno.land/r/demo/probe\"\ngno = \"0.9\"\n"},
+					{Name: "a.gno", Body: "package probe\n\nimport \"gno.land/p/demo/old\"\n\nvar _ = old.V\n"},
+				},
+			}, TypeCheckOptions{
+				Getter: mockPackageGetter{reservedNamePkg("old", "var V = 1\n\n"+tc.body)},
+				Mode:   TCLatestStrict, ProdOnly: true,
+			})
+			if err != nil {
+				t.Fatalf("an import already on chain was refused: %v", err)
+			}
+		})
 	}
 }
 

@@ -1976,6 +1976,9 @@ func GetHeight(cur realm) int64 { return height }
 			path = "gno.land/r/demo/reservedname"
 			body = `package reservedname
 
+// Stripped before go/types runs; the rewrite must not refuse it either.
+func init(_ realm) {}
+
 func L(cur realm, len int) int { return len }
 `
 		)

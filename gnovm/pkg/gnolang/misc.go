@@ -183,7 +183,7 @@ var contextualKeywords = map[Name]struct{}{
 }
 
 // isContextualKeyword reports a contextual keyword; see the tiers above.
-// checkDeclName refuses it at every binding site but its one allowed site.
+// checkDeclNames refuses it at every binding site but its one allowed site.
 func isContextualKeyword(n Name) bool {
 	_, ok := contextualKeywords[n]
 	return ok
