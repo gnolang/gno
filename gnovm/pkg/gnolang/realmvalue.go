@@ -20,9 +20,10 @@ func newRealmValueInfo() *types.Info {
 }
 
 // checkRealmValues reports each value of another realm's struct or array
-// type in files type-checked as pkgPath.
-func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, pkgPath string) []error {
-	self := pkgPath
+// type in files type-checked as own, running in realm pkgPath. A filetest is
+// type-checked under its directory's path but runs under its PKGPATH.
+func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, own *types.Package, pkgPath string) []error {
+	self := realmSelf{own, pkgPath}
 	var errs []error
 	report := func(pos token.Pos, t types.Type) {
 		errs = append(errs, types.Error{
@@ -112,12 +113,18 @@ func exemptRealmValueUse(x ast.Expr, parent ast.Node) bool {
 	return false
 }
 
+// realmSelf names the package being checked and the realm it runs in.
+type realmSelf struct {
+	pkg  *types.Package
+	path string
+}
+
 // foreignRealmValue returns the first realm-declared struct/array type that
 // t holds by value and that is not declared in self.
-func foreignRealmValue(t types.Type, self string) types.Type {
+func foreignRealmValue(t types.Type, self realmSelf) types.Type {
 	switch u := t.(type) {
 	case *types.Named:
-		if pkg := u.Obj().Pkg(); pkg != nil && pkg.Path() != self && IsRealmPath(pkg.Path()) {
+		if pkg := u.Obj().Pkg(); pkg != nil && pkg != self.pkg && pkg.Path() != self.path && IsRealmPath(pkg.Path()) {
 			switch u.Underlying().(type) {
 			case *types.Struct, *types.Array:
 				return u

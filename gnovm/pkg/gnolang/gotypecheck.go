@@ -519,7 +519,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	info := newRealmValueInfo()
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
 	if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
-		gimp.errors = append(gimp.errors, checkRealmValues(gofset, pgofs, info, mpkg.Path)...)
+		gimp.errors = append(gimp.errors, checkRealmValues(gofset, pgofs, info, pkg, mpkg.Path)...)
 	}
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
@@ -540,7 +540,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		info := newRealmValueInfo()
 		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, info)
 		if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
-			gimp.errors = append(gimp.errors, checkRealmValues(gofset, gofs, info, mpkg.Path)...)
+			gimp.errors = append(gimp.errors, checkRealmValues(gofset, gofs, info, pkg, mpkg.Path)...)
 		}
 		// Fail early: there's no point checking the others.
 		if len(gimp.errors) != numErrs {
@@ -584,8 +584,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		tgofs2 := []*ast.File{gmgof, tgof}
 		gimp.testing = true // use tgetter for stdlibs, default to tgetter.
 		info := newRealmValueInfo()
-		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgofs2, info)
-		gimp.errors = append(gimp.errors, checkRealmValues(gofset, tgofs2, info, filetestPkgPath(tgof, mpkg.Path))...)
+		tpkg, _ := gimp.cfg.Check(mpkg.Path, gofset, tgofs2, info)
+		gimp.errors = append(gimp.errors, checkRealmValues(gofset, tgofs2, info, tpkg, filetestPkgPath(tgof, mpkg.Path))...)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
