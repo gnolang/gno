@@ -39,7 +39,11 @@ func init(cur realm) {
 	if err != nil {
 		panic("failed to create CoinsBanker: " + err.Error())
 	}
-	grc20Banker, err := t.NewGRC20BankerWithOwner(cur.Address(), grc20Lister, grc20reg.Transfer)
+	// grc20reg.Transfer is another realm's function: wrap it rather than pass it.
+	grc20Transfer := func(_ int, rlm realm, tokenKey string, to address, amount int64) {
+		grc20reg.Transfer(0, rlm, tokenKey, to, amount)
+	}
+	grc20Banker, err := t.NewGRC20BankerWithOwner(cur.Address(), grc20Lister, grc20Transfer)
 	if err != nil {
 		panic("failed to create GRC20Banker: " + err.Error())
 	}
