@@ -2832,8 +2832,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 }
 
 // unmadeValue reports whether the current realm's code arrived as a value it
-// did not make: a declared function or method expression not named by the call,
-// a closure with another (or no) maker, or a method value bound elsewhere.
+// did not make: a closure with another (or no) maker, or a method value bound
+// elsewhere. Another realm's declared function as a value is a preprocess error.
 func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID) bool {
 	if fv.IsClosure {
 		return fv.GetObjectInfo().ID.PkgID != m.Realm.ID
@@ -2844,7 +2844,7 @@ func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bind
 		}
 		return bindPID != m.Realm.ID
 	}
-	return cx.GetAttribute(ATTR_NAMED_CALLEE) != true
+	return false
 }
 
 // foreignLib reports whether fv is a /p/ function outside the current realm's
