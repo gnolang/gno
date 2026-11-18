@@ -213,7 +213,9 @@ func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.Ty
 					"error parsing byte array %q: %v",
 					arg, err))
 			}
-			tv.V = alloc.NewSliceFromData(bz)
+			// Clip: DecodeString's buffer is sized by len(arg), so padding
+			// and ignored line breaks would otherwise become capacity.
+			tv.V = alloc.NewSliceFromData(bz[:len(bz):len(bz)])
 			return
 		} else {
 			panic("unexpected slice type in contract arg")

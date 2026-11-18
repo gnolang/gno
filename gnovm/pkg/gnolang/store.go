@@ -595,10 +595,12 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		rs := internalRefSize(oo)
 		strs := internalStringSize(oo)
 		// Allocate atomically: one Allocate call prevents GC from
-		// intercepting between the partial charges, and nothing after
-		// the cacheObjects insert below may allocate — a GC there would
-		// evict this not-yet-reachable object and a later GetObject
-		// would materialize a second copy of the same ObjectID.
+		// intercepting between the partial charges, and the string
+		// fill after the cacheObjects insert below must not allocate — a
+		// GC there would evict this not-yet-reachable object and a later
+		// GetObject would materialize a second copy of the same ObjectID.
+		// XXX not closed for maps with object keys: restoring vmap loads
+		// each key object, which allocates (same on master).
 		ds.alloc.Allocate(ss + rs + strs)
 
 		if debugAssert {

@@ -10,9 +10,9 @@
 //     seen s's backing in this cycle (same backing, same cycle)
 //
 // If GC double-counted, s1's backing would add another 1052B to the
-// recount (after ≈ 10024).
+// recount (after ≈ 10104).
 //
-// Observed: after = 8972, confirming single-count dedup.
+// Observed: after = 9052, confirming single-count dedup.
 package test
 
 import (

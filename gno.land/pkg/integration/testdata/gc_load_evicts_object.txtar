@@ -6,9 +6,8 @@
 #
 # Shape: A and B are two distinct slices over ONE backing array object, so
 # each resolves that ObjectID through its own GetObject call. The array holds
-# many small strings, so fillTypesOfValue makes one Allocate per element:
-# that is what widens the window from ~200 bytes (a single big string) to the
-# sum of the element charges.
+# many small strings: if the fill charged them one by one (it must not; the
+# load charges them up front), the GC would fire somewhere inside the fill.
 #
 # Probe parks the allocator's gross byte counter just under maxAllocTx
 # (500 MB) with one large DEAD allocation, so a GC fires part-way through the

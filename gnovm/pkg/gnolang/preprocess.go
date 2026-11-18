@@ -2497,10 +2497,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						// A typed nil slice/map/func folds to a ConstExpr but is
-						// no Go constant: Go skips it, and ComputeMapKey would panic.
+						// Only bool, numeric and string keys are Go constants. A
+						// typed nil (pointer, slice, map, func) also folds to a
+						// ConstExpr, but Go does not check it for duplicates.
 						cx, ok := elt.Key.(*ConstExpr)
-						if ok && !cx.TypedValue.IsUndefined() && (cx.T == nil || isComparable(cx.T)) {
+						if ok && cx.T != nil && isPrimitiveKey(cx.T) {
 							mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
 							if isNaN {
 								continue // NaN never equals itself
@@ -4655,6 +4656,13 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	setPreprocessed(cx)
 	setConstAttrs(cx)
 	return cx
+}
+
+// isPrimitiveKey reports whether t's underlying type is bool, numeric or
+// string: the only map-literal keys checked for duplicates.
+func isPrimitiveKey(t Type) bool {
+	_, ok := baseOf(t).(PrimitiveType)
+	return ok
 }
 
 func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {

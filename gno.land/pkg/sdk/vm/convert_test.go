@@ -141,6 +141,17 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 	}
 }
 
+// A []byte argument's capacity is its length, however the base64 is padded
+// or line-broken: the decoder's buffer must not leak into the realm.
+func TestConvertByteSliceCapIsLen(t *testing.T) {
+	st := &gnolang.SliceType{Elt: gnolang.Uint8Type}
+	for _, arg := range []string{"AAAA", "AA==", "AAAA\n\n\n\n", "AAAA\r\n\r\n\r\n"} {
+		sv := convertArgToGno(nil, arg, st).V.(*gnolang.SliceValue)
+		require.Equal(t, sv.Length, sv.Maxcap, "arg %q", arg)
+		require.Equal(t, sv.Length, sv.Base.(*gnolang.ArrayValue).GetLength(), "arg %q", arg)
+	}
+}
+
 // A [N]byte argument is refused on its encoded length before base64 decoding,
 // so an oversized argument never sizes DecodeString's allocation. The decoder
 // ignores \r and \n, so this also removes the malleability that padding a

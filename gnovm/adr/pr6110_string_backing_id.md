@@ -46,8 +46,10 @@ type StringValue struct {
   (see the `.uverse` carve-out in `GCVisitorFn`); cached literals are
   exactly such shared values.
 - `B == nil` (VM panic text via `typedString`/`typedRuntimeError`, uverse
-  init) recounts as header only: a deterministic, bounded undercount —
-  never a misattribution, since accounting never consults addresses.
+  init) recounts as header only. Panic text can embed caller input
+  (`params.GetString` echoes its key), so `recover()` mints it through
+  `NewString` before user code can hold it (`alloc_14c`); what stays
+  untracked is unreachable from user code.
 - The pointer never reaches consensus: amino/pb3 persist `Str` alone
   (`MarshalAmino` repr keeps the wire format byte-identical), and loads
   re-mint through `fillTypesOfValue`. Only the partition "which values
