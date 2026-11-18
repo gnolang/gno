@@ -516,7 +516,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+	info := newRealmValueInfo()
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
+	if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
+		gimp.errors = append(gimp.errors, checkRealmValues(gofset, pgofs, info, mpkg.Path)...)
+	}
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -533,7 +537,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// STEP 4: Type-check Gno0.9 AST in Go (w/ tests, but not xxx_tests).
 	if len(pgofs) < len(gofs) {
 		gimp.testing = true // use tgetter for stdlibs, default to getter.
-		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+		info := newRealmValueInfo()
+		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, info)
+		if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
+			gimp.errors = append(gimp.errors, checkRealmValues(gofset, gofs, info, mpkg.Path)...)
+		}
 		// Fail early: there's no point checking the others.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -575,7 +583,9 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		gmgof.Name = ast.NewIdent(tpname)
 		tgofs2 := []*ast.File{gmgof, tgof}
 		gimp.testing = true // use tgetter for stdlibs, default to tgetter.
-		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgofs2, nil)
+		info := newRealmValueInfo()
+		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgofs2, info)
+		gimp.errors = append(gimp.errors, checkRealmValues(gofset, tgofs2, info, filetestPkgPath(tgof, mpkg.Path))...)
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -833,4 +843,16 @@ func importErrorString(err ImportError) string {
 	} else {
 		return msg
 	}
+}
+
+// filetestPkgPath is the realm a filetest runs as (its PKGPATH directive).
+func filetestPkgPath(f *ast.File, def string) string {
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if rest, ok := strings.CutPrefix(c.Text, "// PKGPATH:"); ok {
+				return strings.TrimSpace(rest)
+			}
+		}
+	}
+	return def
 }
