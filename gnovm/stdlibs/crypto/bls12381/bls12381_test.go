@@ -376,6 +376,34 @@ func TestOutsideSubgroup(t *testing.T) {
 	require.False(t, X_fastAggregateVerifyExcluding(keySum(t, pk, q), cat(plusT(q), minusT), msg, sig))
 	// An off-subgroup aggregate pk+q+T minus an off-subgroup q+T is pk.
 	require.False(t, X_fastAggregateVerifyExcluding(plusT(keySum(t, pk, q)), plusT(q), msg, sig))
+
+	// The aggregate's own check: pk+q+T0 minus a valid q is pk+T0, where T0
+	// is pure torsion, of order dividing the cofactor. A pairing with T0 is 1,
+	// so pk's signature verifies unless the aggregate is refused.
+	var t0 bls.G1Affine
+	t0.FromJacobian(mulNoGLV(&tp, fr.Modulus()))
+	require.False(t, t0.IsInfinity())
+	require.False(t, t0.IsInSubGroup())
+	var agg, perturbed bls.G1Affine
+	_, err := agg.SetBytes(keySum(t, pk, q))
+	require.NoError(t, err)
+	perturbed.Add(&agg, &t0)
+	ab := perturbed.Bytes()
+	require.False(t, X_fastAggregateVerifyExcluding(ab[:], q, msg, sig))
+}
+
+// mulNoGLV returns [k]p by double-and-add. gnark's ScalarMultiplication uses
+// an endomorphism that is only correct on the prime-order subgroup.
+func mulNoGLV(p *bls.G1Affine, k *big.Int) *bls.G1Jac {
+	var acc, base bls.G1Jac
+	base.FromAffine(p)
+	for i := k.BitLen() - 1; i >= 0; i-- {
+		acc.DoubleAssign()
+		if k.Bit(i) == 1 {
+			acc.AddAssign(&base)
+		}
+	}
+	return &acc
 }
 
 // A second encoding of a key fails the caller's Merkle proof, but one of a
