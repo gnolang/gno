@@ -1,6 +1,12 @@
 package impl
 
 import (
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/p/nt/ufmt/v0"
+	"gno.land/r/gov/dao"
 	"gno.land/r/gov/dao/memberstore/v0"
 )
 
@@ -52,6 +58,35 @@ func AddMember(cur realm, addr address) {
 	if err := memberstore.Get(0, cur).SetMember(memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
 		panic(err.Error())
 	}
+}
+
+var treasuryAddr = chain.PackageAddress("gno.land/r/gov/dao/treasury/v0")
+
+// ProposeAddMember opens a proposal to add addr to tier, and returns its id.
+// It is the one proposal a non-member may open: they send ProposalFeeAmount
+// with the call, and it goes to the govDAO treasury. Members propose free.
+func ProposeAddMember(cur realm, addr address, tier string, portfolio string) dao.ProposalID {
+	// A direct call lands the -send here and makes OriginCaller the proposer;
+	// a maketx run sends its coins back to the signer.
+	caller := cur.Previous()
+	if !caller.IsUserCall() {
+		panic("ProposeAddMember must be called directly with a msg call")
+	}
+	req, member := newAddMemberRequest(addr, tier, portfolio, true, cur)
+
+	sent := unsafe.OriginSend()
+	if member != nil || ProposalFeeAmount == 0 {
+		if len(sent) != 0 {
+			panic("no proposal fee is due, send nothing")
+		}
+	} else {
+		if len(sent) != 1 || sent[0].Denom != "ugnot" || sent[0].Amount != ProposalFeeAmount {
+			panic(ufmt.Sprintf("send exactly %dugnot to pay the proposal fee", ProposalFeeAmount))
+		}
+		banker.NewBanker(banker.BankerTypeRealmSend, cur).SendCoins(cur.Address(), treasuryAddr, sent)
+	}
+
+	return dao.MustCreateProposal(cross(cur), req)
 }
 
 // GetInstance returns the singleton *GovDAO. Only the loader realm may
