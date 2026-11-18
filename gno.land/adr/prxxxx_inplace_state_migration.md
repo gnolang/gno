@@ -282,12 +282,48 @@ choice.
 
 During block sync the node holds commits in memory and writes them at flush
 points ([#6334](https://github.com/gnolang/gno/pull/6334),
-`tm2/pkg/sdk/deferred.go`). Block `H` is always flushed (`NeedsFlushPoint`
-reports true once the halt height is reached), so the handler at `H+1` starts
-from state on disk. Its own writes are held like any block's. A handler that
-writes something a later binary reads from disk at startup, as a halt param is
-read by `checkNodeStartupParams`, must call `BaseApp.RequireFlushPoint`, as the
-node params keeper does (`node_params.go:140-144`); `Env` would then carry it.
+`tm2/pkg/sdk/deferred.go`). An iterator reads only the real database, so while
+the collector holds, every database iterator panics
+(`tm2/pkg/db/collecting.go:259-263`) rather than miss the held writes; #6334
+accepted that because nothing iterated inside a block. A handler must be able
+to iterate, as Cosmos handlers do — Cosmos commits every block during block
+sync, so its iterators never miss anything.
+
+The refusal keys on the holding *mode*, not on what is held: it fires even
+when nothing is held and the database is the latest committed state. That is
+exactly the migration block's situation. `H+1` always runs in a fresh process
+— the EndBlocker arms the halt at `H` from state and `BeginBlock` panics at
+`H+1`, on a live validator and on a node replaying history alike — and block
+`H` is on disk when the node stops (`NeedsFlushPoint` reports true once the
+halt height is reached). So `H+1` is the first block of its block-sync session,
+with nothing held, and the handler's own writes stay in the block's cache layer
+until its commit.
+
+So the refusal narrows to what it protects against — an iterator is refused
+only while the collector holds writes:
+
+```go
+func (c *CollectingDB) refuseWhileHolding() {
+	if c.collector.Holding() && c.collector.Len() > 0 {
+		c.collector.refused.Store(true)
+		panic(ErrIteratorOverHeldWrites)
+	}
+}
+```
+
+The handler then iterates on every path: in consensus nothing is ever held; in
+block sync `H+1` is the first block; after a crash before the next flush point,
+the node restarts at `H` and `H+1` is the first block again. Nothing else
+changes: no hook, no veto, and holding resumes after `H+1` as for any block.
+Nor does the handler need `RequireFlushPoint`: if its writes are lost in a
+crash, the node re-runs `H+1` from `H` and the handler with it.
+
+The cost falls on #6334's guarantee for an iterator in an ordinary block, which
+is a bug: it is now allowed, and correct, in the first block after each flush
+point, and refused elsewhere, where today it is refused every time and the node
+stops at that block on every start. The signal becomes intermittent; results
+are never wrong. A test must pin that an iterator runs in the first block of a
+block-sync session and is refused once writes are held.
 
 ## Consequences
 
@@ -401,6 +437,24 @@ chains with their own binaries and tag schemes, so the SDK has no equivalent of
 semver. A name is opaque, so it works everywhere. gno has exactly what the SDK
 lacks — one binary, one release process, one version string it controls and can
 parse — so the name would carry no information the version does not.
+
+**Vetoing deferral for the migration block.** The application refuses
+`DeferCommits(true)` while `H+1` is pending, detected at boot from the halt
+params (`LastBlockHeight == halt_height` and a handler registered), and the
+block-sync reactor retries `DeferredWrites.Start` after each block, since today
+it tries once per session (`tm2/pkg/bft/blockchain/reactor.go:394`) and a
+refusal would leave the rest of the sync unheld. Rejected: it works, but takes
+a `BaseApp` hook, a reactor change and boot-time detection in gno.land to reach
+what narrowing the refusal reaches in one condition.
+
+**Iterators that merge held writes**, so a handler iterates while block sync
+holds. Rejected: it lifts the restriction for every caller at the price #6334
+and [#5431](https://github.com/gnolang/gno/pull/5431) both declined
+(`tm2/adr/pr5431_concurrent_queries.md:198-200`), for one block per upgrade.
+
+**Forbidding iterators in handlers.** Rejected: no code, but a rule every
+handler author must remember, and a breach shows only on the nodes that happen
+to block-sync through `H+1`, which then stop at that block on every start.
 
 ## Open questions
 
