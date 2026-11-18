@@ -15,7 +15,8 @@ import (
 	"gno.land/r/gov/dao/treasury/v0"
 )
 
-func NewChangeLawRequest(cur realm, newLaw Law) *dao.ProposalRequest {
+func NewChangeLawRequest(cur realm, in *Law) *dao.ProposalRequest {
+	newLaw := *in // this realm's own copy
 	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
