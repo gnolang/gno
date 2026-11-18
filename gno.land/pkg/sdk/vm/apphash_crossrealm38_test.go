@@ -228,7 +228,16 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Bumped by adding the chain/reflect stdlib. Its reflect.gno source bytes are
+// committed into genesis state, so a new package moves the root whether or not
+// anything imports it. Only the .gno side counts: reflect.go and
+// reflect_test.go are Go, outside the mempackage, and the gas row is not
+// committed state either. crossrealm38 imports chain/reflect nowhere and its
+// behavior is unchanged; the zrealm_crossrealm38.gno filetest still passes.
+// Moved again when review took Type() out of chain/reflect's Object, for the
+// same reason: the reflect.gno bytes changed, nothing crossrealm38 runs did.
+const expectedCrossrealm38Hash = "b6fccef04321e634d58f4ad6e18d5f0fd298faac36457e8a675f6b6a8b321380"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
