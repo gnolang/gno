@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
+	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -344,7 +345,9 @@ func (h *Handshaker) ReplayBlocks(
 		// Save the results by height
 		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
 		copy(abciResponse.DeliverTxs, res.TxResponses)
-		sm.SaveABCIResponses(h.stateDB, 0, abciResponse)
+		if err := sm.SaveABCIResponses(h.stateDB, 0, abciResponse); err != nil {
+			return nil, err
+		}
 
 		// NOTE: we don't save results by tx hash since the transactions are in the AppState opaque type
 
@@ -385,8 +388,12 @@ func (h *Handshaker) ReplayBlocks(
 		panic(fmt.Sprintf("StateBlockHeight (%d) > StoreBlockHeight (%d)", stateBlockHeight, storeBlockHeight))
 
 	case storeBlockHeight > stateBlockHeight+1:
-		// store should be at most one ahead of the state (this is under tendermint's control)
-		panic(fmt.Sprintf("StoreBlockHeight (%d) > StateBlockHeight + 1 (%d)", storeBlockHeight, stateBlockHeight+1))
+		// store should be at most one ahead of the state (this is under tendermint's control),
+		// unless a crash in a block-sync flush point left it ahead by the flush point's window
+		if !h.lowerAfterFlushPointCrash(storeBlockHeight, stateBlockHeight, appBlockHeight) {
+			panic(fmt.Sprintf("StoreBlockHeight (%d) > StateBlockHeight + 1 (%d)", storeBlockHeight, stateBlockHeight+1))
+		}
+		storeBlockHeight = stateBlockHeight + 1
 	}
 
 	var err error
@@ -437,6 +444,31 @@ func (h *Handshaker) ReplayBlocks(
 
 	panic(fmt.Sprintf("uncovered case! appHeight: %d, storeHeight: %d, stateHeight: %d",
 		appBlockHeight, storeBlockHeight, stateBlockHeight))
+}
+
+// lowerAfterFlushPointCrash undoes what a crash between a block-sync flush
+// point's first two writes leaves (see blockchain.DeferredWrites.FlushPoint):
+// the block store ahead of the state by the flush point's window. When the
+// flush point's record, the state and the app agree that this is that shape,
+// it lowers the block store to one block past the state and reports true:
+// the handshake then replays that block, and block sync fetches the rest
+// again, as after a crash a moment earlier. Any other shape, such as a
+// partial restore, it leaves alone.
+func (h *Handshaker) lowerAfterFlushPointCrash(storeHeight, stateHeight, appHeight int64) bool {
+	bs, ok := h.store.(interface {
+		FlushPoint() (store.FlushPoint, bool)
+		LowerHeight(height int64)
+	})
+	if !ok || appHeight > stateHeight {
+		return false
+	}
+	if fp, ok := bs.FlushPoint(); !ok || fp.From != stateHeight || fp.To != storeHeight {
+		return false
+	}
+	h.logger.Info("Lowering the block store after a crash in a block-sync flush point",
+		"from", storeHeight, "to", stateHeight+1)
+	bs.LowerHeight(stateHeight + 1)
+	return true
 }
 
 func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, appBlockHeight, storeBlockHeight int64, mutateState bool) ([]byte, error) {

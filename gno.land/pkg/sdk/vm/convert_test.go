@@ -14,6 +14,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mustStringifyJSONResults is a test-only unbounded wrapper: the size bound has
+// its own coverage in keeper_large_input_test.go, and these cases assert on the encoded
+// shape of small hand-built values. Deliberately test-only — production code
+// must never gain an unbounded variant; query paths pass maxQueryExportBytes
+// and maxQueryOutputBytes.
+func mustStringifyJSONResults(t *testing.T, m *gnolang.Machine, tvs []gnolang.TypedValue, ft *gnolang.FuncType) string {
+	t.Helper()
+	s, err := stringifyJSONResults(m, tvs, ft, 0, 0)
+	require.NoError(t, err)
+	return s
+}
+
 func TestConvertEmptyNumbers(t *testing.T) {
 	tests := []struct {
 		argT        gnolang.Type
@@ -40,6 +52,34 @@ func TestConvertEmptyNumbers(t *testing.T) {
 				_ = convertArgToGno("", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
+		})
+	}
+}
+
+func TestConvertFloatArgLengthBound(t *testing.T) {
+	t.Parallel()
+
+	atLimit := "0." + strings.Repeat("7", maxFloatArgLen-2)
+	overLimit := atLimit + "7"
+
+	tests := []struct {
+		argT        gnolang.Type
+		expectedErr string
+	}{
+		{gnolang.Float32Type, "error parsing float32: argument is 1025 bytes, over the 1024 byte limit"},
+		{gnolang.Float64Type, "error parsing float64: argument is 1025 bytes, over the 1024 byte limit"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.argT), func(t *testing.T) {
+			t.Parallel()
+
+			require.NotPanics(t, func() {
+				_ = convertArgToGno(atLimit, tt.argT)
+			})
+			assert.PanicsWithValue(t, tt.expectedErr, func() {
+				_ = convertArgToGno(overLimit, tt.argT)
+			})
 		})
 	}
 }
@@ -75,7 +115,21 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 			b64 := base64.StdEncoding.EncodeToString(input)
 
 			if tt.shouldPanic {
-				require.PanicsWithValue(t, fmt.Sprintf("array length mismatch: declared [%d]byte, got %d bytes", tt.declaredLen, tt.inputLen), func() {
+				// Two distinct guards. An argument of the wrong encoded
+				// length is refused before decoding; one of the right
+				// encoded length that still decodes to the wrong size
+				// (base64 padding makes 1, 2 and 3 bytes share an encoded
+				// length) is refused after.
+				want := base64.StdEncoding.EncodedLen(tt.declaredLen)
+				expected := fmt.Sprintf(
+					"array length mismatch: declared [%d]byte, got %d bytes",
+					tt.declaredLen, tt.inputLen)
+				if len(b64) != want {
+					expected = fmt.Sprintf(
+						"array length mismatch: declared [%d]byte, got a %d byte argument, want %d",
+						tt.declaredLen, len(b64), want)
+				}
+				require.PanicsWithValue(t, expected, func() {
 					convertArgToGno(b64, arrType)
 				})
 			} else {
@@ -86,6 +140,104 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A [N]byte argument is refused on its encoded length before base64 decoding,
+// so an oversized argument never sizes DecodeString's allocation. The decoder
+// ignores \r and \n, so this also removes the malleability that padding a
+// payload with them gave: one array value, unboundedly many spellings.
+func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
+	t.Parallel()
+
+	arrType := &gnolang.ArrayType{Len: 32, Elt: gnolang.Uint8Type}
+	canonical := base64.StdEncoding.EncodeToString(make([]byte, 32))
+	require.Len(t, canonical, base64.StdEncoding.EncodedLen(32))
+
+	// The canonical spelling still converts.
+	tv := convertArgToGno(canonical, arrType)
+	av, ok := tv.V.(*gnolang.ArrayValue)
+	require.True(t, ok)
+	assert.Equal(t, 32, av.GetLength())
+
+	mismatch := func(argLen int) string {
+		return fmt.Sprintf(
+			"array length mismatch: declared [32]byte, got a %d byte argument, want %d",
+			argLen, base64.StdEncoding.EncodedLen(32))
+	}
+
+	// Newline-padded spellings of the same value are no longer accepted.
+	for _, arg := range []string{
+		canonical[:8] + "\n" + canonical[8:],
+		strings.Repeat("\n", 1024) + canonical,
+	} {
+		assert.PanicsWithValue(t, mismatch(len(arg)), func() {
+			convertArgToGno(arg, arrType)
+		})
+	}
+
+	// An oversized argument is refused on length, so base64 never runs on it.
+	huge := strings.Repeat("A", 1_000_000)
+	assert.PanicsWithValue(t, mismatch(len(huge)), func() {
+		convertArgToGno(huge, arrType)
+	})
+}
+
+// An integer argument must be the one spelling strconv.Format* gives its
+// value, so "0" and "-0", or "7" and "007", are not two arguments for one value.
+func TestConvertIntCanonicalForm(t *testing.T) {
+	t.Parallel()
+
+	intTypes := []gnolang.Type{
+		gnolang.IntType, gnolang.Int8Type, gnolang.Int16Type, gnolang.Int32Type, gnolang.Int64Type,
+		gnolang.UintType, gnolang.Uint8Type, gnolang.Uint16Type, gnolang.Uint32Type, gnolang.Uint64Type,
+	}
+	for _, argT := range intTypes {
+		t.Run(argT.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, arg := range []string{"0", "7", "127"} {
+				assert.NotPanics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+			for _, arg := range []string{"-0", "00", "007", "-007", "+7"} {
+				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+		})
+	}
+
+	assert.PanicsWithValue(t, `error parsing int "007": not in canonical form, want "7"`, func() {
+		convertArgToGno("007", gnolang.IntType)
+	})
+	assert.NotPanics(t, func() { convertArgToGno("-7", gnolang.Int8Type) })
+}
+
+// A float argument must be finite, and a negative zero arrives as +0: NaN and
+// ±Inf defeat ordinary range checks in the callee, and -0 is a second value
+// for zero that only Signbit and formatting can tell apart.
+func TestConvertFloatSpecialValues(t *testing.T) {
+	t.Parallel()
+
+	for _, argT := range []gnolang.Type{gnolang.Float32Type, gnolang.Float64Type} {
+		t.Run(argT.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, arg := range []string{"NaN", "nan", "NAN", "-NaN", "sNaN", "Inf", "inf", "-Inf", "-inf", "Infinity"} {
+				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+			for _, arg := range []string{"-0", "-0.0", "-1e-400"} {
+				tv := convertArgToGno(arg, argT)
+				if argT == gnolang.Float32Type {
+					assert.Equal(t, uint32(0), tv.GetFloat32(), arg)
+				} else {
+					assert.Equal(t, uint64(0), tv.GetFloat64(), arg)
+				}
+			}
+			assert.NotPanics(t, func() { convertArgToGno("-1.5", argT) })
+		})
+	}
+
+	assert.PanicsWithValue(t, `error parsing float64 "nan": NaN and Inf are not accepted`, func() {
+		convertArgToGno("nan", gnolang.Float64Type)
+	})
 }
 
 // ============================================================================
@@ -113,7 +265,7 @@ var Value error = &myError{}`
 		tv := tps[0]
 		// Create a FuncType with error return type for signature-based detection
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
-		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
+		rep := mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
 		// In Amino format, error shows as PointerValue with expanded StructValue base
 		require.Contains(t, rep, `"/gno.PointerValue"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
@@ -140,7 +292,7 @@ var Value error = &myError{}`
 		tv := tps[0]
 		// Create a FuncType with error return type for signature-based detection
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
-		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
+		rep := mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
 		// In Amino format, error shows as PointerValue with expanded StructValue base
 		require.Contains(t, rep, `"/gno.PointerValue"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
@@ -169,16 +321,13 @@ var Value error = &panicError{}`
 		tv := tps[0]
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 		// Should not panic; gracefully omits @error
-		rep := stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
+		rep := mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
 		require.NotContains(t, rep, `"@error"`)
 		// Results should still be present
 		require.Contains(t, rep, `"results"`)
 	})
 
-	t.Run("out_of_gas_error_method_graceful_degrade", func(t *testing.T) {
-		// When .Error() runs out of gas, tryGetError must graceful-degrade
-		// (no @error) rather than re-panicking — re-panicking would discard
-		// the successful Results JSON that was already computed.
+	t.Run("out_of_gas_error_method_fails_query", func(t *testing.T) {
 		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 			PkgPath:  "testdata",
 			GasMeter: stypes.NewGasMeter(100_000),
@@ -207,15 +356,9 @@ var Value error = &gasError{}`
 		tv := tps[0]
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 
-		// Must NOT panic. Results must be present. @error must be absent.
-		var rep string
-		require.NotPanics(t, func() {
-			rep = stringifyJSONResults(m, []gnolang.TypedValue{tv}, ft)
+		require.Panics(t, func() {
+			mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
 		})
-		require.Contains(t, rep, `"results":`,
-			"results payload must be preserved even when .Error() OOGs")
-		require.NotContains(t, rep, `"@error"`,
-			"@error must be omitted on OOG in .Error() — graceful degrade")
 	})
 }
 
@@ -286,7 +429,7 @@ func TestConvertJSONPrimitives(t *testing.T) {
 			tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 			require.Len(t, tvs, 1)
 
-			rep := stringifyJSONResults(m, tvs, nil)
+			rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 			// Should be valid JSON
 			var result map[string]json.RawMessage
@@ -317,7 +460,7 @@ var Value = Item{ID: 1, Name: "test"}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Type is Amino-encoded RefType with type ID
 		require.Contains(t, rep, `"ID":"testdata.Item"`)
 		require.Contains(t, rep, `/gno.StructValue`)
@@ -342,7 +485,7 @@ var Value = Empty{}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Type is Amino-encoded RefType
 		require.Contains(t, rep, `"ID":"testdata.Empty"`)
 		require.Contains(t, rep, `/gno.StructValue`)
@@ -366,7 +509,7 @@ var Value = Outer{Inner: Inner{Value: 42}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Outer type
 		require.Contains(t, rep, `"ID":"testdata.Outer"`)
 		// Inner type
@@ -394,7 +537,7 @@ func TestConvertJSONSlices(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Amino encodes the type as a SliceType object, not a string
 		require.Contains(t, rep, `/gno.SliceType`)
 		require.Contains(t, rep, `/gno.SliceValue`)
@@ -413,7 +556,7 @@ func TestConvertJSONSlices(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		require.Contains(t, rep, `/gno.SliceType`)
 		require.Contains(t, rep, `/gno.SliceValue`)
 		require.Contains(t, rep, `"value":"a"`)
@@ -433,7 +576,7 @@ func TestConvertJSONSlices(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		require.Contains(t, rep, `/gno.SliceType`)
 		require.Contains(t, rep, `/gno.SliceValue`)
 		require.Contains(t, rep, `"Length":"0"`)
@@ -454,7 +597,7 @@ var Value = []Item{{ID: 1}, {ID: 2}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Amino: SliceValue with ArrayValue base containing StructValues
 		require.Contains(t, rep, `/gno.SliceValue`)
 		require.Contains(t, rep, `/gno.ArrayValue`)
@@ -483,7 +626,7 @@ var Value *Item = nil`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Nil pointer: T is PointerType, no V field (amino omits nil)
 		require.Contains(t, rep, `/gno.PointerType`)
 		require.Contains(t, rep, `"ID":"testdata.Item"`)
@@ -506,7 +649,7 @@ var Value = &Item{ID: 42}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Ephemeral pointer shows as PointerValue with HeapItemValue base
 		require.Contains(t, rep, `/gno.PointerValue`)
 		require.Contains(t, rep, `"ObjectInfo"`)
@@ -531,7 +674,7 @@ func TestConvertJSONMaps(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Parse to check structure
 		var result map[string]any
@@ -560,7 +703,7 @@ func TestConvertJSONMaps(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		require.Contains(t, rep, `/gno.MapType`)
 	})
 }
@@ -583,7 +726,7 @@ func TestConvertJSONDeclaredTypes(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Declared type shows as RefType with type name
 		require.Contains(t, rep, `"ID":"testdata.MyInt"`)
 		require.Contains(t, rep, `/gno.RefType`)
@@ -604,7 +747,7 @@ func TestConvertJSONDeclaredTypes(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Declared string type
 		require.Contains(t, rep, `"ID":"testdata.MyString"`)
 		require.Contains(t, rep, `/gno.StringValue`)
@@ -636,7 +779,7 @@ func init() { Value.Self = Value }`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Self-referential cycle: PointerValue with StructValue, cycle broken by RefValue
 		require.Contains(t, rep, `/gno.PointerValue`)
@@ -663,7 +806,7 @@ var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3}}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Linear linked list (no cycle): all nodes expanded inline
 		require.Contains(t, rep, `/gno.PointerValue`)
@@ -696,7 +839,7 @@ var Value2 = "hello"`
 		require.Len(t, tv2, 1)
 
 		tvs := []gnolang.TypedValue{tv1[0], tv2[0]}
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Should be valid JSON with two results
 		var result map[string]json.RawMessage
@@ -731,7 +874,7 @@ var Value3 = []int{1, 2, 3}`
 		tv3 := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value3"))
 
 		tvs := []gnolang.TypedValue{tv1[0], tv2[0], tv3[0]}
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Should contain all three types
 		require.Contains(t, rep, `/gno.PrimitiveType`)
@@ -745,7 +888,7 @@ var Value3 = []int{1, 2, 3}`
 		defer m.Release()
 
 		tvs := []gnolang.TypedValue{}
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		require.Equal(t, `{"results":[]}`, rep)
 	})
@@ -774,7 +917,7 @@ var Value = Tagged{FirstName: "John"}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		require.Contains(t, rep, `"ID":"testdata.Tagged"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Fields"`)
@@ -797,7 +940,7 @@ var Value = WithOmit{Name: "test"}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		require.Contains(t, rep, `"ID":"testdata.WithOmit"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"Fields"`)
@@ -823,7 +966,7 @@ var Value = WithSkip{Public: "visible", Skipped: "hidden"}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		require.Contains(t, rep, `"ID":"testdata.WithSkip"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
 		require.Contains(t, rep, `"visible"`)
@@ -854,7 +997,7 @@ var Value = MixedVisibility{PublicField: "public", privateField: "private"}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Both fields should be present (Amino includes all fields)
 		require.Contains(t, rep, `"ID":"testdata.MixedVisibility"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
@@ -879,7 +1022,7 @@ var Value = AllPrivate{privateA: "a", privateB: 42}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		// Struct should have all fields (Amino includes unexported fields)
 		require.Contains(t, rep, `"ID":"testdata.AllPrivate"`)
 		require.Contains(t, rep, `"ObjectInfo"`)
@@ -911,7 +1054,7 @@ func TestConvertJSONStress(t *testing.T) {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		require.Contains(t, rep, `/gno.SliceValue`)
 		require.Contains(t, rep, `"Length":"50"`)
@@ -936,7 +1079,7 @@ var Value = L1{L2{L3{L4{L5{"deep"}}}}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Nested structs show as StructValue
 		require.Contains(t, rep, `"ID":"testdata.L1"`)
@@ -971,7 +1114,7 @@ var Value2 error = &MyError{}`
 		tvs := []gnolang.TypedValue{tv1[0], tv2[0]}
 		// Simulate function returning (int, error)
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv1[0].T}, {Type: tv2[0].T}}}
-		rep := stringifyJSONResults(m, tvs, ft)
+		rep := mustStringifyJSONResults(t, m, tvs, ft)
 
 		// Should have @error at top level
 		require.Contains(t, rep, `"@error":"test error"`)
@@ -995,7 +1138,7 @@ var Value error = nil`
 
 		// nil error should not produce @error field (func returns error type)
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tvs[0].T}}}
-		rep := stringifyJSONResults(m, tvs, ft)
+		rep := mustStringifyJSONResults(t, m, tvs, ft)
 		require.NotContains(t, rep, `"@error"`)
 	})
 }
@@ -1033,7 +1176,8 @@ var Value = &Tree{node: &Node{key: "test", value: 42}}`
 		require.True(t, ok, "expected heap item value")
 
 		// Export object and serialize with Amino
-		exported := gnolang.ExportObject(sv)
+		exported, err := gnolang.ExportObject(sv, 0)
+		require.NoError(t, err)
 		jsonBytes, err := amino.MarshalJSONAny(exported)
 		require.NoError(t, err)
 
@@ -1068,7 +1212,7 @@ var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3}}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Linear list (no cycle): all objects expanded inline, no cycle-breaking RefValues.
 		// Ephemeral objects without cycles get ":0" ObjectInfo IDs.
@@ -1098,7 +1242,7 @@ func init() { Value.Self = Value }`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// The cycle reference should use a RefValue with synthetic ID
 		require.Contains(t, rep, `/gno.ExportRefValue`, "cycle should use ExportRefValue")
@@ -1122,7 +1266,7 @@ var Value = [3]*Item{&Item{1}, &Item{2}, &Item{3}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// No cycles, so all objects expanded inline. Should contain StructValue.
 		require.Contains(t, rep, "StructValue")
@@ -1144,7 +1288,7 @@ var Value = map[string]*Item{"a": &Item{1}, "b": &Item{2}}`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// No cycles, so all objects expanded inline. Should contain MapValue.
 		require.Contains(t, rep, "MapValue")
@@ -1175,7 +1319,7 @@ func init() { Value.Self = Value }`
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Cycle is broken via RefValue with synthetic ObjectID
 		require.Contains(t, rep, `/gno.ExportRefValue`, "cycle should use ExportRefValue")
@@ -1212,7 +1356,7 @@ func init() {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// The back-reference (B.A -> A) should use RefValue
 		require.Contains(t, rep, `/gno.ExportRefValue`, "cycle should use ExportRefValue")
@@ -1247,7 +1391,7 @@ func init() {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// Cycle: n3.Next -> n1 should be a RefValue
 		require.Contains(t, rep, `/gno.ExportRefValue`, "cycle should use ExportRefValue")
@@ -1280,7 +1424,7 @@ func init() {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// The shared node is seen twice — second time should be a RefValue
 		require.Contains(t, rep, `/gno.ExportRefValue`, "shared reference should use ExportRefValue")
@@ -1304,7 +1448,7 @@ var Value = &Node{Value: 1, Next: &Node{Value: 2, Next: &Node{Value: 3, Next: ni
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 
 		// No cycles, so no RefValue for cycle breaking — all expanded inline
 		require.Contains(t, rep, `/gno.StructValue`)
@@ -1347,7 +1491,7 @@ func init() {
 		tvs := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
 		require.Len(t, tvs, 1)
 
-		rep := stringifyJSONResults(m, tvs, nil)
+		rep := mustStringifyJSONResults(t, m, tvs, nil)
 		t.Logf("5-cycle output: %s", rep)
 
 		// Exactly one ExportRefValue: the back-edge from n5 to n1.

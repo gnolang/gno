@@ -19,7 +19,7 @@ package launderrh_mv_tamper_punned_mv
 // the typepun defense fires regardless of subsequent storage shape.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

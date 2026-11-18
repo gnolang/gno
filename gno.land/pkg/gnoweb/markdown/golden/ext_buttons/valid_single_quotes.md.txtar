@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button href='/r/test' label='Single "quoted"' />
+-- output.html --
+<p><a href="/r/test" class="gno-button">Single &quot;quoted&quot;</a></p>

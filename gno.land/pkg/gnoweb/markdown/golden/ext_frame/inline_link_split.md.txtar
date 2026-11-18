@@ -1,0 +1,10 @@
+-- input.md --
+<gno-frame>
+[a
+</gno-frame>
+](/x)
+-- output.html --
+<section class="gno-frame">
+<p>[a</p>
+</section>
+<p>](/x)</p>

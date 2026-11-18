@@ -33,3 +33,27 @@ func TestResolveAppHash(t *testing.T) {
 		}
 	})
 }
+
+// TestCheckRollbackable pins that gnobr refuses a target above the state when
+// the block store is more than one block ahead of it, and rolls back any other
+// shape: the store at the state's height or one above, as a node leaves it in
+// consensus, or a target at or below the state.
+func TestCheckRollbackable(t *testing.T) {
+	for _, tc := range []struct {
+		store, state, target int64
+		ok                   bool
+	}{
+		{10, 10, 5, true},
+		{11, 10, 11, true},
+		{12, 10, 11, false},
+		{12, 10, 12, false},
+		{12, 10, 10, true},
+		{12, 10, 5, true},
+		{0, 0, 0, true},
+	} {
+		err := checkRollbackable(tc.store, tc.state, tc.target)
+		if (err == nil) != tc.ok {
+			t.Errorf("store %d, state %d, target %d: got %v, want ok=%v", tc.store, tc.state, tc.target, err, tc.ok)
+		}
+	}
+}
