@@ -32,8 +32,10 @@ list" — which is false.
 
 - Delete the `UnassignableNames` field and the `IsAssignable` method.
   The check reads the block the NameExpr's already-resolved path names,
-  via the existing `GetNameSourceForPath`, and rejects
-  `NameSource.Type == NSFuncDecl`. Indexing by the path index is safe:
+  (`GetBlockNodeForPath(...).GetNameSources()[path.Index]`), and rejects
+  `NameSource.Type == NSFuncDecl`. It does not go through
+  `GetNameSourceForPath`, which also looks up the declaring file: a scan
+  of every decl per assignment, and a panic where no file exists (REPL). Indexing by the path index is safe:
   `Define2` panics unless `NumNames == len(NameSources)`. No new method:
   a general "is assignable" helper would overstate what it checks
   (consts are refused by a separate branch).
@@ -47,8 +49,10 @@ list" — which is false.
   checks the outer binding (`tests/files/assign42.gno`).
 - Retire amino field 8 with a blank `_ struct{} `amino:"reserved"``
   field — the mechanism introduced for `Externs` (field 10) in #5301.
-  Field numbers are unchanged; decoders skip field 8 if present in old
-  encoded data. `gnolang.proto` and `pb3_gen.go` regenerated with
+  Field numbers are unchanged. Old encoded data is not readable: the
+  reserved slot skips one occurrence of field 8, and a block with two
+  or more func names carried one per name. Nothing stores block nodes
+  today (see Consequences). `gnolang.proto` and `pb3_gen.go` regenerated with
   `misc/genproto2`.
 
 ## Alternatives considered
