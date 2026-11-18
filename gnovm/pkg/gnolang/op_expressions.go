@@ -782,6 +782,7 @@ func (m *Machine) doOpFuncLit() {
 		Captures:   captures,
 		PkgPath:    m.Package.PkgPath,
 		Crossing:   ft.IsCrossing(),
+		Version:    packageVersionOf(x),
 		body:       x.Body,
 		nativeBody: nil,
 	}

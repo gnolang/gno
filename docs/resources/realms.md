@@ -197,3 +197,6 @@ documentation.
 To learn how to develop your own realms, check out the
 [Getting started](../builders/getting-started.md) and
 [Tutorial: MiniSocial dApp](../builders/tutorial-minisocial.md) guides.
+
+To change a deployed realm's code without losing its state, see
+[Upgrading a realm](./realm-upgrades.md).

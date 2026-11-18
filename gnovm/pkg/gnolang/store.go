@@ -64,6 +64,7 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
+	ReplaceType(Type) // over what the store holds: a redeploy's definition
 	GetPackageNode(pkgPath string) *PackageNode
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
@@ -103,6 +104,16 @@ type Store interface {
 	// is skipped. Each path is yielded once, at its highest index, which is
 	// where its current content was stored.
 	IterMemPackage() <-chan *std.MemPackage
+	ReplaceCachePackage(*PackageValue)              // SetCachePackage for a redeploy
+	AddPackageImporter(pkgPath, importer string)    // reverse import index, for Machine.ReprocessImporters
+	DeletePackageImporter(pkgPath, importer string) // an import the importer's redeploy dropped
+	GetPackageImporters(pkgPath string) []string    // direct importers, in key order
+	// A versioned redeploy keeps the replaced version's code, for the func
+	// values persisted under it (FuncValue.Version).
+	ArchiveMemPackage(pkgPath string, version int) *std.MemPackage // keep the live prod blob as pkgPath@version
+	IterArchivedMemPackages() iter.Seq2[*std.MemPackage, int]
+	LoadArchivedVersion(mpkg *std.MemPackage, version int) // preprocess an archived version into its own node space
+	GetBlockNodeOfVersion(pkgPath string, version int, loc Location) BlockNode
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                              // for native functions
@@ -194,6 +205,12 @@ type defaultStore struct {
 	// this is more efficient than iterating over cacheObjects.
 	stagingPackage *PackageValue
 
+	// root is the store this one was forked from by BeginTransaction, nil
+	// on the root. archives holds the node space of every archived package
+	// version (see LoadArchivedVersion), shared by every fork.
+	root     *defaultStore
+	archives *archiveSet
+
 	// store configuration; cannot be modified in a transaction
 	pkgGetter      PackageGetter  // non-realm packages
 	nativeResolver NativeResolver // for injecting natives
@@ -228,6 +245,7 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	ds := &defaultStore{
 		baseStore: baseStore,
 		iavlStore: iavlStore,
+		archives:  &archiveSet{forks: map[string]*defaultStore{}},
 		alloc:     alloc,
 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
@@ -280,6 +298,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store, gctx 
 
 		// stdlib byte cache (shared reference)
 		stdlibKeyBytes: ds.stdlibKeyBytes,
+		root:           ds.rootStore(),
+		archives:       ds.archives,
 
 		// store configuration
 		pkgGetter:      ds.pkgGetter,
@@ -450,6 +470,126 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
 	ds.cacheObjects[oid] = pv
+}
+
+// ReplaceCachePackage is SetCachePackage for a redeploy, where the package
+// value it replaces may have been read in the same transaction.
+func (ds *defaultStore) ReplaceCachePackage(pv *PackageValue) {
+	ds.cacheObjects[ObjectIDFromPkgPath(pv.PkgPath)] = pv
+}
+
+// AddPackageImporter records that importer imports pkgPath, so a redeploy of
+// pkgPath can find the packages compiled against it. Idempotent.
+func (ds *defaultStore) AddPackageImporter(pkgPath, importer string) {
+	ds.iavlStore.Set(ds.gctx, []byte(backendPackageImporterKey(pkgPath, importer)), []byte{1})
+}
+
+// DeletePackageImporter removes an edge AddPackageImporter recorded.
+func (ds *defaultStore) DeletePackageImporter(pkgPath, importer string) {
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackageImporterKey(pkgPath, importer)))
+}
+
+// GetPackageImporters returns the direct importers of pkgPath in key order.
+func (ds *defaultStore) GetPackageImporters(pkgPath string) []string {
+	prefix := backendPackageImporterKey(pkgPath, "")
+	iter := store.PrefixIterator(ds.gctx, ds.iavlStore, []byte(prefix))
+	defer iter.Close()
+	var importers []string
+	for ; iter.Valid(); iter.Next() {
+		importers = append(importers, strings.TrimPrefix(string(iter.Key()), prefix))
+	}
+	return importers
+}
+
+// archiveSet maps "pkgPath@version" to the fork holding that version's
+// preprocessed nodes. Written at boot and on a versioned redeploy, read by
+// every transaction and query, hence the lock.
+type archiveSet struct {
+	mu    sync.RWMutex
+	forks map[string]*defaultStore
+}
+
+func archiveKey(pkgPath string, version int) string {
+	return pkgPath + "@" + strconv.Itoa(version)
+}
+
+func (ds *defaultStore) rootStore() *defaultStore {
+	if ds.root != nil {
+		return ds.root
+	}
+	return ds
+}
+
+// ArchiveMemPackage copies the prod blob live at pkgPath under
+// pkgPath@version, and returns it. Called before a versioned redeploy
+// deletes the live blob.
+func (ds *defaultStore) ArchiveMemPackage(pkgPath string, version int) *std.MemPackage {
+	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackagePathKey(pkgPath)))
+	if bz == nil {
+		panic(fmt.Sprintf("archive: no package at %s", pkgPath))
+	}
+	ds.iavlStore.Set(ds.gctx, []byte(backendPackageVersionKey(pkgPath, version)), bz)
+	var mpkg *std.MemPackage
+	amino.MustUnmarshal(bz, &mpkg)
+	return mpkg
+}
+
+// IterArchivedMemPackages yields every archived version with its number.
+func (ds *defaultStore) IterArchivedMemPackages() iter.Seq2[*std.MemPackage, int] {
+	return func(yield func(*std.MemPackage, int) bool) {
+		it := store.PrefixIterator(ds.gctx, ds.iavlStore, []byte(packageVersionPrefix))
+		defer it.Close()
+		for ; it.Valid(); it.Next() {
+			key := strings.TrimPrefix(string(it.Key()), packageVersionPrefix)
+			at := strings.LastIndexByte(key, '@')
+			version, err := strconv.Atoi(key[at+1:])
+			if at < 0 || err != nil {
+				panic(fmt.Sprintf("archive: malformed key %q", it.Key()))
+			}
+			var mpkg *std.MemPackage
+			amino.MustUnmarshal(it.Value(), &mpkg)
+			if !yield(mpkg, version) {
+				return
+			}
+		}
+	}
+}
+
+// LoadArchivedVersion preprocesses mpkg, the source of pkgPath at version,
+// into a fork of the root store that is kept for the life of the process:
+// its nodes answer GetBlockNodeOfVersion for the func values persisted under
+// that version. Run at boot for every archive, and by the redeploy that
+// archives a version, so every node holds the same forks.
+func (ds *defaultStore) LoadArchivedVersion(mpkg *std.MemPackage, version int) {
+	root := ds.rootStore()
+	// Over throwaway cache wraps: the fork reads committed state and keeps
+	// its nodes in memory, and whatever else preprocessing writes is dropped.
+	fork := root.BeginTransaction(root.baseStore.CacheWrap(), root.iavlStore.CacheWrap(), nil, nil).(transactionStore).defaultStore
+	m := NewMachine("", fork)
+	defer m.Release()
+	mpkg = MPFProd.FilterMemPackage(mpkg)
+	m.preprocessFileSet(mpkg, m.ParseMemPackage(mpkg), version)
+	ds.archives.mu.Lock()
+	ds.archives.forks[archiveKey(mpkg.Path, version)] = fork
+	ds.archives.mu.Unlock()
+}
+
+// GetBlockNodeOfVersion returns the node at loc in the given version of
+// pkgPath: the live node when version is the package's current one, else
+// the archived version's.
+func (ds *defaultStore) GetBlockNodeOfVersion(pkgPath string, version int, loc Location) BlockNode {
+	// The live package node is in memory (preprocessed at boot or at
+	// deploy); a package without one, such as uverse, has no versions.
+	if bn, ok := ds.cacheNodes.Get(PackageNodeLocation(pkgPath)); !ok || bn.(*PackageNode).Version == version {
+		return ds.GetBlockNode(loc)
+	}
+	ds.archives.mu.RLock()
+	fork := ds.archives.forks[archiveKey(pkgPath, version)]
+	ds.archives.mu.RUnlock()
+	if fork == nil {
+		panic(fmt.Sprintf("no archived version %d of %s for node at %s", version, pkgPath, loc))
+	}
+	return fork.GetBlockNode(loc)
 }
 
 // Some atomic operation. Consults cacheRealms before reading from
@@ -884,18 +1024,30 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 }
 
 func (ds *defaultStore) SetType(tt Type) {
-	var size int
-	if bm.Enabled {
-		old := bm.StartStore(bm.StoreSetType)
-		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
-	}
 	tid := tt.TypeID()
 	// Idempotent: if this TypeID is already known in-cache, do nothing.
 	// The cache is populated either by a previous SetType (which also
 	// persisted to backend) or by loading from backend on GetType — either
-	// way the backend already has the canonical entry.
+	// way the backend already has the canonical entry. A redeploy of the
+	// owning package is the exception, and uses ReplaceType.
 	if _, exists := ds.cacheTypes[tid]; exists {
 		return
+	}
+	ds.setType(tid, tt)
+}
+
+// ReplaceType persists tt over whatever the store holds under its TypeID, so
+// objects loaded afterwards resolve to the redeployed definition, methods
+// included.
+func (ds *defaultStore) ReplaceType(tt Type) {
+	ds.setType(tt.TypeID(), tt)
+}
+
+func (ds *defaultStore) setType(tid TypeID, tt Type) {
+	var size int
+	if bm.Enabled {
+		old := bm.StartStore(bm.StoreSetType)
+		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
 	}
 	// save type to backend.
 	if ds.baseStore != nil {
@@ -1634,6 +1786,21 @@ func backendInertPackagePathKey(path string) string { return inertPackagePrefix 
 // appear in a valid package path, so it never collides with a real package key.
 func backendPackageAllButProdKey(path string) string {
 	return backendPackagePathKey(path) + "#allbutprod"
+}
+
+// packageVersionPrefix is the key space of archived package versions,
+// "pkgver:<path>@<version>", outside backendPackagePathKey's range so no
+// listing of live packages sees them.
+const packageVersionPrefix = "pkgver:"
+
+func backendPackageVersionKey(pkgPath string, version int) string {
+	return packageVersionPrefix + archiveKey(pkgPath, version)
+}
+
+// backendPackageImporterKey is one edge of the reverse import index. "#"
+// cannot appear in a package path, so one path's prefix matches no other's.
+func backendPackageImporterKey(pkgPath, importer string) string {
+	return "imp:" + pkgPath + "#" + importer
 }
 
 func decodeBackendPackagePathKey(key string) string {

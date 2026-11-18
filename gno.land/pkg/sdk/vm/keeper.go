@@ -646,24 +646,17 @@ func stampGnomod(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, creator 
 // runs them so a package cannot be parked to dodge a rule the normal path
 // enforces, and enable runs them again because the world can move between the
 // two messages -- see the call site there.
-// priorPrivate reports whether a PRIVATE package already occupies pkgPath;
-// height is the block the rules are evaluated against.
-//
-// A bool rather than the *gno.PackageValue this used to take, because
-// EnablePackage cannot supply one: loading the live PackageValue populates the
-// object cache and RunMemPackage then panics in SetCachePackage (see the note at
-// its call site). It reads the stored blob's gnomod.toml instead, which answers
-// the only question this function ever asked of the package value.
-func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, priorPrivate bool, height int64) error {
+// liveGm is the gnomod.toml of the private or upgradeable package already
+// occupying pkgPath, nil when none does; height is the block the rules are
+// evaluated against.
+func checkGnomodConstraints(gm *gnomod.File, mpkg *std.MemPackage, pkgPath string, liveGm *gnomod.File, height int64) error {
 	// no development packages.
 	if gm.HasReplaces() {
 		return ErrInvalidPackage("development packages are not allowed")
 	}
-	if priorPrivate && !gm.Private {
-		return ErrInvalidPackage("a private package cannot be overridden by a public package")
-	}
-	if gm.Private && !gno.IsRealmPath(pkgPath) {
-		return ErrInvalidPackage("private packages must be realm packages")
+	// The version and [upgrade] rules, shared with `gno upgrade check`.
+	if err := gm.CheckUpgradeFields(liveGm, gno.IsRealmPath(pkgPath)); err != nil {
+		return ErrInvalidPackage(err.Error())
 	}
 	if gm.Draft && height > 0 {
 		return ErrInvalidPackage("draft packages can only be deployed at genesis time")
@@ -708,9 +701,38 @@ func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error)
 	return gm, nil
 }
 
-// checkRedeployPermission refuses unless a submission replacing the live PRIVATE
-// package at pkgPath comes from the address that deployed it. creator is the
-// address the submission would record as the new creator: the message signer on
+// archiveReplaced keeps the live package's source when a versioned redeploy
+// replaces it, for the func values persisted under it; nil otherwise. Called
+// before the live blob is deleted.
+func archiveReplaced(gnostore gno.Store, pkgPath string, gm, liveGm *gnomod.File) *std.MemPackage {
+	if liveGm == nil || gm.Version == 0 {
+		return nil
+	}
+	return gnostore.ArchiveMemPackage(pkgPath, liveGm.Version)
+}
+
+// finishRedeploy does what a redeploy owes beyond running the new package:
+// the replaced version's code is preprocessed into its archive, and the
+// importers of a public realm are re-preprocessed (see
+// Machine.ReprocessImporters). The redeployer pays preprocess gas for each
+// as for a deploy.
+func finishRedeploy(ctx sdk.Context, params Params, gnostore gno.Store, m *gno.Machine, pkgPath string, liveGm *gnomod.File, archived *std.MemPackage) {
+	if archived != nil {
+		chargePreprocessGas(ctx, params, archived, "RedeployArchivePreprocess")
+		gnostore.LoadArchivedVersion(archived, liveGm.Version)
+	}
+	if liveGm == nil || !liveGm.Upgradeable() {
+		return
+	}
+	m.ReprocessImporters(pkgPath, func(mpkg *std.MemPackage) {
+		chargePreprocessGas(ctx, params, mpkg, "RedeployImporterPreprocess")
+	})
+}
+
+// checkRedeployPermission refuses unless a submission replacing the live
+// package at pkgPath comes from its upgrade authority, or, for a private
+// package, from the address that deployed it. creator is the address the
+// submission would record as the new creator: the message signer on
 // AddPackage, and the parked blob's stamped creator on EnablePackage, which is
 // the identity init() runs as.
 //
@@ -721,6 +743,14 @@ func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error)
 // Both call sites waive this during genesis delivery; the AddPackage one says
 // why.
 func checkRedeployPermission(liveGm *gnomod.File, pkgPath string, creator crypto.Address) error {
+	if liveGm.Upgradeable() {
+		authority, err := crypto.AddressFromBech32(liveGm.Upgrade.Authority)
+		if err != nil || authority != creator {
+			return ErrPkgAlreadyExists(fmt.Sprintf(
+				"only the upgrade authority %s may redeploy %s", liveGm.Upgrade.Authority, pkgPath))
+		}
+		return nil
+	}
 	if liveGm.AddPkg.Creator != creator.String() {
 		return ErrPkgAlreadyExists(fmt.Sprintf(
 			"private package already deployed at %s by %s", pkgPath, liveGm.AddPkg.Creator))
@@ -798,9 +828,22 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("invalid domain: " + pkgPath)
 	}
 
+	gm, err := gnomod.ParseMemPackage(memPkg)
+	if err != nil {
+		return ErrInvalidPackage(err.Error())
+	}
 	pv := gnostore.GetPackage(pkgPath, false)
+	// The live package's gnomod.toml on a redeploy, nil otherwise. A path is
+	// redeployable when its live package is private or names an upgrade
+	// authority; anything else is permanent.
+	var liveGm *gnomod.File
+	var archived *std.MemPackage // the replaced version's source, on a versioned redeploy
 	if pv != nil {
-		if !pv.Private {
+		liveGm, err = parseLiveGnomod(gnostore.GetMemPackage(pkgPath), pkgPath)
+		if err != nil {
+			return err
+		}
+		if !liveGm.Mutable() {
 			return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 		}
 		// One binding for the ordinary redeploy and the inert park below.
@@ -820,10 +863,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// the realm's original creator only when the source directory already
 		// carries an [addpkg] creator for LoadPackagesFromDir to pick up.
 		if !auth.IsGenesisReplay(ctx) {
-			liveGm, err := parseLiveGnomod(gnostore.GetMemPackage(pkgPath), pkgPath)
-			if err != nil {
-				return err
-			}
 			if err := checkRedeployPermission(liveGm, pkgPath, creator); err != nil {
 				return err
 			}
@@ -932,10 +971,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 				send.String(), pkgPath, CodeSubmissionPolicyInert))
 		}
 
-		gm, err := gnomod.ParseMemPackage(memPkg)
-		if err != nil {
-			return ErrInvalidPackage(err.Error())
-		}
 		// Only the original submitter may replace a package already parked at
 		// this path.
 		//
@@ -969,7 +1004,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// would make "inert" a way to park a package that no policy would ever
 		// accept. EnablePackage runs them again on the stored blob; this is the
 		// only chance to refuse the bytes before they are written.
-		if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv != nil && pv.Private, ctx.BlockHeight()); err != nil {
+		if err := checkGnomodConstraints(gm, memPkg, pkgPath, liveGm, ctx.BlockHeight()); err != nil {
 			return err
 		}
 		// Carry the creator's declared ceiling to whoever pays.
@@ -1065,18 +1100,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	if pv != nil {
-		// NOTE: reading `pv` above put this package in the object cache, and
-		// RunMemPackage below panics in SetCachePackage on a cached package.
-		// This path survives only because checkNamespacePermission and
-		// checkCLASignature re-enter getGnoTransactionStore, whose
-		// ClearObjectCache evicts it in between. That is incidental, not
-		// designed: EnablePackage had the same shape, called neither, and its
-		// private-redeploy branch was dead on arrival until it stopped loading
-		// the package value at all. Do not reorder those checks below this
-		// point without re-reading that.
-		//
-		// A private package is being redeployed (non-private re-adds were
-		// rejected above). Clear its prior mempackage blobs first: AddMemPackage
+		// A private or upgradeable package is being redeployed (other re-adds
+		// were rejected above). Clear its prior mempackage blobs first: AddMemPackage
 		// stores an MP*All package as a prod blob plus a #allbutprod sibling, and
 		// its conditional writes don't fully replace across both keys, so a stale
 		// sibling (or stale prod blob, if redeployed prod-less) could otherwise
@@ -1089,6 +1114,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// silently, so a restarted node rebuilds no PackageNode and panics on
 		// call, while a node that has not restarted still answers from
 		// cacheNodes. That is a consensus split keyed on restart history.
+		archived = archiveReplaced(gnostore, pkgPath, gm, liveGm)
 		gnostore.DeleteMemPackage(pkgPath)
 	}
 
@@ -1116,11 +1142,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Extra keeper-only checks.
-	gm, err := gnomod.ParseMemPackage(memPkg)
-	if err != nil {
-		return ErrInvalidPackage(err.Error())
-	}
-	if err := checkGnomodConstraints(gm, memPkg, pkgPath, pv != nil && pv.Private, ctx.BlockHeight()); err != nil {
+	if err := checkGnomodConstraints(gm, memPkg, pkgPath, liveGm, ctx.BlockHeight()); err != nil {
 		return err
 	}
 
@@ -1215,6 +1237,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		priorRealm = gnostore.GetPackageRealm(pkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
+	finishRedeploy(ctx, params, gnostore, m2, pkgPath, liveGm, archived)
 
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {

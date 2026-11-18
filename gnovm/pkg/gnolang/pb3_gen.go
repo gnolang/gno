@@ -961,6 +961,19 @@ func (goo *StructValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 
 func (goo FuncValue) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	// Version (wire field 14) is hand-added; keep it when regenerating.
+	if goo.Version != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.Version))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 14, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
 	if goo.Crossing {
 		{
 			before := offset
@@ -1190,6 +1203,9 @@ func (goo FuncValue) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if goo.Crossing {
 		s += 1 + 1
 	}
+	if goo.Version != 0 {
+		s += 1 + amino.VarintSize(int64(goo.Version))
+	}
 	return s, nil
 }
 
@@ -1381,6 +1397,16 @@ func (goo *FuncValue) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int
 			}
 			bz = bz[n:]
 			goo.Crossing = bool(v)
+		case 14:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 14: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Version = int32(v)
 		default:
 			return fmt.Errorf("unknown field number %d for FuncValue", fnum)
 		}

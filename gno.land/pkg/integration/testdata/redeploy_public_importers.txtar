@@ -1,0 +1,133 @@
+# A public redeploy re-preprocesses its importers, on every node alike.
+#
+# An importer's cached code was compiled against the version it was deployed
+# with: the type it names, the methods behind them, the constants it folded.
+# A node that restarts rebuilds that code against the live version; one that
+# does not would keep the old, so the redeploy rebuilds it in the same
+# transaction, for every importer, direct or through another. The redeployer
+# pays for each as for a deploy.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/vault_v1 -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/client -pkgpath gno.land/r/demo/client -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+# reader imports client, which imports vault: rebuilt through the chain.
+gnokey maketx addpkg -pkgdir $WORK/reader -pkgpath gno.land/r/demo/reader -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Fresh()'
+stdout '"level 1 \(v1\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Via()'
+stdout '"level 1 \(v1\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Limit()'
+stdout '1 int'
+
+# Version 2 moves String to another file and changes a constant.
+gnokey maketx addpkg -pkgdir $WORK/vault_v2 -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+
+# Before any restart, the importers already run against version 2.
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Fresh()'
+stdout '"level 1 \(v2\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Via()'
+stdout '"level 1 \(v2\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Limit()'
+stdout '2 int'
+gnokey maketx call -pkgpath gno.land/r/demo/client -func Keep -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/client.KeptTag()'
+stdout '"level 2 \(v2\)"'
+
+gnoland restart
+stdout 'node restarted successfully'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Fresh()'
+stdout '"level 1 \(v2\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Via()'
+stdout '"level 1 \(v2\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Limit()'
+stdout '2 int'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.KeptTag()'
+stdout '"level 2 \(v2\)"'
+
+-- vault_v1/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- vault_v1/vault.gno --
+package vault
+
+import "strconv"
+
+const Limit = 1
+
+type Level int
+
+func (l Level) String() string { return "level " + strconv.Itoa(int(l)) + " (v1)" }
+
+func Total() int64 { return 0 }
+
+-- vault_v2/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- vault_v2/vault.gno --
+package vault
+
+const Limit = 2
+
+type Level int
+
+func Total() int64 { return 0 }
+
+-- vault_v2/z.gno --
+package vault
+
+import "strconv"
+
+func (l Level) String() string { return "level " + strconv.Itoa(int(l)) + " (v2)" }
+
+-- client/gnomod.toml --
+module = "gno.land/r/demo/client"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- client/client.gno --
+package client
+
+import "gno.land/r/demo/vault"
+
+var tag string
+
+func Fresh() string { return vault.Level(1).String() }
+func Limit() int    { return vault.Limit }
+
+func Keep(cur realm) { tag = vault.Level(2).String() }
+func KeptTag() string { return tag }
+
+-- reader/gnomod.toml --
+module = "gno.land/r/demo/reader"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- reader/reader.gno --
+package reader
+
+import "gno.land/r/demo/client"
+
+func Via() string { return client.Fresh() }

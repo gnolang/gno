@@ -1,0 +1,158 @@
+# gno upgrade check: the carry rules of a private realm, without a node.
+
+gno upgrade check v1 v2
+! stderr .
+
+! gno upgrade check v1 v2_retyped
+stderr 'upgrade: variable counter changed type from int to string'
+
+! gno upgrade check v1 v2_type_removed
+stderr 'upgrade: type Entry was removed; persisted values may still have it'
+
+! gno upgrade check v1 v2_reshaped
+stderr 'upgrade: type Entry changed its underlying type'
+
+! gno upgrade check v1 v2_mixed
+stderr 'mixes carried and new globals'
+
+! gno upgrade check v1 v2_skipped
+stderr 'needs version = 2 in gnomod.toml, got 3'
+
+! gno upgrade check v1 v2_bad_migrate
+stderr 'migrate must be declared as migrate\(from int\) or migrate\(cur realm, from int\)'
+
+-- v1/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 1
+
+-- v1/ledger.gno --
+package ledger
+
+type Entry struct{ Name string }
+
+var (
+	counter int
+	last    *Entry
+)
+
+func Add(cur realm, name string) { counter++; last = &Entry{Name: name} }
+
+-- v2/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2/ledger.gno --
+package ledger
+
+type Entry struct{ Name string }
+
+func (e *Entry) Describe() string { return e.Name + "!" }
+
+var (
+	last    *Entry // reordered: a private realm carries by name
+	counter int
+	total   int64 // new
+)
+
+func migrate(from int) { total = int64(counter) * 1000 }
+
+func Add(cur realm, name string) { counter++; total += 1000; last = &Entry{Name: name} }
+
+-- v2_retyped/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_retyped/ledger.gno --
+package ledger
+
+type Entry struct{ Name string }
+
+var (
+	counter string
+	last    *Entry
+)
+
+-- v2_type_removed/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_type_removed/ledger.gno --
+package ledger
+
+var counter int
+
+-- v2_reshaped/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_reshaped/ledger.gno --
+package ledger
+
+type Entry struct {
+	Name string
+	Tags []string
+}
+
+var (
+	counter int
+	last    *Entry
+)
+
+-- v2_mixed/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_mixed/ledger.gno --
+package ledger
+
+type Entry struct{ Name string }
+
+var counter, total int
+
+var last *Entry
+
+-- v2_skipped/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 3
+
+-- v2_skipped/ledger.gno --
+package ledger
+
+type Entry struct{ Name string }
+
+var (
+	counter int
+	last    *Entry
+)
+
+-- v2_bad_migrate/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_bad_migrate/ledger.gno --
+package ledger
+
+type Entry struct{ Name string }
+
+var (
+	counter int
+	last    *Entry
+)
+
+func migrate() {}

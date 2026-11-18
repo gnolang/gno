@@ -114,6 +114,7 @@ func newGnocliCmd(io commands.IO) (*commands.Command, *rootConfig) {
 		// telemetry
 		newTestCmd(io),
 		newToolCmd(io),
+		newUpgradeCmd(io),
 		// version -- show cmd/gno, golang versions
 		newGnoVersionCmd(io),
 		// vet
