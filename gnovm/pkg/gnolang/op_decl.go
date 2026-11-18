@@ -38,7 +38,7 @@ func (m *Machine) doOpValueDecl() {
 				if m.Stage != StagePre && rvs[i].T.Kind() != BoolKind {
 					panic("untyped conversion should not happen at runtime")
 				}
-				ConvertUntypedTo(&tv, nil)
+				ConvertUntypedTo(constMeterOf(m.GasMeter), &tv, nil)
 			}
 		} else if nt != nil {
 			// if nt.T is an interface, maintain tv.T as-is.
