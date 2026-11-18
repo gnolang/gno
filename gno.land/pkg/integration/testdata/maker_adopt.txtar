@@ -1,0 +1,180 @@
+# A realm keeps no function value made outside a realm: a run script's library
+# closure or method value, or a closure the realm's own code built read-only.
+# Another realm's closure is kept, but runs read-only for the keeper.
+
+loadpkg gno.land/p/demo/zwlib $WORK/zwlib
+loadpkg gno.land/r/demo/zwvictim $WORK/zwvictim
+loadpkg gno.land/r/demo/zwfriend $WORK/zwfriend
+loadpkg gno.land/r/tests/vm/cbvictim
+loadpkg gno.land/r/demo/zwkeeper $WORK/zwkeeper
+
+gnoland start
+
+## same transaction: register and run a library closure
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/same.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/demo/zwvictim'
+gnokey query vm/qeval --data 'gno.land/r/demo/zwvictim.Read()'
+stdout 'orig'
+
+## two transactions: the register step is refused, so RunHook has nothing to run
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/reg.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/demo/zwvictim'
+! gnokey maketx call -pkgpath gno.land/r/demo/zwvictim -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/demo/zwvictim.Read()'
+stdout 'orig'
+
+## a library method value bound by the script: obj.Set
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/mv.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/demo/zwvictim'
+
+## control: zwfriend's gate passes a closure from zwfriend's own source; it is
+## kept, and zwvictim's RunHook runs it read-only, so the write fails
+gnokey maketx call -pkgpath gno.land/r/demo/zwfriend -func Pass -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/zwvictim -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/demo/zwfriend''s code was entered without crossing and is read-only'
+gnokey query vm/qeval --data 'gno.land/r/demo/zwvictim.Read()'
+stdout 'orig'
+
+## cbvictim's own helper builds a closure read-only: SetHook(cross(cur), cbvictim.Getter())
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/getter.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/tests/vm/cbvictim'
+
+## a run script binds cbvictim's own method on cbvictim's object: cbvictim.Box.SetName
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/boxset.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/tests/vm/cbvictim'
+! gnokey maketx call -pkgpath gno.land/r/tests/vm/cbvictim -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/tests/vm/cbvictim.Box.Name'
+! stdout 'stored'
+
+## zwkeeper keeps closures cbvictim built read-only (another realm's code):
+## stored without error, refused when zwkeeper or cbvictim's gate runs them
+gnokey maketx call -pkgpath gno.land/r/demo/zwkeeper -func Store -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/zwkeeper -func CallX -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/tests/vm/cbvictim''s code was entered without crossing and is read-only'
+! gnokey maketx call -pkgpath gno.land/r/demo/zwkeeper -func Hand -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/tests/vm/cbvictim''s code was entered without crossing and is read-only'
+gnokey query vm/qeval --data 'gno.land/r/tests/vm/cbvictim.Owner'
+stdout 'victim'
+
+-- zwlib/gnomod.toml --
+module = "gno.land/p/demo/zwlib"
+gno = "0.9"
+
+-- zwlib/zwlib.gno --
+package zwlib
+
+type Obj struct{ Field string }
+
+// Setter returns a closure that writes whatever object it is later given.
+func Setter(v string) func(*Obj) { return func(o *Obj) { o.Field = v } }
+
+type Box struct{}
+
+func (b *Box) Set(o *Obj) { o.Field = "pwnd-mv" }
+
+-- zwvictim/gnomod.toml --
+module = "gno.land/r/demo/zwvictim"
+gno = "0.9"
+
+-- zwvictim/zwvictim.gno --
+package zwvictim
+
+import "gno.land/p/demo/zwlib"
+
+var obj = &zwlib.Obj{Field: "orig"}
+
+var hook func(*zwlib.Obj)
+
+func SetHook(cur realm, f func(*zwlib.Obj)) { hook = f }
+func RunHook(cur realm)                     { hook(obj) }
+func Read() string                          { return obj.Field }
+
+-- zwfriend/gnomod.toml --
+module = "gno.land/r/demo/zwfriend"
+gno = "0.9"
+
+-- zwfriend/zwfriend.gno --
+package zwfriend
+
+import (
+	"gno.land/p/demo/zwlib"
+	"gno.land/r/demo/zwvictim"
+)
+
+func Pass(cur realm) {
+	zwvictim.SetHook(cross(cur), func(o *zwlib.Obj) { o.Field = "pwnd-friend" })
+}
+
+-- zwkeeper/gnomod.toml --
+module = "gno.land/r/demo/zwkeeper"
+gno = "0.9"
+
+-- zwkeeper/zwkeeper.gno --
+package zwkeeper
+
+import "gno.land/r/tests/vm/cbvictim"
+
+var (
+	setX func(string)
+	setY func([]string)
+)
+
+func Store(cur realm) { setX, setY = cbvictim.Writers() }
+func CallX(cur realm) { setX("keeper") }
+func Hand(cur realm)  { cbvictim.RunS(cross(cur), setX) }
+
+-- script/same.gno --
+package main
+
+import (
+	"gno.land/p/demo/zwlib"
+	"gno.land/r/demo/zwvictim"
+)
+
+func main(cur realm) {
+	zwvictim.SetHook(cross(cur), zwlib.Setter("pwnd-same"))
+	zwvictim.RunHook(cross(cur))
+}
+
+-- script/reg.gno --
+package main
+
+import (
+	"gno.land/p/demo/zwlib"
+	"gno.land/r/demo/zwvictim"
+)
+
+func main(cur realm) {
+	zwvictim.SetHook(cross(cur), zwlib.Setter("pwnd-later"))
+}
+
+-- script/mv.gno --
+package main
+
+import (
+	"gno.land/p/demo/zwlib"
+	"gno.land/r/demo/zwvictim"
+)
+
+func main(cur realm) {
+	obj := &zwlib.Box{}
+	zwvictim.SetHook(cross(cur), obj.Set)
+}
+
+-- script/getter.gno --
+package main
+
+import "gno.land/r/tests/vm/cbvictim"
+
+func main(cur realm) {
+	cbvictim.SetHook(cross(cur), cbvictim.Getter())
+}
+
+-- script/boxset.gno --
+package main
+
+import "gno.land/r/tests/vm/cbvictim"
+
+func main(cur realm) {
+	cbvictim.SetHook(cross(cur), cbvictim.Box.SetName)
+}
