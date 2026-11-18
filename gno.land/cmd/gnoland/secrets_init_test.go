@@ -8,6 +8,7 @@ import (
 	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	fstate "github.com/gnolang/gno/tm2/pkg/bft/privval/state"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -121,6 +122,69 @@ func TestSecrets_Init_All(t *testing.T) {
 		cmdErr = cmd.ParseAndRun(context.Background(), args)
 		require.ErrorIs(t, cmdErr, errOverwriteNotEnabled)
 	})
+
+	t.Run("validator key type honored", func(t *testing.T) {
+		t.Parallel()
+
+		tempDir := t.TempDir()
+
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"secrets",
+			"init",
+			"--data-dir",
+			tempDir,
+			"--validator-key-type",
+			string(signer.KeyTypeEd25519),
+		}
+
+		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+
+		fk, err := signer.LoadFileKey(filepath.Join(tempDir, defaultValidatorKeyName))
+		require.NoError(t, err)
+		assert.IsType(t, ed25519.PubKeyEd25519{}, fk.PubKey)
+	})
+}
+
+// TestSecrets_Init_InvalidKeyType checks that a rejected -validator-key-type
+// writes no secret at all, on the all-keys path ("") and on each single-key
+// path: a partial write would make the corrected re-run fail on the overwrite
+// guard.
+func TestSecrets_Init_InvalidKeyType(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{"", validatorPrivateKeyKey, validatorStateKey, nodeIDKey} {
+		name := key
+		if name == "" {
+			name = "all"
+		}
+
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			tempDir := t.TempDir()
+
+			cmd := newRootCmd(commands.NewTestIO())
+			args := []string{
+				"secrets",
+				"init",
+				"--data-dir",
+				tempDir,
+				"--validator-key-type",
+				"rsa",
+			}
+			if key != "" {
+				args = append(args, key)
+			}
+
+			cmdErr := cmd.ParseAndRun(context.Background(), args)
+			require.ErrorContains(t, cmdErr, "unknown validator key type")
+
+			assert.NoFileExists(t, filepath.Join(tempDir, defaultValidatorKeyName))
+			assert.NoFileExists(t, filepath.Join(tempDir, defaultValidatorStateName))
+			assert.NoFileExists(t, filepath.Join(tempDir, defaultNodeKeyName))
+		})
+	}
 }
 
 func TestSecrets_Init_Single(t *testing.T) {

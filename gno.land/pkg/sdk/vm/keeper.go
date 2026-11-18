@@ -137,6 +137,16 @@ type VMKeeper struct {
 	// Needs to be explicitly set, like in the case of gnodev.
 	Output io.Writer
 
+	// StdlibDir is where Initialize loads a stdlib from when the store,
+	// written by an earlier binary, lacks it; see loadMissingStdlibs.
+	StdlibDir string
+
+	// AtUpgradeHalt says the node is booting at a governance halt that names
+	// a version: the last committed block is halt_height and
+	// halt_min_version is set. Only then may Initialize load a missing
+	// stdlib; see loadMissingStdlibs.
+	AtUpgradeHalt bool
+
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    AccountKeeperI
@@ -203,6 +213,8 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
+		vm.loadMissingStdlibs(logger)
+
 		opts := gno.TypeCheckOptions{
 			Getter: vm.gnoStore,
 			Mode:   gno.TCLatestStrict,
@@ -227,6 +239,36 @@ func (vm *VMKeeper) Initialize(
 
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
+	}
+}
+
+// loadMissingStdlibs stores every stdlib this binary lists that the store
+// lacks. Stdlibs are written once, at genesis, so a chain upgraded in place
+// (halted, then restarted on a new binary) has none of the ones the new binary
+// adds, and type-checking them would dereference a nil package.
+//
+// The write goes to the multistore Initialize was given, which the app
+// writes through, so it lands in the next block's app hash. It is allowed
+// only when AtUpgradeHalt is set, so it lands on the halt boundary on every
+// node: a node booting the new binary anywhere else (a halt with no
+// halt_min_version, skip_upgrade_height, a release rolled out without a
+// halt) refuses to start instead of writing at its own height and forking.
+// On any later boot the package is present and nothing is written.
+func (vm *VMKeeper) loadMissingStdlibs(logger *slog.Logger) {
+	for _, stdlib := range stdlibs.InitOrder() {
+		if vm.gnoStore.GetMemPackage(stdlib) != nil {
+			continue
+		}
+		if !vm.AtUpgradeHalt {
+			panic(fmt.Errorf("stdlib %q is missing from the store; it can only be added when booting at a governance halt that names a version", stdlib))
+		}
+		if vm.StdlibDir == "" {
+			panic(fmt.Errorf("stdlib %q is missing from the store, and the keeper has no StdlibDir to load it from", stdlib))
+		}
+		logger.Info("Loading a stdlib missing from the store", "pkgpath", stdlib)
+		tx := vm.gnoStore.BeginTransaction(nil, nil, nil, nil)
+		loadStdlibPackage(stdlib, vm.StdlibDir, tx)
+		tx.Write()
 	}
 }
 
