@@ -599,8 +599,6 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 		// fill after the cacheObjects insert below must not allocate — a
 		// GC there would evict this not-yet-reachable object and a later
 		// GetObject would materialize a second copy of the same ObjectID.
-		// XXX not closed for maps with object keys: restoring vmap loads
-		// each key object, which allocates (same on master).
 		ds.alloc.Allocate(ss + rs + strs)
 
 		if debugAssert {
