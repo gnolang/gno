@@ -120,11 +120,14 @@ the token refuses, or that would use escrow another refund is owed, is **parked*
 **watch** keys for the monitors. Any one seat can set a **flag**, which pauses one function at once: on gno.land a
 route's `sends`, `credits`, `payouts` or `refunds`; on Ethereum a route's receives and escrowed sends, its refunds, or
 `IBCAdmin`'s decisions. Flags never stop exits (voucher burns, acks, timeouts). Two guardian flags make a **hold**,
-whose reach differs per chain: gno.land's hold is global and defers every queued gno-side 7-day decision; on Ethereum
+whose reach differs per chain: on gno.land a hold is per route (gno-realms ADR 0007) and defers that route's queued
+gno-side 7-day decisions, and every decision on the shared core and transfer app to day 21 of the global hold that
+first deferred it at most; on Ethereum
 a hold is per flag set, so a route's pause or `refunds` hold only stops that route's receives and escrowed sends, or
 its refunds; `IBCAdmin`'s own flags or hold give the general deferral of its ordinary 7-day kinds (only that hold also
 counts for the emergency recovery below), and a route's `refunds` flag separately defers a refund-paying kind 12.
-Under a hold unpauses are spent. Not a veto: the owner can clear a flag, GovDAO can unpause (at once on gno.land,
+Under a hold unpauses are spent (on gno.land the route's own; an unpause of the shared core or transfer app is
+deferred instead, ADR 0007). Not a veto: the owner can clear a flag, GovDAO can unpause (at once on gno.land,
 after 24 h on Ethereum), and, outside an open emergency recovery on Ethereum (below), a decision replacing a
 guardian's seat lands 21 days after its anchoring hold began — gno.land anchors at the hold standing at its first
 deferring `Execute`, Ethereum at the first eligible hold in its history (compressed intervals excluded) — and a later
@@ -991,8 +994,10 @@ The delay is applied once per side:
   its anchoring hold (gno.land: the hold standing at the first deferring `Execute`; Ethereum: the first eligible
   hold in its history, compressed intervals excluded; a later hold never resets a pinned anchor, §7.4), and the executor
   hand-over (kind 9), whose hold and flag deferrals are each bounded at their anchor + 21 days (§7.4). Holds on gno.land (deferring gno-side decisions) are built in `ibcgov` (bridges' realms have
-  none). A gno-side hold defers every queued gno-side decision (a seat change too, until its day-21 deadline,
-  §7.4) but never an Ethereum-bound one, whose delay and deferral run on Ethereum. A gno-side `payouts` or
+  none). A gno-side hold is a route's (gno-realms ADR 0007): it defers that route's queued gno-side decisions (a
+  seat change too, until its day-21 deadline, §7.4), and any route's hold defers each decision on the shared core
+  and transfer app, a global unpause included, until day 21 of the global hold that first deferred it at most;
+  never an Ethereum-bound one, whose delay and deferral run on Ethereum. A gno-side `payouts` or
   `sends` flag defers nothing: only a hold does, except that a sweep payment waits under a `payouts` flag and a
   refund-paying settlement under a `refunds` hold.
 - **No execution expiry on Ethereum.** A recorded Ethereum decision stays executable until it is cancelled, spent,
@@ -1007,15 +1012,15 @@ stateDiagram-v2
   Paused --> Open: flag owner clears, or unpause decision (Eth: 24h, clears flags set before it)
   Paused --> Hold: 2 guardian seats flagged together
   Hold --> Paused: < 2 guardian flags for ≥ 24h
-  Hold --> Hold: unpause decisions are spent<br/>7-day kinds deferred (gno.land: any hold;<br/>Ethereum: only IBCAdmin's flags or hold)
+  Hold --> Hold: unpause decisions are spent<br/>7-day kinds deferred (gno.land: the route's hold, any hold for global ones, to day 21;<br/>Ethereum: only IBCAdmin's flags or hold)
   Hold --> Paused: guardian replacement lands<br/>(day 21 of its anchoring hold, on gno.land the hold standing at the first deferring Execute,<br/>on Ethereum the first eligible hold in its history, compressed intervals excluded;<br/>a later hold never resets a pinned anchor; ≥ 7d after recording)
 ```
 
 What a flag stops: deliveries/mints and escrowed sends (Ethereum, per route), `credits`/`payouts`/`sends`
 (gno.land, per route). What it never stops: burns, sends of vouchers back, acks and timeouts. Refunds run under
 ordinary flags; only the dedicated `refunds` hold (§7.13) delays them, until reconciliation, and a closed route
-defers them to its reopening (§7.12; a deliberate exception, §8.5). The hold is per side and global on gno.land
-(two guardian seats flagging anything); on Ethereum, holds are per flag set (each route's pause flags, its
+defers them to its reopening (§7.12; a deliberate exception, §8.5). The hold is per side and, on gno.land, per route
+(two of the route's guardian seats flagging anything; ADR 0007); on Ethereum, holds are per flag set (each route's pause flags, its
 `refunds` flags, `IBCAdmin`'s flags). On Ethereum a seat cannot be vacated (§8.5).
 
 ### 6.8 Meters and claims on gno.land
@@ -1092,7 +1097,7 @@ sequenceDiagram
 flowchart TD
   DET[Monitor detects: supply identity broken /<br/>header mismatch / foreign decision] --> AUTO[watch key auto-flags:<br/>credits+payouts on gno, receives on Eth,<br/>refunds hold on both]
   AUTO --> G1[Guardian confirms → flags, names suspect packets]
-  G1 --> H["second guardian flags → hold:<br/>gno.land: every 7-day decision deferred;<br/>Ethereum route flags: route receives, sends, refunds only"]
+  G1 --> H["second guardian flags → hold:<br/>gno.land: the route's 7-day decisions deferred, global ones to day 21;<br/>Ethereum route flags: route receives, sends, refunds only"]
   G1 --> HA["Ethereum governance containment, separately:<br/>two guardians flag IBCAdmin → its hold defers 7-day kinds"]
   HA --> GOV
   H --> GOV["GovDAO: void forged claims (immediate when a guardian named them),<br/>cancel hostile decisions, rotate keys"]
@@ -1326,8 +1331,10 @@ mechanics.
 - **What guardians add: the hold.** Two guardian seats flagging at once make a **hold**: queued 7-day decisions are
   deferred and unpause decisions are spent, so a captured or rushed governance cannot loosen a control, swap an
   implementation or lift the pause in the middle of an incident. Decisions that tighten apply at once and are never
-  held. The hold ends 24 hours after fewer than two guardian flags stand. On gno.land any two guardian flags, on any
-  route, make one global hold; on Ethereum a hold is per flag set (below).
+  held. The hold ends 24 hours after fewer than two guardian flags stand. On gno.land each route has its own seats and
+  hold (gno-realms ADR 0007): a route's hold defers that route's decisions, and any route's hold defers decisions on
+  the shared core and transfer app, to day 21 of the global hold that first deferred them at most, so holds chained
+  across routes never stall them longer; on Ethereum a hold is per flag set (below).
 - **Delay, never veto.** Guardians move no funds, change no configuration, decide nothing, and cannot clear another
   seat's flag. A hold defers a decision, never cancels it. Governance can replace a guardian, and that change waits 7
   days and, under a hold, lands no sooner than day 21 of the hold that first deferred it. So a captured guardian pair
@@ -1357,13 +1364,16 @@ mechanics.
     refreshes its block.
   - **Seat generations** on both chains: a flag stands only while the key that set it holds its seat, so a seat's
     key leaving ends its flags in constant work, and a key removed and restored cannot revive its earlier flags.
-- **Holds.** Two guardian flags make a **hold**: on gno.land every 7-day decision is deferred (except the guardian
-  replacement, below) and unpause decisions are spent. On Ethereum the general deferral of 7-day decisions needs
+- **Holds.** Two guardian flags make a **hold**: on gno.land a route's hold defers that route's 7-day decisions
+  (except the guardian replacement, below) and spends its unpause decisions, and any route's hold defers the
+  decisions on the shared core and transfer app, a global unpause included, to day 21 of the global hold that first
+  deferred them at most (gno-realms ADR 0007). On Ethereum the general deferral of 7-day decisions needs
   `IBCAdmin`'s own flags or hold; a route's hold (its pause or `refunds` flags) has only its narrower effects — the
   route's receives and escrowed sends, or its refunds and refund-paying kind 12, and spending a kind 2 on that
   route. A hold ends after 24 hours below two flags. Holds come from
-  bridges' Ethereum code; on gno.land they are built in `ibcgov`. **On gno.land the hold is global**: two guardian seats
-  flagging anything, on any route or client, make it. On Ethereum, a hold is per flag set, and a dip in which a
+  bridges' Ethereum code; on gno.land they are built in `ibcgov`. **On gno.land the hold is per route** (gno-realms ADR
+  0007): two of a route's guardian seats flagging anything, on the route or a candidate client, make that route's
+  hold. On Ethereum, a hold is per flag set, and a dip in which a
   guardian flag standing at the dip's start stops standing (its key replaced) ends the hold at once, as a
   replacement does; an owner's own clear keeps the 24-hour grace.
 - **Guardian replacement** under a hold lands no sooner than day 21 of the hold. Each pending seat change has a
@@ -1490,8 +1500,8 @@ mechanics.
   replaced, given an authenticated governance channel (or a working recovery to restore one) and an accurate
   transfer-app `gnoBusy()` (§8.5 R14, R15). A broken `IBCAdmin` itself can only be answered by a new deployment (new port),
   which is why it is kept minimal.
-- **Scope.** Route controls (flags, limits, quarantine) are keyed by route key and token; upgrades, roles
-  and the guardian seats are global powers of the deployment. **One governance channel serves exactly one
+- **Scope.** Route controls (flags, limits, quarantine) are keyed by route key and token; on Ethereum, upgrades,
+  roles and the guardian seats are global powers of the deployment (on gno.land the seats are per route, ADR 0007). **One governance channel serves exactly one
   Ethereum transfer route, ever.** `IBCAdmin` replaces, recovers, settles and reopens only the route of the client
   it governs over (its kind 10 and emergency recovery name that client), so a second route would have no
   Ethereum replacement or recovery path. **Several routes on gno.land (gno-realms ADR 0007).** One `ibcgov` serves
@@ -1500,12 +1510,12 @@ mechanics.
   unchanged, IBC's client binding keeping the routes apart. GovDAO and the governor decide for every route. A
   route's hold defers its own queued decisions only; decisions on the shared core and transfer app are deferred by
   any route's hold, to day 21 of the global hold that first deferred them at most, and a global unpause is deferred
-  rather than spent. Everything below holds per route. The first enrolment on gno.land fixes the route — its key and its
-  deployment's identity (chain, ICS26 router with its commitments slot, and the `IBCAdmin` behind them) — and any
-  further enrolment is refused when requested and again when it executes (`checkOneRoute`), before the binding or
-  after it. Replacements keep the route's key and identity. Several routes, or a second Ethereum deployment, would
-  need a further `ibcgov` instance governing its own core and transfer proxies, and Ethereum-side support; neither
-  is shipped, and the shipped proxies accept governance from this `ibcgov` only.
+  rather than spent. Everything below holds per route. A route's enrolment on gno.land fixes the route — its key and
+  its deployment's identity (chain, ICS26 router with its commitments slot, and the `IBCAdmin` behind them) — and any
+  further enrolment on the same counterparty chain, whatever its router, is refused when requested and again when it
+  executes (`checkChainFree`), before the binding or after it. Replacements keep the route's key and identity. A second
+  deployment on one chain would need a further `ibcgov` instance governing its own core and transfer proxies; it is
+  not shipped, and the shipped proxies accept governance from this `ibcgov` only.
 - **Code pinning.** Governance pins code by hash (kinds 5, 6, 7, 9 and the recovery proposal; an EIP-7702
   delegation designator is refused even with the pinned hash). Pins are transitive: every contract records, as
   constructor immutables, the address and code hash of each delegate it runs (the fork its controls module, that
@@ -1829,8 +1839,9 @@ mechanics.
   upgrade targets.
 - **Visibility limits.** `ibcgov`'s page lists the newest 100 pending and 100 settled decisions of each kind; an
   older pending decision stays executable but drops off it, so operators read the full ledger with
-  `Render("decisions")` or `Decision(id)`. It lists flags only under enrolled routes, while a flag on a client no
-  route has yet still counts toward the global hold: read it with `Flags(clientID)`. The route JSON shows each
+  `Render("decisions")` or `Decision(id)`. Each route's section, provisional routes included, lists the route's
+  flags with their targets (the route or a candidate client), 64 lines then a count, and every one counts toward
+  that route's hold: read one target's with `Flags(route, target)`. The route JSON shows each
   meter (`meter`, `refund_meter`) as stored, its level at the last refill, not what it holds now;
   `controls.Reader.Meters` returns the bridge and recipient levels refilled to now, on copies.
 - **What is built.** The monitors (T4) and the watch tool (T5) are not. The chains keep everything they need: on
