@@ -250,9 +250,34 @@ func deriveInfo(gnourl *weburl.GnoURL, gnomodData []byte) PackageInfo {
 			info.Private = mod.Private
 			info.Creator = mod.AddPkg.Creator
 			info.Height = mod.AddPkg.Height
+			info.Source = packageSourceOf(mod.Source)
 		}
 	}
 	return info
+}
+
+// packageSourceOf renders a gnomod [source] section for display. ParseBytes
+// does not validate the section, so this relies on Source.URL, which returns
+// nothing unless it passes Source.Validate: a credential-free https URL of
+// plain ASCII, safe to use as an href.
+func packageSourceOf(src gnomod.Source) PackageSource {
+	link, pinned := src.URL()
+	if link == "" {
+		return PackageSource{}
+	}
+	ps := PackageSource{
+		URL:   link,
+		Label: strings.TrimPrefix(src.Repository, "https://"),
+	}
+	// Only show a revision the link actually carries; on an unknown forge the
+	// link is the bare repository, and "@rev" would promise more than it gives.
+	if pinned {
+		ps.Revision = src.Revision
+		if len(ps.Revision) > 9 {
+			ps.Revision = ps.Revision[:9]
+		}
+	}
+	return ps
 }
 
 func packageTypeOf(gnourl *weburl.GnoURL) string {

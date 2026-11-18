@@ -240,6 +240,30 @@ func TestDeriveInfo_CreatorHeightFromGnomod(t *testing.T) {
 	require.Equal(t, 42, info.Height)
 }
 
+func TestDeriveInfo_SourceFromGnomod(t *testing.T) {
+	t.Parallel()
+	u, err := weburlParseForTest("/r/demo/foo")
+	require.NoError(t, err)
+	mod := []byte("module = \"gno.land/r/demo/foo\"\ngno = \"0.9\"\n\n[source]\nrepository = \"https://github.com/gnolang/gno\"\npath = \"examples/gno.land/r/demo/foo\"\nrevision = \"3cc494ec4d1f\"")
+	info := deriveInfo(u, mod)
+	require.Equal(t, PackageSource{
+		URL:      "https://github.com/gnolang/gno/tree/3cc494ec4d1f/examples/gno.land/r/demo/foo",
+		Label:    "github.com/gnolang/gno",
+		Revision: "3cc494ec4",
+	}, info.Source)
+
+	// An invalid section is shown as nothing, and does not take the rest of
+	// the package info down with it.
+	bad := []byte("module = \"gno.land/r/demo/foo\"\ngno = \"0.9\"\n\n[source]\nrepository = \"javascript:alert(1)\"")
+	badInfo := deriveInfo(u, bad)
+	require.Equal(t, PackageSource{}, badInfo.Source)
+	require.Equal(t, "0.9", badInfo.GnoVersion)
+
+	// A revision the link cannot carry is not shown either.
+	other := []byte("module = \"gno.land/r/demo/foo\"\n\n[source]\nrepository = \"https://codeberg.org/o/r\"\nrevision = \"3cc494ec4d1f\"")
+	require.Equal(t, PackageSource{URL: "https://codeberg.org/o/r", Label: "codeberg.org/o/r"}, deriveInfo(u, other).Source)
+}
+
 func TestPackageTypeOf(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

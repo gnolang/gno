@@ -1009,6 +1009,33 @@ func main() {
 	assert.Equal(t, "hello world!\n", res)
 }
 
+// MsgRun must not start refusing payloads an older node accepted: an invalid
+// gnomod.toml [source] section is only checked where a package is stored.
+func TestVMKeeperRunIgnoresInvalidSource(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	const pkgPath = "gno.land/r/test"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath) + "\n[source]\nrepository = \"git@github.com:o/r.git\"\n"},
+		{Name: "script.gno", Body: `
+package main
+
+func main() {
+	println("hello")
+}
+`},
+	}
+
+	res, err := env.vmk.Run(ctx, NewMsgRun(addr, std.MustParseCoins(""), files))
+	require.NoError(t, err)
+	assert.Equal(t, "hello\n", res)
+}
+
 // Ephemeral (/e/) run realms cannot mint sub-realm identities.
 func TestVMKeeperRunSubEphemeral(t *testing.T) {
 	env := setupTestEnv()
