@@ -81,9 +81,40 @@ func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, 
 					}
 				}
 			}
+			if call, ok := n.(*ast.CallExpr); ok && len(call.Args) == 1 && info.Types[call.Fun].IsType() {
+				// a conversion to or from another realm's value type (or a
+				// pointer to one) reinterprets that realm's data
+				to, from := info.TypeOf(call), info.TypeOf(call.Args[0])
+				isNil := from != nil && types.Identical(from, types.Typ[types.UntypedNil])
+				if from != nil && !isNil && !types.Identical(derefType(to), derefType(from)) {
+					t := foreignRealmValue(derefType(to), self)
+					if t == nil {
+						t = foreignRealmValue(derefType(from), self)
+					}
+					if t != nil {
+						report(call.Pos(), t)
+						return true
+					}
+				}
+			}
+			if call, ok := n.(*ast.CallExpr); ok {
+				// an argument implicitly converted into another realm's value
+				// parameter is a value of that type built here
+				if sig, ok := types.Unalias(info.TypeOf(call.Fun)).(*types.Signature); ok {
+					for i, arg := range call.Args {
+						pt := paramType(sig, i, call.Ellipsis.IsValid())
+						if pt == nil || types.Identical(pt, info.TypeOf(arg)) {
+							continue
+						}
+						if t := foreignRealmValue(pt, self); t != nil {
+							report(arg.Pos(), t)
+						}
+					}
+				}
+			}
 			if x, ok := n.(ast.Expr); ok {
 				tv, ok := info.Types[x]
-				if !ok || !tv.IsValue() || exemptRealmValueUse(x, parent) {
+				if !ok || !tv.IsValue() || exemptRealmValueUse(x, parent, info) {
 					return true
 				}
 				if t := foreignRealmValue(tv.Type, self); t != nil {
@@ -97,12 +128,21 @@ func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, 
 }
 
 // exemptRealmValueUse: reading a field of a temporary, or discarding it.
-func exemptRealmValueUse(x ast.Expr, parent ast.Node) bool {
+func exemptRealmValueUse(x ast.Expr, parent ast.Node, info *types.Info) bool {
 	switch p := parent.(type) {
 	case *ast.SelectorExpr:
 		return p.X == x
-	case *ast.ExprStmt:
-		return true
+	case *ast.IndexExpr:
+		return p.X == x // the element is judged at the index expression
+	case *ast.RangeStmt:
+		return p.X == x // bound key/value variables are judged themselves
+	case *ast.CallExpr:
+		// len(x) / cap(x) only read a length
+		if id, ok := ast.Unparen(p.Fun).(*ast.Ident); ok && (id.Name == "len" || id.Name == "cap") {
+			return info.Types[p.Fun].IsBuiltin()
+		}
+	case *ast.ExprStmt, *ast.DeferStmt, *ast.GoStmt:
+		return true // a discarded call result
 	case *ast.ParenExpr:
 		return true // judged at the outer expression
 	case *ast.UnaryExpr:
@@ -122,7 +162,7 @@ type realmSelf struct {
 // foreignRealmValue returns the first realm-declared struct/array type that
 // t holds by value and that is not declared in self.
 func foreignRealmValue(t types.Type, self realmSelf) types.Type {
-	switch u := t.(type) {
+	switch u := types.Unalias(t).(type) { // aliases: same verdict whatever gotypesalias says
 	case *types.Named:
 		if pkg := u.Obj().Pkg(); pkg != nil && pkg != self.pkg && pkg.Path() != self.path && IsRealmPath(pkg.Path()) {
 			switch u.Underlying().(type) {
@@ -148,6 +188,38 @@ func foreignRealmValue(t types.Type, self realmSelf) types.Type {
 				return ft
 			}
 		}
+	case *types.Tuple: // multi-value results and comma-ok forms
+		for i := 0; i < u.Len(); i++ {
+			if ft := foreignRealmValue(u.At(i).Type(), self); ft != nil {
+				return ft
+			}
+		}
+	}
+	return nil
+}
+
+// derefType is the type a pointer (of any named pointer type) points at.
+func derefType(t types.Type) types.Type {
+	if p, ok := types.Unalias(t).Underlying().(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return t
+}
+
+// paramType is the type argument i is assigned to (nil if unknown).
+func paramType(sig *types.Signature, i int, ellipsis bool) types.Type {
+	ps := sig.Params()
+	n := ps.Len()
+	switch {
+	case n == 0:
+		return nil
+	case sig.Variadic() && i >= n-1 && !ellipsis:
+		if sl, ok := ps.At(n - 1).Type().(*types.Slice); ok {
+			return sl.Elem()
+		}
+		return nil
+	case i < n:
+		return ps.At(i).Type()
 	}
 	return nil
 }

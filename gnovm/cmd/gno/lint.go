@@ -572,7 +572,7 @@ func lintRealmValueAPI(io commands.IO, pkg *types.Package, fset *token.FileSet) 
 
 // ownRealmValue returns a struct/array type declared in pkg that t holds by value.
 func ownRealmValue(t types.Type, pkg *types.Package) types.Type {
-	switch u := t.(type) {
+	switch u := types.Unalias(t).(type) {
 	case *types.Named:
 		if u.Obj().Pkg() == pkg {
 			switch u.Underlying().(type) {

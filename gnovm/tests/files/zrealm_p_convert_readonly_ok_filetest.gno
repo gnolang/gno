@@ -26,4 +26,4 @@ func main() {
 // illegal conversion of readonly or externally stored value
 
 // TypeCheckError:
-// gno.land/r/caller/zrealm_p_convert_readonly_ok.gno:20:5: cannot hold a value of gno.land/r/tests/vm.Foo outside its realm (use a pointer)
+// gno.land/r/caller/zrealm_p_convert_readonly_ok.gno:17:7: cannot hold a value of gno.land/r/tests/vm.Foo outside its realm (use a pointer); gno.land/r/caller/zrealm_p_convert_readonly_ok.gno:20:5: cannot hold a value of gno.land/r/tests/vm.Foo outside its realm (use a pointer)
