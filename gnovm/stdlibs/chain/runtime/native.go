@@ -78,3 +78,53 @@ func typedString(s string) gno.TypedValue {
 	tv.SetString(gno.StringValue(s))
 	return tv
 }
+
+// ObjectID implements chain/runtime.ObjectID.
+//
+// The Gno side declares any; the Go side takes a gno.TypedValue, which genstd
+// links straight through with no Go2Gno conversion (see
+// mapping.signaturesMatch). That is what lets this read the object a value
+// refers to rather than a converted copy of it, and it needs no genstd change.
+//
+// It is a pure read: nothing here allocates, persists, or advances a realm
+// clock.
+func ObjectID(m *gno.Machine, v gno.TypedValue) string {
+	pv, ok := v.V.(gno.PointerValue)
+	if !ok {
+		// Not a pointer: a scalar, a string, a struct by value, a slice, a
+		// nil interface. None of these name an object in their own right.
+		return ""
+	}
+
+	// GetBase resolves a RefValue base through the store. A nil base, which is
+	// what a nil pointer carries, comes back as nil and fails the assertion.
+	// Only a standalone heap item qualifies: a *StructValue, *ArrayValue or
+	// *Block base means a pointer into a container (&x.Field, &arr[i], a
+	// pointer to a package-level var), and the container's identity is not
+	// the field's.
+	hiv, ok := pv.GetBase(m.Store).(*gno.HeapItemValue)
+	if !ok {
+		return ""
+	}
+
+	oid := hiv.GetObjectID()
+	if !oid.IsFinalized() {
+		// The allocator stamped the realm half at creation, but the owning
+		// realm has not persisted the object yet, so the clock half is still
+		// zero. Attaching to the ownership tree is what mints it; no native
+		// can conjure one without changing the object lifecycle, since
+		// GetIsReal() is ObjectID.IsFinalized().
+		return ""
+	}
+
+	if !oid.PkgID.IsRealmPkg() {
+		// Persisted by a stdlib or a p/ package rather than by a realm. Those
+		// are immutable packages whose objects nobody can create twice under
+		// one name, so they are outside what #6026 is about, and whether they
+		// should be identifiable has not been settled. Reporting "" leaves
+		// that open; widening later is compatible.
+		return ""
+	}
+
+	return oid.String()
+}

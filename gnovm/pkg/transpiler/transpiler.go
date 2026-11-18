@@ -183,11 +183,25 @@ type transpileCtx struct {
 	stdlibPath string
 
 	stdlibImports map[string]string // symbol -> import path
+
+	// Set by transformFile; needed to inject imports from the call
+	// rewriting below.
+	fset *token.FileSet
+	file *ast.File
+}
+
+// transpileBuiltinName is the local name under which transpiled output imports
+// the shim package backing Gno's builtin types and native call adapters.
+const transpileBuiltinName = "__transpile_builtin"
+
+func (ctx *transpileCtx) addBuiltinImport() {
+	astutil.AddNamedImport(ctx.fset, ctx.file, transpileBuiltinName, TranspileImportPath("builtin"))
 }
 
 func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.File, error) {
 	var errs goscanner.ErrorList
 
+	ctx.fset, ctx.file = fset, f
 	imports := astutil.Imports(fset, f)
 	ctx.stdlibImports = make(map[string]string)
 
@@ -370,10 +384,10 @@ func convertBuiltinType(ide ast.Expr, fset *token.FileSet, f *ast.File) ast.Expr
 		"address",
 		"gnocoin",
 		"gnocoins":
-		astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
+		astutil.AddNamedImport(fset, f, transpileBuiltinName, TranspileImportPath("builtin"))
 		return &ast.SelectorExpr{
 			X: &ast.Ident{
-				Name: "__transpile_builtin",
+				Name: transpileBuiltinName,
 			},
 			Sel: &ast.Ident{
 				Name: string(id.Name[0]-('a'-'A')) + id.Name[1:],
@@ -401,10 +415,10 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 			break
 		}
 		nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name))
-		if nat != nil && nat.HasMachineParam() {
+		if nat != nil {
 			// Because it's an import, the symbol is always exported, so no need for the
 			// X_ prefix we add below.
-			ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+			ctx.adaptNativeArgs(nat, ce)
 		}
 
 	case *ast.Ident:
@@ -423,9 +437,7 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		// controlled scope (standard libraries) this will work for our usecase.
 		nat := stdlibs.FindNative(ctx.stdlibPath, gno.Name(fe.Name))
 		if ctx.stdlibPath != "" && nat != nil {
-			if nat.HasMachineParam() {
-				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
-			}
+			ctx.adaptNativeArgs(nat, ce)
 			if !fe.IsExported() {
 				// Prefix unexported names with X_, per native binding convention
 				// (to export the symbol within Go).
@@ -434,4 +446,40 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		}
 	}
 	return true
+}
+
+// adaptNativeArgs rewrites the argument list of a call to the native binding
+// nat so that it matches the Go signature of the binding's implementation,
+// which is what transpiled code calls directly.
+//
+// Two things make that signature differ from the Gno one. The implementation
+// may take a leading *gno.Machine, for which there is nothing to pass here.
+// And a parameter the implementation declares as gno.TypedValue is linked
+// through by genstd with no conversion, so the Go side does not spell the Gno
+// type and the argument cannot be passed as is; it goes through the shim in
+// the builtin package. See its doc comment for why handing over the zero
+// value is the whole of what transpiled output can do.
+func (ctx *transpileCtx) adaptNativeArgs(nat *stdlibs.NativeFunc, ce *ast.CallExpr) {
+	for i, arg := range ce.Args {
+		if !nat.ParamIsRawTypedValue(i) {
+			continue
+		}
+		ctx.addBuiltinImport()
+		// Positions matter: a synthesized node with no position lets the
+		// printer pull an unrelated trailing comment inside the call.
+		// Collapsing the wrapper onto the argument's own extent keeps the
+		// file's positions non-decreasing.
+		ce.Args[i] = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   &ast.Ident{NamePos: arg.Pos(), Name: transpileBuiltinName},
+				Sel: &ast.Ident{NamePos: arg.Pos(), Name: "NativeTypedValue"},
+			},
+			Lparen: arg.Pos(),
+			Args:   []ast.Expr{arg},
+			Rparen: arg.End(),
+		}
+	}
+	if nat.HasMachineParam() {
+		ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+	}
 }

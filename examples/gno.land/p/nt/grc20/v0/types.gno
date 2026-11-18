@@ -81,8 +81,12 @@ type Teller interface {
 // name, symbol, and decimals, as well as methods for interacting with the
 // ledger, including checking balances and allowances.
 type Token struct {
-	// Identifier precomputed in NewToken to make ID() a cheap field read.
-	id string
+	// tokenPath is "<creating realm pkgpath>.<symbol>", precomputed in
+	// NewToken. It is the readable half of a token's name: provenance,
+	// available from construction, and deliberately not unique, since a realm
+	// may issue two tokens under one symbol. The unique half is ID(), which
+	// the VM mints and no realm chooses.
+	tokenPath string
 	// Name of the token (e.g., "Dummy Token").
 	name string
 	// Symbol of the token (e.g., "DUMMY").
@@ -132,10 +136,10 @@ var (
 )
 
 // Construction limits. Symbol is restricted to the same charset as
-// grc20reg.validateSlug because it is included in Token.ID(), which is
+// grc20reg.validateSlug because it is included in Token.TokenPath(), which is
 // emitted in events and frequently used as a registry slug; banning `.` `/`
 // and whitespace here prevents downstream parsers from being fooled by
-// ambiguous IDs. Name is for display only and allows any valid UTF-8 except
+// ambiguous paths. Name is for display only and allows any valid UTF-8 except
 // control characters.
 const (
 	MaxNameLen   = 64

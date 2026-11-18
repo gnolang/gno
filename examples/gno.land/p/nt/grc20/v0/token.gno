@@ -2,45 +2,39 @@ package grc20
 
 import (
 	"chain"
+	"chain/runtime"
 	"math"
 	"math/overflow"
 	"strconv"
 
-	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
-// and rlm.PkgPath() — the calling realm itself, with any realm.Sub subpath
-// stripped — becomes the Token's origRealm. Token.ID() keeps the raw
-// rlm.PkgPath(), and returns it + "." + symbol + "." + id.
+// and rlm.PkgPath() - the calling realm itself, with any realm.Sub subpath
+// stripped - becomes the Token's origRealm. Token.TokenPath() keeps the raw
+// rlm.PkgPath(), and returns it + "." + symbol.
 //
 // Because IsCurrent runtime-validates that rlm came from the live
 // crossing frame, origRealm is unforgeable: an external realm cannot
 // fabricate a Token claiming to belong to a different package.
 //
-// Realms that create multiple tokens should allocate id from one persistent
-// seqid.ID, shared by every creation path, to avoid conflicting identifiers:
-//
-//	var nextTokenID seqid.ID
-//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, nextTokenID.Next(), cur)
-//
-// A realm that creates only a single token can pass 0 directly, since no
-// other token of that realm can collide with it.
+// A realm may create as many tokens as it likes, including several under one
+// symbol, and it no longer has to keep a counter to keep them apart: a token's
+// identity is Token.ID(), minted by the VM rather than chosen by the realm
+// (gnolang/gno#6026).
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross(cur), Token, slug). The registry key is the
-// rlmPath.symbol prefix of Token.ID(), without its trailing id.
+// grc20reg.Register(cross(cur), Token, slug). The registry key is
+// Token.TokenPath().
 //
-// Every successful call emits a NewToken event carrying the resulting
-// Token.ID(). Because Token's fields are unexported, NewToken is the only way a
+// Every successful call emits a NewToken event carrying the Token's path and
+// its id. Because Token's fields are unexported, NewToken is the only way a
 // Token can come into existence, so this event makes token creation fully
-// observable: an indexer that sees the same Token.ID() announced twice knows the
-// realm built two independent ledgers behind one identifier, and that every
-// later Mint/Burn/Transfer/Approval carrying that id is ambiguous. Such a realm
-// is emitting untrustworthy events and should be flagged or ignored wholesale.
-func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token, *PrivateLedger) {
+// observable. The id is empty on this event whenever creation and announcement
+// happen in one call, which is the usual case: see Token.ID.
+func NewToken(name, symbol string, decimals int, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -64,7 +58,7 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 	origRealm, _, _ := chain.SplitPkgSubPath(pkgPath)
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:        pkgPath + "." + symbol + "." + id.String(),
+		tokenPath: pkgPath + "." + symbol,
 		name:      name,
 		symbol:    symbol,
 		decimals:  decimals,
@@ -75,7 +69,8 @@ func NewToken(name, symbol string, decimals int, id seqid.ID, rlm realm) (*Token
 
 	chain.Emit(
 		NewTokenEvent,
-		"token", token.id,
+		"token", token.tokenPath,
+		"id", token.ID(),
 		"name", name,
 		"symbol", symbol,
 		"decimals", strconv.Itoa(decimals),
@@ -133,11 +128,36 @@ func (tok Token) TotalSupply() int64 { return tok.ledger.totalSupply }
 // KnownAccounts returns the number of known accounts in the bank.
 func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
-// ID returns the Identifier of the token.
-// It is composed of the creating realm's raw pkgpath — including any
-// realm.Sub subpath, unlike origRealm — the symbol, and the provided id.
+// TokenPath returns the token's readable name: the creating realm's raw
+// pkgpath - including any realm.Sub subpath, unlike origRealm - and the
+// symbol, joined by a dot.
+//
+// It is provenance, not identity. It is available from construction and it is
+// what the registry keys by, but a realm may issue two tokens under one
+// symbol, so two tokens can share a path. Use ID to tell them apart.
+func (tok *Token) TokenPath() string {
+	return tok.tokenPath
+}
+
+// ID returns the token's identity: the ObjectID the VM minted for this Token
+// object, as "<realm-id>:<clock-tick>".
+//
+// It is unique per token object and no realm chooses any part of it, which is
+// what closes gnolang/gno#6026: before, the trailing component was a caller
+// supplied seqid, so one realm could issue two tokens under one identifier and
+// their Transfer and Approval events were indistinguishable.
+//
+// It is empty until the token has been persisted. The VM mints an identity
+// when the creating realm's frame returns, so a token created and used inside
+// one call has a path but no id yet, and events emitted in that call carry an
+// empty id. From the next call on the id is set and never changes. A realm
+// that wants its very first events to carry an id should create the token in
+// one call and emit in a later one.
+//
+// The id is an identifier, not an account: it is not an address and nothing
+// can be sent to it.
 func (tok *Token) ID() string {
-	return tok.id
+	return runtime.ObjectID(tok)
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
@@ -234,7 +254,8 @@ func (led *PrivateLedger) Transfer(from, to address, amount int64) error {
 
 	chain.Emit(
 		TransferEvent,
-		"token", led.token.ID(),
+		"token", led.token.tokenPath,
+		"id", led.token.ID(),
 		"from", from.String(),
 		"to", to.String(),
 		"value", strconv.Itoa(int(amount)),
@@ -288,7 +309,8 @@ func (led *PrivateLedger) Approve(owner, spender address, amount int64) error {
 
 	chain.Emit(
 		ApprovalEvent,
-		"token", led.token.ID(),
+		"token", led.token.tokenPath,
+		"id", led.token.ID(),
 		"owner", string(owner),
 		"spender", string(spender),
 		"value", strconv.Itoa(int(amount)),
@@ -319,7 +341,8 @@ func (led *PrivateLedger) Mint(addr address, amount int64) error {
 
 	chain.Emit(
 		TransferEvent,
-		"token", led.token.ID(),
+		"token", led.token.tokenPath,
+		"id", led.token.ID(),
 		"from", "",
 		"to", string(addr),
 		"value", strconv.Itoa(int(amount)),
@@ -353,7 +376,8 @@ func (led *PrivateLedger) Burn(addr address, amount int64) error {
 
 	chain.Emit(
 		TransferEvent,
-		"token", led.token.ID(),
+		"token", led.token.tokenPath,
+		"id", led.token.ID(),
 		"from", string(addr),
 		"to", "",
 		"value", strconv.Itoa(int(amount)),
