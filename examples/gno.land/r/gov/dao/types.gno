@@ -31,31 +31,31 @@ type VoteRequest struct {
 	Metadata   interface{}
 }
 
-func NewVoteRequest(option VoteOption, proposalID ProposalID) VoteRequest {
-	return VoteRequest{
+func NewVoteRequest(option VoteOption, proposalID ProposalID) *VoteRequest {
+	return &VoteRequest{
 		Option:     option,
 		ProposalID: proposalID,
 	}
 }
 
-func NewVoteRequestWithMetadata(option VoteOption, proposalID ProposalID, metadata interface{}) VoteRequest {
-	return VoteRequest{
+func NewVoteRequestWithMetadata(option VoteOption, proposalID ProposalID, metadata interface{}) *VoteRequest {
+	return &VoteRequest{
 		Option:     option,
 		ProposalID: proposalID,
 		Metadata:   metadata,
 	}
 }
 
-func NewProposalRequest(title string, description string, executor Executor) ProposalRequest {
-	return ProposalRequest{
+func NewProposalRequest(title string, description string, executor Executor) *ProposalRequest {
+	return &ProposalRequest{
 		title:       title,
 		description: description,
 		executor:    executor,
 	}
 }
 
-func NewProposalRequestWithFilter(title string, description string, executor Executor, filter Filter) ProposalRequest {
-	return ProposalRequest{
+func NewProposalRequestWithFilter(title string, description string, executor Executor, filter Filter) *ProposalRequest {
+	return &ProposalRequest{
 		title:       title,
 		description: description,
 		executor:    executor,
@@ -280,16 +280,16 @@ type DAO interface {
 	// It is intended to be used to get the address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(cur realm, r ProposalRequest) (address, error)
+	PreCreateProposal(cur realm, r *ProposalRequest) (address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
-	PostCreateProposal(cur realm, r ProposalRequest, pid ProposalID)
+	PostCreateProposal(cur realm, r *ProposalRequest, pid ProposalID)
 
 	// VoteOnProposal will send a petition to vote for a specific proposal
 	// to the actual govDAO implementation
-	VoteOnProposal(cur realm, r VoteRequest) error
+	VoteOnProposal(cur realm, r *VoteRequest) error
 
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
@@ -320,10 +320,10 @@ type UpdateRequest struct {
 // /r/gov/dao could not mutate (e.g. append to) its own copy without
 // a DidUpdate panic. The internal copy ensures the UpdateRequest
 // and its AllowedDAOs both live entirely in /r/gov/dao's authority.
-func NewUpdateRequest(d DAO, allowedDAOs []string) UpdateRequest {
+func NewUpdateRequest(d DAO, allowedDAOs []string) *UpdateRequest {
 	cp := make([]string, len(allowedDAOs))
 	copy(cp, allowedDAOs)
-	return UpdateRequest{
+	return &UpdateRequest{
 		DAO:         d,
 		AllowedDAOs: cp,
 	}

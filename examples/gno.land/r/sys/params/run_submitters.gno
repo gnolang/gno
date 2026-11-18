@@ -95,7 +95,7 @@ func IsRunSubmittersDelegate(pkgpath string) bool {
 // "gno.land/r/nt/commondao/v0#dao/42", which is how a single DAO hosted by a
 // multi-tenant realm is named. Matching is exact, so naming the bare host would
 // authorize the host itself and none of its DAOs.
-func ProposeSetRunSubmittersManager(cur realm, pkgpath string) dao.ProposalRequest {
+func ProposeSetRunSubmittersManager(cur realm, pkgpath string) *dao.ProposalRequest {
 	assertDelegatePath(pkgpath)
 	if pkgpath == runSubmittersMgr {
 		panic("no-op proposal rejected: " + pkgpath + " already manages " + runSubmittersKey)
@@ -135,7 +135,7 @@ func ProposeSetRunSubmittersManager(cur realm, pkgpath string) dao.ProposalReque
 // them would make the executed effect invisible at vote time, and would silently
 // remove nothing whenever the grant record had drifted. Use the existing
 // whole-list setter to reset the list to a reviewed value.
-func ProposeClearRunSubmittersManager(cur realm) dao.ProposalRequest {
+func ProposeClearRunSubmittersManager(cur realm) *dao.ProposalRequest {
 	if runSubmittersMgr == "" {
 		panic("no-op proposal rejected: " + runSubmittersKey + " is not delegated")
 	}
@@ -309,7 +309,7 @@ func GetRunSubmitters() []string {
 // This is a floor, not an invariant. The proposer may resign from GovDAO later,
 // and the list is not re-checked when they do. It rules out arriving at a dead
 // list in one vote; it cannot rule out drifting into one.
-func ProposeSetRunSubmitters(cur realm, addrs []string) dao.ProposalRequest {
+func ProposeSetRunSubmitters(cur realm, addrs []string) *dao.ProposalRequest {
 	// IsCurrent before Previous, as AGENTS.md requires and assertDelegate does.
 	//
 	// Belt and braces here rather than load-bearing: the compiler already

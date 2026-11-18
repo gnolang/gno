@@ -33,7 +33,7 @@ func Render(cur realm, p string) string {
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
 // but instead of erroing if something happens, it panics.
-func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
+func MustCreateProposal(cur realm, r *ProposalRequest) ProposalID {
 	pid, err := CreateProposal(cur, r)
 	if err != nil {
 		panic(err.Error())
@@ -63,7 +63,7 @@ func ExecuteOrRejectProposal(cur realm, pid ProposalID) bool {
 
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
-func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
+func CreateProposal(cur realm, r *ProposalRequest) (ProposalID, error) {
 	if dao == nil {
 		return -1, errors.New("DAO not initialized")
 	}
@@ -90,7 +90,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	return pid, nil
 }
 
-func MustVoteOnProposal(cur realm, r VoteRequest) {
+func MustVoteOnProposal(cur realm, r *VoteRequest) {
 	if err := VoteOnProposal(cur, r); err != nil {
 		panic(err.Error())
 	}
@@ -99,7 +99,7 @@ func MustVoteOnProposal(cur realm, r VoteRequest) {
 // VoteOnProposal sends a vote to the actual govDAO implementation.
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
-func VoteOnProposal(cur realm, r VoteRequest) error {
+func VoteOnProposal(cur realm, r *VoteRequest) error {
 	if dao == nil {
 		return errors.New("DAO not initialized")
 	}
@@ -108,7 +108,7 @@ func VoteOnProposal(cur realm, r VoteRequest) error {
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
 func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
-	MustVoteOnProposal(cur, VoteRequest{
+	MustVoteOnProposal(cur, &VoteRequest{
 		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),
 	})
@@ -154,7 +154,7 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // NewUpdateRequest(d, nil), which copies nil into a non-nil empty slice.
 // Individual entries must be non-blank realm paths; an empty entry would match
 // a user realm's empty PkgPath() and is rejected.
-func UpdateImpl(cur realm, r UpdateRequest) {
+func UpdateImpl(cur realm, r *UpdateRequest) {
 	// AGENTS.md: in a crossing function, always check IsCurrent() before
 	// deriving caller identity from cur.Previous(). Redundant under the
 	// crossing-frame guarantee, but mandated, and this is the single most

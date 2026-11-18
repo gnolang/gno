@@ -11,15 +11,15 @@ const (
 	unrestrictedAddrsKey = "unrestricted_addrs"
 )
 
-func ProposeUnlockTransferRequest(cur realm) dao.ProposalRequest {
+func ProposeUnlockTransferRequest(cur realm) *dao.ProposalRequest {
 	return NewSysParamStringsPropRequestWithTitle(cur, bankModulePrefix, "p", restrictedDenomsKey, unlockTransferTitle, []string{})
 }
 
-func ProposeLockTransferRequest(cur realm) dao.ProposalRequest {
+func ProposeLockTransferRequest(cur realm) *dao.ProposalRequest {
 	return NewSysParamStringsPropRequestWithTitle(cur, bankModulePrefix, "p", restrictedDenomsKey, lockTransferTitle, []string{"ugnot"})
 }
 
-func ProposeAddUnrestrictedAcctsRequest(cur realm, addrs ...address) dao.ProposalRequest {
+func ProposeAddUnrestrictedAcctsRequest(cur realm, addrs ...address) *dao.ProposalRequest {
 	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()
@@ -28,7 +28,7 @@ func ProposeAddUnrestrictedAcctsRequest(cur realm, addrs ...address) dao.Proposa
 	return NewSysParamStringsPropRequestAddWithTitle(cur, authModulePrefix, "p", unrestrictedAddrsKey, "Add unrestricted transfer accounts", addrStrings)
 }
 
-func ProposeRemoveUnrestrictedAcctsRequest(cur realm, addrs ...address) dao.ProposalRequest {
+func ProposeRemoveUnrestrictedAcctsRequest(cur realm, addrs ...address) *dao.ProposalRequest {
 	addrStrings := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		s := addr.String()

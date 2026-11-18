@@ -103,7 +103,7 @@ func updateInstructions(_ int, rlm realm, newInstructions string) error {
 // type, since the proxy would then invoke it on an attacker's behalf.
 // filetests/z_foreign_realm_capability_filetest.gno pins the first;
 // filetests/z_govdao_only_principal_filetest.gno pins the second.
-func NewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
+func NewInstructionsProposalRequest(cur realm, newInstructions string) *dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return updateInstructions(0, cur, newInstructions)
 	}
@@ -171,7 +171,7 @@ func rotateAuthority(_ int, rlm realm, newContractPath string) error {
 // can point the authority at a principal it controls. That is the same
 // power a majority already has over `instructions`, and it is the price of
 // being recoverable at all.
-func NewAuthorityRotationProposalRequest(cur realm, newContractPath string) dao.ProposalRequest {
+func NewAuthorityRotationProposalRequest(cur realm, newContractPath string) *dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return rotateAuthority(0, cur, newContractPath)
 	}

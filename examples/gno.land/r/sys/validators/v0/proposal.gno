@@ -66,7 +66,7 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
 // successful execution. (Power-upsert on an existing op also emits
 // ValidatorAdded with the new power.)
-func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) *dao.ProposalRequest {
 	if len(changes) == 0 {
 		panic(errNoValoperChanges)
 	}

@@ -33,7 +33,7 @@ const (
 // misc/govdao-scripts/set-halt.sh over writing the call by hand.
 //
 // Use height=0 to cancel a previously scheduled halt.
-func NewSetHaltRequest(cur realm, height int64, minVersion string) dao.ProposalRequest {
+func NewSetHaltRequest(cur realm, height int64, minVersion string) *dao.ProposalRequest {
 	callback := func(cur realm) error {
 		prms.SetSysParamInt64(nodeModulePrefix, "p", haltHeightKey, height)
 		prms.SetSysParamString(nodeModulePrefix, "p", haltMinVersionKey, minVersion)

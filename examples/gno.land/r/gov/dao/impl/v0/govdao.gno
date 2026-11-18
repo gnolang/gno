@@ -30,7 +30,7 @@ func NewGovDAO() *GovDAO {
 	return d
 }
 
-func (g *GovDAO) PreCreateProposal(cur realm, r dao.ProposalRequest) (address, error) {
+func (g *GovDAO) PreCreateProposal(cur realm, r *dao.ProposalRequest) (address, error) {
 	if !g.isValidCall(cur) {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. caller realm: %v; caller's previous: %v",
 			cur.Previous(), cur.Previous().Previous()))
@@ -46,12 +46,12 @@ func (g *GovDAO) PreCreateProposal(cur realm, r dao.ProposalRequest) (address, e
 	return caller, nil
 }
 
-func (g *GovDAO) PostCreateProposal(cur realm, r dao.ProposalRequest, pid dao.ProposalID) {
+func (g *GovDAO) PostCreateProposal(cur realm, r *dao.ProposalRequest, pid dao.ProposalID) {
 	mustBeProxy(cur)
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Filter().(type) {
-	case FilterByTier:
+	case *FilterByTier:
 		// only members from T1 are allowed to vote when adding new members to T1
 		if v.Tier == memberstore.T1 {
 			tatv = []string{memberstore.T1}
@@ -64,7 +64,7 @@ func (g *GovDAO) PostCreateProposal(cur realm, r dao.ProposalRequest, pid dao.Pr
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
-func (g *GovDAO) VoteOnProposal(cur realm, r dao.VoteRequest) error {
+func (g *GovDAO) VoteOnProposal(cur realm, r *dao.VoteRequest) error {
 	if !g.isValidCall(cur) {
 		return errors.New("proposal voting must be done directly by a user")
 	}

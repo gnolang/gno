@@ -37,7 +37,7 @@ func AddControllerAtGenesis(_ realm, addr address) {
 }
 
 // ProposeNewController allows GovDAO to add a whitelisted caller
-func ProposeNewController(cur realm, addr address) dao.ProposalRequest {
+func ProposeNewController(cur realm, addr address) *dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -51,7 +51,7 @@ func ProposeNewController(cur realm, addr address) dao.ProposalRequest {
 }
 
 // ProposeControllerRemoval allows GovDAO to add a whitelisted caller
-func ProposeControllerRemoval(cur realm, addr address) dao.ProposalRequest {
+func ProposeControllerRemoval(cur realm, addr address) *dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -65,7 +65,7 @@ func ProposeControllerRemoval(cur realm, addr address) dao.ProposalRequest {
 }
 
 // ProposeControllerAdditionAndRemoval allows GovDAO to add a new caller and remove an old caller in the same proposal.
-func ProposeControllerAdditionAndRemoval(cur realm, toAdd, toRemove address) dao.ProposalRequest {
+func ProposeControllerAdditionAndRemoval(cur realm, toAdd, toRemove address) *dao.ProposalRequest {
 	if !toAdd.IsValid() || !toRemove.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -114,7 +114,7 @@ func applyControllerSwap(toAdd, toRemove address) error {
 // controllers. The executor closure runs with ignoreCanonical=true (decision
 // #3): DAO grants always bypass canonical-collision detection. Voters see
 // any collision in the proposal description and can vote NO if unintended.
-func ProposeRegisterUser(cur realm, name string, addr address) dao.ProposalRequest {
+func ProposeRegisterUser(cur realm, name string, addr address) *dao.ProposalRequest {
 	// Validate the name and address now, even though registerUser will validate again
 	if err := validateName(name); err != nil {
 		panic(err.Error())
@@ -140,7 +140,7 @@ func ProposeRegisterUser(cur realm, name string, addr address) dao.ProposalReque
 // ProposeUpdateName allows GovDAO to update a name with an alias without
 // checking controllers. Like ProposeRegisterUser, the executor runs with
 // ignoreCanonical=true (decision #3).
-func ProposeUpdateName(cur realm, addr address, newName string) dao.ProposalRequest {
+func ProposeUpdateName(cur realm, addr address, newName string) *dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
@@ -167,7 +167,7 @@ func ProposeUpdateName(cur realm, addr address, newName string) dao.ProposalRequ
 }
 
 // ProposeDeleteUser allows GovDAO to delete a user without checking controllers
-func ProposeDeleteUser(cur realm, addr address) dao.ProposalRequest {
+func ProposeDeleteUser(cur realm, addr address) *dao.ProposalRequest {
 	if !addr.IsValid() {
 		panic(ErrInvalidAddress)
 	}
