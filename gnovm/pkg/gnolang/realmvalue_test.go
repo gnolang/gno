@@ -109,3 +109,13 @@ func TestRealmValue(t *testing.T) {
 type importerFunc func(string) (*types.Package, error)
 
 func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
+
+// A filetest with type errors leaves expressions untyped (nil type).
+func TestRealmValueNilType(t *testing.T) {
+	if got := derefType(nil); got != nil {
+		t.Errorf("derefType(nil) = %v, want nil", got)
+	}
+	if got := foreignRealmValue(nil, realmSelf{}); got != nil {
+		t.Errorf("foreignRealmValue(nil) = %v, want nil", got)
+	}
+}
