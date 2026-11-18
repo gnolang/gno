@@ -51,3 +51,19 @@ func RunSt(cur realm, s *S) { s.F("struct") }
 func GetDecl() func(string) { return SetOwner }
 
 var FV = SetOwner
+
+type V struct{ P *T }
+
+func (v V) SetName(s string) { v.P.Name = s }
+
+var Val = V{P: Box}
+
+type Setter interface{ SetName(string) }
+
+// Bound while read-only: no binder.
+func GetValMV() func(string)   { return Val.SetName }
+func GetIfaceMV() func(string) { var s Setter = Box; return s.SetName }
+
+// Bound inside a crossing function: writes for this realm.
+func GateValMV(cur realm) func(string)   { return Val.SetName }
+func GateIfaceMV(cur realm) func(string) { var s Setter = Box; return s.SetName }
