@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/test
+package test
 
 import "chain/runtime"
 

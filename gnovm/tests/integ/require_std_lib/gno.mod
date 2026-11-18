@@ -1,1 +1,1 @@
-module gno.land/t/reqinvalidmodule
+module gno.land/p/t/reqinvalidmodule
