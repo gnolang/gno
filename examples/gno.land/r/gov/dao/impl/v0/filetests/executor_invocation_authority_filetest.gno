@@ -71,7 +71,7 @@ func init(cur realm) {
 	memberstore.SetTier(cross(cur), memberstore.T1)
 	memberstore.SetMember(cross(cur), memberstore.T1, member, memberstore.NewMember(3))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(
-		impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))
+		impl.NewGovDAO(cross(cur)), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 
 func main(cur realm) {

@@ -50,7 +50,7 @@ func init(cur realm) {
 	memberstore.SetMember(cross(cur), memberstore.T1, testUser, memberByTier(memberstore.T1))
 
 	// Set up the DAO implementation using proper constructor
-	govDAO := impl.NewGovDAO()
+	govDAO := impl.NewGovDAO(cross(cur))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/impl/v0"}))
 }
 

@@ -32,7 +32,7 @@ func (e *hugeErrExecutor) CreationRealm() string { return "gno.land/r/test/hugee
 // exactly like one rendered from a clamped store — testing through Render would
 // pass whether or not the write is bounded.
 func TestDeniedReasonIsClampedBeforeStoring(cur realm, t *testing.T) {
-	g := NewGovDAO()
+	g := NewGovDAO(cur)
 	pid := dao.ProposalID(987654)
 	g.pss.Set(pid.String(), newProposalStatus([]string{memberstore.T1}))
 

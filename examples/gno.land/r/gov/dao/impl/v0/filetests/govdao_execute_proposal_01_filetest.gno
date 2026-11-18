@@ -16,15 +16,16 @@ var (
 	executor   dao.Executor
 	proposalID dao.ProposalID
 	renderPath string
-	govdao     = impl.NewGovDAO()
+	govdao     *impl.GovDAO
 )
 
 func init(cur realm) {
+	govdao = impl.NewGovDAO(cross(cur))
 	// Initialize GovDAO members
 	memberstore.DeleteAll(cross(cur))
 	memberstore.SetTier(cross(cur), memberstore.T1)
 	memberstore.SetMember(cross(cur), memberstore.T1, user, memberstore.NewMember(3))
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), nil))
 
 	// Create a dummy executor
 	cb := func(realm) error { return nil }
