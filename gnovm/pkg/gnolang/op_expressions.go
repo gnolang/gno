@@ -81,7 +81,8 @@ func (m *Machine) doOpSelector() {
 		m.incrCPU(OpCPUSelectorField)
 	}
 	direct := false
-	if sx.Path.Type == VPValMethod || sx.Path.Type == VPDerefValMethod {
+	switch sx.Path.Type {
+	case VPValMethod, VPDerefValMethod, VPInterface, VPDerefInterface:
 		direct = m.isCalleeOfPendingCall(sx)
 	}
 	res := xv.getPointerToForCall(m.GasMeter, m.Alloc, m.Store, sx.Path, m.Package.PkgPath, direct).Deref()

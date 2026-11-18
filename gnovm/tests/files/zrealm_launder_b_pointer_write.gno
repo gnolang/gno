@@ -23,4 +23,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/launderb's code was entered without crossing and is read-only (call its crossing function): g<VPBlock(1,1)>.Field
+// cannot copy gno.land/r/launderb.ExploiterB outside realm gno.land/r/launderb (use a pointer)

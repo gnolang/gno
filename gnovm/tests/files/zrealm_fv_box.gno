@@ -13,5 +13,5 @@ func main(cur realm) {
 	println(len(saved))
 }
 
-// Output:
-// 2
+// Error:
+// cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)

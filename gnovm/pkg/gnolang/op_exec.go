@@ -211,7 +211,10 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			} else {
 				dv = xv
-				*xv = xv.Copy(m.Alloc)
+				// Only a range that reads values needs its own copy of the array.
+				if bs.Value != nil {
+					*xv = xv.Copy(m.Alloc)
+				}
 				ll = dv.GetLength()
 			}
 			if ll == 0 { // early termination

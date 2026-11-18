@@ -11,3 +11,6 @@ func main(cur realm) {
 	})
 	println(n)
 }
+
+// Output:
+// 1

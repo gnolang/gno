@@ -9,3 +9,6 @@ func main(cur realm) {
 	kf = fvx.Fail().Error
 	println(kf())
 }
+
+// Error:
+// cannot copy gno.land/r/tests/vm/fvx.E outside realm gno.land/r/tests/vm/fvx (use a pointer)

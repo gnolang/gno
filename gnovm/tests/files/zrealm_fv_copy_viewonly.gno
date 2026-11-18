@@ -13,3 +13,6 @@ func main(cur realm) {
 	saved = f(fvx.Boxes)
 	println(saved != nil)
 }
+
+// Error:
+// cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)

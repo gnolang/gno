@@ -26,3 +26,6 @@ func (ExploiterA) SomethingPtr(g *launderpkg.Object) {}
 func main(cur realm) {
 	laundervictim.Invoke(ExploiterA{})
 }
+
+// Error:
+// cannot copy gno.land/r/laundera.ExploiterA outside realm gno.land/r/laundera (use a pointer)
