@@ -200,6 +200,9 @@ func foreignRealmValue(t types.Type, self realmSelf) types.Type {
 
 // derefType is the type a pointer (of any named pointer type) points at.
 func derefType(t types.Type) types.Type {
+	if t == nil {
+		return nil
+	}
 	if p, ok := types.Unalias(t).Underlying().(*types.Pointer); ok {
 		return p.Elem()
 	}
