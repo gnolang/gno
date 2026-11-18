@@ -23,5 +23,5 @@ gno = "0.9"
 
 -- stdout.golden --
 -- stderr.golden --
-box.gno:7: exported function Get passes gno.land/r/demo/box.Box by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
-box.gno:9: exported function Put passes gno.land/r/demo/box.Box by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box/box.gno:7: exported function Get passes gno.land/r/demo/box.Box by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box/box.gno:9: exported function Put passes gno.land/r/demo/box.Box by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
