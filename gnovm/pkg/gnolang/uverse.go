@@ -1336,6 +1336,9 @@ func makeUverseNode() {
 							// No CPU charge: for primitives defaultTypedValue is a
 							// zero-cost struct literal; for composite types it
 							// allocates via m.Alloc (covered by alloc gas).
+							if li > 0 {
+								m.Alloc.checkBirth(et)
+							}
 							for i := range li {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
@@ -1390,6 +1393,9 @@ func makeUverseNode() {
 							// No CPU charge: for primitives defaultTypedValue is a
 							// zero-cost struct literal; for composite types it
 							// allocates via m.Alloc (covered by alloc gas).
+							if ci > 0 {
+								m.Alloc.checkBirth(et)
+							}
 							for i := range ci {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}

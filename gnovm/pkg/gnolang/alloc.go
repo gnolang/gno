@@ -532,15 +532,11 @@ func (alloc *Allocator) AllocateHeapItem() {
 // "storage = authority" rule: every meaningfully-constructed
 // /r/-typed object must originate inside its declaring realm.
 //
-// Only fires at user-visible construction sites: composite literals
-// (doOpStructLit/ArrayLit/MapLit/SliceLit*) and the new()/make()
-// uverse builtins. Zero-value defaults (return-slot init, var
-// declarations, copies) are not "construction" in the sense that
-// matters here — they are anonymous placeholders that will be
-// overwritten or carry a copied PkgID.
-//
-// Anonymous composites, primitives, /p/, and stdlib types have no
-// declaring-realm constraint and pass through unchecked.
+// Fires at composite literals (doOpStructLit/ArrayLit/MapLit/SliceLit*)
+// and the new()/make() uverse builtins; it also refuses an anonymous
+// struct/array type holding a foreign one inline (checkBirth). Zero values
+// built for declarations and make are checked by checkBirth; short-lived
+// ones (missed map reads, failed assertions, result slots) are not.
 //
 // nil t skips the check (anonymous sub-allocations); alloc is assumed
 // non-nil.
@@ -549,15 +545,64 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 		return
 	}
 	pid := getDeclaredPkgID(t)
-	if !pid.IsRealmPkg() {
+	if pid.IsRealmPkg() && pid != alloc.currentRealmID {
+		alloc.panicForeignAlloc(t)
+	}
+	alloc.checkBirth(t)
+}
+
+// checkBirth panics if a zero value of t, built here, would hold inline a
+// struct or array value whose type another realm declares. alloc nil: no check.
+func (alloc *Allocator) checkBirth(t Type) {
+	if alloc == nil {
 		return
 	}
-	if pid != alloc.currentRealmID {
-		panic(fmt.Sprintf(
-			"cannot allocate %s in realm %s",
-			t.String(), alloc.currentRealmPath,
-		))
+	if ft := foreignHeldType(t, alloc.currentRealmID); ft != nil {
+		alloc.panicForeignAlloc(ft)
 	}
+}
+
+func (alloc *Allocator) panicForeignAlloc(t Type) {
+	panic(fmt.Sprintf(
+		"cannot allocate %s in realm %s",
+		t.String(), alloc.currentRealmPath,
+	))
+}
+
+// foreignHeldType returns t, or the first struct/array type t holds inline
+// (struct field, array element), that a realm other than rid declares; nil if none.
+// Same walk as fvForeign; pointers, slices, maps and interfaces hold nothing inline.
+func foreignHeldType(t Type, rid PkgID) Type {
+	foreign := func(pid PkgID) bool { return pid.IsRealmPkg() && pid != rid }
+	switch tt := t.(type) {
+	case *DeclaredType:
+		switch tt.Base.(type) {
+		case *StructType, *ArrayType:
+			if foreign(tt.GetPkgID()) {
+				return tt
+			}
+		}
+		return foreignHeldType(tt.Base, rid)
+	case *StructType:
+		if foreign(tt.GetPkgID()) {
+			return tt
+		}
+		for _, f := range tt.Fields {
+			if ft := foreignHeldType(f.Type, rid); ft != nil {
+				return ft
+			}
+		}
+	case *ArrayType:
+		return foreignHeldType(tt.Elt, rid)
+	}
+	return nil
+}
+
+// checkedDefaultTypedValue is defaultTypedValue for a place the current realm
+// can keep or address (declarations, make, new, literal zero-fill).
+func checkedDefaultTypedValue(alloc *Allocator, t Type) TypedValue {
+	alloc.checkBirth(t)
+	return defaultTypedValue(alloc, t)
 }
 
 // stampPkgID stamps PkgID on the given ObjectInfo. If t has a

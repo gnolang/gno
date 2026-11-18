@@ -19,7 +19,7 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/tests/vm's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Field
+// cannot allocate gno.land/r/tests/vm.TestRealmObject in realm gno.land/r/crossrealm
 
 // TypeCheckError:
 // gno.land/r/crossrealm/zrealm_crossrealm3.gno:15:5: cannot hold a value of gno.land/r/tests/vm.TestRealmObject outside its realm (use a pointer)

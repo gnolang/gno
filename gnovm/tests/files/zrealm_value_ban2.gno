@@ -19,11 +19,8 @@ func main(cur realm) {
 	defer valueban.One()
 }
 
-// Output:
-// 3 5 7 true
-// 2 2
-// 0
-// 1
+// Error:
+// cannot allocate gno.land/r/tests/vm/valueban.Coupon in realm gno.land/r/valueban2
 
 // TypeCheckError:
 // gno.land/r/valueban2/zrealm_value_ban2.gno:8:5: cannot hold a value of gno.land/r/tests/vm/valueban.Coupon outside its realm (use a pointer); gno.land/r/valueban2/zrealm_value_ban2.gno:11:2: cannot hold a value of gno.land/r/tests/vm/valueban.Coupon outside its realm (use a pointer); gno.land/r/valueban2/zrealm_value_ban2.gno:11:9: cannot hold a value of gno.land/r/tests/vm/valueban.Coupon outside its realm (use a pointer); gno.land/r/valueban2/zrealm_value_ban2.gno:12:10: cannot hold a value of gno.land/r/tests/vm/valueban.Coupon outside its realm (use a pointer); gno.land/r/valueban2/zrealm_value_ban2.gno:13:2: cannot hold a value of gno.land/r/tests/vm/valueban.Coupon outside its realm (use a pointer); gno.land/r/valueban2/zrealm_value_ban2.gno:13:11: cannot hold a value of gno.land/r/tests/vm/valueban.Coupon outside its realm (use a pointer)

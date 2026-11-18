@@ -604,7 +604,7 @@ func (m *Machine) doOpSliceLit2() {
 		ste := st.Elem()
 		for i, etv := range es {
 			if etv.IsUndefined() {
-				es[i] = defaultTypedValue(m.Alloc, ste)
+				es[i] = checkedDefaultTypedValue(m.Alloc, ste)
 			}
 		}
 	}
