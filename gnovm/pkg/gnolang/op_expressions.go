@@ -459,7 +459,6 @@ func (m *Machine) doOpArrayLit() {
 	bt := baseOf(at).(*ArrayType)
 	// construct array value.
 	av := defaultArrayValue(m.Alloc, bt)
-	fvLog("birth", at, m.Alloc, "doOpArrayLit")
 	if 0 < ne {
 		al, ad := av.List, av.Data
 		// al is a Go local until av is pushed below; anchor it so the

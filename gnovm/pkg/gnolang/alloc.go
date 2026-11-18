@@ -44,9 +44,6 @@ type Allocator struct {
 	// viewHoldID is the realm whose values code may hold while view-only
 	// (setViewOnly clears currentRealmID): the realm current on entry.
 	viewHoldID PkgID
-	// fvCtx reports the innermost call frame's package and its caller's;
-	// set by NewMachine only when GNO_FV_LOG is set (see fvlog.go).
-	fvCtx func() (code, caller string)
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
@@ -626,7 +623,7 @@ func (alloc *Allocator) panicForeignAlloc(t Type) {
 
 // foreignHeldType returns t, or the first struct/array type t holds inline
 // (struct field, array element), that a realm other than rid declares; nil if none.
-// Same walk as fvForeign; pointers, slices, maps and interfaces hold nothing inline.
+// Pointers, slices, maps and interfaces hold nothing inline.
 func foreignHeldType(t Type, rid PkgID) Type {
 	var seen map[Type]struct{}
 	return foreignHeldTypeIn(t, rid, &seen)
@@ -718,12 +715,6 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
-	av := alloc.newListArray(t, n)
-	fvLog("birth", t, alloc, "NewListArray")
-	return av
-}
-
-func (alloc *Allocator) newListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedRuntimeError("len out of range")})
 	}
@@ -749,17 +740,10 @@ func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 		List: make([]TypedValue, l, c),
 	}
 	alloc.stampPkgID(&av.ObjectInfo, t)
-	fvLog("birth", t, alloc, "NewListArray2")
 	return av
 }
 
 func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
-	av := alloc.newDataArray(t, n)
-	fvLog("birth", t, alloc, "NewDataArray")
-	return av
-}
-
-func (alloc *Allocator) newDataArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedRuntimeError("len out of range")})
 	}
@@ -837,12 +821,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
-	sv := alloc.newStruct(t, fields)
-	fvLog("birth", t, alloc, "NewStruct")
-	return sv
-}
-
-func (alloc *Allocator) newStruct(t Type, fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
 	sv := &StructValue{
 		Fields: fields,
@@ -860,9 +838,7 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
-	sv := alloc.newStruct(t, tvs)
-	fvLog("birth", t, alloc, "NewStructWithFields")
-	return sv
+	return alloc.NewStruct(t, tvs)
 }
 
 func (alloc *Allocator) NewMap(t Type) *MapValue {

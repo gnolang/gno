@@ -470,18 +470,17 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	*/
 	var cp *ArrayValue
 	if av.Data == nil {
-		cp = alloc.newListArray(t, len(av.List))
+		cp = alloc.NewListArray(t, len(av.List))
 		for i, tv := range av.List {
 			cp.List[i] = tv.Copy(alloc)
 		}
 	} else {
-		cp = alloc.newDataArray(t, len(av.Data))
+		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
 	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
 		cp.ObjectInfo.SetPkgID(pid)
 	}
-	fvLog("copy", t, alloc, "")
 	return cp
 }
 
@@ -624,11 +623,10 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 	for i, field := range sv.Fields {
 		fields[i] = field.Copy(alloc)
 	}
-	cp := alloc.newStruct(t, fields)
+	cp := alloc.NewStruct(t, fields)
 	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
 		cp.ObjectInfo.SetPkgID(pid)
 	}
-	fvLog("copy", t, alloc, "")
 	return cp
 }
 
@@ -3296,7 +3294,7 @@ func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue)
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
-	return alloc.newStruct(
+	return alloc.NewStruct(
 		st,
 		defaultStructFields(alloc, st),
 	)
@@ -3304,9 +3302,9 @@ func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 
 func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 	if at.Elt.Kind() == Uint8Kind {
-		return alloc.newDataArray(at, at.Len)
+		return alloc.NewDataArray(at, at.Len)
 	}
-	av := alloc.newListArray(at, at.Len)
+	av := alloc.NewListArray(at, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		// av is a Go local until the caller roots it, so anchor its list
@@ -3329,18 +3327,14 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	case *InterfaceType:
 		return TypedValue{}
 	case *ArrayType:
-		av := defaultArrayValue(alloc, ct)
-		fvLog("birth", t, alloc, "defaultTypedValue") // t keeps the declared name
 		return TypedValue{
 			T: t,
-			V: av,
+			V: defaultArrayValue(alloc, ct),
 		}
 	case *StructType:
-		sv := defaultStructValue(alloc, ct)
-		fvLog("birth", t, alloc, "defaultTypedValue")
 		return TypedValue{
 			T: t,
-			V: sv,
+			V: defaultStructValue(alloc, ct),
 		}
 	case *SliceType:
 		return TypedValue{
