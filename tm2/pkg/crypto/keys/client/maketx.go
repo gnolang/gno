@@ -346,7 +346,7 @@ func ExecSignAndBroadcast(
 
 	// Only local keys are encrypted; a Ledger key signs on the device.
 	var pass string
-	if info.GetType() != keys.TypeLedger {
+	if info.GetType() == keys.TypeLocal {
 		prompt := "Enter password."
 		if baseopts.Quiet {
 			prompt = ""

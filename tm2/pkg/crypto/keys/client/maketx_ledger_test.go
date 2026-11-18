@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/internal/ledger"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -34,6 +35,8 @@ func TestExecSignAndBroadcastPassword(t *testing.T) {
 	mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
 	require.NoError(t, err)
 	_, err = kb.CreateAccount("local-key", mnemonic, "", "password", 0, 0)
+	require.NoError(t, err)
+	_, err = kb.CreateOffline("offline-key", secp256k1.GenPrivKey().PubKey())
 	require.NoError(t, err)
 
 	run := func(key string) (error, string) {
@@ -68,6 +71,12 @@ func TestExecSignAndBroadcastPassword(t *testing.T) {
 	err, errOut = run("local-key")
 	assert.ErrorIs(t, err, errPasswordRead)
 	assert.Contains(t, errOut, "Enter password.")
+
+	// An offline key cannot sign, so it is not asked for a password either.
+	err, errOut = run("offline-key")
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, errPasswordRead)
+	assert.NotContains(t, errOut, "Enter password.")
 
 	// An unknown key fails before any prompt.
 	err, errOut = run("missing-key")
