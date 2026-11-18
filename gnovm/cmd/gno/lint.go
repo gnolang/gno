@@ -291,6 +291,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				return
 			}
 
+			// other realms cannot hold this realm's struct values (warning)
+			lintRealmValueAPI(io, tcPkg, tcFset)
+
 			// ensure the 'Render' function is correct
 			err = lintRenderSignature(io, tcPkg, tcFset)
 			if err != nil {
@@ -509,5 +512,91 @@ func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet
 		return err
 	}
 
+	return nil
+}
+
+// lintRealmValueAPI reports exported functions, methods and variables of a
+// realm that pass the realm's own struct or array types by value: no other
+// realm may hold such a value, so callers can only read fields of it.
+func lintRealmValueAPI(io commands.IO, pkg *types.Package, fset *token.FileSet) {
+	if pkg == nil || !gno.IsRealmPath(pkg.Path()) {
+		return
+	}
+	report := func(obj types.Object, what string, t types.Type) {
+		location := pkg.Path()
+		if fset != nil && obj.Pos().IsValid() {
+			pos := fset.Position(obj.Pos())
+			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
+		}
+		fmt.Fprintln(io.Err(), gnoIssue{
+			Code:       gnoLintWarning,
+			Msg:        fmt.Sprintf("exported %s %s passes %s by value; other realms cannot hold it (use a pointer)", what, obj.Name(), t),
+			Confidence: 1,
+			Location:   location,
+		})
+	}
+	checkSig := func(obj types.Object, sig *types.Signature, what string) {
+		for _, tup := range []*types.Tuple{sig.Params(), sig.Results()} {
+			for i := 0; i < tup.Len(); i++ {
+				if t := ownRealmValue(tup.At(i).Type(), pkg); t != nil {
+					report(obj, what, t)
+					return
+				}
+			}
+		}
+	}
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
+		if !obj.Exported() {
+			continue
+		}
+		switch o := obj.(type) {
+		case *types.Func:
+			checkSig(o, o.Type().(*types.Signature), "function")
+		case *types.Var:
+			if t := ownRealmValue(o.Type(), pkg); t != nil {
+				report(o, "variable", t)
+			}
+		case *types.TypeName:
+			if named, ok := o.Type().(*types.Named); ok {
+				for i := 0; i < named.NumMethods(); i++ {
+					if m := named.Method(i); m.Exported() {
+						checkSig(m, m.Type().(*types.Signature), "method")
+					}
+				}
+			}
+		}
+	}
+}
+
+// ownRealmValue returns a struct/array type declared in pkg that t holds by value.
+func ownRealmValue(t types.Type, pkg *types.Package) types.Type {
+	switch u := t.(type) {
+	case *types.Named:
+		if u.Obj().Pkg() == pkg {
+			switch u.Underlying().(type) {
+			case *types.Struct, *types.Array:
+				return u
+			}
+		}
+	case *types.Array:
+		return ownRealmValue(u.Elem(), pkg)
+	case *types.Slice:
+		return ownRealmValue(u.Elem(), pkg)
+	case *types.Map:
+		if k := ownRealmValue(u.Key(), pkg); k != nil {
+			return k
+		}
+		return ownRealmValue(u.Elem(), pkg)
+	case *types.Chan:
+		return ownRealmValue(u.Elem(), pkg)
+	case *types.Struct:
+		for i := 0; i < u.NumFields(); i++ {
+			if ft := ownRealmValue(u.Field(i).Type(), pkg); ft != nil {
+				return ft
+			}
+		}
+	}
 	return nil
 }

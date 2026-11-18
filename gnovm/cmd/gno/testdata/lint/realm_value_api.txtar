@@ -1,0 +1,27 @@
+# gno lint warns (without failing) on exported realm APIs that pass the
+# realm's own struct by value: other realms cannot hold such a value.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- box.gno --
+package box
+
+type Box struct{ N int }
+
+var b = &Box{}
+
+func Get() Box       { return *b }
+func GetPtr() *Box   { return b }
+func Put(cur realm, x Box) { *b = x }
+
+-- gnomod.toml --
+module = "gno.land/r/demo/box"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+box.gno:7: exported function Get passes gno.land/r/demo/box.Box by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
+box.gno:9: exported function Put passes gno.land/r/demo/box.Box by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
