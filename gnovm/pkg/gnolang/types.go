@@ -577,8 +577,8 @@ type ArrayType struct {
 	typeid TypeID
 
 	// heldRealms caches what Elt holds inline, one entry per realm, in walk
-	// order (see heldRealmsOf). nil: not computed; non-nil: final. Not
-	// serialized; types are immutable after preprocess.
+	// order (see heldRealmsOf). nil: not computed; non-nil, possibly empty:
+	// final. Not serialized; types are immutable after preprocess.
 	heldRealms []heldRealm
 }
 
@@ -787,8 +787,8 @@ type StructType struct {
 	comparable uint8
 
 	// heldRealms caches the realm struct/array types this struct holds
-	// inline, in walk order (see heldRealmsOf). nil: not computed; non-nil:
-	// final. Not serialized; types are immutable after preprocess.
+	// inline, in walk order (see heldRealmsOf). nil: not computed; non-nil,
+	// possibly empty: final. Not serialized; types are immutable post-preprocess.
 	heldRealms []heldRealm
 }
 
@@ -1538,7 +1538,8 @@ type DeclaredType struct {
 
 	// heldRealms caches the realm struct/array types this declared type
 	// holds inline, own realm first (see heldRealmsOf). nil: not computed;
-	// non-nil: final. Not serialized; types are immutable after preprocess.
+	// non-nil, possibly empty: final. Not serialized; types are immutable
+	// after preprocess.
 	heldRealms []heldRealm
 }
 

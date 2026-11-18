@@ -544,11 +544,21 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 	if t == nil || alloc == nil {
 		return
 	}
-	pid := getDeclaredPkgID(t)
+	pid := constructionRealmID(t)
 	if pid.IsRealmPkg() && pid != alloc.currentRealmID {
 		alloc.panicForeignAlloc(t)
 	}
 	alloc.checkBirth(t)
+}
+
+// constructionRealmID returns the realm that owns a newly built value of t,
+// or zero. An unnamed all-exported struct belongs to no realm — it is the
+// same type everywhere — so only its fields can carry one (see checkBirth).
+func constructionRealmID(t Type) PkgID {
+	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
+		return PkgID{}
+	}
+	return getDeclaredPkgID(t)
 }
 
 // checkBirth panics if a zero value of t, built here, would hold inline a
@@ -636,6 +646,9 @@ func firstForeignHeld(t Type, rid PkgID) Type {
 // heldRealmsOf returns, in walk order and one entry per realm, the realm-
 // declared struct/array types t holds by value. Cached on t like typeid;
 // types are immutable after preprocess, so the list is derived at most once.
+// A computed empty answer is cached too (non-nil empty slice): otherwise a
+// type holding no realm would be walked again on every check, and a struct
+// holding the same such type twice makes that walk exponential.
 func heldRealmsOf(t Type) []heldRealm {
 	switch tt := t.(type) {
 	case *DeclaredType:
@@ -657,24 +670,24 @@ func heldRealmsOf(t Type) []heldRealm {
 	return nil
 }
 
+// Returns a non-nil slice in every case, so the result is always cacheable.
+// Children are resolved through the cache, so each type is visited once.
 func computeHeldRealms(t Type) []heldRealm {
 	switch tt := t.(type) {
 	case *DeclaredType:
 		switch tt.Base.(type) {
 		case *StructType, *ArrayType:
 		default:
-			return nil
+			return []heldRealm{}
 		}
-		var out []heldRealm
+		out := []heldRealm{}
 		if pid := tt.GetPkgID(); pid.IsRealmPkg() {
 			out = append(out, heldRealm{pid, tt})
 		}
 		return mergeHeldRealms(out, heldRealmsOf(tt.Base))
 	case *StructType:
-		var out []heldRealm
-		// An unnamed struct belongs to a realm only through unexported
-		// fields; all-exported ones are the same type everywhere (same TypeID).
-		if FieldTypeList(tt.Fields).HasUnexported() {
+		out := []heldRealm{}
+		if realmOwnsStruct(tt) {
 			if pid := tt.GetPkgID(); pid.IsRealmPkg() {
 				out = append(out, heldRealm{pid, tt})
 			}
@@ -685,11 +698,18 @@ func computeHeldRealms(t Type) []heldRealm {
 		return out
 	case *ArrayType:
 		if tt.Len == 0 {
-			return nil
+			return []heldRealm{}
 		}
-		return heldRealmsOf(tt.Elt)
+		return mergeHeldRealms([]heldRealm{}, heldRealmsOf(tt.Elt))
 	}
-	return nil
+	return []heldRealm{}
+}
+
+// realmOwnsStruct reports whether an unnamed struct is a value a realm owns:
+// only unexported fields tie it to its package; an all-exported one is the
+// same type everywhere (same TypeID) and holds no realm of its own.
+func realmOwnsStruct(st *StructType) bool {
+	return FieldTypeList(st.Fields).HasUnexported()
 }
 
 // mergeHeldRealms appends src entries whose realm is not already in dst,

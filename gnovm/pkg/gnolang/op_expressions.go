@@ -864,10 +864,15 @@ func (m *Machine) doOpConvert() {
 	// converting realm cannot forge values of types it doesn't
 	// declare, otherwise it could fabricate "trusted" objects to
 	// hand back to the declaring realm.
-	if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+	//
+	// Judged by the same effective realm the copy rule uses: the current
+	// one, or in a view-only frame the realm current on entry (m.Realm is
+	// nil there). With no realm at all there is nothing to forge.
+	if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() {
+		rid, held := m.Alloc.holdRealm()
 		// A nil pointer points at nothing, so it forges nothing.
 		isNilPtr := t.Kind() == PointerKind && xv.V == nil
-		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
+		if held && IsRealmPath(tdt.PkgPath) && tdt.GetPkgID() != rid && !isNilPtr {
 			panic("illegal conversion to external realm type")
 		}
 	}
