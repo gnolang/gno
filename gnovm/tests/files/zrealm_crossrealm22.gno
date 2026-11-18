@@ -387,7 +387,7 @@ func main(cur realm) {
 //              }
 //          }
 // finalizerealm["gno.land/r/tests/vm/crossrealm"]
-// c[06279d1e03ecb38b84822f9caf584bd16913470d:21](382)={
+// c[07e973c6aeab1f1cb747d0903cb1e4d369226376:47](382)={
 //     "Crossing": false,
 //     "FileName": "",
 //     "IsClosure": true,
@@ -396,7 +396,7 @@ func main(cur realm) {
 //     "NativeName": "",
 //     "NativePkg": "",
 //     "ObjectInfo": {
-//         "ID": "06279d1e03ecb38b84822f9caf584bd16913470d:21",
+//         "ID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:47",
 //         "LastObjectSize": "382",
 //         "ModTime": "0",
 //         "OwnerID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:14",
@@ -446,8 +446,8 @@ func main(cur realm) {
 //              "V": {
 //                  "@type": "/gno.RefValue",
 //     -            "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:7"
-//     +            "Hash": "8923871f43d4b739696da33febd2879bb80b2a64",
-//     +            "ObjectID": "06279d1e03ecb38b84822f9caf584bd16913470d:21"
+//     +            "Hash": "8804fe6f2e77f4bd8809eed2440b1211f51b03ef",
+//     +            "ObjectID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:47"
 //              }
 //          }
 //      }
@@ -462,12 +462,21 @@ func main(cur realm) {
 //          "Parent": null,
 //          "PkgPath": "gno.land/r/tests/vm/crossrealm_b",
 // u[07e973c6aeab1f1cb747d0903cb1e4d369226376:2](0)=
+//     @@ -4,7 +4,7 @@
+//              "ID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:2",
+//              "IsEscaped": true,
+//              "LastObjectSize": "8458",
+//     -        "ModTime": "46",
+//     +        "ModTime": "47",
+//              "RefCount": "3"
+//          },
+//          "Parent": null,
 //     @@ -276,7 +276,7 @@
 //                  },
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "f304224c3678ae566effa9f679429b3552eabcff",
-//     +                "Hash": "6fae6df74195176c83c27a52af860c12ab578149",
+//     +                "Hash": "88d628f718a96e8665d976ba3a2fe272033337a2",
 //                      "ObjectID": "07e973c6aeab1f1cb747d0903cb1e4d369226376:14"
 //                  }
 //              },

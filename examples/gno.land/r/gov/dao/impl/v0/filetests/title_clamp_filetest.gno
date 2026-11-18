@@ -26,7 +26,7 @@ func init(cur realm) {
 	memberstore.DeleteAll(cross(cur))
 	memberstore.SetTier(cross(cur), memberstore.T1)
 	memberstore.SetMember(cross(cur), memberstore.T1, user, memberstore.NewMember(3))
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), nil))
 }
 
 func main(cur realm) {

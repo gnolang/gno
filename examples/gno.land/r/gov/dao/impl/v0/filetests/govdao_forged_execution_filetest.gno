@@ -11,7 +11,7 @@ import (
 )
 
 func main(cur realm) {
-	g := impl.NewGovDAO()
+	g := impl.NewGovDAO(cross(cur))
 	cb := func(cur realm) error {
 		println("callback ran as:", cur.Previous().PkgPath())
 		return nil

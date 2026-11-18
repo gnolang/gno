@@ -2273,6 +2273,7 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// binding; the receiver carries its own PkgID independently.
 		// Pass nil to stamp with currentRealmID.
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		alloc.unbindReadOnly(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2313,6 +2314,7 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// Bound method wrapper belongs to the realm doing the binding.
 		// Pass nil to stamp with currentRealmID.
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		alloc.unbindReadOnly(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2352,6 +2354,7 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 			MethodPkg: callerPath,
 		}
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		alloc.unbindReadOnly(&bmv.ObjectInfo)
 		return PointerValue{
 			TV: &TypedValue{
 				T: ift.(*FuncType),

@@ -663,6 +663,14 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 	oi.SetPkgID(alloc.currentRealmID)
 }
 
+// unbindReadOnly gives a method value bound in a read-only stretch no binder,
+// like a closure made there: it must not act for the realm it was bound in.
+func (alloc *Allocator) unbindReadOnly(oi *ObjectInfo) {
+	if alloc != nil && alloc.scratch != 0 {
+		oi.SetPkgID(PkgID{})
+	}
+}
+
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)

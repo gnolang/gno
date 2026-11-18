@@ -2742,6 +2742,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
+					if ftype != TRANS_CALL_FUNC && isFuncDeclAt(pn, n.Path.Index) {
+						ft, _ := tt.(*FuncType)
+						checkForeignFuncValue(ctxpn, pv.PkgPath, n.Sel, ft != nil && ft.IsCrossing())
+					}
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
@@ -2772,6 +2776,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							dt.PkgPath, n.Sel, ctxpn.PkgPath))
 					}
 					n.Path = dt.GetUnboundPathForName(n.Sel)
+					if ftype != TRANS_CALL_FUNC {
+						if i, ok := dt.lookupMethod(n.Sel); ok {
+							fv := dt.Methods[i].V.(*FuncValue)
+							checkForeignFuncValue(ctxpn, dt.PkgPath, Name(string(dt.Name)+"."+string(n.Sel)), fv.IsCrossing())
+						}
+					}
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %v",
@@ -6677,6 +6687,20 @@ func libVar(store Store, last BlockNode, x Expr) bool {
 		return libVar(store, last, x.X)
 	}
 	return false
+}
+
+// checkForeignFuncValue refuses, in /r/ or /e/ code, another realm's
+// non-crossing declared function or method expression used other than as the
+// callee: as a value it would carry no authority it could use (D19). Stored
+// source re-preprocessed at node start is exempt: it must not stop the node.
+func checkForeignFuncValue(ctxpn *PackageNode, declPath string, name Name, crossing bool) {
+	ctxPath := ctxpn.PkgPath
+	if crossing || ctxPath == declPath || ctxpn.GetAttribute(ATTR_STORED_SOURCE) == true || !IsRealmPath(declPath) ||
+		!(IsRealmPath(ctxPath) || IsEphemeralPath(ctxPath)) {
+		return
+	}
+	panic(fmt.Sprintf("cannot use non-crossing function %s.%s of another realm as a value (call it, or wrap it in a closure)",
+		declPath, name))
 }
 
 // isNamedAt reports whether index in bn is a declared function or a /p/ or

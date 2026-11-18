@@ -17,7 +17,11 @@ type GovDAO struct {
 	render *render
 }
 
-func NewGovDAO() *GovDAO {
+// NewGovDAO is crossing: the render handlers it builds are closures that
+// impl's gates run later, and only a closure built in a gate acts for impl.
+func NewGovDAO(cur realm) *GovDAO { return newGovDAO() }
+
+func newGovDAO() *GovDAO {
 	pss := NewProposalsStatuses()
 	d := &GovDAO{
 		pss: pss,

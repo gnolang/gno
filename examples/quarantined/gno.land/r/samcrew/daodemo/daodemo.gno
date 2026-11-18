@@ -48,7 +48,9 @@ func init(cur realm) {
 		Description:      "This is a demo DAO built with [DAOKIT](/p/samcrew/daokit)",
 		Members:          memberStore,
 		InitialCondition: adminCond,
-		GetProfileString: profile.GetStringField,
+		GetProfileString: func(addr address, field, def string) string {
+			return profile.GetStringField(addr, field, def) // another realm's: wrap, not pass
+		},
 		SetProfileString: profile.SetStringField,
 	}, cur)
 }

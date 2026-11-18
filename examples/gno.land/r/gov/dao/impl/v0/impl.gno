@@ -6,7 +6,7 @@ import (
 
 var (
 	law    *Law
-	govDAO *GovDAO = NewGovDAO()
+	govDAO *GovDAO = newGovDAO()
 )
 
 func init() {

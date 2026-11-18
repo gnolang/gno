@@ -1,0 +1,58 @@
+# A library method value a run script binds through an interface (bound lazily:
+# the method is found only at the call) is refused at save like any other.
+
+loadpkg gno.land/p/demo/zilib $WORK/zilib
+loadpkg gno.land/r/demo/zivictim $WORK/zivictim
+
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/iface.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/demo/zivictim'
+! gnokey maketx call -pkgpath gno.land/r/demo/zivictim -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/demo/zivictim.Read()'
+stdout 'orig'
+
+-- zilib/gnomod.toml --
+module = "gno.land/p/demo/zilib"
+gno = "0.9"
+
+-- zilib/zilib.gno --
+package zilib
+
+type Obj struct{ Field string }
+
+type Setter interface{ Set(o *Obj) }
+
+type Box struct{}
+
+func (b *Box) Set(o *Obj) { o.Field = "pwnd-iface" }
+
+-- zivictim/gnomod.toml --
+module = "gno.land/r/demo/zivictim"
+gno = "0.9"
+
+-- zivictim/zivictim.gno --
+package zivictim
+
+import "gno.land/p/demo/zilib"
+
+var obj = &zilib.Obj{Field: "orig"}
+
+var hook func(*zilib.Obj)
+
+func SetHook(cur realm, f func(*zilib.Obj)) { hook = f }
+func RunHook(cur realm)                     { hook(obj) }
+func Read() string                          { return obj.Field }
+
+-- script/iface.gno --
+package main
+
+import (
+	"gno.land/p/demo/zilib"
+	"gno.land/r/demo/zivictim"
+)
+
+func main(cur realm) {
+	var s zilib.Setter = &zilib.Box{}
+	zivictim.SetHook(cross(cur), s.Set)
+}

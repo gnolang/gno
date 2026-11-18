@@ -16,4 +16,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): Owner<~VPBlock(3,0)>
+// gno.land/r/cbatk/zrealm_ctw_boundsetter.gno:14:41-58: cannot use non-crossing function gno.land/r/tests/vm/cbvictim.SetOwner of another realm as a value (call it, or wrap it in a closure)

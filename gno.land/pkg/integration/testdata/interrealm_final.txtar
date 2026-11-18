@@ -151,7 +151,7 @@ func CASE_rA1(cur realm) {
 	// CASE rA1: function declared at package level -- do not storage-cross
 	//   - in bob.Do:                           (storage:[], current:caller, previous:nil)
 	//   - in alice.TopFunc:                    (storage:[], current:caller, previous:nil)
-	bob.Do(alice.TopFunc)                       // FAIL: caller != bob
+	bob.Do(func() { alice.TopFunc() })                       // FAIL: caller != bob
 }
 
 func CASE_rA2(cur realm) {
@@ -252,7 +252,7 @@ func CASE_pA1(cur realm) {
 	// CASE pA1: function declared at package level -- do not storage-cross
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in peter.TopFunc:                    (storage:[], current:caller, previous:nil)
-	bob.Do2(peter.TopFunc, bob.PrivateFunc)     // FAIL: caller != bob
+	bob.Do2(peter.TopFunc, func() { bob.PrivateFunc() })     // FAIL: caller != bob
 }
 
 func CASE_pA2(cur realm) {
@@ -260,7 +260,7 @@ func CASE_pA2(cur realm) {
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in peter.TopFuncFnNoncrossing:       (storage:[], current:caller, previous:nil)
 	//   - in peter.TopFuncFnNoncrossing.inner: (storage:[], current:caller, previous:nil)
-	bob.Do2(peter.TopFuncFnNoncrossing(), bob.PrivateFunc) // FAIL: caller != bob
+	bob.Do2(peter.TopFuncFnNoncrossing(), func() { bob.PrivateFunc() }) // FAIL: caller != bob
 }
 
 /* illegal so omitted
@@ -281,14 +281,14 @@ func CASE_pB2(cur realm){
 	// CASE pB2: method has nil receiver (external) -- do not storage-cross
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-	bob.Do2((*peter.Object)(nil).Method, bob.PrivateFunc) // FAIL: caller != bob
+	bob.Do2((*peter.Object)(nil).Method, func() { bob.PrivateFunc() }) // FAIL: caller != bob
 }
 
 func CASE_pB3(cur realm){
 	// CASE pB3: method has unreal receiver (inline) -- do not storage-cross
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
-	bob.Do2(new(peter.Object).Method, bob.PrivateFunc) // FAIL: caller != bob
+	bob.Do2(new(peter.Object).Method, func() { bob.PrivateFunc() }) // FAIL: caller != bob
 }
 
 func CASE_pB4(cur realm){
@@ -296,7 +296,7 @@ func CASE_pB4(cur realm){
 	//   - in bob.Do2:                          (storage:[], current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[], current:caller, previous:nil)
 	obj := new(peter.Object)
-	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: caller != bob
+	bob.Do2(obj.Method, func() { bob.PrivateFunc() })        // FAIL: caller != bob
 }
 
 func CASE_pC1(cur realm) {
@@ -305,7 +305,7 @@ func CASE_pC1(cur realm) {
 	//  - in obj.Method:                        (storage:[bob], current:caller, previous:nil)
 	obj := new(peter.Object)
 	bob.SetObject(cross(cur), obj)                   // obj persisted in bob
-	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: bob entered without crossing
+	bob.Do2(obj.Method, func() { bob.PrivateFunc() })        // FAIL: bob entered without crossing
 }
 
 func CASE_pC2(cur realm) {
@@ -314,7 +314,7 @@ func CASE_pC2(cur realm) {
 	//  - in obj.Method:                        (storage:[alice], current:caller, previous:nil)
 	obj := new(peter.Object)
 	alice.SetObject(cross(cur), obj)                 // obj persisted in alice
-	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: resides in alice (needs bob)
+	bob.Do2(obj.Method, func() { bob.PrivateFunc() })        // FAIL: resides in alice (needs bob)
 }
 
 func CASE_pC3(cur realm) {
@@ -326,7 +326,7 @@ func CASE_pC3(cur realm) {
 	bob.SetClosure(cross(cur), cls)                  // obj persisted in bob via cls
 	//   - in bob.Do2:                          (storage:[],    current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[bob], current:caller, previous:nil)
-	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: bob entered without crossing
+	bob.Do2(obj.Method, func() { bob.PrivateFunc() })        // FAIL: bob entered without crossing
 }
 
 func CASE_pC4(cur realm) {
@@ -338,7 +338,7 @@ func CASE_pC4(cur realm) {
 	alice.SetClosure(cross(cur), cls)                // obj persisted in alice via cls
 	//   - in bob.Do2:                          (storage:[],      current:caller, previous:nil)
 	//   - in obj.Method:                       (storage:[alice], current:caller, previous:nil)
-	bob.Do2(obj.Method, bob.PrivateFunc)        // FAIL: alice != bob
+	bob.Do2(obj.Method, func() { bob.PrivateFunc() })        // FAIL: alice != bob
 }
 
 -- callerrealm_rd1/gnomod.toml --

@@ -382,6 +382,8 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
+		// Source rules judge submitted source only; this one is already stored.
+		pn.SetAttribute(ATTR_STORED_SOURCE, true)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
@@ -389,6 +391,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
+		pn.DelAttribute(ATTR_STORED_SOURCE)
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot
 		// run files upon restart (only preprocess them).
@@ -2760,8 +2763,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		switch {
 		case m.Realm == nil && !m.viewOnly:
 			m.setRealm(r) // no realm context (genesis, tooling)
-		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code
+		case m.Realm != nil && m.Realm.Path == pv.PkgPath && !m.unmadeValue(cx, fv, recv, bindPID):
+			// the realm's own code, named or a value this realm made
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
 		default:
@@ -2829,6 +2832,22 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			m.setRealm(r)
 		}
 	}
+}
+
+// unmadeValue reports whether the current realm's code arrived as a value it
+// did not make: a closure with another (or no) maker, or a method value bound
+// elsewhere. Another realm's declared function as a value is a preprocess error.
+func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID) bool {
+	if fv.IsClosure {
+		return fv.GetObjectInfo().ID.PkgID != m.Realm.ID
+	}
+	if recv.IsDefined() {
+		if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
+			return false // x.M(...) names the method
+		}
+		return bindPID != m.Realm.ID
+	}
+	return false
 }
 
 // foreignLib reports whether fv is a /p/ function outside the current realm's

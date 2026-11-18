@@ -69,7 +69,7 @@ func main(cur realm) {
 	// ---- 2. Lock down memberstore access ----
 	// gno.land/r/gov/dao/impl/v0 is the production member-mutation realm;
 	// after this call it is the only realm allowed to mutate membership.
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 
 func must(err error) {

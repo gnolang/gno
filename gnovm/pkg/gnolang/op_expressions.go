@@ -790,6 +790,9 @@ func (m *Machine) doOpFuncLit() {
 	// (currentRealmID), not their lexical PkgPath. FuncType has no
 	// declaring-realm semantics on its own — pass nil.
 	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
+	if m.viewOnly {
+		fv.SetPkgID(PkgID{}) // made read-only or view-only: no maker
+	}
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
