@@ -2059,7 +2059,7 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	return oo.GetObjectID()
 }
 
-// refuseFuncKeep aborts when a realm would adopt a closure or method value with
+// refuseFuncKeep aborts when a realm would adopt a function value with
 // no maker or a run script's: adopted, one whose code is the realm's own or a
 // library's would act for the realm (D19).
 func (rlm *Realm) refuseFuncKeep(oo Object) {
@@ -2069,9 +2069,6 @@ func (rlm *Realm) refuseFuncKeep(oo Object) {
 	var code string
 	switch fv := oo.(type) {
 	case *FuncValue:
-		if !fv.IsClosure {
-			return
-		}
 		code = fv.PkgPath
 	case *BoundMethodValue:
 		if fv.Func != nil {

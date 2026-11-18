@@ -162,6 +162,10 @@ func (x StarExpr) String() string {
 	return fmt.Sprintf("*(%s)", x.X)
 }
 
+func (x FuncHandleExpr) String() string {
+	return x.X.String()
+}
+
 func (x RefExpr) String() string {
 	return fmt.Sprintf("&(%s)", x.X)
 }

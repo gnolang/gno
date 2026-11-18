@@ -246,6 +246,11 @@ func (m *Machine) doOpEval() {
 		// evaluate type
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)
+	case *FuncHandleExpr:
+		m.PopExpr()
+		m.PushOp(OpFuncHandle)
+		m.PushExpr(x.X)
+		m.PushOp(OpEval)
 	case *FuncLitExpr:
 		m.PushOp(OpFuncLit)
 		// evaluate func type

@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"fmt"
 	"io"
 	"testing"
 
@@ -11,8 +10,6 @@ import (
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/require"
 )
-
-const foreignFuncMsg = "cannot use non-crossing function gno.land/r/demo/ffa.Set of another realm as a value"
 
 func foreignFuncPkgs() (a, b *std.MemPackage) {
 	a = &std.MemPackage{
@@ -47,7 +44,8 @@ func TestPreprocessForeignFuncAtBoot(t *testing.T) {
 	require.NotPanics(t, m2.PreprocessAllFilesAndSaveBlockNodes)
 }
 
-// Submitted source is still judged.
+// Submitted source takes another realm's function as a value: it runs
+// read-only for that realm when called, so preprocessing accepts it.
 func TestPreprocessForeignFuncSubmitted(t *testing.T) {
 	st := foreignFuncStore()
 	a, b := foreignFuncPkgs()
@@ -57,10 +55,5 @@ func TestPreprocessForeignFuncSubmitted(t *testing.T) {
 
 	m2 := NewMachineWithOptions(MachineOptions{PkgPath: b.Path, Store: st, Output: io.Discard})
 	defer m2.Release()
-	defer func() {
-		r := recover()
-		require.NotNil(t, r)
-		require.Contains(t, fmt.Sprint(r), foreignFuncMsg)
-	}()
-	m2.RunMemPackage(b, true)
+	require.NotPanics(t, func() { m2.RunMemPackage(b, true) })
 }
