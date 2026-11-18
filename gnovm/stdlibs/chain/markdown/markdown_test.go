@@ -379,6 +379,43 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 	}
 }
 
+// TestLRDTitleInterruptWalkedOnce checks that a long line ending an LRD
+// title is walked once, however many failed LRD candidates stop on it.
+func TestLRDTitleInterruptWalkedOnce(t *testing.T) {
+	defer func() { isBlockInterruptFn = isBlockInterrupt }()
+	walked := 0
+	isBlockInterruptFn = func(s string, lineStart int) bool {
+		if !isBlockInterrupt(s, lineStart) {
+			return false
+		}
+		walked += strings.IndexByte(s[lineStart:], '\n')
+		return true
+	}
+	const n = 1 << 14
+	for name, tail := range map[string]string{
+		"thematic-break":      strings.Repeat("-", n),
+		"tilde-fence":         strings.Repeat("~", n),
+		"backtick-fence-info": "```" + strings.Repeat("a", n),
+	} {
+		in := strings.Repeat("[a]: u\n(x\n", 64) + tail + "\n"
+		walked = 0
+		EscapeBlockHazards(in)
+		if walked == 0 || walked > len(in) {
+			t.Errorf("%s: walked %d bytes of interrupt lines in a %d-byte input", name, walked, len(in))
+		}
+	}
+}
+
+// TestLRDTitleAfterRepeatedInterrupt checks that a title starting after
+// a line two candidates stopped on still runs on to its closing `)`.
+func TestLRDTitleAfterRepeatedInterrupt(t *testing.T) {
+	in := "[a]: u\n(x\n[b]: v\n(y\n---\n[c]: w\n(z\nq)\n"
+	want := "(x\n(y\n\\---\n"
+	if got := EscapeBlockHazards(in); got != want {
+		t.Errorf("EscapeBlockHazards(%q) = %q, want %q", in, got, want)
+	}
+}
+
 // BenchmarkEscapeBlockHazardsPathological exercises bracket-walker
 // inputs that maximize backtrack work in pass 1: repeated well-formed
 // links (linear path), repeated unclosed-link prefixes terminated by a

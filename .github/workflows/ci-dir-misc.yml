@@ -38,6 +38,7 @@ jobs:
           - audit-pattern-harness
           - autocounterd
           - genstd
+          - gnopreview
           - goscan
           - loop
     name: ${{ matrix.program }}
