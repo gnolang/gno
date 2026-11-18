@@ -1,6 +1,8 @@
 package params
 
 import (
+	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -87,4 +89,80 @@ func TestMustParamStrings(t *testing.T) {
 			func() { MustParamStrings("tags", "not a slice") },
 		)
 	})
+}
+
+type fieldNamesParams struct {
+	Num   int64        `json:"num"`
+	Price std.GasPrice `json:"price"`
+	Names []string     `json:"names"`
+	Plain int64
+}
+
+func TestFieldNames(t *testing.T) {
+	rt := reflect.TypeFor[fieldNamesParams]()
+
+	t.Run("computed once per type", func(t *testing.T) {
+		a, b := fieldNames(rt), fieldNames(rt)
+		require.NotEmpty(t, a)
+		assert.Same(t, &a[0], &b[0], "second call must reuse the cached names")
+	})
+
+	t.Run("rejected type panics every time and is not cached", func(t *testing.T) {
+		rt := reflect.TypeFor[struct{ F func() }]()
+		assert.Panics(t, func() { fieldNames(rt) })
+		assert.Panics(t, func() { fieldNames(rt) })
+		_, cached := fieldNamesCache.Load(rt)
+		assert.False(t, cached)
+	})
+}
+
+func TestSetAndGetStructFieldNames(t *testing.T) {
+	env := setupTestEnv()
+	key := dummyModuleName + ":p"
+	want := fieldNamesParams{
+		Num:   7,
+		Price: std.GasPrice{Gas: 1, Price: std.Coin{Denom: "ugnot", Amount: 1}},
+		Names: []string{"x", "y"},
+		Plain: 3,
+	}
+	env.keeper.SetStruct(env.ctx, key, want)
+
+	for _, name := range []string{"num", "price", "names", "Plain"} {
+		assert.True(t, env.store.Has(nil, storeKey(key+":"+name)), "field %q stored under its JSON name", name)
+	}
+
+	var got fieldNamesParams
+	env.keeper.GetStruct(env.ctx, key, &got)
+	assert.Equal(t, want, got)
+}
+
+// Run with -race: first lookups of a type race to fill the cache.
+func TestFieldNamesConcurrent(t *testing.T) {
+	type concurrentParams struct {
+		A int64  `json:"a"`
+		B string `json:"b"`
+	}
+	rt := reflect.TypeFor[concurrentParams]()
+
+	var wg sync.WaitGroup
+	results := make([][]string, 16)
+	for i := range results {
+		wg.Go(func() { results[i] = fieldNames(rt) })
+	}
+	wg.Wait()
+	for _, names := range results {
+		assert.Equal(t, []string{"a", "b"}, names)
+	}
+}
+
+func BenchmarkGetStruct(b *testing.B) {
+	env := setupTestEnv()
+	prm := fieldNamesParams{Num: 7, Names: []string{"x", "y"}, Plain: 3}
+	env.keeper.SetStruct(env.ctx, dummyModuleName+":p", prm)
+
+	b.ReportAllocs()
+	for b.Loop() {
+		var got fieldNamesParams
+		env.keeper.GetStruct(env.ctx, dummyModuleName+":p", &got)
+	}
 }

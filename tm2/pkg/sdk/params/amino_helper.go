@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -14,14 +15,8 @@ import (
 // Returns list of kvpairs from param struct.
 func encodeStructFields(prm any) (res []std.KVPair) {
 	rvPrm := reflect.ValueOf(prm)
-	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
-	if err != nil {
-		panic(errors.Wrap(err, "Error reflecting on module param struct"))
-	}
-	fields := tinfo.Fields
-	for i, field := range fields {
+	for i, name := range fieldNames(rvPrm.Type()) {
 		rv := rvPrm.Field(i)
-		name := field.JSONName
 		value := amino.MustMarshalJSON(rv.Interface())
 		res = append(res, std.KVPair{Key: []byte(name), Value: value})
 	}
@@ -43,14 +38,8 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 		panic("setStructFields expects module param struct pointer")
 	}
 	rvPrm := reflect.ValueOf(prmPtr).Elem()
-	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
-	if err != nil {
-		panic(errors.Wrap(err, "Error reflecting on module param struct"))
-	}
-	fields := tinfo.Fields
-	for i, field := range fields {
+	for i, name := range fieldNames(rvPrm.Type()) {
 		rv := rvPrm.Field(i)
-		name := field.JSONName
 		kv, ok := findKV(kvz, name)
 		if !ok {
 			continue
@@ -86,13 +75,7 @@ func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, k
 		panic("setStructFields expects module param struct pointer")
 	}
 	rvPrm := reflect.ValueOf(prmPtr).Elem()
-	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
-	if err != nil {
-		panic(errors.Wrap(err, "Error reflecting on module param struct"))
-	}
-	fields := tinfo.Fields
-	for _, field := range fields {
-		name := field.JSONName
+	for _, name := range fieldNames(rvPrm.Type()) {
 		value := store.Get(gctx, []byte(string(key)+":"+name))
 		if value == nil {
 			continue
@@ -100,4 +83,25 @@ func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, k
 		res = append(res, std.KVPair{Key: []byte(name), Value: value})
 	}
 	return res
+}
+
+// fieldNamesCache maps a param struct type to its fields' JSON names.
+var fieldNamesCache sync.Map // reflect.Type -> []string
+
+// fieldNames returns the JSON names of the fields amino encodes for rt, in
+// amino.TypeInfo.Fields order, cached per type. The slice is shared.
+func fieldNames(rt reflect.Type) []string {
+	if names, ok := fieldNamesCache.Load(rt); ok {
+		return names.([]string)
+	}
+	tinfo, err := amino.GetTypeInfo(rt)
+	if err != nil {
+		panic(errors.Wrap(err, "Error reflecting on module param struct"))
+	}
+	names := make([]string, len(tinfo.Fields))
+	for i, field := range tinfo.Fields {
+		names[i] = field.JSONName
+	}
+	cached, _ := fieldNamesCache.LoadOrStore(rt, names)
+	return cached.([]string)
 }
