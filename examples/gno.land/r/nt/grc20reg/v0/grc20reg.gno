@@ -175,7 +175,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 
 	s += "\n"
 	s += ufmt.Sprintf("**Page %d of %d**\n\n", page.PageNumber, page.TotalPages)
-	s += page.Picker(req.Path)
+	s += page.Picker(req.RawPath)
 	res.Write(s)
 }
 

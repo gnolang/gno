@@ -185,6 +185,10 @@ func TestPagination(cur realm, t *testing.T) {
 
 	page2 := Render("?page=2")
 	urequire.True(t, strings.Contains(page2, ufmt.Sprintf("Page 2 of %d", totalPages)))
+
+	// The picker must carry a custom page size across page links.
+	sized := Render("?size=3")
+	urequire.True(t, strings.Contains(sized, "(?page=2&size=3)"), "picker links must keep size")
 }
 
 func TestValidateSlug(cur realm, t *testing.T) {
