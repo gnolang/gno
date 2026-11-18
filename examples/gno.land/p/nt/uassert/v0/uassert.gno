@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/onbloc/diff"
+	"gno.land/p/onbloc/diff/v0"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).

@@ -1,4 +1,4 @@
-loadpkg gno.land/r/gov/dao/v3/init
+loadpkg gno.land/r/gov/dao/init/v0
 loadpkg gno.land/r/gov/dao
 
 gnoland start
@@ -28,12 +28,15 @@ stdout OK!
 
 # Check that proposal was rejected
 gnokey query vm/qeval --data "gno.land/r/gov/dao.Render(\"0\")"
-stdout 'Stats\\n- \*\*PROPOSAL HAS BEEN DENIED\*\*\\nREASON: execution failed: Boom!'
+# The reason is rendered through sanitize.InlineText, so markdown punctuation
+# arrives backslash-escaped ("Boom\!"). A backslash-escaped punctuation mark
+# displays as the bare character, so a reader still sees "Boom!".
+stdout 'Stats\\n- \*\*PROPOSAL HAS BEEN DENIED\*\*\\nREASON: execution failed: Boom\\\\!'
 
 -- run/init_govdao_members.gno --
 package main
 
-import dao "gno.land/r/gov/dao/v3/init"
+import dao "gno.land/r/gov/dao/init/v0"
 
 func main(cur realm) {
 	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 )
 
 // Global variables to store the current number and last update timestamp

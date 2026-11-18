@@ -434,10 +434,6 @@ func EncodeJSONTime(w io.Writer, t time.Time) (err error) {
 	return EncodeJSONTimeValue(w, t.Unix(), int32(t.Nanosecond()))
 }
 
-func EncodeJSONPBTimestamp(w io.Writer, t *timestamppb.Timestamp) (err error) {
-	return EncodeJSONTimeValue(w, t.GetSeconds(), t.GetNanos())
-}
-
 func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 	err = validateDurationValue(s, ns)
 	if err != nil {
@@ -462,10 +458,6 @@ func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 
 func EncodeJSONDuration(w io.Writer, d time.Duration) (err error) {
 	return EncodeJSONDurationValue(w, int64(d)/1e9, int32(int64(d)%1e9))
-}
-
-func EncodeJSONPBDuration(w io.Writer, d *durationpb.Duration) (err error) {
-	return EncodeJSONDurationValue(w, d.GetSeconds(), d.GetNanos())
 }
 
 func DecodeJSONTime(bz []byte, fopts FieldOptions) (t time.Time, err error) {

@@ -29,12 +29,12 @@ networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
-Data structure commonly used instead of the native `map` for
-key-value storage. It is efficient in both gas cost and runtime performance,
-particularly suited for large or growing datasets. Deployed under
-`gno.land/p/nt/avl/v0`.
+Tree-backed key/value data structure commonly used instead of the native `map`
+for large or growing sorted indexes. The package is deployed under
+`gno.land/p/nt/avl/v0`; other tree-backed indexes, such as B+ trees, may fit
+different workloads.
 
-See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
+See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for usage guidance
 and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
@@ -120,12 +120,13 @@ spam.
 See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
-The amount paid per unit of gas, denominated in ugnot. For example,
-"1000000ugnot" means 1 GNOT per unit of gas.
+The whole fee paid for a transaction, one flat amount in ugnot. See
+[Gas Fee](./gas-fees.md#gas-fee).
 
 ### Gas Wanted
-The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit, it fails without changing state.
+The maximum amount of gas a transaction is allowed to consume. A transaction
+that exceeds it fails and its effects are rolled back. See
+[Gas Wanted](./gas-fees.md#gas-wanted).
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.
@@ -146,11 +147,6 @@ A simple web interface that lets you write, test, and experiment with your Gno
 code to improve your understanding of the Gno language. You can share your code,
 run unit tests, deploy your realms and packages, and execute functions.
 Try out [Gno Playground](https://play.gno.land/).
-
-### Gno Studio Connect
-A tool that provides seamless access to realms, making it simple to explore,
-interact, and engage with Gno.land's smart contracts through function calls.
-Try out [Gno Studio Connect](https://gno.studio/connect).
 
 ### Gno Test
 Gno.land's built-in testing framework that enables developers to write and
@@ -207,9 +203,9 @@ which the address is derived) that represents an account on Gno.land.
 A native Gno data structure for storing key-value pairs, identical to Go maps.
 Maps provide O(1) lookup time and type safety, but store all entries in a single
 object which can be inefficient for large datasets. For scalable storage in
-realms, consider using `avl.Tree` instead.
+realms, consider a tree-backed index or purpose-built helper instead.
 See [Data Structures](./gno-data-structures.md) and
-[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
+[Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern).
 
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient

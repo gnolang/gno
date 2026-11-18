@@ -360,6 +360,68 @@ func TestVmHandlerQuery_File(t *testing.T) {
 	}
 }
 
+func TestVmHandlerQuery_OutputLimit(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins("1000000000ugnot"))
+
+	// Render answers the limit plus the length of its path. A 1 MiB function
+	// name makes big.gno, its qfuncs and its qdoc exceed the limit.
+	const pkgPath = "gno.land/r/big"
+	files := []*std.MemFile{
+		{Name: "README.md", Body: strings.Repeat("r", maxQueryOutputBytes)},
+		{Name: "big.gno", Body: `package big
+
+import "strings"
+
+func Render(path string) string {
+	return strings.Repeat("a", ` + fmt.Sprint(maxQueryOutputBytes) + `+len(path))
+}
+
+func F` + strings.Repeat("f", maxQueryOutputBytes) + `() {}
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	msg.MaxDeposit = std.MustParseCoins("1000000000ugnot")
+	require.NoError(t, env.vmk.AddPackage(ctx, msg))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	tt := []struct {
+		path, data string
+		refused    bool
+	}{
+		{"vm/qrender", pkgPath + ":", false},
+		{"vm/qrender", pkgPath + ":over", true},
+		{"vm/qfile", pkgPath + "/README.md", false},
+		{"vm/qfile", pkgPath + "/big.gno", true},
+		{"vm/qfuncs", pkgPath, true},
+		{"vm/qdoc", pkgPath, true},
+		// The value is 1,000,000 bytes and renders as 4,000,011.
+		{"vm/qeval", pkgPath + ".string(make([]byte, 1000000))", true},
+		// The same value answers 6,000,107 bytes of JSON.
+		{"vm/qeval_json", pkgPath + ".string(make([]byte, 1000000))", true},
+	}
+	for _, tc := range tt {
+		t.Run(tc.path+" "+tc.data[len(pkgPath):], func(t *testing.T) {
+			res := env.vmh.Query(env.ctx, abci.RequestQuery{Path: tc.path, Data: []byte(tc.data)})
+			if !tc.refused {
+				require.True(t, res.IsOK(), "should not have error: %v", res.Error)
+				assert.Len(t, res.Data, maxQueryOutputBytes)
+				return
+			}
+			require.False(t, res.IsOK(), "should have an error")
+			assert.ErrorIs(t, res.Error, ExportSizeExceededError{})
+			assert.Contains(t, res.Log, fmt.Sprintf("exceeds %d bytes", maxQueryOutputBytes))
+			assert.Empty(t, res.Data)
+		})
+	}
+}
+
 func TestVmHandlerQuery_EvalJSON(t *testing.T) {
 	tt := []struct {
 		input              []byte
@@ -584,6 +646,38 @@ var myStructInst = myStruct{a: 1000}
 	assert.NotEmpty(t, res.Data, "binary response should not be empty")
 }
 
+func TestVmHandlerQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	runsCode := []string{
+		"vm/qrender",
+		"vm/qrender?x",
+		"vm/qeval",
+		"vm/qeval?x=1",
+		"vm/qeval/x",
+		"vm/qeval?x/y",
+		"vm/qeval_json",
+		"vm/qeval_json?x=1",
+	}
+	runsNoCode := []string{
+		"vm",
+		"vm/",
+		"vm/qfile",
+		"vm/qfuncs",
+		"vm/qevalx",
+		"vm/qeva",
+		"/vm/qeval", // Query panics on it before serving anything
+		"vmx/qeval",
+	}
+	vh := NewHandler(nil)
+	for _, path := range runsCode {
+		assert.True(t, vh.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, vh.QueryRunsCode(path), "path %q", path)
+	}
+}
+
 func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
 	env := setupTestEnv()
 	vmHandler := env.vmh
@@ -779,3 +873,132 @@ func TestVmHandlerQuery_TypeJSON_NotFound(t *testing.T) {
 	assert.False(t, res.IsOK(), "should have an error")
 	assert.Regexp(t, `invalid expression`, res.Error.Error())
 }
+
+// TestVmHandlerQueryRoutesPackageMeta pins the query wiring for
+// vm/qpkgmeta_json.
+//
+// The keeper method is covered elsewhere, by tests that call it directly -- so
+// nothing there exercises the path string or the switch case. A typo in either
+// leaves those green while the endpoint answers "unknown vm query endpoint".
+//
+// An absent package is the right case to assert on, because it is also where
+// this query differs from every other one: absent is a SUCCESSFUL response
+// carrying a status. A missing route and an absent package must not look alike,
+// which is exactly what this asserts.
+func TestVmHandlerQueryRoutesPackageMeta(t *testing.T) {
+	env := setupTestEnv()
+
+	res := env.vmh.Query(env.ctx, abci.RequestQuery{
+		Path: "vm/qpkgmeta_json",
+		Data: []byte("gno.land/r/nonexistent/pkg"),
+	})
+	require.True(t, res.IsOK(),
+		"an absent package must not be a query error: %v", res.Error)
+
+	var got PackageMeta
+	require.NoError(t, json.Unmarshal(res.Data, &got))
+	assert.Equal(t, "gno.land/r/nonexistent/pkg", got.Path)
+	assert.Equal(t, PackageStatusAbsent, got.Status)
+	assert.False(t, got.Pending)
+}
+
+// TestVmHandlerQueryRoutesInertPaths pins the wiring for vm/qinertpaths.
+//
+// As with qpkgmeta_json, the keeper method is tested directly, so nothing else
+// exercises the path string or the switch case.
+func TestVmHandlerQueryRoutesInertPaths(t *testing.T) {
+	env := setupTestEnv()
+
+	res := env.vmh.Query(env.ctx, abci.RequestQuery{
+		Path: "vm/qinertpaths",
+		Data: []byte(""),
+	})
+	require.True(t, res.IsOK(), "an empty queue is not an error: %v", res.Error)
+	assert.Empty(t, string(res.Data), "nothing is parked in a fresh env")
+
+	// The limit is shared with vm/qpaths, so a bad one must be refused here too.
+	bad := env.vmh.Query(env.ctx, abci.RequestQuery{
+		Path: "vm/qinertpaths?limit=notanumber",
+		Data: []byte(""),
+	})
+	assert.False(t, bad.IsOK(), "an unparseable limit must be refused")
+}
+
+// TestVmHandlerProcessRoutesReject pins that Process dispatches MsgRejectPackage.
+//
+// Without the switch case the message would be accepted by ValidateBasic,
+// admitted by the ante, and then silently rejected as unrecognised.
+func TestVmHandlerProcessRoutesReject(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	res := env.vmh.Process(ctx, MsgRejectPackage{
+		Sender:  crypto.AddressFromPreimage([]byte("someone")),
+		PkgPath: "gno.land/r/test/nothingparked",
+	})
+	require.False(t, res.IsOK(), "nothing is parked, so it must fail")
+	assert.Contains(t, res.Error.Error(), "invalid package path",
+		"and fail in the keeper body, not as an unrecognised message type")
+}
+
+// TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the
+// inert-policy enable message to its keeper method.
+//
+// The keeper method is covered in depth elsewhere; what has no other test is
+// the wiring. handleMsgEnablePackage was only reached through one end-to-end
+// test in another package — so deleting its case from the switch left a
+// message that ValidateBasic accepts, the ante admits, and the VM then silently
+// rejects as "unrecognized vm message type". That is a routing failure reported
+// as a message-type failure, at the point a chain has already committed to the
+// policy.
+//
+// Asserted through the errors the keeper alone produces: "not a pkg approver"
+// and "no inert package at path" can only come from EnablePackage. An unrouted
+// message would instead say "unrecognized", which is what the negative case at
+// the bottom pins.
+func TestVmHandlerProcessRoutesInertMsgs(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	vh := NewHandler(env.vmk)
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	stranger := crypto.AddressFromPreimage([]byte("stranger"))
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{approver}
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+
+	t.Run("enable reaches the keeper's approver gate", func(t *testing.T) {
+		res := vh.Process(ctx, MsgEnablePackage{Approver: stranger, PkgPath: "gno.land/r/test/x"})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "not a pkg approver")
+		assert.NotContains(t, res.Log, "unrecognized")
+	})
+
+	t.Run("enable reaches the keeper's parked-package lookup", func(t *testing.T) {
+		// An authorized approver gets past the gates and fails on absence,
+		// which only the keeper body can report.
+		res := vh.Process(ctx, MsgEnablePackage{Approver: approver, PkgPath: "gno.land/r/test/nothinghere"})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "no inert package at path")
+	})
+
+	t.Run("an unrouted message is distinguishable", func(t *testing.T) {
+		res := vh.Process(ctx, testUnroutedMsg{})
+		require.False(t, res.IsOK())
+		assert.Contains(t, res.Log, "unrecognized vm message type")
+	})
+}
+
+// testUnroutedMsg is a vm-route message Process has no case for, so the
+// "unrecognized" arm above is asserted against a real miss rather than assumed.
+type testUnroutedMsg struct{}
+
+func (testUnroutedMsg) Route() string                           { return RouterKey }
+func (testUnroutedMsg) Type() string                            { return "unrouted" }
+func (testUnroutedMsg) ValidateBasic() error                    { return nil }
+func (testUnroutedMsg) GetSignBytes() []byte                    { return nil }
+func (testUnroutedMsg) GetSigners() []crypto.Address            { return nil }
+func (testUnroutedMsg) GetReceived() std.Coins                  { return nil }
+func (testUnroutedMsg) SpendForSigner(crypto.Address) std.Coins { return nil }
