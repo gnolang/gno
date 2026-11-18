@@ -13,7 +13,8 @@ output across CPU architectures.
 - `corpus.gno` — a `package main` gno program that imports
   `crypto/sha256`, `crypto/keccak256`, `crypto/ed25519`,
   `crypto/chacha20`, `crypto/bech32`, `crypto/subtle`,
-  `crypto/modexp`, `crypto/merkle`, `crypto/bn254`, `hash/adler32`,
+  `crypto/modexp`, `crypto/merkle`, `crypto/bn254`, `crypto/bls12381`,
+  `hash/adler32`,
   ... and prints one canonical `<op> <args_hex...> <output>` line per
   case via gno's `println`.
 
