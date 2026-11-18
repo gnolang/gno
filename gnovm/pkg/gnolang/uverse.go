@@ -1537,8 +1537,8 @@ func makeUverseNode() {
 			if exception == nil {
 				m.PushValue(TypedValue{})
 			} else {
-				// VM panic text is untracked (nil backing) and may embed
-				// caller input; charge it once user code can hold it.
+				// VM panic text is untracked (nil backing); charge it once
+				// user code can hold it.
 				v := exception.Value
 				if sv, ok := v.V.(StringValue); ok && sv.B == nil && sv.Str != "" {
 					v.V = m.Alloc.NewString(sv.Str)

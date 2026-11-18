@@ -210,9 +210,9 @@ type bothFixedAndVarintStruct struct {
 
 func TestPlainVarint_MutualExclusion(t *testing.T) {
 	t.Parallel()
-	// parseStructInfoWLocked recovers and re-panics with a generic
-	// "panic parsing struct ..." wrapper, so we can't assert the inner
-	// message; assert that registration panics at all.
+	// parseStructInfoWLocked recovers and re-panics as "panic parsing
+	// struct <type>: <cause>"; that registration panics at all is the
+	// point here.
 	assert.Panics(t, func() { registerLocal(t, bothFixedAndVarintStruct{}) })
 }
 

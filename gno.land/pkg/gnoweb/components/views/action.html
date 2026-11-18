@@ -88,6 +88,14 @@ UI - Help Function component
           </svg>
           <span>Link</span>
         </button>
+        {{ if not .Crossing }}
+        {{/* Shown by its controller: without JS it does nothing. */}}
+        <button class="b-btn b-btn--secondary c-with-icon" data-action="click->action-function#triggerEval"
+          data-action-function-target="eval-button" title="Evaluate function (read-only)" hidden>
+          <svg class="c-icon"><use href="#ico-eval"></use></svg>
+          <span>Eval</span>
+        </button>
+        {{ end }}
         <button type="submit" form="form-{{ .Name }}" title="Function transaction link"
           class="b-btn b-btn--secondary c-with-icon">
           <svg class="c-icon">
@@ -124,15 +132,15 @@ UI - Help Function component
       {{ end }}
       {{ $funcName := .Name }}
       <div class="b-block-form u-mb-2">
-        {{ range .Params }}
+        {{ range $i, $p := .Params }}
         <div class="b-input">
-          <label for="func-{{ $funcName }}-param-{{ .Name }}">
+          <label for="func-{{ $funcName }}-param-{{ $i }}">
             {{ .Name }}
           </label>
           <input type="text" {{- if eq $data.SelectedFunc $funcName }} value="{{ getSelectedArgValue $data . }}" {{- end
-            }} placeholder="parameter" id="func-{{ $funcName }}-param-{{ .Name }}"
+            }} placeholder="parameter" id="func-{{ $funcName }}-param-{{ $i }}"
             data-action-function-target="param-input" data-action="input->action-function#updateAllArgs"
-            data-action-function-param-value="{{ .Name }}" autocomplete="off" autocorrect="off" autocapitalize="off"
+            data-action-function-param-value="{{ .Name }}" data-action-function-arg-value="{{ $i }}" data-action-function-type-value="{{ .Type }}" autocomplete="off" autocorrect="off" autocapitalize="off"
             spellcheck="false" />
         </div>
         {{ end }}
@@ -177,7 +185,7 @@ UI - Help Function component
         {{ if .Crossing }}
         {{ template "ui/command" (buildCommandData $data .) }}
         {{ else }}
-        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "<span data-action-function-target="remote">{{ $.Remote }}</span>" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $p.Name }}"></span>{{ end }})"</span></code></pre>
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $.Remote }}" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $i }}" data-action-function-type-value="{{ $p.Type }}"></span>{{ end }})"</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
@@ -186,11 +194,58 @@ UI - Help Function component
     <div class="b-action-result">
       <h3 class="title">Result</h3>
       <div class="b-code">
-        <pre><code><span data-action-function-target="qeval-result" data-qeval-placeholder="(enter param values)" data-qeval-error-class="u-color-danger"></span></code></pre>
+        <pre><code><span data-action-function-target="qeval-result" data-qeval-placeholder="(enter param values)" data-qeval-unavailable="(live result unavailable, try again shortly)" data-qeval-error-class="u-color-danger"></span></code></pre>
       </div>
     </div>
     {{ end }}
   </article>
   {{ end }}
+</div>
+
+{{ template "ui/eval_expression" $data }}
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Eval expression snippet (inline evaluator for action page)
+=================================================================================== */}}
+{{ define "ui/eval_expression" }}
+<div class="b-action-eval" data-controller="action-eval"
+  data-action-eval-pkg-path-value="{{ .PkgPath }}">
+
+  <h2 class="b-content-h2" id="{{ evalAnchor }}">Gno Expression Evaluator</h2>
+  <p class="u-color-tertiary">
+    Evaluate any read-only Gno expression against <code class="u-font-mono">{{ .PkgPath }}</code>, for example a function call with arguments.
+  </p>
+
+  {{/* The form and its result are shown by the controller: without JS
+  they do nothing. */}}
+  <noscript><p class="u-color-tertiary">The evaluator needs JavaScript.</p></noscript>
+  <form data-action="submit->action-eval#evalExpression" class="b-action-eval-form" data-action-eval-target="js-only" hidden>
+    <div class="b-input b-input--full">
+      <label for="action-eval-expression">Expression</label>
+      <input type="text" id="action-eval-expression"
+        data-action-eval-target="input"
+        placeholder='Render("")' class="u-font-mono"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+    </div>
+    <button type="submit" class="b-btn b-btn--primary c-with-icon">
+      <svg class="c-icon"><use href="#ico-eval"></use></svg>
+      <span>Eval</span>
+    </button>
+  </form>
+
+  <section class="b-result" data-action-eval-target="js-only" hidden>
+    <h3 class="b-result-title">Result</h3>
+    <div class="b-code">
+      <pre class="b-result-content" role="status" aria-live="polite"
+        data-action-eval-target="result">// Enter an expression above</pre>
+    </div>
+  </section>
+
+  <div class="b-action-eval-history c-stack" data-action-eval-target="history" hidden>
+    <h3 class="b-result-title">History</h3>
+    <div class="b-action-eval-history-list" data-action-eval-target="history-list"></div>
+  </div>
 </div>
 {{ end }}

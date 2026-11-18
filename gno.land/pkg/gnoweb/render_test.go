@@ -280,7 +280,14 @@ func TestRenderer_WriteChromaCSS(t *testing.T) {
 			assert.Contains(t, css, ".chroma-")
 
 			if tc.wantDarkScope {
-				assert.Contains(t, css, `[data-theme="dark"]`)
+				_, dark, ok := strings.Cut(css, `[data-theme="dark"]`)
+				require.True(t, ok)
+				// Dark token rules target the class the HTML carries, and
+				// leave the frame backgrounds to gnoweb.
+				assert.Contains(t, dark, ".chroma-light .chroma-k ")
+				assert.NotContains(t, dark, ".chroma-dark")
+				assert.NotContains(t, dark, "PreWrapper")
+				assert.NotContains(t, dark, "/* Background */")
 			} else {
 				assert.NotContains(t, css, `[data-theme="dark"]`)
 			}

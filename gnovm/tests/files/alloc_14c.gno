@@ -1,33 +1,29 @@
 // MAXALLOC: 50000
 // PKGPATH: gno.land/r/test
 
-// VM panic text is untracked until recover hands it to user code. Here
-// it embeds a 1000-byte key; once held, the GC recount must include it.
+// VM panic text is untracked until recover hands it to user code; once
+// held, the GC recount must include its bytes.
 package test
 
-import (
-	"chain/params"
-	"runtime"
+import "runtime"
+
+var (
+	held any
+	arr  []int
 )
 
-var held any
-
-func grab(key string) {
+func grab(i int) {
 	defer func() { held = recover() }()
-	params.GetString(key) // panics "invalid param key: " + key
+	_ = arr[i] // runtime error: index out of range [7] with length 0
 }
 
 func main() {
-	b := make([]byte, 1000)
-	for i := range b {
-		b[i] = ':'
-	}
-	grab(string(b))
+	grab(7)
 	runtime.GC()
-	println(len(held.(string)))
+	println(len(held.(error).Error()))
 	println(runtime.MemStats())
 }
 
 // Output:
-// 1019
-// Allocator{maxBytes:50000, bytes:14611}
+// 46
+// Allocator{maxBytes:50000, bytes:12332}
