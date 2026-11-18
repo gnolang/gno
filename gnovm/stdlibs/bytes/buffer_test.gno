@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strconv"
 	"testing"
 	"unicode/utf8"
 )
@@ -658,6 +659,24 @@ func BenchmarkBufferNotEmptyWriteRead(b *testing.B) {
 	}
 }
 
+func TestWriteAppend(t *testing.T) {
+	var got bytes.Buffer
+	var want []byte
+	for i := 0; i < 1000; i++ {
+		b := got.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		want = strconv.AppendInt(want, int64(i), 10)
+		got.Write(b)
+	}
+	if !bytes.Equal(got.Bytes(), want) {
+		t.Fatalf("Bytes() = %q, want %q", &got, want)
+	}
+
+	// XXX: upstream also asserts testing.AllocsPerRun returns 0 to prove
+	// AvailableBuffer enables alloc-free appends. gno's testing package does
+	// not expose AllocsPerRun, so this allocation assertion is omitted.
+}
+
 // Check that we don't compact too often. From Issue 5154.
 func BenchmarkBufferFullSmallReads(b *testing.B) {
 	buf := make([]byte, 1024)
@@ -670,6 +689,43 @@ func BenchmarkBufferFullSmallReads(b *testing.B) {
 		for i := 0; i < 5<<10; i++ {
 			b.Read(buf[:1])
 			b.Write(buf[:1])
+		}
+	}
+}
+
+var peekTests = []struct {
+	buffer   string
+	skip     int
+	n        int
+	expected string
+	err      error
+}{
+	{"", 0, 0, "", nil},
+	{"aaa", 0, 3, "aaa", nil},
+	{"foobar", 0, 2, "fo", nil},
+	{"a", 0, 2, "a", io.EOF},
+	{"helloworld", 4, 3, "owo", nil},
+	{"helloworld", 5, 5, "world", nil},
+	{"helloworld", 5, 6, "world", io.EOF},
+	{"helloworld", 10, 1, "", io.EOF},
+}
+
+func TestPeek(t *testing.T) {
+	for _, test := range peekTests {
+		buf := bytes.NewBufferString(test.buffer)
+		buf.Next(test.skip)
+		// XXX: upstream names this variable `bytes`; renamed to `b` here because
+		// gno's test file is `package bytes_test` (no dot imports), so `bytes` is
+		// the package identifier and cannot be shadowed.
+		b, err := buf.Peek(test.n)
+		if string(b) != test.expected {
+			t.Errorf("expected %q, got %q", test.expected, b)
+		}
+		if err != test.err {
+			t.Errorf("expected error %v, got %v", test.err, err)
+		}
+		if buf.Len() != len(test.buffer)-test.skip {
+			t.Errorf("bad length after peek: %d, want %d", buf.Len(), len(test.buffer)-test.skip)
 		}
 	}
 }
