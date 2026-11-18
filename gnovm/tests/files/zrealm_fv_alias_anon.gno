@@ -8,5 +8,5 @@ func main(cur realm) {
 	println(s.N)
 }
 
-// Error:
-// cannot allocate struct{N int} (declared in gno.land/r/tests/vm/fvx) in realm gno.land/r/fvaliasanon
+// Output:
+// 0
