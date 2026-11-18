@@ -85,6 +85,10 @@ const (
 	// (See TestDefaultBudgetCoversWorstLegalConfig, which fails if that drifts.)
 	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
 
+	// defaultMaxSendBufferBytes caps admitted outgoing payload bytes across all
+	// channels. It must hold two maximum legal block responses.
+	defaultMaxSendBufferBytes = 20 << 20 // 20MB
+
 	// recvAssemblyStallGrace is how long recvRoutine may spend in a reactor
 	// callback before that time is credited back to the assembly deadlines. It
 	// only exists to keep the per-message path free of the channel walk; any
@@ -119,7 +123,7 @@ successfully queued for the channel with the given id byte `chID`, or until the
 request times out.  The message `msg` is serialized using Go-Amino.
 
 `TrySend(chID, msgBytes)` is a nonblocking call that returns false if the
-channel's queue is full.
+channel's queue or the connection's byte budget is full.
 
 Inbound message bytes are handled with an onReceive callback function.
 */
@@ -167,6 +171,10 @@ type MConnection struct {
 	// channels' recving buffers (incomplete, partially-assembled messages). It
 	// is only ever read or written from recvRoutine, so it needs no locking.
 	recvBufferBytes int
+
+	sendBufferMtx       sync.Mutex
+	sendBufferBytes     int64
+	sendBufferAvailable chan struct{}
 
 	// recvStallSince is the unix-nano time at which recvRoutine entered a
 	// reactor callback, or 0 when it is reading. Written by recvRoutine, read by
@@ -221,6 +229,10 @@ type MConnConfig struct {
 	// connection's channels' recving buffers at any instant. When <= 0 no total
 	// budget is enforced (only the per-channel RecvMessageCapacity applies).
 	MaxRecvBufferBytes int `toml:"max_recv_buffer_bytes"`
+
+	// MaxSendBufferBytes caps total admitted bytes waiting, queued, or sending
+	// across all channels. When <= 0 only each channel's queue capacity applies.
+	MaxSendBufferBytes int `toml:"max_send_buffer_bytes"`
 }
 
 // DefaultMConnConfig returns the default config.
@@ -234,6 +246,7 @@ func DefaultMConnConfig() MConnConfig {
 		PongTimeout:             defaultPongTimeout,
 		RecvAssemblyTimeout:     defaultRecvAssemblyTimeout,
 		MaxRecvBufferBytes:      defaultMaxRecvBufferBytes,
+		MaxSendBufferBytes:      defaultMaxSendBufferBytes,
 	}
 }
 
@@ -247,6 +260,7 @@ func MConfigFromP2P(cfg *config.P2PConfig) MConnConfig {
 	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
 	mConfig.RecvAssemblyTimeout = cfg.RecvAssemblyTimeout
 	mConfig.MaxRecvBufferBytes = cfg.MaxRecvBufferBytes
+	mConfig.MaxSendBufferBytes = cfg.MaxSendBufferBytes
 
 	return mConfig
 }
@@ -449,7 +463,7 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 		return false
 	}
 
-	success := channel.sendBytes(msgBytes)
+	success := channel.sendBytes(msgBytes, defaultSendTimeout)
 	if success {
 		// Wake up sendRoutine if necessary
 		select {
@@ -457,7 +471,7 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 		default:
 		}
 	} else {
-		c.Logger.Debug("Send failed", "channel", chID, "conn", c, "msgBytes", fmt.Sprintf("%X", msgBytes))
+		c.Logger.Debug("Send failed", "channel", chID, "conn", c, "msg_size", len(msgBytes))
 	}
 	return success
 }
@@ -633,7 +647,8 @@ func (c *MConnection) sendPacketMsg() bool {
 	// c.Logger.Info("Found a msgPacket to send")
 
 	// Make & send a PacketMsg from this channel
-	_n, err := leastChannel.writePacketMsgTo(c.bufConnWriter)
+	_n, completedMessageBytes, err := leastChannel.writePacketMsgTo(c.bufConnWriter)
+	c.releaseSendBuffer(completedMessageBytes)
 	if err != nil {
 		c.Logger.Error("Failed to write PacketMsg", "err", err)
 		c.stopForError(err)
@@ -898,7 +913,10 @@ type Channel struct {
 	sendQueueSize int32 // atomic.
 	recving       []byte
 	sending       []byte
-	recentlySent  int64 // exponential moving average
+	// sendingMessageBytes keeps the original message length while sending is
+	// resliced into packets, so the budget is released exactly once.
+	sendingMessageBytes int
+	recentlySent        int64 // exponential moving average
 
 	// recvAssemblyMtx guards the assembly deadline for the message currently
 	// being built in recving. Unlike the rest of the recv state this cannot be
@@ -941,28 +959,117 @@ func (ch *Channel) SetLogger(l *slog.Logger) {
 
 // Queues message to send to this channel.
 // Goroutine-safe
-// Times out (and returns false) after defaultSendTimeout
-func (ch *Channel) sendBytes(bytes []byte) bool {
+// Times out (and returns false) after timeout, or once the connection stops.
+func (ch *Channel) sendBytes(bytes []byte, timeout time.Duration) bool {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	if !ch.conn.waitForSendBuffer(len(bytes), timer.C) {
+		return false
+	}
+
+	// Try the queue first: the budget wait may have used up the timeout, and a
+	// select with the timer also ready could drop a message the queue can take.
 	select {
 	case ch.sendQueue <- bytes:
 		atomic.AddInt32(&ch.sendQueueSize, 1)
 		return true
-	case <-time.After(defaultSendTimeout):
-		return false
+	default:
 	}
+
+	select {
+	case ch.sendQueue <- bytes:
+		atomic.AddInt32(&ch.sendQueueSize, 1)
+		return true
+	case <-timer.C:
+	case <-ch.conn.quitSendRoutine:
+	}
+	ch.conn.releaseSendBuffer(len(bytes))
+	return false
 }
 
 // Queues message to send to this channel.
 // Nonblocking, returns true if successful.
 // Goroutine-safe
 func (ch *Channel) trySendBytes(bytes []byte) bool {
+	if !ch.conn.reserveSendBuffer(len(bytes)) {
+		return false
+	}
+
 	select {
 	case ch.sendQueue <- bytes:
 		atomic.AddInt32(&ch.sendQueueSize, 1)
 		return true
 	default:
+		ch.conn.releaseSendBuffer(len(bytes))
 		return false
 	}
+}
+
+func (c *MConnection) reserveSendBuffer(bytes int) bool {
+	budget := int64(c.config.MaxSendBufferBytes)
+	if budget <= 0 {
+		return true
+	}
+
+	requested := int64(bytes)
+	c.sendBufferMtx.Lock()
+	defer c.sendBufferMtx.Unlock()
+	if requested > budget-c.sendBufferBytes {
+		return false
+	}
+	c.sendBufferBytes += requested
+	return true
+}
+
+func (c *MConnection) waitForSendBuffer(bytes int, timeout <-chan time.Time) bool {
+	budget := int64(c.config.MaxSendBufferBytes)
+	if budget <= 0 {
+		return true
+	}
+
+	requested := int64(bytes)
+	if requested > budget {
+		return false
+	}
+
+	for {
+		c.sendBufferMtx.Lock()
+		if requested <= budget-c.sendBufferBytes {
+			c.sendBufferBytes += requested
+			c.sendBufferMtx.Unlock()
+			return true
+		}
+
+		if c.sendBufferAvailable == nil {
+			c.sendBufferAvailable = make(chan struct{})
+		}
+		available := c.sendBufferAvailable
+		c.sendBufferMtx.Unlock()
+
+		// A sender parked here gives up as soon as the connection stops.
+		select {
+		case <-available:
+		case <-timeout:
+			return false
+		case <-c.quitSendRoutine:
+			return false
+		}
+	}
+}
+
+func (c *MConnection) releaseSendBuffer(bytes int) {
+	if c.config.MaxSendBufferBytes <= 0 || bytes == 0 {
+		return
+	}
+
+	c.sendBufferMtx.Lock()
+	c.sendBufferBytes -= int64(bytes)
+	if c.sendBufferAvailable != nil {
+		close(c.sendBufferAvailable)
+		c.sendBufferAvailable = nil
+	}
+	c.sendBufferMtx.Unlock()
 }
 
 // Goroutine-safe
@@ -985,6 +1092,7 @@ func (ch *Channel) isSendPending() bool {
 			return false
 		}
 		ch.sending = <-ch.sendQueue
+		ch.sendingMessageBytes = len(ch.sending)
 	}
 	return true
 }
@@ -1009,9 +1117,13 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 
 // Writes next PacketMsg to w and updates c.recentlySent.
 // Not goroutine-safe
-func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, err error) {
+func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, completedMessageBytes int, err error) {
 	packet := ch.nextPacketMsg()
 	n, err = amino.MarshalAnySizedWriter(w, packet)
+	if packet.EOF == byte(0x01) {
+		completedMessageBytes = ch.sendingMessageBytes
+		ch.sendingMessageBytes = 0
+	}
 	atomic.AddInt64(&ch.recentlySent, n)
 	return
 }

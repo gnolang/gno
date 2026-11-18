@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/token"
@@ -77,7 +78,9 @@ func newVerifier(cfg verifyOneConfig, errw io.Writer) (*verifier, error) {
 
 	v := &verifier{
 		prodbs: prodbs, prodgs: prodgs,
-		rpc:      newRPCGetter(c),
+		// The child lives for one verification and is killed by the parent's
+		// clock, so its queries need no deadline of their own.
+		rpc:      newRPCGetter(context.Background(), c),
 		unserved: make(map[string]string),
 		parked:   make(map[string]bool),
 	}
@@ -148,13 +151,6 @@ func (v *verifier) verifyPackage(mpkg *std.MemPackage) (err error) {
 			err = fmt.Errorf("%w (verification said: %w)", v.rpc.transportErr, err)
 		}
 	}()
-
-	// Best-effort preload, through the getter injectChainGetter installed, so
-	// where each import comes from is that getter's split here too; anything
-	// unresolvable surfaces as a typecheck error. Inlined rather than left as a
-	// separate step a caller has to remember: two of the tests used to omit it
-	// and so exercised a sequence the child never runs.
-	_ = test.LoadImports(v.prodgs, mpkg, false)
 
 	// Fresh transactions isolate each typecheck from the persistent base stores.
 	newProdGnoStore := func() gno.Store {
@@ -255,7 +251,6 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 // node lists but will not serve. An import that nothing serves is none of
 // them; the typecheck judges that, against what classifyUnserved recorded.
 func (v *verifier) prepare(mpkg *std.MemPackage) error {
-	_ = test.LoadImports(v.prodgs, mpkg, false)
 	buildErr := v.buildChainImports(mpkg)
 	// Transport first, even when a build also failed: an unfetchable
 	// transitive import makes the package importing it unbuildable, so the
@@ -341,18 +336,49 @@ func (v *verifier) classifyUnserved() error {
 // the same point already costs.
 //
 // Stdlibs are why the walk does not stop at userlib paths. They are built
-// through the same seam even though nothing fetches them, because the
-// alternative is the asymmetry that shipped: LoadImports recovers the disk
-// getter's panic and prints it, so a candidate importing a broken stdlib
-// DIRECTLY was rejected terminally, while the same breakage one level down --
-// under a /p/ dependency -- came back here and left the package pending. One
-// level of indirection decided whether the operator's tree settled a
-// stranger's bytes.
+// through the same seam even though nothing fetches them: left to the
+// typecheck, a broken stdlib the candidate imports DIRECTLY would panic there
+// and be rejected terminally, while the same breakage under a /p/ dependency
+// fails that dependency's build here and leaves the package pending.
 //
 // A path nothing serves is skipped rather than ending the walk: it is the
 // typecheck's verdict to give, and the rest of the closure still has to be
 // fetched, or the typecheck goes to the network on the clock.
 func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
+	return walkImports(mpkg, func(path, importedBy string) (*std.MemPackage, error) {
+		// A stdlib: nothing to fetch, since the store resolves it from disk.
+		// Built anyway, so that a disk tree which will not build reaches
+		// prepare's error rather than the typecheck's verdict -- see buildOne.
+		// A path merely absent returns nil without panicking, so a typo stays
+		// the typecheck's to judge.
+		if !gno.IsUserlib(path) {
+			return nil, v.buildOne(path, importedBy)
+		}
+
+		// IsUserlib is what hybridGetter routes the typecheck on and what the
+		// preprocess getter asks too, so what is fetched here is exactly what
+		// they will ask for -- a path either stage would fetch but this walk
+		// skipped would reach the network inside the budget.
+		//
+		// Fetch first: the source is what the walk descends through, and a
+		// transport fault lands on the getter for prepare to read.
+		dep := v.rpc.GetMemPackage(path)
+		if dep == nil {
+			v.unserved[path] = importedBy
+			return nil, nil
+		}
+		if err := v.buildOne(path, importedBy); err != nil {
+			return nil, err
+		}
+		return dep, nil
+	})
+}
+
+// walkImports calls visit once for each path in mpkg's production import
+// closure, breadth-first, with the package that first imported it. visit
+// returns the package to descend into, nil to go no further down that path,
+// or an error, which ends the walk and is returned.
+func walkImports(mpkg *std.MemPackage, visit func(path, importedBy string) (*std.MemPackage, error)) error {
 	seen := map[string]bool{mpkg.Path: true}
 	queue := []*std.MemPackage{mpkg}
 
@@ -362,46 +388,22 @@ func (v *verifier) buildChainImports(mpkg *std.MemPackage) error {
 
 		imports, err := packages.Imports(cur, token.NewFileSet())
 		if err != nil {
-			// Unparseable source is the typecheck's verdict to give, not ours.
-			// Skipped rather than ending the walk, for the same reason a path
-			// nothing serves is.
+			// Unparseable source is the typecheck's verdict to give, not the
+			// walk's, so the walk goes on.
 			continue
 		}
 		for _, imp := range imports.Merge(packages.FileKindPackageSource) {
-			path := imp.PkgPath
-			if seen[path] {
+			if seen[imp.PkgPath] {
 				continue
 			}
-			seen[path] = true
-
-			// A stdlib: nothing to fetch, since the store resolves it from
-			// disk. Built anyway, so that a disk tree which will not build
-			// reaches prepare's error rather than the typecheck's verdict --
-			// see buildOne. A path merely absent returns nil without panicking,
-			// so a typo stays the typecheck's to judge.
-			if !gno.IsUserlib(path) {
-				if err := v.buildOne(path, cur.Path); err != nil {
-					return err
-				}
-				continue
-			}
-
-			// IsUserlib is what hybridGetter routes the typecheck on and what
-			// the preprocess getter asks too, so what is fetched here is
-			// exactly what they will ask for -- a path either stage would fetch
-			// but this walk skipped would reach the network inside the budget.
-			//
-			// Fetch first: the source is what the walk descends through, and a
-			// transport fault lands on the getter for prepare to read.
-			dep := v.rpc.GetMemPackage(path)
-			if dep == nil {
-				v.unserved[path] = cur.Path
-				continue
-			}
-			if err := v.buildOne(path, cur.Path); err != nil {
+			seen[imp.PkgPath] = true
+			dep, err := visit(imp.PkgPath, cur.Path)
+			if err != nil {
 				return err
 			}
-			queue = append(queue, dep)
+			if dep != nil {
+				queue = append(queue, dep)
+			}
 		}
 	}
 	return nil

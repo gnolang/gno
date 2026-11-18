@@ -213,15 +213,15 @@ release_tag() {
     fi
 }
 
-# /releases/latest may point at a chain/* tag with no binaries, so we walk
-# the list and pick the first non-prerelease goreleaser-built tag.
+# /releases/latest may point at a chain/* tag with no binaries, and GitHub
+# ranks releases by creation date, so a backport cut after a newer line would
+# come first. Collect every final v* release and take the highest by version.
 latest_v_tag() {
     if [ "$JSON" = "jq" ]; then
-        jq -r 'map(select(.prerelease == false and (.tag_name | startswith("v")))) | .[0].tag_name // empty' "$TMP/releases.json"
+        jq -r '.[] | select(.prerelease == false and (.tag_name | startswith("v"))) | .tag_name' "$TMP/releases.json"
     else
-        # GitHub lists releases newest-first. Pair each v-prefixed tag_name with
-        # the prerelease flag that follows it in the same release object, and
-        # emit the first non-prerelease one.
+        # Pair each v-prefixed tag_name with the prerelease flag that follows it
+        # in the same release object, and emit every non-prerelease one.
         awk '
             /"tag_name":/ {
                 line = $0
@@ -231,11 +231,11 @@ latest_v_tag() {
                 next
             }
             /"prerelease":/ {
-                if (tag != "" && $0 !~ /true/) { print tag; exit }
+                if (tag != "" && $0 !~ /true/) print tag
                 tag = ""
             }
         ' "$TMP/releases.json"
-    fi
+    fi | sort -V | tail -1
 }
 
 # The awk fallback scans pretty-printed JSON and relies on the current
@@ -292,7 +292,7 @@ install_gno() {
     # which for this repo may be a chain/* tag. Resolve "latest" to the most
     # recent non-prerelease v* tag ourselves instead.
     if [ "$VERSION" = "latest" ]; then
-        api_get "${API}/releases?per_page=30" > "$TMP/releases.json" \
+        api_get "${API}/releases?per_page=100" > "$TMP/releases.json" \
             || die "failed to fetch releases list"
         VERSION="$(latest_v_tag)"
         [ -n "$VERSION" ] || die "no v* release found; pass --version <tag> explicitly (see https://github.com/${REPO}/releases)"
