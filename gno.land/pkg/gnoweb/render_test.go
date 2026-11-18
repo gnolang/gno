@@ -7,8 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -104,6 +106,59 @@ func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	assert.Regexp(t, "<h1[^>]*>.*Hello.*</h1>", w.String())
 	assert.Contains(t, w.String(), "<strong>test</strong>")
 	assert.NotNil(t, toc)
+}
+
+// A form's gnokey command is priced by the render context's gas lookup for
+// the form's package and exec function, which a page without an exec form
+// never calls.
+func TestRenderRealm_FormCommandGas(t *testing.T) {
+	r := newTestRenderer()
+	for _, tc := range []struct {
+		src   string
+		calls []string
+		want  string
+	}{
+		{"<gno-form exec=\"Bump\">\n</gno-form>\n", []string{"gno.land/r/test.Bump"}, "-gas-fee 60000ugnot"},
+		{"<gno-form>\n<input name=\"q\" />\n</gno-form>\n", nil, ""},
+	} {
+		var calls []string
+		gas := func(pkgPath, fn string) components.TxGas {
+			calls = append(calls, pkgPath+"."+fn)
+			return components.NewTxGas(std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 2)}, components.GasUse{})
+		}
+		w := &bytes.Buffer{}
+		_, err := r.RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, []byte(tc.src), RealmRenderContext{ChainId: "dev", Domain: "gno.land", Gas: gas})
+		require.NoError(t, err)
+		assert.Equal(t, tc.calls, calls, tc.src)
+		assert.Contains(t, w.String(), tc.want)
+	}
+}
+
+// A fee capped at 1 GNOT says so in both notes instead of promising cover
+// for a rise.
+func TestRenderRealm_FormCommandCappedFee(t *testing.T) {
+	gas := func(string, string) components.TxGas {
+		return components.NewTxGas(std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 100)}, components.GasUse{})
+	}
+	w := &bytes.Buffer{}
+	_, err := newTestRenderer().RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, []byte("<gno-form exec=\"Bump\">\n</gno-form>\n"), RealmRenderContext{ChainId: "dev", Domain: "gno.land", Gas: gas})
+	require.NoError(t, err)
+	assert.Equal(t, 2, strings.Count(w.String(), "the fee is capped at 1 GNOT"))
+	assert.NotContains(t, w.String(), "in case it rises")
+}
+
+// A price read but too high for the 1 GNOT cap says so, not that it was
+// unavailable.
+func TestRenderRealm_FormCommandTooHighPrice(t *testing.T) {
+	gas := func(string, string) components.TxGas {
+		return components.NewTxGas(std.GasPrice{Gas: 1000, Price: std.NewCoin("ugnot", 101)}, components.GasUse{})
+	}
+	w := &bytes.Buffer{}
+	_, err := newTestRenderer().RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, []byte("<gno-form exec=\"Bump\">\n</gno-form>\n"), RealmRenderContext{ChainId: "dev", Domain: "gno.land", Gas: gas})
+	require.NoError(t, err)
+	assert.Equal(t, 2, strings.Count(w.String(), "at 1ugnot/1000gas, times 3. The chain's price is 101ugnot/1000gas: at that price 10 M gas costs more than 1 GNOT, so raise -gas-fee before signing or the node rejects the call."), w.String())
+	assert.NotContains(t, w.String(), "unavailable")
+	assert.NotContains(t, w.String(), "in case it rises")
 }
 
 // Display math ends at any line that would interrupt a paragraph, footnote

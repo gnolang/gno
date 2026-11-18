@@ -16,6 +16,8 @@ const HelpViewType ViewType = "help-view"
 type HelpFunction struct {
 	*doc.JSONFunc
 	DocComponent Component
+	// Gas prices the function's gnokey command.
+	Gas TxGas
 }
 
 type HelpData struct {
@@ -57,9 +59,6 @@ const helpEvalAnchor = "expression-evaluator"
 type Gas struct{ Wanted, Fee string }
 
 var (
-	// CallGas is what $help's maketx call commands ask for: room for any
-	// function.
-	CallGas = Gas{Wanted: "1_000_000_000", Fee: "1000000ugnot"}
 	// RunGas is what a $run script asks for. The starter script names a
 	// function rather than calling Render, whose gas is the package's (over
 	// 400 million on some realms), and takes 1 to 9 million on the example
@@ -77,6 +76,7 @@ type CommandData struct {
 	ArgKeys []string
 	ChainId string
 	Remote  string
+	Gas     TxGas
 }
 
 type helpViewParams struct {
@@ -87,7 +87,6 @@ type helpViewParams struct {
 
 func registerHelpFuncs(funcs template.FuncMap) {
 	funcs["evalAnchor"] = func() string { return helpEvalAnchor }
-	funcs["callGas"] = func() Gas { return CallGas }
 
 	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {
@@ -132,6 +131,7 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			ArgKeys:  argKeys,
 			ChainId:  data.ChainId,
 			Remote:   data.Remote,
+			Gas:      fn.Gas,
 		}
 	}
 }

@@ -7,8 +7,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // MockPackage represents a mock package with files and function signatures for testing.
@@ -220,6 +222,14 @@ func pkgHasRender(pkg *MockPackage) bool {
 		}
 	}
 	return false
+}
+
+// GasPrice answers the chain's usual price.
+func (m *MockClient) GasPrice(ctx context.Context) (std.GasPrice, error) {
+	if err := ctx.Err(); err != nil {
+		return std.GasPrice{}, fmt.Errorf("context error: %w", err)
+	}
+	return components.FallbackGasPrice, nil
 }
 
 // Eval answers like a chain that does not deploy the realm.

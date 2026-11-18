@@ -171,6 +171,7 @@ type FormNode struct {
 	Domain     string
 	ChainId    string
 	Remote     string
+	Gas        components.TxGas
 	Error      error
 	usedNames  map[string]bool
 }
@@ -250,6 +251,7 @@ func (p *FormParser) Open(parent ast.Node, reader text.Reader, pc parser.Context
 	case exec == "":
 	case token.IsIdentifier(exec) && token.IsExported(exec):
 		node.ExecFunc = exec
+		node.Gas = getGasFromContext(pc, node.Domain+node.RealmName, exec)
 	default:
 		node.Error = fmt.Errorf("%q: %w", exec, ErrFormInvalidExec)
 	}
@@ -605,6 +607,7 @@ func (r *FormRenderer) renderCommandBlock(w util.BufWriter, n *FormNode) {
 		ArgKeys:  paramNames,
 		ChainId:  chainId,
 		Remote:   remote,
+		Gas:      n.Gas,
 	}
 
 	// Create and render the template component

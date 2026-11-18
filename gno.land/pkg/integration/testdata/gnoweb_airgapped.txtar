@@ -25,6 +25,15 @@ stdout '  }'
 stdout '}'
 ! stderr '.+' # empty
 
+# A tx short of gas fails the dry run, which broadcasts nothing
+gnokey maketx call -pkgpath "gno.land/r/realm" -func "SetName" -gas-fee 230001ugnot -gas-wanted 1_000_000 -send "" -args "foo" -broadcast=false user1
+cp stdout low.tx
+gnokey sign -tx-path $WORK/low.tx -chainid "tendermint_test" -account-number 58 -account-sequence 0 user1
+! gnokey broadcast -dry-run $WORK/low.tx
+stderr 'out of gas'
+gnokey query auth/accounts/g1meuazsmy8ztaz2xpuyraqq4axy6s00ycl07zva
+stdout '    "sequence": "0"'
+
 # Create transaction
 gnokey maketx call -pkgpath "gno.land/r/realm" -func "SetName" -gas-fee 230001ugnot -gas-wanted 2_300_000 -send "" -args "foo" -broadcast=false user1
 cp stdout call.tx
@@ -32,6 +41,10 @@ cp stdout call.tx
 # Sign
 gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 58 -account-sequence 0 user1
 cmpenv stdout sign.stdout.golden
+
+gnokey broadcast -dry-run $WORK/call.tx
+gnokey query vm/qrender --data '"gno.land/r/realm":'
+! stdout 'foo'
 
 gnokey broadcast $WORK/call.tx
 stdout '("foo" string)'

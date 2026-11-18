@@ -25,7 +25,6 @@ func TestPageGasDefaults(t *testing.T) {
 	page := renderPage(t, RunData{PkgPath: "gno.land/r/demo/counter", Gas: components.RunGas})
 	assert.Contains(t, page, `value="`+components.RunGas.Wanted+`"`)
 	assert.Contains(t, page, `value="`+components.RunGas.Fee+`"`)
-	assert.NotEqual(t, components.CallGas, components.RunGas, "a script asks for less than $help's calls")
 }
 
 func TestStarterScript(t *testing.T) {
