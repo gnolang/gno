@@ -179,7 +179,7 @@ func Render(path string) string {
 // malicious realm cannot replay an old cur to claim allowed-DAO
 // identity. After the check, rlm.PkgPath() is the authentic immediate
 // caller's realm.
-func Get(_ int, rlm realm) MembersByTier {
+func Get(_ int, rlm realm) *MembersByTier {
 	if !rlm.IsCurrent() {
 		panic("memberstore.Get: rlm is not the caller's live cur (stale capture or sibling frame)")
 	}
@@ -188,24 +188,28 @@ func Get(_ int, rlm realm) MembersByTier {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}
 
-	return members
+	return &members
 }
 
 // GetTier returns a tier by name. This is a read-only accessor.
-func GetTier(name string) (Tier, bool) {
-	return tiers.GetTier(name)
+func GetTier(name string) (*Tier, bool) {
+	t, ok := tiers.GetTier(name)
+	if !ok {
+		return nil, false
+	}
+	return &t, true
 }
 
 // IterateTiers iterates over all tiers in order. This is a read-only accessor.
 // The callback receives the tier name and tier data.
 // Return true from the callback to stop iteration.
-func IterateTiers(fn func(name string, tier Tier) bool) {
+func IterateTiers(fn func(name string, tier *Tier) bool) {
 	tiers.Iterate("", "", func(name string, value interface{}) bool {
 		tier, ok := value.(Tier)
 		if !ok {
 			return false
 		}
-		return fn(name, tier)
+		return fn(name, &tier)
 	})
 }
 
@@ -217,12 +221,12 @@ func setTiers(newTiers TiersByName) {
 
 // GetTierPower calculates the effective voting power for a tier given the current members.
 // This is a safe accessor that uses the internal tiers configuration.
-func GetTierPower(tierName string, members MembersByTier) float64 {
+func GetTierPower(tierName string, members *MembersByTier) float64 {
 	tier, ok := tiers.GetTier(tierName)
 	if !ok {
 		return 0
 	}
-	return tier.PowerHandler(members, tiers)
+	return tier.PowerHandler(*members, tiers)
 }
 
 // Writers. A realm changes the member store only through these crossing

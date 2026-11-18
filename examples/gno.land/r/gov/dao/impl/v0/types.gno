@@ -64,7 +64,7 @@ type proposalStatus struct {
 	TiersAllowedToVote []string
 }
 
-func getMembers(cur realm) memberstore.MembersByTier {
+func getMembers(cur realm) *memberstore.MembersByTier {
 	return memberstore.Get(0, cur)
 }
 
@@ -141,7 +141,7 @@ func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 func (ps *proposalStatus) votePowerPercent(_ int, rlm realm, votes voteStore) float64 {
 	members := getMembers(cross(rlm))
 	var vp float64
-	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
+	memberstore.IterateTiers(func(tn string, tier *memberstore.Tier) bool {
 		power := memberstore.GetTierPower(tn, members)
 		ts := votes.GetTierSize(tn)
 		vp = vp + (power * float64(ts))

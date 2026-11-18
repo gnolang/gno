@@ -25,7 +25,7 @@ func main() {
 
 	// Iterate over tiers (read-only)
 	println("All tiers:")
-	memberstore.IterateTiers(func(name string, tier memberstore.Tier) bool {
+	memberstore.IterateTiers(func(name string, tier *memberstore.Tier) bool {
 		println("  -", name, "BasePower:", tier.BasePower)
 		return false
 	})
