@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/text"
@@ -196,4 +198,18 @@ func TestAlertTitleTerminatorTrimmed(t *testing.T) {
 			require.Equal(t, tc.want, title)
 		})
 	}
+}
+
+// Run with -race: titleCase used to share one Caser across renders.
+func TestAlertConcurrentRender(t *testing.T) {
+	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Go(func() {
+			var b bytes.Buffer
+			assert.NoError(t, gm.Convert([]byte("> [!NOTE]\n> hello\n"), &b))
+			assert.Contains(t, b.String(), "Note")
+		})
+	}
+	wg.Wait()
 }
