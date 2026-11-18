@@ -1,6 +1,6 @@
-# A realm gate calling its own non-crossing function by name writes; the same
-# function called through a value runs read-only. Both hold after a restart,
-# when the call marks are rebuilt by preprocessing.
+# A realm gate calling its own non-crossing function by name writes, and so
+# does the same function called through a value (a realm's own function keeps
+# its authority). Both hold after a restart, when preprocessing reruns.
 
 loadpkg gno.land/r/test/mknamed $WORK
 gnoland start
@@ -8,16 +8,16 @@ gnoland start
 gnokey maketx call -pkgpath gno.land/r/test/mknamed -func Named -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '"named" string'
 
-! gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
-stderr 'gno.land/r/test/mknamed''s code was entered without crossing and is read-only'
+gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '"value" string'
 
 gnoland restart
 
 gnokey maketx call -pkgpath gno.land/r/test/mknamed -func Named -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '"named" string'
 
-! gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
-stderr 'gno.land/r/test/mknamed''s code was entered without crossing and is read-only'
+gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '"value" string'
 
 -- gnomod.toml --
 module = "gno.land/r/test/mknamed"

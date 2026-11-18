@@ -1,8 +1,6 @@
-# KNOWN-OPEN: a method value acts for the realm that bound it, but a value
-# bound by a `maketx run` script is re-stamped to the realm that stores it
-# (adoption). The victim then runs it as its own and the write to its
-# ungranted view commits. A realm must not store and call function values
-# from callers; closing this needs an adopted-stamp mark on the object.
+# A method value bound by a `maketx run` script on a library type cannot be
+# kept by the realm it is handed to: adopted, it would act for that realm and
+# write its ungranted view. The store is refused, so nothing is pwned.
 
 loadpkg gno.land/p/nt/avl/v0
 
@@ -13,14 +11,14 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/victim -pkgpath gno.land/r/test/victim -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
 stdout OK!
 
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
-stdout OK!
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
+stderr 'cannot keep a function value made outside a realm in gno.land/r/test/victim'
 
 gnokey maketx call -pkgpath gno.land/r/test/victim -func RunHooks -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
 stdout OK!
 
 gnokey query vm/qrender --data 'gno.land/r/test/victim:'
-stdout 'k=pwned'
+! stdout 'k=pwned'
 
 -- victim/gnomod.toml --
 module = "gno.land/r/test/victim"

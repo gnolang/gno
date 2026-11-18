@@ -82,7 +82,10 @@ import (
 // proposals routed through this realm.
 var a *authz.Authorizer = authz.NewWithAuthority(authz.NewRestrictedContractAuthority(
 	"gno.land/r/testing/admin",
-	admin.HandlePrivilegedAction,
+	// admin's handler is another realm's function: wrap it rather than pass it.
+	func(title string, action authz.PrivilegedAction) error {
+		return admin.HandlePrivilegedAction(title, action)
+	},
 	authz.NewAutoAcceptAuthority(),
 ))
 
