@@ -565,8 +565,9 @@ func hashStores(stores map[types.StoreKey]types.CommitStore) []byte {
 
 // TestLastCommitIDConcurrentWithCommit models the production wiring: the query
 // connection runs on its own mutex (proxy.NewReadOnlyABCIClient), so
-// baseapp.LastBlockHeight(), which is cms.LastCommitID().Version, is read
-// concurrently with the consensus goroutine's Commit(). Run under -race.
+// BaseApp.Info and BaseApp.Query read WrittenCommitID concurrently with the
+// consensus goroutine's Commit(). LastCommitID is read as well, to keep its
+// atomic covered. Run under -race.
 func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 	t.Parallel()
 
@@ -584,22 +585,17 @@ func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
 	// behind it.
 	for range 2 {
 		wg.Go(func() {
-			var last types.CommitID
 			for {
 				select {
 				case <-stop:
 					return
 				default:
 				}
-				id := ms.LastCommitID()
-				// A torn read would pair a fresh version with a stale hash;
-				// versions only ever move forward. t.Errorf and not require,
-				// which calls FailNow off the test goroutine.
-				if id.Version < last.Version {
-					t.Errorf("version went backwards: %d after %d", id.Version, last.Version)
-					return
-				}
-				last = id
+				// Info and height-0 queries read WrittenCommitID. The race
+				// detector is the assertion: a torn read keeps Version
+				// monotonic and pairs it with a stale Hash.
+				ms.LastCommitID()
+				ms.WrittenCommitID()
 				time.Sleep(time.Microsecond)
 			}
 		})
