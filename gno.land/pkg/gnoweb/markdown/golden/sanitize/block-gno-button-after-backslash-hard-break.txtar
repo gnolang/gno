@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+Thanks for reading! \\  \n<gno-button href="https://evil.example/claim" label="Claim your reward" />
+-- output.md --
+
+
+Thanks for reading! \  
+\<gno-button href="https://evil.example/claim" label="Claim your reward" />
+
+-- output.html --
+<p>Thanks for reading! \<br>
+\<!-- raw HTML omitted --></p>

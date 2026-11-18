@@ -1,0 +1,134 @@
+# Cold-start regression for the save-walk cycle guard: guard-escaped reference
+# cycles must survive node restarts (fresh store from state) for reads, writes
+# and deletion.
+#
+# Anchoring note: the anchor into a cycle cannot be set before the trigger
+# finalize -- any outside reference keeps an escape mark alive and the walk
+# terminates on the base too. So build() and resurrect() each leave their cycle
+# in their own finalize, where the guard escapes it, and keep() adds the anchors
+# afterwards from the caller's frame, within the same MsgCall -- the same trick
+# as zrealm_cycle_unescaped_later.gno.
+#
+# On the unpatched base this dies with fatal error: stack overflow inside
+# build()'s finalize; with the guard it passes end to end.
+
+adduser dev
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/gcycle -pkgpath gno.land/r/demo/gcycle -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test dev
+stdout OK!
+
+# Trigger: build() deletes Root, which demotes the only escape mark of a new
+# two-node cycle; resurrect() deletes the stored R and revives it under a new
+# node it points back to. The guard escapes both cycles and keep() anchors them.
+gnokey maketx call -pkgpath gno.land/r/demo/gcycle -func Run -gas-fee 1000001ugnot -gas-wanted 10000000 -chainid=tendermint_test dev
+stdout OK!
+
+# Both cycles are intact through their escaped refs: Keep.Next.V == 8 and
+# KeepR.Next.V == 5.
+gnokey query vm/qeval --data 'gno.land/r/demo/gcycle.State()'
+stdout '"8 5" string'
+
+# Cold start: fresh store from state, real process restart.
+gnoland restart
+gnokey query vm/qeval --data 'gno.land/r/demo/gcycle.State()'
+stdout '"8 5" string'
+
+# Write into both cycles after the cold start, then re-read.
+gnokey maketx call -pkgpath gno.land/r/demo/gcycle -func Bump -gas-fee 1000001ugnot -gas-wanted 10000000 -chainid=tendermint_test dev
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/gcycle.State()'
+stdout '"9 6" string'
+
+# Second cold start: the re-saved cycles load again.
+gnoland restart
+gnokey query vm/qeval --data 'gno.land/r/demo/gcycle.State()'
+stdout '"9 6" string'
+
+# Break both cycles and drop their anchors, deleting every object in them.
+gnokey maketx call -pkgpath gno.land/r/demo/gcycle -func Drop -gas-fee 1000001ugnot -gas-wanted 10000000 -chainid=tendermint_test dev
+stdout OK!
+
+# Third cold start: the deletions are what loads.
+gnoland restart
+gnokey query vm/qeval --data 'gno.land/r/demo/gcycle.State()'
+stdout '"dropped" string'
+
+-- gcycle/gnomod.toml --
+module = "gno.land/r/demo/gcycle"
+gno = "0.9"
+
+-- gcycle/gcycle.gno --
+package gcycle
+
+import "strconv"
+
+type Node struct {
+	Next *Node
+	V    int
+}
+
+var (
+	Root  *Node
+	R     *Node
+	Keep  *Node
+	KeepR *Node
+)
+
+func init() {
+	Root = &Node{}
+	R = &Node{V: 5}
+}
+
+// build leaves a new two-node cycle whose only escape mark the deletion of
+// Root demotes.
+func build(cur realm) *Node {
+	x := &Node{V: 7}
+	y := &Node{V: 8}
+	x.Next = y
+	y.Next = x
+	Root.Next = x
+	Root = nil
+	return x
+}
+
+// resurrect deletes the stored R and revives it under a new node it points
+// back to, which leaves a cycle with no escape mark.
+func resurrect(cur realm) *Node {
+	p := R
+	R = nil
+	n := &Node{Next: p, V: 6}
+	p.Next = n
+	return n
+}
+
+func keep(cur realm, x, n *Node) {
+	Keep = x
+	KeepR = n
+}
+
+func Run(cur realm) {
+	x := build(cross(cur))
+	n := resurrect(cross(cur))
+	keep(cross(cur), x, n)
+}
+
+func State() string {
+	if Keep == nil || KeepR == nil {
+		return "dropped"
+	}
+	return strconv.Itoa(Keep.Next.V) + " " + strconv.Itoa(KeepR.Next.V)
+}
+
+func Bump(cur realm) {
+	Keep.Next.V++
+	KeepR.Next.V++
+}
+
+func Drop(cur realm) {
+	Keep.Next.Next = nil
+	Keep = nil
+	KeepR.Next.Next = nil
+	KeepR = nil
+}

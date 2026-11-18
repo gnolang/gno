@@ -1,41 +1,44 @@
 # Build and upload binaries for release tags.
 #
-# Two tag shapes reach this workflow:
+# Only vX.Y.Z tags reach this workflow (see RELEASING.md). A chain/<name>
+# launch tag builds nothing: its release is the genesis record and carries no
+# binaries, and a binary reporting "chain/<name>" would satisfy no governance
+# halt_min_version anyway.
 #
-#   v1.2.0          a release of the current network (see RELEASING.md)
-#   chain/<name>    a chain's launch tag, and betanet's retired chain/gnoland1.N
+# Tag pushes only, with no manual trigger, and a published release is never
+# replaced (RELEASING.md, "Cutting a release").
 #
 # The tag is compiled into the binaries VERBATIM. That matters: the node parses
-# its own version to decide whether it satisfies a governance halt_min_version,
-# and it only understands these two shapes. Stripping the "chain/" prefix, as
-# this workflow used to, produced binaries reporting "mainnet" — a string that
-# parses as nothing and satisfies no upgrade gate.
+# its own version to decide whether it satisfies a governance halt_min_version.
+# Stripping the "chain/" prefix, as this workflow used to, produced binaries
+# reporting "mainnet" — a string that parses as nothing.
 name: release / chain-tag
 
 on:
   push:
     tags:
-      - "chain/*"
       - "v*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to build (e.g. v1.2.0)"
-        required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 permissions: {}
 
+env:
+  TAG: ${{ github.ref_name }}
+
 jobs:
   binaries:
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     strategy:
       matrix:
         include:
+          # A native build has cgo on, so its binaries need at most the build
+          # system's glibc, and may need exactly that. ubuntu:22.04's is 2.35,
+          # Ubuntu 22.04's, so they start there and on any newer glibc (see the
+          # glibc step below). A container, not the ubuntu-22.04 runner, which
+          # GitHub retires on 2027-04-17 (actions/runner-images#14254).
           - os: ubuntu-latest
+            container: ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
             goos: linux
             goarch: amd64
             native: true # runs on the builder, so the version can be asserted
@@ -50,15 +53,33 @@ jobs:
             goarch: arm64
             native: true
     runs-on: ${{ matrix.os }}
+    # Empty for the other rows, which then run on the runner itself.
+    container: ${{ matrix.container }}
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # The image has no compiler, and Go turns cgo off by itself when it finds
+      # none, which would drop lmdb, mdbx and Ledger support without failing
+      # anything: the build requires cgo instead. git lets actions/checkout
+      # clone, and perl provides shasum. The job runs as root in a workspace
+      # the runner's user owns, which git refuses, and go build then fails on
+      # its VCS stamping: the system config, which every later step in the
+      # container reads, marks the workspace safe.
+      - name: Install the build tools in the container
+        if: matrix.container
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates gcc git libc6-dev perl
+          git config --system --add safe.directory "${GITHUB_WORKSPACE}"
+          echo "CGO_ENABLED=1" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: false # zizmor: cache-poisoning — this job publishes artifacts
@@ -117,14 +138,57 @@ jobs:
               exit 1
             fi
             got="$(echo "${out}" | awk -v n="$name" '$1 == n && $2 == "version:" {print $3}')"
-            if [ "$got" != "$TAG" ]; then
-              echo "::error::${name} reports '${got}', expected '${TAG}' — the -ldflags did not apply"
+            # Against the ref that started the run rather than TAG, so a TAG
+            # that drifted from it fails here instead of passing its own test.
+            if [ "$got" != "$GITHUB_REF_NAME" ]; then
+              echo "::error::${name} reports '${got}', expected '${GITHUB_REF_NAME}' — the -ldflags did not apply"
               exit 1
             fi
             echo "${name}: ${got}"
           done
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      # A Linux binary built with cgo needs at most the glibc of the system
+      # that built it, and may need exactly that: v1.7.0's, built on Ubuntu
+      # 24.04 (glibc 2.39), needed 2.38 and did not start on Ubuntu 22.04
+      # (2.35) or Debian 12 (2.36). This fails the run before a binary that
+      # needs more than 2.35 reaches the release, as a change of build system
+      # could make one. readelf reads any ELF, so the cross-compiled arm64
+      # binaries, static without cgo, are checked too. shell: bash adds
+      # pipefail, so a readelf failure fails the step.
+      - name: Assert the Linux binaries start on glibc 2.35
+        if: matrix.goos == 'linux'
+        shell: bash
+        env:
+          MAX_GLIBC: GLIBC_2.35
+        run: |
+          checked=0
+          for bin in dist/*_linux_*; do
+            case "${bin}" in *.txt) continue ;; esac
+            [ -e "${bin}" ] || break # no match: the glob stays as written
+            info="$(readelf --program-headers --version-info --wide "${bin}")"
+            checked=$((checked + 1))
+            # A static binary has no program interpreter.
+            if ! grep -q 'Requesting program interpreter' <<<"${info}"; then
+              echo "${bin}: static"
+              continue
+            fi
+            need="$({ grep -oE 'GLIBC_[0-9]+(\.[0-9]+)+' <<<"${info}" || true; } | sort -uV | tail -n 1)"
+            if [ -z "${need}" ]; then
+              echo "::error::${bin} is dynamic, but needs no glibc symbol version: readelf's output was not understood"
+              exit 1
+            fi
+            if [ "$(printf '%s\n%s\n' "${need}" "${MAX_GLIBC}" | sort -V | tail -n 1)" != "${MAX_GLIBC}" ]; then
+              echo "::error::${bin} needs ${need}, newer than ${MAX_GLIBC}: it would not start on a system with glibc ${MAX_GLIBC#GLIBC_}, such as Ubuntu 22.04"
+              exit 1
+            fi
+            echo "${bin}: needs ${need}"
+          done
+          if [ "${checked}" -eq 0 ]; then
+            echo "::error::no Linux binary in dist/"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
@@ -132,21 +196,20 @@ jobs:
   release:
     needs: binaries
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     permissions:
       contents: write # to create/upload release assets
+      id-token: write # to sign the provenance attestation (keyless, sigstore)
+      attestations: write # to store it on the repository
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag || github.ref }}
           # Full history, so the notes step can ask which tag precedes this one.
           # blob:none keeps that cheap: commits and tags, no file contents.
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
           merge-multiple: true
@@ -156,6 +219,50 @@ jobs:
           cd dist
           cat checksums_*.txt | sort > CHECKSUMS.txt
           rm -f checksums_*.txt
+
+      # A published release is never replaced: its assets are what the upgrade
+      # ledgers record (RELEASING.md, "Cutting a release"). A draft is what a
+      # run that failed before publishing leaves behind, and this run finishes
+      # it. Placed before the attestation, so a refused run attests nothing.
+      - name: Refuse a published release
+        id: release_state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # One GraphQL query, whose release(tagName:) also returns drafts. Not
+          # gh release view: it answers "release not found" whenever its lookup
+          # of a published release fails, whatever the reason, which would
+          # read as "go on" for a release that is in fact published.
+          # shellcheck disable=SC2016 # $owner, $name, $tag are GraphQL variables
+          state="$(gh api graphql \
+            -f owner="${GITHUB_REPOSITORY_OWNER}" -f name="${GITHUB_REPOSITORY#*/}" -f tag="${TAG}" \
+            -f query='query($owner: String!, $name: String!, $tag: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { isDraft } } }' \
+            --jq '.data.repository.release | if . == null then "none" elif .isDraft then "draft" else "published" end')" \
+            || { echo "::error::cannot read the release for ${TAG} (gh's error is above)"; exit 1; }
+          case "${state}" in
+          none) echo "no release for ${TAG} yet" ;;
+          draft) echo "${TAG} has a draft release from an earlier run; this run finishes it" ;;
+          published)
+            echo "::error::${TAG} is already published, and a published release is never replaced (RELEASING.md, \"Cutting a release\")"
+            exit 1
+            ;;
+          *)
+            echo "::error::unexpected release state for ${TAG}: ${state}"
+            exit 1
+            ;;
+          esac
+          echo "state=${state}" >> "$GITHUB_OUTPUT"
+
+      # Provenance: which workflow built every asset, from which commit and
+      # tag. Attested here, once CHECKSUMS.txt exists, so the checksum file is
+      # covered along with the binaries, and before the release is created, so
+      # nothing is published unattested. The release binaries are not
+      # reproducible from the tag (no -trimpath, see the build step), so this
+      # attestation is the operator's anchor besides the checksums; the verify
+      # command is in RELEASING.md, "Signing and provenance".
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
 
       # Notes are generated here rather than with `gh release create
       # --generate-notes`, which picks the range itself and picked wrong: it
@@ -180,20 +287,12 @@ jobs:
           # would name the final release as its own predecessor.
           tags() { git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname; }
 
-          case "${TAG}" in
-          v*)
-            # TAG is itself in this list (the workflow only runs for a tag that
-            # exists), so the next final release below it is the predecessor.
-            # Pre-releases are skipped: v1.3.0 follows v1.2.0, not v1.3.0-rc.1.
-            PREV="$(tags | awk -v t="${TAG}" '
-              $0 == t { seen = 1; next }
-              seen && $0 !~ /-/ { print; exit }')"
-            ;;
-          *)
-            # A chain/<name> launch tag: baseline against the newest release.
-            PREV="$(tags | awk '!/-/ { print; exit }')"
-            ;;
-          esac
+          # TAG is itself in this list (the workflow only runs for a tag that
+          # exists), so the next final release below it is the predecessor.
+          # Pre-releases are skipped: v1.3.0 follows v1.2.0, not v1.3.0-rc.1.
+          PREV="$(tags | awk -v t="${TAG}" '
+            $0 == t { seen = 1; next }
+            seen && $0 !~ /-/ { print; exit }')"
 
           # Every branch below writes notes.raw, so the release is never blocked
           # on note generation. generate-notes rejects a previous_tag_name that
@@ -227,28 +326,42 @@ jobs:
           fi
           echo "release body: $(wc -c <notes.md) characters"
 
-      - name: Ensure release exists
+      # Draft first, assets next, publication last: a release is never visible
+      # without its assets, and none is added once it is published, which is
+      # also the order GitHub's immutable releases require.
+      - name: Create the draft release
+        if: steps.release_state.outputs.state == 'none'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
-          # "Latest" — which is the page misc/deployments/*/VALIDATOR.md sends
-          # operators to, and what misc/install.sh resolves "latest" to. Mark
-          # pre-releases as such, matching goreleaser's `prerelease: auto`.
-          PRERELEASE=""
-          case "${TAG}" in
-            v*-*) PRERELEASE="--prerelease" ;;
-          esac
-          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
-            gh release create "${TAG}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "${TAG}" \
-              --notes-file notes.md \
-              --verify-tag \
-              ${PRERELEASE}
+          # Every release starts as a pre-release, the final one included: it
+          # is published days before the chain switches to it, and until then
+          # the release the chain runs keeps "Latest" and misc/install.sh's
+          # default. misc/release/promote-release.sh makes a final a full
+          # release and Latest (RELEASING.md, "Publishing early, promoting once
+          # the switch is set").
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --draft \
+            --title "${TAG}" \
+            --notes-file notes.md \
+            --verify-tag \
+            --prerelease
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # --clobber only ever replaces assets on the draft: a published
+          # release was refused before the attestation.
           gh release upload "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Published as a pre-release even from a draft made by hand without
+          # the flag, and never Latest, which GitHub would otherwise give a
+          # full release on publication. Only misc/release/promote-release.sh
+          # promotes a release.
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease --latest=false

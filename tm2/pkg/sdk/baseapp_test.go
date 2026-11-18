@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -480,6 +481,46 @@ func newTestHandler(proc func(Context, Msg) Result) Handler {
 	}
 }
 
+// codeQueryHandler is a handler whose query "code/run" runs code.
+type codeQueryHandler struct{ testHandler }
+
+func (codeQueryHandler) QueryRunsCode(path string) bool { return path == "code/run" }
+
+func TestQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t, func(bapp *BaseApp) {
+		bapp.Router().AddRoute("code", codeQueryHandler{})
+		bapp.Router().AddRoute("plain", testHandler{})
+	})
+
+	runsCode := []string{
+		".app/simulate",
+		"/.app/simulate",
+		".app/simulate/x",
+		"code/run",
+	}
+	runsNoCode := []string{
+		"",
+		"/",
+		".app",
+		".app/version",
+		".app/simulatex",
+		".app/simulate?x", // handleQueryApp reads "simulate?x", an unknown query
+		"//.app/simulate", // routed to the empty name, which has no handler
+		".store/main/key",
+		"code/other",
+		"plain/run", // its handler does not implement abci.CodeExecutionQuerier
+		"none/run",
+	}
+	for _, path := range runsCode {
+		assert.True(t, app.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, app.QueryRunsCode(path), "path %q", path)
+	}
+}
+
 type msgCounterHandler struct {
 	t          *testing.T
 	capKey     store.StoreKey
@@ -619,6 +660,69 @@ func TestCheckTxMalformedTypeURL(t *testing.T) {
 
 	res := app.CheckTx(abci.RequestCheckTx{Tx: mutated})
 	require.False(t, res.IsOK(), "expected a decode error, got OK")
+}
+
+// TestRunTxRejectsNonCanonicalEncoding: runTx must reject, in CheckTx and
+// DeliverTx alike, bytes that decode to a tx but are not its canonical
+// encoding. The encoding classes are covered in amino; one is enough here.
+func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	canonical, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: canonical}).IsOK())
+
+	// The first tag as a two-byte varint: the same tx under another hash.
+	require.Less(t, canonical[0], byte(0x80))
+	padded := slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
+	var decoded std.Tx
+	require.NoError(t, amino.Unmarshal(padded, &decoded))
+	reencoded, err := amino.Marshal(decoded)
+	require.NoError(t, err)
+	require.Equal(t, canonical, reencoded)
+
+	for _, res := range []abci.ResponseBase{
+		app.CheckTx(abci.RequestCheckTx{Tx: padded}).ResponseBase,
+		app.DeliverTx(abci.RequestDeliverTx{Tx: padded}).ResponseBase,
+	} {
+		require.False(t, res.IsOK())
+		assert.Equal(t, std.TxDecodeError{}, res.Error)
+		assert.Contains(t, res.Log, "non-canonical encoding")
+		assert.NotContains(t, res.Log, "Stack Trace")
+	}
+
+	// Undecodable bytes: Log carries the reason, without a stack trace, which
+	// every result in a block of garbage txs would otherwise store.
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: []byte{0xff}})
+	assert.Equal(t, std.TxDecodeError{}, res.Error)
+	assert.NotEmpty(t, res.Log)
+	assert.NotContains(t, res.Log, "Stack Trace")
+}
+
+// TestRunTxRejectsNilMsg: an empty Any is the canonical encoding of a nil
+// message, so UnmarshalCanonical passes it; it must fail as a bad request,
+// not as a recovered nil-pointer panic.
+func TestRunTxRejectsNilMsg(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	canonical, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	for name, bz := range map[string][]byte{
+		"only a nil message":            {0x0a, 0x00},
+		"nil message before a real one": slices.Concat([]byte{0x0a, 0x00}, canonical),
+	} {
+		res := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+		require.False(t, res.IsOK(), name)
+		assert.Equal(t, std.UnknownRequestError{}, res.Error, name)
+		assert.NotContains(t, res.Log, "recovered", name)
+	}
 }
 
 // Test that successive DeliverTx can see each others' effects
