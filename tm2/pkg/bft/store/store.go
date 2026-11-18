@@ -75,7 +75,8 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 	}
 
 	block := new(types.Block)
-	buf := []byte{}
+	parts := make([]*types.Part, 0, blockMeta.BlockID.PartsHeader.Total)
+	var size int64
 	for i := range blockMeta.BlockID.PartsHeader.Total {
 		part := bs.LoadBlockPart(height, i)
 		// If the part is missing (e.g. since it has been deleted after we
@@ -83,13 +84,25 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 		if part == nil {
 			return nil
 		}
-		buf = append(buf, part.Bytes...)
+		parts = append(parts, part)
+		size += int64(len(part.Bytes))
 	}
-	err := amino.UnmarshalSized(buf, block)
-	if err != nil {
+	// Decode as ConsensusState.decodeBlockParts does, since consensus commits
+	// whatever parts +2/3 precommitted: ignore bytes after the block, and keep
+	// a block the decode filled before failing, as on an unknown trailing field.
+	_, err := amino.UnmarshalSizedReader(types.NewPartSetReader(parts), block, size)
+	// Hash before validating, as decodeBlockParts does: Hash fills a header
+	// hash the encoding left out. Being tolerant must not load some other
+	// block: a corrupt length prefix reads as length 0, or overflows, and
+	// decodes without an error.
+	hashes := block.HashesTo(blockMeta.BlockID.Hash)
+	if err != nil && (!hashes || block.ValidateBasic() != nil) {
 		// NOTE: The existence of meta should imply the existence of the
 		// block. So, make sure meta is only saved after blocks are saved.
 		panic(errors.Wrap(err, "Error reading block"))
+	}
+	if !hashes {
+		panic(fmt.Sprintf("Error reading block: stored block at height %v does not hash to %X", height, blockMeta.BlockID.Hash))
 	}
 	return block
 }
