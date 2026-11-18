@@ -456,7 +456,8 @@ func TestBurnOneAboveRecordedSupplyIsRefused(t *testing.T) {
 	// SetCoins is supply-blind: 11 held against a record of 10.
 	require.NoError(t, env.bankk.SetCoins(ctx, a, std.Coins{{Denom: testRealmDenom, Amount: 11}}))
 
-	require.Error(t, env.bankk.BurnCoins(ctx, a, std.Coins{{Denom: testRealmDenom, Amount: 11}}))
+	require.ErrorContains(t, env.bankk.BurnCoins(ctx, a, std.Coins{{Denom: testRealmDenom, Amount: 11}}),
+		"supply of "+testRealmDenom+" would move from 10 by -11, which is out of range")
 	require.Equal(t, int64(10), env.bankk.TotalSupply(ctx, testRealmDenom))
 	require.Equal(t, int64(11), env.bankk.GetCoin(ctx, a, testRealmDenom),
 		"a refused burn must not have debited")
