@@ -1,4 +1,5 @@
-# Test that a private realm's own unit tests (xxx_test package) can import the realm.
+# Test that a private realm's own unit tests (xxx_test package) and filetests
+# can import the realm.
 # See: https://github.com/gnolang/gno/issues/5053
 
 # Set up GNOROOT in the current directory.
@@ -11,6 +12,7 @@ gno test -v ./privaterealm
 
 stderr '=== RUN   TestHello'
 stderr '--- PASS: TestHello.*'
+stderr '--- PASS: ./privaterealm/z0_filetest.gno.*'
 
 -- gnowork.toml --
 -- privaterealm/gnomod.toml --
@@ -37,3 +39,15 @@ func TestHello(t *testing.T) {
 		t.Fatal("expected hello")
 	}
 }
+
+-- privaterealm/z0_filetest.gno --
+package main
+
+import "gno.test/r/integ/privaterealm"
+
+func main() {
+	println(privaterealm.Hello())
+}
+
+// Output:
+// hello
