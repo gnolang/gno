@@ -247,6 +247,21 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 						}))
 					}
 				}
+			case *ast.ExprStmt:
+				// `mutable(x)` as a statement: the pass-through below would
+				// leave a bare `x`, which Go rejects as unused, so bind it.
+				// Apply still walks the original children, and the native
+				// rewrites inside x mutate nodes in place, so x is shared.
+				if ce, ok := node.X.(*ast.CallExpr); ok && len(ce.Args) == 1 {
+					if fe, ok := ce.Fun.(*ast.Ident); ok && fe.Name == "mutable" {
+						c.Replace(&ast.AssignStmt{
+							Lhs: []ast.Expr{ast.NewIdent("_")},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{ce.Args[0]},
+						})
+						return true
+					}
+				}
 			case *ast.CallExpr:
 				// is function call to a native function?
 				// -> rename if unexported, apply `nil,` for the first arg if necessary
@@ -412,7 +427,7 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		// dispatch; the preprocessor handles its actual lowering. For
 		// the gno-to-go transpile build, treat it as a pass-through
 		// identity so the resulting Go code compiles.
-		if fe.Name == "cross" && len(ce.Args) == 1 {
+		if (fe.Name == "cross" || fe.Name == "mutable") && len(ce.Args) == 1 {
 			c.Replace(ce.Args[0])
 			return true
 		}

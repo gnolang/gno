@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_mv_higher_order_chain
 package launderrh_mv_higher_order_chain
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Higher-order indirection chain: victim calls fn that calls fn that
 // calls attacker's STORED PlainHook, which dispatches /p/-Apply
 // against a captured /r/-victim-stamped /p/-pointer.
@@ -57,4 +62,6 @@ func main(cur realm) {
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,0)>.Field

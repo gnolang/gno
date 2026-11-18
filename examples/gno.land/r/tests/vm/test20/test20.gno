@@ -21,5 +21,6 @@ var (
 func init(cur realm) {
 	// test20 only ever creates this one token, so id 0 can't collide.
 	Token, PrivateLedger = grc20.NewToken("Test20", "TST", 4, 0, cur)
-	grc20reg.Register(cross(cur), Token, "")
+	mutable(PrivateLedger) // test fixture: other realms mint through the ledger
+	grc20reg.Register(cross(cur), mutable(Token), "")
 }

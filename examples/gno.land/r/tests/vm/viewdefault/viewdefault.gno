@@ -1,0 +1,89 @@
+// Package viewdefault is a fixture for the view-by-default rule: a reference
+// that crosses a realm boundary is read-only unless its owner granted a
+// handle with mutable(x).
+package viewdefault
+
+import (
+	"encoding/base64"
+
+	"gno.land/p/demo/tests/viewgrant/v0"
+	"gno.land/p/nt/avl/v0"
+)
+
+var (
+	view   = avl.NewTree() // handed out as a view
+	handle = avl.NewTree() // handed out with a grant
+	inbox  *avl.Tree       // a caller's tree, stored by Store
+
+	// pair is handed out as a view until GrantPairA grants it by field address.
+	pair = viewgrant.NewPair()
+)
+
+func init() {
+	view.Set("k", "v0")
+	handle.Set("k", "h0")
+}
+
+// GetView returns a reference the caller can read but not write through.
+func GetView() *avl.Tree { return view }
+
+// ViewSetter hands out a method value bound here on the ungranted view: it
+// acts for the realm whose code calls it, so the caller gets no write.
+func ViewSetter() func(string, any) bool { return view.Set }
+
+// HandleSetter hands out a method value on a granted object: it writes.
+func HandleSetter() func(string, any) bool { return mutable(handle).Set }
+
+// CopyToView runs this realm's own method value from library code it called.
+func CopyToView(cur realm) { handle.Iterate("", "", view.Set) }
+
+// GetHandle returns a reference the caller may write through.
+func GetHandle() *avl.Tree { return mutable(handle) }
+
+// GrantForeign tries to grant on an object this realm does not own.
+func GrantForeign(cur realm, t *avl.Tree) *avl.Tree { return mutable(t) }
+
+// Store keeps a caller's tree and later writes to it.
+func Store(cur realm, t *avl.Tree) { inbox = t }
+
+// StoreAndWrite writes through a caller's tree inside the same call.
+func StoreAndWrite(cur realm, t *avl.Tree) {
+	inbox = t
+	t.Set("from", "viewdefault")
+}
+
+// RunHook calls a caller's function value from this realm's own code.
+func RunHook(cur realm, fn func()) { fn() }
+
+// PublishView asks library code to grant the stored view.
+func PublishView() *avl.Tree { return viewgrant.Publish(view) }
+
+// NewViewWriter hands out a fresh /p/-built handle onto the stored view.
+func NewViewWriter() *viewgrant.Writer { return viewgrant.NewWriter(view) }
+
+// GetPair hands out pair as a view.
+func GetPair() *viewgrant.Pair { return pair }
+
+// GrantPairA grants through a field address: the grant unit is the object
+// that holds the field, so both SetA and SetB become handles.
+func GrantPairA(cur realm) { mutable(&pair.A) }
+
+func WriteInbox(cur realm) { inbox.Set("from", "viewdefault") }
+
+func Read(k string) string {
+	if v := view.Get(k); v != nil {
+		return v.(string)
+	}
+	if v := handle.Get(k); v != nil {
+		return v.(string)
+	}
+	return ""
+}
+
+// secret is handed out as a view; Encoder hands out a stdlib method value
+// that writes its first argument.
+var secret = []byte("secret-bytes")
+
+func Secret() []byte                 { return secret }
+func SecretString() string           { return string(secret) }
+func Encoder() func(dst, src []byte) { return base64.StdEncoding.Encode }

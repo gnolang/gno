@@ -1,0 +1,193 @@
+# ADR: cross-realm references are views unless the owner grants a handle
+
+## Status
+
+Proposed
+
+## Context
+
+Gno is the only chain VM where a realm holds a live reference to another
+realm's object. Direct writes through such a reference are refused: the write
+gate `Machine.IsReadonly` (machine.go) compares the object's owner
+(`ObjectID.PkgID`) with the active storage realm `m.Realm`. Nothing is stored
+on the value; "readonly" is derived from ownership.
+
+Writes through a `/p/` method were not refused. Borrow rule #2 in
+`PushFrameCall` switched `m.Realm` to the receiver's owner for the call, so
+`X.GetUsers().Set(k, v)` from realm A committed to X's storage. That was the
+only way a caller obtained write access to another realm's data, and it was
+implicit: any exported function returning a `/p/`-typed pointer handed it out
+whether the author meant to or not. The security guide (§5.1) and the audit
+harness warned about the shape; the language did not mark it, and three realms
+hand-rolled read-only views with `/p/nt/rotree`.
+
+Survey of `examples/` (non-test realms, 2026-09-17): 19 exported functions
+return a pointer, slice or map of a `/p/` type; 4 were write handles used in
+production, all `*grc20.Token` (`grc20reg.Get/MustGet`,
+`grc20factory.Bank/ListTokens`), consumed by 4 `RealmTeller(...)` sites.
+Slices of structs were never handles (element writes hit the gate).
+
+## Decision
+
+A reference that crosses a realm boundary, as a return value or an argument,
+is a view. The owner grants write access explicitly, and the grant is a
+property of the object, so it survives the store.
+
+1. **`mutable(x)` uverse builtin**, shaped like `cross(x)`: returns `x`
+   unchanged and sets `ObjectInfo.IsMutable` on `x`'s first object. Only the
+   owner may grant (`PkgID == m.Realm.ID`), else panic. Real objects are
+   marked dirty; unreal ones carry the flag into their first save. The grant
+   unit is the pointer's base object (`GetFirstObject`, the same object rule
+   #2 inspects): `mutable(&s.field)` grants `s`; a pointer to a heap-held
+   value resolves to the value inside the heap item (`GetGrantObject`), so
+   `mutable(p)`, `mutable(&p.field)` and the receiver rule #2 inspects name
+   one object.
+2. **Borrow rule #2 needs the grant.** For a `/p/` method on a foreign-owned
+   receiver, real or not, `PushFrameCall` borrows to the owner only if
+   `IsMutable` is set. Otherwise `m.Realm` stays the caller's and the method's
+   writes are refused by the existing gate, with a message that names
+   `mutable(x)` as the remedy when the writer is `/p/` code. A constructor
+   that means to hand out a handle grants the fresh object itself: grc20's
+   tellers return `mutable(&fnTeller{...})`.
+3. **Library code grants only what it built.** `mutable(x)` from a `/p/` or
+   stdlib package panics on a *real* object, so a dependency cannot grant a
+   realm's stored state on its behalf; every grant of stored state is a
+   `mutable(` line in the realm itself. A `/p/`-owned receiver still borrows
+   without a grant: its post-init immutability gate reports the write.
+4. **Grants do not survive adoption.** `SetPkgID` clears `IsMutable`, so an
+   object pre-marked by its allocator (e.g. a `maketx run` script) and then
+   adopted by the realm that stores it is a view for the allocator afterwards.
+   This is what keeps the flag from re-opening the adopted-stamp borrow.
+5. **Both directions.** A passing its own `*avl.Tree` into
+   `X.Register(cross(cur), t)` gives X a view unless A wrote `mutable(t)`,
+   whether the tree was stored earlier or allocated in this transaction.
+6. **A method value writes only for its binder and its caller together.**
+   The `BoundMethodValue`'s stamp names the realm whose frame formed it.
+   Calling one keeps that realm's authority only while every frame down to
+   the nearest `/r/`- or `/e/`-declared one runs as the binder; otherwise
+   the call runs view-only (`m.Realm` nil, the write guard refusing every
+   stored object), so neither the binder's objects nor the caller's can be
+   written through it. A granted receiver borrows as in a direct call, and
+   a direct `x.M()` binds and calls in one frame: no-op. This refuses
+   `h.Iterate("", "", v.Set)` with a caller's `v.Set` on a view, an owner's
+   `view.Set` handed out, and an owner's `base64.StdEncoding.Encode` handed
+   out and called with the owner's own slice as `dst`.
+7. Rules #1 (`/r/`-declared callables) and #3 (closures) are unchanged.
+
+Persistence: `IsMutable` is amino field 8, `json:",omitempty"`, so unflagged
+objects hash as before. Amino numbers fields by struct position, so the field
+sits after `LastObjectSize`; a later field (e.g. an adopted-stamp mark) takes 9.
+
+Follow-up: the refusal message is chosen by the executing package's kind
+(library vs realm). Choosing it from the refused object (immutable-package
+owner, ungranted foreign owner, or other) would be more precise and would let
+the `/p/`-owned exemption in rule #2 go; it needs `resolvePointer` to hand the
+offending value to the panic site.
+
+Follow-up: a `//gno:mutable` directive on the declaration, checked by the
+preprocessor, would move the grant into the signature without a parser
+change: it inserts `mutable()` on the returned or received reference and
+rejects a body that hands out a handle the declaration does not announce.
+A Gno2 type qualifier (`func F() mutable *T`, `t mutable *T`) is the same
+idea with syntax; both keep the flag as the mechanism.
+
+## Alternatives considered
+
+- **Keep guidance only.** The dangerous code (`return users`) is the natural
+  code; Solidity's `tx.origin` history says guidance alone fails at scale.
+- **`readonly`/`mutable` signature modifier.** Not Go syntax, so go/parser and
+  go/types break; covers only function boundaries. A `//gno:mutable` comment
+  directive checked against the body can be added later on top of the flag.
+- **Remove borrow rule #2.** Breaks the intended `avl.Tree.Set`-from-a-
+  foreign-caller pattern (GRC20 hubs).
+- **Per-reference grant.** Cannot survive the store; handles are kept across
+  transactions.
+- **Wrapper types like `rotree`.** Per type, hand-rolled, inverse default.
+- **Restrict what `mutable` may wrap** (not a parameter; or only an object
+  written out on the spot, `mutable(&T{...})`, so an object is writable from
+  birth or never). Closes `func Share(cur realm, t *T) *T { return mutable(t) }`,
+  where a caller passes the realm's own object back. Not done: a realm that
+  writes through a caller-supplied reference has the same exposure without
+  `mutable`, so it is guidance (security guide §5.1d). It can only be
+  tightened before release, never after.
+
+## Consequences
+
+- Breaking for realms that hand out write handles. In tree: token realms grant
+  at registration, `grc20reg.Register(cross(cur), mutable(Token), "")`
+  (wugnot, foo20, test20, grc20factory, treasury test); `test20` also grants
+  its `PrivateLedger` as a test fixture. The `interrealm_v2` spec corpus grants
+  its `Lib` containers. Constructors whose result is a capability grant it:
+  grc20's four writing tellers, `allowancesender.New`, `crossrealm.Make1`,
+  `owned.LibFactory`. The 26 `zrealm_launder_*` fixtures, which pinned the
+  loophole as "known-open", now pin the refusal.
+- `mutable` is a uverse name and cannot be shadowed, like `cross`: a stored
+  package that declares a `mutable` identifier fails preprocessing, and the
+  node re-preprocesses every stored package at boot. The upgrade therefore
+  scans chain state for such declarations first (none in tree outside one
+  renamed quarantined test).
+- The grant belongs to the object, not the reference: once any getter has
+  granted `users`, every `*avl.Tree` to it is a handle, and there is no
+  revoke. A realm that needs a view of granted data hands out a wrapper
+  (`rotree.Wrap`, or a type-specific one), not the object.
+- Inside a `/p/` method on a granted object the storage is the owner's for
+  the whole body, so a method that writes one of its arguments writes any
+  object of that owner. This is the library's own code, which the owner
+  accepted by granting; it is guidance (security guide §5.1c), not a VM rule.
+- A method value handed to another realm writes nothing stored unless its
+  receiver is granted: the owner writes `mutable(x).M` to hand out a
+  writer. It is refused as well inside another realm's borrowed frame, even
+  on the caller's own object (`h.Iterate("", "", mine.Set)`); a closure the
+  caller declares does that. Closures are unchanged.
+- Known-open: a function value bound by a `maketx run` script is re-stamped
+  to the realm that stores it (adoption), so a realm that stores and later
+  calls caller-supplied function values runs them as itself
+  (`view_method_value_adopted.txtar`). Closing it needs an adopted-stamp
+  mark on the object (amino field 9); until then the guidance stands: do not
+  store and call function values from callers.
+- Reads are unchanged. A borrowed method call reads one more flag from the
+  object info it already loaded.
+- Forgetting the grant fails loudly at the first foreign write instead of
+  silently granting authority.
+- Consensus-breaking: it ships in a coordinated upgrade. Realm source
+  already on chain cannot be edited, so the upgrade's state migration sets
+  `IsMutable` on every object a deployed realm hands out as a write handle
+  today. In tree that set is the `*grc20.Token` objects registered through
+  `grc20reg.Register` (wugnot, foo20, test20, grc20factory) and read back by
+  `grc20reg.Get`/`MustGet` and `grc20factory.Bank`/`ListTokens` for
+  `RealmTeller`; the migration list for a live chain is the same query run
+  over its state. Objects nobody hands out need nothing: unflagged objects
+  hash as before.
+- Realm-declared methods on an exported object are unchanged: borrow rule #1
+  still runs them under the declaring realm, so a realm's own API on its own
+  objects keeps working, and the view default covers `/p/`-typed references
+  only.
+
+## Tests
+
+- `zrealm_view_default.gno`: a returned view refuses `Set`, reads work.
+- `zrealm_view_handle.gno`: `mutable(handle)` lets the same write commit to the
+  owner.
+- `zrealm_view_grant_foreign.gno`: neither side can grant an object it does
+  not own.
+- `zrealm_view_ingress.gno`: the argument direction, view then grant, for a
+  stored tree and for one allocated in the same transaction.
+- `zrealm_view_grant_library.gno`: `/p/` code cannot grant a stored object;
+  a `/p/` constructor can grant the object it returns.
+- `zrealm_view_grant_field.gno`: `mutable(&s.field)` marks the object holding the
+  field, the one rule #2 inspects for a method on the pointer; both setters
+  commit after the grant.
+- `zrealm_view_grant_hiv_foreign.gno`: a heap item holding another realm's
+  pointer cannot be granted; the ownership gate fires before the descent.
+- `zrealm_view_callback.gno`: a caller's `v.Set` passed as a callback into a
+  granted handle's `Iterate` is refused; `h.Set` bound the same way commits.
+- `zrealm_launder_rdata_mv_stored_bound_mv.gno`: an attacker-bound method
+  value stored as a victim hook is refused when the victim runs it.
+- `view_grant_field_persists.txtar`: a grant through a field address holds
+  in later transactions, for both setters.
+- `view_default_grant_persists.txtar`: a stored handle is still a handle in
+  the next transaction; a stored view is still a view.
+- `TestCodecParity_Gnolang/ObjectInfo/mutable`: field 8 marshals identically
+  in the reflect and generated codecs.
+- Regenerated goldens for the launder corpus; GRC20 examples and txtars pass
+  with the grants above.

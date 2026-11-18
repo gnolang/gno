@@ -1,0 +1,55 @@
+# A grant does not transfer to a new owner. A `maketx run` script marks its own
+# tree with mutable(t), hands it to a realm that stores it (the realm adopts
+# and re-stamps the object at finalize), then tries to write through the
+# reference it kept. The adopter never granted, so the write is refused.
+
+loadpkg gno.land/p/nt/avl/v0
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/keeper -pkgpath gno.land/r/test/keeper -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
+stderr 'the owner must hand it out with mutable'
+
+gnokey query vm/qrender --data 'gno.land/r/test/keeper:'
+stdout 'stored=false'
+
+-- keeper/gnomod.toml --
+module = "gno.land/r/test/keeper"
+gno = "0.9"
+
+-- keeper/keeper.gno --
+package keeper
+
+import "gno.land/p/nt/avl/v0"
+
+var stored *avl.Tree
+
+func Store(cur realm, t *avl.Tree) { stored = t }
+
+func Render(string) string {
+	if stored == nil {
+		return "stored=false"
+	}
+	v, _ := stored.Get("k").(string)
+	return "stored=true k=" + v
+}
+
+-- run/main.gno --
+package main
+
+import (
+	"gno.land/p/nt/avl/v0"
+	"gno.land/r/test/keeper"
+)
+
+func main(cur realm) {
+	t := avl.NewTree()
+	mutable(t)                     // allocator grants while it still owns t
+	keeper.Store(cross(cur), t)    // keeper adopts t at finalize: new owner, grant cleared
+	t.Set("k", "pwned")            // refused: t is keeper's now and keeper never granted
+}

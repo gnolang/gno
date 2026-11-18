@@ -1,0 +1,56 @@
+# KNOWN-OPEN: a method value acts for the realm that bound it, but a value
+# bound by a `maketx run` script is re-stamped to the realm that stores it
+# (adoption). The victim then runs it as its own and the write to its
+# ungranted view commits. A realm must not store and call function values
+# from callers; closing this needs an adopted-stamp mark on the object.
+
+loadpkg gno.land/p/nt/avl/v0
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/victim -pkgpath gno.land/r/test/victim -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/test/victim -func RunHooks -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+gnokey query vm/qrender --data 'gno.land/r/test/victim:'
+stdout 'k=pwned'
+
+-- victim/gnomod.toml --
+module = "gno.land/r/test/victim"
+gno = "0.9"
+
+-- victim/victim.gno --
+package victim
+
+import "gno.land/p/nt/avl/v0"
+
+var view = avl.NewTree()
+var hooks []func(string, any) bool
+
+func GetView() *avl.Tree { return view }
+func Register(cur realm, h func(string, any) bool) { hooks = append(hooks, h) }
+func RunHooks(cur realm) {
+	for _, h := range hooks {
+		h("k", "pwned")
+	}
+}
+func Render(string) string {
+	v, _ := view.Get("k").(string)
+	return "k=" + v
+}
+
+-- run/main.gno --
+package main
+
+import "gno.land/r/test/victim"
+
+func main(cur realm) {
+	victim.Register(cross(cur), victim.GetView().Set)
+}

@@ -29,6 +29,7 @@ type Frame struct {
 	IsVarg        bool          // is form fncall(???, vargs...)
 	LastPackage   *PackageValue // previous frame's package
 	LastRealm     *Realm        // previous frame's realm
+	LastViewOnly  bool          // previous frame's Machine.viewOnly
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
 	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
