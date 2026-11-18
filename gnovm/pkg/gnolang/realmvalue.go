@@ -162,6 +162,9 @@ type realmSelf struct {
 // foreignRealmValue returns the first realm-declared struct/array type that
 // t holds by value and that is not declared in self.
 func foreignRealmValue(t types.Type, self realmSelf) types.Type {
+	if t == nil {
+		return nil // an expression go/types could not type
+	}
 	switch u := types.Unalias(t).(type) { // aliases: same verdict whatever gotypesalias says
 	case *types.Named:
 		if pkg := u.Obj().Pkg(); pkg != nil && pkg != self.pkg && pkg.Path() != self.path && IsRealmPath(pkg.Path()) {
@@ -200,6 +203,9 @@ func foreignRealmValue(t types.Type, self realmSelf) types.Type {
 
 // derefType is the type a pointer (of any named pointer type) points at.
 func derefType(t types.Type) types.Type {
+	if t == nil {
+		return nil
+	}
 	if p, ok := types.Unalias(t).Underlying().(*types.Pointer); ok {
 		return p.Elem()
 	}

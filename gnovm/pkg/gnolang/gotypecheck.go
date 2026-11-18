@@ -584,8 +584,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		tgofs2 := []*ast.File{gmgof, tgof}
 		gimp.testing = true // use tgetter for stdlibs, default to tgetter.
 		info := newRealmValueInfo()
+		tnumErrs := len(gimp.errors)
 		tpkg, _ := gimp.cfg.Check(mpkg.Path, gofset, tgofs2, info)
-		gimp.errors = append(gimp.errors, checkRealmValues(gofset, tgofs2, info, tpkg, filetestPkgPath(tgof, mpkg.Path))...)
+		if len(gimp.errors) == tnumErrs { // a type error leaves info incomplete
+			gimp.errors = append(gimp.errors, checkRealmValues(gofset, tgofs2, info, tpkg, filetestPkgPath(tgof, mpkg.Path))...)
+		}
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
