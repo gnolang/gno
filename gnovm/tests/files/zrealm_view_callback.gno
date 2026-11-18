@@ -26,7 +26,7 @@ func main(cur realm) {
 	// Bound by the owner on its view and called by a stranger: no write.
 	println("owner-bound:", try(func() { viewdefault.ViewSetter()("o", "x") }))
 	println("owner-bound hook:", revive(func() { viewdefault.RunHook(cross(cur), viewgrant.Wrap(viewdefault.ViewSetter())) }))
-	// The owner's own code calling its own method value writes.
+	// A method value the owner bound outside a gate has no binder: its gate writes nothing.
 	println("owner-bound callback:", revive(func() { viewdefault.HandleIterate(cross(cur), viewdefault.ViewSetter()) }))
 	println("view:", v.Get("k"), v.Get("a"), v.Get("o"), v.Size())
 	viewdefault.CopyToView(cross(cur))
@@ -49,7 +49,7 @@ func try(fn func()) (r any) {
 // view: v0 undefined undefined 1
 // owner-bound: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
 // owner-bound hook: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
-// owner-bound callback: undefined
-// view: v0 from-caller undefined 3
+// owner-bound callback: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// view: v0 undefined undefined 1
 // owner's own: copy
 // handle: v0 3
