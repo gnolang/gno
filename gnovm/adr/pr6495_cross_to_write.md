@@ -91,7 +91,7 @@ library code (call a function of the owning realm)`. `mutable` is removed.
   its types through the realm's interfaces.
 - A stdlib method writing its argument can be picked through an interface.
 - A function value a realm made at init or in a gate and publishes, handed
-  back to a gate of that realm that runs callbacks, writes (Q11).
+  back to a gate of that realm that runs callbacks, writes.
 
 ## Tests
 

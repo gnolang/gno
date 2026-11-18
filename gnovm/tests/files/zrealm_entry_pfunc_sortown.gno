@@ -8,4 +8,8 @@ import "gno.land/r/tests/vm/pfuncvictim"
 
 func main(cur realm) {
 	pfuncvictim.SortOwn(cross(cur))
+	println(pfuncvictim.Ints())
 }
+
+// Output:
+// slice[(1 int),(2 int),(3 int)]

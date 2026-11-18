@@ -59,6 +59,9 @@ func SortOwn(cur realm) { f := sort.Ints; f(gInts) }
 
 var gInts = []int{3, 1, 2}
 
+// Ints returns the slice SortOwn sorts.
+func Ints() []int { return gInts }
+
 // Runner is implemented by caller-chosen code; only Use's interface is named.
 type Runner interface{ Run(*launderpkg.Immutable) }
 
