@@ -225,7 +225,8 @@ func TestNeedsFlushPoint(t *testing.T) {
 // TestDeferredCommitsRefusedIteratorEndsTheBlock pins that an iterator over
 // the database inside a block, while commits are held, ends the block with a
 // panic even though runTx recovers it, while in CheckTx it only fails the
-// transaction, and while not deferring it works.
+// transaction, and while not deferring, or deferring with nothing held yet,
+// it works.
 func TestDeferredCommitsRefusedIteratorEndsTheBlock(t *testing.T) {
 	t.Parallel()
 
@@ -239,8 +240,14 @@ func TestDeferredCommitsRefusedIteratorEndsTheBlock(t *testing.T) {
 	app.EndBlock(abci.RequestEndBlock{Height: 1})
 	app.Commit()
 
+	// The first block deferred holds nothing yet, so it iterates.
 	require.True(t, app.DeferCommits(true))
 	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: deferTestChain, Height: 2}})
+	require.Nil(t, app.DeliverTx(abci.RequestDeliverTx{Tx: iterating}).Error, "iterating with nothing held")
+	app.EndBlock(abci.RequestEndBlock{Height: 2})
+	app.Commit()
+
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: deferTestChain, Height: 3}})
 	require.ErrorIs(t, panicError(func() { app.DeliverTx(abci.RequestDeliverTx{Tx: iterating}) }), dbm.ErrIteratorOverHeldWrites)
 
 	// CheckTx runs only the ante handler; one that iterates fails its
@@ -256,7 +263,7 @@ func TestDeferredCommitsRefusedIteratorEndsTheBlock(t *testing.T) {
 // EndBlock end the block when a blocker opened a refused iterator while
 // commits are held, even if the blocker recovers the panic, but not for a
 // refusal CheckTx recorded before them, and that the same blockers run
-// unharmed while not deferring.
+// unharmed while not deferring, or deferring with nothing held yet.
 func TestDeferredCommitsRefusedIteratorInBlockers(t *testing.T) {
 	t.Parallel()
 
@@ -296,8 +303,12 @@ func TestDeferredCommitsRefusedIteratorInBlockers(t *testing.T) {
 	app.Commit()
 
 	require.True(t, app.DeferCommits(true))
-	require.ErrorIs(t, panicError(begin(2)), dbm.ErrIteratorOverHeldWrites)
-	require.ErrorIs(t, panicError(end(2)), dbm.ErrIteratorOverHeldWrites)
+	require.NotPanics(t, begin(2), "BeginBlock deferring with nothing held")
+	require.NotPanics(t, end(2), "EndBlock deferring with nothing held")
+	app.Commit()
+
+	require.ErrorIs(t, panicError(begin(3)), dbm.ErrIteratorOverHeldWrites)
+	require.ErrorIs(t, panicError(end(3)), dbm.ErrIteratorOverHeldWrites)
 
 	iterate.Store(false)
 	checkTxIterates.Store(true)
@@ -305,9 +316,9 @@ func TestDeferredCommitsRefusedIteratorInBlockers(t *testing.T) {
 		require.NotNil(t, app.CheckTx(abci.RequestCheckTx{Tx: deferTestTx(t, msgCounter{Counter: 3})}).Error)
 	}
 	checkTx()
-	require.NotPanics(t, begin(2), "BeginBlock ended by CheckTx's refusal")
+	require.NotPanics(t, begin(3), "BeginBlock ended by CheckTx's refusal")
 	checkTx()
-	require.NotPanics(t, end(2), "EndBlock ended by CheckTx's refusal")
+	require.NotPanics(t, end(3), "EndBlock ended by CheckTx's refusal")
 }
 
 // TestDeferredCommitsCloseWritesNothing pins that closing the app drops its
