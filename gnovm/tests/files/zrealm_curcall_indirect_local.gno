@@ -2,10 +2,11 @@
 package indirectcurlocal
 
 // Indirect cur-call through a local variable to a same-package crossing
-// function must succeed. Unlike func32.gno, the variable holds a non-nil
-// func value, so this exercises the bind-succeeds path. Companion to
-// zrealm_curcall_indirect_external.gno, which verifies the runtime rejects
-// the cross-realm case.
+// function must succeed. Preprocess can't statically bind the variable, so
+// the same-realm check runs at runtime. Unlike func32.gno, the variable
+// holds a non-nil func value, so the call reaches that check and passes.
+// Companion to zrealm_curcall_indirect_external.gno, which verifies the
+// runtime rejects the cross-realm case.
 
 func myHandler(cur realm) {
 	println("called")
