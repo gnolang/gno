@@ -24,3 +24,13 @@ func WithSkipFailedTxs(skip bool) Option {
 		s.skipFailedTxs = skip
 	}
 }
+
+// WithPopulateSignerInfo enables/disables per-tx SignerInfo population.
+// Default is true. Disable for lightweight stream backups that don't need
+// to be replay-ready (and avoids the brute-force sequence search cost).
+// Ignored in watch mode (always off).
+func WithPopulateSignerInfo(populate bool) Option {
+	return func(s *Service) {
+		s.populateSignerInfo = populate
+	}
+}

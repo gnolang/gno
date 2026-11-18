@@ -1,0 +1,44 @@
+// 01_reset_valset.gno.tmpl — MsgRun body that runs AT THE END of the
+// hardfork replay (post-history) to update r/sys/validators/v2 so the
+// in-gno valset matches the new GenesisDoc.Validators.
+//
+// Why: tm2 consensus uses GenesisDoc.Validators (which `gnogenesis fork`
+// rewrites in the output genesis), but r/sys/validators/v2 still holds
+// the ORIGINAL gnoland1 valset from govdao_prop1. Without this migration,
+// queries against the realm return stale data and any govDAO proposal
+// that touches the valset via the realm would be working against a ghost
+// of the pre-fork world.
+//
+// Placeholders (replaced by migrations/build.sh before signing):
+//   OLD_VALIDATORS_GO placeholder — zero-voting-power entries for each pre-fork validator
+//   NEW_VALIDATORS_GO placeholder — full entries for the post-fork validator(s)
+//
+// Caller: a govDAO T1 member (see build.sh CALLER env). Sig verify is
+// skipped at genesis-replay via --skip-genesis-sig-verification.
+package main
+
+import (
+	"gno.land/p/sys/validators"
+	"gno.land/r/gov/dao"
+	valr "gno.land/r/sys/validators/v2"
+)
+
+func main() {
+	req := valr.NewPropRequest(
+		func() []validators.Validator {
+			return []validators.Validator{
+				// ---- remove pre-fork validators (voting_power=0 = remove) ----
+				{{OLD_VALIDATORS_GO}}
+				// ---- add post-fork validators ----
+				{{NEW_VALIDATORS_GO}}
+			}
+		},
+		"Hardfork: reset validator set",
+		"Reconcile r/sys/validators/v2 with the new GenesisDoc.Validators "+
+			"after the gnoland1 → gnoland-1 hardfork.",
+	)
+
+	id := dao.MustCreateProposal(cross, req)
+	dao.MustVoteOnProposal(cross, id, dao.YesVote)
+	dao.ExecuteProposal(cross, id)
+}
