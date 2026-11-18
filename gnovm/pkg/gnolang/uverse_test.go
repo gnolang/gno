@@ -231,17 +231,27 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 		{
 			"print with 2 args",
 			`print("1", 2)`,
-			"1 2",
+			"12",
 		},
 		{
 			"print with 3 args",
 			`print("1", 2, "*")`,
-			"1 2 *",
+			"12*",
 		},
 		{
 			"print with own spaces",
 			`print("1 ", 2, "*")`,
-			"1  2 *",
+			"1 2*",
+		},
+		{
+			"print with space args",
+			`print("1", " ", 2, " ", "*")`,
+			"1 2 *",
+		},
+		{
+			"print with only space args",
+			`print(" ", " ")`,
+			"  ",
 		},
 		{
 			"println with no args",
