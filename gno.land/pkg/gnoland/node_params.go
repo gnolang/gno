@@ -197,6 +197,21 @@ func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, l
 	return nil
 }
 
+// atUpgradeHalt reports whether the node is booting at a governance halt
+// that names a version: halt_height is set, the last committed block is that
+// height, and halt_min_version is set. Only such a boot may add state the new
+// binary needs (see VMKeeper.AtUpgradeHalt). The chain halts after committing
+// halt_height, so every node upgrading in place boots with that last height,
+// and halt_min_version keeps old binaries from resuming past it.
+func atUpgradeHalt(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, lastBlockHeight int64) bool {
+	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
+	var haltHeight int64
+	prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+	var minVersion string
+	prmk.GetString(ctx, nodeParamHaltMinVersion, &minVersion)
+	return haltHeight > 0 && lastBlockHeight == haltHeight && minVersion != ""
+}
+
 // safeBlockHeight returns ctx.BlockHeight() or 0 if the context has no block header.
 // This handles genesis and test contexts where the header may not be initialized.
 func safeBlockHeight(ctx sdk.Context) (h int64) {

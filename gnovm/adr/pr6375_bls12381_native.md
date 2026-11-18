@@ -91,10 +91,28 @@ Merkle branches to the committee's pubkeys root. Same per-key pricing as
   any listed stdlib the store lacks, from `VMKeeper.StdlibDir` (the app's
   `StdlibDir`), before the type check. The write goes through the
   multistore the app already writes back at boot, so it lands in the next
-  block's app hash. That is deterministic because every validator restarts on
-  the new binary at the same halt height (`halt_min_version` holds back an
-  early one) and stores the same files; a later boot finds the package and
-  writes nothing. Without a `StdlibDir` the keeper panics naming the
-  package. Leaving the package out at boot, and loading it later through a
-  migration or a genesis-replay hardfork (`pr5511`), was the alternative; it
-  would leave the Ethereum light client unusable after an in-place upgrade.
+  block's app hash. The load is allowed only when the node boots at a
+  governance halt that names a version: `halt_height` is set, the last
+  committed block is that height (the chain halts after committing it), and
+  `halt_min_version` is set (`atUpgradeHalt`, passed to the keeper as
+  `VMKeeper.AtUpgradeHalt`). Anywhere else a missing stdlib stops the node,
+  naming the package, and nothing is written. So the write lands on the halt
+  boundary on every node by construction: a halt with an empty
+  `halt_min_version`, a boot with `skip_upgrade_height`, or a release rolled
+  out without a halt would otherwise let a node add the package at its own
+  height, change its next app hash, and split the network. Every node stores
+  the same files, and a later boot finds the package and writes nothing.
+  Without a `StdlibDir` the keeper panics naming the package.
+- So a release that adds a stdlib ships as a coordinated upgrade: a halt
+  proposal whose `halt_min_version` names that release, with the stdlib
+  sources shipped beside the binary (they are read from GNOROOT). If a halt
+  without a version is passed instead, the new binary refuses to start at it
+  and nothing forks; the halt height is held in memory only, so operators
+  restart on the old binary, which carries on past the height, and pass a
+  halt that names the version.
+- Leaving the package out at boot, and loading it later through a migration
+  or a genesis-replay hardfork (`pr5511`), was the alternative; it would
+  leave the Ethereum light client unusable after an in-place upgrade.
+  gnolang/gno#6224 proposes in-place migrations run inside block H+1, keyed
+  by `halt_min_version`, including one that adds a stdlib; whichever of the
+  two lands second reconciles with the other in `Initialize`.

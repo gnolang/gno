@@ -42,6 +42,7 @@ func TestInitializeLoadsMissingStdlib(t *testing.T) {
 
 	vmk2 := NewVMKeeper(env.vmk.baseKey, env.vmk.iavlKey, env.acck, env.bankk, env.prmk)
 	vmk2.StdlibDir = upgradeStdlibDir
+	vmk2.AtUpgradeHalt = true
 	mcw := ms.MultiCacheWrap()
 	require.NotPanics(t, func() { vmk2.Initialize(log.NewNoopLogger(), mcw) })
 	mcw.MultiWrite()
@@ -78,7 +79,23 @@ func Size() int { return bls12381.PubKeySize }
 func TestInitializeMissingStdlibWithoutDir(t *testing.T) {
 	env := storeWithoutStdlib(t, upgradeNewStdlib)
 	vmk2 := NewVMKeeper(env.vmk.baseKey, env.vmk.iavlKey, env.acck, env.bankk, env.prmk)
+	vmk2.AtUpgradeHalt = true
 	require.PanicsWithError(t,
 		`stdlib "crypto/bls12381" is missing from the store, and the keeper has no StdlibDir to load it from`,
 		func() { vmk2.Initialize(log.NewNoopLogger(), env.ctx.MultiStore().MultiCacheWrap()) })
+}
+
+// Away from a governance halt that names a version, a missing stdlib stops
+// the node and nothing is written: nodes booting at different heights would
+// otherwise add it at different heights and fork.
+func TestInitializeMissingStdlibOutsideUpgradeHalt(t *testing.T) {
+	env := storeWithoutStdlib(t, upgradeNewStdlib)
+	vmk2 := NewVMKeeper(env.vmk.baseKey, env.vmk.iavlKey, env.acck, env.bankk, env.prmk)
+	vmk2.StdlibDir = upgradeStdlibDir
+	mcw := env.ctx.MultiStore().MultiCacheWrap()
+	require.PanicsWithError(t,
+		`stdlib "crypto/bls12381" is missing from the store; it can only be added when booting at a governance halt that names a version`,
+		func() { vmk2.Initialize(log.NewNoopLogger(), mcw) })
+	mcw.MultiWrite()
+	require.Nil(t, env.vmk.gnoStore.GetMemPackage(upgradeNewStdlib))
 }

@@ -138,8 +138,14 @@ type VMKeeper struct {
 	Output io.Writer
 
 	// StdlibDir is where Initialize loads a stdlib from when the store,
-	// written by an earlier binary, lacks it; see Initialize.
+	// written by an earlier binary, lacks it; see loadMissingStdlibs.
 	StdlibDir string
+
+	// AtUpgradeHalt says the node is booting at a governance halt that names
+	// a version: the last committed block is halt_height and
+	// halt_min_version is set. Only then may Initialize load a missing
+	// stdlib; see loadMissingStdlibs.
+	AtUpgradeHalt bool
 
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
@@ -242,15 +248,19 @@ func (vm *VMKeeper) Initialize(
 // adds, and type-checking them would dereference a nil package.
 //
 // The write goes to the multistore Initialize was given, which the app
-// writes through, so it lands in the next block's app hash. That is
-// deterministic because every validator restarts on the new binary at the
-// same halt height (halt_min_version holds back an early one), and stores
-// the same files; on any later boot the package is present and nothing is
-// written.
+// writes through, so it lands in the next block's app hash. It is allowed
+// only when AtUpgradeHalt is set, so it lands on the halt boundary on every
+// node: a node booting the new binary anywhere else (a halt with no
+// halt_min_version, skip_upgrade_height, a release rolled out without a
+// halt) refuses to start instead of writing at its own height and forking.
+// On any later boot the package is present and nothing is written.
 func (vm *VMKeeper) loadMissingStdlibs(logger *slog.Logger) {
 	for _, stdlib := range stdlibs.InitOrder() {
 		if vm.gnoStore.GetMemPackage(stdlib) != nil {
 			continue
+		}
+		if !vm.AtUpgradeHalt {
+			panic(fmt.Errorf("stdlib %q is missing from the store; it can only be added when booting at a governance halt that names a version", stdlib))
 		}
 		if vm.StdlibDir == "" {
 			panic(fmt.Errorf("stdlib %q is missing from the store, and the keeper has no StdlibDir to load it from", stdlib))

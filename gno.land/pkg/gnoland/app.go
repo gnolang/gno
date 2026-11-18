@@ -286,9 +286,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	}
 
 	// Initialize the VMKeeper. It loads from StdlibDir any stdlib the store,
-	// written by an earlier binary, lacks.
+	// written by an earlier binary, lacks, but only when booting at a
+	// governance halt that names a version.
 	vmk.StdlibDir = cfg.InitChainerConfig.StdlibDir
 	ms := baseApp.GetCacheMultiStore()
+	vmk.AtUpgradeHalt = atUpgradeHalt(prmk, ms, baseApp.LastBlockHeight())
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
