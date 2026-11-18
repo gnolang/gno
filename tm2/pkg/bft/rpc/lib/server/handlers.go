@@ -1121,6 +1121,14 @@ type WebsocketManager struct {
 	wsConnOptions []func(*wsConnection)
 }
 
+// WriteWait sets the amount of time to wait before a websocket write times out.
+// It should only be used in the constructor - not Goroutine-safe.
+func WriteWait(writeWait time.Duration) func(*wsConnection) {
+	return func(wsc *wsConnection) {
+		wsc.writeWait = writeWait
+	}
+}
+
 // NewWebsocketManager returns a new WebsocketManager that passes a map of
 // functions, connection options and logger to new WS connections.
 func NewWebsocketManager(funcMap map[string]*RPCFunc, wsConnOptions ...func(*wsConnection)) *WebsocketManager {
