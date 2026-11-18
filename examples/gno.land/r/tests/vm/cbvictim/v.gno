@@ -35,3 +35,19 @@ func RunHook(cur realm)                 { hook("stored") }
 func Writers() (func(string), func([]string)) {
 	return func(s string) { Owner = s }, func(b []string) { b[0] = "pwnd" }
 }
+
+// GetMV returns a method value bound while read-only: it has no binder.
+func GetMV() func(string) { return Box.SetName }
+
+type S struct{ F func(string) }
+
+// GetSt returns a struct holding a method value bound while read-only.
+func GetSt() *S { return &S{F: Box.SetName} }
+
+// RunSt is crossing and runs the function a caller's struct holds.
+func RunSt(cur realm, s *S) { s.F("struct") }
+
+// GetDecl and FV hand out this realm's own declared function.
+func GetDecl() func(string) { return SetOwner }
+
+var FV = SetOwner
