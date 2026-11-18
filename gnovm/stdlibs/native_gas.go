@@ -19,9 +19,11 @@ import (
 // X_ work + return push); no separate dispatch overhead constant.
 //
 // Two-slope (Slope2/PostSlope2) is supported by the runtime for natives
-// whose cost depends on two independent dimensions. Only
-// crypto/merkle.innerHash uses it today: it hashes two unbounded byte
-// slices, so each one carries its own per-byte slope. Every other row
+// whose cost depends on two independent dimensions.
+// crypto/merkle.innerHash hashes two unbounded byte slices, so each one
+// carries its own per-byte slope; the crypto/bls12381 rows charge their keys
+// and their message, which hash-to-curve reads in full; crypto/modexp.modExp
+// is described at its row. Every other row
 // uses a single slope — for the store-backed natives the per-byte work
 // happens inside the metered KVStore (gctx), so the empirical per-byte
 // CPU cost in the dispatcher is negligible.
@@ -193,14 +195,22 @@ var calibratedNativeGas = []nativeGasEntry{
 	// bls12381 was measured on Apple M4 Pro (base 0.88ms, 40us per 48-byte key
 	// for decompression + subgroup check) and scaled by 2.3x toward the Xeon
 	// Silver 4114 the rows around it use; regenerate with the rest of the table.
-	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerify", Base: 2024000, Slope: 1962000, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft, M4 fit x2.3: base=2.02ms slope=1916ns/B (=1962000/1024) on 1..512 keys
+	//
+	// Both rows also charge msg per byte (Slope2): hash-to-curve runs SHA-256
+	// over all of it, and nothing bounds it (adr/native_input_bounds.md). On
+	// the M4 that is 0.34ns/B (BenchmarkMsgGrowth, 32B..4MiB); the 2.3x
+	// scaling does not carry over, since the M4 hashes with SHA instructions
+	// the Xeon Silver 4114 lacks, so the rows borrow crypto/sha256.sum256's
+	// per-byte rate instead, which bounds the hashing on either machine. A
+	// 32-byte signing root pays 278 gas for it.
+	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerify", Base: 2024000, Slope: 1962000, SlopeIdx: 0, SlopeKind: SizeLenBytes, Slope2: 8906, Slope2Idx: 1, Slope2Kind: SizeLenBytes}, // draft, M4 fit x2.3: base=2.02ms slope=1916ns/B (=1962000/1024) on 1..512 keys; msg at sha256's 8.70ns/B
 	// fastAggregateVerifyExcluding does the same per-key work as
 	// fastAggregateVerify (decompression, subgroup check, one addition) on the
 	// excluded keys, plus the aggregate's decoding; priced from the same fit,
 	// draft until benchmarked on its own.
-	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerifyExcluding", Base: 2116000, Slope: 1962000, SlopeIdx: 1, SlopeKind: SizeLenBytes}, // draft, base=2.02ms+one key, slope on excluded bytes
-	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                                       // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
-	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},                            // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerifyExcluding", Base: 2116000, Slope: 1962000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 8906, Slope2Idx: 2, Slope2Kind: SizeLenBytes}, // draft, base=2.02ms+one key, slope on excluded bytes; msg as above
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                                             // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                                                  // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
 	// innerHash hashes 0x01||left||right, so its cost is O(len(left)+len(right))
 	// — leafHash's shape over two operands instead of one, and nothing bounds
 	// either. Both operands therefore carry leafHash's per-byte rate, which

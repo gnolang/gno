@@ -242,3 +242,46 @@ func TestInnerHashGasMetersBothOperands(t *testing.T) {
 			inner.Slope, inner.Slope2, leaf.Slope)
 	}
 }
+
+// Both crypto/bls12381 natives decode and subgroup-check one 48-byte key per
+// key passed, and hash all of msg to the curve, so each must meter its key
+// list per byte (pubkeys, param 0, for fastAggregateVerify; excluded, param 1,
+// for fastAggregateVerifyExcluding; pricing the fixed 48-byte aggregate
+// instead would leave the key work unpriced) and msg per byte as well (param
+// 1 and 2), at no less than crypto/sha256.sum256's rate.
+func TestBLS12381GasMetersKeysAndMsg(t *testing.T) {
+	t.Parallel()
+	type want struct{ keys, msg int8 }
+	wants := map[string]want{
+		"fastAggregateVerify":          {keys: 0, msg: 1},
+		"fastAggregateVerifyExcluding": {keys: 1, msg: 2},
+	}
+	var sha *nativeGasEntry
+	for i, e := range calibratedNativeGas {
+		if e.Pkg == "crypto/sha256" && e.Fn == "sum256" {
+			sha = &calibratedNativeGas[i]
+		}
+	}
+	if sha == nil {
+		t.Fatal("crypto/sha256 sum256 row missing from calibratedNativeGas")
+	}
+	for i := range calibratedNativeGas {
+		e := &calibratedNativeGas[i]
+		w, ok := wants[e.Fn]
+		if e.Pkg != "crypto/bls12381" || !ok {
+			continue
+		}
+		delete(wants, e.Fn)
+		if e.SlopeKind != SizeLenBytes || e.SlopeIdx != w.keys || e.Slope == 0 {
+			t.Errorf("%s must meter its keys (param %d) per byte; got Slope=%d SlopeIdx=%d SlopeKind=%d",
+				e.Fn, w.keys, e.Slope, e.SlopeIdx, e.SlopeKind)
+		}
+		if e.Slope2Kind != SizeLenBytes || e.Slope2Idx != w.msg || e.Slope2 < sha.Slope {
+			t.Errorf("%s must meter msg (param %d) per byte at no less than sha256's %d; got Slope2=%d Slope2Idx=%d Slope2Kind=%d",
+				e.Fn, w.msg, sha.Slope, e.Slope2, e.Slope2Idx, e.Slope2Kind)
+		}
+	}
+	if len(wants) != 0 {
+		t.Fatalf("crypto/bls12381 rows missing from calibratedNativeGas: %v", wants)
+	}
+}

@@ -406,3 +406,20 @@ func TestFastAggregateVerifyExcludingIdentityAggregate(t *testing.T) {
 	ib := inf.Bytes()
 	require.False(t, X_fastAggregateVerifyExcluding(ib[:], nb[:], msg, sigBytes(s)))
 }
+
+// BenchmarkMsgGrowth measures the per-byte cost of msg, which hash-to-curve
+// reads in full: the rows' Slope2.
+func BenchmarkMsgGrowth(b *testing.B) {
+	for _, n := range []int{32, 1 << 10, 64 << 10, 1 << 20, 4 << 20} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			msg := make([]byte, n)
+			pubkeys, sig := signers(b, 1, msg)
+			b.ResetTimer()
+			for range b.N {
+				if !X_fastAggregateVerify(pubkeys, msg, sig) {
+					b.Fatal("verify failed")
+				}
+			}
+		})
+	}
+}

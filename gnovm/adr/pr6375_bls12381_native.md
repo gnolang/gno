@@ -46,6 +46,16 @@ Silver 4114 the other IBC crypto draft rows were measured on, and is marked
 draft: the whole table is regenerated on the reference machine before any
 consensus-relevant deployment.
 
+The row also charges `msg` per byte (`Slope2`), because hash-to-curve runs
+SHA-256 over all of it and nothing bounds it (`native_input_bounds.md`). On the
+M4 that costs 0.34ns per byte (`BenchmarkMsgGrowth`, 32B to 4MiB: 0.92ms to
+2.36ms). The 2.3x scaling does not carry over, since the M4 hashes with SHA
+instructions the Xeon Silver 4114 lacks, so the row borrows
+`crypto/sha256.sum256`'s rate, 8.70ns per byte, which covers the hashing on
+either machine. A 32-byte signing root pays 278 gas for it. Bounding `msg` in
+the wrapper instead was rejected: the IETF API takes any message, and a bound
+small enough to matter would be an arbitrary one.
+
 A second native, `FastAggregateVerifyExcluding(aggregate, excluded, msg,
 sig)`, verifies the same equation for the signers of a committee from the
 committee's aggregate key minus the keys of the members that did not sign. An
@@ -55,7 +65,8 @@ participation is typically above 95%, so a light client decodes a handful of
 keys per update instead of ~500. With it the light client never needs the
 committee's key list on chain: updates carry only the non-signers' keys with
 Merkle branches to the committee's pubkeys root. Same per-key pricing as
-`fastAggregateVerify`, on the excluded bytes.
+`fastAggregateVerify`, on the excluded bytes, and the same per-byte charge on
+`msg`.
 
 ## Alternatives considered
 
