@@ -57,7 +57,7 @@ func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{
+		[]*v0.ValoperChange{
 			v0.NewValoperChange(address(memberAddr), 0),
 			v0.NewValoperChange(address(memberAddr), 2),
 			v0.NewValoperChange(address(memberAddr), 3),
@@ -80,7 +80,7 @@ func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{
+		[]*v0.ValoperChange{
 			v0.NewValoperChange(address(memberAddr), 0),
 			v0.NewValoperChange(address(memberAddr), 0),
 		},
@@ -102,7 +102,7 @@ func main(cur realm) {
 	const memberAddr = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{
+		[]*v0.ValoperChange{
 			v0.NewValoperChange(address(memberAddr), 2),
 			v0.NewValoperChange(address(memberAddr), 0),
 		},

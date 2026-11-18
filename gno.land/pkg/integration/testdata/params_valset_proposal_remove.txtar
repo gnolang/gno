@@ -88,7 +88,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1)},
 		"Add e2e-test-validator", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)
@@ -110,7 +110,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 0)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 0)},
 		"Remove e2e-test-validator", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)

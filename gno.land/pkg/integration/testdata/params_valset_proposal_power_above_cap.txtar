@@ -87,7 +87,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 9223372036854775807)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 9223372036854775807)},
 		"Add validator at MaxInt64", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)
@@ -106,7 +106,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1152921504606846975)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1152921504606846975)},
 		"Add validator at MaxTotalVotingPower", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)

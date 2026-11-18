@@ -81,7 +81,7 @@ func TestValopers_ProposeNewValidator(cur realm, t *testing.T) {
 			valopers.UpdateKeepRunning(cross(cur), opAddr, true)
 		})
 
-		var valoper valopers.Valoper
+		var valoper *valopers.Valoper
 
 		urequire.NotPanics(t, cur, func() {
 			valoper = valopers.GetByAddr(opAddr)

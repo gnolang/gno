@@ -85,7 +85,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1)},
 		"Add validator at power 1", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)
@@ -108,7 +108,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 3)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 3)},
 		"Update validator power 1->3", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)

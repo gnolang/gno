@@ -121,7 +121,7 @@ func main(cur realm) {
 	// signing pubkey it finds there.
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1)},
 		"Add e2e-test-validator",
 		"regression for v0 propagation",
 	)

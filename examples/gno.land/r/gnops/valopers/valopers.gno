@@ -118,14 +118,14 @@ func (v Valoper) AuthOwner() address {
 }
 
 func AddToAuthList(cur realm, addr address, member address) {
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 	if err := v.auth.AddToAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 	if err := v.auth.DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
@@ -239,7 +239,7 @@ func UpdateMoniker(cur realm, addr address, moniker string) {
 		panic(err)
 	}
 
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 
 	// Check that the caller has permissions.
 	v.auth.AssertPreviousOnAuthList(0, cur)
@@ -258,7 +258,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 		panic(err)
 	}
 
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 
 	// Check that the caller has permissions.
 	v.auth.AssertPreviousOnAuthList(0, cur)
@@ -273,7 +273,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 // UpdateKeepRunning updates an existing valoper's active status.
 // Calls v0.NotifyValoperChanged because the cache stores KeepRunning.
 func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 
 	// Check that the caller has permissions.
 	v.auth.AssertPreviousOnAuthList(0, cur)
@@ -295,7 +295,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 		panic(err)
 	}
 
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 
 	// Check that the caller has permissions.
 	v.auth.AssertPreviousOnAuthList(0, cur)
@@ -331,7 +331,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 // panics. If v0.RotateValoperSigningKey panics, the registry insert
 // and profile mutation revert with it.
 func UpdateSigningKey(cur realm, addr address, newPubKey string) {
-	v := GetByAddr(addr)
+	v := getByAddr(addr)
 
 	// Auth: caller must be on operator's auth list.
 	v.auth.AssertPreviousOnAuthList(0, cur)
@@ -418,8 +418,13 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	validators.NotifyValoperChanged(cross(cur), addr, v.SigningPubKey, v.SigningAddress, v.KeepRunning)
 }
 
-// GetByAddr fetches the valoper using the operator address, if present.
-func GetByAddr(addr address) Valoper {
+// GetByAddr fetches a copy of the valoper using the operator address, if present.
+func GetByAddr(addr address) *Valoper {
+	v := getByAddr(addr)
+	return &v
+}
+
+func getByAddr(addr address) Valoper {
 	valoperRaw := valopers.Get(addr.String())
 	if valoperRaw == nil {
 		panic(ErrValoperMissing)
