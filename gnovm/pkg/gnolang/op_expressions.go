@@ -786,17 +786,33 @@ func (m *Machine) doOpFuncLit() {
 		body:       x.Body,
 		nativeBody: nil,
 	}
-	// Closures belong to wherever they were evaluated
-	// (currentRealmID), not their lexical PkgPath. FuncType has no
-	// declaring-realm semantics on its own — pass nil.
-	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
-	if m.viewOnly {
-		fv.SetPkgID(PkgID{}) // made read-only or view-only: no maker
-	}
+	m.stampMaker(&fv.ObjectInfo)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
 	})
+}
+
+// stampMaker gives a function value being made its maker: the current
+// realm, or none when made read-only, view-only or with no realm.
+func (m *Machine) stampMaker(oi *ObjectInfo) {
+	m.Alloc.stampPkgID(oi, nil)
+	if m.viewOnly {
+		oi.SetPkgID(PkgID{})
+	}
+}
+
+// doOpFuncHandle turns a declared function or method expression into a
+// handle made like a closure with no captures. Parent is left to GetParent.
+func (m *Machine) doOpFuncHandle() {
+	tv := m.PeekValue(1)
+	fv := tv.V.(*FuncValue)
+	if !fv.IsMethod {
+		fv = fv.Copy(m.Alloc) // a method expression is already a fresh copy
+	}
+	fv.Parent = nil
+	m.stampMaker(&fv.ObjectInfo)
+	tv.V = fv
 }
 
 func (m *Machine) doOpConvert() {

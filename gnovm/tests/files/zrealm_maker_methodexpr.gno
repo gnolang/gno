@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_maker_methodexpr
 package zrealm_maker_methodexpr
 
-// Another realm's method expression used as a value is refused at preprocess.
+// Another realm's method expression used as a value runs read-only for it.
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -12,4 +12,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/zrealm_maker_methodexpr/zrealm_maker_methodexpr.gno:9:7-28: cannot use non-crossing function gno.land/r/tests/vm/cbvictim.T.SetName of another realm as a value (call it, or wrap it in a closure)
+// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Name

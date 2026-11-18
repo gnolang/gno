@@ -1,5 +1,10 @@
 package cbvictim
 
+import (
+	"gno.land/p/demo/tests/launderpkg/v0"
+	"gno.land/p/demo/tests/pfuncbind"
+)
+
 var Owner = "victim"
 
 // SetOwner is exported and not crossing: callers outside must not write.
@@ -67,3 +72,47 @@ func GetIfaceMV() func(string) { var s Setter = Box; return s.SetName }
 // Bound inside a crossing function: writes for this realm.
 func GateValMV(cur realm) func(string)   { return Val.SetName }
 func GateIfaceMV(cur realm) func(string) { var s Setter = Box; return s.SetName }
+
+// Get2 hands out SetOwner from inside a closure.
+func Get2() func(string) { return func() func(string) { return SetOwner }() }
+
+// Get3 hands out SetOwner through a variable a closure assigns.
+func Get3() func(string) {
+	var f func(string)
+	func() { f = SetOwner }()
+	return f
+}
+
+// GateDecl hands out SetOwner from inside a gate: it writes for this realm.
+func GateDecl(cur realm) func(string) { return SetOwner }
+
+// GetMExpr and GateMExpr hand out a method expression, read-only and in a gate.
+func GetMExpr() func(*T, string)           { return (*T).SetName }
+func GateMExpr(cur realm) func(*T, string) { return (*T).SetName }
+
+// RunM is crossing and runs a method expression the caller handed in on Box.
+func RunM(cur realm, f func(*T, string)) { f(Box, "picked") }
+
+// Lib is an object of a library type this realm owns.
+var Lib = &launderpkg.Immutable{Field: "orig"}
+
+// LibGate calls a library writer through a value made in this gate.
+func LibGate(cur realm) {
+	f := pfuncbind.Clobber
+	f(Lib)
+}
+
+// GetLib hands out a library writer, made read-only.
+func GetLib() func(*launderpkg.Immutable) { return pfuncbind.Clobber }
+
+// LibFV is a library writer taken as a value at init.
+var LibFV = pfuncbind.Clobber
+
+// RunLib is crossing and runs a library-typed callback on Lib.
+func RunLib(cur realm, f func(*launderpkg.Immutable)) { f(Lib) }
+
+// LibGateless calls a library writer through a value, without a gate.
+func LibGateless() {
+	f := pfuncbind.Clobber
+	f(Lib)
+}

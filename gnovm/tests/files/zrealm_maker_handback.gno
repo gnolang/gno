@@ -2,7 +2,7 @@
 package zrealm_maker_handback
 
 // The caller names the victim's own exported writer and hands it to the
-// victim's gate: the caller made that function value, so it writes nothing.
+// victim's gate: the caller made that handle, so it runs read-only there.
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -12,4 +12,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/zrealm_maker_handback/zrealm_maker_handback.gno:10:28-45: cannot use non-crossing function gno.land/r/tests/vm/cbvictim.SetOwner of another realm as a value (call it, or wrap it in a closure)
+// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): Owner<~VPBlock(3,0)>

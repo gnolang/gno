@@ -17,4 +17,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/zrealm_entry_pfunc_viewonly_from/zrealm_entry_pfunc_viewonly_from.gno:14:23-42: cannot use non-crossing function gno.land/r/tests/vm/pfuncvictim.ApplyNC of another realm as a value (call it, or wrap it in a closure)
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

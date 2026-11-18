@@ -382,8 +382,6 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		fset := m.ParseMemPackage(mpkg)
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
-		// Source rules judge submitted source only; this one is already stored.
-		pn.SetAttribute(ATTR_STORED_SOURCE, true)
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
@@ -391,7 +389,6 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
-		pn.DelAttribute(ATTR_STORED_SOURCE)
 		// Normally, the fileset would be added onto the
 		// package node only after runFiles(), but we cannot
 		// run files upon restart (only preprocess them).
@@ -1358,6 +1355,7 @@ const (
 	OpStructLit    Op = 0x50 // X{...}
 	OpFuncLit      Op = 0x51 // func(T){Body}
 	OpConvert      Op = 0x52 // Y(X)
+	OpFuncHandle   Op = 0x53 // declared func as a value
 
 	/* Type operators */
 	OpFieldType     Op = 0x70 // Name: X `tag`
@@ -2107,6 +2105,9 @@ func (m *Machine) runOnce() (caught *Exception) {
 			m.doOpStructLit()
 		case OpConvert:
 			m.doOpConvert()
+		case OpFuncHandle:
+			m.incrCPU(OpCPUFuncLit)
+			m.doOpFuncHandle()
 		/* Type operators */
 		case OpFieldType:
 			m.incrCPU(OpCPUFieldType)
@@ -2786,22 +2787,10 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	if bindPID.IsRealmPkg() && !pOwned && !m.calledBy(bindPID) {
 		m.setViewOnly()
 	}
-	// A library closure built under another realm, or while view-only (zero
-	// stamp), arrived as a value: it acts for no realm, so it runs view-only.
-	// With no realm (single-user mode, or already view-only) nothing changes.
-	// A closure in a library's package variable named by the call is fixed
-	// after init, so it counts as named, like a declared function.
-	if fv.IsClosure && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
-		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
-		m.setViewOnly()
-	}
-	// A top-level library function or method expression called through a value
-	// (variable, field, argument) is a value too, unless the call names it or
-	// it is unexported and called from its own package (which alone could
-	// have picked it).
-	ownUnexported := fv.PkgPath == fr.LastPackage.PkgPath && !isUpper(string(fv.Name))
-	if !fv.IsClosure && !recv.IsDefined() && bindPID.IsZero() && m.Realm != nil &&
-		fv.PkgPath != m.Realm.Path && !ownUnexported &&
+	// A library closure or handle made under another realm, or with no maker,
+	// reached through a value acts for no realm: it runs view-only. A value
+	// in a library's package variable named by the call counts as named.
+	if !recv.IsDefined() && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
 		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
 		m.setViewOnly()
 	}
@@ -2835,19 +2824,17 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 }
 
 // unmadeValue reports whether the current realm's code arrived as a value it
-// did not make: a closure with another (or no) maker, or a method value bound
-// elsewhere. Another realm's declared function as a value is a preprocess error.
+// did not make: a closure or handle with another (or no) maker and not named
+// by the call, or a method value bound elsewhere.
 func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID) bool {
-	if fv.IsClosure {
-		return fv.GetObjectInfo().ID.PkgID != m.Realm.ID
+	if !recv.IsDefined() {
+		return fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
+			cx.GetAttribute(ATTR_NAMED_CALLEE) != true
 	}
-	if recv.IsDefined() {
-		if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
-			return false // x.M(...) names the method
-		}
-		return bindPID != m.Realm.ID
+	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
+		return false // x.M(...) names the method
 	}
-	return false
+	return bindPID != m.Realm.ID
 }
 
 // foreignLib reports whether fv is a /p/ function outside the current realm's

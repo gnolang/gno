@@ -38,3 +38,36 @@ func testForeignHeldTypeChain(t *testing.T, n int) {
 		}
 	}
 }
+
+const handleIterateSrc = `package test
+
+var sum int
+
+func visit(i int) bool { sum += i; return false }
+
+func iterate(n int, f func(int) bool) {
+	for i := 0; i < n; i++ {
+		if f(i) {
+			return
+		}
+	}
+}
+
+func Loop() {
+	for k := 0; k < 1000; k++ {
+		iterate(10, visit)
+	}
+}
+`
+
+// BenchmarkHandleIterate passes a declared callback to an iterate helper 1000
+// times per op; each pass makes one handle.
+func BenchmarkHandleIterate(b *testing.B) {
+	m := NewMachine("test", nil)
+	m.RunFiles(m.MustParseFile("main.gno", handleIterateSrc))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.Eval(Call("Loop"))
+	}
+}

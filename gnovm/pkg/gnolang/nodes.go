@@ -146,7 +146,7 @@ const (
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
 	ATTR_NAMED_CALLEE          GnoAttribute = "ATTR_NAMED_CALLEE"     // call names a top-level func or method expr, not a func value.
-	ATTR_STORED_SOURCE         GnoAttribute = "ATTR_STORED_SOURCE"    // on a PackageNode re-preprocessed at node start: source already accepted.
+	ATTR_FUNC_HANDLE           GnoAttribute = "ATTR_FUNC_HANDLE"      // names a non-crossing declared func or method expr used as a value.
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -243,6 +243,7 @@ func (*CompositeLitExpr) assertNode()  {}
 func (*KeyValueExpr) assertNode()      {}
 func (*FuncLitExpr) assertNode()       {}
 func (*ConstExpr) assertNode()         {}
+func (*FuncHandleExpr) assertNode()    {}
 func (*FieldTypeExpr) assertNode()     {}
 func (*ArrayTypeExpr) assertNode()     {}
 func (*SliceTypeExpr) assertNode()     {}
@@ -295,6 +296,7 @@ var (
 	_ Node = &KeyValueExpr{}
 	_ Node = &FuncLitExpr{}
 	_ Node = &ConstExpr{}
+	_ Node = &FuncHandleExpr{}
 	_ Node = &FieldTypeExpr{}
 	_ Node = &ArrayTypeExpr{}
 	_ Node = &SliceTypeExpr{}
@@ -359,6 +361,7 @@ func (*CompositeLitExpr) assertExpr() {}
 func (*KeyValueExpr) assertExpr()     {}
 func (*FuncLitExpr) assertExpr()      {}
 func (*ConstExpr) assertExpr()        {}
+func (*FuncHandleExpr) assertExpr()   {}
 
 var (
 	_ Expr = &NameExpr{}
@@ -376,6 +379,7 @@ var (
 	_ Expr = &KeyValueExpr{}
 	_ Expr = &FuncLitExpr{}
 	_ Expr = &ConstExpr{}
+	_ Expr = &FuncHandleExpr{}
 )
 
 type Exprs []Expr
@@ -489,6 +493,14 @@ type SliceExpr struct { // X[Low:High:Max]
 type StarExpr struct { // *X
 	Attributes
 	X Expr // operand
+}
+
+// A FuncHandleExpr wraps a declared non-crossing function or method
+// expression used as a value; each evaluation makes a handle, a FuncValue
+// made like a closure with no captures (see doOpFuncHandle).
+type FuncHandleExpr struct {
+	Attributes
+	X Expr // *NameExpr or *SelectorExpr naming the declaration
 }
 
 type RefExpr struct { // &X

@@ -75,6 +75,12 @@ func (x *StarExpr) Copy() Node {
 	}
 }
 
+func (x *FuncHandleExpr) Copy() Node {
+	return &FuncHandleExpr{
+		X: x.X.Copy().(Expr),
+	}
+}
+
 func (x *RefExpr) Copy() Node {
 	return &RefExpr{
 		X: x.X.Copy().(Expr),

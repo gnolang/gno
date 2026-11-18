@@ -764,10 +764,9 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 		// Lazily materialize this function's file block. fillPackage no
 		// longer pre-populates fBlocksMap, so on a package loaded from
 		// the store the entry may be absent here; GetFileBlock loads it
-		// from the FBlocks RefValue on demand and caches it.
-		fb := pv.GetFileBlock(store, fv.FileName)
-		fv.Parent = fb
-		return fb
+		// from the FBlocks RefValue on demand and caches it. Not kept on fv:
+		// a handle saved with it would reference and rewrite the file block.
+		return pv.GetFileBlock(store, fv.FileName)
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Parent = block

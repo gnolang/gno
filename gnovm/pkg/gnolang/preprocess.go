@@ -777,6 +777,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		codaInitOrderDeps(packageOf(ctx), fn)
 	}
 
+	n = wrapFuncHandles(n)
+
 	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
 	// because say n may be a *CallExpr containing an anonymous function.
@@ -1456,6 +1458,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					nt := evalStaticTypeOf(store, last, n)
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
+					} else if nt.Kind() == FuncKind {
+						if ftype != TRANS_CALL_FUNC && n.Path.Type == VPBlock &&
+							isFuncDeclAt(last.GetBlockNodeForPath(store, n.Path), n.Path.Index) {
+							markFuncHandle(n, nt)
+						}
 					} else if nt.Kind() == PackageKind {
 						// If name refers to a package, and this is not in
 						// the context of a selector, fail. Packages cannot
@@ -2743,8 +2750,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
 					if ftype != TRANS_CALL_FUNC && isFuncDeclAt(pn, n.Path.Index) {
-						ft, _ := tt.(*FuncType)
-						checkForeignFuncValue(ctxpn, pv.PkgPath, n.Sel, ft != nil && ft.IsCrossing())
+						markFuncHandle(n, tt)
 					}
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
@@ -2777,10 +2783,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					n.Path = dt.GetUnboundPathForName(n.Sel)
 					if ftype != TRANS_CALL_FUNC {
-						if i, ok := dt.lookupMethod(n.Sel); ok {
-							fv := dt.Methods[i].V.(*FuncValue)
-							checkForeignFuncValue(ctxpn, dt.PkgPath, Name(string(dt.Name)+"."+string(n.Sel)), fv.IsCrossing())
-						}
+						markFuncHandle(n, evalStaticTypeOf(store, last, n))
 					}
 				default:
 					panic(fmt.Sprintf(
@@ -6689,18 +6692,35 @@ func libVar(store Store, last BlockNode, x Expr) bool {
 	return false
 }
 
-// checkForeignFuncValue refuses, in /r/ or /e/ code, another realm's
-// non-crossing declared function or method expression used other than as the
-// callee: as a value it would carry no authority it could use (D19). Stored
-// source re-preprocessed at node start is exempt: it must not stop the node.
-func checkForeignFuncValue(ctxpn *PackageNode, declPath string, name Name, crossing bool) {
-	ctxPath := ctxpn.PkgPath
-	if crossing || ctxPath == declPath || ctxpn.GetAttribute(ATTR_STORED_SOURCE) == true || !IsRealmPath(declPath) ||
-		!(IsRealmPath(ctxPath) || IsEphemeralPath(ctxPath)) {
-		return
+// markFuncHandle marks x, a declared function or method expression used as a
+// value, to be wrapped in a FuncHandleExpr; a crossing one needs no handle.
+func markFuncHandle(x Expr, t Type) {
+	if ft, ok := t.(*FuncType); ok && !ft.IsCrossing() {
+		x.SetAttribute(ATTR_FUNC_HANDLE, t)
 	}
-	panic(fmt.Sprintf("cannot use non-crossing function %s.%s of another realm as a value (call it, or wrap it in a closure)",
-		declPath, name))
+}
+
+// wrapFuncHandles wraps each marked name in a FuncHandleExpr. It runs before
+// codaPackageSelectors, which may replace the name inside the wrapper.
+func wrapFuncHandles(n Node) Node {
+	return Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
+			return n, TRANS_SKIP
+		}
+		t, ok := n.GetAttribute(ATTR_FUNC_HANDLE).(Type)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		n.DelAttribute(ATTR_FUNC_HANDLE)
+		hx := &FuncHandleExpr{X: n.(Expr)}
+		hx.SetSpan(n.GetSpan())
+		hx.SetAttribute(ATTR_TYPEOF_VALUE, t)
+		setPreprocessed(hx)
+		return hx, TRANS_SKIP
+	})
 }
 
 // isNamedAt reports whether index in bn is a declared function or a /p/ or

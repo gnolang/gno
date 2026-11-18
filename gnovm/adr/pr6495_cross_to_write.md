@@ -10,10 +10,8 @@ non-crossing write paths of interrealm v2 borrow rules #1–#3 (#5669).
 A realm's objects could be written by code the realm never chose to run for
 it: a library method holding the realm's object borrowed the owner's
 authority (#207's `Ownable` takeover), a library function or interface value a
-caller handed in ran as the realm, and any exported non-crossing realm
-function or method wrote the realm's state for whoever called it. Before
-#5669 the last case was refused but a caller's callback ran with the
-victim's authority; #5669 fixed the callback and opened the writer.
+caller handed in ran as the realm, and any exported non-crossing realm function
+or method wrote the realm's state for whoever called it (opened by #5669).
 
 ## Decision
 
@@ -39,6 +37,10 @@ the realm's helpers, methods and the library code they name write as usual.
    through library code its crossing call named still acts for the realm.
 4. A realm's closure entered from another realm counts as a call boundary for
    `AssertOriginCall`.
+5. Every function value has a maker: the realm whose writable code made it
+   (none if made read-only). A declared non-crossing function or method
+   expression used as a value is a handle made like a closure; reached through
+   a value, it acts for the realm only if that realm made it.
 
 Refusals: `<realm>'s code was entered without crossing and is read-only (call
 its crossing function)`; `cannot modify object owned by another realm from
@@ -50,14 +52,16 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 - **Owner grant (`mutable`, #6207).** One grant hands out every method of the
   type, including ones that write the owner's other objects.
 - **Stamping function values with their sender.** Lost in containers and
-  variadics, and a value handed back carries the victim's stamp.
+  variadics, and a value handed back carries the victim's stamp. The maker is
+  set when the value is made, by the code making it, and is none in read-only
+  code; a method value's receiver is read when the call runs.
 - **Receiver ownership for interface calls.** A struct value is copied under
   the realm and a stored pointer becomes the realm's; it cannot tell who picked
   the code.
 - **Unsaved objects stay writable.** When an object is saved depends on
   finalization, which the source does not show.
-- **Implicit crossing on every call.** Shifts the caller identity silently
-  (the Solidity `msg.sender` problem) and makes every helper a boundary.
+- **Implicit crossing on every call.** Shifts the caller identity silently and
+  makes every helper a boundary.
 
 ## Consequences
 
@@ -85,10 +89,12 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 
 - A library in the realm's import tree is trusted: a caller may pick any of
   its types through the realm's interfaces.
-- A stdlib method that writes its argument can be picked through an interface.
+- A stdlib method writing its argument can be picked through an interface.
+- A function value a realm made at init or in a gate and publishes, handed
+  back to a gate of that realm that runs callbacks, writes.
 
 ## Tests
 
-`zrealm_ctw_*` pin each rule; `zrealm_entry_*` and `zrealm_launder_*` the
-library cases; `iface_*`, `assertorigincall` and the governance txtars the
-chain path.
+`zrealm_ctw_*` pin each rule; `zrealm_maker_*` and `zrealm_handle_*` rule 5;
+`zrealm_entry_*`, `zrealm_launder_*` the library cases; `iface_*`,
+`assertorigincall` and the governance txtars the chain path.
