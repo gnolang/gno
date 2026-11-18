@@ -181,15 +181,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// actual outflow at execution time, so correctness is unchanged —
 		// this pre-check is purely a gas-efficiency optimization.
 		if da, ok := sessionAccounts[signerAddrs[0]]; ok {
-			total := std.Coins{}
-			if !tx.Fee.GasFee.IsZero() {
-				total = total.Add(std.Coins{tx.Fee.GasFee})
-			}
-			for _, msg := range tx.GetMsgs() {
-				if est, ok := msg.(std.SpendEstimator); ok {
-					total = total.Add(est.SpendForSigner(signerAddrs[0]))
-				}
-			}
+			total := sessionSpendTotal(tx, signerAddrs[0])
 			if err := CheckSessionSpend(da, total, newCtx.BlockTime().Unix()); err != nil {
 				return newCtx, abciResult(err), true
 			}
@@ -213,6 +205,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		}
 
 		// ——— Phase 3: Verify signatures, increment sequences ———
+
+		// Simulate normally skips verification; see RequireSigForSimulate
+		// for why some messages cannot afford that. Nothing below changes
+		// the predicate's answer, so it is asked once, not once per signature.
+		verifySig := !simulate ||
+			(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+
+		// The last payload built and the account number and sequence it was
+		// built for: each signer's differs from it in those two values only.
+		var prevSignBytes []byte
+		var prevAccNum, prevAccSeq uint64
 
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
@@ -291,38 +294,50 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accNum = sigAcc.GetAccountNumber()
 				accSeq = sigAcc.GetSequence()
 			}
-			signBytes, err := tx.GetSignBytes(
-				newCtx.ChainID(),
-				accNum,
-				accSeq,
-			)
-			if err != nil {
-				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+			// Built only when verified: the build is unmetered and simulate skips
+			// verification. verifySig is true on every consensus path. Only the
+			// first signer encodes the msgs, so a bad signature after valid ones
+			// costs one encoding, not one per signer.
+			var signBytes []byte
+			if verifySig {
+				var err error
+				if prevSignBytes == nil {
+					signBytes, err = tx.GetSignBytes(
+						newCtx.ChainID(),
+						accNum,
+						accSeq,
+					)
+				} else {
+					signBytes, err = std.GetSignaturePayloadFrom(
+						tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+						prevSignBytes, prevAccNum, prevAccSeq,
+					)
+				}
+				if err != nil {
+					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+				}
+				prevSignBytes, prevAccNum, prevAccSeq = signBytes, accNum, accSeq
 			}
 
 			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 				return newCtx, res, true
 			}
 
-			// Simulate normally skips verification; see RequireSigForSimulate
-			// for why some messages cannot afford that.
-			verifySig := !simulate ||
-				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 				// Either payload rendering is accepted; std.VerifySignaturePayload
 				// holds the argument for why that is safe.
 				//
 				// Spelled out here rather than delegated to that helper because
-				// the payload is built above, before gas is charged and outside
-				// the simulate gate, and delegating would reorder those steps on
-				// the consensus path. The legacy encoding cannot fail once the
-				// one above succeeded -- the two differ only in the fee's plain
-				// fields -- so lerr carries nothing the first marshal did not
-				// already report. Gas was charged above for one verification.
-				legacySignBytes, lerr := tx.GetSignBytesLegacy(
-					newCtx.ChainID(),
-					accNum,
-					accSeq,
+				// the payload is built above, before gas is charged, and
+				// delegating would reorder those steps on the consensus path.
+				// The legacy encoding cannot fail once the one above succeeded
+				// -- the two differ only in the fee's plain fields -- so lerr
+				// carries nothing the first marshal did not already report.
+				// Gas was charged above for one verification, so the legacy
+				// payload reuses signBytes rather than encoding the msgs again.
+				legacySignBytes, lerr := std.GetSignaturePayloadLegacyFrom(
+					tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+					signBytes,
 				)
 				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
 					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true

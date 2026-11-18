@@ -845,8 +845,10 @@ func (m *Machine) doOpConvert() {
 	// converting realm cannot forge values of types it doesn't
 	// declare, otherwise it could fabricate "trusted" objects to
 	// hand back to the declaring realm.
-	if tdt, ok := t.(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
-		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path {
+	if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+		// A nil pointer points at nothing, so it forges nothing.
+		isNilPtr := t.Kind() == PointerKind && xv.V == nil
+		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
 			panic("illegal conversion to external realm type")
 		}
 	}

@@ -10,10 +10,14 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
+
+// configuredLookupTimeout bounds the startup lookup of a configured hostname
+const configuredLookupTimeout = 2 * time.Second
 
 const (
 	nilNetAddress = "<nil-NetAddress>"
@@ -27,7 +31,13 @@ var (
 	ErrUnspecifiedIP     = errors.New("unspecified IP address")
 	ErrInvalidNetAddress = errors.New("invalid net address")
 	ErrEmptyHost         = errors.New("empty host address")
+	ErrEmptyLookupResult = errors.New("host resolved to no IP addresses")
+	ErrHostnameNotIP     = errors.New("encoded address host is not an IP")
 )
+
+// lookupIP resolves a hostname to its IP addresses. A package variable so a
+// test can stand in for the resolver.
+var lookupIP = net.LookupIP
 
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port
@@ -35,6 +45,10 @@ type NetAddress struct {
 	ID   ID     `json:"id"`   // unique peer identifier (public key address)
 	IP   net.IP `json:"ip"`   // the IP part of the dial address
 	Port uint16 `json:"port"` // the port part of the dial address
+
+	// Hostname is the configured host, re-resolved on every dial.
+	// Local only: the address always serializes with its IP.
+	Hostname string
 }
 
 // NetAddressString returns id@addr. It strips the leading
@@ -76,6 +90,66 @@ func NewNetAddress(id ID, addr net.Addr) (*NetAddress, error) {
 // the form of "ID@IP:Port".
 // Also resolves the host if host is not an IP.
 func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
+	na, err := parseNetAddress(idaddr)
+	if err != nil {
+		return nil, err
+	}
+
+	if na.IP == nil {
+		ips, err := lookupIP(na.Hostname)
+		if err != nil {
+			return nil, fmt.Errorf("unable to look up IP, %w", err)
+		}
+
+		if len(ips) == 0 {
+			// net.LookupIP can return no addresses with a nil error, for a
+			// host the resolver declines to query. Indexing ips[0] here would
+			// panic on a configured address or a peer store entry.
+			return nil, fmt.Errorf("%w, %s", ErrEmptyLookupResult, na.Hostname)
+		}
+
+		na.IP = ips[0]
+	}
+
+	return na, nil
+}
+
+// NewConfiguredNetAddress returns a new NetAddress for a peer listed in the
+// node configuration, in the form of "ID@host:Port". Unlike
+// NewNetAddressFromString, a hostname that does not resolve yet is not an
+// error: the address keeps the hostname with no IP, and DialContext resolves
+// it on every dial
+func NewConfiguredNetAddress(idaddr string) (*NetAddress, error) {
+	na, err := parseNetAddress(idaddr)
+	if err != nil {
+		return nil, err
+	}
+
+	if na.IP == nil {
+		na.IP = lookupConfiguredIP(na.Hostname)
+	}
+
+	return na, nil
+}
+
+// lookupConfiguredIP resolves a configured hostname, best effort and bounded
+// by configuredLookupTimeout so a slow DNS server cannot stall startup. It
+// returns nil when the hostname does not resolve: it is resolved when dialed
+func lookupConfiguredIP(hostname string) net.IP {
+	ctx, cancelFn := context.WithTimeout(context.Background(), configuredLookupTimeout)
+	defer cancelFn()
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, hostname)
+	if err != nil || len(addrs) == 0 {
+		return nil
+	}
+
+	return addrs[0].IP
+}
+
+// parseNetAddress parses an address in the form of "ID@host:Port" without
+// resolving the host: IP is set when host is an IP literal, Hostname otherwise
+func parseNetAddress(idaddr string) (*NetAddress, error) {
 	var (
 		prunedAddr = removeProtocolIfDefined(idaddr)
 		spl        = strings.Split(prunedAddr, "@")
@@ -105,14 +179,11 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 		return nil, ErrEmptyHost
 	}
 
+	var hostname string
+
 	ip := net.ParseIP(host)
 	if ip == nil {
-		ips, err := net.LookupIP(host)
-		if err != nil {
-			return nil, fmt.Errorf("unable to look up IP, %w", err)
-		}
-
-		ip = ips[0]
+		hostname = host
 	}
 
 	port, err := strconv.ParseUint(portStr, 10, 16)
@@ -121,6 +192,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	}
 
 	na := NewNetAddressFromIPPort(ip, uint16(port))
+	na.Hostname = hostname
 	na.ID = id
 
 	return na, nil
@@ -200,10 +272,18 @@ func (na NetAddress) MarshalAmino() (string, error) {
 	return addrStr, nil
 }
 
+// UnmarshalAmino parses an address without resolving it. MarshalAmino writes
+// the IP and never the hostname, so a decoded hostname comes from no honest
+// encoder, and resolving it would let a peer hold the node on a DNS lookup of
+// its choosing
 func (na *NetAddress) UnmarshalAmino(raw string) (err error) {
-	netAddress, err := NewNetAddressFromString(raw)
+	netAddress, err := parseNetAddress(raw)
 	if err != nil {
 		return err
+	}
+
+	if netAddress.IP == nil {
+		return fmt.Errorf("%w, %s", ErrHostnameNotIP, netAddress.Hostname)
 	}
 
 	*na = *netAddress
@@ -226,7 +306,14 @@ func (na *NetAddress) DialString() string {
 func (na *NetAddress) DialContext(ctx context.Context) (net.Conn, error) {
 	var d net.Dialer
 
-	conn, err := d.DialContext(ctx, "tcp", na.DialString())
+	// Dialing the hostname picks up IP changes, and lets the
+	// dialer try every resolved address
+	host := na.IP.String()
+	if na.Hostname != "" {
+		host = na.Hostname
+	}
+
+	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.FormatUint(uint64(na.Port), 10)))
 	if err != nil {
 		return nil, fmt.Errorf("unable to dial address, %w", err)
 	}

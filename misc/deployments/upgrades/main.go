@@ -7,6 +7,7 @@
 //	go run ./misc/deployments/upgrades render   misc/deployments/mainnet.gno.land
 //	go run ./misc/deployments/upgrades check    misc/deployments/mainnet.gno.land
 //	go run ./misc/deployments/upgrades has      misc/deployments/mainnet.gno.land v1.6.0
+//	go run ./misc/deployments/upgrades commit   misc/deployments/mainnet.gno.land v1.6.0
 package main
 
 import (
@@ -25,7 +26,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: upgrades <validate|render|check> <dir> | has <dir> <version>")
+		return fmt.Errorf("usage: upgrades <validate|render|check> <dir> | <has|commit> <dir> <version>")
 	}
 	cmd, dir := args[0], args[1]
 	switch cmd {
@@ -60,6 +61,21 @@ func run(args []string) error {
 			return fmt.Errorf("%s/%s has no entry for %s", dir, upgrades.LedgerFile, args[2])
 		}
 		fmt.Printf("%s/%s has an entry for %s\n", dir, upgrades.LedgerFile, args[2])
+	case "commit":
+		// The commit the entry for a version names, which cut-release.sh
+		// compares with the commit it tags.
+		if len(args) != 3 {
+			return fmt.Errorf("usage: upgrades commit <dir> <version>")
+		}
+		l, err := upgrades.Load(dir)
+		if err != nil {
+			return err
+		}
+		e, ok := l.Entry(args[2])
+		if !ok {
+			return fmt.Errorf("%s/%s has no entry for %s", dir, upgrades.LedgerFile, args[2])
+		}
+		fmt.Println(e.Commit)
 	default:
 		return fmt.Errorf("unknown command %q", cmd)
 	}

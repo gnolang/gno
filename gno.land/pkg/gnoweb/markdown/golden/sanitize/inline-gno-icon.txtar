@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: # %s
+-- input.md --
+Title <gno-icon name="star" />
+-- output.md --
+Title \<gno\-icon name="star" /\>
+-- output.html --
+<h1>Title &lt;gno-icon name=&quot;star&quot; /&gt;</h1>

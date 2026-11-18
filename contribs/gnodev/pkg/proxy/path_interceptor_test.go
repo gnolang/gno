@@ -113,6 +113,22 @@ func Incr(cur realm) {
 		}
 	})
 
+	t.Run("valid_vm_query_doc", func(t *testing.T) {
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+
+		res, err := cli.ABCIQuery(context.Background(), "vm/qdoc", []byte(targetPath))
+		require.NoError(t, err)
+		assert.Nil(t, res.Response.Error)
+
+		select {
+		case paths := <-pathChan:
+			assert.Equal(t, []string{targetPath}, paths)
+		default:
+			t.Fatal("paths not captured")
+		}
+	})
+
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx

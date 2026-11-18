@@ -45,7 +45,7 @@ const assetsVersionLen = 12
 func AssetsVersion() string { return assetsVersion }
 
 var DefaultCacheAssetsHandler = func(next http.Handler) http.Handler {
-	return CacheHandler(assetsHash, next)
+	return CacheHandler(assetsHash, assetsVersion, next)
 }
 
 func init() {

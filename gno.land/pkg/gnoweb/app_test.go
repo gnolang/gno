@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"maps"
@@ -13,10 +14,13 @@ import (
 
 	"github.com/rs/xid"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -92,6 +96,11 @@ func TestRoutes(t *testing.T) {
 			{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 			// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
 			{"/r/sys/users", ok, "r/sys/users"},
+			// Registered in the genesis txs, so these run the real vm/qeval
+			// query; zoo_ma123 also covers a name with a separator.
+			{"/u/moul001", ok, "moul001"},
+			{"/u/zoo_ma123", ok, "zoo_ma123"},
+			{"/u/zzznotauser", notFound, "user not found"},
 			{"/r/sys/users/users.gno", ok, "ResolveName"},
 			{"/r/tests/vm/deep/very/deep", ok, "it works!"},
 			{"/r/tests/vm/deep/very/deep?arg1=val1&arg2=val2", ok, "hi ?arg1=val1&amp;arg2=val2"},
@@ -392,5 +401,89 @@ func TestHealthEndpoints(t *testing.T) {
 			assert.Equal(t, "application/json", response.Header().Get("Content-Type"))
 			assert.Contains(t, response.Body.String(), `{"status":"ready"}`)
 		})
+
+		t.Run("status.json should report the node", func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/status.json", nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+
+			var status struct {
+				Gnoland struct {
+					Height  int64  `json:"height"`
+					Version string `json:"version"`
+					ChainID string `json:"chain_id"`
+				} `json:"gnoland"`
+			}
+			require.NoError(t, json.Unmarshal(response.Body.Bytes(), &status))
+			assert.Greater(t, status.Gnoland.Height, int64(0))
+			assert.Equal(t, "tendermint_test", status.Gnoland.ChainID)
+			assert.Equal(t, version.Version, status.Gnoland.Version)
+		})
 	})
+}
+
+// The binaries (cmd/gnoweb, gnodev) start from NewDefaultAppConfig, so its
+// rate is the one production runs. Behind a proxy without -trusted-proxies
+// every visitor shares a bucket, and omnibar typeahead must not hit 429 at
+// the old 100/min.
+func TestDefaultConfigSearchRateLimit(t *testing.T) {
+	cfg := NewDefaultAppConfig()
+	cfg.NodeRemote = sharedNodeRemote(t)
+	router, err := NewRouter(log.NewTestingLogger(t), cfg)
+	require.NoError(t, err)
+
+	for i := range 150 {
+		request := httptest.NewRequest(http.MethodGet, "/$search?q=blog&json", nil)
+		request.RemoteAddr = "192.0.2.1:1234"
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		require.NotEqual(t, http.StatusTooManyRequests, response.Code,
+			"request %d from one IP was rate-limited under the default config", i+1)
+	}
+}
+
+// A URL the client could never reach fails at startup, not behind a log line
+// calling the indexer enabled.
+func TestNewRouterRejectsInvalidIndexerURL(t *testing.T) {
+	for _, raw := range []string{"localhost:8546/graphql", "ftp://indexer.example/q", "http:///graphql"} {
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = sharedNodeRemote(t)
+		cfg.IndexerURL = raw
+		_, err := NewRouter(log.NewTestingLogger(t), cfg)
+		require.Error(t, err, raw)
+	}
+}
+
+// TestNewDefaultAppConfigCopiesAliases checks a config's aliases are its own:
+// adding one must not reach DefaultAliases, which other configs read.
+func TestNewDefaultAppConfigCopiesAliases(t *testing.T) {
+	t.Parallel()
+
+	cfg := NewDefaultAppConfig()
+	cfg.Aliases["/only-mine"] = AliasTarget{Value: "# Mine", Kind: StaticMarkdown}
+	assert.NotContains(t, DefaultAliases, "/only-mine")
+}
+
+// TestNewDefaultAppConfigIndexesNoCommunity checks community pages stay out of
+// search unless an operator opts in: a name costs nothing to register, so
+// indexing pages under one would publish scams under gno.land.
+func TestNewDefaultAppConfigIndexesNoCommunity(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, IndexNoCommunity, NewDefaultAppConfig().IndexCommunity)
+}
+
+// With an indexer, importer lookups get their own narrow bucket: the general
+// rate would let one address start hundreds of whole-chain scans a minute.
+func TestChainmapDepsLimitsLookups(t *testing.T) {
+	t.Parallel()
+
+	cfg := &HTTPHandlerConfig{Indexer: indexer.New("http://indexer.invalid/graphql/query", "")}
+	deps := chainmapDeps(cfg, log.NewTestingLogger(t), nil)
+	require.NotNil(t, deps.Limiter)
+	r := httptest.NewRequest(http.MethodGet, "/p/demo/lib$deps", nil)
+	for range chainmap.LookupsBurst {
+		require.True(t, deps.Limiter.AllowRequest(r))
+	}
+	assert.False(t, deps.Limiter.AllowRequest(r), "past the burst a lookup must be refused")
 }

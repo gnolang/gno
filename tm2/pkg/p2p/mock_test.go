@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
@@ -52,6 +53,20 @@ func (m *mockTransport) Remove(p PeerConn) {
 	if m.removeFn != nil {
 		m.removeFn(p)
 	}
+}
+
+// newDialRecorder returns a transport whose dials always fail, along with
+// the channel every dialed address is sent to, buffered with the given size
+func newDialRecorder(size int) (*mockTransport, <-chan types.NetAddress) {
+	dialed := make(chan types.NetAddress, size)
+
+	return &mockTransport{
+		dialFn: func(_ context.Context, addr types.NetAddress, _ PeerBehavior) (PeerConn, error) {
+			dialed <- addr
+
+			return nil, errors.New("unable to dial")
+		},
+	}, dialed
 }
 
 type (

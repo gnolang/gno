@@ -91,7 +91,7 @@
 
 	/* Form text */
 	--s-color-text-input: var(--g-color-gray-600, #54595d); /* Input text */
-	--s-color-text-input-placeholder: var(--g-color-gray-400, #7c7c7c); /* Placeholder */
+	--s-color-text-input-placeholder: var(--g-color-gray-600, #545454); /* Placeholder */
 	--s-color-text-input-disabled: var(--g-color-gray-300, #999999); /* Disabled input */
 
 	/* Semantic text */
@@ -101,6 +101,8 @@
 	--s-color-text-caution: var(--g-color-red-900, #661100); /* Error text */
 	--s-color-text-tip: var(--g-color-purple-900, #49216b); /* Tip text */
 	--s-color-text-note: var(--g-color-gray-900);
+	--s-color-math-orange: var(--g-color-orange-600); /* \color{orange} in math */
+	--s-color-math-purple: var(--g-color-purple-900); /* \color{purple} in math */
 
 	/* ===== BORDER COLORS ===== */
 	/* Border hierarchy (light to dark) */
@@ -167,6 +169,10 @@
 	/* Logo / gnome */
 	--s-logo-hat: var(--g-color-green-600, #226c57);
 	--s-logo-beard: var(--g-color-gray-300, #999999);
+
+	/* Chain map group tints: gno green mixed into this ground */
+	--s-map-hue: var(--g-color-green-400);
+	--s-map-hue-ground: var(--s-color-bg-base);
 }
 
 /* ===== DARK THEME ===== */
@@ -222,7 +228,7 @@
 
 	/* Form text */
 	--s-color-text-input: var(--g-color-gray-200);
-	--s-color-text-input-placeholder: var(--g-color-gray-500);
+	--s-color-text-input-placeholder: var(--g-color-gray-300);
 	--s-color-text-input-disabled: var(--g-color-gray-600);
 
 	/* Semantic text */
@@ -232,6 +238,8 @@
 	--s-color-text-caution: var(--g-color-red-400);
 	--s-color-text-tip: var(--g-color-purple-400);
 	--s-color-text-note: var(--g-color-gray-200);
+	--s-color-math-orange: var(--g-color-orange-400);
+	--s-color-math-purple: var(--g-color-purple-300); /* text-tip is 3.7:1 on bg-base */
 
 	/* Border hierarchy */
 	--s-color-border-primary: var(--g-color-gray-700);
@@ -262,4 +270,8 @@
 	/* Logo / gnome */
 	--s-logo-hat: #ffffff;
 	--s-logo-beard: #808080;
+
+	/* Chain map group tints */
+	--s-map-hue: var(--g-color-green-600);
+	--s-map-hue-ground: var(--s-color-bg-surface-primary);
 }

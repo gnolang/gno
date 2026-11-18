@@ -256,6 +256,11 @@ func (gnoURL GnoURL) IsDir() bool {
 	return !gnoURL.IsFile() && strings.HasSuffix(gnoURL.Path, "/")
 }
 
+// IsPlayground checks if the URL path represents the integrated playground.
+func (gnoURL GnoURL) IsPlayground() bool {
+	return gnoURL.Path == "/_/play"
+}
+
 // reGnolandPath matches and validates a Gno.land URL path.
 // The minimum path allowed are the Gno.land prefixed ones so listing can be
 // implemented, for example in Gnoweb "/r/" or "/p/" would list the files or
@@ -279,7 +284,9 @@ func (gnoURL GnoURL) Namespace() string {
 	}
 
 	path := gnoURL.Path[3:] // skip `/x/`
-	if idx := strings.Index(path, "/"); idx > 1 {
+	// idx > 0, not > 1: a one-character namespace puts the separator at
+	// index 1, and `/r/a/b` used to return "a/b".
+	if idx := strings.Index(path, "/"); idx > 0 {
 		return path[:idx] // namespace
 	}
 
