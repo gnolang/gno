@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	r "github.com/gnolang/gno/tm2/pkg/regx"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -1741,26 +1740,40 @@ type structSurface struct {
 
 // reachableSurface returns the (fields, methods) contribution of t when
 // it appears as an embedded field's type. Counts through DeclaredType
-// (its Methods → methods bucket; its Base → recurse), PointerType
+// (its Methods → methods bucket; its Base → followed), PointerType
 // (passthrough), structs (effective fields go to fields bucket,
 // effective promoted methods to methods bucket), and interfaces
 // (effective methods go to methods bucket). fullyResolved is false if
-// any sub-walk hit a cycle break.
+// this walk or any sub-walk hit a cycle break.
 func reachableSurface(t Type, visited map[Type]struct{}) (structSurface, bool) {
-	switch ct := t.(type) {
-	case *DeclaredType:
-		sub, ok := reachableSurface(ct.Base, visited)
-		sub.methods += len(ct.Methods)
-		return sub, ok
-	case *PointerType:
-		return reachableSurface(ct.Elt, visited)
-	case *StructType:
-		return effectiveStructSurface(ct, visited)
-	case *InterfaceType:
-		n, ok := effectiveInterfaceMethods(ct, visited)
-		return structSurface{methods: n}, ok
+	methods := 0
+	// Brent's cycle detection: meeting mark again means a named type points
+	// back to itself, as `type A *A` does.
+	mark, power, steps := t, 1, 0
+	for {
+		switch ct := t.(type) {
+		case *DeclaredType:
+			methods += len(ct.Methods)
+			t = ct.Base
+		case *PointerType:
+			t = ct.Elt
+		case *StructType:
+			sub, ok := effectiveStructSurface(ct, visited)
+			sub.methods += methods
+			return sub, ok
+		case *InterfaceType:
+			n, ok := effectiveInterfaceMethods(ct, visited)
+			return structSurface{methods: methods + n}, ok
+		default:
+			return structSurface{methods: methods}, true
+		}
+		if t == mark {
+			return structSurface{methods: methods}, false
+		}
+		if steps++; steps == power {
+			mark, power, steps = t, power*2, 0
+		}
 	}
-	return structSurface{}, true
 }
 
 // effectiveInterfaceMethods returns (count, fullyResolved) for it.
@@ -1991,25 +2004,6 @@ func (dt *DeclaredType) TypeID() TypeID {
 		}
 	}
 	return dt.typeid
-}
-
-var (
-	Re_declaredTypeID = r.G(
-		r.N("PATH", r.P(r.CN(r.E(`[.`)))),
-		r.M(r.E(`[`), r.N("LOC", Re_location), r.E(`]`)),
-		r.E(`.`),
-		r.N("NAME", r.P(`.`)))
-
-	// Compile at init to avoid runtime compilation.
-	ReDeclaredTypeID = Re_declaredTypeID.Compile()
-)
-
-func ParseDeclaredTypeID(tid string) (pkgPath string, loc string, name string, ok bool) {
-	match := ReDeclaredTypeID.Match(tid)
-	if match == nil {
-		return
-	}
-	return match.Get("PATH"), match.Get("LOC"), match.Get("NAME"), true
 }
 
 func DeclaredTypeID(pkgPath string, loc Location, name Name) TypeID {
@@ -2403,85 +2397,6 @@ const (
 	TupleKind    // not in go.
 	RefTypeKind  // not in go.
 )
-
-// This is generally slower than switching on baseOf(t).
-func KindOf(t Type) Kind {
-	switch t := baseOf(t).(type) {
-	case PrimitiveType:
-		switch t {
-		case InvalidType:
-			panic("invalid type has no kind")
-		case BoolType, UntypedBoolType:
-			return BoolKind
-		case StringType, UntypedStringType:
-			return StringKind
-		case IntType:
-			return IntKind
-		case Int8Type:
-			return Int8Kind
-		case Int16Type:
-			return Int16Kind
-		case Int32Type, UntypedRuneType:
-			return Int32Kind
-		case Int64Type:
-			return Int64Kind
-		case UintType:
-			return UintKind
-		case Uint8Type, DataByteType:
-			return Uint8Kind
-		case Uint16Type:
-			return Uint16Kind
-		case Uint32Type:
-			return Uint32Kind
-		case Uint64Type:
-			return Uint64Kind
-		case Float32Type:
-			return Float32Kind
-		case Float64Type:
-			return Float64Kind
-		case UntypedBigintType:
-			return BigintKind
-		case UntypedBigdecType:
-			return BigdecKind
-		default:
-			panic(fmt.Sprintf("unexpected primitive type %s", t.String()))
-		}
-	case *DeclaredType:
-		panic("unexpected nested DeclaredType")
-	case FieldType:
-		panic("FieldType is a pseudotype")
-	case *ArrayType:
-		return ArrayKind
-	case *SliceType:
-		return SliceKind
-	case *PointerType:
-		return PointerKind
-	case *StructType:
-		return StructKind
-	case *PackageType:
-		return PackageKind
-	case *InterfaceType:
-		return InterfaceKind
-	case *ChanType:
-		return ChanKind
-	case *FuncType:
-		return FuncKind
-	case *MapType:
-		return MapKind
-	case *TypeType:
-		return TypeKind
-	case blockType:
-		return BlockKind
-	case heapItemType:
-		return HeapItemKind
-	case *tupleType:
-		return TupleKind
-	case RefType:
-		return RefTypeKind
-	default:
-		panic(fmt.Sprintf("unexpected type %#v", t))
-	}
-}
 
 // ----------------------------------------
 // main type-assertion functions.

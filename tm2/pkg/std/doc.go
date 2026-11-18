@@ -1,7 +1,9 @@
 package std
 
 import (
+	"bytes"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -70,6 +72,56 @@ func GetSignaturePayloadLegacy(s SignDoc) ([]byte, error) {
 	return signaturePayload(s)
 }
 
+// GetSignaturePayloadLegacyFrom returns GetSignaturePayloadLegacy(s) from
+// payload, the GetSignaturePayload(s) bytes, without encoding the msgs again.
+// Only the fee is checked against s: a payload carrying s's fee but built from
+// another doc is the caller's error and goes undetected.
+//
+// The two payloads differ only in the value under the top-level "fee" key, so
+// that value is swapped in place. Sorting puts that key third, after
+// account_number and chain_id, and a quote inside a JSON string is escaped, so
+// the first `,"fee":` in payload is that key.
+func GetSignaturePayloadLegacyFrom(s SignDoc, payload []byte) ([]byte, error) {
+	current, err := signaturePayload(signDocFeeOf(s.Fee))
+	if err != nil {
+		return nil, err
+	}
+	legacy, err := signaturePayload(s.Fee)
+	if err != nil {
+		return nil, err
+	}
+
+	key := []byte(`,"fee":`)
+	at := bytes.Index(payload, key)
+	if at < 0 || !bytes.HasPrefix(payload[at+len(key):], current) {
+		// payload does not carry s's fee where the fee key sits.
+		return GetSignaturePayloadLegacy(s)
+	}
+	at += len(key)
+	return slices.Concat(payload[:at], legacy, payload[at+len(current):]), nil
+}
+
+// GetSignaturePayloadFrom returns GetSignaturePayload(s) from payload, the
+// GetSignaturePayload bytes of s with accNum and seq in place of its own account
+// number and sequence, without encoding the msgs again. Only those two values
+// are checked against payload, as GetSignaturePayloadLegacyFrom checks the fee.
+//
+// Sorting puts account_number first and sequence last, and amino renders both
+// as quoted decimals, so they are swapped at the two ends of payload.
+func GetSignaturePayloadFrom(s SignDoc, payload []byte, accNum, seq uint64) ([]byte, error) {
+	head := func(n uint64) []byte { return fmt.Appendf(nil, `{"account_number":"%d",`, n) }
+	tail := func(n uint64) []byte { return fmt.Appendf(nil, `,"sequence":"%d"}`, n) }
+
+	oldHead, oldTail := head(accNum), tail(seq)
+	if len(payload) < len(oldHead)+len(oldTail) ||
+		!bytes.HasPrefix(payload, oldHead) || !bytes.HasSuffix(payload, oldTail) {
+		// payload is not the payload of s with accNum and seq.
+		return GetSignaturePayload(s)
+	}
+	body := payload[len(oldHead) : len(payload)-len(oldTail)]
+	return slices.Concat(head(s.AccountNumber), body, tail(s.Sequence)), nil
+}
+
 // feeAmount renders the fee coin as Cosmos renders a coin list.
 //
 // A ZERO FEE IS AN EMPTY LIST, not a list holding an empty coin. Cosmos's Coins
@@ -103,13 +155,18 @@ func GetSignaturePayload(s SignDoc) ([]byte, error) {
 		ChainID:       s.ChainID,
 		AccountNumber: s.AccountNumber,
 		Sequence:      s.Sequence,
-		Fee: signDocFee{
-			Amount: feeAmount(s.Fee.GasFee),
-			Gas:    strconv.FormatInt(s.Fee.GasWanted, 10),
-		},
-		Msgs: s.Msgs,
-		Memo: s.Memo,
+		Fee:           signDocFeeOf(s.Fee),
+		Msgs:          s.Msgs,
+		Memo:          s.Memo,
 	})
+}
+
+// signDocFeeOf returns f in the amount/gas shape of signDocFee.
+func signDocFeeOf(f Fee) signDocFee {
+	return signDocFee{
+		Amount: feeAmount(f.GasFee),
+		Gas:    strconv.FormatInt(f.GasWanted, 10),
+	}
 }
 
 // signaturePayload renders v as amino JSON with its keys sorted, the form every
@@ -166,8 +223,10 @@ const (
 //
 // The legacy rendering is computed only when the current one does not verify, so
 // the ordinary path pays for one encoding and one curve operation. A signature
-// that matches neither pays for two of each, and nothing meters that: the cost of
-// rejecting an invalid signature is borne by the node, not the sender.
+// that matches neither pays for one encoding of the sign doc, two of its fee
+// alone, one copy of the payload and two curve operations, and nothing meters
+// that: the cost of rejecting an invalid signature is borne by the node, not
+// the sender.
 func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) (PayloadRendering, error) {
 	payload, err := GetSignaturePayload(s)
 	if err != nil {
@@ -177,7 +236,7 @@ func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) (Payloa
 		return PayloadRenderingCurrent, nil
 	}
 
-	legacy, err := GetSignaturePayloadLegacy(s)
+	legacy, err := GetSignaturePayloadLegacyFrom(s, payload)
 	if err != nil {
 		return PayloadRenderingNone, err
 	}
@@ -195,7 +254,11 @@ type Signature struct {
 	// SessionAddr identifies a session account for delegated signing.
 	// Zero-value means a master-key signature. When non-zero, the AnteHandler
 	// loads the session account at /a/<signer>/s/<SessionAddr> for verification.
-	// Amino binary and JSON both skip the field when the address is zero
-	// ([20]byte{}), so master-signed txs pay no wire-size overhead.
-	SessionAddr crypto.Address `json:"session_addr,omitempty" yaml:"session_addr,omitempty"`
+	// amino:"skip_zero" leaves a zero address ([20]byte{}) out of the binary
+	// and JSON encodings, so master-signed txs pay no wire-size overhead.
+	// Without it amino binary would write the zero address's bech32 string
+	// (42 bytes under the "g" prefix), since its own zero check reads the
+	// MarshalAmino repr. Signatures encoded with that string, as Go clients
+	// wrote them before the tag, still decode to the zero address.
+	SessionAddr crypto.Address `json:"session_addr,omitempty" yaml:"session_addr,omitempty" amino:"skip_zero"`
 }

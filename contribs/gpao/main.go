@@ -26,15 +26,44 @@ import (
 
 const (
 	defaultRemote = "http://127.0.0.1:26657"
-	defaultGasFee = "1000000ugnot"
+	// defaultGasFee is 0.1 GNOT, and it is a flat cost rather than a budget.
+	//
+	// The ante deducts tx.Fee.GasFee whole rather than metering it, so whatever
+	// is set here is what every approval costs, successful or not. What the chain
+	// REQUIRES is a ratio: EnsureSufficientMempoolFees compares GasFee/GasWanted
+	// against the block gas price, which is 1ugnot per 1000 gas on gno.land.
+	// The fee therefore has to cover the gas an approval ASKS for, and everything
+	// above that is a donation to the fee collector.
+	//
+	// Measured rather than guessed. A real MsgEnablePackage on gnoland-1, block
+	// 26021, ran with GasWanted 12,797,970 and GasUsed 10,664,965 -- so the chain
+	// wanted 12,798ugnot for it, and the previous default of 1 GNOT paid 78x
+	// that. 0.1 GNOT still covers that same approval about eight times over,
+	// which is the margin worth keeping rather than trimming: GasWanted is an
+	// estimate plus 20%, taken against state the enable has not landed in yet.
+	//
+	// What it buys is a ceiling of GasWanted <= 100,000,000 (the fee times 1000,
+	// at the standard price). Every enable measured so far is an order of
+	// magnitude under it and the fallback -gas-wanted is 20,000,000, but a
+	// package that genuinely wants more needs -gas-fee raised alongside it --
+	// below the ratio the node refuses the transaction at CheckTx. See
+	// TestDefaultFeeCoversDefaultGasWanted, which pins the two constants
+	// together.
+	defaultGasFee = "100000ugnot"
 
 	// defaultMaxSpend bounds what one run will pay in gas fees for approvals.
 	//
 	// Every approval costs the full gas fee whether or not it succeeds, and the
 	// daemon decides on its own when to send one -- so without a bound, anything
 	// that makes approvals fail repeatedly drains the approver key. 100 GNOT at
-	// the default 1 GNOT fee is a hundred approvals, generous for normal
+	// the default 0.1 GNOT fee is a thousand approvals, generous for normal
 	// operation and small enough to notice.
+	//
+	// Note that this bound is stated in coin and the thing it is trying to bound
+	// is a COUNT, so lowering -gas-fee raises how many approvals it permits --
+	// this default meant a hundred when the fee was 1 GNOT, and gnoland-1 stopped
+	// activating packages chain-wide on exactly that hundredth. Nothing here
+	// fixes that; it only moves the wall further out. See #6178.
 	defaultMaxSpend     = "100000000ugnot"
 	defaultGasWanted    = int64(20_000_000)
 	defaultPollInterval = time.Second

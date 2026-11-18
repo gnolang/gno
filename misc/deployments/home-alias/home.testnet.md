@@ -14,98 +14,110 @@ the foundations of a fairer and freer world, join us today.
 
 ---
 
-## [Boards](/r/gnoland/boards2/v0) - On-chain forum for the Gno.land community
-
-**Post, discuss, and create your content community**: Boards is a fully on-chain social forum to create Boards topics, post threads, comment and reply. A plug-and-deploy DAO lets communities manage content, permissions and moderation their way.
-
-Explore this ready-to-use Gno dApp, and experience decentralized social media in action.
-
-**[Open Boards](/r/gnoland/boards2/v0)**
-
----
-
 <gno-columns>
-## Learn about Gno.land
 
-- [About](/about)
-- [GitHub](https://github.com/gnolang)
-- [Blog](/blog)
-- [Events](/events)
-- [Partners, Fund, Grants](/partners)
-- [Explore the Ecosystem](/ecosystem)
+## <gno-icon name="browser" /> Use apps
+
+Get free testnet GNOTs and try the realms on this testnet.
+
+<gno-button href="https://faucet.gno.land" label="Get testnet GNOTs" />
+
+- [Get a wallet (Adena)](https://www.adena.app/)
+- [Explore the ecosystem](/ecosystem)
+- [See what runs on this testnet](#on-this-testnet)
+- [Read the code behind any app](#explore-packages-and-realms)
 
 <gno-columns-sep>
 
-## Build with Gno
+## <gno-icon name="code-outline" /> Build with Gno
+
+Write, test and deploy smart contracts in Gno.
+
+<gno-button href="https://docs.gno.land/builders/getting-started" label="Getting started guide" />
 
 - [Write Gno in the browser](https://play.gno.land)
-- [Read about the Gno Language](/gnolang)
-- [Visit the official documentation](https://docs.gno.land)
 - [Build with AI, using gnomcp](https://mcp.gno.dev)
-- [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
-- [Get testnet GNOTs](https://faucet.gno.land)
+- [Get a grant for your project](/partners)
 
 <gno-columns-sep>
 
-## Explore the universe
+## <gno-icon name="users" /> Community
 
-- [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
-- [Gnoscan](https://gnoscan.io)
-- [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
-- [Faucet Hub](https://faucet.gno.land)
+Meet the Gno.land community and follow the project.
+
+<gno-button href="https://gno.world" label="Join gno.world" />
+
+- [Join the Discord](https://discord.com/invite/gnoland)
+- [Subscribe to the newsletter](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
+- [All community channels](#stay-connected)
 
 </gno-columns>
 
 ---
 
-## [Gno Playground](https://play.gno.land)
+## <gno-icon name="grid-outline" /> On this testnet
 
-Gno Playground is a web application designed for building, running, testing, and
-interacting with your Gno code, enhancing your understanding of the Gno
-language. With Gno Playground, you can share your code, execute tests, deploy
-your realms and packages to Gno.land, and explore a multitude of other features.
+<gno-columns>
+<gno-frame>
+**[GovDAO](/r/gov/dao)**
 
-Experience the convenience of code sharing and rapid experimentation with
-[Gno Playground](https://play.gno.land).
+The DAO that governs Gno.land. Its members vote on proposals, like adding validators.
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Validators](/r/gnops/valopers)**
+
+The registry of validator profiles. GovDAO members read it before voting on new validators.
+</gno-frame>
+</gno-columns>
+
+<gno-button href="/ecosystem" label="Explore the ecosystem" variant="outline" />
 
 ---
 
-## Explore New Packages and Realms
+## <gno-icon name="chat" /> Boards: on-chain forum
 
-All code in Gno.land is organized in packages, and each package lives at a unique package path like
-"r/gnoland/home". You can browse packages, inspect their source, and use them in your own libraries and realms.
+> [!NOTE]
+> Boards is deployed on this testnet, but creating boards is not open to the public yet.
+
+Boards is a fully on-chain social forum to create boards, post threads, comment
+and reply. A plug-and-deploy DAO lets communities manage content, permissions
+and moderation their way. Until it opens, join the conversation on
+[Discord](https://discord.com/invite/gnoland).
+
+---
+
+## <gno-icon name="search-outline" /> Explore packages and realms
+
+Every app on Gno.land is open source and readable on-chain. All code in
+Gno.land is organized in packages, and each package lives at a unique package
+path like "r/gnoland/blog". You can browse packages, inspect their source, and
+use them in your own libraries and realms. For example, read the
+[source of the Gno.land blog](/r/gnoland/blog$source).
 
 <gno-columns>
 
-### r/gnoland
+**r/gnoland**
 
 Official realm packages developed by the Gno.land core team.
 
-[Browse](/r/gnoland)
+[Browse r/gnoland realms](/r/gnoland)
 
 <gno-columns-sep>
 
-### r/sys
+**r/sys**
 
 System-level realm packages used by the chain.
 
-[Browse](/r/sys)
+[Browse r/sys realms](/r/sys)
 
 <gno-columns-sep>
 
-### r/demo
-
-Demo realm packages showcasing what's possible.
-
-[Browse](/r/demo)
-
-<gno-columns-sep>
-
-### p/nt
+**p/nt**
 
 Standard pure packages maintained by the core team.
 
-[Browse](/p/nt)
+[Browse p/nt packages](/p/nt)
 
 </gno-columns>
 
@@ -113,22 +125,35 @@ Standard pure packages maintained by the core team.
 
 <gno-columns>
 
-## Socials
+## <gno-icon name="book" /> About Gno.land
 
-- Check out our [community projects](https://github.com/gnoverse/awesome-gno)
-- [Discord](https://discord.com/invite/gnoland)
-- [Bubble Rumble](https://bubblerumble.net/)
-- [Twitter](https://twitter.com/_gnoland)
-- [Youtube](https://www.youtube.com/@_gnoland)
-- [Telegram](https://t.me/gnoland)
+- [About](/about)
+- [The Gno language](/gnolang)
+- [Blog](https://gno.land/r/gnoland/blog)
+- [Events](/events)
+- [Partners, Fund, Grants](/partners)
+- [Ecosystem](/ecosystem)
 
 <gno-columns-sep>
 
-## Sign up for our newsletter
+## <gno-icon name="terminal" /> Developer resources
 
-Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
+- [Local development (gnodev)](https://docs.gno.land/resources/gnodev)
+- [Networks documentation](https://docs.gno.land/resources/gnoland-networks/)
+- [Faucet Hub](https://faucet.gno.land)
+- [Awesome Gno projects](https://github.com/gnoverse/awesome-gno)
+- [Contribute](/contribute)
+- [GitHub](https://github.com/gnolang)
 
-[Subscribe to stay in the Gno](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
+<gno-columns-sep>
+
+## <gno-icon name="globe" /> Stay connected
+
+- [Discord](https://discord.com/invite/gnoland)
+- [X (Twitter)](https://twitter.com/_gnoland)
+- [YouTube](https://www.youtube.com/@_gnoland)
+- [gno.world](https://gno.world)
+- [Newsletter](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
 
 </gno-columns>
 

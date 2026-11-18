@@ -1,0 +1,13 @@
+{{/* ===================================================================================
+UI - Truncated listing notice
+
+A listing is capped and qpaths has no cursor to page past the cap. A listing
+that stops there must say so: a silent cap is how a reader comes to believe a
+package that exists does not.
+=================================================================================== */}}
+{{ define "ui/listing_truncated" }}
+<p class="b-pkg-notice" role="note">
+  Only the first {{ . }} paths are listed. Open a deeper path to see what lies
+  past them.
+</p>
+{{ end }}
