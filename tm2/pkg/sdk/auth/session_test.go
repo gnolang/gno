@@ -1686,4 +1686,5 @@ func TestSessionCreateNegativeExpiryIsRefusedByValidateBasic(t *testing.T) {
 		SpendLimit: sessionSpendLimit(),
 	}.ValidateBasic()
 	require.Error(t, err, "ValidateBasic should reject a negative expires_at")
+	require.Contains(t, fmt.Sprintf("%+v", err), "expires_at must be non-negative")
 }

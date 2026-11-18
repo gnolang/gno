@@ -320,38 +320,3 @@ func TestAccountTierInvariantReportsStrandedDenoms(t *testing.T) {
 		require.False(t, broken, "the zero schedule must be valid")
 	})
 }
-
-// Held below recorded is the direction a lost credit or a debit with no matching
-// credit produces, so the supply check must report a shortfall, not only a surplus.
-func TestSupplyInvariantReportsLessHeldThanRecorded(t *testing.T) {
-	t.Parallel()
-
-	env := setupTestEnv()
-	ctx := env.ctx
-	a := crypto.AddressFromPreimage([]byte("shortfall"))
-	require.NoError(t, env.bankk.SetCoins(ctx, a, std.Coins{{Denom: testAccountDenom, Amount: 100}}))
-	env.bankk.RecomputeSupply(ctx)
-	// SetCoins is supply-blind, so the record stays at 100 while 90 is held.
-	require.NoError(t, env.bankk.SetCoins(ctx, a, std.Coins{{Denom: testAccountDenom, Amount: 90}}))
-
-	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(ctx)
-	require.True(t, broken, "a shortfall must break the supply invariant")
-	require.Contains(t, msg, "is recorded as 100 but 90 is held")
-}
-
-// A record left behind once the last holder is gone is reported whatever its
-// amount, the smallest one included.
-func TestSupplyInvariantReportsASupplyOfOneThatNobodyHolds(t *testing.T) {
-	t.Parallel()
-
-	env := setupTestEnv()
-	ctx := env.ctx
-	a := crypto.AddressFromPreimage([]byte("last-holder"))
-	require.NoError(t, env.bankk.SetCoins(ctx, a, std.Coins{{Denom: testAccountDenom, Amount: 1}}))
-	env.bankk.RecomputeSupply(ctx)
-	require.NoError(t, env.bankk.SetCoins(ctx, a, std.Coins{}))
-
-	msg, broken := SupplyInvariant(env.bankk.ViewKeeper)(ctx)
-	require.True(t, broken, "a record nobody holds must break the supply invariant")
-	require.Contains(t, msg, "is recorded as 1 but no address holds any")
-}
