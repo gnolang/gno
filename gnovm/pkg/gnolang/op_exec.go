@@ -212,7 +212,7 @@ func (m *Machine) doOpExec(op Op) {
 			} else {
 				dv = xv
 				// Only a range that reads values needs its own copy of the array.
-				if bs.Value != nil {
+				if bs.Value != nil && !isBlankIdentifier(bs.Value) {
 					*xv = xv.Copy(m.Alloc)
 				}
 				ll = dv.GetLength()
