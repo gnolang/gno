@@ -2063,7 +2063,7 @@ reconciliation.
       transition as a **decision of its own** ("expect transition", 7 days, deferred by a hold: approving a local
       verifier loosens); a notice that arrives before it applies is refused with the universal error ack, and
       `IBCAdmin` sends it again;
-    - an emergency recovery, which `ibcgov` does not dispatch, is recorded by `NewExpectRecoveryRequest(old, new,
+    - an emergency recovery, which `ibcgov` does not dispatch, is recorded by `NewExpectRecoveryRequest(route, old, new,
       localClient)` (7 days, deferred by a hold; it fits within Ethereum's 30-day recovery delay);
     - the local client must be an Active Ethereum client, not retired, its counterparty the new router client,
       authenticating the identity of the route the channel was bound over, checked when the decision is built and
