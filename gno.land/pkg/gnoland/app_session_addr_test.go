@@ -83,7 +83,7 @@ func TestDeliverTxZeroSessionAddr(t *testing.T) {
 		Header: &bft.Header{ChainID: "test-chain", Height: 1},
 	})
 
-	requireSameTxRejected(t, app, newBz, oldBz, "old encoding")
+	requireSameTxRejected(t, app, newBz, oldBz, "old encoding", true)
 
 	newRes := app.DeliverTx(abci.RequestDeliverTx{Tx: newBz})
 	require.True(t, newRes.IsOK(), "new encoding: %+v", newRes)

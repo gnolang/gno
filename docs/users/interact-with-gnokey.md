@@ -449,6 +449,31 @@ After running this command, the chain will execute the script and apply any stat
 changes. Additionally, by using `println`, which is only available in the `Run`
 & testing context, we will be able to see the return value of the function called.
 
+### Sending coins from a script
+
+A run can send coins from your account to another address only up to
+`-max-send`, summed over the whole run, whichever code makes the transfer.
+Without the flag such a send fails with
+`run sends more coins than its max send allows`.
+
+The [storage deposit](../resources/storage-deposit.md) is not a send, yet a
+script you have not read can move it away too. A realm the script calls can
+store data paid from your deposit, and whoever frees that data later gets the
+deposit back while `ugnot` transfers are unrestricted. `-max-deposit` caps it,
+and without the flag the cap is the chain's `vm:p:default_deposit` parameter,
+100,000,000ugnot by default. Set both flags to what the script needs.
+
+```bash
+gnokey maketx run \
+-max-send 1000ugnot \
+-max-deposit 1000000ugnot \
+-gas-fee 1000000ugnot \
+-gas-wanted 20000000 \
+-chainid staging \
+-remote "https://rpc.staging.gno.land:443" \
+mykey ./script.gno
+```
+
 ### The power of `Run`
 
 Specifically, the above example could have been replaced with a simple `maketx call`
@@ -875,7 +900,7 @@ rm -f "$BOB_SIG"
 echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --account-number "$MULTISIG_ACC_NUM" --account-sequence "$MULTISIG_ACC_SEQ" -insecure-password-stdin -quiet --output-document "$BOB_SIG"
 ```
 
-(Charlie would do the same, producing `charlie-sig.json`, but you only need 2 signatures for a 2-of-3.)
+(Charlie could do the same, producing `charlie-sig.json`, in place of Alice or Bob. A 2-of-3 takes exactly 2 signatures, not more.)
 
 ### 3. Combine signatures with the multisig
 
@@ -890,6 +915,8 @@ If your multisig was defined as: `alice, bob, charlie`, then:
 - Charlie's signature corresponds to slot 3
 
 You can provide signatures in any CLI order, but they must be valid for members of that multisig.
+
+Pass exactly as many signatures as the threshold: 2 for a 2-of-3. The chain refuses a multisig signature carrying more or fewer, and so does `gnokey multisign`. If more members signed, pick which ones to send.
 
 #### Multisign (Alice + Bob example)
 
@@ -915,10 +942,10 @@ flowchart TD
   B --> C[Query the chain for the latest multisig account number and account sequence]
   C --> D1[Alice signs payload with gnokey sign using multisig account_number and sequence, produces <br/>alice-sig.json]
   C --> D2[Bob signs payload with gnokey sign using multisig account_number and sequence, produces <br/>bob-sig.json]
-  C --> D3[Charlie optionally signs the payload, produces <br/>charlie-sig.json]
-  D1 --> E[Combine signatures with gnokey multisign.<br/>Signature slots must match multisig member order]
+  C --> D3[Charlie may sign in place of Alice or Bob, produces <br/>charlie-sig.json]
+  D1 --> E[Combine exactly 2 signatures, the threshold, with gnokey multisign.<br/>Signature slots must match multisig member order]
   D2 --> E
-  D3 -. optional .-> E
+  D3 -. instead of one of them .-> E
   E --> F[Broadcast TX<br/>gnokey broadcast]
   F --> G[Done]
 

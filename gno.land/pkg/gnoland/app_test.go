@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -186,6 +187,163 @@ func TestNewApp(t *testing.T) {
 		AppState:   DefaultGenState(),
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+}
+
+// TestQueryLimitsWiring checks that application.query_max_gas and
+// application.query_max_alloc reach the VM keeper through both layers: NewApp
+// copies them from AppConfig into AppOptions, and NewAppWithOptions sets them.
+// Each case changes the outcome a query has under the defaults, so dropping the
+// wiring at either layer turns it red.
+func TestQueryLimitsWiring(t *testing.T) {
+	t.Parallel()
+
+	const pkgPath = "gno.land/r/demo"
+	initApp := func(t *testing.T, app abci.Application) *sdk.BaseApp {
+		t.Helper()
+		bapp := app.(*sdk.BaseApp)
+		t.Cleanup(func() { require.NoError(t, bapp.Close()) })
+		addr := crypto.AddressFromPreimage([]byte("test1"))
+		appState := DefaultGenState()
+		appState.Balances = []Balance{{Address: addr, Amount: []std.Coin{{Amount: 1e15, Denom: "ugnot"}}}}
+		appState.Txs = []TxWithMetadata{{Tx: std.Tx{
+			Msgs: []std.Msg{vm.NewMsgAddPackage(addr, pkgPath, []*std.MemFile{
+				{Name: "demo.gno", Body: `package demo
+
+func Sum(n int) int {
+	s := 0
+	for i := 0; i < n; i++ {
+		s += i
+	}
+	return s
+}
+
+func Big() int { return len(make([]byte, 4<<20)) }
+`},
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			})},
+			Fee:        std.Fee{GasWanted: 1e8, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+			Signatures: []std.Signature{{}},
+		}}}
+		resp := bapp.InitChain(abci.RequestInitChain{
+			Time:            time.Now(),
+			ChainID:         "dev",
+			ConsensusParams: &abci.ConsensusParams{Block: defaultBlockParams()},
+			AppState:        appState,
+		})
+		require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+		bapp.Commit()
+		return bapp
+	}
+	withOptions := func(set func(*AppOptions)) func(t *testing.T) *sdk.BaseApp {
+		return func(t *testing.T) *sdk.BaseApp {
+			t.Helper()
+			opts := TestAppOptions(memdb.NewMemDB())
+			set(opts)
+			app, err := NewAppWithOptions(opts)
+			require.NoError(t, err)
+			return initApp(t, app)
+		}
+	}
+	withConfig := func(set func(*config.AppConfig)) func(t *testing.T) *sdk.BaseApp {
+		return func(t *testing.T) *sdk.BaseApp {
+			t.Helper()
+			appCfg := config.DefaultAppConfig()
+			set(appCfg)
+			app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), appCfg,
+				events.NewEventSwitch(), log.NewNoopLogger(), 0)
+			require.NoError(t, err)
+			return initApp(t, app)
+		}
+	}
+
+	// Each query maps to the log fragment of its refusal, "" for success.
+	defaults := map[string]string{"Sum(1)": "", "Sum(1000000)": "", "Big()": ""}
+	// The derived timeout of a low gas budget is short, so these cases keep a
+	// long one: a slow machine must still stop on gas, not on the clock.
+	lowGas := map[string]string{"Sum(1)": "", "Sum(1000000)": "OutOfGasError"}
+	lowAlloc := map[string]string{"Sum(1)": "", "Big()": "allocation limit exceeded"}
+	for _, tc := range []struct {
+		name    string
+		newApp  func(t *testing.T) *sdk.BaseApp
+		queries map[string]string
+	}{
+		{"options defaults", withOptions(func(*AppOptions) {}), defaults},
+		{"config defaults", withConfig(func(*config.AppConfig) {}), defaults},
+		{"options query_max_gas", withOptions(func(o *AppOptions) { o.QueryMaxGas, o.QueryTimeout = 20_000_000, time.Minute }), lowGas},
+		{"options query_max_alloc", withOptions(func(o *AppOptions) { o.QueryMaxAlloc = 1 << 20 }), lowAlloc},
+		{"config query_max_gas", withConfig(func(c *config.AppConfig) { c.QueryMaxGas, c.QueryTimeout = 20_000_000, time.Minute }), lowGas},
+		{"config query_max_alloc", withConfig(func(c *config.AppConfig) { c.QueryMaxAlloc = 1 << 20 }), lowAlloc},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			bapp := tc.newApp(t)
+			for expr, want := range tc.queries {
+				res := bapp.Query(abci.RequestQuery{Path: "vm/qeval", Data: []byte(pkgPath + "." + expr)})
+				if want == "" {
+					require.True(t, res.IsOK(), "%s: %s", expr, res.Log)
+					continue
+				}
+				require.False(t, res.IsOK(), expr)
+				require.Contains(t, res.Log, want, expr)
+			}
+		})
+	}
+}
+
+// TestQueryTimeoutWiring checks that application.query_timeout reaches BaseApp
+// through both layers, NewApp copying it into AppOptions and NewAppWithOptions
+// setting it, and that left at 0 it follows the query gas budget instead.
+func TestQueryTimeoutWiring(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		opts func(*AppOptions)
+		cfg  func(*config.AppConfig)
+		want time.Duration
+	}{
+		{"defaults", func(*AppOptions) {}, func(*config.AppConfig) {}, 2 * time.Duration(vm.DefaultQueryMaxGas)},
+		{
+			"follows query_max_gas",
+			func(o *AppOptions) { o.QueryMaxGas = 20_000_000 },
+			func(c *config.AppConfig) { c.QueryMaxGas = 20_000_000 },
+			40 * time.Millisecond,
+		},
+		{
+			"override wins",
+			func(o *AppOptions) { o.QueryMaxGas, o.QueryTimeout = 20_000_000, time.Minute },
+			func(c *config.AppConfig) { c.QueryMaxGas, c.QueryTimeout = 20_000_000, time.Minute },
+			time.Minute,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			opts := TestAppOptions(memdb.NewMemDB())
+			tc.opts(opts)
+			app, err := NewAppWithOptions(opts)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, app.(*sdk.BaseApp).QueryTimeout(), "AppOptions")
+
+			appCfg := config.DefaultAppConfig()
+			tc.cfg(appCfg)
+			app, err = NewApp(t.TempDir(), NewTestGenesisAppConfig(), appCfg,
+				events.NewEventSwitch(), log.NewNoopLogger(), 0)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, app.(*sdk.BaseApp).QueryTimeout(), "AppConfig")
+		})
+	}
+}
+
+func TestQueryTimeoutDerivation(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, 6*time.Second, queryTimeout(0, 3_000_000_000))
+	assert.Equal(t, 2*time.Millisecond, queryTimeout(0, 1_000_000))
+	assert.Equal(t, time.Second, queryTimeout(time.Second, 1_000_000))
+	// Doubling must not wrap around to a negative duration.
+	assert.Equal(t, time.Duration(math.MaxInt64), queryTimeout(0, math.MaxInt64))
+	assert.Equal(t, time.Duration(math.MaxInt64-1), queryTimeout(0, math.MaxInt64/2))
 }
 
 // TestInitChainer_GenesisValidatorPubKeyType verifies that the initial
@@ -1551,7 +1709,7 @@ func newGasPriceTestApp(t *testing.T, storedGasPrice ...std.GasPrice) abci.Appli
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
-	prmk.Register("node", nodeParamsKeeper{})
+	prmk.Register("node", nodeParamsKeeper{prmk: prmk})
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
 	icc.baseApp = baseApp
@@ -2043,6 +2201,82 @@ func GetHeight(cur realm) int64 { return height }
 		assert.Contains(t, resp.Log, "run_submitters")
 	})
 
+	// A run signed before MaxSend existed carries none, and replay must still
+	// move what it moved on the source chain.
+	t.Run("historical MsgRun without MaxSend replays its send", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			db    = memdb.NewMemDB()
+			key   = getDummyKey(t)
+			payee = crypto.AddressFromPreimage([]byte("replay-payee"))
+		)
+
+		app, err := NewAppWithOptions(TestAppOptions(db))
+		require.NoError(t, err)
+
+		runPath := "gno.land/e/" + key.PubKey().Address().String() + "/run"
+		runMsg := vm.MsgRun{
+			Caller: key.PubKey().Address(),
+			Package: &std.MemPackage{
+				Name: "main",
+				Path: runPath,
+				Files: []*std.MemFile{
+					{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(runPath)},
+					{Name: "main.gno", Body: `package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), "` + payee.String() + `", chain.Coins{{"ugnot", 5}})
+}
+`},
+				},
+			},
+		}
+		tx := createAndSignTx(t, []std.Msg{runMsg}, "old-chain", key)
+
+		require.NotPanics(t, func() {
+			app.InitChain(abci.RequestInitChain{
+				ChainID:       "new-chain",
+				Time:          time.Now(),
+				InitialHeight: 100,
+				ConsensusParams: &abci.ConsensusParams{
+					Block:     defaultBlockParams(),
+					Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{}},
+				},
+				AppState: GnoGenesisState{
+					Txs: []TxWithMetadata{{
+						Tx: tx,
+						Metadata: &GnoTxMetadata{
+							Timestamp:   time.Now().Unix(),
+							BlockHeight: 42,
+							ChainID:     "old-chain",
+						},
+					}},
+					Balances: []Balance{{
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					}},
+					Auth:          auth.DefaultGenesisState(),
+					Bank:          bank.DefaultGenesisState(),
+					VM:            vm.DefaultGenesisState(),
+					PastChainIDs:  []string{"old-chain"},
+					InitialHeight: 100,
+				},
+			})
+		})
+		app.Commit()
+
+		qres := app.Query(abci.RequestQuery{Path: fmt.Sprintf("bank/balances/%s", payee)})
+		require.True(t, qres.IsOK(), "bank query response: %v", qres)
+		assert.Contains(t, string(qres.Data), `"5ugnot"`)
+	})
+
 	// The same carve-out has to cover a FRESH chain's own genesis txs, not just
 	// replayed history.
 	//
@@ -2462,7 +2696,7 @@ var Deployed = true
 func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 	t.Parallel()
 
-	npk := nodeParamsKeeper{}
+	npk := nodeParamsKeeper{prmk: newValsetMock(&valsetState{})}
 
 	t.Run("valid halt_height (no block context)", func(t *testing.T) {
 		t.Parallel()
@@ -2594,6 +2828,20 @@ func TestNodeParamsKeeperWillSetParam(t *testing.T) {
 		t.Parallel()
 		assert.Panics(t, func() {
 			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{pub + ":-1"})
+		})
+	})
+
+	t.Run("valset:proposed small-order pubkey panics, removal passes", func(t *testing.T) {
+		t.Parallel()
+		var identity ed25519.PubKeyEd25519
+		identity[0] = 1
+		small := identity.String()
+		assert.Panics(t, func() {
+			npk.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":10"})
+		})
+		inSet := nodeParamsKeeper{prmk: newValsetMock(&valsetState{current: []string{good, small + ":10"}})}
+		assert.NotPanics(t, func() {
+			inSet.WillSetParam(sdk.Context{}, "valset:proposed", []string{good, small + ":0"})
 		})
 	})
 

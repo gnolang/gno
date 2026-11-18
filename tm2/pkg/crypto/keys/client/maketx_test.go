@@ -353,3 +353,70 @@ func TestBuildSimulationTxBytesBlanksSignatures(t *testing.T) {
 		require.Equal(t, make([]byte, 64), nested.Sigs[0])
 	}
 }
+
+// Both constituents sign a 1-of-2. The chain refuses that count by name, so
+// blanking keeps the shape rather than zeroing the whole signature, whether or
+// not the signature carries its key.
+func TestBlankSignatureKeepsShapeOffThreshold(t *testing.T) {
+	t.Parallel()
+
+	k1, k2 := secp256k1.GenPrivKey(), secp256k1.GenPrivKey()
+	pubs := []crypto.PubKey{k1.PubKey(), k2.PubKey()}
+	ms := multisig.NewMultisig(2)
+	for _, k := range []crypto.PrivKey{k1, k2} {
+		sig, err := k.Sign([]byte("doc"))
+		require.NoError(t, err)
+		require.NoError(t, ms.AddSignatureFromPubKey(sig, k.PubKey(), pubs))
+	}
+
+	for _, pub := range []crypto.PubKey{multisig.NewPubKeyMultisigThreshold(1, pubs), nil} {
+		var blank multisig.Multisignature
+		require.NoError(t, amino.Unmarshal(blankSignature(pub, ms.Marshal()), &blank))
+		require.Equal(t, [][]byte{make([]byte, 64), make([]byte, 64)}, blank.Sigs)
+	}
+}
+
+// Without a key, nothing has checked the bit array when blanking reads its
+// size: Multisignature{BitArray: {ExtraBitsStored: 3}}, with no elements,
+// reports -5. It is zeroed like any other malformed signature.
+func TestBlankSignatureNegativeBitArraySize(t *testing.T) {
+	t.Parallel()
+
+	sig := []byte{0x0a, 0x02, 0x08, 0x03}
+	var ms multisig.Multisignature
+	require.NoError(t, amino.Unmarshal(sig, &ms))
+	require.Negative(t, ms.BitArray.Size())
+
+	require.Equal(t, make([]byte, len(sig)), blankSignature(nil, sig))
+}
+
+// A multisignature the chain would refuse as not canonical is zeroed rather
+// than re-encoded, so its simulation is refused as its broadcast would be.
+func TestBlankSignatureZeroesNonCanonical(t *testing.T) {
+	t.Parallel()
+
+	k1, k2 := secp256k1.GenPrivKey(), secp256k1.GenPrivKey()
+	pubs := []crypto.PubKey{k1.PubKey(), k2.PubKey()}
+	ms := multisig.NewMultisig(2)
+	sig, err := k1.Sign([]byte("doc"))
+	require.NoError(t, err)
+	require.NoError(t, ms.AddSignatureFromPubKey(sig, k1.PubKey(), pubs))
+	padded := padBitArrayVarint(t, ms.Marshal())
+
+	for _, pub := range []crypto.PubKey{multisig.NewPubKeyMultisigThreshold(1, pubs), nil} {
+		require.Equal(t, make([]byte, len(padded)), blankSignature(pub, padded))
+	}
+}
+
+// padBitArrayVarint writes a multisignature's ExtraBitsStored as a two-byte
+// varint, so its BitArray field grows by one byte: 0a L 08 E becomes
+// 0a L+1 08 E|80 00. It decodes to the same multisignature, not canonically.
+func padBitArrayVarint(t *testing.T, bz []byte) []byte {
+	t.Helper()
+	require.True(t, bz[0] == 0x0a && bz[1] < 0x7f && bz[2] == 0x08 && bz[3] < 0x80, "% x", bz[:4])
+	padded := append([]byte{0x0a, bz[1] + 1, 0x08, bz[3] | 0x80, 0x00}, bz[4:]...)
+	var ms multisig.Multisignature
+	require.NoError(t, amino.Unmarshal(padded, &ms))
+	require.Error(t, amino.UnmarshalCanonical(padded, &ms))
+	return padded
+}

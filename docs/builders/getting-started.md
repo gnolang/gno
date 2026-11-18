@@ -372,9 +372,9 @@ the 3187 bytes above.
 
 The testnet enables a new package a few seconds after `addpkg`; if `call`
 fails right after a deploy, wait and retry.
-`https://gpao.latest.testnets.gno.land/status/<pkgpath>` says why a package
-was refused. It only knows packages submitted since its service last
-restarted, so if it still reads `unknown` after a minute, ask on
+`https://gpas.latest.testnets.gno.land` says why a package
+was refused: look yours up by its exact package path. If it still says the
+package is not known after a minute, ask on
 [Discord](https://discord.com/invite/gnoland). Once enabled, the package is
 browsable at
 **`https://latest.testnets.gno.land/r/<your-g1-addr>/myrealm`**.

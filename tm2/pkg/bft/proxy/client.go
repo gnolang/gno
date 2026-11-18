@@ -98,7 +98,7 @@ func (readOnlyClient) SetResponseCallback(abcicli.Callback) {
 //
 // The bound is not about correctness — the invariant above is what makes
 // concurrent queries safe — it is about work. Each query installs its own gas
-// and allocation budget (maxGasQuery, maxAllocQuery in the VM keeper), so those
+// and allocation budget (VMKeeper.QueryMaxGas, QueryMaxAlloc), so those
 // cap a single query and never the sum. While the connection held a mutex the
 // sum was the per-call cap, because one caller ran at a time; without a bound
 // the only ceiling left is the RPC listener's MaxOpenConnections, which defaults
