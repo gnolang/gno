@@ -103,7 +103,7 @@ func applyControllerSwap(toAdd, toRemove address) error {
 		return err
 	}
 	if err := deleteFromWhitelist(toRemove); err != nil {
-		if _, alreadyOut := err.(ErrNotWhitelisted); !alreadyOut {
+		if _, alreadyOut := err.(*ErrNotWhitelisted); !alreadyOut {
 			return err
 		}
 	}
@@ -214,7 +214,7 @@ func Controllers() []address {
 
 func deleteFromWhitelist(addr address) error {
 	if !controllers.Has(addr) {
-		return ErrNotWhitelisted{Caller: "UserRealm{ " + addr.String() + " }"}
+		return &ErrNotWhitelisted{Caller: "UserRealm{ " + addr.String() + " }"}
 	}
 
 	if ok := controllers.Remove(addr); !ok {
