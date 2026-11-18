@@ -535,8 +535,8 @@ func (alloc *Allocator) AllocateHeapItem() {
 // Fires at composite literals (doOpStructLit/ArrayLit/MapLit/SliceLit*)
 // and the new()/make() uverse builtins; it also refuses an anonymous
 // struct/array type holding a foreign one inline (checkBirth). Zero values
-// built for declarations and make are checked by checkBirth; short-lived
-// ones (missed map reads, failed assertions, result slots) are not.
+// for declarations, make and call result slots are checked by checkBirth;
+// short-lived ones (missed map reads, failed assertions) are not.
 //
 // nil t skips the check (anonymous sub-allocations); alloc is assumed
 // non-nil.
@@ -598,8 +598,9 @@ func foreignHeldType(t Type, rid PkgID) Type {
 	return nil
 }
 
-// checkedDefaultTypedValue is defaultTypedValue for a place the current realm
-// can keep or address (declarations, make, new, literal zero-fill).
+// checkedDefaultTypedValue is defaultTypedValue plus checkBirth, for places the
+// current realm can keep: var declarations (doOpValueDecl), call result slots
+// (doOpCall) and keyed slice-literal zero-fill (doOpSliceLit2).
 func checkedDefaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	alloc.checkBirth(t)
 	return defaultTypedValue(alloc, t)
