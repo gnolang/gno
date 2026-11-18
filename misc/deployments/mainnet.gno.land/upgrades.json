@@ -151,6 +151,27 @@
       },
       "ran_as": null,
       "release": "https://github.com/gnolang/gno/releases/tag/v1.7.1"
+    },
+    {
+      "kind": "upgrade",
+      "version": "v1.8.0",
+      "commit": "fc79041f4cd1a7b3ed4b316dc5ac14162eb78730",
+      "halt_height": 1651500,
+      "halt_time": "2026-11-18T13:16:54Z",
+      "halt_min_version": "v1.8.0",
+      "proposal": 19,
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.8.0",
+        "digest": "sha256:770f5b8012b32aa8f34afadc814c1132ba9734cc0f44062c81e1c701c5460337"
+      },
+      "binaries": {
+        "darwin/amd64": "https://github.com/gnolang/gno/releases/download/v1.8.0/gnoland_darwin_amd64?checksum=sha256:74b25ba96de0d3969fc756af986897f2f9771ced189af2d5651b082ecfa1b1f2",
+        "darwin/arm64": "https://github.com/gnolang/gno/releases/download/v1.8.0/gnoland_darwin_arm64?checksum=sha256:8ddb26f2981a9c8236e302cdb435a93f0cb719cbcd69e263b30d7123295e1fb7",
+        "linux/amd64": "https://github.com/gnolang/gno/releases/download/v1.8.0/gnoland_linux_amd64?checksum=sha256:32e88e3c7509cac2387c0eaa90b29505d9892573fdcef9771fa89f4fed5fadbb",
+        "linux/arm64": "https://github.com/gnolang/gno/releases/download/v1.8.0/gnoland_linux_arm64?checksum=sha256:cb907b74a81385df4b735cfaec07a679ceadcef25f13982ed5dfea648cdc98a5"
+      },
+      "ran_as": null,
+      "release": "https://github.com/gnolang/gno/releases/tag/v1.8.0"
     }
   ]
 }

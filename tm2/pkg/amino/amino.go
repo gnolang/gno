@@ -175,6 +175,14 @@ func MarshalJSONAny(o any) ([]byte, error) {
 	return gcdc.MarshalJSONAny(o)
 }
 
+func MarshalJSONTo(w io.Writer, o any) error {
+	return gcdc.MarshalJSONTo(w, o)
+}
+
+func MarshalJSONAnyTo(w io.Writer, o any) error {
+	return gcdc.MarshalJSONAnyTo(w, o)
+}
+
 func MustMarshalJSON(o any) []byte {
 	return gcdc.MustMarshalJSON(o)
 }
@@ -674,8 +682,9 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 // Unlike unmarshalAnyBinary2, this errors (not falls through) if the
 // concrete type does not implement PBMessager2.
 // UnmarshalAnyBinary2 decodes a google.protobuf.Any-wrapped value.
-// anyDepth is incremented by 1 (the sole increment point for depth
-// tracking); exceeding maxAnyDepth returns an error.
+// anyDepth is incremented by 1 (NestDepth is the other increment point,
+// for structs that can contain themselves); exceeding maxAnyDepth returns
+// an error.
 func (cdc *Codec) UnmarshalAnyBinary2(bz []byte, ptr any, anyDepth int) error {
 	return cdc.unmarshalAnyBinary2Depth(bz, ptr, anyDepth+1)
 }
@@ -716,7 +725,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
 	}
 	if !IsASCIIText(typeURL) {
-		return fmt.Errorf("UnmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
+		return fmt.Errorf("UnmarshalAnyBinary2: invalid type_url string bytes %s", errTypeURL(typeURL))
 	}
 	bz = bz[n:]
 
@@ -746,7 +755,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 	// Look up concrete type.
 	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
 	if err != nil {
-		return fmt.Errorf("UnmarshalAnyBinary2: %w", err)
+		return fmt.Errorf("UnmarshalAnyBinary2: unrecognized type_url %s", errTypeURL(typeURL))
 	}
 
 	// Construct concrete value.
@@ -1021,20 +1030,18 @@ func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	n, err := cdc.decodeReflectBinary(bz, info, rv, FieldOptions{BinFieldNum: 1}, bare, 0, 0)
 	if err != nil {
 		return fmt.Errorf(
-			"unmarshal to %v failed after %d bytes (%w): %X",
+			"unmarshal to %v failed after %d bytes (%w)",
 			info.Type,
 			n+nWrap,
 			err,
-			bz,
 		)
 	}
 	if n != len(bz) {
 		return fmt.Errorf(
-			"unmarshal to %v: trailing bytes after top-level unmarshal. Expected to read %v, only read %v: %X",
+			"unmarshal to %v: trailing bytes after top-level unmarshal. Expected to read %v, only read %v",
 			info.Type,
 			len(bz),
 			n+nWrap,
-			bz,
 		)
 	}
 
@@ -1156,7 +1163,7 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 		return true, fmt.Errorf("unmarshalAnyBinary2: decode TypeURL: %w", err)
 	}
 	if !IsASCIIText(typeURL) {
-		return true, fmt.Errorf("unmarshalAnyBinary2: invalid type_url string bytes %X", typeURL)
+		return true, fmt.Errorf("unmarshalAnyBinary2: invalid type_url string bytes %s", errTypeURL(typeURL))
 	}
 	bz = bz[n:]
 
@@ -1189,7 +1196,7 @@ func (cdc *Codec) unmarshalAnyBinary2(bz []byte, rv reflect.Value) (bool, error)
 	// registry and would fail identically.
 	cinfo, err := cdc.getTypeInfoFromTypeURLRLock(typeURL, FieldOptions{})
 	if err != nil {
-		return true, fmt.Errorf("unmarshalAnyBinary2: type lookup for %q: %w", typeURL, err)
+		return true, fmt.Errorf("unmarshalAnyBinary2: unrecognized type_url %s", errTypeURL(typeURL))
 	}
 
 	// Construct concrete value and check for PBMessager2.
@@ -1262,30 +1269,45 @@ func (cdc *Codec) MustUnmarshalAny(bz []byte, ptr any) {
 }
 
 func (cdc *Codec) JSONMarshal(o any) ([]byte, error) {
+	w := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(w)
+	if err := cdc.MarshalJSONTo(w, o); err != nil {
+		return nil, err
+	}
+	return copyBytes(w.Bytes()), nil
+}
+
+// MarshalJSONTo streams the output of MarshalJSON into w. The first write error
+// from w stops the encoding and is returned, and partial JSON may already be
+// in w.
+func (cdc *Codec) MarshalJSONTo(w io.Writer, o any) error {
 	cdc.doAutoseal()
 
 	rv := reflect.ValueOf(o)
 	if !rv.IsValid() {
-		return []byte("null"), nil
+		return writeStr(w, "null")
 	}
-	rt := rv.Type()
-	w := poolBytesBuffer.Get()
-	defer poolBytesBuffer.Put(w)
-	info, err := cdc.getTypeInfoWLock(rt)
+	info, err := cdc.getTypeInfoWLock(rv.Type())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err = cdc.encodeReflectJSON(w, info, rv, FieldOptions{}); err != nil {
-		return nil, err
-	}
-
-	return copyBytes(w.Bytes()), nil
+	return cdc.encodeReflectJSON(w, info, rv, FieldOptions{})
 }
 
 func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
+	buf := poolBytesBuffer.Get()
+	defer poolBytesBuffer.Put(buf)
+	if err := cdc.MarshalJSONAnyTo(buf, o); err != nil {
+		return nil, err
+	}
+	return copyBytes(buf.Bytes()), nil
+}
+
+// MarshalJSONAnyTo is MarshalJSONAny streaming into w. See MarshalJSONTo.
+func (cdc *Codec) MarshalJSONAnyTo(w io.Writer, o any) error {
 	// o cannot be nil, otherwise we don't know what type it is.
 	if o == nil {
-		return nil, errors.New("MarshalJSONAny() requires non-nil argument")
+		return errors.New("MarshalJSONAny() requires non-nil argument")
 	}
 
 	// Dereference value if pointer.
@@ -1297,28 +1319,18 @@ func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
 
 	// rv cannot be an interface.
 	if rv.Kind() == reflect.Interface {
-		return nil, errors.New("MarshalJSONAny() requires registered concrete type")
+		return errors.New("MarshalJSONAny() requires registered concrete type")
 	}
 
 	// Make a temporary interface var, to contain the value of o.
 	ivar := rv.Interface()
-	var iinfo *TypeInfo
 	iinfo, err := cdc.getTypeInfoWLock(rt)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Encode as interface.
-	buf := poolBytesBuffer.Get()
-	defer poolBytesBuffer.Put(buf)
-
-	err = cdc.encodeReflectJSONInterface(buf, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
-	if err != nil {
-		return nil, err
-	}
-	bz := copyBytes(buf.Bytes())
-
-	return bz, nil
+	return cdc.encodeReflectJSONInterface(w, iinfo, reflect.ValueOf(&ivar).Elem(), FieldOptions{})
 }
 
 // MustMarshalJSON panics if an error occurs. Besides that behaves exactly like MarshalJSON.

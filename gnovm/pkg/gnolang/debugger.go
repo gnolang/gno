@@ -745,6 +745,18 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
+		if mt, ok := baseOf(x.T).(*MapType); ok {
+			// Read a map element as doOpIndex1 does: GetPointerAtIndex
+			// would insert a missing key into the program's map, and
+			// without a zero value for an array or struct element.
+			// nil meter: out-of-band debugger evaluation.
+			if mv, ok := x.V.(*MapValue); ok {
+				if vv, exists := mv.GetValueForKey(nil, m.Store, &index); exists {
+					return vv, nil
+				}
+			}
+			return defaultTypedValue(m.Alloc, mt.Value), nil
+		}
 		return x.GetPointerAtIndex(m, nilRealm, m.Alloc, m.Store, &index).Deref(), nil
 	default:
 		err = fmt.Errorf("expression not supported: %v", n)
