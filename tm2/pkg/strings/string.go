@@ -72,11 +72,18 @@ func StringSliceEqual(a, b []string) bool {
 	return true
 }
 
-// TrimN naively appens "..." to fit within n bytes.
+// TrimN naively appends "..." to fit within n bytes. The returned string is
+// never longer than n bytes (and is empty when n is not positive). When n is
+// too small to hold the "..." ellipsis, s is truncated to n bytes without it.
 func TrimN(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
 	if len(s) <= n {
 		return s
-	} else {
-		return s[:n-3] + "..."
 	}
+	if n < len("...") {
+		return s[:n]
+	}
+	return s[:n-3] + "..."
 }
