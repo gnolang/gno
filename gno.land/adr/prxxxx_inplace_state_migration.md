@@ -10,18 +10,23 @@ Draft. Proposed design, nothing implemented.
 
 `gnoland-1` is live. The halt mechanism from [#5368](https://github.com/gnolang/gno/pull/5368)
 ([pr5368_govdao_halt_height.md](./pr5368_govdao_halt_height.md)) works and has
-been exercised three times in production within a week:
+been exercised four times in production
+([`upgrades.json`](../../misc/deployments/mainnet.gno.land/upgrades.json)):
 
-| `halt_height` | date | back after |
-|---|---|---|
-| 36300 | 2026-09-14 | 6m12s |
-| 113000 | 2026-09-17 | 6m11s |
-| 162200 | 2026-09-19 | 5m43s |
+| `halt_height` | date | version | `halt_min_version` | back after |
+|---|---|---|---|---|
+| 36300 | 2026-09-14 | v1.3.0 | *(empty)* | 6m12s |
+| 113000 | 2026-09-17 | v1.4.0 | *(empty)* | 6m11s |
+| 162200 | 2026-09-19 | v1.5.0 | *(empty)* | 5m43s |
+| 1183000 | 2026-10-30 | v1.7.0 | `v1.7.0` | — |
 
-Every one shipped with an **empty** `halt_min_version`, i.e. no restart gate at
-all — which was the only safe choice, because no binary of that period reported a
-version string that would have parsed.
-[#6177](https://github.com/gnolang/gno/pull/6177) fixed that.
+The first three shipped with an **empty** `halt_min_version`, i.e. no restart
+gate at all — which was the only safe choice, because no binary of that period
+reported a version string that would have parsed.
+[#6177](https://github.com/gnolang/gno/pull/6177) fixed that, and the v1.7.0
+halt ([GovDAO #15](https://gno.land/r/gov/dao:15)) was the first to name its
+version: the key this ADR registers a handler under has now been carried by a
+production halt.
 
 So the chain can stop together. It has no way to *change state* while stopped
 other than rebuilding it.
@@ -31,9 +36,10 @@ other than rebuilding it.
 | Piece | Where |
 |---|---|
 | `node:p:halt_height`, `node:p:halt_min_version` | `gno.land/pkg/gnoland/node_params.go` |
-| Arming the halt | `app.go:1151-1162` (EndBlocker, `req.Height == haltHeight`) |
-| Stopping | `tm2/pkg/sdk/baseapp.go:596` (BeginBlock panics at `haltHeight+1`) |
-| Startup gates | `node_params.go:135-182` (`checkNodeStartupParams`) |
+| Arming the halt | `app.go:1160-1167` (EndBlocker, `req.Height == haltHeight`) |
+| Stopping | `tm2/pkg/sdk/baseapp.go:635` (BeginBlock panics at `haltHeight+1`) |
+| Startup gates | `node_params.go:151-198` (`checkNodeStartupParams`) |
+| Release ledger | `gno.land/pkg/upgrades` (`misc/deployments/<chain>/upgrades.json`: the version that runs each block range, with checksummed binaries) |
 | Governance entry point | `examples/gno.land/r/sys/params/halt.gno:36` |
 
 ### What does not exist
@@ -131,8 +137,11 @@ release and run once, inside the block that follows the halt. Each is registered
 under the version that introduced it — the value `halt_min_version` carries — so
 naming that version in a proposal is what selects the code that runs.
 
+The package is `migrations`, not `upgrades`: `gno.land/pkg/upgrades` already
+exists and is the release ledger, a different thing.
+
 ```go
-// gno.land/pkg/gnoland/upgrades
+// gno.land/pkg/gnoland/migrations
 
 // Env is everything a handler may reach. No such aggregate exists today: the
 // keepers and store keys are locals in NewAppWithOptions, so building this and
@@ -164,16 +173,16 @@ its own package, so its handler and whatever it touches stay reviewable on
 their own:
 
 ```go
-// gno.land/pkg/gnoland/upgrades/v1_3_0/upgrade.go
+// gno.land/pkg/gnoland/migrations/v1_3_0/upgrade.go
 
 const Version = "v1.3.0"
 
-var Upgrade = upgrades.Upgrade{
+var Upgrade = migrations.Upgrade{
 	Version: Version,
 	Handler: migrate,
 }
 
-func migrate(ctx sdk.Context, env upgrades.Env) error { ... }
+func migrate(ctx sdk.Context, env migrations.Env) error { ... }
 ```
 
 Registered in one place, as a package-level literal:
@@ -187,7 +196,7 @@ Registered in one place, as a package-level literal:
 // init() could assert the invariants (version parses, strictly increasing, no
 // duplicates...).
 // TODO use a map finally?
-var Upgrades = []upgrades.Upgrade{
+var Upgrades = []migrations.Upgrade{
 	v130.Upgrade,
 	v140.Upgrade,
 }
@@ -215,15 +224,15 @@ already-deployed realm, for the reason in Open questions.
 
 ### Where it hooks
 
-`BaseApp.BeginBlock` calls its beginBlocker at `baseapp.go:623`, after the halt
-check (`:596`) and once `deliverState` is prepared. The new one goes in `app.go`
+`BaseApp.BeginBlock` calls its beginBlocker at `baseapp.go:663`, after the halt
+check (`:635`) and once `deliverState` is prepared. The new one goes in `app.go`
 beside the existing `EndBlocker`, built the same way: a constructor taking what
 it needs — `prmk` and the `Env` — and returning the `sdk.BeginBlocker` closure
 (`tm2/pkg/sdk/abci.go:12`), wired with `baseApp.SetBeginBlocker`
-(`tm2/pkg/sdk/options.go:68`) next to the `SetEndBlocker` call at `app.go:262`.
+(`tm2/pkg/sdk/options.go:79`) next to the `SetEndBlocker` call at `app.go:268`.
 
 It runs at `haltHeight > 0 && req.Height == haltHeight+1`, mirroring the
-EndBlocker's existing arming at `app.go:1151-1162`. The `> 0` half is not
+EndBlocker's existing arming at `app.go:1160-1167`. The `> 0` half is not
 decoration: `halt_height` is `0` on a chain that has never been halted, and
 without it every such chain would enter the branch at block 1.
 
@@ -268,6 +277,17 @@ block.
 
 So the handler runs in-block, and what follows is a consequence rather than a
 choice.
+
+### Deferred commits during block sync
+
+During block sync the node holds commits in memory and writes them at flush
+points ([#6334](https://github.com/gnolang/gno/pull/6334),
+`tm2/pkg/sdk/deferred.go`). Block `H` is always flushed (`NeedsFlushPoint`
+reports true once the halt height is reached), so the handler at `H+1` starts
+from state on disk. Its own writes are held like any block's. A handler that
+writes something a later binary reads from disk at startup, as a halt param is
+read by `checkNodeStartupParams`, must call `BaseApp.RequireFlushPoint`, as the
+node params keeper does (`node_params.go:140-144`); `Env` would then carry it.
 
 ## Consequences
 
@@ -331,7 +351,11 @@ stored encoding, in increasing order of cost:
   the AppHash.
 - **A supervisor.** Preserves sync-from-genesis, which is the only way to join
   today. It needs the halt to be machine-detectable and a per-upgrade binary
-  layout.
+  layout. Half of that layout now exists: the release ledger
+  (`gno.land/pkg/upgrades`, one `upgrades.json` per chain) names the version
+  that runs each block range, with checksummed binaries, and checks the
+  invariants a replaying supervisor relies on. The supervisor itself does not
+  exist.
 - **State sync.** The largest build, and the only one that makes
   sync-from-genesis optional rather than mandatory — which is in turn the only
   thing that would let historical encodings be dropped rather than kept.
@@ -385,7 +409,7 @@ parse — so the name would carry no information the version does not.
    and it has two layers.
 
    `AddPackage` refuses outright: `if pv != nil && !pv.Private` returns
-   `ErrPkgAlreadyExists` (`gno.land/pkg/sdk/vm/keeper.go:801-805`). That is a
+   `ErrPkgAlreadyExists` (`gno.land/pkg/sdk/vm/keeper.go:801-804`). That is a
    keeper policy, not a store limitation, and a handler holds `Env.VM` and
    `Env.BaseKey`, so it could write beneath it.
 
@@ -412,15 +436,15 @@ parse — so the name would carry no information the version does not.
    record at startup so a binary can refuse a chain it does not understand? That
    is Cosmos's `setDone` plus `HasHandler(lastAppliedPlan)`. Right after an
    upgrade it is redundant: `halt_min_version` still reads `"v1.5.0"`, and the
-   post-halt gate (`node_params.go:159-167`) refuses anything older.
+   post-halt gate (`node_params.go:174-184`) refuses anything older.
 
    **It stops being redundant at the next halt proposal.** Nothing has to be
    cleared for the floor to go. Setting `halt_height = H2` and
    `halt_min_version = "v1.6.0"` puts `lastBlockHeight < haltHeight` again, so
-   startup leaves Check 1 for Check 2 (`node_params.go:172`), which refuses only
+   startup leaves Check 1 for Check 2 (`node_params.go:186`), which refuses only
    binaries that *meet* the new floor — and a v1.4.0 binary then starts on
    v1.5.0-migrated data. Cancelling gets there by a shorter route: the gate
-   returns early on `haltHeight == 0` (`node_params.go:147`), so
+   returns early on `haltHeight == 0` (`node_params.go:163`), so
    `NewSetHaltRequest(cur, 0, "v1.5.0")` leaves the version in state and gates
    nothing with it.
 
@@ -443,7 +467,7 @@ parse — so the name would carry no information the version does not.
      start command is global — it is not scoped to any module and has no reason
      to learn about one.
    - The EndBlocker arming, the `BeginBlock` panic and the startup gates work,
-     and have now been exercised three times on mainnet. Moving working
+     and have now been exercised four times on mainnet. Moving working
      consensus-path code to reshape it buys structure and spends risk.
 
    The halt params are not in question either way: they stay `node:p:*`,
