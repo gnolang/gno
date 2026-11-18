@@ -95,8 +95,19 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int) {
 	vals.RescalePriorities(diffMax)
 	vals.shiftByAvgProposerPriority()
 
+	vals.AdvanceProposerPriority(times)
+}
+
+// AdvanceProposerPriority runs `times` rounds of proposer selection and sets
+// the proposer, without the rescaling IncrementProposerPriority does first.
+func (vals *ValidatorSet) AdvanceProposerPriority(times int) {
+	if vals.IsNilOrEmpty() {
+		panic("empty validator set")
+	}
+	if times <= 0 {
+		panic("Cannot call AdvanceProposerPriority with non-positive times")
+	}
 	var proposer *Validator
-	// Call IncrementProposerPriority(1) times times.
 	for range times {
 		proposer = vals.incrementProposerPriority()
 	}
@@ -560,6 +571,10 @@ func (vals *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes
 	if numNewValidators == 0 && len(vals.Validators) == len(deletes) {
 		return errors.New("applying the validator changes would result in empty set")
 	}
+	// Commit.ValidateBasic refuses commits with more precommits than this.
+	if size := len(vals.Validators) + numNewValidators - len(deletes); size > MaxVotesCount {
+		return fmt.Errorf("applying the validator changes would result in %d validators, max: %d", size, MaxVotesCount)
+	}
 
 	// Compute the priorities for updates.
 	computeNewPriorities(updates, vals, updatedTotalVotingPower)
@@ -766,11 +781,6 @@ func (vals *ValidatorSet) VerifyFutureCommit(newSet *ValidatorSet, chainID strin
 
 // -----------------
 // ErrTooMuchChange
-
-func IsErrTooMuchChange(err error) bool {
-	_, ok := errors.Cause(err).(tooMuchChangeError)
-	return ok
-}
 
 type tooMuchChangeError struct {
 	got    int64

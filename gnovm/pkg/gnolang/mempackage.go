@@ -1,11 +1,8 @@
 package gnolang
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
-	gofmt "go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -207,24 +204,6 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
-}
-
-// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
-// package — one whose purpose is to host VM-test fixtures, exploit
-// probes, and other test-only support code. Test-namespace packages
-// are allowed to use the `cross` keyword and may be imported only
-// from other test-namespace packages or from test files
-// (_test.gno / _filetest.gno).
-//
-// The set is currently hand-listed (rather than a single prefix like
-// gno.land/p/testing/) so the migration can be staged: rules can be
-// enforced now without moving the packages. A future cleanup will
-// collapse the list as packages move under a single namespace.
-func IsTestPkgPath(pkgPath string) bool {
-	return strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
-		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
-		pkgPath == "gno.land/r/tests/vm" ||
-		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
 }
 
 //----------------------------------------
@@ -1332,45 +1311,4 @@ func MustPackageNameFromFileBody(name, body string) Name {
 		panic(err)
 	}
 	return pkgName
-}
-
-// ========================================
-// WriteToMemPackage writes Go AST to a mempackage
-// This is useful for preparing prior version code for the preprocessor.
-func WriteToMemPackage(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage, create bool) error {
-	for _, gof := range gofs {
-		fpath := gofset.File(gof.Pos()).Name()
-		_, fname := filepath.Split(fpath)
-		if strings.HasPrefix(fname, ".") {
-			// Hidden files like .gnobuiltins.gno that
-			// start with a dot should not get written to
-			// the mempackage.
-			continue
-		}
-		mfile := mpkg.GetFile(fname)
-		if mfile == nil {
-			if create {
-				mfile = mpkg.NewFile(fname, "")
-			} else {
-				return fmt.Errorf("missing memfile %q", mfile)
-			}
-		}
-		err := WriteToMemFile(gofset, gof, mfile)
-		if err != nil {
-			return fmt.Errorf("writing to mempackage %q: %w",
-				mpkg.Path, err)
-		}
-	}
-	return nil
-}
-
-func WriteToMemFile(gofset *token.FileSet, gof *ast.File, mfile *std.MemFile) error {
-	var buf bytes.Buffer
-	err := gofmt.Node(&buf, gofset, gof)
-	if err != nil {
-		return fmt.Errorf("writing to memfile %q: %w",
-			mfile.Name, err)
-	}
-	mfile.Body = buf.String()
-	return nil
 }

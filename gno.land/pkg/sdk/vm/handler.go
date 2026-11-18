@@ -146,21 +146,21 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 	// A case that runs code in a machine also belongs in QueryRunsCode.
 	switch endpoint {
 	case QueryRender:
-		res = vh.queryRender(ctx, req)
+		res = capQueryOutput(vh.queryRender(ctx, req))
 	case QueryFuncs:
-		res = vh.queryFuncs(ctx, req)
+		res = capQueryOutput(vh.queryFuncs(ctx, req))
 	case QueryEval:
-		res = vh.queryEval(ctx, req)
+		res = capQueryOutput(vh.queryEval(ctx, req))
 	case QueryEvalJSON:
-		res = vh.queryEvalJSON(ctx, req)
+		res = capQueryOutput(vh.queryEvalJSON(ctx, req))
 	case QueryObjectJSON:
 		res = vh.queryObjectJSON(ctx, req)
 	case QueryObjectBinary:
 		res = vh.queryObjectBinary(ctx, req)
 	case QueryFile:
-		res = vh.queryFile(ctx, req)
+		res = capQueryOutput(vh.queryFile(ctx, req))
 	case QueryDoc:
-		res = vh.queryDoc(ctx, req)
+		res = capQueryOutput(vh.queryDoc(ctx, req))
 	case QueryPaths:
 		res = vh.queryPaths(ctx, req)
 	case QueryStorage:
@@ -182,6 +182,21 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 	}
 
 	return res
+}
+
+// maxQueryOutputBytes bounds a query answer whose length comes from chain data
+// or from the caller.
+const maxQueryOutputBytes = 1 << 20 // 1 MiB
+
+// capQueryOutput replaces an answer longer than maxQueryOutputBytes with an
+// ExportSizeExceededError. It runs after the query, so it bounds what one
+// answer adds to a batch, not what a single query allocates.
+func capQueryOutput(res abci.ResponseQuery) abci.ResponseQuery {
+	if len(res.Data) <= maxQueryOutputBytes {
+		return res
+	}
+	return sdk.ABCIResponseQueryFromError(ErrExportSizeExceeded(fmt.Sprintf(
+		"response size %d exceeds %d bytes", len(res.Data), maxQueryOutputBytes)))
 }
 
 // queryRender calls .Render(<path>) in readonly mode.

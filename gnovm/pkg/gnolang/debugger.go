@@ -711,7 +711,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		}
 		pv, ok := x.V.(PointerValue)
 		if !ok {
-			return tv, fmt.Errorf("Not a pointer value: %v", x)
+			return tv, fmt.Errorf("not a pointer value: %v", x)
 		}
 		return pv.Deref(), nil
 	case *ast.SelectorExpr:

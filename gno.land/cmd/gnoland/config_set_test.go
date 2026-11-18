@@ -698,6 +698,16 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"max batch requests updated",
+			[]string{
+				"rpc.max_batch_requests",
+				"10",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxBatchRequests))
+			},
+		},
+		{
 			"max header bytes updated",
 			[]string{
 				"rpc.max_header_bytes",
