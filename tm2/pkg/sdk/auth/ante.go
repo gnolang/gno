@@ -181,15 +181,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// actual outflow at execution time, so correctness is unchanged —
 		// this pre-check is purely a gas-efficiency optimization.
 		if da, ok := sessionAccounts[signerAddrs[0]]; ok {
-			total := std.Coins{}
-			if !tx.Fee.GasFee.IsZero() {
-				total = total.Add(std.Coins{tx.Fee.GasFee})
-			}
-			for _, msg := range tx.GetMsgs() {
-				if est, ok := msg.(std.SpendEstimator); ok {
-					total = total.Add(est.SpendForSigner(signerAddrs[0]))
-				}
-			}
+			total := sessionSpendTotal(tx, signerAddrs[0])
 			if err := CheckSessionSpend(da, total, newCtx.BlockTime().Unix()); err != nil {
 				return newCtx, abciResult(err), true
 			}
@@ -219,6 +211,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// the predicate's answer, so it is asked once, not once per signature.
 		verifySig := !simulate ||
 			(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+
+		// The last payload built and the account number and sequence it was
+		// built for: each signer's differs from it in those two values only.
+		var prevSignBytes []byte
+		var prevAccNum, prevAccSeq uint64
 
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
@@ -298,18 +295,28 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accSeq = sigAcc.GetSequence()
 			}
 			// Built only when verified: the build is unmetered and simulate skips
-			// verification. verifySig is true on every consensus path.
+			// verification. verifySig is true on every consensus path. Only the
+			// first signer encodes the msgs, so a bad signature after valid ones
+			// costs one encoding, not one per signer.
 			var signBytes []byte
 			if verifySig {
 				var err error
-				signBytes, err = tx.GetSignBytes(
-					newCtx.ChainID(),
-					accNum,
-					accSeq,
-				)
+				if prevSignBytes == nil {
+					signBytes, err = tx.GetSignBytes(
+						newCtx.ChainID(),
+						accNum,
+						accSeq,
+					)
+				} else {
+					signBytes, err = std.GetSignaturePayloadFrom(
+						tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+						prevSignBytes, prevAccNum, prevAccSeq,
+					)
+				}
 				if err != nil {
 					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
 				}
+				prevSignBytes, prevAccNum, prevAccSeq = signBytes, accNum, accSeq
 			}
 
 			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
@@ -326,11 +333,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				// The legacy encoding cannot fail once the one above succeeded
 				// -- the two differ only in the fee's plain fields -- so lerr
 				// carries nothing the first marshal did not already report.
-				// Gas was charged above for one verification.
-				legacySignBytes, lerr := tx.GetSignBytesLegacy(
-					newCtx.ChainID(),
-					accNum,
-					accSeq,
+				// Gas was charged above for one verification, so the legacy
+				// payload reuses signBytes rather than encoding the msgs again.
+				legacySignBytes, lerr := std.GetSignaturePayloadLegacyFrom(
+					tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+					signBytes,
 				)
 				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
 					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
@@ -657,31 +664,6 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	}
 
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
-}
-
-// GetSignBytes returns the amount/gas rendering of the signature payload for a
-// given transaction and account. It is a signing helper only: a verifier must
-// also accept the gas_wanted/gas_fee rendering, see std.VerifySignaturePayload.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var (
-		accNum      uint64
-		accSequence uint64
-	)
-	if !genesis {
-		accNum = acc.GetAccountNumber()
-		accSequence = acc.GetSequence()
-	}
-
-	return std.GetSignaturePayload(
-		std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      accSequence,
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
-		},
-	)
 }
 
 func abciResult(err error) sdk.Result {

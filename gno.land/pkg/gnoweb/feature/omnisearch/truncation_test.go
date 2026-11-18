@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -130,12 +131,14 @@ func TestRenderResultsAreSorted(t *testing.T) {
 func TestSnippetKeepsRunesWhole(t *testing.T) {
 	t.Parallel()
 
-	body := []byte(strings.Repeat("é", 100) + "voting" + strings.Repeat("é", 100))
-	from := strings.Index(string(body), "voting")
-	for shift := range 2 {
-		s := snippetAround(body[shift:], from-shift, from-shift+len("voting"))
-		if strings.ContainsRune(s, '\uFFFD') {
-			t.Fatalf("shift %d: snippet splits a rune: %q", shift, s)
+	// The cuts sit a fixed byte count from the match: 0 to 2 ASCII bytes
+	// between it and the three-byte runes move them inside a rune.
+	for pad := range 3 {
+		gap := strings.Repeat("x", pad)
+		body := []byte(strings.Repeat("日", 100) + gap + "voting" + gap + strings.Repeat("日", 100))
+		from := strings.Index(string(body), "voting")
+		if s := snippetAround(body, from, from+len("voting")); !utf8.ValidString(s) {
+			t.Fatalf("pad %d: snippet splits a rune: %q", pad, s)
 		}
 	}
 }
@@ -180,5 +183,18 @@ func TestFullContentPageIsFlagged(t *testing.T) {
 	groups, _ = h.Search(context.Background(), mustQuery(t, h, "content:avl.Tree", ""))
 	if len(groups) != 1 || groups[0].Err == nil {
 		t.Fatalf("groups = %+v, want a failed group", groups)
+	}
+}
+
+// A render row's detail shows about 25 characters: the match must start near
+// the snippet's head, not after the full context before it.
+func TestSnippetStartsNearTheMatch(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(strings.Repeat("context ", 20) + "voting" + strings.Repeat(" after", 20))
+	from := strings.Index(string(body), "voting")
+	s := snippetAround(body, from, from+len("voting"))
+	if i := strings.Index(s, "voting"); i < 0 || utf8.RuneCountInString(s[:i]) > 16 {
+		t.Fatalf("match at rune %d of %q, want within the first 16", utf8.RuneCountInString(s[:max(i, 0)]), s)
 	}
 }

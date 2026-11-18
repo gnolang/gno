@@ -3,7 +3,6 @@ package chainmap
 import (
 	"embed"
 	"html/template"
-	"io"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
@@ -19,13 +18,8 @@ var pageTemplate = template.Must(template.Must(
 	template.New("chainmap").ParseFS(templateFS, "templates/*.html"),
 ).ParseFS(components.SharedPartialsFS(), "indexer_status.html", "pkg_graph.html"))
 
-// pageComponent renders one of this feature's pages, so IndexLayout wraps it
-// in the standard chrome without components knowing the template.
-type pageComponent struct {
-	name string
-	data any
-}
-
-func (c *pageComponent) Render(w io.Writer) error {
-	return pageTemplate.ExecuteTemplate(w, c.name, c.data)
+// page renders the template name of this feature's set, so IndexLayout
+// wraps it in the standard chrome without components knowing the template.
+func page(name string, data any) components.Component {
+	return &components.FeatureComponent{Tmpl: pageTemplate, Name: name, Data: data}
 }

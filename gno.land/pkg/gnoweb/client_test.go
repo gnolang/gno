@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/stretchr/testify/require"
 )
 
 // TestCheckResponseSizeRejectsOversized — defense in depth against a
@@ -210,5 +212,80 @@ func TestValidFileName(t *testing.T) {
 		if got := validFileName(name); got != want {
 			t.Errorf("validFileName(%q) = %v, want %v", name, got, want)
 		}
+	}
+}
+
+// errCaller answers every abci_query with a node error.
+type errCaller struct{ pathsCaller }
+
+func (e *errCaller) SendRequest(_ context.Context, req rpctypes.RPCRequest) (*rpctypes.RPCResponse, error) {
+	result, err := amino.MarshalJSON(&ctypes.ResultABCIQuery{
+		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Error: abci.StringError("name NoSuchThing not declared")}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &rpctypes.RPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}, nil
+}
+
+// Public evals stay within MaxConcurrentRPC, and a quarter of it: with
+// every shared slot held, one waits like any query; with every eval slot
+// held, pages and gnoweb's own evals (the /u/ user lookup) still query.
+func TestEvalSlotsStayUnderTheRPCCap(t *testing.T) {
+	t.Parallel()
+
+	newClient := func() *rpcClient {
+		return NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(&pathsCaller{listing: "(1 int)"}), "gno.land", 4).(*rpcClient)
+	}
+	hold := func(t *testing.T, slots chan struct{}) {
+		t.Helper()
+		for range cap(slots) {
+			release, err := acquireRPCSlot(context.Background(), slots)
+			require.NoError(t, err)
+			t.Cleanup(release)
+		}
+	}
+
+	c := newClient()
+	require.Equal(t, 1, cap(c.evalSlots), "a quarter of 4")
+
+	hold(t, c.rpcSlots)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := c.PublicEval(ctx, "r/demo/counter", "Get()")
+	require.ErrorIs(t, err, ErrClientTimeout, "an eval must not query past the cap")
+	require.Len(t, c.evalSlots, 0, "a waiting eval gives its eval slot back")
+
+	c = newClient()
+	hold(t, c.evalSlots)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = c.ListPaths(ctx, "gno.land/r/", 0)
+	require.NoError(t, err, "pages query while evals hold their slots")
+	_, err = c.Eval(ctx, UserRegistryPath, `ResolveAny("alice")`)
+	require.NoError(t, err, "gnoweb's own evals query while readers' hold their slots")
+}
+
+// A failed public eval is the reader's input: it logs at Debug only,
+// without the expression, while other failed queries still log at Error.
+func TestFailedEvalLogsAtDebug(t *testing.T) {
+	t.Parallel()
+
+	var logs strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	c := NewRPCClientAdapter(logger, client.NewRPCClient(&errCaller{}), "gno.land", 0)
+
+	if _, err := c.PublicEval(context.Background(), "r/demo/counter", "NoSuchThing()"); !errors.Is(err, ErrClientResponse) {
+		t.Fatalf("PublicEval error = %v, want ErrClientResponse", err)
+	}
+	if logs.Len() != 0 {
+		t.Fatalf("failed eval logged above Debug: %s", logs.String())
+	}
+
+	if _, err := c.Realm(context.Background(), "r/demo/counter", ""); !errors.Is(err, ErrClientResponse) {
+		t.Fatalf("Realm error = %v, want ErrClientResponse", err)
+	}
+	if !strings.Contains(logs.String(), "level=ERROR") {
+		t.Fatalf("failed render not logged at Error: %q", logs.String())
 	}
 }
