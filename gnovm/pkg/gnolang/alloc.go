@@ -41,6 +41,9 @@ type Allocator struct {
 	// scratch numbers the active read-only stretch (0: none); objects
 	// allocated in it carry the number and it may write them while unreal.
 	scratch uint32
+	// fvCtx reports the innermost call frame's package and its caller's;
+	// set by NewMachine only when GNO_FV_LOG is set (see fvlog.go).
+	fvCtx func() (code, caller string)
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
@@ -594,6 +597,12 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
+	av := alloc.newListArray(t, n)
+	fvLog("birth", t, alloc, "NewListArray")
+	return av
+}
+
+func (alloc *Allocator) newListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedRuntimeError("len out of range")})
 	}
@@ -619,10 +628,17 @@ func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 		List: make([]TypedValue, l, c),
 	}
 	alloc.stampPkgID(&av.ObjectInfo, t)
+	fvLog("birth", t, alloc, "NewListArray2")
 	return av
 }
 
 func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
+	av := alloc.newDataArray(t, n)
+	fvLog("birth", t, alloc, "NewDataArray")
+	return av
+}
+
+func (alloc *Allocator) newDataArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedRuntimeError("len out of range")})
 	}
@@ -700,6 +716,12 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
+	sv := alloc.newStruct(t, fields)
+	fvLog("birth", t, alloc, "NewStruct")
+	return sv
+}
+
+func (alloc *Allocator) newStruct(t Type, fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
 	sv := &StructValue{
 		Fields: fields,
@@ -717,7 +739,9 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
-	return alloc.NewStruct(t, tvs)
+	sv := alloc.newStruct(t, tvs)
+	fvLog("birth", t, alloc, "NewStructWithFields")
+	return sv
 }
 
 func (alloc *Allocator) NewMap(t Type) *MapValue {

@@ -207,6 +207,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		// (hard-cap, no GC retry — see store.go preprocessAlloc).
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 		mm.Alloc.SetGasMeter(vmGasMeter)
+		if fvOn() {
+			mm.Alloc.fvCtx = mm.fvFrames
+		}
 	}
 	mm.Output = output
 	mm.Store = store
