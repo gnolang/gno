@@ -84,3 +84,17 @@ Merkle branches to the committee's pubkeys root. Same per-key pricing as
   the block limit.
 - Adding a stdlib changes genesis state (stdlib sources are committed), so the
   pinned app hash in `apphash_crossrealm38_test.go` moves.
+- A chain upgraded in place has no `crypto/bls12381`: stdlibs are written
+  once, at genesis, and `VMKeeper.Initialize` type-checks every stdlib the
+  binary lists, so the new binary dereferenced a nil package at boot. This is
+  the first stdlib added since `gnoland-1`'s genesis. `Initialize` now loads
+  any listed stdlib the store lacks, from `VMKeeper.StdlibDir` (the app's
+  `StdlibDir`), before the type check. The write goes through the
+  multistore the app already writes back at boot, so it lands in the next
+  block's app hash. That is deterministic because every validator restarts on
+  the new binary at the same halt height (`halt_min_version` holds back an
+  early one) and stores the same files; a later boot finds the package and
+  writes nothing. Without a `StdlibDir` the keeper panics naming the
+  package. Leaving the package out at boot, and loading it later through a
+  migration or a genesis-replay hardfork (`pr5511`), was the alternative; it
+  would leave the Ethereum light client unusable after an in-place upgrade.

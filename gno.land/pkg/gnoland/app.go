@@ -285,7 +285,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		return nil, err
 	}
 
-	// Initialize the VMKeeper.
+	// Initialize the VMKeeper. It loads from StdlibDir any stdlib the store,
+	// written by an earlier binary, lacks.
+	vmk.StdlibDir = cfg.InitChainerConfig.StdlibDir
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?

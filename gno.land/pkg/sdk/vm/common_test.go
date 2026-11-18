@@ -39,6 +39,25 @@ func setupTestEnvCold() testEnv {
 }
 
 func _setupTestEnv(cacheStdlibs bool) testEnv {
+	env, mcw := setupTestEnvNoStdlibs()
+	ctx := env.ctx
+	vmk := env.vmk
+	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
+	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
+	if cacheStdlibs {
+		vmk.LoadStdlibCached(stdlibCtx, stdlibsDir)
+	} else {
+		vmk.LoadStdlib(stdlibCtx, stdlibsDir)
+	}
+	vmk.CommitGnoTransactionStore(stdlibCtx)
+	mcw.MultiWrite()
+	vmk.PopulateStdlibCache()
+	return env
+}
+
+// setupTestEnvNoStdlibs returns an environment whose keeper is initialized on
+// an empty store, and the cache-wrapped multistore it was initialized on.
+func setupTestEnvNoStdlibs() (testEnv, store.MultiStore) {
 	db := memdb.NewMemDB()
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
@@ -66,19 +85,9 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
-	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
-	if cacheStdlibs {
-		vmk.LoadStdlibCached(stdlibCtx, stdlibsDir)
-	} else {
-		vmk.LoadStdlib(stdlibCtx, stdlibsDir)
-	}
-	vmk.CommitGnoTransactionStore(stdlibCtx)
-	mcw.MultiWrite()
-	vmk.PopulateStdlibCache()
 	vmh := NewHandler(vmk)
 
-	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}
+	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}, mcw
 }
 
 // examplesDir returns the path to the examples directory relative to this test file.
