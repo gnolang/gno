@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strings"
 )
 
 // Realm value rule: outside realm a, no value of a's struct or array types
@@ -14,15 +13,16 @@ import (
 
 func newRealmValueInfo() *types.Info {
 	return &types.Info{
-		Types: map[ast.Expr]types.TypeAndValue{},
-		Defs:  map[*ast.Ident]types.Object{},
+		Types:     map[ast.Expr]types.TypeAndValue{},
+		Defs:      map[*ast.Ident]types.Object{},
+		Implicits: map[ast.Node]types.Object{},
 	}
 }
 
 // checkRealmValues reports each value of another realm's struct or array
 // type in files type-checked as pkgPath.
 func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, pkgPath string) []error {
-	self := strings.TrimSuffix(pkgPath, "_test")
+	self := pkgPath
 	var errs []error
 	report := func(pos token.Pos, t types.Type) {
 		errs = append(errs, types.Error{
@@ -43,15 +43,44 @@ func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, 
 			}
 			stack = append(stack, n)
 			switch x := n.(type) {
-			case *ast.Ident:
-				if obj := info.Defs[x]; obj != nil && x.Name != "_" {
-					if v, ok := obj.(*types.Var); ok {
-						if t := foreignRealmValue(v.Type(), self); t != nil {
-							report(x.Pos(), t)
+			case *ast.FuncType:
+				switch parent.(type) {
+				case *ast.FuncDecl, *ast.FuncLit:
+					// a signature: every parameter and result is a binding
+					for _, fl := range []*ast.FieldList{x.Params, x.Results} {
+						if fl == nil {
+							continue
+						}
+						for _, fd := range fl.List {
+							if t := foreignRealmValue(info.TypeOf(fd.Type), self); t != nil {
+								report(fd.Type.Pos(), t)
+							}
 						}
 					}
 				}
-			case ast.Expr:
+				stack = stack[:len(stack)-1] // no nil callback for a skipped node
+				return false                 // a type expression, or judged above
+			case *ast.TypeSpec:
+				// own type built on another realm's value type
+				if t := foreignRealmValue(info.TypeOf(x.Type), self); t != nil {
+					report(x.Name.Pos(), t)
+				}
+			case *ast.CaseClause:
+				if obj := info.Implicits[x]; obj != nil {
+					if t := foreignRealmValue(obj.Type(), self); t != nil {
+						report(x.Pos(), t)
+					}
+				}
+			}
+			if id, ok := n.(*ast.Ident); ok && id.Name != "_" {
+				if v, ok := info.Defs[id].(*types.Var); ok {
+					if t := foreignRealmValue(v.Type(), self); t != nil {
+						report(id.Pos(), t)
+						return true
+					}
+				}
+			}
+			if x, ok := n.(ast.Expr); ok {
 				tv, ok := info.Types[x]
 				if !ok || !tv.IsValue() || exemptRealmValueUse(x, parent) {
 					return true
@@ -94,8 +123,17 @@ func foreignRealmValue(t types.Type, self string) types.Type {
 				return u
 			}
 		}
-		return nil // own or library named types: their fields are checked where declared
+		return nil // own or library named types: checked where declared
 	case *types.Array:
+		return foreignRealmValue(u.Elem(), self)
+	case *types.Slice:
+		return foreignRealmValue(u.Elem(), self)
+	case *types.Map:
+		if t := foreignRealmValue(u.Key(), self); t != nil {
+			return t
+		}
+		return foreignRealmValue(u.Elem(), self)
+	case *types.Chan:
 		return foreignRealmValue(u.Elem(), self)
 	case *types.Struct:
 		for i := 0; i < u.NumFields(); i++ {
