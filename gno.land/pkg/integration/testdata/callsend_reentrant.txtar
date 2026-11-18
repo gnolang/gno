@@ -1,0 +1,68 @@
+# The receipt is bound to the call frame: a re-entrant cross back into the
+# entry realm is a new call with no coins attached, so it reads zero and the 5000ugnot
+# envelope is counted once.
+loadpkg gno.land/r/test/vault $WORK/vault
+loadpkg gno.land/r/test/hook $WORK/hook
+
+adduser user1
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/vault -func Deposit -send 5000ugnot -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/vault.GetMinted()"
+stdout '5000 int64'
+
+# The hook's re-entrant Deposit ran and read zero.
+gnokey query vm/qeval --data "gno.land/r/test/vault.GetDeposits()"
+stdout '2 int64'
+
+-- vault/gnomod.toml --
+module = "gno.land/r/test/vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package vault
+
+import "chain/banker"
+
+type Callback interface{ Notify(cur realm) }
+
+var (
+	cb       Callback
+	minted   int64
+	deposits int64
+)
+
+func SetHook(cur realm, c Callback) { cb = c }
+
+// Deposit credits CallSend, then calls out before finishing: the classic
+// re-entrancy shape. The callback's cross carries no coins, so its read is
+// zero.
+func Deposit(cur realm) {
+	deposits++
+	minted += banker.CallSend().AmountOf("ugnot")
+	if cb != nil {
+		c := cb
+		cb = nil
+		c.Notify(cross(cur))
+	}
+}
+
+func GetMinted() int64   { return minted }
+func GetDeposits() int64 { return deposits }
+
+-- hook/gnomod.toml --
+module = "gno.land/r/test/hook"
+gno = "0.9"
+
+-- hook/hook.gno --
+package hook
+
+import "gno.land/r/test/vault"
+
+type h struct{}
+
+func (h) Notify(cur realm) { vault.Deposit(cross(cur)) }
+
+func init(cur realm) { vault.SetHook(cross(cur), h{}) }

@@ -80,7 +80,7 @@ func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
 import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
-func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
+func cross(rlm realm, coins ...any) realm { return rlm } // shim — explicit cross-call form, optional chain.Coins to send. See gnovm/adr/pr_cross_explicit.md
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address

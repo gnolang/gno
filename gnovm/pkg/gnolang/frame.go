@@ -5,6 +5,8 @@ import (
 	"io"
 	"math"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const maxStacktraceSize = 128
@@ -41,6 +43,11 @@ type Frame struct {
 	// when WithCross. Used by callingCurOrOrigin to walk the captured
 	// realm chain when building a new cur for the next cross-call.
 	Cur TypedValue
+
+	// Received is the coins a cross(rlm, coins) call delivered. EntryCall
+	// marks the MsgCall entry, whose receipt is the context's message send.
+	Received  std.Coins
+	EntryCall bool
 
 	// test info
 	TestOverridden bool // bool if overridden by test SetContext.

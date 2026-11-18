@@ -8,6 +8,7 @@ import (
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
@@ -380,6 +381,11 @@ func refusePersistRealmHIV(hiv *HeapItemValue) {
 // package can read ctx.OriginCaller without importing execctx (which would
 // be a cycle). Returns "" when no caller can be extracted.
 var OriginCallerExtractor func(ctx any) string
+
+// CrossSendHandler moves the coins of fn(cross(rlm, coins)), a chain.Coins
+// value, from the calling realm's address to the callee's, and returns what
+// moved. Set by execctx; nil means no banker, and any send panics.
+var CrossSendHandler func(m *Machine, from, to string, send TypedValue) std.Coins
 
 // BuildOverridePrevField constructs a prev-field TypedValue for a captured
 // realm whose addr/pkgPath have been overridden by testing.SetRealm with
