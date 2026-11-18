@@ -1,0 +1,66 @@
+# go test -run='^$' -bench='BenchmarkTypeDeclGroup' -benchtime=2s -count=3 ./gnovm/pkg/gnolang/
+# Dev-box run (Apple M5, darwin/arm64, go1.26.5) behind OpCPUSlopeTypeDecl{Site,Node,Step} — informational, like embedwalk_bench_m5_arm64.txt.
+# Machine factor measured alongside this run as in embedwalk_bench_m5_arm64.txt (gas table ÷ ns/op(pure) over seven flat ops): Add_Int 1.90, Eql_Int 2.08, IfCond_FalseBranch 2.16, IfCond_TrueBranch 2.06, SwitchClause_DefaultMatch 2.07, SwitchClauseCase_Match 1.92, SwitchClauseCase_Miss 1.93; range 1.90-2.16, 2.1 used. Fits: leaf shapes give node + per-declaration cost, group minus leaf gives edge + DFS visit cost.
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M5
+BenchmarkTypeDeclGroup_Prescan/n8_refs1_leaf-10         	 6321450	       372.1 ns/op	         0 edges	        24.00 nodes	        15.50 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n8_refs1_leaf-10         	 6432672	       368.5 ns/op	         0 edges	        24.00 nodes	        15.36 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n8_refs1_leaf-10         	 6371709	       376.6 ns/op	         0 edges	        24.00 nodes	        15.69 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n8_refs1_group-10        	 2538007	       945.7 ns/op	         8.000 edges	        24.00 nodes	        29.55 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n8_refs1_group-10        	 2516727	       940.6 ns/op	         8.000 edges	        24.00 nodes	        29.39 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n8_refs1_group-10        	 2558617	       941.6 ns/op	         8.000 edges	        24.00 nodes	        29.43 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n64_refs4_leaf-10        	  520402	      4566 ns/op	         0 edges	       576.0 nodes	         7.927 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n64_refs4_leaf-10        	  525236	      4592 ns/op	         0 edges	       576.0 nodes	         7.972 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n64_refs4_leaf-10        	  524827	      4638 ns/op	         0 edges	       576.0 nodes	         8.053 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n64_refs4_group-10       	  135716	     17706 ns/op	       256.0 edges	       576.0 nodes	        21.28 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n64_refs4_group-10       	  125752	     17708 ns/op	       256.0 edges	       576.0 nodes	        21.28 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n64_refs4_group-10       	  138738	     17662 ns/op	       256.0 edges	       576.0 nodes	        21.23 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n256_refs16_leaf-10      	   51194	     46973 ns/op	         0 edges	      8448 nodes	         5.560 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n256_refs16_leaf-10      	   51062	     46754 ns/op	         0 edges	      8448 nodes	         5.534 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n256_refs16_leaf-10      	   51570	     46751 ns/op	         0 edges	      8448 nodes	         5.534 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n256_refs16_group-10     	   14328	    167127 ns/op	      4096 edges	      8448 nodes	        13.32 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n256_refs16_group-10     	   14342	    166908 ns/op	      4096 edges	      8448 nodes	        13.31 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n256_refs16_group-10     	   14415	    166677 ns/op	      4096 edges	      8448 nodes	        13.29 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs1_leaf-10      	   46014	     52536 ns/op	         0 edges	      3072 nodes	        17.10 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs1_leaf-10      	   45321	     52825 ns/op	         0 edges	      3072 nodes	        17.20 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs1_leaf-10      	   45495	     52841 ns/op	         0 edges	      3072 nodes	        17.20 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs1_group-10     	   15950	    149624 ns/op	      1024 edges	      3072 nodes	        36.53 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs1_group-10     	   15999	    149430 ns/op	      1024 edges	      3072 nodes	        36.48 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs1_group-10     	   16027	    149892 ns/op	      1024 edges	      3072 nodes	        36.59 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs16_leaf-10     	   10000	    209343 ns/op	         0 edges	     33792 nodes	         6.195 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs16_leaf-10     	   10000	    202486 ns/op	         0 edges	     33792 nodes	         5.992 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs16_leaf-10     	   10000	    209383 ns/op	         0 edges	     33792 nodes	         6.196 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs16_group-10    	    3394	    697941 ns/op	     16384 edges	     33792 nodes	        13.91 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs16_group-10    	    3418	    696154 ns/op	     16384 edges	     33792 nodes	        13.87 ns/unit
+BenchmarkTypeDeclGroup_Prescan/n1024_refs16_group-10    	    3346	    690923 ns/op	     16384 edges	     33792 nodes	        13.77 ns/unit
+BenchmarkTypeDeclGroup_EmbedDepth/d1_w8-10              	 3739528	       643.9 ns/op	        18.94 ns/unit	        34.00 work
+BenchmarkTypeDeclGroup_EmbedDepth/d1_w8-10              	 3724466	       645.1 ns/op	        18.97 ns/unit	        34.00 work
+BenchmarkTypeDeclGroup_EmbedDepth/d1_w8-10              	 3723871	       646.0 ns/op	        19.00 ns/unit	        34.00 work
+BenchmarkTypeDeclGroup_EmbedDepth/d1_w128-10            	  225070	     10886 ns/op	        21.18 ns/unit	       514.0 work
+BenchmarkTypeDeclGroup_EmbedDepth/d1_w128-10            	  220831	     10875 ns/op	        21.16 ns/unit	       514.0 work
+BenchmarkTypeDeclGroup_EmbedDepth/d1_w128-10            	  221074	     10907 ns/op	        21.22 ns/unit	       514.0 work
+BenchmarkTypeDeclGroup_EmbedDepth/d2_w64-10             	    6241	    381754 ns/op	        23.03 ns/unit	     16578 work
+BenchmarkTypeDeclGroup_EmbedDepth/d2_w64-10             	    6230	    380418 ns/op	        22.95 ns/unit	     16578 work
+BenchmarkTypeDeclGroup_EmbedDepth/d2_w64-10             	    6296	    380372 ns/op	        22.94 ns/unit	     16578 work
+BenchmarkTypeDeclGroup_EmbedDepth/d4_w8-10              	    5852	    409006 ns/op	        22.55 ns/unit	     18138 work
+BenchmarkTypeDeclGroup_EmbedDepth/d4_w8-10              	    5862	    409430 ns/op	        22.57 ns/unit	     18138 work
+BenchmarkTypeDeclGroup_EmbedDepth/d4_w8-10              	    5865	    410597 ns/op	        22.64 ns/unit	     18138 work
+BenchmarkTypeDeclGroup_EmbedDepth/d8_w1-10              	 3688612	       638.6 ns/op	        23.65 ns/unit	        27.00 work
+BenchmarkTypeDeclGroup_EmbedDepth/d8_w1-10              	 3757986	       645.3 ns/op	        23.90 ns/unit	        27.00 work
+BenchmarkTypeDeclGroup_EmbedDepth/d8_w1-10              	 3714147	       640.3 ns/op	        23.72 ns/unit	        27.00 work
+BenchmarkTypeDeclGroup_EmbedDepth/d8_w2-10              	   52604	     46104 ns/op	        25.79 ns/unit	      1788 work
+BenchmarkTypeDeclGroup_EmbedDepth/d8_w2-10              	   51820	     46182 ns/op	        25.83 ns/unit	      1788 work
+BenchmarkTypeDeclGroup_EmbedDepth/d8_w2-10              	   51928	     46427 ns/op	        25.97 ns/unit	      1788 work
+BenchmarkTypeDeclGroup_MapKey/fields1-10                	190422350	        12.16 ns/op	         1.737 ns/unit	         7.000 work
+BenchmarkTypeDeclGroup_MapKey/fields1-10                	194517207	        12.35 ns/op	         1.764 ns/unit	         7.000 work
+BenchmarkTypeDeclGroup_MapKey/fields1-10                	195661704	        12.38 ns/op	         1.769 ns/unit	         7.000 work
+BenchmarkTypeDeclGroup_MapKey/fields8-10                	29014240	        81.18 ns/op	         1.657 ns/unit	        49.00 work
+BenchmarkTypeDeclGroup_MapKey/fields8-10                	29436715	        81.26 ns/op	         1.658 ns/unit	        49.00 work
+BenchmarkTypeDeclGroup_MapKey/fields8-10                	29805626	        80.92 ns/op	         1.651 ns/unit	        49.00 work
+BenchmarkTypeDeclGroup_MapKey/fields128-10              	 1962168	      1240 ns/op	         1.612 ns/unit	       769.0 work
+BenchmarkTypeDeclGroup_MapKey/fields128-10              	 1956252	      1240 ns/op	         1.612 ns/unit	       769.0 work
+BenchmarkTypeDeclGroup_MapKey/fields128-10              	 1964409	      1241 ns/op	         1.614 ns/unit	       769.0 work
+PASS
+ok  	github.com/gnolang/gno/gnovm/pkg/gnolang	167.890s
