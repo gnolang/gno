@@ -29,3 +29,9 @@ var hook func(string)
 
 func SetHook(cur realm, f func(string)) { hook = f }
 func RunHook(cur realm)                 { hook("stored") }
+
+// Writers builds a closure writing Owner and one writing what it is given;
+// entered without crossing, both carry no maker.
+func Writers() (func(string), func([]string)) {
+	return func(s string) { Owner = s }, func(b []string) { b[0] = "pwnd" }
+}
