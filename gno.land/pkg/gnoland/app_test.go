@@ -538,20 +538,6 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	return validators
 }
 
-// generateDummyKeys generates a slice of dummy private keys
-func generateDummyKeys(t *testing.T, count int) []crypto.PrivKey {
-	t.Helper()
-
-	keys := make([]crypto.PrivKey, 0, count)
-
-	for range count {
-		key := getDummyKey(t)
-		keys = append(keys, key)
-	}
-
-	return keys
-}
-
 func createAndSignTx(
 	t *testing.T,
 	msgs []std.Msg,

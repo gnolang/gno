@@ -2585,26 +2585,6 @@ func NewValuePathInterface(n Name) ValuePath {
 	return NewValuePath(VPInterface, 0, 0, n)
 }
 
-func NewValuePathSubrefField(depth uint8, index uint16, n Name) ValuePath {
-	return NewValuePath(VPSubrefField, depth, index, n)
-}
-
-func NewValuePathDerefField(depth uint8, index uint16, n Name) ValuePath {
-	return NewValuePath(VPDerefField, depth, index, n)
-}
-
-func NewValuePathDerefValMethod(index uint16, n Name) ValuePath {
-	return NewValuePath(VPDerefValMethod, 0, index, n)
-}
-
-func NewValuePathDerefPtrMethod(index uint16, n Name) ValuePath {
-	return NewValuePath(VPDerefPtrMethod, 0, index, n)
-}
-
-func NewValuePathDerefInterface(n Name) ValuePath {
-	return NewValuePath(VPDerefInterface, 0, 0, n)
-}
-
 func (vp ValuePath) Validate() {
 	vp.validateDepth()
 

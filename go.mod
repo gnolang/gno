@@ -16,7 +16,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/dgraph-io/ristretto/v2 v2.4.0
-	github.com/emicklei/dot v1.11.0
 	github.com/erigontech/mdbx-go v0.40.1
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/gofrs/flock v0.13.0
