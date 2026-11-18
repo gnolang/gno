@@ -50,7 +50,8 @@
 #   ./gen-genesis.sh --no-install   # reuse previously built binaries
 #
 # Build it from the tree of the version onyx launches on (the chain/onyx tag,
-# which sits on that version's commit on chain/mainnet): the package set is
+# which sits on chain/mainnet at the commit that added this folder, on top of
+# that version's code): the package set is
 # read from examples/, and master's examples/ already differs from what the
 # network runs. Cross-platform: bash 3.2 minimum (macOS default), no GNU-only
 # features.

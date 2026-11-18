@@ -15,10 +15,10 @@ import (
 // Budget math under the lazy-preview model: each pretty-view page-load
 // debits 1 token for the SSR request + ~1 token per ref scrolled into
 // view (fragment GETs). A page with N above-fold refs consumes 1+N
-// tokens. With PerMinute=Burst=100 (default), a viewport-heavy page
-// can consume a third of the budget in one paint — acceptable for a
-// transitional defense-in-depth bucket. Primary HTTP rate-limit belongs
-// to nginx; this limiter is the fallback when gnoweb is deployed alone.
+// tokens. gnoweb defaults to PerMinute=Burst=1200, the edge's 20 req/s,
+// so a viewport-heavy page costs a few percent of the budget. Primary
+// HTTP rate-limit belongs to the reverse proxy, which sees the real
+// client; this limiter is the fallback when gnoweb is deployed alone.
 //
 // Zero value is the "disabled" mode: NewIPLimiter returns nil and the
 // limiter check is a no-op, allowing Deps to default-zero without touching it.
@@ -101,10 +101,23 @@ type IPLimiter struct {
 	rate    float64 // tokens per second derived from PerMinute
 	burst   float64
 	maxIPs  int
+	trusted []*net.IPNet
 	mu      sync.Mutex
 	buckets map[string]*ipBucket
 	order   *list.List // front = most recently used, back = oldest
 	elems   map[string]*list.Element
+}
+
+// AllowRequest resolves the client address and charges its bucket.
+//
+// Which address to trust depends on which proxies to trust, and the limiter
+// is the thing that was configured with them — so the rule lives here rather
+// than being copied into every feature that rate-limits.
+func (l *IPLimiter) AllowRequest(r *http.Request) bool {
+	if l == nil {
+		return true
+	}
+	return l.Allow(extractIP(r, l.trusted))
 }
 
 // NewIPLimiter constructs a limiter from cfg. Returns nil when cfg.PerMinute <= 0
@@ -128,6 +141,7 @@ func NewIPLimiter(cfg RateLimitConfig) *IPLimiter {
 		rate:    float64(cfg.PerMinute) / 60.0,
 		burst:   float64(cfg.Burst),
 		maxIPs:  cfg.MaxIPs,
+		trusted: cfg.TrustedProxies,
 		buckets: make(map[string]*ipBucket),
 		order:   list.New(),
 		elems:   make(map[string]*list.Element),

@@ -169,6 +169,10 @@
 	/* Logo / gnome */
 	--s-logo-hat: var(--g-color-green-600, #226c57);
 	--s-logo-beard: var(--g-color-gray-300, #999999);
+
+	/* Chain map group tints: gno green mixed into this ground */
+	--s-map-hue: var(--g-color-green-400);
+	--s-map-hue-ground: var(--s-color-bg-base);
 }
 
 /* ===== DARK THEME ===== */
@@ -266,4 +270,8 @@
 	/* Logo / gnome */
 	--s-logo-hat: #ffffff;
 	--s-logo-beard: #808080;
+
+	/* Chain map group tints */
+	--s-map-hue: var(--g-color-green-600);
+	--s-map-hue-ground: var(--s-color-bg-surface-primary);
 }

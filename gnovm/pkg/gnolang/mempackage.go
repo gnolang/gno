@@ -79,6 +79,9 @@ var (
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state. It also excludes _test paths.
 func IsRealmPath(pkgPath string) bool {
+	if !hasLetter(pkgPath, 'r') {
+		return false
+	}
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "r" {
 		return false
@@ -92,8 +95,18 @@ func IsRealmPath(pkgPath string) bool {
 // IsEphemeralPath determines whether the given pkgpath is for an ephemeral realm.
 // Ephemeral realms are temporary and don't persist state between transactions.
 func IsEphemeralPath(pkgPath string) bool {
+	if !hasLetter(pkgPath, 'e') {
+		return false
+	}
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	return match != nil && match.Get("LETTER") == "e"
+}
+
+// hasLetter checks a necessary condition for matching ReGnoUserPkgPath
+// with the given letter.
+func hasLetter(pkgPath string, letter byte) bool {
+	i := strings.IndexByte(pkgPath, '/')
+	return i >= 0 && i+2 < len(pkgPath) && pkgPath[i+1] == letter && pkgPath[i+2] == '/'
 }
 
 // IsSyntheticPath determines whether the given pkgPath is a compiler-internal
