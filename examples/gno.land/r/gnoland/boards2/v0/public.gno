@@ -3,12 +3,19 @@ package boards2
 import (
 	"chain"
 	"chain/runtime/unsafe"
+	"errors"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"gno.land/p/gnoland/boards/v0"
+)
+
+var (
+	errRealmLocked     = errors.New("realm is locked")
+	errBoardNameExists = errors.New("board already exists")
+	errBoardNotFound   = errors.New("board not found")
 )
 
 const (
@@ -61,6 +68,8 @@ func SetRequiredAccountAmount(cur realm, amount int64) {
 }
 
 // SetPermissions sets a permissions implementation for boards2 realm or a board.
+// A boardID of zero updates the realm permissions. The permissions completely
+// replace the current ones, so p must include the members that should survive the change.
 func SetPermissions(cur realm, boardID boards.ID, p boards.Permissions) {
 	assertRealmIsNotLocked()
 	assertBoardExists(boardID)
@@ -72,29 +81,44 @@ func SetPermissions(cur realm, boardID boards.ID, p boards.Permissions) {
 	caller := cur.Previous().Address()
 	args := boards.Args{boardID}
 	gPerms.WithPermission(caller, PermissionPermissionsUpdate, args, func() {
-		assertRealmIsNotLocked()
-
-		// When board ID is zero it means that realm permissions are being updated
-		if boardID == 0 {
-			gPerms = p
-
-			chain.Emit(
-				"RealmPermissionsChanged",
-				"caller", caller.String(),
-			)
-			return
+		if err := setPermissions(boardID, caller, p); err != nil {
+			panic(err.Error())
 		}
+	})
+}
 
-		// Otherwise update the permissions of a single board
-		board := mustGetBoard(boardID)
-		board.Permissions = p
+// setPermissions re-checks the preconditions that can change between validation
+// and assignment, then assigns the permissions. This returns an error instead of
+// panicking so that it can be used in ProposeSetPermissions.
+func setPermissions(boardID boards.ID, caller address, p boards.Permissions) error {
+	if IsRealmLocked() {
+		return errRealmLocked
+	}
+
+	// When board ID is zero it means that realm permissions are being updated
+	if boardID == 0 {
+		gPerms = p
 
 		chain.Emit(
-			"BoardPermissionsChanged",
+			"RealmPermissionsChanged",
 			"caller", caller.String(),
-			"boardID", board.ID.String(),
 		)
-	})
+		return nil
+	}
+
+	// Otherwise update the permissions of a single board
+	board, found := gBoards.Get(boardID)
+	if !found {
+		return errBoardNotFound
+	}
+	board.Permissions = p
+
+	chain.Emit(
+		"BoardPermissionsChanged",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+	)
+	return nil
 }
 
 // SetRealmNotice sets a notice to be displayed globally within the realm.
@@ -143,17 +167,34 @@ func CreateBoard(cur realm, name string, listed, open bool) boards.ID {
 	id := gBoardsSequence.Next()
 	args := boards.Args{caller, name, id, listed, open}
 	gPerms.WithPermission(caller, PermissionBoardCreate, args, func() {
-		assertRealmIsNotLocked()
-		assertBoardNameNotExists(name)
-		addBoard(id, caller, name, listed, open)
+		if err := createBoard(id, caller, name, listed, open); err != nil {
+			panic(err.Error())
+		}
 	})
 	return id
+}
+
+// createBoard re-checks the preconditions that can change between validation
+// and creation, then registers the new board. This returns an error instead of
+// panicking so that it can be used in ProposeCreateBoard.
+func createBoard(id boards.ID, caller address, name string, listed, open bool) error {
+	if IsRealmLocked() {
+		return errRealmLocked
+	}
+	if boardNameExists(name) {
+		return errBoardNameExists
+	}
+	if err := checkBoardNameBelongsToAddress(caller, name); err != nil {
+		return err
+	}
+
+	return addBoard(id, caller, name, listed, open)
 }
 
 // addBoard creates a board and adds it to the realm storage.
 // It performs no permission or validation checks, so callers are responsible
 // for doing their own.
-func addBoard(id boards.ID, caller address, name string, listed, open bool) {
+func addBoard(id boards.ID, caller address, name string, listed, open bool) error {
 	board := boards.New(id)
 	board.Name = name
 	board.Creator = caller
@@ -168,7 +209,7 @@ func addBoard(id boards.ID, caller address, name string, listed, open bool) {
 	}
 
 	if err := gBoards.Add(board); err != nil {
-		panic(err)
+		return err
 	}
 
 	// Listed boards are also indexed separately for easier iteration and pagination
@@ -182,6 +223,7 @@ func addBoard(id boards.ID, caller address, name string, listed, open bool) {
 		"boardID", board.ID.String(),
 		"name", name,
 	)
+	return nil
 }
 
 // RenameBoard changes the name of an existing board.
@@ -742,10 +784,15 @@ func assertBodyIsNotEmpty(body string) {
 }
 
 func assertBoardNameNotExists(name string) {
-	name = strings.ToLower(name)
-	if _, found := gBoards.GetByName(name); found {
-		panic("board already exists")
+	if boardNameExists(name) {
+		panic(errBoardNameExists.Error())
 	}
+}
+
+func boardNameExists(name string) bool {
+	name = strings.ToLower(name)
+	_, found := gBoards.GetByName(name)
+	return found
 }
 
 func assertThreadExists(b *boards.Board, threadID boards.ID) {
