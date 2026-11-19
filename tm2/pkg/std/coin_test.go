@@ -125,7 +125,7 @@ func TestParseCoinsCountLimit(t *testing.T) {
 
 // TestValidateDenomLength checks MaxDenomLength against the limits it is
 // derived from rather than against a copy of the number, so that if
-// pkgPathLimit ever moves the test moves with it.
+// PkgPathLimit ever moves the test moves with it.
 func TestValidateDenomLength(t *testing.T) {
 	t.Parallel()
 
@@ -138,8 +138,8 @@ func TestValidateDenomLength(t *testing.T) {
 	// The longest denom that can exist on chain: a package path at the
 	// deployment limit plus a base name at the banker's limit.
 	const prefix = "gno.land/r/"
-	longestPath := prefix + strings.Repeat("a", pkgPathLimit-len(prefix))
-	require.Len(t, longestPath, pkgPathLimit)
+	longestPath := prefix + strings.Repeat("a", PkgPathLimit-len(prefix))
+	require.Len(t, longestPath, PkgPathLimit)
 	require.True(t, rePkgPathURL.MatchString(longestPath),
 		"the filler must keep longestPath a legal package path, or this stops "+
 			"measuring anything the issuance path can actually build")

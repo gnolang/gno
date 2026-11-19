@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/token"
 	"html/template"
+	"io"
 	"log/slog"
 	"maps"
 	"net"
@@ -1247,21 +1248,25 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
-	// renderDoc renders a markdown documentation string to a Component.
-	// Returns nil for empty input; renderer errors degrade to escaped text.
-	renderDoc := func(src string) components.Component {
+	docs := newPageDocRenderer(h.Renderer, gnourl.Path, 0)
+	// renderDoc renders a markdown documentation string to a Component, with
+	// the bytes it charged to the page. Returns nil for empty input; renderer
+	// errors degrade to escaped text.
+	renderDoc := func(src string) (components.Component, int) {
 		if strings.TrimSpace(src) == "" {
-			return nil
+			return nil, 0
 		}
 		var buf bytes.Buffer
-		if err := h.Renderer.RenderDocumentation(&buf, []byte(src)); err != nil {
+		if err := docs.RenderDocumentation(&buf, []byte(src)); err != nil {
 			h.Logger.Warn("render doc failed — falling back to escaped plain text",
 				"error", err)
-			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src)))
+			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src))), 0
 		}
-		return components.NewReaderComponent(&buf)
+		return components.NewReaderComponent(&buf), buf.Len()
 	}
 
+	// The package doc shows first, so it renders first against the page budget.
+	pkgDoc, _ := renderDoc(jdoc.PackageDoc)
 	fsigs := callableFuncs(jdoc)
 
 	// Get selected function
@@ -1291,48 +1296,76 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 			break
 		}
 	}
-
-	// Wrap each function with its pre-rendered documentation Component.
-	functions := make([]components.HelpFunction, 0, len(fsigs))
-	for _, fn := range fsigs {
-		functions = append(functions, components.HelpFunction{
-			JSONFunc:     fn,
-			DocComponent: renderDoc(fn.Doc),
-		})
+	truncated := len(fsigs) > components.MaxHelpFunctions
+	if truncated {
+		fsigs = fsigs[:components.MaxHelpFunctions]
 	}
 
-	realmName := components.PackageName(gnourl.Path)
-	return http.StatusOK, components.HelpView(components.HelpData{
+	data := components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		SelectedSend: selSend,
-		RealmName:    realmName,
+		RealmName:    components.PackageName(gnourl.Path),
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Functions: functions,
-		Doc:       renderDoc(jdoc.PackageDoc),
+		Doc:       pkgDoc,
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
 		Community: h.showRealmNotice(gnourl),
-	})
+	}
+
+	// Each function's card is charged to the page, its doc comment once and
+	// its line in the table of contents with it: the list stops at the first
+	// card past what is left.
+	data.Functions = make([]components.HelpFunction, 0, len(fsigs))
+	for _, fn := range fsigs {
+		docComp, docLen := renderDoc(fn.Doc)
+		hf := components.HelpFunction{JSONFunc: fn, DocComponent: docComp}
+		var tocItem, card bytes.Buffer
+		err := components.RenderHelpTocItem(&tocItem, hf)
+		fits := err == nil
+		if fits {
+			fits, err = renderPart(docs, &card, docLen, tocItem.Len(), func(w io.Writer) error {
+				return components.RenderHelpCard(w, data, hf)
+			})
+		}
+		if err != nil {
+			h.Logger.Error("unable to render help card", "func", fn.Name, "error", err)
+			return http.StatusInternalServerError, components.StatusErrorComponent("rendering error")
+		}
+		if !fits {
+			truncated = true
+			break
+		}
+		hf.Card = components.NewReaderComponent(&card)
+		// The card holds the doc's HTML, so the drained doc buffer can go.
+		hf.DocComponent = nil
+		data.Functions = append(data.Functions, hf)
+	}
+	data.Truncated = truncated
+
+	return http.StatusOK, components.HelpView(data)
 }
 
-// renderReadme renders the README.md file and returns the component and the raw content
-func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string, pr *pageRender) (components.Component, []byte) {
+// renderReadme renders the README.md file and returns the component, the raw
+// content and the size of its HTML.
+func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string, pr *pageRender) (components.Component, []byte, int) {
 	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName, 0)
 	if err != nil {
 		h.Logger.Warn("fetch README.md", "path", pkgPath, "error", err)
-		return nil, nil
+		return nil, nil, 0
 	}
 
+	rctx := h.renderContext(pr)
+	rctx.File = ReadmeFileName
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, h.renderContext(pr)); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, rctx); err != nil {
 		h.Logger.Error("render README.md", "error", err)
-		return nil, nil
+		return nil, nil, 0
 	}
-	return components.NewReaderComponent(&buf), file
+	return components.NewReaderComponent(&buf), file, buf.Len()
 }
 
 func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, pr *pageRender) (int, *components.View) {
@@ -1376,7 +1409,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 	switch fileName {
 	case ReadmeFileName:
 		// Try to render README.md with markdown processing
-		readmeComp, raw := h.renderReadme(ctx, gnourl, pkgPath, pr)
+		readmeComp, raw, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
 			fileLines = bytes.Count(raw, []byte("\n")) + 1
@@ -1395,7 +1428,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 		}
 
 		var buff bytes.Buffer
-		if err := h.Renderer.RenderSource(&buff, fileName, file); err != nil {
+		if err := h.Renderer.RenderSource(&buff, path.Join(pkgPath, fileName), file); err != nil {
 			h.Logger.Error("unable to render source file", "file", fileName, "error", err)
 			return http.StatusInternalServerError, components.StatusErrorComponent("rendering error")
 		}
@@ -1454,7 +1487,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	// Get README.md file if it exists
-	readmeComp, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
+	readmeComp, _, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
 	return http.StatusOK, components.DirectoryView(
 		pkgPath,
 		files,
@@ -1859,6 +1892,18 @@ func settleHeader(indexData *components.IndexData, status int) {
 	}
 }
 
+// MaxHeaderBytes caps a request's line and headers, to which net/http adds
+// 4 KiB; gnoweb and gnodev serve with it. Each breadcrumb link repeats the URL
+// before it, so a URL of L bytes writes up to 16 copies of it: 64 KiB made a
+// 5.4 MB breadcrumb. 16 KiB still holds the longest playground share link,
+// 8,000 characters. It does not bound a request body.
+const MaxHeaderBytes = 16 << 10
+
+// maxBreadcrumbParts bounds the links in each breadcrumb row. Every link
+// carries the segments before it, so the row grows with the square of its
+// segment count; the last link holds whatever is left.
+const maxBreadcrumbParts = 16
+
 func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.BreadcrumbData {
 	// The playground shows the package it was opened from (?from=), or its
 	// own path and shared code, then its pill. The z compression flag
@@ -1881,7 +1926,7 @@ func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.Bread
 		return data
 	}
 
-	// One linked part per path segment; the first one ("r", "p", "u") links to
+	// One linked part per path segment, up to maxBreadcrumbParts; the first one ("r", "p", "u") links to
 	// its listing, hence the trailing slash.
 	var data components.BreadcrumbData
 	split := strings.Split(url.Path, "/")
@@ -1889,11 +1934,20 @@ func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.Bread
 		if name == "" {
 			continue
 		}
-		u := strings.Join(split[:i+1], "/")
+
+		end := i + 1
+		if len(data.Parts) == maxBreadcrumbParts-1 {
+			end = len(split)
+			name = strings.TrimRight(strings.Join(split[i:end], "/"), "/")
+		}
+		u := strings.TrimRight(strings.Join(split[:end], "/"), "/")
 		if len(data.Parts) == 0 {
 			u += "/"
 		}
 		data.Parts = append(data.Parts, components.BreadcrumbPart{Name: name, URL: u})
+		if end == len(split) {
+			break
+		}
 	}
 
 	if url.IsRealm() || url.IsPure() {
@@ -1907,10 +1961,14 @@ func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.Bread
 			return a == ""
 		})
 
-		for i := range nonEmptyArgs {
+		for i := range min(len(nonEmptyArgs), maxBreadcrumbParts) {
+			end := i + 1
+			if i == maxBreadcrumbParts-1 {
+				end = len(nonEmptyArgs)
+			}
 			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
-				Name: nonEmptyArgs[i],
-				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:i+1], "/"),
+				Name: strings.Join(nonEmptyArgs[i:end], "/"),
+				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:end], "/"),
 			})
 		}
 	}
@@ -2003,6 +2061,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		readme   components.Component
 		subpaths []string
 	)
+	var readmeLen int
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
@@ -2027,7 +2086,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	g.Go(func() error {
 		// A missing or unrenderable README must not fail the whole overview;
 		// the error is intentionally dropped so the page degrades to no README.
-		readme, _ = h.renderReadme(gctx, gnourl, pkgPath, pr)
+		readme, _, readmeLen = h.renderReadme(gctx, gnourl, pkgPath, pr)
 		return nil
 	})
 	g.Go(func() error {
@@ -2064,7 +2123,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Subpaths:    subpaths,
 		Readme:      readme,
 		Domain:      h.Static.Domain,
-		DocRenderer: h.Renderer,
+		DocRenderer: newPageDocRenderer(h.Renderer, pkgPath, readmeLen),
 	}
 	in.DepsURL = h.ChainMap.DepsURL(pkgPath)
 	data := components.BuildOverview(in)

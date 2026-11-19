@@ -74,6 +74,9 @@ func (m *Machine) ParseExpr(code string) (expr Expr, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := checkCopies(x, len(code)); err != nil {
+		return nil, err
+	}
 
 	// recover from Go2Gno.
 	// NOTE: Go2Gno is best implemented with panics due to inlined toXYZ() calls.
@@ -108,6 +111,9 @@ func (m *Machine) ParseStmts(code string) (stmts []Stmt, err error) {
 	code = fmt.Sprintf("func(){%s}\n", code)
 	x, err := parser.ParseExprFrom2(fset, "<repl>", code, parser.SkipObjectResolution, newParserCallback(m))
 	if err != nil {
+		return nil, err
+	}
+	if err := checkCopies(x, len(code)); err != nil {
 		return nil, err
 	}
 	gostmts := x.(*ast.FuncLit).Body.List
@@ -306,6 +312,8 @@ func setSpanFromRightChild(fs *token.FileSet, gon ast.Node, n Node, rightChild N
 // directive (see exampleOutput); the *ast.File case supplies it from
 // gon.Comments. All other recursive calls thread it through (or pass nil)
 // without reading it.
+//
+// Callers must reject untrusted gon with checkCopies first; see maxCopiesPerByte.
 func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (n Node) {
 	if gon == nil {
 		return nil
@@ -878,8 +886,9 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 		to the textual substitution of the first preceding
 		non-empty expression list and its type if any.
 	*/
-	var lastValues Exprs // (see Go iota spec above)
-	var lastType Expr    // (see Go iota spec above)
+	var lastValues Exprs       // (see Go iota spec above)
+	var lastType Expr          // (see Go iota spec above)
+	var lastValueHasBlock bool // see the function literal check below
 	for si, s := range gd.Specs {
 		switch s := s.(type) {
 		case *ast.TypeSpec:
@@ -915,11 +924,29 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					// Does not work unless len(s.Names) == len(lastValues)
 					if len(s.Names) != len(lastValues) {
 						lastValues = nil
+						lastValueHasBlock = false
+					}
+					// A function literal is the only way to put block nodes,
+					// each several times larger than any expression node, into
+					// a constant expression, and checkCopies counts nodes, not
+					// bytes. go/types already rejects one in a const, so this
+					// only fires on the ParseExpr and ParseStmts paths.
+					if lastValueHasBlock {
+						panic("const declaration inheritance of a function literal is not supported; repeat the expression explicitly")
 					}
 					values = copyExprs(lastValues)
 				} else {
 					values = toExprs(fs, s.Values)
 					lastValues = values
+					lastValueHasBlock = false
+					for _, value := range values {
+						Transcribe(value, func(_ []Node, _ TransField, _ int, n Node, stage TransStage) (Node, TransCtrl) {
+							if _, ok := n.(BlockNode); ok && stage == TRANS_ENTER {
+								lastValueHasBlock = true
+							}
+							return n, TRANS_CONTINUE
+						})
+					}
 				}
 				cd := &ValueDecl{
 					NameExprs: names,
@@ -1018,6 +1045,91 @@ func toFields(fs *token.FileSet, fields ...*ast.Field) (ftxs []FieldTypeExpr) {
 		}
 	}
 	return
+}
+
+// maxCopiesPerByte bounds how many nodes Go2Gno may add per source byte by
+// copying a subtree: toFields gives every name in `a, b T` its own T, and
+// toDecls gives every bare const spec its own copy of the last type and values.
+// Copies nest and multiply. The bound scales with the source, so splitting it
+// across files or queries does not raise it.
+const maxCopiesPerByte = 1
+
+func checkCopies(n ast.Node, srcLen int) error {
+	limit := srcLen * maxCopiesPerByte
+	if _, added := copiedNodes(n, limit); added > limit {
+		// The keeper prints only a tm2 error's message, not a fmt.Errorf one.
+		return errors.New(fmt.Sprintf("declarations copy more than %d nodes for %d source bytes", limit, srcLen))
+	}
+	return nil
+}
+
+// copiedNodes returns the node count of n and how many nodes Go2Gno adds to it
+// by copying, with added capped just above limit. The go/ast holds a single
+// copy of each subtree, so the walk is linear.
+func copiedNodes(n ast.Node, limit int) (size, added int) {
+	ast.Inspect(n, func(c ast.Node) bool {
+		switch c := c.(type) {
+		case nil, *ast.CommentGroup:
+			return false
+		case *ast.Field:
+			typeSize, typeAdded := copiedNodes(c.Type, limit)
+			tag := 0
+			if c.Tag != nil {
+				tag = 1
+			}
+			// toFields emits a FieldTypeExpr, name, type and tag per name, and
+			// an empty name for an unnamed field.
+			fieldSize := 1 + len(c.Names) + typeSize + tag
+			converted := max(len(c.Names), 1) * (2 + typeSize + typeAdded + tag)
+			size += fieldSize
+			added = min(added+converted-fieldSize, limit+1)
+			return false
+		case *ast.GenDecl:
+			if c.Tok == token.CONST {
+				declSize, declAdded := constCopies(c, limit)
+				size += declSize
+				added = min(added+declAdded, limit+1)
+				return false
+			}
+		}
+		size++
+		return added <= limit
+	})
+	return size, added
+}
+
+// constCopies mirrors toDecls, which copies the last type and values into
+// every spec that omits both.
+func constCopies(d *ast.GenDecl, limit int) (size, added int) {
+	size = 1
+	var lastType, lastValues, lastLen int
+	for _, s := range d.Specs {
+		s := s.(*ast.ValueSpec)
+		size += 1 + len(s.Names)
+		if s.Type == nil && s.Values == nil {
+			added += lastType
+		} else {
+			typeSize, typeAdded := copiedNodes(s.Type, limit)
+			size += typeSize
+			added += typeAdded
+			lastType = typeSize + typeAdded
+		}
+		if s.Values != nil {
+			lastLen, lastValues = len(s.Values), 0
+			for _, v := range s.Values {
+				valueSize, valueAdded := copiedNodes(v, limit)
+				size += valueSize
+				added += valueAdded
+				lastValues += valueSize + valueAdded
+			}
+		} else if len(s.Names) == lastLen {
+			added += lastValues
+		} else {
+			lastLen = 0 // toDecls drops the values for good
+		}
+		added = min(added, limit+1)
+	}
+	return size, added
 }
 
 func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {

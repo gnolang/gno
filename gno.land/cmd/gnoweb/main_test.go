@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -88,6 +90,52 @@ func TestSetupWeb(t *testing.T) {
 	opts.trustedProxies = "10.0.0.0/8,not-an-ip"
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.ErrorContains(t, err, "not-an-ip")
+}
+
+// The server refuses a 64,000-byte URL, which inflated a realm page's
+// breadcrumb, but serves a 16 KiB one, twice the longest playground share link,
+// and reads a request body past gnoweb.MaxHeaderBytes.
+func TestSetupWeb_MaxHeaderBytes(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+	require.NoError(t, l.Close())
+
+	opts := defaultWebOptions
+	opts.bind = addr
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+	serve, err := setupWeb(&opts, nil, stdio)
+	require.NoError(t, err)
+	go func() { _ = serve() }() // runs until the test binary exits
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	get := func(urlLen int) int {
+		target := "/public/main.css?x="
+		target += strings.Repeat("a", urlLen-len(target))
+		resp, err := client.Get("http://" + addr + target)
+		require.NoError(t, err)
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	require.Eventually(t, func() bool {
+		resp, err := client.Get("http://" + addr + "/public/main.css")
+		if err == nil {
+			resp.Body.Close()
+		}
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond)
+
+	assert.Equal(t, http.StatusOK, get(16<<10))
+	assert.Equal(t, http.StatusRequestHeaderFieldsTooLarge, get(64_000))
+
+	body := "a=" + strings.Repeat("b", 32<<10)
+	resp, err := client.Post("http://"+addr+"/r/demo/foo", "application/x-www-form-urlencoded", strings.NewReader(body))
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 }
 
 // A realm notice text that renders to nothing must refuse to start, unless the

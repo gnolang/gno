@@ -423,7 +423,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		WriteTimeout:      cfg.timeout, // Time to write the entire response
 		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
 		ReadHeaderTimeout: time.Minute, // Time to read request headers
-		MaxHeaderBytes:    64 << 10,
+		MaxHeaderBytes:    gnoweb.MaxHeaderBytes,
 	}
 
 	return func() error {

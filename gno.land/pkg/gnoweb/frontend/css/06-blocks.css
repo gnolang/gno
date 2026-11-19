@@ -3520,7 +3520,15 @@ main.is-dev-mode .b-toc a {
 			}
 		}
 	}
+}
 
+/* Doc comments, source files and state fragments show the plain-text
+   fallback's alert too. */
+.c-realm-view,
+.c-readme-view,
+.c-doc-view,
+.b-source-code,
+.code {
 	/* ===== ALERT COMPONENT ===== */
 	.gno-alert {
 		border-left: var(--g-space-1) solid var(--s-color-border-tertiary);
