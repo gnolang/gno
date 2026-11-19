@@ -1,7 +1,7 @@
 // Package migrations runs the state migrations of coordinated upgrades: the
 // code registered under the version a halt proposal names in
 // halt_min_version runs once, in the block after the halt
-// (gno.land/adr/prxxxx_inplace_state_migration.md).
+// (gno.land/adr/pr6507_inplace_state_migration.md).
 package migrations
 
 import (
