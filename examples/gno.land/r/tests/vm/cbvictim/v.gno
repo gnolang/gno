@@ -2,6 +2,7 @@ package cbvictim
 
 import (
 	"gno.land/p/demo/tests/launderpkg/v0"
+	"gno.land/p/demo/tests/libtable/v0"
 	"gno.land/p/demo/tests/pfuncbind"
 )
 
@@ -116,3 +117,57 @@ func LibGateless() {
 	f := pfuncbind.Clobber
 	f(Lib)
 }
+
+// Values made at init: maker cbvictim. A gate below runs each one.
+var (
+	Table  = []func(string){SetOwner}
+	Map    = map[string]func(string){"a": SetOwner}
+	Arr    = [1]func(string){SetOwner}
+	Obj    = &S{F: SetOwner}
+	Nested = Pair{F: SetOwner}
+	H      = Hook(SetOwner)
+	MV     = Box.SetName
+	Kick   = func() { Owner = "kick" }
+)
+
+// Pair is an all-exported struct whose copies may leave the realm.
+type Pair = struct{ F func(string) }
+
+// Hook is a function type with a crossing method that calls its receiver.
+type Hook func(string)
+
+func (h Hook) Run(cur realm) { h("recv") }
+
+func RunAll(cur realm, fs []func(string)) {
+	for _, f := range fs {
+		f("table")
+	}
+}
+func RunMap(cur realm, m map[string]func(string)) { m["a"]("map") }
+func RunP(cur realm, p *func(string))             { (*p)("ptr") }
+func RunAny(cur realm, x any)                     { x.(*S).F("any") }
+func RunIface(cur realm, x any)                   { x.(func(string))("iface") }
+func RunArr(cur realm, a [1]func(string))         { a[0]("arr") }
+func RunNested(cur realm, p Pair)                 { p.F("nested") }
+func RunGet(cur realm, get func() func(string))   { get()("provider") }
+
+// RunOwnTable, RunOwnHelper and RunLibIterate run this realm's own values.
+func RunOwnTable(cur realm) {
+	for _, f := range Table {
+		f("own-table")
+	}
+}
+func RunOwnHelper(cur realm)         { apply(FV, "own-helper") }
+func apply(f func(string), s string) { f(s) }
+func RunLibIterate(cur realm)        { libtable.Run(Kick) }
+
+// SetLibHook keeps a library-coded value a caller hands in.
+var libHook func(*launderpkg.Immutable)
+
+func SetLibHook(cur realm, f func(*launderpkg.Immutable)) { libHook = f }
+
+// SetX is a crossing closure made at init; another realm may register it.
+var SetX = func(cur realm, s string) { Owner = s }
+
+// GetFV hands out FV from read-only code.
+func GetFV() func(string) { return FV }

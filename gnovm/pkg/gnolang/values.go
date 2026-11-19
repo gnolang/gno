@@ -1380,6 +1380,15 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		// Checked by type, so the verdict does not depend on what is loaded.
 		alloc.checkCopy(tv.T)
 		cp = tv
+		if alloc != nil && cv.ObjectID.PkgID.IsRealmPkg() {
+			cp = alloc.stripMaker(tv, alloc.stripHold())
+		}
+	case *FuncValue, *BoundMethodValue:
+		// A copy made by code not holding for the maker acts for no realm.
+		cp = tv
+		if alloc != nil {
+			cp = alloc.stripMaker(tv, alloc.stripHold())
+		}
 	default:
 		cp = tv
 	}
@@ -1393,6 +1402,14 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	case RefValue:
 		alloc.checkCopy(tv.T)
 		cp = tv // start from the header (T, N); V is replaced below
+		if tv.T != nil && tv.T.Kind() == FuncKind {
+			if alloc != nil {
+				fnprobeSite = "unrefCopy"
+				cp = alloc.stripMaker(tv, alloc.stripHold())
+				fnprobeSite = "copy"
+			}
+			return cp
+		}
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:

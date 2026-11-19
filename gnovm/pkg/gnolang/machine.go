@@ -200,6 +200,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
+	alloc.store = store
 	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
 		// per-tx preprocess allocator inherited from the store: it's
@@ -338,6 +339,7 @@ func (m *Machine) enterReadOnly(r *Realm) {
 }
 
 func (m *Machine) setRealm(r *Realm) {
+	fnprobeName(r)
 	m.Realm = r
 	m.viewOnly = false
 	m.viewRealm = nil
@@ -2986,7 +2988,16 @@ func (m *Machine) PopFrameAndReturn() {
 	}
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
+	hold, _ := m.Alloc.holdRealm()
 	m.restoreRealmState(&fr)
+	// Results handed to code with another hold are judged by the returning code.
+	if after, _ := m.Alloc.holdRealm(); after != hold {
+		fnprobeSite = "ret"
+		for i := range numRes {
+			m.Values[fr.NumValues+i] = m.Alloc.stripDeep(m.Values[fr.NumValues+i], hold)
+		}
+		fnprobeSite = "copy"
+	}
 	if m.Exception != nil {
 		// Inner defer exceptions replace the outer defer
 		// ones.  You can still reach the previous exceptions

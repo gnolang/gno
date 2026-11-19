@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_handle_initvar
 package zrealm_handle_initvar
 
-// KNOWN (Q11): a value made at init has the realm as maker; handed back to a
-// gate that runs callbacks, it writes. Own function and library variants.
+// A value made at init has the realm as maker; handed back by another realm to
+// a gate that runs callbacks, it has none and writes nothing (read-only).
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -13,6 +13,5 @@ func main(cur realm) {
 	println("lib:", cbvictim.Lib.Field)
 }
 
-// Output:
-// owner: picked
-// lib: pwnd-same-pkg
+// Error:
+// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): Owner<~VPBlock(3,0)>

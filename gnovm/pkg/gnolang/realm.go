@@ -2007,6 +2007,14 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	if oid.IsFinalized() {
 		panic("unexpected already-finalized object id")
 	}
+	if maker, ok := fnprobeMaker(oo); ok {
+		refused := func() (r bool) {
+			defer func() { r = recover() != nil }()
+			rlm.refuseFuncKeep(oo)
+			return
+		}()
+		fnprobeWrite(fmt.Sprintf("SAVE maker=%s into=%s would_refuse=%v", fnprobePath(nil, maker), rlm.Path, refused))
+	}
 	if oid.PkgID.IsZero() {
 		rlm.refuseFuncKeep(oo)
 		// Objects allocated outside any realm context (e.g. stdlib

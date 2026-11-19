@@ -50,6 +50,18 @@ type Frame struct {
 	TestOverridden bool // bool if overridden by test SetContext.
 }
 
+// callerHold is the hold realm (Allocator.holdRealm) of the code that pushed
+// call frame fr, as restoreRealmState would put it back.
+func (fr *Frame) callerHold() PkgID {
+	if fr.LastViewRealm != nil {
+		return fr.LastViewRealm.ID
+	}
+	if fr.LastRealm != nil {
+		return fr.LastRealm.ID
+	}
+	return fr.LastViewHold
+}
+
 func (fr Frame) String() string {
 	if fr.Func != nil {
 		return fmt.Sprintf("[FRAME FUNC:%v RECV:%s (%d args) %d/%d/%d/%d/%d LASTPKG:%s LASTRLM:%v WSW:%v DSW:%v ISDEFER:%v LASTEX:%v]",

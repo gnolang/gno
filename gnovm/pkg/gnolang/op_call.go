@@ -17,6 +17,7 @@ func (m *Machine) doOpPrecall() {
 	case *FuncValue:
 		m.incrCPU(OpCPUPrecallFunc)
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
+		m.fnprobeCall(fv)
 		m.PushOp(OpCall)
 		isCrossing := fv.IsCrossing()
 		if isCrossing {
@@ -39,6 +40,7 @@ func (m *Machine) doOpPrecall() {
 		// now, under the callee's realm (see getPointerToForCall).
 		uncopied := fv.IsLazy() || isDirectValMethodCall(cx)
 		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied)
+		m.fnprobeCall(fv)
 		if uncopied {
 			fr := m.LastFrame()
 			fr.Receiver = copyCallRecv(m.Alloc, fr.Receiver)
@@ -378,7 +380,7 @@ func (m *Machine) doOpCall() {
 	if !fr.Receiver.IsUndefined() {
 		bft = ft.BoundType()
 	}
-	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
@@ -786,6 +788,7 @@ func (m *Machine) doOpReturnCallDefers() {
 	bmv, bound := dfr.Callable.(*BoundMethodValue)
 	lazy := bound && bmv.IsLazy()
 	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy)
+	m.fnprobeCall(dfr.Callable)
 	if lazy { // copied under the callee's realm, as in doOpPrecall
 		recv = copyCallRecv(m.Alloc, recv)
 		m.LastFrame().Receiver = recv
@@ -855,7 +858,9 @@ func (m *Machine) doOpReturnCallDefers() {
 // Returns a slice of parameters with receiver (if any) and varg conversion.
 // For bound method calls the returned slice is 1 greater than len(ft.Params).
 // Constructed varg slice is allocated, but the result slice is not.
-func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue) []TypedValue {
+// hold: the realm handing the arguments over; function values it does not
+// hold for arrive with no maker.
+func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue, hold PkgID) []TypedValue {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0
@@ -863,9 +868,6 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 		isMethod = 1
 	}
 	args := make([]TypedValue, isMethod+numParams)
-	if isMethod == 1 {
-		args[0] = recv
-	}
 	// args is a Go local, and every PopCopyValues below writes fresh copies
 	// into it. Anchor it so a GC triggered by one argument's copy still
 	// counts the arguments already copied; otherwise f(a, a, ..., a) frees
@@ -873,7 +875,18 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 	// call block without allocating, so dropping the anchor on return is
 	// safe — GC only runs from Allocate. See Allocator.anchors.
 	m.Alloc.PushAnchor(args)
-	defer m.Alloc.PopAnchor()
+	lastOver, lastHold := m.Alloc.handOver, m.Alloc.handHold
+	m.Alloc.handOver, m.Alloc.handHold = true, hold
+	defer func() {
+		m.Alloc.handOver, m.Alloc.handHold = lastOver, lastHold
+		m.Alloc.PopAnchor()
+	}()
+	if isMethod == 1 {
+		fnprobeSite = "recv"
+		args[0] = m.Alloc.stripDeep(recv, hold)
+	}
+	fnprobeSite = "arg"
+	defer func() { fnprobeSite = "copy" }()
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -924,11 +937,13 @@ func (m *Machine) doOpDefer() {
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
+		hold, _ := m.Alloc.holdRealm()
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{},
+			hold,
 		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
@@ -936,11 +951,13 @@ func (m *Machine) doOpDefer() {
 		// statement. For a lazy interface bind, dispatch is resolved at the
 		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
 		// for a resolved bind, args[0] holds the copied receiver.
+		hold, _ := m.Alloc.holdRealm()
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			cv.Receiver,
+			hold,
 		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
@@ -998,4 +1015,18 @@ func (m *Machine) doOpPanic2() {
 		panic(m.makeUnhandledPanicError())
 	}
 	m.PushOp(OpReturnCallDefers)
+}
+
+// fnprobeCall logs a call of a value the probe marked (temporary).
+func (m *Machine) fnprobeCall(v Value) {
+	maker, ok := fnprobeMaker(v)
+	if !ok {
+		return
+	}
+	writable := !m.viewOnly && m.Realm != nil && m.Realm.ID == maker
+	pkg := ""
+	if m.Package != nil {
+		pkg = m.Package.PkgPath
+	}
+	fnprobeWrite(fmt.Sprintf("CALL maker=%s writable=%v code=%s", fnprobePath(m.Alloc, maker), writable, pkg))
 }
