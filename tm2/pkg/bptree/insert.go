@@ -91,7 +91,10 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 		leaf.valueHashes[pos] = valueHash
 		leaf.valueKeys[pos] = valueKey
 		leaf.numKeys++
-		leaf.RebuildMiniMerkle()
+		// Only the new slot needs hashing and only the ancestors of
+		// [pos, numKeys-1] need refolding; the RebuildMiniMerkle this
+		// replaces cost numKeys + B-1 hashes.
+		leaf.miniTree.insertSlot(pos, n, HashLeafSlotFromValueHash(storedKey, valueHash))
 		return insertResult{updated: false}
 	}
 
@@ -110,10 +113,21 @@ func leafInsert(leaf *LeafNode, key []byte, valueHash Hash, valueKey []byte) ins
 	allVK[pos] = valueKey
 	copy(allVK[pos+1:], leaf.valueKeys[pos:B])
 
+	// Carry the slot hashes across the split too: of the B+1 entries, B
+	// already have one and only the inserted entry needs hashing. This must
+	// finish before `*leaf = *left` below, which overwrites leaf.miniTree
+	// (srcSlots aliases it).
+	var allSlots [B + 1]Hash
+	srcSlots := leaf.miniTree.slots()
+	copy(allSlots[:pos], srcSlots[:pos])
+	allSlots[pos] = HashLeafSlotFromValueHash(storedKey, valueHash)
+	copy(allSlots[pos+1:], srcSlots[pos:B])
+
 	left, sr := splitLeaf(allKeys, allVH, allVK, pos)
 	*leaf = *left
-	leaf.RebuildMiniMerkle()
-	sr.right.(*LeafNode).RebuildMiniMerkle()
+	leaf.rebuildMiniMerkleFromSlots(allSlots[:])
+	right := sr.right.(*LeafNode)
+	right.rebuildMiniMerkleFromSlots(allSlots[int(leaf.numKeys):])
 	return insertResult{updated: false, split: &sr}
 }
 
@@ -172,7 +186,10 @@ func innerInsert(inner *InnerNode, key []byte, valueHash Hash, valueKey []byte) 
 		inner.childSizes[childIdx] = nodeSize(child)
 		inner.childSizes[childIdx+1] = nodeSize(sr.right)
 		inner.numKeys++
-		inner.RebuildMiniMerkle()
+		// Slots [0, childIdx) are untouched; [childIdx, numChildren-1] now
+		// hold the shifted childHashes plus the new right child.
+		nc := inner.NumChildren()
+		inner.miniTree.setSlots(childIdx, nc-1, inner.childHashes[childIdx:nc])
 		return insertResult{updated: res.updated, oldValueKey: res.oldValueKey}, nil
 	}
 

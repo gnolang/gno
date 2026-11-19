@@ -108,24 +108,21 @@ func (ndb *nodeDB) SaveNode(node Node) error {
 	}
 	nkBytes := nk.GetKey()
 
-	var buf bytes.Buffer
-	switch n := node.(type) {
-	case *InnerNode:
-		if err := n.Serialize(&buf); err != nil {
-			return fmt.Errorf("serializing inner node: %w", err)
-		}
+	// One allocation for the whole record: appendNodeRecord sizes the buffer
+	// exactly and leaves a checksum slot for sealChecksum to fill in place.
+	// The batch retains the slice, so it must be a fresh allocation (not a
+	// pooled buffer) — but it need not be built through a growing
+	// bytes.Buffer and then copied a second time by stampChecksum.
+	rec, err := appendNodeRecord(node)
+	if err != nil {
+		return fmt.Errorf("serializing node: %w", err)
+	}
+	if inner, isInner := node.(*InnerNode); isInner {
 		// Give in-memory-built inner nodes their ndb so they can lazy-load
 		// children after the working tree drops the in-memory child pointers.
-		n.ndb = ndb
-	case *LeafNode:
-		if err := n.Serialize(&buf); err != nil {
-			return fmt.Errorf("serializing leaf node: %w", err)
-		}
-	default:
-		return fmt.Errorf("unknown node type")
+		inner.ndb = ndb
 	}
-
-	if err := ndb.batch.Set(nodeDBKey(nkBytes), stampChecksum(buf.Bytes())); err != nil {
+	if err := ndb.batch.Set(nodeDBKey(nkBytes), sealChecksum(rec)); err != nil {
 		return err
 	}
 
@@ -628,4 +625,18 @@ func (ndb *nodeDB) DeleteNode(nkBytes []byte) error {
 		ndb.nodeCache.Remove(string(nkBytes))
 	}
 	return ndb.batch.Delete(nodeDBKey(nkBytes))
+}
+
+// DeleteNodeKey is DeleteNode for a caller holding the *NodeKey rather than
+// its serialized form. It builds the DB key in one allocation instead of two
+// (NodeKey.GetKey followed by nodeDBKey); pruning calls this once per deleted
+// node, which at B=32 is most of the batch.
+func (ndb *nodeDB) DeleteNodeKey(nk *NodeKey) error {
+	key := make([]byte, 1+NodeKeySize)
+	key[0] = PrefixNode
+	nk.putKey(key[1:])
+	if ndb.nodeCache != nil {
+		ndb.nodeCache.Remove(string(key[1:]))
+	}
+	return ndb.batch.Delete(key)
 }

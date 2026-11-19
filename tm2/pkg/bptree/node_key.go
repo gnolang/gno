@@ -13,9 +13,17 @@ type NodeKey struct {
 // GetKey serializes the NodeKey to a 12-byte slice (big-endian).
 func (nk *NodeKey) GetKey() []byte {
 	b := make([]byte, NodeKeySize)
+	nk.putKey(b)
+	return b
+}
+
+// putKey writes the serialized NodeKey into the first NodeKeySize bytes of b.
+// The single definition of the wire layout, for callers that already have a
+// buffer (a DB key with its prefix byte, say) and would otherwise pay an
+// allocation for GetKey.
+func (nk *NodeKey) putKey(b []byte) {
 	binary.BigEndian.PutUint64(b[:8], uint64(nk.Version))
 	binary.BigEndian.PutUint32(b[8:], nk.Nonce)
-	return b
 }
 
 // GetNodeKey deserializes a NodeKey from a 12-byte slice.

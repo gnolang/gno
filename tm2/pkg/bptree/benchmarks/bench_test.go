@@ -372,6 +372,28 @@ func BenchmarkHas(b *testing.B) {
 	}
 }
 
+// BenchmarkHasMiss is BenchmarkHas on keys that are NOT in the tree. It
+// prices the other side of the fast-index existence check: a hit answers in
+// one DB read, but a miss pays that read and then still walks the tree,
+// because the index is never authoritative for absence.
+func BenchmarkHasMiss(b *testing.B) {
+	sizes := []int{1_000, 10_000, 100_000}
+	absent := pregenKeys(pregenPool, keyLen)
+	for _, sz := range sizes {
+		for _, f := range factories {
+			name := fmt.Sprintf("%s/%dk", f.name, sz/1000)
+			bt := buildTree(b, f, sz)
+			b.Run(name, func(b *testing.B) {
+				b.ReportAllocs()
+				for i := 0; i < b.N; i++ {
+					bt.tree.Has(absent[i%pregenPool])
+				}
+			})
+			bt.cleanup()
+		}
+	}
+}
+
 func BenchmarkSetInsert(b *testing.B) {
 	sizes := []int{1_000, 10_000, 100_000}
 	for _, sz := range sizes {

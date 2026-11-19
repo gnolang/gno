@@ -11,7 +11,8 @@ import (
 // rejects empty values (the value-side twin of the empty-key constraint;
 // IAVL behaves identically). See TestProof_EmptyValueUnprovable.
 func (t *ImmutableTree) GetMembershipProof(key []byte) (*ics23.CommitmentProof, error) {
-	exist, err := t.createExistenceProof(key)
+	var mc leafMiniCache
+	exist, err := t.createExistenceProof(key, &mc)
 	if err != nil {
 		return nil, err
 	}
@@ -28,28 +29,30 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 		return nil, ErrEmptyTree
 	}
 
-	// Verify the key doesn't exist
-	has, err := t.Has(key)
+	// One descent answers both questions this needs: whether the key exists
+	// and, if not, where the gap is. Calling Has and then GetWithIndex walked
+	// the tree twice, resolved a value on the exists-path that is only ever
+	// used to reject, and — with the fast index on — paid an index probe that
+	// cannot save a descent this function performs anyway.
+	idx, _, _, found, err := treeGetWithIndex(t.root, key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetWithIndex: %w", err)
 	}
-	if has {
+	if found {
 		return nil, fmt.Errorf("key exists, cannot create non-membership proof")
 	}
 
 	nonexist := &ics23.NonExistenceProof{Key: key}
-
-	// Find the left neighbor (greatest key < key)
-	idx, _, err := t.GetWithIndex(key)
-	if err != nil {
-		return nil, fmt.Errorf("GetWithIndex: %w", err)
-	}
+	// Shared across both neighbour proofs: they are adjacent keys, so they
+	// usually sit in the SAME leaf, and folding its deferred mini merkle
+	// twice would cost another numKeys + B-1 hashes.
+	var mc leafMiniCache
 	if idx > 0 {
 		leftKey, _, err := t.GetByIndex(idx - 1)
 		if err != nil {
 			return nil, fmt.Errorf("left neighbor GetByIndex(%d): %w", idx-1, err)
 		}
-		nonexist.Left, err = t.createExistenceProof(leftKey)
+		nonexist.Left, err = t.createExistenceProof(leftKey, &mc)
 		if err != nil {
 			return nil, fmt.Errorf("left neighbor proof: %w", err)
 		}
@@ -61,7 +64,7 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (*ics23.CommitmentProo
 		if err != nil {
 			return nil, fmt.Errorf("right neighbor GetByIndex(%d): %w", idx, err)
 		}
-		nonexist.Right, err = t.createExistenceProof(rightKey)
+		nonexist.Right, err = t.createExistenceProof(rightKey, &mc)
 		if err != nil {
 			return nil, fmt.Errorf("right neighbor proof: %w", err)
 		}
@@ -98,10 +101,34 @@ func (t *ImmutableTree) VerifyNonMembership(proof *ics23.CommitmentProof, key []
 	return ics23.VerifyNonMembership(BptreeSpec, root, proof, key), nil
 }
 
+// leafMiniCache memoises the folded mini merkle of the last leaf a proof call
+// touched. A leaf from the shared node cache has a deferred mini merkle (see
+// node.go), so every proof has to fold one; this keeps a non-existence proof
+// over two adjacent keys from folding the same leaf twice.
+type leafMiniCache struct {
+	leaf *LeafNode
+	mini MiniMerkle
+}
+
+func (c *leafMiniCache) get(leaf *LeafNode) *MiniMerkle {
+	if leaf.miniBuilt {
+		// Already built, so point straight at it and copy nothing. Read-only,
+		// and a built leaf in the node cache is never mutated again (every
+		// mutating path clones first), so sharing it with a concurrent reader
+		// is safe.
+		return &leaf.miniTree
+	}
+	if c.leaf != leaf {
+		leaf.builtMiniMerkleInto(&c.mini)
+		c.leaf = leaf
+	}
+	return &c.mini
+}
+
 // createExistenceProof builds the ExistenceProof for a key that exists in the tree.
 // The value parameter must be the raw value (NOT the hash). ICS23's LeafOp
 // applies PrehashValue=SHA256 to get the value hash during verification.
-func (t *ImmutableTree) createExistenceProof(key []byte) (*ics23.ExistenceProof, error) {
+func (t *ImmutableTree) createExistenceProof(key []byte, mc *leafMiniCache) (*ics23.ExistenceProof, error) {
 	if t.root == nil {
 		return nil, ErrEmptyTree
 	}
@@ -129,7 +156,10 @@ func (t *ImmutableTree) createExistenceProof(key []byte) (*ics23.ExistenceProof,
 
 	// 1. Mini merkle ops within the leaf node
 	leaf := path[len(path)-1].node.(*LeafNode)
-	leafOps := miniMerkleInnerOps(&leaf.miniTree, leafSlotIdx)
+	// Through mc, not leaf.miniTree: a leaf from the shared node cache has a
+	// deferred (unbuilt) mini merkle, and building it in place would mutate a
+	// node concurrent readers also hold. See node.go.
+	leafOps := miniMerkleInnerOps(mc.get(leaf), leafSlotIdx)
 	innerOps = append(innerOps, leafOps...)
 
 	// 2. Mini merkle ops for each inner node, from leaf's parent to root

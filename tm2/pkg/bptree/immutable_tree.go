@@ -50,6 +50,14 @@ func (t *ImmutableTree) SetValueResolver(resolver ValueResolver) {
 	t.valueResolver = resolver
 }
 
+// fastReadable reports whether this snapshot may consult the committed fast
+// index: the snapshot is DB-backed and was built with the stamp covering its
+// version (see MutableTree.getImmutable). The MutableTree twin is
+// MutableTree.fastReadable, which gates on a clean working session instead.
+func (t *ImmutableTree) fastReadable() bool {
+	return t.fast && t.ndb != nil
+}
+
 // resolveValue resolves a valueKey to raw bytes if a resolver is set.
 func (t *ImmutableTree) resolveValue(vk []byte) ([]byte, error) {
 	if t.valueResolver != nil {
@@ -68,7 +76,7 @@ func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
 	// snapshot. A miss, a too-new entry, or a corrupt entry falls through to the
 	// authoritative tree walk; the index is never the source of truth for
 	// absence. See fast_index.go.
-	if t.fast && t.ndb != nil {
+	if t.fastReadable() {
 		if val, ok := t.ndb.fastGet(key, t.version); ok {
 			return val, nil
 		}
@@ -87,6 +95,11 @@ func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
 func (t *ImmutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
+	}
+	// Advisory fast path, same trust rules as Get (see fast_index.go): an
+	// index hit answers in 1 read; a miss falls through to the walk.
+	if t.fastReadable() && t.ndb.fastHas(key, t.version) {
+		return true, nil
 	}
 	return treeHas(t.root, key)
 }
