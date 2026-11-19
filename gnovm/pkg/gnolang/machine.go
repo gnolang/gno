@@ -40,7 +40,8 @@ type Machine struct {
 	viewRealm *Realm        // realm whose code runs read-only (constructs its objects)
 	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
-		realm   *Realm
+		root    string
+		test    bool
 		foreign bool
 	}
 	Alloc         *Allocator // memory allocations
@@ -50,6 +51,7 @@ type Machine struct {
 	GCCycle       int64      // number of "gc" cycles
 	Stage         Stage      // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool       // true if revive() enabled (only in testing mode for now)
+	TestMode      bool       // true under the test runner; enables test-file import trust
 	Lastline      int        // the line the VM is currently executing
 
 	Debugger Debugger
@@ -102,6 +104,7 @@ type MachineOptions struct {
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
+	TestMode      bool // true under the test runner (gno test); never set on chain
 	SkipPackage   bool // don't get/set package or realm.
 	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
 	// the bounded printer (see bounded_strings.go) so adversarial
@@ -217,6 +220,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.TestMode = opts.TestMode
 	mm.BoundedPanicRender = opts.BoundedPanicRender
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
@@ -2841,21 +2845,70 @@ func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bind
 	return bindPID != m.Realm.ID
 }
 
-// foreignLib reports whether fv is a /p/ function outside the current realm's
-// imports, direct or not. /r/ and /e/ functions never reach here; stdlib and
-// uverse paths have no dot in their first segment or are .uverse.
+// foreignLib reports whether fv is outside the current realm's import tree;
+// .uverse is exempt. Such code reached through an interface or a method value
+// runs view-only. The root is the current realm, never a frame.
 func (m *Machine) foreignLib(fv *FuncValue) bool {
-	if m.libMemo.fv == fv && m.libMemo.realm == m.Realm {
+	root, test := m.trustRoot()
+	if m.libMemo.fv == fv && m.libMemo.root == root && m.libMemo.test == test {
 		return m.libMemo.foreign
 	}
-	first, _, _ := strings.Cut(fv.PkgPath, "/")
-	foreign := fv.PkgPath != uversePkgPath && strings.Contains(first, ".")
+	foreign := fv.PkgPath != uversePkgPath
 	if foreign {
-		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(m.Realm.Path)).(*PackageNode)
-		foreign = !ok || !pn.importClosure(m.Store)[fv.PkgPath]
+		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(root)).(*PackageNode)
+		if !ok {
+			foreign = true
+		} else if test {
+			foreign = !pn.testImportClosure(m.Store)[fv.PkgPath]
+		} else {
+			foreign = !pn.importClosure(m.Store)[fv.PkgPath]
+		}
 	}
-	m.libMemo.fv, m.libMemo.realm, m.libMemo.foreign = fv, m.Realm, foreign
+	m.libMemo.fv, m.libMemo.root, m.libMemo.test, m.libMemo.foreign = fv, root, test, foreign
 	return foreign
+}
+
+// trustRoot returns the realm whose import tree foreignLib consults and
+// whether the call runs on behalf of a test file. The root is the current
+// realm; only its own frames answer the test flag.
+func (m *Machine) trustRoot() (string, bool) {
+	root := ""
+	if m.Realm != nil {
+		root = m.Realm.Path
+	}
+	// _test.gno files only run under the test runner, so on chain the test
+	// flag is false and no frame is visited.
+	if !m.TestMode {
+		return root, false
+	}
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		// Only the root realm's frames answer: another realm's test file
+		// below a crossing call must not widen the root's trust.
+		if fr.Func == nil || fr.Func.PkgPath != root {
+			continue
+		}
+		if fname := m.funcFile(fr.Func); fname != "" {
+			return root, IsTestFile(fname)
+		}
+	}
+	return root, false
+}
+
+// funcFile reports the file fv was declared in. A closure carries no
+// FileName, so it answers from the location of its FuncLit.
+func (m *Machine) funcFile(fv *FuncValue) string {
+	if fv.FileName != "" {
+		return fv.FileName
+	}
+	if !fv.IsClosure || fv.Source == nil {
+		return ""
+	}
+	src := fv.GetSource(m.Store)
+	if src == nil {
+		return ""
+	}
+	return src.GetLocation().File
 }
 
 // calledBy reports whether every frame from the call on top of the stack

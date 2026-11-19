@@ -1,0 +1,3 @@
+module = "gno.land/r/tests/vm/impvictim/control"
+
+gno = "0.9"

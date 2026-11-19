@@ -1337,32 +1337,58 @@ type PackageNode struct {
 	pkgID PkgID
 	// importTree caches importClosure (*map[string]bool). Not serialized.
 	importTree unsafe.Pointer
+	// importTreeTest caches testImportClosure (*map[string]bool).
+	importTreeTest unsafe.Pointer
 }
 
-// importClosure returns every non-stdlib package pn imports, directly or
-// through another import. Stored packages never change, so the cache holds.
+// importClosure returns every package pn imports, directly or through another
+// import, standard library included. Stored packages never change, so the
+// cache holds.
 func (pn *PackageNode) importClosure(store Store) map[string]bool {
-	if c := (*map[string]bool)(atomic.LoadPointer(&pn.importTree)); c != nil {
+	return pn.importsOf(store, false)
+}
+
+// testImportClosure is importClosure plus the packages pn's own test files
+// import; a call made from a test file trusts only that much extra.
+func (pn *PackageNode) testImportClosure(store Store) map[string]bool {
+	return pn.importsOf(store, true)
+}
+
+func (pn *PackageNode) importsOf(store Store, withTests bool) map[string]bool {
+	cache := &pn.importTree
+	if withTests {
+		cache = &pn.importTreeTest
+	}
+	if c := (*map[string]bool)(atomic.LoadPointer(cache)); c != nil {
 		return *c
 	}
 	c := map[string]bool{}
-	var walk func(*PackageNode)
-	walk = func(p *PackageNode) {
+	var walk func(*PackageNode, bool)
+	walk = func(p *PackageNode, root bool) {
+		if strings.HasSuffix(p.PkgPath, "_test") &&
+			IsRealmPath(strings.TrimSuffix(p.PkgPath, "_test")) {
+			return // a realm's integration test package is not production code
+		}
+		realm := IsRealmPath(p.PkgPath)
+		tests := root && withTests
 		for _, fn := range p.Files {
+			if realm && IsTestFile(fn.FileName) && !tests {
+				continue // test-only imports are not trusted on chain
+			}
 			for _, d := range fn.Decls {
 				id, ok := d.(*ImportDecl)
-				if !ok || c[id.PkgPath] || IsStdlib(id.PkgPath) {
+				if !ok || c[id.PkgPath] {
 					continue
 				}
 				c[id.PkgPath] = true
 				if q, ok := store.GetBlockNodeSafe(PackageNodeLocation(id.PkgPath)).(*PackageNode); ok {
-					walk(q)
+					walk(q, false)
 				}
 			}
 		}
 	}
-	walk(pn)
-	atomic.StorePointer(&pn.importTree, unsafe.Pointer(&c))
+	walk(pn, true)
+	atomic.StorePointer(cache, unsafe.Pointer(&c))
 	return c
 }
 

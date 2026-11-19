@@ -166,6 +166,7 @@ func StoreWithOptions(
 					Store:         store,
 					Context:       ctx,
 					ReviveEnabled: true,
+					TestMode:      true,
 					SkipPackage:   true,
 				})
 				return _processMemPackage(m2, mpkg, true)
@@ -217,6 +218,7 @@ func StoreWithOptions(
 				Store:         store,
 				Context:       ctx,
 				ReviveEnabled: true,
+				TestMode:      true,
 				SkipPackage:   true,
 			})
 			return _processMemPackage(m2, mpkg, true)
@@ -307,6 +309,7 @@ func loadStdlib(
 		Output:        stdout,
 		Store:         store,
 		ReviveEnabled: true,
+		TestMode:      true,
 		SkipPackage:   true, // will PreprocessFiles() or RunMemPackage() after.
 	})
 	if preprocessOnly {
