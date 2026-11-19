@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"runtime"
 	"sort"
@@ -1386,10 +1387,10 @@ func Test_loadStdlibPackage(t *testing.T) {
 
 	gs := gnolang.NewStore(nil, cs, cs)
 	assert.PanicsWithError(t, `failed loading stdlib "notfound": does not exist`, func() {
-		loadStdlibPackage("notfound", "./testdata", gs)
+		loadStdlibPackage("notfound", os.DirFS("testdata"), gs)
 	})
 	assert.PanicsWithError(t, `failed loading stdlib "emptystdlib": package has no files`, func() {
-		loadStdlibPackage("emptystdlib", "./testdata", gs)
+		loadStdlibPackage("emptystdlib", os.DirFS("testdata"), gs)
 	})
 }
 

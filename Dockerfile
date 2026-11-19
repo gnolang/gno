@@ -23,7 +23,7 @@ ARG         TARGETPLATFORM
 # Gnoland
 RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
-            go build -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
+            go build -trimpath -ldflags "-w -s -X github.com/gnolang/gno/tm2/pkg/version.Version=$(cat /gnoroot/build_version)" -o ./build/gnoland ./gno.land/cmd/gnoland
 # Gnokey
 RUN         --mount=type=cache,target=/go/pkg/mod,id=gomodcache \
             --mount=type=cache,target=/root/.cache/go-build,id=gobuildcache-${TARGETPLATFORM} \
@@ -126,9 +126,9 @@ RUN         apk add --no-cache ca-certificates
 ## ghcr.io/gnolang/gno/gnoland
 FROM        base AS gnoland
 COPY        --from=build-gnocore /gnoroot/build/gnoland                         /usr/bin/gnoland
+# The stdlibs are embedded in gnoland. examples/ and the genesis files stay
+# for `gnoland start -lazy`, which derives a genesis from them (GNOROOT).
 COPY        --from=build-gnocore /gnoroot/examples                              /gnoroot/examples
-COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                         /gnoroot/gnovm/stdlibs
-COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE      26656 26657

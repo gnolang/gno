@@ -33,7 +33,8 @@ var muGnoRoot sync.Mutex
 // 1. First, It tries to obtain it from the `GNOROOT` environment variable.
 // 2. If the env variable isn't set, It checks if `_GNOROOT` has been previously determined or set with -ldflags.
 // 3. If not, it uses the `go list` command to infer from go.mod.
-// 4. As a last resort, it determines `GNOROOT` based on the caller stack's file path.
+// 4. As a last resort, it determines `GNOROOT` based on the caller stack's file path,
+// if that directory still holds a Gno tree.
 func GuessRootDir() (string, error) {
 	muGnoRoot.Lock()
 	defer muGnoRoot.Unlock()
@@ -67,13 +68,21 @@ func guessRootDir() (string, error) {
 			// Deduce Gno root directory relative from the current file's path.
 			// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoenv.go
 			rootdir, err := filepath.Abs(filepath.Join(currentDir, "..", "..", ".."))
-			if err == nil {
+			if err == nil && isGnoRoot(rootdir) {
 				return rootdir, nil
 			}
 		}
 	}
 
 	return "", ErrUnableToGuessGnoRoot
+}
+
+// isGnoRoot reports whether dir holds a Gno tree. The path a binary was
+// compiled at is the module cache for `go install`, which holds one, but does
+// not exist on another machine, where it must not be returned.
+func isGnoRoot(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, "gnovm", "stdlibs"))
+	return err == nil && fi.IsDir()
 }
 
 func inferRootFromGoMod() (string, error) {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -62,7 +62,6 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 		EventSwitch: events.NewEventSwitch(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
 		SkipGenesisSigVerification: true,
@@ -342,7 +341,6 @@ func NewApp(
 		EventSwitch: evsw,
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
@@ -387,8 +385,6 @@ type InitChainerConfig struct {
 	// Handles the results of each genesis transaction.
 	GenesisTxResultHandler
 
-	// Standard library directory.
-	StdlibDir string
 	// Whether to keep a record of the DB operations to load standard libraries,
 	// so they can be quickly replicated on additional genesis executions.
 	// This should be used for integration testing, where InitChainer will be
@@ -561,10 +557,11 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 
 	stdlibCtx := cfg.vmk.MakeGnoTransactionStore(ctx)
 	stdlibCtx = stdlibCtx.WithMultiStore(msCache)
+	// The embedded sources, the ones the native bindings were built from.
 	if cfg.CacheStdlibLoad {
-		cfg.vmk.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
+		cfg.vmk.LoadStdlibCached(stdlibCtx, gnovm.Stdlibs())
 	} else {
-		cfg.vmk.LoadStdlib(stdlibCtx, cfg.StdlibDir)
+		cfg.vmk.LoadStdlib(stdlibCtx, gnovm.Stdlibs())
 	}
 	cfg.vmk.CommitGnoTransactionStore(stdlibCtx)
 

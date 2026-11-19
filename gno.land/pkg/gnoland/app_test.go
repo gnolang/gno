@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -467,7 +469,6 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 
 	type gsContextType string
 	const (
-		stdlibDir                   = "test-stdlib-dir"
 		gnoStoreKey   gsContextType = "gno-store-key"
 		gnoStoreValue gsContextType = "gno-store-value"
 	)
@@ -492,9 +493,9 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 		return ctx.Context().Value(gnoStoreKey) == gnoStoreValue
 	}
 	// ptr is pointer to either loadStdlibCalls or loadStdlibCachedCalls
-	loadStdlib := func(ptr *int) func(ctx sdk.Context, dir string) {
-		return func(ctx sdk.Context, dir string) {
-			assert.Equal(t, stdlibDir, dir, "stdlibDir should match provided dir")
+	loadStdlib := func(ptr *int) func(ctx sdk.Context, fsys fs.FS) {
+		return func(ctx sdk.Context, fsys fs.FS) {
+			assert.Equal(t, gnovm.Stdlibs(), fsys, "should load the embedded stdlibs")
 			assert.True(t, containsGnoStore(ctx), "should contain gno store")
 			*ptr++
 		}
@@ -515,7 +516,6 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 
 	// call initchainer
 	cfg := InitChainerConfig{
-		StdlibDir:       stdlibDir,
 		vmk:             mock,
 		acck:            &mockAuthKeeper{},
 		bankk:           &mockBankKeeper{},
