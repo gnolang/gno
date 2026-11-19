@@ -71,7 +71,10 @@ CheckExecute runs the same VM paths as DeliverTx, including while block sync
 holds commits in memory (`pr6334_deferred_block_sync_writes.md`). Nothing on
 those paths iterates the database today; one that did would only refuse that
 tx at admission, since a refused iterator during `CheckTx` fails the tx and
-not the block.
+not the block. `rpc.allow_code_execution = false` (#6413) refuses queries only,
+so it does not stop this: a node that opts in runs each 0-fee tx's messages
+when it first checks the tx, up to the credit window, admitted or not, whether
+the tx arrives over RPC or by gossip.
 
 ### 4. "PayGas was called" is enforced in `runTx`, all modes
 

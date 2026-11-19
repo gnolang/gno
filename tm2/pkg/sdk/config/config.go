@@ -36,7 +36,10 @@ type AppConfig struct {
 	// AllowZeroFeeTxs opts this validator into accepting 0-fee transactions when
 	// realms sponsor gas via PayGas. It is a per-validator mempool admission
 	// policy (like MinGasPrices) and takes effect only when the chain's
-	// Block.MaxGasCreditPerTx consensus param is > 0. Off by default.
+	// Block.MaxGasCreditPerTx consensus param is > 0. Off by default. Checking
+	// a 0-fee tx for admission runs its messages, up to the credit window,
+	// admitted or not, whatever rpc.allow_code_execution says: that setting
+	// refuses queries only.
 	AllowZeroFeeTxs bool `json:"allow_zero_fee_txs" toml:"allow_zero_fee_txs" comment:"Accept 0-fee transactions when realms sponsor gas via PayGas (requires the MaxGasCreditPerTx consensus param > 0)"`
 }
 
