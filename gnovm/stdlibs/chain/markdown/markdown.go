@@ -295,10 +295,12 @@ func inBitmap(c byte, lo, hi uint64) bool {
 
 // ---------- CodeFence ----------
 
+// maxCodeFenceMinCount bounds the fence minCount alone can ask for: the fence
+// is built in Go before gas or the VM allocation limit sees its length.
+const maxCodeFenceMinCount = 1024
+
 func CodeFence(content string, minCount int) string {
-	if minCount < 1 {
-		minCount = 1
-	}
+	minCount = min(max(minCount, 1), maxCodeFenceMinCount)
 	longest, cur := 0, 0
 	for i := 0; i < len(content); i++ {
 		if content[i] == '`' {
@@ -1184,6 +1186,27 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 	return 0, false
 }
 
+// skipSpace returns the index past the spaces, tabs and up to maxNL newlines
+// (any number when negative) from s[i], each byte costing one budget step so
+// no run is walked for free; ok is false once the budget runs out.
+func skipSpace(s string, i, maxNL int, budget *int) (int, bool) {
+	for ; i < len(s); i++ {
+		if s[i] == '\n' {
+			if maxNL == 0 {
+				break
+			}
+			maxNL--
+		} else if s[i] != ' ' && s[i] != '\t' {
+			break
+		}
+		if *budget <= 0 {
+			return i, false
+		}
+		*budget--
+	}
+	return i, true
+}
+
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
 // Returns the span end and destination bounds on success.
 // Shares the pass-1 scan budget with scanLinkText so a caller can't
@@ -1191,14 +1214,8 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 // EOF on every `[`, O(n²)).
 func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bool) {
 	// Consume optional leading whitespace
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
+	if i, ok = skipSpace(s, i, 1, budget); !ok {
+		return 0, 0, 0, false
 	}
 	// URL body — angle-bracket form or plain
 	if i < len(s) && s[i] == '<' {
@@ -1256,12 +1273,17 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 		}
 		urlEnd = i
 	}
-	// Skip whitespace before title or close
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
-		if s[i] == '\n' && i+1 < len(s) && s[i+1] == '\n' {
+	// Skip whitespace before title or close; two consecutive newlines here fail the scan.
+	for {
+		if i, ok = skipSpace(s, i, 1, budget); !ok {
 			return 0, 0, 0, false
 		}
-		i++
+		if i == len(s) || s[i] != '\n' {
+			break
+		}
+		if s[i-1] == '\n' {
+			return 0, 0, 0, false
+		}
 	}
 	// Optional title
 	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
@@ -1290,8 +1312,8 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 			i++
 		}
 		// Whitespace before close
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
-			i++
+		if i, ok = skipSpace(s, i, -1, budget); !ok {
+			return 0, 0, 0, false
 		}
 	}
 	if i < len(s) && s[i] == ')' {
@@ -1317,14 +1339,9 @@ func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 	i++
 	// Need ≥1 space or tab, OR a newline (LRD URL can be on the next line)
 	wsStart := i
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
+	i, ok := skipSpace(s, i, 1, budget)
+	if !ok {
+		return 0, false
 	}
 	if i == wsStart {
 		// `:` not followed by whitespace at all — not a valid LRD
@@ -1377,18 +1394,9 @@ func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 	end := i
 	// Optional title: same line OR next line
 	titleStart := i
-	// Skip whitespace (incl. one newline)
-	sawNL := false
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		sawNL = true
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
-	}
+	// Skip whitespace (incl. one newline). Out of budget, i stops on whitespace
+	// and the title is dropped, as when the title scan below runs out.
+	i, _ = skipSpace(s, i, 1, budget)
 	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
 		closeQ := s[i]
 		if closeQ == '(' {
@@ -1426,13 +1434,11 @@ func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 			// Title not closed cleanly — drop it from the span, keep URL
 			i = titleStart
 			end = titleStart
-			_ = sawNL
 		}
 	}
-	// Consume trailing newline so the next line starts fresh
-	for end < len(s) && (s[end] == ' ' || s[end] == '\t') {
-		end++
-	}
+	// Consume trailing newline so the next line starts fresh. Out of budget,
+	// the span ends on the whitespace where the skip stopped.
+	end, _ = skipSpace(s, end, 0, budget)
 	if end < len(s) && s[end] == '\n' {
 		end++
 	}

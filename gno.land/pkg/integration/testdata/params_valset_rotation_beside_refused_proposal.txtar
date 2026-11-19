@@ -1,0 +1,174 @@
+# A valset:proposed write that tm2 would refuse fails its own tx, so a
+# key rotation in the same block is not dropped with it.
+#
+# opA (key K1) sits at power 1; proposal 2 adds opB at MaxTotalVotingPower,
+# which the genesis validator's power 10 pushes over the total cap.
+#
+# Verifies that:
+#   - One tx rotating opA to K2 and then executing proposal 2 fails whole,
+#     so valopers and valset:current both keep K1.
+#   - The rotation alone then lands: valset:current holds K2, not K1.
+#   - GovDAO can still remove opA afterwards.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+adduserfrom opb 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast'
+stdout 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v0
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+
+gnoland start
+
+# proposal 0: rotation throttle off
+gnokey maketx run -gas-fee 4000001ugnot -gas-wanted 40_000_000 -broadcast -chainid=tendermint_test member $WORK/run/disable_throttle.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 22_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# proposal 1: opA (member, key K1) at power 1
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opA -args 'operator A profile' -args cloud -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_a.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+# proposal 2: opB at MaxTotalVotingPower, voted but not yet executed
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args opB -args 'operator B profile' -args cloud -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqqpjjc4fkcmrkvvkgp56xfeee0t8cmy783qwkadnjsdvp0gsdgqal0uugj -broadcast -chainid=tendermint_test opb
+stdout OK!
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/add_b.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 2 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# One tx: rotate opA K1 -> K2, then execute proposal 2.
+! gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 90_000_000 -broadcast -simulate skip -chainid=tendermint_test member $WORK/run/bundle.gno
+stderr 'valset:proposed would fail consensus apply'
+stdout 'HEIGHT:     [1-9]'
+
+gnokey query vm/qeval --data 'gno.land/r/gnops/valopers.GetByAddr(address(`g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0`)).SigningPubKey'
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny:1'
+
+# The rotation alone lands.
+gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func UpdateSigningKey -gas-fee 6000001ugnot -gas-wanted 60_000_000 -args g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -args gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey query params/node:valset:current
+stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr:1'
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny'
+
+# proposal 3: GovDAO removes opA
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/remove_a.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 3 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 50_000_000 -args 3 -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey query params/node:valset:current
+! stdout 'gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr'
+
+gnokey maketx send -gas-fee 1000000ugnot -gas-wanted 2_000_000 -send 1ugnot -to g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+-- run/disable_throttle.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	sysparams "gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	pr := sysparams.NewSysParamInt64PropRequest(cross(cur), "node", "valoper", "rotation_period_blocks", 0)
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/add_a.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v0 "gno.land/r/sys/validators/v0"
+)
+
+func main(cur realm) {
+	pr := v0.NewValidatorProposalRequest(cross(cur),
+		[]v0.ValoperChange{v0.NewValoperChange(address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), 1)},
+		"Add opA", "")
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/add_b.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v0 "gno.land/r/sys/validators/v0"
+)
+
+func main(cur realm) {
+	pr := v0.NewValidatorProposalRequest(cross(cur),
+		[]v0.ValoperChange{v0.NewValoperChange(address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), 1152921504606846975)},
+		"Add opB at MaxTotalVotingPower", "")
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- run/bundle.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers"
+	"gno.land/r/gov/dao"
+)
+
+func main(cur realm) {
+	valopers.UpdateSigningKey(cross(cur), address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr")
+	dao.ExecuteProposal(cross(cur), dao.ProposalID(2))
+}
+
+-- run/remove_a.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	v0 "gno.land/r/sys/validators/v0"
+)
+
+func main(cur realm) {
+	pr := v0.NewValidatorProposalRequest(cross(cur),
+		[]v0.ValoperChange{v0.NewValoperChange(address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), 0)},
+		"Remove opA", "")
+	dao.MustCreateProposal(cross(cur), pr)
+}
+
+-- loader/load_govdao.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}

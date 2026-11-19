@@ -486,3 +486,72 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 		})
 	}
 }
+
+// TestScanLinkURLChargesWhitespace checks that every whitespace run in a
+// link's `(…)` costs scan budget, so a scan one unit short fails.
+func TestScanLinkURLChargesWhitespace(t *testing.T) {
+	cases := []struct {
+		in     string
+		budget int
+		wantOK bool
+	}{
+		{"  u)", 4, true},
+		{"  u)", 3, false},
+		{"\nu)", 3, true},
+		{"\nu)", 2, false},
+		{"\tu)", 3, true},
+		{"\tu)", 2, false},
+		{"\n\nu)", 100, false},
+		{"u \n )", 5, true},
+		{"u \n )", 4, false},
+		{"u\n\n)", 100, false},
+		{"u  )", 4, true},
+		{"u  )", 3, false},
+		{`u "t" )`, 6, true},
+		{`u "t" )`, 5, false},
+		{"u \"t\"\n\n)", 100, true},
+	}
+	for _, c := range cases {
+		budget := c.budget
+		_, _, _, ok := scanLinkURL(c.in, 0, &budget)
+		if ok != c.wantOK {
+			t.Errorf("scanLinkURL(%q) with budget %d: ok = %v, want %v", c.in, c.budget, ok, c.wantOK)
+		}
+	}
+}
+
+// TestScanLRDTailChargesWhitespace checks that every whitespace run in a
+// definition's tail costs scan budget: one unit short, a definition fails
+// or its span ends early.
+func TestScanLRDTailChargesWhitespace(t *testing.T) {
+	cases := []struct {
+		in      string
+		budget  int
+		wantEnd int
+		wantOK  bool
+	}{
+		{":  u\n", 4, 5, true},
+		{":  u\n", 3, 0, false},
+		{":  u  \n", 9, 7, true},
+		{":  u  \n", 8, 5, true},
+		{": u\n\n\"t\"\n", 100, 4, true},
+	}
+	for _, c := range cases {
+		budget := c.budget
+		interruptAt := -1
+		end, ok := scanLRDTail(c.in, 0, &budget, &interruptAt)
+		if end != c.wantEnd || ok != c.wantOK {
+			t.Errorf("scanLRDTail(%q) with budget %d: (%d, %v), want (%d, %v)", c.in, c.budget, end, ok, c.wantEnd, c.wantOK)
+		}
+	}
+}
+
+// TestLinkWhitespaceRunCharged checks the walk of a space run behind many
+// failed link openers is charged: the scan runs out of budget, so a link
+// after it is escaped rather than kept.
+func TestLinkWhitespaceRunCharged(t *testing.T) {
+	in := strings.Repeat("[a](", 632) + strings.Repeat(" ", 100_000) + "!\n[t](u)"
+	if got := EscapeBlockHazards(in); !strings.HasSuffix(got, `\[t\](u)`) {
+		t.Errorf("trailing link kept: %q", got[len(got)-12:])
+	}
+}
