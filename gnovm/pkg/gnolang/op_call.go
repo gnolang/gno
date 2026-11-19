@@ -1109,6 +1109,9 @@ func (m *Machine) doOpDefer() {
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
 		m.PopValues(numArgs)
 	default:
+		// Returns before the pop below, so discard the func value and its
+		// arguments here.
+		m.PopValues(numArgs + 1)
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
