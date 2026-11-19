@@ -207,3 +207,7 @@ func RegVia(cur realm, put func(cur realm, f func(string)), get func(cur realm) 
 	f := get(cross(cur))
 	f("registry")
 }
+
+// RelayFrom is non-crossing: it hands one function of a caller-supplied
+// slice to this realm's own crossing function.
+func RelayFrom(fs []func(string), rlm realm) { RunS(cross(rlm), fs[0]) }
