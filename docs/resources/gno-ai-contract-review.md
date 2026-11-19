@@ -60,6 +60,11 @@ func ApplyHook(fn func()) { fn() }
 func ApplyHook(fn func(*MyState)) { fn(gState) }
 ```
 
+A callback supplied by another realm arrives with no maker. If the callback
+must write its own realm, it is a crossing function the other realm calls with
+`cross`; a registry of crossing functions stores `func(cur realm, ...)` values,
+not plain functions.
+
 ### 5. Interface parameters need canonical-type assertion
 
 ```go
@@ -248,6 +253,10 @@ Two cases where the swap is **wrong**, both found by making it:
 - [ ] No exported function returns a `/p/`-type pointer whose type has mutation methods
 - [ ] No exported `/p/`-struct field is itself a pointer to a type with mutation methods
 - [ ] No method accepts a `func(...)` callback with a `/p/`-typed parameter and invokes it
+- [ ] Errors returned to other realms are pointer errors (`*MyError`), never struct values
+- [ ] A closure or function value I hand out carries no write power for another realm; writers are crossing functions or crossing closures
+- [ ] A method value of a `/p/` type bound on my object writes nothing when another realm calls it (see [the six rules (R6)](./gno-interrealm.md)); my crossing function performs the write
+- [ ] A registry of crossing functions stores `func(cur realm, ...)` values and calls them with `cross`
 - [ ] Interface parameters from external callers are guarded with canonical-type asserts
 - [ ] No `realm`-typed value in package-level vars, struct fields, or closure captures
 - [ ] `/p/`-type fields with callback iterators are unexported
@@ -263,7 +272,7 @@ Two cases where the swap is **wrong**, both found by making it:
 |----------|---------|
 | [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, write rules, and anti-patterns |
 | [`gno-security.md`](./gno-security.md) | Numbered threat-class taxonomy |
-| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, borrow rules) |
+| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, the six rules) |
 | [`effective-gno.md`](./effective-gno.md) | Idiomatic Gno patterns including payment guards |
 | `misc/audit-pattern-harness/` | Automated pattern detection tooling with sanitized fixtures |
 

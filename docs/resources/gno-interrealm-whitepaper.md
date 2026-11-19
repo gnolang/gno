@@ -1,5 +1,8 @@
 # Interrealm: a whitepaper
 
+> **Superseded.** This page is superseded by [the six rules in
+> gno-interrealm.md](./gno-interrealm.md); its numbering differs.
+
 A short statement of how realms protect their state. The mechanism and the
 full call-by-call table are in [gno-interrealm.md](./gno-interrealm.md); the
 decision record is `gnovm/adr/pr6495_cross_to_write.md`.

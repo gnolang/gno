@@ -143,8 +143,13 @@ func init(cur realm) {
 	registry.Register(cross(cur), "myID", myCallback)
 }
 
-func myCallback(a, b string) { /* ... */ }
+func myCallback(cur realm, a, b string) { /* ... */ }
 ```
+
+A function handed to another realm arrives with no maker, so writing your
+realm's state from it needs a crossing function (`func(cur realm, ...)`) that
+the registry calls with `cross`; a plain function value can only read. A
+registry of crossing functions stores `func(cur realm, ...)` values.
 
 A common use case could be to set the "admin" as the caller uploading the
 package.
@@ -809,6 +814,11 @@ func Inc(cur realm) {
 	mySafeObj.Inc(0, cur)
 }
 ```
+
+Only a pointer crosses. A struct or array value of a realm's declared type is
+created and copied only by that realm's code, so an error returned to another
+realm is a pointer error (`*MyError`), and `defer obj.M()` on a foreign value
+becomes `defer func() { obj.M() }()`.
 
 ### Choosing between Coins and GRC20 tokens
 

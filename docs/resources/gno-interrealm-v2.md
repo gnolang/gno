@@ -1,20 +1,19 @@
 # Interrealm Specification — v2
 
-> **Start here:** [gno-interrealm-whitepaper.md](./gno-interrealm-whitepaper.md) states the model and its six rules on two pages; this document is the mechanism.
+> **Start here:** [gno-interrealm.md](./gno-interrealm.md) states the six rules; this document is the mechanism.
 
 > **Superseded for writes.** Borrow rules #1–#3 below are replaced for writes
 > by [`pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md): a
 > realm's stored state changes only during a crossing call into that realm.
-> Realm code entered without crossing runs read-only, only a `/p/`-owned
-> receiver borrows, and library code a caller picked runs view-only.
+> Realm code entered without crossing runs read-only, a `/p/`-owned receiver
+> runs as the caller, and library code a caller picked runs view-only.
 
-This is a standalone specification of Gno's interrealm semantics as
-implemented at current HEAD. It supersedes the historical narrative
-in [`gno-interrealm.md`](./gno-interrealm.md), which traced the
-evolution of the design and remains useful for context. Where this
-document and the v1 spec disagree, this document reflects what the
-VM actually does. See also [`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md)
-for a comparison and migration guide.
+This is a historical mechanism reference. The six rules in
+[`gno-interrealm.md`](./gno-interrealm.md) and the
+[decision record](../../gnovm/adr/pr6495_cross_to_write.md) are authoritative;
+where this document disagrees with them, they win. See also
+[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md) for a
+comparison and migration guide.
 
 For threat classes and defensive patterns, see
 [`gno-security.md`](./gno-security.md) and
@@ -548,25 +547,14 @@ enforces two cross-realm invariants:
 
 ### 8.1 Case 1 — Refuse foreign-readonly source
 
-```go
-if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
-    if xvdt, ok := xv.T.(*DeclaredType); ok &&
-        xvdt.PkgPath == m.Realm.Path {
-        // allow: converting m.Realm's own declared type
-    } else {
-        sliceType, ok := baseOf(xv.T).(*SliceType)
-        isBytesArray := ok && (sliceType.Elem().Kind() == Uint8Kind || sliceType.Elem().Kind() == Int32Kind)
-        if isBytesArray && t.Kind() == StringKind {
-            // allow: []byte / []rune to string does not modify the slice
-        } else {
-            panic("illegal conversion of readonly or externally stored value")
-        }
-    }
-}
-```
+The guard runs when the source type is not nil, has a mutable base, and the
+value is readonly. If the source is the current realm's own declared type, the
+conversion is allowed; a `[]byte`/`[]rune` to `string` conversion is allowed
+because it does not modify the slice; anything else panics with `illegal
+conversion of readonly or externally stored value`.
 
-`IsImmutable` skips types whose base is immutable (primitives, funcs);
-the readonly check does the rest. Without this check, an attacker could
+The immutable-base check skips types whose base is immutable (primitives,
+funcs); the readonly check does the rest. Without this check, an attacker could
 declare a parallel `/p/`-type with the same struct layout as a
 victim-owned `/p/`-value plus a mutator method, convert the victim's
 pointer to the parallel type, and invoke the new mutator. Case 1 blocks
@@ -586,14 +574,10 @@ recoverability difference.
 
 ### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
-```go
-if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
-    isNilPtr := t.Kind() == PointerKind && xv.V == nil
-    if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-        panic("illegal conversion to external realm type")
-    }
-}
-```
+The target is unwrapped through one pointer level and refused when it is a
+non-immutable-base, `/r/`-declared type from another realm; a nil pointer is
+let through. The refusal panics with `illegal conversion to external realm
+type`.
 
 A realm cannot forge values of `/r/`-declared types it doesn't
 declare. The target is looked through one pointer level, so pointer

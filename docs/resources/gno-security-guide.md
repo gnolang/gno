@@ -4,7 +4,7 @@ This guide consolidates the practical security learnings from auditing
 cross-realm attack vectors in the Gno VM. It is the long-form companion
 to `gno-security.md` (which defines the numbered threat classes) and
 assumes the vocabulary of `gno-interrealm.md` (realm-context,
-realm-storage-context, borrow rules, `cur realm`, `IsCurrent()`). For writes,
+realm-storage-context, the six rules, `cur realm`, `IsCurrent()`). For writes,
 `gnovm/adr/pr6495_cross_to_write.md` is the decision record.
 
 The goal: tell a realm author what they must do, and what they must
@@ -42,7 +42,8 @@ path is attacker-controlled.
 The single rule behind them: a realm's stored state changes only during a
 crossing call into that realm. Inside it, the realm's own code and the library
 code it names write as usual; code that arrived as a value from someone else
-never acts for the realm.
+never acts for the realm, except a reference to the realm's own stored
+functions (see [the six rules (R4)](./gno-interrealm.md)).
 
 The VM provides four independent defenses. A realm becomes
 exploitable when an API design defeats all of them at once.
@@ -61,42 +62,42 @@ victim's authority by tricking the victim into calling it, and cannot
 write the victim's state through the victim's exported non-crossing
 functions or methods. Writers are crossing functions.
 
-### 2.2 Storage-Site Rule (library-owned receivers only)
+### 2.2 Storage Site (library-owned receivers only)
 
-A `/p/`-declared method invoked on an object-bearing receiver borrows
-`m.Realm` to the receiver's package only when that package owns the
-receiver (`PkgID.IsImmutablePkg()`). A receiver owned by a realm is a
-view: `m.Realm` stays the caller's and the method's writes to the
-owner's object are refused.
+A `/p/`-declared method invoked on a receiver owned by a `/p/` package runs as
+the caller; after initialization that package's immutability check refuses a
+write to its own state. A receiver owned by a realm is a view: the method's
+writes to the owner's object are refused.
 
-Consequence: library methods (`avl.Tree.Set`, `grc20` methods) write
-the caller's own objects under the caller's authority, with no borrow.
-A `/p/`-owned receiver borrows to its package, whose post-init gate
-refuses the write; a realm's stored object is not writable this way.
+Consequence: library methods (`avl.Tree.Set`, `grc20` methods) write the
+caller's own objects under the caller's authority. A realm's stored object is
+not writable this way; the owner exposes a crossing function.
 
-### 2.3 Library Closures (no borrow rule)
+### 2.3 Function Values Follow Their Maker
 
-A `/p/` or stdlib closure borrows nothing. Called while the realm it
-was built under is current, it runs with that realm's authority;
-called under any other realm it runs view-only. It gains no authority
-by changing hands, whether by storage, passing, or a higher-order
+A `/p/` or stdlib function value belongs to the realm whose writable code made
+it, and none when made in read-only code. Called through a variable, it writes
+that realm's state only if its maker is the calling realm, so it gains no
+authority by changing hands, whether by storage, passing, or a higher-order
 method.
 
-Consequence: a library closure that arrives with another realm's values
-can write no stored object. The same holds for a `/p/` function value,
-method value or method expression called through a value. An
-`/r/`-declared closure called from another realm runs read-only (§2.1);
-a callback that must write its own realm is a crossing closure
-(`func(cur realm) {...}`) called with `cross`.
+Consequence: a library function value that arrives with another realm's values
+can write no stored object. The same holds for a closure, method value or
+method expression called through a value. An `/r/`-declared closure called
+from another realm runs read-only (§2.1); a callback that must write its own
+realm is a crossing closure (`func(cur realm) {...}`) called with `cross`.
 
 ### 2.4 Readonly Taint
 
 Values read from a foreign realm carry an `N_Readonly` taint that
-propagates through field access, indexing, slicing, value copies,
-interface boxing/unboxing, and conversion. Any write attempt against
-a tainted target panics with `cannot directly modify readonly tainted
-object`. The taint is sticky — a local copy of a foreign struct is
-still tainted.
+propagates through field access, indexing, slicing, interface
+boxing/unboxing, and conversion. Any write attempt against a tainted
+target panics with `cannot directly modify readonly tainted object`. A
+struct or array value of another realm's declared type cannot be copied at
+all (`cannot copy <type> outside realm <realm> (use a pointer)`); the type
+checker refuses a declaration or copy first (`cannot hold a value of <T>
+outside its realm (use a pointer)`), and a run-time allocation fails with
+`cannot allocate <T> in realm <R>`. Hold a pointer instead.
 
 The readonly check fires uniformly at every write path: `=`, `+=`,
 `++`, `*p = v`, `s[i] = v`, `m[k] = v`, `delete(m, k)`,
@@ -136,7 +137,7 @@ type Wrapper struct {
 then attackers reach `Inner` (it's exported), and `somelib.Node` may
 have `Iterate(cb func(*Node) bool)` or `Apply(fn func(*Node))`.
 `Apply`'s body runs under the caller's authority: the `*Node` is owned
-by `/r/V`, not by a `/p/` package, so it does not borrow and
+by `/r/V`, not by a `/p/` package, so
 V's node is a view. When the attacker calls `Apply` with a top-level
 `/p/A.Evil` of signature `func(*somelib.Node)`, `Evil` inherits the
 attacker's realm, and its write to V's node is refused with `cannot
@@ -227,8 +228,8 @@ Any pointer (slice header, map, struct pointer) returned by a getter
 is mutation-attempt surface. The readonly taint protects you from
 direct field writes (`Users()[0].Name = "x"` panics). A `/p/` method
 called on a reference that left your realm runs with the *caller's*
-authority, not yours: only a receiver owned by a `/p/` package
-borrows, so its write to your stored object is refused with
+authority, not yours: a realm-owned receiver is a view, so its write to your
+stored object is refused with
 `cannot modify object owned by another realm from library code
 (call a function of the owning realm)`.
 
@@ -245,8 +246,7 @@ realm write, expose a crossing function that names your own variable
 (`SetUser` above); the caller calls that, and only your code performs
 the write. A closure declared in your realm runs read-only when
 another realm calls it; a crossing closure you hand out is a writer
-anyone holding it can call with `cross`. A method value of a `/p/` method (`view.Set`) runs view-only when another
-realm's code calls it (§7.1). Fresh-object corner: a `/p/` object your
+anyone holding it can call with `cross`. A method value of a `/p/` method (`view.Set`) runs view-only when code from a realm whose import tree lacks that package calls it (§7.1). Fresh-object corner: a `/p/` object your
 function builds and returns carries your realm's stamp from allocation,
 so the caller cannot write it either.
 
@@ -453,10 +453,9 @@ model beyond naive expectations:
 
 ### 6.1 Cross-realm panic aborts the transaction
 
-A panic raised across a realm boundary (a crossing call or a `/p/`-owned
-borrow) **cannot be caught by `recover()` in any other realm**; a view-only
-frame writes nothing stored and is no boundary, so its panics are
-recoverable. `PopFrameAndReturn` walks up frames
+A panic raised across a crossing call **cannot be caught by `recover()` in any
+other realm**; a read-only or view-only frame is no crossing and writes nothing
+stored, so its panics are recoverable. `PopFrameAndReturn` walks up frames
 through `PopUntilLastReviveFrame` (`op_call.go:530`); a regular
 `defer { recover() }` does not stop the unwind. The transaction
 aborts entirely.
@@ -469,41 +468,35 @@ guise.
 (The `revive(fn)` builtin can catch cross-realm panics in test
 contexts; this is the documented exception.)
 
-### 6.2 Readonly taint propagates through value copy
+### 6.2 Readonly taint sticks to a view
 
-Reading a foreign struct value into a local variable preserves the
-`N_Readonly` bit. Writing to the local copy still panics. This is
-Go-semantics-divergent (Go would allow the local mutation) but it
-closes a class of subtle attacks where attacker might "extract"
-victim data into their own context. Even the local copy is sticky.
+A struct value of another realm's declared type cannot be copied at all. A
+pointer view keeps the `N_Readonly` bit through field access, indexing and
+interface boxing, so a write through it panics. Reading a foreign value into a
+local copy is refused before the copy exists.
 
 ---
 
 ## 7. Properties That Surprised Us (Worth Knowing)
 
-### 7.1 Bound method values write only for the binder and the caller together
+### 7.1 Bound method values follow their package
 
-`mv := victim.Apply` (bound method value) is a function value that
-remembers the receiver and the realm whose frame bound it. When `mv()`
-is invoked later — stored in attacker state, boxed into an interface,
-or passed as a callback into another realm's call — a `/p/` or stdlib
-method keeps the binder's authority only while every frame down to the
-nearest realm-declared one runs as the binder. Otherwise it runs
-view-only: it can write no realm's stored objects, neither the
-receiver nor an argument. So a method value an attacker binds on your
-view is refused wherever it runs, and one your realm binds and hands
-out is refused when another realm's code calls it, directly, wrapped in
-that realm's closure, or as a callback inside one of your objects. One
-case stays open: a value bound by a `maketx run` script and *stored* by
-your realm is re-stamped to your realm, so calling it later runs as you.
-Do not store and call function values that callers supply.
+`mv := victim.Apply` (bound method value) is a function value that remembers
+its receiver and its maker. A `/p/` or stdlib method value is trusted only when
+its package is in the calling realm's import tree; otherwise it runs view-only:
+it can write no realm's stored objects, neither the receiver nor an argument.
+A method value an attacker binds on your view is refused wherever it runs, and
+one your realm binds in read-only code has no maker. A realm cannot keep a
+function value it did not make (`cannot keep a function value made outside a
+realm in <realm>`); to keep callers' writers, store crossing functions and
+call them with `cross`.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`
 go through different paths.
 
-**Implication**: returning `view.Set` for a `/p/`-type in your state
-hands out no write; it works only when your own code calls it. To hand
+**Implication**: returning `view.Set` for a `/p/`-type in your state hands out
+no write: the object is yours, so a foreign caller's write is refused. To hand
 out a writer, expose a crossing function
 (`func Set(cur realm, k string, v any) { view.Set(k, v) }`); the caller
 calls that, and only your code writes. To write your own object from
@@ -538,11 +531,10 @@ pointers excepted, as are types whose underlying type is a
 primitive, func, or chan type).
 
 **Implication**: holding a realm-typed value, or a pointer to one, is
-not authority. Another realm can still write `var u v.User` (zero
-value, stamped with `v`'s PkgID) and pass `&u` to a victim API. A check
-like `if u == nil { deny }` authorizes that caller. Authenticate the
-caller through `cur.Previous()`. A pointer that matches one in state
-you own proves only where it came from, not who is calling.
+not authority. The type checker refuses `var u v.User` outside its realm.
+A pointer that matches one in state you own proves only where it came from,
+not who is calling. A non-nil `*v.User` can come from any API of `v` that
+returns one, so `if u == nil { deny }` does not tell you who is calling. Authenticate the caller through `cur.Previous()`.
 
 ---
 
@@ -587,6 +579,26 @@ Before deploying a realm:
 
 - [ ] No `realm`-typed value is stored in package state, struct
   fields, maps, slices, or closure captures.
+
+- [ ] Every closure, bound method value, or declared function I hand out
+  carries no write power for another realm; writers are crossing functions or
+  crossing closures, called with `cross`.
+
+- [ ] My crossing functions never call a function value found in a slice, map,
+  pointer or object a caller passed in.
+
+- [ ] A method value of a `/p/` type bound on my object writes nothing when
+  another realm calls it (see [the six rules (R6)](./gno-interrealm.md)); my
+  crossing function performs the write.
+
+- [ ] Errors I return to other realms are pointer errors (`*MyError`), never
+  struct values.
+
+- [ ] A callback a caller hands me runs read-only for my state; I do not rely
+  on it to write, and I check what it returns.
+
+- [ ] A registry of crossing functions stores `func(cur realm, ...)` values
+  and calls them with `cross`, so each writer acts for its own realm.
 
 - [ ] I have not imported `gno.land/r/tests/vm/test20` (deliberately
   insecure test fixture).
@@ -665,7 +677,7 @@ Attackers cannot:
 ## 10. Further Reading
 
 - `gno-security.md` — numbered threat-class taxonomy (Class 1a/1b/2/3/4).
-- `gno-interrealm.md` — original interrealm specification.
+- `gno-interrealm.md` — the six rules, with the exact refusal for each.
 - `gno-interrealm-v2.md` — updated specification reflecting current HEAD.
 - `effective-gno.md` — pattern-level guidance including payment guards.
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest
