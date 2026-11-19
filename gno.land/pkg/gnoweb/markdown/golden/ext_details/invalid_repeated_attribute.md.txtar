@@ -1,0 +1,8 @@
+-- input.md --
+<gno-details summary="A" summary="B">
+body
+</gno-details>
+-- output.html --
+<!-- unexpected/invalid details tag omitted -->
+<p>body</p>
+<!-- unexpected/invalid details tag omitted -->

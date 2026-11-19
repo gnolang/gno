@@ -137,7 +137,7 @@ func TestDebug(t *testing.T) {
 		{in: cont2 + "p t.A[2]\n", out: "(3 int)"},
 		{in: cont2 + "p t.A[k]\n", out: "name k not declared"},
 		{in: cont2 + "p *t\n", out: "(struct{(slice[(1 int),(2 int),(3 int)] []int)} main.T)"},
-		{in: cont2 + "p *i\n", out: "Not a pointer value: (1 int)"},
+		{in: cont2 + "p *i\n", out: "not a pointer value: (1 int)"},
 		{in: cont2 + "p *a\n", out: "name a not declared"},
 		{in: cont2 + "p a[1]\n", out: "name a not declared"},
 		{in: cont2 + "p t.B\n", out: "invalid selector: B"},
@@ -155,6 +155,14 @@ func TestDebug(t *testing.T) {
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
 		{in: "l\n", out: "unknown source file"},
 		{in: "b 5\n", out: "unknown source file"},
+	})
+
+	// Printing a missing key yields its zero value and leaves the
+	// program's map as it was.
+	runDebugTest(t, "../../tests/integ/debugger/sample_map.gno", []dtest{
+		{in: "b 8\nc\np m[1]\n", out: "(struct{(0 int)} main.S)"},
+		{in: "b 8\nc\np m[1]\np m\n", out: "(map{} map[int]main.S)"},
+		{in: "b 8\nc\np m[1]\nc\n", out: "0 0"},
 	})
 
 	runDebugTest(t, "../../tests/integ/debugger/sample2.gno", []dtest{

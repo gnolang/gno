@@ -335,25 +335,13 @@ func (mt *MultiplexTransport) newMultiplexPeer(
 	behavior PeerBehavior,
 	isOutbound bool,
 ) (PeerConn, error) {
-	// Extract the host
-	host, _, err := net.SplitHostPort(info.conn.RemoteAddr().String())
-	if err != nil {
-		return nil, fmt.Errorf("unable to extract peer host, %w", err)
-	}
-
-	// Look up the IPs
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return nil, fmt.Errorf("unable to lookup peer IPs, %w", err)
-	}
-
 	// Wrap the info related to the connection
 	peerConn := &ConnInfo{
 		Outbound:   isOutbound,
 		Persistent: behavior.IsPersistentPeer(info.addr.ID),
 		Private:    behavior.IsPrivatePeer(info.nodeInfo.ID()),
 		Conn:       info.conn,
-		RemoteIP:   ips[0], // IPv4
+		RemoteIP:   info.addr.IP,
 		SocketAddr: info.addr,
 	}
 

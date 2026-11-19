@@ -14,7 +14,7 @@ import (
 func TestParseRealmDenomBranches(t *testing.T) {
 	t.Parallel()
 
-	longPath := "gno.land/r/" + strings.Repeat("a", pkgPathLimit)
+	longPath := "gno.land/r/" + strings.Repeat("a", PkgPathLimit)
 	longBase := strings.Repeat("a", maxBaseDenomLength+1)
 
 	cases := []struct {
