@@ -191,9 +191,9 @@ taxonomy are therefore permanent for a given path, so the path carries a
 version, as `boards2/v0` and `namereg/v0` do. A future `v1` is a new path
 with a documented migration: apps call `Register` on it again, and stars do
 not carry over. GovDAO names it with `ProposeSuccessor`: `Render`, `Block`
-and `Badge` then point to it, and `api/v1/home` carries `moved_to`, which
-Explore's front page shows, because the realms that embed `v0` import it
-for good.
+and `Badge` then point to it, and `api/v1/home` and `build` carry
+`moved_to`, which every page of Explore shows, as every page of the realm's
+markdown does, because the realms that embed `v0` import it for good.
 
 For the same reason, every duration is measured in block time, not in
 heights. A block every 5 s was the first assumption; mainnet and onyx make
@@ -304,9 +304,14 @@ to a realm listing itself: the claim moves to a slug of its own
 (`reslugClaim`, `StoreClaimMoved`), its old one cut to fit and followed by
 `--` and a number never given before. No listing may ask for a slug holding
 `--`, so the new one is free by construction, with no search for a free
-suffix, and the claim is never moved again. It keeps its path, its stars
+suffix, and a moved slug is never moved again. It keeps its path, its stars
 and its place in its category, and stays its owner's to change and its
-realm's to confirm. An earlier design dropped such a claim, and took its
+realm's to confirm. A moved slug is not for good either: the listing's next
+`Claim` or `Register` takes the slug it asks for once it may have it as a
+new listing would (`takeSlug`), and keeps it from then on. A package is
+only ever a claim, so without this one unstar and one squatting realm would
+cost it its slug for good, even after GovDAO hid the squat. An earlier
+design dropped such a claim, and took its
 title too. That let any ten-line realm delete the listing of an app that
 could only be claimed (every realm deployed before the store, every
 package), with its stars, and collect the storage deposit their owners had
@@ -379,7 +384,8 @@ harmless to repeat.
 
 - A second call from the same realm updates the listing (title, tagline,
   category, palette) and keeps its slug and creation time; the slug
-  argument is ignored.
+  argument is ignored, unless the store moved the listing's slug: it then
+  takes the slug it asks for, once free.
 - An unconfirmed claim holding the slug an app's own first `Register` (or
   the seed, or a GovDAO unhide) asks for gives way: it moves to a slug of
   its own, with a `StoreClaimMoved` event, but only once the listing is sure
@@ -420,7 +426,10 @@ emits an event, as do GovDAO's pauses, unpauses, hides, unhides, picks and
 successor, and a claim that moves to another slug, so an indexer can follow
 the store from its events rather than seeing only an `addpkg`.
 `StoreHidden` and `StoreUnhidden` carry the path as well as the slug, since
-a hide releases the slug.
+a hide releases the slug. For the same reason a hidden listing's `Register`,
+`Claim` or `SubmitRich` succeeds and emits nothing: another listing may hold
+that slug by then, and `StoreRegistered` under it would file the hidden one
+as listed. `StoreUnhidden` then says the slug it came back under.
 
 **Governance: GovDAO, through proposals the realm builds.** There is no
 admin address and no bootstrap key. Following the `r/sys/users` and
@@ -451,13 +460,24 @@ GovDAO can pause, hide, pick and name a successor, never edit:
   slot, so a squatter blocks no one. A core listing is the exception: it
   keeps its slug and its title while hidden, or the first comer could list
   as "Boards" the day GovDAO hides Boards for a bug.
-- The record stays under its path, so `Unhide` takes the path and refuses
-  with `slug_taken`, `title_taken` or `namespace_full` if any was taken
-  meanwhile. None can happen to a core listing: it kept its name, and the
+- The record stays under its path, so `Unhide` takes the path, and its
+  proposal names the path to voters: the slug may be another listing's by
+  then. It refuses with `title_taken` if its title was taken meanwhile,
+  which the listing's owner can answer with another, or `namespace_full`
+  if its namespace filled up, which only another hide there undoes (no
+  listing is ever removed). A slug its owner cannot change, so a slug taken meanwhile
+  keeps no listing hidden: it comes back under a moved slug (`--N`) and
+  takes the next slug it asks for. Otherwise anyone could undo a vote, for
+  good, by registering one realm under the hidden listing's slug. Neither
+  refusal can happen to a core listing: it kept its name, and the
   namespace cap never applies to it, even in a namespace that is not a core
-  one (`p/moul/md`).
+  one (`p/moul/md`). `title_taken` cannot happen to a claim either: it held
+  no title before its hide, so registering that title meanwhile blocks no
+  vote, and the claim comes back a claim. For the same reason stars confirm
+  no claim while it is hidden; its unhide does, title checked.
 - `ProposeSuccessor("")` takes a successor back: a path named by mistake
-  would otherwise point every reader away for good.
+  would otherwise point every reader away for good. The store's own path is
+  refused, as it would do just that.
 - `ProposeSpotlight` features one app as the front page's hero, labelled
   "Picked by GovDAO", for 1 to 30 days (`maxPickDays`); the proposal reads
   "Feature <slug> as the front page's hero for N days". One pick at a time:
@@ -724,9 +744,13 @@ implemented; the others are planned (Plan, Next).
    transaction: it is what an operator does about a phishing listing while
    a GovDAO hide is being voted. An entry is taken as it is typed or pasted
    (`acme`, `acme/swap`, `/r/acme/swap`, `gno.land/r/acme/swap`, a page's
-   address), and one that could match nothing stops the start: where a typo
-   in `-trusted-paths` trusts less, one here would deny less, and a deny
-   must not fail quietly. It filters what Explore draws, no more: the
+   address, with its arguments, query, anchor or file), and one that does
+   not name exactly one namespace or package path stops the start: the bare
+   domain, an empty name (`acme//swap`), or a namespace typed bare with
+   anything past it (`acme:swap`, `acme$swap`, `acme/Swap`), which a URL
+   parser reads as arguments, a query or a file and would deny all of
+   `acme`. Where a typo in `-trusted-paths` trusts less, one here would
+   deny less or more, and a deny must not fail quietly. It filters what Explore draws, no more: the
    realm's counts still include the listing, and its own markdown and
    `api/` pages still show it.
 2. **Private realm** (`private = true` in `gnomod.toml`, read through
@@ -1145,7 +1169,10 @@ own not-found page with status 404, without querying the node: `View`
 returns it with a `Meta{Status, Title, Description}`, here "Not found ·
 Explore". Every store view sets its head title and description through
 `Meta`, from fixed strings and the closed taxonomy's labels only
-("DeFi apps · Explore"), never from a listing.
+("DeFi apps · Explore"), never from a listing. The labels are the realm's
+words, so the head carries them for a store realm under `-trusted-paths`
+only; one an operator points `-store-realm` at without trusting it is
+titled by its path, like any community page.
 
 **Graceful fallback.** If the store API fails, or answers an unknown version
 or an oversized payload, `View` returns nil and gnoweb renders the realm's
@@ -1505,9 +1532,35 @@ bits, out of reach of a vanity key search), and the full path is in the
 the Spotlight, go automatically only to eligible apps (trusted or earned),
 so an impersonating community app cannot reach them by stars alone; only a
 GovDAO vote can put any other app there.
+The fold follows what a letter draws as, not what it is: Cyrillic `п`
+and Greek `η` are an `n`, `г` an `r`, `ь` and `ъ` a `b`, `з` a `3`, `б` a
+`6`, `Ы` is `ЬІ`, while the capital `Η` stays an `h`. Beyond Greek and
+Cyrillic it folds the pairs an adversarial pass found against Unicode's
+confusables table, drawn identically or within a pixel: Persian keheh and
+yeh as Arabic kaf and yeh, Thai sara ae as two sara e, Devanagari letters
+with a nukta as the letter and its (dropped) nukta, Han strokes drawn as
+katakana or Latin letters (`匕` `ヒ`, `丁` `T`, `十` `+`), Hebrew yod as an
+apostrophe, and a double quote as two apostrophes. Second encodings of a
+letter are refused, as the presentation forms already were: the CJK
+compatibility ideographs, halfwidth katakana and the Arabic mathematical
+letters. The prolonged sound mark `ー`, which most Japanese loanwords hold,
+is allowed, and keys as the dash it draws as.
+It errs toward refusing: an all-Cyrillic title can collide
+with a Latin one no reader would confuse it with, which costs a rare
+`title_taken`, never a look-alike listed beside the original. So do two
+words that differ only by a mark: the vowels of Devanagari and Thai are
+marks, and marks are dropped, so "राम" and "रोम" are one title. Of the
+typographic quotes a title holds the four the fold knows; the low and
+reversed ones draw as a comma and an apostrophe and are refused. Where a
+Greek capital and its lower case draw as different Latin letters (`Η` and
+`η`, `Ν` and `ν`, `Μ` and `μ`), the two cases of one word key apart: the
+fold follows the drawing, which is what a copy of a Latin title relies on.
 *Residual*: look-alikes these folds miss within the scripts a title may
-use remain; uniqueness on the full UTS #39 skeleton and namespaced ids
-close them (Follow-ups).
+use remain, those that show at text size (Hangul jamo drawn small, `ш` and
+`w`, `σ` and `o`, `Θ` and `O`) and those no pass has found yet: folding
+one pair at a time cannot close a script as large as Han. Uniqueness on the
+full UTS #39 skeleton, or fewer scripts, and namespaced ids close them
+(Follow-ups).
 
 **T7. Injection.** Free colours in `style=`, `javascript:` links, template
 escaping slips.
@@ -1521,6 +1574,13 @@ palette, stars), category keys, labels and counts, shelf titles, builders,
 and a category answer's page numbers. Text is checked for rendering safety
 (T6's look-alike policy is the realm's). A new version of the realm can be
 written badly; gnoweb must not care.
+Owner text is inert in the realm's own output too. Its markdown passes
+titles and taglines through the sanitizer, then escapes the `$` that would
+open a formula in gnoweb (`escapeMath`): the sanitizer leaves it bare today,
+and one it escapes tomorrow is not escaped twice. The `api/` pages are JSON
+that gnoweb renders as markdown, so there `<`, `>`, `&`, `[`, `]`, `$` and
+`\` are written as `\uXXXX`: a backslash written as two would open a
+formula before a `(` or a `[`.
 
 **T8. Gaming rankings and reputation.** Addresses are free, so stars
 from fresh addresses are a sybil army; an owner may star their own app; an
@@ -1622,7 +1682,9 @@ gnoweb only queries category pages that exist in the cached taxonomy.
 - Failures are cached 5 s and logged once per load. Validation, tiers, short
   paths and generated art are computed once per cache fill, not per request.
 - The cache holds at most 512 entries; its keys are bounded by the
-  taxonomy, the front page's lists and their real page counts.
+  taxonomy, the front page's lists and their real page counts. At the cap
+  it drops what expired, then the one answer soonest to expire, so a crawler
+  walking a large store costs no reader the front page.
 - No app page and no previews: an app's page is its realm page, at the cost
   it already has.
 - Later: liveness and private checks, lazily for listings on the page
