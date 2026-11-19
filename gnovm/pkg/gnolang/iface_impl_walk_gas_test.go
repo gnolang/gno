@@ -147,14 +147,14 @@ func requireOOG(t *testing.T, panicked bool, val any) {
 // Budget arithmetic (shared by the three *_Metered tests): the fixture from
 // buildWideEmbedPkg has a 1-method interface and a struct embedding 64 types
 // of which only the last provides the method, so every check expands and
-// scans all 64. Per check that is OpCPUSlopeTypeAssertIface × 1 (349 gas,
+// scans all 64. Per check that is OpCPUSlopeTypeAssertIface × 1 (355 gas,
 // negligible) plus 64 × (OpCPUSlopeEmbedExpand + OpCPUSlopeEmbedScan) + one
 // OpCPUSlopeEmbedTrailHop ≈ 14.9K gas. 20 checks charge ≈300K gas for the walk
 // on top of ≈340K allocation gas, so a 500K budget OOGs. Without the per-type
-// expansion charge the package costs ≈340K + 20 × (64 × 25 + 135 + 349) ≈ 382K
+// expansion charge the package costs ≈340K + 20 × (64 × 25 + 135 + 355) ≈ 382K
 // and fits, so these tests fail if that charge alone is removed (verified by
-// mutation) — a wide-interface fixture would not: 64 methods × 20 checks × 349
-// already exceeds 500K by itself.
+// mutation) — a wide-interface fixture would not: 64 methods × 20 checks × 355
+// ≈ 454K already exceeds 500K with the allocation gas.
 
 // TestPreprocess_IfaceImpl_GasCharged: the assignment form
 // `var x I = S{}` (checkOrConvertType → mustAssignableTo).
@@ -216,7 +216,7 @@ func TestPreprocess_IfaceImpl_MultiAssignMetered(t *testing.T) {
 // TestRuntime_TypeAssert_GasCharged: a tight budget that comfortably covers the
 // one-time preprocess+deploy but not the runtime assertion loop must OOG,
 // proving the runtime assertion walk is metered. Per assertion over the 48×48
-// shape: 48 × 349 + 48 × OpCPUSlopeEmbedExpand + 48² × OpCPUSlopeEmbedScan +
+// shape: 48 × 355 + 48 × OpCPUSlopeEmbedExpand + 48² × OpCPUSlopeEmbedScan +
 // 48 × OpCPUSlopeEmbedTrailHop ≈ 90K gas, so 100 assertions ≈ 9M against a
 // 5M budget.
 func TestRuntime_TypeAssert_GasCharged(t *testing.T) {

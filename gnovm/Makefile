@@ -175,6 +175,3 @@ _dev.docs:
 .PHONY: _dev.generate
 _dev.generate:
 	go generate -x ./...
-
-# genproto:
-# see top-level Makefile.

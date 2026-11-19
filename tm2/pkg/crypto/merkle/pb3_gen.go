@@ -482,6 +482,10 @@ func (goo SimpleProofNode) SizeBinary2(cdc *amino.Codec) (int, error) {
 }
 
 func (goo *SimpleProofNode) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	anyDepth, err := amino.NestDepth(anyDepth)
+	if err != nil {
+		return err
+	}
 	*goo = SimpleProofNode{}
 	var lastFieldNum uint32
 	for len(bz) > 0 {

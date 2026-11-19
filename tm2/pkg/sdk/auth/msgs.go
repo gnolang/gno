@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -33,6 +34,11 @@ func (msg MsgCreateSession) ValidateBasic() error {
 	}
 	if msg.SessionKey == nil {
 		return std.ErrInvalidPubKey("missing session key")
+	}
+	// VerifyBytes rejects every signature under a small-order key, so such a
+	// session could never sign; refuse it here rather than create it dead.
+	if ed, ok := msg.SessionKey.(ed25519.PubKeyEd25519); ok && ed.IsSmallOrder() {
+		return std.ErrInvalidPubKey("small-order ed25519 session key")
 	}
 	if msg.ExpiresAt < 0 {
 		return std.ErrUnauthorized("expires_at must be non-negative (0 means no expiry)")

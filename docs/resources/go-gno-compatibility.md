@@ -325,6 +325,9 @@ Legend:
   cipher (`crypto/aes` is `todo`) lands together with these constructors.
 [^3]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
+  Unlike Go's, `Verify` returns false for a small-order public key, one of 14
+  encodings that no private key produces, so a passing signature always comes
+  from the holder of a private key.
 [^4]: `crypto/sha1` and `crypto/md5` are "deprecated" hashing algorithms, widely
   considered unsafe for cryptographic hashing. They are not currently available;
   the decision on whether to include them as official standard libraries is

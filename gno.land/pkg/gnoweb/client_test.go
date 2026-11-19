@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -15,8 +16,21 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
+
+// TestClassifyQueryErrorTimeout checks that a query the node stopped at its
+// wall-clock timeout answers 408, not a 500.
+func TestClassifyQueryErrorTimeout(t *testing.T) {
+	// As decoded from an RPC response, and as wrapped on the node.
+	for _, qerr := range []error{std.QueryTimeoutError{}, std.ErrQueryTimeout("stopped")} {
+		_, _, err := classifyQueryError(qerr)
+		require.ErrorIs(t, err, ErrClientTimeout)
+		status, _ := clientErrorMessage(err, 0)
+		require.Equal(t, http.StatusRequestTimeout, status)
+	}
+}
 
 // TestCheckResponseSizeRejectsOversized — defense in depth against a
 // misbehaving or compromised RPC node returning a multi-MB amino blob:

@@ -26,15 +26,24 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	needle := strings.ToLower(q.Text)
 	author, _ := q.Get(FilterAuthor)
 	scope := q.discoveryScope()
+	want, hasIs := q.Get(FilterIs)
+	if hasIs && !filterTakes(FilterIs, want) {
+		return refused(fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))
+	}
 	// `author:` bypassing the floor meant a bare `author:` — no value at all
 	// — bought a full directory listing and returned nothing. A scope is
 	// narrow enough on its own.
 	if len(needle) < MinTermLen && len(author) < MinTermLen && scope == "" {
+		if hasIs && needle == "" && author == "" {
+			// The bar offers is:realm as a finished choice: say what it
+			// still needs, not that it needs a qualifier.
+			kind, example := strings.ToLower(want), "wugnot"
+			if kind == "package" {
+				example = "avl"
+			}
+			return refused(fmt.Sprintf("is:%s narrows a search: add a name, such as is:%s %s", kind, kind, example))
+		}
 		return refused(fmt.Sprintf("type at least %d characters, or a qualifier such as author:", MinTermLen))
-	}
-	want, hasIs := q.Get(FilterIs)
-	if hasIs && !strings.EqualFold(want, "realm") && !strings.EqualFold(want, "package") {
-		return refused(fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))
 	}
 
 	var users []string
