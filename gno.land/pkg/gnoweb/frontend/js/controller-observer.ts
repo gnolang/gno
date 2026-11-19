@@ -61,6 +61,12 @@ export class ObserverController extends BaseController {
 		}
 		if (targets.length === 0) return;
 
+		// A page opened on one of the targets (a shared link, a redirect to
+		// #files) marks it as a click would: the section above it may still
+		// reach the top band and would otherwise win.
+		const landed = this.hashId();
+		if (landed && this.links.has(landed)) this.pin(landed);
+
 		// Release a pinned click only on genuine user-driven scrolling. The
 		// programmatic jump fires `scroll` events, which we deliberately ignore.
 		const release = (): void => {
@@ -95,6 +101,15 @@ export class ObserverController extends BaseController {
 	protected disconnect(): void {
 		this.observer?.disconnect();
 		this.ac?.abort();
+	}
+
+	// The page's fragment as an id, or null when it has none or is malformed.
+	private hashId(): string | null {
+		try {
+			return decodeURIComponent(window.location.hash.slice(1)) || null;
+		} catch {
+			return null;
+		}
 	}
 
 	// A click is an explicit choice: mark it active and hold until a user scroll.

@@ -56,15 +56,35 @@ type Activity struct {
 	Calls   map[string]int
 	Callers map[string]int
 	Gas     map[string]int64
+	// Last is the height of each realm's latest call.
+	Last map[string]int
 
 	// From and To are the heights counted, both inclusive.
 	From, To int
-	// Since is when block From was produced.
-	Since time.Time
+	// Since and Until are when blocks From and To were produced.
+	Since, Until time.Time
 
 	// Partial is set when part of the window could not be read. A count is
 	// then a lower bound, and a zero says nothing.
 	Partial bool
+}
+
+// weekActivity is the window's aggregate, shared by every map and listing:
+// one indexer scan answers them all. It needs an indexer.
+func (h *Handler) weekActivity(ctx context.Context) (*Activity, error) {
+	return h.activity.get(ctx, "activity", func(ctx context.Context) (*Activity, error) {
+		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
+	})
+}
+
+// timeOf estimates when height was produced from the window's average block
+// rate: exact at both ends of the window, within a block's drift between them.
+func (a *Activity) timeOf(height int) time.Time {
+	if a.To <= a.From {
+		return a.Until
+	}
+	perBlock := a.Until.Sub(a.Since) / time.Duration(a.To-a.From)
+	return a.Until.Add(-time.Duration(a.To-height) * perBlock)
 }
 
 // newActivityFlight holds the one aggregate. A stale one is served at once
@@ -79,12 +99,19 @@ type bandCounts struct {
 	calls   map[string]int
 	callers map[string]map[string]struct{}
 	gas     map[string]int64
+	last    map[string]int
 	// complete is false when part of the band stayed over the indexer's cap.
 	complete bool
 }
 
 func countBand(txs []indexer.Tx, complete bool) *bandCounts {
-	b := &bandCounts{calls: make(map[string]int), callers: make(map[string]map[string]struct{}), gas: make(map[string]int64), complete: complete}
+	b := &bandCounts{
+		calls:    make(map[string]int),
+		callers:  make(map[string]map[string]struct{}),
+		gas:      make(map[string]int64),
+		last:     make(map[string]int),
+		complete: complete,
+	}
 	for _, tx := range txs {
 		if !tx.Success {
 			continue
@@ -108,6 +135,7 @@ func countBand(txs []indexer.Tx, complete bool) *bandCounts {
 			p := m.Path()
 			b.gas[p] += int64(tx.GasUsed) / int64(workers)
 			b.calls[p]++
+			b.last[p] = max(b.last[p], tx.Height)
 			if b.callers[p] == nil {
 				b.callers[p] = make(map[string]struct{})
 			}
@@ -170,7 +198,7 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 	if err != nil {
 		return nil, err
 	}
-	from, since, err := windowStart(ctx, idx, tip)
+	from, since, until, err := windowStart(ctx, idx, tip)
 	if err != nil {
 		return nil, err
 	}
@@ -228,9 +256,11 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 		Calls:   make(map[string]int),
 		Callers: make(map[string]int),
 		Gas:     make(map[string]int64),
+		Last:    make(map[string]int),
 		From:    from,
 		To:      tip,
 		Since:   since,
+		Until:   until,
 	}
 	callers := make(map[string]map[string]struct{})
 	for _, b := range bands {
@@ -240,6 +270,9 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 		}
 		for p, g := range b.gas {
 			a.Gas[p] += g
+		}
+		for p, h := range b.last {
+			a.Last[p] = max(a.Last[p], h)
 		}
 		for p, set := range b.callers {
 			if callers[p] == nil {
@@ -288,28 +321,29 @@ func readBand(ctx context.Context, idx Indexer, lower, upper int) ([]indexer.Tx,
 // windowStart estimates the first height of the window from the block rate
 // over the last rateProbe blocks, then reads that block's time so the map can
 // say exactly where its window starts. A chain younger than the probe is
-// counted from its first block.
-func windowStart(ctx context.Context, idx Indexer, tip int) (int, time.Time, error) {
-	from := 1
+// counted from its first block. until is the tip's time, which anchors
+// estimates made from a cached aggregate to the chain, not to the reader.
+func windowStart(ctx context.Context, idx Indexer, tip int) (from int, since, until time.Time, err error) {
+	head, err := idx.Block(ctx, tip)
+	if err != nil {
+		return 0, time.Time{}, time.Time{}, err
+	}
+	from = 1
 	if tip > rateProbe {
-		head, err := idx.Block(ctx, tip)
-		if err != nil {
-			return 0, time.Time{}, err
-		}
 		probe, err := idx.Block(ctx, tip-rateProbe)
 		if err != nil {
-			return 0, time.Time{}, err
+			return 0, time.Time{}, time.Time{}, err
 		}
 		elapsed := head.Time.Sub(probe.Time)
 		if elapsed <= 0 {
-			return 0, time.Time{}, errors.New("indexer block times do not increase")
+			return 0, time.Time{}, time.Time{}, errors.New("indexer block times do not increase")
 		}
 		blocks := int(float64(rateProbe) * float64(activityWindow) / float64(elapsed))
 		from = max(tip-blocks, 1)
 	}
 	start, err := idx.Block(ctx, from)
 	if err != nil {
-		return 0, time.Time{}, err
+		return 0, time.Time{}, time.Time{}, err
 	}
-	return from, start.Time, nil
+	return from, start.Time, head.Time, nil
 }

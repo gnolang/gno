@@ -22,15 +22,21 @@ func RedirectMiddleware(next http.Handler, meta StaticMetadata) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if the request path matches a redirect
 		if newPath, ok := Redirects[r.URL.Path]; ok {
-			http.Redirect(w, r, newPath, http.StatusFound)
-			components.RedirectView(components.RedirectData{
-				To:        newPath,
-				Analytics: meta.RedirectAnalytics(),
-			}).Render(w)
+			serveRedirect(w, r, newPath, meta)
 			return
 		}
 
 		// Call the next handler
 		next.ServeHTTP(w, r)
 	})
+}
+
+// serveRedirect sends the client to to, with a body for one that does not
+// follow.
+func serveRedirect(w http.ResponseWriter, r *http.Request, to string, meta StaticMetadata) {
+	http.Redirect(w, r, to, http.StatusFound)
+	components.RedirectView(components.RedirectData{
+		To:        to,
+		Analytics: meta.RedirectAnalytics(),
+	}).Render(w)
 }
