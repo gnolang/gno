@@ -79,7 +79,7 @@ func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	}
 
 	// Make storage maps for tokens to analyze
-	filepathToURLs := make(map[string][]string)      // file path > [urls]
+	filepathToURLs := make(map[string][]urlRef)      // file path > [urls]
 	filepathToJSX := make(map[string][]string)       // file path > [JSX items]
 	filepathToLocalLink := make(map[string][]string) // file path > [local links]
 
