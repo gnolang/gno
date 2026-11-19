@@ -10,7 +10,7 @@ go run ./misc/deployments/upgrades check  misc/deployments/onyx.gno.land   # wha
 An entry is added once the chain runs the release — after the halt for a coordinated upgrade, once validators run it for a rolling one (see [`RELEASING.md`](../../../RELEASING.md)) — when everything it records is known: the halt height and the proposal once the proposal has executed, the halt time once the chain has halted, the image digest and binaries once CI has built the release. A cell reads *(pending)* only for a fact that has not happened yet.
 
 - **To run a node today:** the version in the last row with no *(pending)* cell, pinned — the native binary from its release page (checksums in `binaries`), or `ghcr.io/gnolang/gno/gnoland:<version>`. Never a floating tag. Configuration: [`VALIDATOR.md`](./VALIDATOR.md).
-- **Joining from genesis:** the node stops at every halt height below (the historical governance halts fire during replay too); restart it with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version.
+- **Joining from genesis:** run `v1.7.1-rc.1`, with `GNOROOT` at a checkout of the same tag or its container image, from genesis up to `v1.8.0-rc.1`'s halt height, then `v1.8.0-rc.1`. `v1.8.0-rc.1` refuses transactions in a non-canonical encoding, which earlier blocks hold, so it cannot replay them. Up to that height, the node also stops at each earlier halt height below (the historical governance halts fire during replay too): restart it with `v1.7.1-rc.1`, which satisfies every earlier `halt_min_version`. Verified on 2026-11-17: a fresh node synced from genesis to the tip this way.
 - **How a coordinated upgrade works** (halt height, `halt_min_version`, what the node refuses): [`gno.land/cmd/gnoland/UPGRADES.md`](../../../gno.land/cmd/gnoland/UPGRADES.md).
 - A version runs the blocks from its own row's halt height + 1 (1 for genesis) up to and including the next row's halt height. A *rolling* row is a patch with no halt: it can serve the same blocks as the row before it. Halt time is the block time of the halt block.
 
@@ -22,6 +22,7 @@ An entry is added once the chain runs the release — after the halt for a coord
 | [v1.6.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.6.0-rc.1) | [c868ccab1](https://github.com/gnolang/gno/commit/c868ccab1f93f0542a4c10a9d9b49b6fabcc0d98) | 445000 | 2026-10-16T12:51:52Z | `v1.6.0-rc.1` | [#33](https://onyx.testnets.gno.land/r/gov/dao:33) | `sha256:4286ffcd805f…` |
 | [v1.7.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.7.0-rc.1) | [e4c2e7d9f](https://github.com/gnolang/gno/commit/e4c2e7d9fe0f6f7aeeda54885ca1fe5cea991319) | 754000 | 2026-10-29T12:38:27Z | `v1.7.0-rc.1` | [#35](https://onyx.testnets.gno.land/r/gov/dao:35) | `sha256:76d132a22044…` |
 | [v1.7.1-rc.1](https://github.com/gnolang/gno/releases/tag/v1.7.1-rc.1) | [83431a7f0](https://github.com/gnolang/gno/commit/83431a7f0261882541a8a8dcf1643e6f246bbbe5) | rolling | — | — | — | `sha256:e0cafdf68313…` |
+| [v1.8.0-rc.1](https://github.com/gnolang/gno/releases/tag/v1.8.0-rc.1) | [fc79041f4](https://github.com/gnolang/gno/commit/fc79041f4cd1a7b3ed4b316dc5ac14162eb78730) | 1203400 | 2026-11-17T12:53:51Z | `v1.8.0-rc.1` | [#39](https://onyx.testnets.gno.land/r/gov/dao:39) | `sha256:27f37b245fa4…` |
 <!-- END GENERATED -->
 
 Notes

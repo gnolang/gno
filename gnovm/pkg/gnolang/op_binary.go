@@ -1393,6 +1393,11 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
+	// doOpShlAssign keeps the count's own integer type, whose N may hold
+	// stale high bytes from a narrowing conversion: convert, don't read raw.
+	// Only after the sign check, as converting wraps a negative count.
+	// No allocation occurs, so pass a nil allocator.
+	ConvertTo(nil, nil, rv, UintType, false)
 	shift := rv.GetUint()
 
 	// set the result in lv.
@@ -1477,6 +1482,8 @@ func shrAssign(m *Machine, lv, rv *TypedValue) {
 		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
 	}
 
+	// See shlAssign: doOpShrAssign keeps the count's own integer type.
+	ConvertTo(nil, nil, rv, UintType, false)
 	shift := rv.GetUint()
 
 	// set the result in lv.

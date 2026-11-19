@@ -107,15 +107,18 @@ func TestSignaturePayloadLegacyFromMatchesLegacy(t *testing.T) {
 	add(func(d *std.SignDoc) { d.ChainID = `x\",\"fee\":\\",` })
 	add(func(d *std.SignDoc) { d.Memo = `,"fee":{"amount":[],"gas":"0"}` })
 
-	// Random strings drawn from the bytes JSON escapes or the search matches.
-	const alphabet = "\",:{}[]\\fe<>&\x00\xff\u2028é"
+	// Random strings drawn from the characters JSON escapes or the search
+	// matches. They are drawn by rune, since no payload is built over invalid
+	// UTF-8 (see TestSignaturePayloadRefusesInvalidUTF8); U+FFFD stands in for
+	// the invalid byte JSON would have replaced with it.
+	alphabet := []rune("\",:{}[]\\fe<>&\x00\uFFFD\u2028é")
 	r := rand.New(rand.NewPCG(1, 2))
 	randomString := func() string {
-		b := make([]byte, r.IntN(24))
-		for i := range b {
-			b[i] = alphabet[r.IntN(len(alphabet))]
+		s := make([]rune, r.IntN(24))
+		for i := range s {
+			s[i] = alphabet[r.IntN(len(alphabet))]
 		}
-		return string(b)
+		return string(s)
 	}
 	for range 500 {
 		add(func(d *std.SignDoc) {

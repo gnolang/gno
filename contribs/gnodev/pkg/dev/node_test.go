@@ -790,11 +790,6 @@ func newTestingDevNode(t *testing.T, pkgs ...*std.MemPackage) (*Node, *mock.Serv
 	return newTestingDevNodeWithConfigAndHolder(t, cfg, holder, paths...)
 }
 
-func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
-	t.Helper()
-	return newTestingDevNodeWithConfigAndHolder(t, cfg, nil, pkgpaths...)
-}
-
 func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder *nodeHolder, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 

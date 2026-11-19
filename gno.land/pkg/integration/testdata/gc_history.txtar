@@ -1,0 +1,38 @@
+# Alloc pays the same GC gas whether or not an earlier transaction ran a GC.
+# Noop runs no GC and Once runs exactly one, which used to stamp the builtin
+# copy in the node's cache and let the next transaction's GC skip it.
+
+## deploy realm
+loadpkg gno.land/r/gc $WORK/r/gc
+
+## start a new node
+gnoland start -no-parallel
+
+gnokey maketx call -pkgpath gno.land/r/gc -func Noop -gas-fee 17000000ugnot -gas-wanted 170_000_000 -simulate skip -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 17000000ugnot -gas-wanted 170_000_000 -simulate skip -chainid tendermint_test test1
+stdout 'GAS USED:   151138726'
+
+gnokey maketx call -pkgpath gno.land/r/gc -func Once -gas-fee 17000000ugnot -gas-wanted 170_000_000 -simulate skip -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gc -func Alloc -gas-fee 17000000ugnot -gas-wanted 170_000_000 -simulate skip -chainid tendermint_test test1
+stdout 'GAS USED:   151138726'
+
+-- r/gc/gc.gno --
+package gc
+
+func gen() {
+	_ = make([]byte, 250*1024*1024)
+}
+
+func Noop(cur realm) {}
+
+func Once(cur realm) {
+	gen()
+	gen()
+}
+
+func Alloc(cur realm) {
+	for i := 0; i < 2; i++ {
+		gen()
+		gen()
+	}
+}

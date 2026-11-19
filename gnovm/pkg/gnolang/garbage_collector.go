@@ -271,9 +271,9 @@ func (m *Machine) GarbageCollect() (left int64, ok bool) {
 	return maxBytes - bytes, true
 }
 
-// isUverseValue reports whether v is the global .uverse package value or its
-// block — the only GC-reachable objects shared across machines.
-func isUverseValue(v Value) bool {
+// isSharedValue reports whether v is shared by every machine in the process:
+// the .uverse package and block, a builtin, or the origin realm placeholder.
+func isSharedValue(v Value) bool {
 	switch v := v.(type) {
 	case *PackageValue:
 		return v.PkgPath == uversePkgPath
@@ -281,6 +281,12 @@ func isUverseValue(v Value) bool {
 		if pn, ok := v.Source.(*PackageNode); ok {
 			return pn.PkgPath == uversePkgPath
 		}
+	case *FuncValue:
+		// A builtin is shared by every machine that calls it. A uverse
+		// method is copied per call by DeclaredType.GetValueAt, so it is not.
+		return v.PkgPath == uversePkgPath && !v.IsMethod
+	case *HeapItemValue:
+		return v == originPlaceholderHIV()
 	}
 	return false
 }
@@ -299,15 +305,9 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 			debug.Printf("Visit, v: %v (type: %v)\n", v, reflect.TypeOf(v))
 		}
 
-		// The .uverse package is a process-global singleton shared by every
-		// machine (SetCachePackage(Uverse())). Counting it here would write
-		// per-machine GC state (LastGCCycle) into that shared object, so a
-		// concurrent machine's GC could skip it — making GC gas
-		// non-deterministic across parallel in-memory nodes. Its contents are
-		// already excluded from traversal by the .uverse checks in the
-		// VisitAssociated methods; exclude the package value and its block
-		// from the visit count too, so GC gas never depends on shared state.
-		if isUverseValue(v) {
+		// Never count or stamp a shared object: the next machine at this
+		// cycle would skip it, making GC gas depend on the process's history.
+		if isSharedValue(v) {
 			return false
 		}
 
@@ -531,12 +531,11 @@ func (b *Block) VisitAssociated(vis Visitor) (stop bool) {
 		}
 	}
 
-	// Visit the blank slot. `_ = expr` assigns through GetBlankRef, so the
-	// block pins expr for its whole life even though nothing can read it
-	// back. Skipping it made `_ = make([]byte, n)` per recursion level a
-	// cap bypass: the value stays live on the Go heap while Reset()+Recount()
-	// cannot see it (200 levels x 300KB held 60MB under a 1MB cap, while the
-	// same expression bound to a name was correctly refused).
+	// Visit the blank slot. Assign2 and map ranges store nothing there,
+	// and a list or string range defining `_` writes only an int index or
+	// a rune, but the block pins whatever lands there even though nothing
+	// can read it back. Skipping it would leave such a value live on the
+	// Go heap that Reset()+Recount() cannot see.
 	if v := b.Blank.V; v != nil {
 		stop = vis(v)
 		if stop {
@@ -629,6 +628,7 @@ func (fr *Frame) Visit(alloc *Allocator, vis Visitor) (stop bool) {
 
 	// vis defer
 	for _, dfr := range fr.Defers {
+		alloc.Recount(allocDefer)
 		// visit dfr.Callable (the deferred func / bound method)
 		if dfr.Callable != nil {
 			stop = vis(dfr.Callable)

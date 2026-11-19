@@ -750,6 +750,18 @@ func UverseNode() *PackageNode {
 	return uverseNode
 }
 
+// pushNewSlice pushes a slice of type t over av, of length l and capacity c,
+// for the make and append natives. av is reachable only from the caller until
+// the push, and NewSlice allocates, so av is anchored across that call. A
+// caller that filled av under its own anchor pops it first; nothing allocates
+// in between. See Allocator.anchors.
+func (m *Machine) pushNewSlice(t Type, av *ArrayValue, l, c int) {
+	m.Alloc.PushAnchorValue(av)
+	sv := m.Alloc.NewSlice(av, 0, l, c)
+	m.Alloc.PopAnchor()
+	m.PushValue(TypedValue{T: t, V: sv})
+}
+
 func makeUverseNode() {
 	// NOTE: uverse node is hidden, thus the leading dot in pkgPath=".uverse".
 	uverseNode = NewPackageNode("uverse", uversePkgPath, nil)
@@ -822,6 +834,11 @@ func makeUverseNode() {
 				// arg1 PointerValue is not a pointer,
 				// so the modification here is only local.
 				newArrayValue := m.Alloc.NewDataArray(nil, len(arg1String))
+				// The copy is reachable only from this Go local until append
+				// returns, and the rest of append allocates, so anchor it
+				// until then. See Allocator.anchors.
+				m.Alloc.PushAnchorValue(newArrayValue)
+				defer m.Alloc.PopAnchor()
 				m.incrCPU(OpCPUSlopeCopyPrimitive * int64(len(arg1String)))
 				copy(newArrayValue.Data, []byte(arg1String))
 				arg1.TV = &TypedValue{
@@ -875,24 +892,23 @@ func makeUverseNode() {
 								arrayValue.Data[:arg1Length],
 								arg1Base.Data[arg1Offset:arg1EndIndex])
 						}
-						m.PushValue(TypedValue{
-							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arg1Length, arg1Length),
-						})
+						m.pushNewSlice(arg0Type, arrayValue, arg1Length, arg1Length)
 						return
 					} else {
 						// append(nil, *SliceValue) new list ---------
 						arrayValue := m.Alloc.NewListArray(nil, arg1Length)
+						// The list is a Go local until pushed, and each
+						// element copy allocates, so anchor it through
+						// the copies. See Allocator.anchors.
+						m.Alloc.PushAnchor(arrayValue.List)
 						if arg1Length > 0 {
 							m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 							for i := range arg1Length {
-								arrayValue.List[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+								arrayValue.List[i] = arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
 							}
 						}
-						m.PushValue(TypedValue{
-							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arg1Length, arg1Length),
-						})
+						m.Alloc.PopAnchor()
+						m.pushNewSlice(arg0Type, arrayValue, arg1Length, arg1Length)
 						return
 					}
 				default:
@@ -959,9 +975,7 @@ func makeUverseNode() {
 									}
 									for i := start; i != end; i += step {
 										oldElem := list[dstStart+i]
-										// unrefCopy will resolve references and copy their values
-										// to copy by value rather than by reference.
-										newElem := arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+										newElem := arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
 										list[dstStart+i] = newElem
 
 										m.Realm.DidUpdate(m,
@@ -1039,20 +1053,19 @@ func makeUverseNode() {
 									arg1Base.Data[arg1Offset:arg1Offset+arg1Length])
 							}
 						}
-						m.PushValue(TypedValue{
-							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, newLength, newLength),
-						})
+						m.pushNewSlice(arg0Type, arrayValue, newLength, newLength)
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
 						arrayLen := arg0Length + arg1Length
 						arrayValue := m.Alloc.NewListArray(nil, arrayLen)
+						// Anchored through the copies, as above.
+						m.Alloc.PushAnchor(arrayValue.List)
 						if arg0Length > 0 {
 							if arg0Base.Data == nil {
 								m.incrCPU(OpCPUSlopeCopyElement * int64(arg0Length))
 								for i := range arg0Length {
-									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+									arrayValue.List[i] = arg0Base.List[arg0Offset+i].Copy(m.Alloc, m.Store)
 								}
 							} else {
 								panic("should not happen")
@@ -1063,7 +1076,7 @@ func makeUverseNode() {
 							if arg1Base.Data == nil {
 								m.incrCPU(OpCPUSlopeCopyElement * int64(arg1Length))
 								for i := range arg1Length {
-									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
 								}
 							} else {
 								m.incrCPU(OpCPUSlopeCopyPrimitive * int64(arg1Length))
@@ -1074,10 +1087,8 @@ func makeUverseNode() {
 								)
 							}
 						}
-						m.PushValue(TypedValue{
-							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arrayLen, arrayLen),
-						})
+						m.Alloc.PopAnchor()
+						m.pushNewSlice(arg0Type, arrayValue, arrayLen, arrayLen)
 						return
 					}
 				// ------------------------------------------------------------
@@ -1327,28 +1338,17 @@ func makeUverseNode() {
 					}
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(nil, li)
-						m.PushValue(TypedValue{
-							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
-						})
+						m.pushNewSlice(tt, arrayValue, li, li)
 						return
 					} else {
 						arrayValue := m.Alloc.NewListArray(nil, li)
-						if et.Kind() == InterfaceKind {
-							// leave as is
-						} else {
-							// init zero elements with concrete type.
-							// No CPU charge: for primitives defaultTypedValue is a
-							// zero-cost struct literal; for composite types it
-							// allocates via m.Alloc (covered by alloc gas).
-							for i := range li {
-								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
-							}
-						}
-						m.PushValue(TypedValue{
-							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
-						})
+						// init zero elements with concrete type. The list
+						// is a Go local until pushed, so anchor it through
+						// the fill. See Allocator.anchors.
+						m.Alloc.PushAnchor(arrayValue.List)
+						fillDefaultList(m.Alloc, arrayValue.List, et, PkgID{})
+						m.Alloc.PopAnchor()
+						m.pushNewSlice(tt, arrayValue, li, li)
 						return
 					}
 				case 2:
@@ -1369,40 +1369,28 @@ func makeUverseNode() {
 
 					if et.Kind() == Uint8Kind {
 						arrayValue := m.Alloc.NewDataArray(nil, ci)
-						m.PushValue(TypedValue{
-							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, ci),
-						})
+						m.pushNewSlice(tt, arrayValue, li, ci)
 						return
 					} else {
 						arrayValue := m.Alloc.NewListArray(nil, ci)
-						if et := bt.Elem(); et.Kind() == InterfaceKind {
-							// leave as is
-						} else {
-							// Initialize all elements within capacity with default
-							// type values. These need to be initialized because future
-							// slice operations could get messy otherwise. Simple capacity
-							// expansions like `a = a[:cap(a)]` would make it trivial to
-							// initialize zero values at the time of the slice operation.
-							// But sequences of operations like:
-							// 		a := make([]int, 1, 10)
-							// 		a = a[7:cap(a)]
-							// 		a = a[3:5]
-							//
-							// require a bit more work to handle correctly, requiring that
-							// all new TypedValue slice elements be checked to ensure they have
-							// a value for every slice operation, which is not desirable.
-							// No CPU charge: for primitives defaultTypedValue is a
-							// zero-cost struct literal; for composite types it
-							// allocates via m.Alloc (covered by alloc gas).
-							for i := range ci {
-								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
-							}
-						}
-						m.PushValue(TypedValue{
-							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, ci),
-						})
+						// Initialize all elements within capacity with default
+						// type values. These need to be initialized because future
+						// slice operations could get messy otherwise. Simple capacity
+						// expansions like `a = a[:cap(a)]` would make it trivial to
+						// initialize zero values at the time of the slice operation.
+						// But sequences of operations like:
+						// 		a := make([]int, 1, 10)
+						// 		a = a[7:cap(a)]
+						// 		a = a[3:5]
+						//
+						// require a bit more work to handle correctly, requiring that
+						// all new TypedValue slice elements be checked to ensure they have
+						// a value for every slice operation, which is not desirable.
+						// Anchored as in the case above.
+						m.Alloc.PushAnchor(arrayValue.List)
+						fillDefaultList(m.Alloc, arrayValue.List, et, PkgID{})
+						m.Alloc.PopAnchor()
+						m.pushNewSlice(tt, arrayValue, li, ci)
 						return
 					}
 				default:
@@ -1454,12 +1442,18 @@ func makeUverseNode() {
 			tt := arg0.TV.GetType()
 			m.Alloc.checkConstructionTime(tt)
 			tv := defaultTypedValue(m.Alloc, tt)
+			// tv is a Go local until pushed, and the heap item and the
+			// pointer type below allocate, so anchor it until then. See
+			// Allocator.anchors.
+			m.Alloc.PushAnchor([]TypedValue{tv})
 			m.Alloc.AllocatePointer()
 			hi := m.Alloc.NewHeapItem(tt, tv)
+			pt := m.Alloc.NewType(&PointerType{
+				Elt: tt,
+			})
+			m.Alloc.PopAnchor()
 			m.PushValue(TypedValue{
-				T: m.Alloc.NewType(&PointerType{
-					Elt: tt,
-				}),
+				T: pt,
 				V: PointerValue{
 					TV:    &hi.Value,
 					Base:  hi,
@@ -1520,7 +1514,7 @@ func makeUverseNode() {
 		nil, // results
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
-			ex := arg0.TV.Copy(m.Alloc)
+			ex := arg0.TV.Copy(m.Alloc, m.Store)
 			// m.Panic(ex) also works, but after return will immediately OpPanic2.
 			// This should be the only place .pushPanic() is called
 			// outside of op_*.go doOp*() functions.

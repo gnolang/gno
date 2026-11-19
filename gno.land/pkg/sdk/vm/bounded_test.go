@@ -126,3 +126,18 @@ func TestTruncate_Boundary(t *testing.T) {
 		truncate(strings.Repeat("a", maxBoundedBytes+1)),
 	)
 }
+
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) {
+	return 0, errors.New("no space left on device")
+}
+
+// A failed vm.Output write keeps the writer's error in the query error.
+func TestBoundedString_ParentWriteError(t *testing.T) {
+	const pkgPath = "gno.land/r/test/pr"
+	env := setupSizeGuardRealm(t, "addr1", pkgPath, "package pr\n\nfunc P() int {\n\tprintln(\"hello\")\n\treturn 1\n}\n")
+	env.vmk.Output = failWriter{}
+	_, err := env.vmk.QueryEval(env.ctx, pkgPath, "P()")
+	assert.ErrorContains(t, err, "no space left on device")
+}
