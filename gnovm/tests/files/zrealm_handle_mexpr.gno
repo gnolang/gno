@@ -2,7 +2,7 @@
 package zrealm_handle_mexpr
 
 // A method expression taken as a value in the victim's read-only code writes
-// nothing in its gate; one taken in a gate writes.
+// nothing in its gate; one taken in a gate and handed back writes nothing too.
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -16,5 +16,5 @@ func main(cur realm) {
 // Output:
 // read-only: gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Name
 // name: []
-// gate: undefined
-// name: [picked]
+// gate: gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Name
+// name: []

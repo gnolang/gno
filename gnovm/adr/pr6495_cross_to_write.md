@@ -7,11 +7,10 @@ non-crossing write paths of interrealm v2 borrow rules #1–#3 (#5669).
 
 ## Context
 
-A realm's objects could be written by code the realm never chose to run for
-it: a library method holding the realm's object borrowed the owner's
-authority (#207's `Ownable` takeover), a library function or interface value a
-caller handed in ran as the realm, and any exported non-crossing realm function
-or method wrote the realm's state for whoever called it (opened by #5669).
+Code a realm never chose to run wrote its objects: a library method borrowed
+the owner's authority (#207's `Ownable` takeover), a library function or
+interface value a caller handed in ran as the realm, and any exported
+non-crossing realm function wrote the realm's state (opened by #5669).
 
 ## Decision
 
@@ -22,9 +21,8 @@ the realm's helpers, methods and the library code they name write as usual.
 1. Realm code entered without crossing (another realm, a run script, a
    callback) runs read-only. It may read anything, may construct objects (they
    belong to its realm), and may write objects allocated during the current
-   read-only stretch, which ends at the next crossing call. It writes no stored
-   object, its own or the caller's. The stretch number lives on the object
-   (in existing padding), so no side table holds garbage alive.
+   read-only stretch, which ends at the next crossing call; no stored object.
+   The stretch number lives in the object's existing padding.
 2. A library method borrows its receiver's owner only for an object a library
    package owns; a realm's object is a view to library code.
 3. Library code a caller picked runs view-only: a function value, closure,
@@ -35,12 +33,17 @@ the realm's helpers, methods and the library code they name write as usual.
    `/p/` or stdlib package-level variable (`lib.Table[k](x)`, fixed after
    init), acts for the caller. A realm's own function or closure reached
    through library code its crossing call named still acts for the realm.
-4. A realm's closure entered from another realm counts as a call boundary for
+4. A realm's closure entered from another realm is a call boundary for
    `AssertOriginCall`.
 5. Every function value has a maker: the realm whose writable code made it
-   (none if made read-only). A declared non-crossing function or method
-   expression used as a value is a handle made like a closure; reached through
-   a value, it acts for the realm only if that realm made it.
+   (none if read-only); a declared function or method expression used as a
+   value is a handle made like a closure. Reached through a value, it acts for
+   the realm only if that realm made it.
+6. A maker stays home: a non-crossing function value copied, passed (argument,
+   receiver, deferred argument) or returned by code whose hold realm (current
+   realm, or the one current on entry to read-only code) is not its maker
+   arrives with none; a stored value is judged by its object id. Saving it is
+   refused into its code's realm or for library code; a third realm keeps it.
 
 Refusals: `<realm>'s code was entered without crossing and is read-only (call
 its crossing function)`; `cannot modify object owned by another realm from
@@ -49,38 +52,31 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 
 ## Alternatives rejected
 
-- **Owner grant (`mutable`, #6207).** One grant hands out every method of the
-  type, including ones that write the owner's other objects.
+- **Owner grant (`mutable`, #6207).** One grant hands out every method.
 - **Stamping function values with their sender.** Lost in containers and
-  variadics, and a value handed back carries the victim's stamp. The maker is
-  set when the value is made, by the code making it, and is none in read-only
-  code; a method value's receiver is read when the call runs.
-- **Receiver ownership for interface calls.** A struct value is copied under
-  the realm and a stored pointer becomes the realm's; it cannot tell who picked
-  the code.
-- **Unsaved objects stay writable.** When an object is saved depends on
-  finalization, which the source does not show.
-- **Implicit crossing on every call.** Shifts the caller identity silently and
-  makes every helper a boundary.
+  variadics. The maker is set by the code making it, none in read-only code,
+  and dropped when the value leaves (rule 6); tracking where a value came
+  from (a taint bit or side table) was rejected for garbage and gas.
+- **Receiver ownership for interface calls.** Cannot tell who picked the code.
+- **Unsaved objects stay writable.** Saving depends on finalization.
+- **Implicit crossing on every call.** Shifts the caller identity silently.
 
 ## Consequences
 
-- Writers are crossing functions or methods; `cur.Previous()` authenticates
-  them, so the `(_ int, rlm realm)` + `IsCurrent()` idiom is not needed. A
-  crossing method runs as its realm for anyone holding the object, so it must
-  check `cur.Previous()` (gov/dao's impl admits only the proxy).
+- Writers are crossing functions or methods, authenticated by
+  `cur.Previous()`; a crossing method runs as its realm for anyone holding the
+  object, so it must check it (gov/dao's impl admits only the proxy).
 - Constructors work without crossing; their objects are read-only to callers.
   A pointer handed out is a view; a value is the caller's copy.
 - A callback that writes its own realm is a crossing closure.
-- A realm's stateful iterator or builder cannot be advanced by callers without
-  crossing; hand out a library type by value (the caller's copy) instead.
+- A realm's iterator or builder needs crossing; hand out a library type value.
 - Realm-declared types belong to their realm: a realm keeps its own data in
   its own or library types (`impl` got its own vote store).
 - Migrated: `gov/dao` (`DAO` methods crossing, `memberstore` crossing writers,
   `SafeExecutor` now admits impl's executions), `sys/users`, `commondao`
   tests, deployment bootstraps, scripts and txtars.
-- `authz` handlers that run actions synchronously work; queueing an action in
-  one realm and running it from another needs crossing action types.
+- `authz` handlers run actions synchronously; queueing across realms needs
+  crossing action types.
 - A view-only or read-only frame writes nothing stored, so it is no realm
   boundary: `recover` in the caller catches a panic raised in it (a refused
   write included); only a crossing call is a boundary, caught by `revive`.
@@ -90,11 +86,15 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 - A library in the realm's import tree is trusted: a caller may pick any of
   its types through the realm's interfaces.
 - A stdlib method writing its argument can be picked through an interface.
-- A function value a realm made at init or in a gate and publishes, handed
-  back to a gate of that realm that runs callbacks, writes.
+- A function value R made, found by R's code through a reference a caller
+  supplied (slice, map, pointer, interface) or another realm keeps, acts for
+  R: a gate must not call function values found in caller-supplied
+  containers unless it would run them for itself (`zrealm_home_known_*`).
+- A library's own function read from its package variable acts for the caller
+  when the call names it (`ops[k](b)`); copied to a local first it is a value.
 
 ## Tests
 
-`zrealm_ctw_*` pin each rule; `zrealm_maker_*` and `zrealm_handle_*` rule 5;
-`zrealm_entry_*`, `zrealm_launder_*` the library cases; `iface_*`,
-`assertorigincall` and the governance txtars the chain path.
+`zrealm_ctw_*` pin each rule; `zrealm_maker_*`, `zrealm_handle_*` rule 5;
+`zrealm_home_*`, `home_*` rule 6; `zrealm_entry_*`, `zrealm_launder_*` the
+library cases; `iface_*`, `assertorigincall`, governance txtars the chain.

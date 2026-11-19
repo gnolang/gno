@@ -1,7 +1,7 @@
 # A closure realm A wrote and stored from its own gate writes for A when A's
 # gate calls it later. Realm B reading it through A's exported variable and
 # calling it directly runs it read-only; B handing it back to A's callback
-# gate lets it write (a closure a realm made in a gate is a key to its gates).
+# gate strips its maker, so it runs read-only there too.
 
 loadpkg gno.land/r/demo/mka $WORK/mka
 loadpkg gno.land/r/demo/mkb $WORK/mkb
@@ -18,9 +18,10 @@ stderr 'gno.land/r/demo/mka''s code was entered without crossing and is read-onl
 gnokey query vm/qeval --data 'gno.land/r/demo/mka.Val'
 stdout 'fired'
 
-gnokey maketx call -pkgpath gno.land/r/demo/mkb -func HandBack -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/mkb -func HandBack -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/demo/mka''s code was entered without crossing and is read-only'
 gnokey query vm/qeval --data 'gno.land/r/demo/mka.Val'
-stdout 'handed'
+stdout 'fired'
 
 -- mka/gnomod.toml --
 module = "gno.land/r/demo/mka"

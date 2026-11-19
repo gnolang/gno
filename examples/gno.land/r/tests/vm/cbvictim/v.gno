@@ -2,6 +2,7 @@ package cbvictim
 
 import (
 	"gno.land/p/demo/tests/launderpkg/v0"
+	"gno.land/p/demo/tests/libtable/v0"
 	"gno.land/p/demo/tests/pfuncbind"
 )
 
@@ -116,3 +117,97 @@ func LibGateless() {
 	f := pfuncbind.Clobber
 	f(Lib)
 }
+
+// Values made at init: maker cbvictim. A gate below runs each one.
+var (
+	Table  = []func(string){SetOwner}
+	Map    = map[string]func(string){"a": SetOwner}
+	Arr    = [1]func(string){SetOwner}
+	Obj    = &S{F: SetOwner}
+	Nested = Pair{F: SetOwner}
+	H      = Hook(SetOwner)
+	MV     = Box.SetName
+	Kick   = func() { Owner = "kick" }
+)
+
+// Pair is an all-exported struct whose copies may leave the realm.
+type Pair = struct{ F func(string) }
+
+// Hook is a function type with a crossing method that calls its receiver.
+type Hook func(string)
+
+func (h Hook) Run(cur realm) { h("recv") }
+
+func RunAll(cur realm, fs []func(string)) {
+	for _, f := range fs {
+		f("table")
+	}
+}
+func RunMap(cur realm, m map[string]func(string)) { m["a"]("map") }
+func RunP(cur realm, p *func(string))             { (*p)("ptr") }
+func RunAny(cur realm, x any)                     { x.(*S).F("any") }
+func RunIface(cur realm, x any)                   { x.(func(string))("iface") }
+func RunArr(cur realm, a [1]func(string))         { a[0]("arr") }
+func RunNested(cur realm, p Pair)                 { p.F("nested") }
+func RunGet(cur realm, get func() func(string))   { get()("provider") }
+
+// RunOwnTable, RunOwnHelper and RunLibIterate run this realm's own values.
+func RunOwnTable(cur realm) {
+	for _, f := range Table {
+		f("own-table")
+	}
+}
+func RunOwnHelper(cur realm)         { apply(FV, "own-helper") }
+func apply(f func(string), s string) { f(s) }
+func RunLibIterate(cur realm)        { libtable.Run(Kick) }
+
+// SetLibHook keeps a library-coded value a caller hands in.
+var libHook func(*launderpkg.Immutable)
+
+func SetLibHook(cur realm, f func(*launderpkg.Immutable)) { libHook = f }
+
+// SetX is a crossing closure made at init; another realm may register it.
+var SetX = func(cur realm, s string) { Owner = s }
+
+// GetFV hands out FV from read-only code.
+func GetFV() func(string) { return FV }
+
+// Values nested by value: a struct in a struct, behind a pointer, arrays.
+type Outer = struct{ Inner Pair }
+
+var (
+	O  = Outer{Inner: Pair{F: SetOwner}}
+	P  = &Outer{Inner: Pair{F: SetOwner}}
+	A  = [1]Pair{{F: SetOwner}}
+	AA = [1][1]func(string){{SetOwner}}
+	AS = [1][1]string{{"old"}}
+)
+
+func RunOuter(cur realm, o Outer)               { o.Inner.F("outer") }
+func RunArrPair(cur realm, a [1]Pair)           { a[0].F("arr") }
+func RunArrArr(cur realm, a [1][1]func(string)) { a[0][0]("arrarr") }
+
+// CheckAA runs AA's own element; SetAS changes AS through this realm's gate.
+func CheckAA(cur realm) { AA[0][0]("set-intact") }
+func SetAS(cur realm)   { AS[0][0] = "new" }
+
+// RunPanic recovers a value the caller's callback panics with and runs it.
+func RunPanic(cur realm, cb func()) {
+	defer func() {
+		if f, ok := recover().(func(string)); ok {
+			f("panic")
+		}
+	}()
+	cb()
+}
+
+// RegVia registers FV in a registry realm's gates, takes it back and runs it.
+func RegVia(cur realm, put func(cur realm, f func(string)), get func(cur realm) func(string)) {
+	put(cross(cur), FV)
+	f := get(cross(cur))
+	f("registry")
+}
+
+// RelayFrom is non-crossing: it hands one function of a caller-supplied
+// slice to this realm's own crossing function.
+func RelayFrom(fs []func(string), rlm realm) { RunS(cross(rlm), fs[0]) }

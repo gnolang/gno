@@ -378,7 +378,7 @@ func (m *Machine) doOpCall() {
 	if !fr.Receiver.IsUndefined() {
 		bft = ft.BoundType()
 	}
-	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
@@ -855,7 +855,9 @@ func (m *Machine) doOpReturnCallDefers() {
 // Returns a slice of parameters with receiver (if any) and varg conversion.
 // For bound method calls the returned slice is 1 greater than len(ft.Params).
 // Constructed varg slice is allocated, but the result slice is not.
-func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue) []TypedValue {
+// hold: the realm handing the arguments over; function values it does not
+// hold for arrive with no maker.
+func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue, hold PkgID) []TypedValue {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0
@@ -863,9 +865,6 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 		isMethod = 1
 	}
 	args := make([]TypedValue, isMethod+numParams)
-	if isMethod == 1 {
-		args[0] = recv
-	}
 	// args is a Go local, and every PopCopyValues below writes fresh copies
 	// into it. Anchor it so a GC triggered by one argument's copy still
 	// counts the arguments already copied; otherwise f(a, a, ..., a) frees
@@ -873,7 +872,15 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 	// call block without allocating, so dropping the anchor on return is
 	// safe — GC only runs from Allocate. See Allocator.anchors.
 	m.Alloc.PushAnchor(args)
-	defer m.Alloc.PopAnchor()
+	lastOver, lastHold := m.Alloc.handOver, m.Alloc.handHold
+	m.Alloc.handOver, m.Alloc.handHold = true, hold
+	defer func() {
+		m.Alloc.handOver, m.Alloc.handHold = lastOver, lastHold
+		m.Alloc.PopAnchor()
+	}()
+	if isMethod == 1 {
+		args[0] = m.Alloc.stripDeep(recv, hold)
+	}
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -924,11 +931,13 @@ func (m *Machine) doOpDefer() {
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
+		hold, _ := m.Alloc.holdRealm()
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{},
+			hold,
 		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
@@ -936,11 +945,13 @@ func (m *Machine) doOpDefer() {
 		// statement. For a lazy interface bind, dispatch is resolved at the
 		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
 		// for a resolved bind, args[0] holds the copied receiver.
+		hold, _ := m.Alloc.holdRealm()
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			cv.Receiver,
+			hold,
 		)
 		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:

@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
+	"sync"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -44,6 +45,12 @@ type Allocator struct {
 	// viewHoldID is the realm whose values code may hold while view-only
 	// (setViewOnly clears currentRealmID): the realm current on entry.
 	viewHoldID PkgID
+	// handHold, while handOver is set, is the realm handing arguments over:
+	// function values are judged against it instead of holdRealm.
+	handHold PkgID
+	handOver bool
+	// store loads a stored function value a strip must copy.
+	store Store
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
@@ -576,6 +583,162 @@ func (alloc *Allocator) holdRealm() (rid PkgID, ok bool) {
 	}
 	return alloc.viewHoldID, !alloc.viewHoldID.IsZero()
 }
+
+// stripHold is the realm a copied or handed-over function value is judged
+// against: the handing-over realm in popCopyArgs, else holdRealm.
+func (alloc *Allocator) stripHold() PkgID {
+	if alloc.handOver {
+		return alloc.handHold
+	}
+	rid, _ := alloc.holdRealm()
+	return rid
+}
+
+// stripMaker returns tv, or a copy with no maker when tv is a non-crossing
+// function value whose maker is a realm other than hold. A stored value is
+// judged by its ObjectID and type, so loading it changes nothing.
+func (alloc *Allocator) stripMaker(tv TypedValue, hold PkgID) TypedValue {
+	var maker PkgID
+	switch cv := tv.V.(type) {
+	case *FuncValue:
+		maker = cv.ObjectInfo.ID.PkgID
+	case *BoundMethodValue:
+		maker = cv.ObjectInfo.ID.PkgID
+	case RefValue:
+		if tv.T == nil || tv.T.Kind() != FuncKind {
+			return tv
+		}
+		maker = cv.ObjectID.PkgID
+	default:
+		return tv
+	}
+	if !maker.IsRealmPkg() || maker == hold {
+		return tv
+	}
+	ft, ok := baseOf(tv.T).(*FuncType)
+	if !ok || ft.IsCrossing() {
+		return tv
+	}
+	if ref, isRef := tv.V.(RefValue); isRef {
+		oo := Object(nil)
+		if alloc.store != nil {
+			oo = alloc.store.GetObjectSafe(ref.ObjectID)
+		}
+		if oo == nil {
+			return tv
+		}
+		tv.V = oo
+	}
+	switch cv := tv.V.(type) {
+	case *FuncValue:
+		alloc.AllocateFunc()
+		cp := *cv
+		cp.ObjectInfo = ObjectInfo{scratch: alloc.scratch}
+		tv.V = &cp
+	case *BoundMethodValue:
+		alloc.AllocateBoundMethod()
+		cp := *cv
+		cp.ObjectInfo = ObjectInfo{scratch: alloc.scratch}
+		tv.V = &cp
+	}
+	return tv
+}
+
+// stripDeep is stripMaker reaching into struct and array values held by
+// value; a container with a stripped element is rebuilt, the rest shared.
+func (alloc *Allocator) stripDeep(tv TypedValue, hold PkgID) TypedValue {
+	switch cv := tv.V.(type) {
+	case *FuncValue, *BoundMethodValue:
+		return alloc.stripMaker(tv, hold)
+	case RefValue:
+		switch k := tv.T.Kind(); {
+		case k == FuncKind:
+			return alloc.stripMaker(tv, hold)
+		case (k == StructKind || k == ArrayKind) && holdsFuncByValue(tv.T) && alloc.store != nil:
+			oo := alloc.store.GetObjectSafe(cv.ObjectID)
+			if oo == nil {
+				return tv
+			}
+			tv.V = oo
+			if out := alloc.stripDeep(tv, hold); out.V != tv.V {
+				return out
+			}
+			tv.V = cv
+		}
+	case *StructValue:
+		if !holdsFuncByValue(tv.T) {
+			return tv
+		}
+		if fields, ok := alloc.stripList(cv.Fields, hold); ok {
+			alloc.AllocateStructFields(int64(len(fields)))
+			sv := alloc.NewStruct(tv.T, fields)
+			alloc.PopAnchor()
+			if pid := getDeclaredPkgID(tv.T); pid.IsRealmPkg() {
+				sv.ObjectInfo.SetPkgID(pid)
+			}
+			tv.V = sv
+		}
+	case *ArrayValue:
+		if cv.Data != nil || !holdsFuncByValue(tv.T) {
+			return tv
+		}
+		if list, ok := alloc.stripList(cv.List, hold); ok {
+			alloc.AllocateListArray(int64(len(list)))
+			av := &ArrayValue{List: list}
+			alloc.stampPkgID(&av.ObjectInfo, tv.T)
+			alloc.PopAnchor()
+			tv.V = av
+		}
+	}
+	return tv
+}
+
+// stripList returns a fresh list with each element stripDeep'd, anchored
+// until the caller pops it, or ok false when no element changes.
+func (alloc *Allocator) stripList(list []TypedValue, hold PkgID) (out []TypedValue, ok bool) {
+	for i := range list {
+		nv := alloc.stripDeep(list[i], hold)
+		if nv.V == list[i].V {
+			continue
+		}
+		if out == nil {
+			out = make([]TypedValue, len(list))
+			copy(out, list)
+			alloc.PushAnchor(out)
+		}
+		out[i] = nv
+	}
+	return out, out != nil
+}
+
+// holdsFuncByValue reports whether a value of type t can hold a function
+// value inline: t is a func or interface type, or a struct or array of one.
+func holdsFuncByValue(t Type) bool {
+	if t == nil {
+		return false
+	}
+	if hf, ok := funcHoldCache.Load(t); ok {
+		return hf.(bool)
+	}
+	hf := false
+	switch bt := baseOf(t).(type) {
+	case *FuncType, *InterfaceType:
+		hf = true
+	case *StructType:
+		for _, f := range bt.Fields {
+			if holdsFuncByValue(f.Type) {
+				hf = true
+				break
+			}
+		}
+	case *ArrayType:
+		hf = bt.Len > 0 && holdsFuncByValue(bt.Elt)
+	}
+	funcHoldCache.Store(t, hf)
+	return hf
+}
+
+var funcHoldCache sync.Map // Type -> bool
 
 // refusedCopy returns the foreign type that makes a copy of t refused here,
 // or nil if the copy is allowed.

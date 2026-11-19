@@ -1377,9 +1377,26 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
 	case RefValue:
+		// A struct or array held by value is copied whether loaded or not.
+		// A ref left by an object deleted earlier in the tx stays a ref.
+		if k := tv.T.Kind(); (k == StructKind || k == ArrayKind) && alloc != nil && alloc.store != nil {
+			if oo := alloc.store.GetObjectSafe(cv.ObjectID); oo != nil {
+				tv.V = oo
+				return tv.Copy(alloc)
+			}
+		}
 		// Checked by type, so the verdict does not depend on what is loaded.
 		alloc.checkCopy(tv.T)
 		cp = tv
+		if alloc != nil && cv.ObjectID.PkgID.IsRealmPkg() {
+			cp = alloc.stripMaker(tv, alloc.stripHold())
+		}
+	case *FuncValue, *BoundMethodValue:
+		// A copy made by code not holding for the maker acts for no realm.
+		cp = tv
+		if alloc != nil {
+			cp = alloc.stripMaker(tv, alloc.stripHold())
+		}
 	default:
 		cp = tv
 	}
@@ -1393,6 +1410,12 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 	case RefValue:
 		alloc.checkCopy(tv.T)
 		cp = tv // start from the header (T, N); V is replaced below
+		if tv.T != nil && tv.T.Kind() == FuncKind {
+			if alloc != nil {
+				cp = alloc.stripMaker(tv, alloc.stripHold())
+			}
+			return cp
+		}
 		refObject := tv.GetFirstObject(store)
 		switch refObjectValue := refObject.(type) {
 		case *ArrayValue:
