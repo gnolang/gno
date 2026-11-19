@@ -1,0 +1,21 @@
+# cbvictim.O nests a struct holding cbvictim's function; handed by value by another realm, it arrives without a maker.
+# Same verdict cold, after a read that loads the nested value, and after a restart.
+
+loadpkg gno.land/r/tests/vm/cbother
+gnoland start
+! gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func Outer -args false -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/tests/vm/cbvictim''s code was entered without crossing and is read-only'
+! gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func Outer -args true -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/tests/vm/cbvictim''s code was entered without crossing and is read-only'
+
+gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func Outer -args false -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/tests/vm/cbvictim''s code was entered without crossing and is read-only'
+
+gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func Outer -args true -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/tests/vm/cbvictim''s code was entered without crossing and is read-only'
+gnokey query vm/qeval --data 'gno.land/r/tests/vm/cbvictim.Owner'
+stdout 'victim'

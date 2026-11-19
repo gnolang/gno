@@ -1,0 +1,28 @@
+# A by-value copy of another realm's stored array is the copier's own, loaded or
+# not: cbother writes its copies freely, and cbvictim changing its own array
+# leaves cbother's copy as it was.
+
+loadpkg gno.land/r/tests/vm/cbother
+gnoland start
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func KeepAA -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func MutAA -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbvictim -func CheckAA -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/tests/vm/cbvictim.Owner'
+stdout 'set-intact'
+
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func KeepAS -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbvictim -func SetAS -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func ReadAS -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '"old" string'
+gnokey query vm/qeval --data 'gno.land/r/tests/vm/cbvictim.AS[0][0]'
+stdout 'new'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func MutAS -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/cbother -func ReadAS -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout '"mine" string'
+gnokey query vm/qeval --data 'gno.land/r/tests/vm/cbvictim.AS[0][0]'
+stdout 'new'

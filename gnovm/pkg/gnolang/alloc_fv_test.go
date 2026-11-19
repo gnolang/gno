@@ -83,6 +83,15 @@ type P struct {
 
 var ps [8]P
 
+type In struct{ A, B int }
+
+type Out struct {
+	I In
+	S string
+}
+
+var os [8]Out
+
 func visit(i int) bool { sum += i; return false }
 
 func iterate(n int, f func(int) bool) {
@@ -109,12 +118,22 @@ func Copies() {
 		ps[(k+1)%8] = x
 	}
 }
+
+// NestedCopies copies a struct nesting a struct by value 1000 times.
+func NestedCopies() {
+	for k := 0; k < 1000; k++ {
+		x := os[k%8]
+		x.I.A++
+		os[(k+1)%8] = x
+	}
+}
 `
 
 // BenchmarkStripOwnIterate and BenchmarkStripStructCopy run in a realm with
 // its own callback and with structs holding no function: nothing is stripped.
-func BenchmarkStripOwnIterate(b *testing.B) { benchStrip(b, "Iterate") }
-func BenchmarkStripStructCopy(b *testing.B) { benchStrip(b, "Copies") }
+func BenchmarkStripOwnIterate(b *testing.B)  { benchStrip(b, "Iterate") }
+func BenchmarkStripStructCopy(b *testing.B)  { benchStrip(b, "Copies") }
+func BenchmarkNestedStructCopy(b *testing.B) { benchStrip(b, "NestedCopies") }
 
 func benchStrip(b *testing.B, fn string) {
 	b.Helper()
