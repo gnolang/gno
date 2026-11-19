@@ -85,12 +85,19 @@ type AppConfig struct {
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
 	// no "/r/" or "/p/" prefix), or "*" for every path, whose pages are official: they never show
 	// RealmNotice, may lend their own heading and summary to the page
-	// metadata, keep their internal links followed, and are indexed whatever
-	// IndexCommunity says.
+	// metadata, keep their internal links followed, are indexed whatever
+	// IndexCommunity says, and have their owner assets shown in the store.
 	TrustedPaths []string
 	// IndexCommunity says which pages outside TrustedPaths search engines may
 	// index; the others get noindex, nofollow and no canonical.
 	IndexCommunity CommunityIndex
+	// StoreRealm is the Explore realm as a gnoweb path ("/r/gnoland/store/v0").
+	// Its front pages get a richer view. Empty disables the store.
+	StoreRealm string
+	// StoreDeny are namespaces or package paths, in the form of
+	// TrustedPaths, whose listings Explore never shows: the operator's way
+	// to take one down at once, where the realm's takes a GovDAO vote.
+	StoreDeny []string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -233,6 +240,9 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
+		StoreRealm:                   cfg.StoreRealm,
+		StoreDeny:                    cfg.StoreDeny,
+		IPFSGateway:                  cfg.RenderConfig.IPFSGateway,
 	}
 
 	// Assigned inside the branch, never before it: an interface field holding

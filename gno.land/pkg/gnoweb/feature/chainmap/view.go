@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 )
 
 // activityWait is how long a map page waits for the activity aggregate before
@@ -152,6 +153,26 @@ func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 	}
 }
 
+// Activity returns the window's calls if the aggregate is at hand, and nil
+// if not: without an indexer, while the first aggregate is computed, or
+// while the indexer fails. It is the one aggregate the map shows, so a
+// feature that reads it here adds no indexer query, and it never waits: a
+// stale aggregate is returned while it is refreshed, and the first fetch is
+// started for the readers that follow.
+func (h *Handler) Activity(ctx context.Context) *Activity {
+	if h.activity == nil {
+		return nil
+	}
+	a, _ := h.activity.Peek(ctx, activityKey, h.fetchActivity)
+	return a
+}
+
+const activityKey = "activity"
+
+func (h *Handler) fetchActivity(ctx context.Context) (*Activity, error) {
+	return computeActivity(ctx, h.deps.Indexer, h.closedBands)
+}
+
 // addActivity colours the tiles with the window's calls, or says why it
 // cannot.
 func (h *Handler) addActivity(ctx context.Context, data *MapData) {
@@ -161,12 +182,10 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	}
 	wctx, cancel := context.WithTimeout(ctx, activityWait)
 	defer cancel()
-	a, err := h.activity.get(wctx, "activity", func(ctx context.Context) (*Activity, error) {
-		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
-	})
+	a, err := h.activity.Get(wctx, activityKey, h.fetchActivity)
 	if err != nil {
 		data.Activity = ActivityUnavailable
-		if errors.Is(err, ErrPending) {
+		if errors.Is(err, flight.ErrPending) {
 			data.Activity = ActivityPending
 		} else {
 			h.deps.Logger.Warn("map: activity unavailable", "error", err)

@@ -67,6 +67,8 @@ type webCfg struct {
 	indexCommunity   gnoweb.CommunityIndex
 	noIndex          bool
 	trustedPaths     string
+	storeRealm       string
+	storeDeny        string
 }
 
 // The default realm notice, and the short variant shown below the lg
@@ -184,7 +186,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official; only as safe as the chain's namespace enforcement (r/sys/names)",
+		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official, owner assets shown in the store included; only as safe as the chain's namespace enforcement (r/sys/names)",
 	)
 
 	fs.TextVar(
@@ -206,6 +208,20 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"no-index",
 		defaultWebOptions.noIndex,
 		"keep this deployment out of search engines (testnets, staging); never on mainnet",
+	)
+
+	fs.StringVar(
+		&c.storeRealm,
+		"store-realm",
+		defaultWebOptions.storeRealm,
+		"realm behind Explore, the app store at /explore (e.g. /r/gnoland/store/v0); empty disables it",
+	)
+
+	fs.StringVar(
+		&c.storeDeny,
+		"store-deny",
+		defaultWebOptions.storeDeny,
+		"comma-separated namespaces or package paths (acme, acme/swap; a pasted /r/acme/swap or page address works too) whose listings Explore never draws: takes one down on this gnoweb at once, where hiding it for everyone takes a GovDAO vote. The realm's own counts, markdown and api/ pages still hold it",
 	)
 
 	fs.StringVar(
@@ -240,7 +256,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.ipfsGateway,
 		"ipfs-gateway",
 		defaultWebOptions.ipfsGateway,
-		"IPFS gateway origin that ipfs:// URLs, URLs on retired gateways (ipfs.io, dweb.link, ...) and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
+		"IPFS gateway origin that ipfs:// URLs, URLs on retired gateways (ipfs.io, dweb.link, ...) and images on ipfs.filebase.io are rewritten to, and that serves Explore's owner images; empty disables both",
 	)
 
 	fs.BoolVar(
@@ -373,10 +389,17 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if err := setupTrust(cfg, appcfg, logger); err != nil {
 		return nil, err
 	}
+	appcfg.StoreRealm = cfg.storeRealm
+	if cfg.storeDeny != "" {
+		appcfg.StoreDeny = strings.Split(cfg.storeDeny, ",")
+	}
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
 	}
+
+	// Before -aliases, so an operator's own /explore wins.
+	appcfg.Aliases = withStoreAlias(appcfg.Aliases, cfg.storeRealm)
 
 	if cfg.aliases != "" {
 		aliases, err := parseAliases(cfg.aliases)
@@ -422,6 +445,19 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 		return nil
 	}, nil
+}
+
+// withStoreAlias returns a copy of aliases, so neither it nor -aliases,
+// copied in afterwards, ever mutates the shared DefaultAliases; with
+// -store-realm, the copy points /explore at the store realm. The alias comes
+// with -store-realm, not with the default aliases.
+func withStoreAlias(aliases map[string]gnoweb.AliasTarget, storeRealm string) map[string]gnoweb.AliasTarget {
+	out := make(map[string]gnoweb.AliasTarget, len(aliases)+1)
+	maps.Copy(out, aliases)
+	if storeRealm != "" {
+		out["/explore"] = gnoweb.AliasTarget{Value: storeRealm, Kind: gnoweb.GnowebPath}
+	}
+	return out
 }
 
 // parseAliases parses the given aliases string and return an aliases map.

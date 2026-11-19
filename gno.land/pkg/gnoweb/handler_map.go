@@ -72,7 +72,7 @@ func (r importReader) Imports(ctx context.Context, pkgPath string) ([]string, er
 // from crawlers.
 func (h *HTTPHandler) GetDepsView(r *http.Request, gnourl *weburl.GnoURL) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-	status, view, err := h.ChainMap.DepsView(r, pkgPath, displayPackageName(pkgPath))
+	status, view, err := h.ChainMap.DepsView(r, pkgPath, components.PackageName(pkgPath))
 	if err != nil {
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}

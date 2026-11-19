@@ -43,7 +43,7 @@ func shortDetail(r Result) string {
 		return r.Detail
 	}
 	i := strings.LastIndexByte(r.Detail, ' ') + 1
-	return r.Detail[:i] + components.TruncMiddle(r.Detail[i:], detailEnds)
+	return r.Detail[:i] + components.TruncMiddle(r.Detail[i:], detailEnds, detailEnds)
 }
 
 // rowIcon picks a row's icon: what it names when its link does not say, else

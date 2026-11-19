@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
@@ -23,26 +24,12 @@ func ShortenOID(id, ref string) string {
 	return id
 }
 
-// truncMid shortens s to "<head>…<tail>", or returns it unchanged when short.
-func truncMid(s string, head, tail int) string {
-	if head < 0 {
-		head = 0
-	}
-	if tail < 0 {
-		tail = 0
-	}
-	if len(s) <= head+tail+1 {
-		return s
-	}
-	return s[:head] + "…" + s[len(s)-tail:]
-}
-
 // TruncOID truncates an ObjectID's hashlet while preserving the `:N` suffix.
 func TruncOID(id string, head, tail int) string {
 	if i := strings.IndexByte(id, ':'); i > 0 {
-		return truncMid(id[:i], head, tail) + id[i:]
+		return components.TruncMiddle(id[:i], head, tail) + id[i:]
 	}
-	return truncMid(id, head, tail)
+	return components.TruncMiddle(id, head, tail)
 }
 
 // BuildPackageSidebar assembles the aside for a top-level state page.

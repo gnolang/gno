@@ -29,6 +29,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/store"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -123,6 +124,14 @@ type HTTPHandlerConfig struct {
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
 	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
+	// StoreRealm — see AppConfig field of the same name.
+	StoreRealm string
+	// StoreDeny — see AppConfig field of the same name.
+	StoreDeny []string
+	// IPFSGateway is the gateway origin serving the store's owner images
+	// (RenderConfig.IPFSGateway); it must be in the CSP img-src. Empty shows
+	// the generated visuals only.
+	IPFSGateway string
 	// Directory lists realm and package paths for the search feature.
 	// Optional: callers that already have one — the router does, for
 	// /search.json — pass it so both share a singleflight group. Nil builds
@@ -163,6 +172,25 @@ func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.Aliases == nil {
 		return errors.New("no `Aliases` configured")
 	}
+	if cfg.StoreRealm != "" {
+		if u := (weburl.GnoURL{Path: cfg.StoreRealm}); !u.IsRealm() || u.IsDir() {
+			return fmt.Errorf("invalid `StoreRealm` %q: want a realm path such as /r/gnoland/store/v0", cfg.StoreRealm)
+		}
+		if cfg.Meta.Domain == "" {
+			return errors.New("a `StoreRealm` needs a `Meta.Domain`")
+		}
+	}
+	deny, err := storeDenyEntries(cfg.StoreDeny, cfg.Meta.Domain)
+	if err != nil {
+		return err
+	}
+	cfg.StoreDeny = deny
+	// NewRouter has already normalized it; this catches a direct caller's.
+	gw, err := normalizeIPFSGateway(cfg.IPFSGateway, "", "")
+	if err != nil {
+		return fmt.Errorf("invalid `IPFSGateway`: %w", err) // not the value: it may carry a secret
+	}
+	cfg.IPFSGateway = gw
 	return nil
 }
 
@@ -183,6 +211,8 @@ type HTTPHandler struct {
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// Store renders the Content tab of the store realm; nil without one.
+	Store *store.Handler
 	// Search is the feature/omnisearch handler that owns every $search URL.
 	Search *omnisearch.Handler
 	// ChainMap is the feature/chainmap handler: the map of a listing, and the
@@ -198,6 +228,9 @@ type HTTPHandler struct {
 
 // NewHTTPHandler creates a new HTTPHandler.
 func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
+	// A copy: validate normalizes it, and the caller's may be shared.
+	own := *cfg
+	cfg = &own
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
@@ -258,6 +291,24 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			TrustedProxies: trustedProxies,
 		},
 	})
+	h.ChainMap = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
+	if cfg.StoreRealm != "" {
+		deps := store.Deps{
+			Client:      cfg.ClientAdapter,
+			RealmPath:   cfg.StoreRealm,
+			Domain:      cfg.Meta.Domain,
+			ChainID:     cfg.Meta.ChainId,
+			Remote:      cfg.Meta.RemoteHelp,
+			IPFSGateway: cfg.IPFSGateway,
+			Trusted:     h.policy.trusted.contains,
+			Denied:      storeDenied(cfg.StoreDeny),
+			Logger:      logger,
+		}
+		if h.ChainMap.HasIndexer() {
+			deps.Usage = h.storeUsage
+		}
+		h.Store = store.New(deps)
+	}
 	directory := cfg.Directory
 	if directory == nil {
 		directory = newRPCRealmDirectory(cfg.ClientAdapter, cfg.Meta.Domain, searchMaxConcurrentQueries)
@@ -275,8 +326,24 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		}),
 		Logger: logger,
 	})
-	h.ChainMap = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
 	return h, nil
+}
+
+// storeUsage hands Explore the week's distinct callers from the map's own
+// aggregate: one indexer read, refreshed every five minutes at most, serves
+// both, and Explore never waits for it.
+func (h *HTTPHandler) storeUsage(ctx context.Context) map[string]int {
+	return usageOf(h.ChainMap.Activity(ctx))
+}
+
+// usageOf is what Explore may show of an aggregate: nothing of one that left
+// part of the week unread, whose counts are lower bounds and would rank apps
+// wrongly.
+func usageOf(a *chainmap.Activity) map[string]int {
+	if a == nil || a.Partial {
+		return nil
+	}
+	return a.Callers
 }
 
 // searchDirectory adapts RealmDirectory to the shape feature/omnisearch
@@ -806,6 +873,17 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetUserView(ctx, gnourl, pr)
 	}
 
+	// The store realm's own front pages get a richer view; every other path,
+	// tab and render argument keeps the realm's markdown.
+	if h.Store != nil && !pr.markdown {
+		if view, meta := h.Store.View(ctx, gnourl); view != nil {
+			// Category labels are the realm's own words: only a store realm
+			// gnoweb vouches for puts them in the head.
+			pr.lead = pageLead{title: meta.Title, description: meta.Description, fixed: h.policy.kind(gnourl) != pageCommunity}
+			return meta.Status, view
+		}
+	}
+
 	// Ultimately get realm view
 	if pr.markdown {
 		return h.GetMarkdownRealmView(ctx, gnourl, indexData, pr)
@@ -917,7 +995,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...stri
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
-			Title: displayPackageName(raw),
+			Title: components.PackageName(raw),
 			URL:   raw,
 			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
@@ -1053,18 +1131,6 @@ func CreateUsernameFromBech32(username string) string {
 	}
 
 	return username[:4] + "..." + username[len(username)-4:]
-}
-
-// displayPackageName returns versioned name for a package path.
-// Examples: "gno.land/r/demo/foo/v2" → "foo/v2", "gno.land/r/demo/foo" → "foo".
-func displayPackageName(pkgPath string) string {
-	base := path.Base(pkgPath)
-	name := gno.LastPathElement(pkgPath)
-	if name != base {
-		// Versioned path: show "name/vN".
-		return name + "/" + base
-	}
-	return name
 }
 
 // GetUserView returns the user profile view for a given GnoURL. The segment
@@ -1273,7 +1339,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		SelectedSend: selSend,
-		RealmName:    displayPackageName(gnourl.Path),
+		RealmName:    components.PackageName(gnourl.Path),
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
@@ -1751,7 +1817,7 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 	}
 
 	lead := sp.render.lead
-	if !sp.kind.mayRepeat(sp.url) {
+	if !lead.fixed && !sp.kind.mayRepeat(sp.url) {
 		lead = pageLead{}
 	}
 	if lead.title == "" {
@@ -1814,6 +1880,9 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
 		Origin:     gnourl.Origin,
+	}
+	if h.Store != nil {
+		indexData.HeaderData.StoreURL = h.Store.RealmPath()
 	}
 	// A copy shows its package's tabs, and the notice that package's own
 	// pages show: the code is a community package's all the same.

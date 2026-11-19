@@ -3,12 +3,14 @@ package chainmap
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"maps"
 	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
@@ -70,8 +72,8 @@ type Activity struct {
 // newActivityFlight holds the one aggregate. A stale one is served at once
 // while a request refreshes it, so after the first map nobody waits on the
 // indexer for activity.
-func newActivityFlight() *flight[*Activity] {
-	return &flight[*Activity]{ttl: activityTTL, errTTL: failureTTL, timeout: activityTimeout, max: 1, stale: true}
+func newActivityFlight(logger *slog.Logger) *flight.Flight[*Activity] {
+	return &flight.Flight[*Activity]{TTL: activityTTL, ErrTTL: failureTTL, Timeout: activityTimeout, Max: 1, Stale: true, Logger: logger}
 }
 
 // bandCounts are the successful calls of one band, per package.
