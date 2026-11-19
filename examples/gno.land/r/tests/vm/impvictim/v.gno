@@ -9,5 +9,14 @@ var buf = make([]byte, 4)
 // Fill reads a caller-supplied reader into this realm's buffer.
 func Fill(cur realm, r io.ReaderAt) { r.ReadAt(buf, 0) }
 
+// FillMV binds the reader's method value here, then calls it.
+func FillMV(cur realm, r io.ReaderAt) {
+	f := r.ReadAt
+	f(buf, 0)
+}
+
+// FillFunc calls a method value the caller bound outside.
+func FillFunc(cur realm, f func([]byte, int64) (int, error)) { f(buf, 0) }
+
 // State reports the buffer.
 func State() string { return string(buf) }

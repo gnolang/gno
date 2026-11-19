@@ -1349,7 +1349,15 @@ func (pn *PackageNode) importClosure(store Store) map[string]bool {
 	c := map[string]bool{}
 	var walk func(*PackageNode)
 	walk = func(p *PackageNode) {
+		if strings.HasSuffix(p.PkgPath, "_test") &&
+			IsRealmPath(strings.TrimSuffix(p.PkgPath, "_test")) {
+			return // a realm's integration test package is not production code
+		}
+		realm := IsRealmPath(p.PkgPath)
 		for _, fn := range p.Files {
+			if realm && IsTestFile(fn.FileName) {
+				continue // test-only imports are not trusted on chain
+			}
 			for _, d := range fn.Decls {
 				id, ok := d.(*ImportDecl)
 				if !ok || c[id.PkgPath] {

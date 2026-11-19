@@ -40,7 +40,8 @@ type Machine struct {
 	viewRealm *Realm        // realm whose code runs read-only (constructs its objects)
 	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
-		realm   *Realm
+		root    string
+		test    bool
 		foreign bool
 	}
 	Alloc         *Allocator // memory allocations
@@ -2840,20 +2841,46 @@ func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bind
 	return bindPID != m.Realm.ID
 }
 
-// foreignLib reports whether fv is outside the current realm's import tree,
-// direct or indirect; only .uverse is exempt. Such code reached through an
-// interface or a method value runs view-only.
+// foreignLib reports whether fv is outside the import tree of the realm whose
+// code is executing; .uverse is always exempt. Such code reached through an
+// interface or a method value runs view-only. The root is the nearest realm
+// frame, so realm code read-only-entered from another realm still trusts the
+// realm's own imports. A _test.gno frame trusts its imports, which the realm's
+// production closure excludes.
 func (m *Machine) foreignLib(fv *FuncValue) bool {
-	if m.libMemo.fv == fv && m.libMemo.realm == m.Realm {
+	root, test := m.trustRoot()
+	if m.libMemo.fv == fv && m.libMemo.root == root && m.libMemo.test == test {
 		return m.libMemo.foreign
 	}
 	foreign := fv.PkgPath != uversePkgPath
 	if foreign {
-		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(m.Realm.Path)).(*PackageNode)
-		foreign = !ok || !pn.importClosure(m.Store)[fv.PkgPath]
+		if test {
+			foreign = false
+		} else {
+			pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(root)).(*PackageNode)
+			foreign = !ok || !pn.importClosure(m.Store)[fv.PkgPath]
+		}
 	}
-	m.libMemo.fv, m.libMemo.realm, m.libMemo.foreign = fv, m.Realm, foreign
+	m.libMemo.fv, m.libMemo.root, m.libMemo.test, m.libMemo.foreign = fv, root, test, foreign
 	return foreign
+}
+
+// trustRoot returns the package whose import tree foreignLib consults and
+// whether the call runs on behalf of a test file. Unknown frames are skipped.
+func (m *Machine) trustRoot() (string, bool) {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func == nil || !IsRealmPath(fr.Func.PkgPath) || fr.Func.FileName == "" {
+			continue
+		}
+		test := strings.HasSuffix(fr.Func.FileName, "_test.gno") ||
+			strings.HasSuffix(fr.Func.FileName, "_filetest.gno")
+		return fr.Func.PkgPath, test
+	}
+	if m.Realm != nil {
+		return m.Realm.Path, false
+	}
+	return "", false
 }
 
 // calledBy reports whether every frame from the call on top of the stack

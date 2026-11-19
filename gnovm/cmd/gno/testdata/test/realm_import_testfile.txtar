@@ -1,0 +1,42 @@
+# A _test.gno file's imports are not trusted: on chain the realm is loaded from
+# production files only, so a reader from a test-only package is view-only. The
+# refusal aborts the test, as it aborts the same call on chain.
+
+! gno test -v .
+
+! stdout .+
+stderr '=== RUN   TestFill'
+stderr 'cannot copy to readonly tainted slice'
+stderr 'FAIL'
+
+-- gnomod.toml --
+module = "gno.test/r/integ/realm_import_testfile"
+gno = "0.9"
+
+-- impvictim.gno --
+package impvictim
+
+import "io"
+
+var buf = make([]byte, 4)
+
+// Fill reads a caller-supplied reader into this realm's buffer.
+func Fill(cur realm, r io.ReaderAt) { r.ReadAt(buf, 0) }
+
+// State reports the buffer.
+func State() string { return string(buf) }
+
+-- impvictim_test.gno --
+package impvictim
+
+import (
+	"bytes"
+	"testing"
+)
+
+func TestFill(cur realm, t *testing.T) {
+	Fill(cross(cur), bytes.NewReader([]byte("abcd")))
+	if got := State(); got != "" {
+		t.Fatalf("buffer changed: %q", got)
+	}
+}
