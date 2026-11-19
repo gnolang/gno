@@ -205,8 +205,34 @@ func TestWouldExceedSpend(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			o := &oracle{spent: tt.spent, enableFee: tt.fee, maxSpend: tt.maxSpend}
+			o := &oracle{spent: tt.spent, gasFee: std.NewCoin(ugnotDenom, tt.fee), maxSpend: tt.maxSpend}
 			assert.Equal(t, tt.want, o.wouldExceedSpend())
+		})
+	}
+}
+
+// TestAffordance pins that the reported count is the lesser of the two bounds,
+// and names it: counting the balance alone overstated a default run 49 times.
+func TestAffordance(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		balance  int64
+		spent    int64
+		maxSpend int64
+		want     string
+	}{
+		{"no bound set", 4900, 0, 0, "49 approvals at 100ugnot each (bound by balance)"},
+		{"bound below balance", 4900, 0, 1000, "10 approvals at 100ugnot each (bound by -max-spend)"},
+		{"bound partly spent", 4900, 700, 1000, "3 approvals at 100ugnot each (bound by -max-spend)"},
+		{"balance below bound", 250, 0, 1000, "2 approvals at 100ugnot each (bound by balance)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			o := &oracle{spent: tt.spent, gasFee: std.NewCoin(ugnotDenom, 100), maxSpend: tt.maxSpend}
+			assert.Contains(t, o.affordance(tt.balance), tt.want)
 		})
 	}
 }
@@ -252,12 +278,22 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 		assert.Contains(t, err.Error(), "gas fees are paid in")
 	})
 
+	// ParseCoin accepts "0ugnot", and a zero fee reaches affordance as a
+	// divisor. Refusing at startup beats panicking on the first balance report.
+	t.Run("a zero gas fee is refused", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.gasFee = "0ugnot"
+		_, err := newOracle(cfg, tio)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be positive")
+	})
+
 	t.Run("a usable bound is accepted", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.maxSpend = defaultMaxSpend
 		o, err := newOracle(cfg, tio)
 		require.NoError(t, err)
-		assert.Equal(t, int64(1000000), o.enableFee)
+		assert.Equal(t, std.NewCoin(ugnotDenom, 1000000), o.gasFee)
 		assert.Positive(t, o.maxSpend)
 	})
 }
