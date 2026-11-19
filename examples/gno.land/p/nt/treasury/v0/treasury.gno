@@ -3,8 +3,8 @@ package treasury
 import (
 	"errors"
 
+	"gno.land/p/nt/bptree/pager/v0"
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/nt/bptree/v0/pager"
 	"gno.land/p/nt/ufmt/v0"
 )
 

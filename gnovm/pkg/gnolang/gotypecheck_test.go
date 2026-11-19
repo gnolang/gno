@@ -1,6 +1,9 @@
 package gnolang
 
 import (
+	"go/ast"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -573,4 +576,89 @@ func TestTypeCheckMemPackage_GoVersionPinned(t *testing.T) {
 	}
 	_, err = TypeCheckMemPackage(loopClosure, TypeCheckOptions{Mode: TCLatestRelaxed})
 	assert.NoError(t, err, "loop-closure syntax must remain accepted under the pin")
+}
+
+func TestGoParseMemPackage_UniqueDecls(t *testing.T) {
+	t.Parallel()
+
+	pkg := &std.MemPackage{
+		Type: MPUserProd,
+		Name: "unique",
+		Path: "gno.land/p/demo/unique",
+		Files: []*std.MemFile{
+			{Name: "first.gno", Body: `package unique
+type receiver struct{}
+func f() int { return 1 }
+func f() int { return 2 }
+func (receiver) method() {}
+func init() {}
+func _() {}
+var kept int
+`},
+			{Name: "second.gno", Body: `package unique
+func f() int { return 3 }
+func (receiver) method() {}
+func init() {}
+func _() {}
+`},
+		},
+	}
+
+	_, _, gofs, _, _, err := GoParseMemPackage(pkg, nil) //nolint:dogsled // only the non-test .gno files matter here.
+	require.NoError(t, err)
+	require.Len(t, gofs, 2)
+
+	counts := make(map[string]int)
+	methods, gens := 0, 0
+	var survivingF *ast.FuncDecl
+	for _, gof := range gofs {
+		for _, decl := range gof.Decls {
+			fd, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				gens++
+				continue
+			}
+			if fd.Recv != nil {
+				methods++
+				continue
+			}
+			counts[fd.Name.Name]++
+			if fd.Name.Name == "f" {
+				survivingF = fd
+			}
+		}
+	}
+
+	assert.Equal(t, map[string]int{"f": 1, "init": 2, "_": 2}, counts)
+	assert.Equal(t, 2, methods)
+	// non-func declarations must survive untouched: `type receiver` and
+	// `var kept` in first.gno.
+	assert.Equal(t, 2, gens)
+	// the first declaration wins; later duplicates are the ones removed.
+	require.NotNil(t, survivingF)
+	ret := survivingF.Body.List[0].(*ast.ReturnStmt)
+	assert.Equal(t, "1", ret.Results[0].(*ast.BasicLit).Value)
+}
+
+func BenchmarkGoParseMemPackage_DuplicateDecls(b *testing.B) {
+	for _, count := range []int{1_000, 10_000, 50_000} {
+		b.Run(strconv.Itoa(count), func(b *testing.B) {
+			body := "package duplicates\n" + strings.Repeat("func f() {}\n", count)
+			pkg := &std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "duplicates",
+				Path:  "gno.land/p/demo/duplicates",
+				Files: []*std.MemFile{{Name: "duplicates.gno", Body: body}},
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				_, _, _, _, _, err := GoParseMemPackage(pkg, nil)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }

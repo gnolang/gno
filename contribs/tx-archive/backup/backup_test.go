@@ -2,6 +2,7 @@ package backup
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -253,6 +254,45 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 	for _, tCase := range testCases {
 		testFunc(t, tCase)
 	}
+}
+
+func TestBackup_ExecuteBackup_MarksFailedTxs(t *testing.T) {
+	t.Parallel()
+
+	var (
+		output bytes.Buffer
+
+		mockClient = &mockClient{
+			getLatestBlockNumberFn: func() (uint64, error) {
+				return 1, nil
+			},
+			getBlocksFn: func(_ context.Context, from, to uint64) ([]*client.Block, error) {
+				return generateBlocks(t, from, to, 2), nil
+			},
+			getTxResultsFn: func(_ uint64) ([]*abci.ResponseDeliverTx, error) {
+				return []*abci.ResponseDeliverTx{
+					{},
+					{ResponseBase: abci.ResponseBase{Error: abci.StringError("refused")}},
+				}, nil
+			},
+		}
+	)
+
+	s := NewService(mockClient, standard.NewWriter(&output), WithLogger(noop.New()))
+	require.NoError(t, s.ExecuteBackup(context.Background(), DefaultConfig()))
+
+	scanner := bufio.NewScanner(&output)
+	var failed []bool
+
+	for scanner.Scan() {
+		var txData gnoland.TxWithMetadata
+
+		require.NoError(t, amino.UnmarshalJSON(scanner.Bytes(), &txData))
+		failed = append(failed, txData.Metadata.Failed)
+	}
+
+	require.NoError(t, scanner.Err())
+	assert.Equal(t, []bool{false, true}, failed)
 }
 
 func TestBackup_ExecuteBackup_Watch(t *testing.T) {

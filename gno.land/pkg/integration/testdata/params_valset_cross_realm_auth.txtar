@@ -1,4 +1,4 @@
-# Cross-realm auth boundary test for v3's two push entrypoints:
+# Cross-realm auth boundary test for v0's two push entrypoints:
 # NotifyValoperChanged and RotateValoperSigningKey.
 #
 # Both entrypoints are crossing functions guarded by assertValopersCaller,
@@ -14,7 +14,7 @@
 # be unchanged afterwards.
 
 loadpkg gno.land/r/sys/params
-loadpkg gno.land/r/sys/validators/v3
+loadpkg gno.land/r/sys/validators/v0
 loadpkg gno.land/r/gnops/valopers
 
 gnoland start
@@ -52,27 +52,27 @@ gno = "0.9"
 package attacker
 
 import (
-	v3 "gno.land/r/sys/validators/v3"
+	v0 "gno.land/r/sys/validators/v0"
 )
 
-// AttackNotify cross-calls v3.NotifyValoperChanged. The attacker
+// AttackNotify cross-calls v0.NotifyValoperChanged. The attacker
 // supplies arbitrary operator/key fields, hoping the cache write
-// goes through. v3's assertValopersCaller must reject because
+// goes through. v0's assertValopersCaller must reject because
 // PreviousRealm.PkgPath() == gno.land/r/test/attacker.
 func AttackNotify(cur realm) {
 	const fakeOp = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	const fakePubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	// SigningAddress here is bogus — the assert fires before any
 	// inputs are inspected, so this is fine.
-	v3.NotifyValoperChanged(cross(cur), address(fakeOp), fakePubKey, address(fakeOp), true)
+	v0.NotifyValoperChanged(cross(cur), address(fakeOp), fakePubKey, address(fakeOp), true)
 }
 
-// AttackRotate cross-calls v3.RotateValoperSigningKey with an
+// AttackRotate cross-calls v0.RotateValoperSigningKey with an
 // (oldPubKey, newPubKey) pair. Must hit the same guard before any
 // state mutation.
 func AttackRotate(cur realm) {
 	const fakeOp = "g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"
 	const oldPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	const newPubKey = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqkn3nln2k8glpf9kpqtz4h63n7cd0jvxkq6rpk4dxzp4sq527mhqwv40hr"
-	v3.RotateValoperSigningKey(cross(cur), address(fakeOp), oldPubKey, newPubKey)
+	v0.RotateValoperSigningKey(cross(cur), address(fakeOp), oldPubKey, newPubKey)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 )
 
 // newEmphasisGuardedMarkdown builds a goldmark instance with ONLY the default
@@ -41,6 +42,16 @@ func assertEmphasisGuardActive(t *testing.T, m goldmark.Markdown) {
 	require.LessOrEqualf(t, n, MaxEmphasisDelimitersPerBlock, "<em> count = %d (emphasis guard not active on this instance)", n)
 }
 
+// assertStrikethroughGuardActive renders emphasis and strikethrough spans
+// interleaved, each kind far past the cap, and asserts both share one budget:
+// together they stay within cap/2 spans of two runs each.
+func assertStrikethroughGuardActive(t *testing.T, m goldmark.Markdown) {
+	t.Helper()
+	got := renderMarkdownString(t, m, strings.Repeat("*x* ~y~ ", MaxEmphasisDelimitersPerBlock*3))
+	n := strings.Count(got, "<em>") + strings.Count(got, "<del>")
+	require.LessOrEqualf(t, n, MaxEmphasisDelimitersPerBlock/2, "<em> + <del> count = %d (strikethrough not counted against the emphasis cap)", n)
+}
+
 // emphasisGoldenCap keeps the golden fixtures tiny: with 4 delimiter runs per
 // block, two spans sit exactly at the cap and the clip boundary is visible in
 // a one-line input instead of a 1000-span blob.
@@ -50,7 +61,7 @@ func testEmphasisGuardOutput(t *testing.T, nameIn string, input []byte) (string,
 	t.Helper()
 	assertExt(t, nameIn, ".md")
 
-	m := goldmark.New()
+	m := goldmark.New(goldmark.WithExtensions(extension.Strikethrough))
 	NewExtEmphasis(emphasisGoldenCap).Extend(m)
 
 	var html bytes.Buffer
@@ -101,4 +112,10 @@ func TestBoundedEmphasis_LegitMultiBlockNotClipped(t *testing.T) {
 // cap (not proportional to input).
 func TestBoundedEmphasis_OverCapSingleBlockClipped(t *testing.T) {
 	assertEmphasisGuardActive(t, newEmphasisGuardedMarkdown())
+}
+
+func TestBoundedEmphasis_StrikethroughSharesCap(t *testing.T) {
+	m := goldmark.New(goldmark.WithExtensions(extension.Strikethrough))
+	ExtEmphasis.Extend(m)
+	assertStrikethroughGuardActive(t, m)
 }

@@ -3,9 +3,8 @@ package p2p
 import (
 	"context"
 	"log/slog"
-	"net"
-	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
@@ -54,11 +53,24 @@ func (m *mockTransport) Remove(p PeerConn) {
 	}
 }
 
+// newDialRecorder returns a transport whose dials always fail, along with
+// the channel every dialed address is sent to, buffered with the given size
+func newDialRecorder(size int) (*mockTransport, <-chan types.NetAddress) {
+	dialed := make(chan types.NetAddress, size)
+
+	return &mockTransport{
+		dialFn: func(_ context.Context, addr types.NetAddress, _ PeerBehavior) (PeerConn, error) {
+			dialed <- addr
+
+			return nil, errors.New("unable to dial")
+		},
+	}, dialed
+}
+
 type (
 	addDelegate         func(PeerConn) error
 	removePeerDelegate  func(types.ID) bool
 	hasDelegate         func(types.ID) bool
-	hasIPDelegate       func(net.IP) bool
 	getDelegate         func(types.ID) PeerConn
 	listDelegate        func() []PeerConn
 	numInboundDelegate  func() uint64
@@ -69,7 +81,6 @@ type mockSet struct {
 	addFn         addDelegate
 	removeFn      removePeerDelegate
 	hasFn         hasDelegate
-	hasIPFn       hasIPDelegate
 	listFn        listDelegate
 	getFn         getDelegate
 	numInboundFn  numInboundDelegate
@@ -133,125 +144,6 @@ func (m *mockSet) NumOutbound() uint64 {
 }
 
 type (
-	listenerAcceptDelegate func() (net.Conn, error)
-	closeDelegate          func() error
-	addrDelegate           func() net.Addr
-)
-
-type mockListener struct {
-	acceptFn listenerAcceptDelegate
-	closeFn  closeDelegate
-	addrFn   addrDelegate
-}
-
-func (m *mockListener) Accept() (net.Conn, error) {
-	if m.acceptFn != nil {
-		return m.acceptFn()
-	}
-
-	return nil, nil
-}
-
-func (m *mockListener) Close() error {
-	if m.closeFn != nil {
-		return m.closeFn()
-	}
-
-	return nil
-}
-
-func (m *mockListener) Addr() net.Addr {
-	if m.addrFn != nil {
-		return m.addrFn()
-	}
-
-	return nil
-}
-
-type (
-	readDelegate        func([]byte) (int, error)
-	writeDelegate       func([]byte) (int, error)
-	localAddrDelegate   func() net.Addr
-	remoteAddrDelegate  func() net.Addr
-	setDeadlineDelegate func(time.Time) error
-)
-
-type mockConn struct {
-	readFn             readDelegate
-	writeFn            writeDelegate
-	closeFn            closeDelegate
-	localAddrFn        localAddrDelegate
-	remoteAddrFn       remoteAddrDelegate
-	setDeadlineFn      setDeadlineDelegate
-	setReadDeadlineFn  setDeadlineDelegate
-	setWriteDeadlineFn setDeadlineDelegate
-}
-
-func (m *mockConn) Read(buff []byte) (int, error) {
-	if m.readFn != nil {
-		return m.readFn(buff)
-	}
-
-	return 0, nil
-}
-
-func (m *mockConn) Write(buff []byte) (int, error) {
-	if m.writeFn != nil {
-		return m.writeFn(buff)
-	}
-
-	return 0, nil
-}
-
-func (m *mockConn) Close() error {
-	if m.closeFn != nil {
-		return m.closeFn()
-	}
-
-	return nil
-}
-
-func (m *mockConn) LocalAddr() net.Addr {
-	if m.localAddrFn != nil {
-		return m.localAddrFn()
-	}
-
-	return nil
-}
-
-func (m *mockConn) RemoteAddr() net.Addr {
-	if m.remoteAddrFn != nil {
-		return m.remoteAddrFn()
-	}
-
-	return nil
-}
-
-func (m *mockConn) SetDeadline(t time.Time) error {
-	if m.setDeadlineFn != nil {
-		return m.setDeadlineFn(t)
-	}
-
-	return nil
-}
-
-func (m *mockConn) SetReadDeadline(t time.Time) error {
-	if m.setReadDeadlineFn != nil {
-		return m.setReadDeadlineFn(t)
-	}
-
-	return nil
-}
-
-func (m *mockConn) SetWriteDeadline(t time.Time) error {
-	if m.setWriteDeadlineFn != nil {
-		return m.setWriteDeadlineFn(t)
-	}
-
-	return nil
-}
-
-type (
 	startDelegate            func() error
 	onStartDelegate          func() error
 	stopDelegate             func() error
@@ -264,7 +156,7 @@ type (
 	setLoggerDelegate        func(*slog.Logger)
 	setSwitchDelegate        func(Switch)
 	getChannelsDelegate      func() []*conn.ChannelDescriptor
-	initPeerDelegate         func(PeerConn)
+	initPeerDelegate         func(PeerConn) PeerConn
 	addPeerDelegate          func(PeerConn)
 	removeSwitchPeerDelegate func(PeerConn, any)
 	receiveDelegate          func(byte, PeerConn, []byte)
@@ -381,10 +273,10 @@ func (m *mockReactor) GetChannels() []*conn.ChannelDescriptor {
 
 func (m *mockReactor) InitPeer(peer PeerConn) PeerConn {
 	if m.initPeerFn != nil {
-		m.initPeerFn(peer)
+		return m.initPeerFn(peer)
 	}
 
-	return nil
+	return peer
 }
 
 func (m *mockReactor) AddPeer(peer PeerConn) {

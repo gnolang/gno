@@ -15,9 +15,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&BaseSessionAccount{}, "BaseSessionAccount",
 	// Vesting
 	&VestingSchedule{}, "VestingSchedule",
-	&BaseVestingAccount{}, "BaseVestingAccount",
-	&ContinuousVestingAccount{}, "ContinuousVestingAccount",
-	&DelayedVestingAccount{}, "DelayedVestingAccount",
 	// Coin
 	&Coin{}, "Coin",
 	// GasPrice
@@ -52,6 +49,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	NoSignaturesError{}, "NoSignaturesError",
 	GasOverflowError{}, "GasOverflowError",
 	RestrictedTransferError{}, "RestrictedTransferError",
+	QueryTimeoutError{}, "QueryTimeoutError",
 	SessionExpiredError{}, "SessionExpiredError",
 	SessionNotFoundError{}, "SessionNotFoundError",
 	SessionLimitError{}, "SessionLimitError",

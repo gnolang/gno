@@ -1,0 +1,13 @@
+-- input.md --
+<gno-frame>
+```
+code
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<pre><code>code
+&lt;/gno-frame&gt;
+after
+</code></pre>
+</section>

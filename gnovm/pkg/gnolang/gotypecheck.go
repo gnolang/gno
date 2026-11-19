@@ -50,6 +50,9 @@ type realm interface {
     Sub(subpath string) realm
     Subpath() string
     String() string
+    // seal mirrors the VM's undeclarable .seal marker so go/types rejects
+    // structural forgeries that reproduce only realm's public methods.
+    seal()
 }
 type Realm = realm
 
@@ -80,7 +83,7 @@ func makeGnoBuiltins(pkgName string, gnoVersion string) *std.MemFile {
 import "gnobuiltins/gno0p9"
 
 func istypednil(x any) bool { return false } // shim
-func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr_cross_explicit.md
+func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form. See gnovm/adr/pr5669_cross_explicit.md
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
@@ -179,6 +182,10 @@ type TypeCheckOptions struct {
 	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
 	// keep checking test files.
 	ProdOnly bool
+
+	// LegacyCopies skips the checkCopies bound on the checked package, for
+	// genesis replay of packages accepted before the bound existed.
+	LegacyCopies bool
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -234,7 +241,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 	if opts.ProdOnly {
 		wtests = new(bool)
 	}
-	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests)
+	pkg, errs = gimp.typeCheckMemPackage(mpkg, wtests, !opts.LegacyCopies)
 	return
 }
 
@@ -375,16 +382,19 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
-	if mod != nil && mod.Private {
+	wtests := gimp.testing && gimp.pkgPath == pkgPath
+	if mod != nil && mod.Private && !wtests {
 		// If the package is private, we cannot import it.
+		// Exception: a package's own tests and filetests may import it,
+		// directly or through a helper they import.
 		err := ImportPrivateError{PkgPath: pkgPath}
 		// NOTE: see comment above for ImportNotFoundError.
 		result.err = err
 		result.pending = false
 		return nil, err
 	}
-	wtests := gimp.testing && gimp.pkgPath == pkgPath
-	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests)
+
+	pkg, errs := gimp.typeCheckMemPackage(mpkg, &wtests, false)
 	if errs != nil {
 		result.err = errs
 		result.pending = false
@@ -442,7 +452,8 @@ func prepareGoGno0p9(f *ast.File) (err error) {
 // If not, first use `gno lint` to transpile the code.
 // Returns parsed *types.Package, *token.FileSet, []*ast.File.
 //   - wtests: if nil, type check all, including filetests; otherwise returns early.
-func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool) (
+//   - bound: run checkCopies on every file, for new code but not its imports.
+func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool, bound bool) (
 	pkg *types.Package, errs error,
 ) {
 	// See adr/pr4264_lint_transpile.md
@@ -478,6 +489,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	gofset, allgofs, gofs, _gofs, tgofs, errs := GoParseMemPackage(mpkg, gimp.fset)
 	if errs != nil {
 		return nil, errs
+	}
+	// Bound before go/types, and before ParseFile runs Go2Gno unchecked.
+	if bound {
+		for _, gof := range allgofs {
+			if err := checkCopies(gof, gofset.File(gof.Pos()).Size()); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// STEP 3: Prepare for Go type-checking.
@@ -589,29 +608,28 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 // Ensure uniqueness of declarations,
 // e.g. test/stdlibs overriding stdlibs.
 func uniqueDecls(decls map[string]struct{}, gof *ast.File) {
-	dupes := []ast.Decl{}
+	// Single pass, filtering in place: names are registered as they are
+	// visited, so no auxiliary set of duplicates to remove afterwards.
+	kept := gof.Decls[:0]
 	for _, decl := range gof.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
 		// ignore methods, init and blank functions
-		if !ok ||
-			fd.Recv != nil ||
-			fd.Name.Name == "init" ||
-			fd.Name.Name == "_" {
-			continue
-		}
-		// if declaration is duplicate, delete this one.
-		_, exists := decls[fd.Name.Name]
-		if exists {
-			// delete this one. doesn't matter which one (whether
-			// Go native or gno) for type-checking.
-			dupes = append(dupes, decl)
-		} else {
+		if ok &&
+			fd.Recv == nil &&
+			fd.Name.Name != "init" &&
+			fd.Name.Name != "_" {
+			// if declaration is duplicate, delete this one. doesn't
+			// matter which one (whether Go native or gno) for
+			// type-checking.
+			if _, exists := decls[fd.Name.Name]; exists {
+				continue
+			}
 			decls[fd.Name.Name] = struct{}{}
 		}
+		kept = append(kept, decl)
 	}
-	// actually delete.
-	gof.Decls = slices.DeleteFunc(gof.Decls,
-		func(d ast.Decl) bool { return slices.Contains(dupes, d) })
+	clear(gof.Decls[len(kept):]) // zero out the obsolete elements, for GC
+	gof.Decls = kept
 }
 
 // ========================================
