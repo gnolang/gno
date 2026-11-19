@@ -160,6 +160,7 @@ type builderSection struct {
 
 type buildData struct {
 	Intro    string // the lead, also the head description
+	MovedTo  string // as homeData's
 	Shelves  []shelfView
 	Builders []builderSection
 }
@@ -169,6 +170,7 @@ type buildData struct {
 type pageData struct {
 	Nav     catNav
 	Lists   []listTab // on list pages only
+	MovedTo string    // as homeData's
 	Title   string
 	Note    string
 	Cards   []card
@@ -492,7 +494,7 @@ func (h *Handler) buildHome(res *homeResponse, usage map[string]int) homeData {
 // kind, not a category.
 // Empty builder lists are left out, so the section is too when both are.
 func (h *Handler) buildBuild(res *buildResponse, usage map[string]int) buildData {
-	data := buildData{Intro: buildLine, Shelves: h.shelves(res.Shelves, indexListings(res.Listings), nil, nil, usage)}
+	data := buildData{Intro: buildLine, MovedTo: res.MovedTo, Shelves: h.shelves(res.Shelves, indexListings(res.Listings), nil, nil, usage)}
 	for _, s := range []builderSection{
 		{"Top builders", builders(res.Builders.Top)},
 		{"New builders", builders(res.Builders.New)},

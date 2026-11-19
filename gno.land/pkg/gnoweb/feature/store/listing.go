@@ -9,7 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // listing is one app, service or package as the realm reports it. Nothing
@@ -130,11 +130,11 @@ func (h *Handler) denied(pkg string) bool {
 	return h.deps.Denied != nil && h.deps.Denied(pkg)
 }
 
-// realmWebPath returns path, a realm path on this chain, as a web path
-// ("/r/gnoland/store/v1"), or "" if it is not one.
+// realmWebPath returns path, the path of another realm on this chain, as a
+// web path ("/r/gnoland/store/v1"), or "" if it is not one.
 func (h *Handler) realmWebPath(path string) string {
 	web, ok := strings.CutPrefix(path, h.deps.Domain)
-	if u := (weburl.GnoURL{Path: web}); !ok || !u.IsValidPath() || !u.IsRealm() {
+	if u := (weburl.GnoURL{Path: web}); !ok || !u.IsRealm() || u.IsDir() || strings.Contains(web, "//") || web == h.deps.RealmPath {
 		return ""
 	}
 	return web
@@ -210,10 +210,11 @@ func (h *Handler) tierOf(l *listing) tier {
 	}
 }
 
-// isAddress reports whether a namespace is a bech32 account address, the
-// namespace anyone gets for free.
+// isAddress reports whether a namespace is an account address of this
+// chain, the namespace anyone gets for free. A registered name that happens
+// to decode as bech32 under another prefix is a name, as the realm reads it.
 func isAddress(ns string) bool {
-	_, _, err := bech32.Decode(ns)
+	_, err := crypto.AddressFromBech32(ns)
 	return err == nil
 }
 

@@ -18,9 +18,10 @@ const (
 	// costs one timeout per key every few seconds, not one per reader.
 	errorTTL = 5 * time.Second
 
-	// cacheMaxEntries bounds memory. Keys come from request paths, so an
-	// attacker can mint them; past the cap expired entries go first, then
-	// everything.
+	// cacheMaxEntries bounds memory. Keys come from the pages the front page
+	// offers, which a crawler can walk within one TTL once the store holds
+	// thousands of apps; past the cap expired entries go first, then the
+	// one soonest to expire, never every answer at once.
 	cacheMaxEntries = 512
 )
 
@@ -105,14 +106,17 @@ func (c *responseCache) put(key string, v any, err error) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if len(c.entries) >= cacheMaxEntries {
+	if _, held := c.entries[key]; !held && len(c.entries) >= cacheMaxEntries {
+		oldest, found := "", false
 		for k, e := range c.entries {
 			if now.After(e.expires) {
 				delete(c.entries, k)
+			} else if !found || e.expires.Before(c.entries[oldest].expires) {
+				oldest, found = k, true
 			}
 		}
-		if len(c.entries) >= cacheMaxEntries {
-			clear(c.entries)
+		if found && len(c.entries) >= cacheMaxEntries {
+			delete(c.entries, oldest)
 		}
 	}
 	c.entries[key] = cacheEntry{val: v, err: err, expires: now.Add(ttl)}

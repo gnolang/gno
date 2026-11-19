@@ -163,6 +163,7 @@ type homeResponse struct {
 
 type buildResponse struct {
 	envelope
+	MovedTo  string  `json:"moved_to"` // as homeResponse's
 	Shelves  []shelf `json:"shelves"`
 	Builders struct {
 		Top []builder `json:"top"`
@@ -232,6 +233,7 @@ func (h *Handler) build(ctx context.Context) (*buildResponse, error) {
 		if err := h.decode(ctx, "build", &res); err != nil {
 			return nil, err
 		}
+		res.MovedTo = h.realmWebPath(res.MovedTo)
 		res.Shelves = validShelves(res.Shelves, buildShelfDefs)
 		res.Listings = h.sanitize(res.Listings)
 		res.Builders.Top = h.validBuilders(res.Builders.Top)

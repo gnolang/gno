@@ -8,7 +8,7 @@
         {{ with .Surprise }}<a class="b-btn" href="{{ .URL }}"{{ template "store/rel" .Community }}>Surprise me</a>{{ end }}
       </div>
       <p>{{ .Intro }}</p>
-      {{ with .MovedTo }}<p>Explore has moved: <a href="{{ . }}">{{ . }}</a></p>{{ end }}
+      {{ template "store/moved" .MovedTo }}
       {{ with .Pulse }}{{ if or .Height .Items .Moment }}
       <p class="b-store-pulse">
         {{ if .Height }}<span class="clock">Block {{ .Height }}{{ with .Ago }} · {{ . }}{{ end }}</span>{{ end }}
@@ -75,6 +75,7 @@
         <h1>Build</h1>
       </div>
       <p>{{ .Intro }}</p>
+      {{ template "store/moved" .MovedTo }}
     </header>
   </div>
   {{ template "store/notice" }}
@@ -120,6 +121,7 @@
         <h1>{{ .Title }}</h1>
       </div>
       {{ with .Note }}<p>{{ . }}</p>{{ end }}
+      {{ template "store/moved" .MovedTo }}
     </header>
     {{ with .Lists }}
     <nav class="b-store-lists" aria-label="Lists">

@@ -46,6 +46,11 @@
 {{- end }}
 {{- end }}
 
+{{/* The store GovDAO named as this one's successor, on every page. */}}
+{{ define "store/moved" -}}
+{{ with . }}<p>Explore has moved: <a href="{{ . }}">{{ . }}</a></p>{{ end }}
+{{- end }}
+
 {{/* What a listing is, said once on every page. */}}
 {{ define "store/notice" -}}
 <p class="b-pkg-notice" role="note">Everything here was listed by its author: being listed is not being endorsed. <strong>Community</strong> apps and packages are not reviewed, and an <strong>unverified</strong> one is not confirmed to exist. Read the code before you interact.</p>

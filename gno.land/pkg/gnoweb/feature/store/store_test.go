@@ -316,6 +316,8 @@ func TestTiers(t *testing.T) {
 		{"/r/g17zyd8dhz9v7ndecx4wxc4z3ufmc6e43nex9cxg/poll", true, tierAnonymous, false},
 		// Looks like an address but fails the checksum: a registered name.
 		{"/r/g1lpzvdyl5f4pqyyw5dd7h6p0klz5yejqmt9z2az/poll", false, tierRegistered, false},
+		// Valid bech32, of another prefix: a registered name too, as the realm reads it.
+		{"/r/abc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqql9d4m7/poll", true, tierRegistered, true},
 	}
 	for _, c := range cases {
 		l := &listing{webPath: c.path}
@@ -904,6 +906,28 @@ func TestCacheKeepsFailuresBriefly(t *testing.T) {
 	assert.WithinDuration(t, now.Add(errorTTL), c.entries["failed"].expires, time.Second)
 }
 
+// At its cap the cache drops the answer soonest to expire, never every
+// answer at once: a crawler walking the pages costs no reader the front page.
+func TestCacheEvictsOneAtItsCap(t *testing.T) {
+	c := newResponseCache()
+	c.put("failed", nil, errors.New("down")) // remembered briefly: the soonest to expire
+	for i := range cacheMaxEntries - 2 {
+		c.put(strconv.Itoa(i), i, nil)
+	}
+	c.put("home", 1, nil)
+	require.Len(t, c.entries, cacheMaxEntries)
+
+	c.put("one-more", 1, nil)
+	assert.Len(t, c.entries, cacheMaxEntries)
+	assert.NotContains(t, c.entries, "failed")
+	assert.Contains(t, c.entries, "home")
+	assert.Contains(t, c.entries, "one-more")
+
+	c.put("home", 2, nil) // a key already held takes no one's place
+	assert.Len(t, c.entries, cacheMaxEntries)
+	assert.Contains(t, c.entries, "0")
+}
+
 // Concurrent misses of one key share a single load.
 func TestCacheCoalescesConcurrentMisses(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -958,11 +982,38 @@ func TestPickedOperatorHeroKeepsTheCap(t *testing.T) {
 	}
 }
 
+// Once GovDAO names a successor every store page says so, as every page of
+// the realm's markdown does: the lens, a category, a list, and the page that
+// does not exist.
+func TestMovedNoticeIsOnEveryPage(t *testing.T) {
+	const moved = `Explore has moved: <a href="/r/gnoland/store/v1">/r/gnoland/store/v1</a>`
+	build := func(to string) string {
+		return `{"version":1,"moved_to":"` + to + `","shelves":[],"builders":{"top":[],"new":[]},"listings":[]}`
+	}
+	page := `{"version":1,"category":{"key":"defi","label":"DeFi","count":4,"confirmed":4},"page":1,"pages":1,"listings":[]}`
+	list := `{"version":1,"list":{"key":"latest","count":4},"page":1,"pages":1,"listings":[]}`
+	home := strings.Replace(homeBody(trustedApp), `{"key":"new",`, `{"key":"new","more":[{"key":"latest","count":4}],`, 1)
+	h, _ := newTestHandler(t, map[string]string{
+		"api/v1/home": home, "api/v1/build": build("gno.land/r/gnoland/store/v1"),
+		"api/v1/category/defi/1": page, "api/v1/list/latest/1": list,
+	})
+	for _, target := range []string{"", ":build", ":c/defi", ":latest", ":nope"} {
+		assert.Contains(t, render(t, h, target), moved, "on %q", target)
+	}
+
+	h, _ = newTestHandler(t, map[string]string{"api/v1/build": build("https://evil.example/x")})
+	assert.NotContains(t, render(t, h, ":build"), "Explore has moved", "only a realm of this chain is a successor")
+}
+
 // Only a realm path on this chain is shown as the successor.
 func TestMovedToIsARealmPath(t *testing.T) {
-	h := &Handler{deps: Deps{Domain: "gno.land"}}
+	h := &Handler{deps: Deps{Domain: "gno.land", RealmPath: "/r/gnoland/store"}}
 	for path, want := range map[string]string{
 		"gno.land/r/gnoland/store/v1": "/r/gnoland/store/v1",
+		"gno.land/r/gnoland/store":    "", // itself
+		"gno.land/r/":                 "",
+		"gno.land/r/gnoland/":         "",
+		"gno.land/r/gnoland//store":   "",
 		"gno.land/p/gnoland/store/v1": "",
 		"evil.land/r/gnoland/store":   "",
 		"https://evil.example/x":      "",

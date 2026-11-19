@@ -877,7 +877,9 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// tab and render argument keeps the realm's markdown.
 	if h.Store != nil && !pr.markdown {
 		if view, meta := h.Store.View(ctx, gnourl); view != nil {
-			pr.lead = pageLead{title: meta.Title, description: meta.Description, fixed: true}
+			// Category labels are the realm's own words: only a store realm
+			// gnoweb vouches for puts them in the head.
+			pr.lead = pageLead{title: meta.Title, description: meta.Description, fixed: h.policy.kind(gnourl) != pageCommunity}
 			return meta.Status, view
 		}
 	}

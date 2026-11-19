@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -200,6 +201,54 @@ func TestStoreReadsTheRealRealm(t *testing.T) {
 	}
 }
 
+// A store realm outside -trusted-paths is a community page like any other:
+// its own words, the category labels, stay out of the head. One gnoweb
+// vouches for names its pages with them.
+func TestStoreRealmLabelsInTheHead(t *testing.T) {
+	t.Parallel()
+
+	client := storeClient{
+		MockClient: NewMockClient(&MockPackage{
+			Domain: "gno.land", Path: "/r/acme/store",
+			Files:     map[string]string{"render.gno": `package store; func Render(string) string { return "store" }`},
+			Functions: []*doc.JSONFunc{{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Type: "string"}}}},
+		}),
+		api: map[string]string{
+			"api/v1/home":            `{"version":1,"categories":[{"key":"defi","label":"Official gno.land wallet","count":1,"confirmed":1}],"shelves":[],"listings":[]}`,
+			"api/v1/category/defi/1": `{"version":1,"category":{"key":"defi","label":"Official gno.land wallet","count":1,"confirmed":1},"page":1,"pages":1,"listings":[]}`,
+		},
+	}
+	for _, tc := range []struct {
+		name    string
+		trusted []string
+		inHead  bool
+	}{
+		{"outside the trusted paths", nil, false},
+		{"under a trusted path", []string{"acme"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+				ClientAdapter: client,
+				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+				Aliases:       map[string]AliasTarget{},
+				Meta:          StaticMetadata{Domain: "gno.land"},
+				TrustedPaths:  tc.trusted,
+				StoreRealm:    "/r/acme/store",
+			})
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/acme/store:c/defi", nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			head, _, _ := strings.Cut(body, "</head>")
+			assert.Contains(t, body, "<h1>Official gno.land wallet</h1>", "the page is the store's either way")
+			assert.Equal(t, tc.inHead, strings.Contains(head, "Official gno.land wallet"), head)
+		})
+	}
+}
+
 // NewHTTPHandler normalizes a copy of its config: a caller may share one
 // between handlers built at once.
 func TestNewHTTPHandlerLeavesItsConfigAlone(t *testing.T) {
@@ -239,6 +288,8 @@ func TestStoreDenyEntries(t *testing.T) {
 	for _, entry := range []string{
 		"scam", " scam/ ", "scam/app", "/r/scam/app", "r/scam/app", "gno.land/r/scam/app", "gno.land/p/scam/app",
 		"https://gno.land/r/scam/app", "https://gno.land/r/scam/app:c/defi?page=2", "/r/scam/app$source",
+		"https://gno.land/r/scam/app/render.gno", "/r/scam/app/README.md", // a source page
+		"https://gno.land/r/scam/app#readme", "gno.land/r/scam/app?x=1#top", // an anchor
 	} {
 		got, err := storeDenyEntries([]string{entry, " "}, "gno.land")
 		require.NoError(t, err, entry)
@@ -246,9 +297,18 @@ func TestStoreDenyEntries(t *testing.T) {
 		assert.True(t, storeDenied(got)("scam/app"), "%q denies scam/app as %q", entry, got[0])
 		assert.False(t, storeDenied(got)("scammer/app"), "%q must not deny another namespace", entry)
 	}
-	for _, entry := range []string{"Scam", "*", "scam/*", "sc am", "other.land/r/scam/app", "/r/", "https://gno.land"} {
-		_, err := storeDenyEntries([]string{entry}, "gno.land")
-		assert.ErrorContains(t, err, "StoreDeny", entry)
+	for _, entry := range []string{
+		"Scam", "*", "scam/*", "sc am", "other.land/r/scam/app", "/r/", "https://gno.land",
+		"gno.land", " gno.land ", "gno.land/", "gno.land:443", // the bare domain
+		"r", "/r", "gno.land/r", "p", "u", "https://gno.land/r", // a tree, with nothing under it
+		"gno.landscam", "localhost:8888/r/scam/app", "//scam/app", "gno.land//scam/app", // would name another namespace
+		"scam/app.", "gno.land/r/scam/app.", "scam/App", "scam/app.gno", "scam:app", // would deny all of scam
+		"scam$app", "scam?app", "scam#app", "/r/scam$app", "scam%24app\u0455", "u/r", "/p/u",
+		"/r/1inch/swap", "gno.land/r/1inch/swap", "/r/-scam/app", "/p/_x", "/u/9lives", // no namespace is named so
+		"acme/swap/V2", "acme/swap/x.", "acme/swap/.gno", "c/defi//.&", "c/defi/&.p", "scam/app//", "c/defi//gno.land", "a/0//0.0", "//gno/source/http://", "c/defi/%2Fgno.land", // a last name that is no file, an empty one
+	} {
+		got, err := storeDenyEntries([]string{entry}, "gno.land")
+		assert.ErrorContains(t, err, "StoreDeny", "%q is taken as %q", entry, got)
 	}
 
 	client := NewMockClient()

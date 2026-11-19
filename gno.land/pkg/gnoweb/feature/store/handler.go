@@ -129,7 +129,7 @@ func (h *Handler) servePage(ctx context.Context, u *weburl.GnoURL, kind, key str
 	if !ok || !valid {
 		return h.notFound(home)
 	}
-	data := pageData{Nav: catNav{Items: home.Categories}}
+	data := pageData{Nav: catNav{Items: home.Categories}, MovedTo: home.MovedTo}
 	var m Meta
 	if kind == pagedCategory {
 		data.Nav.Active = key
@@ -178,6 +178,7 @@ func (h *Handler) servePage(ctx context.Context, u *weburl.GnoURL, kind, key str
 func (h *Handler) notFound(home *homeResponse) (*components.View, Meta) {
 	data := pageData{
 		Nav:     catNav{Items: home.Categories, NoCurrent: true},
+		MovedTo: home.MovedTo,
 		Title:   "Not found",
 		Missing: true,
 		Empty:   "There is no such page in Explore. Pick a category above, or go back to all apps.",
