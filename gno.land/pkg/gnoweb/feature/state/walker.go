@@ -135,7 +135,7 @@ func decodeValueChildrenTyped(v gno.Value, t gno.Type, originalTid string, cfg R
 	// {T: t, V: hiv.Value.V, N: hiv.Value.N} so decodeStruct sees the
 	// resolved StructType when it walks fields.
 	if hiv, ok := v.(*gno.HeapItemValue); ok {
-		if _, ok := baseType(t).(*gno.InterfaceType); ok {
+		if _, ok := gno.BaseOf(t).(*gno.InterfaceType); ok {
 			// Keep the concrete type hiv.Value.T, not the interface t.
 			return decodeValueChildren(cfg, v)
 		}
