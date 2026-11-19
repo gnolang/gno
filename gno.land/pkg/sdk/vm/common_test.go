@@ -5,6 +5,7 @@ package vm
 import (
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -66,11 +67,10 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
 	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
 	if cacheStdlibs {
-		vmk.LoadStdlibCached(stdlibCtx, stdlibsDir)
+		vmk.LoadStdlibCached(stdlibCtx, gnovm.Stdlibs())
 	} else {
-		vmk.LoadStdlib(stdlibCtx, stdlibsDir)
+		vmk.LoadStdlib(stdlibCtx, gnovm.Stdlibs())
 	}
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 	mcw.MultiWrite()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -767,8 +768,40 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 //
 // Filtering, parsing, and validation is performed separately.
 func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	return readMemPackage(osFiles{}, dir, pkgPath, mptype)
+}
+
+// ReadMemPackageFS is [ReadMemPackage] reading the directory dir of fsys, a
+// slash-separated path as [io/fs] requires.
+func ReadMemPackageFS(fsys fs.FS, dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	return readMemPackage(fsFiles{fsys}, dir, pkgPath, mptype)
+}
+
+// memPackageFiles is where ReadMemPackage and ReadMemPackageFromList read
+// directories and files: the operating system, or an fs.FS. Not os.DirFS:
+// ReadMemPackageFromList takes absolute paths, which an fs.FS cannot name,
+// and diagnostics must keep the real "path/file.gno:line:" form.
+type memPackageFiles interface {
+	readDir(dir string) ([]fs.DirEntry, error)
+	readFile(name string) ([]byte, error)
+	join(elem ...string) string
+}
+
+type osFiles struct{}
+
+func (osFiles) readDir(dir string) ([]fs.DirEntry, error) { return os.ReadDir(dir) }
+func (osFiles) readFile(name string) ([]byte, error)      { return os.ReadFile(name) }
+func (osFiles) join(elem ...string) string                { return filepath.Join(elem...) }
+
+type fsFiles struct{ fsys fs.FS }
+
+func (f fsFiles) readDir(dir string) ([]fs.DirEntry, error) { return fs.ReadDir(f.fsys, dir) }
+func (f fsFiles) readFile(name string) ([]byte, error)      { return fs.ReadFile(f.fsys, name) }
+func (fsFiles) join(elem ...string) string                  { return path.Join(elem...) }
+
+func readMemPackage(files memPackageFiles, dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
 	mptype = mptype.Decide(pkgPath)
-	files, err := os.ReadDir(dir)
+	entries, err := files.readDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -789,12 +822,12 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 		goodFiles = append(goodFiles, ".go")
 	}
 	// Construct list of files to add to mpkg.
-	list := make([]string, 0, len(files))
+	list := make([]string, 0, len(entries))
 	filetestsDir := ""
-	for _, file := range files {
+	for _, file := range entries {
 		if file.IsDir() && file.Name() == "filetests" {
 			// Process filetests dir below
-			filetestsDir = filepath.Join(dir, file.Name())
+			filetestsDir = files.join(dir, file.Name())
 			continue
 		}
 		// Ignore directories and hidden files, only include allowed files & extensions,
@@ -807,25 +840,25 @@ func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.Mem
 			endsWithAny(file.Name(), badFileXtns) {
 			continue
 		}
-		list = append(list, filepath.Join(dir, file.Name()))
+		list = append(list, files.join(dir, file.Name()))
 	}
 	if filetestsDir != "" {
 		// Add filetest files from the subdir
-		filetestsFiles, err := os.ReadDir(filetestsDir)
+		filetestsFiles, err := files.readDir(filetestsDir)
 		if err != nil {
 			return nil, err
 		}
 		for _, file := range filetestsFiles {
 			if strings.HasSuffix(file.Name(), "_filetest.gno") {
-				checkPath := filepath.Join(dir, file.Name())
+				checkPath := files.join(dir, file.Name())
 				if slices.Contains(list, checkPath) {
 					return nil, fmt.Errorf("cannot add %q in filetests: same filename in package dir %q", file.Name(), dir)
 				}
-				list = append(list, filepath.Join(filetestsDir, file.Name()))
+				list = append(list, files.join(filetestsDir, file.Name()))
 			}
 		}
 	}
-	return ReadMemPackageFromList(list, pkgPath, mptype)
+	return readMemPackageFromList(files, list, pkgPath, mptype)
 }
 
 func endsWithAny(str string, suffixes []string) bool {
@@ -899,6 +932,10 @@ func osFileExists(fpath string) bool {
 // NOTE: panics if package name is invalid (characters must be alphanumeric or
 // _, lowercase, and must start with a letter).
 func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
+	return readMemPackageFromList(osFiles{}, list, pkgPath, mptype)
+}
+
+func readMemPackageFromList(files memPackageFiles, list []string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
 	mptype.Validate(pkgPath)
 	mptype = mptype.Decide(pkgPath)
 	mpkg := &std.MemPackage{
@@ -911,8 +948,8 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	var pkgNameFTDiffers bool // filetest pkg name is inconsistent
 	var errs error            // all errors minus filetest pkg name errors.
 	for _, fpath := range list {
-		fname := filepath.Base(fpath)
-		bz, err := os.ReadFile(fpath)
+		fname := filepath.Base(fpath) // also splits the slash-separated fs.FS paths
+		bz, err := files.readFile(fpath)
 		if err != nil {
 			return nil, err
 		}

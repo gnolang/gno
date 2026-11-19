@@ -1,7 +1,6 @@
 package gnoland
 
 import (
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,8 +10,6 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
-
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 )
 
 // TestNodeBootWithInitialHeight boots a full in-memory node whose genesis doc
@@ -56,7 +53,6 @@ func TestNodeBootWithInitialHeight(t *testing.T) {
 		DB:            memdb.NewMemDB(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
 	}

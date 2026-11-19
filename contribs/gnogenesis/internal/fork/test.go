@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -145,17 +143,14 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 	}
 
 	// -------------------------------------------------------------------------
-	// Step 3: Find GNOROOT (needed for stdlibs)
+	// Step 3: Make the node's root dir (the stdlibs are embedded, so no
+	// checkout is needed)
 	// -------------------------------------------------------------------------
-	gnoroot, err := gnoenv.GuessRootDir()
+	rootDir, err := os.MkdirTemp("", "gnogenesis-fork-test")
 	if err != nil {
-		return fmt.Errorf("cannot locate GNOROOT (set the GNOROOT env var): %w", err)
+		return fmt.Errorf("cannot create the node root dir: %w", err)
 	}
-
-	stdlibDir := filepath.Join(gnoroot, "gnovm", "stdlibs")
-	if _, err := os.Stat(stdlibDir); err != nil {
-		return fmt.Errorf("stdlibs directory not found at %s (is GNOROOT correct?): %w", stdlibDir, err)
-	}
+	defer os.RemoveAll(rootDir)
 
 	// -------------------------------------------------------------------------
 	// Step 4: Set up tx result tracking
@@ -182,7 +177,7 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 	// -------------------------------------------------------------------------
 	// Step 5: Configure in-memory node
 	// -------------------------------------------------------------------------
-	tmConfig := tmcfg.TestConfig().SetRootDir(gnoroot)
+	tmConfig := tmcfg.TestConfig().SetRootDir(rootDir)
 	tmConfig.Consensus.WALDisabled = true
 	tmConfig.Consensus.SkipTimeoutCommit = true
 	tmConfig.Consensus.CreateEmptyBlocks = false
@@ -197,7 +192,6 @@ func execTest(ctx context.Context, cfg *testCfg, io commands.IO) error {
 		SkipGenesisSigVerification: cfg.skipGenesisSigVerification,
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: txResultHandler,
-			StdlibDir:              stdlibDir,
 			CacheStdlibLoad:        false,
 			// fork test injects a fresh MockPV as the sole genesis
 			// validator; its signing addr has no valoper profile, so

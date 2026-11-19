@@ -207,15 +207,21 @@ everywhere.
    files included, so the packages written at `InitChain` are
    byte-identical to the ones read from a checkout at the same commit.
 2. **`gnoland` loads the stdlibs only from that FS.** `InitChainerConfig`
-   loses `StdlibDir` and gains an `fs.FS` that defaults to the embedded
-   one; `InMemoryNodeConfig.StdlibDir` goes the same way. No override flag
-   is added: it would reintroduce the mismatch this ADR removes, and a
-   developer editing the stdlibs recompiles with `go run` anyway.
+   loses `StdlibDir`, and `InitChainer` passes the embedded FS to the
+   keeper; `InMemoryNodeConfig.StdlibDir` goes the same way. No override,
+   flag or config field, is added: it would reintroduce the mismatch this
+   ADR removes, and a developer editing the stdlibs recompiles with
+   `go run` anyway.
    `LoadStdlibCached`, keyed by directory today, becomes a single cached
    load.
 3. **`fs.FS` readers.** `ReadMemPackage` and the keeper's stdlib loader
-   get `fs.FS` variants; the path-based functions become thin wrappers
-   over `os.DirFS`. `ReadPkgListFromDir` and `LoadPackagesFromDir` are
+   get `fs.FS` variants. `ReadMemPackage` and the new `ReadMemPackageFS`
+   share one body over a small file-access interface with an operating
+   system side and an `fs.FS` side, rather than wrapping `os.DirFS`:
+   `ReadMemPackageFromList` takes absolute paths, which an `fs.FS` cannot
+   name, and `os.DirFS` would name files relative to the package
+   directory in diagnostics, breaking their `path/file.gno:line:` form.
+   `ReadPkgListFromDir` and `LoadPackagesFromDir` are
    left as they are, since `-lazy` keeps reading a directory.
 4. **`-lazy` keeps relying on a checkout.** When `-lazy` is set and
    `genesis.json` is missing, the examples and the default balances file

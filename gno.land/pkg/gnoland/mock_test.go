@@ -1,6 +1,7 @@
 package gnoland
 
 import (
+	"io/fs"
 	"log/slog"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -19,8 +20,8 @@ type mockVMKeeper struct {
 	callFn                      func(sdk.Context, vm.MsgCall) (string, error)
 	queryFn                     func(sdk.Context, string, string) (string, error)
 	runFn                       func(sdk.Context, vm.MsgRun) (string, error)
-	loadStdlibFn                func(sdk.Context, string)
-	loadStdlibCachedFn          func(sdk.Context, string)
+	loadStdlibFn                func(sdk.Context, fs.FS)
+	loadStdlibCachedFn          func(sdk.Context, fs.FS)
 	makeGnoTransactionStoreFn   func(ctx sdk.Context) sdk.Context
 	commitGnoTransactionStoreFn func(ctx sdk.Context)
 }
@@ -69,15 +70,15 @@ func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err erro
 	return "", nil
 }
 
-func (m *mockVMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
+func (m *mockVMKeeper) LoadStdlib(ctx sdk.Context, fsys fs.FS) {
 	if m.loadStdlibFn != nil {
-		m.loadStdlibFn(ctx, stdlibDir)
+		m.loadStdlibFn(ctx, fsys)
 	}
 }
 
-func (m *mockVMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
+func (m *mockVMKeeper) LoadStdlibCached(ctx sdk.Context, fsys fs.FS) {
 	if m.loadStdlibCachedFn != nil {
-		m.loadStdlibCachedFn(ctx, stdlibDir)
+		m.loadStdlibCachedFn(ctx, fsys)
 	}
 }
 
