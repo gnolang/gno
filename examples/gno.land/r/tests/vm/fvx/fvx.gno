@@ -19,6 +19,9 @@ type H [4]byte
 
 type A [2]T
 
+// I is an interface declared in the owning realm.
+type I interface{ Val() int }
+
 type S = struct{ N int }
 
 func Get() T { return *one }

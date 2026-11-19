@@ -1,0 +1,39 @@
+# gno lint warns (without failing) on exported realm functions that return the
+# realm's own struct value boxed in an interface result.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- box.gno --
+package box2
+
+type E struct{ Msg string }
+
+func (e E) Error() string { return e.Msg }
+
+var e = E{}
+
+func Lit() error      { return E{} }
+func Var() any        { return e }
+func Call() any       { return get() }
+func get() E          { return e }
+func Ptr() *E         { return &e }
+func Concrete() E     { return e }
+func unexported() any { return E{} }
+
+type local struct{}
+
+func (local) M() error { return E{} }
+
+-- gnomod.toml --
+module = "gno.land/r/demo/box2"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+gno.land/r/demo/box2/box.gno:14: exported function Concrete passes gno.land/r/demo/box2.E by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box2/box.gno:11: exported function Call returns gno.land/r/demo/box2.E by value inside any; other realms cannot hold it (return a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box2/box.gno:9: exported function Lit returns gno.land/r/demo/box2.E by value inside error; other realms cannot hold it (return a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box2/box.gno:10: exported function Var returns gno.land/r/demo/box2.E by value inside any; other realms cannot hold it (return a pointer) (code=gnoLintWarning)

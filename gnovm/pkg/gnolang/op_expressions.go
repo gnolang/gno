@@ -861,7 +861,10 @@ func (m *Machine) doOpConvert() {
 	// for a realm-owned receiver, so the write check would refuse it;
 	// refusing the conversion (m.IsReadonly) stops it earlier, before
 	// any method dispatch. See zrealm_launder_g_typepun.gno.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) && !m.viewOwns(&xv) {
+	// An interface target keeps the value's type and base object, so the
+	// readonly mark survives boxing: it behaves like an implicit assignment.
+	if t.Kind() != InterfaceKind &&
+		xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) && !m.viewOwns(&xv) {
 		if xvdt, ok := xv.T.(*DeclaredType); ok && m.Realm != nil &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow conversion when xv.T is m.Realm's own
@@ -883,11 +886,15 @@ func (m *Machine) doOpConvert() {
 	// converting realm cannot forge values of types it doesn't
 	// declare, otherwise it could fabricate "trusted" objects to
 	// hand back to the declaring realm.
-	if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
-		// A nil pointer points at nothing, so it forges nothing.
-		isNilPtr := t.Kind() == PointerKind && xv.V == nil
-		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-			panic("illegal conversion to external realm type")
+	// An interface target forges nothing (ConvertTo leaves the value
+	// unchanged), so it is exempt exactly like the implicit assignment.
+	if t.Kind() != InterfaceKind {
+		if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+			// A nil pointer points at nothing, so it forges nothing.
+			isNilPtr := t.Kind() == PointerKind && xv.V == nil
+			if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
+				panic("illegal conversion to external realm type")
+			}
 		}
 	}
 
