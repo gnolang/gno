@@ -69,7 +69,7 @@ func TestMapColoursRealmsByCalls(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls:   map[string]int{"gno.land/r/a/busy": 100, "gno.land/r/a/some": 3},
 		Callers: map[string]int{"gno.land/r/a/busy": 7, "gno.land/r/a/some": 1},
 		From:    10, To: 20, Since: time.Unix(0, 0),
@@ -95,7 +95,7 @@ func TestMapPartialWindowNeverShowsZero(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/x": 2}, Callers: map[string]int{"gno.land/r/a/x": 1},
 		Partial: true,
 	}, nil)
@@ -146,7 +146,7 @@ func TestMapSaysUnavailableNotPendingForAFailedRefresh(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", nil, context.DeadlineExceeded)
+	h.activity.Put("activity", nil, context.DeadlineExceeded)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/x"}})
 	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Activity unavailable") {
 		t.Error("a failed refresh must read as unavailable")
@@ -159,7 +159,7 @@ func TestMapKeyListsTheBusiestRealms(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/busy": 100, "gno.land/r/a/some": 3},
 		From:  10, To: 20, Since: time.Unix(0, 0),
 	}, nil)
@@ -212,7 +212,7 @@ func TestMapFigureCarriesItsMetrics(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/busy": 100}, From: 10, To: 20, Since: time.Unix(0, 0),
 	}, nil)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/busy", "/r/a/idle"}})
@@ -238,7 +238,7 @@ func TestMapColorsByGas(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/x/busy": 900, "gno.land/r/a/x/heavy": 3},
 		Gas:   map[string]int64{"gno.land/r/a/x/busy": 4_000_000, "gno.land/r/a/x/heavy": 77_000_000_000},
 		From:  10, To: 20, Since: time.Unix(0, 0),
@@ -286,7 +286,7 @@ func TestGasIsRankedAndWrittenAsMeasured(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/one": 1, "gno.land/r/a/two": 1, "gno.land/r/a/tiny": 1, "gno.land/r/a/huge": 1},
 		Gas:   map[string]int64{"gno.land/r/a/one": 1_100_000, "gno.land/r/a/two": 1_900_000, "gno.land/r/a/tiny": 50_000, "gno.land/r/a/huge": 76_000_000_000},
 		From:  10, To: 20, Since: time.Unix(0, 0),
@@ -336,7 +336,7 @@ func TestGasTilesUseOnlyShadesInTheKey(t *testing.T) {
 	for p := range gas {
 		calls[p] = 1
 	}
-	h.activity.store("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
+	h.activity.Put("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/p1", "/r/a/p2", "/r/a/p3"}, Metric: MetricGas})
 
 	for _, p := range []string{"/r/a/p1", "/r/a/p2", "/r/a/p3"} {
@@ -358,7 +358,7 @@ func TestLightGasMapKeepsShadesApart(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	h.activity.Put("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/s": 1, "gno.land/r/a/m": 1, "gno.land/r/a/l": 1},
 		Gas:   map[string]int64{"gno.land/r/a/s": 20_000, "gno.land/r/a/m": 300_000, "gno.land/r/a/l": 900_000},
 		From:  10, To: 20, Since: time.Unix(0, 0),
@@ -386,7 +386,7 @@ func TestGasScaleStartsAtTheLightestRealm(t *testing.T) {
 	for p := range gas {
 		calls[p] = 1
 	}
-	h.activity.store("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
+	h.activity.Put("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/p1", "/r/a/p2", "/r/a/p3", "/r/a/p4"}, Metric: MetricGas})
 
 	shades := map[string]bool{}

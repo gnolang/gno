@@ -212,7 +212,7 @@ func (h *Handler) logFailure(endpoint string, err error) {
 // a cache hit costs neither an RPC nor a decode.
 
 func (h *Handler) home(ctx context.Context) (*homeResponse, error) {
-	return cached(ctx, h.cache, "home", func(ctx context.Context) (*homeResponse, error) {
+	return h.cache.home.Get(ctx, "home", func(ctx context.Context) (*homeResponse, error) {
 		var res homeResponse
 		if err := h.decode(ctx, "home", &res); err != nil {
 			return nil, err
@@ -228,7 +228,7 @@ func (h *Handler) home(ctx context.Context) (*homeResponse, error) {
 }
 
 func (h *Handler) build(ctx context.Context) (*buildResponse, error) {
-	return cached(ctx, h.cache, "build", func(ctx context.Context) (*buildResponse, error) {
+	return h.cache.build.Get(ctx, "build", func(ctx context.Context) (*buildResponse, error) {
 		var res buildResponse
 		if err := h.decode(ctx, "build", &res); err != nil {
 			return nil, err
@@ -246,7 +246,7 @@ func (h *Handler) build(ctx context.Context) (*buildResponse, error) {
 // another key or page.
 func (h *Handler) paged(ctx context.Context, kind, key string, page int) (*pageResponse, error) {
 	endpoint := kind + "/" + key + "/" + strconv.Itoa(page)
-	return cached(ctx, h.cache, endpoint, func(ctx context.Context) (*pageResponse, error) {
+	return h.cache.pages.Get(ctx, endpoint, func(ctx context.Context) (*pageResponse, error) {
 		var res pageResponse
 		if err := h.decode(ctx, endpoint, &res); err != nil {
 			return nil, err

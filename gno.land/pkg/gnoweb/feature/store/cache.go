@@ -1,12 +1,10 @@
 package store
 
 import (
-	"context"
-	"fmt"
-	"sync"
+	"log/slog"
 	"time"
 
-	"golang.org/x/sync/singleflight"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 )
 
 const (
@@ -18,106 +16,30 @@ const (
 	// costs one timeout per key every few seconds, not one per reader.
 	errorTTL = 5 * time.Second
 
-	// cacheMaxEntries bounds memory. Keys come from the pages the front page
-	// offers, which a crawler can walk within one TTL once the store holds
-	// thousands of apps; past the cap expired entries go first, then the
-	// one soonest to expire, never every answer at once.
-	cacheMaxEntries = 512
+	// maxPages bounds the category and list pages kept. Their keys come
+	// only from the pages the front page offers, which a crawler can walk
+	// within one TTL once the store holds thousands of apps: the front page
+	// and the build lens have flights of their own, so it never evicts them.
+	maxPages = 512
 )
 
-type cacheEntry struct {
-	val     any
-	err     error
-	expires time.Time
+// responses memoises the decoded, sanitised answers, and failures, per
+// endpoint: a burst of readers costs one RPC and one decode. Answers are
+// shared: callers must treat them as read-only.
+type responses struct {
+	home  *flight.Flight[*homeResponse]
+	build *flight.Flight[*buildResponse]
+	pages *flight.Flight[*pageResponse]
 }
 
-// responseCache memoises decoded, sanitised responses, and failures, and
-// coalesces concurrent misses so a burst of readers costs one RPC and one
-// decode. Cached values are shared: callers must treat them as read-only.
-type responseCache struct {
-	group   singleflight.Group
-	mu      sync.Mutex
-	entries map[string]cacheEntry
-}
-
-func newResponseCache() *responseCache {
-	return &responseCache{entries: make(map[string]cacheEntry)}
-}
-
-// cached returns the value for key, loading it once for all concurrent
-// callers. The shared load is detached from the request that started it, so
-// one closed tab cannot fail the others.
-func cached[T any](ctx context.Context, c *responseCache, key string, load func(context.Context) (T, error)) (T, error) {
-	var zero T
-	if e, ok := c.lookup(key); ok {
-		if e.err != nil {
-			return zero, e.err
-		}
-		return e.val.(T), nil
-	}
-
-	ch := c.group.DoChan(key, func() (any, error) {
-		// A load that finished just before this one started is reused.
-		if e, ok := c.lookup(key); ok {
-			return e.val, e.err
-		}
-		lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout)
-		defer cancel()
-		v, err := recovered(lctx, load)
-		c.put(key, v, err)
-		return v, err
-	})
-
-	select {
-	case res := <-ch:
-		if res.Err != nil {
-			return zero, res.Err
-		}
-		return res.Val.(T), nil
-	case <-ctx.Done():
-		return zero, ctx.Err()
+func newResponses(logger *slog.Logger) responses {
+	return responses{
+		home:  newFlight[*homeResponse](1, logger),
+		build: newFlight[*buildResponse](1, logger),
+		pages: newFlight[*pageResponse](maxPages, logger),
 	}
 }
 
-// recovered runs load and turns a panic into its error: singleflight
-// re-raises a panic on a goroutine of its own, out of any recover's reach,
-// which would end the process rather than fail one key.
-func recovered[T any](ctx context.Context, load func(context.Context) (T, error)) (v T, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("store: load panicked: %v", r)
-		}
-	}()
-	return load(ctx)
-}
-
-func (c *responseCache) lookup(key string) (cacheEntry, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	e, ok := c.entries[key]
-	return e, ok && time.Now().Before(e.expires)
-}
-
-func (c *responseCache) put(key string, v any, err error) {
-	now := time.Now()
-	ttl := cacheTTL
-	if err != nil {
-		ttl = errorTTL
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if _, held := c.entries[key]; !held && len(c.entries) >= cacheMaxEntries {
-		oldest, found := "", false
-		for k, e := range c.entries {
-			if now.After(e.expires) {
-				delete(c.entries, k)
-			} else if !found || e.expires.Before(c.entries[oldest].expires) {
-				oldest, found = k, true
-			}
-		}
-		if found && len(c.entries) >= cacheMaxEntries {
-			delete(c.entries, oldest)
-		}
-	}
-	c.entries[key] = cacheEntry{val: v, err: err, expires: now.Add(ttl)}
+func newFlight[T any](size int, logger *slog.Logger) *flight.Flight[T] {
+	return &flight.Flight[T]{TTL: cacheTTL, ErrTTL: errorTTL, Timeout: fetchTimeout, Max: size, Logger: logger}
 }

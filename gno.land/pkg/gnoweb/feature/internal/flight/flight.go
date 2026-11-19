@@ -1,9 +1,15 @@
-package chainmap
+// Package flight memoizes answers per key for gnoweb's features: each key
+// is fetched once for every reader asking at the same time, and its answer,
+// or its failure, is kept for a while.
+package flight
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -16,35 +22,40 @@ import (
 // failure.
 var ErrPending = errors.New("answer still pending")
 
-// errTransient marks a fetch error that says nothing about the answer, such
+// ErrTransient marks a fetch error that says nothing about the answer, such
 // as no capacity or no budget to start the fetch: it is returned, to the
 // reader who started the fetch and to any that joined it, but never
 // remembered.
-var errTransient = errors.New("transient")
+var ErrTransient = errors.New("transient")
 
 // errFetchTimeout is why a fetch that ran past its flight's timeout ended.
 var errFetchTimeout = errors.New("fetch timed out")
 
-// flight memoizes one answer per key and refreshes it on request. It runs
+// Flight memoizes one answer per key and refreshes it on request. It runs
 // nothing in the background: a fetch is started by a reader, detached from
 // that reader so a closed tab does not waste the work, and shared by every
-// reader asking for the same key while it runs.
-type flight[T any] struct {
-	// ttl is how long an answer is served as fresh.
-	ttl time.Duration
-	// errTTL is how long a failure is remembered, so a failing backend is not
+// reader asking for the same key while it runs. A fetch that panics on its
+// own goroutine fails its key instead of the process, and is logged with
+// its stack; a panic on a goroutine the fetch starts is the fetch's to
+// recover.
+type Flight[T any] struct {
+	// TTL is how long an answer is served as fresh.
+	TTL time.Duration
+	// ErrTTL is how long a failure is remembered, so a failing backend is not
 	// asked again by every reader. Zero remembers none.
-	errTTL time.Duration
-	// timeout bounds one fetch, whoever started it. A fetch cut short is a
+	ErrTTL time.Duration
+	// Timeout bounds one fetch, whoever started it. A fetch cut short is a
 	// failure here.
-	timeout time.Duration
-	// max bounds the number of keys; the oldest answer goes first.
-	max int
-	// stale serves an expired answer at once while it is refreshed.
-	stale bool
-	// partial, when set, marks answers kept only for errTTL, like failures:
+	Timeout time.Duration
+	// Max bounds the number of keys; the oldest answer goes first.
+	Max int
+	// Stale serves an expired answer at once while it is refreshed.
+	Stale bool
+	// Partial, when set, marks answers kept only for ErrTTL, like failures:
 	// an answer some reads failed to complete is worth retrying soon.
-	partial func(T) bool
+	Partial func(T) bool
+	// Logger receives a fetch's panic and stack; nil uses slog.Default().
+	Logger *slog.Logger
 
 	mu      sync.Mutex
 	entries map[string]flightEntry[T]
@@ -63,24 +74,24 @@ type flightEntry[T any] struct {
 }
 
 // fresh returns the answer for key if it is still fresh.
-func (f *flight[T]) fresh(key string) (flightEntry[T], bool) {
+func (f *Flight[T]) fresh(key string) (flightEntry[T], bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	e, ok := f.entries[key]
 	if !ok {
 		return e, false
 	}
-	ttl := f.ttl
-	if e.err != nil || (f.partial != nil && f.partial(e.val)) {
-		ttl = f.errTTL
+	ttl := f.TTL
+	if e.err != nil || (f.Partial != nil && f.Partial(e.val)) {
+		ttl = f.ErrTTL
 	}
 	return e, time.Since(e.at) < ttl
 }
 
-// get answers key, fetching it when no fresh answer is held, and waits for
+// Get answers key, fetching it when no fresh answer is held, and waits for
 // the fetch only as long as ctx allows; the fetch carries on for the next
 // reader.
-func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, error) {
+func (f *Flight[T]) Get(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, error) {
 	if e, ok := f.fresh(key); ok {
 		return e.val, e.err
 	}
@@ -93,7 +104,7 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 
 	ch := f.start(ctx, key, fetch)
 
-	if f.stale {
+	if f.Stale {
 		if e, ok := f.held(key); ok {
 			return e.val, nil
 		}
@@ -109,10 +120,10 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 	}
 }
 
-// peek returns the answer at hand, fresh or stale, and never waits: with
+// Peek returns the answer at hand, fresh or stale, and never waits: with
 // none fresh it starts the fetch, or joins the one running, for the readers
 // that follow. It is for a page drawn with or without the answer.
-func (f *flight[T]) peek(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, bool) {
+func (f *Flight[T]) Peek(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, bool) {
 	if e, ok := f.fresh(key); ok {
 		return e.val, e.err == nil
 	}
@@ -125,18 +136,18 @@ func (f *flight[T]) peek(ctx context.Context, key string, fetch func(context.Con
 
 // start runs the fetch for key, detached from ctx, unless one is running,
 // and returns where its answer lands.
-func (f *flight[T]) start(ctx context.Context, key string, fetch func(context.Context) (T, error)) <-chan singleflight.Result {
+func (f *Flight[T]) start(ctx context.Context, key string, fetch func(context.Context) (T, error)) <-chan singleflight.Result {
 	return f.group.DoChan(key, func() (any, error) {
 		// A reader arriving as the previous fetch lands must not start
 		// another one.
 		if e, ok := f.fresh(key); ok {
 			return e, nil
 		}
-		fctx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
-		defer cancel(nil)
-		stop := time.AfterFunc(f.timeout, func() { cancel(errFetchTimeout) })
-		defer stop.Stop()
-		val, err := fetch(fctx)
+		// A deadline, not a bare cancel: clients tell a timeout from a
+		// refusal by it (DeadlineExceeded), and say so in their errors.
+		fctx, cancel := context.WithTimeoutCause(context.WithoutCancel(ctx), f.Timeout, errFetchTimeout)
+		defer cancel()
+		val, err := f.recovered(fctx, key, fetch)
 		if err != nil && errors.Is(context.Cause(fctx), errFetchTimeout) {
 			err = fmt.Errorf("%w: %w", errFetchTimeout, err)
 		}
@@ -144,28 +155,47 @@ func (f *flight[T]) start(ctx context.Context, key string, fetch func(context.Co
 	})
 }
 
+// recovered runs fetch and turns a panic into its error, logged with its
+// stack: singleflight re-raises a panic on a goroutine of its own, out of
+// any recover's reach, which would end the process rather than fail one key.
+func (f *Flight[T]) recovered(ctx context.Context, key string, fetch func(context.Context) (T, error)) (val T, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("flight: fetch panicked: %v", r)
+			cmp.Or(f.Logger, slog.Default()).Error("flight: fetch panicked", "key", key, "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	return fetch(ctx)
+}
+
 // held returns the last good answer for key, whatever its age.
-func (f *flight[T]) held(key string) (flightEntry[T], bool) {
+func (f *Flight[T]) held(key string) (flightEntry[T], bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	e, ok := f.entries[key]
 	return e, ok && e.err == nil
 }
 
+// Put records an answer for key as a fetch would, for a caller that already
+// has it.
+func (f *Flight[T]) Put(key string, val T, err error) {
+	f.store(key, val, err)
+}
+
 // store records an answer, evicting the oldest when full, and returns what
-// readers get. A failure is remembered for errTTL; a stale flight keeps
-// serving its last good answer instead, and asks again after errTTL.
-func (f *flight[T]) store(key string, val T, err error) flightEntry[T] {
+// readers get. A failure is remembered for ErrTTL; a stale flight keeps
+// serving its last good answer instead, and asks again after ErrTTL.
+func (f *Flight[T]) store(key string, val T, err error) flightEntry[T] {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.stored++
 	e := flightEntry[T]{val: val, err: err, at: time.Now(), seq: f.stored}
 	if err != nil {
-		if f.errTTL == 0 || errors.Is(err, errTransient) {
+		if f.ErrTTL == 0 || errors.Is(err, ErrTransient) {
 			return e
 		}
-		if old, ok := f.entries[key]; ok && f.stale && old.err == nil {
-			old.at = time.Now().Add(f.errTTL - f.ttl)
+		if old, ok := f.entries[key]; ok && f.Stale && old.err == nil {
+			old.at = time.Now().Add(f.ErrTTL - f.TTL)
 			f.entries[key] = old
 			return old
 		}
@@ -173,7 +203,7 @@ func (f *flight[T]) store(key string, val T, err error) flightEntry[T] {
 	if f.entries == nil {
 		f.entries = make(map[string]flightEntry[T])
 	}
-	if _, ok := f.entries[key]; !ok && len(f.entries) >= f.max {
+	if _, ok := f.entries[key]; !ok && len(f.entries) >= f.Max {
 		var oldest string
 		for k, old := range f.entries {
 			if oldest == "" || old.seq < f.entries[oldest].seq {

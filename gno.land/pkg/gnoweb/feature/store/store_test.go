@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -806,7 +804,7 @@ func TestOwnerImagesFallBack(t *testing.T) {
 	assert.Contains(t, html, `data-fallback><svg class="icon"`)
 
 	h.deps.IPFSGateway = ""
-	h.cache = newResponseCache()
+	h.cache = newResponses(h.deps.Logger)
 	html = render(t, h, "")
 	assert.NotContains(t, html, "<img")
 	assert.Contains(t, html, `<svg class="cover"`)
@@ -887,71 +885,78 @@ func TestFeaturedPoolIsDecidedByEligibility(t *testing.T) {
 	assert.Equal(t, labelTrending, label)
 }
 
-func TestCacheRecoversAPanickingLoad(t *testing.T) {
-	c := newResponseCache()
-	_, err := cached(context.Background(), c, "k", func(context.Context) (int, error) { panic("boom") })
-	require.ErrorContains(t, err, "boom")
-	_, err = cached(context.Background(), c, "k", func(context.Context) (int, error) { return 1, nil })
-	assert.ErrorContains(t, err, "boom", "remembered as a failure, briefly")
-}
-
-// A failure is remembered for errorTTL, not cacheTTL: a store realm back
-// up shows within seconds.
-func TestCacheKeepsFailuresBriefly(t *testing.T) {
-	c := newResponseCache()
-	c.put("ok", 1, nil)
-	c.put("failed", nil, errors.New("down"))
-	now := time.Now()
-	assert.WithinDuration(t, now.Add(cacheTTL), c.entries["ok"].expires, time.Second)
-	assert.WithinDuration(t, now.Add(errorTTL), c.entries["failed"].expires, time.Second)
-}
-
-// At its cap the cache drops the answer soonest to expire, never every
-// answer at once: a crawler walking the pages costs no reader the front page.
-func TestCacheEvictsOneAtItsCap(t *testing.T) {
-	c := newResponseCache()
-	c.put("failed", nil, errors.New("down")) // remembered briefly: the soonest to expire
-	for i := range cacheMaxEntries - 2 {
-		c.put(strconv.Itoa(i), i, nil)
-	}
-	c.put("home", 1, nil)
-	require.Len(t, c.entries, cacheMaxEntries)
-
-	c.put("one-more", 1, nil)
-	assert.Len(t, c.entries, cacheMaxEntries)
-	assert.NotContains(t, c.entries, "failed")
-	assert.Contains(t, c.entries, "home")
-	assert.Contains(t, c.entries, "one-more")
-
-	c.put("home", 2, nil) // a key already held takes no one's place
-	assert.Len(t, c.entries, cacheMaxEntries)
-	assert.Contains(t, c.entries, "0")
-}
-
-// Concurrent misses of one key share a single load.
-func TestCacheCoalescesConcurrentMisses(t *testing.T) {
+// An answer is kept cacheTTL and a failure errorTTL: readers within the TTL
+// cost no query, and a realm back up shows within seconds.
+func TestStoreCacheTimes(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		c := newResponseCache()
-		release := make(chan struct{})
-		var loads atomic.Int32
-		load := func(context.Context) (int, error) {
-			loads.Add(1)
-			<-release
-			return 1, nil
-		}
-		var wg sync.WaitGroup
-		for range 8 {
-			wg.Go(func() {
-				v, err := cached(context.Background(), c, "k", load)
-				assert.NoError(t, err)
-				assert.Equal(t, 1, v)
-			})
-		}
-		synctest.Wait() // every reader waits on the key
-		close(release)
-		wg.Wait()
-		assert.Equal(t, int32(1), loads.Load())
+		h, c := newTestHandler(t, map[string]string{"api/v1/home": homeBody(trustedApp)})
+		render(t, h, "")
+		time.Sleep(cacheTTL - time.Second)
+		render(t, h, "")
+		assert.Equal(t, int32(1), c.calls.Load(), "fresh within cacheTTL")
+		time.Sleep(2 * time.Second)
+		render(t, h, "")
+		assert.Equal(t, int32(2), c.calls.Load(), "asked again past cacheTTL")
+
+		h, c = newTestHandler(t, nil) // the realm answers not_found: a failure
+		render(t, h, "")
+		render(t, h, "")
+		assert.Equal(t, int32(1), c.calls.Load(), "a failure is remembered")
+		time.Sleep(errorTTL + time.Second)
+		render(t, h, "")
+		assert.Equal(t, int32(2), c.calls.Load(), "and asked again after errorTTL")
 	})
+}
+
+// hangingClient answers no realm query until its context ends.
+type hangingClient struct{}
+
+func (hangingClient) Realm(ctx context.Context, _, _ string) ([]byte, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// A realm query that hangs is cut at fetchTimeout, and the page falls back
+// to the realm's markdown.
+func TestStoreQueryTimesOut(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h, _ := newTestHandler(t, nil)
+		h.deps.Client = hangingClient{}
+		start := time.Now()
+		assert.Empty(t, render(t, h, ""))
+		assert.Equal(t, fetchTimeout, time.Since(start))
+	})
+}
+
+// The pages' flight keeps 512 answers, enough for a large store's front
+// page to link to, and is bounded: 600 evict the oldest.
+func TestStorePagesCap(t *testing.T) {
+	h, _ := newTestHandler(t, nil)
+	put := func(from, to int) {
+		for i := from; i < to; i++ {
+			h.cache.pages.Put(strconv.Itoa(i), &pageResponse{}, nil)
+		}
+	}
+	var fetched atomic.Int32
+	fetch := func(context.Context) (*pageResponse, error) { fetched.Add(1); return &pageResponse{}, nil }
+	put(0, 512)
+	_, _ = h.cache.pages.Get(context.Background(), "0", fetch)
+	assert.Equal(t, int32(0), fetched.Load(), "512 pages are kept")
+	put(512, 600)
+	_, _ = h.cache.pages.Get(context.Background(), "0", fetch)
+	assert.Equal(t, int32(1), fetched.Load(), "600 are not")
+}
+
+// The front page has a flight of its own: a crawler walking more pages than
+// the cache keeps costs no reader the front page.
+func TestCrawlerKeepsTheFrontPage(t *testing.T) {
+	h, c := newTestHandler(t, map[string]string{"api/v1/home": homeBody(trustedApp)})
+	render(t, h, "")
+	for i := range maxPages + 10 {
+		h.cache.pages.Put("list/latest/"+strconv.Itoa(i), &pageResponse{}, nil)
+	}
+	render(t, h, "")
+	assert.Equal(t, int32(1), c.calls.Load())
 }
 
 // A hero the pool did not give, such as a GovDAO pick of an operator app,

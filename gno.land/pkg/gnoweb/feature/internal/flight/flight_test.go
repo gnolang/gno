@@ -1,22 +1,26 @@
-package chainmap
+package flight
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
 func TestFlightServesAFreshAnswerWithoutFetching(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4}
+	f := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 4}
 	var fetches atomic.Int32
 	fetch := func(context.Context) (int, error) { fetches.Add(1); return 7, nil }
 	for range 3 {
-		if v, err := f.get(context.Background(), "k", fetch); v != 7 || err != nil {
+		if v, err := f.Get(context.Background(), "k", fetch); v != 7 || err != nil {
 			t.Fatalf("get = %d, %v", v, err)
 		}
 	}
@@ -30,12 +34,12 @@ func TestFlightServesAFreshAnswerWithoutFetching(t *testing.T) {
 func TestFlightServesStaleWhileRefreshing(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 1, stale: true}
+	f := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 1, Stale: true}
 	f.store("k", 1, nil)
 	f.entries["k"] = flightEntry[int]{val: 1, at: time.Now().Add(-2 * time.Minute)}
 
 	release := make(chan struct{})
-	v, err := f.get(context.Background(), "k", func(context.Context) (int, error) { <-release; return 2, nil })
+	v, err := f.Get(context.Background(), "k", func(context.Context) (int, error) { <-release; return 2, nil })
 	if v != 1 || err != nil {
 		t.Fatalf("get = %d, %v; want the stale answer at once", v, err)
 	}
@@ -58,11 +62,11 @@ func TestFlightRemembersFailures(t *testing.T) {
 	t.Parallel()
 
 	boom := errors.New("down")
-	f := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Second, max: 4}
+	f := &Flight[int]{TTL: time.Minute, ErrTTL: time.Minute, Timeout: time.Second, Max: 4}
 	var fetches atomic.Int32
 	fail := func(context.Context) (int, error) { fetches.Add(1); return 0, boom }
 	for range 3 {
-		if _, err := f.get(context.Background(), "k", fail); !errors.Is(err, boom) {
+		if _, err := f.Get(context.Background(), "k", fail); !errors.Is(err, boom) {
 			t.Fatalf("err = %v, want the failure", err)
 		}
 	}
@@ -70,7 +74,7 @@ func TestFlightRemembersFailures(t *testing.T) {
 		t.Fatalf("fetched %d times, want once: the failure is remembered", n)
 	}
 
-	s := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Second, max: 1, stale: true}
+	s := &Flight[int]{TTL: time.Minute, ErrTTL: time.Minute, Timeout: time.Second, Max: 1, Stale: true}
 	s.entries = map[string]flightEntry[int]{"k": {val: 5, at: time.Now().Add(-2 * time.Minute)}}
 	if e := s.store("k", 0, boom); e.err != nil || e.val != 5 {
 		t.Fatalf("store = %+v, want the last good answer kept", e)
@@ -79,7 +83,7 @@ func TestFlightRemembersFailures(t *testing.T) {
 		t.Fatal("after a failed refresh the last good answer must hold for errTTL")
 	}
 
-	n := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4}
+	n := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 4}
 	n.store("k", 0, boom)
 	if _, ok := n.fresh("k"); ok {
 		t.Fatal("with no errTTL a failure must not be remembered")
@@ -89,7 +93,7 @@ func TestFlightRemembersFailures(t *testing.T) {
 func TestFlightIsBounded(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 8}
+	f := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 8}
 	for i := range 20 {
 		f.store(fmt.Sprint(i), i, nil)
 	}
@@ -104,7 +108,7 @@ func TestFlightIsBounded(t *testing.T) {
 func TestFlightExpires(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 1}
+	f := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 1}
 	f.entries = map[string]flightEntry[int]{"k": {val: 1, at: time.Now().Add(-2 * time.Minute)}}
 	if _, ok := f.fresh("k"); ok {
 		t.Error("an expired answer must not be served as fresh")
@@ -116,11 +120,11 @@ func TestFlightExpires(t *testing.T) {
 func TestFlightStartsNothingForAnExpiredReader(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4}
+	f := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 4}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var fetches atomic.Int32
-	_, err := f.get(ctx, "k", func(context.Context) (int, error) { fetches.Add(1); return 1, nil })
+	_, err := f.Get(ctx, "k", func(context.Context) (int, error) { fetches.Add(1); return 1, nil })
 	if !errors.Is(err, ErrPending) {
 		t.Fatalf("err = %v, want ErrPending", err)
 	}
@@ -135,21 +139,21 @@ func TestFlightStartsNothingForAnExpiredReader(t *testing.T) {
 func TestFlightTellsPendingFromFailedOnADeadline(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Second, max: 4}
-	_, err := f.get(context.Background(), "k", func(context.Context) (int, error) {
+	f := &Flight[int]{TTL: time.Minute, ErrTTL: time.Minute, Timeout: time.Second, Max: 4}
+	_, err := f.Get(context.Background(), "k", func(context.Context) (int, error) {
 		return 0, context.DeadlineExceeded
 	})
 	if err == nil || errors.Is(err, ErrPending) {
 		t.Fatalf("err = %v, want the failure, not ErrPending", err)
 	}
-	if _, err := f.get(context.Background(), "k", nil); errors.Is(err, ErrPending) {
+	if _, err := f.Get(context.Background(), "k", nil); errors.Is(err, ErrPending) {
 		t.Fatal("a remembered failure must not read as pending")
 	}
 
-	slow := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4}
+	slow := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 4}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
-	_, err = slow.get(ctx, "k", func(c context.Context) (int, error) { <-c.Done(); return 0, c.Err() })
+	_, err = slow.Get(ctx, "k", func(c context.Context) (int, error) { <-c.Done(); return 0, c.Err() })
 	if !errors.Is(err, ErrPending) {
 		t.Fatalf("err = %v, want ErrPending for the reader's own wait", err)
 	}
@@ -160,7 +164,7 @@ func TestFlightTellsPendingFromFailedOnADeadline(t *testing.T) {
 func TestFlightKeepsPartialAnswersBriefly(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Hour, errTTL: time.Minute, timeout: time.Second, max: 4, partial: func(v int) bool { return v < 0 }}
+	f := &Flight[int]{TTL: time.Hour, ErrTTL: time.Minute, Timeout: time.Second, Max: 4, Partial: func(v int) bool { return v < 0 }}
 	f.entries = map[string]flightEntry[int]{
 		"partial":  {val: -1, at: time.Now().Add(-2 * time.Minute)},
 		"complete": {val: 1, at: time.Now().Add(-2 * time.Minute)},
@@ -173,19 +177,20 @@ func TestFlightKeepsPartialAnswersBriefly(t *testing.T) {
 	}
 }
 
-// A fetch past its timeout is ended, and get says why.
+// A fetch past its timeout is ended by a deadline, which clients report as
+// a timeout, and Get says why.
 func TestFlightTimeoutCancelsTheFetch(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: 10 * time.Millisecond, max: 1}
+	f := &Flight[int]{TTL: time.Minute, Timeout: 10 * time.Millisecond, Max: 1}
 	var seen error
-	_, err := f.get(context.Background(), "k", func(ctx context.Context) (int, error) {
+	_, err := f.Get(context.Background(), "k", func(ctx context.Context) (int, error) {
 		<-ctx.Done()
 		seen = ctx.Err()
 		return 0, ctx.Err()
 	})
-	if !errors.Is(seen, context.Canceled) {
-		t.Errorf("fetch ended with %v, want context.Canceled", seen)
+	if !errors.Is(seen, context.DeadlineExceeded) {
+		t.Errorf("fetch ended with %v, want context.DeadlineExceeded", seen)
 	}
 	if !errors.Is(err, errFetchTimeout) {
 		t.Errorf("get = %v, want errFetchTimeout", err)
@@ -197,12 +202,12 @@ func TestFlightTimeoutCancelsTheFetch(t *testing.T) {
 func TestFlightFetchOutlivesItsReader(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 1}
+	f := &Flight[int]{TTL: time.Minute, Timeout: time.Second, Max: 1}
 	ctx, cancel := context.WithCancel(context.Background())
 	started, release := make(chan struct{}), make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		_, err := f.get(ctx, "k", func(fctx context.Context) (int, error) {
+		_, err := f.Get(ctx, "k", func(fctx context.Context) (int, error) {
 			close(started)
 			<-release
 			return 7, fctx.Err()
@@ -216,7 +221,7 @@ func TestFlightFetchOutlivesItsReader(t *testing.T) {
 	}
 	close(release)
 	// Joins the running fetch or reads what it stored: never fetches again.
-	v, err := f.get(context.Background(), "k", func(context.Context) (int, error) {
+	v, err := f.Get(context.Background(), "k", func(context.Context) (int, error) {
 		t.Error("fetched again: the first fetch stored nothing")
 		return 0, nil
 	})
@@ -231,20 +236,20 @@ func TestFlightFetchOutlivesItsReader(t *testing.T) {
 func TestFlightPeekNeverWaits(t *testing.T) {
 	t.Parallel()
 
-	f := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Minute, max: 1, stale: true}
+	f := &Flight[int]{TTL: time.Minute, ErrTTL: time.Minute, Timeout: time.Minute, Max: 1, Stale: true}
 	release := make(chan struct{})
 	var fetches atomic.Int32
 	fetch := func(context.Context) (int, error) { fetches.Add(1); <-release; return 7, nil }
 
 	// The fetch is blocked: a peek that waited for it would never return.
 	for range 3 {
-		if v, ok := f.peek(context.Background(), "k", fetch); ok {
+		if v, ok := f.Peek(context.Background(), "k", fetch); ok {
 			t.Fatalf("peek = %d before any answer", v)
 		}
 	}
 	close(release)
-	waitFor(t, func() bool { _, ok := f.peek(context.Background(), "k", fetch); return ok })
-	if v, _ := f.peek(context.Background(), "k", fetch); v != 7 {
+	waitFor(t, func() bool { _, ok := f.Peek(context.Background(), "k", fetch); return ok })
+	if v, _ := f.Peek(context.Background(), "k", fetch); v != 7 {
 		t.Fatalf("peek = %d, want 7", v)
 	}
 	if n := fetches.Load(); n != 1 {
@@ -254,24 +259,24 @@ func TestFlightPeekNeverWaits(t *testing.T) {
 	// Stale: the old answer at once, and one refresh for the next reader.
 	f.entries["k"] = flightEntry[int]{val: 7, at: time.Now().Add(-2 * time.Minute)}
 	refreshed := make(chan struct{})
-	if v, ok := f.peek(context.Background(), "k", func(context.Context) (int, error) { <-refreshed; return 8, nil }); !ok || v != 7 {
+	if v, ok := f.Peek(context.Background(), "k", func(context.Context) (int, error) { <-refreshed; return 8, nil }); !ok || v != 7 {
 		t.Fatalf("peek = %d, %v; want the stale answer", v, ok)
 	}
 	close(refreshed)
-	waitFor(t, func() bool { v, _ := f.peek(context.Background(), "k", fetch); return v == 8 })
+	waitFor(t, func() bool { v, _ := f.Peek(context.Background(), "k", fetch); return v == 8 })
 
 	// A failure with no answer before it is nothing at hand; an expired
 	// reader starts nothing.
-	g := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Minute, max: 1, stale: true}
+	g := &Flight[int]{TTL: time.Minute, ErrTTL: time.Minute, Timeout: time.Minute, Max: 1, Stale: true}
 	g.store("k", 0, errors.New("down"))
-	if _, ok := g.peek(context.Background(), "k", fetch); ok {
+	if _, ok := g.Peek(context.Background(), "k", fetch); ok {
 		t.Fatal("peek returned a failure as an answer")
 	}
 	done, cancel := context.WithCancel(context.Background())
 	cancel()
 	var started atomic.Int32
-	h := &flight[int]{ttl: time.Minute, timeout: time.Minute, max: 1}
-	h.peek(done, "k", func(context.Context) (int, error) { started.Add(1); return 1, nil })
+	h := &Flight[int]{TTL: time.Minute, Timeout: time.Minute, Max: 1}
+	h.Peek(done, "k", func(context.Context) (int, error) { started.Add(1); return 1, nil })
 	time.Sleep(10 * time.Millisecond)
 	if started.Load() != 0 {
 		t.Fatal("an expired reader started a fetch")
@@ -285,4 +290,49 @@ func waitFor(t *testing.T, ok func() bool) {
 			t.Fatal("timed out")
 		}
 	}
+}
+
+// A fetch that panics fails its key, briefly, rather than the process.
+func TestFlightFailsAPanickingFetch(t *testing.T) {
+	t.Parallel()
+
+	var logs strings.Builder
+	f := &Flight[int]{TTL: time.Minute, ErrTTL: time.Minute, Timeout: time.Second, Max: 1, Logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	if _, err := f.Get(context.Background(), "k", func(context.Context) (int, error) { panic("boom") }); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("err = %v, want the panic", err)
+	}
+	if _, err := f.Get(context.Background(), "k", func(context.Context) (int, error) { return 1, nil }); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("err = %v, want the panic remembered as a failure", err)
+	}
+	if out := logs.String(); !strings.Contains(out, "panic=boom") || !strings.Contains(out, "TestFlightFailsAPanickingFetch") {
+		t.Fatalf("log = %q, want the panic and its stack", out)
+	}
+}
+
+// Concurrent readers of one key share a single fetch.
+func TestFlightCoalescesConcurrentMisses(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := &Flight[int]{TTL: time.Minute, Timeout: time.Minute, Max: 1}
+		release := make(chan struct{})
+		var fetches atomic.Int32
+		fetch := func(context.Context) (int, error) {
+			fetches.Add(1)
+			<-release
+			return 1, nil
+		}
+		var wg sync.WaitGroup
+		for range 8 {
+			wg.Go(func() {
+				if v, err := f.Get(context.Background(), "k", fetch); v != 1 || err != nil {
+					t.Errorf("Get = %d, %v", v, err)
+				}
+			})
+		}
+		synctest.Wait() // every reader waits on the key
+		close(release)
+		wg.Wait()
+		if n := fetches.Load(); n != 1 {
+			t.Fatalf("fetched %d times, want once", n)
+		}
+	})
 }

@@ -1674,17 +1674,22 @@ gnoweb only queries category pages that exist in the cached taxonomy.
 
 - Front page and Build lens: **1** `vm/qrender` each (`api/v1/home`,
   `api/v1/build`), cached 30 s, singleflight, 4 s timeout detached from the
-  request. A cache hit costs neither an RPC nor a decode.
+  request. A cache hit costs neither an RPC nor a decode. The cache is the
+  chain map's (`feature/internal/flight`), shared since this review: one
+  flight for the front page, one for the Build lens, one for the pages.
 - Category and list pages: 1 `qrender` (`api/v1/category/<key>/<page>` or
   `api/v1/list/<key>/<page>`, 24 per page) plus the cached home payload,
   which also decides whether the key and page exist: an unknown one costs no
   query.
 - Failures are cached 5 s and logged once per load. Validation, tiers, short
   paths and generated art are computed once per cache fill, not per request.
-- The cache holds at most 512 entries; its keys are bounded by the
-  taxonomy, the front page's lists and their real page counts. At the cap
-  it drops what expired, then the one answer soonest to expire, so a crawler
-  walking a large store costs no reader the front page.
+- The pages' flight holds at most 512 answers, and drops the oldest at
+  its cap; its keys are bounded by the taxonomy, the front page's lists and
+  their real page counts. The front page and the Build lens have flights of
+  their own, so a crawler walking a large store costs no reader either.
+- A load that panics fails its key for 5 s and is logged with its stack;
+  it never ends the process. A query that hangs is cut at 4 s by a
+  deadline, which the node client reports as a timeout.
 - No app page and no previews: an app's page is its realm page, at the cost
   it already has.
 - Later: liveness and private checks, lazily for listings on the page

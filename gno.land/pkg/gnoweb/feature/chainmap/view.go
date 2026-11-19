@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 )
 
 // activityWait is how long a map page waits for the activity aggregate before
@@ -162,7 +163,7 @@ func (h *Handler) Activity(ctx context.Context) *Activity {
 	if h.activity == nil {
 		return nil
 	}
-	a, _ := h.activity.peek(ctx, activityKey, h.fetchActivity)
+	a, _ := h.activity.Peek(ctx, activityKey, h.fetchActivity)
 	return a
 }
 
@@ -181,10 +182,10 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	}
 	wctx, cancel := context.WithTimeout(ctx, activityWait)
 	defer cancel()
-	a, err := h.activity.get(wctx, activityKey, h.fetchActivity)
+	a, err := h.activity.Get(wctx, activityKey, h.fetchActivity)
 	if err != nil {
 		data.Activity = ActivityUnavailable
-		if errors.Is(err, ErrPending) {
+		if errors.Is(err, flight.ErrPending) {
 			data.Activity = ActivityPending
 		} else {
 			h.deps.Logger.Warn("map: activity unavailable", "error", err)

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
@@ -132,7 +133,7 @@ func TestImportersLimitsOnlyCacheMisses(t *testing.T) {
 	if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrRateLimited) {
 		t.Fatalf("err = %v, want ErrRateLimited on a miss", err)
 	}
-	h.importers.answers.store(avl, &Importers{AsOf: 7}, nil)
+	h.importers.answers.Put(avl, &Importers{AsOf: 7}, nil)
 	got, err := h.Importers(context.Background(), nil, avl)
 	if err != nil || got.AsOf != 7 {
 		t.Fatalf("got %+v, %v; want the cached answer", got, err)
@@ -208,7 +209,7 @@ func TestImportersJoiningIsFree(t *testing.T) {
 	// The first call registers the fetch before it returns, so every later
 	// call joins it whatever the scheduling.
 	for range 4 {
-		if _, err := h.Importers(short(), nil, avl); !errors.Is(err, ErrPending) {
+		if _, err := h.Importers(short(), nil, avl); !errors.Is(err, flight.ErrPending) {
 			t.Fatalf("err = %v, want ErrPending, not a rate limit", err)
 		}
 	}

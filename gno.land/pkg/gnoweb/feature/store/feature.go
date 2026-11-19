@@ -65,7 +65,7 @@ type Deps struct {
 // Handler renders the store realm's views.
 type Handler struct {
 	deps      Deps
-	cache     *responseCache
+	cache     responses
 	templates *template.Template
 }
 
@@ -83,7 +83,7 @@ func New(deps Deps) *Handler {
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
 	}
-	return &Handler{deps: deps, cache: newResponseCache(), templates: newTemplates(deps)}
+	return &Handler{deps: deps, cache: newResponses(deps.Logger), templates: newTemplates(deps)}
 }
 
 // RealmPath is the path the store owns; gnoweb links to it from the header.

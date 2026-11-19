@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"slices"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
@@ -67,7 +69,7 @@ const (
 var (
 	// ErrRateLimited is returned when a reader asks for more lookups than
 	// the limiter allows. It is not remembered.
-	ErrRateLimited = fmt.Errorf("%w: too many requests", errTransient)
+	ErrRateLimited = fmt.Errorf("%w: too many requests", flight.ErrTransient)
 
 	// ErrNotLive is what an ImportReader returns for a path with no live
 	// package.
@@ -75,7 +77,7 @@ var (
 
 	// ErrBusy is returned when every lookup slot is taken. It is not
 	// remembered: the next reader may find a free slot.
-	ErrBusy = fmt.Errorf("%w: every lookup slot is taken", errTransient)
+	ErrBusy = fmt.Errorf("%w: every lookup slot is taken", flight.ErrTransient)
 )
 
 // Importers are the live packages whose non-test source imports a package.
@@ -101,22 +103,23 @@ type Importers struct {
 // importerFlights hold the answers per package, and each candidate's imports
 // so that lookups for packages sharing importers read them once.
 type importerFlights struct {
-	answers *flight[*Importers]
-	imports *flight[[]string]
+	answers *flight.Flight[*Importers]
+	imports *flight.Flight[[]string]
 	// slots admits maxLookups lookups at a time.
 	slots chan struct{}
 }
 
-func newImporterFlights() importerFlights {
+func newImporterFlights(logger *slog.Logger) importerFlights {
 	return importerFlights{
 		slots: make(chan struct{}, maxLookups),
-		answers: &flight[*Importers]{
-			ttl: importersTTL, errTTL: failureTTL, timeout: importersTimeout, max: maxImporterEntries,
-			partial: func(imp *Importers) bool { return imp != nil && imp.Unread },
+		answers: &flight.Flight[*Importers]{
+			TTL: importersTTL, ErrTTL: failureTTL, Timeout: importersTimeout, Max: maxImporterEntries,
+			Partial: func(imp *Importers) bool { return imp != nil && imp.Unread },
+			Logger:  logger,
 		},
 		// A failure is not remembered: ErrNotLive turns into imports the
 		// moment a parked deploy is approved.
-		imports: &flight[[]string]{ttl: importersTTL, timeout: importReadTimeout, max: maxImportEntries},
+		imports: &flight.Flight[[]string]{TTL: importersTTL, Timeout: importReadTimeout, Max: maxImportEntries, Logger: logger},
 	}
 }
 
@@ -132,7 +135,7 @@ func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string
 	if !h.HasIndexer() {
 		return nil, errors.New("no indexer configured")
 	}
-	return h.importers.answers.get(ctx, pkgPath, func(ctx context.Context) (*Importers, error) {
+	return h.importers.answers.Get(ctx, pkgPath, func(ctx context.Context) (*Importers, error) {
 		select {
 		case h.importers.slots <- struct{}{}:
 			defer func() { <-h.importers.slots }()
@@ -149,7 +152,7 @@ func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string
 // imports reads a package's imports through the cache the importer checks
 // share, so a dependencies page and the lookups it starts read each once.
 func (h *Handler) imports(ctx context.Context, pkgPath string) ([]string, error) {
-	return h.importers.imports.get(ctx, pkgPath, func(ctx context.Context) ([]string, error) {
+	return h.importers.imports.Get(ctx, pkgPath, func(ctx context.Context) ([]string, error) {
 		return h.deps.Imports.Imports(ctx, pkgPath)
 	})
 }

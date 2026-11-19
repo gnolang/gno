@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
@@ -56,7 +57,7 @@ type Deps struct {
 // Handler renders maps and answers the indexer-backed queries behind them.
 type Handler struct {
 	deps     Deps
-	activity *flight[*Activity]
+	activity *flight.Flight[*Activity]
 	// closedBands keeps the activity of whole bands across refreshes.
 	closedBands *closedBands
 	importers   importerFlights
@@ -73,9 +74,9 @@ func New(deps Deps) *Handler {
 	}
 	h := &Handler{deps: deps}
 	if deps.Indexer != nil {
-		h.activity = newActivityFlight()
+		h.activity = newActivityFlight(deps.Logger)
 		h.closedBands = new(closedBands)
-		h.importers = newImporterFlights()
+		h.importers = newImporterFlights(deps.Logger)
 	}
 	return h
 }
