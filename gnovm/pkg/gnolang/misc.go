@@ -177,6 +177,28 @@ func isUverseName(n Name) bool {
 	return slices.Contains(uverseNames, n)
 }
 
+// protectedUverseNames are the builtin identifiers no declaration may shadow
+// (#1779): every builtin that existed when the rule was relaxed. A builtin
+// added since can be shadowed, so that adding one breaks no deployed code
+// that already declares or imports its name. Never add to this list.
+var protectedUverseNames = map[Name]struct{}{
+	"iota": {}, "nil": {}, "true": {}, "false": {},
+	"bool": {}, "byte": {}, "rune": {}, "string": {}, "error": {}, "any": {},
+	"int": {}, "int8": {}, "int16": {}, "int32": {}, "int64": {},
+	"uint": {}, "uint8": {}, "uint16": {}, "uint32": {}, "uint64": {},
+	"float32": {}, "float64": {},
+	"append": {}, "cap": {}, "copy": {}, "delete": {}, "len": {}, "make": {}, "new": {},
+	"print": {}, "println": {}, "panic": {}, "recover": {},
+	"address": {}, "realm": {}, "cross": {}, "attach": {}, "istypednil": {}, "revive": {},
+}
+
+// isProtectedUverseName reports whether n is a builtin no declaration may
+// shadow; see protectedUverseNames.
+func isProtectedUverseName(n Name) bool {
+	_, ok := protectedUverseNames[n]
+	return ok
+}
+
 //----------------------------------------
 // other
 

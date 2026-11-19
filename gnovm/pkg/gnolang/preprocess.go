@@ -5718,7 +5718,9 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	// all names in the original multi-value decl would be added to `defining`,
 	// causing false cycle detection for valid DAG dependencies.
 	for _, dn := range d.GetDeclNames() {
-		if isUverseName(dn) {
+		// The uverse declares its own builtins (DefineNative); nothing else
+		// may redeclare a protected one.
+		if pkg.PkgPath != uversePkgPath && isProtectedUverseName(dn) {
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
@@ -6238,7 +6240,7 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 			nx.Path = path
 			return
 		}
-	} else if isUverseName(nx.Name) {
+	} else if isProtectedUverseName(nx.Name) {
 		panic(fmt.Sprintf(
 			"builtin identifiers cannot be shadowed: %s", nx.Name))
 	}
