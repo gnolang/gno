@@ -620,10 +620,14 @@ func (alloc *Allocator) stripMaker(tv TypedValue, hold PkgID) TypedValue {
 		return tv
 	}
 	if ref, isRef := tv.V.(RefValue); isRef {
-		if alloc.store == nil {
+		oo := Object(nil)
+		if alloc.store != nil {
+			oo = alloc.store.GetObjectSafe(ref.ObjectID)
+		}
+		if oo == nil {
 			return tv
 		}
-		tv.V = alloc.store.GetObject(ref.ObjectID)
+		tv.V = oo
 	}
 	switch cv := tv.V.(type) {
 	case *FuncValue:
@@ -651,7 +655,11 @@ func (alloc *Allocator) stripDeep(tv TypedValue, hold PkgID) TypedValue {
 		case k == FuncKind:
 			return alloc.stripMaker(tv, hold)
 		case (k == StructKind || k == ArrayKind) && holdsFuncByValue(tv.T) && alloc.store != nil:
-			tv.V = alloc.store.GetObject(cv.ObjectID)
+			oo := alloc.store.GetObjectSafe(cv.ObjectID)
+			if oo == nil {
+				return tv
+			}
+			tv.V = oo
 			if out := alloc.stripDeep(tv, hold); out.V != tv.V {
 				return out
 			}

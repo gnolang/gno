@@ -1378,9 +1378,12 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 		cp.V = cv.Copy(alloc, tv.T)
 	case RefValue:
 		// A struct or array held by value is copied whether loaded or not.
+		// A ref left by an object deleted earlier in the tx stays a ref.
 		if k := tv.T.Kind(); (k == StructKind || k == ArrayKind) && alloc != nil && alloc.store != nil {
-			tv.V = alloc.store.GetObject(cv.ObjectID)
-			return tv.Copy(alloc)
+			if oo := alloc.store.GetObjectSafe(cv.ObjectID); oo != nil {
+				tv.V = oo
+				return tv.Copy(alloc)
+			}
 		}
 		// Checked by type, so the verdict does not depend on what is loaded.
 		alloc.checkCopy(tv.T)
