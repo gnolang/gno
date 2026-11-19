@@ -63,10 +63,12 @@ type, function or import name, not as a parameter, result, receiver, `range`
 or type-switch variable, and not as a parameter or result name in a function
 type or interface method.
 
-The check runs on production source when it is deployed (`addpkg` and
-`run`). `_test.gno` files, filetests, `vm/qeval`, `gno run` and packages
-loaded at genesis are not checked, and a package already on chain keeps its
-names.
+The check runs on production source when it is deployed: `addpkg`, `run`,
+and the enabling of a parked package, which is where a chain that parks
+deploys first type-checks them. `_test.gno` files, filetests, `vm/qeval`,
+`gno run` and packages loaded at genesis are not checked, and a package
+already on chain keeps its names. The standard library is not checked
+either: it keeps Go's own names, such as `Modf`'s `int` and `frac` results.
 
 The rule protects readers of contract code: Go would let `var panic =
 func(string) {}` turn a later `panic("unauthorized")` into a normal return,

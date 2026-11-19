@@ -100,14 +100,19 @@ what they refuse.
   a package on chain keeps loading and running. In-tree: `p/onbloc/diff`
   `new` → `newStr`, `cur` locals in `p/nt/bylaws`, `r/nt/commondao`, four
   quarantined files, three VM fixtures. Stdlibs are untouched.
-- On-chain: a coordinated upgrade, not "no fork". The gate changes which
-  transactions the chain accepts, so the release carrying it is the halt's
-  `halt_min_version`; and since the blocks that admitted the 33 packages do
-  not replay on it, a node joining from genesis runs `v1.7.0` up to that halt
+- On-chain: consensus-breaking, so a coordinated upgrade (halt, swap the
+  binary, resume), not a replay. A node on the old binary admits a deploy
+  the new one refuses, so all validators must switch at one height and the
+  release carrying this is the halt's `halt_min_version`. Since the blocks
+  that admitted the 33 packages do not replay on it, a node joining from
+  genesis runs the previous release up to that halt
   (`misc/deployments/mainnet.gno.land/UPGRADES.md`). `RELEASING.md`'s rc
   rehearsal expects a fresh node to sync from genesis and needs a carve-out
   for such releases, as its own PR. A package parked before the halt with a
-  refused name cannot be enabled after it. `gnogenesis fork` replays inside
+  refused name cannot be enabled after it: under the `inert` policy, which
+  gnoland-1 runs, `AddPackage` parks without type-checking, so `EnablePackage`
+  is the only gate a user package meets and cannot be exempt. None of the 11
+  packages parked on 2026-11-19 is affected; re-scan before the release. `gnogenesis fork` replays inside
   one `InitChain`, which is what `AlreadyOnChain` covers
   (`TestChainUpgradeGenesisReplay`, `TestCheckDeclNamesSkipsSourceAlreadyOnChain`).
 - App hash: stdlib source is unchanged, so `expectedCrossrealm38Hash` and
