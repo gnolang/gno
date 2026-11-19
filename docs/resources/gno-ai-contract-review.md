@@ -145,18 +145,13 @@ chain instead, while `cur.Previous()` stays bound to the frame that received `cu
 It should never stand in for `cur.Previous()`.
 
 ```go
-// WRONG: cur is accepted but ignored
+// WRONG: another realm calls this non-crossing function;
+// the walk returns that realm's caller, not that realm
 import "chain/runtime/unsafe"
-func Set(cur realm, key, value string) {
-    caller := unsafe.PreviousRealm().Address()
-    ...
-}
+func Whoami() address { return unsafe.PreviousRealm().Address() }
 
-// RIGHT
-func Set(cur realm, key, value string) {
-    caller := cur.Previous().Address()
-    ...
-}
+// RIGHT: crossing, so cur.Previous() is the realm that called
+func Whoami(cur realm) address { return cur.Previous().Address() }
 ```
 
 Flag any `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` in a realm that also has

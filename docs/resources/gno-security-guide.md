@@ -380,27 +380,22 @@ the `Address()` or `PkgPath()` (plain strings), not the realm value.
 ### 5.8 `unsafe.PreviousRealm()` alongside a `cur realm` parameter
 
 `chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
-obtaining the previous realm. Using it in a crossing function that already
-receives `cur realm` is always wrong. Called directly there, the walk names
-the same realm as `cur.Previous()` and adds nothing. Moved into a
-non-crossing function that another realm reaches, it names an earlier realm
-in the chain rather than that function's caller, while `cur` stays bound to
-the frame that received it.
+obtaining the previous realm. In a crossing function that already receives
+`cur realm` it gains nothing: called directly there, the walk names the
+same realm as `cur.Previous()`. Moved into a non-crossing function that
+another realm reaches, it names an earlier realm in the chain rather than
+that function's caller, while `cur` stays bound to the frame that received
+it.
 
 ```go
-// WRONG: cur is accepted but never used
+// WRONG: another realm calls this non-crossing function;
+// the walk returns that realm's caller, not that realm
 import "chain/runtime/unsafe"
 
-func Set(cur realm, key, value string) {
-    caller := unsafe.PreviousRealm().Address()  // reads a stack walk
-    ...
-}
+func Whoami() address { return unsafe.PreviousRealm().Address() }
 
-// RIGHT
-func Set(cur realm, key, value string) {
-    caller := cur.Previous().Address()
-    ...
-}
+// RIGHT: crossing, so cur.Previous() is the realm that called
+func Whoami(cur realm) address { return cur.Previous().Address() }
 ```
 
 Any `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` in a realm that
@@ -408,8 +403,8 @@ also declares crossing functions (`func F(cur realm, ...)`) is a red flag.
 If another realm calls a function that needs to know its caller, make that
 function crossing and read `cur.Previous()`.
 
-**Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()`, never from `unsafe.PreviousRealm()` or
+**Rule**: in crossing functions, always derive identity, the caller's or
+this realm's, from `cur`, never from `unsafe.PreviousRealm()` or
 `unsafe.CurrentRealm()`. Reading the transaction itself is fine: the
 `unsafe.OriginSend()` payment check of §5.5, or `unsafe.OriginCaller()` to
 record the signer.
