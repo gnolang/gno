@@ -428,8 +428,7 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 // Minimal AST mutation(s) for Go.
 // Supports init(cur realm), main(cur realm) by removing the param and
 // inserting `var cur realm; _ = cur` so go/types sees the cur variable.
-// prep, if non-nil, records what was invented and what was removed, for
-// checkDeclNames.
+// prep records what was invented and what was removed, for checkDeclNames.
 func prepareGoGno0p9(f *ast.File, prep *goPrep) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
@@ -446,10 +445,8 @@ func prepareGoGno0p9(f *ast.File, prep *goPrep) (err error) {
 				insert := gon.Type.End()
 				// var cur realm
 				curName := &ast.Ident{Name: "cur", NamePos: insert}
-				if prep != nil {
-					prep.synthetic[curName] = struct{}{}
-					prep.stripped[f] = append(prep.stripped[f], gon.Type.Params.List[0])
-				}
+				prep.synthetic[curName] = struct{}{}
+				prep.stripped[f] = append(prep.stripped[f], gon.Type.Params.List[0])
 				gon.Type.Params.List = nil
 				decl := &ast.DeclStmt{Decl: &ast.GenDecl{
 					Tok:    token.VAR,
@@ -952,13 +949,16 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 		name string
 	}
 	var bad []binding
+	judge := func(pos token.Pos, name string) {
+		if declNameRefused(Name(name)) {
+			bad = append(bad, binding{pos, name})
+		}
+	}
 	add := func(obj types.Object) {
 		if obj == nil || fset.File(obj.Pos()) == skip || !shadowsAName(obj) {
 			return
 		}
-		if declNameRefused(Name(obj.Name())) {
-			bad = append(bad, binding{obj.Pos(), obj.Name()})
-		}
+		judge(obj.Pos(), obj.Name())
 	}
 	// The parameter stripped from main/init: same rule, read from the AST.
 	for _, f := range files {
@@ -967,9 +967,7 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 				if id.Name == "cur" && i == 0 && isRealmTypeExpr(fset, pkg, field.Type, realmType) {
 					continue
 				}
-				if declNameRefused(Name(id.Name)) {
-					bad = append(bad, binding{id.Pos(), id.Name})
-				}
+				judge(id.Pos(), id.Name)
 			}
 		}
 	}

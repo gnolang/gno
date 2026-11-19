@@ -59,13 +59,7 @@ func TestCheckDeclNames(t *testing.T) {
 		{"ordinary names", "func F(n int) int { return n }", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := TypeCheckMemPackage(&std.MemPackage{
-				Type: MPUserProd, Name: "probe", Path: "gno.land/r/demo/probe",
-				Files: []*std.MemFile{
-					{Name: "gnomod.toml", Body: "module = \"gno.land/r/demo/probe\"\ngno = \"0.9\"\n"},
-					{Name: "a.gno", Body: "package probe\n\n" + tc.body + "\n"},
-				},
-			}, TypeCheckOptions{Getter: declNameImports, Mode: TCLatestStrict, ProdOnly: true})
+			_, err := TypeCheckMemPackage(probePkg(tc.body), TypeCheckOptions{Getter: declNameImports, Mode: TCLatestStrict, ProdOnly: true})
 			switch {
 			case tc.want == "" && err != nil:
 				t.Fatalf("refused a legal binding: %v", err)
@@ -75,6 +69,17 @@ func TestCheckDeclNames(t *testing.T) {
 				t.Fatalf("want %q, got %v", tc.want, err)
 			}
 		})
+	}
+}
+
+// probePkg is the user package under admission in these tests.
+func probePkg(body string) *std.MemPackage {
+	return &std.MemPackage{
+		Type: MPUserProd, Name: "probe", Path: "gno.land/r/demo/probe",
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: "module = \"gno.land/r/demo/probe\"\ngno = \"0.9\"\n"},
+			{Name: "a.gno", Body: "package probe\n\n" + body + "\n"},
+		},
 	}
 }
 
@@ -136,13 +141,7 @@ func TestCheckDeclNamesSkipsSourceAlreadyOnChain(t *testing.T) {
 	// The shape live packages carry: Go's own Modf signature.
 	const body = "func Modf(f float64) (int float64, frac float64) { return 1, 0.5 }"
 	mpkg := func() *std.MemPackage {
-		return &std.MemPackage{
-			Type: MPUserProd, Name: "probe", Path: "gno.land/r/demo/probe",
-			Files: []*std.MemFile{
-				{Name: "gnomod.toml", Body: "module = \"gno.land/r/demo/probe\"\ngno = \"0.9\"\n"},
-				{Name: "a.gno", Body: "package probe\n\n" + body + "\n"},
-			},
-		}
+		return probePkg(body)
 	}
 	base := TypeCheckOptions{Getter: mockPackageGetter{}, Mode: TCLatestStrict, ProdOnly: true}
 
@@ -166,13 +165,8 @@ func TestCheckDeclNamesSkipsImports(t *testing.T) {
 		{"init builtin param", "func init(len int) {}"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := TypeCheckMemPackage(&std.MemPackage{
-				Type: MPUserProd, Name: "probe", Path: "gno.land/r/demo/probe",
-				Files: []*std.MemFile{
-					{Name: "gnomod.toml", Body: "module = \"gno.land/r/demo/probe\"\ngno = \"0.9\"\n"},
-					{Name: "a.gno", Body: "package probe\n\nimport \"gno.land/p/demo/old\"\n\nvar _ = old.V\n"},
-				},
-			}, TypeCheckOptions{
+			importer := probePkg("import \"gno.land/p/demo/old\"\n\nvar _ = old.V")
+			_, err := TypeCheckMemPackage(importer, TypeCheckOptions{
 				Getter: mockPackageGetter{reservedNamePkg("old", "var V = 1\n\n"+tc.body)},
 				Mode:   TCLatestStrict, ProdOnly: true,
 			})
