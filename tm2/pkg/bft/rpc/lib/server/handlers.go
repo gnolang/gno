@@ -1141,7 +1141,11 @@ func NewWebsocketManager(funcMap map[string]*RPCFunc, allowedOrigins []string, w
 		corsValidator := cors.New(cors.Options{
 			AllowedOrigins: allowedOrigins,
 		})
-		checkOrigin = corsValidator.OriginAllowed
+		checkOrigin = func(r *http.Request) bool {
+			// A browser always sends Origin on a WebSocket upgrade, so a request
+			// without one is a non-browser client that no cross-site page drives.
+			return r.Header.Get("Origin") == "" || corsValidator.OriginAllowed(r)
+		}
 	}
 
 	return &WebsocketManager{

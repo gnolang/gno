@@ -25,6 +25,8 @@ type RPCConfig struct {
 	// If the special '*' value is present in the list, all origins will be allowed.
 	// An origin may contain a wildcard (*) to replace 0 or more characters (i.e.: http://*.domain.com).
 	// Only one wildcard can be used per origin.
+	// The list also gates the Origin of a /websocket upgrade: a request with no
+	// Origin is always accepted, and an empty list admits only the node's own.
 	CORSAllowedOrigins []string `json:"cors_allowed_origins" toml:"cors_allowed_origins" comment:"A list of origins a cross-domain request can be executed from\n Default value '[]' disables cors support\n Use '[\"*\"]' to allow any origin"`
 
 	// A list of methods the client is allowed to use with cross-domain requests.

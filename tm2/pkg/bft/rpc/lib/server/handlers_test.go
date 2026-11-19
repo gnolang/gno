@@ -574,7 +574,7 @@ func gatedBatch(n int) string {
 func batchServer(release <-chan struct{}) (s *httptest.Server, calls *atomic.Int64, served chan struct{}) {
 	calls, served = new(atomic.Int64), make(chan struct{})
 	funcs := batchTestFuncs(calls, release)
-	wm := rs.NewWebsocketManager(funcs)
+	wm := rs.NewWebsocketManager(funcs, nil)
 	wm.SetLogger(log.NewNoopLogger())
 	mux := http.NewServeMux()
 	rs.RegisterRPCFuncs(mux, funcs, log.NewNoopLogger(), 0)
@@ -805,7 +805,7 @@ func TestWebsocketBatchLimit(t *testing.T) {
 			return "foo", nil
 		}, ""),
 	}
-	wm := rs.NewWebsocketManager(funcMap, rs.MaxBatchRequests(2))
+	wm := rs.NewWebsocketManager(funcMap, nil, rs.MaxBatchRequests(2))
 	wm.SetLogger(log.NewNoopLogger())
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
@@ -904,7 +904,7 @@ func TestWebsocketBatchWriteDeadlinePerAnswer(t *testing.T) {
 	t.Parallel()
 
 	release := make(chan struct{})
-	wm := rs.NewWebsocketManager(batchTestFuncs(new(atomic.Int64), release), rs.WriteWait(200*time.Millisecond))
+	wm := rs.NewWebsocketManager(batchTestFuncs(new(atomic.Int64), release), nil, rs.WriteWait(200*time.Millisecond))
 	wm.SetLogger(log.NewNoopLogger())
 	s := httptest.NewServer(http.HandlerFunc(wm.WebsocketHandler))
 	defer s.Close()
@@ -993,6 +993,12 @@ func TestWebsocketManagerCheckOrigin(t *testing.T) {
 		{
 			name:           "no origin header is allowed",
 			allowedOrigins: []string{},
+			origin:         "",
+			expectAllowed:  true,
+		},
+		{
+			name:           "no origin header is allowed under a narrowed list",
+			allowedOrigins: []string{"http://example.com"},
 			origin:         "",
 			expectAllowed:  true,
 		},
