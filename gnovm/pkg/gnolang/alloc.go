@@ -568,6 +568,18 @@ func constructionRealmID(t Type) PkgID {
 	return getDeclaredPkgID(t)
 }
 
+// stampCopyOwner stamps a copy of t: the declaring realm for a named type,
+// and for an exempt unnamed struct the realm the copy is made for.
+func (alloc *Allocator) stampCopyOwner(oi *ObjectInfo, t Type) {
+	if pid := constructionRealmID(t); pid.IsRealmPkg() {
+		oi.SetPkgID(pid)
+		return
+	}
+	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
+		oi.SetPkgID(alloc.currentRealmID)
+	}
+}
+
 // checkBirth panics if a zero value of t, built here, would hold inline a
 // struct or array value whose type another realm declares. alloc nil: no check.
 func (alloc *Allocator) checkBirth(t Type) {
@@ -683,9 +695,7 @@ func (alloc *Allocator) stripDeep(tv TypedValue, hold PkgID) TypedValue {
 			alloc.AllocateStructFields(int64(len(fields)))
 			sv := alloc.NewStruct(tv.T, fields)
 			alloc.PopAnchor()
-			if pid := getDeclaredPkgID(tv.T); pid.IsRealmPkg() {
-				sv.ObjectInfo.SetPkgID(pid)
-			}
+			alloc.stampCopyOwner(&sv.ObjectInfo, tv.T)
 			tv.V = sv
 		}
 	case *ArrayValue:

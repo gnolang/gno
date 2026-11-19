@@ -454,7 +454,8 @@ func (av *ArrayValue) getElementPointer(store Store, ii int, et Type, seen map[*
 // the split rule in stampPkgID (PR #5706): if the array type is /r/-declared,
 // the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
 // stamp from NewListArray/NewDataArray stands, so the copy belongs to the
-// realm doing the copying.
+// realm doing the copying. An exempt unnamed struct's copies are the copier's
+// (see stampCopyOwner).
 //
 // Previously this method propagated the source's runtime PkgID whenever it
 // was an /r/ PkgID. That leaked foreign authority into /p/-typed copies
@@ -478,9 +479,7 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(pid)
-	}
+	alloc.stampCopyOwner(&cp.ObjectInfo, t)
 	return cp
 }
 
@@ -606,7 +605,8 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 // the split rule in stampPkgID (PR #5706): if the struct type is /r/-declared,
 // the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
 // stamp from NewStruct stands, so the copy belongs to the realm doing the
-// copying.
+// copying. An exempt unnamed struct is owned by the realm doing the copying
+// (stampCopyOwner), not by the package that wrote the type.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
@@ -624,9 +624,7 @@ func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 	cp := alloc.NewStruct(t, fields)
-	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(pid)
-	}
+	alloc.stampCopyOwner(&cp.ObjectInfo, t)
 	return cp
 }
 

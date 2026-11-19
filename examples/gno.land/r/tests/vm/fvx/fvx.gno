@@ -65,6 +65,11 @@ func OptsNC(o struct{ N int }) int          { return o.N }
 func Stats() struct{ A, B int } { return struct{ A, B int }{1, 2} }
 func Pair() [2]int              { return [2]int{3, 4} }
 
+// StatsArr returns an array of an exempt unnamed struct.
+func StatsArr() [2]struct{ A, B int } {
+	return [2]struct{ A, B int }{{A: 1, B: 2}, {A: 3, B: 4}}
+}
+
 var holder = struct{ H struct{ T T } }{H: struct{ T T }{T: T{N: 1}}}
 
 // HolderField returns a pointer, so the caller copies the anonymous struct.
