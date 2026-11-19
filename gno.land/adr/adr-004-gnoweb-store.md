@@ -311,8 +311,8 @@ realm's to confirm. A moved slug is not for good either: the listing's next
 new listing would (`takeSlug`), and keeps it from then on. A package is
 only ever a claim, so without this one unstar and one squatting realm would
 cost it its slug for good, even after GovDAO hid the squat. An earlier
-design dropped such a claim, and took its
-title too. That let any ten-line realm delete the listing of an app that
+design dropped such a claim, and took its title too. That let any
+ten-line realm delete the listing of an app that
 could only be claimed (every realm deployed before the store, every
 package), with its stars, and collect the storage deposit their owners had
 paid, since a deposit is refunded to whoever frees the storage. No listing
@@ -453,7 +453,9 @@ GovDAO can pause, hide, pick and name a successor, never edit:
 
 - `Pause` turns `Register` into a no-op and makes `Claim` and `SubmitRich`
   panic (the proposal pauses "new listings and listing updates"); stars
-  and hiding keep working.
+  and hiding keep working. It stops what users do, not what GovDAO votes:
+  an unhide during a pause may move a claim off the listing's slug, as it
+  would otherwise.
 - `Hide` takes an enum reason (impersonation, phishing, broken, offensive,
   other), emits an event, and removes the listing from every shelf, category
   and response. It also releases the listing's slug, title and namespace
@@ -465,10 +467,11 @@ GovDAO can pause, hide, pick and name a successor, never edit:
   then. It refuses with `title_taken` if its title was taken meanwhile,
   which the listing's owner can answer with another, or `namespace_full`
   if its namespace filled up, which only another hide there undoes (no
-  listing is ever removed). A slug its owner cannot change, so a slug taken meanwhile
-  keeps no listing hidden: it comes back under a moved slug (`--N`) and
-  takes the next slug it asks for. Otherwise anyone could undo a vote, for
-  good, by registering one realm under the hidden listing's slug. Neither
+  listing is ever removed). Its owner cannot change its slug, so a slug
+  taken meanwhile keeps no listing hidden: the listing comes back under a
+  moved slug (`--N`) and takes the next slug it asks for. Otherwise anyone
+  could undo a vote, for good, by registering one realm under the hidden
+  listing's slug. Neither
   refusal can happen to a core listing: it kept its name, and the
   namespace cap never applies to it, even in a namespace that is not a core
   one (`p/moul/md`). `title_taken` cannot happen to a claim either: it held
@@ -749,10 +752,11 @@ implemented; the others are planned (Plan, Next).
    domain, an empty name (`acme//swap`), or a namespace typed bare with
    anything past it (`acme:swap`, `acme$swap`, `acme/Swap`), which a URL
    parser reads as arguments, a query or a file and would deny all of
-   `acme`. Where a typo in `-trusted-paths` trusts less, one here would
-   deny less or more, and a deny must not fail quietly. It filters what Explore draws, no more: the
-   realm's counts still include the listing, and its own markdown and
-   `api/` pages still show it.
+   `acme`, and so does a path no package can have (the chain's grammar).
+   Where a typo in `-trusted-paths` trusts less, one here would deny less
+   or more, and a deny must not fail quietly. It filters what Explore
+   draws, no more: the realm's counts still include the listing, and its
+   own markdown and `api/` pages still show it.
 2. **Private realm** (`private = true` in `gnomod.toml`, read through
    `vm/qfile` and cached): never above the core tier, with a "Code can be
    replaced by its author" chip (T2).
@@ -1542,8 +1546,9 @@ with a nukta as the letter and its (dropped) nukta, Han strokes drawn as
 katakana or Latin letters (`匕` `ヒ`, `丁` `T`, `十` `+`), Hebrew yod as an
 apostrophe, and a double quote as two apostrophes. Second encodings of a
 letter are refused, as the presentation forms already were: the CJK
-compatibility ideographs, halfwidth katakana and the Arabic mathematical
-letters. The prolonged sound mark `ー`, which most Japanese loanwords hold,
+compatibility ideographs (but the twelve that are letters of their own, as
+`﨑` in 山﨑, which keys as `崎`), halfwidth katakana and the Arabic
+mathematical letters. The prolonged sound mark `ー`, which most Japanese loanwords hold,
 is allowed, and keys as the dash it draws as.
 It errs toward refusing: an all-Cyrillic title can collide
 with a Latin one no reader would confuse it with, which costs a rare
@@ -1575,12 +1580,15 @@ and a category answer's page numbers. Text is checked for rendering safety
 (T6's look-alike policy is the realm's). A new version of the realm can be
 written badly; gnoweb must not care.
 Owner text is inert in the realm's own output too. Its markdown passes
-titles and taglines through the sanitizer, then escapes the `$` that would
-open a formula in gnoweb (`escapeMath`): the sanitizer leaves it bare today,
-and one it escapes tomorrow is not escaped twice. The `api/` pages are JSON
-that gnoweb renders as markdown, so there `<`, `>`, `&`, `[`, `]`, `$` and
-`\` are written as `\uXXXX`: a backslash written as two would open a
-formula before a `(` or a `[`.
+titles and taglines through the sanitizer, then escapes what the sanitizer
+leaves live in gnoweb (`inert`): a `$` opens a formula, and an `@` a link to
+a user page ("Audited by @gnoland"); one already escaped is not escaped
+twice. The `api/` pages are JSON that gnoweb renders as markdown, so there
+`<`, `>`, `&`, `[`, `]`, `$`, `@` and `\` are written as `\uXXXX`: a
+backslash written as two would open a formula before a `(` or a `[`.
+*Residual*: a `g1…` address after a space still becomes a link to that
+address's user page; no escape breaks it without changing the text, and it
+names an address, not a trusted name.
 
 **T8. Gaming rankings and reputation.** Addresses are free, so stars
 from fresh addresses are a sybil army; an owner may star their own app; an
