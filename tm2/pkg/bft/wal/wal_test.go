@@ -270,15 +270,20 @@ func benchmarkWalRead(b *testing.B, n int) {
 	// registerInterfacesOnce()
 	b.Helper()
 
+	// The writer and the reader must share one size limit: a reader capped
+	// below the writer rejects every message the writer accepted.
+	maxSize := int64(n) + 64 // n + overhead.
 	buf := new(bytes.Buffer)
-	enc := NewWALWriter(buf, int64(n)+64) // n + overhead.
+	enc := NewWALWriter(buf, maxSize)
 
 	msg := TestMessage{
 		Height: 1,
 		Round:  1,
 		Data:   random.RandBytes(n),
 	}
-	enc.Write(TimedWALMessage{Msg: msg, Time: time.Now().Round(time.Second).UTC()})
+	if err := enc.Write(TimedWALMessage{Msg: msg, Time: time.Now().Round(time.Second).UTC()}); err != nil {
+		b.Fatal(err)
+	}
 
 	encoded := buf.Bytes()
 
@@ -286,7 +291,7 @@ func benchmarkWalRead(b *testing.B, n int) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		buf.Write(encoded)
-		dec := NewWALReader(buf, maxTestMsgSize)
+		dec := NewWALReader(buf, maxSize)
 		if _, _, err := dec.ReadMessage(); err != nil {
 			b.Fatal(err)
 		}
@@ -303,26 +308,12 @@ func BenchmarkWalRead10KB(b *testing.B) {
 }
 
 func BenchmarkWalRead100KB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 100*1024)
 }
 
+// 1MB is the largest size worth measuring: consensus opens its WAL with
+// maxMsgSize = 1MB (consensus/reactor.go), so a bigger message never reaches
+// a production WAL.
 func BenchmarkWalRead1MB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
 	benchmarkWalRead(b, 1024*1024)
-}
-
-func BenchmarkWalRead10MB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
-	benchmarkWalRead(b, 10*1024*1024)
-}
-
-func BenchmarkWalRead100MB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
-	benchmarkWalRead(b, 100*1024*1024)
-}
-
-func BenchmarkWalRead1GB(b *testing.B) {
-	b.Skip("TODO: benchmark failing")
-	benchmarkWalRead(b, 1024*1024*1024)
 }

@@ -1,0 +1,24 @@
+# Benchmarks run by .github/workflows/ci-bench.yml on every pull request.
+#
+# One benchmark set per line: <package dir> <-bench regexp> <-benchtime>.
+# Keep it small: every line runs once per round, per side (base and head),
+# for COUNT rounds. Prefer CPU-bound benchmarks with no disk I/O, since disk
+# latency on a shared CI runner is noise. Fixed iteration counts ("20x") suit
+# benchmarks whose setup is expensive, because the b.N ramp repeats it.
+
+# GnoVM: toy programs through RunMain, and machine construction.
+gnovm/pkg/gnolang          ^Benchmark(Benchdata|CreateNewMachine)$          100ms
+# Account load and store, the shape of every transaction's ante handler.
+tm2/pkg/sdk/auth           ^BenchmarkAccountMapper                          100ms
+# Cache store, including the iterator path that went quadratic before.
+tm2/pkg/store/cache        ^Benchmark(AccountLoad1000|CacheStoreIterator1000|CacheStoreGet.*)$  20x
+# The B+ tree production mounts (gno.land/pkg/gnoland/app.go), in memory.
+# Only SaveVersion at 1k keys: the other bptree benchmarks build a 100k-key
+# fixture first, which costs 13 to 17 seconds per run.
+tm2/pkg/bptree/benchmarks  ^BenchmarkSaveVersion$/^bptree-fast$/^1k$       100ms
+# WAL decoding, up to the 100KB message.
+tm2/pkg/bft/wal            ^BenchmarkWalRead(512B|10KB|100KB)$              100ms
+# Signature verification, paid once per transaction signer.
+tm2/pkg/crypto/secp256k1   ^BenchmarkVerification$                          100ms
+# Amino, the wire and store encoding.
+tm2/pkg/amino              ^Benchmark(Encode|Decode)$/^(ComplexSt|InterfaceHeavy|FuzzBlock)$/  100ms
