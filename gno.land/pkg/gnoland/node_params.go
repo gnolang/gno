@@ -178,15 +178,7 @@ func (k nodeParamsKeeper) haltParamWritten(ctx sdk.Context) {
 //
 // skipUpgradeHeight, if non-zero, skips all upgrade checks at that specific height.
 func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, lastBlockHeight, skipUpgradeHeight int64) error {
-	// Build a minimal read-only context with just the multistore and a placeholder chain ID.
-	// We only need store access to read params; no block execution context is required.
-	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
-
-	var haltHeight int64
-	prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
-
-	var minVersion string
-	prmk.GetString(ctx, nodeParamHaltMinVersion, &minVersion)
+	haltHeight, minVersion := readHaltParams(prmk, ms)
 
 	// Nothing to check if no governance halt is configured.
 	if haltHeight == 0 || minVersion == "" {
@@ -224,6 +216,25 @@ func checkNodeStartupParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, l
 	}
 
 	return nil
+}
+
+// readHaltParams reads the governance halt params from the committed state.
+func readHaltParams(prmk sdkparams.ParamsKeeperI, ms store.MultiStore) (haltHeight int64, minVersion string) {
+	// Build a minimal read-only context with just the multistore and a placeholder chain ID.
+	// We only need store access to read params; no block execution context is required.
+	ctx := sdk.Context{}.WithMultiStore(ms).WithChainID("_")
+	prmk.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+	prmk.GetString(ctx, nodeParamHaltMinVersion, &minVersion)
+	return haltHeight, minVersion
+}
+
+// atVersionedHalt reports whether the node boots right after a governance halt
+// that names the version to run: the one boot at which every node runs the
+// new binary on the same state, so a change it makes outside a block is the
+// same on all of them.
+func atVersionedHalt(prmk sdkparams.ParamsKeeperI, ms store.MultiStore, lastBlockHeight int64) bool {
+	haltHeight, minVersion := readHaltParams(prmk, ms)
+	return haltHeight > 0 && lastBlockHeight == haltHeight && minVersion != ""
 }
 
 // safeBlockHeight returns ctx.BlockHeight() or 0 if the context has no block header.

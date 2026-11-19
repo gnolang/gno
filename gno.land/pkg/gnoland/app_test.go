@@ -3680,6 +3680,32 @@ func TestCheckNodeStartupParams(t *testing.T) {
 	})
 }
 
+// TestAtVersionedHalt pins the one boot at which the stdlibs may be migrated:
+// right after a governance halt that names a version.
+func TestAtVersionedHalt(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		haltHeight int64
+		minVersion string
+		lastBlock  int64
+		want       bool
+	}{
+		{"at a versioned halt", 100, "v1.9.0", 100, true},
+		{"no halt", 0, "", 100, false},
+		{"halt without a version", 100, "", 100, false},
+		{"before the halt", 100, "v1.9.0", 99, false},
+		{"past the halt", 100, "v1.9.0", 101, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			prmk, ms := newTestParamsKeeper(t, tc.haltHeight, tc.minVersion)
+			assert.Equal(t, tc.want, atVersionedHalt(prmk, ms, tc.lastBlock))
+		})
+	}
+}
+
 func TestEndBlockerHalt(t *testing.T) {
 	t.Parallel()
 

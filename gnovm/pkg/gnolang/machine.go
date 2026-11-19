@@ -341,6 +341,13 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		// prod-less packages before sending.
 		mpkg = MPFProd.FilterMemPackage(mpkg)
 		fset := m.ParseMemPackage(mpkg)
+		// Files an extension added to a stdlib go last, as it predefined them,
+		// so every existing name keeps its block index.
+		if IsStdlib(mpkg.Path) {
+			if ext := m.Store.GetPackageExtension(mpkg.Path); len(ext) > 0 {
+				orderExtensionsLast(fset, ext)
+			}
+		}
 		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 		m.Store.SetBlockNode(pn)
 		PredefineFileSet(m.Store, pn, fset)
@@ -926,21 +933,25 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types — only those that belong to this package.
-	// Aliases to uverse types or to types from other packages have a
-	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
-	// be redundant (cross-pkg: the owning pkg already SetType'd them;
-	// uverse: lives in the in-memory VM registry, not in chain state).
 	if bv, ok := pv.Block.(*Block); ok {
-		for _, tv := range bv.Values {
-			if tvv, ok := tv.V.(TypeValue); ok {
-				if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pv.PkgPath {
-					m.Store.SetType(dt)
-				}
+		m.saveDeclaredTypes(pv.PkgPath, bv.Values)
+	}
+	return
+}
+
+// saveDeclaredTypes saves the declared types among values — only those that
+// belong to pkgPath. Aliases to uverse types or to types from other packages
+// have a DeclaredType.PkgPath pointing elsewhere; persisting them here would
+// be redundant (cross-pkg: the owning pkg already SetType'd them; uverse:
+// lives in the in-memory VM registry, not in chain state).
+func (m *Machine) saveDeclaredTypes(pkgPath string, values []TypedValue) {
+	for _, tv := range values {
+		if tvv, ok := tv.V.(TypeValue); ok {
+			if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pkgPath {
+				m.Store.SetType(dt)
 			}
 		}
 	}
-	return
 }
 
 // Resave any changes to realm after init calls.
