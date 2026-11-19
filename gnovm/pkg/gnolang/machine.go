@@ -51,6 +51,7 @@ type Machine struct {
 	GCCycle       int64      // number of "gc" cycles
 	Stage         Stage      // pre for static eval, add for package init, run otherwise
 	ReviveEnabled bool       // true if revive() enabled (only in testing mode for now)
+	TestMode      bool       // true under the test runner; enables test-file import trust
 	Lastline      int        // the line the VM is currently executing
 
 	Debugger Debugger
@@ -103,6 +104,7 @@ type MachineOptions struct {
 	MaxAllocBytes int64      // or 0 for no limit.
 	GasMeter      store.GasMeter
 	ReviveEnabled bool
+	TestMode      bool // true under the test runner (gno test); never set on chain
 	SkipPackage   bool // don't get/set package or realm.
 	// BoundedPanicRender, when true, makes makeUnhandledPanicError use
 	// the bounded printer (see bounded_strings.go) so adversarial
@@ -217,6 +219,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
 	mm.ReviveEnabled = opts.ReviveEnabled
+	mm.TestMode = opts.TestMode
 	mm.BoundedPanicRender = opts.BoundedPanicRender
 	// Maybe get/set package and realm.
 	if !opts.SkipPackage && opts.PkgPath != "" {
@@ -2871,6 +2874,11 @@ func (m *Machine) trustRoot() (string, bool) {
 	root := ""
 	if m.Realm != nil {
 		root = m.Realm.Path
+	}
+	// _test.gno files only run under the test runner, so on chain the test
+	// flag is false and no frame is visited.
+	if !m.TestMode {
+		return root, false
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
