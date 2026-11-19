@@ -69,3 +69,6 @@ func HolderField() *struct{ H struct{ T T } } { return &holder }
 
 // Hidden returns an anonymous struct with an unexported field.
 func Hidden() struct{ n int } { return struct{ n int }{n: 1} }
+
+// Do runs f inside this realm's non-crossing code.
+func Do(f func()) { f() }

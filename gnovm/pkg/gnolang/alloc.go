@@ -643,12 +643,10 @@ func firstForeignHeld(t Type, rid PkgID) Type {
 	return nil
 }
 
-// heldRealmsOf returns, in walk order and one entry per realm, the realm-
-// declared struct/array types t holds by value. Cached on t like typeid;
-// types are immutable after preprocess, so the list is derived at most once.
-// A computed empty answer is cached too (non-nil empty slice): otherwise a
-// type holding no realm would be walked again on every check, and a struct
-// holding the same such type twice makes that walk exponential.
+// heldRealmsOf returns, one entry per realm, the realm-declared struct/array
+// types t holds by value. Cached on t like typeid (types are immutable after
+// preprocess); an empty answer is cached as a non-nil empty slice, or a type
+// holding no realm would be walked again on every check.
 func heldRealmsOf(t Type) []heldRealm {
 	switch tt := t.(type) {
 	case *DeclaredType:
