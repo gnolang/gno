@@ -1404,9 +1404,7 @@ func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
 		cp = tv // start from the header (T, N); V is replaced below
 		if tv.T != nil && tv.T.Kind() == FuncKind {
 			if alloc != nil {
-				fnprobeSite = "unrefCopy"
 				cp = alloc.stripMaker(tv, alloc.stripHold())
-				fnprobeSite = "copy"
 			}
 			return cp
 		}

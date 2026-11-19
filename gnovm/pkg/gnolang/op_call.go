@@ -17,7 +17,6 @@ func (m *Machine) doOpPrecall() {
 	case *FuncValue:
 		m.incrCPU(OpCPUPrecallFunc)
 		m.PushFrameCall(cx, fv, TypedValue{}, false)
-		m.fnprobeCall(fv)
 		m.PushOp(OpCall)
 		isCrossing := fv.IsCrossing()
 		if isCrossing {
@@ -40,7 +39,6 @@ func (m *Machine) doOpPrecall() {
 		// now, under the callee's realm (see getPointerToForCall).
 		uncopied := fv.IsLazy() || isDirectValMethodCall(cx)
 		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied)
-		m.fnprobeCall(fv)
 		if uncopied {
 			fr := m.LastFrame()
 			fr.Receiver = copyCallRecv(m.Alloc, fr.Receiver)
@@ -788,7 +786,6 @@ func (m *Machine) doOpReturnCallDefers() {
 	bmv, bound := dfr.Callable.(*BoundMethodValue)
 	lazy := bound && bmv.IsLazy()
 	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy)
-	m.fnprobeCall(dfr.Callable)
 	if lazy { // copied under the callee's realm, as in doOpPrecall
 		recv = copyCallRecv(m.Alloc, recv)
 		m.LastFrame().Receiver = recv
@@ -882,11 +879,8 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 		m.Alloc.PopAnchor()
 	}()
 	if isMethod == 1 {
-		fnprobeSite = "recv"
 		args[0] = m.Alloc.stripDeep(recv, hold)
 	}
-	fnprobeSite = "arg"
-	defer func() { fnprobeSite = "copy" }()
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -1015,18 +1009,4 @@ func (m *Machine) doOpPanic2() {
 		panic(m.makeUnhandledPanicError())
 	}
 	m.PushOp(OpReturnCallDefers)
-}
-
-// fnprobeCall logs a call of a value the probe marked (temporary).
-func (m *Machine) fnprobeCall(v Value) {
-	maker, ok := fnprobeMaker(v)
-	if !ok {
-		return
-	}
-	writable := !m.viewOnly && m.Realm != nil && m.Realm.ID == maker
-	pkg := ""
-	if m.Package != nil {
-		pkg = m.Package.PkgPath
-	}
-	fnprobeWrite(fmt.Sprintf("CALL maker=%s writable=%v code=%s", fnprobePath(m.Alloc, maker), writable, pkg))
 }

@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
-	"os"
 	"sync"
 	"unsafe"
 
@@ -618,7 +617,6 @@ func (alloc *Allocator) stripMaker(tv TypedValue, hold PkgID) TypedValue {
 	}
 	ft, ok := baseOf(tv.T).(*FuncType)
 	if !ok || ft.IsCrossing() {
-		fnprobeLog(alloc, tv, maker, hold, ok)
 		return tv
 	}
 	if ref, isRef := tv.V.(RefValue); isRef {
@@ -626,9 +624,6 @@ func (alloc *Allocator) stripMaker(tv TypedValue, hold PkgID) TypedValue {
 			return tv
 		}
 		tv.V = alloc.store.GetObject(ref.ObjectID)
-	}
-	if fnprobeOn {
-		return fnprobeMark(alloc, tv, maker, hold)
 	}
 	switch cv := tv.V.(type) {
 	case *FuncValue:
@@ -1295,102 +1290,4 @@ func internalRefSize(val Value) int64 {
 		))
 	}
 	return size
-}
-
-// ---- fnprobe: temporary measuring probe (removed before the last commit).
-
-var (
-	fnprobeOn   = os.Getenv("GNO_FNPROBE") != ""
-	fnprobeMu   sync.Mutex
-	fnprobeSeen = map[Value]PkgID{} // fnprobe marked copies -> maker
-	fnprobeSite = "copy"
-)
-
-func fnprobeWrite(line string) {
-	fnprobeMu.Lock()
-	defer fnprobeMu.Unlock()
-	f, err := os.OpenFile(os.Getenv("GNO_FNPROBE"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	f.WriteString(line + "\n")
-	f.Close()
-}
-
-func fnprobeKind(v Value) string {
-	switch cv := v.(type) {
-	case *FuncValue:
-		if cv.IsClosure {
-			return "closure"
-		}
-		return "handle"
-	case *BoundMethodValue:
-		return "bmv"
-	case RefValue:
-		return "ref"
-	}
-	return "?"
-}
-
-func fnprobeLog(alloc *Allocator, tv TypedValue, maker, hold PkgID, isFunc bool) {
-	if !fnprobeOn {
-		return
-	}
-	fnprobeWrite(fmt.Sprintf("STRIP site=%s crossing=%v kind=%s maker=%s hold=%s func=%v",
-		fnprobeSite, isFunc, fnprobeKind(tv.V), fnprobePath(alloc, maker), fnprobePath(alloc, hold), isFunc))
-}
-
-func fnprobeMark(alloc *Allocator, tv TypedValue, maker, hold PkgID) TypedValue {
-	kind := fnprobeKind(tv.V)
-	switch cv := tv.V.(type) {
-	case *FuncValue:
-		cp := *cv
-		cp.ObjectInfo = ObjectInfo{scratch: alloc.scratch}
-		cp.ObjectInfo.SetPkgID(maker)
-		tv.V = &cp
-	case *BoundMethodValue:
-		cp := *cv
-		cp.ObjectInfo = ObjectInfo{scratch: alloc.scratch}
-		cp.ObjectInfo.SetPkgID(maker)
-		tv.V = &cp
-	}
-	fnprobeMu.Lock()
-	fnprobeSeen[tv.V] = maker
-	fnprobeMu.Unlock()
-	fnprobeWrite(fmt.Sprintf("STRIP site=%s crossing=false kind=%s maker=%s hold=%s",
-		fnprobeSite, kind, fnprobePath(alloc, maker), fnprobePath(alloc, hold)))
-	return tv
-}
-
-func fnprobeMaker(v Value) (PkgID, bool) {
-	if !fnprobeOn {
-		return PkgID{}, false
-	}
-	fnprobeMu.Lock()
-	defer fnprobeMu.Unlock()
-	pid, ok := fnprobeSeen[v]
-	return pid, ok
-}
-
-func fnprobePath(alloc *Allocator, pid PkgID) string {
-	if pid.IsZero() {
-		return "-"
-	}
-	fnprobeMu.Lock()
-	defer fnprobeMu.Unlock()
-	if p, ok := fnprobeNames[pid]; ok {
-		return p
-	}
-	return pid.String()
-}
-
-var fnprobeNames = map[PkgID]string{}
-
-func fnprobeName(r *Realm) {
-	if !fnprobeOn || r == nil {
-		return
-	}
-	fnprobeMu.Lock()
-	fnprobeNames[r.ID] = r.Path
-	fnprobeMu.Unlock()
 }
