@@ -28,7 +28,7 @@ If you are interested in contributing to Gno.land, you can jump in on our
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
 - [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
-- [Get testnet GNOTs](https://faucet.gno.land)
+- [Testnet faucet](https://faucet.gno.land)
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 
 ## Gno Bounties
@@ -37,9 +37,8 @@ If you are interested in contributing to Gno.land, you can jump in on our
 
 Two reasons prompted this pause:
 
-- **Focus on Mainnet.** The team is fully focused on the Gno.land Beta
-  Mainnet launch, the highest priority, as well as the critical post-beta
-  work required to deliver a complete Mainnet.
+- **Focus on mainnet.** The team is fully focused on Gno.land mainnet and on
+  securing the network, the highest priority.
 - **Decline in submission quality.** The bounty program was created to
   encourage innovative, creative, and technical contributions that
   meaningfully advance Gno.land. However, with the rise of generative AI,
