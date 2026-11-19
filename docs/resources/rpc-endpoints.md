@@ -280,7 +280,9 @@ URI transport. The default is `true`.
 
 Use `false` on a node that only takes transactions: `broadcast_tx_*` still
 works, and `gnokey maketx` needs `-simulate skip`. Keep `true` on a node behind
-gnoweb, which renders pages through `vm/qrender`.
+gnoweb, which renders pages through `vm/qrender`. `false` covers queries only:
+a node with `application.allow_zero_fee_txs` on still runs a sponsored 0-fee
+transaction's messages when it checks it for admission, admitted or not.
 
 ### `abci_info`
 

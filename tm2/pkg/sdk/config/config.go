@@ -32,13 +32,23 @@ type AppConfig struct {
 	// Wall-clock limit of one query, set per node. 0 derives it from the gas
 	// budget.
 	QueryTimeout time.Duration `json:"query_timeout" toml:"query_timeout" comment:"Wall-clock limit of a single VM query. 0 derives it from query_max_gas (2ns per gas). Raise it on hardware slower than the gas calibration"`
+
+	// AllowZeroFeeTxs opts this validator into accepting 0-fee transactions when
+	// realms sponsor gas via PayGas. It is a per-validator mempool admission
+	// policy (like MinGasPrices) and takes effect only when the chain's
+	// Block.MaxGasCreditPerTx consensus param is > 0. Off by default. Checking
+	// a 0-fee tx for admission runs its messages, up to the credit window,
+	// admitted or not, whatever rpc.allow_code_execution says: that setting
+	// refuses queries only.
+	AllowZeroFeeTxs bool `json:"allow_zero_fee_txs" toml:"allow_zero_fee_txs" comment:"Accept 0-fee transactions when realms sponsor gas via PayGas (requires the MaxGasCreditPerTx consensus param > 0)"`
 }
 
 // DefaultAppConfig returns a default configuration for the application
 func DefaultAppConfig() *AppConfig {
 	return &AppConfig{
-		MinGasPrices:  "",
-		PruneStrategy: types.PruneSyncableStrategy,
+		MinGasPrices:    "",
+		PruneStrategy:   types.PruneSyncableStrategy,
+		AllowZeroFeeTxs: false,
 	}
 }
 

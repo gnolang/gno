@@ -1,0 +1,74 @@
+# PayGas takes the paying realm as a capability (rlm), like banker.NewBanker.
+#
+# - A helper, here in a /p/ package, may pay when its realm hands it cur.
+# - It cannot pay with any other realm value: cur.Previous() is not current.
+# - A sub-realm token is current but is not a top-level realm, so it is refused.
+
+## start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/mypkg -pkgpath gno.land/p/test/mypkg -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/caller -pkgpath gno.land/r/test/capcaller -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund the realm
+gnokey maketx send -send 10000000ugnot -to g1klwwkxjg9ln2896rgw05347km0c5q0a24nacvq -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## the realm hands its cur to the helper: the realm pays
+gnokey maketx call -pkgpath gno.land/r/test/capcaller -func PayViaPkg -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+gnokey query bank/balances/g1klwwkxjg9ln2896rgw05347km0c5q0a24nacvq
+! stdout '"10000000ugnot"'
+
+## the helper is handed the caller's realm instead: refused
+! gnokey maketx call -pkgpath gno.land/r/test/capcaller -func PayAsPrevious -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
+stderr 'rlm must be the current realm'
+
+## a sub-realm token: refused
+! gnokey maketx call -pkgpath gno.land/r/test/capcaller -func PayAsSub -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
+stderr 'rlm is not a realm'
+
+-- mypkg/gnomod.toml --
+module = "gno.land/p/test/mypkg"
+gno = "0.9"
+
+-- mypkg/mypkg.gno --
+package mypkg
+
+import "chain/runtime"
+
+// Pay sponsors with whatever realm it is handed. rlm comes last: a realm-typed
+// first parameter would make this a crossing function.
+func Pay(maxFee int64, rlm realm) string {
+	runtime.PayGas(maxFee, rlm)
+	return "paid"
+}
+
+-- caller/gnomod.toml --
+module = "gno.land/r/test/capcaller"
+gno = "0.9"
+
+-- caller/caller.gno --
+package capcaller
+
+import (
+	"chain/runtime"
+
+	"gno.land/p/test/mypkg"
+)
+
+func PayViaPkg(cur realm) string {
+	return mypkg.Pay(1000000, cur)
+}
+
+func PayAsPrevious(cur realm) string {
+	return mypkg.Pay(1000000, cur.Previous())
+}
+
+func PayAsSub(cur realm) string {
+	runtime.PayGas(1000000, cur.Sub("x"))
+	return "paid"
+}

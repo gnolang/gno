@@ -94,10 +94,11 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 74 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
-// on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
+// on Intel Xeon Silver 4114, and chain/runtime's payGas and payStorage on
+// Apple M1 Pro; the chain/markdown rows and the rest are on
 // Apple M2. The whole table must be regenerated on the reference Xeon 8168
 // before any consensus-relevant deployment; the IBC rows are flagged
 // "draft" in their trailing comment to make that obvious.
@@ -159,6 +160,14 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/runtime", Fn: "ChainHeight", Base: 30, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                     // flat, median 30.2ns
 	{Pkg: "chain/runtime", Fn: "getSessionInfo", Base: 148, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 148.4ns
 	{Pkg: "chain/runtime", Fn: "AssertOriginCall", Base: 5, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 5.0ns
+	// payGas and payStorage match pkgPath against gno's pkgpath regexp twice
+	// (IsRealmPath, then IsGnoRunPath inside DerivePkgCryptoAddr) and hash it:
+	// 2.2x chain.packageAddress per byte on the same machine. Measured on Apple
+	// M1 Pro, fastest of 40 samples, from
+	// gnovm/cmd/calibrate/sponsorship_bench_m1pro_arm64.txt; not rescaled, as
+	// that run puts chain.packageAddress only 4-8% above its M2 row.
+	{Pkg: "chain/runtime", Fn: "payGas", Base: 1097, Slope: 35448, SlopeIdx: 0, SlopeKind: SizeLenString},     // fit base=1097.0ns slope=34.6174ns/N (=35448/1024) R²=0.980
+	{Pkg: "chain/runtime", Fn: "payStorage", Base: 1091, Slope: 35576, SlopeIdx: 0, SlopeKind: SizeLenString}, // fit base=1091.0ns slope=34.7424ns/N (=35576/1024) R²=0.980
 	// chain/runtime/unsafe natives — same implementations as their chain/runtime / chain/banker counterparts.
 	{Pkg: "chain/runtime/unsafe", Fn: "originCaller", Base: 45, SlopeIdx: -1, SlopeKind: SizeFlat},                                                               // mirrors chain/runtime.originCaller
 	{Pkg: "chain/runtime/unsafe", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // mirrors chain/runtime.getRealm
