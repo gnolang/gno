@@ -8,12 +8,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/test"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,7 +57,13 @@ func TestFiles(t *testing.T) {
 	// pool. Reusing stores lets tests share previously loaded packages.
 	// When syncing golden files, run sequentially to keep walk-order writes
 	// and error propagation deterministic.
-	poolSize := runtime.GOMAXPROCS(0)
+	//
+	// The pool is sized by memory rather than by GOMAXPROCS: a store retains
+	// the preprocessed AST and values of every package its tests touch, which
+	// grows towards the full set, so one store per core costs ~7 GiB on a
+	// 16-core host against ~1.8 GiB on one core — for no wall-clock gain, the
+	// suite having stopped being CPU-bound well before that.
+	poolSize := testutils.MaxParallel()
 	if *withSync {
 		poolSize = 1
 	}
@@ -65,6 +71,9 @@ func TestFiles(t *testing.T) {
 	for range poolSize {
 		optsPool <- newOpts()
 	}
+	// Tests below that opt out of the pool still draw against its budget, so
+	// their fresh stores can't push the total past twice the pool size.
+	freshStore := make(chan struct{}, poolSize)
 
 	dir := "../../tests/files"
 	fsys := os.DirFS(dir)
@@ -116,9 +125,17 @@ func TestFiles(t *testing.T) {
 				t.Parallel()
 			}
 			var opts *test.TestOptions
-			if isLong {
+			if isLong || strings.HasPrefix(subTestName, "alloc") {
 				// Long tests get their own store, so they don't hold
 				// up a pool slot for their whole (long) duration.
+				// Allocator-golden tests (alloc_*) also get their own store:
+				// they assert absolute allocator byte counts, which depend on
+				// which packages a pooled, previously-used store has already
+				// loaded — scheduling-dependent, so their goldens flake under
+				// the pool (and always diverge in filtered runs). A fresh
+				// store makes the counted allocations deterministic.
+				freshStore <- struct{}{}
+				defer func() { <-freshStore }()
 				opts = newOpts()
 			} else {
 				opts = <-optsPool
@@ -162,6 +179,12 @@ func TestStdlibs(t *testing.T) {
 		opts.Verbose = true
 		return
 	}
+	// Each package below gets a fresh store, bounded as TestFiles bounds its
+	// fresh stores rather than by -parallel, and so by GOMAXPROCS: ~3.8 GiB
+	// over sixteen packages against ~1.1 GiB over four on a 16-core host, for
+	// the same wall time.
+	freshStore := make(chan struct{}, testutils.MaxParallel())
+
 	dir := "../../stdlibs/"
 	fsys := os.DirFS(dir)
 	err = fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
@@ -206,6 +229,8 @@ func TestStdlibs(t *testing.T) {
 
 			// Run in parallel, each package using its own store.
 			t.Parallel()
+			freshStore <- struct{}{}
+			defer func() { <-freshStore }()
 			capture, opts := newOpts()
 
 			err := test.Test(mpkg, "", opts)

@@ -39,8 +39,8 @@ func renderHome() string {
 }
 
 func renderUser(user string) string {
-	silo, found := m.Pages.Get(user)
-	if !found {
+	silo := m.Pages.Get(user)
+	if silo == nil {
 		return "404" // StatusNotFound
 	}
 

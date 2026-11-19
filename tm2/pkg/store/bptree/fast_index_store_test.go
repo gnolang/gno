@@ -32,21 +32,22 @@ func countStoreFastEntries(t *testing.T, db dbm.DB) int {
 // default query height (latest-1), the latest height (fast-path hit), and an
 // older height (version-check fallback), for present and absent keys.
 func TestStore_FastIndexParity(t *testing.T) {
-	defer func(prev bool) { FastIndexEnabled = prev }(FastIndexEnabled)
-
 	build := func(fast bool) (*Store, dbm.DB) {
-		FastIndexEnabled = fast
 		db := memdb.NewMemDB()
-		return StoreConstructor(db, types.StoreOptions{}).(*Store), db
+		ctor := StoreConstructor
+		if fast {
+			ctor = FastStoreConstructor
+		}
+		return ctor(db, types.StoreOptions{}).(*Store), db
 	}
 	stOn, dbOn := build(true)
 	stOff, _ := build(false)
 
 	keys := [][]byte{[]byte("alpha"), []byte("beta"), []byte("gamma"), []byte("delta")}
 	var cid types.CommitID
-	for round := 0; round < 3; round++ {
+	for round := range 3 {
 		for i, k := range keys {
-			v := []byte(fmt.Sprintf("v%d.%d", round, i))
+			v := fmt.Appendf(nil, "v%d.%d", round, i)
 			stOn.Set(nil, k, v)
 			stOff.Set(nil, k, v)
 		}

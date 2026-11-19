@@ -1,6 +1,9 @@
 package merkle
 
 import (
+	"reflect"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 )
@@ -27,7 +30,22 @@ func X_hashFromByteSlices(encoded []byte) []byte {
 
 // X_verifySimpleProof verifies a Tendermint SimpleProof.
 // aunts is encoded as consecutive 32-byte hashes.
-func X_verifySimpleProof(rootHash, leaf []byte, index, total int, aunts []byte) bool {
+func X_verifySimpleProof(m *gno.Machine, rootHash gno.TypedValue, leaf []byte, index, total int, aunts []byte) bool {
+	// A root kept in realm state holds its bytes by reference until filled,
+	// and Gno2GoValue cannot follow the reference.
+	rootHash.DeepFill(m.Store)
+	// No gas row prices rootHash, so it is copied only at the one length
+	// that can match, 32 bytes.
+	if rootHash.GetLength() != tmhash.Size {
+		return false
+	}
+	var root []byte
+	gno.Gno2GoValue(&rootHash, reflect.ValueOf(&root).Elem())
+	return verifySimpleProof(root, leaf, index, total, aunts)
+}
+
+// verifySimpleProof reports whether the proof leads from leaf to rootHash.
+func verifySimpleProof(rootHash, leaf []byte, index, total int, aunts []byte) bool {
 	if len(aunts)%32 != 0 {
 		return false
 	}
@@ -64,7 +82,7 @@ func decodeByteSlices(b []byte) ([][]byte, bool) {
 		return nil, false
 	}
 	items := make([][]byte, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if len(b) < 4 {
 			return nil, false
 		}

@@ -1,11 +1,13 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 
-	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Bounded printers — single source of truth for size-bounded
@@ -172,8 +174,8 @@ func (b *boundedBuf) Truncated() bool {
 // methods.
 //
 // For composite types (struct, array, etc.), if m is non-nil it
-// dispatches to tv.Sprint(m) and truncates the result. tv.Sprint(m)
-// is gas-metered (user code runs through m.Eval), so bounded by
+// renders tv as tv.Sprint(m) does and stops once past lim bytes.
+// tv.Sprint(m) is gas-metered (user code runs through m.Eval), so bounded by
 // the gas budget the adversary paid to construct the value. This
 // preserves friendly rendering of user-defined Error()/String()
 // methods.
@@ -206,7 +208,9 @@ func BoundedSprintTV(tv TypedValue, m *Machine, lim int) string {
 // boundedUserSprint runs tv.Sprint(m) under a tight transient
 // allocator cap so a user-defined String()/Error() that allocates
 // proportional to the (gas-paid) value size still can't blow up
-// peak heap during recovery rendering.
+// peak heap during recovery rendering. The render stops once it
+// passes lim bytes: a value sharing a child renders it once per
+// path to it, exponential in what the value allocated.
 //
 // Returns (rendered, true) on success; ("", false) if the user
 // method panicked (alloc cap, OOG, or other) — the caller should
@@ -219,6 +223,10 @@ func BoundedSprintTV(tv TypedValue, m *Machine, lim int) string {
 // an adversarial panic value whose Error() OOGs surfaces as
 // "VM panic: <structural>" rather than ErrOutOfGas. The original
 // panic info is preserved, which is the more useful signal.
+//
+// The one exception is a query deadline (store.DeadlineExceededError):
+// it propagates, so the query answers a timeout. Only a query gas meter
+// raises it, so transactions are unaffected.
 func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
 	// Snapshot and tighten. boundedRenderAllocCap allows enough
 	// headroom for nested struct rendering at our lim cap; far
@@ -227,25 +235,45 @@ func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
 	savedMax := m.Alloc.maxBytes
 	savedBytes := m.Alloc.bytes
 	m.Alloc.maxBytes = savedBytes + boundedRenderAllocCap
+	w := &prefixWriter{max: lim}
 	defer func() {
 		m.Alloc.maxBytes = savedMax
 		m.Alloc.bytes = savedBytes
 		if r := recover(); r != nil {
+			if _, full := r.(prefixFull); full {
+				s, ok = truncateForLog(string(w.buf), lim), true
+				return
+			}
+			var dl store.DeadlineExceededError
+			if err, isErr := r.(error); isErr && errors.As(err, &dl) {
+				panic(r)
+			}
 			s = ""
 			ok = false
 		}
 	}()
-	rendered := tv.Sprint(m)
-	if len(rendered) <= lim {
-		s, ok = rendered, true
-		return
+	tv.Fprint(w, m)
+	return string(w.buf), true
+}
+
+// prefixFull is what prefixWriter panics with once it is full.
+type prefixFull struct{}
+
+// prefixWriter keeps the first max+1 bytes written to it, enough to
+// tell that the render must be cut, then panics prefixFull to stop
+// the render.
+type prefixWriter struct {
+	buf []byte
+	max int
+}
+
+func (w *prefixWriter) Write(p []byte) (int, error) {
+	if room := w.max + 1 - len(w.buf); len(p) >= room {
+		w.buf = append(w.buf, p[:room]...)
+		panic(prefixFull{})
 	}
-	if lim < ellipsisLen {
-		s, ok = rendered[:lim], true
-		return
-	}
-	s, ok = rendered[:lim-ellipsisLen]+"...", true
-	return
+	w.buf = append(w.buf, p...)
+	return len(p), nil
 }
 
 // BoundedSprintException renders e.Value (the head exception's
@@ -268,11 +296,8 @@ func BoundedSprintException(e *Exception, m *Machine, lim int) string {
 func BoundedStacktrace(s Stacktrace, lim int) string {
 	w := newBoundedBuf(lim)
 	totalCalls := len(s.Calls)
-	visit := totalCalls
-	if visit > MaxStacktraceFrames {
-		visit = MaxStacktraceFrames
-	}
-	for i := 0; i < visit; i++ {
+	visit := min(totalCalls, MaxStacktraceFrames)
+	for i := range visit {
 		call := s.Calls[i]
 		var line int
 		if i == 0 {
@@ -398,10 +423,8 @@ func boundedSprintPrimitiveTV(w *boundedBuf, tv TypedValue) {
 	case UntypedBigdecType:
 		if tv.V == nil {
 			w.WriteString("<nil>")
-		} else if bd := tv.GetBigDec(); bd != nil {
-			boundedSprintBigDec(w, bd)
 		} else {
-			w.WriteString("<nil>")
+			boundedSprintBigDecValue(w, tv.GetBigDec())
 		}
 	default:
 		fmt.Fprintf(w, "<%v>", pt)
@@ -425,7 +448,7 @@ func boundedSprintValue(w *boundedBuf, v Value, depth int) {
 	case BigintValue:
 		boundedSprintBigInt(w, x.V)
 	case BigdecValue:
-		boundedSprintBigDec(w, x.V)
+		boundedSprintBigDecValue(w, x)
 	case *ArrayValue:
 		boundedSprintArrayValue(w, x, depth)
 	case *SliceValue:
@@ -472,10 +495,7 @@ func boundedSprintStringValue(w *boundedBuf, sv StringValue) {
 	// non-printable bytes (`\u00XX` = 6 bytes per source byte
 	// worst case). Pre-truncate to bound the intermediate.
 	const expandFactor = 6
-	preTruncCap := rem / expandFactor
-	if preTruncCap < 1 {
-		preTruncCap = 1
-	}
+	preTruncCap := max(rem/expandFactor, 1)
 	srcWasTruncated := false
 	if len(s) > preTruncCap {
 		s = s[:preTruncCap]
@@ -517,42 +537,42 @@ func boundedSprintBigInt(w *boundedBuf, bi interface {
 	writeBoundedString(w, bi.String(), rem)
 }
 
-// boundedSprintBigDec renders a *apd.Decimal. Pre-checks the
-// coefficient's bit-length before allocating the full decimal
-// string — bd.String() is O(coeff size) and would otherwise let
-// an attacker who grew the coefficient via runtime arithmetic
-// (e.g. apd's unlimited-precision Add at op_binary.go) burn
-// unmetered CPU/memory on this rendering path.
-//
-// fmtE/fmtF output length is dominated by the coefficient's
-// decimal-digit count (≈ BitLen / 3.32). The Exponent adds ≤ ~12
-// bytes (sign + int32 digits + "E"); the fmtF zero-pad path is
-// itself capped by apd's adjExponentLimit rule, so no Exponent
-// term is needed in the gate.
-func boundedSprintBigDec(w *boundedBuf, bd *apd.Decimal) {
+// boundedSprintBigDec renders a *big.Rat as a decimal string into w,
+// truncating if the representation would exceed the buffer's remaining capacity.
+func boundedSprintBigDec(w *boundedBuf, r *big.Rat) {
 	rem := w.Remaining()
 	if rem <= 0 {
 		return
 	}
-	if bd == nil {
+	if r == nil {
 		w.WriteString("<nil>")
 		return
 	}
-	// Zero coefficient — render directly. apd's fmtF zero-pad path
-	// allocates up to ~|Exponent| bytes (capped at ~2000 by apd's
-	// adjExponentLimit) for negative-Exponent zero values; we
-	// sidestep it since "0" carries the same numeric information.
-	if bd.Coeff.BitLen() == 0 {
-		w.WriteString("0")
+	// Estimate output length: numerator bits * log10(2) ≈ bits/3.32, plus denominator.
+	// Use bits/3 conservatively.
+	estimatedLen := (r.Num().BitLen() + r.Denom().BitLen()) / 3
+	if estimatedLen > rem {
+		fmt.Fprintf(w, "<bigdec, bits=%d>", r.Num().BitLen())
 		return
 	}
-	// 1 decimal digit ≈ 3.32 bits. Use ×3 conservatively
-	// (matches boundedSprintBigInt).
-	if bd.Coeff.BitLen() > rem*3 {
-		fmt.Fprintf(w, "<bigdec, bits=%d>", bd.Coeff.BitLen())
+	writeBoundedString(w, r.FloatString(10), rem)
+}
+
+// boundedSprintBigDecValue renders a BigdecValue in either rat or float form.
+func boundedSprintBigDecValue(w *boundedBuf, bdv BigdecValue) {
+	rem := w.Remaining()
+	if rem <= 0 {
 		return
 	}
-	writeBoundedString(w, bd.String(), rem)
+	if bdv.F != nil {
+		writeBoundedString(w, bigdecFloatString(bdv.F), rem)
+		return
+	}
+	if bdv.V == nil {
+		w.WriteString("<nil>")
+		return
+	}
+	boundedSprintBigDec(w, bdv.V)
 }
 
 // ----------------------------------------
@@ -573,15 +593,9 @@ func boundedSprintArrayValue(w *boundedBuf, av *ArrayValue, depth int) {
 		rem := w.Remaining()
 		// "0x" prefix + 2 hex chars per byte + "...total N bytes" suffix
 		const suffixOverhead = 24 // generous — len("...total NNNNNN bytes") ≈ 22
-		previewBytes := MaxByteArrayBytes
-		if previewBytes > n {
-			previewBytes = n
-		}
+		previewBytes := min(MaxByteArrayBytes, n)
 		if previewBytes*2+2+suffixOverhead > rem {
-			previewBytes = (rem - 2 - suffixOverhead) / 2
-			if previewBytes < 0 {
-				previewBytes = 0
-			}
+			previewBytes = max((rem-2-suffixOverhead)/2, 0)
 		}
 		w.WriteString("0x")
 		for i := 0; i < previewBytes; i++ {
@@ -613,10 +627,7 @@ func boundedSprintSliceValue(w *boundedBuf, sv *SliceValue, depth int) {
 		}
 		// index range
 		from := sv.Offset
-		to := sv.Offset + sv.Length
-		if to > len(av.List) {
-			to = len(av.List)
-		}
+		to := min(sv.Offset+sv.Length, len(av.List))
 		if from < 0 {
 			from = 0
 		}
@@ -633,12 +644,9 @@ func boundedSprintList(w *boundedBuf, list []TypedValue, depth int, open, closer
 		w.WriteString(closer)
 		return
 	}
-	visit := n
-	if visit > MaxCompositeChildren {
-		visit = MaxCompositeChildren
-	}
+	visit := min(n, MaxCompositeChildren)
 	w.WriteString(open)
-	for i := 0; i < visit; i++ {
+	for i := range visit {
 		if i > 0 {
 			w.WriteString(", ")
 		}
@@ -685,10 +693,7 @@ func boundedSprintMapValue(w *boundedBuf, mv *MapValue, depth int) {
 		return
 	}
 	n := mv.List.Size
-	visit := n
-	if visit > MaxCompositeChildren {
-		visit = MaxCompositeChildren
-	}
+	visit := min(n, MaxCompositeChildren)
 	w.WriteString("{")
 	cur := mv.List.Head
 	for i := 0; i < visit && cur != nil; i++ {
@@ -703,10 +708,7 @@ func boundedSprintMapValue(w *boundedBuf, mv *MapValue, depth int) {
 			w.WriteString("}")
 			return
 		}
-		half := budget / 2
-		if half < 1 {
-			half = 1
-		}
+		half := max(budget/2, 1)
 		ksub := newBoundedBuf(half)
 		boundedSprintTV(ksub, cur.Key, depth+1)
 		w.WriteString(ksub.String())
@@ -736,8 +738,14 @@ func boundedSprintFuncValue(w *boundedBuf, fv *FuncValue) {
 }
 
 func boundedSprintBoundMethodValue(w *boundedBuf, bmv *BoundMethodValue) {
-	if bmv == nil || bmv.Func == nil {
+	if bmv == nil {
 		w.WriteString("<nil>")
+		return
+	}
+	if bmv.IsLazy() {
+		// Unresolved interface bind: no concrete Func until call time; render
+		// from the selector name.
+		fmt.Fprintf(w, "<bound-method ?.%s>", bmv.Method)
 		return
 	}
 	name := string(bmv.Func.Name)
@@ -825,8 +833,8 @@ func boundedSprintFrame(w *boundedBuf, sc StacktraceCall, line int) {
 	}
 }
 
-// truncateForLog exposes the same shape as the keeper's truncate
-// for tests that want to verify the suffix behavior.
+// truncateForLog caps s at lim bytes, its last three replaced by
+// "..." when it cuts.
 func truncateForLog(s string, lim int) string {
 	if len(s) <= lim {
 		return s

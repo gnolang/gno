@@ -88,7 +88,6 @@ func TestNode_encode_decode(t *testing.T) {
 		}, "0002036b65790576616c7565", false},
 	}
 	for name, tc := range testcases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
 			err := tc.node.writeBytes(&buf)
@@ -152,7 +151,6 @@ func TestNode_validate(t *testing.T) {
 	}
 
 	for desc, tc := range testcases {
-		tc := tc // appease scopelint
 		t.Run(desc, func(t *testing.T) {
 			err := tc.node.validate()
 			if tc.valid {

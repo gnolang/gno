@@ -1,2 +1,2 @@
-module = "gnovm/tests/integ/init"
+module = "gno.vm/r/tests/integ/main"
 gno = "0.9"

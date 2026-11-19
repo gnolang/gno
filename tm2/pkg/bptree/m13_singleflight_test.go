@@ -14,7 +14,7 @@ import (
 func TestM13_ConcurrentGetNode(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger()) // cacheSize=0 → no cache; all loads hit singleflight
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			t.Fatal(err)
 		}
@@ -35,11 +35,9 @@ func TestM13_ConcurrentGetNode(t *testing.T) {
 
 	const goroutines, iters = 32, 300
 	var wg sync.WaitGroup
-	for g := 0; g < goroutines; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < iters; i++ {
+	for range goroutines {
+		wg.Go(func() {
+			for range iters {
 				n, err := tree.ndb.GetNode(rootNK)
 				if err != nil {
 					t.Error(err)
@@ -50,7 +48,7 @@ func TestM13_ConcurrentGetNode(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

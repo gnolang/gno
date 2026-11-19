@@ -283,8 +283,9 @@ not a caveat.
 ## `cross` -> `cross(cur)` Migration
 
 In order to facilitate the migration of `cross` to `cross(cur)` the `cross1`
-keyword is provided. Production code should *not* use `cross1`, it will be
-disabled on the testnets, betanet, and future mainnet.
+keyword was temporarily provided. **`cross1` has since been removed** — the
+name no longer resolves (see `gnovm/tests/files/zrealm_cross1_removed.gno`).
+The steps below are retained as a historical record of the migration process.
 
  * Step 1: rename `cross` to `cross1`. 
  * Step 2: rename `runtime.CurrentRealm()` to `unsafe.CurrentRealm()` etc.

@@ -176,9 +176,9 @@ func parseEventStoreParams(values string) types.EventStoreParams {
 	params := make(types.EventStoreParams, len(values))
 
 	// Split the string into different key value pairs
-	keyPairs := strings.Split(values, ",")
+	keyPairs := strings.SplitSeq(values, ",")
 
-	for _, keyPair := range keyPairs {
+	for keyPair := range keyPairs {
 		// Split the string into key and value
 		kv := strings.SplitN(keyPair, "=", 2)
 

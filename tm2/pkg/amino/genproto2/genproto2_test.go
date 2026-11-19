@@ -272,10 +272,7 @@ func TestUnmarshalAnyBinary2_PostDecodeAssignabilityCheck(t *testing.T) {
 		}
 		setSites++
 		guarded := false
-		lo := i - window
-		if lo < 0 {
-			lo = 0
-		}
+		lo := max(i-window, 0)
 		for j := i - 1; j >= lo; j-- {
 			if strings.Contains(lines[j], "AssignableTo(") {
 				guarded = true
@@ -526,8 +523,8 @@ func TestGenproto2_FloatRequiresUnsafe(t *testing.T) {
 		name string
 		rt   reflect.Type
 	}{
-		{"Float32", reflect.TypeOf(float32(0))},
-		{"Float64", reflect.TypeOf(float64(0))},
+		{"Float32", reflect.TypeFor[float32]()},
+		{"Float64", reflect.TypeFor[float64]()},
 	}
 	for _, tc := range kinds {
 		info := &amino.TypeInfo{Type: tc.rt}
@@ -602,91 +599,91 @@ func TestGoTypeName_NamedTypes(t *testing.T) {
 	}{
 		{
 			name: "SamePkgNamedInt",
-			rt:   reflect.TypeOf(tests.IntDef(0)),
+			rt:   reflect.TypeFor[tests.IntDef](),
 			want: "IntDef",
 			desc: "same-package named int should use IntDef, not int",
 		},
 		{
 			name: "SamePkgNamedIntArray",
-			rt:   reflect.TypeOf(tests.IntAr{}),
+			rt:   reflect.TypeFor[tests.IntAr](),
 			want: "IntAr",
 			desc: "same-package named [4]int should use IntAr, not [4]int",
 		},
 		{
 			name: "SamePkgNamedIntSlice",
-			rt:   reflect.TypeOf(tests.IntSl(nil)),
+			rt:   reflect.TypeFor[tests.IntSl](),
 			want: "IntSl",
 			desc: "same-package named []int should use IntSl, not []int",
 		},
 		{
 			name: "SamePkgNamedByteArray",
-			rt:   reflect.TypeOf(tests.ByteAr{}),
+			rt:   reflect.TypeFor[tests.ByteAr](),
 			want: "ByteAr",
 			desc: "same-package named [4]byte should use ByteAr, not [4]uint8",
 		},
 		{
 			name: "SamePkgNamedByteSlice",
-			rt:   reflect.TypeOf(tests.ByteSl(nil)),
+			rt:   reflect.TypeFor[tests.ByteSl](),
 			want: "ByteSl",
 			desc: "same-package named []byte should use ByteSl, not []byte",
 		},
 		{
 			name: "SamePkgNamedStruct",
-			rt:   reflect.TypeOf(tests.PrimitivesStructDef{}),
+			rt:   reflect.TypeFor[tests.PrimitivesStructDef](),
 			want: "PrimitivesStructDef",
 			desc: "same-package named struct should use its name",
 		},
 		{
 			name: "SamePkgNamedByteArrayAminoMarshaler",
-			rt:   reflect.TypeOf(tests.SimpleAddress{}),
+			rt:   reflect.TypeFor[tests.SimpleAddress](),
 			want: "SimpleAddress",
 			desc: "named [20]byte AminoMarshaler (like crypto.Address) should use name, not [20]uint8 — this is the primary regression case",
 		},
 		{
 			name: "AnonymousByteSlice",
-			rt:   reflect.TypeOf([]byte(nil)),
+			rt:   reflect.TypeFor[[]byte](),
 			want: "[]uint8",
 			desc: "anonymous []byte has no name; reflect sees []uint8 (byte is an alias)",
 		},
 		{
 			name: "AnonymousIntSlice",
-			rt:   reflect.TypeOf([]int(nil)),
+			rt:   reflect.TypeFor[[]int](),
 			want: "[]int",
 			desc: "anonymous []int has no name, structural",
 		},
 		{
 			name: "PointerToNamedType",
-			rt:   reflect.TypeOf((*tests.IntDef)(nil)),
+			rt:   reflect.TypeFor[*tests.IntDef](),
 			want: "*IntDef",
 			desc: "pointer to named type should prefix *",
 		},
 		{
 			name: "SliceOfNamedType",
-			rt:   reflect.TypeOf([]tests.IntDef(nil)),
+			rt:   reflect.TypeFor[[]tests.IntDef](),
 			want: "[]IntDef",
 			desc: "slice of named type uses element name",
 		},
 		{
 			name: "ArrayOfNamedType",
-			rt:   reflect.TypeOf([4]tests.IntDef{}),
+			rt:   reflect.TypeFor[[4]tests.IntDef](),
 			want: "[4]IntDef",
 			desc: "array of named type uses element name",
 		},
 		{
 			name: "EmptyInterface",
-			rt:   reflect.TypeOf((*any)(nil)).Elem(),
+			rt:   reflect.TypeFor[any](),
 			want: "any",
 			desc: "empty interface should be 'any'",
 		},
 		{
 			name: "TimeTime",
-			rt:   reflect.TypeOf(time.Time{}),
+			rt:   reflect.TypeFor[time.Time](),
 			want: "time.Time",
 			desc: "time.Time is special-cased",
 		},
 		{
 			name: "TimeDuration",
-			rt:   reflect.TypeOf(time.Duration(0)),
+			rt:   reflect.TypeFor[time.Duration](),
 			want: "time.Duration",
 			desc: "time.Duration is special-cased",
 		},
@@ -714,7 +711,7 @@ func TestGoTypeName_NamedByteArrayRegression(t *testing.T) {
 	ctx := NewP3Context2(cdc)
 	ctx.targetPkgPath = "github.com/gnolang/gno/tm2/pkg/amino/tests"
 
-	rt := reflect.TypeOf(tests.ByteAr{}) // [4]byte
+	rt := reflect.TypeFor[tests.ByteAr]() // [4]byte
 	got := ctx.goTypeName(rt)
 
 	if got == "[4]uint8" || got == "[4]byte" {
@@ -855,5 +852,57 @@ func TestGenerateProtobuf3_CrossPkgQualifiedNames(t *testing.T) {
 	fset := token.NewFileSet()
 	if _, err := parser.ParseFile(fset, "pb3_gen.go", src, parser.AllErrors); err != nil {
 		t.Fatalf("generated source does not parse: %v", err)
+	}
+}
+
+// TestSkipZeroGuard: generated code wraps a field tagged amino:"skip_zero"
+// in a test of its Go value wherever the tag matters, with == where that
+// is exact and reflect where == cannot compare, and is the same as without
+// the tag where amino already leaves the zero value out.
+func TestSkipZeroGuard(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(tests.Package)
+	cdc.Seal()
+
+	src, err := NewP3Context2(cdc).GenerateProtobuf3ForTypes("tests", tests.Package.ReflectTypes()...)
+	if err != nil {
+		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)
+	}
+	for _, fn := range []string{"func (goo FuzzSkipZero) MarshalBinary2(", "func (goo FuzzSkipZero) SizeBinary2("} {
+		start := strings.Index(src, fn)
+		if start < 0 {
+			t.Fatalf("%s not found in generated source", fn)
+		}
+		body := src[start:]
+		if end := strings.Index(body, "\n}\n"); end >= 0 {
+			body = body[:end]
+		}
+
+		for _, guard := range []string{
+			"if goo.Addr != (SkipZeroAddr{}) {",
+			"if goo.Bytes != ([4]uint8{}) {",
+			"if goo.Ints != ([2]int64{}) {",
+			"if goo.Inners != ([2]SkipZeroInner{}) {",
+			"if goo.Inner != (SkipZeroInner{}) {",
+			"if !reflect.ValueOf(&goo.List).Elem().IsZero() {",
+			"if goo.Score != 0 {",
+		} {
+			if !strings.Contains(body, guard) {
+				t.Errorf("%s: missing skip_zero guard %q", fn, guard)
+			}
+		}
+		// Amino leaves these out at zero anyway, so each keeps its one
+		// usual check and no second guard.
+		for _, check := range []string{`goo.Name != ""`, "goo.Fixed != 0", "len(goo.Nums) != 0"} {
+			if n := strings.Count(body, check); n != 1 {
+				t.Errorf("%s: %q appears %d times, want 1", fn, check, n)
+			}
+		}
+		// The untagged controls are not guarded.
+		for _, control := range []string{"goo.PlainAddr != ", "goo.PlainInner != "} {
+			if strings.Contains(body, control) {
+				t.Errorf("%s: untagged field guarded: %q", fn, control)
+			}
+		}
 	}
 }

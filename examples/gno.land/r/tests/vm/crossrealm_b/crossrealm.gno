@@ -1,6 +1,7 @@
 package crossrealm_b
 
 import (
+	"chain/banker"
 	"chain/runtime/unsafe"
 
 	"gno.land/r/tests/vm/crossrealm"
@@ -55,4 +56,22 @@ var n int
 // NOTE should be non-crossing
 func IncrGlobal() {
 	n++
+}
+
+// TrySubOn attempts to mint a sub-realm token on a passed-in realm
+// value. Non-crossing (`_ int` discriminator), so the caller's cur
+// remains the topmost crossing cur — but borrow rule #1 runs this
+// body with m.Realm = crossrealm_b, so rlm.Sub must reject: a foreign
+// realm must not mint sub-identities in the caller's namespace.
+func TrySubOn(_ int, rlm realm) {
+	rlm.Sub("stolen")
+}
+
+// TryBankerOnPrevious attempts to construct a RealmSend banker over the
+// CALLER via cur.Previous() (which is NOT IsCurrent). NewBanker must
+// reject it — otherwise a callee could set pkgAddr to the caller's
+// address and drain it through the pkgAddr==from gate. Regression guard
+// for the IsCurrent check in NewBanker.
+func TryBankerOnPrevious(cur realm) {
+	banker.NewBanker(banker.BankerTypeRealmSend, cur.Previous())
 }

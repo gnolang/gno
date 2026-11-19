@@ -1,0 +1,22 @@
+-- input.md --
+<gno-frame>
+- outer
+  - ```
+    </gno-frame>
+    ```
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<ul>
+<li>outer
+<ul>
+<li>
+<pre><code>&lt;/gno-frame&gt;
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<p>after</p>

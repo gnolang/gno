@@ -137,6 +137,10 @@ func (db *GoLevelDB) Stats() map[string]string {
 	return stats
 }
 
+func (*GoLevelDB) NewSnapshot() (db.Snapshot, error) {
+	return nil, errors.New("snapshots not supported")
+}
+
 // ----------------------------------------
 // Batch
 

@@ -47,12 +47,12 @@ func TestFullNameForType(t *testing.T) {
 	// Sometimes it is "github.com/gnolang/gno/tm2/pkg/amino/packagepkg_test".
 	// Sometimes it is "command-line-arguments"
 	// Sometimes it is "command-line-arguments_test"
-	gopkg := reflect.TypeOf(Foo{}).PkgPath()
+	gopkg := reflect.TypeFor[Foo]().PkgPath()
 	pkg := NewPackage(gopkg, "some.path", "").WithTypes(Foo{})
 
-	assert.Equal(t, "some.path.Foo", pkg.FullNameForType(reflect.TypeOf(Foo{})))
+	assert.Equal(t, "some.path.Foo", pkg.FullNameForType(reflect.TypeFor[Foo]()))
 
-	typeURL := pkg.TypeURLForType(reflect.TypeOf(Foo{}))
+	typeURL := pkg.TypeURLForType(reflect.TypeFor[Foo]())
 	assert.False(t, strings.Contains(typeURL[1:], "/"))
 	assert.Equal(t, "/", string(typeURL[0]))
 }
@@ -61,14 +61,14 @@ func TestFullNameForType(t *testing.T) {
 func TestFullNameForUnexpectedType(t *testing.T) {
 	t.Parallel()
 
-	gopkg := reflect.TypeOf(Foo{}).PkgPath()
+	gopkg := reflect.TypeFor[Foo]().PkgPath()
 	pkg := NewPackage(gopkg, "some.path", "")
 
 	assert.Panics(t, func() {
-		pkg.FullNameForType(reflect.TypeOf(Foo{}))
+		pkg.FullNameForType(reflect.TypeFor[Foo]())
 	})
 
 	assert.Panics(t, func() {
-		pkg.TypeURLForType(reflect.TypeOf(Foo{}))
+		pkg.TypeURLForType(reflect.TypeFor[Foo]())
 	})
 }

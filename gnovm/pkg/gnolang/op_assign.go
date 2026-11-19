@@ -22,18 +22,70 @@ func (m *Machine) doOpDefine() {
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
-	// Assign each value evaluated for Lhs.
-	// NOTE: PopValues() returns a slice in
-	// forward order, not the usual reverse.
-	rvs := m.PopValues(len(s.Lhs))
+	// Go spec §Assignments: operands and RHS are evaluated first (done by
+	// op_exec; values sit on m.Values), then assigned left-to-right. We resolve
+	// and assign each LHS in increasing index order so the last write wins
+	// (`a, a, a = 1, 2, 3` ⇒ 3) and a panic mid-assignment leaves earlier writes
+	// committed (`m[k], *p = 42, 2`). See golang/go#23017.
 	m.incrCPU(OpCPUSlopeAssign * int64(len(s.Lhs)))
-	for i := len(s.Lhs) - 1; 0 <= i; i-- {
-		// Pop lhs value and desired type.
-		lv := m.PopAsPointer(s.Lhs[i])
+
+	if len(s.Lhs) == 1 {
+		// Fast path: one RHS value, resolve the LHS pointer off the stack top.
+		rv := m.PopValue()
+		lv := m.PopAsPointer(s.Lhs[0])
+		if m.Stage != StagePre && isUntyped(rv.T) && rv.T.Kind() != BoolKind {
+			panic("untyped conversion should not happen at runtime")
+		}
+		lv.Assign2(m, m.Alloc, m.Store, m.Realm, *rv, true)
+		return
+	}
+
+	// NOTE: Gas: the loop below costs ~6-13% more CPU per LHS than
+	// OpCPUSlopeAssign charges, depending on LHS shape (~6% IndexExpr, ~13%
+	// NameExpr; see BenchmarkDoOpAssign_*_N*). Not recalibrated: the
+	// constant also prices the unchanged single-LHS fast path above, so
+	// raising it would overcharge the common case to fit a rare one. If
+	// exact pricing is wanted, add a per-LHS multi-assign surcharge constant
+	// instead (consensus-breaking, so best batched with other gas changes).
+
+	// The RHS values sit on top in forward order, the LHS operand frames just
+	// below, LHS_0 first. Both stay on m.Values until the op returns or panics,
+	// so GC run by a Copy or an Assign2 still counts every destination, such as
+	// the map `f()[i]` writes into.
+	//
+	// INVARIANT: the deferred pop assumes the top len(window) slots stay in
+	// place, so no Go helper the op reaches may push to or pop from m.Values;
+	// the conversion below, resolvePointer and Assign2 reach none.
+	total := 0
+	for _, lx := range s.Lhs {
+		total += numStackValuesForPointer(lx)
+	}
+	stackLen := len(m.Values)
+	window := m.PeekValues(total + len(s.Lhs))
+	lhsOperands, rvs := window[:total], window[total:]
+	defer m.PopValues(len(window))
+
+	// `a, b = f()` or `a, ok = m[k]` where a value differs from its Lhs only
+	// by name: convert it as `a = x` would, before any Lhs is written.
+	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		m.convertTopValues(convs)
+	}
+
+	offset := 0
+	for i, lx := range s.Lhs {
+		sz := numStackValuesForPointer(lx)
+		lv, ro := m.resolvePointer(lx, lhsOperands[offset:offset+sz])
+		if ro {
+			m.Panic(typedString(readonlyAccessPanic(lx)))
+		}
+		offset += sz
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {
 			panic("untyped conversion should not happen at runtime")
 		}
 		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
+		if debug && len(m.Values) != stackLen {
+			panic("doOpAssign: value stack changed mid-loop")
+		}
 	}
 }
 
@@ -208,9 +260,17 @@ func (m *Machine) doOpShlAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 
-	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	// Per-N gas for BigInt Shl: charge per-kilobit of both the shift amount
+	// and the operand bit-width, mirroring doOpShl (and doOpShrAssign below).
+	// This runs only at statement execution with a concrete-typed lvalue
+	// (const targets are rejected; a variable can't hold an untyped bigint),
+	// so the branch is currently unreachable — kept symmetric with doOpShl so
+	// the operand-size undercharge can't creep back if that ever changes.
 	if lv.TV.T == UntypedBigintType {
-		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+		// Clamped for the same overflow reason as doOpShl.
+		shift := min(rv.GetUint(), uint64(maxBigintShift))
+		m.incrCPU(int64(shift) * OpCPUSlopeBigIntShl / 1024)
+		m.incrCPUBigUnary(lv.TV, OpCPUSlopeBigIntShl)
 	}
 
 	// lv <<= rv

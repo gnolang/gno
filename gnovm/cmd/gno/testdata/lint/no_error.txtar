@@ -6,9 +6,9 @@ cmp stdout stdout.golden
 cmp stdout stderr.golden
 
 -- good_file.gno --
-package main
+package no_error
 
-func main() {
+func Hello() {
 	println("Hello", 42)
 }
 

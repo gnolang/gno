@@ -30,16 +30,16 @@ func Render(path string) string {
 	if len(parts) == 1 {
 		// /r/archive/boards:BOARD_NAME
 		name := parts[0]
-		boardI, exists := gBoardsByName.Get(name)
-		if !exists {
+		boardI := gBoardsByName.Get(name)
+		if boardI == nil {
 			return "board does not exist: " + name
 		}
 		return boardI.(*Board).RenderBoard()
 	} else if len(parts) == 2 {
 		// /r/archive/boards:BOARD_NAME/THREAD_ID
 		name := parts[0]
-		boardI, exists := gBoardsByName.Get(name)
-		if !exists {
+		boardI := gBoardsByName.Get(name)
+		if boardI == nil {
 			return "board does not exist: " + name
 		}
 		pid, err := strconv.Atoi(parts[1])
@@ -55,8 +55,8 @@ func Render(path string) string {
 	} else if len(parts) == 3 {
 		// /r/archive/boards:BOARD_NAME/THREAD_ID/REPLY_ID
 		name := parts[0]
-		boardI, exists := gBoardsByName.Get(name)
-		if !exists {
+		boardI := gBoardsByName.Get(name)
+		if boardI == nil {
 			return "board does not exist: " + name
 		}
 		pid, err := strconv.Atoi(parts[1])

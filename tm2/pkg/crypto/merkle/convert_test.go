@@ -89,7 +89,7 @@ func TestBuildPath(t *testing.T) {
 }
 
 func TestConvertProof(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		t.Run(fmt.Sprintf("Run %d", i), func(t *testing.T) {
 			root, proofs, keys := SimpleProofsFromMap(buildMap(157))
 			// take first key
@@ -118,7 +118,7 @@ func TestConvertProof(t *testing.T) {
 func buildMap(size int) map[string][]byte {
 	data := make(map[string][]byte)
 	// insert lots of info and store the bytes
-	for i := 0; i < size; i++ {
+	for range size {
 		key := random.RandStr(20)
 		data[key] = toValue(key)
 	}

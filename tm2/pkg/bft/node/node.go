@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +25,7 @@ import (
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
@@ -42,6 +45,7 @@ import (
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	verset "github.com/gnolang/gno/tm2/pkg/versionset"
@@ -210,23 +214,27 @@ type Node struct {
 	eventStoreService *eventstore.Service
 	firstBlockSignal  <-chan struct{}
 
-	earlyStart bool // start RPC+P2P before genesis time, defer only consensus
+	earlyStart    bool                   // start RPC+P2P before genesis time, defer only consensus
+	queryRunsCode func(path string) bool // from an abci.CodeExecutionQuerier app; nil otherwise
 }
 
-func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
-	var blockStoreDB dbm.DB
-	blockStoreDB, err = dbProvider(&DBContext{"blockstore", config})
+// initDBs opens the block store's and the state's databases, wrapped so that
+// block sync can hold their writes (see bc.BlockchainReactor.SetDeferredWrites);
+// until it does, every call passes through.
+func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStoreDB, stateDB *dbm.HoldingDB, err error) {
+	db, err := dbProvider(&DBContext{"blockstore", config})
 	if err != nil {
-		return
+		return nil, nil, err
 	}
-	blockStore = store.NewBlockStore(blockStoreDB)
+	blockStoreDB = dbm.NewHoldingDB(db)
 
-	stateDB, err = dbProvider(&DBContext{"state", config})
+	db, err = dbProvider(&DBContext{"state", config})
 	if err != nil {
-		return
+		return nil, nil, err
 	}
+	stateDB = dbm.NewHoldingDB(db)
 
-	return
+	return blockStoreDB, stateDB, nil
 }
 
 func createAndStartProxyAppConns(clientCreator proxy.ClientCreator, logger *slog.Logger) (appconn.AppConns, error) {
@@ -332,7 +340,7 @@ func createBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn bc.SwitchToConsensusFn,
 	logger *slog.Logger,
-) (bcReactor p2p.Reactor, err error) {
+) (bcReactor *bc.BlockchainReactor, err error) {
 	bcReactor = bc.NewBlockchainReactor(
 		state.Copy(),
 		blockExec,
@@ -380,6 +388,112 @@ type nodeReactor struct {
 	reactor p2p.Reactor
 }
 
+// parseSeedAddrs parses the seed node addresses from the node configuration.
+// Seeds are only meaningful alongside peer discovery: a seed connection exists
+// to ask the seed for peers, which requires the discovery reactor
+func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
+	seedAddrs := parseConfiguredAddrs(config.P2P.Seeds, "seed", logger)
+	if len(seedAddrs) == 0 {
+		return nil
+	}
+
+	if !config.P2P.PeerExchange {
+		logger.Warn("ignoring configured seed nodes, peer exchange is disabled")
+
+		return nil
+	}
+
+	return seedAddrs
+}
+
+// parseConfiguredAddrs parses a comma separated list of peer addresses from the
+// node configuration. A malformed entry is reported and dropped. An entry whose
+// hostname does not resolve yet is reported and kept: it is resolved when dialed
+func parseConfiguredAddrs(list, kind string, logger *slog.Logger) []*p2pTypes.NetAddress {
+	entries := splitAndTrimEmpty(list, ",", " ")
+	addrs := make([]*p2pTypes.NetAddress, 0, len(entries))
+
+	for _, entry := range entries {
+		addr, err := p2pTypes.NewConfiguredNetAddress(entry)
+		if err != nil {
+			logger.Error("invalid "+kind+" address", "err", err)
+
+			continue
+		}
+
+		if addr.IP == nil {
+			logger.Warn(
+				kind+" hostname does not resolve yet, it is resolved when dialed",
+				"address", entry,
+			)
+		}
+
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
+}
+
+// configuredString renders a configured address with the host it was listed
+// with, so an address whose hostname has not resolved yet shows that hostname
+func configuredString(addr *p2pTypes.NetAddress) string {
+	if addr.Hostname == "" {
+		return addr.String()
+	}
+
+	return p2pTypes.NetAddressString(
+		addr.ID,
+		net.JoinHostPort(addr.Hostname, strconv.FormatUint(uint64(addr.Port), 10)),
+	)
+}
+
+// parsePersistentPeerAddrs parses the persistent peer addresses from the node
+// configuration, keeping one address per peer ID (see dedupePersistentPeerAddrs).
+// An address whose hostname does not resolve yet is kept as configured
+func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
+	parsed := parseConfiguredAddrs(config.P2P.PersistentPeers, "persistent peer", logger)
+
+	return dedupePersistentPeerAddrs(parsed, logger)
+}
+
+// dedupePersistentPeerAddrs keeps a single configured address per persistent
+// peer: when the same peer ID is listed more than once, only the last entry is
+// kept, at the position of the ID's first appearance. An earlier entry is
+// reported unless it is listed identically to the one kept: entries are
+// compared as configured, since each hostname is looked up on its own and a
+// round-robin name can resolve to another IP for each entry
+func dedupePersistentPeerAddrs(parsed []*p2pTypes.NetAddress, logger *slog.Logger) []*p2pTypes.NetAddress {
+	lastAddrs := make(map[p2pTypes.ID]*p2pTypes.NetAddress, len(parsed))
+	for _, addr := range parsed {
+		lastAddrs[addr.ID] = addr
+	}
+
+	peerAddrs := make([]*p2pTypes.NetAddress, 0, len(lastAddrs))
+	seen := make(map[p2pTypes.ID]struct{}, len(lastAddrs))
+
+	for _, addr := range parsed {
+		last := lastAddrs[addr.ID]
+
+		if configuredString(addr) != configuredString(last) {
+			logger.Warn(
+				"persistent peer listed more than once, only its last address is dialed",
+				"id", addr.ID,
+				"ignored", configuredString(addr),
+				"dialed", configuredString(last),
+			)
+		}
+
+		if _, ok := seen[addr.ID]; ok {
+			continue
+		}
+
+		seen[addr.ID] = struct{}{}
+		peerAddrs = append(peerAddrs, last)
+	}
+
+	return peerAddrs
+}
+
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
@@ -391,10 +505,11 @@ func NewNode(config *cfg.Config,
 	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
-	blockStore, stateDB, err := initDBs(config, dbProvider)
+	blockStoreDB, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
 	}
+	blockStore := store.NewBlockStore(blockStoreDB)
 
 	state, genDoc, err := LoadStateFromDBOrGenesisDocProvider(stateDB, genesisDocProvider)
 	if err != nil {
@@ -478,6 +593,16 @@ func NewNode(config *cfg.Config,
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create blockchain reactor")
 	}
+	var queryRunsCode func(path string) bool
+	if local, ok := clientCreator.(interface{ LocalApp() abci.Application }); ok {
+		app := local.LocalApp()
+		if dc, ok := app.(abci.DeferredCommitter); ok {
+			bcReactor.SetDeferredWrites(dc)
+		}
+		if q, ok := app.(abci.CodeExecutionQuerier); ok {
+			queryRunsCode = q.QueryRunsCode
+		}
+	}
 
 	reactors := []nodeReactor{
 		{
@@ -509,7 +634,24 @@ func NewNode(config *cfg.Config,
 	var discoveryReactor *discovery.Reactor
 
 	if config.P2P.PeerExchange {
-		discoveryReactor = discovery.NewReactor()
+		// Set up the persistent peer store so discovered peers survive restarts.
+		// The store file lives in the config directory alongside the node key.
+		addrBookPath := config.P2P.AddrBookFile()
+
+		if err := osm.EnsureDir(filepath.Dir(addrBookPath), cfg.DefaultDirPerm); err != nil {
+			return nil, fmt.Errorf("unable to create address book directory, %w", err)
+		}
+
+		discoveryStore, err := discovery.NewStore(
+			addrBookPath,
+			*nodeInfo.NetAddress,
+			discovery.WithLogger(logger.With("module", discoveryModuleName)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to initialize peer store, %w", err)
+		}
+
+		discoveryReactor = discovery.NewReactor(discoveryStore)
 
 		discoveryReactor.SetLogger(logger.With("module", discoveryModuleName))
 
@@ -520,12 +662,10 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Setup MultiplexSwitch.
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
-		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
-	)
-	for _, err = range errs {
-		p2pLogger.Error("invalid persistent peer address", "err", err)
-	}
+	peerAddrs := parsePersistentPeerAddrs(config, p2pLogger)
+
+	// Parse the seed node addresses
+	seedAddrs := parseSeedAddrs(config, p2pLogger)
 
 	// Parse the private peer IDs
 	privatePeerIDs, errs := p2pTypes.NewIDFromStrings(
@@ -538,9 +678,11 @@ func NewNode(config *cfg.Config,
 	// Prepare the misc switch options
 	opts := []p2p.SwitchOption{
 		p2p.WithPersistentPeers(peerAddrs),
+		p2p.WithSeeds(seedAddrs),
 		p2p.WithPrivatePeers(privatePeerIDs),
 		p2p.WithMaxInboundPeers(config.P2P.MaxNumInboundPeers),
 		p2p.WithMaxOutboundPeers(config.P2P.MaxNumOutboundPeers),
+		p2p.WithAllowDuplicateIP(config.P2P.AllowDuplicateIP),
 	}
 
 	// Prepare the reactor switch options
@@ -591,6 +733,7 @@ func NewNode(config *cfg.Config,
 		txEventStore:      txEventStore,
 		eventStoreService: eventStoreService,
 		firstBlockSignal:  cFirstBlock,
+		queryRunsCode:     queryRunsCode,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -666,15 +809,6 @@ func (n *Node) OnStart() error {
 		return err
 	}
 
-	// Always connect to persistent peers
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
-	for _, err := range errs {
-		n.Logger.Error("invalid persistent peer address", "err", err)
-	}
-
-	// Dial the persistent peers
-	n.sw.DialPeers(peerAddrs...)
-
 	// If early start, wait for genesis time now (RPC+P2P already running).
 	if n.earlyStart {
 		now := tmtime.Now()
@@ -698,6 +832,26 @@ func (n *Node) OnStop() {
 		n.Logger.Error("Error closing private validator", "err", err)
 	}
 
+	// Stop the node p2p transport
+	if err := n.transport.Close(); err != nil {
+		n.Logger.Error("unable to gracefully close transport", "err", err)
+	}
+
+	// Stop the reactors before the services that receive their events: a
+	// block finished during the stop fires events, and an event fired after
+	// the event switch stops panics on the event store's closed channel.
+	// Block sync first, which waits for its block or flush point to finish:
+	// the p2p switch stops reactors in no fixed order, and a consensus
+	// reactor stopped before it would leave consensus startable.
+	if n.bcReactor.IsRunning() {
+		if err := n.bcReactor.Stop(); err != nil {
+			n.Logger.Error("unable to gracefully stop the blockchain reactor", "err", err)
+		}
+	}
+	if err := n.sw.Stop(); err != nil {
+		n.Logger.Error("unable to gracefully close switch", "err", err)
+	}
+
 	// Stop the RPC environment (tears down the txDispatcher) before the
 	// event switch so its listenRoutine exits via its own Quit channel
 	// instead of racing evsw.Quit().
@@ -708,16 +862,6 @@ func (n *Node) OnStop() {
 	// Stop the non-reactor services
 	n.evsw.Stop()
 	n.eventStoreService.Stop()
-
-	// Stop the node p2p transport
-	if err := n.transport.Close(); err != nil {
-		n.Logger.Error("unable to gracefully close transport", "err", err)
-	}
-
-	// now stop the reactors
-	if err := n.sw.Stop(); err != nil {
-		n.Logger.Error("unable to gracefully close switch", "err", err)
-	}
 
 	// stop mempool WAL
 	if n.config.Mempool.WalEnabled() {
@@ -757,6 +901,7 @@ func (n *Node) configureRPC() {
 		GetFastSync:   n.consensusReactor.FastSync,
 		Logger:        n.Logger.With("module", "rpc"),
 		Config:        *n.config.RPC,
+		QueryRunsCode: n.queryRunsCode,
 	}
 }
 
@@ -785,6 +930,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 	config.MaxBodyBytes = n.config.RPC.MaxBodyBytes
 	config.MaxHeaderBytes = n.config.RPC.MaxHeaderBytes
 	config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
+	config.IdleTimeout = n.config.RPC.IdleTimeout
 	// If necessary adjust global WriteTimeout to ensure it's greater than
 	// TimeoutBroadcastTxCommit.
 	// See https://github.com/tendermint/tendermint/issues/3435
@@ -813,10 +959,11 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 				// (we used to unsubscribe from all event subscriptions)
 			}),
 			rpcserver.ReadLimit(config.MaxBodyBytes),
+			rpcserver.MaxBatchRequests(n.config.RPC.MaxBatchRequests),
 		)
 		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
-		rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger)
+		rpcserver.RegisterRPCFuncs(mux, routes, rpcLogger, n.config.RPC.MaxBatchRequests)
 		if strings.HasPrefix(listenAddr, "tcp://") && strings.HasSuffix(listenAddr, ":0") {
 			rebuildAddresses = true
 		}

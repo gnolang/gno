@@ -1,0 +1,6 @@
+Eight delimiter runs in one block against a cap of 4: the first two spans
+are emphasized, the rest render as literal '*' text — the clip boundary.
+-- input.md --
+*a* *b* *c* *d*
+-- output.html --
+<p><em>a</em> <em>b</em> *c* *d*</p>

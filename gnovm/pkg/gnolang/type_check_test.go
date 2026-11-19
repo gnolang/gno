@@ -45,7 +45,6 @@ func TestCheckAssignableTo(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			if tt.wantPanic {
@@ -55,7 +54,7 @@ func TestCheckAssignableTo(t *testing.T) {
 					}
 				}()
 			}
-			err := checkAssignableTo(nil, tt.xt, tt.dt)
+			err := checkAssignableTo(nil, nil, tt.xt, tt.dt)
 			if tt.wantError != "" {
 				if err.Error() != tt.wantError {
 					t.Errorf("checkAssignableTo() returned wrong error: want: %v got: %v", tt.wantError, err.Error())

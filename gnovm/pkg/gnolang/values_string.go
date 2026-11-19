@@ -1,16 +1,15 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
-	"math"
-	"reflect"
+	"io"
+	"math/big"
 	"strconv"
 	"strings"
-)
 
-type protectedStringer interface {
-	ProtectedString(*seenValues) string
-}
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+)
 
 const (
 	// defaultSeenValuesSize indicates the maximum anticipated depth of the stack when printing a Value type.
@@ -71,11 +70,110 @@ func (biv BigintValue) String() string {
 }
 
 func (bdv BigdecValue) String() string {
-	return bdv.V.String()
+	if bdv.F != nil {
+		return bigdecFloatString(bdv.F)
+	}
+	if bdv.V == nil {
+		return "0.0"
+	}
+	s := bdv.V.FloatString(10)
+	// Trim trailing zeros after the decimal point, but keep at least one
+	// decimal digit so bigdec values are visually distinct from integers.
+	if strings.ContainsRune(s, '.') {
+		s = strings.TrimRight(s, "0")
+		// Keep at least one digit after the decimal point.
+		if s[len(s)-1] == '.' {
+			s += "0"
+		}
+	}
+	return s
+}
+
+// bigdecFloatString renders f. Within ratOverflowBits it prints exactly. Past
+// it, exact digits cost time growing faster than |exp|, so it prints six
+// approximate significant digits instead, in a few dozen 64-bit operations
+// whatever the exponent:
+//
+//  1. Write f = mant * 2^exp and guess the decimal exponent e = exp*log10(2).
+//  2. Divide by 10^e as 2^e times 5^e. The 2^e is an exponent shift, and 5^e
+//     comes from repeated squaring. 10^e itself can overflow big.Float's
+//     exponent at the extremes; 5^e cannot.
+//  3. Multiply or divide by 10 until the mantissa lands in [1, 10), since the
+//     guess can be off by one.
+//  4. Print six digits, carrying a round-up to "10" into the exponent.
+func bigdecFloatString(f *big.Float) string {
+	var mant big.Float
+	exp := f.MantExp(&mant) // f = mant * 2^exp, 0.5 <= |mant| < 1
+	if exp >= -ratOverflowBits && exp <= ratOverflowBits {
+		return f.Text('g', -1)
+	}
+	e := (int64(exp) * 1292913986) >> 32 // exp * log10(2), in 32-bit fixed point
+	m := new(big.Float).SetPrec(64).Set(mant.Abs(&mant))
+	m.SetMantExp(m, exp-int(e))
+	p5 := new(big.Float).SetPrec(64).SetInt64(1)
+	b := new(big.Float).SetPrec(64).SetInt64(5)
+	for n := max(e, -e); ; b.Mul(b, b) {
+		if n&1 == 1 {
+			p5.Mul(p5, b)
+		}
+		if n >>= 1; n == 0 {
+			break
+		}
+	}
+	if e > 0 {
+		m.Quo(m, p5)
+	} else {
+		m.Mul(m, p5)
+	}
+	one, ten := big.NewFloat(1), big.NewFloat(10)
+	for ; m.Cmp(ten) >= 0; e++ {
+		m.Quo(m, ten)
+	}
+	for ; m.Cmp(one) < 0; e-- {
+		m.Mul(m, ten)
+	}
+	digits := m.Text('g', 6)
+	if digits == "10" { // m rounded up to the next power of ten
+		digits, e = "1", e+1
+	}
+	sign := ""
+	if f.Sign() < 0 {
+		sign = "-"
+	}
+	return fmt.Sprintf("%s%se%+d", sign, digits, e)
 }
 
 func (dbv DataByteValue) String() string {
 	return fmt.Sprintf("(%0X)", (dbv.GetByte()))
+}
+
+// protectedStringOf renders v through the writer-based formatter and
+// returns the accumulated bytes. The meteredWriter buffers internally and
+// flushes a single chunk into the bytes.Buffer, so no per-shape size
+// hint is needed (the debug paths pass no machine, so no gas is charged).
+func protectedStringOf(v protectedWriter, seen *seenValues) string {
+	var b bytes.Buffer
+	_ = writeProtectedTo(&b, v, seen) // a bytes.Buffer never fails a write
+	return b.String()
+}
+
+// writeProtectedTo streams v's protected form into w. See streamTo.
+func writeProtectedTo(w io.Writer, v protectedWriter, seen *seenValues) error {
+	return streamTo(w, func(mw *meteredWriter) { v.WriteProtected(mw, seen) })
+}
+
+// streamTo runs render on an unmetered writer over w. A write error from w
+// aborts the render (Flush panics *ParentWriteError) and is returned.
+func streamTo(w io.Writer, render func(*meteredWriter)) (err error) {
+	mw := newUnmeteredWriter(w)
+	defer mw.Release()
+	defer recoverParentWriteError(&err)
+	render(mw)
+	// Flush explicitly, not deferred, so w holds the whole render on return.
+	// Streaming callers that hand the buffer to a downstream consumer
+	// (uversePrint, Fprint) defer Flush instead.
+	mw.Flush()
+	return nil
 }
 
 func (av *ArrayValue) String() string {
@@ -83,30 +181,7 @@ func (av *ArrayValue) String() string {
 }
 
 func (av *ArrayValue) ProtectedString(seen *seenValues) string {
-	if i := seen.IndexOf(av); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
-	}
-
-	if !seen.Put(av) {
-		return "..."
-	}
-
-	defer seen.Pop()
-
-	ss := make([]string, len(av.List))
-	if av.Data == nil {
-		for i, e := range av.List {
-			ss[i] = e.ProtectedString(seen)
-		}
-		// NOTE: we may want to unify the representation,
-		// but for now tests expect this to be different.
-		// This may be helpful for testing implementation behavior.
-		return "array[" + strings.Join(ss, ",") + "]"
-	}
-	if len(av.Data) > 256 {
-		return fmt.Sprintf("array[0x%X...]", av.Data[:256])
-	}
-	return fmt.Sprintf("array[0x%X]", av.Data)
+	return protectedStringOf(av, seen)
 }
 
 func (sv *SliceValue) String() string {
@@ -114,35 +189,7 @@ func (sv *SliceValue) String() string {
 }
 
 func (sv *SliceValue) ProtectedString(seen *seenValues) string {
-	if sv.Base == nil {
-		return "nil-slice"
-	}
-
-	if i := seen.IndexOf(sv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
-	}
-
-	if ref, ok := sv.Base.(RefValue); ok {
-		return fmt.Sprintf("slice[%v]", ref)
-	}
-
-	if !seen.Put(sv) {
-		return "..."
-	}
-	defer seen.Pop()
-
-	vbase := sv.Base.(*ArrayValue)
-	if vbase.Data == nil {
-		ss := make([]string, sv.Length)
-		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.ProtectedString(seen)
-		}
-		return "slice[" + strings.Join(ss, ",") + "]"
-	}
-	if sv.Length > 256 {
-		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
-	}
-	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
+	return protectedStringOf(sv, seen)
 }
 
 func (pv PointerValue) String() string {
@@ -150,21 +197,7 @@ func (pv PointerValue) String() string {
 }
 
 func (pv PointerValue) ProtectedString(seen *seenValues) string {
-	if i := seen.IndexOf(pv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
-	}
-
-	if !seen.Put(pv) {
-		return "..."
-	}
-	defer seen.Pop()
-
-	// Handle nil TV's, avoiding a nil pointer deref below.
-	if pv.TV == nil {
-		return "&<nil>"
-	}
-
-	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
+	return protectedStringOf(pv, seen)
 }
 
 func (sv *StructValue) String() string {
@@ -172,20 +205,7 @@ func (sv *StructValue) String() string {
 }
 
 func (sv *StructValue) ProtectedString(seen *seenValues) string {
-	if i := seen.IndexOf(sv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
-	}
-
-	if !seen.Put(sv) {
-		return "..."
-	}
-	defer seen.Pop()
-
-	ss := make([]string, len(sv.Fields))
-	for i, f := range sv.Fields {
-		ss[i] = f.ProtectedString(seen)
-	}
-	return "struct{" + strings.Join(ss, ",") + "}"
+	return protectedStringOf(sv, seen)
 }
 
 func (fv *FuncValue) String() string {
@@ -200,6 +220,11 @@ func (fv *FuncValue) String() string {
 }
 
 func (bmv *BoundMethodValue) String() string {
+	if bmv.IsLazy() {
+		// Unresolved interface bind: the concrete method is determined at call
+		// time; render from the saved operand type + selector name.
+		return fmt.Sprintf("<%s>.%s(?)(?)", bmv.Receiver.T.String(), bmv.Method)
+	}
 	name := bmv.Func.Name
 	var (
 		recvT   = "?"
@@ -223,33 +248,11 @@ func (mv *MapValue) String() string {
 }
 
 func (mv *MapValue) ProtectedString(seen *seenValues) string {
-	if mv.List == nil {
-		return "zero-map"
-	}
-
-	if i := seen.IndexOf(mv); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
-	}
-
-	if !seen.Put(mv) {
-		return "..."
-	}
-	defer seen.Pop()
-
-	ss := make([]string, 0, mv.GetLength())
-	next := mv.List.Head
-	for next != nil {
-		ss = append(ss,
-			next.Key.ProtectedString(seen)+":"+
-				next.Value.ProtectedString(seen))
-		next = next.Next
-	}
-	return "map{" + strings.Join(ss, ",") + "}"
+	return protectedStringOf(mv, seen)
 }
 
 func (tv TypeValue) String() string {
-	return fmt.Sprintf("typeval{%s}",
-		tv.Type.String())
+	return "typeval{" + BoundedTypeText(tv.Type, maxExprTypeTextBytes) + "}"
 }
 
 func (pv *PackageValue) String() string {
@@ -307,144 +310,27 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
-// ImplError returns true if the TypedValue's type implements the error interface.
-func (tv *TypedValue) ImplError() bool {
-	return IsImplementedBy(gErrorType, tv.T)
+// ImplError returns true if the TypedValue's type implements the error
+// interface. gm meters the embedded-field BFS walk (nil = a no-op); see
+// IsErrorType.
+func (tv *TypedValue) ImplError(gm types.GasMeter) bool {
+	return isImplementedBy(gm, gErrorType, tv.T)
 }
 
 // for print() and println().
 func (tv *TypedValue) Sprint(m *Machine) string {
-	// if undefined, just "undefined".
-	if tv == nil || tv.T == nil {
-		return undefinedStr
-	}
-
-	// if implements .String(), return it.
-	if IsImplementedBy(gStringerType, tv.T) && !tv.IsNilInterface() {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
-		return res[0].GetString()
-	}
-	// if implements .Error(), return it.
-	if IsImplementedBy(gErrorType, tv.T) {
-		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
-		return res[0].GetString()
-	}
-
-	return tv.ProtectedSprint(newSeenValues(), true)
+	var b bytes.Buffer
+	tv.Fprint(&b, m)
+	return b.String()
 }
 
 func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
-	if i := seen.IndexOf(tv.V); i != -1 {
-		return fmt.Sprintf("ref@%d", i)
-	}
-
-	// print declared type
-	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
-		return tv.ProtectedString(seen)
-	}
-
-	// This is a special case that became necessary after adding `ProtectedString()` methods to
-	// reliably prevent recursive print loops.
-	if tv.V != nil {
-		if v, ok := tv.V.(RefValue); ok {
-			return v.String()
-		}
-	}
-
-	// otherwise, default behavior.
-	switch bt := baseOf(tv.T).(type) {
-	case PrimitiveType:
-		switch bt {
-		case UntypedBoolType, BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
-		case UntypedStringType, StringType:
-			return tv.GetString()
-		case IntType:
-			return fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			return fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			return fmt.Sprintf("%d", tv.GetInt16())
-		case UntypedRuneType, Int32Type:
-			return fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			return fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			return fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			return fmt.Sprintf("%d", tv.GetUint8())
-		case DataByteType:
-			return fmt.Sprintf("%d", tv.GetDataByte())
-		case Uint16Type:
-			return fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			return fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			return fmt.Sprintf("%d", tv.GetUint64())
-		case Float32Type:
-			return fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
-		case Float64Type:
-			return fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
-		case UntypedBigintType:
-			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType:
-			return tv.V.(BigdecValue).V.String()
-		default:
-			panic("should not happen")
-		}
-	case *PointerType:
-		if tv.V == nil {
-			return "typed-nil"
-		}
-		return tv.V.(PointerValue).ProtectedString(seen)
-	case *FuncType:
-		switch fv := tv.V.(type) {
-		case nil:
-			ft := tv.T.String()
-			return nilStr + " " + ft
-		case *FuncValue, *BoundMethodValue:
-			return fv.String()
-		default:
-			panic(fmt.Sprintf(
-				"unexpected func type %v",
-				reflect.TypeOf(tv.V)))
-		}
-	case *InterfaceType:
-		if debug {
-			if tv.DebugHasValue() {
-				panic("should not happen")
-			}
-		}
-		return nilStr
-	case *DeclaredType:
-		panic("should not happen")
-	case *PackageType:
-		return tv.V.(*PackageValue).String()
-	case *ChanType:
-		panic("not yet implemented")
-	case *TypeType:
-		return tv.V.(TypeValue).String()
-	default:
-		// The remaining types may have a nil value.
-		if tv.V == nil {
-			return "(" + nilStr + " " + tv.T.String() + ")"
-		}
-		// *ArrayType, *SliceType, *StructType, *MapType
-		if ps, ok := tv.V.(protectedStringer); ok {
-			return ps.ProtectedString(seen)
-		} else if s, ok := tv.V.(fmt.Stringer); ok {
-			// *NativeType
-			return s.String()
-		}
-
-		if debug {
-			panic(fmt.Sprintf(
-				"unexpected type %s",
-				tv.T.String()))
-		} else {
-			panic("should not happen")
-		}
-	}
+	var b bytes.Buffer
+	mw := newUnmeteredWriter(&b)
+	defer mw.Release()
+	writeProtectedSprint(mw, *tv, seen, considerDeclaredType)
+	mw.Flush() // explicit, not deferred — b is read below; see protectedStringOf.
+	return b.String()
 }
 
 // ----------------------------------------
@@ -456,53 +342,24 @@ func (tv TypedValue) String() string {
 }
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
-	if tv.IsUndefined() {
-		return "(undefined)"
-	}
-	vs := ""
-	if tv.V == nil {
-		switch baseOf(tv.T) {
-		case BoolType, UntypedBoolType:
-			vs = fmt.Sprintf("%t", tv.GetBool())
-		case StringType, UntypedStringType:
-			vs = tv.GetString()
-		case IntType:
-			vs = fmt.Sprintf("%d", tv.GetInt())
-		case Int8Type:
-			vs = fmt.Sprintf("%d", tv.GetInt8())
-		case Int16Type:
-			vs = fmt.Sprintf("%d", tv.GetInt16())
-		case Int32Type, UntypedRuneType:
-			vs = fmt.Sprintf("%d", tv.GetInt32())
-		case Int64Type:
-			vs = fmt.Sprintf("%d", tv.GetInt64())
-		case UintType:
-			vs = fmt.Sprintf("%d", tv.GetUint())
-		case Uint8Type:
-			vs = fmt.Sprintf("%d", tv.GetUint8())
-		case DataByteType:
-			vs = fmt.Sprintf("%d", tv.GetDataByte())
-		case Uint16Type:
-			vs = fmt.Sprintf("%d", tv.GetUint16())
-		case Uint32Type:
-			vs = fmt.Sprintf("%d", tv.GetUint32())
-		case Uint64Type:
-			vs = fmt.Sprintf("%d", tv.GetUint64())
-		case Float32Type:
-			vs = fmt.Sprintf("%v", math.Float32frombits(tv.GetFloat32()))
-		case Float64Type:
-			vs = fmt.Sprintf("%v", math.Float64frombits(tv.GetFloat64()))
-		// Complex types that require recusion protection.
-		default:
-			vs = nilStr
-		}
-	} else {
-		vs = tv.ProtectedSprint(seen, false)
-		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
-			vs = strconv.Quote(vs)
-		}
-	}
+	return protectedStringOf(tv, seen)
+}
 
-	ts := tv.T.String()
-	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
+// WriteStringTo writes tv.String() into w without building the whole string. A
+// write error from w stops the render and is returned, so a w with a byte cap
+// bounds both the output and the heap of the render.
+func (tv TypedValue) WriteStringTo(w io.Writer) error {
+	return writeProtectedTo(w, tv, newSeenValues())
+}
+
+// WriteTypeTo writes t.String() without building the whole string.
+func WriteTypeTo(w io.Writer, t Type) error {
+	return streamTo(w, func(mw *meteredWriter) { writeType(mw, t) })
+}
+
+// typeString renders t with writeType, cut at maxTypeTextBytes. The composite
+// Type.String() methods return it, so type text has one printer whether it is
+// built or streamed.
+func typeString(t Type) string {
+	return BoundedTypeText(t, maxTypeTextBytes)
 }

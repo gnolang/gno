@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
@@ -75,15 +74,7 @@ func (m *Machine) doOpInc() {
 		lb = big.NewInt(0).Add(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, apd.New(1, 0))
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + 1", lb))
-		}
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecAdd(lv.GetBigDec(), BigdecValue{V: new(big.Rat).SetInt64(1)})
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
@@ -157,15 +148,7 @@ func (m *Machine) doOpDec() {
 		lb = big.NewInt(0).Sub(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Sub(sum, lb, apd.New(1, 0))
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + 1", lb))
-		}
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecSub(lv.GetBigDec(), BigdecValue{V: new(big.Rat).SetInt64(1)})
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}

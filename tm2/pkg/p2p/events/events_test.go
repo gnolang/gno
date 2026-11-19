@@ -56,11 +56,7 @@ func TestEvents_Subscribe(t *testing.T) {
 	// Listen for the events
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		timeout := time.After(5 * time.Second)
 
 		for {
@@ -75,7 +71,7 @@ func TestEvents_Subscribe(t *testing.T) {
 				return
 			}
 		}
-	}()
+	})
 
 	// Send out the events
 	for _, ev := range events {

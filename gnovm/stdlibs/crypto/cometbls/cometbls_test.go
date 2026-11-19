@@ -56,7 +56,7 @@ func TestXVerifyZKPHappyPath(t *testing.T) {
 	header := validHeader(t)
 	proof := mustDecodeHex(t, testProofHex)
 
-	got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
+	got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
 	if got != "" {
 		t.Fatalf("expected empty success string, got %q", got)
 	}
@@ -68,7 +68,7 @@ func TestXVerifyZKPReturnsErrorString(t *testing.T) {
 	header.TimeSeconds = 1732205252 // tamper
 	proof := mustDecodeHex(t, testProofHex)
 
-	got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
+	got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
 	if got == "" {
 		t.Fatalf("expected non-empty error string for tampered proof")
 	}
@@ -84,25 +84,25 @@ func TestXVerifyZKPMalformedInputs(t *testing.T) {
 	proof := mustDecodeHex(t, testProofHex)
 
 	t.Run("short trusted validators hash", func(t *testing.T) {
-		got := X_verifyZKP(testChainID, tvh[:31], EncodeLightHeader(header), proof)
+		got := verifyZKP(testChainID, tvh[:31], EncodeLightHeader(header), proof)
 		if got == "" {
 			t.Fatalf("expected error for short tvh")
 		}
 	})
 	t.Run("short header", func(t *testing.T) {
-		got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header)[:100], proof)
+		got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header)[:100], proof)
 		if got != ErrInvalidHeaderLen.Error() {
 			t.Fatalf("expected %q, got %q", ErrInvalidHeaderLen.Error(), got)
 		}
 	})
 	t.Run("short proof", func(t *testing.T) {
-		got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof[:383])
+		got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof[:383])
 		if got != ErrInvalidRawProof.Error() {
 			t.Fatalf("expected %q, got %q", ErrInvalidRawProof.Error(), got)
 		}
 	})
 	t.Run("chain id too long", func(t *testing.T) {
-		got := X_verifyZKP("abcdefghijklmnopqrstuvwxyz0123456", tvh[:], EncodeLightHeader(header), proof)
+		got := verifyZKP("abcdefghijklmnopqrstuvwxyz0123456", tvh[:], EncodeLightHeader(header), proof)
 		if got != ErrInvalidChainIDLen.Error() {
 			t.Fatalf("expected %q, got %q", ErrInvalidChainIDLen.Error(), got)
 		}
@@ -173,7 +173,7 @@ func TestEncodeDecodeLightHeaderRoundTrip(t *testing.T) {
 		TimeSeconds: 2,
 		TimeNanos:   3,
 	}
-	for i := byte(0); i < 32; i++ {
+	for i := range byte(32) {
 		h.ValidatorsHash[i] = i + 1
 		h.NextValidatorsHash[i] = i + 2
 		h.AppHash[i] = i + 3
@@ -198,7 +198,7 @@ func TestDecodeLightHeaderRejectsNegatives(t *testing.T) {
 	t.Run("negative height", func(t *testing.T) {
 		// Overwrite height bytes with a negative i64 (0xFF...FF).
 		bad := append([]byte(nil), buf...)
-		for i := 0; i < 8; i++ {
+		for i := range 8 {
 			bad[i] = 0xFF
 		}
 		if _, err := DecodeLightHeader(bad); !errors.Is(err, ErrInvalidHeight) {

@@ -78,16 +78,25 @@ type PullRequestGapi struct {
 
 // Number implements PullRequest.
 func (p *PullRequestGapi) Number() int {
+	if p.pr.Number == nil {
+		return 0
+	}
 	return *p.pr.Number
 }
 
 // Author implements PullRequest.
 func (p *PullRequestGapi) Author() string {
+	if p.pr.User == nil || p.pr.User.Login == nil {
+		return ""
+	}
 	return *p.pr.User.Login
 }
 
 // CommitsCount implements PullRequest.
 func (p *PullRequestGapi) CommitsCount() int {
+	if p.pr.Commits == nil {
+		return 0
+	}
 	return *p.pr.Commits
 }
 
@@ -104,11 +113,17 @@ func (p *PullRequestGapi) Reviews() []Review {
 
 // State implements PullRequest.
 func (p *PullRequestGapi) State() string {
+	if p.pr.State == nil {
+		return ""
+	}
 	return *p.pr.State
 }
 
 // Title implements PullRequest.
 func (p *PullRequestGapi) Title() string {
+	if p.pr.Title == nil {
+		return ""
+	}
 	return *p.pr.Title
 }
 

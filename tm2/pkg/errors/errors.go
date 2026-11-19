@@ -52,26 +52,26 @@ func stripBuildDir(path string) string {
 	// Handle Go module paths (e.g., /home/user/go/pkg/mod/... or C:\Users\user\go\pkg\mod\...)
 	// Support both Unix and Windows path separators
 	modulePath := "/go/pkg/mod/"
-	if idx := strings.Index(path, modulePath); idx >= 0 {
-		modPath := path[idx+len(modulePath):]
+	if _, after, ok := strings.Cut(path, modulePath); ok {
+		modPath := after
 		// For toolchain paths, simplify further
 		if strings.HasPrefix(modPath, "golang.org/toolchain@") && strings.Contains(modPath, "/src/") {
-			if srcIdx := strings.Index(modPath, "/src/"); srcIdx >= 0 {
-				return "toolchain/" + modPath[srcIdx+len("/src/"):]
+			if _, after, ok := strings.Cut(modPath, "/src/"); ok {
+				return "toolchain/" + after
 			}
 		}
 		return "mod/" + modPath
 	}
 	// Windows style paths
 	modulePathWin := `\go\pkg\mod\`
-	if idx := strings.Index(path, modulePathWin); idx >= 0 {
-		modPath := path[idx+len(modulePathWin):]
+	if _, after, ok := strings.Cut(path, modulePathWin); ok {
+		modPath := after
 		// Convert Windows separators to Unix style
 		modPath = strings.ReplaceAll(modPath, `\`, "/")
 		// For toolchain paths, simplify further
 		if strings.HasPrefix(modPath, "golang.org/toolchain@") && strings.Contains(modPath, "/src/") {
-			if srcIdx := strings.Index(modPath, "/src/"); srcIdx >= 0 {
-				return "toolchain/" + modPath[srcIdx+len("/src/"):]
+			if _, after, ok := strings.Cut(modPath, "/src/"); ok {
+				return "toolchain/" + after
 			}
 		}
 		return "mod/" + modPath

@@ -3,7 +3,7 @@ package cla
 import (
 	"testing"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/nt/uassert/v0"
 )
 

@@ -27,12 +27,12 @@ func testCacheBatchWrite(t *testing.T, db dbm.DB) {
 	cs := cache.New(parent)
 
 	const n = 500
-	for i := 0; i < n; i++ {
+	for i := range n {
 		k := fmt.Sprintf("key%04d", i)
 		v := fmt.Sprintf("val%04d", i)
 		cs.Set(nil, []byte(k), []byte(v))
 	}
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		k := fmt.Sprintf("key%04d", i)
 		cs.Delete(nil, []byte(k))
 	}
@@ -49,7 +49,7 @@ func testCacheBatchWrite(t *testing.T, db dbm.DB) {
 		got := parent.Get(nil, []byte(k))
 		require.Equal(t, []byte(v), got, "key %s", k)
 	}
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		k := fmt.Sprintf("key%04d", i)
 		got := parent.Get(nil, []byte(k))
 		require.Nil(t, got, "key %s should be deleted", k)

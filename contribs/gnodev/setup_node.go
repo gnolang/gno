@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -91,9 +92,11 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 	}
 
 	// Genesis txs never pass through the lazy proxy, so -paths entries and
-	// txs-file dependencies must be tracked explicitly to reach the
-	// loader's reload output — and from there, genesis.
+	// txs-file dependencies must be tracked explicitly to reach genesis.
 	loader.Track(paths...)
+
+	// A reset returns to this seeded set, dropping lazily loaded packages.
+	nodeConfig.ResetState = loader.ResetTracked
 
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
@@ -134,6 +137,17 @@ func setupDevNodeConfig(
 		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
 	}
 	config.DefaultCreator = dkey
+
+	// Use the provided validator key instead of a generated one
+	if cfg.validatorKeyFile != "" {
+		vkey, err := signer.LoadFileKey(cfg.validatorKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load validator key %q: %w", cfg.validatorKeyFile, err)
+		}
+		config.ValidatorKey = vkey.PrivKey
+
+		logger.Info("validator key loaded", "path", cfg.validatorKeyFile, "addr", vkey.Address.String())
+	}
 
 	return config, nil
 }

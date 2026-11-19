@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"strings"
 )
 
 // ----------------------------------------
@@ -368,15 +369,15 @@ func (x ReturnStmt) String() string {
 }
 
 func (x SelectStmt) String() string {
-	cases := ""
+	var cases strings.Builder
 	for i, s := range x.Cases {
 		if i == 0 {
-			cases += s.String()
+			cases.WriteString(s.String())
 		} else {
-			cases += "; " + s.String()
+			cases.WriteString("; " + s.String())
 		}
 	}
-	return fmt.Sprintf("select { %s }", cases)
+	return fmt.Sprintf("select { %s }", cases.String())
 }
 
 func (x SelectCaseStmt) String() string {
@@ -396,16 +397,16 @@ func (x SwitchStmt) String() string {
 	if x.VarName != "" {
 		varName = string(x.VarName) + ":="
 	}
-	cases := ""
+	var cases strings.Builder
 	for i, s := range x.Clauses {
 		if i == 0 {
-			cases += s.String()
+			cases.WriteString(s.String())
 		} else {
-			cases += "; " + s.String()
+			cases.WriteString("; " + s.String())
 		}
 	}
 	return fmt.Sprintf("switch %s%s%s { %s }",
-		init, varName, x.X.String(), cases)
+		init, varName, x.X.String(), cases.String())
 }
 
 func (x SwitchClauseStmt) String() string {
@@ -473,82 +474,89 @@ func (ref RefNode) String() string {
 // NOTE: interface-generics or?
 
 func (xs Exprs) String() string {
-	str := ""
+	var str strings.Builder
 	for i, x := range xs {
 		if i == 0 {
-			str += x.String()
+			str.WriteString(x.String())
 		} else {
-			str += ", " + x.String()
+			str.WriteString(", " + x.String())
 		}
 	}
-	return str
+	return str.String()
 }
 
 func (nxs NameExprs) String() string {
-	str := ""
+	var str strings.Builder
 	for i, nx := range nxs {
 		if i == 0 {
-			str += nx.String()
+			str.WriteString(nx.String())
 		} else {
-			str += ", " + nx.String()
+			str.WriteString(", " + nx.String())
 		}
 	}
-	return str
+	return str.String()
 }
 
 func (ftxz FieldTypeExprs) String() string {
-	str := ""
+	var str strings.Builder
 	for i, x := range ftxz {
 		if i == 0 {
-			str += x.String()
+			str.WriteString(x.String())
 		} else {
-			str += ", " + x.String()
+			str.WriteString(", " + x.String())
 		}
 	}
-	return str
+	return str.String()
 }
 
 func (kvxs KeyValueExprs) String() string {
-	str := ""
+	var str strings.Builder
 	for i, x := range kvxs {
 		if i == 0 {
-			str += x.String()
+			str.WriteString(x.String())
 		} else {
-			str += ", " + x.String()
+			str.WriteString(", " + x.String())
 		}
 	}
-	return str
+	return str.String()
 }
 
 func (ss Body) String() string {
-	str := ""
+	var str strings.Builder
 	for i, s := range ss {
 		if i == 0 {
-			str += s.String()
+			str.WriteString(s.String())
 		} else {
-			str += "; " + s.String()
+			str.WriteString("; " + s.String())
 		}
 	}
-	return str
+	return str.String()
 }
 
 func (ds Decls) String() string {
-	str := ""
+	var str strings.Builder
 	for i, s := range ds {
 		if i == 0 {
-			str += s.String()
+			str.WriteString(s.String())
 		} else {
-			str += "; " + s.String()
+			str.WriteString("; " + s.String())
 		}
 	}
-	return str
+	return str.String()
+}
+
+// constExprValue writes a constant inside an expression's text, with its type cut.
+type constExprValue TypedValue
+
+func (tv constExprValue) WriteProtected(w *meteredWriter, seen *seenValues) {
+	TypedValue(tv).writeProtected(w, seen, maxExprTypeTextBytes)
 }
 
 func (x ConstExpr) String() string {
 	if x.TypedValue.HasKind(TypeKind) {
 		return x.TypedValue.V.String()
 	} else {
-		return fmt.Sprintf("(const %s)", x.TypedValue.String())
+		return "(const " + protectedStringOf(constExprValue(x.TypedValue), newSeenValues()) + ")"
 	}
 }
 
@@ -556,5 +564,5 @@ func (x constTypeExpr) String() string {
 	if x.Type == nil { // type switch case
 		return "(const-type nil)"
 	}
-	return fmt.Sprintf("(const-type %s)", x.Type.String())
+	return "(const-type " + BoundedTypeText(x.Type, maxExprTypeTextBytes) + ")"
 }

@@ -36,7 +36,7 @@ var columnTagNames = map[GnoColumnTag]string{
 	GnoColumnTagOpen:  "ColumnTagOpen",
 	GnoColumnTagClose: "ColumnTagClose",
 
-	GnoColumnTagSep: "ColumnTagSepClose",
+	GnoColumnTagSep: "ColumnTagSep",
 }
 
 // GnoColumnNode represents a semantic tree for a "column".
@@ -44,6 +44,11 @@ type GnoColumnNode struct {
 	ast.BaseBlock
 	Index int          // Index of the column associated with the node.
 	Tag   GnoColumnTag // Current Column Tag for this node.
+
+	// inFrame marks an open tag whose grid opened inside a <gno-frame>,
+	// or a stray separator or close kept inside one (see
+	// frameKeepsColumnsTag in ext_frame.go).
+	inFrame bool
 
 	ctx *columnsContext
 }
@@ -120,7 +125,22 @@ func parseLineTag(line []byte) GnoColumnTag {
 			return GnoColumnTagClose
 		}
 	case "gno-columns-sep":
-		if tok.Type == html.SelfClosingTagToken {
+		// Both the bare and the self-closing spelling, as documented
+		// above. The separator has no content and no end tag, so a bare
+		// `<gno-columns-sep>` is a start token — and it is the spelling
+		// every emitter in the tree actually produces (p/moul/md's
+		// Columns/ColumnsN, p/gnoland/blog/v0, and hand-written pages such as
+		// r/gnoland/home).
+		//
+		// Rejecting it left the line to be parsed as a CommonMark type-7
+		// HTML block, which runs to the next blank line — so it swallowed
+		// everything up to that blank line, silently dropped whenever raw
+		// HTML is disabled, as it is by default. Usually that was the
+		// following column's first line, but when a separator is followed
+		// immediately by `</gno-columns>` (the padded-flush shape
+		// p/gnoland/blog/v0 emits) it ate the close tag, leaving the block open
+		// and pulling the rest of the document inside the column.
+		if tok.Type == html.SelfClosingTagToken || tok.Type == html.StartTagToken {
 			return GnoColumnTagSep
 		}
 	}
@@ -169,7 +189,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 			node.Tag = GnoColumnTagUndefined
 			return node, parser.NoChildren
 		}
-		// Cross-family nesting cap (shared with gno-foreign, gno-alert).
+		// Cross-family nesting cap (shared with gno-foreign, gno-alert, gno-frame).
 		// On refusal, fall through to raw HTML so safe-mode strips it.
 		if !Push(pc) {
 			return nil, parser.NoChildren
@@ -177,10 +197,12 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 
 		cctx.IsOpen = true
 		cctx.OpenTag = node
+		node.inFrame = frameGrid(pc)
 
 	case GnoColumnTagClose:
 		if !cctx.IsOpen {
 			node.Tag = GnoColumnTagUndefined
+			node.inFrame = frameOpen(pc)
 			return node, parser.NoChildren
 		}
 
@@ -190,6 +212,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 	case GnoColumnTagSep:
 		if !cctx.IsOpen {
 			node.Tag = GnoColumnTagUndefined
+			node.inFrame = frameOpen(pc)
 			return node, parser.NoChildren
 		}
 
@@ -302,6 +325,8 @@ var ExtColumns = &columns{}
 
 // Extend adds column functionality to the markdown processor.
 // XXX: Use 500 for priority for now; we will rework these numbers once another extension is implemented.
+// The frame parser runs at 499, just ahead, so an open <gno-frame> ends
+// (and pops its depth) before a columns tag opens; see ext_frame.go.
 func (e *columns) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithBlockParsers(
