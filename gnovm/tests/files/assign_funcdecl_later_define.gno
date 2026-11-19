@@ -12,7 +12,7 @@ func main() {
 }
 
 // Error:
-// main/assign_funcdecl_later_define.gno:8:2-36: not assignable
+// main/assign_funcdecl_later_define.gno:8:2-36: cannot assign to func f
 
 // TypeCheckError:
 // main/assign_funcdecl_later_define.gno:8:2: cannot assign to f (neither addressable nor a map index expression)

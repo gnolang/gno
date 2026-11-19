@@ -555,7 +555,6 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					nx := &n.NameExpr
 					nx.Type = NameExprTypeDefine
 					pkg.Reserve(false, nx, n, NSFuncDecl, -1)
-					pkg.UnassignableNames = append(pkg.UnassignableNames, n.Name)
 				}
 			case *FuncTypeExpr:
 				for i := range n.Params {
@@ -2865,18 +2864,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
-				if n.Op == ASSIGN {
-					for _, lh := range n.Lhs {
-						if ne, ok := lh.(*NameExpr); ok {
-							// Ask the block the name resolves to: a
-							// name declared later in this block does
-							// not shadow the one assigned here.
-							if !last.GetBlockNodeForPath(store, ne.Path).GetStaticBlock().IsAssignable(store, ne.Name) {
-								panic("not assignable")
-							}
-						}
-					}
-				}
 
 				// The crossing `cur` parameter is a fixed binding, not a
 				// rebindable local. It names the realm the frame is executing
