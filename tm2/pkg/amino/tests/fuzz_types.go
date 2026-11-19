@@ -274,7 +274,7 @@ type FuzzDeepNest struct {
 // ========================================
 // Fuzz types for amino Go-tag coverage.
 // These exercise amino:"write_empty", amino:"nil_elements", and amino:"unsafe".
-// Not registered in Package (no pbbindings) — tested via reflect + genproto2 only.
+// Tested via reflect + genproto2.
 
 // FuzzWriteEmpty: exercises amino:"write_empty" on various field types.
 type FuzzWriteEmpty struct {
@@ -436,8 +436,7 @@ type SkipZeroNilElements struct {
 }
 
 // SkipZeroOnly encodes to nothing at zero only because of its tag, so a
-// field of this type is empty at zero, and genproto's Is*ReprEmpty must
-// say so too.
+// field of this type is empty at zero.
 type SkipZeroOnly struct {
 	Addr SkipZeroAddr `amino:"skip_zero"`
 }

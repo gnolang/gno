@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/genproto"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto2"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -387,7 +387,7 @@ type bothListsStruct struct {
 // schemaFor renders the generated proto schema text for a registered struct.
 func schemaFor(t *testing.T, types ...any) string {
 	t.Helper()
-	p3c := genproto.NewP3Context()
+	p3c := genproto2.NewP3Context()
 	p := pkg.NewPackage(
 		"github.com/gnolang/gno/tm2/pkg/amino/tests",
 		"tests_varint",
@@ -477,7 +477,7 @@ func TestPlainVarint_NListNameDisambiguation(t *testing.T) {
 	t.Logf("schema:\n%s", schema)
 
 	// Both kinds of synthetic NList element type must be emitted. The
-	// genproto package prefix is `TESTS_` (capitalized P3PkgName) and the
+	// proto3 package prefix is `TESTS_` (capitalized P3PkgName) and the
 	// per-NList suffix follows from `NList.Name()`: the zigzag variant
 	// gets just `Int64ValueList`, the varint variant gets `VarintInt64ValueList`.
 	assert.Contains(t, schema, "TESTS_Int64ValueList",

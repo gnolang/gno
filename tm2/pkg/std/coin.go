@@ -735,7 +735,7 @@ const maxBaseDenomLength = 16
 //
 //	"/" + pkgPath + ":" + baseName    e.g. "/gno.land/r/demo/foo:example"
 //
-// where pkgPath is capped at pkgPathLimit when the package is deployed
+// where pkgPath is capped at PkgPathLimit when the package is deployed
 // (MemPackage.ValidateBasic, memfile.go) and baseName is capped at
 // maxBaseDenomLength by the banker stdlib. Taking the exact sum is deliberate:
 // any smaller value would let a realm deploy at a perfectly legal package path
@@ -749,7 +749,7 @@ const maxBaseDenomLength = 16
 // Denom bytes are not free, and for a balance held in its own store key this cap
 // is the only thing bounding them, since store keys are not gas-metered. See
 // tm2/pkg/sdk/bank/balance.go.
-const MaxDenomLength = len("/") + pkgPathLimit + len(":") + maxBaseDenomLength
+const MaxDenomLength = len("/") + PkgPathLimit + len(":") + maxBaseDenomLength
 
 const MaxCoinsCount = 256
 
@@ -828,9 +828,9 @@ func ParseRealmDenom(denom string) (pkgPath, base string, err error) {
 	if !ok {
 		return "", "", fmt.Errorf("denom %q has no base name", denom)
 	}
-	if len(pkgPath) > pkgPathLimit {
+	if len(pkgPath) > PkgPathLimit {
 		return "", "", fmt.Errorf("denom %q package path is %d bytes, over the %d limit",
-			denom, len(pkgPath), pkgPathLimit)
+			denom, len(pkgPath), PkgPathLimit)
 	}
 	if base == "" {
 		return "", "", fmt.Errorf("denom %q has an empty base name", denom)
