@@ -65,7 +65,7 @@ functions or methods. Writers are crossing functions.
 ### 2.2 Storage Site (library-owned receivers only)
 
 A `/p/`-declared method invoked on a receiver owned by a `/p/` package runs as
-the caller; after initialization that package's immutability gate refuses a
+the caller; after initialization that package's immutability check refuses a
 write to its own state. A receiver owned by a realm is a view: the method's
 writes to the owner's object are refused.
 
@@ -533,8 +533,8 @@ primitive, func, or chan type).
 **Implication**: holding a realm-typed value, or a pointer to one, is
 not authority. The type checker refuses `var u v.User` outside its realm.
 A pointer that matches one in state you own proves only where it came from,
-not who is calling. A check like `if u == nil { deny }` authorizes the
-caller. Authenticate the caller through `cur.Previous()`.
+not who is calling. A non-nil `*v.User` can come from any API of `v` that
+returns one, so `if u == nil { deny }` does not tell you who is calling. Authenticate the caller through `cur.Previous()`.
 
 ---
 
