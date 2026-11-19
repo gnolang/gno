@@ -27,6 +27,7 @@ slot counts as 40 B of live memory and is charged as a scanned slot. For the
 Pop on every branch:
 
 - `case nil:` pops `numArgs`; the shared `m.PopValue()` pops the func value.
+  #6504 landed this pop on master too; this PR adds the test that pins it.
 - `default:` pops `numArgs + 1` before `pushPanic`, because it returns before
   the shared pop. `pushPanic` does not read the operand stack (`Stacktrace`
   walks frames) and `cv` is already held, so popping first changes nothing

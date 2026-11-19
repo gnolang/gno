@@ -38,7 +38,7 @@ func main() {
 }
 
 // Output:
-// nil func: Allocator{maxBytes:100000000, bytes:9672}
+// nil func: Allocator{maxBytes:100000000, bytes:9992}
 // invalid defer function call: typeval{int64}
 // not func: Allocator{maxBytes:100000000, bytes:10472}
 
