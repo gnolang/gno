@@ -4,9 +4,10 @@ package ledger
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	ledger_go "github.com/cosmos/ledger-cosmos-go"
+	ledger_cosmos "github.com/cosmos/ledger-cosmos-go"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/zondax/hid"
 )
@@ -14,11 +15,11 @@ import (
 // SECP256K1 reflects an interface a Ledger API must implement for SECP256K1
 type SECP256K1 interface {
 	Close() error
-	// Returns an uncompressed pubkey
+	// Returns a SEC1-encoded pubkey, compressed or uncompressed
 	GetPublicKeySECP256K1([]uint32) ([]byte, error)
 	// Returns a compressed pubkey and bech32 address (requires user confirmation)
 	GetAddressPubKeySECP256K1([]uint32, string) ([]byte, string, error)
-	// Signs a message (requires user confirmation)
+	// Signs a message (requires user confirmation); returns a DER signature
 	SignSECP256K1([]uint32, []byte, byte) ([]byte, error)
 }
 
@@ -26,18 +27,33 @@ type SECP256K1 interface {
 // a connected Ledger device.
 var Discover DiscoverFn = DiscoverDefault
 
-// DiscoverDefault is the default function for [Discover].
+// DiscoverDefault is the default function for [Discover]. It uses the Gno.land app
+// if it is the one open on the first Ledger device, and the Cosmos app
+// otherwise.
 func DiscoverDefault() (SECP256K1, error) {
 	if !hid.Supported() {
 		return nil, errors.New("ledger support is not enabled, try building with CGO_ENABLED=1")
 	}
 
-	device, err := ledger_go.FindLedgerCosmosUserApp()
+	device, err := connectHID()
 	if err != nil {
 		return nil, err
 	}
+	app, err := openGnoApp(device)
+	if err == nil {
+		return app, nil
+	}
+	_ = device.Close()
+	if !errors.Is(err, errNotGnoApp) {
+		return nil, err
+	}
 
-	return device, nil
+	cosmos, err := ledger_cosmos.FindLedgerCosmosUserApp()
+	if err != nil {
+		return nil, fmt.Errorf("open the Gno.land or the Cosmos app on the Ledger device: %w", err)
+	}
+
+	return cosmos, nil
 }
 
 // DiscoverMock can be used as a mock [DiscoverFn].
