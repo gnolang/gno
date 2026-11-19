@@ -2841,12 +2841,9 @@ func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bind
 	return bindPID != m.Realm.ID
 }
 
-// foreignLib reports whether fv is outside the import tree of the realm whose
-// code is executing; .uverse is always exempt. Such code reached through an
-// interface or a method value runs view-only. The root is the nearest realm
-// frame, so realm code read-only-entered from another realm still trusts the
-// realm's own imports. A _test.gno frame trusts its imports, which the realm's
-// production closure excludes.
+// foreignLib reports whether fv is outside the current realm's import tree;
+// .uverse is exempt. Such code reached through an interface or a method value
+// runs view-only. The root is the current realm, never a frame.
 func (m *Machine) foreignLib(fv *FuncValue) bool {
 	root, test := m.trustRoot()
 	if m.libMemo.fv == fv && m.libMemo.root == root && m.libMemo.test == test {
@@ -2854,33 +2851,37 @@ func (m *Machine) foreignLib(fv *FuncValue) bool {
 	}
 	foreign := fv.PkgPath != uversePkgPath
 	if foreign {
-		if test {
-			foreign = false
+		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(root)).(*PackageNode)
+		if !ok {
+			foreign = true
+		} else if test {
+			foreign = !pn.testImportClosure(m.Store)[fv.PkgPath]
 		} else {
-			pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(root)).(*PackageNode)
-			foreign = !ok || !pn.importClosure(m.Store)[fv.PkgPath]
+			foreign = !pn.importClosure(m.Store)[fv.PkgPath]
 		}
 	}
 	m.libMemo.fv, m.libMemo.root, m.libMemo.test, m.libMemo.foreign = fv, root, test, foreign
 	return foreign
 }
 
-// trustRoot returns the package whose import tree foreignLib consults and
-// whether the call runs on behalf of a test file. Unknown frames are skipped.
+// trustRoot returns the realm whose import tree foreignLib consults and
+// whether the call runs on behalf of a test file. The root is the current
+// realm; only its own frames answer the test flag.
 func (m *Machine) trustRoot() (string, bool) {
+	root := ""
+	if m.Realm != nil {
+		root = m.Realm.Path
+	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
-		if fr.Func == nil || !IsRealmPath(fr.Func.PkgPath) || fr.Func.FileName == "" {
+		// Only the root realm's frames answer: another realm's test file
+		// below a crossing call must not widen the root's trust.
+		if fr.Func == nil || fr.Func.PkgPath != root || fr.Func.FileName == "" {
 			continue
 		}
-		test := strings.HasSuffix(fr.Func.FileName, "_test.gno") ||
-			strings.HasSuffix(fr.Func.FileName, "_filetest.gno")
-		return fr.Func.PkgPath, test
+		return root, IsTestFile(fr.Func.FileName)
 	}
-	if m.Realm != nil {
-		return m.Realm.Path, false
-	}
-	return "", false
+	return root, false
 }
 
 // calledBy reports whether every frame from the call on top of the stack

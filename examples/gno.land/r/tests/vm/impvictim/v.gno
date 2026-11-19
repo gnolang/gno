@@ -18,5 +18,10 @@ func FillMV(cur realm, r io.ReaderAt) {
 // FillFunc calls a method value the caller bound outside.
 func FillFunc(cur realm, f func([]byte, int64) (int, error)) { f(buf, 0) }
 
+// Filler hands out a crossing closure that writes this realm's buffer.
+func Filler() func(realm, io.ReaderAt) {
+	return func(cur realm, r io.ReaderAt) { r.ReadAt(buf, 0) }
+}
+
 // State reports the buffer.
 func State() string { return string(buf) }

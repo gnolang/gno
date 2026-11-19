@@ -85,6 +85,15 @@ func TestImportClosureSkipsTestFiles(t *testing.T) {
 	if !c["io"] {
 		t.Fatalf("closure dropped a production import: %v", c)
 	}
+	// A call from a test file trusts the production tree plus that file's own
+	// imports, not every package.
+	tc := pn.testImportClosure(store)
+	if !tc["io"] || !tc["bytes"] {
+		t.Fatalf("test closure missing an import: %v", tc)
+	}
+	if c["bytes"] {
+		t.Fatalf("test closure leaked into the production one: %v", c)
+	}
 	it := &PackageNode{
 		PkgPath: "gno.land/r/x_test",
 		FileSet: &FileSet{Files: filesFor("bytes")},
