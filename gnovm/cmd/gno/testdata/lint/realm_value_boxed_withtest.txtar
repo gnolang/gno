@@ -1,0 +1,34 @@
+# gno lint keeps warning about a realm value boxed in an interface result
+# when the package also has in-package and external _test.gno files.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- box.gno --
+package box3
+
+type E struct{ Msg string }
+
+func (e E) Error() string { return e.Msg }
+
+func Lit() error { return E{} }
+
+-- x_test.gno --
+package box3
+
+func use() error { return E{} }
+
+-- ext_test.gno --
+package box3_test
+
+func T() {}
+
+-- gnomod.toml --
+module = "gno.land/r/demo/box3"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+gno.land/r/demo/box3/box.gno:7: exported function Lit returns gno.land/r/demo/box3.E by value inside error; other realms cannot hold it (return a pointer) (code=gnoLintWarning)

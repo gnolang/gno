@@ -83,10 +83,12 @@ func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, 
 			}
 			if call, ok := n.(*ast.CallExpr); ok && len(call.Args) == 1 && info.Types[call.Fun].IsType() {
 				// a conversion to or from another realm's value type (or a
-				// pointer to one) reinterprets that realm's data
+				// pointer to one) reinterprets that realm's data; boxing into
+				// an interface holds nothing, so the operand is judged alone.
 				to, from := info.TypeOf(call), info.TypeOf(call.Args[0])
 				isNil := from != nil && types.Identical(from, types.Typ[types.UntypedNil])
-				if from != nil && !isNil && !types.Identical(derefType(to), derefType(from)) {
+				toIface := to != nil && types.IsInterface(to)
+				if from != nil && !isNil && !toIface && !types.Identical(derefType(to), derefType(from)) {
 					t := foreignRealmValue(derefType(to), self)
 					if t == nil {
 						t = foreignRealmValue(derefType(from), self)

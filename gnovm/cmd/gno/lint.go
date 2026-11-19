@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
 	"go/token"
 	"go/types"
 	goio "io"
@@ -278,12 +279,18 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tcmode = gno.TCLatestRelaxed
 			}
 			tcFset := token.NewFileSet()
+			var lintPkg *types.Package
+			var lintFiles []*ast.File
+			var lintInfo *types.Info
 			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
 				Getter:     newProdGnoStore(),
 				TestGetter: newTestGnoStore(true),
 				Mode:       tcmode,
 				Cache:      cache,
 				Fset:       tcFset,
+				LintInfo: func(pkg *types.Package, files []*ast.File, info *types.Info) {
+					lintPkg, lintFiles, lintInfo = pkg, files, info
+				},
 			})
 			if errs != nil {
 				// io.ErrPrintln(errs) printed above.
@@ -293,6 +300,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 			// other realms cannot hold this realm's struct values (warning)
 			lintRealmValueAPI(io, tcPkg, tcFset)
+			lintRealmBoxedResult(io, lintPkg, tcFset, lintFiles, lintInfo)
+			lintRealmFuncParams(io, lintPkg, tcFset, lintFiles, lintInfo)
 
 			// ensure the 'Render' function is correct
 			err = lintRenderSignature(io, tcPkg, tcFset)
@@ -597,6 +606,442 @@ func ownRealmValue(t types.Type, pkg *types.Package) types.Type {
 				return ft
 			}
 		}
+	}
+	return nil
+}
+
+// lintRealmBoxedResult warns on exported functions and methods that return
+// one of the realm's own struct or array values boxed in an interface result.
+func lintRealmBoxedResult(io commands.IO, pkg *types.Package, fset *token.FileSet, files []*ast.File, info *types.Info) {
+	if pkg == nil || info == nil || !gno.IsRealmPath(pkg.Path()) {
+		return
+	}
+	decls := funcDecls(files, info)
+	report := func(obj types.Object, what string, t, iface types.Type) {
+		location := pkg.Path()
+		if fset != nil && obj.Pos().IsValid() {
+			pos := fset.Position(obj.Pos())
+			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
+		}
+		fmt.Fprintln(io.Err(), gnoIssue{
+			Code:       gnoLintWarning,
+			Msg:        fmt.Sprintf("exported %s %s returns %s by value inside %s; other realms cannot hold it (return a pointer)", what, obj.Name(), t, iface),
+			Confidence: 1,
+			Location:   location,
+		})
+	}
+	walkExportedFuncs(pkg, func(fn *types.Func) {
+		fd := decls[fn]
+		if fd == nil || fd.Body == nil {
+			return
+		}
+		sig := fn.Type().(*types.Signature)
+		results := sig.Results()
+		if results.Len() == 0 {
+			return
+		}
+		what := "function"
+		if sig.Recv() != nil {
+			what = "method"
+		}
+		// Assignments to a named interface result; a bare return yields them.
+		assigned := map[types.Object][]types.Type{}
+		bare := false
+		reported := false
+		walkNoFuncLit(fd.Body, func(n ast.Node) bool {
+			if reported {
+				return false
+			}
+			switch x := n.(type) {
+			case *ast.AssignStmt:
+				if len(x.Rhs) != len(x.Lhs) {
+					return true
+				}
+				for i, lhs := range x.Lhs {
+					id, ok := lhs.(*ast.Ident)
+					if !ok {
+						continue
+					}
+					obj := info.ObjectOf(id)
+					if !isNamedResult(obj, results) {
+						continue
+					}
+					if t := info.TypeOf(x.Rhs[i]); t != nil {
+						assigned[obj] = append(assigned[obj], t)
+					}
+				}
+			case *ast.ReturnStmt:
+				if len(x.Results) == 0 {
+					bare = true
+					return true
+				}
+				if len(x.Results) == results.Len() {
+					for i, expr := range x.Results {
+						rt := results.At(i).Type()
+						if !types.IsInterface(rt) {
+							continue
+						}
+						if t := ownRealmValue(info.TypeOf(expr), pkg); t != nil {
+							report(fn, what, t, rt)
+							reported = true
+							return false
+						}
+					}
+					return true
+				}
+				if len(x.Results) == 1 && results.Len() > 1 {
+					ts := spreadResults(x.Results[0], info)
+					if len(ts) != results.Len() {
+						return true
+					}
+					for i, t := range ts {
+						rt := results.At(i).Type()
+						if !types.IsInterface(rt) {
+							continue
+						}
+						if own := ownRealmValue(t, pkg); own != nil {
+							report(fn, what, own, rt)
+							reported = true
+							return false
+						}
+					}
+				}
+			}
+			return true
+		})
+		if reported || !bare {
+			return
+		}
+		for i := 0; i < results.Len(); i++ {
+			v := results.At(i)
+			if !types.IsInterface(v.Type()) {
+				continue
+			}
+			for _, t := range assigned[v] {
+				if own := ownRealmValue(t, pkg); own != nil {
+					report(fn, what, own, v.Type())
+					return
+				}
+			}
+		}
+	})
+}
+
+// isNamedResult reports whether obj is one of the named results in results.
+func isNamedResult(obj types.Object, results *types.Tuple) bool {
+	if obj == nil {
+		return false
+	}
+	for i := 0; i < results.Len(); i++ {
+		if results.At(i) == obj {
+			return true
+		}
+	}
+	return false
+}
+
+// spreadResults returns the result types of a call used as a multi-value spread.
+func spreadResults(e ast.Expr, info *types.Info) []types.Type {
+	call, ok := ast.Unparen(e).(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	sig, ok := info.TypeOf(call.Fun).(*types.Signature)
+	if !ok {
+		return nil
+	}
+	var ts []types.Type
+	for i := 0; i < sig.Results().Len(); i++ {
+		ts = append(ts, sig.Results().At(i).Type())
+	}
+	return ts
+}
+
+// walkNoFuncLit visits n without descending into nested function literals.
+func walkNoFuncLit(n ast.Node, fn func(ast.Node) bool) {
+	ast.Inspect(n, func(node ast.Node) bool {
+		if _, ok := node.(*ast.FuncLit); ok {
+			return false
+		}
+		return fn(node)
+	})
+}
+
+// funcDecls maps each declared function or method object to its FuncDecl.
+func funcDecls(files []*ast.File, info *types.Info) map[types.Object]*ast.FuncDecl {
+	m := map[types.Object]*ast.FuncDecl{}
+	for _, f := range files {
+		for _, d := range f.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Name == nil {
+				continue
+			}
+			if obj := info.Defs[fd.Name]; obj != nil {
+				m[obj] = fd
+			}
+		}
+	}
+	return m
+}
+
+// walkExportedFuncs visits the exported functions and the exported methods of
+// exported types, the same set lintRealmValueAPI judges.
+func walkExportedFuncs(pkg *types.Package, fn func(*types.Func)) {
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
+		if !obj.Exported() {
+			continue
+		}
+		switch o := obj.(type) {
+		case *types.Func:
+			fn(o)
+		case *types.TypeName:
+			if named, ok := o.Type().(*types.Named); ok {
+				for i := 0; i < named.NumMethods(); i++ {
+					if m := named.Method(i); m.Exported() {
+						fn(m)
+					}
+				}
+			}
+		}
+	}
+}
+
+// lintRealmFuncParams warns on crossing functions that call a function value
+// reached through a parameter of non-function type: a caller can hand in this
+// realm's own stored functions that way.
+func lintRealmFuncParams(io commands.IO, pkg *types.Package, fset *token.FileSet, files []*ast.File, info *types.Info) {
+	if pkg == nil || info == nil || !gno.IsRealmPath(pkg.Path()) {
+		return
+	}
+	for _, file := range files {
+		for _, d := range file.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Body == nil || !isCrossingFunc(fd, info) {
+				continue
+			}
+			lintCrossingCalls(io, pkg, fset, fd, info)
+		}
+	}
+}
+
+// isCrossingFunc: the first parameter is of type realm.
+func isCrossingFunc(fd *ast.FuncDecl, info *types.Info) bool {
+	if fd.Type.Params == nil || len(fd.Type.Params.List) == 0 {
+		return false
+	}
+	return isRealmType(info.TypeOf(fd.Type.Params.List[0].Type))
+}
+
+func isRealmType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	s := types.TypeString(t, nil)
+	return strings.HasSuffix(s, ".realm") || strings.HasSuffix(s, ".Realm")
+}
+
+func isFuncType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	_, ok := types.Unalias(t).Underlying().(*types.Signature)
+	return ok
+}
+
+// lintCrossingCalls reports calls in a crossing function whose callee is a
+// function value reached through a non-function parameter. Chains through
+// another realm function or a closure capture are not followed.
+func lintCrossingCalls(io commands.IO, pkg *types.Package, fset *token.FileSet, fd *ast.FuncDecl, info *types.Info) {
+	env := newParamEnv(fd, info)
+	// A local is tainted only if every assignment to it is parameter-derived.
+	assigns := map[types.Object][]ast.Expr{}
+	var order []types.Object
+	record := func(obj types.Object, e ast.Expr) {
+		if obj == nil {
+			return
+		}
+		if _, ok := assigns[obj]; !ok {
+			order = append(order, obj)
+		}
+		assigns[obj] = append(assigns[obj], e)
+	}
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.AssignStmt:
+			if len(x.Rhs) != len(x.Lhs) {
+				return true
+			}
+			for i, lhs := range x.Lhs {
+				if id, ok := lhs.(*ast.Ident); ok && id.Name != "_" {
+					record(info.ObjectOf(id), x.Rhs[i])
+				}
+			}
+		case *ast.ValueSpec:
+			if len(x.Values) != len(x.Names) {
+				return true
+			}
+			for i, id := range x.Names {
+				if id.Name != "_" {
+					record(info.Defs[id], x.Values[i])
+				}
+			}
+		case *ast.RangeStmt:
+			for _, e := range []ast.Expr{x.Key, x.Value} {
+				if id, ok := e.(*ast.Ident); ok && id.Name != "_" {
+					record(info.ObjectOf(id), x.X)
+				}
+			}
+		case *ast.TypeSwitchStmt:
+			// Bind each case clause's variable to the switched expression.
+			as, ok := x.Assign.(*ast.AssignStmt)
+			if !ok || len(as.Rhs) != 1 {
+				return true
+			}
+			ta, ok := ast.Unparen(as.Rhs[0]).(*ast.TypeAssertExpr)
+			if !ok || ta.Type != nil {
+				return true
+			}
+			for _, stmt := range x.Body.List {
+				if cc, ok := stmt.(*ast.CaseClause); ok {
+					if obj := info.Implicits[cc]; obj != nil {
+						record(obj, ta.X)
+					}
+				}
+			}
+		}
+		return true
+	})
+	for changed := true; changed; {
+		changed = false
+		for _, obj := range order {
+			if _, ok := env.tainted[obj]; ok {
+				continue
+			}
+			var src *types.Var
+			all := true
+			for _, e := range assigns[obj] {
+				p := reachedParam(e, env)
+				if p == nil {
+					all = false
+					break
+				}
+				if src == nil {
+					src = p
+				}
+			}
+			if all && src != nil {
+				env.tainted[obj] = src
+				changed = true
+			}
+		}
+	}
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		p := calleeParam(call.Fun, env)
+		if p == nil {
+			return true
+		}
+		location := pkg.Path()
+		if fset != nil && call.Pos().IsValid() {
+			pos := fset.Position(call.Pos())
+			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
+		}
+		fmt.Fprintln(io.Err(), gnoIssue{
+			Code:       gnoLintWarning,
+			Msg:        fmt.Sprintf("crossing function %s calls a function reached through parameter %s; a caller can pass this realm's own stored functions (take the function itself, or look it up by key)", fd.Name.Name, p.Name()),
+			Confidence: 1,
+			Location:   location,
+		})
+		return true
+	})
+}
+
+// paramEnv tracks the variables that hold a value reached through a parameter.
+type paramEnv struct {
+	info    *types.Info
+	tainted map[types.Object]*types.Var
+}
+
+// newParamEnv taints the non-function parameters of fd, keyed by object so a
+// shadowing variable is not confused with the parameter.
+func newParamEnv(fd *ast.FuncDecl, info *types.Info) *paramEnv {
+	env := &paramEnv{info: info, tainted: map[types.Object]*types.Var{}}
+	if fd.Type.Params == nil {
+		return env
+	}
+	for _, field := range fd.Type.Params.List {
+		for _, n := range field.Names {
+			v, ok := info.Defs[n].(*types.Var)
+			if !ok || isFuncType(v.Type()) {
+				continue
+			}
+			env.tainted[v] = v
+		}
+	}
+	return env
+}
+
+// reachedParam resolves an expression to the parameter it reaches, or nil.
+func reachedParam(e ast.Expr, env *paramEnv) *types.Var {
+	switch x := ast.Unparen(e).(type) {
+	case *ast.Ident:
+		return env.tainted[env.info.ObjectOf(x)]
+	case *ast.SelectorExpr:
+		if sel := env.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
+			return reachedParam(x.X, env)
+		}
+	case *ast.IndexExpr:
+		return reachedParam(x.X, env)
+	case *ast.StarExpr:
+		return reachedParam(x.X, env)
+	case *ast.TypeAssertExpr:
+		return reachedParam(x.X, env)
+	case *ast.CallExpr:
+		return calleeOnParam(x.Fun, env)
+	}
+	return nil
+}
+
+// calleeOnParam: a call whose callee is reached through a parameter, so the
+// call's result is too. A method call is followed to its receiver.
+func calleeOnParam(fun ast.Expr, env *paramEnv) *types.Var {
+	switch x := ast.Unparen(fun).(type) {
+	case *ast.SelectorExpr:
+		return reachedParam(x.X, env)
+	case *ast.IndexExpr:
+		return reachedParam(x.X, env)
+	case *ast.StarExpr:
+		return reachedParam(x.X, env)
+	case *ast.TypeAssertExpr:
+		return reachedParam(x.X, env)
+	case *ast.CallExpr:
+		return calleeOnParam(x.Fun, env)
+	}
+	return reachedParam(fun, env)
+}
+
+// calleeParam: the call's callee is a function value reached through a parameter.
+func calleeParam(fun ast.Expr, env *paramEnv) *types.Var {
+	switch x := ast.Unparen(fun).(type) {
+	case *ast.Ident:
+		return env.tainted[env.info.ObjectOf(x)]
+	case *ast.IndexExpr:
+		return reachedParam(x.X, env)
+	case *ast.StarExpr:
+		return reachedParam(x.X, env)
+	case *ast.SelectorExpr:
+		if sel := env.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
+			return reachedParam(x.X, env)
+		}
+	case *ast.TypeAssertExpr:
+		return reachedParam(x.X, env)
+	case *ast.CallExpr:
+		return calleeOnParam(x.Fun, env)
 	}
 	return nil
 }

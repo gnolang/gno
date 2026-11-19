@@ -15,6 +15,10 @@ const realmValueSrcA = `package a
 
 type T struct{ N int }
 type A [2]T
+type PE struct{}
+
+func (t T) Val() int      { return t.N }
+func (*PE) Error() string { return "" }
 
 func Get() T          { return T{} }
 func Take(t T)        {}
@@ -61,6 +65,16 @@ func TestRealmValue(t *testing.T) {
 		{"struct_field_ptr", "var v struct{ F *a.T }", "", nil},
 		{"interface", "var v any = &a.T{}", "", nil},
 		{"field_read_of_temporary", "var n = a.Get().N", "", nil},
+		// conversion to an interface target holds nothing: accepted
+		{"conv_any_ptr", "func f(p *a.T) { _ = any(p) }", "", nil},
+		{"conv_error_ptr", "func f(pe *a.PE) { _ = error(pe) }", "", nil},
+		{"conv_named_iface", "type S interface{ Val() int }\nfunc f(p *a.T) { _ = S(p) }", "", nil},
+		{"conv_slice_of_ptr", "func f(p *a.T) { _ = []any{p} }", "", nil},
+		{"conv_ptr_to_array", "func f(p *[2]a.T) { _ = any(p) }", "", nil},
+		{"conv_named_pointer", "type P *a.T\nfunc f(p P) { _ = any(p) }", "", nil},
+		// ...but a value operand stays refused, now at the operand only
+		{"conv_any_star_ptr", "func f(p *a.T) { _ = any(*p) }", "", []string{"5:26"}},
+		{"conv_any_value_call", "func f() { _ = any(a.Get()) }", "", []string{"5:20"}},
 	}
 
 	fset := token.NewFileSet()

@@ -1,24 +1,20 @@
 // PKGPATH: gno.land/r/launderrh_conv_iface_explicit
 package launderrh_conv_iface_explicit
 
-// CONVERSION VECTOR 2b: EXPLICIT cast to interface{} via type-conversion
-// expression. Unlike the implicit assignment in conv_iface_box.gno,
-// this form goes through doOpConvert, which applies Case 1 to refuse
-// foreign-readonly source values regardless of the target type
-// (including interface targets).
-//
-// Hypothesis: panics at the conversion site.
+// CONVERSION VECTOR 2b: EXPLICIT cast to interface{}. Boxing holds no
+// value, so the cast is accepted like the implicit assignment; the
+// readonly mark travels with the pointer and the write is refused.
 
 import (
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
 func main(cur realm) {
 	w := launderrvictim.GetWithBarePtr()
-	// Explicit cast (type-conversion expression) to interface{}.
 	box := interface{}(w.Inner)
-	_ = box
+	box.(*launderpkg.Bare).Field = "pwnd-explicit-iface"
 }
 
 // Error:
-// illegal conversion of readonly or externally stored value
+// cannot directly modify readonly tainted object (call a crossing function of the owning realm): box<VPBlock(1,2)>.(*(typeval{gno.land/p/demo/tests/launderpkg/v0.Bare})).Field
