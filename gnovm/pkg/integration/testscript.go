@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -33,4 +34,34 @@ func NewTestingParams(t *testing.T, testdir string) testscript.Params {
 	}
 
 	return params
+}
+
+// RegisterExecCommand exposes a binary as a testscript command.
+func RegisterExecCommand(p *testscript.Params, name, bin string) {
+	if p.Cmds == nil {
+		p.Cmds = make(map[string]func(ts *testscript.TestScript, neg bool, args []string))
+	}
+
+	if _, exists := p.Cmds[name]; exists {
+		panic(fmt.Errorf("unable register %q: command already exist", name))
+	}
+
+	p.Cmds[name] = func(ts *testscript.TestScript, neg bool, args []string) {
+		err := ts.Exec(bin, args...)
+		if err != nil {
+			ts.Logf("%s command error: %+v", name, err)
+		}
+
+		commandSucceeded := err == nil
+		successExpected := !neg
+		if commandSucceeded != successExpected {
+			ts.Fatalf("unexpected %s command outcome (err=%t expected=%t)", name, commandSucceeded, successExpected)
+		}
+	}
+}
+
+// RunTestscript runs a testscript suite using the shared integration dependency.
+func RunTestscript(t *testing.T, p testscript.Params) {
+	t.Helper()
+	testscript.Run(t, p)
 }
