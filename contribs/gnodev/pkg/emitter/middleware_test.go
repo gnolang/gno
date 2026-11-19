@@ -12,12 +12,12 @@ import (
 
 func TestMiddlewareUsesHTMLTemplate(t *testing.T) {
 	tests := []struct {
-		name   string
-		remote string
-		want   string
+		name string
+		path string
+		want string
 	}{
-		{"normal remote", "localhost:9999", "const ws = new WebSocket('ws://localhost:9999');"},
-		{"xss'd remote", `localhost:9999');alert('pwned`, "const ws = new WebSocket('ws://localhost:9999&#39;);alert(&#39;pwned');"},
+		{"normal path", "/_events", "const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/_events');"},
+		{"xss'd path", `/_events');alert('pwned`, "const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/_events&#39;);alert(&#39;pwned');"},
 	}
 
 	// As the code revolves, add more search patterns here.
@@ -26,7 +26,7 @@ func TestMiddlewareUsesHTMLTemplate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			mdw := NewMiddleware(tt.remote, http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			mdw := NewMiddleware(tt.path, http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 				rw.Header().Set("Content-Type", "text/html")
 				fmt.Fprintf(rw, "<body></body>")
 			}))

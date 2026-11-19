@@ -66,7 +66,7 @@
 //
 //	mux := http.NewServeMux()
 //	rpcserver.RegisterRPCFuncs(mux, Routes)
-//	wm := rpcserver.NewWebsocketManager(Routes)
+//	wm := rpcserver.NewWebsocketManager(Routes, []string{"*"})
 //	mux.HandleFunc("/websocket", wm.WebsocketHandler)
 //	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 //	listener, err := rpc.Listen("0.0.0.0:8080", rpcserver.Config{})

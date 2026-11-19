@@ -948,6 +948,7 @@ func (n *Node) startRPC() (listeners []net.Listener, err error) {
 		rpcLogger := n.Logger.With("module", "rpc-server")
 		wmLogger := rpcLogger.With("protocol", "websocket")
 		wm := rpcserver.NewWebsocketManager(routes,
+			n.config.RPC.CORSAllowedOrigins,
 			rpcserver.OnDisconnect(func(remoteAddr string) {
 				// any cleanup...
 				// (we used to unsubscribe from all event subscriptions)
