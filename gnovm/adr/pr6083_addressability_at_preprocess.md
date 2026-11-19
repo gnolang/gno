@@ -1,4 +1,4 @@
-# PR5609: Enforce Go's addressability rules at preprocess
+# PR6083: Enforce Go's addressability rules at preprocess
 
 ## Context
 
@@ -53,14 +53,13 @@ pointer indirection, a slice index, a field of an addressable struct, or an
 element of an addressable array* — and call it everywhere an address is taken,
 including the synthesized one.
 
-1. **A name is addressable iff it denotes a variable.** Delegated to
-   `StaticBlock.IsAssignable`, which already records the fact declaratively:
-   a package-level func decl is appended to its block's `UnassignableNames`,
-   and uverse names are refused. It resolves in the innermost block the name
-   appears in, so a local shadowing a func keeps its own answer, and
-   `UnassignableNames` is serialized with the package node, so an imported
-   package loaded from the store answers the same as one preprocessed in
-   process. Types and constants cannot reach the check — both fold to
+1. **A name is addressable iff it denotes a variable.** The name's slot is
+   found through its resolved `Path`, and its `NameSources` entry says
+   whether a func decl declared it (`NSFuncDecl`); uverse names are refused.
+   This is the same lookup `assertValidAssignLhs` uses since #6089. Keying by
+   path rather than by name matters: locals are reserved before the body
+   runs, so a name lookup lets `fn := 1` declared after `&fn` answer for the
+   package func. Types and constants cannot reach the check — both fold to
    `constTypeExpr`/`ConstExpr` first.
 2. **The composite-literal exception moved to the `&` call site.** It is an
    exception for that operand only, and `isAddressable` now also serves
@@ -70,11 +69,16 @@ including the synthesized one.
    `*T` in the method expression `(*T).M` is a pointer *type* expression that
    survives preprocess as a `StarExpr`; it is not an indirection of anything.
 4. **Index and selector arms follow the spec**: string and map indexes are
-   never addressable; a pointer-to-array index is (`p[i]` is `(*p)[i]`); an
+   never addressable; a pointer-to-array index is (`p[i]` is `(*p)[i]`, and preprocess already
+   rewrites it so); an
    array element is addressable iff the array is; method values are not fields.
 5. **The synthesized receiver address is gated**, reported as
    `cannot call pointer method M on T` against the type written at the call
-   site rather than the embedded type a promoted method resolved to.
+   site rather than the embedded type a promoted method resolved to. The
+   other synthesized `&` (Case 2, a value method reached through a deref
+   step) is not gated: Go never requires an address for a value method, so a
+   gate could only reject valid code. A `debugAssert` build checks it instead;
+   no filetest or example reaches that branch.
 6. **Untyped `nil` is reported instead of crashing.** `&nil` has no static
    type, and the existing error path formatted that type — a nil dereference
    that took the preprocessor down with a Go runtime panic.
@@ -102,7 +106,7 @@ the original helper could not distinguish `func bar()` from `var bar func()`.
 **Detect a declared func by sniffing its static slot for a `*FuncValue`.**
 This works — a declaration's slot carries its value at preprocess time while a
 variable's does not — and was the first implementation. Replaced by
-`IsAssignable` because the slot shape is a proxy for a fact the block already
+the declared-name record because the slot shape is a proxy for a fact the block already
 records, and because a store-loaded package node can hold a `RefValue` where
 the sniff expects a `*FuncValue`, which would silently classify a func as a
 variable.

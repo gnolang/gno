@@ -2743,13 +2743,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
 						//
-						// No addressability guard here, unlike Case 1: this
-						// fires only when the trail already dereferences a
-						// pointer, so the value is reached through that
-						// indirection rather than by taking the address of
-						// an unaddressable operand. Instrumenting the branch
-						// over the filetest suite never reached it with an
-						// unaddressable n.X.
+						// No addressability check, unlike Case 1: the deref
+						// step means the field was reached through a pointer,
+						// and Go never requires an address for a value method,
+						// so a check could only reject valid code.
+						if debugAssert && !isAddressable(store, last, n.X) {
+							panic(fmt.Sprintf(
+								"should not happen: unaddressable receiver %s",
+								n.X.String()))
+						}
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
 						n.X = rx
@@ -5099,15 +5101,13 @@ func isAddressable(store Store, last BlockNode, x Expr) bool {
 		xt := evalStaticTypeOf(store, last, cx.X)
 		return xt != nil && xt.Kind() != TypeKind
 	case *NameExpr:
-		// a name is addressable only when it denotes a variable, and
-		// IsAssignable already records exactly that: a declared func is
-		// added to its block's UnassignableNames (see the *FuncDecl case in
-		// initStaticBlocks), and uverse names are refused outright. It
-		// resolves in the innermost block the name appears in, so a local
-		// shadowing a func keeps its own answer. Types and constants cannot
-		// reach here at all -- both are folded to a constTypeExpr or
-		// ConstExpr before this runs -- so a variable is all that is left.
-		return last.GetStaticBlock().IsAssignable(store, cx.Name)
+		// a name is addressable only when it denotes a variable. Resolved by
+		// Path, not by name, so a later local shadowing a func does not answer
+		// for this use. Types and constants were folded before this runs.
+		if cx.Path.Type == VPUverse {
+			return false
+		}
+		return !isFuncDeclAt(last.GetBlockNodeForPath(store, cx.Path), cx.Path.Index)
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, cx.X)
 		if xt == nil {
@@ -5117,8 +5117,8 @@ func isAddressable(store Store, last BlockNode, x Expr) bool {
 		case SliceKind:
 			return true
 		case PointerKind:
-			// p[i] on a pointer to array is shorthand for (*p)[i], so it is
-			// an indirection and always addressable.
+			// p[i] on a pointer to array is (*p)[i]. The *IndexExpr case
+			// already rewrites it that way, so this is only a fallback.
 			return true
 		case ArrayKind:
 			// an array element is addressable iff the array is.
@@ -5137,16 +5137,12 @@ func isAddressable(store Store, last BlockNode, x Expr) bool {
 			// a field access; addressability follows the base, below.
 		case VPBlock:
 			// pkg.X: the same rule as the *NameExpr case, asked of the
-			// imported package's own block. A package can only be named by
-			// a *NameExpr, and its slot holds the *PackageValue, so no
-			// evaluation is needed to find it. UnassignableNames is
-			// serialized with the package node, so this holds for a package
-			// loaded from the store as well as one preprocessed here.
+			// imported package's own block, whose slot for the import holds
+			// the *PackageValue.
 			if nx, ok := cx.X.(*NameExpr); ok {
 				if tv := last.GetSlot(store, nx.Name, true); tv != nil {
 					if pv, ok := tv.V.(*PackageValue); ok {
-						return pv.GetPackageNode(store).GetStaticBlock().
-							IsAssignable(store, cx.Sel)
+						return !isFuncDeclAt(pv.GetPackageNode(store), cx.Path.Index)
 					}
 				}
 			}
@@ -5168,6 +5164,11 @@ func isAddressable(store Store, last BlockNode, x Expr) bool {
 	default:
 		return false
 	}
+}
+
+// isFuncDeclAt reports whether slot idx of bn was declared by a func decl.
+func isFuncDeclAt(bn BlockNode, idx uint16) bool {
+	return bn.GetNameSources()[idx].Type == NSFuncDecl
 }
 
 func isConstType(x Expr) bool {
