@@ -30,7 +30,8 @@ the realm's helpers, methods and the library code they name write as usual.
 3. Library code a caller picked runs view-only: a function value, closure,
    method value or method expression called through a value; an interface
    call or method value whose package the realm does not import (directly or
-   through its imports); a method value built while view-only. A call that
+   through its imports, standard library included); a method value built while
+   view-only. A call that
    names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`), or reads it from a
    `/p/` or stdlib package-level variable (`lib.Table[k](x)`, fixed after
    init), acts for the caller. A realm's own function or closure reached
@@ -89,7 +90,6 @@ library code (call a function of the owning realm)`. `mutable` is removed.
 
 - A library in the realm's import tree is trusted: a caller may pick any of
   its types through the realm's interfaces.
-- A stdlib method writing its argument can be picked through an interface.
 - A function value a realm made at init or in a gate and publishes, handed
   back to a gate of that realm that runs callbacks, writes.
 

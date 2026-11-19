@@ -2840,15 +2840,14 @@ func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bind
 	return bindPID != m.Realm.ID
 }
 
-// foreignLib reports whether fv is a /p/ function outside the current realm's
-// imports, direct or not. /r/ and /e/ functions never reach here; stdlib and
-// uverse paths have no dot in their first segment or are .uverse.
+// foreignLib reports whether fv is outside the current realm's import tree,
+// direct or indirect; only .uverse is exempt. Such code reached through an
+// interface or a method value runs view-only.
 func (m *Machine) foreignLib(fv *FuncValue) bool {
 	if m.libMemo.fv == fv && m.libMemo.realm == m.Realm {
 		return m.libMemo.foreign
 	}
-	first, _, _ := strings.Cut(fv.PkgPath, "/")
-	foreign := fv.PkgPath != uversePkgPath && strings.Contains(first, ".")
+	foreign := fv.PkgPath != uversePkgPath
 	if foreign {
 		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(m.Realm.Path)).(*PackageNode)
 		foreign = !ok || !pn.importClosure(m.Store)[fv.PkgPath]

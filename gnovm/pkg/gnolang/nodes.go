@@ -1339,8 +1339,9 @@ type PackageNode struct {
 	importTree unsafe.Pointer
 }
 
-// importClosure returns every non-stdlib package pn imports, directly or
-// through another import. Stored packages never change, so the cache holds.
+// importClosure returns every package pn imports, directly or through another
+// import, standard library included. Stored packages never change, so the
+// cache holds.
 func (pn *PackageNode) importClosure(store Store) map[string]bool {
 	if c := (*map[string]bool)(atomic.LoadPointer(&pn.importTree)); c != nil {
 		return *c
@@ -1351,7 +1352,7 @@ func (pn *PackageNode) importClosure(store Store) map[string]bool {
 		for _, fn := range p.Files {
 			for _, d := range fn.Decls {
 				id, ok := d.(*ImportDecl)
-				if !ok || c[id.PkgPath] || IsStdlib(id.PkgPath) {
+				if !ok || c[id.PkgPath] {
 					continue
 				}
 				c[id.PkgPath] = true
