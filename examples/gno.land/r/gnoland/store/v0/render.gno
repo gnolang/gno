@@ -135,23 +135,38 @@ func renderPaged(l list, base, query string) string {
 func writeItems(b *strings.Builder, ls []*listing) {
 	for _, l := range ls {
 		href := strings.TrimPrefix(l.Path, runtime.ChainDomain()) // holds no $ (namespaceOf)
-		b.WriteString(md.BulletItem(escapeMath(md.Bold(md.Link(l.Title, href)) + " — " + md.EscapeText(l.Tagline))))
+		item := md.Bold(md.Link(l.Title, href)) + " — " + md.EscapeText(l.Tagline)
+		if live(l.Title) || live(l.Tagline) { // rare: the item itself is longer to scan
+			item = inert(item)
+		}
+		b.WriteString(md.BulletItem(item))
 	}
 }
 
-// escapeMath escapes each $ that sanitized inline text leaves bare: gnoweb
-// reads $…$ as a formula, and the sanitizer escapes none today ("Swap $GNOT
-// for $ATOM"). One it already escaped, after an odd run of backslashes, is
-// left as it is, so a sanitizer that learns to is not escaped twice.
-func escapeMath(s string) string {
-	if !strings.Contains(s, "$") {
+// live reports owner text holding what inert escapes. A range loop is the
+// cheapest scan in gas: a quarter of strings.IndexByte's for these two bytes.
+func live(s string) bool {
+	for _, r := range s {
+		if r == '$' || r == '@' {
+			return true
+		}
+	}
+	return false
+}
+
+// inert escapes what sanitized inline text leaves live in gnoweb: a $ opens
+// a formula ("Swap $GNOT for $ATOM") and an @ a link to a user ("Audited by
+// @gnoland"). One already escaped, after an odd run of backslashes, is left
+// as it is, so a sanitizer that learns to is not escaped twice.
+func inert(s string) string {
+	if !strings.ContainsAny(s, "$@") {
 		return s
 	}
 	var b strings.Builder
-	b.Grow(len(s) + strings.Count(s, "$"))
+	b.Grow(len(s) + strings.Count(s, "$") + strings.Count(s, "@"))
 	escaped := false
 	for i := 0; i < len(s); i++ {
-		if s[i] == '$' && !escaped {
+		if (s[i] == '$' || s[i] == '@') && !escaped {
 			b.WriteByte('\\')
 		}
 		escaped = s[i] == '\\' && !escaped

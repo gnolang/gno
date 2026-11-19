@@ -68,8 +68,9 @@ type voter struct {
 //
 // Calling Register again updates the listing: the original slug and
 // creation time are kept and the slug argument is ignored, unless the store
-// moved the listing's slug (StoreClaimMoved): it then takes the slug it asks
-// for, once free. A real change counts as an update at most once a week. Register never panics, but the
+// moved the listing's slug (a claim moved by StoreClaimMoved, or a listing
+// unhidden once its slug was taken): it then takes the slug it asks for,
+// once free. A real change counts as an update at most once a week. Register never panics, but the
 // deploying transaction pays for what it stores here (about 2 GNOT for a
 // namespace's first listing), so the deploy's -max-deposit must cover it. A
 // refused call emits StoreRegisterRejected with the path, a short reason

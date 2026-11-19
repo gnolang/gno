@@ -291,7 +291,7 @@ func (l *listing) reslug(slug string) {
 // only ever a claim, would otherwise never get its slug back. Any other
 // listing keeps its slug for good, and so does this one from then on.
 func (l *listing) takeSlug(slug string) {
-	if l.hidden || !strings.Contains(l.Slug, movedMark) || !validSlug(slug) || slugTaken(l, slug) {
+	if slug == l.Slug || l.hidden || !strings.Contains(l.Slug, movedMark) || !validSlug(slug) || slugTaken(l, slug) {
 		return
 	}
 	reslugClaim(slug)
@@ -952,6 +952,8 @@ func foldRune(r rune) rune {
 		return 'カ'
 	case '口', '囗':
 		return 'ロ'
+	case '\uFA11': // a variant of 崎 (山﨑, 山崎)
+		return '崎'
 	case '匕':
 		return 'ヒ'
 	case '亻':

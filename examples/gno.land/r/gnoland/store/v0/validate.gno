@@ -208,8 +208,18 @@ const prolonged = 'ー'
 func isCompatibilityForm(r rune) bool {
 	return r >= 0xFB1D && r <= 0xFDFF || r >= 0xFE70 && r <= 0xFEFF ||
 		r >= 0xFF61 && r <= 0xFFDC || r >= 0x1100 && r <= 0x11FF ||
-		r >= 0xF900 && r <= 0xFAFF || r >= 0x2F800 && r <= 0x2FA1F ||
+		r >= 0xF900 && r <= 0xFAFF && !isUnifiedIdeograph(r) || r >= 0x2F800 && r <= 0x2FA1F ||
 		r >= 0x1EE00 && r <= 0x1EEFF
+}
+
+// isUnifiedIdeograph reports the twelve ideographs of the CJK compatibility
+// block that are letters of their own, with no decomposition (﨑 in 山﨑).
+func isUnifiedIdeograph(r rune) bool {
+	switch r {
+	case 0xFA0E, 0xFA0F, 0xFA11, 0xFA13, 0xFA14, 0xFA1F, 0xFA21, 0xFA23, 0xFA24, 0xFA27, 0xFA28, 0xFA29:
+		return true
+	}
+	return false
 }
 
 // modernGreekCyrillic reports whether r, if Greek or Cyrillic, is a letter

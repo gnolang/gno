@@ -312,18 +312,21 @@ func writeToken(b *strings.Builder, s string) {
 // them no control character and no line separator, so most need no
 // escaping and go in one write.
 func writeText(b *strings.Builder, s string) {
-	if strings.ContainsAny(s, `"\<>&[]$`) {
-		writeString(b, s)
-		return
+	for _, r := range s { // cheaper in gas than strings.ContainsAny
+		switch r {
+		case '"', '\\', '<', '>', '&', '[', ']', '$', '@':
+			writeString(b, s)
+			return
+		}
 	}
 	writeToken(b, s)
 }
 
 // writeString writes s as a JSON string. <, > and & are escaped too, so the
 // output is safe to embed in HTML; U+2028 and U+2029 so it is safe in JS;
-// [, ], $ and \ so gnoweb, which renders api/ as markdown, makes no link
-// and no formula of it: a backslash written as two would open one before a
-// ( or a [.
+// [, ], $, @ and \ so gnoweb, which renders api/ as markdown, makes no
+// link, mention or formula of it: a backslash written as two would open a
+// formula before a ( or a [.
 func writeString(b *strings.Builder, s string) {
 	const hex = "0123456789abcdef"
 	b.WriteByte('"')
@@ -331,7 +334,7 @@ func writeString(b *strings.Builder, s string) {
 		switch {
 		case r == '"':
 			b.WriteString(`\"`)
-		case r < 0x20 || r == '\\' || r == '<' || r == '>' || r == '&' || r == '[' || r == ']' || r == '$' || r == 0x2028 || r == 0x2029:
+		case r < 0x20 || r == '\\' || r == '<' || r == '>' || r == '&' || r == '[' || r == ']' || r == '$' || r == '@' || r == 0x2028 || r == 0x2029:
 			b.WriteString(`\u`)
 			for shift := 12; shift >= 0; shift -= 4 {
 				b.WriteByte(hex[(r>>uint(shift))&0xf])

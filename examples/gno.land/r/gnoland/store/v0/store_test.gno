@@ -380,9 +380,12 @@ func TestTitleLookalikes(t *testing.T) {
 	// drawn as it: a title holds none.
 	for _, block := range [][2]rune{{0xF900, 0xFAFF}, {0x2F800, 0x2FA1F}} {
 		for r := block[0]; r <= block[1]; r++ {
-			uassert.False(t, validTitle("\u91D1"+string(r)), strconv.Itoa(int(r)))
+			uassert.Equal(t, isUnifiedIdeograph(r), validTitle("\u91D1"+string(r)), strconv.Itoa(int(r)))
 		}
 	}
+	// Twelve of the block are letters of their own, as in names: 山﨑.
+	uassert.True(t, validTitle("\u5C71\uFA11"))
+	uassert.Equal(t, titleKey("\u5C71\u5D0E"), titleKey("\u5C71\uFA11"), "and keys as 崎, which it draws like")
 	uassert.Equal(t, titleKey("\u03B7"), titleKey("\u03AE"), "eta with or without tonos")
 }
 
@@ -973,20 +976,21 @@ func TestJSONEscaping(cur realm, t *testing.T) {
 	contains(t, item.String(), `[A\<"\\\>B](/r/escape/app)`)
 }
 
-// gnoweb draws $…$, \(…\) and \[…\] as formulas: owner text opens none, in
-// the markdown or on the api/ pages, which gnoweb renders as markdown too.
+// gnoweb draws $…$, \(…\) and \[…\] as formulas and @name as a link to a
+// user: owner text opens none, in the markdown or on the api/ pages, which
+// gnoweb renders as markdown too.
 func TestNoFormulaFromOwnerText(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/mathns/app"))
-	Register(cross(cur), "math-app", "Math $x^2$ App", `Pay \(a\) or \[b\] in $GNOT$`, "utilities", 4)
+	Register(cross(cur), "math-app", "Math $x^2$ App", `Pay \(a\) or \[b\] in $GNOT$, audited by @gnoland`, "utilities", 4)
 	l := bySlugOrPanic("math-app")
 
 	var item strings.Builder
 	writeItems(&item, []*listing{l})
 	contains(t, item.String(), `[Math \$x^2\$ App](/r/mathns/app)`)
-	contains(t, item.String(), `in \$GNOT\$`)
+	contains(t, item.String(), `in \$GNOT\$, audited by \@gnoland`)
 
 	json := listingJSON("math-app")
-	uassert.False(t, strings.Contains(json, "$") || strings.Contains(json, `\\`), json) // no $, no backslash written as two
+	uassert.False(t, strings.ContainsAny(json, "$@") || strings.Contains(json, `\\`), json) // no $ or @, no backslash written as two
 	contains(t, json, `"title":"Math \u0024x^2\u0024 App"`)
 	contains(t, json, `Pay \u005c(a\u005c) or \u005c\u005bb\u005c\u005d in`)
 
@@ -999,8 +1003,10 @@ func TestNoFormulaFromOwnerText(cur realm, t *testing.T) {
 		`a\\\$b`:    `a\\\$b`,
 		`$`:         `\$`,
 		`no dollar`: `no dollar`,
+		`a@b`:       `a\@b`,
+		`a\@b`:      `a\@b`,
 	} {
-		uassert.Equal(t, want, escapeMath(in), in)
+		uassert.Equal(t, want, inert(in), in)
 	}
 }
 
