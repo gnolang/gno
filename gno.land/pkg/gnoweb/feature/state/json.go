@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm/utils"
 )
 
 // pkgJSONWrapper is the paginated `?state&json` response shape. Names /
@@ -109,7 +110,7 @@ func (h *Handler) serveJSONPackage(ctx context.Context, w http.ResponseWriter, u
 	}
 
 	total := min(len(parsed.Names), len(parsed.Values))
-	start, end := clampSliceWindow(offset, limit, total)
+	start, end := utils.ClampSliceWindow(offset, limit, total)
 
 	body, err := json.Marshal(pkgJSONWrapper{
 		PkgPath: u.Path,
