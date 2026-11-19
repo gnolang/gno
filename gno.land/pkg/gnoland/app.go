@@ -297,7 +297,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		return nil, err
 	}
 
-	// Initialize the VMKeeper.
+	// Initialize the VMKeeper. It brings the stored stdlibs in line with the
+	// embedded ones, which a chain upgraded in place may lack, but only when
+	// booting right after a governance halt that names a version.
+	vmk.SetStdlibs(gnovm.Stdlibs(), atVersionedHalt(prmk, baseApp.GetCacheMultiStore(), baseApp.LastBlockHeight()))
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?

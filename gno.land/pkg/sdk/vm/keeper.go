@@ -235,6 +235,10 @@ type VMKeeper struct {
 	gnoStore gno.Store
 	// committed typecheck cache
 	typeCheckCache gno.TypeCheckCache
+	// the binary's stdlib sources, and whether this boot may bring the
+	// stored stdlibs in line with them; see SetStdlibs
+	stdlibs        fs.FS
+	stdlibsUpgrade bool
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -293,6 +297,8 @@ func (vm *VMKeeper) Initialize(
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 
+		vm.migrateStdlibs(logger)
+
 		opts := gno.TypeCheckOptions{
 			Getter: vm.gnoStore,
 			Mode:   gno.TCLatestStrict,
@@ -318,6 +324,56 @@ func (vm *VMKeeper) Initialize(
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
+}
+
+// SetStdlibs gives Initialize the binary's stdlib sources, each package under
+// its import path, and whether this boot may bring the stored stdlibs in line
+// with them: only one right after a governance halt that names a version, the
+// boundary at which every node runs the new binary on the same state.
+func (vm *VMKeeper) SetStdlibs(fsys fs.FS, upgrade bool) {
+	vm.stdlibs, vm.stdlibsUpgrade = fsys, upgrade
+}
+
+// migrateStdlibs brings the stored stdlibs in line with the binary's. Stdlibs
+// are written once, at genesis, so a chain upgraded in place has none of the
+// ones a new binary adds. The writes go to the multistore Initialize was
+// given, which the app writes back at boot, so they land in the next block's
+// app hash; every node boots at the same halt height and writes the same
+// bytes, and a later boot finds nothing to do.
+func (vm *VMKeeper) migrateStdlibs(logger *slog.Logger) {
+	if vm.stdlibs == nil {
+		return
+	}
+	for _, lib := range stdlibs.InitOrder() {
+		want, err := gno.ReadMemPackageFS(vm.stdlibs, lib, lib, gno.MPStdlibAll)
+		if err != nil {
+			panic(fmt.Errorf("reading the binary's stdlib %q: %w", lib, err))
+		}
+		have := vm.gnoStore.GetMemPackage(lib) // production files only
+		if have != nil && sameMemFiles(have, gno.MPFProd.FilterMemPackage(want)) {
+			continue
+		}
+		if !vm.stdlibsUpgrade {
+			panic(fmt.Errorf("stdlib %q in the store differs from this binary's; "+
+				"it can only be brought in line by booting at a governance halt that names a version", lib))
+		}
+		if have != nil {
+			panic(fmt.Errorf("stdlib %q in the store differs from this binary's; "+
+				"changing an existing stdlib is not supported", lib))
+		}
+		logger.Info("Adding a stdlib missing from the store", "pkgpath", lib)
+		tx := vm.gnoStore.BeginTransaction(nil, nil, nil, nil)
+		runStdlibPackage(want, tx)
+		tx.Write()
+	}
+}
+
+// sameMemFiles reports whether a and b hold the same files, in the same
+// order, with the same contents.
+func sameMemFiles(a, b *std.MemPackage) bool {
+	return slices.EqualFunc(a.Files, b.Files, func(x, y *std.MemFile) bool {
+		return x.Name == y.Name && x.Body == y.Body
+	})
 }
 
 // PopulateStdlibCache populates the stdlib byte cache on the gno store.
@@ -427,7 +483,12 @@ func loadStdlibPackage(pkgPath string, fsys fs.FS, store gno.Store) {
 		// no gno files are present
 		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))
 	}
+	runStdlibPackage(memPkg, store)
+}
 
+// runStdlibPackage runs a stdlib package into store and saves it.
+func runStdlibPackage(memPkg *std.MemPackage, store gno.Store) {
+	pkgPath := memPkg.Path
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		// XXX: gno.land, vm.domain, other?
 		PkgPath:            pkgPath,
