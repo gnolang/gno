@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Implements #6240. No code accompanies this document yet.
+Implemented in #6508. Implements #6240.
 
 ## Context
 
