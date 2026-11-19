@@ -151,7 +151,7 @@ func validText(s string, maxRunes int) bool {
 				return false
 			}
 			latin = true
-		case unicode.IsLetter(r) && !unicode.In(r, mixesWithLatin...):
+		case unicode.IsLetter(r) && r != prolonged && !unicode.In(r, mixesWithLatin...):
 			foreign = true
 		}
 		alnum = alnum || unicode.IsLetter(r) || unicode.IsDigit(r)
@@ -167,8 +167,8 @@ func validText(s string, maxRunes int) bool {
 // as DIGAMMA draw as Latin ones too) and never both in one title, no
 // compatibility form (isCompatibilityForm), ASCII digits only (a Myanmar or
 // Devanagari zero draws as an o), and no punctuation or symbol beyond ASCII,
-// the separators titleKey drops and typographic quotes (U+2223 DIVIDES draws
-// as an l).
+// the separators titleKey drops and the typographic quotes it folds (U+2223
+// DIVIDES draws as an l, U+201A as a comma).
 func validTitle(s string) bool {
 	if !validText(s, maxTitle) {
 		return false
@@ -180,6 +180,7 @@ func validTitle(s string) bool {
 		switch {
 		case isCompatibilityForm(r):
 			return false
+		case r == prolonged: // titleKey drops it, like the dash it draws as
 		case unicode.IsLetter(r):
 			if !unicode.Is(unicode.Latin, r) && !unicode.In(r, titleScripts...) || !modernGreekCyrillic(r) {
 				return false
@@ -188,20 +189,27 @@ func validTitle(s string) bool {
 			if r > '9' {
 				return false
 			}
-		case r > 0x7E && !unicode.IsMark(r) && foldRune(r) != 0 && (r < 0x2018 || r > 0x201D):
+		case r > 0x7E && !unicode.IsMark(r) && foldRune(r) == r: // one titleKey neither drops nor folds
 			return false
 		}
 	}
 	return !greek || !cyrillic // their capitals draw alike: Π and П, Φ and Ф
 }
 
+// prolonged is the katakana-hiragana prolonged sound mark, a letter of the
+// script Common that most Japanese loanwords hold ("ゲーム").
+const prolonged = 'ー'
+
 // isCompatibilityForm reports the second encodings of letters a title may
-// use: Hebrew and Arabic presentation forms, halfwidth Hangul and the
-// conjoining jamo. Each draws as a base letter titleKey folds, but would key
-// apart from it; the base letters and composed syllables stay allowed.
+// use: Hebrew and Arabic presentation forms, halfwidth katakana and Hangul,
+// the conjoining jamo, the CJK compatibility ideographs and the Arabic
+// mathematical letters. Each draws as a base letter, but would key apart
+// from it; the base letters and composed syllables stay allowed.
 func isCompatibilityForm(r rune) bool {
 	return r >= 0xFB1D && r <= 0xFDFF || r >= 0xFE70 && r <= 0xFEFF ||
-		r >= 0xFFA0 && r <= 0xFFDC || r >= 0x1100 && r <= 0x11FF
+		r >= 0xFF61 && r <= 0xFFDC || r >= 0x1100 && r <= 0x11FF ||
+		r >= 0xF900 && r <= 0xFAFF || r >= 0x2F800 && r <= 0x2FA1F ||
+		r >= 0x1EE00 && r <= 0x1EEFF
 }
 
 // modernGreekCyrillic reports whether r, if Greek or Cyrillic, is a letter

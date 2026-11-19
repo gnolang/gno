@@ -47,11 +47,12 @@ const checkEvery = 50
 
 // runRandom applies steps random writes from seed (listings, claims, stars,
 // hides, unhides, picks, images, time passing). After each it checks that
-// the write ended as a write may, and that no listing was deleted; every
-// checkEvery writes, every invariant, that no star was lost, that a slug
-// only moved for a claim, once, and that no core listing changed. tag keeps
-// the names of two runs apart.
-func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, startEpoch int64) {
+// the write ended as a write may, that no listing was deleted and that a
+// slug only changed as one may (reslugClaim, takeSlug); every checkEvery
+// writes, every invariant, that no star was lost, that no slug changed
+// unseen, and that no core listing changed. tag keeps the names of two runs
+// apart. It returns how many times it did each thing.
+func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, startEpoch int64) map[string]int {
 	enableNames(cur)
 	setEpoch(startEpoch)
 	rng := &lcg{s: seed}
@@ -154,13 +155,59 @@ func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, star
 		return claims[rng.n(len(claims))]
 	}
 
+	// movedOr returns the path of a listing of this run under a moved slug,
+	// if any, one time in three: it asks for a slug again.
+	movedOr := func(path string) string {
+		if rng.n(3) > 0 {
+			return path
+		}
+		var moved []string
+		listings.Iterate("", "", func(_ string, v any) bool {
+			if l := v.(*listing); isMovedSlug(l) && owners[l.Namespace] != "" {
+				moved = append(moved, l.Path)
+			}
+			return false
+		})
+		if len(moved) == 0 {
+			return path
+		}
+		return moved[rng.n(len(moved))]
+	}
+
+	hiddenListings := func() []*listing {
+		var hidden []*listing
+		byPath.Iterate("", "", func(_ string, v any) bool {
+			if v.(*listing).hidden {
+				hidden = append(hidden, v.(*listing))
+			}
+			return false
+		})
+		return hidden
+	}
+
+	// The listings a write may give another slug, with the one they had:
+	// its own, and the claim holding the slug it asks for.
+	type watched struct {
+		l   *listing
+		was string
+	}
+	var watch []watched
+	asking := func(path, slug string) {
+		for _, l := range []*listing{lookup(&byPath, path), lookup(&listings, slug)} {
+			if l != nil {
+				watch = append(watch, watched{l, l.Slug})
+			}
+		}
+	}
+	seen := map[string]string{} // path -> the slug a write was seen to give it
+
 	before := slugsByPath()
 	for step := 0; step < steps && !t.Failed(); step++ {
 		size := byPath.Size()
-		op := ""
+		op, target, asked, unhidden := "", "", "", ""
 		switch w := rng.n(100); {
 		case w < 15: // Register
-			path, slug, title, cat := paths[rng.n(len(paths))], slugs[rng.n(len(slugs))], titles[rng.n(len(titles))], cats[rng.n(len(cats))]
+			path, slug, title, cat := movedOr(paths[rng.n(len(paths))]), slugs[rng.n(len(slugs))], titles[rng.n(len(titles))], cats[rng.n(len(cats))]
 			if rng.n(12) == 0 {
 				path = essentials[rng.n(len(essentials))].Path
 			}
@@ -169,15 +216,18 @@ func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, star
 			}
 			if c := claimOr(nil); c != nil && rng.n(2) == 0 {
 				slug = c.Slug // a realm listing itself over a claim's slug
+			} else if hidden := hiddenListings(); len(hidden) > 0 && rng.n(3) == 0 {
+				slug = hidden[rng.n(len(hidden))].Slug // or under the slug a hide released
 			}
-			op = "Register(" + path + "," + slug + "," + title + "," + cat + ")"
+			op, target, asked = "Register("+path+","+slug+","+title+","+cat+")", path, slug
+			asking(path, slug)
 			testing.SetRealm(testing.NewCodeRealm(path))
 			if r := revive(func() { Register(cross(cur), slug, title, "A tagline", cat, rng.n(palettes)) }); r != nil {
 				t.Errorf("Register PANICS: %v", r)
 			}
 			stats["register"]++
 		case w < 30: // Claim
-			path, slug, title, cat := paths[rng.n(len(paths))], slugs[rng.n(len(slugs))], titles[rng.n(len(titles))], cats[rng.n(len(cats))]
+			path, slug, title, cat := movedOr(paths[rng.n(len(paths))]), slugs[rng.n(len(slugs))], titles[rng.n(len(titles))], cats[rng.n(len(cats))]
 			kind := kindApp
 			if strings.Contains(path, "/p/") {
 				kind = kindPackage
@@ -188,7 +238,8 @@ func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, star
 				kind = kindPackage
 			}
 			ns := namespaceOf(path)
-			op = "Claim(" + path + "," + slug + "," + title + "," + cat + "," + kind + ")"
+			op, target, asked = "Claim("+path+","+slug+","+title+","+cat+","+kind+")", path, slug
+			asking(path, slug)
 			refused("claim", tryClaim(cur, owners[ns], path, slug, title, cat, kind))
 		case w < 55: // Star
 			l := claimOr(visibleAt(rng.n(1 << 20)))
@@ -245,18 +296,13 @@ func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, star
 			}
 			stats["hide"]++
 		case w < 83: // unhide
-			var hidden []*listing
-			byPath.Iterate("", "", func(_ string, v any) bool {
-				if v.(*listing).hidden {
-					hidden = append(hidden, v.(*listing))
-				}
-				return false
-			})
+			hidden := hiddenListings()
 			if len(hidden) == 0 {
 				continue
 			}
 			l := hidden[rng.n(len(hidden))]
-			op = "unhide(" + l.Path + ")"
+			op, unhidden = "unhide("+l.Path+")", l.Path
+			asking(l.Path, l.Slug) // a claim that took its slug gives it back, a listing keeps it
 			err := unhide(l.Path)
 			if err != nil {
 				stats["unhide "+err.Error()]++
@@ -292,24 +338,41 @@ func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, star
 		if byPath.Size() < size {
 			t.Errorf("a listing was deleted")
 		}
+		// A slug changes three ways only: a claim's is moved, off the slugs
+		// a listing can ask for, as is that of a listing unhidden once
+		// another took its own, and a moved one becomes the slug its listing
+		// asked for.
+		for _, w := range watch {
+			switch now := w.l.Slug; {
+			case now == w.was:
+				continue
+			case isMovedSlug(w.l) && !strings.Contains(w.was, movedMark) && !w.l.Confirmed && w.l.Path != unhidden:
+				stats["reslug"]++
+			case isMovedSlug(w.l) && !strings.Contains(w.was, movedMark) && w.l.Path == unhidden && !w.l.hidden && lookup(&listings, w.was) != nil:
+				stats["unhide moved"]++
+			case strings.Contains(w.was, movedMark) && w.l.Path == target && now == asked && validSlug(now) && !w.l.hidden:
+				stats["slug back"]++
+			default:
+				t.Errorf("%s moved from %s to %s", w.l.Path, w.was, now)
+			}
+			seen[w.l.Path] = w.l.Slug
+		}
+		watch = watch[:0]
 		if (step+1)%checkEvery != 0 && step != steps-1 {
 			continue
 		}
 
-		// No star is lost, and a slug moves only for a claim, once.
+		// No star is lost, and no slug changed but those seen above.
 		after := slugsByPath()
 		for path, was := range before {
 			now, ok := after[path]
 			if !ok {
 				t.Errorf("%s was deleted", path)
-			} else if now[1:] != was[1:] {
-				stats["reslug"]++
-				if l := lookup(&byPath, path); !isMovedSlug(l) || strings.Contains(was, movedMark) {
-					t.Errorf("%s moved from %s to %s", path, was, now)
-				}
+			} else if now[1:] != was[1:] && now[1:] != seen[path] {
+				t.Errorf("%s moved from %s to %s, unseen", path, was, now)
 			}
 		}
-		before = after
+		before, seen = after, map[string]string{}
 		for path, fans := range model {
 			l := lookup(&byPath, path)
 			if l == nil || l.starCount() != len(fans) {
@@ -337,9 +400,10 @@ func runRandom(cur realm, t *testing.T, tag string, seed uint64, steps int, star
 		t.Logf("seed %d, last operations:\n%s", seed, strings.Join(log[from:], "\n"))
 	}
 	// A run that never did one of these checked less than it says.
-	for _, did := range []string{"claim ok", "register", "star ok", "unstar ok", "hide", "unhide ok", "reslug"} {
+	for _, did := range []string{"claim ok", "register", "star ok", "unstar ok", "hide", "unhide ok"} {
 		if stats[did] == 0 {
 			t.Errorf("seed %d never did %q", seed, did)
 		}
 	}
+	return stats
 }

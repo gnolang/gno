@@ -67,8 +67,9 @@ type voter struct {
 //	store.Register(cross(cur), "acme-swap", "Acme Swap", "Swap tokens in one click", "defi", 3)
 //
 // Calling Register again updates the listing: the original slug and
-// creation time are kept and the slug argument is ignored. A real change
-// counts as an update at most once a week. Register never panics, but the
+// creation time are kept and the slug argument is ignored, unless the store
+// moved the listing's slug (StoreClaimMoved): it then takes the slug it asks
+// for, once free. A real change counts as an update at most once a week. Register never panics, but the
 // deploying transaction pays for what it stores here (about 2 GNOT for a
 // namespace's first listing), so the deploy's -max-deposit must cover it. A
 // refused call emits StoreRegisterRejected with the path, a short reason
@@ -102,7 +103,16 @@ func Register(cur realm, slug, title, tagline, category string, palette int) {
 		chain.Emit("StoreRegisterRejected", attrs...)
 		return
 	}
-	chain.Emit("StoreRegistered", "path", path, "slug", lookup(&byPath, path).Slug)
+	emitListed("StoreRegistered", path)
+}
+
+// emitListed announces path's listing under its slug, once written. A
+// hidden listing is announced under none: its hide released its slug, which
+// another listing may hold by now.
+func emitListed(event, path string, attrs ...string) {
+	if l := lookup(&byPath, path); !l.hidden {
+		chain.Emit(event, append([]string{"path", path, "slug", l.Slug}, attrs...)...)
+	}
 }
 
 // holderOf returns the slug of the listing holding what l was refused for,
@@ -125,9 +135,11 @@ func holderOf(l *listing, reason string) string {
 // Until then a claimed package or service shows nowhere, a claimed app only
 // at the end of its category, and it reserves no title: two claims may share
 // one, which the first confirmed takes. Once confirmed, it reaches the
-// shelves and the builders. Unlike Register, Claim must be called directly,
-// and panics with the reason when it refuses; a core listing cannot be
-// claimed (core_listing).
+// shelves and the builders. A claim gives its slug up to a realm listing
+// itself and moves to one of its own (StoreClaimMoved); claiming again takes
+// the slug asked for, once free. Unlike Register, Claim must be called
+// directly, and panics with the reason when it refuses; a core listing
+// cannot be claimed (core_listing).
 func Claim(cur realm, path, slug, title, tagline, category string, palette int, kind string) {
 	// Ownership is ownsNamespace; a claimed path is not verified beyond its
 	// grammar, so it takes confirmStars ranked stars to confirm (T11).
@@ -146,7 +158,7 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 		}
 		panic("store: " + reason)
 	}
-	chain.Emit("StoreClaimed", "path", path, "slug", lookup(&byPath, path).Slug, "kind", kind)
+	emitListed("StoreClaimed", path, "kind", kind)
 }
 
 // ownsNamespace reports whether addr owns namespace ns: its own address, or
@@ -198,7 +210,9 @@ func SubmitRich(cur realm, icon, cover string) {
 		panic("store: " + reason)
 	}
 	l.submitRich(r, blockTime())
-	chain.Emit("StoreRichSubmitted", "slug", l.Slug, "path", l.Path)
+	if !l.hidden { // as emitListed: a hide released its slug
+		chain.Emit("StoreRichSubmitted", "slug", l.Slug, "path", l.Path)
+	}
 }
 
 // Star an app you like. One star per app, up to 20 new stars a day. Your

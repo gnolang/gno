@@ -55,6 +55,7 @@ func apiHome(now int64) string {
 func apiBuild(now int64) string {
 	var b strings.Builder
 	b.WriteString(`{"version":1`)
+	writeMoved(&b)
 	refs := writeShelves(&b, buildShelves(now))
 	top, fresh := topBuilders()
 	b.WriteString(`,"builders":{"top":`)
@@ -127,6 +128,12 @@ func writeHeader(b *strings.Builder, now int64) {
 	writeInt(b, runtime.ChainHeight())
 	writeKey(b, "time")
 	writeInt(b, now)
+	writeMoved(b)
+}
+
+// writeMoved names the store's successor, if any, on the pages that open a
+// lens: home and build.
+func writeMoved(b *strings.Builder) {
 	if successor != "" {
 		writeKey(b, "moved_to")
 		writeString(b, successor)
@@ -305,7 +312,7 @@ func writeToken(b *strings.Builder, s string) {
 // them no control character and no line separator, so most need no
 // escaping and go in one write.
 func writeText(b *strings.Builder, s string) {
-	if strings.ContainsAny(s, `"\<>&[]`) {
+	if strings.ContainsAny(s, `"\<>&[]$`) {
 		writeString(b, s)
 		return
 	}
@@ -314,16 +321,17 @@ func writeText(b *strings.Builder, s string) {
 
 // writeString writes s as a JSON string. <, > and & are escaped too, so the
 // output is safe to embed in HTML; U+2028 and U+2029 so it is safe in JS;
-// [ and ] so gnoweb, which renders api/ as markdown, makes no link of it.
+// [, ], $ and \ so gnoweb, which renders api/ as markdown, makes no link
+// and no formula of it: a backslash written as two would open one before a
+// ( or a [.
 func writeString(b *strings.Builder, s string) {
 	const hex = "0123456789abcdef"
 	b.WriteByte('"')
 	for _, r := range s {
 		switch {
-		case r == '"' || r == '\\':
-			b.WriteByte('\\')
-			b.WriteRune(r)
-		case r < 0x20 || r == '<' || r == '>' || r == '&' || r == '[' || r == ']' || r == 0x2028 || r == 0x2029:
+		case r == '"':
+			b.WriteString(`\"`)
+		case r < 0x20 || r == '\\' || r == '<' || r == '>' || r == '&' || r == '[' || r == ']' || r == '$' || r == 0x2028 || r == 0x2029:
 			b.WriteString(`\u`)
 			for shift := 12; shift >= 0; shift -= 4 {
 				b.WriteByte(hex[(r>>uint(shift))&0xf])

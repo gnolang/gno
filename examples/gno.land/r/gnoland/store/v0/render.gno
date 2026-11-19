@@ -134,9 +134,30 @@ func renderPaged(l list, base, query string) string {
 // writeItems lists listings, each linked to its own realm or package page.
 func writeItems(b *strings.Builder, ls []*listing) {
 	for _, l := range ls {
-		href := strings.TrimPrefix(l.Path, runtime.ChainDomain())
-		b.WriteString(md.BulletItem(md.Bold(md.Link(l.Title, href)) + " — " + md.EscapeText(l.Tagline)))
+		href := strings.TrimPrefix(l.Path, runtime.ChainDomain()) // holds no $ (namespaceOf)
+		b.WriteString(md.BulletItem(escapeMath(md.Bold(md.Link(l.Title, href)) + " — " + md.EscapeText(l.Tagline))))
 	}
+}
+
+// escapeMath escapes each $ that sanitized inline text leaves bare: gnoweb
+// reads $…$ as a formula, and the sanitizer escapes none today ("Swap $GNOT
+// for $ATOM"). One it already escaped, after an odd run of backslashes, is
+// left as it is, so a sanitizer that learns to is not escaped twice.
+func escapeMath(s string) string {
+	if !strings.Contains(s, "$") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + strings.Count(s, "$"))
+	escaped := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '$' && !escaped {
+			b.WriteByte('\\')
+		}
+		escaped = s[i] == '\\' && !escaped
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 // maxBlock is the most apps a Block lists.

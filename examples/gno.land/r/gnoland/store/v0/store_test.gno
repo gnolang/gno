@@ -302,6 +302,11 @@ func TestTitleRules(t *testing.T) {
 		uassert.Equal(t, titleKey(pair[0]), titleKey(pair[1]), pair[1])
 	}
 	uassert.NotEqual(t, titleKey("Gnoland"), titleKey("Gnome"))
+	// Of the typographic quotes, a title holds the four titleKey folds: the
+	// low and reversed ones would key apart from the mark they draw as.
+	for r := '‘'; r <= '‟'; r++ {
+		uassert.Equal(t, foldRune(r) != r, validTitle("Acme"+string(r)+" Swap"), string(r))
+	}
 }
 
 // Each copy the reviews found of a listed title is refused, or keys as the
@@ -324,10 +329,72 @@ func TestTitleLookalikes(t *testing.T) {
 		{"Gnoland", "Gnoأand"},                               // alef with hamza
 		{"ПОРТ", "ΠΟΡΤ"}, {"ГОРА", "ΓΟΡΑ"}, {"ПОРТ", "ΠОРТ"}, // Greek and Cyrillic, alike or mixed
 		{"カメラ", "力メラ"}, {"ヘルプ", "へルプ"}, // Han and hiragana drawn as katakana
-		{"Bob's Swap", "Bob’s Swap"}, // a typographic apostrophe
+		{"Bob's Swap", "Bob’s Swap"},                                                             // a typographic apostrophe
+		{"Bob's Swap", "Bob`s Swap"}, {"Bob‘s Swap", "Bob‛s Swap"}, {"Acme, Swap", "Acme‚ Swap"}, // a grave accent, the low and reversed quotes
+		{"Open", "Ореп"}, {"Open", "Ορεη"}, {"Book", "Ьоок"}, {"Tor", "Тог"}, {"Tor", "Тоґ"}, {"Tor", "Тоѓ"}, // Cyrillic pe, soft sign and ghe, Greek eta
+		{"HOT", "ΗΟΤ"}, // whose capital stays an H
+		// Found by an adversarial pass against Unicode's confusables, each
+		// drawn as its original, or within a pixel at text size.
+		{"\u91D1\u878D Swap", "\uF90A\u878D Swap"},                                 // cjk-compat
+		{"\u4EA4\u6613\u6240", "\u4EA4\uF9E0\u6240"},                               // cjk-compat
+		{"\u092C\u093E\u091C\u093C\u093E\u0930", "\u092C\u093E\u095B\u093E\u0930"}, // nukta
+		{"\u0E41\u0E21\u0E27", "\u0E40\u0E40\u0E21\u0E27"},                         // thai-sara-ae
+		{"\u0643\u062A\u0627\u0628", "\u06A9\u062A\u0627\u0628"},                   // keheh
+		{"\u0628\u064A\u062A", "\u0628\u06CC\u062A"},                               // farsi-yeh
+		{"\u0639\u0644\u064A", "\u0639\u0644\u0649"},                               // alef-maksura
+		{"\u0420\u042B\u041D\u041E\u041A", "\u0420\u042C\u0406\u041D\u041E\u041A"}, // yeru
+		{"The \"Real\" Swap", "The ''Real'' Swap"},                                 // double-quote
+		{"ACME 3", "\u0410\u0421\u041C\u0415 \u0417"},                              // ze
+		{"\u0422\u041E\u041F 3", "\u0422\u041E\u041F \u0417"},                      // ze
+		{"\u30D2\u30C3\u30C8", "\u5315\u30C3\u30C8"},                               // han-hi
+		{"\u30A4\u30AB", "\u4EBB\u30AB"},                                           // han-i
+		{"\u30E0\u30E9", "\u53B6\u30E9"},                                           // han-mu
+		{"Bob's Swap", "Bob\u05D9s Swap"},                                          // yod
+		{"Rock 'n Roll", "Rock \u0149 Roll"},                                       // n-apostrophe
+		{"\u043A\u043E\u043D\u044C", "\u043A\u043E\u045A"},                         // nje
+		{"\u041E\u0431\u044C\u0435\u043C", "\u041E\u0431\u044A\u0435\u043C"},       // hard-sign
+		{"Swap", "\u093Dwap"},                                                      // avagraha
+		{"TOKEN", "\u4E05OKEN"},                                                    // han-t
+		{"TOKEN", "\u4E01OKEN"},                                                    // han-ding
+		{"ZONE", "\u4E59ONE"},                                                      // han-yi
+		{"Gno+", "Gno\u5341"},                                                      // han-ten
+		{"\u53E3\u30B3\u30DF", "\u56D7\u30B3\u30DF"},                               // han-mouth
+		{"Gnoland", "Gno\u0672and"},                                                // alef-wavy
+		{"Gnoland", "Gno\u0675and"},                                                // alef-high
+		{"Why?", "Why\u097D"},                                                      // glottal
+		{"Block Explorer", "\u042B\u043E\u0441\u043A \u0415\u0445\u0440\u0406\u043E\u0433\u0435\u0433"}, // yeru-bl
+		{"Area 6", "\u0410\u0433\u0435\u0430 \u0431"},                                                   // be
+		{"YES", "\u4E2BES"},                                // han-y
+		{"AC/DC", "AC\u30CEDC"},                            // katakana-no
+		{"AC/DC", "AC\u4E3FDC"},                            // han-pie
+		{"Gnoland", "Gn\u06BEland"},                        // heh-doachashmee
+		{"Wallet", "Wa\u05F0et"},                           // double-vav
+		{"The \"Real\" Swap", "The \u05F2Real\u05F2 Swap"}, // double-yod
+		{"\u30AB\u30E1\u30E9", "\uFF76\uFF92\uFF97"},       // halfwidth
+		{"\u4E3D\u6C5F", "\U0002F800\u6C5F"},               // cjk-compat-supp
+		{"Gnoland", "Gno\U0001EE00and"},                    // arabic-math
 	} {
 		uassert.True(t, !validTitle(pair[1]) || titleKey(pair[1]) == titleKey(pair[0]), pair[1])
 	}
+	// A CJK compatibility ideograph is a second code point of an ideograph,
+	// drawn as it: a title holds none.
+	for _, block := range [][2]rune{{0xF900, 0xFAFF}, {0x2F800, 0x2FA1F}} {
+		for r := block[0]; r <= block[1]; r++ {
+			uassert.False(t, validTitle("\u91D1"+string(r)), strconv.Itoa(int(r)))
+		}
+	}
+	uassert.Equal(t, titleKey("\u03B7"), titleKey("\u03AE"), "eta with or without tonos")
+}
+
+// The prolonged sound mark, which most Japanese loanwords hold, is a letter
+// of the script Common: a title holds it, and it keys as the dash it draws
+// as, like the Han one.
+func TestJapaneseLongVowel(t *testing.T) {
+	for _, title := range []string{"\u30B2\u30FC\u30E0", "\u30C8\u30FC\u30AF\u30F3", "\u30E6\u30FC\u30B6\u30FC", "\u3089\u30FC\u3081\u3093", "\u30B2\u30FC\u30E0 Swap"} {
+		uassert.True(t, validTitle(title), title)
+	}
+	uassert.Equal(t, titleKey("\u30B2\u30FC\u30E0"), titleKey("\u30B2\u4E00\u30E0"))
+	uassert.False(t, validTitle("\uFF79\uFF70\uFF91"), "halfwidth katakana")
 }
 
 func TestNamespaceCap(cur realm, t *testing.T) {
@@ -511,17 +578,85 @@ func TestHideReleasesTitleAndSlot(cur realm, t *testing.T) {
 	uassert.ErrorContains(t, unhide("gno.land/r/crowded/app1"), "store: namespace_full")
 }
 
-// TestHideReleasesSlug checks that hiding a squatter frees its slug for the
-// real app, and that Unhide then refuses.
+// TestHideReleasesSlug checks that hiding a squatter frees its slug and its
+// title for the real app, for good. An unhide gives neither back: it waits
+// for another title, which the hidden realm can take, and brings the listing
+// back under a slug of its own, since no one can register one to keep it
+// hidden.
 func TestHideReleasesSlug(cur realm, t *testing.T) {
-	registerFrom(cur, "gno.land/r/squatter/app", "brand-swap", "Brand Swap")
+	const squat = "gno.land/r/squatter/app"
+	registerFrom(cur, squat, "brand-swap", "Brand Swap")
 	uassert.NoError(t, hide("brand-swap", "impersonation"))
 	uassert.ErrorContains(t, hide("brand-swap", "other"), "unknown listing")
 
 	registerFrom(cur, "gno.land/r/brand/swap", "brand-swap", "Brand Swap")
-	uassert.Equal(t, "gno.land/r/brand/swap", bySlugOrPanic("brand-swap").Path)
+	real := bySlugOrPanic("brand-swap")
+	uassert.Equal(t, "gno.land/r/brand/swap", real.Path)
 
-	uassert.ErrorContains(t, unhide("gno.land/r/squatter/app"), "store: slug_taken")
+	l := lookup(&byPath, squat)
+	movedBefore, visibleBefore := moved, listings.Size()
+	uassert.ErrorContains(t, unhide(squat), "store: title_taken")
+	uassert.True(t, l.hidden && l.Slug == "brand-swap" && moved == movedBefore && listings.Size() == visibleBefore,
+		"a refused unhide changes nothing")
+	registerFrom(cur, squat, "", "Brand Fork")
+	uassert.NoError(t, unhide(squat))
+	uassert.True(t, strings.HasPrefix(l.Slug, "brand-swap--"), l.Slug)
+	uassert.True(t, bySlugOrPanic(l.Slug) == l && bySlugOrPanic("brand-swap") == real)
+	uassert.Equal(t, l.Slug, titleHolder(l))
+	uassert.True(t, lookup(&apps.created, descKey(l.Created, l.Slug)) == l)
+
+	registerFrom(cur, squat, "brand-swap", "Brand Fork") // still held
+	uassert.True(t, strings.HasPrefix(l.Slug, "brand-swap--"), l.Slug)
+	registerFrom(cur, squat, "brand-fork", "Brand Fork")
+	uassert.Equal(t, "brand-fork", l.Slug)
+
+	// A claim's slug may go to another claim while it is hidden.
+	owner, other := testutils.TestAddress("hidslugowner"), testutils.TestAddress("hidslugother")
+	path := "gno.land/p/" + owner.String() + "/lib"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "hid-lib", "Hid Lib", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.NoError(t, hide("hid-lib", "other"))
+	testing.SetRealm(testing.NewUserRealm(other))
+	Claim(cross(cur), "gno.land/p/"+other.String()+"/lib", "hid-lib", "Other Lib", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.NoError(t, unhide(path))
+	uassert.True(t, strings.HasPrefix(lookup(&byPath, path).Slug, "hid-lib--"))
+	uassert.Equal(t, "gno.land/p/"+other.String()+"/lib", bySlugOrPanic("hid-lib").Path)
+
+	// A confirmed listing whose slug a claim took while it was hidden comes
+	// back under it, and the claim moves, as on a Register.
+	registerFrom(cur, "gno.land/r/hidback/app", "hid-back", "Hid Back")
+	back := bySlugOrPanic("hid-back")
+	uassert.NoError(t, hide("hid-back", "other"))
+	testing.SetRealm(testing.NewUserRealm(other))
+	Claim(cross(cur), "gno.land/r/"+other.String()+"/back", "hid-back", "Hid Claim", "A tagline", "utilities", 1, kindApp)
+	claim := bySlugOrPanic("hid-back")
+	uassert.NoError(t, unhide("gno.land/r/hidback/app"))
+	uassert.True(t, bySlugOrPanic("hid-back") == back && back.Slug == "hid-back")
+	uassert.True(t, strings.HasPrefix(claim.Slug, "hid-back--"), claim.Slug)
+	uassert.True(t, bySlugOrPanic(claim.Slug) == claim)
+}
+
+// A claim with the stars to be confirmed, hidden while another listing
+// holds its title, is not confirmed by its owner's Claim: it would then need
+// that title to come back.
+func TestHiddenClaimWaitsForItsUnhide(cur realm, t *testing.T) {
+	owner := testutils.TestAddress("waitclaim")
+	path := "gno.land/p/" + owner.String() + "/lib"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "wait-claim", "Wait Title", "A tagline", "dev-tools", 1, kindPackage)
+	registerFrom(cur, "gno.land/r/waitholder/app", "wait-holder", "Wait Title")
+	starFrom(cur, "wait-claim", "waitfana", "waitfanb", "waitfanc")
+	claim := lookup(&byPath, path)
+	uassert.NoError(t, hide("wait-claim", "other"))
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "wait-claim", "Wait Title", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.False(t, claim.Confirmed)
+	uassert.NoError(t, unhide(path))
+	uassert.False(t, claim.Confirmed, "its title is still held")
+	registerFrom(cur, "gno.land/r/waitholder/app", "", "Wait Holder")
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "wait-claim", "Wait Title", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.True(t, claim.Confirmed)
 }
 
 func TestSubmitRich(cur realm, t *testing.T) {
@@ -826,16 +961,47 @@ func TestHomeJSON(t *testing.T) {
 func TestJSONEscaping(cur realm, t *testing.T) {
 	var b strings.Builder
 	writeString(&b, "<\"\\>&\x01\u2028é")
-	uassert.Equal(t, `"\u003c\"\\\u003e\u0026\u0001\u2028é"`, b.String())
+	uassert.Equal(t, `"\u003c\"\u005c\u003e\u0026\u0001\u2028é"`, b.String())
 	b.Reset()
 	writeString(&b, "[Claim](https://example.org)")
 	uassert.Equal(t, `"\u005bClaim\u005d(https://example.org)"`, b.String()) // gnoweb renders api/ as markdown: no link
 
 	registerFrom(cur, "gno.land/r/escape/app", "escape-app", `A<"\>B`)
-	contains(t, listingJSON("escape-app"), `"title":"A\u003c\"\\\u003eB"`)
+	contains(t, listingJSON("escape-app"), `"title":"A\u003c\"\u005c\u003eB"`)
 	var item strings.Builder
 	writeItems(&item, []*listing{bySlugOrPanic("escape-app")})
 	contains(t, item.String(), `[A\<"\\\>B](/r/escape/app)`)
+}
+
+// gnoweb draws $…$, \(…\) and \[…\] as formulas: owner text opens none, in
+// the markdown or on the api/ pages, which gnoweb renders as markdown too.
+func TestNoFormulaFromOwnerText(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/mathns/app"))
+	Register(cross(cur), "math-app", "Math $x^2$ App", `Pay \(a\) or \[b\] in $GNOT$`, "utilities", 4)
+	l := bySlugOrPanic("math-app")
+
+	var item strings.Builder
+	writeItems(&item, []*listing{l})
+	contains(t, item.String(), `[Math \$x^2\$ App](/r/mathns/app)`)
+	contains(t, item.String(), `in \$GNOT\$`)
+
+	json := listingJSON("math-app")
+	uassert.False(t, strings.Contains(json, "$") || strings.Contains(json, `\\`), json) // no $, no backslash written as two
+	contains(t, json, `"title":"Math \u0024x^2\u0024 App"`)
+	contains(t, json, `Pay \u005c(a\u005c) or \u005c\u005bb\u005c\u005d in`)
+
+	// A $ the sanitizer escaped is left alone; one after an escaped
+	// backslash is bare.
+	for in, want := range map[string]string{
+		`a$b`:       `a\$b`,
+		`a\$b`:      `a\$b`,
+		`a\\$b`:     `a\\\$b`,
+		`a\\\$b`:    `a\\\$b`,
+		`$`:         `\$`,
+		`no dollar`: `no dollar`,
+	} {
+		uassert.Equal(t, want, escapeMath(in), in)
+	}
 }
 
 func jsonSlugs(ls []*listing) string {
@@ -1203,14 +1369,24 @@ func TestRegisterMovesSquattingClaim(cur realm, t *testing.T) {
 	uassert.Equal(t, "real-app", titleHolder(claim))
 
 	// A moved claim is still its owner's to change, and its realm's to
-	// confirm, under the slug it was given.
+	// confirm. It keeps the slug it was given while the one it asks for is
+	// held or is no slug, and takes it once free, for good.
 	testing.SetRealm(testing.NewUserRealm(squatter))
-	Claim(cross(cur), squat, "ignored", "Real App Fork", "Another tagline", "utilities", 1, kindApp)
+	Claim(cross(cur), squat, "real-app", "Real App Fork", "Another tagline", "utilities", 1, kindApp)
 	uassert.Equal(t, "Another tagline", claim.Tagline)
 	uassert.True(t, claim.Confirmed, "under a free title, its three stars confirm it")
-	registerIn(cur, squat, "ignored", "Real App Fork", "utilities")
+	uassert.Equal(t, moved, claim.Slug)
+	registerIn(cur, squat, "Not A Slug", "Real App Fork", "utilities")
 	uassert.True(t, claim.selfListed)
 	uassert.Equal(t, moved, claim.Slug)
+	registerIn(cur, squat, "real-fork", "Real App Fork", "utilities")
+	uassert.Equal(t, "real-fork", claim.Slug)
+	uassert.True(t, bySlugOrPanic("real-fork") == claim)
+	uassert.False(t, listings.Has(moved))
+	uassert.Equal(t, "real-fork", titleHolder(claim), "indexed under its new slug")
+	uassert.True(t, lookup(&apps.created, descKey(claim.Created, "real-fork")) == claim)
+	registerIn(cur, squat, "real-again", "Real App Fork", "utilities")
+	uassert.Equal(t, "real-fork", claim.Slug, "a slug it asked for is kept")
 
 	// A confirmed listing holds its title and its slug.
 	registerFrom(cur, "gno.land/r/realcopy/app", "real-copy", "Real App")
@@ -1266,6 +1442,174 @@ func TestClaimLosesConfirmationWithItsStars(cur realm, t *testing.T) {
 	uassert.True(t, bySlugOrPanic("self-listed").Confirmed)
 }
 
+// A package is only ever a claim. One that lost its confirmation, then its
+// slug to a realm, takes it back once that realm is hidden: by its owner's
+// next Claim, even one that changes nothing.
+func TestMovedClaimTakesItsSlugBack(cur realm, t *testing.T) {
+	owner := testutils.TestAddress("jsonkit")
+	path := "gno.land/p/" + owner.String() + "/jsonkit"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "jsonkit", "JSON Kit", "A tagline", "dev-tools", 1, kindPackage)
+	starFrom(cur, "jsonkit", "kitfana", "kitfanb", "kitfanc")
+	pkg := lookup(&byPath, path)
+	uassert.True(t, pkg.Confirmed)
+	testing.SetRealm(testing.NewUserRealm(nameUser(cur, "kitfana")))
+	Unstar(cross(cur), "jsonkit")
+	registerFrom(cur, "gno.land/r/kitsquat/app", "jsonkit", "Kit Squat")
+	moved := pkg.Slug
+	uassert.True(t, strings.HasPrefix(moved, "jsonkit--"), moved)
+
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "jsonkit", "JSON Kit", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.Equal(t, moved, pkg.Slug, "held by a confirmed listing")
+	uassert.NoError(t, hide("jsonkit", "impersonation"))
+	paused = true
+	testing.SetRealm(testing.NewUserRealm(owner))
+	uassert.AbortsContains(t, cur, "store: paused", func() {
+		Claim(cross(cur), path, "jsonkit", "JSON Kit", "A tagline", "dev-tools", 1, kindPackage)
+	})
+	paused = false
+	uassert.Equal(t, moved, pkg.Slug, "nothing moves during a pause")
+
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "jsonkit", "JSON Kit", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.Equal(t, "jsonkit", pkg.Slug)
+	uassert.True(t, bySlugOrPanic("jsonkit") == pkg)
+	uassert.False(t, listings.Has(moved))
+	uassert.Equal(t, 2, pkg.starCount(), "with its stars")
+
+	// As a new claim, it takes no slug from another claim; confirmed, it
+	// does, and that claim moves in turn.
+	other := testutils.TestAddress("kitother")
+	otherPath := "gno.land/r/" + other.String() + "/app"
+	testing.SetRealm(testing.NewUserRealm(other))
+	Claim(cross(cur), otherPath, "kit-two", "Kit Two", "A tagline", "utilities", 1, kindApp)
+	registerFrom(cur, "gno.land/r/kitthree/app", "kit-two", "Kit Three") // moves it
+	otherClaim := lookup(&byPath, otherPath)
+	testing.SetRealm(testing.NewUserRealm(other))
+	Claim(cross(cur), otherPath, "jsonkit", "Kit Two", "A tagline", "utilities", 1, kindApp)
+	uassert.True(t, strings.Contains(otherClaim.Slug, movedMark), "a claim holds jsonkit")
+	registerIn(cur, otherPath, "jsonkit", "Kit Two", "utilities")
+	uassert.Equal(t, "jsonkit", otherClaim.Slug, "its realm confirms it: the claim gives way")
+	uassert.True(t, strings.HasPrefix(pkg.Slug, "jsonkit--"), pkg.Slug)
+	uassert.True(t, bySlugOrPanic(pkg.Slug) == pkg)
+
+	// A hidden listing takes none: its unhide decides.
+	uassert.NoError(t, hidePath(path, "other"))
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "jsonkit", "JSON Kit", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.True(t, strings.HasPrefix(pkg.Slug, "jsonkit--"), pkg.Slug)
+}
+
+// movedClaim lists a claim of owner o at path under slug and has a realm
+// take that slug, so the claim holds a moved one.
+func movedClaim(cur realm, t *testing.T, o address, path, slug, title string) *listing {
+	t.Helper()
+	uassert.Equal(t, "", tryClaim(cur, o, path, slug, title, "utilities", kindApp))
+	registerFrom(cur, "gno.land/r/sq"+strings.ReplaceAll(slug, "-", "")+"/app", slug, title+" Squat")
+	l := lookup(&byPath, path)
+	uassert.True(t, isMovedSlug(l) && bySlugOrPanic(l.Slug) == l, l.Slug)
+	return l
+}
+
+// claimAgain claims path again, saying what it already says, and asking
+// for slug.
+func claimAgain(cur realm, o address, path, slug string) string {
+	l := lookup(&byPath, path)
+	return tryClaim(cur, o, path, slug, l.Title, l.Category, l.Kind)
+}
+
+func noBrokenInvariant(t *testing.T, step string) {
+	t.Helper()
+	for _, m := range checkInvariants(blockTime()) {
+		t.Errorf("%s: %s", step, m)
+	}
+}
+
+// A hidden core listing keeps its slug: a moved listing asking for it, as a
+// claim, confirmed by stars or by its realm, keeps its own. (From an
+// adversarial pass: slugTaken's core loop comparing the wrong slug passed
+// every other test.)
+func TestHiddenCoreSlugIsNeverTaken(cur realm, t *testing.T) {
+	setEpoch(5500) // after every other star, for the full checks
+	core := coreSnapshot()
+	o := testutils.TestAddress("hidcoreslug")
+	p := "gno.land/r/" + o.String() + "/app"
+	l := movedClaim(cur, t, o, p, "hidcore-a", "Hid Core A")
+	moved := l.Slug
+	cores := []*listing{bySlugOrPanic("boards"), bySlugOrPanic("coins"), bySlugOrPanic("markdown")}
+	for _, c := range cores {
+		uassert.NoError(t, hidePath(c.Path, "other"))
+	}
+	ask := func(as string) {
+		for _, c := range cores {
+			uassert.Equal(t, "", claimAgain(cur, o, p, c.Slug), as)
+			uassert.Equal(t, moved, l.Slug, as+" asks for "+c.Slug)
+			uassert.False(t, listings.Has(c.Slug), as)
+		}
+		noBrokenInvariant(t, as)
+	}
+	ask("a claim")
+	starFrom(cur, moved, "hidcorefana", "hidcorefanb", "hidcorefanc")
+	uassert.True(t, l.Confirmed)
+	ask("a star-confirmed claim")
+	registerIn(cur, p, "coins", "Hid Core A", "utilities")
+	uassert.Equal(t, moved, l.Slug, "its realm asks for coins")
+	for _, c := range cores {
+		uassert.NoError(t, unhide(c.Path))
+		uassert.True(t, bySlugOrPanic(c.Slug) == c)
+	}
+	uassert.Equal(t, core, coreSnapshot())
+	noBrokenInvariant(t, "cores back")
+}
+
+// A hidden moved listing takes no slug and reserves none; unhidden, it takes
+// the slug it asks for. (From an adversarial pass: takeSlug without its
+// hidden check passed every other test.)
+func TestHiddenMovedListing(cur realm, t *testing.T) {
+	setEpoch(5500) // after every other star, for the full checks
+	o := testutils.TestAddress("hidmoved")
+	p := "gno.land/r/" + o.String() + "/app"
+	l := movedClaim(cur, t, o, p, "hidmoved-a", "Hid Moved A")
+	moved := l.Slug
+	uassert.NoError(t, hidePath(p, "other"))
+	uassert.Equal(t, "", claimAgain(cur, o, p, "hidmoved-free"))
+	uassert.Equal(t, "", tryClaim(cur, o, p, "hidmoved-free", "Hid Moved A", "dev-tools", kindApp))
+	registerIn(cur, p, "hidmoved-free", "Hid Moved A", "dev-tools")
+	uassert.True(t, l.Confirmed && l.hidden)
+	uassert.Equal(t, moved, l.Slug)
+	uassert.False(t, listings.Has("hidmoved-free") || listings.Has(moved))
+	noBrokenInvariant(t, "hidden")
+
+	registerFrom(cur, "gno.land/r/hidmovedtaker/app", "hidmoved-free", "Hid Moved Taker") // it reserved nothing
+	uassert.NoError(t, unhide(p))
+	uassert.True(t, bySlugOrPanic(moved) == l)
+	registerIn(cur, p, "hidmoved-mine", "Hid Moved A", "dev-tools")
+	uassert.Equal(t, "hidmoved-mine", l.Slug)
+	uassert.False(t, listings.Has(moved))
+	noBrokenInvariant(t, "took a slug after its unhide")
+}
+
+// A hidden claim with the stars to be confirmed, and its title held, comes
+// back once its owner fixed it while hidden: claiming it again confirms
+// nothing. (From an adversarial pass.)
+func TestClaimAgainWhileHiddenKeepsItsUnhide(cur realm, t *testing.T) {
+	setEpoch(5500) // after every other star, for the full checks
+	o := testutils.TestAddress("claimagainhid")
+	p := "gno.land/r/" + o.String() + "/app"
+	uassert.Equal(t, "", tryClaim(cur, o, p, "again-claim", "Again Hidden", "utilities", kindApp))
+	registerFrom(cur, "gno.land/r/againholder/app", "again-holder", "Again Hidden")
+	starFrom(cur, "again-claim", "againfana", "againfanb", "againfanc")
+	c := lookup(&byPath, p)
+	uassert.NoError(t, hide("again-claim", "broken"))
+	testing.SetRealm(testing.NewUserRealm(o))
+	Claim(cross(cur), p, "again-claim", "Again Hidden", "Fixed now", "utilities", 1, kindApp)
+	uassert.False(t, c.Confirmed)
+	uassert.NoError(t, unhide(p))
+	uassert.False(t, c.Confirmed, "its title is still held")
+	noBrokenInvariant(t, "unhidden")
+}
+
 // A star given before the name counted ranks once starred again.
 func TestStarAgainOnceTheNameCounts(cur realm, t *testing.T) {
 	registerFrom(cur, "gno.land/r/starlater/app", "star-later", "Star Later")
@@ -1305,6 +1649,7 @@ func TestCoreNamespacesHaveNoCap(cur realm, t *testing.T) {
 func TestSuccessor(cur realm, t *testing.T) {
 	uassert.AbortsContains(t, cur, "a successor is a realm path", func() { ProposeSuccessor(cross(cur), "gno.land/p/gnoland/store/v1") })
 	uassert.AbortsContains(t, cur, "a successor is a realm path", func() { ProposeSuccessor(cross(cur), "/r/gnoland/store/v1") })
+	uassert.AbortsContains(t, cur, "a successor is a realm path", func() { ProposeSuccessor(cross(cur), runtime.ChainDomain()+storeURL) }) // never itself
 	ProposeSuccessor(cross(cur), "gno.land/r/gnoland/store/v1")
 
 	successor = "gno.land/r/gnoland/store/v1"
@@ -1315,6 +1660,7 @@ func TestSuccessor(cur realm, t *testing.T) {
 	contains(t, Block("latest", 1), moved)
 	uassert.Equal(t, moved, Badge("gno.land/r/gnoland/blog"))
 	contains(t, Render("api/v1/home"), `"moved_to":"gno.land/r/gnoland/store/v1"`)
+	contains(t, Render("api/v1/build"), `"moved_to":"gno.land/r/gnoland/store/v1"`)
 }
 
 // Only the seed's listings are core: gnoweb's Core badge reads this flag,
@@ -1452,7 +1798,9 @@ func TestRelistIsIdempotent(cur realm, t *testing.T) {
 func TestTitleKeyASCII(t *testing.T) {
 	for r := rune(0); r < utf8.RuneSelf; r++ {
 		want := ""
-		if c := foldRune(unicode.ToLower(r)); c != 0 {
+		if c := foldRune(unicode.ToLower(r)); c == '"' {
+			want = "''" // as titleKey writes a double quote
+		} else if c != 0 {
 			want = string(c)
 		}
 		uassert.Equal(t, want, titleKey(string(r)), strconv.Itoa(int(r)))
@@ -1502,6 +1850,32 @@ func TestUnhide(cur realm, t *testing.T) {
 	uassert.NoError(t, unhide(path))
 	uassert.True(t, claim.Confirmed)
 	uassert.Equal(t, "unhide-claim", titleHolder(claim))
+
+	// A claim held no title before its hide: registering it meanwhile keeps
+	// no one from unhiding the claim, which stays one. Its realm's listing,
+	// confirmed while hidden, would hold the title, so that one waits.
+	shared := "gno.land/r/" + owner.String() + "/shared"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), shared, "shared-claim", "Shared Title", "A tagline", "utilities", 1, kindApp)
+	uassert.NoError(t, hide("shared-claim", "other"))
+	registerFrom(cur, "gno.land/r/sharedholder/app", "shared-holder", "Shared Title")
+	uassert.NoError(t, unhide(shared))
+	sc := bySlugOrPanic("shared-claim")
+	uassert.False(t, sc.Confirmed)
+	uassert.Equal(t, "shared-holder", titleHolder(sc))
+	testing.SetRealm(testing.NewUserRealm(owner))
+	uassert.AbortsContains(t, cur, "store: title_taken", func() { // a new claim still takes no held title
+		Claim(cross(cur), "gno.land/r/"+owner.String()+"/sharedtwo", "shared-two", "Shared Title", "A tagline", "utilities", 1, kindApp)
+	})
+
+	uassert.NoError(t, hide("shared-claim", "other"))
+	registerIn(cur, shared, "", "Shared Title", "utilities") // refused: the title changes hands
+	uassert.False(t, sc.Confirmed)
+	registerFrom(cur, "gno.land/r/sharedholder/app", "", "Shared Holder") // frees the title
+	registerIn(cur, shared, "", "Shared Title", "utilities")
+	uassert.True(t, sc.Confirmed && sc.hidden)
+	registerFrom(cur, "gno.land/r/sharedlate/app", "shared-late", "Shared Title") // takes it while the listing is hidden
+	uassert.ErrorContains(t, unhide(shared), reasonTitleTaken)
 }
 
 // A refused Claim names the confirmed listing holding the title: the owner
@@ -1638,9 +2012,21 @@ func TestResponseGrowsByDoubling(t *testing.T) {
 // Random sequences of every write, with every index rebuilt and compared
 // as they go. They run last: they move the clock far ahead.
 func TestRandomWrites(cur realm, t *testing.T) {
-	runRandom(cur, t, "a", 1, 150, 7100)
-	runRandom(cur, t, "b", 0xdecafbad, 150, 9000)
-	runRandom(cur, t, "c", 31337, 150, 11000)
+	did := map[string]int{}
+	for _, run := range []map[string]int{
+		runRandom(cur, t, "a", 1, 150, 7100),
+		runRandom(cur, t, "b", 0xdecafbad, 150, 9000),
+		runRandom(cur, t, "c", 31337, 150, 11000),
+	} {
+		for what, n := range run {
+			did[what] += n
+		}
+	}
+	// Rarer than what each run must do (runRandom), and set by what the
+	// suite left before: once in all is enough.
+	uassert.True(t, did["reslug"] > 0, "no claim was moved")
+	uassert.True(t, did["slug back"] > 0, "no moved listing took a slug back")
+	uassert.True(t, did["unhide moved"] > 0, "no listing came back from a hide under a moved slug")
 }
 
 // TestInvariants checks what the whole suite left: each index holds exactly

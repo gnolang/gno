@@ -2,7 +2,8 @@
 # unhide a listing, feature an app as the front page's hero, pause and
 # unpause listings and name a successor, or take it back, once voted and
 # executed (ADR-004 §3, §5). An app a pause refused lists itself again with
-# the Relist of the store's snippet.
+# the Relist of the store's snippet, which announces nothing once the app is
+# hidden.
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/impl/v0
@@ -107,6 +108,7 @@ stdout OK!
 # Once the pause is lifted, anyone lists the refused app by calling its Relist
 gnokey maketx call -pkgpath gno.land/r/acme/lateapp -func Relist -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
 stdout OK!
+stdout '\{"type":"StoreRegistered","attrs":\[\{"key":"path","value":"gno\.land/r/acme/lateapp"\},\{"key":"slug","value":"late-app"\}\]'
 gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/utilities/1'
 stdout '"slug":"late-app"'
 
@@ -133,6 +135,41 @@ gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
 ! stdout '"moved_to"'
 gnokey query vm/qeval --data 'gno.land/r/gnoland/store/v0.ListingCount()'
 stdout '\(1[0-9] int\)'
+
+# The store is never its own successor
+! gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/self_successor.gno
+stderr 'a successor is a realm path'
+
+# A hide released the app's slug: its Relist still succeeds, and announces
+# it under none
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_hide_late.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 8 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 8 -chainid=tendermint_test test1
+stdout OK!
+stdout '"type":"StoreHidden"'
+gnokey maketx call -pkgpath gno.land/r/acme/lateapp -func Relist -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+! stdout 'StoreRegistered'
+gnokey maketx call -pkgpath gno.land/r/acme/lateapp -func Image -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+! stdout 'StoreRichSubmitted'
+
+# Another app takes the released slug; the unhide, which names the path to
+# voters, brings the hidden app back under a slug of its own
+gnokey maketx addpkg -pkgdir $WORK/lateclone -pkgpath gno.land/r/acme/lateclone -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+stdout '"type":"StoreRegistered"'
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unhide_late.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:9'
+stdout 'Unhide gno.*land/r/acme/lateapp in the store' # GovDAO escapes the dot
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 9 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 9 -chainid=tendermint_test test1
+stdout OK!
+stdout '\{"type":"StoreUnhidden","attrs":\[\{"key":"slug","value":"late-app--[0-9]+"\},\{"key":"path","value":"gno\.land/r/acme/lateapp"\}\]'
 
 -- run/init_govdao.gno --
 package main
@@ -251,6 +288,57 @@ func main(cur realm) {
 	dao.MustCreateProposal(cross(cur), store.ProposeSuccessor(cross(cur), ""))
 }
 
+-- run/self_successor.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeSuccessor(cross(cur), "gno.land/r/gnoland/store/v0"))
+}
+
+-- run/propose_hide_late.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeHide(cross(cur), "late-app", "other"))
+}
+
+-- run/propose_unhide_late.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeUnhide(cross(cur), "gno.land/r/acme/lateapp"))
+}
+
+-- lateclone/gnomod.toml --
+module = "gno.land/r/acme/lateclone"
+gno = "0.9"
+
+-- lateclone/lateclone.gno --
+package lateclone
+
+import store "gno.land/r/gnoland/store/v0"
+
+func init(cur realm) {
+	store.Register(cross(cur), "late-app", "Late Clone", "A tagline", "utilities", 0)
+}
+
+func Render(string) string { return "Clone" }
+
 -- lateapp/gnomod.toml --
 module = "gno.land/r/acme/lateapp"
 gno = "0.9"
@@ -266,6 +354,11 @@ func init(cur realm) { Relist(cross(cur)) }
 // refused it. Anyone may call it.
 func Relist(cur realm) {
 	store.Register(cross(cur), "late-app", "Late App", "A tagline", "utilities", 0)
+}
+
+// Image proposes the app's icon.
+func Image(cur realm) {
+	store.SubmitRich(cross(cur), "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi", "")
 }
 
 func Render(string) string { return "Late" }

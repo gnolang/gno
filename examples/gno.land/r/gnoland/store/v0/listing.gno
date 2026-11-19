@@ -165,7 +165,7 @@ func upsert(l *listing, now int64) string {
 		return "paused"
 	}
 	l.Namespace = namespaceOf(l.Path)
-	existing := lookup(&byPath, l.Path)
+	existing, asked := lookup(&byPath, l.Path), l.Slug
 	if existing != nil {
 		if existing.core {
 			return reasonCore // frozen in code (ADR §5), for its realm and its namespace's owner alike
@@ -175,6 +175,7 @@ func upsert(l *listing, now int64) string {
 		// Relist, or an upgraded realm's init. Nothing to check again.
 		if existing.says(l) && (existing.selfListed || !l.Confirmed) {
 			existing.confirmByStars(now) // its title may be free by now
+			existing.takeSlug(asked)
 			return ""
 		}
 	}
@@ -193,6 +194,7 @@ func upsert(l *listing, now int64) string {
 			existing.confirm(now)
 		}
 		existing.confirmByStars(now) // under a title now free, the stars it has count
+		existing.takeSlug(asked)
 		return ""
 	}
 
@@ -241,19 +243,19 @@ func titleTaken(l *listing) bool {
 	return false
 }
 
-// slugTaken reports whether l cannot have its slug. A visible listing holds
-// its own, but a claim gives way to a confirmed l: a claim proves nothing
-// (T11), and an app whose init is refused may never call Register again.
-// A hidden core listing keeps its own too.
-func slugTaken(l *listing) bool {
-	if holder := lookup(&listings, l.Slug); holder != nil && (holder.Confirmed || !l.Confirmed) {
+// slugTaken reports whether l cannot have slug. A visible listing holds its
+// own, but a claim gives way to a confirmed l: a claim proves nothing (T11),
+// and an app whose init is refused may never call Register again. A hidden
+// core listing keeps its own too.
+func slugTaken(l *listing, slug string) bool {
+	if holder := lookup(&listings, slug); holder != nil && (holder.Confirmed || !l.Confirmed) {
 		return true
 	}
 	if hiddenCore == 0 {
 		return false
 	}
 	for _, c := range essentials {
-		if c.hidden && c != l && c.Slug == l.Slug {
+		if c.hidden && c != l && c.Slug == slug {
 			return true
 		}
 	}
@@ -270,21 +272,40 @@ func reslugClaim(slug string) {
 	if c == nil || c.Confirmed {
 		return
 	}
-	c.unindex()
-	listings.Remove(slug)
-	c.Slug = movedSlug(slug)
-	listings.Set(c.Slug, c)
-	c.index()
+	c.reslug(movedSlug(slug))
 	chain.Emit("StoreClaimMoved", "path", c.Path, "from", slug, "slug", c.Slug)
+}
+
+// reslug moves the visible listing l to slug, which is free.
+func (l *listing) reslug(slug string) {
+	l.unindex()
+	listings.Remove(l.Slug)
+	l.Slug = slug
+	listings.Set(slug, l)
+	l.index()
+}
+
+// takeSlug gives a visible listing whose slug the store moved (reslugClaim)
+// the slug it asks for, once it may have it as a new listing would: the
+// listing that took its own may be hidden by now, and a package, which is
+// only ever a claim, would otherwise never get its slug back. Any other
+// listing keeps its slug for good, and so does this one from then on.
+func (l *listing) takeSlug(slug string) {
+	if l.hidden || !strings.Contains(l.Slug, movedMark) || !validSlug(slug) || slugTaken(l, slug) {
+		return
+	}
+	reslugClaim(slug)
+	l.reslug(slug)
 }
 
 // moved numbers the slugs given to moved claims.
 var moved int
 
-// movedSlug returns the slug a claim moves to from slug: slug, cut to fit,
-// then movedMark and a number never given before. No listing can ask for a
-// slug holding movedMark (validSlug), so it is free by construction, with
-// no search, and the claim is never moved again.
+// movedSlug returns the slug a listing moves to from slug: slug, cut to
+// fit, then movedMark and a number never given before. No listing can ask
+// for a slug holding movedMark (validSlug), so it is free by construction,
+// with no search, and is never taken from the listing: it leaves it by
+// asking for another (takeSlug).
 func movedSlug(slug string) string {
 	moved++
 	suffix := movedMark + strconv.Itoa(moved)
@@ -294,14 +315,23 @@ func movedSlug(slug string) string {
 	return slug + suffix
 }
 
-// available returns why l, not visible, cannot take its slug, its title or
-// a slot of its namespace, or "". reslugClaim then frees a slug an
+// available returns why l, a new listing, cannot take its slug, its title
+// or a slot of its namespace, or "". reslugClaim then frees a slug an
 // unconfirmed claim holds.
 func available(l *listing) string {
-	switch {
-	case slugTaken(l):
+	if slugTaken(l, l.Slug) {
 		return reasonSlugTaken
-	case titleTaken(l):
+	}
+	return roomFor(l)
+}
+
+// roomFor returns why l, not visible, cannot hold its title or a slot of
+// its namespace, or "".
+func roomFor(l *listing) string {
+	switch {
+	case titleTaken(l) && (l.Confirmed || !l.hidden):
+		// A claim held no title before its hide, so a title taken since
+		// keeps no unhide from it: confirmByStars checks it again.
 		return reasonTitleTaken
 	case !l.core && !isCoreNamespace(l.Namespace) && visibleInNamespace(l.Namespace) >= maxPerNamespace:
 		// The core namespaces hold the seed, and room for what follows it;
@@ -387,9 +417,11 @@ func (l *listing) confirm(now int64) {
 	l.announce(now)
 }
 
-// confirmByStars confirms a claim that has the ranked stars for it.
+// confirmByStars confirms a visible claim that has the ranked stars for it.
+// A hidden one waits for its unhide, which checks its title: confirmed
+// while hidden, it would need a title it never held to come back.
 func (l *listing) confirmByStars(now int64) {
-	if l.rankedCount() >= confirmStars {
+	if !l.hidden && l.rankedCount() >= confirmStars {
 		l.confirm(now)
 	}
 }
@@ -724,6 +756,11 @@ func titleKey(title string) string {
 				r = 'l'
 			case r == '0':
 				r = 'o'
+			case r == '`':
+				r = '\''
+			case r == '"':
+				b.WriteString("''")
+				continue
 			}
 			if r == 'i' {
 				r = 'l'
@@ -743,6 +780,30 @@ func titleKey(title string) string {
 		case r == 'Ĳ' || r == 'ĳ':
 			b.WriteString("lj")
 			continue
+		case r == 'ŉ':
+			b.WriteString("'n")
+			continue
+		case r == 'Ы' || r == 'ы': // drawn as ЬІ
+			b.WriteString("bl")
+			continue
+		case r == 'Њ' || r == 'њ': // НЬ
+			b.WriteString("hb")
+			continue
+		case r == 'Љ' || r == 'љ': // ЛЬ
+			b.WriteString("лb")
+			continue
+		case r == 'แ': // Thai sara ae, drawn as two sara e
+			b.WriteString("เเ")
+			continue
+		case r == 'װ': // Hebrew double vav, double yod, vav yod
+			b.WriteString("ll")
+			continue
+		case r == 'ײ':
+			b.WriteString("''")
+			continue
+		case r == 'ױ':
+			b.WriteString("l'")
+			continue
 		}
 		if c := foldCapital(r); c != 0 {
 			r = c
@@ -752,7 +813,11 @@ func titleKey(title string) string {
 		if base := latinBase(r); base != 0 {
 			r = base
 		}
-		if r = foldRune(r); r != 0 {
+		switch r = foldRune(r); r {
+		case 0:
+		case '"':
+			b.WriteString("''")
+		default:
 			b.WriteRune(r)
 		}
 	}
@@ -771,7 +836,7 @@ func foldCapital(r rune) rune {
 		return 'a'
 	case 'Έ':
 		return 'e'
-	case 'Ή':
+	case 'Η', 'Ή': // an H, its lower case an n
 		return 'h'
 	case 'Ί':
 		return 'l'
@@ -802,22 +867,26 @@ func foldRune(r rune) rune {
 	case ' ', '-', '_', '.', // separators, and the dashes and dots drawn like them
 		'\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2015', '\u2043', '\u2212', '\uFE58', '\uFE63',
 		'\u00B7', '\u2024', '\u2027', '\u2219', '\u22C5', '\u30FB',
-		'ㅡ', '一': // Hangul eu and Han one, drawn as a dash
+		'ㅡ', '一', prolonged: // Hangul eu, Han one and the prolonged sound mark, drawn as a dash
 		return 0
 	case 'i', '1', '|', 'ı', 'і', 'ї', 'ι', 'ί', 'ϊ', 'ΐ',
-		'ا', 'أ', 'إ', 'آ', 'ٱ', 'ו', 'ן', 'ㅣ', '丨': // Arabic alef, Hebrew vav and final nun, Hangul i, Han stroke
+		'ا', 'أ', 'إ', 'آ', 'ٱ', 'ٲ', 'ٵ', 'ו', 'ן', 'ㅣ', '丨': // Arabic alef, Hebrew vav and final nun, Hangul i, Han stroke
 		return 'l'
-	case '0', 'о', 'ο', 'ό', 'ס', 'ه', 'ە', 'ہ', 'ㅇ': // Hebrew samekh, Arabic heh, Hangul ieung
+	case '0', 'о', 'ο', 'ό', 'ס', 'ه', 'ە', 'ہ', 'ھ', 'ㅇ': // Hebrew samekh, Arabic heh, Hangul ieung
 		return 'o'
+	case '3', 'з': // Cyrillic ze
+		return '3'
+	case '6', 'б': // Cyrillic be
+		return '6'
 	case 'а', 'α', 'ά':
 		return 'a'
-	case 'в', 'β':
+	case 'в', 'β', 'ь', 'ъ':
 		return 'b'
 	case 'с':
 		return 'c'
 	case 'е', 'ё', 'ѐ', 'ε', 'έ':
 		return 'e'
-	case 'н', 'ћ', 'η', 'ή':
+	case 'н', 'ћ':
 		return 'h'
 	case 'ј':
 		return 'j'
@@ -825,11 +894,15 @@ func foldRune(r rune) rune {
 		return 'k'
 	case 'м':
 		return 'm'
+	case 'η', 'ή', 'п', 'π':
+		return 'n'
 	case 'р', 'ρ':
 		return 'p'
-	case 'ѕ':
+	case 'г', 'ґ', 'ѓ':
+		return 'r'
+	case 'ѕ', 'ऽ': // Devanagari avagraha
 		return 's'
-	case 'т', 'τ':
+	case 'т', 'τ', '丁', '丅':
 		return 't'
 	case 'υ', 'ύ', 'ϋ', 'ΰ', 'μ':
 		return 'u'
@@ -839,20 +912,52 @@ func foldRune(r rune) rune {
 		return 'w'
 	case 'х', 'χ':
 		return 'x'
-	case 'у', 'ў', 'γ':
+	case 'у', 'ў', 'γ', '丫':
 		return 'y'
-	case 'π': // Greek and Cyrillic letters drawn alike
-		return 'п'
-	case 'φ':
-		return 'ф'
-	case '‘', '’': // typographic quotes and the ASCII ones
+	case '乙':
+		return 'z'
+	case '十':
+		return '+'
+	case 'ノ', '丿':
+		return '/'
+	case 'ॽ': // Devanagari glottal stop
+		return '?'
+	case '‘', '’', '`', 'י': // typographic quotes, the grave accent and Hebrew yod, drawn as an apostrophe
 		return '\''
-	case '“', '”':
+	case '“', '”': // and as a double quote, which titleKey writes as two apostrophes
 		return '"'
+	case '\u0958': // Devanagari letters with a nukta, as the letter and the nukta titleKey drops
+		return 'क'
+	case '\u0959':
+		return 'ख'
+	case '\u095A':
+		return 'ग'
+	case '\u095B':
+		return 'ज'
+	case '\u095C':
+		return 'ड'
+	case '\u095D':
+		return 'ढ'
+	case '\u095E':
+		return 'फ'
+	case '\u095F':
+		return 'य'
+	case 'ک': // Persian keheh and yeh, and alef maksura, drawn as Arabic kaf and yeh
+		return 'ك'
+	case 'ی', 'ى':
+		return 'ي'
+	case 'φ': // Greek and Cyrillic letters drawn alike
+		return 'ф'
 	case '力': // Han and hiragana drawn as katakana
 		return 'カ'
-	case '口':
+	case '口', '囗':
 		return 'ロ'
+	case '匕':
+		return 'ヒ'
+	case '亻':
+		return 'イ'
+	case '厶':
+		return 'ム'
 	case '工':
 		return 'エ'
 	case '二':

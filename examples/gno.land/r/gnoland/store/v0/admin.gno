@@ -82,14 +82,13 @@ func ProposeHide(cur realm, slug, reason string) dao.ProposalRequest {
 }
 
 // ProposeUnhide returns a GovDAO proposal that restores the hidden listing
-// of path. It takes the path because a hidden listing's slug may since
-// belong to another one.
+// of path. It takes the path, and names it to voters, because a hidden
+// listing's slug may since belong to another one.
 func ProposeUnhide(cur realm, path string) dao.ProposalRequest {
-	l, err := hiddenListing(path)
-	if err != nil {
+	if _, err := hiddenListing(path); err != nil {
 		panic(err)
 	}
-	return proposal(cur, "Unhide "+l.Slug+" in the store", "Restores the hidden store listing of "+l.Path+".",
+	return proposal(cur, "Unhide "+path+" in the store", "Restores the hidden store listing of "+path+".",
 		func() error { return unhide(path) })
 }
 
@@ -114,14 +113,14 @@ func ProposeSpotlight(cur realm, slug string, days int) dao.ProposalRequest {
 // ProposeSuccessor returns a GovDAO proposal that names path, the realm path
 // of a newer store ("gno.land/r/gnoland/store/v1"), as this store's
 // successor. Another proposal can name another one, or none: an empty path
-// takes a successor named by mistake back.
+// takes a successor named by mistake back. The store is never its own.
 func ProposeSuccessor(cur realm, path string) dao.ProposalRequest {
 	title, desc := "Point the store to "+path,
 		"Tells the store's readers, the realms that embed it and gnoweb that it moved to "+path+"."
 	switch {
 	case path == "":
 		title, desc = "Clear the store's successor", "Tells the store's readers that it has not moved."
-	case !strings.HasPrefix(path, runtime.ChainDomain()+"/r/") || namespaceOf(path) == "":
+	case !strings.HasPrefix(path, runtime.ChainDomain()+"/r/") || namespaceOf(path) == "" || path == cur.PkgPath():
 		panic(errBadSuccessor)
 	}
 	return proposal(cur, title, desc, func() error {
@@ -228,18 +227,26 @@ func proposal(cur realm, title, desc string, apply func() error) dao.ProposalReq
 	return dao.NewProposalRequest(title, desc, dao.NewSimpleExecutor(0, cur, func(realm) error { return apply() }, ""))
 }
 
-// unhide restores the hidden listing of path, unless its slug, its title or
-// its namespace's slots were taken while it was hidden. A core listing kept
-// its slug and its title.
+// unhide restores the hidden listing of path, unless its title was taken
+// while it was hidden, which its owner can answer with another, or its
+// namespace filled up, which only another hide there undoes. Its slug its
+// owner cannot change, so a slug taken
+// meanwhile keeps no listing hidden: it comes back under one of its own
+// (movedSlug), and takes the next it asks for (takeSlug). A core listing
+// kept its slug and its title.
 func unhide(path string) error {
 	l, err := hiddenListing(path)
 	if err != nil {
 		return err
 	}
-	if reason := available(l); reason != "" {
+	if reason := roomFor(l); reason != "" {
 		return errors.New("store: " + reason)
 	}
-	reslugClaim(l.Slug)
+	if slugTaken(l, l.Slug) {
+		l.Slug = movedSlug(l.Slug)
+	} else {
+		reslugClaim(l.Slug)
+	}
 	l.hidden = false
 	if l.core {
 		hiddenCore--
