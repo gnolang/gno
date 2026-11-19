@@ -16,6 +16,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 // countingClient counts the node queries a $download makes.
@@ -49,6 +51,7 @@ func TestServePackageText_Cache(t *testing.T) {
 		ClientAdapter: client,
 		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 		Aliases:       map[string]AliasTarget{},
+		Meta:          StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 	})
 	require.NoError(t, err)
 	now := time.Unix(0, 0)
@@ -117,6 +120,7 @@ func TestServePackageText_Deadline(t *testing.T) {
 		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 		Aliases:       map[string]AliasTarget{},
 		Timeout:       20 * time.Millisecond,
+		Meta:          StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 	})
 	require.NoError(t, err)
 
@@ -160,6 +164,7 @@ func TestServePackageText_Errors(t *testing.T) {
 				ClientAdapter: client,
 				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 				Aliases:       map[string]AliasTarget{},
+				Meta:          StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 			})
 			require.NoError(t, err)
 
@@ -193,7 +198,7 @@ func TestPackageFiles_UnreadableNames(t *testing.T) {
 	})}
 	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
 		ClientAdapter: client,
-		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev"},
+		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev", NetworkKind: components.NetworkTestnet},
 		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 		Aliases:       map[string]AliasTarget{},
 	})
@@ -241,7 +246,7 @@ func TestPackageFiles_Copy(t *testing.T) {
 	)}
 	handler, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
 		ClientAdapter: client,
-		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev"},
+		Meta:          StaticMetadata{Domain: "example.com", RemoteHelp: "127.0.0.1:26657", ChainId: "dev", NetworkKind: components.NetworkTestnet},
 		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 		Aliases:       map[string]AliasTarget{},
 	})
@@ -419,6 +424,7 @@ func TestServePackageText_Panic(t *testing.T) {
 				ClientAdapter: client,
 				Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 				Aliases:       map[string]AliasTarget{},
+				Meta:          StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 			})
 			require.NoError(t, err)
 			for _, target := range []string{"/r/mock/path$download", "/_/play?from=r/mock/path"} {
