@@ -12,4 +12,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field
+// cannot copy struct{F func(*gno.land/p/demo/tests/launderpkg/v0.Immutable)} outside realm gno.land/r/zrealm_entry_pfunc_anon (use a pointer)

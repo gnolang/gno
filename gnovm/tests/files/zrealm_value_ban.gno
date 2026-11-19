@@ -12,7 +12,9 @@ func main(cur realm) {
 
 // Output:
 // 1 2
-// 1
+
+// Error:
+// cannot copy gno.land/r/tests/vm/ctw.Local outside realm gno.land/r/tests/vm/ctw (use a pointer)
 
 // TypeCheckError:
 // gno.land/r/valueban/zrealm_value_ban.gno:9:2: cannot hold a value of gno.land/r/tests/vm/ctw.Local outside its realm (use a pointer); gno.land/r/valueban/zrealm_value_ban.gno:9:7: cannot hold a value of gno.land/r/tests/vm/ctw.Local outside its realm (use a pointer)

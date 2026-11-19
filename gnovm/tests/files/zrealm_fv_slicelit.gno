@@ -10,7 +10,7 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot allocate gno.land/r/tests/vm/fvx.T in realm gno.land/r/fvslicelit
+// cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)
 
 // TypeCheckError:
 // gno.land/r/fvslicelit/zrealm_fv_slicelit.gno:7:19: cannot hold a value of gno.land/r/tests/vm/fvx.T outside its realm (use a pointer)

@@ -14,7 +14,7 @@ const (
 )
 
 // newTextPropDefinition creates a new general text proposal definition.
-func newTextPropDefinition(title, body string, votingPeriod time.Duration) textPropDefinition {
+func newTextPropDefinition(title, body string, votingPeriod time.Duration) *textPropDefinition {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
@@ -37,7 +37,7 @@ func newTextPropDefinition(title, body string, votingPeriod time.Duration) textP
 		panic("minimum proposal voting period is one day")
 	}
 
-	return textPropDefinition{
+	return &textPropDefinition{
 		title:        title,
 		body:         body,
 		votingPeriod: votingPeriod,

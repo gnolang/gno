@@ -41,9 +41,9 @@ type Allocator struct {
 	// scratch numbers the active read-only stretch (0: none); objects
 	// allocated in it carry the number and it may write them while unreal.
 	scratch uint32
-	// fvCtx reports the innermost call frame's package and its caller's;
-	// set by NewMachine only when GNO_FV_LOG is set (see fvlog.go).
-	fvCtx func() (code, caller string)
+	// viewHoldID is the realm whose values code may hold while view-only
+	// (setViewOnly clears currentRealmID): the realm current on entry.
+	viewHoldID PkgID
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
@@ -557,9 +557,55 @@ func (alloc *Allocator) checkBirth(t Type) {
 	if alloc == nil {
 		return
 	}
-	if ft := foreignHeldType(t, alloc.currentRealmID); ft != nil {
-		alloc.panicForeignAlloc(ft)
+	if rid, ok := alloc.holdRealm(); ok {
+		if ft := foreignHeldType(t, rid); ft != nil {
+			alloc.panicForeignAlloc(ft)
+		}
 	}
+}
+
+// holdRealm returns the realm whose struct/array values may be born or copied
+// here: the current realm, else (view-only) the realm current on entry; ok is
+// false with no realm at all (tooling, package main, /p/ tests).
+func (alloc *Allocator) holdRealm() (rid PkgID, ok bool) {
+	if alloc == nil {
+		return PkgID{}, false
+	}
+	if !alloc.currentRealmID.IsZero() {
+		return alloc.currentRealmID, true
+	}
+	return alloc.viewHoldID, !alloc.viewHoldID.IsZero()
+}
+
+// refusedCopy returns the foreign type that makes a copy of t refused here,
+// or nil if the copy is allowed.
+func (alloc *Allocator) refusedCopy(t Type) Type {
+	rid, ok := alloc.holdRealm()
+	if !ok || t == nil {
+		return nil
+	}
+	switch baseOf(t).(type) {
+	case *StructType, *ArrayType:
+		return foreignHeldType(t, rid)
+	}
+	return nil
+}
+
+// checkCopy panics if a copy of a value of type t, made here, would hold
+// inline a struct or array value whose type another realm declares.
+func (alloc *Allocator) checkCopy(t Type) {
+	ft := alloc.refusedCopy(t)
+	if ft == nil {
+		return
+	}
+	var path string
+	switch ft := ft.(type) {
+	case *DeclaredType:
+		path = ft.PkgPath
+	case *StructType:
+		path = ft.PkgPath
+	}
+	panic(fmt.Sprintf("cannot copy %s outside realm %s (use a pointer)", ft.String(), path))
 }
 
 func (alloc *Allocator) panicForeignAlloc(t Type) {
@@ -577,7 +623,7 @@ func (alloc *Allocator) panicForeignAlloc(t Type) {
 
 // foreignHeldType returns t, or the first struct/array type t holds inline
 // (struct field, array element), that a realm other than rid declares; nil if none.
-// Same walk as fvForeign; pointers, slices, maps and interfaces hold nothing inline.
+// Pointers, slices, maps and interfaces hold nothing inline.
 func foreignHeldType(t Type, rid PkgID) Type {
 	var seen map[Type]struct{}
 	return foreignHeldTypeIn(t, rid, &seen)
@@ -677,12 +723,6 @@ func (alloc *Allocator) NewString(s string) StringValue {
 }
 
 func (alloc *Allocator) NewListArray(t Type, n int) *ArrayValue {
-	av := alloc.newListArray(t, n)
-	fvLog("birth", t, alloc, "NewListArray")
-	return av
-}
-
-func (alloc *Allocator) newListArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedRuntimeError("len out of range")})
 	}
@@ -708,17 +748,10 @@ func (alloc *Allocator) NewListArray2(t Type, l, c int) *ArrayValue {
 		List: make([]TypedValue, l, c),
 	}
 	alloc.stampPkgID(&av.ObjectInfo, t)
-	fvLog("birth", t, alloc, "NewListArray2")
 	return av
 }
 
 func (alloc *Allocator) NewDataArray(t Type, n int) *ArrayValue {
-	av := alloc.newDataArray(t, n)
-	fvLog("birth", t, alloc, "NewDataArray")
-	return av
-}
-
-func (alloc *Allocator) newDataArray(t Type, n int) *ArrayValue {
 	if n < 0 {
 		panic(&Exception{Value: typedRuntimeError("len out of range")})
 	}
@@ -796,12 +829,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(t Type, fields []TypedValue) *StructValue {
-	sv := alloc.newStruct(t, fields)
-	fvLog("birth", t, alloc, "NewStruct")
-	return sv
-}
-
-func (alloc *Allocator) newStruct(t Type, fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
 	sv := &StructValue{
 		Fields: fields,
@@ -819,9 +846,7 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 func (alloc *Allocator) NewStructWithFields(t Type, fields ...TypedValue) *StructValue {
 	tvs := alloc.NewStructFields(len(fields))
 	copy(tvs, fields)
-	sv := alloc.newStruct(t, tvs)
-	fvLog("birth", t, alloc, "NewStructWithFields")
-	return sv
+	return alloc.NewStruct(t, tvs)
 }
 
 func (alloc *Allocator) NewMap(t Type) *MapValue {

@@ -35,7 +35,14 @@ func (m *Machine) doOpPrecall() {
 		if fv.IsLazy() {
 			fn, recv = resolveLazyBound(m, fv)
 		}
-		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false)
+		// The receiver of a lazy bind or of a direct x.M(...) call is copied
+		// now, under the callee's realm (see getPointerToForCall).
+		uncopied := fv.IsLazy() || isDirectValMethodCall(cx)
+		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied)
+		if uncopied {
+			fr := m.LastFrame()
+			fr.Receiver = copyCallRecv(m.Alloc, fr.Receiver)
+		}
 		m.PushOp(OpCall)
 		isCrossing := fn.IsCrossing()
 		if isCrossing {
@@ -372,9 +379,6 @@ func (m *Machine) doOpCall() {
 		bft = ft.BoundType()
 	}
 	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
-	if fvOn() {
-		m.fvLogValues("arg", args, "doOpCall")
-	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
@@ -622,7 +626,6 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
-	m.fvLogResults("doOpReturn", false)
 	// Unwind stack.
 	cfr := m.PopUntilLastCallFrame()
 	// Finalize if exiting realm boundary.
@@ -642,7 +645,6 @@ func (m *Machine) doOpReturnAfterCopy() {
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
-	m.fvLogResults("doOpReturnAfterCopy", false)
 	for i := range numResults {
 		rtv := results[i].Copy(m.Alloc)
 		fblock.Values[numParams+i].AssignToBlock(rtv)
@@ -660,7 +662,6 @@ func (m *Machine) doOpReturnAfterCopy() {
 // i.e. named result vars declared in func signatures,
 // because return was called with no return arguments.
 func (m *Machine) doOpReturnFromBlock() {
-	m.fvLogResults("doOpReturnFromBlock", true)
 	// Copy results from block.
 	cfr := m.PopUntilLastCallFrame()
 	fv := cfr.Func
@@ -699,6 +700,21 @@ func (m *Machine) doOpReturnToBlock() {
 // methodValueBinder returns the realm stamp of a method value being called,
 // or zero for a plain x.M(...) call: that one is bound and called in one
 // step by the current realm, so it has no earlier binder to return to.
+// isDirectValMethodCall reports whether cx calls a value-receiver method
+// selected in place (x.M(...)), whose receiver doOpSelector left uncopied.
+func isDirectValMethodCall(cx *CallExpr) bool {
+	sx, ok := cx.Func.(*SelectorExpr)
+	return ok && (sx.Path.Type == VPValMethod || sx.Path.Type == VPDerefValMethod)
+}
+
+func isStructOrArrayValue(v Value) bool {
+	switch v.(type) {
+	case *StructValue, *ArrayValue:
+		return true
+	}
+	return false
+}
+
 func methodValueBinder(cx *CallExpr, bmv *BoundMethodValue) PkgID {
 	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
 		return PkgID{}
@@ -760,7 +776,6 @@ func (m *Machine) doOpReturnCallDefers() {
 		} else {
 			fv, recv = cv.Func, dfr.Args[0]
 		}
-		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
 	default: // nil (deferred a nil func value)
 		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
 		return
@@ -768,7 +783,16 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	// Call last deferred call.
 	ft := fv.GetType(m.Store)
-	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true)
+	bmv, bound := dfr.Callable.(*BoundMethodValue)
+	lazy := bound && bmv.IsLazy()
+	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy)
+	if lazy { // copied under the callee's realm, as in doOpPrecall
+		recv = copyCallRecv(m.Alloc, recv)
+		m.LastFrame().Receiver = recv
+	}
+	if bound {
+		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
+	}
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.

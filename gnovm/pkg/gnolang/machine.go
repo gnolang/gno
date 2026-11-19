@@ -207,9 +207,6 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 		// (hard-cap, no GC retry — see store.go preprocessAlloc).
 		mm.Alloc.SetGCFn(func() (int64, bool) { return mm.GarbageCollect() })
 		mm.Alloc.SetGasMeter(vmGasMeter)
-		if fvOn() {
-			mm.Alloc.fvCtx = mm.fvFrames
-		}
 	}
 	mm.Output = output
 	mm.Store = store
@@ -319,9 +316,11 @@ func (m *Machine) setViewOnly() {
 	// Temporaries of an enclosing read-only entry stay writable: they are no
 	// realm's stored state yet.
 	scratch := m.Alloc.scratch
+	hold, _ := m.Alloc.holdRealm()
 	m.setRealm(nil)
 	m.viewOnly = true
 	m.Alloc.scratch = scratch
+	m.Alloc.viewHoldID = hold
 }
 
 // enterReadOnly runs realm r's code entered without crossing: it writes no
@@ -343,6 +342,7 @@ func (m *Machine) setRealm(r *Realm) {
 	m.viewOnly = false
 	m.viewRealm = nil
 	m.Alloc.scratch = 0
+	m.Alloc.viewHoldID = PkgID{}
 	if r != nil {
 		m.Alloc.currentRealmID = r.ID
 		m.Alloc.currentRealmPath = r.Path
@@ -2607,13 +2607,15 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
-	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer)
+	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false)
 }
 
 // pushFrameCall is PushFrameCall for a method value: bindPID is the realm
 // whose frame formed it (the BoundMethodValue's stamp), zero for a plain func
 // or a plain x.M(...) call.
-func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer bool) {
+// recvUncopied: recv is a value receiver the caller copies after this call
+// (copyCallRecv); it is looked at as that fresh copy would be.
+func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool) {
 	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
@@ -2639,6 +2641,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		LastViewOnly:  m.viewOnly,
 		LastViewRealm: m.viewRealm,
 		LastScratch:   m.Alloc.scratch,
+		LastViewHold:  m.Alloc.viewHoldID,
 		WithCross:     withCross,
 		DidCrossing:   false,
 		Defers:        nil,
@@ -2776,7 +2779,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		return
 	}
 	var oi *ObjectInfo
-	if recv.IsDefined() {
+	if recv.IsDefined() && !(recvUncopied && isStructOrArrayValue(recv.V)) {
 		if obj := recv.GetFirstObject(m.Store); obj != nil {
 			oi = obj.GetObjectInfo()
 		}
@@ -2943,6 +2946,7 @@ func (m *Machine) restoreRealmState(fr *Frame) {
 		m.Alloc.currentRealmPath = fr.LastViewRealm.Path
 	}
 	m.Alloc.scratch = fr.LastScratch
+	m.Alloc.viewHoldID = fr.LastViewHold
 }
 
 // popFrameRestore pops a call frame while a panic unwinds and restores its

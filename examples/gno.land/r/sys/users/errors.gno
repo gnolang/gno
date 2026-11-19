@@ -30,7 +30,7 @@ var (
 
 // ErrNotWhitelisted stores the failing caller's realm identity as a
 // plain string so the error is a pure data record (no live realm values
-// in its fields).
+// in its fields). A pointer error, so other realms can hold it.
 type ErrNotWhitelisted struct {
 	Caller string // "CodeRealm{ <addr>, <pkgPath> }" or "UserRealm{ <addr> }" — failed the whitelist check
 }
@@ -40,12 +40,12 @@ type ErrNotWhitelisted struct {
 // discriminator keeps this non-crossing (a non-crossing function can't
 // take a `realm`-named-`cur` first param, so we use the standard
 // _ int, rlm realm shape).
-func NewErrNotWhitelisted(_ int, caller realm) ErrNotWhitelisted {
-	return ErrNotWhitelisted{
+func NewErrNotWhitelisted(_ int, caller realm) *ErrNotWhitelisted {
+	return &ErrNotWhitelisted{
 		Caller: caller.String(),
 	}
 }
 
-func (e ErrNotWhitelisted) Error() string {
+func (e *ErrNotWhitelisted) Error() string {
 	return prefix + "caller realm/user does not exist in whitelist: " + e.Caller
 }

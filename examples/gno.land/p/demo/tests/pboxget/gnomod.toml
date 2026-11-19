@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/pboxget"
+gno = "0.9"
