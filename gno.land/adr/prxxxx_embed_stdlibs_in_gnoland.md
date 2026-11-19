@@ -182,10 +182,10 @@ Reading these together, the reasons it never happened are:
 
 ## Decision
 
-Make `gnoland` self-contained for everything a network node does, keep
-`-lazy` reading `examples/` from a checkout, and remove the build-path
-guess from `GNOROOT` resolution so that `-trimpath` can be used
-everywhere.
+Make `gnoland` self-contained for everything a network node does, so that
+it can be built with `-trimpath`, keep `-lazy` reading `examples/` from a
+checkout, and keep the build-path guess for the tools that still read one,
+refusing it when the path no longer holds a Gno tree.
 
 1. **Embed the stdlibs, in a package only the node links.** `//go:embed`
    can only reach files below the embedding package's directory, so the
@@ -230,20 +230,21 @@ everywhere.
    the variable, instead of panicking. `gnoenv.RootDir()` is no longer
    called while registering flags: the default of `-gnoroot-dir` is empty
    and resolution happens only at the moment a genesis has to be derived.
-5. **`GNOROOT` resolution stops guessing from the build.** The
-   `runtime.Caller` fallback in `gnoenv.guessRootDir` is deleted. It is the
-   step that forbids `-trimpath`, and its failure mode is a wrong path
-   returned without an error. The order becomes: `GNOROOT`, `_GNOROOT`,
-   `go list`, then an error. The `_GNOROOT` ldflag is kept for now: it is
-   an explicit build input, not a guess, it is compatible with `-trimpath`,
-   the images set it to the constant `/gnoroot`, and `gno`, `gnodev`,
-   `gnobro` and `gpao` still need a tree on disk. `gnoland` is never built
-   with it, so nothing in this decision depends on it; it goes away with
-   those tools when they embed their own trees (see Follow-ups).
-6. **`-trimpath` everywhere.** `release-chain-tag.yml` (and its comment
-   block explaining why not), `.github/goreleaser.yaml`, the `Dockerfile`
-   builds and `gnovm/Makefile` (whose amino comment is stale) all build
-   with `-trimpath`. `gno.land/Makefile` already does.
+5. **`GNOROOT` resolution keeps guessing from the build, checked.** The
+   `runtime.Caller` fallback in `gnoenv.guessRootDir` stays, for the tools
+   that still read a tree: a `go install` build of `gno` or gnodev resolves
+   it to the module cache, which holds one, and `gno`'s README documents
+   that install. What changes is its failure mode: the path is returned only
+   if it holds `gnovm/stdlibs`, so a binary copied to another machine gets
+   an error instead of a directory that does not exist there. It no longer
+   forbids `-trimpath` for `gnoland`, which needs a root only for `-lazy`;
+   in a trimmed binary the path is relative and the step is skipped. The
+   fallback goes away with `_GNOROOT` when those tools embed their own
+   trees (see Follow-ups).
+6. **`-trimpath` for `gnoland`.** `release-chain-tag.yml`,
+   `.github/goreleaser.yaml` and the `Dockerfile` build `gnoland` with
+   `-trimpath`, as `gno.land/Makefile` already does. The other tools keep
+   their build path, their last resort for finding a tree.
 
    This is about reproducible builds. Without `-trimpath`, Go records the
    absolute path of every source file in the binary, so the bytes depend
@@ -256,10 +257,16 @@ everywhere.
    `gnovm/stdlibs/` and `gnovm/tests/stdlibs/`; it keeps `examples/` and
    `ENV GNOROOT=/gnoroot` because `misc/e2e/docker-compose.yml` and the
    portal loop start it with `-lazy`. `VALIDATOR.md` loses the clone and
-   `GNOROOT` steps; `install.md` and `misc/install.sh` follow.
-8. **The release workflow checks the result.** Its existing step that runs
-   the fresh binaries without `GNOROOT` is extended to a trimmed
-   `gnoland start` against a provided genesis that reaches height 1.
+   `GNOROOT` steps for the first release that embeds the stdlibs, in the
+   change that records that release, not before: until then it documents
+   binaries that need them. Its genesis-sync instructions keep them for the
+   older versions a joining node replays, which never embedded anything.
+   `install.md` and `misc/install.sh` clone only to build from source, so
+   they are unchanged.
+8. **The release workflow checks the result.** A new step, next to the one
+   that runs the fresh binaries without `GNOROOT`, starts the trimmed
+   `gnoland` against a provided genesis, without `GNOROOT`, and requires
+   it to reach height 1.
 
 Out of scope, deliberately: embedding `examples/` (below), the `gno` CLI,
 gnodev, `gnogenesis`, and `gnovm/tests/stdlibs` (used by `gno test`, not
@@ -337,10 +344,10 @@ a size optimisation; its case is correctness and self-containment.
   bindings were generated from. The #3361 panic and the silent app-hash
   divergence both become impossible for a node started from a release
   binary.
-- `-trimpath` comes back on every build, so a release can be rebuilt from
-  its tag and the checksums in `upgrades.json` attest something
-  reproducible. This is the precondition for the signing and provenance
-  work listed in the #6228 design note.
+- `gnoland` is built with `-trimpath`, so it can be rebuilt from its tag
+  and its checksums in `upgrades.json` attest something reproducible. This
+  is the precondition for the signing and provenance work listed in the
+  #6228 design note.
 - Native binaries become the safe default and the container image loses
   its only advantage for validators.
 - `gnoland version`, `config` and `secrets` no longer need a root, and a
@@ -363,10 +370,11 @@ a size optimisation; its case is correctness and self-containment.
   subprocess and toolchain dependency. It is reached only by `-lazy`, and
   only when neither the flag nor the variable is set.
 - **`gno` and `gnodev` stay checkout-bound.** Their Makefile and image
-  builds keep `_GNOROOT`; their release binaries are built without it, so
-  once the compile-path fallback is gone a downloaded `gno` fails with a
-  clear error where it used to fail with a wrong path. Same outcome,
-  better message, until they embed their own trees.
+  builds keep `_GNOROOT`, and a `go install` build finds the module cache
+  through the build path. Their release binaries are built without either
+  working, so a downloaded `gno` now fails with a clear error where it used
+  to return a directory that does not exist. Same outcome, better message,
+  until they embed their own trees, which is also when they can be trimmed.
 - **Stdlib churn changes the node's hash.** Since 2026-07-01, 10 of 165
   commits touched `gnovm/stdlibs`. That is the intended "one commit, one
   binary" property.
@@ -394,17 +402,18 @@ a size optimisation; its case is correctness and self-containment.
 - Embed `examples/` for `-lazy` (alternative 3), if a checkout-free dev
   bootstrap turns out to be wanted.
 - Embed `gnovm/stdlibs` and `gnovm/tests/stdlibs` in the `gno` CLI and
-  gnodev, then delete `_GNOROOT` (alternative 5) and the `go list` guess.
+  gnodev, then delete `_GNOROOT` (alternative 5), the build-path guess and
+  the `go list` guess, and build them with `-trimpath`.
 - Sign the now-reproducible release binaries (#6228 design note,
   follow-up list).
-- Delete the stale amino comment in `gnovm/Makefile:28` with the
-  `-trimpath` change.
+- Delete the stale amino comment in `gnovm/Makefile:28` when `gno` is
+  trimmed.
 
 ## AI assistance
 
 Drafted with an AI agent from the repository, `git log`, and the linked
 issues and pull requests; the size and churn numbers were measured on the
 tree at the time of writing. The scoping to the stdlibs, the decision to
-keep `-lazy` on a checkout and the removal of the compile-path guess are
+keep `-lazy` on a checkout and keeping a checked build-path guess are
 the author's; the reading of the history is the agent's and is theirs to
 confirm.

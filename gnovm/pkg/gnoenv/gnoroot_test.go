@@ -40,6 +40,14 @@ func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
 	require.Equal(t, testPath, root)
 }
 
+func TestIsGnoRoot(t *testing.T) {
+	// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoroot.go
+	root, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
+	require.True(t, isGnoRoot(root))
+	require.False(t, isGnoRoot(t.TempDir()), "a directory without gnovm/stdlibs")
+	require.False(t, isGnoRoot(filepath.Join(t.TempDir(), "missing")), "a path that does not exist")
+}
+
 func TestGuessGnoRootDir_Error(t *testing.T) {
 	// XXX: Determine a method to test the GuessGnoRoot final error.
 	// One approach might be to use `txtar` to build a test binary with -trimpath,

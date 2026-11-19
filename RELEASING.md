@@ -161,10 +161,9 @@ trigger, and both refuse to replace what is already out: `release / chain-tag`
 stops before attesting when the release is published, `release / docker`
 before building when the registry already serves the version tag. Runs for one
 tag never overlap: GitHub can start two for a single push, and the second waits
-for the first, then meets those checks. These
-builds are not reproducible, so a replacement would swap the binaries,
-`CHECKSUMS.txt` and images the upgrade ledgers record for others under the
-same version. The release is created as a draft and published only once every
+for the first, then meets those checks. A
+replacement would swap the binaries, `CHECKSUMS.txt` and images the upgrade
+ledgers record for others under the same version. The release is created as a draft and published only once every
 asset is attached, so a run that failed before publishing can be re-run, and
 the re-run publishes the draft. Images differ: *Re-run failed jobs* builds
 only the images whose job failed before its push (with *Re-run all jobs*, the
@@ -196,7 +195,7 @@ cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
   --certificate-identity https://github.com/gnolang/gno/.github/workflows/release-docker.yml@refs/tags/v1.6.0
 ```
 
-The release binaries are not reproducible from the tag (they are built without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the attestation, the checksums and the ledger's recorded digests are the operator's anchors. `ci / upgrades-ledger-digests` checks, daily, what the ledgers record for each version: its commit against the commit its version's tag points to, each image digest against the registry, each `ran_as` image still resolving, each binary checksum against its release asset. It reports every difference and fails at the end; a value still pending the build is listed, not checked.
+`gnoland` is built with `-trimpath`, so it does not carry the runner's paths and a rebuild of the tag with the same toolchain can be compared with its checksum. The other binaries are not trimmed: they still locate a source tree, and their last resort is the path they were built at. The attestation, the checksums and the ledger's recorded digests remain the operator's anchors. `ci / upgrades-ledger-digests` checks, daily, what the ledgers record for each version: its commit against the commit its version's tag points to, each image digest against the registry, each `ran_as` image still resolving, each binary checksum against its release asset. It reports every difference and fails at the end; a value still pending the build is listed, not checked.
 
 ### Rehearse on the testnet first
 

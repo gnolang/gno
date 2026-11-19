@@ -83,9 +83,6 @@ func newStartCmd(io commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
-	gnoroot := gnoenv.RootDir()
-	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
@@ -103,8 +100,8 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
-		defaultGenesisBalancesFile,
-		"initial distribution file",
+		"",
+		"initial distribution file, for -lazy (default <gnoroot-dir>/gno.land/genesis/genesis_balances.txt)",
 	)
 
 	fs.StringVar(
@@ -131,8 +128,8 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.gnoRootDir,
 		"gnoroot-dir",
-		gnoroot,
-		"the root directory of the gno repository",
+		"",
+		"the root directory of the gno repository, where -lazy reads the examples (default $GNOROOT, else guessed with go list)",
 	)
 
 	fs.StringVar(
@@ -442,14 +439,28 @@ func generateGenesisFile(genesisFile string, signer gnoland.GenesisSigner, c *st
 		},
 	}
 
+	// Locate the gno repository, which a derived genesis is built from: only
+	// here, so that a node started from a given genesis needs no checkout.
+	gnoRootDir := c.gnoRootDir
+	if gnoRootDir == "" {
+		var err error
+		if gnoRootDir, err = gnoenv.GuessRootDir(); err != nil {
+			return fmt.Errorf("deriving a genesis needs the gno repository: set -gnoroot-dir or GNOROOT, or provide a genesis: %w", err)
+		}
+	}
+
 	// Load balances files
-	balances, err := gnoland.LoadGenesisBalancesFile(c.genesisBalancesFile)
+	balancesFile := c.genesisBalancesFile
+	if balancesFile == "" {
+		balancesFile = filepath.Join(gnoRootDir, "gno.land", "genesis", "genesis_balances.txt")
+	}
+	balances, err := gnoland.LoadGenesisBalancesFile(balancesFile)
 	if err != nil {
-		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
+		return fmt.Errorf("unable to load genesis balances file %q: %w", balancesFile, err)
 	}
 
 	// Load examples folder
-	examplesDir := filepath.Join(c.gnoRootDir, "examples")
+	examplesDir := filepath.Join(gnoRootDir, "examples")
 	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, txSender, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
