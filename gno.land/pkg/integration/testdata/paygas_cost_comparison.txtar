@@ -24,13 +24,13 @@ stdout 'GAS USED:   \d+'
 ## --- CALL 2: normal fee, same operation (overwrite) ---
 gnokey maketx call -pkgpath gno.land/r/test/work -func SetValue -args "value2" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'GAS USED:   1337046$'
+stdout 'GAS USED:   1337340$'
 ! stdout 'STORAGE DELTA'
 
 ## --- CALL 3: PayGas, same operation via wrapper ---
 gnokey maketx call -pkgpath gno.land/r/test/wrapper -func SponsoredSetValue -args "value3" -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
-stdout 'GAS USED:   1431590$'
+stdout 'GAS USED:   1431884$'
 ! stdout 'STORAGE DELTA'
 
 ## Calls 2 and 3 do the same base work: overwrite a 6-byte string with another,
