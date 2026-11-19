@@ -22,15 +22,22 @@ type listing struct {
 	Tagline  string `json:"tagline"`
 	Category string `json:"category"`
 	Palette  int    `json:"palette"`
-	Stars    int    `json:"stars"`  // every star
-	Ranked   int    `json:"ranked"` // stars from accounts with a registered name, the ones that rank
-	Core     bool   `json:"core"`   // one of the realm's seeded listings
-	Icon     string `json:"icon"`
-	Cover    string `json:"cover"`
+	Stars    int    `json:"stars"`    // every star
+	Ranked   int    `json:"ranked"`   // stars from accounts with a registered name, the ones that rank
+	Week     int    `json:"stars_7d"` // of which given over the last 7 days
+	Core     bool   `json:"core"`     // one of the realm's seeded listings
+	// Confirmed is false for a listing claimed by its namespace's owner that
+	// neither its own realm nor ranked stars have confirmed: the realm
+	// cannot check that the path exists.
+	Confirmed bool   `json:"confirmed"`
+	Icon      string `json:"icon"`
+	Cover     string `json:"cover"`
 
-	// Unix seconds of block time: when the listing was created, and when
-	// its 5th-oldest ranked star was given (0 below 5 ranked stars).
+	// Unix seconds of block time: when the listing was created and last
+	// changed, and when its 5th-oldest ranked star was given (0 below 5
+	// ranked stars).
 	Created     int64 `json:"created"`
+	Updated     int64 `json:"updated"`
 	FifthRanked int64 `json:"fifth_ranked"`
 	Pending     bool  `json:"pending"` // an icon or cover change awaits its publication delay
 
@@ -55,7 +62,6 @@ const (
 const (
 	maxTitleRunes   = 40
 	maxTaglineRunes = 80
-	maxEmptyRunes   = 160
 	paletteSize     = 12
 )
 
@@ -76,9 +82,9 @@ var (
 	reIPFS      = regexp.MustCompile(`^ipfs://([A-Za-z0-9]{46,64})$`)
 )
 
-// sanitize drops listings whose core fields are invalid and clears rich
-// fields that are. Rich fields fail closed: a bad image is not shown, the
-// app still is.
+// sanitize drops listings whose core fields are invalid, and those the
+// operator denies, and clears rich fields that are invalid. Rich fields fail
+// closed: a bad image is not shown, the app still is.
 func (h *Handler) sanitize(in []listing) []listing {
 	now := time.Now()
 	out := in[:0]
@@ -87,6 +93,10 @@ func (h *Handler) sanitize(in []listing) []listing {
 			h.deps.Logger.Debug("store: dropping invalid listing", "slug", l.Slug)
 			continue
 		}
+		if h.denied(l.pkgPath()) {
+			continue
+		}
+		l.Week = min(max(l.Week, 0), l.Ranked) // of its ranked stars, never more
 		l.Icon, l.Cover = h.assetURL(l.Icon), h.assetURL(l.Cover)
 		l.shortPath, l.tier, l.earned = shortPath(l.pkgPath()), h.tierOf(&l), earned(&l, now)
 		l.art, l.glyph = cover(&l), icon(&l)
@@ -112,6 +122,12 @@ func (h *Handler) validCore(l *listing) bool {
 	l.webPath = web
 	return l.Title != "" && displayable(l.Title, maxTitleRunes) && displayable(l.Tagline, maxTaglineRunes) &&
 		l.Palette >= 0 && l.Palette < paletteSize && l.Ranked >= 0 && l.Ranked <= l.Stars
+}
+
+// denied reports whether the operator keeps a package path or a namespace
+// out of Explore (-store-deny): at once, with no vote (ADR-004 §2).
+func (h *Handler) denied(pkg string) bool {
+	return h.deps.Denied != nil && h.deps.Denied(pkg)
 }
 
 // realmWebPath returns path, a realm path on this chain, as a web path

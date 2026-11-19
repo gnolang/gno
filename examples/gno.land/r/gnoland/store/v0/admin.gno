@@ -46,7 +46,6 @@ var (
 	errUnknownListing = errors.New("store: unknown listing")
 	errNotAnApp       = errors.New("store: only an app can be picked")
 	errNotConfirmed   = errors.New("store: only a confirmed app can be picked")
-	errSlugMoved      = errors.New("store: the slug now names another listing")
 	errChanged        = errors.New("store: the app changed since the proposal")
 	errBadPickDays    = errors.New("store: a pick lasts 1 to " + strconv.Itoa(maxPickDays) + " days")
 	errUnknownReason  = errors.New("store: unknown hide reason")
@@ -71,14 +70,15 @@ func ProposeUnpause(cur realm) dao.ProposalRequest {
 // ProposeHide returns a GovDAO proposal that hides the listing slug for
 // reason, one of hideReasons. Both are checked now, so a proposal names a
 // listing that exists and a known reason. It is bound to that listing's
-// path: if the slug names another listing by execution, it fails.
+// path alone: whatever slug the listing has by execution, it is the one
+// hidden, and no other.
 func ProposeHide(cur realm, slug, reason string) dao.ProposalRequest {
 	if err := checkHide(slug, reason); err != nil {
 		panic(err)
 	}
 	path := lookup(&listings, slug).Path
 	return proposal(cur, "Hide "+slug+" from the store", "Hides the store listing "+slug+" ("+path+"), for "+reason+".",
-		func() error { return hideBound(slug, path, reason) })
+		func() error { return hidePath(path, reason) })
 }
 
 // ProposeUnhide returns a GovDAO proposal that restores the hidden listing
@@ -108,57 +108,67 @@ func ProposeSpotlight(cur realm, slug string, days int) dao.ProposalRequest {
 	n := strconv.Itoa(days)
 	return proposal(cur, "Feature "+slug+" as the front page's hero for "+n+" days",
 		"Features "+slug+" ("+path+") as the store front page's hero for "+n+" days, labelled as picked by GovDAO.",
-		func() error { return pickBound(slug, path, shown, days, blockTime()) })
+		func() error { return pickPath(path, shown, days, blockTime()) })
 }
 
 // ProposeSuccessor returns a GovDAO proposal that names path, the realm path
 // of a newer store ("gno.land/r/gnoland/store/v1"), as this store's
-// successor. Another proposal can name another one.
+// successor. Another proposal can name another one, or none: an empty path
+// takes a successor named by mistake back.
 func ProposeSuccessor(cur realm, path string) dao.ProposalRequest {
-	if !strings.HasPrefix(path, runtime.ChainDomain()+"/r/") || namespaceOf(path) == "" {
+	title, desc := "Point the store to "+path,
+		"Tells the store's readers, the realms that embed it and gnoweb that it moved to "+path+"."
+	switch {
+	case path == "":
+		title, desc = "Clear the store's successor", "Tells the store's readers that it has not moved."
+	case !strings.HasPrefix(path, runtime.ChainDomain()+"/r/") || namespaceOf(path) == "":
 		panic(errBadSuccessor)
 	}
-	return proposal(cur, "Point the store to "+path,
-		"Tells the store's readers, the realms that embed it and gnoweb that it moved to "+path+".",
-		func() error {
-			successor = path
-			chain.Emit("StoreMoved", "path", path)
-			return nil
-		})
+	return proposal(cur, title, desc, func() error {
+		successor = path
+		chain.Emit("StoreMoved", "path", path)
+		return nil
+	})
 }
 
-// hideBound and pickBound execute a hide or a pick proposed for the listing
-// of path under slug; a pick, for that listing as it was shown then
-// (pickedAs).
-func hideBound(slug, path, reason string) error {
-	if err := checkSlugPath(slug, path); err != nil {
-		return err
+// hidePath executes a hide proposed for the listing of path, for a reason
+// ProposeHide checked. A slug can pass to another listing before the vote
+// ends (a hide releases it, a Register moves a claim's), so only the path
+// says which listing was meant.
+//
+// It removes the listing from every shelf, category page and API response,
+// and releases its slug, its title and its namespace slot so it blocks no
+// one: the app a squat copied can then take its name. A core listing keeps
+// its slug and its title while hidden (slugTaken, titleTaken): no one else
+// may ever list as "Boards". The record stays under its path for audit, so
+// unhide can restore it.
+func hidePath(path, reason string) error {
+	l := lookup(&byPath, path)
+	if l == nil || l.hidden {
+		return errUnknownListing
 	}
-	return hide(slug, reason)
+	l.unindex()
+	dropPick(l)
+	listings.Remove(l.Slug)
+	l.hidden = true
+	if l.core {
+		hiddenCore++
+	}
+	chain.Emit("StoreHidden", "slug", l.Slug, "path", l.Path, "reason", reason)
+	return nil
 }
 
-func pickBound(slug, path, shown string, days int, now int64) error {
-	if err := checkSlugPath(slug, path); err != nil {
-		return err
-	}
-	if pickedAs(lookup(&listings, slug), now) != shown {
+// pickPath executes a pick proposed for the listing of path, as it was
+// shown then (pickedAs).
+func pickPath(path, shown string, days int, now int64) error {
+	l := lookup(&byPath, path)
+	switch {
+	case l == nil || l.hidden:
+		return errUnknownListing
+	case pickedAs(l, now) != shown:
 		return errChanged
 	}
-	return setPick(slug, days, now)
-}
-
-// checkSlugPath checks that slug still names the visible listing of path. A
-// hide releases the slug, so between a proposal and its execution it may
-// pass to an unrelated listing, which must not be hidden or picked instead.
-func checkSlugPath(slug, path string) error {
-	l := lookup(&listings, slug)
-	switch {
-	case l == nil:
-		return errUnknownListing
-	case l.Path != path:
-		return errSlugMoved
-	}
-	return nil
+	return setPick(l.Slug, days, now)
 }
 
 // checkPick checks that slug is an app picked() would show: visible and
@@ -218,25 +228,9 @@ func proposal(cur realm, title, desc string, apply func() error) dao.ProposalReq
 	return dao.NewProposalRequest(title, desc, dao.NewSimpleExecutor(0, cur, func(realm) error { return apply() }, ""))
 }
 
-// hide removes a listing from every shelf, category page and API response,
-// and releases its slug, its title and its namespace slot so it blocks no
-// one. The record stays under its path for audit, so unhide can restore it.
-func hide(slug, reason string) error {
-	if err := checkHide(slug, reason); err != nil {
-		return err
-	}
-	l := lookup(&listings, slug)
-	l.unindex()
-	dropPick(l)
-	listings.Remove(l.Slug)
-	byTitle.Remove(titleKey(l.Title))
-	l.hidden = true
-	chain.Emit("StoreHidden", "slug", slug, "path", l.Path, "reason", reason)
-	return nil
-}
-
 // unhide restores the hidden listing of path, unless its slug, its title or
-// its namespace's slots were taken while it was hidden.
+// its namespace's slots were taken while it was hidden. A core listing kept
+// its slug and its title.
 func unhide(path string) error {
 	l, err := hiddenListing(path)
 	if err != nil {
@@ -245,12 +239,16 @@ func unhide(path string) error {
 	if reason := available(l); reason != "" {
 		return errors.New("store: " + reason)
 	}
-	takeFromClaims(l)
+	reslugClaim(l.Slug)
 	l.hidden = false
+	if l.core {
+		hiddenCore--
+	}
 	listings.Set(l.Slug, l)
-	byTitle.Set(titleKey(l.Title), l.Slug)
 	l.index()
-	l.announce(blockTime()) // a claim confirmed while hidden was never announced
+	now := blockTime()
+	l.announce(now)       // a claim confirmed while hidden was never counted
+	l.confirmByStars(now) // nor one whose title was taken when its stars came
 	chain.Emit("StoreUnhidden", "slug", l.Slug, "path", l.Path)
 	return nil
 }

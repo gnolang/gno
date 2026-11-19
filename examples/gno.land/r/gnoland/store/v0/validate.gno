@@ -15,6 +15,10 @@ const (
 	palettes   = 12
 	minCID     = 46
 	maxCID     = 64
+	maxPath    = 256 // bytes: the chain's own limit on a package path (std.PkgPathLimit)
+	// movedMark sets apart the slugs the store gives to moved claims
+	// (movedSlug): no listing may ask for a slug that holds it.
+	movedMark = "--"
 )
 
 // Reasons a listing is refused for that are not about its own fields.
@@ -22,10 +26,13 @@ const (
 	reasonSlugTaken     = "slug_taken"
 	reasonTitleTaken    = "title_taken"
 	reasonNamespaceFull = "namespace_full"
+	reasonCore          = "core_listing"
 )
 
-// validateListing returns a short reason why l cannot be listed, or "".
-// Reasons are emitted in events and errors, so they stay stable identifiers.
+// validateListing returns a short reason why l's fields cannot be listed,
+// or "". Reasons are emitted in events and errors, so they stay stable
+// identifiers. The slug is upsert's to check: only a new listing asks for
+// one.
 func validateListing(l *listing) string {
 	_, knownCategory := findCategory(l.Category)
 	switch {
@@ -33,8 +40,6 @@ func validateListing(l *listing) string {
 		return "bad_path"
 	case !isKind(l.Kind) || (l.Kind == kindPackage) != isPackagePath(l.Path):
 		return "bad_kind"
-	case !validSlug(l.Slug):
-		return "bad_slug"
 	case !validTitle(l.Title):
 		return "bad_title"
 	case !validText(l.Tagline, maxTagline):
@@ -60,9 +65,13 @@ func validateRich(r rich) string {
 
 // namespaceOf returns the namespace of a realm or package path on this
 // chain ("<domain>/{r,p}/<namespace>/<segment>..."), or "" if path is not
-// one. Claim takes paths from users, so every segment is checked:
-// [a-z][a-z0-9_-]*.
+// one. Claim takes paths from users, so every segment is checked,
+// [a-z][a-z0-9_-]*, and so is the length: no package can live at a longer
+// path, and every read would carry it.
 func namespaceOf(path string) string {
+	if len(path) > maxPath {
+		return ""
+	}
 	rest, ok := strings.CutPrefix(path, runtime.ChainDomain()+"/r/")
 	if !ok {
 		rest, ok = strings.CutPrefix(path, runtime.ChainDomain()+"/p/")
@@ -97,7 +106,7 @@ func validSegment(s string) bool {
 }
 
 func validSlug(s string) bool {
-	if len(s) < minSlug || len(s) > maxSlug {
+	if len(s) < minSlug || len(s) > maxSlug || strings.Contains(s, movedMark) {
 		return false
 	}
 	for i := 0; i < len(s); i++ {

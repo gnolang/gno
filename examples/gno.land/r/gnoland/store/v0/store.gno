@@ -37,8 +37,9 @@ const (
 	nameMaturity = 3 * day
 	// confirmStars ranked stars confirm a claimed listing (T11).
 	confirmStars = 3
-	// updateCooldown is the least time between two "updated" announcements of
-	// a listing, so that re-registering in a loop buys no visibility.
+	// updateCooldown is the least time between two changes of a listing
+	// that count as updates, so that re-registering in a loop buys no
+	// visibility.
 	updateCooldown = 7 * epochLength
 
 	// No global cap: reads are bounded by shelf sizes, trendingScan and
@@ -65,18 +66,27 @@ type voter struct {
 //
 //	store.Register(cross(cur), "acme-swap", "Acme Swap", "Swap tokens in one click", "defi", 3)
 //
-// Calling Register again, as an upgraded realm's init does, updates the
-// listing: the original slug and creation time are kept and the slug
-// argument is ignored. A real change is announced as an update at most once
-// a week. Register never panics, but the deploying transaction pays for what
-// it stores here (about 2 GNOT for a namespace's first listing), so the
-// deploy's -max-deposit must cover it. A refused call emits
-// StoreRegisterRejected with the path, a short reason and, when another
-// listing holds the slug or title, its slug (holder).
-// The namespace owner can then list the realm with Claim, and the realm's
-// next Register confirms it.
+// Calling Register again updates the listing: the original slug and
+// creation time are kept and the slug argument is ignored. A real change
+// counts as an update at most once a week. Register never panics, but the
+// deploying transaction pays for what it stores here (about 2 GNOT for a
+// namespace's first listing), so the deploy's -max-deposit must cover it. A
+// refused call emits StoreRegisterRejected with the path, a short reason
+// and, when another listing holds the slug or title, its slug (holder).
+// An init runs once, so call Register from an exported function too, which
+// anyone can call again once the cause is gone, or to list the realm in the
+// store's successor:
+//
+//	func init(cur realm) { Relist(cross(cur)) }
+//	func Relist(cur realm) { store.Register(cross(cur), ...) }
+//
+// The namespace owner can also list the realm with Claim, and the realm's
+// next Register confirms it. Register takes its slug from a claim, which
+// moves to one of its own (StoreClaimMoved), never its title from a
+// confirmed listing. A slug is 3 to 40 of a-z, 0-9 and "-", with no "--".
+// A core listing is frozen: its Register is refused (core_listing).
 func Register(cur realm, slug, title, tagline, category string, palette int) {
-	// The weekly announcement limit is updateCooldown.
+	// The weekly update limit is updateCooldown.
 	path := cur.Previous().PkgPath()
 	kind := kindApp
 	if existing := lookup(&byPath, path); existing != nil {
@@ -112,10 +122,12 @@ func holderOf(l *listing, reason string) string {
 // or "service"). You must own the path's namespace. The store cannot check
 // that a package exists, so a claimed listing is unconfirmed until it has 3
 // stars that count toward its rank, or the realm's own Register confirms it.
-// Until then a claimed package or service shows nowhere, and a claimed app
-// only on its category page; once confirmed, it reaches the shelves, the
-// activity feed and the builders. Unlike Register, Claim must be called
-// directly, and panics with the reason when it refuses.
+// Until then a claimed package or service shows nowhere, a claimed app only
+// at the end of its category, and it reserves no title: two claims may share
+// one, which the first confirmed takes. Once confirmed, it reaches the
+// shelves and the builders. Unlike Register, Claim must be called directly,
+// and panics with the reason when it refuses; a core listing cannot be
+// claimed (core_listing).
 func Claim(cur realm, path, slug, title, tagline, category string, palette int, kind string) {
 	// Ownership is ownsNamespace; a claimed path is not verified beyond its
 	// grammar, so it takes confirmStars ranked stars to confirm (T11).
@@ -126,9 +138,6 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 	ns := namespaceOf(path)
 	if ns == "" || !ownsNamespace(caller.Address(), ns) {
 		panic("store: caller does not own the namespace")
-	}
-	if l := lookup(&byPath, path); l != nil && l.core {
-		panic("store: a core listing cannot be claimed") // frozen in code (ADR §5)
 	}
 	l := newListing(path, slug, title, tagline, category, palette, kind)
 	if reason := upsert(l, blockTime()); reason != "" {
@@ -181,6 +190,9 @@ func SubmitRich(cur realm, icon, cover string) {
 		panic("store: paused")
 	}
 	l := byPathOrPanic(cur.Previous().PkgPath())
+	if l.core {
+		panic("store: " + reasonCore) // frozen like its title: no image under the Core badge but the seed's
+	}
 	r := rich{Icon: icon, Cover: cover}
 	if reason := validateRich(r); reason != "" {
 		panic("store: " + reason)

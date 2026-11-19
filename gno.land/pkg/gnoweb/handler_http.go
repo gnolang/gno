@@ -126,6 +126,8 @@ type HTTPHandlerConfig struct {
 	StateRateLimitTrustedProxies []string
 	// StoreRealm — see AppConfig field of the same name.
 	StoreRealm string
+	// StoreDeny — see AppConfig field of the same name.
+	StoreDeny []string
 	// IPFSGateway is the gateway origin serving the store's owner images
 	// (RenderConfig.IPFSGateway); it must be in the CSP img-src. Empty shows
 	// the generated visuals only.
@@ -178,6 +180,11 @@ func (cfg *HTTPHandlerConfig) validate() error {
 			return errors.New("a `StoreRealm` needs a `Meta.Domain`")
 		}
 	}
+	deny, err := storeDenyEntries(cfg.StoreDeny, cfg.Meta.Domain)
+	if err != nil {
+		return err
+	}
+	cfg.StoreDeny = deny
 	// NewRouter has already normalized it; this catches a direct caller's.
 	gw, err := normalizeIPFSGateway(cfg.IPFSGateway, "", "")
 	if err != nil {
@@ -221,6 +228,9 @@ type HTTPHandler struct {
 
 // NewHTTPHandler creates a new HTTPHandler.
 func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
+	// A copy: validate normalizes it, and the caller's may be shared.
+	own := *cfg
+	cfg = &own
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
@@ -281,8 +291,9 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			TrustedProxies: trustedProxies,
 		},
 	})
+	h.ChainMap = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
 	if cfg.StoreRealm != "" {
-		h.Store = store.New(store.Deps{
+		deps := store.Deps{
 			Client:      cfg.ClientAdapter,
 			RealmPath:   cfg.StoreRealm,
 			Domain:      cfg.Meta.Domain,
@@ -290,8 +301,13 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			Remote:      cfg.Meta.RemoteHelp,
 			IPFSGateway: cfg.IPFSGateway,
 			Trusted:     h.policy.trusted.contains,
+			Denied:      storeDenied(cfg.StoreDeny),
 			Logger:      logger,
-		})
+		}
+		if h.ChainMap.HasIndexer() {
+			deps.Usage = h.storeUsage
+		}
+		h.Store = store.New(deps)
 	}
 	directory := cfg.Directory
 	if directory == nil {
@@ -310,8 +326,24 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		}),
 		Logger: logger,
 	})
-	h.ChainMap = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
 	return h, nil
+}
+
+// storeUsage hands Explore the week's distinct callers from the map's own
+// aggregate: one indexer read, refreshed every five minutes at most, serves
+// both, and Explore never waits for it.
+func (h *HTTPHandler) storeUsage(ctx context.Context) map[string]int {
+	return usageOf(h.ChainMap.Activity(ctx))
+}
+
+// usageOf is what Explore may show of an aggregate: nothing of one that left
+// part of the week unread, whose counts are lower bounds and would rank apps
+// wrongly.
+func usageOf(a *chainmap.Activity) map[string]int {
+	if a == nil || a.Partial {
+		return nil
+	}
+	return a.Callers
 }
 
 // searchDirectory adapts RealmDirectory to the shape feature/omnisearch

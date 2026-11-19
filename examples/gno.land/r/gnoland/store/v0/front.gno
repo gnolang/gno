@@ -1,10 +1,9 @@
 package store
 
-import "strconv"
-
-// The store front is a fixed sequence of grids (ADR §5): New and Top first
-// and gno.land essentials last, always, with Trending, Recently updated and
-// Rediscover between them when they have something to show. Most open onto a list of their own.
+// The store front is a fixed set of sections (ADR §5): New, Top, Trending,
+// Recently updated, Rediscover and gno.land essentials. Most open onto a
+// list of their own. gnoweb decides which it draws, under which name, and
+// may ask more of an app than the floors here (topStars, minTrending).
 
 const (
 	topStars = 3  // ranked stars an app needs to make Top
@@ -48,41 +47,29 @@ func newApps(n int) []*listing {
 func homeShelves(now int64) []shelf {
 	newList, top, updated := mustList("latest", now), mustList("top", now), mustList("updated", now)
 	return []shelf{
-		{
-			Title: newList.Title, More: newList, Pinned: true,
-			// Its "See all", :latest, lists every app, so its count is
-			// more than newApps draws from.
-			Items: newApps(gridPool),
-			Empty: "No new app yet. List yours from a registered namespace: it opens here.",
-		},
-		{
-			Title: top.Title, Note: "Ranked by stars from accounts with a registered name.", More: top, Pinned: true,
-			Items: topApps(gridPool),
-			Empty: "No app has " + strconv.Itoa(topStars) + " stars from named accounts yet. Found one you like? Star it: that's how apps get here.",
-		},
+		// The "See all" of New and of Recently updated, :latest and
+		// :updated, list every app: more than their shelves draw from.
+		{Key: "new", Title: newList.Title, More: newList, Items: newApps(gridPool)},
+		{Key: "top", Title: top.Title, More: top, Items: topApps(gridPool)},
 		listShelf(mustList("trending", now)),
-		{
-			Title: updated.Title, More: updated,
-			// Like New's: :updated lists every app, its shelf named ones.
-			Items: window(&namedUpdated, 0, gridPool),
-		},
-		{Title: "Rediscover", Note: "Older apps, a new set every day.", Items: rotation(now)},
-		{Title: "gno.land essentials", Note: "Built by the core team. Good first stops.", Items: essentialApps(), Pinned: true, Empty: "No core app is listed."},
+		{Key: "updated", Title: updated.Title, More: updated, Items: window(&namedUpdated, 0, gridPool)},
+		{Key: "rediscover", Title: "Rediscover", Items: rotation(now)},
+		{Key: "core", Title: "gno.land essentials", Items: essentialApps()},
 	}
 }
 
-// listShelf is the head of l, opening onto it, with its weekly counts. A
-// computed list (Trending) is cut here, not computed shorter, so the count
-// on its "See all" is that of its page. New and Top are not built here:
-// their shelves filter what their lists hold (New's list, :latest, has
-// every app; Top's goes on below the floor), so their counts are larger.
+// listShelf is the head of l, opening onto it. A computed list (Trending)
+// is cut here, not computed shorter, so the count on its "See all" is that
+// of its page. New and Top are not built here: their shelves filter what
+// their lists hold (New's list, :latest, has every app; Top's goes on below
+// the floor), so their counts are larger.
 func listShelf(l list) shelf {
-	s := shelf{Title: l.Title, More: l, Items: l.Items, Counts: l.Counts}
+	s := shelf{Key: l.Key, Title: l.Title, More: l, Items: l.Items}
 	switch {
 	case l.Index != nil:
 		s.Items = window(l.Index, 0, gridPool)
 	case len(s.Items) > gridPool:
-		s.Items, s.Counts = s.Items[:gridPool], s.Counts[:gridPool] // one count per item
+		s.Items = s.Items[:gridPool]
 	}
 	return s
 }

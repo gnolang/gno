@@ -91,7 +91,42 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		return zero, fmt.Errorf("%w: %w", ErrPending, err)
 	}
 
-	ch := f.group.DoChan(key, func() (any, error) {
+	ch := f.start(ctx, key, fetch)
+
+	if f.stale {
+		if e, ok := f.held(key); ok {
+			return e.val, nil
+		}
+	}
+
+	select {
+	case res := <-ch:
+		e := res.Val.(flightEntry[T])
+		return e.val, e.err
+	case <-ctx.Done():
+		var zero T
+		return zero, fmt.Errorf("%w: %w", ErrPending, ctx.Err())
+	}
+}
+
+// peek returns the answer at hand, fresh or stale, and never waits: with
+// none fresh it starts the fetch, or joins the one running, for the readers
+// that follow. It is for a page drawn with or without the answer.
+func (f *flight[T]) peek(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, bool) {
+	if e, ok := f.fresh(key); ok {
+		return e.val, e.err == nil
+	}
+	if ctx.Err() == nil {
+		f.start(ctx, key, fetch)
+	}
+	e, ok := f.held(key)
+	return e.val, ok
+}
+
+// start runs the fetch for key, detached from ctx, unless one is running,
+// and returns where its answer lands.
+func (f *flight[T]) start(ctx context.Context, key string, fetch func(context.Context) (T, error)) <-chan singleflight.Result {
+	return f.group.DoChan(key, func() (any, error) {
 		// A reader arriving as the previous fetch lands must not start
 		// another one.
 		if e, ok := f.fresh(key); ok {
@@ -107,24 +142,14 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		}
 		return f.store(key, val, err), nil
 	})
+}
 
-	if f.stale {
-		f.mu.Lock()
-		e, ok := f.entries[key]
-		f.mu.Unlock()
-		if ok && e.err == nil {
-			return e.val, nil
-		}
-	}
-
-	select {
-	case res := <-ch:
-		e := res.Val.(flightEntry[T])
-		return e.val, e.err
-	case <-ctx.Done():
-		var zero T
-		return zero, fmt.Errorf("%w: %w", ErrPending, ctx.Err())
-	}
+// held returns the last good answer for key, whatever its age.
+func (f *flight[T]) held(key string) (flightEntry[T], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e, ok := f.entries[key]
+	return e, ok && e.err == nil
 }
 
 // store records an answer, evicting the oldest when full, and returns what

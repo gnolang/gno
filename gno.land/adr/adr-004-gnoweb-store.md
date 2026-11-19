@@ -276,30 +276,58 @@ that, it is a claim again and leaves the shelves. The namespace owner's own
 star never ranks, so an owner cannot confirm their own claim. The realm's
 later `Register` confirms a claimed listing for good and keeps its kind (a
 claimed service stays a service). Only confirmed listings reach the shelves (New,
-Top, Trending, Recently updated, Rediscover, the Build lens), the activity
-feed, the pulse and the builders: one function, `track`, gates the feed and
-the pulse, and hidden or unconfirmed listings announce nothing, re-claims
-included. A listing is announced as listed once, including a claim
+Top, Trending, Recently updated, Rediscover, the Build lens), the pulse and
+the builders; hidden or unconfirmed listings count nowhere, re-claims
+included. A listing is counted as listed once, including a claim
 confirmed while hidden, when GovDAO unhides it: a claim that drops below
-three ranked stars and is confirmed again is not news, so unstarring and
-starring in a loop buys no feed slot. Until it is confirmed, a claimed package or service shows
-nowhere, and a claimed app only on its category page. Flooding
-"New" or the feed with fake paths therefore costs three ranked stars per
-path.
+three ranked stars and is confirmed again is not a new listing, so unstarring
+and starring in a loop does not inflate the pulse. Until it is confirmed, a
+claimed package or service shows nowhere, and a claimed app only at the end
+of its category, after every confirmed app (`catKey`): a claim costs a free
+address a few GNOT, so a category counts its confirmed apps apart
+(`confirmed`) and claims never push one down its page. Flooding "New" with
+fake paths therefore costs three ranked stars per path.
+
+**A claim holds no title, and is never deleted.** Only a visible,
+confirmed listing holds its title (`byTitle`). Two claims may share one, and
+so may a claim and a realm listing itself for the first time: the first
+confirmed takes the title, and the other stays a claim until its owner
+claims it again under another, which the stars it has then confirm at once.
+There is no exception, and so no title a free address can squat by claiming
+it. What a claim loses for it: a listed realm can rename itself onto a
+claim's title, and by following every title the claim tries, keep it from
+being confirmed. Each step costs that realm a transaction, harms no data,
+and ends with one GovDAO hide of the realm, where reserving titles for
+claims would take a hide for every squat.
+A claim does hold its slug, which is its handle for `Star`, but gives it up
+to a realm listing itself: the claim moves to a slug of its own
+(`reslugClaim`, `StoreClaimMoved`), its old one cut to fit and followed by
+`--` and a number never given before. No listing may ask for a slug holding
+`--`, so the new one is free by construction, with no search for a free
+suffix, and the claim is never moved again. It keeps its path, its stars
+and its place in its category, and stays its owner's to change and its
+realm's to confirm. An earlier design dropped such a claim, and took its
+title too. That let any ten-line realm delete the listing of an app that
+could only be claimed (every realm deployed before the store, every
+package), with its stars, and collect the storage deposit their owners had
+paid, since a deposit is refunded to whoever frees the storage. No listing
+and no star is now deleted by another user's transaction. What remains of
+that refund is small and bounded: the index entries a claim's confirming
+star paid for are freed, and refunded, by the unstar that takes it below
+three.
 
 **Slugs are global in this version.** A global slug is first come, first
 served, so a famous name can be squatted. The title is spoof-checked and the
 path, with its namespace, is always shown, which limits the damage; the real
 fix (namespaced ids, see Follow-ups) is out of scope here. gnoweb derives
-the namespace from the path itself and never keys on it. Activity events
-point at the listing itself, not its slug, so a slug released by `Hide` and
-reused never inherits the old listing's events.
+the namespace from the path itself and never keys on it. Nothing follows a
+slug from one listing to another: a GovDAO hide is bound to the path, which
+never changes hands.
 
 **"Updated" cannot be farmed.** A re-registration, a claim or a rich-field
-change moves a listing in "Recently updated" and the activity feed only
-when a stored field actually changes, and at most once per 7 days
-per listing. Spamming `Register` changes nothing a reader sees, and a
-hidden listing announces nothing.
+change moves a listing in "Recently updated" only when a stored field
+actually changes, and at most once per 7 days per listing. Spamming
+`Register` changes nothing a reader sees.
 
 Four fields are deliberately absent:
 
@@ -337,7 +365,7 @@ These are crossing functions. Caller identity always comes from
 |---|---|---|
 | `Register(cur, slug, title, tagline, category, palette)` | the listed path is `cur.Previous().PkgPath()` | **The app realm lists itself.** Deploying the realm proves control of it. No off-chain verification. Never panics, see below. |
 | `Claim(cur, path, slug, title, tagline, category, palette, kind)` | `cur.Previous().IsUserCall()` and `ownsNamespace(caller, ns(path))`: the caller's own address namespace, or a name it currently holds in `r/sys/users`, asked directly rather than through `r/sys/names`, which answers no to everyone while GovDAO pauses deploys; until `r/sys/names` is enabled (dev chains, tests, where anyone may deploy under a name) only the address namespace | Packages, services, and realms deployed before the store. Panics with the reason, and on a core (seeded) listing, which no namespace owner may rewrite. The path is checked for its grammar only (a realm cannot query whether a package exists), so the listing starts unconfirmed. |
-| `SubmitRich(cur, icon, cover)` | `cur.Previous().PkgPath()` is a listed path | **A listing's owner is its realm.** There is no owner address: an app manages its listing through its own code. A claimed package has no owner images. |
+| `SubmitRich(cur, icon, cover)` | `cur.Previous().PkgPath()` is a listed path | **A listing's owner is its realm.** There is no owner address: an app manages its listing through its own code. A claimed package has no owner images, and a core listing keeps the seed's: none. |
 | `Star` / `Unstar` | `cur.Previous().IsUserCall()` | One per address per listing, at most 20 new stars per address per day, not refunded by `Unstar`. Whether the star *ranks* is decided at star time (§5); a star that did not rank can be given again once it would, and then ranks. The namespace owner's own star never ranks. One per-address record holds the star budget and the name clock. No downvote. |
 | `ProposePause`, `ProposeUnpause`, `ProposeHide(slug, reason)`, `ProposeUnhide(path)`, `ProposeSpotlight(slug, days)`, `ProposeSuccessor(path)` | anyone builds the proposal; it takes effect only when GovDAO votes and executes it | The safety net the Hall of Fame review asked for (#2842), DAO-managed from the start; see below. |
 | later: `Flag`, `Retire`, editor shelves | see Follow-ups | |
@@ -352,18 +380,35 @@ harmless to repeat.
 - A second call from the same realm updates the listing (title, tagline,
   category, palette) and keeps its slug and creation time; the slug
   argument is ignored.
-- An unconfirmed claim holding the slug or title an app's own first
-  `Register` (or the seed, or a GovDAO unhide) asks for gives way: it is
-  dropped, with a `StoreClaimDropped` event, but only once the listing is
-  sure to be created, and never for a hidden listing, so a refused call
-  drops nothing.
-  The app's `init` runs once, so a refusal there would keep the real app out
-  for good, and a claim proves nothing.
+- An unconfirmed claim holding the slug an app's own first `Register` (or
+  the seed, or a GovDAO unhide) asks for gives way: it moves to a slug of
+  its own, with a `StoreClaimMoved` event, but only once the listing is sure
+  to be created, so a refused call moves nothing. A claim holds no title to
+  give. A slug is 3 to 40 of `a-z`, `0-9` and `-`, with no `--`.
+- A core listing is frozen: a `Register` from its path is refused
+  (`core_listing`), like a `Claim` or a `SubmitRich`. The seed lists paths,
+  not realms, so whoever first deploys at a seeded path that does not exist
+  yet must not get to name it, or to set its image, under the Core badge.
 - An invalid call (bad field, slug or title taken, namespace full, store
   paused) returns without effect and emits `StoreRegisterRejected` with a
   reason, and, when another listing holds the slug or title, that listing's
   slug (`holder`): the author sees why, and GovDAO which listing a squat
   would be.
+- **An `init` runs once**, so a call refused there (a pause, a taken name
+  GovDAO hides later, a full namespace) is never made again. The store's
+  snippet therefore registers from an exported function that `init` calls
+  and anyone can call again, once the cause is gone or to list the app in
+  the store's successor:
+
+  ```go
+  func init(cur realm) { Relist(cross(cur)) }
+
+  func Relist(cur realm) {
+      store.Register(cross(cur), "acme-swap", "Acme Swap", "Swap tokens in one click", "defi", 3)
+  }
+  ```
+
+  It is harmless to call: `Register` reads the calling realm's own path.
 
 `Claim`, `SubmitRich` and `Star` run in ordinary transactions, not in
 `init`, so they panic on bad input: there, an error is the right answer. A
@@ -372,9 +417,10 @@ harmless to repeat.
 
 Every successful `Register`, `Claim`, `Star`, `Unstar` and `SubmitRich`
 emits an event, as do GovDAO's pauses, unpauses, hides, unhides, picks and
-successor, so an indexer can follow the store from its events rather than
-seeing only an `addpkg`. `StoreHidden` and `StoreUnhidden` carry the path as
-well as the slug, since a hide releases the slug.
+successor, and a claim that moves to another slug, so an indexer can follow
+the store from its events rather than seeing only an `addpkg`.
+`StoreHidden` and `StoreUnhidden` carry the path as well as the slug, since
+a hide releases the slug.
 
 **Governance: GovDAO, through proposals the realm builds.** There is no
 admin address and no bootstrap key. Following the `r/sys/users` and
@@ -385,8 +431,11 @@ reason)`, `ProposeUnhide(path)`, `ProposeSpotlight(slug, days)` and
 executed it. Inputs are checked when the proposal is built (a known reason,
 a listing that exists, a path that is hidden, a confirmed app and a
 duration), and again when it is executed. A hide or a pick is bound to the
-listing's path when it is proposed: since a hide releases a slug, it fails
-if the slug names another listing by execution. A pick is also bound to
+listing's path when it is proposed. A hide follows that path alone
+(`hidePath`): whatever slug the listing has by execution, it is the one
+hidden, so a claim that changes slug during the vote does not escape it,
+and the listing that took the slug is not hidden in its place. A pick
+follows the path too (`pickPath`), and is also bound to
 what voters saw of the app: its title (its folded key), its tagline, and
 the icon and cover in effect. It fails if any of them changed by
 execution. The callbacks return errors instead of
@@ -399,10 +448,16 @@ GovDAO can pause, hide, pick and name a successor, never edit:
 - `Hide` takes an enum reason (impersonation, phishing, broken, offensive,
   other), emits an event, and removes the listing from every shelf, category
   and response. It also releases the listing's slug, title and namespace
-  slot, so a squatter blocks no one.
+  slot, so a squatter blocks no one. A core listing is the exception: it
+  keeps its slug and its title while hidden, or the first comer could list
+  as "Boards" the day GovDAO hides Boards for a bug.
 - The record stays under its path, so `Unhide` takes the path and refuses
   with `slug_taken`, `title_taken` or `namespace_full` if any was taken
-  meanwhile.
+  meanwhile. None can happen to a core listing: it kept its name, and the
+  namespace cap never applies to it, even in a namespace that is not a core
+  one (`p/moul/md`).
+- `ProposeSuccessor("")` takes a successor back: a path named by mistake
+  would otherwise point every reader away for good.
 - `ProposeSpotlight` features one app as the front page's hero, labelled
   "Picked by GovDAO", for 1 to 30 days (`maxPickDays`); the proposal reads
   "Feature <slug> as the front page's hero for N days". One pick at a time:
@@ -427,21 +482,30 @@ The integration test `gno.land/pkg/integration/testdata/store_govdao.txtar`
 covers the path end to end: initialise GovDAO, propose a hide, vote,
 execute, and the listing is gone; then propose a pick, which GovDAO shows
 as "Feature boards as the front page's hero for 7 days", vote, execute,
-and `api/v1/home` carries `"pick":"boards"`. The trade-off is speed: hiding a phishing
-listing takes a GovDAO vote, with no fast unilateral admin. That is
+and `api/v1/home` carries `"pick":"boards"`. It also deploys an app during a
+pause, which is refused, and lists it afterwards through its `Relist`, and
+names a successor and takes it back. The realm's own suite ends with random
+sequences of every write (`TestRandomWrites`: listings, claims, stars,
+hides, unhides, picks, images, time passing), rebuilding every index from
+the listings as it goes (`checkInvariants`) and checking that no listing
+and no star is ever lost: an index left out of step would stay so for good.
+The trade-off is speed: hiding a
+phishing listing takes a GovDAO vote, with no fast unilateral admin. That is
 consistent with moul's "Later … DAO-managed", and gnoweb's `-store-deny`
-(Next) is the operator's immediate switch.
+(§2) is the operator's immediate switch.
 
 **Why it is not minimal.** moul asked for minimalist contracts (#2842). The
 store keeps its full scope on purpose: most of its size is security bounds
 (title and asset validation, confirmation of claims, namespace quota),
 anti-sybil rules (ranked stars, the name clock, the star budget) and gas
 bounds (maintained indexes, capped reads, epoch rings), each answering a
-threat below. What could be cut later without weakening those: the Build
-lens and builder rankings, the pulse counters and activity ring, Trending's
-epoch-bucketed index (a plain "most starred" would do on a small chain),
-the publication delay if owner images are dropped, and the markdown store
-beyond the home page.
+threat below. What is not a bound is gnoweb's instead, since it can change
+there and cannot here: the words of every shelf, the floors it shows from
+(§5), and the telling of what happened last, for which the store keeps no
+feed. What could still be cut without weakening those bounds: the Build
+lens and builder rankings, the pulse counters, Trending's index (a plain
+"most starred" would do on a small chain), the publication delay if owner
+images are dropped, and the markdown store beyond the home page.
 
 **Rich fields have a publication delay.** `SubmitRich` stores the change as
 pending. It becomes effective `richDelay` (24 h of block time) later; until then
@@ -460,30 +524,38 @@ and the work behind them are bounded instead (T10, T11).
 
 **Sort orders are maintained, not recomputed.** As in the Hall of Realms,
 listings are indexed in avl trees: by creation time, update time,
-ranked-star count and, for apps, an epoch-bucketed trend index and per category (paged with
+ranked-star count and, for apps, a trend index and per category (paged with
 `p/nt/avl/pager`). Builders are kept ranked by stars and by first listing.
 Writes move only what changed: an update re-indexes a listing only when its
-kind or category changes, an "updated" announcement moves only its
-update-time entry, and a builder is re-keyed only when its key changes.
-The activity feed is a fixed ring; the pulse and 7-day stars are per-epoch
-rings; `fifth_ranked`, the one fact of earned reputation that needs the
-stars, reads one entry of the ranked-star tree.
+kind or category changes, an update moves only its update-time entry, and a
+builder is re-keyed only when its key changes.
+The pulse and 7-day stars are per-epoch rings; `fifth_ranked`, the one fact
+of earned reputation that needs the stars, reads one entry of the
+ranked-star tree. **No write removes more than its own entries**: a tree is
+never dropped whole in a user's transaction, which would make one user pay
+the gas of a clean-up that grows with the store, and collect the deposit of
+everything it frees.
 
 Every read is bounded whatever the store's size. A front or Build shelf
 sends a pool of 16 (`gridPool`), so it reads at most 16 entries of an
 index; Top reads the ranked-star index downwards and stops at the first app
 below its floor, skipping only the few core apps; the builder rankings read
-10 each. Trending reads a trend index of 7 slots,
-one per epoch of the window: an app is filed in the slot of the epoch of its
-last ranked-star change, by its 7-day score at that change (an upper bound
-since: scores only decay), and only if that score reaches the floor of 2. A
-slot whose epoch has left the window is dropped (replaced by a fresh tree on
-the next write), so stale scores never pile up in front of live ones.
-Trending reads only live slots, each downwards, stopping once a stored score
+10 each. Trending reads one trend index, `appTrend`, keyed by epoch, then
+score: an app is filed under the epoch of its last ranked-star change, by
+its 7-day score at that change (an upper bound since: scores only decay),
+and only if that score reaches the floor of 2. An app has one entry at
+most, replaced when its ranked stars change, so the index never outgrows
+the starred apps and nothing in it is ever cleared: an entry older than the
+window is simply not read. (An earlier design kept one tree per epoch of
+the window and replaced it with a fresh one on the first star of a later
+epoch. That star paid for deleting the whole tree, about 4,100 entries
+being more than a transaction can hold, and was refunded the deposit of
+everyone filed in it.) Trending reads the epochs of the window, newest
+first, each downwards, stopping once a stored score
 falls below the floor or the n-th best real score found so far, n being
 the list's length (24, `pageSize`, for `:trending` and its shelf; at most 8
 for `Block`), and after its share of 200 apps (`trendingScan`), 28 per
-slot, so a crowd of ties filed in one epoch cannot keep another epoch's
+epoch, so a crowd of ties filed in one epoch cannot keep another epoch's
 best app unread. It is exact unless that cap cuts it short. The Build lens
 has no Trending shelf and keeps no trend index. Rediscover finds where the new apps end in the
 creation index by binary search, then pages it.
@@ -514,19 +586,24 @@ No free text means nothing to moderate.
 - `Render("api/v1/home")`, `api/v1/category/<key>/<page>`,
   `api/v1/list/<key>/<page>`, `api/v1/build`: **JSON**, versioned by path
   and trimmed to what gnoweb reads. `home` returns the pulse, the taxonomy
-  with counts, every shelf, the activity feed and the listings they
-  reference **in one call**, plus `pick`, GovDAO's picked app while the
-  pick lasts. A shelf carries its `note`, whether it is
-  `pinned` and its `empty` text, `stars_7d` for Trending, and `more`, the
-  lists behind
-  it (`{"key", "title", "count"}` each). A listing carries its total
-  `stars`, its `ranked` stars, the facts earned reputation is made of
-  (`created`, `fifth_ranked` and `pending`, §2), its `core` flag and
+  with counts (`count`, every visible app of a category, the number its
+  pages hold, and `confirmed`, the number it is shown with), every shelf
+  and the listings they reference **in one call**, plus `pick`, GovDAO's
+  picked app while the pick lasts. A shelf carries its `key` (`new`, `top`,
+  `trending`, `updated`, `rediscover`, `core`; `new`, `updated`, `starred`
+  on Build), its `slugs` and `more`, the lists behind it (`{"key",
+  "count"}` each). It carries no words: its title, its
+  note, its empty text and whether it is pinned are gnoweb's, by key, so
+  none is frozen with the realm. A listing carries its total
+  `stars`, its `ranked` stars and how many of them came this week
+  (`stars_7d`), the facts earned reputation is made of
+  (`created`, `fifth_ranked` and `pending`, §2), when it last changed
+  (`updated`), its `core` flag and
   whether it is `confirmed`: true means on the shelves, not that its path
   was verified; false only shows on category pages, for claimed apps, and
   a claim confirmed by stars turns back to false below three ranked stars.
-  `home` also carries the block `height` and `time`, each activity event
-  its `time`, and `moved_to` once GovDAO has named a successor.
+  `home` also carries the block `height` and `time`, and `moved_to` once
+  GovDAO has named a successor.
   `api/v1/list/<key>/<page>` serves `top`,
   `latest` and `updated` (paged by 24) and `trending` (computed, one page
   of up to 24). `list` answers
@@ -546,18 +623,49 @@ No free text means nothing to moderate.
   has named a successor, `Badge` gives only a line pointing to it, and
   `Block` adds that line.
 
-The payloads are **bounded by construction**: fixed shelf sizes, a fixed
-activity ring, and pagination (24 per page). A store full of listings must
-never push `api/v1/home` past `qrender`'s gas limit (T10).
+The payloads are **bounded by construction**: fixed shelf sizes,
+pagination (24 per page), and a path no longer than the chain's own limit
+(256 bytes, `maxPath`: `Claim` takes paths from users, and every read
+carries them). A store full of listings must never push `api/v1/home` past
+`qrender`'s gas limit of 3 billion (T10), which takes more than a bound on
+its size: **its cost must grow with its size, not with its square.** Gno's
+`append` allocates exactly what it is asked for, so a `strings.Builder`
+left to grow as it is written to is copied whole at every write. The
+writer therefore takes room by doubling before each item of every array
+(`writeArray`, `itemRoom`), and writes in one piece what holds nothing to
+escape: the fields whose grammar says so (`writeToken`: slug, kind, path,
+category, content ids, all checked when stored) and the titles and
+taglines free of the few ASCII characters JSON and HTML need escaped
+(`writeText`). Measured with `gno test -print-runtime-metrics` on one
+workload, 60 apps registered with the longest fields a listing may have, an
+icon, a cover and three ranked stars each, of which `api/v1/home` carries
+51: 6.33 billion gas for its 59,564 bytes before, twice the limit; 0.66
+billion for 60,514 bytes after (each listing gained `updated` and
+`stars_7d`). Each figure is the test that renders the page less the test
+that only fills the store. Those titles are 36 characters to escape each,
+the worst a listing can hold; with plain ones, 55 listings and 20,555
+bytes cost 0.20 billion, 7% of the limit. `TestResponseGrowsByDoubling`
+holds the cause: it fails if the buffer is copied once per listing.
 
-`vm/qrender` is preferred over `vm/qeval` because gnoweb's client already
-speaks it (`Client.Realm`), and its output is a string the realm fully
-controls. `qeval` would need a new client method and a parser for Gno's value
-formatting.
+`vm/qrender` serves gnoweb, whose client already speaks it (`Client.Realm`),
+in one compact string the realm fully controls. `vm/qeval_json` would save
+the gas of writing JSON in the VM, but gnoweb has no decoder for Amino's
+typed values, which are several times larger on the wire, against a node
+cap of 1 MiB a response. The typed reads below serve the readers that have
+one.
 
-The realm computes the deterministic rotation (§5), so the JSON is ready
-to render. Earned reputation is the exception: the realm sends its facts and
-gnoweb decides (§2).
+- `ListingCount()`, `Listings(offset, limit)`, `ListingOf(path)`,
+  `StarsOf(path, offset, limit)`, `Successor()`, `Paused()`: **typed
+  reads**, exported non-crossing functions that return copies, 100 rows at
+  most (`readPage`), hidden listings included. They are for other realms
+  and for `vm/qeval_json` clients, and they are **the way out of this
+  version**: this path can never be redeployed, so a store that replaces it
+  pages through `Listings` and `StarsOf` to take over what this one holds.
+  Without them a successor could be named and nothing could follow.
+
+The realm computes the deterministic rotation (§5) and fills each shelf.
+What gnoweb can decide, it does: the words of a shelf, the floors it shows
+from, earned reputation (§2) and what happened last.
 
 ### 2. Trust tiers
 
@@ -590,9 +698,12 @@ generously, trust carefully"), and it can be reached by either of two paths:
 - **Usage path**, computed by gnoweb when an indexer is configured:
   - ≥ 25 distinct callers over the last 30 days.
 
-  Calls cost gas, so usage is harder to fake than stars. It is gnoweb's
-  decision, like every tier, and only for the deployment that runs that
-  indexer.
+  A caller is a funded address, so usage costs more to fake than a star
+  from a free address, though not more than a few GNOT a week: what makes
+  it the better signal is that it measures what people do, and that gnoweb
+  can change how it is counted. It is gnoweb's decision, like every tier,
+  and only for the deployment that runs that indexer. Not implemented:
+  usage is shown (§5) and unlocks no right yet.
 
 Once flags and the private-realm check land (Plan), either path also
 requires no open flags above the threshold and not a private realm (T2). The
@@ -604,11 +715,20 @@ The community path never reads indexer data: it is off-chain and can be
 wrong or manipulated (T8). Anonymous namespaces cannot earn rich rights at
 all, because a `g1…` namespace costs nothing to create.
 
-**Overrides that always win**, in this order. None is implemented yet
-(Plan, Next); until then a hide goes through GovDAO.
+**Overrides that always win**, in this order. Only the first is
+implemented; the others are planned (Plan, Next).
 
-1. `-store-deny <path|namespace>` (operator, repeatable): the listing is not
-   rendered anywhere. Effective at once, no transaction.
+1. `-store-deny <namespace|path>,…` (operator): the listings of a namespace
+   or under a package path are not drawn anywhere in Explore, nor is the
+   namespace among the builders. Effective at the next start, no
+   transaction: it is what an operator does about a phishing listing while
+   a GovDAO hide is being voted. An entry is taken as it is typed or pasted
+   (`acme`, `acme/swap`, `/r/acme/swap`, `gno.land/r/acme/swap`, a page's
+   address), and one that could match nothing stops the start: where a typo
+   in `-trusted-paths` trusts less, one here would deny less, and a deny
+   must not fail quietly. It filters what Explore draws, no more: the
+   realm's counts still include the listing, and its own markdown and
+   `api/` pages still show it.
 2. **Private realm** (`private = true` in `gnomod.toml`, read through
    `vm/qfile` and cached): never above the core tier, with a "Code can be
    replaced by its author" chip (T2).
@@ -627,9 +747,16 @@ registered namespace whose app earned
 reputation on chain ("A named builder whose app earned its place"). Each
 says where the app comes from, the seed catalogue or a track record of age
 and aged ranked stars, not that anyone read its code. Every other app shows
-a quiet "community" after its path, a word rather than a chip ("Deployed by
-its author. Read the code before you interact."), so the default state of a
-permissionless store is said without reading as an alarm. The limits are
+a quiet "community" after its path, a word rather than a chip, so the
+default state of a permissionless store is said without reading as an
+alarm; a claim nothing confirms shows "unverified" there instead, whatever
+an indexer counts for it: the two are said side by side, and neither stands
+for the other. What the two words mean is said once on every page, in a notice
+under the navigation: "Everything here was listed by its author: being
+listed is not being endorsed. Community apps and packages are not reviewed,
+and an unverified one is not confirmed to exist. Read the code before you
+interact." A `title` tooltip alone would say it to no one on a phone or a
+keyboard. The limits are
 real: Established is earned with stars and an app can change after earning
 it (T8), and Core is only as good as the seed catalogue, which is fixed
 in code and cannot be claimed (T1). The badges
@@ -647,7 +774,7 @@ The store must run with **no human in the loop**. Editors are a bonus.
 | Spam | deposits, a 5-listing namespace cap, a daily star budget, rankings on ranked stars, claims unconfirmed until starred | none |
 | Abuse | later: registered-user flags **demote** automatically (out of Spotlight, shelves and rotation) but never hide | a GovDAO `ProposeHide` with an enum reason, reversible and logged |
 | Dead apps | later: liveness check, dimmed, off the front page | none |
-| Emergencies | — | GovDAO `ProposeHide` (takes a vote); later, operator `-store-deny`, effective at once |
+| Emergencies | — | GovDAO `ProposeHide` (takes a vote); the operator's `-store-deny`, with no vote |
 
 Flags (later) demote; only GovDAO hides. A flag group therefore cannot make a
 competitor disappear, only drop it out of the shelves, and a hidden listing
@@ -668,8 +795,8 @@ from gnoweb itself.
 | **Generative covers** | a unique, deterministic artwork per app: the motif (waves, network, grid, rings, blobs, bars, dots) and the position of a soft light disc both drawn from a seed of the slug, not from the category, so a category page, whose apps share nothing else, still varies; colours from the palette index only, with no category colours | written by gnoweb, inline SVG, no input but a slug and a palette index | everyone, as the fallback and default |
 | **Pulse and shelves** | block height, listings and stars per window; New, Top, Trending, Recently updated, Rediscover | counters and indexes kept by the realm | everyone |
 | **Auto collections** (later) | "New this week in DeFi", "Built with avl", "Games under 500 lines" | queries over listings and chain facts | everyone |
-| **Moments** | one-line facts from the realm's activity feed, the latest joined to the pulse line: "Pixel Wall was listed", "… crossed 10 stars"; later "1 year on chain", "Crossed 100 users" (indexer) | facts, phrased by fixed templates in gnoweb | everyone; indexer moments labelled |
-| **Activity** (indexer) | "used 3 minutes ago", 7-day sparkline, weekly users | labelled `indexer` with freshness, as #6231 | everyone |
+| **Moments** | the latest thing the front page's own listings show, joined to the pulse line: "Pixel Wall just joined", "… was updated", read from their `created` and `updated` dates; later "1 year on chain", "Crossed 100 users" (indexer) | facts, phrased by fixed templates in gnoweb; the realm keeps no feed. An app that is still community is named by its path ("acme/pixel-wall just joined"), never its title: the top of the page shows no words anyone can register (T6) | everyone; indexer moments labelled |
+| **Usage** (indexer) | "40 users this week" on a card, a **Most used this week** shelf (§5); later "used 3 minutes ago", a 7-day sparkline | distinct callers, counted by the operator's indexer and said to be: off-chain, so it is shown and decides no tier | everyone |
 | **Owner assets** | icon and cover, `ipfs://CID` only | the only free-form source, so it is gated by tier, delay and content addressing: an image cannot change after review, and no external link exists to swap (§1) | trusted, earned |
 
 ### 5. Discovery mechanics
@@ -683,11 +810,12 @@ from gnoweb itself.
 | **Top** (pinned) | Community apps with ≥ 3 ranked stars, by ranked stars (the core apps are in gno.land essentials), so a young chain never crowns a one-star app. Its list, `:top`, goes on with every starred app. Note: "Ranked by stars from accounts with a registered name."; always drawn; empty: "No app has 3 stars from named accounts yet. Found one you like? Star it: that's how apps get here." | |
 | **gno.land essentials** (pinned) | The seed catalogue's apps, "Built by the core team. Good first stops.", the core of gno.land, frozen in code (no admin setter, and a core listing cannot be claimed); no page; last. Always drawn, less the hero's and the Spotlight's apps; left out only when all of them are featured above. The community sections (New, Top, Rediscover) leave the core apps out, so they never crowd it out. | a newcomer with no idea where to begin |
 | **Rediscover** | Confirmed apps past their first 14 days, in creation order; a window of 16 (like every unpinned section, room for what is shown above; gnoweb draws 8) slides by 8 every epoch (a day of block time) and wraps, so every app falls in the first half of a window, the part gnoweb draws, within `ceil(m/8)` epochs, with no hashing, no state and no pass over all apps. It rotates over a dedicated index of named namespaces' apps, so address (`g1…`) namespaces never take its slots: a free namespace earns no guaranteed front-page slot (its apps stay in categories and lists). The seed's core apps stay out of it too: they live in gno.land essentials, which would otherwise lose them to Rediscover and fall under 4 apps. No page. | long-tail oblivion |
-| **Trending this week** | Ranked stars over the last 7 epochs, floor of 2; `:trending`, computed, one page of up to 24; read from the live epoch slots of a trend index with an early stop, at most 200 apps; exact unless the cap cuts it short. | what is picking up |
+| **Trending this week** | Ranked stars over the last 7 epochs, floor of 2; `:trending`, computed, one page of up to 24; read from the window's epochs of the trend index with an early stop, at most 200 apps; exact unless the cap cuts it short. | what is picking up |
 | **Recently updated** | By `Updated`: real changes only, at most once per 7 days. Apps of named namespaces only, as in New; its list, `:updated`, holds every app. | rewards maintenance |
 | **Lists** | `:top`, `:latest`, `:updated` (24 per page) and `:trending` (computed, one page), behind each section's "See all". The New section's list keeps the key `latest` (URL `:latest`) while its title is "New". | |
 | **Exploration slots** (later) | Every ranked section reserves 2 of its slots for rotation picks from the same category. | popularity lock-in |
-| **Category pages** | `:c/<key>`, newest first, 24 per page, apps only; the only place an unconfirmed claimed app shows. Tag pages and other sorts (*Stars*, *A–Z*, *Random*) are follow-ups. | "popular first" browsing |
+| **Category pages** | `:c/<key>`, confirmed apps first, then claims, each newest first, 24 per page, apps only; the only place an unconfirmed claimed app shows, at the end and marked "unverified". The category is counted by its confirmed apps ("28 apps, and 2 claimed listings not confirmed yet"). Tag pages and other sorts (*Stars*, *A–Z*, *Random*) are follow-ups. | "popular first" browsing; claims crowding a category |
+| **Floors are gnoweb's** | Top's 3 ranked stars and Trending's 2 this week are the realm's floors for its own markdown and `Block`, permanent for its path. gnoweb applies its own on top (`topStars`, `trendingStars`, the same at launch), from the `ranked` and `stars_7d` each listing carries, on the front's shelves and on the `:trending` page, as it does for earned reputation: a release raises them as the chain grows, with no vote and no new version. | a rank that costs a few GNOT for good |
 | **Surprise me** | A plain link to a random app's page, picked per request from the listings of the cached home payload. No redirect endpoint. | serendipity |
 | **Auto collections and moments** | See §4. | a store that feels static |
 | **Shown once, and a minimum** | The pinned sections (New, Top, gno.land essentials) set aside only the hero and the Spotlight's apps, so Top shows the true top even when those apps are also new. Trending, Recently updated and Rediscover show no app already shown above them (the realm sends a pool of 16 so 8 remain) and are hidden under 4 cards. | the same 10 apps everywhere |
@@ -706,6 +834,10 @@ or threshold to tune:
    crowning an app with one star; a mature one shows both.
 4. **Trending this week**, **Recently updated** and **Rediscover**, each
    drawn only when it has at least 4 apps not already shown above.
+
+With an indexer, **Most used this week** comes first of the sections that
+are not pinned, after New and Top, under the same rule of 4
+(Indexer-backed, below).
 5. **gno.land essentials**, pinned like New and Top: always drawn, less the
    hero's and the Spotlight's apps, and left out only when all its apps are
    featured above.
@@ -725,9 +857,9 @@ is on.
 | Total stars | every star from a direct user call | the card's tooltip | no |
 | Stars in the pulse | every star | the pulse | no |
 | Recent registrations and updates | listing times | "New", "Recently updated"; registrations also in the pulse | no |
-| Ranked stars | an address with a registered name the store has known for ≥ 3 days, not the listing's namespace owner | the number on the card, "Top" (≥ 3), "Trending", milestones, builder ranks, confirming a claim (3) | yes |
+| Ranked stars | an address with a registered name the store has known for ≥ 3 days, not the listing's namespace owner | the number on the card, "Top" (≥ 3), "Trending", builder ranks, confirming a claim (3) | yes |
 | Ranked, aged stars | the same, the star itself ≥ 3 days old | earned reputation | stricter |
-| Distinct callers (indexer) | transactions | "Most used", usage path to earned | partly: gnoweb's call |
+| Distinct callers (indexer) | transactions | "Most used this week", the count on a card, a claim's path shown to exist; later the usage path to earned | partly: gnoweb's call |
 
 **Why rankings use ranked stars.** An address is free: a script can create
 a hundred and push any app into "Trending" within each address's daily
@@ -772,13 +904,14 @@ calls** to listed apps today.
 The realm counts listings of every kind and stars given, net of those taken
 back; it keeps no "updated" figure, which a reader could not act on.
 
-- **Activity feed.** The realm keeps a fixed ring of the last 20 events of
-  confirmed, visible apps of named namespaces: listed (or confirmed),
-  updated, crossed a ranked-star milestone (10, 50, 100). It keeps only
-  what it may serve, so services, packages and address (`g1…`) namespaces
-  cannot push its events out. The API serves the newest 5 of
-  listings still shown as apps; gnoweb joins the latest one to the
-  pulse line ("Pixel Wall crossed 10 stars").
+- **The latest moment.** The realm keeps no feed of events. gnoweb tells
+  the newest thing the front page's own listings show, from their `created`
+  and `updated` dates, among the apps of the New and Recently updated
+  shelves, which hold confirmed apps of named namespaces only: "Pixel Wall
+  just joined", "Pixel Wall was updated", for a week at most. An earlier
+  design kept a ring of 20 events in the realm, with star milestones: state
+  written on every listing and star, and wording, sizes and thresholds
+  frozen with it, for one line of the page.
 - **Honest windows.** Every figure names its window, and the pulse picks the
   shortest window that is not zero (this week, then this month). A quiet
   chain reads as "this month", never as "0 this week". Nothing is invented:
@@ -855,26 +988,44 @@ promotes its host. Until then, at launch, the operator's apps fill them, so
 a new chain is not left without either. Everything is derived from the
 block time in the cached home payload, so every gnoweb shows the same and
 caches it. The Spotlight's caption says what it is: "A new set every day, from
-apps gno.land vouches for and community apps with a track record."
+gno.land's core apps and community apps with a track record." The store
+vouches for no one (Design rules): the note names where an app comes from.
 
 #### Indexer-backed (only with `-indexer-url`)
 
-These are registered only when `Deps.Indexer != nil`. Without an indexer,
-the shelves do not exist: no empty rows, no placeholder.
+These exist only with an indexer. Without one, the shelves do not exist: no
+empty rows, no placeholder.
 
 | Shelf / signal | Query | Notes |
 |---|---|---|
+| **Most used this week** (implemented) | distinct callers over the last 7 days | after New and Top, which keep the head of the page whatever an indexer counts, under the rule of 4, from its own top; ranks the apps the front page already carries, from 3 callers (`usedMin`); named namespaces only, like New: a caller is one funded address, cheaper than a ranked star, so a count alone must buy no pinned place, and none at all to a free `g1…` namespace |
+| **Per-app users** (implemented) | the same | "40 users this week" on a card, from 3; a claim stays "unverified" beside it |
 | **Trending** | calls in the last 7 days vs the previous 7, growth-ranked, with a volume floor | growth, not totals |
-| **Most used** | distinct callers over 30 days | |
 | **Rising newcomers** | Trending, restricted to listings < 60 days old | |
 | **Back in action** | quiet for ≥ 60 days, active in the last 7 | resurfaces revived apps |
 | **Built on** | `importers` of a listed package | |
-| **Per-app stats** | calls, callers, last activity, sparkline | on cards, and in the app band once it exists (Follow-ups) |
+| **Per-app stats** | calls, last activity, sparkline | on cards, and in the app band once it exists (Follow-ups) |
 | **Candidates queue** | active realms *not* listed, ranked by distinct callers; shown in the realm's editor view only | the chain proposes, curation corrects |
 
-**Wire-in.** The same shape as `feature/omnisearch` in #6231:
-`store.Deps` gains an optional `Signals` field, a narrow interface declared in
-`feature/store` and satisfied by `*indexer.Client`:
+**What is wired.** Explore reads the week's distinct callers from the
+aggregate the chain map already computes and caches (`feature/chainmap`,
+`Activity`, #6283): `store.Deps.Usage` is a function gnoweb's core binds to
+it, nil without an indexer. One aggregate serves both pages, refreshed
+behind the reader every 5 minutes at most, whichever page asks (every
+minute while the indexer fails or reads only part of the week): Explore
+has no query of its own, keeps that one warm, and never waits for it. It takes the figures at hand and starts the scan for the readers
+that follow, so the pages are drawn without them until the first scan
+lands, and while the indexer fails or could not read the whole week, when a
+count would be a lower bound and rank apps wrongly. The figures are said to be the indexer's, on the shelf and on the
+card, and they unlock nothing: no image, no badge, no Spotlight (§2).
+Ranking every listed app by usage, and showing used apps that are only
+claimed on the front page, would take the realm a list gnoweb could page
+through; it is left to the next version.
+
+**Wire-in of the shelves still to come.** They need queries of their own
+(growth, importers), so they take the shape of `feature/omnisearch` in
+#6231: `store.Deps` gains an optional `Signals` field, a narrow interface
+declared in `feature/store` and satisfied by `*indexer.Client`:
 
 ```go
 // Signals is the subset of *indexer.Client the store consumes. Nil is the
@@ -1080,7 +1231,7 @@ The front page, top to bottom:
    `store.Badge("<domain>/r/YOUR-NAMESPACE/your-app")` snippet for the
    app's own `Render`.
 
-The pulse line carries the latest activity event; there is no separate
+The pulse line carries the latest moment (§5); there is no separate
 activity list. Cards show ranked stars, with the total in the tooltip. A
 list page header says "N apps".
 
@@ -1240,7 +1391,8 @@ successor that `Render`, `Block` and `Badge` send readers to.
 *Mitigations*: rich fields are images only, content-addressed, and wait
 `richDelay` (24 h) before gnoweb sees them; there is no external link to
 swap; a card links only to the realm path; GovDAO can `ProposeHide` the
-listing, and `-store-deny` (Next) will remove it from every surface at once.
+listing, and the operator's `-store-deny` removes it from every surface of
+that gnoweb at once.
 There is no admin key to steal: only an executed GovDAO proposal pauses,
 hides or names a successor, it cannot edit or delete a listing, every hide,
 unhide, pick and successor emits an event, and a hide is reversible. A
@@ -1259,8 +1411,8 @@ cannot be claimed, so the keys of the namespaces holding the seed (the
 `gnoland`, `demo` or `nt` names among them) cannot retitle a seeded app.
 *Residual*: an attacker who controls a realm's code controls its `Render()`,
 as they would on its realm page today. The store does not make this worse.
-Hiding a phishing listing takes a GovDAO vote; until `-store-deny` lands,
-there is no faster switch.
+Hiding a phishing listing for every reader takes a GovDAO vote; an
+operator's `-store-deny` hides it on that gnoweb only.
 
 **T2. A private realm swaps its code.** Only private realms can be deployed
 over (#6164). An app can look clean when listed, then become a drainer.
@@ -1376,7 +1528,7 @@ app can also earn reputation while benign and then switch.
 *Mitigations*: stars come from direct user calls only (a `maketx run`
 script or another realm cannot star), each address has a budget of 20 new
 stars per day, and there is no downvote to bomb with. Rankings ("Top",
-"Trending", milestones, builder
+"Trending", builder
 totals), the number on the card and confirmation (3 stars)
 count only ranked stars: from an address whose registered name the store
 has known for 3 days, and never the namespace owner's own. A claim
@@ -1421,16 +1573,19 @@ apps cannot list, or so that pages grow until they fail.
 per namespace (the core namespaces excepted, so the seed leaves room for
 the core realms that follow it), and a hidden listing releases its slot,
 slug and title;
-storage deposits price every write. A claim reaches no shelf, feed, pulse
+storage deposits price every write. A claim reaches no shelf, pulse
 or builder list until three ranked stars from others (or its realm's own
 `Register`) confirm it, and leaves them again if its stars drop below
 three: until then a fake package or service path shows
-nowhere, and a fake app path only on its category page. Nor can a claim
-keep the real app out: the app's own `Register`, or the seed, drops an
-unconfirmed claim holding its slug or title.
+nowhere, and a fake app path only at the end of its category page, marked
+unverified, behind every confirmed app. Nor can a claim keep the real app
+out: it reserves no title, and the app's own `Register`, or the seed, takes
+its slug, the claim moving to another. And no listing can be used against a
+claim: nothing deletes one, so the apps that can only be claimed keep their
+listing and their stars.
 Free `g1…` namespaces can still list their own realms, but those never rank
 without ranked stars, never get owner images, and are left out of
-New, Recently updated, Rediscover and the activity feed, which draw from
+New, Recently updated, Rediscover and Most used, which draw from
 named namespaces only. Every read is
 bounded: front sections read at most 16 index entries (Top stops at its
 floor, skipping only the few core apps), builders 10,
@@ -1495,9 +1650,9 @@ gnoweb only queries category pages that exist in the cached taxonomy.
   at most 200 apps
   (`trendingScan`) over the live epoch slots with an early stop at the
   n-th best score (n = 24, at most 8 for `Block`), Rediscover
-  a binary search and a window of 16; the feed is a ring of 20 served 5 at a
-  time, and category
-  and list pages hold 24.
+  a binary search and a window of 16; category
+  and list pages hold 24, typed reads 100, and no path is longer than 256
+  bytes. The cost of a response grows with its size (§1, Read API).
 
 **Later: "Apps you may like".** Recommendations need to know who is reading.
 gnoweb is stateless and has no accounts, by design. When gnoconnect (#5970)
@@ -1624,8 +1779,8 @@ Epoch rotation gives a provable exposure guarantee with no state.
   3 days, and while names are free this is a delay rather than a price.
 - A claimed listing shows nowhere until three ranked stars or its realm's
   `Register` confirm it, except a claimed app on its category page.
-- Hiding a listing takes a GovDAO vote: no fast unilateral moderation until
-  gnoweb's `-store-deny` lands.
+- Hiding a listing for everyone takes a GovDAO vote; `-store-deny` is fast
+  but each operator's own.
 - The path is permanent: a wrong constant or a bug stays in `v0`, and a `v1`
   means apps re-`Register` and stars start over; `ProposeSuccessor` only
   points `v0`'s readers to it.
@@ -1656,10 +1811,11 @@ Each phase ships on its own.
 1. **Realm** (this PR): `r/gnoland/store/v0` with listings keyed by global
    slug, unique titles, the taxonomy, a 5-per-namespace cap, stars with the
    daily budget and ranked-star rankings (name maturity, no owner
-   self-stars), confirmation of claims (3 ranked stars), one `track` gate
-   for the feed and pulse, IPFS-only owner images with the publication
-   delay, the facts of earned reputation and the `core` flag, pulse,
-   activity ring, shelves and the sliding rotation,
+   self-stars), confirmation of claims (3 ranked stars), claims that
+   reserve no title and are never deleted, IPFS-only owner images with the
+   publication delay, the facts of earned reputation and the `core` flag,
+   frozen core listings, pulse, shelves named by key and the sliding rotation,
+   typed reads for a successor,
    exact bounded Trending, binary-searched Rediscover, bounded builder
    reads, writes that move only what changed, an explicit list of core
    namespaces kept out of the builder rankings, the updated-farming fix, a `Register`
@@ -1683,9 +1839,10 @@ Each phase ships on its own.
    texts, then Trending, Recently updated, Rediscover over named namespaces
    and gno.land essentials, all grids, no app twice, weekly momentum) and
    their list pages, category pages, the Build lens, generative covers, the
-   Star and Surprise links, field validation and failure caching. Next:
-   `-store-deny`, the names-enforcement startup check, liveness and private
-   checks, flags, the small-catalogue fallbacks. Design review against §7.
+   Star and Surprise links, field validation and failure caching, the words
+   and floors of every shelf, the visible notice, `-store-deny`, and with an
+   indexer the usage shelf and counts. Next: the names-enforcement startup
+   check, liveness and private checks, flags, the small-catalogue fallbacks. Design review against §7.
    Launch is gated on the seed content and the "List your app" guide.
 3. **Indexer signals** (after #6231): trending, most used, rising, back in
    action, built on, per-app stats, indexer moments, candidates queue.

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
@@ -155,4 +156,140 @@ func TestStoreViewIsServed(t *testing.T) {
 			assert.NotContains(t, rr.Body.String(), tc.notWant)
 		})
 	}
+}
+
+// Explore reads the real realm, not an example of it: this decodes what
+// store/v0 answers from genesis, through a node, into the pages gnoweb
+// draws. The api/v1 contract is frozen with the realm, so a field the two
+// disagree on must fail here.
+func TestStoreReadsTheRealRealm(t *testing.T) {
+	cfg := NewDefaultAppConfig()
+	cfg.NodeRemote = sharedNodeRemote(t)
+	cfg.StoreRealm = "/r/gnoland/store/v0"
+	router, err := NewRouter(slog.New(slog.DiscardHandler), cfg)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		path string
+		want []string
+	}{
+		{"/r/gnoland/store/v0", []string{
+			`<div class="b-store u-grid-full">`,              // the store's view, not the realm's markdown
+			`>gno.land essentials</h2>`,                      // the realm's "core" shelf, worded by gnoweb
+			`<use href="#ico-check"></use></svg>Core</span>`, // "core" is read
+			`href="/r/gnoland/store/v0:c/social"`,            // categories and their counts
+			`Block `,                                         // height and time
+		}},
+		{"/r/gnoland/store/v0:c/social", []string{
+			"<h1>Social</h1>", "<p>1 app</p>", // "confirmed" is read
+			`<h3><a href="/r/gnoland/boards2/v0">Boards</a></h3>`,
+			`<span class="u-font-mono" title="/r/gnoland/boards2/v0">`,
+		}},
+		{"/r/gnoland/store/v0:latest", []string{"<h1>New apps</h1>", `>Valopers</a></h3>`}}, // a paged list and its count
+		{"/r/gnoland/store/v0:build", []string{"<h1>Build</h1>", `>AVL Tree</a></h3>`, `href="/u/moul"`}},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+			for _, want := range tc.want {
+				assert.Contains(t, rr.Body.String(), want)
+			}
+			assert.NotContains(t, rr.Body.String(), `>unverified</span>`, "the seed is confirmed")
+		})
+	}
+}
+
+// NewHTTPHandler normalizes a copy of its config: a caller may share one
+// between handlers built at once.
+func TestNewHTTPHandlerLeavesItsConfigAlone(t *testing.T) {
+	t.Parallel()
+
+	client := NewMockClient()
+	cfg := &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+		Meta:          StaticMetadata{Domain: "gno.land"},
+		IPFSGateway:   "https://DWEB.link/",
+	}
+	want := *cfg
+	h, err := NewHTTPHandler(slog.New(slog.DiscardHandler), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, h)
+	assert.Equal(t, want.IPFSGateway, cfg.IPFSGateway)
+}
+
+// Explore shows nothing of an aggregate that left part of the week unread:
+// its counts are lower bounds, and would rank apps wrongly.
+func TestUsageOf(t *testing.T) {
+	t.Parallel()
+
+	callers := map[string]int{"gno.land/r/acme/swap": 3}
+	assert.Nil(t, usageOf(nil))
+	assert.Nil(t, usageOf(&chainmap.Activity{Callers: callers, Partial: true}))
+	assert.Equal(t, callers, usageOf(&chainmap.Activity{Callers: callers}))
+}
+
+// A deny entry is taken as an operator types or pastes it, and one that
+// could match nothing stops the start: a deny must not fail quietly.
+func TestStoreDenyEntries(t *testing.T) {
+	t.Parallel()
+
+	for _, entry := range []string{
+		"scam", " scam/ ", "scam/app", "/r/scam/app", "r/scam/app", "gno.land/r/scam/app", "gno.land/p/scam/app",
+		"https://gno.land/r/scam/app", "https://gno.land/r/scam/app:c/defi?page=2", "/r/scam/app$source",
+	} {
+		got, err := storeDenyEntries([]string{entry, " "}, "gno.land")
+		require.NoError(t, err, entry)
+		require.Len(t, got, 1, entry)
+		assert.True(t, storeDenied(got)("scam/app"), "%q denies scam/app as %q", entry, got[0])
+		assert.False(t, storeDenied(got)("scammer/app"), "%q must not deny another namespace", entry)
+	}
+	for _, entry := range []string{"Scam", "*", "scam/*", "sc am", "other.land/r/scam/app", "/r/", "https://gno.land"} {
+		_, err := storeDenyEntries([]string{entry}, "gno.land")
+		assert.ErrorContains(t, err, "StoreDeny", entry)
+	}
+
+	client := NewMockClient()
+	_, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+		Meta:          StaticMetadata{Domain: "gno.land"},
+		StoreDeny:     []string{"Scam"},
+	})
+	require.ErrorContains(t, err, "StoreDeny")
+}
+
+// A -store-deny entry takes its listings off Explore at once.
+func TestStoreDenyHidesAListing(t *testing.T) {
+	t.Parallel()
+
+	listing := func(ns, title string) string {
+		return `{"slug":"` + ns + `-app","kind":"app","path":"gno.land/r/` + ns + `/app","title":"` + title + `","tagline":"x","category":"defi","palette":0,"confirmed":true}`
+	}
+	client := storeClient{
+		MockClient: NewMockClient(&MockPackage{
+			Domain: "gno.land", Path: "/r/gnoland/store",
+			Files:     map[string]string{"render.gno": `package store; func Render(string) string { return "store" }`},
+			Functions: []*doc.JSONFunc{{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Type: "string"}}}},
+		}),
+		api: map[string]string{"api/v1/home": `{"version":1,"categories":[],"shelves":[{"key":"new","slugs":["scam-app","fine-app"]}],"listings":[` + listing("scam", "Free Airdrop") + `,` + listing("fine", "Fine App") + `]}`},
+	}
+	h, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
+		ClientAdapter: client,
+		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
+		Aliases:       map[string]AliasTarget{},
+		Meta:          StaticMetadata{Domain: "gno.land"},
+		StoreRealm:    "/r/gnoland/store",
+		StoreDeny:     []string{" scam/ "},
+	})
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/gnoland/store", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "Fine App")
+	assert.NotContains(t, rr.Body.String(), "Free Airdrop")
 }

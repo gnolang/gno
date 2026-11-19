@@ -102,7 +102,7 @@ func (h *Handler) serveHome(ctx context.Context) (*components.View, Meta) {
 	if err != nil {
 		return nil, Meta{} // logged once by decode
 	}
-	return h.ok("store/home", h.buildHome(res)),
+	return h.ok("store/home", h.buildHome(res, h.usage(ctx))),
 		Meta{Status: http.StatusOK, Title: "Explore · " + h.deps.Domain, Description: introLine}
 }
 
@@ -111,20 +111,20 @@ func (h *Handler) serveBuild(ctx context.Context) (*components.View, Meta) {
 	if err != nil {
 		return nil, Meta{} // logged once by decode
 	}
-	return h.ok("store/build", h.buildBuild(res)), h.meta("Build", buildLine)
+	return h.ok("store/build", h.buildBuild(res, h.usage(ctx))), h.meta("Build", buildLine)
 }
 
 // servePage serves one page of a category or of a list (kind as in paged).
 // It only queries the realm for one the cached front page offers, and a page
 // that exists: arbitrary keys or pages never reach the node, nor fill the
 // cache. A category page is headed by the front page's validated label and
-// count, a list page by gnoweb's own name for it.
+// counts, a list page by gnoweb's own name for it.
 func (h *Handler) servePage(ctx context.Context, u *weburl.GnoURL, kind, key string) (*components.View, Meta) {
 	home, err := h.home(ctx)
 	if err != nil {
 		return nil, Meta{} // logged once by decode
 	}
-	title, count, ok := offered(home, kind, key)
+	title, count, confirmed, ok := offered(home, kind, key)
 	page, pages, valid := pageParam(u, count)
 	if !ok || !valid {
 		return h.notFound(home)
@@ -146,15 +146,19 @@ func (h *Handler) servePage(ctx context.Context, u *weburl.GnoURL, kind, key str
 	if err != nil {
 		return nil, Meta{} // an error is logged once by decode
 	}
-	data.Note = appCount(count)
-	data.Cards = h.cards(ptrs(res.Listings), categoryLabels(home.Categories))
+	data.Cards = h.cards(ptrs(res.Listings), categoryLabels(home.Categories), h.usage(ctx))
 	if kind == pagedCategory {
+		data.Note = categoryNote(count, confirmed)
 		// The page is the category: its cards need not say it.
 		for i := range data.Cards {
 			data.Cards[i].Category = category{}
 		}
 		data.Empty = "No " + title + " apps yet."
 	} else {
+		data.Note = appCount(count)
+		if key == trendingKey { // one page, held to gnoweb's floor (paged)
+			data.Note = appCount(len(res.Listings))
+		}
 		data.Empty = "Nothing here yet."
 	}
 	// The front page's count decides which pages exist (pageParam): a
@@ -185,7 +189,7 @@ func (h *Handler) notFound(home *homeResponse) (*components.View, Meta) {
 func listTabs(home *homeResponse, current string) []listTab {
 	var out []listTab
 	for _, l := range lists {
-		if _, _, ok := offered(home, pagedList, l.key); ok {
+		if _, _, _, ok := offered(home, pagedList, l.key); ok {
 			out = append(out, listTab{Key: l.key, Label: l.label, Current: l.key == current})
 		}
 	}
@@ -214,25 +218,25 @@ func pageParam(u *weburl.GnoURL, count int) (page, pages int, ok bool) {
 	return page, pages, page >= 1 && page <= pages
 }
 
-// offered returns the title and count of a category or a list the front
-// page offers.
-func offered(home *homeResponse, kind, key string) (title string, count int, ok bool) {
+// offered returns the title of a category or a list the front page offers,
+// its count, and how many of that are confirmed: all, but in a category.
+func offered(home *homeResponse, kind, key string) (title string, count, confirmed int, ok bool) {
 	if kind == pagedCategory {
 		for _, c := range home.Categories {
 			if c.Key == key {
-				return c.Label, c.Count, true
+				return c.Label, c.Count, c.Confirmed, true
 			}
 		}
-		return "", 0, false
+		return "", 0, 0, false
 	}
 	for _, s := range home.Shelves {
 		for _, l := range s.More {
 			if l.Key == key {
-				return l.Title, l.Count, true
+				return l.Title, l.Count, l.Count, true
 			}
 		}
 	}
-	return "", 0, false
+	return "", 0, 0, false
 }
 
 func appCount(n int) string {
@@ -240,4 +244,17 @@ func appCount(n int) string {
 		return "1 app"
 	}
 	return strconv.Itoa(n) + " apps"
+}
+
+// categoryNote counts a category's apps: the confirmed ones, then the
+// claims no one has confirmed, which the realm files after them.
+func categoryNote(count, confirmed int) string {
+	note := appCount(confirmed)
+	switch claims := count - confirmed; {
+	case claims == 1:
+		note += ", and 1 claimed listing not confirmed yet"
+	case claims > 1:
+		note += ", and " + strconv.Itoa(claims) + " claimed listings not confirmed yet"
+	}
+	return note
 }

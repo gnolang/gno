@@ -1,7 +1,8 @@
 # The store is governed by GovDAO: proposals built by the store hide and
 # unhide a listing, feature an app as the front page's hero, pause and
-# unpause listings and name a successor once voted and executed (ADR-004 §3,
-# §5).
+# unpause listings and name a successor, or take it back, once voted and
+# executed (ADR-004 §3, §5). An app a pause refused lists itself again with
+# the Relist of the store's snippet.
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/impl/v0
@@ -85,6 +86,14 @@ stdout OK!
 stdout '"type":"StorePaused"'
 ! gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/lib -args my-lib -args 'My Lib' -args 'A tagline' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
 stderr 'store: paused'
+
+# An app deployed during the pause is refused, and its init never runs again
+gnokey maketx addpkg -pkgdir $WORK/lateapp -pkgpath gno.land/r/acme/lateapp -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+stdout '"type":"StoreRegisterRejected"'
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/utilities/1'
+! stdout '"slug":"late-app"'
+
 gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unpause.gno
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 5 -args YES -chainid=tendermint_test test1
@@ -94,6 +103,12 @@ stdout OK!
 stdout '"type":"StoreUnpaused"'
 gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/lib -args my-lib -args 'My Lib' -args 'A tagline' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
 stdout OK!
+
+# Once the pause is lifted, anyone lists the refused app by calling its Relist
+gnokey maketx call -pkgpath gno.land/r/acme/lateapp -func Relist -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/utilities/1'
+stdout '"slug":"late-app"'
 
 # A successor is shown once GovDAO names it
 gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_successor.gno
@@ -106,6 +121,18 @@ gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
 stdout '"moved_to":"gno.land/r/gnoland/store/v1"'
 gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:'
 stdout 'Explore has moved'
+
+# GovDAO takes a successor back by naming none
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/clear_successor.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 7 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 7 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
+! stdout '"moved_to"'
+gnokey query vm/qeval --data 'gno.land/r/gnoland/store/v0.ListingCount()'
+stdout '\(1[0-9] int\)'
 
 -- run/init_govdao.gno --
 package main
@@ -211,6 +238,37 @@ import (
 func main(cur realm) {
 	dao.MustCreateProposal(cross(cur), store.ProposeSuccessor(cross(cur), "gno.land/r/gnoland/store/v1"))
 }
+
+-- run/clear_successor.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeSuccessor(cross(cur), ""))
+}
+
+-- lateapp/gnomod.toml --
+module = "gno.land/r/acme/lateapp"
+gno = "0.9"
+
+-- lateapp/lateapp.gno --
+package lateapp
+
+import store "gno.land/r/gnoland/store/v0"
+
+func init(cur realm) { Relist(cross(cur)) }
+
+// Relist lists this app, or lists it again if a pause or a taken name
+// refused it. Anyone may call it.
+func Relist(cur realm) {
+	store.Register(cross(cur), "late-app", "Late App", "A tagline", "utilities", 0)
+}
+
+func Render(string) string { return "Late" }
 
 -- myapp/gnomod.toml --
 module = "gno.land/r/acme/myapp"

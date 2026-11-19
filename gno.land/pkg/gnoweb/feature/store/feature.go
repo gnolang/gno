@@ -4,8 +4,9 @@
 // its breadcrumb, tabs and omnibar. This package only replaces the markdown
 // of its Content tab with a richer view built from the realm's api/v1 JSON.
 // Every field is untrusted; what a listing may show is decided here, from
-// the operator's trust list. It never writes to the chain and keeps no state
-// beyond a short-lived response cache.
+// the operator's trust list, and so are the words and the floors of each
+// shelf. With an indexer it also shows what is used. It never writes to the
+// chain and keeps no state beyond a short-lived response cache.
 package store
 
 import (
@@ -44,6 +45,19 @@ type Deps struct {
 	// "/p/" ("gnoland/blog"), is under the operator's trusted list. It is
 	// the same predicate that drives the community-realm notice.
 	Trusted func(pkg string) bool
+
+	// Denied reports whether a package path or a namespace, in the same
+	// form, is one the operator keeps out of Explore. Optional.
+	Denied func(pkg string) bool
+
+	// Usage returns the distinct callers of each realm over the last week,
+	// by full package path ("gno.land/r/acme/swap"), as an indexer counted
+	// them, or nil when it has nothing to say yet. It must not wait: Explore
+	// asks on every page it draws. Nil without an indexer: Explore then
+	// shows the chain's own signals only. The figures are off-chain data:
+	// Explore shows them, says where they come from, and decides no tier
+	// from them.
+	Usage func(ctx context.Context) map[string]int
 
 	Logger *slog.Logger
 }

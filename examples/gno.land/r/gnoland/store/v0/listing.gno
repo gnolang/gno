@@ -4,35 +4,37 @@ import (
 	"chain"
 	"chain/runtime"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"gno.land/p/nt/avl/v0"
 )
 
 type listing struct {
-	Slug      string // unique among visible listings; Hide releases it
+	Slug      string // unique among visible listings; Hide releases it, and a claim's gives way to a realm listing itself (reslugClaim)
 	Namespace string // of Path, for builders and the per-namespace cap
 	Kind      string // app, service or package
 	Path      string // the listing's identity
-	Title     string // display name, unique among visible listings (titleKey)
+	Title     string // display name, unique among visible confirmed listings (titleKey)
 	Tagline   string
 	Category  string
 	Palette   int
 	Created   int64
 	Updated   int64
 	// Confirmed listings were listed by their own realm or by the seed, or
-	// earned confirmStars ranked stars. Only they reach the shelves, the
-	// feed and the builders: a claimed path is not verified, so a claim
-	// alone buys no exposure (T11).
+	// earned confirmStars ranked stars. Only they reach the shelves and the
+	// builders, and only they hold their title: a claimed path is not
+	// verified, so a claim alone buys no exposure and reserves no name (T11).
 	Confirmed bool
 	// selfListed listings were listed by their own realm or the seed: their
 	// confirmation stands for good. A claim confirmed by stars keeps it only
 	// while it has confirmStars ranked stars.
 	selfListed bool
-	// announced listings have had their "listed" event: a claim unconfirmed
-	// and confirmed again is not news, and must not buy feed slots in a loop.
+	// announced listings are counted in the pulse: a claim unconfirmed and
+	// confirmed again is not a new listing, and must not count in a loop.
 	announced bool
 
 	core       bool   // listed by the seed: shown in gno.land essentials, kept off New, Top and Rediscover
@@ -43,7 +45,6 @@ type listing struct {
 	book       *starBook // nil until the first star, so an unstarred listing stores no star objects
 	trendScore int       // stars7d at the last ranked-star change, an upper bound of it since
 	trendEpoch int64     // epoch of that change
-	milestone  int       // highest ranked-star milestone already announced
 	hidden     bool      // hidden by GovDAO: kept under its path, shown nowhere
 }
 
@@ -112,36 +113,12 @@ type shelfIndex struct {
 	stars   avl.Tree // descKey(ranked stars) -> *listing, if any
 }
 
-// trendIndex files listings by the epoch of their last ranked-star change,
-// one slot per epoch of the trending window, each ordered by trendScore.
-// A listing's score is 0 once its slot is a window old, so a slot is simply
-// dropped then: stale scores never pile up in front of live ones.
-type trendIndex struct {
-	slots [trendEpochs]trendSlot
-}
-
-type trendSlot struct {
-	epoch   int64
-	byScore *avl.Tree // descKey(trendScore) -> *listing
-}
-
 const trendEpochs = 7 // the trending window
 
-func (t *trendIndex) set(l *listing) {
-	s := &t.slots[l.trendEpoch%trendEpochs]
-	switch {
-	case l.trendScore < minTrending || l.trendEpoch < s.epoch: // nothing to rank, or stale
-		return
-	case s.byScore == nil || l.trendEpoch > s.epoch: // the slot's epoch left the window
-		s.epoch, s.byScore = l.trendEpoch, avl.NewTree()
-	}
-	s.byScore.Set(descKey(int64(l.trendScore), l.Slug), l)
-}
-
-func (t *trendIndex) remove(l *listing) {
-	if s := &t.slots[l.trendEpoch%trendEpochs]; s.byScore != nil && s.epoch == l.trendEpoch {
-		s.byScore.Remove(descKey(int64(l.trendScore), l.Slug))
-	}
+// trendKey files an app in appTrend by the epoch of its last ranked-star
+// change, newest first, then by its trendScore.
+func trendKey(l *listing) string {
+	return descKey(l.trendEpoch, descKey(int64(l.trendScore), l.Slug))
 }
 
 // builder sums a namespace's visible, confirmed listings.
@@ -155,16 +132,23 @@ type builder struct {
 var (
 	listings avl.Tree // slug -> *listing, visible only
 	byPath   avl.Tree // path -> *listing, hidden included; also read per namespace (namespaceListings)
-	byTitle  avl.Tree // titleKey -> slug of the visible listing using it
+	byTitle  avl.Tree // titleKey -> slug of the visible confirmed listing holding it
+
+	// hiddenCore counts the core listings GovDAO has hidden: they keep their
+	// slug and their title (slugTaken, titleTaken).
+	hiddenCore int
 
 	// Visible listings only, maintained by index and unindex; the shelf
 	// indexes and the builders hold confirmed ones only.
-	byCategory   avl.Tree // category -> *avl.Tree of descKey(Created) -> *listing, apps only; made by a category's first app
+	byCategory   avl.Tree // category -> *avl.Tree of catKey -> *listing, apps only; made by a category's first app
 	apps         shelfIndex
 	toolbox      shelfIndex // services and packages, for api/v1/build
 	namedApps    avl.Tree   // descKey(Created) -> *listing, named namespaces' apps but the core ones: New's and Rediscover's ground
 	namedUpdated avl.Tree   // descKey(Updated) -> *listing, named namespaces' apps: Recently updated's ground
-	appTrend     trendIndex // the build lens has no trending shelf
+	// trendKey -> *listing, shown apps with a trendScore: an app has one
+	// entry at most, so no write drops entries in bulk, and one older than
+	// the trending window is just not read. The build lens does not trend.
+	appTrend avl.Tree
 
 	// Builders, kept ranked on every write so reads never scan namespaces.
 	builders        avl.Tree // namespace -> *builder
@@ -183,110 +167,171 @@ func upsert(l *listing, now int64) string {
 	l.Namespace = namespaceOf(l.Path)
 	existing := lookup(&byPath, l.Path)
 	if existing != nil {
+		if existing.core {
+			return reasonCore // frozen in code (ADR §5), for its realm and its namespace's owner alike
+		}
 		l.Slug = existing.Slug
+		// What the listing already says, from who already listed it: a
+		// Relist, or an upgraded realm's init. Nothing to check again.
+		if existing.says(l) && (existing.selfListed || !l.Confirmed) {
+			existing.confirmByStars(now) // its title may be free by now
+			return ""
+		}
 	}
 	if reason := validateListing(l); reason != "" {
 		return reason
 	}
 	if existing != nil {
-		if owner := titleHolder(l); owner != "" && owner != l.Slug {
-			// A hidden listing holds no title, and only a realm listing
-			// itself for the first time takes one from a claim.
-			if existing.hidden || existing.selfListed || blocks(lookup(&listings, owner), l) {
-				return reasonTitleTaken
-			}
-			evictClaim(owner)
+		// A title is checked when it changes hands: asked for, or about to
+		// be held by a claim its realm confirms.
+		if (l.Title != existing.Title || l.Confirmed && !existing.Confirmed) && titleTaken(l) {
+			return reasonTitleTaken
 		}
 		existing.update(l, now)
 		if l.Confirmed {
 			existing.selfListed = true
 			existing.confirm(now)
 		}
+		existing.confirmByStars(now) // under a title now free, the stars it has count
 		return ""
 	}
 
+	if !validSlug(l.Slug) {
+		return "bad_slug"
+	}
 	if reason := available(l); reason != "" {
 		return reason
 	}
-	takeFromClaims(l)
+	reslugClaim(l.Slug)
 	l.selfListed = l.Confirmed
 	l.Created, l.Updated = now, now
 	listings.Set(l.Slug, l)
 	byPath.Set(l.Path, l)
-	byTitle.Set(titleKey(l.Title), l.Slug)
 	l.index()
 	l.announce(now)
 	return ""
 }
 
-// titleHolder returns the slug of the visible listing using l's title, or "".
+// titleHolder returns the slug of the visible confirmed listing holding l's
+// title, or "".
 func titleHolder(l *listing) string {
 	slug, _ := byTitle.Get(titleKey(l.Title)).(string)
 	return slug
 }
 
-// blocks reports whether holder keeps l from a slug or title it holds. Any
-// listing does, but an unconfirmed claim gives way to a confirmed listing:
-// a claim proves nothing (T11), and an app whose init is refused never
-// calls Register again, so the claim would keep it out for good.
-func blocks(holder, l *listing) bool {
-	return holder != nil && (holder.Confirmed || !l.Confirmed)
+// titleTaken reports whether a listing other than l's own holds l's title:
+// a visible confirmed one, or a hidden core one, which keeps its name
+// (hidePath). A claim holds none, so a title is never taken from anyone.
+func titleTaken(l *listing) bool {
+	key := titleKey(l.Title)
+	slug, _ := byTitle.Get(key).(string)
+	// By path, not by slug: a hidden listing shares its slug with the
+	// listing that took it.
+	if holder := lookup(&listings, slug); holder != nil && holder.Path != l.Path {
+		return true
+	}
+	if hiddenCore == 0 {
+		return false
+	}
+	for _, c := range essentials {
+		if c.hidden && c.Path != l.Path && titleKey(c.Title) == key {
+			return true
+		}
+	}
+	return false
 }
 
-// takeFromClaims drops the claims holding l's slug or title, once available
-// has let l take them: only unconfirmed ones can be left.
-func takeFromClaims(l *listing) {
-	evictClaim(l.Slug)
-	evictClaim(titleHolder(l))
+// slugTaken reports whether l cannot have its slug. A visible listing holds
+// its own, but a claim gives way to a confirmed l: a claim proves nothing
+// (T11), and an app whose init is refused may never call Register again.
+// A hidden core listing keeps its own too.
+func slugTaken(l *listing) bool {
+	if holder := lookup(&listings, l.Slug); holder != nil && (holder.Confirmed || !l.Confirmed) {
+		return true
+	}
+	if hiddenCore == 0 {
+		return false
+	}
+	for _, c := range essentials {
+		if c.hidden && c != l && c.Slug == l.Slug {
+			return true
+		}
+	}
+	return false
 }
 
-// evictClaim drops the listing under slug if it is an unconfirmed claim.
-func evictClaim(slug string) {
+// reslugClaim moves the unconfirmed claim under slug, if any, to a slug of
+// its own (movedSlug), once slugTaken has let a confirmed listing have it.
+// The claim keeps its path, its stars and its place: nothing its owner or
+// its fans paid to store is deleted for another listing's sake, so there is
+// no deposit to collect by listing over it.
+func reslugClaim(slug string) {
 	c := lookup(&listings, slug)
 	if c == nil || c.Confirmed {
 		return
 	}
 	c.unindex()
-	listings.Remove(c.Slug)
-	byTitle.Remove(titleKey(c.Title))
-	byPath.Remove(c.Path)
-	chain.Emit("StoreClaimDropped", "slug", c.Slug, "path", c.Path)
+	listings.Remove(slug)
+	c.Slug = movedSlug(slug)
+	listings.Set(c.Slug, c)
+	c.index()
+	chain.Emit("StoreClaimMoved", "path", c.Path, "from", slug, "slug", c.Slug)
+}
+
+// moved numbers the slugs given to moved claims.
+var moved int
+
+// movedSlug returns the slug a claim moves to from slug: slug, cut to fit,
+// then movedMark and a number never given before. No listing can ask for a
+// slug holding movedMark (validSlug), so it is free by construction, with
+// no search, and the claim is never moved again.
+func movedSlug(slug string) string {
+	moved++
+	suffix := movedMark + strconv.Itoa(moved)
+	if len(slug)+len(suffix) > maxSlug {
+		slug = slug[:maxSlug-len(suffix)]
+	}
+	return slug + suffix
 }
 
 // available returns why l, not visible, cannot take its slug, its title or
-// a slot of its namespace, or "". takeFromClaims then frees what an
-// unconfirmed claim holds of it.
+// a slot of its namespace, or "". reslugClaim then frees a slug an
+// unconfirmed claim holds.
 func available(l *listing) string {
 	switch {
-	case blocks(lookup(&listings, l.Slug), l):
+	case slugTaken(l):
 		return reasonSlugTaken
-	case blocks(lookup(&listings, titleHolder(l)), l):
+	case titleTaken(l):
 		return reasonTitleTaken
-	case !isCoreNamespace(l.Namespace) && visibleInNamespace(l.Namespace) >= maxPerNamespace:
-		return reasonNamespaceFull // the core namespaces hold the seed, and room for what follows it
+	case !l.core && !isCoreNamespace(l.Namespace) && visibleInNamespace(l.Namespace) >= maxPerNamespace:
+		// The core namespaces hold the seed, and room for what follows it;
+		// a core listing of another namespace is never kept from an unhide.
+		return reasonNamespaceFull
 	}
 	return ""
 }
 
+// says reports whether l already says what next does.
+func (l *listing) says(next *listing) bool {
+	return l.Kind == next.Kind && l.Title == next.Title && l.Tagline == next.Tagline &&
+		l.Category == next.Category && l.Palette == next.Palette
+}
+
 // update applies next's fields. Only a real change, at most once per
-// updateCooldown, bumps Updated and is announced: re-registering in a loop
-// must not buy a place in "Recently updated" (the fields still change, so a
-// fix is never blocked). Only a kind or category change moves the listing
-// in the indexes.
+// updateCooldown, bumps Updated: re-registering in a loop must not buy a
+// place in "Recently updated" (the fields still change, so a fix is never
+// blocked). Only a change of kind, category or title moves the listing in
+// the indexes.
 func (l *listing) update(next *listing, now int64) {
-	if l.Kind == next.Kind && l.Title == next.Title && l.Tagline == next.Tagline &&
-		l.Category == next.Category && l.Palette == next.Palette {
+	if l.says(next) {
 		return
 	}
-	if old, key := titleKey(l.Title), titleKey(next.Title); old != key {
-		dropPick(l)    // GovDAO picked the app under its old title
-		if !l.hidden { // a hidden listing holds no title
-			byTitle.Remove(old)
-			byTitle.Set(key, l.Slug)
-		}
+	retitled := l.Title != next.Title && titleKey(l.Title) != titleKey(next.Title)
+	if retitled {
+		dropPick(l) // GovDAO picked the app under its old title
 	}
-	if l.Kind != next.Kind || l.Category != next.Category {
-		l.reindex(func() { l.Kind, l.Category = next.Kind, next.Category })
+	if retitled || l.Kind != next.Kind || l.Category != next.Category {
+		l.reindex(func() { l.Kind, l.Category, l.Title = next.Kind, next.Category, next.Title })
 	}
 	l.Title, l.Tagline, l.Palette = next.Title, next.Tagline, next.Palette
 	l.touch(now)
@@ -306,7 +351,6 @@ func (l *listing) touch(now int64) {
 	if shown {
 		l.setUpdated(l.shelves())
 	}
-	track("updated", l, now)
 }
 
 // setUpdated and removeUpdated keep l's entries in the indexes ordered by
@@ -326,27 +370,35 @@ func (l *listing) removeUpdated(ix *shelfIndex) {
 }
 
 // namedApp reports an app under a named namespace: a free g1… address
-// namespace earns no front-page slot (New, Recently updated, Rediscover) and
-// no place in the activity feed.
+// namespace earns no front-page slot (New, Recently updated, Rediscover).
 func (l *listing) namedApp() bool {
 	return l.Kind == kindApp && !address(l.Namespace).IsValid()
 }
 
-// confirm promotes a claimed listing to the shelves, the feed and the
-// builders, and announces it.
+// confirm promotes a claimed listing to the shelves and the builders, where
+// it holds its title (index). While another listing holds that title it
+// stays a claim: its owner claims it again under another.
 func (l *listing) confirm(now int64) {
-	if l.Confirmed {
+	// A hidden listing holds no title: unhide checks it.
+	if l.Confirmed || !l.hidden && titleTaken(l) {
 		return
 	}
 	l.reindex(func() { l.Confirmed = true })
 	l.announce(now)
 }
 
-// announce records l's "listed" event, once.
+// confirmByStars confirms a claim that has the ranked stars for it.
+func (l *listing) confirmByStars(now int64) {
+	if l.rankedCount() >= confirmStars {
+		l.confirm(now)
+	}
+}
+
+// announce counts l among the pulse's new listings, once.
 func (l *listing) announce(now int64) {
 	if !l.announced && l.indexed() {
 		l.announced = true
-		track("listed", l, now)
+		pulseListed.add(now/epochLength, 1)
 	}
 }
 
@@ -367,8 +419,20 @@ func (l *listing) shelves() *shelfIndex {
 	return &toolbox
 }
 
+// catKey files an app in its category: confirmed apps first, each group
+// newest first. A claim costs a free address little, so claims must never
+// push a confirmed app down its page.
+func (l *listing) catKey() string {
+	group := "1"
+	if l.Confirmed {
+		group = "0"
+	}
+	return group + descKey(l.Created, l.Slug)
+}
+
 // index adds a visible app to its category, and a confirmed listing to the
-// shelves and its builder. unindex undoes it; both run with l unchanged.
+// shelves and its builder, where it holds its title. unindex undoes it;
+// both run with l unchanged.
 func (l *listing) index() {
 	key := descKey(l.Created, l.Slug)
 	if l.Kind == kindApp {
@@ -377,11 +441,12 @@ func (l *listing) index() {
 			members = avl.NewTree()
 			byCategory.Set(l.Category, members)
 		}
-		members.Set(key, l)
+		members.Set(l.catKey(), l)
 	}
 	if !l.Confirmed {
 		return
 	}
+	byTitle.Set(titleKey(l.Title), l.Slug)
 	ix := l.shelves()
 	ix.created.Set(key, l)
 	if l.namedApp() && !l.core {
@@ -403,11 +468,12 @@ func (l *listing) index() {
 func (l *listing) unindex() {
 	key := descKey(l.Created, l.Slug)
 	if l.Kind == kindApp {
-		categoryMembers(l.Category).Remove(key)
+		categoryMembers(l.Category).Remove(l.catKey())
 	}
 	if !l.Confirmed {
 		return
 	}
+	byTitle.Remove(titleKey(l.Title))
 	ix := l.shelves()
 	ix.created.Remove(key)
 	namedApps.Remove(key)
@@ -426,8 +492,8 @@ func (l *listing) unindex() {
 func (l *listing) indexStars(ix *shelfIndex) {
 	if n := l.rankedCount(); n > 0 {
 		ix.stars.Set(descKey(int64(n), l.Slug), l)
-		if l.Kind == kindApp {
-			appTrend.set(l)
+		if l.Kind == kindApp && l.trendScore >= minTrending {
+			appTrend.Set(trendKey(l), l)
 		}
 	}
 }
@@ -436,7 +502,7 @@ func (l *listing) unindexStars(ix *shelfIndex) {
 	if n := l.rankedCount(); n > 0 {
 		ix.stars.Remove(descKey(int64(n), l.Slug))
 		if l.Kind == kindApp {
-			appTrend.remove(l)
+			appTrend.Remove(trendKey(l))
 		}
 	}
 }
@@ -530,7 +596,7 @@ func (l *listing) restar(now int64, change func()) {
 }
 
 // addStar records a star. Only ranked stars rank a listing (Top,
-// trending, milestones, builders) and confirm a claimed one; the others,
+// trending, builders) and confirm a claimed one; the others,
 // from unnamed, newly named or owner addresses, only count in the displayed
 // total.
 func (l *listing) addStar(addr string, s star) {
@@ -548,16 +614,7 @@ func (l *listing) addStar(addr string, s star) {
 	}
 	l.book.recent.add(epoch, 1)
 	l.restar(s.At, func() { l.book.ranked.Set(descKey(s.At, addr), s.At) })
-	n := l.rankedCount()
-	if n >= confirmStars {
-		l.confirm(s.At)
-	}
-	for _, m := range milestones {
-		if n == m && m > l.milestone {
-			l.milestone = m
-			track("milestone", l, s.At)
-		}
-	}
+	l.confirmByStars(s.At)
 }
 
 // removeStar drops addr's star at time now. Once the star's epoch has left
@@ -573,7 +630,7 @@ func (l *listing) removeStar(addr string, now int64) {
 	l.book.recent.add(epoch, -1)
 	l.restar(now, func() { l.book.ranked.Remove(descKey(s.At, addr)) })
 	if l.Confirmed && !l.selfListed && l.rankedCount() < confirmStars {
-		l.reindex(func() { l.Confirmed = false }) // its backers left: a claim again
+		l.reindex(func() { l.Confirmed = false }) // its backers left: a claim again, which holds no title
 	}
 }
 
@@ -599,9 +656,20 @@ func categoryMembers(category string) *avl.Tree {
 	return avl.NewTree()
 }
 
-// appCount is the number of visible apps in a category.
+// appCount is the number of visible apps in a category, claims included:
+// the number its pages hold.
 func appCount(category string) int {
 	return categoryMembers(category).Size()
+}
+
+// confirmedCount is the number of confirmed apps in a category. They are
+// filed first (catKey), so it is the rank of the first claim.
+func confirmedCount(category string) int {
+	members := categoryMembers(category)
+	return sort.Search(members.Size(), func(i int) bool {
+		key, _ := members.GetByIndex(i)
+		return key[0] == '1'
+	})
 }
 
 // namespaceListings returns ns's listings, hidden included, from the
@@ -643,6 +711,26 @@ func visibleInNamespace(ns string) int {
 func titleKey(title string) string {
 	var b strings.Builder
 	for _, r := range title {
+		// Most titles are plain ASCII, for which the general path below is
+		// lower-casing and foldRune's first cases: the same key, without
+		// walking its switch for every letter (TestTitleKeyASCII).
+		if r < utf8.RuneSelf {
+			switch {
+			case r >= 'A' && r <= 'Z':
+				r += 'a' - 'A'
+			case r == ' ' || r == '-' || r == '_' || r == '.' || r == 0:
+				continue
+			case r == '1' || r == '|':
+				r = 'l'
+			case r == '0':
+				r = 'o'
+			}
+			if r == 'i' {
+				r = 'l'
+			}
+			b.WriteByte(byte(r))
+			continue
+		}
 		switch {
 		case unicode.IsMark(r): // a mark only redraws its letter
 			continue

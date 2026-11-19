@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
@@ -50,13 +52,36 @@ func registerIn(cur realm, path, slug, title, category string) {
 // stars rank.
 func starFrom(cur realm, slug string, who ...string) {
 	for _, u := range who {
-		addr := nameUser(cur, u)
-		if !voters.Has(addr.String()) {
-			voters.Set(addr.String(), voter{NameSeen: -nameMaturity})
-		}
-		testing.SetRealm(testing.NewUserRealm(addr))
+		testing.SetRealm(testing.NewUserRealm(rankedFan(cur, u)))
 		Star(cross(cur), slug)
 	}
+}
+
+// rankedFan returns the address of user u, named and known to the store for
+// nameMaturity: its stars rank.
+func rankedFan(cur realm, u string) address {
+	addr := nameUser(cur, u)
+	if !voters.Has(addr.String()) {
+		voters.Set(addr.String(), voter{NameSeen: -nameMaturity})
+	}
+	return addr
+}
+
+// enableNames turns r/sys/names on, as its admin: names then own namespaces.
+func enableNames(cur realm) {
+	if !names.IsEnabled() {
+		testing.SetRealm(testing.NewUserRealm("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"))
+		names.Enable(cross(cur))
+	}
+}
+
+// hide hides the visible listing slug for reason, as a proposal built by
+// ProposeHide does once executed.
+func hide(slug, reason string) error {
+	if err := checkHide(slug, reason); err != nil {
+		return err
+	}
+	return hidePath(lookup(&listings, slug).Path, reason)
 }
 
 // nameUser gives the user u that name in r/sys/users and returns its address.
@@ -91,7 +116,7 @@ func TestRegisterFromRealm(cur realm, t *testing.T) {
 	uassert.Equal(t, "gno.land/r/acme/swap", l.Path)
 	uassert.Equal(t, kindApp, l.Kind)
 	uassert.Equal(t, "acme", l.Namespace)
-	contains(t, listingJSON("acme-swap"), `{"slug":"acme-swap","kind":"app","path":"gno.land/r/acme/swap","title":"Acme Swap","tagline":"A tagline","category":"utilities","palette":4,"stars":0,"ranked":0,"fifth_ranked":0,"created":`+strconv.FormatInt(bySlugOrPanic("acme-swap").Created, 10)+`,"pending":false,"core":false,"confirmed":true,"icon":"","cover":""}`)
+	contains(t, listingJSON("acme-swap"), `{"slug":"acme-swap","kind":"app","path":"gno.land/r/acme/swap","title":"Acme Swap","tagline":"A tagline","category":"utilities","palette":4,"stars":0,"ranked":0,"stars_7d":0,"fifth_ranked":0,"created":`+strconv.FormatInt(l.Created, 10)+`,"updated":`+strconv.FormatInt(l.Updated, 10)+`,"pending":false,"core":false,"confirmed":true,"icon":"","cover":""}`)
 	contains(t, Render("api/v1/category/utilities/1"), `"slug":"acme-swap"`)
 	contains(t, Render("c/utilities"), "**[Acme Swap](/r/acme/swap)** — A tagline")
 }
@@ -143,7 +168,6 @@ func TestRegisterUpsert(cur realm, t *testing.T) {
 	uassert.Equal(t, utilities-1, appCount("utilities"))
 	uassert.False(t, byTitle.Has(titleKey("Upsert App")), "the old title is released")
 	uassert.Equal(t, `["upsert-app"]`, jsonSlugs(window(&apps.updated, 0, 1)))
-	uassert.True(t, activity.newestFirst()[0] == ev("updated", "upsert-app", 0))
 
 	// An invalid update leaves the listing untouched.
 	Register(cross(cur), "", "Bad\u202Etitle", "Tagline", "education", 0)
@@ -167,7 +191,7 @@ func TestUpdateSpam(cur realm, t *testing.T) {
 	registerSpam(cur, "Version 1")
 	l := bySlugOrPanic("spam-app")
 	updatedShelf := func() string { return jsonSlugs(window(&apps.updated, 0, 10)) }
-	shelf, feed := updatedShelf(), activity
+	shelf := updatedShelf()
 
 	for i := 0; i < 5; i++ {
 		skip(1)
@@ -175,9 +199,8 @@ func TestUpdateSpam(cur realm, t *testing.T) {
 	}
 	registerSpam(cur, "Version 2") // a real change, too soon
 	uassert.Equal(t, "Version 2", l.Tagline, "the change is applied")
-	uassert.Equal(t, l.Created, l.Updated, "but not announced")
+	uassert.Equal(t, l.Created, l.Updated, "but not counted as an update")
 	uassert.Equal(t, shelf, updatedShelf())
-	uassert.True(t, feed == activity, "no activity entry")
 
 	testing.SetRealm(testing.NewCodeRealm(spamPath))
 	SubmitRich(cross(cur), testIcon, "")
@@ -187,11 +210,12 @@ func TestUpdateSpam(cur realm, t *testing.T) {
 	registerSpam(cur, "Version 2") // unchanged: still no bump
 	uassert.Equal(t, l.Created, l.Updated)
 	registerSpam(cur, "Version 3")
-	uassert.Equal(t, blockTime(), l.Updated)
-	uassert.True(t, activity.newestFirst()[0] == ev("updated", "spam-app", 0))
+	bumped := blockTime()
+	uassert.Equal(t, bumped, l.Updated)
+	skip(1)
 	registerSpam(cur, "Version 4")
 	uassert.Equal(t, "Version 4", l.Tagline)
-	uassert.True(t, activity.newestFirst()[1].Kind != "updated" || activity.newestFirst()[1].Listing.Slug != "spam-app", "one announcement per cooldown")
+	uassert.Equal(t, bumped, l.Updated, "one update per cooldown")
 
 	// Resubmitting the latest rich fields changes nothing.
 	testing.SetRealm(testing.NewCodeRealm(spamPath))
@@ -211,6 +235,7 @@ func TestRegisterValidation(cur realm, t *testing.T) {
 	}{
 		{"short slug", "ab", "Title", "Tagline", "defi", 0, "bad_slug"},
 		{"upper slug", "Bad-Slug", "Title", "Tagline", "defi", 0, "bad_slug"},
+		{"moved mark", "my--slug", "Title", "Tagline", "defi", 0, "bad_slug"},
 		{"taken slug", "taken-slug", "Title", "Tagline", "defi", 0, "slug_taken"},
 		{"title case", "fresh-slug", "TAKEN title", "Tagline", "defi", 0, "title_taken"},
 		{"bidi", "bidi-slug", "Swap\u202Ereverse", "Tagline", "defi", 0, "bad_title"},
@@ -331,8 +356,7 @@ func TestClaimWithoutNames(cur realm, t *testing.T) {
 }
 
 func TestClaim(cur realm, t *testing.T) {
-	testing.SetRealm(testing.NewUserRealm("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")) // r/sys/names admin
-	names.Enable(cross(cur))
+	enableNames(cur)
 
 	owner := testutils.TestAddress("claimer")
 	ns := owner.String()
@@ -357,7 +381,7 @@ func TestClaim(cur realm, t *testing.T) {
 	uassert.Equal(t, kindPackage, l.Kind)
 	uassert.Equal(t, ns, l.Namespace)
 	newShelf := func() string {
-		_, shelf, _ := strings.Cut(Render("api/v1/build"), `"title":"New to build with"`)
+		_, shelf, _ := strings.Cut(Render("api/v1/build"), `{"key":"new"`)
 		shelf, _, _ = strings.Cut(shelf, "]")
 		return shelf
 	}
@@ -374,7 +398,7 @@ func TestClaim(cur realm, t *testing.T) {
 }
 
 // TestClaimedAppConfirmedByRegister checks that a realm listed by Claim
-// reaches the shelves and the feed once its own Register confirms it.
+// reaches the shelves once its own Register confirms it.
 func TestClaimedAppConfirmedByRegister(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("appowner")
 	path := "gno.land/r/" + owner.String() + "/app"
@@ -382,28 +406,27 @@ func TestClaimedAppConfirmedByRegister(cur realm, t *testing.T) {
 	Claim(cross(cur), path, "owned-app", "Owned App", "A tagline", "nft-art", 1, kindApp)
 	l := bySlugOrPanic("owned-app")
 	uassert.False(t, l.Confirmed)
-	uassert.True(t, activity.newestFirst()[0].Listing.Slug != "owned-app", "no listed event yet")
+	uassert.False(t, byTitle.Has(titleKey("Owned App")), "a claim holds no title")
 	contains(t, Render("api/v1/category/nft-art/1"), `"slug":"owned-app"`)
 
 	registerIn(cur, path, "ignored", "Owned App", "nft-art")
 	uassert.True(t, l.Confirmed)
 	uassert.True(t, apps.created.Has(descKey(l.Created, l.Slug)), "on the shelves")
-	uassert.True(t, activity.newestFirst()[0].Listing != l, "a g1… namespace is not announced")
+	uassert.Equal(t, "owned-app", titleHolder(l), "confirmed, it holds its title")
 }
 
-// TestUnconfirmedAnnouncesNothing checks that a claim stays out of the feed
-// and the pulse, even when updated.
+// TestUnconfirmedAnnouncesNothing checks that a claim stays out of the
+// pulse, even when updated.
 func TestUnconfirmedAnnouncesNothing(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("ghostowner")
 	path := "gno.land/r/" + owner.String() + "/ghost"
-	feed, epoch := activity, blockTime()/epochLength
+	epoch := blockTime() / epochLength
 	listed := pulseListed.sum(epoch, 30)
 	testing.SetRealm(testing.NewUserRealm(owner))
 	Claim(cross(cur), path, "ghost-app", "Ghost App", "A tagline", "nft-art", 1, kindApp)
 	skip(updateCooldown)
 	Claim(cross(cur), path, "ghost-app", "Ghost App", "Another tagline", "nft-art", 1, kindApp)
 	uassert.Equal(t, "Another tagline", bySlugOrPanic("ghost-app").Tagline)
-	uassert.True(t, feed == activity, "no event")
 	uassert.Equal(t, listed, pulseListed.sum(epoch, 30))
 	uassert.False(t, strings.Contains(Render("api/v1/home"), `"ghost-app"`))
 }
@@ -459,12 +482,10 @@ func TestHideUnhide(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("fan")))
 	uassert.AbortsContains(t, cur, "unknown listing", func() { Star(cross(cur), id) })
 
-	// A hidden listing's changes are not announced.
-	feed := activity
-	skip(updateCooldown)
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/coins"))
-	SubmitRich(cross(cur), testIcon, "")
-	uassert.True(t, feed == activity, "no event")
+	// A core listing keeps its slug and its title while hidden.
+	registerFrom(cur, "gno.land/r/coinsquat/app", "coins", "Coins Squat")
+	registerFrom(cur, "gno.land/r/coinsquat/app", "coin-squat", "Coin Balances")
+	uassert.False(t, byPath.Has("gno.land/r/coinsquat/app"), "neither the slug nor the title of a hidden core listing is free")
 
 	uassert.ErrorContains(t, unhide("gno.land/r/gnoland/blog"), "not hidden")
 	uassert.NoError(t, unhide("gno.land/r/gnoland/coins"))
@@ -499,9 +520,6 @@ func TestHideReleasesSlug(cur realm, t *testing.T) {
 
 	registerFrom(cur, "gno.land/r/brand/swap", "brand-swap", "Brand Swap")
 	uassert.Equal(t, "gno.land/r/brand/swap", bySlugOrPanic("brand-swap").Path)
-	for _, e := range activity.newestFirst() {
-		uassert.False(t, e.Listing.Path == "gno.land/r/brand/swap" && e.Kind != "listed", "no event of the hidden listing follows the slug")
-	}
 
 	uassert.ErrorContains(t, unhide("gno.land/r/squatter/app"), "store: slug_taken")
 }
@@ -619,7 +637,7 @@ func TestSybilStars(cur realm, t *testing.T) {
 	setEpoch(650)
 	registerFrom(cur, "gno.land/r/sybil/app", "sybil-app", "Sybil Target")
 	var bots []string
-	for i := 0; i < milestones[0]; i++ {
+	for i := 0; i < 10; i++ {
 		bots = append(bots, "sybilbot"+strconv.Itoa(i))
 	}
 	starAnon(cur, "sybil-app", bots...)
@@ -629,7 +647,6 @@ func TestSybilStars(cur realm, t *testing.T) {
 	uassert.Equal(t, 0, l.stars7d(blockTime()))
 	uassert.False(t, strings.Contains(jsonSlugs(window(&apps.stars, 0, 100)), "sybil-app"), "not in Top")
 	uassert.False(t, strings.Contains(jsonSlugs(trending(blockTime(), 10).items), "sybil-app"), "not trending")
-	uassert.True(t, activity.newestFirst()[0].Kind != "milestone", "no milestone")
 	top, _ := topBuilders()
 	for _, row := range top {
 		uassert.False(t, row.Namespace == "sybil" && row.Stars > 0, "no builder stars")
@@ -662,12 +679,12 @@ func TestStars7dAndTrending(cur realm, t *testing.T) {
 	skip(epochLength)
 	starFrom(cur, id, "weeklyd")
 	uassert.Equal(t, 4, l.stars7d(blockTime()))
-	contains(t, Render("api/v1/home"), `{"title":"Trending this week","slugs":["`+id+`"`)
+	contains(t, Render("api/v1/home"), `{"key":"trending","slugs":["`+id+`"`)
 
 	skip(6 * epochLength) // the first epoch leaves the 7-epoch window
 	uassert.Equal(t, 1, l.stars7d(blockTime()))
 	uassert.Equal(t, 4, l.starCount())
-	contains(t, Render("api/v1/home"), `{"title":"Trending this week","slugs":[]`)
+	contains(t, Render("api/v1/home"), `{"key":"trending","slugs":[]`)
 }
 
 // TestTrendingIgnoresStaleScores checks that apps that trended long ago,
@@ -716,32 +733,6 @@ func TestPulse(cur realm, t *testing.T) {
 
 	skip(updateCooldown) // the first epoch leaves the 7d window
 	contains(t, Render("api/v1/home"), `"pulse":{"listed_7d":0,"stars_7d":0,"listed_30d":2,"stars_30d":3}`)
-}
-
-func TestActivity(cur realm, t *testing.T) {
-	const id = "famous-app"
-	registerFrom(cur, "gno.land/r/famous/app", "famous-app", "Famous")
-	uassert.True(t, activity.newestFirst()[0] == ev("listed", id, 0))
-
-	var fans []string
-	for i := 0; i < milestones[0]; i++ {
-		fans = append(fans, "famous"+strconv.Itoa(i))
-	}
-	starFrom(cur, id, fans...)
-	uassert.True(t, activity.newestFirst()[0] == ev("milestone", id, milestones[0]))
-	uassert.Equal(t, "listed", activity.newestFirst()[1].Kind)
-	uassert.Equal(t, activitySize, len(activity.newestFirst()))
-
-	// Falling below and climbing back does not announce the milestone twice.
-	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress(fans[0])))
-	Unstar(cross(cur), id)
-	starFrom(cur, id, "famouslate")
-	uassert.Equal(t, "listed", activity.newestFirst()[1].Kind)
-
-	home := Render("api/v1/home")
-	contains(t, home, `"activity":[{"kind":"milestone","slug":"`+id+`","stars":10,"time":`+strconv.FormatInt(blockTime(), 10)+`}`)
-	_, refs, _ := strings.Cut(home, `"listings":`)
-	contains(t, refs, `"slug":"`+id+`"`)
 }
 
 func TestBuilders(cur realm, t *testing.T) {
@@ -803,20 +794,23 @@ func TestHomeJSON(t *testing.T) {
 		`"pulse":{"listed_7d":`,
 		`"categories":[{"key":"defi","label":"DeFi","count":`,
 		`{"key":"dao-governance","label":"DAO \u0026 Governance","count":`,
-		`{"title":"Top","note":"Ranked by stars from accounts with a registered name.","pinned":true,"empty":"No app has 3 stars from named accounts yet. Found one you like? Star it: that's how apps get here.","slugs":["`,
-		`"more":[{"key":"top","title":"Top","count":`,
-		`{"title":"New","pinned":true,"empty":"No new app yet. List yours from a registered namespace: it opens here.","slugs":["`,
-		`"more":[{"key":"latest","title":"New","count":`,
-		`{"title":"Trending this week","slugs":[`,
-		`"more":[{"key":"trending","title":"Trending this week","count":`,
-		`"more":[{"key":"updated","title":"Recently updated","count":`,
+		`{"key":"new","slugs":["`,
+		`"more":[{"key":"latest","count":`,
+		`{"key":"top","slugs":[`,
+		`"more":[{"key":"top","count":`,
+		`{"key":"trending","slugs":[`,
+		`"more":[{"key":"trending","count":`,
+		`{"key":"updated","slugs":[`,
+		`"more":[{"key":"updated","count":`,
+		`{"key":"rediscover","slugs":[`,
+		`{"key":"core","slugs":["boards"`,
 		`"ranked":`,
-		`{"title":"Rediscover","note":"Older apps, a new set every day.","slugs":[`,
-		`{"title":"Recently updated","slugs":[`,
-		`"activity":[{"kind":`,
 		`"listings":[{"slug":`,
 	} {
 		contains(t, home, want)
+	}
+	for _, gone := range []string{`"title":"New"`, `"note"`, `"empty"`, `"pinned"`, `"activity"`} {
+		uassert.False(t, strings.Contains(home, gone), gone+": gnoweb words the front, the store keeps no feed")
 	}
 	uassert.False(t, strings.Contains(home, `"users"`), "services stay off the store front")
 	uassert.Equal(t, notFound, Render("api/v1/nope"))
@@ -824,7 +818,7 @@ func TestHomeJSON(t *testing.T) {
 	uassert.Equal(t, notFound, Render("api/v1/category/defi/0"))
 	uassert.Equal(t, notFound, Render("api/v1/category/defi"))
 	category := Render("api/v1/category/defi/1")
-	contains(t, category, `{"version":1,"category":{"key":"defi","label":"DeFi","count":1},"page":1`)
+	contains(t, category, `{"version":1,"category":{"key":"defi","label":"DeFi","count":1,"confirmed":1},"page":1`)
 	contains(t, category, `"page":1,"pages":1,"listings":[{"slug":`)
 	contains(t, Render("api/v1/category/games/1"), `"page":1,"pages":1,"listings":[]`)
 }
@@ -857,24 +851,19 @@ func listingJSON(slug string) string {
 	return b.String()
 }
 
-// ev is the event of kind for the listing with this slug, at the current time.
-func ev(kind, slug string, stars int) event {
-	return event{kind, bySlugOrPanic(slug), stars, blockTime()}
-}
-
 func TestLists(t *testing.T) {
 	latest := Render("api/v1/list/latest/1")
-	contains(t, latest, `{"version":1,"list":{"key":"latest","title":"New","count":`)
+	contains(t, latest, `{"version":1,"list":{"key":"latest","count":`)
 	contains(t, latest, `"page":1,"pages":`)
 	uassert.Equal(t, notFound, Render("api/v1/list/latest/0"))
 	uassert.Equal(t, notFound, Render("api/v1/list/latest/999"))
 	uassert.Equal(t, notFound, Render("api/v1/list/nope/1"))
-	contains(t, Render("api/v1/list/top/1"), `"list":{"key":"top","title":"Top"`)
+	contains(t, Render("api/v1/list/top/1"), `"list":{"key":"top","count":`)
 	trend := Render("api/v1/list/trending/1")
-	contains(t, trend, `"list":{"key":"trending","title":"Trending this week"`)
+	contains(t, trend, `"list":{"key":"trending","count":`)
 	contains(t, trend, `"page":1,"pages":1,`)
 	uassert.Equal(t, notFound, Render("api/v1/list/trending/2"), "a computed list is one page")
-	contains(t, Render("api/v1/list/updated/1"), `"list":{"key":"updated","title":"Recently updated"`)
+	contains(t, Render("api/v1/list/updated/1"), `"list":{"key":"updated","count":`)
 
 	md := Render("latest?page=2")
 	contains(t, md, "# New")
@@ -891,7 +880,7 @@ func TestBuilderRankFits(t *testing.T) {
 // topStars ranked stars, while its list goes on below.
 func TestTopFloor(t *testing.T) {
 	for _, s := range homeShelves(blockTime()) {
-		if s.Title != "Top" {
+		if s.Key != "top" {
 			continue
 		}
 		for _, l := range s.Items {
@@ -919,25 +908,23 @@ func TestCategoryMarkdownPages(cur realm, t *testing.T) {
 }
 
 // TestFrontSections checks the fixed order, and that New leaves the core
-// apps to gno.land essentials, which is always drawn, and address
-// namespaces to its list.
+// apps to gno.land essentials and address namespaces to its list.
 func TestFrontSections(t *testing.T) {
-	var titles []string
+	var keys []string
 	for _, s := range homeShelves(blockTime()) {
-		titles = append(titles, s.Title)
-		switch s.Title {
-		case "New":
+		keys = append(keys, s.Key)
+		switch s.Key {
+		case "new":
 			uassert.True(t, len(s.Items) > 0, "core apps at the head of the index do not stop New")
 			for _, l := range s.Items {
 				uassert.False(t, l.core, l.Slug+" is a core app")
 				uassert.False(t, address(l.Namespace).IsValid(), l.Slug+" is in an address namespace")
 			}
-		case "gno.land essentials":
+		case "core":
 			uassert.True(t, len(s.Items) > 0)
-			uassert.True(t, s.Pinned)
 		}
 	}
-	uassert.Equal(t, "New,Top,Trending this week,Recently updated,Rediscover,gno.land essentials", strings.Join(titles, ","))
+	uassert.Equal(t, "new,top,trending,updated,rediscover,core", strings.Join(keys, ","))
 }
 
 // TestProposals checks that a proposal names an existing listing and a
@@ -1005,8 +992,8 @@ func TestPickEndsWithTheShownApp(cur realm, t *testing.T) {
 	shown := pickedAs(l, now)
 	testing.SetRealm(testing.NewCodeRealm(path))
 	Register(cross(cur), "", "Hero App", "Official GovDAO airdrop, claim yours now", "utilities", 4)
-	uassert.ErrorContains(t, pickBound("hero-app", path, shown, 7, now), "changed since the proposal")
-	uassert.NoError(t, pickBound("hero-app", path, pickedAs(l, now), 7, now))
+	uassert.ErrorContains(t, pickPath(path, shown, 7, now), "changed since the proposal")
+	uassert.NoError(t, pickPath(path, pickedAs(l, now), 7, now))
 	uassert.True(t, picked(now) == l)
 
 	// Once picked, a new tagline or new art ends the pick.
@@ -1030,7 +1017,7 @@ func TestNewSkipsAddressNamespaces(cur realm, t *testing.T) {
 	registerFrom(cur, "gno.land/r/newnamed/app", "named-new", "Named New")
 
 	front := homeShelves(blockTime())[0]
-	uassert.Equal(t, "New", front.Title)
+	uassert.Equal(t, "new", front.Key)
 	uassert.Equal(t, "named-new", front.Items[0].Slug)
 	uassert.False(t, strings.Contains(jsonSlugs(front.Items), `"anon-new"`))
 	latest, _ := front.More.page(1)
@@ -1065,7 +1052,8 @@ func TestSeedNamespacesNotBuilders(cur realm, t *testing.T) {
 }
 
 // TestProposalBoundToPath checks that a hide or a pick proposed for one
-// listing never executes against another that took its slug since.
+// listing never executes against another that took its slug since, and that
+// a hide follows its listing to another slug.
 func TestProposalBoundToPath(cur realm, t *testing.T) {
 	const victim, squatter = "gno.land/r/boundvictim/app", "gno.land/r/boundsquat/app"
 	registerFrom(cur, victim, "bound-app", "Bound App")
@@ -1074,12 +1062,23 @@ func TestProposalBoundToPath(cur realm, t *testing.T) {
 	uassert.NoError(t, hide("bound-app", "broken")) // another proposal frees the slug
 	registerFrom(cur, squatter, "bound-app", "Bound App")
 
-	uassert.ErrorContains(t, hideBound("bound-app", victim, "other"), "another listing")
-	uassert.ErrorContains(t, pickBound("bound-app", victim, pickedAs(bySlugOrPanic("bound-app"), blockTime()), 7, blockTime()), "another listing")
+	uassert.ErrorContains(t, hidePath(victim, "other"), "unknown listing")
+	uassert.ErrorContains(t, pickPath(victim, pickedAs(bySlugOrPanic("bound-app"), blockTime()), 7, blockTime()), "unknown listing")
 	uassert.False(t, bySlugOrPanic("bound-app").hidden)
 	uassert.True(t, picked(blockTime()) == nil || picked(blockTime()).Path != squatter)
-	uassert.NoError(t, pickBound("bound-app", squatter, pickedAs(bySlugOrPanic("bound-app"), blockTime()), 1, blockTime()))
-	uassert.NoError(t, hideBound("bound-app", squatter, "other"))
+	uassert.NoError(t, pickPath(squatter, pickedAs(bySlugOrPanic("bound-app"), blockTime()), 1, blockTime()))
+	uassert.NoError(t, hidePath(squatter, "other"))
+
+	// A claim that changes slug during the vote is still the one hidden.
+	owner := testutils.TestAddress("dodger")
+	dodger := "gno.land/r/" + owner.String() + "/scam"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), dodger, "dodge-app", "Dodge App", "A tagline", "utilities", 1, kindApp)
+	registerFrom(cur, "gno.land/r/dodgehelper/app", "dodge-app", "Dodge Helper") // moves the claim's slug
+	uassert.True(t, strings.HasPrefix(lookup(&byPath, dodger).Slug, "dodge-app--"))
+	uassert.NoError(t, hidePath(dodger, "phishing"))
+	uassert.True(t, lookup(&byPath, dodger).hidden)
+	uassert.False(t, bySlugOrPanic("dodge-app").hidden, "the listing that took the slug is not")
 }
 
 // TestPickNeedsConfirmed checks that a claimed app no one confirmed cannot
@@ -1123,7 +1122,7 @@ func TestBadge(cur realm, t *testing.T) {
 }
 
 // A free g1… namespace earns no front-page slot: an update keeps its app on
-// :updated but off Recently updated, and out of the feed.
+// :updated but off Recently updated.
 func TestFrontLeavesAddressNamespacesOut(cur realm, t *testing.T) {
 	setEpoch(5000) // after every other listing
 	path := "gno.land/r/" + testutils.TestAddress("freeanon").String() + "/app"
@@ -1134,35 +1133,18 @@ func TestFrontLeavesAddressNamespacesOut(cur realm, t *testing.T) {
 
 	l := bySlugOrPanic("anon-app")
 	uassert.True(t, apps.updated.Has(descKey(l.Updated, l.Slug)), ":updated lists every app")
-	for _, e := range activity.newestFirst() {
-		uassert.True(t, e.Listing != l, "not in the feed")
-	}
 	uassert.False(t, strings.Contains(Render(""), "Anon App"), "on no front-page shelf")
 	uassert.False(t, strings.Contains(Render("api/v1/home"), `"slug":"anon-app"`))
 }
 
-// Listings the feed never serves cannot push an app's event out of it.
-func TestFeedKeepsAppEvents(cur realm, t *testing.T) {
-	registerFrom(cur, "gno.land/r/feedapp/app", "feed-app", "Feed App")
-	for i := 0; i < activitySize; i++ {
-		n := strconv.Itoa(i)
-		owner := testutils.TestAddress("svcflood" + n)
-		path := "gno.land/r/" + owner.String() + "/svc"
-		testing.SetRealm(testing.NewUserRealm(owner))
-		Claim(cross(cur), path, "flood-svc-"+n, "Flood Service "+n, "A tagline", "infrastructure", 1, kindService)
-		registerIn(cur, path, "ignored", "Flood Service "+n, "infrastructure")
-	}
-	uassert.Equal(t, "feed-app", activity.newestFirst()[0].Listing.Slug)
-}
-
-// Every slot of the trending window is read: a crowd of tied two-star apps
+// Every epoch of the trending window is read: a crowd of tied two-star apps
 // filed one day cannot hide the week's top app, filed another.
 func TestTrendingReadsEverySlot(cur realm, t *testing.T) {
-	const e = 5010 // (origin+e)%trendEpochs == 6: the last slot read
+	const e = 5010
 	setEpoch(e)
 	registerFrom(cur, "gno.land/r/hotslot/app", "hotslot-app", "Hot Slot")
 	starFrom(cur, "hotslot-app", "hsa", "hsb", "hsc", "hsd", "hse")
-	setEpoch(e + 1) // slot 0, read first
+	setEpoch(e + 1) // the newer epoch, read first
 	for i := 0; i < trendingScan; i++ {
 		ns, fan := "slotfill"+strconv.Itoa(i), "fill"+strconv.Itoa(i/10)
 		registerFrom(cur, "gno.land/r/"+ns+"/app", ns, "Slot Fill "+strconv.Itoa(i))
@@ -1172,44 +1154,94 @@ func TestTrendingReadsEverySlot(cur realm, t *testing.T) {
 	uassert.True(t, len(top.items) > 0 && top.items[0].Slug == "hotslot-app", jsonSlugs(top.items))
 }
 
-// A core listing is frozen in code: its namespace's owner cannot rewrite it.
-func TestClaimRefusesCoreListing(cur realm, t *testing.T) {
+// A core listing is frozen in code: neither its namespace's owner nor a
+// realm deployed at its path can rewrite it.
+func TestCoreListingIsFrozen(cur realm, t *testing.T) {
+	const path = "gno.land/r/demo/defi/grc20factory"
 	testing.SetRealm(testing.NewUserRealm(nameUser(cur, "demo")))
-	uassert.AbortsContains(t, cur, "core listing cannot be claimed", func() {
-		Claim(cross(cur), "gno.land/r/demo/defi/grc20factory", "token-factory", "Free GNOT Airdrop", "A tagline", "defi", 1, kindApp)
+	uassert.AbortsContains(t, cur, "store: core_listing", func() {
+		Claim(cross(cur), path, "token-factory", "Free GNOT Airdrop", "A tagline", "defi", 1, kindApp)
 	})
-	uassert.Equal(t, "Token Factory", bySlugOrPanic("token-factory").Title)
+	registerIn(cur, path, "token-factory", "Free GNOT Airdrop", "defi")
+	l := bySlugOrPanic("token-factory")
+	uassert.Equal(t, "Token Factory", l.Title)
+	uassert.Equal(t, reasonCore, upsert(newListing(path, "", "Free GNOT Airdrop", "A tagline", "defi", 1, kindApp), blockTime()))
+
+	testing.SetRealm(testing.NewCodeRealm(path))
+	uassert.AbortsContains(t, cur, "store: core_listing", func() { SubmitRich(cross(cur), testIcon, "") })
 }
 
-// An app's own Register takes its slug and title from an unconfirmed claim
-// holding them: the app's init runs once, the claim proves nothing.
-func TestRegisterEvictsSquattingClaim(cur realm, t *testing.T) {
+// An app's own Register takes its slug from an unconfirmed claim, which
+// moves to another one: the app's init runs once, the claim proves nothing.
+// The claim itself is never dropped: its listing and its stars stay, so
+// there is nothing to gain by listing over it.
+func TestRegisterMovesSquattingClaim(cur realm, t *testing.T) {
 	squatter := testutils.TestAddress("squatter")
 	squat := "gno.land/r/" + squatter.String() + "/squat"
 	testing.SetRealm(testing.NewUserRealm(squatter))
 	Claim(cross(cur), squat, "real-app", "Real App", "A tagline", "utilities", 1, kindApp)
+	starFrom(cur, "real-app", "squatfana", "squatfanb")
+	claim := lookup(&byPath, squat)
 
 	registerFrom(cur, "gno.land/r/realns/app", "real-app", "Real App")
-	uassert.Equal(t, "gno.land/r/realns/app", bySlugOrPanic("real-app").Path)
-	uassert.False(t, byPath.Has(squat), "the claim is dropped")
+	real := bySlugOrPanic("real-app")
+	uassert.Equal(t, "gno.land/r/realns/app", real.Path)
+	uassert.Equal(t, "real-app", titleHolder(real))
+	uassert.True(t, lookup(&byPath, squat) == claim, "the claim is kept")
+	moved := claim.Slug
+	uassert.True(t, strings.HasPrefix(moved, "real-app--"), moved)
+	uassert.True(t, bySlugOrPanic(moved) == claim)
+	uassert.False(t, validSlug(moved), "under a slug no listing can ask for, so it is not moved again")
+	uassert.Equal(t, 2, claim.starCount(), "with its stars")
+	uassert.True(t, categoryMembers("utilities").Has(claim.catKey()), "and its place in its category")
 
-	// A confirmed listing still holds its title.
+	// With its title held by a confirmed listing, the claim cannot be
+	// confirmed under it.
+	starFrom(cur, moved, "squatfanc")
+	uassert.Equal(t, confirmStars, claim.rankedCount())
+	uassert.False(t, claim.Confirmed)
+	uassert.Equal(t, "real-app", titleHolder(claim))
+
+	// A moved claim is still its owner's to change, and its realm's to
+	// confirm, under the slug it was given.
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), squat, "ignored", "Real App Fork", "Another tagline", "utilities", 1, kindApp)
+	uassert.Equal(t, "Another tagline", claim.Tagline)
+	uassert.True(t, claim.Confirmed, "under a free title, its three stars confirm it")
+	registerIn(cur, squat, "ignored", "Real App Fork", "utilities")
+	uassert.True(t, claim.selfListed)
+	uassert.Equal(t, moved, claim.Slug)
+
+	// A confirmed listing holds its title and its slug.
 	registerFrom(cur, "gno.land/r/realcopy/app", "real-copy", "Real App")
 	uassert.False(t, listings.Has("real-copy"))
+	registerFrom(cur, "gno.land/r/realcopy/app", "real-app", "Real Copy")
+	uassert.False(t, byPath.Has("gno.land/r/realcopy/app"))
 
-	// A refused Register takes nothing: a claim survives a Register that
-	// names its slug and a confirmed listing's title...
+	// A refused Register moves nothing: a claim keeps its slug when the
+	// Register naming it is refused for its title.
 	claimed := "gno.land/r/" + squatter.String() + "/other"
 	testing.SetRealm(testing.NewUserRealm(squatter))
 	Claim(cross(cur), claimed, "kept-claim", "Kept Claim", "A tagline", "utilities", 1, kindApp)
 	registerFrom(cur, "gno.land/r/thief/app", "kept-claim", "Boards")
-	uassert.True(t, byPath.Has(claimed), "the claim survives a refused Register")
-	// ...and a hidden listing's Register, which takes no title.
-	registerFrom(cur, "gno.land/r/hiddenthief/app", "hidden-thief", "Hidden Thief")
-	uassert.NoError(t, hide("hidden-thief", "phishing"))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/hiddenthief/app"))
-	Register(cross(cur), "", "Kept Claim", "A tagline", "utilities", 4)
-	uassert.True(t, byPath.Has(claimed), "a hidden listing evicts nothing")
+	uassert.Equal(t, "kept-claim", lookup(&byPath, claimed).Slug)
+	uassert.False(t, byPath.Has("gno.land/r/thief/app"))
+
+	// The longest slug, ending as a moved one would: the claim still gets a
+	// slug of its own, never the one it leaves, and both listings stay
+	// reachable by their slugs.
+	long := strings.Repeat("a", maxSlug-2) + "-2"
+	longClaim := "gno.land/r/" + squatter.String() + "/long"
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), longClaim, long, "Long Claim", "A tagline", "utilities", 1, kindApp)
+	registerFrom(cur, "gno.land/r/longns/app", long, "Long App")
+	lc := lookup(&byPath, longClaim)
+	uassert.Equal(t, "gno.land/r/longns/app", bySlugOrPanic(long).Path)
+	uassert.True(t, lc.Slug != long && len(lc.Slug) == maxSlug, lc.Slug)
+	uassert.True(t, bySlugOrPanic(lc.Slug) == lc)
+	uassert.NoError(t, hidePath(longClaim, "other"))
+	uassert.True(t, lc.hidden)
+	uassert.False(t, bySlugOrPanic(long).hidden, "a hide follows the path to the claim, not the slug to another listing")
 }
 
 // A claim confirmed by stars is a claim again once its backers leave; a
@@ -1225,6 +1257,7 @@ func TestClaimLosesConfirmationWithItsStars(cur realm, t *testing.T) {
 	Unstar(cross(cur), "backed-lib")
 	uassert.False(t, l.Confirmed)
 	uassert.False(t, toolbox.created.Has(descKey(l.Created, l.Slug)), "off the shelves")
+	uassert.Equal(t, "", titleHolder(l), "and holding no title")
 
 	registerFrom(cur, "gno.land/r/selflisted/app", "self-listed", "Self Listed")
 	starFrom(cur, "self-listed", "selffana", "selffanb", "selffanc")
@@ -1291,8 +1324,9 @@ func TestCoreFlag(t *testing.T) {
 	contains(t, listingJSON("starred-app"), `"core":false`)
 }
 
-// A shelf cut from a computed list keeps one count per app.
-func TestTrendingShelfKeepsItsCounts(cur realm, t *testing.T) {
+// A shelf cut from a computed list holds gridPool apps, each with its own
+// count of the week.
+func TestTrendingShelfIsCut(cur realm, t *testing.T) {
 	setEpoch(6000) // after every other trending app
 	for i := 0; i <= gridPool; i++ {
 		ns := "shelfcut" + strconv.Itoa(i)
@@ -1301,7 +1335,7 @@ func TestTrendingShelfKeepsItsCounts(cur realm, t *testing.T) {
 	}
 	s := listShelf(mustList("trending", blockTime()))
 	uassert.Equal(t, gridPool, len(s.Items))
-	uassert.Equal(t, len(s.Items), len(s.Counts))
+	contains(t, listingJSON(s.Items[0].Slug), `"ranked":2,"stars_7d":2,`)
 }
 
 // Hiding a namespace's oldest listing moves its builder's First, in the
@@ -1336,8 +1370,8 @@ func TestUnstarAnOldStar(cur realm, t *testing.T) {
 	uassert.Equal(t, 1, l.rankedCount())
 }
 
-// A claim confirmed again after its backers left is not announced again:
-// unstarring and starring in a loop buys no feed slot.
+// A claim confirmed again after its backers left is not counted again:
+// unstarring and starring in a loop does not inflate the pulse.
 func TestReconfirmedClaimIsAnnouncedOnce(cur realm, t *testing.T) {
 	owner := nameUser(cur, "loopowner")
 	testing.SetRealm(testing.NewUserRealm(owner))
@@ -1356,16 +1390,10 @@ func TestReconfirmedClaimIsAnnouncedOnce(cur realm, t *testing.T) {
 	}
 	uassert.True(t, l.Confirmed)
 	uassert.Equal(t, listed, pulseListed.sum(blockTime()/epochLength, 7))
-	n := 0
-	for _, e := range activity.newestFirst() {
-		if e.Listing == l && e.Kind == "listed" {
-			n++
-		}
-	}
-	uassert.Equal(t, 1, n)
 }
 
-// A claim confirmed while hidden is announced once GovDAO unhides it.
+// A claim confirmed while hidden is counted, and takes its title, once
+// GovDAO unhides it.
 func TestUnhiddenClaimIsAnnounced(cur realm, t *testing.T) {
 	owner := nameUser(cur, "hiddenowner")
 	path := "gno.land/r/hiddenowner/app"
@@ -1377,31 +1405,249 @@ func TestUnhiddenClaimIsAnnounced(cur realm, t *testing.T) {
 
 	l := lookup(&byPath, path)
 	uassert.True(t, l.Confirmed && l.announced)
-	uassert.True(t, activity.newestFirst()[0].Listing == l)
+	uassert.Equal(t, "hidden-claim", titleHolder(l))
 }
 
-// A listed realm takes no title from a claim by renaming itself.
-func TestRetitleKeepsClaims(cur realm, t *testing.T) {
+// A claim holds no title, whoever asks for it: a listed realm may rename
+// itself to it, and the claim is left as it is. Its owner then claims it
+// again under another title.
+func TestRetitleLeavesClaims(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("retitleowner")
 	lib := "gno.land/p/" + owner.String() + "/lib"
 	testing.SetRealm(testing.NewUserRealm(owner))
 	Claim(cross(cur), lib, "retitle-lib", "Retitle Lib", "A tagline", "dev-tools", 1, kindPackage)
 	registerFrom(cur, "gno.land/r/retitler/app", "retitler", "Retitler")
 	registerFrom(cur, "gno.land/r/retitler/app", "", "Retitle Lib")
-	uassert.True(t, byPath.Has(lib))
-	uassert.Equal(t, "Retitler", bySlugOrPanic("retitler").Title)
+	uassert.Equal(t, "Retitle Lib", bySlugOrPanic("retitler").Title)
+	uassert.Equal(t, "retitler", titleHolder(bySlugOrPanic("retitler")))
+	uassert.False(t, byTitle.Has(titleKey("Retitler")), "the old title is released")
+	uassert.True(t, bySlugOrPanic("retitle-lib") == lookup(&byPath, lib), "the claim is untouched")
 }
 
-// A refused Claim names the listing holding the title, which may show on
-// no page: the owner learns what to ask GovDAO to hide.
-func TestClaimNamesHolder(cur realm, t *testing.T) {
-	squatter := testutils.TestAddress("uuidsquatter")
-	testing.SetRealm(testing.NewUserRealm(squatter))
-	Claim(cross(cur), "gno.land/p/"+squatter.String()+"/uuid", "uuid-squat", "UUID", "A tagline", "dev-tools", 1, kindPackage)
+// A realm that registers again what its listing already says changes
+// nothing, and is not refused for it.
+func TestRelistIsIdempotent(cur realm, t *testing.T) {
+	const path = "gno.land/r/relistns/app"
+	registerFrom(cur, path, "relist-app", "Relist App")
+	l := bySlugOrPanic("relist-app")
+	created, updated := l.Created, l.Updated
+	skip(updateCooldown)
+	registerFrom(cur, path, "another-slug", "Relist App")
+	uassert.True(t, l == bySlugOrPanic("relist-app") && l.selfListed && l.Confirmed)
+	uassert.Equal(t, created, l.Created)
+	uassert.Equal(t, updated, l.Updated)
 
+	// A claimed realm that registers what its claim says is confirmed by it.
+	owner := testutils.TestAddress("relistclaim")
+	claimed := "gno.land/r/" + owner.String() + "/app"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), claimed, "relist-claim", "Relist Claim", "A tagline", "utilities", 4, kindApp)
+	registerFrom(cur, claimed, "", "Relist Claim")
+	c := bySlugOrPanic("relist-claim")
+	uassert.True(t, c.Confirmed && c.selfListed)
+	uassert.Equal(t, "relist-claim", titleHolder(c))
+}
+
+// titleKey's fast path for ASCII gives the key its general path would.
+func TestTitleKeyASCII(t *testing.T) {
+	for r := rune(0); r < utf8.RuneSelf; r++ {
+		want := ""
+		if c := foldRune(unicode.ToLower(r)); c != 0 {
+			want = string(c)
+		}
+		uassert.Equal(t, want, titleKey(string(r)), strconv.Itoa(int(r)))
+	}
+	uassert.Equal(t, titleKey("Modem"), titleKey("MODERN"), "rn and m still fold")
+}
+
+// A hidden listing shares its slug with the listing that took it, and takes
+// no title from it by registering again.
+func TestHiddenListingTakesNoTitle(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/hidfirst/app", "hid-app", "Hid First")
+	uassert.NoError(t, hide("hid-app", "other"))
+	registerFrom(cur, "gno.land/r/hidreal/app", "hid-app", "Hid Real")
+	registerFrom(cur, "gno.land/r/hidfirst/app", "", "Hid Real")
+	uassert.Equal(t, "Hid First", lookup(&byPath, "gno.land/r/hidfirst/app").Title)
+
+	// Its image can still change while hidden, and puts it on no shelf.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/hidfirst/app"))
+	SubmitRich(cross(cur), testIcon, "")
+	hidden := lookup(&byPath, "gno.land/r/hidfirst/app")
+	uassert.True(t, hidden.hidden && hidden.next != nil)
+	uassert.False(t, lookup(&apps.created, descKey(hidden.Created, hidden.Slug)) == hidden)
+}
+
+// A core listing can always be unhidden, even from a namespace that is not
+// a core one and filled up meanwhile; a claim whose title was taken when
+// its stars came is confirmed by them at its unhide.
+func TestUnhide(cur realm, t *testing.T) {
+	const md = "gno.land/p/moul/md/v0"
+	uassert.NoError(t, hidePath(md, "broken"))
+	for i := 0; visibleInNamespace("moul") < maxPerNamespace; i++ {
+		registerFrom(cur, "gno.land/r/moul/fill"+strconv.Itoa(i), "moul-fill-"+strconv.Itoa(i), "Moul Fill "+strconv.Itoa(i))
+	}
+	uassert.NoError(t, unhide(md))
+	uassert.True(t, bySlugOrPanic("markdown").core)
+
+	owner := testutils.TestAddress("unhideclaim")
+	path := "gno.land/p/" + owner.String() + "/lib"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "unhide-claim", "Unhide Title", "A tagline", "dev-tools", 1, kindPackage)
+	registerFrom(cur, "gno.land/r/unhideholder/app", "unhide-holder", "Unhide Title") // a realm's first listing shares it
+	starFrom(cur, "unhide-claim", "unhidefana", "unhidefanb", "unhidefanc")
+	claim := bySlugOrPanic("unhide-claim")
+	uassert.False(t, claim.Confirmed, "its title is held")
+	uassert.NoError(t, hide("unhide-claim", "other"))
+	registerFrom(cur, "gno.land/r/unhideholder/app", "", "Unhide Holder") // frees the title
+	uassert.NoError(t, unhide(path))
+	uassert.True(t, claim.Confirmed)
+	uassert.Equal(t, "unhide-claim", titleHolder(claim))
+}
+
+// A refused Claim names the confirmed listing holding the title: the owner
+// learns what to ask GovDAO to hide, if it is a squat.
+func TestClaimNamesHolder(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("uuidowner")
 	testing.SetRealm(testing.NewUserRealm(owner))
-	uassert.AbortsContains(t, cur, "store: title_taken (holder: uuid-squat)", func() {
-		Claim(cross(cur), "gno.land/p/"+owner.String()+"/uuid", "uuid", "UUID", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.AbortsContains(t, cur, "store: title_taken (holder: boards)", func() {
+		Claim(cross(cur), "gno.land/p/"+owner.String()+"/boards", "boards-lib", "Boards", "A tagline", "dev-tools", 1, kindPackage)
 	})
+}
+
+// Two claims may share a title, so a claim squats none: the first confirmed
+// takes it.
+func TestClaimsShareATitle(cur realm, t *testing.T) {
+	squatter, owner := testutils.TestAddress("uuidsquatter"), testutils.TestAddress("uuidrealowner")
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), "gno.land/p/"+squatter.String()+"/uuid", "uuid-squat", "UUID", "A tagline", "dev-tools", 1, kindPackage)
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), "gno.land/p/"+owner.String()+"/uuid", "uuid", "UUID", "A tagline", "dev-tools", 1, kindPackage)
+
+	starFrom(cur, "uuid", "uuidfana", "uuidfanb", "uuidfanc")
+	uassert.True(t, bySlugOrPanic("uuid").Confirmed)
+	uassert.Equal(t, "uuid", titleHolder(bySlugOrPanic("uuid")))
+	starFrom(cur, "uuid-squat", "uuidfana", "uuidfanb", "uuidfanc")
+	other := bySlugOrPanic("uuid-squat")
+	uassert.False(t, other.Confirmed, "the title is held")
+
+	// Claimed again under a free title, it is confirmed by the stars it has.
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), other.Path, "", "UUID Too", "A tagline", "dev-tools", 1, kindPackage)
+	uassert.True(t, other.Confirmed)
+	uassert.Equal(t, "uuid-squat", titleHolder(other))
+}
+
+// A path longer than any package's is refused: every read would carry it.
+func TestPathLength(cur realm, t *testing.T) {
+	owner := testutils.TestAddress("longpath")
+	base := "gno.land/r/" + owner.String() + "/"
+	fits := base + strings.Repeat("a", maxPath-len(base))
+	uassert.Equal(t, owner.String(), namespaceOf(fits))
+	uassert.Equal(t, "", namespaceOf(fits+"a"))
+	testing.SetRealm(testing.NewUserRealm(owner))
+	uassert.AbortsContains(t, cur, "does not own the namespace", func() {
+		Claim(cross(cur), fits+"a", "long-path", "Long Path", "A tagline", "utilities", 1, kindApp)
+	})
+}
+
+// A category files its confirmed apps before its claims, and counts them
+// apart: claims never push a confirmed app down its page.
+func TestCategoryFilesClaimsLast(cur realm, t *testing.T) {
+	registerIn(cur, "gno.land/r/gamesns/app", "games-app", "Games App", "games")
+	confirmed := confirmedCount("games")
+	for i := 0; i < 3; i++ { // newer than the confirmed app
+		skip(1)
+		owner := testutils.TestAddress("gameclaim" + strconv.Itoa(i))
+		testing.SetRealm(testing.NewUserRealm(owner))
+		Claim(cross(cur), "gno.land/r/"+owner.String()+"/game", "game-claim-"+strconv.Itoa(i), "Game Claim", "A tagline", "games", 1, kindApp)
+	}
+	uassert.Equal(t, confirmed, confirmedCount("games"))
+	uassert.Equal(t, confirmed+3, appCount("games"))
+	first, _ := pageOf(categoryMembers("games"), 1)
+	for i, l := range first {
+		uassert.Equal(t, i < confirmed, l.Confirmed, l.Slug)
+	}
+	contains(t, Render("api/v1/category/games/1"), `"count":`+strconv.Itoa(confirmed+3)+`,"confirmed":`+strconv.Itoa(confirmed)+`}`)
+}
+
+// The typed reads return copies of every listing, hidden ones included, and
+// of its stars, a bounded page at a time.
+func TestReads(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/readsns/app", "reads-app", "Reads App")
+	starFrom(cur, "reads-app", "readsfana")
+	starAnon(cur, "reads-app", "readsanon")
+
+	l, ok := ListingOf("gno.land/r/readsns/app")
+	uassert.True(t, ok)
+	uassert.Equal(t, "reads-app", l.Slug)
+	uassert.True(t, l.Confirmed && !l.Hidden && !l.Core)
+	uassert.Equal(t, 2, l.Stars)
+	uassert.Equal(t, 1, l.Ranked)
+	_, ok = ListingOf("gno.land/r/readsns/nope")
+	uassert.False(t, ok)
+
+	stars := StarsOf("gno.land/r/readsns/app", 0, 10)
+	uassert.Equal(t, 2, len(stars))
+	ranked := 0
+	for _, s := range stars {
+		uassert.True(t, s.Address.IsValid())
+		if s.Ranked {
+			ranked++
+		}
+	}
+	uassert.Equal(t, 1, ranked)
+	uassert.Equal(t, 1, len(StarsOf("gno.land/r/readsns/app", 1, 10)))
+	uassert.Equal(t, 0, len(StarsOf("gno.land/r/readsns/nope", 0, 10)))
+
+	uassert.NoError(t, hide("reads-app", "other"))
+	l, _ = ListingOf("gno.land/r/readsns/app")
+	uassert.True(t, l.Hidden, "a hidden listing is still read")
+
+	// Paging through Listings reads every listing once.
+	seen := 0
+	for offset := 0; ; offset += 7 {
+		page := Listings(offset, 7)
+		seen += len(page)
+		if len(page) < 7 {
+			break
+		}
+	}
+	uassert.Equal(t, ListingCount(), seen)
+	uassert.Equal(t, readPage, len(Listings(0, 1<<30)), "a read is bounded")
+	uassert.Equal(t, 0, len(Listings(0, -1)))
+	uassert.False(t, Paused())
+	uassert.Equal(t, "", Successor())
+}
+
+// A response's buffer grows by doubling. Left to grow as it is written, it
+// would be copied whole at every write, and a full front page would cost
+// more gas than a query may spend.
+func TestResponseGrowsByDoubling(t *testing.T) {
+	var b strings.Builder
+	l, now := bySlugOrPanic("blog"), blockTime()
+	grown, last := 0, 0
+	writeArray(&b, 100, func(int) {
+		writeListing(&b, l, now)
+		if c := b.Cap(); c != last {
+			grown, last = grown+1, c
+		}
+	})
+	uassert.True(t, grown <= 8, "grown "+strconv.Itoa(grown)+" times for 100 listings")
+}
+
+// Random sequences of every write, with every index rebuilt and compared
+// as they go. They run last: they move the clock far ahead.
+func TestRandomWrites(cur realm, t *testing.T) {
+	runRandom(cur, t, "a", 1, 150, 7100)
+	runRandom(cur, t, "b", 0xdecafbad, 150, 9000)
+	runRandom(cur, t, "c", 31337, 150, 11000)
+}
+
+// TestInvariants checks what the whole suite left: each index holds exactly
+// what the listings say, and every response is valid JSON.
+func TestInvariants(t *testing.T) {
+	setEpoch(13000) // after the random runs: every test starts from the default clock
+	for _, m := range append(checkInvariants(blockTime()), checkJSON()...) {
+		t.Errorf("%s", m)
+	}
 }

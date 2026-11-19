@@ -19,6 +19,7 @@
     </header>
     {{ template "store/nav" .Nav }}
   </div>
+  {{ template "store/notice" }}
 
   {{ with .Hero }}
   <section class="b-store-hero" aria-labelledby="store-hero">
@@ -34,7 +35,7 @@
         <ul class="b-store-meta" aria-label="About this listing">
           {{ template "store/meta-items" . }}
           <li class="path u-font-mono" title="{{ .Path }}">{{ .ShortPath }}</li>
-          {{ if .Community }}<li>{{ template "store/community" }}</li>{{ end }}
+          {{ if or .Community .Unverified }}<li>{{ template "store/community" . }}</li>{{ end }}
         </ul>
         <div class="b-btns">
           <a class="b-btn b-store-btn--primary" href="{{ .Path }}"{{ template "store/rel" .Community }}>Open</a>
@@ -50,7 +51,7 @@
     <header class="b-pkg-section__header">
       <div>
         <h2 id="store-spotlight">Spotlight</h2>
-        <p class="note">A new set every day, from apps gno.land vouches for and community apps with a track record.</p>
+        <p class="note">A new set every day, from gno.land's core apps and community apps with a track record.</p>
       </div>
     </header>
     {{ template "store/grid" (grid "b-store-grid--spotlight u-no-scrollbar" .) }}
@@ -76,6 +77,7 @@
       <p>{{ .Intro }}</p>
     </header>
   </div>
+  {{ template "store/notice" }}
 
   {{ range .Shelves }}{{ template "store/shelf" . }}{{ else }}
   <p class="b-store-empty">No packages are listed yet.</p>
@@ -128,6 +130,7 @@
     {{ end }}
     {{ template "store/nav" .Nav }}
   </div>
+  {{ if not .Missing }}{{ template "store/notice" }}{{ end }}
 
   {{ with .Cards }}
   <h2 class="u-sr-only">Apps</h2>

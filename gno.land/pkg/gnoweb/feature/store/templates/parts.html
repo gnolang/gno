@@ -31,12 +31,24 @@
 {{ end }}{{ end }}
 {{ with .Trust }}<li><span class="b-tag trust" title="{{ if eq . "Core" }}One of gno.land's core apps{{ else }}A named builder whose app earned its place{{ end }}"><svg class="c-icon" aria-hidden="true"><use href="#ico-check"></use></svg>{{ . }}</span></li>{{ end }}
 {{ with .Momentum }}<li class="momentum u-font-mono">+{{ . }} this week</li>{{ end }}
+{{ with .Users }}<li class="u-font-mono" title="Distinct callers over the last 7 days, as this site's indexer counts them">{{ . }} users this week</li>{{ end }}
 {{ if or .Stars .AllStars }}<li class="stars u-font-mono"><a class="b-link--muted" href="{{ .StarURL }}" title="{{ .Stars }} from accounts with a registered name, {{ .AllStars }} in all. Star it from the store's Actions"><span aria-hidden="true">★</span> {{ .Stars }}<span class="u-sr-only"> stars from named accounts, star it</span></a></li>{{ end }}
 {{- end }}
 
-{{/* Neither core nor established: said quietly, by the path. */}}
+{{/* Neither core nor established: said quietly, by the path. A claim that
+     nothing confirms says that instead. store/notice says what both mean,
+     in the open: a title attribute is out of reach of touch and keyboard. */}}
 {{ define "store/community" -}}
+{{ if .Unverified -}}
+<span class="community" title="Listed by the owner of its namespace. Nothing confirms it yet.">unverified</span>
+{{- else if .Community -}}
 <span class="community" title="Deployed by its author. Read the code before you interact.">community</span>
+{{- end }}
+{{- end }}
+
+{{/* What a listing is, said once on every page. */}}
+{{ define "store/notice" -}}
+<p class="b-pkg-notice" role="note">Everything here was listed by its author: being listed is not being endorsed. <strong>Community</strong> apps and packages are not reviewed, and an <strong>unverified</strong> one is not confirmed to exist. Read the code before you interact.</p>
 {{- end }}
 
 {{ define "store/card" -}}
@@ -47,7 +59,7 @@
       {{ template "store/icon" . }}
       <div>
         <h3><a href="{{ .Path }}"{{ template "store/rel" .Community }}>{{ .Title }}</a></h3>
-        <p class="path"><span class="u-font-mono" title="{{ .Path }}">{{ .ShortPath }}</span>{{ if .Community }}{{ template "store/community" }}{{ end }}</p>
+        <p class="path"><span class="u-font-mono" title="{{ .Path }}">{{ .ShortPath }}</span>{{ template "store/community" . }}</p>
       </div>
     </div>
     <p class="tagline">{{ .Tagline }}</p>
@@ -96,7 +108,7 @@
   <ul class="c-reel u-no-scrollbar">
     <li><a href="{{ storeURL "" }}"{{ if not (or $.Active $.NoCurrent) }} aria-current="page"{{ end }}>All</a></li>
     {{ range . }}{{ if or .Count (eq .Key $.Active) }}
-    <li><a href="{{ storeURL (print "c/" .Key) }}"{{ if eq .Key $.Active }} aria-current="page"{{ end }}>{{ .Label }}{{ if ge .Count 3 }} <span class="count u-font-mono">{{ .Count }}</span>{{ end }}</a></li>
+    <li><a href="{{ storeURL (print "c/" .Key) }}"{{ if eq .Key $.Active }} aria-current="page"{{ end }}>{{ .Label }}{{ if ge .Confirmed 3 }} <span class="count u-font-mono">{{ .Confirmed }}</span>{{ end }}</a></li>
     {{ end }}{{ end }}
   </ul>
 </nav>
@@ -123,13 +135,17 @@
   <div class="why">
     <header><h2 id="store-cta-title">List your app</h2></header>
     <p class="description">A realm lists itself: deploying it is the proof that you control it. New apps open <em>New</em>, then stay in their category; those of registered names come back through <em>Rediscover</em>.</p>
-    <p class="description">Not showing up? Your deploy transaction carries a <code>StoreRegisterRejected</code> event with the reason.</p>
+    <p class="description">Not showing up? Your deploy transaction carries a <code>StoreRegisterRejected</code> event with the reason. Once it is gone, anyone can call <code>Relist</code> to list the app.</p>
     <p class="description">Know Go? You already know most of Gno. <a href="https://docs.gno.land/">Read the docs</a></p>
   </div>
   <div class="how">
     {{ template "store/snippet" (snippet "store-register" (printf `import "%s"
 
-func init(cur realm) {
+func init(cur realm) { Relist(cross(cur)) }
+
+// Relist lists this app, or lists it again if a pause or a taken
+// name refused it. Anyone may call it.
+func Relist(cur realm) {
 	store.Register(cross(cur), "YOUR-SLUG", "Your App Name",
 		"What it does, in one line", "utilities", 0)
 }` storePkg)) }}

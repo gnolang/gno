@@ -68,6 +68,7 @@ type webCfg struct {
 	noIndex          bool
 	trustedPaths     string
 	storeRealm       string
+	storeDeny        string
 }
 
 // The default realm notice, and the short variant shown below the lg
@@ -214,6 +215,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"store-realm",
 		defaultWebOptions.storeRealm,
 		"realm behind Explore, the app store at /explore (e.g. /r/gnoland/store/v0); empty disables it",
+	)
+
+	fs.StringVar(
+		&c.storeDeny,
+		"store-deny",
+		defaultWebOptions.storeDeny,
+		"comma-separated namespaces or package paths (acme, acme/swap; a pasted /r/acme/swap or page address works too) whose listings Explore never draws: takes one down on this gnoweb at once, where hiding it for everyone takes a GovDAO vote. The realm's own counts, markdown and api/ pages still hold it",
 	)
 
 	fs.StringVar(
@@ -382,6 +390,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		return nil, err
 	}
 	appcfg.StoreRealm = cfg.storeRealm
+	if cfg.storeDeny != "" {
+		appcfg.StoreDeny = strings.Split(cfg.storeDeny, ",")
+	}
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}

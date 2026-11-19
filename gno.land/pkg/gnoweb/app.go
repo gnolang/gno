@@ -94,6 +94,10 @@ type AppConfig struct {
 	// StoreRealm is the Explore realm as a gnoweb path ("/r/gnoland/store/v0").
 	// Its front pages get a richer view. Empty disables the store.
 	StoreRealm string
+	// StoreDeny are namespaces or package paths, in the form of
+	// TrustedPaths, whose listings Explore never shows: the operator's way
+	// to take one down at once, where the realm's takes a GovDAO vote.
+	StoreDeny []string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -237,6 +241,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
 		StoreRealm:                   cfg.StoreRealm,
+		StoreDeny:                    cfg.StoreDeny,
 		IPFSGateway:                  cfg.RenderConfig.IPFSGateway,
 	}
 

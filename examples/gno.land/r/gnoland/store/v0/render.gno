@@ -84,16 +84,10 @@ func renderBuild(now int64) string {
 
 func writeMarkdownShelves(b *strings.Builder, shelves []shelf) {
 	for _, s := range shelves {
-		if len(s.Items) == 0 && !s.Pinned {
+		if len(s.Items) == 0 {
 			continue
 		}
 		b.WriteString("\n" + md.H2(s.Title) + "\n")
-		if s.Note != "" {
-			b.WriteString(md.EscapeText(s.Note) + "\n\n")
-		}
-		if len(s.Items) == 0 {
-			b.WriteString(md.EscapeText(s.Empty) + "\n")
-		}
 		writeItems(b, s.Items)
 		if s.More.Key != "" {
 			b.WriteString("\n" + md.Link("See all", storeURL+":"+s.More.Key) + "\n")

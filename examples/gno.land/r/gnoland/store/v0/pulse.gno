@@ -1,71 +1,14 @@
 package store
 
-const (
-	pulseEpochs   = 30 // epochs kept by the global counters
-	activitySize  = 20 // events kept: room for those of listings hidden or no longer apps
-	activityShown = 5  // events served: gnoweb shows the newest
-)
+const pulseEpochs = 30 // epochs kept by the global counters
 
-// milestones are the star counts announced in the activity feed.
-var milestones = []int{10, 50, 100}
-
-// Global per-epoch counters behind the home "pulse".
+// Global per-epoch counters behind the home "pulse": raw counts, which
+// gnoweb words. The store keeps no feed of events: gnoweb tells the latest
+// from the listings' own dates, and an indexer follows the emitted events.
 var (
 	pulseListed = newEpochRing(pulseEpochs)
 	pulseStars  = newEpochRing(pulseEpochs)
 )
-
-// event points at its listing, not at a slug: Hide releases slugs, and an
-// event must never follow a slug to another listing.
-type event struct {
-	Kind    string // listed, updated or milestone
-	Listing *listing
-	Stars   int   // ranked stars at the time
-	At      int64 // when it happened
-}
-
-// activity holds the last activitySize events in a fixed ring.
-var activity eventRing
-
-type eventRing struct {
-	events [activitySize]event
-	head   int // index of the newest event
-	n      int
-}
-
-func (r *eventRing) push(e event) {
-	r.head = (r.head + 1) % activitySize
-	r.events[r.head] = e
-	if r.n < activitySize {
-		r.n++
-	}
-}
-
-// newestFirst returns the events, newest first.
-func (r *eventRing) newestFirst() []event {
-	out := make([]event, r.n)
-	for i := range out {
-		out[i] = r.events[(r.head-i+activitySize)%activitySize]
-	}
-	return out
-}
-
-// track records a listing event in the activity feed and the pulse
-// counters. It is the single gate of both: hidden and unconfirmed listings
-// announce nothing. The feed keeps only what it may serve, apps of named
-// namespaces, so services, packages and free g1… namespaces cannot push its
-// events out.
-func track(kind string, l *listing, now int64) {
-	if !l.indexed() {
-		return
-	}
-	if kind == "listed" {
-		pulseListed.add(now/epochLength, 1)
-	}
-	if l.namedApp() {
-		activity.push(event{kind, l, l.rankedCount(), now})
-	}
-}
 
 // epochRing counts events per epoch over the last len(counts) epochs, in
 // constant space: slot epoch%len holds the count of the one epoch of the

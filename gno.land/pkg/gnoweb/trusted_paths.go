@@ -1,6 +1,11 @@
 package gnoweb
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+)
 
 // trustedPaths is keyed without the "/r/", "/p/" or "/u/" prefix so one
 // entry covers every tree. An entry trusts its own path and everything under
@@ -52,4 +57,42 @@ func trustedPathProblem(entry string) string {
 		return "has uppercase letters: package paths are lowercase"
 	}
 	return ""
+}
+
+// storeDenyEntries returns the -store-deny entries in the form listings are
+// matched in ("acme", "acme/swap"), from whatever an operator types or
+// pastes: that form, a gnoweb path ("/r/acme/swap"), a package path
+// ("gno.land/r/acme/swap") or a page's address. A deny is an emergency
+// switch, so unlike a trusted path, where a typo trusts less, an entry that
+// names no package path is an error: it must not fail quietly.
+func storeDenyEntries(entries []string, domain string) ([]string, error) {
+	var out []string
+	for _, entry := range entries {
+		e := strings.TrimPrefix(strings.TrimSpace(entry), domain)
+		if e == "" {
+			continue
+		}
+		if !strings.Contains(e, "://") && !strings.HasPrefix(e, "/") {
+			e = "/" + e
+		}
+		u, err := weburl.Parse(e)
+		if err == nil && !isPackageURL(u) {
+			u.Path = "/r" + u.Path // a namespace or a path typed bare
+		}
+		pkg, ok := "", false
+		if err == nil && u.IsValidPath() {
+			pkg, ok = packagePath(u)
+		}
+		if !ok {
+			return nil, fmt.Errorf("invalid `StoreDeny` entry %q: want a namespace or a package path, such as acme or acme/swap", entry)
+		}
+		out = append(out, pkg)
+	}
+	return out, nil
+}
+
+// storeDenied matches a package path, or a namespace, against the entries
+// storeDenyEntries returned: an entry denies its own path and all under it.
+func storeDenied(entries []string) func(pkg string) bool {
+	return newTrustedPaths(entries).contains
 }

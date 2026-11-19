@@ -13,32 +13,27 @@ const (
 	rediscoverStep = rediscoverSize / 2
 	pageSize       = 24
 	minTrending    = 2   // stars_7d needed to trend
-	trendingScan   = 200 // apps read at most for trending, shared evenly by the slots
+	trendingScan   = 200 // apps read at most for trending, shared evenly by the window's epochs
 )
 
-// shelf is one section of the store front or the build lens, drawn as a
-// grid. The realm decides what it holds and in which order; gnoweb draws it.
+// shelf is one section of the store front or the build lens. The realm
+// decides what it holds; gnoweb names it, words it, sets the floors it
+// shows from and draws it, by Key, so none of that is frozen here. Title
+// only heads it on the realm's own markdown page.
 type shelf struct {
-	Title  string
-	Note   string // one line under the title, if any
-	Items  []*listing
-	Counts []int // per item, the ranked stars of the last 7 epochs (Trending)
-	More   list  // the list behind the shelf, if any (Key != "")
-	// Pinned shelves are the front's fixed sections: always drawn, from
-	// their true head (only the Spotlight's apps are set aside), with Empty
-	// when they hold no app.
-	Pinned bool
-	Empty  string
+	Key   string
+	Title string
+	Items []*listing
+	More  list // the list behind the shelf, if any (Key != "")
 }
 
 // list is a list of the store front, the "see all" of a shelf: paged over
 // an index, or computed, one page long (Trending).
 type list struct {
-	Key    string
-	Title  string
-	Index  *avl.Tree  // paged lists
-	Items  []*listing // computed lists
-	Counts []int      // computed lists: each item's ranked stars this week, which its shelf shows
+	Key   string
+	Title string
+	Index *avl.Tree  // paged lists
+	Items []*listing // computed lists
 }
 
 // findList returns the list with this key at time now.
@@ -51,8 +46,7 @@ func findList(key string, now int64) (list, bool) {
 	case "updated":
 		return list{Key: key, Title: "Recently updated", Index: &apps.updated}, true
 	case "trending":
-		t := trending(now, pageSize)
-		return list{Key: key, Title: "Trending this week", Items: t.items, Counts: t.scores}, true
+		return list{Key: key, Title: "Trending this week", Items: trending(now, pageSize).items}, true
 	}
 	return list{}, false
 }
@@ -87,9 +81,9 @@ func (l list) count() int {
 // for api/v1/build and the markdown build page.
 func buildShelves(now int64) []shelf {
 	return []shelf{
-		{Title: "New to build with", Items: takeWhile(&toolbox.created, gridPool, func(l *listing) bool { return l.isNew(now) })},
-		{Title: "Recently updated", Items: window(&toolbox.updated, 0, gridPool)},
-		{Title: "Most starred", Items: window(&toolbox.stars, 0, gridPool)},
+		{Key: "new", Title: "New to build with", Items: takeWhile(&toolbox.created, gridPool, func(l *listing) bool { return l.isNew(now) })},
+		{Key: "updated", Title: "Recently updated", Items: window(&toolbox.updated, 0, gridPool)},
+		{Key: "starred", Title: "Most starred", Items: window(&toolbox.stars, 0, gridPool)},
 	}
 }
 
@@ -133,22 +127,21 @@ func pageOf(index *avl.Tree, n int) ([]*listing, int) {
 }
 
 // trending ranks at most n apps by ranked stars over the trending window,
-// with their scores. Each live
-// slot of the trend index orders its apps by a score that can only have
-// decayed since it was filed: reading a slot downwards, once a stored score
-// is below minTrending or the n-th best real score, no later app of that
-// slot can enter, so the result is exact unless the budget, which bounds the
-// reads whatever the store's size, cuts it short. Each slot gets its share,
-// so a crowd of ties in one day cannot keep the head of another unread.
+// with their scores. appTrend files each app under the epoch of its last
+// ranked-star change, by a score that can only have decayed since: reading
+// an epoch downwards, once a stored score is below minTrending or the n-th
+// best real score, no later app of that epoch can enter, so the result is
+// exact unless the budget, which bounds the reads whatever the store's size,
+// cuts it short. Each epoch of the window gets its share, so a crowd of ties
+// in one day cannot keep the head of another unread.
 func trending(now int64, n int) *topN {
 	best, epoch := &topN{n: n}, now/epochLength
-	for _, s := range appTrend.slots {
-		if s.byScore == nil || epoch-s.epoch >= trendEpochs {
-			continue
-		}
+	for e := epoch; e > epoch-trendEpochs && e >= 0; e-- {
+		from := descKey(e, "")
 		scanned := 0
-		s.byScore.Iterate("", "", func(key string, v any) bool {
-			bound := int(descValue(key))
+		// "0" follows "/": the range holds exactly the keys of epoch e.
+		appTrend.Iterate(from, from[:len(from)-1]+"0", func(key string, v any) bool {
+			bound := int(descValue(key[len(from):]))
 			if bound < minTrending || len(best.items) == best.n && bound < best.scores[best.n-1] {
 				return true
 			}

@@ -224,3 +224,65 @@ func TestFlightFetchOutlivesItsReader(t *testing.T) {
 		t.Fatalf("get = %d, %v; want the answer of the fetch whose reader left", v, err)
 	}
 }
+
+// peek never waits: with no answer it starts the fetch and returns nothing,
+// while one runs it starts no other, then it returns the answer, and a stale
+// one while it is refreshed. A failure is nothing at hand.
+func TestFlightPeekNeverWaits(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Minute, max: 1, stale: true}
+	release := make(chan struct{})
+	var fetches atomic.Int32
+	fetch := func(context.Context) (int, error) { fetches.Add(1); <-release; return 7, nil }
+
+	// The fetch is blocked: a peek that waited for it would never return.
+	for range 3 {
+		if v, ok := f.peek(context.Background(), "k", fetch); ok {
+			t.Fatalf("peek = %d before any answer", v)
+		}
+	}
+	close(release)
+	waitFor(t, func() bool { _, ok := f.peek(context.Background(), "k", fetch); return ok })
+	if v, _ := f.peek(context.Background(), "k", fetch); v != 7 {
+		t.Fatalf("peek = %d, want 7", v)
+	}
+	if n := fetches.Load(); n != 1 {
+		t.Fatalf("fetched %d times, want once", n)
+	}
+
+	// Stale: the old answer at once, and one refresh for the next reader.
+	f.entries["k"] = flightEntry[int]{val: 7, at: time.Now().Add(-2 * time.Minute)}
+	refreshed := make(chan struct{})
+	if v, ok := f.peek(context.Background(), "k", func(context.Context) (int, error) { <-refreshed; return 8, nil }); !ok || v != 7 {
+		t.Fatalf("peek = %d, %v; want the stale answer", v, ok)
+	}
+	close(refreshed)
+	waitFor(t, func() bool { v, _ := f.peek(context.Background(), "k", fetch); return v == 8 })
+
+	// A failure with no answer before it is nothing at hand; an expired
+	// reader starts nothing.
+	g := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Minute, max: 1, stale: true}
+	g.store("k", 0, errors.New("down"))
+	if _, ok := g.peek(context.Background(), "k", fetch); ok {
+		t.Fatal("peek returned a failure as an answer")
+	}
+	done, cancel := context.WithCancel(context.Background())
+	cancel()
+	var started atomic.Int32
+	h := &flight[int]{ttl: time.Minute, timeout: time.Minute, max: 1}
+	h.peek(done, "k", func(context.Context) (int, error) { started.Add(1); return 1, nil })
+	time.Sleep(10 * time.Millisecond)
+	if started.Load() != 0 {
+		t.Fatal("an expired reader started a fetch")
+	}
+}
+
+func waitFor(t *testing.T, ok func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); !ok(); time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out")
+		}
+	}
+}

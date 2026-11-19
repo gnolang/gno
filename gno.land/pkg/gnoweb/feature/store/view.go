@@ -1,6 +1,8 @@
 package store
 
 import (
+	"cmp"
+	"context"
 	"html/template"
 	"maps"
 	"math/rand/v2"
@@ -37,6 +39,10 @@ const (
 	// momentAge bounds how old the latest event may be to close the pulse:
 	// on an idle store, an app is not "just joined" for months.
 	momentAge = 7 * 24 * time.Hour
+
+	// usedMin is the distinct callers over the week worth showing, on a card
+	// and for Most used: fewer read as a quiet chain, as with momentumMin.
+	usedMin = 3
 )
 
 // card is one listing as every template draws it. It links to the
@@ -53,8 +59,13 @@ type card struct {
 	AllStars  int    // every star
 	StarURL   string // the store's Star action, prefilled for this listing
 	Community bool   // neither the operator's nor established: says so on the path line, its links not followed
-	Trust     string // "Core" (the realm's core apps) or "Established" (earned), a positive badge
-	Momentum  int    // ranked stars this week, when worth showing
+	// Unverified marks a listing claimed by its namespace's owner that
+	// neither its own realm nor ranked stars confirm. It says so in place
+	// of "community".
+	Unverified bool
+	Trust      string // "Core" (the realm's core apps) or "Established" (earned), a positive badge
+	Momentum   int    // ranked stars this week, when worth showing
+	Users      int    // distinct callers this week, from an indexer, when worth showing
 
 	// Owner assets, set only when the tier allows them.
 	Icon  template.URL
@@ -169,19 +180,33 @@ type pageData struct {
 	Next    int // 0: no next page
 }
 
-func (h *Handler) card(l *listing, labels map[string]string) card {
+// usage is the indexer's count of each realm's callers this week, at hand;
+// nil without an indexer or while it has none. It never waits: a page is
+// drawn without the figures rather than late.
+func (h *Handler) usage(ctx context.Context) map[string]int {
+	if h.deps.Usage == nil {
+		return nil
+	}
+	return h.deps.Usage(ctx)
+}
+
+func (h *Handler) card(l *listing, labels map[string]string, usage map[string]int) card {
 	c := card{
-		Title:     l.Title,
-		Tagline:   l.Tagline,
-		KindLabel: kindLabels[l.Kind],
-		Category:  category{Key: l.Category, Label: labels[l.Category]},
-		Path:      l.webPath,
-		ShortPath: l.shortPath,
-		Stars:     l.Ranked,
-		AllStars:  l.Stars,
-		StarURL:   h.deps.RealmPath + "$help&func=Star&slug=" + l.Slug,
-		Art:       l.art,
-		Glyph:     l.glyph,
+		Title:      l.Title,
+		Tagline:    l.Tagline,
+		KindLabel:  kindLabels[l.Kind],
+		Category:   category{Key: l.Category, Label: labels[l.Category]},
+		Path:       l.webPath,
+		ShortPath:  l.shortPath,
+		Stars:      l.Ranked,
+		AllStars:   l.Stars,
+		StarURL:    h.deps.RealmPath + "$help&func=Star&slug=" + l.Slug,
+		Art:        l.art,
+		Glyph:      l.glyph,
+		Unverified: !l.Confirmed,
+	}
+	if n := usage[l.Path]; n >= usedMin {
+		c.Users = n
 	}
 	// Core is the realm's word for its seeded apps, never the operator's
 	// trust list, which only lets owner assets show.
@@ -202,23 +227,24 @@ func (h *Handler) card(l *listing, labels map[string]string) card {
 	return c
 }
 
-func (h *Handler) cards(ls []*listing, labels map[string]string) []card {
+func (h *Handler) cards(ls []*listing, labels map[string]string, usage map[string]int) []card {
 	out := make([]card, len(ls))
 	for i, l := range ls {
-		out[i] = h.card(l, labels)
+		out[i] = h.card(l, labels, usage)
 	}
 	return out
 }
 
 // shelves resolves the realm's shelves into grids, leaving out the apps of
-// skip (the Spotlight's). The realm decides order and rotation; gnoweb only
-// enforces visual rules: a grid shows gridSize cards at most, in full rows
-// of rowSize once it has one, and weekly momentum when it is worth it. A
+// skip (the Spotlight's). The realm decides order and rotation; gnoweb words
+// them, sets their floors (applyFloors) and enforces visual rules: a grid
+// shows gridSize cards at most, in full rows of rowSize once it has one,
+// and weekly momentum when it is worth it. A
 // pinned shelf is drawn from its own head, with its empty text if it holds
 // no app, unless all its apps are featured above or it has no empty text to
 // show; the others show no app already shown above them and need minShelf
 // cards.
-func (h *Handler) shelves(src []shelf, bySlug map[string]*listing, labels map[string]string, skip map[string]bool) []shelfView {
+func (h *Handler) shelves(src []shelf, bySlug map[string]*listing, labels map[string]string, skip map[string]bool, usage map[string]int) []shelfView {
 	var out []shelfView
 	shown := maps.Clone(skip)
 	if shown == nil {
@@ -226,7 +252,7 @@ func (h *Handler) shelves(src []shelf, bySlug map[string]*listing, labels map[st
 	}
 	for i, s := range src {
 		left := shown
-		if s.Pinned {
+		if s.Pinned || s.ownHead {
 			left = skip
 		}
 		picked := pick(bySlug, s.Slugs, left)
@@ -242,15 +268,11 @@ func (h *Handler) shelves(src []shelf, bySlug map[string]*listing, labels map[st
 		if s.Pinned && len(picked) == 0 && (len(s.Slugs) > 0 || s.Empty == "") || !s.Pinned && len(picked) < minShelf {
 			continue
 		}
-		week := make(map[string]int, len(s.Stars7d))
-		for k, n := range s.Stars7d {
-			week[s.Slugs[k]] = n
-		}
-		v := shelfView{ID: "store-shelf-" + strconv.Itoa(i), Title: s.Title, Note: s.Note, Empty: s.Empty, Cards: h.cards(picked, labels), More: s.More}
+		v := shelfView{ID: "store-shelf-" + strconv.Itoa(i), Title: s.Title, Note: s.Note, Empty: s.Empty, Cards: h.cards(picked, labels, usage), More: s.More}
 		for k, l := range picked {
 			shown[l.Slug] = true
-			if n := week[l.Slug]; n >= momentumMin {
-				v.Cards[k].Momentum = n
+			if s.minWeek > 0 && l.Week >= momentumMin { // on a shelf ranked by the week
+				v.Cards[k].Momentum = l.Week
 			}
 		}
 		out = append(out, v)
@@ -320,7 +342,7 @@ func featured(res *homeResponse, bySlug map[string]*listing) (hero *listing, lab
 		hero, label = pick, labelPick
 	} else if l := trending(res.Shelves, bySlug); l != nil {
 		hero, label = l, labelPopular
-		if leads(res.Shelves, l.Slug) {
+		if leads(res.Shelves, bySlug, l) {
 			label = labelTrending
 		}
 	} else if len(pool) > 0 {
@@ -355,37 +377,88 @@ func featured(res *homeResponse, bySlug map[string]*listing) (hero *listing, lab
 	return hero, label, spot
 }
 
-// trending returns the eligible app with the most stars this week, if that
-// is worth showing (momentumMin).
+// trendingKey is the realm's shelf of the apps most starred this week.
+const trendingKey = "trending"
+
+// trending returns the eligible app of the realm's trending shelf with the
+// most stars this week, if that is worth showing (momentumMin).
 func trending(src []shelf, bySlug map[string]*listing) (best *listing) {
 	most := momentumMin - 1
 	for _, s := range src {
-		for i, n := range s.Stars7d {
-			if l := bySlug[s.Slugs[i]]; l != nil && n > most && l.eligible() {
-				best, most = l, n
+		if s.Key != trendingKey {
+			continue
+		}
+		for _, slug := range s.Slugs {
+			if l := bySlug[slug]; l != nil && l.Week > most && l.eligible() {
+				best, most = l, l.Week
 			}
 		}
 	}
 	return best
 }
 
-// leads reports whether slug is first, ties included, on the realm's
-// trending shelf (the one behind the "trending" list), counting every app
-// on it, eligible or not: only then may the hero say "Trending now".
-func leads(src []shelf, slug string) bool {
+// leads reports whether l is first, ties included, on the realm's trending
+// shelf, counting every app on it, eligible or not: only then may the hero
+// say "Trending now".
+func leads(src []shelf, bySlug map[string]*listing, l *listing) bool {
 	for _, s := range src {
-		if !slices.ContainsFunc(s.More, func(l listRef) bool { return l.Key == "trending" }) {
+		if s.Key != trendingKey || !slices.Contains(s.Slugs, l.Slug) {
 			continue
 		}
-		i := slices.Index(s.Slugs, slug)
-		return i >= 0 && len(s.Stars7d) > 0 && s.Stars7d[i] == slices.Max(s.Stars7d)
+		return !slices.ContainsFunc(s.Slugs, func(slug string) bool {
+			other := bySlug[slug]
+			return other != nil && other.Week > l.Week
+		})
 	}
 	return false
 }
 
-func (h *Handler) buildHome(res *homeResponse) homeData {
+// mostUsed is the shelf of the front page's apps people call most, by
+// distinct callers this week, when an indexer says so. It ranks the apps the
+// front page already carries: no read is added for it. A caller costs one
+// funded address, less than a ranked star, so the shelf takes no pinned
+// place (withMostUsed) and, like New, leaves free g1… namespaces out.
+func mostUsed(res *homeResponse, usage map[string]int) (shelf, bool) {
+	var used []*listing
+	for i := range res.Listings {
+		if l := &res.Listings[i]; l.Kind == kindApp && l.tier != tierAnonymous && usage[l.Path] >= usedMin {
+			used = append(used, l)
+		}
+	}
+	slices.SortFunc(used, func(a, b *listing) int {
+		return cmp.Or(cmp.Compare(usage[b.Path], usage[a.Path]), cmp.Compare(a.Slug, b.Slug))
+	})
+	s := shelf{Key: "used", shelfDef: shelfDef{
+		Title:   "Most used this week",
+		Note:    "By distinct callers over the last 7 days, as this site's indexer counts them.",
+		ownHead: true,
+	}}
+	for _, l := range used {
+		s.Slugs = append(s.Slugs, l.Slug)
+	}
+	return s, len(used) > 0
+}
+
+// withMostUsed returns the front page's shelves with Most used, if any,
+// first of those that are not pinned: after New and Top, which keep the
+// head of the page whatever an indexer counts. The slice is a new one: res
+// is shared.
+func withMostUsed(res *homeResponse, usage map[string]int) []shelf {
+	used, ok := mostUsed(res, usage)
+	if !ok {
+		return res.Shelves
+	}
+	at := slices.IndexFunc(res.Shelves, func(s shelf) bool { return !s.Pinned })
+	if at < 0 {
+		at = len(res.Shelves)
+	}
+	return slices.Insert(slices.Clone(res.Shelves), at, used)
+}
+
+func (h *Handler) buildHome(res *homeResponse, usage map[string]int) homeData {
 	labels := categoryLabels(res.Categories)
 	bySlug := indexListings(res.Listings)
+	shelves := withMostUsed(res, usage)
 	hero, label, spot := featured(res, bySlug)
 	skip := make(map[string]bool, len(spot)+1)
 	if hero != nil {
@@ -397,15 +470,15 @@ func (h *Handler) buildHome(res *homeResponse) homeData {
 	data := homeData{
 		Intro:     introLine,
 		Nav:       catNav{Items: res.Categories},
-		Pulse:     newPulse(res.chainClock, res.Pulse, latestMoment(res.Activity, bySlug, time.Now())),
+		Pulse:     newPulse(res.chainClock, res.Pulse, latestMoment(res.Shelves, bySlug, time.Now())),
 		MovedTo:   res.MovedTo,
-		Spotlight: h.cards(spot, labels),
-		Shelves:   h.shelves(res.Shelves, bySlug, labels, skip),
+		Spotlight: h.cards(spot, labels, usage),
+		Shelves:   h.shelves(shelves, bySlug, labels, skip, usage),
 	}
 	if hero != nil {
-		data.Hero = &heroView{card: h.card(hero, labels), Label: label}
-		if _, _, ok := offered(res, pagedList, "trending"); ok && (label == labelTrending || label == labelPopular) {
-			data.Hero.LabelList = "trending"
+		data.Hero = &heroView{card: h.card(hero, labels, usage), Label: label}
+		if _, _, _, ok := offered(res, pagedList, trendingKey); ok && (label == labelTrending || label == labelPopular) {
+			data.Hero.LabelList = trendingKey
 		}
 	}
 	if n := len(res.Listings); n > 0 {
@@ -418,8 +491,8 @@ func (h *Handler) buildHome(res *homeResponse) homeData {
 // buildBuild needs no category labels: services and packages show their
 // kind, not a category.
 // Empty builder lists are left out, so the section is too when both are.
-func (h *Handler) buildBuild(res *buildResponse) buildData {
-	data := buildData{Intro: buildLine, Shelves: h.shelves(res.Shelves, indexListings(res.Listings), nil, nil)}
+func (h *Handler) buildBuild(res *buildResponse, usage map[string]int) buildData {
+	data := buildData{Intro: buildLine, Shelves: h.shelves(res.Shelves, indexListings(res.Listings), nil, nil, usage)}
 	for _, s := range []builderSection{
 		{"Top builders", builders(res.Builders.Top)},
 		{"New builders", builders(res.Builders.New)},
@@ -468,35 +541,40 @@ func newPulse(clock chainClock, p pulse, m *moment) pulseView {
 	return v
 }
 
-// latestMoment phrases the newest store event it can with fixed templates;
-// only titles come from listings, and only listings that passed sanitize.
-// Events come newest first: none older than momentAge is told.
-func latestMoment(events []activity, bySlug map[string]*listing, now time.Time) *moment {
-	for _, e := range events {
-		if now.Sub(time.Unix(e.Time, 0)) > momentAge {
-			return nil
-		}
-		l, ok := bySlug[e.Slug]
-		if !ok {
-			continue
-		}
-		var text string
-		switch e.Kind {
-		case "listed":
-			text = l.Title + " just joined"
-		case "updated":
-			text = l.Title + " was updated"
-		case "milestone":
-			if e.Stars <= 0 {
+// latestMoment tells the newest thing the front page's own listings show:
+// an app listed or changed within momentAge, among those of the realm's New
+// and Recently updated shelves, which hold named namespaces' confirmed apps.
+// The store keeps no feed of events. An app that is still community is
+// named by its path, not its title: the top of the page is no place for
+// words anyone can register (ADR-004 T6).
+func latestMoment(shelves []shelf, bySlug map[string]*listing, now time.Time) *moment {
+	var (
+		latest *listing
+		at     int64
+		what   string
+	)
+	for _, s := range shelves {
+		for _, slug := range s.Slugs {
+			l := bySlug[slug]
+			if l == nil {
 				continue
 			}
-			text = l.Title + " crossed " + strconv.Itoa(e.Stars) + " stars"
-		default:
-			continue
+			switch {
+			case s.Key == "new" && l.Created > at:
+				latest, at, what = l, l.Created, " just joined"
+			case s.Key == "updated" && l.Updated > at:
+				latest, at, what = l, l.Updated, " was updated"
+			}
 		}
-		return &moment{Text: text, appLink: l.link()}
 	}
-	return nil
+	if latest == nil || now.Sub(time.Unix(at, 0)) > momentAge {
+		return nil
+	}
+	name := latest.Title
+	if latest.community() {
+		name = latest.shortPath
+	}
+	return &moment{Text: name + what, appLink: latest.link()}
 }
 
 // link is the way to a listing's own page.

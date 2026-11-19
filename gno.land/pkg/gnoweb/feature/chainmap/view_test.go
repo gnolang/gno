@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
 // render draws a listing's map, figure and key, as the listing page would.
@@ -398,5 +400,42 @@ func TestGasScaleStartsAtTheLightestRealm(t *testing.T) {
 	}
 	if !strings.Contains(out, "≤ 3.8 M") || strings.Contains(out, "≤ 1 k") {
 		t.Error("the legend must run from the lightest realm to the heaviest")
+	}
+}
+
+// Another feature reads the map's own aggregate: Activity returns what the
+// map drew without a scan of its own, nothing without an indexer, and with
+// none computed yet it returns at once and starts the one scan the map then
+// finds running.
+func TestActivityIsTheMapsAggregate(t *testing.T) {
+	t.Parallel()
+
+	if New(Deps{Imports: fakeImports{}}).Activity(context.Background()) != nil {
+		t.Error("no indexer, no activity")
+	}
+
+	idx := &fakeIndexer{tip: 100, t0: time.Now().Add(-time.Hour), calls: map[int][]indexer.Tx{
+		50: {call(50, true, "g1a", "gno.land/r/a/x"), call(50, true, "g1b", "gno.land/r/a/x")},
+	}}
+	h := New(Deps{Indexer: idx, Imports: fakeImports{}, Domain: "gno.land"})
+	listing := Listing{Path: "/r/a", Paths: []string{"/r/a/x", "/r/a/y"}}
+
+	h.Activity(context.Background()) // starts the scan, and does not wait for it
+	if out := render(t, h, listing); !strings.Contains(out, "/r/a/x · 2 calls by 2 accounts") {
+		t.Fatalf("the map lacks the activity:\n%s", out)
+	}
+	queried := func() int {
+		idx.mu.Lock()
+		defer idx.mu.Unlock()
+		return len(idx.bandsQueried)
+	}
+	scans := queried()
+	a := h.Activity(context.Background())
+	if a == nil || a.Callers["gno.land/r/a/x"] != 2 {
+		t.Fatalf("Activity = %+v, want the map's aggregate", a)
+	}
+	render(t, h, listing)
+	if got := queried(); got != scans {
+		t.Errorf("%d more indexer reads after the first aggregate, want none", got-scans)
 	}
 }
