@@ -4,12 +4,17 @@ package chain
 // ref: https://github.com/gnolang/gno/pull/1833
 
 import (
+	"encoding/binary"
 	"errors"
+	"strings"
+	"sync"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd count")
@@ -17,7 +22,7 @@ var errInvalidGnoEventAttrs = errors.New("cannot pair attributes due to odd coun
 const (
 	// MaxEventPairs caps the number of (key,value) pairs per emitted event.
 	// `attrs` arrives as a flat slice of alternating keys/values, so the
-	// flat length cap is 2× this. The bound exists so chargeNativeGas can
+	// flat length cap is 2× this. The bound exists so X_emit can
 	// safely walk attrs to compute per-byte gas without becoming a DoS
 	// vector itself, and so downstream amino+JSON encoding is bounded.
 	MaxEventPairs = 64
@@ -38,6 +43,10 @@ const (
 	MaxEventAttrLen = 4096
 )
 
+// emitGasPerByte prices each byte of an event's amino encoding at a store
+// write's per-byte rate: the block keeps, encodes and stores it after the call.
+var emitGasPerByte = store.DefaultGasConfig().WriteCostPerByte
+
 func X_emit(m *gno.Machine, typ string, attrs []string) {
 	if len(attrs)/2 > MaxEventPairs {
 		m.PanicString("event has too many attribute pairs")
@@ -55,12 +64,44 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	ctx := execctx.GetContext(m)
 
 	evt := Event{
-		Type:       typ,
+		// Copied: a substring would keep its whole source string alive
+		// for as long as the block keeps the event, billed for its length.
+		Type:       strings.Clone(typ),
 		Attributes: eventAttrs,
 		PkgPath:    pkgPath,
 	}
 
+	if m.GasMeter != nil {
+		m.GasMeter.ConsumeGas(emitGasPerByte*int64(eventSize(evt)), "EmitEventPerByte")
+	}
+
 	ctx.EventLogger.EmitEvent(evt)
+}
+
+var eventTypeURL = sync.OnceValue(func() string { return amino.GetTypeURL(Event{}) })
+
+// eventSize is len(amino.MustMarshalAny(e)), computed without encoding it.
+func eventSize(e Event) int {
+	v := stringFieldSize(e.Type) + stringFieldSize(e.PkgPath)
+	for _, a := range e.Attributes {
+		n := stringFieldSize(a.Key) + stringFieldSize(a.Value)
+		v += bytesFieldSize(n)
+	}
+	return bytesFieldSize(len(eventTypeURL())) + bytesFieldSize(v)
+}
+
+// stringFieldSize is the amino size of a string field, omitted when empty.
+func stringFieldSize(s string) int {
+	if s == "" {
+		return 0
+	}
+	return bytesFieldSize(len(s))
+}
+
+// bytesFieldSize is the size of a length-prefixed field of n bytes: key, length, bytes.
+func bytesFieldSize(n int) int {
+	var b [binary.MaxVarintLen64]byte
+	return 1 + binary.PutUvarint(b[:], uint64(n)) + n
 }
 
 // currentPkgPath retrieves the current package's pkgPath.
@@ -84,8 +125,8 @@ func attrKeysAndValues(m *gno.Machine, attrs []string) ([]EventAttribute, error)
 			m.PanicString("event attribute value is too long")
 		}
 		eventAttrs[i/2] = EventAttribute{
-			Key:   key,
-			Value: value,
+			Key:   strings.Clone(key),
+			Value: strings.Clone(value),
 		}
 	}
 	return eventAttrs, nil

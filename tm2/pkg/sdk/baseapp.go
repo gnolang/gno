@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,10 +10,12 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -83,6 +86,10 @@ type BaseApp struct {
 
 	// block height at which to halt the chain and gracefully shutdown
 	haltHeight uint64
+
+	// Wall-clock limit of one custom-route query, 0 disables it. Node-local,
+	// never consensus. See SetQueryTimeout.
+	queryTimeout time.Duration
 
 	// Deferred commits during block sync (deferred.go). heldHeader is the
 	// header of the last held commit, published to queries once written.
@@ -471,12 +478,32 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	}
 }
 
+// QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
+// runs code for path: .app/simulate runs a whole transaction, and a custom
+// route runs code when its handler implements abci.CodeExecutionQuerier and
+// says so.
+func (app *BaseApp) QueryRunsCode(reqPath string) bool {
+	path := splitPath(reqPath)
+	if len(path) == 0 {
+		return false
+	}
+	if path[0] == ".app" {
+		return len(path) >= 2 && path[1] == appQuerySimulate
+	}
+	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
+	return ok && h.QueryRunsCode(reqPath)
+}
+
+// appQuerySimulate is the .app query that runs a whole transaction.
+const appQuerySimulate = "simulate"
+
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
 		var result Result
 
+		// A case that runs code also belongs in QueryRunsCode.
 		switch path[1] {
-		case "simulate":
+		case appQuerySimulate:
 			result = app.Simulate(req.Data)
 
 			res.Height = req.Height
@@ -552,6 +579,18 @@ func handleQueryStore(app *BaseApp, path []string, req abci.RequestQuery) (res a
 }
 
 func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// A query is free to send, so a panic in its handler, such as a store key
+	// over the cap, answers as an error and leaves nothing in the node's log.
+	defer func() {
+		if r := recover(); r != nil {
+			if dl, ok := r.(store.DeadlineExceededError); ok {
+				res = ABCIResponseQueryFromError(dl)
+				return
+			}
+			res = ABCIResponseQueryFromError(std.ErrInternal(clipLog(fmt.Sprintf("recovered: %v", r))))
+		}
+	}()
+
 	if len(path) < 1 || path[0] == "" {
 		res.Error = ABCIError(std.ErrUnknownRequest("No route for custom query specified"))
 		return
@@ -592,6 +631,15 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
 	ctx := NewContext(RunTxModeCheck, cacheMS, app.getLastBlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	// Arm the wall-clock deadline that a query gas meter built from ctx checks
+	// (see QueryDeadline). Only here: .app/simulate, store queries and
+	// transactions never carry it.
+	if app.queryTimeout > 0 {
+		expired := new(atomic.Bool)
+		t := time.AfterFunc(app.queryTimeout, func() { expired.Store(true) })
+		defer t.Stop()
+		ctx = WithQueryDeadline(ctx, expired)
+	}
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
@@ -740,6 +788,34 @@ func validateBasicTxMsgs(msgs []Msg) error {
 // garbage txs store one.
 func txDecodeFailure(err error) (abci.Error, string) {
 	return ABCIError(std.ErrTxDecode(err.Error())), clipLog(err.Error())
+}
+
+// zeroSessionAddrHint ends the Log of a tx refused as non-canonical when
+// writesZeroSessionAddr says an outdated client wrote it.
+const zeroSessionAddrHint = " (upgrade your client to gno v1.7.1+)"
+
+// writesZeroSessionAddr reports whether bz writes each of sigs' session
+// address out as the zero address, the way Go clients built before
+// gnolang/gno#6399 wrote every master-key signature: field 3 of the
+// signature, holding the zero address's bech32 string. The canonical encoding
+// leaves a zero session address out. It scans bz once and re-encodes nothing;
+// it only words the Log of a tx already refused, which is not part of the
+// results hash.
+func writesZeroSessionAddr(bz []byte, sigs []std.Signature) bool {
+	if len(sigs) == 0 {
+		return false
+	}
+	for _, sig := range sigs {
+		if !sig.SessionAddr.IsZero() {
+			return false
+		}
+	}
+	zero := crypto.AddressToBech32(crypto.Address{})
+	if len(zero) >= 0x80 {
+		return false // its length would not be a one-byte varint
+	}
+	field := append([]byte{3<<3 | 2, byte(len(zero))}, zero...)
+	return bytes.Count(bz, field) == len(sigs)
 }
 
 // retrieve the context for the tx w/ txBytes and other memoized values.
@@ -1040,6 +1116,20 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 		return
 	}
 
+	// The signature does not cover invalid UTF-8 bytes in a string; see
+	// std.ValidateUTF8. Refused before the ante handler, so a relayer's
+	// rewritten copy costs the signer no fee and no sequence. The walk renders
+	// values, which for some costs far more than decoding them, so it runs on
+	// what ValidateBasic accepted, and skips the signatures: they hold no text,
+	// and nothing has bounded their count yet.
+	signed := tx
+	signed.Signatures = nil
+	if err := std.ValidateUTF8(signed); err != nil {
+		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
+		result.Log = err.Error() // names the field; Log is not in the results hash
+		return
+	}
+
 	// A tx is identified by the hash of its bytes while its signatures cover
 	// the sign doc, so only the canonical encoding of a tx is accepted: any
 	// other byte string decoding to the same tx is the same tx under another
@@ -1048,6 +1138,9 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	// tm2/adr/pr6406_canonical_tx_enforcement.md.
 	if err := amino.CheckCanonical(txBytes, &tx); err != nil {
 		result.Error, result.Log = txDecodeFailure(err)
+		if writesZeroSessionAddr(txBytes, tx.Signatures) {
+			result.Log += zeroSessionAddrHint
+		}
 		return
 	}
 
@@ -1284,6 +1377,32 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 // SetHaltHeight sets the block height at which the node will halt after committing.
 func (app *BaseApp) SetHaltHeight(height uint64) {
 	app.haltHeight = height
+}
+
+// SetQueryTimeout sets the wall-clock limit of one custom-route query, such as
+// vm/qeval. Zero disables it. A query is not consensus, so this is node-local;
+// .app/simulate, CheckTx and DeliverTx never see it.
+func (app *BaseApp) SetQueryTimeout(d time.Duration) { app.queryTimeout = d }
+
+// QueryTimeout returns the limit SetQueryTimeout set.
+func (app *BaseApp) QueryTimeout() time.Duration { return app.queryTimeout }
+
+// queryDeadlineContextKey keys the expiry flag of a query in its Context.
+type queryDeadlineContextKey struct{}
+
+// QueryDeadline returns the expiry flag of the query ctx belongs to, or nil
+// outside a custom-route query or when no timeout is set. A handler that wants
+// to stop at the deadline builds its gas meter with store.NewDeadlineGasMeter
+// from it.
+func QueryDeadline(ctx Context) *atomic.Bool {
+	e, _ := ctx.Value(queryDeadlineContextKey{}).(*atomic.Bool)
+	return e
+}
+
+// WithQueryDeadline attaches a query expiry flag to ctx. handleQueryCustom sets
+// it, and a test can arm the same deadline on a keeper directly.
+func WithQueryDeadline(ctx Context, expired *atomic.Bool) Context {
+	return ctx.WithValue(queryDeadlineContextKey{}, expired)
 }
 
 func (app *BaseApp) Close() error {

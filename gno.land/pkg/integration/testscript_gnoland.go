@@ -34,6 +34,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/meminfo"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -137,9 +138,9 @@ type nodeBudget struct {
 	// budget never ramps.
 	reserve uint64
 
-	// readMem is [testutils.ReadMemInfo] and readHeld is [heldMemory], swapped
+	// readMem is [meminfo.Read] and readHeld is [heldMemory], swapped
 	// out by tests.
-	readMem  func() (testutils.MemInfo, bool)
+	readMem  func() (meminfo.Info, bool)
 	readHeld func() uint64
 }
 
@@ -160,9 +161,9 @@ func newNodeBudget() *nodeBudget {
 	// memory we cannot read, or a machine with no more cores than the count
 	// itself: there is nothing to ramp to, so no reading worth taking.
 	_, pinned := testutils.MaxParallelOverride()
-	mi, ok := testutils.ReadMemInfo()
+	mi, ok := meminfo.Read()
 	if pinned || !ok || n >= most {
-		return &nodeBudget{min: n, max: n, limit: n, readMem: testutils.ReadMemInfo}
+		return &nodeBudget{min: n, max: n, limit: n, readMem: meminfo.Read}
 	}
 	return &nodeBudget{
 		min: n,
@@ -171,7 +172,7 @@ func newNodeBudget() *nodeBudget {
 		// therefore the one worth assuming before any reading has been taken.
 		limit:    n,
 		reserve:  mi.Total / nodeMemReserveDiv,
-		readMem:  testutils.ReadMemInfo,
+		readMem:  meminfo.Read,
 		readHeld: heldMemory,
 	}
 }
@@ -772,6 +773,35 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 		balance, err := createAccount(ts, kb, args[0], coins)
 		if err != nil {
 			ts.Fatalf("error creating account %s: %s", args[0], err)
+		}
+
+		// Optional vesting schedule: <coin>,<start>,<end>[,delayed], the
+		// offsets Go durations from now, since the node's genesis time is now.
+		// A delayed schedule has no start, so its <start> is ignored.
+		if len(args) > 2 {
+			f := strings.Split(args[2], ",")
+			if len(f) < 3 || len(f) > 4 || (len(f) == 4 && f[3] != "delayed") {
+				ts.Fatalf("vesting: want <coin>,<start>,<end>[,delayed], got %q", args[2])
+			}
+			vesting, err := std.ParseCoins(f[0])
+			if err != nil {
+				ts.Fatalf("unable to parse vesting coins: %s", err)
+			}
+			start, err := time.ParseDuration(f[1])
+			if err != nil {
+				ts.Fatalf("unable to parse vesting start: %s", err)
+			}
+			end, err := time.ParseDuration(f[2])
+			if err != nil {
+				ts.Fatalf("unable to parse vesting end: %s", err)
+			}
+			now := time.Now()
+			vs := std.VestingSchedule{OriginalVesting: vesting, StartTime: now.Add(start).Unix(), EndTime: now.Add(end).Unix()}
+			if len(f) == 4 {
+				vs.Type = std.VestingDelayed
+				vs.StartTime = 0
+			}
+			balance.Vesting = &vs
 		}
 
 		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)

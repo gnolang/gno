@@ -3160,7 +3160,7 @@ func (goo *StringError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		repr = StringError(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = StringError(repr)
 	return nil
@@ -3948,7 +3948,7 @@ func (goo *EventString) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 		repr = EventString(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	*goo = EventString(repr)
 	return nil

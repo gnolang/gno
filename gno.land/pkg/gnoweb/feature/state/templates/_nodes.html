@@ -40,7 +40,7 @@
          so it doesn't toggle the parent); clicking elsewhere in the
          summary toggles + fires the hx-get. */}}
     <details class="b-state-lazy" data-name="{{ $n.Name }}"{{ if $top }} data-kind-group="{{ kindGroup $n.Kind }}"{{ end }}{{ if and $top $id }} id="{{ $id }}-tree"{{ end }} data-tree-key="{{ $n.ObjectID }}"
-             hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $depth $vm }}"
+             hx-get="{{ stateFragNodeHref $pkg $n.ObjectID $n.TypeID $n.PointerIndex $depth $vm }}"
              hx-trigger="toggle once"
              hx-target="find .b-state-node-body"
              hx-swap="innerHTML"
@@ -51,7 +51,7 @@
         <span class="type">{{ $n.Type }}</span>
         {{ with $n.Length }}<span class="meta">(len={{ . }})</span>{{ end }}
         {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
-        <a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $vm }}"
+        <a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $n.PointerIndex $vm }}"
            class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>
       </summary>
       {{/* Doc-comments stay scoped to the pretty card (state/decl). Tree
@@ -72,7 +72,7 @@
         {{ if $n.Preview }}<span class="preview">{{ $n.Preview }}</span>{{ end }}
         {{ with $n.Source }}<a class="b-link--muted srclink" href="{{ sourceHref $pkg .File .StartLine }}">{{ .File }}:{{ .StartLine }}</a>{{ end }}
         {{ if $n.ObjectID }}<button type="button" class="oid" data-controller="copy" data-action="click->copy#copy" data-copy-text-value="{{ $n.ObjectID }}" title="Object ID — click to copy">{{ $n.ObjectID }}</button>{{ end }}
-        {{ if $n.ObjectID }}<a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $vm }}"
+        {{ if $n.ObjectID }}<a href="{{ stateObjectHref $pkg $n.ObjectID $n.TypeID $n.PointerIndex $vm }}"
            class="b-state-permalink" title="Open as standalone page" aria-label="Open {{ $n.Name }} as standalone page">Inspect <span aria-hidden="true">→</span></a>{{ end }}
       </summary>
       <div class="kids">

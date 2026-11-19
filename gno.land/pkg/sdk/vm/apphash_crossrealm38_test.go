@@ -229,10 +229,31 @@ import (
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
 //
+// Bumped by the small-order ed25519 fix: crypto/ed25519/ed25519_test.gno gained
+// TestVerifyRejectsSmallOrderKey, and _test.gno files are inside the stdlib
+// MemPackage committed into genesis (same class as the modexp_test.gno bump
+// above). The native change is not in the Merkle root, and crossrealm38 does
+// not use ed25519. Attributed by bisection: reverting only that test file
+// restores the previous value.
+//
+// Bumped by the CodeFence minCount cap. The cap itself lives in the injected
+// Go implementation; markdown.gno only documents it, so the shift is that
+// comment alone, as with PercentEncodeURL above. With markdown.gno restored to
+// develop's bytes and the Go cap kept, the previous value still holds.
+//
+// Re-derived on the merge of the two, whose stdlib source changes both sit
+// inside the same MemPackage root.
+//
+// Re-derived for the mainnet release line, which keeps markdown.gno identical
+// to the source gnoland-1 holds in state, so the CodeFence comment is not in
+// it. With develop's markdown.gno, develop's value above still holds.
+//
 // Bumped by realm transaction sponsorship (#5382): the PayGas and PayStorage
 // declarations (and their doc comments) are stdlib .gno source bytes committed
-// into genesis, so the root moves. crossrealm38 calls neither.
-const expectedCrossrealm38Hash = "5a714701e0830a8ab291d5147a1162bfeabfbfa95388d7bd97f084492590b5fb"
+// into genesis, so the root moves. crossrealm38 calls neither. Re-derived on
+// each merge of master, whose own stdlib changes move the root too; without
+// paygas.gno and paystorage.gno the value is master's, above.
+const expectedCrossrealm38Hash = "95bea5ffea0604cf1362e9c4409f22212de602bc1bfdcd0b548afcaa9a2889ff"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

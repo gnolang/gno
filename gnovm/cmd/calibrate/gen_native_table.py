@@ -225,19 +225,19 @@ NATIVE_SPECS = [
     ("crypto/bn254", "g1Mul", None, "Flat",
      r"BenchmarkNative_BN254_G1Mul-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/bn254", "pairingCheck", 0, "LenBytes",
-     # Bench name encodes pair count; the harness sets b.SetBytes(192*pairs),
-     # so the captured group is pair count and we convert below in parse_bench.
+     # Bench name encodes pair count; BENCH_BYTES converts it to 192*pairs.
      r"BenchmarkNative_BN254_PairingCheck_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/cometbls", "verifyZKP", None, "Flat",
      r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "leafHash", 0, "LenBytes",
      r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
-     # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
-     # + 6 payload), plus 4 for the outer count header.
+     # Bench name encodes nItems of empty items; BENCH_BYTES converts it to
+     # the encoded length, a 4-byte header per item plus 4 for the count.
      r"BenchmarkNative_Merkle_HashFromByteSlices_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "verifySimpleProof", 4, "LenBytes",
-     # Bench name encodes `total`; aunt count = log2(total), aunts bytes = 32*log2(total).
+     # Bench name encodes `total`; BENCH_BYTES converts it to the aunts'
+     # length, 32*log2(total).
      r"BenchmarkNative_Merkle_VerifySimpleProof_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
@@ -255,6 +255,21 @@ NATIVE_SPECS = [
 NATIVE_SPECS_PAIR = [
     ("crypto/merkle", "innerHash", 0, 1, "LenBytes",
      r"BenchmarkNative_Merkle_InnerHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+]
+
+
+# Second-slope specs: a sweep over one more parameter of a NATIVE_SPECS row,
+# emitted as that row's Slope2. A missing or zero rate stops the run. floor
+# names another row and a multiple of its slope that Slope2 never goes under:
+# verifySimpleProof hashes the leaf twice, so a realm must not hash it more
+# cheaply there than through leafHash, while the sweep measures one copy and
+# two hashes and fits below that.
+#
+# Format: (pkg, fn, idx, kind, floor, regex)
+NATIVE_SPECS_SECOND = [
+    ("crypto/merkle", "verifySimpleProof", 1, "LenBytes",
+     ("crypto/merkle", "leafHash", 2),
+     r"BenchmarkNative_Merkle_VerifySimpleProofLeaf_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 
@@ -285,6 +300,15 @@ NATIVE_SPECS_2D = [
 ]
 
 
+# Bench names that encode a count rather than the sloped param's byte length,
+# mapped to that length so the fit reads per byte like every other row.
+BENCH_BYTES = {
+    ("crypto/bn254", "pairingCheck"): lambda pairs: 192 * pairs,
+    ("crypto/merkle", "hashFromByteSlices"): lambda items: 4 + 4 * items,
+    ("crypto/merkle", "verifySimpleProof"): lambda total: 32 * (total.bit_length() - 1),
+}
+
+
 def parse_bench(path):
     text = open(path).read()
     var_data = defaultdict(lambda: defaultdict(list))
@@ -298,6 +322,7 @@ def parse_bench(path):
                 flat_data[(pkg, fn)].append(float(m.group(1)))
             else:
                 size = int(m.group(1))
+                size = BENCH_BYTES.get((pkg, fn), lambda n: n)(size)
                 ns = float(m.group(2))
                 var_data[(pkg, fn)][size].append(ns)
     return var_data, flat_data
@@ -396,11 +421,12 @@ def fit_modexp(grid, hw_factor=1.0):
     }
 
 
-def parse_bench_pair(path):
-    """Parse pair-spec bench rows: per-operand size → list of ns observations."""
+def parse_bench_sized(path, specs):
+    """Parse the sweeps of pair or second-slope specs: size → list of ns."""
     text = open(path).read()
     data = defaultdict(lambda: defaultdict(list))
-    for pkg, fn, _, _, _, regex in NATIVE_SPECS_PAIR:
+    for spec in specs:
+        pkg, fn, regex = spec[0], spec[1], spec[-1]
         for line in text.splitlines():
             m = re.search(regex, line)
             if not m:
@@ -505,9 +531,15 @@ def emit_markdown(rows, out):
         if r["shape"] == "flat":
             out.write(f"| `{r['pkg']}.{r['fn']}` | flat | {r['base']:.1f} | — | — | — | — |\n")
         elif r["shape"] == "linear":
+            shape, beta, n = "base+α·N", "—", n_desc(r["kind"], r["slope_idx"])
+            if "slope2" in r:
+                shape, beta = "base+α·N+β·M", f"{r['slope2']:.4f}"
+                if r.get("slope2_floor"):
+                    beta += f" ({r['slope2_floor']})"
+                n += " + " + n_desc(r["kind2"], r["slope2_idx"])
             out.write(
-                f"| `{r['pkg']}.{r['fn']}` | base+α·N | {r['base']:.1f} | "
-                f"{r['slope']:.4f} | — | {n_desc(r['kind'], r['slope_idx'])} | {r['r2']:.3f} |\n"
+                f"| `{r['pkg']}.{r['fn']}` | {shape} | {r['base']:.1f} | "
+                f"{r['slope']:.4f} | {beta} | {n} | {r['r2']:.3f} |\n"
             )
         elif r["shape"] == "2d":
             out.write(
@@ -626,13 +658,22 @@ def emit_go_table(rows, out):
                 f' // post-call: base={r["base"]:.1f}ns + {r["slope"]:.4f}ns/N (={slope_per_1024}/1024) R²={r["r2"]:.3f}\n'
             )
             continue
+        slope2, slope2_note = "", ""
+        if "slope2" in r:
+            slope2_per_1024 = int(round(r["slope2"] * 1024))
+            slope2 = (f', Slope2: {slope2_per_1024}, '
+                      f'Slope2Idx: {r["slope2_idx"]}, Slope2Kind: Size{r["kind2"]}')
+            slope2_note = (f' + {r["slope2"]:.4f}ns/N (={slope2_per_1024}/1024)'
+                           f' on {n_desc(r["kind2"], r["slope2_idx"])}')
+            if r.get("slope2_floor"):
+                slope2_note += f' ({r["slope2_floor"]})'
         out.write(
             f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
             f'Base: {int(round(r["base"]))}, '
             f'Slope: {slope_per_1024}, '
             f'SlopeIdx: {r["slope_idx"]}, '
-            f'SlopeKind: Size{r["kind"]}}},'
-            f' // fit base={r["base"]:.1f}ns slope={r["slope"]:.4f}ns/N (={slope_per_1024}/1024) R²={r["r2"]:.3f}\n'
+            f'SlopeKind: Size{r["kind"]}{slope2}}},'
+            f' // fit base={r["base"]:.1f}ns slope={r["slope"]:.4f}ns/N (={slope_per_1024}/1024){slope2_note} R²={r["r2"]:.3f}\n'
         )
     out.write("}\n")
 
@@ -786,7 +827,7 @@ def main():
     args = ap.parse_args()
 
     var_data, flat_data = parse_bench(args.bench_file)
-    pair_data = parse_bench_pair(args.bench_file)
+    pair_data = parse_bench_sized(args.bench_file, NATIVE_SPECS_PAIR)
     two_d_data = parse_bench_2d(args.bench_file)
     modexp_grid = parse_bench_modexp(args.bench_file)
 
@@ -815,6 +856,34 @@ def main():
                 rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
                              "base": base, "slope": slope, "r2": r2,
                              "slope_idx": slope_idx, "kind": kind})
+
+    # Second slopes, on rows the pass above already fitted.
+    second_data = parse_bench_sized(args.bench_file, NATIVE_SPECS_SECOND)
+    for pkg, fn, idx, kind, floor, _ in NATIVE_SPECS_SECOND:
+        row = next((r for r in rows if (r["pkg"], r["fn"]) == (pkg, fn)), None)
+        if row is None:
+            continue  # this bench file has no primary sweep for the native
+        d = second_data.get((pkg, fn))
+        slope = fit_linear(d)[1] if d and len(d) >= 2 else 0.0
+        if row["shape"] != "linear":
+            print(f"ERROR: {pkg}.{fn} has no per-byte slope from its primary "
+                  f"sweep to carry a second one; it must not be emitted flat",
+                  file=sys.stderr)
+            sys.exit(1)
+        if int(round(slope * 1024)) == 0:
+            print(f"ERROR: {pkg}.{fn} needs a per-byte slope on param {idx} "
+                  f"from its second sweep and got none; it must not be emitted "
+                  f"without one", file=sys.stderr)
+            sys.exit(1)
+        fpkg, ffn, times = floor
+        frow = next((r for r in rows if (r["pkg"], r["fn"]) == (fpkg, ffn)), None)
+        if frow is None or frow["shape"] != "linear":
+            print(f"ERROR: {pkg}.{fn}'s second slope is floored on {fpkg}.{ffn}, "
+                  f"which this bench file did not fit per byte", file=sys.stderr)
+            sys.exit(1)
+        least = times * round(frow["slope"] * 1024) / 1024
+        row.update(slope2=max(slope, least), slope2_idx=idx, kind2=kind,
+                   slope2_floor=f"{times}x {ffn}" if least > slope else "")
 
     # crypto/modexp: upper-bound fit, not least squares.
     if modexp_grid:

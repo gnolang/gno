@@ -25,6 +25,9 @@
 // 3. `adduser`:
 //   - Must be run before `gnoland start`.
 //   - Creates a new user in the default keybase directory. ( Optionally, an std.Coins string can be provided, e.g. `1337ugnot,42foo,24bar` )
+//   - A third argument gives the account a vesting schedule, `<coin>,<start>,<end>[,delayed]`,
+//     the offsets Go durations from now, e.g. `adduser alice 100ugnot 80ugnot,-1h,1h`. A `delayed`
+//     schedule vests all at `<end>` and ignores `<start>`; write `0s`.
 //
 // 4. `adduserfrom`:
 //   - Must be run before `gnoland start`.
