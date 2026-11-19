@@ -18,7 +18,7 @@ the foundations of a fairer and freer world, join us today.
 
 ## <gno-icon name="browser" /> Use apps
 
-Use live apps and read the code behind them.
+Use apps and read their code.
 
 <gno-button href="/ecosystem" label="Explore the ecosystem" />
 
@@ -30,7 +30,7 @@ Use live apps and read the code behind them.
 
 ## <gno-icon name="code-outline" /> Build with Gno
 
-Write, test and deploy smart contracts in Gno.
+Write, test and deploy in Gno.
 
 <gno-button href="https://docs.gno.land/builders/getting-started" label="Getting started guide" />
 
@@ -42,7 +42,7 @@ Write, test and deploy smart contracts in Gno.
 
 ## <gno-icon name="users" /> Community
 
-Meet the Gno.land community and follow the project.
+Meet and follow the community.
 
 <gno-button href="https://gno.world" label="Join gno.world" />
 
@@ -100,6 +100,9 @@ The registry of validator profiles. GovDAO members read it before voting on new 
 
 ---
 
+<!-- whats-new:start -->
+<!-- whats-new:end -->
+
 ## <gno-icon name="chat" /> Boards: on-chain forum
 
 > [!NOTE]
@@ -120,31 +123,10 @@ path like "r/gnoland/blog". You can browse packages, inspect their source, and
 use them in your own libraries and realms. For example, read the
 [source of the Gno.land blog](/r/gnoland/blog$source).
 
-<gno-columns>
+[Official realms](/r/gnoland) · [System realms](/r/sys) · [Standard packages](/p/nt)
 
-**r/gnoland**
-
-Official realm packages developed by the Gno.land core team.
-
-[Browse r/gnoland realms](/r/gnoland)
-
-<gno-columns-sep>
-
-**r/sys**
-
-System-level realm packages used by the chain.
-
-[Browse r/sys realms](/r/sys)
-
-<gno-columns-sep>
-
-**p/nt**
-
-Standard pure packages maintained by the core team.
-
-[Browse p/nt packages](/p/nt)
-
-</gno-columns>
+<!-- whats-trending:start -->
+<!-- whats-trending:end -->
 
 ---
 
