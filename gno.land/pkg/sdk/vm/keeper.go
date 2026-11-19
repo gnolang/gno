@@ -46,31 +46,27 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const maxAllocTx = 500_000_000
+
+// Default budget of one query. Queries are not part of consensus, so a node may
+// override it (VMKeeper.QueryMaxGas, QueryMaxAlloc). Keep the former budgets
+// until production query workloads establish lower safe defaults.
 const (
-	maxAllocTx    = 500_000_000
-	maxAllocQuery = 1_500_000_000 // higher limit for queries
-	maxGasQuery   = 3_000_000_000 // same as max block gas
+	DefaultQueryMaxGas   = 3_000_000_000
+	DefaultQueryMaxAlloc = 1_500_000_000
 )
 
-// maxQueryExportBytes bounds the estimated serialized size of the value tree
-// returned by the value-returning query endpoints (qeval, qeval_json,
-// qobject_json, qobject_binary, qpkg_json) before it is rendered or
-// amino-marshaled. The eval-time alloc/gas meters only cover VM execution and
-// store I/O; the export walk, the JSON marshal and TypedValue.String() all run
-// outside them, so without this bound a single free query can force a
-// multi-gigabyte allocation and OOM the node. It also caps qtype_json's
-// hand-rolled marshal, which amplifies a type DAG into a tree the same way (see
-// marshalTypeJSONBounded). See gno.ExportValues and
+// maxQueryExportBytes bounds the estimated size of the copy gno.ExportValues and
+// gno.ExportObject build for qeval_json, qobject_json, qobject_binary and
+// qpkg_json. That walk runs outside the eval meters and copies the value before
+// amino sees it, so without this bound a single free query can force a
+// multi-gigabyte allocation and OOM the node. See
 // gno.land/adr/acd01fa29_query_export_size_guard.md.
 //
-// 10MB is deliberately permissive. It is an estimate of the *response*, and a
-// response that size still costs the node much more than that in transient
-// heap: amino allocates roughly 20x the JSON it emits, so the worst shapes
-// measured peak around 250MB (see the ADR's table for the shapes and how the
-// peak was sampled). Legitimate explorer responses are orders of
-// magnitude smaller than the budget, so if a node shows memory thrashing under
-// query load this can safely be cut 10x (to 1MB) without affecting realistic
-// consumers.
+// It is a memory guard, not the response cap. The estimate charges at least 64
+// bytes per node, many times what amino writes for a small element, so it is
+// kept well above maxQueryOutputBytes: a lower value refuses answers that fit
+// the response cap.
 //
 // A var, not a const, only so tests can lower it and exercise the guard with
 // KB-sized inputs instead of allocating the real 10MB+ per case. Tests that
@@ -78,12 +74,33 @@ const (
 // neither may any other test in this package that depends on the value.
 var maxQueryExportBytes int64 = 10_000_000 // ~10MB estimated export size
 
+// maxQueryOutputBytes caps the response of every vm query endpoint.
+// vmHandler.Query checks it once on the final bytes. The renderers whose output
+// can grow far past their input (qeval, qfuncs, qtype_json and the amino JSON
+// endpoints) also stop at this size while writing, rather than build the whole
+// answer first.
+//
+// A var for the same reason as maxQueryExportBytes, under the same rules.
+var maxQueryOutputBytes int64 = MaxQueryOutputBytes
+
+// MaxQueryOutputBytes is the default vm query response cap.
+const MaxQueryOutputBytes = 1 << 20
+
+// errQueryOutputExceeded is what a write past maxQueryOutputBytes fails with. It
+// wraps gno.ErrExportSizeExceeded, so both limits answer ExportSizeExceededError,
+// and abciExportErr can still name the limit that was hit by testing for it
+// first.
+var errQueryOutputExceeded = fmt.Errorf("%w: response cap", gno.ErrExportSizeExceeded)
+
 // abciExportErr maps the VM's export sentinels onto this module's ABCI error
 // types, so a client gets a stable error code for "response too large" or
 // "response too deeply nested" instead of an untyped internal error. Anything
 // else passes through unchanged.
 func abciExportErr(err error) error {
 	switch {
+	case goerrors.Is(err, errQueryOutputExceeded): // before the sentinel it wraps
+		return ErrExportSizeExceeded(fmt.Sprintf(
+			"response size exceeds %d bytes", maxQueryOutputBytes))
 	case goerrors.Is(err, gno.ErrExportSizeExceeded):
 		return ErrExportSizeExceeded(fmt.Sprintf(
 			"estimated response size exceeds %d bytes", maxQueryExportBytes))
@@ -91,6 +108,74 @@ func abciExportErr(err error) error {
 		return ErrExportDepthExceeded("response nests deeper than the export limit")
 	}
 	return err
+}
+
+// cappedBuffer collects a query response and fails any write that would take it
+// past max bytes with errQueryOutputExceeded. max <= 0 disables the cap.
+type cappedBuffer struct {
+	buf     bytes.Buffer
+	max     int64
+	refused bool
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	if b.refused || (b.max > 0 && int64(b.buf.Len())+int64(len(p)) > b.max) {
+		// Sticky, so an encoder that drops the error cannot finish a
+		// truncated response with a shorter write.
+		b.refused = true
+		return 0, errQueryOutputExceeded
+	}
+	return b.buf.Write(p)
+}
+
+// resultGasPerByte prices each byte of a message's result at a store write's
+// per-byte rate, as chain.Emit prices an event's: the block keeps, encodes and
+// stores the result with the tx.
+var resultGasPerByte = store.DefaultGasConfig().WriteCostPerByte
+
+// chargedBuffer collects a message's result, a MsgCall's printed values or a
+// MsgRun's output, charging resultGasPerByte for each byte before it keeps it,
+// so the tx's gas bounds the result.
+type chargedBuffer struct {
+	buf strings.Builder
+	gm  store.GasMeter
+}
+
+func (b *chargedBuffer) Write(p []byte) (int, error) {
+	b.gm.ConsumeGas(resultGasPerByte*int64(len(p)), "MsgCall result")
+	return b.buf.Write(p)
+}
+
+var resultSep = []byte{'\n'}
+
+// writeResults writes each of rtvs in String() form to w, one per line. A
+// value sharing a child renders it once per path to it, so the text can be
+// exponential in what the values hold: w must bound it. A write error from w
+// stops the render and is returned.
+func writeResults(w io.Writer, rtvs []gno.TypedValue) error {
+	for i, rtv := range rtvs {
+		if i > 0 {
+			if _, err := w.Write(resultSep); err != nil {
+				return err
+			}
+		}
+		if err := rtv.WriteStringTo(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// marshalJSONCapped runs an amino JSON marshal into a cappedBuffer of limit bytes.
+func marshalJSONCapped(limit int64, marshal func(io.Writer, any) error, v any) ([]byte, error) {
+	b := cappedBuffer{max: limit}
+	if err := marshal(&b, v); err != nil {
+		return nil, err
+	}
+	if b.refused { // the encoder dropped the error
+		return nil, errQueryOutputExceeded
+	}
+	return b.buf.Bytes(), nil
 }
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -137,6 +222,10 @@ type VMKeeper struct {
 	// Needs to be explicitly set, like in the case of gnodev.
 	Output io.Writer
 
+	// Gas and allocation budget of one query. Set per node, not consensus state.
+	QueryMaxGas   int64
+	QueryMaxAlloc int64
+
 	baseKey store.StoreKey
 	iavlKey store.StoreKey
 	acck    AccountKeeperI
@@ -166,6 +255,8 @@ func NewVMKeeper(
 		bank:           bank,
 		prmk:           prmk,
 		typeCheckCache: gno.TypeCheckCache{},
+		QueryMaxGas:    DefaultQueryMaxGas,
+		QueryMaxAlloc:  DefaultQueryMaxAlloc,
 	}
 
 	return vmk
@@ -1032,8 +1123,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// deliberately does not: skipping the charge costs nothing, while paying
 		// the zero address would burn it.
 		//
-		// SendCoins rather than SendCoinsUnrestricted, because this is a one-way
-		// transfer and not the refundable escrow the storage deposit uses -- a
+		// SendCoins rather than the storage deposit's SendCoinsVestingChecked,
+		// because this is a one-way transfer and not a refundable escrow -- a
 		// token lock should refuse it, not be bypassed. It also does the
 		// session-spend check itself, so one call cannot get the order wrong.
 		//
@@ -1103,7 +1194,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// a test-stdlib overlay off the node's local filesystem, making
 		// consensus depend on node-local state. No TestGetter is supplied:
 		// with ProdOnly the passes that would consult it never run.
-		ProdOnly: true,
+		ProdOnly:     true,
+		LegacyCopies: auth.IsGenesisReplay(ctx),
 	}
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
@@ -1370,12 +1462,6 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer doRecover(m, &err)
 	rtvs := m.Eval(xn)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
 
 	// Reject a send-envelope that nothing observed. The coins were credited
 	// to pkgAddr above; if no executing code ever read them, the callee has
@@ -1401,6 +1487,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
+	out := chargedBuffer{gm: ctx.GasMeter()}
+	_ = writeResults(&out, rtvs) // chargedBuffer never fails a write; it panics out of gas
+	// `\n\n` separates the results of a tx's msgs.
+	out.buf.WriteString("\n\n")
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
@@ -1411,9 +1501,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		},
 	)
 
-	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
-
-	return res, nil
+	return out.buf.String(), nil
 	// TODO pay for gas? TODO see context?
 }
 
@@ -1432,19 +1520,38 @@ func doRecoverQuery(m *gno.Machine, e *error) {
 	doRecoverInternal(m, e, r, repanicOutOfGas)
 }
 
+// budgetStop returns the OutOfGasError or DeadlineExceededError a recovered r
+// is or wraps, such as inside a *gno.PreprocessError. Both stay typed, so the
+// ABCI layer answers out of gas or QueryTimeoutError.
+func budgetStop(r any) (error, bool) {
+	err, ok := r.(error)
+	if !ok {
+		return nil, false
+	}
+	var oog stypes.OutOfGasError
+	if goerrors.As(err, &oog) {
+		return oog, true
+	}
+	var dl stypes.DeadlineExceededError
+	if goerrors.As(err, &dl) {
+		return dl, true
+	}
+	return nil, false
+}
+
 func doRecoverInternal(m *gno.Machine, e *error, r any, repanicOutOfGas bool) {
 	if r == nil {
 		return
 	}
-	if err, ok := r.(error); ok {
-		var oog stypes.OutOfGasError
-		if goerrors.As(err, &oog) {
-			if repanicOutOfGas {
-				panic(oog)
-			}
-			*e = oog
-			return
+	if be, ok := budgetStop(r); ok {
+		// Only a query meter raises a deadline, so it is never re-raised.
+		if _, isOOG := be.(stypes.OutOfGasError); isOOG && repanicOutOfGas {
+			panic(be)
 		}
+		*e = be
+		return
+	}
+	if err, ok := r.(error); ok {
 		var up gno.UnhandledPanicError
 		if goerrors.As(err, &up) {
 			desc := boundedString(up, 0)
@@ -1475,12 +1582,9 @@ func doRecoverQueryNoMachine(e *error) {
 	if r == nil {
 		return
 	}
-	if err, ok := r.(error); ok {
-		var oog stypes.OutOfGasError
-		if goerrors.As(err, &oog) {
-			*e = oog
-			return
-		}
+	if be, ok := budgetStop(r); ok {
+		*e = be
+		return
 	}
 	*e = errors.Wrapf(
 		fmt.Errorf("%v", r),
@@ -1547,7 +1651,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
 		// test files, so there is nothing for the test passes to check; being
 		// explicit keeps the consensus path free of the test-stdlib overlay.
-		ProdOnly: true,
+		ProdOnly:     true,
+		LegacyCopies: auth.IsGenesisReplay(ctx),
 	})
 	if err != nil {
 		return "", ErrTypeCheck(err)
@@ -1561,6 +1666,10 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
+	// History replayed from a past chain carries its source block height, and
+	// a run there signed before MaxSend existed carries none: it runs uncapped,
+	// as it did. A fresh chain's own genesis runs at height 0 and is capped.
+	uncapped := auth.IsGenesisReplay(ctx) && ctx.BlockHeight() > 0 && len(msg.MaxSend) == 0
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -1577,14 +1686,14 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
 		// the recipient empty is fail-closed: nothing can spend against an
 		// envelope that never moved.
-		Banker:         NewSDKBanker(vm, ctx),
+		Banker:         NewRunSDKBanker(vm, ctx, caller, msg.MaxSend, uncapped),
 		Params:         NewSDKParams(vm.prmk, ctx),
 		EventLogger:    ctx.EventLogger(),
 		SessionAccount: getSessionAccount(ctx, caller),
 	}
 
-	buf := new(bytes.Buffer)
-	output := io.Writer(buf)
+	out := chargedBuffer{gm: ctx.GasMeter()}
+	output := io.Writer(&out)
 
 	// XXX: see reason of private for run msg here: https://github.com/gnolang/gno/pull/4594
 	gm := new(gnomod.File)
@@ -1605,7 +1714,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	pv := func() *gno.PackageValue {
 		// Parse and run the files, construct *PV.
 		if vm.Output != nil {
-			output = io.MultiWriter(buf, vm.Output)
+			output = io.MultiWriter(&out, vm.Output)
 		}
 		m := gno.NewMachineWithOptions(
 			gno.MachineOptions{
@@ -1642,7 +1751,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	m2.SetActivePackage(pv)
 	defer doRecover(m2, &err)
 	m2.RunMainMaybeCrossing()
-	res = buf.String()
+	res = out.buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
 	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
@@ -1666,12 +1775,11 @@ var reUserNamespace = regexp.MustCompile(`^[~_a-zA-Z0-9/-]+$`)
 
 func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) (paths []string, err error) {
 	// Same reasoning as QueryInertPaths, which this is the sibling of: the
-	// iteration below is lazy and metered, maxGasQuery is a real ceiling, and
-	// exhausting it panics with OutOfGasError. handleQueryCustom does not
-	// recover, so without this the panic leaves the ABCI Query instead of being
-	// reported as an error.
+	// iteration below is lazy and metered, vm.QueryMaxGas is a real ceiling, and
+	// exhausting it panics with OutOfGasError. handleQueryCustom's recover would
+	// answer that as a generic internal error, so this reports it as out of gas.
 	//
-	// Reaching it takes roughly maxGasQuery/IterNextCostFlat steps, which is
+	// Reaching it takes roughly vm.QueryMaxGas/IterNextCostFlat steps, which is
 	// millions of packages under one prefix -- far enough away that there is no
 	// test for it here, and near enough that the answer should not be a node
 	// panic. Governance can also move IterNextCostFlat, which changes the
@@ -1682,7 +1790,7 @@ func (vm *VMKeeper) QueryPaths(ctx sdk.Context, target string, limit int) (paths
 		return nil, errors.New("cannot have negative limit value")
 	}
 
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	// Determine effective limit to return
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
@@ -1749,7 +1857,8 @@ func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
 
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
@@ -1763,6 +1872,16 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
 		return nil, err
+	}
+	// A type string is not bounded by the type's size in memory, so all the
+	// type text of the answer goes through one buffer and stops at its cap.
+	types := cappedBuffer{max: maxQueryOutputBytes}
+	typeString := func(t gno.Type) (string, error) {
+		start := types.buf.Len()
+		if err := gno.WriteTypeTo(&types, gno.BaseOf(t)); err != nil {
+			return "", abciExportErr(err)
+		}
+		return string(types.buf.Bytes()[start:]), nil
 	}
 	// Iterate over public functions.
 	pblock := pv.GetBlock(store)
@@ -1792,7 +1911,10 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			if pname == "" {
 				pname = "_"
 			}
-			ptype := gno.BaseOf(param.Type).String()
+			ptype, err := typeString(param.Type)
+			if err != nil {
+				return nil, err
+			}
 			fsig.Params = append(fsig.Params,
 				NamedType{Name: pname, Type: ptype},
 			)
@@ -1802,7 +1924,10 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 			if rname == "" {
 				rname = "_"
 			}
-			rtype := gno.BaseOf(result.Type).String()
+			rtype, err := typeString(result.Type)
+			if err != nil {
+				return nil, err
+			}
 			fsig.Results = append(fsig.Results,
 				NamedType{Name: rname, Type: rtype},
 			)
@@ -1812,30 +1937,25 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 	return fsigs, nil
 }
 
+// newQueryGasMeter returns the gas meter of one query, QueryMaxGas of gas. It
+// also stops at the query's wall-clock deadline when ctx carries one (see
+// sdk.QueryDeadline). Every query endpoint builds its meter here. Never use it
+// for a transaction.
+func (vm *VMKeeper) newQueryGasMeter(ctx sdk.Context) store.GasMeter {
+	return store.NewDeadlineGasMeter(vm.QueryMaxGas, sdk.QueryDeadline(ctx))
+}
+
 // QueryEval evaluates a gno expression (readonly, for ABCI queries).
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
-		// Bound the result before rendering it. TypedValue.String() renders the
-		// whole tree into a Go string outside the eval alloc meter and costs
-		// about 5x the rendered size in transient heap (measured: a 64MB string
-		// result peaks at +319MB), so this endpoint is the same unmetered
-		// amplifier as qeval_json with a smaller factor.
-		//
-		// The export walk is reused purely as a size oracle: the copy it builds
-		// is bounded by the same budget and thrown away, and the rendering
-		// below is unchanged for everything that fits. Persisted children are
-		// charged as a RefValue while String() renders them inline, so this
-		// bounds the ephemeral (free) vector only — a persisted tree that large
-		// had to be paid for in storage deposit and load gas.
-		if _, exErr := gno.ExportValues(rtvs, maxQueryExportBytes); exErr != nil {
-			return abciExportErr(exErr)
+		// String() renders a shared subtree again at every reference, so a
+		// value of a few KB can render to gigabytes. The cap is on the bytes
+		// rendered, not on the value.
+		out := cappedBuffer{max: maxQueryOutputBytes}
+		if err := writeResults(&out, rtvs); err != nil {
+			return abciExportErr(err)
 		}
-		for i, rtv := range rtvs {
-			res += rtv.String()
-			if i < len(rtvs)-1 {
-				res += "\n"
-			}
-		}
+		res = out.buf.String()
 		return nil
 	})
 	if err != nil {
@@ -1869,10 +1989,13 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 // an error-implementing return) must use this helper so the machine is still
 // alive when fn runs.
 func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr string, fn func(m *gno.Machine, rtvs []gno.TypedValue) error) (err error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
-	alloc := gno.NewAllocator(maxAllocQuery)
+	// Covers the package load below, which runs on the query meter before the
+	// machine exists: running out of gas there is an error, not a panic.
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
+	alloc := gno.NewAllocator(vm.QueryMaxAlloc)
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
-	preAlloc := gno.NewAllocator(maxAllocQuery)
+	preAlloc := gno.NewAllocator(vm.QueryMaxAlloc)
 	preAlloc.SetGasMeter(ctx.GasMeter())
 	gnostore.SetPreprocessAllocator(preAlloc)
 	defer gnostore.SetPreprocessAllocator(nil)
@@ -1928,7 +2051,8 @@ func (vm *VMKeeper) withQueryEvalMachine(ctx sdk.Context, pkgPath string, expr s
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
@@ -1953,17 +2077,17 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 	}
 }
 
-func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocumentation, error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (_ *doc.JSONDocumentation, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	// GetMemPackageAll for parity with QueryFile, so doc generation sees test
 	// files (e.g. for any future test-derived examples).
 	memPkg := store.GetMemPackageAll(pkgPath)
 	if memPkg == nil {
-		err := ErrInvalidPkgPath(fmt.Sprintf(
+		return nil, ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
-		return nil, err
 	}
 	d, err := doc.NewDocumentableFromMemPkg(memPkg, true, "", "")
 	if err != nil {
@@ -1973,14 +2097,14 @@ func (vm *VMKeeper) QueryDoc(ctx sdk.Context, pkgPath string) (*doc.JSONDocument
 }
 
 // QueryStorage returns storage and deposit for a realm.
-func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (_ string, err error) {
+	defer doRecoverQueryNoMachine(&err)
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 	rlm := store.GetPackageRealm(pkgPath)
 	if rlm == nil {
-		err := ErrInvalidPkgPath(fmt.Sprintf(
+		return "", ErrInvalidPkgPath(fmt.Sprintf(
 			"realm not found: %s", pkgPath))
-		return "", err
 	}
 	res := fmt.Sprintf("storage: %d, deposit: %d", rlm.Storage, rlm.Deposit)
 
@@ -1991,7 +2115,7 @@ func (vm *VMKeeper) QueryStorage(ctx sdk.Context, pkgPath string) (string, error
 func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	err = vm.withQueryEvalMachine(ctx, pkgPath, expr, func(m *gno.Machine, rtvs []gno.TypedValue) error {
 		var jsonErr error
-		res, jsonErr = stringifyJSONResults(m, rtvs, nil, maxQueryExportBytes)
+		res, jsonErr = stringifyJSONResults(m, rtvs, nil, maxQueryExportBytes, maxQueryOutputBytes)
 		return abciExportErr(jsonErr)
 	})
 	if err != nil {
@@ -2002,7 +2126,7 @@ func (vm *VMKeeper) QueryEvalJSON(ctx sdk.Context, pkgPath string, expr string) 
 
 // exportObject retrieves and exports an object by ObjectID string.
 func (vm *VMKeeper) exportObject(ctx sdk.Context, oidStr string) (gno.Value, error) {
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	var oid gno.ObjectID
@@ -2043,9 +2167,9 @@ func (vm *VMKeeper) QueryObjectJSON(ctx sdk.Context, oidStr string) (res string,
 		return "", err
 	}
 
-	jsonBytes, err := amino.MarshalJSONAny(exported)
+	jsonBytes, err := marshalJSONCapped(maxQueryOutputBytes, amino.MarshalJSONAnyTo, exported)
 	if err != nil {
-		return "", err
+		return "", abciExportErr(err)
 	}
 
 	envelope := struct {
@@ -2067,6 +2191,8 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 		return nil, err
 	}
 
+	// Binary amino has no streaming encoder, so the export estimate is what
+	// bounds this marshal, and the handler caps the bytes it returns.
 	return amino.MarshalAny(exported)
 }
 
@@ -2075,7 +2201,7 @@ func (vm *VMKeeper) QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byt
 // return variable names alongside their exported Amino JSON values.
 func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err error) {
 	defer doRecoverQueryNoMachine(&err)
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	pv := gnostore.GetPackage(pkgPath, false)
@@ -2131,9 +2257,9 @@ func (vm *VMKeeper) QueryPkg(ctx sdk.Context, pkgPath string) (res string, err e
 		return "", abciExportErr(err)
 	}
 
-	valuesJSON, err := amino.MarshalJSON(exported)
+	valuesJSON, err := marshalJSONCapped(maxQueryOutputBytes, amino.MarshalJSONTo, exported)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal values: %w", err)
+		return "", abciExportErr(fmt.Errorf("failed to marshal values: %w", err))
 	}
 	namesJSON, err := amino.MarshalJSON(varNames)
 	if err != nil {
@@ -2160,7 +2286,7 @@ func buildPkgJSONEnvelope(namesJSON, valuesJSON []byte) string {
 // "gno.land/r/demo/boards.Board", return the full type definition with field names.
 func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err error) {
 	defer doRecoverQueryNoMachine(&err)
-	ctx = ctx.WithGasMeter(store.NewGasMeter(maxGasQuery))
+	ctx = ctx.WithGasMeter(vm.newQueryGasMeter(ctx))
 	gnostore := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
 
 	tid := gno.TypeID(tidStr)
@@ -2172,7 +2298,7 @@ func (vm *VMKeeper) QueryType(ctx sdk.Context, tidStr string) (res string, err e
 	// Use a custom serializer instead of amino.MarshalJSON to avoid fatal
 	// stack overflow from circular type references (e.g. time.Time).
 	var buf bytes.Buffer
-	if exErr := marshalTypeJSONBounded(&buf, tt, maxQueryExportBytes); exErr != nil {
+	if exErr := marshalTypeJSONBounded(&buf, tt, maxQueryOutputBytes); exErr != nil {
 		return "", abciExportErr(exErr)
 	}
 	return buildTypeJSONEnvelope(tidStr, buf.Bytes()), nil
@@ -2203,7 +2329,7 @@ func writeJSONString(buf *bytes.Buffer, s string) {
 const maxTypeDepth = 8
 
 // marshalTypeJSONBounded runs marshalTypeJSON with a total-output cap and
-// recovers the ErrExportSizeExceeded panic that the cap raises, returning it so
+// recovers the errQueryOutputExceeded panic that the cap raises, returning it so
 // QueryType can map it onto the ABCI error type. Any other panic is re-raised
 // for the caller's doRecoverQueryNoMachine to handle unchanged.
 //
@@ -2229,13 +2355,13 @@ func marshalTypeJSONBounded(buf *bytes.Buffer, t gno.Type, maxBytes int64) (err 
 
 // marshalTypeJSON writes a safe JSON representation of a gno.Type.
 // It limits recursion depth to avoid stack overflow from circular references,
-// and panics gno.ErrExportSizeExceeded once buf grows past maxBytes
+// and panics errQueryOutputExceeded once buf grows past maxBytes
 // (maxBytes <= 0 disables the bound); see marshalTypeJSONBounded for why the
 // depth cap alone is not enough. The check is at entry to every recursive call,
 // so buf overshoots maxBytes by at most one node's fixed prefix before it aborts.
 func marshalTypeJSON(buf *bytes.Buffer, t gno.Type, depth int, maxBytes int64) {
 	if maxBytes > 0 && int64(buf.Len()) > maxBytes {
-		panic(gno.ErrExportSizeExceeded)
+		panic(errQueryOutputExceeded)
 	}
 	if t == nil || depth > maxTypeDepth {
 		buf.WriteString("null")
@@ -2500,17 +2626,22 @@ func (vm *VMKeeper) lockStorageDeposit(ctx sdk.Context, caller crypto.Address, r
 	d := std.Coins{std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}}
 
 	// Count storage deposit against a session's SpendLimit. The transfer
-	// itself uses SendCoinsUnrestricted (deposits must bypass
-	// restricted-denom checks), so we perform the session deduction
-	// explicitly here. Refunds via refundStorageDeposit do NOT reverse
-	// SpendUsed — once budget is consumed, it stays consumed, so that
+	// below skips the restricted-denom and session checks, so we perform the
+	// session deduction explicitly here. Refunds via refundStorageDeposit do
+	// NOT reverse SpendUsed — once budget is consumed, it stays consumed, so that
 	// a compromised session cannot churn state (allocate → free →
 	// allocate) to drain master beyond SpendLimit.
 	if err := auth.CheckAndDeductSessionSpend(ctx, vm.acck, caller, d); err != nil {
 		return fmt.Errorf("unable to lock deposit %s, %w", rlm.Path, err)
 	}
 
-	err := vm.bank.SendCoinsUnrestricted(ctx, caller, storageDepositAddr, d)
+	// Replayed history keeps the outcome its chain gave it, as the redeploy
+	// rule does: a deposit paid from locked coins before this check must replay.
+	send := vm.bank.SendCoinsVestingChecked
+	if auth.IsGenesisReplay(ctx) {
+		send = vm.bank.SendCoinsUnrestricted
+	}
+	err := send(ctx, caller, storageDepositAddr, d)
 	if err != nil {
 		return fmt.Errorf("unable to transfer deposit %s, %w", rlm.Path, err)
 	}

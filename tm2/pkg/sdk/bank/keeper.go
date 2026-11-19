@@ -167,6 +167,16 @@ func (bank BankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Ad
 	return bank.AddCoins(ctx, toAddr, amt)
 }
 
+// SendCoinsVestingChecked is SendCoinsUnrestricted with the vesting schedule
+// enforced: it skips the transfer restriction and the session spend limit, and
+// refuses coins the sender's schedule still locks.
+func (bank BankKeeper) SendCoinsVestingChecked(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	if err := bank.SubtractCoins(ctx, fromAddr, amt); err != nil {
+		return err
+	}
+	return bank.AddCoins(ctx, toAddr, amt)
+}
+
 // sendCoins moves amt from one address to another.
 //
 // The debit and the credit are not one step. If AddCoins panics, SubtractCoins
