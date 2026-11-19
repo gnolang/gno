@@ -1,13 +1,11 @@
 package consensus
 
 import (
-	"encoding/binary"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
@@ -17,18 +15,6 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
-
-// paddedPartSet chunks block's sized encoding followed by one filler byte.
-func paddedPartSet(block *types.Block) *types.PartSet {
-	return types.NewPartSetFromData(append(amino.MustMarshalSized(block), 0x00), types.BlockPartSizeBytes)
-}
-
-// trailingFieldPartSet chunks block's encoding followed by an empty unknown
-// field 4, inside the length prefix: the decode fills the block, then fails.
-func trailingFieldPartSet(block *types.Block) *types.PartSet {
-	bz := append(amino.MustMarshal(block), 0x22, 0x00)
-	return types.NewPartSetFromData(append(binary.AppendUvarint(nil, uint64(len(bz))), bz...), types.BlockPartSizeBytes)
-}
 
 // TestHandshakeReplaysBlockWithTrailingPartBytes checks that a block stored
 // with bytes after its length-prefixed encoding, or with an unknown field after

@@ -8,7 +8,7 @@
 -- output.html --
 <form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false" data-controller="form-exec">
 <div class="gno-form_header">
-<span><span class="font-bold">/r/test</span> Exec: Createpost</span>
+<span><span class="font-bold">/r/test</span> Exec: CreatePost</span>
 <span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
 </div>
 <div data-controller="action-function" data-action-function-name-value="CreatePost" data-action-function-pkgpath-value="/r/test">
@@ -41,7 +41,7 @@
             <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
         </svg>
     </button>
-    <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target="action-function-CreatePost"># WARNING: This command is running in an INSECURE mode.
+    <pre><code><span data-action-function-target="mode" data-action-function-mode-value="fast" class="u-hidden" data-copy-target=""># WARNING: This command is running in an INSECURE mode.
 # It is strongly recommended to use a hardware device for signing
 # and avoid trusting any computer connected to the internet,
 # as your private keys could be exposed.

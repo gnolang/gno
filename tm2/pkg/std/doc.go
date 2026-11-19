@@ -171,7 +171,13 @@ func signDocFeeOf(f Fee) signDocFee {
 
 // signaturePayload renders v as amino JSON with its keys sorted, the form every
 // signature payload takes: sign(sortJSON(aminoJSON(v))).
+//
+// JSON encoding turns invalid UTF-8 into U+FFFD, so a payload built over such a
+// string would not commit to its bytes. Such a string is an error instead.
 func signaturePayload(v any) ([]byte, error) {
+	if err := ValidateUTF8(v); err != nil {
+		return nil, fmt.Errorf("unable to build sign payload: %w", err)
+	}
 	data, err := amino.MarshalJSON(v)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal sign doc, %w", err)
@@ -249,7 +255,9 @@ func VerifySignaturePayload(pubKey crypto.PubKey, s SignDoc, sig []byte) (Payloa
 
 // Signature represents a wrapped signature of a transaction
 type Signature struct {
-	PubKey    crypto.PubKey `json:"pub_key" yaml:"pub_key"` // optional
+	// PubKey is required by the AnteHandler, except in simulation and at
+	// genesis (height 0 or a genesis replay).
+	PubKey    crypto.PubKey `json:"pub_key" yaml:"pub_key"`
 	Signature []byte        `json:"signature" yaml:"signature"`
 	// SessionAddr identifies a session account for delegated signing.
 	// Zero-value means a master-key signature. When non-zero, the AnteHandler

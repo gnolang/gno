@@ -6,6 +6,7 @@ package types
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -169,9 +170,15 @@ func parseNetAddress(idaddr string) (*NetAddress, error) {
 		return nil, fmt.Errorf("unable to verify address ID, %w", err)
 	}
 
-	// Extract the host and port
+	// Extract the host and port. The errors keep the reason and drop the
+	// address, which a peer can make as long as its message.
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
+		var addrErr *net.AddrError
+		if goerrors.As(err, &addrErr) {
+			err = goerrors.New(addrErr.Err)
+		}
+
 		return nil, fmt.Errorf("unable to split host and port, %w", err)
 	}
 
@@ -188,7 +195,8 @@ func parseNetAddress(idaddr string) (*NetAddress, error) {
 
 	port, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse port %s, %w", portStr, err)
+		// A *strconv.NumError, which quotes the port; keep its reason only
+		return nil, fmt.Errorf("unable to parse port, %w", goerrors.Unwrap(err))
 	}
 
 	na := NewNetAddressFromIPPort(ip, uint16(port))
@@ -283,7 +291,7 @@ func (na *NetAddress) UnmarshalAmino(raw string) (err error) {
 	}
 
 	if netAddress.IP == nil {
-		return fmt.Errorf("%w, %s", ErrHostnameNotIP, netAddress.Hostname)
+		return ErrHostnameNotIP
 	}
 
 	*na = *netAddress
