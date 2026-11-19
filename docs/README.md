@@ -34,6 +34,7 @@ Gno-specific features, connect to Gno apps with clients, and more.
 - [Querying on-chain state](builders/query-state-api.md) - The ABCI query endpoints that return structured JSON, for frontends, explorers and developer tools.
 - [Contributor guide](builders/contributor-guide.md) - Learn what makes a great Gno.land contributor and how to showcase your work in the ecosystem.
 - [Running a node](builders/running-a-node.md) - Start here if you were about to run a node: most use cases don't need one. Routes you to `gnodev`, public RPC, a full node, a validator, or a local chain.
+- [Cheatsheet](cheatsheet.md) - Essential Gno commands: install, create, test, query, call, deploy.
 
 ## References
 
