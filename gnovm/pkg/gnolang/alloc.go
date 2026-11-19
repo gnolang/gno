@@ -571,12 +571,12 @@ func constructionRealmID(t Type) PkgID {
 // stampCopyOwner stamps a copy of t: the declaring realm for a named type,
 // and for an exempt unnamed struct the realm the copy is made for.
 func (alloc *Allocator) stampCopyOwner(oi *ObjectInfo, t Type) {
-	if pid := constructionRealmID(t); pid.IsRealmPkg() {
-		oi.SetPkgID(pid)
-		return
-	}
 	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
 		oi.SetPkgID(alloc.currentRealmID)
+		return
+	}
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		oi.SetPkgID(pid)
 	}
 }
 

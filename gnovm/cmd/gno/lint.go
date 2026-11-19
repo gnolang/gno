@@ -490,14 +490,7 @@ func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet
 		return t != nil && i < t.Len() && t.At(i) != nil && t.At(i).Type().String() == "string"
 	}
 	isRealm := func(t *types.Tuple, i int) bool {
-		if t == nil || i >= t.Len() || t.At(i) == nil {
-			return false
-		}
-		// gno's `realm` type is exposed via the gnobuiltins shim as
-		// gnobuiltins/gno0p9.realm (alias .Realm). Match by suffix to
-		// tolerate qualifier variants.
-		ts := t.At(i).Type().String()
-		return strings.HasSuffix(ts, ".realm") || strings.HasSuffix(ts, ".Realm")
+		return t != nil && i < t.Len() && t.At(i) != nil && isRealmType(t.At(i).Type())
 	}
 
 	validResults := results != nil && results.Len() == 1 && isString(results, 0)
@@ -505,11 +498,7 @@ func lintRenderSignature(io commands.IO, pkg *types.Package, fset *token.FileSet
 	validCrossing := params != nil && params.Len() == 2 && isRealm(params, 0) && isString(params, 1)
 
 	if !validResults || (!validNonCrossing && !validCrossing) {
-		location := pkg.Path()
-		if fset != nil && fn.Pos().IsValid() {
-			pos := fset.Position(fn.Pos())
-			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
-		}
+		location := lintLocation(pkg, fset, fn.Pos())
 
 		err := fmt.Errorf("invalid signature for the realm's Render function; must be `func Render(string) string` or `func Render(cur realm, string) string`")
 		fmt.Fprintln(io.Err(), gnoIssue{
@@ -532,11 +521,7 @@ func lintRealmValueAPI(io commands.IO, pkg *types.Package, fset *token.FileSet) 
 		return
 	}
 	report := func(obj types.Object, what string, t types.Type) {
-		location := pkg.Path()
-		if fset != nil && obj.Pos().IsValid() {
-			pos := fset.Position(obj.Pos())
-			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
-		}
+		location := lintLocation(pkg, fset, obj.Pos())
 		fmt.Fprintln(io.Err(), gnoIssue{
 			Code:       gnoLintWarning,
 			Msg:        fmt.Sprintf("exported %s %s passes %s by value; other realms cannot hold it (use a pointer)", what, obj.Name(), t),
@@ -618,11 +603,7 @@ func lintRealmBoxedResult(io commands.IO, pkg *types.Package, fset *token.FileSe
 	}
 	decls := funcDecls(files, info)
 	report := func(obj types.Object, what string, t, iface types.Type) {
-		location := pkg.Path()
-		if fset != nil && obj.Pos().IsValid() {
-			pos := fset.Position(obj.Pos())
-			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
-		}
+		location := lintLocation(pkg, fset, obj.Pos())
 		fmt.Fprintln(io.Err(), gnoIssue{
 			Code:       gnoLintWarning,
 			Msg:        fmt.Sprintf("exported %s %s returns %s by value inside %s; other realms cannot hold it (return a pointer)", what, obj.Name(), t, iface),
@@ -834,6 +815,8 @@ func isCrossingFunc(fd *ast.FuncDecl, info *types.Info) bool {
 	return isRealmType(info.TypeOf(fd.Type.Params.List[0].Type))
 }
 
+// isRealmType: gno's `realm` comes through the gnobuiltins shim as
+// gnobuiltins/gno0p9.realm (alias .Realm); match the suffix.
 func isRealmType(t types.Type) bool {
 	if t == nil {
 		return false
@@ -942,15 +925,11 @@ func lintCrossingCalls(io commands.IO, pkg *types.Package, fset *token.FileSet, 
 		if !ok {
 			return true
 		}
-		p := calleeParam(call.Fun, env)
+		p := reachedParam(call.Fun, env)
 		if p == nil {
 			return true
 		}
-		location := pkg.Path()
-		if fset != nil && call.Pos().IsValid() {
-			pos := fset.Position(call.Pos())
-			location = fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
-		}
+		location := lintLocation(pkg, fset, call.Pos())
 		fmt.Fprintln(io.Err(), gnoIssue{
 			Code:       gnoLintWarning,
 			Msg:        fmt.Sprintf("crossing function %s calls a function reached through parameter %s; a caller can pass this realm's own stored functions (take the function itself, or look it up by key)", fd.Name.Name, p.Name()),
@@ -1010,38 +989,17 @@ func reachedParam(e ast.Expr, env *paramEnv) *types.Var {
 // calleeOnParam: a call whose callee is reached through a parameter, so the
 // call's result is too. A method call is followed to its receiver.
 func calleeOnParam(fun ast.Expr, env *paramEnv) *types.Var {
-	switch x := ast.Unparen(fun).(type) {
-	case *ast.SelectorExpr:
-		return reachedParam(x.X, env)
-	case *ast.IndexExpr:
-		return reachedParam(x.X, env)
-	case *ast.StarExpr:
-		return reachedParam(x.X, env)
-	case *ast.TypeAssertExpr:
-		return reachedParam(x.X, env)
-	case *ast.CallExpr:
-		return calleeOnParam(x.Fun, env)
+	if sel, ok := ast.Unparen(fun).(*ast.SelectorExpr); ok {
+		return reachedParam(sel.X, env)
 	}
 	return reachedParam(fun, env)
 }
 
-// calleeParam: the call's callee is a function value reached through a parameter.
-func calleeParam(fun ast.Expr, env *paramEnv) *types.Var {
-	switch x := ast.Unparen(fun).(type) {
-	case *ast.Ident:
-		return env.tainted[env.info.ObjectOf(x)]
-	case *ast.IndexExpr:
-		return reachedParam(x.X, env)
-	case *ast.StarExpr:
-		return reachedParam(x.X, env)
-	case *ast.SelectorExpr:
-		if sel := env.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
-			return reachedParam(x.X, env)
-		}
-	case *ast.TypeAssertExpr:
-		return reachedParam(x.X, env)
-	case *ast.CallExpr:
-		return calleeOnParam(x.Fun, env)
+// lintLocation is "file:line" for p, or the package path when p is unknown.
+func lintLocation(pkg *types.Package, fset *token.FileSet, p token.Pos) string {
+	if fset == nil || !p.IsValid() {
+		return pkg.Path()
 	}
-	return nil
+	pos := fset.Position(p)
+	return fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
 }

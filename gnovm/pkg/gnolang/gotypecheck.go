@@ -523,8 +523,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	info := newRealmValueInfo()
-	if gimp.lintInfo != nil {
+	// Only the target package's Info is read; imports skip recording one.
+	var info *types.Info
+	if mpkg.Path == gimp.pkgPath {
+		info = newRealmValueInfo()
+	}
+	if info != nil && gimp.lintInfo != nil {
 		info.Uses = map[*ast.Ident]types.Object{}
 		info.Selections = map[*ast.SelectorExpr]*types.Selection{}
 	}
@@ -551,7 +555,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// STEP 4: Type-check Gno0.9 AST in Go (w/ tests, but not xxx_tests).
 	if len(pgofs) < len(gofs) {
 		gimp.testing = true // use tgetter for stdlibs, default to getter.
-		info := newRealmValueInfo()
+		var info *types.Info
+		if mpkg.Path == gimp.pkgPath {
+			info = newRealmValueInfo()
+		}
 		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, info)
 		if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
 			gimp.errors = append(gimp.errors, checkRealmValues(gofset, gofs, info, pkg, mpkg.Path)...)

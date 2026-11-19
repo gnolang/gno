@@ -697,9 +697,6 @@ func (m *Machine) doOpReturnToBlock() {
 	}
 }
 
-// methodValueBinder returns the realm stamp of a method value being called,
-// or zero for a plain x.M(...) call: that one is bound and called in one
-// step by the current realm, so it has no earlier binder to return to.
 // isDirectValMethodCall reports whether cx calls a value-receiver method
 // selected in place (x.M(...)), whose receiver doOpSelector left uncopied.
 func isDirectValMethodCall(cx *CallExpr) bool {
@@ -715,6 +712,9 @@ func isStructOrArrayValue(v Value) bool {
 	return false
 }
 
+// methodValueBinder returns the realm stamp of a method value being called,
+// or zero for a plain x.M(...) call: that one is bound and called in one
+// step by the current realm, so it has no earlier binder to return to.
 func methodValueBinder(cx *CallExpr, bmv *BoundMethodValue) PkgID {
 	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
 		return PkgID{}
@@ -928,10 +928,10 @@ func (m *Machine) doOpDefer() {
 	numArgs := ds.Call.NumArgs
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
+	hold, _ := m.Alloc.holdRealm()
 	// Push defer.
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		hold, _ := m.Alloc.holdRealm()
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
@@ -945,7 +945,6 @@ func (m *Machine) doOpDefer() {
 		// statement. For a lazy interface bind, dispatch is resolved at the
 		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
 		// for a resolved bind, args[0] holds the copied receiver.
-		hold, _ := m.Alloc.holdRealm()
 		args := m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
