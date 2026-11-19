@@ -115,6 +115,32 @@ func TestConfig_Set_Invalid(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		assert.ErrorContains(t, cmdErr, "unable to validate config")
 	})
+
+	t.Run("invalid tmkms listener socket mode", func(t *testing.T) {
+		t.Parallel()
+
+		// A unix:// listener, so that socket_mode is validated
+		path := filepath.Join(t.TempDir(), "config.toml")
+		cfg := config.DefaultConfig()
+		cfg.Consensus.PrivValidator.TmkmsListener.ListenAddr = "unix:///var/run/gnoland/privval.sock"
+		cfg.Consensus.PrivValidator.TmkmsListener.ChainID = "test-chain"
+		require.NoError(t, config.WriteConfigFile(path, cfg))
+
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"config",
+			"set",
+			"--config-path",
+			path,
+			"consensus.priv_validator.tmkms_listener.socket_mode",
+			"0666",
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		assert.ErrorContains(t, cmdErr, "invalid tmkms_listener.socket_mode")
+	})
 }
 
 func TestConfig_Set_Base(t *testing.T) {
@@ -202,6 +228,16 @@ func TestConfig_Set_Base(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.LocalSigner)
+			},
+		},
+		{
+			"tmkms listener socket mode updated",
+			[]string{
+				"consensus.priv_validator.tmkms_listener.socket_mode",
+				"0660",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, loadedCfg.Consensus.PrivValidator.TmkmsListener.SocketMode)
 			},
 		},
 		{
