@@ -163,9 +163,8 @@ type Env struct {
 type Handler func(ctx sdk.Context, env Env) error
 
 type Upgrade struct {
-	Version string   // the release tag; what halt_min_version carries
-	Handler Handler  // the code of the migration
-	Stdlibs []string // stdlibs this upgrade adds; see Adding a stdlib
+	Version string  // the release tag; what halt_min_version carries
+	Handler Handler // the code of the migration
 }
 ```
 
@@ -326,51 +325,13 @@ stops at that block on every start. The signal becomes intermittent; results
 are never wrong. A test must pin that an iterator runs in the first block of a
 block-sync session and is refused once writes are held.
 
-### Adding a stdlib
+### Stdlibs
 
-A new stdlib is a state change a release can carry without meaning to (e.g.
-`crypto/bls12381`, [#6375](https://github.com/gnolang/gno/pull/6375)). A
-stdlib has two halves, and only one reaches a running chain by itself. Its Go
-natives are compiled into the binary and resolved by name at run time
-(`stdlibs.NativeResolver`), so a new binary brings them. Its `.gno` sources are
-state: `InitChainer` writes every stdlib once, at genesis (`loadStdlibs`,
-`app.go:540`), and nothing writes them again. No mainnet release so far, up to
-v1.7.1, changed or added a stdlib's `.gno` file; some changed natives.
-
-**Boot comes before the handler.** `VMKeeper.Initialize` runs when the node
-starts, before `H+1`, and type-checks every stdlib of the binary's
-`stdlibs.InitOrder()` from the store (`keeper.go:216-223`). The new one is not
-there yet: `GetMemPackage` returns nil and the node panics. `Initialize` must
-skip a stdlib that is absent from the store and declared in some registered
-upgrade's `Stdlibs` — only those, so that a store missing any other stdlib
-still fails loudly.
-
-**The handler does for one package what genesis does for all.** `loadStdlibs`
-is the template (`app.go:540-562`): in `InitOrder` order, so a new stdlib may
-import an earlier new one, the handler
-
-1. runs each package into the store (`loadStdlibPackage`, `keeper.go:336`),
-2. type-checks it into the keeper's type-check cache, as `LoadStdlib` does, and
-3. fills the stdlib byte cache from the block's multistore
-   (`PopulateStdlibCacheFrom`), as genesis does from its deliver state.
-
-Step 3 is consensus, not performance. Object and type reads of a stdlib cost no
-I/O gas when they hit that cache (`store.go:566`, `:839`) and are charged when
-they miss. A node that ran the handler without filling it would charge gas for
-every read of the new package that a node restarted later — whose `Initialize`
-fills the cache from the store — does not, and their AppHashes would part. The
-handler fills exactly the keys `Initialize` would. It iterates to do so, which
-*Deferred commits during block sync* allows at `H+1`.
-
-**The sources travel with the handler.** `loadStdlibPackage` reads the `.gno`
-files from `StdlibDir`, the operator's `$GNOROOT/gnovm/stdlibs` (`app.go:60`).
-An operator who swaps only the binary has no directory for the new stdlib, and
-the node panics at `H+1`. The upgrade package embeds the sources it adds
-(`go:embed`), and the handler reads them from there.
-
-The case is adding. Changing the `.gno` of an existing stdlib is replacing a
-deployed package, which is Open question 1; until then, a new binary leaves the
-stored sources in place and runs them, whatever its own tree holds.
+Changing the stdlibs is not a handler's job. Their `.gno` sources are state,
+written at genesis, and bringing the stored stdlibs in line with the binary's
+is handled by the VM itself, in `VMKeeper.Initialize`, when the node boots on
+the new binary. Boot precedes `H+1`, so a handler already sees the new
+stdlibs.
 
 ## Consequences
 
@@ -396,16 +357,6 @@ breaks. Two distinct problems:
 came before it. Blocks 1..H were committed under the old encoding, so replaying
 block 5 needs a binary that still produces it — which one carrying only the new
 encoding does not. Sync fails on the first AppHash it cannot reproduce.
-
-Adding a stdlib is the same shape without an encoding change. `InitChainer`
-writes every stdlib the binary carries, so the new binary writes the new one at
-genesis and parts from the chain at block 1. Joining nodes already run each
-version over its own range — the release ledger's contract
-(`gno.land/pkg/upgrades`): the genesis entry from block 1, each later entry
-from its halt height + 1 — so the old binary writes the old set and the
-handler adds the new stdlib at `H+1`, as it did on the live chain. What ends is
-the courtesy that one recent binary replays from genesis, which holds today only
-because no release has changed what genesis writes.
 
 **2. The halt is still armed.** The EndBlocker arms on `req.Height == haltHeight`
 from committed state, and `halt_height` is never cleared. A node syncing
