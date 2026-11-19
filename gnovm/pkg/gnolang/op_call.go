@@ -482,12 +482,6 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 		// Capture the caller's live crossing cur BEFORE this frame's Cur is
 		// set: topCrossingCur skips frames whose Cur is still unset, so right
 		// now it resolves to the caller's, not ours. Used by the check below.
-		//
-		// NOTE: this walk is not metered. doOpEnterCrossing charges
-		// OpCPUSlopeEnterCrossing per call frame for the same traversal;
-		// adding the matching charge here changes gas for every no-cross
-		// crossing entry, so it is deferred to ride with the other gas
-		// schedule work instead of this fix — see gnolang/gno-fixes#115.
 		callerCur, hasCallerCur := m.topCrossingCur()
 
 		// Unwrap a heap-promoted slot: when cur is captured by a nested

@@ -80,8 +80,7 @@ older builtin-only checks in `Reserve`, `predefineRecursively2` and
 what they refuse.
 
 **Carried from #6196 unchanged:** the `testing` harness exemption
-(`harnessSeedsCur`), `funcDisplayName`, and the unmetered frame walk in
-`installInheritedCur` (rides with gnolang/gno-fixes#115).
+(`harnessSeedsCur`) and `funcDisplayName`.
 
 ## Alternatives considered
 
