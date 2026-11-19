@@ -1,147 +1,160 @@
-# Interrealm Specification
+# Interrealm: the six rules
 
-> **Start here:** [gno-interrealm-whitepaper.md](./gno-interrealm-whitepaper.md) states the model and its six rules on two pages; this document is the mechanism.
+> The decision record is
+> [`gnovm/adr/pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md).
+> This page teaches the rules; the mechanism follows them.
 
-__This document is outdated, see 
-[`gno-interrealm-v2.md`](./gno-interrealm-v2.md) and
-[`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md); for writes,
-[`gnovm/adr/pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md)
-is authoritative__
+A realm's stored state changes only during a crossing call into it. The six
+rules below say who may write when code changes hands. Each section is a
+snippet, one sentence, and the exact error a test pins.
+
+## R1 Cross to write
+
+```go
+// /r/bank/bank
+var total int
+
+func Deposit(cur realm, n int) { total += n } // writer: crossing
+func Total() int               { return total }
+
+// /r/app/app, another realm
+bank.Deposit(cross(cur), 5) // writes bank's state
+bank.Total()                // reads it
+```
+
+A realm's stored state changes only during a crossing call into it; code
+entered any other way, and library code touching another realm's objects,
+runs read-only.
+
+```
+// Error:
+// gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): Count<~VPBlock(3,0)>
+```
+
+## R2 Only pointers cross
+
+```go
+// /r/users/users
+type User struct{ Name string }
+
+func Get() User { return User{Name: "bob"} }
+
+// /r/app/app
+u := users.Get() // refused: a copy of another realm's struct
+```
+
+A struct or array value of a realm's declared type is created and copied only
+by that realm's code; hold a pointer instead. Exceptions: the receiver copy of
+a direct call to a value-receiver method, and an unnamed struct with only
+exported fields, which belongs to no realm. Hand out errors as pointers, and
+write `defer func() { x.M() }()` where a direct `defer x.M()` would copy
+another realm's value.
+
+```
+// Error:
+// cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)
+```
+
+## R3 A function value has a maker
+
+```go
+// /r/app/app, inside a crossing function
+f := lib.Bump // a library writer used as a value: its maker is app
+f()           // writes app's state, exactly like lib.Bump()
+```
+
+A closure, a bound method value, or a declared non-crossing function used as a
+value belongs to the realm whose writable code made it (none, if read-only),
+and writes that realm's state only. A crossing function has no maker: the
+`cross(cur)` argument decides.
+
+```
+// Error:
+// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): Owner<~VPBlock(3,0)>
+```
+
+## R4 Makers stay home
+
+```go
+// /r/app/app
+func Run(cur realm) {
+	lib.ForEach(func() { count++ }) // handed to a library: no maker
+}
+```
+
+When another realm's code hands a function value over (argument, receiver,
+result) or copies it, what arrives has no maker, so publishing a function is
+never a grant of write power. Not covered: a caller hands a realm's crossing
+function a reference to that realm's own stored functions; a gate must not call
+function values found in caller-supplied containers.
+
+```
+// Error:
+// gno.land/r/ctw_callback's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/ctw_callback) package{})).sum
+```
+
+## R5 No saving a makerless function value
+
+```go
+// /r/app/app
+var saved func()
+
+func Save(f func()) { saved = f } // refused for a makerless app or library function
+```
+
+A realm cannot save a makerless function value whose code is its own or a
+library's.
+
+```
+// Error:
+// cannot keep a function value made outside a realm in gno.land/r/tests/vm/pfuncvictim
+```
+
+## R6 One import rule
+
+```go
+// /r/app/app
+func Run(cur realm, r io.Reader) {
+	r.Read(buf) // view-only unless r's package is in app's import tree
+}
+```
+
+Code reached through an interface or a method value is trusted only if its
+package is in the calling realm's import tree (its imports and theirs, the
+standard library included, test files excluded); otherwise it runs view-only.
+
+```
+// Error:
+// cannot copy to readonly tainted slice
+```
+
+## Upgrade notes
+
+Existing code must change in four ways:
+
+- A struct error returned to another realm becomes a pointer error; `r/sys/users`
+  is the worked example.
+- A library container that stores a realm's struct receives a pointer instead
+  (`commondao`).
+- A constructor whose closures the realm's crossing functions later run must
+  itself be crossing (`gov/dao NewGovDAO`).
+- State saved before this change keeps its old function-value references: the
+  rules hold chain-wide only from a fresh genesis or a migration, and gas and
+  storage deposits shift where declared functions are passed as values.
 
 ## Introduction
-
-All modern popular programming languages are designed for a single programmer
-user.  Programming languages support the importing of program libraries natively
-for components of the single user's program, but this does not hold true for
-interacting with components of another user's (other) program. Gno is an
-extension of the Go language for multi-user programming. Gno allows a massive
-number of programmers to iteratively and interactively develop a single shared
-program such as Gno.land.
-
-The added dimension of the program domain means the language should be extended
-to best express the complexities of programming in the inter-realm (inter-user)
-domain. In other words, Go is a restricted subset of the Gno language in the
-single-user context. (In this analogy client requests for Go web servers don't
-count as they run outside the server program).
-
-### Interrealm Programming Context
-
-Gno.land supports three types of packages:
-- **Realms (`/r/`)**: Stateful user applications (smart contracts) that
-  maintain persistent state between transactions
-- **Pure Packages (`/p/`)**: Stateless libraries that provide reusable
-  functionality
-- **Ephemeral Packages (`/e/`)**: Temporary code execution with MsgRun
-  which allows a custom main() function to be run instead of a single
-  function call as with MsgCall.
-
-For an overview of the different package types in Gno (`/p/`, `/r/`, and
-`/e/`), see [Gno Packages](./gno-packages.md#package-types).
-
-Interrealm programming refers to the ability of one realm to call functions
-in another realm. This can occur between:
-- Regular realms (`/r/`) calling other regular realms via MsgCall and MsgRun.
-- Ephemeral realms (`/e/`) calling regular realms via MsgRun (like main.go)
-
-The key concept is that code executing in one realm context can interact with
-and call functions in other realms while leveraging the language syntax rules of
-Go, enabling complex multi-user interactions while maintaining clear boundaries
-and permissions.
-
-### Realm-Context and Realm-Storage-Context
-
-All logic in Gno executes under two contexts that together govern identity and
-persistence:
-
-**Realm-context** determines `unsafe.CurrentRealm()` and
-`unsafe.PreviousRealm()`. It controls identity and agency: who is the current
-actor and who called them. The realm-context has an associated Gno address from
-which native coins can be sent and received. It changes only on explicit
-cross-calls (`fn(cross, ...)`).
-
-**Realm-storage-context** determines which realm's stored objects may be
-written and where new objects are persisted during realm-transaction
-finalization. It changes on explicit cross-calls, and three implicit rules
-apply to non-crossing calls:
-
-  1. **Realm code entered without crossing runs read-only.** When a function,
-     method, or closure declared in `/r/X` is called while `/r/X` is not the
-     current storage-context (from another realm, a run script, or as a
-     callback), it may read anything and may construct objects, which belong
-     to `/r/X`. It may write objects allocated during the current read-only
-     stretch, which ends at the next crossing call; it writes no stored object,
-     `/r/X`'s or the caller's. Within a crossing call into `/r/X`, `/r/X`'s
-     helpers, methods and closures write as usual.
-
-  2. **Library-owned receivers borrow.** A `/p/` method called on a receiver
-     owned by a `/p/` package soft-switches the storage-context to that
-     package, where the post-init immutability gate reports the write. A
-     receiver owned by a realm is a view: its writes are refused. Stdlib
-     methods run with the caller's authority.
-
-  3. **Library code a caller picked runs view-only**: a `/p/` or stdlib
-     function value, closure, method value or method expression called
-     through a value; an interface call or method value whose package the
-     current realm does not import (directly or through its imports). A call
-     that names the function (`F(x)`, `pkg.F(x)`, `T.M(x)`), or reads it from
-     a `/p/` or stdlib package-level variable (`lib.Table[k](x)`), acts for
-     the caller; a realm's own callback reached through such a call still
-     acts for the realm. A view-only frame is no realm boundary: the caller's
-     `recover` catches a panic raised in it.
-
-The realm-context never changes on these. A realm's stored state therefore
-changes only during a crossing call into that realm.
-
-| Call type | Realm-context changes? | Storage-context changes? | Boundary? | Finalizes? |
-|---|---|---|---|---|
-| `fn(cross, ...)` to same realm | Yes* | No | Yes | Yes |
-| `fn(cross, ...)` to different realm | Yes | Yes | Yes | Yes |
-| `fn(cur, ...)` (non-crossing-call of crossing-function), same realm | No | No | No | No |
-| Non-crossing function or method in own (caller's) realm | No | No | No | No |
-| Non-crossing /r/-declared callable in foreign realm (method, top-level, closure) | No | Read-only; allocates in the declaring realm | Yes | No |
-| /p/ method, receiver owned by a /p/ package | No | Yes (receiver's package) | Yes | Yes |
-| Stdlib or /p/ method, realm-owned receiver (a view) | No | No; writes refused | No | No |
-| Stdlib or /p/ method, unreal/primitive receiver | No | No | No | No |
-| Stdlib or /p/ top-level function, called by name | No | No | No | No |
-| /p/ or stdlib function value, closure or method value picked by a caller | No | No; runs view-only | Yes | No |
-
-\* `unsafe.CurrentRealm()` returns the same realm, but `unsafe.PreviousRealm()`
-shifts — what was current becomes previous. See [Realm Boundaries](#realm-boundaries)
-for definitions of boundary and finalization.
-
-### The rule
-
-A realm's stored state changes only during a crossing call into that realm.
-Writers are crossing functions or methods, and `cur.Previous()` authenticates
-the caller. Refused writes fail with `<realm>'s code was entered without
-crossing and is read-only (call its crossing function)` or `cannot modify
-object owned by another realm from library code (call a function of the owning
-realm)`. A callback that must write its own realm is a crossing closure,
-called with `cross`.
-
-The removed `mutable` builtin is not part of this model. See
-[ADR pr6495](../../gnovm/adr/pr6495_cross_to_write.md).
-
 ### Design Goals
 
-**Caveat: The interrealm specification does not secure applications against
-arbitrary code execution. It is important for realm logic (and even p package
-logic) to ensure that arbitrary (variable) functions (and similarly arbitrary
-interface methods) are not provided by malicious callers; such arbitrary
-functions and methods whether crossing (or non-crossing) will inherit the
-previous realm (or both current and previous realms) and could abuse these
-realm-contexts.** It does not make sense for any realm user to cross-call an
-arbitrary function or method as it loses agency while being marked as the
-responsible caller by the callee's runtime previous realm. This problem is
-worse when calling a non-crossing function or method. It can be reasonable when
-such variable functions or interface values are restricted in other ways such
-as by whitelisting by a DAO upon careful inspection of every such variable
-function or interface value (both its type declaration as well as its state).
+**Caveat: the rules do not secure applications against arbitrary code
+execution. A function or interface value a caller supplies runs read-only in
+its realm or view-only when reached through a value or a foreign interface, so
+it cannot write your stored state; it still reads what it is handed and can
+panic to end the call. Gate or type-check caller-supplied callbacks;
+whitelisting by a DAO is one way.**
 
-P package code should behave the same even when copied verbatim in a realm
-package; and likewise non-crossing code should behave the same when copied
-verbatim from one realm to another. Otherwise there will be lots of security
-related bugs from user error.
+P package code behaves the same when copied verbatim into a realm, with one
+difference: the copy becomes realm code, so a caller outside the realm runs it
+read-only.
 
 Realm crossing with respect to `unsafe.CurrentRealm()` and
 `unsafe.PreviousRealm()` must be explicit and warrants type-checking; because
@@ -454,21 +467,18 @@ matches.
 
 A function declared in p packages (or in stdlib) when called:
 
- * inherits the last realm for top-level functions called by name; called
-   through a value (variable, field, argument) it runs view-only.
- * inherits the last realm when a method is called on an unreal or primitive
-   receiver.
- * borrows to the receiver's package only when the receiver is owned by a
-   `/p/` package; a receiver owned by a realm is a view, and the method's
-   writes to the owner's object are refused.
- * **closures** (built by a `FuncLit`, not declared in an `/r/` realm) borrow
-   nothing: called while the realm they were built under is current they run
-   as that realm, and called under any other realm they run view-only.
-   A `/p/`-declared closure invoked from `/r/B` after `/r/A` built it writes
-   `/r/A`'s state only while `/r/A` is current; otherwise the write is
-   refused, so a closure gains no authority by changing hands.
+ * runs with the caller's authority for a top-level function called by name,
+   and on an unreal or primitive receiver.
+ * runs as the caller for a method on a `/p/`-owned receiver; after
+   initialization, that package's immutability gate reports a write.
+ * a method on a realm-owned receiver is a view: its writes to the owner's
+   object are refused.
+ * a closure, bound method value or declared function used as a value follows
+   R3: it acts for the realm whose writable code made it, and view-only when
+   made in read-only code.
  * runs view-only when reached through an interface or method value whose
-   package the current realm does not import, directly or not.
+   package the current realm does not import, directly or through its imports,
+   the standard library included.
 
 A function declared in a realm package (`/r/X`) when called:
 
@@ -505,23 +515,17 @@ In other words `unsafe.CurrentRealm()` may differ from the Machine's active
 storage realm (internally `m.Realm`) when a `/p/` method is called on a
 `/p/`-owned receiver, and code entered read-only has no storage realm at all.
 
-### Implicit Realm-Storage Borrowing
+### Library-Owned Receivers
 
-Only one implicit storage-context change remains: a `/p/` method
-called on a receiver owned by a `/p/` package borrows to that package, so the
-package's post-init immutability gate reports any write. It does not change the
-realm-context.
+A `/p/` method on a receiver owned by a `/p/` package runs as the caller, and
+that package's post-init immutability gate reports any write to its own state.
+The realm-context does not change.
 
-A realm's object is never borrowed. A `/p/` method (`avl.Tree.Set`, a GRC20
-`Teller` method) called on it writes it only while that realm is current,
-which means during a crossing call into the realm; called from anywhere else
-the object is a view and the write is refused. Realm code entered without
-crossing runs read-only (rule 1 above), so an `/r/`-declared method called on
-a foreign object never writes it either.
-
-`/p/` code still behaves the same when copied verbatim into a realm, with one
-difference to keep in mind: the copy becomes realm code, so a caller outside
-the realm runs it read-only.
+A realm's object is a view to a `/p/` method (`avl.Tree.Set`, a GRC20
+`Teller` method): it writes the object only while that realm is current, which
+means during a crossing call into the realm; called from anywhere else the
+write is refused. Realm code entered without crossing runs read-only (R1), so
+an `/r/`-declared method called on a foreign object never writes it either.
 
 ### Crossing-Method Semantics
 
@@ -538,9 +542,8 @@ resides in an external realm-storage.
 
 Calls of methods on receivers residing in realms different from the current
 realm must *not* be called like `fn(cross, ...)` if the method is not a
-crossing function itself, and vice versa. Or it could be said that implicit
-crossing is not real realm crossing. (When you sign a document with someone
-else's pen it is still your signature; signature:pen :: current:borrowed)
+crossing function itself, and vice versa. Implicit storage changes are not a
+realm crossing.
 
 A crossing method declared in a realm cannot modify the receiver if the object
 resides in a different realm. However not all methods are required to be
@@ -612,11 +615,11 @@ see [Message Types and Testing](#message-types-and-testing).
 
 ## Realm Boundaries
 
-A realm boundary is defined as a change in realm in the call frame stack
-from one realm to another, whether explicitly crossed with `fn(cross, ...)`
-or implicitly, by entering another realm's code read-only, borrowing to a
-`/p/`-owned receiver's package, or running picked library code view-only.
-A realm may cross into itself with an explicit cross-call.
+A realm boundary is a crossing call, `fn(cross, ...)`: the realm-context
+changes from one realm to another. A realm may cross into itself. Entering
+another realm's code read-only changes the running realm but writes nothing
+stored; a method on a `/p/`-owned receiver and picked library code are not a
+realm crossing.
 
 When a crossing-function or crossing-method is cross-called it shifts the
 "current" runtime realm-context to the "previous" runtime realm-context such
@@ -625,10 +628,8 @@ that `unsafe.PreviousRealm()` returns what used to be returned with
 realm-storage-context is always set to that of realm-context after
 cross-calling.
 
-For which call types create boundaries, see the
-[summary table](#realm-context-and-realm-storage-context) above. Every
-crossing-call creates a realm boundary even when there is no resulting change
-in realm-context or realm-storage-context. A non-crossing-call of a
+Every crossing-call creates a realm boundary even when there is no resulting
+change in realm-context or realm-storage-context. A non-crossing-call of a
 crossing-function or crossing-method (`fn(cur, ...)`) never creates a realm
 boundary.
 
@@ -807,8 +808,9 @@ A reference that crosses a realm boundary, as a return value or as an
 argument, is a **view**. Direct writes through it are refused by the readonly
 taint, and a `/p/` method called on it runs with the *caller's*
 storage-context, so its writes to the owner's object are refused as well.
-Only a receiver owned by a `/p/` package borrows, never a realm's stored
-object; there is no exception that changes this.
+Only a receiver owned by a `/p/` package runs as the caller for writes to its
+own package's state; a realm's stored object is always a view. There is no
+exception that changes this.
 
 A realm that wants another realm to write exposes crossing functions that name
 its own variables:
@@ -832,11 +834,12 @@ writes whichever of your own objects the caller named, so name your own
 variable instead. A closure declared in an `/r/` realm runs read-only when
 another realm calls it; to let a callback write its realm, make it a crossing
 closure (`func(cur realm) {...}`) called with `cross`. A `/p/` or stdlib
-closure called by another realm's code runs view-only.
-A method value of a `/p/` or stdlib method runs view-only when another realm's
-code calls it, writing no stored object, receiver or argument; only its
-binder's own code can write through it. A `/p/`-owned receiver borrows to its
-package, whose post-init immutability gate reports the write.
+closure called through a value by another realm's code runs view-only. A
+method value of a `/p/` or stdlib method writes no stored object, receiver or
+argument when reached from code whose realm does not import its package; when
+that package is in the calling realm's import tree it acts for the caller
+(R6). A `/p/`-owned receiver runs as the caller, and the package's post-init
+immutability gate reports a write to its own state.
 
 Fresh-object corner: an object a realm function builds and returns carries
 that realm's stamp from allocation, so the caller cannot write it either,
