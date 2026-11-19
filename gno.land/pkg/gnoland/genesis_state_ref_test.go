@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -390,18 +391,15 @@ func TestLoadStreamingGenesisDoc_IndentedSourceProducesValidJSONL(t *testing.T) 
 
 // TestLoadStreamingGenesisDoc_TolerantOfUnknownTopLevelFields verifies that
 // the streaming loader accepts top-level fields that GenesisDoc does not
-// model (e.g. initial_height as emitted by hardfork tooling). The amino
-// path used by GenesisDocFromJSON has always silently ignored such fields;
-// the streaming path must match that tolerance or it'll reject real
-// production genesis files at startup.
+// model. The amino path used by GenesisDocFromJSON has always silently ignored
+// such fields; the streaming path must match that tolerance or it'll reject
+// real production genesis files at startup.
 func TestLoadStreamingGenesisDoc_TolerantOfUnknownTopLevelFields(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "genesis.json")
-	// initial_height is the field the real gnoland1 genesis carries; pick
-	// it specifically so the regression matches the production failure.
 	const body = `{
 		"genesis_time": "2026-04-28T00:00:00Z",
 		"chain_id": "test-chain",
-		"initial_height": "815001",
+		"some_tooling_field": "815001",
 		"app_hash": "",
 		"app_state": {
 			"balances": [],
@@ -426,7 +424,6 @@ func TestLoadStreamingGenesisDoc_WarnsOnUnknownTopLevelFields(t *testing.T) {
 	const body = `{
 		"genesis_time": "2026-04-28T00:00:00Z",
 		"chain_id": "test-chain",
-		"initial_height": "815001",
 		"consensus_paramz": {"oops": "typo"},
 		"app_hash": "",
 		"app_state": {"balances": [], "txs": []}
@@ -440,10 +437,36 @@ func TestLoadStreamingGenesisDoc_WarnsOnUnknownTopLevelFields(t *testing.T) {
 	require.NoError(t, err)
 
 	logged := buf.String()
-	assert.Contains(t, logged, "initial_height",
-		"unknown field initial_height must be logged as a warning so misspellings surface: %s", logged)
 	assert.Contains(t, logged, "consensus_paramz",
 		"unknown field consensus_paramz must be logged: %s", logged)
+}
+
+// TestLoadStreamingGenesisDoc_ReadsInitialHeight pins the top-level
+// initial_height on both loader paths: the first load writes the cache and the
+// second walks the file past it, each filling doc through decodeTopLevelField.
+func TestLoadStreamingGenesisDoc_ReadsInitialHeight(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "genesis.json")
+	const body = `{
+		"genesis_time": "2026-04-28T00:00:00Z",
+		"chain_id": "test-chain",
+		"initial_height": "815001",
+		"app_hash": "",
+		"app_state": {"balances": [], "txs": []}
+	}`
+	require.NoError(t, os.WriteFile(src, []byte(body), 0o644))
+
+	cacheRoot := t.TempDir()
+	for _, path := range []string{"cold cache", "warm cache"} {
+		doc, err := LoadStreamingGenesisDoc(src, cacheRoot, nil)
+		require.NoError(t, err, path)
+		assert.Equal(t, int64(815001), doc.InitialHeight, path)
+	}
+
+	// amino wants an int64 quoted, and a height it cannot read must not read as unset.
+	bare := filepath.Join(t.TempDir(), "genesis.json")
+	require.NoError(t, os.WriteFile(bare, []byte(strings.Replace(body, `"815001"`, `815001`, 1)), 0o644))
+	_, err := LoadStreamingGenesisDoc(bare, t.TempDir(), nil)
+	require.ErrorContains(t, err, `top-level "initial_height"`)
 }
 
 // TestCacheWriter_FinalizeClosesUnderlyingFiles verifies that finalize takes

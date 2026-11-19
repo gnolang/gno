@@ -415,8 +415,8 @@ func hashFile(path string) (string, error) {
 }
 
 // walkGenesis streams the genesis JSON file once. Recognized top-level
-// small fields (genesis_time, chain_id, consensus_params, validators,
-// app_hash) are decoded via amino into doc. The app_state object is
+// small fields (genesis_time, chain_id, initial_height, consensus_params,
+// validators, app_hash) are decoded via amino into doc. The app_state object is
 // dispatched to writer if non-nil; if writer is nil, the value is skipped
 // at the token level (no allocation of bulk arrays).
 //
@@ -465,8 +465,7 @@ func walkGenesis(genesisPath string, doc *types.GenesisDoc, writer *cacheWriter,
 // decodeTopLevelField decodes one recognized top-level field into doc via
 // amino (which handles polymorphic crypto.PubKey under validators and
 // stringly-encoded int64 for power). Unknown fields are silently consumed
-// to match the tolerance of GenesisDocFromJSON; production hardfork
-// tooling emits fields like initial_height that GenesisDoc does not model.
+// to match the tolerance of GenesisDocFromJSON.
 // Unknown fields are logged via logger.Warn so a misspelled known field
 // (e.g. "consensus_paramz") surfaces in operator logs.
 func decodeTopLevelField(dec *json.Decoder, key string, doc *types.GenesisDoc, logger *slog.Logger) error {
@@ -479,6 +478,8 @@ func decodeTopLevelField(dec *json.Decoder, key string, doc *types.GenesisDoc, l
 		return amino.UnmarshalJSON(raw, &doc.GenesisTime)
 	case "chain_id":
 		return amino.UnmarshalJSON(raw, &doc.ChainID)
+	case "initial_height":
+		return amino.UnmarshalJSON(raw, &doc.InitialHeight)
 	case "consensus_params":
 		return amino.UnmarshalJSON(raw, &doc.ConsensusParams)
 	case "validators":
