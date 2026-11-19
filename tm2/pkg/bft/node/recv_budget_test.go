@@ -5,7 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
+	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 )
 
@@ -19,17 +22,14 @@ import (
 // The budget bounds the bytes a connection can hold across all channels while
 // messages are still being assembled. A connection assembles at most one
 // incomplete message per channel, so the legitimate worst case is the sum of
-// the largest real message each channel can carry -- not the sum of the
-// channels' RecvMessageCapacity, which is deliberately looser.
+// the largest real message each channel can carry. The consensus and mempool
+// channels' RecvMessageCapacity is that message plus a small allowance, so
+// their terms are read from the reactors; the blockchain and discovery
+// channels' capacities are looser, so theirs are the largest messages.
 func TestDefaultBudgetCoversWorstLegalConfig(t *testing.T) {
 	t.Parallel()
 
 	const (
-		// bft/consensus maxMsgSize, over the state, data, vote and
-		// vote-set-bits channels. Keep in sync with consensus/reactor.go.
-		consensusMaxMsgSize = 1 << 20
-		consensusChannels   = 4
-
 		// The bcBlockResponseMessage envelope around a length-prefixed block
 		// measures 25 bytes; round up generously.
 		envelope = 1 << 10
@@ -38,13 +38,16 @@ func TestDefaultBudgetCoversWorstLegalConfig(t *testing.T) {
 		discovery = 64 << 10
 	)
 
-	// The largest values ValidateConsensusParams will accept.
-	maxDataBytes := types.MaxBlockDataBytesLimit
-	maxTxBytes := types.MaxBlockDataBytesLimit - types.MaxBlockOverheadBytes
+	capacities := func(descs []*p2p.ChannelDescriptor) (sum int) {
+		for _, desc := range descs {
+			sum += desc.FillDefaults().RecvMessageCapacity
+		}
+		return sum
+	}
 
-	worstCase := int(maxDataBytes) + envelope + // blockchain: a committed block
-		consensusChannels*consensusMaxMsgSize + // consensus
-		int(maxTxBytes) + envelope + // mempool: a single tx
+	worstCase := int(types.MaxBlockDataBytesLimit) + envelope + // blockchain: the largest legal block
+		capacities((&cs.ConsensusReactor{}).GetChannels()) + // consensus: its four channels
+		capacities((&mempl.Reactor{}).GetChannels()) + // mempool: the largest tx
 		discovery
 
 	budget := conn.DefaultMConnConfig().MaxRecvBufferBytes

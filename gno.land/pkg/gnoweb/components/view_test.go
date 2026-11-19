@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"testing"
@@ -262,6 +263,17 @@ func TestRealmViewTOCXSSPrevention(t *testing.T) {
 	}
 }
 
+// helpView renders each function's card as GetHelpView does, then the view.
+func helpView(t *testing.T, data HelpData) *View {
+	t.Helper()
+	for i, fn := range data.Functions {
+		var card bytes.Buffer
+		require.NoError(t, RenderHelpCard(&card, data, fn))
+		data.Functions[i].Card = NewReaderComponent(&card)
+	}
+	return HelpView(data)
+}
+
 func TestHelpView(t *testing.T) {
 	functions := []HelpFunction{
 		{JSONFunc: &doc.JSONFunc{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}}},
@@ -273,7 +285,7 @@ func TestHelpView(t *testing.T) {
 		RealmName:    "TestRealm",
 	}
 
-	view := HelpView(data)
+	view := helpView(t, data)
 
 	assert.NotNil(t, view, "expected view to be non-nil")
 
@@ -292,7 +304,7 @@ func TestHelpView(t *testing.T) {
 // param's input, in the maketx call and qeval commands alike.
 func TestHelpViewArgSlots(t *testing.T) {
 	params := []*doc.JSONField{{Name: "_", Type: "int"}, {Name: "_", Type: "int"}}
-	view := HelpView(HelpData{
+	view := helpView(t, HelpData{
 		PkgPath: "gno.land/r/demo/foo",
 		Functions: []HelpFunction{
 			{JSONFunc: &doc.JSONFunc{Name: "Get", Params: params}},
@@ -314,7 +326,7 @@ func TestHelpViewArgSlots(t *testing.T) {
 // markup: each param's type, the live result's texts and the evaluator's
 // entry in the functions list.
 func TestHelpViewEval(t *testing.T) {
-	view := HelpView(HelpData{
+	view := helpView(t, HelpData{
 		RealmName: "dao",
 		PkgPath:   "gno.land/r/gov/dao",
 		Remote:    "https://rpc.example:443",

@@ -157,6 +157,7 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 						Tx: tx,
 						Metadata: &gnoland.GnoTxMetadata{
 							Timestamp: block.Timestamp,
+							Failed:    !txResult.IsOK(),
 						},
 					}
 
