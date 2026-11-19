@@ -255,7 +255,7 @@ Two cases where the swap is **wrong**, both found by making it:
 - [ ] No method accepts a `func(...)` callback with a `/p/`-typed parameter and invokes it
 - [ ] Errors returned to other realms are pointer errors (`*MyError`), never struct values
 - [ ] A closure or function value I hand out carries no write power for another realm; writers are crossing functions or crossing closures
-- [ ] A method value of a `/p/` type I expose is inert for a caller whose realm does not import that package (R6); my crossing function performs the write
+- [ ] A method value of a `/p/` type bound on my object writes nothing when another realm calls it (see [the six rules (R6)](./gno-interrealm.md)); my crossing function performs the write
 - [ ] A registry of crossing functions stores `func(cur realm, ...)` values and calls them with `cross`
 - [ ] Interface parameters from external callers are guarded with canonical-type asserts
 - [ ] No `realm`-typed value in package-level vars, struct fields, or closure captures

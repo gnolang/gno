@@ -45,10 +45,14 @@ u := users.Get() // refused: a copy of another realm's struct
 
 A struct or array value of a realm's declared type is created and copied only
 by that realm's code; hold a pointer instead. Exceptions: the receiver copy of
-a direct call to a value-receiver method, and an unnamed struct with only
-exported fields, which belongs to no realm. Hand out errors as pointers, and
-write `defer func() { x.M() }()` where a direct `defer x.M()` would copy
-another realm's value.
+a direct call to a value-receiver method, and an unnamed struct whose fields
+are all exported and which holds no realm's struct or array: it may be passed
+and returned by value, and the copy belongs to whoever made it. Hand out
+errors as pointers, and write `defer func() { x.M() }()` where a direct
+`defer x.M()` would copy another realm's value. The type checker refuses a
+declaration or copy first (`cannot hold a value of <T> outside its realm (use
+a pointer)`); a run-time allocation fails with `cannot allocate <T> in realm
+<R>`.
 
 ```
 // Error:
@@ -59,8 +63,8 @@ another realm's value.
 
 ```go
 // /r/app/app, inside a crossing function
-f := lib.Bump // a library writer used as a value: its maker is app
-f()           // writes app's state, exactly like lib.Bump()
+f := lib.Inc; f(box)                      // acts like lib.Inc(box): writes app's box
+victim.RunS(cross(cur), victim.GetDecl()) // made by victim's read-only code: no maker
 ```
 
 A closure, a bound method value, or a declared non-crossing function used as a
@@ -77,16 +81,22 @@ and writes that realm's state only. A crossing function has no maker: the
 
 ```go
 // /r/app/app
+var sum int
+
 func Run(cur realm) {
-	lib.ForEach(func() { count++ }) // handed to a library: no maker
+	other.ForEach(cross(cur), func(n int) { sum += n }) // handed to another realm: no maker
 }
 ```
 
 When another realm's code hands a function value over (argument, receiver,
 result) or copies it, what arrives has no maker, so publishing a function is
-never a grant of write power. Not covered: a caller hands a realm's crossing
-function a reference to that realm's own stored functions; a gate must not call
-function values found in caller-supplied containers.
+never a grant of write power; a function value handed to another realm runs
+read-only there. Not covered: a caller hands a realm's crossing function a
+reference to that realm's own stored functions; your crossing function must not
+call function values found in caller-supplied containers. `gno lint` warns when
+a crossing function calls a function reached through a parameter that is not a
+function; it does not yet follow values through two or more locals, another
+function of the realm, or a closure capture.
 
 ```
 // Error:
@@ -99,7 +109,8 @@ function values found in caller-supplied containers.
 // /r/app/app
 var saved func()
 
-func Save(f func()) { saved = f } // refused for a makerless app or library function
+// refused when f is a library function another realm passed
+func Save(cur realm, f func()) { saved = f }
 ```
 
 A realm cannot save a makerless function value whose code is its own or a
@@ -114,6 +125,8 @@ library's.
 
 ```go
 // /r/app/app
+var buf = make([]byte, 4)
+
 func Run(cur realm, r io.Reader) {
 	r.Read(buf) // view-only unless r's package is in app's import tree
 }
@@ -130,7 +143,7 @@ standard library included, test files excluded); otherwise it runs view-only.
 
 ## Upgrade notes
 
-Existing code must change in four ways:
+Existing code must change in three ways; one more thing shifts:
 
 - A struct error returned to another realm becomes a pointer error; `r/sys/users`
   is the worked example.
@@ -149,7 +162,7 @@ Existing code must change in four ways:
 execution. A function or interface value a caller supplies runs read-only in
 its realm or view-only when reached through a value or a foreign interface, so
 it cannot write your stored state; it still reads what it is handed and can
-panic to end the call. Gate or type-check caller-supplied callbacks;
+panic to end the call. Check caller-supplied callbacks;
 whitelisting by a DAO is one way.**
 
 P package code behaves the same when copied verbatim into a realm, with one
@@ -232,7 +245,7 @@ import "gno.land/p/bob/types"   // import external library package
 
 func Register(cur realm, name string) {
     prof := types.UserProfile{Name: name}
-    alice.SetObject(cross, prof)
+    alice.SetObject(cross(cur), prof)
 }
 ```
 
@@ -252,7 +265,7 @@ func SendMail(cur realm, text string) {
     caller := cur.Previous()
     if inBlacklist(caller) {
         // cur.Previous() becomes self; message from self to self.
-        SendMail(cross, fmt.Sprintf("blacklisted caller %v blocked", caller))
+        SendMail(cross(cur), fmt.Sprintf("blacklisted caller %v blocked", caller))
     } else {
         // sendMailPrivate not exposed to external callers.
         sendMailPrivate(text)
@@ -372,15 +385,16 @@ Two consequences follow:
    pointer level (`(*/r/foo.T)(&local)`), unless its underlying type is a
    primitive, func, or chan type; a nil pointer is let through.
 
-   Holding such a value is still not authority: `var t foo.T` in another
-   realm is allowed (stamped with `foo`'s PkgID, so the holder cannot write
-   it), and `&t` can be passed back to `foo`. Never treat a non-nil `*foo.T`
-   as authorization; identify the caller through `cur.Previous()`.
+   Holding such a value is refused too: `var t foo.T` in another realm fails
+   with `cannot hold a value of foo.T outside its realm (use a pointer)`.
+   Hold the `*foo.T` that foo's constructor returns, and never treat a
+   non-nil `*foo.T` as authorization; identify the caller through
+   `cur.Previous()`.
 
 Storage rent attribution follows PkgID too: when a transaction mutates an
-object owned by `/r/A` from `/r/B`'s code, the byte delta accrues to
-`/r/A`'s ledger, not `/r/B`'s, because `/r/A` is the authoring (and
-storage-paying) realm.
+object owned by `/r/A` during a crossing call into `/r/A`, the byte delta
+accrues to `/r/A`'s ledger, not the caller's, because `/r/A` is the authoring
+(and storage-paying) realm.
 
 ## Crossing-Functions and Crossing-Methods
 
@@ -468,9 +482,9 @@ matches.
 A function declared in p packages (or in stdlib) when called:
 
  * runs with the caller's authority for a top-level function called by name,
-   and on an unreal or primitive receiver.
+   and on a receiver the calling realm owns, or a primitive.
  * runs as the caller for a method on a `/p/`-owned receiver; after
-   initialization, that package's immutability gate reports a write.
+   initialization, that package's immutability check reports a write.
  * a method on a realm-owned receiver is a view: its writes to the owner's
    object are refused.
  * a closure, bound method value or declared function used as a value follows
@@ -518,7 +532,7 @@ storage realm (internally `m.Realm`) when a `/p/` method is called on a
 ### Library-Owned Receivers
 
 A `/p/` method on a receiver owned by a `/p/` package runs as the caller, and
-that package's post-init immutability gate reports any write to its own state.
+that package's post-init immutability check reports any write to its own state.
 The realm-context does not change.
 
 A realm's object is a view to a `/p/` method (`avl.Tree.Set`, a GRC20
@@ -533,12 +547,11 @@ When a method is a crossing-method called as
 `receiver.Method(cross, args...)`, both the realm-context and
 realm-storage-context change to that of the realm package in which the
 type/method is declared (which is not necessarily the same as where the
-receiver resides). Such a crossing method-call cannot directly modify the
-real receiver if it happens to reside in an external realm that differs from
-where the type and methods are declared; but it can modify any unreal receiver
-or unreal reachable objects. As mentioned previously a non-crossing-call of a
-crossing-method will fail during type-checking or at runtime if the receiver
-resides in an external realm-storage.
+receiver is stored). The call writes the receiver only if the receiver belongs
+to that realm, which is where it was allocated (see Storage = Authority); a
+receiver owned by another realm is a view. As mentioned previously a
+non-crossing-call of a crossing-method will fail during type-checking or at
+runtime if the receiver belongs to an external realm-storage.
 
 Calls of methods on receivers residing in realms different from the current
 realm must *not* be called like `fn(cross, ...)` if the method is not a
@@ -546,7 +559,7 @@ crossing function itself, and vice versa. Implicit storage changes are not a
 realm crossing.
 
 A crossing method declared in a realm cannot modify the receiver if the object
-resides in a different realm. However not all methods are required to be
+belongs to a different realm. However not all methods are required to be
 crossing methods, and crossing methods may still read the state of the receiver
 (and in general anything reachable is readable).
 
@@ -559,56 +572,59 @@ type Token struct {
     Balance int
 }
 
-// Non-crossing method on /r/-declared type: writes only when called
-// inside a crossing call into /r/alice/tokens, on an object stored there.
-// Called from another realm it runs read-only.
+func New() *Token { return &Token{Balance: 100} }
+
+// Non-crossing method on /r/-declared type: writes only inside a crossing
+// call into /r/alice/tokens, on a token alice allocated. Called from another
+// realm it runs read-only.
 func (t *Token) Debit(amount int) {
     t.Balance -= amount
 }
 
-// Crossing method: realm-context and realm-storage-context
-// shift to /r/alice/tokens (where the type is declared).
+// Crossing method: realm-context and realm-storage-context shift to
+// /r/alice/tokens. The token is alice's object, so the write lands.
 func (t *Token) Transfer(cur realm, to string, amount int) {
-    t.Balance -= amount // FAILS if receiver resides outside /r/alice/tokens
+    t.Balance -= amount
 }
 ```
 
 ```go
-// /r/bob/bob stores a Token
+// /r/bob/bob stores a token alice made
 package bob
 
 import "gno.land/r/alice/tokens"
 
-var myToken *tokens.Token // persisted in /r/bob/bob
+var myToken *tokens.Token // alice's object, stored in /r/bob/bob
 
-func Spend(_ realm) {
-    // Non-crossing call on a /r/-declared method from /r/bob/bob:
-    // Debit() runs read-only and cannot mutate myToken.
+func Spend(cur realm) {
+    myToken = tokens.New() // alice's constructor allocates it
+
+    // Crossing call: storage-context shifts to /r/alice/tokens and
+    // Transfer writes myToken, which belongs to alice.
+    myToken.Transfer(cross(cur), "g1...", 10) // writes the token
+}
+
+func DebitFails() {
+    // Non-crossing call on alice's method: alice's code runs read-only.
     myToken.Debit(10) // fails: alice's code entered without crossing
-
-    // Crossing call: storage-context shifts to /r/alice/tokens.
-    // Transfer() also CANNOT directly modify myToken (owned by bob).
-    myToken.Transfer(cross, "g1...", 10) // fails: receiver in external realm
 }
 ```
 
 A method declared in an `/r/` package never writes another realm's object, and
 writes its own realm's objects only during a crossing call into that realm.
 
-If you need a `/r/A`-declared method to mutate state stored in `/r/B`, the
+If you need a `/r/A`-declared method to mutate state owned by `/r/B`, the
 caller in `/r/B` must own the mutation: pass the data into the method as an
 argument and let the method return the new value, or expose a method on
 `/r/B`'s own type that delegates internally. The pattern of "method on
-my-type, mutate via foreign-realm-stored receiver" is intentionally not
+my-type, mutate via a receiver owned by another realm" is intentionally not
 supported, because it would allow foreign-realm code to run with the
 storage realm's authority.
 
-New unreal objects reachable from the current realm become persisted in it
-upon finalization; an object constructed by realm code entered read-only is
-owned by that code's realm.
-(When you put an unlabeled photo in someone else's scrapbook the photo now
-belongs to the other person.) In the future the `attach()` function will
-prevent a new unreal object from being taken.
+An object belongs to the realm whose code allocated it, wherever it is later
+stored; new unreal objects reachable from the current realm become persisted
+in it upon finalization. In the future the `attach()` function will prevent a
+new unreal object from being taken.
 
 For how crossing rules apply to MsgCall, MsgRun, and package initialization,
 see [Message Types and Testing](#message-types-and-testing).
@@ -744,10 +760,11 @@ returns an untainted real object, the runtime guard in `DidUpdate()` prevents
 it from being modified by an external realm-storage-context.
 
 For a realm (user) to manipulate an untainted object residing in an external
-realm, a function (or method) can be declared in the external realm which
-references and modifies the aforementioned untainted object directly (by a name
-declared outside of the scope of said function or method). Or, the function can
-take in as argument an untainted real object returned by another function.
+realm, a crossing function (or crossing method) can be declared in the external
+realm which references and modifies the aforementioned untainted object
+directly (by a name declared outside of the scope of said function or method).
+Or, the function can take in as argument an untainted real object returned by
+another function.
 
 Besides protecting against writing by direct access, the readonly taint also
 helps prevent a class of security issue where a realm may be tricked into
@@ -839,7 +856,7 @@ method value of a `/p/` or stdlib method writes no stored object, receiver or
 argument when reached from code whose realm does not import its package; when
 that package is in the calling realm's import tree it acts for the caller
 (R6). A `/p/`-owned receiver runs as the caller, and the package's post-init
-immutability gate reports a write to its own state.
+immutability check reports a write to its own state.
 
 Fresh-object corner: an object a realm function builds and returns carries
 that realm's stamp from allocation, so the caller cannot write it either,

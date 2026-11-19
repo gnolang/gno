@@ -42,7 +42,8 @@ path is attacker-controlled.
 The single rule behind them: a realm's stored state changes only during a
 crossing call into that realm. Inside it, the realm's own code and the library
 code it names write as usual; code that arrived as a value from someone else
-never acts for the realm.
+never acts for the realm, except a reference to the realm's own stored
+functions (see [the six rules (R4)](./gno-interrealm.md)).
 
 The VM provides four independent defenses. A realm becomes
 exploitable when an API design defeats all of them at once.
@@ -93,8 +94,10 @@ propagates through field access, indexing, slicing, interface
 boxing/unboxing, and conversion. Any write attempt against a tainted
 target panics with `cannot directly modify readonly tainted object`. A
 struct or array value of another realm's declared type cannot be copied at
-all (`cannot copy <type> outside realm <realm> (use a pointer)`); hold a
-pointer instead.
+all (`cannot copy <type> outside realm <realm> (use a pointer)`); the type
+checker refuses a declaration or copy first (`cannot hold a value of <T>
+outside its realm (use a pointer)`), and a run-time allocation fails with
+`cannot allocate <T> in realm <R>`. Hold a pointer instead.
 
 The readonly check fires uniformly at every write path: `=`, `+=`,
 `++`, `*p = v`, `s[i] = v`, `m[k] = v`, `delete(m, k)`,
@@ -483,10 +486,10 @@ its receiver and its maker. A `/p/` or stdlib method value is trusted only when
 its package is in the calling realm's import tree; otherwise it runs view-only:
 it can write no realm's stored objects, neither the receiver nor an argument.
 A method value an attacker binds on your view is refused wherever it runs, and
-one your realm binds in read-only code has no maker. One case stays open: a
-value bound by a `maketx run` script and *stored* by your realm is re-stamped
-to your realm, so calling it later runs as you. Do not store and call function
-values that callers supply.
+one your realm binds in read-only code has no maker. A realm cannot keep a
+function value it did not make (`cannot keep a function value made outside a
+realm in <realm>`); to keep callers' writers, store crossing functions and
+call them with `cross`.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`
@@ -528,11 +531,10 @@ pointers excepted, as are types whose underlying type is a
 primitive, func, or chan type).
 
 **Implication**: holding a realm-typed value, or a pointer to one, is
-not authority. Another realm can still write `var u v.User` (zero
-value, stamped with `v`'s PkgID) and pass `&u` to a victim API. A check
-like `if u == nil { deny }` authorizes that caller. Authenticate the
-caller through `cur.Previous()`. A pointer that matches one in state
-you own proves only where it came from, not who is calling.
+not authority. The type checker refuses `var u v.User` outside its realm.
+A pointer that matches one in state you own proves only where it came from,
+not who is calling. A check like `if u == nil { deny }` authorizes the
+caller. Authenticate the caller through `cur.Previous()`.
 
 ---
 
@@ -582,15 +584,18 @@ Before deploying a realm:
   carries no write power for another realm; writers are crossing functions or
   crossing closures, called with `cross`.
 
-- [ ] A method value of a `/p/` type I expose is inert for a caller whose
-  realm does not import that package (R6), and my own crossing function
-  performs the write.
+- [ ] My crossing functions never call a function value found in a slice, map,
+  pointer or object a caller passed in.
+
+- [ ] A method value of a `/p/` type bound on my object writes nothing when
+  another realm calls it (see [the six rules (R6)](./gno-interrealm.md)); my
+  crossing function performs the write.
 
 - [ ] Errors I return to other realms are pointer errors (`*MyError`), never
   struct values.
 
-- [ ] Callbacks I accept are typed with my own `/r/V`-declared types, or not
-  invoked at all.
+- [ ] A callback a caller hands me runs read-only for my state; I do not rely
+  on it to write, and I check what it returns.
 
 - [ ] A registry of crossing functions stores `func(cur realm, ...)` values
   and calls them with `cross`, so each writer acts for its own realm.

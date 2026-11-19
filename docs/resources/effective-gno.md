@@ -143,7 +143,7 @@ func init(cur realm) {
 	registry.Register(cross(cur), "myID", myCallback)
 }
 
-func myCallback(a, b string) { /* ... */ }
+func myCallback(cur realm, a, b string) { /* ... */ }
 ```
 
 A function handed to another realm arrives with no maker, so writing your

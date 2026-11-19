@@ -1,12 +1,12 @@
 # Interrealm Specification — v2
 
-> **Start here:** [gno-interrealm-whitepaper.md](./gno-interrealm-whitepaper.md) states the model and its six rules on two pages; this document is the mechanism.
+> **Start here:** [gno-interrealm.md](./gno-interrealm.md) states the six rules; this document is the mechanism.
 
 > **Superseded for writes.** Borrow rules #1–#3 below are replaced for writes
 > by [`pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md): a
 > realm's stored state changes only during a crossing call into that realm.
-> Realm code entered without crossing runs read-only, only a `/p/`-owned
-> receiver borrows, and library code a caller picked runs view-only.
+> Realm code entered without crossing runs read-only, a `/p/`-owned receiver
+> runs as the caller, and library code a caller picked runs view-only.
 
 This is a historical mechanism reference. The six rules in
 [`gno-interrealm.md`](./gno-interrealm.md) and the
