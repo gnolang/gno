@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -215,6 +216,11 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 			return http.StatusBadRequest, components.StatusErrorComponent("invalid type id")
 		}
 	}
+	// &idx= is set for a pointer into the object: decode only its pointee.
+	ptrIndex, err := ValidatePointerIndex(u.WebQuery.Get("idx"))
+	if err != nil {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid pointer index")
+	}
 
 	var raw, typeRaw []byte
 	// One-way fail-fast (mirrors servePackagePage): a fatal StateObject
@@ -250,7 +256,10 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 
 	// DecodeObjectFull keeps positional parity with the legacy path so
 	// sidebar Info fields (Hash, OwnerID, RefCount, ...) still surface.
-	decoded, err := DecodeObjectFull(raw, typeRaw, DefaultPageRenderConfig())
+	decoded, err := DecodeObjectFull(raw, typeRaw, ptrIndex, DefaultPageRenderConfig())
+	if errors.Is(err, ErrInvalidPointerIndex) {
+		return http.StatusBadRequest, components.StatusErrorComponent("invalid pointer index")
+	}
 	if err != nil {
 		h.deps.Logger.Error("unable to decode state object JSON", "error", err, "path", u.EncodeURL(), "oid", oid)
 		return http.StatusInternalServerError, components.StatusErrorComponent("failed to decode state object")
@@ -263,11 +272,17 @@ func (h *Handler) serveObjectPage(ctx context.Context, w http.ResponseWriter, u 
 	EnrichLinks(nodes, u.Path, ViewModePretty)
 
 	crumbs := []StateCrumb{{Label: shortPackageLabel(u.Path), Href: RealmStateHref(u.Path)}}
+	countLabel := fmt.Sprintf("Object %s", TruncOID(oid, 8, 6))
+	if ptrIndex != nil {
+		// The back link goes to the whole object.
+		crumbs = []StateCrumb{{Label: countLabel, Href: stateObjectHref(u.Path, oid, tid, nil, ViewModePretty)}}
+		countLabel += fmt.Sprintf(", index %d", *ptrIndex)
+	}
 
 	data := StateData{
 		PkgPath:      u.Path,
 		Nodes:        nodes,
-		CountLabel:   fmt.Sprintf("Object %s", TruncOID(oid, 8, 6)),
+		CountLabel:   countLabel,
 		Crumbs:       crumbs,
 		Sidebar:      BuildObjectSidebar(u.Path, oid, tid, decoded.Info, nodes),
 		KindCounts:   ComputeKindCounts(nodes),

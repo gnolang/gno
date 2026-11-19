@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -25,7 +26,7 @@ func decodePkgJSON(raw []byte) ([]StateNode, error) {
 }
 
 func decodeObjectJSON(raw []byte) ([]StateNode, error) {
-	root, err := DecodeObject(context.Background(), raw, DefaultPageRenderConfig())
+	root, err := DecodeObject(context.Background(), raw, nil, DefaultPageRenderConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +34,7 @@ func decodeObjectJSON(raw []byte) ([]StateNode, error) {
 }
 
 func decodeObjectJSONWithType(rawObject, rawType []byte) ([]StateNode, error) {
-	decoded, err := DecodeObjectFull(rawObject, rawType, DefaultPageRenderConfig())
+	decoded, err := DecodeObjectFull(rawObject, rawType, nil, DefaultPageRenderConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +129,25 @@ func TestDecodeObjectJSON_Struct(t *testing.T) {
 	assert.Equal(t, "1", nodes[1].Name)
 	assert.Equal(t, "string", nodes[1].Type)
 	assert.Equal(t, `"test"`, nodes[1].Value)
+
+	// Regression test: Removing the check for ptrIndex in DecodeObject or DecodeObjectFull makes this fail.
+	// A pointer to field 1 of the stored struct decodes only that field,
+	// in both of these functions.
+	root, err := DecodeObject(context.Background(), []byte(fixture), intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	decoded, err := DecodeObjectFull([]byte(fixture), nil, intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	for _, pointee := range [][]StateNode{root.Children, decoded.Nodes} {
+		require.Len(t, pointee, 1)
+		assert.Equal(t, "value", pointee[0].Name)
+		assert.Equal(t, "string", pointee[0].Type)
+		assert.Equal(t, `"test"`, pointee[0].Value)
+	}
+	// An index which selects no field is an error, not another value.
+	_, err = DecodeObject(context.Background(), []byte(fixture), intPtr(2), DefaultPageRenderConfig())
+	assert.Error(t, err)
+	_, err = DecodeObjectFull([]byte(fixture), nil, intPtr(2), DefaultPageRenderConfig())
+	assert.Error(t, err)
 }
 
 // TestExportRefValueCycle ensures ExportRefValue produces a non-expandable
@@ -322,7 +342,8 @@ func TestDecodeInlineStruct(t *testing.T) {
 }
 
 // TestDecodePointerRefValue mirrors TS testDecodePointerRefValue: a pointer
-// whose Base is a RefValue is expandable and exposes the target ObjectID.
+// whose Base is a RefValue is expandable and exposes the target ObjectID
+// and the Index of the pointee in it.
 func TestDecodePointerRefValue(t *testing.T) {
 	t.Parallel()
 
@@ -344,6 +365,8 @@ func TestDecodePointerRefValue(t *testing.T) {
 	assert.Equal(t, "pointer", p.Kind)
 	assert.True(t, p.Expandable)
 	assert.Equal(t, "ffffffffffffffffffffffffffffffffffffffff:5", p.ObjectID)
+	require.NotNil(t, p.PointerIndex, "Index 0 is kept: it can be field 0 of a stored struct")
+	assert.Equal(t, 0, *p.PointerIndex)
 }
 
 // TestDecodeSliceRefBase mirrors TS testDecodeSliceRefBase: a slice whose
@@ -835,6 +858,35 @@ func TestDecodeObjectJSONWithType_LabelsStructFields(t *testing.T) {
 	assert.Equal(t, `"alice"`, nodes[0].Value)
 	assert.Equal(t, "Age", nodes[1].Name, "field 1 labelled from StructType")
 	assert.Equal(t, "30", nodes[1].Value)
+
+	// A pointer to a heap item has Index 0: the heap item's one value.
+	pointee, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), intPtr(0), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	assert.Equal(t, nodes, pointee.Nodes)
+
+	// A pointer to field 1 of a struct, where field 1 is a User.
+	const outerJSON = `{
+		"objectid": "ffffffffffffffffffffffffffffffffffffffff:12",
+		"value": {
+			"@type": "/gno.StructValue",
+			"Fields": [
+				{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "AQAAAAAAAAA="},
+				{
+					"T": {"@type": "/gno.RefType", "ID": "gno.land/r/demo/x.User"},
+					"V": {
+						"@type": "/gno.StructValue",
+						"Fields": [
+							{"T": {"@type": "/gno.PrimitiveType", "value": "16"}, "V": {"@type": "/gno.StringValue", "value": "alice"}},
+							{"T": {"@type": "/gno.PrimitiveType", "value": "32"}, "N": "HgAAAAAAAAA="}
+						]
+					}
+				}
+			]
+		}
+	}`
+	pointee, err = DecodeObjectFull([]byte(outerJSON), []byte(typeJSON), intPtr(1), DefaultPageRenderConfig())
+	require.NoError(t, err)
+	assert.Equal(t, nodes, pointee.Nodes)
 }
 
 // TestDecodeObjectJSONWithType_NilTypeFallsBack: a missing/empty type
@@ -975,6 +1027,71 @@ func TestDecodeObjectJSON_Array(t *testing.T) {
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "10", nodes[0].Value)
 	assert.Equal(t, "20", nodes[1].Value)
+}
+
+func TestPointedTo(t *testing.T) {
+	t.Parallel()
+
+	intTV := func(n int64) gno.TypedValue {
+		tv := gno.TypedValue{T: gno.IntType}
+		tv.SetInt(n)
+		return tv
+	}
+	list := []gno.TypedValue{intTV(10), intTV(20)}
+	e := gno.TypedValue{T: gno.Uint8Type}
+	e.SetUint8('e')
+	hiv := &gno.HeapItemValue{Value: intTV(7)}
+
+	t.Run("ok", func(t *testing.T) {
+		t.Parallel()
+		cases := []struct {
+			name     string
+			v        gno.Value
+			ptrIndex *int
+			want     gno.Value
+		}{
+			{"nil index", &gno.StructValue{Fields: list}, nil, &gno.StructValue{Fields: list}},
+			{"struct field", &gno.StructValue{Fields: list}, intPtr(1), &gno.HeapItemValue{Value: intTV(20)}},
+			{"array element", &gno.ArrayValue{List: list}, intPtr(1), &gno.HeapItemValue{Value: intTV(20)}},
+			{"byte array element", &gno.ArrayValue{Data: []byte("hello")}, intPtr(1), &gno.HeapItemValue{Value: e}},
+			{"block value", &gno.Block{Values: list}, intPtr(1), &gno.HeapItemValue{Value: intTV(20)}},
+			{"heap item", hiv, intPtr(0), hiv},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				t.Parallel()
+				v, err := pointedTo(c.v, c.ptrIndex)
+				require.NoError(t, err)
+				assert.Equal(t, c.want, v)
+			})
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+		cases := []struct {
+			name     string
+			v        gno.Value
+			ptrIndex *int
+			indexErr bool // ErrInvalidPointerIndex: the handlers answer 400
+		}{
+			{"negative", &gno.StructValue{Fields: list}, intPtr(-1), true},
+			{"struct out of range", &gno.StructValue{Fields: list}, intPtr(2), true},
+			{"array out of range", &gno.ArrayValue{List: list}, intPtr(2), true},
+			{"byte array out of range", &gno.ArrayValue{Data: []byte("hello")}, intPtr(5), true},
+			{"block out of range", &gno.Block{Values: list}, intPtr(2), true},
+			{"heap item out of range", hiv, intPtr(1), true},
+			{"wrong base", &gno.MapValue{}, intPtr(0), false},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := pointedTo(c.v, c.ptrIndex)
+				require.Error(t, err)
+				assert.Equal(t, c.indexErr, errors.Is(err, ErrInvalidPointerIndex))
+			})
+		}
+	})
 }
 
 // ---- Robustness tests (graceful failure modes) --------------------------
@@ -1459,6 +1576,26 @@ func TestStructTypeIDForwarding(t *testing.T) {
 	assert.Equal(t, "ffffffffffffffffffffffffffffffffffffffff:12", nodes[0].ObjectID)
 	assert.Equal(t, "gno.land/r/demo/x.User", nodes[0].TypeID,
 		"original tid forwarded onto the ref node lacking an intrinsic TypeID")
+}
+
+// TestPointeeOfInterfaceFieldKeepsConcreteType: for &w.F where F is
+// declared as an interface, the tid is the interface but the row shows
+// the concrete type of the value in F.
+func TestPointeeOfInterfaceFieldKeepsConcreteType(t *testing.T) {
+	t.Parallel()
+
+	concrete := gno.TypedValue{T: &gno.DeclaredType{PkgPath: "gno.land/r/x/ifc", Name: "T", Base: gno.IntType}}
+	concrete.SetInt(7)
+	w := &gno.StructValue{Fields: []gno.TypedValue{concrete}}
+	stringer := &gno.DeclaredType{PkgPath: "gno.land/r/x/ifc", Name: "Stringer", Base: &gno.InterfaceType{}}
+
+	v, err := pointedTo(w, intPtr(0))
+	require.NoError(t, err)
+	nodes := decodeValueChildrenTyped(v, stringer, "gno.land/r/x/ifc.Stringer", DefaultPageRenderConfig())
+	require.Len(t, nodes, 1)
+	assert.Equal(t, "ifc.T", nodes[0].Type)
+	assert.Equal(t, KindPrimitive, nodes[0].Kind)
+	assert.Equal(t, "7", nodes[0].Value)
 }
 
 // TestPeekTopLevelKind pins the cheap kind/type classifier used by the
