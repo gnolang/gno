@@ -1,11 +1,15 @@
 package gnoweb_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewStaticAlias(t *testing.T) {
@@ -245,4 +249,79 @@ func TestNewStaticAlias(t *testing.T) {
 			assert.Equal(t, tc.body, target.Value)
 		})
 	}
+}
+
+func TestNewStaticFileAliasReloads(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "home.md")
+	require.NoError(t, os.WriteFile(path, []byte("# One"), 0o644))
+
+	target, err := gnoweb.NewStaticFileAlias(path)
+	require.NoError(t, err)
+	assert.Equal(t, gnoweb.StaticMarkdown, target.Kind)
+	assert.Equal(t, "# One", target.Value)
+
+	// A new file renamed over the old one, as gnoalias.sh does.
+	next := path + ".new"
+	require.NoError(t, os.WriteFile(next, []byte("---\ntitle: Two\n---\n# Two"), 0o644))
+	earlier := time.Now().Add(-time.Minute) // settled: only a change is re-read
+	require.NoError(t, os.Chtimes(next, earlier, earlier))
+	require.NoError(t, os.Rename(next, path))
+	target, err = gnoweb.ResolveAlias(target)
+	require.NoError(t, err)
+	assert.Equal(t, "# Two\n", target.Value)
+	assert.Equal(t, "Two", target.Title)
+
+	// A new file keeping the old modification time is caught by its size.
+	same := path + ".same"
+	require.NoError(t, os.WriteFile(same, []byte("# Three, longer"), 0o644))
+	require.NoError(t, os.Chtimes(same, earlier, earlier))
+	require.NoError(t, os.Rename(same, path))
+	target, err = gnoweb.ResolveAlias(target)
+	require.NoError(t, err)
+	assert.Equal(t, "# Three, longer", target.Value)
+
+	// A file that disappears keeps the last page served, and is reported once.
+	require.NoError(t, os.Remove(path))
+	target, err = gnoweb.ResolveAlias(target)
+	assert.Error(t, err)
+	assert.Equal(t, "# Three, longer", target.Value)
+	_, err = gnoweb.ResolveAlias(target)
+	assert.NoError(t, err)
+
+	_, err = gnoweb.NewStaticFileAlias(path)
+	assert.Error(t, err)
+}
+
+func TestNewStaticFileAliasRereadsUnsettledFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "home.md")
+	require.NoError(t, os.WriteFile(path, []byte("# One"), 0o644))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+
+	target, err := gnoweb.NewStaticFileAlias(path)
+	require.NoError(t, err)
+
+	// Rewritten within the same timestamp tick: same size, same mtime.
+	require.NoError(t, os.WriteFile(path, []byte("# Two"), 0o644))
+	require.NoError(t, os.Chtimes(path, info.ModTime(), info.ModTime()))
+	target, err = gnoweb.ResolveAlias(target)
+	require.NoError(t, err)
+	assert.Equal(t, "# Two", target.Value)
+}
+
+func TestNewStaticFileAliasTrustsFutureModTime(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "home.md")
+	require.NoError(t, os.WriteFile(path, []byte("# One"), 0o644))
+	ahead := time.Now().Add(time.Hour) // clock skew: an hour ahead still counts as settled
+	require.NoError(t, os.Chtimes(path, ahead, ahead))
+
+	target, err := gnoweb.NewStaticFileAlias(path)
+	require.NoError(t, err)
+
+	// Same size and mtime: cached, not re-read on every request.
+	require.NoError(t, os.WriteFile(path, []byte("# Two"), 0o644))
+	require.NoError(t, os.Chtimes(path, ahead, ahead))
+	target, err = gnoweb.ResolveAlias(target)
+	require.NoError(t, err)
+	assert.Equal(t, "# One", target.Value)
 }

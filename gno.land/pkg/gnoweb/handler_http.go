@@ -101,6 +101,16 @@ type AliasTarget struct {
 	// empty for every other alias.
 	Title       string
 	Description string
+
+	file *staticFile // a static page read from disk, re-read when it changes
+}
+
+// resolve returns t, with a static page's file as it is on disk now.
+func (t AliasTarget) resolve() (AliasTarget, error) {
+	if t.file == nil {
+		return t, nil
+	}
+	return t.file.current()
 }
 
 // HTTPHandlerConfig configures an HTTPHandler.
@@ -677,6 +687,10 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
+	aliasTarget, err := aliasTarget.resolve()
+	if err != nil {
+		h.Logger.Warn("static page unreadable, serving the last one read", "error", err)
+	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
