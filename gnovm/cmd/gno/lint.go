@@ -279,6 +279,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				tcmode = gno.TCLatestRelaxed
 			}
 			tcFset := token.NewFileSet()
+			var lintPkg *types.Package
 			var lintFiles []*ast.File
 			var lintInfo *types.Info
 			tcPkg, errs := lintTypeCheck(io, dir, mpkg, gno.TypeCheckOptions{
@@ -287,8 +288,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				Mode:       tcmode,
 				Cache:      cache,
 				Fset:       tcFset,
-				LintInfo: func(files []*ast.File, info *types.Info) {
-					lintFiles, lintInfo = files, info
+				LintInfo: func(pkg *types.Package, files []*ast.File, info *types.Info) {
+					lintPkg, lintFiles, lintInfo = pkg, files, info
 				},
 			})
 			if errs != nil {
@@ -299,8 +300,8 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 
 			// other realms cannot hold this realm's struct values (warning)
 			lintRealmValueAPI(io, tcPkg, tcFset)
-			lintRealmBoxedResult(io, tcPkg, tcFset, lintFiles, lintInfo)
-			lintRealmFuncParams(io, tcPkg, tcFset, lintFiles, lintInfo)
+			lintRealmBoxedResult(io, lintPkg, tcFset, lintFiles, lintInfo)
+			lintRealmFuncParams(io, lintPkg, tcFset, lintFiles, lintInfo)
 
 			// ensure the 'Render' function is correct
 			err = lintRenderSignature(io, tcPkg, tcFset)
@@ -850,11 +851,8 @@ func isFuncType(t types.Type) bool {
 }
 
 // lintCrossingCalls reports calls in a crossing function whose callee is a
-// function value reached through a non-function parameter: directly, through
-// locals, fields, indexes, dereferences, ranges, assertions and call results.
-// Known gaps: a chain through two or more locals is followed only when every
-// assignment is parameter-derived; values reached through another function of
-// the realm or through a closure capture are not followed.
+// function value reached through a non-function parameter. Chains through
+// another realm function or a closure capture are not followed.
 func lintCrossingCalls(io commands.IO, pkg *types.Package, fset *token.FileSet, fd *ast.FuncDecl, info *types.Info) {
 	env := newParamEnv(fd, info)
 	// A local is tainted only if every assignment to it is parameter-derived.

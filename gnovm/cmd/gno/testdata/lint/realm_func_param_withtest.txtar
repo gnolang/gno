@@ -1,0 +1,32 @@
+# gno lint keeps warning about a function reached through a parameter
+# when the package also has in-package and external _test.gno files.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- params.gno --
+package params3
+
+type Obj struct{ F func() }
+
+func Run(cur realm, o *Obj) { o.F() }
+
+-- x_test.gno --
+package params3
+
+func helper() {}
+
+-- ext_test.gno --
+package params3_test
+
+func T() {}
+
+-- gnomod.toml --
+module = "gno.land/r/demo/params3"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+gno.land/r/demo/params3/params.gno:5: crossing function Run calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)

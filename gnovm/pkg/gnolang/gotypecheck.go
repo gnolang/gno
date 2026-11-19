@@ -180,10 +180,10 @@ type TypeCheckOptions struct {
 	// keep checking test files.
 	ProdOnly bool
 
-	// LintInfo, if set, is called with the package's production files and
-	// its go/types Info (with Uses and Selections filled). It is a `gno lint`
+	// LintInfo, if set, is called with the package's production go/types
+	// package, files and Info (uses/selections filled). It is a `gno lint`
 	// hook; the chain never sets it, so the consensus path is unchanged.
-	LintInfo func(files []*ast.File, info *types.Info)
+	LintInfo func(pkg *types.Package, files []*ast.File, info *types.Info)
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -265,9 +265,9 @@ type gnoImporter struct {
 	permCache TypeCheckCache
 	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
-	errors    []error                                   // there may be many for a single import
-	stack     []string                                  // stack of pkgpaths for cyclic import detection
-	lintInfo  func(files []*ast.File, info *types.Info) // optional prod-pass hook
+	errors    []error                                                       // there may be many for a single import
+	stack     []string                                                      // stack of pkgpaths for cyclic import detection
+	lintInfo  func(pkg *types.Package, files []*ast.File, info *types.Info) // optional prod-pass hook
 }
 
 // Unused, but satisfies the Importer interface.
@@ -533,7 +533,7 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		gimp.errors = append(gimp.errors, checkRealmValues(gofset, pgofs, info, pkg, mpkg.Path)...)
 	}
 	if gimp.lintInfo != nil && mpkg.Path == gimp.pkgPath && len(gimp.errors) == numErrs {
-		gimp.lintInfo(pgofs, info)
+		gimp.lintInfo(pkg, pgofs, info)
 	}
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
