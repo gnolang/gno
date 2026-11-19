@@ -55,7 +55,7 @@ func TestEmptyTreeHash(t *testing.T) {
 func TestInMemoryIteratorValues(t *testing.T) {
 	// Iterator on in-memory trees must resolve actual values, not return hashes.
 	tree := newMemTree()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set([]byte{byte(i)}, []byte{byte(i + 100)})
 	}
 	itr, err := tree.Iterator(nil, nil, true)
@@ -336,13 +336,13 @@ func TestMiniMerkle_SetSlotUpdate(t *testing.T) {
 
 func TestMiniMerkle_AllSlotsFilled(t *testing.T) {
 	m := NewMiniMerkle()
-	for i := 0; i < B; i++ {
+	for i := range B {
 		m.SetSlot(i, sha256.Sum256([]byte{byte(i)}))
 	}
 
 	// Build from scratch should agree
 	var m2 MiniMerkle
-	for i := 0; i < B; i++ {
+	for i := range B {
 		m2.tree[B+i] = sha256.Sum256([]byte{byte(i)})
 	}
 	m2.Build()
@@ -365,7 +365,7 @@ func TestMiniMerkle_ClearAfterDirty(t *testing.T) {
 
 func TestMiniMerkle_HalfFilledStructure(t *testing.T) {
 	m := NewMiniMerkle()
-	for i := 0; i < B/2; i++ {
+	for i := range B / 2 {
 		m.SetSlot(i, sha256.Sum256([]byte{byte(i)}))
 	}
 	// Right half subtree root (tree[3]) should be sentinel
@@ -386,7 +386,7 @@ func TestMiniMerkle_SingleOccupiedSlot(t *testing.T) {
 
 	// Walk up manually: slot 0 is always left child at every level
 	cur := h
-	for level := 0; level < miniMerkleDepth; level++ {
+	for range miniMerkleDepth {
 		cur = HashInner(cur, sentinelHash)
 	}
 	if m.Root() != cur {
@@ -420,7 +420,7 @@ func TestMiniMerkleSiblingPath_MiddleSlot(t *testing.T) {
 
 func TestMiniMerkleSiblingPath_PartiallyFilled(t *testing.T) {
 	m := NewMiniMerkle()
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		m.SetSlot(i, sha256.Sum256([]byte{byte(i)}))
 	}
 	// Verify path reconstruction for a slot in the occupied half
@@ -431,7 +431,7 @@ func TestMiniMerkleSiblingPath_PartiallyFilled(t *testing.T) {
 
 func filledMiniMerkle() MiniMerkle {
 	m := NewMiniMerkle()
-	for i := 0; i < B; i++ {
+	for i := range B {
 		m.SetSlot(i, sha256.Sum256([]byte{byte(i)}))
 	}
 	return m
@@ -513,7 +513,7 @@ func TestGetNodeKey_InvalidInputs(t *testing.T) {
 
 func TestSearchLeaf_Basic(t *testing.T) {
 	leaf := &LeafNode{numKeys: 5}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		leaf.keys[i] = []byte{byte(i * 10)} // 0, 10, 20, 30, 40
 	}
 
@@ -578,7 +578,7 @@ func TestSearchLeaf_MultiByteKeys(t *testing.T) {
 
 func TestSearchLeaf_FullNode(t *testing.T) {
 	leaf := &LeafNode{numKeys: B}
-	for i := 0; i < B; i++ {
+	for i := range B {
 		leaf.keys[i] = []byte{byte(i * 2)} // 0, 2, 4, ..., 62
 	}
 
@@ -658,7 +658,7 @@ func TestNodeSerialization_InnerBasic(t *testing.T) {
 	}
 	inner.keys[0] = []byte("key1")
 	inner.keys[1] = []byte("key2")
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		inner.children[i] = (&NodeKey{Version: 1, Nonce: uint32(10 + i)}).GetKey()
 		inner.childHashes[i] = sha256.Sum256([]byte{byte(i)})
 	}
@@ -755,10 +755,10 @@ func TestNodeSerialization_FullInner(t *testing.T) {
 		childSizes: [B]int64{1000},
 		height:     2,
 	}
-	for i := 0; i < B-1; i++ {
+	for i := range B - 1 {
 		inner.keys[i] = []byte{byte(i)}
 	}
-	for i := 0; i < B; i++ {
+	for i := range B {
 		inner.children[i] = (&NodeKey{Version: 1, Nonce: uint32(i)}).GetKey()
 		inner.childHashes[i] = sha256.Sum256([]byte{byte(i)})
 	}
@@ -786,7 +786,7 @@ func TestNodeSerialization_FullLeaf(t *testing.T) {
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: B,
 	}
-	for i := 0; i < B; i++ {
+	for i := range B {
 		leaf.keys[i] = []byte{byte(i)}
 		leaf.valueHashes[i] = sha256.Sum256([]byte{byte(i)})
 		leaf.valueKeys[i] = (&NodeKey{Version: 1, Nonce: uint32(200 + i)}).GetKey()
@@ -919,7 +919,7 @@ func TestInnerNode_RebuildMiniMerkle(t *testing.T) {
 		numKeys:  2,
 		miniTree: NewMiniMerkle(),
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		inner.childHashes[i] = sha256.Sum256([]byte{byte(i)})
 	}
 	inner.RebuildMiniMerkle()
@@ -1073,10 +1073,10 @@ func TestReadNode_TruncatedInner(t *testing.T) {
 		childSizes: [B]int64{50, 50},
 		height:     1,
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		inner.keys[i] = []byte{byte(i)}
 	}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		inner.children[i] = (&NodeKey{Version: 1, Nonce: uint32(i)}).GetKey()
 		inner.childHashes[i] = sha256.Sum256([]byte{byte(i)})
 	}
@@ -1103,7 +1103,7 @@ func TestReadNode_TruncatedLeaf(t *testing.T) {
 		nodeKey: &NodeKey{Version: 1, Nonce: 1},
 		numKeys: 5,
 	}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		leaf.keys[i] = []byte{byte(i * 10)}
 		leaf.valueHashes[i] = sha256.Sum256([]byte{byte(i)})
 		leaf.valueKeys[i] = (&NodeKey{Version: 1, Nonce: uint32(100 + i)}).GetKey()
@@ -1143,7 +1143,7 @@ func TestMiniMerkle_SetSlotSequenceMatchesBuild(t *testing.T) {
 
 	// Build from scratch
 	var m2 MiniMerkle
-	for i := 0; i < B; i++ {
+	for i := range B {
 		m2.tree[B+i] = hashes[i]
 	}
 	m2.Build()
@@ -1174,7 +1174,7 @@ func TestMiniMerkle_SetSlotToSentinel(t *testing.T) {
 
 func TestSearchInner_FullNode(t *testing.T) {
 	inner := &InnerNode{numKeys: B - 1}
-	for i := 0; i < B-1; i++ {
+	for i := range B - 1 {
 		inner.keys[i] = []byte{byte(i * 2)} // 0, 2, 4, ..., 60
 	}
 
@@ -1223,7 +1223,7 @@ func TestInnerNode_RebuildMiniMerkle_SingleChild(t *testing.T) {
 	// Manually compute: slot 0 = childHash, slots 1..31 = sentinel
 	// Root should be childHash walked up through 5 levels of HashInner(x, sentinel)
 	cur := inner.childHashes[0]
-	for level := 0; level < miniMerkleDepth; level++ {
+	for range miniMerkleDepth {
 		cur = HashInner(cur, sentinelHash)
 	}
 	if inner.Hash() != cur {
@@ -1238,14 +1238,14 @@ func TestLeafNode_RebuildMiniMerkle_AllSlots(t *testing.T) {
 		numKeys:  B,
 		miniTree: NewMiniMerkle(),
 	}
-	for i := 0; i < B; i++ {
+	for i := range B {
 		leaf.keys[i] = []byte{byte(i)}
 		leaf.valueHashes[i] = sha256.Sum256([]byte{byte(i)})
 	}
 	leaf.RebuildMiniMerkle()
 
 	// Verify every slot
-	for i := 0; i < B; i++ {
+	for i := range B {
 		expected := HashLeafSlotFromValueHash(leaf.keys[i], leaf.valueHashes[i])
 		if leaf.miniTree.GetSlot(i) != expected {
 			t.Fatalf("leaf slot %d mismatch", i)

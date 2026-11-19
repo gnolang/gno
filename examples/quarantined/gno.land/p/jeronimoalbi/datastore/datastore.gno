@@ -43,7 +43,7 @@ func (ds Datastore) HasStorage(name string) bool {
 // GetStorage returns a storage that has been created with a specific name.
 // It returns nil when a storage with the specified name is not found.
 func (ds Datastore) GetStorage(name string) *Storage {
-	if v, found := ds.storages.Get(name); found {
+	if v := ds.storages.Get(name); v != nil {
 		return v.(*Storage)
 	}
 	return nil

@@ -25,7 +25,7 @@ func TestMsgs_Wrap_Unwrap_RoundTrip(t *testing.T) {
 
 	cases := []struct {
 		name string
-		in   interface{}
+		in   any
 	}{
 		{"PubKeyRequest", &upstreampb.PubKeyRequest{ChainId: "test"}},
 		{"SignVoteRequest", &upstreampb.SignVoteRequest{Vote: &upstreampb.Vote{Height: 42}, ChainId: "test"}},
@@ -34,7 +34,6 @@ func TestMsgs_Wrap_Unwrap_RoundTrip(t *testing.T) {
 		{"PingResponse", &upstreampb.PingResponse{}},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			env := upstream.WrapMsg(c.in)

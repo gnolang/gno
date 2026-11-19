@@ -37,7 +37,7 @@ func TestSlicePtrInt_CodegenUsesPackedEncoding(t *testing.T) {
 
 	ctx := NewP3Context2(cdc)
 	src, err := ctx.GenerateProtobuf3ForTypes("finding4_probe",
-		reflect.TypeOf((*slicePtrIntNoNilElems)(nil)).Elem(),
+		reflect.TypeFor[slicePtrIntNoNilElems](),
 	)
 	if err != nil {
 		t.Fatalf("GenerateProtobuf3ForTypes: %v", err)

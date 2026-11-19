@@ -576,7 +576,7 @@ func TestGenesisStateRef_StreamJSON_DeterministicSmallFieldOrder(t *testing.T) {
 
 	var first bytes.Buffer
 	require.NoError(t, ref.StreamJSON(context.Background(), &first))
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		var again bytes.Buffer
 		require.NoError(t, ref.StreamJSON(context.Background(), &again))
 		assert.Equal(t, first.Bytes(), again.Bytes(),
@@ -641,7 +641,7 @@ func TestGenesisStateRef_StreamJSON_ConcurrentSafe(t *testing.T) {
 	results := make([][]byte, concurrency)
 	errs := make([]error, concurrency)
 
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(idx int) {
 			defer wg.Done()
 			var buf bytes.Buffer

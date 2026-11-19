@@ -1,0 +1,6 @@
+-- input.md --
+> <gno-button href="/r/test" label="Quoted" />
+-- output.html --
+<blockquote>
+<p><a href="/r/test" class="gno-button">Quoted</a></p>
+</blockquote>

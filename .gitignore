@@ -10,6 +10,8 @@ genesis.json
 
 # Build leftovers
 build
+misc/gnopreview/gnopreview
+_preview/
 dist
 
 # Legacy .gitignore
@@ -29,7 +31,6 @@ testdir
 # is checked in; regenerated rarely (when the upstream Tendermint v0.34
 # protocol shape would matter).
 !tm2/pkg/bft/privval/upstream/upstreampb/upstream.pb.go
-pbbindings.go
 *~
 .#*
 *#
@@ -51,3 +52,8 @@ wal/
 # Gnoweb frontend
 node_modules/
 .scratch/
+
+# Node runtime artifacts the integration test harness writes at the repo
+# root (e.g. config/addrbook.json). Root-anchored so nested config/
+# package directories are never hidden.
+/config/

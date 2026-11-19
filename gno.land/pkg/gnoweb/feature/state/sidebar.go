@@ -78,7 +78,7 @@ func BuildObjectSidebar(pkgPath, oid, typeID string, info StateObjectInfoView, n
 	if info.OwnerID != "" {
 		meta = append(meta, StateMetaEntry{
 			Section: "Lineage", Label: "Owner", Value: ShortenOID(info.OwnerID, oid),
-			Href: stateObjectHref(pkgPath, info.OwnerID, "", ""),
+			Href: stateObjectHref(pkgPath, info.OwnerID, "", nil, ""),
 			Mono: true,
 		})
 	}
@@ -162,12 +162,9 @@ func BuildPackageSidebarFull(pkgPath string, allNames, anchors, allKinds, allTyp
 	}
 	kindLabel := PkgKindLabel(pkgPath)
 
-	shown := total
-	if shown > maxSidebarTOC {
-		shown = maxSidebarTOC
-	}
+	shown := min(total, maxSidebarTOC)
 	entries := make([]StateTOCEntry, 0, shown)
-	for i := 0; i < shown; i++ {
+	for i := range shown {
 		anchor := ""
 		if i < len(anchors) {
 			anchor = anchors[i]

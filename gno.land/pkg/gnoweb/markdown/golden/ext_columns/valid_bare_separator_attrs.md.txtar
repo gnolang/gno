@@ -1,0 +1,18 @@
+-- input.md --
+<gno-columns>
+col A
+<gno-columns-sep class="x" onclick="alert(1)">
+col B
+</gno-columns>
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>col A</p>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>col B</p>
+</div>
+</div> <!-- </gno-columns> -->

@@ -1,4 +1,4 @@
-package gnopages
+package pages
 
 func init() {
 	var (
@@ -13,14 +13,6 @@ understanding of the Gno language. You can share your code, run unit tests, depl
 functions in your code using the repo.
 
 Visit the playground at [play.gno.land](https://play.gno.land)!
-
-### [Gno Studio Connect](https://gno.studio/connect)
-
-Gno Studio Connect provides seamless access to realms, making it simple to explore, interact, and engage
-with gno.land’s smart contracts through function calls. Connect focuses on function calls, enabling users to interact
-with any realm’s exposed function(s) on gno.land.
-
-See your realm interactions in [Gno Studio Connect](https://gno.studio/connect)
 
 ### [Gnoscan](https://gnoscan.io)
 

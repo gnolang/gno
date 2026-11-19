@@ -25,6 +25,7 @@ import (
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var config *cfg.Config
@@ -55,6 +56,12 @@ type BlockchainReactorPair struct {
 }
 
 func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64) BlockchainReactorPair {
+	return newBlockchainReactorWithTxs(logger, genDoc, privVals, maxBlockHeight, makeTxs)
+}
+
+// newBlockchainReactorWithTxs is newBlockchainReactor with the txs of each
+// block supplied by makeTxs.
+func newBlockchainReactorWithTxs(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64, makeTxs func(height int64) []types.Tx) BlockchainReactorPair {
 	if len(privVals) != 1 {
 		panic("only support one validator")
 	}
@@ -99,7 +106,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 			lastCommit = types.NewCommit(lastBlockMeta.BlockID, []*types.CommitSig{voteCommitSig})
 		}
 
-		thisBlock := makeBlock(blockHeight, state, lastCommit)
+		thisBlock, _ := state.MakeBlock(blockHeight, makeTxs(blockHeight), lastCommit, state.Validators.GetProposer().Address)
 
 		thisParts := thisBlock.MakePartSet(types.BlockPartSizeBytes)
 		blockID := types.BlockID{Hash: thisBlock.Hash(), PartsHeader: thisParts.Header()}
@@ -174,9 +181,8 @@ func TestNoBlockResponse(t *testing.T) {
 		{100, false},
 	}
 
-	for !reactorPairs[1].reactor.pool.IsCaughtUp() {
-		time.Sleep(10 * time.Millisecond)
-	}
+	require.Eventually(t, reactorPairs[1].reactor.pool.IsCaughtUp,
+		30*time.Second, 10*time.Millisecond, "the syncing node did not catch up")
 
 	assert.Equal(t, maxBlockHeight, reactorPairs[0].reactor.store.Height())
 
@@ -188,6 +194,68 @@ func TestNoBlockResponse(t *testing.T) {
 			assert.True(t, block == nil)
 		}
 	}
+}
+
+// TestFastSyncBlocksLargerThanSendBudgetShare checks that a node keeps
+// answering a syncing peer whose requests in flight need more than the
+// connection's send budget. Dropping the responses that do not fit would
+// stall the sync.
+func TestFastSyncBlocksLargerThanSendBudgetShare(t *testing.T) {
+	t.Parallel()
+
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_send_budget_test")
+	defer os.RemoveAll(config.RootDir)
+	genDoc, privVals := randGenesisDoc(1, false, 30)
+
+	const (
+		maxBlockHeight = int64(25)
+		txSize         = 750_000 // two per block, under the 2MB MaxDataBytes default
+	)
+	bigTxs := func(height int64) (txs []types.Tx) {
+		for i := range 2 {
+			tx := make([]byte, txSize)
+			tx[0], tx[1], tx[2] = byte(height), byte(height>>8), byte(i)
+			txs = append(txs, tx)
+		}
+		return txs
+	}
+
+	var (
+		reactorPairs = make([]BlockchainReactorPair, 2)
+		options      = make(map[int][]p2p.SwitchOption)
+	)
+	for i := range reactorPairs {
+		height := int64(0)
+		if i == 0 {
+			height = maxBlockHeight
+		}
+		reactorPairs[i] = newBlockchainReactorWithTxs(log.NewNoopLogger(), genDoc, privVals, height, bigTxs)
+		options[i] = []p2p.SwitchOption{
+			p2p.WithReactor("BLOCKCHAIN", reactorPairs[i].reactor),
+		}
+	}
+	defer func() {
+		for _, r := range reactorPairs {
+			r.reactor.Stop()
+			r.app.Stop()
+		}
+	}()
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFn()
+	p2pTesting.MakeConnectedPeers(t, ctx, p2pTesting.TestingConfig{
+		Count:         2,
+		P2PCfg:        config.P2P,
+		SwitchOptions: options,
+		Channels:      []byte{BlockchainChannel},
+	})
+
+	// The pool applies a block once it holds the next one, so the last
+	// block stays unapplied.
+	syncer := reactorPairs[1].reactor
+	assert.Eventually(t, func() bool {
+		return syncer.store.Height() >= maxBlockHeight-1
+	}, 30*time.Second, 50*time.Millisecond, "sync stalled")
 }
 
 // NOTE: This is too hard to test without
@@ -249,9 +317,8 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 		}
 	}()
 
-	for !reactorPairs[3].reactor.pool.IsCaughtUp() {
-		time.Sleep(1 * time.Second)
-	}
+	require.Eventually(t, reactorPairs[3].reactor.pool.IsCaughtUp,
+		30*time.Second, time.Second, "node 3 did not catch up")
 
 	// at this time, reactors[0-3] is the newest
 	assert.Equal(t, 3, len(reactorPairs[1].reactor.Switch.Peers().List()))
@@ -287,9 +354,9 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 
 	p2pTesting.MakeConnectedPeers(t, ctx, testingCfg)
 
-	for !lastReactorPair.reactor.pool.IsCaughtUp() && len(lastReactorPair.reactor.Switch.Peers().List()) != 0 {
-		time.Sleep(1 * time.Second)
-	}
+	require.Eventually(t, func() bool {
+		return lastReactorPair.reactor.pool.IsCaughtUp() || len(lastReactorPair.reactor.Switch.Peers().List()) == 0
+	}, 30*time.Second, time.Second, "the new node neither caught up nor lost its peers")
 
 	assert.True(t, len(lastReactorPair.reactor.Switch.Peers().List()) < len(reactorPairs)-1)
 }
@@ -308,7 +375,6 @@ func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -332,7 +398,6 @@ func TestBcNoBlockResponseMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -356,7 +421,6 @@ func TestBcStatusRequestMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -380,7 +444,6 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 

@@ -17,6 +17,14 @@ func WithName(name string) Option {
 	}
 }
 
+// WithPurpose assigns a purpose to the DAO. Purpose and description
+// together form the DAO's Charter (docs/CONSTITUTION.md :1485).
+func WithPurpose(purpose string) Option {
+	return func(dao *CommonDAO) {
+		dao.purpose = purpose
+	}
+}
+
 // WithDescription assigns a description to the DAO.
 func WithDescription(description string) Option {
 	return func(dao *CommonDAO) {
@@ -24,82 +32,43 @@ func WithDescription(description string) Option {
 	}
 }
 
-// WithSlug assigns a URL slug to the DAO.
-func WithSlug(slug string) Option {
+// WithAddress assigns a treasury address to the DAO. Hosting realms
+// derive it, typically as a realm sub-identity address
+// (chain.DerivePkgSubAddr) so each DAO owns a distinct account.
+func WithAddress(addr address) Option {
 	return func(dao *CommonDAO) {
-		dao.slug = slug
+		dao.addr = addr
 	}
 }
 
-// WithParent assigns a parent DAO.
+// WithParent assigns a parent DAO and registers the DAO as one of the
+// parent's children, keeping both sides of the tree wired in one step.
 func WithParent(p *CommonDAO) Option {
 	return func(dao *CommonDAO) {
 		dao.parent = p
-	}
-}
-
-// WithChildren assigns one or more direct child SubDAOs to the DAO.
-func WithChildren(children ...*CommonDAO) Option {
-	return func(dao *CommonDAO) {
-		for _, subDAO := range children {
-			dao.children.Append(subDAO)
+		if p != nil {
+			p.children.Append(dao)
 		}
 	}
 }
 
-// WithMember assigns a member to the DAO.
-func WithMember(addr address) Option {
+// WithCouncilMember assigns a council member to the DAO.
+func WithCouncilMember(addr address) Option {
 	return func(dao *CommonDAO) {
-		dao.members.Add(addr)
+		dao.council.Add(addr)
 	}
 }
 
-// WithMemberStorage assigns a custom member storage to the DAO.
-// An empty member storage is used by default if the specified storage is nil.
-func WithMemberStorage(s MemberStorage) Option {
-	return func(dao *CommonDAO) {
-		if s == nil {
-			s = NewMemberStorage()
-		}
-		dao.members = s
-	}
-}
-
-// WithActiveProposalStorage assigns a custom storage for active proposals.
-// A default empty proposal storage is used when the custopm storage is nil.
-// Custom storage implementations can be used to store proposals in a different location.
-func WithActiveProposalStorage(s ProposalStorage) Option {
-	return func(dao *CommonDAO) {
-		if s == nil {
-			s = NewProposalStorage()
-		}
-		dao.activeProposals = s
-	}
-}
-
-// WithFinishedProposalStorage assigns a custom storage for finished proposals.
-// A default empty proposal storage is used when the custopm storage is nil.
-// Custom storage implementations can be used to store proposals in a different location.
-func WithFinishedProposalStorage(s ProposalStorage) Option {
-	return func(dao *CommonDAO) {
-		if s == nil {
-			s = NewProposalStorage()
-		}
-		dao.finishedProposals = s
-	}
-}
-
-// DisableVotingDeadlineCheck disables voting deadline check when voting or executing proposals.
-// By default CommonDAO checks that the proposal voting deadline has not been met when a new vote
-// is submitted, before registering the vote, and on proposal execution it also checks that voting
-// deadline has been met before executing a proposal.
+// WithProposalKind registers a proposal kind on the DAO.
+// It panics when the kind is nil, has an empty name, or its name is
+// already registered.
 //
-// Disabling these checks can be useful in different use cases, moving the responsibility to check
-// the deadline to the commondao package caller. One example where this could be useful would be
-// in case where 100% or a required number of members of a DAO vote on a proposal and reach consensus
-// before the deadline is met, otherwise proposal would have to wait until deadline to be executed.
-func DisableVotingDeadlineCheck() Option {
+// The package ships one concrete kind, ExecutionKind; seed it with
+// WithProposalKind(ExecutionKind{}).
+func WithProposalKind(k ProposalKind) Option {
 	return func(dao *CommonDAO) {
-		dao.disableVotingDeadlineCheck = true
+		if err := dao.RegisterKind(k); err != nil {
+			panic(err)
+		}
 	}
 }

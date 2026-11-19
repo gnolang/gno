@@ -14,7 +14,7 @@ import (
 func getTestTree(size int) *MutableTree {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
-	for i := 0; i < size; i++ {
+	for i := range size {
 		tree.Set(i2b(i), []byte{})
 	}
 	return tree

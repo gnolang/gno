@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 
@@ -55,8 +55,8 @@ func CreatePost(cur realm, text string) error {
 // The post can only be updated up to 10 minutes after posting
 func UpdatePost(cur realm, id string, text string) error {
 	// Try to get the post
-	raw, ok := posts.Get(id)
-	if !ok {
+	raw := posts.Get(id)
+	if raw == nil {
 		return ErrPostNotFound
 	}
 
@@ -81,8 +81,8 @@ func UpdatePost(cur realm, id string, text string) error {
 // Only the creator of a post can delete the post
 func DeletePost(cur realm, id string) error {
 	// Try to get the post
-	raw, ok := posts.Get(id)
-	if !ok {
+	raw := posts.Get(id)
+	if raw == nil {
 		return ErrPostNotFound
 	}
 

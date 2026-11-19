@@ -55,7 +55,7 @@ func TestDecodeObjectDepthBudget(t *testing.T) {
 
 	raw := []byte(nestedStructValueFixture(30))
 
-	shallow, err := DecodeObject(context.Background(), raw, RenderConfig{
+	shallow, err := DecodeObject(context.Background(), raw, nil, RenderConfig{
 		MaxChildrenPerNode: maxChildrenPerNode,
 		MaxDecodeDepth:     3,
 	})
@@ -66,7 +66,7 @@ func TestDecodeObjectDepthBudget(t *testing.T) {
 	assert.LessOrEqual(t, got, 3, "sentinel must appear within MaxDecodeDepth levels")
 
 	// Full-page cfg decodes the whole 30-deep tree — no sentinel.
-	full, err := DecodeObject(context.Background(), raw, DefaultPageRenderConfig())
+	full, err := DecodeObject(context.Background(), raw, nil, DefaultPageRenderConfig())
 	require.NoError(t, err)
 	require.Len(t, full.Children, 1)
 	assert.Equal(t, -1, depthOfFirstChild(full.Children[0], 30),
@@ -105,11 +105,11 @@ func TestDecodeObjectFullTypedHonorsDepth(t *testing.T) {
 	const depth = 30
 	var v strings.Builder
 	v.WriteString(`{"@type":"/gno.StructValue","Fields":[`)
-	for i := 0; i < depth-1; i++ {
+	for range depth - 1 {
 		v.WriteString(`{"T":{"@type":"/gno.StructType","Fields":[]},"V":{"@type":"/gno.StructValue","Fields":[`)
 	}
 	v.WriteString(`{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}`)
-	for i := 0; i < depth-1; i++ {
+	for range depth - 1 {
 		v.WriteString(`]}}`)
 	}
 	v.WriteString(`]}`)
@@ -126,7 +126,7 @@ func TestDecodeObjectFullTypedHonorsDepth(t *testing.T) {
 	}`
 
 	// Shallow per-fragment cfg: the typed decode must truncate within the cap.
-	decoded, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), DefaultFragmentRenderConfig())
+	decoded, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), nil, DefaultFragmentRenderConfig())
 	require.NoError(t, err)
 	require.NotEmpty(t, decoded.Nodes)
 	got := depthOfFirstChild(decoded.Nodes[0], depth)
@@ -137,7 +137,7 @@ func TestDecodeObjectFullTypedHonorsDepth(t *testing.T) {
 
 	// Full-page cfg decodes the whole tree — confirms the budget, not a
 	// hard-coded shallow cap, is what truncates.
-	full, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), DefaultPageRenderConfig())
+	full, err := DecodeObjectFull([]byte(objectJSON), []byte(typeJSON), nil, DefaultPageRenderConfig())
 	require.NoError(t, err)
 	require.NotEmpty(t, full.Nodes)
 	assert.Equal(t, -1, depthOfFirstChild(full.Nodes[0], depth),

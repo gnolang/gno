@@ -1,0 +1,186 @@
+# A maketx run moves coins out of the signer's account only up to -max-send,
+# whoever holds the banker: the script itself or a realm it handed its cur to.
+
+loadpkg gno.land/r/test/greeter $WORK/greeter
+loadpkg gno.land/r/test/keeper $WORK/keeper
+adduser other
+
+gnoland start
+
+# No -max-send: a run that sends nothing still succeeds.
+gnokey maketx run -gas-fee 200001ugnot -gas-wanted 2_000_000 -chainid=tendermint_test test1 $WORK/noop/main.gno
+stdout 'OK!'
+
+# No -max-send: a send to the signer's own address moves nothing out.
+gnokey maketx run -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/payself/main.gno
+stdout 'OK!'
+
+# No -max-send: the script's own send of 5ugnot is refused.
+! gnokey maketx run -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/pay5/main.gno
+stderr 'run sends more coins than its max send allows'
+
+# -max-send 4ugnot: a send of 5ugnot is refused.
+! gnokey maketx run -max-send 4ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/pay5/main.gno
+stderr 'run sends more coins than its max send allows'
+
+# -max-send 5ugnot: the same send goes through.
+gnokey maketx run -max-send 5ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/pay5/main.gno
+stdout 'OK!'
+gnokey query bank/balances/g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054
+stdout '"5ugnot"'
+
+# Sends add up over the run: the second of two 3ugnot sends breaks a 5ugnot cap.
+! gnokey maketx run -max-send 5ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/pay3twice/main.gno
+stderr 'run sends more coins than its max send allows'
+
+# The cap holds per denom: a 5ugnot cap lets no other denom out.
+! gnokey maketx run -max-send 5ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/paydenom/main.gno
+stderr 'run sends more coins than its max send allows'
+
+# A realm handed the script's cur cannot send past the cap either.
+! gnokey maketx run -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/greet/main.gno
+stderr 'run sends more coins than its max send allows'
+gnokey query bank/balances/g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054
+stdout '"5ugnot"'
+
+# A realm may keep a banker over the signer's account, built from the script's
+# cur or handed over by the script, but it spends nothing outside the signer's
+# own later run.
+gnokey maketx run -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/keepvia/main.gno
+stdout 'OK!'
+! gnokey maketx call -pkgpath gno.land/r/test/keeper -func Spend -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test other
+stderr 'a banker can spend a user.s account only inside that user.s run'
+gnokey maketx run -max-send 1ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1 $WORK/keepown/main.gno
+stdout 'OK!'
+! gnokey maketx call -pkgpath gno.land/r/test/keeper -func Spend -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test other
+stderr 'a banker can spend a user.s account only inside that user.s run'
+gnokey query bank/balances/g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054
+stdout '"5ugnot"'
+
+-- greeter/greeter.gno --
+package greeter
+
+import "chain/banker"
+
+func Hello(_ int, rlm realm) string {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, rlm)
+	b.SendCoins(rlm.Address(), "g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054", b.GetCoins(rlm.Address()))
+	return "hello"
+}
+
+-- noop/main.gno --
+package main
+
+func main() {}
+
+-- pay5/main.gno --
+package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), "g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054", chain.Coins{{"ugnot", 5}})
+}
+
+-- payself/main.gno --
+package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), cur.Address(), chain.Coins{{"ugnot", 5}})
+}
+
+-- pay3twice/main.gno --
+package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), "g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054", chain.Coins{{"ugnot", 3}})
+	b.SendCoins(cur.Address(), "g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054", chain.Coins{{"ugnot", 3}})
+}
+
+-- paydenom/main.gno --
+package main
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func main(cur realm) {
+	denom := chain.CoinDenom(cur.PkgPath(), "tok")
+	banker.NewBanker(banker.BankerTypeRealmIssue, cur).IssueCoin(cur.Address(), denom, 3)
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), "g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054", chain.Coins{{denom, 1}})
+}
+
+-- greet/main.gno --
+package main
+
+import "gno.land/r/test/greeter"
+
+func main(cur realm) {
+	println(greeter.Hello(0, cur))
+}
+
+-- keeper/keeper.gno --
+package keeper
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+var (
+	saved  banker.Banker
+	owner address
+)
+
+func Hold(_ int, rlm realm) string {
+	Keep(cross(rlm), banker.NewBanker(banker.BankerTypeRealmSend, rlm), rlm.Address())
+	return "hello"
+}
+
+func Keep(cur realm, b banker.Banker, v address) {
+	saved, owner = b, v
+}
+
+func Spend(cur realm) {
+	saved.SendCoins(owner, "g1k4a0flmuxppxhj4k80d0s3lj8zw3tqcxpju054", chain.Coins{{"ugnot", 1000}})
+}
+
+-- keepvia/main.gno --
+package main
+
+import "gno.land/r/test/keeper"
+
+func main(cur realm) {
+	println(keeper.Hold(0, cur))
+}
+
+-- keepown/main.gno --
+package main
+
+import (
+	"chain/banker"
+
+	"gno.land/r/test/keeper"
+)
+
+func main(cur realm) {
+	keeper.Keep(cross(cur), banker.NewBanker(banker.BankerTypeRealmSend, cur), cur.Address())
+}

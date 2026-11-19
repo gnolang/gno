@@ -29,8 +29,8 @@ func Render(path string) string {
 	if len(parts) == 1 {
 		// /r/demo/groups:Group_NAME
 		name := parts[0]
-		groupI, exists := gGroupsByName.Get(name)
-		if !exists {
+		groupI := gGroupsByName.Get(name)
+		if groupI == nil {
 			return "Group does not exist: " + name
 		}
 		return groupI.(*Group).RenderGroup()

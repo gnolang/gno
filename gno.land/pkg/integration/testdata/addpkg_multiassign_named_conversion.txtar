@@ -1,0 +1,198 @@
+# `m, ok = fetch()` where fetch returns a named type and m is unnamed (or the
+# reverse) converts each result to its Lhs type. The conversion has to hold in
+# every position a statement can sit in, through deploy, call and a node
+# restart, which re-preprocesses the stored package from source.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/conv -pkgpath gno.land/r/demo/conv -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.InBody()'
+stdout 'data: \(1 int\)'
+
+# ok starts true, so the loop body never runs.
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.ForInit()'
+stdout 'data: \(0 int\)'
+
+# The post statement also runs after a continue.
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.ForPost()'
+stdout 'data: \(1 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.IfInit()'
+stdout 'data: \(1 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.SwitchInit()'
+stdout 'data: \(1 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Method()'
+stdout 'data: \(1 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Skip(true)'
+stdout 'data: \(0 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Skip(false)'
+stdout 'data: \(1 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Label()'
+stdout 'data: \(2 int\)'
+
+# A call stores a converted result in realm state.
+gnokey maketx call -pkgpath gno.land/r/demo/conv -func Store -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Stored()'
+stdout 'data: \("map\[string\]int 1" string\)'
+
+gnoland restart
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Stored()'
+stdout 'data: \("map\[string\]int 1" string\)'
+
+# Converting again after the restart: Store overwrites the state, so a
+# conversion lost when boot re-preprocessed the package would show here.
+gnokey maketx call -pkgpath gno.land/r/demo/conv -func Store -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Stored()'
+stdout 'data: \("map\[string\]int 1" string\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.ForInit()'
+stdout 'data: \(0 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.ForPost()'
+stdout 'data: \(1 int\)'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/conv.Method()'
+stdout 'data: \(1 int\)'
+
+-- conv/gnomod.toml --
+module = "gno.land/r/demo/conv"
+gno = "0.9"
+
+-- conv/conv.gno --
+package conv
+
+import "strconv"
+
+type NamedMap map[string]int
+
+func fetch() (NamedMap, bool) { return NamedMap{"a": 1}, true }
+
+func InBody() int {
+	var m map[string]int
+	var ok bool
+	m, ok = fetch()
+	if !ok {
+		return -1
+	}
+	return m["a"]
+}
+
+func ForInit() int {
+	var m map[string]int
+	var ok bool
+	trips := 0
+	for m, ok = fetch(); !ok; {
+		trips++
+	}
+	_ = m
+	return trips
+}
+
+func ForPost() int {
+	var m map[string]int
+	var ok bool
+	for n := 0; n < 2; m, ok = fetch() {
+		n++
+		if n == 1 {
+			continue
+		}
+	}
+	if !ok {
+		return -1
+	}
+	return m["a"]
+}
+
+func IfInit() int {
+	var m map[string]int
+	var ok bool
+	if m, ok = fetch(); ok {
+		return m["a"]
+	}
+	return -1
+}
+
+func SwitchInit() int {
+	var m map[string]int
+	var ok bool
+	switch m, ok = fetch(); ok {
+	case true:
+		return m["a"]
+	}
+	return -1
+}
+
+type holder struct{}
+
+func (*holder) read() int {
+	var m map[string]int
+	var ok bool
+	m, ok = fetch()
+	if !ok {
+		return -1
+	}
+	return m["a"]
+}
+
+func Method() int { return (&holder{}).read() }
+
+func Skip(skip bool) int {
+	var m map[string]int
+	var ok bool
+	if skip {
+		goto done
+	}
+	m, ok = fetch()
+	if !ok {
+		return -1
+	}
+done:
+	return len(m)
+}
+
+func Label() int {
+	var m map[string]int
+	var ok bool
+	i := 0
+again:
+	m, ok = fetch()
+	i++
+	if i < 2 {
+		goto again
+	}
+	if !ok {
+		return -1
+	}
+	return i * m["a"]
+}
+
+var stored map[string]int
+
+func Store(cur realm) {
+	var ok bool
+	for stored, ok = fetch(); !ok; {
+	}
+}
+
+func Stored() string {
+	var x any = stored
+	switch x.(type) {
+	case NamedMap:
+		return "NamedMap " + strconv.Itoa(stored["a"])
+	case map[string]int:
+		return "map[string]int " + strconv.Itoa(stored["a"])
+	}
+	return "other"
+}

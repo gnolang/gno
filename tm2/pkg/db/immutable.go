@@ -55,13 +55,21 @@ func (idb *ImmutableDB) ReverseIterator(start, end []byte) (Iterator, error) {
 }
 
 // Implements DB.
-func (idb *ImmutableDB) NewBatch() Batch {
-	return nil // XXX
+func (idb *ImmutableDB) NewSnapshot() (Snapshot, error) {
+	return idb.db.NewSnapshot()
 }
 
-// Implements DB.
+// Implements DB. Returns a read-only no-op batch (Set/Delete are discarded,
+// Write/WriteSync panic) rather than nil: consumers construct batches eagerly
+// (bptree's nodeDB, IAVL's BatchWithFlusher) and Close them on read-only
+// paths, which must not nil-deref.
+func (idb *ImmutableDB) NewBatch() Batch {
+	return &readonlyNoopBatch{}
+}
+
+// Implements DB. See NewBatch.
 func (idb *ImmutableDB) NewBatchWithSize(_ int) Batch {
-	return nil // XXX
+	return &readonlyNoopBatch{}
 }
 
 // Implements DB.

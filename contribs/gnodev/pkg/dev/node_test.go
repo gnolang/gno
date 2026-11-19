@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -69,8 +70,7 @@ func resolvePaths(l *packages.Loader, paths []string) []*packages.Package {
 
 // TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	logger := log.NewTestingLogger(t)
 
@@ -89,8 +89,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 
 // TestNewNode_WithPackage tests the NewDevNode with a single package.
 func TestNewNode_WithLoader(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pkg := std.MemPackage{
 		Name: "foobar",
@@ -584,7 +583,7 @@ func Render(_ string) string {
 
 	// Times list should be identical from the original list
 	require.Len(t, timesList2, len(timesList1))
-	for i := 0; i < len(timesList1); i++ {
+	for i := range timesList1 {
 		t1nsec, t2nsec := timesList1[i].UnixNano(), timesList2[i].UnixNano()
 		assert.Equal(t, t1nsec, t2nsec,
 			"comparing times1[%d](%d) == times2[%d](%d)", i, t1nsec, i, t2nsec)
@@ -791,11 +790,6 @@ func newTestingDevNode(t *testing.T, pkgs ...*std.MemPackage) (*Node, *mock.Serv
 	return newTestingDevNodeWithConfigAndHolder(t, cfg, holder, paths...)
 }
 
-func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
-	t.Helper()
-	return newTestingDevNodeWithConfigAndHolder(t, cfg, nil, pkgpaths...)
-}
-
 func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder *nodeHolder, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
@@ -852,6 +846,33 @@ func TestNode_Reset_InvokesResetState(t *testing.T) {
 	before := resets
 	require.NoError(t, node.Reset(context.Background()))
 	assert.Equal(t, before+1, resets, "Reset must invoke ResetState exactly once")
+}
+
+// A configured ValidatorKey must be the node's sole validator, and must
+// survive node rebuilds instead of being replaced by a generated key.
+func TestNode_ValidatorKey(t *testing.T) {
+	t.Parallel()
+
+	valKey := ed25519.GenPrivKey()
+
+	cfg, holder := newTestingNodeConfig(t)
+	cfg.ValidatorKey = valKey
+
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder)
+
+	requireValidator := func() {
+		t.Helper()
+
+		res, err := node.Client().Validators(context.Background(), nil)
+		require.NoError(t, err)
+		require.Len(t, res.Validators, 1)
+		require.Equal(t, valKey.PubKey(), res.Validators[0].PubKey)
+	}
+
+	requireValidator()
+
+	require.NoError(t, node.Reload(context.Background()))
+	requireValidator()
 }
 
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {

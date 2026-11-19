@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -34,6 +35,25 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
+
+	// RequireSigForSimulate reports whether tx must have its signatures
+	// cryptographically verified even in simulate mode.
+	//
+	// Simulate normally skips verification so a caller can estimate gas
+	// without holding a key. That is safe only for messages whose
+	// authorization does not depend on who signed: `.app/simulate` is a
+	// public query that executes the messages, so for a message authorized
+	// by signer identity the skip would let an unauthenticated caller name
+	// somebody else's address and have it accepted. Applications set this
+	// for those message types.
+	//
+	// A missing or miscounted signature is already refused for every mode by
+	// tx.ValidateBasic below, so this only closes the verification gap.
+	//
+	// Note for callers that estimate gas without signing: a tx containing a
+	// message selected by this predicate must carry a real signature, not a
+	// pubkey-only placeholder.
+	RequireSigForSimulate func(tx std.Tx) bool
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -105,7 +125,27 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, abciResult(err), true
 		}
 
-		newCtx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*store.Gas(len(newCtx.TxBytes())), "txSize")
+		// A signature's public key is optional once its account has stored
+		// one, and the sign payload does not include it, so a relayer could
+		// strip it and restate the tx under a new hash. Require it before any
+		// fee or sequence change, except in simulation and at genesis
+		// (replayed history included), where nothing is relayed.
+		if !simulate && ctx.BlockHeight() != 0 && !IsGenesisReplay(ctx) {
+			for i, sig := range tx.GetSignatures() {
+				if sig.PubKey == nil {
+					return newCtx, abciResult(std.ErrInvalidPubKey(
+						fmt.Sprintf("signature %d has no public key", i))), true
+				}
+			}
+		}
+
+		// Mulp, not a bare multiply: TxSizeCostPerByte is only validated positive,
+		// so an absurd one wraps. Some wraps land negative and the meter refuses
+		// them, but others land small and positive -- a 4096-byte transaction
+		// charged 4096 gas for its size, silently. Panic on the overflow instead,
+		// as the same per-byte multiply does in gno.land/pkg/sdk/vm.
+		newCtx.GasMeter().ConsumeGas(
+			overflow.Mulp(params.TxSizeCostPerByte, store.Gas(len(newCtx.TxBytes()))), "txSize")
 
 		if res := ValidateMemo(tx, params); !res.IsOK() {
 			return newCtx, res, true
@@ -155,15 +195,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// actual outflow at execution time, so correctness is unchanged —
 		// this pre-check is purely a gas-efficiency optimization.
 		if da, ok := sessionAccounts[signerAddrs[0]]; ok {
-			total := std.Coins{}
-			if !tx.Fee.GasFee.IsZero() {
-				total = total.Add(std.Coins{tx.Fee.GasFee})
-			}
-			for _, msg := range tx.GetMsgs() {
-				if est, ok := msg.(std.SpendEstimator); ok {
-					total = total.Add(est.SpendForSigner(signerAddrs[0]))
-				}
-			}
+			total := sessionSpendTotal(tx, signerAddrs[0])
 			if err := CheckSessionSpend(da, total, newCtx.BlockTime().Unix()); err != nil {
 				return newCtx, abciResult(err), true
 			}
@@ -188,9 +220,39 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// ——— Phase 3: Verify signatures, increment sequences ———
 
+		// Simulate normally skips verification; see RequireSigForSimulate
+		// for why some messages cannot afford that. Nothing below changes
+		// the predicate's answer, so it is asked once, not once per signature.
+		verifySig := !simulate ||
+			(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+
+		// The last payload built and the account number and sequence it was
+		// built for: each signer's differs from it in those two values only.
+		var prevSignBytes []byte
+		var prevAccNum, prevAccSeq uint64
+
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				continue
+			}
+			// Hardfork genesis replay: historical and patched txs carry a
+			// BlockHeight > 0 overridden for faithful re-execution, so the
+			// isGenesis check above misses them. When the operator opted
+			// into --skip-genesis-sig-verification, skip their signature
+			// check too — the whole replayed genesis is vouched for by its
+			// agreed sha256, and a rewritten (patched) body can no longer
+			// verify by design. isGenesis is left untouched so the
+			// accNum/accSeq sign-bytes logic below still uses source values.
+			if !opts.VerifyGenesisSignatures {
+				if IsGenesisReplay(ctx) {
+					// The signer's address commits to this key, and the VM
+					// banker tells a user account by it.
+					if acc := signerAccs[i]; acc.GetPubKey() == nil && sig.PubKey != nil && sig.PubKey.Address() == acc.GetAddress() {
+						acc.SetPubKey(sig.PubKey)
+						ak.SetAccount(newCtx, acc)
+					}
+					continue
+				}
 			}
 
 			da, isSession := sessionAccounts[signerAddrs[i]]
@@ -252,23 +314,55 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accNum = sigAcc.GetAccountNumber()
 				accSeq = sigAcc.GetSequence()
 			}
-			signBytes, err := tx.GetSignBytes(
-				newCtx.ChainID(),
-				accNum,
-				accSeq,
-			)
-			if err != nil {
-				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+			// Built only when verified: the build is unmetered and simulate skips
+			// verification. verifySig is true on every consensus path. Only the
+			// first signer encodes the msgs, so a bad signature after valid ones
+			// costs one encoding, not one per signer.
+			var signBytes []byte
+			if verifySig {
+				var err error
+				if prevSignBytes == nil {
+					signBytes, err = tx.GetSignBytes(
+						newCtx.ChainID(),
+						accNum,
+						accSeq,
+					)
+				} else {
+					signBytes, err = std.GetSignaturePayloadFrom(
+						tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+						prevSignBytes, prevAccNum, prevAccSeq,
+					)
+				}
+				if err != nil {
+					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+				}
+				prevSignBytes, prevAccNum, prevAccSeq = signBytes, accNum, accSeq
 			}
 
 			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 				return newCtx, res, true
 			}
 
-			if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+				// Either payload rendering is accepted; std.VerifySignaturePayload
+				// holds the argument for why that is safe.
+				//
+				// Spelled out here rather than delegated to that helper because
+				// the payload is built above, before gas is charged, and
+				// delegating would reorder those steps on the consensus path.
+				// The legacy encoding cannot fail once the one above succeeded
+				// -- the two differ only in the fee's plain fields -- so lerr
+				// carries nothing the first marshal did not already report.
+				// Gas was charged above for one verification, so the legacy
+				// payload reuses signBytes rather than encoding the msgs again.
+				legacySignBytes, lerr := std.GetSignaturePayloadLegacyFrom(
+					tx.SignDoc(newCtx.ChainID(), accNum, accSeq),
+					signBytes,
+				)
+				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
+					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				}
 			}
-
 			if isSession {
 				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
 				ak.SetSessionAccount(newCtx, signerAddrs[i], sigAcc)
@@ -347,29 +441,69 @@ func DefaultSigVerificationGasConsumer(
 		return sdk.Result{}
 
 	case multisig.PubKeyMultisigThreshold:
-		var multisignature multisig.Multisignature
-		amino.MustUnmarshal(sig, &multisignature)
+		// Bound the depth and the total size of the recursion below before
+		// decoding anything: the key alone decides both, and each level costs a
+		// decode of whatever signature bytes remain. ValidateSigCount bounds
+		// neither, because std.CountSubKeys counts leaves: a chain of 1-of-1
+		// keys has exactly one however deep it runs, and a constituent holding
+		// no keys at all has none however many of them are listed.
+		if err := pubkey.ValidateStructure(); err != nil {
+			return abciResult(std.ErrInvalidPubKey(err.Error()))
+		}
 
-		consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
-		return sdk.Result{}
+		var multisignature multisig.Multisignature
+		// sig is the signature field of an untrusted transaction, so this must
+		// not be MustUnmarshal: arbitrary bytes there would panic out of the
+		// ante handler, whose own recover only handles OutOfGasError, and be
+		// caught by runTx's blanket recover as an ErrInternal with a stack
+		// trace. The amino error is not reported back because it renders the
+		// offending buffer as hex, and the buffer is caller-sized. Canonical,
+		// as in PubKeyMultisigThreshold.VerifyBytes: the transaction's own
+		// canonical check sees these bytes as opaque.
+		if err := amino.UnmarshalCanonical(sig, &multisignature); err != nil {
+			return abciResult(std.ErrUnauthorized("signature is not a valid multisignature"))
+		}
+
+		return consumeMultisignatureVerificationGas(meter, multisignature, pubkey, params)
 
 	default:
 		return abciResult(std.ErrInvalidPubKey(fmt.Sprintf("unrecognized public key type: %T", pubkey)))
 	}
 }
 
+// consumeMultisignatureVerificationGas consumes gas for each signed subkey of
+// pubkey.
+//
+// The returned result MUST be checked by the caller: it is what rejects subkeys
+// whose type is not recognized as a signing key type. Dropping it would let a
+// key type that VerifyBytes handles but this function does not (e.g. a mock key
+// with trivially forgeable signatures) reach PubKeyMultisigThreshold.VerifyBytes
+// as a constituent key, forging the multisig signature as a whole.
 func consumeMultisignatureVerificationGas(meter store.GasMeter,
 	sig multisig.Multisignature, pubkey multisig.PubKeyMultisigThreshold,
 	params Params,
-) {
+) sdk.Result {
+	// Establish the shape of the signature against the key before walking it: a
+	// bit array whose ExtraBitsStored runs past the end of its Elems decodes
+	// perfectly well, so the amino error above does not catch it, and then makes
+	// Size() report more bits than are stored — which the walk below indexes.
+	// One implementation, shared with PubKeyMultisigThreshold.VerifyBytes, so
+	// that the two cannot come to disagree about which shapes are walkable.
+	if err := sig.ValidateBasic(pubkey); err != nil {
+		return abciResult(std.ErrUnauthorized(err.Error()))
+	}
+
 	size := sig.BitArray.Size()
 	sigIndex := 0
 	for i := range size {
 		if sig.BitArray.GetIndex(i) {
-			DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params)
+			if res := DefaultSigVerificationGasConsumer(meter, sig.Sigs[sigIndex], pubkey.PubKeys[i], params); !res.IsOK() {
+				return res
+			}
 			sigIndex++
 		}
 	}
+	return sdk.Result{}
 }
 
 // DeductFees deducts fees from the given account.
@@ -377,22 +511,27 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 // NOTE: We could use the CoinKeeper (in addition to the AccountKeeper, because
 // the CoinKeeper doesn't give us accounts), but it seems easier to do this.
 func DeductFees(bk BankKeeperI, ctx sdk.Context, acc std.Account, collector crypto.Address, fees std.Coins) sdk.Result {
-	coins := acc.GetCoins()
-
 	if !fees.IsValid() {
 		return abciResult(std.ErrInsufficientFee(fmt.Sprintf("invalid fee amount: %s", fees)))
 	}
 
-	// verify the account has enough funds to pay for fees
-	diff := coins.SubUnsafe(fees)
-	if !diff.IsValid() {
-		return abciResult(std.ErrInsufficientFunds(
-			fmt.Sprintf("insufficient funds to pay for fees; %s < %s", coins, fees),
-		))
+	// Verify the account has enough funds to pay for fees, one fee denom at a
+	// time. Read through the bank rather than acc.GetCoins(): a balance does not
+	// necessarily live in the account object, since realm-issued denoms have
+	// their own keys, and the fee denom is whatever the transaction names.
+	// Reading only the fee denoms also keeps this independent of how many other
+	// denoms the payer happens to hold.
+	addr := acc.GetAddress()
+	for _, fee := range fees {
+		if balance := bk.GetCoin(ctx, addr, fee.Denom); balance < fee.Amount {
+			return abciResult(std.ErrInsufficientFunds(
+				fmt.Sprintf("insufficient funds to pay for fees; %d%s < %s", balance, fee.Denom, fee),
+			))
+		}
 	}
 
 	// Sending coins is unrestricted to pay for gas fees
-	err := bk.SendCoinsUnrestricted(ctx, acc.GetAddress(), collector, fees)
+	err := bk.SendCoinsUnrestricted(ctx, addr, collector, fees)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -439,32 +578,36 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 		return sdk.Result{}
 	} else {
 		fgw := big.NewInt(fee.GasWanted)
-		fga := big.NewInt(fee.GasFee.Amount)
 		fgd := fee.GasFee.Denom
 
 		for _, gp := range minGasPrices {
-			gpg := big.NewInt(gp.Gas)
-			gpa := big.NewInt(gp.Price.Amount)
-			gpd := gp.Price.Denom
-
-			if fgd == gpd {
-				prod1 := big.NewInt(0).Mul(fga, gpg) // fee amount * price gas
-				prod2 := big.NewInt(0).Mul(fgw, gpa) // fee gas * price amount
-				// This is equivalent to checking
-				// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
-				// This approach helps us avoid dealing with configurations where the value of
-				// the minimum gas price is set to 0.00001ugnot/gas.
-				if prod1.Cmp(prod2) >= 0 {
-					return sdk.Result{}
-				} else {
-					fee := new(big.Int).Quo(prod2, gpg)
-					return abciResult(std.ErrInsufficientFee(
-						fmt.Sprintf(
-							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, fee, gp,
-						),
-					))
-				}
+			if fgd != gp.Price.Denom {
+				continue
 			}
+			// Decided by GasPrice.IsGTE, the same comparison the block minimum
+			// above uses, so one implementation owns the rule. Cross-multiplying
+			// here instead meant this copy did not inherit IsGTE's guards: a
+			// negative gas_wanted flips the sign of one side, and a fee of nothing
+			// then compares as sufficient.
+			ok, err := feeGasPrice.IsGTE(gp)
+			if err != nil {
+				return abciResult(std.ErrInsufficientFee(err.Error()))
+			}
+			if ok {
+				return sdk.Result{}
+			}
+			// What the fee should have been, for the message. ParseGasPrice
+			// refuses a non-positive gp.Gas and IsGTE has already refused a
+			// non-positive gas_wanted, so this cannot divide by zero.
+			required := new(big.Int).Quo(
+				new(big.Int).Mul(fgw, big.NewInt(gp.Price.Amount)),
+				big.NewInt(gp.Gas),
+			)
+			return abciResult(std.ErrInsufficientFee(
+				fmt.Sprintf(
+					"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, required, gp,
+				),
+			))
 		}
 	}
 
@@ -482,10 +625,56 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 // preserve source-chain outcomes when gas requirements have changed.
 type SkipGasMeteringKey struct{}
 
+// GenesisReplayKey is a context key marking a tx delivery as part of InitChain.
+// It is set for EVERY such tx, including a fresh chain's own genesis txs -- not
+// only history replayed from a previous chain. The hardfork case is why it
+// exists: replayed txs carry a BlockHeight > 0 (overridden for faithful
+// re-execution), so a ctx.BlockHeight()==0 check under-reports them. But
+// callers depend on the broad reading too, so do not narrow it to the hardfork
+// case. See IsGenesisReplay.
+//
+// It never bypasses signature verification on its own: the ante skips
+// verification for a replay tx only when the node was also started with
+// --skip-genesis-sig-verification (VerifyGenesisSignatures=false). In a
+// normally-configured node that flag is unset, so this key has no effect
+// on signature verification. Set only by gnoland's InitChainer per-tx
+// delivery wrapper.
+type GenesisReplayKey struct{}
+
+// IsGenesisReplay reports whether ctx is delivering a transaction as part of
+// InitChain, rather than live traffic.
+//
+// Note the wording: it is true for EVERY tx delivered during InitChain, which
+// includes a fresh chain's own genesis txs, not only history replayed from a
+// previous chain. gnoland's delivery wrapper sets it unconditionally. Callers
+// that want "this is replayed history specifically" must also test the tx's
+// metadata; nothing here distinguishes the two, and a fresh launch relies on
+// the broad reading -- gno.land's code-submission gate exempts genesis MsgRun
+// through exactly this predicate, which is how a chain seeds its first DAO
+// members before any allowlist exists.
+//
+// The predicate belongs beside the key: four places now branch on it — this
+// package's ante, gno.land's code-submission gate, and the vm keeper's inert
+// and enable paths — and each open-coded `ctx.Value(...).(bool)` is a chance to
+// get the key type or the comma-ok wrong silently, in a direction that fails
+// open.
+func IsGenesisReplay(ctx sdk.Context) bool {
+	replay, _ := ctx.Value(GenesisReplayKey{}).(bool)
+	return replay
+}
+
 // SetGasMeter returns a new context with a gas meter set from a given context.
 func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
-	// In various cases such as simulation and during the genesis block, we do not
-	// meter any gas utilization.
+	// Height 0 runs unmetered: consumption is uncapped, so a genesis tx whose
+	// gas_wanted is too low still runs to completion instead of being dropped.
+	// The fee is charged either way -- genesis txs carry a real gas_fee, and
+	// Phase 2b does not exempt them.
+	//
+	// Simulation is NOT exempt, despite being the case people expect to be.
+	// This function is not told whether it is simulating -- there is one call
+	// site and it is unconditional -- so a simulated tx above height 0 runs
+	// under a real basicGasMeter(GasWanted) like any other. Anything reasoning
+	// about what `.app/simulate` can afford has to account for that.
 	if ctx.BlockHeight() == 0 {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
@@ -497,30 +686,6 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	}
 
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
-}
-
-// GetSignBytes returns a slice of bytes to sign over for a given transaction
-// and an account.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var (
-		accNum      uint64
-		accSequence uint64
-	)
-	if !genesis {
-		accNum = acc.GetAccountNumber()
-		accSequence = acc.GetSequence()
-	}
-
-	return std.GetSignaturePayload(
-		std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      accSequence,
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
-		},
-	)
 }
 
 func abciResult(err error) sdk.Result {

@@ -1,10 +1,10 @@
-package tests
+package vm
 
 import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/nestedpkg"
+	"gno.land/p/nt/nestedpkg/v0"
 	rsubtests "gno.land/r/tests/vm/subtests"
 )
 

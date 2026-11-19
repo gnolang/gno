@@ -2,7 +2,7 @@
 # Self-register a valoper profile in r/gnops/valopers.
 #
 # This is the prerequisite for governance to promote an operator into
-# the active valset via add-validator.sh — v3's
+# the active valset via add-validator.sh — v0's
 # NewValidatorProposalRequest rejects any operator that isn't already
 # in valoperCache, which is populated only by valopers.Register and
 # valopers.UpdateKeepRunning.

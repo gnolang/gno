@@ -47,9 +47,7 @@ func TestMaxOpenConnections(t *testing.T) {
 	var wg sync.WaitGroup
 	var failed int32
 	for range attempts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			c := http.Client{Timeout: 3 * time.Second}
 			r, err := c.Get("http://" + l.Addr().String())
 			if err != nil {
@@ -59,7 +57,7 @@ func TestMaxOpenConnections(t *testing.T) {
 			}
 			defer r.Body.Close()
 			io.Copy(io.Discard, r.Body)
-		}()
+		})
 	}
 	wg.Wait()
 

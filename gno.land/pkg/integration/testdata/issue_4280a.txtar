@@ -10,7 +10,7 @@ gnokey maketx call -pkgpath gno.land/r/demo/realm --func Render --args "a" --gas
 
 
 -- realm.gno --
-package main
+package realm
 
 import "strconv"
 

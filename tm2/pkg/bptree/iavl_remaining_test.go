@@ -43,7 +43,7 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 	r := rand.New(rand.NewSource(0))
 
 	for i := 1; i <= versions; i++ {
-		for j := 0; j < keysPerVersion; j++ {
+		for range keysPerVersion {
 			// 1-byte keys cause lots of collisions
 			k := []byte{byte(r.Intn(256))}
 			v := make([]byte, 8)
@@ -66,7 +66,7 @@ func TestVersionedRandomTreeSmallKeysRandomDeletes(t *testing.T) {
 	require.Equal(int64(versions), tree.Version())
 
 	// Try getting random keys — they should exist
-	for i := 0; i < keysPerVersion; i++ {
+	for range keysPerVersion {
 		k := []byte{byte(r.Intn(256))}
 		has, _ := tree.Has(k)
 		// May or may not exist depending on random ops
@@ -378,7 +378,7 @@ func TestTreeGetProof(t *testing.T) {
 	require.Error(t, err)
 
 	// Insert keys
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		k := fmt.Sprintf("pkey_%03d", i)
 		tree.Set([]byte(k), []byte(k))
 	}
@@ -389,7 +389,7 @@ func TestTreeGetProof(t *testing.T) {
 	require.Error(t, err)
 
 	// Valid proofs for existing keys
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		k := fmt.Sprintf("pkey_%03d", i)
 		proof, err := tree.GetMembershipProof([]byte(k))
 		require.NoError(t, err)
@@ -403,7 +403,7 @@ func TestTreeKeyExistsProof(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 
 	keys := make([][]byte, 200)
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		key := make([]byte, 20)
 		r.Read(key)
 		val := make([]byte, 20)
@@ -438,7 +438,7 @@ func TestIAVLAlternativePruning(t *testing.T) {
 	keepEvery := int64(5)
 
 	for i := 1; i <= 15; i++ {
-		tree.Set([]byte(fmt.Sprintf("k%d", i)), []byte(fmt.Sprintf("v%d", i)))
+		tree.Set(fmt.Appendf(nil, "k%d", i), fmt.Appendf(nil, "v%d", i))
 		tree.SaveVersion()
 
 		previous := int64(i) - 1

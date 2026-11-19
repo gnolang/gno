@@ -38,7 +38,7 @@ func BenchmarkTreeString(b *testing.B) {
 	if sink == nil {
 		b.Fatal("Benchmark did not run")
 	}
-	sink = (interface{})(nil)
+	sink = (any)(nil)
 }
 
 func TestNewNoDbStorage_StorageVersionInDb_Success(t *testing.T) {
@@ -254,7 +254,7 @@ func TestIsFastStorageEnabled_False(t *testing.T) {
 func TestTraverseNodes(t *testing.T) {
 	tree := getTestTree(0)
 	// version 1
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		_, err := tree.Set([]byte{byte(i)}, []byte{byte(i)})
 		require.NoError(t, err)
 	}
@@ -309,15 +309,14 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 	var err error
 
 	// version 1
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		up, err = tree.Set([]byte{byte(i)}, []byte{byte(i)})
 		require.False(t, up)
 		require.NoError(t, err)
 	}
 	_, _, err = tree.SaveVersion()
 	require.NoError(t, err)
-	// note: assertions were constructed by hand after inspecting the output of the graphviz below.
-	// WriteDOTGraphToFile("/tmp/tree_one.dot", tree.ImmutableTree)
+	// note: assertions were constructed by hand after inspecting a graphviz rendering of each version.
 
 	// version 2
 	up, err = tree.Set([]byte{byte(19)}, []byte{byte(0)})
@@ -325,7 +324,6 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = tree.SaveVersion()
 	require.NoError(t, err)
-	// WriteDOTGraphToFile("/tmp/tree_two.dot", tree.ImmutableTree)
 
 	assertOrphansAndBranches(t, tree.ndb, 1, 5, [][]byte{{byte(19)}})
 
@@ -337,7 +335,6 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 
 	_, _, err = tree.SaveVersion()
 	require.NoError(t, err)
-	// WriteDOTGraphToFile("/tmp/tree_three.dot", tree.ImmutableTree)
 
 	assertOrphansAndBranches(t, tree.ndb, 2, 4, [][]byte{{byte(0)}})
 
@@ -353,7 +350,6 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 
 	_, _, err = tree.SaveVersion()
 	require.NoError(t, err)
-	// WriteDOTGraphToFile("/tmp/tree_four.dot", tree.ImmutableTree)
 
 	assertOrphansAndBranches(t, tree.ndb, 3, 7, [][]byte{{byte(1)}, {byte(19)}})
 
@@ -372,7 +368,6 @@ func TestNodeDB_traverseOrphans(t *testing.T) {
 
 	_, _, err = tree.SaveVersion()
 	require.NoError(t, err)
-	// WriteDOTGraphToFile("/tmp/tree_five.dot", tree.ImmutableTree)
 
 	assertOrphansAndBranches(t, tree.ndb, 4, 8, [][]byte{{byte(9)}, {byte(10)}, {byte(12)}})
 }
@@ -381,7 +376,7 @@ func makeAndPopulateMutableTree(tb testing.TB) *MutableTree { //nolint: thelper
 	memDB := memdb.NewMemDB()
 	tree := NewMutableTree(memDB, 0, false, NewNopLogger(), InitialVersionOption(9))
 
-	for i := 0; i < 1e4; i++ {
+	for i := range int(1e4) {
 		buf := make([]byte, 0, (i/255)+1)
 		for j := 0; 1<<j <= i; j++ {
 			buf = append(buf, byte((i>>j)&0xff))

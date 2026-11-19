@@ -30,30 +30,132 @@ func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	return coins
 }
 
+// GetCoin reads one denom without touching any other — the O(1) accessor the
+// balance split exists to provide. GetCoins costs O(denoms held) and an address
+// does not control how many denoms it has been sent.
+func (bnk *SDKBanker) GetCoin(b32addr crypto.Bech32Address, denom string) int64 {
+	// Every other denom entry point validates — IssueCoin and RemoveCoin via
+	// assertCoinDenom, transfers and fees via Coins.IsValid. This one takes a
+	// realm-supplied string straight from Gno, so without this it is the only
+	// unbounded, unvalidated input reaching a store key. Panic rather than return
+	// zero, to match how a malformed denom is treated everywhere else.
+	if err := std.ValidateDenom(denom); err != nil {
+		panic(err)
+	}
+	addr := crypto.MustAddressFromString(string(b32addr))
+	return bnk.vmk.bank.GetCoin(bnk.ctx, addr, denom)
+}
+
 func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
 	from := crypto.MustAddressFromString(string(b32from))
-	to := crypto.MustAddressFromString(string(b32to))
+	// No package account holds a public key, so a send out of an account with
+	// one comes from a run's banker kept past its message.
+	if acc := bnk.vmk.acck.GetAccount(bnk.ctx, from); acc != nil && acc.GetPubKey() != nil {
+		panic("a banker can spend a user's account only inside that user's run")
+	}
+	bnk.send(from, crypto.MustAddressFromString(string(b32to)), amt)
+}
+
+func (bnk *SDKBanker) send(from, to crypto.Address, amt std.Coins) {
 	err := bnk.vmk.bank.SendCoins(bnk.ctx, from, to, amt)
 	if err != nil {
 		panic(err)
 	}
 }
 
+// RunSDKBanker is the banker of a MsgRun: it alone may spend the run's
+// caller, and it refuses any send that takes the coins moved out of from,
+// over the whole run, past maxSend, unless the run is uncapped.
+type RunSDKBanker struct {
+	*SDKBanker
+	from crypto.Address
+	left map[string]int64 // per denom, what maxSend still allows; nil if uncapped
+}
+
+func NewRunSDKBanker(vmk *VMKeeper, ctx sdk.Context, from crypto.Address, maxSend std.Coins, uncapped bool) *RunSDKBanker {
+	bnk := &RunSDKBanker{SDKBanker: NewSDKBanker(vmk, ctx), from: from}
+	if !uncapped {
+		bnk.left = make(map[string]int64, len(maxSend))
+		for _, c := range maxSend {
+			bnk.left[c.Denom] = c.Amount
+		}
+	}
+	return bnk
+}
+
+func (bnk *RunSDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
+	from := crypto.MustAddressFromString(string(b32from))
+	if from != bnk.from {
+		bnk.SDKBanker.SendCoins(b32from, b32to, amt)
+		return
+	}
+	to := crypto.MustAddressFromString(string(b32to))
+	// A zero send moves nothing, and the bank does not validate its denom.
+	counted := bnk.left != nil && to != from && !amt.IsZero()
+	if counted {
+		// Refuse what the bank's SubtractCoins refuses before counting: once amt
+		// is sorted, unique and positive, each denom meets its budget once and
+		// no coin can raise it. Validate's error names at most two denoms, each
+		// within MaxDenomLength.
+		if err := amt.Validate(); err != nil {
+			panic(std.ErrInvalidCoins(err.Error()))
+		}
+		for _, c := range amt {
+			if c.Amount > bnk.left[c.Denom] {
+				panic("run sends more coins than its max send allows")
+			}
+			bnk.left[c.Denom] -= c.Amount
+		}
+	}
+	bnk.send(from, to, amt)
+}
+
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	// Validated for the reason GetCoin is: this is a realm-supplied string that
+	// reaches a store key, and nothing on the .gno side bounds it.
+	if err := std.ValidateDenom(denom); err != nil {
+		panic(err)
+	}
+	return bnk.vmk.bank.TotalSupply(bnk.ctx, denom)
+}
+
+// assertIssuable re-checks in Go that denom is realm-qualified.
+//
+// chain/banker's assertCoinDenom already enforces the full
+// "/" + pkgPath + ":" + base shape, but it lives in interpreted stdlib source
+// and neither X_bankerIssueCoin nor this type validated anything. That was
+// tolerable while the prefix was only a naming convention. It is not now: a bare
+// denom reaching here would let a realm mint the chain's own gas denom.
+//
+// This deliberately checks less than assertCoinDenom does. It answers "is this
+// denom realm-qualified at all", not "is it *this* realm's" — the latter stays
+// enforced only in .gno, because SDKBanker holds a keeper and a context and not
+// the calling realm's package path, which is a machine-frame property. So one
+// realm minting another's denom is still blocked one layer up, and only there.
+// What is backstopped in Go is the case with a privilege boundary behind it:
+// minting outside the realm-denom namespace entirely.
+//
+// Note this is not the storage-tier question — that is an allowlist in the bank
+// (ViewKeeper.inAccountTier), and the two must not be conflated.
+func assertIssuable(denom string) {
+	if !std.IsRealmDenom(denom) {
+		panic("cannot issue or remove a non realm-qualified denom: " + denom)
+	}
 }
 
 func (bnk *SDKBanker) IssueCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
+	assertIssuable(denom)
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.AddCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
+	err := bnk.vmk.bank.MintCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amount int64) {
+	assertIssuable(denom)
 	addr := crypto.MustAddressFromString(string(b32addr))
-	_, err := bnk.vmk.bank.SubtractCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
+	err := bnk.vmk.bank.BurnCoins(bnk.ctx, addr, std.Coins{std.Coin{Denom: denom, Amount: amount}})
 	if err != nil {
 		panic(err)
 	}

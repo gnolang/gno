@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strconv"
 	"strings"
 
 	r "github.com/gnolang/gno/tm2/pkg/regx"
@@ -99,11 +98,6 @@ type Span struct {
 	Num int // positive if conflicts.
 }
 
-// Convenience with no changes.
-func Span4(line, col, endLine, endCol int) Span {
-	return Span{Pos: Pos{line, col}, End: Pos{endLine, endCol}}
-}
-
 func SpanFromGo(gofs *token.FileSet, gon ast.Node) Span {
 	pos := gon.Pos()
 	end := gon.End()
@@ -134,46 +128,6 @@ func (s *Span) SetSpan(s2 Span) {
 // See documentation for SetSpan().
 func (s *Span) SetSpanOverride(s2 Span) {
 	*s = s2
-}
-
-func SpanFromMatch(line, col, endLine, endCol string) (span Span, err error) {
-	if endLine == "" && endCol == "" {
-		endLine = line
-		endCol = col
-	} else if endLine == "" {
-		endLine = line
-	}
-	l, err := strconv.Atoi(line)
-	if err != nil {
-		return
-	}
-	c, err := strconv.Atoi(col)
-	if err != nil {
-		return
-	}
-	el, err := strconv.Atoi(endLine)
-	if err != nil {
-		return
-	}
-	ec, err := strconv.Atoi(endCol)
-	if err != nil {
-		return
-	}
-	span = Span4(l, c, el, ec)
-	return
-}
-
-func ParseSpan(spanstr string) (span Span, err error) {
-	match := ReSpan.Match(spanstr)
-	if match == nil {
-		return
-	}
-	line := match.Get("LINE")
-	col := match.Get("COL")
-	endLine := match.Get("ENDLINE")
-	endCol := match.Get("ENDCOL")
-	span, err = SpanFromMatch(line, col, endLine, endCol)
-	return
 }
 
 // Overridden by Attributes.String().
@@ -276,30 +230,6 @@ type Location struct {
 	Span
 }
 
-// Convenience with no modifications.
-func Location3(pkgPath string, fname string, span Span) Location {
-	return Location{PkgPath: pkgPath, File: fname, Span: span}
-}
-
-func ParseLocation(locstr string) (loc Location, err error) {
-	match := ReLocation.Match(locstr)
-	if match == nil {
-		return
-	}
-	ppath := match.Get("PATH")
-	fname := match.Get("FILE")
-	line := match.Get("LINE")
-	col := match.Get("COL")
-	endLine := match.Get("ENDLINE")
-	endCol := match.Get("ENDCOL")
-	span, err := SpanFromMatch(line, col, endLine, endCol)
-	if err != nil {
-		return
-	}
-	loc = Location{PkgPath: ppath, File: fname, Span: span}
-	return
-}
-
 // Overridden by Attributes.String().
 func (loc Location) String() string {
 	if loc.File == "" {
@@ -371,8 +301,6 @@ var (
 	Re_errorLine   = r.L(r.N("LOC", Re_locationish), r.M(`:`), r.S(` `), r.N("MSG", r.S(`.`)))
 
 	// Compile at init to avoid runtime compilation.
-	ReLocation  = Re_location.Compile()
-	ReSpan      = Re_span.Compile()
 	ReErrorLine = Re_errorLine.Compile()
 )
 

@@ -1,17 +1,31 @@
 package valopers
 
 import (
-	"gno.land/p/moul/authz"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/authz/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/avl/v0"
 )
 
 func init() {
 	valopers = avl.NewTree()
 
+	// The authority is pointed at GovDAO, NOT at this realm.
+	//
+	// Pointing it here instead would make the gate compare valopers'
+	// address to valopers' address: every crossing frame of this package
+	// has rlm.Address() == PackageAddress(ownPath), so the check could
+	// never reject. Pointed at r/gov/dao and driven by DoByPrevious
+	// (see updateInstructions), the principal is the realm that crossed
+	// in — GovDAO's executor on the legitimate path, and the caller
+	// itself on any other, which is what makes the check real.
+	//
+	// The handler is a pass-through: this is where an intent check
+	// (timelock, quorum, audit trail) would go if one is ever wanted.
+	// It is NOT where the caller check lives — that is the authority's
+	// contract-identity gate, upstream of here.
 	auth = authz.NewWithAuthority(
 		authz.NewContractAuthority(
-			"gno.land/r/gnops/valopers",
+			"gno.land/r/gov/dao",
 			func(_ string, action authz.PrivilegedAction) error {
 				return action()
 			},
@@ -88,7 +102,7 @@ This will initiate a governance process where **GovDAO** members will vote on yo
 
 🚀 **Register now and become a part of gno.land’s validator ecosystem!**
 
-Read more: [How to become a testnet validator](https://gnops.io/articles/guides/become-testnet-validator/) <!-- XXX: replace with a r/gnops/blog:xxx link -->
+Read more: [How to become a validator](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland#become-a-validator)
 
 Disclaimer: Please note, registering your validator profile and/or validating on testnets does not guarantee a validator slot on the gno.land beta mainnet. However, active participation and contributions to testnets will help establish credibility and may improve your chances for future validator acceptance. The initial validator amount and valset will ultimately be selected through GovDAO governance proposals and acceptance.
 

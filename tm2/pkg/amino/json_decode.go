@@ -18,7 +18,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
-	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Pointer {
 		panic("should not happen")
 	}
 	if printLog {
@@ -127,12 +127,12 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 }
 
 func invokeStdlibJSONUnmarshal(bz []byte, rv reflect.Value, fopts FieldOptions) error {
-	if !rv.CanAddr() && rv.Kind() != reflect.Ptr {
+	if !rv.CanAddr() && rv.Kind() != reflect.Pointer {
 		panic("rv not addressable nor pointer")
 	}
 
 	rrv := rv
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		rrv = reflect.New(rv.Type())
 	}
 
@@ -375,6 +375,11 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 			fmt.Printf("(d) -> err: %v\n", err)
 		}()
 	}
+	if info.Recursive {
+		if anyDepth, err = NestDepth(anyDepth); err != nil {
+			return
+		}
+	}
 
 	// Map all the fields(keys) to their blobs/bytes.
 	// NOTE: In decodeReflectBinaryStruct, we don't need to do this,
@@ -402,8 +407,10 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 			// but perhaps we are aiming for as much compatibility here.
 			// JAE: I vote we depart from encoding/json, than carry a vuln.
 
-			// Set to the zero value only if not omitempty
-			if !field.JSONOmitEmpty {
+			// Set to the zero value only if not omitempty. A missing
+			// amino:"skip_zero" field is always its zero value, which is
+			// what defaultValue gives for every type the tag allows.
+			if !field.JSONOmitEmpty || field.SkipZero {
 				// Set nil/zero on frv.
 				frv.Set(defaultValue(frv.Type()))
 			}

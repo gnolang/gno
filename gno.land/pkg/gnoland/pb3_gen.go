@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var _ fmt.Stringer
@@ -689,6 +690,42 @@ func (goo *TxWithMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDept
 
 func (goo GnoTxMetadata) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.OriginalTx != nil {
+		{
+			before := offset
+			offset, err = (*goo.OriginalTx).MarshalBinary2(cdc, buf, offset)
+			if err != nil {
+				return offset, err
+			}
+			dataLen := before - offset
+			offset = amino.PrependUvarint(buf, offset, uint64(dataLen))
+			offset = amino.PrependFieldNumberAndTyp3(buf, offset, 10, amino.Typ3ByteLength)
+		}
+	}
+	if goo.Note != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.Note))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 9, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
+	if goo.Source != "" {
+		{
+			before := offset
+			offset = amino.PrependString(buf, offset, string(goo.Source))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 8, amino.Typ3ByteLength)
+			} else {
+				offset = before
+			}
+		}
+	}
 	if goo.GasWanted != 0 {
 		{
 			before := offset
@@ -801,6 +838,21 @@ func (goo GnoTxMetadata) SizeBinary2(cdc *amino.Codec) (int, error) {
 	}
 	if goo.GasWanted != 0 {
 		s += 1 + amino.VarintSize(int64(goo.GasWanted))
+	}
+	if goo.Source != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Source))) + len(goo.Source)
+	}
+	if goo.Note != "" {
+		s += 1 + amino.UvarintSize(uint64(len(goo.Note))) + len(goo.Note)
+	}
+	if goo.OriginalTx != nil {
+		{
+			cs, err := (*goo.OriginalTx).SizeBinary2(cdc)
+			if err != nil {
+				return 0, err
+			}
+			s += 1 + amino.UvarintSize(uint64(cs)) + cs
+		}
 	}
 	return s, nil
 }
@@ -919,6 +971,42 @@ func (goo *GnoTxMetadata) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 			}
 			bz = bz[n:]
 			goo.GasWanted = int64(v)
+		case 8:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 8: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Source = string(v)
+		case 9:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 9: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.Note = string(v)
+		case 10:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 10: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			{
+				var pv std.Tx
+				fbz, n, err := amino.DecodeByteSlice(bz)
+				if err != nil {
+					return err
+				}
+				bz = bz[n:]
+				if err := pv.UnmarshalBinary2(cdc, fbz, anyDepth); err != nil {
+					return err
+				}
+				goo.OriginalTx = &pv
+			}
 		default:
 			return fmt.Errorf("unknown field number %d for GnoTxMetadata", fnum)
 		}

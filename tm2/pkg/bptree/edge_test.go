@@ -14,7 +14,7 @@ func TestEdge_RollbackAfterMerge_COWIntegrity(t *testing.T) {
 	tree := newMemTree()
 
 	// Build a tree with 3+ leaves
-	for i := 0; i < 49; i++ {
+	for i := range 49 {
 		tree.Set(fmt.Appendf(nil, "cow%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -56,7 +56,7 @@ func TestEdge_RollbackAfterMerge_COWIntegrity(t *testing.T) {
 
 func TestEdge_RollbackThenMutate(t *testing.T) {
 	tree := newMemTree()
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "rm%03d", i), []byte("v1"))
 	}
 	tree.SaveVersion()
@@ -86,7 +86,7 @@ func TestEdge_RollbackThenMutate(t *testing.T) {
 func TestEdge_90_10_RightChildUnderflow(t *testing.T) {
 	tree := newMemTree()
 	// Sequential inserts trigger 90/10 splits: left=31, right=2
-	for i := 0; i < B+1; i++ {
+	for i := range B + 1 {
 		tree.Set(fmt.Appendf(nil, "ru%04d", i), []byte("v"))
 	}
 	if tree.Height() < 1 {
@@ -100,7 +100,7 @@ func TestEdge_90_10_RightChildUnderflow(t *testing.T) {
 	}
 
 	// Verify all remaining keys
-	for i := 0; i < B; i++ {
+	for i := range B {
 		has, _ := tree.Has(fmt.Appendf(nil, "ru%04d", i))
 		if !has {
 			t.Fatalf("ru%04d not found after right-child underflow", i)
@@ -122,7 +122,7 @@ func TestEdge_ExactMinKeys_AllSiblingsCantSpare(t *testing.T) {
 	// Insert enough keys to create multiple leaves, then remove to
 	// bring siblings to exactly MinKeys each.
 	n := B * 3
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "ms%04d", i), []byte("v"))
 	}
 
@@ -163,7 +163,7 @@ func TestEdge_InsertRemoveInsert_FullCycle(t *testing.T) {
 	n := B * 4 // 128
 
 	// Insert all
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "cy%04d", i), []byte("v"))
 	}
 	if tree.Size() != int64(n) {
@@ -171,7 +171,7 @@ func TestEdge_InsertRemoveInsert_FullCycle(t *testing.T) {
 	}
 
 	// Remove all
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Remove(fmt.Appendf(nil, "cy%04d", i))
 	}
 	if !tree.IsEmpty() {
@@ -179,7 +179,7 @@ func TestEdge_InsertRemoveInsert_FullCycle(t *testing.T) {
 	}
 
 	// Insert again — tree should work from scratch
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "cy%04d", i), []byte("v2"))
 	}
 	if tree.Size() != int64(n) {
@@ -198,7 +198,7 @@ func TestEdge_InsertRemoveInsert_FullCycle(t *testing.T) {
 
 func TestEdge_GetByIndex_LastKey(t *testing.T) {
 	tree := newMemTree()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "lk%04d", i), []byte("v"))
 	}
 
@@ -227,7 +227,7 @@ func TestEdge_Iterator_DescendingEndBeforeFirstKey(t *testing.T) {
 
 func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 	tree := newMemTree()
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "cc%04d", i), []byte("v"))
 	}
 	imm := tree.Snapshot(1)
@@ -236,12 +236,12 @@ func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 	errs := make(chan error, 10)
 
 	// Multiple goroutines reading concurrently
-	for g := 0; g < 5; g++ {
+	for g := range 5 {
 		wg.Add(1)
 		go func(gid int) {
 			defer wg.Done()
 			// Get
-			for i := 0; i < 200; i++ {
+			for i := range 200 {
 				_, err := imm.Has(fmt.Appendf(nil, "cc%04d", i))
 				if err != nil {
 					errs <- fmt.Errorf("goroutine %d Has error: %w", gid, err)
@@ -258,7 +258,7 @@ func TestEdge_ConcurrentImmutableReads(t *testing.T) {
 				errs <- fmt.Errorf("goroutine %d iterate count=%d", gid, count)
 			}
 			// GetByIndex
-			for i := int64(0); i < 10; i++ {
+			for i := range int64(10) {
 				_, _, err := imm.GetByIndex(i)
 				if err != nil {
 					errs <- fmt.Errorf("goroutine %d GetByIndex error: %w", gid, err)
@@ -279,7 +279,7 @@ func TestEdge_GetByIndex_AfterInnerMerge_SizeConsistency(t *testing.T) {
 	tree := newMemTree()
 	// Build a height-2 tree
 	n := 1100
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tree.Set(fmt.Appendf(nil, "gm%05d", i), []byte("v"))
 	}
 	if tree.Height() < 2 {
@@ -287,14 +287,14 @@ func TestEdge_GetByIndex_AfterInnerMerge_SizeConsistency(t *testing.T) {
 	}
 
 	// Remove enough to trigger inner merges
-	for i := 0; i < 800; i++ {
+	for i := range 800 {
 		tree.Remove(fmt.Appendf(nil, "gm%05d", i))
 	}
 
 	// GetByIndex for every valid index must work without panic
 	remaining := tree.Size()
 	var prev string
-	for i := int64(0); i < remaining; i++ {
+	for i := range remaining {
 		k, _, err := tree.GetByIndex(i)
 		if err != nil {
 			t.Fatalf("GetByIndex(%d) after inner merge: %v", i, err)
@@ -310,13 +310,13 @@ func TestEdge_SaveVersion_ThenMerge_ThenRollback(t *testing.T) {
 	// DB-backed version of the COW merge rollback test
 	tree := newTestTree(t) // uses memdb
 
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		tree.Set(fmt.Appendf(nil, "sr%03d", i), []byte("v"))
 	}
 	hash1, _, _ := tree.SaveVersion()
 
 	// Remove to trigger merges
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Remove(fmt.Appendf(nil, "sr%03d", i))
 	}
 

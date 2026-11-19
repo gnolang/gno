@@ -21,41 +21,41 @@ import (
 
 var (
 	// native
-	timeType     = reflect.TypeOf(time.Time{})
-	durationType = reflect.TypeOf(time.Duration(0))
+	timeType     = reflect.TypeFor[time.Time]()
+	durationType = reflect.TypeFor[time.Duration]()
 	// doubleType   = reflect.TypeOf(float64(0))
 	// floatType    = reflect.TypeOf(float32(0))
-	int64Type  = reflect.TypeOf(int64(0))
-	uint64Type = reflect.TypeOf(uint64(0))
-	int32Type  = reflect.TypeOf(int32(0))
-	uint32Type = reflect.TypeOf(uint32(0))
-	int16Type  = reflect.TypeOf(int16(0))
-	uint16Type = reflect.TypeOf(uint16(0))
-	int8Type   = reflect.TypeOf(int8(0))
-	uint8Type  = reflect.TypeOf(uint8(0))
-	boolType   = reflect.TypeOf(bool(false))
-	stringType = reflect.TypeOf(string(""))
-	bytesType  = reflect.TypeOf([]byte(nil))
-	intType    = reflect.TypeOf(int(0))
-	uintType   = reflect.TypeOf(uint(0))
+	int64Type  = reflect.TypeFor[int64]()
+	uint64Type = reflect.TypeFor[uint64]()
+	int32Type  = reflect.TypeFor[int32]()
+	uint32Type = reflect.TypeFor[uint32]()
+	int16Type  = reflect.TypeFor[int16]()
+	uint16Type = reflect.TypeFor[uint16]()
+	int8Type   = reflect.TypeFor[int8]()
+	uint8Type  = reflect.TypeFor[uint8]()
+	boolType   = reflect.TypeFor[bool]()
+	stringType = reflect.TypeFor[string]()
+	bytesType  = reflect.TypeFor[[]byte]()
+	intType    = reflect.TypeFor[int]()
+	uintType   = reflect.TypeFor[uint]()
 
 	// google
-	gAnyType       = reflect.TypeOf(anypb.Any{})
-	gTimestampType = reflect.TypeOf(timestamppb.Timestamp{})
-	gDurationType  = reflect.TypeOf(durationpb.Duration{})
-	gEmptyType     = reflect.TypeOf(emptypb.Empty{})
+	gAnyType       = reflect.TypeFor[anypb.Any]()
+	gTimestampType = reflect.TypeFor[timestamppb.Timestamp]()
+	gDurationType  = reflect.TypeFor[durationpb.Duration]()
+	gEmptyType     = reflect.TypeFor[emptypb.Empty]()
 	// gStructType    = reflect.TypeOf(structpb.Struct{}) MAP not yet supported
 	// gValueType     = reflect.TypeOf(structpb.Value{})
 	// gListType      = reflect.TypeOf(structpb.ListValue{})
 	// gDoubleType    = reflect.TypeOf(wrapperspb.DoubleValue{})
 	// gFloatType     = reflect.TypeOf(wrapperspb.FloatValue{})
-	gInt64Type  = reflect.TypeOf(wrapperspb.Int64Value{})
-	gUInt64Type = reflect.TypeOf(wrapperspb.UInt64Value{})
-	gInt32Type  = reflect.TypeOf(wrapperspb.Int32Value{})
-	gUInt32Type = reflect.TypeOf(wrapperspb.UInt32Value{})
-	gBoolType   = reflect.TypeOf(wrapperspb.BoolValue{})
-	gStringType = reflect.TypeOf(wrapperspb.StringValue{})
-	gBytesType  = reflect.TypeOf(wrapperspb.BytesValue{})
+	gInt64Type  = reflect.TypeFor[wrapperspb.Int64Value]()
+	gUInt64Type = reflect.TypeFor[wrapperspb.UInt64Value]()
+	gInt32Type  = reflect.TypeFor[wrapperspb.Int32Value]()
+	gUInt32Type = reflect.TypeFor[wrapperspb.UInt32Value]()
+	gBoolType   = reflect.TypeFor[wrapperspb.BoolValue]()
+	gStringType = reflect.TypeFor[wrapperspb.StringValue]()
+	gBytesType  = reflect.TypeFor[wrapperspb.BytesValue]()
 )
 
 var (
@@ -434,10 +434,6 @@ func EncodeJSONTime(w io.Writer, t time.Time) (err error) {
 	return EncodeJSONTimeValue(w, t.Unix(), int32(t.Nanosecond()))
 }
 
-func EncodeJSONPBTimestamp(w io.Writer, t *timestamppb.Timestamp) (err error) {
-	return EncodeJSONTimeValue(w, t.GetSeconds(), t.GetNanos())
-}
-
 func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 	err = validateDurationValue(s, ns)
 	if err != nil {
@@ -462,10 +458,6 @@ func EncodeJSONDurationValue(w io.Writer, s int64, ns int32) (err error) {
 
 func EncodeJSONDuration(w io.Writer, d time.Duration) (err error) {
 	return EncodeJSONDurationValue(w, int64(d)/1e9, int32(int64(d)%1e9))
-}
-
-func EncodeJSONPBDuration(w io.Writer, d *durationpb.Duration) (err error) {
-	return EncodeJSONDurationValue(w, d.GetSeconds(), d.GetNanos())
 }
 
 func DecodeJSONTime(bz []byte, fopts FieldOptions) (t time.Time, err error) {

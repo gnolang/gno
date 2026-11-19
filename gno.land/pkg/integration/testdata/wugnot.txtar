@@ -72,7 +72,7 @@ stdout 'Known accounts..: 1' # user3 is no longer known, as they withdrew all th
 # ============================================
 
 # Deploy the malicious intermediary realm
-gnokey maketx addpkg -pkgdir $WORK/mitm -pkgpath gno.land/r/test/mitm -gas-fee 1000001ugnot -gas-wanted 10_000_000 -chainid=tendermint_test user1
+gnokey maketx addpkg -pkgdir $WORK/mitm -pkgpath gno.land/r/test/mitm -gas-fee 1200001ugnot -gas-wanted 12_000_000 -chainid=tendermint_test user1
 stdout 'OK!'
 
 # user1 tries to deposit through the malicious intermediary - this should FAIL
@@ -81,6 +81,27 @@ stdout 'OK!'
 stderr 'invalid non-origin call'
 
 # Verify no wugnot was minted (total supply should remain 10000 from user2)
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
+stdout 'Total supply..: 10000'
+stdout 'Known accounts..: 1'
+
+# ============================================
+# TEST: a func-literal entry point is a call boundary too
+# ============================================
+
+# Same intermediary as above, except its entry point is a func value rather
+# than a named func. It reads the send envelope first, so the message counts
+# as observed and the coins settle on the intermediary.
+gnokey maketx addpkg -pkgdir $WORK/relay -pkgpath gno.land/r/test/relay -gas-fee 1200001ugnot -gas-wanted 12_000_000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+# The coins went to the intermediary, not to wugnot, so nothing may be minted:
+# a func literal reached by crossing realms counts as a call like any other.
+! gnokey maketx call -pkgpath gno.land/r/test/relay -func Relay -send 10000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
+stderr 'invalid non-origin call'
+
+# Supply is unchanged, and every wugnot in it is still backed by a ugnot held
+# by the vault.
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
 stdout 'Total supply..: 10000'
 stdout 'Known accounts..: 1'
@@ -95,5 +116,22 @@ package mitm
 import "gno.land/r/gnoland/wugnot"
 
 func ProxyDeposit(cur realm) {
+	wugnot.Deposit(cross(cur))
+}
+-- relay/gnomod.toml --
+module = "gno.land/r/test/relay"
+gno = "0.9"
+
+-- relay/relay.gno --
+package relay
+
+import (
+	"chain/runtime/unsafe"
+
+	"gno.land/r/gnoland/wugnot"
+)
+
+var Relay = func(cur realm) {
+	_ = unsafe.OriginSend()
 	wugnot.Deposit(cross(cur))
 }

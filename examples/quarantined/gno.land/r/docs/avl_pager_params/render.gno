@@ -1,9 +1,9 @@
 package avl_pager_params
 
 import (
-	"gno.land/p/moul/realmpath"
+	"gno.land/p/moul/realmpath/v0"
+	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -75,8 +75,8 @@ No matter how you browse through the paginated list, the introductory text (this
 
 // renderConfigItem shows details for a single item, e.g. ":item001".
 func renderConfigItem(itemName string) string {
-	value, ok := items.Get(itemName)
-	if !ok {
+	value := items.Get(itemName)
+	if value == nil {
 		return ufmt.Sprintf("**No item found** for key: %s", itemName)
 	}
 
