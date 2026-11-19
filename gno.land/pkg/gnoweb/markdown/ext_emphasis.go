@@ -1,13 +1,13 @@
 // Package markdown — emphasis DoS guard.
 //
 // goldmark's ProcessDelimiters (parser/delimiter.go) is super-linear in the
-// number of '*'/'_' emphasis delimiters in a single block (yuin/goldmark#555):
+// number of '*'/'_' or '~' delimiters in a single block (yuin/goldmark#555):
 // a mixed-delimiter payload of ~1 MiB takes tens of seconds. That function is
 // package-level and called directly by the core parser, so it cannot be
 // replaced via goldmark's public API. Instead we shadow the pluggable emphasis
 // InlineParser and cap how many delimiters reach the stack per block, which
 // bounds ProcessDelimiters to O(cap^2). Runs beyond the cap render as literal
-// text. Under the cap the behavior is identical to goldmark's default parser.
+// text. Under the cap the behavior is identical to goldmark's default parsers.
 package markdown
 
 import (
@@ -18,14 +18,15 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// MaxEmphasisDelimitersPerBlock caps '*'/'_' delimiter runs pushed onto the
-// delimiter stack within one block. 1000 runs (500 emphasis spans) in a single
-// paragraph is far beyond any real document, while it bounds ProcessDelimiters
-// to O(cap^2) — the 1 MiB bomb drops from ~34 s to sub-millisecond.
+// MaxEmphasisDelimitersPerBlock caps '*', '_' and '~' delimiter runs pushed
+// onto the delimiter stack within one block. 1000 runs (500 emphasis spans) in
+// a single paragraph is far beyond any real document, while it bounds
+// ProcessDelimiters to O(cap^2) — a 1 MiB input drops from ~34 s to
+// sub-millisecond.
 const MaxEmphasisDelimitersPerBlock = 1000
 
-// gnoEmphasisDelimiterKey holds the per-block count of pushed emphasis
-// delimiters on the parser.Context. Incremented in Parse, reset to 0 in
+// gnoEmphasisDelimiterKey holds the per-block count of delimiter runs pushed
+// on the parser.Context, '*'/'_' and '~'. Incremented in Parse, reset to 0 in
 // CloseBlock, which goldmark calls per block right after ProcessDelimiters.
 var gnoEmphasisDelimiterKey = parser.NewContextKey()
 
@@ -94,6 +95,36 @@ func (s *boundedEmphasisParser) Parse(parent ast.Node, block text.Reader, pc par
 	return node
 }
 
+// strikethroughGuard counts the '~' runs extension.Strikethrough pushes against
+// the emphasis cap, and emits them as literal text once it is reached. Without
+// that extension the runs still count, so emphasis past the cap stays text.
+type strikethroughGuard struct {
+	max int
+}
+
+var _ parser.InlineParser = (*strikethroughGuard)(nil)
+
+func (s *strikethroughGuard) Trigger() []byte {
+	return []byte{'~'}
+}
+
+func (s *strikethroughGuard) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
+	before := block.PrecendingCharacter()
+	line, segment := block.PeekLine()
+	run := util.TrimLeftLength(line, []byte{'~'})
+	// The runs extension.Strikethrough pushes: one or two '~' after a non-'~'.
+	if run > 2 || before == '~' {
+		return nil
+	}
+	count, _ := pc.Get(gnoEmphasisDelimiterKey).(int)
+	if count < s.max {
+		pc.Set(gnoEmphasisDelimiterKey, count+1)
+		return nil // the strikethrough parser, if loaded, pushes the run
+	}
+	block.Advance(run)
+	return ast.NewTextSegment(segment.WithStop(segment.Start + run))
+}
+
 // CloseBlock resets the per-block delimiter counter. goldmark calls this once
 // per block, right after ProcessDelimiters, in the closeBlockers loop of
 // parseBlocks (parser/parser.go).
@@ -124,14 +155,16 @@ func NewExtEmphasis(maxDelimiters int) goldmark.Extender {
 // parser can push an uncounted '*'/'_' delimiter, so the emphasis cap cannot be
 // bypassed. A future extension wanting its own '*'/'_' syntax will be starved
 // by this guard and must integrate with the cap instead of registering around
-// it. This bounds only '*'/'_'; a delimiter extension on other bytes (e.g.
-// strikethrough '~') is uncounted and relies on its own parse cost staying
-// linear. Call once per goldmark instance — a second call registers a duplicate
-// parser (harmless but wasteful).
+// it. The strikethrough guard runs ahead of extension.Strikethrough (500) and
+// counts only the '~' runs that parser pushes. A delimiter extension on any
+// other byte, or on '~' runs Strikethrough rejects, is uncounted and relies
+// on its own parse cost staying linear. Call once per goldmark instance — a
+// second call registers a duplicate parser (harmless but wasteful).
 func (e *emphasisGuardExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
 			util.Prioritized(&boundedEmphasisParser{max: e.max}, 0),
+			util.Prioritized(&strikethroughGuard{max: e.max}, 0),
 		),
 	)
 }
