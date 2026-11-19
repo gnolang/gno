@@ -2876,12 +2876,30 @@ func (m *Machine) trustRoot() (string, bool) {
 		fr := &m.Frames[i]
 		// Only the root realm's frames answer: another realm's test file
 		// below a crossing call must not widen the root's trust.
-		if fr.Func == nil || fr.Func.PkgPath != root || fr.Func.FileName == "" {
+		if fr.Func == nil || fr.Func.PkgPath != root {
 			continue
 		}
-		return root, IsTestFile(fr.Func.FileName)
+		if fname := m.funcFile(fr.Func); fname != "" {
+			return root, IsTestFile(fname)
+		}
 	}
 	return root, false
+}
+
+// funcFile reports the file fv was declared in. A closure carries no
+// FileName, so it answers from the location of its FuncLit.
+func (m *Machine) funcFile(fv *FuncValue) string {
+	if fv.FileName != "" {
+		return fv.FileName
+	}
+	if !fv.IsClosure || fv.Source == nil {
+		return ""
+	}
+	src := fv.GetSource(m.Store)
+	if src == nil {
+		return ""
+	}
+	return src.GetLocation().File
 }
 
 // calledBy reports whether every frame from the call on top of the stack

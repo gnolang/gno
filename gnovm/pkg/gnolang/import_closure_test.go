@@ -116,6 +116,21 @@ func TestImportClosureSkipsTestFiles(t *testing.T) {
 	}
 }
 
+func TestFuncValueFile(t *testing.T) {
+	m := &Machine{}
+	lit := &FuncLitExpr{}
+	lit.SetLocation(Location{PkgPath: "gno.land/r/x", File: "realm_test.gno"})
+	if got := m.funcFile(&FuncValue{IsClosure: true, Source: lit}); got != "realm_test.gno" {
+		t.Fatalf("closure file = %q", got)
+	}
+	if got := m.funcFile(&FuncValue{FileName: "realm.gno", Source: lit}); got != "realm.gno" {
+		t.Fatalf("decl file = %q", got)
+	}
+	if got := m.funcFile(&FuncValue{IsClosure: true}); got != "" {
+		t.Fatalf("closure without source reported %q", got)
+	}
+}
+
 func BenchmarkImportClosure(b *testing.B) {
 	store, realmFiles := newClosureFixture()
 	newRealm := func() *PackageNode {
