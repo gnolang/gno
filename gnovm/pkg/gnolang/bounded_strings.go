@@ -1,11 +1,13 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 
-	"math/big"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Bounded printers — single source of truth for size-bounded
@@ -172,8 +174,8 @@ func (b *boundedBuf) Truncated() bool {
 // methods.
 //
 // For composite types (struct, array, etc.), if m is non-nil it
-// dispatches to tv.Sprint(m) and truncates the result. tv.Sprint(m)
-// is gas-metered (user code runs through m.Eval), so bounded by
+// renders tv as tv.Sprint(m) does and stops once past lim bytes.
+// tv.Sprint(m) is gas-metered (user code runs through m.Eval), so bounded by
 // the gas budget the adversary paid to construct the value. This
 // preserves friendly rendering of user-defined Error()/String()
 // methods.
@@ -206,7 +208,9 @@ func BoundedSprintTV(tv TypedValue, m *Machine, lim int) string {
 // boundedUserSprint runs tv.Sprint(m) under a tight transient
 // allocator cap so a user-defined String()/Error() that allocates
 // proportional to the (gas-paid) value size still can't blow up
-// peak heap during recovery rendering.
+// peak heap during recovery rendering. The render stops once it
+// passes lim bytes: a value sharing a child renders it once per
+// path to it, exponential in what the value allocated.
 //
 // Returns (rendered, true) on success; ("", false) if the user
 // method panicked (alloc cap, OOG, or other) — the caller should
@@ -219,6 +223,10 @@ func BoundedSprintTV(tv TypedValue, m *Machine, lim int) string {
 // an adversarial panic value whose Error() OOGs surfaces as
 // "VM panic: <structural>" rather than ErrOutOfGas. The original
 // panic info is preserved, which is the more useful signal.
+//
+// The one exception is a query deadline (store.DeadlineExceededError):
+// it propagates, so the query answers a timeout. Only a query gas meter
+// raises it, so transactions are unaffected.
 func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
 	// Snapshot and tighten. boundedRenderAllocCap allows enough
 	// headroom for nested struct rendering at our lim cap; far
@@ -227,25 +235,45 @@ func boundedUserSprint(tv TypedValue, m *Machine, lim int) (s string, ok bool) {
 	savedMax := m.Alloc.maxBytes
 	savedBytes := m.Alloc.bytes
 	m.Alloc.maxBytes = savedBytes + boundedRenderAllocCap
+	w := &prefixWriter{max: lim}
 	defer func() {
 		m.Alloc.maxBytes = savedMax
 		m.Alloc.bytes = savedBytes
 		if r := recover(); r != nil {
+			if _, full := r.(prefixFull); full {
+				s, ok = truncateForLog(string(w.buf), lim), true
+				return
+			}
+			var dl store.DeadlineExceededError
+			if err, isErr := r.(error); isErr && errors.As(err, &dl) {
+				panic(r)
+			}
 			s = ""
 			ok = false
 		}
 	}()
-	rendered := tv.Sprint(m)
-	if len(rendered) <= lim {
-		s, ok = rendered, true
-		return
+	tv.Fprint(w, m)
+	return string(w.buf), true
+}
+
+// prefixFull is what prefixWriter panics with once it is full.
+type prefixFull struct{}
+
+// prefixWriter keeps the first max+1 bytes written to it, enough to
+// tell that the render must be cut, then panics prefixFull to stop
+// the render.
+type prefixWriter struct {
+	buf []byte
+	max int
+}
+
+func (w *prefixWriter) Write(p []byte) (int, error) {
+	if room := w.max + 1 - len(w.buf); len(p) >= room {
+		w.buf = append(w.buf, p[:room]...)
+		panic(prefixFull{})
 	}
-	if lim < ellipsisLen {
-		s, ok = rendered[:lim], true
-		return
-	}
-	s, ok = rendered[:lim-ellipsisLen]+"...", true
-	return
+	w.buf = append(w.buf, p...)
+	return len(p), nil
 }
 
 // BoundedSprintException renders e.Value (the head exception's
@@ -537,7 +565,7 @@ func boundedSprintBigDecValue(w *boundedBuf, bdv BigdecValue) {
 		return
 	}
 	if bdv.F != nil {
-		writeBoundedString(w, bdv.F.Text('g', -1), rem)
+		writeBoundedString(w, bigdecFloatString(bdv.F), rem)
 		return
 	}
 	if bdv.V == nil {
@@ -805,8 +833,8 @@ func boundedSprintFrame(w *boundedBuf, sc StacktraceCall, line int) {
 	}
 }
 
-// truncateForLog exposes the same shape as the keeper's truncate
-// for tests that want to verify the suffix behavior.
+// truncateForLog caps s at lim bytes, its last three replaced by
+// "..." when it cuts.
 func truncateForLog(s string, lim int) string {
 	if len(s) <= lim {
 		return s

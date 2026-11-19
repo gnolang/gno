@@ -240,7 +240,9 @@ func blankSignatureWithBudget(pub crypto.PubKey, sig []byte, remainingLevels int
 		return make([]byte, len(sig))
 	}
 	var ms multisig.Multisignature
-	if amino.Unmarshal(sig, &ms) != nil {
+	// Canonically, as the chain decodes it: one the chain would refuse is
+	// zeroed, so the simulation is refused too rather than re-encoded.
+	if amino.UnmarshalCanonical(sig, &ms) != nil {
 		return make([]byte, len(sig))
 	}
 	nkeys := ms.BitArray.Size()
@@ -249,8 +251,13 @@ func blankSignatureWithBudget(pub crypto.PubKey, sig []byte, remainingLevels int
 			return make([]byte, len(sig))
 		}
 		nkeys = len(mpk.PubKeys)
+	} else if nkeys <= 0 || nkeys > multisig.MaxTotalKeys {
+		return make([]byte, len(sig))
 	}
-	if (!isMultisig && (nkeys == 0 || nkeys > multisig.MaxTotalKeys)) || ms.ValidateBasic(nkeys) != nil {
+	// Check the shape alone, taking K from the signature itself: a count that
+	// is not the key's threshold is for the chain to refuse, by name.
+	shape := multisig.PubKeyMultisigThreshold{K: uint(len(ms.Sigs)), PubKeys: make([]crypto.PubKey, nkeys)}
+	if ms.ValidateBasic(shape) != nil {
 		return make([]byte, len(sig))
 	}
 
@@ -341,6 +348,11 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 	bres, err := cli.ABCIQuery(context.Background(), ".app/simulate", tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")
+	}
+	// A node that refused the query sends no result. Decoding the empty value
+	// would read as a simulation that passed.
+	if bres.Response.Error != nil {
+		return nil, fmt.Errorf("simulate tx refused: %w: %s", bres.Response.Error, bres.Response.Log)
 	}
 
 	var result abci.ResponseDeliverTx
