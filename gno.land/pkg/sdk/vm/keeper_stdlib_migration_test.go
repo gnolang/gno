@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,17 +33,25 @@ func storeWithoutStdlib(t *testing.T, missing string) testEnv {
 	}
 	tx.Write()
 	mcw.MultiWrite()
+	commit(env)
 	return env
 }
 
+// commit commits env's store, as a block does: until then, the base store's
+// iterators do not see what was written.
+func commit(env testEnv) {
+	env.ctx.MultiStore().(store.CommitMultiStore).Commit()
+}
+
 // boot starts a keeper on env's store, as a node restarting on a new binary
-// does, and returns it with the cache-wrapped multistore it booted on.
+// does, and returns it with a function that writes what the boot changed and
+// commits it.
 func boot(env testEnv, fsys fs.FS, upgrade bool) (*VMKeeper, func()) {
 	vmk := NewVMKeeper(env.vmk.baseKey, env.vmk.iavlKey, env.acck, env.bankk, env.prmk)
 	vmk.SetStdlibs(fsys, upgrade)
 	mcw := env.ctx.MultiStore().MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
-	return vmk, mcw.MultiWrite
+	return vmk, func() { mcw.MultiWrite(); commit(env) }
 }
 
 // A node booting at a versioned halt on a binary that lists a stdlib its store
@@ -98,16 +107,87 @@ func TestInitializeRefusesMigrationOutsideHalt(t *testing.T) {
 		func() { boot(env, gnovm.Stdlibs(), false) })
 }
 
-// A stdlib whose stored files differ from the binary's, other than by a
-// missing package, is refused: in-place changes are not supported.
+// A stdlib whose stored files differ from the binary's other than by added
+// files is refused: an edit moves the source locations stored function values
+// resolve their bodies by.
 func TestInitializeRefusesChangedStdlib(t *testing.T) {
 	env := storeWithoutStdlib(t, "")
 	changed := copyFS(t, gnovm.Stdlibs())
 	f := changed["strings/builder.gno"]
 	changed["strings/builder.gno"] = &fstest.MapFile{Data: append(append([]byte{}, f.Data...), "\n// changed\n"...)}
 	require.PanicsWithError(t,
-		`stdlib "strings" in the store differs from this binary's; changing an existing stdlib is not supported`,
+		`stdlib "strings" in the store differs from this binary's: file "builder.gno" was changed; `+
+			`only adding files to an existing stdlib is supported`,
 		func() { boot(env, changed, true) })
+}
+
+// A stdlib extended with a new file keeps every existing object and name: a
+// realm's stored reference into it still resolves, new code sees the added
+// declarations, and both survive a further reboot, although the added file
+// sorts before every stored one.
+func TestInitializeExtendsStdlib(t *testing.T) {
+	env := storeWithoutStdlib(t, "")
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	deploy := func(vmk *VMKeeper, pkgPath, body string) {
+		t.Helper()
+		ctx := vmk.MakeGnoTransactionStore(env.ctx)
+		if env.acck.GetAccount(ctx, addr) == nil {
+			env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+			env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000)))
+		}
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
+			{Name: "x.gno", Body: body},
+		}
+		require.NoError(t, vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
+		vmk.CommitGnoTransactionStore(ctx)
+	}
+	eval := func(vmk *VMKeeper, pkgPath, expr string) string {
+		t.Helper()
+		res, err := vmk.QueryEval(env.ctx, pkgPath, expr)
+		require.NoError(t, err)
+		return res
+	}
+
+	// Before the upgrade, a realm stores a reference to a strings function.
+	vmk, write := boot(env, gnovm.Stdlibs(), false)
+	deploy(vmk, "gno.land/r/test/holder", `package holder
+
+import "strings"
+
+var Up = strings.ToUpper
+
+func Call() string { return Up("abc") + strings.Repeat("-", 2) }
+`)
+	write()
+	require.Contains(t, eval(vmk, "gno.land/r/test/holder", "Call()"), `"ABC--"`)
+
+	// The upgrade adds a file that sorts before every stored one.
+	upgraded := copyFS(t, gnovm.Stdlibs())
+	upgraded["strings/aaa_extension.gno"] = &fstest.MapFile{Data: []byte(`package strings
+
+var ExtraVar = Repeat("x", 3)
+
+func Extra() string { return "extra:" + ExtraVar }
+`)}
+	before := vmk.gnoStore.GetPackageRealm("strings").Time
+	vmk, write = boot(env, upgraded, true)
+	write()
+	require.Equal(t, []string{"aaa_extension.gno"}, vmk.gnoStore.GetPackageExtension("strings"))
+	require.Greater(t, vmk.gnoStore.GetPackageRealm("strings").Time, before, "new objects numbered after the existing ones")
+	require.Contains(t, eval(vmk, "gno.land/r/test/holder", "Call()"), `"ABC--"`, "stored reference after the extension")
+	deploy(vmk, "gno.land/r/test/extuser", `package extuser
+
+import "strings"
+
+func Both() string { return strings.Extra() + strings.ToUpper("y") }
+`)
+	require.Contains(t, eval(vmk, "gno.land/r/test/extuser", "Both()"), `"extra:xxxY"`)
+
+	// A further boot, at no halt, finds nothing to do and keeps the layout.
+	vmk, _ = boot(env, upgraded, false)
+	require.Contains(t, eval(vmk, "gno.land/r/test/holder", "Call()"), `"ABC--"`, "stored reference after a reboot")
+	require.Contains(t, eval(vmk, "gno.land/r/test/extuser", "Both()"), `"extra:xxxY"`, "new code after a reboot")
 }
 
 // copyFS returns a writable copy of fsys.

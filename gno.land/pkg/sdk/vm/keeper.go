@@ -350,30 +350,76 @@ func (vm *VMKeeper) migrateStdlibs(logger *slog.Logger) {
 			panic(fmt.Errorf("reading the binary's stdlib %q: %w", lib, err))
 		}
 		have := vm.gnoStore.GetMemPackage(lib) // production files only
-		if have != nil && sameMemFiles(have, gno.MPFProd.FilterMemPackage(want)) {
-			continue
+		var added []string
+		if have != nil {
+			added, err = addedMemFiles(have, gno.MPFProd.FilterMemPackage(want))
+			if err != nil {
+				panic(fmt.Errorf("stdlib %q in the store differs from this binary's: %w; "+
+					"only adding files to an existing stdlib is supported", lib, err))
+			}
+			if len(added) == 0 {
+				continue
+			}
 		}
 		if !vm.stdlibsUpgrade {
 			panic(fmt.Errorf("stdlib %q in the store differs from this binary's; "+
 				"it can only be brought in line by booting at a governance halt that names a version", lib))
 		}
-		if have != nil {
-			panic(fmt.Errorf("stdlib %q in the store differs from this binary's; "+
-				"changing an existing stdlib is not supported", lib))
-		}
-		logger.Info("Adding a stdlib missing from the store", "pkgpath", lib)
 		tx := vm.gnoStore.BeginTransaction(nil, nil, nil, nil)
-		runStdlibPackage(want, tx)
+		if have == nil {
+			logger.Info("Adding a stdlib missing from the store", "pkgpath", lib)
+			runStdlibPackage(want, tx)
+		} else {
+			logger.Info("Extending a stdlib with new files", "pkgpath", lib, "files", added)
+			extendStdlibPackage(want, added, tx)
+		}
 		tx.Write()
 	}
 }
 
-// sameMemFiles reports whether a and b hold the same files, in the same
-// order, with the same contents.
-func sameMemFiles(a, b *std.MemPackage) bool {
-	return slices.EqualFunc(a.Files, b.Files, func(x, y *std.MemFile) bool {
-		return x.Name == y.Name && x.Body == y.Body
+// addedMemFiles returns the files of want that have lacks, in want's order.
+// Every file of have must be in want, unchanged: an existing stdlib can only
+// gain files (see gno.Machine.ExtendPackage).
+func addedMemFiles(have, want *std.MemPackage) ([]string, error) {
+	for _, hf := range have.Files {
+		wf := want.GetFile(hf.Name)
+		switch {
+		case wf == nil:
+			return nil, fmt.Errorf("file %q was removed", hf.Name)
+		case wf.Body != hf.Body:
+			return nil, fmt.Errorf("file %q was changed", hf.Name)
+		}
+	}
+	var added []string
+	for _, wf := range want.Files {
+		if have.GetFile(wf.Name) == nil {
+			added = append(added, wf.Name)
+		}
+	}
+	return added, nil
+}
+
+// extendStdlibPackage stores memPkg, a stdlib whose stored files it keeps
+// unchanged, running its added files into the stored package.
+func extendStdlibPackage(memPkg *std.MemPackage, added []string, store gno.Store) {
+	var gnoFiles []string
+	for _, f := range added {
+		if strings.HasSuffix(f, ".gno") {
+			gnoFiles = append(gnoFiles, f)
+		}
+	}
+	if len(gnoFiles) == 0 { // nothing to run, such as a README
+		store.ReplaceMemPackage(memPkg, gno.MPStdlibAll)
+		return
+	}
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath:            memPkg.Path,
+		Store:              store,
+		SkipPackage:        true,
+		BoundedPanicRender: true,
 	})
+	defer m.Release()
+	m.ExtendPackage(memPkg, gnoFiles)
 }
 
 // PopulateStdlibCache populates the stdlib byte cache on the gno store.

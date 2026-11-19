@@ -87,6 +87,14 @@ type Store interface {
 	// version 1.
 	AddMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
 	DeleteMemPackage(path string)
+	// ReplaceMemPackage stores mpkg over the package already at its path,
+	// keeping the path's place in the package index; see ExtendPackage.
+	ReplaceMemPackage(mpkg *std.MemPackage, mptype MemPackageType)
+	// AddPackageExtension records files an extension added to the package at
+	// path, in the order it predefined them; GetPackageExtension returns all
+	// of them, in that order.
+	AddPackageExtension(path string, files []string)
+	GetPackageExtension(path string) []string
 	GetMemPackage(path string) *std.MemPackage
 	GetMemPackageAll(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
@@ -1086,6 +1094,25 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 		old := bm.StartStore(bm.StoreAddMemPackage)
 		defer func() { bm.StopStore(bm.StoreAddMemPackage, old, size) }()
 	}
+	mpkgtype := checkStorableMemPackage(mpkg, mptype)
+	ctr := ds.incGetPackageIndexCounter()
+	idxkey := []byte(backendPackageIndexKey(ctr))
+	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
+	size += ds.setMemPackage(mpkg, mpkgtype)
+}
+
+func (ds *defaultStore) ReplaceMemPackage(mpkg *std.MemPackage, mptype MemPackageType) {
+	mpkgtype := checkStorableMemPackage(mpkg, mptype)
+	if ds.GetMemPackage(mpkg.Path) == nil {
+		panic(fmt.Sprintf("replacing mempackage %q: not in the store", mpkg.Path))
+	}
+	ds.DeleteMemPackage(mpkg.Path)
+	ds.setMemPackage(mpkg, mpkgtype)
+}
+
+// checkStorableMemPackage panics unless mpkg is a valid, storable mempackage of
+// type mptype, and returns its type.
+func checkStorableMemPackage(mpkg *std.MemPackage, mptype MemPackageType) MemPackageType {
 	mpkgtype := mpkg.Type.(MemPackageType)
 	if !mpkgtype.IsStorable() {
 		panic(fmt.Sprintf("mempackage type is not storable: %v", mpkgtype))
@@ -1094,13 +1121,14 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if mpkgtype != mptype {
 		panic(fmt.Sprintf("unexpected mempackage type: expected %v but got %v", mptype, mpkgtype))
 	}
-	err := ValidateMemPackageAny(mpkg)
-	if err != nil {
+	if err := ValidateMemPackageAny(mpkg); err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}
-	ctr := ds.incGetPackageIndexCounter()
-	idxkey := []byte(backendPackageIndexKey(ctr))
-	ds.baseStore.Set(ds.gctx, idxkey, []byte(mpkg.Path))
+	return mpkgtype
+}
+
+// setMemPackage writes mpkg's blobs and returns their encoded size.
+func (ds *defaultStore) setMemPackage(mpkg *std.MemPackage, mpkgtype MemPackageType) (size int) {
 	pathkey := []byte(backendPackagePathKey(mpkg.Path))
 	// MP*All packages are split for storage: production files under pathkey
 	// (the import/preprocess hot path, so its read/decode gas is charged on
@@ -1123,6 +1151,20 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	} else {
 		size += ds.setMemPackageBlob(pathkey, mpkg)
 	}
+	return size
+}
+
+func (ds *defaultStore) AddPackageExtension(path string, files []string) {
+	all := append(ds.GetPackageExtension(path), files...)
+	ds.iavlStore.Set(ds.gctx, []byte(backendPackageExtensionKey(path)), []byte(strings.Join(all, "\n")))
+}
+
+func (ds *defaultStore) GetPackageExtension(path string) []string {
+	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackageExtensionKey(path)))
+	if len(bz) == 0 {
+		return nil
+	}
+	return strings.Split(string(bz), "\n")
 }
 
 // DeleteMemPackage removes both the production blob (pkg:<path>) and the
@@ -1611,6 +1653,12 @@ func backendNodeKey(loc Location) string {
 
 func backendPackageIndexCtrKey() string {
 	return "pkgidx:counter"
+}
+
+// backendPackageExtensionKey holds the files extensions added to a package;
+// see ExtendPackage.
+func backendPackageExtensionKey(path string) string {
+	return "pkgext:" + path
 }
 
 func backendPackageIndexKey(index uint64) string {

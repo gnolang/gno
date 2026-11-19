@@ -2,9 +2,7 @@
 
 ## Status
 
-Proposed. Adding a stdlib is implemented; extending one with new files is
-designed below and not yet implemented. Builds on #6508 (stdlibs embedded in
-the node).
+Proposed. Builds on #6508 (stdlibs embedded in the node).
 
 ## Context
 
@@ -35,9 +33,13 @@ stored production files with the embedded ones:
 - **the same:** nothing to do. This is every boot but one.
 - **missing:** the stdlib is run into the store from the embedded sources,
   exactly as genesis runs it.
-- **extended with new files:** see *Extending a stdlib* (designed, not yet
-  implemented; refused until then).
-- **any other change:** refused, naming the stdlib.
+- **extended with new files:** the new files are run into the stored package;
+  see *Extending a stdlib*.
+- **any other change** (a file removed or edited): refused, naming the stdlib
+  and the file.
+
+Only production files are compared, as only they are run. A release that only
+changes a stdlib's test files leaves the stored test files as they were.
 
 ### Only at a versioned halt
 
@@ -87,34 +89,48 @@ hold references into stdlib state:
   from `:869` to `:881` because `int256.gno` sorts before `itoa.gno`.
 
 Adding new files is the one change that moves no existing location. Extending
-a stdlib with them keeps every existing object, with its ID and its block
-index, and appends the new declarations:
+a stdlib with them (`Machine.ExtendPackage`) keeps every existing object at its
+ID and every existing name at its block index, and appends the new
+declarations. An object here is a runtime value the VM persists under an
+object ID: the package value, its package block, a file block, a function
+value (which points at its code by source location), a variable; the source
+text and its preprocessed nodes are not objects.
 
 1. **Run the new files into the existing package.** `runFileDecls` already
    runs extra files into a package node that has a file set, predefining only
    them, so their names take block indices after the existing ones;
    `PrepareNewValues` appends their values to the package block. New declared
    types are saved, and the new files' `init` functions run.
-2. **Number new objects after the existing ones.** A stdlib's objects are
-   numbered by a throwaway realm counting from zero, and no counter is
-   persisted. The extension starts it from the highest object ID the stdlib
-   holds, found by scanning its `oid:` keys at boot.
-3. **Re-save the existing objects** that change: the package value (its file
-   blocks) and its block (its values), marked dirty under that realm.
+2. **Number new objects after the existing ones.** A stdlib is saved under a
+   throwaway realm, whose counter `FinalizeRealmTransaction` persists like any
+   realm's (since #5669, part of `gnoland-1`'s genesis release). The
+   extension continues from that record (`Store.GetPackageRealm`), and
+   refuses a stdlib that has none.
+3. **Re-save the two objects that gain entries**, under their IDs: the
+   package value, which lists the package's files and file blocks, and its
+   package block, which holds one slot per top-level name. Everything they
+   already held stays at the same index, and every other existing object (the
+   function values realms reference, file blocks, variables) keeps its ID and
+   its bytes. The objects for what the added files declare are new: each is
+   attached with `DidUpdate`, as the realm walks a block's values, so it gets
+   an ID from that counter.
 4. **Keep the predefinition order across boots.** Boot predefines a package's
    files in stored order, and stored mempackages must be sorted
    (`MemPackage.ValidateBasic`). A new file that sorts before an existing one
    would be predefined first at the next boot, shifting every existing index.
-   The extension persists the names of the files it added, in order, and
-   `PreprocessAllFilesAndSaveBlockNodes` predefines those files last.
+   The extension persists the names of the files it added, in order, under
+   `pkgext:<path>` (`Store.AddPackageExtension`), and
+   `PreprocessAllFilesAndSaveBlockNodes` predefines those files last. Only
+   stdlibs can be extended, so boot looks the record up for stdlibs only.
 5. **Replace the mempackage without re-indexing it.** `AddMemPackage` adds a
    package index entry, and boot order keeps a path at its last entry
    (`indexedPackagePaths`), so a re-added stdlib would be rebuilt after the
-   packages that import it. The extension replaces the stored blobs in place.
+   packages that import it. The extension replaces the stored blobs in place
+   (`Store.ReplaceMemPackage`).
 
-Points 4 and 5 change behavior shared with every package (boot preprocessing
-and the store's mempackage API), which is why the extension is a separate
-change.
+Points 4 and 5 touch code shared with every package, boot preprocessing and
+the store's mempackage API, but change nothing for a package with no
+extension record, which is every package until a release extends a stdlib.
 
 ## Alternatives considered
 
@@ -134,9 +150,11 @@ change.
 
 ## Consequences
 
-- A release that only adds stdlibs, or adds files to existing ones once the
-  extension lands, upgrades in place with a versioned halt and no code beyond
-  the stdlib itself.
+- A release that only adds stdlibs, or adds files to existing ones, upgrades
+  in place with a versioned halt and no code beyond the stdlib itself. Most of
+  #6387's stdlib changes are new files of that kind (`strconv/int256.gno`,
+  `math/const256.gno`, `math/overflow/convert256.gno`); its edit to the
+  existing `math/overflow/doc.gno` is not, and would be refused.
 - A release that edits an existing stdlib file stops every node at the halt
   with an error naming the stdlib. It needs a genesis replay, or a new stdlib
   package instead of an edit.
@@ -151,6 +169,7 @@ change.
 - `TestInitializeRefusesMigrationOutsideHalt` and
   `TestInitializeRefusesChangedStdlib`: the two refusals.
 - `TestAtVersionedHalt`: the guard.
-- To come with the extension: a realm's stored references into a stdlib still
-  resolve after an extension that adds a file sorting first, and after a
-  further reboot.
+- `TestInitializeExtendsStdlib`: `strings` gains a file that sorts before every
+  stored one; a realm's stored reference to `strings.ToUpper` still resolves,
+  new code sees the added declarations, the new objects are numbered after
+  the existing ones, and all of it holds after a further reboot.
