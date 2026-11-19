@@ -572,7 +572,9 @@ func (m *Machine) doOpReturnCallDefers() {
 				// assign exception as return of revive().
 				resx := m.PeekValue(1)
 				resx.Assign(m.Alloc, m.Exception.Value, false)
-				m.Exception = nil // reset
+				// Resume the panic that was live before revive, if any.
+				m.Exception = cfr.LastException
+				m.Exception.unlinkNext()
 				return
 			}
 			// Handle panic by calling OpReturnCallDefers on

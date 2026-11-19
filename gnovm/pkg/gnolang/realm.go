@@ -67,8 +67,7 @@ func (pid PkgID) MarshalAmino() (string, error) {
 }
 
 func (pid *PkgID) UnmarshalAmino(h string) error {
-	_, err := hex.Decode(pid.Hashlet[:], []byte(h))
-	return err
+	return pid.Hashlet.UnmarshalHex(h)
 }
 
 func (pid PkgID) String() string {

@@ -3,6 +3,8 @@ package gnolang
 import (
 	"crypto/sha256"
 	"encoding/hex"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type ValueHash struct {
@@ -14,8 +16,7 @@ func (vh ValueHash) MarshalAmino() (string, error) {
 }
 
 func (vh *ValueHash) UnmarshalAmino(h string) error {
-	_, err := hex.Decode(vh.Hashlet[:], []byte(h))
-	return err
+	return vh.Hashlet.UnmarshalHex(h)
 }
 
 func (vh ValueHash) Copy() ValueHash {
@@ -44,6 +45,16 @@ func (h Hashlet) Copy() Hashlet {
 
 func (h Hashlet) Bytes() []byte {
 	return h[:]
+}
+
+// UnmarshalHex decodes s into h, refusing any s that is not exactly HashSize
+// bytes of hex, since hex.Decode panics past the array and pads short input.
+func (h *Hashlet) UnmarshalHex(s string) error {
+	if len(s) != hex.EncodedLen(HashSize) {
+		return errors.New("invalid hash length: expected %d hex characters, got %d", hex.EncodedLen(HashSize), len(s))
+	}
+	_, err := hex.Decode(h[:], []byte(s))
+	return err
 }
 
 func (h Hashlet) IsZero() bool {

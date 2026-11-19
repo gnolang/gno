@@ -54,24 +54,14 @@ func (oid *ObjectID) UnmarshalAmino(oids string) error {
 	if len(parts) != 2 {
 		return errors.New("invalid ObjectID %s", oids)
 	}
-	if len(parts[0]) != 40 {
-		return errors.New("invalid PkgID length: expected 40 hex characters, got %d", len(parts[0]))
+	if err := oid.PkgID.UnmarshalAmino(parts[0]); err != nil {
+		return err
 	}
-	_, err := hex.Decode(oid.PkgID.Hashlet[:], []byte(parts[0]))
+	newTime, err := strconv.ParseUint(parts[1], 10, 64)
 	if err != nil {
 		return err
 	}
-	newTime, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return err
-	}
-	if newTime < 0 {
-		return errors.New("invalid NewTime: cannot be negative, got %d", newTime)
-	}
-	if newTime == 0 && !oid.PkgID.IsZero() {
-		return errors.New("invalid NewTime: must be greater than zero for non-zero PkgID")
-	}
-	oid.NewTime = uint64(newTime)
+	oid.NewTime = newTime
 	return nil
 }
 

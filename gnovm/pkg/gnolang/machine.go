@@ -2710,6 +2710,7 @@ func (m *Machine) PopFrameAndReturn() {
 	} else if fr.IsDefer {
 		pfr := m.PeekCallFrame(1)
 		m.Exception = pfr.LastException // may or may not be nil
+		m.Exception.unlinkNext()
 	}
 }
 
@@ -3176,6 +3177,7 @@ func (m *Machine) Recover() *Exception {
 	// return value of D's call to recover will be the value passed to the
 	// call of panic.
 	ex := m.Exception
+	ex.Previous.unlinkNext()
 	// If D returns normally, without starting a new panic, the panicking
 	// sequence stops. In that case, the state of functions called between
 	// G and the call to panic is discarded, and normal execution resumes.
@@ -3184,10 +3186,6 @@ func (m *Machine) Recover() *Exception {
 	// may become re-set during PopFrameAndReturn() (returning from a defer
 	// call) to an older value when popping a frame with .LastException set
 	// from doOpReturnCallDefers() > m.PushFrameCall(isDefer=true).
-
-	if ex.Previous != nil {
-		ex.Previous.Next = nil
-	}
 	m.Exception = nil
 	return ex
 }

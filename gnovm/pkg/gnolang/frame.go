@@ -329,6 +329,14 @@ func (e *Exception) WithPrevious(e2 *Exception) *Exception {
 	return e
 }
 
+// unlinkNext drops e's link to a later exception that was recovered, so the
+// next WithPrevious onto e does not see it. A nil e does nothing.
+func (e *Exception) unlinkNext() {
+	if e != nil {
+		e.Next = nil
+	}
+}
+
 // UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
 type UnhandledPanicError struct {
 	Descriptor string // Description of the unhandled panic.
