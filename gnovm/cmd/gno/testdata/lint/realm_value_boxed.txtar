@@ -27,6 +27,18 @@ type local struct{}
 
 func (local) M() error { return E{} }
 
+func Named() (r any) { r = E{}; return }
+
+func two() (E, error) { return E{}, nil }
+
+func Spread() (any, error) { return two() }
+
+func Closure() error {
+	g := func() E { return E{} }
+	_ = g
+	return nil
+}
+
 -- gnomod.toml --
 module = "gno.land/r/demo/box2"
 gno = "0.9"
@@ -36,4 +48,6 @@ gno = "0.9"
 gno.land/r/demo/box2/box.gno:14: exported function Concrete passes gno.land/r/demo/box2.E by value; other realms cannot hold it (use a pointer) (code=gnoLintWarning)
 gno.land/r/demo/box2/box.gno:11: exported function Call returns gno.land/r/demo/box2.E by value inside any; other realms cannot hold it (return a pointer) (code=gnoLintWarning)
 gno.land/r/demo/box2/box.gno:9: exported function Lit returns gno.land/r/demo/box2.E by value inside error; other realms cannot hold it (return a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box2/box.gno:21: exported function Named returns gno.land/r/demo/box2.E by value inside any; other realms cannot hold it (return a pointer) (code=gnoLintWarning)
+gno.land/r/demo/box2/box.gno:25: exported function Spread returns gno.land/r/demo/box2.E by value inside any; other realms cannot hold it (return a pointer) (code=gnoLintWarning)
 gno.land/r/demo/box2/box.gno:10: exported function Var returns gno.land/r/demo/box2.E by value inside any; other realms cannot hold it (return a pointer) (code=gnoLintWarning)

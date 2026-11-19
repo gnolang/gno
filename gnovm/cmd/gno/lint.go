@@ -643,28 +643,126 @@ func lintRealmBoxedResult(io commands.IO, pkg *types.Package, fset *token.FileSe
 		if sig.Recv() != nil {
 			what = "method"
 		}
+		// Assignments to a named interface result; a bare return yields them.
+		assigned := map[types.Object][]types.Type{}
+		bare := false
 		reported := false
-		ast.Inspect(fd.Body, func(n ast.Node) bool {
+		walkNoFuncLit(fd.Body, func(n ast.Node) bool {
 			if reported {
 				return false
 			}
-			ret, ok := n.(*ast.ReturnStmt)
-			if !ok || len(ret.Results) != results.Len() {
-				return true // bare or multi-value spread returns are not followed
-			}
-			for i, expr := range ret.Results {
-				rt := results.At(i).Type()
-				if !types.IsInterface(rt) {
-					continue
+			switch x := n.(type) {
+			case *ast.AssignStmt:
+				if len(x.Rhs) != len(x.Lhs) {
+					return true
 				}
-				if t := ownRealmValue(info.TypeOf(expr), pkg); t != nil {
-					report(fn, what, t, rt)
-					reported = true
-					return false
+				for i, lhs := range x.Lhs {
+					id, ok := lhs.(*ast.Ident)
+					if !ok {
+						continue
+					}
+					obj := info.ObjectOf(id)
+					if !isNamedResult(obj, results) {
+						continue
+					}
+					if t := info.TypeOf(x.Rhs[i]); t != nil {
+						assigned[obj] = append(assigned[obj], t)
+					}
+				}
+			case *ast.ReturnStmt:
+				if len(x.Results) == 0 {
+					bare = true
+					return true
+				}
+				if len(x.Results) == results.Len() {
+					for i, expr := range x.Results {
+						rt := results.At(i).Type()
+						if !types.IsInterface(rt) {
+							continue
+						}
+						if t := ownRealmValue(info.TypeOf(expr), pkg); t != nil {
+							report(fn, what, t, rt)
+							reported = true
+							return false
+						}
+					}
+					return true
+				}
+				if len(x.Results) == 1 && results.Len() > 1 {
+					ts := spreadResults(x.Results[0], info)
+					if len(ts) != results.Len() {
+						return true
+					}
+					for i, t := range ts {
+						rt := results.At(i).Type()
+						if !types.IsInterface(rt) {
+							continue
+						}
+						if own := ownRealmValue(t, pkg); own != nil {
+							report(fn, what, own, rt)
+							reported = true
+							return false
+						}
+					}
 				}
 			}
 			return true
 		})
+		if reported || !bare {
+			return
+		}
+		for i := 0; i < results.Len(); i++ {
+			v := results.At(i)
+			if !types.IsInterface(v.Type()) {
+				continue
+			}
+			for _, t := range assigned[v] {
+				if own := ownRealmValue(t, pkg); own != nil {
+					report(fn, what, own, v.Type())
+					return
+				}
+			}
+		}
+	})
+}
+
+// isNamedResult reports whether obj is one of the named results in results.
+func isNamedResult(obj types.Object, results *types.Tuple) bool {
+	if obj == nil {
+		return false
+	}
+	for i := 0; i < results.Len(); i++ {
+		if results.At(i) == obj {
+			return true
+		}
+	}
+	return false
+}
+
+// spreadResults returns the result types of a call used as a multi-value spread.
+func spreadResults(e ast.Expr, info *types.Info) []types.Type {
+	call, ok := ast.Unparen(e).(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	sig, ok := info.TypeOf(call.Fun).(*types.Signature)
+	if !ok {
+		return nil
+	}
+	var ts []types.Type
+	for i := 0; i < sig.Results().Len(); i++ {
+		ts = append(ts, sig.Results().At(i).Type())
+	}
+	return ts
+}
+
+// walkNoFuncLit visits n without descending into nested function literals.
+func walkNoFuncLit(n ast.Node, fn func(ast.Node) bool) {
+	ast.Inspect(n, func(node ast.Node) bool {
+		if _, ok := node.(*ast.FuncLit); ok {
+			return false
+		}
+		return fn(node)
 	})
 }
 
@@ -752,62 +850,102 @@ func isFuncType(t types.Type) bool {
 }
 
 // lintCrossingCalls reports calls in a crossing function whose callee is a
-// function value reached through a non-function parameter, directly or through
-// one level of local assignment (index, field, deref, range, or a call result).
+// function value reached through a non-function parameter: directly, through
+// locals, fields, indexes, dereferences, ranges, assertions and call results.
+// Known gaps: a chain through two or more locals is followed only when every
+// assignment is parameter-derived; values reached through another function of
+// the realm or through a closure capture are not followed.
 func lintCrossingCalls(io commands.IO, pkg *types.Package, fset *token.FileSet, fd *ast.FuncDecl, info *types.Info) {
-	nonFunc := map[string]bool{}
-	if fd.Type.Params != nil {
-		for _, field := range fd.Type.Params.List {
-			t := info.TypeOf(field.Type)
-			for _, n := range field.Names {
-				if n.Name != "_" {
-					nonFunc[n.Name] = !isFuncType(t)
-				}
-			}
+	env := newParamEnv(fd, info)
+	// A local is tainted only if every assignment to it is parameter-derived.
+	assigns := map[types.Object][]ast.Expr{}
+	var order []types.Object
+	record := func(obj types.Object, e ast.Expr) {
+		if obj == nil {
+			return
 		}
+		if _, ok := assigns[obj]; !ok {
+			order = append(order, obj)
+		}
+		assigns[obj] = append(assigns[obj], e)
 	}
-	origin := map[string]string{}
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.AssignStmt:
+			if len(x.Rhs) != len(x.Lhs) {
+				return true
+			}
 			for i, lhs := range x.Lhs {
-				id, ok := lhs.(*ast.Ident)
-				if !ok || i >= len(x.Rhs) {
-					continue
-				}
-				if p, ok := reachedParam(x.Rhs[i], nonFunc, origin, info); ok {
-					origin[id.Name] = p
+				if id, ok := lhs.(*ast.Ident); ok && id.Name != "_" {
+					record(info.ObjectOf(id), x.Rhs[i])
 				}
 			}
 		case *ast.ValueSpec:
+			if len(x.Values) != len(x.Names) {
+				return true
+			}
 			for i, id := range x.Names {
-				if i >= len(x.Values) {
-					continue
-				}
-				if p, ok := reachedParam(x.Values[i], nonFunc, origin, info); ok {
-					origin[id.Name] = p
+				if id.Name != "_" {
+					record(info.Defs[id], x.Values[i])
 				}
 			}
 		case *ast.RangeStmt:
-			p, ok := paramOrigin(x.X, nonFunc, origin)
-			if !ok {
-				return true
-			}
 			for _, e := range []ast.Expr{x.Key, x.Value} {
 				if id, ok := e.(*ast.Ident); ok && id.Name != "_" {
-					origin[id.Name] = p
+					record(info.ObjectOf(id), x.X)
+				}
+			}
+		case *ast.TypeSwitchStmt:
+			// Bind each case clause's variable to the switched expression.
+			as, ok := x.Assign.(*ast.AssignStmt)
+			if !ok || len(as.Rhs) != 1 {
+				return true
+			}
+			ta, ok := ast.Unparen(as.Rhs[0]).(*ast.TypeAssertExpr)
+			if !ok || ta.Type != nil {
+				return true
+			}
+			for _, stmt := range x.Body.List {
+				if cc, ok := stmt.(*ast.CaseClause); ok {
+					if obj := info.Implicits[cc]; obj != nil {
+						record(obj, ta.X)
+					}
 				}
 			}
 		}
 		return true
 	})
+	for changed := true; changed; {
+		changed = false
+		for _, obj := range order {
+			if _, ok := env.tainted[obj]; ok {
+				continue
+			}
+			var src *types.Var
+			all := true
+			for _, e := range assigns[obj] {
+				p := reachedParam(e, env)
+				if p == nil {
+					all = false
+					break
+				}
+				if src == nil {
+					src = p
+				}
+			}
+			if all && src != nil {
+				env.tainted[obj] = src
+				changed = true
+			}
+		}
+	}
 	ast.Inspect(fd.Body, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
 		}
-		p, ok := calleeParam(call.Fun, nonFunc, origin, info)
-		if !ok {
+		p := calleeParam(call.Fun, env)
+		if p == nil {
 			return true
 		}
 		location := pkg.Path()
@@ -817,7 +955,7 @@ func lintCrossingCalls(io commands.IO, pkg *types.Package, fset *token.FileSet, 
 		}
 		fmt.Fprintln(io.Err(), gnoIssue{
 			Code:       gnoLintWarning,
-			Msg:        fmt.Sprintf("crossing function %s calls a function reached through parameter %s; a caller can pass this realm's own stored functions (take the function itself, or look it up by key)", fd.Name.Name, p),
+			Msg:        fmt.Sprintf("crossing function %s calls a function reached through parameter %s; a caller can pass this realm's own stored functions (take the function itself, or look it up by key)", fd.Name.Name, p.Name()),
 			Confidence: 1,
 			Location:   location,
 		})
@@ -825,68 +963,87 @@ func lintCrossingCalls(io commands.IO, pkg *types.Package, fset *token.FileSet, 
 	})
 }
 
-// reachedParam resolves an expression to the non-function parameter it reaches.
-func reachedParam(e ast.Expr, nonFunc map[string]bool, origin map[string]string, info *types.Info) (string, bool) {
-	switch x := ast.Unparen(e).(type) {
-	case *ast.Ident:
-		if p, ok := origin[x.Name]; ok {
-			return p, true
-		}
-	case *ast.IndexExpr:
-		return paramOrigin(x.X, nonFunc, origin)
-	case *ast.StarExpr:
-		return paramOrigin(x.X, nonFunc, origin)
-	case *ast.SelectorExpr:
-		if sel := info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
-			return paramOrigin(x.X, nonFunc, origin)
-		}
-	case *ast.CallExpr:
-		return calleeOnParam(x.Fun, nonFunc, origin)
-	}
-	return "", false
+// paramEnv tracks the variables that hold a value reached through a parameter.
+type paramEnv struct {
+	info    *types.Info
+	tainted map[types.Object]*types.Var
 }
 
-// calleeOnParam: a call on a non-function parameter (a returned function).
-func calleeOnParam(fun ast.Expr, nonFunc map[string]bool, origin map[string]string) (string, bool) {
+// newParamEnv taints the non-function parameters of fd, keyed by object so a
+// shadowing variable is not confused with the parameter.
+func newParamEnv(fd *ast.FuncDecl, info *types.Info) *paramEnv {
+	env := &paramEnv{info: info, tainted: map[types.Object]*types.Var{}}
+	if fd.Type.Params == nil {
+		return env
+	}
+	for _, field := range fd.Type.Params.List {
+		for _, n := range field.Names {
+			v, ok := info.Defs[n].(*types.Var)
+			if !ok || isFuncType(v.Type()) {
+				continue
+			}
+			env.tainted[v] = v
+		}
+	}
+	return env
+}
+
+// reachedParam resolves an expression to the parameter it reaches, or nil.
+func reachedParam(e ast.Expr, env *paramEnv) *types.Var {
+	switch x := ast.Unparen(e).(type) {
+	case *ast.Ident:
+		return env.tainted[env.info.ObjectOf(x)]
+	case *ast.SelectorExpr:
+		if sel := env.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
+			return reachedParam(x.X, env)
+		}
+	case *ast.IndexExpr:
+		return reachedParam(x.X, env)
+	case *ast.StarExpr:
+		return reachedParam(x.X, env)
+	case *ast.TypeAssertExpr:
+		return reachedParam(x.X, env)
+	case *ast.CallExpr:
+		return calleeOnParam(x.Fun, env)
+	}
+	return nil
+}
+
+// calleeOnParam: a call whose callee is reached through a parameter, so the
+// call's result is too. A method call is followed to its receiver.
+func calleeOnParam(fun ast.Expr, env *paramEnv) *types.Var {
 	switch x := ast.Unparen(fun).(type) {
 	case *ast.SelectorExpr:
-		return paramOrigin(x.X, nonFunc, origin)
+		return reachedParam(x.X, env)
 	case *ast.IndexExpr:
-		return paramOrigin(x.X, nonFunc, origin)
+		return reachedParam(x.X, env)
+	case *ast.StarExpr:
+		return reachedParam(x.X, env)
+	case *ast.TypeAssertExpr:
+		return reachedParam(x.X, env)
+	case *ast.CallExpr:
+		return calleeOnParam(x.Fun, env)
 	}
-	return "", false
+	return reachedParam(fun, env)
 }
 
 // calleeParam: the call's callee is a function value reached through a parameter.
-func calleeParam(fun ast.Expr, nonFunc map[string]bool, origin map[string]string, info *types.Info) (string, bool) {
+func calleeParam(fun ast.Expr, env *paramEnv) *types.Var {
 	switch x := ast.Unparen(fun).(type) {
 	case *ast.Ident:
-		if p, ok := origin[x.Name]; ok {
-			return p, true
-		}
+		return env.tainted[env.info.ObjectOf(x)]
 	case *ast.IndexExpr:
-		return paramOrigin(x.X, nonFunc, origin)
+		return reachedParam(x.X, env)
 	case *ast.StarExpr:
-		return paramOrigin(x.X, nonFunc, origin)
+		return reachedParam(x.X, env)
 	case *ast.SelectorExpr:
-		if sel := info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
-			return paramOrigin(x.X, nonFunc, origin)
+		if sel := env.info.Selections[x]; sel != nil && sel.Kind() == types.FieldVal {
+			return reachedParam(x.X, env)
 		}
+	case *ast.TypeAssertExpr:
+		return reachedParam(x.X, env)
+	case *ast.CallExpr:
+		return calleeOnParam(x.Fun, env)
 	}
-	return "", false
-}
-
-// paramOrigin: an ident naming a non-function parameter or a local traced to one.
-func paramOrigin(e ast.Expr, nonFunc map[string]bool, origin map[string]string) (string, bool) {
-	id, ok := ast.Unparen(e).(*ast.Ident)
-	if !ok {
-		return "", false
-	}
-	if nonFunc[id.Name] {
-		return id.Name, true
-	}
-	if p, ok := origin[id.Name]; ok {
-		return p, true
-	}
-	return "", false
+	return nil
 }
