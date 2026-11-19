@@ -143,6 +143,11 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	// ATTR_ASSIGN_CONVERT marks values going into a variable whose type differs
+	// from theirs only by name, so the VM converts them. On `a, b = f()`,
+	// `var a, b T = f()`, comma-ok, `return f()` and `g(f())`: one type per
+	// value, nil where none converts. On a range's key or value: one type.
+	ATTR_ASSIGN_CONVERT GnoAttribute = "ATTR_ASSIGN_CONVERT"
 	// For top level declarations, a map[Name]struct{} of other dependencies
 	ATTR_DECL_DEPS GnoAttribute = "ATTR_DECL_DEPS"
 )
@@ -770,10 +775,6 @@ func (ss Body) GetBody() Body {
 	return ss
 }
 
-func (ss *Body) SetBody(nb Body) {
-	*ss = nb
-}
-
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	for idx, stmt = range ss {
 		if label == stmt.GetLabel() {
@@ -921,6 +922,10 @@ type RangeStmt struct {
 	IsMap      bool // if X is map type
 	IsString   bool // if X is string type
 	IsArrayPtr bool // if X is array-pointer type
+	// converts is set by preprocess when Key or Value records a conversion,
+	// so an iteration of the many loops that record none skips looking them
+	// up. Not persisted, as Attributes are not.
+	converts bool
 }
 
 type ReturnStmt struct {
@@ -1415,13 +1420,6 @@ func (pn *PackageNode) PrepareNewValues(alloc *Allocator, pv *PackageValue) []Ty
 			panic("PackageNode.PrepareNewValues() package mismatch")
 		}
 	}
-	// The FuncValue Body may have been altered during the preprocessing.
-	// We need to update body field from the source in the FuncValue accordingly.
-	for _, tv := range pn.Values {
-		if fv, ok := tv.V.(*FuncValue); ok {
-			fv.UpdateBodyFromSource()
-		}
-	}
 	pvl := len(block.Values)
 	pnl := len(pn.Values)
 	// copy new top-level defined values/types.
@@ -1614,7 +1612,6 @@ type BlockNode interface {
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
 	GetBody() Body
-	SetBody(Body)
 
 	// Utility methods for gno fix etc.
 	// Unlike GetType[Decl|Expr]For[Path|Expr] which are determined
@@ -2445,15 +2442,7 @@ func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
 }
 
-func (x *IfStmt) SetBody(b Body) {
-	panic("IfStmt has no body (but .Then and .Else do)")
-}
-
 func (x *SwitchStmt) GetBody() Body {
-	panic("SwitchStmt has no body (but its cases do)")
-}
-
-func (x *SwitchStmt) SetBody(b Body) {
 	panic("SwitchStmt has no body (but its cases do)")
 }
 
@@ -2461,15 +2450,7 @@ func (x *FileNode) GetBody() Body {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
-func (x *FileNode) SetBody(b Body) {
-	panic("FileNode has no body (but it does have .Decls)")
-}
-
 func (*PackageNode) GetBody() Body {
-	panic("PackageNode has no body")
-}
-
-func (*PackageNode) SetBody(b Body) {
 	panic("PackageNode has no body")
 }
 
@@ -2563,26 +2544,6 @@ func NewValuePathPtrMethod(index uint16, n Name) ValuePath {
 
 func NewValuePathInterface(n Name) ValuePath {
 	return NewValuePath(VPInterface, 0, 0, n)
-}
-
-func NewValuePathSubrefField(depth uint8, index uint16, n Name) ValuePath {
-	return NewValuePath(VPSubrefField, depth, index, n)
-}
-
-func NewValuePathDerefField(depth uint8, index uint16, n Name) ValuePath {
-	return NewValuePath(VPDerefField, depth, index, n)
-}
-
-func NewValuePathDerefValMethod(index uint16, n Name) ValuePath {
-	return NewValuePath(VPDerefValMethod, 0, index, n)
-}
-
-func NewValuePathDerefPtrMethod(index uint16, n Name) ValuePath {
-	return NewValuePath(VPDerefPtrMethod, 0, index, n)
-}
-
-func NewValuePathDerefInterface(n Name) ValuePath {
-	return NewValuePath(VPDerefInterface, 0, 0, n)
 }
 
 func (vp ValuePath) Validate() {

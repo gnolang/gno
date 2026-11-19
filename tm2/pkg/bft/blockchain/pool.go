@@ -44,7 +44,9 @@ const (
 	minRecvRate = 7680
 )
 
-var peerTimeout = 15 * time.Second // not const so we can override with tests
+// peerTimeout is how long a peer with pending requests may go without
+// sending a block before the pool drops it.
+const peerTimeout = 15 * time.Second
 
 /*
 	Peers self report their heights when we join the block pool.
@@ -75,6 +77,8 @@ type BlockPool struct {
 
 	requestsCh chan<- BlockRequest
 	errorsCh   chan<- peerError
+
+	peerTimeout time.Duration // peerTimeout, unless a test sets it before Start
 }
 
 // NewBlockPool returns a new BlockPool with the height equal to start. Block
@@ -89,6 +93,8 @@ func NewBlockPool(start int64, requestsCh chan<- BlockRequest, errorsCh chan<- p
 
 		requestsCh: requestsCh,
 		errorsCh:   errorsCh,
+
+		peerTimeout: peerTimeout,
 	}
 	bp.BaseService = *service.NewBaseService(nil, "BlockPool", bp)
 	return bp
@@ -502,9 +508,9 @@ func (peer *bpPeer) resetMonitor() {
 
 func (peer *bpPeer) resetTimeout() {
 	if peer.timeout == nil {
-		peer.timeout = time.AfterFunc(peerTimeout, peer.onTimeout)
+		peer.timeout = time.AfterFunc(peer.pool.peerTimeout, peer.onTimeout)
 	} else {
-		peer.timeout.Reset(peerTimeout)
+		peer.timeout.Reset(peer.pool.peerTimeout)
 	}
 }
 
@@ -532,7 +538,7 @@ func (peer *bpPeer) onTimeout() {
 
 	err := errors.New("peer did not send us anything")
 	peer.pool.sendError(err, peer.id)
-	peer.logger.Error("SendTimeout", "reason", err, "timeout", peerTimeout)
+	peer.logger.Error("SendTimeout", "reason", err, "timeout", peer.pool.peerTimeout)
 	peer.didTimeout = true
 }
 

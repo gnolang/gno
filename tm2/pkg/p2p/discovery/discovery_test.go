@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"net"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -605,8 +606,9 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		preparedReq, err := amino.MarshalAny(req)
 		require.NoError(t, err)
 
-		// Receive the message
-		r.Receive(Channel, &mock.Peer{}, preparedReq)
+		// Receive the message, in answer to a request
+		sender := newRequestedPeer(t, r)
+		r.Receive(Channel, sender, preparedReq)
 
 		select {
 		case <-notifCh:
@@ -666,8 +668,8 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		preparedReq, err := amino.MarshalAny(req)
 		require.NoError(t, err)
 
-		// Receive the message
-		r.Receive(Channel, &mock.Peer{}, preparedReq)
+		// Receive the message, in answer to a request
+		r.Receive(Channel, newRequestedPeer(t, r), preparedReq)
 
 		// Make sure no peers were dialed
 		assert.Empty(t, capturedDials)
@@ -717,7 +719,7 @@ func TestReactor_Store_PersistsDiscoveredPeers(t *testing.T) {
 	preparedResp, err := amino.MarshalAny(resp)
 	require.NoError(t, err)
 
-	r.Receive(Channel, &mock.Peer{}, preparedResp)
+	r.Receive(Channel, newRequestedPeer(t, r), preparedResp)
 
 	// The store should now contain all discovered peers
 	assert.Equal(t, len(peers), store.Size())
@@ -800,4 +802,173 @@ func TestReactor_Store_DialsPersistedPeersOnStart(t *testing.T) {
 
 	// All persisted peers should have been dialed
 	assert.Len(t, capturedDials, len(peers))
+}
+
+// newRequestedPeer returns a peer the reactor has sent a discovery Request
+func newRequestedPeer(t *testing.T, r *Reactor) *mock.Peer {
+	t.Helper()
+
+	peer := mock.GeneratePeers(t, 1)[0]
+	peer.SendFn = func(byte, []byte) bool { return true }
+
+	r.requestPeers(peer)
+
+	return peer
+}
+
+// newTestResponse returns a marshalled Response carrying the given number
+// of fresh peer addresses
+func newTestResponse(t *testing.T, count int) []byte {
+	t.Helper()
+
+	peers := mock.GeneratePeers(t, count)
+	addrs := make([]*types.NetAddress, 0, count)
+
+	for _, p := range peers {
+		addrs = append(addrs, p.NodeInfo().DialAddress())
+	}
+
+	msg, err := amino.MarshalAny(&Response{Peers: addrs})
+	require.NoError(t, err)
+
+	return msg
+}
+
+func TestReactor_UnsolicitedResponse(t *testing.T) {
+	t.Parallel()
+
+	// newReactor returns a reactor over a store already holding 1000 peers,
+	// and the count of addresses it hands to the switch for dialing
+	newReactor := func(t *testing.T) (*Reactor, *Store, *int) {
+		t.Helper()
+
+		store := newTestStore(t)
+		for i := range defaultMaxPeers {
+			store.AddPeers(generateTestAddress(t, "10.0.0.1", uint16(20000+i)))
+		}
+
+		var (
+			dialed int
+
+			ps = &mockPeerSet{
+				listFn: func() []p2p.PeerConn { return nil },
+			}
+		)
+
+		r := NewReactor(store, WithDiscoveryInterval(time.Hour))
+		r.SetSwitch(&mockSwitch{
+			peersFn:     func() p2p.PeerSet { return ps },
+			dialPeersFn: func(addrs ...*types.NetAddress) { dialed += len(addrs) },
+		})
+
+		return r, store, &dialed
+	}
+
+	// unchanged returns the number of the store's first 1000 peers it still holds
+	unchanged := func(t *testing.T, store *Store) int {
+		t.Helper()
+
+		count := 0
+
+		for _, addr := range store.GetPeers() {
+			if addr.IP.Equal(net.ParseIP("10.0.0.1")) {
+				count++
+			}
+		}
+
+		return count
+	}
+
+	t.Run("response nobody asked for dropped", func(t *testing.T) {
+		t.Parallel()
+
+		r, store, dialed := newReactor(t)
+		sender := mock.GeneratePeers(t, 1)[0]
+
+		// Enough full responses to replace every stored peer
+		for range defaultMaxPeers/maxPeersShared + 1 {
+			r.Receive(Channel, sender, newTestResponse(t, maxPeersShared))
+		}
+
+		assert.Equal(t, defaultMaxPeers, unchanged(t, store))
+		assert.Zero(t, *dialed)
+	})
+
+	t.Run("one response taken per request", func(t *testing.T) {
+		t.Parallel()
+
+		r, store, dialed := newReactor(t)
+		sender := newRequestedPeer(t, r)
+
+		for range 3 {
+			r.Receive(Channel, sender, newTestResponse(t, maxPeersShared))
+		}
+
+		assert.Equal(t, defaultMaxPeers-maxPeersShared, unchanged(t, store))
+		assert.Equal(t, maxPeersShared, *dialed)
+	})
+
+	t.Run("request that failed to send expects no answer", func(t *testing.T) {
+		t.Parallel()
+
+		r, store, dialed := newReactor(t)
+
+		// A stopped peer refuses the send
+		sender := mock.GeneratePeers(t, 1)[0]
+		sender.SendFn = func(byte, []byte) bool { return false }
+
+		r.requestPeers(sender)
+		r.Receive(Channel, sender, newTestResponse(t, maxPeersShared))
+
+		assert.Equal(t, defaultMaxPeers, unchanged(t, store))
+		assert.Zero(t, *dialed)
+	})
+
+	t.Run("answer arriving before the send returns taken", func(t *testing.T) {
+		t.Parallel()
+
+		r, store, dialed := newReactor(t)
+
+		sender := mock.GeneratePeers(t, 1)[0]
+		sender.SendFn = func(byte, []byte) bool {
+			r.Receive(Channel, sender, newTestResponse(t, maxPeersShared))
+
+			return true
+		}
+
+		r.requestPeers(sender)
+
+		assert.Equal(t, defaultMaxPeers-maxPeersShared, unchanged(t, store))
+		assert.Equal(t, maxPeersShared, *dialed)
+	})
+
+	t.Run("replaced connection leaves the request in place", func(t *testing.T) {
+		t.Parallel()
+
+		r, store, dialed := newReactor(t)
+		sender := newRequestedPeer(t, r)
+
+		// The connection being replaced shares the peer ID, and goes after
+		// the kept one was asked
+		replaced := &mock.Peer{IDFn: sender.IDFn}
+		r.RemovePeer(replaced, nil)
+
+		r.Receive(Channel, sender, newTestResponse(t, maxPeersShared))
+
+		assert.Equal(t, defaultMaxPeers-maxPeersShared, unchanged(t, store))
+		assert.Equal(t, maxPeersShared, *dialed)
+	})
+
+	t.Run("request to a departed peer forgotten", func(t *testing.T) {
+		t.Parallel()
+
+		r, store, dialed := newReactor(t)
+		sender := newRequestedPeer(t, r)
+
+		r.RemovePeer(sender, nil)
+		r.Receive(Channel, sender, newTestResponse(t, maxPeersShared))
+
+		assert.Equal(t, defaultMaxPeers, unchanged(t, store))
+		assert.Zero(t, *dialed)
+	})
 }

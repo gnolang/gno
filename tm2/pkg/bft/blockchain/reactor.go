@@ -321,18 +321,18 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
-		bcR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
+		bcR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err, "bytes", len(msgBytes))
 		bcR.Switch.StopPeerForError(src, err)
 		return
 	}
 
 	if err = msg.ValidateBasic(); err != nil {
-		bcR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		bcR.Logger.Error("Peer sent us invalid msg", "peer", src, "type", reflect.TypeOf(msg), "err", err)
 		bcR.Switch.StopPeerForError(src, err)
 		return
 	}
 
-	bcR.Logger.Debug("Receive", "src", src, "chID", chID, "msg", msg)
+	bcR.Logger.Debug("Receive", "src", src, "chID", chID, "type", reflect.TypeOf(msg), "bytes", len(msgBytes))
 
 	switch msg := msg.(type) {
 	case *bcBlockRequestMessage:
@@ -574,9 +574,21 @@ func (bcR *BlockchainReactor) BroadcastStatusRequest() error {
 // Messages
 
 // BlockchainMessage is a generic message for this reactor.
+//
+// Only this package's types have assertBlockchainMessage, so amino refuses a
+// registered type of any other package before decoding it, and neither its
+// decode error nor its ValidateBasic error, either of which can quote what a
+// peer sent at any length, reaches the log.
 type BlockchainMessage interface {
 	ValidateBasic() error
+	assertBlockchainMessage()
 }
+
+func (*bcBlockRequestMessage) assertBlockchainMessage()    {}
+func (*bcBlockResponseMessage) assertBlockchainMessage()   {}
+func (*bcNoBlockResponseMessage) assertBlockchainMessage() {}
+func (*bcStatusRequestMessage) assertBlockchainMessage()   {}
+func (*bcStatusResponseMessage) assertBlockchainMessage()  {}
 
 func decodeMsg(bz []byte) (msg BlockchainMessage, err error) {
 	if len(bz) > maxMsgSize {
