@@ -67,6 +67,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
 	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
+	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
 	if cacheStdlibs {
 		vmk.LoadStdlibCached(stdlibCtx, stdlibsDir)
 	} else {
@@ -79,8 +80,6 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 
 	return testEnv{ctx: ctx, vmk: vmk, bankk: bankk, acck: acck, prmk: prmk, vmh: vmh}
 }
-
-var stdlibsDir = filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
 
 // examplesDir returns the path to the examples directory relative to this test file.
 func examplesDir() string {

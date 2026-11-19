@@ -275,7 +275,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		VM:       vmk,
 		MainKey:  mainKey,
 		BaseKey:  baseKey,
-	}, cfg.StdlibDir))
+	}))
 
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
@@ -298,9 +298,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		return nil, err
 	}
 
-	// Initialize the VMKeeper, which must not require the stdlibs a migration
-	// has yet to add.
-	vmk.SetMigrationStdlibs(migrations.Stdlibs(Upgrades))
+	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
@@ -1089,9 +1087,8 @@ func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci
 var Upgrades = []migrations.Upgrade{}
 
 // BeginBlocker runs, in the block after a governance halt, the migration
-// registered in Upgrades under that halt's halt_min_version, if any. It reads
-// the stdlibs an upgrade adds from stdlibDir, as genesis does.
-func BeginBlocker(env migrations.Env, stdlibDir string) sdk.BeginBlocker {
+// registered in Upgrades under that halt's halt_min_version, if any.
+func BeginBlocker(env migrations.Env) sdk.BeginBlocker {
 	return func(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 		if len(Upgrades) == 0 {
 			return abci.ResponseBeginBlock{}
@@ -1113,18 +1110,8 @@ func BeginBlocker(env migrations.Env, stdlibDir string) sdk.BeginBlocker {
 		}
 
 		ctx.Logger().Info("running upgrade migration", "version", version, "height", ctx.BlockHeight())
-		fail := func(err error) {
+		if err := upgrade.Handler(ctx, env); err != nil {
 			panic(fmt.Sprintf("upgrade %s: migration failed at height %d: %v", version, ctx.BlockHeight(), err))
-		}
-		if len(upgrade.Stdlibs) > 0 {
-			if err := env.VM.AddStdlibs(ctx, stdlibDir, upgrade.Stdlibs); err != nil {
-				fail(err)
-			}
-		}
-		if upgrade.Handler != nil {
-			if err := upgrade.Handler(ctx, env); err != nil {
-				fail(err)
-			}
 		}
 		return abci.ResponseBeginBlock{}
 	}

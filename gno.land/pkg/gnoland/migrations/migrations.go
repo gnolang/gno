@@ -6,10 +6,8 @@ package migrations
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -38,18 +36,8 @@ type Handler func(ctx sdk.Context, env Env) error
 
 // Upgrade is the migration of one release.
 type Upgrade struct {
-	Version string   // the release tag; what halt_min_version carries
-	Stdlibs []string // stdlibs the release adds, loaded before Handler runs
-	Handler Handler  // the code of the migration; optional with Stdlibs
-}
-
-// Stdlibs returns the stdlibs every upgrade adds.
-func Stdlibs(upgrades []Upgrade) []string {
-	var paths []string
-	for _, u := range upgrades {
-		paths = append(paths, u.Stdlibs...)
-	}
-	return paths
+	Version string  // the release tag; what halt_min_version carries
+	Handler Handler // the code of the migration
 }
 
 // Find returns the upgrade registered under version.
@@ -62,31 +50,20 @@ func Find(upgrades []Upgrade, version string) (Upgrade, bool) {
 	return Upgrade{}, false
 }
 
-// Validate checks that every upgrade names a version and does something, that
-// no version is registered twice, and that each stdlib added is a stdlib of
-// this binary, added once.
+// Validate checks that every upgrade names a version and a handler, and that
+// no version is registered twice.
 func Validate(upgrades []Upgrade) error {
 	seen := make(map[string]bool, len(upgrades))
-	added := make(map[string]bool)
 	for i, u := range upgrades {
 		switch {
 		case u.Version == "":
 			return fmt.Errorf("upgrade %d: empty version", i)
-		case u.Handler == nil && len(u.Stdlibs) == 0:
-			return fmt.Errorf("upgrade %q: no handler and no stdlib", u.Version)
+		case u.Handler == nil:
+			return fmt.Errorf("upgrade %q: nil handler", u.Version)
 		case seen[u.Version]:
 			return fmt.Errorf("upgrade %q: registered twice", u.Version)
 		}
 		seen[u.Version] = true
-		for _, lib := range u.Stdlibs {
-			switch {
-			case !slices.Contains(stdlibs.InitOrder(), lib):
-				return fmt.Errorf("upgrade %q: %q is not a stdlib", u.Version, lib)
-			case added[lib]:
-				return fmt.Errorf("upgrade %q: stdlib %q added twice", u.Version, lib)
-			}
-			added[lib] = true
-		}
 	}
 	return nil
 }

@@ -147,8 +147,6 @@ type VMKeeper struct {
 	gnoStore gno.Store
 	// committed typecheck cache
 	typeCheckCache gno.TypeCheckCache
-	// stdlibs a registered migration adds; see SetMigrationStdlibs
-	migrationStdlibs []string
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -217,12 +215,6 @@ func (vm *VMKeeper) Initialize(
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
-			if mp == nil {
-				if slices.Contains(vm.migrationStdlibs, stdlib) {
-					continue // a pending migration adds it
-				}
-				panic(fmt.Errorf("intialization error: stdlib %q is not in the store", stdlib))
-			}
 			pkg, err := gno.TypeCheckMemPackage(mp, opts)
 			if err != nil {
 				panic(fmt.Errorf("intialization error type checking %q: %w", stdlib, err))
@@ -332,51 +324,6 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 		}
 		opts.Cache[lib] = pkg
 	}
-}
-
-// SetMigrationStdlibs names the stdlibs that registered migrations add to a
-// running chain. Initialize skips them while they are absent from the store;
-// a store missing any other stdlib still fails it.
-func (vm *VMKeeper) SetMigrationStdlibs(paths []string) {
-	vm.migrationStdlibs = paths
-}
-
-// AddStdlibs loads stdlibs that genesis did not into the store, in init
-// order, for a migration that adds them to a running chain. As genesis does,
-// it runs each package, type-checks it into the keeper's cache, and refills
-// the stdlib byte cache: its hits cost no gas, so it must hold what a
-// restarted node's Initialize would put in it.
-func (vm *VMKeeper) AddStdlibs(ctx sdk.Context, stdlibDir string, paths []string) error {
-	ctx = vm.MakeGnoTransactionStore(ctx)
-	gs := vm.getGnoTransactionStore(ctx)
-	opts := gno.TypeCheckOptions{
-		Getter:   gs,
-		Mode:     gno.TCLatestStrict,
-		Cache:    vm.typeCheckCache,
-		ProdOnly: true, // see Initialize
-	}
-	added := 0
-	for _, lib := range stdlibs.InitOrder() {
-		if !slices.Contains(paths, lib) {
-			continue
-		}
-		if gs.GetMemPackage(lib) != nil {
-			return fmt.Errorf("stdlib %q is already in the store", lib)
-		}
-		loadStdlibPackage(lib, stdlibDir, gs)
-		pkg, err := gno.TypeCheckMemPackage(gs.GetMemPackage(lib), opts)
-		if err != nil {
-			return fmt.Errorf("failed type checking stdlib %q: %w", lib, err)
-		}
-		opts.Cache[lib] = pkg
-		added++
-	}
-	if added != len(paths) {
-		return fmt.Errorf("not every stdlib of %v is a stdlib of this binary", paths)
-	}
-	vm.CommitGnoTransactionStore(ctx)
-	vm.PopulateStdlibCacheFrom(ctx.MultiStore())
-	return nil
 }
 
 func loadStdlib(store gno.Store, stdlibDir string) {

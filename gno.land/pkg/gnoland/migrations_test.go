@@ -49,7 +49,7 @@ func TestBeginBlocker(t *testing.T) {
 			int64s:  map[string]int64{nodeParamHaltHeight: haltHeight},
 			strings: map[string]string{nodeParamHaltMinVersion: haltVersion},
 		}
-		bb := BeginBlocker(migrations.Env{Params: prmk}, "")
+		bb := BeginBlocker(migrations.Env{Params: prmk})
 		ctx := sdk.Context{}.WithLogger(log.NewNoopLogger()).WithBlockHeader(&bft.Header{Height: height})
 		bb(ctx, abci.RequestBeginBlock{})
 	}
