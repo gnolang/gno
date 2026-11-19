@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -14,7 +15,7 @@ import (
 // Returns list of kvpairs from param struct.
 func encodeStructFields(prm any) (res []std.KVPair) {
 	rvPrm := reflect.ValueOf(prm)
-	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
+	tinfo, err := structTypeInfo(rvPrm.Type())
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
@@ -43,7 +44,7 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 		panic("setStructFields expects module param struct pointer")
 	}
 	rvPrm := reflect.ValueOf(prmPtr).Elem()
-	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
+	tinfo, err := structTypeInfo(rvPrm.Type())
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
@@ -86,7 +87,7 @@ func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, k
 		panic("setStructFields expects module param struct pointer")
 	}
 	rvPrm := reflect.ValueOf(prmPtr).Elem()
-	tinfo, err := amino.GetTypeInfo(rvPrm.Type())
+	tinfo, err := structTypeInfo(rvPrm.Type())
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
@@ -100,4 +101,28 @@ func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, k
 		res = append(res, std.KVPair{Key: []byte(name), Value: value})
 	}
 	return res
+}
+
+// typeInfos memoizes structTypeInfo, keyed by reflect.Type.
+var typeInfos sync.Map // reflect.Type -> *amino.TypeInfo
+
+// structTypeInfo returns the amino type info of a param struct type.
+//
+// amino.GetTypeInfo builds a fresh codec, well-known types included, on every
+// call, and every GetStruct/SetStruct needs the type info, so ante handlers
+// pay for it on every transaction. The result depends only on rt (the
+// throwaway codec has nothing registered), so it is safe to compute once per
+// type. The key set is the set of param struct types the binary passes to
+// GetStruct/SetStruct, which is fixed at compile time. Errors are not cached.
+// Callers must treat the returned *amino.TypeInfo as read-only: it is shared.
+func structTypeInfo(rt reflect.Type) (*amino.TypeInfo, error) {
+	if ti, ok := typeInfos.Load(rt); ok {
+		return ti.(*amino.TypeInfo), nil
+	}
+	ti, err := amino.GetTypeInfo(rt)
+	if err != nil {
+		return nil, err
+	}
+	actual, _ := typeInfos.LoadOrStore(rt, ti)
+	return actual.(*amino.TypeInfo), nil
 }
