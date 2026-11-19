@@ -217,8 +217,19 @@ has any method with a body that writes its receiver, calling that
 method on the returned pointer succeeds — borrow rule #2 borrows `m.Realm`
 back to `/r/V`, and the write commits.
 
+Slicing the result does not narrow this. A sub-slice keeps the
+capacity of its backing array, so after `return users[:1]` the caller
+can reslice with `s[:cap(s)]` and call those methods on the elements
+you left out. Nor do the elements have to be pointers: if `users` is
+a `[]User`, `Users()[0].SetName("x")` takes the address of the element
+inside your backing array, and the method writes it in place.
+
 **Rule**: getters return either values (copies), unexported method
 results, or read-only views. Never a pointer to internal mutable state.
+A slice of values is copied with `make` + `copy`; a slice of pointers
+needs its pointees copied too, since a copied `[]*User` still points
+into your state. A three-index slice (`users[:n:n]`) only blocks the
+reslice: the elements it returns stay mutable through their methods.
 
 #### 5.1a `/p/`-type with unexported fields but exported mutation methods
 
