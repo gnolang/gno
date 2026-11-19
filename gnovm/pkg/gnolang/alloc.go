@@ -551,11 +551,21 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 	if t == nil || alloc == nil {
 		return
 	}
-	pid := getDeclaredPkgID(t)
+	pid := constructionRealmID(t)
 	if pid.IsRealmPkg() && pid != alloc.currentRealmID {
 		alloc.panicForeignAlloc(t)
 	}
 	alloc.checkBirth(t)
+}
+
+// constructionRealmID returns the realm that owns a newly built value of t,
+// or zero. An unnamed all-exported struct belongs to no realm — it is the
+// same type everywhere — so only its fields can carry one (see checkBirth).
+func constructionRealmID(t Type) PkgID {
+	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
+		return PkgID{}
+	}
+	return getDeclaredPkgID(t)
 }
 
 // checkBirth panics if a zero value of t, built here, would hold inline a
@@ -565,7 +575,7 @@ func (alloc *Allocator) checkBirth(t Type) {
 		return
 	}
 	if rid, ok := alloc.holdRealm(); ok {
-		if ft := foreignHeldType(t, rid); ft != nil {
+		if ft := firstForeignHeld(t, rid); ft != nil {
 			alloc.panicForeignAlloc(ft)
 		}
 	}
@@ -749,7 +759,7 @@ func (alloc *Allocator) refusedCopy(t Type) Type {
 	}
 	switch baseOf(t).(type) {
 	case *StructType, *ArrayType:
-		return foreignHeldType(t, rid)
+		return firstForeignHeld(t, rid)
 	}
 	return nil
 }
@@ -784,53 +794,98 @@ func (alloc *Allocator) panicForeignAlloc(t Type) {
 	))
 }
 
-// foreignHeldType returns t, or the first struct/array type t holds inline
-// (struct field, array element), that a realm other than rid declares; nil if none.
-// Pointers, slices, maps and interfaces hold nothing inline.
-func foreignHeldType(t Type, rid PkgID) Type {
-	var seen map[Type]struct{}
-	return foreignHeldTypeIn(t, rid, &seen)
+// firstForeignHeld returns the first type t holds inline that a realm other
+// than rid declares; nil if none. Pointers, slices, maps and interfaces hold
+// nothing inline.
+func firstForeignHeld(t Type, rid PkgID) Type {
+	for _, hr := range heldRealmsOf(t) {
+		if hr.pid != rid {
+			return hr.typ
+		}
+	}
+	return nil
 }
 
-// foreignHeldTypeIn examines each named or struct type once per top-level
-// call (seen is allocated on first use) and skips zero-length arrays.
-func foreignHeldTypeIn(t Type, rid PkgID, seen *map[Type]struct{}) Type {
-	switch t.(type) {
-	case *DeclaredType, *StructType:
-		if *seen == nil {
-			*seen = make(map[Type]struct{})
+// heldRealmsOf returns, one entry per realm, the realm-declared struct/array
+// types t holds by value. Cached on t like typeid (types are immutable after
+// preprocess); an empty answer is cached as a non-nil empty slice, or a type
+// holding no realm would be walked again on every check.
+func heldRealmsOf(t Type) []heldRealm {
+	switch tt := t.(type) {
+	case *DeclaredType:
+		if tt.heldRealms == nil {
+			tt.heldRealms = computeHeldRealms(tt)
 		}
-		if _, ok := (*seen)[t]; ok {
-			return nil
+		return tt.heldRealms
+	case *StructType:
+		if tt.heldRealms == nil {
+			tt.heldRealms = computeHeldRealms(tt)
 		}
-		(*seen)[t] = struct{}{}
+		return tt.heldRealms
+	case *ArrayType:
+		if tt.heldRealms == nil {
+			tt.heldRealms = computeHeldRealms(tt)
+		}
+		return tt.heldRealms
 	}
-	foreign := func(pid PkgID) bool { return pid.IsRealmPkg() && pid != rid }
+	return nil
+}
+
+// Returns a non-nil slice in every case, so the result is always cacheable.
+// Children are resolved through the cache, so each type is visited once.
+func computeHeldRealms(t Type) []heldRealm {
 	switch tt := t.(type) {
 	case *DeclaredType:
 		switch tt.Base.(type) {
 		case *StructType, *ArrayType:
-			if foreign(tt.GetPkgID()) {
-				return tt
-			}
+		default:
+			return []heldRealm{}
 		}
-		return foreignHeldTypeIn(tt.Base, rid, seen)
+		out := []heldRealm{}
+		if pid := tt.GetPkgID(); pid.IsRealmPkg() {
+			out = append(out, heldRealm{pid, tt})
+		}
+		return mergeHeldRealms(out, heldRealmsOf(tt.Base))
 	case *StructType:
-		if foreign(tt.GetPkgID()) {
-			return tt
+		out := []heldRealm{}
+		if realmOwnsStruct(tt) {
+			if pid := tt.GetPkgID(); pid.IsRealmPkg() {
+				out = append(out, heldRealm{pid, tt})
+			}
 		}
 		for _, f := range tt.Fields {
-			if ft := foreignHeldTypeIn(f.Type, rid, seen); ft != nil {
-				return ft
-			}
+			out = mergeHeldRealms(out, heldRealmsOf(f.Type))
 		}
+		return out
 	case *ArrayType:
 		if tt.Len == 0 {
-			return nil
+			return []heldRealm{}
 		}
-		return foreignHeldTypeIn(tt.Elt, rid, seen)
+		return mergeHeldRealms([]heldRealm{}, heldRealmsOf(tt.Elt))
 	}
-	return nil
+	return []heldRealm{}
+}
+
+// realmOwnsStruct reports whether an unnamed struct is a value a realm owns:
+// only unexported fields tie it to its package; an all-exported one is the
+// same type everywhere (same TypeID) and holds no realm of its own.
+func realmOwnsStruct(st *StructType) bool {
+	return FieldTypeList(st.Fields).HasUnexported()
+}
+
+// mergeHeldRealms appends src entries whose realm is not already in dst,
+// keeping the first type seen per realm.
+func mergeHeldRealms(dst, src []heldRealm) []heldRealm {
+merge:
+	for _, hr := range src {
+		for _, d := range dst {
+			if d.pid == hr.pid {
+				continue merge
+			}
+		}
+		dst = append(dst, hr)
+	}
+	return dst
 }
 
 // checkedDefaultTypedValue is defaultTypedValue plus checkBirth, for places the

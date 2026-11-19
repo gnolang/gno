@@ -557,6 +557,16 @@ func (l FieldTypeList) Types() []Type {
 }
 
 // ----------------------------------------
+// Held realm types
+
+// heldRealm is a realm-declared struct or array type held inline by another
+// type; typ names it in allocator refusals.
+type heldRealm struct {
+	pid PkgID
+	typ Type
+}
+
+// ----------------------------------------
 // Array type
 
 type ArrayType struct {
@@ -565,6 +575,11 @@ type ArrayType struct {
 	Vrd bool
 
 	typeid TypeID
+
+	// heldRealms caches what Elt holds inline, one entry per realm, in walk
+	// order (see heldRealmsOf). nil: not computed; non-nil, possibly empty:
+	// final. Not serialized; types are immutable after preprocess.
+	heldRealms []heldRealm
 }
 
 func (at *ArrayType) Kind() Kind {
@@ -770,6 +785,11 @@ type StructType struct {
 	// deterministically from Fields; not serialized, mirroring
 	// effectiveFields/effectiveMethods.
 	comparable uint8
+
+	// heldRealms caches the realm struct/array types this struct holds
+	// inline, in walk order (see heldRealmsOf). nil: not computed; non-nil,
+	// possibly empty: final. Not serialized; types are immutable post-preprocess.
+	heldRealms []heldRealm
 }
 
 func (st *StructType) Kind() Kind {
@@ -1515,6 +1535,12 @@ type DeclaredType struct {
 	// Single-threaded-preprocess invariant: lazy build via lookupMethod
 	// mutates *dt; not safe for concurrent first-lookup access.
 	methodIndex map[Name]uint16
+
+	// heldRealms caches the realm struct/array types this declared type
+	// holds inline, own realm first (see heldRealmsOf). nil: not computed;
+	// non-nil, possibly empty: final. Not serialized; types are immutable
+	// after preprocess.
+	heldRealms []heldRealm
 }
 
 // methodIndexThreshold gates the map build: most user types have ≤ a

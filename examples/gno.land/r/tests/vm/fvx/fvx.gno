@@ -49,3 +49,29 @@ func init() {
 	Tree.Set("a", T{N: 8})
 	PTree.Set("a", &T{N: 9})
 }
+
+// Sl is a slice of T values, for range and append probes.
+var Sl = []T{{N: 1}, {N: 2}}
+
+func (t T) Add(k int) int { return t.N + k }
+
+// Panics panics with a T value, for recover probes.
+func Panics() { panic(*one) }
+
+// Opts takes an anonymous all-exported struct by value.
+func Opts(cur realm, o struct{ N int }) int { return o.N }
+func OptsNC(o struct{ N int }) int          { return o.N }
+
+func Stats() struct{ A, B int } { return struct{ A, B int }{1, 2} }
+func Pair() [2]int              { return [2]int{3, 4} }
+
+var holder = struct{ H struct{ T T } }{H: struct{ T T }{T: T{N: 1}}}
+
+// HolderField returns a pointer, so the caller copies the anonymous struct.
+func HolderField() *struct{ H struct{ T T } } { return &holder }
+
+// Hidden returns an anonymous struct with an unexported field.
+func Hidden() struct{ n int } { return struct{ n int }{n: 1} }
+
+// Do runs f inside this realm's non-crossing code.
+func Do(f func()) { f() }

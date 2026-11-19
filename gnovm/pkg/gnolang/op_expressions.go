@@ -887,12 +887,14 @@ func (m *Machine) doOpConvert() {
 	// declare, otherwise it could fabricate "trusted" objects to
 	// hand back to the declaring realm.
 	// An interface target forges nothing (ConvertTo leaves the value
-	// unchanged), so it is exempt exactly like the implicit assignment.
+	// unchanged). Judged by the effective realm the copy rule uses: m.Realm
+	// is nil in a view-only frame; with no realm there is nothing to forge.
 	if t.Kind() != InterfaceKind {
-		if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
+		if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() {
+			rid, held := m.Alloc.holdRealm()
 			// A nil pointer points at nothing, so it forges nothing.
 			isNilPtr := t.Kind() == PointerKind && xv.V == nil
-			if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
+			if held && IsRealmPath(tdt.PkgPath) && tdt.GetPkgID() != rid && !isNilPtr {
 				panic("illegal conversion to external realm type")
 			}
 		}
