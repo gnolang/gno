@@ -133,7 +133,7 @@ func TestImportersLimitsOnlyCacheMisses(t *testing.T) {
 	if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrRateLimited) {
 		t.Fatalf("err = %v, want ErrRateLimited on a miss", err)
 	}
-	h.importers.answers.Put(avl, &Importers{AsOf: 7}, nil)
+	seed(h.importers.answers, avl, &Importers{AsOf: 7}, nil)
 	got, err := h.Importers(context.Background(), nil, avl)
 	if err != nil || got.AsOf != 7 {
 		t.Fatalf("got %+v, %v; want the cached answer", got, err)

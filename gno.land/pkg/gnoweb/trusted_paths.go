@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 // trustedPaths is keyed without the "/r/", "/p/" or "/u/" prefix so one
@@ -97,33 +98,32 @@ func storeDenyEntry(e, domain string) (string, bool) {
 		// follows it ("acme//swap.gno" would deny acme).
 		return "", false
 	}
-	if _, ok := cutScheme(e); !ok && !strings.HasPrefix(e, "/") {
+	_, schemed := cutScheme(e)
+	if !schemed && !strings.HasPrefix(e, "/") {
 		e = "/" + e
 	}
 	u, err := weburl.Parse(e)
 	if err != nil {
 		return "", false
 	}
-	// A path typed bare is under /r/; one typed with its tree must be valid
-	// as typed, or "/r/1inch" would be read as the namespace "r".
+	// A path typed bare is under /r/; a page's address names its tree.
 	if tree := u.Path + "/"; !strings.HasPrefix(tree, "/r/") && !strings.HasPrefix(tree, "/p/") && !strings.HasPrefix(tree, "/u/") {
+		if schemed {
+			return "", false
+		}
 		u.Path = "/r" + u.Path
 	}
 	pkg, ok := packagePath(u)
 	switch {
-	case !ok, !u.IsValidPath(), pkg == "r", pkg == "p", pkg == "u":
-		return "", false
+	case !ok, pkg == "r", pkg == "p", pkg == "u", !gno.ReGnoUserPkgPath.Matches("gno.land/r/" + pkg):
+		return "", false // no package can live there
 	case !strings.Contains(pkg, "/"):
-		// A namespace typed bare: anything past it ("scam:app", "scam$app",
-		// "scam#app", "scam/App", "scam/app.") is a last name read as
-		// arguments, a query, an anchor or a file, and would deny the whole
-		// namespace.
+		// Anything past a namespace ("scam:app", "scam/App") is a last name
+		// weburl dropped: it would deny the whole namespace.
 		if anchored || u.File != "" || u.Args != "" || len(u.WebQuery) > 0 || len(u.Query) > 0 {
 			return "", false
 		}
-	case u.File != "" && !isFileName(u.File):
-		// A page's address may name a file ("acme/swap/render.gno"); a last
-		// name that is no file ("acme/swap/V2") names no package.
+	case u.File != "" && !isFileName(u.File): // "acme/swap/V2" names no file
 		return "", false
 	}
 	return pkg, true

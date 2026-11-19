@@ -16,10 +16,8 @@ const (
 	// costs one timeout per key every few seconds, not one per reader.
 	errorTTL = 5 * time.Second
 
-	// maxPages bounds the category and list pages kept. Their keys come
-	// only from the pages the front page offers, which a crawler can walk
-	// within one TTL once the store holds thousands of apps: the front page
-	// and the build lens have flights of their own, so it never evicts them.
+	// maxPages bounds the category and list pages kept; the front page and
+	// the build lens have flights of their own, so a crawler evicts neither.
 	maxPages = 512
 )
 

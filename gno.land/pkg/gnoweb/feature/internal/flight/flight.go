@@ -176,12 +176,6 @@ func (f *Flight[T]) held(key string) (flightEntry[T], bool) {
 	return e, ok && e.err == nil
 }
 
-// Put records an answer for key as a fetch would, for a caller that already
-// has it.
-func (f *Flight[T]) Put(key string, val T, err error) {
-	f.store(key, val, err)
-}
-
 // store records an answer, evicting the oldest when full, and returns what
 // readers get. A failure is remembered for ErrTTL; a stale flight keeps
 // serving its last good answer instead, and asks again after ErrTTL.

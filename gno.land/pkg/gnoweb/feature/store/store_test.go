@@ -934,7 +934,7 @@ func TestStorePagesCap(t *testing.T) {
 	h, _ := newTestHandler(t, nil)
 	put := func(from, to int) {
 		for i := from; i < to; i++ {
-			h.cache.pages.Put(strconv.Itoa(i), &pageResponse{}, nil)
+			_, _ = h.cache.pages.Get(context.Background(), strconv.Itoa(i), func(context.Context) (*pageResponse, error) { return &pageResponse{}, nil })
 		}
 	}
 	var fetched atomic.Int32
@@ -948,15 +948,16 @@ func TestStorePagesCap(t *testing.T) {
 }
 
 // The front page has a flight of its own: a crawler walking more pages than
-// the cache keeps costs no reader the front page.
+// the cache keeps costs one query per page, and none for the front page.
 func TestCrawlerKeepsTheFrontPage(t *testing.T) {
-	h, c := newTestHandler(t, map[string]string{"api/v1/home": homeBody(trustedApp)})
+	home := strings.Replace(homeBody(trustedApp), `{"key":"new",`, `{"key":"new","more":[{"key":"latest","count":1000000}],`, 1)
+	h, c := newTestHandler(t, map[string]string{"api/v1/home": home})
 	render(t, h, "")
-	for i := range maxPages + 10 {
-		h.cache.pages.Put("list/latest/"+strconv.Itoa(i), &pageResponse{}, nil)
+	for i := 1; i <= maxPages+100; i++ {
+		render(t, h, ":latest?page="+strconv.Itoa(i))
 	}
 	render(t, h, "")
-	assert.Equal(t, int32(1), c.calls.Load())
+	assert.Equal(t, int32(1+maxPages+100), c.calls.Load())
 }
 
 // A hero the pool did not give, such as a GovDAO pick of an operator app,

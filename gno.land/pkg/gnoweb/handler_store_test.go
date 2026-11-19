@@ -305,7 +305,9 @@ func TestStoreDenyEntries(t *testing.T) {
 		"scam/app.", "gno.land/r/scam/app.", "scam/App", "scam/app.gno", "scam:app", // would deny all of scam
 		"scam$app", "scam?app", "scam#app", "/r/scam$app", "scam%24app\u0455", "u/r", "/p/u",
 		"/r/1inch/swap", "gno.land/r/1inch/swap", "/r/-scam/app", "/p/_x", "/u/9lives", // no namespace is named so
-		"acme/swap/V2", "acme/swap/x.", "acme/swap/.gno", "c/defi//.&", "c/defi/&.p", "scam/app//", "c/defi//gno.land", "a/0//0.0", "//gno/source/http://", "c/defi/%2Fgno.land", // a last name that is no file, an empty one
+		"acme/swap/V2", "acme/swap/x.", "acme/swap/.gno", "c/defi//.&", "c/defi/&.p", "scam/app//", "c/defi//gno.land", "a/0//0.0", "//gno/source/http://", "c/defi/%2Fgno.land",
+		"a/0", "a_", "acme/9swap", "acme-/swap", "acme/swap_", "acme/sw--ap", // no package can live there
+		"https://gno.land/about", "http://scam/app", // a page's address with no tree // a last name that is no file, an empty one
 	} {
 		got, err := storeDenyEntries([]string{entry}, "gno.land")
 		assert.ErrorContains(t, err, "StoreDeny", "%q is taken as %q", entry, got)
