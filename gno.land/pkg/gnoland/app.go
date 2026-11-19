@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/migrations"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -80,7 +81,7 @@ func (c AppOptions) validate() error {
 	case c.EventSwitch == nil:
 		return fmt.Errorf("no event switch provided")
 	}
-	return nil
+	return migrations.Validate(Upgrades)
 }
 
 // NewAppWithOptions creates the gno.land application with specified options.
@@ -109,8 +110,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Block sync may hold the app's commits in memory between flush points:
 	// gno.land's stores, the bptree and the plain store, never iterate their
-	// database inside a block. nodeParamsKeeper below asks for a flush point
-	// when a block writes a halt param.
+	// database inside a block. Only a migration iterates, in the block after a
+	// halt, which runs after a restart with nothing held. nodeParamsKeeper
+	// below asks for a flush point when a block writes a halt param.
 	appOpts = append(appOpts, sdk.AllowDeferredCommits())
 
 	// Create BaseApp.
@@ -274,6 +276,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			vmk.CommitGnoTransactionStore(ctx)
 		}
 	})
+
+	// Set BeginBlocker, which runs the migration of a coordinated upgrade.
+	baseApp.SetBeginBlocker(BeginBlocker(migrations.Env{
+		Params:   prmk,
+		Account:  acck,
+		Bank:     bankk,
+		GasPrice: gpk,
+		VM:       vmk,
+		MainKey:  mainKey,
+		BaseKey:  baseKey,
+	}))
 
 	// Set EndBlocker
 	baseApp.SetEndBlocker(
@@ -1082,6 +1095,42 @@ func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci
 	}
 	vmk.CommitGnoTransactionStore(vmCtx)
 	return nil
+}
+
+// Upgrades lists the coordinated upgrades that migrate state, each under the
+// version its halt proposal names in halt_min_version. An upgrade that only
+// changes consensus code needs a version floor and no entry.
+var Upgrades = []migrations.Upgrade{}
+
+// BeginBlocker runs, in the block after a governance halt, the migration
+// registered in Upgrades under that halt's halt_min_version, if any.
+func BeginBlocker(env migrations.Env) sdk.BeginBlocker {
+	return func(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+		if len(Upgrades) == 0 {
+			return abci.ResponseBeginBlock{}
+		}
+		// The param, not BaseApp's halt height: that one is node-local and
+		// zeroed by the restart that precedes this block.
+		var haltHeight int64
+		env.Params.GetInt64(ctx, nodeParamHaltHeight, &haltHeight)
+		// halt_height is 0 on a chain never halted, which must not match block 1.
+		if haltHeight == 0 || ctx.BlockHeight() != haltHeight+1 {
+			return abci.ResponseBeginBlock{}
+		}
+
+		var version string
+		env.Params.GetString(ctx, nodeParamHaltMinVersion, &version)
+		upgrade, ok := migrations.Find(Upgrades, version)
+		if !ok {
+			return abci.ResponseBeginBlock{}
+		}
+
+		ctx.Logger().Info("running upgrade migration", "version", version, "height", ctx.BlockHeight())
+		if err := upgrade.Handler(ctx, env); err != nil {
+			panic(fmt.Sprintf("upgrade %s: migration failed at height %d: %v", version, ctx.BlockHeight(), err))
+		}
+		return abci.ResponseBeginBlock{}
+	}
 }
 
 // endBlockerApp is the app abstraction required by any EndBlocker

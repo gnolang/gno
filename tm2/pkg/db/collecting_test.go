@@ -205,7 +205,8 @@ func TestBatchCollector_WriteToKeepsMemory(t *testing.T) {
 
 // TestCollectingDB_IteratorRefusedWhileHolding pins that, while the collector
 // holds writes across commits, an iterator panics instead of silently reading
-// only the underlying database, and that the refusal is recorded once.
+// only the underlying database, and that the refusal is recorded once; with
+// holding on and nothing held, it runs.
 func TestCollectingDB_IteratorRefusedWhileHolding(t *testing.T) {
 	c := dbm.NewBatchCollector()
 	cdb := dbm.NewCollectingDB(memdb.NewMemDB(), c)
@@ -222,6 +223,16 @@ func TestCollectingDB_IteratorRefusedWhileHolding(t *testing.T) {
 	}
 
 	c.SetHolding(true)
+	// Holding with nothing held: the database is the whole committed state.
+	it, err := cdb.Iterator(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	it.Close()
+	if c.TakeRefusedIterator() {
+		t.Fatal("iterator refused while holding nothing")
+	}
+
 	cdb.Set([]byte("k"), []byte("v"))
 	mustPanic("Iterator", func() { cdb.Iterator(nil, nil) })
 	if !c.TakeRefusedIterator() {
@@ -237,7 +248,7 @@ func TestCollectingDB_IteratorRefusedWhileHolding(t *testing.T) {
 
 	c.Reset()
 	c.SetHolding(false)
-	it, err := cdb.Iterator(nil, nil)
+	it, err = cdb.Iterator(nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
