@@ -103,6 +103,11 @@ func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, desc
 		if c.Power > 0 && !entry.KeepRunning {
 			panic("operator " + c.OperatorAddress.String() + " has KeepRunning=false; refusing to add (operator must call UpdateKeepRunning(true) first)")
 		}
+		// A held-out operator already has an owner; see heldOutBy.
+		if state := heldOutBy(c.OperatorAddress); state != "" {
+			panic("operator " + c.OperatorAddress.String() + " is " + state +
+				"; release the hold before changing its valset membership")
+		}
 	}
 
 	// Render description against creation-time data. Voters see the
@@ -151,6 +156,13 @@ func newValoperChangeExecutor(cur realm, changes []ValoperChange) dao.Executor {
 				panic("operator vanished from valoperCache between propose and execute: " + c.OperatorAddress.String())
 			}
 			entry := rawCache.(cacheEntry)
+
+			// Re-check: the operator may have been frozen between
+			// propose-create and propose-execute.
+			if state := heldOutBy(c.OperatorAddress); state != "" {
+				panic("operator " + c.OperatorAddress.String() + " is " + state +
+					" at execution; refusing to change its valset membership")
+			}
 
 			if c.Power == 0 {
 				if _, ok := set[entry.SigningAddress]; !ok {

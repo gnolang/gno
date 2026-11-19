@@ -16,9 +16,12 @@ import (
 // so rlm is ignored — a nil realm here is safe.
 var cur realm
 
-// resetCache clears valoperCache so subtests don't leak state.
+// resetCache clears valoperCache so subtests don't leak state. It also
+// clears the freeze state, which is keyed by the same operator
+// addresses and is read by both Render and the valoper proposal path.
 func resetCache() {
 	valoperCache = bptree.NewBPTree32()
+	resetFreezeState()
 }
 
 func TestNotifyValoperChanged_HappyPath(cur realm, t *testing.T) {
