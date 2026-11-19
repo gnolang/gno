@@ -1,0 +1,21 @@
+-- input.md --
+<gno-frame>
+## A
+<gno-columns>
+a
+<gno-columns-sep>
+b
+-- output.html --
+<section class="gno-frame">
+<h2>A</h2>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>a</p>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>b</p>
+</div>
+</div> <!-- </gno-columns> -->
+</section>

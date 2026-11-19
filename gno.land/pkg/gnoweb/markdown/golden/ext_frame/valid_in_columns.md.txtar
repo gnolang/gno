@@ -1,0 +1,31 @@
+-- input.md --
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+
+Browser wallet for gno.land.
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+
+Block explorer.
+</gno-frame>
+</gno-columns>
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-frame">
+<p><strong><a href="https://adena.app" rel="noopener nofollow ugc">Adena<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></strong></p>
+<p>Browser wallet for gno.land.</p>
+</section>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<section class="gno-frame">
+<p><strong><a href="https://gnoscan.io" rel="noopener nofollow ugc">Gnoscan<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></strong></p>
+<p>Block explorer.</p>
+</section>
+</div>
+</div> <!-- </gno-columns> -->

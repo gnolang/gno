@@ -19,8 +19,8 @@ import (
 // stdlibs, plus a per-tx preprocess allocator capped at maxBytes and
 // pre-wired to the supplied gas meter (mirrors keeper.AddPackage's
 // setup).
-func newPreprocessAllocTestStore(t *testing.T, maxBytes int64, gm stypes.GasMeter) (*defaultStore, *Allocator) {
-	t.Helper()
+func newPreprocessAllocTestStore(tb testing.TB, maxBytes int64, gm stypes.GasMeter) (*defaultStore, *Allocator) {
+	tb.Helper()
 	db := memdb.NewMemDB()
 	tm2 := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	st := NewStore(nil, tm2, tm2)

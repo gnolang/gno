@@ -32,7 +32,7 @@ scripts cannot start loading until the metadata and overwriter are set).
 | Key | Source | Cardinality |
 |---|---|---|
 | `schema_version` | constant in `sa-bootstrap.ts` | 1 (bump on incompatible taxonomy / metadata change) |
-| `page_type` | `components.ClassifyPageType(mode, view)` | 11: home, user, pure, realm, source, help, directory, status, redirect, explorer, other |
+| `page_type` | `components.ClassifyPageType(mode, view)` | 14: home, user, pure, realm, source, help, directory, deps, status, redirect, run, playground, explorer, other |
 | `chain_id` | `cfg.ChainID` (env constant) | low (one per deployment) |
 
 ## Path sanitization
@@ -105,7 +105,7 @@ The real browser URL is never modified.
 
 | Event | Trigger | Payload |
 |---|---|---|
-| `copy_action` | Click on any `button[data-controller~="copy"]`; kind inferred from `data-copy-*` attributes | `{kind: 'link' \| 'source' \| 'func_signature' \| 'gnokey_command' \| 'unknown'}` |
+| `copy_action` | Click on any `button[data-controller~="copy"]`; kind inferred from `data-copy-*` attributes | `{kind: 'link' \| 'source' \| 'func_signature' \| 'gnokey_command' \| 'run_command' \| 'unknown'}` |
 
 ### Outbound
 
@@ -123,10 +123,13 @@ Two layers fire in parallel.
 | `github` | github.com/gnolang/* |
 | `twitter` | twitter.com/_gnoland |
 | `discord` | discord.com/invite/gnoland |
-| `bubblerumble` | bubblerumble.net |
+| `gnoworld` | gno.world |
 | `youtube` | youtube.com/@_gnoland |
+| `claude` | claude.ai ("Ask AI" menus) |
+| `chatgpt` | chatgpt.com ("Ask AI" menus) |
+| `gnomcp` | mcp.gno.dev ("Ask AI" menu, footer) |
 
-`data-outbound` is set in Go (`layout_footer.go`, `layout_header.go`) and rendered by `footer.html` / `ui/header_link`. To tag a new outbound: add `Outbound: "<target>"` to the `FooterLink` / `HeaderLink` in Go.
+`data-outbound` is set in Go (`layout_footer.go`, `layout_header.go`) and rendered by `footer.html` / `ui/header_link`; the "Ask AI" links carry it as `AILink.Outbound` (`ai_links.go`), rendered by `layouts/header.html` and `views/action.html`. To tag a new outbound: add `Outbound: "<target>"` to the `FooterLink` / `HeaderLink` in Go.
 
 ## Cardinality caps
 

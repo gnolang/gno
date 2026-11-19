@@ -1,0 +1,12 @@
+-- input.md --
+<gno-frame>
+
+
+para
+
+
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>para</p>
+</section>
