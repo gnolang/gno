@@ -863,7 +863,7 @@ func TestLMDBSentinelKeyIteratorOrder(t *testing.T) {
 	require.NoError(t, itr.Close())
 
 	require.Len(t, keys, 3)
-	require.Equal(t, []byte{0x00}, keys[0]) // sentinel
+	require.Equal(t, []byte{}, keys[0])
 	require.Equal(t, []byte{0x01}, keys[1])
 	require.Equal(t, []byte{0x02}, keys[2])
 }

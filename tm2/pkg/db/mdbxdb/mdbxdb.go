@@ -405,24 +405,24 @@ func newMDBXIterator(m *MDBX, start, end []byte, isReverse bool) (*mdbxIterator,
 	// Position cursor.
 	if isReverse {
 		if end == nil {
-			itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, mdbx.Last)
+			err = itr.get(nil, mdbx.Last)
 		} else {
-			itr.currentKey, itr.currentValue, err = cur.Get(end, nil, mdbx.SetRange)
+			err = itr.get(end, mdbx.SetRange)
 			if mdbx.IsNotFound(err) {
 				// end is past all keys, go to last.
-				itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, mdbx.Last)
+				err = itr.get(nil, mdbx.Last)
 			} else if err == nil {
 				// SetRange lands on >= end, we want < end.
 				if bytes.Compare(itr.currentKey, end) >= 0 {
-					itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, mdbx.Prev)
+					err = itr.get(nil, mdbx.Prev)
 				}
 			}
 		}
 	} else {
 		if start == nil {
-			itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, mdbx.First)
+			err = itr.get(nil, mdbx.First)
 		} else {
-			itr.currentKey, itr.currentValue, err = cur.Get(start, nil, mdbx.SetRange)
+			err = itr.get(start, mdbx.SetRange)
 		}
 	}
 
@@ -436,6 +436,17 @@ func newMDBXIterator(m *MDBX, start, end []byte, isReverse bool) (*mdbxIterator,
 	}
 
 	return itr, nil
+}
+
+// get runs the cursor operation op and keeps the entry it lands on, reading the
+// sentinel nonEmptyKey stores the empty key under back as the empty key.
+func (itr *mdbxIterator) get(key []byte, op uint) error {
+	k, v, err := itr.cur.Get(key, nil, op)
+	if len(k) == 1 && k[0] == 0x00 {
+		k = k[:0]
+	}
+	itr.currentKey, itr.currentValue = k, v
+	return err
 }
 
 func (itr *mdbxIterator) Domain() ([]byte, []byte) {
@@ -470,9 +481,9 @@ func (itr *mdbxIterator) Next() {
 	}
 	var err error
 	if itr.isReverse {
-		itr.currentKey, itr.currentValue, err = itr.cur.Get(nil, nil, mdbx.Prev)
+		err = itr.get(nil, mdbx.Prev)
 	} else {
-		itr.currentKey, itr.currentValue, err = itr.cur.Get(nil, nil, mdbx.Next)
+		err = itr.get(nil, mdbx.Next)
 	}
 	if mdbx.IsNotFound(err) {
 		itr.isInvalid = true
