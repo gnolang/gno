@@ -1,0 +1,94 @@
+# A private realm's unnamed struct value cannot reach a public realm, whichever
+# realm reached the store first; public realms' own literals of the same shape
+# are kept, before and after a restart.
+
+loadpkg gno.land/r/foo/pub $WORK/pub
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/priv0 -pkgpath gno.land/r/foo/priv0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/pub2 -pkgpath gno.land/r/foo/pub2 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/foo/priv -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/pub3 -pkgpath gno.land/r/foo/pub3 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+! gnokey maketx call -pkgpath gno.land/r/foo/priv -func Save -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'private realm'
+gnokey maketx call -pkgpath gno.land/r/foo/pub2 -func Own -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/foo/priv -func Give -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'private realm'
+gnokey maketx call -pkgpath gno.land/r/foo/pub3 -func Own -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/foo/priv -func Save -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'private realm'
+gnokey maketx call -pkgpath gno.land/r/foo/pub2 -func Own -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/foo/priv -func Give -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'private realm'
+gnokey maketx call -pkgpath gno.land/r/foo/pub3 -func Own -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+-- pub/gnomod.toml --
+module = "gno.land/r/foo/pub"
+gno = "0.9"
+-- pub/pub.gno --
+package pub
+
+var saved any
+
+func SaveAny(cur realm, x any) { saved = x }
+-- priv0/gnomod.toml --
+module = "gno.land/r/foo/priv0"
+gno = "0.9"
+private = true
+-- priv0/priv0.gno --
+package priv0
+
+var K = struct{ PublicField string }{"p0"}
+-- pub3/gnomod.toml --
+module = "gno.land/r/foo/pub3"
+gno = "0.9"
+-- pub3/pub3.gno --
+package pub3
+
+var own any
+
+func Own(cur realm) { own = struct{ PublicField string }{"mine3"} }
+-- priv/gnomod.toml --
+module = "gno.land/r/foo/priv"
+gno = "0.9"
+private = true
+-- priv/priv.gno --
+package priv
+
+import (
+	"gno.land/r/foo/pub"
+	"gno.land/r/foo/pub2"
+)
+
+var Kept = struct{ PublicField string }{"p"}
+
+func Save(cur realm) {
+	pub.SaveAny(cross(cur), struct{ PublicField string }{"x"})
+}
+
+func Give(cur realm) { pub2.Take(cross(cur), Kept) }
+-- pub2/gnomod.toml --
+module = "gno.land/r/foo/pub2"
+gno = "0.9"
+-- pub2/pub2.gno --
+package pub2
+
+var own any
+var cp struct{ PublicField string }
+
+func Own(cur realm) { own = struct{ PublicField string }{"mine"} }
+
+// Take keeps a by-value exempt struct handed in.
+func Take(cur realm, x struct{ PublicField string }) { cp = x }

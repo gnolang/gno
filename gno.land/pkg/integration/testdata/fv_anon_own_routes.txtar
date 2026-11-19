@@ -1,0 +1,103 @@
+# Copies of exempt unnamed structs by every route: read-only getter, crossing
+# result, crossing argument. Each copier writes only its own copy; a copied
+# function still writes nothing in the realm that made it.
+
+loadpkg gno.land/r/test/vic $WORK/vic
+loadpkg gno.land/r/test/att $WORK/att
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/att -func Take -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/att -func W1 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/att -func W2 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/att -func W3 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/att -func Hand -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/vic -func Bump -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/att -func CallFP -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'vic''s code was entered without crossing and is read-only'
+gnokey query vm/qeval --data 'gno.land/r/test/vic.Dump()'
+stdout 'fp=2 w=1 owner=v ex=1'
+gnokey query vm/qeval --data 'gno.land/r/test/att.Dump()'
+stdout 'p1=5 p2=5 p3=5'
+
+-- vic/gnomod.toml --
+module = "gno.land/r/test/vic"
+gno = "0.9"
+-- vic/vic.gno --
+package vic
+
+import "strconv"
+
+var Owner = "v"
+
+func SetOwner(s string) { Owner = s }
+
+type FP = struct {
+	F func(string)
+	A int
+}
+type W = struct{ In struct{ A int } }
+
+var (
+	Ex  = struct{ A int }{A: 1}
+	HFP *FP
+	HW  *W
+	FPv = FP{F: SetOwner, A: 1}
+)
+
+func GetEx() struct{ A int }            { return Ex }
+func GiveV(cur realm) struct{ A int }   { return Ex }
+func GiveFP(cur realm) FP               { return FPv }
+func KeepFP(cur realm, p FP)            { HFP = &p }
+func KeepW(cur realm, w W)              { HW = &w }
+func Bump(cur realm)                    { HFP.A++; HW.In.A++ }
+
+func Dump() string {
+	return "fp=" + strconv.Itoa(HFP.A) + " w=" + strconv.Itoa(HW.In.A) + " owner=" + Owner + " ex=" + strconv.Itoa(Ex.A)
+}
+-- att/gnomod.toml --
+module = "gno.land/r/test/att"
+gno = "0.9"
+-- att/att.gno --
+package att
+
+import (
+	"strconv"
+
+	"gno.land/r/test/vic"
+)
+
+var (
+	p1 *struct{ A int }
+	p2 *struct{ A int }
+	p3 *vic.FP
+)
+
+func Take(cur realm) {
+	x := vic.GetEx()
+	p1 = &x
+	y := vic.GiveV(cross(cur))
+	p2 = &y
+	z := vic.GiveFP(cross(cur))
+	p3 = &z
+}
+
+func W1(cur realm) { p1.A = 5 }
+func W2(cur realm) { p2.A = 5 }
+func W3(cur realm) { p3.A = 5 }
+
+func Hand(cur realm) {
+	vic.KeepFP(cross(cur), vic.FP{F: vic.SetOwner, A: 1})
+	vic.KeepW(cross(cur), vic.W{})
+}
+
+func CallFP(cur realm) { p3.F("evil") }
+
+func Dump() string {
+	return "p1=" + strconv.Itoa(p1.A) + " p2=" + strconv.Itoa(p2.A) + " p3=" + strconv.Itoa(p3.A)
+}

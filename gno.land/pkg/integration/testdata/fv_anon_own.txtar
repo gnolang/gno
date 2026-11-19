@@ -10,8 +10,15 @@ gnokey maketx call -pkgpath gno.land/r/test/fvown -func Take -gas-fee 1000000ugn
 gnokey maketx call -pkgpath gno.land/r/test/fvown -func Change -args new -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 gnokey query vm/qeval --data 'gno.land/r/test/fvown.Read()'
 stdout 'new'
+gnokey maketx call -pkgpath gno.land/r/test/fvown -func Rerun -args again -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/test/fvown.Read()'
+stdout 'again'
 
 gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/fvown -func Rerun -args later -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/test/fvown.Read()'
+stdout 'later'
 
 gnokey maketx call -pkgpath gno.land/r/test/fvown -func Change -args after -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
 gnokey query vm/qeval --data 'gno.land/r/test/fvown.Read()'
@@ -48,6 +55,9 @@ func Change(cur realm, s string) {
 	kept.F = func(s string) { Local = s }
 	kept.F(s)
 }
+
+// Rerun calls the stored function without setting it again.
+func Rerun(cur realm, s string) { kept.F(s) }
 
 func Read() string { return Local }
 
