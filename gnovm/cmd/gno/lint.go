@@ -555,7 +555,7 @@ func lintRealmValueAPI(io commands.IO, pkg *types.Package, fset *token.FileSet) 
 		case *types.TypeName:
 			if named, ok := o.Type().(*types.Named); ok {
 				for m := range named.Methods() {
-					if m := m; m.Exported() {
+					if m.Exported() {
 						checkSig(m, m.Type().(*types.Signature), "method")
 					}
 				}
@@ -694,7 +694,6 @@ func lintRealmBoxedResult(io commands.IO, pkg *types.Package, fset *token.FileSe
 			return
 		}
 		for v := range results.Variables() {
-			v := v
 			if !types.IsInterface(v.Type()) {
 				continue
 			}
@@ -780,7 +779,7 @@ func walkExportedFuncs(pkg *types.Package, fn func(*types.Func)) {
 		case *types.TypeName:
 			if named, ok := o.Type().(*types.Named); ok {
 				for m := range named.Methods() {
-					if m := m; m.Exported() {
+					if m.Exported() {
 						fn(m)
 					}
 				}
