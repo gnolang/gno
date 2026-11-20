@@ -85,12 +85,14 @@ func NewRepl(opts ...ReplOption) *Repl {
 	input := bufio.NewReader(r.input)
 	output := bufio.NewWriter(r.output)
 	r.rw = bufio.NewReadWriter(input, output)
+	r.store.SetAllocator(alloc)
 	r.m = gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: r.pkgPath,
 		Debug:   r.debug,
 		Input:   input,
 		Output:  output,
 		Store:   r.store,
+		Alloc:   alloc,
 	})
 	r.m.SetActivePackage(r.pv)
 
