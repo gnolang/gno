@@ -342,10 +342,8 @@ Pinned by: `gnovm/tests/files/zrealm_entry_iface_val.gno` (Error `cannot modify 
 
 ## 5. Patterns
 
-Each pattern gives code by package, one diagram, the rules that decide it, and the filetest whose output or
-error shows exactly that outcome. Participants are the caller realm, the callee realm, and a library;
-`cross(cur)` is a crossing call, `plain call` is anything else. A refused write aborts its whole transaction,
-so each transaction is marked `tx 1`, `tx 2`, and a probe that runs in a different realm names that realm.
+Each case gives code by package, one diagram, the rules that decide it, and the filetest whose output or error shows that outcome. `cross(cur)` is a crossing
+call, `plain call` anything else; a refused write aborts the whole transaction, so transactions are marked `tx 1`, `tx 2`.
 
 `master:` is d25b308c1; `today:` is this branch; both are measured from the pinned fixture.
 
@@ -361,6 +359,7 @@ The cases go from the plainest interaction to the corner cases:
 - **Failures and limits:** w, x
 
 ### a. A crossing call is a gate; an exported helper is not
+**Goal:** A realm's state is written only by a crossing call; an exported function without `cur realm` is refused.
 
 ```go
 // realm a: gno.land/r/tests/vm/ctw
@@ -409,12 +408,9 @@ sequenceDiagram
     Note over A: read-only, refused
 ```
 
-Only the gate lets a write through; a public function without `cur realm` is not a door, however ordinary it
-looks.
-
-The language keeps the gate narrow. `cross` must be the first argument of a call, not a value and not a
-statement; `cross1` and `mutable` were removed and no longer resolve; a crossing call cannot be deferred
-directly, only from inside a deferred closure.
+Only a crossing call writes; a public function without `cur realm` is not a door. The gate is narrow: `cross` must be a call's first argument, a crossing call
+cannot be deferred directly, and `cross1` and `mutable` do not resolve (`zrealm_cross1_removed.gno`, `zrealm_entry_no_mutable.gno`: `name mutable not
+declared`).
 
 ```go
 // realm d: gno.land/r/demo/cross1removed (zrealm_cross1_removed)
@@ -472,8 +468,6 @@ sequenceDiagram
     G--xH: SetClosure(cross, …) never compiles, cross used as a value
 ```
 
-`mutable` is gone too: `zrealm_entry_no_mutable.gno` fails with `name mutable not declared`.
-
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_ctw_cross.gno` (Output `3 2`: the crossing call writes through
 the helper and the method) and `gnovm/tests/files/zrealm_ctw_bump.gno` (Error `gno.land/r/tests/vm/ctw's code
 was entered without crossing and is read-only (call its crossing function): Count<~VPBlock(3,0)>`); the
@@ -481,6 +475,7 @@ narrow-gate cases above are `zrealm_cross1_removed.gno`, `zrealm_entry_no_mutabl
 `zrealm_cross_defer.gno`, `zrealm_cross_deferwrap.gno` and `zrealm_borrow2a.gno`.
 
 ### b. Reading needs no gate; a pointer handed out is a view
+**Goal:** Reading another realm's object through a pointer is allowed; writing through it from library code is refused.
 
 ```go
 // p: gno.land/p/demo/tests/modelledger
@@ -530,15 +525,15 @@ sequenceDiagram
     Note over L: refused, library code on another realm's object
 ```
 
-A pointer you hand out is a view. Reading it is free; writing through it is a library method on another
-realm's object, and that is refused. The fixture prints `bob: 10` and then the Error, because the refused
-write is in the same transaction.
+A pointer handed out is a view: reading it is free, writing through it is library code on another realm's
+object and is refused. The fixture prints `bob: 10` and then the Error, in the same transaction.
 
 Rules: R1, R2. Pinned by: `gnovm/tests/files/zrealm_model_token.gno` (Output `bob: 10`, then Error `cannot
 modify object owned by another realm from library code (call a function of the owning realm):
 l<VPBlock(1,0)>.bal[from<VPBlock(1,1)>]`).
 
 ### c. Identity: `cur.Previous()`, `IsUserCall()`, and `cur` as a capability
+**Goal:** A chain of crossing calls tells each frame who called it, and `cur` is a capability to guard.
 
 ```go
 // realm a: gno.land/r/curchaintest (the chain root)
@@ -611,23 +606,15 @@ sequenceDiagram
     Note over E: prev.IsUserCall true, cur.IsUserCall false
 ```
 
-A chain of crossing calls is a chain of `Previous()` values, and past the origin the next `Previous()` panics.
-For a payment checked against `banker.OriginSend()`, the caller guard is `cur.Previous().IsUserCall()`, not
-`IsUser()`. `zrealm_cur_classify.gno` pins both sides: `prev.IsUserCall: true` for the EOA origin, and
-`cur.IsUserCall: false` for `cur` itself, a code realm. The `cur` value is a capability: code holding it can
-cross with the realm's identity and spend its coins, so never pass it to code you did not write. Crossing is
-what gives that identity, so this is R1, not R6. A realm value may be assigned to a variable; the refusal is
-at finalize, when a realm value is saved.
+A chain of crossing calls is a chain of `Previous()` values, and past the origin the next one panics. A payment guard is `cur.Previous().IsUserCall()`, not
+`IsUser()`: `zrealm_cur_classify.gno` pins `prev.IsUserCall: true` and `cur.IsUserCall: false`. `cur` is a capability: code holding it crosses and spends the
+realm's coins, so never pass it to code you did not write, and crossing gives that identity (R1).
 
-The binding is fixed for the life of the frame, and the compiler enforces it: the address of `cur` cannot be
-taken (``cannot take the address of a realm-typed `cur` ``), the first realm parameter must be named `cur`
-(``a crossing function's first realm argument must have name `cur` ``), and it cannot be reassigned or
-range-assigned (``cannot reassign the crossing `cur` parameter``, ``cannot assign to a realm-typed `cur` in a
-range clause``) — `zrealm_cur_addr.gno`, `zrealm_cur_alias.gno`, `zrealm_cur_reassign.gno`,
-`zrealm_cur_range.gno`. The legacy `unsafe` import is not in the policy, so naming it fails with `name unsafe
-not declared` (`zrealm_crossrealm12.gno`). Run scripts classify like any other entry: `zrealm_cur_classify.gno`
-prints `cur.IsUserRun == rt.IsUserRun: true` and `prev.IsUserRun == rt.IsUserRun: true`, the same agreement it
-shows for `IsCode`, `IsUser`, `IsUserCall` and `IsEphemeral`.
+The binding is fixed for the life of the frame: `cur`'s address cannot be taken (``cannot take the address of a realm-typed `cur` ``), the first realm parameter
+must be named `cur` (``a crossing function's first realm argument must have name `cur` ``), and it cannot be reassigned or range-assigned (``cannot reassign the
+crossing `cur` parameter``, ``cannot assign to a realm-typed `cur` in a range clause``) — `zrealm_cur_addr.gno`, `zrealm_cur_alias.gno`,
+`zrealm_cur_reassign.gno`, `zrealm_cur_range.gno`; `unsafe` is not in the policy (`name unsafe not declared`, `zrealm_crossrealm12.gno`); run scripts classify
+like any entry (`zrealm_cur_classify.gno`: `cur.IsUserRun == rt.IsUserRun: true`).
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_cur_chain.gno` (Output `main cur.PkgPath:
 gno.land/r/curchaintest`, `B Previous().PkgPath: gno.land/r/tests/vm/curchain_a`, `B
@@ -638,6 +625,7 @@ main assigns and prints, then the transaction fails at finalize with Error `cann
 values are ephemeral and tied to a call frame`).
 
 ### d. `cur` cannot be stored
+**Goal:** A realm value cannot be stored: the save is refused when the transaction finalizes.
 
 ```go
 // realm a: gno.land/r/curpersistvar (zrealm_cur_persist_var)
@@ -682,14 +670,9 @@ sequenceDiagram
     Note over A: the whole transaction is refused
 ```
 
-`cur` names a live call frame, so it may be assigned and passed but never saved. The naming rules follow the
-type, not the spelling: an alias `type R = realm` is a legal type and a crossing function declared through it
-works (`zrealm_cur_alias_legal.gno`, Output `aliased: gno.land/r/demo/curaliasok`, then `aliased crossed:
-gno.land/r/demo/curaliasok`), while a realm
-parameter after position 0 may not be named `cur` even through the alias (`zrealm_cur_alias_second.gno`, Error
-`` only the first realm type argument of a crossing function may have name `cur` ``). The check fires at finalize, in
-`saveObject`, when the realm's backing `*HeapItemValue` is visited — a top-level variable, a struct field and a
-closure capture are all refused with the same text. Sub-tokens are refused the same way.
+`cur` names a live call frame: it may be assigned and passed, never saved, and the check fires at finalize, in `saveObject`, for a top-level variable, a struct
+field and a closure capture alike. The rules follow the type: an alias `type R = realm` crosses, but a realm parameter after position 0 may not be named `cur`,
+and sub-tokens are refused the same way (`zrealm_cur_persist_*.gno`, `zrealm_cur_alias_legal.gno`, `zrealm_cur_alias_second.gno`).
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_cur_persist_var.gno` (Error `cannot persist realm value: realm
 values are ephemeral and tied to a call frame`), `gnovm/tests/files/zrealm_cur_persist_struct.gno` (same
@@ -699,6 +682,7 @@ Error), `gnovm/tests/files/zrealm_cur_persist_closure.gno` (same Error),
 `gnovm/tests/files/zrealm_cur_alias_second.gno` (the naming Error).
 
 ### e. The `realm` type is sealed
+**Goal:** A realm value cannot be forged: only the runtime's own type satisfies `realm`.
 
 ```go
 // realm a: gno.land/r/crossrealm (zrealm_seal_embed: type-check only)
@@ -723,13 +707,9 @@ flowchart TD
     FA["a structural fake with Address and PkgPath"] --> R2["not a realm: missing method .seal<br/>or missing method Sub"]
 ```
 
-Only the runtime's own type satisfies `realm`, and a promoted `.seal` does not count: otherwise identity (the
-overrides) and liveness (the embedded value) could come from different values. Identity is therefore not
-forgeable, which is what makes `cur.Previous().PkgPath()` meaningful. Promotion through a pointer to the
-embedded value reaches the marker the same way and is refused at the same check (`zrealm_seal_embed_ptr.gno`,
-through a `VPDerefField` hop), and the runtime satisfaction path agrees: boxing a forged embedder and asserting
-`realm` with the comma-ok form yields `ok false`, with no panic (`zrealm_seal_embed_runtime.gno`, Output
-`assertion ok: false`).
+Only the runtime's own type satisfies `realm`: a promoted `.seal` does not count, so identity is not forgeable and `cur.Previous().PkgPath()` is meaningful.
+Promotion through a pointer is refused at the same check (`zrealm_seal_embed_ptr.gno`), and a forged embedder asserted to `realm` yields `ok false`
+(`zrealm_seal_embed_runtime.gno`).
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_seal_embed.gno` (Error `gno.land/r/crossrealm.fooRealm does
 not implement .uverse.realm (missing method .seal)`), `gnovm/tests/files/zrealm_seal_realm.gno` (Error
@@ -738,6 +718,7 @@ not implement .uverse.realm (missing method .seal)`), `gnovm/tests/files/zrealm_
 `gnovm/tests/files/zrealm_seal_embed_runtime.gno` (Output `assertion ok: false`).
 
 ### f. `func init(cur realm)` is a gate
+**Goal:** `init` is a gate: it runs at deploy as the realm, with the deployer as caller, and its writes persist.
 
 ```go
 // realm a: gno.land/r/curinit (zrealm_cur_init)
@@ -820,13 +801,8 @@ sequenceDiagram
     Note over B: main only prints "."
 ```
 
-`init(cur realm)` runs at deploy time with the realm as `cur` and the deployer as `Previous()`, exactly like a
-gate, so a realm may cross into other realms from `init`. Deploy order decides what exists: `crossrealm38`'s
-`init` appends one entry and `main` appends another, and the realm prints `2`. `zrealm_initctx.gno` pins what
-the deploy frame sees: `unsafe.OriginCaller()` inside `init` is the deployer, while the same call through a
-crossing helper sees the realm's empty origin. Writes made in `init` persist: `zrealm_tests0.gno` adds two
-entries from `init` and a third from `main`, printing `0: &FooStringer{one}`, `1: &FooStringer{two}` and
-`2: &FooStringer{three}`.
+`init(cur realm)` runs at deploy with the realm as `cur` and the deployer as `Previous()`, so it may cross out; deploy order decides what exists, and
+`zrealm_initctx.gno` pins the deploy frame: `unsafe.OriginCaller()` inside `init` is the deployer.
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_cur_init.gno` (Output `init cur.PkgPath: gno.land/r/curinit`,
 `init prev.PkgPath empty (EOA): true`), `gnovm/tests/files/zrealm_crossrealm15.gno` (Output `init`, `hello
@@ -835,6 +811,7 @@ gno.land/r/crossrealm` twice, `hello gno.land/r/tests/vm/crossrealm`), `gnovm/te
 origin), and `gnovm/tests/files/zrealm_tests0.gno` (entries added in `init` survive into `main`).
 
 ### g. Run scripts and MsgCall
+**Goal:** A run script or a MsgCall reaches another realm's state only by crossing into it.
 
 ```go
 // realm a: gno.land/r/test/borrowrealm (from the txtars)
@@ -900,19 +877,15 @@ sequenceDiagram
     Note over A: writable as a, value 0 -> 1
 ```
 
-Each txtar starts its own node, so these are two chains with separate state. On chain 1 the run script runs as
-its own realm, `gno.land/e/<addr>/run`: its `main` asserts `CurrentRealm` and the empty `PreviousRealm`, the
-non-crossing script's call is refused with `gno.land/r/test/borrowrealm's code was entered without crossing
-and is read-only` and `value` stays `0`, and the crossing script changes `value` from `0` to `1`. On chain 2
-the same shape runs through `gnokey maketx call`: MsgCall enters `callerrealm.NonCrossingMutation` as a
-crossing call, so its `previous` is the user and itself is current, and the plain call it makes into
-`borrowrealm` is refused; `CrossingMutation` crosses and writes.
+Each txtar starts its own node. On chain 1 the run script is its own realm, `gno.land/e/<addr>/run`; in both chains a plain call into `borrowrealm` is refused
+(`gno.land/r/test/borrowrealm's code was entered without crossing and is read-only`, `value` stays `0`) and the crossing call writes it.
 
 Rules: R1. Pinned by: `gno.land/pkg/integration/testdata/interrealm_mix_run.txtar` and
 `gno.land/pkg/integration/testdata/interrealm_mix_call.txtar` (no `gnovm/tests/files` filetest covers MsgRun
 or MsgCall).
 
 ### h. `Render` may take `cur`
+**Goal:** A render query can inject `cur`, so `Render` may cross into its own helpers.
 
 ```go
 // realm a: gno.land/r/test/render_crossing (render_crossing.txtar)
@@ -945,14 +918,14 @@ sequenceDiagram
     A-->>U: Render cur.PkgPath = a, observe prev = a, path = hello
 ```
 
-A realm may declare `Render(cur realm, path string)`; the query path injects `cur` the same way it does for
-`main(cur realm)`, so the render call can cross into its own helpers. The legacy `Render(path string)` form
-still exists and is read-only.
+A realm may declare `Render(cur realm, path string)`: the query injects `cur` as for `main`, so `Render` can cross into its own helpers; the legacy `Render(path
+string)` form stays read-only.
 
 Rules: R1. Pinned by: `gno.land/pkg/integration/testdata/render_crossing.txtar` (stdout `Render
 cur.Previous().PkgPath() = ""` and `observe cur.Previous().PkgPath() = "gno.land/r/test/render_crossing"`).
 
 ### i. R2 copies: values do not cross, pointers do
+**Goal:** A value of another realm's declared type cannot be copied, so hand out a pointer.
 
 ```go
 // realm a: gno.land/r/tests/vm/fvx
@@ -1059,15 +1032,9 @@ sequenceDiagram
     Note over P: the direct call copies only the receiver, allowed
 ```
 
-A copy of another realm's declared struct or array is refused. Of these probes, only the plain assignment `c :=
-*p` is caught by the type checker (`zrealm_fv_copy_assign` carries both a TypeCheckError and a run-time Error); `err :=
-fvx.Fail()` and `defer p.Val()` pass type checking and are refused at run time by the allocator
-(`alloc.go:796`), because the copy is built when the define or the defer runs. In `zrealm_fv_err_define` the
-refusal fires at the `err :=` define, after `Fail` has returned the E value boxed in an `error`;
-`zrealm_fv_defer_val` fires at the `defer` statement. Return a pointer; return `*E` for an error; write the
-deferred call as a closure so it does not take the copy at the `defer` statement. The unnamed, all-exported
-struct is exempt, whether it is passed in or returned. A direct value-receiver call on a returned interface
-copies only the receiver, which the receiver exception allows: `fvx.Fail().Error()` prints `x`.
+A copy of another realm's declared struct or array is refused. `c := *p` fails type checking; `err := fvx.Fail()` and `defer p.Val()` are refused at run time
+(`alloc.go:796`). So return a pointer, return `*E` for an error, and defer a closure; an unnamed all-exported struct is exempt, and a value-receiver call on a
+returned interface copies only the receiver (`zrealm_fv_*.gno`).
 
 Rules: R2. Pinned by: `gnovm/tests/files/zrealm_fv_copy_assign.gno` (Error `cannot copy
 gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)`, and TypeCheckError `cannot
@@ -1084,6 +1051,7 @@ and `gnovm/tests/files/zrealm_fv_anon_ret.gno` (Output `3` from `Stats`, then `3
 exception on a return, and a `[2]int` from `Pair`).
 
 ### j. Laundering through package data
+**Goal:** A copy read out of a library belongs to the realm that read it, so writing the copy is local.
 
 ```go
 // p: gno.land/p/demo/tests/launderpkg/v0
@@ -1124,15 +1092,14 @@ sequenceDiagram
     Note over P: writes through the /p/ pointer itself are refused
 ```
 
-A value read or a pointer deref produces a copy owned by the reading realm, so writing the copy is a local
-write. Writing *through* the `/p/` pointer is the refused case (pattern m). Neither copy can be attached back
-to the library.
+A value read or a pointer deref makes a copy owned by the reader, so writing it is local; writing *through* the `/p/` pointer is refused (pattern m).
 
 Rules: R2. Pinned by: `gnovm/tests/files/zrealm_launder_pdata_ptr_deref.gno` (Output
 `pwnd-via-pdata-ptr-launder`) and `gnovm/tests/files/zrealm_launder_pdata_value_copy.gno` (Output
 `pwnd-via-pdata-value-launder`).
 
 ### k. A reference outlives its object
+**Goal:** A copy of a deleted object still cannot make the owner's code write.
 
 ```go
 // realm rv: gno.land/r/zc/rv (home_deleted_ref.txtar)
@@ -1219,15 +1186,14 @@ sequenceDiagram
     V-->>U: victim
 ```
 
-Deleting an object does not revoke the references another realm already holds. A copy of a deleted object is
-refused (`unexpected object with id`), and while the object is still warm in the same transaction the copy is
-made but running its value is refused as read-only (`read-only`). Handing the copy back is allowed, but S3 gives the saved value no maker, so calling it writes nothing; keeping the warm copy in the attacker's own
-realm is allowed, so `A5` reaches its own sentinel (`A5 kept`). The owner's state is unchanged.
+Deleting an object does not revoke references another realm holds: copying a deleted object is refused, and while it is warm the copy is made but running its
+value is read-only. Handing the copy back is allowed but writes nothing (S3), and the warm copy may be kept; the owner's state is unchanged.
 
 Rules: R2, S3. Pinned by: `gno.land/pkg/integration/testdata/home_deleted_ref.txtar` (stderr
 `unexpected object with id`, `read-only`, `A5 kept`, and qeval `Owner` = `victim`).
 
 ### l. Library code inside the owner's crossing call writes
+**Goal:** Library code named by the owner's crossing call writes the owner's state.
 
 ```go
 // p: gno.land/p/demo/tests/libtable/v0 (a library: owns no state)
@@ -1294,9 +1260,8 @@ sequenceDiagram
     B->>B: println boxes: 6
 ```
 
-Which library code a realm's own crossing call names is the realm's choice, so it runs with the realm's
-authority. The same library code called by another realm against that realm's object gets no authority, which
-is pattern b.
+Library code runs with the authority of the realm whose crossing call names it; the same code called by
+another realm against that realm's object gets none (pattern b).
 
 Rules: R1, S3. Pinned by: `gnovm/tests/files/zrealm_ctw_owncb.gno` (Output `count: 2`,
 `boxes: 6`): `Apply` and the table entry add 2 to `Count`; the local copy of `Each` adds 1 to each of the two
@@ -1305,6 +1270,7 @@ The copy `each` writes only because it is called in the crossing call that made 
 in a later call it is refused (§5o).
 
 ### m. A library package is immutable after init
+**Goal:** A library's package state is immutable after init, whichever realm calls.
 
 ```go
 // p: gno.land/p/demo/tests/v0
@@ -1335,8 +1301,7 @@ sequenceDiagram
     Note over P: the /p/ object keeps its init value
 ```
 
-A library's package variables are frozen once `init` returns: a `/p/` object's own method may not write it from
-any transaction, whichever realm calls. The `Get` path still works and still sees the init value.
+A library's package variable is frozen after `init`: no transaction, from any realm, can write it, and `Get` still sees the init value.
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_readonly_recv_method.gno` (Error `cannot mutate
 gno.land/p/demo/tests/v0: package is immutable post-init`) and
@@ -1344,9 +1309,9 @@ gno.land/p/demo/tests/v0: package is immutable post-init`) and
 gno.land/p/testing/pure_package: package is immutable post-init`, then qeval `Get()` is `0 int`).
 
 ### n. Crossing methods on objects
+**Goal:** A method with `cur realm` writes as its object's realm; one without it runs read-only for other callers.
 
-One object, two methods. `Foo(cur realm)` is a gate: whoever holds the object may call it with `cross`, and it
-writes as the object's realm. `Bar()` has no `cur`: called from another realm, it runs read-only.
+Of one object's two methods, `Foo(cur realm)` is a gate that writes as the object's realm; `Bar()`, called from another realm, runs read-only.
 
 ```go
 // realm a: gno.land/r/crossrealm (owns f)
@@ -1378,20 +1343,15 @@ sequenceDiagram
     Note over A: read-only: hello D, write refused
 ```
 
-The fixture's setup, not needed to follow the point: a's `init` makes `f`, hands b a getter for it
-(`SetFooerGetter`), sets `f.s` to `B`, `C`, `D` between calls, and catches the refusal with a `try` helper
-that prints `bar: <refusal>`.
-
-A crossing method carries its realm's authority to whoever holds the object, so it must authenticate with
-`cur.Previous()` like any other gate. A method without `cur realm` stays read-only when called from outside its
-realm. The golden output shows `hello Foo gno.land/r/crossrealm` twice, then `hello D` and the refused write:
-the method ran as `gno.land/r/crossrealm` every time.
+A crossing method carries its realm's authority to whoever holds the object, so it authenticates with `cur.Previous()` like any other gate; a method without
+`cur realm` stays read-only from outside.
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_crossrealm20.gno` (Output `hello Foo gno.land/r/crossrealm`
 twice and `bar: gno.land/r/crossrealm's code was entered without crossing and is read-only (call its crossing
 function): f<VPBlock(1,0)>.s`: the crossing write landed, the non-crossing one was refused).
 
 ### o. Function values with a maker
+**Goal:** A function value writes only in the crossing call that made it.
 
 ```go
 // p: gno.land/p/demo/tests/launderpkg/v0
@@ -1465,23 +1425,17 @@ sequenceDiagram
     Note over B: read-only, refused
 ```
 
-The maker of a declared non-crossing function used as a value is the crossing call that made the value: made
-inside the gate, it acts like the named function; made by a read-only getter, it has no maker and writes
-nothing. That splits four cases:
+The maker of a declared function used as a value is the crossing call that made it: made inside the gate it acts like the named function, and made by a
+read-only getter it has no maker. Four cases:
 
-- Made by crossing call N, called from crossing call M: read-only. `zrealm_saved_escaped_container` (a
-  container of values escapes to the caller, which hands it back) and `zrealm_saved_local_ref` (a container
-  attached to a package variable later).
-- A realm's own package variable holding one of its declared functions, called through the variable
-  (`SetOwner := Table[0]; SetOwner("x")`, `cbsaved.AliasTable`): read-only, because the callee is not named
-  in the source (`zrealm_saved_name_collision`).
-- A realm that factors a fresh closure into its own crossing helper: read-only. This is the stated cost of S3,
-  `zrealm_saved_cross_helper`.
-- Made and called inside one crossing call: writable, `zrealm_saved_register` (Output `owner: registered`).
+- Made by crossing call N, called from crossing call M: read-only (`zrealm_saved_escaped_container`, `zrealm_saved_local_ref`).
+- Called through a package variable holding it (`SetOwner := Table[0]; SetOwner("x")`): read-only, the callee is not named in the source
+(`zrealm_saved_name_collision`; `cbsaved.AliasTable`).
+- Factored into the realm's own crossing helper it is read-only, the stated cost of S3 (`zrealm_saved_cross_helper`);
+  made and called inside one crossing call it writes (`zrealm_saved_register`, Output `owner: registered`).
 
-The three read-only shapes take the cbsaved text: Error `gno.land/r/tests/vm/cbsaved's code is read-only here:
-a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbsaved)
-package{})).Owner` (`zrealm_saved_name_collision` names `Owner<~VPBlock(3,0)>` instead).
+The three read-only shapes take the cbsaved text, Error `gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call
+that made it: (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner` (`zrealm_saved_name_collision` names `Owner<~VPBlock(3,0)>` instead).
 
 Rules: S3. Pinned by: `gnovm/tests/files/zrealm_maker_ownfunc.gno` (Output `field: own`: the realm's own
 value, made in its own writable code, writes), `gnovm/tests/files/zrealm_maker_getdecl.gno` (Error
@@ -1492,6 +1446,7 @@ function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Na
 read-only and carried in a struct).
 
 ### p. A makerless function value cannot write
+**Goal:** A function value made outside a realm can be stored but never writes.
 
 ```go
 // p: gno.land/p/demo/tests/launderpkg/v0
@@ -1530,15 +1485,14 @@ sequenceDiagram
     Note over A: tx 1 aborts; Read is never reached
 ```
 
-A realm may store a function value whose code is its own or a library's but which was made outside a
-realm. It still cannot write through it: S3 gives a value made outside the current crossing call id 0, so
-every call runs read-only and the library code's write is refused. The refused write aborts the whole
-transaction, so the object is unchanged.
+A realm may store a function value made outside any realm, but it cannot write through it: S3 gives it id 0, so every call runs read-only and the refusal aborts
+the transaction.
 
 Rules: S3. Pinned by: `gnovm/tests/files/zrealm_entry_pfunc_pkgvar.gno` (Error `cannot modify object owned
 by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field`).
 
 ### q. Callbacks: a closure that must write its own realm is crossing
+**Goal:** A callback that must write its own realm is crossing; a plain closure handed over is read-only.
 
 ```go
 // realm a: gno.land/r/tests/vm/ctw
@@ -1576,24 +1530,19 @@ sequenceDiagram
     Note over C: writable as c, sum 0 -> 1
 ```
 
-A callback that must change its own realm is `func(cur realm, …)` and the calling realm calls it with
-`cross(cur)`. A plain closure handed to another realm is refused by the plain entered-without-crossing rule,
-not by S3: the current realm is the callee's (a's), not the closure's, and the default branch of `pushFrameCall`
-(`machine.go:2833-2836`) sends the closure into the read-only path. The crossing form gets a crossing call of
-its own, which is the only way to hand a write back to the caller.
+A callback that must change its own realm is `func(cur realm, …)` and the caller calls it with `cross(cur)`. A plain closure handed to another realm is refused
+by the entered-without-crossing rule, not by S3: the current realm is the callee's, and `pushFrameCall` (`machine.go:2833-2836`) sends it into the read-only
+path.
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_ctw_callback.gno` (Error `gno.land/r/ctw_callback's code
 was entered without crossing and is read-only (call its crossing function): (const
 (ref(gno.land/r/ctw_callback) package{})).sum`) and `gnovm/tests/files/zrealm_ctw_callbackx.gno` (Output `1`).
-The same-call case S3 allows — a value made and called inside one crossing call — has its own fixture,
-`zrealm_saved_register` (Output `owner: registered`).
-
-§5r shows the same rule in a real library: `mux` stores crossing handlers and dispatches them with `cross`.
+The same-call case S3 allows is `zrealm_saved_register` (Output `owner: registered`).
 
 ### r. Callbacks in a real library: mux's crossing handlers
+**Goal:** A real library stores crossing handlers and dispatches them with `cross` so they can write.
 
-The rule is §5q (a callback that must write is crossing); this is the same rule in `gno.land/p/nt/mux`, the
-router GovDAO's `Render` uses.
+The rule is §5q; this is the same rule in `gno.land/p/nt/mux`, the router GovDAO's `Render` uses.
 
 ```go
 // p: gno.land/p/nt/mux/v0 (the realm-aware handler is crossing)
@@ -1670,21 +1619,16 @@ sequenceDiagram
     R-->>U: res.Output()
 ```
 
-Under S3 a stored callback that must write later has to become crossing, so mux's realm-aware handler type is
-`func(cur realm, res, req)` and the router dispatches `route.FnRlm(cross(rlm), res, req)` (`router.gno:127`).
-The handler sees `cur.Previous()` as realm a itself, the frame that crossed — the same
-value `observe` sees in `render_crossing.txtar:28` (`observe cur.Previous().PkgPath() =
-"gno.land/r/test/render_crossing"`) — not the router and not the external caller. `rlm.IsCurrent()` is false
-inside the handler: IsCurrent holds only for the newest crossing frame's own `cur`, and that is the handler's
-fresh one, never the `rlm` argument it was crossed with; only the outer `Render` frame can authenticate the
-external caller. Plain `Fn` and `NotFoundHandler` still take no `cur`, so a plain handler a realm registers
-still has to be converted to the crossing form before it may write.
+Under S3 a stored callback that must write later is crossing, so mux's realm-aware handler is `func(cur realm, res, req)` and the router dispatches
+`route.FnRlm(cross(rlm), res, req)` (`router.gno:127`). The handler sees `cur.Previous()` as realm a, the frame that crossed, as `observe` does in
+`render_crossing.txtar:28`; `rlm.IsCurrent()` is false inside it, so only the outer `Render` frame authenticates the caller.
 
 Rules: S3. Pinned by: govdao's qrender tests (`render_crossing.txtar`); no filetest pins the rewritten
 form. The dispatch is `examples/gno.land/p/nt/mux/v0/router.gno:127`; the DAO registers three crossing
 handlers in `examples/gno.land/r/gov/dao/impl/v0/render.gno:35, 39, 43`, and `Render` is `impl.gno:18`.
 
 ### s. Events from a crossing callback
+**Goal:** An event belongs to the realm whose code runs, including a callback in its crossing call.
 
 ```go
 // realm a: gno.land/r/demo/cbee (event_callback.txtar)
@@ -1722,16 +1666,14 @@ sequenceDiagram
     Note over A: both events carry pkg_path gno.land/r/demo/cbee
 ```
 
-`chain.Emit` attributes an event to the realm whose code is running, so a callback that runs inside its own
-realm's crossing call emits for that realm; there is no separate permission for events.
-`event_defer_callback_loop.txtar` pins the same attribution from a loop, a callback and a deferred closure:
-every event carries `pkg_path gno.land/r/demo/edcl` (`ForLoopEvent` three times, then
-`ForLoopCompletionEvent`, `CallbackEvent`, `CallbackCompletionEvent` and `DeferEvent`).
+`chain.Emit` attributes an event to the realm whose code runs, so a callback inside its own realm's crossing call emits for that realm;
+`event_defer_callback_loop.txtar` pins the same attribution from a loop, a callback and a deferred closure.
 
 Rules: R1. Pinned by: `gno.land/pkg/integration/testdata/event_callback.txtar` (stdout `EVENTS:` with two
 events, both `"pkg_path":"gno.land/r/demo/cbee"`).
 
 ### t. Interfaces and plugins: R6, one import rule
+**Goal:** Code reached through an interface or method value has authority only if its package is in the import tree.
 
 ```go
 // p: gno.land/p/demo/tests/launderpkg/v0
@@ -1802,9 +1744,8 @@ sequenceDiagram
     Note over L: refused, the method value was built view-only
 ```
 
-Reaching code through an interface or a method value does not carry authority. The package it belongs to
-does, and only if it is in the import tree of the current realm, the one whose crossing call is running.
-Importing a package is how a realm says it trusts that code.
+Reaching code through an interface or a method value carries no authority; the package it belongs to does, and only if it is in the import tree of the realm
+whose crossing call runs—importing a package is how a realm says it trusts that code.
 
 Rules: R6. Pinned by: `gnovm/tests/files/zrealm_entry_iface_val.gno` (Error `cannot modify object owned by
 another realm from library code (call a function of the owning realm): x<VPBlock(1,1)>.Field`, for a library
@@ -1812,11 +1753,8 @@ value passed to `Use`), `gnovm/tests/files/zrealm_entry_iface_ptr.gno` (the same
 and `gnovm/tests/files/zrealm_entry_iface_gen.gno` (the same Error for the method value `Gen.Handler` builds
 while view-only).
 
-The standard library is included in the import tree. `gnovm/tests/files/zrealm_import_std_out.gno` shows both
-halves: `control` imports `bytes` (`examples/gno.land/r/tests/vm/impvictim/control/v.gno:5`), so a
-`bytes.Reader` handed to `control.Fill` writes and prints `control: efgh`; `impvictim` imports only `io`
-(`impvictim/v.gno:5`), so the same reader handed to `impvictim.Fill` is refused when `ReadAt` writes
-`impvictim`'s own buffer `buf` (`impvictim/v.gno:7,10`), with Error `cannot copy to readonly tainted slice`.
+The standard library is in the import tree: `zrealm_import_std_out.gno` shows `control`, which imports `bytes`, taking a write from a `bytes.Reader`, while
+`impvictim`, which imports only `io`, refuses `ReadAt` with Error `cannot copy to readonly tainted slice`.
 
 ```go
 // realm c: gno.land/r/tests/vm/impvictim/control (imports bytes)
@@ -1856,6 +1794,7 @@ sequenceDiagram
 ```
 
 ### u. Sub-realm tokens
+**Goal:** A sub-token crosses like a realm, is minted only by `cur.Sub`, and carries its own limits.
 
 ```go
 // realm a: gno.land/r/demo/subrealm (zrealm_sub1)
@@ -1894,25 +1833,11 @@ sequenceDiagram
     A->>A: cur.Sub("inner"), a nested sub of the live cur
 ```
 
-A sub-token is a realm value with a `#subpath`; it crosses like any realm and `cur.Previous()` names it, and in
-`zrealm_sub1` the `unsafe` API agrees with it on both realms; never use `unsafe.PreviousRealm()` in a crossing
-function, since it walks the call stack from wherever it runs. Minting is `cur.Sub(sp)` only: the
-grammar is the one `zrealm_sub_validation.gno` pins (rejections print `<sp> rejected: Sub: …`, and `dao/42`,
-`v1.2`, `role_admin` and `a` are accepted); the address is off-chain computable — `chain.DerivePkgSubAddr`
-equals `Sub().Address()` and `chain.SplitPkgSubPath` recovers host and subpath (`zrealm_sub2.gno`) — and the
-same grammar rejects on the derivation side, 9 of the 12 cases (`../x`, `x-` and the too-long one are missing;
-`zrealm_sub_derive_reject.gno`). A sub can be presented across a
-real realm boundary: `zrealm_sub_foreign_present.gno` crosses into `gno.land/r/tests/vm/subhost`, which prints
-the host-prefixed `#dao/9` path, `Subpath() dao/9`, `IsUserCall false` and the unsafe parity. A realm whose
-code holds a foreign live `cur` cannot mint in that namespace (`zrealm_sub_foreign.gno`, `Sub: caller is not
-operating in the receiver's namespace`). Sub-of-sub is refused the moment the receiver's own pkgpath carries a
-`#` (`zrealm_sub_nested.gno`, `Sub: receiver pkgpath is already synthesized or invalid`), and a captured sub
-that is no longer the topmost crossing cur cannot cross at all (`zrealm_sub_stale_cross.gno`, `cross: rlm is not
-the current cur (stale capture or sibling frame)`). A stale capture cannot mint from it (`Sub: receiver is not
-the live cur (stale, sibling, or a sub-token)`), it cannot be stored (`cannot persist realm value`), and the
-banker refuses to issue or spend its own denom (`BankerTypeRealmIssue not supported for sub-realm tokens`, same
-for `BankerTypeOriginSend`). `zrealm_sub0.gno` pins a freshly minted sub's classification: synthesized pkgpath,
-derived address, `IsCurrent() true`, code not user, and `String()`.
+A sub-token is a realm value with a `#subpath`: it crosses like any realm and `cur.Previous()` names it, and it is minted only by `cur.Sub(sp)` with the grammar
+`zrealm_sub_validation.gno` pins; never use `unsafe.PreviousRealm()` in a crossing function, since it walks the call stack. A captured sub that is no longer the
+topmost crossing cur cannot cross, mint, be stored, or issue or spend its own denom; a sub-of-sub is refused, and the address is off-chain computable and
+rejects the same grammar (`zrealm_sub0.gno`, `zrealm_sub2.gno`, `zrealm_sub_derive_reject.gno`, `zrealm_sub_nested.gno`, `zrealm_sub_stale_cross.gno`,
+`zrealm_sub_banker.gno`).
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_sub1.gno` (Output `prev.PkgPath: gno.land/r/demo/subrealm#dao/1`,
 `prev.Address: g1jy9ajp3mqdrcsklfgeafqpfr0nn2ypejnexzv6`, `unsafe parity prev: true`, `unsafe parity cur: true`,
@@ -1934,6 +1859,7 @@ value: realm values are ephemeral and tied to a call frame`), `gnovm/tests/files
 `gno.land/pkg/integration/testdata/subrealm_run_parity.txtar` (MsgRun entry, `observed prev.Subpath: dao/5`).
 
 ### v. Allowances, tellers and the banker
+**Goal:** An allowance is a crossing function value that spends within its cap and dies on `Close`.
 
 ```go
 // realm g: gno.land/r/test/granter (allowancesender_handoff.txtar)
@@ -2025,33 +1951,17 @@ sequenceDiagram
     C-->>U: cannot modify (refused)
 ```
 
-An allowance is a capability with a lifetime: a crossing function literal written in the granter's source keeps
-working after it is stored, while the grant is open and within the cap, and dies on `Close`. The sender object
-itself is not spendable by another realm, even when that realm stores it. A banker can only be built over the
-live `cur`, so a callee cannot drain its caller: `zrealm_banker_previous.gno` fails with `banker can only be
-instantiated for the current realm`. The shape works, and S3 leaves crossing calls alone.
+An allowance is a capability with a lifetime: a crossing function literal written in the granter's source keeps working after it is stored while the grant is
+open and within the cap, and dies on `Close`; the sender object is not spendable by another realm, and a banker can only be built over the live `cur`
+(`zrealm_banker_previous.gno`).
 
-Related pins. `allowancesender_recover.txtar` (tx 4's direct `defer al.Close()`) and
-`allowancesender_outer_recover.txtar` (lines 6-10) show the call succeeds: with the VM fix there is no panic
-for the `recover` to swallow, so `Close` runs and the persisted allowance ends closed;
-`allowancesender_persistence.txtar` pins the in-call spend and the cap, while `allowancesender_diag.txtar`
-pins no cause: variants B and C (lines 35, 38) assert no output, so it does not show that the taint comes from
-persisting the object rather than the `defer`. On the banker side, an
-`OriginSend` banker cannot outlive its message (`banker_originsend_lifetime.txtar`: stashing it or handing it
-to a delegate aborts at finalize, before any coins move), a `RealmSend` banker can be persisted and keeps
-spending across transactions (`banker_persistence.txtar`, construction-time authorization only), a realm that
-embeds a live realm never deploys (`banker_realm_embed.txtar` and `banker_realm_embed_wugnot.txtar`, `missing
-method .seal`, balances untouched), a banker cannot take coins from an arbitrary address
-(`banker_security.txtar`), and a realm's issued coin denom carries the realm path
-(`realm_banker_issued_coin_denom.txtar`: stdout `31337/gno.land/r/test/realm_banker:ugnot`).
-`grc721_callerteller_home.txtar` shows a frame-relative caller teller is inert in any other realm (stderr
-`frame-relative teller used outside the token.s realm` at :35 and :39). The grc20 registry pins whose code a
-registration vouches for: a registering realm must hand in functions declared in its own source
-(`grc20_registry_spoof.txtar`, `must be declared in the registering realm`), a run script cannot register
-(`grc20_registry_run_register.txtar`, `run script cannot register`), the wrappers bind the actor to the calling
-realm (`grc20_registry_wrappers.txtar`), the emitted event's `pkg_path` is the wrapper package
-`gno.land/p/nt/grc20/v0` and only its `token` attribute names `foo20`
-(`grc20_registry_emit.txtar:26`), and the old `grc20_registry.txtar` shows the name-to-wrapper lookup.
+Related pins. `allowancesender_recover.txtar` and `allowancesender_outer_recover.txtar` show the call succeeds (no panic for `recover`, so `Close` runs);
+`allowancesender_persistence.txtar` pins the spend and the cap, `allowancesender_diag.txtar` no cause. `banker_originsend_lifetime.txtar` aborts at finalize,
+`banker_persistence.txtar` keeps spending, `banker_realm_embed.txtar` and `banker_realm_embed_wugnot.txtar` fail with `missing method .seal`,
+`banker_security.txtar` refuses arbitrary addresses, `realm_banker_issued_coin_denom.txtar` prints `31337/gno.land/r/test/realm_banker:ugnot`;
+`grc721_callerteller_home.txtar` prints `frame-relative teller used outside the token.s realm`, and the grc20 registry (`grc20_registry_spoof.txtar`: `must be
+declared in the registering realm`; `grc20_registry_run_register.txtar`: `run script cannot register`; `grc20_registry_wrappers.txtar`;
+`grc20_registry_emit.txtar`: `pkg_path` `gno.land/p/nt/grc20/v0`; `grc20_registry.txtar`) pins registration.
 
 Rules: R1, R2. Pinned by:
 `gno.land/pkg/integration/testdata/allowancesender_handoff.txtar` (stderr `closed`, `cap exceeded`, `cannot
@@ -2060,6 +1970,7 @@ current realm`), and `gno.land/pkg/integration/testdata/grc20_callerteller_home.
 confined to the token`, three times, with balances unchanged).
 
 ### w. Panics
+**Goal:** A refused write panics, and the caller can recover it and keep its own authority.
 
 ```go
 // realm a: gno.land/r/tests/vm/ctw
@@ -2131,12 +2042,9 @@ sequenceDiagram
     Note over C,D: the golden chains both panics: victim-induced panic, then the read-only text
 ```
 
-A refused write is a panic: it stops the write at once. A read-only frame is no realm boundary, so a panic
-raised in another realm's read-only code is recovered by the caller, which keeps its own authority
-(`recovered: boom`, `count: 1`), and a realm's own code may recover a panic raised by a library function it
-called through a value (`value: boom`). When the read-only panic fires inside the victim's own panic
-unwinding, the test's error shows both: the victim's panic first, then the read-only refusal raised by the
-deferred callback.
+A refused write is a panic, raised at once. A read-only frame is no realm boundary, so the caller recovers a panic raised in another realm's read-only code and
+keeps its authority, and a realm's own code recovers a library panic it called through a value; inside the victim's unwinding the error shows both panics in
+order.
 
 Rules: R1. Pinned by: `gnovm/tests/files/zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`,
 `value: boom`) and `gnovm/tests/files/zrealm_launder_rdata_pdr_panic_defer.gno` (Error `victim-induced panic`
@@ -2145,6 +2053,7 @@ its crossing function): i<VPBlock(1,0)>.Field`; the realm named is the attacker'
 read-only, not the victim that owns the object).
 
 ### x. Known limits
+**Goal:** These are the remaining limits: a few read-only shapes still surprise.
 
 ```go
 // realm a: gno.land/r/tests/vm/cbvictim (the owner)
@@ -2210,46 +2119,25 @@ sequenceDiagram
     Note over A: a library table entry in place writes (ViaDispatch -> Inc);<br/>a package-variable copy to a local is refused (zrealm_saved_libtable_copy)
 ```
 
-These are the outcomes, stated as plainly as the decision record states them, and no further:
-
-- `zrealm_home_known_relay_table.gno` and `zrealm_home_known_ro_relay.gno` refuse with Error
-  `gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only in the crossing call
-  that made it: Owner<~VPBlock(3,0)>`, and the `println` never runs. A caller hands a realm's crossing function a
-  reference to that realm's own stored function values; the values come from a container made outside the
-  crossing call, so they have no maker id and the gate's write runs read-only. Advice: never call function
-  values found in caller-supplied containers.
-- A value fetched by read-only code has no maker either: `zrealm_home_ro_relay.gno` gets it from
-  `cbvictim.GetFV()`, copies it, and is refused with the same Error.
-- A value stored and read back has no maker id, so the escaped-container, local-reference, name collision and
-  own-crossing-helper cases all run read-only (`zrealm_saved_*`).
-- A function value a library stores in a package variable acts for the caller when called in place
-  (`lib.Table[k](x)`). The write is pinned by `zrealm_ctw_owncb.gno`'s `ViaDispatch`: `Handlers["inc"]` reaches
-  `Inc`, which writes `Boxes[0].N`. `ViaTable` alone proves nothing, because the `Count++` it runs is ctw's own
-  closure. A package-variable function value copied to a local first has no maker and runs view-only:
-  `zrealm_saved_libtable_copy` calls `cbsaved.LibCopy`, which copies `libtable.Handlers["inc"]` to a local, and
-  the write is refused with Error `cannot modify object owned by another realm from library code (call a
-  function of the owning realm): b<VPBlock(1,0)>.N`. A declared function named as a value
-  (`each := libtable.Each`) still writes, which `ViaLocal` in `zrealm_ctw_owncb` pins.
+- `zrealm_home_known_relay_table.gno` and `zrealm_home_known_ro_relay.gno` refuse with Error `gno.land/r/tests/vm/cbvictim's code is read-only here: a function
+  value writes only in the crossing call that made it: Owner<~VPBlock(3,0)>`, and the `println` never runs: values from outside the crossing call have no maker
+  id. Advice: never call function values found in caller-supplied containers.
+- A value fetched by read-only code (`zrealm_home_ro_relay.gno`) has no maker either, and a value stored and read back has none, so the escaped-container,
+  local-reference, name collision and own-crossing-helper cases all run read-only (`zrealm_saved_*`).
+- A library table entry is the one surprise: the same entry writes when called in place (`lib.Table[k](x)`) and is refused once copied to a local. In place,
+  `zrealm_ctw_owncb.gno`'s `ViaDispatch` pins the write (`Handlers["inc"]` reaches `Inc`, which writes `Boxes[0].N`; `ViaTable` alone proves nothing, its
+  `Count++` is ctw's own closure); copied to a local, `zrealm_saved_libtable_copy` calls `cbsaved.LibCopy`, refused with Error `cannot modify object owned by
+  another realm from library code (call a function of the owning realm): b<VPBlock(1,0)>.N`, while a declared function named as a value (`each :=
+  libtable.Each`) still writes (`ViaLocal` in `zrealm_ctw_owncb`).
 - Import-tree trust includes the standard library (`zrealm_import_std_out.gno`).
-- An unreal `HeapItemValue` is a transient (never-saved) heap wrapper for an escaping local, not realm-owned storage. Only a
-  `/p/`-owned receiver borrows (runs its method as the receiver's realm) (`machine.go:2798-2801`, `2846-2847`); `inn` is `innerowner`'s, so `inn.loop`
-  runs with `m.Realm` still `hivunrealborrow`, the closure's write is never read-only, and S3d does not arise
-  (`zrealm_hiv_unreal_borrow.gno`, Output `stopped= true`). The item is never saved: the transaction ends at
-  the `println`, and a wrapper with no owner reaches neither finalize set.
-- The mark is per object: a by-value copy of a marked struct that the realm's own crossing code then saves is
-  not refused (`zrealm_s3u_rv3_2`, Output `owner: stamped`).
-- A realm calling another realm's non-crossing `FillStr(&x)` and then saving `&x` is refused at save
-  (`zrealm_s3u_rv4_1`, the `would be stored` Error); save `x` by value or make `FillStr` crossing.
-- The rules hold chain-wide from a fresh genesis or a migration: state saved earlier keeps the function-value
-  references it was stored with.
-
+- The mark is per object (`zrealm_s3u_rv3_2`, Output `owner: stamped`); saving `&x` after another realm's non-crossing `FillStr(&x)` is refused
+  (`zrealm_s3u_rv4_1`, `would be stored`); the rules hold chain-wide.
 Rules: R6, S3, S3d, R4. Pinned by: `gnovm/tests/files/zrealm_home_known_relay_table.gno` (Error `…cbvictim's code is
 read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)>`),
 `gnovm/tests/files/zrealm_home_known_ro_relay.gno` (the same Error),
 `gnovm/tests/files/zrealm_home_ro_relay.gno` (Error `gno.land/r/tests/vm/cbvictim's code is read-only here: a
 function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)>`),
-`gnovm/tests/files/zrealm_hiv_unreal_borrow.gno` (Output `stopped= true`), `zrealm_s3u_rv3_2` (Output
-`owner: stamped`) and `zrealm_s3u_rv4_1` (Error `gno.land/r/zrealm_s3u_rv4_1: an object written by read-only code would be
+`zrealm_s3u_rv3_2` (Output `owner: stamped`) and `zrealm_s3u_rv4_1` (Error `gno.land/r/zrealm_s3u_rv4_1: an object written by read-only code would be
 stored (write it inside a crossing call of gno.land/r/zrealm_s3u_rv4_1)`).
 
 ## 6. Writing a realm
