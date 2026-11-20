@@ -2,7 +2,7 @@
 // PKGPATH: gno.land/r/demo/a/very/long/package/path/so/the/backing/bytes/stand/out/alloc14
 
 // Companion to alloc_14 (see its header): the held strings are fresh
-// copies minted by concatenation, so the recount lands len(a)+len(p)
+// copies minted by a []byte round trip, so the recount lands len(a)+len(p)
 // bytes above alloc_14.
 package alloc14
 
@@ -11,8 +11,8 @@ import (
 )
 
 func main(cur realm) {
-	a := string(cur.Address()) + ""
-	p := cur.PkgPath() + ""
+	a := string([]byte(string(cur.Address())))
+	p := string([]byte(cur.PkgPath()))
 	runtime.GC()
 	println("===after GC, MemStats: ", runtime.MemStats())
 	println(len(a), len(p))

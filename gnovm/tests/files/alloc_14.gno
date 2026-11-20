@@ -7,7 +7,7 @@
 // never its backing bytes again.
 //
 // Companion alloc_14a holds fresh copies of the same two strings (minted
-// by concatenation) and lands exactly len(a)+len(p) = 40+79 = 119 bytes
+// by a []byte round trip) and lands len(a)+len(p) = 40+79 = 119 bytes
 // higher after GC: that gap is the dedup. Companion alloc_14b lets the
 // handle die first, so only tracked results keep their bytes in the
 // recount: that is the tracking. An untracked (nil backing) result passes here

@@ -35,6 +35,8 @@ type StringValue struct {
 - `NewString` allocates a fresh `stringBacking{Extent: len(s)}`. Value
   copies and `GetSlice` copy the pointer, so every value over one backing
   shares it; `GetSlice` still charges header-only at creation.
+  `s + ""` and `"" + s` keep `s`'s backing too, so they add no recount
+  (`alloc_14d`).
 - Identity is the pointer itself. Go's GC cannot free or reuse a
   `stringBacking` while any `StringValue` still points at it, so two live
   mints can never compare equal: uniqueness holds by construction, with no
@@ -82,9 +84,9 @@ Both #4885 hazard classes are unrepresentable for *identity*: toolchain
 backing sharing is irrelevant (two mints get two backings even if Go
 shares the bytes), and address recycling cannot misattribute (there are
 no addresses). `Extent` is still `len(s)` at mint, not Go's retained
-array: `NewString` does not copy, so `sub + ""` (Go returns the operand)
-mints `Extent == len(sub)` while Go retains the whole source. Same as
-master, and a bounded undercount, not a misattribution.
+array: `NewString` does not copy, so a native that returns a substring of
+its input mints `Extent == len(sub)` while Go retains the whole input.
+Same as master, and a bounded undercount, not a misattribution.
 
 ### Struct-equality hazard
 
