@@ -531,8 +531,8 @@ func lintRealmValueAPI(io commands.IO, pkg *types.Package, fset *token.FileSet) 
 	}
 	checkSig := func(obj types.Object, sig *types.Signature, what string) {
 		for _, tup := range []*types.Tuple{sig.Params(), sig.Results()} {
-			for i := 0; i < tup.Len(); i++ {
-				if t := ownRealmValue(tup.At(i).Type(), pkg); t != nil {
+			for v := range tup.Variables() {
+				if t := ownRealmValue(v.Type(), pkg); t != nil {
 					report(obj, what, t)
 					return
 				}
@@ -554,8 +554,8 @@ func lintRealmValueAPI(io commands.IO, pkg *types.Package, fset *token.FileSet) 
 			}
 		case *types.TypeName:
 			if named, ok := o.Type().(*types.Named); ok {
-				for i := 0; i < named.NumMethods(); i++ {
-					if m := named.Method(i); m.Exported() {
+				for m := range named.Methods() {
+					if m := m; m.Exported() {
 						checkSig(m, m.Type().(*types.Signature), "method")
 					}
 				}
@@ -586,8 +586,8 @@ func ownRealmValue(t types.Type, pkg *types.Package) types.Type {
 	case *types.Chan:
 		return ownRealmValue(u.Elem(), pkg)
 	case *types.Struct:
-		for i := 0; i < u.NumFields(); i++ {
-			if ft := ownRealmValue(u.Field(i).Type(), pkg); ft != nil {
+		for field := range u.Fields() {
+			if ft := ownRealmValue(field.Type(), pkg); ft != nil {
 				return ft
 			}
 		}
@@ -693,8 +693,8 @@ func lintRealmBoxedResult(io commands.IO, pkg *types.Package, fset *token.FileSe
 		if reported || !bare {
 			return
 		}
-		for i := 0; i < results.Len(); i++ {
-			v := results.At(i)
+		for v := range results.Variables() {
+			v := v
 			if !types.IsInterface(v.Type()) {
 				continue
 			}
@@ -713,8 +713,8 @@ func isNamedResult(obj types.Object, results *types.Tuple) bool {
 	if obj == nil {
 		return false
 	}
-	for i := 0; i < results.Len(); i++ {
-		if results.At(i) == obj {
+	for v := range results.Variables() {
+		if v == obj {
 			return true
 		}
 	}
@@ -732,8 +732,8 @@ func spreadResults(e ast.Expr, info *types.Info) []types.Type {
 		return nil
 	}
 	var ts []types.Type
-	for i := 0; i < sig.Results().Len(); i++ {
-		ts = append(ts, sig.Results().At(i).Type())
+	for v := range sig.Results().Variables() {
+		ts = append(ts, v.Type())
 	}
 	return ts
 }
@@ -779,8 +779,8 @@ func walkExportedFuncs(pkg *types.Package, fn func(*types.Func)) {
 			fn(o)
 		case *types.TypeName:
 			if named, ok := o.Type().(*types.Named); ok {
-				for i := 0; i < named.NumMethods(); i++ {
-					if m := named.Method(i); m.Exported() {
+				for m := range named.Methods() {
+					if m := m; m.Exported() {
 						fn(m)
 					}
 				}

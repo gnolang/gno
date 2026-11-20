@@ -221,7 +221,7 @@ func deepForeignStack(frames int) (*Machine, *FuncValue) {
 	m := NewMachineWithOptions(MachineOptions{PkgPath: "gno.land/r/deep", SkipPackage: true})
 	m.Realm = &Realm{Path: "gno.land/r/deep"}
 	fv := &FuncValue{FileName: "lib.gno", PkgPath: "gno.land/p/deep"}
-	for i := 0; i < frames; i++ {
+	for range frames {
 		m.Frames = append(m.Frames, Frame{Func: fv})
 	}
 	return m, fv
@@ -235,7 +235,7 @@ func TestForeignLibNoFrameWalkOnChain(t *testing.T) {
 	m, fv := deepForeignStack(frames)
 	defer m.Release()
 	start := time.Now()
-	for i := 0; i < decisions; i++ {
+	for range decisions {
 		m.foreignLib(fv)
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {

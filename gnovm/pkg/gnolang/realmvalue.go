@@ -185,14 +185,14 @@ func foreignRealmValue(t types.Type, self realmSelf) types.Type {
 	case *types.Chan:
 		return foreignRealmValue(u.Elem(), self)
 	case *types.Struct:
-		for i := 0; i < u.NumFields(); i++ {
-			if ft := foreignRealmValue(u.Field(i).Type(), self); ft != nil {
+		for field := range u.Fields() {
+			if ft := foreignRealmValue(field.Type(), self); ft != nil {
 				return ft
 			}
 		}
 	case *types.Tuple: // multi-value results and comma-ok forms
-		for i := 0; i < u.Len(); i++ {
-			if ft := foreignRealmValue(u.At(i).Type(), self); ft != nil {
+		for v := range u.Variables() {
+			if ft := foreignRealmValue(v.Type(), self); ft != nil {
 				return ft
 			}
 		}

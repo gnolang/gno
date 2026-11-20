@@ -59,7 +59,7 @@ func main(cur realm) {
 	must(memberstore.SetMember(cross(cur), memberstore.T1, txAddr, memberstore.NewMember(0)))
 
 	r := valr.NewValidatorProposalRequest(cross(cur),
-		[]valr.ValoperChange{
+		[]*valr.ValoperChange{
 			valr.NewValoperChange(txAddr, ${VAL4_POWER}),
 		},
 		"Add validator val4 with validators v0",
@@ -108,7 +108,7 @@ import (
 
 func main(cur realm) {
 	r := valr.NewValidatorProposalRequest(cross(cur), 
-		[]valr.ValoperChange{
+		[]*valr.ValoperChange{
 			valr.NewValoperChange(address("${TX_ADDRESS}"), 0),
 		},
 		"Remove validator val4 with validators v0",

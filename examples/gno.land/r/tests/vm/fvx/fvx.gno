@@ -11,8 +11,8 @@ var one = &T{N: 1}
 
 var M = map[string]T{}
 
-func Ptr() *T      { return one }
-func New(n int) *T { return &T{N: n} }
+func Ptr() *T        { return one }
+func New(n int) *T   { return &T{N: n} }
 func (t T) Val() int { return t.N }
 
 type H [4]byte
