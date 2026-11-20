@@ -55,6 +55,12 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	if msg.Creator.IsZero() {
 		return std.ErrInvalidAddress("missing creator address")
 	}
+	if msg.Package == nil {
+		return ErrInvalidPkgPath("missing package")
+	}
+	if err := validatePackageAnyFields(msg.Package); err != nil {
+		return err
+	}
 	if msg.Package.Path == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
@@ -67,6 +73,19 @@ func (msg MsgAddPackage) ValidateBasic() error {
 	// Validate: ensure the package contains at least one file.
 	if len(msg.Package.Files) == 0 {
 		return ErrInvalidFile("no files in MsgAddPackage")
+	}
+	return nil
+}
+
+// validatePackageAnyFields refuses a non-nil Info and a Type other than a
+// gno.MemPackageType. Both fields are typed `any`, and runTx re-encodes the tx
+// once ValidateBasic passes; see tm2/adr/pr6406_canonical_tx_enforcement.md.
+func validatePackageAnyFields(pkg *std.MemPackage) error {
+	if pkg.Info != nil {
+		return errInvalidMemPackage(gno.ErrMemPackageInfo)
+	}
+	if _, ok := pkg.Type.(gno.MemPackageType); pkg.Type != nil && !ok {
+		return ErrInvalidPackage(fmt.Sprintf("package type must be a MemPackageType, not %T", pkg.Type))
 	}
 	return nil
 }
@@ -194,6 +213,9 @@ type MsgRun struct {
 	Send       std.Coins       `json:"send" yaml:"send"`
 	MaxDeposit std.Coins       `json:"max_deposit" yaml:"max_deposit"`
 	Package    *std.MemPackage `json:"package" yaml:"package"`
+	// MaxSend caps the coins the run may send out of Caller's account; empty
+	// refuses every transfer outside replayed history.
+	MaxSend std.Coins `json:"max_send,omitempty" yaml:"max_send,omitempty"`
 }
 
 var _ std.Msg = MsgRun{}
@@ -229,6 +251,12 @@ func (msg MsgRun) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
+	if msg.Package == nil {
+		return ErrInvalidPkgPath("missing package")
+	}
+	if err := validatePackageAnyFields(msg.Package); err != nil {
+		return err
+	}
 
 	if msg.Package.Path != "" {
 		// Force memPkg path to the reserved run path.
@@ -247,6 +275,9 @@ func (msg MsgRun) ValidateBasic() error {
 	}
 	if !msg.MaxDeposit.IsValid() {
 		return std.ErrInvalidCoins(msg.MaxDeposit.String())
+	}
+	if !msg.MaxSend.IsValid() {
+		return std.ErrInvalidCoins(msg.MaxSend.String())
 	}
 	return nil
 }
@@ -292,6 +323,28 @@ type MsgEnablePackage struct {
 	// anywhere else would renumber the fields above and change how every
 	// existing transaction decodes.
 	PkgHash string `json:"pkg_hash" yaml:"pkg_hash"`
+	// PkgHeight pins the SUBMISSION being approved, as AddPkg.Height recorded
+	// it at submit.
+	//
+	// PkgHash covers what the author's directory declares. It cannot cover the
+	// [addpkg] section, because the approver's local copy does not have one --
+	// the keeper writes it. So a creator can re-park byte-identical sources and
+	// keep the hash while changing creator, height and max_deposit. Lowering
+	// max_deposit under a standing approval is the sharp end: the enable passes
+	// the hash gate, runs init(), and only then aborts on the deposit, so the
+	// approver pays gas for a transaction that could never have succeeded, and
+	// the creator can repeat it for the price of a submission.
+	//
+	// Pinning the height closes the whole class rather than one field at a
+	// time: every re-park lands at a new height, so any of them invalidates the
+	// approval, including a creator swap after a MsgRejectPackage.
+	//
+	// Zero means unpinned. That is what every transaction predating this field
+	// decodes as, and what genesis replay carries, so it cannot be required
+	// here -- see the replay exemptions in EnablePackage.
+	//
+	// Appended last, for the reason above.
+	PkgHeight int64 `json:"pkg_height" yaml:"pkg_height"`
 }
 
 var _ std.Msg = MsgEnablePackage{}

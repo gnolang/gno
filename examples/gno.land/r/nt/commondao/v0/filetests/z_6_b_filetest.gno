@@ -8,7 +8,7 @@ import (
 	"gno.land/r/nt/commondao/v0"
 )
 
-const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))

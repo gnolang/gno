@@ -150,7 +150,7 @@ import (
 // CEILING on a storage deposit when a message declares no MaxDeposit, so a
 // single message may now add at most 1 MB of realm state rather than 6 MB
 // before it is refused. Measured against all 321 genesis packages the largest
-// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// deploy is r/gnoland/boards2/v0 at 276,098 bytes (27,609,800ugnot), so the
 // new ceiling clears the worst real case by 3.6x.
 // Bumped again by the two inert-charge vm params, for the same reason as
 // run_submitters above: two more keys, written unconditionally. Behavior at
@@ -217,7 +217,37 @@ import (
 // 1d05023c. The scenario's own realms hold no byte slices (crossrealm_f keeps
 // []*Entry), so behavior is unchanged and the zrealm_crossrealm38.gno filetest
 // still passes.
-const expectedCrossrealm38Hash = "4beb454c4f1340d15c0864319533919a3c6506cc880eb0c5fbcbaebbd2f93a12"
+//
+// Bumped by the crypto/modexp operand cap and gas rework: modexp.gno gained a
+// MaxOperandLen const, a length guard in ModExp, and doc text for the new
+// rejection behavior. stdlib .gno source bytes are committed into genesis
+// state, so the root moves. Note this branch also adds modexp_test.gno, and
+// loadStdlibPackage reads stdlibs with MPStdlibAll, which keeps _test.gno
+// files — so that file is inside the Merkle root too, not just modexp.gno.
+// crossrealm38 calls neither, so the shift is those source bytes alone. The
+// gas-row change moves nothing here: gas is not committed state. Re-derived
+// after merging develop, whose own changes moved the root too, so neither
+// side's value survives.
+//
+// Bumped by the small-order ed25519 fix: crypto/ed25519/ed25519_test.gno gained
+// TestVerifyRejectsSmallOrderKey, and _test.gno files are inside the stdlib
+// MemPackage committed into genesis (same class as the modexp_test.gno bump
+// above). The native change is not in the Merkle root, and crossrealm38 does
+// not use ed25519. Attributed by bisection: reverting only that test file
+// restores the previous value.
+//
+// Bumped by the CodeFence minCount cap. The cap itself lives in the injected
+// Go implementation; markdown.gno only documents it, so the shift is that
+// comment alone, as with PercentEncodeURL above. With markdown.gno restored to
+// develop's bytes and the Go cap kept, the previous value still holds.
+//
+// Re-derived on the merge of the two, whose stdlib source changes both sit
+// inside the same MemPackage root.
+//
+// Re-derived for the mainnet release line, which keeps markdown.gno identical
+// to the source gnoland-1 holds in state, so the CodeFence comment is not in
+// it. With develop's markdown.gno, develop's value above still holds.
+const expectedCrossrealm38Hash = "91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

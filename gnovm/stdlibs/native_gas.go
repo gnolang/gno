@@ -1,6 +1,8 @@
 package stdlibs
 
 import (
+	"fmt"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
@@ -17,11 +19,11 @@ import (
 // X_ work + return push); no separate dispatch overhead constant.
 //
 // Two-slope (Slope2/PostSlope2) is supported by the runtime for natives
-// whose cost depends on two independent dimensions. Only
-// crypto/merkle.innerHash uses it today: it hashes two unbounded byte
-// slices, so each one carries its own per-byte slope. Every other row
-// uses a single slope — for the store-backed natives the per-byte work
-// happens inside the metered KVStore (gctx), so the empirical per-byte
+// whose cost depends on two independent dimensions: crypto/merkle.innerHash
+// and verifySimpleProof each hash two unbounded byte slices, and
+// crypto/modexp prices its work and its modulus apart. Every other row
+// uses a single slope — for the store-backed natives the per-byte
+// work happens inside the metered KVStore (gctx), so the empirical per-byte
 // CPU cost in the dispatcher is negligible.
 
 // Re-export the gnolang SizeKind constants for readable table literals.
@@ -33,6 +35,7 @@ const (
 	SizeNumCallFrames   = gno.SizeNumCallFrames
 	SizeReturnLen       = gno.SizeReturnLen
 	SizeSliceTotalBytes = gno.SizeSliceTotalBytes
+	SizeModExpWork      = gno.SizeModExpWork
 )
 
 // nativeGasEntry is the on-disk shape of a row, copied into a
@@ -68,10 +71,24 @@ type nativeGasEntry struct {
 // gnovm/cmd/calibrate before any consensus-relevant deployment). 1 gas
 // = 1 ns. Slope is ns per 1024 units of N. R² > 0.93 for all linear fits.
 //
-// Values come from gen_native_table.py over native_bench_output.txt
-// (current contents). Production matches the regenerated
-// native_gas_table.go.txt exactly — re-running the fitter on this same
-// input reproduces this table verbatim. The 2D bench-grid extension
+// Values come from gen_native_table.py over native_bench_output.txt.
+// Two caveats on that provenance, both worth knowing before a re-run:
+//
+//   - The checked-in snapshot is stale, and not because of this table.
+//     native_gas_table.go.txt holds 46 rows against production's 66, and
+//     native_bench_output.txt contains no bench lines for any of the IBC
+//     crypto natives (bn254, cometbls, keccak256, merkle, modexp). Those
+//     rows came from a separate run (see below) and cannot be reproduced
+//     from the committed input at all, so "re-running the fitter
+//     reproduces this table verbatim" holds only for the 46 rows the
+//     snapshot covers.
+//   - The crypto/modexp row is additionally not a fitter output even given
+//     its bench data: its Slope is an upper bound over the bench grid
+//     rather than the least-squares coefficient, because that native's
+//     cost is a product and a central fit underprices half the grid. See
+//     the row's own comment.
+//
+// The 2D bench-grid extension
 // (slice natives benched at multiple per-element byte sizes) confirmed
 // the per-byte CPU slope is below noise for every native shipping
 // today, so the table stays single-slope; the schema fields support
@@ -147,7 +164,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/runtime/unsafe", Fn: "getRealm", Base: 1003, Slope: 1319, SlopeIdx: -1, SlopeKind: SizeNumCallFrames},                                           // mirrors chain/runtime.getRealm
 	{Pkg: "chain/runtime/unsafe", Fn: "originSend", Base: 280, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                // mirrors chain/banker.originSend
 	{Pkg: "time", Fn: "now", Base: 47, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                                        // flat, median 46.9ns
-	{Pkg: "chain", Fn: "emit", Base: 362, Slope: 40218, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                                    // fit base=361.9ns slope=39.2750ns/N (=40218/1024) R²=0.955
+	{Pkg: "chain", Fn: "emit", Base: 362, Slope: 40218, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                                    // fit base=361.9ns slope=39.2750ns/N (=40218/1024) R²=0.955; X_emit adds WriteCostPerByte, 14 gas, per byte of the event's amino encoding
 	{Pkg: "chain/params", Fn: "SetStrings", Base: 1601, Slope: 39842, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                      // fit base=1601.1ns slope=38.9082ns/N (=39842/1024) R²=0.993
 	{Pkg: "chain/params", Fn: "UpdateParamStrings", Base: 1298, Slope: 24077, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                              // fit base=1298.0ns slope=23.5122ns/N (=24077/1024) R²=1.000
 	{Pkg: "chain/params", Fn: "GetStrings", Base: 1601, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},      // mirrors chain/params keying plus sys/params strings return cost
@@ -188,17 +205,91 @@ var calibratedNativeGas = []nativeGasEntry{
 	// on each of len(left) and len(right).
 	{Pkg: "crypto/merkle", Fn: "innerHash", Base: 7513, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes, Slope2: 32911, Slope2Idx: 1, Slope2Kind: SizeLenBytes},
 	{Pkg: "crypto/merkle", Fn: "hashFromByteSlices", Base: 4839, Slope: 188621, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=4839ns slope=184.2ns/N (=188621/1024) on encoded 1..512 items
-	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes},   // draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes
-	// modExp cost is dominated by an O(N^3) big-int chain (Go big.Int.Exp). The
-	// linear schema can't capture that, so the slope below is fit so the charge
-	// matches measured cost at N=256-byte modulus (~6.16ms) and overcharges
-	// smaller inputs / undercharges very large inputs. Re-check before
-	// allowing >256-byte modulus in production realms.
-	{Pkg: "crypto/modexp", Fn: "modExp", Base: 58000, Slope: 24647680, SlopeIdx: 2, SlopeKind: SizeLenBytes}, // draft, calibrated against N=256-byte modulus (cubic underlying, see comment)
+	// The leaf is hashed twice, so Slope2 is twice leafHash's rate on it.
+	// rootHash has no slope: X_verifySimpleProof copies it only at 32 bytes.
+	//
+	// Draft fit base=4567ns slope=52.3ns/N (=53533/1024) on aunts 96..320 bytes.
+	{Pkg: "crypto/merkle", Fn: "verifySimpleProof", Base: 4567, Slope: 53533, SlopeIdx: 4, SlopeKind: SizeLenBytes, Slope2: 65822, Slope2Idx: 1, Slope2Kind: SizeLenBytes},
+	// modExp is charged on two independent components, because it has two:
+	//
+	//   - Slope, on SizeModExpWork at SlopeIdx=1: the exponentiation itself. The
+	//     kind counts the modular multiplications big.Int.Exp will perform,
+	//     reading the branch structure of nat.go's expNN off the operand lengths;
+	//     derivation lives with it in gnovm/pkg/gnolang/native_gas.go. Slope
+	//     converts that count to nanoseconds, so it is the only hardware-dependent
+	//     part of the model. SlopeIdx names the exponent and the modulus is read
+	//     from the next parameter.
+	//   - Slope2, on SizeLenBytes at the modulus: converting the operands across
+	//     the dispatcher, allocating the result and filling it. This is linear in
+	//     len(modulus) and runs even when the exponent is empty and no
+	//     exponentiation happens at all, so folding it into Base makes the charge
+	//     for a zero-length exponent independent of the modulus — a hole, since
+	//     the call still allocates and fills len(modulus) bytes. It is a small
+	//     term now (~2.9 ns/byte): byte slices became Data-backed in #97, so the
+	//     dispatcher no longer converts one TypedValue per byte. Before that it
+	//     was ~134 ns/byte and this slope was 49x larger.
+	//
+	// Both slopes are UPPER bounds over the ModExpGrid benches rather than the
+	// least-squares coefficients: a central fit sits below cost on about half the
+	// grid, which is fine for describing a cost and wrong for charging one. That is
+	// what gen_native_table.py's fit_modexp now emits, so this row IS a fitter
+	// output and regenerating reproduces it, rather than being a hand-edit the
+	// fitter would silently undo.
+	//
+	// Over the recorded grid, projected onto reference hardware, every point lands
+	// between 1.24x and 2.57x of measured cost, and the charge is monotonic in
+	// len(exp) at every modulus — the previous row charged an 8-byte exponent less
+	// than a 9-byte one while it measured more expensive. Re-fit with
+	// gnovm/cmd/calibrate/ibc_native_bench_test.go, which records the run these came
+	// from and the hardware it was taken on; pass --hw-factor unless you are on the
+	// reference Xeon. TestModExpRowCoversRecordedGrid checks every point.
+	//
+	// X_modExp and ModExp cap each operand at 1024 bytes, matching EIP-7823. The cap
+	// bounds the envelope this fit was checked over and the unpriced base reduction;
+	// this row does the pricing.
+	{
+		Pkg: "crypto/modexp", Fn: "modExp", Base: 1400,
+		Slope: 2200, SlopeIdx: 1, SlopeKind: SizeModExpWork,
+		Slope2: 3500, Slope2Idx: 2, Slope2Kind: SizeLenBytes,
+	}, // draft, upper bound over 26 ModExpGrid points (x2.3 to reference, +19% margin); thinnest at expLen=3/modLen=256
+}
+
+// validateRow cross-checks a row against the native's actual signature before
+// registration. Every other misconfiguration in this table already fails loudly
+// — an unregistered native panics on first call, and a bad SlopeIdx panics on
+// the block index — but SizeModExpWork reads a *pair* of parameters and cannot
+// panic on a missing second one without giving up the bounds check. Left
+// unvalidated it would degrade silently, and toward free: the crypto/modexp row
+// carried SlopeIdx: 2 until recently, and with that value the pair read runs off
+// the end of the call block, returns zero work, and collapses the charge to
+// Base for any operand size. Catch it at boot instead.
+func validateRow(e nativeGasEntry, params int) {
+	if e.SlopeKind == SizeModExpWork {
+		if e.SlopeIdx < 0 || int(e.SlopeIdx)+1 >= params {
+			panic(fmt.Sprintf("%s.%s: SizeModExpWork needs params at SlopeIdx and SlopeIdx+1, "+
+				"but SlopeIdx=%d and the native takes %d params — the charge would silently "+
+				"collapse to Base", e.Pkg, e.Fn, e.SlopeIdx, params))
+		}
+	}
+	// The metric needs a parameter pair, so it can never be read off the
+	// return stack. nativeSizeOf panics if it ever is; refuse it here too so
+	// the mistake surfaces at boot rather than on the first call.
+	if e.Slope2Kind == SizeModExpWork || e.PostSlopeKind == SizeModExpWork || e.PostSlope2Kind == SizeModExpWork {
+		panic(fmt.Sprintf("%s.%s: SizeModExpWork is only valid as SlopeKind (pre-call)", e.Pkg, e.Fn))
+	}
 }
 
 func init() {
+	// Index the generated bindings so rows can be checked against the real
+	// signatures rather than against a hand-maintained duplicate of them.
+	nParams := make(map[string]int, len(nativeFuncs))
+	for _, nf := range nativeFuncs {
+		nParams[nf.gnoPkg+"\x00"+string(nf.gnoFunc)] = len(nf.params)
+	}
 	for _, e := range calibratedNativeGas {
+		if n, ok := nParams[e.Pkg+"\x00"+e.Fn]; ok {
+			validateRow(e, n)
+		}
 		gno.RegisterNativeGas(e.Pkg, gno.Name(e.Fn), &gno.NativeGasInfo{
 			Base:           e.Base,
 			Slope:          e.Slope,

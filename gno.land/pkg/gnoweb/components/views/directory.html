@@ -1,16 +1,48 @@
 {{ define "renderDir" }} {{ $pkgpath := .PkgPath }}
+{{ if .Mode.IsExplorer }}
+{{/* A listing sits on the realm grid: the rail under the tabs, on the right;
+     the header and the list or map in the content columns. */}}
+{{ template "layout/aside" (dict "Title" "Listing" "Content" (render .Rail)) }}
+{{ template "ui/listing_header" . }}
+<md-renderer class="c-listing-view">
+  {{ if .Truncated }}{{ template "ui/listing_truncated" .FileCounter }}{{ end }}
+  {{ with .Map }}{{ render . }}{{ else }}{{ template "ui/dir_list" $ }}{{ end }}
+</md-renderer>
+{{ else }}
 <article class="b-directory u-grid-full">
   <header class="b-content-header">
     <h1 class="title b-content-h1">{{ $pkgpath }}</h1>
     <div class="header-info">
-      <span>{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages {{
-        else }} Directory · {{ .FileCounter }} Files {{ end }}</span>
+      <span>Directory · {{ .FileCounter }} Files</span>
     </div>
   </header>
 
+  {{ template "ui/dir_list" . }}
+
+  {{ if .Readme }}
+  <div class="b-content-header">
+    <span class="c-with-icon">
+      <svg class="c-icon">
+        <use href="#ico-readme"></use>
+      </svg>
+      <span>README.md</span>
+    </span>
+    <a href="{{ $pkgpath }}$source&file=README.md" class="b-inline-btn">Open</a>
+  </div>
+  <md-renderer class="c-readme-view">
+    {{ render .Readme }}
+  </md-renderer>
+  {{ end }}
+</article>
+{{ end }}
+{{ end }}
+
+{{/* One row per entry: a package of a listing, with its actions, or a file of
+     a package. */}}
+{{ define "ui/dir_list" }} {{ $pkgpath := .PkgPath }}
   <ul class="b-list">
     {{ range .FilesLinks }}
-    <li>
+    <li data-listing-item data-name="{{ .Name }}">
       <div>
         <a href="{{ .Link }}">
           <span class="c-with-icon">
@@ -36,20 +68,4 @@
     </li>
     {{ end }}
   </ul>
-
-  {{ if .Readme }}
-  <div class="b-content-header">
-    <span class="c-with-icon">
-      <svg class="c-icon">
-        <use href="#ico-readme"></use>
-      </svg>
-      <span>README.md</span>
-    </span>
-    <a href="{{ $pkgpath }}$source&file=README.md" class="b-inline-btn">Open</a>
-  </div>
-  <md-renderer class="c-readme-view">
-    {{ render .Readme }}
-  </md-renderer>
-  {{ end }}
-</article>
 {{ end }}

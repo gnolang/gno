@@ -22,6 +22,7 @@ message m_run {
 	string send = 2;
 	string max_deposit = 3;
 	std.MemPackage package = 4;
+	string max_send = 5;
 }
 
 message m_addpkg {
@@ -35,6 +36,7 @@ message m_enable_pkg {
 	string approver = 1;
 	string pkg_path = 2;
 	string pkg_hash = 3;
+	sint64 pkg_height = 4;
 }
 
 message m_reject_pkg {

@@ -62,6 +62,37 @@
  	}
  
  	l.emitWithValue(tokenString, str)
+--- marshal.go
++++ marshal.go
+@@ -1001,7 +1001,9 @@
+ 			}
+ 		}
+ 
+-		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to a tree", tval, tval)
++		// The value stays out of the message, here and in the two cases below:
++		// rendering a tree costs the square of its depth.
++		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %T to %v", tval, mtype)
+ 	case []*Tree:
+ 		if isTreeSequence(mtype) {
+ 			return d.valueFromTreeSlice(mtype, t)
+@@ -1014,7 +1016,7 @@
+ 				return d.valueFromToml(mval1.Elem().Type(), t, &ival)
+ 			}
+ 		}
+-		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to trees", tval, tval)
++		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %T to %v", tval, mtype)
+ 	case []any:
+ 		d.visitor.visit()
+ 		if isOtherSequence(mtype) {
+@@ -1028,7 +1030,7 @@
+ 				return d.valueFromToml(mval1.Elem().Type(), t, &ival)
+ 			}
+ 		}
+-		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %v(%T) to a slice", tval, tval)
++		return reflect.ValueOf(nil), fmt.Errorf("Can't convert %T to %v", tval, mtype)
+ 	default:
+ 		d.visitor.visit()
+ 		mvalPtr := reflect.New(mtype)
 --- marshal_test.go
 +++ marshal_test.go
 @@ -2976,23 +2976,20 @@
@@ -228,3 +259,48 @@
  	}
  	parser.run()
  	return result
+--- tomltree_write.go
++++ tomltree_write.go
+@@ -60,9 +60,10 @@
+ 		case '\\':
+ 			b.WriteString(`\`)
+ 		default:
+-			intRr := uint16(rr)
+-			if intRr < 0x001F {
+-				b.WriteString(fmt.Sprintf("\\u%0.4X", intRr))
++			// See encodeTomlString for why the comparison is on rr itself and
++			// why the bound is inclusive.
++			if rr <= 0x1F {
++				b.WriteString(fmt.Sprintf(`\u%04X`, rr))
+ 			} else {
+ 				b.WriteRune(rr)
+ 			}
+@@ -92,9 +93,25 @@
+ 		case '\\':
+ 			b.WriteString(`\\`)
+ 		default:
+-			intRr := uint16(rr)
+-			if intRr < 0x001F {
+-				b.WriteString(fmt.Sprintf("\\u%0.4X", intRr))
++			// Escape every control character the lexer refuses to read back
++			// raw: lexStringAsString rejects 0x00-0x1F except tab, which the
++			// case above already handled.
++			//
++			// Upstream compared uint16(rr) against 0x1F, which was wrong
++			// twice. The bound excluded U+001F itself, so that one character
++			// was written raw into a basic string the lexer then refused --
++			// Marshal produced a document Unmarshal could not read. And the
++			// conversion truncated, so a rune whose LOW 16 bits fall under
++			// 0x1F (U+1000A, say) was emitted as the escape for those low bits
++			// alone and read back as an entirely different character.
++			//
++			// Both break Unmarshal(Marshal(v)) == v. That matters beyond
++			// tidiness here: gnomod.toml is stored re-encoded and its approval
++			// hash is taken after a further round trip
++			// (gno.land/pkg/sdk/vm.PackageContentHash), so an encoding that is
++			// not a fixpoint is an approval no approver can ever match.
++			if rr <= 0x1F {
++				b.WriteString(fmt.Sprintf(`\u%04X`, rr))
+ 			} else {
+ 				b.WriteRune(rr)
+ 			}

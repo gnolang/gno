@@ -314,15 +314,14 @@ func (m *Machine) setRealm(r *Realm) {
 }
 
 // assertBorrowedRealm panics (debug builds only) when a borrow rule is about
-// to set m.Realm to nil for a package that MUST carry a realm — /r/, /p/, or
-// stdlib (IsRealmPath || isImmutableLibraryPath). That would silently put the
-// machine in "single-user mode" (IsReadonly/isExternalRealm short-circuit on
-// nil m.Realm) and reopen the nil-realm cross-realm write hole. _test overlays
-// and uverse legitimately have no realm and are excluded (neither predicate
-// matches them).
+// to set m.Realm to nil for a package that MUST carry a realm — /r/, /e/, /p/, or
+// stdlib. That would silently put the machine in "single-user mode"
+// (IsReadonly/isExternalRealm short-circuit on nil m.Realm) and reopen the
+// nil-realm cross-realm write hole. _test overlays and uverse legitimately
+// have no realm and are excluded (none of the predicates match them).
 func assertBorrowedRealm(pkgPath string, r *Realm) {
 	if debugAssert && r == nil &&
-		(IsRealmPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
+		(IsRealmPath(pkgPath) || IsEphemeralPath(pkgPath) || isImmutableLibraryPath(pkgPath)) {
 		panic("borrow rule set m.Realm=nil for realm-bearing package: " + pkgPath)
 	}
 }
@@ -1270,6 +1269,7 @@ const (
 	OpReturnAfterCopy     Op = 0x1B // return ... (with named results)
 	OpReturnFromBlock     Op = 0x1C // return results (after defers)
 	OpReturnToBlock       Op = 0x1D // copy results to block (before defer) XXX rename to OpCopyResultsToBlock
+	OpReturnConvert       Op = 0x1E // convert the results of return f() in place
 
 	/* Unary & binary operators */
 	OpUpos  Op = 0x20 // + (unary)
@@ -1457,10 +1457,16 @@ func (m *Machine) incrCPU(cycles int64) {
 }
 
 // chargeCPUGas charges cycles of CPU gas against gm (1 cycle = 1 gas via
-// GasFactorCPU); nil gm is a no-op. It meters work that runs outside the
-// Machine op loop — the interface-satisfaction BFS (checkImplementedBy) —
-// during both preprocess (gm from preprocessGasMeterOf) and runtime
-// (gm = m.GasMeter). May panic with OutOfGasError.
+// GasFactorCPU); nil gm is a no-op. It meters work done where no Machine is
+// at hand — the interface-satisfaction BFS (checkImplementedBy), the
+// closure-stack scan (findFirstClosure) and the captures it adds
+// (addHeapCapture), the element copies of
+// ArrayValue.Copy and StructValue.Copy, and the zero-fills of
+// fillDefaultList and fillDefaultStructFields — during both preprocess (gm
+// from preprocessGasMeterOf) and runtime (gm = m.GasMeter, which the
+// allocator's meter mirrors). Unlike Machine.incrCPU it does not add to
+// m.Cycles, so cycle telemetry leaves this work out. May panic with
+// OutOfGasError.
 func chargeCPUGas(gm store.GasMeter, cycles int64) {
 	if gm != nil {
 		gm.ConsumeGas(overflow.Mulp(cycles, GasFactorCPU), "CPUCycles")
@@ -1629,7 +1635,7 @@ const (
 	OpCPUSticky            = 1 // not a real op
 	OpCPUBody              = 73
 	OpCPUForLoop           = 48  // base from fit; per-heap-var added in handler
-	OpCPURangeIter         = 232 // base from fit; per-element added in handler
+	OpCPURangeIter         = 232 // base from a key-only fit; a range reading the element pays ArrayValue.Copy
 	OpCPURangeIterString   = 78  // flat (called once per rune)
 	OpCPURangeIterMap      = 73  // flat (called once per entry)
 	OpCPURangeIterArrayPtr = 239
@@ -1641,16 +1647,15 @@ const (
 	OpCPUSlopeDefine          = 79  // per LHS variable (fit: 79.2)
 	OpCPUSlopeAssign          = 86  // per LHS variable (fit: 86.2)
 	OpCPUSlopeMapLit          = 335 // per map entry (fit: 335.0)
-	OpCPUSlopeArrayLit        = 52  // per element (max of int=52, uint8=9)
+	OpCPUSlopeArrayLit        = 35  // per element (max of int=32.9, keyed=34.5, uint8=6.4; refit, see pr6504_copy_element_gas.md)
 	OpCPUSlopeSliceLit        = 28  // per element (fit: 28.5)
 	OpCPUSlopeSliceLit2       = 31  // per alloc size (fit: 31.4)
-	OpCPUSlopeStructLit       = 51  // per field (max of unnamed=29, named=51)
+	OpCPUSlopeStructLit       = 46  // per field (max of unnamed=28.2, named=45.6; refit, see pr6504_copy_element_gas.md)
 	OpCPUSlopeFuncLit         = 34  // per capture (fit: 34.0)
 	OpCPUSlopeCallParam       = 53  // per param in OpCall (fit: 52.5)
 	OpCPUSlopeCallCapture     = 34  // per capture in OpCall (fit: 34.3)
 	OpCPUSlopeForLoopHeap     = 97  // per heap var copied (fit: 96.5)
-	OpCPUSlopeRangeIterArray  = 15  // per element (fit: 14.7)
-	OpCPUSlopeTypeAssertIface = 349 // per interface method (fit: 348.9)
+	OpCPUSlopeTypeAssertIface = 355 // per interface method (max of TypeAssert1=348.9, TypeAssert2=355.3)
 	OpCPUSlopeConvertStrRunes = 23  // per char string→runes (fit: 23.4)
 	OpCPUSlopeConvertRunesStr = 8   // per rune runes→string (fit: 8.1)
 	OpCPUSlopeConvertBytesStr = 4   // per byte bytes→string; same memcpy OpCPUSlopeCopyPrimitive prices
@@ -1660,6 +1665,26 @@ const (
 	OpCPUSlopeValueDecl       = 43  // per field/element (fit: 42.9)
 	OpCPUSlopeEvalNameExpr    = 4   // per block depth hop (fit: 3.6)
 	OpCPUSlopeSelectorIface   = 5   // per interface method (fit: 4.73)
+
+	// Closure-capture stack scan (findFirstClosure), at preprocess.
+	// Read from BenchmarkFindFirstClosure: max 95% upper ns/frame over all
+	// cases, rounded up. Dev-box fit (closurescan_bench_m5_arm64.txt,
+	// machine factor 2.1): 4.29 reference-ns (depth 1, not found).
+	OpCPUSlopePreprocessClosureScan = 5 // per block-stack frame scanned
+	// Closure capture added by addHeapCapture, at preprocess: the ~name
+	// define, its map entries and the garbage they leave. Read from
+	// BenchmarkClosureCapture: max over all cases of the 95% upper
+	// ns/capture less the block growth OpCPUSlopePreprocessCaptureGrowCopy
+	// prices. Dev-box fit (closurecapture_bench_7840u_amd64.txt, machine
+	// factor 1.52): 2486 reference-ns (60000 names, depth 8), rounded up.
+	OpCPUSlopePreprocessClosureCapture = 2500 // per capture added
+	// Block slot copied when a capture grows the closure's block
+	// (growBlockValues), at preprocess: the copy, the new block's zeroing
+	// and the garbage left behind. Read from BenchmarkGrowBlockValues: max
+	// 95% upper ns/slot over all cases. Dev-box fit
+	// (closurecapture_bench_7840u_amd64.txt, machine factor 1.52): 24.8
+	// reference-ns (512 slots).
+	OpCPUSlopePreprocessCaptureGrowCopy = 25 // per slot copied
 	// Interface-satisfaction BFS (embedWalk), at preprocess and runtime.
 	// Read from BenchmarkOpEmbedWalk by cmd/calibrate/gen_analysis.py
 	// (SECTION 2b), picks at MaxEmbedDepth = 8, rounded up so all are floors.
@@ -1672,14 +1697,16 @@ const (
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
 	// OpCPUSlopeCopyPrimitive: per-byte-or-Uint8-element for raw memcpy,
-	// copyDataToList/copyListToData helpers, and Assign2's DataByteType fast
-	// path. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
+	// copyDataToList/copyListToData helpers, and ArrayValue.Copy of a byte
+	// array. Calibrated to the slower helper (~2 ns/elem M2 → ~4 ns/elem Xeon
 	// 8168).
 	OpCPUSlopeCopyPrimitive = 4 // per byte/Uint8 element
 	// OpCPUSlopeCopyElement: per-TypedValue for the general realm-tracked
-	// copy path — unrefCopy and Assign2 general case. Under-charges the
-	// RefValue case where unrefCopy hits the store; that worst-case is
-	// paid via store gas when GetObject is called.
+	// copy path — each element append and copy move with Copy, and each
+	// element or field ArrayValue.Copy and StructValue.Copy duplicate — and
+	// for each zero value fillDefaultList and fillDefaultStructFields write.
+	// Under-charges the RefValue case where Copy hits the store; that
+	// worst-case is paid via store gas when the store loads the object.
 	OpCPUSlopeCopyElement = 40 // per element
 	// OpCPUSlopeEnterCrossing: per call frame visited by the
 	// doOpEnterCrossing ancestor walk. gas = depth * slope.
@@ -1902,6 +1929,9 @@ func (m *Machine) runOnce() (caught *Exception) {
 		case OpReturnToBlock:
 			m.incrCPU(OpCPUReturnToBlock)
 			m.doOpReturnToBlock()
+		case OpReturnConvert:
+			// Each conversion is charged inside convertValue.
+			m.doOpReturnConvert()
 		case OpDefer:
 			m.incrCPU(OpCPUDefer)
 			m.doOpDefer()
@@ -2349,7 +2379,7 @@ func (m *Machine) PopCopyValues(res []TypedValue) {
 	n := len(res)
 	ptvs := m.PopValues(n)
 	for i := range n {
-		res[i] = ptvs[i].Copy(m.Alloc)
+		res[i] = ptvs[i].Copy(m.Alloc, m.Store)
 	}
 }
 
@@ -2676,10 +2706,11 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// Not cross nor crossing. Three borrow rules apply (the first
 	// applicable one fires):
 	//
-	//   #1. /r/-declared function/method/closure → borrow to the
+	//   #1. /r/- or /e/-declared function/method/closure → borrow to the
 	//       callable's declaring realm (any receiver shape, or top-level
 	//       function). /r/attacker code runs with /r/attacker's
-	//       authority, not victim's.
+	//       authority, not victim's. Ephemeral MsgRun code must likewise
+	//       regain its own authority when called back by another realm.
 	//
 	//   #2. Otherwise (/p/-declared) → if the receiver is a real,
 	//       foreign-stamped object, borrow to the receiver's constructing
@@ -2698,7 +2729,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	// also keeps the nil-realm write hole closed: a tx's entry realm is
 	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
 	// by the readonly gate against the caller's realm.
-	if IsRealmPath(pv.PkgPath) {
+	if IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath) {
 		if m.Realm == nil || pv.PkgPath != m.Realm.Path {
 			r := pv.GetRealm()
 			assertBorrowedRealm(pv.PkgPath, r)
@@ -2730,8 +2761,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 	//
 	// IsClosure gates this: top-level FuncDecls also carry a stamped
 	// PkgID (= the declaring package), but they don't represent a
-	// closed-over capability — borrow rule #1 already handles the /r/-declared
-	// case, and /p/-declared FuncDecls shouldn't shift the realm.
+	// closed-over capability — borrow rule #1 handles /r/ and /e/ declarations,
+	// and /p/-declared FuncDecls shouldn't shift the realm.
 	//
 	// Stdlib-stamped closures are skipped, mirroring borrow rule #2's
 	// stdlib-receiver skip: stdlib owns no mutable state and runs with the
@@ -2873,11 +2904,11 @@ func (m *Machine) NumFrames() int {
 	return len(m.Frames)
 }
 
-// NumCallFrames returns the number of actual function call frames,
+// NumCallFrames returns the number of named function call frames,
 // excluding closure frames (func literals) and control-flow basic
-// frames (for/range/switch where Func is nil). Only named, non-closure
-// function calls count as separate call boundaries for origin-call
-// purposes.
+// frames (for/range/switch where Func is nil). It is the stack size the
+// native gas model bills getRealm against; use NumCallBoundaryFrames to
+// count call boundaries, which is not the same thing.
 func (m *Machine) NumCallFrames() int {
 	count := 0
 	for i := range m.Frames {
@@ -2885,6 +2916,73 @@ func (m *Machine) NumCallFrames() int {
 		if fr.Func != nil && !fr.Func.IsClosure {
 			count++
 		}
+	}
+	return count
+}
+
+// NumCallBoundaryFrames returns the number of frames that stand for a call
+// boundary: every named function call, plus every func literal that was
+// entered from outside its own realm. Control-flow basic frames (for/range/
+// switch, where Func is nil) never count.
+//
+// A func literal is part of its caller's body for as long as it runs with its
+// caller's storage authority, which is what lets a realm factor its own code
+// into closures without changing how the call looks from outside. It stops
+// being that the moment it runs with someone else's, because then it is a call
+// made by another party, and counting it is the only thing that keeps the realm
+// boundary visible in the count.
+//
+// The test is the storage realm on each side of the call, NOT the crossing
+// flags and NOT the declaring package, both of which were tried and are wrong:
+//
+//   - A crossing func literal invoked without cross(), as `f(cur)` inside its
+//     own realm, has DidCrossing set by installInheritedCur even though it
+//     never left the realm. Invoked as `f(cross(cur))` it has WithCross set,
+//     same realm. Gating on the flags makes a realm lose AssertOriginCall by
+//     calling its own closure. Gating on them the other way lets a plain
+//     non-crossing call into another realm's exported closure through, which
+//     is a storage borrow and very much a realm change.
+//   - The declaring package is wrong for a func literal in a /p/ package: it
+//     has no storage of its own and borrows the caller's, so it is the
+//     caller's code however different the two paths look.
+//
+// Walking outwards from the innermost frame, calleeRealm is the realm the
+// frame's body ran in, and fr.LastRealm is the realm of whoever called it. A
+// nil LastRealm means the call came from the message rather than from Gno
+// code, so the frame is the one the message entered and counts like any other
+// entry point.
+// ownsItsStorage reports whether r is a realm that has storage of its own. A
+// /p/ package does not: the Machine names it as the current realm while its
+// code runs, but the borrow rule puts its writes in whoever called it, so it
+// is the caller's code and a call into it is not a realm boundary. Without
+// this, every func literal in a pure package reads as a foreign realm.
+func ownsItsStorage(r *Realm) bool {
+	return r != nil && (IsRealmPath(r.Path) || IsEphemeralPath(r.Path))
+}
+
+// sameRealm compares two realms by identity, tolerating either being nil. Paths
+// rather than pointers: a realm can be reloaded from the store, and two values
+// for one path have to read as one realm here or a frame looks like a boundary
+// for no reason.
+func sameRealm(a, b *Realm) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Path == b.Path
+}
+
+func (m *Machine) NumCallBoundaryFrames() int {
+	count := 0
+	calleeRealm := m.Realm
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func == nil {
+			continue
+		}
+		if !fr.Func.IsClosure || fr.LastRealm == nil || ownsItsStorage(calleeRealm) && !sameRealm(fr.LastRealm, calleeRealm) {
+			count++
+		}
+		calleeRealm = fr.LastRealm
 	}
 	return count
 }
@@ -3258,10 +3356,9 @@ func (m *Machine) Panic(etv TypedValue) {
 	panic(ex)
 }
 
-// This function does not go-panic:
-// caller must return manually.
-// It should ONLY be called from doOp* Op handlers,
-// and should return immediately from the origin Op.
+// pushPanic schedules VM panic unwinding instead of panicking in Go.
+// If no call frame exists, it terminates via the unhandled-panic path.
+// Callers must be doOp* handlers and return immediately after calling it.
 func (m *Machine) pushPanic(etv TypedValue) {
 	// Construct a new exception.
 	ex := &Exception{
@@ -3270,6 +3367,11 @@ func (m *Machine) pushPanic(etv TypedValue) {
 	}
 	// Pop after capturing stacktrace.
 	fr := m.PopUntilLastCallFrame()
+	if fr == nil {
+		// No call frame during package var init: nothing to unwind.
+		m.Exception = ex.WithPrevious(m.Exception)
+		panic(m.makeUnhandledPanicError())
+	}
 	// Link ex.Previous.
 	if m.Exception == nil {
 		// Recall the last m.Exception before frame.
