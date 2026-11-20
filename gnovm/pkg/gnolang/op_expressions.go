@@ -805,7 +805,7 @@ func (m *Machine) doOpFuncLit() {
 		body:       x.Body,
 		nativeBody: nil,
 	}
-	m.stampMaker(&fv.ObjectInfo)
+	m.stampMaker(fv)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
@@ -814,11 +814,13 @@ func (m *Machine) doOpFuncLit() {
 
 // stampMaker gives a function value being made its maker: the current
 // realm, or none when made read-only, view-only or with no realm.
-func (m *Machine) stampMaker(oi *ObjectInfo) {
-	m.Alloc.stampPkgID(oi, nil)
+func (m *Machine) stampMaker(fv *FuncValue) {
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	if m.viewOnly {
-		oi.SetPkgID(PkgID{})
+		fv.ObjectInfo.SetPkgID(PkgID{})
+		return
 	}
+	m.Alloc.recordCrossing(fv)
 }
 
 // doOpFuncHandle turns a declared function or method expression into a
@@ -830,7 +832,7 @@ func (m *Machine) doOpFuncHandle() {
 		fv = fv.Copy(m.Alloc) // a method expression is already a fresh copy
 	}
 	fv.Parent = nil
-	m.stampMaker(&fv.ObjectInfo)
+	m.stampMaker(fv)
 	tv.V = fv
 }
 

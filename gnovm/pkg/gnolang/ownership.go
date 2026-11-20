@@ -197,8 +197,11 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-	lastGCCycle  int64
-	owner        Object // mem reference to owner.
+	// s3Written: written in an S3 read-only stretch (S3d); finalize refuses to
+	// store it. Sits in the bools' padding, so object sizes do not change.
+	s3Written   bool
+	lastGCCycle int64
+	owner       Object // mem reference to owner.
 }
 
 // Copy used for serialization of objects.

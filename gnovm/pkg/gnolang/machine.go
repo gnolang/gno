@@ -38,6 +38,8 @@ type Machine struct {
 	Realm     *Realm        // active realm
 	viewOnly  bool          // no realm's stored objects may be written; implies Realm == nil
 	viewRealm *Realm        // realm whose code runs read-only (constructs its objects)
+	viewS3    bool          // read-only stretch was entered by S3 (rule S3d applies)
+	s3Written bool          // S3d: some object was marked s3Written this transaction
 	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
 		root    string
@@ -61,6 +63,11 @@ type Machine struct {
 	// conditions under which a block may be pooled. Allocator (gas)
 	// accounting is unaffected by pooling.
 	blockPool []*Block
+
+	// crossingSeq numbers crossing calls; curCrossing is the active one.
+	// Neither is stored: a reloaded value comes back with id 0.
+	crossingSeq uint64
+	curCrossing uint64
 
 	// Configuration
 	Output   io.Writer
@@ -203,6 +210,16 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// Get machine from pool.
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
+	// The message entry into a realm (main(cur realm)) is the tx's first
+	// crossing call: give it id 1 so values it makes are writable there.
+	// A value reloaded from the store was never recorded, so it answers 0.
+	mm.crossingSeq = 1
+	mm.curCrossing = 1
+	mm.s3Written = false // a transaction starts with no S3d writes (kept across calls)
+	alloc.crossingID = 1
+	if !isPreprocessing {
+		alloc.fnCrossing = nil
+	}
 	alloc.store = store
 	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
@@ -326,6 +343,20 @@ func (m *Machine) setViewOnly() {
 	m.viewOnly = true
 	m.Alloc.scratch = scratch
 	m.Alloc.viewHoldID = hold
+	m.Alloc.crossingID = 0
+}
+
+// setCrossing records the active crossing-call id on the machine and on the
+// allocator, so values made now can be told apart from values made elsewhere.
+func (m *Machine) setCrossing(id uint64) {
+	m.curCrossing = id
+	m.Alloc.crossingID = id
+}
+
+// readOnlyOf reports whether m is running realm r's code read-only: S3, or r
+// entered without crossing. Such a frame is still r's code for cur purposes.
+func (m *Machine) readOnlyOf(r *Realm) bool {
+	return m.viewOnly && m.viewRealm != nil && r != nil && m.viewRealm.Path == r.Path
 }
 
 // enterReadOnly runs realm r's code entered without crossing: it writes no
@@ -333,8 +364,20 @@ func (m *Machine) setViewOnly() {
 // the read-only stretch began (its scratch number, reset by any crossing call)
 // are no realm's stored state yet, so code in the stretch may write them.
 func (m *Machine) enterReadOnly(r *Realm) {
+	m.enterReadOnlyMode(r, false)
+}
+
+// enterReadOnlyByS3 is enterReadOnly for a stretch entered by rule S3 (a
+// by-value call). S3d: an object the read-only realm made and has not finalized
+// is writable, and recorded; finalize refuses if it is then stored.
+func (m *Machine) enterReadOnlyByS3(r *Realm) {
+	m.enterReadOnlyMode(r, true)
+}
+
+func (m *Machine) enterReadOnlyMode(r *Realm, s3 bool) {
 	m.setViewOnly()
 	m.viewRealm = r
+	m.viewS3 = s3
 	m.Alloc.currentRealmID = r.ID
 	m.Alloc.currentRealmPath = r.Path
 	if m.Alloc.scratch == 0 {
@@ -346,6 +389,7 @@ func (m *Machine) setRealm(r *Realm) {
 	m.Realm = r
 	m.viewOnly = false
 	m.viewRealm = nil
+	m.viewS3 = false
 	m.Alloc.scratch = 0
 	m.Alloc.viewHoldID = PkgID{}
 	if r != nil {
@@ -699,7 +743,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	}
 	m.runInitFromUpdates(pv, updates)
 	if rlm != nil {
-		rlm.FinalizeRealmTransaction(m.Store)
+		rlm.FinalizeRealmTransaction(m.Store, m.s3Written)
 	}
 }
 
@@ -961,13 +1005,13 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	if pv.IsRealm() {
 		rlm := pv.Realm
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.Store)
+		rlm.FinalizeRealmTransaction(m.Store, m.s3Written)
 		// save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use a throwaway realm.
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
-		rlm.FinalizeRealmTransaction(m.Store)
+		rlm.FinalizeRealmTransaction(m.Store, m.s3Written)
 		throwaway = rlm
 	}
 	// save declared types — only those that belong to this package.
@@ -995,11 +1039,11 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	pv := m.Package
 	if pv.IsRealm() {
 		rlm = pv.Realm
-		rlm.FinalizeRealmTransaction(m.Store)
+		rlm.FinalizeRealmTransaction(m.Store, m.s3Written)
 		// re-save package realm info.
 		m.Store.SetPackageRealm(rlm)
 	} else { // use the throwaway realm.
-		rlm.FinalizeRealmTransaction(m.Store)
+		rlm.FinalizeRealmTransaction(m.Store, m.s3Written)
 	}
 	// types were already saved, and should not change
 	// even after running the init function.
@@ -2612,7 +2656,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
-	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false)
+	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false, 0)
 }
 
 // pushFrameCall is PushFrameCall for a method value: bindPID is the realm
@@ -2620,7 +2664,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 // or a plain x.M(...) call.
 // recvUncopied: recv is a value receiver the caller copies after this call
 // (copyCallRecv); it is looked at as that fresh copy would be.
-func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool) {
+// madeIn is the crossing call that made the callee value (0: none); S3 uses it
+// to decide whether a by-value call still runs writable.
+func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool, madeIn uint64) {
 	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
@@ -2645,8 +2691,10 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		LastRealm:     m.Realm,
 		LastViewOnly:  m.viewOnly,
 		LastViewRealm: m.viewRealm,
+		LastViewS3:    m.viewS3,
 		LastScratch:   m.Alloc.scratch,
 		LastViewHold:  m.Alloc.viewHoldID,
+		LastCrossing:  m.curCrossing,
 		WithCross:     withCross,
 		DidCrossing:   false,
 		Defers:        nil,
@@ -2705,12 +2753,17 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		r := pv.GetRealm()
 		assertBorrowedRealm(pv.PkgPath, r)
 		m.setRealm(r)
+		m.crossingSeq++
+		m.setCrossing(m.crossingSeq)
 		return
 	}
 
 	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
-		if m.Realm != pv.Realm {
+		// A read-only frame of realm R (S3, or R's code entered without
+		// crossing) is still R's code: let the identity check in doOpCall
+		// report the stale cur instead of calling it an external realm.
+		if m.Realm != pv.Realm && !m.readOnlyOf(pv.Realm) {
 			// Illegal crossing to external realm.
 			// (the function was variable and run-time check was necessary).
 			// panic; not explicit
@@ -2772,8 +2825,9 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		switch {
 		case m.Realm == nil && !m.viewOnly:
 			m.setRealm(r) // no realm context (genesis, tooling)
-		case m.Realm != nil && m.Realm.Path == pv.PkgPath && !m.unmadeValue(cx, fv, recv, bindPID):
-			// the realm's own code, named or a value this realm made
+		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
+			// the realm's own code; S3 makes a foreign-made value read-only
+			m.restrictByValueCall(cx, fv, withCross, madeIn)
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
 		default:
@@ -2829,20 +2883,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			m.setRealm(r)
 		}
 	}
-}
-
-// unmadeValue reports whether the current realm's code arrived as a value it
-// did not make: a closure or handle with another (or no) maker and not named
-// by the call, or a method value bound elsewhere.
-func (m *Machine) unmadeValue(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID) bool {
-	if !recv.IsDefined() {
-		return fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
-			cx.GetAttribute(ATTR_NAMED_CALLEE) != true
-	}
-	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
-		return false // x.M(...) names the method
-	}
-	return bindPID != m.Realm.ID
+	m.restrictByValueCall(cx, fv, withCross, madeIn)
 }
 
 // foreignLib reports whether fv is outside the current realm's import tree;
@@ -2994,6 +3035,7 @@ func (m *Machine) PopFrameAndReset() {
 func (m *Machine) restoreRealmState(fr *Frame) {
 	m.setRealm(fr.LastRealm)
 	m.viewOnly = fr.LastViewOnly
+	m.viewS3 = fr.LastViewS3
 	if fr.LastViewRealm != nil {
 		m.viewRealm = fr.LastViewRealm
 		m.Alloc.currentRealmID = fr.LastViewRealm.ID
@@ -3001,6 +3043,10 @@ func (m *Machine) restoreRealmState(fr *Frame) {
 	}
 	m.Alloc.scratch = fr.LastScratch
 	m.Alloc.viewHoldID = fr.LastViewHold
+	m.setCrossing(fr.LastCrossing)
+	if m.viewOnly {
+		m.Alloc.crossingID = 0 // as setViewOnly: read-only code makes no writer
+	}
 }
 
 // popFrameRestore pops a call frame while a panic unwinds and restores its
@@ -3315,6 +3361,11 @@ func (m *Machine) readonlyAccessPanic(x Expr) string {
 		// own functions may write it. Stdlib receivers never borrow.
 		return "cannot modify object owned by another realm from library code (call a function of the owning realm): " + x.String()
 	}
+	if m.viewRealm != nil && m.viewS3 {
+		// An S3 stretch: a by-value call made outside its crossing call.
+		return m.viewRealm.Path + "'s code is read-only here: a function value writes" +
+			" only in the crossing call that made it: " + x.String()
+	}
 	if m.viewRealm != nil {
 		// The realm's own code, entered without crossing.
 		return m.viewRealm.Path + "'s code was entered without crossing and is read-only" +
@@ -3366,6 +3417,18 @@ func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 			return true // external package
 		}
 	}
+	//  - S3d: the read-only realm's own object, not finalized yet
+	if m.viewOnly && m.viewS3 && m.unstoredWrite(scratchObject(tv)) {
+		m.recordS3Wrapper(tv)
+		return false
+	}
+	//  - read-only code may write an unreal heap item (IsReadonlyBy exempts
+	//    it), but finalize refuses to store one it wrote.
+	if pv, ok := tv.V.(PointerValue); ok && m.viewOnly {
+		if hiv, ok := pv.Base.(*HeapItemValue); ok && !hiv.GetIsReal() {
+			m.markViewWrite(hiv)
+		}
+	}
 	//  - tv is a real object residing in external realm (unless it is the
 	//    executing package's own data, stamped ownPkgID).
 	return tv.IsReadonlyBy(rid, ownPkgID)
@@ -3385,15 +3448,22 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if m.viewOnly && m.scratchOwn(obj) {
 		return false
 	}
+	if hiv, ok := base.(*HeapItemValue); ok && !hiv.GetIsReal() && m.viewOnly {
+		m.markViewWrite(hiv) // before the zero-ID return: a /p/-made item has none
+	}
 	oid := obj.GetObjectID()
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
+	}
+	// S3d: the read-only realm's own object, not finalized yet.
+	if m.viewOnly && m.viewS3 && m.unstoredWrite(obj) {
+		return false
 	}
 	// An unreal HIV (heap wrapper for an escaping local) is not a realm-owned
 	// slot, so it is exempt. A real one is gated like any object: a /p/-built
 	// closure called while another realm is current runs view-only.
 	if hiv, ok := base.(*HeapItemValue); ok && !hiv.GetIsReal() {
-		return false
+		return false // marked above when read-only
 	}
 	// Stdlib own-write exemption (mirrors IsReadonly): a stdlib package may
 	// write its own stdlib-stamped package global (e.g. a top-level stdlib
@@ -3754,6 +3824,41 @@ func (m *Machine) scratchOwn(obj Object) bool {
 	}
 	oi := obj.GetObjectInfo()
 	return oi.scratch == m.Alloc.scratch && !oi.GetIsReal()
+}
+
+// unstoredWrite reports whether obj is the read-only realm's own object, not
+// finalized yet; it records obj (and a heap wrapper's inner object) so finalize
+// can refuse if the write's target is then stored.
+func (m *Machine) unstoredWrite(obj Object) bool {
+	if obj == nil || m.viewRealm == nil {
+		return false
+	}
+	oi := obj.GetObjectInfo()
+	if oi.ID.IsFinalized() || oi.ID.PkgID != m.viewRealm.ID {
+		return false
+	}
+	oi.s3Written, m.s3Written = true, true
+	if hiv, ok := obj.(*HeapItemValue); ok {
+		m.unstoredWrite(scratchObject(&hiv.Value))
+	}
+	return true
+}
+
+// markViewWrite marks a heap item read-only code wrote but did not make;
+// finalize refuses to store it.
+func (m *Machine) markViewWrite(hiv *HeapItemValue) {
+	if !m.scratchOwn(hiv) {
+		hiv.GetObjectInfo().s3Written, m.s3Written = true, true
+	}
+}
+
+// recordS3Wrapper records the heap wrapper a write through tv passed through.
+func (m *Machine) recordS3Wrapper(tv *TypedValue) {
+	if pv, ok := tv.V.(PointerValue); ok {
+		if hiv, ok := pv.Base.(*HeapItemValue); ok {
+			hiv.GetObjectInfo().s3Written, m.s3Written = true, true
+		}
+	}
 }
 
 // viewOwns reports whether tv belongs to the realm whose code runs read-only:

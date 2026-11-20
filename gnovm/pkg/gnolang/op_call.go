@@ -16,7 +16,8 @@ func (m *Machine) doOpPrecall() {
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.incrCPU(OpCPUPrecallFunc)
-		m.PushFrameCall(cx, fv, TypedValue{}, false)
+		m.pushFrameCall(cx, fv, TypedValue{}, PkgID{}, false, false,
+			m.crossingCallee(m.PeekValue(1+cx.NumArgs)))
 		m.PushOp(OpCall)
 		isCrossing := fv.IsCrossing()
 		if isCrossing {
@@ -38,7 +39,8 @@ func (m *Machine) doOpPrecall() {
 		// The receiver of a lazy bind or of a direct x.M(...) call is copied
 		// now, under the callee's realm (see getPointerToForCall).
 		uncopied := fv.IsLazy() || isDirectValMethodCall(cx)
-		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied)
+		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied,
+			m.crossingCallee(m.PeekValue(1+cx.NumArgs)))
 		if uncopied {
 			fr := m.LastFrame()
 			fr.Receiver = copyCallRecv(m.Alloc, fr.Receiver)
@@ -304,7 +306,9 @@ func (m *Machine) doOpEnterCrossing() {
 		}
 		// Neither fri.WithCross nor fri.DidCrossing, yet
 		// Realm already switched implicitly.
-		if fri.LastRealm != m.Realm {
+		// S3's read-only entry is the one legitimate implicit switch: it
+		// clears m.Realm but keeps this frame in its realm's code.
+		if fri.LastRealm != m.Realm && !m.readOnlyOf(fri.LastRealm) {
 			panic("crossing could not find corresponding cross(fn)(...) call")
 		}
 	}
@@ -620,7 +624,7 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 		// that realm must never be persisted: skip finalization for it.
 		// isRealmBoundary still reports the frame as a boundary for
 		// panic-routing; we just don't run FinalizeRealmTransaction.
-		m.Realm.FinalizeRealmTransaction(m.Store)
+		m.Realm.FinalizeRealmTransaction(m.Store, m.s3Written)
 	}
 }
 
@@ -785,7 +789,8 @@ func (m *Machine) doOpReturnCallDefers() {
 	ft := fv.GetType(m.Store)
 	bmv, bound := dfr.Callable.(*BoundMethodValue)
 	lazy := bound && bmv.IsLazy()
-	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy)
+	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy,
+		m.crossingCallee(&TypedValue{T: fv.GetType(m.Store), V: dfr.Callable}))
 	if lazy { // copied under the callee's realm, as in doOpPrecall
 		recv = copyCallRecv(m.Alloc, recv)
 		m.LastFrame().Receiver = recv

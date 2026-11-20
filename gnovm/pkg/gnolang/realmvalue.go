@@ -20,7 +20,7 @@ func newRealmValueInfo() *types.Info {
 }
 
 // checkRealmValues reports each value of another realm's struct or array
-// type in files type-checked as own, running in realm pkgPath. A filetest is
+// type (it lives only in its realm) in files type-checked as own, running in realm pkgPath. A filetest is
 // type-checked under its directory's path but runs under its PKGPATH.
 func checkRealmValues(fset *token.FileSet, files []*ast.File, info *types.Info, own *types.Package, pkgPath string) []error {
 	self := realmSelf{own, pkgPath}

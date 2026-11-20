@@ -495,8 +495,9 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
-// OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+// OpReturn calls this when exiting a realm transaction. s3Written: some object
+// was written in an S3 read-only stretch this transaction; none may be stored.
+func (rlm *Realm) FinalizeRealmTransaction(store Store, s3Written bool) {
 	if bm.Enabled {
 		old := bm.StartStore(bm.RealmFinalizeTx)
 		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
@@ -544,6 +545,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
+	rlm.assertNoUncrossedWrite(s3Written)
 	if debugAssert {
 		ensureUniq(rlm.created, rlm.updated)
 		ensureUniq(rlm.escaped)
@@ -571,6 +573,23 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		realmDiffs[fr.Path] += fr.sumDiff
 		fr.sumDiff = 0
 		store.SetPackageRealm(fr)
+	}
+}
+
+// assertNoUncrossedWrite panics if rlm is about to store an object that
+// read-only code wrote: S3d allows the write, not persisting it.
+func (rlm *Realm) assertNoUncrossedWrite(s3Written bool) {
+	if !s3Written {
+		return
+	}
+	for _, set := range [][]Object{rlm.created, rlm.updated} {
+		for _, oo := range set {
+			if oo.GetObjectInfo().s3Written {
+				panic(fmt.Sprintf(
+					"%s: an object written by read-only code would be stored (write it inside a crossing call of %s)",
+					rlm.Path, rlm.Path))
+			}
+		}
 	}
 }
 
@@ -2008,7 +2027,6 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		panic("unexpected already-finalized object id")
 	}
 	if oid.PkgID.IsZero() {
-		rlm.refuseFuncKeep(oo)
 		// Objects allocated outside any realm context (e.g. stdlib
 		// Block init when m.Realm is nil, non-realm filetests) reach
 		// finalize without an authority stamp. Route them to the
@@ -2018,7 +2036,6 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
 	} else if oid.PkgID != rlm.ID && isPkgEphemeralFromPkgID(store, oid.PkgID) {
-		rlm.refuseFuncKeep(oo)
 		// Objects allocated in ephemeral run-realms (`/e/.../run`,
 		// from gnokey maketx run) carry an ephemeral PkgID that won't
 		// exist after the tx. When such an object is being persisted
@@ -2057,33 +2074,6 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	targetRlm.Time++
 	oo.SetNewTime(targetRlm.Time)
 	return oo.GetObjectID()
-}
-
-// refuseFuncKeep aborts when a realm would adopt a function value with
-// no maker or a run script's: adopted, one whose code is the realm's own or a
-// library's would act for the realm (D19).
-func (rlm *Realm) refuseFuncKeep(oo Object) {
-	if !IsRealmPath(rlm.Path) {
-		return
-	}
-	var code string
-	switch fv := oo.(type) {
-	case *FuncValue:
-		code = fv.PkgPath
-	case *BoundMethodValue:
-		if fv.Func != nil {
-			code = fv.Func.PkgPath
-		} else if rt := fv.Receiver.T; rt != nil {
-			code = rt.GetPkgPath() // lazy bind: as resolveLazyBound reads it
-		}
-	default:
-		return
-	}
-	// Another realm's or a script's code runs read-only wherever rlm calls it.
-	if (IsRealmPath(code) || IsEphemeralPath(code)) && code != rlm.Path {
-		return
-	}
-	panic(fmt.Sprintf("cannot keep a function value made outside a realm in %s", rlm.Path))
 }
 
 //----------------------------------------

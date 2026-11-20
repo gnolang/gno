@@ -42,6 +42,11 @@ type Allocator struct {
 	// scratch numbers the active read-only stretch (0: none); objects
 	// allocated in it carry the number and it may write them while unreal.
 	scratch uint32
+	// crossingID is the id of the crossing call running now; new function
+	// values record it. 0 under view-only/read-only code. fnCrossing maps a
+	// value made this run to that id; a reloaded value is absent and answers 0.
+	crossingID uint64
+	fnCrossing map[any]uint64
 	// viewHoldID is the realm whose values code may hold while view-only
 	// (setViewOnly clears currentRealmID): the realm current on entry.
 	viewHoldID PkgID
@@ -775,7 +780,8 @@ func (alloc *Allocator) refusedCopy(t Type) Type {
 }
 
 // checkCopy panics if a copy of a value of type t, made here, would hold
-// inline a struct or array value whose type another realm declares.
+// inline a struct or array value whose type another realm declares: such a
+// value lives only in its realm, which others reach by pointer.
 func (alloc *Allocator) checkCopy(t Type) {
 	ft := alloc.refusedCopy(t)
 	if ft == nil {
@@ -1363,4 +1369,21 @@ func internalRefSize(val Value) int64 {
 		))
 	}
 	return size
+}
+
+// recordCrossing ties a freshly made function value to the crossing call that
+// made it; values made read-only (crossingID 0) are left unrecorded.
+func (alloc *Allocator) recordCrossing(v any) {
+	if alloc.crossingID == 0 {
+		return
+	}
+	if alloc.fnCrossing == nil {
+		alloc.fnCrossing = make(map[any]uint64, 8)
+	}
+	alloc.fnCrossing[v] = alloc.crossingID
+}
+
+// crossingOf returns the crossing call that made v, or 0.
+func (alloc *Allocator) crossingOf(v any) uint64 {
+	return alloc.fnCrossing[v]
 }
