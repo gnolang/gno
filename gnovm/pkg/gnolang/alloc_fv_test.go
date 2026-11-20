@@ -17,6 +17,7 @@ func TestForeignHeldTypeLinear(t *testing.T) {
 }
 
 func testForeignHeldTypeChain(t *testing.T, n int) {
+	t.Helper()
 	const pkg = "gno.land/r/zchalcpu"
 	var next Type = &DeclaredType{PkgPath: pkg, Name: "A26", Base: &StructType{
 		PkgPath: pkg, Fields: []FieldType{{Name: "a", Type: IntType}},

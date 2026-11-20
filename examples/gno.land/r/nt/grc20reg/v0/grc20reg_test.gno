@@ -119,11 +119,12 @@ func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 }
 
 func TestPagination(cur realm, t *testing.T) {
-	// One token per realm+symbol, so span the page size across distinct realms.
+	// One token per realm+symbol; the functions must be declared in the
+	// registering realm, so register from this realm under distinct symbols.
 	for i := 0; i < 11; i++ {
-		testing.SetRealm(testing.NewCodeRealm(ufmt.Sprintf("gno.land/r/demo/token%02d", i)))
-		token, _ := grc20.NewToken(ufmt.Sprintf("Token%02d", i), ufmt.Sprintf("TK%02d", i), 6, 0, cur)
-		Register(cross(cur), token, "")
+		token, ledger := grc20.NewToken(ufmt.Sprintf("Token%02d", i), ufmt.Sprintf("TK%02d", i), 6, 0, cur)
+		transfer, approve, transferFrom := tokenFuncs(ledger)
+		Register(cross(cur), token, "", transfer, approve, transferFrom)
 	}
 
 	// Other tests in this file share the registry, so derive the page count
