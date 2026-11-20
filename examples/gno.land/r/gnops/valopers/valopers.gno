@@ -15,6 +15,7 @@ import (
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/combinederr/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ownable/exts/authorizable/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -118,6 +119,9 @@ func (v Valoper) AuthOwner() address {
 }
 
 func AddToAuthList(cur realm, addr address, member address) {
+	if err := validateBech32(member); err != nil {
+		panic(err)
+	}
 	v := getByAddr(addr)
 	if err := v.auth.AddToAuthList(0, cur, member); err != nil {
 		panic(err)
@@ -125,6 +129,9 @@ func AddToAuthList(cur realm, addr address, member address) {
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
+	if err := validateBech32(member); err != nil {
+		panic(err)
+	}
 	v := getByAddr(addr)
 	if err := v.auth.DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
@@ -443,11 +450,11 @@ func Render(fullPath string) string {
 	} else {
 		addr := req.Path
 		if len(addr) < 2 || addr[:2] != "g1" {
-			return "invalid address " + addr
+			return "invalid address " + sanitize.InlineText(addr)
 		}
 		valoperRaw := valopers.Get(addr)
 		if valoperRaw == nil {
-			return "unknown address " + addr
+			return "unknown address " + sanitize.InlineText(addr)
 		}
 		v := valoperRaw.(Valoper)
 		return "Valoper's details:\n" + v.Render()
@@ -499,10 +506,12 @@ func (v *Valoper) Validate() error {
 
 // Render renders a single valoper with their information.
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s\n", v.Moniker)
+	output := ufmt.Sprintf("## %s", v.Moniker)
 
-	if v.Description != "" {
-		output += ufmt.Sprintf("%s\n\n", v.Description)
+	if body := sanitize.Block(v.Description); body != "" {
+		output += body
+	} else {
+		output += "\n"
 	}
 
 	output += ufmt.Sprintf("- Operator Address: %s\n", v.OperatorAddress.String())
@@ -648,13 +657,10 @@ func assertPaidCallIsDirect(_ int, rlm realm) {
 // closed here keeps an unrepresentable fee from opening the paid path
 // instead of closing it.
 //
-// Reachable two ways today, neither requiring malice: governance can set
-// any uint64 through the generic r/sys/params factories, and
-// valopers/proposal.ProposeNewMinFeeProposalRequest takes an int64 and
-// stores uint64(newMinFee), so a negative fee — the obvious way to write
-// "disable the fee" — round-trips to 2^64-1. That signature is preserved
-// for historical-replay compatibility and is deliberately left alone; the
-// bound belongs at the consumption site, which covers both paths.
+// Reachable through the generic r/sys/params factories, which accept any
+// uint64. proposal.ProposeNewMinFeeProposalRequest rejects a negative
+// int64 before it wraps to 2^64-1; this bound covers the path that guard
+// cannot.
 func minFeeCoin(fee uint64) chain.Coin {
 	if fee > math.MaxInt64 {
 		panic(ErrFeeParamOutOfRange)

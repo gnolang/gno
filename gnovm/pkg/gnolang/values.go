@@ -127,10 +127,15 @@ const bigdecFloatMarshalPrefix = "f:"
 
 // BigdecValue holds an untyped bigdec constant in one of two representations:
 // an exact rational (V) for values that fit within ratGuard's bit limits, or
-// a bounded-precision big.Float (F) that gracefully handles extreme exponents.
+// a bounded-precision big.Float (F) whose binary exponent reaches ±2^31.
 // Exactly one of V or F is non-nil for a well-formed value. The float form
 // mirrors go/constant, which switches from big.Rat to a 512-bit big.Float
 // past the same 4096-bit threshold.
+//
+// Arithmetic on F costs the same at any exponent, but F.Text and F.Int write
+// out every digit or bit the exponent implies, unmetered. Print F with
+// bigdecFloatString and convert it with bigdecToBigInt, which both bound that
+// work past ratOverflowBits.
 type BigdecValue struct {
 	V *big.Rat
 	F *big.Float
@@ -149,16 +154,6 @@ func (bdv BigdecValue) AsFloat() *big.Float {
 		return new(big.Float).SetPrec(BigdecFloatPrec)
 	}
 	return new(big.Float).SetPrec(BigdecFloatPrec).SetRat(bdv.V)
-}
-
-// NewBigdecFromRat wraps r as a rat-form BigdecValue.
-func NewBigdecFromRat(r *big.Rat) BigdecValue {
-	return BigdecValue{V: r}
-}
-
-// NewBigdecFromFloat wraps f as a float-form BigdecValue.
-func NewBigdecFromFloat(f *big.Float) BigdecValue {
-	return BigdecValue{F: f}
 }
 
 // Sign returns -1, 0, or +1 depending on the sign of the value.
@@ -217,6 +212,14 @@ func (bdv *BigdecValue) UnmarshalAmino(s string) error {
 		bdv.F = f
 		bdv.V = nil
 		return nil
+	}
+	// Only accept the characters of big.Rat.RatString, which is all MarshalAmino
+	// emits here. SetString also takes exponents, and expands them: the 8 bytes
+	// "1e999999" build a 1,000,000-digit numerator, and this runs while a
+	// transaction is decoded, before anyone has paid for it. Every exponent needs
+	// a letter, so a number that passes can't outgrow the string it came from.
+	if strings.Trim(s, "0123456789-/") != "" {
+		return fmt.Errorf("invalid BigdecValue: %q", s)
 	}
 	r := new(big.Rat)
 	if _, ok := r.SetString(s); !ok {
@@ -323,6 +326,10 @@ func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *R
 		pv.assertBaseNotPoisoned()
 	}
 	// Special cases.
+	if pv.Index == PointerIndexBlockBlank {
+		// Nothing reads "_", so skip the copy of tv2.
+		return
+	}
 	if pv.TV.T == DataByteType {
 		// Special case of DataByte into (base=*SliceValue).Data.
 		pv.TV.SetDataByte(tv2.GetUint8())
@@ -337,7 +344,7 @@ func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *R
 	}
 	// General case
 	oo1 := pv.TV.GetFirstObject(store)
-	pv.TV.Assign(alloc, tv2, cu)
+	pv.TV.Assign(alloc, store, tv2, cu)
 	oo2 := pv.TV.GetFirstObject(store)
 	if pv.Base != nil {
 		rlm.DidUpdate(m, pv.Base.(Object), oo1, oo2)
@@ -463,7 +470,7 @@ func (av *ArrayValue) getElementPointer(store Store, ii int, et Type, seen map[*
 // `cannot directly modify readonly tainted object` panics when a /r/ realm
 // performed in-place arithmetic on a /p/-typed value handed in from another
 // /r/. See https://github.com/gnolang/gno/issues/5736.
-func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
+func (av *ArrayValue) Copy(alloc *Allocator, store Store, t Type, active map[ObjectID]struct{}) *ArrayValue {
 	/* TODO: consider second ref count field.
 	if av.GetRefCount() == 0 {
 		return av
@@ -471,11 +478,17 @@ func (av *ArrayValue) Copy(alloc *Allocator, t Type) *ArrayValue {
 	*/
 	var cp *ArrayValue
 	if av.Data == nil {
+		chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(len(av.List)))
 		cp = alloc.NewListArray(t, len(av.List))
+		// cp is a Go local until the caller roots it, so anchor its list
+		// while the elements are copied, as defaultArrayValue does.
+		alloc.PushAnchor(cp.List)
 		for i, tv := range av.List {
-			cp.List[i] = tv.Copy(alloc)
+			cp.List[i] = tv.copy(alloc, store, active)
 		}
+		alloc.PopAnchor()
 	} else {
+		chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyPrimitive*int64(len(av.Data)))
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
@@ -613,17 +626,22 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 //
 // Previously this method propagated the source's runtime PkgID whenever it
 // was an /r/ PkgID. See ArrayValue.Copy for the issue (gh #5736) and rationale.
-func (sv *StructValue) Copy(alloc *Allocator, t Type) *StructValue {
+func (sv *StructValue) Copy(alloc *Allocator, store Store, t Type, active map[ObjectID]struct{}) *StructValue {
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
 	}
 	*/
+	chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(len(sv.Fields)))
 	fields := alloc.NewStructFields(len(sv.Fields))
+	// fields is a Go local until NewStruct wraps it, which allocates too, so
+	// the anchor holds until after it. See ArrayValue.Copy.
+	alloc.PushAnchor(fields)
 	for i, field := range sv.Fields {
-		fields[i] = field.Copy(alloc)
+		fields[i] = field.copy(alloc, store, active)
 	}
 	cp := alloc.NewStruct(t, fields)
+	alloc.PopAnchor()
 	alloc.stampCopyOwner(&cp.ObjectInfo, t)
 	return cp
 }
@@ -725,16 +743,6 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 		return fv.body
 	}
 	return fv.body
-}
-
-func (fv *FuncValue) UpdateBodyFromSource() {
-	if fv.Source == nil {
-		panic(fmt.Sprintf(
-			"Source is missing for FuncValue %q",
-			fv.Name,
-		))
-	}
-	fv.body = fv.Source.GetBody()
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
@@ -932,8 +940,8 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 
 // copyCallRecv copies a value receiver for a method call (a no-op for a
 // pointer receiver) and clears its readonly bit.
-func copyCallRecv(alloc *Allocator, recv TypedValue) TypedValue {
-	rtv := recv.Copy(alloc)
+func copyCallRecv(alloc *Allocator, store Store, recv TypedValue) TypedValue {
+	rtv := recv.Copy(alloc, store)
 	if rtv.V != nil {
 		rtv.N = [8]byte{}
 	}
@@ -1361,71 +1369,61 @@ func (tv *TypedValue) ClearNum() {
 	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
 }
 
-func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
+// Copy returns tv by value: an array or struct is duplicated, nested ones
+// included, and store loads any of them still held as a RefValue.
+func (tv TypedValue) Copy(alloc *Allocator, store Store) TypedValue {
+	return tv.copy(alloc, store, nil)
+}
+
+// copy is Copy carrying the IDs of the stored arrays and structs being copied
+// above tv. Stored state can hold a struct that contains itself: one met
+// again on that path is copied as a ref, so the copy shares that object.
+func (tv TypedValue) copy(alloc *Allocator, store Store, active map[ObjectID]struct{}) TypedValue {
 	switch cv := tv.V.(type) {
 	case BigintValue:
-		cp.T = tv.T
-		cp.V = cv.Copy(alloc)
-	case *ArrayValue:
+		return TypedValue{T: tv.T, V: cv.Copy(alloc)}
+	case *ArrayValue, *StructValue:
 		alloc.checkCopy(tv.T)
-		cp.T = tv.T
-		cp.V = cv.Copy(alloc, tv.T)
-	case *StructValue:
-		alloc.checkCopy(tv.T)
-		cp.T = tv.T
-		cp.V = cv.Copy(alloc, tv.T)
+		if oo := cv.(Object); oo.GetIsReal() {
+			id := oo.GetObjectID()
+			if _, busy := active[id]; busy {
+				return TypedValue{T: tv.T, V: toRefValue(oo)}
+			}
+			if active == nil {
+				active = make(map[ObjectID]struct{})
+			}
+			active[id] = struct{}{}
+			defer delete(active, id)
+		}
+		if av, ok := cv.(*ArrayValue); ok {
+			return TypedValue{T: tv.T, V: av.Copy(alloc, store, tv.T, active)}
+		}
+		return TypedValue{T: tv.T, V: cv.(*StructValue).Copy(alloc, store, tv.T, active)}
 	case RefValue:
-		// A struct or array held by value is copied whether loaded or not.
-		// A ref left by an object deleted earlier in the tx stays a ref.
-		if k := tv.T.Kind(); (k == StructKind || k == ArrayKind) && alloc != nil && alloc.store != nil {
-			if oo := alloc.store.GetObjectSafe(cv.ObjectID); oo != nil {
-				tv.V = oo
-				return tv.Copy(alloc)
+		// An array or struct a stored parent owns loads as a RefValue, and
+		// copying the ref would let the copy write into the original.
+		switch baseOf(tv.T).(type) {
+		case *ArrayType, *StructType:
+			if _, busy := active[cv.ObjectID]; busy {
+				break
+			}
+			// A ref whose object the transaction deleted stays a ref.
+			if oo := store.GetObjectSafe(cv.ObjectID); oo != nil {
+				return TypedValue{T: tv.T, V: oo}.copy(alloc, store, active)
 			}
 		}
 		// Checked by type, so the verdict does not depend on what is loaded.
 		alloc.checkCopy(tv.T)
-		cp = tv
-		if alloc != nil && cv.ObjectID.PkgID.IsRealmPkg() {
-			cp = alloc.stripMaker(tv, alloc.stripHold())
+		if alloc != nil && (tv.T.Kind() == FuncKind || cv.ObjectID.PkgID.IsRealmPkg()) {
+			return alloc.stripMaker(tv, alloc.stripHold())
 		}
 	case *FuncValue, *BoundMethodValue:
 		// A copy made by code not holding for the maker acts for no realm.
-		cp = tv
 		if alloc != nil {
-			cp = alloc.stripMaker(tv, alloc.stripHold())
+			return alloc.stripMaker(tv, alloc.stripHold())
 		}
-	default:
-		cp = tv
 	}
-	return
-}
-
-// unrefCopy makes a copy of the underlying value in the case of reference values.
-// It copies other values as expected using the normal Copy method.
-func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
-	switch tv.V.(type) {
-	case RefValue:
-		alloc.checkCopy(tv.T)
-		cp = tv // start from the header (T, N); V is replaced below
-		if tv.T != nil && tv.T.Kind() == FuncKind {
-			if alloc != nil {
-				cp = alloc.stripMaker(tv, alloc.stripHold())
-			}
-			return cp
-		}
-		refObject := tv.GetFirstObject(store)
-		switch refObjectValue := refObject.(type) {
-		case *ArrayValue:
-			cp.V = refObjectValue.Copy(alloc, tv.T)
-		case *StructValue:
-			cp.V = refObjectValue.Copy(alloc, tv.T)
-		}
-	default:
-		cp = tv.Copy(alloc)
-	}
-
-	return
+	return tv
 }
 
 // Returns encoded bytes for primitive values.
@@ -2080,7 +2078,7 @@ func (tv *TypedValue) ComputeMapKey(gm types.GasMeter, store Store, omitType boo
 // addressable NativeValue fields/elems.
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
-func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+func (tv *TypedValue) Assign(alloc *Allocator, store Store, tv2 TypedValue, cu bool) {
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -2093,7 +2091,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	*tv = tv2.Copy(alloc)
+	*tv = tv2.Copy(alloc, store)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
@@ -2310,7 +2308,7 @@ func (tv *TypedValue) getPointerToForCall(gm types.GasMeter, alloc *Allocator, s
 		// apply, e.g. in DidUpdate). A direct call copies it later.
 		rtv := *dtv
 		if !direct {
-			rtv = copyCallRecv(alloc, rtv)
+			rtv = copyCallRecv(alloc, store, rtv)
 		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
@@ -2553,16 +2551,23 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 			}
 		}
 
-		ivk := iv.Copy(alloc)
+		ivk := iv.Copy(alloc, store)
 		// key was already computed (and charged) from iv above, and ivk is a
 		// value-copy of iv, so recomputing it here would return the same
 		// MapKey and charge twice.
 		pv := mv.getPointerForComputedKey(alloc, key, isNaN, ivk)
 		if pv.TV.IsUndefined() {
 			vt := baseOf(tv.T).(*MapType).Value
-			if vt.Kind() != InterfaceKind {
-				// this will get assigned over but the zero-init still
-				// walks struct fields; use the caller's alloc.
+			switch vt.Kind() {
+			case InterfaceKind:
+			case ArrayKind, StructKind:
+				// Only an assignment writes an array or struct entry,
+				// `m[k] = v` or a range clause assigning to m[k], and
+				// its Assign2 follows at once, so a zero value here
+				// would be filled and charged per element for nothing.
+			default:
+				// An op-assignment such as m[k] += 1 reads this zero
+				// value; use the caller's alloc.
 				*pv.TV = defaultTypedValue(alloc, vt)
 			}
 		}
@@ -2645,7 +2650,7 @@ func (tv *TypedValue) GetLength() int {
 		case *MapType:
 			return 0
 		case *PointerType:
-			if at, ok := bt.Elt.(*ArrayType); ok {
+			if at, ok := arrayOrPtrToArray(bt); ok {
 				return at.Len
 			}
 			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
@@ -2686,7 +2691,7 @@ func (tv *TypedValue) GetCapacity() int {
 		case *SliceType:
 			return 0
 		case *PointerType:
-			if at, ok := bt.Elt.(*ArrayType); ok {
+			if at, ok := arrayOrPtrToArray(bt); ok {
 				return at.Len
 			}
 			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
@@ -3308,42 +3313,103 @@ func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
 	return tvs
 }
 
-// fillDefaultStructFields writes st's zero values into tvs, which must have
-// len(st.Fields) entries. The caller is responsible for anchoring tvs (see
+// fillDefaultStructFields writes st's zero values into the fields of tvs still
+// undefined, which must have len(st.Fields) entries, and charges
+// OpCPUSlopeCopyElement for each before writing any. An interface field's
+// zero value is the undefined TypedValue itself, so it is neither written nor
+// charged. The caller is responsible for anchoring tvs (see
 // Allocator.anchors) — doOpStructLit keeps its own anchor for the whole op.
 func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue) {
+	n := 0
 	for i, ft := range st.Fields {
-		if ft.Type.Kind() != InterfaceKind {
+		if ft.Type.Kind() != InterfaceKind && tvs[i].IsUndefined() {
+			n++
+		}
+	}
+	chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(n))
+	for i, ft := range st.Fields {
+		if ft.Type.Kind() != InterfaceKind && tvs[i].IsUndefined() {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
+			inheritDefaultPkgID(tvs[i], st.GetPkgID())
+		}
+	}
+}
+
+// fillDefaultList writes et's zero value into the slots of tvs still
+// undefined, and charges OpCPUSlopeCopyElement for each before writing any.
+// tvs must be freshly allocated, so that an undefined slot is one nothing was
+// written to. An interface's zero value is the undefined TypedValue itself,
+// so it is neither written nor charged. The caller is responsible for
+// anchoring tvs (see Allocator.anchors).
+func fillDefaultList(alloc *Allocator, tvs []TypedValue, et Type, pid PkgID) {
+	if et.Kind() == InterfaceKind {
+		return
+	}
+	n := 0
+	for i := range tvs {
+		if tvs[i].IsUndefined() {
+			n++
+		}
+	}
+	chargeCPUGas(alloc.GetGasMeter(), OpCPUSlopeCopyElement*int64(n))
+	stamp := pid.IsRealmPkg()
+	for i := range tvs {
+		if tvs[i].IsUndefined() {
+			tvs[i] = defaultTypedValue(alloc, et)
+			if stamp {
+				inheritDefaultPkgID(tvs[i], pid)
+			}
+		}
+	}
+}
+
+// inheritDefaultPkgID stamps the unnamed array defaults nested in a
+// realm-declared composite with that realm, since an unnamed array type
+// carries no PkgPath of its own for stampPkgID to read.
+func inheritDefaultPkgID(tv TypedValue, pid PkgID) {
+	if !pid.IsRealmPkg() || getDeclaredPkgID(tv.T).IsRealmPkg() {
+		return
+	}
+	if av, ok := tv.V.(*ArrayValue); ok {
+		av.SetPkgID(pid)
+		for _, etv := range av.List {
+			inheritDefaultPkgID(etv, pid)
 		}
 	}
 }
 
 func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
-	return alloc.NewStruct(
-		st,
-		defaultStructFields(alloc, st),
-	)
+	fields := defaultStructFields(alloc, st)
+	// fields is a Go local until NewStruct wraps it, which allocates too, so
+	// anchor it across that call. See StructValue.Copy.
+	alloc.PushAnchor(fields)
+	sv := alloc.NewStruct(st, fields)
+	alloc.PopAnchor()
+	return sv
 }
 
-func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
-	if at.Elt.Kind() == Uint8Kind {
-		return alloc.NewDataArray(at, at.Len)
-	}
-	av := alloc.NewListArray(at, at.Len)
-	tvs := av.List
-	if et := at.Elem(); et.Kind() != InterfaceKind {
+func defaultArrayValue(alloc *Allocator, t Type) *ArrayValue {
+	av := newArrayValue(alloc, t)
+	if av.List != nil {
 		// av is a Go local until the caller roots it, so anchor its list
 		// while the defaults are built: without it a GC part-way through
 		// drops the elements already written and the cap is re-granted
 		// once per element. See Allocator.anchors.
-		alloc.PushAnchor(tvs)
-		for i := range at.Len {
-			tvs[i] = defaultTypedValue(alloc, et)
-		}
+		alloc.PushAnchor(av.List)
+		fillDefaultList(alloc, av.List, baseOf(t).(*ArrayType).Elt, getDeclaredPkgID(t))
 		alloc.PopAnchor()
 	}
 	return av
+}
+
+// newArrayValue allocates an array of type t whose elements are undefined,
+// for fillDefaultList to complete; a byte array's Data is already zero.
+func newArrayValue(alloc *Allocator, t Type) *ArrayValue {
+	at := baseOf(t).(*ArrayType)
+	if at.Elt.Kind() == Uint8Kind {
+		return alloc.NewDataArray(t, at.Len)
+	}
+	return alloc.NewListArray(t, at.Len)
 }
 
 func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
@@ -3355,7 +3421,7 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	case *ArrayType:
 		return TypedValue{
 			T: t,
-			V: defaultArrayValue(alloc, ct),
+			V: defaultArrayValue(alloc, t),
 		}
 	case *StructType:
 		return TypedValue{

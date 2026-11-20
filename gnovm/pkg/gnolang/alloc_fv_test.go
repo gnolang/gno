@@ -62,7 +62,7 @@ func BenchmarkCopyNested(b *testing.B) {
 	root := buildNestedTV(l3)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		root.Copy(alloc)
+		root.Copy(alloc, nil)
 	}
 }
 
@@ -136,7 +136,7 @@ func BenchmarkCopyNestedP(b *testing.B) {
 	root := buildNestedTV(l3)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		root.Copy(alloc)
+		root.Copy(alloc, nil)
 	}
 }
 

@@ -460,6 +460,9 @@ func classifyQueryError(qerr error) (string, slog.Level, error) {
 		// cannot regress this into a generic 500.
 		return "node refused deeply nested response", slog.LevelWarn,
 			fmt.Errorf("%w: rejected by node export depth guard", ErrClientResponseTooLarge)
+	case errors.Is(qerr, std.QueryTimeoutError{}):
+		// The node stopped the query at its wall-clock timeout.
+		return "node query timeout", slog.LevelWarn, ErrClientTimeout
 	default:
 		// fallback on general error
 		return "node response error", slog.LevelError, fmt.Errorf("%w: %w", ErrClientResponse, qerr)

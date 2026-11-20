@@ -59,13 +59,3 @@ func HasNativePkg(pkgPath string) bool {
 	}
 	return false
 }
-
-// ParamIsAny reports whether the i-th Gno parameter is typed any; such a
-// native receives the raw gno.TypedValue on the Go side.
-func (n *NativeFunc) ParamIsAny(i int) bool {
-	if i >= len(n.params) {
-		return false
-	}
-	nx, ok := n.params[i].Type.(*gno.NameExpr)
-	return ok && nx.Name == "any"
-}

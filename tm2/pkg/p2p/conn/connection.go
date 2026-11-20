@@ -60,7 +60,7 @@ const (
 
 	// defaultMaxRecvBufferBytes caps the total bytes buffered across all of a
 	// connection's channels' recving buffers at any instant. Without it the
-	// exposure is the sum of every channel's RecvMessageCapacity (~38MB on a
+	// exposure is the sum of every channel's RecvMessageCapacity (~21MB on a
 	// full node), letting a peer pin that much per connection.
 	//
 	// Because it is the only bound on that exposure, it is what determines a
@@ -71,16 +71,17 @@ const (
 	//
 	//	blockchain      8MB   a committed block, bounded by MaxDataBytes,
 	//	                      which is capped at MaxBlockDataBytesLimit
-	//	consensus       4MB   4 channels x 1MB (the consensus maxMsgSize)
+	//	consensus      70KB   the four channels' capacities, a block part
+	//	                      on the data channel the largest
 	//	mempool      8MB-128K a single tx, bounded by MaxTxBytes, which
 	//	                      consensus-param validation requires to leave
 	//	                      MaxBlockOverheadBytes inside MaxDataBytes
 	//	discovery      ~KBs   at most maxPeersShared (30) addresses
 	//
 	// The worst case a *legal* chain configuration can reach is therefore
-	// 8MB + 4MB + (8MB - 128KB) ~= 19.9MB, so 20MB covers it -- but only just,
-	// and only because MaxTxBytes cannot reach MaxDataBytes. A chain at the 2MB
-	// default sits at ~7MB. Anything that raises MaxBlockDataBytesLimit, adds a
+	// 8MB + 70KB + (8MB - 128KB) ~= 16MB, so 20MB covers it, and only because
+	// MaxTxBytes cannot reach MaxDataBytes. A chain at the 2MB default sits at
+	// ~3MB. Anything that raises MaxBlockDataBytesLimit, adds a
 	// channel, or loosens the MaxTxBytes bound has to raise this budget too.
 	// (See TestDefaultBudgetCoversWorstLegalConfig, which fails if that drifts.)
 	defaultMaxRecvBufferBytes = 20 << 20 // 20MB
@@ -1140,7 +1141,7 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 	// Enforce the total per-connection recving budget across all channels. The
 	// per-channel RecvMessageCapacity check above only bounds a single channel;
 	// without this, a peer can fill every channel's buffer at once (the sum of
-	// all RecvMessageCapacity values, ~38MB on a full node -- it was ~130MB
+	// all RecvMessageCapacity values, ~21MB on a full node -- it was ~130MB
 	// before the blockchain reactor's envelope was right-sized).
 	if budget := ch.conn.config.MaxRecvBufferBytes; budget > 0 {
 		if total := ch.conn.recvBufferBytes + len(packet.Bytes); total > budget {
@@ -1165,9 +1166,9 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 		// array merely grew past RecvBufferCapacity has the opposite problem: it
 		// puts a realloc-and-regrow on the path of *every* message larger than
 		// that capacity, which is the common case on the channels carrying the
-		// largest messages -- blockchain and consensus data configure 200KB
-		// against multi-MB blocks, and the mempool channel leaves it at the 4KB
-		// default against MaxTxBytes-sized txs. Measured on a 2MB message with a
+		// largest messages -- blockchain configures 200KB against multi-MB
+		// blocks, and the mempool channel leaves it at the 4KB default against
+		// MaxTxBytes-sized txs. Measured on a 2MB message with a
 		// 200KB capacity that costs 2.50ms, 9.07MB and 10 allocs, against 47.6us
 		// and no allocations when the array is reused.
 		//

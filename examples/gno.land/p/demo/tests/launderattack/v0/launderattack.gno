@@ -99,6 +99,13 @@ type EvilMap map[string]int
 
 func (EvilMap) Run(i *launderpkg.Immutable) { i.Field = "pwnd-via-map" }
 
+// Bytes is a []byte with a mutator. A victim's stored []byte relabelled to
+// Bytes would let Poke write it under borrow rule #2 with the victim's
+// authority. See zrealm_launder_o_multidecl_typepun.gno.
+type Bytes []byte
+
+func (b Bytes) Poke(s string) { copy(b, s) }
+
 // EvilSliceMutator's Run takes a slice — NOT a pointer parameter, so
 // the Attack H/I fix's `hasForeignPPtrParam` predicate skips it.
 // Tests whether the anchor predicate needs to look INSIDE composite

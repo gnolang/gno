@@ -1296,6 +1296,10 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 
+	// A field's name decides nothing here, and its id can pass the cap where its type's does not.
+	if ft, ok := t.(FieldType); ok {
+		t = ft.Type
+	}
 	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
 	tid := t.TypeID()
 	if _, exists := visited[tid]; exists {
@@ -1310,8 +1314,6 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		for _, result := range tt.Results {
 			rlm.assertTypeIsPublic(store, result, visited)
 		}
-	case FieldType:
-		rlm.assertTypeIsPublic(store, tt.Type, visited)
 	case *SliceType, *ArrayType, *PointerType:
 		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *tupleType:
@@ -1607,9 +1609,9 @@ func copyTypeWithRefs(typ Type) Type {
 		// Invariant: uverse DeclaredTypes never reach here. Callers either
 		// collapse DeclaredTypes to RefType at Layer 1 via refOrCopyType
 		// (field types, method types, the TypeValue case in copyValueWithRefs),
-		// or route through SetType which short-circuits on a cache hit
-		// before calling copyTypeWithRefs. Uverse types are preloaded in
-		// cacheTypes, so SetType's early-return always fires for them.
+		// or route through SetType which short-circuits when the cached type is
+		// the same instance. Uverse types are preloaded in cacheTypes as those
+		// same instances, so SetType's early-return always fires for them.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -1835,22 +1837,27 @@ func fillType(store Store, typ Type) Type {
 	case PrimitiveType:
 		return ct
 	case *PointerType:
+		ct.stored = true
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case FieldType:
 		panic("cannot fill field types")
 	case *ArrayType:
+		ct.stored = true
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case *SliceType:
+		ct.stored = true
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case *StructType:
+		ct.stored = true
 		for i, field := range ct.Fields {
 			ct.Fields[i].Type = fillType(store, field.Type)
 		}
 		return ct
 	case *FuncType:
+		ct.stored = true
 		for i, param := range ct.Params {
 			ct.Params[i].Type = fillType(store, param.Type)
 		}
@@ -1859,10 +1866,12 @@ func fillType(store Store, typ Type) Type {
 		}
 		return ct
 	case *MapType:
+		ct.stored = true
 		ct.Key = fillType(store, ct.Key)
 		ct.Value = fillType(store, ct.Value)
 		return ct
 	case *InterfaceType:
+		ct.stored = true
 		for i, mthd := range ct.Methods {
 			ct.Methods[i].Type = fillType(store, mthd.Type)
 			// An embed entry means the bytes predate interface flattening
@@ -1900,6 +1909,7 @@ func fillType(store Store, typ Type) Type {
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
+		ct.stored = true
 		for i, elt := range ct.Elts {
 			ct.Elts[i] = fillType(store, elt)
 		}

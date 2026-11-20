@@ -183,9 +183,6 @@ type transpileCtx struct {
 	stdlibPath string
 
 	stdlibImports map[string]string // symbol -> import path
-
-	fset *token.FileSet
-	file *ast.File
 }
 
 func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.File, error) {
@@ -193,7 +190,6 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 
 	imports := astutil.Imports(fset, f)
 	ctx.stdlibImports = make(map[string]string)
-	ctx.fset, ctx.file = fset, f
 
 	// rewrite imports to point to stdlibs/ or examples/
 	for _, paragraph := range imports {
@@ -254,7 +250,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 			case *ast.CallExpr:
 				// is function call to a native function?
 				// -> rename if unexported, apply `nil,` for the first arg if necessary
-				return ctx.transformCallExpr(c, node)
+				return ctx.transformCallExpr(c, node, fset, f)
 			}
 
 			return true
@@ -374,20 +370,19 @@ func convertBuiltinType(ide ast.Expr, fset *token.FileSet, f *ast.File) ast.Expr
 		"address",
 		"gnocoin",
 		"gnocoins":
-		astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
-		return &ast.SelectorExpr{
-			X: &ast.Ident{
-				Name: "__transpile_builtin",
-			},
-			Sel: &ast.Ident{
-				Name: string(id.Name[0]-('a'-'A')) + id.Name[1:],
-			},
-		}
+		return builtinRef(fset, f, string(id.Name[0]-('a'-'A'))+id.Name[1:])
 	}
 	return nil
 }
 
-func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) bool {
+// builtinRef returns a reference to name in the builtin shims package,
+// importing the package into f.
+func builtinRef(fset *token.FileSet, f *ast.File, name string) *ast.SelectorExpr {
+	astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
+	return &ast.SelectorExpr{X: ast.NewIdent("__transpile_builtin"), Sel: ast.NewIdent(name)}
+}
+
+func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr, fset *token.FileSet, f *ast.File) bool {
 	switch fe := ce.Fun.(type) {
 	case *ast.SelectorExpr:
 		// XXX: This is not correct in 100% of cases. If I shadow the `std` symbol, and
@@ -404,14 +399,10 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		if !ok {
 			break
 		}
-		nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name))
-		if nat != nil {
-			ctx.wrapAnyArgs(nat, ce)
-		}
-		if nat != nil && nat.HasMachineParam() {
-			// Because it's an import, the symbol is always exported, so no need for the
-			// X_ prefix we add below.
-			ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+		// Because it's an import, the symbol is always exported, so no need for the
+		// X_ prefix we add below.
+		if nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name)); nat != nil {
+			nativeArgs(nat, ce, fset, f)
 		}
 
 	case *ast.Ident:
@@ -430,10 +421,7 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		// controlled scope (standard libraries) this will work for our usecase.
 		nat := stdlibs.FindNative(ctx.stdlibPath, gno.Name(fe.Name))
 		if ctx.stdlibPath != "" && nat != nil {
-			ctx.wrapAnyArgs(nat, ce)
-			if nat.HasMachineParam() {
-				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
-			}
+			nativeArgs(nat, ce, fset, f)
 			if !fe.IsExported() {
 				// Prefix unexported names with X_, per native binding convention
 				// (to export the symbol within Go).
@@ -444,20 +432,16 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 	return true
 }
 
-// wrapAnyArgs wraps each argument for an `any` parameter of a native, whose Go
-// side takes a gno.TypedValue, so the transpiled call type-checks.
-func (ctx *transpileCtx) wrapAnyArgs(nat *stdlibs.NativeFunc, ce *ast.CallExpr) {
+// nativeArgs fits the arguments of a call to nat to its Go signature: an
+// argument the Go function takes as a gno.TypedValue is converted to one, and
+// a nil machine goes first if it takes a machine.
+func nativeArgs(nat *stdlibs.NativeFunc, ce *ast.CallExpr, fset *token.FileSet, f *ast.File) {
 	for i, arg := range ce.Args {
-		if !nat.ParamIsAny(i) {
-			continue
+		if nat.IsTypedValueParam(i) {
+			ce.Args[i] = &ast.CallExpr{Fun: builtinRef(fset, f, "TypedValue"), Args: []ast.Expr{arg}}
 		}
-		astutil.AddNamedImport(ctx.fset, ctx.file, "__transpile_builtin", TranspileImportPath("builtin"))
-		ce.Args[i] = &ast.CallExpr{
-			Fun: &ast.SelectorExpr{
-				X:   ast.NewIdent("__transpile_builtin"),
-				Sel: ast.NewIdent("TypedValueOf"),
-			},
-			Args: []ast.Expr{arg},
-		}
+	}
+	if nat.HasMachineParam() {
+		ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
 	}
 }

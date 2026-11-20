@@ -549,11 +549,18 @@ func (ds Decls) String() string {
 	return str.String()
 }
 
+// constExprValue writes a constant inside an expression's text, with its type cut.
+type constExprValue TypedValue
+
+func (tv constExprValue) WriteProtected(w *meteredWriter, seen *seenValues) {
+	TypedValue(tv).writeProtected(w, seen, maxExprTypeTextBytes)
+}
+
 func (x ConstExpr) String() string {
 	if x.TypedValue.HasKind(TypeKind) {
 		return x.TypedValue.V.String()
 	} else {
-		return fmt.Sprintf("(const %s)", x.TypedValue.String())
+		return "(const " + protectedStringOf(constExprValue(x.TypedValue), newSeenValues()) + ")"
 	}
 }
 
@@ -561,5 +568,5 @@ func (x constTypeExpr) String() string {
 	if x.Type == nil { // type switch case
 		return "(const-type nil)"
 	}
-	return fmt.Sprintf("(const-type %s)", x.Type.String())
+	return "(const-type " + BoundedTypeText(x.Type, maxExprTypeTextBytes) + ")"
 }

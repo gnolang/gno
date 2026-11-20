@@ -505,16 +505,15 @@ inside another realm's code, pass a crossing closure
 realm calls with `cross`. A plain closure declared in your realm, or a
 method value of a method your realm declares, runs read-only there.
 
-### 7.2 Conversion-time panic is not Gno-recoverable
+### 7.2 Conversion-time panic is recoverable inside a call
 
-`doOpConvert` Case 1 (foreign-readonly source conversion refused)
-panics with raw Go `panic(...)`, which is **not** caught by Gno
-`defer { recover() }`. The write-time readonly check at
-`machine.go:2555` uses `m.Panic(typedString(...))` and **is**
-catchable. This is an implementation inconsistency, not a bug — but
-attacker code cannot rely on `recover()` to differentiate failure
-modes. (Likely worth normalizing to `m.PanicString` for consistency;
-tracked.)
+A refused conversion, Case 1 (foreign-readonly source) or Case 2
+(foreign `/r/`-declared target), explicit `T(x)` or implicit, panics
+with `m.PanicString`, like the write-time readonly check. A
+`defer { recover() }` in the converting realm catches it, and the
+refused conversion has written nothing. Only a refusal in a
+package-level `var` initializer, with no call on the stack, is one
+nothing recovers, and the transaction aborts.
 
 ### 7.3 Storage-construction-time check (Phase 2)
 
