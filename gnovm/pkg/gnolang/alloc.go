@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/bits"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -585,7 +586,9 @@ func constructionRealmID(t Type) PkgID {
 // and for an exempt unnamed struct the realm the copy is made for.
 func (alloc *Allocator) stampCopyOwner(oi *ObjectInfo, t Type) {
 	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
-		oi.SetPkgID(alloc.currentRealmID)
+		if alloc != nil { // nil alloc: no realm context to stamp
+			oi.SetPkgID(alloc.currentRealmID)
+		}
 		return
 	}
 	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
@@ -837,22 +840,27 @@ func firstForeignHeld(t Type, rid PkgID) Type {
 func heldRealmsOf(t Type) []heldRealm {
 	switch tt := t.(type) {
 	case *DeclaredType:
-		if tt.heldRealms == nil {
-			tt.heldRealms = computeHeldRealms(tt)
-		}
-		return tt.heldRealms
+		return cachedHeldRealms(&tt.heldRealms, tt)
 	case *StructType:
-		if tt.heldRealms == nil {
-			tt.heldRealms = computeHeldRealms(tt)
-		}
-		return tt.heldRealms
+		return cachedHeldRealms(&tt.heldRealms, tt)
 	case *ArrayType:
-		if tt.heldRealms == nil {
-			tt.heldRealms = computeHeldRealms(tt)
-		}
-		return tt.heldRealms
+		return cachedHeldRealms(&tt.heldRealms, tt)
 	}
 	return nil
+}
+
+// heldRealmsCache holds a *[]heldRealm, read and written atomically since
+// queries run in parallel on shared types; a plain pointer so types stay
+// copyable. Two first callers may both compute; the answer is the same.
+type heldRealmsCache struct{ p unsafe.Pointer }
+
+func cachedHeldRealms(c *heldRealmsCache, t Type) []heldRealm {
+	if p := atomic.LoadPointer(&c.p); p != nil {
+		return *(*[]heldRealm)(p)
+	}
+	h := computeHeldRealms(t)
+	atomic.StorePointer(&c.p, unsafe.Pointer(&h))
+	return h
 }
 
 // Returns a non-nil slice in every case, so the result is always cacheable.

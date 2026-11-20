@@ -589,7 +589,7 @@ type ArrayType struct {
 	// heldRealms caches what Elt holds inline, one entry per realm, in walk
 	// order (see heldRealmsOf). nil: not computed; non-nil, possibly empty:
 	// final. Not serialized; types are immutable after preprocess.
-	heldRealms []heldRealm
+	heldRealms heldRealmsCache
 	stored     bool // read back from the store, see typeIDWriter.
 }
 
@@ -799,7 +799,7 @@ type StructType struct {
 	// heldRealms caches the realm struct/array types this struct holds
 	// inline, in walk order (see heldRealmsOf). nil: not computed; non-nil,
 	// possibly empty: final. Not serialized; types are immutable post-preprocess.
-	heldRealms []heldRealm
+	heldRealms heldRealmsCache
 }
 
 func (st *StructType) Kind() Kind {
@@ -1515,7 +1515,7 @@ type DeclaredType struct {
 	// holds inline, own realm first (see heldRealmsOf). nil: not computed;
 	// non-nil, possibly empty: final. Not serialized; types are immutable
 	// after preprocess.
-	heldRealms []heldRealm
+	heldRealms heldRealmsCache
 }
 
 // methodIndexThreshold gates the map build: most user types have ≤ a
