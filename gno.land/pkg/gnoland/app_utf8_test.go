@@ -168,7 +168,7 @@ func utf8TestMap(vals ...gnolang.TypedValue) *gnolang.MapValue {
 	ml := &gnolang.MapList{}
 	for i, v := range vals {
 		item := &gnolang.MapListItem{
-			Key:   gnolang.TypedValue{T: gnolang.StringType, V: gnolang.StringValue(strconv.Itoa(i))},
+			Key:   gnolang.TypedValue{T: gnolang.StringType, V: gnolang.StringValue{Str: strconv.Itoa(i)}},
 			Value: v,
 		}
 		if ml.Tail == nil {
@@ -199,7 +199,7 @@ func utf8TestDecode(t *testing.T, mv *gnolang.MapValue) *gnolang.MapValue {
 // so a walk over the Go fields missed them.
 func TestValidateUTF8ReachesEveryMapItem(t *testing.T) {
 	str := func(s string) gnolang.TypedValue {
-		return gnolang.TypedValue{T: gnolang.StringType, V: gnolang.StringValue(s)}
+		return gnolang.TypedValue{T: gnolang.StringType, V: gnolang.StringValue{Str: s}}
 	}
 	mv := utf8TestDecode(t, utf8TestMap(str("a"), str("\xff"), str("c")))
 	require.EqualError(t, std.ValidateUTF8(mv), "invalid UTF-8 in List.List[1].Value.V")
@@ -209,7 +209,7 @@ func TestValidateUTF8ReachesEveryMapItem(t *testing.T) {
 // item twice per level, so nested one-item maps cost 2^depth; walking the
 // representation is linear.
 func TestValidateUTF8NestedMapsAreLinear(t *testing.T) {
-	tv := gnolang.TypedValue{T: gnolang.StringType, V: gnolang.StringValue("leaf")}
+	tv := gnolang.TypedValue{T: gnolang.StringType, V: gnolang.StringValue{Str: "leaf"}}
 	for range 30 {
 		tv = gnolang.TypedValue{
 			T: &gnolang.MapType{Key: gnolang.StringType, Value: gnolang.StringType},

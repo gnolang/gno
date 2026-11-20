@@ -889,13 +889,28 @@ func parseBigdecLiteral(s, kind string) BigdecValue {
 	return BigdecValue{V: r}
 }
 
+// isTrackedString reports whether tv is empty or has a backing; nil-backing
+// VM text must still be minted before user code holds it.
+func isTrackedString(tv *TypedValue) bool {
+	sv, ok := tv.V.(StringValue)
+	return !ok || sv.Str == "" || sv.B != nil
+}
+
 // for doOpAdd and doOpAddAssign.
 func addAssign(alloc *Allocator, lv, rv *TypedValue) {
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
 	switch baseOf(lv.T) {
 	case StringType, UntypedStringType:
-		lv.V = alloc.NewString(lv.GetString() + rv.GetString())
+		// An empty operand keeps the other's backing, so s+"" is not
+		// recounted as a second copy of s.
+		switch ls, rs := lv.GetString(), rv.GetString(); {
+		case rs == "" && isTrackedString(lv):
+		case ls == "" && isTrackedString(rv):
+			lv.V = rv.V
+		default:
+			lv.V = alloc.NewString(ls + rs)
+		}
 	case IntType:
 		lv.SetInt(lv.GetInt() + rv.GetInt())
 	case Int8Type:

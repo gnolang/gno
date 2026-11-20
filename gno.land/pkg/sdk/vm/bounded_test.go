@@ -48,7 +48,7 @@ func TestBoundedString_UnhandledPanicError_Truncated(t *testing.T) {
 
 func TestBoundedString_Exception(t *testing.T) {
 	e := &gno.Exception{
-		Value: gno.TypedValue{T: gno.StringType, V: gno.StringValue("oops")},
+		Value: gno.TypedValue{T: gno.StringType, V: gno.StringValue{Str: "oops"}},
 	}
 	got := boundedString(e, 0)
 	assert.Equal(t, "oops", got)
