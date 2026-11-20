@@ -58,6 +58,9 @@ BIN_DIR           ?= $(_BIN_BASE)/bin
 _FETCH_PREREQ     :=
 endif
 
+# Resolve command-line and environment overrides before any build recipe cds.
+override BIN_DIR := $(abspath $(BIN_DIR))
+
 # Auto-discover scenario scripts, ordered by filename.
 SCENARIO_SCRIPTS := $(sort $(wildcard scenarios/*.sh))
 CI_SCENARIO_SCRIPTS := $(shell grep -l '^SCENARIO_CI=true$$' $(SCENARIO_SCRIPTS) 2>/dev/null | sort)

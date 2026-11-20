@@ -13,9 +13,8 @@ REPO_ROOT="$(cd "${SCENARIO_LIB_DIR}/../../.." && pwd)"
 # RUNTIME selects how nodes and one-shot CLI commands are executed:
 #   docker (default) — every binary runs in a container; nodes address each
 #     other by docker-compose service name on fixed ports 26656/26657.
-#   local            — the four binaries (gnoland, gnokey, gnogenesis,
-#     valsignerd) run directly from BIN_DIR; nodes bind 127.0.0.1 on
-#     deterministic per-node ports and are supervised as background processes.
+#   local            — native binaries run directly from BIN_DIR; nodes bind
+#     loopback ports and are supervised as background processes.
 # Build the local binaries with `make build-binaries`.
 RUNTIME="${RUNTIME:-docker}"
 case "$RUNTIME" in
@@ -30,7 +29,7 @@ GNOGENESIS_BIN="${BIN_DIR}/gnogenesis"
 VALSIGNERD_BIN="${BIN_DIR}/valsignerd"
 # Base host ports for the local runtime. Each node n (0-indexed) binds
 # RPC=base+n, P2P=p2p_base+n, remote-signer=rs_base+n, control=ctrl_base+n.
-# Override the bases to run multiple local scenarios concurrently.
+# Override all bases with disjoint ranges when running local scenarios in parallel.
 LOCAL_RPC_PORT_BASE="${LOCAL_RPC_PORT_BASE:-26700}"
 LOCAL_P2P_PORT_BASE="${LOCAL_P2P_PORT_BASE:-26800}"
 LOCAL_RS_PORT_BASE="${LOCAL_RS_PORT_BASE:-26900}"
@@ -82,14 +81,13 @@ declare -A NODE_CONTROLLABLE_SIGNER=()
 declare -A NODE_SIGNER_SERVICE=()
 declare -A NODE_CONTROL_PORT=()
 declare -A NODE_LOG_PID=()
-# Local-runtime state. Ports start at base+index and shift up to the next free
-# port if it is taken (see _pick_free_port), keyed off NODE_COUNTER at register.
+# Local-runtime state. Port claims coordinate nodes within this scenario only.
 declare -A NODE_P2P_PORT=()   # local host P2P port
 declare -A NODE_RS_PORT=()    # local host remote-signer port (controllable signers)
 declare -A NODE_PID=()        # local gnoland process pid
 declare -A NODE_SIGNER_PID=() # local valsignerd process pid
-declare -A _CLAIMED_PORTS=()  # ports already handed out this scenario (local)
-_PICKED_PORT=""               # out-param for _pick_free_port
+declare -A _CLAIMED_PORTS=()  # ports already selected within this scenario
+_PICKED_PORT=""              # out-param for _pick_free_port
 NODE_COUNTER=0
 
 SCENARIO_NAME=""
@@ -129,23 +127,12 @@ slugify() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-'
 }
 
-# _pick_free_port START — first free 127.0.0.1 TCP port at or above START that
-# this scenario has not already handed out. Used at register time (local
-# runtime) so the deterministic base+index port shifts up when something else
-# holds it, instead of failing later with a 120s wait_for_rpc timeout. The port
-# must be chosen before prepare_network bakes it into genesis/peers/inventory,
-# so this runs at registration, not at start. Probes via bash's built-in
-# /dev/tcp (no nc/lsof dependency): a successful connect means someone is
-# listening, so the port is busy.
-#
-# The result is returned in the global _PICKED_PORT rather than on stdout,
-# because callers must NOT use $(...) here: command substitution runs in a
-# subshell, which would discard the _CLAIMED_PORTS update and let sibling ports
-# collide.
+# _pick_free_port START — avoid existing listeners and this scenario's selected
+# ports before writing peer config. This is a connect probe, not a reservation;
+# parallel scenarios must use disjoint port ranges. Keep it in this shell (not
+# $(...)) so sibling nodes share _CLAIMED_PORTS.
 _pick_free_port() {
   local p="${1:?start port required}"
-  # The connect probe runs in a subshell, so fd 3 is scoped to it and needs no
-  # explicit close here.
   while [ -n "${_CLAIMED_PORTS[$p]:-}" ] || (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; do
     p=$((p + 1))
   done
@@ -239,11 +226,10 @@ register_node() {
     # The docker --rpc-port hint is irrelevant locally; assign per-node host
     # ports starting from base+index so nodes can address each other on
     # 127.0.0.1, shifting up to the next free port when a candidate is taken
-    # (e.g. a concurrent local scenario). RS/control are only used by
+    # by an existing listener. RS/control are only used by
     # controllable signers. Chosen here, before prepare_network bakes them into
     # genesis/peers/inventory.
-    # Not $(...) — _pick_free_port mutates _CLAIMED_PORTS in this shell and
-    # returns via _PICKED_PORT (see its comment).
+    # Not $(...) — keep _CLAIMED_PORTS updates in this shell.
     _pick_free_port "$((LOCAL_RPC_PORT_BASE + NODE_COUNTER))";     NODE_RPC_PORT[$name]="$_PICKED_PORT"
     _pick_free_port "$((LOCAL_P2P_PORT_BASE + NODE_COUNTER))";     NODE_P2P_PORT[$name]="$_PICKED_PORT"
     _pick_free_port "$((LOCAL_RS_PORT_BASE + NODE_COUNTER))";      NODE_RS_PORT[$name]="$_PICKED_PORT"
@@ -886,17 +872,20 @@ write_inventory() {
 wait_for_rpc() {
   local node="${1:?node required}"
   local timeout="${2:-120}"
-  local i
+  local i status
   for i in $(seq 1 "$timeout"); do
-    if curl -fsS "$(node_rpc_url "$node")/status" >/dev/null 2>&1; then
-      return 0
-    fi
     # In the local runtime the node is a background process we own. If it has
     # already exited, waiting out the full timeout is pointless: fail fast and
     # point at its log instead of dying 120s later with a generic message.
     if [ "$RUNTIME" = "local" ] && [ -n "${NODE_PID[$node]:-}" ] \
        && ! kill -0 "${NODE_PID[$node]}" 2>/dev/null; then
       die "node ${node} exited before its rpc came up; see ${SCENARIO_DIR}/logs/${node}.log"
+    fi
+    if status="$(curl --max-time 2 -fsS "$(node_rpc_url "$node")/status" 2>/dev/null)"; then
+      if [ "$(printf '%s' "$status" | jq -r '(.result.node_info.net_address // "") | split("@") | select(length == 2) | .[0]' 2>/dev/null)" = "${NODE_ID[$node]}" ]; then
+        return 0
+      fi
+      die "unexpected rpc identity for ${node} at $(node_rpc_url "$node"); port may be occupied by another process"
     fi
     sleep 1
   done
@@ -1027,7 +1016,7 @@ compose_up_one() {
     if out="$(compose up -d "$service" 2>&1)"; then
       return 0
     fi
-    if printf '%s' "$out" | grep -q "address already in use" && [ "$attempt" -lt 3 ]; then
+    if grep -Eq 'address already in use|port is already allocated|port is already in use' <<< "$out" && [ "$attempt" -lt 3 ]; then
       log "port bind race starting ${service} on attempt ${attempt}; retrying"
       sleep 1
       continue
@@ -1050,6 +1039,9 @@ start_node() {
     _capture_node_logs "$node"
   fi
   wait_for_rpc "$node" 120
+  if [ -f "${SCENARIO_DIR}/inventory.json" ]; then
+    write_inventory
+  fi
   log "started ${node}"
 }
 
@@ -1082,60 +1074,17 @@ start_all_nodes() {
     done
   fi
 
-  if [ "$RUNTIME" = "local" ]; then
-    # Start sentries first (P2P gateway ready), then validators. start_node
-    # dispatches to the local backend and waits for RPC; a node's RPC comes up
-    # independently of quorum, so per-node waits do not deadlock.
-    for node in "${SCENARIO_SENTRIES[@]+"${SCENARIO_SENTRIES[@]}"}"; do
-      start_node "$node"
-    done
-    for node in "${SCENARIO_VALIDATORS[@]+"${SCENARIO_VALIDATORS[@]}"}"; do
-      start_node "$node"
-    done
-    write_inventory
-    log "started ${#SCENARIO_NODES[@]} node(s)"
-    return 0
-  fi
+  # RPC readiness does not require quorum. Starting one service at a time lets
+  # each retry replace only that service, preserving running sentries/signers.
+  for node in "${SCENARIO_SENTRIES[@]+"${SCENARIO_SENTRIES[@]}"}"; do
+    start_node "$node"
+  done
+  for node in "${SCENARIO_VALIDATORS[@]+"${SCENARIO_VALIDATORS[@]}"}"; do
+    start_node "$node"
+  done
 
-  # Start sentries first and wait for them before launching validators so
-  # that the P2P gateway is ready when validators try to dial out.
-  if [ "${#SCENARIO_SENTRIES[@]}" -gt 0 ]; then
-    local attempt
-    for attempt in 1 2 3; do
-      if compose up -d "${SCENARIO_SENTRIES[@]}" 2>&1 | grep -q "address already in use"; then
-        log "port bind race on attempt ${attempt}; tearing down and retrying"
-        compose down --remove-orphans >/dev/null 2>&1 || true
-        sleep 1
-        continue
-      fi
-      break
-    done
-    for node in "${SCENARIO_SENTRIES[@]}"; do
-      _resolve_rpc_port "$node"
-      _capture_node_logs "$node"
-      wait_for_rpc "$node" 120
-    done
-  fi
-
-  if [ "${#SCENARIO_VALIDATORS[@]}" -gt 0 ]; then
-    local attempt
-    for attempt in 1 2 3; do
-      if compose up -d "${SCENARIO_VALIDATORS[@]}" 2>&1 | grep -q "address already in use"; then
-        log "port bind race on attempt ${attempt}; tearing down and retrying"
-        compose down --remove-orphans >/dev/null 2>&1 || true
-        sleep 1
-        continue
-      fi
-      break
-    done
-    for node in "${SCENARIO_VALIDATORS[@]}"; do
-      _resolve_rpc_port "$node"
-      _capture_node_logs "$node"
-      wait_for_rpc "$node" 120
-    done
-  fi
-
-  write_compose_file
+  # Keep the original ephemeral mappings in the Compose spec. Resolved host
+  # ports belong in inventory only, so recreation can allocate fresh ports.
   write_inventory
   log "started ${#SCENARIO_NODES[@]} node(s)"
 }

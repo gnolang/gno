@@ -26,6 +26,17 @@ Scenarios run against one of two backends, selected with `RUNTIME`:
 - `docker` (default): every node and CLI command runs in a container.
 - `local`: nodes and CLI commands run from native binaries built into `bin/`.
 
+Local scenarios use Bash to avoid existing listeners and select distinct ports
+for their nodes. No extra allocation helper is needed. Run one local scenario
+at a time by default. For parallel local runs, configure disjoint ranges using
+all four `LOCAL_*_PORT_BASE` variables and use distinct scenario work directories.
+The probe does not reserve ports; readiness checks the local process and the
+expected node ID so a conflict cannot silently accept another node's RPC.
+
+Docker's generated Compose file retains ephemeral host-port mappings across
+restarts. Startup retries a failed service up to three times for bind conflicts,
+without tearing down other services. Explicit `--rpc-port` values stay fixed.
+
 The usage path is identical for both — only the value of `RUNTIME` changes. Build
 the dependencies with `make build`, then run any scenario the same way:
 
@@ -65,7 +76,10 @@ For `RUNTIME=docker`, `make build` builds three local Docker images:
 - `gnogenesis:local`: built from the root `Dockerfile` `gnocontribs` target
 - `valsignerd:local`: built from `misc/val-scenarios/Dockerfile`; contains only the scenario signer sidecar
 
-For `RUNTIME=local`, `make build RUNTIME=local` builds `gnoland`, `gnokey`, `gnogenesis`, and `valsignerd` into `bin/`.
+For `RUNTIME=local`, `make build RUNTIME=local` builds `gnoland`, `gnokey`,
+`gnogenesis`, and `valsignerd` into `bin/`. Override `BIN_DIR` to
+choose another output directory; relative paths are resolved from the directory
+where Make runs.
 
 Override image tags with `IMAGE=...`, `GNOKEY_IMAGE=...`, `GNOGENESIS_IMAGE=...`, and `VALSIGNER_IMAGE=...` if needed. By default, `GNOKEY_IMAGE` is the same image as `IMAGE`.
 

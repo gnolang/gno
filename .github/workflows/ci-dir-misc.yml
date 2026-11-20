@@ -41,6 +41,7 @@ jobs:
           - gnopreview
           - goscan
           - loop
+          - val-scenarios
     name: ${{ matrix.program }}
     uses: ./.github/workflows/_ci-go.yml
     with:
