@@ -525,8 +525,6 @@ func (opts *TestOptions) runTestFiles(
 	// every fresh object's ObjectInfo.PkgID stays zero, which lets the
 	// borrow rule (recvOID.IsZero() short-circuit) mask interrealm bugs.
 	alloc := gno.NewAllocator(math.MaxInt64)
-	// The store and the machines share it, so preprocessing is charged too.
-	tgs.SetAllocator(alloc)
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(nil)
 
