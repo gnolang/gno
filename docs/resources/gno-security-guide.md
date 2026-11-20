@@ -171,7 +171,7 @@ A top-level `/p/` function value (a `FuncDecl`, not a closure) is the
 same: `fn(internalState)` calls a value, not a name in `/r/V`'s source,
 so it runs view-only. Only a call that names the function
 (`lib.Apply(internalState)`), or reads it from a `/p/` package-level
-variable (`lib.Handlers[k](internalState)`, fixed after init), acts for
+variable (`lib.Handlers[k] (internalState)`, fixed after init), acts for
 `/r/V`; `/r/V`'s own callback reached through such a call keeps `/r/V`'s
 authority.
 

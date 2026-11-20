@@ -1204,14 +1204,14 @@ var Table = map[string]func(func()){"run": Run}              // a table of funct
 func Each(bs []*Box, f func(*Box)) { for _, b := range bs { f(b) } } // calls f on each box
 func Inc(b *Box) { b.N++ }                                   // writes its argument
 var Handlers = map[string]func(*Box){"inc": Inc}             // the library's own table
-func Dispatch(k string, b *Box) { Handlers[k](b) }           // reaches Inc through that table
+func Dispatch(k string, b *Box) { Handlers[k] (b) }           // reaches Inc through that table
 
 // realm a: gno.land/r/tests/vm/ctw (owner of Count and Boxes)
 var Count int                                               // a's stored counter
 var Boxes = []*libtable.Box{{N: 1}, {N: 2}}                 // a's objects, sum 3
 
 func ViaApply(cur realm)    { libtable.Apply(func() { Count++ }) }        // via a package variable
-func ViaTable(cur realm)    { libtable.Table["run"](func() { Count++ }) } // via a table entry
+func ViaTable(cur realm)    { libtable.Table["run"] (func() { Count++ }) } // via a table entry
 func ViaLocal(cur realm) {                                  // a local copy of a declared function
 	each := libtable.Each                                   // made in a's crossing code: keeps the maker
 	each(Boxes, func(b *libtable.Box) { b.N++ })            // acts like libtable.Each (S3)
@@ -1244,7 +1244,7 @@ sequenceDiagram
     participant A as realm a (ctw, owner)
     participant L as library (libtable)
     B->>A: tx 1 cross(cur) ViaApply() / ViaTable()
-    A->>L: plain call Apply(f) / Table["run"](f)
+    A->>L: plain call Apply(f) / Table["run"] (f)
     L->>A: f(), Count++
     Note over A,L: writable as a, Count 0 -> 2
     A-->>B: Count read
@@ -2124,7 +2124,7 @@ sequenceDiagram
   id. Advice: never call function values found in caller-supplied containers.
 - A value fetched by read-only code (`zrealm_home_ro_relay.gno`) has no maker either, and a value stored and read back has none, so the escaped-container,
   local-reference, name collision and own-crossing-helper cases all run read-only (`zrealm_saved_*`).
-- A library table entry is the one surprise: the same entry writes when called in place (`lib.Table[k](x)`) and is refused once copied to a local. In place,
+- A library table entry is the one surprise: the same entry writes when called in place (`lib.Table[k] (x)`) and is refused once copied to a local. In place,
   `zrealm_ctw_owncb.gno`'s `ViaDispatch` pins the write (`Handlers["inc"]` reaches `Inc`, which writes `Boxes[0].N`; `ViaTable` alone proves nothing, its
   `Count++` is ctw's own closure); copied to a local, `zrealm_saved_libtable_copy` calls `cbsaved.LibCopy`, refused with Error `cannot modify object owned by
   another realm from library code (call a function of the owning realm): b<VPBlock(1,0)>.N`, while a declared function named as a value (`each :=

@@ -79,7 +79,7 @@ directories) under `examples/gno.land/r`.
 | Print CurrentRealm/PreviousRealm from a plain (non-crossing) function | zrealm_crossrealm13 | OUT: From main: PR() CurrentRealm: CodeRealm{...} | R1 | b, i |
 | Same, with a crossing `PrintRealm(cur realm)` helper | zrealm_crossrealm13a | OUT: From main: PrintRealm: CurrentRealm: CodeRealm{...} | R1 | a, i |
 | Print cur/prev through a render helper taking `cur` and formatting addresses | zrealm_crossrealm13a_cur | OUT: PrintRealm: PreviousRealm: UserRealm{...} | R1 | a, i |
-| Foreign method takes a pointer to the caller's object and writes it | zrealm_crossrealm14 | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): c<VPBlock | R1 | c, j |
+| Foreign method takes a pointer to the caller's object and writes it | zrealm_crossrealm14 | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): c&lt;VPBlock | R1 | c, j |
 | Crossing method `Foo(cur realm)` on a foreign object, then plain `Bar` | zrealm_crossrealm15 | OUT: init / hello gno.land/r/crossrealm | R1, R6 | j |
 | Same shape without crossing (plain method call on foreign object) | zrealm_crossrealm15b | ERR: cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm | R1, R6 | j |
 | Crossing method call from main, printing three cur values | zrealm_crossrealm16 | OUT: hello gno.land/r/crossrealm / hello gno.land/r/tests/vm/crossrealm | R1 | j |
@@ -97,7 +97,7 @@ directories) under `examples/gno.land/r`.
 | Print previous address and pkgpath across a two-realm chain | zrealm_crossrealm23 | OUT: g1kscy... gno.land/r/tests/vm / g1h2y7... gno.land/r/crossrealm | R1 | i |
 | Pass `&struct{A int}` pointer into another realm's gate and read it back | zrealm_crossrealm24 | OUT: &(struct{(123 int)} gno.land/r/crossrealm.Struct) 1 | R2 | d |
 | Set a field of the caller's struct through the other realm's gate | zrealm_crossrealm25 | OUT: s := &Struct{A: 100} / crossrealm_b.SetObject(cross, &s.A) | R1, R2 | a, d |
-| Stored pointer then incremented by the other realm's gate | zrealm_crossrealm25a | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): *(ptr<VPBlock | R1, R2 | b |
+| Stored pointer then incremented by the other realm's gate | zrealm_crossrealm25a | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): *(ptr&lt;VPBlock | R1, R2 | b |
 | Same as 25 but with a local field write between the two crossing calls | zrealm_crossrealm25b | OUT: s.A = 123 / &(struct{(123 int)} gno.land/r/crossrealm.Struct) | R1, R2 | d |
 | Stored global pointer written after being handed to the other realm | zrealm_crossrealm25c | OUT: s_g = s / s_g.A = 123 | R1, R2 | b |
 | Pointer to a struct field of another realm kept after the call | zrealm_crossrealm26 | OUT: &(struct{(123 int)} gno.land/r/crossrealm.Struct) | R2 | b |
@@ -127,13 +127,13 @@ directories) under `examples/gno.land/r`.
 | Gate calls a plain callback supplied by the caller | zrealm_ctw_callback | ERR: gno.land/r/ctw_callback's code was entered without crossing and is read-only (call its crossing function) | R1 | e |
 | Gate calls a crossing callback with `cross(cur)` | zrealm_ctw_callbackx | OUT: 1 | R1 | e |
 | Gate runs its own stored callbacks (own table, own helpers) | zrealm_ctw_owncb | OUT: count: 2 / boxes: 6 | R1 | c, f |
-| Non-crossing method of a stored object writes its field | zrealm_ctw_method | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): l<V | R1 | j |
-| Caller-supplied callback stored then fired later | zrealm_ctw_pending | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): l<V | S3 fn-rule | g |
+| Non-crossing method of a stored object writes its field | zrealm_ctw_method | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): l&lt;V | R1 | j |
+| Caller-supplied callback stored then fired later | zrealm_ctw_pending | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): l&lt;V | S3 fn-rule | g |
 | Caller holds a bound setter from the victim and calls it | zrealm_ctw_boundsetter | ERR: gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function) | R4 fn-rule | f |
 | Value conversion of a library callback type passed through the gate | zrealm_ctw_conv | OUT: 3 7 | R1 | c |
-| Gate iterates a caller-supplied container of callbacks | zrealm_ctw_iter | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): it< | R1 | c, e |
+| Gate iterates a caller-supplied container of callbacks | zrealm_ctw_iter | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): it&lt; | R1 | c, e |
 | Callback handed to the gate by the caller, fired inside the gate | zrealm_ctw_handedcb | ERR: gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): (co | R1 | e |
-| Gate constructor runs a callback before the object is stored | zrealm_ctw_ctor | OUT: 5 then ERR: ... entered without crossing: l<V | R1 | e |
+| Gate constructor runs a callback before the object is stored | zrealm_ctw_ctor | OUT: 5 then ERR: ... entered without crossing: l&lt;V | R1 | e |
 | Gate recovers a panic raised by library code and prints the value | zrealm_ctw_recover | OUT: recovered: boom / count: 1 / value: boom | R1 | l |
 | Render path calls the gate and prints rows | zrealm_ctw_render | OUT: rows:xx | R1 | a, k |
 
@@ -181,49 +181,49 @@ directories) under `examples/gno.land/r`.
 | Escaped pointer from the victim written by caller code | zrealm_entry_escaped_ptr | OUT: escaped: cannot modify object owned by another realm from library code | R1 | b, c |
 | Fresh foreign object created by the caller and written | zrealm_entry_fresh_object | OUT: fresh foreign: cannot modify object owned by another realm from library code | R1 | c |
 | Interface value holding the victim's object, method called | zrealm_entry_iface | OUT: owner wrote: v1 then ERR: cannot modify object owned by another realm | R1, R6 | h |
-| Type assertion to a concrete victim type then field write | zrealm_entry_iface_assert | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1 | h |
-| Asserted type written inside a deferred closure | zrealm_entry_iface_defer | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1 | h, l |
-| Interface embedding another interface, method resolution | zrealm_entry_iface_embed | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Embedded pointer type satisfying the interface | zrealm_entry_iface_embedptr | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Interface produced by a generic constructor | zrealm_entry_iface_gen | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Interface value stored in a map, then called | zrealm_entry_iface_map | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Interface made by a `func() I` helper | zrealm_entry_iface_mkh | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Method value taken from an interface value and called | zrealm_entry_iface_mv | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Method value from an interface applied by a library `Apply` | zrealm_entry_iface_mvapply | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R4 fn-rule | f, h |
-| Method value from an interface passed as an argument | zrealm_entry_iface_mvarg | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R4 fn-rule | f, h |
-| Pointer-typed interface value method value | zrealm_entry_iface_mvp | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Interface method value stored then called | zrealm_entry_iface_mvstored | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | S3 fn-rule | g, h |
+| Type assertion to a concrete victim type then field write | zrealm_entry_iface_assert | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1 | h |
+| Asserted type written inside a deferred closure | zrealm_entry_iface_defer | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1 | h, l |
+| Interface embedding another interface, method resolution | zrealm_entry_iface_embed | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Embedded pointer type satisfying the interface | zrealm_entry_iface_embedptr | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Interface produced by a generic constructor | zrealm_entry_iface_gen | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Interface value stored in a map, then called | zrealm_entry_iface_map | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Interface made by a `func() I` helper | zrealm_entry_iface_mkh | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Method value taken from an interface value and called | zrealm_entry_iface_mv | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Method value from an interface applied by a library `Apply` | zrealm_entry_iface_mvapply | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R4 fn-rule | f, h |
+| Method value from an interface passed as an argument | zrealm_entry_iface_mvarg | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R4 fn-rule | f, h |
+| Pointer-typed interface value method value | zrealm_entry_iface_mvp | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Interface method value stored then called | zrealm_entry_iface_mvstored | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | S3 fn-rule | g, h |
 | Named interface with a value receiver | zrealm_entry_iface_named | OUT: named: pwnd-via-iface / iface: pwnd-via-iface | R1 | h |
-| Primitive-based type with a method satisfying the interface | zrealm_entry_iface_prim | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Pointer receiver type satisfying the interface | zrealm_entry_iface_ptr | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Interface value stored in the victim's state, then called | zrealm_entry_iface_stored | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Stored pointer-to-interface | zrealm_entry_iface_storedptr | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Stored interface holding a value (not pointer) | zrealm_entry_iface_storedval | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Sub-interface of the victim's interface | zrealm_entry_iface_sub | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Type switch over several interface implementations | zrealm_entry_iface_switch | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,1)>.Field | R1, R6 | h |
-| Interface value on an object that was never stamped by its realm | zrealm_entry_iface_unstamped | ERR: cannot modify object owned by another realm from library code: tree<VPBlock(1,0)>.node | R1, R6 | h |
+| Primitive-based type with a method satisfying the interface | zrealm_entry_iface_prim | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Pointer receiver type satisfying the interface | zrealm_entry_iface_ptr | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Interface value stored in the victim's state, then called | zrealm_entry_iface_stored | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Stored pointer-to-interface | zrealm_entry_iface_storedptr | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Stored interface holding a value (not pointer) | zrealm_entry_iface_storedval | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Sub-interface of the victim's interface | zrealm_entry_iface_sub | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Type switch over several interface implementations | zrealm_entry_iface_switch | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,1)>.Field | R1, R6 | h |
+| Interface value on an object that was never stamped by its realm | zrealm_entry_iface_unstamped | ERR: cannot modify object owned by another realm from library code: tree&lt;VPBlock(1,0)>.node | R1, R6 | h |
 | Multi-method interface, one method writes | zrealm_entry_iface_multi | OUT: hi / victim: victim-orig (write refused, state intact) | R1, R6 | h |
 | Interface wrapper delegating directly to the victim object | zrealm_entry_iface_wrap_direct | OUT: direct | R1 | h |
 | Interface wrapper holding an interface value | zrealm_entry_iface_wrap_iface | OUT: iface | R1 | h |
 | Interface wrapper holding an interface value with a value receiver | zrealm_entry_iface_wrap_ifacev | OUT: ifacev | R1 | h |
 | Bound method value of the victim's object called by a stranger | zrealm_entry_method_value | OUT: stranger call: cannot modify object owned by another realm from library code | R4 fn-rule | f |
 | `mutable()` builtin no longer exists | zrealm_entry_no_mutable | ERR: name mutable not declared | R1 | MISSING |
-| Library `call(cur, f)` runs a caller closure that writes the caller's realm | zrealm_entry_p_closure | OUT: p closure: cannot modify object owned by another realm from library code: b<~VPBlock(1,0)>.N | R1 | e |
+| Library `call(cur, f)` runs a caller closure that writes the caller's realm | zrealm_entry_p_closure | OUT: p closure: cannot modify object owned by another realm from library code: b&lt;~VPBlock(1,0)>.N | R1 | e |
 | Nested closure literal in library code writing a captured victim object | zrealm_entry_p_closure_nested | OUT: lit: gno.land/r/demo/entrynestclosure's code was entered without crossing | R1 | e |
 | Library handle taking the victim object and calling its writer | zrealm_entry_p_handle | OUT: writer: cannot modify object owned by another realm from library code | R1 | c, h |
-| Library declares an anonymous writer fn over the victim's type | zrealm_entry_pfunc_anon | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R1 | f |
-| Library writer takes `[]any` and writes through it | zrealm_entry_pfunc_anyslice | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R1 | f |
-| Library writer over an array of the victim's type | zrealm_entry_pfunc_arr | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R1 | f |
-| Victim's declared writer handed to `pfuncbind.Apply` | zrealm_entry_pfunc_echo | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R4 fn-rule | f |
-| Same through a map of function values | zrealm_entry_pfunc_map | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R4 fn-rule | f |
-| Named function value stored in the victim's package var | zrealm_entry_pfunc_pkgvar | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field | S3 fn-rule | g |
-| Receiver method value handed to a library `Apply` | zrealm_entry_pfunc_recv | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R4 fn-rule | f |
-| Receiver method value with a receiver-typed argument | zrealm_entry_pfunc_recvr | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R4 fn-rule | f |
-| Same-package (p) writer applied to the victim's object | zrealm_entry_pfunc_samepkg | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,0)>.Field | R1, R6 | f, h |
-| Writer over a slice of the victim's type | zrealm_entry_pfunc_slice | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R1 | f |
+| Library declares an anonymous writer fn over the victim's type | zrealm_entry_pfunc_anon | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1 | f |
+| Library writer takes `[]any` and writes through it | zrealm_entry_pfunc_anyslice | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1 | f |
+| Library writer over an array of the victim's type | zrealm_entry_pfunc_arr | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1 | f |
+| Victim's declared writer handed to `pfuncbind.Apply` | zrealm_entry_pfunc_echo | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R4 fn-rule | f |
+| Same through a map of function values | zrealm_entry_pfunc_map | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R4 fn-rule | f |
+| Named function value stored in the victim's package var | zrealm_entry_pfunc_pkgvar | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i&lt;VPBlock(1,0)>.Field | S3 fn-rule | g |
+| Receiver method value handed to a library `Apply` | zrealm_entry_pfunc_recv | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R4 fn-rule | f |
+| Receiver method value with a receiver-typed argument | zrealm_entry_pfunc_recvr | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R4 fn-rule | f |
+| Same-package (p) writer applied to the victim's object | zrealm_entry_pfunc_samepkg | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,0)>.Field | R1, R6 | f, h |
+| Writer over a slice of the victim's type | zrealm_entry_pfunc_slice | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1 | f |
 | Victim sorts its own slice of its own objects | zrealm_entry_pfunc_sortown | OUT: slice[(1 int),(2 int),(3 int)] (write lands) | R1 | c |
-| Named function value applied from a package var | zrealm_entry_pfunc_var | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R4 fn-rule | f |
-| Library writer obtained from a view-only caller | zrealm_entry_pfunc_viewonly_from | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R1, R6 | f, h |
+| Named function value applied from a package var | zrealm_entry_pfunc_var | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R4 fn-rule | f |
+| Library writer obtained from a view-only caller | zrealm_entry_pfunc_viewonly_from | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1, R6 | f, h |
 | Promoted method through an embedded victim object | zrealm_entry_promoted | OUT: owner wrote: v1 / promoted: cannot modify object owned by another realm | R1 | j |
 | Victim's registry of crossing functions called with `cross(cur)` | zrealm_entry_registry_fn | OUT: start: 0 / after: 5 | R1 | f |
 
@@ -244,7 +244,7 @@ directories) under `examples/gno.land/r`.
 | `any` holding an interface value | zrealm_fv_anyp_iface | OUT: 1 | R2 | h |
 | `any` with an untyped nil | zrealm_fv_anyp_nil | OUT: true | R2 | d |
 | `any` holding a value of the victim's declared type | zrealm_fv_anyp_val | ERR: cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer) | R2 | d |
-| Write through `any` holding the victim's pointer | zrealm_fv_anyp_write | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): x<VPBlock(1,1)> | R1, R2 | b |
+| Write through `any` holding the victim's pointer | zrealm_fv_anyp_write | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): x&lt;VPBlock(1,1)> | R1, R2 | b |
 | `append(spread...)` of the victim's values | zrealm_fv_append_spread | ERR: cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer) | R2 | d |
 | Array of the victim's named type allocated by the caller | zrealm_fv_arr | ERR: cannot allocate gno.land/r/tests/vm/fvx.H in realm gno.land/r/fvarr | R2 | d |
 | Array of an anonymous struct of the victim's type | zrealm_fv_arr_anon | ERR: cannot allocate gno.land/r/tests/vm/fvx.T in realm gno.land/r/fvarranon | R2 | d |
@@ -292,19 +292,19 @@ directories) under `examples/gno.land/r`.
 |---|---|---|---|---|
 | Victim declares its own writer `set(*Immutable)`; caller applies it | zrealm_maker_ownfunc | OUT: field: own (write lands) | S3 fn-rule | f |
 | Two writers adopted from another realm's `Writers()` getter | zrealm_maker_adopted_foreign | OUT: x refused: gno.land/r/tests/vm/cbvictim's code was entered without crossing | R4 fn-rule | f |
-| Getter returns a declared writer of the victim | zrealm_maker_getdecl | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | f |
-| Getter returns a method value of a victim object | zrealm_maker_getmv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Name | S3 fn-rule | f |
-| Getter returns a function value stored in victim state | zrealm_maker_getst | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Name | S3 fn-rule | f, g |
+| Getter returns a declared writer of the victim | zrealm_maker_getdecl | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | f |
+| Getter returns a method value of a victim object | zrealm_maker_getmv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f |
+| Getter returns a function value stored in victim state | zrealm_maker_getst | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f, g |
 | Getter returns a value from the victim's package var | zrealm_maker_getter | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(...cbvictim) package{})) | S3 fn-rule | f |
-| Victim hands a writer back to the caller which then calls it | zrealm_maker_handback | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | R4 fn-rule | f |
-| Method value taken from an interface held by the victim | zrealm_maker_ifacemv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Name | S3 fn-rule | f, h |
-| Same, with the call made through the victim's gate | zrealm_maker_ifacemv_gate | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Name | S3 fn-rule | f, h |
-| Method expression `T.M` of a victim type | zrealm_maker_methodexpr | ERR: cbvictim's code was entered without crossing and is read-only: t<VPBlock(1,0)>.Name | S3 fn-rule | f |
-| Bound method value `obj.M` of a victim object | zrealm_maker_methodvalue | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Name | S3 fn-rule | f |
+| Victim hands a writer back to the caller which then calls it | zrealm_maker_handback | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | R4 fn-rule | f |
+| Method value taken from an interface held by the victim | zrealm_maker_ifacemv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f, h |
+| Same, with the call made through the victim's gate | zrealm_maker_ifacemv_gate | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f, h |
+| Method expression `T.M` of a victim type | zrealm_maker_methodexpr | ERR: cbvictim's code was entered without crossing and is read-only: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f |
+| Bound method value `obj.M` of a victim object | zrealm_maker_methodvalue | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f |
 | Victim's own closure (declared in victim source) called by caller | zrealm_maker_ownclosure | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(...cbvictim) package{})) | S3 fn-rule | f |
-| Method value of a value-receiver method on a struct field | zrealm_maker_valmv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: v<VPBlock(1,0)>.P.Name | S3 fn-rule | f |
-| Same through a gate, after the struct was passed in | zrealm_maker_valmv_gate | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: v<VPBlock(1,0)>.P.Name | S3 fn-rule | f |
-| Function value wrapped in another function value | zrealm_maker_wrapped | ERR: cbvictim's code was entered without crossing and is read-only: Owner<~VPBlock(3,0)> | S3 fn-rule | f |
+| Method value of a value-receiver method on a struct field | zrealm_maker_valmv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: v&lt;VPBlock(1,0)>.P.Name | S3 fn-rule | f |
+| Same through a gate, after the struct was passed in | zrealm_maker_valmv_gate | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: v&lt;VPBlock(1,0)>.P.Name | S3 fn-rule | f |
+| Function value wrapped in another function value | zrealm_maker_wrapped | ERR: cbvictim's code was entered without crossing and is read-only: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | f |
 
 ## 8. Laundering a foreign object through methods and callbacks (`zrealm_launder_*`)
 
@@ -313,18 +313,18 @@ directories) under `examples/gno.land/r`.
 | Local type with a method copying a victim object | zrealm_launder_a_value_copy | ERR: cannot copy gno.land/r/laundera.ExploiterA outside realm gno.land/r/laundera (use a pointer) | R2, R6 | h |
 | Local method with a pointer parameter writing the victim object | zrealm_launder_b_pointer_write | ERR: cannot copy gno.land/r/launderb.ExploiterB outside realm gno.land/r/launderb (use a pointer) | R2, R6 | h |
 | Library (p) method receiving the victim object writes a field | zrealm_launder_c_pmethod | OUT: before: original-ptr then ERR: cannot modify object owned by another realm | R1 | c, h |
-| Direct field write from library code on the victim pointer | zrealm_launder_d_pattack_direct | ERR: cannot modify object owned by another realm from library code: o<VPBlock(1,0)>.Field | R1 | c |
+| Direct field write from library code on the victim pointer | zrealm_launder_d_pattack_direct | ERR: cannot modify object owned by another realm from library code: o&lt;VPBlock(1,0)>.Field | R1 | c |
 | Write via a method on a library type holding the pointer | zrealm_launder_e_pattack_via_method | OUT: before: original-ptr then ERR: cannot modify object owned by another realm | R1 | c, h |
-| Write via a method with a receiver holding the pointer | zrealm_launder_f_pattack_receiver | ERR: cannot modify object owned by another realm from library code: o<VPBlock(1,1)>.Field | R1 | c |
+| Write via a method with a receiver holding the pointer | zrealm_launder_f_pattack_receiver | ERR: cannot modify object owned by another realm from library code: o&lt;VPBlock(1,1)>.Field | R1 | c |
 | Type pun over a readonly value | zrealm_launder_g_typepun | ERR: illegal conversion of readonly or externally stored value | R6 | d |
 | Library callback receiving the victim pointer writes it | zrealm_launder_h_pcallback | OUT: before: original-imm then ERR: cannot modify object owned by another realm | R1 | c, e |
 | Same with a nil receiver trick | zrealm_launder_i_nilrecv | OUT: before: original-imm then ERR: cannot modify object owned by another realm | R1 | c |
 | Evil func, slice and map values applied to the victim object | zrealm_launder_j_otherniltypes | OUT: EvilFunc: cannot modify object owned by another realm | R1 | e, f |
-| Slice parameter aliasing the victim's slice | zrealm_launder_k_sliceparam | OUT: before: original-imm then ERR: cannot modify object: s<VPBlock(1,1)>[0] | R1, R2 | c |
-| `any` parameter holding the victim pointer | zrealm_launder_l_anyparam | OUT: before: original-imm then ERR: cannot modify object: t<VPBlock(1,2)>.Field | R1 | c |
-| Receiver type stamped by the receiver's package | zrealm_launder_m_pstamp_recv | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,1)>.Field | R1 | c |
-| Stdlib receiver (`copy` into a foreign slice) | zrealm_launder_n_stdlib_recv | ERR: cannot directly modify readonly tainted object: dst<VPBlock(1,1)>) | R1, R2 | d |
-| Closure over a receiver-stamped object | zrealm_launder_o_pstamp_closure | ERR: cannot modify object owned by another realm from library code: o<VPBlock(1,0)>.Field | R1 | c |
+| Slice parameter aliasing the victim's slice | zrealm_launder_k_sliceparam | OUT: before: original-imm then ERR: cannot modify object: s&lt;VPBlock(1,1)>[0] | R1, R2 | c |
+| `any` parameter holding the victim pointer | zrealm_launder_l_anyparam | OUT: before: original-imm then ERR: cannot modify object: t&lt;VPBlock(1,2)>.Field | R1 | c |
+| Receiver type stamped by the receiver's package | zrealm_launder_m_pstamp_recv | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,1)>.Field | R1 | c |
+| Stdlib receiver (`copy` into a foreign slice) | zrealm_launder_n_stdlib_recv | ERR: cannot directly modify readonly tainted object: dst&lt;VPBlock(1,1)>) | R1, R2 | d |
+| Closure over a receiver-stamped object | zrealm_launder_o_pstamp_closure | ERR: cannot modify object owned by another realm from library code: o&lt;VPBlock(1,0)>.Field | R1 | c |
 | Pointer launder through a package var (`pdata_ptr_deref`) | zrealm_launder_pdata_ptr_deref | OUT: pwnd-via-pdata-ptr-launder (write lands) | S3 fn-rule | MISSING |
 | Value launder through a package var (`pdata_value_copy`) | zrealm_launder_pdata_value_copy | OUT: pwnd-via-pdata-value-launder (write lands) | R2, R4 fn-rule | MISSING |
 
@@ -332,10 +332,10 @@ directories) under `examples/gno.land/r`.
 
 | Scenario | Fixtures | Outcome | Rule | Pattern |
 |---|---|---|---|---|
-| Bare embedded field reached through an older stored value | zrealm_launder_rdata_bare_embed | ERR: cannot directly modify readonly tainted object: w<VPBlock(1,1)>.Bare.Field | R1, R2 | b, d |
-| Bare pointer embedded in the victim object | zrealm_launder_rdata_bare_ptr | ERR: cannot directly modify readonly tainted object: w<VPBlock(1,1)>.Inner.Field | R1, R2 | b |
-| Same with a value embed | zrealm_launder_rdata_bare_val | ERR: cannot directly modify readonly tainted object: w<VPBlock(1,1)>.Inner.Field | R1, R2 | b |
-| Callback over a stored victim object | zrealm_launder_rdata_callback | ERR: gno.land/r/launderrh3's code was entered without crossing and is read-only: i<VPBlock(1,0)>.Field | R1 | e |
+| Bare embedded field reached through an older stored value | zrealm_launder_rdata_bare_embed | ERR: cannot directly modify readonly tainted object: w&lt;VPBlock(1,1)>.Bare.Field | R1, R2 | b, d |
+| Bare pointer embedded in the victim object | zrealm_launder_rdata_bare_ptr | ERR: cannot directly modify readonly tainted object: w&lt;VPBlock(1,1)>.Inner.Field | R1, R2 | b |
+| Same with a value embed | zrealm_launder_rdata_bare_val | ERR: cannot directly modify readonly tainted object: w&lt;VPBlock(1,1)>.Inner.Field | R1, R2 | b |
+| Callback over a stored victim object | zrealm_launder_rdata_callback | ERR: gno.land/r/launderrh3's code was entered without crossing and is read-only: i&lt;VPBlock(1,0)>.Field | R1 | e |
 | Composite writes: field write, bare replace, pointer-slice write | zrealm_launder_rdata_composites | OUT: 1 slice[i].Field write blocked: true / 2 slice[i] = bare blocked: true | R2 | d |
 | Construct a victim-stamped object outside its realm | zrealm_launder_rdata_construct | ERR: cannot allocate gno.land/r/tests/vm/launderrvictim.Immutable in realm gno.land/r/launderrh4 | R2, R6 | d |
 | Conversion via chained anonymous types | zrealm_launder_rdata_conv_anon_chain | ERR: illegal conversion of readonly or externally stored value | R6 | d |
@@ -348,31 +348,31 @@ directories) under `examples/gno.land/r`.
 | Plain pointer conversion to the external type | zrealm_launder_rdata_conv_external_ptr | ERR: illegal conversion to external realm type | R6 | d |
 | Function-pointer conversion carrying a foreign object | zrealm_launder_rdata_conv_funcptr | ERR: gno.land/r/launderrh_conv_funcptr's code was entered without crossing | R1 | e |
 | `any` boxed pointer asserted back and written | zrealm_launder_rdata_conv_iface_box | OUT: 1 var any = ptr; .(*Bare).F= blocked: true | R2 | d, h |
-| Explicit interface assertion onto the victim pointer | zrealm_launder_rdata_conv_iface_explicit | ERR: cannot directly modify readonly tainted object: box<VPBlock(1,2)>.(*(typeval{...})) | R1 | b, h |
+| Explicit interface assertion onto the victim pointer | zrealm_launder_rdata_conv_iface_explicit | ERR: cannot directly modify readonly tainted object: box&lt;VPBlock(1,2)>.(*(typeval{...})) | R1 | b, h |
 | Pointer chain conversion | zrealm_launder_rdata_conv_ptr_chain | ERR: illegal conversion of readonly or externally stored value | R6 | d |
-| Slice conversion with the same underlying type | zrealm_launder_rdata_conv_slice_same_underlying | ERR: ... cannot convert s<VPBlock(1,1)> (of type []gno.land/p/demo/tests/lau | R6 | d |
+| Slice conversion with the same underlying type | zrealm_launder_rdata_conv_slice_same_underlying | ERR: ... cannot convert s&lt;VPBlock(1,1)> (of type []gno.land/p/demo/tests/lau | R6 | d |
 | Subslice conversion | zrealm_launder_rdata_conv_subslice | ERR: illegal conversion of readonly or externally stored value | R6 | d |
 | Value pun converted in place (local copy written, victim intact) | zrealm_launder_rdata_conv_val_pun | OUT: local tv.Field: local-pwnd / victim slice[0]: slice0 | R2 | d |
 | Value copy then address taken | zrealm_launder_rdata_conv_val_then_addr | OUT: 3 &s[0] write blocked: true | R2 | d |
-| Embedded p-field receiver write | zrealm_launder_rdata_embed_p | OUT: before: embed-orig then ERR: cannot modify object: i<VPBlock(1,0)>.Field | R1 | c |
+| Embedded p-field receiver write | zrealm_launder_rdata_embed_p | OUT: before: embed-orig then ERR: cannot modify object: i&lt;VPBlock(1,0)>.Field | R1 | c |
 | Exotic write shapes: `+=`, multi-return swap, `(*p).Field` | zrealm_launder_rdata_exotic | OUT: 1 += on field blocked: true / 2 multi-return swap blocked: true | R1 | b |
 | `any` assertion write, function path, `[]any` element | zrealm_launder_rdata_iface | OUT: 1 any.(*Bare).Field write blocked: true | R1 | b, h |
 | `any` parameter typed as the victim's pointer | zrealm_launder_rdata_l_anyparam | ERR: *gno.land/r/tests/vm/launderrvictim.Immutable is not of type *gno.land/p/demo/tests/launderpkg/v0.Immutable | R6 | h |
-| `any` parameter through a readonly receiver | zrealm_launder_rdata_lr_anyparam | ERR: gno.land/r/launderrh2's code was entered without crossing: t<VPBlock(1,2)>.Field | R1 | e |
-| Method value applied via a trampoline function | zrealm_launder_rdata_mv_apply_trampoline | ERR: gno.land/r/launderrh_mv_apply_trampoline's code was entered without crossing: i<VPBlock(1,0)>.Field | R1 | f |
-| Attacker's stored method value fired later | zrealm_launder_rdata_mv_attacker_stored_mv | OUT: before: embed-orig then ERR: cannot modify object: i<VPBlock(1,0)>.Field | S3 fn-rule | g |
+| `any` parameter through a readonly receiver | zrealm_launder_rdata_lr_anyparam | ERR: gno.land/r/launderrh2's code was entered without crossing: t&lt;VPBlock(1,2)>.Field | R1 | e |
+| Method value applied via a trampoline function | zrealm_launder_rdata_mv_apply_trampoline | ERR: gno.land/r/launderrh_mv_apply_trampoline's code was entered without crossing: i&lt;VPBlock(1,0)>.Field | R1 | f |
+| Attacker's stored method value fired later | zrealm_launder_rdata_mv_attacker_stored_mv | OUT: before: embed-orig then ERR: cannot modify object: i&lt;VPBlock(1,0)>.Field | S3 fn-rule | g |
 | Higher-order chain of method values | zrealm_launder_rdata_mv_higher_order_chain | OUT: before: embed-orig then ERR: cannot modify object | R1 | f |
 | Immutable hook applied to a method value | zrealm_launder_rdata_mv_immhook_apply | OUT: before: embed-orig then ERR: cannot modify object | R1 | f |
-| Method expression on the victim's type | zrealm_launder_rdata_mv_method_expr | ERR: cannot modify object owned by another realm from library code: i<VPBlock(1,0)>.Field | R1 | f |
+| Method expression on the victim's type | zrealm_launder_rdata_mv_method_expr | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1 | f |
 | Method value on the victim's object | zrealm_launder_rdata_mv_method_value | OUT: before: embed-orig then ERR: cannot modify object | R1 | f |
 | Plain hook applied to a value | zrealm_launder_rdata_mv_plainhook_apply | OUT: before: embed-orig then ERR: cannot modify object | R1 | f |
 | Closure returned by the victim then called plainly | zrealm_launder_rdata_mv_returned_closure | OUT: plain closure: victim's code was entered without crossing and is read-only | R1 | e |
-| Bound method value stored in the victim's registry | zrealm_launder_rdata_mv_stored_bound_mv | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field | S3 fn-rule | g |
-| Stored hook function value in the handler realm | zrealm_launder_rdata_mv_stored_hook | ERR: gno.land/r/launderrh_mv_stored_hook's code was entered without crossing: i<VPBlock(1,0)>.Field | R1 | g |
+| Bound method value stored in the victim's registry | zrealm_launder_rdata_mv_stored_bound_mv | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i&lt;VPBlock(1,0)>.Field | S3 fn-rule | g |
+| Stored hook function value in the handler realm | zrealm_launder_rdata_mv_stored_hook | ERR: gno.land/r/launderrh_mv_stored_hook's code was entered without crossing: i&lt;VPBlock(1,0)>.Field | R1 | g |
 | Stored interface value holding a method | zrealm_launder_rdata_mv_stored_iface | OUT: before: embed-orig then ERR: cannot modify object | S3 fn-rule | g, h |
 | Tampered punned method value | zrealm_launder_rdata_mv_tamper_punned_mv | ERR: illegal conversion of readonly or externally stored value | R6 | d |
 | Attacker's defer writes a captured victim pointer | zrealm_launder_rdata_pdr_attacker_defer | OUT: B defer write via captured ptr blocked: true | R1 | l |
-| Deferred apply of a callback over the victim object | zrealm_launder_rdata_pdr_defer_apply | ERR: gno.land/r/launderrh_pdr_defer_apply's code was entered without crossing: i<VPBlock(1,0)>.Field | R1 | l |
+| Deferred apply of a callback over the victim object | zrealm_launder_rdata_pdr_defer_apply | ERR: gno.land/r/launderrh_pdr_defer_apply's code was entered without crossing: i&lt;VPBlock(1,0)>.Field | R1 | l |
 | Deferred callback write | zrealm_launder_rdata_pdr_defer_cb | ERR: gno.land/r/launderrh_pdr_defer_cb's code was entered without crossing | R1 | l |
 | Multi-level pointer laundering | zrealm_launder_rdata_pdr_multilevel | OUT: before: ptr-orig then ERR: cannot modify object | R1 | c |
 | Deferred apply of a p-function | zrealm_launder_rdata_pdr_p_defer_apply | OUT: before: ptr-orig then ERR: cannot modify object | R1 | l |
@@ -383,7 +383,7 @@ directories) under `examples/gno.land/r`.
 | Recover and retry the write | zrealm_launder_rdata_pdr_recover_retry | ERR: gno.land/r/launderrh_pdr_recover_retry's code was entered without crossing | R1 | l |
 | Panic, recover, repanic, outer recover | zrealm_launder_rdata_pdr_repanic | OUT: 2 panic->recover->repanic->outer-recover blocked: false | R1 | l |
 | Victim recovers its own exception and retries | zrealm_launder_rdata_pdr_victim_recover | OUT: retry blocked: true | R1 | l |
-| Pointer field of the victim object (`*T` inside) | zrealm_launder_rdata_ptrfield_p | OUT: before: ptr-orig then ERR: cannot modify object: i<VPBlock(1,0)>.Field | R1 | c |
+| Pointer field of the victim object (`*T` inside) | zrealm_launder_rdata_ptrfield_p | OUT: before: ptr-orig then ERR: cannot modify object: i&lt;VPBlock(1,0)>.Field | R1 | c |
 | Local immutable type with a setter | zrealm_launder_rdata_typepun | ERR: illegal conversion of readonly or externally stored value | R6 | d |
 | Value field of the victim object | zrealm_launder_rdata_valfield_p | OUT: before: val-orig then ERR: cannot modify object | R1 | c |
 
@@ -393,21 +393,21 @@ directories) under `examples/gno.land/r`.
 |---|---|---|---|---|
 | Own-realm helper called from a gate writes (legal) | zrealm_home_own_helper | OUT: owner: own-helper | R1 | a, c |
 | Own table of function values fired by the gate | zrealm_home_own_table | OUT: owner: own-table | R1 | a, f |
-| Known package var of the victim reached from the caller | zrealm_home_exportvar | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | a |
-| Getter returns the victim's object | zrealm_home_getter | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | b |
-| Gate returns an object the caller then uses | zrealm_home_gate_result | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | a |
-| Victim object passed as an argument to caller code | zrealm_home_provider | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | c |
-| Victim object received as a receiver | zrealm_home_recv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | j |
-| Victim object nested in a struct field | zrealm_home_nested_struct | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | c |
-| Victim object inside an array argument | zrealm_home_array_arg | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | c |
-| Victim object inside a slice literal | zrealm_home_slice_lit | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | c |
-| Victim object in an interface argument | zrealm_home_iface_arg | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | h |
-| Method value of the victim's object | zrealm_home_methodvalue | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t<VPBlock(1,0)>.Name | S3 fn-rule | f |
-| Victim's defer argument captured by the caller | zrealm_home_defer_arg | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | l |
-| Victim panics after the caller's write attempt | zrealm_home_panic | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | l |
-| Caller relays the victim object to a third realm | zrealm_home_third | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | c |
-| Read-only relay: caller passes victim object to a library getter | zrealm_home_ro_relay | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | c |
-| Registry gate storing a caller function value | zrealm_home_registry | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | g |
+| Known package var of the victim reached from the caller | zrealm_home_exportvar | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | a |
+| Getter returns the victim's object | zrealm_home_getter | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | b |
+| Gate returns an object the caller then uses | zrealm_home_gate_result | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | a |
+| Victim object passed as an argument to caller code | zrealm_home_provider | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | c |
+| Victim object received as a receiver | zrealm_home_recv | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | j |
+| Victim object nested in a struct field | zrealm_home_nested_struct | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | c |
+| Victim object inside an array argument | zrealm_home_array_arg | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | c |
+| Victim object inside a slice literal | zrealm_home_slice_lit | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | c |
+| Victim object in an interface argument | zrealm_home_iface_arg | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | h |
+| Method value of the victim's object | zrealm_home_methodvalue | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f |
+| Victim's defer argument captured by the caller | zrealm_home_defer_arg | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | l |
+| Victim panics after the caller's write attempt | zrealm_home_panic | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | l |
+| Caller relays the victim object to a third realm | zrealm_home_third | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | c |
+| Read-only relay: caller passes victim object to a library getter | zrealm_home_ro_relay | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | c |
+| Registry gate storing a caller function value | zrealm_home_registry | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | g |
 | Crossing literal passed to the victim's gate | zrealm_home_crossing_lit | OUT: owner: lit / owner: crossed | R1 | a |
 | Known route: pointer | zrealm_home_known_ptr | OUT: owner: ptr | R1 | c |
 | Known route: map | zrealm_home_known_map | OUT: owner: map | R1 | c |
@@ -417,17 +417,17 @@ directories) under `examples/gno.land/r`.
 | Known route: relay table of function values | zrealm_home_known_relay_table | OUT: owner: table | R1 | f |
 | Known route: read-only relay picked by the caller | zrealm_home_known_ro_relay | OUT: owner: picked | R1 | c |
 | Victim iterates its own objects and calls its own library | zrealm_home_lib_iterate | OUT: owner: kick | R1 | c |
-| Victim library handle takes the object and writes | zrealm_home_libhandle | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,0)>.Field | R1 | c |
-| Handle to a crossing gate that writes | zrealm_handle_crossing | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | a |
+| Victim library handle takes the object and writes | zrealm_home_libhandle | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,0)>.Field | R1 | c |
+| Handle to a crossing gate that writes | zrealm_handle_crossing | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | a |
 | Handle to a gate obtained generically (`func Gate(cur realm)`) | zrealm_handle_crossing_ref | OUT: set | R1 | a |
 | Handle to a plain function observed, then called | zrealm_handle_foreign | OUT: pkgpath: gno.land/r/tests/vm/cbvictim / call: ... read-only | S3 fn-rule | f |
-| Own handle to own gate | zrealm_handle_gate_own | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | a |
-| Handle stored in a closure | zrealm_handle_inclosure | OUT: closure: ... read-only: Owner<~VPBlock(3,0)> / closure var: | S3 fn-rule | f, g |
-| Handle stored in an init-time variable | zrealm_handle_initvar | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)> | S3 fn-rule | f |
+| Own handle to own gate | zrealm_handle_gate_own | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | a |
+| Handle stored in a closure | zrealm_handle_inclosure | OUT: closure: ... read-only: Owner&lt;~VPBlock(3,0)> / closure var: | S3 fn-rule | f, g |
+| Handle stored in an init-time variable | zrealm_handle_initvar | ERR: cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner&lt;~VPBlock(3,0)> | S3 fn-rule | f |
 | Handle to a library gate that writes same-package state | zrealm_handle_lib_gate | OUT: lib: pwnd-same-pkg (write lands) | R1 | c |
-| Handle to a library function writing a foreign object | zrealm_handle_lib_ro | ERR: cannot modify object owned by another realm from library code: x<VPBlock(1,0)>.Field | R1 | c |
-| Handle to a method expression over the victim | zrealm_handle_mexpr | OUT: read-only: ... read-only: t<VPBlock(1,0)>.Name | S3 fn-rule | f |
-| hiv: real realm handler reached through a forged value | zrealm_hiv_real_rejected | ERR: cannot modify object owned by another realm from library code: c<~VPBlock(1,1)> | R1 | c |
+| Handle to a library function writing a foreign object | zrealm_handle_lib_ro | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,0)>.Field | R1 | c |
+| Handle to a method expression over the victim | zrealm_handle_mexpr | OUT: read-only: ... read-only: t&lt;VPBlock(1,0)>.Name | S3 fn-rule | f |
+| hiv: real realm handler reached through a forged value | zrealm_hiv_real_rejected | ERR: cannot modify object owned by another realm from library code: c&lt;~VPBlock(1,1)> | R1 | c |
 | hiv: unreal (borrowed) realm value tried as a handle | zrealm_hiv_unreal_borrow | OUT: stopped= true | R1 | MISSING |
 
 ## 11. Subrealms (`zrealm_sub_*`)
@@ -511,14 +511,14 @@ directories) under `examples/gno.land/r`.
 | init-time cur printing | zrealm_initctx | OUT: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm | R1 | MISSING |
 | `cur.IsCurrent()` inside a gate | zrealm_iscurrent | OUT: cur.IsCurrent(): true / cur.Previous().IsCurrent(): false | R1 | i |
 | List byte append into a foreign slice | zrealm_listbyte_append0 | OUT: 90 | R2 | d |
-| model token: library ledger moved by owner, refused by holder | zrealm_model_token | OUT: bob: 10 then ERR: cannot modify object owned by another realm: l<...>.bal[from] | R1 | c |
+| model token: library ledger moved by owner, refused by holder | zrealm_model_token | OUT: bob: 10 then ERR: cannot modify object owned by another realm: l&lt;...>.bal[from] | R1 | c |
 | natbind: natives bound in init and after | zrealm_natbind0 | OUT: 123 / dev | R1 | k |
 | natbind: package path from a native | zrealm_natbind1 | OUT: gno.land | R1 | k |
 | p-attacker via interface: victim write refused, state intact | zrealm_p_attacker_via_iface_filetest | OUT: caller Touch: cannot modify object... / after Touch A= 1 | R1 | h |
 | p-convert: converting a readonly foreign value | zrealm_p_convert_readonly_ok_filetest | ERR: cannot copy gno.land/r/tests/vm.Foo outside realm gno.land/r/tests/vm (use a pointer) | R2 | d |
 | Panic declared by a non-crossing realm method | zrealm_panic | ERR: panic | R1 | l |
 | `realm` value stored in the caller's state after the call | zrealm_r_stored_in_caller_filetest | OUT: B: LocalStruct{123} / CurrentRealm after return: gno.land/r/caller | R2 | b |
-| Readonly receiver: direct pointer write | zrealm_readonly_recv_direct | ERR: cannot directly modify readonly tainted object: p<VPBlock(1,1)>.Field | R1 | b |
+| Readonly receiver: direct pointer write | zrealm_readonly_recv_direct | ERR: cannot directly modify readonly tainted object: p&lt;VPBlock(1,1)>.Field | R1 | b |
 | Readonly receiver: mutate a package (not its realm state) | zrealm_readonly_recv_method | ERR: cannot mutate gno.land/p/demo/tests/v0: package is immutable post-init | R1 | MISSING |
 | Readonly receiver: value-receiver method writes its copy | zrealm_readonly_recv_method_val | OUT: after ModifyVal; v.Field = init (copy written, original intact) | R2 | d |
 | Runtime: nil pointer dereference inside a realm | zrealm_runtimeerror | OUT: runtime error: nil pointer dereference | R1 | l |
@@ -537,7 +537,7 @@ directories) under `examples/gno.land/r`.
 | Test utils address helpers | zrealm_testutils0 | OUT: g1w3jhxap3ta047h6... | R1 | k |
 | v2: `new` of a foreign declared type | zrealm_v2_construction_new_fail | ERR: cannot allocate gno.land/r/tests/vm/crossrealm.LocalStruct in realm gno.land/r/bar | R2 | d |
 | v2: composite literal of a foreign declared type | zrealm_v2_construction_composite_fail | ERR: cannot allocate gno.land/r/tests/vm/crossrealm.LocalStruct in realm gno.land/r/bar | R2 | d |
-| v2: mutate a foreign byte slice | zrealm_v2_foreign_mutate_unreal_bytes | ERR: gno.land/r/tests/vm/crossrealm_d's code was entered without crossing: bz<VPBlock(1,0)>[0] | R1 | b |
+| v2: mutate a foreign byte slice | zrealm_v2_foreign_mutate_unreal_bytes | ERR: gno.land/r/tests/vm/crossrealm_d's code was entered without crossing: bz&lt;VPBlock(1,0)>[0] | R1 | b |
 | value_ban: copy a foreign declared value after a gate ran | zrealm_value_ban | OUT: 1 2 then ERR: cannot copy gno.land/r/tests/vm/ctw.Local outside realm (use a pointer) | R2 | d |
 | value_ban2: allocate a foreign coupon type in a range | zrealm_value_ban2 | ERR: cannot allocate gno.land/r/tests/vm/valueban.Coupon in realm gno.land/r/valueban2 | R2 | d |
 
@@ -575,8 +575,8 @@ directories) under `examples/gno.land/r`.
 | rdata victim realm (Immutable, Bare, stored pointers) | r/tests/vm/launderrvictim/launderrvictim.gno | ERR: cannot directly modify readonly tainted object | R1, R2 | b, d |
 | Laundering victim realm (Object, pointer/value fields) | r/tests/vm/laundervictim/laundervictim.gno | ERR: cannot modify object owned by another realm | R1 | c |
 | Model token realm storing a library ledger | r/tests/vm/modeltoken/t.gno, p/demo/tests/modelledger/l.gno | OUT: bob: 10 then ERR: cannot modify ... .bal[from] | R1 | c |
-| Persisted closure cap fixture | r/tests/vm/persistedcap/persistedcap.gno | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): c<~VPBlock(1,1)> | S3 fn-rule | g |
-| Stored function value victim realm (`Hook Fn`) | r/tests/vm/pfuncvictim/v.gno | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field | S3 fn-rule | g |
+| Persisted closure cap fixture | r/tests/vm/persistedcap/persistedcap.gno | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): c&lt;~VPBlock(1,1)> | S3 fn-rule | g |
+| Stored function value victim realm (`Hook Fn`) | r/tests/vm/pfuncvictim/v.gno | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i&lt;VPBlock(1,0)>.Field | S3 fn-rule | g |
 | Realm composite literal fixture | r/tests/vm/realm_compositelit.gno | OUT: literal built and printed | R2 | d |
 | Realm method over 38 derived types | r/tests/vm/realm_method38d.gno | OUT: method set resolved per type | R6 | j |
 | Registry caller-identity fixtures (alias, noop, spoof, approve, from, user) | r/tests/vm/regalias, regnoop, regspoof, regspoofapprove, regspooffrom, regspoofuser, regzero | OUT: caller identity checks pass or refuse spoofing | R1 | i |
