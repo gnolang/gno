@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
-	"sync"
 	"sync/atomic"
 	"unsafe"
 
@@ -44,10 +43,8 @@ type Allocator struct {
 	// allocated in it carry the number and it may write them while unreal.
 	scratch uint32
 	// crossingID is the id of the crossing call running now; new function
-	// values record it. 0 under view-only/read-only code. fnCrossing maps a
-	// value made this run to that id; a reloaded value is absent and answers 0.
+	// values record it (madeIn). 0 under view-only/read-only code.
 	crossingID uint64
-	fnCrossing map[any]uint64
 	// viewHoldID is the realm whose values code may hold while view-only
 	// (setViewOnly clears currentRealmID): the realm current on entry.
 	viewHoldID PkgID
@@ -750,31 +747,46 @@ func (alloc *Allocator) stripList(list []TypedValue, hold PkgID) (out []TypedVal
 // holdsFuncByValue reports whether a value of type t can hold a function
 // value inline: t is a func or interface type, or a struct or array of one.
 func holdsFuncByValue(t Type) bool {
-	if t == nil {
+	switch tt := t.(type) {
+	case nil:
 		return false
-	}
-	if hf, ok := funcHoldCache.Load(t); ok {
-		return hf.(bool)
-	}
-	hf := false
-	switch bt := baseOf(t).(type) {
-	case *FuncType, *InterfaceType:
-		hf = true
+	case *DeclaredType:
+		return tt.funcHold.get(func() bool { return holdsFuncByValue(tt.Base) })
 	case *StructType:
-		for _, f := range bt.Fields {
-			if holdsFuncByValue(f.Type) {
-				hf = true
-				break
+		return tt.funcHold.get(func() bool {
+			for _, f := range tt.Fields {
+				if holdsFuncByValue(f.Type) {
+					return true
+				}
 			}
-		}
+			return false
+		})
 	case *ArrayType:
-		hf = bt.Len > 0 && holdsFuncByValue(bt.Elt)
+		return tt.funcHold.get(func() bool { return tt.Len > 0 && holdsFuncByValue(tt.Elt) })
 	}
-	funcHoldCache.Store(t, hf)
-	return hf
+	switch baseOf(t).(type) {
+	case *FuncType, *InterfaceType:
+		return true
+	}
+	return false
 }
 
-var funcHoldCache sync.Map // Type -> bool
+// funcHoldCache memoizes holdsFuncByValue on the type itself, so it is freed
+// with the type; atomic since queries share types. 0: unknown, 1: no, 2: yes.
+type funcHoldCache struct{ v uint32 }
+
+func (c *funcHoldCache) get(compute func() bool) bool {
+	if v := atomic.LoadUint32(&c.v); v != 0 {
+		return v == 2
+	}
+	hf := compute()
+	v := uint32(1)
+	if hf {
+		v = 2
+	}
+	atomic.StoreUint32(&c.v, v)
+	return hf
+}
 
 // refusedCopy returns the foreign type that makes a copy of t refused here,
 // or nil if the copy is allowed.
@@ -1389,17 +1401,6 @@ func internalRefSize(val Value) int64 {
 
 // recordCrossing ties a freshly made function value to the crossing call that
 // made it; values made read-only (crossingID 0) are left unrecorded.
-func (alloc *Allocator) recordCrossing(v any) {
-	if alloc.crossingID == 0 {
-		return
-	}
-	if alloc.fnCrossing == nil {
-		alloc.fnCrossing = make(map[any]uint64, 8)
-	}
-	alloc.fnCrossing[v] = alloc.crossingID
-}
-
-// crossingOf returns the crossing call that made v, or 0.
-func (alloc *Allocator) crossingOf(v any) uint64 {
-	return alloc.fnCrossing[v]
+func (alloc *Allocator) recordCrossing(v interface{ setMadeIn(uint64) }) {
+	v.setMadeIn(alloc.crossingID)
 }

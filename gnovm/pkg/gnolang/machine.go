@@ -64,9 +64,8 @@ type Machine struct {
 	// accounting is unaffected by pooling.
 	blockPool []*Block
 
-	// crossingSeq numbers crossing calls; curCrossing is the active one.
-	// Neither is stored: a reloaded value comes back with id 0.
-	crossingSeq uint64
+	// curCrossing is the active crossing call (see crossingSeq). Not stored:
+	// a reloaded value comes back with id 0.
 	curCrossing uint64
 
 	// Configuration
@@ -211,15 +210,11 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
 	// The message entry into a realm (main(cur realm)) is the tx's first
-	// crossing call: give it id 1 so values it makes are writable there.
+	// crossing call: give it a fresh id so values it makes are writable there.
 	// A value reloaded from the store was never recorded, so it answers 0.
-	mm.crossingSeq = 1
-	mm.curCrossing = 1
+	mm.curCrossing = crossingSeq.Add(1)
 	mm.s3Written = false // a transaction starts with no S3d writes (kept across calls)
-	alloc.crossingID = 1
-	if !isPreprocessing {
-		alloc.fnCrossing = nil
-	}
+	alloc.crossingID = mm.curCrossing
 	alloc.store = store
 	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
@@ -345,6 +340,10 @@ func (m *Machine) setViewOnly() {
 	m.Alloc.viewHoldID = hold
 	m.Alloc.crossingID = 0
 }
+
+// crossingSeq numbers crossing calls process-wide, so a value kept in memory
+// across machines (the store's cache) never matches a later call's id.
+var crossingSeq atomic.Uint64
 
 // setCrossing records the active crossing-call id on the machine and on the
 // allocator, so values made now can be told apart from values made elsewhere.
@@ -2784,8 +2783,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		r := pv.GetRealm()
 		assertBorrowedRealm(pv.PkgPath, r)
 		m.setRealm(r)
-		m.crossingSeq++
-		m.setCrossing(m.crossingSeq)
+		m.setCrossing(crossingSeq.Add(1))
 		return
 	}
 

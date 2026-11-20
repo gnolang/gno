@@ -590,7 +590,8 @@ type ArrayType struct {
 	// order (see heldRealmsOf). nil: not computed; non-nil, possibly empty:
 	// final. Not serialized; types are immutable after preprocess.
 	heldRealms heldRealmsCache
-	stored     bool // read back from the store, see typeIDWriter.
+	funcHold   funcHoldCache // see holdsFuncByValue
+	stored     bool          // read back from the store, see typeIDWriter.
 }
 
 func (at *ArrayType) Kind() Kind {
@@ -800,6 +801,7 @@ type StructType struct {
 	// inline, in walk order (see heldRealmsOf). nil: not computed; non-nil,
 	// possibly empty: final. Not serialized; types are immutable post-preprocess.
 	heldRealms heldRealmsCache
+	funcHold   funcHoldCache // see holdsFuncByValue
 }
 
 func (st *StructType) Kind() Kind {
@@ -1516,6 +1518,7 @@ type DeclaredType struct {
 	// non-nil, possibly empty: final. Not serialized; types are immutable
 	// after preprocess.
 	heldRealms heldRealmsCache
+	funcHold   funcHoldCache // see holdsFuncByValue
 }
 
 // methodIndexThreshold gates the map build: most user types have ≤ a

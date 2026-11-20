@@ -9,9 +9,9 @@ package gnolang
 func (m *Machine) crossingCallee(tv *TypedValue) uint64 {
 	switch cv := tv.V.(type) {
 	case *FuncValue:
-		return m.Alloc.crossingOf(cv)
+		return cv.madeIn()
 	case *BoundMethodValue:
-		return m.Alloc.crossingOf(cv)
+		return cv.madeIn()
 	}
 	return 0
 }
