@@ -300,7 +300,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 			}
 
 			// Construct machine for testing.
-			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false, nil)
+			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false, nil, nil)
 			defer tm.Release()
 
 			// LINT STEP 4: re-parse for preprocessor.

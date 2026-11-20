@@ -65,6 +65,8 @@ func NewRepl(opts ...ReplOption) *Repl {
 	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
 
 	alloc := gno.NewAllocator(math.MaxInt64)
+	// Set before the options, so a store from WithStore keeps its own.
+	r.store.SetAllocator(alloc)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
 	r.pv = r.pn.NewPackage(alloc)
 	r.fn = &gno.FileNode{
@@ -91,6 +93,7 @@ func NewRepl(opts ...ReplOption) *Repl {
 		Input:   input,
 		Output:  output,
 		Store:   r.store,
+		Alloc:   alloc,
 	})
 	r.m.SetActivePackage(r.pv)
 
