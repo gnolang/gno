@@ -65,6 +65,8 @@ func NewRepl(opts ...ReplOption) *Repl {
 	_, r.store = test.TestStore(gnoenv.RootDir(), test.OutputWithError(r.output, r.errput), nil)
 
 	alloc := gno.NewAllocator(math.MaxInt64)
+	// Set before the options, so a store from WithStore keeps its own.
+	r.store.SetAllocator(alloc)
 	r.pn = gno.NewPackageNode("repl", r.pkgPath, &gno.FileSet{})
 	r.pv = r.pn.NewPackage(alloc)
 	r.fn = &gno.FileNode{
@@ -85,7 +87,6 @@ func NewRepl(opts ...ReplOption) *Repl {
 	input := bufio.NewReader(r.input)
 	output := bufio.NewWriter(r.output)
 	r.rw = bufio.NewReadWriter(input, output)
-	r.store.SetAllocator(alloc)
 	r.m = gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath: r.pkgPath,
 		Debug:   r.debug,

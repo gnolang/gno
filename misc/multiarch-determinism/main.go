@@ -43,12 +43,16 @@ func main() {
 
 	const pkgPath = "main"
 	ctx := test.Context("", pkgPath, std.Coins{})
+	// The store and the machine share one allocator, so store allocations
+	// count against maxAllocBytes too.
+	alloc := gno.NewAllocator(maxAllocBytes)
+	store.SetAllocator(alloc)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath:       pkgPath,
-		Output:        output,
-		Store:         store,
-		MaxAllocBytes: maxAllocBytes,
-		Context:       ctx,
+		PkgPath: pkgPath,
+		Output:  output,
+		Store:   store,
+		Alloc:   alloc,
+		Context: ctx,
 	})
 	defer m.Release()
 

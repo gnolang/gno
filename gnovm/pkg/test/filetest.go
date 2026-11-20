@@ -469,6 +469,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Start transaction store.
 		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil, nil)
+		// The fork has its own allocator with no GC, which is safe while
+		// preprocessing. Charge it to the machine's gas meter.
+		txs.GetAllocator().SetGasMeter(m.GasMeter)
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {
