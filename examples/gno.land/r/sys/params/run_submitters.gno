@@ -117,7 +117,7 @@ func ProposeSetRunSubmittersManager(cur realm, pkgpath string) *dao.ProposalRequ
 
 	return newDelegateProposal(cur, DelegateSetEvent, runSubmittersKey, pkgpath,
 		"Delegate "+runSubmittersKey+" management", desc,
-		func() string {
+		func(cur realm) string {
 			prev := runSubmittersMgr
 			runSubmittersMgr = pkgpath
 			// A new holder must not inherit removal authority over addresses
@@ -146,7 +146,7 @@ func ProposeClearRunSubmittersManager(cur realm) *dao.ProposalRequest {
 		"Revoke "+from+"'s authority to manage the "+runSubmittersKey+
 			" allowlist. Addresses it already added REMAIN on the list; reset the "+
 			"list explicitly if that is not wanted.",
-		func() string {
+		func(cur realm) string {
 			prev := runSubmittersMgr
 			runSubmittersMgr = ""
 			runSubmittersGrants = addrset.Set{}

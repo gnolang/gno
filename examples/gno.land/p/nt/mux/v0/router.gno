@@ -124,7 +124,7 @@ func (r *Router) RenderRlm(_ int, rlm realm, reqPath string) string {
 			}
 			res := &ResponseWriter{}
 			if route.FnRlm != nil {
-				route.FnRlm(0, rlm, res, req)
+				route.FnRlm(cross(rlm), res, req)
 			} else {
 				route.Fn(res, req)
 			}
