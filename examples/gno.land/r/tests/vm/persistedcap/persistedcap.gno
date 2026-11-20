@@ -18,10 +18,10 @@ func init() {
 
 // GetCounter returns the persisted closure. The caller invokes it
 // directly — because the closure's FuncLit lives in /p/ p_closurecap,
-// PushFrameCall's borrow rule does NOT switch m.Realm to persistedcap
-// at invocation. The closure body's write to the captured HIV (PkgID
-// = persistedcap, persisted) therefore runs under the caller's
-// m.Realm, which is the persisted-closure-capture cross-realm case.
+// it does not run as persistedcap when another realm invokes it: it runs
+// view-only, so the body's write to the captured HIV (PkgID =
+// persistedcap, persisted) is refused — the persisted-closure-capture
+// cross-realm case.
 //
 // SECURITY: deliberate VM-parity-test infrastructure — do NOT copy this
 // pattern in production code. See gno.land/r/tests/vm/crossrealm

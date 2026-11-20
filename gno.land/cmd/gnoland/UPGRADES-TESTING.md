@@ -90,7 +90,7 @@ func main(cur realm) {
     // Add test1 as a T1 member (supermajority power).
     // The loader already set the DAO impl; AllowedDAOs is empty so any
     // caller is permitted. We just need to register the member.
-    err := memberstore.Get(0, cur).SetMember(memberstore.T1,
+    err := memberstore.SetMember(cross(cur), memberstore.T1,
         address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
         memberstore.NewMember(3),
     )

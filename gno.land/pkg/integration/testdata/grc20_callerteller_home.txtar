@@ -75,10 +75,17 @@ stdout OK
 gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
 stdout '750000 int64'
 
-# And the supported route for a foreign realm still works: hubx spends the
-# allowance alice granted it, as itself, through a RealmTeller.
+# And the supported route for a foreign realm still works: hubx crosses into
+# the token realm's own TransferFrom, which resolves hubx as the spender.
 gnokey maketx call -pkgpath gno.land/r/test/hubx -func Pull -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
 stdout OK
+gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
+stdout '650000 int64'
+
+# A teller hubx builds for itself is a tool for the token realm's own code:
+# spending through it from hubx is refused, and alice's balance is unchanged.
+! gnokey maketx call -pkgpath gno.land/r/test/hubx -func PullViaTeller -args 100000 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stderr 'cannot modify'
 gnokey query vm/qeval --data "gno.land/r/test/leaky.BalanceOf(\"$alice_user_addr\")"
 stdout '650000 int64'
 
@@ -130,6 +137,14 @@ func Approve(cur realm, spender address, amount int64) {
 	}
 }
 
+// TransferFrom lets a foreign realm spend an allowance as itself: the spender
+// is resolved from the crossing frame and the token realm performs the write.
+func TransferFrom(cur realm, owner, to address, amount int64) {
+	if err := adm.TransferFrom(owner, cur.Previous().Address(), to, amount); err != nil {
+		panic(err)
+	}
+}
+
 func BalanceOf(owner address) int64 { return Token.BalanceOf(owner) }
 
 func Allowance(owner, spender address) int64 { return Token.Allowance(owner, spender) }
@@ -175,8 +190,14 @@ import (
 func Run(cur realm) { tfattack.Pull(cross(cur), cur.Previous().Address()) }
 
 // Pull is the supported way for a non-owner realm to move a user's funds:
-// spend an allowance the user granted to THIS realm, as this realm.
+// cross into the token realm, which spends the allowance as THIS realm.
 func Pull(cur realm, amount int64) {
+	owner := cur.Previous().Address()
+	leaky.TransferFrom(cross(cur), owner, cur.Address(), amount)
+}
+
+// PullViaTeller tries the old route: a RealmTeller hubx builds on the token.
+func PullViaTeller(cur realm, amount int64) {
 	owner := cur.Previous().Address()
 	if err := leaky.Token.RealmTeller(0, cur).TransferFrom(0, cur, owner, cur.Address(), amount); err != nil {
 		panic(err)

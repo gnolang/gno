@@ -1,0 +1,30 @@
+# A run script's functions do not exist after its transaction, so the registry
+# refuses to record them. The script hands in foo20's functions (an ephemeral
+# package cannot declare crossing functions); foo20 itself is registered, so a
+# new key would be visible in the render.
+
+loadpkg gno.land/p/nt/grc20/v0
+loadpkg gno.land/r/nt/grc20reg/v0
+loadpkg gno.land/r/demo/defi/foo20
+
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1 $WORK/run/register.gno
+stderr 'run script cannot register'
+
+gnokey query vm/qrender --data "gno.land/r/nt/grc20reg/v0:"
+! stdout 'SCR'
+
+-- run/register.gno --
+package main
+
+import (
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/r/demo/defi/foo20"
+	"gno.land/r/nt/grc20reg/v0"
+)
+
+func main(cur realm) {
+	token, _ := grc20.NewToken("Script", "SCR", 4, 0, cur)
+	grc20reg.Register(cross(cur), token, "", foo20.Transfer, foo20.Approve, foo20.TransferFrom)
+}

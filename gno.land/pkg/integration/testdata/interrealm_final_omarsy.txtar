@@ -3,11 +3,28 @@ loadpkg gno.land/p/demo/peter $WORK/peter
 loadpkg gno.land/r/demo/main $WORK/main
 gnoland start
 
-! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecPreviouslyGood -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
-stderr 'cannot directly modify readonly tainted object'
+# S3: the save is allowed, but the stored closure has no maker. A later call
+# runs it view-only, so alice's list is not written.
+gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecPreviouslyGood -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/demo/alice -func ExecuteClosure -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
+gnokey query vm/qeval --data 'gno.land/r/demo/alice.AllowedList[0]'
+stdout '1'
 
-! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecBad -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
-stderr 'cannot directly modify readonly tainted object'
+# The save and the call in one crossing call: the stored value has no maker
+# for this call, so ExecuteClosure runs it read-only.
+! gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecSameTx -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
+gnokey query vm/qeval --data 'gno.land/r/demo/alice.AllowedList[0]'
+stdout '1'
+
+gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecBad -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/demo/alice -func ExecuteClosure -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
+gnokey query vm/qeval --data 'gno.land/r/demo/alice.AllowedList[0]'
+stdout '1'
 
 -- alice/alice.gno --
 package alice
@@ -46,22 +63,17 @@ import (
 	"gno.land/p/demo/peter"
 )
 
-// Rule of the closure-capability model (PushFrameCall borrow rule #3): a
-// closure carries the authority of the realm that created it, not
-// the realm that stores or runs it later.
-//
-// Here, peter.F is called from /r/demo/main, so the closure it
-// returns belongs to /r/demo/main. Even though /r/demo/alice stores
-// the closure and then runs it, the closure still cannot write
-// alice's state. Both ExecPreviouslyGood and ExecBad fail with the
-// same readonly-taint error — alice's consent does not raise the
-// closure's authority.
-//
-// The legitimate pattern: alice itself creates the closure (e.g. by
-// returning it from an /r/demo/alice-declared crossing function).
-// Then alice is the creator, and writes to alice's state succeed.
+// A /p/-built closure acts only while the realm it was built under is
+// current. peter.F is called from /r/demo/main, so the closure reaches alice
+// without a maker. S3 lets alice keep it, but a later call is read-only, so
+// alice's list is never written. Alice must build the closure herself.
 
 func ExecPreviouslyGood(cur realm) []int {
+	alice.SetClosure(cross(cur), peter.F(alice.GetAllowedList()))
+	return alice.AllowedList
+}
+
+func ExecSameTx(cur realm) []int {
 	alice.SetClosure(cross(cur), peter.F(alice.GetAllowedList()))
 	alice.ExecuteClosure(cross(cur))
 	return alice.AllowedList
@@ -69,6 +81,5 @@ func ExecPreviouslyGood(cur realm) []int {
 
 func ExecBad(cur realm) []int {
 	alice.SetClosure(cross(cur), peter.F(alice.AllowedList))
-	alice.ExecuteClosure(cross(cur))
 	return alice.AllowedList
 }

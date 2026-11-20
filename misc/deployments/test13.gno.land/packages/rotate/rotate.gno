@@ -40,16 +40,14 @@ func Rotate(cur realm) {
 	if runtime.ChainHeight() != 0 {
 		panic("rotate is genesis-only")
 	}
-
-	ms := memberstore.Get(0, cur)
 	tier, ok := memberstore.GetTier(memberstore.T1)
 	if !ok {
 		panic("T1 tier not found")
 	}
-	if err := ms.SetMember(memberstore.T1, newT1, memberstore.NewMember(tier.InvitationPoints)); err != nil {
+	if err := memberstore.SetMember(cross(cur), memberstore.T1, newT1, memberstore.NewMember(tier.InvitationPoints)); err != nil {
 		panic(err.Error())
 	}
-	ms.RemoveMember(oldT1)
+	memberstore.RemoveMember(cross(cur), oldT1)
 
 	// Pass nil DAO: bootstrap already installed impl.NewGovDAO() into dao.dao;
 	// rotate only narrows AllowedDAOs (removing itself) — DAO ref stays intact.

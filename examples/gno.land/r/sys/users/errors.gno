@@ -23,17 +23,14 @@ var (
 
 	ErrUserNotExistOrDeleted = errors.New(prefix + "this user does not exist or was deleted")
 
-	// ErrInvalidRealm is returned by controller-gated *UserData mutators
-	// when the supplied rlm is not the caller's live cur (i.e.
-	// rlm.IsCurrent() is false). Closes Class-2 designation forgery via
-	// a stored stale realm value whose .Address() resolves to a
-	// whitelisted controller. See docs/resources/gno-security.md.
+	// ErrInvalidRealm is no longer returned: the *UserData mutators are
+	// crossing and authenticate with cur.Previous(). Kept for compatibility.
 	ErrInvalidRealm = errors.New(prefix + "rlm is not the caller's live cur")
 )
 
 // ErrNotWhitelisted stores the failing caller's realm identity as a
 // plain string so the error is a pure data record (no live realm values
-// in its fields).
+// in its fields). A pointer error, so other realms can hold it.
 type ErrNotWhitelisted struct {
 	Caller string // "CodeRealm{ <addr>, <pkgPath> }" or "UserRealm{ <addr> }" — failed the whitelist check
 }
@@ -43,12 +40,12 @@ type ErrNotWhitelisted struct {
 // discriminator keeps this non-crossing (a non-crossing function can't
 // take a `realm`-named-`cur` first param, so we use the standard
 // _ int, rlm realm shape).
-func NewErrNotWhitelisted(_ int, caller realm) ErrNotWhitelisted {
-	return ErrNotWhitelisted{
+func NewErrNotWhitelisted(_ int, caller realm) *ErrNotWhitelisted {
+	return &ErrNotWhitelisted{
 		Caller: caller.String(),
 	}
 }
 
-func (e ErrNotWhitelisted) Error() string {
+func (e *ErrNotWhitelisted) Error() string {
 	return prefix + "caller realm/user does not exist in whitelist: " + e.Caller
 }

@@ -33,7 +33,7 @@ func Render(cur realm, p string) string {
 
 // MustCreateProposal is an utility method that does the same as CreateProposal,
 // but instead of erroing if something happens, it panics.
-func MustCreateProposal(cur realm, r ProposalRequest) ProposalID {
+func MustCreateProposal(cur realm, r *ProposalRequest) ProposalID {
 	pid, err := CreateProposal(cur, r)
 	if err != nil {
 		panic(err.Error())
@@ -63,11 +63,11 @@ func ExecuteOrRejectProposal(cur realm, pid ProposalID) bool {
 
 // CreateProposal will try to create a new proposal, that will be validated by the actual
 // govDAO implementation. If the proposal cannot be created, an error will be returned.
-func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
+func CreateProposal(cur realm, r *ProposalRequest) (ProposalID, error) {
 	if dao == nil {
 		return -1, errors.New("DAO not initialized")
 	}
-	author, err := dao.PreCreateProposal(0, cur, r)
+	author, err := dao.PreCreateProposal(cross(cur), r)
 	if err != nil {
 		return -1, err
 	}
@@ -81,7 +81,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	}
 
 	pid := proposals.SetProposal(p)
-	dao.PostCreateProposal(0, cur, r, pid)
+	dao.PostCreateProposal(cross(cur), r, pid)
 
 	chain.Emit("ProposalCreated",
 		"id", strconv.FormatInt(int64(pid), 10),
@@ -90,7 +90,7 @@ func CreateProposal(cur realm, r ProposalRequest) (ProposalID, error) {
 	return pid, nil
 }
 
-func MustVoteOnProposal(cur realm, r VoteRequest) {
+func MustVoteOnProposal(cur realm, r *VoteRequest) {
 	if err := VoteOnProposal(cur, r); err != nil {
 		panic(err.Error())
 	}
@@ -99,16 +99,16 @@ func MustVoteOnProposal(cur realm, r VoteRequest) {
 // VoteOnProposal sends a vote to the actual govDAO implementation.
 // If the voter cannot vote the specified proposal, this method will return an error
 // with the explanation of why.
-func VoteOnProposal(cur realm, r VoteRequest) error {
+func VoteOnProposal(cur realm, r *VoteRequest) error {
 	if dao == nil {
 		return errors.New("DAO not initialized")
 	}
-	return dao.VoteOnProposal(0, cur, r)
+	return dao.VoteOnProposal(cross(cur), r)
 }
 
 // MustVoteOnProposalSimple is like MustVoteOnProposal but intended to be used through gnokey with basic types.
 func MustVoteOnProposalSimple(cur realm, pid int64, option string) {
-	MustVoteOnProposal(cur, VoteRequest{
+	MustVoteOnProposal(cur, &VoteRequest{
 		Option:     VoteOption(option),
 		ProposalID: ProposalID(pid),
 	})
@@ -154,7 +154,7 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // NewUpdateRequest(d, nil), which copies nil into a non-nil empty slice.
 // Individual entries must be non-blank realm paths; an empty entry would match
 // a user realm's empty PkgPath() and is rejected.
-func UpdateImpl(cur realm, r UpdateRequest) {
+func UpdateImpl(cur realm, r *UpdateRequest) {
 	// AGENTS.md: in a crossing function, always check IsCurrent() before
 	// deriving caller identity from cur.Previous(). Redundant under the
 	// crossing-frame guarantee, but mandated, and this is the single most
@@ -244,7 +244,7 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 	if dao == nil {
 		return false
 	}
-	execute, err := dao.PreExecuteProposal(0, cur, pid)
+	execute, err := dao.PreExecuteProposal(cross(cur), pid)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -257,7 +257,7 @@ func executeProposal(cur realm, pid ProposalID, execErrorRejects bool) bool {
 		panic(err.Error())
 	}
 
-	err = dao.ExecuteProposal(0, cur, pid, prop.executor)
+	err = dao.ExecuteProposal(cross(cur), pid, prop.executor)
 	if err != nil {
 		if execErrorRejects {
 			return false

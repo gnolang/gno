@@ -9,6 +9,10 @@ import (
 // caller. rlm must be the caller's own captured cur (asserted via
 // rlm.IsCurrent() inside the Teller methods).
 //
+// A teller is a tool: its methods write the ledger only when the token
+// realm's own code calls them. A teller handed to another realm can read,
+// not spend; that realm must call a crossing function of the token realm.
+//
 // SECURITY: this accessor hangs off *PrivateLedger, not *Token, and that is
 // load-bearing. A frame-relative teller debits whoever crossed into the realm
 // holding it, so it is only ever meaningful inside the token's own realm,
@@ -47,12 +51,10 @@ func (tok *Token) ReadonlyTeller() Teller {
 	}
 }
 
-// RealmTeller returns a GRC20 compatible teller that will store the
-// caller realm permanently. Calling anything through this teller will
-// result in allowance or balance changes for the realm that initialized the teller.
-// The initializer of this teller should usually never share the resulting Teller from
-// this method except maybe for advanced delegation flows such as a DAO treasury
-// management.
+// RealmTeller returns a GRC20 compatible teller bound to the caller realm's
+// address. Its methods write the ledger only when the token realm's own code
+// calls them; any other realm, including the one that built it, moves tokens
+// through the token realm's crossing functions or grc20reg's wrappers.
 //
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
 // The address is frozen eagerly at construction.
@@ -76,6 +78,9 @@ func (tok *Token) RealmTeller(_ int, rlm realm) Teller {
 
 // RealmSubTeller is like RealmTeller but uses the provided slug to derive a
 // subaccount.
+//
+// A teller is a tool: its methods write the ledger only when the token
+// realm's own code calls them.
 //
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()).
 // The subaccount address is frozen eagerly at construction.
@@ -107,6 +112,9 @@ func (tok *Token) RealmSubTeller(_ int, rlm realm, slug string) Teller {
 // underlying logic or requiring direct access to the user's account. The
 // returned teller will use the provided address for all operations, effectively
 // masking the original caller.
+//
+// A teller is a tool: its methods write the ledger only when the token
+// realm's own code calls them.
 //
 // This method should be used with caution, as it allows for potentially
 // sensitive operations to be performed under the guise of another address.
@@ -144,9 +152,9 @@ func (ledger *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // The host is compared after stripping any "#subpath" synthesized by
 // realm.Sub, so the token's own sub-realms are not falsely rejected.
 //
-// A foreign realm that needs to move a user's funds uses the ordinary route:
-// Approve, then RealmTeller().TransferFrom, which is eagerly bound to that
-// realm's own address and allowance-gated.
+// A foreign realm that needs to move a user's funds calls the token realm's
+// own crossing functions (for example through grc20reg), never a teller that
+// travelled.
 //
 // The leading int keeps this a plain method.
 func (ft *fnTeller) guardHome(_ int, rlm realm) error {

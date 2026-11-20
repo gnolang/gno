@@ -338,6 +338,10 @@ func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *R
 		}
 		return
 	}
+	// "_" keeps nothing: skip the copy that would hold another realm's value.
+	if pv.Index == PointerIndexBlockBlank && alloc.refusedCopy(tv2.T) != nil {
+		return
+	}
 	// General case
 	oo1 := pv.TV.GetFirstObject(store)
 	pv.TV.Assign(alloc, store, tv2, cu)
@@ -457,7 +461,8 @@ func (av *ArrayValue) getElementPointer(store Store, ii int, et Type, seen map[*
 // the split rule in stampPkgID (PR #5706): if the array type is /r/-declared,
 // the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
 // stamp from NewListArray/NewDataArray stands, so the copy belongs to the
-// realm doing the copying.
+// realm doing the copying. An exempt unnamed struct's copies are the copier's
+// (see stampCopyOwner).
 //
 // Previously this method propagated the source's runtime PkgID whenever it
 // was an /r/ PkgID. That leaked foreign authority into /p/-typed copies
@@ -487,9 +492,7 @@ func (av *ArrayValue) Copy(alloc *Allocator, store Store, t Type, active map[Obj
 		cp = alloc.NewDataArray(t, len(av.Data))
 		copy(cp.Data, av.Data)
 	}
-	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(pid)
-	}
+	alloc.stampCopyOwner(&cp.ObjectInfo, t)
 	return cp
 }
 
@@ -615,7 +618,8 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 // the split rule in stampPkgID (PR #5706): if the struct type is /r/-declared,
 // the copy is stamped with that /r/ owner; otherwise the fresh currentRealmID
 // stamp from NewStruct stands, so the copy belongs to the realm doing the
-// copying.
+// copying. An exempt unnamed struct is owned by the realm doing the copying
+// (stampCopyOwner), not by the package that wrote the type.
 //
 // Each field is copied individually so value fields stay by-value
 // (e.g. inlined arrays are physically duplicated rather than aliased).
@@ -638,9 +642,7 @@ func (sv *StructValue) Copy(alloc *Allocator, store Store, t Type, active map[Ob
 	}
 	cp := alloc.NewStruct(t, fields)
 	alloc.PopAnchor()
-	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
-		cp.ObjectInfo.SetPkgID(pid)
-	}
+	alloc.stampCopyOwner(&cp.ObjectInfo, t)
 	return cp
 }
 
@@ -770,10 +772,9 @@ func (fv *FuncValue) GetParent(store Store) *Block {
 		// Lazily materialize this function's file block. fillPackage no
 		// longer pre-populates fBlocksMap, so on a package loaded from
 		// the store the entry may be absent here; GetFileBlock loads it
-		// from the FBlocks RefValue on demand and caches it.
-		fb := pv.GetFileBlock(store, fv.FileName)
-		fv.Parent = fb
-		return fb
+		// from the FBlocks RefValue on demand and caches it. Not kept on fv:
+		// a handle saved with it would reference and rewrite the file block.
+		return pv.GetFileBlock(store, fv.FileName)
 	case RefValue:
 		block := store.GetObject(cv.ObjectID).(*Block)
 		fv.Parent = block
@@ -845,7 +846,7 @@ func (bmv *BoundMethodValue) IsLazy() bool {
 func resolveInterfaceTrail(gm types.GasMeter, alloc *Allocator, store Store, boxed TypedValue, tr []ValuePath, callerPath string) PointerValue {
 	btv := boxed
 	for i, path := range tr {
-		ptr := btv.getPointerToFromTV(gm, alloc, store, path, callerPath)
+		ptr := btv.getPointerToForCall(gm, alloc, store, path, callerPath, true)
 		if i == len(tr)-1 {
 			return ptr
 		}
@@ -870,6 +871,8 @@ func resolveInterfaceTrail(gm types.GasMeter, alloc *Allocator, store Store, box
 // through for a pointer receiver) — the machine's Run loop converts that to the
 // cooperative panic path, so both immediate and deferred calls behave correctly
 // without a separate nil signal here.
+// The receiver is returned uncopied: the caller applies copyCallRecv after
+// pushFrameCall, under the callee's realm.
 func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue) {
 	operand := bmv.Receiver
 	name := bmv.Method
@@ -933,6 +936,16 @@ func resolveLazyBound(m *Machine, bmv *BoundMethodValue) (*FuncValue, TypedValue
 		}
 		operand, name, callerPath = next.Receiver, next.Method, next.MethodPkg
 	}
+}
+
+// copyCallRecv copies a value receiver for a method call (a no-op for a
+// pointer receiver) and clears its readonly bit.
+func copyCallRecv(alloc *Allocator, store Store, recv TypedValue) TypedValue {
+	rtv := recv.Copy(alloc, store)
+	if rtv.V != nil {
+		rtv.N = [8]byte{}
+	}
+	return rtv
 }
 
 func (bmv *BoundMethodValue) IsCrossing() bool {
@@ -1370,6 +1383,7 @@ func (tv TypedValue) copy(alloc *Allocator, store Store, active map[ObjectID]str
 	case BigintValue:
 		return TypedValue{T: tv.T, V: cv.Copy(alloc)}
 	case *ArrayValue, *StructValue:
+		alloc.checkCopy(tv.T)
 		if oo := cv.(Object); oo.GetIsReal() {
 			id := oo.GetObjectID()
 			if _, busy := active[id]; busy {
@@ -1397,6 +1411,16 @@ func (tv TypedValue) copy(alloc *Allocator, store Store, active map[ObjectID]str
 			if oo := store.GetObjectSafe(cv.ObjectID); oo != nil {
 				return TypedValue{T: tv.T, V: oo}.copy(alloc, store, active)
 			}
+		}
+		// Checked by type, so the verdict does not depend on what is loaded.
+		alloc.checkCopy(tv.T)
+		if alloc != nil && (tv.T.Kind() == FuncKind || cv.ObjectID.PkgID.IsRealmPkg()) {
+			return alloc.stripMaker(tv, alloc.stripHold())
+		}
+	case *FuncValue, *BoundMethodValue:
+		// A copy made by code not holding for the maker acts for no realm.
+		if alloc != nil {
+			return alloc.stripMaker(tv, alloc.stripHold())
 		}
 	}
 	return tv
@@ -2097,6 +2121,13 @@ func (tv *TypedValue) AssignToBlock(other TypedValue) {
 // gm meters the embedding walk of the VPInterface branch (lazy interface
 // method value); nil only for callers that never reach it.
 func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, store Store, path ValuePath, callerPath string) PointerValue {
+	return tv.getPointerToForCall(gm, alloc, store, path, callerPath, false)
+}
+
+// getPointerToForCall is getPointerToFromTV; with direct (the selector is the
+// callee of a call made at once) a value receiver is left uncopied for the
+// call to copy once the callee's realm is current (copyCallRecv).
+func (tv *TypedValue) getPointerToForCall(gm types.GasMeter, alloc *Allocator, store Store, path ValuePath, callerPath string, direct bool) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
 			panic("getPointerToFromTV() on undefined value")
@@ -2274,10 +2305,10 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		}
 		// A value receiver is a fresh copy the method body may mutate without
 		// touching the original; clear readonly on the copy (other rules still
-		// apply, e.g. in DidUpdate).
-		rtv := dtv.Copy(alloc, store)
-		if rtv.V != nil {
-			rtv.N = [8]byte{}
+		// apply, e.g. in DidUpdate). A direct call copies it later.
+		rtv := *dtv
+		if !direct {
+			rtv = copyCallRecv(alloc, store, rtv)
 		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
@@ -2288,6 +2319,8 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// binding; the receiver carries its own PkgID independently.
 		// Pass nil to stamp with currentRealmID.
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		alloc.unbindReadOnly(&bmv.ObjectInfo)
+		alloc.recordCrossing(bmv)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2328,6 +2361,8 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// Bound method wrapper belongs to the realm doing the binding.
 		// Pass nil to stamp with currentRealmID.
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		alloc.unbindReadOnly(&bmv.ObjectInfo)
+		alloc.recordCrossing(bmv)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2359,6 +2394,10 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// nil panic, field re-read through a pointer, and dynamic re-dispatch —
 		// because the operand is re-walked live at the call. ift is the bound
 		// (receiver-stripped) method type, known statically from the interface.
+		// A method value keeps the operand, so binding it counts as a copy.
+		if !direct {
+			alloc.checkCopy(dtv.T)
+		}
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:      nil, // resolved at call (see resolveLazyBound)
@@ -2367,6 +2406,8 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 			MethodPkg: callerPath,
 		}
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
+		alloc.unbindReadOnly(&bmv.ObjectInfo)
+		alloc.recordCrossing(bmv)
 		return PointerValue{
 			TV: &TypedValue{
 				T: ift.(*FuncType),

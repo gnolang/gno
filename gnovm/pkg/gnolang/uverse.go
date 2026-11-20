@@ -1340,6 +1340,9 @@ func makeUverseNode() {
 						// init zero elements with concrete type. The list
 						// is a Go local until pushed, so anchor it through
 						// the fill. See Allocator.anchors.
+						if li > 0 && et.Kind() != InterfaceKind {
+							m.Alloc.checkBirth(et)
+						}
 						m.Alloc.PushAnchor(arrayValue.List)
 						fillDefaultList(m.Alloc, arrayValue.List, et, PkgID{})
 						m.Alloc.PopAnchor()
@@ -1382,6 +1385,9 @@ func makeUverseNode() {
 						// all new TypedValue slice elements be checked to ensure they have
 						// a value for every slice operation, which is not desirable.
 						// Anchored as in the case above.
+						if ci > 0 && et.Kind() != InterfaceKind {
+							m.Alloc.checkBirth(et)
+						}
 						m.Alloc.PushAnchor(arrayValue.List)
 						fillDefaultList(m.Alloc, arrayValue.List, et, PkgID{})
 						m.Alloc.PopAnchor()

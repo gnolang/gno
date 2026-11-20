@@ -80,12 +80,32 @@ func (m *Machine) doOpSelector() {
 	default:
 		m.incrCPU(OpCPUSelectorField)
 	}
-	res := xv.getPointerToFromTV(m.GasMeter, m.Alloc, m.Store, sx.Path, m.Package.PkgPath).Deref()
+	direct := false
+	switch sx.Path.Type {
+	case VPValMethod, VPDerefValMethod, VPInterface, VPDerefInterface:
+		direct = m.isCalleeOfPendingCall(sx)
+	}
+	res := xv.getPointerToForCall(m.GasMeter, m.Alloc, m.Store, sx.Path, m.Package.PkgPath, direct).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
 	*xv = res // reuse as result
+}
+
+// isCalleeOfPendingCall reports whether sx is the Func of a call being
+// evaluated now: that CallExpr sits under its unevaluated args on m.Exprs.
+func (m *Machine) isCalleeOfPendingCall(sx *SelectorExpr) bool {
+	low := 0
+	if len(m.Frames) > 0 {
+		low = m.LastFrame().NumExprs
+	}
+	for i := len(m.Exprs) - 1; i >= low; i-- {
+		if cx, ok := m.Exprs[i].(*CallExpr); ok && cx.Func == sx {
+			return len(m.Exprs)-1-i == len(cx.Args)
+		}
+	}
+	return false
 }
 
 func (m *Machine) doOpSlice() {
@@ -607,7 +627,7 @@ func (m *Machine) doOpSliceLit2() {
 		ste := st.Elem()
 		for i, etv := range es {
 			if etv.IsUndefined() {
-				es[i] = defaultTypedValue(m.Alloc, ste)
+				es[i] = checkedDefaultTypedValue(m.Alloc, ste)
 			}
 		}
 	}
@@ -790,14 +810,35 @@ func (m *Machine) doOpFuncLit() {
 		body:       x.Body,
 		nativeBody: nil,
 	}
-	// Closures belong to wherever they were evaluated
-	// (currentRealmID), not their lexical PkgPath. FuncType has no
-	// declaring-realm semantics on its own — pass nil.
-	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
+	m.stampMaker(fv)
 	m.PushValue(TypedValue{
 		T: ft,
 		V: fv,
 	})
+}
+
+// stampMaker gives a function value being made its maker: the current
+// realm, or none when made read-only, view-only or with no realm.
+func (m *Machine) stampMaker(fv *FuncValue) {
+	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
+	if m.viewOnly {
+		fv.ObjectInfo.SetPkgID(PkgID{})
+		return
+	}
+	m.Alloc.recordCrossing(fv)
+}
+
+// doOpFuncHandle turns a declared function or method expression into a
+// handle made like a closure with no captures. Parent is left to GetParent.
+func (m *Machine) doOpFuncHandle() {
+	tv := m.PeekValue(1)
+	fv := tv.V.(*FuncValue)
+	if !fv.IsMethod {
+		fv = fv.Copy(m.Alloc) // a method expression is already a fresh copy
+	}
+	fv.Parent = nil
+	m.stampMaker(fv)
+	tv.V = fv
 }
 
 func (m *Machine) doOpConvert() {
@@ -831,13 +872,15 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 	// declare a parallel /p/-type with the same struct layout as a
 	// /p/-typed victim field plus extra mutator methods, then convert
 	// the victim's pointer to the parallel type and invoke the new
-	// mutator — borrow rule 2 routes m.Realm to victim's realm for
-	// the duration of the /p/-method, so the write would succeed under
-	// victim authority. Blocking the conversion here (m.IsReadonly is
-	// the cross-realm ownership check) stops the launder before any
-	// method dispatch. See zrealm_launder_g_typepun.gno.
-	if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) {
-		if xvdt, ok := xv.T.(*DeclaredType); ok &&
+	// mutator. Borrow rule 2 no longer switches to the victim's realm
+	// for a realm-owned receiver, so the write check would refuse it;
+	// refusing the conversion (m.IsReadonly) stops it earlier, before
+	// any method dispatch. See zrealm_launder_g_typepun.gno.
+	// An interface target keeps the value's type and base object, so the
+	// readonly mark survives boxing: it behaves like an implicit assignment.
+	if t.Kind() != InterfaceKind &&
+		xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(xv) && !m.viewOwns(xv) {
+		if xvdt, ok := xv.T.(*DeclaredType); ok && m.Realm != nil &&
 			xvdt.PkgPath == m.Realm.Path {
 			// Except allow conversion when xv.T is m.Realm's own
 			// declared type — the converting realm already has
@@ -858,11 +901,17 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 	// converting realm cannot forge values of types it doesn't
 	// declare, otherwise it could fabricate "trusted" objects to
 	// hand back to the declaring realm.
-	if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
-		// A nil pointer points at nothing, so it forges nothing.
-		isNilPtr := t.Kind() == PointerKind && xv.V == nil
-		if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-			m.PanicString("illegal conversion to external realm type")
+	// An interface target forges nothing (ConvertTo leaves the value
+	// unchanged). Judged by the effective realm the copy rule uses: m.Realm
+	// is nil in a view-only frame; with no realm there is nothing to forge.
+	if t.Kind() != InterfaceKind {
+		if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() {
+			rid, held := m.Alloc.holdRealm()
+			// A nil pointer points at nothing, so it forges nothing.
+			isNilPtr := t.Kind() == PointerKind && xv.V == nil
+			if held && IsRealmPath(tdt.PkgPath) && tdt.GetPkgID() != rid && !isNilPtr {
+				m.PanicString("illegal conversion to external realm type")
+			}
 		}
 	}
 

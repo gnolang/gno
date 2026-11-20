@@ -44,7 +44,7 @@ func TestNewValidatorProposalRequest_RejectsUnknownOperator(cur realm, t *testin
 
 	uassert.PanicsContains(t, cur, "unknown operator", func() {
 		_ = NewValidatorProposalRequest(cur,
-			[]ValoperChange{{OperatorAddress: op, Power: 1}},
+			[]*ValoperChange{{OperatorAddress: op, Power: 1}},
 			"add ghost",
 			"",
 		)
@@ -70,7 +70,7 @@ func TestNewValidatorProposalRequest_RejectsEmptyTitle(cur realm, t *testing.T) 
 
 	uassert.PanicsContains(t, cur, "proposal title is empty", func() {
 		_ = NewValidatorProposalRequest(cur,
-			[]ValoperChange{{OperatorAddress: op, Power: 1}},
+			[]*ValoperChange{{OperatorAddress: op, Power: 1}},
 			"   ",
 			"",
 		)
@@ -82,7 +82,7 @@ func TestNewValidatorProposalRequest_RejectsTooManyChanges(cur realm, t *testing
 
 	// Seed 41 cache entries so the membership check passes; the
 	// length cap should fire before the per-entry validation.
-	changes := make([]ValoperChange, 41)
+	changes := make([]*ValoperChange, 41)
 	pubkeys := []string{pubKeyA, pubKeyB, pubKeyC}
 	for i := 0; i < 41; i++ {
 		op := testutils.TestAddress("op-" + strconv.Itoa(i))
@@ -92,7 +92,7 @@ func TestNewValidatorProposalRequest_RejectsTooManyChanges(cur realm, t *testing
 			SigningAddress: mustAddr(t, pk),
 			KeepRunning:    true,
 		})
-		changes[i] = ValoperChange{OperatorAddress: op, Power: 1}
+		changes[i] = &ValoperChange{OperatorAddress: op, Power: 1}
 	}
 
 	uassert.PanicsContains(t, cur, "max number of allowed validators per proposal is 40", func() {
@@ -114,7 +114,7 @@ func TestNewValidatorProposalRequest_DescriptionRendering(cur realm, t *testing.
 	})
 
 	pr := NewValidatorProposalRequest(cur,
-		[]ValoperChange{
+		[]*ValoperChange{
 			{OperatorAddress: opA, Power: 5},
 			{OperatorAddress: opB, Power: 0},
 		},
@@ -270,7 +270,7 @@ func TestNewValidatorProposalRequest_RejectsKeepRunningFalseAtCreation(cur realm
 
 	uassert.PanicsContains(t, cur, "KeepRunning=false", func() {
 		_ = NewValidatorProposalRequest(cur,
-			[]ValoperChange{{OperatorAddress: op, Power: 1}},
+			[]*ValoperChange{{OperatorAddress: op, Power: 1}},
 			"add opted-out", "",
 		)
 	})
@@ -303,7 +303,7 @@ func TestNewValidatorProposalRequest_AllowsRemoveOfKeepRunningFalse(cur realm, t
 
 	// Build proposal succeeds (remove path: Power=0 ignores KeepRunning).
 	pr := NewValidatorProposalRequest(cur,
-		[]ValoperChange{{OperatorAddress: opA, Power: 0}},
+		[]*ValoperChange{{OperatorAddress: opA, Power: 0}},
 		"remove opted-out opA", "",
 	)
 	_ = pr
@@ -325,7 +325,7 @@ func TestNewValidatorProposalRequest_RejectsDuplicateOp(cur realm, t *testing.T)
 		keepRunning bool
 	}{{op: op, pubKey: pubKeyA, keepRunning: true}})
 
-	cases := [][]ValoperChange{
+	cases := [][]*ValoperChange{
 		{{OperatorAddress: op, Power: 0}, {OperatorAddress: op, Power: 7}}, // remove + re-add
 		{{OperatorAddress: op, Power: 7}, {OperatorAddress: op, Power: 8}}, // double add
 		{{OperatorAddress: op, Power: 0}, {OperatorAddress: op, Power: 0}}, // double remove
@@ -351,7 +351,7 @@ func TestNewValidatorProposalRequest_RejectsPowerUpdatePairForOptedOutOp(cur rea
 
 	uassert.PanicsContains(t, cur, "duplicate operator in proposal", func() {
 		_ = NewValidatorProposalRequest(cur,
-			[]ValoperChange{
+			[]*ValoperChange{
 				{OperatorAddress: op, Power: 0},
 				{OperatorAddress: op, Power: 7},
 			},

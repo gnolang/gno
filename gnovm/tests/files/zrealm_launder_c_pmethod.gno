@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderc
 package launderc
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack C: known-open loophole — /p/-method borrow rule.
 //
 // Attacker obtains a pointer to victim's g via the victim's
@@ -36,4 +40,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-ptr
-// after:  pwnd-via-pmethod
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): o<VPBlock(1,0)>.Field

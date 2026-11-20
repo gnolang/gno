@@ -89,6 +89,7 @@ func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, 
 		Context:       Context("", pkgPath, nil),
 		Debug:         debug,
 		ReviveEnabled: true,
+		TestMode:      true,
 		GasMeter:      gasMeter,
 	})
 }
@@ -349,10 +350,11 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 	// otherwise only load without *_test.gno files (but we want them for
 	// mpkg since we're running tests on them).
 	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: mpkg.Path,
-		Output:  opts.WriterForStore(),
-		Store:   tgs,
-		Context: Context("", mpkg.Path, nil),
+		PkgPath:  mpkg.Path,
+		Output:   opts.WriterForStore(),
+		Store:    tgs,
+		Context:  Context("", mpkg.Path, nil),
+		TestMode: true,
 		// Force a non-nil allocator so interrealm v2 Phase 2 PkgID
 		// stamping fires during package load. With MaxAllocBytes=0,
 		// NewAllocator returns nil and Alloc.NewXxx allocations

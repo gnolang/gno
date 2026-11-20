@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderf
 package launderf
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack F: attacker invokes /p/attack.Tamperer.TamperMethod(p, s).
 // The Tamperer{} literal is constructed in attacker's realm (launderf),
 // so the receiver is launderf-stamped. PushFrameCall's borrow rule
@@ -23,4 +27,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): o<VPBlock(1,1)>.Field
+// cannot modify object owned by another realm from library code (call a function of the owning realm): o<VPBlock(1,1)>.Field

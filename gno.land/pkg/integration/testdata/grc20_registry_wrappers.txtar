@@ -57,7 +57,7 @@ stdout 'user=5000'
 ## A stale realm token is refused. The consumer re-enters itself so an outer
 ## `cur` is no longer the live crossing frame, then forwards it to the wrapper.
 ! gnokey maketx call -pkgpath gno.land/r/test/consumer -func SpendWithStaleRealm -args '10' -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stderr 'rlm does not match the current crossing frame'
+stderr 'cross: rlm is not the current cur'
 
 gnokey maketx call -pkgpath gno.land/r/test/consumer -func Balances -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
 stdout 'consumer=850 registry=1000'
@@ -83,7 +83,25 @@ var (
 
 func init(cur realm) {
 	Token, ledger = grc20.NewToken("WToken", "WTK", 4, 0, cur)
-	Key = grc20reg.Register(cross(cur), Token, "")
+	Key = grc20reg.Register(cross(cur), Token, "", Transfer, Approve, TransferFrom)
+}
+
+func Transfer(cur realm, to address, amount int64) {
+	if err := ledger.CallerTeller().Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Approve(cur realm, spender address, amount int64) {
+	if err := ledger.CallerTeller().Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func TransferFrom(cur realm, from, to address, amount int64) {
+	if err := ledger.CallerTeller().TransferFrom(0, cur, from, to, amount); err != nil {
+		panic(err)
+	}
 }
 
 // MintTo credits a realm's own address, so the test can fund both the

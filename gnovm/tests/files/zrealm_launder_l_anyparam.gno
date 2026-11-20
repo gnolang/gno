@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderl
 package launderl
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack L: same shape as H but the interface method takes `any`
 // (empty interface) instead of `*orig.Immutable`. The caller (UseAnyMutator)
 // boxes target into the any. The attacker's impl type-asserts back
@@ -42,4 +46,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-imm
-// after:  pwnd-via-any-arg
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): t<VPBlock(1,2)>.Field

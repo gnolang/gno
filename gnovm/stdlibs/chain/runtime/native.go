@@ -53,6 +53,34 @@ func ChainHeight(m *gno.Machine) int64 {
 	return execctx.GetContext(m).Height
 }
 
+// FuncPkgPath reports the package declaring the code of fn. The answer
+// depends only on the declaration, never on the caller, stamps or storage.
+// A method value taken through an interface has no fixed declaration: its
+// concrete method resolves at call time, so it panics instead.
+func FuncPkgPath(m *gno.Machine, fn gno.TypedValue) string {
+	tv := &fn
+	if tv.T != nil && tv.T.Kind() == gno.FuncKind && tv.V == nil {
+		return "" // typed nil function
+	}
+	switch v := tv.V.(type) {
+	case *gno.FuncValue:
+		if v == nil {
+			return ""
+		}
+		return v.PkgPath
+	case *gno.BoundMethodValue:
+		if v == nil {
+			return ""
+		}
+		if v.Func == nil {
+			m.PanicString("runtime.FuncPkgPath: method value of an interface has no fixed declaration")
+		}
+		return v.Func.PkgPath
+	}
+	m.PanicString("runtime.FuncPkgPath: not a function")
+	return ""
+}
+
 // pathRestricted is satisfied by GnoSessionAccount without importing gno.land.
 // Entries use the typed grammar "*" or "<route>/<type>[:<path>]" — see
 // gno.land/pkg/gnoland/allow_paths.go. AllowPaths is required at create-time;

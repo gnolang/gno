@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
@@ -205,4 +206,58 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 			assert.Equal(tt.expectedIsOriginCall, isOrigin)
 		})
 	}
+}
+
+// TestFuncPkgPath pins the Go side: the declaring package is read off the
+// function value, and non-functions fail with a Gno panic, never a Go one.
+func TestFuncPkgPath(t *testing.T) {
+	m := gno.NewMachine("gno.land/r/test", nil)
+	ft := &gno.FuncType{}
+
+	t.Run("top-level function", func(t *testing.T) {
+		tv := gno.TypedValue{T: ft, V: &gno.FuncValue{PkgPath: "gno.land/r/decl"}}
+		require.Equal(t, "gno.land/r/decl", FuncPkgPath(m, tv))
+	})
+
+	t.Run("any-wrapped function", func(t *testing.T) {
+		tv := gno.TypedValue{T: &gno.InterfaceType{}, V: &gno.FuncValue{PkgPath: "gno.land/p/wrapped"}}
+		require.Equal(t, "gno.land/p/wrapped", FuncPkgPath(m, tv))
+	})
+
+	t.Run("bound method", func(t *testing.T) {
+		tv := gno.TypedValue{T: ft, V: &gno.BoundMethodValue{
+			Func: &gno.FuncValue{PkgPath: "gno.land/p/decl"},
+		}}
+		require.Equal(t, "gno.land/p/decl", FuncPkgPath(m, tv))
+	})
+
+	t.Run("typed nil", func(t *testing.T) {
+		require.Equal(t, "", FuncPkgPath(m, gno.TypedValue{T: ft}))
+	})
+
+	t.Run("lazy interface bind panics", func(t *testing.T) {
+		tv := gno.TypedValue{T: ft, V: &gno.BoundMethodValue{Method: "M"}}
+		requirePanicString(t, m, tv, "no fixed declaration")
+	})
+
+	t.Run("untyped nil panics", func(t *testing.T) {
+		requirePanicString(t, m, gno.TypedValue{}, "not a function")
+	})
+
+	t.Run("non-function panics", func(t *testing.T) {
+		tv := gno.TypedValue{T: gno.IntType, V: gno.StringValue("x")}
+		requirePanicString(t, m, tv, "not a function")
+	})
+}
+
+func requirePanicString(t *testing.T, m *gno.Machine, tv gno.TypedValue, want string) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "expected a panic")
+		ex, ok := r.(*gno.Exception)
+		require.True(t, ok, "expected *gno.Exception, got %T", r)
+		require.Contains(t, ex.Value.GetString(), want)
+	}()
+	FuncPkgPath(m, tv)
 }

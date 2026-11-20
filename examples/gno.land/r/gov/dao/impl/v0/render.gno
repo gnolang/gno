@@ -29,20 +29,19 @@ func NewRender(d *GovDAO) *render {
 
 	r := mux.NewRouter()
 
-	// Handlers use mux's rlm-aware shape: rlm is supplied at RenderRlm
-	// dispatch time rather than captured at NewRender time. This lets
-	// downstream crossing reads (dao.GetProposal etc.) use cross(rlm)
-	// without relying on bare cross or restructuring the router.
-	r.HandleFuncRlm("", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderActiveProposals(0, rlm, req.RawPath, d))
+	// Handlers are crossing: mux's RenderRlm crosses into them with the
+	// cur supplied at dispatch time, so a handler that writes renders
+	// during that crossing call. Downstream reads keep using cross(cur).
+	r.HandleFuncRlm("", func(cur realm, rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderActiveProposals(0, cur, req.RawPath, d))
 	})
 
-	r.HandleFuncRlm("{pid}", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderProposalPage(0, rlm, req.GetVar("pid"), d))
+	r.HandleFuncRlm("{pid}", func(cur realm, rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderProposalPage(0, cur, req.GetVar("pid"), d))
 	})
 
-	r.HandleFuncRlm("{pid}/votes", func(_ int, rlm realm, rw *mux.ResponseWriter, req *mux.Request) {
-		rw.Write(ren.renderVotesForProposal(0, rlm, req.GetVar("pid"), d))
+	r.HandleFuncRlm("{pid}/votes", func(cur realm, rw *mux.ResponseWriter, req *mux.Request) {
+		rw.Write(ren.renderVotesForProposal(0, cur, req.GetVar("pid"), d))
 	})
 
 	ren.router = r

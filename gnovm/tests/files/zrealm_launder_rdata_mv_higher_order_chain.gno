@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_mv_higher_order_chain
 package launderrh_mv_higher_order_chain
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Higher-order indirection chain: victim calls fn that calls fn that
 // calls attacker's STORED PlainHook, which dispatches /p/-Apply
 // against a captured /r/-victim-stamped /p/-pointer.
@@ -9,7 +13,7 @@ package launderrh_mv_higher_order_chain
 // 2. RegisterPlainHook(closureA) — borrow rule #1 → victim. closureA stored.
 // 3. main calls runViaTrampoline() — local helper that wraps the
 //    victim call inside another function value indirection.
-// 4. trampoline() invokes launderrvictim.RunPlainHooks(). borrow rule #1 →
+// 4. trampoline() invokes launderrvictim.RunPlainHooks(cross(cur)). borrow rule #1 →
 //    m.Realm = /r/-victim.
 // 5. RunPlainHooks calls closureA() — /r/-attacker body → borrow rule #1 →
 //    m.Realm = /r/-attacker.
@@ -41,20 +45,22 @@ func trampoline(fn func()) {
 }
 
 func main(cur realm) {
-	launderrvictim.ClearHooks()
+	launderrvictim.ClearHooks(cross(cur))
 	println("before:", launderrvictim.ReadEmbed())
 
 	we := launderrvictim.GetWithEmbed()
 	captured = &we.Immutable
 
-	launderrvictim.RegisterPlainHook(func() {
+	launderrvictim.RegisterPlainHook(cross(cur), func() {
 		chainHelper()
 	})
-	trampoline(launderrvictim.RunPlainHooks)
+	trampoline(func() { launderrvictim.RunPlainHooks(cross(cur)) })
 
 	println("after: ", launderrvictim.ReadEmbed())
 }
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

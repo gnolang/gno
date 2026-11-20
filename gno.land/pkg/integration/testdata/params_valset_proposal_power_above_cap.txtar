@@ -74,7 +74,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 9223372036854775807)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 9223372036854775807)},
 		"Add validator at MaxInt64", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)
@@ -93,7 +93,7 @@ func main(cur realm) {
 
 	pr := v0.NewValidatorProposalRequest(
 		cross(cur),
-		[]v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1152921504606846975)},
+		[]*v0.ValoperChange{v0.NewValoperChange(address(memberAddr), 1152921504606846975)},
 		"Add validator at MaxTotalVotingPower", "",
 	)
 	dao.MustCreateProposal(cross(cur), pr)
@@ -109,11 +109,11 @@ import (
 )
 
 func init(cur realm) {
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetTier(memberstore.T2)
-	memberstore.Get(0, cur).SetTier(memberstore.T3)
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetTier(cross(cur), memberstore.T2)
+	memberstore.SetTier(cross(cur), memberstore.T3)
 
-	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+	memberstore.SetMember(cross(cur), memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
 
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

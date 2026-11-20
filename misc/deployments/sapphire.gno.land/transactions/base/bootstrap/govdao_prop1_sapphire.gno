@@ -38,10 +38,9 @@ import (
 const govdaoT1Addr = address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m")
 
 func main(cur realm) {
-	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add aeddi as sole T1 member ----
-	must(ms.SetMember(memberstore.T1, govdaoT1Addr, memberstore.NewMember(3)))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, govdaoT1Addr, memberstore.NewMember(3)))
 
 	// ---- 2. Lock down memberstore access ----
 	// gno.land/r/gov/dao/v3/impl is the production member-mutation realm;

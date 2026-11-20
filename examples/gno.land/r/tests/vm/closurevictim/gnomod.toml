@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/closurevictim"
+gno = "0.9"

@@ -13,11 +13,20 @@ func init() {
 }
 
 func main(cur realm) {
-	// NOTE: Modifying an external-realm object via a non-crossing method is
-	// allowed by soft crossing.
-	somevalue.Modify()
+	// Modify is /r/tests/vm code entered without crossing, so it runs
+	// read-only and its write to the stored object is refused.
+	println("modify:", try(func() { somevalue.Modify() }))
 	println(somevalue)
 }
 
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
+}
+
 // Output:
-// &(struct{("_modified" string)} gno.land/r/tests/vm.TestRealmObject)
+// modify: gno.land/r/tests/vm's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Field
+// &(struct{( string)} gno.land/r/tests/vm.TestRealmObject)

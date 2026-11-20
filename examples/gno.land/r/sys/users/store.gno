@@ -226,20 +226,16 @@ func (u *UserData) updateName(newName string, ignoreCanonical bool) error {
 // All previous names are preserved and resolvable.
 // The new name is the default value returned for address lookups.
 //
-// rlm is the cur of the caller's enclosing crossing function (passed as
-// data via the `_ int, rlm realm` non-crossing form). rlm.Address() is
-// the calling realm against which we authorize.
-func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
-	if !rlm.IsCurrent() {
-		return ErrInvalidRealm
-	}
+// It is crossing: the realm that crossed in, cur.Previous(), must be a
+// whitelisted controller.
+func (u *UserData) UpdateName(cur realm, newName string) error {
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
 	// Validate caller
-	if !controllers.Has(rlm.Address()) {
-		return NewErrNotWhitelisted(0, rlm)
+	if caller := cur.Previous(); !controllers.Has(caller.Address()) {
+		return NewErrNotWhitelisted(0, caller)
 	}
 
 	return u.updateName(newName, false)
@@ -249,16 +245,13 @@ func (u *UserData) UpdateName(_ int, rlm realm, newName string) error {
 // whitelist gate, but ErrCanonicalCollision is suppressed. The canonical
 // store is still written; a prior entry with the same canonical key is
 // silently overwritten (decision #14, later-wins).
-func (u *UserData) UpdateNameIgnoreCanonical(_ int, rlm realm, newName string) error {
-	if !rlm.IsCurrent() {
-		return ErrInvalidRealm
-	}
+func (u *UserData) UpdateNameIgnoreCanonical(cur realm, newName string) error {
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
-	if !controllers.Has(rlm.Address()) {
-		return NewErrNotWhitelisted(0, rlm)
+	if caller := cur.Previous(); !controllers.Has(caller.Address()) {
+		return NewErrNotWhitelisted(0, caller)
 	}
 
 	return u.updateName(newName, true)
@@ -277,18 +270,15 @@ func (u *UserData) delete() error {
 }
 
 // Delete marks a user and all their aliases as deleted.
-// rlm is the cur of the caller's enclosing crossing function; see UpdateName.
-func (u *UserData) Delete(_ int, rlm realm) error {
-	if !rlm.IsCurrent() {
-		return ErrInvalidRealm
-	}
+// It is crossing; see UpdateName.
+func (u *UserData) Delete(cur realm) error {
 	if u.IsDeleted() {
 		return ErrUserNotExistOrDeleted
 	}
 
 	// Validate caller
-	if !controllers.Has(rlm.Address()) {
-		return NewErrNotWhitelisted(0, rlm)
+	if caller := cur.Previous(); !controllers.Has(caller.Address()) {
+		return NewErrNotWhitelisted(0, caller)
 	}
 
 	return u.delete()

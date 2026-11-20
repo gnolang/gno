@@ -82,8 +82,26 @@ var (
 
 func init(cur realm) {
 	Token, ledger = grc20.NewToken("AliasTok", "ALIASTOK", 0, id.Next(), cur)
-	grc20reg.Register(cross(cur), Token, "ALIASTOK")
+	grc20reg.Register(cross(cur), Token, "ALIASTOK", Transfer, Approve, TransferFrom)
 	ledger.Mint(chain.PackageAddress("gno.land/r/gov/dao/treasury/v0"), 1000)
+}
+
+func Transfer(cur realm, to address, amount int64) {
+	if err := ledger.CallerTeller().Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Approve(cur realm, spender address, amount int64) {
+	if err := ledger.CallerTeller().Approve(0, cur, spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func TransferFrom(cur realm, from, to address, amount int64) {
+	if err := ledger.CallerTeller().TransferFrom(0, cur, from, to, amount); err != nil {
+		panic(err)
+	}
 }
 
 -- holder/holder.gno --
@@ -121,11 +139,11 @@ import (
 )
 
 func init(cur realm) {
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetTier(memberstore.T2)
-	memberstore.Get(0, cur).SetTier(memberstore.T3)
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetTier(cross(cur), memberstore.T2)
+	memberstore.SetTier(cross(cur), memberstore.T3)
 
-	memberstore.Get(0, cur).SetMember(
+	memberstore.SetMember(cross(cur), 
 		memberstore.T1,
 		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"),
 		memberstore.NewMember(3),

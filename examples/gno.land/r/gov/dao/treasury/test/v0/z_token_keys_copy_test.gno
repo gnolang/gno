@@ -25,7 +25,9 @@ import (
 func TestZSetTokenKeysCopiesItsArgument(cur realm, t *testing.T) {
 	testing.SetRealm(allowedRealm)
 
+	testing.SetRealm(testing.NewCodeRealm(testRealmPath))
 	keyed := registerGRC20Tokens(0, cur, t, []string{"CopyTok"}, treasuryAddr)
+	testing.SetRealm(allowedRealm)
 	grc20ID := trs_pkg.GRC20Banker{}.ID()
 
 	// The caller's own slice, handed over the way an allowed DAO realm's

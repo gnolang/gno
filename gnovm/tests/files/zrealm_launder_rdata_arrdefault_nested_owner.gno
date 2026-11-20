@@ -21,5 +21,8 @@ func main(cur realm) {
 	println("after owner:", v.Trusted())
 }
 
-// Output:
-// after owner: 0 6 0
+// Error:
+// cannot allocate gno.land/r/tests/vm/launderrarrnested.N in realm gno.land/r/launder_rdata_arrdefault_nested_owner
+
+// TypeCheckError:
+// gno.land/r/launder_rdata_arrdefault_nested_owner/zrealm_launder_rdata_arrdefault_nested_owner.gno:8:6: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.N outside its realm (use a pointer); gno.land/r/launder_rdata_arrdefault_nested_owner/zrealm_launder_rdata_arrdefault_nested_owner.gno:9:2: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.N outside its realm (use a pointer); gno.land/r/launder_rdata_arrdefault_nested_owner/zrealm_launder_rdata_arrdefault_nested_owner.gno:10:2: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.S outside its realm (use a pointer); gno.land/r/launder_rdata_arrdefault_nested_owner/zrealm_launder_rdata_arrdefault_nested_owner.gno:11:2: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.P outside its realm (use a pointer)

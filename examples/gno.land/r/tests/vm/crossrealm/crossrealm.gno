@@ -24,7 +24,8 @@ func init() {
 	local = &LocalStruct{A: 123}
 }
 
-// Make1 returns a local object wrapped by a p struct
+// Make1 returns a local object wrapped by a p struct, as a view: only this
+// realm's own code may write it.
 func Make1() *p_crossrealm.Container {
 	return &p_crossrealm.Container{
 		A: 1,

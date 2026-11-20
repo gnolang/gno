@@ -40,23 +40,22 @@ var (
 func loadMembers(cur realm) {
 	// This is needed because state is saved between unit tests,
 	// and we want to avoid having real members used on tests
-	mstore := memberstore.Get(0, cur)
-	mstore.DeleteAll()
+	memberstore.DeleteAll(cross(cur))
 
-	mstore.SetTier(memberstore.T1)
-	mstore.SetTier(memberstore.T2)
-	mstore.SetTier(memberstore.T3)
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetTier(cross(cur), memberstore.T2)
+	memberstore.SetTier(cross(cur), memberstore.T3)
 
-	mstore.SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m1, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m11, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m111, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m1111, memberByTier(memberstore.T1))
 
-	mstore.SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
-	mstore.SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
-	mstore.SetMember(memberstore.T3, m4, memberByTier(memberstore.T3))
-	mstore.SetMember(memberstore.T3, m5, memberByTier(memberstore.T3))
-	mstore.SetMember(memberstore.T3, m6, memberByTier(memberstore.T3))
+	memberstore.SetMember(cross(cur), memberstore.T2, m2, memberByTier(memberstore.T2))
+	memberstore.SetMember(cross(cur), memberstore.T2, m3, memberByTier(memberstore.T2))
+	memberstore.SetMember(cross(cur), memberstore.T3, m4, memberByTier(memberstore.T3))
+	memberstore.SetMember(cross(cur), memberstore.T3, m5, memberByTier(memberstore.T3))
+	memberstore.SetMember(cross(cur), memberstore.T3, m6, memberByTier(memberstore.T3))
 }
 
 func TestCreateProposalAndVote(cur realm, t *testing.T) {
@@ -410,18 +409,18 @@ func TestPromoteToTierMissingFromStoreKeepsTheMember(cur realm, t *testing.T) {
 	loadMembers(cur)
 
 	// Drop the T3 bucket while the global definition of T3 survives.
-	mstore := memberstore.Get(0, cur)
-	mstore.DeleteAll()
-	mstore.SetTier(memberstore.T1)
-	mstore.SetTier(memberstore.T2)
-	mstore.SetMember(memberstore.T1, m1, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T1, m11, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T1, m111, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T1, m1111, memberByTier(memberstore.T1))
-	mstore.SetMember(memberstore.T2, m2, memberByTier(memberstore.T2))
-	mstore.SetMember(memberstore.T2, m3, memberByTier(memberstore.T2))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetTier(cross(cur), memberstore.T2)
+	memberstore.SetMember(cross(cur), memberstore.T1, m1, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m11, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m111, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T1, m1111, memberByTier(memberstore.T1))
+	memberstore.SetMember(cross(cur), memberstore.T2, m2, memberByTier(memberstore.T2))
+	memberstore.SetMember(cross(cur), memberstore.T2, m3, memberByTier(memberstore.T2))
 
 	// Premise: T3 is defined globally but absent from this store.
+	mstore := memberstore.Get(0, cur)
 	_, defined := memberstore.GetTier(memberstore.T3)
 	urequire.Equal(t, true, defined, "premise: T3 must still be a defined tier")
 	urequire.Equal(t, false, mstore.Has(memberstore.T3),

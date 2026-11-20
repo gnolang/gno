@@ -104,6 +104,7 @@ const (
 	TRANS_VAR_VALUE
 	TRANS_TYPE_TYPE
 	TRANS_FILE_BODY
+	TRANS_FUNCHANDLE_X
 )
 
 // Transform node `n` of `ftype`/`index` in context `ns` during `stage`.
@@ -213,6 +214,11 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *RefExpr:
 		cnn.X = transcribe(t, nns, TRANS_REF_X, 0, cnn.X, &c).(Expr)
+		if stopOrSkip(nc, c) {
+			return
+		}
+	case *FuncHandleExpr:
+		cnn.X = transcribe(t, nns, TRANS_FUNCHANDLE_X, 0, cnn.X, &c).(Expr)
 		if stopOrSkip(nc, c) {
 			return
 		}

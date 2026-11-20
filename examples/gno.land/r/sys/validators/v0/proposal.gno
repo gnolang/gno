@@ -25,8 +25,8 @@ type ValoperChange struct {
 	Power           uint64
 }
 
-func NewValoperChange(operatorAddress address, power uint64) ValoperChange {
-	return ValoperChange{
+func NewValoperChange(operatorAddress address, power uint64) *ValoperChange {
+	return &ValoperChange{
 		OperatorAddress: operatorAddress,
 		Power:           power,
 	}
@@ -66,16 +66,21 @@ const errNoValoperChanges = "no valoper changes proposed"
 // Emits ValidatorAdded / ValidatorRemoved events per entry on
 // successful execution. (Power-upsert on an existing op also emits
 // ValidatorAdded with the new power.)
-func NewValidatorProposalRequest(cur realm, changes []ValoperChange, title, description string) dao.ProposalRequest {
-	if len(changes) == 0 {
+func NewValidatorProposalRequest(cur realm, in []*ValoperChange, title, description string) *dao.ProposalRequest {
+	if len(in) == 0 {
 		panic(errNoValoperChanges)
+	}
+	if len(in) > 40 {
+		panic("max number of allowed validators per proposal is 40")
+	}
+	// Copy into this realm's own values, so the caller cannot change them later.
+	changes := make([]ValoperChange, len(in))
+	for i, c := range in {
+		changes[i] = *c
 	}
 	title = strings.TrimSpace(title)
 	if title == "" {
 		panic("proposal title is empty")
-	}
-	if len(changes) > 40 {
-		panic("max number of allowed validators per proposal is 40")
 	}
 
 	// Dedupe: each operator may appear at most once per proposal.

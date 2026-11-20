@@ -23,4 +23,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): g<VPBlock(1,1)>.Field
+// cannot copy gno.land/r/launderb.ExploiterB outside realm gno.land/r/launderb (use a pointer)

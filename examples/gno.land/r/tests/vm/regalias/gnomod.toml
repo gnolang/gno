@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/regalias"
+gno = "0.9"

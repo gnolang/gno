@@ -183,6 +183,10 @@ type TypeCheckOptions struct {
 	// keep checking test files.
 	ProdOnly bool
 
+	// LintInfo, if set, is called with the package's production go/types
+	// package, files and Info (uses/selections filled). It is a `gno lint`
+	// hook; the chain never sets it, so the consensus path is unchanged.
+	LintInfo func(pkg *types.Package, files []*ast.File, info *types.Info)
 	// LegacyCopies skips the checkCopies bound on the checked package, for
 	// genesis replay of packages accepted before the bound existed.
 	LegacyCopies bool
@@ -210,6 +214,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
 		fset:      opts.Fset,
+		lintInfo:  opts.LintInfo,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
 			// syntax at whatever version the validator binary was built with,
@@ -266,8 +271,9 @@ type gnoImporter struct {
 	permCache TypeCheckCache
 	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
-	errors    []error  // there may be many for a single import
-	stack     []string // stack of pkgpaths for cyclic import detection
+	errors    []error                                                       // there may be many for a single import
+	stack     []string                                                      // stack of pkgpaths for cyclic import detection
+	lintInfo  func(pkg *types.Package, files []*ast.File, info *types.Info) // optional prod-pass hook
 }
 
 // Unused, but satisfies the Importer interface.
@@ -535,7 +541,22 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool,
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+	// Only the target package's Info is read; imports skip recording one.
+	var info *types.Info
+	if mpkg.Path == gimp.pkgPath {
+		info = newRealmValueInfo()
+	}
+	if info != nil && gimp.lintInfo != nil {
+		info.Uses = map[*ast.Ident]types.Object{}
+		info.Selections = map[*ast.SelectorExpr]*types.Selection{}
+	}
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
+	if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
+		gimp.errors = append(gimp.errors, checkRealmValues(gofset, pgofs, info, pkg, mpkg.Path)...)
+	}
+	if gimp.lintInfo != nil && mpkg.Path == gimp.pkgPath && len(gimp.errors) == numErrs {
+		gimp.lintInfo(pkg, pgofs, info)
+	}
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -552,7 +573,14 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool,
 	// STEP 4: Type-check Gno0.9 AST in Go (w/ tests, but not xxx_tests).
 	if len(pgofs) < len(gofs) {
 		gimp.testing = true // use tgetter for stdlibs, default to getter.
-		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, nil)
+		var info *types.Info
+		if mpkg.Path == gimp.pkgPath {
+			info = newRealmValueInfo()
+		}
+		pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, gofs, info)
+		if len(gimp.errors) == numErrs && mpkg.Path == gimp.pkgPath {
+			gimp.errors = append(gimp.errors, checkRealmValues(gofset, gofs, info, pkg, mpkg.Path)...)
+		}
 		// Fail early: there's no point checking the others.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -594,7 +622,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool,
 		gmgof.Name = ast.NewIdent(tpname)
 		tgofs2 := []*ast.File{gmgof, tgof}
 		gimp.testing = true // use tgetter for stdlibs, default to tgetter.
-		_, _ = gimp.cfg.Check(mpkg.Path, gofset, tgofs2, nil)
+		info := newRealmValueInfo()
+		tnumErrs := len(gimp.errors)
+		tpkg, _ := gimp.cfg.Check(mpkg.Path, gofset, tgofs2, info)
+		if len(gimp.errors) == tnumErrs { // a type error leaves info incomplete
+			gimp.errors = append(gimp.errors, checkRealmValues(gofset, tgofs2, info, tpkg, filetestPkgPath(tgof, mpkg.Path))...)
+		}
 		/* NOTE: Uncomment to fail earlier.
 		if len(gimp.errors) != numErrs {
 			errs = multierr.Combine(gimp.errors[numErrs:]...)
@@ -852,4 +885,16 @@ func importErrorString(err ImportError) string {
 	} else {
 		return msg
 	}
+}
+
+// filetestPkgPath is the realm a filetest runs as (its PKGPATH directive).
+func filetestPkgPath(f *ast.File, def string) string {
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if rest, ok := strings.CutPrefix(c.Text, "// PKGPATH:"); ok {
+				return strings.TrimSpace(rest)
+			}
+		}
+	}
+	return def
 }

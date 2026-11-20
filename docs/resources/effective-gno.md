@@ -108,11 +108,8 @@ behavior. Packages should be designed to be flexible and not impose restrictions
 that could lead to user frustration or the need to fork the code.
 
 ```go
-func Foobar(_ int, rlm realm) {
-	if !rlm.IsCurrent() {
-		panic("realm handle is not the live caller")
-	}
-	caller := rlm.Previous().Address()
+func Foobar(cur realm) {
+	caller := cur.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
 	}
@@ -146,8 +143,13 @@ func init(cur realm) {
 	registry.Register(cross(cur), "myID", myCallback)
 }
 
-func myCallback(a, b string) { /* ... */ }
+func myCallback(cur realm, a, b string) { /* ... */ }
 ```
+
+A function handed to another realm arrives with no maker, so writing your
+realm's state from it needs a crossing function (`func(cur realm, ...)`) that
+the registry calls with `cross`; a plain function value can only read. A
+registry of crossing functions stores `func(cur realm, ...)` values.
 
 A common use case could be to set the "admin" as the caller uploading the
 package.
@@ -795,19 +797,28 @@ func (s *MySafeStruct) Inc(_ int, rlm realm) {
 }
 ```
 
-Then, you can register this object in one or more other realms so that they can access it, while still following your own rules.
+The object belongs to the realm whose code allocated it, and its state changes
+only during a crossing call into that realm. Other realms holding the pointer
+can read it; an `Inc` called from their code is refused. The owning realm
+exposes a crossing function that calls the method:
 
 ```go
-import "gno.land/r/otherrealm"
+var mySafeObj *MySafeStruct
 
 func init(cur realm) {
-	mySafeObj := NewSafeStruct(0, cur)
-	otherrealm.Register(mySafeObj)
+	mySafeObj = NewSafeStruct(0, cur)
 }
 
-// then, other realm can call the public functions but won't be the "owner" of
-// the object.
+// Inc runs inside this realm; the method's admin check sees the caller.
+func Inc(cur realm) {
+	mySafeObj.Inc(0, cur)
+}
 ```
+
+Only a pointer crosses. A struct or array value of a realm's declared type is
+created and copied only by that realm's code, so an error returned to another
+realm is a pointer error (`*MyError`), and `defer obj.M()` on a foreign value
+becomes `defer func() { obj.M() }()`.
 
 ### Choosing between Coins and GRC20 tokens
 

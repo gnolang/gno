@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_embed
 package launderrh_embed
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // /r/-declared victim with EMBEDDED /p/-type — Apply-callback attack.
 //
 // WithEmbed (in /r/launderrvictim) embeds launderpkg.Immutable by
@@ -41,4 +45,6 @@ func main(cur realm) {
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

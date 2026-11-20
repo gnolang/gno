@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_pdr_p_defer_apply
 package launderrh_pdr_p_defer_apply
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Vector 7: /p/-method DeferApply schedules attacker callback as
 // a defer rather than synchronous call.
 //
@@ -40,4 +44,6 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

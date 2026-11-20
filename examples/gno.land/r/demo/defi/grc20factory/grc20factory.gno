@@ -50,7 +50,20 @@ func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, fau
 	}
 	instances.Set(symbol, &inst)
 
-	grc20reg.Register(cross(cur), token, symbol)
+	grc20reg.Register(cross(cur), token, symbol,
+		func(cur realm, to address, amount int64) {
+			caller := cur.Previous().Address()
+			checkErr(ledger.ImpersonateTeller(caller).Transfer(0, cur, to, amount))
+		},
+		func(cur realm, spender address, amount int64) {
+			caller := cur.Previous().Address()
+			checkErr(ledger.ImpersonateTeller(caller).Approve(0, cur, spender, amount))
+		},
+		func(cur realm, from, to address, amount int64) {
+			caller := cur.Previous().Address()
+			checkErr(ledger.ImpersonateTeller(caller).TransferFrom(0, cur, from, to, amount))
+		},
+	)
 }
 
 func Bank(symbol string) *grc20.Token {

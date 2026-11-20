@@ -27,7 +27,7 @@ func TestUpdateImplIgnoresEmptyAllowedDAOs(cur realm, t *testing.T) {
 	lock := func() {
 		allowedDAOs = nil // reopen so the next UpdateImpl is permitted
 		testing.SetRealm(testing.NewCodeRealm(v0))
-		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
+		UpdateImpl(cross(cur), &UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
 		uassert.False(t, InAllowedDAOs(invalid), "precondition: locked down")
 	}
 
@@ -42,7 +42,7 @@ func TestUpdateImplIgnoresEmptyAllowedDAOs(cur realm, t *testing.T) {
 	// Path 2: an explicitly empty slice via the struct literal.
 	lock()
 	testing.SetRealm(testing.NewCodeRealm(v0))
-	UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{}})
+	UpdateImpl(cross(cur), &UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{}})
 	uassert.False(t, InAllowedDAOs(invalid),
 		"an empty AllowedDAOs must not reopen the permission gate")
 
@@ -78,13 +78,13 @@ func TestUpdateImplRejectsBlankAllowedDAOEntry(cur realm, t *testing.T) {
 	for _, blank := range []string{"", "   "} {
 		allowedDAOs = nil
 		testing.SetRealm(testing.NewCodeRealm(v0))
-		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
+		UpdateImpl(cross(cur), &UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
 
 		testing.SetRealm(testing.NewCodeRealm(v0))
 		urequire.AbortsWithMessage(t, cur,
 			"AllowedDAOs entries must be realm paths; got an empty one",
 			func() {
-				UpdateImpl(cross(cur), UpdateRequest{
+				UpdateImpl(cross(cur), &UpdateRequest{
 					DAO:         &dummyDao{},
 					AllowedDAOs: []string{v0, blank},
 				})
@@ -109,13 +109,13 @@ func TestUpdateImplRejectsPaddedAllowedDAOEntry(cur realm, t *testing.T) {
 	for _, padded := range []string{" " + v1, v1 + " ", "\t" + v1} {
 		allowedDAOs = nil
 		testing.SetRealm(testing.NewCodeRealm(v0))
-		UpdateImpl(cross(cur), UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
+		UpdateImpl(cross(cur), &UpdateRequest{DAO: &dummyDao{}, AllowedDAOs: []string{v0}})
 
 		testing.SetRealm(testing.NewCodeRealm(v0))
 		urequire.AbortsWithMessage(t, cur,
 			"AllowedDAOs entries must not have leading or trailing spaces; entry 1",
 			func() {
-				UpdateImpl(cross(cur), UpdateRequest{
+				UpdateImpl(cross(cur), &UpdateRequest{
 					DAO:         &dummyDao{},
 					AllowedDAOs: []string{v0, padded},
 				})

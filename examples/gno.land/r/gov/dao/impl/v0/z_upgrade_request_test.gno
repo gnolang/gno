@@ -42,19 +42,19 @@ func TestUpgradeRequestRejectsBlankRealmPkg(cur realm, t *testing.T) {
 
 type mockDAO struct{}
 
-func (d *mockDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
+func (d *mockDAO) PreCreateProposal(cur realm, r *dao.ProposalRequest) (address, error) {
 	return m1, nil
 }
 
-func (d *mockDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid dao.ProposalID) {}
+func (d *mockDAO) PostCreateProposal(cur realm, r *dao.ProposalRequest, pid dao.ProposalID) {}
 
-func (d *mockDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error { return nil }
+func (d *mockDAO) VoteOnProposal(cur realm, r *dao.VoteRequest) error { return nil }
 
-func (d *mockDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool, error) {
+func (d *mockDAO) PreExecuteProposal(cur realm, pid dao.ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (d *mockDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Executor) error {
+func (d *mockDAO) ExecuteProposal(cur realm, pid dao.ProposalID, e dao.Executor) error {
 	return nil
 }
 

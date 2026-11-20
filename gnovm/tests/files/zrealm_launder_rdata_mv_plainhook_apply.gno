@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_mv_plainhook_apply
 package launderrh_mv_plainhook_apply
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Stored PlainHook (func()) that captures a /p/-typed pointer aliasing
 // victim memory and dispatches its /p/-Apply method later, with a
 // /p/-declared callback.
@@ -31,20 +35,22 @@ import (
 )
 
 func main(cur realm) {
-	launderrvictim.ClearHooks()
+	launderrvictim.ClearHooks(cross(cur))
 	println("before:", launderrvictim.ReadEmbed())
 
 	we := launderrvictim.GetWithEmbed()
 	captured := &we.Immutable
 
-	launderrvictim.RegisterPlainHook(func() {
+	launderrvictim.RegisterPlainHook(cross(cur), func() {
 		captured.Apply(launderattack.EvilWrite)
 	})
-	launderrvictim.RunPlainHooks()
+	launderrvictim.RunPlainHooks(cross(cur))
 
 	println("after: ", launderrvictim.ReadEmbed())
 }
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

@@ -70,18 +70,10 @@ stderr 'illegal conversion of readonly or externally stored value'
 gnokey query vm/qeval --data 'gno.land/r/test/members.Setting()'
 stdout 'data: \("orig" string\)'
 
-# Another realm's type built through each source.
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeReturn -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
-stderr 'illegal conversion to external realm type'
-
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeComma -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
-stderr 'illegal conversion to external realm type'
-
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeArg -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
-stderr 'illegal conversion to external realm type'
-
-! gnokey maketx call -pkgpath gno.land/r/test/caller -func ForgeRange -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
-stderr 'illegal conversion to external realm type'
+# Another realm's type built through each source: a realm cannot hold
+# vault.T by value, so the package is refused at type check (R2).
+! gnokey maketx addpkg -pkgdir $WORK/forger -pkgpath gno.land/r/test/forger -gas-fee 10000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
+stderr 'cannot hold a value of gno.land/r/test/vault.T outside its realm \(use a pointer\)'
 
 gnokey query vm/qeval --data 'gno.land/r/test/vault.Read()'
 stdout 'data: \("trusted" string\)'
@@ -176,7 +168,6 @@ package caller
 import (
 	"gno.land/p/test/pun"
 	"gno.land/r/test/members"
-	"gno.land/r/test/vault"
 )
 
 func pair() ([]string, []string) { return members.List(), nil }
@@ -264,37 +255,6 @@ func MapRange(cur realm) {
 	}
 }
 
-func mk() (struct{ Field string }, struct{ Field string }) {
-	return struct{ Field string }{"changed"}, struct{ Field string }{"changed"}
-}
-
-func retT() (vault.T, vault.T) { return mk() }
-
-func ForgeReturn(cur realm) {
-	v, _ := retT()
-	vault.Save(cross(cur), v)
-}
-
-func ForgeComma(cur realm) {
-	src := map[string]struct{ Field string }{"k": {"changed"}}
-	var v vault.T
-	v, _ = src["k"]
-	vault.Save(cross(cur), v)
-}
-
-func first(v, _ vault.T) vault.T { return v }
-
-func ForgeArg(cur realm) {
-	vault.Save(cross(cur), first(mk()))
-}
-
-func ForgeRange(cur realm) {
-	var v vault.T
-	for _, v = range []struct{ Field string }{{"changed"}} {
-		vault.Save(cross(cur), v)
-	}
-}
-
 func boxPair() (any, any) { return pair() }
 
 func boxParams(a, _ any) string { return a.([]string)[0] }
@@ -340,4 +300,44 @@ func Own(cur realm) string {
 	m.Set(0, "own-decl")
 
 	return l[0] + " " + m[0]
+}
+
+-- forger/gnomod.toml --
+module = "gno.land/r/test/forger"
+gno = "0.9"
+
+-- forger/forger.gno --
+package forger
+
+import "gno.land/r/test/vault"
+
+func mk() (struct{ Field string }, struct{ Field string }) {
+	return struct{ Field string }{"changed"}, struct{ Field string }{"changed"}
+}
+
+func retT() (vault.T, vault.T) { return mk() }
+
+func ForgeReturn(cur realm) {
+	v, _ := retT()
+	vault.Save(cross(cur), v)
+}
+
+func ForgeComma(cur realm) {
+	src := map[string]struct{ Field string }{"k": {"changed"}}
+	var v vault.T
+	v, _ = src["k"]
+	vault.Save(cross(cur), v)
+}
+
+func first(v, _ vault.T) vault.T { return v }
+
+func ForgeArg(cur realm) {
+	vault.Save(cross(cur), first(mk()))
+}
+
+func ForgeRange(cur realm) {
+	var v vault.T
+	for _, v = range []struct{ Field string }{{"changed"}} {
+		vault.Save(cross(cur), v)
+	}
 }

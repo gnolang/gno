@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderm
 package launderm
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack M: nil-realm hole via a /p/-STAMPED receiver.
 //
 // launderpkg.PInitData is allocated during /p/launderpkg init, so its
@@ -28,4 +32,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,1)>.Field
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,1)>.Field

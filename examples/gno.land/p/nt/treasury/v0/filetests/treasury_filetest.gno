@@ -50,12 +50,18 @@ func main(cur realm) {
 		}
 	}
 
+	transfer := func(_ int, rlm realm, tokenKey string, to address, amount int64) {
+		if err := token.RealmTeller(0, rlm).Transfer(0, rlm, to, amount); err != nil {
+			panic(err)
+		}
+	}
+
 	// Try to create a Treasury instance with a duplicate banker.
 	var (
 		banker_           = banker.NewBanker(banker.BankerTypeRealmSend, cur)
 		coinsBanker, _    = treasury.NewCoinsBankerWithOwner(ownerAddr, banker_)
-		grc20Banker, _    = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
-		grc20BankerDup, _ = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
+		grc20Banker, _    = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister, transfer)
+		grc20BankerDup, _ = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister, transfer)
 	)
 
 	_, err = treasury.New([]treasury.Banker{coinsBanker, grc20Banker, grc20BankerDup}, "")

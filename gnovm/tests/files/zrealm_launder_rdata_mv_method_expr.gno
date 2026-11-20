@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_mv_method_expr
 package launderrh_mv_method_expr
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Method-EXPRESSION laundering probe (unbound).
 //
 // `me := (*launderpkg.Immutable).Apply` is the unbound method value
@@ -36,4 +40,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

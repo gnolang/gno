@@ -145,9 +145,9 @@ func isRealmPath(pkgpath string) bool {
 // at creation would misreport a re-delegation: two set-proposals created while
 // the slot is empty, then executed in sequence, would both emit from="" even
 // though the second replaced the first.
-func newDelegateProposal(cur realm, event, key, to, title, desc string, apply func() string) dao.ProposalRequest {
+func newDelegateProposal(cur realm, event, key, to, title, desc string, apply func(cur realm) string) *dao.ProposalRequest {
 	callback := func(cur realm) error {
-		from := apply()
+		from := apply(cross(cur))
 		chain.Emit(event, "key", key, "from", from, "to", to)
 		return nil
 	}

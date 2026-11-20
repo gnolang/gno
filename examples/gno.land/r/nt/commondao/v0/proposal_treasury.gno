@@ -55,7 +55,7 @@ func treasuryBalance(dao *commondao.CommonDAO) chain.Coins {
 
 // newTreasurySpendPropDefinition creates a proposal definition that sends
 // coins from the DAO's own treasury.
-func newTreasurySpendPropDefinition(dao *commondao.CommonDAO, to address, coin chain.Coin) treasurySpendPropDefinition {
+func newTreasurySpendPropDefinition(dao *commondao.CommonDAO, to address, coin chain.Coin) *treasurySpendPropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -69,7 +69,7 @@ func newTreasurySpendPropDefinition(dao *commondao.CommonDAO, to address, coin c
 		panic("spend amount must be positive")
 	}
 
-	return treasurySpendPropDefinition{dao, to, coin}
+	return &treasurySpendPropDefinition{dao, to, coin}
 }
 
 // treasurySpendPropDefinition defines a proposal type for spending funds
@@ -140,7 +140,7 @@ func (p treasurySpendPropDefinition) execute(_ int, sub realm) error {
 
 // newTreasuryClawbackPropDefinition creates a proposal definition that
 // sweeps a descendant DAO's treasury one step up the tree.
-func newTreasuryClawbackPropDefinition(dao, target *commondao.CommonDAO) treasuryClawbackPropDefinition {
+func newTreasuryClawbackPropDefinition(dao, target *commondao.CommonDAO) *treasuryClawbackPropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -148,7 +148,7 @@ func newTreasuryClawbackPropDefinition(dao, target *commondao.CommonDAO) treasur
 		panic("target DAO is required")
 	}
 
-	return treasuryClawbackPropDefinition{dao, target}
+	return &treasuryClawbackPropDefinition{dao, target}
 }
 
 // treasuryClawbackPropDefinition defines a proposal type for an ancestor
@@ -217,7 +217,7 @@ func (p treasuryClawbackPropDefinition) execute(_ int, sub realm) error {
 
 // newTreasuryFreezePropDefinition creates a proposal definition that
 // freezes or unfreezes a descendant DAO's treasury.
-func newTreasuryFreezePropDefinition(dao, target *commondao.CommonDAO, frozen bool) treasuryFreezePropDefinition {
+func newTreasuryFreezePropDefinition(dao, target *commondao.CommonDAO, frozen bool) *treasuryFreezePropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -225,7 +225,7 @@ func newTreasuryFreezePropDefinition(dao, target *commondao.CommonDAO, frozen bo
 		panic("target DAO is required")
 	}
 
-	return treasuryFreezePropDefinition{dao, target, frozen}
+	return &treasuryFreezePropDefinition{dao, target, frozen}
 }
 
 // treasuryFreezePropDefinition defines a proposal type for an ancestor

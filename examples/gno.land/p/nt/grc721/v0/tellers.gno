@@ -124,8 +124,8 @@ func (led *PrivateLedger) ImpersonateTeller(addr address) Teller {
 // so the token's own sub-realms are not falsely rejected.
 //
 // A foreign realm that needs to move a user's tokens uses the ordinary route:
-// the owner Approves it, and it spends as itself through RealmTeller, which is
-// eagerly bound to its own address and approval-gated.
+// the owner Approves it, and it calls the token realm's crossing function,
+// which resolves it as the approved spender.
 //
 // The leading int keeps this a plain method.
 func (ft *fnTeller) guardHome(_ int, rlm realm) error {

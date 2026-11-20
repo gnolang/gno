@@ -168,14 +168,20 @@ var (
 )
 
 type ObjectInfo struct {
-	ID       ObjectID  // set if real.
-	Hash     ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime  uint64    // time last updated.
-	RefCount int       // for persistence. deleted/gc'd if 0.
+	ID   ObjectID  // set if real.
+	Hash ValueHash `json:",omitempty"` // zero if dirty.
+	// madeInLo/Hi: the crossing call that made a function value (S3), 48
+	// bits in padding so sizes do not change; memory only, a copy gets 0.
+	madeInLo uint32
+	OwnerID  ObjectID `json:",omitempty"` // parent in the ownership tree.
+	ModTime  uint64   // time last updated.
+	RefCount int      // for persistence. deleted/gc'd if 0.
 
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
+	// scratch is the read-only stretch that allocated the object (0: none);
+	// it sits in IsEscaped's padding, so object sizes do not change.
+	scratch uint32
 
 	LastObjectSize int64 //
 
@@ -194,8 +200,20 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-	lastGCCycle  int64
-	owner        Object // mem reference to owner.
+	// s3Written: written in an S3 read-only stretch (S3d); finalize refuses to
+	// store it. Sits in the bools' padding, so object sizes do not change.
+	s3Written   bool
+	madeInHi    uint16
+	lastGCCycle int64
+	owner       Object // mem reference to owner.
+}
+
+func (oi *ObjectInfo) setMadeIn(id uint64) {
+	oi.madeInLo, oi.madeInHi = uint32(id), uint16(id>>32)
+}
+
+func (oi *ObjectInfo) madeIn() uint64 {
+	return uint64(oi.madeInHi)<<32 | uint64(oi.madeInLo)
 }
 
 // Copy used for serialization of objects.

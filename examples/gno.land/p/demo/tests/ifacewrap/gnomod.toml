@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/ifacewrap"
+gno = "0.9"

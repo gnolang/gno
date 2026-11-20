@@ -1,26 +1,14 @@
-# Test: cross-realm calls and the realm-author's responsibility for
-# guarding state-modifying entry points.
+# Test: cross-realm calls cannot write through an exported non-crossing
+# setter, even with a recover() around the call.
 #
-# Pre-interrealm-v2, the VM defended against an "exported non-crossing setter"
-# footgun via a pre-mutation readonly check in PopAsPointer2 (added in
-# commit f87249327). A cross-realm caller invoking such a setter would
-# trip the readonly panic before the assignment landed in memory, even
-# with a recover() to swallow it.
+# Under cross to write, vault's SetOwner called from another realm is
+# entered without crossing, so it runs read-only and owner=o is refused
+# before it lands in memory. The read-only frame is no realm boundary, so
+# the attacker's recover() does catch the refusal; it gains nothing: owner
+# is unchanged and the guarded withdraw rejects the attacker.
 #
-# Under interrealm v2, the declaring-realm borrow (borrow rule #1) shifts m.Realm to
-# the declaring realm for the duration of any /r/-declared callable —
-# regardless of crossing/non-crossing. Inside SetOwner's body the
-# borrow makes the write owner=o a SAME-REALM mutation, which is
-# legitimate under interrealm v2's storage=authority model.
-#
-# Consequence: an exported unguarded setter IS exploitable cross-realm
-# under interrealm v2. The defense is no longer at the VM layer; it is the
-# realm author's responsibility to gate state-modifying entry points
-# with `cur realm` + a caller check (see TransferOwnership below).
-#
-# This test now documents (1) the footgun for unguarded exports, and
-# (2) that the correct pattern (TransferOwnership) properly rejects
-# non-owners.
+# The crossing setter (TransferOwnership) remains the way to change owner,
+# and its caller check rejects non-owners.
 
 adduser attacker
 
@@ -37,28 +25,21 @@ stdout 'owner: g1dao0000000000000000000000000000000000'
 ## deploy attack realm
 gnokey maketx addpkg -pkgdir $WORK/attack -pkgpath gno.land/r/test/attack -gas-fee 420001ugnot -gas-wanted 5_600_000 -chainid=tendermint_test attacker
 
-## FOOTGUN 1: assign+recover via exported non-crossing setter.
-## Under interrealm v2, borrow rule #1 makes SetOwner's owner=o write a same-
-## realm mutation. The recover is never triggered (no panic). owner
-## actually changes in memory; the subsequent Withdraw passes its
-## owner check and proceeds to banker.SendCoins, which fails because
-## the vault was never funded. The "insufficient coins" error here
-## is the proof that the owner check was bypassed — pre-interrealm-v2 the
-## failure would have been "unauthorized" at the Withdraw guard.
+## 1: assign+recover via exported non-crossing setter is refused; the
+## recovered attacker reaches the guarded withdraw, which rejects it.
 ! gnokey maketx call -pkgpath gno.land/r/test/attack -func Attack -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
-stderr 'insufficient coins'
+stderr 'unauthorized'
 
-## owner appears unchanged in storage — because the failing tx rolled
-## back its in-memory mutation. In a real exploit the attacker would
-## fund the vault first (or use a target with existing balance), and
-## the ownership change + drain would persist.
+## 1b: without recover the refusal itself aborts the tx.
+! gnokey maketx call -pkgpath gno.land/r/test/attack -func AttackNoRecover -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
+stderr 'gno.land/r/test/vault.s code was entered without crossing and is read-only'
+
+## owner unchanged.
 gnokey query "vm/qrender" --data "gno.land/r/test/vault:"
 stdout 'owner: g1dao0000000000000000000000000000000000'
 
-## TEST 2 (positive control): the crossing setter correctly rejects
-## non-owners. TransferOwnership uses `cur realm` and inspects
-## PreviousRealm().Address(), which under interrealm v2 returns the calling
-## user (attacker) — not the declaring realm — and the check fires.
+## 2 (positive control): the crossing setter correctly rejects
+## non-owners: PreviousRealm() is the calling user (attacker).
 ! gnokey maketx call -pkgpath gno.land/r/test/vault -func TransferOwnership -args ${attacker_user_addr} -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test attacker
 stderr 'unauthorized'
 
@@ -87,9 +68,7 @@ func init() {
 }
 
 // SetOwner is an internal helper that was exported by mistake
-// (should be setOwner). Without the pre-mutation readonly check,
-// a cross-realm caller could call SetOwner + recover to silently
-// hijack ownership in memory, then call Withdraw to steal funds.
+// (should be setOwner). Called from another realm it runs read-only.
 func SetOwner(o address) {
 	owner = o
 }
@@ -138,20 +117,18 @@ import (
 func Attack(cur realm) {
 	myAddr := unsafe.CurrentRealm().Address()
 
-	// Step 1: try to hijack ownership. The readonly check blocks the
-	// assignment before it lands in memory. recover() catches the panic.
+	// Step 1: try to hijack ownership. The write is refused; recover()
+	// catches the refusal, and owner is unchanged.
 	func() {
 		defer func() { _ = recover() }()
 		vault.SetOwner(myAddr)
 	}()
 
-	// Step 2: try to withdraw. Since owner is unchanged, this fails
-	// with "unauthorized".
+	// Step 2: the guarded path rejects the attacker.
 	vault.Withdraw(cross(cur), 1000000)
 }
 
-// AttackNoRecover is the negative control: without recover, the
-// readonly panic aborts the entire transaction.
+// AttackNoRecover: without recover, the refusal aborts the tx too.
 func AttackNoRecover(cur realm) {
 	myAddr := unsafe.CurrentRealm().Address()
 	vault.SetOwner(myAddr)

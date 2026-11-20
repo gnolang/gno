@@ -200,23 +200,16 @@ func TestAuthorizerWithDroppedAuthority(cur realm, t *testing.T) {
 	uassert.True(t, err != nil, "expected error when transferring from dropped authority")
 }
 
-func TestContractAuthorityHandlerExecutionOnce(cur realm, t *testing.T) {
-	attempts := 0
+// The handler gets the action unguarded; running it at most once is the
+// handler's job, so a handler that runs it twice runs it twice.
+func TestContractAuthorityHandlerRunsActionUnguarded(cur realm, t *testing.T) {
 	executed := 0
 
 	contractAuth := NewContractAuthority("gno.land/r/test", func(title string, action PrivilegedAction) error {
-		// Try to execute the action twice in the same handler
 		if err := action(); err != nil {
 			return err
 		}
-		attempts++
-
-		// Second execution should fail
-		if err := action(); err != nil {
-			return err
-		}
-		attempts++
-		return nil
+		return action()
 	})
 
 	// Set caller to contract address
@@ -224,15 +217,13 @@ func TestContractAuthorityHandlerExecutionOnce(cur realm, t *testing.T) {
 	testing.SetRealm(codeRealm)
 	code := codeRealm.Address()
 
-	testArgs := []any{"proposal_id", 42, "metadata", map[string]string{"key": "value"}}
 	err := contractAuth.Authorize(code, "test_action", func() error {
 		executed++
 		return nil
-	}, testArgs...)
+	})
 
 	uassert.True(t, err == nil, "handler execution should succeed")
-	uassert.True(t, attempts == 2, "handler should have attempted execution twice")
-	uassert.True(t, executed == 1, "handler should have executed once")
+	uassert.True(t, executed == 2, "action should run each time the handler calls it")
 }
 
 func TestContractAuthorityExecutionTwice(cur realm, t *testing.T) {

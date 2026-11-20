@@ -38,7 +38,7 @@ stdout 'storage: 503690, deposit: 50369000'
 # be re-derived. The assertion that actually tests this file's subject is the
 # storage/deposit pair above.
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999812991400ugnot"'
+stdout '"coins": "9999811430700ugnot"'
 
 gnokey query params/vm:p:storage_price
 stdout '100ugnot'
@@ -73,7 +73,7 @@ stdout 'storage: 3374, deposit: 337400'
 
 ## Verify user received a refund (balance should have increased despite gas fees)
 gnokey query auth/accounts/$test1_user_addr
-stdout '"coins": "9999850634900ugnot"'
+stdout '"coins": "9999849080600ugnot"'
 
 -- loader/load_govdao.gno --
 package loader
@@ -85,11 +85,11 @@ import (
 )
 
 func init(cur realm) {
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetTier(memberstore.T2)
-	memberstore.Get(0, cur).SetTier(memberstore.T3)
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetTier(cross(cur), memberstore.T2)
+	memberstore.SetTier(cross(cur), memberstore.T3)
 
-	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
+	memberstore.SetMember(cross(cur), memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
 
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

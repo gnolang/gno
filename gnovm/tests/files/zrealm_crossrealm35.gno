@@ -1,22 +1,22 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-// Verifies that cross-realm assign+recover does NOT corrupt state.
+// Verifies that cross-realm assign+revive does NOT corrupt state.
 //
 // crossrealm_d has a package-level counter (initially 100) with both
 // a non-crossing setter (SetCounter) and a crossing setter
 // (SetCounterCrossing). This test calls the non-crossing setter from
-// another realm, recovers the panic, then checks that the state is
+// another realm, revives the panic, then checks that the state is
 // unchanged.
 //
 // Impact without the fix: the non-crossing SetCounter(0) would land
-// in memory before DidUpdate panics. After recover(), the counter is
+// in memory before DidUpdate panics. After revive, the counter is
 // 0 in memory but 100 in persistence. A subsequent crossing call like
 // DoubleCounter would read 0 and produce 0 instead of 200 — the
 // realm acts on state that was never committed.
 //
-// The fix: PopAsPointer checks readonly BEFORE the assignment, so
-// the counter never changes in memory.
+// The fix: crossrealm_d's code entered without crossing is read-only, and
+// the check runs before the assignment, so the counter never changes.
 
 import (
 	"gno.land/r/tests/vm/crossrealm_d"
@@ -26,19 +26,12 @@ func main(cur realm) {
 	// 1. Initial state.
 	println("counter:", crossrealm_d.GetCounter(cross(cur))) // 100
 
-	// 2. Non-crossing set → panics, recover catches it.
-	func() {
-		defer func() {
-			r := recover()
-			if r != nil {
-				println("panic caught:", r.(string))
-			}
-		}()
-		crossrealm_d.SetCounter(0)
-	}()
+	// 2. Non-crossing set → refused. The panic crosses a realm boundary, so
+	//    recover() cannot catch it; revive does.
+	println("panic caught:", try(func() { crossrealm_d.SetCounter(0) }))
 
 	// 3. Counter must still be 100.
-	println("counter after set+recover:", crossrealm_d.GetCounter(cross(cur)))
+	println("counter after set+revive:", crossrealm_d.GetCounter(cross(cur)))
 
 	// 4. A crossing call that depends on counter.
 	//    Without the fix: counter=0 in memory → DoubleCounter returns 0.
@@ -51,8 +44,17 @@ func main(cur realm) {
 	println("after crossing set:", crossrealm_d.GetCounter(cross(cur))) // 50
 }
 
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
+}
+
 // Output:
 // counter: 100
-// counter after set+recover: 0
-// double: 0
+// panic caught: gno.land/r/tests/vm/crossrealm_d's code was entered without crossing and is read-only (call its crossing function): counter<~VPBlock(3,0)>
+// counter after set+revive: 100
+// double: 200
 // after crossing set: 50

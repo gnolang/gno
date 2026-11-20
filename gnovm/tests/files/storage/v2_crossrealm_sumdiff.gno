@@ -13,7 +13,8 @@ import (
 //
 // f originates in crossrealm_b (`Fooer` is a package-level var there).
 // /r/bar calls crossrealm.SetFooer(f), which stores f's reference
-// inside /r/tests/vm/crossrealm. f.SetS modifies f in place.
+// inside /r/tests/vm/crossrealm. f.SetS crosses into crossrealm_b and
+// modifies f in place.
 //
 // Expected attribution:
 // - /r/bar: 0 (caller realm; no state of its own changed)
@@ -23,7 +24,7 @@ import (
 func main(cur realm) {
 	f := crossrealm_b.Fooer
 	crossrealm.SetFooer(cross(cur), f)
-	f.SetS("ABCD")
+	f.SetS(cross(cur), "ABCD")
 	crossrealm.CallFooerFooCross(cross(cur))
 	print(".")
 }

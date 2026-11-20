@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"unsafe"
 )
 
 // ----------------------------------------
@@ -143,6 +145,8 @@ const (
 	ATTR_EXAMPLE_OUTPUT        GnoAttribute = "ATTR_EXAMPLE_OUTPUT"   // the expected output for an Example test function.
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
+	ATTR_NAMED_CALLEE          GnoAttribute = "ATTR_NAMED_CALLEE"     // call names a top-level func or method expr, not a func value.
+	ATTR_FUNC_HANDLE           GnoAttribute = "ATTR_FUNC_HANDLE"      // names a non-crossing declared func or method expr used as a value.
 	// ATTR_ASSIGN_CONVERT marks values going into a variable whose type differs
 	// from theirs only by name, so the VM converts them. On `a, b = f()`,
 	// `var a, b T = f()`, comma-ok, `return f()` and `g(f())`: one type per
@@ -244,6 +248,7 @@ func (*CompositeLitExpr) assertNode()  {}
 func (*KeyValueExpr) assertNode()      {}
 func (*FuncLitExpr) assertNode()       {}
 func (*ConstExpr) assertNode()         {}
+func (*FuncHandleExpr) assertNode()    {}
 func (*FieldTypeExpr) assertNode()     {}
 func (*ArrayTypeExpr) assertNode()     {}
 func (*SliceTypeExpr) assertNode()     {}
@@ -296,6 +301,7 @@ var (
 	_ Node = &KeyValueExpr{}
 	_ Node = &FuncLitExpr{}
 	_ Node = &ConstExpr{}
+	_ Node = &FuncHandleExpr{}
 	_ Node = &FieldTypeExpr{}
 	_ Node = &ArrayTypeExpr{}
 	_ Node = &SliceTypeExpr{}
@@ -360,6 +366,7 @@ func (*CompositeLitExpr) assertExpr() {}
 func (*KeyValueExpr) assertExpr()     {}
 func (*FuncLitExpr) assertExpr()      {}
 func (*ConstExpr) assertExpr()        {}
+func (*FuncHandleExpr) assertExpr()   {}
 
 var (
 	_ Expr = &NameExpr{}
@@ -377,6 +384,7 @@ var (
 	_ Expr = &KeyValueExpr{}
 	_ Expr = &FuncLitExpr{}
 	_ Expr = &ConstExpr{}
+	_ Expr = &FuncHandleExpr{}
 )
 
 type Exprs []Expr
@@ -490,6 +498,14 @@ type SliceExpr struct { // X[Low:High:Max]
 type StarExpr struct { // *X
 	Attributes
 	X Expr // operand
+}
+
+// A FuncHandleExpr wraps a declared non-crossing function or method
+// expression used as a value; each evaluation makes a handle, a FuncValue
+// made like a closure with no captures (see doOpFuncHandle).
+type FuncHandleExpr struct {
+	Attributes
+	X Expr // *NameExpr or *SelectorExpr naming the declaration
 }
 
 type RefExpr struct { // &X
@@ -1324,6 +1340,61 @@ type PackageNode struct {
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
+	// importTree caches importClosure (*map[string]bool). Not serialized.
+	importTree unsafe.Pointer
+	// importTreeTest caches testImportClosure (*map[string]bool).
+	importTreeTest unsafe.Pointer
+}
+
+// importClosure returns every package pn imports, directly or through another
+// import, standard library included. Stored packages never change, so the
+// cache holds.
+func (pn *PackageNode) importClosure(store Store) map[string]bool {
+	return pn.importsOf(store, false)
+}
+
+// testImportClosure is importClosure plus the packages pn's own test files
+// import; a call made from a test file trusts only that much extra.
+func (pn *PackageNode) testImportClosure(store Store) map[string]bool {
+	return pn.importsOf(store, true)
+}
+
+func (pn *PackageNode) importsOf(store Store, withTests bool) map[string]bool {
+	cache := &pn.importTree
+	if withTests {
+		cache = &pn.importTreeTest
+	}
+	if c := (*map[string]bool)(atomic.LoadPointer(cache)); c != nil {
+		return *c
+	}
+	c := map[string]bool{}
+	var walk func(*PackageNode, bool)
+	walk = func(p *PackageNode, root bool) {
+		if strings.HasSuffix(p.PkgPath, "_test") &&
+			IsRealmPath(strings.TrimSuffix(p.PkgPath, "_test")) {
+			return // a realm's integration test package is not production code
+		}
+		realm := IsRealmPath(p.PkgPath)
+		tests := root && withTests
+		for _, fn := range p.Files {
+			if realm && IsTestFile(fn.FileName) && !tests {
+				continue // test-only imports are not trusted on chain
+			}
+			for _, d := range fn.Decls {
+				id, ok := d.(*ImportDecl)
+				if !ok || c[id.PkgPath] {
+					continue
+				}
+				c[id.PkgPath] = true
+				if q, ok := store.GetBlockNodeSafe(PackageNodeLocation(id.PkgPath)).(*PackageNode); ok {
+					walk(q, false)
+				}
+			}
+		}
+	}
+	walk(pn, true)
+	atomic.StorePointer(cache, unsafe.Pointer(&c))
+	return c
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing
@@ -2611,6 +2682,16 @@ func (vp ValuePath) IsBlockBlankPath() bool {
 
 func (vp ValuePath) IsDerefType() bool {
 	return vp.Type&0x10 > 0
+}
+
+// IsMethod reports whether the path selects a method rather than a field.
+func (vp ValuePath) IsMethod() bool {
+	switch vp.Type {
+	case VPValMethod, VPPtrMethod, VPInterface,
+		VPDerefValMethod, VPDerefPtrMethod, VPDerefInterface:
+		return true
+	}
+	return false
 }
 
 type ValuePather interface {

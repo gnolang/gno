@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderh
 package launderh
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack H: ATTACKER-PROVIDED INTERFACE IMPL WITH PRIMITIVE
 // UNDERLYING TYPE.
 //
@@ -44,4 +48,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-imm
-// after:  pwnd-via-iface
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,1)>.Field

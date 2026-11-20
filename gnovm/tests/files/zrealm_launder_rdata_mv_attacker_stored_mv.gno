@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_mv_attacker_stored_mv
 package launderrh_mv_attacker_stored_mv
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Bound-method-value stored in /r/-ATTACKER state and invoked from
 // /r/-attacker context. Question: does the recv-borrow borrow rule #2 still
 // fire at invocation, or is it gated on the call site being /r/-victim?
@@ -39,4 +43,6 @@ func main(cur realm) {
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-bound-mv
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

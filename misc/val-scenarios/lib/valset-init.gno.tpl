@@ -18,10 +18,9 @@ import (
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
 func main(cur realm) {
-	ms := memberstore.Get(0, cur)
 
 	// 1. Make deployer sole T1 member so proposals pass immediately.
-	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, memberstore.NewMember(0)))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, genesisDeployerAddr, memberstore.NewMember(0)))
 
 	// 2. Register the test validator set.
 	r := valr.NewPropRequest(
@@ -39,7 +38,7 @@ func main(cur realm) {
 	dao.ExecuteProposal(cross(cur), pid)
 
 	// 3. Remove deployer — leaves an empty, unlocked DAO for test use.
-	ms.RemoveMember(genesisDeployerAddr)
+	memberstore.RemoveMember(cross(cur), genesisDeployerAddr)
 }
 
 func must(err error) {

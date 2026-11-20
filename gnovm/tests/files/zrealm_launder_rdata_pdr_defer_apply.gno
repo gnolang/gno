@@ -27,7 +27,7 @@ import (
 func main(cur realm) {
 	println("before:", launderrvictim.ReadImm())
 
-	launderrvictim.DeferApplyHook(func(i *launderrvictim.Immutable) {
+	launderrvictim.DeferApplyHook(cross(cur), func(i *launderrvictim.Immutable) {
 		i.Field = "pwnd-via-defer-apply"
 	})
 
@@ -35,4 +35,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// gno.land/r/launderrh_pdr_defer_apply's code was entered without crossing and is read-only (call its crossing function): i<VPBlock(1,0)>.Field

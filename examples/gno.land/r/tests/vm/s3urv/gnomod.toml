@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/s3urv"
+gno = "0.9"

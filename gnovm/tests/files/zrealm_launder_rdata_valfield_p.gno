@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_vf
 package launderrh_vf
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // /r/-declared victim with /p/-VALUE FIELD — Apply-callback attack.
 //
 // WithVal has `Inner launderpkg.Immutable` (named, not embedded).
@@ -23,4 +27,6 @@ func main(cur realm) {
 
 // Output:
 // before: val-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

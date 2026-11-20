@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/pfuncbind"
+gno = "0.9"

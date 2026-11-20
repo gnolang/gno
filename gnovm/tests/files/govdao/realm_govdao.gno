@@ -18,7 +18,7 @@ var (
 
 func init(cur realm) {
 	daoinit.InitWithUsers(cross(cur), user1, user2, user3)
-	govDAO := daoimpl.NewGovDAO() // A DAO object without an attached realm.
+	govDAO := daoimpl.NewGovDAO(cross(cur)) // A DAO object without an attached realm.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/impl/v0"))
 	// UpdateRequest is declared in /r/gov/dao; the construction-time
 	// check forbids allocating it from /r/govdao directly. Use the

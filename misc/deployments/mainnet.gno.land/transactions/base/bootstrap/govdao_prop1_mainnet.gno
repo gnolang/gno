@@ -41,7 +41,6 @@ import (
 )
 
 func main(cur realm) {
-	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add the sole GovDAO T1 member ----
 	//
@@ -65,12 +64,12 @@ func main(cur realm) {
 	// an arbitrary, lopsided point distribution that no proposal can
 	// rebalance, since nothing in the memberstore grants points after the
 	// fact.
-	must(ms.SetMember(memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(9))) // aeddi
+	must(memberstore.SetMember(cross(cur), memberstore.T1, address("g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"), memberstore.NewMember(9))) // aeddi
 
 	// ---- 2. Lock down memberstore access ----
 	// gno.land/r/gov/dao/impl/v0 is the production member-mutation realm;
 	// after this call it is the only realm allowed to mutate membership.
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{"gno.land/r/gov/dao/impl/v0"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), []string{"gno.land/r/gov/dao/impl/v0"}))
 }
 
 func must(err error) {

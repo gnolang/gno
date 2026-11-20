@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderk
 package launderk
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack K: same shape as H but the interface method takes a
 // `[]*orig.Immutable` parameter (slice of foreign-/p/ pointers)
 // instead of a bare `*orig.Immutable`. The slice element write
@@ -29,4 +33,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-imm
-// after:  pwnd-via-slice-arg
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): s<VPBlock(1,1)>[(const (0 int))].Field

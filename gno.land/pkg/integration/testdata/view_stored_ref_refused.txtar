@@ -1,0 +1,92 @@
+# View-by-default: a reference stored in tx 1 is still only a view in tx 2, so
+# the write is refused and the owner's state unchanged. Two shapes: a stored
+# tree and a field of a stored /p/ struct.
+
+loadpkg gno.land/p/nt/avl/v0
+loadpkg gno.land/p/demo/tests/viewgrant/v0
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/owner -pkgpath gno.land/r/test/owner -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/holder -pkgpath gno.land/r/test/holder -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+# tx 1: holder stores the view and the pair it got from owner.
+gnokey maketx call -pkgpath gno.land/r/test/holder -func Take -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+# tx 2: the stored tree is still a view: the write is refused.
+! gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteView -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot modify object owned by another realm'
+gnokey query vm/qrender --data 'gno.land/r/test/owner:'
+stdout 'view=v0 a= b='
+
+# tx 3: a field of the stored /p/ struct is refused the same way.
+! gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteA -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot modify object owned by another realm'
+gnokey query vm/qrender --data 'gno.land/r/test/owner:'
+stdout 'view=v0 a= b='
+
+# tx 4: the owner's own entry function still writes its state.
+gnokey maketx call -pkgpath gno.land/r/test/owner -func SetView -args v2 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/test/owner:'
+stdout 'view=v2 a= b='
+
+-- owner/gnomod.toml --
+module = "gno.land/r/test/owner"
+gno = "0.9"
+
+-- owner/owner.gno --
+package owner
+
+import (
+	"gno.land/p/demo/tests/viewgrant/v0"
+	"gno.land/p/nt/avl/v0"
+)
+
+var (
+	view = avl.NewTree()
+	pair = viewgrant.NewPair()
+)
+
+func init() { view.Set("k", "v0") }
+
+func GetView() *avl.Tree       { return view }
+func GetPair() *viewgrant.Pair { return pair }
+
+func SetView(cur realm, v string) { view.Set("k", v) }
+
+func Render(string) string {
+	k, _ := view.Get("k").(string)
+	return "view=" + k + " a=" + pair.Get("a") + " b=" + pair.Get("b")
+}
+
+-- holder/gnomod.toml --
+module = "gno.land/r/test/holder"
+gno = "0.9"
+
+-- holder/holder.gno --
+package holder
+
+import (
+	"gno.land/p/demo/tests/viewgrant/v0"
+	"gno.land/p/nt/avl/v0"
+	"gno.land/r/test/owner"
+)
+
+var (
+	view *avl.Tree
+	pair *viewgrant.Pair
+)
+
+func Take(cur realm) {
+	view = owner.GetView()
+	pair = owner.GetPair()
+}
+
+func WriteView(cur realm) { view.Set("k", "pwned") }
+func WriteA(cur realm)    { pair.SetA("a", "x") }

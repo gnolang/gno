@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_mv_stored_iface
 package launderrh_mv_stored_iface
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Method-value stored through `any` boxing.
 //
 // 1. Bind we.Apply, box into `any`, store in attacker-local map.
@@ -34,4 +38,6 @@ func main(cur realm) {
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

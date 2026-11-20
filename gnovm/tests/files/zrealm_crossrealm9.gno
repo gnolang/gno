@@ -11,4 +11,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): (const (ref(gno.land/p/demo/tests/v0) package{})).SomeValue2.Field
+// cannot directly modify readonly tainted object (call a crossing function of the owning realm): (const (ref(gno.land/p/demo/tests/v0) package{})).SomeValue2.Field

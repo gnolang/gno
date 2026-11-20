@@ -67,7 +67,7 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func NewProposalRequest(_ int, rlm realm) dao.ProposalRequest {
+func NewProposalRequest(_ int, rlm realm) *dao.ProposalRequest {
 	cb := func(realm) error {
 		return errors.New("Boom!")
 	}

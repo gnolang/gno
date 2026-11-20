@@ -11,7 +11,7 @@ package launderrh2
 //
 // Trace:
 //   1. /r/launderrh2.main() — m.Realm = /r/launderrh2
-//   2. launderrvictim.UseAnyMutator(...) — /r/-declared, borrow rule #1 →
+//   2. launderrvictim.UseAnyMutator(cross(cur), ...) — /r/-declared, borrow rule #1 →
 //      m.Realm = /r/launderrvictim
 //   3. UseAnyMutator body: m.Run(gImm) interface-dispatches to
 //      EvilMutator.Run
@@ -37,10 +37,10 @@ func (EvilMutator) Run(x any) {
 func main(cur realm) {
 	println("before:", launderrvictim.ReadImm())
 
-	launderrvictim.UseAnyMutator(EvilMutator(0))
+	launderrvictim.UseAnyMutator(cross(cur), EvilMutator(0))
 
 	println("after: ", launderrvictim.ReadImm())
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): t<VPBlock(1,2)>.Field
+// gno.land/r/launderrh2's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,2)>.Field

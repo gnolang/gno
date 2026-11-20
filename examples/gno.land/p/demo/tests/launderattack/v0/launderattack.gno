@@ -18,11 +18,8 @@ func TamperDirect(o *launderpkg.Object, s string) {
 }
 
 // TamperViaMethod dispatches through the launderpkg.Object's own /p/
-// method. PushFrameCall for Set sees a receiver stamped with the
-// victim's realm (the pointer aliases victim's persisted state),
-// triggering borrow rule 2: m.Realm becomes victim for the duration
-// of Set. The write succeeds — but this requires launderpkg.Object
-// to expose a Set method to begin with.
+// method. PushFrameCall for Set sees a receiver stamped with the victim's
+// realm, but Set runs for the calling code, so the write is refused.
 func TamperViaMethod(o *launderpkg.Object, s string) {
 	o.Set(s)
 }
@@ -34,9 +31,9 @@ func TamperViaMethod(o *launderpkg.Object, s string) {
 // attacker that holds a *launderpkg.Immutable can convert it to
 // *Tamper and invoke Tamper.Set — the conversion is purely a
 // type-tag change, the pointer still aliases victim's persisted
-// memory. PushFrameCall for Tamper.Set then sees recv stamped with
-// victim's realm (the underlying object is unchanged) and
-// borrow-routes m.Realm to victim. The write succeeds.
+// memory. The conversion itself is refused for a stored foreign value
+// ("illegal conversion of readonly or externally stored value"), and an
+// owner-stamped receiver does not switch the realm, so Tamper.Set cannot write.
 type Tamper struct {
 	Field string
 }
@@ -62,11 +59,9 @@ func Convert(p *launderpkg.Immutable) *Tamper {
 // the borrow rule's `if obj != nil { ... }` branch is skipped and
 // m.Realm stays at whatever the caller had it set to.
 //
-// When Run is dispatched via interface from inside a /p/-method
-// body that was receiver-borrowed to the victim, m.Realm at Run's
-// entry is the victim's — and stays the victim's, because EvilMutator
-// (an int underneath) carries no PkgID to borrow against. The write
-// inside Run commits under victim authority.
+// When Run is dispatched via interface from inside a /p/-method body,
+// EvilMutator (an int underneath) carries no PkgID to borrow against, so
+// the write inside Run is refused.
 type EvilMutator int
 
 func (EvilMutator) Run(i *launderpkg.Immutable) {
@@ -133,12 +128,10 @@ func (EvilAnyMutator) Run(x any) {
 }
 
 // EvilWrite is a top-level /p/-declared function value matching
-// `func(*launderpkg.Immutable)`. Top-level /p/ functions trigger
-// neither borrow rule #1 (not /r/-declared) nor borrow rule #2 (no receiver), so
-// when EvilWrite is invoked as a callback from inside a
-// borrowed-to-victim /p/-method body (e.g. Immutable.Apply, or any
-// avl.Tree.Iterate-style hook), it inherits the victim's m.Realm
-// and the write commits under victim authority.
+// `func(*launderpkg.Immutable)`. Called through a value, a top-level /p/
+// function is code the caller picked and runs view-only.
+// Called back from a /p/-method body under a deferred chain it can still write
+// the owner's object (known open hole, see zrealm_launder_rdata_pdr_multilevel).
 func EvilWrite(i *launderpkg.Immutable) {
 	i.Field = "pwnd-via-apply"
 }
@@ -149,14 +142,9 @@ func EvilObjectWrite(o *launderpkg.Object) {
 	o.Field = "pwnd-via-apply-obj"
 }
 
-// StoredHook is a /p/attack package-level closure: a FuncLit evaluated
-// during /p/launderattack init, so its ObjectInfo.PkgID is stamped
-// /p/launderattack. Unlike a top-level FuncDecl (EvilWrite/EvilObjectWrite,
-// IsClosure=false), invoking a closure triggers PushFrameCall's borrow rule
-// #3, which borrows m.Realm to the closure's construction realm
-// (/p/launderattack). Used to probe rule #3: a write through it to a foreign
-// /r/ object must still be rejected. (If rule #3 ever regressed to a nil
-// borrow, m.Realm would go nil and the write would silently succeed.)
+// StoredHook is a /p/attack package-level closure, built at /p/launderattack
+// init. Called by another realm it runs view-only, so its write to a foreign
+// /r/ object is refused.
 var StoredHook = func(o *launderpkg.Object) {
 	o.Field = "pwnd-via-stored-closure"
 }

@@ -11,7 +11,7 @@ import (
 )
 
 // newSubDAOPropDefinition creates a new proposal definition for adding a SubDAO.
-func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, description string, members []address) subDAOPropDefinition {
+func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, description string, members []address) *subDAOPropDefinition {
 	if parent == nil {
 		panic("parent DAO is required")
 	}
@@ -29,7 +29,7 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, descrip
 		panic("a SubDAO requires at least one initial council member")
 	}
 
-	return subDAOPropDefinition{
+	return &subDAOPropDefinition{
 		parent:      parent,
 		name:        name,
 		purpose:     purpose,
@@ -114,7 +114,7 @@ func (p subDAOPropDefinition) execute(_ int, sub realm) error {
 // a clawback would put the funds); a root DAO has no parent, so its
 // dissolution requires an explicit destination. Both rules are
 // state-independent: parent pointers never change after construction.
-func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) dissolvePropDefinition {
+func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) *dissolvePropDefinition {
 	if dao == nil {
 		panic("SubDAO is required")
 	}
@@ -128,7 +128,7 @@ func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) di
 		}
 	}
 
-	return dissolvePropDefinition{dao, destination}
+	return &dissolvePropDefinition{dao, destination}
 }
 
 // dissolvePropDefinition defines a proposal type for dissolving a SubDAO.

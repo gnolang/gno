@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderd
 package launderd
 
+// Explicit-entry rule: a /p/ function with no receiver has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack D: /p/attack.TamperDirect writes through the pointer in its
 // OWN body. The /p/ function has no receiver, so PushFrameCall does
 // not borrow — m.Realm stays attacker. The write inside TamperDirect
@@ -22,4 +26,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): o<VPBlock(1,0)>.Field
+// cannot modify object owned by another realm from library code (call a function of the owning realm): o<VPBlock(1,0)>.Field

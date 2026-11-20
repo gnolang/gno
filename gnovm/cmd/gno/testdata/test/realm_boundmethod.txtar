@@ -27,6 +27,8 @@ func (c *Counter) Inc() {
 	c.n++
 }
 
+func (c *Counter) N() int { return c.n }
+
 -- r/realm1/gnomod.toml --
 module = "gno.land/r/demo/realm1"
 gno = "0.9"
@@ -38,9 +40,15 @@ import "gno.land/p/demo/counter"
 
 var c = counter.Counter{}
 
+// GetCounter hands out a reference other realms may read, not write.
 func GetCounter() *counter.Counter {
 	return &c
 }
+
+// Inc is the entry other realms use to bump the counter.
+func Inc(cur realm) { c.Inc() }
+
+func N() int { return c.N() }
 
 -- r/realm2/gnomod.toml --
 module = "gno.land/r/demo/realm2"
@@ -49,34 +57,60 @@ gno = "0.9"
 -- r/realm2/realm2.gno --
 package realm2
 
-import (
-	"gno.land/r/demo/realm1"
-)
+import "gno.land/r/demo/realm1"
 
-func Do() {
+// TryForeign calls the /p/ method Inc on realm1's counter: refused.
+func TryForeign() (r any) {
+	defer func() { r = recover() }()
 	realm1.GetCounter().Inc()
+	return nil
 }
+
+// Do goes through realm1's own entry.
+func Do(cur realm) { realm1.Inc(cross(cur)) }
 
 -- r/realm2/realm2_filetest.gno --
 // PKGPATH: gno.land/r/tests
 package tests
 
-import "gno.land/r/demo/realm2"
+import (
+	"gno.land/r/demo/realm1"
+	"gno.land/r/demo/realm2"
+)
 
 func main(cur realm) {
-	realm2.Do()
-	println("OK")
+	println("before:", realm1.N())
+	println("foreign Inc:", realm2.TryForeign())
+	println("after foreign:", realm1.N())
+	realm2.Do(cross(cur))
+	println("after entry:", realm1.N())
 }
 
 // Output:
-// OK
+// before: 0
+// foreign Inc: cannot modify object owned by another realm from library code (call a function of the owning realm): c<VPBlock(1,0)>.n
+// after foreign: 0
+// after entry: 1
 
 -- r/realm2/realm2_test.gno --
 package realm2
 
-import "testing"
+import (
+	"testing"
 
-func TestDo(t *testing.T) {
-	Do()
+	"gno.land/r/demo/realm1"
+)
+
+func TestDo(cur realm, t *testing.T) {
+	before := realm1.N()
+	if TryForeign() == nil {
+		t.Fatal("foreign Inc was not refused")
+	}
+	if realm1.N() != before {
+		t.Fatal("foreign Inc wrote the counter")
+	}
+	Do(cross(cur))
+	if realm1.N() != before+1 {
+		t.Fatalf("entry did not write: got %d, want %d", realm1.N(), before+1)
+	}
 }
-

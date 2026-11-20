@@ -28,9 +28,9 @@ import (
 
 func init(cur realm) {
 	// Create tier entries in the members tree (required before any SetMember).
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetTier(memberstore.T2)
-	memberstore.Get(0, cur).SetTier(memberstore.T3)
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetTier(cross(cur), memberstore.T2)
+	memberstore.SetTier(cross(cur), memberstore.T3)
 
 	// Set the DAO implementation.  AllowedDAOs is intentionally left empty
 	// so that the genesis MsgRun can manipulate the memberstore directly.

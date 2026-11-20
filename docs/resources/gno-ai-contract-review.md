@@ -17,11 +17,15 @@ func AdminAction(caller address) { ... }
 
 // RIGHT: derive identity from the live crossing frame
 func AdminAction(cur realm) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     addr := cur.Previous().Address()
     ...
 }
 ```
+
+A realm's stored state changes only during a crossing call into it, so every
+writer another caller reaches must be crossing. An exported non-crossing
+function or method is read-only for other callers; flag one that is meant to
+write. No `cur.IsCurrent()` guard is needed in a crossing function.
 
 ### 2. Payment guards — `IsUserCall()`, not `IsUser()`
 
@@ -36,7 +40,8 @@ if !cur.Previous().IsUserCall() { panic("not a direct user call") }
 ### 3. No exported pointers to mutable state
 
 ```go
-// WRONG: attacker can call mutator methods on returned pointer
+// WRONG: aliases internal state; foreign writes are refused, but every
+// method of the type is published and later changes widen it
 func GetAccount() *Account { return gAccount }
 
 // RIGHT: return a copy, or expose read-only accessors
@@ -46,14 +51,19 @@ func GetBalance() int { return gAccount.balance }
 ### 4. No caller-supplied callbacks invoked with realm authority
 
 ```go
-// WRONG: if fn is a top-level /p/-declared function, it inherits
-// the caller's m.Realm and can write to your state
+// WRONG: fn runs view-only or read-only, so it cannot write your
+// state, but it runs inside your call and can read or abort it
 func ApplyHook(fn func()) { fn() }
 
 // RIGHT: type the callback with your own /r/-declared type so
 // /p/ code can't supply a matching implementation
 func ApplyHook(fn func(*MyState)) { fn(gState) }
 ```
+
+A callback supplied by another realm arrives with no maker. If the callback
+must write its own realm, it is a crossing function the other realm calls with
+`cross`; a registry of crossing functions stores `func(cur realm, ...)` values,
+not plain functions.
 
 ### 5. Interface parameters need canonical-type assertion
 
@@ -84,36 +94,41 @@ func Save(cur realm) { savedAddr = cur.Previous().Address() }
 ### 7. `/p/`-type with callback iterators
 
 If a realm field is a `/p/`-type with methods like `Iterate(cb func(*Node) bool)`,
-attackers can supply a top-level `/p/`-function that runs with your realm's authority.
+attackers can supply a top-level `/p/`-function as the callback. A function picked by
+the caller runs view-only, so its writes are refused, but it still reads every node.
 Keep such fields unexported **and** do not return aliased pointers to them.
 
 ### 8. `/p/`-type with mutation methods returned as pointer
 
-This is the subtlest case. A `/p/` library type whose fields are all **unexported** can
-still be a write-authority leak if it has exported mutation methods and you return a pointer
-to an instance stored in your realm.
+This is the subtlest case. A `/p/` library type whose fields are all **unexported**
+can still have exported mutation methods. A pointer you return to an instance
+stored in your realm is a view: a `/p/` method runs with the caller's authority,
+so the caller's write to your stored object is refused with
+`cannot modify object owned by another realm from library code (call a function of the owning realm)`.
 
 ```go
 // avl.Tree fields are all unexported — looks safe.
 // But Tree has exported mutation methods: Set, Remove, etc.
 var store = avl.NewTree()
 
-// WRONG: attacker calls store.Set(key, value) on the returned pointer.
-// Borrow rule #2 fires (tree was allocated in this realm) → m.Realm = /r/V
-// for the method body → the write inside Set commits under your authority.
+// The caller's store.Set(...) on the returned pointer is refused.
 func GetStore() *avl.Tree { return store }
 
 // RIGHT: never return the tree pointer. Expose only what you control.
 func GetValue(key string) (any, bool) { return store.Get(key) }
 ```
 
-The rule: **any exported method on a `/p/` type that writes to its receiver is a
-mutator**. If you return a pointer to an instance, that mutator is now callable by
-anyone with the authority of your realm.
+The rule: a reference that leaves your realm is a view. To let another realm
+write the tree, expose a crossing function
+(`func Set(cur realm, k string, v any) { store.Set(k, v) }`). Fresh-object
+corner: a `/p/` object your function builds and returns carries your realm's
+stamp, so the caller cannot write it either. Never write through a reference
+received as an argument: a caller can pass the realm's own object back, and your
+function would write whichever of your objects the caller picked.
 
 #### Sub-case: exported pointer fields
 
-The same path exists through exported pointer fields of `/p/` structs:
+The same exposure exists through exported pointer fields of `/p/` structs:
 
 ```go
 // p/mylib
@@ -124,26 +139,23 @@ type Container struct {
 // r/V
 var c = &Container{Items: avl.NewTree()}
 func GetContainer() *Container { return c }
-
-// Attacker: c.Items.Set(key, value) → borrow rule #2 on Items
-// (Items was allocated in /r/V) → write commits.
 ```
 
-Readonly taint on `c` does NOT block this: method dispatch is not a write operation,
-so the taint check does not fire. Borrow rule #2 fires first on method entry and
-authorizes the writes inside the method body.
+An exported pointer field exposes the pointed-to type's method set. A foreign
+caller's write to your stored object is refused, but the field still widens what
+you publish; keep it unexported and expose the reads you mean to.
 
-**Rule**: treat every exported pointer field of a `/p/` type as if it were a direct
-pointer to mutable state. If the pointed-to type has any mutation method, it is a
-live mutator handle. Never return the containing struct as a pointer.
+**Rule**: treat every exported pointer field of a `/p/` type as part of the API
+you publish.
 
 ### 9. `unsafe.PreviousRealm()` — old API, skips frame verification
 
-Using `chain/runtime/unsafe.PreviousRealm()` directly bypasses the `cur.IsCurrent()`
-safety check. It should never appear alongside a `cur realm` parameter.
+`chain/runtime/unsafe.PreviousRealm()` walks the frame stack and answers from
+wherever it is called; `cur.Previous()` names the realm that was current when `cur`
+was minted. It should never appear alongside a `cur realm` parameter.
 
 ```go
-// WRONG: cur is accepted but ignored; no IsCurrent() guard
+// WRONG: cur is accepted but ignored
 import "chain/runtime/unsafe"
 func Set(cur realm, key, value string) {
     caller := unsafe.PreviousRealm().Address()
@@ -152,7 +164,6 @@ func Set(cur realm, key, value string) {
 
 // RIGHT
 func Set(cur realm, key, value string) {
-    if !cur.IsCurrent() { panic("spoofed realm") }
     caller := cur.Previous().Address()
     ...
 }
@@ -235,13 +246,17 @@ Two cases where the swap is **wrong**, both found by making it:
 
 ## Review Checklist
 
-- [ ] Authenticated mutators take `cur realm` and call `cur.IsCurrent()`
+- [ ] Every writer other callers reach is crossing (`cur realm`) and authenticates with `cur.Previous()`; no `cur.IsCurrent()` guard
 - [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer to internal mutable state
 - [ ] No exported function returns a `/p/`-type pointer whose type has mutation methods
 - [ ] No exported `/p/`-struct field is itself a pointer to a type with mutation methods
 - [ ] No method accepts a `func(...)` callback with a `/p/`-typed parameter and invokes it
+- [ ] Errors returned to other realms are pointer errors (`*MyError`), never struct values
+- [ ] A closure or function value I hand out carries no write power for another realm; writers are crossing functions or crossing closures
+- [ ] A method value of a `/p/` type bound on my object writes nothing when another realm calls it (see [the five rules (R6)](./gno-interrealm.md)); my crossing function performs the write
+- [ ] A registry of crossing functions stores `func(cur realm, ...)` values and calls them with `cross`
 - [ ] Interface parameters from external callers are guarded with canonical-type asserts
 - [ ] No `realm`-typed value in package-level vars, struct fields, or closure captures
 - [ ] `/p/`-type fields with callback iterators are unexported
@@ -255,9 +270,9 @@ Two cases where the swap is **wrong**, both found by making it:
 
 | Resource | Purpose |
 |----------|---------|
-| [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, borrow rules, and anti-patterns |
+| [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, write rules, and anti-patterns |
 | [`gno-security.md`](./gno-security.md) | Numbered threat-class taxonomy |
-| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, borrow rules) |
+| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, the five rules) |
 | [`effective-gno.md`](./effective-gno.md) | Idiomatic Gno patterns including payment guards |
 | `misc/audit-pattern-harness/` | Automated pattern detection tooling with sanitized fixtures |
 

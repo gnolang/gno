@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderi
 package launderi
 
+// Explicit-entry rule: a /p/ method called from here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Attack I: NIL-POINTER-RECEIVER variant of Attack H.
 //
 // Where Attack H exploits primitive-underlying receivers
@@ -38,4 +42,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-imm
-// after:  pwnd-via-nilrecv
+
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,1)>.Field

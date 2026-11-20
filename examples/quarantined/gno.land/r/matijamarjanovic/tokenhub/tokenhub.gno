@@ -31,9 +31,14 @@ func init(cur realm) {
 // RegisterToken registers a token in grc20reg.
 // Returns the registry key (rlmPath.symbol) that can be used to retrieve the
 // token; this is grc20reg's canonical key, not the token's full ID (which
-// carries a trailing sequence id).
-func RegisterToken(cur realm, token *grc20.Token, slug string) string {
-	return grc20reg.Register(cross(cur), token, slug)
+// carries a trailing sequence id). The registry now refuses functions that are
+// not declared in the registering realm, so forwarded functions are rejected.
+func RegisterToken(cur realm, token *grc20.Token, slug string,
+	transfer func(cur realm, to address, amount int64),
+	approve func(cur realm, spender address, amount int64),
+	transferFrom func(cur realm, from, to address, amount int64),
+) string {
+	return grc20reg.Register(cross(cur), token, slug, transfer, approve, transferFrom)
 }
 
 // RegisterNFT stores the concrete *grc721.Token (not an interface getter), so

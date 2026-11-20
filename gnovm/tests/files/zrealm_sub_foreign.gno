@@ -6,11 +6,9 @@ import (
 )
 
 // Foreign minting is rejected: crossrealm_b receives this realm's live
-// cur (the strict guard passes — it IS the topmost crossing cur) but
-// runs under borrow rule #1 with m.Realm = crossrealm_b, so the
-// caller-pkgpath guard refuses to mint a sub-identity in a namespace
-// the executing realm doesn't own. The panic surfaces from the
-// borrowed foreign frame as an abort.
+// cur but its code, entered without crossing, runs read-only and not as
+// this realm, so the caller-pkgpath guard refuses to mint a sub-identity
+// in a namespace the executing code doesn't own.
 func main(cur realm) {
 	crossrealm_b.TrySubOn(0, cur)
 }
