@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCENARIO_CI=true
+# Consensus-only: skip example packages + on-chain PoA valset realm in genesis
+# (validators reach consensus via the genesis validator set).
+SCENARIO_GENESIS_EXAMPLES=false
 
 # 4 validators, safe reset 1 (db + wal only, priv_validator_state preserved).
 # 3/4 remain during the reset (75% > 2/3 threshold) so the chain must keep
