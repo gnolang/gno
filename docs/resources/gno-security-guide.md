@@ -4,7 +4,7 @@ This guide consolidates the practical security learnings from auditing
 cross-realm attack vectors in the Gno VM. It is the long-form companion
 to `gno-security.md` (which defines the numbered threat classes) and
 assumes the vocabulary of `gno-interrealm.md` (realm-context,
-realm-storage-context, the six rules, `cur realm`, `IsCurrent()`). For writes,
+realm-storage-context, the five rules, `cur realm`, `IsCurrent()`). For writes,
 `gnovm/adr/pr6495_cross_to_write.md` is the decision record.
 
 The goal: tell a realm author what they must do, and what they must
@@ -43,7 +43,7 @@ The single rule behind them: a realm's stored state changes only during a
 crossing call into that realm. Inside it, the realm's own code and the library
 code it names write as usual; code that arrived as a value from someone else
 never acts for the realm, except a reference to the realm's own stored
-functions (see [the six rules (R4)](./gno-interrealm.md)).
+functions (see [the five rules (R4)](./gno-interrealm.md)).
 
 The VM provides four independent defenses. A realm becomes
 exploitable when an API design defeats all of them at once.
@@ -486,10 +486,10 @@ its receiver and its maker. A `/p/` or stdlib method value is trusted only when
 its package is in the calling realm's import tree; otherwise it runs view-only:
 it can write no realm's stored objects, neither the receiver nor an argument.
 A method value an attacker binds on your view is refused wherever it runs, and
-one your realm binds in read-only code has no maker. A realm cannot keep a
-function value it did not make (`cannot keep a function value made outside a
-realm in <realm>`); to keep callers' writers, store crossing functions and
-call them with `cross`.
+one your realm binds in read-only code has no maker. A realm that stores a
+function value it did not make gets no write authority from it: S3 gives it
+id 0, so it runs read-only; to keep callers' writers, store crossing functions
+and call them with `cross`.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`
@@ -588,7 +588,7 @@ Before deploying a realm:
   pointer or object a caller passed in.
 
 - [ ] A method value of a `/p/` type bound on my object writes nothing when
-  another realm calls it (see [the six rules (R6)](./gno-interrealm.md)); my
+  another realm calls it (see [the five rules (R6)](./gno-interrealm.md)); my
   crossing function performs the write.
 
 - [ ] Errors I return to other realms are pointer errors (`*MyError`), never
@@ -677,7 +677,7 @@ Attackers cannot:
 ## 10. Further Reading
 
 - `gno-security.md` — numbered threat-class taxonomy (Class 1a/1b/2/3/4).
-- `gno-interrealm.md` — the six rules, with the exact refusal for each.
+- `gno-interrealm.md` — the five rules, with the exact refusal for each.
 - `gno-interrealm-v2.md` — updated specification reflecting current HEAD.
 - `effective-gno.md` — pattern-level guidance including payment guards.
 - `gnovm/tests/files/zrealm_launder_*.gno` — exploit-attempt filetest

@@ -1,11 +1,13 @@
-# Interrealm: the six rules
+# Interrealm: the rules
 
+> The overview, with diagrams and the catalogue of interactions, is [the whitepaper](./gno-interrealm-whitepaper.md).
+>
 > The decision record is
 > [`gnovm/adr/pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md).
 > This page teaches the rules; the mechanism follows them.
 
-A realm's stored state changes only during a crossing call into it. The six
-rules below say who may write when code changes hands. Each section is a
+A realm's stored state changes only during a crossing call into it. The rules
+below say who may write when code changes hands. Each section is a
 snippet, one sentence, and the exact error a test pins.
 
 ## R1 Cross to write
@@ -59,22 +61,30 @@ a pointer)`); a run-time allocation fails with `cannot allocate <T> in realm
 // cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)
 ```
 
-## R3 A function value has a maker
+## S3 A function value writes only in the crossing call that made it
 
 ```go
-// /r/app/app, inside a crossing function
-f := lib.Inc; f(box)                      // acts like lib.Inc(box): writes app's box
-victim.RunS(cross(cur), victim.GetDecl()) // made by victim's read-only code: no maker
+// /r/app/app
+var total int
+
+func Run(cur realm) {
+	f := func() { total++ }
+	f()                       // same crossing call: writes
+	other.Keep(cross(cur), f)
+	other.RunKept(cross(cur)) // later crossing call: read-only
+}
 ```
 
-A closure, a bound method value, or a declared non-crossing function used as a
-value belongs to the realm whose writable code made it (none, if read-only),
-and writes that realm's state only. A crossing function has no maker: the
-`cross(cur)` argument decides.
+A non-crossing function value (a closure, a bound method value, a declared
+function used as a value) writes only during the crossing call that made it;
+made in read-only code, at init, or loaded from the store, its id is 0 and the
+call runs read-only. There is then no crossing function to call: make the
+callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or rebuild
+the value inside the call that runs it.
 
 ```
 // Error:
-// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): Owner<~VPBlock(3,0)>
+// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner
 ```
 
 ## R4 Makers stay home
@@ -101,24 +111,6 @@ function of the realm, or a closure capture.
 ```
 // Error:
 // gno.land/r/ctw_callback's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/ctw_callback) package{})).sum
-```
-
-## R5 No saving a makerless function value
-
-```go
-// /r/app/app
-var saved func()
-
-// refused when f is a library function another realm passed
-func Save(cur realm, f func()) { saved = f }
-```
-
-A realm cannot save a makerless function value whose code is its own or a
-library's.
-
-```
-// Error:
-// cannot keep a function value made outside a realm in gno.land/r/tests/vm/pfuncvictim
 ```
 
 ## R6 One import rule
@@ -488,8 +480,8 @@ A function declared in p packages (or in stdlib) when called:
  * a method on a realm-owned receiver is a view: its writes to the owner's
    object are refused.
  * a closure, bound method value or declared function used as a value follows
-   R3: it acts for the realm whose writable code made it, and view-only when
-   made in read-only code.
+   S3: it acts for the realm whose writable code made it, only in the crossing
+   call that made it, and view-only when made in read-only code.
  * runs view-only when reached through an interface or method value whose
    package the current realm does not import, directly or through its imports,
    the standard library included.
