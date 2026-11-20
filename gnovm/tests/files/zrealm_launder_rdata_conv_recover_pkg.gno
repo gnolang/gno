@@ -16,3 +16,6 @@ func main(cur realm) {
 
 // Error:
 // illegal conversion to external realm type
+
+// TypeCheckError:
+// gno.land/r/launderrh_conv_recover_pkg/zrealm_launder_rdata_conv_recover_pkg.gno:11:5: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover_pkg/zrealm_launder_rdata_conv_recover_pkg.gno:11:9: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer)

@@ -32,9 +32,8 @@ func main(cur realm) {
 	println("after attacker:", v.Trusted())
 }
 
-// Output:
-// registered: true true true
-// inner array of declared array blocked: true
-// array field of declared struct blocked: true
-// byte array field of declared struct blocked: true
-// after attacker: 0 0 0
+// Error:
+// cannot allocate gno.land/r/tests/vm/launderrarrnested.N in realm gno.land/r/launder_rdata_arrdefault_nested
+
+// TypeCheckError:
+// gno.land/r/launder_rdata_arrdefault_nested/zrealm_launder_rdata_arrdefault_nested.gno:11:6: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.N outside its realm (use a pointer); gno.land/r/launder_rdata_arrdefault_nested/zrealm_launder_rdata_arrdefault_nested.gno:12:2: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.N outside its realm (use a pointer); gno.land/r/launder_rdata_arrdefault_nested/zrealm_launder_rdata_arrdefault_nested.gno:13:2: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.S outside its realm (use a pointer); gno.land/r/launder_rdata_arrdefault_nested/zrealm_launder_rdata_arrdefault_nested.gno:14:2: cannot hold a value of gno.land/r/tests/vm/launderrarrnested.P outside its realm (use a pointer)

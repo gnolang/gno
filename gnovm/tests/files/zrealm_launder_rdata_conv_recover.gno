@@ -76,12 +76,9 @@ func main(cur realm) {
 // Output:
 // converted
 // illegal conversion to external realm type
-// illegal conversion to external realm type
-// illegal conversion of readonly or externally stored value
-// illegal conversion to external realm type
-// illegal conversion to external realm type
-// illegal conversion to external realm type
-// illegal conversion to external realm type 0 -1
-// illegal conversion to external realm type 0 unset
-// illegal conversion of readonly or externally stored value 1 0
-// after
+
+// Error:
+// cannot allocate gno.land/r/tests/vm/launderrvictim.Immutable in realm gno.land/r/launderrh_conv_recover
+
+// TypeCheckError:
+// gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:15:13: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:17:11: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:36:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:38:32: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:40:30: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:41:36: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:43:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:45:3: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:46:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:51:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:52:10: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:55:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:58:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:59:10: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_recover/zrealm_launder_rdata_conv_recover.gno:62:7: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer)
