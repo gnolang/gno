@@ -81,8 +81,8 @@ func Context(caller crypto.Bech32Address, pkgPath string, send std.Coins) *runti
 }
 
 // Machine is a minimal machine, set up with just the Store, Output and Context.
-// It is only used for linting/preprocessing.
-func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, gasMeter store.GasMeter) *gno.Machine {
+// A nil alloc makes the machine build its own.
+func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, gasMeter store.GasMeter, alloc *gno.Allocator) *gno.Machine {
 	return gno.NewMachineWithOptions(gno.MachineOptions{
 		Store:         testStore,
 		Output:        output,
@@ -90,6 +90,7 @@ func Machine(testStore gno.Store, output io.Writer, pkgPath string, debug bool, 
 		Debug:         debug,
 		ReviveEnabled: true,
 		GasMeter:      gasMeter,
+		Alloc:         alloc,
 	})
 }
 
@@ -524,12 +525,13 @@ func (opts *TestOptions) runTestFiles(
 	// every fresh object's ObjectInfo.PkgID stays zero, which lets the
 	// borrow rule (recvOID.IsZero() short-circuit) mask interrealm bugs.
 	alloc := gno.NewAllocator(math.MaxInt64)
+	// The store and the machines share it, so preprocessing is charged too.
+	tgs.SetAllocator(alloc)
 	// reset store ops, if any - we only need them for some filetests.
 	opts.TestStore.SetLogStoreOps(nil)
 
 	// Check if we already have the package - it may have been eagerly loaded.
-	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil)
-	m.Alloc = alloc
+	m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, nil, alloc)
 	if tgs.GetMemPackage(mpkg.Path) == nil {
 		m.RunMemPackage(mpkg, false)
 	} else {
@@ -553,8 +555,7 @@ func (opts *TestOptions) runTestFiles(
 		// - Run the test files before this for loop (but persist it to store;
 		//   RunFiles doesn't do that currently)
 		// - Wrap here.
-		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
-		m.Alloc = alloc.Reset()
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter(), alloc.Reset())
 		m.SetActivePackage(pv)
 
 		testfv := m.Eval(gno.Nx(tf.Name))[0].GetFunc()
@@ -711,8 +712,7 @@ func (opts *TestOptions) runTestFiles(
 		revert := opts.outWriter.tee(&opts.filetestBuffer)
 		defer revert()
 
-		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter())
-		m.Alloc = alloc.Reset()
+		m = Machine(tgs, opts.WriterForStore(), mpkg.Path, opts.Debug, store.NewInfiniteGasMeter(), alloc.Reset())
 		m.SetActivePackage(pv)
 
 		runExampleTestX := gno.Sel(testingcx, "RunExampleTest")

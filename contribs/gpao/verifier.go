@@ -213,7 +213,7 @@ func (v *verifier) preprocess(mpkg *std.MemPackage) error {
 	// getter is a fallback. AddMemPackage is NOT the seam for any of it: an
 	// import resolves to a PackageValue, and storing source builds none.
 
-	tm := test.Machine(st, io.Discard, mpkg.Path, false, nil)
+	tm := test.Machine(st, io.Discard, mpkg.Path, false, nil, nil)
 	defer tm.Release()
 	// Add under the package's OWN declared type. AddMemPackage requires the
 	// two to agree, so hardcoding either constant is wrong: production sends
