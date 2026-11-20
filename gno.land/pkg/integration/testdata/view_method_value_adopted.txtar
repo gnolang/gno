@@ -1,6 +1,6 @@
-# A method value bound by a `maketx run` script on a library type cannot be
-# kept by the realm it is handed to: adopted, it would act for that realm and
-# write its ungranted view. The store is refused, so nothing is pwned.
+# A method value bound by a `maketx run` script on a library type is allowed at
+# save; loaded from the store it has no binder, so a later call runs view-only
+# and the write is refused. Nothing is pwned.
 
 loadpkg gno.land/p/nt/avl/v0
 
@@ -11,11 +11,11 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/victim -pkgpath gno.land/r/test/victim -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
 stdout OK!
 
-! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
-stderr 'cannot keep a function value made outside a realm in gno.land/r/test/victim'
-
-gnokey maketx call -pkgpath gno.land/r/test/victim -func RunHooks -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
 stdout OK!
+
+! gnokey maketx call -pkgpath gno.land/r/test/victim -func RunHooks -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'cannot modify object owned by another realm from library code'
 
 gnokey query vm/qrender --data 'gno.land/r/test/victim:'
 ! stdout 'k=pwned'

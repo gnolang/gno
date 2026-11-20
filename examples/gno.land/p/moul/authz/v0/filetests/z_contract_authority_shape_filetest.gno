@@ -64,9 +64,15 @@ var updated string
 // closure, or any other value carrying this frame. That is the leak.
 func UpdateParams(cur realm, v string) error {
 	return auth.DoByPrevious(0, cur, "update_params", func() error {
-		updated = v
+		setUpdated(cross(cur), v)
 		return nil
 	})
+}
+
+// setUpdated is the actual write, a crossing function so the authz action
+// callback runs it with this realm's authority.
+func setUpdated(_ realm, v string) {
+	updated = v
 }
 
 func main(cur realm) {

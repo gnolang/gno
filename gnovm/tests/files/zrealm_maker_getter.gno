@@ -12,4 +12,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/tests/vm/cbvictim's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/tests/vm/cbvictim) package{})).Owner
+// gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbvictim) package{})).Owner

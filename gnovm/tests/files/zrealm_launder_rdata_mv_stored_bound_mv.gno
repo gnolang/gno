@@ -4,7 +4,7 @@ package launderrh_mv_stored_bound_mv
 // UPDATED (view-by-default): a method value acts for the realm that bound
 // it. The attacker bound captured.BumpToPwn, so when the victim's hook loop
 // calls it the write runs with the attacker's storage and is refused. Now the
-// victim's gate copies it without a maker and refuses to keep library code.
+// victim's gate copies it without a maker; the library code's write is refused.
 // The analysis below was written before the explicit-entry rule.
 
 // Stored bound-method-value laundering probe.
@@ -47,4 +47,4 @@ func main(cur realm) {
 // before: embed-orig
 
 // Error:
-// cannot keep a function value made outside a realm in gno.land/r/tests/vm/launderrvictim
+// cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field

@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_home_known_ptr
 package zrealm_home_known_ptr
 
-// Known gap: cbvictim's gate reaches cbvictim's own value through a *func pointer
-// this realm supplied; it cannot tell where the reference came from, so it writes.
+// S3: the gate reaches cbvictim's own value through a *func pointer this
+// realm supplied; the value was made in another crossing call, so it is read-only here.
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -11,5 +11,5 @@ func main(cur realm) {
 	println("owner:", cbvictim.Owner)
 }
 
-// Output:
-// owner: ptr
+// Error:
+// gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only in the crossing call that made it: Owner<~VPBlock(3,0)>

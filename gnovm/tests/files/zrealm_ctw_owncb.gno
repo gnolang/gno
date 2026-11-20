@@ -11,12 +11,11 @@ func main(cur realm) {
 	ctw.ViaApply(cross(cur))
 	ctw.ViaTable(cross(cur))
 	println("count:", ctw.Count)
-	println("local:", revive(func() { ctw.ViaLocal(cross(cur)) }))
+	ctw.ViaLocal(cross(cur))
 	ctw.ViaDispatch(cross(cur))
 	println("boxes:", ctw.BoxSum())
 }
 
 // Output:
 // count: 2
-// local: undefined
 // boxes: 6

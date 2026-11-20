@@ -27,9 +27,5 @@ func try(fn func()) (r any) {
 	return nil
 }
 
-// Output:
-// p closure: cannot modify object owned by another realm from library code (call a function of the owning realm): b<~VPBlock(1,0)>.N
-// p counter: cannot modify object owned by another realm from library code (call a function of the owning realm): c<~VPBlock(1,1)>
-// n: 0 count: 0
-// owner literal: gno.land/r/tests/vm/entryclosure's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/tests/vm/entryclosure) package{})).box.N
-// owner entry wrote: 1 1
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): c<~VPBlock(1,1)>

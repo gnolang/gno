@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_home_lib_iterate
 package zrealm_home_lib_iterate
 
-// cbvictim's gate handing its own value to a library that calls it writes:
-// the library runs under cbvictim's hold.
+// cbvictim's gate hands its own value to a library that calls it by value:
+// S3 refuses, the library call is a crossing call the value did not make.
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -11,5 +11,5 @@ func main(cur realm) {
 	println("owner:", cbvictim.Owner)
 }
 
-// Output:
-// owner: kick
+// Error:
+// gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbvictim) package{})).Owner

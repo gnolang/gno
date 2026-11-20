@@ -1,6 +1,6 @@
-# A /p/ function named in source writes for the calling realm, and so does the
-# same function called through a value the realm made at init (its maker).
-# Both hold after a restart, when the call marks are rebuilt by preprocessing.
+# A /p/ function named in source writes for the calling realm. Called through a
+# value the realm made at init, S3 runs it read-only, so it writes nothing, both
+# before and after a restart when the call marks are rebuilt by preprocessing.
 
 loadpkg gno.land/p/demo/tests/launderattack/v0
 loadpkg gno.land/r/test/pnamed $WORK
@@ -9,16 +9,16 @@ gnoland start
 gnokey maketx call -pkgpath gno.land/r/test/pnamed -func Named -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '"pwnd-via-apply" string'
 
-gnokey maketx call -pkgpath gno.land/r/test/pnamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
-stdout '"pwnd-via-apply" string'
+! gnokey maketx call -pkgpath gno.land/r/test/pnamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
 
 gnoland restart
 
 gnokey maketx call -pkgpath gno.land/r/test/pnamed -func Named -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '"pwnd-via-apply" string'
 
-gnokey maketx call -pkgpath gno.land/r/test/pnamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
-stdout '"pwnd-via-apply" string'
+! gnokey maketx call -pkgpath gno.land/r/test/pnamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
 
 -- gnomod.toml --
 module = "gno.land/r/test/pnamed"
