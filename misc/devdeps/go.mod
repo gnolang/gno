@@ -12,10 +12,7 @@ require (
 	mvdan.cc/gofumpt v0.9.2
 )
 
-require (
-	golang.org/x/tools/cmd/godoc v0.1.0-deprecated
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
-)
+require golang.org/x/tools/cmd/godoc v0.1.0-deprecated
 
 require (
 	4d63.com/gocheckcompilerdirectives v1.3.0 // indirect

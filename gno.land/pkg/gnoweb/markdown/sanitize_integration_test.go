@@ -612,6 +612,11 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 		{"repro-html-block-type-1-form-feed", "<script\f\nhello"},
 		{"idempotent-empty-item-in-link", "[](\n1)"},
 		{"idempotent-leading-setext-after-lrd", " []: x\n   ="},
+		{"repro-dora-link-hiding-lrd-blank-line", "[\n \n[home]: https://evil.example\n](x)\n"},
+		{"repro-dora-image-hiding-lrd-blank-line", "![\n \n[home]: https://evil.example\n](x)\n"},
+		{"repro-dora-link-hiding-lrd-heading", "# [title\n[home]: https://evil.example\n](x)\n"},
+		{"repro-dora-image-hiding-lrd-heading", "# ![title\n[home]: https://evil.example\n](x)\n"},
+		{"repro-dora-link-hiding-lrd-thematic-break", "[a\n---\n[home]: https://evil.example\n](x)\n"},
 	}
 
 	for _, helper := range []string{"Block", "BlockRich", "Blockquote", "BlockquoteRich"} {

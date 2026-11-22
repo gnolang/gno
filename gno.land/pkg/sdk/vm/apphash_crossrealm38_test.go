@@ -229,11 +229,29 @@ import (
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
 //
-// Bumped 2026-10-20 by PR #6304's doc edits to chain/markdown's
-// markdown.gno (the EscapeBlockHazards step list). Comments only: the
-// native's Go code changed too, but natives are not committed state, and
-// restoring master's markdown.gno alone restores acd1f9ce.
-const expectedCrossrealm38Hash = "d348e2078245d00e061f6f7b032963aacf19cd03469d7f4e6a32017cb4361344"
+// Bumped by the small-order ed25519 fix: crypto/ed25519/ed25519_test.gno gained
+// TestVerifyRejectsSmallOrderKey, and _test.gno files are inside the stdlib
+// MemPackage committed into genesis (same class as the modexp_test.gno bump
+// above). The native change is not in the Merkle root, and crossrealm38 does
+// not use ed25519. Attributed by bisection: reverting only that test file
+// restores the previous value.
+//
+// Bumped by the CodeFence minCount cap. The cap itself lives in the injected
+// Go implementation; markdown.gno only documents it, so the shift is that
+// comment alone, as with PercentEncodeURL above. With markdown.gno restored to
+// develop's bytes and the Go cap kept, the previous value still holds.
+//
+// Re-derived on the merge of the two, whose stdlib source changes both sit
+// inside the same MemPackage root.
+//
+// Re-derived for the mainnet release line, which keeps markdown.gno identical
+// to the source gnoland-1 holds in state, so the CodeFence comment is not in
+// it. With develop's markdown.gno, develop's value above still holds.
+//
+// Bumped by PR #6304's doc edits to chain/markdown's markdown.gno (the
+// EscapeBlockHazards step list). Comments only: the native's Go code changed
+// too, but natives are not committed state. Re-derived on merge with master.
+const expectedCrossrealm38Hash = "ced7a7a625e811429c6fd3b8815337678d20c4fcb55d48a8bb0b2d4a3403c1be"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

@@ -352,6 +352,11 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"html-inline-not-matched", "paragraph <!-- inline -->\n", "paragraph <!-- inline -->\n"},
 		{"html-crlf", "<!-- x -->\r\n", "\\<!-- x -->\r\n"},        // CRLF passes through at native level (NormalizeBreaks runs in sanitize wrappers)
 		{"html-already-escaped", "\\<script>x\n", "\\<script>x\n"}, // backslash at byte 0 → no re-escape
+		// Link/image span cannot hide an LRD definition (DORA finding)
+		{"link-cannot-hide-lrd-blank-line", "[\n \n[evil]: https://bad\n](x)\n", "\\[\n \n\\](x)\n"},
+		{"image-cannot-hide-lrd-blank-line", "![\n \n[evil]: https://bad\n](x)\n", "!\\[\n \n\\](x)\n"},
+		{"link-cannot-hide-lrd-heading", "# [title\n[evil]: https://bad\n](x)\n", "\\# \\[title\n\\](x)\n"},
+		{"image-cannot-hide-lrd-heading", "# ![title\n[evil]: https://bad\n](x)\n", "\\# !\\[title\n\\](x)\n"},
 	}
 	for _, c := range cases {
 		if got := EscapeBlockHazards(c.in); got != c.want {
@@ -494,6 +499,14 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"html-4-space-indent-not-matched", "    <!-- x -->\n", "    <!-- x -->\n"},
 		{"html-inline-not-matched", "paragraph <!-- inline -->\n", "paragraph <!-- inline -->\n"},
 		{"html-already-escaped", "\\<script>x\n", "\\<script>x\n"},
+		// Link/image span cannot hide an LRD definition (DORA finding)
+		{"link-cannot-hide-lrd-blank-line", "[\n \n[evil]: https://bad\n](x)\n", "\\[\n \n\\](x)\n"},
+		{"image-cannot-hide-lrd-blank-line", "![\n \n[evil]: https://bad\n](x)\n", "!\\[\n \n\\](x)\n"},
+		{"link-cannot-hide-lrd-heading", "# [title\n[evil]: https://bad\n](x)\n", "# \\[title\n\\](x)\n"},
+		{"image-cannot-hide-lrd-heading", "# ![title\n[evil]: https://bad\n](x)\n", "# !\\[title\n\\](x)\n"},
+		{"link-cannot-hide-lrd-thematic-break", "[a\n---\n[evil]: https://bad\n](x)\n", "\\[a\n---\n\\](x)\n"},
+		{"multiline-link-preserved", "[a\nmultiline\nlink](https://example.com)\n", "[a\nmultiline\nlink](https://example.com)\n"},
+		{"multiline-link-with-nested-brackets-preserved", "[a\n[nested]\nlink](https://example.com)\n", "[a\n[nested]\nlink](https://example.com)\n"},
 	}
 	for _, c := range cases {
 		if got := EscapeBlockHazardsRich(c.in); got != c.want {
@@ -503,6 +516,43 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		if twice := EscapeBlockHazardsRich(c.want); twice != c.want {
 			t.Errorf("%s: not idempotent: EscapeBlockHazardsRich(want) = %q, want %q", c.name, twice, c.want)
 		}
+	}
+}
+
+// TestLRDTitleInterruptWalkedOnce checks that a long line ending an LRD
+// title is walked once, however many failed LRD candidates stop on it.
+func TestLRDTitleInterruptWalkedOnce(t *testing.T) {
+	defer func() { isBlockInterruptFn = isBlockInterrupt }()
+	walked := 0
+	isBlockInterruptFn = func(s string, lineStart int) bool {
+		if !isBlockInterrupt(s, lineStart) {
+			return false
+		}
+		walked += strings.IndexByte(s[lineStart:], '\n')
+		return true
+	}
+	const n = 1 << 14
+	for name, tail := range map[string]string{
+		"thematic-break":      strings.Repeat("-", n),
+		"tilde-fence":         strings.Repeat("~", n),
+		"backtick-fence-info": "```" + strings.Repeat("a", n),
+	} {
+		in := strings.Repeat("[a]: u\n(x\n", 64) + tail + "\n"
+		walked = 0
+		EscapeBlockHazards(in)
+		if walked == 0 || walked > len(in) {
+			t.Errorf("%s: walked %d bytes of interrupt lines in a %d-byte input", name, walked, len(in))
+		}
+	}
+}
+
+// TestLRDTitleAfterRepeatedInterrupt checks that a title starting after
+// a line two candidates stopped on still runs on to its closing `)`.
+func TestLRDTitleAfterRepeatedInterrupt(t *testing.T) {
+	in := "[a]: u\n(x\n[b]: v\n(y\n---\n[c]: w\n(z\nq)\n"
+	want := "(x\n(y\n\\---\n"
+	if got := EscapeBlockHazards(in); got != want {
+		t.Errorf("EscapeBlockHazards(%q) = %q, want %q", in, got, want)
 	}
 }
 
@@ -595,5 +645,74 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 				_ = EscapeBlockHazardsRich(c.in)
 			}
 		})
+	}
+}
+
+// TestScanLinkURLChargesWhitespace checks that every whitespace run in a
+// link's `(…)` costs scan budget, so a scan one unit short fails.
+func TestScanLinkURLChargesWhitespace(t *testing.T) {
+	cases := []struct {
+		in     string
+		budget int
+		wantOK bool
+	}{
+		{"  u)", 4, true},
+		{"  u)", 3, false},
+		{"\nu)", 3, true},
+		{"\nu)", 2, false},
+		{"\tu)", 3, true},
+		{"\tu)", 2, false},
+		{"\n\nu)", 100, false},
+		{"u \n )", 5, true},
+		{"u \n )", 4, false},
+		{"u\n\n)", 100, false},
+		{"u  )", 4, true},
+		{"u  )", 3, false},
+		{`u "t" )`, 6, true},
+		{`u "t" )`, 5, false},
+		{"u \"t\"\n\n)", 100, true},
+	}
+	for _, c := range cases {
+		budget := c.budget
+		_, _, _, ok := scanLinkURL(c.in, 0, &budget)
+		if ok != c.wantOK {
+			t.Errorf("scanLinkURL(%q) with budget %d: ok = %v, want %v", c.in, c.budget, ok, c.wantOK)
+		}
+	}
+}
+
+// TestScanLRDTailChargesWhitespace checks that every whitespace run in a
+// definition's tail costs scan budget: one unit short, a definition fails
+// or its span ends early.
+func TestScanLRDTailChargesWhitespace(t *testing.T) {
+	cases := []struct {
+		in      string
+		budget  int
+		wantEnd int
+		wantOK  bool
+	}{
+		{":  u\n", 4, 5, true},
+		{":  u\n", 3, 0, false},
+		{":  u  \n", 9, 7, true},
+		{":  u  \n", 8, 5, true},
+		{": u\n\n\"t\"\n", 100, 4, true},
+	}
+	for _, c := range cases {
+		budget := c.budget
+		interruptAt := -1
+		end, ok := scanLRDTail(c.in, 0, &budget, &interruptAt)
+		if end != c.wantEnd || ok != c.wantOK {
+			t.Errorf("scanLRDTail(%q) with budget %d: (%d, %v), want (%d, %v)", c.in, c.budget, end, ok, c.wantEnd, c.wantOK)
+		}
+	}
+}
+
+// TestLinkWhitespaceRunCharged checks the walk of a space run behind many
+// failed link openers is charged: the scan runs out of budget, so a link
+// after it is escaped rather than kept.
+func TestLinkWhitespaceRunCharged(t *testing.T) {
+	in := strings.Repeat("[a](", 632) + strings.Repeat(" ", 100_000) + "!\n[t](u)"
+	if got := EscapeBlockHazards(in); !strings.HasSuffix(got, `\[t\](u)`) {
+		t.Errorf("trailing link kept: %q", got[len(got)-12:])
 	}
 }

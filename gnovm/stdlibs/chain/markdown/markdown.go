@@ -292,10 +292,12 @@ func inBitmap(c byte, lo, hi uint64) bool {
 
 // ---------- CodeFence ----------
 
+// maxCodeFenceMinCount bounds the fence minCount alone can ask for: the fence
+// is built in Go before gas or the VM allocation limit sees its length.
+const maxCodeFenceMinCount = 1024
+
 func CodeFence(content string, minCount int) string {
-	if minCount < 1 {
-		minCount = 1
-	}
+	minCount = min(max(minCount, 1), maxCodeFenceMinCount)
 	longest, cur := 0, 0
 	for i := 0; i < len(content); i++ {
 		if content[i] == '`' {
@@ -1238,10 +1240,17 @@ func findBracketSpans(s string) []bracketSpan {
 	// content (real links are short and rare relative to input size)
 	// while capping worst-case work at O(n).
 	scanBudget := 8 * len(s)
+	interruptAt := -1
 	// A link or definition never spans a fence-shaped line: the fence
 	// ends goldmark's paragraph first. Keeping such a span would hide the
 	// fence from this walker while the line loop and goldmark open it.
 	fenceLines := fenceLineFinder{s: s}
+	// A link or definition never spans a line shaped like a link reference
+	// definition: such a line can define a link for the whole page (e.g.
+	// when following an ATX heading, thematic break, setext underline, or
+	// blank line), and keeping such a span would hide the definition from
+	// this walker while goldmark registers it.
+	lrdLines := lrdLineFinder{s: s}
 	for i < len(s) {
 		// Advance nextClose past i if needed.
 		if nextClose < i {
@@ -1304,7 +1313,7 @@ func findBracketSpans(s string) []bracketSpan {
 			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
 				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
 				end, urlStart, urlEnd, ok := scanLinkURL(s, textEnd+2, &scanBudget)
-				if ok && fenceLines.after(start) >= end {
+				if ok && fenceLines.after(start) >= end && lrdLines.after(start) >= end {
 					spans = append(spans, bracketSpan{start: start, end: end, urlStart: urlStart, urlEnd: urlEnd, kind: spanLink})
 					i = end
 					atLineStart = false
@@ -1313,7 +1322,7 @@ func findBracketSpans(s string) []bracketSpan {
 			}
 			// LRD candidate: [label]: url …  (only when `!` not prefixing AND only if line starts at line-start position)
 			if c == '[' && atLineStartAt(s, start) {
-				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget); ok && fenceLines.after(start) >= end {
+				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget, &interruptAt); ok && fenceLines.after(start) >= end && lrdLines.after(start) >= end {
 					// Delete the definition's indent with it: left behind,
 					// it would indent the line after the definition.
 					for start > 0 && s[start-1] == ' ' {
@@ -1413,14 +1422,40 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 				return j, true
 			}
 		case '\n':
-			// Single \n OK inside link text; blank line aborts
-			if j+1 < len(s) && s[j+1] == '\n' {
+			// Single \n OK inside link text; blank line aborts. In CM §2.2
+			// a line with only spaces and tabs is a blank line too.
+			k := j + 1
+			for k < len(s) && (s[k] == ' ' || s[k] == '\t') {
+				k++
+			}
+			if k < len(s) && s[k] == '\n' {
 				return 0, false
 			}
 		}
 		j++
 	}
 	return 0, false
+}
+
+// skipSpace returns the index past the spaces, tabs and up to maxNL newlines
+// (any number when negative) from s[i], each byte costing one budget step so
+// no run is walked for free; ok is false once the budget runs out.
+func skipSpace(s string, i, maxNL int, budget *int) (int, bool) {
+	for ; i < len(s); i++ {
+		if s[i] == '\n' {
+			if maxNL == 0 {
+				break
+			}
+			maxNL--
+		} else if s[i] != ' ' && s[i] != '\t' {
+			break
+		}
+		if *budget <= 0 {
+			return i, false
+		}
+		*budget--
+	}
+	return i, true
 }
 
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
@@ -1430,14 +1465,8 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 // EOF on every `[`, O(n²)).
 func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bool) {
 	// Consume optional leading whitespace
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
+	if i, ok = skipSpace(s, i, 1, budget); !ok {
+		return 0, 0, 0, false
 	}
 	// URL body — angle-bracket form or plain
 	if i < len(s) && s[i] == '<' {
@@ -1461,8 +1490,14 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 			if c == '<' {
 				return 0, 0, 0, false
 			}
-			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, 0, 0, false
+			if c == '\n' {
+				k := i + 1
+				for k < len(s) && (s[k] == ' ' || s[k] == '\t') {
+					k++
+				}
+				if k < len(s) && s[k] == '\n' {
+					return 0, 0, 0, false
+				}
 			}
 			i++
 		}
@@ -1495,12 +1530,17 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 		}
 		urlEnd = i
 	}
-	// Skip whitespace before title or close
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
-		if s[i] == '\n' && i+1 < len(s) && s[i+1] == '\n' {
+	// Skip whitespace before title or close; two consecutive newlines here fail the scan.
+	for {
+		if i, ok = skipSpace(s, i, 1, budget); !ok {
 			return 0, 0, 0, false
 		}
-		i++
+		if i == len(s) || s[i] != '\n' {
+			break
+		}
+		if s[i-1] == '\n' {
+			return 0, 0, 0, false
+		}
 	}
 	// Optional title
 	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
@@ -1523,14 +1563,20 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 				i++
 				break
 			}
-			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, 0, 0, false
+			if c == '\n' {
+				k := i + 1
+				for k < len(s) && (s[k] == ' ' || s[k] == '\t') {
+					k++
+				}
+				if k < len(s) && s[k] == '\n' {
+					return 0, 0, 0, false
+				}
 			}
 			i++
 		}
 		// Whitespace before close
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
-			i++
+		if i, ok = skipSpace(s, i, -1, budget); !ok {
+			return 0, 0, 0, false
 		}
 	}
 	if i < len(s) && s[i] == ')' {
@@ -1546,7 +1592,9 @@ func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bo
 // Shares the pass-1 scan budget so a caller can't chain
 // `[a]: u\n(x\n[b]: u\n(x\n…` (paren-title with no `)` anywhere — every
 // LRD candidate would otherwise let the title scan walk to EOF, O(n²)).
-func scanLRDTail(s string, i int, budget *int) (int, bool) {
+// `interruptAt` holds the line start of the last block interrupt found in
+// `s`, or -1, so a later candidate stops there without walking it again.
+func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 	// Need ':' immediately
 	if i >= len(s) || s[i] != ':' {
 		return 0, false
@@ -1554,18 +1602,15 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	i++
 	// Need ≥1 space or tab, OR a newline (LRD URL can be on the next line)
 	wsStart := i
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
+	i, ok := skipSpace(s, i, 1, budget)
+	if !ok {
+		return 0, false
 	}
-	if i < len(s) && s[i] == '\n' {
-		i++
-		// A destination line that opens a block (a fence, a list item…)
-		// ends the paragraph first, so goldmark sees no definition here.
-		if isBlockInterrupt(s, i) {
+	// A destination line that opens a block (a fence, a list item…)
+	// ends the paragraph first, so goldmark sees no definition here.
+	if nl := strings.IndexByte(s[wsStart:i], '\n'); nl >= 0 {
+		if isBlockInterrupt(s, wsStart+nl+1) {
 			return 0, false
-		}
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
 		}
 	}
 	if i == wsStart {
@@ -1619,18 +1664,9 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	end := i
 	// Optional title: same line OR next line
 	titleStart := i
-	// Skip whitespace (incl. one newline)
-	sawNL := false
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		sawNL = true
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
-	}
+	// Skip whitespace (incl. one newline). Out of budget, i stops on whitespace
+	// and the title is dropped, as when the title scan below runs out.
+	i, _ = skipSpace(s, i, 1, budget)
 	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
 		closeQ := s[i]
 		if closeQ == '(' {
@@ -1656,7 +1692,8 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
 				break
 			}
-			if c == '\n' && isBlockInterrupt(s, i+1) {
+			if c == '\n' && (i+1 == *interruptAt || isBlockInterruptFn(s, i+1)) {
+				*interruptAt = i + 1
 				break
 			}
 			i++
@@ -1667,14 +1704,12 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 			// Title not closed cleanly — drop it from the span, keep URL
 			i = titleStart
 			end = titleStart
-			_ = sawNL
 		}
 	}
-	// Consume trailing newline so the next line starts fresh
-	for end < len(s) && (s[end] == ' ' || s[end] == '\t') {
-		end++
-	}
-	if end < len(s) && s[end] != '\n' {
+	// Consume trailing newline so the next line starts fresh. Out of budget,
+	// the span ends on the whitespace where the skip stopped.
+	end, ok = skipSpace(s, end, 0, budget)
+	if ok && end < len(s) && s[end] != '\n' {
 		// CM §4.7: only whitespace may follow a definition on its line.
 		// Deleting up to the text would also leave that text, a fence
 		// say, at a column the fence trackers never saw it at.
@@ -1685,6 +1720,10 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	}
 	return end, true
 }
+
+// isBlockInterruptFn is isBlockInterrupt; only tests replace it, to count
+// the bytes it walks.
+var isBlockInterruptFn = isBlockInterrupt
 
 // isBlockInterrupt reports whether the line beginning at byte index
 // `lineStart` opens a CommonMark block-level construct that interrupts
@@ -1849,6 +1888,31 @@ func (f *fenceLineFinder) after(p int) int {
 	return f.next
 }
 
+// lrdLineFinder finds lines shaped like a link reference definition for a
+// caller that asks about non-decreasing positions: each line is inspected
+// at most once.
+type lrdLineFinder struct {
+	s    string
+	next int // first LRD-shaped line start after the last position asked; 0 before the first ask
+}
+
+// after returns the start of the first link-reference-definition line that
+// starts after p, or len(s).
+func (f *lrdLineFinder) after(p int) int {
+	if f.next > p {
+		return f.next
+	}
+	for ls := nextLineStart(f.s, p, len(f.s)); ls < len(f.s); ls = nextLineStart(f.s, ls, len(f.s)) {
+		pos, _ := parseContainerPrefix(f.s[ls:])
+		if q := ls + pos; q < len(f.s) && f.s[q] == '[' && opensLinkLabel(f.s, q, len(f.s)) {
+			f.next = ls
+			return ls
+		}
+	}
+	f.next = len(f.s)
+	return f.next
+}
+
 // appendFenceSpans adds the fence span [start, end) to spans, whose body
 // begins at bodyStart, leaving out the `[` that opens a line shaped like a
 // link reference definition or an alert marker so pass 2 escapes it. The fence
@@ -1893,7 +1957,11 @@ func opensLinkLabel(s string, q, end int) bool {
 		case ']':
 			return j+1 < len(s) && s[j+1] == ':'
 		case '\n':
-			if j+1 < end && s[j+1] == '\n' {
+			k := j + 1
+			for k < end && (s[k] == ' ' || s[k] == '\t') {
+				k++
+			}
+			if k < end && s[k] == '\n' {
 				return false
 			}
 		}

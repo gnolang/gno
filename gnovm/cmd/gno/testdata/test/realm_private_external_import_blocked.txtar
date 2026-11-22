@@ -1,0 +1,45 @@
+# Test that an external package cannot import a private realm during gno test.
+# While a private realm's own xxx_test may import it (see realm_private_unit_test.txtar),
+# a different package must still be blocked.
+
+# Set up GNOROOT in the current directory.
+mkdir $WORK/gnovm/tests
+symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+symlink $WORK/gnovm/tests/stdlibs -> $GNOROOT/gnovm/tests/stdlibs
+env GNOROOT=$WORK
+
+! gno test -v ./external
+
+! stdout .+
+stderr 'is private and cannot be imported'
+
+-- gnowork.toml --
+-- privaterealm/gnomod.toml --
+module = "gno.test/r/integ/privaterealm"
+gno = "0.9"
+private = true
+
+-- privaterealm/privaterealm.gno --
+package privaterealm
+
+func Hello() string { return "hello" }
+
+-- external/gnomod.toml --
+module = "gno.test/p/integ/external"
+gno = "0.9"
+
+-- external/external.gno --
+package external
+
+-- external/external_test.gno --
+package external_test
+
+import (
+	"testing"
+
+	"gno.test/r/integ/privaterealm"
+)
+
+func TestImportPrivate(t *testing.T) {
+	_ = privaterealm.Hello()
+}
