@@ -80,6 +80,9 @@ func TestStrings(t *testing.T) {
 
 func TestSlice(t *testing.T) {
 	data := strings
+	if sort.SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
+		t.Errorf("SliceIsSorted(%v) = true before sorting", data)
+	}
 	sort.Slice(data[:], func(i, j int) bool {
 		return data[i] < data[j]
 	})
@@ -90,10 +93,9 @@ func TestSlice(t *testing.T) {
 }
 
 func TestSliceStable(t *testing.T) {
-	type pair struct{ key, seq int }
-	data := []pair{{2, 0}, {1, 1}, {2, 2}, {1, 3}, {0, 4}, {2, 5}}
+	data := []sortPair{{2, 0}, {1, 1}, {2, 2}, {1, 3}, {0, 4}, {2, 5}}
 	sort.SliceStable(data, func(i, j int) bool { return data[i].key < data[j].key })
-	want := []pair{{0, 4}, {1, 1}, {1, 3}, {2, 0}, {2, 2}, {2, 5}}
+	want := []sortPair{{0, 4}, {1, 1}, {1, 3}, {2, 0}, {2, 2}, {2, 5}}
 	for i := range want {
 		if data[i] != want[i] {
 			t.Fatalf("got %v, want %v", data, want)
@@ -101,8 +103,8 @@ func TestSliceStable(t *testing.T) {
 	}
 }
 
-// Slice and SliceStable run the func variants in zsortfunc.gno, so check them
-// against Ints and Stable, which run the Interface ones, on the same input.
+// Slice and SliceStable run the copies of the sort routines in zsortfunc.gno.
+// Ints and Stable run the originals, so both must give the same result.
 func TestSliceMatchesInterface(t *testing.T) {
 	n := 1000
 	ints := make([]int, n)
@@ -141,15 +143,8 @@ func (p pairsByKey) Len() int           { return len(p) }
 func (p pairsByKey) Less(i, j int) bool { return p[i].key < p[j].key }
 func (p pairsByKey) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func TestSliceIsSortedFalse(t *testing.T) {
-	data := []int{1, 3, 2}
-	if sort.SliceIsSorted(data, func(i, j int) bool { return data[i] < data[j] }) {
-		t.Errorf("SliceIsSorted(%v) = true", data)
-	}
-}
-
-// Elements that are not plain values: a Data-backed []byte, pointers, and a
-// named slice type.
+// Elements that are not plain values: a []byte, which the VM keeps as raw
+// bytes, pointers, and a named slice type.
 func TestSliceElementKinds(t *testing.T) {
 	bs := []byte("dcba")
 	sort.Slice(bs, func(i, j int) bool { return bs[i] < bs[j] })
@@ -169,6 +164,24 @@ func TestSliceElementKinds(t *testing.T) {
 	sort.Slice(ns, func(i, j int) bool { return ns[i] < ns[j] })
 	if ns[0] != "a" || ns[1] != "b" || ns[2] != "c" {
 		t.Errorf("named slice: got %v", ns)
+	}
+}
+
+// Slice moves elements instead of copying them. A pointer to a field of an
+// element follows the element, and a pointer to an element stays with its
+// index. In Go both stay with the index. A swap written by hand in Gno leaves
+// the field pointer on a copy that no slot holds.
+func TestSliceFieldPointer(t *testing.T) {
+	data := []sortPair{{3, 0}, {1, 1}}
+	field := &data[0].key
+	elem := &data[0]
+	sort.Slice(data, func(i, j int) bool { return data[i].key < data[j].key })
+	if *field != 3 || elem.key != 1 {
+		t.Fatalf("got *field=%d elem.key=%d, want 3 and 1", *field, elem.key)
+	}
+	*field = 9
+	if data[0].key != 1 || data[1].key != 9 {
+		t.Errorf("write through field pointer: got %v", data)
 	}
 }
 

@@ -13,10 +13,10 @@ import (
 	"testing"
 )
 
-var update = flag.Bool("update", false, "rewrite zsortfunc.gno from sort.gno")
+var updateGoldenTests = flag.Bool("update-golden-tests", false, "rewrite zsortfunc.gno from sort.gno")
 
 const zsortfuncHeader = `// Code generated from sort.gno by zsortfunc_test.go; DO NOT EDIT.
-// Regenerate with: go test ./gnovm/stdlibs/sort -run TestZSortFunc -update
+// Regenerate with: go test ./gnovm/stdlibs/sort -run TestZSortFunc -update-golden-tests
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -24,15 +24,15 @@ const zsortfuncHeader = `// Code generated from sort.gno by zsortfunc_test.go; D
 
 `
 
-// TestZSortFunc checks that zsortfunc.gno is what genZSortFunc makes of the
-// current sort.gno, so the copy Slice and SliceStable run cannot drift from
-// the one Sort and Stable run.
+// TestZSortFunc checks that zsortfunc.gno matches what genZSortFunc makes of
+// sort.gno, so the routines Slice and SliceStable run cannot drift from the
+// ones Sort and Stable run. With -update-golden-tests it rewrites the file.
 func TestZSortFunc(t *testing.T) {
 	src, err := genZSortFunc("sort.gno")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if *update {
+	if *updateGoldenTests {
 		if err := os.WriteFile("zsortfunc.gno", src, 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -43,22 +43,23 @@ func TestZSortFunc(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(got, src) {
-		t.Fatal("zsortfunc.gno is stale; run: go test ./gnovm/stdlibs/sort -run TestZSortFunc -update")
+		t.Fatal("zsortfunc.gno is stale; run: go test ./gnovm/stdlibs/sort -run TestZSortFunc -update-golden-tests")
 	}
 }
 
-// genZSortFunc does what Go's sort/genzfunc.go does to sort.go: it keeps the
-// unexported funcs taking a "data Interface", renames each with a "_func"
-// suffix, and makes it take a "data lessSwap". Unlike Go's, it also turns
-// data.Swap(a, b) into sliceSwap(data.x, a, b), and it renames only calls to
-// the funcs it keeps, since sort.gno also calls int() and uint().
+// genZSortFunc makes zsortfunc.gno from sort.gno as Go's sort/genzfunc.go
+// makes zfuncversion.go. It keeps the unexported funcs that take a
+// "data Interface", adds "_func" to their names, and makes them take a
+// "data *lessSwap". Unlike genzfunc.go, it rewrites data.Swap(a, b) to
+// sliceSwap(data.x, a, b), and it renames only calls to the funcs it keeps,
+// because sort.gno also calls int() and uint().
 func genZSortFunc(path string) ([]byte, error) {
 	fset := token.NewFileSet()
 	af, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		return nil, err
 	}
-	af.Doc, af.Imports, af.Comments = nil, nil, nil
+	af.Comments = nil
 
 	kept := map[string]bool{}
 	var decls []ast.Decl
@@ -72,33 +73,33 @@ func genZSortFunc(path string) ([]byte, error) {
 		if !ok || len(arg0.Names) != 1 || arg0.Names[0].Name != "data" || typ.Name != "Interface" {
 			continue
 		}
-		typ.Name = "lessSwap"
+		arg0.Type = &ast.StarExpr{X: ast.NewIdent("lessSwap")}
 		kept[fd.Name.Name] = true
+		fd.Name.Name += "_func"
 		decls = append(decls, fd)
 	}
 	af.Decls = decls
 
 	var walkErr error
 	ast.Inspect(af, func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.FuncDecl:
-			n.Name.Name += "_func"
-		case *ast.CallExpr:
-			switch fun := n.Fun.(type) {
-			case *ast.Ident:
-				if kept[fun.Name] {
-					fun.Name += "_func"
-				}
-			case *ast.SelectorExpr:
-				if x, ok := fun.X.(*ast.Ident); ok && x.Name == "data" {
-					switch fun.Sel.Name {
-					case "Less":
-					case "Swap":
-						n.Fun = ast.NewIdent("sliceSwap")
-						n.Args = append([]ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("data"), Sel: ast.NewIdent("x")}}, n.Args...)
-					default:
-						walkErr = fmt.Errorf("data.%s has no lessSwap counterpart", fun.Sel.Name)
-					}
+		ce, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch fun := ce.Fun.(type) {
+		case *ast.Ident:
+			if kept[fun.Name] {
+				fun.Name += "_func"
+			}
+		case *ast.SelectorExpr:
+			if x, ok := fun.X.(*ast.Ident); ok && x.Name == "data" {
+				switch fun.Sel.Name {
+				case "Less":
+				case "Swap":
+					ce.Fun = ast.NewIdent("sliceSwap")
+					ce.Args = append([]ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("data"), Sel: ast.NewIdent("x")}}, ce.Args...)
+				default:
+					walkErr = fmt.Errorf("data.%s has no lessSwap counterpart", fun.Sel.Name)
 				}
 			}
 		}
@@ -112,12 +113,8 @@ func genZSortFunc(path string) ([]byte, error) {
 	if err := format.Node(&out, fset, af); err != nil {
 		return nil, err
 	}
-	// Drop the blank lines the removed comments leave, then label each func.
+	// Drop every blank line, then put a blank line and a label before each func.
 	src := regexp.MustCompile(`\n{2,}`).ReplaceAll(out.Bytes(), []byte("\n"))
 	src = regexp.MustCompile(`\nfunc (\w+)_func`).ReplaceAll(src, []byte("\n\n// Auto-generated variant of sort.gno:$1\nfunc ${1}_func"))
-	src, err = format.Source(append([]byte(zsortfuncHeader), src...))
-	if err != nil {
-		return nil, err
-	}
-	return src, nil
+	return format.Source(append([]byte(zsortfuncHeader), src...))
 }

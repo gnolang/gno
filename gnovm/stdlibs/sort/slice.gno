@@ -4,9 +4,8 @@
 
 package sort
 
-// lessSwap is what the func variants of the sort routines in zsortfunc.gno
-// take in place of an Interface: they call Less directly, and swap the
-// elements of x through sliceSwap. Neither goes through a method call.
+// lessSwap stands in for an Interface in the sort routines of zsortfunc.gno.
+// They call Less directly and swap the elements of x through sliceSwap.
 type lessSwap struct {
 	Less func(i, j int) bool
 	x    any
@@ -23,7 +22,7 @@ type lessSwap struct {
 // the Interface type's Less method.
 func Slice(x any, less func(i, j int) bool) {
 	n := sliceLen(x)
-	quickSort_func(lessSwap{less, x}, 0, n, maxDepth(n))
+	quickSort_func(&lessSwap{less, x}, 0, n, maxDepth(n))
 }
 
 // SliceStable sorts the slice x using the provided less
@@ -33,7 +32,7 @@ func Slice(x any, less func(i, j int) bool) {
 // The less function must satisfy the same requirements as
 // the Interface type's Less method.
 func SliceStable(x any, less func(i, j int) bool) {
-	stable_func(lessSwap{less, x}, sliceLen(x))
+	stable_func(&lessSwap{less, x}, sliceLen(x))
 }
 
 // SliceIsSorted reports whether the slice x is sorted according to the provided less function.

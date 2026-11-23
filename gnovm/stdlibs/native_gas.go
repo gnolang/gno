@@ -186,11 +186,12 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/markdown", Fn: "MaxForeignBlocksPerConvert", Base: 32, SlopeIdx: -1, SlopeKind: SizeFlat},                // flat: returns a compile-time constant, no input
 
 	// --- sort (Apple M5, scaled to the M2 rows above) ---
-	// Scaled by math.Float64bits, 19.86ns on M5 against 28.7ns above.
-	// sliceSwap is flat at the dearer of its two benches, a 3-field struct
-	// (229ns) over an int (77.6ns). The allocator charges the struct copies.
-	{Pkg: "sort", Fn: "sliceLen", Base: 20, SlopeIdx: -1, SlopeKind: SizeFlat},   // flat, median 13.8ns on M5
-	{Pkg: "sort", Fn: "sliceSwap", Base: 331, SlopeIdx: -1, SlopeKind: SizeFlat}, // flat, median 229ns on M5 for []struct{int; int; string}
+	// Scaled by math.Float64bits, 19.97ns on M5 against 28.7ns above.
+	// sliceSwap moves two slots without copying them, so it costs the same
+	// for any element type: 84.8ns for an int, 84.3ns for a struct with
+	// three fields.
+	{Pkg: "sort", Fn: "sliceLen", Base: 20, SlopeIdx: -1, SlopeKind: SizeFlat},   // flat, median 14.05ns on M5
+	{Pkg: "sort", Fn: "sliceSwap", Base: 122, SlopeIdx: -1, SlopeKind: SizeFlat}, // flat, median 84.8ns on M5
 
 	// --- IBC crypto stdlibs (draft, Xeon Silver 4114) ---
 	{Pkg: "crypto/keccak256", Fn: "sum256", Base: 4323, Slope: 23654, SlopeIdx: 0, SlopeKind: SizeLenBytes},       // draft fit base=4323ns slope=23.10ns/N (=23654/1024) on 0..16384 bytes

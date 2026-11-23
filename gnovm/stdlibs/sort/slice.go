@@ -9,26 +9,33 @@ func X_sliceLen(m *gno.Machine, x gno.TypedValue) int {
 	return x.GetLength()
 }
 
-// X_sliceSwap does what the statement x[i], x[j] = x[j], x[i] does in Gno:
-// the same readonly check, and an Assign2 per element, so the realm marks
-// the backing array dirty, rejects a write into another realm's array, and
-// updates the reference counts of any objects the elements hold.
+// X_sliceSwap swaps x[i] and x[j] in place in the backing array. It makes
+// the readonly check of the statement x[i], x[j] = x[j], x[i], but moves the
+// elements instead of copying them. A stored struct element keeps its
+// object, and a pointer to one of its fields follows it to its new index.
 func X_sliceSwap(m *gno.Machine, x gno.TypedValue, i, j int) {
 	assertSlice(m, x)
 	if m.IsReadonly(&x) {
 		m.PanicString("cannot swap elements of readonly tainted slice")
 	}
-	sv, ok := x.V.(*gno.SliceValue)
-	if !ok {
-		// A nil slice has no elements, so any index is out of range.
-		m.PanicString("sort: slice index out of range")
+	pi := x.GetPointerAtIndexInt(m.Store, i)
+	pj := x.GetPointerAtIndexInt(m.Store, j)
+	if i == j {
+		// The sort routines swap an element with itself. Returning after the
+		// lookups keeps their index checks.
+		return
 	}
-	et := x.T.Elem()
-	pi := sv.GetElementPointer(m.Store, i, et)
-	pj := sv.GetElementPointer(m.Store, j, et)
-	vi, vj := pi.Deref(), pj.Deref()
-	pi.Assign2(m, m.Alloc, m.Store, m.Realm, vj, false)
-	pj.Assign2(m, m.Alloc, m.Store, m.Realm, vi, false)
+	if pi.TV.T == gno.DataByteType {
+		vi, vj := pi.Deref(), pj.Deref()
+		pi.TV.SetDataByte(vj.GetUint8())
+		pj.TV.SetDataByte(vi.GetUint8())
+	} else {
+		*pi.TV, *pj.TV = *pj.TV, *pi.TV
+	}
+	// The elements stay in the same array, so the objects they hold keep
+	// their owner and reference counts, and only the array needs saving.
+	// DidUpdate marks it dirty and refuses an array of another realm.
+	m.Realm.DidUpdate(m, pi.Base.(gno.Object), nil, nil)
 }
 
 func assertSlice(m *gno.Machine, x gno.TypedValue) {

@@ -1,5 +1,5 @@
 // Code generated from sort.gno by zsortfunc_test.go; DO NOT EDIT.
-// Regenerate with: go test ./gnovm/stdlibs/sort -run TestZSortFunc -update
+// Regenerate with: go test ./gnovm/stdlibs/sort -run TestZSortFunc -update-golden-tests
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -8,7 +8,7 @@
 package sort
 
 // Auto-generated variant of sort.gno:insertionSort
-func insertionSort_func(data lessSwap, a, b int) {
+func insertionSort_func(data *lessSwap, a, b int) {
 	for i := a + 1; i < b; i++ {
 		for j := i; j > a && data.Less(j, j-1); j-- {
 			sliceSwap(data.x, j, j-1)
@@ -17,7 +17,7 @@ func insertionSort_func(data lessSwap, a, b int) {
 }
 
 // Auto-generated variant of sort.gno:siftDown
-func siftDown_func(data lessSwap, lo, hi, first int) {
+func siftDown_func(data *lessSwap, lo, hi, first int) {
 	root := lo
 	for {
 		child := 2*root + 1
@@ -36,7 +36,7 @@ func siftDown_func(data lessSwap, lo, hi, first int) {
 }
 
 // Auto-generated variant of sort.gno:heapSort
-func heapSort_func(data lessSwap, a, b int) {
+func heapSort_func(data *lessSwap, a, b int) {
 	first := a
 	lo := 0
 	hi := b - a
@@ -50,7 +50,7 @@ func heapSort_func(data lessSwap, a, b int) {
 }
 
 // Auto-generated variant of sort.gno:medianOfThree
-func medianOfThree_func(data lessSwap, m1, m0, m2 int) {
+func medianOfThree_func(data *lessSwap, m1, m0, m2 int) {
 	if data.Less(m1, m0) {
 		sliceSwap(data.x, m1, m0)
 	}
@@ -63,14 +63,14 @@ func medianOfThree_func(data lessSwap, m1, m0, m2 int) {
 }
 
 // Auto-generated variant of sort.gno:swapRange
-func swapRange_func(data lessSwap, a, b, n int) {
+func swapRange_func(data *lessSwap, a, b, n int) {
 	for i := 0; i < n; i++ {
 		sliceSwap(data.x, a+i, b+i)
 	}
 }
 
 // Auto-generated variant of sort.gno:doPivot
-func doPivot_func(data lessSwap, lo, hi int) (midlo, midhi int) {
+func doPivot_func(data *lessSwap, lo, hi int) (midlo, midhi int) {
 	m := int(uint(lo+hi) >> 1)
 	if hi-lo > 40 {
 		s := (hi - lo) / 8
@@ -134,7 +134,7 @@ func doPivot_func(data lessSwap, lo, hi int) (midlo, midhi int) {
 }
 
 // Auto-generated variant of sort.gno:quickSort
-func quickSort_func(data lessSwap, a, b, maxDepth int) {
+func quickSort_func(data *lessSwap, a, b, maxDepth int) {
 	for b-a > 12 {
 		if maxDepth == 0 {
 			heapSort_func(data, a, b)
@@ -161,7 +161,7 @@ func quickSort_func(data lessSwap, a, b, maxDepth int) {
 }
 
 // Auto-generated variant of sort.gno:stable
-func stable_func(data lessSwap, n int) {
+func stable_func(data *lessSwap, n int) {
 	blockSize := 20
 	a, b := 0, blockSize
 	for b <= n {
@@ -185,7 +185,7 @@ func stable_func(data lessSwap, n int) {
 }
 
 // Auto-generated variant of sort.gno:symMerge
-func symMerge_func(data lessSwap, a, m, b int) {
+func symMerge_func(data *lessSwap, a, m, b int) {
 	if m-a == 1 {
 		i := m
 		j := b
@@ -250,7 +250,7 @@ func symMerge_func(data lessSwap, a, m, b int) {
 }
 
 // Auto-generated variant of sort.gno:rotate
-func rotate_func(data lessSwap, a, m, b int) {
+func rotate_func(data *lessSwap, a, m, b int) {
 	i := m - a
 	j := b - m
 	for i != j {

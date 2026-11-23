@@ -1,6 +1,6 @@
-# sort.Slice swaps through a native, so it must persist what it swaps in the
-# caller's own state, and refuse another realm's state the way a hand-written
-# swap is refused.
+# sort.Slice swaps through a native. The swaps must persist in the caller's
+# own state, and another realm's state must be refused as a swap written by
+# hand is.
 
 loadpkg gno.land/r/test/sortowner $WORK/sortowner
 loadpkg gno.land/r/test/sortcaller $WORK/sortcaller
@@ -95,7 +95,7 @@ func SortForeign(cur realm) {
 	sort.Slice(s, func(i, j int) bool { return s[i] > s[j] })
 }
 
-// SwapForeign does by hand one swap SortForeign asks sort.Slice for.
+// SwapForeign writes by hand a swap that SortForeign leaves to sort.Slice.
 func SwapForeign(cur realm) {
 	s := sortowner.Ints()
 	s[0], s[1] = s[1], s[0]
