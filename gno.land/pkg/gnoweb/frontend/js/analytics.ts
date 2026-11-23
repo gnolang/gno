@@ -36,11 +36,9 @@ onClick<HTMLButtonElement>(
 	'button[data-controller~="copy"]',
 	(btn) => {
 		const remote = btn.getAttribute("data-copy-remote-value") ?? "";
+		const named = btn.getAttribute("data-copy-kind");
 		let kind = "unknown";
-		// Ask AI prompts also carry data-copy-text-value, which otherwise marks
-		// a link copy, so they are checked first.
-		if (btn.closest(".ai-action__targets, .b-ai-func__menu"))
-			kind = "ai_prompt";
+		if (named) kind = named;
 		else if (btn.hasAttribute("data-copy-text-value")) kind = "link";
 		else if (remote === "source-code") kind = "source";
 		else if (remote.startsWith("func-")) kind = "func_signature";

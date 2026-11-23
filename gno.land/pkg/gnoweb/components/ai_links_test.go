@@ -164,7 +164,7 @@ func TestIndexLayout_AskAI(t *testing.T) {
 	assert.Contains(t, page, "Ask AI about this realm")
 	assert.Contains(t, page, `data-outbound="`+OutboundClaude+`"`)
 	assert.Contains(t, page, `data-outbound="`+OutboundChatGPT+`"`)
-	assert.Contains(t, page, `data-copy-text-value="Explain what the gno.land realm https://gno.land/r/test/pkg does`)
+	assert.Contains(t, page, `data-copy-kind="ai_prompt" data-copy-text-value="Explain what the gno.land realm https://gno.land/r/test/pkg does`)
 	// Install instructions live on the gnomcp site, not in a copied script.
 	assert.Contains(t, page, `href="`+gnoMCPSite+`"`)
 	assert.NotContains(t, page, "install.sh")
