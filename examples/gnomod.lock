@@ -1260,6 +1260,18 @@ module = "gno.land/r/tests/vm/innerowner"
 source = { dir = "gno.land/r/tests/vm/innerowner" }
 
 [[module]]
+module = "gno.land/r/tests/vm/launderrarrnested"
+source = { dir = "gno.land/r/tests/vm/launderrarrnested" }
+
+[[module]]
+module = "gno.land/r/tests/vm/launderrarrvictim"
+source = { dir = "gno.land/r/tests/vm/launderrarrvictim" }
+
+[[module]]
+module = "gno.land/r/tests/vm/launderrdeep"
+source = { dir = "gno.land/r/tests/vm/launderrdeep" }
+
+[[module]]
 module = "gno.land/r/tests/vm/launderrvictim"
 source = { dir = "gno.land/r/tests/vm/launderrvictim" }
 
