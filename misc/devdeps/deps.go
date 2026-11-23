@@ -17,8 +17,7 @@ import (
 	// required for formatting, linting, pls.
 	_ "mvdan.cc/gofumpt"
 
-	// protoc, genproto
-	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	// protoc, tm2/pkg/bft/privval/upstream/upstreampb
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 
 	// gen docs

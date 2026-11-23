@@ -481,6 +481,46 @@ func newTestHandler(proc func(Context, Msg) Result) Handler {
 	}
 }
 
+// codeQueryHandler is a handler whose query "code/run" runs code.
+type codeQueryHandler struct{ testHandler }
+
+func (codeQueryHandler) QueryRunsCode(path string) bool { return path == "code/run" }
+
+func TestQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t, func(bapp *BaseApp) {
+		bapp.Router().AddRoute("code", codeQueryHandler{})
+		bapp.Router().AddRoute("plain", testHandler{})
+	})
+
+	runsCode := []string{
+		".app/simulate",
+		"/.app/simulate",
+		".app/simulate/x",
+		"code/run",
+	}
+	runsNoCode := []string{
+		"",
+		"/",
+		".app",
+		".app/version",
+		".app/simulatex",
+		".app/simulate?x", // handleQueryApp reads "simulate?x", an unknown query
+		"//.app/simulate", // routed to the empty name, which has no handler
+		".store/main/key",
+		"code/other",
+		"plain/run", // its handler does not implement abci.CodeExecutionQuerier
+		"none/run",
+	}
+	for _, path := range runsCode {
+		assert.True(t, app.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, app.QueryRunsCode(path), "path %q", path)
+	}
+}
+
 type msgCounterHandler struct {
 	t          *testing.T
 	capKey     store.StoreKey
@@ -1157,6 +1197,56 @@ func TestRunInvalidTransaction(t *testing.T) {
 		_, ok := res.Error.(std.TxDecodeError)
 		require.True(t, ok)
 	}
+}
+
+// A signature does not cover invalid UTF-8 bytes in a string, so a tx holding
+// one is refused as undecodable before the ante handler can charge for it.
+// U+FFFD itself is valid UTF-8 and still goes through.
+func TestRunTxRefusesInvalidUTF8(t *testing.T) {
+	t.Parallel()
+
+	anteCalls := 0
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			anteCalls++
+			return ctx, Result{}, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
+	}
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	txBytes := func(memo string) []byte {
+		bz, err := amino.Marshal(std.Tx{Msgs: []Msg{msgCounter{}}, Memo: memo})
+		require.NoError(t, err)
+		return bz
+	}
+
+	bad := txBytes("a\xffb")
+	for name, res := range map[string]abci.ResponseBase{
+		"CheckTx":   app.CheckTx(abci.RequestCheckTx{Tx: bad}).ResponseBase,
+		"DeliverTx": app.DeliverTx(abci.RequestDeliverTx{Tx: bad}).ResponseBase,
+	} {
+		_, ok := res.Error.(std.TxDecodeError)
+		require.True(t, ok, "%s: %v", name, res.Error)
+		require.Contains(t, res.Log, "invalid UTF-8 in memo", name)
+	}
+	require.Zero(t, anteCalls)
+
+	// ValidateBasic runs first, so the walk renders only what it accepted.
+	refused, err := amino.Marshal(std.Tx{Msgs: []Msg{msgCounter{Counter: -1}}, Memo: "a\xffb"})
+	require.NoError(t, err)
+	res := app.CheckTx(abci.RequestCheckTx{Tx: refused})
+	_, ok := res.Error.(std.InvalidSequenceError)
+	require.True(t, ok, "%v", res.Error)
+
+	good := txBytes("a\uFFFDb")
+	require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: good}).IsOK())
+	require.True(t, app.DeliverTx(abci.RequestDeliverTx{Tx: good}).IsOK())
+	require.Equal(t, 2, anteCalls)
 }
 
 // Test that transactions exceeding gas limits fail

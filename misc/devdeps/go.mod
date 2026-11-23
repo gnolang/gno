@@ -14,7 +14,6 @@ require (
 
 require (
 	golang.org/x/tools/cmd/godoc v0.1.0-deprecated
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	moul.io/gnopm v0.18.0
 )
 

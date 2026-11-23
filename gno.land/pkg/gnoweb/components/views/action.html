@@ -59,10 +59,25 @@ UI - Help Function component
 <h2 class="b-content-h2">
   Function{{- if gt (len .Functions) 1 }}s{{- end }}
 </h2>
+{{ if .Truncated }}
+<p class="b-pkg-notice" role="status">This package exposes more functions than are shown here.</p>
+{{ end }}
 <div class="c-stack">
-  {{ range .Functions }}
+  {{ range .Functions }}{{ render .Card }}{{ end }}
+</div>
+
+{{ template "ui/eval_expression" $data }}
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Help Function card, one function of the list
+=================================================================================== */}}
+{{ define "ui/help_function_card" }}
+{{ $data := .Data }}
+{{ with .Func }}
   <article class="b-action-function" data-controller="action-function" data-action-function-name-value="{{ .Name }}"
-    data-action-function-pkgpath-value="{{ $.PkgPath }}">
+    data-action-function-pkgpath-value="{{ $data.PkgPath }}">
     <header>
       <span class="title">
         <h2 id="func-{{ .Name }}">
@@ -185,7 +200,7 @@ UI - Help Function component
         {{ if .Crossing }}
         {{ template "ui/command" (buildCommandData $data .) }}
         {{ else }}
-        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $.Remote }}" -data "{{ $.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $i }}" data-action-function-type-value="{{ $p.Type }}"></span>{{ end }})"</span></code></pre>
+        <pre><code><span data-copy-target="action-function-{{ .Name }}">gnokey query vm/qeval -remote "{{ $data.Remote }}" -data "{{ $data.PkgPath }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if gt $i 0 }},{{ end }}<span data-action-function-target="arg" data-action-function-arg-value="{{ $i }}" data-action-function-type-value="{{ $p.Type }}"></span>{{ end }})"</span></code></pre>
         {{ end }}
         {{/* prettier-ignore-end */}}
       </div>
@@ -199,10 +214,7 @@ UI - Help Function component
     </div>
     {{ end }}
   </article>
-  {{ end }}
-</div>
-
-{{ template "ui/eval_expression" $data }}
+{{ end }}
 {{ end }}
 
 

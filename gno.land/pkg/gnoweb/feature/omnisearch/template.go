@@ -24,17 +24,10 @@ var funcMap = template.FuncMap{
 	},
 	// groupAt hands a group its position, which anchors the rail's links.
 	"groupAt": func(i int, g Group) groupRow { return groupRow{Index: i, Group: g} },
-	// hintRow is one keyword of the rail. On a package page, a keyword that
-	// takes no argument links to its own answer there.
-	"hintRow": func(sel *Selector, pkgPath string) hintRow {
-		row := hintRow{Hint: sel.Hint, Label: sel.Label, Indexer: sel.Source == SourceIndexer}
-		if sel.Bare {
-			row.Href = keywordHref(pkgPath, sel.Name)
-		}
-		return row
-	},
-	"shortDetail": shortDetail,
-	"rowIcon":     rowIcon,
+	// keywordLists is the keywords popover's content.
+	"keywordLists": keywordLists,
+	"shortDetail":  shortDetail,
+	"rowIcon":      rowIcon,
 }
 
 // detailEnds is how much of each end an opaque detail keeps. With the
@@ -81,9 +74,66 @@ type groupRow struct {
 
 // hintRow is the payload of omnisearch/hint.
 type hintRow struct {
-	Hint, Label string
-	Indexer     bool
-	Href        template.URL
+	Hint, Help string
+	Indexer    bool
+	Href       template.URL
+}
+
+// hintList is one heading of the keywords popover and its rows. Provenance
+// is a row's, as in the omnibar: each indexer row carries its own pill.
+type hintList struct {
+	Label string
+	Rows  []hintRow
+}
+
+// angles sets a hint's placeholder as the omnibar does: `in:‹path›`.
+var angles = strings.NewReplacer("<", "‹", ">", "›")
+
+// keywordLists groups the keywords as the omnibar does: those that work
+// anywhere under keywordGroups, and those about a package, the ones that take
+// no argument leading, first on its page, where they link to their own answer.
+func keywordLists(d SearchData) []hintList {
+	selRow := func(s *Selector, pkgPath string) hintRow {
+		row := hintRow{Hint: angles.Replace(s.Hint), Help: s.Help, Indexer: s.Source == SourceIndexer}
+		if s.Bare {
+			row.Href = keywordHref(pkgPath, s.Name)
+		}
+		return row
+	}
+	var lists []hintList
+	add := func(label string, rows []hintRow) {
+		if len(rows) == 0 {
+			return
+		}
+		lists = append(lists, hintList{Label: label, Rows: rows})
+	}
+	for _, g := range keywordGroups {
+		var rows []hintRow
+		for _, s := range d.Selectors {
+			if s.Scope != ScopePackage && s.Group == g.Key {
+				rows = append(rows, selRow(s, ""))
+			}
+		}
+		for _, f := range filterKeywords {
+			if f.Group == g.Key {
+				rows = append(rows, hintRow{Hint: angles.Replace(f.Hint), Help: f.Help})
+			}
+		}
+		add(g.Label, rows)
+	}
+	var pkg []hintRow
+	for _, bare := range []bool{true, false} {
+		for _, s := range d.Selectors {
+			if s.Scope == ScopePackage && s.Bare == bare {
+				pkg = append(pkg, selRow(s, d.PagePath))
+			}
+		}
+	}
+	if d.PagePath == "" {
+		add("On a package page", pkg)
+		return lists
+	}
+	return append([]hintList{{Label: "On this package", Rows: pkg}}, lists...)
 }
 
 // pageTemplate is parsed once at init: a malformed template surfaces
