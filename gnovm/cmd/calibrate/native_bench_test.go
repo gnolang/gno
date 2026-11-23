@@ -156,6 +156,70 @@ func BenchmarkNative_Math_Float64frombits(b *testing.B) {
 	benchMathFlat(b, "Float64frombits", uint64(0x3FF8000000000000))
 }
 
+// ----- sort.sliceLen(x any) int, sort.sliceSwap(x any, i, j int) -----
+
+// sortBenchSlice builds a 2-element slice of elt, each element from mk.
+func sortBenchSlice(m *gno.Machine, elt gno.Type, mk func(i int) gno.TypedValue) gno.TypedValue {
+	list := []gno.TypedValue{mk(0), mk(1)}
+	return gno.TypedValue{T: &gno.SliceType{Elt: elt}, V: m.Alloc.NewSliceFromList(list)}
+}
+
+func sortBenchInt(i int) gno.TypedValue {
+	tv := gno.TypedValue{T: gno.IntType}
+	tv.SetInt(int64(i))
+	return tv
+}
+
+// sortBenchStructType matches the struct the sort_*_struct gas filetests sort.
+var sortBenchStructType = &gno.StructType{Fields: []gno.FieldType{
+	{Name: "Key", Type: gno.IntType},
+	{Name: "ID", Type: gno.IntType},
+	{Name: "Name", Type: gno.StringType},
+}}
+
+func sortBenchStruct(m *gno.Machine) func(i int) gno.TypedValue {
+	return func(i int) gno.TypedValue {
+		name := gno.TypedValue{T: gno.StringType, V: m.Alloc.NewString("item")}
+		sv := m.Alloc.NewStructWithFields(sortBenchStructType, sortBenchInt(i), sortBenchInt(i), name)
+		return gno.TypedValue{T: sortBenchStructType, V: sv}
+	}
+}
+
+func BenchmarkNative_Sort_SliceLen(b *testing.B) {
+	m := newDispatchMachine(1)
+	m.Blocks[0].Values[0] = sortBenchSlice(m, gno.IntType, sortBenchInt)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "sort", "sliceLen"), nReturns: 1}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func benchSortSliceSwap(b *testing.B, x func(m *gno.Machine) gno.TypedValue) {
+	b.Helper()
+	m := newDispatchMachine(3)
+	m.Blocks[0].Values[0] = x(m)
+	m.Blocks[0].Values[1] = sortBenchInt(0)
+	m.Blocks[0].Values[2] = sortBenchInt(1)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "sort", "sliceSwap")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Sort_SliceSwap_Int(b *testing.B) {
+	benchSortSliceSwap(b, func(m *gno.Machine) gno.TypedValue {
+		return sortBenchSlice(m, gno.IntType, sortBenchInt)
+	})
+}
+
+func BenchmarkNative_Sort_SliceSwap_Struct(b *testing.B) {
+	benchSortSliceSwap(b, func(m *gno.Machine) gno.TypedValue {
+		return sortBenchSlice(m, sortBenchStructType, sortBenchStruct(m))
+	})
+}
+
 // ----- chain.packageAddress(pkgPath string) string -----
 
 func benchChainPackageAddress(b *testing.B, n int) {

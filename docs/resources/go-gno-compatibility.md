@@ -364,10 +364,10 @@ Legend:
   `Int64N`, `IntN`, and the constructors `New`, `NewPCG`). The `Source`
   interface also changed: where v1 defined it with two methods (`Int63` and
   `Seed`), v2 defines it with a single `Uint64() uint64`.
-[^13]: `sort` does not implement the closure-based helpers `sort.Slice`,
-  `sort.SliceStable`, `sort.SliceIsSorted`, or `sort.Find`. Implement
-  `sort.Interface` and call `sort.Sort` instead, which takes a bit of
-  boilerplate.
+[^13]: `sort` does not implement `sort.Find`, which Go added in 1.19.
+  `sort.Slice`, `sort.SliceStable` and `sort.SliceIsSorted` are supported,
+  and cost less gas than implementing `sort.Interface` and calling
+  `sort.Sort`.
 [^14]: `strconv` does not have the methods relating to types `complex64` and
   `complex128`.
 [^15]: `time.Now` returns the block time rather than the system time, for

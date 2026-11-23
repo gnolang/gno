@@ -21,6 +21,7 @@ import (
 	libs_crypto_modexp "github.com/gnolang/gno/gnovm/stdlibs/crypto/modexp"
 	libs_crypto_sha256 "github.com/gnolang/gno/gnovm/stdlibs/crypto/sha256"
 	libs_math "github.com/gnolang/gno/gnovm/stdlibs/math"
+	libs_sort "github.com/gnolang/gno/gnovm/stdlibs/sort"
 	libs_sys_params "github.com/gnolang/gno/gnovm/stdlibs/sys/params"
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
@@ -1996,6 +1997,65 @@ var nativeFuncs = [...]NativeFunc{
 				m.Store,
 				reflect.ValueOf(&r0).Elem(),
 			))
+		},
+	},
+	{
+		"sort",
+		"sliceLen",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("int")},
+		},
+		true,
+		1,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			p0 := *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+
+			r0 := libs_sort.X_sliceLen(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"sort",
+		"sliceSwap",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("any")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{},
+		true,
+		1,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  = *(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV)
+				p1  int
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  int
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			libs_sort.X_sliceSwap(
+				m,
+				p0, p1, p2)
 		},
 	},
 	{

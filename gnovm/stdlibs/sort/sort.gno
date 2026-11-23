@@ -241,14 +241,6 @@ func maxDepth(n int) int {
 	return depth * 2
 }
 
-// lessSwap is a pair of Less and Swap function for use with the
-// auto-generated func-optimized variant of sort.go in
-// zfuncversion.go.
-type lessSwap struct {
-	Less func(i, j int) bool
-	Swap func(i, j int)
-}
-
 type reverse struct {
 	// This embedded Interface permits Reverse to use the methods of
 	// another Interface implementation.

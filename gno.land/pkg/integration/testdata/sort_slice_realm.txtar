@@ -1,0 +1,102 @@
+# sort.Slice swaps through a native, so it must persist what it swaps in the
+# caller's own state, and refuse another realm's state the way a hand-written
+# swap is refused.
+
+loadpkg gno.land/r/test/sortowner $WORK/sortowner
+loadpkg gno.land/r/test/sortcaller $WORK/sortcaller
+
+gnoland start
+
+gnokey query vm/qrender --data 'gno.land/r/test/sortowner:'
+stdout '3,1,2 cab c,a,b c,a,b'
+
+gnokey maketx call -pkgpath gno.land/r/test/sortowner -func SortAll -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+# A restart reloads the realm from the store, so this reads what was saved.
+gnoland restart
+
+gnokey query vm/qrender --data 'gno.land/r/test/sortowner:'
+stdout '1,2,3 abc a,b,c a,b,c'
+
+! gnokey maketx call -pkgpath gno.land/r/test/sortcaller -func SortForeign -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'cannot swap elements of readonly tainted slice'
+
+! gnokey maketx call -pkgpath gno.land/r/test/sortcaller -func SwapForeign -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'cannot directly modify readonly tainted object'
+
+gnokey query vm/qrender --data 'gno.land/r/test/sortowner:'
+stdout '1,2,3 abc a,b,c a,b,c'
+
+-- sortowner/gnomod.toml --
+module = "gno.land/r/test/sortowner"
+gno = "0.9"
+
+-- sortowner/sortowner.gno --
+package sortowner
+
+import (
+	"sort"
+	"strconv"
+	"strings"
+)
+
+type item struct {
+	Key  int
+	Name string
+}
+
+var (
+	ints  = []int{3, 1, 2}
+	bytes = []byte("cab")
+	items = []item{{3, "c"}, {1, "a"}, {2, "b"}}
+	ptrs  = []*item{{3, "c"}, {1, "a"}, {2, "b"}}
+)
+
+func Ints() []int { return ints }
+
+func SortAll(cur realm) {
+	sort.Slice(ints, func(i, j int) bool { return ints[i] < ints[j] })
+	sort.Slice(bytes, func(i, j int) bool { return bytes[i] < bytes[j] })
+	sort.Slice(items, func(i, j int) bool { return items[i].Key < items[j].Key })
+	sort.SliceStable(ptrs, func(i, j int) bool { return ptrs[i].Key < ptrs[j].Key })
+}
+
+func Render(path string) string {
+	var is, names, pnames []string
+	for _, n := range ints {
+		is = append(is, strconv.Itoa(n))
+	}
+	for _, it := range items {
+		names = append(names, it.Name)
+	}
+	for _, p := range ptrs {
+		pnames = append(pnames, p.Name)
+	}
+	return strings.Join(is, ",") + " " + string(bytes) + " " +
+		strings.Join(names, ",") + " " + strings.Join(pnames, ",")
+}
+
+-- sortcaller/gnomod.toml --
+module = "gno.land/r/test/sortcaller"
+gno = "0.9"
+
+-- sortcaller/sortcaller.gno --
+package sortcaller
+
+import (
+	"sort"
+
+	"gno.land/r/test/sortowner"
+)
+
+func SortForeign(cur realm) {
+	s := sortowner.Ints()
+	sort.Slice(s, func(i, j int) bool { return s[i] > s[j] })
+}
+
+// SwapForeign does by hand one swap SortForeign asks sort.Slice for.
+func SwapForeign(cur realm) {
+	s := sortowner.Ints()
+	s[0], s[1] = s[1], s[0]
+}
