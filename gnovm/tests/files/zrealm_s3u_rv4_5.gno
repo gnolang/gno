@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_5
-// S3d rv4: non-crossing helper writes s[0] of a caller's fresh slice and m[k] of a caller's fresh map; caller stores both
+// R2a-save rv4: non-crossing helper writes s[0] of a caller's fresh slice and m[k] of a caller's fresh map; caller stores both
 package zrealm_s3u_rv4_5
 
 import "gno.land/r/tests/vm/s3urv"

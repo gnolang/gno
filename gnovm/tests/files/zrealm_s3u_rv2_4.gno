@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv2_4
-// S3u round 2: the realm's own stored writer (S3) on a fresh entry attached then detached, then kept
+// S3u round 2: the realm's own stored writer (R2a) on a fresh entry attached then detached, then kept
 package zrealm_s3u_rv2_4
 
 import "gno.land/r/tests/vm/s3urv"

@@ -1,6 +1,6 @@
 # A by-value copy of another realm's stored array is the copier's own, loaded or
 # not: cbother writes its copies freely. cbvictim's own gate reaching its stored
-# function value is read-only under S3, so it leaves cbother's copy as it was.
+# function value is read-only under R2a, so it leaves cbother's copy as it was.
 
 loadpkg gno.land/r/tests/vm/cbother
 gnoland start

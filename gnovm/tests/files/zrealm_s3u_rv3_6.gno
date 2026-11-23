@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv3_6
-// S3d rv3: an outside relay of the victim's stored *string writer onto the victim's fresh stored pointer (cf. rv2_6)
+// R2a-save rv3: an outside relay of the victim's stored *string writer onto the victim's fresh stored pointer (cf. rv2_6)
 package zrealm_s3u_rv3_6
 
 import "gno.land/r/tests/vm/s3urv"

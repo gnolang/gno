@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_home_known_structptr
 package zrealm_home_known_structptr
 
-// S3: the gate reaches cbvictim's own value through a struct pointer this
+// R2a: the gate reaches cbvictim's own value through a struct pointer this
 // realm supplied; the value was made in another crossing call, so it is read-only here.
 
 import "gno.land/r/tests/vm/cbvictim"

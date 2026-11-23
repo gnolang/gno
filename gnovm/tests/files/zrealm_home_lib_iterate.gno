@@ -2,7 +2,7 @@
 package zrealm_home_lib_iterate
 
 // cbvictim's gate hands its own value to a library that calls it by value:
-// S3 refuses, the library call is a crossing call the value did not make.
+// R2a refuses, the library call is a crossing call the value did not make.
 
 import "gno.land/r/tests/vm/cbvictim"
 

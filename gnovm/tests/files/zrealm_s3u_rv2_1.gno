@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv2_1
-// S3u round 2: the realm's own stored writer (S3) on a fresh entry in a fresh array attached to stored state
+// S3u round 2: the realm's own stored writer (R2a) on a fresh entry in a fresh array attached to stored state
 package zrealm_s3u_rv2_1
 
 import "gno.land/r/tests/vm/s3urv"

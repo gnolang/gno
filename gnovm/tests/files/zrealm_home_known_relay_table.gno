@@ -2,7 +2,7 @@
 package zrealm_home_known_relay_table
 
 // Known gap: a reference to the realm's own stored functions is not covered.
-// cbother hands cbvictim's table back by reference; S3 refuses the write.
+// cbother hands cbvictim's table back by reference; R2a refuses the write.
 
 import (
 	"gno.land/r/tests/vm/cbother"

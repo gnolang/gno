@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_saved_methodval_fresh
-// S3 attack: a method value of a fresh receiver made in one crossing call
+// R2a attack: a method value of a fresh receiver made in one crossing call
 // and invoked in a later one must not write.
 
 package zrealm_saved_methodval_fresh

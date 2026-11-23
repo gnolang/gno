@@ -170,7 +170,7 @@ var (
 type ObjectInfo struct {
 	ID   ObjectID  // set if real.
 	Hash ValueHash `json:",omitempty"` // zero if dirty.
-	// madeInLo/Hi: the crossing call that made a function value (S3), 48
+	// madeInLo/Hi: the crossing call that made a function value (R2a), 48
 	// bits in padding so sizes do not change; memory only, a copy gets 0.
 	madeInLo uint32
 	OwnerID  ObjectID `json:",omitempty"` // parent in the ownership tree.
@@ -200,7 +200,7 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-	// s3Written: written in an S3 read-only stretch (S3d); finalize refuses to
+	// s3Written: written in an R2a read-only stretch (R2a-save); finalize refuses to
 	// store it. Sits in the bools' padding, so object sizes do not change.
 	s3Written   bool
 	madeInHi    uint16

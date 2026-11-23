@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_15
-// S3d rv4: as rv4_14, but the cursor is advanced inside a second read-only stretch (another realm's helper), then the iterator is stored
+// R2a-save rv4: as rv4_14, but the cursor is advanced inside a second read-only stretch (another realm's helper), then the iterator is stored
 package zrealm_s3u_rv4_15
 
 import (

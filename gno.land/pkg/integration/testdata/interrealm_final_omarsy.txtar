@@ -3,7 +3,7 @@ loadpkg gno.land/p/demo/peter $WORK/peter
 loadpkg gno.land/r/demo/main $WORK/main
 gnoland start
 
-# S3: the save is allowed, but the stored closure has no maker. A later call
+# R2a: the save is allowed, but the stored closure has no maker. A later call
 # runs it view-only, so alice's list is not written.
 gnokey maketx call -pkgpath gno.land/r/demo/main -func ExecPreviouslyGood -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
 stdout OK!
@@ -65,7 +65,7 @@ import (
 
 // A /p/-built closure acts only while the realm it was built under is
 // current. peter.F is called from /r/demo/main, so the closure reaches alice
-// without a maker. S3 lets alice keep it, but a later call is read-only, so
+// without a maker. R2a lets alice keep it, but a later call is read-only, so
 // alice's list is never written. Alice must build the closure herself.
 
 func ExecPreviouslyGood(cur realm) []int {

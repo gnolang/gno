@@ -142,7 +142,7 @@ const instructionsProposalTitle = "/r/gnops/valopers: Update instructions"
 func rotateAuthority(_ int, rlm realm, newContractPath string) error {
 	// Same gate as Authorizer.Transfer, but the assignment runs in this
 	// realm's crossing frame: authz is library code and cannot write the
-	// stored Authorizer under S3.
+	// stored Authorizer under R2a.
 	if !rlm.IsCurrent() {
 		return errors.New("unauthorized")
 	}

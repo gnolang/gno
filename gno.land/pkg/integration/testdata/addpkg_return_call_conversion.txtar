@@ -71,7 +71,7 @@ gnokey query vm/qeval --data 'gno.land/r/test/members.Setting()'
 stdout 'data: \("orig" string\)'
 
 # Another realm's type built through each source: a realm cannot hold
-# vault.T by value, so the package is refused at type check (R2).
+# vault.T by value, so the package is refused at type check (R3).
 ! gnokey maketx addpkg -pkgdir $WORK/forger -pkgpath gno.land/r/test/forger -gas-fee 10000000ugnot -gas-wanted 40000000 -chainid=tendermint_test test1
 stderr 'cannot hold a value of gno.land/r/test/vault.T outside its realm \(use a pointer\)'
 

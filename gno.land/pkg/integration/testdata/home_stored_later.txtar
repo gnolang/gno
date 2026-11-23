@@ -1,5 +1,5 @@
 # A realm's own value stored by its own gate is read-only in a later crossing
-# call under S3, before and after a restart: it writes nothing.
+# call under R2a, before and after a restart: it writes nothing.
 
 loadpkg gno.land/r/demo/hv $WORK/hv
 gnoland start

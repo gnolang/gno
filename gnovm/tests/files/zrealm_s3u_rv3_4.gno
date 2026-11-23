@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv3_4
-// S3d rv3: stored writer (S3) assigns a fresh slice through a pointer to a nil local slice; the pointer is then stored
+// R2a-save rv3: stored writer (R2a) assigns a fresh slice through a pointer to a nil local slice; the pointer is then stored
 package zrealm_s3u_rv3_4
 
 var W = func(p *[]string) { *p = []string{"stamped"} }

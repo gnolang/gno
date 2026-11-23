@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_6
-// S3d rv4: caller's closure (made outside the stretch) run by another realm's non-crossing helper writes a captured local; caller stores &x
+// R2a-save rv4: caller's closure (made outside the stretch) run by another realm's non-crossing helper writes a captured local; caller stores &x
 package zrealm_s3u_rv4_6
 
 import "gno.land/r/tests/vm/s3urv"

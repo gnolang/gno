@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv3_1
-// S3d rv3: the realm's own stored writer (S3) writes a fresh *string (unreal heap item holding a primitive), then the pointer is stored
+// R2a-save rv3: the realm's own stored writer (R2a) writes a fresh *string (unreal heap item holding a primitive), then the pointer is stored
 package zrealm_s3u_rv3_1
 
 var W = func(p *string) { *p = "stamped" }

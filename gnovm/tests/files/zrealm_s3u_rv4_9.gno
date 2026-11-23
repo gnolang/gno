@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_9
-// S3d rv4: S3 stored writer: p[0] on a local array via pointer, *n++, append via pointer; pointers stored
+// R2a-save rv4: R2a stored writer: p[0] on a local array via pointer, *n++, append via pointer; pointers stored
 package zrealm_s3u_rv4_9
 
 var WA = func(p *[2]string) { p[0] = "stamped" }

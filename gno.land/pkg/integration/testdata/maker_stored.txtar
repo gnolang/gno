@@ -1,5 +1,5 @@
 # A closure realm A wrote and stored from its own gate is read-only when A's
-# gate calls it later under S3. Realm B reading it through A's exported variable
+# gate calls it later under R2a. Realm B reading it through A's exported variable
 # and calling it directly runs it read-only; B handing it back to A's callback
 # gate strips its maker, so it runs read-only there too.
 

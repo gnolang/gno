@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_2
-// S3d rv4: non-crossing helper writes p[0] of a caller's local array via pointer (write lands on the inner array, not the heap item); caller stores the pointer
+// R2a-save rv4: non-crossing helper writes p[0] of a caller's local array via pointer (write lands on the inner array, not the heap item); caller stores the pointer
 package zrealm_s3u_rv4_2
 
 import "gno.land/r/tests/vm/s3urv"

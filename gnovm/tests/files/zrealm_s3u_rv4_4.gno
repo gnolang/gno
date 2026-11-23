@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_4
-// S3d rv4: S3 stored writer sets p.Owner on a local struct through &x; caller stores &x
+// R2a-save rv4: R2a stored writer sets p.Owner on a local struct through &x; caller stores &x
 package zrealm_s3u_rv4_4
 
 type Entry struct{ Owner string }

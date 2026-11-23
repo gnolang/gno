@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_t38_wrap_ptr
 // The victim hands a pointer to its own fresh writer to a caller, which returns
-// it: R4 strips only values, so the victim's call through it writes (count 1).
+// it: R2b strips only values, so the victim's call through it writes (count 1).
 
 package zrealm_t38_wrap_ptr
 

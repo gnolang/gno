@@ -106,7 +106,7 @@ func Stamp2(e *Entry) { e.Owner = "stamped" }
 // ScratchSelf runs this realm's own stored W from a later crossing call.
 func ScratchSelf(cur realm) string { return Scratch(cur, W) }
 
-// Self-relay gates: this realm's own code picks its stored W (S3).
+// Self-relay gates: this realm's own code picks its stored W (R2a).
 func SelfRelay(cur realm)  { AddRelay(cur, W) }
 func SelfNested(cur realm) { AddNested(cur, W) }
 func SelfMap(cur realm)    { AddMap(cur, W) }

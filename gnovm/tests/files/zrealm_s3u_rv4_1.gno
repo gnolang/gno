@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_1
-// S3d rv4: another realm's non-crossing helper writes a caller's fresh *string; caller stores the pointer (false-refusal check)
+// R2a-save rv4: another realm's non-crossing helper writes a caller's fresh *string; caller stores the pointer (false-refusal check)
 package zrealm_s3u_rv4_1
 
 import "gno.land/r/tests/vm/s3urv"

@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_7
-// S3d rv4: caller's closure run by another realm's helper writes a captured local; caller stores the closure itself
+// R2a-save rv4: caller's closure run by another realm's helper writes a captured local; caller stores the closure itself
 package zrealm_s3u_rv4_7
 
 import "gno.land/r/tests/vm/s3urv"

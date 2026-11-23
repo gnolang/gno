@@ -1,5 +1,5 @@
 # A realm cannot hold another realm's array type by value: r/arruser's
-# struct field of type r/arrdecl.A is refused at type check (R2).
+# struct field of type r/arrdecl.A is refused at type check (R3).
 
 loadpkg gno.land/r/arrdecl $WORK/arrdecl
 gnoland start

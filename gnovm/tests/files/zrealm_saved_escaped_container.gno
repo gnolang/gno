@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_saved_escaped_container
-// S3 attack: R.Do builds a local table and a caller's crossing callback
+// R2a attack: R.Do builds a local table and a caller's crossing callback
 // re-enters R.RunAll with it; the fresh entry must not write.
 
 package zrealm_saved_escaped_container

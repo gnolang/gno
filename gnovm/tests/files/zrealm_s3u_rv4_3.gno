@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_3
-// S3d rv4: non-crossing helper does *p++ and *p += 5 on a caller's local int; caller stores the pointer
+// R2a-save rv4: non-crossing helper does *p++ and *p += 5 on a caller's local int; caller stores the pointer
 package zrealm_s3u_rv4_3
 
 import "gno.land/r/tests/vm/s3urv"

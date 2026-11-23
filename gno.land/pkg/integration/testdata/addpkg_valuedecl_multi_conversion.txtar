@@ -42,7 +42,7 @@ stdout '\(3 int\)'
 gnokey maketx call -pkgpath gno.land/r/test/reader -func Decl -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 stdout '\(3 int\)'
 
-# Holding vault's own type by value outside vault is refused at type check (R2).
+# Holding vault's own type by value outside vault is refused at type check (R3).
 ! gnokey maketx addpkg -pkgdir $WORK/minter -pkgpath gno.land/r/test/minter -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 stderr 'cannot hold a value of gno.land/r/test/vault.Tok outside its realm \(use a pointer\)'
 

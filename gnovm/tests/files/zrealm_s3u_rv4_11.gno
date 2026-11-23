@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_11
-// S3d rv4: control: /p/ counter built and called while the realm is current; the realm stores it
+// R2a-save rv4: control: /p/ counter built and called while the realm is current; the realm stores it
 package zrealm_s3u_rv4_11
 
 import "gno.land/p/demo/tests/entryclosure/v0"

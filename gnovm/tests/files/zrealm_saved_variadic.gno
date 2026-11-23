@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_saved_variadic
-// S3 attack: a fresh value packed into a variadic call in a later crossing
+// R2a attack: a fresh value packed into a variadic call in a later crossing
 // call must not write.
 
 package zrealm_saved_variadic

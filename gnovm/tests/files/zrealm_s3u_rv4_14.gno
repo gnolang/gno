@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_14
-// S3d rv4: a /p/ iterator built by a method value inside another realm's read-only stretch (zero-stamp heap item for its cursor); later view-only calls advance the cursor; the realm stores the iterator
+// R2a-save rv4: a /p/ iterator built by a method value inside another realm's read-only stretch (zero-stamp heap item for its cursor); later view-only calls advance the cursor; the realm stores the iterator
 package zrealm_s3u_rv4_14
 
 import (

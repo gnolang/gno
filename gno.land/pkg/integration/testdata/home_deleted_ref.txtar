@@ -1,5 +1,5 @@
 # A realm deletes an object another realm still holds a reference to. Using the
-# kept reference to write is refused (owner stays "victim"). Under S3 a warm
+# kept reference to write is refused (owner stays "victim"). Under R2a a warm
 # by-value copy can be saved, but loaded from the store it has no crossing id,
 # so a later call through it is refused and writes nothing. The exemption covers
 # a reference to an object deleted earlier in the transaction only while that

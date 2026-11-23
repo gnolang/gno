@@ -38,8 +38,8 @@ type Machine struct {
 	Realm     *Realm        // active realm
 	viewOnly  bool          // no realm's stored objects may be written; implies Realm == nil
 	viewRealm *Realm        // realm whose code runs read-only (constructs its objects)
-	viewS3    bool          // read-only stretch was entered by S3 (rule S3d applies)
-	s3Written bool          // S3d: some object was marked s3Written this transaction
+	viewS3    bool          // read-only stretch was entered by R2a (rule R2a-save applies)
+	s3Written bool          // R2a-save: some object was marked s3Written this transaction
 	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
 		root    string
@@ -213,7 +213,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// crossing call: give it a fresh id so values it makes are writable there.
 	// A value reloaded from the store was never recorded, so it answers 0.
 	mm.curCrossing = crossingSeq.Add(1)
-	mm.s3Written = false // a transaction starts with no S3d writes (kept across calls)
+	mm.s3Written = false // a transaction starts with no R2a-save writes (kept across calls)
 	alloc.crossingID = mm.curCrossing
 	alloc.store = store
 	if !isPreprocessing {
@@ -352,7 +352,7 @@ func (m *Machine) setCrossing(id uint64) {
 	m.Alloc.crossingID = id
 }
 
-// readOnlyOf reports whether m is running realm r's code read-only: S3, or r
+// readOnlyOf reports whether m is running realm r's code read-only: R2a, or r
 // entered without crossing. Such a frame is still r's code for cur purposes.
 func (m *Machine) readOnlyOf(r *Realm) bool {
 	return m.viewOnly && m.viewRealm != nil && r != nil && m.viewRealm.Path == r.Path
@@ -366,8 +366,8 @@ func (m *Machine) enterReadOnly(r *Realm) {
 	m.enterReadOnlyMode(r, false)
 }
 
-// enterReadOnlyByS3 is enterReadOnly for a stretch entered by rule S3 (a
-// by-value call). S3d: an object the read-only realm made and has not finalized
+// enterReadOnlyByS3 is enterReadOnly for a stretch entered by rule R2a (a
+// by-value call). R2a-save: an object the read-only realm made and has not finalized
 // is writable, and recorded; finalize refuses if it is then stored.
 func (m *Machine) enterReadOnlyByS3(r *Realm) {
 	m.enterReadOnlyMode(r, true)
@@ -2694,7 +2694,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 // or a plain x.M(...) call.
 // recvUncopied: recv is a value receiver the caller copies after this call
 // (copyCallRecv); it is looked at as that fresh copy would be.
-// madeIn is the crossing call that made the callee value (0: none); S3 uses it
+// madeIn is the crossing call that made the callee value (0: none); R2a uses it
 // to decide whether a by-value call still runs writable.
 func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool, madeIn uint64) {
 	withCross := cx.IsWithCross()
@@ -2789,7 +2789,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 
 	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
-		// A read-only frame of realm R (S3, or R's code entered without
+		// A read-only frame of realm R (R2a, or R's code entered without
 		// crossing) is still R's code: let the identity check in doOpCall
 		// report the stale cur instead of calling it an external realm.
 		if m.Realm != pv.Realm && !m.readOnlyOf(pv.Realm) {
@@ -2855,7 +2855,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		case m.Realm == nil && !m.viewOnly:
 			m.setRealm(r) // no realm context (genesis, tooling)
 		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code; S3 makes a foreign-made value read-only
+			// the realm's own code; R2a makes a foreign-made value read-only
 			m.restrictByValueCall(cx, fv, withCross, madeIn)
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
@@ -3391,7 +3391,7 @@ func (m *Machine) readonlyAccessPanic(x Expr) string {
 		return "cannot modify object owned by another realm from library code (call a function of the owning realm): " + x.String()
 	}
 	if m.viewRealm != nil && m.viewS3 {
-		// An S3 stretch: a by-value call made outside its crossing call.
+		// An R2a stretch: a by-value call made outside its crossing call.
 		return m.viewRealm.Path + "'s code is read-only here: a function value writes" +
 			" only in the crossing call that made it: " + x.String()
 	}
@@ -3446,7 +3446,7 @@ func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 			return true // external package
 		}
 	}
-	//  - S3d: the read-only realm's own object, not finalized yet
+	//  - R2a-save: the read-only realm's own object, not finalized yet
 	if m.viewOnly && m.viewS3 && m.unstoredWrite(scratchObject(tv)) {
 		m.recordS3Wrapper(tv)
 		return false
@@ -3484,7 +3484,7 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
 	}
-	// S3d: the read-only realm's own object, not finalized yet.
+	// R2a-save: the read-only realm's own object, not finalized yet.
 	if m.viewOnly && m.viewS3 && m.unstoredWrite(obj) {
 		return false
 	}

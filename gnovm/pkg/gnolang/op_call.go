@@ -310,7 +310,7 @@ func (m *Machine) doOpEnterCrossing() {
 		}
 		// Neither fri.WithCross nor fri.DidCrossing, yet
 		// Realm already switched implicitly.
-		// S3's read-only entry is the one legitimate implicit switch: it
+		// R2a's read-only entry is the one legitimate implicit switch: it
 		// clears m.Realm but keeps this frame in its realm's code.
 		if fri.LastRealm != m.Realm && !m.readOnlyOf(fri.LastRealm) {
 			panic("crossing could not find corresponding cross(fn)(...) call")

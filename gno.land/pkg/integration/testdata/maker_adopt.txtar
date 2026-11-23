@@ -1,4 +1,4 @@
-# S3: a realm may keep a function value made outside it (a run script's
+# R2a: a realm may keep a function value made outside it (a run script's
 # library closure or method value, or a closure the realm's own code built
 # read-only). Loaded from the store it has no crossing id, so a later call is
 # read-only. Another realm's closure is kept, but runs read-only for the keeper.

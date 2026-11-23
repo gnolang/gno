@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_home_own_helper
 package zrealm_home_own_helper
 
-// cbvictim's gate hands its own value to its own helper: S3 refuses,
+// cbvictim's gate hands its own value to its own helper: R2a refuses,
 // the helper is a crossing call the value did not make.
 
 import "gno.land/r/tests/vm/cbvictim"

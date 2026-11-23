@@ -1,5 +1,5 @@
 # A realm's copy of cbvictim's Pair (an all-exported unnamed struct) is its
-# own: it changes a field in its own state. S3 makes the stored function
+# own: it changes a field in its own state. R2a makes the stored function
 # read-only in a later crossing call, so Rerun writes nothing; the copied
 # function still writes nothing in cbvictim.
 

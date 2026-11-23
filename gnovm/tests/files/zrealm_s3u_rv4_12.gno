@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_12
-// S3d rv4: control for 13: /p/ counter built while the realm is current (heap item stamped), incremented inside another realm's read-only stretch; the realm stores it
+// R2a-save rv4: control for 13: /p/ counter built while the realm is current (heap item stamped), incremented inside another realm's read-only stretch; the realm stores it
 package zrealm_s3u_rv4_12
 
 import (

@@ -84,7 +84,7 @@ func LibCopy(cur realm) {
 	f(LB)
 }
 
-// --- S3 attack helpers ---
+// --- R2a attack helpers ---
 
 var local []func(string)
 

@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_13
-// S3d rv4: /p/ counter built through a func value (view-only: zero-stamp heap item), incremented inside another realm's read-only stretch; the realm stores it
+// R2a-save rv4: /p/ counter built through a func value (view-only: zero-stamp heap item), incremented inside another realm's read-only stretch; the realm stores it
 package zrealm_s3u_rv4_13
 
 import (

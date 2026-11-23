@@ -2,7 +2,7 @@
 package zrealm_saved_closure_capture
 
 // The realm copies its own saved table entry into a fresh closure and runs
-// it. S3 refuses: the inner call reaches the stored value by name, and that
+// it. R2a refuses: the inner call reaches the stored value by name, and that
 // value was made in another crossing call.
 
 import "gno.land/r/tests/vm/cbsaved"

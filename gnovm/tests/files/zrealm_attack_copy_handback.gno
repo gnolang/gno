@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/attackcopyhandback
-// R2 copy-and-hand-back: a copy of another realm's value is not the owner's
+// R3 copy-and-hand-back: a copy of another realm's value is not the owner's
 // value, so the owner's crossing function must not trust it back.
 package attackcopyhandback
 

@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_t35c_return_own
 // T35c: the victim hands its writer to a caller's wrapper, which returns it
-// unchanged (R4: a result another realm hands over has no maker). Must not write.
+// unchanged (R2b: a result another realm hands over has no maker). Must not write.
 
 package zrealm_t35c_return_own
 

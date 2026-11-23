@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv2_9
-// S3d: the realm's own stored writer (by value) on a fresh entry, stored after it returns
+// R2a-save: the realm's own stored writer (by value) on a fresh entry, stored after it returns
 package zrealm_s3u_rv2_9
 
 type Entry struct{ Owner string }

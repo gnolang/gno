@@ -1,5 +1,5 @@
 # A /p/ function named in source writes for the calling realm. Called through a
-# value the realm made at init, S3 runs it read-only, so it writes nothing, both
+# value the realm made at init, R2a runs it read-only, so it writes nothing, both
 # before and after a restart when the call marks are rebuilt by preprocessing.
 
 loadpkg gno.land/p/demo/tests/launderattack/v0

@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_saved_local_ref
-// S3 attack: a local table attached by reference and called in a later
+// R2a attack: a local table attached by reference and called in a later
 // crossing call must not write.
 
 package zrealm_saved_local_ref

@@ -1,6 +1,6 @@
 package gnolang
 
-// Rule S3 (pr6495_cross_to_write.md): a non-crossing function value called BY
+// Rule R2a (pr6495_cross_to_write.md): a non-crossing function value called BY
 // VALUE writes only during the crossing call that made it. The crossing id
 // lives in memory only: never stored, encoded or hashed.
 
@@ -34,7 +34,7 @@ func calledByValue(cx *CallExpr) bool {
 	return true
 }
 
-// restrictByValueCall applies S3 to a call that would otherwise run writable:
+// restrictByValueCall applies R2a to a call that would otherwise run writable:
 // a non-crossing callee reached by value writes only in the crossing call that
 // made the value.
 func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool, madeIn uint64) {

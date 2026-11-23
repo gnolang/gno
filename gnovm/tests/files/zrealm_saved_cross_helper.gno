@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_saved_cross_helper
-// S3's stated cost: a realm passes a fresh closure to its own crossing
+// R2a's stated cost: a realm passes a fresh closure to its own crossing
 // helper; the helper's crossing call refuses the write.
 
 package zrealm_saved_cross_helper

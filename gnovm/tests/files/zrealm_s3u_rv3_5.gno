@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv3_5
-// S3d rv3: the realm's own self-relay of its stored *string writer (S3) on a fresh pointer it stored (cf. rv2_1)
+// R2a-save rv3: the realm's own self-relay of its stored *string writer (R2a) on a fresh pointer it stored (cf. rv2_1)
 package zrealm_s3u_rv3_5
 
 import "gno.land/r/tests/vm/s3urv"

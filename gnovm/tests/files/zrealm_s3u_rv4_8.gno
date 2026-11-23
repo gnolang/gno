@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_8
-// S3d rv4: range assignment into *p by a non-crossing helper; caller stores p
+// R2a-save rv4: range assignment into *p by a non-crossing helper; caller stores p
 package zrealm_s3u_rv4_8
 
 import "gno.land/r/tests/vm/s3urv"

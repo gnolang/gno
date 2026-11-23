@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_home_own_table
 package zrealm_home_own_table
 
-// cbvictim's gate runs its own table: S3 still refuses, the values were
+// cbvictim's gate runs its own table: R2a still refuses, the values were
 // made in another crossing call.
 
 import "gno.land/r/tests/vm/cbvictim"

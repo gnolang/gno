@@ -1,4 +1,4 @@
-# A handle a realm's gate made of its own function is stored; S3 makes it
+# A handle a realm's gate made of its own function is stored; R2a makes it
 # read-only in a later crossing call, so it no longer writes after a restart.
 # A handle with no maker, or made by a run script, is allowed at save; loaded
 # from the store it has no crossing id, so a later call is read-only. A third

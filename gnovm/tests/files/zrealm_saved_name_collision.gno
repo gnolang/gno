@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_saved_name_collision
-// S3 attack: a stored value called through a local name that hides the
+// R2a attack: a stored value called through a local name that hides the
 // callee must not dodge the check.
 
 package zrealm_saved_name_collision

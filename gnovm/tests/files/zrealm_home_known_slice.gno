@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_home_known_slice
 package zrealm_home_known_slice
 
-// S3: the gate reaches cbvictim's own value through a slice this realm
+// R2a: the gate reaches cbvictim's own value through a slice this realm
 // supplied; the value was made in another crossing call, so it is read-only here.
 
 import "gno.land/r/tests/vm/cbvictim"
