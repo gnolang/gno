@@ -129,6 +129,10 @@ UI - Help Function card, one function of the list
             <a class="c-with-icon" href="{{ .URL }}" target="_blank" rel="noopener noreferrer"
               data-outbound="{{ .Outbound }}">{{ .Name }}<svg class="c-icon" aria-hidden="true"><use href="#ico-external-link"></use></svg></a>
             {{ end }}
+            <button type="button" class="c-with-icon" data-controller="copy" data-action="click->copy#copy"
+              data-copy-text-value="{{ .Prompt }}" title="Copy the prompt, for any AI assistant">
+              <span>Copy prompt</span>{{ template "ui/copy" }}
+            </button>
           </span>
         </details>
         {{ end }}

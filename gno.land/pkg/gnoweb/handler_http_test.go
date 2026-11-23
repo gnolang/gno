@@ -4581,6 +4581,7 @@ func TestHTTPHandler_AskAI(t *testing.T) {
 
 		_, body := get("/r/mock/path$help", "gno.land")
 		assert.Contains(t, body, `class="b-ai-func"`)
+		assert.Contains(t, body, `data-copy-text-value="Explain the function Transfer of the gno.land realm `)
 	})
 
 	// An error page gets no menu: its prompts would point at views that
