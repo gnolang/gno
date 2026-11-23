@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 )
 
 // depsWait is how long the dependencies page waits for the importers before
@@ -73,7 +74,7 @@ func (h *Handler) importersSide(pkgPath string, imp *Importers, err error) (*com
 		}, http.StatusOK
 	case errors.Is(err, ErrRateLimited):
 		return &components.Importers{Unavailable: "Too many lookups from your address. Try again in a minute."}, http.StatusTooManyRequests
-	case errors.Is(err, ErrPending):
+	case errors.Is(err, flight.ErrPending):
 		return &components.Importers{Unavailable: "Still looking them up. Reload in a moment."}, http.StatusOK
 	case errors.Is(err, ErrBusy):
 		return &components.Importers{Unavailable: "Other lookups are running. Reload in a moment."}, http.StatusServiceUnavailable

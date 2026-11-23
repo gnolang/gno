@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
 // render draws a listing's map, figure and key, as the listing page would.
@@ -67,7 +69,7 @@ func TestMapColoursRealmsByCalls(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls:   map[string]int{"gno.land/r/a/busy": 100, "gno.land/r/a/some": 3},
 		Callers: map[string]int{"gno.land/r/a/busy": 7, "gno.land/r/a/some": 1},
 		From:    10, To: 20, Since: time.Unix(0, 0),
@@ -93,7 +95,7 @@ func TestMapPartialWindowNeverShowsZero(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/x": 2}, Callers: map[string]int{"gno.land/r/a/x": 1},
 		Partial: true,
 	}, nil)
@@ -144,7 +146,7 @@ func TestMapSaysUnavailableNotPendingForAFailedRefresh(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", nil, context.DeadlineExceeded)
+	seed(h.activity, "activity", nil, context.DeadlineExceeded)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/x"}})
 	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Activity unavailable") {
 		t.Error("a failed refresh must read as unavailable")
@@ -157,7 +159,7 @@ func TestMapKeyListsTheBusiestRealms(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/busy": 100, "gno.land/r/a/some": 3},
 		From:  10, To: 20, Since: time.Unix(0, 0),
 	}, nil)
@@ -210,7 +212,7 @@ func TestMapFigureCarriesItsMetrics(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/busy": 100}, From: 10, To: 20, Since: time.Unix(0, 0),
 	}, nil)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/busy", "/r/a/idle"}})
@@ -236,7 +238,7 @@ func TestMapColorsByGas(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/x/busy": 900, "gno.land/r/a/x/heavy": 3},
 		Gas:   map[string]int64{"gno.land/r/a/x/busy": 4_000_000, "gno.land/r/a/x/heavy": 77_000_000_000},
 		From:  10, To: 20, Since: time.Unix(0, 0),
@@ -284,7 +286,7 @@ func TestGasIsRankedAndWrittenAsMeasured(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/one": 1, "gno.land/r/a/two": 1, "gno.land/r/a/tiny": 1, "gno.land/r/a/huge": 1},
 		Gas:   map[string]int64{"gno.land/r/a/one": 1_100_000, "gno.land/r/a/two": 1_900_000, "gno.land/r/a/tiny": 50_000, "gno.land/r/a/huge": 76_000_000_000},
 		From:  10, To: 20, Since: time.Unix(0, 0),
@@ -334,7 +336,7 @@ func TestGasTilesUseOnlyShadesInTheKey(t *testing.T) {
 	for p := range gas {
 		calls[p] = 1
 	}
-	h.activity.store("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
+	seed(h.activity, "activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/p1", "/r/a/p2", "/r/a/p3"}, Metric: MetricGas})
 
 	for _, p := range []string{"/r/a/p1", "/r/a/p2", "/r/a/p3"} {
@@ -356,7 +358,7 @@ func TestLightGasMapKeepsShadesApart(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.store("activity", &Activity{
+	seed(h.activity, "activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/s": 1, "gno.land/r/a/m": 1, "gno.land/r/a/l": 1},
 		Gas:   map[string]int64{"gno.land/r/a/s": 20_000, "gno.land/r/a/m": 300_000, "gno.land/r/a/l": 900_000},
 		From:  10, To: 20, Since: time.Unix(0, 0),
@@ -384,7 +386,7 @@ func TestGasScaleStartsAtTheLightestRealm(t *testing.T) {
 	for p := range gas {
 		calls[p] = 1
 	}
-	h.activity.store("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
+	seed(h.activity, "activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/p1", "/r/a/p2", "/r/a/p3", "/r/a/p4"}, Metric: MetricGas})
 
 	shades := map[string]bool{}
@@ -398,5 +400,42 @@ func TestGasScaleStartsAtTheLightestRealm(t *testing.T) {
 	}
 	if !strings.Contains(out, "≤ 3.8 M") || strings.Contains(out, "≤ 1 k") {
 		t.Error("the legend must run from the lightest realm to the heaviest")
+	}
+}
+
+// Another feature reads the map's own aggregate: Activity returns what the
+// map drew without a scan of its own, nothing without an indexer, and with
+// none computed yet it returns at once and starts the one scan the map then
+// finds running.
+func TestActivityIsTheMapsAggregate(t *testing.T) {
+	t.Parallel()
+
+	if New(Deps{Imports: fakeImports{}}).Activity(context.Background()) != nil {
+		t.Error("no indexer, no activity")
+	}
+
+	idx := &fakeIndexer{tip: 100, t0: time.Now().Add(-time.Hour), calls: map[int][]indexer.Tx{
+		50: {call(50, true, "g1a", "gno.land/r/a/x"), call(50, true, "g1b", "gno.land/r/a/x")},
+	}}
+	h := New(Deps{Indexer: idx, Imports: fakeImports{}, Domain: "gno.land"})
+	listing := Listing{Path: "/r/a", Paths: []string{"/r/a/x", "/r/a/y"}}
+
+	h.Activity(context.Background()) // starts the scan, and does not wait for it
+	if out := render(t, h, listing); !strings.Contains(out, "/r/a/x · 2 calls by 2 accounts") {
+		t.Fatalf("the map lacks the activity:\n%s", out)
+	}
+	queried := func() int {
+		idx.mu.Lock()
+		defer idx.mu.Unlock()
+		return len(idx.bandsQueried)
+	}
+	scans := queried()
+	a := h.Activity(context.Background())
+	if a == nil || a.Callers["gno.land/r/a/x"] != 2 {
+		t.Fatalf("Activity = %+v, want the map's aggregate", a)
+	}
+	render(t, h, listing)
+	if got := queried(); got != scans {
+		t.Errorf("%d more indexer reads after the first aggregate, want none", got-scans)
 	}
 }

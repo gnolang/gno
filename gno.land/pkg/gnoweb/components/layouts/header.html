@@ -7,6 +7,14 @@ LAYOUT - Header component
     {{/* The search bar takes the whole row only when there are no tabs to
          sit beside it: a listing has List and Map, a package its own. */}}
     <div class="main-nav {{ if not .Links.Dev }}main-nav--full{{ end }}">
+      {{ with .StoreURL }}
+      <a href="{{ . }}" class="store-link"{{ if and (eq $.RealmURL.Path .) (not $.RealmURL.WebQuery) }} aria-current="{{ if $.RealmURL.Args }}true{{ else }}page{{ end }}"{{ end }}>
+        <svg aria-hidden="true">
+          <use href="#ico-apps"></use>
+        </svg>
+        <span class="u-sr-only">Explore</span>
+      </a>
+      {{ end }}
       <a href="/" class="user-picture">
         {{ template "ui/gnome" }}
       </a>

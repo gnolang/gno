@@ -1,6 +1,7 @@
 package gnoweb_test
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -8,7 +9,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
@@ -273,4 +276,78 @@ func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
 	if calls := serveGet(h, "/r/demo$map").Body.String(); !strings.Contains(calls, "Most called · 7 days") {
 		t.Error("$map without color must stay the call map")
 	}
+}
+
+// storeAPIClient answers the store realm's home query with JSON, and every
+// other query as the mock does.
+type storeAPIClient struct {
+	*gnoweb.MockClient
+	home string
+}
+
+func (c storeAPIClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
+	if args == "api/v1/home" {
+		return []byte(c.home), nil
+	}
+	return c.MockClient.Realm(ctx, path, args)
+}
+
+// With an indexer, Explore shows a listing's distinct callers of the week,
+// asking the indexer once however many pages it draws.
+func TestHTTPHandler_StoreShowsIndexerUsage(t *testing.T) {
+	t.Parallel()
+
+	const swap = "gno.land/r/acme/swap"
+	var calls []indexer.Tx
+	for _, caller := range []string{"g1a", "g1b", "g1c", "g1a"} {
+		tx := indexer.Tx{Height: 50, Success: true, Messages: make([]indexer.Message, 1)}
+		tx.Messages[0].Value.Type, tx.Messages[0].Value.PkgPath, tx.Messages[0].Value.Caller = "MsgCall", swap, caller
+		calls = append(calls, tx)
+	}
+	scans := new(atomic.Int32)
+	idx := &countingIndexer{stubIndexer: stubIndexer{calls: calls}, scans: scans}
+	home := `{"version":1,"categories":[],"shelves":[{"key":"new","slugs":["acme-swap"]}],"listings":[` +
+		`{"slug":"acme-swap","kind":"app","path":"` + swap + `","title":"Acme Swap","tagline":"x","category":"defi","palette":0,"confirmed":true}]}`
+	store := &gnoweb.MockPackage{Domain: "gno.land", Path: "/r/gnoland/store", Files: map[string]string{"a.gno": "package store"}}
+
+	newHandler := func(withIndexer bool) *gnoweb.HTTPHandler {
+		cfg := newTestHandlerConfig(t, storeAPIClient{MockClient: gnoweb.NewMockClient(store), home: home})
+		cfg.Meta.Domain, cfg.StoreRealm = "gno.land", "/r/gnoland/store"
+		if withIndexer {
+			cfg.Indexer = idx
+		}
+		h, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+		if err != nil {
+			t.Fatalf("NewHTTPHandler: %v", err)
+		}
+		return h
+	}
+
+	if body := serveGet(newHandler(false), "/r/gnoland/store").Body.String(); !strings.Contains(body, "Acme Swap") || strings.Contains(body, "users this week") {
+		t.Error("without an indexer, Explore shows the listing and no usage")
+	}
+
+	// Explore starts the week's scan, once, and shows its figures as soon as
+	// they are in, without ever waiting for them. That scan is the map's own
+	// (chainmap's TestActivityIsTheMapsAggregate).
+	h := newHandler(true)
+	for deadline := time.Now().Add(5 * time.Second); !strings.Contains(serveGet(h, "/r/gnoland/store").Body.String(), "3 users this week"); time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("Explore never showed the indexer's figures")
+		}
+	}
+	if n := scans.Load(); n != 1 {
+		t.Errorf("%d scans of the indexer, want 1", n)
+	}
+}
+
+// countingIndexer counts the activity scans it answers.
+type countingIndexer struct {
+	stubIndexer
+	scans *atomic.Int32
+}
+
+func (c *countingIndexer) CallsBetween(ctx context.Context, lower, upper int) ([]indexer.Tx, error) {
+	c.scans.Add(1)
+	return c.stubIndexer.CallsBetween(ctx, lower, upper)
 }

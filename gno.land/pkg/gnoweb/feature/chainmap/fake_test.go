@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/internal/flight"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
@@ -131,4 +132,9 @@ func (f fakeImports) Imports(_ context.Context, pkgPath string) ([]string, error
 		return nil, ErrNotLive
 	}
 	return imps, nil
+}
+
+// seed answers key in f as a fetch would.
+func seed[T any](f *flight.Flight[T], key string, v T, err error) {
+	_, _ = f.Get(context.Background(), key, func(context.Context) (T, error) { return v, err })
 }

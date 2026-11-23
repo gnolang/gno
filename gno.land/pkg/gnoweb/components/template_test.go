@@ -58,3 +58,29 @@ func TestTemplateFunc_Dict(t *testing.T) {
 	_, err = dict(1, "value")
 	assert.Error(t, err, "non-string key should error")
 }
+
+func TestTruncMiddle(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		input      string
+		head, tail int
+		expected   string
+	}{
+		{"long string truncated head…tail", "ff61a23bc5d8c018b6c8f29498b1b89435bbeb998", 6, 4, "ff61a2…b998"},
+		{"already short string untouched", "abc", 6, 4, "abc"},
+		{"exactly threshold untouched", "ff61a23bc", 4, 4, "ff61a23bc"},
+		{"tail zero gives head…", "abcdefghij", 3, 0, "abc…"},
+		{"head zero gives …tail", "abcdefghij", 0, 3, "…hij"},
+		{"empty stays empty", "", 6, 4, ""},
+		{"negative bounds clamp to zero", "abcdefghij", -1, -1, "…"},
+		{"counts runes, not bytes", "αβγδεζηθικ", 2, 2, "αβ…ικ"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, TruncMiddle(tt.input, tt.head, tt.tail))
+		})
+	}
+}

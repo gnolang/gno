@@ -198,6 +198,26 @@ declare const process: { env: { NODE_ENV: string } };
 		});
 	};
 
+	// An image marked data-fallback is dropped when it fails to load,
+	// uncovering the fallback drawn after it. error does not bubble, so one
+	// listener catches it in the capture phase (an inline onerror is blocked
+	// by the CSP); an image that failed before this script ran is dropped
+	// at once.
+	const hasFallback = (t: EventTarget | null): t is HTMLImageElement =>
+		t instanceof HTMLImageElement && t.hasAttribute("data-fallback");
+	document.addEventListener(
+		"error",
+		(e) => {
+			if (hasFallback(e.target)) e.target.remove();
+		},
+		true,
+	);
+	document
+		.querySelectorAll<HTMLImageElement>("img[data-fallback]")
+		.forEach((img) => {
+			if (img.complete && img.naturalWidth === 0) img.remove();
+		});
+
 	// Init modules and start observer after DOMContentLoaded
 	document.addEventListener("DOMContentLoaded", async () => {
 		await initModules();

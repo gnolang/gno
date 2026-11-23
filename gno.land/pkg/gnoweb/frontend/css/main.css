@@ -25,4 +25,5 @@
 @import "../../feature/run/frontend/run.css";
 @import "../../feature/omnisearch/frontend/omnisearch.css";
 @import "../../feature/chainmap/frontend/chainmap.css";
+@import "../../feature/store/frontend/store.css";
 @import "./07-utilities.css";
