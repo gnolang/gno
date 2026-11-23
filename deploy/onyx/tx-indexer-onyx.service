@@ -1,0 +1,47 @@
+[Unit]
+Description=tx-indexer for onyx-1, reading the local node over loopback
+After=network-online.target gnoland-onyx.service
+Wants=network-online.target
+# The indexer is useless without the node, but it retries rather than dying, so
+# this is Wants and not Requires: a node restart must not take the indexer down.
+Wants=gnoland-onyx.service
+
+[Service]
+Type=simple
+User=gnoland
+Group=gnoland
+Environment=HOME=/var/lib/gnoland-onyx
+WorkingDirectory=/var/lib/gnoland-onyx
+ExecStart=/usr/local/bin/tx-indexer-v1.5.1 start \
+    --remote http://127.0.0.1:26757 \
+    --db-path /data/onyx/indexer-db \
+    --listen-address 127.0.0.1:8567 \
+    --metrics-listen-address 127.0.0.1:8568 \
+    --max-slots 32 \
+    --max-chunk-size 100 \
+    --query-deadline 30s \
+    --log-level info
+Restart=on-failure
+RestartSec=10s
+OOMScoreAdjust=-500
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+ReadWritePaths=/data/onyx /var/lib/gnoland-onyx
+# Loopback only. There is deliberately no --http-rate-limit and no
+# --client-time-budget: the only client is gnoscope on the same host, and a
+# limit here would reintroduce exactly the failure this node exists to remove.
+# If anything other than gnoscope is ever pointed at :8567, revisit that.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

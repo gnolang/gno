@@ -1,0 +1,18 @@
+{
+  "networks": [
+    {
+      "id": "onyx",
+      "indexer": "http://127.0.0.1:8567/graphql/query",
+      "indexers": [
+        "https://indexer.onyx.testnets.gno.land/graphql/query",
+        "https://indexer.latest.testnets.gno.land/graphql/query"
+      ],
+      "rpc": "http://127.0.0.1:26757",
+      "rpcs": [
+        "https://rpc.onyx.testnets.gno.land",
+        "https://rpc.latest.testnets.gno.land"
+      ],
+      "gnoweb": "https://onyx.testnets.gno.land"
+    }
+  ]
+}

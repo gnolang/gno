@@ -1,0 +1,67 @@
+# onyx-1 node config: the keys that differ from `gnoland config init` defaults.
+#
+# Apply them with `gnoland config set <key> <value> -config-path <path>` rather
+# than by editing, so a key that moved or was renamed between versions fails
+# loudly instead of being silently ignored. The exact commands are in
+# INSTALL.md step 5.
+#
+# Generated and verified on lyra against v1.7.1-rc.1, 2026-11-23. The diff
+# below is the complete set; everything else is left at the shipped default.
+
+# --- [base] ---------------------------------------------------------------
+moniker = "onyx-gnoscope"
+
+# --- [consensus] ----------------------------------------------------------
+# Chain wide, must match the network exactly.
+peer_gossip_sleep_duration = "10ms"
+timeout_commit = "3s"
+
+# --- [mempool] ------------------------------------------------------------
+size = 10000
+
+# --- [p2p] ----------------------------------------------------------------
+flush_throttle_timeout = "10ms"
+max_num_outbound_peers = 40
+persistent_peers = "g1x5mlj5ava0dw9vkf4j6admjlzswm6f06p44krn@seed-1.onyx.testnets.gno.land:26656,g1grq5zswt0dlwwe7clr4359w70k2ewgse0gcwck@seed-2.onyx.testnets.gno.land:26656"
+
+# Loopback only, as required. A node bound to 127.0.0.1 still dials out and
+# still syncs: the listener is only for inbound connections, which this node
+# does not want. Verified on lyra, 2026-11-23: the node discovered and gossiped
+# with more than a dozen peers through PEX with p2p bound here.
+#
+# The cost is that it never serves blocks to anyone else, and it will not be
+# dialed back, so it is a pure leech on the network. That is acceptable for one
+# explorer backend and would not be for a fleet.
+#
+# Do NOT set p2p.external_address: there is no reachable address to advertise.
+laddr = "tcp://127.0.0.1:26756"
+
+# pex stays at its default of true: with only two seeds configured, PEX is what
+# finds the rest of the network.
+# pex = true
+
+# --- [rpc] ----------------------------------------------------------------
+# Default is already 127.0.0.1:26657, moved only because 26657-adjacent ports
+# are crowded on the deployment host. 26659/26660/26661 and 36656/36657 are
+# taken there; 26756 and 26757 are not.
+laddr = "tcp://127.0.0.1:26757"
+
+# --- [application] --------------------------------------------------------
+# `syncable` keeps the pruned state a syncing peer needs without retaining
+# every historical version. This is what onyx's own VALIDATOR.md prescribes.
+prune_strategy = "syncable"
+
+# --- keys that exist only on v1.8.0-rc.1 ----------------------------------
+# A config.toml written by `v1.7.1-rc.1 config init` does not contain
+# query_max_alloc, query_max_gas, query_timeout (under [consensus]) or
+# allow_code_execution (under [rpc]). v1.8.0-rc.1 falls back to its defaults
+# for a missing key, so the switch at the halt height needs no config change.
+# Leave allow_code_execution at true: gnoscope's RPC reads include vm/ paths.
+
+# --- deliberately NOT set -------------------------------------------------
+# skip_upgrade_height: leave at 0. It is a BASE-level key, not under
+# [consensus]: `gnoland config set skip_upgrade_height <n>`. Verified on
+# v1.8.0-rc.1, 2026-11-23: `consensus.skip_upgrade_height` is rejected as an
+# invalid configuration key. Set it only for the single restart described
+# in INSTALL.md §B2, then set it straight back. Left in place it bypasses
+# both upgrade gates and will let an underversioned binary resume.

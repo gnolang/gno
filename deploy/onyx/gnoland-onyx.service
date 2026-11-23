@@ -1,0 +1,45 @@
+[Unit]
+Description=gnoland full node for onyx-1 (testnet), loopback only
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gnoland
+Group=gnoland
+# GNOROOT must be a checkout of the SAME tag as the binary below. Changing one
+# without the other is the single most common way to break this node.
+# Sync from genesis: ExecStart=/usr/local/bin/gnoland-v1.7.1-rc.1, GNOROOT=/opt/gnoland/gnoroot-v1.7.1-rc.1
+# At and past height 1203400: the v1.8.0-rc.1 pair below.
+Environment=GNOROOT=/opt/gnoland/gnoroot-v1.8.0-rc.1
+Environment=HOME=/var/lib/gnoland-onyx
+WorkingDirectory=/var/lib/gnoland-onyx
+ExecStart=/usr/local/bin/gnoland-v1.8.0-rc.1 start \
+    --chainid onyx-1 \
+    --data-dir /data/onyx/node \
+    --genesis /data/onyx/genesis.json \
+    --gnoroot-dir /opt/gnoland/gnoroot-v1.8.0-rc.1 \
+    --skip-genesis-sig-verification \
+    --log-level info
+Restart=on-failure
+RestartSec=10s
+OOMScoreAdjust=-500
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+# ProtectSystem=strict makes the whole filesystem read-only except /dev, /proc
+# and /sys, so the data directory has to be named back in explicitly. The
+# mainnet sentry unit this is copied from does not carry this line; check that
+# node actually writes where you think it does.
+ReadWritePaths=/data/onyx /var/lib/gnoland-onyx
+
+[Install]
+WantedBy=multi-user.target
