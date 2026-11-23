@@ -5,7 +5,7 @@ host but lyra was touched.
 
 Artefacts: [`deploy/onyx/`](../../deploy/onyx/). Working data, binaries and
 chain databases: `~/ws/d-20261123-onyxnode/.work/` (see
-[Disk to reclaim](#disk-to-reclaim)).
+[State of lyra at the end of this run](#state-of-lyra-at-the-end-of-this-run)).
 
 ---
 
@@ -372,31 +372,6 @@ Revisit if anything else is ever pointed at 8567.
 
 ---
 
-## Disk to reclaim
-
-Everything lives under `~/ws/d-20261123-onyxnode/.work/`. Nothing was written
-to `/tmp`.
-
-| Path | Size | What |
-|---|---|---|
-| `.work/snap/` | 14 GB | the downloaded snapshot archive |
-| `.work/onyx-node2/` | 23 GB | the restored node database, at the live tip |
-| `.work/onyx-node/` | 2.2 GB | the genesis replay node, stopped at height 174,063 |
-| `.work/indexer-db2/` | see below | the indexer database |
-| `.work/src/` | ~2 GB | two git worktrees at the rc tags |
-| `.work/bin/` | 170 MB | the three binaries |
-
-```shell
-rm -rf ~/ws/d-20261123-onyxnode/.work
-cd ~/ws/d-20261123-onyxnode && git worktree prune
-rm -rf ~/ws/d-20261123-onyxnode-txindexer
-```
-
-The `git worktree prune` matters: the two worktrees are registered in the main
-checkout's `.git`, so deleting `.work` without it leaves stale entries.
-
----
-
 ## Final numbers
 
 Everything below was observed, not estimated.
@@ -442,33 +417,54 @@ The node's 4.8 GB is the number to size from. A node still replaying history
 sat at 1.2 GB, which would badly under-provision. The deployment host has 54 GB
 available and 703 GB free, so neither figure is close to a constraint.
 
-### Disk used on lyra right now
+### State of lyra at the end of this run
 
-```
-23 G   .work/onyx-node2      restored node, at the tip
-14 G   .work/snap            the snapshot archive, now redundant
-8.5G   .work/indexer-db2     the indexer
-2.2G   .work/onyx-node       genesis replay node, stopped at 174,063
-299 M  .work/src             two git worktrees
-158 M  .work/bin             three binaries
------
-~48 G total
-```
+**Nothing is left running.** The node and the indexer were stopped with
+`SIGTERM` and both logged a clean shutdown with their databases closed, which
+matters here: pebbledb writes with `NoSync`, so a `SIGKILL` could have left the
+restored database in a state that needed a re-restore to trust.
 
-Removal is in [Disk to reclaim](#disk-to-reclaim). Nothing was written outside
-`~/ws/d-20261123-onyxnode` and `~/ws/d-20261123-onyxnode-txindexer`.
+The 14 GB snapshot archive was deleted after extraction; it is fully redundant
+and re-downloadable in nine minutes, checksum published.
 
-### Still running on lyra as of this report
+| Path | Size | Keep or delete |
+|---|---|---|
+| `.work/onyx-node2/` | 23 GB | the restored node, last at height 1,350,835. Delete unless you want to inspect it |
+| `.work/indexer-db2/` | 8.5 GB | the fully backfilled indexer. Same |
+| `.work/onyx-node/` | 2.2 GB | genesis replay node, stopped at 174,063. Delete |
+| `.work/src/` | 299 MB | two git worktrees at the rc tags |
+| `.work/bin/` | 158 MB | the three binaries |
+| `.work/logs/` | 81 MB | sync samples, node and indexer logs, the proof transcript |
+| `~/ws/d-20261123-onyxnode-txindexer/` | 3.6 MB | the tx-indexer clone |
+| **total** | **35 GB** | |
 
-The restored node (`gnoland-v1.8.0-rc.1`, ports 26758/26759) and the indexer
-(port 8567/8568) were **left running** so the stack can be inspected. They are
-plain foreground processes under the shell, not services, so they do not
-survive a reboot and nothing will restart them. Kill them with:
+To restart the stack for inspection rather than delete it:
 
 ```shell
-pkill -f 'gnoland-v1.8.0-rc.1 start'
-pkill -f 'tx-indexer-v1.5.1 start'
-pkill -f sample2.sh
+cd ~/ws/d-20261123-onyxnode/.work
+./run-node2.sh        # node on 127.0.0.1:26759, p2p 26758
+./run-indexer2.sh     # indexer on 127.0.0.1:8567
 ```
 
-The genesis replay node was already stopped during the run.
+It will be behind by however long it has been stopped and will catch up from
+its peers. Note that **it will not find peers if any other onyx node is running
+on this host**: the seeds accept one connection per source IP.
+
+To remove everything:
+
+```shell
+rm -rf ~/ws/d-20261123-onyxnode/.work
+cd ~/ws/d-20261123-onyxnode && git worktree prune
+rm -rf ~/ws/d-20261123-onyxnode-txindexer
+```
+
+The `git worktree prune` matters: the two worktrees are registered in the main
+checkout's `.git`, so deleting `.work` without it leaves stale entries.
+
+`/.work/` was added to `.git/info/exclude`, not to the repository's
+`.gitignore`, so nothing about this scratch directory is committed.
+
+### Where the work is
+
+Branch `ws/d-20261123-onyxnode`, pushed to `gnolang/gno`. Commit `75afb7d8d`,
+13 files, `deploy/onyx/` plus this report.
