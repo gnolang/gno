@@ -1,6 +1,6 @@
 # Interrealm: the rules
 
-> The overview, with diagrams and the catalogue of interactions, is [the whitepaper](./gno-interrealm-whitepaper.md).
+> The overview, built up from basic facts with every case between two realms, is [the whitepaper](./gno-interrealm-whitepaper.md).
 >
 > The decision record is
 > [`gnovm/adr/pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md).
@@ -10,7 +10,7 @@ A realm's stored state changes only during a crossing call into it. The rules
 below say who may write when code changes hands. Each section is a
 snippet, one sentence, and the exact error a test pins.
 
-## R1 Cross to write
+## R1 Cross to write: code called by name
 
 ```go
 // /r/bank/bank
@@ -33,7 +33,86 @@ runs read-only.
 // gno.land/r/tests/vm/ctw's code was entered without crossing and is read-only (call its crossing function): Count<~VPBlock(3,0)>
 ```
 
-## R2 Only pointers cross
+## R2 Code that arrives as a value
+
+Code can reach a realm as a value instead of a name: a function value (a
+closure, a method value, a declared function used as a value) or an interface
+value. R2a–R2c say when such code may write; R2a's save check (in the whitepaper)
+refuses to save a new object it wrote.
+
+### R2a A function value writes only in the crossing call that made it
+
+```go
+// /r/app/app
+var total int
+
+func Run(cur realm) {
+	f := func() { total++ }
+	f()                       // same crossing call: writes
+	other.Keep(cross(cur), f)
+	other.RunKept(cross(cur)) // later crossing call: read-only
+}
+```
+
+A non-crossing function value (a closure, a bound method value, a declared
+function used as a value) writes only during the crossing call that made it;
+made in read-only code, at init, or loaded from the store, its id is 0 and the
+call runs read-only. There is then no crossing function to call: make the
+callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or rebuild
+the value inside the call that runs it.
+
+```
+// Error:
+// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner
+```
+
+### R2b A function value copied out of its realm loses its maker
+
+```go
+// /r/app/app
+var sum int
+
+func Run(cur realm) {
+	other.ForEach(cross(cur), func(n int) { sum += n }) // handed to another realm: no maker
+}
+```
+
+When another realm's code hands a function value over (argument, receiver,
+result) or copies it, what arrives has no maker, so publishing a function is
+never a grant of write power; a function value handed to another realm runs
+read-only there. Not covered: a caller hands a realm's crossing function a
+reference to that realm's own stored functions; your crossing function must not
+call function values found in caller-supplied containers. `gno lint` warns when
+a crossing function calls a function reached through a parameter that is not a
+function; it does not yet follow values through two or more locals, another
+function of the realm, or a closure capture.
+
+```
+// Error:
+// gno.land/r/ctw_callback's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/ctw_callback) package{})).sum
+```
+
+### R2c Only imported library code writes
+
+```go
+// /r/app/app
+var buf = make([]byte, 4)
+
+func Run(cur realm, r io.Reader) {
+	r.Read(buf) // view-only unless r's package is in app's import tree
+}
+```
+
+Code reached through an interface or a method value is trusted only if its
+package is in the calling realm's import tree (its imports and theirs, the
+standard library included, test files excluded); otherwise it runs view-only.
+
+```
+// Error:
+// cannot copy to readonly tainted slice
+```
+
+## R3 Types stay home: only pointers cross
 
 ```go
 // /r/users/users
@@ -61,76 +140,24 @@ a pointer)`); a run-time allocation fails with `cannot allocate <T> in realm
 // cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer)
 ```
 
-## S3 A function value writes only in the crossing call that made it
+## R4 The ticket stays in its call
 
 ```go
 // /r/app/app
-var total int
+var stashed realm
 
 func Run(cur realm) {
-	f := func() { total++ }
-	f()                       // same crossing call: writes
-	other.Keep(cross(cur), f)
-	other.RunKept(cross(cur)) // later crossing call: read-only
+	stashed = cur // refused at save
 }
 ```
 
-A non-crossing function value (a closure, a bound method value, a declared
-function used as a value) writes only during the crossing call that made it;
-made in read-only code, at init, or loaded from the store, its id is 0 and the
-call runs read-only. There is then no crossing function to call: make the
-callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or rebuild
-the value inside the call that runs it.
+`cur` lives only in the call that received it: it cannot be stored, replaced,
+have its address taken, or be faked, and a banker or a sub-ticket (`cur.Sub`)
+comes only from the live `cur`.
 
 ```
 // Error:
-// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner
-```
-
-## R4 Makers stay home
-
-```go
-// /r/app/app
-var sum int
-
-func Run(cur realm) {
-	other.ForEach(cross(cur), func(n int) { sum += n }) // handed to another realm: no maker
-}
-```
-
-When another realm's code hands a function value over (argument, receiver,
-result) or copies it, what arrives has no maker, so publishing a function is
-never a grant of write power; a function value handed to another realm runs
-read-only there. Not covered: a caller hands a realm's crossing function a
-reference to that realm's own stored functions; your crossing function must not
-call function values found in caller-supplied containers. `gno lint` warns when
-a crossing function calls a function reached through a parameter that is not a
-function; it does not yet follow values through two or more locals, another
-function of the realm, or a closure capture.
-
-```
-// Error:
-// gno.land/r/ctw_callback's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/ctw_callback) package{})).sum
-```
-
-## R6 One import rule
-
-```go
-// /r/app/app
-var buf = make([]byte, 4)
-
-func Run(cur realm, r io.Reader) {
-	r.Read(buf) // view-only unless r's package is in app's import tree
-}
-```
-
-Code reached through an interface or a method value is trusted only if its
-package is in the calling realm's import tree (its imports and theirs, the
-standard library included, test files excluded); otherwise it runs view-only.
-
-```
-// Error:
-// cannot copy to readonly tainted slice
+// cannot persist realm value: realm values are ephemeral and tied to a call frame
 ```
 
 ## Upgrade notes
@@ -480,7 +507,7 @@ A function declared in p packages (or in stdlib) when called:
  * a method on a realm-owned receiver is a view: its writes to the owner's
    object are refused.
  * a closure, bound method value or declared function used as a value follows
-   S3: it acts for the realm whose writable code made it, only in the crossing
+   R2a: it acts for the realm whose writable code made it, only in the crossing
    call that made it, and view-only when made in read-only code.
  * runs view-only when reached through an interface or method value whose
    package the current realm does not import, directly or through its imports,
@@ -847,7 +874,7 @@ closure called through a value by another realm's code runs view-only. A
 method value of a `/p/` or stdlib method writes no stored object, receiver or
 argument when reached from code whose realm does not import its package; when
 that package is in the calling realm's import tree it acts for the caller
-(R6). A `/p/`-owned receiver runs as the caller, and the package's post-init
+(R2c). A `/p/`-owned receiver runs as the caller, and the package's post-init
 immutability check reports a write to its own state.
 
 Fresh-object corner: an object a realm function builds and returns carries

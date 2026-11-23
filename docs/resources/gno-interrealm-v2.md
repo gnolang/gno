@@ -1,6 +1,6 @@
 # Interrealm Specification — v2
 
-> **Start here:** [gno-interrealm.md](./gno-interrealm.md) states the five rules; this document is the mechanism.
+> **Start here:** [gno-interrealm.md](./gno-interrealm.md) states the four rules; this document is the mechanism.
 
 > **Superseded for writes.** Borrow rules #1–#3 below are replaced for writes
 > by [`pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md): a
@@ -8,7 +8,7 @@
 > Realm code entered without crossing runs read-only, a `/p/`-owned receiver
 > runs as the caller, and library code a caller picked runs view-only.
 
-This is a historical mechanism reference. The five rules in
+This is a historical mechanism reference. The four rules in
 [`gno-interrealm.md`](./gno-interrealm.md) and the
 [decision record](../../gnovm/adr/pr6495_cross_to_write.md) are authoritative;
 where this document disagrees with them, they win. See also
