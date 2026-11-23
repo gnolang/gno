@@ -212,7 +212,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// The message entry into a realm (main(cur realm)) is the tx's first
 	// crossing call: give it a fresh id so values it makes are writable there.
 	// A value reloaded from the store was never recorded, so it answers 0.
-	mm.curCrossing = crossingSeq.Add(1)
+	mm.curCrossing = nextCrossingID()
 	mm.s3Written = false // a transaction starts with no R2a-save writes (kept across calls)
 	alloc.crossingID = mm.curCrossing
 	alloc.store = store
@@ -344,6 +344,21 @@ func (m *Machine) setViewOnly() {
 // crossingSeq numbers crossing calls process-wide, so a value kept in memory
 // across machines (the store's cache) never matches a later call's id.
 var crossingSeq atomic.Uint64
+
+// crossingIDMask is the width ObjectInfo stores (setMadeIn); ids are cut to it
+// here so stored and live ids compare equal however long the process has run.
+const crossingIDMask = 1<<48 - 1
+
+// nextCrossingID returns a fresh non-zero 48-bit crossing-call id.
+func nextCrossingID() uint64 { return nextIDFrom(&crossingSeq) }
+
+func nextIDFrom(seq *atomic.Uint64) uint64 {
+	for {
+		if id := seq.Add(1) & crossingIDMask; id != 0 {
+			return id
+		}
+	}
+}
 
 // setCrossing records the active crossing-call id on the machine and on the
 // allocator, so values made now can be told apart from values made elsewhere.
@@ -2783,7 +2798,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		r := pv.GetRealm()
 		assertBorrowedRealm(pv.PkgPath, r)
 		m.setRealm(r)
-		m.setCrossing(crossingSeq.Add(1))
+		m.setCrossing(nextCrossingID())
 		return
 	}
 
