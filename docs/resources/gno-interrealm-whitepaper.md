@@ -764,8 +764,9 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 
 ### 7.14 Known limits
 
-- A realm's own function values reached through a container the caller supplies still act for that realm in
-  its own crossing call. Do not call function values found in caller-supplied containers.
+- A writer a realm made in its current crossing call and handed out behind a pointer still writes when the
+  realm calls it back (`zrealm_t38_wrap_ptr`). One kept from an earlier call, reached through a container the
+  caller supplies, is refused (R2a).
 - A library table entry called in place (`lib.Table[k](x)`) acts for the current realm; copied to a local
   first, it runs read-only (`zrealm_ctw_owncb`'s `ViaDispatch`, `zrealm_saved_libtable_copy`).
 - A library in the realm's import tree is trusted for interface and method-value calls (R2c).

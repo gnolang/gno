@@ -90,8 +90,8 @@ call that made it`. `runtime.FuncPkgPath(fn)` names a func value's package.
 ## Known open
 
 - A library in the realm's import tree is trusted for interface calls; type-assert caller-supplied interface values to the types you expect.
-- A function value R made, found through a caller-supplied reference (slice, map, pointer, object) or kept by another realm, acts for R; do not call such values.
-- A function value a library stores in a package variable acts for the caller when called in place (`lib.Table[k](x)`); copied to a local first, it has no maker and runs view-only (no test yet).
+- A writer R made in its current crossing call and handed out behind a pointer still writes when R calls it back (`zrealm_t38_wrap_ptr`): R2b strips values, not pointees. The caller's code cannot run it writable (`zrealm_t38_wrap_ptr_call`); one kept from an earlier call is refused (`zrealm_home_known_relay_table`).
+- A function value a library stores in a package variable acts for the caller when called in place (`lib.Table[k](x)`); copied to a local first, it has no maker and runs view-only (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
 
 ## Upgrade notes
 
