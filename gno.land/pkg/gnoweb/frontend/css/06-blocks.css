@@ -447,6 +447,7 @@
 
 	& .ai-action__targets {
 		display: flex;
+		flex-wrap: wrap;
 		gap: var(--g-space-2);
 		margin-block-start: var(--g-space-1);
 		font-size: var(--g-font-size-50);
@@ -552,7 +553,8 @@
 		background-color: var(--s-color-bg-base);
 		font-size: var(--g-font-size-50);
 
-		/* The link green is under AA at this size on the dark base */
+		/* The link green is under AA at this size on the dark base;
+		   Copy prompt takes the links' colour and pointer */
 		& > a,
 		& > button {
 			color: var(--s-color-text-secondary);

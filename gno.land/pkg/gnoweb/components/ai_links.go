@@ -41,8 +41,9 @@ type AIMenu struct {
 // AIAction is one prompt, offered to both assistants and for copying into
 // any other.
 type AIAction struct {
-	Label  string
-	Hint   string
+	Label string
+	Hint  string
+	// Prompt is the full text Links send, which Copy prompt copies as is.
 	Prompt string
 	Links  []AILink
 }

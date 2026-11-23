@@ -105,7 +105,7 @@ The real browser URL is never modified.
 
 | Event | Trigger | Payload |
 |---|---|---|
-| `copy_action` | Click on any `button[data-controller~="copy"]`; kind inferred from `data-copy-*` attributes | `{kind: 'link' \| 'source' \| 'func_signature' \| 'gnokey_command' \| 'run_command' \| 'unknown'}` |
+| `copy_action` | Click on any `button[data-controller~="copy"]`; kind inferred from `data-copy-*` attributes | `{kind: 'link' \| 'ai_prompt' \| 'source' \| 'func_signature' \| 'gnokey_command' \| 'run_command' \| 'unknown'}` |
 
 ### Outbound
 
