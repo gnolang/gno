@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/gnolang/gno/misc/deployments/upgrades/upgrades.schema.json",
   "title": "gno.land upgrade ledger",
-  "description": "Every binary a gno.land network has run, in chain order. A version runs the blocks from the previous entry's halt_height + 1 (1 for genesis) up to and including the next entry's halt_height; a rolling release bounds no range and can serve the same blocks as the entry before it. The authoritative rules are in gno.land/pkg/upgrades (Go); this schema documents the shape for third-party readers.",
+  "description": "Every binary a gno.land network has run, in chain order. A version runs the blocks from its own halt_height + 1 (1 for genesis) up to and including the next entry's halt_height; a rolling release bounds no range and can serve the same blocks as the entry before it. The authoritative rules are in gno.land/pkg/upgrades (Go); this schema documents the shape for third-party readers.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "chain_id", "genesis_sha256", "genesis_time", "upgrades"],

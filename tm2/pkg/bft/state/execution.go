@@ -12,6 +12,7 @@ import (
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	tmver "github.com/gnolang/gno/tm2/pkg/bft/version"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 )
@@ -36,7 +37,17 @@ type BlockExecutor struct {
 	// and update both with block results after commit.
 	mempool mempl.Mempool
 
+	// While holding (HoldEvents), ApplyBlock keeps each block's events in held.
+	holding bool
+	held    []blockEvents
+
 	logger *slog.Logger
+}
+
+// blockEvents is what fireEvents needs to fire one block's events.
+type blockEvents struct {
+	block         *types.Block
+	abciResponses *ABCIResponses
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
@@ -65,6 +76,25 @@ func (blockExec *BlockExecutor) DB() dbm.DB {
 
 func (blockExec *BlockExecutor) SetEventSwitch(evsw events.EventSwitch) {
 	blockExec.evsw = evsw
+}
+
+// HoldEvents makes ApplyBlock keep each block's events instead of firing
+// them, until FireHeldEvents. Block sync holds them while its writes are
+// held, so that a block's events fire only once the block is on disk. It
+// panics when turned off with events held.
+func (blockExec *BlockExecutor) HoldEvents(on bool) {
+	if !on && len(blockExec.held) > 0 {
+		panic(fmt.Sprintf("events of %d blocks held when holding stopped", len(blockExec.held)))
+	}
+	blockExec.holding = on
+}
+
+// FireHeldEvents fires the events held since the last call, in block order.
+func (blockExec *BlockExecutor) FireHeldEvents() {
+	for _, e := range blockExec.held {
+		fireEvents(blockExec.evsw, e.block, e.abciResponses)
+	}
+	blockExec.held = nil
 }
 
 // CreateProposalBlock calls state.MakeBlock with txs from the mempool.
@@ -196,7 +226,11 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	fireEvents(blockExec.evsw, block, abciResponses)
+	if blockExec.holding {
+		blockExec.held = append(blockExec.held, blockEvents{block, abciResponses})
+	} else {
+		fireEvents(blockExec.evsw, block, abciResponses)
+	}
 
 	return state, nil
 }
@@ -402,6 +436,11 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 		if !params.IsValidPubKeyTypeURL(pubkeyTypeURL) {
 			return fmt.Errorf("validator %v is using pubkey %s, which is unsupported for consensus",
 				valUpdate, pubkeyTypeURL)
+		}
+		// A small-order ed25519 key can never sign (VerifyBytes rejects it), so
+		// with enough power it would halt the chain.
+		if ed, ok := valUpdate.PubKey.(ed25519.PubKeyEd25519); ok && ed.IsSmallOrder() {
+			return fmt.Errorf("validator %v is using a small-order ed25519 pubkey, which can never sign", valUpdate)
 		}
 	}
 	return nil

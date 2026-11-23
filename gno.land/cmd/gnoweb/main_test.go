@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -90,6 +92,52 @@ func TestSetupWeb(t *testing.T) {
 	require.ErrorContains(t, err, "not-an-ip")
 }
 
+// The server refuses a 64,000-byte URL, which inflated a realm page's
+// breadcrumb, but serves a 16 KiB one, twice the longest playground share link,
+// and reads a request body past gnoweb.MaxHeaderBytes.
+func TestSetupWeb_MaxHeaderBytes(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+	require.NoError(t, l.Close())
+
+	opts := defaultWebOptions
+	opts.bind = addr
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+	serve, err := setupWeb(&opts, nil, stdio)
+	require.NoError(t, err)
+	go func() { _ = serve() }() // runs until the test binary exits
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	get := func(urlLen int) int {
+		target := "/public/main.css?x="
+		target += strings.Repeat("a", urlLen-len(target))
+		resp, err := client.Get("http://" + addr + target)
+		require.NoError(t, err)
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	require.Eventually(t, func() bool {
+		resp, err := client.Get("http://" + addr + "/public/main.css")
+		if err == nil {
+			resp.Body.Close()
+		}
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond)
+
+	assert.Equal(t, http.StatusOK, get(16<<10))
+	assert.Equal(t, http.StatusRequestHeaderFieldsTooLarge, get(64_000))
+
+	body := "a=" + strings.Repeat("b", 32<<10)
+	resp, err := client.Post("http://"+addr+"/r/demo/foo", "application/x-www-form-urlencoded", strings.NewReader(body))
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
+}
+
 // A realm notice text that renders to nothing must refuse to start, unless the
 // notice is disabled.
 func TestSetupWeb_RealmNoticeText(t *testing.T) {
@@ -166,8 +214,35 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func TestSecureHeadersMiddlewareIPFSGateway(t *testing.T) {
+	cspFor := func(gateway string) string {
+		handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, gateway)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest("GET", "http://example.com", nil))
+		return rec.Result().Header.Get("Content-Security-Policy")
+	}
+
+	csp := cspFor("https://ipfs.filebase.io")
+	assert.Contains(t, csp, " https://ipfs.filebase.io ")
+	assert.NotContains(t, csp, "https://ipfs.io")
+	assert.NotContains(t, csp, "cloudflare-ipfs.com")
+	assert.NotContains(t, cspFor(""), "filebase")
+
+	// A subdomain gateway (Kubo, by default on localhost) redirects
+	// /ipfs/<cid> to <cid>.ipfs.<host>, so those subdomains are allowed too.
+	assert.Contains(t, cspFor("http://localhost:8080"),
+		" http://localhost:8080 http://*.ipfs.localhost:8080 http://*.ipns.localhost:8080;")
+	// An IP address has no subdomains.
+	assert.Contains(t, cspFor("http://127.0.0.1:8080"), " http://127.0.0.1:8080;")
+	// The policy is formatted again per response for the nonce: a % in a
+	// source must come out as written, not as a format verb.
+	zoned := cspFor("http://[fe80::1%25en0]:8080")
+	assert.Contains(t, zoned, " http://[fe80::1%25en0]:8080 ")
+	assert.NotContains(t, zoned, "%!")
+}
+
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "https://ipfs.filebase.io")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -195,10 +270,15 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	if strings.Contains(csp, "assets.gnoteam.com") {
 		t.Errorf("Expected Content-Security-Policy not to allowlist 'assets.gnoteam.com', got '%s'", csp)
 	}
-	// The search dropdown fetches the same-origin /search.json, so connect-src
-	// must allow 'self' in addition to the RPC node.
-	if !strings.Contains(csp, "connect-src 'self' http://example.com/abci_query") {
-		t.Errorf("Expected Content-Security-Policy connect-src to contain 'self' and the RPC node, got '%s'", csp)
+	// The search dropdown and the evaluator fetch same-origin endpoints only,
+	// so connect-src is 'self' and nothing else.
+	if !strings.Contains(csp, "connect-src 'self';") {
+		t.Errorf("Expected Content-Security-Policy connect-src to be 'self' only, got '%s'", csp)
+	}
+	// style-src must carry a per-response nonce so CodeMirror's injected styles are allowed
+	// without relaxing the policy to 'unsafe-inline'.
+	if !strings.Contains(csp, "style-src 'self' 'nonce-") {
+		t.Errorf("Expected Content-Security-Policy style-src to carry a nonce, got '%s'", csp)
 	}
 	if res.Header.Get("Strict-Transport-Security") != "max-age=31536000" {
 		t.Errorf("Expected Strict-Transport-Security 'max-age=31536000', got '%s'", res.Header.Get("Strict-Transport-Security"))
@@ -211,8 +291,40 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	}
 }
 
+func TestSecureHeadersMiddlewareNonceMatchesContext(t *testing.T) {
+	// The nonce echoed in the CSP header must equal the one exposed to downstream
+	// handlers via the request context (which they embed in <meta name="csp-nonce">),
+	// and it must be freshly generated per response.
+	var seen []string
+	handler := SecureHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, gnoweb.CSPNonceFromContext(r.Context()))
+		w.Write([]byte("OK"))
+	}), true, "")
+
+	do := func() string {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest("GET", "http://example.com", nil))
+		return rec.Result().Header.Get("Content-Security-Policy")
+	}
+
+	csp1, csp2 := do(), do()
+
+	if len(seen) != 2 || seen[0] == "" || seen[1] == "" {
+		t.Fatalf("expected two non-empty context nonces, got %v", seen)
+	}
+	if !strings.Contains(csp1, "'nonce-"+seen[0]+"'") {
+		t.Errorf("CSP header nonce does not match context nonce: header=%q ctx=%q", csp1, seen[0])
+	}
+	if seen[0] == seen[1] {
+		t.Errorf("expected a fresh nonce per response, got the same value twice: %q", seen[0])
+	}
+	if csp1 == csp2 {
+		t.Errorf("expected CSP headers to differ per response due to nonce, both were %q", csp1)
+	}
+}
+
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "https://ipfs.filebase.io")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
