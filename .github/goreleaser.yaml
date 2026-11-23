@@ -4,6 +4,8 @@ version: 2
 
 env:
   - TAG_VERSION={{ if index .Env "TAG_VERSION"  }}{{ .Env.TAG_VERSION }}{{ else }}latest{{ end }}
+  # A local `goreleaser build --snapshot` has no workflow to compute it.
+  - BUILD_VERSION={{ if index .Env "BUILD_VERSION" }}{{ .Env.BUILD_VERSION }}{{ else }}develop{{ end }}
   # supported in next versions -> https://github.com/goreleaser/goreleaser/issues/5059
   # - TAG_VERSION="{{ envOrDefault "TAG_VERSION" "latest" }}"
 
@@ -16,10 +18,12 @@ builds:
     main: ./gnovm/cmd/gno
     binary: gno
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -32,10 +36,12 @@ builds:
     main: ./gno.land/cmd/gnoland
     binary: gnoland
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -48,10 +54,12 @@ builds:
     main: ./gno.land/cmd/gnokey
     binary: gnokey
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -64,10 +72,12 @@ builds:
     main: ./gno.land/cmd/gnoweb
     binary: gnoweb
     ldflags:
-      # {{ .Tag }}, not {{ .Version }}: goreleaser strips the leading "v" from
-      # .Version, and gno.land/pkg/gnoland.parseReleaseVersion refuses a version
-      # without it — so the binary would satisfy no governance halt_min_version.
-      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Tag }}
+      # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
+      # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does
+      # not parse as a release version on purpose. These are development builds
+      # run off a dummy v0.0.0 tag, never releases; {{ .Tag }} here would let
+      # them satisfy a governance halt_min_version.
+      - -X github.com/gnolang/gno/tm2/pkg/version.Version={{ .Env.BUILD_VERSION }}
     env:
       - CGO_ENABLED=0
     goos:

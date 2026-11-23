@@ -13,4 +13,4 @@ func main(cur realm) {
 }
 
 // Output:
-// 0
+// 1
