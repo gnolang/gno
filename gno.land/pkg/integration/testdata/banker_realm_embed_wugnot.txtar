@@ -1,7 +1,7 @@
 # Variant targeting a system realm's reserve: the embedding realm overrides
 # Address() to the WUGNOT package address to try to move its ugnot reserve.
 # The package fails to type-check and never deploys, so the reserve is intact
-# and the LP can still withdraw. See gnovm/adr/realm_seal_embedding.md.
+# and the LP can still withdraw. See gnovm/adr/acd01fa29_realm_seal_embedding.md.
 
 loadpkg gno.land/r/gnoland/wugnot
 

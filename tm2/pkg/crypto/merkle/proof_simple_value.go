@@ -37,18 +37,6 @@ func NewSimpleValueOp(key []byte, proof *SimpleProof) SimpleValueOp {
 	}
 }
 
-func SimpleValueOpDecoder(pop ProofOp) (ProofOperator, error) {
-	if pop.Type != ProofOpSimpleValue {
-		return nil, errors.New("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpSimpleValue)
-	}
-	var op SimpleValueOp // a bit strange as we'll discard this, but it works.
-	err := cdc.UnmarshalSized(pop.Data, &op)
-	if err != nil {
-		return nil, errors.Wrap(err, "decoding ProofOp.Data into SimpleValueOp")
-	}
-	return NewSimpleValueOp(pop.Key, op.Proof), nil
-}
-
 func (op SimpleValueOp) ProofOp() ProofOp {
 	bz := cdc.MustMarshalSized(op)
 	return ProofOp{

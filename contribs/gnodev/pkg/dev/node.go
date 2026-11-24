@@ -84,6 +84,10 @@ type NodeConfig struct {
 
 	// ChainDomain specifies the domain name associated with the blockchain network.
 	ChainDomain string
+
+	// ValidatorKey is the key the node signs blocks with, registered as the sole
+	// genesis validator. If nil, a random key is generated on every node (re)build.
+	ValidatorKey crypto.PrivKey
 }
 
 func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
@@ -246,16 +250,7 @@ func (n *Node) HasPackageLoaded(path string) bool {
 	return false
 }
 
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any.
-func (n *Node) GetBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	return n.getBlockTransactions(ctx, blockNum)
-}
-
-// GetBlockTransactions returns the transactions contained
+// getBlockTransactions returns the transactions contained
 // within the specified block, if any.
 func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	int64BlockNum := int64(blockNum)
@@ -308,16 +303,6 @@ func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gno
 	}
 
 	return slices.Clip(metaTxs), nil
-}
-
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any.
-// GetLatestBlockNumber returns the latest block height from the chain.
-func (n *Node) GetLatestBlockNumber() (uint64, error) {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	return n.getLatestBlockNumber(), nil
 }
 
 func (n *Node) getLatestBlockNumber() uint64 {
@@ -385,36 +370,6 @@ func (n *Node) Reload(ctx context.Context) error {
 	defer n.muNode.Unlock()
 
 	return n.rebuildNodeFromState(ctx)
-}
-
-// SendTransaction executes a broadcast commit send
-// of the specified transaction to the chain
-func (n *Node) SendTransaction(tx *std.Tx) error {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	aminoTx, err := amino.Marshal(tx)
-	if err != nil {
-		return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
-	}
-
-	// we use BroadcastTxCommit to ensure to have one block with the given tx
-	res, err := n.client.BroadcastTxCommit(context.Background(), aminoTx)
-	if err != nil {
-		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
-	}
-
-	if res.CheckTx.Error != nil {
-		n.logger.Error("check tx error trace", "log", res.CheckTx.Log)
-		return fmt.Errorf("check transaction error: %w", res.CheckTx.Error)
-	}
-
-	if res.DeliverTx.Error != nil {
-		n.logger.Error("deliver tx error trace", "log", res.CheckTx.Log)
-		return fmt.Errorf("deliver transaction error: %w", res.DeliverTx.Error)
-	}
-
-	return nil
 }
 
 func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
@@ -629,7 +584,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
+	nodeConfig := newNodeConfig(n.config, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -719,10 +674,13 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
-	// Create Mocked Identity
+func newNodeConfig(cfg *NodeConfig, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+	// Create Mocked Identity, from the provided key if any
 	pv := bft.NewMockPV()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
+	if cfg.ValidatorKey != nil {
+		pv = bft.NewMockPVWithPrivKey(cfg.ValidatorKey)
+	}
+	genesis := gnoland.NewDefaultGenesisConfig(cfg.ChainID, cfg.ChainDomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
@@ -736,11 +694,10 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 		},
 	}
 
-	cfg := &gnoland.InMemoryNodeConfig{
+	return &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
-		TMConfig:      tmc,
+		TMConfig:      cfg.TMConfig,
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
 	}
-	return cfg
 }

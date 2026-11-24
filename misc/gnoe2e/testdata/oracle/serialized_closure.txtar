@@ -23,9 +23,15 @@
 #
 # -gas-wanted is 500000000 rather than the 20000000 the smaller scenarios use.
 # These are real packages, and boards2 alone is 113KB.
+#
+# -gas-fee is 200000ugnot rather than the 100000ugnot default for the same
+# reason. The approval fee is flat and must cover the gas the approval asks for
+# at 1ugnot per 1000 gas, so the default stops at 100000000. boards2's enable
+# measures about 91000000 and is sent with 20% headroom, which the node would
+# refuse at CheckTx.
 
 # ---- The closure, submitted in dependency order
-gpao start -start-height 1
+gpao start -start-height 1 -gas-fee 200000ugnot
 
 gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/bptree/v0 -pkgpath gno.land/p/nt/bptree/v0 $USER_NAME
 gnokey maketx addpkg -broadcast=true -gas-wanted 500000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $GNOROOT/examples/gno.land/p/nt/cford32/v0 -pkgpath gno.land/p/nt/cford32/v0 $USER_NAME
