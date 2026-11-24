@@ -1,6 +1,8 @@
 package versionset
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -114,4 +116,24 @@ func TestVersionSetEmptyOnBothSidesNegotiatesNothing(t *testing.T) {
 	res, err := ours.CompatibleWith(them)
 	require.NoError(t, err)
 	assert.Equal(t, VersionSet{{Name: "bft", Version: ""}}, res)
+}
+
+// A peer's set is bounded before CompatibleWith quotes it, so Validate refuses
+// one past the bounds without quoting it in turn.
+func TestVersionSetValidate(t *testing.T) {
+	t.Parallel()
+
+	long := strings.Repeat("x", maxVersionInfoLen+1)
+	full := make(VersionSet, maxVersionSetLen)
+	for i := range full {
+		full[i] = VersionInfo{Name: fmt.Sprint(i), Version: "v1.0.0"}
+	}
+
+	require.NoError(t, VersionSet{}.Validate())
+	require.NoError(t, full.Validate())
+	require.NoError(t, VersionSet{{Name: long[1:], Version: long[1:]}}.Validate())
+
+	require.EqualError(t, append(full, VersionInfo{Name: "x"}).Validate(), "version set has 17 entries, more than 16")
+	require.EqualError(t, VersionSet{{Name: "bft"}, {Name: long}}.Validate(), "version set entry 1 is longer than 256 bytes")
+	require.EqualError(t, VersionSet{{Name: "bft", Version: long}}.Validate(), "version set entry 0 is longer than 256 bytes")
 }
