@@ -696,8 +696,49 @@ func TestSessionWrongSignature(t *testing.T) {
 	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
 	fee := tu.NewTestFee()
 	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, attackerPriv, sessionAddr, sa.GetAccountNumber(), 0, fee)
+	// Send the stored key, so the signature itself is what gets refused and
+	// not the key mismatch, which TestSessionRewrittenPubKey covers.
+	tx.Signatures[0].PubKey = sessionPub
 
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+}
+
+// A relayer can put any key in a signature's PubKey without breaking the
+// signature, since the sign payload does not include the key and the stored one
+// verifies it. Only the key-mismatch check refuses that copy.
+func TestSessionRewrittenPubKey(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createSessionDirect(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600)
+	_, otherPub, _ := tu.KeyTestPubAddr()
+	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
+	signed := func() std.Tx {
+		return tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sa.GetAccountNumber(), sa.GetSequence(), tu.NewTestFee())
+	}
+
+	tx := signed()
+	tx.Signatures[0].PubKey = otherPub
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+	checkValidTx(t, anteHandler, ctx, signed(), false)
+}
+
+// A session signature must send its key too, although the session account
+// stored it at creation.
+func TestSessionRequiresSignaturePubKey(t *testing.T) {
+	t.Parallel()
+
+	env, anteHandler, _, masterAddr := setupSessionEnv(t)
+	ctx := env.ctx
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createSessionDirect(t, env, masterAddr, sessionPub, ctx.BlockTime().Unix()+3600)
+	msgs := []std.Msg{tu.NewTestMsg(masterAddr)}
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sa.GetAccountNumber(), sa.GetSequence(), tu.NewTestFee())
+	tx.Signatures[0].PubKey = nil
+
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.InvalidPubKeyError{})
 }
 
 func TestSessionFutureSequence(t *testing.T) {
@@ -828,8 +869,8 @@ func TestSessionMultipleMsgsSameSession(t *testing.T) {
 }
 
 func TestSessionPubKeyMismatchAttack(t *testing.T) {
-	// Attack: provide a sig.PubKey that differs from the stored session pubkey.
-	// This tests the pubkey mismatch check.
+	// Attack: sign with another key and send it as sig.PubKey, instead of the
+	// stored session pubkey. TestSessionRewrittenPubKey pins the mismatch check.
 	t.Parallel()
 
 	env, anteHandler, _, masterAddr := setupSessionEnv(t)
@@ -998,8 +1039,8 @@ func TestSessionMultiSignerMixed(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := std.NewTx(msgs, fee, []std.Signature{
-		{SessionAddr: sessionAddr, Signature: sigA}, // masterA via session
-		{PubKey: masterPubB, Signature: sigB},       // masterB direct
+		{PubKey: sessionPub, SessionAddr: sessionAddr, Signature: sigA}, // masterA via session
+		{PubKey: masterPubB, Signature: sigB},                           // masterB direct
 	}, "")
 
 	// Should pass.
