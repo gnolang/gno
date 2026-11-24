@@ -16,6 +16,7 @@ awk -F, -v max_time="$max_time" -v max_alloc="$max_alloc" '
 	}
 	$1 == "" || $1 == "geomean" || unit == "" || limit < 0 { next }
 	{
+		if ($2 == "" && $4 == "") next
 		if ($2 == "") {
 			printf "UNCOMPARED %s %s: no base result\n", $1, unit
 			next

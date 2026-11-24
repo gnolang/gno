@@ -8,6 +8,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 
 cat > "$tmp/clean.csv" <<'CSV'
 ,sec/op,CI,sec/op,CI,vs base,P
+pkg: github.com/gnolang/gno/pkg/example,,,,,,
 Stable-4,2e-08,0%,2e-08,0%,~,p=1.000 n=10
 Added-4,,,2e-08,0%
 geomean,2e-08,,2e-08,,+0.00%,
@@ -16,6 +17,7 @@ Stable-4,0,0%,0,0%,~,p=1.000 n=10
 CSV
 "$check" "$tmp/clean.csv" > "$tmp/out"
 grep -F 'UNCOMPARED Added-4 sec/op' "$tmp/out"
+! grep -F "pkg:" "$tmp/out"
 
 cat > "$tmp/regression.csv" <<'CSV'
 ,sec/op,CI,sec/op,CI,vs base,P
