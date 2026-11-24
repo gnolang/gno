@@ -96,13 +96,21 @@ network. Set them with `gnoland config set <key> <value>`.
 | `p2p.persistent_peers` | Comma-separated `<node-id>@<host>:26656` list to stay connected to |
 | `p2p.pex` | Peer exchange: `true` to discover peers, `false` on a validator behind sentries |
 | `p2p.private_peer_ids` | Peer IDs never gossiped to others — a sentry's validator |
-| `p2p.max_num_outbound_peers` | Outbound peer cap, excluding persistent peers |
+| `p2p.max_num_outbound_peers` | Outbound peer cap. Persistent peers count toward it, but are dialed even when it is reached |
 | `rpc.laddr` | RPC listen address (default `tcp://127.0.0.1:26657`) — keep off the public internet |
 | `mempool.size` | Max transactions held in the mempool |
 | `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
+| `application.query_max_gas` / `application.query_max_alloc` | Gas and allocation (bytes) budget of one free VM query (`vm/qeval`, `vm/qrender`, ...). `0` (default) uses 3e9 gas / 1.5GB. Node-local, not consensus; a public RPC node can lower them |
+| `application.query_timeout` | Wall-clock limit of one free VM query, on top of its gas budget. `0` (default) derives it from `query_max_gas` at 2ns per gas, 6s for the default budget; set it on hardware slower than the gas calibration. A query past it fails with `QueryTimeoutError`. `.app/simulate` and transactions are not limited by it. Node-local, not consensus |
 | `consensus.timeout_commit` | Chain-wide; must match the network |
 | `halt_height` | Stop this node after committing that block. Normally left unset — a network-wide halt is scheduled by governance instead. See [UPGRADES.md](UPGRADES.md) |
-| `skip_upgrade_height` | Bypass the post-halt binary-version checks at that height. See [UPGRADES.md](UPGRADES.md) |
+| `skip_upgrade_height` | Bypass both `halt_min_version` startup checks, before and after the halt, while it equals the governance `halt_height`. Set it back to `0` once past the halt. See [UPGRADES.md](UPGRADES.md#restart-gates) |
+
+Every `vm/q*` answer is limited to 1 MiB, envelope included. The renderers
+whose output can outgrow their input (`qeval`, `qfuncs`, `qtype_json` and the
+JSON endpoints) stop at that bound while writing. `qpaths` and `qinertpaths`
+return the leading paths that fit, with no error, so a short listing may be
+incomplete. The others are refused once built.
 
 Networks pin several of these; always start from the `config.toml` in the
 network's deployment directory rather than from the defaults.
@@ -244,7 +252,7 @@ expected outcomes, depending on which binary you hold.
 
 [UPGRADES.md](UPGRADES.md) covers what you need as an operator: how the halt
 height is set, what the halt looks like in your logs, why the process stays
-alive after halting, which binary version the node reports and where that value
+alive after halting at the tip, which binary version the node reports and where that value
 comes from, and what to do when the state format changes and the chain is
 rebuilt from a replayed genesis.
 

@@ -1,0 +1,9 @@
+-- input.md --
+Raw HTML block, not markdown:
+
+<div>
+<gno-button href="/r/test" label="Inside div" />
+</div>
+-- output.html --
+<p>Raw HTML block, not markdown:</p>
+<!-- raw HTML omitted -->

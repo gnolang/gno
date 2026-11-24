@@ -8,6 +8,8 @@ import (
 
 func (m *Machine) doOpPrecall() {
 	cx := m.PopExpr().(*CallExpr)
+	// Convert now, while m.Realm is still the caller's: the call may change it.
+	m.convertResultsPassedAsArgs(cx)
 	v := m.PeekValue(1 + cx.NumArgs).V
 	if v == nil {
 		m.Panic(typedRuntimeError("runtime error: call of nil function"))
@@ -35,6 +37,13 @@ func (m *Machine) doOpPrecall() {
 		if fv.IsLazy() {
 			fn, recv = resolveLazyBound(m, fv)
 		}
+		// A value method runs on a copy of its receiver. A method value bound
+		// before stored children were loaded on copy shares the receiver's
+		// unread children by ref, so copy a real receiver here to keep the
+		// method from writing through them into the stored original. A receiver
+		// bound after that change is already an unloaded-free private copy
+		// (unreal), so this is a no-op for it.
+		recv = m.copyBoundReceiver(fv, recv)
 		m.PushFrameCall(cx, fn, recv, false)
 		m.PushOp(OpCall)
 		isCrossing := fn.IsCrossing()
@@ -104,18 +113,23 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 		prev = *argtv
 	}
 	crlm := NewConcreteRealm(m.Alloc, pkgPath, prev)
-	argtv.Assign(m.Alloc, crlm, false)
+	argtv.Assign(m.Alloc, m.Store, crlm, false)
 	m.LastFrame().Cur = crlm
 }
 
 // curUsesPreprocessOrigin reports whether tv is a captured realm whose
-// prev field is the preprocess-time placeholder origin (addr=""). The
-// placeholder is baked into the `.cur` ConstExpr by preprocess.go for
-// main(cur realm) / init(cur realm); at runtime we detect it so the
-// doOpCall fix can swap in the per-tx origin carrying the real
-// OriginCaller addr. Fully structural — survives AST persistence,
-// because the already-swapped per-tx origin always has a non-empty
-// addr and is naturally suppressed.
+// prev field is the preprocess-time placeholder origin. The placeholder
+// is baked into the `.cur` ConstExpr by preprocess.go for main(cur realm)
+// / init(cur realm); at runtime we detect it so the doOpCall fix can swap
+// in the per-tx origin carrying the real OriginCaller addr.
+//
+// The detection is BY IDENTITY against the one package-level placeholder
+// (gOriginRealmTV), not by shape: `.cur` is only ever baked by an
+// in-process preprocess of a synthesized call statement (runFunc,
+// MaybeInjectCurForEval), so the value carries the global's own pointer,
+// while a materialized per-tx origin — including one whose OriginCaller
+// is empty, as in every query and the test harness — is a fresh
+// allocation that never matches.
 func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
 	sv := derefRealmStruct(tv)
 	if sv == nil || len(sv.Fields) < 3 {
@@ -304,6 +318,22 @@ func (m *Machine) doOpEnterCrossing() {
 	// NOTE: this loop must never exit without setting fr1.DidCrossing or panicking.
 }
 
+// copyBoundReceiver copies the receiver of a stored bound-method value. One
+// bound before nested children were loaded on copy holds its receiver's unread
+// children as refs it shares with the original, so a value method would write
+// through them into the stored original; copying here (the receiver may still
+// be a ref, which Copy loads and duplicates) keeps the write on the copy. A
+// bound-method value bound after that change is in memory (unreal) and already
+// holds a private receiver copy, so this does not fire for it. For a pointer
+// receiver recv holds a pointer, which Copy duplicates shallowly, leaving the
+// pointed-to value shared as Go does.
+func (m *Machine) copyBoundReceiver(bmv *BoundMethodValue, recv TypedValue) TypedValue {
+	if bmv.GetIsReal() {
+		return recv.Copy(m.Alloc, m.Store)
+	}
+	return recv
+}
+
 func (m *Machine) doOpCall() {
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
@@ -311,6 +341,10 @@ func (m *Machine) doOpCall() {
 	fv := fr.Func
 	fs := fv.GetSource(m.Store)
 	ft := fr.Func.GetType(m.Store)
+	// Charge parameters and captures before acquiring the block, so an
+	// out-of-gas stops before that work. Matches doOpReturnCallDefers.
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	// Create new block scope.
 	pb := fr.Func.GetParent(m.Store)
 	b := m.acquireBlock(fs, pb)
@@ -322,20 +356,12 @@ func (m *Machine) doOpCall() {
 			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := range fv.Captures {
-			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc, m.Store)
 		}
 	}
 
 	m.PushBlock(b)
-	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
-		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
-	if fv.nativeBody == nil && fv.NativePkg != "" {
-		// native function, unmarshaled so doesn't have nativeBody yet
-		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
-		if fv.nativeBody == nil {
-			panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
-		}
-	}
+	m.resolveNativeBody(fv)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
@@ -377,7 +403,14 @@ func (m *Machine) doOpCall() {
 	if !fr.Receiver.IsUndefined() {
 		bft = ft.BoundType()
 	}
-	args := m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	var args []TypedValue
+	if fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+		// len and cap read the length alone, and a copy of a stored array
+		// would load every element for nothing.
+		args = []TypedValue{*m.PopValue()}
+	} else {
+		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
 		b.Values[i].AssignToBlock(argtv)
@@ -397,6 +430,16 @@ func (m *Machine) doOpCall() {
 	// the caller-supplied rlm with a fresh uverse-pkgPath realm and
 	// trip cross's IsCurrent-strict check.
 	m.installInheritedCur(fr, fv, b)
+}
+
+func (m *Machine) resolveNativeBody(fv *FuncValue) {
+	if fv.nativeBody != nil || fv.NativePkg == "" {
+		return
+	}
+	fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
+	if fv.nativeBody == nil {
+		panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
+	}
 }
 
 // installInheritedCur gives a crossing function entered WITHOUT cross() the
@@ -477,11 +520,11 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 		// caller that argument has to be that caller's own current cur — the
 		// only realm value a crossing function can pass on by the name `cur`
 		// (preprocess rejects any other first arg to a no-cross crossing
-		// call). Threading `cur` unchanged, and delegating it to another
-		// realm's executor or callback, both preserve HIV identity; a `cur`
-		// that was rebound, or captured in a different frame, does not. A
-		// mismatch means this frame would run as a realm its caller is not
-		// in, and IsCurrent()/cross(rlm) would then agree with that.
+		// call). Passing `cur` on from the frame that owns it preserves HIV
+		// identity; a `cur` that was rebound, or captured in one crossing
+		// frame and forwarded from another, does not. A mismatch means this
+		// frame would run as a realm its caller is not in, and
+		// IsCurrent()/cross(rlm) would then agree with that.
 		//
 		// DO NOT DELETE THIS AS DEAD CODE. An earlier revision of this change
 		// called it "unreachable from source once the preprocess rejection is
@@ -496,9 +539,10 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 		//
 		// Skipped when there is no crossing caller (a bootstrap entry:
 		// main/init/origin, a top-level MsgRun/query, or a test harness
-		// seeding cur through non-crossing frames) and when the cur was
-		// rebuilt from the preprocess-origin placeholder above.
-		if hasCallerCur && !rebuilt && !realmMatchesCurHIV(&fr.Cur, realmHIV(&callerCur)) {
+		// seeding cur through non-crossing frames), when the cur was rebuilt
+		// from the preprocess-origin placeholder above, and when the caller is
+		// the testing stdlib dispatching a sub-test (see harnessSeedsCur).
+		if hasCallerCur && !rebuilt && !m.harnessSeedsCur() && !realmMatchesCurHIV(&fr.Cur, realmHIV(&callerCur)) {
 			// WORDED FOR THE PERSON MOST LIKELY TO SEE IT. The reachable
 			// source shape is a closure that captured `cur` in one crossing
 			// frame and is called from another, which is an ordinary mistake,
@@ -507,8 +551,8 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 			// says "stale capture or sibling frame" for the same underlying
 			// condition.
 			panic(fmt.Sprintf(
-				"crossing function %s.%s was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm",
-				fv.PkgPath, fv.Name))
+				"crossing function %s was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm",
+				funcDisplayName(fv)))
 		}
 	}
 }
@@ -533,6 +577,34 @@ func realmMatchesCurHIV(tv *TypedValue, target *HeapItemValue) bool {
 		}
 	}
 	return target == checkHIV
+}
+
+// harnessSeedsCur reports whether the frame that called the function being
+// installed into belongs to the testing stdlib. t.Run hands a crossing
+// sub-test closure the TOP-LEVEL test's cur on purpose
+// (gnovm/tests/stdlibs/testing/testing.gno), while the live crossing frame is
+// whichever helper the test called into before calling t.Run; that is a
+// deliberate seeding by trusted test infrastructure, not the stale capture
+// the identity check exists to catch. The testing package cannot be reached
+// from on-chain code, so this exemption is test-only.
+func (m *Machine) harnessSeedsCur() bool {
+	caller := m.PeekCallFrame(2) // 1 is the callee frame being installed
+	return caller != nil && caller.Func != nil && caller.Func.PkgPath == TestingBasePkgPath
+}
+
+// funcDisplayName renders a callee for the diagnostics users see. A function
+// literal has no Name, so fall back to its source location: that is exactly
+// the callback shape the identity panic is worded for, and an empty name
+// makes the panic unactionable.
+func funcDisplayName(fv *FuncValue) string {
+	if fv.Name != "" {
+		return fv.PkgPath + "." + string(fv.Name)
+	}
+	if fv.Source != nil {
+		loc := fv.Source.GetLocation()
+		return fmt.Sprintf("%s func literal at %s:%d", fv.PkgPath, loc.File, loc.Line)
+	}
+	return fv.PkgPath + ".<func literal>"
 }
 
 func (m *Machine) doOpCallNativeBody() {
@@ -635,7 +707,20 @@ func (m *Machine) doOpReturnAfterCopy() {
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
 	results := m.PeekValues(numResults)
 	for i := range numResults {
-		rtv := results[i].Copy(m.Alloc)
+		// The caller reads the results off the value stack, so only a named
+		// result a closure captured outlives the frame and needs writing back.
+		// Copying every result would load the unread children of a stored
+		// aggregate into a slot nobody reads.
+		hiv, ok := fblock.Values[numParams+i].V.(*HeapItemValue)
+		if !ok {
+			continue
+		}
+		// `return r` of the named result r keeps r itself, so a pointer into r
+		// still sees what runs after the return.
+		rtv := results[i]
+		if hiv.Value.V != rtv.V {
+			rtv = rtv.Copy(m.Alloc, m.Store)
+		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
 
@@ -679,11 +764,159 @@ func (m *Machine) doOpReturnToBlock() {
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
 	fblock := m.Blocks[cfr.NumBlocks] // frame +1
-	results := m.PopValues(numResults)
+	results := m.PeekValues(numResults)
 	for i := range numResults {
 		rtv := results[i]
+		dst := &fblock.Values[numParams+i]
+		if hiv, ok := dst.V.(*HeapItemValue); ok {
+			dst = &hiv.Value
+		}
+		// `return r` of the named result r keeps r itself, so pointers
+		// into r still see what the deferred calls write.
+		if dst.V != rtv.V {
+			rtv = rtv.Copy(m.Alloc, m.Store)
+		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
 	}
+	m.PopValues(numResults)
+}
+
+// doOpReturnConvert converts the results of `return f()` to the types the
+// function declares, so convertValue's realm checks run on them, as on T(x).
+func (m *Machine) doOpReturnConvert() {
+	s := m.PopStmt().(*ReturnStmt)
+	m.convertTopValues(s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type))
+}
+
+// convertResultsPassedAsArgs converts f's results in `g(f())` to g's parameter
+// types, so convertValue's realm checks run on them, as on T(x).
+func (m *Machine) convertResultsPassedAsArgs(cx *CallExpr) {
+	// One argument expression for several arguments is g(f()), the only call
+	// that carries ATTR_ASSIGN_CONVERT, so other calls skip the lookup.
+	if len(cx.Args) == 1 && cx.NumArgs > 1 {
+		if convertTo, ok := cx.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+			m.convertTopValues(convertTo)
+		}
+	}
+}
+
+// convertTopValues converts each of the last values on the stack to its entry
+// in convertTo, skipping nil entries, in place so the GC still sees them.
+func (m *Machine) convertTopValues(convertTo []Type) {
+	values := m.PeekValues(len(convertTo))
+	for i, targetType := range convertTo {
+		if targetType != nil {
+			m.copyAndConvert(&values[i], targetType)
+		}
+	}
+}
+
+// copyAndConvert replaces *tv with a converted copy, as T(x) does, so a later
+// write to the original does not show through.
+func (m *Machine) copyAndConvert(tv *TypedValue, targetType Type) {
+	*tv = tv.Copy(m.Alloc, m.Store)
+	m.convertValue(tv, targetType)
+}
+
+// rangeSource says what a range loop goes over.
+type rangeSource int
+
+const (
+	listElement rangeSource = iota // a slice or an array
+	mapEntry                       // a map
+)
+
+// assignRangeIteration writes one loop turn's key and value into the loop
+// variables. It converts both before writing either, so a refused conversion
+// writes neither. converts is false when preprocess recorded no conversion on
+// the loop's key or value, which spares the lookups.
+func (m *Machine) assignRangeIteration(bs *bodyStmt, hasKey, hasValue, converts bool, key, value TypedValue, source rangeSource) {
+	// Only `=` can need a conversion: `:=` makes variables of the right type.
+	var convertKeyTo, convertValueTo Type
+	keyCanOverwriteValue := false
+	if bs.Op == ASSIGN {
+		if hasKey && converts {
+			convertKeyTo = conversionRecordedOn(bs.Key)
+		}
+		if hasValue && converts {
+			convertValueTo = conversionRecordedOn(bs.Value)
+		}
+		// Writing the key can change what v came from: the element in `for
+		// s[1].N, v = range s`, the map entry in `for m[k], v = range m`. Not
+		// when the key is a plain variable, or v a number, a bool or a nil.
+		_, keyIsName := bs.Key.(*NameExpr)
+		keyCanOverwriteValue = hasValue && bs.Key != nil && !keyIsName && value.V != nil
+	}
+	// A copy or a converted value is new and held only in a Go variable the GC
+	// can't see, and so is a map value whose entry the key write replaces:
+	// anchor them until the loop variables hold them.
+	var anchored []TypedValue
+	if convertKeyTo != nil || convertValueTo != nil || keyCanOverwriteValue {
+		switch source {
+		case listElement: // the key is an int, which never converts
+			anchored = make([]TypedValue, 1)
+			m.Alloc.PushAnchor(anchored)
+			// copyAndConvert copies too, so copy here only when nothing converts.
+			if convertValueTo == nil && keyCanOverwriteValue {
+				value = value.Copy(m.Alloc, m.Store)
+			}
+			anchored[0] = value
+			if convertValueTo != nil {
+				m.copyAndConvert(&anchored[0], convertValueTo)
+			}
+			value = anchored[0]
+		case mapEntry:
+			anchored = make([]TypedValue, 2)
+			m.Alloc.PushAnchor(anchored)
+			anchored[0] = key
+			if convertKeyTo != nil {
+				m.copyAndConvert(&anchored[0], convertKeyTo)
+			}
+			anchored[1] = value
+			if convertValueTo != nil {
+				m.copyAndConvert(&anchored[1], convertValueTo)
+			}
+			key, value = anchored[0], anchored[1]
+		}
+	}
+	if hasKey {
+		m.assignRangeTarget(bs.Op, bs.Key, key)
+	}
+	if source == mapEntry && anchored != nil {
+		// The key target holds the key now: clear its slot, or a GC during
+		// the value write counts the key twice.
+		anchored[0] = TypedValue{}
+	}
+	if hasValue {
+		m.assignRangeTarget(bs.Op, bs.Value, value)
+	}
+	if anchored != nil {
+		m.Alloc.PopAnchor()
+	}
+}
+
+// assignRangeTarget writes tv into a loop's key or value target, such as v or
+// s[i].
+func (m *Machine) assignRangeTarget(op Word, target Expr, tv TypedValue) {
+	switch op {
+	case ASSIGN:
+		m.PopAsPointer(target).Assign2(m, m.Alloc, m.Store, m.Realm, tv, false)
+	case DEFINE:
+		ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, target.(*NameExpr))
+		ptr.TV.Assign(m.Alloc, m.Store, tv, false)
+	default:
+		panic("should not happen")
+	}
+}
+
+// conversionRecordedOn returns the type a value written to this range key or
+// value converts to, as the preprocessor recorded it, or nil.
+func conversionRecordedOn(target Expr) Type {
+	// recordRangeConversions stores one type here, as a one-element list.
+	if convertTo, ok := target.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		return convertTo[0]
+	}
+	return nil
 }
 
 func (m *Machine) doOpReturnCallDefers() {
@@ -706,7 +939,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				m.PopFrameAndReturn()
 				// assign exception as return of revive().
 				resx := m.PeekValue(1)
-				resx.Assign(m.Alloc, m.Exception.Value, false)
+				resx.Assign(m.Alloc, m.Store, m.Exception.Value, false)
 				m.Exception = nil // reset
 				return
 			}
@@ -738,6 +971,9 @@ func (m *Machine) doOpReturnCallDefers() {
 		} else {
 			fv, recv = cv.Func, dfr.Args[0]
 		}
+		// Copy a stored receiver so a deferred value method cannot write
+		// through its unread children into the stored original (see doOpPrecall).
+		recv = m.copyBoundReceiver(cv, recv)
 		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
 	default: // nil (deferred a nil func value)
 		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
@@ -746,6 +982,8 @@ func (m *Machine) doOpReturnCallDefers() {
 
 	// Call last deferred call.
 	ft := fv.GetType(m.Store)
+	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
+		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
@@ -763,10 +1001,11 @@ func (m *Machine) doOpReturnCallDefers() {
 			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := range fv.Captures {
-			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc, m.Store)
 		}
 	}
 	m.PushBlock(b)
+	m.resolveNativeBody(fv)
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		// Exec body.
@@ -872,37 +1111,46 @@ func (m *Machine) doOpDefer() {
 	// peeked the wrong slot, so `defer f(g())` with a multi-result g bound
 	// the deferred call to one of g's results instead of to f.
 	numArgs := ds.Call.NumArgs
+	// A deferred call skips doOpPrecall, so convert here, while m.Realm is
+	// still the deferring realm.
+	m.convertResultsPassedAsArgs(&ds.Call)
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
 	// Push defer.
+	dfr := Defer{Source: ds}
 	switch cv := ftv.V.(type) {
 	case *FuncValue:
-		args := m.popCopyArgs(
+		dfr.Callable = cv
+		dfr.Args = m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{},
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
 		// statement. For a lazy interface bind, dispatch is resolved at the
 		// deferred call (Go's call-time dispatch — see doOpReturnCallDefers);
 		// for a resolved bind, args[0] holds the copied receiver.
-		args := m.popCopyArgs(
+		dfr.Callable = cv
+		dfr.Args = m.popCopyArgs(
 			baseOf(ftv.T).(*FuncType),
 			numArgs,
 			ds.Call.Varg,
 			cv.Receiver,
 		)
-		cfr.PushDefer(Defer{Callable: cv, Args: args, Source: ds})
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.
-		cfr.PushDefer(Defer{Source: ds})
+		m.PopValues(numArgs)
 	default:
 		m.pushPanic(typedString(fmt.Sprintf("invalid defer function call: %v", cv)))
 		return
 	}
+	cfr.PushDefer(dfr)
+	// The record and its Args live until the frame returns, but popCopyArgs
+	// and PushDefer allocate them as plain Go memory. Count them after
+	// PushDefer, so a GC triggered by this call already sees them in the frame.
+	m.Alloc.AllocateDefer(int64(len(dfr.Args)))
 	m.PopValue() // pop func
 }
 

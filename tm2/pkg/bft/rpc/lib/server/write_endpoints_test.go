@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 func TestWriteListOfEndpoints(t *testing.T) {
@@ -17,14 +18,16 @@ func TestWriteListOfEndpoints(t *testing.T) {
 		"d": {},
 	}
 
-	req, _ := http.NewRequest("GET", "http://localhost/", nil)
+	// The client picks the Host header, up to the server's MaxHeaderBytes,
+	// so the page must not echo it.
+	req := httptest.NewRequest(http.MethodGet, "http://other.example/", nil)
 	rec := httptest.NewRecorder()
-	writeListOfEndpoints(rec, req, funcMap)
+	makeJSONRPCHandler(funcMap, log.NewNoopLogger(), 0)(rec, req)
 	res := rec.Result()
 	assert.Equal(t, res.StatusCode, 200, "Should always return 200")
 	blob, err := io.ReadAll(res.Body)
 	assert.NoError(t, err)
 	gotResp := string(blob)
-	wantResp := `<html><body><br>Available endpoints:<br><a href="//localhost/d">//localhost/d</a></br><br>Endpoints that require arguments:<br><a href="//localhost/c?s=_&i=_">//localhost/c?s=_&i=_</a></br></body></html>`
+	wantResp := `<html><body><br>Available endpoints:<br><a href="/d">/d</a></br><br>Endpoints that require arguments:<br><a href="/c?s=_&i=_">/c?s=_&i=_</a></br></body></html>`
 	assert.Equal(t, wantResp, gotResp)
 }

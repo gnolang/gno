@@ -39,6 +39,7 @@
           "resources/community-packages",
           "resources/gno-data-structures",
           "resources/gnoland-networks",
+          "resources/rpc-endpoints",
           "resources/users-and-teams",
           "resources/gas-fees",
           "resources/storage-deposit",

@@ -1,0 +1,13 @@
+-- input.md --
+<gno-button href="data:text/html,<script>alert(1)</script>" label="data html" />
+
+Inline <gno-button href="data:image/svg+xml;base64,PHN2Zz4=" label="data svg" />
+
+Inline <gno-button href="DATA:image/png;base64,AAAA" label="data png upper" />
+
+Inline <gno-button href="&#x64;ata:image/png;base64,AAAA" label="data entity" />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>

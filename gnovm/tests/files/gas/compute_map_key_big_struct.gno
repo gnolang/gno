@@ -1,4 +1,4 @@
-// MAXALLOC: 50000000
+// MAXALLOC: 100000000
 package main
 
 type Boom struct {
@@ -20,4 +20,4 @@ func main() {
 }
 
 // Gas:
-// 120708846
+// 421375315
