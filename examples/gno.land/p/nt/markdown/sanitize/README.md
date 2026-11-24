@@ -49,7 +49,7 @@ out += sanitize.LanguageCodeBlock(realmLang, userCode)
 Both run identical realm-binding defenses; they differ in what user structure survives.
 
 - **`Block`** — paragraph-shaped only. Escapes `#`, `>`, list markers, thematic breaks, and setext underlines. Use for leaf slots and any content that must not visually impersonate realm chrome.
-- **`BlockRich`** — preserves user headings, lists, quotes, and tables. Use for content the realm intends to render with full block structure, typically inside a sandbox container (`<gno-card>`, [`<gno-foreign>`](../../foreign/v0)). Inner-heading visual containment is the realm's CSS responsibility.
+- **`BlockRich`** — preserves user headings, lists, quotes, and tables. Use for content the realm intends to render with full block structure, typically inside a sandbox container (`<gno-card>`, [`<gno-foreign>`](../foreign)). Inner-heading visual containment is the realm's CSS responsibility.
 
 Do not compose the two in either direction; pick one at the right level.
 
@@ -97,7 +97,7 @@ func NormalizeBreaks(s string) string
 
 Helpers defend against bidi/zero-width injection, line-ending homoglyphs, markdown-structure injection, CommonMark HTML-block absorption (types 1-5 that do not close on a blank line), footnote / link-reference namespace pollution, URL scheme abuse (`javascript:`, `data:text/html`, protocol-relative), unclosed code-fence leakage, and table-alignment drift.
 
-Out of scope: no state, no URL reputation, no CSS containment, and no structural sandboxing of opaque foreign blobs (use [`foreign`](../../foreign/v0) for that).
+Out of scope: no state, no URL reputation, no CSS containment, and no structural sandboxing of opaque foreign blobs (use [`foreign`](../foreign) for that).
 
 ## Notes
 

@@ -50,21 +50,23 @@ func PackageDirLocation(s string) string {
 type ImportResolver func(importPath string) (relPath string, ok bool)
 
 // DefaultResolver returns "examples/<path>" for non-stdlibs and
-// "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it also
-// checks the resolved path exists on disk, and falls back to the directory
-// that declares importPath in examples/, which does not have to repeat the
-// version the module path carries.
+// "gnovm/stdlibs/<path>" for stdlibs. When rootDir is non-empty it checks a
+// stdlib exists on disk, and resolves anything else to the directory under
+// examples/ that declares importPath, which does not have to repeat the version
+// the module path carries. A directory declaring another module does not
+// answer, so gno.land/p/nt/avl does not resolve to the directory declaring
+// gno.land/p/nt/avl/v0.
 func DefaultResolver(rootDir string) ImportResolver {
 	return func(importPath string) (string, bool) {
 		rel := PackageDirLocation(importPath)
 		if rootDir == "" {
 			return rel, true
 		}
-		if _, err := os.Stat(filepath.Join(rootDir, rel)); err == nil {
-			return rel, true
-		}
 		if gno.IsStdlib(importPath) {
-			return "", false
+			if _, err := os.Stat(filepath.Join(rootDir, rel)); err != nil {
+				return "", false
+			}
+			return rel, true
 		}
 		dir := gnomod.FindModuleDir(filepath.Join(rootDir, "examples"), importPath)
 		if dir == "" {
@@ -264,7 +266,7 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 			case *ast.CallExpr:
 				// is function call to a native function?
 				// -> rename if unexported, apply `nil,` for the first arg if necessary
-				return ctx.transformCallExpr(c, node)
+				return ctx.transformCallExpr(c, node, fset, f)
 			}
 
 			return true
@@ -384,20 +386,19 @@ func convertBuiltinType(ide ast.Expr, fset *token.FileSet, f *ast.File) ast.Expr
 		"address",
 		"gnocoin",
 		"gnocoins":
-		astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
-		return &ast.SelectorExpr{
-			X: &ast.Ident{
-				Name: "__transpile_builtin",
-			},
-			Sel: &ast.Ident{
-				Name: string(id.Name[0]-('a'-'A')) + id.Name[1:],
-			},
-		}
+		return builtinRef(fset, f, string(id.Name[0]-('a'-'A'))+id.Name[1:])
 	}
 	return nil
 }
 
-func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) bool {
+// builtinRef returns a reference to name in the builtin shims package,
+// importing the package into f.
+func builtinRef(fset *token.FileSet, f *ast.File, name string) *ast.SelectorExpr {
+	astutil.AddNamedImport(fset, f, "__transpile_builtin", TranspileImportPath("builtin"))
+	return &ast.SelectorExpr{X: ast.NewIdent("__transpile_builtin"), Sel: ast.NewIdent(name)}
+}
+
+func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr, fset *token.FileSet, f *ast.File) bool {
 	switch fe := ce.Fun.(type) {
 	case *ast.SelectorExpr:
 		// XXX: This is not correct in 100% of cases. If I shadow the `std` symbol, and
@@ -414,11 +415,10 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		if !ok {
 			break
 		}
-		nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name))
-		if nat != nil && nat.HasMachineParam() {
-			// Because it's an import, the symbol is always exported, so no need for the
-			// X_ prefix we add below.
-			ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+		// Because it's an import, the symbol is always exported, so no need for the
+		// X_ prefix we add below.
+		if nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name)); nat != nil {
+			nativeArgs(nat, ce, fset, f)
 		}
 
 	case *ast.Ident:
@@ -437,9 +437,7 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		// controlled scope (standard libraries) this will work for our usecase.
 		nat := stdlibs.FindNative(ctx.stdlibPath, gno.Name(fe.Name))
 		if ctx.stdlibPath != "" && nat != nil {
-			if nat.HasMachineParam() {
-				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
-			}
+			nativeArgs(nat, ce, fset, f)
 			if !fe.IsExported() {
 				// Prefix unexported names with X_, per native binding convention
 				// (to export the symbol within Go).
@@ -448,4 +446,18 @@ func (ctx *transpileCtx) transformCallExpr(c *astutil.Cursor, ce *ast.CallExpr) 
 		}
 	}
 	return true
+}
+
+// nativeArgs fits the arguments of a call to nat to its Go signature: an
+// argument the Go function takes as a gno.TypedValue is converted to one, and
+// a nil machine goes first if it takes a machine.
+func nativeArgs(nat *stdlibs.NativeFunc, ce *ast.CallExpr, fset *token.FileSet, f *ast.File) {
+	for i, arg := range ce.Args {
+		if nat.IsTypedValueParam(i) {
+			ce.Args[i] = &ast.CallExpr{Fun: builtinRef(fset, f, "TypedValue"), Args: []ast.Expr{arg}}
+		}
+	}
+	if nat.HasMachineParam() {
+		ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+	}
 }

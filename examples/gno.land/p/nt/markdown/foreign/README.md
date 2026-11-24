@@ -40,4 +40,4 @@ func MaxBlocksPerRender() int
 - `ForeignWithLabel` sanitizes the label: bidi/zero-width characters are stripped, NUL is dropped, other control characters and the Unicode line separators (U+2028/U+2029/U+0085) become spaces, `&` `<` `>` `"` become HTML entities, and surrounding whitespace is trimmed. A label that is empty after sanitization behaves exactly like `Foreign` (no label strip, no default text).
 - `MaxBlocksPerRender()` re-exports gnoweb's per-render cap on `<gno-foreign>` blocks (the same value the renderer reads). Past the cap, later blocks fall through to raw HTML and are dropped, so keep a page's foreign total under it.
 - The renderer-side contract lives in `gno.land/pkg/gnoweb/markdown/ext_foreign.go`.
-- To clean user-supplied (rather than realm-supplied) markdown at the leaf level, see [`sanitize`](../../sanitize/v0).
+- To clean user-supplied (rather than realm-supplied) markdown at the leaf level, see [`sanitize`](../sanitize).

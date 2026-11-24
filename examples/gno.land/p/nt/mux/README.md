@@ -104,5 +104,5 @@ Routes are matched in registration order; the first match wins. If no route matc
 - `HandleErrFunc` wraps an error-returning handler: a non-nil error is written as `"Error: " + err.Error()` to the response.
 - Query strings are parsed off `reqPath` (`?foo=bar`); access via `req.Query` (a `net/url.Values`).
 - `req.RawPath` keeps the original path including the query string; `req.Path` strips it.
-- `req.GetVar(...)` and `req.Query.Get(...)` return attacker-controlled path/query input. Wrap it with `sanitize.InlineText` from [`gno.land/p/nt/markdown/sanitize/v0`](../../markdown/sanitize/v0) before writing it into the response, or user input can inject Markdown structure.
+- `req.GetVar(...)` and `req.Query.Get(...)` return attacker-controlled path/query input. Wrap it with `sanitize.InlineText` from [`gno.land/p/nt/markdown/sanitize/v0`](../markdown/sanitize) before writing it into the response, or user input can inject Markdown structure.
 - Register realm-aware handlers with `HandleFuncRlm` and dispatch them with `RenderRlm(0, cur, path)`. The plain `Render` path only invokes non-rlm `Fn` handlers.

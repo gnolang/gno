@@ -130,6 +130,9 @@ message GasOverflowError {
 message RestrictedTransferError {
 }
 
+message QueryTimeoutError {
+}
+
 message SessionExpiredError {
 }
 

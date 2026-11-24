@@ -21,6 +21,14 @@ GOFMT_FLAGS ?= -w
 GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
 GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+# `gno test` worker count. Each worker holds a full GnoVM store, so leaving this
+# at the default (GOMAXPROCS) makes peak memory track the host's core count:
+# ~8 GiB over sixteen workers against ~4 GiB over four, for the same wall time —
+# this suite is bound by memory, not CPU. 4 as in testutils.MaxParallel, and
+# overridable by GNO_TEST_MAX_PARALLEL as there, which likewise ignores anything
+# but a positive integer; `gno test` itself lowers -p to GOMAXPROCS on smaller
+# machines.
+GNOTEST_JOBS ?= $(or $(shell echo '$(GNO_TEST_MAX_PARALLEL)' | grep -xE '\+?0*[1-9][0-9]{0,17}' | sed 's/^+//; s/^0*//'),4)
 
 ########################################
 # Dev tools
@@ -34,7 +42,7 @@ build:
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./... 2>&1 | tee /dev/stderr | grep -E '^(FAIL|--- FAIL)|\(type: \*[a-zA-Z._]*[Ee]rror' > /tmp/gno-test-failures; \
+	go run ../gnovm/cmd/gno test -v -p $(GNOTEST_JOBS) ./... 2>&1 | tee /dev/stderr | grep -E '^(FAIL|--- FAIL)|\(type: \*[a-zA-Z._]*[Ee]rror' > /tmp/gno-test-failures; \
 	if [ -s /tmp/gno-test-failures ]; then \
 		echo ""; \
 		echo "========================================"; \
@@ -46,7 +54,7 @@ test:
 
 .PHONY: test.fast
 test.fast:
-	go run ../gnovm/cmd/gno test -failfast -v  ./... 
+	go run ../gnovm/cmd/gno test -failfast -v -p $(GNOTEST_JOBS) ./...
 
 .PHONY: lint
 lint:
@@ -58,7 +66,7 @@ fix:
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...
+	go run ../gnovm/cmd/gno test -v -p $(GNOTEST_JOBS) --update-golden-tests ./...
 
 .PHONY: clean
 clean:
@@ -76,8 +84,7 @@ tidy:
 # gnopm keeps a package's version in its gnomod.toml module line rather than in
 # its directory name, and gnomod.lock keeps superseded versions resolvable from
 # git history. `tool ci` is the guard: the lock describes the tree, every pin
-# reproduces, no pin is lost to a squash merge, and nothing edited a version the
-# chain already published.
+# reproduces, and no pin is lost to a squash merge.
 .PHONY: gnopm
 gnopm:
 	$(rundep) moul.io/gnopm tool ci

@@ -5,7 +5,7 @@
 
 # `seqid` - Sequential IDs
 
-Sequential ID generator producing ordered binary and string representations suitable for use as AVL tree keys. String IDs use [cford32](../../cford32/v0)'s compact encoding and preserve lexicographic ordering.
+Sequential ID generator producing ordered binary and string representations suitable for use as AVL tree keys. String IDs use [cford32](../cford32)'s compact encoding and preserve lexicographic ordering.
 
 ## Usage
 

@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -13,8 +14,10 @@ type ModuleIndex map[string]string
 // IndexDir walks root and indexes every module under it by the module path its
 // gnomod.toml declares, not by its directory name. A package whose directory
 // does not repeat the version its module path carries is therefore still found
-// at its module path. On a duplicate module path the first directory in lexical
-// order wins, so a module in the tree shadows a copy of it placed deeper.
+// at its module path. On a duplicate module path a directory outside .gnopm/
+// wins over one inside it, so a version gnopm restored from history never
+// shadows the same version checked into the tree; otherwise the first directory
+// in lexical walk order wins.
 func IndexDir(root string) (ModuleIndex, error) {
 	index := make(ModuleIndex, 512)
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -30,8 +33,9 @@ func IndexDir(root string) (ModuleIndex, error) {
 			// the error with the context to make sense of it.
 			return nil
 		}
-		if _, dup := index[file.Module]; !dup {
-			index[file.Module] = filepath.Dir(path)
+		dir := filepath.Dir(path)
+		if prev, dup := index[file.Module]; !dup || (inGnopm(root, prev) && !inGnopm(root, dir)) {
+			index[file.Module] = dir
 		}
 		return nil
 	})
@@ -39,6 +43,13 @@ func IndexDir(root string) (ModuleIndex, error) {
 		return nil, err
 	}
 	return index, nil
+}
+
+// inGnopm reports whether dir sits under root/.gnopm, where gnopm sync writes
+// the superseded versions it rebuilds from history.
+func inGnopm(root, dir string) bool {
+	rel, err := filepath.Rel(root, dir)
+	return err == nil && strings.SplitN(filepath.ToSlash(rel), "/", 2)[0] == ".gnopm"
 }
 
 type cachedIndex struct {

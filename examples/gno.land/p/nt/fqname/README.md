@@ -46,4 +46,4 @@ func RenderLink(pkgPath, slug string) string
 
 - `Parse` treats everything after the dot following the last slash as the name, so nested selectors like `Pkg.Type.Method` round-trip as a single name.
 - `RenderLink` only links `gno.land`-rooted paths; foreign domains (e.g. `github.com/...`) are returned unmodified except for the dot-joined slug.
-- `RenderLink` markdown-escapes the `slug`, but NOT `pkgPath`: a `]` or `)` in an untrusted `pkgPath` breaks out of the link. Pass validated package paths, or sanitize with [`gno.land/p/nt/markdown/sanitize/v0`](../../markdown/sanitize/v0) before rendering untrusted input.
+- `RenderLink` markdown-escapes the `slug`, but NOT `pkgPath`: a `]` or `)` in an untrusted `pkgPath` breaks out of the link. Pass validated package paths, or sanitize with [`gno.land/p/nt/markdown/sanitize/v0`](../markdown/sanitize) before rendering untrusted input.
