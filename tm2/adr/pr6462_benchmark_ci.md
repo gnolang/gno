@@ -25,16 +25,17 @@ not fail when they should:
 1. `benchstore`: a missing `-db` is now a `b.Fatal`, so the run is red and the
    message says which flag to pass.
 2. `wal`: the helper uses one limit for the writer and the reader, and checks
-   the error of the write it used to ignore. 100KB and 1MB are revived. 10MB,
-   100MB and 1GB are deleted: consensus opens its WAL with
-   `maxMsgSize = 1MB` (`consensus/reactor.go`), so those sizes cannot reach a
-   production WAL, and the 1GB case needs several GB of memory per iteration.
+   the error of the write it used to ignore. 100KB and 1MB are revived.
+   The 10MB, 100MB and 1GB cases keep their existing skip. Consensus opens
+   the WAL with a 1MB message limit.
 3. A new workflow, `ci-bench.yml`, runs `misc/benchci/suite.txt` on the pull
    request and on its merge base, in the same job, and fails on a large,
    significant regression. Mechanics and the noise handling are in
    `misc/benchci/README.md`: binaries compiled once per side, ten interleaved
    rounds with alternating order, benchstat's Mann-Whitney U test at
    p < 0.05, and an effect floor of +20% on sec/op and +10% on allocs/op.
+   A significant increase from zero allocations fails the gate. A missing
+   head result fails, and a new benchmark without a baseline is reported.
 
 ## Alternatives considered
 
@@ -53,7 +54,7 @@ not fail when they should:
 
 ## Consequences
 
-- A pull request touching Go code under `gnovm/`, `tm2/` or `gno.land/` gets
+- A pull request touching Go code under `gnovm/` or `tm2/` gets
   one more job, about 3 to 6 minutes of runner time.
 - A slowdown under 20% passes. The gate is for the regression nobody noticed,
   not for drift; a reviewer can still read the benchstat table in the job
