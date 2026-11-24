@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -20,7 +21,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Authorized external image host providers.
+// Authorized external image host providers. docs/users/explore-with-gnoweb.md
+// lists them for users: keep the two in sync.
 var cspImgHost = []string{
 	// Gno-related hosts
 	"https://gnolang.github.io",
@@ -38,9 +40,7 @@ var cspImgHost = []string{
 	"https://github.com",
 	"https://*.githubusercontent.com",
 
-	// IPFS
-	"https://ipfs.io",
-	"https://cloudflare-ipfs.com",
+	// IPFS: the configured -ipfs-gateway is added at startup.
 }
 
 type webCfg struct {
@@ -51,6 +51,8 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	ipfsGateway      string
+	indexerURL       string
 	aliases          string
 	trustedProxies   string
 	noDefaultAliases bool
@@ -84,6 +86,7 @@ var defaultWebOptions = webCfg{
 	timeout:        time.Minute,
 	trustedPaths:   gnoweb.DefaultTrustedPaths,
 	indexCommunity: gnoweb.NewDefaultAppConfig().IndexCommunity,
+	ipfsGateway:    gnoweb.DefaultIPFSGateway,
 }
 
 func main() {
@@ -100,6 +103,7 @@ func main() {
 Environment variables:
   GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
   GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_INDEXER_TOKEN      Optional bearer token sent to -indexer-url. Only needed for an endpoint behind authentication.
   GNOWEB_REALM_NOTICE_TEXT  Notice shown on package and user pages outside -trusted-paths (inline markdown,
                             no images). Max 400 chars, shown on up to two lines.
                             Unset or empty keeps the built-in text; a value with no visible text
@@ -113,7 +117,8 @@ Environment variables:
 			}
 
 			return run()
-		})
+		},
+	)
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
@@ -141,6 +146,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.indexerURL,
+		"indexer-url",
+		defaultWebOptions.indexerURL,
+		"tx-indexer GraphQL endpoint enabling indexer-backed search qualifiers (transactions, account activity, source search). Empty (the default) keeps gnoweb talking only to its RPC node; indexer results are never consensus data.",
+	)
+
+	fs.StringVar(
 		&c.aliases,
 		"aliases",
 		defaultWebOptions.aliases,
@@ -151,7 +163,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedProxies,
 		"trusted-proxies",
 		defaultWebOptions.trustedProxies,
-		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins",
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins. Empty (the default) trusts nothing, which is correct when gnoweb is exposed directly and wrong behind a proxy — there every visitor resolves to the proxy and shares one rate-limit bucket (state, search and /_/api/eval).",
 	)
 
 	fs.BoolVar(
@@ -222,6 +234,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"faucet-url",
 		defaultWebOptions.faucetURL,
 		"The faucet URL will redirect the user when they access `/faucet`.",
+	)
+
+	fs.StringVar(
+		&c.ipfsGateway,
+		"ipfs-gateway",
+		defaultWebOptions.ipfsGateway,
+		"IPFS gateway origin that ipfs:// URLs, URLs on retired gateways (ipfs.io, dweb.link, ...) and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
 	)
 
 	fs.BoolVar(
@@ -328,9 +347,15 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.IndexerURL = cfg.indexerURL
+	// Read from the environment only, so the credential never shows up in
+	// the process arguments (ps, /proc/<pid>/cmdline, container specs).
+	appcfg.IndexerToken = os.Getenv("GNOWEB_INDEXER_TOKEN")
 	if cfg.trustedProxies != "" {
+		// ParseTrustedProxies trims and skips empty entries itself.
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
+	appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
@@ -375,8 +400,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
-	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	// Setup security headers. NewRouter normalized the IPFS gateway in place.
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.RenderConfig.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -386,7 +411,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		WriteTimeout:      cfg.timeout, // Time to write the entire response
 		IdleTimeout:       cfg.timeout, // Time to keep idle connections open
 		ReadHeaderTimeout: time.Minute, // Time to read request headers
-		MaxHeaderBytes:    64 << 10,
+		MaxHeaderBytes:    gnoweb.MaxHeaderBytes,
 	}
 
 	return func() error {
@@ -434,7 +459,26 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+// ipfsGatewayImgSources returns the img-src sources an IPFS gateway origin
+// needs: the origin itself and, for a DNS name, the subdomains a subdomain
+// gateway redirects /ipfs/<cid> and /ipns/<name> to (<cid>.ipfs.<host>,
+// <name>.ipns.<host>), as Kubo does by default on localhost.
+func ipfsGatewayImgSources(origin string) []string {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	sources := []string{origin}
+	if net.ParseIP(u.Hostname()) == nil {
+		sources = append(sources, u.Scheme+"://*.ipfs."+u.Host, u.Scheme+"://*.ipns."+u.Host)
+	}
+	return sources
+}
+
+// SecureHeadersMiddleware sets the security headers. ipfsGateway is the
+// normalized IPFS gateway origin (empty if disabled); it is allowed as an
+// image source because rendered ipfs:// images point at it.
+func SecureHeadersMiddleware(next http.Handler, strict bool, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
@@ -442,14 +486,24 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
 	}
+	for _, src := range ipfsGatewayImgSources(ipfsGateway) {
+		imgSrc.WriteString(" " + src)
+	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of
 	// scripts, styles, images, and other resources. This helps prevent
 	// cross-site scripting (XSS) and other code injection attacks.
-	csp := fmt.Sprintf(
-		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src %s; font-src 'self'; connect-src 'self' %s/abci_query; form-action 'self'",
-		imgSrc.String(),
-		remote,
+	//
+	// style-src carries a per-response nonce (%[1]s) so CodeMirror's
+	// runtime-injected <style> elements are allowed without relaxing the policy
+	// to 'unsafe-inline'. The nonce is generated per request below and echoed
+	// into <meta name="csp-nonce"> for the frontend to pass to CodeMirror.
+	//
+	// connect-src is 'self' only: the browser evaluates through gnoweb's
+	// /_/api/eval and never queries the node.
+	cspTemplate := fmt.Sprintf(
+		"default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self' 'nonce-%%[1]s'; img-src %s; font-src 'self'; connect-src 'self'; form-action 'self'",
+		strings.ReplaceAll(imgSrc.String(), "%", "%%"),
 	)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -468,8 +522,13 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http
 
 		// In `strict` mode, prevent cross-site ressources forgery and enforce https
 		if strict {
-			// Set `csp` defined above.
-			w.Header().Set("Content-Security-Policy", csp)
+			// Generate a fresh per-response nonce and thread it through both the
+			// CSP header and the request context, so the rendered HTML embeds the
+			// same value (see WithCSPNonce / <meta name="csp-nonce">).
+			nonce := gnoweb.NewCSPNonce()
+			r = r.WithContext(gnoweb.WithCSPNonce(r.Context(), nonce))
+
+			w.Header().Set("Content-Security-Policy", fmt.Sprintf(cspTemplate, nonce))
 
 			// Enforce HTTPS by telling browsers to only access the site over HTTPS
 			// for a specified duration (1 year in this case). This also applies to
