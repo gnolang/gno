@@ -461,6 +461,11 @@ source = { dir = "quarantined/gno.land/p/nt/grc1155/v0" }
 
 [[module]]
 module = "gno.land/p/nt/grc20/v0"
+source = { commit = "55be8642081c2148b3deee8550b93d3bef534735", dir = "gno.land/p/nt/grc20" }
+hash = "h1:Nsb3FQ83CJoewYbmXvluX35j2zUOsyHSWe4GKvKf4YU="
+
+[[module]]
+module = "gno.land/p/nt/grc20/v1"
 source = { dir = "gno.land/p/nt/grc20" }
 
 [[module]]
@@ -477,6 +482,11 @@ source = { dir = "gno.land/p/nt/grc721/royalty" }
 
 [[module]]
 module = "gno.land/p/nt/grc721/v0"
+source = { commit = "55be8642081c2148b3deee8550b93d3bef534735", dir = "gno.land/p/nt/grc721" }
+hash = "h1:3YFEwHmYONG6uEfG27fvnLXUV97lXtpI9IuqacjoJhk="
+
+[[module]]
+module = "gno.land/p/nt/grc721/v1"
 source = { dir = "gno.land/p/nt/grc721" }
 
 [[module]]
@@ -489,10 +499,20 @@ source = { dir = "gno.land/p/nt/groups" }
 
 [[module]]
 module = "gno.land/p/nt/markdown/foreign/v0"
+source = { commit = "55be8642081c2148b3deee8550b93d3bef534735", dir = "gno.land/p/nt/markdown/foreign" }
+hash = "h1:A5r3J+8BEi8mG/I3doSlctd7ui3Av8ydgZzoKLmCgH4="
+
+[[module]]
+module = "gno.land/p/nt/markdown/foreign/v1"
 source = { dir = "gno.land/p/nt/markdown/foreign" }
 
 [[module]]
 module = "gno.land/p/nt/markdown/sanitize/v0"
+source = { commit = "55be8642081c2148b3deee8550b93d3bef534735", dir = "gno.land/p/nt/markdown/sanitize" }
+hash = "h1:pJbLAFrtSZuoNOpvC1UJoHfFad65p7cNal41eMvnMZk="
+
+[[module]]
+module = "gno.land/p/nt/markdown/sanitize/v1"
 source = { dir = "gno.land/p/nt/markdown/sanitize" }
 
 [[module]]
@@ -953,6 +973,11 @@ source = { dir = "gno.land/r/gnoland/blog" }
 
 [[module]]
 module = "gno.land/r/gnoland/boards2/v0"
+source = { commit = "55be8642081c2148b3deee8550b93d3bef534735", dir = "gno.land/r/gnoland/boards2" }
+hash = "h1:70G3057qX7mCXYmNlmpqe/2tSI6OdPxhxW+a/jkpVqg="
+
+[[module]]
+module = "gno.land/r/gnoland/boards2/v1"
 source = { dir = "gno.land/r/gnoland/boards2" }
 
 [[module]]

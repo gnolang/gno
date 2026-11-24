@@ -1,2 +1,2 @@
-module = "gno.land/p/nt/markdown/sanitize/v0"
+module = "gno.land/p/nt/markdown/sanitize/v1"
 gno = "0.9"
