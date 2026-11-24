@@ -64,9 +64,9 @@ type Machine struct {
 	// accounting is unaffected by pooling.
 	blockPool []*Block
 
-	// curCrossing is the active crossing call (see crossingSeq). Not stored:
-	// a reloaded value comes back with id 0.
-	curCrossing uint64
+	// curCrossing is the active crossing call. Not stored: a reloaded value
+	// comes back with nil.
+	curCrossing *crossingCall
 
 	// Configuration
 	Output   io.Writer
@@ -210,9 +210,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
 	// The message entry into a realm (main(cur realm)) is the tx's first
-	// crossing call: give it a fresh id so values it makes are writable there.
-	// A value reloaded from the store was never recorded, so it answers 0.
-	mm.curCrossing = nextCrossingID()
+	// crossing call: give it a fresh marker so values it makes are writable
+	// there. A value reloaded from the store was never recorded: nil.
+	mm.curCrossing = &crossingCall{}
 	mm.s3Written = false // a transaction starts with no R2a-save writes (kept across calls)
 	alloc.crossingID = mm.curCrossing
 	alloc.store = store
@@ -338,33 +338,20 @@ func (m *Machine) setViewOnly() {
 	m.viewOnly = true
 	m.Alloc.scratch = scratch
 	m.Alloc.viewHoldID = hold
-	m.Alloc.crossingID = 0
+	m.Alloc.crossingID = nil
 }
 
-// crossingSeq numbers crossing calls process-wide, so a value kept in memory
-// across machines (the store's cache) never matches a later call's id.
-var crossingSeq atomic.Uint64
+// crossingCall marks one crossing call; values made in it point to it. Two
+// live calls never share one, and it is never stored, so no counter can wrap
+// or differ between nodes. Non-zero size: Go may give zero-size values one
+// address.
+type crossingCall struct{ _ byte }
 
-// crossingIDMask is the width ObjectInfo stores (setMadeIn); ids are cut to it
-// here so stored and live ids compare equal however long the process has run.
-const crossingIDMask = 1<<48 - 1
-
-// nextCrossingID returns a fresh non-zero 48-bit crossing-call id.
-func nextCrossingID() uint64 { return nextIDFrom(&crossingSeq) }
-
-func nextIDFrom(seq *atomic.Uint64) uint64 {
-	for {
-		if id := seq.Add(1) & crossingIDMask; id != 0 {
-			return id
-		}
-	}
-}
-
-// setCrossing records the active crossing-call id on the machine and on the
+// setCrossing records the active crossing call on the machine and on the
 // allocator, so values made now can be told apart from values made elsewhere.
-func (m *Machine) setCrossing(id uint64) {
-	m.curCrossing = id
-	m.Alloc.crossingID = id
+func (m *Machine) setCrossing(c *crossingCall) {
+	m.curCrossing = c
+	m.Alloc.crossingID = c
 }
 
 // readOnlyOf reports whether m is running realm r's code read-only: R2a, or r
@@ -2701,7 +2688,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
-	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false, 0)
+	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false, nil)
 }
 
 // pushFrameCall is PushFrameCall for a method value: bindPID is the realm
@@ -2709,9 +2696,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 // or a plain x.M(...) call.
 // recvUncopied: recv is a value receiver the caller copies after this call
 // (copyCallRecv); it is looked at as that fresh copy would be.
-// madeIn is the crossing call that made the callee value (0: none); R2a uses it
+// madeIn is the crossing call that made the callee value (nil: none); R2a uses it
 // to decide whether a by-value call still runs writable.
-func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool, madeIn uint64) {
+func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool, madeIn *crossingCall) {
 	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
@@ -2798,7 +2785,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		r := pv.GetRealm()
 		assertBorrowedRealm(pv.PkgPath, r)
 		m.setRealm(r)
-		m.setCrossing(nextCrossingID())
+		m.setCrossing(&crossingCall{})
 		return
 	}
 
@@ -3089,7 +3076,7 @@ func (m *Machine) restoreRealmState(fr *Frame) {
 	m.Alloc.viewHoldID = fr.LastViewHold
 	m.setCrossing(fr.LastCrossing)
 	if m.viewOnly {
-		m.Alloc.crossingID = 0 // as setViewOnly: read-only code makes no writer
+		m.Alloc.crossingID = nil // as setViewOnly: read-only code makes no writer
 	}
 }
 

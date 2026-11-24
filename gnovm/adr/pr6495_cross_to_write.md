@@ -20,13 +20,15 @@ runs read-only. Library (`/p/`) code never writes another realm's objects.
 **R2a A function value writes only in the crossing call that made it.** A
 non-crossing function value — closure, bound method value, declared function
 used as a value — called by value writes only during the crossing call that
-made it; every crossing call (the tx entry included) takes a fresh id and each
-value records it. Made in read-only code, at init, or loaded from the store:
-id 0, which never matches, and the call runs `enterReadOnly`. "By value" is
+made it; every crossing call (the tx entry included) gets a fresh marker
+object (`crossingCall`) and each value points to it; equal pointers mean the
+same call, with no counter to wrap. Made in read-only code, at init, or loaded
+from the store: nil, which never matches, and the call runs `enterReadOnly`. "By value" is
 `ATTR_NAMED_CALLEE != true`; a named declared function or `/p` package
-variable is exempt, a realm's own variable holding a function is not. The id
-is memory-only, never stored: a saved value comes back 0. It sits in
-`ObjectInfo` padding and a copy gets 0, so sizes and gas are unchanged. Rejected: S (a fresh value writes anywhere) accepts an escaped
+variable is exempt, a realm's own variable holding a function is not. The
+marker is memory-only, never stored: a saved value comes back nil. It sits in
+`ObjectInfo` padding (unexported fields regrouped; amino numbers only exported
+ones) and a copy gets nil, so sizes, encoding and gas are unchanged. Rejected: S (a fresh value writes anywhere) accepts an escaped
 container re-entered from a crossing callback; S2 (write while its maker is
 current) accepts a value made in crossing call N run in M≠N; M' (a crossing
 closure crosses only from its maker realm) refuses the sanctioned hand-off to

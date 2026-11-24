@@ -1,19 +1,19 @@
 package gnolang
 
 // Rule R2a (pr6495_cross_to_write.md): a non-crossing function value called BY
-// VALUE writes only during the crossing call that made it. The crossing id
-// lives in memory only: never stored, encoded or hashed.
+// VALUE writes only during the crossing call that made it. The crossing-call
+// marker lives in memory only: never stored, encoded or hashed.
 
-// crossingCallee reports which crossing call made the callee value; 0 for a
+// crossingCallee reports which crossing call made the callee value; nil for a
 // stored location and for any value a copy or reload did not record.
-func (m *Machine) crossingCallee(tv *TypedValue) uint64 {
+func (m *Machine) crossingCallee(tv *TypedValue) *crossingCall {
 	switch cv := tv.V.(type) {
 	case *FuncValue:
-		return cv.madeIn()
+		return cv.madeInCall()
 	case *BoundMethodValue:
-		return cv.madeIn()
+		return cv.madeInCall()
 	}
-	return 0
+	return nil
 }
 
 // calledByValue reports whether cx reaches its callee as a value rather than by
@@ -37,11 +37,11 @@ func calledByValue(cx *CallExpr) bool {
 // restrictByValueCall applies R2a to a call that would otherwise run writable:
 // a non-crossing callee reached by value writes only in the crossing call that
 // made the value.
-func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool, madeIn uint64) {
+func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool, madeIn *crossingCall) {
 	if withCross || fv.IsCrossing() || m.Realm == nil || !calledByValue(cx) {
 		return
 	}
-	if madeIn != 0 && madeIn == m.curCrossing {
+	if madeIn != nil && madeIn == m.curCrossing {
 		return // made during the crossing call that is calling it
 	}
 	m.enterReadOnlyByS3(m.Realm)

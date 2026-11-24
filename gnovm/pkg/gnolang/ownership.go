@@ -170,22 +170,17 @@ var (
 type ObjectInfo struct {
 	ID   ObjectID  // set if real.
 	Hash ValueHash `json:",omitempty"` // zero if dirty.
-	// madeInLo/Hi: the crossing call that made a function value (R2a), 48
-	// bits in padding so sizes do not change; memory only, a copy gets 0.
-	madeInLo uint32
+	// scratch is the read-only stretch that allocated the object (0: none).
+	// Unexported fields sit in the exported ones' padding (amino skips them),
+	// so object sizes, and with them gas, do not change.
+	scratch  uint32
 	OwnerID  ObjectID `json:",omitempty"` // parent in the ownership tree.
 	ModTime  uint64   // time last updated.
 	RefCount int      // for persistence. deleted/gc'd if 0.
 
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
-	// scratch is the read-only stretch that allocated the object (0: none);
-	// it sits in IsEscaped's padding, so object sizes do not change.
-	scratch uint32
 
-	LastObjectSize int64 //
-
-	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
 
@@ -201,20 +196,22 @@ type ObjectInfo struct {
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
 	// s3Written: written in an R2a read-only stretch (R2a-save); finalize refuses to
-	// store it. Sits in the bools' padding, so object sizes do not change.
-	s3Written   bool
-	madeInHi    uint16
+	// store it.
+	s3Written bool
+
+	LastObjectSize int64 //
+
+	// MemRefCount int // consider for optimizations.
 	lastGCCycle int64
 	owner       Object // mem reference to owner.
+	// madeIn: the crossing call that made a function value (R2a); memory
+	// only, a copy or reload gets nil.
+	madeIn *crossingCall
 }
 
-func (oi *ObjectInfo) setMadeIn(id uint64) {
-	oi.madeInLo, oi.madeInHi = uint32(id), uint16(id>>32)
-}
+func (oi *ObjectInfo) setMadeIn(c *crossingCall) { oi.madeIn = c }
 
-func (oi *ObjectInfo) madeIn() uint64 {
-	return uint64(oi.madeInHi)<<32 | uint64(oi.madeInLo)
-}
+func (oi *ObjectInfo) madeInCall() *crossingCall { return oi.madeIn }
 
 // Copy used for serialization of objects.
 // Note that "owner" is nil.

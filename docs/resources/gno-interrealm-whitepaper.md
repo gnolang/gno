@@ -69,8 +69,8 @@ state the object was saved into. A library owns nothing it can change after `ini
 **F2. One realm is current.** A transaction starts with one realm current: the realm the user called, or the
 run script's own realm. A **crossing call** `F(cross(cur))` into a **crossing function** `func F(cur realm, …)`
 makes `F`'s realm current until `F` returns. Every other call (a plain call, a method call, a call through a
-function value) leaves the current realm as it was. Each crossing call also gets a fresh number, its *id*,
-which §5 R2a uses.
+function value) leaves the current realm as it was. Each crossing call also gets a fresh identity, its *id*,
+which no other call ever shares and which is never stored; §5 R2a uses it.
 
 **F3. Reading is free.** Any code may read any object it can reach.
 
@@ -841,8 +841,9 @@ above are what `ls` prints, so a reviewer can re-run them.
 | R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only in the crossing call that made it: expr` |
 | R2a-save | save | `<realm>: an object written by read-only code would be stored (write it inside a crossing call of <realm>)` |
 
-R2a's maker is the id of the crossing call that made the value (0: none). It lives in the `ObjectInfo`
-padding (`ownership.go`), is set in `alloc.go` and `machine.go`, and is read at the call in `op_call.go`.
+R2a's maker is a pointer to a per-call marker object, `crossingCall` (nil: none, written "id 0" above), so
+no counter can wrap or differ between nodes. It sits in `ObjectInfo` padding (`ownership.go`), so sizes and
+gas are unchanged; it is set in `alloc.go` and `machine.go` and read at the call in `op_call.go`.
 R2a-save's mark is `ObjectInfo.s3Written`; `markViewWrite` marks a written unreal heap item the same way.
 R2b is `stripMaker` in `alloc.go`; it stays with R2a, since R2a's id check needs a copy to carry no maker.
 

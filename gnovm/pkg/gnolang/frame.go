@@ -34,7 +34,7 @@ type Frame struct {
 	LastViewS3    bool          // previous frame's Machine.viewS3
 	LastScratch   uint32        // previous frame's Allocator.scratch
 	LastViewHold  PkgID         // previous frame's Allocator.viewHoldID
-	LastCrossing  uint64        // previous frame's Machine.curCrossing
+	LastCrossing  *crossingCall // previous frame's Machine.curCrossing
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
 	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
