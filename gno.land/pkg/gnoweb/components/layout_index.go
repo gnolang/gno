@@ -19,11 +19,12 @@ import (
 type ViewMode int
 
 const (
-	ViewModeExplorer ViewMode = iota // For exploring packages and paths
-	ViewModeRealm                    // For realm content display
-	ViewModePackage                  // For package content display
-	ViewModeHome                     // For home page display
-	ViewModeUser                     // For user page display
+	ViewModeExplorer   ViewMode = iota // For exploring packages and paths
+	ViewModeRealm                      // For realm content display
+	ViewModePackage                    // For package content display
+	ViewModeHome                       // For home page display
+	ViewModeUser                       // For user page display
+	ViewModePlayground                 // For playground display
 )
 
 // View mode predicates
@@ -44,10 +45,14 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title             string
-	Description       string
-	Canonical         string
+	Title       string
+	Description string
+	Canonical   string
+	// Robots is the content of the robots meta, as the handler decided it.
+	Robots            string
+	SiteName          string
 	Image             string
+	ImageAlt          string
 	URL               string
 	ChromaPath        string
 	AssetsPath        string
@@ -55,6 +60,7 @@ type HeadData struct {
 	Remote            string
 	ChainId           string
 	AssetsVersion     string
+	CSPNonce          string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.
@@ -221,6 +227,11 @@ type IndexData struct {
 	Mode     ViewMode
 	Theme    string
 	Banner   BannerData
+	// SearchBase, when set, is the path the reader asked for before an alias
+	// rewrote it. The header search posts there, as the JavaScript omnibar
+	// does from window.location: on the home page it searches the chain,
+	// not the realm the alias renders.
+	SearchBase string
 }
 
 type indexLayoutParams struct {
@@ -236,6 +247,9 @@ type indexLayoutParams struct {
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
+	if data.SearchBase != "" {
+		data.HeaderData.SearchAction = data.SearchBase + "$search"
+	}
 
 	data.FooterData.Analytics.PageType = ClassifyPageType(data.Mode, data.BodyView.Type)
 	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)
@@ -252,7 +266,7 @@ func IndexLayout(data IndexData) Component {
 
 	// Set dev mode based on view type and mode
 	switch data.BodyView.Type {
-	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, OverviewViewType:
+	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, PlaygroundViewType, RunViewType, OverviewViewType, DepsViewType, SearchViewType:
 		dataLayout.IsDevmodView = true
 	}
 

@@ -2,9 +2,11 @@ package stdlibs
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // realm.Sub charges gas by mirroring chain.packageAddress's calibrated
@@ -240,5 +242,32 @@ func TestInnerHashGasMetersBothOperands(t *testing.T) {
 	if inner.Slope < leaf.Slope || inner.Slope2 < leaf.Slope {
 		t.Errorf("innerHash per-operand rates (%d, %d) below leafHash's %d — both hash their input at the same rate",
 			inner.Slope, inner.Slope2, leaf.Slope)
+	}
+}
+
+// The CodeFence row prices len(content) only, so a minCount past the cap must
+// cost the allocator gas of the capped fence rather than size a longer one.
+func TestCodeFenceGasStopsAtMinCountCap(t *testing.T) {
+	t.Parallel()
+	fence := NativeResolver("chain/markdown", "CodeFence")
+	if fence == nil {
+		t.Fatal("chain/markdown.CodeFence is not registered")
+	}
+	call := func(minCount int) (fenceLen int, gas int64) {
+		meter := store.NewGasMeter(math.MaxInt64)
+		m := &gno.Machine{Alloc: gno.NewAllocator(500_000_000), Stage: gno.StageRun}
+		m.Alloc.SetGasMeter(meter)
+		m.Blocks = []*gno.Block{{Values: []gno.TypedValue{
+			gno.Go2GnoValue(nil, nil, reflect.ValueOf("")),
+			gno.Go2GnoValue(nil, nil, reflect.ValueOf(minCount)),
+		}}}
+		fence(m)
+		return len(m.PopValue().GetString()), meter.GasConsumed()
+	}
+	capLen, capGas := call(1024)
+	hugeLen, hugeGas := call(1 << 24)
+	if hugeLen != capLen || hugeGas != capGas {
+		t.Errorf("CodeFence(\"\", 1<<24) built %d backticks for %d allocator gas; the cap builds %d for %d",
+			hugeLen, hugeGas, capLen, capGas)
 	}
 }

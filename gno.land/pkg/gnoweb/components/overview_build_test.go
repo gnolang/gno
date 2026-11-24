@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -56,6 +57,54 @@ func TestBugsNotInDoc(t *testing.T) {
 	require.Equal(t, []string{"thing B is broken"}, got)
 
 	require.Nil(t, bugsNotInDoc(nil, "anything"))
+}
+
+func TestBugsNotInDoc_ScanBudget(t *testing.T) {
+	t.Parallel()
+	// Each note is charged the doc's length times its own: two 128-byte notes
+	// against a 1 MiB doc fill the budget, so the third is kept without a
+	// search, though its text is in the doc.
+	note := strings.Repeat("x", 128)
+	got := bugsNotInDoc([]string{note, note, note}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{note}, got)
+}
+
+func TestBugsNotInDoc_LongNoteCharged(t *testing.T) {
+	t.Parallel()
+	// A 16 KiB note against a 1 MiB doc is charged 16 GiB of comparisons, past
+	// the budget, so it is kept without a search, though its text is in the doc.
+	note := strings.Repeat("x", 16<<10)
+	got := bugsNotInDoc([]string{note}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{note}, got)
+}
+
+func TestBugsNotInDoc_ShortNoteChargedAs64(t *testing.T) {
+	t.Parallel()
+	// A two-byte note is charged as 64 bytes per doc byte: four fill the
+	// budget against a 1 MiB doc, so the fifth is kept without a search,
+	// though its text is in the doc.
+	got := bugsNotInDoc([]string{"xx", "xx", "xx", "xx", "xx"}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{"xx"}, got)
+}
+
+func TestBugsNotInDoc_SkippedNoteChargesNothing(t *testing.T) {
+	t.Parallel()
+	// A note past what is left of the budget is kept unchecked and charges
+	// nothing, so the next note still fits and is searched.
+	long := strings.Repeat("x", 16<<10)
+	got := bugsNotInDoc([]string{long, "x"}, strings.Repeat("x", 1<<20))
+	require.Equal(t, []string{long}, got)
+}
+
+func TestBugsNotInDoc_NoteLongerThanDocFree(t *testing.T) {
+	t.Parallel()
+	// A note longer than the doc needs no search and charges nothing, so the
+	// four doc-length notes after it still fill the budget exactly. Charged,
+	// the long note would leave room for two of them.
+	doc := strings.Repeat("x", 8<<10)
+	long := strings.Repeat("y", 8<<10+1)
+	got := bugsNotInDoc([]string{long, doc, doc, doc, doc}, doc)
+	require.Equal(t, []string{long}, got)
 }
 
 func TestDeriveQuality(t *testing.T) {
@@ -141,17 +190,17 @@ func TestBuildOverviewTOC(t *testing.T) {
 	funcs := []FuncEntry{{Name: "Hello", AnchorID: "func-Hello"}}
 	types := []TypeEntry{{Name: "Config", AnchorID: "type-Config", Methods: []FuncEntry{{Name: "Load", AnchorID: "method-Config-Load"}}}}
 	values := []ValueGroup{{Kind: "const"}, {Kind: "var"}}
-	imports := []ImportLink{{Path: "strings"}}
+	graph := DepGraph{Imports: []ImportLink{{Path: "strings"}}}
 	files := []FileLink{{Name: "foo.gno", Link: "/r/demo/foo$source&file=foo.gno"}}
 	subpacks := []SubpackageLink{{Name: "sub", Path: "/r/demo/foo/sub"}}
 	quality := PackageQuality{HasPkgDoc: true, HasReadme: true}
 
-	toc := buildOverviewTOC(quality, true, funcs, types, values, imports, files, subpacks)
+	toc := buildOverviewTOC(quality, true, funcs, types, values, graph, files, subpacks)
 	got := make([]string, 0, len(toc))
 	for _, item := range toc {
 		got = append(got, item.Title)
 	}
-	require.Equal(t, []string{"Overview", "README", "Constants", "Variables", "Functions", "Types", "Imports", "Files", "Directories"}, got)
+	require.Equal(t, []string{"Overview", "README", "Constants", "Variables", "Functions", "Types", "Dependencies", "Files", "Directories"}, got)
 
 	// Files hang under their section and link straight into the source view.
 	filesTOC := toc[7]
@@ -161,7 +210,7 @@ func TestBuildOverviewTOC(t *testing.T) {
 	require.Equal(t, "#files", filesTOC.Anchor(), "the section header still anchors on the page")
 
 	// A README that never rendered must not get a table-of-contents entry.
-	unrendered := buildOverviewTOC(quality, false, funcs, types, values, imports, files, subpacks)
+	unrendered := buildOverviewTOC(quality, false, funcs, types, values, graph, files, subpacks)
 	titles := make([]string, 0, len(unrendered))
 	for _, item := range unrendered {
 		titles = append(titles, item.Title)
@@ -298,5 +347,39 @@ func TestBuildOverview_BoundsSymbols(t *testing.T) {
 	})
 
 	require.Len(t, data.Funcs, maxOverviewSymbols)
+	require.True(t, data.SymbolsTruncated)
+}
+
+// Methods count against the cap across types, the first types keeping theirs.
+func TestBuildOverview_BoundsMethodsAcrossTypes(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	build := func(perType ...int) OverviewData {
+		var jdoc doc.JSONDocumentation
+		for i, n := range perType {
+			name := fmt.Sprintf("T%d", i)
+			jdoc.Types = append(jdoc.Types, &doc.JSONType{Name: name, Kind: "struct"})
+			for j := range n {
+				jdoc.Funcs = append(jdoc.Funcs, &doc.JSONFunc{Name: fmt.Sprintf("M%d", j), Type: name})
+			}
+		}
+		return BuildOverview(OverviewInput{URL: u, DocRenderer: noopRenderer{}, Domain: "gno.land", Doc: &jdoc})
+	}
+
+	data := build(maxOverviewSymbols-100, 200)
+	require.Len(t, data.Types, 2)
+	require.Len(t, data.Types[0].Methods, maxOverviewSymbols-100)
+	require.Len(t, data.Types[1].Methods, 100)
+	require.True(t, data.SymbolsTruncated)
+
+	data = build(maxOverviewSymbols-100, 100)
+	require.Len(t, data.Types[1].Methods, 100)
+	require.False(t, data.SymbolsTruncated)
+
+	// A cut on the first type still shows the notice when a later one has none.
+	data = build(maxOverviewSymbols+100, 0)
+	require.Len(t, data.Types[0].Methods, maxOverviewSymbols)
 	require.True(t, data.SymbolsTruncated)
 }

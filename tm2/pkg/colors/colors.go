@@ -60,84 +60,32 @@ func None(args ...any) string {
 	return treatAll(ANSIReset, args...)
 }
 
-func Nonef(format string, args ...any) string {
-	return treat(ANSIReset, fmt.Sprintf(format, args...))
-}
-
-func Black(args ...any) string {
-	return treatAll(ANSIFgBlack, args...)
-}
-
-func Blackf(format string, args ...any) string {
-	return treat(ANSIFgBlack, fmt.Sprintf(format, args...))
-}
-
 func Red(args ...any) string {
 	return treatAll(ANSIFgRed, args...)
-}
-
-func Redf(format string, args ...any) string {
-	return treat(ANSIFgRed, fmt.Sprintf(format, args...))
-}
-
-func RedBg(args ...any) string {
-	return treatAll(ANSIBgRed, args...)
 }
 
 func Green(args ...any) string {
 	return treatAll(ANSIFgGreen, args...)
 }
 
-func Greenf(format string, args ...any) string {
-	return treat(ANSIFgGreen, fmt.Sprintf(format, args...))
-}
-
 func Yellow(args ...any) string {
 	return treatAll(ANSIFgYellow, args...)
-}
-
-func Yellowf(format string, args ...any) string {
-	return treat(ANSIFgYellow, fmt.Sprintf(format, args...))
 }
 
 func Blue(args ...any) string {
 	return treatAll(ANSIFgBlue, args...)
 }
 
-func Bluef(format string, args ...any) string {
-	return treat(ANSIFgBlue, fmt.Sprintf(format, args...))
-}
-
 func Magenta(args ...any) string {
 	return treatAll(ANSIFgMagenta, args...)
-}
-
-func Magentaf(format string, args ...any) string {
-	return treat(ANSIFgMagenta, fmt.Sprintf(format, args...))
 }
 
 func Cyan(args ...any) string {
 	return treatAll(ANSIFgCyan, args...)
 }
 
-func Cyanf(format string, args ...any) string {
-	return treat(ANSIFgCyan, fmt.Sprintf(format, args...))
-}
-
-func White(args ...any) string {
-	return treatAll(ANSIFgWhite, args...)
-}
-
-func Whitef(format string, args ...any) string {
-	return treat(ANSIFgWhite, fmt.Sprintf(format, args...))
-}
-
 func Gray(args ...any) string {
 	return treatAll(ANSIFgGray, args...)
-}
-
-func Grayf(format string, args ...any) string {
-	return treat(ANSIFgGray, fmt.Sprintf(format, args...))
 }
 
 // result may be 4 ASNSII chars longer than they should be to denote the

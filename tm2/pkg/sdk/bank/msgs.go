@@ -74,11 +74,6 @@ type MsgMultiSend struct {
 
 var _ std.Msg = MsgMultiSend{}
 
-// NewMsgMultiSend - construct arbitrary multi-in, multi-out send msg.
-func NewMsgMultiSend(in []Input, out []Output) MsgMultiSend {
-	return MsgMultiSend{Inputs: in, Outputs: out}
-}
-
 // Route Implements Msg
 func (msg MsgMultiSend) Route() string { return RouterKey }
 

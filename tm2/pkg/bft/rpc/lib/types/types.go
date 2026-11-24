@@ -84,7 +84,9 @@ func (request *RPCRequest) UnmarshalJSON(data []byte) error {
 		Params  json.RawMessage `json:"params"` // must be map[string]any or []any
 	}{}
 
-	if err := json.Unmarshal(data, &unsafeReq); err != nil {
+	// Decode into the struct, not into the pointer: `null` would set the
+	// pointer to nil and the reads below would panic.
+	if err := json.Unmarshal(data, unsafeReq); err != nil {
 		return fmt.Errorf("unable to JSON-parse the RPC request, %w", err)
 	}
 

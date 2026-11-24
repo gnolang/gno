@@ -19,6 +19,7 @@ type NativeFunc struct {
 	params     []gno.FieldTypeExpr
 	results    []gno.FieldTypeExpr
 	hasMachine bool
+	typedValue uint32
 	f          func(m *gno.Machine)
 }
 
@@ -27,6 +28,12 @@ type NativeFunc struct {
 // as its first parameter.
 func (n *NativeFunc) HasMachineParam() bool {
 	return n.hasMachine
+}
+
+// IsTypedValueParam returns whether the Go version of this function takes its
+// i-th parameter, not counting the machine, as a gno.TypedValue.
+func (n *NativeFunc) IsTypedValueParam(i int) bool {
+	return n.typedValue>>i&1 != 0
 }
 
 var nativeFuncs = [...]NativeFunc{
@@ -39,6 +46,7 @@ var nativeFuncs = [...]NativeFunc{
 			{NameExpr: *gno.Nx("r0"), Type: gno.X("int")},
 		},
 		true,
+		0,
 		func(m *gno.Machine) {
 			
 

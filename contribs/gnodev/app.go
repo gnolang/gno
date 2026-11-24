@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -550,7 +551,7 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 		Handler:           handlers,
 		Addr:              addr,
 		ReadHeaderTimeout: 60 * time.Second,
-		MaxHeaderBytes:    64 << 10,
+		MaxHeaderBytes:    gnoweb.MaxHeaderBytes,
 	}
 
 	// Serve gnoweb

@@ -31,7 +31,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
 stdout 'Add Whitelisted Caller to \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 26_000_000 -args 0 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
@@ -55,7 +55,7 @@ gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
 stdout 'Add and Remove Whitelisted Callers From \"sys/users\" Realm'
 
 # Vote on proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 23_000_000 -args 1 -args YES -chainid=tendermint_test test1
 stdout OK!
 
 # Execute proposal
