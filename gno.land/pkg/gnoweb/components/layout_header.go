@@ -52,6 +52,7 @@ type HeaderData struct {
 	Remote      string
 	Mode        ViewMode
 	Static      bool
+	NetworkKind NetworkKind
 	// Origin is the request scheme+host the AI prompts link to.
 	Origin string
 	AI     *AIMenu
@@ -66,6 +67,11 @@ type HeaderData struct {
 	// Error is set on an error page. Its tabs leave out Run, whose page
 	// needs a package that exists.
 	Error bool
+}
+
+// NetworkChipTitle is the chip's tooltip. The chip only renders off mainnet.
+func (d HeaderData) NetworkChipTitle() string {
+	return "You are on " + d.ChainId + " — this is not mainnet"
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -125,7 +131,8 @@ func newNoticeText(markdown string) (BannerData, error) {
 
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
-		{Label: "About", URL: "https://gno.land/about"},
+		// Relative: an absolute gno.land URL moves the user off their deployment.
+		{Label: "About", URL: "/about"},
 		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
 		{Label: "GitHub", URL: "https://github.com/gnolang", Outbound: OutboundGitHub},
 	}

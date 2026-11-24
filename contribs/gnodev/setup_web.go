@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 // setupGnoWebServer initializes the gnoweb HTTP handler from the gnodev
@@ -42,6 +43,7 @@ func gnoWebAppConfig(cfg *AppConfig, remoteAddr string) *gnoweb.AppConfig {
 	appcfg.RenderConfig.IPFSGateway = cfg.webIPFSGateway
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
+	appcfg.NetworkKind = components.NetworkLocal
 	// A dev or staging chain is never the canonical site.
 	appcfg.NoIndex = true
 	// Every package on a local gnodev chain is the developer's own. A
