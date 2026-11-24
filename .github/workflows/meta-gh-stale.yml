@@ -8,6 +8,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     permissions:
+      actions: write # to delete the _state cache when saving or resetting it
       pull-requests: write # to close and label stale PRs
       issues: write # to close and label stale issues
     steps:
