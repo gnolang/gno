@@ -649,7 +649,7 @@ oversize governance envelope within the window and spends it (§5.4).
     records and dispatches its decision, so numbers are never reserved without bytes, reused or skipped.
   - Every hash, buffer slot and tombstone is keyed by `(epoch, seq)`.
   - The app acknowledgement is `epoch u32 ‖ seq u64 ‖ status u8 ‖ redispatch u8` (14 bytes), status one of
-    recorded, buffered, duplicate, conflict, spent, cancelled.
+    recorded, buffered, duplicate, conflict, spent, cancelled, duplicate of a recorded decision.
   - `ibcgov` builders never produce an envelope over 1024 bytes (`14 + len(params) ≤ 1024`). `IBCAdmin` does not
     refuse a readable longer one for its size: within the window it consumes its number and is spent when
     recorded; beyond the window it is an error ack, as any non-cancel.
@@ -659,8 +659,9 @@ oversize governance envelope within the window and spends it (§5.4).
   `IBCAdmin` decodes it with `abi.decode` and `ibcgov` builds it with the ABI encoder the transfer app already uses.
   `IBCAdmin` decodes every kind at recording and re-encodes it: parameters that are not exactly the canonical
   encoding of the tuple (trailing data, other offsets or padding) are spent at recording. The app
-  acknowledgement's `status` is 1 recorded, 2 buffered, 3 duplicate, 4 conflict, 5 spent, 6 cancelled (the
-recording of a tombstoned decision, and a re-delivery of a decision already cancelled). A `token` is the
+  acknowledgement's `status` is 1 recorded, 2 buffered, 3 duplicate (of a number still buffered), 4 conflict, 5
+spent, 6 cancelled (the recording of a tombstoned decision, and a re-delivery of a decision already cancelled), 7
+duplicate of a recorded decision (pending, executed or spent: its number is at or below `IBCAdmin`'s head). A `token` is the
   Ethereum ERC20 address; a `clientId` is the Ethereum router's client id, in eureka's grammar (`client-N`, or a
   custom id of up to 128 characters), never gno.land's own client id (`ethereum-1`), which the grammar admits all
   the same and which `IBCAdmin` would record under a route key nothing uses (seen on a test network: a kind 4 for
@@ -794,8 +795,10 @@ stays pending until the kind 6 lands or the epoch moves on. **All or nothing**: 
     (refreshing the conflict flag's block on every conflict), keeps the first, is never applied.
   - `seq > last+W`: error ack (custom error). `ibcgov` treats an error ack of a governance packet as "redispatch
     later": it re-sends the **same `seq` with identical bytes** once the window has moved (backpressure).
-  - `seq ≤ last`: compared with the stored hash of that number; same hash → `duplicate` (status 3, `redispatch =
-    0`), changing nothing; different → conflict as above.
+  - `seq ≤ last`: compared with the stored hash of that number; same hash → a duplicate, changing nothing: status 7
+    (6 if the decision is cancelled), `redispatch = 0`; different → conflict as above. A duplicate of a number still
+    buffered is status 3. Telling the two apart lets `ibcgov`'s known head (below) follow `IBCAdmin`'s head after an
+    out-of-order delivery: re-sending the numbers past it answers 7 for each one recorded.
   - Undecodable envelope (no readable `seq`): error ack; `ibcgov`'s builders never produce one, so it can only come
     from a forgery. A decodable decision with unknown kind or bad parameters is recorded and **spent**, so it never
     blocks the sequence.
@@ -809,7 +812,7 @@ stays pending until the kind 6 lands or the epoch moves on. **All or nothing**: 
     epoch; with it a cancel burns at most `W` numbers past the head (and, like any cancel, the pending decisions
     below it). An honest cancel never needs more, because **`ibcgov` applies backpressure**: it binds no
     Ethereum-bound decision but a cancel more than `W` past its **known head**, the highest number `IBCAdmin`
-    acknowledged recording (status 1, 5 or 6; 2 and 3 do not move it), and `Rebind`'s copies obey the same bound;
+    acknowledged recording (status 1, 5, 6 or 7; 2 and 3 do not move it), and `Rebind`'s copies obey the same bound;
     past it the builder refuses, or the decision is spent at recording with a note to retry once acknowledgements
     catch up. Every number a cancel can name was therefore bound at most `W` past a head `IBCAdmin` has reached, so
     it lies inside the horizon when the cancel arrives, even if its first packet is still in flight. Cancels
@@ -827,7 +830,7 @@ stays pending until the kind 6 lands or the epoch moves on. **All or nothing**: 
     authorization it created itself in the same call — bound to the client, `epoch`, `seq` and the exact payload
     hash — and consumes it; its callbacks accept core as the only caller (R11).
 - **Re-sending (retransmission).** `ibcgov` reads an error ack, a timeout, a malformed ack or `redispatch = 1`
-  (whatever the status) as a request to re-send; statuses 1–6 are recorded per dispatch. Beyond that, **anyone may
+  (whatever the status) as a request to re-send; statuses 1–7 are recorded per dispatch. Beyond that, **anyone may
   re-send any dispatch of the current epoch** (`Redispatch(route, e, seq)`) in a fresh transport packet with its identical
   bytes whenever none of its packets is in flight, **after any answer, a success included**: a compromised
   Ethereum-side verifier can forge a success ack for a decision that never reached `IBCAdmin`, leaving a gap later
@@ -3592,7 +3595,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - 2026-11-24, the kind 1 tombstone finding (maintainer review of 794aafccf, §5.4), implemented in gno-eth-ibc and
   gno-realms (branches `fix/tombstone-horizon`) and here: `IBCAdmin` tombstones a cancel's ranges only up to
   `lastSeq + W` (a forged cancel burns at most 64 numbers past the head, not the epoch), acknowledges a cancelled
-  decision with status 6, and keeps a kind 10 whose new client is not enrolled pending instead of spending it.
+  decision with status 6 and a duplicate of a recorded one with status 7, and keeps a kind 10 whose new client is
+  not enrolled pending instead of spending it.
   `ibcgov` tells numbers it cancelled from burned ones, lets anyone `Rebind` burned dispatches to the next numbers
   in order, and requires a governed authorization to re-send a number it cancelled or one acknowledged 6 (a cancel
   voids earlier unused grants) and binds no Ethereum-bound decision but a cancel more than 64 past the highest
