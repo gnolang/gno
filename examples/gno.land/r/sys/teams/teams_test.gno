@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
-	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/uassert/v0"
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
@@ -25,10 +25,10 @@ var (
 
 func TestNamespaceOfHome(t *testing.T) {
 	cases := []struct {
-		name    string
-		path    string
-		wantNS  string
-		wantOK  bool
+		name   string
+		path   string
+		wantNS string
+		wantOK bool
 	}{
 		{"canonical", "gno.land/r/aib/home", "aib", true},
 		{"address namespace", "gno.land/r/g1abc/home", "g1abc", true},

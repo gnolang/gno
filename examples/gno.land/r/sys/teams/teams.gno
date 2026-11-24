@@ -62,10 +62,10 @@ func realmPrefix() string {
 // Events emitted on every state change, so an indexer can follow a namespace's
 // authority without replaying the tree.
 const (
-	MembersSetEvent   = "TeamMembersSet"
-	MemberAddedEvent  = "TeamMemberAdded"
+	MembersSetEvent    = "TeamMembersSet"
+	MemberAddedEvent   = "TeamMemberAdded"
 	MemberRemovedEvent = "TeamMemberRemoved"
-	RetiredEvent      = "TeamNameAuthorityRetired"
+	RetiredEvent       = "TeamNameAuthorityRetired"
 )
 
 // team is one namespace's authority record.
@@ -350,5 +350,3 @@ func MemberCount(ns string) int {
 	}
 	return t.members.Size()
 }
-
-
