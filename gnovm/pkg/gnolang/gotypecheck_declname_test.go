@@ -40,6 +40,10 @@ func TestCheckDeclNames(t *testing.T) {
 		{"init param builtin", "func init(len int) {}", "cannot be shadowed: len"},
 		{"init param cur int", "func init(cur int) {}", "contextual keyword"},
 		{"init param cur second", "func init(x, cur realm) {}", "contextual keyword"},
+		{"main param nested func param", "func main(_ func(len int)) {}", "cannot be shadowed: len"},
+		{"main param nested func result", "func main(_ func() (len int)) {}", "cannot be shadowed: len"},
+		{"main param nested cur int", "func main(_ func(cur int)) {}", "contextual keyword"},
+		{"main param nested interface", "func main(_ interface{ M(len int) }) {}", "cannot be shadowed: len"},
 		// `:=` with one new variable ASSIGNS cur, so go/types records it in
 		// Uses, not Defs; checkDeclNames alone never sees this shape.
 		{"cur same-scope rebind", "func F(cur realm) string { cur, y := cur, 1; _ = y; return cur.PkgPath() }", "cannot reassign the crossing"},
@@ -54,6 +58,8 @@ func TestCheckDeclNames(t *testing.T) {
 		{"init blank realm", "var N int\n\nfunc init(_ realm) { N = 7 }", ""},
 		{"init cur realm alias", "type R = realm\n\nfunc init(cur R) {}", ""},
 		{"main blank realm", "func main(_ realm) {}", ""},
+		{"main param nested cur realm", "func main(_ func(cur realm)) {}", ""},
+		{"main param nested struct field", "func main(_ struct{ len int }) {}", ""},
 		{"aliased import", "import l \"gno.land/p/demo/len\"\n\nfunc F() int { return l.N }", ""},
 		{"blank", "func F() { _ = 1 }", ""},
 		{"ordinary names", "func F(n int) int { return n }", ""},

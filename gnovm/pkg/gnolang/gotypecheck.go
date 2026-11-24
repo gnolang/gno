@@ -960,15 +960,34 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 		}
 		judge(obj.Pos(), obj.Name())
 	}
-	// The parameter stripped from main/init: same rule, read from the AST.
+	// The parameter stripped from main/init: same rule, read from the AST,
+	// including names nested in its type (`_ func(len int)`).
+	judgeField := func(field *ast.Field, first bool) {
+		for i, id := range field.Names {
+			if id.Name == "cur" && first && i == 0 && isRealmTypeExpr(fset, pkg, field.Type, realmType) {
+				continue
+			}
+			judge(id.Pos(), id.Name)
+		}
+	}
 	for _, f := range files {
 		for _, field := range prep.stripped[f] {
-			for i, id := range field.Names {
-				if id.Name == "cur" && i == 0 && isRealmTypeExpr(fset, pkg, field.Type, realmType) {
-					continue
+			judgeField(field, true)
+			ast.Inspect(field.Type, func(n ast.Node) bool {
+				ft, ok := n.(*ast.FuncType)
+				if !ok {
+					return true
 				}
-				judge(id.Pos(), id.Name)
-			}
+				for _, fl := range []*ast.FieldList{ft.Params, ft.Results} {
+					if fl == nil {
+						continue
+					}
+					for j, nested := range fl.List {
+						judgeField(nested, fl == ft.Params && j == 0)
+					}
+				}
+				return true
+			})
 		}
 	}
 	for id, obj := range info.Defs {
