@@ -43,6 +43,7 @@ jobs:
     uses: ./.github/workflows/_ci-go.yml
     with:
       modulepath: "gno.land"
+      materialize-example-versions: true
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
       # txtar integration tests run against in-memory nodes in parallel by
       # default (see gno.land/pkg/integration). This replaces the old
