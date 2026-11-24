@@ -169,11 +169,19 @@ func MedianTime(commit *types.Commit, validators *types.ValidatorSet) time.Time 
 	totalVotingPower := int64(0)
 
 	for i, vote := range commit.Precommits {
-		if vote != nil {
-			_, validator := validators.GetByIndex(vote.ValidatorIndex)
-			totalVotingPower += validator.VotingPower
-			weightedTimes[i] = tmtime.NewWeightedTime(vote.Timestamp, validator.VotingPower)
+		if vote == nil {
+			continue
 		}
+		// Weight by position, not vote.ValidatorIndex: VerifyCommit checked
+		// position i's signature, and the canonical vote excludes that field.
+		_, validator := validators.GetByIndex(i)
+		if validator == nil {
+			// More precommits than validators. ValidateBlock rejects that
+			// before it gets here; MakeBlock does not check it at all.
+			continue
+		}
+		totalVotingPower += validator.VotingPower
+		weightedTimes[i] = tmtime.NewWeightedTime(vote.Timestamp, validator.VotingPower)
 	}
 
 	return tmtime.WeightedMedian(weightedTimes, totalVotingPower)

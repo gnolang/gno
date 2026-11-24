@@ -13,6 +13,7 @@ import (
 var (
 	ErrValidatorMissing = errors.New("the validator is missing")
 	ErrSameValues       = errors.New("the valoper has the same voting power and pubkey")
+	ErrNegativeMinFee   = errors.New("min fee must be non-negative")
 )
 
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
@@ -99,5 +100,9 @@ func ProposeAuthorityRotationProposalRequest(cur realm, newContractPath string) 
 // generic sys/params factory so the fee lives in
 // node:valoper:register_fee.
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
+	if newMinFee < 0 {
+		panic(ErrNegativeMinFee)
+	}
+
 	return sysparams.NewSysParamUint64PropRequest(cross(cur), "node", "valoper", "register_fee", uint64(newMinFee))
 }
