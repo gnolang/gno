@@ -351,7 +351,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		// beyond Length is unobservable from Gno. Sizing by Maxcap let a
 		// zero-length, large-Maxcap slice buy an unmetered Go allocation and
 		// memcpy for the flat native base cost. Natives must not rely on a
-		// parameter slice's capacity; see adr/gno2go_slice_gas.md.
+		// parameter slice's capacity; see adr/acd01fa29_gno2go_slice_gas.md.
 		if svb.Data == nil {
 			rv.Set(reflect.MakeSlice(st, svl, svl))
 			for i := range svl {

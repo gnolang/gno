@@ -40,7 +40,7 @@ The `gnokey add` command allows you to generate a new key pair locally. Simply
 run the command, while adding a name for your key pair:
 
 ```bash
-gnokey add MyKey
+gnokey add mykey
 ```
 
 After running the command, `gnokey` will ask you to enter a password that will be
@@ -127,6 +127,10 @@ flag you will use when deploying:
 gno mod init gno.land/p/<your_namespace>/hello_world
 ```
 
+`<your_namespace>` is either a name you have
+[registered](../resources/users-and-teams.md) or your own `g1…` address, which
+needs no registration.
+
 This will generate a `gnomod.toml` with the following content:
 
 ```toml
@@ -167,27 +171,30 @@ The `addpkg` subcommand uses the following flags and arguments:
 - `-max-deposit` - Maximum GNOT to lock for storage deposit (optional)
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
-- `-gas-fee` - amount of GNOTs to pay per gas unit
+- `-gas-fee` - the whole fee for the transaction, one flat amount in `ugnot`
 - `-chainid` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath`, `-pkgdir`, flags are unique to the `addpkg`
-subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and
+subcommand, while `-broadcast`, `-gas-wanted`, `-gas-fee`, `-chainid`, and
 `-remote` are used for setting the base transaction configuration. These flags
 will be repeated throughout the tutorial.
 
 Next, let's configure the `addpkg` subcommand to publish this package to the
-[Staging](../resources/gnoland-networks.md) chain. Assuming we are in
-the `example/p/` folder, the command will look like this:
+testnet. The transaction examples on this page use its `latest` endpoint, which
+always points at the current testnet. Its chain ID changes with each testnet, so
+put the current one, listed in [Networks](../resources/gnoland-networks.md), in
+place of `<chain-id>`. Assuming we are in the `example/p/` folder, the command
+will look like this:
 
 ```bash
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/<your_namespace>/hello_world" \
 -pkgdir "." \
--gas-fee 10000000ugnot \
--gas-wanted 8000000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443"
+-gas-fee 4000ugnot \
+-gas-wanted 4000000 \
+-chainid <chain-id> \
+-remote "https://rpc.latest.testnets.gno.land:443"
 ```
 
 Once we have added a desired [namespace](../resources/users-and-teams.md) to upload the package to, we can specify a key
@@ -197,36 +204,62 @@ pair name to use to execute the transaction:
 gnokey maketx addpkg \
 -pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
--gas-fee 10000000ugnot \
--gas-wanted 200000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443"
+-gas-fee 4000ugnot \
+-gas-wanted 4000000 \
+-chainid <chain-id> \
+-remote "https://rpc.latest.testnets.gno.land:443" \
 mykey
 ```
 
 If the transaction was successful, you will get an output from `gnokey` that is
-similar to the following:
+similar to the following, taken on a local chain (the testnet's height and gas
+used differ):
 
 ```console
 OK!
-GAS WANTED: 200000
-GAS USED:   117564
+GAS WANTED: 4000000
+GAS USED:   2590046
 HEIGHT:     3990
-EVENTS:     []
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+STORAGE DELTA:  1748 bytes
+STORAGE FEE:    174800ugnot
+TOTAL TX COST:  178800ugnot
+EVENTS:     [{"bytes_delta":1748,"fee_delta":{"denom":"ugnot","amount":174800},"pkg_path":"gno.land/p/examplenamespace/hello_world"}]
+INFO:
+TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=
 PKGPATH:    gno.land/p/examplenamespace/hello_world
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
 
-- `GAS WANTED: 200000` - the original amount of gas specified for the transaction
-- `GAS USED:   117564` - the gas used to execute the transaction
+- `GAS WANTED: 4000000` - the original amount of gas specified for the transaction
+- `GAS USED:   2590046` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - [Gno events](../resources/gno-stdlibs.md#events) emitted by the transaction, in this case, none
-- `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
+- `STORAGE FEE:    174800ugnot` - the
+  [storage deposit](../resources/storage-deposit.md) locked against those bytes
+- `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
+- `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted
+  by the transaction, here the storage event that the added bytes produce. A
+  message emits one for each realm whose storage it changes, and a negative
+  `bytes_delta` means bytes were freed
+- `INFO:` - anything the node reported alongside the result, empty on a plain broadcast
+- `TX HASH:    37tmp7LKR0QIpfmmwLXkM3n86E9Sc46E1gq33JLlu8g=` - the hash of the transaction
 - `PKGPATH:    gno.land/p/examplenamespace/hello_world` - the on-chain path of the deployed package (only printed for `addpkg`)
 
-Congratulations! You have just uploaded a pure package to the Staging network.
+Congratulations! You have just uploaded a pure package to the testnet. The
+testnet enables a new package a few seconds after `addpkg`. To see where it
+stands:
+
+```sh
+gnokey query vm/qpkgmeta_json \
+  -data "gno.land/p/examplenamespace/hello_world" \
+  -remote "https://rpc.latest.testnets.gno.land:443"
+```
+
+It reads `"status":"live"` once the package is enabled, `"inert"` until then,
+and `"absent"` if nothing landed at that path. A package the approver refused
+still reads "waiting for a package approver to enable it", so if it is still
+inert after a minute, ask on [Discord](https://discord.com/invite/gnoland).
 If you wish to deploy to a different network, find the list of all network
 configurations in the [Network Configuration](../resources/gnoland-networks.md) section.
 
@@ -250,7 +283,7 @@ does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Staging](../resources/gnoland-networks.md) chain, under the `gno.land/r/gnoland/wugnot` path.
+testnet, under the `gno.land/r/gnoland/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -261,10 +294,10 @@ gnokey maketx call \
 -pkgpath "gno.land/r/gnoland/wugnot" \
 -func "Deposit" \
 -send "1000ugnot" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443" \
+-gas-fee 8000ugnot \
+-gas-wanted 8000000 \
+-chainid <chain-id> \
+-remote "https://rpc.latest.testnets.gno.land:443" \
 mykey
 ```
 
@@ -274,60 +307,51 @@ In this command, we have specified three main things:
 - The function that we want to call on the realm with the `-func` flag
 - The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
 
-Apart from this, we have also specified the Staging chain ID, `staging`,
-as well as the Staging remote address, `https://rpc.staging.gno.land:443`.
+Apart from this, we have also set `-chainid` to the testnet's chain ID and
+`-remote` to its RPC endpoint, `https://rpc.latest.testnets.gno.land:443`.
 
-After running the command, we can expect an output similar to the following:
+After running the command, we can expect an output similar to the following.
+It was taken on a local chain: on the testnet, the height and gas used differ.
 
 ```bash
 OK!
-GAS WANTED: 2000000
-GAS USED:   489528
-HEIGHT:     24142
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/gnoland/wugnot","func":"Mint"}]
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+GAS WANTED: 8000000
+GAS USED:   6975797
+HEIGHT:     2
+STORAGE DELTA:  1043 bytes
+STORAGE FEE:    104300ugnot
+TOTAL TX COST:  112300ugnot
+EVENTS:     [{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum","coins":[{"denom":"ugnot","amount":1000}]},{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot.0000000"},{"key":"from","value":""},{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/nt/grc20/v0"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
+INFO:
+TX HASH:    krIPGMvjzkSXndiLM2hC2Qad0sLDcw/HSGClk8Kwjmo=
 ```
 
-In this case, we can see that the `Deposit()` function emitted an
-[event](../resources/gno-stdlibs.md#events) that tells us more about what
-happened during the transaction.
+The first event is the bank transfer of the `1000ugnot` sent with the call. The
+second is the `Transfer` [event](../resources/gno-stdlibs.md#events) of the
+`1000` `wugnot` that `Deposit()` minted to the caller, and the last is the
+storage event.
 
-After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
-can call the `BalanceOf()` function in the same realm:
+After broadcasting the transaction, we can verify that we have the amount of
+`wugnot` we expect. `BalanceOf` only reads state, and `maketx call` refuses it
+with `function BalanceOf is non-crossing and cannot be called with MsgCall;
+query with vm/qeval or use MsgRun`. Query it instead:
 
 ```bash
-gnokey maketx call \
--pkgpath "gno.land/r/gnoland/wugnot" \
--func "BalanceOf" \
--args "<your_address>" \
--gas-fee 10000000ugnot \
--gas-wanted 2000000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443" \
-mykey
+gnokey query vm/qeval \
+-data "gno.land/r/gnoland/wugnot.BalanceOf(\"<your_address>\")" \
+-remote "https://rpc.latest.testnets.gno.land:443"
 ```
 
 If everything was successful, we should get something similar to the following
 output:
 
 ```
-(1000 int64)
-
-OK!
-GAS WANTED: 2000000
-GAS USED:   396457
-HEIGHT:     64839
-EVENTS:     []
-TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+height: 0
+data: (1000 int64)
 ```
 
-At the top, you will see the output of the transaction, specifying the value and
-type of the return argument.
-
-In this case, we used `maketx call` to call a read-only function, which simply
-checks the `wugnot` balance of a specific address. This is discouraged, as
-`maketx call` actually uses gas. To call a read-only function without spending gas,
-check out the `vm/qeval` query section.
+The `data` line carries the value and type of the return argument. See
+[`vm/qeval`](#vmqeval) for the escaping rules and what expressions it accepts.
 
 ### Calling a variadic function
 Variadic functions are supported in Gno. To call a variadic function, pass one -args flag per variadic element.
@@ -376,10 +400,10 @@ our `maketx send` subcommand:
 gnokey maketx send \
 -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
 -send 100ugnot \
--gas-fee 10000000ugnot \
+-gas-fee 2000ugnot \
 -gas-wanted 2000000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443" \
+-chainid <chain-id> \
+-remote "https://rpc.latest.testnets.gno.land:443" \
 mykey
 ```
 
@@ -393,9 +417,15 @@ in the [Querying a network](#querying-a-gnoland-network) section.
 ## `Run`
 
 With the `Run` message, you can write a snippet of Gno code and run it against
-code on the chain. For this example, we will use the [Counter realm](https://staging.gno.land/r/demo/counter),
+code on the chain. For this example, we will use the
+[Counter realm](../../examples/gno.land/r/demo/counter),
 which maintains a simple counter that can be incremented.
 It contains a simple `Increment()` function, which we will call with `Run`.
+
+`Run` is not open to everyone on the public testnet, and the Counter realm is
+not deployed there, so this example runs against a local
+[gnodev](../resources/gnodev.md) chain, which serves the example realms. Start
+it with `gnodev` before running the commands below.
 
 To understand how to use the `Run` message better, let's write a simple `script.gno`
 file. First, create a folder which will store our script.
@@ -436,16 +466,41 @@ Now we will be able to provide this to the `maketx run` subcommand:
 
 ```bash
 gnokey maketx run \
--gas-fee 1000000ugnot \
+-gas-fee 20000ugnot \
 -gas-wanted 20000000 \
--chainid staging \
--remote "https://rpc.staging.gno.land:443" \
+-chainid dev \
+-remote "http://localhost:26657" \
 mykey ./script.gno
 ```
 
 After running this command, the chain will execute the script and apply any state
 changes. Additionally, by using `println`, which is only available in the `Run`
 & testing context, we will be able to see the return value of the function called.
+
+### Sending coins from a script
+
+A run can send coins from your account to another address only up to
+`-max-send`, summed over the whole run, whichever code makes the transfer.
+Without the flag such a send fails with
+`run sends more coins than its max send allows`.
+
+The [storage deposit](../resources/storage-deposit.md) is not a send, yet a
+script you have not read can move it away too. A realm the script calls can
+store data paid from your deposit, and whoever frees that data later gets the
+deposit back while `ugnot` transfers are unrestricted. `-max-deposit` caps it,
+and without the flag the cap is the chain's `vm:p:default_deposit` parameter,
+100,000,000ugnot by default. Set both flags to what the script needs.
+
+```bash
+gnokey maketx run \
+-max-send 1000ugnot \
+-max-deposit 1000000ugnot \
+-gas-fee 1000000ugnot \
+-gas-wanted 20000000 \
+-chainid staging \
+-remote "https://rpc.staging.gno.land:443" \
+mykey ./script.gno
+```
 
 ### The power of `Run`
 
@@ -597,7 +652,7 @@ First, we need to fetch data for the account we are using to sign the transactio
 using the [auth/accounts](#authaccounts) query:
 
 ```bash
-gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:443"
+gnokey query auth/accounts/<your_address> -remote "https://rpc.latest.testnets.gno.land:443"
 ```
 
 We need to extract the account number and sequence from the output:
@@ -627,15 +682,16 @@ with `-broadcast=false`, while redirecting the output to a local file:
 
 ```bash
 gnokey maketx call \
--pkgpath "gno.land/r/demo/counter" \
--func "Increment" \
--gas-fee 1000000ugnot \
--gas-wanted 2000000 \
+-pkgpath "gno.land/r/gnoland/wugnot" \
+-func "Deposit" \
+-send "1000ugnot" \
+-gas-fee 8000ugnot \
+-gas-wanted 8000000 \
 -broadcast=false \
-mykey > counter.tx
+mykey > deposit.tx
 ```
 
-This will create a `counter.tx` file with a null `signature` field.
+This will create a `deposit.tx` file with a null `signature` field.
 Now we are ready to sign the transaction.
 
 ### 3. Signing the transaction
@@ -643,15 +699,15 @@ Now we are ready to sign the transaction.
 To add a signature to the transaction, we can use the `gnokey sign` subcommand.
 To sign, we must set the correct flags for the subcommand:
 
-- `-tx-path` - path to the transaction file to sign, in our case, `counter.tx`
+- `-tx-path` - path to the transaction file to sign, in our case, `deposit.tx`
 - `-chainid` - id of the chain to sign for
 - `-account-number` - number of the account fetched previously
 - `-account-sequence` - sequence of the account fetched previously
 
 ```bash
 gnokey sign \
--tx-path counter.tx \
--chainid "staging" \
+-tx-path deposit.tx \
+-chainid "<chain-id>" \
 -account-number 468 \
 -account-sequence 0 \
 mykey
@@ -659,7 +715,7 @@ mykey
 
 After inputting the correct values, `gnokey` will ask for the password to decrypt
 the key pair. Once we input the password, we should receive the message that the
-signing was completed. If we open the `counter.tx` file, we will be able to see
+signing was completed. If we open the `deposit.tx` file, we will be able to see
 that the signature field has been populated.
 
 We are now ready to broadcast this transaction to the chain.
@@ -670,7 +726,7 @@ To broadcast the signed transaction to the chain, we can use the `gnokey broadca
 subcommand, giving it the path to the signed transaction:
 
 ```bash
-gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
+gnokey broadcast -remote "https://rpc.latest.testnets.gno.land:443" deposit.tx
 ```
 
 In this case, we do not need to specify a key pair, as the transaction has already
@@ -682,16 +738,19 @@ To verify a transaction's signature is correct, you can use the `gnokey verify`
 subcommand. Provide the path to the transaction document using the `-tx-path`
 flag, and optionally the path to a separate signature file using the `-sig-path`
 flag. If `-sig-path` is omitted, the first signature embedded in the transaction
-itself is verified.
+itself is verified. Pass the chain ID, account number and sequence the
+transaction was signed with: without them, `gnokey verify` reads the account's
+current values from `-remote`, and the sequence has moved on once the
+transaction is broadcast.
 
 ```bash
-gnokey verify -tx-path counter.tx mykey
+gnokey verify -tx-path deposit.tx -chainid "<chain-id>" -account-number 468 -account-sequence 0 mykey
 ```
 
 To verify against a separate signature file:
 
 ```bash
-gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
+gnokey verify -tx-path deposit.tx -sig-path deposit-sig.json -chainid "<chain-id>" -account-number 468 -account-sequence 0 mykey
 ```
 
 ## Using a k-of-n multisig
@@ -704,6 +763,12 @@ This section shows the simplest multisig flow:
 3) each signer produces an **individual signature document**
 4) combining signatures with `multisign` (ordering matters)
 5) broadcasting
+
+The commands run against a local chain such as `gnodev`, gnokey's default
+(`dev` chain ID, `127.0.0.1:26657`). To use the testnet, add
+`-chainid <chain-id>` to each `gnokey sign`, and
+`-remote https://rpc.latest.testnets.gno.land:443` to `gnokey query` and
+`gnokey broadcast`.
 
 ### 1. Create the local multisig representation
 
@@ -823,7 +888,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100000ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -send "100000ugnot" -gas-fee 2000ugnot -gas-wanted 2000000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**
@@ -873,7 +938,7 @@ rm -f "$BOB_SIG"
 echo "\n\n" | gnokey sign --tx-path "$TX_PAYLOAD" --home "./bob-kb" bob --account-number "$MULTISIG_ACC_NUM" --account-sequence "$MULTISIG_ACC_SEQ" -insecure-password-stdin -quiet --output-document "$BOB_SIG"
 ```
 
-(Charlie would do the same, producing `charlie-sig.json`, but you only need 2 signatures for a 2-of-3.)
+(Charlie could do the same, producing `charlie-sig.json`, in place of Alice or Bob. A 2-of-3 takes exactly 2 signatures, not more.)
 
 ### 3. Combine signatures with the multisig
 
@@ -888,6 +953,8 @@ If your multisig was defined as: `alice, bob, charlie`, then:
 - Charlie's signature corresponds to slot 3
 
 You can provide signatures in any CLI order, but they must be valid for members of that multisig.
+
+Pass exactly as many signatures as the threshold: 2 for a 2-of-3. The chain refuses a multisig signature carrying more or fewer, and so does `gnokey multisign`. If more members signed, pick which ones to send.
 
 #### Multisign (Alice + Bob example)
 
@@ -913,10 +980,10 @@ flowchart TD
   B --> C[Query the chain for the latest multisig account number and account sequence]
   C --> D1[Alice signs payload with gnokey sign using multisig account_number and sequence, produces <br/>alice-sig.json]
   C --> D2[Bob signs payload with gnokey sign using multisig account_number and sequence, produces <br/>bob-sig.json]
-  C --> D3[Charlie optionally signs the payload, produces <br/>charlie-sig.json]
-  D1 --> E[Combine signatures with gnokey multisign.<br/>Signature slots must match multisig member order]
+  C --> D3[Charlie may sign in place of Alice or Bob, produces <br/>charlie-sig.json]
+  D1 --> E[Combine exactly 2 signatures, the threshold, with gnokey multisign.<br/>Signature slots must match multisig member order]
   D2 --> E
-  D3 -. optional .-> E
+  D3 -. instead of one of them .-> E
   E --> F[Broadcast TX<br/>gnokey broadcast]
   F --> G[Done]
 
@@ -981,7 +1048,7 @@ git checkout master
 Compute the same `VERSION` string the repo uses (see `build.gnokey`) and build with equivalent `-ldflags`:
 
 ```bash
-VERSION="$(git describe --tags --exact-match 2>/dev/null || \
+VERSION="$(git describe --tags --exact-match --match 'v*' 2>/dev/null || \
   echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")"
 
 mkdir -p build
@@ -1089,7 +1156,7 @@ We can obtain information about a specific address using this subquery. To call 
 we can run the following command:
 
 ```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.staging.gno.land:443
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 With this, we are asking the network to deliver information about the
@@ -1181,8 +1248,8 @@ If everything went correctly, we should get an output similar to the following:
 ```bash
 height: 0
 data: {
-  "gas": 1000,
-  "price": "100ugnot"
+  "gas": "1000",
+  "price": "1ugnot"
 }
 ```
 
@@ -1385,11 +1452,11 @@ Currently, `vm/qeval` only supports primitive types in expressions.
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.staging.gno.land:443
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:" -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 Running this command will display the current `Render()` output of the WUGNOT
-realm, which is also displayed by default on the [realm's page](https://staging.gno.land/r/gnoland/wugnot):
+realm, which is also displayed by default on the [realm's page](https://latest.testnets.gno.land/r/gnoland/wugnot):
 
 ```bash
 height: 0
@@ -1494,15 +1561,13 @@ When using `gnokey` to send transactions, you'll need to specify gas parameters:
 
 ```bash
 gnokey maketx call \
-  -pkgpath "gno.land/r/gnoland/boards2/v0" \
-  -func "CreateBoard" \
-  -args "MyBoard" \
-  -args "true" \
-  -args "true" \
-  -gas-fee 1000000ugnot \
-  -gas-wanted 2000000 \
-  -remote https://rpc.staging.gno.land:443 \
-  -chainid staging \
+  -pkgpath "gno.land/r/gnoland/wugnot" \
+  -func "Deposit" \
+  -send "1000ugnot" \
+  -gas-fee 8000ugnot \
+  -gas-wanted 8000000 \
+  -remote https://rpc.latest.testnets.gno.land:443 \
+  -chainid <chain-id> \
   YOUR_KEY_NAME
 ```
 

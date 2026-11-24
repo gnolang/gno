@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
@@ -74,4 +76,27 @@ func TestRandBech32AddrConsistency(t *testing.T) {
 		_, err := crypto.AddressFromBech32(str)
 		require.NotNil(t, err)
 	}
+}
+
+// A prefix error names a prefix of at most 256 bytes, and gives a longer one,
+// which a peer can make as long as its message, by its length.
+func TestPrefixErrorNamesOnlyShortPrefix(t *testing.T) {
+	t.Parallel()
+
+	encode := func(hrp string) string {
+		s, err := bech32.Encode(hrp, make([]byte, crypto.AddressSize))
+		require.NoError(t, err)
+		return s
+	}
+	short, long := encode("x"), encode(strings.Repeat("x", 257))
+	want := crypto.Bech32AddrPrefix()
+
+	_, err := crypto.AddressFromBech32(short)
+	require.EqualError(t, err, "invalid Bech32 prefix; expected "+want+", got x")
+	_, err = crypto.AddressFromBech32(long)
+	require.EqualError(t, err, "invalid Bech32 prefix; expected "+want+", got a 257-byte prefix")
+
+	var addr crypto.Address
+	require.EqualError(t, addr.DecodeString(short), `unexpected bech32 prefix for address. expected "`+want+`", got "x"`)
+	require.EqualError(t, addr.DecodeString(long), `unexpected bech32 prefix for address. expected "`+want+`", got a 257-byte prefix`)
 }

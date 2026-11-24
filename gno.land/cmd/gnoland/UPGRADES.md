@@ -41,7 +41,8 @@ import (
 )
 
 func main(cur realm) {
-    // Halt at block 704052; require binary >= chain/gnoland1.1 to resume.
+    // Betanet's halt: block 704052, binary >= chain/gnoland1.1 to resume.
+    // A new halt names a vX.Y.Z release instead.
     preq := params.NewSetHaltRequest(cross(cur), 704052, "chain/gnoland1.1")
     dao.MustCreateProposal(cross(cur), preq)
 }
@@ -125,9 +126,7 @@ gnoland config get halt_height   # expect 0
 
 ### What a halt actually looks like
 
-The block **at** `halt_height` is fully committed. The halt is armed, and the
-panic fires when the *next* block begins, so the last committed block is
-`halt_height` itself.
+The block **at** `halt_height` is fully committed. The halt is armed, and the panic fires when the *next* block begins, so the last block the application commits is `halt_height` itself. That next block already exists when the panic fires: consensus has agreed on it and stored it, so the binaries the network runs before the halt decide what block `halt_height + 1` holds. A new binary started on the same data directory executes it from the block store (`Replay last block using real app` in its log). A genesis replay starts the new chain at `halt_height + 1` instead (`InitialHeight`, see [How it works](#how-it-works)), from the transactions up to `halt_height`.
 
 The stop itself is identical whether the halt was scheduled by governance or set
 in `config.toml`: each writes the same in-memory halt height, so each reaches the
@@ -160,8 +159,8 @@ because the config path never consults chain state, so no "will halt after this
 block" line is ever emitted. If you are watching for a config-driven halt, watch
 the height, not the log.
 
-**The process does not exit.** `gnoland start` waits on its signal context, not
-on consensus health, so the node stops producing blocks while the RPC server
+**On a node at the tip, the process does not exit.** `gnoland start` waits on
+its signal context, not on consensus health, so the node stops producing blocks while the RPC server
 stays up and the process idles. Stop it yourself. Process supervisors configured
 to restart on exit will not fire.
 
@@ -172,6 +171,8 @@ halt height share one deterministic path with no async signals: every node stops
 at the same block because the same check runs during block execution, not because
 a signal arrived at some moment. A process that outlives its own halt is the cost
 of that guarantee.
+
+The process stays up only on a node at the tip, where the consensus routine catches the panic. A node still catching up through block sync, such as one syncing from genesis across a past halt, has nothing to catch it: the process exits with code 2, so a supervisor configured to restart on exit does fire, and the restarted node carries on past the halt if its binary meets that halt's `halt_min_version`.
 
 ### Restart gates
 
@@ -190,11 +191,15 @@ Both checks are skipped entirely when `halt_height` is `0` or
 `halt_min_version` is empty. A halt proposal that leaves the version empty is a
 coordinated *pause*, not an upgrade gate.
 
+**The floor is the version operators switch to, above every version the network runs.** A floor the running binary already meets gates nothing and blocks restarts: before the halt the second check refuses every restart of that binary, so the chain stalls short of the halt once validators holding a third of the voting power have tried to restart, and after the halt the first check lets the same binary resume. `misc/govdao-scripts/set-halt.sh` refuses such a floor, comparing it with the version one node, its `REMOTE`, reports; survey the others as described in [Where the binary's version comes from](#where-the-binarys-version-comes-from).
+
 An operator who has already migrated out-of-band can bypass both:
 
 ```bash
 gnoland config set skip_upgrade_height 704052   # must equal halt_height
 ```
+
+Set it back to `0` once the node is past `halt_height`: left in place, it also lets a binary below the floor resume the chain.
 
 #### Where the binary's version comes from
 
@@ -205,33 +210,49 @@ config or chain state, so it is fixed the moment the binary is produced:
 | How it was built | Reported version |
 |---|---|
 | `go build ./gno.land/cmd/gnoland` | `develop` — the hardcoded default, since nothing overrides it |
-| `make build.gnoland` on a release tag | the tag, e.g. `chain/gnoland1.1` |
+| `make build.gnoland` on a release tag | the tag, e.g. `v1.2.0`; on a candidate whose final shares its commit, the final, unless `VERSION=vX.Y.Z-rc.N` names the candidate |
 | `make build.gnoland` off a tag | `<branch>.<commits>+<hash>`, e.g. `master.3335+bc43a5fb7` |
 | `go build -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=..."` | whatever you pass |
 
 The Makefile injects it with `-ldflags -X`, deriving the value from
-`git describe --tags --exact-match` and falling back to the branch/count/hash
-form when the commit is not tagged. `chain/gnoland1.0` and `chain/gnoland1.1`
-are real tags in this repository — that is where the
-`chain/gnoland<major>.<minor>` format comes from, and why a binary built on a
-release tag reports exactly the shape the comparison understands.
+`git describe --tags --exact-match --match 'v*'` and falling back to the
+branch/count/hash form when the commit is not tagged. The `--match` keeps a
+launch tag out of the answer: one can sit on a release commit (`chain/mainnet`
+is on the same commit as `v1.2.0`), and its name is a string the comparison
+below refuses. `chain/mainnet` is lightweight, so `describe` prefers the
+annotated `v1.2.0` anyway, as it would an annotated launch tag tagged before
+`v1.2.0`; one tagged after would win. The release workflow injects the tag
+verbatim for the same reason: a binary built on a release tag has to report
+exactly the shape the comparison understands.
 
-Versions are compared by parsing that shape: different majors compare as majors,
-otherwise the minor must be greater or equal. **Anything that does not parse
-falls back to exact string equality**, so `develop` and `master.3335+bc43a5fb7`
-satisfy no `chain/gnolandX.Y` floor at all. A release build passes the gate; an
-ad-hoc build of the same code does not.
+Two shapes parse (`meetsMinVersion`, and see [RELEASING.md](../../../RELEASING.md)):
+
+| Shape | Example | |
+|---|---|---|
+| `vMAJOR.MINOR.PATCH` | `v1.2.0` | the current release shape |
+| `chain/gnolandMAJOR.MINOR` | `chain/gnoland1.1` | betanet's retired shape, still parsed because those tags are compiled into binaries that ran that chain |
+
+They order as one line, and a pre-release sorts below the release it leads to,
+so `v1.3.0-rc.1` does not satisfy a `v1.3.0` floor.
+
+**Anything that does not parse falls back to exact string equality.** For a
+*binary* version that is the intended outcome: `develop` and
+`master.3335+bc43a5fb7` satisfy no floor, so a release build passes the gate and
+an ad-hoc build of the same code does not. For a *`halt_min_version`* it is a
+trap — an unparseable floor such as the bare `chain/mainnet` tag can only be met
+by a byte-identical binary version, which refuses the upgraded binary along with
+the stale ones and leaves the chain unable to restart. **Name a `vX.Y.Z` tag in a
+halt proposal**; `misc/release/cut-release.sh` will not emit one that does not
+parse.
 
 To read a version back:
 
 ```bash
-gnoland version                              # gnoland version: chain/gnoland1.1
+gnoland version                              # gnoland version: v1.2.0
 curl -s localhost:26657/status | grep -i build_version
 ```
 
-The RPC `/status` endpoint reports it as `BuildVersion`, so you can survey what
-the rest of the network is running — worth doing before choosing a
-`halt_min_version` that some validators cannot satisfy.
+The RPC `/status` endpoint reports it as `result.build_version` (`result.node_info.version` is the p2p protocol version), so you can survey what the rest of the network is running — worth doing before choosing a `halt_min_version` that some validators cannot satisfy, or one that some already meet.
 
 **The halt params are never cleared.** Nothing in the node resets them after a
 successful resume, so `halt_min_version` stays in force as a permanent
@@ -255,9 +276,12 @@ the full transaction history plus the metadata needed to replay it:
 gnogenesis fork generate \
     --source-txs-data-dir /path/to/halted/gnoland/data \
     --source-genesis-file /path/to/source/genesis.json \
+    --halt-height <halt_height> \
     --chain-id gnoland-1 \
     --output genesis.json
 ```
+
+Pass `--halt-height` after a governance halt. The data directory's block store also holds the next block, `halt_height + 1` (see [What a halt actually looks like](#what-a-halt-actually-looks-like)), whose results are never saved, and without the flag the tool takes it as the halt height: it fails on the missing results when that block carries transactions, and otherwise starts the new chain one block late, at `halt_height + 2`. With the flag it warns that the height is below the block store's tip; that is expected here, since the application state it reads is at the halt height.
 
 On the new chain, `InitChain` replays every historical transaction through the
 full ante handler. Three genesis-level fields make that possible:
@@ -297,8 +321,10 @@ migration files, and from patches, and why.
 
 - Fork genesis files are large — roughly 192 MB for a chain halted at height
   ~704k, since they carry the whole transaction history.
-- The RPC source has no retry or resume; a single transient error aborts the
-  fetch. Prefer `--source-txs-data-dir` against a halted data directory.
+- The RPC source retries each height across its endpoints for up to three
+  cycles, 500 ms apart, and has no resume: an error that outlasts the retries
+  aborts the fetch. Prefer `--source-txs-data-dir` against a halted data
+  directory.
 - All transactions are held in memory during generation, so very large chains
   can exhaust RAM.
 
@@ -309,7 +335,6 @@ detailed than this page:
 
 - [`misc/deployments/test13.gno.land/gen-genesis.sh`](../../../misc/deployments/test13.gno.land/gen-genesis.sh)
   — the fullest example, including `--migration-tx` for valoper seeding
-- [`misc/deployments/pearl.gno.land/gen-genesis.sh`](../../../misc/deployments/pearl.gno.land/gen-genesis.sh)
 
 ## What does not exist
 
@@ -341,8 +366,8 @@ implements:
 3. The chain commits block H and stops. Operators stop the idle processes.
 4. **If the state format did not change**: restart on the new binary. It must
    satisfy `minVersion`. The chain continues at H+1.
-5. **If it did change**: run `gnogenesis fork generate` against a halted data
-   directory, add `--migration-tx` / `--patch-realm` for anything the upgrade
+5. **If it did change**: run `gnogenesis fork generate --halt-height H` against
+   a halted data directory, add `--migration-tx` / `--patch-realm` for anything the upgrade
    introduces, verify with `gnogenesis fork test`, distribute the new
    `genesis.json`, and start the new binary against it. Replay rebuilds state
    and the chain produces its first fresh block at `InitialHeight`.
@@ -356,3 +381,20 @@ implements:
 | `InitialHeight` in consensus and the block store | [`tm2/adr/pr5511_initial_height.md`](../../../tm2/adr/pr5511_initial_height.md) |
 | Manual test plan for the halt mechanism | [Testing the halt height feature](UPGRADES-TESTING.md) |
 | Node configuration and operation | [`README.md`](README.md) |
+
+## Canonical transaction encoding
+
+A transaction is identified by the hash of its bytes while its signatures
+cover the sign doc, so a node that accepts more than one amino encoding of a
+transaction accepts the same transaction under more than one hash
+(gnolang/gno#6404). Releases that include the enforcement accept only the
+canonical encoding, in `CheckTx` and `DeliverTx` alike.
+
+This is state-breaking and ships as a coordinated upgrade. Blocks produced
+before its halt height may hold other encodings of the same transactions and
+are replayed by the earlier binaries, per the ledger contract above; the
+enforcing release only ever runs its own block range. Schedule the halt only
+once the clients in use emit the canonical form: Go tools built after #6399,
+`amino-ts` 0.2.1 or later (gnolang/amino-ts#2, #4); the ts-proto clients
+already do. Every master-key transaction from an older Go client carries a
+written-out zero session address and is refused.

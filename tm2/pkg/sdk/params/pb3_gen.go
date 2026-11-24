@@ -69,7 +69,7 @@ func (goo *Param) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) er
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }

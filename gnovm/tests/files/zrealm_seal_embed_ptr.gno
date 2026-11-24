@@ -7,7 +7,7 @@ package crossrealm
 // (VPDerefField) rather than the plain value field (VPField) of
 // zrealm_seal_embed.gno, and must be rejected the same way: only a method
 // declared directly on the concrete type (the runtime `.grealm`) satisfies the
-// sealed `realm` interface. See gnovm/adr/realm_seal_embedding.md.
+// sealed `realm` interface. See gnovm/adr/acd01fa29_realm_seal_embedding.md.
 
 type inner struct {
 	realm
