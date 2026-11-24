@@ -9,6 +9,7 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 // valsetUpdates returns one fresh validator update per given power.
@@ -324,5 +325,49 @@ func TestEndBlockerVotingPowerBound(t *testing.T) {
 			res = runEndBlocker(t, newValsetMock(st), "/tm.PubKeySecp256k1")
 		})
 		require.Len(t, res.ValidatorUpdates, 1)
+	})
+}
+
+// TestNodeParamsKeeperValsetProposedDryRun covers refusing, at write time, a
+// valset:proposed that EndBlocker would drop whole.
+func TestNodeParamsKeeperValsetProposedDryRun(t *testing.T) {
+	t.Parallel()
+
+	const maxPower = bft.MaxTotalVotingPower
+
+	// write returns the panic WillSetParam raises, or "" when it accepts.
+	write := func(current, proposed []abci.ValidatorUpdate) (panicked string) {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = fmt.Sprint(r)
+			}
+		}()
+		npk := nodeParamsKeeper{prmk: newValsetMock(&valsetState{current: serializeUpdates(current)})}
+		npk.WillSetParam(sdk.Context{}, "valset:proposed", serializeUpdates(proposed))
+		return ""
+	}
+
+	t.Run("replacement at the cap over the old set's power panics", func(t *testing.T) {
+		t.Parallel()
+
+		got := write(valsetUpdates(t, maxPower/2, maxPower/2), valsetUpdates(t, maxPower))
+		assert.Contains(t, got, "valset:proposed would fail consensus apply: failed to add/update validator")
+	})
+
+	t.Run("repeated address panics", func(t *testing.T) {
+		t.Parallel()
+
+		v := valsetUpdates(t, 10, 1)
+		b2 := v[1]
+		b2.Power = 2
+		got := write(v[:1], append(append([]abci.ValidatorUpdate{}, v...), b2))
+		assert.Contains(t, got, "invalid valset:proposed: entry 2 repeats address")
+	})
+
+	t.Run("in-bounds proposal passes", func(t *testing.T) {
+		t.Parallel()
+
+		proposed := valsetUpdates(t, 1, maxPower-1)
+		assert.Empty(t, write(proposed[:1], proposed))
 	})
 }

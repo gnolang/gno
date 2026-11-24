@@ -125,6 +125,20 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, abciResult(err), true
 		}
 
+		// A signature's public key is optional once its account has stored
+		// one, and the sign payload does not include it, so a relayer could
+		// strip it and restate the tx under a new hash. Require it before any
+		// fee or sequence change, except in simulation and at genesis
+		// (replayed history included), where nothing is relayed.
+		if !simulate && ctx.BlockHeight() != 0 && !IsGenesisReplay(ctx) {
+			for i, sig := range tx.GetSignatures() {
+				if sig.PubKey == nil {
+					return newCtx, abciResult(std.ErrInvalidPubKey(
+						fmt.Sprintf("signature %d has no public key", i))), true
+				}
+			}
+		}
+
 		// Mulp, not a bare multiply: TxSizeCostPerByte is only validated positive,
 		// so an absurd one wraps. Some wraps land negative and the meter refuses
 		// them, but others land small and positive -- a 4096-byte transaction
@@ -238,6 +252,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			// accNum/accSeq sign-bytes logic below still uses source values.
 			if !opts.VerifyGenesisSignatures {
 				if IsGenesisReplay(ctx) {
+					// The signer's address commits to this key, and the VM
+					// banker tells a user account by it.
+					if acc := signerAccs[i]; acc.GetPubKey() == nil && sig.PubKey != nil && sig.PubKey.Address() == acc.GetAddress() {
+						acc.SetPubKey(sig.PubKey)
+						ak.SetAccount(newCtx, acc)
+					}
 					continue
 				}
 			}
@@ -444,8 +464,10 @@ func DefaultSigVerificationGasConsumer(
 		// ante handler, whose own recover only handles OutOfGasError, and be
 		// caught by runTx's blanket recover as an ErrInternal with a stack
 		// trace. The amino error is not reported back because it renders the
-		// offending buffer as hex, and the buffer is caller-sized.
-		if err := amino.Unmarshal(sig, &multisignature); err != nil {
+		// offending buffer as hex, and the buffer is caller-sized. Canonical,
+		// as in PubKeyMultisigThreshold.VerifyBytes: the transaction's own
+		// canonical check sees these bytes as opaque.
+		if err := amino.UnmarshalCanonical(sig, &multisignature); err != nil {
 			return abciResult(std.ErrUnauthorized("signature is not a valid multisignature"))
 		}
 
@@ -474,7 +496,7 @@ func consumeMultisignatureVerificationGas(meter store.GasMeter,
 	// Size() report more bits than are stored — which the walk below indexes.
 	// One implementation, shared with PubKeyMultisigThreshold.VerifyBytes, so
 	// that the two cannot come to disagree about which shapes are walkable.
-	if err := sig.ValidateBasic(len(pubkey.PubKeys)); err != nil {
+	if err := sig.ValidateBasic(pubkey); err != nil {
 		return abciResult(std.ErrUnauthorized(err.Error()))
 	}
 
@@ -671,31 +693,6 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	}
 
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
-}
-
-// GetSignBytes returns the amount/gas rendering of the signature payload for a
-// given transaction and account. It is a signing helper only: a verifier must
-// also accept the gas_wanted/gas_fee rendering, see std.VerifySignaturePayload.
-func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
-	var (
-		accNum      uint64
-		accSequence uint64
-	)
-	if !genesis {
-		accNum = acc.GetAccountNumber()
-		accSequence = acc.GetSequence()
-	}
-
-	return std.GetSignaturePayload(
-		std.SignDoc{
-			ChainID:       chainID,
-			AccountNumber: accNum,
-			Sequence:      accSequence,
-			Fee:           tx.Fee,
-			Msgs:          tx.Msgs,
-			Memo:          tx.Memo,
-		},
-	)
 }
 
 func abciResult(err error) sdk.Result {

@@ -114,9 +114,9 @@ func (vs VestingSchedule) VestedCoins(blockTime time.Time) Coins {
 // the ones that cannot be transferred out.
 //
 // "Not spendable" means not transferable. Locked coins can still leave the
-// account as gas fees and storage deposits, which debit through the
-// unrestricted path and never consult a schedule. So a schedule caps what a
-// holder can move to another address; it does not reserve a balance.
+// account as gas fees, which debit through the unrestricted path and never
+// consult a schedule. So a schedule caps what a holder can move to another
+// address; it does not reserve a balance.
 func (vs VestingSchedule) LockedCoins(blockTime time.Time) Coins {
 	if vs.IsZero() {
 		return nil

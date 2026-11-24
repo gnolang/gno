@@ -768,6 +768,35 @@ func adduserCmd(nodesManager *NodesManager) func(ts *testscript.TestScript, neg 
 			ts.Fatalf("error creating account %s: %s", args[0], err)
 		}
 
+		// Optional vesting schedule: <coin>,<start>,<end>[,delayed], the
+		// offsets Go durations from now, since the node's genesis time is now.
+		// A delayed schedule has no start, so its <start> is ignored.
+		if len(args) > 2 {
+			f := strings.Split(args[2], ",")
+			if len(f) < 3 || len(f) > 4 || (len(f) == 4 && f[3] != "delayed") {
+				ts.Fatalf("vesting: want <coin>,<start>,<end>[,delayed], got %q", args[2])
+			}
+			vesting, err := std.ParseCoins(f[0])
+			if err != nil {
+				ts.Fatalf("unable to parse vesting coins: %s", err)
+			}
+			start, err := time.ParseDuration(f[1])
+			if err != nil {
+				ts.Fatalf("unable to parse vesting start: %s", err)
+			}
+			end, err := time.ParseDuration(f[2])
+			if err != nil {
+				ts.Fatalf("unable to parse vesting end: %s", err)
+			}
+			now := time.Now()
+			vs := std.VestingSchedule{OriginalVesting: vesting, StartTime: now.Add(start).Unix(), EndTime: now.Add(end).Unix()}
+			if len(f) == 4 {
+				vs.Type = std.VestingDelayed
+				vs.StartTime = 0
+			}
+			balance.Vesting = &vs
+		}
+
 		genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 		genesis.Balances = append(genesis.Balances, balance)
 	}

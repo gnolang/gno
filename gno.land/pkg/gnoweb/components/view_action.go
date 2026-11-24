@@ -2,6 +2,7 @@ package components
 
 import (
 	"html/template"
+	"io"
 	"strconv"
 	"strings"
 
@@ -11,11 +12,51 @@ import (
 
 const HelpViewType ViewType = "help-view"
 
+// MaxHelpFunctions caps the functions $help lists, as maxOverviewSymbols caps
+// the overview's.
+const MaxHelpFunctions = maxOverviewSymbols
+
 // HelpFunction pairs a doc.JSONFunc with its documentation already rendered
 // as an HTML Component, so the template can embed it via `{{ render . }}`.
 type HelpFunction struct {
 	*doc.JSONFunc
 	DocComponent Component
+	// Card is the function's rendered entry in the list, from RenderHelpCard.
+	Card Component
+}
+
+// helpCardData is what the ui/help_function_card template reads.
+type helpCardData struct {
+	Data HelpData
+	Func HelpFunction
+}
+
+// RenderHelpCard writes fn's entry in the $help list, as HelpView lists it.
+func RenderHelpCard(w io.Writer, data HelpData, fn HelpFunction) error {
+	return tmpl.ExecuteTemplate(w, "ui/help_function_card", helpCardData{Data: data, Func: fn})
+}
+
+// RenderHelpTocItem writes fn's line in the $help table of contents, inside the
+// list markup HelpView writes once for all of them.
+func RenderHelpTocItem(w io.Writer, fn HelpFunction) error {
+	return tmpl.ExecuteTemplate(w, "ui/toc_generic", HelpTocData{Icon: helpTocIcon, Items: []HelpTocItem{helpTocItem(fn)}})
+}
+
+// helpTocIcon is the icon of the functions in the $help table of contents.
+const helpTocIcon = "code"
+
+// helpTocItem is fn's line in the $help table of contents.
+func helpTocItem(fn HelpFunction) HelpTocItem {
+	var sig strings.Builder
+	sig.WriteString(fn.Name + "(")
+	for j, param := range fn.Params {
+		if j > 0 {
+			sig.WriteString(", ")
+		}
+		sig.WriteString(param.Name)
+	}
+	sig.WriteString(")")
+	return HelpTocItem{Link: "#func-" + fn.Name, Text: sig.String()}
 }
 
 type HelpData struct {
@@ -36,6 +77,8 @@ type HelpData struct {
 	// Community is set on packages outside the trusted paths, the pages that
 	// show the realm notice.
 	Community bool
+	// Truncated is set when Functions stops short of the package's functions.
+	Truncated bool
 }
 
 type HelpTocData struct {
@@ -138,25 +181,12 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 func HelpView(data HelpData) *View {
 	tocData := HelpTocData{
-		Icon:  "code",
+		Icon:  helpTocIcon,
 		Items: make([]HelpTocItem, len(data.Functions)),
 	}
 
 	for i, fn := range data.Functions {
-		var sig strings.Builder
-		sig.WriteString(fn.Name + "(")
-		for j, param := range fn.Params {
-			if j > 0 {
-				sig.WriteString(", ")
-			}
-			sig.WriteString(param.Name)
-		}
-		sig.WriteString(")")
-
-		tocData.Items[i] = HelpTocItem{
-			Link: "#func-" + fn.Name,
-			Text: sig.String(),
-		}
+		tocData.Items[i] = helpTocItem(fn)
 	}
 	// The evaluator stays below the functions; the list names it so a long
 	// page does not hide it.

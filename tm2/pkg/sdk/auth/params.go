@@ -268,7 +268,9 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.InitialGasPrice = gp
 	case "p:unrestricted_addrs":
 		addrs := sdkparams.MustParamStrings("unrestricted_addrs", value)
-		ak.applyUnrestrictedAddrsChange(ctx, addrs)
+		// Pass the fresh store-read params, NOT the ctx.Value(AuthParamsContextKey{})
+		// snapshot, which is not refreshed between param writes in one transaction.
+		ak.applyUnrestrictedAddrsChange(ctx, params, addrs)
 	default:
 		panic(fmt.Sprintf("unknown auth param key: %q", key))
 	}
@@ -277,11 +279,7 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	}
 }
 
-func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, newAddrs []string) {
-	params, ok := ctx.Value(AuthParamsContextKey{}).(Params)
-	if !ok {
-		panic("missing or invalid AuthParams in context")
-	}
+func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, params Params, newAddrs []string) {
 	// Build sets once.
 	oldSet := make(map[string]struct{}, len(params.UnrestrictedAddrs))
 	for _, addr := range params.UnrestrictedAddrs {
