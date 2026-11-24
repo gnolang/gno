@@ -846,7 +846,9 @@ stays pending until the kind 6 lands or the epoch moves on. **All or nothing**: 
   a number one of `ibcgov`'s own kind 1s names (a decision governance withdrew is never revived by anyone, even if
   its tombstone fell beyond `IBCAdmin`'s horizon), and a number acknowledged 6 (final otherwise: a forged 6 on a
   decision that never reached `IBCAdmin` would else leave a gap). Binding a kind 1 voids every unused authorization
-  inside its ranges, so a grant must postdate the cancel it overrides.
+  inside its ranges, so a grant must postdate the cancel it overrides. The check is conservative: `ibcgov` merges
+  overlapping cancelled ranges, so a later cancel that overlaps an earlier one (cancel 1–10, grant 1, cancel 10–12)
+  voids grants on numbers it does not name too; governance then decides the grant again.
 - **Burned numbers and `Rebind`.** A number acknowledged 6 that no kind 1 of `ibcgov`'s names was cancelled by a
   cancel gno.land never sent: it is **burned**. `Rebind(route, e, from, to)` (permissionless, current epoch, at
   most 64 numbers a call) gives the burned dispatches of the range the epoch's next numbers, in their original
