@@ -2,6 +2,8 @@ package components
 
 import (
 	"bytes"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -83,6 +85,111 @@ func TestOverviewView_StdlibImportLeavesTheSite(t *testing.T) {
 		"an on-site import carries no rel and no external icon")
 	require.Equal(t, 1, strings.Count(out, `<use href="#ico-external-link">`),
 		"only the stdlib row is marked outbound")
+}
+
+// countingRenderer counts the docs and signatures it renders.
+type countingRenderer struct {
+	noopRenderer
+	docs, sigs int
+}
+
+func (r *countingRenderer) RenderDocumentation(w io.Writer, src []byte) error {
+	r.docs++
+	return r.noopRenderer.RenderDocumentation(w, src)
+}
+
+func (r *countingRenderer) RenderSource(w io.Writer, name string, src []byte) error {
+	r.sigs++
+	return r.noopRenderer.RenderSource(w, name, src)
+}
+
+func TestOverviewView_RendersOnlyShownSymbols(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	funcs := make([]*doc.JSONFunc, maxOverviewSymbols+100)
+	for i := range funcs {
+		funcs[i] = &doc.JSONFunc{Name: "Hello", Signature: "func Hello()", Doc: "Hello greets."}
+	}
+	r := &countingRenderer{}
+	data := BuildOverview(OverviewInput{
+		URL:         u,
+		DocRenderer: r,
+		Domain:      "gno.land",
+		Doc:         &doc.JSONDocumentation{Funcs: funcs},
+	})
+	require.NoError(t, OverviewView(data).Render(io.Discard))
+
+	// One signature and one doc per function the page shows.
+	require.Equal(t, maxOverviewSymbols, r.sigs)
+	require.Equal(t, maxOverviewSymbols, r.docs)
+}
+
+// blankRenderer renders every doc to nothing, as a doc of link definitions does.
+type blankRenderer struct{ noopRenderer }
+
+func (blankRenderer) RenderDocumentation(io.Writer, []byte) error { return nil }
+
+func TestOverviewView_DocRenderingToNothingIsAbsent(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	linkDef := "[spec]: https://example.com/spec"
+	data := BuildOverview(OverviewInput{
+		URL:         u,
+		DocRenderer: blankRenderer{},
+		Domain:      "gno.land",
+		Doc: &doc.JSONDocumentation{
+			PackageDoc: linkDef,
+			Funcs:      []*doc.JSONFunc{{Name: "Hello", Signature: "func Hello()", Doc: linkDef}},
+			Types:      []*doc.JSONType{{Name: "Config", Type: "struct{}", Kind: "struct", Doc: linkDef}},
+			Values: []*doc.JSONValueDecl{{
+				Signature: "const Max = 1", Const: true, Doc: linkDef,
+				Values: []*doc.JSONValue{{Name: "Max"}},
+			}},
+		},
+	})
+
+	var buf bytes.Buffer
+	require.NoError(t, OverviewView(data).Render(&buf))
+	out := buf.String()
+	require.Equal(t, 3, strings.Count(out, `<article class="b-pkg-symbol"`), "one card per symbol")
+	require.NotContains(t, out, `id="overview"`, "no section for a package doc rendering to nothing")
+	require.NotContains(t, out, "b-pkg-symbol__doc", "no doc block for a symbol doc rendering to nothing")
+}
+
+// failingRenderer fails every render.
+type failingRenderer struct{}
+
+func (failingRenderer) RenderDocumentation(io.Writer, []byte) error {
+	return errors.New("render failed")
+}
+
+func (failingRenderer) RenderSource(io.Writer, string, []byte) error {
+	return errors.New("render failed")
+}
+
+func TestOverviewView_FailedRenderWritesEscapedSource(t *testing.T) {
+	t.Parallel()
+	u, err := weburl.Parse("/r/demo/foo")
+	require.NoError(t, err)
+
+	data := BuildOverview(OverviewInput{
+		URL:         u,
+		DocRenderer: failingRenderer{},
+		Domain:      "gno.land",
+		Doc: &doc.JSONDocumentation{
+			Funcs: []*doc.JSONFunc{{Name: "Hello", Signature: "func Hello() <b>", Doc: "<i>greets</i>"}},
+		},
+	})
+
+	var buf bytes.Buffer
+	require.NoError(t, OverviewView(data).Render(&buf))
+	out := buf.String()
+	require.Contains(t, out, "func Hello() &lt;b&gt;")
+	require.Contains(t, out, "&lt;i&gt;greets&lt;/i&gt;")
 }
 
 // The Source row is an outbound link to a URL the deployer chose: it must keep

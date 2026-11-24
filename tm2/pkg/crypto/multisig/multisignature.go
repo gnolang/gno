@@ -86,7 +86,8 @@ func (mSig *Multisignature) AddSignatureFromPubKey(sig []byte, pubkey crypto.Pub
 }
 
 // ValidateBasic returns an error unless mSig is a well-formed multisignature for
-// a threshold key over nKeys constituents.
+// pk: one bit per constituent key, one signature per set bit, and exactly
+// pk.K signatures.
 //
 // Both places that walk a multisignature call this before trusting its shape:
 // PubKeyMultisigThreshold.VerifyBytes and auth's signature gas consumer, which
@@ -94,7 +95,7 @@ func (mSig *Multisignature) AddSignatureFromPubKey(sig []byte, pubkey crypto.Pub
 // VerifyBytes is called. Sharing one implementation is the point — the two must
 // not disagree about which shapes are walkable, and the equality below is a
 // consensus rule.
-func (mSig Multisignature) ValidateBasic(nKeys int) error {
+func (mSig Multisignature) ValidateBasic(pk PubKeyMultisigThreshold) error {
 	// The bit array is as caller-chosen as the rest of the signature, and it
 	// decides both how far the walk runs and which signatures it indexes, so its
 	// own shape has to hold before Size() is trusted for either: an
@@ -104,16 +105,27 @@ func (mSig Multisignature) ValidateBasic(nKeys int) error {
 		return err
 	}
 	size := mSig.BitArray.Size()
-	if size != nKeys {
+	if nKeys := len(pk.PubKeys); size != nKeys {
 		return fmt.Errorf(
 			"multisignature bit array size %d does not match the %d constituent keys", size, nKeys)
 	}
 	// Exactly one signature per set bit. The walk advances one signature per set
 	// bit, so fewer signatures than set bits runs off the end of Sigs, and more
 	// leaves trailing signatures that nothing ever indexes.
-	if nSigs := mSig.BitArray.NumTrueBitsBefore(size); nSigs != len(mSig.Sigs) {
+	nSigs := mSig.BitArray.NumTrueBitsBefore(size)
+	if nSigs != len(mSig.Sigs) {
 		return fmt.Errorf(
 			"multisignature has %d set bits but %d signatures", nSigs, len(mSig.Sigs))
+	}
+	// Exactly K signatures, not at least K. The sign bytes do not say which
+	// constituents sign, so anyone relaying a transaction signed by more than K
+	// constituents can drop the spares: what is left still verifies, and the
+	// transaction lands under a new hash while the signer's own bytes are
+	// refused for their used sequence. With exactly K, dropping any signature
+	// leaves too few to verify.
+	if nSigs != int(pk.K) {
+		return fmt.Errorf(
+			"multisignature has %d signatures, want exactly the threshold %d", nSigs, pk.K)
 	}
 	return nil
 }

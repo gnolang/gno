@@ -175,7 +175,7 @@
 	right: anchor(right);
 	bottom: var(--g-space-4);
 	margin: var(--g-space-1) 0 0 var(--g-space-4);
-	width: min(26rem, calc(100vw - 2 * var(--g-space-4)));
+	width: min(30rem, calc(100vw - 2 * var(--g-space-4)));
 	height: auto;
 	max-height: fit-content;
 	overflow-y: auto;
@@ -191,23 +191,53 @@
 	}
 }
 
+/* As in the omnibar: a description under its keyword, and from sm one grid
+   for every group, so descriptions and pills line up. */
 .b-omni-hints {
 	font-size: var(--g-font-size-50);
 
+	@media (--sm) {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr) auto;
+		column-gap: var(--g-space-4);
+
+		& > * {
+			grid-column: 1 / -1;
+		}
+	}
+
+	& ul,
+	& li {
+		display: grid;
+	}
+
 	& ul {
-		display: flex;
-		flex-direction: column;
-		gap: var(--g-space-1-5);
+		row-gap: var(--g-space-1-5);
 		list-style: none;
-		margin: 0 0 var(--g-space-4);
+		margin: 0 0 var(--g-space-3);
 		padding: 0;
+
+		@media (--sm) {
+			grid-template-columns: subgrid;
+		}
+	}
+
+	/* A rule between groups, as in the omnibar. */
+	& ul + .b-omni-hints__title {
+		padding-block-start: var(--g-space-3);
+		border-block-start: var(--s-border);
 	}
 
 	& li {
-		display: flex;
-		flex-wrap: wrap;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-column: 1 / -1;
 		align-items: baseline;
-		gap: var(--g-space-0-5) var(--g-space-2);
+		column-gap: var(--g-space-3);
+
+		@media (--sm) {
+			grid-template-columns: subgrid;
+			column-gap: inherit;
+		}
 	}
 
 	& code {
@@ -227,26 +257,29 @@
 
 /* Same eyebrow as the rail's other sub-headings. */
 .b-omni-hints__title {
-	margin-block-end: var(--g-space-2);
+	margin-block-end: var(--g-space-1);
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
-	font-weight: var(--g-font-semibold);
+	font-weight: var(--g-font-medium);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
 .b-omni-hints__label {
+	grid-column: 1 / -1;
 	color: var(--s-color-text-tertiary);
+
+	@media (--sm) {
+		grid-column: auto;
+	}
 }
 
-/* Where the answer comes from, said once per keyword and quietly: a pill per
-   row made the list read as badges rather than as syntax. */
-.b-omni-hints__src {
-	color: var(--s-color-text-tertiary);
-	font-style: italic;
+.b-omni-hints li > .b-tag--indexer {
+	grid-row: 1;
+	grid-column: 2;
 
-	&::before {
-		content: "· ";
-		font-style: normal;
+	@media (--sm) {
+		grid-row: auto;
+		grid-column: 3;
 	}
 }

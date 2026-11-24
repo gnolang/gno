@@ -1,0 +1,34 @@
+# crypto/merkle.VerifySimpleProof against a root kept in realm state: the
+# native receives the root as a gno.TypedValue and must fill it from the store
+# before copying it.
+
+loadpkg gno.land/r/rootstore $WORK
+
+gnoland start
+
+# Store a real root in realm state.
+gnokey maketx call -pkgpath gno.land/r/rootstore -func Set -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# A later transaction reads the root back from the store and verifies against it.
+gnokey maketx call -pkgpath gno.land/r/rootstore -func Check -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout '(true bool)'
+stdout OK!
+
+-- rootstore.gno --
+package rootstore
+
+import "crypto/merkle"
+
+var (
+	root []byte
+	leaf = []byte("x")
+)
+
+func Set(cur realm) {
+	root = merkle.LeafHash(leaf)
+}
+
+func Check(cur realm) bool {
+	return merkle.VerifySimpleProof(root, leaf, 0, 1, nil)
+}

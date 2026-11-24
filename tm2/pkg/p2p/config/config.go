@@ -13,7 +13,17 @@ var (
 	ErrInvalidReceiveRate          = errors.New("invalid packet receive rate")
 	ErrInvalidRecvAssemblyTimeout  = errors.New("invalid receive assembly timeout")
 	ErrInvalidMaxRecvBufferBytes   = errors.New("invalid max receive buffer size")
+	ErrInvalidMaxSendBufferBytes   = errors.New("invalid max send buffer size")
 )
+
+// MinSendBufferBytes is the smallest nonzero MaxSendBufferBytes: one maximum
+// legal block response, the block data ceiling plus framing. A smaller budget
+// can never admit that response. It must track types.MaxBlockDataBytesLimit.
+const MinSendBufferBytes = 8<<20 + 64<<10
+
+// MinRecvBufferBytes is the smallest nonzero MaxRecvBufferBytes, for the same
+// reason: a smaller budget disconnects any peer that sends us that response.
+const MinRecvBufferBytes = MinSendBufferBytes
 
 // defaultAddrBookPath is the default relative path for the persisted peer address book
 var defaultAddrBookPath = "config/addrbook.json"
@@ -56,7 +66,10 @@ type P2PConfig struct {
 	RecvAssemblyTimeout time.Duration `json:"recv_assembly_timeout" toml:"recv_assembly_timeout" comment:"Maximum time a single incoming message may spend being assembled from partial packets.\n The deadline is anchored to the first partial packet of a message and is not extended by later ones,\n so a peer cannot hold buffer space indefinitely by dribbling packets. 0 disables the deadline."`
 
 	// Maximum total bytes buffered for incomplete messages, across all of a connection's channels
-	MaxRecvBufferBytes int `json:"max_recv_buffer_bytes" toml:"max_recv_buffer_bytes" comment:"Maximum total bytes buffered for incomplete incoming messages, across all of a connection's channels.\n This is the per-connection bound on memory a peer can pin, so the node's worst case is this times the peer limits.\n 0 disables the budget, leaving only each channel's own capacity."`
+	MaxRecvBufferBytes int `json:"max_recv_buffer_bytes" toml:"max_recv_buffer_bytes" comment:"Maximum total bytes buffered for incomplete incoming messages, across all of a connection's channels.\n This is the per-connection bound on memory a peer can pin, so the node's worst case is this times the peer limits.\n It must admit one maximum legal block response (8MB + 64KB).\n 0 disables the budget, leaving only each channel's own capacity."`
+
+	// Maximum total bytes buffered for outgoing messages, across all of a connection's channels
+	MaxSendBufferBytes int `json:"max_send_buffer_bytes" toml:"max_send_buffer_bytes" comment:"Maximum total bytes buffered for outgoing messages, across all of a connection's channels.\n This is the per-connection bound on admitted payloads waiting for a queue slot, queued, or currently sending.\n It must admit one maximum legal block response (8MB + 64KB).\n 0 disables the budget, leaving only each channel's own capacity."`
 
 	// Set true to enable the peer-exchange reactor
 	PeerExchange bool `json:"pex" toml:"pex" comment:"Set true to enable the peer-exchange reactor"`
@@ -85,6 +98,7 @@ func DefaultP2PConfig() *P2PConfig {
 		RecvRate:                5120000, // 5 mB/s
 		RecvAssemblyTimeout:     30 * time.Second,
 		MaxRecvBufferBytes:      20 << 20, // 20MB
+		MaxSendBufferBytes:      20 << 20, // 20MB
 		PeerExchange:            true,
 		AllowDuplicateIP:        false,
 		AddrBook:                defaultAddrBookPath,
@@ -114,8 +128,14 @@ func (cfg *P2PConfig) ValidateBasic() error {
 		return ErrInvalidRecvAssemblyTimeout
 	}
 
-	if cfg.MaxRecvBufferBytes < 0 {
+	if cfg.MaxRecvBufferBytes < 0 ||
+		(cfg.MaxRecvBufferBytes > 0 && cfg.MaxRecvBufferBytes < MinRecvBufferBytes) {
 		return ErrInvalidMaxRecvBufferBytes
+	}
+
+	if cfg.MaxSendBufferBytes < 0 ||
+		(cfg.MaxSendBufferBytes > 0 && cfg.MaxSendBufferBytes < MinSendBufferBytes) {
+		return ErrInvalidMaxSendBufferBytes
 	}
 
 	return nil

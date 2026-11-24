@@ -88,3 +88,57 @@ func TestMustParamStrings(t *testing.T) {
 		)
 	})
 }
+
+// Fields amino skips (unexported, or `json:"-"`) make the amino field list
+// shorter than the Go field list, so a field's position in tinfo.Fields is
+// not its Go struct index. Encode and decode must address fields by
+// FieldInfo.Index, or every field after a skipped one lands in the wrong slot.
+func TestStructFieldsSkippedFields(t *testing.T) {
+	type withUnexported struct {
+		hidden int64
+		A      int64  `json:"a"`
+		B      string `json:"b"`
+	}
+	type withJSONDash struct {
+		Skip int64 `json:"-"`
+		A    int64 `json:"a"`
+		B    int64 `json:"b"`
+	}
+
+	tests := []struct {
+		name    string
+		in      any
+		wantKVs map[string]string
+		out     func() any // fresh pointer to decode into
+		want    any        // decoded value, skipped fields left zero
+	}{
+		{
+			name:    "unexported leading field",
+			in:      withUnexported{hidden: 99, A: 1, B: "x"},
+			wantKVs: map[string]string{"a": `"1"`, "b": `"x"`},
+			out:     func() any { return &withUnexported{} },
+			want:    &withUnexported{A: 1, B: "x"},
+		},
+		{
+			name:    "json dash leading field",
+			in:      withJSONDash{Skip: 99, A: 1, B: 2},
+			wantKVs: map[string]string{"a": `"1"`, "b": `"2"`},
+			out:     func() any { return &withJSONDash{} },
+			want:    &withJSONDash{A: 1, B: 2},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kvz := encodeStructFields(tt.in)
+			got := map[string]string{}
+			for _, kv := range kvz {
+				got[string(kv.Key)] = string(kv.Value)
+			}
+			assert.Equal(t, tt.wantKVs, got, "encoded key/value pairs")
+
+			out := tt.out()
+			decodeStructFields(out, kvz)
+			assert.Equal(t, tt.want, out, "decoded struct")
+		})
+	}
+}

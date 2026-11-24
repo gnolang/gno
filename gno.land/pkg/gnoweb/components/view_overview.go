@@ -12,7 +12,8 @@ const OverviewViewType ViewType = "overview-view"
 
 // DocRenderer renders markdown doc strings and source code to HTML.
 // RenderSource applies syntax highlighting based on the file extension in name.
-// Implementations must be safe for concurrent use and HTML-safe by construction.
+// Implementations must be HTML-safe by construction; the overview template
+// calls one from a single goroutine as it writes each symbol.
 type DocRenderer interface {
 	RenderDocumentation(w io.Writer, src []byte) error
 	RenderSource(w io.Writer, name string, src []byte) error

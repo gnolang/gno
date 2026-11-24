@@ -19,12 +19,6 @@ package softfloat
 
 //go:generate go run github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat/gen
 
-const (
-	mask  = 0x7FF
-	shift = 64 - 11 - 1
-	bias  = 1023
-)
-
 // Bit patterns from runtime_softfloat64.go: +Inf and the sign bit
 // (equivalently, negative zero).
 const (
@@ -103,42 +97,3 @@ func Fuint64to64(x uint64) uint64            { return fuint64to64(x) }
 
 func Funpack32(f uint32) (sign, mant uint32, exp int, inf, nan bool) { return funpack32(f) }
 func Funpack64(f uint64) (sign, mant uint64, exp int, inf, nan bool) { return funpack64(f) }
-
-// Trunc
-
-func Ftrunc64(f uint64) uint64 { return trunc(f) }
-func Ftrunc32(f uint32) uint32 { return f64to32(trunc(f32to64(f))) }
-
-func trunc(x uint64) uint64 {
-	cmp, _ := Fcmp64(x, Fintto64(0))
-	if _, _, _, isInf, IsNaN := Funpack64(x); cmp == 0 || isInf || IsNaN {
-		return x
-	}
-
-	d, _ := modf(x)
-	return d
-}
-
-func modf(u uint64) (it uint64, frac uint64) {
-	if Flt64(u, fint64to64(1)) {
-		switch {
-		case Flt64(u, fint64to64(0)):
-			it, frac = modf(Fneg64(u))
-			return -it, -frac
-		case feq64(u, fint64to64(0)):
-			return u, u // Return -0, -0 when f == -0
-		}
-		return 0, u
-	}
-
-	it = u
-	e := uint(it>>shift)&mask - bias
-
-	// Keep the top 12+e bits, the integer part; clear the rest.
-	if e < 64-12 {
-		it &^= 1<<(64-12-e) - 1
-	}
-
-	frac = fsub64(u, it)
-	return
-}
