@@ -19,7 +19,9 @@ suite=${SUITE:-$head/misc/benchci/suite.txt}
 
 : >"$out/base.txt"
 : >"$out/head.txt"
-mkdir -p "$out/bin/base" "$out/bin/head"
+bin_dir=$(mktemp -d "$out/.bin.XXXXXX")
+trap 'rm -rf -- "$bin_dir"' EXIT
+mkdir -p "$bin_dir/base" "$bin_dir/head"
 
 # Read the suite: drop comments and blank lines.
 mapfile -t lines < <(grep -v '^[[:space:]]*\(#\|$\)' "$suite")
@@ -31,7 +33,7 @@ for i in "${!lines[@]}"; do
 	read -r pkg _ _ <<<"${lines[$i]}"
 	for side in base head; do
 		dir=${!side}
-		bin=$out/bin/$side/$i.test
+		bin=$bin_dir/$side/$i.test
 		if [[ -d $dir/$pkg ]]; then
 			(cd "$dir/$pkg" && go test -c -o "$bin" .) || {
 				if [[ $side == head ]]; then exit 1; fi
@@ -43,7 +45,7 @@ done
 
 run() {
 	local side=$1 i=$2 dir=${!1}
-	local bin=$out/bin/$side/$i.test
+	local bin=$bin_dir/$side/$i.test
 	read -r pkg regexp benchtime <<<"${lines[$i]}"
 	[[ -x $bin ]] || return 0
 	# Run from the package directory: some benchmarks read testdata/.

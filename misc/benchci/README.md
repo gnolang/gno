@@ -22,11 +22,12 @@ code. Instead:
 3. **A significance test.** benchstat compares the two samples of 10 with a
    Mann-Whitney U test and only reports a delta when p < 0.05.
 4. **A wide effect floor.** A significant delta still has to be at least
-   `MAX_TIME_REGRESSION` percent (default 20) on sec/op to fail. allocs/op does
-   not depend on the machine, so its floor is tighter: `MAX_ALLOC_REGRESSION`
-   percent (default 10).
+   `MAX_TIME_REGRESSION` percent (default 20) on sec/op to fail. allocs/op has the tighter `MAX_ALLOC_REGRESSION` floor (default 10%). A
+   statistically significant increase from zero allocations also fails the gate.
 
-The gate is meant to catch the 2x slowdown nobody noticed, not a 3% drift.
+A benchmark with only a head result is reported as uncompared. If a
+previously measured result disappears on head, or there are no comparable
+results at all, the check fails.
 
 ## Running it locally
 

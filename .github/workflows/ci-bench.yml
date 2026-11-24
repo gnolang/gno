@@ -9,7 +9,6 @@ on:
     paths:
       - gnovm/**/*.go
       - tm2/**/*.go
-      - gno.land/**/*.go
       - go.mod
       - go.sum
       - misc/benchci/**
@@ -46,6 +45,8 @@ jobs:
           git -C head worktree add --detach ../base "$base"
       - name: Install benchstat
         run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260112171951-5abaabe9f1bd
+      - name: Test the regression gate
+        run: bash head/misc/benchci/check_test.sh
       - name: Run benchmarks
         run: head/misc/benchci/run.sh base head out
       - name: Check for regressions

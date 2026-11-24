@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
-# Fail when benchstat reports a large, statistically significant regression.
-#
+# Fail on significant regressions or missing head results for the gated metrics.
 # Usage: check.sh <benchstat.csv>
-#
-# A row fails only if both hold:
-#   - benchstat found the difference significant (p < 0.05, Mann-Whitney U;
-#     otherwise it prints "~" instead of a delta), and
-#   - the slowdown is at least MAX_TIME_REGRESSION percent for sec/op, or
-#     MAX_ALLOC_REGRESSION percent for allocs/op.
-# CI runners are noisy, so the time floor is wide on purpose: this gate is for
-# the 2x slowdown nobody noticed, not for a 3% drift. allocs/op does not depend
-# on the machine, so it gets a tighter floor.
 set -euo pipefail
 
 csv=$1
@@ -18,20 +8,37 @@ max_time=${MAX_TIME_REGRESSION:-20}
 max_alloc=${MAX_ALLOC_REGRESSION:-10}
 
 awk -F, -v max_time="$max_time" -v max_alloc="$max_alloc" '
-	# A table header names its unit in the second column: ",sec/op,CI,...".
-	$1 == "" && $3 == "CI" { unit = $2; next }
-	$1 == "" || $1 == "geomean" || NF < 7 { next }
-	{
-		delta = $6
-		if (delta == "~" || delta !~ /^\+/) next
-		sub(/^\+/, "", delta); sub(/%$/, "", delta)
+	# A header names its metric and its time or allocation threshold.
+	$1 == "" && $3 == "CI" {
+		unit = $2
 		limit = unit == "sec/op" ? max_time : unit == "allocs/op" ? max_alloc : -1
-		if (limit < 0 || delta + 0 < limit) next
-		printf "REGRESSION %s %s: +%s%% (limit %s%%, %s)\n", $1, unit, delta, limit, $7
+		next
+	}
+	$1 == "" || $1 == "geomean" || unit == "" || limit < 0 { next }
+	{
+		if ($2 == "") {
+			printf "UNCOMPARED %s %s: no base result\n", $1, unit
+			next
+		}
+		if ($4 == "") {
+			printf "MISSING %s %s: no head result\n", $1, unit
+			bad++
+			next
+		}
+		compared++
+		# benchstat prints "?" for a significant comparison whose base is zero.
+		if ($6 == "?" && $2 + 0 == 0 && $4 + 0 > 0) {
+			printf "REGRESSION %s %s: %s -> %s (%s)\n", $1, unit, $2, $4, $7
+			bad++
+			next
+		}
+		if ($6 !~ /^\+/ || $6 + 0 < limit) next
+		printf "REGRESSION %s %s: %s (limit %s%%, %s)\n", $1, unit, $6, limit, $7
 		bad++
 	}
 	END {
-		if (bad) { printf "benchci: %d regression(s) above the limits\n", bad; exit 1 }
+		if (!compared) { print "benchci: no comparable results"; exit 1 }
+		if (bad) { printf "benchci: %d regression(s) or missing results\n", bad; exit 1 }
 		print "benchci: no regression above the limits"
 	}
 ' "$csv"
