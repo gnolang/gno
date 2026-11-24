@@ -43,9 +43,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - name: Materialize pinned example versions
+        run: make -C examples gnopm-sync
       - run: go install -v ./gnovm/cmd/gno
       - run: go run ./gnovm/cmd/gno tool transpile -C examples -v --gobuild .
 
