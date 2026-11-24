@@ -8,10 +8,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,6 +58,25 @@ func TestRPCRealmDirectory_Paths(t *testing.T) {
 	require.Equal(t, []string{"/r/demo/boards", "/r/demo/users"}, got.Realms) // empty entry filtered
 	require.Equal(t, []string{"/p/demo/avl"}, got.Packages)
 	require.False(t, got.Truncated, "a short listing is not a capped one")
+}
+
+// A listing the node cut at its response cap has fewer than searchPathLimit
+// entries, so its size has to mark it truncated.
+func TestRPCRealmDirectory_TruncatedNearOutputCap(t *testing.T) {
+	t.Parallel()
+	long := "/r/" + strings.Repeat("x", std.PkgPathLimit-len("gno.land/r/")) // full length with the domain
+	atCap := vm.MaxQueryOutputBytes / (std.PkgPathLimit + 1)
+	for n, want := range map[int]bool{atCap - 1: false, atCap: true} {
+		lister := stubPathLister{fn: func(prefix string) []string {
+			if strings.HasSuffix(prefix, "/r") {
+				return slices.Repeat([]string{long}, n)
+			}
+			return nil
+		}}
+		got, err := newRPCRealmDirectory(lister, "gno.land", 4).Paths(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, want, got.Truncated, "%d paths", n)
+	}
 }
 
 // countingLister counts ListPaths calls and can fail on demand.

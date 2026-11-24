@@ -19,14 +19,35 @@ func bugsNotInDoc(bugs []string, packageDoc string) []string {
 		return nil
 	}
 	var out []string
+	scanned := 0
 	for _, b := range bugs {
-		if strings.Contains(packageDoc, strings.TrimSpace(b)) {
-			continue
+		note := strings.TrimSpace(b)
+		// A search can compare the whole note at each byte of the doc: Go's
+		// Rabin-Karp fallback hashes with a fixed prime, so a note can match
+		// the hash of every window. A shorter note costs an IndexByte call
+		// every few bytes of the doc instead, so it is charged as 64 bytes. A
+		// note longer than the doc returns at once. A note past what is left
+		// of the budget is kept unchecked, shown twice at worst, and charges
+		// nothing.
+		cost := 0
+		if len(note) <= len(packageDoc) {
+			cost = len(packageDoc) * max(len(note), 64)
+		}
+		if scanned+cost <= maxBugScanBytes {
+			scanned += cost
+			if strings.Contains(packageDoc, note) {
+				continue
+			}
 		}
 		out = append(out, b)
 	}
 	return out
 }
+
+// maxBugScanBytes bounds the work bugsNotInDoc does in all, counted in byte
+// comparisons: each note searches the whole doc, a cost growing with the square
+// of a package.
+const maxBugScanBytes = 256 << 20 // 256 MiB
 
 // computeStats derives numeric counters from the file list and qdoc payload.
 func computeStats(files []string, jdoc *doc.JSONDocumentation, imports []ImportLink) PackageStats {
@@ -265,9 +286,9 @@ func packageTypeOf(gnourl *weburl.GnoURL) string {
 	return ""
 }
 
-// maxOverviewSymbols caps how many top-level funcs, types, or value groups the
-// overview renders. SymbolsTruncated is set when the cap is hit so the template
-// can signal truncation to the reader.
+// maxOverviewSymbols caps how many top-level funcs, types, value groups, or
+// methods across all types the overview renders. SymbolsTruncated is set when
+// the cap is hit so the template can signal truncation to the reader.
 const maxOverviewSymbols = 500
 
 // capSymbols truncates s to at most limit items, reporting whether it was truncated.
@@ -278,7 +299,21 @@ func capSymbols[S ~[]E, E any](s S, limit int) (S, bool) {
 	return s, false
 }
 
-// BuildOverview is pure: given fetched inputs, it returns the rendered OverviewData.
+// capMethods keeps at most limit methods across types, in order, reporting
+// whether any was dropped.
+func capMethods(types []TypeEntry, limit int) bool {
+	truncated := false
+	for i := range types {
+		var cut bool
+		types[i].Methods, cut = capSymbols(types[i].Methods, limit)
+		truncated = truncated || cut
+		limit -= len(types[i].Methods)
+	}
+	return truncated
+}
+
+// BuildOverview is pure: given fetched inputs, it returns the OverviewData,
+// whose symbols render when the template writes them.
 func BuildOverview(in OverviewInput) OverviewData {
 	info := deriveInfo(in.URL, in.Sources["gnomod.toml"])
 	info.License = deriveLicense(in.Files, func(name string) ([]byte, bool) {
@@ -296,7 +331,8 @@ func BuildOverview(in OverviewInput) OverviewData {
 	funcs, fTrunc := capSymbols(funcs, maxOverviewSymbols)
 	types, tTrunc := capSymbols(types, maxOverviewSymbols)
 	values, vTrunc := capSymbols(values, maxOverviewSymbols)
-	symbolsTruncated := fTrunc || tTrunc || vTrunc
+	mTrunc := capMethods(types, maxOverviewSymbols)
+	symbolsTruncated := fTrunc || tTrunc || vTrunc || mTrunc
 
 	// Split value groups by kind so the template renders pre-shaped data
 	// (Constants/Variables sections + filter-tab counts) without filtering.
@@ -319,7 +355,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 	var pkgDocComp Component
 	if in.Doc != nil {
 		pkgDocSynopsis = extractSynopsis(in.Doc.PackageDoc)
-		pkgDocComp = renderDocString(in.Doc.PackageDoc, in.DocRenderer)
+		pkgDocComp = renderNow(renderDocString(in.Doc.PackageDoc, in.DocRenderer))
 	}
 
 	var bugs []string
