@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -19,7 +23,7 @@ import (
 
 // bigvalRealmSource returns functions that build large ephemeral values, used to
 // reproduce the unmetered export-walk + JSON-marshal blowup on the JSON query
-// endpoints and to verify the maxQueryExportBytes bound.
+// endpoints and to verify the maxQueryExportBytes and maxQueryOutputBytes bounds.
 const bigvalRealmSource = `package bigval
 
 import "strings"
@@ -74,19 +78,14 @@ func lowerExportBudget(t *testing.T, n int64) {
 	t.Cleanup(func() { maxQueryExportBytes = prev })
 }
 
-type evalEndpoint struct {
-	name  string
-	query func(ctx sdk.Context, pkgPath, expr string) (string, error)
-}
-
-// evalEndpoints returns the two expression-evaluating query endpoints, which
-// share the bounded export walk and so must be guarded identically. Kept in one
-// place so a third endpoint is added to every guard test at once.
-func evalEndpoints(env testEnv) []evalEndpoint {
-	return []evalEndpoint{
-		{"qeval", env.vmk.QueryEval},
-		{"qeval_json", env.vmk.QueryEvalJSON},
-	}
+// lowerOutputBudget temporarily sets maxQueryOutputBytes, the response cap, under
+// the same rules as lowerExportBudget. n <= 0 disables the writer caps, so a
+// test can show that a refusal comes from the export estimate alone.
+func lowerOutputBudget(t *testing.T, n int64) {
+	t.Helper()
+	prev := maxQueryOutputBytes
+	maxQueryOutputBytes = n
+	t.Cleanup(func() { maxQueryOutputBytes = prev })
 }
 
 // setupSizeGuardRealm deploys a single-file realm and commits it. MaxDeposit is
@@ -113,27 +112,40 @@ func setupSizeGuardRealm(t *testing.T, seed, pkgPath, body string) testEnv {
 	return env
 }
 
-// TestQueryEval_SizeGuard is the regression test for the memory exhaustion,
-// across both eval endpoints: a free query whose result would build a response
-// past the budget must be rejected, not serviced. qeval_json marshals with
-// amino, qeval renders with TypedValue.String(); both build the response
-// outside the alloc meter, so both take the same budget.
+// TestQueryEval_SizeGuard is the regression test for the memory exhaustion on
+// both eval endpoints: a free query whose result would build a response past
+// its limit must be rejected, not serviced. qeval_json is refused by the export
+// estimate before amino runs, so the output cap is disabled there. qeval runs no
+// export walk: TypedValue.String() streams into the output cap and stops at it.
 func TestQueryEval_SizeGuard(t *testing.T) {
 	const pkgPath = "gno.land/r/bigval"
-	lowerExportBudget(t, 50_000)
 	env := setupSizeGuardRealm(t, "dosaddr", pkgPath, bigvalRealmSource)
 
-	for _, ep := range evalEndpoints(env) {
-		t.Run(ep.name, func(t *testing.T) {
-			// Both exprs are comfortably under the eval alloc/gas ceiling, so
-			// pre-fix they were serviced and serialized unmetered.
-			for _, expr := range []string{"Big(200000)", "Structs(2000)"} {
-				_, err := ep.query(env.ctx, pkgPath, expr)
-				require.Error(t, err, expr)
-				assert.ErrorIs(t, err, ExportSizeExceededError{}, expr)
-			}
-		})
-	}
+	// Both exprs are comfortably under the eval alloc/gas ceiling, so pre-fix
+	// they were serviced and serialized unmetered.
+	exprs := []string{"Big(200000)", "Structs(2000)"}
+	t.Run("qeval_json", func(t *testing.T) {
+		lowerExportBudget(t, 50_000)
+		lowerOutputBudget(t, 0)
+		for _, expr := range exprs {
+			_, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, expr)
+			require.Error(t, err, expr)
+			assert.ErrorIs(t, err, ExportSizeExceededError{}, expr)
+			// The log names the limit: a client sees which one refused.
+			assert.Contains(t, fmt.Sprintf("%#v", err), "estimated response size exceeds 50000 bytes", expr)
+		}
+	})
+	t.Run("qeval", func(t *testing.T) {
+		lowerExportBudget(t, 0)
+		lowerOutputBudget(t, 50_000)
+		for _, expr := range exprs {
+			_, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+			require.Error(t, err, expr)
+			assert.ErrorIs(t, err, ExportSizeExceededError{}, expr)
+			assert.Contains(t, fmt.Sprintf("%#v", err), "response size exceeds 50000 bytes", expr)
+			assert.NotContains(t, fmt.Sprintf("%#v", err), "estimated", expr)
+		}
+	})
 
 	// Small results are still serviced, in each endpoint's own format.
 	t.Run("small_json_ok", func(t *testing.T) {
@@ -190,40 +202,37 @@ func GetBlob() []byte { return Blob }
 	assert.ErrorIs(t, err, ExportSizeExceededError{})
 }
 
-// TestQueryEval_DepthGuard is the regression test for the deep-recursion blowup,
-// across both eval endpoints: a free query returning a thin, deeply nested value
-// stays under the export byte budget, so the size guard never fires — but the
-// export walk + amino marshal recurse on the goroutine stack (a fatal overflow
-// recover() cannot catch) and the marshal is superlinear in depth. Both
-// endpoints must reject it with ExportDepthExceededError and stay serviceable.
+// TestQueryEval_DepthGuard covers a thin, deeply nested value that stays under
+// the export byte budget. The export walk and amino marshal recurse on the
+// goroutine stack, where an overflow is fatal and recover() cannot catch it,
+// and the marshal is superlinear in depth. qeval_json must reject it with
+// ExportDepthExceededError and keep serving queries.
 //
-// qeval is covered here, not just qeval_json: it renders with TypedValue.String()
-// (already truncated at nestedLimit), but it runs the same export walk first as a
-// size oracle, so the walk's own recursion is the unbounded cost there too.
+// qeval runs no export walk: TypedValue.String() stops descending at
+// nestedLimit, so the same value renders to a short, truncated response.
 //
-// Uses the real (unlowered) maxQueryExportBytes: the depth guard is a fixed cap,
-// independent of the byte budget, and the point is that this shape slips under
-// the byte budget.
+// Uses the real (unlowered) budgets: the depth guard is a fixed cap,
+// independent of the byte budgets, and the point is that this shape slips under
+// them.
 func TestQueryEval_DepthGuard(t *testing.T) {
 	const pkgPath = "gno.land/r/bigval" // must match bigvalRealmSource's `package bigval`
 	env := setupSizeGuardRealm(t, "dosdepthaddr", pkgPath, bigvalRealmSource)
 
-	for _, ep := range evalEndpoints(env) {
-		t.Run(ep.name, func(t *testing.T) {
-			// Well past maxExportDepth yet only a few hundred KB of estimated
-			// export size, so it is the depth guard — not the size guard — that
-			// fires.
-			_, err := ep.query(env.ctx, pkgPath, "Deep(5000)")
-			require.Error(t, err)
-			assert.ErrorIs(t, err, ExportDepthExceededError{})
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "Deep(5000)")
+	require.NoError(t, err)
+	require.Less(t, len(res), 4096)
+	require.Contains(t, res, "...")
 
-			// The guard returns a clean error rather than crashing: the node
-			// still services queries.
-			res, err := ep.query(env.ctx, pkgPath, "Deep(5)")
-			require.NoError(t, err)
-			require.NotEmpty(t, res)
-		})
-	}
+	// Well past maxExportDepth but only a few hundred KB of estimated export
+	// size, so the depth guard fires, not the size guard.
+	_, err = env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Deep(5000)")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ExportDepthExceededError{})
+
+	// The node still serves queries after the guard fires.
+	res, err = env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Deep(5)")
+	require.NoError(t, err)
+	require.NotEmpty(t, res)
 }
 
 // TestQueryPkgJSON_SizeGuard verifies the qpkg_json path is bounded too: a
@@ -276,11 +285,12 @@ func Render(path string) string { return "" }
 
 // TestQueryType_SizeGuard covers the qtype_json path, which does not build an
 // allocator and so is not bounded by the eval meters: a type whose hand-rolled
-// JSON would blow past the budget must be refused, while an ordinary leaf type
-// still resolves.
+// JSON would blow past the output cap must stop at it, while an ordinary leaf
+// type still resolves. QueryType is called directly, so the handler's cap on
+// the final bytes is not what refuses it.
 func TestQueryType_SizeGuard(t *testing.T) {
 	const pkgPath = "gno.land/r/amp"
-	lowerExportBudget(t, 50_000)
+	lowerOutputBudget(t, 50_000)
 	env := setupSizeGuardRealm(t, "ampaddr", pkgPath, qtypeAmpRealmSource)
 
 	// The wide DAG expands past the budget: refused, not serviced.
@@ -301,7 +311,7 @@ func TestQueryType_SizeGuard(t *testing.T) {
 // reaches amino.MarshalJSON, so it allocates orders of magnitude less. The
 // string is built once, before measurement, so neither delta includes it.
 //
-// Budgets are passed explicitly rather than via maxQueryExportBytes: this
+// Budgets are passed explicitly rather than via the package vars: this
 // asserts stringifyJSONResults' own behavior, and the wiring to the production
 // budget is covered by the two tests above.
 func TestStringifyJSON_MarshalAvoided(t *testing.T) {
@@ -324,13 +334,13 @@ func TestStringifyJSON_MarshalAvoided(t *testing.T) {
 	}
 
 	unbounded := measure(func() {
-		s, err := stringifyJSONResults(m, tvs, nil, 0) // no bound: marshals
+		s, err := stringifyJSONResults(m, tvs, nil, 0, 0) // no bound: marshals
 		require.NoError(t, err)
 		require.Greater(t, len(s), n) // the full JSON was produced
 	})
 
 	bounded := measure(func() {
-		_, err := stringifyJSONResults(m, tvs, nil, 100_000)
+		_, err := stringifyJSONResults(m, tvs, nil, 100_000, 0)
 		require.ErrorIs(t, err, gnolang.ErrExportSizeExceeded) // aborts before marshal
 	})
 
@@ -342,6 +352,44 @@ func TestStringifyJSON_MarshalAvoided(t *testing.T) {
 		"bounded path should allocate far less; marshal was not avoided")
 }
 
+// TestQueryRender_RefusedBeforeCopy checks that an oversized Render result is
+// refused before qrender copies it into the response: the handler call costs
+// about what the keeper call alone does, not that plus another copy.
+func TestQueryRender_RefusedBeforeCopy(t *testing.T) {
+	const n = 32 << 20
+	const pkgPath = "gno.land/r/bigrender"
+	env := setupSizeGuardRealm(t, "bigrenderaddr", pkgPath, fmt.Sprintf(`package bigrender
+
+import "strings"
+
+func Render(string) string { return strings.Repeat("x", %d) }
+`, n))
+
+	measure := func(fn func()) uint64 {
+		runtime.GC()
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		fn()
+		runtime.ReadMemStats(&after)
+		return after.TotalAlloc - before.TotalAlloc
+	}
+
+	keeper := measure(func() {
+		s, err := env.vmk.QueryEvalString(env.ctx, pkgPath, `Render("")`)
+		require.NoError(t, err)
+		require.Len(t, s, n)
+	})
+	handler := measure(func() {
+		res := NewHandler(env.vmk).Query(env.ctx, abci.RequestQuery{Path: "vm/qrender", Data: []byte(pkgPath + ":")})
+		require.Error(t, res.Error)
+		assert.ErrorIs(t, res.Error, ExportSizeExceededError{})
+	})
+
+	// TotalAlloc is process-global, so only a margin well below n is asserted.
+	t.Logf("keeper alloc=%d bytes; handler alloc=%d bytes", keeper, handler)
+	assert.Less(t, handler, keeper+n/2, "qrender copied the result before refusing it")
+}
+
 // TestQueryEvalJSON_BoundMethodNameGuarded exercises the BoundMethodValue.Method
 // charge through the wired qeval_json endpoint: a slice of lazy interface-bound
 // method values with a long method-name identifier must be refused, since the
@@ -349,6 +397,7 @@ func TestStringifyJSON_MarshalAvoided(t *testing.T) {
 func TestQueryEvalJSON_BoundMethodNameGuarded(t *testing.T) {
 	const pkgPath = "gno.land/r/bmv"
 	lowerExportBudget(t, 100_000)
+	lowerOutputBudget(t, 0) // the estimate alone must charge the name
 
 	method := "M" + strings.Repeat("x", 5_000)
 	env := setupSizeGuardRealm(t, "bmvaddr", pkgPath, `package bmv
@@ -606,7 +655,7 @@ func TestChargePreprocessGas_GnoModCharged(t *testing.T) {
 	params := env.vmk.GetParams(env.ctx)
 
 	charge := func(files ...*std.MemFile) int64 {
-		ctx, _ := env.ctx.WithGasMeter(store.NewGasMeter(maxGasQuery)).CacheContext()
+		ctx, _ := env.ctx.WithGasMeter(store.NewGasMeter(DefaultQueryMaxGas)).CacheContext()
 		chargePreprocessGas(ctx, params, &std.MemPackage{Files: files}, "test")
 		return ctx.GasMeter().GasConsumed()
 	}
@@ -622,4 +671,549 @@ func TestChargePreprocessGas_GnoModCharged(t *testing.T) {
 	assert.Equal(t, perByte*int64(len(src.Body)+len(dotMod.Body)), charge(src, dotMod))
 	// Files no decoder reads stay free; the tx-size gas already covers them.
 	assert.Equal(t, perByte*int64(len(src.Body)), charge(readme, src))
+}
+
+// TestQueryEval_SharedSubtreeBounded covers values that are small in memory but
+// large when rendered. The export walk counts a shared object once, while
+// String() renders it at every reference. qeval must be bounded by the bytes
+// it renders.
+func TestQueryEval_SharedSubtreeBounded(t *testing.T) {
+	const pkgPath = "gno.land/r/dagval"
+	lowerExportBudget(t, 0)
+	lowerOutputBudget(t, 50_000)
+	env := setupSizeGuardRealm(t, "dagaddr", pkgPath, `package dagval
+
+type Dag struct{ Kids []*Dag }
+
+func MkDag(depth, fanout int) *Dag {
+	d := &Dag{}
+	for i := 0; i < depth; i++ {
+		p := &Dag{Kids: make([]*Dag, fanout)}
+		for j := range p.Kids {
+			p.Kids[j] = d
+		}
+		d = p
+	}
+	return d
+}
+
+// Wide is two objects: one slice whose n elements all share one []int of
+// length n. It renders as n² ints, while the export estimate counts 2n nodes.
+func Wide(n int) []any {
+	child := make([]int, n)
+	arr := make([]any, n)
+	for i := range arr {
+		arr[i] = child
+	}
+	return arr
+}
+`)
+
+	// Two objects that render to ~720KB, bounded by neither depth nor object
+	// count. The export estimate let Wide(8000) through as a 512MB response.
+	_, err := env.vmk.QueryEval(env.ctx, pkgPath, "Wide(300)")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ExportSizeExceededError{})
+
+	// ~60 objects in memory, ~27K leaves (over 1MB) rendered.
+	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "MkDag(3,30)")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ExportSizeExceededError{})
+
+	// The JSON form exports each shared object once, so it stays small.
+	_, err = env.vmk.QueryEvalJSON(env.ctx, pkgPath, "MkDag(3,30)")
+	require.NoError(t, err)
+
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "MkDag(3,2)")
+	require.NoError(t, err)
+	assert.Contains(t, res, "Dag")
+}
+
+// TestQueryEval_TypeStringBounded covers a type that is small in memory but
+// large when rendered: aliased anonymous structs of 12 fields, 6 deep, render
+// to 12^6 leaves. qeval must not build the type string whole (917MB allocated
+// before the fix): Type.String cuts it at maxTypeTextBytes, under the output cap.
+func TestQueryEval_TypeStringBounded(t *testing.T) {
+	const pkgPath = "gno.land/r/typestr"
+	env := setupSizeGuardRealm(t, "typestraddr", pkgPath, "package typestr\n\nvar X int\n")
+
+	names := make([]string, 12)
+	for i := range names {
+		names[i] = fmt.Sprintf("f%d", i)
+	}
+	var types strings.Builder
+	types.WriteString("type A0 = int; ")
+	for i := 1; i <= 6; i++ {
+		fmt.Fprintf(&types, "type A%d = struct{ %s A%d }; ", i, strings.Join(names, ", "), i-1)
+	}
+
+	// The closure, bound method and type value forms are covered in gnolang.
+	expr := "func() any { " + types.String() + "var v *A6; return v }()"
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+	runtime.ReadMemStats(&after)
+	require.NoError(t, err)
+	assert.Contains(t, res, "...")
+	assert.Less(t, len(res), 64<<10)
+	// TotalAlloc is process-global, so the bound is loose.
+	assert.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(200<<20))
+}
+
+// TestQueryOutputCap_Streaming covers the writer caps of the amino JSON
+// endpoints. The export estimate is disabled and each keeper method is called
+// directly, past the handler, so the refusal can only come from the
+// cappedBuffer amino writes into. Half the full answer still holds every
+// envelope, so the cap is below the inner JSON it bounds.
+func TestQueryOutputCap_Streaming(t *testing.T) {
+	const pkgPath = "gno.land/r/ptrs"
+	env := setupSizeGuardRealm(t, "ptrsaddr", pkgPath, `package ptrs
+
+type T struct{ N int }
+
+type Rec struct {
+	ID   int
+	Name string
+}
+
+var List = make([]*T, 200)
+
+var All = [50]Rec{}
+
+func init() {
+	for i := range List {
+		List[i] = &T{N: i}
+	}
+}
+
+func GetList() []*T { return List }
+`)
+	res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetList()")
+	require.NoError(t, err)
+	oid := extractNestedRefValueObjectID(t, res)
+	require.NotEmpty(t, oid, "no ObjectID in %s", res)
+
+	for _, tc := range []struct {
+		name  string
+		query func() (string, error)
+	}{
+		{"qeval_json", func() (string, error) { return env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetList()") }},
+		{"qobject_json", func() (string, error) { return env.vmk.QueryObjectJSON(env.ctx, oid) }},
+		{"qpkg_json", func() (string, error) { return env.vmk.QueryPkg(env.ctx, pkgPath) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			full, err := tc.query()
+			require.NoError(t, err)
+
+			lowerExportBudget(t, 0)
+			lowerOutputBudget(t, int64(len(full))/2)
+			_, err = tc.query()
+			assert.ErrorIs(t, err, ExportSizeExceededError{})
+			assert.Contains(t, fmt.Sprintf("%#v", err), fmt.Sprintf("response size exceeds %d bytes", len(full)/2))
+		})
+	}
+}
+
+// TestQueryFuncs_SizeGuard covers the cumulative budget of qfuncs' type text.
+// Each parameter of Wide renders the same 4^4-leaf type, so a budget of twice
+// its length fits both, one byte less stops the second in its writer, and a
+// budget the first uses up exactly stops the second before it starts.
+func TestQueryFuncs_SizeGuard(t *testing.T) {
+	const pkgPath = "gno.land/r/widefunc"
+	env := setupSizeGuardRealm(t, "widefuncaddr", pkgPath,
+		"package widefunc\n\n"+typeChain(4, 4, "\n")+"\nfunc Wide(v, w T4) {}\n")
+	fsigs, err := env.vmk.QueryFuncs(env.ctx, pkgPath)
+	require.NoError(t, err)
+	n := int64(len(fsigs[0].Params[0].Type))
+	lowerExportBudget(t, 0)
+
+	lowerOutputBudget(t, 2*n)
+	_, err = env.vmk.QueryFuncs(env.ctx, pkgPath)
+	require.NoError(t, err)
+
+	for _, budget := range []int64{2*n - 1, n} {
+		lowerOutputBudget(t, budget)
+		_, err = env.vmk.QueryFuncs(env.ctx, pkgPath)
+		assert.ErrorIs(t, err, ExportSizeExceededError{}, "budget %d", budget)
+	}
+}
+
+// TestQueryHandler_StreamingJSON covers the writer caps qfuncs and qdoc marshal
+// into. Their handler functions are called directly, past the final cap in
+// vmHandler.Query, with the output cap at half the full answer.
+func TestQueryHandler_StreamingJSON(t *testing.T) {
+	const pkgPath = "gno.land/r/docs"
+	env := setupSizeGuardRealm(t, "docsaddr", pkgPath, `package docs
+
+// Hello greets.
+func Hello(name string, times int) (string, error) { return name, nil }
+
+// Bye says goodbye.
+func Bye(name string) string { return name }
+`)
+	for _, tc := range []struct {
+		name  string
+		query func(sdk.Context, abci.RequestQuery) abci.ResponseQuery
+	}{
+		{"qfuncs", env.vmh.queryFuncs},
+		{"qdoc", env.vmh.queryDoc},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := abci.RequestQuery{Data: []byte(pkgPath)}
+			full := tc.query(env.ctx, req)
+			require.True(t, full.IsOK(), "%v", full.Error)
+
+			lowerOutputBudget(t, int64(len(full.Data))/2)
+			res := tc.query(env.ctx, req)
+			require.False(t, res.IsOK())
+			assert.IsType(t, ExportSizeExceededError{}, res.Error)
+			assert.Empty(t, res.Data)
+		})
+	}
+}
+
+// TestCappedBuffer_AminoJSON checks that amino.MarshalJSONTo into a
+// cappedBuffer fails at every cap below the full size, rather than returning
+// success with truncated JSON.
+func TestCappedBuffer_AminoJSON(t *testing.T) {
+	v := []string{"a", "bb", "ccc"}
+	full, err := amino.MarshalJSON(v)
+	require.NoError(t, err)
+	for n := int64(1); n < int64(len(full)); n++ {
+		cb := cappedBuffer{max: n}
+		err := amino.MarshalJSONTo(&cb, v)
+		require.ErrorIs(t, err, gnolang.ErrExportSizeExceeded, "max=%d", n)
+	}
+	cb := cappedBuffer{max: int64(len(full))}
+	require.NoError(t, amino.MarshalJSONTo(&cb, v))
+	require.Equal(t, full, cb.buf.Bytes())
+
+	// Once refused, a shorter write is refused too.
+	cb = cappedBuffer{max: 3}
+	_, err = cb.Write([]byte("abcd"))
+	require.ErrorIs(t, err, gnolang.ErrExportSizeExceeded)
+	_, err = cb.Write([]byte("a"))
+	require.ErrorIs(t, err, gnolang.ErrExportSizeExceeded)
+	require.Zero(t, cb.buf.Len())
+}
+
+// TestQueryEvalJSON_AtErrorBudgetFails checks that a budget exhausted while
+// extracting @error fails the query instead of swallowing the panic and
+// returning a false success with no @error. The call returns an error value
+// cheaply, then Error() allocates past QueryMaxAlloc, so the allocator panics
+// during extraction.
+func TestQueryEvalJSON_AtErrorBudgetFails(t *testing.T) {
+	const pkgPath = "gno.land/r/aterrbudget"
+	env := setupSizeGuardRealm(t, "aterrbudgetaddr", pkgPath, `package aterrbudget
+
+type allocErr struct{}
+
+func (allocErr) Error() string {
+	// Allocate well past the lowered query budget only when Error() runs.
+	sink := make([]byte, 60_000_000)
+	return string(sink[:1])
+}
+
+// Bad returns cheaply. Only its Error() exhausts the allocation budget.
+func Bad() error { return allocErr{} }
+`)
+
+	env.vmk.QueryMaxAlloc = 20_000_000
+
+	res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "Bad()")
+	require.Error(t, err,
+		"@error extraction that exhausts the allocation budget must fail the query")
+	require.Contains(t, err.Error(), "allocation limit exceeded")
+	require.Empty(t, res)
+}
+
+// TestQueryDoc_SizeGuard checks vm/qdoc against a field whose names all share
+// one long type: the JSON repeats the type once per name, so
+// it is refused past maxQueryOutputBytes, and a small doc is unchanged.
+func TestQueryDoc_SizeGuard(t *testing.T) {
+	const pkgPath = "gno.land/r/widedoc"
+	// 12 names keep T's identity under the 16 KiB type cap.
+	names := make([]string, 12)
+	for i := range names {
+		names[i] = fmt.Sprintf("F%d", i)
+	}
+	// One AST node but many bytes, so the declaration stays cheap to deploy.
+	typ := "L" + strings.Repeat("o", 1000) + "ng"
+	env := setupSizeGuardRealm(t, "docaddr", pkgPath, "package widedoc\n\ntype "+typ+" int\n\ntype T struct {\n\t"+
+		strings.Join(names, ", ")+" "+typ+"\n}\n")
+	query := func() abci.ResponseQuery {
+		return env.vmh.Query(env.ctx, abci.RequestQuery{Path: "vm/qdoc", Data: []byte(pkgPath)})
+	}
+
+	// Unchanged output under the default budget.
+	res := query()
+	require.True(t, res.IsOK(), "%v", res.Error)
+	jsonDoc, err := env.vmk.QueryDoc(env.ctx, pkgPath)
+	require.NoError(t, err)
+	assert.Equal(t, jsonDoc.JSON(), string(res.Data))
+
+	// 12 names × a ~1000 byte type is over 12KB of JSON.
+	lowerOutputBudget(t, 5_000)
+	res = query()
+	require.False(t, res.IsOK())
+	assert.IsType(t, ExportSizeExceededError{}, res.Error)
+}
+
+// typeChain declares T0 and T1 to T<levels>, each a struct of width fields of the
+// level below, joined by sep.
+func typeChain(levels, width int, sep string) string {
+	decls := []string{"type T0 struct{ V int }"}
+	for l := 1; l <= levels; l++ {
+		var fields strings.Builder
+		for f := range width {
+			fields.WriteString(fmt.Sprintf("F%d T%d; ", f, l-1))
+		}
+		decls = append(decls, fmt.Sprintf("type T%d = struct{ %s}", l, fields.String()))
+	}
+	return strings.Join(decls, sep)
+}
+
+// An alias writes out everything it refers to in a type's id and text, outside
+// the gas meter and the allocator, so a query or a transaction must fail with
+// little allocated.
+func TestTypeSizeAllocBound(t *testing.T) {
+	const pkgPath = "gno.land/r/test/typesize"
+	const maxBytes = 4 << 20
+	env := setupSizeGuardRealm(t, "typesize", pkgPath, "package typesize\n")
+
+	allocated := func(f func() error) (uint64, error) {
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		err := f()
+		runtime.ReadMemStats(&after)
+		return after.TotalAlloc - before.TotalAlloc, err
+	}
+	funcOf := func(param string, n int) string {
+		return "func(" + strings.Repeat(param+", ", n) + ")"
+	}
+
+	const typeTooLarge = "type too large"
+	for name, tc := range map[string]struct{ decls, stmt, wantErr string }{
+		"type assertion":             {typeChain(5, 8, "; "), "_, ok := any(1).(*T5); _ = ok; ", typeTooLarge},
+		"type error":                 {typeChain(5, 8, "; "), "var p *T5; p = 1; ", "cannot use"},
+		"recover in the query":       {typeChain(5, 8, "; "), "defer func() { recover() }(); _, ok := any(1).(*T5); _ = ok; ", typeTooLarge},
+		"func repeating an alias":    {typeChain(3, 4, "; "), "_, ok := any(1).(*" + funcOf("T3", 64) + "); _ = ok; ", typeTooLarge},
+		"unnamed struct":             {typeChain(3, 4, "; "), "_, ok := any(1).(*struct{a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p T3}); _ = ok; ", typeTooLarge},
+		"func nested past the depth": {typeChain(8, 8, "; "), "_, ok := any(1).(*" + funcOf("T8", 100) + "); _ = ok; ", "type func("},
+		"wrong argument count":       {typeChain(6, 8, "; "), "_ = " + funcOf("T6", 100) + " {}(1); ", "wrong argument count"},
+		"typed nil in a message":     {typeChain(6, 8, "; "), "_ = func() { " + strings.Repeat("_ = (*T6)(nil); ", 50) + "}(1); ", "wrong argument count"},
+	} {
+		t.Run("query "+name, func(t *testing.T) {
+			expr := "func() int { " + tc.decls + "; " + tc.stmt + "return 0 }()"
+			n, err := allocated(func() error {
+				_, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+				return err
+			})
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Less(t, n, uint64(maxBytes))
+		})
+	}
+
+	// A refusal ends the query and leaves the next one served.
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "func() int { type T = struct{ F int }; var v T; v.F = 7; return v.F }()")
+	require.NoError(t, err)
+	assert.Contains(t, res, "7")
+
+	txCtx := func(name string) (sdk.Context, crypto.Address) {
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(store.NewGasMeter(maxAllocTx)))
+		addr := crypto.AddressFromPreimage([]byte(name))
+		env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000)))
+		return ctx, addr
+	}
+	for name, body := range map[string]string{
+		"pointer":    "var p *T5\n_ = p\n",
+		"zero value": "var v T5\n_ = v\n",
+	} {
+		t.Run("MsgRun "+name, func(t *testing.T) {
+			ctx, addr := txCtx("typesizerunner")
+			runPath := "gno.land/e/" + addr.String() + "/run"
+			files := []*std.MemFile{
+				{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(runPath)},
+				{Name: "script.gno", Body: "package main\n\nfunc main() {\n" + typeChain(5, 8, "\n") + "\n" + body + "}\n"},
+			}
+			n, err := allocated(func() error {
+				_, err := env.vmk.Run(ctx, NewMsgRun(addr, std.MustParseCoins(""), files))
+				return err
+			})
+			require.ErrorContains(t, err, typeTooLarge)
+			assert.Less(t, n, uint64(maxBytes))
+		})
+	}
+
+	addPackage := func(name, src string) (uint64, error) {
+		ctx, addr := txCtx("typesizedeployer")
+		path := "gno.land/r/test/" + name
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: "top.gno", Body: "package " + name + "\n\n" + src},
+		}
+		return allocated(func() error {
+			return env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, path, files))
+		})
+	}
+	deps := strings.Split(typeChain(5, 8, "\n"), "\n")
+	topFirst := slices.Clone(deps)
+	slices.Reverse(topFirst)
+	var throughDeclared strings.Builder
+	throughDeclared.WriteString("type T1 = struct{ F0, F1, F2, F3, F4, F5, F6, F7 int; D *D1 }\n")
+	for l := 1; l < 5; l++ {
+		throughDeclared.WriteString(fmt.Sprintf("type D%[1]d struct{ P *T%[2]d }\ntype T%[2]d = struct{ F0, F1, F2, F3, F4, F5, F6, F7 T%[1]d; D *D%[2]d }\n", l, l+1))
+	}
+	throughDeclared.WriteString("type D5 struct{}\n")
+	for name, src := range map[string]string{
+		"typesizedeps":     strings.Join(deps, "\n") + "\nvar P *T5\n",
+		"typesizetopfirst": strings.Join(topFirst, "\n") + "\nvar P *T5\n",
+		"typesizedeclared": throughDeclared.String(),
+	} {
+		t.Run("MsgAddPackage "+name, func(t *testing.T) {
+			n, err := addPackage(name, src)
+			require.ErrorContains(t, err, typeTooLarge)
+			assert.Less(t, n, uint64(maxBytes))
+		})
+	}
+
+	t.Run("types under the cap keep working", func(t *testing.T) {
+		src := typeChain(2, 8, "\n") + "\ntype Callback = func(*Event)\ntype Event struct{ Listeners []Listener }\ntype Listener = struct{ Cb Callback; Name string }\nvar P *T2\n"
+		_, err := addPackage("typesizesmall", src)
+		require.NoError(t, err)
+		res, err := env.vmk.QueryEval(env.ctx, pkgPath, "func() int { "+typeChain(2, 8, "; ")+"; var v T2; return v.F7.F7.V + 1 }()")
+		require.NoError(t, err)
+		assert.Contains(t, res, "1")
+	})
+}
+
+// A realm can recover a failed check and store or branch on its message, so the
+// message prints each type whole, as Type.String does.
+func TestRecoveredErrorKeepsItsTypes(t *testing.T) {
+	const pkgPath = "gno.land/r/test/typetext"
+	env := setupSizeGuardRealm(t, "typetext", pkgPath, "package typetext\n")
+	decls := typeChain(2, 8, "; ")
+	// About 11 KB of one type's text, its id under the cap.
+	wide := strings.ReplaceAll(typeChain(3, 7, "; "), "T", "U")
+	for name, tc := range map[string]struct {
+		stmt string
+		want int
+	}{
+		"type under the id cap": {wide + "; var a any = 1; _ = a.(*U3)", 11618},
+		"concrete assertion":    {"var a any = (*T2)(nil); _ = a.(*[1]T2)", 4305},
+		"assertion on nil":      {"var a any; _ = a.(*T2)", 2162},
+		"interface on nil":      {"var a any; _ = a.(interface{ M(T2) })", 2206},
+		"missing method":        {"var a any = (*T2)(nil); _ = a.(interface{ M(T2) })", 4343},
+		"declared interface":    {"type I interface{ M(T2) }; var a any = 1; _ = a.(I)", 2203},
+		"comparison":            {"var a, b any = []T2{}, []T2{}; _ = a == b", 2187},
+		"map key":               {"m := map[any]int{}; var a any = []T2{}; m[a] = 1", 2183},
+	} {
+		t.Run(name, func(t *testing.T) {
+			expr := "func() (n int) { " + decls + "; defer func() { n = len(recover().(error).Error()) }(); " + tc.stmt + "; return 0 }()"
+			res, err := env.vmk.QueryEval(env.ctx, pkgPath, expr)
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("(%d int)", tc.want), res)
+		})
+	}
+}
+
+// vm/qfuncs prints each parameter's and result's base type, which no meter
+// charges: 200 types of about 9 KiB would print 1.8 MiB, past the response cap.
+func TestQueryFuncsBoundsTypeText(t *testing.T) {
+	const pkgPath = "gno.land/r/test/qfuncs"
+	decls := typeChain(3, 8, "\n") + "\ntype D T3\n"
+	env := setupSizeGuardRealm(t, "qfuncs", pkgPath, "package qfuncs\n"+decls+
+		"func Small(a int, b string) bool { return false }\n"+
+		"func Params("+strings.Repeat("D, ", 100)+") {}\n"+
+		"func Results() ("+strings.Repeat("D, ", 100)+") { panic(0) }\n")
+	res := env.vmh.Query(env.ctx, abci.RequestQuery{Path: "vm/qfuncs", Data: []byte(pkgPath)})
+	require.False(t, res.IsOK())
+	assert.IsType(t, ExportSizeExceededError{}, res.Error)
+}
+
+// A restart preprocesses every stored package again, so a package at the cap must
+// boot, and one past it, which only an older binary could have stored, stops the boot.
+func TestTypeIDCapOnRestart(t *testing.T) {
+	const capID = 16 << 10
+	// struct{<name> int} adds 12 bytes to the name in its id.
+	structOfID := func(n int) string { return "struct{ " + strings.Repeat("A", n-12) + " int }" }
+	files := func(path, name, src string) []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+			{Name: "top.gno", Body: "package " + name + "\n\n" + src},
+		}
+	}
+	txCtx := func(env testEnv, name string) (sdk.Context, crypto.Address) {
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx.WithGasMeter(store.NewGasMeter(DefaultQueryMaxGas)))
+		addr := crypto.AddressFromPreimage([]byte(name))
+		env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+		env.bankk.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(100_000_000_000)))
+		return ctx, addr
+	}
+	restart := func(env testEnv) (recovered any) {
+		defer func() { recovered = recover() }()
+		env.vmk.gnoStore = nil
+		ms := env.ctx.MultiStore().MultiCacheWrap()
+		env.vmk.Initialize(log.NewNoopLogger(), ms)
+		ms.MultiWrite()
+		return nil
+	}
+
+	t.Run("at the cap", func(t *testing.T) {
+		env := setupTestEnv()
+		var paths []string
+		for i, src := range []string{
+			"type T = " + structOfID(capID) + "\nvar V T\n",
+			"func F(p " + structOfID(capID-8) + ") {}\n",
+			"type I interface{ M(p " + structOfID(capID-23) + ") }\n",
+			"func F(p ..." + structOfID(capID-10) + ") {}\n",
+			"var F = func(p " + structOfID(capID-8) + ") {}\n",
+		} {
+			name := fmt.Sprintf("typecap%d", i)
+			path := "gno.land/r/test/" + name
+			ctx, addr := txCtx(env, name)
+			require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, path, files(path, name, src))))
+			env.vmk.CommitGnoTransactionStore(ctx)
+			paths = append(paths, path)
+		}
+		require.Nil(t, restart(env))
+		for _, path := range paths {
+			res, err := env.vmk.QueryEval(env.ctx, path, "1+1")
+			require.NoError(t, err)
+			assert.Contains(t, res, "2")
+		}
+	})
+
+	t.Run("past the cap", func(t *testing.T) {
+		env := setupTestEnv()
+		const name, path = "typeover", "gno.land/r/test/typeover"
+		ctx, _ := txCtx(env, name)
+		env.vmk.getGnoTransactionStore(ctx).AddMemPackage(&std.MemPackage{
+			Type: gnolang.MPUserProd, Name: name, Path: path,
+			Files: files(path, name, "type T = "+structOfID(capID+1)+"\nvar V T\n"),
+		}, gnolang.MPUserProd)
+		env.vmk.CommitGnoTransactionStore(ctx)
+		assert.Contains(t, fmt.Sprint(restart(env)), "type too large")
+	})
+}
+
+// append and copy take a func type that repeats their operand's type, three
+// times and twice, so an element type at half the cap must still deploy and run.
+func TestTypeIDCapSpecifiedBuiltins(t *testing.T) {
+	const pkgPath = "gno.land/r/test/builtincap"
+	// 100 fields of 80-byte names: an id of 8507 bytes.
+	var fields strings.Builder
+	for i := range 100 {
+		fmt.Fprintf(&fields, "F%03d%s int; ", i, strings.Repeat("x", 76))
+	}
+	env := setupSizeGuardRealm(t, "builtincap", pkgPath, "package builtincap\n\n"+
+		"type S = struct{ "+fields.String()+"}\n\n"+
+		"var A, B []S\n\n"+
+		"func Add(cur realm, s S) { A = append(A, s) }\n\n"+
+		"func Cp(cur realm) int { return copy(A, B) }\n")
+	res, err := env.vmk.QueryEval(env.ctx, pkgPath, "func() int { var a, b []S; a = append(a, S{}); return len(a) + copy(b, a) }()")
+	require.NoError(t, err)
+	assert.Equal(t, "(1 int)", res)
 }

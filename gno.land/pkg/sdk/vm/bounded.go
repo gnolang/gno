@@ -65,6 +65,9 @@ func boundedString(v any, depth int) string {
 		// Machine had BoundedPanicRender=true (op_call.go flag-true
 		// branch). Validators set the flag on every m.
 		return truncate(x.Descriptor)
+	case *gno.ParentWriteError:
+		// Carries the vm.Output writer's error, which has no Unwrap.
+		return truncate(x.Error())
 
 	// tm2-specific bounded types
 	case stypes.OutOfGasError:

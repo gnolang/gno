@@ -4,7 +4,6 @@ package vm
 
 import (
 	"path/filepath"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -109,25 +108,6 @@ func loadExamplePackage(pkgPath string) []*std.MemFile {
 // It reads the package from disk and deploys it using the provided VMKeeper.
 func deployExamplePackage(env testEnv, ctx sdk.Context, deployer crypto.Address, pkgPath string) error {
 	files := loadExamplePackage(pkgPath)
-	msg := NewMsgAddPackage(deployer, pkgPath, files)
-	return env.vmk.AddPackage(ctx, msg)
-}
-
-// deployExamplePackageWithPatch deploys a package from the examples directory,
-// applying string replacements to the source files before deployment.
-// patches is a map of old string -> new string replacements to apply.
-func deployExamplePackageWithPatch(env testEnv, ctx sdk.Context, deployer crypto.Address, pkgPath string, patches map[string]string) error {
-	files := loadExamplePackage(pkgPath)
-	// Apply patches to all files
-	for i, f := range files {
-		body := f.Body
-		for old, new := range patches {
-			body = strings.ReplaceAll(body, old, new)
-		}
-		if body != f.Body {
-			files[i] = &std.MemFile{Name: f.Name, Body: body}
-		}
-	}
 	msg := NewMsgAddPackage(deployer, pkgPath, files)
 	return env.vmk.AddPackage(ctx, msg)
 }
