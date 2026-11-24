@@ -807,8 +807,14 @@ stays pending until the kind 6 lands or the epoch moves on. **All or nothing**: 
     merge never reaches past the newest horizon), and it gets a **success** ack. The horizon is what bounds a forged
     cancel (gnolang/gno#6375 review): without it one cancel of `(1, 2^64-1)` cancelled every later decision of the
     epoch; with it a cancel burns at most `W` numbers past the head (and, like any cancel, the pending decisions
-    below it). An honest cancel never needs more: every decision governance can still want to stop is recorded or
-    buffered within the window, and one dispatched beyond it is refused on arrival. If its own `seq` is inside the window it is also recorded or buffered
+    below it). An honest cancel never needs more, because **`ibcgov` applies backpressure**: it binds no
+    Ethereum-bound decision but a cancel more than `W` past its **known head**, the highest number `IBCAdmin`
+    acknowledged recording (status 1, 5 or 6; 2 and 3 do not move it), and `Rebind`'s copies obey the same bound;
+    past it the builder refuses, or the decision is spent at recording with a note to retry once acknowledgements
+    catch up. Every number a cancel can name was therefore bound at most `W` past a head `IBCAdmin` has reached, so
+    it lies inside the horizon when the cancel arrives, even if its first packet is still in flight. Cancels
+    themselves are exempt (their own number may lie beyond the window). A forged recording ack (a compromised
+    gno-side Ethereum verifier) can inflate the known head: a residual of that verifier's row (§8.2). If its own `seq` is inside the window it is also recorded or buffered
     as usual; if it is beyond the window, it is bound to its hash and acked `buffered` with `redispatch = 1`, and
     `ibcgov` re-sends the same `seq` with identical bytes later so the cancel takes its place in the sequence (its
     tombstones already applied; re-applying them is a no-op). A malformed cancel beyond the window is an error ack.
@@ -1008,7 +1014,9 @@ stateDiagram-v2
   Queued --> Applied: anyone executes after due, no gno-side hold<br/>(re-checked against live state)
   Queued --> Spent: re-check fails at execution
   Dispatched --> RecordedEth: received in order (or buffered until the gap fills)
-  Dispatched --> Dispatched: timeout, error ack, redispatch=1, or any answer but a conflict →<br/>anyone re-sends same seq, same bytes, fresh packet<br/>(after a conflict: only on a NewRetransmitRequest)
+  Dispatched --> Dispatched: timeout, error ack, redispatch=1, or any answer but a conflict or a 6 →<br/>anyone re-sends same seq, same bytes, fresh packet<br/>(after a conflict or a 6, and for a number ibcgov cancelled: only on a NewRetransmitRequest)
+  Dispatched --> Burned: acked 6, no cancel of ibcgov's names it
+  Burned --> Dispatched: anyone Rebinds it → the epoch's next number, same kind and params
   RecordedEth --> AppliedEth: delay elapsed · no flag/hold on IBCAdmin · anyone executes
   RecordedEth --> Deferred: flag or hold on IBCAdmin
   Deferred --> RecordedEth: flags cleared / hold ends
@@ -2717,7 +2725,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 9 | Both | **Epoch notices**: resendable for any recorded epoch at any time, over that epoch's own client, in a fresh packet; acks informational; **no cap on unacknowledged advances on Ethereum**; on gno.land one-step notices apply on receipt, longer ones are recorded as proven and applied with an explicit path; **no authenticated epoch resync** (§7.12 said a notice is re-sent until acknowledged) | A cap could block the recovery after the latest client froze; forged acks could close resending; gno.land bounds its own work by its expected graph (project-owner decisions) |
 | 10 | gno.land | **Expected-transition graph**: 4 successors per router client, 64 transitions pending, active and tombstoned jointly, acyclic, simple paths only; pending intents owned per decision; kind 10's local binding a separate 7-day, hold-deferred decision; tombstones, `NewRemoveExpectationRequest` (immediate) and `NewPurgeTombstoneRequest` (7 days) added; an unconfirmed expectation costs capacity (§7.12 said it costs nothing) | Bounded work with exact reachability; approving a local verifier loosens and waits; a cancelled or failed transition must not exhaust the capacity |
 | 11 | gno.land | **One governance retirement rule**: a replaced client of the route is retired for transfers at once and for governance only by an authenticated epoch switch (final retirement qualified) | A client Ethereum may still send a notice over must keep its `gov` port; only being left behind as the old epoch's client proves Ethereum moved past it (a notice's path is supplied by whoever applies it, so intermediate and pruned clients stay open and inert) |
-| 12 | Both | **Retransmission**: anyone re-sends a current-epoch dispatch after any answer but a conflict; a conflict is re-sent once per governed `NewRetransmitRequest` (§5.4 said re-send on `redispatch = 1` or a timeout) | A forged success ack can hide an undelivered decision; free conflict re-sends would let anyone keep `IBCAdmin` flagged |
+| 12 | Both | **Retransmission**: anyone re-sends a current-epoch dispatch after any answer but a conflict or a 6; a conflict, a 6, and every number one of `ibcgov`'s cancels names are re-sent once per governed `NewRetransmitRequest` (a cancel voids earlier unused grants); a burned number (6, not ours) is re-bound by anyone with `Rebind` (§5.4 said re-send on `redispatch = 1` or a timeout) | A forged success ack can hide an undelivered decision; free conflict re-sends would let anyone keep `IBCAdmin` flagged; a free re-send of a cancelled decision could revive it; a forged cancel would otherwise end governance for the epoch |
 | 13 | gno.land | **A retired client is marked, not frozen** (its verifier keeps its status) | Retirement is per port (divergence 11); a mark refuses new packets without changing the verifier |
 | 14 | gno.land | **`ibcgov` is not upgradeable**; the proxies accept loosening governance only from its fixed path | Its port and ledger are permanent, as `IBCAdmin`'s are |
 | 15 | gno.land | **Holds are per route** (gno-realms ADR 0007): two of a route's guardian seats flagging anything make that route's hold, which defers that route's decisions; any route's hold defers decisions on the shared core and transfer app, a global unpause included, to day 21 of the global hold that first deferred them at most | Routes stay independent, and chained holds across routes stall shared decisions no longer than one |
@@ -3587,9 +3595,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   decision with status 6, and keeps a kind 10 whose new client is not enrolled pending instead of spending it.
   `ibcgov` tells numbers it cancelled from burned ones, lets anyone `Rebind` burned dispatches to the next numbers
   in order, and requires a governed authorization to re-send a number it cancelled or one acknowledged 6 (a cancel
-  voids earlier unused grants). Codex reviewed both sides over three rounds (a forged 6 on an undelivered head, a
+  voids earlier unused grants) and binds no Ethereum-bound decision but a cancel more than 64 past the highest
+  number Ethereum acknowledged recording (backpressure, so a cancel always reaches a decision still in flight).
+  Codex reviewed both sides over several rounds (a forged 6 on an undelivered head, a
   forged held-ack reviving a withdrawn decision, the kind 6/kind 10 execution order, and a grant outliving a cancel
-  were found and fixed).
+  a decision in flight beyond the horizon were found and fixed).
 
 ## 15. References
 
