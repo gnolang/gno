@@ -136,13 +136,6 @@ func ProtoBaseAccount() Account {
 	return &BaseAccount{}
 }
 
-// NewBaseAccountWithAddress - returns a new base account with a given address
-func NewBaseAccountWithAddress(addr crypto.Address) BaseAccount {
-	return BaseAccount{
-		Address: addr,
-	}
-}
-
 // GetAddress - Implements Account.
 func (acc BaseAccount) GetAddress() crypto.Address {
 	return acc.Address

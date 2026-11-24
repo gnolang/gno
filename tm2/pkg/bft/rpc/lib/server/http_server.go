@@ -3,10 +3,10 @@ package rpcserver
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -134,63 +134,102 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) error {
 // whole result in memory. Returns the first write error encountered (no
 // panics), mirroring the contract of WriteRPCResponseHTTP.
 //
-// ctx is forwarded to result.StreamJSON so that long streams can be aborted
-// when the client disconnects.
+// r's context is forwarded to result.StreamJSON so that long streams can be
+// aborted when the client disconnects.
 //
-// The server-wide WriteTimeout is cleared for the duration, and that is the
-// point of streaming rather than an optimisation on top of it. A streamed
-// result has no bounded size, so any finite write deadline is a size cap
-// wearing a clock: gno.land's mainnet genesis is over 250MB and the 30s
-// default (see DefaultConfig) cuts it mid-JSON, at a different byte offset on
-// every run, leaving a 200 response whose body no client can parse. Streaming
-// the result solved the memory half of that and left this half in place.
-//
-// Cleared rather than raised, because any larger number is the same bug with a
-// bigger genesis. What still bounds the connection is the client and, once the
-// response is done, IdleTimeout.
-func WriteStreamingRPCResponseHTTP(ctx context.Context, w http.ResponseWriter, id types.JSONRPCID, result types.StreamableResult) error {
+// A HEAD request gets the status and headers only: net/http discards a HEAD
+// body without sending it, so nothing would bound the work of streaming it.
+func WriteStreamingRPCResponseHTTP(r *http.Request, w http.ResponseWriter, id types.JSONRPCID, result types.StreamableResult) error {
 	idBytes, err := json.Marshal(id)
 	if err != nil {
 		return fmt.Errorf("unable to marshal JSON-RPC id: %w", err)
 	}
 
-	// Best-effort: a ResponseWriter that cannot carry a deadline (an
-	// httptest.Recorder, a wrapper that does not Unwrap) simply keeps whatever
-	// it had, which is the behaviour before this line existed.
-	if err := http.NewResponseController(w).SetWriteDeadline(time.Time{}); err != nil &&
-		!stderrors.Is(err, http.ErrNotSupported) {
-		return fmt.Errorf("unable to clear the write deadline for a streamed response: %w", err)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	if r.Method == http.MethodHead {
+		return nil
+	}
 
-	if _, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
+	var out io.Writer = w
+	if server, ok := r.Context().Value(http.ServerContextKey).(*http.Server); ok && server.WriteTimeout > 0 {
+		out = &progressDeadlineWriter{w: w, rc: http.NewResponseController(w), timeout: server.WriteTimeout}
+	}
+
+	if _, err := fmt.Fprintf(out, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
 		return err
 	}
-	if err := result.StreamJSON(ctx, w); err != nil {
+	if err := result.StreamJSON(r.Context(), out); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte(`}`)); err != nil {
+	if _, err := out.Write([]byte(`}`)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// WriteRPCResponseArrayHTTP will do the same as WriteRPCResponseHTTP, except it
-// can write arrays of responses for batched request/response interactions via
-// the JSON RPC.
-func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) error {
-	jsonBytes, err := json.MarshalIndent(res, "", "  ")
-	if err != nil {
+// progressDeadlineWriter gives each write time to finish and extends the
+// deadline as the response advances. Keep a finite limit even for large streams.
+type progressDeadlineWriter struct {
+	w       io.Writer
+	rc      *http.ResponseController
+	timeout time.Duration
+	rearm   time.Time
+}
+
+func (p *progressDeadlineWriter) Write(b []byte) (int, error) {
+	if now := time.Now(); !now.Before(p.rearm) {
+		if err := p.rc.SetWriteDeadline(now.Add(p.timeout)); err != nil && !stderrors.Is(err, http.ErrNotSupported) {
+			return 0, fmt.Errorf("refresh stream write deadline: %w", err)
+		}
+		p.rearm = now.Add(p.timeout / 2)
+	}
+	return p.w.Write(b)
+}
+
+// batchWriter writes the answers of a batch one at a time, in the bytes
+// json.MarshalIndent(answers, "", "  ") gives the whole slice.
+type batchWriter struct {
+	w       io.Writer
+	written bool
+	enc     *json.Encoder
+}
+
+// write appends resp to the array, opening it on the first answer.
+func (b *batchWriter) write(resp types.RPCResponse) error {
+	sep := ",\n  "
+	if !b.written {
+		sep = "[\n  "
+		b.enc = json.NewEncoder(dropNewline{b.w})
+		b.enc.SetIndent("  ", "  ")
+		b.written = true
+	}
+	if _, err := io.WriteString(b.w, sep); err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	if _, err := w.Write(jsonBytes); err != nil {
-		return err
+	if err := b.enc.Encode(resp); err != nil {
+		// A marshal error writes nothing, so the error answer takes the slot.
+		return b.enc.Encode(types.RPCInternalError(resp.ID, err))
 	}
 	return nil
+}
+
+// dropNewline forwards what json.Encoder.Encode writes, without the newline
+// it ends each value with; Encode writes each value in a single Write.
+type dropNewline struct{ w io.Writer }
+
+func (d dropNewline) Write(p []byte) (int, error) {
+	n, err := d.w.Write(p[:len(p)-1])
+	if err == nil {
+		n++
+	}
+	return n, err
+}
+
+// close ends the array; it must follow at least one write.
+func (b *batchWriter) close() error {
+	_, err := io.WriteString(b.w, "\n]")
+	return err
 }
 
 // -----------------------------------------------------------------------------
@@ -276,13 +315,8 @@ func (w *ResponseWriterWrapper) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// Unwrap lets http.ResponseController reach the writer net/http handed us.
-//
-// Without it the controller stops at this wrapper and every one of its methods
-// returns http.ErrNotSupported, which is silent: SetWriteDeadline looks like it
-// worked and the original deadline stays armed. Every handler on this server is
-// wrapped, so that applied to all of them, and it is what kept the streamed
-// /genesis response subject to WriteTimeout after it was made streamable.
+// Unwrap lets http.ResponseController reach the wrapped writer, so a batch
+// can flush each answer.
 func (w *ResponseWriterWrapper) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }

@@ -141,23 +141,6 @@ func NewTestTxWithSignBytes(msgs []std.Msg, privs []crypto.PrivKey, fee std.Fee,
 	return tx
 }
 
-func TestAddress(name string) crypto.Address {
-	if len(name) > crypto.AddressSize {
-		panic("address name cannot be greater than crypto.AddressSize bytes")
-	}
-	addr := crypto.Address{}
-	// TODO: use strings.RepeatString or similar.
-	// NOTE: I miss python's "".Join().
-	blanks := "____________________"
-	copy(addr[:], []byte(blanks))
-	copy(addr[:], []byte(name))
-	return addr
-}
-
-func TestBech32Address(name string) crypto.Bech32Address {
-	return TestAddress(name).Bech32()
-}
-
 // MockMsgCall mimics vm.MsgCall for testing session AllowPaths.
 type MockMsgCall struct {
 	Caller  crypto.Address
@@ -316,7 +299,9 @@ func NewSessionTestSignature(
 	require.NoError(t, err)
 
 	return std.Signature{
-		// PubKey omitted — stored on session account at creation.
+		// The ante handler requires the key, as gnokey sends it, even though
+		// the session account stored it at creation.
+		PubKey:      sessionPriv.PubKey(),
 		SessionAddr: sessionAddr,
 		Signature:   sig,
 	}

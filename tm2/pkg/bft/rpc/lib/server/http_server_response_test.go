@@ -1,6 +1,7 @@
 package rpcserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -101,26 +102,46 @@ func TestWriteRPCResponseHTTPError_SuccessReturnsNil(t *testing.T) {
 	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
 }
 
-func TestWriteRPCResponseArrayHTTP_WriteErrorReturned(t *testing.T) {
-	w := newFailingResponseWriter(io.ErrClosedPipe)
+// TestBatchWriterMatchesMarshalIndent verifies that batchWriter writes every
+// prefix of a varied list of answers in the bytes json.MarshalIndent gives the
+// whole slice.
+func TestBatchWriterMatchesMarshalIndent(t *testing.T) {
+	answers := types.RPCResponses{
+		validRPCResponse(),
+		{JSONRPC: "2.0", ID: types.JSONRPCIntID(7), Result: json.RawMessage(`{"a":[1,{"b":[]},{}],"c":"<&> é"}`)},
+		types.RPCInternalError(types.JSONRPCStringID(`"quoted" <id>`), errors.New("line\nbreak")),
+		types.RPCMethodNotFoundError(types.JSONRPCStringID("")),
+		{JSONRPC: "2.0", ID: types.JSONRPCStringID("s"), Result: json.RawMessage(` [ "x" , null ] `)},
+		{JSONRPC: "2.0", ID: types.JSONRPCStringID("n")},
+	}
+	for n := 1; n <= len(answers); n++ {
+		var got bytes.Buffer
+		b := batchWriter{w: &got}
+		for _, resp := range answers[:n] {
+			require.NoError(t, b.write(resp))
+		}
+		require.NoError(t, b.close())
 
-	require.NotPanics(t, func() {
-		err := WriteRPCResponseArrayHTTP(w, types.RPCResponses{validRPCResponse()})
-		require.Error(t, err)
-		assert.True(t, errors.Is(err, io.ErrClosedPipe),
-			"expected returned error to wrap io.ErrClosedPipe, got %v", err)
-	})
+		want, err := json.MarshalIndent(answers[:n], "", "  ")
+		require.NoError(t, err)
+		require.Equal(t, string(want), got.String(), "first %d answers", n)
+	}
 }
 
-func TestWriteRPCResponseArrayHTTP_SuccessReturnsNil(t *testing.T) {
-	rec := httptest.NewRecorder()
+// TestBatchWriterReplacesUnmarshalableAnswer verifies that an answer that does
+// not marshal becomes an internal error for its id, keeping the array valid.
+func TestBatchWriterReplacesUnmarshalableAnswer(t *testing.T) {
+	var got bytes.Buffer
+	b := batchWriter{w: &got}
+	require.NoError(t, b.write(types.RPCResponse{JSONRPC: "2.0", ID: types.JSONRPCStringID("1"), Result: json.RawMessage(`{`)}))
+	require.NoError(t, b.close())
 
-	err := WriteRPCResponseArrayHTTP(rec, types.RPCResponses{validRPCResponse()})
-	require.NoError(t, err)
-
-	res := rec.Result()
-	assert.Equal(t, 200, res.StatusCode)
-	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
+	var responses types.RPCResponses
+	require.NoError(t, json.Unmarshal(got.Bytes(), &responses), "got %s", got.Bytes())
+	require.Len(t, responses, 1)
+	require.NotNil(t, responses[0].Error)
+	assert.Equal(t, types.JSONRPCStringID("1"), responses[0].ID)
+	assert.Equal(t, -32603, responses[0].Error.Code)
 }
 
 // streamingResult is a test StreamableResult that writes the configured chunks
@@ -151,7 +172,7 @@ func TestWriteStreamingRPCResponseHTTP_WritesEnvelope(t *testing.T) {
 		[]byte(`"chunk_b":"second"}`),
 	}}
 
-	err := WriteStreamingRPCResponseHTTP(context.Background(), rec, types.JSONRPCStringID("1"), body)
+	err := WriteStreamingRPCResponseHTTP(httptest.NewRequest(http.MethodGet, "/", nil), rec, types.JSONRPCStringID("1"), body)
 	require.NoError(t, err)
 
 	res := rec.Result()
@@ -183,7 +204,7 @@ func TestWriteStreamingRPCResponseHTTP_PropagatesWriteError(t *testing.T) {
 	body := &streamingResult{chunks: [][]byte{[]byte(`{"x":1}`)}}
 
 	require.NotPanics(t, func() {
-		err := WriteStreamingRPCResponseHTTP(context.Background(), w, types.JSONRPCStringID("1"), body)
+		err := WriteStreamingRPCResponseHTTP(httptest.NewRequest(http.MethodGet, "/", nil), w, types.JSONRPCStringID("1"), body)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, io.ErrClosedPipe),
 			"expected returned error to wrap io.ErrClosedPipe, got %v", err)
@@ -209,16 +230,7 @@ func (s *slowStreamingResult) StreamJSON(_ context.Context, w io.Writer) error {
 	return nil
 }
 
-// A streamed response must outlive the server's WriteTimeout.
-//
-// This is the regression that made /genesis unusable on a real chain: the
-// result is streamed rather than buffered, but the write deadline still
-// applied, so mainnet's 250MB+ genesis was cut mid-JSON at 30 seconds with a
-// 200 already on the wire. The client sees a truncated body it cannot parse,
-// and not an error it can act on.
-//
-// Driven through the package's real server so the deadline under test is the
-// one StartHTTPServer installs, not one the test invented.
+// A response that makes progress may outlive the original deadline.
 func TestStreamingResponseOutlivesWriteTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -241,7 +253,7 @@ func TestStreamingResponseOutlivesWriteTimeout(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if err := WriteStreamingRPCResponseHTTP(r.Context(), w, types.JSONRPCStringID("1"), body); err != nil {
+		if err := WriteStreamingRPCResponseHTTP(r, w, types.JSONRPCStringID("1"), body); err != nil {
 			t.Errorf("stream: %v", err)
 		}
 	})
@@ -275,4 +287,40 @@ func TestStreamingResponseOutlivesWriteTimeout(t *testing.T) {
 	assert.Equal(t, "2.0", parsed.JSONRPC)
 	require.Len(t, parsed.Result, chunks+1)
 	assert.Equal(t, "last", parsed.Result[chunks])
+}
+
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	deadlines []time.Time
+}
+
+func (r *deadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.deadlines = append(r.deadlines, deadline)
+	return nil
+}
+
+func TestProgressDeadlineWriterKeepsFiniteDeadline(t *testing.T) {
+	rec := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	wrapped := &ResponseWriterWrapper{ResponseWriter: rec}
+	w := &progressDeadlineWriter{
+		w:       wrapped,
+		rc:      http.NewResponseController(wrapped),
+		timeout: time.Minute,
+	}
+
+	_, err := w.Write([]byte("first"))
+	require.NoError(t, err)
+	require.Len(t, rec.deadlines, 1)
+	require.True(t, rec.deadlines[0].After(time.Now()))
+
+	_, err = w.Write([]byte("second"))
+	require.NoError(t, err)
+	require.Len(t, rec.deadlines, 1)
+
+	w.rearm = time.Now().Add(-time.Second)
+	_, err = w.Write([]byte("third"))
+	require.NoError(t, err)
+	require.Len(t, rec.deadlines, 2)
+	require.True(t, rec.deadlines[1].After(rec.deadlines[0]))
+	require.Equal(t, "firstsecondthird", rec.Body.String())
 }
