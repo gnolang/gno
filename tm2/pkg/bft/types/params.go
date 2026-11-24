@@ -87,8 +87,10 @@ func DefaultBlockParams() *abci.BlockParams {
 // from such a genesis by this binary therefore computes a different
 // ConsensusHash from one started by a binary whose default was ed25519 only,
 // and rejects (or produces) blocks the other side will not accept. A genesis
-// written by gnogenesis carries the list explicitly and is unaffected;
-// hand-written genesis files that omit it are the ones that change meaning.
+// already written by gnogenesis carries the list explicitly and is
+// unaffected; gnogenesis now writes both types into new ones (it starts from
+// DefaultConsensusParams), so a deployment that wants ed25519 only sets the
+// list itself. Hand-written genesis files that omit it change meaning.
 func DefaultValidatorParams() *abci.ValidatorParams {
 	return &abci.ValidatorParams{PubKeyTypeURLs: []string{
 		amino.GetTypeURL(secp256k1.PubKeySecp256k1{}),

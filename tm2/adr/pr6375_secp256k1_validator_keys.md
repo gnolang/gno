@@ -40,12 +40,26 @@ the key.
 
 ## Consequences
 
-- Existing ed25519 chains are unaffected: their genesis lists ed25519 and their
-  keys load as before.
-- `gnoland secrets init` creates secp256k1 validator keys unless told
-  otherwise; the default allow-list accepts them.
+- Existing ed25519 chains keep running: a genesis that lists ed25519 explicitly
+  keeps its allow-list, and its keys load as before. A genesis that omits
+  `consensus_params.validator` gets the new default, which changes
+  `ConsensusParams.Hash` and so every block's `ConsensusHash` (see
+  `DefaultValidatorParams`). New genesis files written by `gnogenesis` list
+  both types.
+- `gnoland secrets init` (and `gnoland start -lazy`) creates secp256k1
+  validator keys unless told otherwise. Every existing gno.land network
+  (gnoland-1 and the testnets) allows ed25519 validator keys only, and
+  `valopers.Register` refuses another type, so a new validator of one of those
+  networks passes `-validator-key-type ed25519`; their `VALIDATOR.md` files
+  say so.
 - The `valopers` realm accepts secp256k1 signing keys on chains using the
-  default list; `valopers.txtar` no longer asserts the opposite.
+  default list; `valopers.txtar` checks that an ed25519-only chain refuses
+  them end to end.
+- Moving the existing networks to secp256k1, the goal, needs two things a live
+  chain lacks today, left to a separate change: a governed way to widen
+  `PubKeyTypeURLs` (gno.land's EndBlocker returns no consensus-params update,
+  although tm2 applies one), and a way for a validator to rotate its consensus
+  key.
 - AtomOne's `10-gno` light client currently converts only ed25519 validator
   keys, so it cannot follow a secp256k1 gno chain until it learns the type.
 - `TestReactorBasicSecp256k1` runs a 4-validator secp256k1 network.

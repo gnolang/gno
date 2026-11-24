@@ -98,8 +98,9 @@ type nativeGasEntry struct {
 //
 // 74 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 12 IBC-crypto entries (crypto/bls12381, crypto/bn254,
-// crypto/cometbls, crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
-// on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
+// crypto/cometbls, crypto/keccak256, crypto/merkle, crypto/modexp) are draft
+// fits on Intel Xeon Silver 4114 (bls12381: measured on Apple M4 Pro and
+// scaled toward it, see its rows); the chain/markdown rows and the rest are on
 // Apple M2. The whole table must be regenerated on the reference Xeon 8168
 // before any consensus-relevant deployment; the IBC rows are flagged
 // "draft" in their trailing comment to make that obvious.

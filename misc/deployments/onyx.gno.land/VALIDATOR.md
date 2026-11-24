@@ -58,7 +58,7 @@ Generate a default config and your keys:
 
 ```shell
 gnoland config init       # writes a default config.toml in your node directory
-gnoland secrets init      # generates your validator + node keys
+gnoland secrets init -validator-key-type ed25519   # validator + node keys; this chain's genesis allows ed25519 validator keys only (the default is secp256k1)
 ```
 
 Then set the following (edit `config.toml`, or use `gnoland config set <key> <value>`).
