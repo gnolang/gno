@@ -50,6 +50,45 @@ SelectStmt ->
 // running this operation and any queued in the op stack following this
 // operation is that the value of the expression is pushed onto the stack.
 
+// rangeFrame returns the frame the executing RangeStmt pushed. Its NumValues is
+// the index of the range subject X in m.Values.
+//
+// The RangeStmt setup (below, the *RangeStmt case) calls PushFrameBasic and only
+// then evaluates X, so the value-stack length the frame recorded IS X's slot.
+// Everything above that slot belongs to the loop rather than to X: in the ASSIGN
+// form (`for k, m[i] = range x`, as opposed to `:= range`) PushForPointer stacks
+// each LHS's pointer operands on top of X for the -1 phase to pop back off with
+// PopAsPointer, and mid-body the stack carries whatever the body is evaluating.
+// Addressing X at this absolute index instead of at an offset from the top of
+// the stack is what keeps the read independent of the LHS shape: a fixed
+// m.PeekValue(1) is only correct when both range targets are NameExprs, which
+// push no operands.
+//
+// bs.NumValues, which the GOTO handler restores m.Values to, is fr.NumValues+1
+// for the same reason: it must record the X-only length so that a goto out of
+// the loop body leaves the value stack exactly where a continue does (see
+// PeekFrameAndContinueRange).
+// rangeConverts reports whether the range fr runs may convert its key or
+// value. A frame whose source is not a RangeStmt answers true, so the
+// conversions are looked up rather than skipped.
+func rangeConverts(fr *Frame) bool {
+	rs, ok := fr.Source.(*RangeStmt)
+	return !ok || rs.converts
+}
+
+func (m *Machine) rangeFrame() *Frame {
+	fr := m.LastFrame()
+	if debugAssert {
+		if _, ok := fr.Source.(*RangeStmt); !ok {
+			panic(fmt.Sprintf(
+				"expected the last frame to be the range's own frame, got %T",
+				fr.Source,
+			))
+		}
+	}
+	return fr
+}
+
 func (m *Machine) doOpExec(op Op) {
 	s := m.PeekStmt(1) // TODO: PeekStmt1()?
 	if line := s.GetLine(); line != 0 {
@@ -132,8 +171,10 @@ func (m *Machine) doOpExec(op Op) {
 				}
 				// For-loop init re-allocates the heap slot in the
 				// current realm. HIV is a wrapper; pass nil.
+				// Copy gives the next iteration its own array or
+				// struct, as Go 1.22 does.
 				newHIV := &HeapItemValue{
-					Value: hiv.Value,
+					Value: hiv.Value.Copy(m.Alloc, m.Store),
 				}
 				m.Alloc.stampPkgID(&newHIV.ObjectInfo, nil)
 				last.Values[i].V = newHIV
@@ -158,7 +199,8 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIter, OpRangeIterArrayPtr:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		fr := m.rangeFrame()
+		xv := &m.Values[fr.NumValues]
 		// TODO check length.
 		switch bs.NextBodyIndex {
 		case -2: // init.
@@ -179,60 +221,47 @@ func (m *Machine) doOpExec(op Op) {
 				}
 			} else {
 				dv = xv
-				*xv = xv.Copy(m.Alloc)
+				// A key-only range reads no element, so it needs no copy.
+				// The copy is the only part of init whose cost grows with
+				// the length, and Copy charges it per element.
+				if bs.Value != nil && !isBlankIdentifier(bs.Value) {
+					*xv = xv.Copy(m.Alloc, m.Store)
+				}
 				ll = dv.GetLength()
 			}
 			if ll == 0 { // early termination
 				m.PopFrameAndReset()
 				return
 			}
-			m.incrCPU(OpCPUSlopeRangeIterArray * int64(ll))
 			bs.ListLen = ll
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = fr.NumValues + 1
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
-			if bs.Key != nil {
-				iv := TypedValue{T: IntType}
-				iv.SetInt(int64(bs.ListIndex))
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, iv, false)
-				case DEFINE:
-					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, iv, false)
-				default:
-					panic("should not happen")
-				}
-			}
-			if bs.Value != nil && !isBlankIdentifier(bs.Value) {
+			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			var ev TypedValue
+			if hasValue {
 				// In Go, `for i, v := range nilPtrToArray` panics because
 				// reading `v` requires dereferencing the nil pointer.
 				if op == OpRangeIterArrayPtr && xv.V == nil {
 					m.pushPanic(typedRuntimeError("runtime error: nil pointer dereference"))
 					return
 				}
-				ev, ok := xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
+				var ok bool
+				ev, ok = xv.GetByteAtIndexInt(m.Store, bs.ListIndex)
 				if !ok {
 					iv := TypedValue{T: IntType}
 					iv.SetInt(int64(bs.ListIndex))
 					ev = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, &iv).Deref()
 				}
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, ev, false)
-				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, ev, false)
-				default:
-					panic("should not happen")
-				}
 			}
+			iv := TypedValue{T: IntType}
+			iv.SetInt(int64(bs.ListIndex))
+			hasKey := bs.Key != nil
+			m.assignRangeIteration(bs, hasKey, hasValue, rangeConverts(fr), iv, ev, listElement)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -278,7 +307,8 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIterString:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		fr := m.rangeFrame()
+		xv := &m.Values[fr.NumValues]
 		sv := xv.GetString()
 		switch bs.NextBodyIndex {
 		case -2: // init.
@@ -294,7 +324,7 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextRune = r
 			bs.StrIndex += size
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = fr.NumValues + 1
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
@@ -309,7 +339,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, iv, false)
+					ptr.TV.Assign(m.Alloc, m.Store, iv, false)
 				default:
 					panic("should not happen")
 				}
@@ -322,7 +352,7 @@ func (m *Machine) doOpExec(op Op) {
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
 					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, ev, false)
+					ptr.TV.Assign(m.Alloc, m.Store, ev, false)
 				default:
 					panic("should not happen")
 				}
@@ -376,7 +406,8 @@ func (m *Machine) doOpExec(op Op) {
 		}
 	case OpRangeIterMap:
 		bs := s.(*bodyStmt)
-		xv := m.PeekValue(1)
+		fr := m.rangeFrame()
+		xv := &m.Values[fr.NumValues]
 		var mv *MapValue
 		if xv.V != nil {
 			mv = xv.V.(*MapValue)
@@ -390,39 +421,26 @@ func (m *Machine) doOpExec(op Op) {
 			// initialize bs.
 			bs.NextItem = mv.List.Head
 			bs.NumOps = len(m.Ops)
-			bs.NumValues = len(m.Values)
+			bs.NumValues = fr.NumValues + 1
 			bs.NumExprs = len(m.Exprs)
 			bs.NumStmts = len(m.Stmts)
 			bs.NextBodyIndex++
 			fallthrough
 		case -1: // assign list element.
 			next := bs.NextItem
-			if bs.Key != nil {
-				kv := *fillValueTV(m.Store, &next.Key)
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Key).Assign2(m, m.Alloc, m.Store, m.Realm, kv, false)
-				case DEFINE:
-					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
-					ptr.TV.Assign(m.Alloc, kv, false)
-				default:
-					panic("should not happen")
-				}
+			// Nothing reads "_", so a key or value bound to it is neither
+			// loaded nor copied; a list range above skips a blank value the
+			// same way.
+			hasKey := bs.Key != nil && !isBlankIdentifier(bs.Key)
+			hasValue := bs.Value != nil && !isBlankIdentifier(bs.Value)
+			var kv, vv TypedValue
+			if hasKey {
+				kv = *fillValueTV(m.Store, &next.Key)
 			}
-			if bs.Value != nil {
-				vv := *fillValueTV(m.Store, &next.Value)
-				switch bs.Op {
-				case ASSIGN:
-					m.PopAsPointer(bs.Value).Assign2(m, m.Alloc, m.Store, m.Realm, vv, false)
-				case DEFINE:
-					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
-					ptr.TV.Assign(m.Alloc, vv, false)
-				default:
-					panic("should not happen")
-				}
+			if hasValue {
+				vv = *fillValueTV(m.Store, &next.Value)
 			}
+			m.assignRangeIteration(bs, hasKey, hasValue, rangeConverts(fr), kv, vv, mapEntry)
 			bs.NextBodyIndex++
 			fallthrough
 		default:
@@ -540,7 +558,13 @@ EXEC_SWITCH:
 		b := m.acquireBlock(cs, m.LastBlock())
 		numInit := 0
 		if as, ok := cs.Init.(*AssignStmt); ok && as.Op == DEFINE {
-			numInit = len(as.Lhs)
+			// "_" takes no block slot, so counting it would make the
+			// per-iteration copy step past the init variables.
+			for _, lx := range as.Lhs {
+				if !isBlankIdentifier(lx) {
+					numInit++
+				}
+			}
 		}
 		b.bodyStmt = bodyStmt{
 			Body:          cs.Body,
@@ -613,6 +637,13 @@ EXEC_SWITCH:
 			} else {
 				m.PushOp(OpReturn)
 			}
+		}
+		// For `return f()`, convert f's results before the return reads them.
+		// Only `return f()` carries ATTR_ASSIGN_CONVERT, so other returns
+		// skip the lookup.
+		if len(cs.Results) == 1 && len(ft.Results) > 1 && cs.GetAttribute(ATTR_ASSIGN_CONVERT) != nil {
+			m.PushStmt(cs)
+			m.PushOp(OpReturnConvert)
 		}
 		// Evaluate results in order, if any.
 		for i := len(cs.Results) - 1; 0 <= i; i-- {
@@ -857,7 +888,6 @@ func (m *Machine) doOpIfCond() {
 func (m *Machine) doOpTypeSwitch() {
 	ss := m.PopStmt().(*SwitchStmt)
 	xv := m.PopValue()
-	m.incrCPU(OpCPUSlopeTypeSwitchCase * int64(len(ss.Clauses)))
 	xtid := TypeID("")
 	if xv.T != nil {
 		xtid = xv.T.TypeID()
@@ -876,7 +906,18 @@ matchLoop:
 			defaultIdx = i
 			continue
 		}
+		// Charge per clause and per case actually scanned, using the same
+		// constants the value switch charges for the same dispatch and
+		// comparison work. The previous flat OpCPUSlopeTypeSwitchCase per
+		// DECLARED clause billed clauses the loop breaks before reaching, and
+		// billed a grouped `case A, B, C:` as one comparison instead of three.
+		// TODO(calibration): cmd/calibrate still publishes the superseded
+		// "TypeSwitch (concrete) = 280.5 + 253.92*clauses" fit; its 254
+		// ns/clause is well above what a scanned clause measures today, so
+		// re-derive both when the reference-HW numbers are next refreshed.
+		m.incrCPU(OpCPUSwitchClause)
 		for _, cx := range cs.Cases {
+			m.incrCPU(OpCPUSwitchClauseCase)
 			if debug {
 				if !isConstType(cx) {
 					panic(fmt.Sprintf(
@@ -890,7 +931,7 @@ matchLoop:
 			case ct == nil:
 				match = xv.IsUndefined()
 			case ct.Kind() == InterfaceKind:
-				match = baseOf(ct).(*InterfaceType).IsImplementedBy(xv.T)
+				match = isImplementedBy(m.GasMeter, ct, xv.T)
 			default:
 				match = xtid == ct.TypeID()
 			}
@@ -923,7 +964,7 @@ matchLoop:
 		// NOTE: GetPointerToMaybeHeapDefine not needed,
 		// because this type is in new type switch clause block.
 		ptr := b.GetPointerTo(m.Store, vp)
-		ptr.TV.Assign(m.Alloc, *xv, false)
+		ptr.TV.Assign(m.Alloc, m.Store, *xv, false)
 	}
 	// exec clause body
 	b.bodyStmt = bodyStmt{

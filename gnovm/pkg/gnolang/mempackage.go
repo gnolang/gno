@@ -1,11 +1,8 @@
 package gnolang
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
-	gofmt "go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -79,6 +76,9 @@ var (
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state. It also excludes _test paths.
 func IsRealmPath(pkgPath string) bool {
+	if !hasLetter(pkgPath, 'r') {
+		return false
+	}
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	if match == nil || match.Get("LETTER") != "r" {
 		return false
@@ -92,8 +92,18 @@ func IsRealmPath(pkgPath string) bool {
 // IsEphemeralPath determines whether the given pkgpath is for an ephemeral realm.
 // Ephemeral realms are temporary and don't persist state between transactions.
 func IsEphemeralPath(pkgPath string) bool {
+	if !hasLetter(pkgPath, 'e') {
+		return false
+	}
 	match := ReGnoUserPkgPath.Match(pkgPath)
 	return match != nil && match.Get("LETTER") == "e"
+}
+
+// hasLetter checks a necessary condition for matching ReGnoUserPkgPath
+// with the given letter.
+func hasLetter(pkgPath string, letter byte) bool {
+	i := strings.IndexByte(pkgPath, '/')
+	return i >= 0 && i+2 < len(pkgPath) && pkgPath[i+1] == letter && pkgPath[i+2] == '/'
 }
 
 // IsSyntheticPath determines whether the given pkgPath is a compiler-internal
@@ -194,25 +204,6 @@ func IsUserlib(pkgPath string) bool {
 
 func IsTestFile(file string) bool {
 	return strings.HasSuffix(file, "_test.gno") || strings.HasSuffix(file, "_filetest.gno")
-}
-
-// IsTestPkgPath reports whether pkgPath denotes a "test-namespace"
-// package — one whose purpose is to host VM-test fixtures, exploit
-// probes, and other test-only support code. Test-namespace packages
-// are allowed to use the `cross` keyword and may be imported only
-// from other test-namespace packages or from test files
-// (_test.gno / _filetest.gno).
-//
-// The set is currently hand-listed (rather than a single prefix like
-// gno.land/p/testing/) so the migration can be staged: rules can be
-// enforced now without moving the packages. A future cleanup will
-// collapse the list as packages move under a single namespace.
-func IsTestPkgPath(pkgPath string) bool {
-	return pkgPath == "gno.land/p/demo/tests" ||
-		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
-		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
-		pkgPath == "gno.land/r/tests/vm" ||
-		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
 }
 
 //----------------------------------------
@@ -1168,6 +1159,11 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	return ValidateMemPackageAny(mpkg)
 }
 
+// ErrMemPackageInfo reports a std.MemPackage that arrived with its Info field
+// set. Callers match on it to name the refusal, since every other validation
+// failure here is about a path or a file.
+var ErrMemPackageInfo = errors.New("info field is not accepted")
+
 // Validates everything about mpkg, including that all files are within the
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
@@ -1195,6 +1191,11 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	// Check mpkg.Type/mptype.
 	mptype := mpkg.Type.(MemPackageType)
 	mptype.Validate(mpkg.Path)
+	// Info is amino field 5, typed any, so a message can carry any registered
+	// value there. Nothing produces or reads it, so refuse it.
+	if mpkg.Info != nil {
+		return fmt.Errorf("invalid package %q: %w", mpkg.Path, ErrMemPackageInfo)
+	}
 	// ...
 	goodFileXtns := goodFileXtns
 	if mptype.IsStdlib() { // Allow transpilation to work on stdlib with native functions.
@@ -1310,45 +1311,4 @@ func MustPackageNameFromFileBody(name, body string) Name {
 		panic(err)
 	}
 	return pkgName
-}
-
-// ========================================
-// WriteToMemPackage writes Go AST to a mempackage
-// This is useful for preparing prior version code for the preprocessor.
-func WriteToMemPackage(gofset *token.FileSet, gofs []*ast.File, mpkg *std.MemPackage, create bool) error {
-	for _, gof := range gofs {
-		fpath := gofset.File(gof.Pos()).Name()
-		_, fname := filepath.Split(fpath)
-		if strings.HasPrefix(fname, ".") {
-			// Hidden files like .gnobuiltins.gno that
-			// start with a dot should not get written to
-			// the mempackage.
-			continue
-		}
-		mfile := mpkg.GetFile(fname)
-		if mfile == nil {
-			if create {
-				mfile = mpkg.NewFile(fname, "")
-			} else {
-				return fmt.Errorf("missing memfile %q", mfile)
-			}
-		}
-		err := WriteToMemFile(gofset, gof, mfile)
-		if err != nil {
-			return fmt.Errorf("writing to mempackage %q: %w",
-				mpkg.Path, err)
-		}
-	}
-	return nil
-}
-
-func WriteToMemFile(gofset *token.FileSet, gof *ast.File, mfile *std.MemFile) error {
-	var buf bytes.Buffer
-	err := gofmt.Node(&buf, gofset, gof)
-	if err != nil {
-		return fmt.Errorf("writing to memfile %q: %w",
-			mfile.Name, err)
-	}
-	mfile.Body = buf.String()
-	return nil
 }

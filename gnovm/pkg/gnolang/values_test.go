@@ -3,8 +3,10 @@ package gnolang
 import (
 	"fmt"
 	"math"
+	rtdebug "runtime/debug"
 	"testing"
 
+	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -398,6 +400,95 @@ func TestComputeMapKey_collisions(t *testing.T) {
 	}
 }
 
+// TestMapKeyGasContract pins the two-sided ComputeMapKey gas contract
+// around map keys, against an explicit reference cost:
+//
+//	reference = Σ ComputeMapKey(key_i)  — the pure key-hash cost of the
+//	            keys, by definition (measured once, directly).
+//
+//	1. Restore: rebuilding a decoded map's vmap (loadObjectSafe →
+//	   fillTypesOfValue) must charge exactly the reference — one
+//	   ComputeMapKey per entry, and nothing else. A stray charge
+//	   creeping into the fill walk fails here.
+//	2. Write: inserting the same keys via GetPointerForKey (nil alloc,
+//	   so allocation gas is deliberately out of scope) must also charge
+//	   exactly the reference. An extra charge on the write path fails
+//	   here.
+//
+// If a future (deliberate, symmetric) charge is added to these paths,
+// update the reference computation; the final write==restore assertion
+// is the durable invariant and must never need touching.
+//
+// Scope notes: keys are in-memory primitives, so neither side touches
+// the store (no amino gas can leak in). The VM-level write path above
+// GetPointerForKey (GetPointerAtIndex, i.e. `m[k] = v` in gno code) is
+// pinned end-to-end by the compute_map_key_restore_gas txtar; the
+// nil-meter case (genesis, tools) must not panic and must still
+// rebuild.
+func TestMapKeyGasContract(t *testing.T) {
+	const n = 5
+	ds := NewStore(NewAllocator(1<<30), nil, nil)
+
+	// A MapValue as it looks right after amino decode: entries present
+	// in List, vmap not yet rebuilt.
+	newDecodedMap := func() *MapValue {
+		mv := &MapValue{List: &MapList{}}
+		for i := range n {
+			item := mv.List.Append(nil, typedInt(i))
+			item.Value = typedString("v")
+		}
+		return mv
+	}
+
+	// Reference: the pure key-hash cost of the n keys.
+	//
+	// If you deliberately added a new charge to the restore or write
+	// path and the reference assertions below went red: extend THIS
+	// block so the reference includes the new charge. Leave the final
+	// write==restore symmetry assertion untouched — if that one is red,
+	// the two paths diverged, which is a bug.
+	gmRef := storetypes.NewGasMeter(1 << 30)
+	for i := range n {
+		k := typedInt(i)
+		_, isNaN := k.ComputeMapKey(gmRef, ds, false)
+		require.False(t, isNaN)
+	}
+	reference := gmRef.GasConsumed()
+	require.GreaterOrEqual(t, reference, int64(n*OpCPUComputeMapKey),
+		"sanity: the per-call constant must fire for each key")
+
+	// Contract 1: the restore rebuild charges exactly the reference.
+	gmRestore := storetypes.NewGasMeter(1 << 30)
+	mv := newDecodedMap()
+	fillTypesOfValue(gmRestore, ds, mv)
+	require.Len(t, mv.vmap, n, "vmap must be rebuilt with one slot per entry")
+	require.Equal(t, reference, gmRestore.GasConsumed(),
+		"restore must charge one ComputeMapKey per entry and nothing else")
+
+	// Contract 2: the write path charges exactly the reference.
+	gmWrite := storetypes.NewGasMeter(1 << 30)
+	mvWrite := &MapValue{}
+	mvWrite.MakeMap()
+	for i := range n {
+		ptr := mvWrite.GetPointerForKey(nil, gmWrite, ds, typedInt(i))
+		*ptr.TV = typedString("v")
+	}
+	require.Equal(t, reference, gmWrite.GasConsumed(),
+		"write must charge one ComputeMapKey per key and nothing else")
+
+	// The durable invariant: write and restore charge the same, whatever
+	// the composition. Redundant while both equal the reference above;
+	// load-bearing if a future (deliberate, symmetric) charge is added
+	// and the reference pins are updated.
+	require.Equal(t, gmRestore.GasConsumed(), gmWrite.GasConsumed(),
+		"write/restore symmetry must hold regardless of charge composition")
+
+	// nil meter: must not panic and must still rebuild.
+	mv2 := newDecodedMap()
+	fillTypesOfValue(nil, ds, mv2)
+	require.Len(t, mv2.vmap, n)
+}
+
 // cap(Block.Values) is charged by (*Block).GetShallowSize, so the growth
 // policy is consensus-visible: it must stay a pure function of the requested
 // size, never Go's growslice. Pin the exact capacities.
@@ -451,4 +542,66 @@ func TestGrowBlockValuesPreservesContents(t *testing.T) {
 	for i := 3; i < 10; i++ {
 		assert.Zero(t, got[i], "slot %d zeroed", i)
 	}
+}
+
+// cycleStore serves objects from a map and fails the test after a few loads,
+// so a copy that keeps loading the same objects fails here.
+type cycleStore struct {
+	Store
+	t     *testing.T
+	objs  map[ObjectID]Object
+	loads int
+}
+
+func (s *cycleStore) GetObjectSafe(oid ObjectID) Object {
+	if s.loads++; s.loads > 10 {
+		s.t.Fatal("copy keeps loading the same objects")
+	}
+	return s.objs[oid]
+}
+
+// TestCopyStoredCycle copies a stored struct that contains itself, through an
+// array its two fields share, both as refs the copy loads and as objects
+// already loaded. Each array is copied, and the ref back to the struct the
+// copy is inside stays a ref to it.
+func TestCopyStoredCycle(t *testing.T) {
+	defer rtdebug.SetMaxStack(rtdebug.SetMaxStack(64 << 20))
+	at := &ArrayType{Len: 1, Elt: &InterfaceType{}}
+	st := &StructType{Fields: []FieldType{{Name: "V", Type: at}, {Name: "W", Type: at}}}
+	pid := PkgIDFromPkgPath("gno.land/r/test/stored")
+	sid, aid := ObjectID{PkgID: pid, NewTime: 1}, ObjectID{PkgID: pid, NewTime: 2}
+
+	check := func(t *testing.T, cp TypedValue, sv *StructValue, av *ArrayValue) {
+		t.Helper()
+		csv := cp.V.(*StructValue)
+		require.NotSame(t, sv, csv)
+		v, w := csv.Fields[0].V.(*ArrayValue), csv.Fields[1].V.(*ArrayValue)
+		require.NotSame(t, av, v)
+		require.NotSame(t, v, w)
+		for _, a := range []*ArrayValue{v, w} {
+			require.Equal(t, sid, a.List[0].V.(RefValue).ObjectID)
+		}
+	}
+
+	t.Run("refs", func(t *testing.T) {
+		aref := TypedValue{T: at, V: RefValue{ObjectID: aid}}
+		sv := &StructValue{Fields: []TypedValue{aref, aref}}
+		av := &ArrayValue{List: []TypedValue{{T: st, V: RefValue{ObjectID: sid}}}}
+		sv.SetObjectID(sid)
+		av.SetObjectID(aid)
+		store := &cycleStore{t: t, objs: map[ObjectID]Object{sid: sv, aid: av}}
+		check(t, TypedValue{T: st, V: RefValue{ObjectID: sid}}.Copy(nil, store), sv, av)
+		require.Equal(t, 3, store.loads)
+	})
+
+	t.Run("loaded", func(t *testing.T) {
+		sv := &StructValue{}
+		av := &ArrayValue{List: []TypedValue{{T: st, V: sv}}}
+		sv.Fields = []TypedValue{{T: at, V: av}, {T: at, V: av}}
+		sv.SetObjectID(sid)
+		av.SetObjectID(aid)
+		store := &cycleStore{t: t}
+		check(t, TypedValue{T: st, V: sv}.Copy(nil, store), sv, av)
+		require.Zero(t, store.loads)
+	})
 }

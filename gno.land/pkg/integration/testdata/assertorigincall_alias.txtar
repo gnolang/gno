@@ -1,0 +1,119 @@
+# A message names a package path. The VM credits the message's coins to that
+# path, then invokes whatever value the named symbol holds, so an exported
+# variable bound to ANOTHER package's function runs that other package's code
+# under this package's name. Frame counting cannot see it: there is only ever
+# one realm's code on the stack, and Frames[0] is the target's own named
+# function. The entry-package check is what catches it.
+#
+# | Num | alias form                                  | Result |
+# |-----|---------------------------------------------|--------|
+# | 1   | var C = myrlm.C          (func value)       | PANIC  |
+# | 2   | var Dep = wugnot.Deposit (func value, send) | PANIC  |
+# | 3   | var Dep = iv.Deposit     (iface method)     | PANIC  |
+# | 4   | var DepEager = V.Deposit (bound method)     | PANIC  |
+# | 5   | the aliased functions, called directly      | pass   |
+
+loadpkg gno.land/r/gnoland/wugnot
+loadpkg gno.land/r/myrlm $WORK/myrlm
+loadpkg gno.land/r/vault $WORK/vault
+
+adduser user1
+
+gnoland start
+
+# A baseline deposit, so the vault holds something and a mint would be visible.
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 10000ugnot -gas-fee 900001ugnot -gas-wanted 9_000_000 -chainid=tendermint_test user1
+stdout 'OK!'
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
+stdout 'Total supply..: 10000'
+
+gnokey maketx addpkg -pkgdir $WORK/alias -pkgpath gno.land/r/test/alias -gas-fee 5000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+## 1. Alias to another realm's crossing function.
+! gnokey maketx call -pkgpath gno.land/r/test/alias -func C -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
+stderr 'invalid non-origin call'
+
+## 2. Alias to wugnot.Deposit, with coins. The coins are credited to the alias
+## realm, so a mint here would be unbacked.
+! gnokey maketx call -pkgpath gno.land/r/test/alias -func Dep -send 5000ugnot -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
+stderr 'invalid non-origin call'
+
+## 3. Alias through an interface method value. BoundMethodValue.Func is nil
+## until the call, so anything reading the unbound func statically misses this.
+! gnokey maketx call -pkgpath gno.land/r/test/alias -func IDep -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
+stderr 'invalid non-origin call'
+
+## 4. Alias through a bound method on a concrete pointer.
+! gnokey maketx call -pkgpath gno.land/r/test/alias -func EDep -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test user1
+stderr 'invalid non-origin call'
+
+## 5. Nothing moved, and the aliased functions still work when the message
+## names the realm that declares them.
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
+stdout 'Total supply..: 10000'
+
+gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 7000ugnot -gas-fee 900001ugnot -gas-wanted 9_000_000 -chainid=tendermint_test user1
+stdout 'OK!'
+gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:"
+stdout 'Total supply..: 17000'
+
+-- myrlm/gnomod.toml --
+module = "gno.land/r/myrlm"
+gno = "0.9"
+
+-- myrlm/rlm.gno --
+package myrlm
+
+import "chain/runtime"
+
+func C(cur realm) {
+	runtime.AssertOriginCall()
+}
+
+-- vault/gnomod.toml --
+module = "gno.land/r/vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package vault
+
+import "chain/runtime"
+
+type Vault struct{ n int }
+
+func (v *Vault) Deposit(cur realm) {
+	runtime.AssertOriginCall()
+}
+
+var V = &Vault{}
+
+-- alias/gnomod.toml --
+module = "gno.land/r/test/alias"
+gno = "0.9"
+
+-- alias/alias.gno --
+package alias
+
+import (
+	"gno.land/r/gnoland/wugnot"
+	"gno.land/r/myrlm"
+	"gno.land/r/vault"
+)
+
+type Depositor interface {
+	Deposit(cur realm)
+}
+
+var iv Depositor = vault.V
+
+// Every one of these is another realm's function held under this realm's name.
+var (
+	C    = myrlm.C
+	Dep  = wugnot.Deposit
+	IDep = iv.Deposit
+	EDep = vault.V.Deposit
+)

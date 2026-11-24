@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"gno.land/p/onbloc/diff"
+	"gno.land/p/onbloc/diff/v0"
 )
 
 // MaxOps bounds the number of ops a decoded patch may carry. DiffTexts
@@ -88,8 +88,8 @@ func (p Patch) IsNoop() bool {
 // its hash. A new path yields a create patch; empty proposed text yields
 // a remove patch.
 func (b *Bylaws) Diff(path, proposed string) (Patch, error) {
-	cur, exists := b.Get(path)
-	return DiffTexts(path, cur, proposed, exists)
+	current, exists := b.Get(path)
+	return DiffTexts(path, current, proposed, exists)
 }
 
 // DiffTexts builds the patch transforming base into proposed for the
@@ -213,15 +213,15 @@ func (b *Bylaws) Apply(p Patch) error {
 	if !IsValidPath(p.Path) {
 		return ErrInvalidPath
 	}
-	cur, exists := b.Get(p.Path)
+	current, exists := b.Get(p.Path)
 	curHash := ""
 	if exists {
-		curHash = HashText(cur)
+		curHash = HashText(current)
 	}
 	if p.Base != curHash {
 		return ErrStalePatch
 	}
-	out, err := replay(cur, p.Ops)
+	out, err := replay(current, p.Ops)
 	if err != nil {
 		return err
 	}

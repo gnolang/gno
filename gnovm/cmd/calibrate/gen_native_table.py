@@ -4,8 +4,9 @@ Generate native function gas table for GnoVM stdlibs from Go benchmarks.
 
 Mirrors gen_analysis.py (opcode handler gas) and gen_alloc_table.py
 (allocation gas). Reads `go test -bench=BenchmarkNative` output, fits a
-formula per native (flat, base + slope*N, or base + α·count + β·total_bytes
-for slice-of-string natives), and prints:
+formula per native (flat, base + slope*N, base + α·(Na+Nb) for natives
+taking two unbounded byte slices, or base + α·count + β·total_bytes for
+slice-of-string natives), and prints:
 
   - native_gas_formulas.md  — markdown table of fits
   - native_gas_table.go.txt — Go-pasteable nativeGasTable block
@@ -22,11 +23,44 @@ Usage:
     python3 gen_native_table.py native_bench_output.txt
 """
 import argparse
+import math
 import re
 import sys
 from collections import defaultdict
 
 import numpy as np
+
+
+# Mirrors modExpWork in gnovm/pkg/gnolang/native_gas.go. Keep in sync; the
+# runtime and the fitter must compute the same metric, or the fitter reduces
+# each bench to a work value the runtime never charges on and the slope it
+# emits is scaled by the ratio between the two. TestModExpConstantsMatchFitter
+# in gnovm/pkg/gnolang reads this file and asserts the constants agree.
+MODEXP_FLOOR_WORDS = 65
+MODEXP_WORD_BYTES = 8
+MODEXP_MONT_SETUP = 38
+MODEXP_MONT_PER_WORD = 160
+MODEXP_GENERIC_PER_BIT = 5
+
+
+def modexp_work(exp_len, mod_len):
+    """Modular multiplications big.Int.Exp performs — see SizeModExpWork.
+
+    One machine word of exponent decides the routine: the generic
+    square-and-multiply loop at or below it (one squaring, multiply and full
+    division per bit), the windowed Montgomery loop above it (a fixed setup
+    plus 5 steps per 4-bit window, walking whole words so a ragged length
+    rounds up).
+    """
+    if exp_len <= 0 or mod_len <= 0:
+        return 0
+    unit = MODEXP_FLOOR_WORDS + ((mod_len + 7) // 8) ** 2
+    if exp_len <= MODEXP_WORD_BYTES:
+        units = MODEXP_GENERIC_PER_BIT * 8 * exp_len
+    else:
+        ewords = (exp_len + MODEXP_WORD_BYTES - 1) // MODEXP_WORD_BYTES
+        units = MODEXP_MONT_SETUP + MODEXP_MONT_PER_WORD * ewords
+    return units * unit
 
 
 # Per-native spec.
@@ -82,7 +116,7 @@ NATIVE_SPECS = [
     ("chain/banker", "assertCallerIsRealm", None, "Flat",
      r"BenchmarkNative_Banker_AssertCallerIsRealm-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
-    # ---- chain/params (sets only; payload-bytes slope where applicable) ----
+    # ---- chain/params (payload-bytes slope where applicable) ----
     ("chain/params", "SetBytes", 1, "LenBytes",
      r"BenchmarkNative_Params_SetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/params", "SetString", 1, "LenString",
@@ -93,6 +127,18 @@ NATIVE_SPECS = [
      r"BenchmarkNative_Params_SetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/params", "SetUint64", None, "Flat",
      r"BenchmarkNative_Params_SetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # chain/params getters return (value, found). value is first-declared,
+    # so it lands at stack offset 2.
+    ("chain/params", "GetBytes", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetString", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetBool", None, "Flat",
+     r"BenchmarkNative_Params_GetBool-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetInt64", None, "Flat",
+     r"BenchmarkNative_Params_GetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetUint64", None, "Flat",
+     r"BenchmarkNative_Params_GetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
     # ---- sys/params ----
     # Setters share the (module, submodule, name, val[, add]) shape — the
@@ -166,29 +212,58 @@ NATIVE_SPECS = [
     # ---- IBC crypto stdlibs ----
     ("crypto/keccak256", "sum256", 0, "LenBytes",
      r"BenchmarkNative_Keccak256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
-    ("crypto/modexp", "modExp", 2, "LenBytes",
-     r"BenchmarkNative_ModExp_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # crypto/modexp is NOT here — it is fitted separately by fit_modexp, which
+    # takes upper bounds rather than least squares. See MODEXP_SPEC.
     ("crypto/bn254", "g1Add", None, "Flat",
      r"BenchmarkNative_BN254_G1Add-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/bn254", "g1Mul", None, "Flat",
      r"BenchmarkNative_BN254_G1Mul-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/bn254", "pairingCheck", 0, "LenBytes",
-     # Bench name encodes pair count; the harness sets b.SetBytes(192*pairs),
-     # so the captured group is pair count and we convert below in parse_bench.
+     # Bench name encodes pair count; BENCH_BYTES converts it to 192*pairs.
      r"BenchmarkNative_BN254_PairingCheck_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/cometbls", "verifyZKP", None, "Flat",
      r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "leafHash", 0, "LenBytes",
      r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
-    ("crypto/merkle", "innerHash", None, "Flat",
-     r"BenchmarkNative_Merkle_InnerHash-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
-     # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
-     # + 6 payload), plus 4 for the outer count header.
+     # Bench name encodes nItems of empty items; BENCH_BYTES converts it to
+     # the encoded length, a 4-byte header per item plus 4 for the count.
      r"BenchmarkNative_Merkle_HashFromByteSlices_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("crypto/merkle", "verifySimpleProof", 4, "LenBytes",
-     # Bench name encodes `total`; aunt count = log2(total), aunts bytes = 32*log2(total).
+     # Bench name encodes `total`; BENCH_BYTES converts it to the aunts'
+     # length, 32*log2(total).
      r"BenchmarkNative_Merkle_VerifySimpleProof_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+]
+
+
+# Pair specs: natives taking two independent unbounded byte-slice params
+# whose cost tracks the sum of the two lengths (crypto/merkle.innerHash
+# hashes 0x01||left||right). Charging only one of the two would leave the
+# other free, so the emitted row puts a slope on each.
+#
+# The bench sweeps both operands at the same size n, so a 1-D fit over n
+# measures base + rate*(2n) and the fitted slope is 2x the per-operand rate;
+# emit_go_table halves it back out into Slope and Slope2.
+#
+# Format: (pkg, fn, idx_a, idx_b, kind, regex)
+NATIVE_SPECS_PAIR = [
+    ("crypto/merkle", "innerHash", 0, 1, "LenBytes",
+     r"BenchmarkNative_Merkle_InnerHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+]
+
+
+# Second-slope specs: a sweep over one more parameter of a NATIVE_SPECS row,
+# emitted as that row's Slope2. A missing or zero rate stops the run. floor
+# names another row and a multiple of its slope that Slope2 never goes under:
+# verifySimpleProof hashes the leaf twice, so a realm must not hash it more
+# cheaply there than through leafHash, while the sweep measures one copy and
+# two hashes and fits below that.
+#
+# Format: (pkg, fn, idx, kind, floor, regex)
+NATIVE_SPECS_SECOND = [
+    ("crypto/merkle", "verifySimpleProof", 1, "LenBytes",
+     ("crypto/merkle", "leafHash", 2),
+     r"BenchmarkNative_Merkle_VerifySimpleProofLeaf_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 ]
 
 
@@ -208,6 +283,8 @@ NATIVE_SPECS_2D = [
      r"BenchmarkNative_Params_SetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
     ("chain/params", "UpdateParamStrings", 1, "LenSlice",
      r"BenchmarkNative_Params_UpdateStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("chain/params", "GetStrings", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", True),
     ("sys/params", "setSysParamStrings", 3, "LenSlice",
      r"BenchmarkNative_SysParams_SetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
     ("sys/params", "updateSysParamStrings", 3, "LenSlice",
@@ -215,6 +292,15 @@ NATIVE_SPECS_2D = [
     ("sys/params", "getSysParamStrings", 2, "ReturnLen",
      r"BenchmarkNative_SysParams_GetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", True),
 ]
+
+
+# Bench names that encode a count rather than the sloped param's byte length,
+# mapped to that length so the fit reads per byte like every other row.
+BENCH_BYTES = {
+    ("crypto/bn254", "pairingCheck"): lambda pairs: 192 * pairs,
+    ("crypto/merkle", "hashFromByteSlices"): lambda items: 4 + 4 * items,
+    ("crypto/merkle", "verifySimpleProof"): lambda total: 32 * (total.bit_length() - 1),
+}
 
 
 def parse_bench(path):
@@ -230,9 +316,117 @@ def parse_bench(path):
                 flat_data[(pkg, fn)].append(float(m.group(1)))
             else:
                 size = int(m.group(1))
+                size = BENCH_BYTES.get((pkg, fn), lambda n: n)(size)
                 ns = float(m.group(2))
                 var_data[(pkg, fn)][size].append(ns)
     return var_data, flat_data
+
+
+# crypto/modexp is fitted on its own because its coefficients are UPPER BOUNDS
+# over the grid, not least squares. A central fit sits below cost on about half
+# the grid, which is fine for describing a cost and wrong for charging one.
+#
+# Matches the grid benches, NOT the symmetric BenchmarkNative_ModExp_N series:
+# fitting the symmetric diagonal is what hid the asymmetric cost originally.
+#
+# Format: (pkg, fn, exponent param index, regex over (expLen, modLen, ns))
+MODEXP_SPEC = ("crypto/modexp", "modExp", 1,
+               r"BenchmarkNative_ModExpGrid_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op")
+
+# Applied on top of the measured upper bound. The grid samples a surface rather
+# than covering it, and bench-to-bench variance on a shared machine is a few
+# percent; without headroom the thinnest grid point ships at exactly 1.00x.
+MODEXP_MARGIN = 1.2
+
+
+def parse_bench_modexp(path):
+    """Parse ModExpGrid rows: (expLen, modLen) -> list of ns observations."""
+    _, _, _, regex = MODEXP_SPEC
+    grid = defaultdict(list)
+    for line in open(path).read().splitlines():
+        m = re.search(regex, line)
+        if m:
+            grid[(int(m.group(1)), int(m.group(2)))].append(float(m.group(3)))
+    return grid
+
+
+def _round_up_2sf(x):
+    """Round up to two significant figures, so the table carries a readable
+    constant rather than the last digit of a benchmark. Always rounds up, so
+    rounding can never take a coefficient below the bound it came from."""
+    if x <= 0:
+        return 0
+    mag = 10.0 ** (math.floor(math.log10(x)) - 1)
+    return int(math.ceil(x / mag) * mag)
+
+
+def fit_modexp(grid, hw_factor=1.0):
+    """Upper-bound fit for crypto/modexp. Returns a row dict, or None.
+
+    Three coefficients, fitted in dependency order, each the maximum the grid
+    demands rather than the mean:
+
+      slope2  ns per byte of modulus. Taken from the expLen=0 points, which do
+              no exponentiation at all and so isolate the cost of converting the
+              operands and building the result — a cost linear in len(modulus)
+              that the work metric deliberately does not model.
+      base    the intercept of that same line.
+      slope   ns per modular multiplication, from max over every remaining point
+              of (ns - dispatcher(modLen)) / work(expLen, modLen).
+
+    hw_factor scales the measurements onto reference hardware. The benches are
+    rarely run on the reference Xeon, and a fit taken on a faster machine is an
+    undercharge everywhere unless it is projected first.
+    """
+    zero = {m: float(np.median(v)) * hw_factor for (e, m), v in grid.items() if e == 0}
+    rest = {(e, m): float(np.median(v)) * hw_factor
+            for (e, m), v in grid.items() if e > 0}
+    if len(zero) < 2 or not rest:
+        return None
+
+    mods = np.array(sorted(zero), dtype=float)
+    ns0 = np.array([zero[int(m)] for m in mods], dtype=float)
+    coeffs, *_ = np.linalg.lstsq(
+        np.column_stack([np.ones(len(mods)), mods]), ns0, rcond=None)
+    base, per_byte = float(coeffs[0]), max(float(coeffs[1]), 0.0)
+    # Lift the line until it covers every expLen=0 point. It is a charge, not a
+    # description, so it may sit above the data but never below it.
+    lift = float(np.max(ns0 / np.maximum(base + per_byte * mods, 1e-9)))
+    base, per_byte = max(base, 0.0) * lift, per_byte * lift
+
+    needed, worst = 0.0, None
+    for (e, m), ns in rest.items():
+        w = modexp_work(e, m)
+        if not w:
+            continue
+        r = max(ns - (base + per_byte * m), 0.0) / w
+        if r > needed:
+            needed, worst = r, (e, m)
+    if worst is None:
+        return None
+
+    return {
+        "pkg": MODEXP_SPEC[0], "fn": MODEXP_SPEC[1], "shape": "modexp",
+        "idx": MODEXP_SPEC[2],
+        "base": _round_up_2sf(base * MODEXP_MARGIN),
+        "slope": _round_up_2sf(needed * MODEXP_MARGIN * 1024),
+        "slope2": _round_up_2sf(per_byte * MODEXP_MARGIN * 1024),
+        "worst": worst, "npoints": len(grid), "hw_factor": hw_factor,
+    }
+
+
+def parse_bench_sized(path, specs):
+    """Parse the sweeps of pair or second-slope specs: size → list of ns."""
+    text = open(path).read()
+    data = defaultdict(lambda: defaultdict(list))
+    for spec in specs:
+        pkg, fn, regex = spec[0], spec[1], spec[-1]
+        for line in text.splitlines():
+            m = re.search(regex, line)
+            if not m:
+                continue
+            data[(pkg, fn)][int(m.group(1))].append(float(m.group(2)))
+    return data
 
 
 def parse_bench_2d(path):
@@ -316,6 +510,8 @@ def n_desc(kind, slope_idx):
         "NumCallFrames":    "m.NumCallFrames()",
         "ReturnLen":        f"len(return[{slope_idx}])",
         "SliceTotalBytes":  f"sum_inner_len(p{slope_idx})",
+        "ModExpWork":       (f"modmuls(len(p{slope_idx})) * "
+                             f"({MODEXP_FLOOR_WORDS} + words(p{slope_idx + 1})^2)"),
     }[kind]
 
 
@@ -329,15 +525,28 @@ def emit_markdown(rows, out):
         if r["shape"] == "flat":
             out.write(f"| `{r['pkg']}.{r['fn']}` | flat | {r['base']:.1f} | — | — | — | — |\n")
         elif r["shape"] == "linear":
+            shape, beta, n = "base+α·N", "—", n_desc(r["kind"], r["slope_idx"])
+            if "slope2" in r:
+                shape, beta = "base+α·N+β·M", f"{r['slope2']:.4f}"
+                if r.get("slope2_floor"):
+                    beta += f" ({r['slope2_floor']})"
+                n += " + " + n_desc(r["kind2"], r["slope2_idx"])
             out.write(
-                f"| `{r['pkg']}.{r['fn']}` | base+α·N | {r['base']:.1f} | "
-                f"{r['slope']:.4f} | — | {n_desc(r['kind'], r['slope_idx'])} | {r['r2']:.3f} |\n"
+                f"| `{r['pkg']}.{r['fn']}` | {shape} | {r['base']:.1f} | "
+                f"{r['slope']:.4f} | {beta} | {n} | {r['r2']:.3f} |\n"
             )
         elif r["shape"] == "2d":
             out.write(
                 f"| `{r['pkg']}.{r['fn']}` | base+α·count+β·bytes | "
                 f"{r['base']:.1f} | {r['alpha']:.4f} | {r['beta']:.4f} | "
                 f"{n_desc(r['count_kind'], r['idx'])} + sum_inner_len | {r['r2']:.3f} |\n"
+            )
+        elif r["shape"] == "pair":
+            rate = r["slope"] / 2.0
+            out.write(
+                f"| `{r['pkg']}.{r['fn']}` | base+α·(Na+Nb) | {r['base']:.1f} | "
+                f"{rate:.4f} | — | {n_desc(r['kind'], r['idx_a'])} + "
+                f"{n_desc(r['kind'], r['idx_b'])} | {r['r2']:.3f} |\n"
             )
 
 
@@ -353,12 +562,46 @@ def emit_go_table(rows, out):
     out.write("// See gnovm/cmd/calibrate/native_gas_formulas.md for derivation.\n")
     out.write("var calibratedNativeGas = []nativeGasEntry{\n")
     for r in rows:
+        if r["shape"] == "modexp":
+            we, wm = r["worst"]
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {r["base"]}, '
+                f'Slope: {r["slope"]}, '
+                f'SlopeIdx: {r["idx"]}, '
+                f'SlopeKind: SizeModExpWork, '
+                f'Slope2: {r["slope2"]}, '
+                f'Slope2Idx: {r["idx"] + 1}, '
+                f'Slope2Kind: SizeLenBytes}},'
+                f' // upper bound over {r["npoints"]} ModExpGrid points'
+                f' (x{r["hw_factor"]} to reference, +{int((MODEXP_MARGIN - 1) * 100)}% margin);'
+                f' thinnest at expLen={we}/modLen={wm}\n'
+            )
+            continue
         if r["shape"] == "flat":
             out.write(
                 f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
                 f'Base: {int(round(r["base"]))}, '
                 f'SlopeIdx: -1, SlopeKind: SizeFlat}},'
                 f' // flat, median {r["base"]:.1f}ns\n'
+            )
+            continue
+        if r["shape"] == "pair":
+            # The bench held both operands at the same size, so the fitted
+            # slope covers both; half of it goes on each param so the total
+            # charge tracks len(a)+len(b).
+            rate_per_1024 = int(round(r["slope"] / 2.0 * 1024))
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {int(round(r["base"]))}, '
+                f'Slope: {rate_per_1024}, '
+                f'SlopeIdx: {r["idx_a"]}, '
+                f'SlopeKind: Size{r["kind"]}, '
+                f'Slope2: {rate_per_1024}, '
+                f'Slope2Idx: {r["idx_b"]}, '
+                f'Slope2Kind: Size{r["kind"]}}},'
+                f' // fit base={r["base"]:.1f}ns slope={r["slope"] / 2.0:.4f}ns/N'
+                f' (={rate_per_1024}/1024) per operand R²={r["r2"]:.3f}\n'
             )
             continue
         if r["shape"] == "2d":
@@ -409,13 +652,22 @@ def emit_go_table(rows, out):
                 f' // post-call: base={r["base"]:.1f}ns + {r["slope"]:.4f}ns/N (={slope_per_1024}/1024) R²={r["r2"]:.3f}\n'
             )
             continue
+        slope2, slope2_note = "", ""
+        if "slope2" in r:
+            slope2_per_1024 = int(round(r["slope2"] * 1024))
+            slope2 = (f', Slope2: {slope2_per_1024}, '
+                      f'Slope2Idx: {r["slope2_idx"]}, Slope2Kind: Size{r["kind2"]}')
+            slope2_note = (f' + {r["slope2"]:.4f}ns/N (={slope2_per_1024}/1024)'
+                           f' on {n_desc(r["kind2"], r["slope2_idx"])}')
+            if r.get("slope2_floor"):
+                slope2_note += f' ({r["slope2_floor"]})'
         out.write(
             f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
             f'Base: {int(round(r["base"]))}, '
             f'Slope: {slope_per_1024}, '
             f'SlopeIdx: {r["slope_idx"]}, '
-            f'SlopeKind: Size{r["kind"]}}},'
-            f' // fit base={r["base"]:.1f}ns slope={r["slope"]:.4f}ns/N (={slope_per_1024}/1024) R²={r["r2"]:.3f}\n'
+            f'SlopeKind: Size{r["kind"]}{slope2}}},'
+            f' // fit base={r["base"]:.1f}ns slope={r["slope"]:.4f}ns/N (={slope_per_1024}/1024){slope2_note} R²={r["r2"]:.3f}\n'
         )
     out.write("}\n")
 
@@ -430,6 +682,8 @@ def _param_label(r):
         return ""
     if r["shape"] == "2d":
         return f"count = len(p{r['idx']}); bytes = sum_inner_len"
+    if r["shape"] == "pair":
+        return f"N = len(p{r['idx_a']}) = len(p{r['idx_b']}) — {r['kind']}"
     kind = r["kind"]
     if kind == "NumCallFrames":
         return "N = m.NumCallFrames()"
@@ -438,7 +692,7 @@ def _param_label(r):
     return f"N = len(p{r['slope_idx']}) — {kind}"
 
 
-def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
+def plot_fits(var_data, flat_data, pair_data, two_d_data, rows, out_path):
     """Render the parameterized fits — linear and 2-D.
 
     Flat natives (single horizontal reference; no parameter on the x-axis)
@@ -512,6 +766,8 @@ def plot_fits(var_data, flat_data, two_d_data, rows, out_path):
             # count, holding bytes near zero" slice that motivated the
             # 1-D fit).
             d = var_data.get((r["pkg"], r["fn"]))
+            if d is None and r["shape"] == "pair":
+                d = pair_data.get((r["pkg"], r["fn"]))
             if d is None:
                 grid = two_d_data.get((r["pkg"], r["fn"]), {})
                 if not grid:
@@ -555,10 +811,19 @@ def main():
     ap.add_argument("--go-out", default="native_gas_table.go.txt")
     ap.add_argument("--plot", default="native_gas_fits.png")
     ap.add_argument("--no-plot", action="store_true")
+    ap.add_argument(
+        "--hw-factor", type=float, default=1.0,
+        help="Scale crypto/modexp measurements onto the reference Xeon 8168. "
+             "Leave at 1.0 only when the benches were run on it; otherwise a fit "
+             "taken on a faster machine undercharges everywhere. Anchor it on a "
+             "row already calibrated on the reference — see the recorded run in "
+             "ibc_native_bench_test.go.")
     args = ap.parse_args()
 
     var_data, flat_data = parse_bench(args.bench_file)
+    pair_data = parse_bench_sized(args.bench_file, NATIVE_SPECS_PAIR)
     two_d_data = parse_bench_2d(args.bench_file)
+    modexp_grid = parse_bench_modexp(args.bench_file)
 
     rows = []
     for pkg, fn, slope_idx, kind, _ in NATIVE_SPECS:
@@ -585,6 +850,67 @@ def main():
                 rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
                              "base": base, "slope": slope, "r2": r2,
                              "slope_idx": slope_idx, "kind": kind})
+
+    # Second slopes, on rows the pass above already fitted.
+    second_data = parse_bench_sized(args.bench_file, NATIVE_SPECS_SECOND)
+    for pkg, fn, idx, kind, floor, _ in NATIVE_SPECS_SECOND:
+        row = next((r for r in rows if (r["pkg"], r["fn"]) == (pkg, fn)), None)
+        if row is None:
+            continue  # this bench file has no primary sweep for the native
+        d = second_data.get((pkg, fn))
+        slope = fit_linear(d)[1] if d and len(d) >= 2 else 0.0
+        if row["shape"] != "linear":
+            print(f"ERROR: {pkg}.{fn} has no per-byte slope from its primary "
+                  f"sweep to carry a second one; it must not be emitted flat",
+                  file=sys.stderr)
+            sys.exit(1)
+        if int(round(slope * 1024)) == 0:
+            print(f"ERROR: {pkg}.{fn} needs a per-byte slope on param {idx} "
+                  f"from its second sweep and got none; it must not be emitted "
+                  f"without one", file=sys.stderr)
+            sys.exit(1)
+        fpkg, ffn, times = floor
+        frow = next((r for r in rows if (r["pkg"], r["fn"]) == (fpkg, ffn)), None)
+        if frow is None or frow["shape"] != "linear":
+            print(f"ERROR: {pkg}.{fn}'s second slope is floored on {fpkg}.{ffn}, "
+                  f"which this bench file did not fit per byte", file=sys.stderr)
+            sys.exit(1)
+        least = times * round(frow["slope"] * 1024) / 1024
+        row.update(slope2=max(slope, least), slope2_idx=idx, kind2=kind,
+                   slope2_floor=f"{times}x {ffn}" if least > slope else "")
+
+    # crypto/modexp: upper-bound fit, not least squares.
+    if modexp_grid:
+        mrow = fit_modexp(modexp_grid, args.hw_factor)
+        if mrow is None:
+            print("WARN: ModExpGrid needs at least two expLen=0 points and one "
+                  "priced point; crypto/modexp row not emitted", file=sys.stderr)
+        else:
+            rows.append(mrow)
+            if args.hw_factor == 1.0:
+                print("NOTE: crypto/modexp fitted with --hw-factor 1.0 — correct "
+                      "only if these benches ran on the reference Xeon 8168",
+                      file=sys.stderr)
+    else:
+        print("WARN: no ModExpGrid bench lines found", file=sys.stderr)
+
+    # Pair fits (two byte-slice params, one shared per-byte rate).
+    for pkg, fn, idx_a, idx_b, kind, _ in NATIVE_SPECS_PAIR:
+        d = pair_data.get((pkg, fn))
+        if not d or len(d) < 2:
+            print(f"WARN: not enough size points for pair {pkg}.{fn}", file=sys.stderr)
+            continue
+        base, slope, r2 = fit_linear(d)
+        if int(round(slope / 2.0 * 1024)) == 0:
+            # A zero rate would re-open the hole a pair spec exists to close,
+            # so refuse to emit rather than silently degrade to flat.
+            print(f"ERROR: pair {pkg}.{fn} fitted a zero per-byte rate "
+                  f"(slope={slope:.6f}, R²={r2:.3f}); it charges two unbounded "
+                  f"byte slices and must not be flat", file=sys.stderr)
+            sys.exit(1)
+        rows.append({"pkg": pkg, "fn": fn, "shape": "pair",
+                     "base": base, "slope": slope, "r2": r2,
+                     "idx_a": idx_a, "idx_b": idx_b, "kind": kind})
 
     # 2-D fits.
     for pkg, fn, idx, count_kind, _, post in NATIVE_SPECS_2D:
@@ -650,7 +976,7 @@ def main():
     print()
     emit_go_table(rows, sys.stdout)
     if not args.no_plot:
-        plot_fits(var_data, flat_data, two_d_data, rows, args.plot)
+        plot_fits(var_data, flat_data, pair_data, two_d_data, rows, args.plot)
 
 
 if __name__ == "__main__":

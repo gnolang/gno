@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -226,6 +227,39 @@ func TestGnoAccountSendRestrictions(t *testing.T) {
 	require.True(t, bankk.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))))
 }
 
+// Two writes to auth:p:unrestricted_addrs in one transaction (add then remove
+// the same address) must chain, so a removed address is restricted by the bank
+// again. This holds because WillSetParam passes applyUnrestrictedAddrsChange the
+// params it reads from the store, rather than the snapshot taken once at the
+// start of the transaction.
+func TestUnrestrictedAddrsChangesChainWithinOneTx(t *testing.T) {
+	testEnv := setupTestEnv()
+	ctx, acck, bankk, prmk := testEnv.ctx, testEnv.acck, testEnv.bankk, testEnv.prmk
+
+	require.NoError(t, acck.SetParams(ctx, auth.DefaultParams()))
+
+	addr := crypto.AddressFromPreimage([]byte("address-a"))
+	recipient := crypto.AddressFromPreimage([]byte("recipient"))
+	acck.SetAccount(ctx, acck.NewAccountWithAddress(ctx, addr))
+	acck.SetAccount(ctx, acck.NewAccountWithAddress(ctx, recipient))
+	require.NoError(t, bankk.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 1))))
+	bankk.SetRestrictedDenoms(ctx, []string{"foocoin"})
+
+	// The ante handler records the snapshot once at transaction start; it is
+	// never refreshed between the two writes below.
+	ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
+	prmk.SetStrings(ctx, "auth:p:unrestricted_addrs", []string{addr.String()})
+	prmk.SetStrings(ctx, "auth:p:unrestricted_addrs", []string{})
+
+	require.Empty(t, acck.GetParams(ctx).UnrestrictedAddrs)
+	account := acck.GetAccount(ctx, addr).(*GnoAccount)
+	require.False(t, account.IsTokenLockWhitelisted())
+	require.ErrorIs(t,
+		bankk.SendCoins(ctx, addr, recipient, std.NewCoins(std.NewCoin("foocoin", 1))),
+		std.RestrictedTransferError{},
+	)
+}
+
 func TestSignGenesisTx(t *testing.T) {
 	t.Parallel()
 
@@ -435,4 +469,29 @@ func TestGnoSessionAccount_AminoRoundTrip(t *testing.T) {
 
 	// Verify AllowPaths round-trips correctly
 	assert.Equal(t, original.AllowPaths, result.AllowPaths)
+}
+
+// A vesting account's query JSON must decode into GnoAccount, because that is
+// the concrete type gnoclient.QueryAccount unmarshals every account into. When a
+// vesting account was its own type its JSON carried a "VestingSchedule" field
+// that GnoAccount had no place for, so querying one failed outright with
+// `unknown JSON field "VestingSchedule"` and no client could read it.
+func TestGnoAccountWithVestingRoundTripsAsQueryJSON(t *testing.T) {
+	t.Parallel()
+
+	acc := ProtoGnoAccount()
+	require.NoError(t, acc.SetAddress(crypto.AddressFromPreimage([]byte("vester"))))
+	require.NoError(t, acc.SetCoins(std.Coins{{Denom: "ugnot", Amount: 1000}}))
+	acc.SetVesting(std.VestingSchedule{
+		OriginalVesting: std.Coins{{Denom: "ugnot", Amount: 1000}},
+		StartTime:       100,
+		EndTime:         200,
+	})
+
+	var back GnoAccount
+	require.NoError(t, amino.UnmarshalJSON(amino.MustMarshalJSON(acc), &back),
+		"a vesting account's JSON must decode into the type clients use")
+	assert.Equal(t, acc.GetVesting(), back.GetVesting())
+	assert.Equal(t, int64(500), back.LockedCoins(time.Unix(150, 0)).AmountOf("ugnot"),
+		"and the schedule must still work after the round trip")
 }

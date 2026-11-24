@@ -7,7 +7,7 @@ loadpkg gno.land/r/nt/commondao/v0
 adduser test2
 
 # Genesis council collapses to test1, so test1 is the realm's inviter.
-patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx $test1_user_addr
 patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
 
 gnoland start

@@ -23,7 +23,7 @@
 #   4. Two valopers.Register MsgCalls (emitted by `gnogenesis fork
 #      valoper-seed` from INITIAL_VALSET + INITIAL_VALSET_OPERATORS) so
 #      the founding validators have operator-keyed valoper profiles and
-#      r/sys/validators/v3 can manage the set post-genesis.
+#      r/sys/validators/v0 can manage the set post-genesis.
 #   5. The INITIAL_VALSET as GenesisDoc.Validators (InitChainer seeds
 #      valset:current from it, so v3/EndBlocker valset changes work).
 #   6. Balances: the 10 faucets at FAUCET_BALANCE each, plus exact-burn
@@ -59,10 +59,10 @@ GENESIS_TIME=1783868400 # Sunday, July 12th 2026 17:00 CEST (15:00 UTC)
 # last block is additions carried over from test13:
 #   - p/onbloc/{uint256,int256,json}: used by realms we want available
 #     (uint256 is a transitive dep of int256).
-#   - r/sys/validators/v3: the valset realm. The node's EndBlocker reads
+#   - r/sys/validators/v0: the valset realm. The node's EndBlocker reads
 #     valset state from this realm's params; without it on chain,
 #     post-genesis valset changes can't happen.
-#   - r/demo/defi/grc20reg: GRC20 token registry.
+#   - r/nt/grc20reg/v0: GRC20 token registry.
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
   ./gno.land/r/gov/...
@@ -74,8 +74,8 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/uint256
   ./gno.land/p/onbloc/int256
   ./gno.land/p/onbloc/json
-  ./gno.land/r/sys/validators/v3
-  ./gno.land/r/demo/defi/grc20reg
+  ./gno.land/r/sys/validators/v0
+  ./gno.land/r/nt/grc20reg/v0
 )
 
 # Initial topaz validator set. Format: "name power address pub_key".
@@ -92,7 +92,7 @@ INITIAL_VALSET=(
 #
 # The operator key is the management plane for the validator: whoever
 # holds it can rotate the signing key, edit the valoper profile, and
-# signal opt-out via r/gnops/valopers + r/sys/validators/v3.
+# signal opt-out via r/gnops/valopers + r/sys/validators/v0.
 INITIAL_VALSET_OPERATORS=(
   "g18x425qmujg99cfz3q97y4uep5pxjq3z8lmpt25" # gno-core-val-01 operator
   "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m" # gno-core-val-02 operator
@@ -129,12 +129,12 @@ DEPLOYER_KEY=GenesisDeployer
 DEPLOYER_ADDR=g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p
 
 # r/sys/names admin: hardcoded in examples/gno.land/r/sys/names/verifier.gno
-# (the gnoland1 GovDAO T1 multisig). names.Enable's admin check reads
+# (the GovDAO T1 multisig). names.Enable's admin check reads
 # runtime.PreviousRealm().Address(); under --skip-genesis-sig-verification,
 # the chain trusts the MsgCall.Caller field as the EOA, so jq-patching
 # caller to this address makes Enable's gate pass. The private key is not
 # needed (and not held).
-NAMES_ADMIN=g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh
+NAMES_ADMIN=g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx
 
 # ---- Locked sha256 hashes.
 #
@@ -730,7 +730,7 @@ cat "$NAMES_ENABLE_TX_FILE" >>"$GENESIS_TXS_JSONL"
 # founding validator, keyed on its operator address. Without these the
 # chain still boots (the valoper coverage assertion only fires in
 # hardfork mode), but the founding validators would have no operator-
-# keyed management plane in r/sys/validators/v3.
+# keyed management plane in r/sys/validators/v0.
 
 print_step_header 7 "$TOTAL_STEPS" "Add valoper-seed Register MsgCalls"
 

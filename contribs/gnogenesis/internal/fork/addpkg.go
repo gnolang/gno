@@ -38,7 +38,7 @@ type addpkgCfg struct {
 // newAddpkgCmd builds a deterministic .jsonl of MsgAddPackage txs
 // from one or more local package directories. Used during a hardfork
 // ceremony to deploy realms that don't exist on the source chain
-// (e.g., r/sys/validators/v3 when forking from gnoland-1, where v3
+// (e.g., r/sys/validators/v0 when forking from gnoland-1, where v0
 // was added post-source-launch).
 //
 // Output format matches what `gnogenesis fork generate --migration-tx`
@@ -57,15 +57,15 @@ or more local package directories. Output is intended for
 'gnogenesis fork generate --migration-tx' as a prerequisite step
 when the source chain doesn't have a needed realm deployed.
 
-Example: forking from gnoland-1 (which doesn't have v3) to a chain
-that requires r/sys/validators/v3:
+Example: forking from gnoland-1 (which doesn't have v0) to a chain
+that requires r/sys/validators/v0:
 
   gnogenesis fork addpkg \
-      --output addpkg-v3.jsonl \
-      examples/gno.land/r/sys/validators/v3
+      --output addpkg-v0.jsonl \
+      examples/gno.land/r/sys/validators/v0
   gnogenesis fork generate \
       --source ... \
-      --migration-tx addpkg-v3.jsonl \
+      --migration-tx addpkg-v0.jsonl \
       --migration-tx valoper-seed.jsonl \
       ...
 

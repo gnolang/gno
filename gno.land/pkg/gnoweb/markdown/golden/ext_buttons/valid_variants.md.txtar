@@ -1,0 +1,19 @@
+-- input.md --
+<gno-button href="/r/test" label="Default" />
+
+<gno-button href="/r/test" label="Outline" variant="outline" />
+
+<gno-button href="/r/test" label="Caution" variant="caution" />
+
+<gno-button href="/r/test" label="Warning" variant="warning" />
+
+<gno-button href="/r/test" label="Info" variant="info" />
+
+<gno-button href="/r/test" label="Note" variant="note" />
+-- output.html --
+<p><a href="/r/test" class="gno-button">Default</a></p>
+<p><a href="/r/test" class="gno-button gno-button-outline">Outline</a></p>
+<p><a href="/r/test" class="gno-button gno-button-caution">Caution</a></p>
+<p><a href="/r/test" class="gno-button gno-button-warning">Warning</a></p>
+<p><a href="/r/test" class="gno-button gno-button-info">Info</a></p>
+<p><a href="/r/test" class="gno-button gno-button-note">Note</a></p>
