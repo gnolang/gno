@@ -1,5 +1,10 @@
 # Type declarations in nested blocks; decl-position-aware const checks
 
+Decision 2 reached master first, in #6504 (see
+`pr6504_preprocess_closure_scan_gas.md`), which moved the same three call
+sites to `GetIsConstAt`. This PR now changes only `declareWith` (decision 1)
+and adds regression tests for both.
+
 ## Context
 
 Two preprocessor bugs made Go-legal block-level declarations panic or
@@ -64,22 +69,32 @@ miscompile:
 
    For function-body declarations the parent is still the `*FuncDecl`/
    `*FuncLitExpr` itself, so existing TypeIDs are unchanged; nested-block
-   declarations previously panicked, so no persisted state can contain the
-   newly minted TypeIDs.
+   declarations previously panicked, so no state persisted before this
+   change contains the newly minted TypeIDs.
 
-2. **The const checks become path-based.** The three position-sensitive
-   call sites — const-folding of a name use, const-folding of array/slice
-   composite-lit keys (both in `preprocess.go`), and `assertValidAssignLhs`
-   (`type_check.go`, shared by assignments and inc/dec) — now call
-   `GetIsConstAt(store, path)` on the NameExpr's already-resolved path instead
-   of `GetIsConst(store, name)`. `fillNameExprPath` already resolves a use
-   before the shadowing declaration to the outer binding (the shadow's slot is
-   reserved but untyped until preprocessing reaches it), so the path names the
-   right declaration; the name-keyed walk was the only place that ignored it.
+2. **The const checks become path-based** (landed in #6504). The three
+   position-sensitive call sites — const-folding of a name use, const-folding
+   of array/slice composite-lit keys (both in `preprocess.go`), and
+   `assertValidAssignLhs` (`type_check.go`, shared by assignments and
+   inc/dec) — call `GetIsConstAt(store, path)` on the NameExpr's
+   already-resolved path instead of `GetIsConst(store, name)`.
+   `fillNameExprPath` already resolves a use before the shadowing declaration
+   to the outer binding (the shadow's slot is reserved but untyped until
+   preprocessing reaches it), so the path names the right declaration; the
+   name-keyed walk ignored it.
 
    `GetIsConst` itself is kept for the one caller with no path in hand (the
    cross-package selector check in `type_check.go`), where package-level decls
    are order-independent and position cannot matter.
+
+   `IsAssignable`, which refused assignments to package-level funcs, was a
+   second name-keyed check. Once the const check was path-based, it let
+   `f = func() {...}` before a block-level `const f` or `type f` overwrite
+   the package-level `f`, which a plain `f := 1` shadow already did. #6089
+   replaced it with a check on the `NameSources` entry the path resolves to.
+   `tests/files/assign46.gno` covers the `type f` spelling: only with
+   decision 1 does that program get past the type declaration, so only
+   #6089's check stops the write.
 
 ## Alternatives considered
 
@@ -90,8 +105,8 @@ distinct types compare equal through interfaces and confusing the type store.
 
 **Make `Consts` position-aware (record the declaring statement's span).**
 Fixes the const checks without touching call sites, but duplicates what the
-resolved path already knows, and leaves any future name-keyed check with the
-same trap.
+resolved path already knows, and leaves every other name-keyed check with the
+same trap; `IsAssignable` was one, fixed by #6089.
 
 **Strip the shadow's `Consts` entry until its declaration is reached.**
 Order-dependent mutation of block state during preprocessing; breaks
@@ -100,13 +115,22 @@ re-preprocessing idempotence for stdlib nodes.
 ## Consequences
 
 - Type declarations now work in every block a statement can appear in, with
-  Go-identical scoping and identity semantics (`tests/files/typedecl1.gno`,
-  `typedecl2.gno`).
+  Go-identical scoping and identity semantics (`tests/files/type43.gno`,
+  `type44.gno`).
 - Uses, assignments, and inc/dec before a shadowing `const` in the same block
-  resolve and check against the outer name (`tests/files/const64.gno`).
+  resolve and check against the outer name, as they have since #6504
+  (`tests/files/const64.gno`, `const65.gno`, `const66.gno`).
 - Local types declared in nested blocks get TypeIDs of the form
   `pkgPath[file:span].name` keyed to the declaring block. These are
   deterministic given the source, like the function-keyed ones before them.
+- A value of a nested-block type can be stored in realm state but not read
+  back: the storing transaction commits, and the next one touching the
+  variable, to read or to overwrite it, aborts with `unexpected type with id
+  <pkgPath>[<file>:<span>].<name>`. Only package-block types are `SetType`'d
+  (#6063). Function-body types already fail the same way on master; this
+  change makes the gap reachable from block-level declarations, which did not
+  compile before. #6084 or #5935 closes it for both unchanged, since each
+  keys on `ParentLoc != zero`, which every non-package parent now sets.
 - This composes with the switch/if case-body shadowing fix (#6058): there,
   `GetIsConstAt` routes paths into the faux-copied region to the parent
   statement's block, so a use of the outer name before a case-body `const`
@@ -116,13 +140,23 @@ re-preprocessing idempotence for stdlib nodes.
 
 ## Tests
 
-- `tests/files/typedecl1.gno` — type declarations in a plain nested block,
+- `tests/files/type43.gno` — type declarations in a plain nested block,
   `for`/`if`/`case` bodies, a block-level alias, and sibling-block identity
   (distinct across blocks, identical within one).
-- `tests/files/typedecl2.gno` — a block-level type shadowing an outer
+- `tests/files/type44.gno` — a block-level type shadowing an outer
   variable (with a use of the outer name before the declaration) and an outer
   type.
+- `tests/files/type45.gno` — Go's `test/bigmap.go`: map key and value types
+  declared in sibling blocks (#5662).
 - `tests/files/const64.gno` — use, `++`, `+=` before a shadowing `const`.
+- `tests/files/const65.gno` — a slice and an array literal key before a
+  shadowing `:=`.
+- `tests/files/const66.gno` — assigning to an outer `const` before a
+  shadowing `:=` is still rejected.
+- `tests/files/assign46.gno` — assigning to a package-level func before a
+  block-level `type` shadow is rejected.
 
 Each was run under real `go run` first; the `// Output:` blocks are Go's
-actual output.
+actual output, and the `// TypeCheckError:` blocks match Go's error.
+`const64`–`const66` fail against name-keyed `GetIsConst` call sites, and
+`assign46` fails without #6089's func check.
