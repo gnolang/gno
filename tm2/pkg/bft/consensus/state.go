@@ -686,11 +686,11 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
 			// The select above picks at random, so a proposer would otherwise
 			// time out on the proposal it just signed.
-			rs := cs.handleQueuedInternalMsgs()
+			cs.handleQueuedInternalMsgs()
 			cs.wal.Write(ti)
 			// if the timeout is relevant to the rs
 			// go to the next step
-			cs.handleTimeout(ti, rs)
+			cs.handleTimeout(ti, cs.RoundState)
 		case <-cs.Quit():
 			return
 		}
@@ -708,12 +708,10 @@ func (cs *ConsensusState) handleInternalMsg(mi msgInfo) {
 
 // Handling one message can queue the next, so this takes only what the queue
 // held when the tick was read. Nothing else reads it, so no receive blocks.
-func (cs *ConsensusState) handleQueuedInternalMsgs() cstypes.RoundState {
+func (cs *ConsensusState) handleQueuedInternalMsgs() {
 	for queued := len(cs.internalMsgQueue); queued > 0; queued-- {
 		cs.handleInternalMsg(<-cs.internalMsgQueue)
 	}
-
-	return cs.RoundState
 }
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one

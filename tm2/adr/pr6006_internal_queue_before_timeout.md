@@ -42,17 +42,18 @@ Drain `internalMsgQueue` before letting a tick move the step:
 
 ```go
 case ti := <-cs.timeoutTicker.Chan(): // tockChan:
-	rs := cs.handleQueuedInternalMsgs()
+	cs.handleQueuedInternalMsgs()
 	cs.wal.Write(ti)
-	cs.handleTimeout(ti, rs)
+	cs.handleTimeout(ti, cs.RoundState)
 ```
 
 `handleQueuedInternalMsgs` handles the messages already in the queue when the
-tick was read, counted once at entry, and returns the round state they leave
-behind. `handleTimeout` receives that state instead of the one snapshotted
-before the `select`, so a proposal completed by the drain moves the step to
+tick was read, counted once at entry. `handleTimeout` then receives the round
+state the drain leaves behind instead of the one snapshotted before the
+`select`, so a proposal completed by the drain moves the step to
 `RoundStepPrevote` and the tick is dropped by the guard already at the top of
-`handleTimeout`. That snapshot had no other reader and is gone.
+`handleTimeout`. That snapshot had no other reader and is gone; WAL replay
+already passes `cs.RoundState` the same way.
 
 The count is what bounds the work. Handling one internal message can queue the
 next: our own precommit completes a height, and under `SkipTimeoutCommit` the
@@ -79,11 +80,11 @@ propose timeout in the rounds where the node is not the proposer, so the raise
 is paid there in wall clock, about 4.5s per test, and the race is only made
 rarer. Rejected.
 
-**Tolerate the timeout in the test helpers.** An earlier revision of this branch
-read the propose timeout while waiting for the proposal, which frees the routine
-and ends the 20s hang. The prevote is still nil, so three of the four call sites
-turned a hang into a `validatePrevote` failure two lines later rather than a
-pass. Rejected as a fix, and dropped from the branch.
+**Tolerate the timeout in the test helpers.** A helper that also reads the
+propose timeout while waiting for the proposal frees the routine and ends the
+20s hang. The prevote is still nil, so a test that goes on to check its prevote
+for the proposal it made turns the hang into a `validatePrevote` failure rather
+than a pass. Rejected.
 
 **Drain only for `RoundStepPropose` ticks.** Narrower, and it leaves the same
 race on the vote path, where a queued precommit loses to the

@@ -331,7 +331,7 @@ func Render(_ string) string { return "foo" }
 		// since the proxy forwards there.
 		cfg.TMConfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
 
-		// Start a fresh node on the same address (same cfg)
+		// Start a fresh node on the same RPC address
 		newNode, err := gnoland.NewInMemoryNode(logger, cfg)
 		require.NoError(t, err)
 		require.NoError(t, newNode.Start())
