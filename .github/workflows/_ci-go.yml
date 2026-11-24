@@ -5,6 +5,11 @@ on:
       modulepath:
         required: true
         type: string
+      materialize-example-versions:
+        description: "Materialize pinned example versions before Go tests"
+        required: false
+        type: boolean
+        default: false
       tests-extra-args:
         required: false
         type: string
@@ -106,10 +111,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: ${{ inputs.materialize-example-versions && '0' || '1' }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+      - name: Materialize pinned example versions
+        if: inputs.materialize-example-versions && hashFiles('examples/gnomod.lock') != ''
+        run: make -C examples gnopm-sync
       - name: Go test
         working-directory: ${{ inputs.modulepath }}
         env:

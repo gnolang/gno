@@ -117,7 +117,7 @@ jobs:
         if: hashFiles('examples/gnomod.lock') != ''
         with:
           go-version-file: go.mod
-          cache-dependency-path: misc/devdeps/go.sum
+          cache: false
 
       - name: Package pinned example versions
         if: hashFiles('examples/gnomod.lock') != ''
