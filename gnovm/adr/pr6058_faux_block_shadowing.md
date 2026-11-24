@@ -76,15 +76,19 @@ static block**, resolved last-wins.
    nested block (`println(x); x := 2` — see `tests/files/define1.gno`).
 
 4. **The faux copy writes by index** (`defineFauxCopy`), because by name it
-   would now find the shadow's slot.
+   would now find the shadow's slot. It panics if the slot does not hold the
+   name being copied, in every build rather than only under `debugAssert`, so
+   a drifted boundary fails loudly instead of mis-typing a name. The check runs
+   at preprocess time only, once per copied name per clause.
 
 A **type switch's variable is deliberately left unshadowable**. Go declares it
 in each clause's own block, so a clause body redeclaring it is an error, not a
-shadow (`go/types`: "no new variables on left side of :="). `Reserve` refuses
-to append over a slot whose `NameSource.Type` is `NSTypeSwitch`, so gno keeps
-rejecting the program exactly as before. That is an explicit test rather than a
-consequence of the variable's slot index, which would otherwise be the only
-thing stopping it.
+shadow, and `go/types` rejects the program with "no new variables on left side
+of :=" exactly as before. Nothing in `Reserve` has to enforce that: the variable
+is reserved at exactly `numFauxCopiedNames()`, so the
+`idx >= numFauxCopiedNames()` return fires first. The variable may itself shadow
+an init name (`switch v := 42; v := any(v).(type)`), which takes the append
+path like any other shadow; `tests/files/typeswitch11.gno` covers both.
 
 ## Alternatives considered
 
@@ -111,7 +115,7 @@ at different points in the same case.
 
 - Case blocks now differ in name count more often, so this **depends on the
   `fallthrough` block-shrinkage fix** (`b.Values` truncation in `doOpExec`),
-  which is included in the same PR. Without it, `case 1: v := 99; fallthrough`
+  which landed separately in #6056. Without it, `case 1: v := 99; fallthrough`
   panics with `unexpected block size shrinkage`. `tests/files/switch53.gno`
   covers the combination.
 
@@ -154,16 +158,14 @@ at different points in the same case.
 
 - `getLocalIsConst` remains name-based (`slices.Contains(sb.Consts, n)`), which
   is not index-parallel, so a `const v` in a case marks the name const for both
-  slots. For a use of the outer `v` textually *before* the `const v`, the
-  name-keyed `GetIsConst` therefore reports true and the use is const-folded
-  against the copy's static (value-less) slot, printing its zero value instead
-  of the outer value; an assignment there is rejected with "cannot assign to
-  const". This divergence is **not introduced here**: an ordinary nested block
-  (`v := 1; { println(v); const v = "c" }`) misbehaves identically on master,
-  because the shadow's `Consts` entry exists from `initStaticBlocks` on while
-  `GetIsConst` has no notion of statement position. The faux-block fix brings
-  case bodies to parity with that pre-existing behavior; fixing it for both
-  block kinds is left to a follow-up.
+  slots. Uses of the outer `v` textually *before* the `const v` are unaffected,
+  because the preprocessor asks `GetIsConstAt` with the use's resolved path
+  (since #6504), and that path points at the parent's slot. Reading and
+  assigning the outer `v` there behave as in Go, as they already did in an
+  ordinary nested block (`v := 1; { println(v); const v = "c" }`).
+  `tests/files/switch52.gno` covers it. On master the case-body form is not
+  reached at all: the `const v` is rejected with
+  `StaticBlock.Define2(v) cannot change const status`.
 
 - One behavior change outside the compiler: the debugger's `print v`, stopped
   in a case body *before* the shadowing declaration, now reports the shadow's
@@ -174,11 +176,18 @@ at different points in the same case.
 
 ## Tests
 
-- `tests/files/switch52.gno` — `:=`, `var` and `const` shadows, use before the
-  shadow, and a nested switch shadowing again.
+- `tests/files/switch52.gno` — `:=`, `var` and `const` shadows, use (and
+  assignment) before the shadow, and a nested switch shadowing again.
 - `tests/files/switch53.gno` — closure capturing the outer name before the
   shadow, closure capturing the shadow, and shadow + `fallthrough`.
 - `tests/files/if9.gno` — if-init shadowing in both branches.
+- `tests/files/typeswitch11.gno` — a type switch clause shadowing an init name,
+  and the type switch variable itself shadowing one.
 
 Each was run under real `go run` first; the `// Output:` blocks are Go's actual
 output.
+
+`TestStaticBlock_GetLocalIndex_LastWinsPastThreshold` (`nodes_test.go`) checks
+last-wins on both `GetLocalIndex` branches, the linear scan and the `nameIndex`
+map past `nameIndexThreshold`. Putting `buildNameIndex` back to first-wins fails
+it at width 40.

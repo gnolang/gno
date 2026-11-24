@@ -19,6 +19,8 @@ func main() {
 
 	switch v := 1; v {
 	case 1:
+		println("const pre", v)
+		v = 2
 		const v = "c"
 		println("const", v)
 	}
@@ -39,6 +41,7 @@ func main() {
 // pre 1
 // post s
 // var true
+// const pre 1
 // const c
 // deep
 // mid 2

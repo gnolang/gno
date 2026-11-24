@@ -2312,6 +2312,10 @@ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype N
 	if idx, exists := sb.GetLocalIndex(nx.Name); exists {
 		if idx >= sb.numFauxCopiedNames() {
 			// The name is the case's own, so nothing left to shadow.
+			// That includes a type switch's variable, reserved at
+			// exactly numFauxCopiedNames: Go declares it in each
+			// clause's own block, so a clause body redeclaring it is
+			// an error, not a shadow.
 			return
 		}
 		// The slot is one copied in from the faux parent. Reserving it
@@ -2322,12 +2326,6 @@ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype N
 		// NameExpr on every pass.
 		if src := sb.NameSources[idx]; src.Origin == origin &&
 			src.Type == nstype && src.Index == index {
-			return
-		}
-		// Go declares a type switch's variable in each clause's own
-		// block, so a clause body redeclaring it is an error, not a
-		// shadow; leave it to Define2 to reject.
-		if sb.NameSources[idx].Type == NSTypeSwitch {
 			return
 		}
 	}
@@ -2355,11 +2353,9 @@ func (sb *StaticBlock) numFauxCopiedNames() uint16 {
 // faux-copied names. Unlike Define it never retargets a shadowing slot the
 // case body declared for the same name.
 func (sb *StaticBlock) defineFauxCopy(idx uint16, n Name, tv TypedValue) {
-	if debugAssert {
-		if sb.Names[idx] != n {
-			panic(fmt.Sprintf(
-				"faux copy slot %d holds %s, not %s", idx, sb.Names[idx], n))
-		}
+	if sb.Names[idx] != n {
+		panic(fmt.Sprintf(
+			"faux copy slot %d holds %s, not %s", idx, sb.Names[idx], n))
 	}
 	sb.Block.Values[idx] = tv
 	sb.Types[idx] = tv.T
