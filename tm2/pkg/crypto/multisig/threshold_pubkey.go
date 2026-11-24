@@ -8,6 +8,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 )
 
 // PubKeyMultisigThreshold implements a K of N threshold multisig.
@@ -44,9 +45,9 @@ const MaxNestingDepth = 6
 // total, counting itself, every threshold key nested within it, and every leaf
 // key at the bottom.
 //
-// The bound exists because validate scans each level's constituents pairwise to
-// reject duplicates, so an unbounded key is quadratic in the size of a
-// transaction that pays for it linearly. TxSigLimit bounds the width no better
+// The bound exists because validate scans the tree's leaves pairwise to reject
+// duplicates, so an unbounded key is quadratic in the size of a transaction
+// that pays for it linearly. TxSigLimit bounds the width no better
 // than it bounds the depth, and for the same reason: std.CountSubKeys counts
 // leaves, and a constituent holding no keys at all contributes none however
 // many of them are listed.
@@ -113,21 +114,25 @@ func (pk PubKeyMultisigThreshold) validate() error {
 	if uint(len(pk.PubKeys)) < pk.K {
 		return errors.New("threshold k of n multisignature: len(pubkeys) < k")
 	}
-	// Bound the key before the pairwise duplicate scan below, which is
-	// quadratic in the number of constituents at each level, and reject nils
-	// before it, which is what stops Equals dereferencing one. ValidateStructure
-	// owns both: it is the only check here that visits every node, so a
-	// per-constituent nil check at this level would cover only this level while
-	// Equals compares whole subtrees.
-	if err := pk.ValidateStructure(); err != nil {
+	// Bound the key and reject nils before the duplicate scan below, and collect
+	// the tree's leaves in the same walk. The scan is quadratic in the number of
+	// leaves, so it needs the total-key bound; and it dereferences each leaf via
+	// Equals, so it needs the nil rejection. validateStructure owns both and is
+	// the walk that visits every node, so it gathers the leaves too rather than
+	// re-walking the tree a second time.
+	var leaves []crypto.PubKey
+	if err := pk.validateStructureCollecting(&leaves); err != nil {
 		return err
 	}
-	for i, pubkey := range pk.PubKeys {
-		// A key listed twice occupies two positions of the threshold but only
-		// ever needs the one private key behind it, so K distinct signers is
-		// not what such a key actually requires.
-		if slices.ContainsFunc(pk.PubKeys[:i], pubkey.Equals) {
+	for i, leaf := range leaves {
+		if slices.ContainsFunc(leaves[:i], leaf.Equals) {
 			return errors.New("threshold k of n multisignature: duplicate pubkey")
+		}
+		// A small-order ed25519 key identifies no signer. VerifyBytes stops it
+		// from contributing a signature, but leaves are only verified for set
+		// bits, so a key containing one would still verify through the others.
+		if edKey, ok := leaf.(ed25519.PubKeyEd25519); ok && edKey.IsSmallOrder() {
+			return errors.New("threshold k of n multisignature: small-order ed25519 pubkey")
 		}
 	}
 	return nil
@@ -140,11 +145,20 @@ func (pk PubKeyMultisigThreshold) validate() error {
 // over the constituent keys itself, before VerifyBytes is ever reached, and so
 // has to establish the same bounds on its own recursion. Both callers agreeing
 // on one implementation is the point: these bounds are what keep that
-// recursion, the amino decode it performs at each level, and validate's own
-// duplicate scan linear in the transaction.
+// recursion and the amino decode it performs at each level linear in the
+// transaction, and cap the leaf count that validate's own duplicate scan is
+// quadratic in.
 func (pk PubKeyMultisigThreshold) ValidateStructure() error {
+	return pk.validateStructureCollecting(nil)
+}
+
+// validateStructureCollecting is ValidateStructure, additionally appending pk's
+// terminal leaves to leaves as it walks if leaves is non-nil. validate uses that
+// to get the leaves out of the same walk that establishes the bounds and rejects
+// nils, rather than re-walking the tree for the duplicate scan.
+func (pk PubKeyMultisigThreshold) validateStructureCollecting(leaves *[]crypto.PubKey) error {
 	budget := MaxTotalKeys
-	return validateStructure(pk, MaxNestingDepth, &budget)
+	return validateStructure(pk, MaxNestingDepth, &budget, leaves)
 }
 
 // validateStructure returns an error unless pub fits within levels of nesting
@@ -152,7 +166,11 @@ func (pk PubKeyMultisigThreshold) ValidateStructure() error {
 // constituents are looked at, so a key that exhausts either one is rejected
 // without being walked to the bottom: the check never costs what it is meant to
 // prevent.
-func validateStructure(pub crypto.PubKey, levels int, budget *int) error {
+//
+// If leaves is non-nil, every terminal leaf reached is appended to it. A leaf is
+// any node that is not a threshold key, or a threshold key holding no
+// constituents.
+func validateStructure(pub crypto.PubKey, levels int, budget *int, leaves *[]crypto.PubKey) error {
 	// Rejecting nils here, rather than only among validate's own constituents,
 	// is what keeps validate's duplicate scan from dereferencing one: Equals
 	// recurses into the constituents of the keys it compares, so a nil nested
@@ -168,7 +186,10 @@ func validateStructure(pub crypto.PubKey, levels int, budget *int) error {
 	*budget--
 
 	v, ok := pub.(PubKeyMultisigThreshold)
-	if !ok {
+	if !ok || len(v.PubKeys) == 0 {
+		if leaves != nil {
+			*leaves = append(*leaves, pub)
+		}
 		return nil
 	}
 	if levels <= 0 {
@@ -176,7 +197,7 @@ func validateStructure(pub crypto.PubKey, levels int, budget *int) error {
 			"threshold k of n multisignature: nested more than %d levels deep", MaxNestingDepth)
 	}
 	for _, subkey := range v.PubKeys {
-		if err := validateStructure(subkey, levels-1, budget); err != nil {
+		if err := validateStructure(subkey, levels-1, budget, leaves); err != nil {
 			return err
 		}
 	}
@@ -193,9 +214,8 @@ func (pk PubKeyMultisigThreshold) String() string {
 }
 
 // VerifyBytes expects sig to be an amino encoded version of a MultiSignature.
-// Returns true iff the multisignature contains k or more signatures
-// for the correct corresponding keys,
-// and all signatures are valid. (Not just k of the signatures)
+// Returns true iff the multisignature contains exactly k signatures, one per
+// set bit, for the corresponding keys, and all of them are valid.
 // The multisig uses a bitarray, so multiple signatures for the same key is not
 // a concern.
 func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) bool {
@@ -205,25 +225,23 @@ func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) 
 	if pk.validate() != nil {
 		return false
 	}
+	// Canonically: the transaction's own canonical check sees these bytes as
+	// opaque, and any other encoding of the same multisignature would verify
+	// too, restating the transaction under a new hash. Shared with auth's gas
+	// consumer, as ValidateBasic is.
 	var sig Multisignature
-	err := amino.Unmarshal(marshalledSig, &sig)
+	err := amino.UnmarshalCanonical(marshalledSig, &sig)
 	if err != nil {
 		return false
 	}
 	// Establish the shape of the signature against this key before walking it:
-	// the bit array size against the constituent count, and exactly one
-	// signature per set bit. Shared with auth's gas consumer, which reaches the
-	// same structure first. See Multisignature.ValidateBasic.
-	if sig.ValidateBasic(len(pk.PubKeys)) != nil {
+	// the bit array size against the constituent count, one signature per set
+	// bit, and exactly K of them. Shared with auth's gas consumer, which reaches
+	// the same structure first. See Multisignature.ValidateBasic.
+	if sig.ValidateBasic(pk) != nil {
 		return false
 	}
 	size := sig.BitArray.Size()
-	// ensure at least k signatures are set. ValidateBasic has already equated the
-	// set bits with len(Sigs), so this also subsumes a separate length check on
-	// Sigs: nSigs is at most size by construction and at least K here.
-	if sig.BitArray.NumTrueBitsBefore(size) < int(pk.K) {
-		return false
-	}
 	// index in the list of signatures which we are concerned with.
 	sigIndex := 0
 	for i := range size {

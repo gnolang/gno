@@ -12,7 +12,7 @@ func TestValidateOID(t *testing.T) {
 }
 
 func TestValidateTID(t *testing.T) {
-	// A Gno TypeID is a human-readable string, not a hash — getTypeID
+	// A Gno TypeID is a human-readable string, not a hash — utils.ResolveTypeID
 	// emits these into Inspect links, so each must be accepted.
 	good := []string{
 		"gno.land/r/demo/stateshowcase.User",
@@ -43,6 +43,24 @@ func TestValidateTID(t *testing.T) {
 	for _, s := range bad {
 		if err := ValidateTID(s); err == nil {
 			t.Fatalf("invalid TID %q accepted", s)
+		}
+	}
+}
+
+func TestValidatePointerIndex(t *testing.T) {
+	if p, err := ValidatePointerIndex(""); err != nil || p != nil {
+		t.Fatalf("empty index: got (%v, %v), want (nil, nil)", p, err)
+	}
+	for s, want := range map[string]int{"0": 0, "1": 1, "42": 42} {
+		if p, err := ValidatePointerIndex(s); err != nil || p == nil || *p != want {
+			t.Fatalf("valid index %q: got (%v, %v), want %d", s, p, err, want)
+		}
+	}
+	// Non-canonical forms would give one pointee several URLs.
+	bad := []string{"-1", "+1", "01", "00", "-0", " 1", "abc"}
+	for _, s := range bad {
+		if _, err := ValidatePointerIndex(s); err == nil {
+			t.Fatalf("invalid index %q accepted", s)
 		}
 	}
 }

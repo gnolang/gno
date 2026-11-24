@@ -1195,24 +1195,6 @@ func (ndb *nodeDB) nodes() ([]*Node, error) {
 	return nodes, nil
 }
 
-func (ndb *nodeDB) legacyNodes() ([]*Node, error) { //nolint: unused
-	nodes := []*Node{}
-
-	err := ndb.traversePrefix(legacyNodeKeyFormat.Prefix(), func(key, value []byte) error {
-		node, err := MakeLegacyNode(key[1:], value)
-		if err != nil {
-			return err
-		}
-		nodes = append(nodes, node)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
-}
-
 func (ndb *nodeDB) orphans() ([][]byte, error) {
 	orphans := [][]byte{}
 

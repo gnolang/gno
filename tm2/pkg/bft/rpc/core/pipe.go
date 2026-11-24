@@ -75,11 +75,21 @@ type Environment struct {
 	Logger *slog.Logger
 	Config cfg.RPCConfig // value, not pointer — TimeoutBroadcastTxCommit must be stable
 
+	// QueryRunsCode reports whether the application runs code for a query
+	// path; ABCIQuery refuses those when Config.AllowCodeExecution is false.
+	// Nil refuses nothing. The node takes it from an application that
+	// implements abci.CodeExecutionQuerier.
+	QueryRunsCode func(path string) bool
+
 	// Internal state. Populated by Start; nil before.
 	mtx          sync.Mutex
 	txDispatcher *txDispatcher
 	started      bool
 	stopped      bool
+
+	// validators keeps replayed validator sets for the validators route,
+	// whose height the client picks.
+	validators sm.ValidatorsCache
 }
 
 // Start initializes any per-Environment background services. Currently this

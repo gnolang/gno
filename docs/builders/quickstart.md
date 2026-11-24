@@ -57,19 +57,18 @@ gnokey query bank/balances/<your-g1-addr> \
 #    https://docs.gno.land/resources/gnoland-networks/
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 \
+  -gas-fee 5000ugnot -gas-wanted 5000000 \
   -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 
 # 8. Call a realm function. The testnet enables a new package a few seconds
 #    after addpkg: if the call fails, wait and retry. A refused one's
-#    reason is at https://gpao.latest.testnets.gno.land/status/<pkgpath>,
-#    which only knows packages submitted since its service last restarted;
-#    if it still reads "unknown" after a minute, ask on Discord at
-#    https://discord.com/invite/gnoland
+#    reason is at https://gpas.latest.testnets.gno.land: look up the exact
+#    package path. If it still says the package is not known after a
+#    minute, ask on Discord at https://discord.com/invite/gnoland
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 ```
 
