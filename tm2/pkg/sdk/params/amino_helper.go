@@ -29,39 +29,6 @@ func encodeStructFields(prm any) (res []std.KVPair) {
 	return res
 }
 
-func findKV(kvz []std.KVPair, key string) (std.KVPair, bool) {
-	for _, kv := range kvz {
-		if string(kv.Key) == key {
-			return kv, true
-		}
-	}
-	return std.KVPair{}, false
-}
-
-// Reads list of kvpairs into param struct.
-func decodeStructFields(prmPtr any, kvz []std.KVPair) {
-	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
-		panic("setStructFields expects module param struct pointer")
-	}
-	rvPrm := reflect.ValueOf(prmPtr).Elem()
-	tinfo, err := structTypeInfo(rvPrm.Type())
-	if err != nil {
-		panic(errors.Wrap(err, "Error reflecting on module param struct"))
-	}
-	fields := tinfo.Fields
-	for _, field := range fields {
-		rv := rvPrm.Field(field.Index)
-		name := field.JSONName
-		kv, ok := findKV(kvz, name)
-		if !ok {
-			continue
-		}
-		if err := decodeField(rv, kv.Value); err != nil {
-			panic(fmt.Errorf("failed to decode param field %q: %w", name, err))
-		}
-	}
-}
-
 func decodeField(rv reflect.Value, value []byte) error {
 	tmp := reflect.New(rv.Type())
 	err := amino.UnmarshalJSON(value, tmp.Interface())
@@ -81,8 +48,10 @@ func decodeField(rv reflect.Value, value []byte) error {
 	return nil
 }
 
-// Gets list of kvpairs associated with param struct from store.
-func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, key []byte) (res []std.KVPair) {
+// readStructFieldsFromStore retains the field order of the old key/value
+// list. Finish all metered store reads before decoding into the caller's
+// struct, so a failed read cannot leave a partially updated destination.
+func readStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, keyPrefix string) {
 	if reflect.TypeOf(prmPtr).Kind() != reflect.Pointer {
 		panic("setStructFields expects module param struct pointer")
 	}
@@ -91,16 +60,24 @@ func getStructFieldsFromStore(gctx *sm.GasContext, prmPtr any, store sm.Store, k
 	if err != nil {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
-	fields := tinfo.Fields
-	for _, field := range fields {
-		name := field.JSONName
-		value := store.Get(gctx, []byte(string(key)+":"+name))
-		if value == nil {
+
+	var small [8][]byte
+	values := small[:]
+	if len(tinfo.Fields) > len(values) {
+		values = make([][]byte, len(tinfo.Fields))
+	}
+	values = values[:len(tinfo.Fields)]
+	for i, field := range tinfo.Fields {
+		values[i] = store.Get(gctx, []byte(keyPrefix+field.JSONName))
+	}
+	for i, field := range tinfo.Fields {
+		if values[i] == nil {
 			continue
 		}
-		res = append(res, std.KVPair{Key: []byte(name), Value: value})
+		if err := decodeField(rvPrm.Field(field.Index), values[i]); err != nil {
+			panic(fmt.Errorf("failed to decode param field %q: %w", field.JSONName, err))
+		}
 	}
-	return res
 }
 
 // typeInfos memoizes structTypeInfo, keyed by reflect.Type.

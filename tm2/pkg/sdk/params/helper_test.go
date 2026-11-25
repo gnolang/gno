@@ -7,18 +7,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 type plainField struct{ A int } // does not implement json.Unmarshaler
 
-func TestDecodeStructFields(t *testing.T) {
+func TestGetStructDecoding(t *testing.T) {
 	t.Run("non-unmarshaler field: no fallback, no mutation, field name in panic", func(t *testing.T) {
 		type params struct {
 			Num   int64      `json:"num"`
 			Plain plainField `json:"plain"`
 		}
 		prm := &params{Num: 7, Plain: plainField{A: 5}}
-		kvz := []std.KVPair{{Key: []byte("plain"), Value: []byte(`"oops"`)}}
+		env := newTypeInfoTestEnv(t)
+		env.keeper.SetString(env.ctx, "ti_a:p:plain", "oops")
 
 		defer func() {
 			r := recover()
@@ -30,7 +32,7 @@ func TestDecodeStructFields(t *testing.T) {
 			// field must be left untouched (no partial mutation).
 			assert.Equal(t, plainField{A: 5}, prm.Plain)
 		}()
-		decodeStructFields(prm, kvz)
+		env.keeper.GetStruct(env.ctx, "ti_a:p", prm)
 	})
 
 	t.Run("json.Unmarshaler field: string value falls back and decodes", func(t *testing.T) {
@@ -39,9 +41,10 @@ func TestDecodeStructFields(t *testing.T) {
 			Price std.GasPrice `json:"price"`
 		}
 		prm := &params{Num: 7}
-		kvz := []std.KVPair{{Key: []byte("price"), Value: []byte(`"1ugnot/1gas"`)}}
+		env := newTypeInfoTestEnv(t)
+		env.keeper.SetString(env.ctx, "ti_a:p:price", "1ugnot/1gas")
 
-		require.NotPanics(t, func() { decodeStructFields(prm, kvz) })
+		require.NotPanics(t, func() { env.keeper.GetStruct(env.ctx, "ti_a:p", prm) })
 		assert.Equal(t, std.GasPrice{Gas: 1, Price: std.Coin{Denom: "ugnot", Amount: 1}}, prm.Price)
 		assert.Equal(t, int64(7), prm.Num)
 	})
@@ -136,9 +139,39 @@ func TestStructFieldsSkippedFields(t *testing.T) {
 			}
 			assert.Equal(t, tt.wantKVs, got, "encoded key/value pairs")
 
+			env := newTypeInfoTestEnv(t)
+			env.keeper.SetStruct(env.ctx, "ti_a:p", tt.in)
 			out := tt.out()
-			decodeStructFields(out, kvz)
+			env.keeper.GetStruct(env.ctx, "ti_a:p", out)
 			assert.Equal(t, tt.want, out, "decoded struct")
 		})
 	}
+}
+
+type paramReadProbe struct {
+	store.Store
+	keys []string
+}
+
+func (p *paramReadProbe) Get(_ *store.GasContext, key []byte) []byte {
+	p.keys = append(p.keys, string(key))
+	if len(p.keys) == 2 {
+		panic("second store read failed")
+	}
+	return []byte(`"1"`)
+}
+
+func TestReadStructFieldsFinishesReadsBeforeDecoding(t *testing.T) {
+	out := struct {
+		A int64 `json:"a"`
+		B int64 `json:"b"`
+	}{A: 9, B: 8}
+	probe := &paramReadProbe{}
+
+	require.PanicsWithValue(t, "second store read failed", func() {
+		readStructFieldsFromStore(nil, &out, probe, "/pv/mod:p:")
+	})
+	require.Equal(t, []string{"/pv/mod:p:a", "/pv/mod:p:b"}, probe.keys)
+	require.Equal(t, int64(9), out.A)
+	require.Equal(t, int64(8), out.B)
 }
