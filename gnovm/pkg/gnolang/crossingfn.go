@@ -59,18 +59,94 @@ func (m *Machine) shareHandedArgs(fr *Frame, args []TypedValue) {
 		}
 	}
 	for i := range args {
-		shareDeep(args[i].V)
+		m.Alloc.shareSlot(&args[i])
 	}
 }
 
-// shareDeep clears the maker of every function value reachable from v
-// through unsaved objects and flags those objects shared, so R2a holds only
-// for a function value that stayed private to the call that made it. Saved
-// and already-shared objects end the walk; a function's captures are skipped.
+// unmarked returns v, or a copy with no maker when v is a function value that
+// still has one: what is stored or handed out is a copy; the original, private
+// to its call, keeps writing. A value already kept is wiped in place instead,
+// so no second object shares its ID. A marked value was made outside any
+// read-only stretch, so the fresh ObjectInfo drops no scratch number.
+func (alloc *Allocator) unmarked(v Value) Value {
+	switch cv := v.(type) {
+	case *FuncValue:
+		if cv.madeIn != nil {
+			if kept(cv) {
+				cv.setMadeIn(nil)
+				return v
+			}
+			alloc.AllocateFunc()
+			cp := *cv
+			cp.ObjectInfo = ObjectInfo{}
+			return &cp
+		}
+	case *BoundMethodValue:
+		if cv.madeIn != nil {
+			if kept(cv) {
+				cv.setMadeIn(nil)
+				return v
+			}
+			alloc.AllocateBoundMethod()
+			cp := *cv
+			cp.ObjectInfo = ObjectInfo{}
+			if fn := cv.Func; fn != nil && !kept(fn) {
+				alloc.AllocateFunc()
+				fc := *fn
+				fc.ObjectInfo = ObjectInfo{}
+				cp.Func = &fc
+			}
+			return &cp
+		}
+	}
+	return v
+}
+
+// shareSlot replaces a marked function value in tv by an unmarked copy and
+// shares what tv reaches.
+func (alloc *Allocator) shareSlot(tv *TypedValue) {
+	if tv.V == nil {
+		return
+	}
+	tv.V = alloc.unmarked(tv.V)
+	alloc.shareDeep(tv.V)
+}
+
+// shareInto is shareSlot for tv, a slot of base, when base is saved or shared:
+// every write into such a slot goes through here, or it could plant a writer.
+func (alloc *Allocator) shareInto(base Object, tv *TypedValue) {
+	if sharedOrSaved(base) {
+		alloc.shareSlot(tv)
+	}
+}
+
+// kept reports whether o is saved or already referenced by an object.
+func kept(o Object) bool { return o.GetIsReal() || o.GetRefCount() > 0 }
+
+// sharedOrSaved reports whether what is written into o can be seen outside
+// the call.
+func sharedOrSaved(o Object) bool {
+	oi := o.GetObjectInfo()
+	return oi.shared || oi.GetIsReal()
+}
+
+// shareDeep replaces, in every unsaved object reachable from v, each function
+// value that has a maker by an unmarked copy, and flags those objects shared.
+// Saved and already-shared objects end the walk; a function's captures are
+// skipped. A function value given directly has no slot: it is wiped in place.
 // It keeps its own work list: a long pointer chain must not grow the Go stack.
-func shareDeep(v Value) {
+func (alloc *Allocator) shareDeep(v Value) {
 	var buf [8]Value
 	todo := append(buf[:0], v)
+	slot := func(tv *TypedValue) {
+		switch tv.V.(type) {
+		case nil:
+		case *FuncValue, *BoundMethodValue:
+			tv.V = alloc.unmarked(tv.V)
+		default:
+			todo = append(todo, tv.V)
+		}
+	}
 	for len(todo) > 0 {
 		v, todo = todo[len(todo)-1], todo[:len(todo)-1]
 		switch cv := v.(type) {
@@ -78,7 +154,7 @@ func shareDeep(v Value) {
 			switch cv.Base.(type) {
 			case nil, *Block:
 				if cv.TV != nil {
-					todo = append(todo, cv.TV.V)
+					slot(cv.TV)
 				}
 			default:
 				todo = append(todo, cv.Base)
@@ -92,24 +168,25 @@ func shareDeep(v Value) {
 		case *ArrayValue:
 			if markShared(cv) {
 				for i := range cv.List {
-					todo = append(todo, cv.List[i].V)
+					slot(&cv.List[i])
 				}
 			}
 		case *StructValue:
 			if markShared(cv) {
 				for i := range cv.Fields {
-					todo = append(todo, cv.Fields[i].V)
+					slot(&cv.Fields[i])
 				}
 			}
 		case *MapValue:
 			if markShared(cv) {
 				for cur := cv.List.Head; cur != nil; cur = cur.Next {
-					todo = append(todo, cur.Key.V, cur.Value.V)
+					todo = append(todo, cur.Key.V) // a key holds no function itself
+					slot(&cur.Value)
 				}
 			}
 		case *HeapItemValue:
 			if markShared(cv) {
-				todo = append(todo, cv.Value.V)
+				slot(&cv.Value)
 			}
 		}
 	}
@@ -117,10 +194,9 @@ func shareDeep(v Value) {
 
 // markShared flags o shared; false if it was already, or is saved.
 func markShared(o Object) bool {
-	oi := o.GetObjectInfo()
-	if oi.shared || oi.GetIsReal() {
+	if sharedOrSaved(o) {
 		return false
 	}
-	oi.shared = true
+	o.GetObjectInfo().shared = true
 	return true
 }

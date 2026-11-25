@@ -3127,7 +3127,7 @@ func (m *Machine) PopFrameAndReturn() {
 	if moved || (wasView && !m.viewOnly) {
 		for i := range numRes {
 			res := &m.Values[fr.NumValues+i]
-			shareDeep(res.V)
+			m.Alloc.shareSlot(res)
 			if moved {
 				*res = m.Alloc.stripDeep(*res, hold)
 			}

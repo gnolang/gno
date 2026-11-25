@@ -729,6 +729,7 @@ func (m *Machine) doOpReturnAfterCopy() {
 			rtv = rtv.Copy(m.Alloc, m.Store)
 		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
+		m.Alloc.shareInto(hiv, &hiv.Value) // R2a: r may have been shown
 	}
 
 	// Unwind stack.
@@ -775,7 +776,8 @@ func (m *Machine) doOpReturnToBlock() {
 	for i := range numResults {
 		rtv := results[i]
 		dst := &fblock.Values[numParams+i]
-		if hiv, ok := dst.V.(*HeapItemValue); ok {
+		hiv, _ := dst.V.(*HeapItemValue)
+		if hiv != nil {
 			dst = &hiv.Value
 		}
 		// `return r` of the named result r keeps r itself, so pointers
@@ -784,6 +786,9 @@ func (m *Machine) doOpReturnToBlock() {
 			rtv = rtv.Copy(m.Alloc, m.Store)
 		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
+		if hiv != nil {
+			m.Alloc.shareInto(hiv, &hiv.Value) // R2a: r may have been shown
+		}
 	}
 	m.PopValues(numResults)
 }

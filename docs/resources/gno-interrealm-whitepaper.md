@@ -188,16 +188,17 @@ read-only code, at `init`, or loaded from storage has id 0, which matches no cal
 
 Otherwise a value made in one legitimate call would carry that call's write rights forever.
 
-**It keeps its id only while it stays private to that call.** The id is wiped, for good, when the value is
-stored in saved state, or when it is handed to, or can be reached by, another realm or a library outside the
-realm's import tree: as an argument or result, or inside a struct, slice, map or pointer that is. So the same
+**It keeps its id only while it stays private to that call.** What is stored in saved state, or handed to
+another realm or a library outside the realm's import tree (as an argument or result, or inside a struct,
+slice, map or pointer that is), is a copy with no id. The variable the gate still holds keeps its id, unless
+the variable itself can be reached from outside (its address was handed out). So the same
 call line gives the same answer in the call that stored a function and in every later one, and a realm
 never runs its own writer because someone else's code picked it.
 
 ```go
 // realm cbsaved
 func RegisterThenRun(cur realm) {
-	Reg = append(Reg, func(s string) { Owner = s })   // stored: id wiped
+	Reg = append(Reg, func(s string) { Owner = s })   // stored: a copy with no id
 	for _, f := range Reg { f("registered") }         // refused, here and in every later call
 }
 func MakeValue(cur realm) func(string) { return func(s string) { Owner = s } }
@@ -852,9 +853,10 @@ no counter can wrap or differ between nodes. It sits in `ObjectInfo` padding (`o
 gas are unchanged; it is set in `alloc.go` and `machine.go` and read at the call in `op_call.go`.
 R2a-save's mark is `ObjectInfo.s3Written`; `markViewWrite` marks a written unreal heap item the same way.
 R2b is `stripMaker` in `alloc.go`; it stays with R2a, since R2a's id check needs a copy to carry no maker.
-The "private" half of R2a is `shareDeep` in `crossingfn.go`: it wipes the id of every function value
-reachable through unsaved objects and flags those objects (`ObjectInfo.shared`, memory only), so a function put
-into one later is wiped too. It runs when an object is attached to a saved or shared one (`Realm.DidUpdate`)
+The "private" half of R2a is `shareDeep` in `crossingfn.go`: it replaces every function value that has an id,
+in each slot reachable through unsaved objects, by a copy with none (`unmarked`; a value already saved is
+wiped in place instead) and flags those objects (`ObjectInfo.shared`, memory only), so a function put into one
+later is replaced too (`shareInto`). It runs when an object is attached to a saved or shared one (`Realm.DidUpdate`)
 and on the arguments and results of a call that changes realm or enters or leaves view-only code.
 
 ### The write check, step by step

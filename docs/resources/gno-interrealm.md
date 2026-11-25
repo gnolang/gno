@@ -49,19 +49,21 @@ var total int
 func Run(cur realm) {
 	f := func() { total++ }
 	f()                       // same crossing call, still private: writes
-	other.Keep(cross(cur), f) // handed to another realm
-	f()                       // read-only from here on
+	other.Keep(cross(cur), f) // other gets a copy without write power
+	f()                       // the local still writes
+	saved = f                 // so does a stored one: saved() is read-only
 }
 ```
 
 A non-crossing function value (a closure, a bound method value, a declared
 function used as a value) writes only during the crossing call that made it,
-and only while it has stayed private to that call. It stops being private, for
-good, when it is stored in saved state, or when it is handed to, or can be
-reached by, another realm or code that runs read-only: a library outside the
-realm's import tree, or any function called through a value, the realm's own
-stored helper included (directly, or inside a struct, slice, map or pointer).
-To decorate a writer, call the helper by its declared name. Made in read-only code,
+and only while it has stayed private to that call. What is stored in saved
+state, or handed to another realm or to code that runs read-only, is a copy
+without write power: a library outside the realm's import tree, or any function
+called through a value, the realm's own stored helper included (directly, or
+inside a struct, slice, map or pointer). The local variable keeps writing,
+unless the variable itself was shown by pointer, or captured by a closure that
+was. To decorate a writer, call the helper by its declared name. Made in read-only code,
 at init, or loaded from the store, its id is 0 and the
 call runs read-only. There is then no crossing function to call: make the
 callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or rebuild

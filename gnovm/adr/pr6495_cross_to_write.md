@@ -17,14 +17,14 @@ runs read-only. Library (`/p/`) code never writes another realm's objects.
 **R2a A function value writes only in the crossing call that made it, while
 private to it.** A non-crossing function value (closure, bound method value,
 declared function used as a value) called by value writes only during the
-crossing call that made it, and only until it is stored in saved state or
-handed to, or reachable by, another realm or read-only code (a library outside
-the import tree, any function called through a value: `Decorate` in `fvshare`)
-(`shareDeep`: wipes the maker through unsaved objects and flags them
-`shared`, memory only; run on attach to a saved or shared object and on
-arguments and results of a call that changes realm or view-only state). So a
-stored function gives one answer in every call, and a realm never runs its own
-writer because other code picked it. Every crossing call (the tx entry included) gets a fresh marker
+crossing call that made it. What is stored in saved state, or handed to another
+realm or read-only code (a library outside the import tree, any function called
+through a value: `Decorate` in `fvshare`), is a copy with no maker; the local
+keeps writing unless its own slot was shown (`shareDeep`: swaps in the copy
+per slot through unsaved objects, flags them `shared`, wipes a saved value in
+place; run on attach, on calls that change realm or view-only state, and on
+writes into a shared object). Cost: one allocation per copy. So a stored function
+gives one answer in every call, and other code never picks a realm's writer. Every crossing call (the tx entry included) gets a fresh marker
 object (`crossingCall`) and each value points to it; equal pointers mean the
 same call, with no counter to wrap. Made in read-only code, at init, or loaded
 from the store: nil, which never matches, and the call runs `enterReadOnly`. "By value" is

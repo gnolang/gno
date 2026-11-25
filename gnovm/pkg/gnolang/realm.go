@@ -276,8 +276,12 @@ func (rlm *Realm) String() string {
 func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	// R2a: a function value attached to saved or shared state stops writing.
 	if co != nil && po != nil {
-		if oi := po.GetObjectInfo(); oi.shared || oi.GetIsReal() {
-			shareDeep(co)
+		if sharedOrSaved(po) {
+			var alloc *Allocator
+			if m != nil {
+				alloc = m.Alloc
+			}
+			alloc.shareDeep(co)
 		}
 	}
 	if rlm == nil {
