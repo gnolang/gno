@@ -1,6 +1,7 @@
 package multisig
 
 import (
+	stded25519 "crypto/ed25519"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -121,6 +122,70 @@ func TestThresholdMultisigDuplicateSignatures(t *testing.T) {
 	// Add second signature manually
 	multisignature.Sigs = append(multisignature.Sigs, sigs[0])
 	require.False(t, multisigKey.VerifyBytes(msg, amino.MustMarshal(multisignature)))
+}
+
+// Every signature here is valid, and any K of them verify. Accepting more than
+// K would let whoever relays the signature drop the spares and still verify.
+func TestThresholdMultisigTakesExactlyK(t *testing.T) {
+	t.Parallel()
+
+	msg := []byte{1, 2, 3, 4, 5}
+	pubkeys, sigs := generatePubKeysAndSignatures(4, msg)
+	multisigKey := NewPubKeyMultisigThreshold(2, pubkeys)
+	signedBy := func(idx ...int) []byte {
+		multisignature := NewMultisig(len(pubkeys))
+		for _, i := range idx {
+			require.NoError(t, multisignature.AddSignatureFromPubKey(sigs[i], pubkeys[i], pubkeys))
+		}
+		return multisignature.Marshal()
+	}
+
+	require.True(t, multisigKey.VerifyBytes(msg, signedBy(0, 2)))
+	require.True(t, multisigKey.VerifyBytes(msg, signedBy(1, 3)))
+	require.False(t, multisigKey.VerifyBytes(msg, signedBy(0, 1, 2)))
+	require.False(t, multisigKey.VerifyBytes(msg, signedBy(0, 1, 2, 3)))
+}
+
+// A multisignature is amino nested in the transaction's signature bytes, which
+// the transaction's canonical check sees as opaque. Padding a varint in it
+// decodes to the same multisignature, at any nesting level, and must not
+// verify.
+func TestVerifyBytesTakesOnlyCanonicalMultisignature(t *testing.T) {
+	t.Parallel()
+
+	msg := []byte{1, 2, 3, 4, 5}
+	pubkeys, sigs := generatePubKeysAndSignatures(2, msg)
+	multisigKey := NewPubKeyMultisigThreshold(1, pubkeys)
+	multisignature := NewMultisig(len(pubkeys))
+	require.NoError(t, multisignature.AddSignatureFromPubKey(sigs[0], pubkeys[0], pubkeys))
+	canonical := multisignature.Marshal()
+	padded := padBitArrayVarint(t, canonical)
+
+	var decoded Multisignature
+	require.NoError(t, amino.Unmarshal(padded, &decoded))
+	require.Equal(t, *multisignature, decoded)
+
+	require.True(t, multisigKey.VerifyBytes(msg, canonical))
+	require.False(t, multisigKey.VerifyBytes(msg, padded))
+
+	outerPubs := []crypto.PubKey{multisigKey}
+	outerKey := NewPubKeyMultisigThreshold(1, outerPubs)
+	outer := func(inner []byte) []byte {
+		ms := NewMultisig(1)
+		require.NoError(t, ms.AddSignatureFromPubKey(inner, multisigKey, outerPubs))
+		return ms.Marshal()
+	}
+	require.True(t, outerKey.VerifyBytes(msg, outer(canonical)))
+	require.False(t, outerKey.VerifyBytes(msg, outer(padded)))
+}
+
+// padBitArrayVarint writes a multisignature's ExtraBitsStored as a two-byte
+// varint, so its BitArray field grows by one byte: 0a L 08 E becomes
+// 0a L+1 08 E|80 00.
+func padBitArrayVarint(t *testing.T, bz []byte) []byte {
+	t.Helper()
+	require.True(t, bz[0] == 0x0a && bz[1] < 0x7f && bz[2] == 0x08 && bz[3] < 0x80, "% x", bz[:4])
+	return append([]byte{0x0a, bz[1] + 1, 0x08, bz[3] | 0x80, 0x00}, bz[4:]...)
 }
 
 // TODO: Fully replace this test with table driven tests
@@ -245,6 +310,190 @@ func TestVerifyBytesRejectsMalformedPubKey(t *testing.T) {
 	})
 }
 
+func TestVerifyBytesRejectsRepeatedLeafAcrossNestedPositions(t *testing.T) {
+	t.Parallel()
+
+	msg := []byte("repeated leaf")
+	privA := ed25519.GenPrivKey()
+	privB := ed25519.GenPrivKey()
+	privC := ed25519.GenPrivKey()
+	pubA, pubB, pubC := privA.PubKey(), privB.PubKey(), privC.PubKey()
+	sigA, err := privA.Sign(msg)
+	require.NoError(t, err)
+	sigB, err := privB.Sign(msg)
+	require.NoError(t, err)
+
+	wrap := func(pub crypto.PubKey, sig []byte, levels int) (crypto.PubKey, []byte) {
+		for range levels {
+			pub = PubKeyMultisigThreshold{K: 1, PubKeys: []crypto.PubKey{pub}}
+			wrapped := NewMultisig(1)
+			require.NoError(t, wrapped.AddSignature(sig, 0))
+			sig = wrapped.Marshal()
+		}
+		return pub, sig
+	}
+	assemble := func(sigs ...[]byte) []byte {
+		assembled := NewMultisig(len(sigs))
+		for i, sig := range sigs {
+			require.NoError(t, assembled.AddSignature(sig, i))
+		}
+		return assembled.Marshal()
+	}
+
+	oneA, oneASig := wrap(pubA, sigA, 1)
+	twoA, twoASig := wrap(pubA, sigA, 2)
+	threeA, threeASig := wrap(pubA, sigA, 3)
+	oneB, oneBSig := wrap(pubB, sigB, 1)
+	deepA, deepASig := wrap(pubA, sigA, MaxNestingDepth-1)
+	oneOfN := PubKeyMultisigThreshold{K: 1, PubKeys: []crypto.PubKey{pubA, pubB}}
+	oneOfNSig := func() []byte {
+		sig := NewMultisig(2)
+		require.NoError(t, sig.AddSignature(sigA, 0))
+		return sig.Marshal()
+	}()
+	left := oneOfN
+	right := PubKeyMultisigThreshold{K: 1, PubKeys: []crypto.PubKey{pubA, pubC}}
+
+	tests := []struct {
+		name string
+		pub  PubKeyMultisigThreshold
+		sig  []byte
+	}{
+		{
+			name: "leaf and one-of-one wrapper",
+			pub:  PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{pubA, oneA}},
+			sig:  assemble(sigA, oneASig),
+		},
+		{
+			name: "leaf and one-of-n subtree",
+			pub:  PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{pubA, oneOfN}},
+			sig:  assemble(sigA, oneOfNSig),
+		},
+		{
+			name: "same leaf in different subtrees",
+			pub:  PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{left, right}},
+			sig:  assemble(oneOfNSig, oneOfNSig),
+		},
+		{
+			name: "maximum depth wrapper",
+			pub:  PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{pubA, deepA}},
+			sig:  assemble(sigA, deepASig),
+		},
+		{
+			name: "four positions backed by one leaf",
+			pub:  PubKeyMultisigThreshold{K: 4, PubKeys: []crypto.PubKey{pubA, oneA, twoA, threeA}},
+			sig:  assemble(sigA, oneASig, twoASig, threeASig),
+		},
+		{
+			name: "four positions backed by two leaves",
+			pub:  PubKeyMultisigThreshold{K: 4, PubKeys: []crypto.PubKey{pubA, oneA, pubB, oneB}},
+			sig:  assemble(sigA, oneASig, sigB, oneBSig),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.NoError(t, tt.pub.ValidateStructure())
+			require.False(t, tt.pub.VerifyBytes(msg, tt.sig))
+		})
+	}
+}
+
+// Empty threshold nodes hold no leaves of their own, so validate treats each as
+// a terminal leaf and two of them collide. Without that, {K:2,[e,e]} with
+// e={K:1} slips past the duplicate scan: the per-level Equals check this scan
+// replaced did catch it, and the leaf walk has to keep catching it.
+func TestValidateRejectsDuplicateEmptySubtrees(t *testing.T) {
+	t.Parallel()
+
+	e := PubKeyMultisigThreshold{K: 1, PubKeys: nil}
+	pk := PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{e, e}}
+
+	require.NoError(t, pk.ValidateStructure(),
+		"structure alone does not reject it; the duplicate scan must")
+	require.EqualError(t, pk.validate(),
+		"threshold k of n multisignature: duplicate pubkey")
+	_, err := NewPubKeyMultisigThresholdChecked(2, []crypto.PubKey{e, e})
+	require.EqualError(t, err,
+		"threshold k of n multisignature: duplicate pubkey")
+}
+
+// A small-order ed25519 key verifies a forged signature, so it counts as a
+// signer that no private key stands behind. The identity accepts S = 0 and
+// R = identity for every message, and so does its encoding with the x sign bit
+// set, which Equals treats as a different key. Without the small-order check,
+// {K:3,[A, id, id']} passes the duplicate scan and one real signature satisfies
+// it.
+func TestValidateRejectsSmallOrderEd25519Leaf(t *testing.T) {
+	t.Parallel()
+
+	var id, idNeg ed25519.PubKeyEd25519
+	id[0], idNeg[0] = 1, 1
+	idNeg[31] = 0x80
+	require.False(t, id.Equals(idNeg), "premise: the two spellings are distinct keys")
+
+	msg := []byte("any sign bytes")
+	forged := make([]byte, ed25519.SignatureSize)
+	forged[0] = 1 // R = identity, S = 0
+	require.True(t, stded25519.Verify(id[:], msg, forged),
+		"premise: crypto/ed25519 accepts the forgery")
+	require.False(t, id.VerifyBytes(msg, forged),
+		"premise: PubKeyEd25519.VerifyBytes rejects small-order keys")
+
+	privA := ed25519.GenPrivKey()
+	pk := PubKeyMultisigThreshold{K: 3, PubKeys: []crypto.PubKey{privA.PubKey(), id, idNeg}}
+	require.EqualError(t, pk.validate(),
+		"threshold k of n multisignature: small-order ed25519 pubkey")
+
+	sigA, err := privA.Sign(msg)
+	require.NoError(t, err)
+	multisig := NewMultisig(3)
+	require.NoError(t, multisig.AddSignature(sigA, 0))
+	require.NoError(t, multisig.AddSignature(forged, 1))
+	require.NoError(t, multisig.AddSignature(forged, 2))
+	require.False(t, pk.VerifyBytes(msg, multisig.Marshal()),
+		"one real signer must not satisfy a 3 of 3")
+
+	// Nested below the top level, the leaf is still reached.
+	nested := PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{
+		privA.PubKey(),
+		PubKeyMultisigThreshold{K: 1, PubKeys: []crypto.PubKey{id}},
+	}}
+	require.EqualError(t, nested.validate(),
+		"threshold k of n multisignature: small-order ed25519 pubkey")
+}
+
+// Leaf distinctness is sufficient for honest K of N but not necessary. Both
+// shapes need K distinct signers (A+B, and A+B+C) yet reuse a leaf, so the rule
+// rejects them. This deliberately conservative bound is documented in
+// adr/pr6504_multisig_unique_leaf_keys.md. The test pins it so a later narrowing
+// stays a conscious choice.
+func TestValidateOverRejectsGenuineKofN(t *testing.T) {
+	t.Parallel()
+
+	pubA := ed25519.GenPrivKey().PubKey()
+	pubB := ed25519.GenPrivKey().PubKey()
+	pubC := ed25519.GenPrivKey().PubKey()
+
+	// {K:2, [A, {K:2,[A,B]}]} is satisfied only by A and B together.
+	andOfAnd := PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{
+		pubA,
+		PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{pubA, pubB}},
+	}}
+	// {K:2, [{K:2,[A,B]}, {K:2,[A,C]}]} is satisfied only by A, B and C together.
+	andOfTwoAnds := PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{
+		PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{pubA, pubB}},
+		PubKeyMultisigThreshold{K: 2, PubKeys: []crypto.PubKey{pubA, pubC}},
+	}}
+
+	for _, pk := range []PubKeyMultisigThreshold{andOfAnd, andOfTwoAnds} {
+		require.NoError(t, pk.ValidateStructure())
+		require.EqualError(t, pk.validate(),
+			"threshold k of n multisignature: duplicate pubkey")
+	}
+}
+
 func TestNewPubKeyMultisigThresholdInvalid(t *testing.T) {
 	t.Parallel()
 
@@ -267,7 +516,8 @@ func TestVerifyBytesSignatureCountMismatch(t *testing.T) {
 
 	msg := []byte{1, 2, 3, 4}
 	pubkeys, sigs := generatePubKeysAndSignatures(3, msg)
-	pk := PubKeyMultisigThreshold{K: 1, PubKeys: pubkeys}
+	// K matches the set bits, so the threshold is not what refuses it.
+	pk := PubKeyMultisigThreshold{K: 3, PubKeys: pubkeys}
 
 	multisignature := NewMultisig(3)
 	for i := range 3 {
@@ -423,7 +673,7 @@ func TestNestingDepth(t *testing.T) {
 
 // wideKey returns a K=1 threshold key over n constituent threshold keys that
 // hold no keys of their own. They are pairwise distinct, because their K
-// differs, and none of them contributes a leaf.
+// differs, and each is a leaf of its own.
 func wideKey(n int) PubKeyMultisigThreshold {
 	subs := make([]crypto.PubKey, n)
 	for i := range n {
@@ -432,7 +682,7 @@ func wideKey(n int) PubKeyMultisigThreshold {
 	return PubKeyMultisigThreshold{K: 1, PubKeys: subs}
 }
 
-// validate scans each level's constituents pairwise to reject duplicates, so an
+// validate compares every pair of the key's leaves to reject duplicates, so an
 // unbounded key is quadratic in its own width. auth's TxSigLimit bounds the
 // width no better than it bounds the depth, and for the same reason:
 // std.CountSubKeys counts leaves, and a constituent holding no keys at all

@@ -86,6 +86,10 @@ type Environment struct {
 	txDispatcher *txDispatcher
 	started      bool
 	stopped      bool
+
+	// validators keeps replayed validator sets for the validators route,
+	// whose height the client picks.
+	validators sm.ValidatorsCache
 }
 
 // Start initializes any per-Environment background services. Currently this

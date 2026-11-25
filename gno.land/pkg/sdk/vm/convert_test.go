@@ -17,10 +17,11 @@ import (
 // mustStringifyJSONResults is a test-only unbounded wrapper: the size bound has
 // its own coverage in keeper_large_input_test.go, and these cases assert on the encoded
 // shape of small hand-built values. Deliberately test-only — production code
-// must never gain an unbounded variant; query paths pass maxQueryExportBytes.
+// must never gain an unbounded variant; query paths pass maxQueryExportBytes
+// and maxQueryOutputBytes.
 func mustStringifyJSONResults(t *testing.T, m *gnolang.Machine, tvs []gnolang.TypedValue, ft *gnolang.FuncType) string {
 	t.Helper()
-	s, err := stringifyJSONResults(m, tvs, ft, 0)
+	s, err := stringifyJSONResults(m, tvs, ft, 0, 0)
 	require.NoError(t, err)
 	return s
 }
@@ -181,6 +182,64 @@ func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
 	})
 }
 
+// An integer argument must be the one spelling strconv.Format* gives its
+// value, so "0" and "-0", or "7" and "007", are not two arguments for one value.
+func TestConvertIntCanonicalForm(t *testing.T) {
+	t.Parallel()
+
+	intTypes := []gnolang.Type{
+		gnolang.IntType, gnolang.Int8Type, gnolang.Int16Type, gnolang.Int32Type, gnolang.Int64Type,
+		gnolang.UintType, gnolang.Uint8Type, gnolang.Uint16Type, gnolang.Uint32Type, gnolang.Uint64Type,
+	}
+	for _, argT := range intTypes {
+		t.Run(argT.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, arg := range []string{"0", "7", "127"} {
+				assert.NotPanics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+			for _, arg := range []string{"-0", "00", "007", "-007", "+7"} {
+				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+		})
+	}
+
+	assert.PanicsWithValue(t, `error parsing int "007": not in canonical form, want "7"`, func() {
+		convertArgToGno("007", gnolang.IntType)
+	})
+	assert.NotPanics(t, func() { convertArgToGno("-7", gnolang.Int8Type) })
+}
+
+// A float argument must be finite, and a negative zero arrives as +0: NaN and
+// ±Inf defeat ordinary range checks in the callee, and -0 is a second value
+// for zero that only Signbit and formatting can tell apart.
+func TestConvertFloatSpecialValues(t *testing.T) {
+	t.Parallel()
+
+	for _, argT := range []gnolang.Type{gnolang.Float32Type, gnolang.Float64Type} {
+		t.Run(argT.String(), func(t *testing.T) {
+			t.Parallel()
+
+			for _, arg := range []string{"NaN", "nan", "NAN", "-NaN", "sNaN", "Inf", "inf", "-Inf", "-inf", "Infinity"} {
+				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+			}
+			for _, arg := range []string{"-0", "-0.0", "-1e-400"} {
+				tv := convertArgToGno(arg, argT)
+				if argT == gnolang.Float32Type {
+					assert.Equal(t, uint32(0), tv.GetFloat32(), arg)
+				} else {
+					assert.Equal(t, uint64(0), tv.GetFloat64(), arg)
+				}
+			}
+			assert.NotPanics(t, func() { convertArgToGno("-1.5", argT) })
+		})
+	}
+
+	assert.PanicsWithValue(t, `error parsing float64 "nan": NaN and Inf are not accepted`, func() {
+		convertArgToGno("nan", gnolang.Float64Type)
+	})
+}
+
 // ============================================================================
 // Error Type Tests
 // ============================================================================
@@ -268,10 +327,7 @@ var Value error = &panicError{}`
 		require.Contains(t, rep, `"results"`)
 	})
 
-	t.Run("out_of_gas_error_method_graceful_degrade", func(t *testing.T) {
-		// When .Error() runs out of gas, tryGetError must graceful-degrade
-		// (no @error) rather than re-panicking — re-panicking would discard
-		// the successful Results JSON that was already computed.
+	t.Run("out_of_gas_error_method_fails_query", func(t *testing.T) {
 		m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
 			PkgPath:  "testdata",
 			GasMeter: stypes.NewGasMeter(100_000),
@@ -300,15 +356,9 @@ var Value error = &gasError{}`
 		tv := tps[0]
 		ft := &gnolang.FuncType{Results: []gnolang.FieldType{{Type: tv.T}}}
 
-		// Must NOT panic. Results must be present. @error must be absent.
-		var rep string
-		require.NotPanics(t, func() {
-			rep = mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
+		require.Panics(t, func() {
+			mustStringifyJSONResults(t, m, []gnolang.TypedValue{tv}, ft)
 		})
-		require.Contains(t, rep, `"results":`,
-			"results payload must be preserved even when .Error() OOGs")
-		require.NotContains(t, rep, `"@error"`,
-			"@error must be omitted on OOG in .Error() — graceful degrade")
 	})
 }
 

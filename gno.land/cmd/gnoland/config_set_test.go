@@ -698,6 +698,16 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"max batch requests updated",
+			[]string{
+				"rpc.max_batch_requests",
+				"10",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxBatchRequests))
+			},
+		},
+		{
 			"max header bytes updated",
 			[]string{
 				"rpc.max_header_bytes",
@@ -852,6 +862,27 @@ func TestConfig_Set_Application(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, types.PruneStrategy(value), loadedCfg.Application.PruneStrategy)
+			},
+		},
+		{
+			"query max gas updated",
+			[]string{"application.query_max_gas", "123456"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, int64(123456), loadedCfg.Application.QueryMaxGas)
+			},
+		},
+		{
+			"query max alloc updated",
+			[]string{"application.query_max_alloc", "654321"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, int64(654321), loadedCfg.Application.QueryMaxAlloc)
+			},
+		},
+		{
+			"query timeout updated",
+			[]string{"application.query_timeout", "1.5s"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, 1500*time.Millisecond, loadedCfg.Application.QueryTimeout)
 			},
 		},
 	}
