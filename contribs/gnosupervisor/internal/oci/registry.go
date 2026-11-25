@@ -443,7 +443,7 @@ func (c *Client) retry(ctx context.Context, f func(ctx context.Context) error) e
 	attempts := max(c.Attempts, 1)
 	wait := c.Backoff
 	var err error
-	for i := 0; i < attempts; i++ {
+	for i := range attempts {
 		if i > 0 {
 			select {
 			case <-ctx.Done():

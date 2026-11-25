@@ -171,6 +171,8 @@ func TestApplyLayerRefusesEscapes(t *testing.T) {
 	t.Parallel()
 	for name, files := range map[string][]ocitest.File{
 		"dot-dot":           {{Name: "../evil", Body: "x"}},
+		"dot-dot inside":    {{Name: "gnoroot/a/../../../evil", Body: "x"}},
+		"fake opaque":       {{Name: "../.wh..wh..opq"}},
 		"any symlink":       {{Name: "l", Type: tar.TypeSymlink, Linkname: "x"}},
 		"symlink chain":     {{Name: "s", Type: tar.TypeSymlink, Linkname: "."}, {Name: "e", Type: tar.TypeSymlink, Linkname: "s/s/../.."}},
 		"device":            {{Name: "dev", Type: tar.TypeChar}},

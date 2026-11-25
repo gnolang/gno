@@ -193,7 +193,7 @@ func binaryVersion(t *testing.T, bin string) string {
 	// The version the node reports is the one its startup gates compare.
 	out, err := exec.Command(bin, "version").CombinedOutput()
 	if err == nil {
-		for _, f := range strings.Fields(string(out)) {
+		for f := range strings.FieldsSeq(string(out)) {
 			if v, ok := upgrades.ParseVersion(f); ok {
 				return v
 			}

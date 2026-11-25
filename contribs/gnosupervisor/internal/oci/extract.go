@@ -76,7 +76,10 @@ func ApplyLayer(root, layerPath, mediaType string, keep func(name string) bool) 
 		case base == whiteoutOpaque:
 			// The directory hides everything lower layers put in it.
 			if dir != "" && (keep(dir) || keep(dir+"/")) {
-				p := filepath.Join(root, filepath.FromSlash(dir))
+				p, err := underRoot(root, dir)
+				if err != nil {
+					return err
+				}
 				if err := realParents(root, p); err != nil {
 					return err
 				}
@@ -89,7 +92,10 @@ func ApplyLayer(root, layerPath, mediaType string, keep func(name string) bool) 
 			target := path.Join(dir, strings.TrimPrefix(base, whiteoutPrefix))
 			// The target may be a file or a whole directory.
 			if keep(target) || keep(target+"/") {
-				p := filepath.Join(root, filepath.FromSlash(target))
+				p, err := underRoot(root, target)
+				if err != nil {
+					return err
+				}
 				if err := realParents(root, p); err != nil {
 					return err
 				}
@@ -106,7 +112,10 @@ func ApplyLayer(root, layerPath, mediaType string, keep func(name string) bool) 
 		if !keep(name) {
 			continue
 		}
-		dst := filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(name, "/")))
+		dst, err := underRoot(root, strings.TrimSuffix(name, "/"))
+		if err != nil {
+			return err
+		}
 		if hdr.Typeflag == tar.TypeLink {
 			src, err := cleanName(hdr.Linkname)
 			if err != nil || src == "" || !keep(src) {
@@ -156,7 +165,10 @@ func writeEntry(root, dst string, hdr *tar.Header, r io.Reader) error {
 		if err != nil || src == "" {
 			return fmt.Errorf("hard link to %q", hdr.Linkname)
 		}
-		srcPath := filepath.Join(root, filepath.FromSlash(src))
+		srcPath, err := underRoot(root, src)
+		if err != nil {
+			return err
+		}
 		if err := realParents(root, srcPath); err != nil {
 			return err
 		}
@@ -172,18 +184,28 @@ func writeEntry(root, dst string, hdr *tar.Header, r io.Reader) error {
 	}
 }
 
-// cleanName turns a tar entry name into a slash-separated relative path, or
-// refuses it if it climbs out of the root.
+// cleanName turns a tar entry name into a slash-separated relative path. A
+// name with ".." anywhere in it is refused: no file of a gnoland image's kept
+// paths has one (git ls-tree of v1.2.0, v1.8.0 and master), and refusing the
+// substring leaves no way to climb out.
 func cleanName(name string) (string, error) {
-	n := path.Clean("/" + strings.TrimPrefix(name, "./"))
-	if strings.Contains(name, "..") {
-		for _, part := range strings.Split(name, "/") {
-			if part == ".." {
-				return "", fmt.Errorf("layer entry %q climbs out of the root", name)
-			}
-		}
+	// The opaque whiteout marker is the one name that has "..": allow it as
+	// the last component only.
+	if strings.Contains(strings.TrimSuffix(name, whiteoutOpaque), "..") {
+		return "", fmt.Errorf("layer entry %q contains \"..\"", name)
 	}
-	return strings.TrimPrefix(n, "/"), nil
+	return strings.TrimPrefix(path.Clean("/"+name), "/"), nil
+}
+
+// underRoot joins a cleaned entry name to root and checks that the result
+// stays strictly inside root.
+func underRoot(root, name string) (string, error) {
+	root = filepath.Clean(root)
+	p := filepath.Join(root, filepath.FromSlash(name))
+	if !strings.HasPrefix(p, root+string(filepath.Separator)) {
+		return "", fmt.Errorf("layer entry %q leaves the extraction root", name)
+	}
+	return p, nil
 }
 
 // realParents fails if a directory between root and dst exists as anything
@@ -194,7 +216,7 @@ func realParents(root, dst string) error {
 		return err
 	}
 	p := root
-	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+	for part := range strings.SplitSeq(rel, string(filepath.Separator)) {
 		p = filepath.Join(p, part)
 		fi, err := os.Lstat(p)
 		if errors.Is(err, os.ErrNotExist) {

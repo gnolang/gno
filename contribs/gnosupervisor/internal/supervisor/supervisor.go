@@ -125,11 +125,9 @@ func Run(ctx context.Context, c Config) error {
 		// Prepare the next release while this one runs, so that the switch
 		// at the halt does not wait on the network, and a registry that is
 		// down does not delay the node now.
-		prefetch.Add(1)
-		go func() {
-			defer prefetch.Done()
+		prefetch.Go(func() {
 			c.prefetchNext(ctx, leg)
-		}()
+		})
 
 		c.Log.Info("starting gnoland", "version", leg.Version, "next_block", height+1,
 			"range_from", leg.Range.From, "range_to", leg.Range.To, "digest", art.Digest)
@@ -357,11 +355,9 @@ func (c Config) runChild(ctx context.Context, leg Leg, art Artifact) (int, bool,
 	watchCtx, stopWatch := context.WithCancel(ctx)
 	var watcher sync.WaitGroup
 	if c.Live != nil {
-		watcher.Add(1)
-		go func() {
-			defer watcher.Done()
+		watcher.Go(func() {
 			c.watchHalt(watchCtx, leg, stuck)
-		}()
+		})
 	}
 
 	var err error

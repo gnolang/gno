@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -143,12 +144,7 @@ func fakeGnoland(args []string) int {
 func runs(chain fakeChain, b int64, version string) bool {
 	for _, r := range chain.Ranges {
 		if b >= r.From && (r.To == 0 || b <= r.To) {
-			for _, v := range r.Versions {
-				if v == version {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(r.Versions, version)
 		}
 	}
 	return false
