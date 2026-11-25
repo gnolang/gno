@@ -53,7 +53,7 @@ miscompile:
 
 ## Decision
 
-1. **`declareWith` accepts any block parent.** Package and file nodes keep a
+1. **`declareWith` accepts any parsed block as parent.** Package and file nodes keep a
    blank `ParentLoc` (canonical `pkgPath.name` TypeIDs); every other block —
    function bodies as before, and now `BlockStmt`, `ForStmt`, `IfCaseStmt`,
    `SwitchClauseStmt`, etc. — contributes its own location. Using the
@@ -71,6 +71,13 @@ miscompile:
    `*FuncLitExpr` itself, so existing TypeIDs are unchanged; nested-block
    declarations previously panicked, so no state persisted before this
    change contains the newly minted TypeIDs.
+
+   That distinctness needs a block with a location of its own. A block
+   parsed from a file has one; a block the preprocessor built has a span
+   derived from its parent's (`Span.Num > 0`), and a block evaluated outside
+   a file (`Machine.Eval`, the REPL) has none. `declareWith` refuses a type
+   declared in either with the same panic as before, so those programs
+   behave as they did.
 
 2. **The const checks become path-based** (landed in #6504). The three
    position-sensitive call sites — const-folding of a name use, const-folding
@@ -114,9 +121,12 @@ re-preprocessing idempotence for stdlib nodes.
 
 ## Consequences
 
-- Type declarations now work in every block a statement can appear in, with
+- Type declarations now work in every block parsed from a file, with
   Go-identical scoping and identity semantics (`tests/files/type43.gno`,
-  `type44.gno`).
+  `type44.gno`, `type46.gno`). One exception predates this change: a body
+  type named like a variable its `for`, `range` or `if` header declares
+  still panics in preprocessing, since body and header share a block. The
+  `if`/`switch` form is #6058's to fix.
 - Uses, assignments, and inc/dec before a shadowing `const` in the same block
   resolve and check against the outer name, as they have since #6504
   (`tests/files/const64.gno`, `const65.gno`, `const66.gno`).
@@ -149,6 +159,12 @@ re-preprocessing idempotence for stdlib nodes.
   type.
 - `tests/files/type45.gno` — Go's `test/bigmap.go`: map key and value types
   declared in sibling blocks (#5662).
+- `tests/files/type46.gno` — every other kind of parsed block: `else if` and
+  `else` bodies, type-switch clauses, `range` bodies, labeled blocks, blocks
+  in func literals, methods and defers, and a package-level var initializer.
+- `TestDeclareWith_NestedBlockNeedsOwnLocation` (`types_test.go`) — a block
+  with a zero or derived location is refused, including through
+  `Machine.Eval`.
 - `tests/files/const64.gno` — use, `++`, `+=` before a shadowing `const`.
 - `tests/files/const65.gno` — a slice and an array literal key before a
   shadowing `:=`.
@@ -159,5 +175,6 @@ re-preprocessing idempotence for stdlib nodes.
 
 Each was run under real `go run` first; the `// Output:` blocks are Go's
 actual output, and the `// TypeCheckError:` blocks match Go's error.
-`const64`–`const66` fail against name-keyed `GetIsConst` call sites, and
-`assign46` fails without #6089's func check.
+`const64`–`const66` fail against name-keyed `GetIsConst` call sites,
+`assign46` fails without #6089's func check, and the `declareWith` test fails
+without the location check.
