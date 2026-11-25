@@ -1,0 +1,99 @@
+# A storage deposit comes out of the payer's spendable balance only. A refused
+# deposit (broadcast with -simulate skip) commits the gas fee and locks nothing
+# in the escrow; the refund of a deposit goes to whoever frees the bytes.
+
+# Cliff: 1000 GNOT, 980 locked until a cliff 1000h out, ~20 spendable.
+adduser cliff 1000000000ugnot 980000000ugnot,0s,1000h,delayed
+# Linear: 100 GNOT from 1h ago to 1h out, ~50 spendable.
+adduser multi 100000000ugnot 100000000ugnot,-1h,1h
+adduser other 1000000000ugnot
+
+loadpkg gno.land/r/test/kv $WORK/kv
+loadpkg gno.land/r/test/kv2 $WORK/kv2
+gnoland start
+
+# Baseline: each escrow holds only its package's genesis deposit.
+gnokey query bank/balances/g18qcaeqw6ykh3ryn0j0y6nnlqawjjj6vlepnjgu
+stdout 'data: "331200ugnot"'
+
+## Cliff: a locked deposit is refused, only the fee moves.
+! gnokey maketx call -pkgpath gno.land/r/test/kv -func Fill -args k -args 300000 -simulate skip -max-deposit 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test cliff
+stderr 'vesting locked coins'
+gnokey query bank/balances/g18qcaeqw6ykh3ryn0j0y6nnlqawjjj6vlepnjgu
+stdout 'data: "331200ugnot"'
+gnokey query bank/balances/$cliff_user_addr
+stdout 'data: "999000000ugnot"'
+
+## Cliff: a within-spendable deposit commits.
+gnokey maketx call -pkgpath gno.land/r/test/kv -func Fill -args k -args 20000 -max-deposit 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test cliff
+stdout 'STORAGE FEE: +2[0-9]{6}ugnot'
+
+# Freeing the vester's own bytes refunds it, but the schedule still bites.
+gnokey maketx call -pkgpath gno.land/r/test/kv -func Set -args k -args '' -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test cliff
+stdout 'STORAGE REFUND: 2[0-9]{6}ugnot'
+! gnokey maketx send -send 18000000ugnot -to $other_user_addr -simulate skip -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test cliff
+stderr 'vesting locked coins'
+
+## Partial unlock + cumulative multi-realm charge.
+# 30 GNOT into one realm fits (~50 spendable).
+gnokey maketx call -pkgpath gno.land/r/test/kv2 -func Fill -args a -args 300000 -max-deposit 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test multi
+stdout 'STORAGE FEE: +30[0-9]{6}ugnot'
+# Two realms, 15 GNOT each in one tx, after 30 already spent: kv's charge fits
+# what is left and kv2's does not, so the whole tx is refused and neither escrow
+# changes.
+! gnokey maketx run -simulate skip -max-deposit 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 40000000 -chainid=tendermint_test multi $WORK/run/two.gno
+stderr 'gno.land/r/test/kv2, vesting locked coins'
+! stderr 'deposit gno.land/r/test/kv,'
+gnokey query bank/balances/g18qcaeqw6ykh3ryn0j0y6nnlqawjjj6vlepnjgu
+stdout 'data: "345100ugnot"'
+gnokey query bank/balances/g1tl039pmm0es5yhggsddrjkr5dqaxg0z4g5l6gl
+stdout 'data: "30347500ugnot"'
+
+# Another address frees the multi vester's bytes: the refund is already-unlocked
+# coins to that address, so no locked coin ever moved.
+gnokey maketx call -pkgpath gno.land/r/test/kv2 -func Set -args a -args '' -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test other
+stdout 'STORAGE REFUND: 30[0-9]{6}ugnot'
+gnokey query bank/balances/$other_user_addr
+stdout 'data: "1029001600ugnot"'
+
+-- kv/gnomod.toml --
+module = "gno.land/r/test/kv"
+gno = "0.9"
+-- kv/kv.gno --
+package kv
+
+import "strings"
+
+var store = map[string]string{}
+
+// Set lets anyone overwrite any key, so anyone can free bytes another
+// address paid for.
+func Set(cur realm, key, value string) { store[key] = value }
+
+// Fill stores n bytes under key.
+func Fill(cur realm, key string, n int) { store[key] = strings.Repeat("x", n) }
+-- kv2/gnomod.toml --
+module = "gno.land/r/test/kv2"
+gno = "0.9"
+-- kv2/kv.gno --
+package kv2
+
+import "strings"
+
+var store = map[string]string{}
+
+func Set(cur realm, key, value string) { store[key] = value }
+
+func Fill(cur realm, key string, n int) { store[key] = strings.Repeat("x", n) }
+-- run/two.gno --
+package main
+
+import (
+	"gno.land/r/test/kv"
+	"gno.land/r/test/kv2"
+)
+
+func main(cur realm) {
+	kv.Fill(cross(cur), "r1", 150000)
+	kv2.Fill(cross(cur), "r2", 150000)
+}
