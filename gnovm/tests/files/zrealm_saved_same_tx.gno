@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_saved_same_tx
 package zrealm_saved_same_tx
 
-// S candidate: a value saved in the same transaction is not real yet, so the
-// SAVED predicate may miss it. Stored in a package variable and called here.
+// A function value stored in a package variable is read-only from the store
+// on, also in the call that made it.
 
 import "gno.land/r/tests/vm/cbsaved"
 
@@ -11,5 +11,5 @@ func main(cur realm) {
 	println("owner:", cbsaved.Owner)
 }
 
-// Output:
-// owner: same-tx
+// Error:
+// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner

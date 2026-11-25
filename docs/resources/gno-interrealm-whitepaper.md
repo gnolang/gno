@@ -188,11 +188,17 @@ read-only code, at `init`, or loaded from storage has id 0, which matches no cal
 
 Otherwise a value made in one legitimate call would carry that call's write rights forever.
 
+**It keeps its id only while it stays private to that call.** The id is wiped, for good, when the value is
+stored in saved state, or when it is handed to, or can be reached by, another realm or a library outside the
+realm's import tree: as an argument or result, or inside a struct, slice, map or pointer that is. So the same
+call line gives the same answer in the call that stored a function and in every later one, and a realm
+never runs its own writer because someone else's code picked it.
+
 ```go
 // realm cbsaved
 func RegisterThenRun(cur realm) {
-	Reg = append(Reg, func(s string) { Owner = s })
-	for _, f := range Reg { f("registered") }    // made and called in this call: writes
+	Reg = append(Reg, func(s string) { Owner = s })   // stored: id wiped
+	for _, f := range Reg { f("registered") }         // refused, here and in every later call
 }
 func MakeValue(cur realm) func(string) { return func(s string) { Owner = s } }
 func CallValue(cur realm, f func(string)) { f("returned") }
@@ -680,7 +686,7 @@ What still writes:
 // a's own declared writer, handed to a library inside a's gate
 func main(cur realm) { pfuncbind.Apply(set, obj) }   // writes: made and run in this call
 // a closure made and run in the same crossing call
-cbsaved.RegisterThenRun(cross(cur))                  // writes: owner: registered
+func Bump(cur realm) { f := func() { n++ }; f() }    // writes: never stored, never handed out
 ```
 
 A realm may store a library function as a value, but never write with it: it has id 0
@@ -691,7 +697,8 @@ is a new crossing call. Call the helper without `cross`, or make the closure a c
 
 Rule: R2a, R2b. Tests: `zrealm_maker_getdecl.gno`, `zrealm_home_gate_result.gno`, `zrealm_maker_valmv_gate.gno`,
 `zrealm_maker_ownfunc.gno` (Output `field: own`), `zrealm_saved_register.gno`, `zrealm_saved_returned_reentry.gno`,
-`zrealm_entry_pfunc_pkgvar.gno`, `zrealm_saved_cross_helper.gno`; R2a-save: `zrealm_s3u_rv2_1.gno`.
+`zrealm_entry_pfunc_pkgvar.gno`, `zrealm_saved_cross_helper.gno`; stored or shared: `zrealm_saved_same_tx.gno`,
+`zrealm_fvshare_*.gno`; R2a-save: `zrealm_s3u_rv2_1.gno`.
 
 ### 7.10 Accept interfaces and plugins
 
@@ -764,9 +771,8 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 
 ### 7.14 Known limits
 
-- A writer a realm made in its current crossing call and handed out behind a pointer still writes when the
-  realm calls it back (`zrealm_t38_wrap_ptr`). One kept from an earlier call, reached through a container the
-  caller supplies, is refused (R2a).
+- A fresh function a realm stores and then runs in the same call is read-only; run it first, or make it a
+  crossing function (`zrealm_saved_same_tx`, `zrealm_t38_wrap_ptr`).
 - A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm; copied to a local
   first, it runs read-only (`zrealm_ctw_owncb`'s `ViaDispatch`, `zrealm_saved_libtable_copy`).
 - A library in the realm's import tree is trusted for interface and method-value calls (R2c).
@@ -784,7 +790,7 @@ Tests: `zrealm_home_known_relay_table.gno`, `zrealm_home_known_ro_relay.gno`, `z
 - Return pointers, and errors as pointers; copy only your own values (R3).
 - A callback that must change its own realm is `func(cur realm, …)`, called with `f(cross(cur), …)`; a stored
   or returned function value is read-only outside the crossing call that made it (R2a, R2b).
-- Never call function values found in caller-supplied containers.
+- A function value that was stored, or that other code could reach, runs read-only: do not count on it to write.
 - Reach code through packages you import; type-assert caller-supplied interface values (R2c).
 - Never hand `cur` to code you did not write, and never store it (R4, §6.2).
 - A crossing method runs as its realm for anyone holding the object: check the caller there too (§7.2).
@@ -798,7 +804,7 @@ for every row is printed under the table.
 | Rule | Enforcing code | Fixture family | Files |
 |---|---|---|---|
 | R1 Cross to write | `gnovm/pkg/gnolang/machine.go:readonlyAccessPanic`, `isReadonly` | `zrealm_ctw_*` (14) + `zrealm_crossrealm*` (56) | 70 |
-| R2a A function value writes only in the crossing call that made it | `gnovm/pkg/gnolang/crossingfn.go:crossingCallee` (the predicate), `calledByValue` (22), `restrictByValueCall` (40); the crossing id in `alloc.go:crossingOf` (1386) and `machine.go`, read in `op_call.go` (20, 43, 793) | `zrealm_saved_*` | 16 |
+| R2a A function value writes only in the crossing call that made it | `gnovm/pkg/gnolang/crossingfn.go:crossingCallee` (the predicate), `calledByValue` (22), `restrictByValueCall` (40), `shareDeep`; the crossing id in `alloc.go:crossingOf` (1386) and `machine.go`, read in `op_call.go` (20, 43, 793) | `zrealm_saved_*` | 16 |
 | R2b A function value copied out of its realm loses its maker | `gnovm/pkg/gnolang/alloc.go:stripMaker` (627, used at `values.go:1390`); still needed with R2a | `zrealm_maker_*` (15) + `zrealm_saved_*` (16) | 31 |
 | R2c Only imported library code writes | `gnovm/pkg/gnolang/machine.go:foreignLib`, `trustRoot` | `zrealm_entry_iface*` (27, includes `zrealm_entry_iface.gno`) + `zrealm_import_*` (6) | 33 |
 | R2a-save The refusal at save | `gnovm/pkg/gnolang/machine.go:unstoredWrite` (3838), `markViewWrite` (3855); `gnovm/pkg/gnolang/realm.go:assertNoUncrossedWrite` (581) | `zrealm_s3u_*` | 38 |
@@ -846,6 +852,10 @@ no counter can wrap or differ between nodes. It sits in `ObjectInfo` padding (`o
 gas are unchanged; it is set in `alloc.go` and `machine.go` and read at the call in `op_call.go`.
 R2a-save's mark is `ObjectInfo.s3Written`; `markViewWrite` marks a written unreal heap item the same way.
 R2b is `stripMaker` in `alloc.go`; it stays with R2a, since R2a's id check needs a copy to carry no maker.
+The "private" half of R2a is `shareDeep` in `crossingfn.go`: it wipes the id of every function value
+reachable through unsaved objects and flags those objects (`ObjectInfo.shared`, memory only), so a function put
+into one later is wiped too. It runs when an object is attached to a saved or shared one (`Realm.DidUpdate`)
+and on the arguments and results of a call that changes realm or enters or leaves view-only code.
 
 ### The write check, step by step
 

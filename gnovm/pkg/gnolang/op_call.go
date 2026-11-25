@@ -416,6 +416,7 @@ func (m *Machine) doOpCall() {
 		args = []TypedValue{*m.PopValue()}
 	} else {
 		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
+		m.shareHandedArgs(fr, args)
 	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
@@ -1065,6 +1066,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		})
 		m.PushOp(OpCallDeferNativeBody)
 	}
+	m.shareHandedArgs(m.LastFrame(), dfr.Args)
 	// Assign parameters in forward order.
 	for i, arg := range dfr.Args {
 		// We need to define, but b was already populated

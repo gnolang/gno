@@ -4,23 +4,27 @@ Accepted. Supersedes the owner grant (`mutable`, #6207) and interrealm v2's
 borrow rules (#5669). Teaching companion: `docs/resources/gno-interrealm.md`.
 
 ## Context
-
 A realm never chose all the code that ran against its stored objects: library
 methods borrowed its authority, caller-supplied functions ran as the realm, and
 exported non-crossing functions wrote. Only a crossing call into the realm writes.
 
 ## The rules
-
 **R1 Cross to write (code called by name).** A realm's stored state changes only during a crossing
 call into it: `func F(cur realm, …)` called `F(cross(cur), …)`. Any other entry
 runs read-only. Library (`/p/`) code never writes another realm's objects.
 
 **R2 Code that arrives as a value** (function value or interface): R2a–R2c.
-
-**R2a A function value writes only in the crossing call that made it.** A
-non-crossing function value — closure, bound method value, declared function
-used as a value — called by value writes only during the crossing call that
-made it; every crossing call (the tx entry included) gets a fresh marker
+**R2a A function value writes only in the crossing call that made it, while
+private to it.** A non-crossing function value (closure, bound method value,
+declared function used as a value) called by value writes only during the
+crossing call that made it, and only until it is stored in saved state or
+handed to, or reachable by, another realm or read-only code (a library outside
+the import tree, any function called through a value: `Decorate` in `fvshare`)
+(`shareDeep`: wipes the maker through unsaved objects and flags them
+`shared`, memory only; run on attach to a saved or shared object and on
+arguments and results of a call that changes realm or view-only state). So a
+stored function gives one answer in every call, and a realm never runs its own
+writer because other code picked it. Every crossing call (the tx entry included) gets a fresh marker
 object (`crossingCall`) and each value points to it; equal pointers mean the
 same call, with no counter to wrap. Made in read-only code, at init, or loaded
 from the store: nil, which never matches, and the call runs `enterReadOnly`. "By value" is
@@ -32,7 +36,7 @@ ones) and a copy gets nil, so sizes, encoding and gas are unchanged. Rejected: S
 container re-entered from a crossing callback; S2 (write while its maker is
 current) accepts a value made in crossing call N run in M≠N; M' (a crossing
 closure crosses only from its maker realm) refuses the sanctioned hand-off to
-another realm's executor (`r/gov/dao` into `r/sys/validators`) and is dropped.
+another realm's executor (`r/gov/dao` into `r/sys/validators`).
 
 **R2a-save: the write is allowed, the save is not.** Inside a read-only stretch
 entered by R2a, a write to the read-only realm's own object whose ObjectID is
@@ -47,9 +51,7 @@ was set; no amino, hash, state byte or gas constant changes.
 **R2b A function value copied out of its realm loses its maker.** When another
 realm's code hands a function value over (argument, receiver, result) or copies
 it, what arrives has no maker. Publishing a function is never a grant of write
-power. Not covered: a caller hands a realm's crossing function a reference
-(slice, map, pointer, object) to its own stored functions; a crossing function
-must not call function values from caller-supplied containers.
+power.
 
 **R2c Only imported library code writes.** Code reached through an interface or a method value is
 trusted only if its package is in the calling realm's import tree (its imports
@@ -80,23 +82,19 @@ or allocation of another realm's type. An R2a-entered stretch says instead:
 call that made it`. `runtime.FuncPkgPath(fn)` names a func value's package.
 
 ## Alternatives rejected
-
 - **Owner grant (`mutable`, #6207)**: one grant hands out every method. **Stamping function values with their sender.** Lost in containers and variadics; a taint bit or side table was rejected for garbage and gas.
 - **Receiver ownership for interface calls** (cannot tell who picked the code); **unsaved objects stay writable** (saving depends on finalization); **implicit crossing on every call** (shifts the caller identity silently).
 
 ## Consequences
-
 - Writers are crossing functions or methods, authenticated by `cur.Previous()`; a crossing method runs as its realm for anyone holding the object, so it must check the caller. Constructors work without crossing; their objects are read-only to callers, and a pointer handed out is a view.
 - A callback that writes its own realm is a crossing closure. A realm's iterator or builder needs crossing; hand out a library type value and keep the realm's data in its own or library types.
 
 ## Known open
-
 - A library in the realm's import tree is trusted for interface calls; type-assert caller-supplied interface values to the types you expect.
-- A writer R made in its current crossing call and handed out behind a pointer still writes when R calls it back (`zrealm_t38_wrap_ptr`): R2b strips values, not pointees. The caller's code cannot run it writable (`zrealm_t38_wrap_ptr_call`); one kept from an earlier call is refused (`zrealm_home_known_relay_table`).
+- Store-then-run in one call is read-only (`zrealm_saved_same_tx`, `zrealm_t38_wrap_ptr`, `zrealm_fvshare_*`): run the function before storing it, or make it crossing. Rejected: wiping only on store (a library outside the import tree could still hand a realm its own fresh writer).
 - A function value a library stores in a package variable acts for the caller when called in place (`lib.Table[k](x)`); copied to a local first, it has no maker and runs view-only (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
 
 ## Upgrade notes
-
 - Struct errors returned to other realms become pointer errors (`sys/users`); library containers receive realm structs as pointers (`commondao`).
 - A constructor whose closures the realm's crossing functions later run must itself be crossing (`gov/dao NewGovDAO`).
 - State saved before the change keeps its old function-value references: the rules hold chain-wide only from a fresh genesis or a migration. Gas and storage deposits shift where a saved handle becomes its own object.

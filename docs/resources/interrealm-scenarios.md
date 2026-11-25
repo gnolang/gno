@@ -18,7 +18,7 @@ R2b are marked **fn-rule** and are re-checked when either changes.
 Legend
 
 - Rule: R1 cross to write (code called by name); R2 code that arrives as a
-  value: R2a it writes only in the crossing call that made it, R2b copied out of
+  value: R2a it writes only in the crossing call that made it and until stored or shared, R2b copied out of
   its realm it loses its maker, R2c library code writes only if imported (R2a-save: a
   new object it wrote is not saved); R3 types stay home (only pointers cross);
   R4 the ticket `cur` stays in its call.
@@ -630,7 +630,7 @@ directories) under `examples/gno.land/r`.
 | Get a method value from a victim and call it | maker_getmv.txtar | ERR: gno.land/r/demo/zvic's code is read-only here: a function value writes only in the crossing call that made it | R2a fn-rule | f |
 | Named function value across a node restart | maker_named_restart.txtar | OUT: "named" string / "value" string | R2a fn-rule | g |
 | Stored function value fired and then called directly | maker_stored.txtar | ERR: gno.land/r/demo/mka's code is read-only here: a function value writes only in the crossing call that made it | R2a fn-rule | g |
-| Anonymous own-function routes | fv_anon_own.txtar, fv_anon_own_private.txtar, fv_anon_own_routes.txtar | OUT: new / again / later / after | R2a fn-rule | f |
+| Anonymous own-function routes | fv_anon_own.txtar, fv_anon_own_private.txtar, fv_anon_own_routes.txtar | OUT: new / after; ERR: …code is read-only here… (stored function rerun) | R2a fn-rule | f |
 | Lazy function value copy refused | fv_copy_lazy.txtar | ERR: cannot copy gno.land/r/test/fva.T outside realm (use a pointer) | R3 | d |
 | Named function value across restart (pfunc) | pfunc_named_restart.txtar | OUT: "pwnd-via-apply" string | R2a fn-rule | g |
 | Stored interface pointer used from a run script | iface_storedptr_2tx.txtar | ERR: cannot modify object owned by another realm from library code | R1, R2c | h |

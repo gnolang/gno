@@ -46,3 +46,81 @@ func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross boo
 	}
 	m.enterReadOnlyByS3(m.Realm)
 }
+
+// shareHandedArgs shares the arguments of a call that left the caller's realm
+// or entered read-only code (a stranger's library, or any function value).
+func (m *Machine) shareHandedArgs(fr *Frame, args []TypedValue) {
+	if len(args) == 0 {
+		return
+	}
+	if !m.viewOnly || fr.LastViewOnly {
+		if now, _ := m.Alloc.holdRealm(); now == fr.callerHold() {
+			return
+		}
+	}
+	for i := range args {
+		shareDeep(args[i].V)
+	}
+}
+
+// shareDeep clears the maker of every function value reachable from v
+// through unsaved objects and flags those objects shared, so R2a holds only
+// for a function value that stayed private to the call that made it. Saved
+// and already-shared objects end the walk; a function's captures are skipped.
+// It keeps its own work list: a long pointer chain must not grow the Go stack.
+func shareDeep(v Value) {
+	var buf [8]Value
+	todo := append(buf[:0], v)
+	for len(todo) > 0 {
+		v, todo = todo[len(todo)-1], todo[:len(todo)-1]
+		switch cv := v.(type) {
+		case PointerValue:
+			switch cv.Base.(type) {
+			case nil, *Block:
+				if cv.TV != nil {
+					todo = append(todo, cv.TV.V)
+				}
+			default:
+				todo = append(todo, cv.Base)
+			}
+		case *SliceValue:
+			todo = append(todo, cv.Base)
+		case *FuncValue:
+			cv.setMadeIn(nil)
+		case *BoundMethodValue:
+			cv.setMadeIn(nil)
+		case *ArrayValue:
+			if markShared(cv) {
+				for i := range cv.List {
+					todo = append(todo, cv.List[i].V)
+				}
+			}
+		case *StructValue:
+			if markShared(cv) {
+				for i := range cv.Fields {
+					todo = append(todo, cv.Fields[i].V)
+				}
+			}
+		case *MapValue:
+			if markShared(cv) {
+				for cur := cv.List.Head; cur != nil; cur = cur.Next {
+					todo = append(todo, cur.Key.V, cur.Value.V)
+				}
+			}
+		case *HeapItemValue:
+			if markShared(cv) {
+				todo = append(todo, cv.Value.V)
+			}
+		}
+	}
+}
+
+// markShared flags o shared; false if it was already, or is saved.
+func markShared(o Object) bool {
+	oi := o.GetObjectInfo()
+	if oi.shared || oi.GetIsReal() {
+		return false
+	}
+	oi.shared = true
+	return true
+}

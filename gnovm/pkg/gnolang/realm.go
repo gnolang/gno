@@ -258,7 +258,8 @@ func (rlm *Realm) String() string {
 
 // po's old elem value is xo, will become co.
 // po, xo, and co may each be nil.
-// if rlm or po is nil, do nothing.
+// if rlm or po is nil, do nothing but the R2a sharing below, which runs
+// whatever rlm is.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
 //
@@ -270,9 +271,15 @@ func (rlm *Realm) String() string {
 //
 // Indirect callers via GetPointerAtIndex (values.go, map key attach):
 //   - PopAsPointer2 (write path): checks readonly before calling.
-//   - doOpIndex (read path): passes nilRealm, so DidUpdate is a no-op.
-//   - debugger: passes nilRealm (read-only), so DidUpdate is a no-op.
+//   - doOpIndex (read path): passes nilRealm, so only the R2a sharing runs.
+//   - debugger: passes nilRealm (read-only), likewise.
 func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
+	// R2a: a function value attached to saved or shared state stops writing.
+	if co != nil && po != nil {
+		if oi := po.GetObjectInfo(); oi.shared || oi.GetIsReal() {
+			shareDeep(co)
+		}
+	}
 	if rlm == nil {
 		// /p/-immutability gate: in StageRun, reject mutations to real
 		// /p/-stamped objects. m.Realm becomes nil when a method is

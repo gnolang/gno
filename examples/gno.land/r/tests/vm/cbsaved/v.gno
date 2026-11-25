@@ -31,13 +31,14 @@ func CaptureFromTable(cur realm) {
 }
 
 // SaveThenRun stores a fresh closure in a package variable and runs it in the
-// same transaction, before any finalize could make it real.
+// same call: stored, it is read-only.
 func SaveThenRun(cur realm) {
 	sameTx = func(s string) { Owner = s }
 	sameTx("same-tx")
 }
 
-// RegisterThenRun stores a fresh closure in a package slice and runs it back.
+// RegisterThenRun stores a fresh closure in a package slice and runs it back:
+// read-only.
 func RegisterThenRun(cur realm) {
 	Reg = append(Reg, func(s string) { Owner = s })
 	for _, f := range Reg {

@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/fvpass"
+gno = "0.9"

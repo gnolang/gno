@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_saved_register
 package zrealm_saved_register
 
-// S candidate: a fresh closure appended to a package slice and called from a
-// range copy; the value is saved, but nowhere near finalize yet.
+// A fresh closure appended to a package slice is read-only from the store on,
+// also through a range copy in the same call.
 
 import "gno.land/r/tests/vm/cbsaved"
 
@@ -11,5 +11,5 @@ func main(cur realm) {
 	println("owner:", cbsaved.Owner)
 }
 
-// Output:
-// owner: registered
+// Error:
+// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner

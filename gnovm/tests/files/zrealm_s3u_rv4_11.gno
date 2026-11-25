@@ -1,5 +1,5 @@
 // PKGPATH: gno.land/r/zrealm_s3u_rv4_11
-// R2a-save rv4: control: /p/ counter built and called while the realm is current; the realm stores it
+// R2a-save rv4: /p/ counter built and called while the realm is current; once stored it is read-only, so its next call is refused
 package zrealm_s3u_rv4_11
 
 import "gno.land/p/demo/tests/entryclosure/v0"
@@ -14,5 +14,5 @@ func main(cur realm) {
 	println("c:", fs[0]())
 }
 
-// Output:
-// c: 3
+// Error:
+// gno.land/r/zrealm_s3u_rv4_11: an object written by read-only code would be stored (write it inside a crossing call of gno.land/r/zrealm_s3u_rv4_11)

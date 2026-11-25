@@ -488,8 +488,9 @@ it can write no realm's stored objects, neither the receiver nor an argument.
 A method value an attacker binds on your view is refused wherever it runs, and
 one your realm binds in read-only code has no maker. A realm that stores a
 function value it did not make gets no write authority from it: R2a gives it
-id 0, so it runs read-only; to keep callers' writers, store crossing functions
-and call them with `cross`.
+id 0, so it runs read-only. A function the realm made itself is read-only too
+once it is stored or another realm's code could reach it; to keep a writer,
+store a crossing function and call it with `cross`.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`

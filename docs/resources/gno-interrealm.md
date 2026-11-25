@@ -48,15 +48,21 @@ var total int
 
 func Run(cur realm) {
 	f := func() { total++ }
-	f()                       // same crossing call: writes
-	other.Keep(cross(cur), f)
-	other.RunKept(cross(cur)) // later crossing call: read-only
+	f()                       // same crossing call, still private: writes
+	other.Keep(cross(cur), f) // handed to another realm
+	f()                       // read-only from here on
 }
 ```
 
 A non-crossing function value (a closure, a bound method value, a declared
-function used as a value) writes only during the crossing call that made it;
-made in read-only code, at init, or loaded from the store, its id is 0 and the
+function used as a value) writes only during the crossing call that made it,
+and only while it has stayed private to that call. It stops being private, for
+good, when it is stored in saved state, or when it is handed to, or can be
+reached by, another realm or code that runs read-only: a library outside the
+realm's import tree, or any function called through a value, the realm's own
+stored helper included (directly, or inside a struct, slice, map or pointer).
+To decorate a writer, call the helper by its declared name. Made in read-only code,
+at init, or loaded from the store, its id is 0 and the
 call runs read-only. There is then no crossing function to call: make the
 callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or rebuild
 the value inside the call that runs it.
@@ -71,24 +77,26 @@ cannot tell who filled it, or with what. So a kept function writes only when
 its type says so:
 
 ```go
-var onSale  func()                 // plain: writes only in the call that made it
+var onSale  func()                 // plain: never writes once stored
 var onSale2 func(cur realm, n int) // crossing: writes in any call, with cross
 
 func Setup(cur realm) {
 	reset := func() { total = 0 }
+	reset()  // writes: made here, not stored yet
 	onSale = reset
-	reset()  // writes
-	onSale() // writes: still the call that made it
+	onSale() // read-only: stored
+	reset()  // read-only: the same function
 	onSale2 = func(cur realm, n int) { total = n }
+	onSale2(cross(cur), 5) // writes
 }
 
 func Later(cur realm) {
-	onSale()               // read-only: made in an earlier call
+	onSale()               // read-only, the same answer as in Setup
 	onSale2(cross(cur), 5) // writes
 }
 ```
 
-The plain kind must not write later because anyone may call an exported
+The plain kind must not write once stored because anyone may call an exported
 helper such as `func MakeHook(it *Item) func()` to get a function with the
 realm's code and their own choice of `it`, and a plain function has no `cur`
 to check who is calling. A crossing function has both: `cur.Previous()` names
@@ -536,7 +544,8 @@ A function declared in p packages (or in stdlib) when called:
    object are refused.
  * a closure, bound method value or declared function used as a value follows
    R2a: it acts for the realm whose writable code made it, only in the crossing
-   call that made it, and view-only when made in read-only code.
+   call that made it and while private to it, and view-only when stored, shared
+   or made in read-only code.
  * runs view-only when reached through an interface or method value whose
    package the current realm does not import, directly or through its imports,
    the standard library included.
