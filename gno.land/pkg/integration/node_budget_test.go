@@ -5,23 +5,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/meminfo"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // memOf returns a readMem stub reporting a fixed amount of available memory.
-func memOf(available uint64) func() (testutils.MemInfo, bool) {
-	return func() (testutils.MemInfo, bool) {
-		return testutils.MemInfo{Total: 32 << 30, Available: available}, true
+func memOf(available uint64) func() (meminfo.Info, bool) {
+	return func() (meminfo.Info, bool) {
+		return meminfo.Info{Total: 32 << 30, Available: available}, true
 	}
 }
 
 // memAt returns a readMem stub reporting whatever *available holds, for tests
 // that change it as they go.
-func memAt(available *uint64) func() (testutils.MemInfo, bool) {
-	return func() (testutils.MemInfo, bool) {
-		return testutils.MemInfo{Total: 32 << 30, Available: *available}, true
+func memAt(available *uint64) func() (meminfo.Info, bool) {
+	return func() (meminfo.Info, bool) {
+		return meminfo.Info{Total: 32 << 30, Available: *available}, true
 	}
 }
 
@@ -202,8 +203,8 @@ func TestNodeBudgetStaticWhenMemoryUnknown(t *testing.T) {
 
 	// reserve == 0 marks a platform whose free memory we cannot read: the
 	// allowance is then whatever min says, and never moves.
-	b := &nodeBudget{min: 4, max: 16, limit: 4, readMem: func() (testutils.MemInfo, bool) {
-		return testutils.MemInfo{}, false
+	b := &nodeBudget{min: 4, max: 16, limit: 4, readMem: func() (meminfo.Info, bool) {
+		return meminfo.Info{}, false
 	}}
 	for range 4 {
 		require.True(t, b.tryAcquire())
@@ -237,7 +238,7 @@ func TestNewNodeBudgetHonoursOverride(t *testing.T) {
 func TestNewNodeBudgetDefaults(t *testing.T) {
 	// Clear any developer override: it would pin the budget rather than let it ramp.
 	t.Setenv(testutils.MaxParallelEnv, "")
-	if _, ok := testutils.ReadMemInfo(); !ok {
+	if _, ok := meminfo.Read(); !ok {
 		t.Skip("no memory reading on this platform")
 	}
 	// The budget sizes itself off GOMAXPROCS, so set it rather than depend on
@@ -277,10 +278,10 @@ func TestNodeBudgetPacesReadings(t *testing.T) {
 	b := &nodeBudget{
 		min: 1, max: 8, limit: 1,
 		reserve: 8 << 30,
-		readMem: func() (testutils.MemInfo, bool) {
+		readMem: func() (meminfo.Info, bool) {
 			reads++
 			// In the band: above the reserve, no room for a whole node.
-			return testutils.MemInfo{Total: 32 << 30, Available: 8<<30 + nodeMemCost - 1}, true
+			return meminfo.Info{Total: 32 << 30, Available: 8<<30 + nodeMemCost - 1}, true
 		},
 		readHeld: grown,
 	}

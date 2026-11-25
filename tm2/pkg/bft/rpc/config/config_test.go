@@ -33,6 +33,7 @@ func TestRPCConfigValidateBasic(t *testing.T) {
 		{"negative idle_timeout", func(c *RPCConfig) { c.IdleTimeout = -time.Second }},
 		{"negative max_body_bytes", func(c *RPCConfig) { c.MaxBodyBytes = -1 }},
 		{"negative max_header_bytes", func(c *RPCConfig) { c.MaxHeaderBytes = -1 }},
+		{"negative max_batch_requests", func(c *RPCConfig) { c.MaxBatchRequests = -1 }},
 	}
 
 	for _, tc := range tt {
