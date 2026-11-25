@@ -75,6 +75,11 @@ type RPCConfig struct {
 	// Maximum size of request header, in bytes
 	MaxHeaderBytes int `json:"max_header_bytes" toml:"max_header_bytes" comment:"Maximum size of request header, in bytes"`
 
+	// Maximum number of requests in one JSON-RPC batch, over HTTP or WebSocket.
+	// A larger batch is refused whole, with a single error response.
+	// 0 - unlimited.
+	MaxBatchRequests int `json:"max_batch_requests" toml:"max_batch_requests" comment:"Maximum number of requests in one JSON-RPC batch, over HTTP or WebSocket.\n A larger batch is refused whole, with a single error response.\n 0 - unlimited."`
+
 	// Whether abci_query serves the paths that run code on the node, such as
 	// ".app/simulate" and "vm/qeval". false refuses them; every other path stays open.
 	AllowCodeExecution bool `json:"allow_code_execution" toml:"allow_code_execution" comment:"Whether abci_query serves the paths that run code on the node, such as\n \".app/simulate\" and \"vm/qeval\". false refuses them; every other path stays open."`
@@ -116,6 +121,7 @@ func DefaultRPCConfig() *RPCConfig {
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
 
+		MaxBatchRequests:   1000,
 		AllowCodeExecution: true,
 
 		TLSCertFile: "",
@@ -152,6 +158,9 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.MaxHeaderBytes < 0 {
 		return errors.New("max_header_bytes can't be negative")
+	}
+	if cfg.MaxBatchRequests < 0 {
+		return errors.New("max_batch_requests can't be negative")
 	}
 	return nil
 }

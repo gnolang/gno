@@ -552,10 +552,12 @@ the entry side:
 Finalization does not occur for non-crossing calls within the same
 storage-context (which don't cross a boundary).
 
-## 8. Conversion Guards (`doOpConvert`)
+## 8. Conversion Guards (`convertValue`)
 
-The VM's conversion operator (`op_expressions.go doOpConvert`)
-enforces two cross-realm invariants:
+The VM's conversions (`op_expressions.go convertValue`) enforce two
+cross-realm invariants. `T(x)` reaches them, and so do the implicit
+conversions of `a, b = f()`, `var a, b T = f()`, `return f()`,
+`g(f())`, comma-ok and range assignments:
 
 ### 8.1 Case 1 — Refuse foreign-readonly source
 
@@ -565,7 +567,7 @@ if xv.T != nil && !xv.T.IsImmutable() && m.IsReadonly(&xv) {
         xvdt.PkgPath == m.Realm.Path {
         // allow: converting m.Realm's own declared type
     } else {
-        panic("illegal conversion of readonly or externally stored value")
+        m.PanicString("illegal conversion of readonly or externally stored value")
     }
 }
 ```
@@ -581,14 +583,12 @@ source.
 The carve-out for `xv.T.PkgPath == m.Realm.Path` allows legitimate
 conversion of m.Realm's own declared types.
 
-**Implementation note**: Case 1 panics with raw Go `panic(...)`
-rather than `m.Panic(...)`, which means it is **not catchable by
-Gno `defer { recover() }`**. This is an implementation inconsistency
-with the write-time readonly panic (which uses `m.Panic` and is
-catchable). Future cleanup may normalize this; in the meantime,
-realm code cannot recover from conversion panics. See
-`zrealm_launder_rdata_conv_iface_box.gno` for tests confirming the
-recoverability difference.
+**Implementation note**: both cases panic with `m.PanicString`,
+like the write-time readonly panic, so Gno `defer { recover() }`
+catches it inside a call. In a package-level `var` initializer no
+call is on the stack, so nothing recovers it and the transaction
+aborts. See `zrealm_launder_rdata_conv_recover.gno` and
+`zrealm_launder_rdata_conv_recover_pkg.gno`.
 
 ### 8.2 Case 2 — Refuse conversion to foreign `/r/`-declared type
 
@@ -596,7 +596,7 @@ recoverability difference.
 if tdt, ok := unwrapPointerType(t).(*DeclaredType); ok && !tdt.IsImmutable() && m.Realm != nil {
     isNilPtr := t.Kind() == PointerKind && xv.V == nil
     if IsRealmPath(tdt.PkgPath) && tdt.PkgPath != m.Realm.Path && !isNilPtr {
-        panic("illegal conversion to external realm type")
+        m.PanicString("illegal conversion to external realm type")
     }
 }
 ```
@@ -623,7 +623,7 @@ explicit `revive()` frames can catch a cross-boundary panic. Regular
 `makeUnhandledPanicError`.
 
 This means the readonly check, the construction-time check, and
-Case 1 of doOpConvert are all "transaction-fatal" defenses when
+Case 1 of convertValue are all "transaction-fatal" defenses when
 they fire across a realm boundary — there is no half-mutated state
 to clean up, and the attacker cannot recover-and-retry under a
 different guise.
@@ -778,7 +778,7 @@ completes the `/p/`'s realm is frozen.
 - Construction-time check: `gnovm/pkg/gnolang/alloc.go`
   checkConstructionTime
 - Conversion guards: `gnovm/pkg/gnolang/op_expressions.go`
-  doOpConvert (Case 1 and Case 2)
+  convertValue (Case 1 and Case 2)
 - Readonly check: `gnovm/pkg/gnolang/machine.go` IsReadonly,
   PopAsPointer2
 - Cross-realm panic abort:

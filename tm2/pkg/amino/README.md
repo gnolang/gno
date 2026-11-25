@@ -5,20 +5,16 @@ Amino is an encoding/decoding library for structures.
 In Amino, all structures are declared in a restricted set of Go. From those
 declarations, Amino generates Protobuf3-compatible binary bytes.
 
-Amino supports three encoding paths, from slowest to fastest:
+Amino supports two encoding paths, from slowest to fastest:
 
 1. **Amino reflect** — reflection-based encoding/decoding. No code generation
    required. This is the baseline.
 
-2. **pbbindings** (genproto) — generates `.proto` files via `protoc`, then
-   generates Go translation code between amino Go structs and protobuf-generated
-   Go structs. Faster than reflect (~3x encode), but requires `protoc` and
-   produces intermediate proto.Message allocations.
-
-3. **genproto2** — generates `MarshalBinary2`/`UnmarshalBinary2` methods that
+2. **genproto2** — generates `MarshalBinary2`/`UnmarshalBinary2` methods that
    encode directly to protobuf3 wire format without intermediate structs, proto
    files, or `protoc`. Uses backward-writing into a pre-sized buffer for
-   single-allocation marshaling.
+   single-allocation marshaling. It also writes each package's `.proto`
+   schema.
 
 ### Performance (Apple M2)
 
@@ -62,7 +58,7 @@ package main
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/gnolang/gno/tm2/pkg/amino/genproto/example/submodule"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto2/example/submodule"
 )
 
 var Package = amino.RegisterPackage(
@@ -81,7 +77,7 @@ var Package = amino.RegisterPackage(
 ```
 
 You can still override global registrations with local `*amino.Codec` state.
-This is used by `genproto.P3Context`, which may help during migration.
+This is used by `genproto2.P3Context`, which may help during migration.
 
 ## Testing and Fuzzing
 
@@ -97,7 +93,7 @@ make fuzz FUZZTIME=30m     # customize fuzz duration (default: 1h)
 
 | Target | Tool | What it tests | Codec |
 |--------|------|---------------|-------|
-| `make fuzz` (3-way comparison) | `go test -count=999999` | Roundtrip equality: amino reflect and genproto2, and pbbindings where `make -C misc/genproto` generated them, produce identical bytes for random valid structs | All three |
+| `make fuzz` (property fuzz) | `go test -count=999999` | Roundtrip equality: amino reflect and genproto2 produce identical bytes for random valid structs | Both |
 | `make fuzz` (native Go fuzzer) | `go test -fuzz` (Go 1.18+) | `UnmarshalBinary2` doesn't panic on random bytes (coverage-guided) | genproto2 |
 | `make gofuzz_binary` | `go-fuzz` (external tool) | amino reflect `Unmarshal` doesn't panic on random bytes | amino reflect |
 | `make gofuzz_json` | `go-fuzz` (external tool) | amino reflect `JSONUnmarshal` doesn't panic on random JSON | amino reflect |

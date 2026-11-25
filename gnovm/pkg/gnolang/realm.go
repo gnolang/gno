@@ -930,6 +930,9 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 // Saves .created and .updated objects.
 func (rlm *Realm) saveUnsavedObjects(store Store) {
 	tids := make(map[TypeID]struct{})
+	// objects on the save walk's current path; see the cycle guard in
+	// saveUnsavedObjectRecursively.
+	inflight := make(map[Object]struct{})
 	for _, co := range rlm.created {
 		// for i := len(rlm.created) - 1; i >= 0; i-- {
 		// co := rlm.created[i]
@@ -939,7 +942,7 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 			continue
 		} else {
 			if !co.GetIsDeleted() {
-				rlm.saveUnsavedObjectRecursively(store, co, tids)
+				rlm.saveUnsavedObjectRecursively(store, co, tids, inflight)
 			}
 		}
 	}
@@ -965,7 +968,19 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 // store unsaved children first.
 // ensure that the object and children does not have any private dependencies.
 // use a visited map to mark visited types when asserting there are no private dependencies.
-func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}) {
+func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited map[TypeID]struct{}, inflight map[Object]struct{}) {
+	// An object already on the walk's path closes a cycle with no escaped
+	// node, which a deletion in the same transaction can leave: escape it so
+	// the walk stops here, and its own pending frame saves it.
+	if _, ok := inflight[oo]; ok {
+		rlm.MarkNewEscaped(oo)
+		// escaped objects have no owner.
+		oo.SetOwner(nil)
+		return
+	}
+	inflight[oo] = struct{}{}
+	defer delete(inflight, oo)
+
 	if debugAssert {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
 			panic("cannot save new real or non-dirty objects")
@@ -1005,7 +1020,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object, visited m
 		if uch.GetIsEscaped() || uch.GetIsNewEscaped() {
 			// no need to save preemptively.
 		} else {
-			rlm.saveUnsavedObjectRecursively(store, uch, visited)
+			rlm.saveUnsavedObjectRecursively(store, uch, visited, inflight)
 		}
 	}
 	// then, save self.
@@ -1262,6 +1277,10 @@ func (rlm *Realm) assertObjectIsPublic(obj Object, store Store, visited map[Type
 func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]struct{}) {
 	pkgPath := ""
 
+	// A field's name decides nothing here, and its id can pass the cap where its type's does not.
+	if ft, ok := t.(FieldType); ok {
+		t = ft.Type
+	}
 	// NOTE: Use to avoid infinite recursion on declared types & avoid repeated checks.
 	tid := t.TypeID()
 	if _, exists := visited[tid]; exists {
@@ -1276,8 +1295,6 @@ func (rlm *Realm) assertTypeIsPublic(store Store, t Type, visited map[TypeID]str
 		for _, result := range tt.Results {
 			rlm.assertTypeIsPublic(store, result, visited)
 		}
-	case FieldType:
-		rlm.assertTypeIsPublic(store, tt.Type, visited)
 	case *SliceType, *ArrayType, *PointerType:
 		rlm.assertTypeIsPublic(store, tt.Elem(), visited)
 	case *tupleType:
@@ -1585,9 +1602,9 @@ func copyTypeWithRefs(typ Type) Type {
 		// Invariant: uverse DeclaredTypes never reach here. Callers either
 		// collapse DeclaredTypes to RefType at Layer 1 via refOrCopyType
 		// (field types, method types, the TypeValue case in copyValueWithRefs),
-		// or route through SetType which short-circuits on a cache hit
-		// before calling copyTypeWithRefs. Uverse types are preloaded in
-		// cacheTypes, so SetType's early-return always fires for them.
+		// or route through SetType which short-circuits when the cached type is
+		// the same instance. Uverse types are preloaded in cacheTypes as those
+		// same instances, so SetType's early-return always fires for them.
 		dt := &DeclaredType{
 			PkgPath: ct.PkgPath,
 			Name:    ct.Name,
@@ -1813,22 +1830,27 @@ func fillType(store Store, typ Type) Type {
 	case PrimitiveType:
 		return ct
 	case *PointerType:
+		ct.stored = true
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case FieldType:
 		panic("cannot fill field types")
 	case *ArrayType:
+		ct.stored = true
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case *SliceType:
+		ct.stored = true
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case *StructType:
+		ct.stored = true
 		for i, field := range ct.Fields {
 			ct.Fields[i].Type = fillType(store, field.Type)
 		}
 		return ct
 	case *FuncType:
+		ct.stored = true
 		for i, param := range ct.Params {
 			ct.Params[i].Type = fillType(store, param.Type)
 		}
@@ -1837,10 +1859,12 @@ func fillType(store Store, typ Type) Type {
 		}
 		return ct
 	case *MapType:
+		ct.stored = true
 		ct.Key = fillType(store, ct.Key)
 		ct.Value = fillType(store, ct.Value)
 		return ct
 	case *InterfaceType:
+		ct.stored = true
 		for i, mthd := range ct.Methods {
 			ct.Methods[i].Type = fillType(store, mthd.Type)
 			// An embed entry means the bytes predate interface flattening
@@ -1878,6 +1902,7 @@ func fillType(store Store, typ Type) Type {
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
+		ct.stored = true
 		for i, elt := range ct.Elts {
 			ct.Elts[i] = fillType(store, elt)
 		}
