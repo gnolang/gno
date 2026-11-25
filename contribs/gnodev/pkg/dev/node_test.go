@@ -3,6 +3,8 @@ package dev
 import (
 	"context"
 	"encoding/json"
+	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -311,6 +313,23 @@ func Render(_ string) string { return str }
 	require.Equal(t, render, "foo")
 
 	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
+}
+
+// Start writes the P2P port it bound back into the config, so a reset that
+// reused it would fail once another process took the port.
+func TestNodeResetAfterP2PPortTaken(t *testing.T) {
+	node, emitter := newTestingDevNode(t)
+
+	laddr := node.Node.Config().P2P.ListenAddress
+	require.NoError(t, node.Node.Stop())
+
+	// Another process takes the port the stopped node released.
+	squatter, err := net.Listen("tcp", strings.TrimPrefix(laddr, "tcp://"))
+	require.NoError(t, err)
+	defer squatter.Close()
+
+	require.NoError(t, node.Reset(context.Background()))
+	assert.Equal(t, events.EvtReset, emitter.NextEvent().Type())
 }
 
 func TestTxGasFailure(t *testing.T) {
