@@ -79,11 +79,20 @@ func (pdb *PebbleDB) Get(key []byte) ([]byte, error) {
 
 // Implements DB.
 func (pdb *PebbleDB) Has(key []byte) (bool, error) {
-	v, err := pdb.Get(key)
+	return hasKey(pdb.db, key)
+}
+
+func hasKey(reader pebble.Reader, key []byte) (bool, error) {
+	_, closer, err := reader.Get(internal.NonNilBytes(key))
+	if goerrors.Is(err, pebble.ErrNotFound) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
-	return v != nil, nil
+	// The reader borrows the value for the lifetime of the closer.
+	_ = closer.Close()
+	return true, nil
 }
 
 // Implements DB.
@@ -366,11 +375,7 @@ func (s *pebbleSnapshot) Get(key []byte) ([]byte, error) {
 
 // Implements Snapshot.
 func (s *pebbleSnapshot) Has(key []byte) (bool, error) {
-	v, err := s.Get(key)
-	if err != nil {
-		return false, err
-	}
-	return v != nil, nil
+	return hasKey(s.snapshot, key)
 }
 
 // Implements Snapshot.
