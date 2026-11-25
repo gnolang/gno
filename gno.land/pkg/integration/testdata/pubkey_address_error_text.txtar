@@ -1,0 +1,29 @@
+# chain.PubKeyAddress hands a bech32 or amino decode error to Gno code, so the
+# error's text reaches a MsgRun's result Data and a realm's panic text, both of
+# which LastResultsHash covers: changing it is a hardfork. A bech32 prefix of
+# more than 256 bytes is given by its length.
+
+gnoland start
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -broadcast -chainid=tendermint_test test1 $WORK/run.gno
+stdout 'OK!'
+stdout '^AMINO unmarshal to crypto.PubKey failed after 54 bytes \(mismatched byte array length: Expected 32, got 31\)$'
+stdout '^PREFIX invalid Bech32 prefix; expected gpub, got x$'
+stdout '^LONG invalid Bech32 prefix; expected gpub, got a 300-byte prefix$'
+
+-- run.gno --
+package main
+
+import "chain"
+
+func main() {
+	// A 31-byte /tm.PubKeyEd25519.
+	_, err := chain.PubKeyAddress("gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyy9p7qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq97wkf9")
+	println("AMINO", err.Error())
+
+	_, err = chain.PubKeyAddress("x1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxa06sl")
+	println("PREFIX", err.Error())
+
+	_, err = chain.PubKeyAddress("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqkmdk5z")
+	println("LONG", err.Error())
+}

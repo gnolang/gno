@@ -16,3 +16,6 @@ func main(cur realm) {
 
 // Error:
 // gno.land/r/demo/curshadowif/zrealm_cur_shadow_if.gno:13:3-13: only the `cur` argument of a containing crossing function maybe passed by cross-call
+
+// TypeCheckError:
+// gno.land/r/demo/curshadowif/zrealm_cur_shadow_if.gno:12:5: `cur` is a contextual keyword: it may only be declared as the first parameter of a crossing function
