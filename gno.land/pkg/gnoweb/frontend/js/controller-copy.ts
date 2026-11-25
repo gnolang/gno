@@ -22,8 +22,11 @@ export class CopyController extends BaseController {
 
 		const tempDiv = document.createElement("div");
 		tempDiv.innerHTML = html;
-		// The notice above a render too large to show is not the content.
-		for (const el of tempDiv.querySelectorAll("[data-copy-exclude]")) {
+		// The notice above a render too large to show is not the content, and
+		// neither is a heading's permalink, whose only text is a U+2060 joiner.
+		for (const el of tempDiv.querySelectorAll(
+			"[data-copy-exclude], .heading-anchor",
+		)) {
 			el.remove();
 		}
 

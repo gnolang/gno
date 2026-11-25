@@ -833,18 +833,22 @@
 
 /* An inline-block link ending a heading lets the line break before the icon,
    so in a heading a link stays inline. A <gno-button /> keeps its own
-   inline-flex box and its badge. */
+   inline-flex box and its badge. A link opening with an image stays
+   inline-block: its image is display: block, so an inline link would put
+   the image on a line of its own, and the REALM VIEW rule drawing a badge
+   on the image's corner needs that box. */
 :is(.c-realm-view, .c-readme-view)
 	:is(h1, h2, h3, h4, h5, h6)
-	a:not(.heading-anchor, .gno-button) {
+	a:not(.heading-anchor, .gno-button):not(:has(> img:first-child)) {
 	display: inline;
 }
 
 /* An inline-flex badge lets the line break before the icon, so in a heading
-   the badge is inline and draws its circle and icon out of the flow. */
+   the badge is inline and draws its circle and icon out of the flow. A link
+   opening with an image keeps its badge as the REALM VIEW link rules draw it. */
 :is(.c-realm-view, .c-readme-view)
 	:is(h1, h2, h3, h4, h5, h6)
-	a:not(.gno-button)
+	a:not(.gno-button):not(:has(> img:first-child))
 	> .tooltip {
 	display: inline;
 	padding-inline: var(--g-space-2);
