@@ -36,8 +36,10 @@ onClick<HTMLButtonElement>(
 	'button[data-controller~="copy"]',
 	(btn) => {
 		const remote = btn.getAttribute("data-copy-remote-value") ?? "";
+		const named = btn.getAttribute("data-copy-kind");
 		let kind = "unknown";
-		if (btn.hasAttribute("data-copy-text-value")) kind = "link";
+		if (named) kind = named;
+		else if (btn.hasAttribute("data-copy-text-value")) kind = "link";
 		else if (remote === "source-code") kind = "source";
 		else if (remote.startsWith("func-")) kind = "func_signature";
 		else if (remote.startsWith("action-function-")) kind = "gnokey_command";

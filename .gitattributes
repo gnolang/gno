@@ -1,4 +1,3 @@
-*.gno linguist-language=Go
 *.pb.go linguist-generated merge=ours -diff
 go.sum linguist-generated text
 gnovm/stdlibs/generated.go linguist-generated
