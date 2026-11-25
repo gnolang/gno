@@ -273,3 +273,260 @@ func UseKeep(cur realm) { kept = keep() }
 
 // ClearKeep drops the getter; kept still holds the writer.
 func ClearKeep(cur realm) { keep = nil }
+
+type Runner interface{ Run(f func()) }
+
+// RecoverRun makes a writer, lets the stranger's library run a closure that
+// throws it from read-only code, and recovers it in writable victim code.
+func RecoverRun(cur realm, h Runner) func() {
+	w := vault.Bump
+	var got func()
+	func() {
+		defer func() {
+			if v := recover(); v != nil {
+				got = v.(func())
+			}
+		}()
+		h.Run(func() { panic(w) })
+	}()
+	got()
+	return got
+}
+
+var nestedSaved func()
+
+// SaveClose stores a writer in saved state.
+func SaveClose(cur realm) { nestedSaved = vault.Bump }
+
+// NestedSave saves a writer, crosses into the stranger, then calls the saved
+// copy in the same crossing call.
+func NestedSave(cur realm, cb func(cur realm)) {
+	w := vault.Bump
+	nestedSaved = w
+	cb(cross(cur))
+	nestedSaved()
+}
+
+// UseSaved runs the writer saved before the nested call.
+func UseSaved(cur realm) { nestedSaved() }
+
+// NestedCallBack crosses into the stranger, which crosses back here.
+func NestedCallBack(cur realm, cb func(cur realm)) { cb(cross(cur)) }
+
+// Call runs a function value a stranger kept.
+func Call(cur realm, f func()) { f() }
+
+// CallAny runs a function value a stranger kept in any shape.
+func CallAny(cur realm, v any) { callAny(v) }
+
+type DeferUser interface {
+	Use(v any, set func(any))
+}
+
+type F func()
+
+func (f F) Call() { f() }
+
+func callAny(v any) {
+	switch x := v.(type) {
+	case func():
+		x()
+	case []func():
+		x[0]()
+	case *Ctx:
+		x.Undo()
+	case F:
+		x()
+	}
+}
+
+// DeferArgs defers one call that hands out a writer in the named shape, then
+// calls what the stranger handed back.
+func DeferArgs(cur realm, h DeferUser, other func(cur realm, v any), shape string) {
+	w := vault.Bump
+	var got any
+	set := func(v any) { got = v }
+	func() {
+		switch shape {
+		case "direct":
+			defer h.Use(w, set)
+		case "struct":
+			defer h.Use(&Ctx{Undo: w}, set)
+		case "slice":
+			defer h.Use([]func(){w}, set)
+		case "method":
+			defer h.Use(F(w).Call, set)
+		case "crossing":
+			defer func() { other(cross(cur), w) }()
+		}
+	}()
+	callAny(got)
+}
+
+type Catcher interface{ Catch() }
+
+// WBox is a fresh struct holding a writer thrown from writable code.
+type WBox struct{ F func() }
+
+func (b *WBox) Get() func() { return b.F }
+
+// ThrowLib panics with a fresh writer from writable code, while the stranger's
+// deferred catcher calls it at once and keeps nothing.
+func ThrowLib(cur realm, h Catcher, shape string) {
+	w := vault.Bump
+	var v any
+	switch shape {
+	case "direct":
+		v = w
+	case "struct":
+		v = &WBox{F: w}
+	case "slice":
+		v = []func(){w}
+	}
+	func() {
+		defer h.Catch()
+		panic(v)
+	}()
+}
+
+// Throw panics with a fresh writer from writable code, recovering nothing.
+func Throw(cur realm) {
+	w := vault.Bump
+	panic(w)
+}
+
+type Keeper interface {
+	Catch()
+	Pick() func()
+}
+
+// ChalPick throws a fresh writer from writable code into the stranger's
+// deferred catcher, then calls what the stranger picks.
+func ChalPick(cur realm, h Keeper) {
+	func() {
+		defer h.Catch()
+		w := vault.Bump
+		panic(w)
+	}()
+	h.Pick()()
+}
+
+// ChalSlot throws a fresh writer from writable code into the stranger's
+// deferred catcher, which may write it into a box the victim showed earlier.
+func ChalSlot(cur realm, h interface {
+	Show(c *Ctx)
+	Catch()
+}) {
+	c := &Ctx{}
+	h.Show(c)
+	func() {
+		defer h.Catch()
+		w := vault.Bump
+		panic(w)
+	}()
+	if c.Cb != nil {
+		c.Cb()
+	}
+}
+
+// RecoverKeep is RecoverRun that returns what it recovered without calling it.
+func RecoverKeep(cur realm, h Runner) func() {
+	w := vault.Bump
+	var got func()
+	func() {
+		defer func() { got, _ = recover().(func()) }()
+		h.Run(func() { panic(w) })
+	}()
+	return got
+}
+
+// ThrowBack throws a fresh writer from writable code into the stranger's
+// catcher, which throws it on; this call recovers it and runs it.
+func ThrowBack(cur realm, h Catcher, shape string) {
+	w := vault.Bump
+	var v any
+	switch shape {
+	case "direct":
+		v = w
+	case "struct":
+		v = &WBox{F: w}
+	case "slice":
+		v = []func(){w}
+	case "getter":
+		v = func() func() { return w }
+	}
+	var got any
+	func() {
+		defer func() { got = recover() }()
+		func() {
+			defer h.Catch()
+			panic(v)
+		}()
+	}()
+	switch x := got.(type) {
+	case *WBox:
+		x.F()
+	case func() func():
+		x()()
+	default:
+		callAny(got)
+	}
+}
+
+// NestedPrivate makes a writer, makes a nested crossing call, then runs the
+// writer it never handed anywhere: that one writes.
+func NestedPrivate(cur realm, cb func(cur realm)) {
+	w := vault.Bump
+	cb(cross(cur))
+	w()
+}
+
+// NestedShown shows a box holding a writer to a nested crossing call, then
+// runs the box's writer.
+func NestedShown(cur realm, cb func(cur realm, c *Ctx)) {
+	c := &Ctx{Undo: vault.Bump}
+	cb(cross(cur), c)
+	c.Undo()
+}
+
+type GetKeeper interface {
+	Keep(f func())
+	Pick() func()
+}
+
+// DeferKeep hands a fresh writer to a deferred stranger's call that keeps
+// it, then runs what the stranger picks.
+func DeferKeep(cur realm, h GetKeeper) {
+	w := vault.Bump
+	func() { defer h.Keep(w) }()
+	h.Pick()()
+}
+
+type GetThrower interface{ Throw(f func()) }
+
+// DeferThrow hands a fresh writer to a deferred stranger's call that throws
+// a getter for it, then runs what the getter returns.
+func DeferThrow(cur realm, h GetThrower) {
+	w := vault.Bump
+	var got any
+	func() {
+		defer func() { got = recover() }()
+		defer h.Throw(w)
+	}()
+	g, _ := got.(func() func())
+	g()()
+}
+
+type KeeperMaker interface{ NewKeeper() any }
+
+// LibPick throws a fresh writer from writable code into a keeper the
+// stranger's library made, then calls what the keeper picks.
+func LibPick(cur realm, h KeeperMaker) {
+	k := h.NewKeeper().(Keeper)
+	func() {
+		defer k.Catch()
+		w := vault.Bump
+		panic(w)
+	}()
+	k.Pick()()
+}
