@@ -130,7 +130,8 @@ re-preprocessing idempotence for stdlib nodes.
   (#6063). Function-body types already fail the same way on master; this
   change makes the gap reachable from block-level declarations, which did not
   compile before. #6084 or #5935 closes it for both unchanged, since each
-  keys on `ParentLoc != zero`, which every non-package parent now sets.
+  keys on `ParentLoc != zero`, which a nested block in a package file now
+  sets as a function body does.
 - This composes with the switch/if case-body shadowing fix (#6058): there,
   `GetIsConstAt` routes paths into the faux-copied region to the parent
   statement's block, so a use of the outer name before a case-body `const`
