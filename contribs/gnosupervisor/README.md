@@ -2,7 +2,7 @@
 
 `gnosupervisor` runs a gnoland node across the coordinated upgrades recorded in a chain's upgrade ledger (`misc/deployments/<chain>/upgrades.json`). It starts `gnoland start` on the release that runs the node's next block. When that release stops at its range's halt height, the supervisor starts the next release on the same data directory. A node joining from genesis replays the whole history with one command.
 
-Design and scope: [`gno.land/adr/prxxxx_upgrade_supervisor.md`](../../gno.land/adr/prxxxx_upgrade_supervisor.md). This version handles **historical replay**. A live node stopping at a future halt stays up at the tip; switching it is the next step (see the ADR).
+Design and scope: [`gno.land/adr/pr6530_upgrade_supervisor.md`](../../gno.land/adr/pr6530_upgrade_supervisor.md). This version handles **historical replay**. A live node stopping at a future halt stays up at the tip; switching it is the next step (see the ADR).
 
 > **Status.** A gnoland-1 replay from genesis, range by range, has not been run yet; the documented joining path is still in [`misc/deployments/mainnet.gno.land/UPGRADES.md`](../../misc/deployments/mainnet.gno.land/UPGRADES.md). Replay on a non-signing node.
 
