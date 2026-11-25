@@ -582,10 +582,10 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool,
 	var info *types.Info
 	if mpkg.Path == gimp.pkgPath {
 		info = newRealmValueInfo()
-	}
-	// Uses only for lint: with Types also recorded, go/types words some errors differently.
-	if info != nil && gimp.lintInfo != nil {
+		// `cur, x := ...` ASSIGNS cur, so it lands here, not in Defs.
 		info.Uses = map[*ast.Ident]types.Object{}
+	}
+	if info != nil && gimp.lintInfo != nil {
 		info.Selections = map[*ast.SelectorExpr]*types.Selection{}
 	}
 	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
@@ -1054,7 +1054,7 @@ func checkDeclNames(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 			add(obj)
 		}
 	}
-	if err := checkCurRebind(pkg, fset, files, builtins, info, realmType); err != nil {
+	if err := checkCurRebind(fset, files, builtins, info, realmType); err != nil {
 		return err
 	}
 	if len(bad) == 0 {
@@ -1139,7 +1139,7 @@ func shadowsAName(obj types.Object) bool {
 // boot, and master accepted this shape, so a rejection there stops an
 // upgraded node from starting. doOpCall carries the runtime check that
 // actually blocks a rebound cur from taking a caller's identity.
-func checkCurRebind(pkg *types.Package, fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, realmType types.Type) error {
+func checkCurRebind(fset *token.FileSet, files []*ast.File, builtins *ast.File, info *types.Info, realmType types.Type) error {
 	if realmType == nil {
 		return nil
 	}
@@ -1159,16 +1159,8 @@ func checkCurRebind(pkg *types.Package, fset *token.FileSet, files []*ast.File, 
 					continue
 				}
 				// Defs means a fresh declaration, which checkDeclNames
-				// already refuses; otherwise this assigns the `cur` in scope.
-				if _, ok := info.Defs[id]; ok {
-					continue
-				}
-				scope := pkg.Scope().Innermost(id.Pos())
-				if scope == nil {
-					continue
-				}
-				// NoPos: main/init's stand-in `cur` sits at synthetic positions.
-				_, obj := scope.LookupParent("cur", token.NoPos)
+				// already refuses; Uses means this assigns the parameter.
+				obj := info.Uses[id]
 				if obj == nil || !types.Identical(obj.Type(), realmType) {
 					continue
 				}
