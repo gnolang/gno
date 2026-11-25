@@ -15,4 +15,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/zrealm_s3u_rv_3's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/s3urv) package{})).Last().Owner
+// gno.land/r/zrealm_s3u_rv_3's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/s3urv) package{})).Last().Owner

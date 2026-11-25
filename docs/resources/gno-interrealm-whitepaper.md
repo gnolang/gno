@@ -838,7 +838,7 @@ above are what `ls` prints, so a reviewer can re-run them.
 | R3 | type check | `cannot hold a value of <T> outside its realm (use a pointer)` (`realmvalue.go`), e.g. `c := *p` |
 | R3 | run time | `cannot copy <T> outside realm <R> (use a pointer)` (`alloc.go:checkCopy`), the only refusal for `err := fvx.Fail()` and `defer p.Val()` |
 | R3 | run time | `cannot allocate <T> in realm <R>` (`alloc.go:panicForeignAlloc`) |
-| R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only in the crossing call that made it: expr` |
+| R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): expr` |
 | R2a-save | save | `<realm>: an object written by read-only code would be stored (write it inside a crossing call of <realm>)` |
 
 R2a's maker is a pointer to a per-call marker object, `crossingCall` (nil: none, written "id 0" above), so

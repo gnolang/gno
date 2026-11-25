@@ -63,8 +63,36 @@ the value inside the call that runs it.
 
 ```
 // Error:
-// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it: (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner
+// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner
 ```
+
+A package variable that holds a function is a box: the call line `onSale()`
+cannot tell who filled it, or with what. So a kept function writes only when
+its type says so:
+
+```go
+var onSale  func()                 // plain: writes only in the call that made it
+var onSale2 func(cur realm, n int) // crossing: writes in any call, with cross
+
+func Setup(cur realm) {
+	reset := func() { total = 0 }
+	onSale = reset
+	reset()  // writes
+	onSale() // writes: still the call that made it
+	onSale2 = func(cur realm, n int) { total = n }
+}
+
+func Later(cur realm) {
+	onSale()               // read-only: made in an earlier call
+	onSale2(cross(cur), 5) // writes
+}
+```
+
+The plain kind must not write later because anyone may call an exported
+helper such as `func MakeHook(it *Item) func()` to get a function with the
+realm's code and their own choice of `it`, and a plain function has no `cur`
+to check who is calling. A crossing function has both: `cur.Previous()` names
+the caller, and the `cross` at the call line shows the write.
 
 ### R2b A function value copied out of its realm loses its maker
 

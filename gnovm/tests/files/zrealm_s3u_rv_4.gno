@@ -15,4 +15,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/zrealm_s3u_rv_4's code is read-only here: a function value writes only in the crossing call that made it: e<VPBlock(1,0)>.Owner
+// gno.land/r/zrealm_s3u_rv_4's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): e<VPBlock(1,0)>.Owner
