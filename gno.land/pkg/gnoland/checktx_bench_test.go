@@ -22,7 +22,7 @@ func BenchmarkCheckTxRecheck(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	key := secp256k1.GenPrivKey()
+	key := secp256k1.GenPrivKeySecp256k1([]byte("checktx-recheck-benchmark"))
 	from := key.PubKey().Address()
 	state := DefaultGenState()
 	state.Balances = []Balance{{Address: from, Amount: std.NewCoins(std.NewCoin("ugnot", 1_000_000_000_000))}}
