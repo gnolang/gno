@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 )
 
@@ -60,8 +59,8 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 	// `like` is a Go regexp on tx-indexer: "." matches any non-empty path.
 	q := fmt.Sprintf(`{ getTransactions(where: {
 		%s
-		messages: { value: { MsgCall: { pkg_path: { like: "." } } } }
-	}) { %s } }`, heightBand(lower, upper), callFields)
+		%s
+	}) { %s } }`, heightBand(lower, upper), msgFilter("MsgCall", `pkg_path: { like: "." }`), callFields)
 	if err := c.query(ctx, q, &out, false); err != nil {
 		return nil, err
 	}
@@ -88,14 +87,10 @@ func (c *Client) DeploysQuoting(ctx context.Context, pkgPath string, lower, uppe
 	var out struct {
 		Txs []Tx `json:"getTransactions"`
 	}
-	// `like` is a Go regexp. The delimiters keep gno.land/p/nt/avl/v0 from
-	// matching inside gno.land/p/nt/avl/v0/rotree; QuoteMeta keeps the dots
-	// literal.
-	literal := "[\"`]" + regexp.QuoteMeta(pkgPath) + "[\"`]"
 	q := fmt.Sprintf(`{ getTransactions(where: {
 		%s
-		messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }
-	}) { %s } }`, heightBand(lower, upper), gqlString(literal), deployFields)
+		%s
+	}) { %s } }`, heightBand(lower, upper), quotingFilter(pkgPath), deployFields)
 	err := c.query(ctx, q, &out, false)
 	if err != nil && !errors.Is(err, ErrTooLarge) {
 		return nil, err

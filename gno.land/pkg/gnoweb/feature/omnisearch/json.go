@@ -31,13 +31,16 @@ type jsonSelector struct {
 	Name   string `json:"name"`
 	Hint   string `json:"hint"`
 	Label  string `json:"label"`
+	Help   string `json:"help"`
 	Scope  Scope  `json:"scope"`
+	Group  string `json:"group,omitempty"`
 	Source Source `json:"source"`
 	Bare   bool   `json:"bare,omitempty"`
+	// Accepts is Selector.Accepts as a pattern the omnibar can test.
+	Accepts string `json:"accepts,omitempty"`
 }
 
 type jsonIndexer struct {
-	URL       string `json:"url"`
 	LastBlock int    `json:"last_block,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
@@ -50,11 +53,15 @@ type jsonResponse struct {
 	// Selectors is returned on every response, not just on discovery: it is
 	// how the omnibar learns which qualifiers this deployment can answer, and
 	// a stale hint list is what produces a search box that offers something
-	// the server will refuse.
-	Selectors     []jsonSelector `json:"selectors"`
-	Groups        []jsonGroup    `json:"groups,omitempty"`
-	UnknownFilter string         `json:"unknown_filter,omitempty"`
-	Indexer       *jsonIndexer   `json:"indexer,omitempty"`
+	// the server will refuse. Filters, the narrowing qualifiers, and the
+	// headings the keyword lists group them under travel with it for the
+	// same reason.
+	Selectors     []jsonSelector  `json:"selectors"`
+	Filters       []FilterKeyword `json:"filters"`
+	KeywordGroups []KeywordGroup  `json:"keyword_groups"`
+	Groups        []jsonGroup     `json:"groups,omitempty"`
+	UnknownFilter string          `json:"unknown_filter,omitempty"`
+	Indexer       *jsonIndexer    `json:"indexer,omitempty"`
 }
 
 // serveJSON answers the omnibar. The body is written here; the caller wraps
@@ -66,13 +73,19 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		Query:         data.Query,
 		PkgPath:       data.PkgPath,
 		Selectors:     make([]jsonSelector, 0, len(data.Selectors)),
+		Filters:       filterKeywords,
+		KeywordGroups: keywordGroups,
 		UnknownFilter: data.UnknownFilter,
 	}
 	for _, s := range data.Selectors {
-		resp.Selectors = append(resp.Selectors, jsonSelector{
-			Name: s.Name, Hint: s.Hint, Label: s.Label,
-			Scope: s.Scope, Source: s.Source, Bare: s.Bare,
-		})
+		js := jsonSelector{
+			Name: s.Name, Hint: s.Hint, Label: s.Label, Help: s.Help,
+			Scope: s.Scope, Group: s.Group, Source: s.Source, Bare: s.Bare,
+		}
+		if s.Accepts != nil {
+			js.Accepts = s.Accepts.String()
+		}
+		resp.Selectors = append(resp.Selectors, js)
 	}
 	for _, g := range data.Groups {
 		jg := jsonGroup{
@@ -90,7 +103,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 		resp.Groups = append(resp.Groups, jg)
 	}
 	if data.Indexer != nil {
-		ji := &jsonIndexer{URL: data.Indexer.URL, LastBlock: data.Indexer.LastBlock}
+		ji := &jsonIndexer{LastBlock: data.Indexer.LastBlock}
 		if data.Indexer.Err != nil {
 			ji.Error = data.Indexer.Err.Error()
 		}
