@@ -32,10 +32,15 @@ env CALL_GAS=10_000_000
 #   1850271 - 1838549           =   11722   the operand-length guard added to
 #                                           ModExp itself, which is Gno-side
 #                                           opcodes, not a native charge
+#   1854905 - 1850271           =    4634   the call's 331-byte result,
+#                                           charged at 14 gas per byte
+#
+# Since then a master-key signature leaves its zero SessionAddr off the wire
+# (amino:"skip_zero"), 43 bytes of this tx, so 430 gas: 1850271 - 430.
 #
 # Re-derived after merging develop; unrelated gas changes on the base branch
 # move the absolute number, so re-derive again rather than assuming it holds.
-env EXACT_GAS=1850271
+env EXACT_GAS=1852203
 
 gnoland start
 

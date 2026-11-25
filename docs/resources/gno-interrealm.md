@@ -340,6 +340,16 @@ Two consequences follow:
    construction must go through a realm-declared constructor function,
    which borrow rule #1 temporarily activates the declaring realm for.
 
+   Conversions to a foreign `/r/`-declared type are refused too, with
+   `illegal conversion to external realm type`, directly or through one
+   pointer level (`(*/r/foo.T)(&local)`), unless its underlying type is a
+   primitive, func, or chan type; a nil pointer is let through.
+
+   Holding such a value is still not authority: `var t foo.T` in another
+   realm is allowed (stamped with `foo`'s PkgID, so the holder cannot write
+   it), and `&t` can be passed back to `foo`. Never treat a non-nil `*foo.T`
+   as authorization; identify the caller through `cur.Previous()`.
+
 Storage rent attribution follows PkgID too: when a transaction mutates an
 object owned by `/r/A` from `/r/B`'s code, the byte delta accrues to
 `/r/A`'s ledger, not `/r/B`'s, because `/r/A` is the authoring (and
@@ -655,6 +665,10 @@ boundary.
 
 A crossing-function's first parameter `cur realm` is a captured realm value:
 a typed handle on the realm-context at the moment of the crossing call.
+The name `cur` is reserved: like a builtin, it cannot be declared anywhere
+else, whatever the type, so a `cur` in a realm is always this frame's identity.
+The rule is checked on production source at deploy; a package already on
+chain keeps its names.
 `realm` is a uverse interface with the following methods:
 
   - `Address() address` — bech32 address derived from the realm's pkgpath

@@ -46,6 +46,10 @@ type ConcreteInfo struct {
 type StructInfo struct {
 	Fields   []FieldInfo // If a struct.
 	Reserved []uint32    // field numbers consumed by removed fields
+	// Recursive is true iff a field can hold this struct type again without
+	// an interface in between, so decoding counts each level of it against
+	// maxAnyDepth.
+	Recursive bool
 }
 
 type FieldInfo struct {
@@ -75,6 +79,14 @@ type FieldOptions struct {
 	WriteEmpty     bool // write empty structs and lists (default false except for pointers)
 	NilElements    bool // Empty list elements are decoded as nil iff set, otherwise are never nil.
 	UseGoogleTypes bool // If true, decodes Any timestamp and duration to google types.
+	// SkipZero leaves the field out of the binary and JSON encodings whenever
+	// its Go value is the zero value of its type, as reflect.Value.IsZero
+	// decides, even where the repr would encode to something (a zero
+	// crypto.Address has a non-empty bech32 repr). A missing field decodes
+	// back to that zero value. IsZero agrees with ==, so a float -0.0 counts
+	// as zero and decodes as 0. ValidateBasic refuses the tag where a
+	// missing field would decode to anything else.
+	SkipZero bool // (Binary, JSON) amino:"skip_zero"
 }
 
 // ----------------------------------------
@@ -230,6 +242,18 @@ func (finfo *FieldInfo) ValidateBasic() {
 			panic("floating point types are unsafe for go-amino, even for repr types")
 		}
 	}
+	if finfo.SkipZero {
+		if finfo.WriteEmpty {
+			panic("amino:\"skip_zero\" and amino:\"write_empty\" are mutually exclusive")
+		}
+		// A field skip_zero leaves out must decode back to the zero value
+		// it left out, and a missing field decodes to defaultValue. That is
+		// not the zero value for time.Time (1970-01-01), nor for a pointer
+		// to anything but a struct (a pointer to the zero value).
+		if !defaultValue(finfo.Type).IsZero() {
+			panic(fmt.Sprintf("amino:\"skip_zero\" is not allowed on a %v field, which decodes to a non-zero value when missing", finfo.Type))
+		}
+	}
 }
 
 // ----------------------------------------
@@ -245,19 +269,16 @@ type Codec struct {
 	// only registered types have names.
 	fullnameToTypeInfo map[string]*TypeInfo
 	packages           pkg.PackageSet
-	usePBBindings      bool
 	stats              codecStats
 }
 
 // codecStats records how many encodes/decodes went through each path.
 // All fields are atomically updated and safe for concurrent use.
 type codecStats struct {
-	Genproto2Encodes  int64
-	PbbindingsEncodes int64
-	ReflectEncodes    int64
-	Genproto2Decodes  int64
-	PbbindingsDecodes int64
-	ReflectDecodes    int64
+	Genproto2Encodes int64
+	ReflectEncodes   int64
+	Genproto2Decodes int64
+	ReflectDecodes   int64
 }
 
 // GetStats returns a pointer to the codec's decode-path counters
@@ -273,24 +294,9 @@ func NewCodec() *Codec {
 		typeInfos:          make(map[reflect.Type]*TypeInfo),
 		fullnameToTypeInfo: make(map[string]*TypeInfo),
 		packages:           pkg.NewPackageSet(),
-		usePBBindings:      false,
 	}
 	cdc.registerWellKnownTypes()
 	return cdc
-}
-
-// Returns a new codec that is optimized w/ pbbindings.
-// The returned codec is sealed, but may be affected by
-// modifications to the underlying codec.
-func (cdc *Codec) WithPBBindings() *Codec {
-	return &Codec{
-		sealed:             cdc.sealed,
-		autoseal:           cdc.autoseal,
-		typeInfos:          cdc.typeInfos,
-		fullnameToTypeInfo: cdc.fullnameToTypeInfo,
-		packages:           cdc.packages,
-		usePBBindings:      true,
-	}
 }
 
 // The package isn't (yet) necessary besides to get the full name of concrete
@@ -546,7 +552,6 @@ func (cdc *Codec) GetPackages() pkg.PackageSet {
 	return cdc.packages
 }
 
-// This is used primarily for gengo.
 // XXX TODO: make this safe so modifications don't affect runtime codec,
 // and ensure that it stays safe.
 // NOTE: do not modify the returned TypeInfo.
@@ -690,7 +695,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 		}
 	}
 	/*
-		NOTE: this could used by genproto typeToP3Type,
+		NOTE: this could used by genproto2 typeToP3Type,
 		but it isn't quite right... we don't want them to
 		preserve the "Time" name, we want "Timestamp".
 
@@ -706,6 +711,12 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 		// END Special cases for well known types.
 	*/
 	if isAminoMarshaler {
+		// Only a struct body counts a level against maxAnyDepth, so a repr
+		// that holds this type again with no struct in between would decode
+		// unbounded.
+		if typeReaches(reprType, rt, false, map[reflect.Type]bool{}) {
+			panic(fmt.Sprintf("%v contains itself through repr type %v with no struct in between, so its nesting cannot be bounded", rt, reprType))
+		}
 		info.ConcreteInfo.IsAminoMarshaler = true
 		rinfo, err := cdc.getTypeInfoWLocked(reprType)
 		if err != nil {
@@ -739,8 +750,8 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	defer func() {
 		if ex := recover(); ex != nil {
-			panic(fmt.Sprintf("panic parsing struct %v",
-				rt))
+			panic(fmt.Sprintf("panic parsing struct %v: %v",
+				rt, ex))
 		}
 	}()
 	if rt.Kind() != reflect.Struct {
@@ -748,6 +759,7 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 	}
 
 	infos := make([]FieldInfo, 0, rt.NumField())
+	seen := map[reflect.Type]bool{} // types already walked by typeReaches
 	nextFieldNum := uint32(1)
 	for i := range rt.NumField() {
 		field := rt.Field(i)
@@ -818,9 +830,52 @@ func (cdc *Codec) parseStructInfoWLocked(rt reflect.Type) (sinfo StructInfo) {
 		}
 		fieldInfo.ValidateBasic()
 		infos = append(infos, fieldInfo)
+		sinfo.Recursive = sinfo.Recursive || typeReaches(ftype, rt, true, seen)
 	}
-	sinfo = StructInfo{Fields: infos, Reserved: sinfo.Reserved}
+	sinfo.Fields = infos
 	return sinfo
+}
+
+// typeReaches reports whether decoding a value of type rt can decode a value
+// of type target inside it, following what the decoders follow: pointers,
+// slices, arrays, an AminoMarshaler's repr type and, if intoStructs, a
+// struct's encoded fields.
+// It stops at interfaces, whose nesting decodeReflectBinaryInterface counts.
+func typeReaches(rt, target reflect.Type, intoStructs bool, seen map[reflect.Type]bool) bool {
+	if rt.Kind() == reflect.Pointer {
+		rt = rt.Elem()
+	}
+	if rt == target {
+		return true
+	}
+	if seen[rt] {
+		return false
+	}
+	seen[rt] = true
+	if rm, ok := rt.MethodByName("MarshalAmino"); ok {
+		return typeReaches(marshalAminoReprType(rm), target, intoStructs, seen)
+	}
+	switch rt.Kind() {
+	case reflect.Slice, reflect.Array:
+		return typeReaches(rt.Elem(), target, intoStructs, seen)
+	case reflect.Struct:
+		if !intoStructs {
+			return false
+		}
+		for i := range rt.NumField() {
+			field := rt.Field(i)
+			if !isExported(field) {
+				continue
+			}
+			if skip, _ := parseFieldOptions(field); skip {
+				continue
+			}
+			if typeReaches(field.Type, target, intoStructs, seen) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions) {
@@ -883,6 +938,9 @@ func parseFieldOptions(field reflect.StructField) (skip bool, fopts FieldOptions
 		}
 		if aminoTag == "nil_elements" {
 			fopts.NilElements = true
+		}
+		if aminoTag == "skip_zero" {
+			fopts.SkipZero = true
 		}
 	}
 

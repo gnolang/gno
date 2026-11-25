@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s\n\n## End
+-- input.md --
+text <GNO-ICON name="star" /> text
+-- output.md --
+
+
+text <GNO-ICON name="star" /> text
+
+-- output.html --
+<p>text <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg> text</p>
+<h2>End</h2>

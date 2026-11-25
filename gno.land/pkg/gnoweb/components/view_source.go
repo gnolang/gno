@@ -21,6 +21,7 @@ type SourceData struct {
 	FileLines    int
 	FileCounter  int
 	FileDownload string
+	FileEdit     string
 	FileSource   Component
 }
 
@@ -68,6 +69,7 @@ type sourceViewParams struct {
 	FileCounter  int
 	PkgPath      string
 	FileDownload string
+	FileEdit     string
 	ComponentTOC Component
 }
 
@@ -117,7 +119,10 @@ func SourceView(data SourceData) *View {
 		FileCounter:  data.FileCounter,
 		PkgPath:      data.PkgPath,
 		FileDownload: data.FileDownload,
+		FileEdit:     data.FileEdit,
 	}
 
-	return NewTemplateView(SourceViewType, "renderSource", viewData)
+	view := NewTemplateView(SourceViewType, "renderSource", viewData)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

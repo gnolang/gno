@@ -239,6 +239,26 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
+		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\\\t</gno-columns>\n"}, // tab = 4 columns: line-start backslash
+		{"ext-delimiter-2-spaces", "  <gno-card>\n", "  \\<gno-card>\n"},
+		{"ext-delimiter-4-spaces", "    <gno-card>\n", "\\    <gno-card>\n"},
+		{"gno-button-mid-line", "hi <gno-button href=\"/r/x\" label=\"x\" />\n", "hi \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-list-marker", "- <GNO-BUTTON href=\"/r/x\" label=\"x\" />\n", "\\- \\<GNO-BUTTON href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-nbsp", "\u00a0<gno-button />\n", "\u00a0\\<gno-button />\n"},
+		{"gno-button-after-formfeed", "\f<gno-button />\n", "\f\\<gno-button />\n"},
+		{"gno-button-already-escaped", "a \\<gno-button />\n", "a \\<gno-button />\n"},
+		{"gno-button-after-escaped-backslash", "a \\\\<gno-button />\n", "a \\\\\\<gno-button />\n"},
+		{"gno-button-in-code-span", "use `<gno-button />` here\n", "use `\\<gno-button />` here\n"}, // backslash shows: safe over pretty
+		{"gno-button-after-backtick-in-html", "a <span title=\"`\"><gno-button /> `\n", "a <span title=\"`\">\\<gno-button /> `\n"},
+		{"gno-button-four-spaces", "    <gno-button />\n", "    \\<gno-button />\n"},
+		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"}, // the tracker may see a fence goldmark does not
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
 		{"html-type1-pre", "<pre>x</pre>\n", "\\<pre>x</pre>\n"},
@@ -306,6 +326,17 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
+		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
+		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
+		{"gno-button-in-heading", "# <gno-button />\n", "# \\<gno-button />\n"},
+		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"},
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
@@ -345,6 +376,43 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		if twice := EscapeBlockHazardsRich(c.want); twice != c.want {
 			t.Errorf("%s: not idempotent: EscapeBlockHazardsRich(want) = %q, want %q", c.name, twice, c.want)
 		}
+	}
+}
+
+// TestLRDTitleInterruptWalkedOnce checks that a long line ending an LRD
+// title is walked once, however many failed LRD candidates stop on it.
+func TestLRDTitleInterruptWalkedOnce(t *testing.T) {
+	defer func() { isBlockInterruptFn = isBlockInterrupt }()
+	walked := 0
+	isBlockInterruptFn = func(s string, lineStart int) bool {
+		if !isBlockInterrupt(s, lineStart) {
+			return false
+		}
+		walked += strings.IndexByte(s[lineStart:], '\n')
+		return true
+	}
+	const n = 1 << 14
+	for name, tail := range map[string]string{
+		"thematic-break":      strings.Repeat("-", n),
+		"tilde-fence":         strings.Repeat("~", n),
+		"backtick-fence-info": "```" + strings.Repeat("a", n),
+	} {
+		in := strings.Repeat("[a]: u\n(x\n", 64) + tail + "\n"
+		walked = 0
+		EscapeBlockHazards(in)
+		if walked == 0 || walked > len(in) {
+			t.Errorf("%s: walked %d bytes of interrupt lines in a %d-byte input", name, walked, len(in))
+		}
+	}
+}
+
+// TestLRDTitleAfterRepeatedInterrupt checks that a title starting after
+// a line two candidates stopped on still runs on to its closing `)`.
+func TestLRDTitleAfterRepeatedInterrupt(t *testing.T) {
+	in := "[a]: u\n(x\n[b]: v\n(y\n---\n[c]: w\n(z\nq)\n"
+	want := "(x\n(y\n\\---\n"
+	if got := EscapeBlockHazards(in); got != want {
+		t.Errorf("EscapeBlockHazards(%q) = %q, want %q", in, got, want)
 	}
 }
 
@@ -414,5 +482,74 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 				_ = EscapeBlockHazardsRich(c.in)
 			}
 		})
+	}
+}
+
+// TestScanLinkURLChargesWhitespace checks that every whitespace run in a
+// link's `(…)` costs scan budget, so a scan one unit short fails.
+func TestScanLinkURLChargesWhitespace(t *testing.T) {
+	cases := []struct {
+		in     string
+		budget int
+		wantOK bool
+	}{
+		{"  u)", 4, true},
+		{"  u)", 3, false},
+		{"\nu)", 3, true},
+		{"\nu)", 2, false},
+		{"\tu)", 3, true},
+		{"\tu)", 2, false},
+		{"\n\nu)", 100, false},
+		{"u \n )", 5, true},
+		{"u \n )", 4, false},
+		{"u\n\n)", 100, false},
+		{"u  )", 4, true},
+		{"u  )", 3, false},
+		{`u "t" )`, 6, true},
+		{`u "t" )`, 5, false},
+		{"u \"t\"\n\n)", 100, true},
+	}
+	for _, c := range cases {
+		budget := c.budget
+		_, _, _, ok := scanLinkURL(c.in, 0, &budget)
+		if ok != c.wantOK {
+			t.Errorf("scanLinkURL(%q) with budget %d: ok = %v, want %v", c.in, c.budget, ok, c.wantOK)
+		}
+	}
+}
+
+// TestScanLRDTailChargesWhitespace checks that every whitespace run in a
+// definition's tail costs scan budget: one unit short, a definition fails
+// or its span ends early.
+func TestScanLRDTailChargesWhitespace(t *testing.T) {
+	cases := []struct {
+		in      string
+		budget  int
+		wantEnd int
+		wantOK  bool
+	}{
+		{":  u\n", 4, 5, true},
+		{":  u\n", 3, 0, false},
+		{":  u  \n", 9, 7, true},
+		{":  u  \n", 8, 5, true},
+		{": u\n\n\"t\"\n", 100, 4, true},
+	}
+	for _, c := range cases {
+		budget := c.budget
+		interruptAt := -1
+		end, ok := scanLRDTail(c.in, 0, &budget, &interruptAt)
+		if end != c.wantEnd || ok != c.wantOK {
+			t.Errorf("scanLRDTail(%q) with budget %d: (%d, %v), want (%d, %v)", c.in, c.budget, end, ok, c.wantEnd, c.wantOK)
+		}
+	}
+}
+
+// TestLinkWhitespaceRunCharged checks the walk of a space run behind many
+// failed link openers is charged: the scan runs out of budget, so a link
+// after it is escaped rather than kept.
+func TestLinkWhitespaceRunCharged(t *testing.T) {
+	in := strings.Repeat("[a](", 632) + strings.Repeat(" ", 100_000) + "!\n[t](u)"
+	if got := EscapeBlockHazards(in); !strings.HasSuffix(got, `\[t\](u)`) {
+		t.Errorf("trailing link kept: %q", got[len(got)-12:])
 	}
 }

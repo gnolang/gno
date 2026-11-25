@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button href="/r/test&#10;evil" label="newline" />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
