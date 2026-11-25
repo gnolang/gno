@@ -18,8 +18,8 @@ const (
 
 var x = []int{1, 2, 3}
 
-func f(x int, len *byte) {
-	*len = byte(x)
+func f(x int, b *byte) {
+	*b = byte(x)
 }
 
 func whatis(x any) string {
