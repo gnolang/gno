@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -46,6 +48,9 @@ type AppOptions struct {
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
+	QueryMaxGas                int64         // optional, 0 keeps vm.DefaultQueryMaxGas
+	QueryMaxAlloc              int64         // optional, 0 keeps vm.DefaultQueryMaxAlloc
+	QueryTimeout               time.Duration // optional, 0 derives it from the query gas budget
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -146,11 +151,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput
+	if cfg.QueryMaxGas > 0 {
+		vmk.QueryMaxGas = cfg.QueryMaxGas
+	}
+	if cfg.QueryMaxAlloc > 0 {
+		vmk.QueryMaxAlloc = cfg.QueryMaxAlloc
+	}
 
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
-	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint})
+	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint, prmk: prmk})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -288,6 +299,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.Router().AddRoute("params", params.NewHandler(prmk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
+	baseApp.SetQueryTimeout(queryTimeout(cfg.QueryTimeout, vmk.QueryMaxGas))
+
 	// Load latest version.
 	if err := baseApp.LoadLatestVersion(); err != nil {
 		return nil, err
@@ -343,6 +356,9 @@ func NewApp(
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
 		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
+		QueryMaxGas:                appCfg.QueryMaxGas,
+		QueryMaxAlloc:              appCfg.QueryMaxAlloc,
+		QueryTimeout:               appCfg.QueryTimeout,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
@@ -1182,8 +1198,7 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
-		var currentEntries, proposedEntries []string
-		prmk.GetStrings(ctx, valsetCurrentPath, &currentEntries)
+		var proposedEntries []string
 		prmk.GetStrings(ctx, valsetProposedPath, &proposedEntries)
 
 		// Parse proposed first; on parse failure, drop the proposal by
@@ -1223,10 +1238,7 @@ func EndBlocker(
 		// store damage, partial commit, or a chain-code bug that wrote
 		// past WillSetParam are the only ways to get here. Panic is
 		// the right "this shouldn't happen, investigate" signal.
-		currentSet, err := abci.ParseValidatorUpdates(currentEntries)
-		if err != nil {
-			panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
-		}
+		currentSet := loadValsetCurrent(ctx, prmk)
 
 		// Min-validator floor: refuse to empty consensus.
 		// proposed is the full target set, so the post-apply set has
@@ -1276,6 +1288,17 @@ func EndBlocker(
 			}
 		}
 
+		// ApplyBlock enforces the same bounds after this block is stored, so
+		// running the apply call here whole-rejects what consensus would refuse.
+		if err := dryRunValsetDiff(currentSet, diff); err != nil {
+			app.Logger().Error(
+				"valset proposal would fail consensus apply; rejecting whole proposal",
+				"err", err,
+			)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
+			return abci.ResponseEndBlock{}
+		}
+
 		app.Logger().Info("valset changes to be applied", "count", len(diff))
 
 		// Whole-apply: advance valset:current = proposed (no filter losses
@@ -1295,6 +1318,57 @@ func EndBlocker(
 			ValidatorUpdates: diff,
 		}
 	}
+}
+
+// loadValsetCurrent reads and parses valset:current, panicking on a parse
+// error: only chain code writes it.
+func loadValsetCurrent(ctx sdk.Context, prmk params.ParamsKeeperI) abci.ValidatorUpdates {
+	var entries []string
+	prmk.GetStrings(ctx, valsetCurrentPath, &entries)
+	current, err := abci.ParseValidatorUpdates(entries)
+	if err != nil {
+		panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
+	}
+	return current
+}
+
+// dryRunValsetDiff returns the error ApplyBlock's apply call gives diff on the
+// set current holds, or nil when liveValset cannot rebuild that set.
+func dryRunValsetDiff(current, diff abci.ValidatorUpdates) error {
+	liveSet, ok := liveValset(current)
+	if !ok {
+		return nil
+	}
+	return bft.NewValidatorSetFromABCIValidatorUpdates(liveSet).UpdateWithABCIValidatorUpdates(diff)
+}
+
+// liveValset returns the validators valset:current holds, and false when an
+// address repeats: storing sorts the entries, so which one applied is lost.
+func liveValset(current abci.ValidatorUpdates) (abci.ValidatorUpdates, bool) {
+	seen := make(map[string]bool, len(current))
+	live := make(abci.ValidatorUpdates, 0, len(current))
+	var total int64
+	for _, u := range current {
+		addr := u.Address.String()
+		if seen[addr] {
+			return nil, false
+		}
+		seen[addr] = true
+		if u.Power == 0 {
+			continue
+		}
+		// The set constructor panics on a power or total above the cap; report
+		// that as corruption.
+		if u.Power > bft.MaxTotalVotingPower {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): power %d for %s exceeds %d", u.Power, u.Address, bft.MaxTotalVotingPower))
+		}
+		total += u.Power
+		if total > bft.MaxTotalVotingPower {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): total voting power exceeds %d", bft.MaxTotalVotingPower))
+		}
+		live = append(live, u)
+	}
+	return live, true
 }
 
 // txCodeMsgSigners collects the signers of tx's code-bearing messages, split by
@@ -1319,6 +1393,21 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 		}
 	}
 	return addPkgSigners, runSigners
+}
+
+// queryTimeout is the wall-clock limit of one query: override when set, else
+// twice what maxGas takes on reference hardware, where gas is calibrated at
+// 1 gas per ns (see the CPU gas costs in gnovm/pkg/gnolang/machine.go). Derived,
+// it follows query_max_gas, so raising the gas budget also gives the time to
+// spend it.
+func queryTimeout(override time.Duration, maxGas int64) time.Duration {
+	if override > 0 {
+		return override
+	}
+	if d, ok := overflow.Mul(2, time.Duration(maxGas)); ok {
+		return d
+	}
+	return math.MaxInt64
 }
 
 // txCarriesCode reports whether tx carries any message that hands the chain Gno
