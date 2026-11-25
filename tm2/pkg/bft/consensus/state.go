@@ -670,7 +670,6 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		if maxSteps > 0 {
 			panic("maxSteps not supported") // XXX
 		}
-		rs := cs.RoundState
 		var mi msgInfo
 
 		select {
@@ -682,21 +681,36 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 			// may generate internal events (votes, complete proposals, 2/3 majorities)
 			cs.handleMsg(mi)
 		case mi = <-cs.internalMsgQueue:
-			err := cs.wal.WriteSync(mi) // NOTE: fsync
-			if err != nil {
-				panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", mi, err))
-			}
-
 			// handles proposals, block parts, votes
-			cs.handleMsg(mi)
+			cs.handleInternalMsg(mi)
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
+			// The select above picks at random, so a proposer would otherwise
+			// time out on the proposal it just signed.
+			cs.handleQueuedInternalMsgs()
 			cs.wal.Write(ti)
 			// if the timeout is relevant to the rs
 			// go to the next step
-			cs.handleTimeout(ti, rs)
+			cs.handleTimeout(ti, cs.RoundState)
 		case <-cs.Quit():
 			return
 		}
+	}
+}
+
+func (cs *ConsensusState) handleInternalMsg(mi msgInfo) {
+	err := cs.wal.WriteSync(mi) // NOTE: fsync
+	if err != nil {
+		panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", mi, err))
+	}
+
+	cs.handleMsg(mi)
+}
+
+// Handling one message can queue the next, so this takes only what the queue
+// held when the tick was read. Nothing else reads it, so no receive blocks.
+func (cs *ConsensusState) handleQueuedInternalMsgs() {
+	for queued := len(cs.internalMsgQueue); queued > 0; queued-- {
+		cs.handleInternalMsg(<-cs.internalMsgQueue)
 	}
 }
 
