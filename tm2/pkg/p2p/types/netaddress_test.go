@@ -168,6 +168,26 @@ func TestNewNetAddressFromString(t *testing.T) {
 	})
 }
 
+func TestNewNetAddressFromString_EmptyLookup(t *testing.T) {
+	// Not parallel: it swaps the package resolver, which the parallel tests
+	// above resolve "localhost" through.
+	original := lookupIP
+	t.Cleanup(func() { lookupIP = original })
+
+	// net.LookupIP returns no addresses and a nil error for a host the
+	// resolver declines to query
+	lookupIP = func(string) ([]net.IP, error) {
+		return nil, nil
+	}
+
+	addr, err := NewNetAddressFromString(
+		fmt.Sprintf("%s@unresolvable.example:26656", GenerateNodeKey().ID()),
+	)
+
+	assert.Nil(t, addr)
+	assert.ErrorIs(t, err, ErrEmptyLookupResult)
+}
+
 func TestNewNetAddressFromStrings(t *testing.T) {
 	t.Parallel()
 
@@ -434,15 +454,24 @@ func TestNetAddress_DialContext(t *testing.T) {
 	})
 }
 
-func TestNetAddress_UnmarshalAminoDropsHostname(t *testing.T) {
-	t.Parallel()
+func TestNetAddress_UnmarshalAminoRefusesHostname(t *testing.T) {
+	// Not parallel: it swaps the package resolver, as the empty lookup test does
+	original := lookupIP
+	t.Cleanup(func() { lookupIP = original })
+
+	lookedUp := false
+	lookupIP = func(string) ([]net.IP, error) {
+		lookedUp = true
+
+		return []net.IP{net.ParseIP("127.0.0.1")}, nil
+	}
 
 	var addr NetAddress
 
-	require.NoError(t, addr.UnmarshalAmino(fmt.Sprintf("%s@localhost:8080", GenerateNodeKey().ID())))
+	err := addr.UnmarshalAmino(fmt.Sprintf("%s@localhost:8080", GenerateNodeKey().ID()))
 
-	assert.Empty(t, addr.Hostname)
-	assert.NotNil(t, addr.IP)
+	assert.ErrorIs(t, err, ErrHostnameNotIP)
+	assert.False(t, lookedUp)
 }
 
 func TestNetAddress_Routable(t *testing.T) {

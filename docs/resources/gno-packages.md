@@ -160,7 +160,7 @@ Deployed under `gno.land/p/nt/avl/v0`, the AVL package provides a gas-efficient 
 structure for storing key-value data. It is one option in the broader family of
 tree-backed indexes, useful when you need access to large datasets.
 
-See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for storage-type guidance
+See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for storage-type guidance
 and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 #### Usage example:

@@ -375,6 +375,11 @@ func (cdc *Codec) decodeReflectJSONStruct(bz []byte, info *TypeInfo, rv reflect.
 			fmt.Printf("(d) -> err: %v\n", err)
 		}()
 	}
+	if info.Recursive {
+		if anyDepth, err = NestDepth(anyDepth); err != nil {
+			return
+		}
+	}
 
 	// Map all the fields(keys) to their blobs/bytes.
 	// NOTE: In decodeReflectBinaryStruct, we don't need to do this,
