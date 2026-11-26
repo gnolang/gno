@@ -304,6 +304,33 @@ func TestSessionCreateValidation(t *testing.T) {
 		assert.False(t, res.IsOK(), "should reject already-expired session")
 	})
 
+	// The ante handler refuses a session whose expiry is not after the block
+	// time, so one expiring at the block time could never sign.
+	t.Run("expiring at block time rejected", func(t *testing.T) {
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr,
+			SessionKey: spub,
+			ExpiresAt:  ctx.BlockTime().Unix(),
+		}
+		res := h.Process(ctx, msg)
+		require.False(t, res.IsOK(), "should reject a session expiring at the block time")
+		assert.Contains(t, res.Log, "session already expired")
+	})
+
+	t.Run("expiring one second after block time accepted", func(t *testing.T) {
+		// A fresh master, so "too many sessions" still counts from zero.
+		_, masterAddr2 := setupSessionFromEnv(t, env)
+		_, spub, _ := tu.KeyTestPubAddr()
+		msg := MsgCreateSession{
+			Creator:    masterAddr2,
+			SessionKey: spub,
+			ExpiresAt:  ctx.BlockTime().Unix() + 1,
+		}
+		res := h.Process(ctx, msg)
+		assert.True(t, res.IsOK(), res.Log)
+	})
+
 	t.Run("too many sessions", func(t *testing.T) {
 		// Create MaxSessionsPerAccount sessions.
 		for i := range std.MaxSessionsPerAccount {
@@ -1685,4 +1712,20 @@ func TestSessionExpiredErrorIncludesTimestamps(t *testing.T) {
 	require.True(t, abort)
 	assert.Contains(t, res.Log, "expires_at=", "expiry error should include expires_at")
 	assert.Contains(t, res.Log, "block_time=", "expiry error should include block_time")
+}
+
+// A negative expiry is refused before the handler runs, the smallest one
+// included, since 0 is the value that means no expiry.
+func TestSessionCreateNegativeExpiryIsRefusedByValidateBasic(t *testing.T) {
+	_, _, masterAddr := tu.KeyTestPubAddr()
+	_, sessionPub, _ := tu.KeyTestPubAddr()
+
+	err := MsgCreateSession{
+		Creator:    masterAddr,
+		SessionKey: sessionPub,
+		ExpiresAt:  -1,
+		SpendLimit: sessionSpendLimit(),
+	}.ValidateBasic()
+	require.Error(t, err, "ValidateBasic should reject a negative expires_at")
+	require.Contains(t, fmt.Sprintf("%+v", err), "expires_at must be non-negative")
 }
