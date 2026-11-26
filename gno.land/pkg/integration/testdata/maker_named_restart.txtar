@@ -1,6 +1,6 @@
-# A realm gate calling its own non-crossing function by name writes, and so
-# does a local helper; the function taken as a value is refused. All three
-# hold after a restart, when preprocessing reruns.
+# A realm gate calling its own non-crossing function by name writes, and so do
+# a local helper and a local bound once to it; the function read from a package
+# variable is refused. All four hold after a restart, when preprocessing reruns.
 
 loadpkg gno.land/r/test/mknamed $WORK
 gnoland start
@@ -10,6 +10,9 @@ stdout '"named" string'
 
 gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '"helper" string'
+
+gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaAlias -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '"alias" string'
 
 ! gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stderr 'read-only here'
@@ -21,6 +24,9 @@ stdout '"named" string'
 
 gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '"helper" string'
+
+gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaAlias -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '"alias" string'
 
 ! gnokey maketx call -pkgpath gno.land/r/test/mknamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stderr 'read-only here'
@@ -36,6 +42,8 @@ var state = "orig"
 
 func set(s string) { state = s }
 
+var setFn = set
+
 func Named(cur realm) string {
 	set("named")
 	return state
@@ -48,7 +56,13 @@ func ViaHelper(cur realm) string {
 }
 
 func ViaValue(cur realm) string {
-	f := set
+	f := setFn
 	f("value")
+	return state
+}
+
+func ViaAlias(cur realm) string {
+	f := set
+	f("alias")
 	return state
 }

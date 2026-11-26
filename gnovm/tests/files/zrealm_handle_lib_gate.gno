@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_handle_lib_gate
 package zrealm_handle_lib_gate
 
-// A library function taken as a local value in the victim's gate is a local
-// copy, not a call by name: it runs read-only and cannot write the victim's object.
+// A library function in a reassigned local in the victim's gate is a value, not
+// a call by name: it runs read-only and cannot write the victim's object.
 
 import "gno.land/r/tests/vm/cbvictim"
 

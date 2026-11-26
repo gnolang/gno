@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/ctw_owncb
 // A literal in place writes only while a declared function reached by name (or
-// via a library's own variable or table) runs it; a literal callee kept in a
-// variable, or a declared one reached through a local, is refused.
+// a local bound once to it, or a library's own variable or table) runs it; a
+// literal callee kept in a variable, or a reassigned local, is refused.
 package ctw_owncb
 
 import (
@@ -22,6 +22,7 @@ func main(cur realm) {
 	println("local:", revive(func() { ctw.ViaLocal(cross(cur)) }), ctw.BoxSum())
 	libtable.Each(boxes, func(b *libtable.Box) { b.N++ })
 	println("local twin by name:", boxes[0].N)
+	println("alias:", revive(func() { ctw.ViaAlias(cross(cur)) }), ctw.BoxSum())
 	ctw.ViaDispatch(cross(cur))
 	println("dispatch:", ctw.BoxSum())
 }
@@ -32,4 +33,5 @@ func main(cur realm) {
 // table: 1
 // local: gno.land/r/tests/vm/ctw's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): b<VPBlock(1,0)>.N 3
 // local twin by name: 2
-// dispatch: 4
+// alias: undefined 5
+// dispatch: 6

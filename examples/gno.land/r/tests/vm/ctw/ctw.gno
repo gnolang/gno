@@ -86,14 +86,21 @@ func RowCount() int { return len([]int(Rows)) }
 func RecN() int     { return (*Rec2)(rec).N }
 
 // This realm's own callbacks, reached through library code its crossing call
-// named: a closure in a package variable, a table entry, a local copy of a
-// named function, and the library's own table.
+// named: a closure in a package variable, a table entry, a reassigned local, a
+// local bound once to a named function (that function by name), and the
+// library's own table.
 var Boxes = []*libtable.Box{{N: 1}, {N: 2}}
 
 func ViaApply(cur realm)    { libtable.Apply(func() { Count++ }) }
 func ViaTable(cur realm)    { libtable.Table["run"](func() { Count++ }) }
-func ViaLocal(cur realm)    { each := libtable.Each; each(Boxes, func(b *libtable.Box) { b.N++ }) }
+func ViaAlias(cur realm)    { each := libtable.Each; each(Boxes, func(b *libtable.Box) { b.N++ }) }
 func ViaDispatch(cur realm) { libtable.Dispatch("inc", Boxes[0]) }
+
+func ViaLocal(cur realm) {
+	each := libtable.Each
+	each = libtable.Each
+	each(Boxes, func(b *libtable.Box) { b.N++ })
+}
 
 func BoxSum() (s int) {
 	for _, b := range Boxes {

@@ -54,8 +54,13 @@ func ApplyNamed(cur realm) { launderattack.EvilWrite(gObj) }
 // Hof hands a caller callback to a /p/ helper that calls it.
 func Hof(cur realm, f Fn) { pfuncbind.Apply(f, gObj) }
 
-// SortOwn sorts the victim's own slice through a stdlib function value.
-func SortOwn(cur realm) { f := sort.Ints; f(gInts) }
+// SortOwn sorts the victim's own slice through a stdlib function value; the
+// reassignment makes it a value, not the function by name.
+func SortOwn(cur realm) {
+	f := sort.Ints
+	f = sort.Ints
+	f(gInts)
+}
 
 var gInts = []int{3, 1, 2}
 

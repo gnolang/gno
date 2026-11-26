@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_entry_pfunc_sortown
 package zrealm_entry_pfunc_sortown
 
-// A realm calling a stdlib function through a local variable it made in its
-// gate holds a local copy, not a call by name: sort.Ints runs read-only.
+// A realm calling a stdlib function through a reassigned local in its gate
+// holds a value, not a call by name: sort.Ints runs read-only.
 
 import "gno.land/r/tests/vm/pfuncvictim"
 

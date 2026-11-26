@@ -4,6 +4,8 @@ package gnolang
 // `var f T` then one `f = literal`, for recursion) and only ever called never
 // travels, so calls through it are not calls by value. Runs after preprocess1:
 // a name is keyed by the variable its path resolves to, not its spelling.
+// An alias (`f := F` or `var f = pkg.F`, F a declared plain function) held to
+// the same rule calls F by name.
 
 type helperKey struct {
 	bn   BlockNode
@@ -13,6 +15,7 @@ type helperKey struct {
 type helperUse struct {
 	defs  int  // := or var declarations of this very variable
 	lit   bool // every declaration gives it a function literal
+	fn    bool // its one declaration alone gives it a declared function
 	bad   bool // used other than as a callee, or assigned
 	calls []*CallExpr
 	caps  []*FuncLitExpr // literals between its declaring block and a use
@@ -68,10 +71,15 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 				return n, TRANS_CONTINUE
 			}
 			dbn := last.GetBlockNodeForPath(nil, n.Path)
-			k := helperKey{dbn, n.Name}
+			// Key by the slot the path names: a capture already moved into a
+			// literal's block ("~f") must not share a key with an f declared there.
+			k := helperKey{dbn, "~?"}
+			if names := dbn.GetBlockNames(); int(n.Path.Index) < len(names) {
+				k.name = names[n.Path.Index]
+			}
 			u := uses[k]
 			if u == nil {
-				u = &helperUse{lit: true}
+				u = &helperUse{lit: true, bad: k.name == "~?"} // unknown slot: fail closed
 				uses[k] = u
 			}
 			// Every literal entered since the declaring block captures it.
@@ -102,6 +110,7 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 				}
 				u.defs++
 				u.lit = u.lit && len(parent.Lhs) == len(parent.Rhs) && litDef(parent.Rhs[index], u, litOf)
+				u.fn = len(parent.Lhs) == 1 && len(parent.Rhs) == 1 && declFunc(last, dbn, parent.Rhs[0])
 			case *ValueDecl:
 				if ftype != TRANS_VAR_NAME || parent.Const {
 					u.bad = true
@@ -113,6 +122,7 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 					break
 				}
 				u.lit = u.lit && len(parent.Values) == len(parent.NameExprs) && litDef(parent.Values[index], u, litOf)
+				u.fn = len(parent.NameExprs) == 1 && len(parent.Values) == 1 && declFunc(last, dbn, parent.Values[0])
 			default:
 				u.bad = true
 			}
@@ -122,7 +132,9 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 	// Good: declared once from a literal, only called, and every literal
 	// capturing it stays (called in place, crossing, or a good helper's own
 	// literal). A := literal cannot name what is declared later: no cycle.
-	good := func(u *helperUse) bool { return u.defs == 1 && u.lit && !u.bad && u.asg == u.bare }
+	good := func(u *helperUse) bool {
+		return u.defs == 1 && !u.bad && (u.lit && u.asg == u.bare || u.fn && u.asg == 0 && u.bare == 0)
+	}
 	for changed := true; changed; {
 		changed = false
 		for _, u := range uses {
@@ -140,7 +152,11 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 	for _, u := range uses {
 		if good(u) {
 			for _, cx := range u.calls {
-				cx.SetAttribute(ATTR_LOCAL_HELPER, true)
+				if u.fn {
+					cx.SetAttribute(ATTR_NAMED_CALLEE, true) // exactly as calling F by name
+				} else {
+					cx.SetAttribute(ATTR_LOCAL_HELPER, true)
+				}
 			}
 		}
 	}
@@ -163,4 +179,42 @@ func litDef(x Expr, u *helperUse, litOf map[*FuncLitExpr]*helperUse) bool {
 		litOf[fl] = u
 	}
 	return ok
+}
+
+// declFunc reports whether x, the value of a local declared in block dbn,
+// names a package-level non-crossing function declaration, F or pkg.F: the
+// names preprocess marks for a handle (or wrapped in one, in a nested pass).
+func declFunc(last, dbn BlockNode, x Expr) bool {
+	if _, ok := dbn.(*PackageNode); ok {
+		return false // a package variable may be assigned anywhere
+	}
+	if hx, ok := x.(*FuncHandleExpr); ok {
+		x = hx.X
+	} else if _, ok := x.GetAttribute(ATTR_FUNC_HANDLE).(Type); !ok {
+		return false
+	}
+	switch x := x.(type) {
+	case *NameExpr:
+		if x.Path.Type != VPBlock {
+			return false
+		}
+		_, ok := last.GetBlockNodeForPath(nil, x.Path).(*PackageNode)
+		return ok
+	case *SelectorExpr:
+		// pkg.F (a method expression has a field path)
+		return x.Path.Type == VPBlock && isPkgExpr(x.X)
+	}
+	return false
+}
+
+// isPkgExpr reports whether x names a package, before or after coda.
+func isPkgExpr(x Expr) bool {
+	switch x := x.(type) {
+	case *NameExpr:
+		_, ok := x.GetAttribute(ATTR_PACKAGE_REF).(RefValue)
+		return ok
+	case *ConstExpr:
+		return x.T == gPackageType
+	}
+	return false
 }
