@@ -165,6 +165,11 @@ Known limits of the loan in shape 2:
   variable the library owns runs as the library, not as your realm.
 - A local helper used inside a literal that is lent in place is refused; call
   the helper outside the literal, or write its body in the literal.
+- `gno lint` warns where a function literal, or a declared function or method
+  used as a value, writes the realm's package variables but sits where the VM
+  will run it read-only (stored, returned, deferred, variadic, handed to
+  another realm, or passed to a callee not called by name). It is a hint: the
+  run-time rule stays the only enforcement.
 
 #### The same line in Swift and Rust
 
