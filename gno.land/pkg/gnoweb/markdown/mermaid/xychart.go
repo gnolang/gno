@@ -134,17 +134,21 @@ func (d *xychart) parseYAxis(l line, rest string) error {
 	return nil
 }
 
-// splitTitle splits an axis statement into its title, quoted or a single
-// word, and what follows: a list or a range.
+// splitTitle splits an axis statement into its title and what follows: a
+// list or a range. An unquoted title runs up to the list, or up to the word
+// before the arrow of a range.
 func splitTitle(s string) (string, string) {
 	if inner, rest, ok := cutQuoted(s); ok {
 		return decodeEntities(inner), rest
 	}
-	if s == "" || strings.ContainsRune("[-+.0123456789", rune(s[0])) {
-		return "", s
+	end := strings.IndexByte(s, '[')
+	if end < 0 {
+		end = len(s)
+		if i := strings.Index(s, "-->"); i >= 0 {
+			end = strings.LastIndexByte(strings.TrimSpace(s[:i]), ' ') + 1
+		}
 	}
-	word, rest, _ := strings.Cut(s, " ")
-	return decodeEntities(word), strings.TrimSpace(rest)
+	return decodeEntities(strings.TrimSpace(s[:end])), strings.TrimSpace(s[end:])
 }
 
 // parseList parses `[a, "b, c", d]` into its items.
@@ -237,8 +241,11 @@ func (d *xychart) draw(w *svgWriter) (float64, float64) {
 	if d.yTitle != "" {
 		top += axisTitleH
 	}
-	width := max(pad+labelW+tickLen+6+plotW+pad, pad+textWidth(d.yTitle, smallSize, true)+pad)
-	x0 := pad + labelW + tickLen + 6
+	// The x-axis title is centered under the plot, which moves right when
+	// the title is wider.
+	xTitleW := textWidth(d.xTitle, smallSize, true)
+	x0 := max(pad+labelW+tickLen+6, pad+(xTitleW-plotW)/2)
+	width := max(x0+max(plotW, (plotW+xTitleW)/2)+pad, pad+textWidth(d.yTitle, smallSize, true)+pad)
 	bottom := top + plotHeight
 	height := bottom + tickLen + 20 + pad
 	if d.xTitle != "" {

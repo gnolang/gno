@@ -54,7 +54,8 @@ func errorf(line int, format string, args ...any) error {
 
 // line is a source line: its number, its indentation in whitespace
 // characters (a tab counts as one, as Mermaid counts it) and its text with
-// the indentation and trailing spaces removed.
+// the indentation and trailing spaces removed and its tabs made spaces, as
+// Mermaid separates words with either.
 type line struct {
 	n      int
 	indent int
@@ -170,7 +171,7 @@ func scan(src string, m *meta) ([]line, error) {
 	for ; i < len(raw); i++ {
 		text := strings.TrimRight(raw[i], " \t\r")
 		indent := len(text) - len(strings.TrimLeft(text, " \t"))
-		text = text[indent:]
+		text = strings.ReplaceAll(text[indent:], "\t", " ")
 		if strings.HasPrefix(text, "%%{") {
 			for !strings.HasSuffix(strings.TrimSpace(raw[i]), "}%%") {
 				if i++; i == len(raw) {

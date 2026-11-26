@@ -37,10 +37,16 @@ func parseTimeline(args string, lines []line, m *meta) (diagram, error) {
 			continue
 		}
 		if rest, ok := cutPrefixFold(l.text, "section "); ok {
+			// Mermaid ends a section at a colon and reads the rest as an event.
+			if strings.Contains(rest, ":") {
+				return nil, errorf(l.n, "colon in a section")
+			}
 			d.sections = append(d.sections, label(rest))
 			continue
 		}
-		parts := splitEvents(l.text)
+		// As in Mermaid, a colon followed by a space separates the events, so
+		// `10:30` or a URL stays whole.
+		parts := strings.Split(l.text, ": ")
 		var p *period
 		if strings.TrimSpace(parts[0]) == "" {
 			if len(d.periods) == 0 {
@@ -55,6 +61,9 @@ func parseTimeline(args string, lines []line, m *meta) (diagram, error) {
 			d.periods = append(d.periods, p)
 		}
 		for _, e := range parts[1:] {
+			if strings.TrimSpace(e) == "" {
+				return nil, errorf(l.n, "empty event")
+			}
 			p.events = append(p.events, label(e))
 		}
 	}
@@ -62,21 +71,6 @@ func parseTimeline(args string, lines []line, m *meta) (diagram, error) {
 		return nil, errorf(0, "timeline without periods")
 	}
 	return d, nil
-}
-
-// splitEvents splits a timeline line at the colons that separate a period
-// from its events: as in Mermaid, those followed by a space or ending the
-// line, so `10:30` or a URL stays whole.
-func splitEvents(s string) []string {
-	var out []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == ':' && (i+1 == len(s) || s[i+1] == ' ' || s[i+1] == '\t') {
-			out = append(out, s[start:i])
-			start = i + 1
-		}
-	}
-	return append(out, s[start:])
 }
 
 func (d *timeline) draw(w *svgWriter) (float64, float64) {

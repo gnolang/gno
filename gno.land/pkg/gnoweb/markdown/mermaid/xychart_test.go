@@ -1,6 +1,8 @@
 package mermaid
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -60,6 +62,36 @@ func TestXYChartAxes(t *testing.T) {
 	assert.Equal(t, "Gas", c.yTitle)
 	assert.Equal(t, []float64{1, 2}, c.series[0].values, "points past the categories are dropped")
 	assert.Equal(t, 50.0, c.yMax)
+}
+
+func TestSplitTitle(t *testing.T) {
+	for in, want := range map[string][2]string{
+		`Month names [a, b]`:       {"Month names", "[a, b]"},
+		`Revenue in USD 0 --> 100`: {"Revenue in USD", "0 --> 100"},
+		`Temp -5-->5`:              {"Temp", "-5-->5"},
+		`-5 --> 5`:                 {"", "-5 --> 5"},
+		`[a]`:                      {"", "[a]"},
+		`Just a title`:             {"Just a title", ""},
+		`"Quoted [x]" [a]`:         {"Quoted [x]", "[a]"},
+		`Amount #59; paid 1 --> 2`: {"Amount ; paid", "1 --> 2"},
+	} {
+		title, rest := splitTitle(in)
+		assert.Equal(t, want, [2]string{title, rest}, in)
+	}
+}
+
+func TestXYChartWideXTitle(t *testing.T) {
+	// The x-axis title, centered under the plot, fits the drawing.
+	const title = "A very long x axis title that is much wider than the plot"
+	out, err := Render("xychart-beta\nx-axis \"" + title + "\" [a]\nbar [1]")
+	require.NoError(t, err)
+	m := regexp.MustCompile(`width="([\d.]+)"(?s:.*)x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="12">` + title).FindSubmatch(out)
+	require.NotNil(t, m, "%s", out)
+	width, _ := strconv.ParseFloat(string(m[1]), 64)
+	x, _ := strconv.ParseFloat(string(m[2]), 64)
+	half := textWidth(title, smallSize, true) / 2
+	assert.GreaterOrEqual(t, x-half, pad-0.01)
+	assert.LessOrEqual(t, x+half, width-pad+0.01)
 }
 
 func TestXYChartAutoRange(t *testing.T) {

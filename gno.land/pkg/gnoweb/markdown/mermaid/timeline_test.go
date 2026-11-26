@@ -9,10 +9,13 @@ import (
 
 func TestTimelineErrors(t *testing.T) {
 	renderErrors(t, map[string][2]string{
-		"no periods":   {"timeline\ntitle x\nsection y", "without periods"},
-		"stray event":  {"timeline\n: orphan", "event before any period"},
-		"option":       {"timeline LR\n2024 : x", "unsupported timeline option"},
-		"colon period": {"timeline\n10:00 : x", "colon in a period"},
+		"no periods":     {"timeline\ntitle x\nsection y", "without periods"},
+		"stray event":    {"timeline\n: orphan", "event before any period"},
+		"option":         {"timeline LR\n2024 : x", "unsupported timeline option"},
+		"colon period":   {"timeline\n10:00 : x", "colon in a period"},
+		"trailing colon": {"timeline\n2020 : a\n2021 :", "colon in a period"},
+		"empty event":    {"timeline\n2020 : : b", "empty event"},
+		"colon section":  {"timeline\n2020 : a\nsection Phase 1 : launch", "colon in a section"},
 	})
 }
 
@@ -24,7 +27,7 @@ func TestTimelineParse(t *testing.T) {
 		{text: "2024 : a : b"},
 		{text: "     : c"},
 		{text: "2025"},
-		{text: "2026 : at 10:30 : https://gno.land"},
+		{text: "2026 : at 10:30 : https://gno.land : x :"},
 		{text: "Title Gno"},
 	}, &m)
 	require.NoError(t, err)
@@ -35,6 +38,6 @@ func TestTimelineParse(t *testing.T) {
 	assert.Equal(t, 0, tl.periods[1].section)
 	assert.Equal(t, [][]string{{"a"}, {"b"}, {"c"}}, tl.periods[1].events)
 	assert.Empty(t, tl.periods[2].events)
-	assert.Equal(t, [][]string{{"at 10:30"}, {"https://gno.land"}}, tl.periods[3].events,
+	assert.Equal(t, [][]string{{"at 10:30"}, {"https://gno.land"}, {"x :"}}, tl.periods[3].events,
 		"only a colon followed by a space separates events")
 }

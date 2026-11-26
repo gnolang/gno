@@ -221,27 +221,33 @@ func wrap(lines []string, size, width float64, bold bool) []string {
 }
 
 // breakWord cuts word into pieces no wider than width, each but the last
-// ending after a break character when one fits.
+// ending after a break character when one fits. A combining mark, a format
+// character and what follows a zero width joiner stay with the character
+// before them, so no piece starts with a lone accent or half an emoji.
 func breakWord(word string, size, width float64, bold bool) []string {
 	var out []string
 	start, w := 0, 0.0
 	cut, cutW := -1, 0.0 // the last place to break, and the width before it
+	prev := rune(-1)
 	for i, r := range word {
 		rw := runeEm(r, bold) * size / 1000
-		if w+rw > width && i > start {
-			if cut > start {
-				out = append(out, word[start:cut])
-				start, w = cut, w-cutW
-			} else {
-				out = append(out, word[start:i])
-				start, w = i, 0
+		if prev != '\u200d' && !unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf) {
+			if strings.ContainsRune("/.-_,", prev) || wide(prev) {
+				cut, cutW = i, w
 			}
-			cut = -1
+			if w+rw > width && i > start {
+				if cut > start {
+					out = append(out, word[start:cut])
+					start, w = cut, w-cutW
+				} else {
+					out = append(out, word[start:i])
+					start, w = i, 0
+				}
+				cut = -1
+			}
 		}
 		w += rw
-		if strings.ContainsRune("/.-_,", r) || wide(r) {
-			cut, cutW = i+utf8.RuneLen(r), w
-		}
+		prev = r
 	}
 	return append(out, word[start:])
 }

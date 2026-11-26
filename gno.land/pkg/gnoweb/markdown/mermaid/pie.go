@@ -127,15 +127,20 @@ func (d *pie) draw(w *svgWriter) (float64, float64) {
 			break
 		}
 		sweep := s.value / d.total * 2 * math.Pi
-		large := 0.0
-		if sweep > math.Pi {
-			large = 1
+		at := func(a float64) (float64, float64) {
+			return cx + pieRadius*math.Cos(a), cy + pieRadius*math.Sin(a)
 		}
-		x0, y0 := cx+pieRadius*math.Cos(angle), cy+pieRadius*math.Sin(angle)
+		x0, y0 := at(angle)
+		p := new(pathData).cmd('M', cx, cy).cmd('L', x0, y0)
+		if sweep > math.Pi {
+			// A slice close to a full turn would end where it starts once
+			// rounded, and SVG drops such an arc: go through the middle.
+			xm, ym := at(angle + sweep/2)
+			p.cmd('A', pieRadius, pieRadius, 0, 0, 1, xm, ym)
+		}
 		angle += sweep
-		x1, y1 := cx+pieRadius*math.Cos(angle), cy+pieRadius*math.Sin(angle)
-		w.path(c, new(pathData).cmd('M', cx, cy).cmd('L', x0, y0).
-			cmd('A', pieRadius, pieRadius, 0, large, 1, x1, y1).cmd('Z'))
+		x1, y1 := at(angle)
+		w.path(c, p.cmd('A', pieRadius, pieRadius, 0, 0, 1, x1, y1).cmd('Z'))
 	}
 
 	lx := pad + 2*pieRadius + legendGap

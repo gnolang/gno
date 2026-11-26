@@ -123,7 +123,7 @@ icons:
 # from the Inter gnoweb serves. Needs `pip install fonttools brotli`.
 .PHONY: mermaid-widths
 mermaid-widths:
-	cd markdown/mermaid && python3 gen_widths.py > widths_gen.go && gofmt -w widths_gen.go
+	cd markdown/mermaid && (python3 gen_widths.py > widths.tmp && gofmt -w widths.tmp && mv widths.tmp widths_gen.go) || (rm -f widths.tmp; false)
 
 # Main CSS
 maincss: $(output_maincss)

@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,6 +44,19 @@ func TestGolden(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, string(bytes.TrimSuffix(want, []byte("\n"))), string(out))
 		})
+	}
+}
+
+func TestTabs(t *testing.T) {
+	// Mermaid separates words with tabs as with spaces.
+	for _, src := range []string{
+		"pie\tshowData\n\"a\" : 1",
+		"sequenceDiagram\nparticipant\tA\nNote\tright of\tA: x",
+		"xychart-beta\nx-axis\t[a]\nbar\t[1]",
+		"timeline\n2020 :\ta\nsection\tS\n2021 : b",
+	} {
+		_, err := Render(src)
+		assert.NoError(t, err, src)
 	}
 }
 
@@ -148,6 +163,25 @@ func TestWrap(t *testing.T) {
 	for _, l := range append(got, wrap([]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "漢字漢字漢字漢字"}, fontSize, 60, false)...) {
 		assert.LessOrEqual(t, textWidth(l, fontSize, false), max(width, 60.0), l)
 	}
+
+	// A piece never starts with a combining mark or splits an emoji
+	// sequence, after a wide character included.
+	for _, word := range []string{
+		strings.Repeat("e\u0301", 40),
+		strings.Repeat("漢\u0301", 40),
+		strings.Repeat("👩\u200d👩\u200d👧\ufe0f", 20),
+	} {
+		pieces := breakWord(word, fontSize, 60, false)
+		require.Greater(t, len(pieces), 1, word)
+		for _, p := range pieces[1:] {
+			r, _ := utf8.DecodeRuneInString(p)
+			assert.False(t, unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf), "%q starts with %U", p, r)
+		}
+		for _, p := range pieces {
+			assert.False(t, strings.HasSuffix(p, "\u200d"), "%q ends with a joiner", p)
+		}
+		assert.Equal(t, word, strings.Join(pieces, ""))
+	}
 }
 
 func TestWriterEscapes(t *testing.T) {
@@ -205,6 +239,7 @@ func FuzzRender(f *testing.F) {
 		if err != nil {
 			var e *Error
 			require.True(t, errors.As(err, &e), "error %v is not an *Error", err)
+			require.False(t, strings.HasPrefix(e.Msg, "internal error"), "panic: %v", err)
 			return
 		}
 		require.LessOrEqual(t, len(out), MaxOutputLen)

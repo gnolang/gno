@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -33,6 +34,17 @@ func TestPieWhole(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(s, "gno-mermaid__slice"))
 	assert.Contains(t, s, "all 100%")
 	assert.Contains(t, s, "none 0%")
+}
+
+func TestPieNearlyWhole(t *testing.T) {
+	// A slice a hair short of a full turn would start and end at the same
+	// rounded point, which SVG does not draw: it goes through its middle.
+	out, err := Render("pie\n\"big\" : 999999\n\"small\" : 1")
+	require.NoError(t, err)
+	big := regexp.MustCompile(`d="M126 126L126 16A110 110 0 0 1 ([\d.]+ [\d.]+)A110 110 0 0 1 126 16Z"`)
+	m := big.FindSubmatch(out)
+	require.NotNil(t, m, "%s", out)
+	assert.Equal(t, "126 236", string(m[1]), "the middle is the bottom of the circle")
 }
 
 func TestPieDuplicates(t *testing.T) {
