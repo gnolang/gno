@@ -206,3 +206,22 @@ func markShared(o Object) bool {
 	o.GetObjectInfo().shared = true
 	return true
 }
+
+// handOffLends ends the loans of what each function value in args captures
+// when the call leaves the caller's hold or enters read-only code: what is
+// handed over there must not keep a writer alive through its captures.
+func (m *Machine) handOffLends(fr *Frame, args []TypedValue) {
+	if len(m.lends) == 0 {
+		return
+	}
+	if !m.viewOnly || fr.LastViewOnly {
+		if now, _ := m.Alloc.holdRealm(); now == fr.callerHold() {
+			return
+		}
+	}
+	for i := range args {
+		if fv, ok := args[i].V.(*FuncValue); ok {
+			m.dropCapturedLends(fv)
+		}
+	}
+}

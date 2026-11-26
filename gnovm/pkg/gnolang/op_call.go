@@ -414,6 +414,7 @@ func (m *Machine) doOpCall() {
 		args = []TypedValue{*m.PopValue()}
 	} else {
 		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
+		m.handOffLends(fr, args)
 		m.shareHandedArgs(fr, args)
 		m.lendArgs(fr, fs, args)
 	}
@@ -1086,6 +1087,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		})
 		m.PushOp(OpCallDeferNativeBody)
 	}
+	m.handOffLends(m.LastFrame(), dfr.Args)
 	m.shareHandedArgs(m.LastFrame(), dfr.Args)
 	// Assign parameters in forward order.
 	for i, arg := range dfr.Args {
