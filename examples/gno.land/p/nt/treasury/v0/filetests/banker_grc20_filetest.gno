@@ -29,8 +29,14 @@ func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	return token
 }
 
+// transfer is stored in the banker and called back read-only, so it
+// crosses back into this realm to move the tokens.
 func transfer(_ int, rlm realm, tokenKey string, to address, amount int64) {
-	if err := registered[tokenKey].RealmTeller(0, rlm).Transfer(0, rlm, to, amount); err != nil {
+	doTransfer(cross(rlm), tokenKey, to, amount)
+}
+
+func doTransfer(cur realm, tokenKey string, to address, amount int64) {
+	if err := registered[tokenKey].RealmTeller(0, cur).Transfer(0, cur, to, amount); err != nil {
 		panic(err)
 	}
 }
