@@ -40,11 +40,12 @@ type PebbleDB struct {
 	db *pebble.DB
 }
 
-// blockCacheSize replaces pebble's 8 MiB default. Every Get walks a table's
-// index block before its data block, and a store of 1M avl keys already has
-// about 40 MiB of index blocks, so at 8 MiB the cache held almost none of them
-// and Gets missed it on nearly every block read. The cache fills only as
-// blocks are read, so a small DB stays small.
+// blockCacheSize replaces pebble's 8 MiB default. pebble reserves memtable
+// memory out of the block cache, the live memtable plus one kept for reuse, so
+// the default 4 MiB MemTableSize took all 8 MiB and no block stayed cached.
+// 64 MiB leaves 56 MiB for blocks, enough for the ~40 MiB of index blocks a
+// store of 1M avl keys has. Raising MemTableSize takes twice the increase out
+// of the block budget. The cache fills only as blocks are read.
 const blockCacheSize = 64 << 20
 
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {

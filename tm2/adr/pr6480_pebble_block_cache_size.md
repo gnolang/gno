@@ -14,11 +14,20 @@ passed an empty `pebble.Options`, which gives pebble's 8 MiB block cache.
 used by tests and benchmarks.
 
 A pebble point lookup reads, per level it visits, an index block and then a data
-block, both through the block cache. On a store holding a realm with 1,000,000
-avl keys (4.0M pebble entries, 583 MiB of data in 118 sstables) the index blocks
-alone are **39.4 MiB**, measured from the sstable properties. An 8 MiB cache
-cannot hold the index, so random gets evict each other's index blocks before
-they are reused.
+block, both through the block cache. pebble also reserves memtable memory out of
+that cache: each memtable arena calls `Cache.Reserve`, and the memtable kept for
+reuse after a flush keeps its reservation, so once memtables reach full size the
+cache sets aside 2 x `MemTableSize` for them. At the default 4 MiB memtable that
+is all 8 MiB, reached after about 8 MiB of writes, and from then on the cache
+holds no blocks at all. On a standalone pebble store with these options, a
+200-key working set read twice hits 0.0% after 77 MiB of writes, and 96.6% on
+the same store reopened with no writes. Every lookup then reads its index and
+data blocks outside the cache.
+
+On a store holding a realm with 1,000,000 avl keys (4.0M pebble entries,
+583 MiB of data in 118 sstables) the index blocks alone are **39.4 MiB**,
+measured from the sstable properties, so the cache needs room for that on top
+of the memtables.
 
 ## Measurement
 
@@ -27,8 +36,11 @@ holding an avl tree of 1,000,000 keys, 100 tx per block, 100 warmup tx per
 shape. Every run starts from a fresh copy of the same pre-populated store, warm
 page cache, `taskset` 12 cores, GOMAXPROCS=12, 3 reps per arm with the arm order
 rotated. Every arm also sets the 16 MiB memtable of #6467, so only the cache
-differs. `read` reads one random key, `rmw` reads and writes one, `walk`
-iterates 100 keys from a random start. n = 2000 tx per rep (1000 for `walk`).
+differs. Those memtables reserve up to 32 MiB of the cache: the 8 MiB arms hold
+no blocks once the memtables reach 8 MiB between them, and the 64 MiB arms keep
+at least 32 MiB for blocks. `read` reads one random key, `rmw` reads and writes
+one, `walk` iterates 100 keys from a random start. n = 2000 tx per rep (1000 for
+`walk`).
 Get time is measured around every backend `Get`/`Has` during `DeliverTx`.
 
 | cache | shape | tx/s per rep | DeliverTx p50 ms per rep | Get ms per tx p50 | block cache hit | peak RSS |
@@ -48,7 +60,8 @@ Get time is measured around every backend `Get`/`Has` during `DeliverTx`.
   that was 17% of wall, so its throughput moves inside the rep-to-rep noise of
   this shared host. Single-key `read` is unchanged within noise.
 - The gain is all in the first step: 256 MiB and 1 GiB do no better than
-  64 MiB, consistent with the 39.4 MiB index fitting at 64 MiB.
+  64 MiB. Next to #6467's memtables, 64 MiB kept at least 32 MiB for blocks;
+  with the default 4 MiB memtable it keeps 56 MiB, more than the 39.4 MiB index.
 - App hash and gas used are identical in every run. The cache only changes
   where block bytes come from.
 
@@ -61,8 +74,9 @@ its own reference once `pebble.Open` holds one. Nothing else changes.
 ## Memory
 
 The cache allocates as blocks are read, so a database that reads little stays
-small. The bound is 64 MiB per database instead of 8 MiB: at most 168 MiB more
-for a node's three pebble databases, in practice less because `blockstore` and
+small. Memtables took all 8 MiB of the old cache and take 8 MiB of the new one,
+so blocks grow by at most 56 MiB per database: at most 168 MiB more for a
+node's three pebble databases, in practice less because `blockstore` and
 `state` read a small working set. Measured peak RSS of the benchmark process
 (one database): 585 MiB at 8 MiB, 706 to 752 MiB at 64 MiB across 6 runs.
 
@@ -85,9 +99,13 @@ for a node's three pebble databases, in practice less because `blockstore` and
 
 ## Consequences
 
-- Stores of a few million keys or less read their index from memory instead of
-  re-decoding it per Get.
+- Stores up to about 1.4M avl keys in this layout read their index from memory
+  instead of re-decoding it per Get.
 - The index grows with the store (about 40 MiB per million avl keys in this
-  layout), so a store several times larger will outgrow 64 MiB again. Making
-  the size configurable is the natural follow-up; it is left out to keep this
-  change to one constant.
+  layout), so a larger store outgrows the 56 MiB block budget. Making the size
+  configurable is the natural follow-up; it is left out to keep this change to
+  one constant.
+- A larger `MemTableSize` takes twice its increase out of the block budget.
+  #6467's 16 MiB memtable leaves 32 MiB of the 64 MiB for blocks, below the
+  39.4 MiB index, so it should raise `blockCacheSize` to 88 MiB to keep 56 MiB
+  for blocks.
