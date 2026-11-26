@@ -90,6 +90,7 @@ var kinds = map[string]struct {
 	"pie":             {"Pie chart", parsePie},
 	"xychart-beta":    {"Chart", parseXYChart},
 	"xychart":         {"Chart", parseXYChart},
+	"timeline":        {"Timeline", parseTimeline},
 }
 
 // Render draws a Mermaid source as an SVG element.

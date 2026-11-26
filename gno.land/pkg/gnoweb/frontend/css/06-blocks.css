@@ -3190,6 +3190,18 @@ main.is-dev-mode .b-toc a {
 		stroke-width: 2.5;
 		stroke-linejoin: round;
 	}
+
+	/* Timelines: sections and periods in a series color, events as cards
+	   edged with it. */
+	.gno-mermaid__period {
+		fill: var(--mermaid-c);
+	}
+
+	.gno-mermaid__card {
+		fill: var(--mermaid-box);
+		stroke: var(--mermaid-c);
+		stroke-width: 1.5;
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */
