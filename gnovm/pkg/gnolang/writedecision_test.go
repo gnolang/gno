@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -207,4 +208,19 @@ func (m *Machine) askCallStart(f *callFacts) { m.decideCallStart(f) }`,
 			}
 		}
 	})
+}
+
+// A call on a machine with no package reads no caller package unless a rule needs it.
+func TestCallStartNoPackage(t *testing.T) {
+	st := foreignFuncStore()
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "", Store: st, Output: io.Discard})
+	defer m.Release()
+	pn := NewPackageNode("x", "gno.land/p/x", nil)
+	bs := new(BlockStmt)
+	bs.InitStaticBlock(bs, pn)
+	bs.Define("s", TypedValue{T: StringType, V: StringValue("abc")})
+	gx := Preprocess(st, bs, m.MustParseExpr("len(s)")).(Expr)
+	if got := m.EvalStatic(bs, gx).String(); got != "(3 int)" {
+		t.Fatalf("got %s, want (3 int)", got)
+	}
 }

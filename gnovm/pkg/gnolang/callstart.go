@@ -36,12 +36,12 @@ type callFacts struct {
 	fv        *FuncValue
 	pv        *PackageValue // the callee's package
 	withCross bool
-	realmPkg  bool   // the callee is /r/- or /e/-declared
-	lastPkg   string // the calling package
-	recvSet   bool   // a receiver is bound (method call or method value)
-	pOwned    bool   // the receiver is a /p/ package's object
-	recvPID   PkgID  // the receiver's package, when pOwned
-	bindPID   PkgID  // a method value's binder stamp
+	realmPkg  bool          // the callee is /r/- or /e/-declared
+	last      *PackageValue // the calling package; read only where a rule needs it
+	recvSet   bool          // a receiver is bound (method call or method value)
+	pOwned    bool          // the receiver is a /p/ package's object
+	recvPID   PkgID         // the receiver's package, when pOwned
+	bindPID   PkgID         // a method value's binder stamp
 	viaIface  bool
 	viaValue  bool
 
@@ -146,7 +146,7 @@ func (m *Machine) decideCallStart(f *callFacts) callStart {
 		cs.kind, realm, view = startView, nil, true
 	}
 	if (f.viaIface || f.viaValue) && !f.pOwned && realm != nil &&
-		f.fv.PkgPath != realm.Path && f.fv.PkgPath != f.lastPkg {
+		f.fv.PkgPath != realm.Path && f.fv.PkgPath != f.last.PkgPath {
 		if !f.haveForeign {
 			return callStart{kind: startAskForeignLib}
 		}
@@ -182,7 +182,7 @@ func (m *Machine) askCallStart(f *callFacts) callStart {
 		case startAskCalledBy:
 			f.calledBy, f.haveCalledBy = m.calledBy(f.bindPID), true
 		case startAskForeignLib:
-			f.foreign, f.haveForeign = m.foreignLib(f.fv, f.lastPkg, f.viaIface), true
+			f.foreign, f.haveForeign = m.foreignLib(f.fv, f.last.PkgPath, f.viaIface), true
 		case startAskBorrow:
 			objpv := m.Store.GetObject(ObjectIDFromPkgID(f.recvPID)).(*PackageValue)
 			f.borrowTo, f.haveBorrow = objpv.GetRealm(), true

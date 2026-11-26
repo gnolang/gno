@@ -2760,8 +2760,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 
 	f := callFacts{cx: cx, fv: fv, pv: pv, withCross: withCross,
 		realmPkg: IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath),
-		lastPkg:  fr.LastPackage.PkgPath, recvSet: recv.IsDefined(), bindPID: bindPID}
-	if f.realmPkg {
+		last:     fr.LastPackage, recvSet: recv.IsDefined(), bindPID: bindPID}
+	if !withCross && !fv.IsCrossing() && f.realmPkg {
 		assertBorrowedRealm(pv.PkgPath, pv.GetRealm())
 	} else if !withCross && !fv.IsCrossing() {
 		// A /p/ or stdlib callee: what the receiver is and how it was reached.
