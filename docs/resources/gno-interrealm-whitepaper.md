@@ -284,8 +284,10 @@ import "gno.land/p/nt/avl"
 func Add(cur realm, k string) { tree.Set(k, 1) }   // x picked avl.Tree.Set by importing avl: writes
 ```
 
-But Go has two ways for the *caller* to choose the code instead: an interface value and a function value. `x`
-writes `r.Run(obj)`, and which `Run` runs depends on what the caller passed in:
+But Go has two ways for the *caller* to choose the code instead: an interface value and a function value. A
+function value, a method value included, follows R2a and never writes outside its three places, whatever its
+package (`zrealm_wp_3`). For an interface value, `x` writes `r.Run(obj)`, and which `Run` runs depends on what
+the caller passed in:
 
 ```go
 // library p/evil, written by the attacker
@@ -300,8 +302,7 @@ func Use(cur realm, r Runner) { r.Run(myObj) }   // x is current: without R2c, e
 x.Use(cross(cur), evil.T{})   // refused (master: writes)
 ```
 
-**So: library code that `x` reaches through an interface or a function value acts for `x` only if `x`
-imports that library**, directly or through the packages it imports. Otherwise it runs read-only. Above,
+**So: library code that `x` reaches through an interface acts for `x` only if `x` imports that library**, directly or through the packages it imports. Otherwise it runs read-only. Above,
 `x` never imports `p/evil`, so `evil.T.Run` runs read-only and the write to `myObj` is refused.
 
 Importing a package is how a realm says "I trust this code". A call by name always passes, because a realm can
@@ -722,7 +723,9 @@ control.Fill(cross(cur), bytes.NewReader([]byte("efgh")))     // control imports
 impvictim.Fill(cross(cur), bytes.NewReader([]byte("abcd")))   // impvictim imports io only: refused
 ```
 
-Still, type-assert caller-supplied interface values to the types you expect.
+Still, type-assert caller-supplied interface values to the types you expect. A method value taken from such a
+value, `f := r.Run; f(obj)`, never writes, even from an imported package (R2a; `zrealm_entry_iface_mv`,
+`zrealm_wp_3`).
 
 Rule: R2c. Tests: `zrealm_entry_iface_val.gno`, `zrealm_entry_iface_ptr.gno`, `zrealm_entry_iface_gen.gno`,
 `zrealm_import_std_out.gno` (Output `control: efgh`).

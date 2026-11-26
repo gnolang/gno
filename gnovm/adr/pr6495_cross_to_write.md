@@ -37,9 +37,10 @@ and gas constants do not change.
 is not yet saved is allowed and flagged; finalize refuses to save a flagged
 object (`an object written by read-only code would be stored`).
 
-**R2c Only imported library code writes.** Code reached through an interface or
-a method value is trusted only if its package is in the calling realm's import
-tree (imports and theirs, standard library included, tests excluded).
+**R2c Only imported library code writes.** A method called directly or through
+an interface is trusted only if its package is in the calling realm's import
+tree (imports and theirs, standard library included, tests excluded). A method
+value is a function value (R2) and never writes, whatever its package.
 
 **R3 Types stay home: only pointers cross.** A struct or array value of a type a
 realm declares is created and copied only by that realm's code. Exceptions: the
