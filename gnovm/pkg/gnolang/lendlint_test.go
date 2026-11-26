@@ -21,9 +21,13 @@ const (
 	lendLintNotRef = "# flagged but not refused"
 )
 
-// The refusal texts of machine.go (readonly access) and realm.go (save).
+// The refusal texts of machine.go (readonly access), uverse.go (builtins on
+// readonly data) and realm.go (save).
 var lendLintRefusals = [][]byte{
 	[]byte("is read-only here"),
+	[]byte("cannot delete from readonly tainted map"),
+	[]byte("cannot copy to readonly tainted slice"),
+	[]byte("cannot append to readonly tainted slice"),
 	[]byte("was entered without crossing and is read-only"),
 	[]byte("an object written by read-only code would be stored"),
 }
