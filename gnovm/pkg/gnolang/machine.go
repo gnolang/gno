@@ -3391,8 +3391,9 @@ func (m *Machine) readonlyAccessPanic(x Expr) string {
 	if m.viewRealm != nil && m.viewS3 {
 		// An R2a stretch: a by-value call made outside its crossing call.
 		return m.viewRealm.Path + "'s code is read-only here: a function value writes" +
-			" only as a literal passed in place or called where it is written" +
-			" (otherwise give it a cur realm parameter and call it with cross): " + x.String()
+			" only as a literal called where it is written, or passed in place to a" +
+			" plain function of this realm or a /p/ function called by name, while" +
+			" that call runs (otherwise give it a cur realm parameter and call it with cross): " + x.String()
 	}
 	if m.viewRealm != nil {
 		// The realm's own code, entered without crossing.

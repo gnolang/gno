@@ -24,7 +24,7 @@ runs read-only. Library (`/p/`) code never writes another realm's objects.
 3. a literal called in the expression that writes it (`func(){ n++ }()`).
 
 Anything else runs read-only and a write is refused with `<realm>'s code is
-read-only here: a function value writes only as a literal passed in place or called where it is written`.
+read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs`.
 The legal form for every other case is a crossing closure, `func(cur realm, …)`
 called with `cross`; it is the default for callbacks. The loan (clause 2) ends
 when the call returns, when the callee stores or returns the value, and for a

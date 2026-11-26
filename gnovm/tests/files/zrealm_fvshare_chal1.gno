@@ -47,4 +47,4 @@ func main(cur realm) {
 // stranger got: true
 // catch calls refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code was entered without crossing and is read-only (call its crossing function): v<VPBlock(1,0)>.N
 // slot refused: true count: 0 why: gno.land/r/zrealm_fvshare_chal1's code was entered without crossing and is read-only (call its crossing function): k<VPBlock(1,0)>.c
-// private refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
+// private refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N

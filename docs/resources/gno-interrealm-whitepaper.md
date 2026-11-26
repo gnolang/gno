@@ -836,7 +836,7 @@ above are what `ls` prints, so a reviewer can re-run them.
 | R3 | type check | `cannot hold a value of <T> outside its realm (use a pointer)` (`realmvalue.go`), e.g. `c := *p` |
 | R3 | run time | `cannot copy <T> outside realm <R> (use a pointer)` (`alloc.go:checkCopy`), the only refusal for `err := fvx.Fail()` and `defer p.Val()` |
 | R3 | run time | `cannot allocate <T> in realm <R>` (`alloc.go:panicForeignAlloc`) |
-| R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): expr` |
+| R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): expr` |
 | R2a-save | save | `<realm>: an object written by read-only code would be stored (write it inside a crossing call of <realm>)` |
 
 R2a's marks are decided when the code is prepared: `ATTR_LOCAL_HELPER` on a local helper's calls,
@@ -894,7 +894,7 @@ from the call stack:
   write is by the callback's home realm, `ctw_callback`. `zrealm_launder_rdata_pdr_panic_defer.gno` shows it
   naming the attacker realm that writes the victim's object during panic unwinding.
 - An R2a-entered stretch (`m.viewRealm != nil && m.viewS3`): the R2a text, E4 (`machine.go:3364-3368`):
-  `<path>`'s code is read-only here: a function value writes only as a literal passed in place or called where it is written. The
+  `<path>`'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs. The
   callee is a function value outside R2a's three places, so there is no crossing function to call; make the
   callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or pass a literal in place. `zrealm_maker_getdecl.gno` and `zrealm_saved_getter.gno` show it.
 - Anything else: the fallback text, E3 (`machine.go:3380`), when the writing code is not `/p/` and `viewRealm`
