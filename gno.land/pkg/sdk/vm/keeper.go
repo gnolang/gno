@@ -303,6 +303,9 @@ func (vm *VMKeeper) Initialize(
 			// test passes to check; stating it keeps the overlay out of every
 			// keeper path.
 			ProdOnly: true,
+			// Stored source the chain has been running; a rule added since
+			// must not stop the node from starting (TypeCheckOptions.AlreadyOnChain).
+			AlreadyOnChain: true,
 		}
 		for _, stdlib := range stdlibs.InitOrder() {
 			mp := vm.gnoStore.GetMemPackage(stdlib)
@@ -1194,8 +1197,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		// a test-stdlib overlay off the node's local filesystem, making
 		// consensus depend on node-local state. No TestGetter is supplied:
 		// with ProdOnly the passes that would consult it never run.
-		ProdOnly:     true,
-		LegacyCopies: auth.IsGenesisReplay(ctx),
+		ProdOnly: true,
+		// A genesis replay re-delivers deploys the chain already admitted,
+		// gnoland-1's history included; admission rules added since must
+		// not refuse them, or the node cannot InitChain.
+		AlreadyOnChain: auth.IsGenesisReplay(ctx),
+		LegacyCopies:   auth.IsGenesisReplay(ctx),
 	}
 	if ctx.BlockHeight() == 0 {
 		opts.Mode = gno.TCGenesisStrict // genesis time, waive blocking rules for importing draft packages.
@@ -1651,8 +1658,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// memPkg is MPUserProd here (set above) and ValidateMemPackage rejects
 		// test files, so there is nothing for the test passes to check; being
 		// explicit keeps the consensus path free of the test-stdlib overlay.
-		ProdOnly:     true,
-		LegacyCopies: auth.IsGenesisReplay(ctx),
+		ProdOnly:       true,
+		AlreadyOnChain: auth.IsGenesisReplay(ctx), // see AddPackage
+		LegacyCopies:   auth.IsGenesisReplay(ctx),
 	})
 	if err != nil {
 		return "", ErrTypeCheck(err)
