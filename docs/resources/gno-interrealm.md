@@ -7,14 +7,15 @@
 > This page teaches the rules; the mechanism follows them.
 
 A plain function writes its realm's stored state only when called by name by
-code that may already write, or as a callback lent for that one call. The rest
-follows from that sentence and its base: a realm's stored state changes only
-during a crossing call into it. The rules below say who may write when code
-changes hands. Each section is a snippet, one sentence, and the exact error a
-test pins.
+code that may already write, or as a callback lent for that one call. R1 and
+R2 follow from that sentence and its base: a realm's stored state changes only
+during a crossing call into it. R3 and R4 are rules of their own. The rules
+below say who may write when code changes hands. Each section is a snippet, one
+sentence, and the exact error a test pins.
 
-Every refusal says in brackets what to do instead (`…` is filled in at run
-time; `refusals_test.go` checks this table against the code):
+The table below says, for each refusal of the write rule, when it fires and
+what to do (`…` is filled in at run time; `refusals_test.go` checks this table
+against the code):
 
 | Refusal | When | What to do |
 |---|---|---|
