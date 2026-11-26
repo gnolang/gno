@@ -15,7 +15,7 @@ import (
 
 // Each oversized operand is bounded before its Gno-to-Go copy, which no gas
 // pays for: in the native for ed25519 and cometbls, in the .gno wrapper for
-// bn254 and modexp. See adr/native_input_bounds.md.
+// bn254, modexp and secp256k1.RecoverPubkey. See adr/native_input_bounds.md.
 func TestNativeWrapperBoundsCopy(t *testing.T) {
 	opts := newOpts(t)
 
@@ -52,6 +52,9 @@ func main() {
 		{"crypto/cometbls", "chainID", chainID, `cometbls.VerifyZKP(s, buf[:32], ` + header + `, buf[:384])`, "31"},
 		{"crypto/bn254", "G1Add", "", "bn254.G1Add(buf[:%s])", "128"},
 		{"crypto/modexp", "base", "", "modexp.ModExp(buf[:%s], buf[:1], buf[:1])", "1024"},
+		// RecoverPubkey returns two values; the literal hands the loop one.
+		{"crypto/secp256k1", "digest", "", "func() bool { _, ok := secp256k1.RecoverPubkey(buf[:%s], buf[:65]); return ok }()", "32"},
+		{"crypto/secp256k1", "signature", "", "func() bool { _, ok := secp256k1.RecoverPubkey(buf[:32], buf[:%s]); return ok }()", "65"},
 	} {
 		t.Run(path.Base(tc.imp)+"/"+tc.operand, func(t *testing.T) {
 			fill := func(s, n string) string { return strings.ReplaceAll(s, "%s", n) }
