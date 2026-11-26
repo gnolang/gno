@@ -179,3 +179,57 @@ func TestLoansDeepWalkCharged(t *testing.T) {
 	t.Logf("cycles: shallow %d, deep %d", shallow, deep)
 	require.GreaterOrEqual(t, deep-shallow, int64(n*n/2))
 }
+
+const loansSliceRealmPath = "gno.land/r/tests/vm/loanslice"
+
+const loansSliceRealmSrc = `package loanslice
+
+var count int
+
+func sinkv(xs ...func()) {}
+func call(g func()) { g() }
+
+// Spread hands an n-element slice of closures, or a one-element one, to a
+// variadic parameter n times while a lent literal's loan is live.
+func Spread(n, wide int) {
+	xs := make([]func(), n)
+	for i := range xs {
+		xs[i] = func() {}
+	}
+	one := xs[:1]
+	call(func() {
+		for i := 0; i < n; i++ {
+			if wide == 1 {
+				sinkv(xs...)
+			} else {
+				sinkv(one...)
+			}
+		}
+		count++
+	})
+}
+`
+
+// Walking a variadic slice's elements while a loan is live costs CPU per
+// element, so a wide slice handed out repeatedly is paid for.
+func TestLoansSliceWalkCharged(t *testing.T) {
+	db := memdb.NewMemDB()
+	backend := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	store := NewStore(nil, backend, backend)
+	m0 := NewMachineWithOptions(MachineOptions{Store: store, Output: io.Discard})
+	m0.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd, Name: "loanslice", Path: loansSliceRealmPath,
+		Files: []*std.MemFile{{Name: "loanslice.gno", Body: loansSliceRealmSrc}},
+	}, true)
+	m0.Release()
+	cycles := func(n, wide int) int64 {
+		m := NewMachineWithOptions(MachineOptions{PkgPath: loansSliceRealmPath, Store: store, Output: io.Discard})
+		defer m.Release()
+		m.Eval(Call(X("Spread"), n, wide))
+		return m.Cycles
+	}
+	const n = 200
+	narrow, wide := cycles(n, 0), cycles(n, 1)
+	t.Logf("cycles: one element %d, %d elements %d", narrow, n, wide)
+	require.GreaterOrEqual(t, wide-narrow, int64(n*(n-1)))
+}
