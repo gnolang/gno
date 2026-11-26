@@ -76,6 +76,9 @@ func branch2(f func(int), keep bool) {
 // r11: the library's chain ends in a store.
 func lib1(xs []int, f func(int)) { h := &lib.Holder{}; lib.Stash(h, f); h.F(1) }
 
+// r12: the chain stores f and returns; the copy is called afterwards.
+func keep1(xs []int, f func(int)) { store2(f) }
+
 func main(cur realm) {
 	xs := []int{1, 2, 3}
 	r := try(func() { each2(xs, func(x int) { count += x }) })
@@ -102,6 +105,10 @@ func main(cur realm) {
 	println("r10 stores on one branch", count, r != nil)
 	r = try(func() { lib1(xs, func(x int) { count += x }) })
 	println("r11 library chain stores", count, r != nil)
+	r = try(func() { keep1(xs, func(x int) { count += x }) })
+	println("r12a store, then return", count, r != nil)
+	r = try(func() { saved(1) })
+	println("r12b kept copy called after return", count, r != nil)
 }
 
 func try(fn func()) (r any) {
@@ -123,3 +130,5 @@ func try(fn func()) (r any) {
 // r09 converted, then stored 6 true
 // r10 stores on one branch 6 true
 // r11 library chain stores 6 true
+// r12a store, then return 6 false
+// r12b kept copy called after return 6 true
