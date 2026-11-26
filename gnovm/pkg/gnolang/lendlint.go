@@ -67,6 +67,7 @@ type lendLint struct {
 	named, helper map[helperKey]bool
 	defs          map[helperKey]Expr
 	ws            []LendWarning
+	at            Node // where to report the node place is looking at
 }
 
 func (c *lendLint) body(b BlockNode) *llBody {
@@ -373,6 +374,28 @@ func (c *lendLint) declOf(last BlockNode, x Expr) (*FuncDecl, string) {
 	return nil, ""
 }
 
+// uverseName names the builtin x refers to; preprocess makes most a constant.
+func uverseName(x Expr) Name {
+	switch e := x.(type) {
+	case *NameExpr:
+		if e.Path.Type == VPUverse {
+			return e.Name
+		}
+	case *ConstExpr:
+		if fv, ok := e.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath {
+			return fv.Name
+		}
+	}
+	return ""
+}
+
+func parentOf(ns []Node) Node {
+	if len(ns) == 0 {
+		return nil
+	}
+	return ns[len(ns)-1]
+}
+
 func isFileNode(bn BlockNode) bool {
 	_, ok := bn.(*FileNode)
 	return ok
@@ -396,6 +419,9 @@ const (
 )
 
 func (c *lendLint) warn(fn *FileNode, n Node, what string, w Name, why string) {
+	if c.at != nil {
+		n = c.at
+	}
 	c.ws = append(c.ws, LendWarning{
 		File:   string(fn.FileName),
 		Line:   n.GetLine(),
@@ -410,6 +436,11 @@ func (c *lendLint) place(fn *FileNode, d Decl) {
 	TranscribeB(fn, d, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
+		}
+		c.at = nil
+		// A split `var a, b = x, y` keeps positions on its names only.
+		if vd, ok := parentOf(ns).(*ValueDecl); ok && ftype == TRANS_VAR_VALUE && index < len(vd.NameExprs) && n.GetLine() < vd.NameExprs[index].GetLine() {
+			c.at = &vd.NameExprs[index]
 		}
 		switch n := n.(type) {
 		case *FuncLitExpr:
@@ -536,6 +567,9 @@ func (c *lendLint) litPlace(ns []Node, last BlockNode, ftype TransField, index i
 	if !lendPlace(ns, ftype, index) {
 		if ftype != TRANS_CALL_ARG {
 			return llOtherSpot
+		}
+		if uverseName(cx.Func) == "append" {
+			return llStored
 		}
 		if cx.Varg && index == len(cx.Args)-1 {
 			return llVariadic

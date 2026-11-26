@@ -92,6 +92,12 @@ func Fire(cur realm) {
 	xcb(cur)
 }
 
+// Flagged, placed at the value and named for where it is kept.
+
+var f1, f2 = func() { count++ }, 3
+
+func Appended(cur realm) { hooks = append(hooks, func() { count++ }) }
+
 -- gnomod.toml --
 module = "gno.land/r/demo/lentcb"
 gno = "0.9"
@@ -107,3 +113,5 @@ gno.land/r/demo/lentcb/lentcb.gno:36: this function writes count but the functio
 gno.land/r/demo/lentcb/lentcb.gno:39: bumpVia writes count but it is used as a value, so it runs read-only (call it by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
 gno.land/r/demo/lentcb/lentcb.gno:41: Bump writes count but it is used as a value, so it runs read-only (call it by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
 gno.land/r/demo/lentcb/lentcb.gno:43: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:88: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:90: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
