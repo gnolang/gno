@@ -40,6 +40,7 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 		GnoURL:      gnourl,
 		IPFSGateway: "http://gateway.test",
 		Links:       FollowInternalLinks,
+		Mermaid:     true,
 	}))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {

@@ -34,6 +34,7 @@ type AppConfig struct {
 	webAnalytics         bool
 	webAnalyticsHostname string
 	webIPFSGateway       string
+	webMermaid           bool
 
 	// Loader
 	noExamples                 bool
@@ -150,6 +151,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-ipfs-gateway",
 		defaultCfg.webIPFSGateway,
 		"gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite",
+	)
+
+	fs.BoolVar(
+		&c.webMermaid,
+		"web-mermaid",
+		defaultCfg.webMermaid,
+		"gnoweb: draw ```mermaid code blocks in realm markdown as SVG diagrams (sequence, pie, xychart, timeline, kanban; other diagrams stay code)",
 	)
 
 	fs.BoolVar(

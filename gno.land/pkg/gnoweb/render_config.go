@@ -26,6 +26,10 @@ type RenderConfig struct {
 	// NewHTMLRenderer, which knows neither the chain domain nor the
 	// canonical origin, ignores a malformed one.
 	IPFSGateway string
+	// Mermaid draws ```mermaid code blocks in realm markdown as SVG diagrams,
+	// for the subset of Mermaid that markdown/mermaid supports. Off by
+	// default: the blocks show as code.
+	Mermaid bool
 }
 
 // NewDefaultRenderConfig returns a RenderConfig with default styles and options.

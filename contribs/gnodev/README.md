@@ -112,6 +112,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-mermaid=false 	gnoweb: draw ```mermaid code blocks in realm markdown as SVG diagrams (sequence, pie, xychart, timeline, kanban; other diagrams stay code)
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=false 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 
@@ -163,6 +164,7 @@ FLAGS
   -web-html=false 	gnoweb: enable unsafe HTML parsing in markdown rendering
   -web-ipfs-gateway https://ipfs.filebase.io	gnoweb: IPFS gateway origin that ipfs:// URLs, URLs on retired gateways and images on ipfs.filebase.io are rewritten to; empty disables the rewrite
   -web-listener 127.0.0.1:8888	gnoweb: web server listener address
+  -web-mermaid=false 	gnoweb: draw ```mermaid code blocks in realm markdown as SVG diagrams (sequence, pie, xychart, timeline, kanban; other diagrams stay code)
   -web-with-html=false 	gnoweb: enable HTML parsing in markdown rendering
   -without-quarantined-examples=true 	skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)
 

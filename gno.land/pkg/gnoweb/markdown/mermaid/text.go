@@ -1,0 +1,247 @@
+package mermaid
+
+import (
+	"html"
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/text/width"
+)
+
+// asciiWidths holds interWidths for ASCII, which most labels are, so
+// measuring them is an array read rather than a map lookup.
+var asciiWidths = func() (t [128][2]uint16) {
+	for r, w := range interWidths {
+		if r < 128 {
+			t[r] = w
+		}
+	}
+	return t
+}()
+
+// textWidth returns the width of s set in Inter at size px, semibold when
+// bold. The widths come from the font gnoweb serves (widths_gen.go); a rune
+// it lacks is set by the browser in a fallback font, estimated at a full em
+// when it is wide and 0.6 em otherwise. Kerning is ignored: it moves a label
+// by a pixel or two, which the padding absorbs.
+func textWidth(s string, size float64, bold bool) float64 {
+	var em float64
+	for _, r := range s {
+		em += runeEm(r, bold)
+	}
+	return em * size / 1000
+}
+
+// runeEm returns the width of r in thousandths of an em.
+func runeEm(r rune, bold bool) float64 {
+	weight := 0
+	if bold {
+		weight = 1
+	}
+	if r < 128 && asciiWidths[r][0] != 0 {
+		return float64(asciiWidths[r][weight])
+	}
+	if w, ok := interWidths[r]; ok {
+		return float64(w[weight])
+	}
+	switch {
+	case unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf):
+		return 0 // combining marks and format characters take no room
+	case wide(r):
+		return 1000
+	default:
+		return 600
+	}
+}
+
+// wide reports whether r is set a full em wide, as East Asian wide and
+// fullwidth characters, emoji included, are.
+func wide(r rune) bool {
+	if r < 0x1100 { // no wide character comes before Hangul Jamo
+		return false
+	}
+	k := width.LookupRune(r).Kind()
+	return k == width.EastAsianWide || k == width.EastAsianFullwidth
+}
+
+// linesWidth returns the width of the longest of lines.
+func linesWidth(lines []string, size float64, bold bool) float64 {
+	var w float64
+	for _, l := range lines {
+		w = max(w, textWidth(l, size, bold))
+	}
+	return w
+}
+
+// label returns the lines of a label (see labelLines), or nil for an empty one.
+func label(s string) []string {
+	if s = strings.TrimSpace(s); s == "" {
+		return nil
+	}
+	return labelLines(s)
+}
+
+// lineBreak is Mermaid's line break in a label.
+var lineBreak = regexp.MustCompile(`(?i)<br\s*/?>`)
+
+// labelLines splits a label at its <br> tags, as Mermaid does, and decodes
+// the entity codes of each line (see decodeEntities), so an encoded tag
+// stays text.
+func labelLines(s string) []string {
+	lines := lineBreak.Split(s, -1)
+	for i, l := range lines {
+		lines[i] = decodeEntities(strings.TrimSpace(l))
+	}
+	return lines
+}
+
+// plain returns a title or a value as drawn: without the quotes around it,
+// entity codes decoded.
+func plain(s string) string { return decodeEntities(unquote(strings.TrimSpace(s))) }
+
+// unquote strips the matching double or single quotes around s, if any.
+func unquote(s string) string {
+	if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+// cutQuoted cuts the double-quoted text that s starts with from what
+// follows it.
+func cutQuoted(s string) (inner, rest string, ok bool) {
+	if !strings.HasPrefix(s, `"`) {
+		return "", s, false
+	}
+	end := strings.IndexByte(s[1:], '"')
+	if end < 0 {
+		return "", s, false
+	}
+	return s[1 : end+1], strings.TrimSpace(s[end+2:]), true
+}
+
+// entityEnd returns the end of the entity code that starts at s[i], as in
+// #59; or #quot;, or -1. It is Mermaid's syntax, #\w+;, whether or not the
+// code is known.
+func entityEnd(s string, i int) int {
+	if i >= len(s) || s[i] != '#' {
+		return -1
+	}
+	j := i + 1
+	for j < len(s) && (isAlnum(s[j]) || s[j] == '_') {
+		j++
+	}
+	if j == i+1 || j == len(s) || s[j] != ';' {
+		return -1
+	}
+	return j + 1
+}
+
+func isAlnum(c byte) bool {
+	return c >= '0' && c <= '9' || c|0x20 >= 'a' && c|0x20 <= 'z'
+}
+
+// decodeEntities decodes Mermaid's entity codes, which let a label hold the
+// characters its syntax reserves: #59; for a code point and #quot; for an
+// HTML entity name. An unknown or invalid code, a control character
+// included, stays as it is. The decoded text is escaped like any other when
+// written.
+func decodeEntities(s string) string {
+	if !strings.Contains(s, "#") {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		end := entityEnd(s, i)
+		if end < 0 {
+			b.WriteByte(s[i])
+			continue
+		}
+		code := s[i+1 : end-1]
+		decoded := html.UnescapeString("&" + code + ";")
+		if n, err := strconv.Atoi(code); err == nil {
+			decoded = ""
+			if r := rune(n); n >= 0x20 && n <= unicode.MaxRune && utf8.ValidRune(r) && !unicode.IsControl(r) {
+				decoded = string(r)
+			}
+		} else if decoded == "&"+code+";" {
+			decoded = ""
+		}
+		if decoded == "" {
+			b.WriteByte(s[i])
+			continue
+		}
+		b.WriteString(decoded)
+		i = end - 1
+	}
+	return b.String()
+}
+
+// wrap breaks each of lines at spaces so it fits width when set at size. A
+// word wider than width is broken too, after a / . - _ or , when it has one,
+// and between any two characters otherwise, so an address, a path or a run
+// of East Asian text never overflows.
+func wrap(lines []string, size, width float64, bold bool) []string {
+	var out []string
+	space := textWidth(" ", size, bold)
+	for _, l := range lines {
+		var cur strings.Builder
+		curW := 0.0
+		for _, word := range strings.Fields(l) {
+			ww := textWidth(word, size, bold)
+			if ww > width {
+				if cur.Len() > 0 {
+					out = append(out, cur.String())
+					cur.Reset()
+				}
+				pieces := breakWord(word, size, width, bold)
+				out = append(out, pieces[:len(pieces)-1]...)
+				word = pieces[len(pieces)-1]
+				ww = textWidth(word, size, bold)
+			}
+			if cur.Len() > 0 && curW+space+ww > width {
+				out = append(out, cur.String())
+				cur.Reset()
+			}
+			if cur.Len() > 0 {
+				cur.WriteByte(' ')
+				curW += space
+			} else {
+				curW = 0
+			}
+			cur.WriteString(word)
+			curW += ww
+		}
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+// breakWord cuts word into pieces no wider than width, each but the last
+// ending after a break character when one fits.
+func breakWord(word string, size, width float64, bold bool) []string {
+	var out []string
+	start, w := 0, 0.0
+	cut, cutW := -1, 0.0 // the last place to break, and the width before it
+	for i, r := range word {
+		rw := runeEm(r, bold) * size / 1000
+		if w+rw > width && i > start {
+			if cut > start {
+				out = append(out, word[start:cut])
+				start, w = cut, w-cutW
+			} else {
+				out = append(out, word[start:i])
+				start, w = i, 0
+			}
+			cut = -1
+		}
+		w += rw
+		if strings.ContainsRune("/.-_,", r) || wide(r) {
+			cut, cutW = i+utf8.RuneLen(r), w
+		}
+	}
+	return append(out, word[start:])
+}

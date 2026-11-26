@@ -67,6 +67,7 @@ type webCfg struct {
 	indexCommunity   gnoweb.CommunityIndex
 	noIndex          bool
 	trustedPaths     string
+	mermaid          bool
 }
 
 // The default realm notice, and the short variant shown below the lg
@@ -199,6 +200,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"canonical-origin",
 		defaultWebOptions.canonicalOrigin,
 		"public origin of this deployment, scheme included; empty emits no canonical, og:url, share image or sitemap",
+	)
+
+	fs.BoolVar(
+		&c.mermaid,
+		"mermaid",
+		defaultWebOptions.mermaid,
+		"draw ```mermaid code blocks in realm markdown as SVG diagrams (sequence, pie, xychart, timeline, kanban; other diagrams stay code)",
 	)
 
 	fs.BoolVar(
@@ -356,6 +364,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
 	appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway
+	appcfg.RenderConfig.Mermaid = cfg.mermaid
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {

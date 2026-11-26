@@ -119,6 +119,12 @@ icons:
 	go test ./markdown -run 'TestIconTable$$' -update-golden-tests
 	go test ./markdown -run 'TestIconCatalog$$' -update-golden-tests
 
+# Text widths the diagrams measure labels with (markdown/mermaid/widths_gen.go),
+# from the Inter gnoweb serves. Needs `pip install fonttools brotli`.
+.PHONY: mermaid-widths
+mermaid-widths:
+	cd markdown/mermaid && python3 gen_widths.py > widths_gen.go && gofmt -w widths_gen.go
+
 # Main CSS
 maincss: $(output_maincss)
 $(output_maincss): $(main_css_files) $(templates_files) $(postcss)

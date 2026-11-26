@@ -3017,6 +3017,133 @@ main.is-dev-mode .b-toc a {
 			margin-block-end: 0;
 		}
 	}
+
+	/* ===== MERMAID COMPONENT ===== */
+	/* A diagram drawn by the server (markdown/mermaid). The SVG carries its
+	   geometry and font sizes as attributes and only class names for the
+	   rest, since the Content-Security-Policy drops inline styles: colors
+	   come from the tokens below, so both themes apply. A diagram wider than
+	   the column scrolls sideways rather than shrinking its text. */
+	.gno-mermaid {
+		--mermaid-ink: var(--s-color-text-primary);
+		--mermaid-muted: var(--s-color-text-secondary);
+		--mermaid-stroke: var(--s-color-border-quaternary);
+		--mermaid-box: var(--s-color-bg-surface-primary);
+		--mermaid-box-stroke: var(--s-color-border-tertiary);
+		--mermaid-ground: var(--s-color-bg-base);
+
+		overflow-x: auto;
+		margin-block: var(--g-space-6);
+	}
+
+	/* Text classes are nested here so they outrank the default text fill. */
+	.gno-mermaid__svg {
+		display: block;
+		max-width: none;
+		height: auto;
+		margin-inline: auto;
+		font-family: var(--g-font-family-inter-var);
+
+		& text {
+			fill: var(--mermaid-ink);
+		}
+
+		& .gno-mermaid__title {
+			font-weight: var(--g-font-semibold);
+		}
+
+		& .gno-mermaid__muted {
+			fill: var(--mermaid-muted);
+		}
+
+		& .gno-mermaid__on-badge {
+			fill: var(--mermaid-ground);
+			font-weight: var(--g-font-semibold);
+		}
+
+		/* The series colors are light in both themes, so text on them stays
+		   dark. */
+		& .gno-mermaid__on-color {
+			fill: var(--g-color-gray-900);
+		}
+	}
+
+	.gno-mermaid__box {
+		fill: var(--mermaid-box);
+		stroke: var(--mermaid-box-stroke);
+	}
+
+	.gno-mermaid__stroke {
+		fill: none;
+		stroke: var(--mermaid-stroke);
+	}
+
+	.gno-mermaid__dashed {
+		stroke-dasharray: 4 3;
+	}
+
+	.gno-mermaid__edge {
+		fill: none;
+		stroke: var(--mermaid-ink);
+		stroke-width: 1.5;
+	}
+
+	.gno-mermaid__head {
+		fill: var(--mermaid-ink);
+	}
+
+	/* Series colors, in order: the server writes one of these classes on a
+	   shape that takes a series color (a slice, a bar, a line, a period, a
+	   card, a priority stripe), which sets --mermaid-c for it. All carry
+	   dark text at 4.5:1 or more; the last five are lighter tints of the
+	   first ones. */
+	.gno-mermaid__c0 {
+		--mermaid-c: var(--g-color-green-400);
+	}
+
+	.gno-mermaid__c1 {
+		--mermaid-c: var(--g-color-blue-400);
+	}
+
+	.gno-mermaid__c2 {
+		--mermaid-c: var(--g-color-orange-400);
+	}
+
+	.gno-mermaid__c3 {
+		--mermaid-c: var(--g-color-purple-300);
+	}
+
+	.gno-mermaid__c4 {
+		--mermaid-c: var(--g-color-red-400);
+	}
+
+	.gno-mermaid__c5 {
+		--mermaid-c: var(--g-color-yellow-400);
+	}
+
+	.gno-mermaid__c6 {
+		--mermaid-c: var(--g-color-gray-300);
+	}
+
+	.gno-mermaid__c7 {
+		--mermaid-c: color-mix(in oklab, var(--g-color-green-400) 55%, white);
+	}
+
+	.gno-mermaid__c8 {
+		--mermaid-c: color-mix(in oklab, var(--g-color-blue-400) 55%, white);
+	}
+
+	.gno-mermaid__c9 {
+		--mermaid-c: color-mix(in oklab, var(--g-color-orange-400) 55%, white);
+	}
+
+	.gno-mermaid__c10 {
+		--mermaid-c: color-mix(in oklab, var(--g-color-purple-300) 55%, white);
+	}
+
+	.gno-mermaid__c11 {
+		--mermaid-c: color-mix(in oklab, var(--g-color-red-400) 55%, white);
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */

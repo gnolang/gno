@@ -13,6 +13,7 @@ var (
 	gIPFSGatewayContextKey   = parser.NewContextKey()
 	gForeignOriginContextKey = parser.NewContextKey()
 	gLinkPolicyContextKey    = parser.NewContextKey()
+	gMermaidContextKey       = parser.NewContextKey()
 )
 
 type GnoContext struct {
@@ -26,6 +27,8 @@ type GnoContext struct {
 	IPFSGateway string
 	// Links says which links search engines may follow; see LinkPolicy.
 	Links LinkPolicy
+	// Mermaid draws ```mermaid fences as SVG diagrams (see ExtMermaid).
+	Mermaid bool
 }
 
 // NewGnoParserContext creates a new parser context with GnoURL
@@ -37,6 +40,7 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx.Set(gDomainContextKey, mdctx.Domain)
 	ctx.Set(gIPFSGatewayContextKey, mdctx.IPFSGateway)
 	ctx.Set(gLinkPolicyContextKey, mdctx.Links)
+	ctx.Set(gMermaidContextKey, mdctx.Mermaid)
 	return ctx
 }
 
@@ -53,6 +57,7 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	return GnoContext{
 		GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain,
 		IPFSGateway: gateway, Links: getLinkPolicyFromContext(ctx),
+		Mermaid: getMermaidFromContext(ctx),
 	}
 }
 
@@ -102,6 +107,12 @@ func getIPFSGatewayFromContext(ctx parser.Context) (gateway string, ok bool) {
 func getLinkPolicyFromContext(ctx parser.Context) LinkPolicy {
 	p, _ := ctx.Get(gLinkPolicyContextKey).(LinkPolicy)
 	return p
+}
+
+// getMermaidFromContext reports whether the parser context enables diagrams.
+func getMermaidFromContext(ctx parser.Context) bool {
+	v, _ := ctx.Get(gMermaidContextKey).(bool)
+	return v
 }
 
 // markForeignOrigin flags ctx as the parser context of a <gno-foreign>

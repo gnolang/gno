@@ -125,6 +125,11 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add inline icons extension
 	ExtIcons.Extend(m)
 
+	// Add diagrams (no-op unless the context enables them). Not loaded inside
+	// the foreign sandbox either: its fences stay code, and each foreign
+	// block would otherwise get bounds of its own.
+	ExtMermaid.Extend(m)
+
 	// Add button extension. Like gno-form, it is intentionally NOT loaded
 	// inside the foreign sandbox: a button is first-party call-to-action
 	// chrome, which foreign content must not wear.

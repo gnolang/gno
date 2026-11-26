@@ -1,0 +1,299 @@
+package mermaid
+
+import (
+	"bytes"
+	"encoding/xml"
+	"errors"
+	"flag"
+	"io"
+	"math"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+var update = flag.Bool("update-golden-tests", false, "update golden tests")
+
+// TestGolden draws each testdata/*.mmd and compares the SVG with the .svg
+// beside it; -update-golden-tests rewrites them.
+func TestGolden(t *testing.T) {
+	sources, err := filepath.Glob("testdata/*.mmd")
+	require.NoError(t, err)
+	for _, src := range sources {
+		name := strings.TrimSuffix(filepath.Base(src), ".mmd")
+		t.Run(name, func(t *testing.T) {
+			in, err := os.ReadFile(src)
+			require.NoError(t, err)
+			out, err := Render(string(in))
+			require.NoError(t, err)
+			checkSVG(t, out)
+			golden := strings.TrimSuffix(src, ".mmd") + ".svg"
+			if *update {
+				require.NoError(t, os.WriteFile(golden, append(out, '\n'), 0o644))
+				return
+			}
+			want, err := os.ReadFile(golden)
+			require.NoError(t, err)
+			assert.Equal(t, string(bytes.TrimSuffix(want, []byte("\n"))), string(out))
+		})
+	}
+}
+
+// renderErrors checks that each source fails with an *Error whose message
+// holds the given text.
+func renderErrors(t *testing.T, cases map[string][2]string) {
+	t.Helper()
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			out, err := Render(c[0])
+			var e *Error
+			require.True(t, errors.As(err, &e), "got %v", err)
+			assert.Contains(t, e.Error(), c[1])
+			assert.Nil(t, out)
+		})
+	}
+}
+
+func TestRenderErrors(t *testing.T) {
+	renderErrors(t, map[string][2]string{
+		"empty":              {"", "empty diagram"},
+		"only comments":      {"%% a comment\n%%{init: {}}%%\n", "empty diagram"},
+		"unknown type":       {"graphviz\n  a -> b", `unsupported diagram type "graphviz"`},
+		"too long":           {"pie\n" + strings.Repeat(" ", MaxSourceLen), "longer than"},
+		"invalid utf-8":      {"pie\n\"a\xff\" : 1", "UTF-8"},
+		"unclosed front":     {"---\ntitle: x\npie", "frontmatter"},
+		"unclosed directive": {"%%{init: {\n\"theme\": \"dark\"\npie\n\"a\" : 1", "directive"},
+	})
+}
+
+func TestScan(t *testing.T) {
+	var m meta
+	lines, err := scan("\n---\ntitle: \"From front\"\nconfig:\n  theme: dark\n---\n%%{init: {\n  \"theme\": \"dark\"\n}}%%\npie\n  %% a comment\n\t\"50%% off\" : 1\n", &m)
+	require.NoError(t, err)
+	assert.Equal(t, "From front", plain(m.title))
+	assert.Equal(t, []line{{n: 10, text: "pie"}, {n: 12, indent: 1, text: `"50%% off" : 1`}}, lines,
+		"only whole-line comments are dropped, as Mermaid does")
+}
+
+func TestTitle(t *testing.T) {
+	for in, want := range map[string]string{"title x y": "x y", "Title: x": "x", "TITLE  x": "x"} {
+		got, ok := title(in)
+		assert.True(t, ok, in)
+		assert.Equal(t, want, got, in)
+	}
+	_, ok := title("titles")
+	assert.False(t, ok)
+}
+
+func TestLabelLines(t *testing.T) {
+	for in, want := range map[string][]string{
+		"one":                     {"one"},
+		"a<br>b":                  {"a", "b"},
+		"a <BR/> b<br />c":        {"a", "b", "c"},
+		"<brand> and <b>bold</b>": {"<brand> and <b>bold</b>"},
+		"end<br":                  {"end<br"},
+		"<br>":                    {"", ""},
+		"#60;br#62;":              {"<br>"}, // an encoded tag stays text
+	} {
+		assert.Equal(t, want, labelLines(in), in)
+	}
+}
+
+func TestDecodeEntities(t *testing.T) {
+	for in, want := range map[string]string{
+		"a#59;b":         "a;b",
+		"#quot;q#quot;":  `"q"`,
+		"#9829;":         "♥",
+		"Fix #42 now":    "Fix #42 now",
+		"#unknown;":      "#unknown;",
+		"#0;#7;#55296;":  "#0;#7;#55296;", // controls and surrogates stay
+		"#99999999999;":  "#99999999999;",
+		"##59;":          "#;",
+		"#":              "#",
+		"#lt;script#gt;": "<script>",
+	} {
+		assert.Equal(t, want, decodeEntities(in), in)
+	}
+}
+
+func TestTextWidth(t *testing.T) {
+	// "Hi" is H plus i, in thousandths of an em, at 1000 px.
+	h, i := interWidths['H'], interWidths['i']
+	assert.Equal(t, float64(h[0]+i[0]), textWidth("Hi", 1000, false))
+	assert.Equal(t, float64(h[1]+i[1]), textWidth("Hi", 1000, true))
+	assert.Equal(t, 1000.0, textWidth("漢", 1000, false), "East Asian falls back to a full em")
+	assert.Equal(t, 600.0, textWidth("Ж", 1000, false), "other scripts fall back to 0.6 em")
+	assert.Equal(t, 0.0, textWidth("́", 1000, false), "a combining mark takes no room")
+}
+
+func TestWrap(t *testing.T) {
+	narrow := textWidth("word", fontSize, false) + 1
+	assert.Equal(t, []string{"word", "word", "word"}, wrap([]string{"word word word"}, fontSize, narrow, false))
+	assert.Equal(t, []string{"a b", "c"}, wrap([]string{"a b", "c"}, fontSize, 1000, false))
+	assert.Equal(t, []string{""}, wrap([]string{""}, fontSize, 1000, false))
+
+	// A word wider than the line breaks after a separator when it can, and
+	// between characters otherwise; no piece is wider than the line.
+	width := textWidth("gno.land/r/gov/", fontSize, false) + 1
+	got := wrap([]string{"see gno.land/r/gov/dao/v3/impl/memberstore"}, fontSize, width, false)
+	assert.Equal(t, "see", got[0])
+	assert.Equal(t, "gno.land/r/gov/", got[1])
+	assert.Equal(t, "see gno.land/r/gov/dao/v3/impl/memberstore", strings.Replace(strings.Join(got, ""), "see", "see ", 1))
+	for _, l := range append(got, wrap([]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "漢字漢字漢字漢字"}, fontSize, 60, false)...) {
+		assert.LessOrEqual(t, textWidth(l, fontSize, false), max(width, 60.0), l)
+	}
+}
+
+func TestWriterEscapes(t *testing.T) {
+	var w svgWriter
+	w.text(classMuted, 1, 2, anchorStart, 0, `<script>alert("x")</script>`, "a & b\x00")
+	out, _, _ := w.document(10, 10, `<title>`, `"><img src=x onerror=alert(1)>`, "</desc><script>")
+	checkSVG(t, out)
+	s := string(out)
+	assert.NotContains(t, s, "<script")
+	assert.NotContains(t, s, "<img")
+	assert.Contains(t, s, "&lt;script&gt;")
+	assert.Contains(t, s, "a &amp; b�")
+}
+
+func TestNum(t *testing.T) {
+	for v, want := range map[float64]string{
+		0: "0", -0.001: "0", 1.005: "1", 2.5: "2.5", 1.234: "1.23", -3: "-3",
+		1e307: "1000000000", -1e307: "-1000000000", math.Inf(1): "0", math.NaN(): "0",
+	} {
+		assert.Equal(t, want, num(v), "%v", v)
+	}
+}
+
+func TestParseNumber(t *testing.T) {
+	for _, ok := range []string{"1", "-2.5", "+3", ".5", "4.", "1e3", "1E-2"} {
+		_, err := parseNumber(ok)
+		assert.NoError(t, err, ok)
+	}
+	for _, bad := range []string{"", "1_000", "0x10", "0x1p4", "Inf", "nan", "1e16", " 1", "1,5"} {
+		_, err := parseNumber(bad)
+		assert.Error(t, err, bad)
+	}
+}
+
+// FuzzRender checks that any source either fails with an *Error or draws an
+// SVG made only of what svgWriter writes, within MaxOutputLen.
+func FuzzRender(f *testing.F) {
+	sources, _ := filepath.Glob("testdata/*.mmd")
+	for _, src := range sources {
+		in, _ := os.ReadFile(src)
+		f.Add(string(in))
+	}
+	for _, seed := range []string{
+		"pie\n\"<x>\" : 1",
+		"sequenceDiagram\nNote over A,: x",
+		"sequenceDiagram\nautonumber 10 5\nA<<->>B: x; B-)A: #59;y",
+		"timeline\n2021 : at 10:30 : https://x.y",
+		"xychart-beta\nx-axis \"t [s]\" [a, b]\ny-axis 0 --> 5\nbar [-1, 9, 3]",
+		"kanban\nc\n  a[\"q\"]@{ label: x, priority: 'Very Low' }",
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, src string) {
+		out, err := Render(src)
+		if err != nil {
+			var e *Error
+			require.True(t, errors.As(err, &e), "error %v is not an *Error", err)
+			return
+		}
+		require.LessOrEqual(t, len(out), MaxOutputLen)
+		checkSVG(t, out)
+	})
+}
+
+// allowed lists the elements an SVG may hold and their attributes besides
+// class.
+var allowed = map[string][]string{
+	"svg":      {"xmlns", "width", "height", "viewBox", "font-size", "role", "aria-label"},
+	"desc":     nil,
+	"g":        {"transform"},
+	"rect":     {"x", "y", "width", "height", "rx"},
+	"line":     {"x1", "y1", "x2", "y2"},
+	"circle":   {"cx", "cy", "r"},
+	"polygon":  {"points"},
+	"polyline": {"points"},
+	"path":     {"d"},
+	"text":     {"x", "y", "text-anchor", "font-size"},
+	"tspan":    {"x", "y"},
+}
+
+var (
+	plainNumber = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
+	numberList  = regexp.MustCompile(`^(-?\d+(\.\d+)?[ ,]?)*$`)
+	pathCmds    = regexp.MustCompile(`^([MLHVAZ]-?\d+(\.\d+)?( -?\d+(\.\d+)?)*|Z)*$`)
+	translation = regexp.MustCompile(`^translate\(-?\d+(\.\d+)? -?\d+(\.\d+)?\)$`)
+)
+
+// checkSVG fails unless svg is well-formed XML made only of the elements and
+// attributes in allowed, with plain numbers, path data and class names as
+// values.
+func checkSVG(t *testing.T, svg []byte) {
+	t.Helper()
+	d := xml.NewDecoder(bytes.NewReader(svg))
+	depth := 0
+	for {
+		tok, err := d.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		require.NoError(t, err, "SVG is not well-formed")
+		switch tok := tok.(type) {
+		case xml.StartElement:
+			depth++
+			name := tok.Name.Local
+			attrs, ok := allowed[name]
+			require.True(t, ok, "element %q is not allowed", name)
+			if depth == 1 {
+				require.Equal(t, "svg", name)
+			}
+			for _, a := range tok.Attr {
+				checkAttr(t, name, a, attrs)
+			}
+		case xml.EndElement:
+			depth--
+		case xml.ProcInst, xml.Directive, xml.Comment:
+			t.Fatalf("unexpected %T in SVG", tok)
+		}
+	}
+}
+
+func checkAttr(t *testing.T, elem string, a xml.Attr, attrs []string) {
+	t.Helper()
+	name, v := a.Name.Local, a.Value
+	if name == "class" {
+		for _, c := range strings.Fields(v) {
+			require.True(t, strings.HasPrefix(c, "gno-mermaid__"), "class %q", c)
+		}
+		return
+	}
+	require.True(t, slices.Contains(attrs, name), "attribute %q is not allowed on <%s>", name, elem)
+	switch name {
+	case "xmlns":
+		require.Equal(t, "http://www.w3.org/2000/svg", v)
+	case "role":
+		require.Equal(t, "img", v)
+	case "aria-label":
+		// escaped text
+	case "text-anchor":
+		require.Contains(t, []string{"middle", "end"}, v)
+	case "d":
+		require.Regexp(t, pathCmds, v)
+	case "transform":
+		require.Regexp(t, translation, v)
+	case "points", "viewBox":
+		require.Regexp(t, numberList, v)
+	default:
+		require.Regexp(t, plainNumber, v, "%s on <%s>", name, elem)
+	}
+}
