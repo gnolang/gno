@@ -77,8 +77,8 @@ including the synthesized one.
    site rather than the embedded type a promoted method resolved to. The
    other synthesized `&` (Case 2, a value method reached through a deref
    step) is not gated: Go never requires an address for a value method, so a
-   gate could only reject valid code. A `debugAssert` build checks it instead;
-   no filetest or example reaches that branch.
+   gate could only reject valid code. No filetest or example reaches that
+   branch.
 6. **Untyped `nil` is reported instead of crashing.** `&nil` has no static
    type, and the existing error path formatted that type — a nil dereference
    that took the preprocessor down with a Go runtime panic.

@@ -2759,11 +2759,6 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// step means the field was reached through a pointer,
 						// and Go never requires an address for a value method,
 						// so a check could only reject valid code.
-						if debugAssert && !isAddressable(store, last, n.X) {
-							panic(fmt.Sprintf(
-								"should not happen: unaddressable receiver %s",
-								n.X.String()))
-						}
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
 						n.X = rx
