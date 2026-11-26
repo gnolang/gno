@@ -148,7 +148,7 @@ func myCallback(cur realm, a, b string) { /* ... */ }
 
 A plain function handed to another realm runs read-only there, so writing your
 realm's state from it needs a crossing function (`func(cur realm, ...)`) that
-the registry calls with `cross`; a plain function value can only read. A
+the registry calls with `cross`; the registry cannot lend a plain one. A
 registry of crossing functions stores `func(cur realm, ...)` values.
 
 A common use case could be to set the "admin" as the caller uploading the

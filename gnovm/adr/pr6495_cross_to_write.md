@@ -13,14 +13,17 @@ exported non-crossing functions wrote. Only a crossing call into the realm write
 call into it: `func F(cur realm, …)` called `F(cross(cur), …)`. Any other entry
 runs read-only. Library (`/p/`) code never writes another realm's objects.
 
-**R2 A function value that is not crossing writes only when it is:**
+**R2 A plain function writes its realm's stored state only when called by name
+by code that may already write, or as a callback lent for that one call.** So a
+function value that is not crossing writes only when it is:
 1. the realm's own code called by name, or a local helper (`f := func(){ n++ }; f()`);
 2. a literal written in place as a call argument, while that call runs, lent
    only to the realm's own functions or to a `/p/` library function reached by
    name (`lib.Each(xs, func(x int){ sum += x })`), never to another realm's function;
    reached by name means a direct call of a `/p/` function or method, including
-   a method called on an interface value that holds a `/p/` type from the
-   realm's import tree, not a local copy of the function or a method value;
+   a method called on an interface value of a trusted `/p/` type (R2c), or a
+   local set once to a declared function and only called (`each := lib.Each`);
+   not a method value;
 3. a literal called in the expression that writes it (`func(){ n++ }()`).
 
 Anything else runs read-only and a write is refused with `<realm>'s code is
@@ -29,7 +32,10 @@ The legal form for every other case is a crossing closure, `func(cur realm, …)
 called with `cross`; it is the default for callbacks. The loan (clause 2) ends
 when the call returns, when the callee stores or returns the value, and for a
 deferred or variadic argument; a callee parameter that is only called or passed
-on keeps it. Marks live in the preprocessed code (`ATTR_LOCAL_HELPER`,
+on keeps it, down a chain of such functions (also converted to a named func
+type, wrapped in a lent literal, or through the realm's own interface method).
+A callee reached as a value, or a new crossing call into the same realm, runs it
+read-only. Marks live in the preprocessed code (`ATTR_LOCAL_HELPER`,
 `ATTR_NONESC_PARAMS`, `ATTR_NAMED_CALLEE`); nothing is stored, so amino, hashes
 and gas constants do not change.
 
@@ -37,10 +43,11 @@ and gas constants do not change.
 is not yet saved is allowed and flagged; finalize refuses to save a flagged
 object (`an object written by read-only code would be stored`).
 
-**R2c Only imported library code writes.** A method called directly or through
-an interface is trusted only if its package is in the calling realm's import
-tree (imports and theirs, standard library included, tests excluded). A method
-value is a function value (R2) and never writes, whatever its package.
+**R2c Only imported library code writes.** A method called through an interface
+is trusted only if the realm, or the package whose code makes the call, imports
+its package directly; a standard-library package counts anywhere in the realm's
+import tree; tests do not widen it. A method value is a function value (R2) and
+never writes, whatever its package.
 
 **R3 Types stay home: only pointers cross.** A struct or array value of a type a
 realm declares is created and copied only by that realm's code. Exceptions: the
@@ -49,7 +56,8 @@ fields holding no realm's struct or array. Errors handed out are pointers;
 `defer x.M()` on another realm's value needs `defer func() { x.M() }()`.
 
 **R4 The ticket stays in its call.** `cur` is never stored, reassigned,
-addressed or forged; banker and `cur.Sub` need the live `cur`.
+addressed or forged; banker and `cur.Sub` need the live `cur`. A function
+literal whose result type holds a realm value is refused at deploy.
 
 **Panics.** `recover()` catches a panic unless it leaves a `cross` call; a
 library borrow (a call into `/p/` or the standard library at run time) no
@@ -73,23 +81,18 @@ realm from library code (call a function of the owning realm)`.
 - Recovered panics: a panic out of a library call is now caught by the caller's `recover()` (`recover_fv_borrow`, `recover_fv_libmade`); one leaving a `cross` call still aborts (`recover_fv_cross`).
 
 ## Known open
-- A callee not reached by name lends nothing: a local copy (`each := lib.Each; each(xs, f)`) or a function literal kept in a variable (`var Apply = func(f func()) { f() }`) runs `f` read-only (`zrealm_ctw_owncb`).
+- A callee not reached by name lends nothing: a reassigned local, a package variable, a method expression copied to a local, or a function literal kept in a variable (`var Apply = func(f func()) { f() }`) runs `f` read-only (`zrealm_ctw_owncb`, `zrealm_lend_alias_refused`).
 - Another realm's function gets no loan, even a plain one (`zrealm_lend_other_plain`): give it a crossing callback.
 - A method value never writes (`zrealm_lend_lib_shapes`); call the method directly.
 - `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_lend_reg_plibeach`).
-- Swift and Rust put the same line in the function's type; the guide compares the four limits above (`gno-interrealm.md`, "The same line in Swift and Rust").
+- Swift and Rust put the same line in the function's type; the guide compares the limits above (`gno-interrealm.md`, "The same line in Swift and Rust").
 - A local helper used inside a literal that is lent in place is refused; call the helper outside the literal, or write its body in the literal.
 - A lent literal captured, at any depth, by a function value that escapes (stored, returned, or handed to a parameter that keeps it) loses its loan at once, also when that wrapper was itself lent (`zrealm_lend_nested_two`, `zrealm_lend_captures`); following captures below the first level, and walking a `xs...` slice while a loan is live, is paid in gas.
-- A library in the import tree is trusted for interface calls; type-assert caller-supplied interface values.
-- A library package variable called in place (`lib.Table[k](x)`) acts for the caller (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
+- A library imported directly by the realm or the calling package is trusted for interface calls; type-assert caller-supplied interface values.
+- A library table entry called in place (`lib.Table[k](x)`) acts for the caller; copied to a local it is a value and runs read-only (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
 
 ## Upgrade notes
 - These stop writing: a stored callback (store a crossing closure instead); a declared function passed as a value (pass a literal in place, or make it crossing); a method value (call the method, or wrap it in a literal argument); a callback handed to another realm (make it `func(cur realm, …)`, called with `cross`).
 - `commondao` v0 `Option` and boards `permissions` v0 `Option` became interfaces (`commondao.WithID(…)` etc. keep their names): a closure made in init runs read-only when `New` calls it.
 - Struct errors returned to other realms become pointer errors (`sys/users`); library containers receive realm structs as pointers (`commondao`); `gov/dao NewGovDAO` is crossing.
-- Replay: a chain that replays past blocks with this binary computes other
-  results. A function value read back from saved state, or made and called
-  without being passed in place, no longer writes, so such past transactions
-  would fail; the panic rule lets some past aborts be caught; gas differs.
-  There is no height switch: this ships on a new chain or behind a gated
-  upgrade. Marks are rebuilt at every load, so nodes agree with each other.
+- Replay: a chain that replays past blocks with this binary computes other results. A function value read back from saved state, or made and called without being passed in place, no longer writes, so such past transactions would fail; the panic rule lets some past aborts be caught; gas differs. There is no height switch: this ships on a new chain or behind a gated upgrade. Marks are rebuilt at every load, so nodes agree with each other.

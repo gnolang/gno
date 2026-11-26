@@ -182,12 +182,14 @@ The idea: R1 makes the gate the only way in by name, but a function value can ca
 gate. So a plain function value (one without a `cur realm` parameter) counts as the realm's own intent only
 where the code that runs it can be read at the call line.
 
-**A plain function value writes the realm's saved state only (1) as the realm's own code called by name, or as a
-local helper; (2) as a literal written in place as a call argument, while that call runs, lent only to the realm's
+**A plain function writes its realm's stored state only when called by name by code that may already write, or
+as a callback lent for that one call.** In code: a plain function value writes only (1) as the realm's own code
+called by name, or as a local helper; (2) as a literal written in place as a call argument, while that call runs, lent only to the realm's
 own functions or to a `/p/` library function reached by name, never to another realm's function; (3) as a literal
-called in the expression that writes it.** Reached by name means a direct call of a `/p/` function or method,
-including a method called on an interface value that holds a `/p/` type from the realm's import tree; a local copy
-of the function or a method value is not. Anything else runs read-only: a stored value, a returned one, a declared
+called in the expression that writes it. Reached by name means a direct call of a `/p/` function or method,
+including a method called on an interface value that holds a `/p/` type the realm trusts (R2c), or a call through a
+local set once to a declared function and only ever called (`each := lib.Each; each(xs, f)`). A method value is
+not. Anything else runs read-only: a stored value, a returned one, a declared
 function passed as a value, a method value, a literal the callee keeps and calls later.
 
 ```go
@@ -199,7 +201,13 @@ Reg = append(Reg, func() { n++ }); Reg[0]()     // stored: refused, here and in 
 ```
 
 The loan in (2) ends when the callee returns, stores the value or returns it, and it is never given to a
-deferred or variadic argument. A callee parameter that is only called or passed on keeps it. The marks are
+deferred or variadic argument. A callee parameter that is only called or passed on keeps it, down a chain of
+such functions in the realm or a library, recursion included; passing it on converted to a named func type,
+inside a lent literal, or to the realm's own interface method keeps it too. A function on the chain that stores
+it, returns it, defers a call with it, or hands it to something that keeps it ends the loan. A callee reached as
+a value (a reassigned local, a package variable) runs read-only, as does a new crossing call into the same realm
+(`zrealm_lend_chain_ok.gno`, `zrealm_lend_chain_refused.gno`, `zrealm_lend_chain_crossing.gno`,
+`zrealm_lend_nonesc_earlykeep.gno`). The marks are
 decided when the code is prepared, so nothing about them is stored. Tests: `zrealm_lend_each.gno`,
 `zrealm_lend_helper.gno`, `zrealm_lend_store.gno`, `zrealm_lend_values.gno`; `zrealm_wp_1.gno` (a method called
 on an interface, a deferred call, a variadic slot).
@@ -227,8 +235,8 @@ ctw.ForEach(cross(cur), func(n int) { sum += n })              // another realm'
 ctw.ForEachX(cross(cur), func(cur realm, n int) { sum += n })  // f enters b: writes
 ```
 
-Known limits: a callee not reached by name (a local copy `each := lib.Each`, or a literal kept in a variable)
-lends nothing; a method value never writes; `lib.Default.Each(func(int){ count++ })` is refused, since a method of
+Known limits: a callee not reached by name (a reassigned local, a package variable, a method expression copied to
+a local, or a literal kept in a variable) lends nothing; a method value never writes; `lib.Default.Each(func(int){ count++ })` is refused, since a method of
 a variable the library owns runs as the library; and a local helper used inside a literal lent in place is refused
 (call it outside the literal, or write its body in the literal). Tests: `zrealm_ctw_owncb.gno`,
 `zrealm_lend_lib_shapes.gno`, `zrealm_lend_reg_plibeach.gno`, `zrealm_wp_1.gno`.
@@ -302,14 +310,17 @@ func Use(cur realm, r Runner) { r.Run(myObj) }   // x is current: without R2c, e
 x.Use(cross(cur), evil.T{})   // refused (master: writes)
 ```
 
-**So: library code that `x` reaches through an interface acts for `x` only if `x` imports that library**, directly or through the packages it imports. Otherwise it runs read-only. Above,
+**So: library code that `x` reaches through an interface acts for `x` only if `x`, or the package whose code
+makes the call, imports that library directly.** Otherwise it runs read-only. Above,
 `x` never imports `p/evil`, so `evil.T.Run` runs read-only and the write to `myObj` is refused.
 
 Importing a package is how a realm says "I trust this code". A call by name always passes, because a realm can
-only name packages it imports; the rule only matters when the caller picks the code. The standard library
-counts like any import; a realm's test files do not.
+only name packages it imports; the rule only matters when the caller picks the code. A standard-library package
+is trusted anywhere in the realm's import tree; a method promoted from an embedded type counts as the embedded
+type's package; a realm's test files do not widen the trust.
 
-Test: `zrealm_entry_iface_val.gno`.
+Test: `zrealm_entry_iface_val.gno`; `zrealm_trust_direct_*.gno` (direct imports, the calling package, promoted
+methods, the standard library).
 
 ### R3 Types stay home: only pointers cross
 
@@ -351,7 +362,8 @@ all its fields are exported.
 
 `cur` is a ticket: code holding it can cross as this realm and spend its coins. **`cur` lives only in the call
 that received it: it cannot be stored, replaced, have its address taken, or be faked; coins and sub-tickets come
-only from the live `cur`.**
+only from the live `cur`.** A function literal whose result type holds a realm value is refused when the package
+is deployed (`zrealm_cur_escape_lit*.gno`).
 
 ```go
 stashed = cur                                    // refused at save: cannot persist realm value
@@ -642,7 +654,8 @@ ctw.ViaDispatch(cross(cur))    // Boxes[0].N +1
 ```
 
 `ViaApply`, which passes its literal to `libtable.Apply`, a literal kept in a library variable, is refused: a
-callee kept in a variable lends nothing (§7.14).
+callee kept in a variable lends nothing (§7.14). `ViaAlias` writes: `each := libtable.Each` is set once to a
+declared function and only called, so it is that function by name (`zrealm_lend_alias_ok.gno`).
 
 The same library code, called by realm `b` on `a`'s objects, is refused (§7.3). Library code that a caller
 passes in through an interface is decided by R2c (§7.10).
@@ -719,8 +732,8 @@ func Use(cur realm, r Runner) { r.Run(gObj) }
 pfuncvictim.Use(cross(cur), ifaceattack.EvilV{})   // refused: "cannot modify object owned by another realm from library code …" (master: writes)
 ```
 
-The standard library counts as an import like any other: a realm importing `bytes` accepts a `bytes.Reader`
-writing its buffer, while a realm importing only `io` refuses the same reader.
+The standard library is trusted anywhere in the realm's import tree: a realm importing `bytes` accepts a
+`bytes.Reader` writing its buffer, while a realm whose tree holds only `io` refuses the same reader.
 
 ```go
 control.Fill(cross(cur), bytes.NewReader([]byte("efgh")))     // control imports bytes: writes
@@ -778,13 +791,14 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 
 - A fresh function a realm stores and then runs in the same call is read-only; run it first, or make it a
   crossing function (`zrealm_saved_same_tx`, `zrealm_fv_wrap_ptr`).
-- A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm; copied to a local
-  first, it runs read-only (`zrealm_ctw_owncb`'s `ViaTable`, `zrealm_saved_libtable_copy`).
-- A library in the realm's import tree is trusted for interface calls (R2c); a method value still never writes
-  (R2a, `zrealm_wp_3`).
-- A literal is lent only to a callee reached by name: through a local copy (`each := lib.Each`) or a function
-  kept in a variable it runs read-only (`zrealm_ctw_owncb`); another realm's function gets no loan
-  (`zrealm_lend_other_plain`); a method value never writes (`zrealm_lend_lib_shapes`).
+- A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm. A
+  table entry or a literal copied to a local is a value and runs read-only (`zrealm_ctw_owncb`'s `ViaTable`,
+  `zrealm_saved_libtable_copy`); only a local set once to a declared function is that function by name (§7.7).
+- A library imported directly, by the realm or by the calling package, is trusted for interface calls (R2c); a
+  method value still never writes (R2a, `zrealm_wp_3`).
+- A literal is lent only to a callee reached by name: through a reassigned local, a package variable or a function
+  kept in a variable it runs read-only (`zrealm_ctw_owncb`, `zrealm_lend_alias_refused`); another realm's function
+  gets no loan (`zrealm_lend_other_plain`); a method value never writes (`zrealm_lend_lib_shapes`).
 - A literal passed to a method of a variable a library owns, `lib.Default.Each(func(int) { n++ })`, is refused:
   the method runs as the library (`zrealm_lend_reg_plibeach`). Call a library function by name, or pass a
   crossing closure.
@@ -806,8 +820,8 @@ Tests: `zrealm_home_known_relay_table.gno`, `zrealm_home_known_ro_relay.gno`, `z
 - Return pointers, and errors as pointers; copy only your own values (R3).
 - A callback that must change its own realm is `func(cur realm, …)`, called with `f(cross(cur), …)`; a stored
   or returned function value is read-only (R2a, R2b).
-- A plain function value writes only as a local helper, a literal lent in place to your own function or a
-  library function called by name, or a literal called where it is written; do not count on it elsewhere.
+- A plain function writes only when called by name by code that may already write, or as a callback lent for
+  that one call; do not count on it elsewhere.
 - Reach code through packages you import; type-assert caller-supplied interface values (R2c).
 - Never hand `cur` to code you did not write, and never store it (R4, §6.2).
 - A crossing method runs as its realm for anyone holding the object: check the caller there too (§7.2).
