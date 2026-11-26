@@ -395,19 +395,20 @@ rlm.Sub("anything")   // PANIC: m.Realm=/r/attacker, rlm.PkgPath=/r/victim
 
 Without this check, a foreign realm receiving cur could mint sub-tokens
 in the caller's namespace and use them to drain treasuries or
-impersonate the caller in downstream realms. The check naturally permits
-the legitimate case: `/p/`-methods on victim-stamped receivers, called
-by victim with victim's own cur, where m.Realm is borrowed to /r/victim
-via borrow rule #2 and cur.PkgPath() is also /r/victim.
+impersonate the caller in downstream realms. The check permits library
+code that /r/X calls with its own live cur: under pr6495 a `/p/` function
+or method never moves m.Realm to its receiver's realm (only a `/p/`-owned
+receiver does), so m.Realm stays /r/X.
 
 Trace through scenarios:
 
 | Caller | Function | m.Realm | rlm.PkgPath | Sub() allowed |
 |---|---|---|---|---|
 | /r/X | own /r/X code | /r/X | /r/X | ✓ |
-| /r/X | /p/ method on /r/X-stamped receiver | /r/X (borrow #2) | /r/X | ✓ |
-| /r/X | /p/ method on /r/Y-stamped receiver | /r/Y (borrow #2) | /r/X | ✗ |
+| /r/X | /p/ function, or method on /r/X-stamped receiver | /r/X | /r/X | ✓ |
+| /r/X | /p/ method on /r/Y-stamped receiver | /r/X (Y's object read-only) | /r/X | ✓ |
 | /r/Y | /r/Y code with passed /r/X cur | /r/Y | /r/X | ✗ |
+| /r/X | /r/Y plain function given X's cur | nil (read-only entry) | /r/X | ✗ (nil guard) |
 | chain root | /p/ top-level func | nil | anything | ✗ (nil guard) |
 
 Because `m.Realm.Path` is always a real, "#"-free package path, the
@@ -847,8 +848,8 @@ that `cur.Sub` would refuse to mint.
 ## Footguns
 
 **1. Passed-cur in `/p/` code.** If `/r/X` invokes `/p/` code with its
-own cur — a top-level `/p/` function (m.Realm inherited = /r/X) or a
-`/p/`-method on an /r/X-stamped receiver (borrow rule #2) — that code
+own cur — a top-level `/p/` function or a `/p/` method on any receiver
+not owned by a `/p/` package (m.Realm stays /r/X under pr6495) — that code
 can call `cur.Sub("anything")` and mint subs in /r/X's namespace. This
 is a trust extension /r/X makes to its `/p/` imports, same in kind as
 today (those packages can already `cross(cur)` to act as /r/X's
@@ -857,10 +858,8 @@ primary identity), but larger in blast radius:
 **Banker-drain corollary**: because `DerivePkgSubAddr` is public and
 pure, every address in /r/X's sub-namespace is enumerable off-chain. A
 malicious `/p/` helper that receives /r/X's live cur — a top-level
-`/p/` function or a method on an /r/X-stamped receiver, the two shapes
-that still execute with `m.Realm = /r/X`; a method on a
-foreign-stamped receiver borrows `m.Realm` away, so its Sub() panics —
-can construct
+`/p/` function, or a method on any receiver not owned by a `/p/` package,
+all of which run with `m.Realm = /r/X` — can construct
 `banker.NewBanker(banker.BankerTypeRealmSend, rlm.Sub(target))` for
 the specific sub-address holding the largest balance, and the native
 send path performs no auth. The reachable set is not "subs /r/X has
