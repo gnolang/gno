@@ -21,4 +21,4 @@ func main(cur realm) {
 // bob: 10
 
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): l<VPBlock(1,0)>.bal[from<VPBlock(1,1)>]
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): l<VPBlock(1,0)>.bal[from<VPBlock(1,1)>]

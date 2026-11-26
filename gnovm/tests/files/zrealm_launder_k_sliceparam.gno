@@ -35,4 +35,4 @@ func main(cur realm) {
 // before: original-imm
 
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): s<VPBlock(1,1)>[(const (0 int))].Field
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): s<VPBlock(1,1)>[(const (0 int))].Field

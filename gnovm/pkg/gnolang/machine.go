@@ -2792,7 +2792,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		}
 		prpath := pv.PkgPath
 		panic(fmt.Sprintf(
-			"cannot cross-call a non-crossing function %s.%v from %s",
+			refuseNotCrossing,
 			prpath,
 			fv.String(),
 			mrpath,
@@ -2808,7 +2808,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			prpath = pv.Realm.Path
 		}
 		panic(fmt.Sprintf(
-			"cannot cur-call to external realm function %s.%v from %s",
+			refuseExternalCur,
 			prpath,
 			fv.String(),
 			mrpath,
@@ -3316,7 +3316,7 @@ func panicIllegalPointerLHS(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	pv, ro := m.PopAsPointer2(lx)
 	if ro {
-		m.Panic(typedString(m.readonlyAccessPanic(lx)))
+		m.refuseWrite(lx)
 	}
 	return pv
 }
@@ -3328,21 +3328,17 @@ func (m *Machine) readonlyAccessPanic(x Expr) string {
 	if m.Package != nil && m.Package.PkgID.IsImmutablePkg() && !m.Package.PkgID.IsStdlibPkg() {
 		// /p/ code writing an object another realm owns: only that realm's
 		// own functions may write it. Stdlib receivers never borrow.
-		return "cannot modify object owned by another realm from library code (call a function of the owning realm): " + x.String()
+		return refuseLibWrite + x.String()
 	}
 	if m.viewRealm != nil && m.viewS3 {
 		// A function value called by value with no live loan.
-		return m.viewRealm.Path + "'s code is read-only here: a function value writes" +
-			" only as a literal called where it is written, or passed in place to a" +
-			" plain function of this realm or a /p/ function called by name, while" +
-			" that call runs (otherwise give it a cur realm parameter and call it with cross): " + x.String()
+		return m.viewRealm.Path + refuseByValue + x.String()
 	}
 	if m.viewRealm != nil {
 		// The realm's own code, entered without crossing.
-		return m.viewRealm.Path + "'s code was entered without crossing and is read-only" +
-			" (call its crossing function): " + x.String()
+		return m.viewRealm.Path + refuseUncrossed + x.String()
 	}
-	return "cannot directly modify readonly tainted object (call a crossing function of the owning realm): " + x.String()
+	return refuseTainted + x.String()
 }
 
 // IsReadonly is the write-guard form, used at every mutation site
@@ -3480,7 +3476,7 @@ func (m *Machine) resolvePointer(lx Expr, lhsOperands []TypedValue) (pv PointerV
 			ro = m.IsReadonly(xv)
 			if ro {
 				// Ensure we always panic, without expecting the caller to do it.
-				m.Panic(typedString(m.readonlyAccessPanic(lx)))
+				m.refuseWrite(lx)
 			}
 			pv = xv.GetPointerAtIndex(m, m.Realm, m.Alloc, m.Store, iv)
 		} else {

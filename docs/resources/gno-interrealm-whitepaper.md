@@ -835,7 +835,7 @@ for every row is printed under the table.
 | Rule | Enforcing code | Fixture family | Files |
 |---|---|---|---|
 | R1 Cross to write | `gnovm/pkg/gnolang/machine.go:readonlyAccessPanic`, `isReadonly` | `zrealm_ctw_*` (14) + `zrealm_crossrealm*` (56) | 70 |
-| R2a A plain function value writes in three places only | `gnovm/pkg/gnolang/crossingfn.go:calledByValue`, `restrictByValueCall`; `birthrule.go:markLocalHelpers` (local helpers); `lend.go:markNonEscParams`, `lendPlace`, `lendArgs`, `lendLive` (the loan) | `zrealm_lend_*` (125) + `zrealm_saved_*` (16) | 141 |
+| R2a A plain function value writes in three places only | `gnovm/pkg/gnolang/crossingfn.go:calledByValue`, `callstart.go:byValueReadOnly`; `birthrule.go:markLocalHelpers` (local helpers); `lend.go:markNonEscParams`, `lendPlace`, `lendArgs`, `lendLive` (the loan) | `zrealm_lend_*` (125) + `zrealm_saved_*` (16) | 141 |
 | R2b A function value from another realm runs read-only | `lend.go:lendLive` (a loan holds only in its own realm, uncrossed) and R1's read-only entry | `zrealm_maker_*` (15) + `zrealm_saved_*` (16) | 31 |
 | R2c Only imported library code writes | `gnovm/pkg/gnolang/machine.go:foreignLib`, `trustRoot` | `zrealm_entry_iface*` (27, includes `zrealm_entry_iface.gno`) + `zrealm_import_*` (6) | 33 |
 | R2a-save The refusal at save | `gnovm/pkg/gnolang/machine.go:unstoredWrite`, `markViewWrite`; `gnovm/pkg/gnolang/realm.go:assertNoUncrossedWrite` | `zrealm_s3u_*` | 38 |
@@ -871,13 +871,13 @@ above are what `ls` prints, so a reviewer can re-run them.
 | Rule | Layer | Text |
 |---|---|---|
 | R1 | run time | E2 `<path>'s code was entered without crossing and is read-only (call its crossing function): expr` |
-| R1 | run time | E1 `cannot modify object owned by another realm from library code (call a function of the owning realm): expr` |
-| R1 | run time | E3 `cannot directly modify readonly tainted object (call a crossing function of the owning realm): expr` |
+| R1 | run time | E1 `cannot modify object owned by another realm from library code (call a crossing function of the owning realm): expr` |
+| R1 | run time | E3 `cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ or standard-library package's object cannot be written after its init): expr` |
 | R3 | type check | `cannot hold a value of <T> outside its realm (use a pointer)` (`realmvalue.go`), e.g. `c := *p` |
 | R3 | run time | `cannot copy <T> outside realm <R> (use a pointer)` (`alloc.go:checkCopy`), the only refusal for `err := fvx.Fail()` and `defer p.Val()` |
 | R3 | run time | `cannot allocate <T> in realm <R>` (`alloc.go:panicForeignAlloc`) |
 | R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): expr` |
-| R2a-save | save | `<realm>: an object written by read-only code would be stored (write it inside a crossing call of <realm>)` |
+| R2a-save | save | `<realm>: an object written by read-only code would be stored (do the write in a crossing function of <realm>, called with cross)` |
 
 R2a's marks are decided when the code is prepared: `ATTR_LOCAL_HELPER` on a local helper's calls,
 `ATTR_NAMED_CALLEE` on a call by name, `ATTR_NONESC_PARAMS` on a function whose parameter is only called or

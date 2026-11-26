@@ -295,7 +295,7 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 					pkgPath = pid.String()
 				}
 				panic(fmt.Sprintf(
-					"cannot mutate %s: package is immutable post-init",
+					refuseImmutablePkg,
 					pkgPath))
 			}
 		}
@@ -344,7 +344,7 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	if m != nil && m.Stage == StageRun &&
 		rlm.ID.IsImmutablePkg() && !rlm.ID.IsStdlibPkg() {
 		panic(fmt.Sprintf(
-			"cannot mutate %s: package is immutable post-init",
+			refuseImmutablePkg,
 			rlm.Path))
 	}
 	// XXX check if this boosts performance
@@ -586,7 +586,7 @@ func (rlm *Realm) assertNoUncrossedWrite(s3Written bool) {
 		for _, oo := range set {
 			if oo.GetObjectInfo().s3Written {
 				panic(fmt.Sprintf(
-					"%s: an object written by read-only code would be stored (write it inside a crossing call of %s)",
+					refuseStoreUncrossed,
 					rlm.Path, rlm.Path))
 			}
 		}

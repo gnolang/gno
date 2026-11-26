@@ -68,7 +68,7 @@ Lint (`gno lint`, warnings): an exported function passing or returning its
 realm's struct by value; a crossing function calling through a non-function
 parameter. Other refusals: `<realm>'s code was entered without crossing and is
 read-only (call its crossing function)`; `cannot modify object owned by another
-realm from library code (call a function of the owning realm)`.
+realm from library code (call a crossing function of the owning realm)`.
 
 ## Alternatives rejected
 - **Copy on hand-out** (a function value writes only during the crossing call it was made in, while private to it; a stored or handed-out value becomes a copy without write power): it needed a per-call marker and a deep swap on every attach and realm change, and its edge cases were hard to state to authors.

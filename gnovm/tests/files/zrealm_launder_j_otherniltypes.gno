@@ -40,7 +40,7 @@ func main(cur realm) {
 }
 
 // Output:
-// EvilFunc: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,1)>.Field
-// EvilSlice: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,1)>.Field
-// EvilMap: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,1)>.Field
+// EvilFunc: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i<VPBlock(1,1)>.Field
+// EvilSlice: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i<VPBlock(1,1)>.Field
+// EvilMap: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i<VPBlock(1,1)>.Field
 // after: original-imm

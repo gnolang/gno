@@ -72,18 +72,18 @@ directories) under `examples/gno.land/r`.
 | Same, via composite literal of a foreign declared struct | zrealm_crossrealm3 | ERR: cannot allocate gno.land/r/tests/vm.TestRealmObject in realm gno.land/r/crossrealm | R3 | d |
 | Write a field of a foreign-realm object held as a value through a crossing call | zrealm_crossrealm4 | OUT: modify: gno.land/r/tests/vm's code was entered without crossing and is read-only | R1, R3 | d |
 | Same with a second order (4b) — object printed after the refused write | zrealm_crossrealm4b | OUT: modify: gno.land/r/tests/vm's code was entered without crossing and is read-only | R1, R3 | d |
-| Write through a foreign package var of a declared type | zrealm_crossrealm5 | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): somevalue | R1, R3 | b, d |
+| Write through a foreign package var of a declared type | zrealm_crossrealm5 | ERR: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ or standard-library package's object cannot be written after its init): somevalue | R1, R3 | b, d |
 | Crossing call into `p/demo/tests/v0` mutates its object and prints it | zrealm_crossrealm6 | OUT: (struct{("modified" string)} gno.land/p/demo/tests/v0.TestRealmObject) | R1 | a, c |
-| Write a foreign object's field from library code | zrealm_crossrealm7 | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): somevalue | R1 | c |
-| Same through an exported package var of the foreign realm | zrealm_crossrealm8 | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): SomeValue | R1 | c |
-| Same through a `const`-like package reference | zrealm_crossrealm9 | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): (const (ref(gno.land/p/demo/tests/v0) package{})) | R1, R3 | b |
-| Same for a foreign field reached through a nested value | zrealm_crossrealm10 | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): SomeValue | R1 | c |
+| Write a foreign object's field from library code | zrealm_crossrealm7 | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): somevalue | R1 | c |
+| Same through an exported package var of the foreign realm | zrealm_crossrealm8 | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): SomeValue | R1 | c |
+| Same through a `const`-like package reference | zrealm_crossrealm9 | ERR: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ or standard-library package's object cannot be written after its init): (const (ref(gno.land/p/demo/tests/v0) package{})) | R1, R3 | b |
+| Same for a foreign field reached through a nested value | zrealm_crossrealm10 | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): SomeValue | R1 | c |
 | Print `PreviousRealm`/`IsUser`/`IsUserCall` stack table from a crossing call | zrealm_crossrealm11 | OUT: STACK = unsafe.PreviousRealm / user1.gno !> r/crossrealm.main2 -> unsafe.PreviousRealm | R1 | i |
 | `unsafe` imported but not declared in the file (dot-import variant) | zrealm_crossrealm12 | ERR: name unsafe not declared | R1 | i |
 | Print CurrentRealm/PreviousRealm from a plain (non-crossing) function | zrealm_crossrealm13 | OUT: From main: PR() CurrentRealm: CodeRealm{...} | R1 | b, i |
 | Same, with a crossing `PrintRealm(cur realm)` helper | zrealm_crossrealm13a | OUT: From main: PrintRealm: CurrentRealm: CodeRealm{...} | R1 | a, i |
 | Print cur/prev through a render helper taking `cur` and formatting addresses | zrealm_crossrealm13a_cur | OUT: PrintRealm: PreviousRealm: UserRealm{...} | R1 | a, i |
-| Foreign method takes a pointer to the caller's object and writes it | zrealm_crossrealm14 | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): c&lt;VPBlock | R1 | c, j |
+| Foreign method takes a pointer to the caller's object and writes it | zrealm_crossrealm14 | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): c&lt;VPBlock | R1 | c, j |
 | Crossing method `Foo(cur realm)` on a foreign object, then plain `Bar` | zrealm_crossrealm15 | OUT: init / hello gno.land/r/crossrealm | R1, R2c | j |
 | Same shape without crossing (plain method call on foreign object) | zrealm_crossrealm15b | ERR: cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm | R1, R2c | j |
 | Crossing method call from main, printing three cur values | zrealm_crossrealm16 | OUT: hello gno.land/r/crossrealm / hello gno.land/r/tests/vm/crossrealm | R1 | j |
@@ -101,7 +101,7 @@ directories) under `examples/gno.land/r`.
 | Print previous address and pkgpath across a two-realm chain | zrealm_crossrealm23 | OUT: g1kscy... gno.land/r/tests/vm / g1h2y7... gno.land/r/crossrealm | R1 | i |
 | Pass `&struct{A int}` pointer into another realm's gate and read it back | zrealm_crossrealm24 | OUT: &(struct{(123 int)} gno.land/r/crossrealm.Struct) 1 | R3 | d |
 | Set a field of the caller's struct through the other realm's gate | zrealm_crossrealm25 | OUT: s := &Struct{A: 100} / crossrealm_b.SetObject(cross, &s.A) | R1, R3 | a, d |
-| Stored pointer then incremented by the other realm's gate | zrealm_crossrealm25a | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): *(ptr&lt;VPBlock | R1, R3 | b |
+| Stored pointer then incremented by the other realm's gate | zrealm_crossrealm25a | ERR: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ or standard-library package's object cannot be written after its init): *(ptr&lt;VPBlock | R1, R3 | b |
 | Same as 25 but with a local field write between the two crossing calls | zrealm_crossrealm25b | OUT: s.A = 123 / &(struct{(123 int)} gno.land/r/crossrealm.Struct) | R1, R3 | d |
 | Stored global pointer written after being handed to the other realm | zrealm_crossrealm25c | OUT: s_g = s / s_g.A = 123 | R1, R3 | b |
 | Pointer to a struct field of another realm kept after the call | zrealm_crossrealm26 | OUT: &(struct{(123 int)} gno.land/r/crossrealm.Struct) | R3 | b |
@@ -220,7 +220,7 @@ directories) under `examples/gno.land/r`.
 | Library writer over an array of the victim's type | zrealm_entry_pfunc_arr | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R1 | f |
 | Victim's declared writer handed to `pfuncbind.Apply` | zrealm_entry_pfunc_echo | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R2b fn-rule | f |
 | Same through a map of function values | zrealm_entry_pfunc_map | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R2b fn-rule | f |
-| Named function value stored in the victim's package var | zrealm_entry_pfunc_pkgvar | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i&lt;VPBlock(1,0)>.Field | R2a fn-rule | g |
+| Named function value stored in the victim's package var | zrealm_entry_pfunc_pkgvar | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i&lt;VPBlock(1,0)>.Field | R2a fn-rule | g |
 | Receiver method value handed to a library `Apply` | zrealm_entry_pfunc_recv | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R2b fn-rule | f |
 | Receiver method value with a receiver-typed argument | zrealm_entry_pfunc_recvr | ERR: cannot modify object owned by another realm from library code: i&lt;VPBlock(1,0)>.Field | R2b fn-rule | f |
 | Same-package (p) writer applied to the victim's object | zrealm_entry_pfunc_samepkg | ERR: cannot modify object owned by another realm from library code: x&lt;VPBlock(1,0)>.Field | R1, R2c | f, h |
@@ -248,7 +248,7 @@ directories) under `examples/gno.land/r`.
 | `any` holding an interface value | zrealm_fv_anyp_iface | OUT: 1 | R3 | h |
 | `any` with an untyped nil | zrealm_fv_anyp_nil | OUT: true | R3 | d |
 | `any` holding a value of the victim's declared type | zrealm_fv_anyp_val | ERR: cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer) | R3 | d |
-| Write through `any` holding the victim's pointer | zrealm_fv_anyp_write | ERR: cannot directly modify readonly tainted object (call a crossing function of the owning realm): x&lt;VPBlock(1,1)> | R1, R3 | b |
+| Write through `any` holding the victim's pointer | zrealm_fv_anyp_write | ERR: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ or standard-library package's object cannot be written after its init): x&lt;VPBlock(1,1)> | R1, R3 | b |
 | `append(spread...)` of the victim's values | zrealm_fv_append_spread | ERR: cannot copy gno.land/r/tests/vm/fvx.T outside realm gno.land/r/tests/vm/fvx (use a pointer) | R3 | d |
 | Array of the victim's named type allocated by the caller | zrealm_fv_arr | ERR: cannot allocate gno.land/r/tests/vm/fvx.H in realm gno.land/r/fvarr | R3 | d |
 | Array of an anonymous struct of the victim's type | zrealm_fv_arr_anon | ERR: cannot allocate gno.land/r/tests/vm/fvx.T in realm gno.land/r/fvarranon | R3 | d |
@@ -371,7 +371,7 @@ directories) under `examples/gno.land/r`.
 | Method value on the victim's object | zrealm_launder_rdata_mv_method_value | OUT: before: embed-orig then ERR: cannot modify object | R1 | f |
 | Plain hook applied to a value | zrealm_launder_rdata_mv_plainhook_apply | OUT: before: embed-orig then ERR: cannot modify object | R1 | f |
 | Closure returned by the victim then called plainly | zrealm_launder_rdata_mv_returned_closure | OUT: plain closure: victim's code was entered without crossing and is read-only | R1 | e |
-| Bound method value stored in the victim's registry | zrealm_launder_rdata_mv_stored_bound_mv | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i&lt;VPBlock(1,0)>.Field | R2a fn-rule | g |
+| Bound method value stored in the victim's registry | zrealm_launder_rdata_mv_stored_bound_mv | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i&lt;VPBlock(1,0)>.Field | R2a fn-rule | g |
 | Stored hook function value in the handler realm | zrealm_launder_rdata_mv_stored_hook | ERR: gno.land/r/launderrh_mv_stored_hook's code was entered without crossing: i&lt;VPBlock(1,0)>.Field | R1 | g |
 | Stored interface value holding a method | zrealm_launder_rdata_mv_stored_iface | OUT: before: embed-orig then ERR: cannot modify object | R2a fn-rule | g, h |
 | Tampered punned method value | zrealm_launder_rdata_mv_tamper_punned_mv | ERR: illegal conversion of readonly or externally stored value | R2c | d |
@@ -579,8 +579,8 @@ directories) under `examples/gno.land/r`.
 | rdata victim realm (Immutable, Bare, stored pointers) | r/tests/vm/launderrvictim/launderrvictim.gno | ERR: cannot directly modify readonly tainted object | R1, R3 | b, d |
 | Laundering victim realm (Object, pointer/value fields) | r/tests/vm/laundervictim/laundervictim.gno | ERR: cannot modify object owned by another realm | R1 | c |
 | Model token realm storing a library ledger | r/tests/vm/modeltoken/t.gno, p/demo/tests/modelledger/l.gno | OUT: bob: 10 then ERR: cannot modify ... .bal[from] | R1 | c |
-| Persisted closure cap fixture | r/tests/vm/persistedcap/persistedcap.gno | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): c&lt;~VPBlock(1,1)> | R2a fn-rule | g |
-| Stored function value victim realm (`Hook Fn`) | r/tests/vm/pfuncvictim/v.gno | ERR: cannot modify object owned by another realm from library code (call a function of the owning realm): i&lt;VPBlock(1,0)>.Field | R2a fn-rule | g |
+| Persisted closure cap fixture | r/tests/vm/persistedcap/persistedcap.gno | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): c&lt;~VPBlock(1,1)> | R2a fn-rule | g |
+| Stored function value victim realm (`Hook Fn`) | r/tests/vm/pfuncvictim/v.gno | ERR: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i&lt;VPBlock(1,0)>.Field | R2a fn-rule | g |
 | Realm composite literal fixture | r/tests/vm/realm_compositelit.gno | OUT: literal built and printed | R3 | d |
 | Realm method over 38 derived types | r/tests/vm/realm_method38d.gno | OUT: method set resolved per type | R2c | j |
 | Registry caller-identity fixtures (alias, noop, spoof, approve, from, user) | r/tests/vm/regalias, regnoop, regspoof, regspoofapprove, regspooffrom, regspoofuser, regzero | OUT: caller identity checks pass or refuse spoofing | R1 | i |
@@ -636,7 +636,7 @@ directories) under `examples/gno.land/r`.
 | Named function value across restart (pfunc) | pfunc_named_restart.txtar | OUT: "pwnd-via-apply" string | R2a fn-rule | g |
 | Stored interface pointer used from a run script | iface_storedptr_2tx.txtar | ERR: cannot modify object owned by another realm from library code | R1, R2c | h |
 | Unstamped method value laundered | iface_unstamped_mv.txtar | ERR: cannot modify object owned by another realm | R1, R2c | h |
-| Default view adopted, not shared | view_default_adopted_not_shared.txtar | ERR: call a function of the owning realm | R1 | b |
+| Default view adopted, not shared | view_default_adopted_not_shared.txtar | ERR: call a crossing function of the owning realm | R1 | b |
 | Method value of an adopted view | view_method_value_adopted.txtar | ERR: cannot modify object owned by another realm from library code | R2a fn-rule | g |
 | Stored view reference refused | view_stored_ref_refused.txtar | OUT: OK! (write refused) | R1 | b |
 | Object pointer stored, then used across realms | object_pointer.txtar, object_pointer_2.txtar, object_pointer_pure.txtar | OUT: 42 int / ("reply from ext realm" string) / ERR: package is immutable post-init | R3 | d |

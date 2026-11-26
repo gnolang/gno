@@ -20,6 +20,6 @@ func main(cur realm) {
 }
 
 // Output:
-// escaped: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// escaped: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // view: v0
 // owner wrote: v1

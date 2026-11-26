@@ -890,7 +890,7 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 				// Allow conversion from []byte to string
 				// As it does not modify the value stored in the slice.
 			} else {
-				m.PanicString("illegal conversion of readonly or externally stored value")
+				m.PanicString(refuseConvStored)
 			}
 		}
 	}
@@ -908,7 +908,7 @@ func (m *Machine) convertValue(xv *TypedValue, t Type) {
 			// A nil pointer points at nothing, so it forges nothing.
 			isNilPtr := t.Kind() == PointerKind && xv.V == nil
 			if held && IsRealmPath(tdt.PkgPath) && tdt.GetPkgID() != rid && !isNilPtr {
-				m.PanicString("illegal conversion to external realm type")
+				m.PanicString(refuseConvForeign)
 			}
 		}
 	}

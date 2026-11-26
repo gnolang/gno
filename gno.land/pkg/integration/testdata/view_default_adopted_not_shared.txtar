@@ -13,7 +13,7 @@ gnokey maketx addpkg -pkgdir $WORK/keeper -pkgpath gno.land/r/test/keeper -gas-f
 stdout OK!
 
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test alice $WORK/run/main.gno
-stderr 'call a function of the owning realm'
+stderr 'call a crossing function of the owning realm'
 
 gnokey query vm/qrender --data 'gno.land/r/test/keeper:'
 stdout 'stored=false'

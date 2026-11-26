@@ -23,6 +23,6 @@ func main(cur realm) {
 
 // Output:
 // rec: int is not of type string
-// write: cannot modify object owned by another realm from library code (call a function of the owning realm): c<VPBlock(1,0)>.n
+// write: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): c<VPBlock(1,0)>.n
 // owner state: 0
 // OUTCOME caught

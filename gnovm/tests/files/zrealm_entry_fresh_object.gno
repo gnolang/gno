@@ -18,6 +18,6 @@ func main(cur realm) {
 }
 
 // Output:
-// fresh foreign: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// fresh foreign: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // fresh empty: true
 // owner wrote: v1

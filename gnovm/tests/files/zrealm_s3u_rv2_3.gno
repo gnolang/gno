@@ -10,4 +10,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/tests/vm/s3urv: an object written by read-only code would be stored (write it inside a crossing call of gno.land/r/tests/vm/s3urv)
+// gno.land/r/tests/vm/s3urv: an object written by read-only code would be stored (do the write in a crossing function of gno.land/r/tests/vm/s3urv, called with cross)

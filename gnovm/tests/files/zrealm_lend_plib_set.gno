@@ -13,4 +13,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): it<VPBlock(1,0)>.N
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): it<VPBlock(1,0)>.N

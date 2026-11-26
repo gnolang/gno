@@ -43,13 +43,13 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// view callback: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
-// deferred callback: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
-// stranger callback: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// view callback: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
+// deferred callback: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
+// stranger callback: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // view: v0 undefined undefined 1
-// owner-bound: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
-// owner-bound hook: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
-// owner-bound callback: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// owner-bound: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
+// owner-bound hook: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
+// owner-bound callback: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // view: v0 undefined undefined 1
 // owner's own: copy
 // handle: v0 3

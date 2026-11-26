@@ -2182,7 +2182,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// until call time); fall through, the
 									// runtime check covers both.
 									if fv.PkgPath != ctxpn.PkgPath {
-										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
+										panic(fmt.Sprintf(refuseExternalCurDeploy,
 											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
