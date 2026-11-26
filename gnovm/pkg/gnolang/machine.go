@@ -2933,6 +2933,7 @@ func (m *Machine) foreignLib(fv *FuncValue, caller string, iface bool) bool {
 		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(root)).(*PackageNode)
 		switch {
 		case !ok:
+			foreign = true
 		case !iface || IsStdlib(fv.PkgPath):
 			if test {
 				foreign = !pn.testImportClosure(m.Store)[fv.PkgPath]

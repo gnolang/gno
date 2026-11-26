@@ -1,7 +1,8 @@
-// PKGPATH: gno.land/r/zrealm_trust_direct_memo
-// The same t72b method is reached first from t72a's code (trusted), then from
-// the realm's own interface call (not trusted): the second runs read-only.
-package zrealm_trust_direct_memo
+// PKGPATH: gno.land/r/zrealm_trust_direct_twocallers
+// The same t72b method, called through an interface first by t72a's code
+// (which imports t72b) and then by the realm's code (which does not), writes
+// the first time and is refused the second.
+package zrealm_trust_direct_twocallers
 
 import "gno.land/p/demo/tests/t72a"
 

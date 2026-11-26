@@ -1,8 +1,7 @@
-// PKGPATH: gno.land/r/zrealm_trust_direct_memo_rev
-// The reverse of _memo: the realm's own interface call (not trusted) comes
-// first and is recovered, then t72a's (trusted) writes, then the realm's
-// call is refused again.
-package zrealm_trust_direct_memo_rev
+// PKGPATH: gno.land/r/zrealm_trust_direct_twocallers_rev
+// As _twocallers in the other order: the realm's call is refused (and
+// recovered), t72a's call then writes, and the realm's call is refused again.
+package zrealm_trust_direct_twocallers_rev
 
 import "gno.land/p/demo/tests/t72a"
 
