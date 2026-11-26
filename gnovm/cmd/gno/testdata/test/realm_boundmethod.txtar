@@ -88,7 +88,7 @@ func main(cur realm) {
 
 // Output:
 // before: 0
-// foreign Inc: cannot modify object owned by another realm from library code (call a function of the owning realm): c<VPBlock(1,0)>.n
+// foreign Inc: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): c<VPBlock(1,0)>.n
 // after foreign: 0
 // after entry: 1
 
