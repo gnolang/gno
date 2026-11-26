@@ -1,0 +1,673 @@
+package mermaid
+
+import (
+	"math"
+	"strconv"
+	"strings"
+)
+
+// Sequence diagram limits. Spacing the participants takes time in the
+// number of messages times the number of participants, which the first
+// bounds.
+const (
+	maxParticipants = 50
+	maxAutonumber   = 1_000_000 // start and step
+)
+
+// Sequence diagram geometry, in px.
+const (
+	actorPadX     = 14.0 // text to box side
+	actorMinWidth = 72.0
+	actorMinH     = 40.0
+	actorGap      = 48.0 // between neighboring actor boxes
+	figureHeight  = 38.0 // a stick figure, above its label
+	messageGap    = 12.0 // label end to lifeline
+	noteGap       = 12.0 // note to lifeline
+	notePad       = 10.0
+	selfLoopW     = 34.0
+	selfLoopH     = 18.0
+	frameInset    = 10.0 // frame side to what it holds
+	tabHeight     = 20.0
+	condSize      = 13.0 // block conditions
+	badgeH        = 18.0 // an autonumber
+	badgeSize     = 11.0
+)
+
+const (
+	classEdgeDash  class = "gno-mermaid__edge gno-mermaid__dashed"
+	classNote      class = "gno-mermaid__note"
+	classFrame     class = "gno-mermaid__frame"
+	classFrameLine class = "gno-mermaid__frame gno-mermaid__dashed"
+	classBadge     class = "gno-mermaid__badge"
+	classOnBadge   class = "gno-mermaid__on-badge"
+)
+
+type seqParticipant struct {
+	id    string
+	label []string
+	actor bool // a stick figure rather than a box
+	w, h  float64
+	x     float64
+}
+
+type seqArrow struct {
+	dashed bool
+	head   byte // 0 for none, '>' filled, 'x' a cross, ')' open
+	both   bool // a head at each end
+}
+
+// seqArrows are the message arrows, a longer one before any it starts with.
+var seqArrows = []struct {
+	tok string
+	a   seqArrow
+}{
+	{"<<-->>", seqArrow{dashed: true, head: '>', both: true}},
+	{"<<->>", seqArrow{head: '>', both: true}},
+	{"-->>", seqArrow{dashed: true, head: '>'}},
+	{"->>", seqArrow{head: '>'}},
+	{"--x", seqArrow{dashed: true, head: 'x'}},
+	{"-x", seqArrow{head: 'x'}},
+	{"--)", seqArrow{dashed: true, head: ')'}},
+	{"-)", seqArrow{head: ')'}},
+	{"-->", seqArrow{dashed: true}},
+	{"->", seqArrow{}},
+}
+
+type seqKind int
+
+const (
+	seqMessage seqKind = iota
+	seqNote
+	seqOpen    // loop, alt, opt, par, critical, break
+	seqSection // else, and, option
+	seqClose   // end
+)
+
+const (
+	noteLeft = iota
+	noteRight
+	noteOver
+)
+
+type seqEvent struct {
+	kind     seqKind
+	from, to int // participants; a note over one has from == to
+	arrow    seqArrow
+	text     []string
+	num      string // the autonumber, or ""
+	notePos  int
+	block    *seqBlock
+	keyword  string // of an open or section event
+	n        int    // source line
+	y, h     float64
+	l, r     float64 // horizontal extent, relative to participant 0
+}
+
+type seqBlock struct {
+	open     *seqEvent
+	sections []*seqEvent
+	parent   *seqBlock
+	l, r     float64 // extent of what it holds; l > r while it holds nothing
+	top, end float64
+}
+
+type sequence struct {
+	parts  []*seqParticipant
+	events []*seqEvent
+	blocks []*seqBlock
+}
+
+// sectionOf maps a section keyword to the block it divides.
+var sectionOf = map[string]string{"else": "alt", "and": "par", "option": "critical"}
+
+func parseSequence(args string, lines []line, m *meta) (diagram, error) {
+	if args != "" {
+		return nil, errorf(0, "statement on the sequenceDiagram line")
+	}
+	d := &sequence{}
+	ids := map[string]int{}
+	participant := func(n int, id string) (int, error) {
+		if !validName(id) {
+			return 0, errorf(n, "unsupported participant name %q", id)
+		}
+		if i, ok := ids[id]; ok {
+			return i, nil
+		}
+		if len(d.parts) == maxParticipants {
+			return 0, errorf(n, "more than %d participants", maxParticipants)
+		}
+		ids[id] = len(d.parts)
+		d.parts = append(d.parts, &seqParticipant{id: id, label: []string{id}})
+		return len(d.parts) - 1, nil
+	}
+	var open *seqBlock
+	// Mermaid counts every message, numbered or not, and a bare autonumber
+	// resumes the count.
+	numbering, next, step := false, 1, 1
+	for _, l := range statements(lines) {
+		if t, ok := title(l.text); ok {
+			m.title = t
+			continue
+		}
+		word, rest, _ := strings.Cut(l.text, " ")
+		rest = strings.TrimSpace(rest)
+		switch kw := strings.ToLower(word); kw {
+		case "participant", "actor":
+			id, alias, hasAlias := rest, "", false
+			if i := indexFold(rest, " as "); i >= 0 {
+				id, alias, hasAlias = rest[:i], rest[i+4:], true
+			}
+			i, err := participant(l.n, strings.TrimSpace(id))
+			if err != nil {
+				return nil, err
+			}
+			p := d.parts[i]
+			p.actor = kw == "actor"
+			if hasAlias {
+				p.label = labelLines(strings.TrimSpace(alias))
+			}
+		case "note":
+			e, err := parseNote(l, rest, participant)
+			if err != nil {
+				return nil, err
+			}
+			d.events = append(d.events, e)
+		case "loop", "alt", "opt", "par", "critical", "break":
+			b := &seqBlock{parent: open}
+			e := &seqEvent{kind: seqOpen, keyword: kw, text: label(rest), block: b, n: l.n}
+			b.open = e
+			open = b
+			d.blocks = append(d.blocks, b)
+			d.events = append(d.events, e)
+		case "else", "and", "option":
+			if open == nil || open.open.keyword != sectionOf[kw] {
+				return nil, errorf(l.n, "%q outside its block", kw)
+			}
+			e := &seqEvent{kind: seqSection, keyword: kw, text: label(rest), block: open}
+			open.sections = append(open.sections, e)
+			d.events = append(d.events, e)
+		case "end":
+			if open == nil || rest != "" {
+				return nil, errorf(l.n, "unexpected end")
+			}
+			d.events = append(d.events, &seqEvent{kind: seqClose, block: open})
+			open = open.parent
+		case "autonumber":
+			numbering = true
+			f := strings.Fields(rest)
+			if len(f) == 1 && strings.EqualFold(f[0], "off") {
+				numbering = false
+				break
+			}
+			if len(f) > 2 {
+				return nil, errorf(l.n, "malformed autonumber")
+			}
+			for i, v := range f {
+				n, err := strconv.Atoi(v)
+				if err != nil || n < 0 || n > maxAutonumber {
+					return nil, errorf(l.n, "malformed autonumber")
+				}
+				if i == 0 {
+					next = n
+				} else {
+					step = n
+				}
+			}
+		case "activate", "deactivate":
+			// Activation bars are not drawn.
+		default:
+			e, err := parseMessage(l, participant)
+			if err != nil {
+				return nil, err
+			}
+			if numbering {
+				e.num = strconv.Itoa(next)
+			}
+			next += step
+			d.events = append(d.events, e)
+		}
+	}
+	if open != nil {
+		return nil, errorf(open.open.n, "%s block is not closed", open.open.keyword)
+	}
+	if len(d.parts) == 0 {
+		return nil, errorf(0, "no participants")
+	}
+	return d, nil
+}
+
+// indexFold is strings.Index ignoring ASCII case, for an ASCII sub: unlike
+// strings.ToLower, it keeps byte offsets in s.
+func indexFold(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if strings.EqualFold(s[i:i+len(sub)], sub) {
+			return i
+		}
+	}
+	return -1
+}
+
+// statements splits lines at the semicolons that separate statements in
+// Mermaid, all but those that end an entity code such as #59;.
+func statements(lines []line) []line {
+	var out []line
+	for _, l := range lines {
+		start := 0
+		for i := 0; i < len(l.text); i++ {
+			switch l.text[i] {
+			case '#':
+				if end := entityEnd(l.text, i); end > 0 {
+					i = end - 1
+				}
+			case ';':
+				if s := strings.TrimSpace(l.text[start:i]); s != "" {
+					out = append(out, line{n: l.n, text: s})
+				}
+				start = i + 1
+			}
+		}
+		if s := strings.TrimSpace(l.text[start:]); s != "" {
+			out = append(out, line{n: l.n, text: s})
+		}
+	}
+	return out
+}
+
+// validName reports whether s can name a participant: Mermaid ends a name
+// at a comma, a colon or an arrow, so a name holding one would be read
+// differently by Mermaid.
+func validName(s string) bool {
+	if s == "" || strings.ContainsAny(s, ",:;<>{}") {
+		return false
+	}
+	for _, a := range seqArrows {
+		if strings.Contains(s, a.tok) {
+			return false
+		}
+	}
+	return true
+}
+
+func parseMessage(l line, participant func(int, string) (int, error)) (*seqEvent, error) {
+	head, text, ok := strings.Cut(l.text, ":")
+	if !ok {
+		return nil, errorf(l.n, "unsupported statement %q", firstWord(l.text))
+	}
+	for i := 0; i < len(head); i++ {
+		for _, a := range seqArrows {
+			if !strings.HasPrefix(head[i:], a.tok) {
+				continue
+			}
+			from := strings.TrimSpace(head[:i])
+			to := strings.TrimSpace(strings.TrimLeft(head[i+len(a.tok):], "+- "))
+			f, err := participant(l.n, from)
+			if err != nil {
+				return nil, err
+			}
+			t, err := participant(l.n, to)
+			if err != nil {
+				return nil, err
+			}
+			return &seqEvent{kind: seqMessage, from: f, to: t, arrow: a.a, text: label(text)}, nil
+		}
+	}
+	return nil, errorf(l.n, "unsupported statement %q", firstWord(l.text))
+}
+
+func parseNote(l line, rest string, participant func(int, string) (int, error)) (*seqEvent, error) {
+	where, text, ok := strings.Cut(rest, ":")
+	if !ok {
+		return nil, errorf(l.n, "note without a colon")
+	}
+	e := &seqEvent{kind: seqNote, text: label(text)}
+	pos, who, _ := strings.Cut(strings.TrimSpace(where), " ")
+	switch strings.ToLower(pos) {
+	case "left", "right":
+		e.notePos = noteLeft
+		if strings.EqualFold(pos, "right") {
+			e.notePos = noteRight
+		}
+		of, name, _ := strings.Cut(strings.TrimSpace(who), " ")
+		if !strings.EqualFold(of, "of") {
+			return nil, errorf(l.n, "note %s without of", pos)
+		}
+		who = name
+	case "over":
+		e.notePos = noteOver
+	default:
+		return nil, errorf(l.n, "note position %q", pos)
+	}
+	names := strings.Split(who, ",")
+	if len(names) > 2 || len(names) == 2 && e.notePos != noteOver {
+		return nil, errorf(l.n, "note over too many participants")
+	}
+	var err error
+	if e.from, err = participant(l.n, strings.TrimSpace(names[0])); err != nil {
+		return nil, err
+	}
+	e.to = e.from
+	if len(names) == 2 {
+		if e.to, err = participant(l.n, strings.TrimSpace(names[1])); err != nil {
+			return nil, err
+		}
+	}
+	return e, nil
+}
+
+// badgeWidth returns the width of the badge an autonumber is drawn in.
+func badgeWidth(num string) float64 {
+	return max(badgeH, textWidth(num, badgeSize, true)+10)
+}
+
+// badgeX returns the center of a message's autonumber badge: on the
+// sender's lifeline, or past its arrowhead when the arrow has one there.
+func badgeX(e *seqEvent, a, b float64) float64 {
+	if !e.arrow.both || e.from == e.to {
+		return a
+	}
+	dir := 1.0
+	if b < a {
+		dir = -1
+	}
+	return a + dir*(12+badgeWidth(e.num)/2)
+}
+
+// layout places the participants and the events and returns the size of
+// the drawing and the top of the participants drawn at the bottom.
+func (d *sequence) layout() (width, height, footTop float64) {
+	parts := d.parts
+	// Participant boxes.
+	var headH float64
+	for _, p := range parts {
+		tw := linesWidth(p.label, fontSize, false)
+		if p.actor {
+			p.w = max(tw+8, 40)
+			p.h = figureHeight + 4 + textBlock(len(p.label), fontSize)
+		} else {
+			p.w = max(tw+2*actorPadX, actorMinWidth)
+			p.h = max(actorMinH, textBlock(len(p.label), fontSize)+20)
+		}
+		headH = max(headH, p.h)
+	}
+
+	// Center distances, widened until every label fits.
+	gaps := make([]float64, len(parts))
+	for i := 1; i < len(parts); i++ {
+		gaps[i] = parts[i-1].w/2 + parts[i].w/2 + actorGap
+	}
+	need := func(a, b int, dist float64) {
+		if a > b {
+			a, b = b, a
+		}
+		if a == b || a < 0 || b >= len(parts) {
+			return
+		}
+		cur := 0.0
+		for i := a + 1; i <= b; i++ {
+			cur += gaps[i]
+		}
+		if cur < dist {
+			gaps[b] += dist - cur
+		}
+	}
+	for _, e := range d.events {
+		tw := linesWidth(e.text, fontSize, false)
+		switch e.kind {
+		case seqMessage:
+			badge := 0.0
+			if e.num != "" {
+				badge = badgeWidth(e.num)
+				if e.arrow.both {
+					badge += 24
+				}
+			}
+			if e.from != e.to {
+				need(e.from, e.to, tw+2*messageGap+badge)
+			} else if e.from+1 < len(parts) {
+				need(e.from, e.from+1, max(selfLoopW, tw+messageGap)+messageGap+parts[e.from+1].w/2)
+			}
+		case seqNote:
+			w := tw + 2*notePad
+			switch {
+			case e.notePos == noteRight:
+				need(e.from, e.from+1, w+2*noteGap)
+			case e.notePos == noteLeft:
+				need(e.from-1, e.from, w+2*noteGap)
+			case e.from != e.to:
+				need(e.from, e.to, w-4*noteGap)
+			default: // over one participant: clear of its neighbors' lifelines
+				need(e.from-1, e.from, w/2+noteGap)
+				need(e.from, e.from+1, w/2+noteGap)
+			}
+		}
+	}
+	x := 0.0
+	for i, p := range parts {
+		x += gaps[i]
+		p.x = x
+	}
+
+	// Rows, top to bottom, and the horizontal extent of each event.
+	y := pad + headH + 16
+	top := y
+	condLine := condSize * leading
+	var stack []*seqBlock
+	extend := func(b *seqBlock, l, r float64) { b.l, b.r = min(b.l, l), max(b.r, r) }
+	for _, e := range d.events {
+		e.y = y
+		tb := textBlock(len(e.text), fontSize)
+		tw := linesWidth(e.text, fontSize, false)
+		switch e.kind {
+		case seqMessage:
+			a, b := parts[e.from].x, parts[e.to].x
+			if e.from == e.to {
+				e.h = tb + 6 + selfLoopH + 14
+				e.l, e.r = a, a+max(selfLoopW+4, messageGap+tw)
+			} else {
+				e.h = tb + 6 + 14
+				e.l, e.r = min(a, b), max(a, b)
+			}
+			if e.num != "" {
+				bx, bw := badgeX(e, a, b), badgeWidth(e.num)
+				e.l, e.r = min(e.l, bx-bw/2), max(e.r, bx+bw/2)
+			}
+		case seqNote:
+			w, x := tw+2*notePad, parts[e.from].x
+			e.h = tb + 2*notePad + 12
+			switch e.notePos {
+			case noteLeft:
+				e.l, e.r = x-noteGap-w, x-noteGap
+			case noteRight:
+				e.l, e.r = x+noteGap, x+noteGap+w
+			default:
+				lo, hi := min(x, parts[e.to].x), max(x, parts[e.to].x)
+				if e.from != e.to {
+					lo, hi = lo-2*noteGap, hi+2*noteGap
+				}
+				if hi-lo < w {
+					c := (lo + hi) / 2
+					lo, hi = c-w/2, c+w/2
+				}
+				e.l, e.r = lo, hi
+			}
+		case seqOpen:
+			e.h = max(tabHeight, 14+float64(max(len(e.text), 1)-1)*condLine+6) + 8
+			e.block.top, e.block.l, e.block.r = y, math.Inf(1), math.Inf(-1)
+			stack = append(stack, e.block)
+		case seqSection:
+			e.h = max(tabHeight, 15+float64(max(len(e.text), 1)-1)*condLine+5) + 4
+		case seqClose:
+			e.h = 12
+			b := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			b.end = y + 2
+			if b.l > b.r { // it holds nothing
+				b.l, b.r = parts[0].x-20, parts[0].x+20
+			}
+			b.l -= frameInset
+			b.r += frameInset
+			// Room for the keyword tab and the labels.
+			if need := b.labelWidth(); b.r-b.l < need {
+				b.r = b.l + need
+			}
+			if len(stack) > 0 {
+				extend(stack[len(stack)-1], b.l, b.r)
+			}
+		}
+		if (e.kind == seqMessage || e.kind == seqNote) && len(stack) > 0 {
+			extend(stack[len(stack)-1], e.l, e.r)
+		}
+		y += e.h
+	}
+	footTop = max(y, top+8) + 4
+
+	// Extent of the whole drawing, shifted right of the margin.
+	l, r := math.Inf(1), math.Inf(-1)
+	for _, p := range parts {
+		l, r = min(l, p.x-p.w/2), max(r, p.x+p.w/2)
+	}
+	for _, e := range d.events {
+		if e.kind == seqMessage || e.kind == seqNote {
+			l, r = min(l, e.l), max(r, e.r)
+		}
+	}
+	for _, b := range d.blocks {
+		l, r = min(l, b.l), max(r, b.r)
+	}
+	shift := pad - l
+	for _, p := range parts {
+		p.x += shift
+	}
+	for _, e := range d.events {
+		e.l += shift
+		e.r += shift
+	}
+	for _, b := range d.blocks {
+		b.l += shift
+		b.r += shift
+	}
+	return r - l + 2*pad, footTop + headH + pad, footTop
+}
+
+func (b *seqBlock) labelWidth() float64 {
+	w := tabWidth(b.open.keyword) + 8 + linesWidth(bracket(b.open.text), condSize, false) + frameInset
+	for _, s := range b.sections {
+		w = max(w, 8+linesWidth(bracket(s.text), condSize, false)+frameInset)
+	}
+	return w
+}
+
+func tabWidth(keyword string) float64 { return textWidth(keyword, smallSize, true) + 16 }
+
+// bracket puts a block condition in brackets, as Mermaid shows it.
+func bracket(lines []string) []string {
+	if len(lines) == 0 {
+		return nil
+	}
+	out := append([]string(nil), lines...)
+	out[0] = "[" + out[0]
+	out[len(out)-1] += "]"
+	return out
+}
+
+func (d *sequence) draw(w *svgWriter) (float64, float64) {
+	width, height, footTop := d.layout()
+	for _, p := range d.parts {
+		w.line(classDashed, p.x, pad+p.h, p.x, footTop)
+	}
+	for _, b := range d.blocks {
+		drawFrame(w, b)
+	}
+	for _, e := range d.events {
+		switch e.kind {
+		case seqNote:
+			tb := textBlock(len(e.text), fontSize)
+			w.rect(classNote, e.l, e.y, e.r-e.l, tb+2*notePad, 2)
+			w.text("", (e.l+e.r)/2, baseline(e.y+notePad, fontSize), anchorMiddle, 0, e.text...)
+		case seqMessage:
+			d.drawMessage(w, e)
+		}
+	}
+	for _, p := range d.parts {
+		drawParticipant(w, p, pad)
+		drawParticipant(w, p, footTop)
+	}
+	return width, height
+}
+
+func drawFrame(w *svgWriter, b *seqBlock) {
+	w.rect(classFrame, b.l, b.top, b.r-b.l, b.end-b.top, 0)
+	tw := tabWidth(b.open.keyword)
+	w.path(classBox, new(pathData).
+		cmd('M', b.l, b.top).cmd('H', b.l+tw).cmd('V', b.top+tabHeight-6).
+		cmd('L', b.l+tw-6, b.top+tabHeight).cmd('H', b.l).cmd('Z'))
+	w.text(classTitle, b.l+8, b.top+14, anchorStart, smallSize, b.open.keyword)
+	w.text(classMuted, b.l+tw+8, b.top+14, anchorStart, condSize, bracket(b.open.text)...)
+	for _, s := range b.sections {
+		w.line(classFrameLine, b.l, s.y, b.r, s.y)
+		w.text(classMuted, b.l+8, s.y+15, anchorStart, condSize, bracket(s.text)...)
+	}
+}
+
+func (d *sequence) drawMessage(w *svgWriter, e *seqEvent) {
+	tb := textBlock(len(e.text), fontSize)
+	ly := e.y + tb + 6
+	c := classEdge
+	if e.arrow.dashed {
+		c = classEdgeDash
+	}
+	a, b := d.parts[e.from].x, d.parts[e.to].x
+	if e.from == e.to {
+		w.text("", a+messageGap, baseline(e.y, fontSize), anchorStart, 0, e.text...)
+		w.polyline(c, a, ly, a+selfLoopW, ly, a+selfLoopW, ly+selfLoopH, a, ly+selfLoopH)
+		drawHead(w, e.arrow.head, a, ly+selfLoopH, -1)
+		if e.arrow.both {
+			drawHead(w, e.arrow.head, a, ly, -1)
+		}
+	} else {
+		w.text("", (a+b)/2, baseline(e.y, fontSize), anchorMiddle, 0, e.text...)
+		dir := 1.0
+		if b < a {
+			dir = -1
+		}
+		w.line(c, a, ly, b, ly)
+		drawHead(w, e.arrow.head, b, ly, dir)
+		if e.arrow.both {
+			drawHead(w, e.arrow.head, a, ly, -dir)
+		}
+	}
+	if e.num != "" {
+		bx, bw := badgeX(e, a, b), badgeWidth(e.num)
+		w.rect(classBadge, bx-bw/2, ly-badgeH/2, bw, badgeH, badgeH/2)
+		w.text(classOnBadge, bx, ly+4, anchorMiddle, badgeSize, e.num)
+	}
+}
+
+// drawHead draws an arrowhead with its tip at x, y, pointing right when dir
+// is 1 and left when it is -1.
+func drawHead(w *svgWriter, head byte, x, y, dir float64) {
+	switch head {
+	case '>':
+		w.polygon(classHead, x, y, x-dir*10, y-5, x-dir*10, y+5)
+	case ')':
+		w.polyline(classEdge, x-dir*9, y-5, x, y, x-dir*9, y+5)
+	case 'x':
+		w.line(classEdge, x-dir*11, y-5, x-dir*1, y+5)
+		w.line(classEdge, x-dir*11, y+5, x-dir*1, y-5)
+	}
+}
+
+func drawParticipant(w *svgWriter, p *seqParticipant, top float64) {
+	if !p.actor {
+		w.rect(classBox, p.x-p.w/2, top, p.w, p.h, 3)
+		tb := textBlock(len(p.label), fontSize)
+		w.text("", p.x, baseline(top+(p.h-tb)/2, fontSize), anchorMiddle, 0, p.label...)
+		return
+	}
+	x := p.x
+	w.circle(classEdge, x, top+8, 7)
+	w.line(classEdge, x, top+15, x, top+28)
+	w.line(classEdge, x-10, top+20, x+10, top+20)
+	w.polyline(classEdge, x-8, top+38, x, top+28, x+8, top+38)
+	w.text("", x, baseline(top+figureHeight+4, fontSize), anchorMiddle, 0, p.label...)
+}

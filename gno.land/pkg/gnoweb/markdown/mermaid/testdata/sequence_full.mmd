@@ -1,0 +1,34 @@
+---
+title: Every sequence statement
+---
+sequenceDiagram
+    accTitle: A sequence diagram that uses every supported statement
+    participant A as Alice
+    participant B as Bob
+    participant C as Carol
+    Note left of A: left of<br>the first
+    A->B: solid, no head
+    A-->B: dashed, no head
+    A-)C: async
+    C--)A: async back
+    A<<->>B: both ways
+    autonumber 10 5
+    par to Bob
+        A->>B: one
+    and to Carol
+        A->>C: two
+    end
+    critical commit
+        B->>C: write
+    option timeout
+        B-->>A: retry
+    end
+    opt
+    end
+    break when #quot;quoted#quot;
+        C--xC: self, dashed
+    end
+    autonumber off
+    A->>C:
+    Note over A,C: over the three of them
+    Note right of C: right of<br>the last

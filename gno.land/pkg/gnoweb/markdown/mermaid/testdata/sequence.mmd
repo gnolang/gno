@@ -1,0 +1,20 @@
+sequenceDiagram
+    title Executing a GovDAO proposal
+    autonumber
+    actor User
+    participant D as r/gov/dao
+    participant T as r/gov/treasury
+    User->>D: Propose(cross, ...)
+    D-->>User: proposal id
+    Note over D: voting period<br/>7 days
+    loop every vote
+        User->>+D: Vote(cross, id, yes)
+    end
+    D->>T: Execute(cross)
+    alt enough funds
+        T-->>D: ok
+    else not enough
+        T--xD: panic
+    end
+    D->>D: emit ProposalExecuted
+    Note right of T: funds<br/>moved

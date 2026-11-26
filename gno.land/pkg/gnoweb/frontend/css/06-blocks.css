@@ -3144,6 +3144,21 @@ main.is-dev-mode .b-toc a {
 	.gno-mermaid__c11 {
 		--mermaid-c: color-mix(in oklab, var(--g-color-red-400) 55%, white);
 	}
+
+	/* Sequence diagrams: notes, frames and autonumbers. */
+	.gno-mermaid__note {
+		fill: var(--s-color-bg-warning-weak);
+		stroke: var(--s-color-border-warning);
+	}
+
+	.gno-mermaid__frame {
+		fill: none;
+		stroke: var(--mermaid-box-stroke);
+	}
+
+	.gno-mermaid__badge {
+		fill: var(--mermaid-ink);
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */

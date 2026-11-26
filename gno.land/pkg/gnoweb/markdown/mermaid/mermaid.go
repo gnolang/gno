@@ -85,7 +85,9 @@ type parseFunc func(args string, lines []line, m *meta) (diagram, error)
 var kinds = map[string]struct {
 	name  string
 	parse parseFunc
-}{}
+}{
+	"sequenceDiagram": {"Sequence diagram", parseSequence},
+}
 
 // Render draws a Mermaid source as an SVG element.
 func Render(src string) (out []byte, err error) {
