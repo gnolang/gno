@@ -329,6 +329,17 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false)
 				ppkg.AddNormal(pn, fset)
+				// A writing function value the VM will run read-only (warning).
+				if gno.IsRealmPath(mpkg.Path) && pn != nil {
+					for _, w := range gno.LentCallbackWarnings(tm.Store, pn) {
+						fmt.Fprintln(io.Err(), gnoIssue{
+							Code:       gnoLintWarning,
+							Msg:        w.Msg,
+							Confidence: 1,
+							Location:   fmt.Sprintf("%s/%s:%d", mpkg.Path, w.File, w.Line),
+						})
+					}
+				}
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
