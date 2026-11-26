@@ -115,6 +115,43 @@ Known limits of the loan in shape 2:
 - `lib.Default.Each(func(int){ count++ })` is refused: the method of a
   variable the library owns runs as the library, not as your realm.
 
+#### The same line in Swift and Rust
+
+Swift and Rust draw the same line: a function handed over for one call may
+touch the caller's state, and one that is kept may not. Both put the mark in
+the function's type, so the compiler checks it. A Gno function type carries no
+such mark, so the VM works it out for each function called by name. That is
+why the local copy, the method value and the library's own variable are
+refused in Gno.
+
+Swift: a closure argument cannot be kept (the docs call it non-escaping)
+unless the callee declares `@escaping`.
+
+- `each(xs) { sum += $0 }` compiles, and so does `let e = each; e(xs) { sum += $0 }`:
+  the copy keeps the type.
+- Storing the parameter inside `each` is a compile error.
+- `let g = v.bump` for a `mutating` method is a compile error ("cannot
+  reference 'mutating' method as function value").
+
+Rust: a closure that borrows a variable cannot outlive the borrow.
+
+- `each(&xs, |x| sum += x)` and `let e = each; e(&xs, |x| sum += x)` are fine.
+- Handing `|| n += 1` to something that keeps it (`Box<dyn FnMut() + 'static>`)
+  is a compile error.
+- `let g = Counter::bump; g(&mut v)` is fine: the object is passed by hand
+  each time.
+
+| Gno limit | Swift | Rust |
+|---|---|---|
+| local copy of a library function | allowed | allowed |
+| method value | refused for a `mutating` method | allowed, the object passed by hand |
+| a library's own variable, `lib.Default.Each(...)` | allowed | allowed |
+| another realm's function | closest match: another actor, which must hop back with `await` | closest match: another thread; the closure must own what it touches |
+
+The last row is an ownership border in all three languages, and `cross` plays
+the part of Swift's `await` hop. The first three are the safe side of a line
+the VM draws without help from the type.
+
 ### R2b Another realm runs your plain function read-only
 
 ```go
