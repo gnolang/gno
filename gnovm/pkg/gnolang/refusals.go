@@ -56,7 +56,7 @@ var refusals = []refusal{
 		false},
 	{refuseTainted,
 		"any other refused write: to another realm's, a /p/ package's or a standard-library package's object, or to your realm's own object in code that runs view-only",
-		"Another realm's object: call a crossing function of that realm. Your realm's own object, made read-only because a function value or a library you passed it to does the write: do the write in your own named function, pass the callback in place, or import the writing method's package directly. A /p/ package's object cannot be written after its init: keep state that changes in a realm. A standard-library package's object is never writable from a realm: copy the value and change the copy.",
+		"Another realm's object: call a crossing function of that realm. Your realm's own object, made read-only because a function value or a library you passed it to does the write: do the write in your own named function, pass the callback in place, or import the writing method's package directly. A /p/ package's object cannot be written after its init: keep state that changes in a realm. A standard-library package's object cannot be written by realm code: copy the value, and any slice or map inside it that you change, and change the copy.",
 		false},
 	{refuseStoreUncrossed,
 		"at save, an object that read-only code wrote would be stored",
