@@ -23,14 +23,14 @@ time; `refusals_test.go` checks this table against the code):
 | `…'s code was entered without crossing and is read-only (call its crossing function): …` | a realm's own code, entered without crossing, writes | Call its crossing function. |
 | `cannot directly modify readonly tainted object (call a crossing function of the owning realm): …` | any other write to an object stored in another realm | Call a crossing function of the owning realm. |
 | `…: an object written by read-only code would be stored (write it inside a crossing call of …)` | at save, an object read-only code wrote would be stored | Write it inside a crossing call of the realm. |
-| `cannot cross-call a non-crossing function … from … (call it without cross)` | a plain function is called with cross | Call it without cross. |
-| `cannot cur-call to external realm function … from … (call it with cross(cur))` | another realm's crossing function, reached by value, is called with cur | Call it with cross(cur). |
-| `cannot append to readonly tainted slice (call a crossing function of the owning realm)` | append writes into a read-only slice | Call a crossing function of the owning realm. |
-| `cannot copy to readonly tainted slice (call a crossing function of the owning realm)` | copy writes into a read-only slice | Call a crossing function of the owning realm. |
-| `cannot delete from readonly tainted map (call a crossing function of the owning realm)` | delete writes into a read-only map | Call a crossing function of the owning realm. |
-| `illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)` | another realm's stored value is converted to another mutable type | Convert it inside a crossing function of the realm that stores it. |
-| `illegal conversion to external realm type (call a function of the realm that declares the type to make it)` | a value is converted to a type another realm declares | Call a function of the realm that declares the type to make it. |
-| `cannot mutate …: package is immutable post-init (keep state that changes in a realm)` | a /p/ package's own state is written after its init | Keep state that changes in a realm. |
+| `cannot cross-call a non-crossing function … from …` | a plain function is called with cross | Call it without cross. |
+| `cannot cur-call to external realm function … from …` | another realm's crossing function, reached by value, is called with cur | Call it with cross(cur). |
+| `cannot append to readonly tainted slice` | append writes into a read-only slice | Call a crossing function of the owning realm. |
+| `cannot copy to readonly tainted slice` | copy writes into a read-only slice | Call a crossing function of the owning realm. |
+| `cannot delete from readonly tainted map` | delete writes into a read-only map | Call a crossing function of the owning realm. |
+| `illegal conversion of readonly or externally stored value` | another realm's stored value is converted to another mutable type | Convert it inside a crossing function of the realm that stores it. |
+| `illegal conversion to external realm type` | a value is converted to a type another realm declares | Call a function of the realm that declares the type to make it. |
+| `cannot mutate …: package is immutable post-init` | a /p/ package's own state is written after its init | Keep state that changes in a realm. |
 
 ## R1 Cross to write: code called by name
 
@@ -244,7 +244,7 @@ a function value (R2a) and never writes, whatever its package.
 
 ```
 // Error:
-// cannot copy to readonly tainted slice (call a crossing function of the owning realm)
+// cannot copy to readonly tainted slice
 ```
 
 ## R3 Types stay home: only pointers cross

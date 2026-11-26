@@ -26,4 +26,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot mutate gno.land/p/demo/tests/v0: package is immutable post-init (keep state that changes in a realm)
+// cannot mutate gno.land/p/demo/tests/v0: package is immutable post-init

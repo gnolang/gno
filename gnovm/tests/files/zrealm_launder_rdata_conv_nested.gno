@@ -73,13 +73,13 @@ func main(cur realm) {
 }
 
 // Output:
-// return f(), row of [][]string -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// return f(), whole [][]string -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// return f(), three calls deep -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// return f(), two structs down, by value -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// return f(), two structs down, by pointer -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// g(f()), slice field of a struct -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// comma-ok, map value [][]string -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// comma-ok, assertion on a row -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// range, rows of [][]string -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
-// range, map of [][]string -> illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
+// return f(), row of [][]string -> illegal conversion of readonly or externally stored value
+// return f(), whole [][]string -> illegal conversion of readonly or externally stored value
+// return f(), three calls deep -> illegal conversion of readonly or externally stored value
+// return f(), two structs down, by value -> illegal conversion of readonly or externally stored value
+// return f(), two structs down, by pointer -> illegal conversion of readonly or externally stored value
+// g(f()), slice field of a struct -> illegal conversion of readonly or externally stored value
+// comma-ok, map value [][]string -> illegal conversion of readonly or externally stored value
+// comma-ok, assertion on a row -> illegal conversion of readonly or externally stored value
+// range, rows of [][]string -> illegal conversion of readonly or externally stored value
+// range, map of [][]string -> illegal conversion of readonly or externally stored value

@@ -34,4 +34,4 @@ func main(cur realm) {
 // init
 
 // Error:
-// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm/crossrealm (call it with cross(cur))
+// cannot cur-call to external realm function gno.land/r/crossrealm.Foo from gno.land/r/tests/vm/crossrealm

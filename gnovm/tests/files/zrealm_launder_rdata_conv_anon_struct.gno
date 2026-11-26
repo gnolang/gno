@@ -23,4 +23,4 @@ func main(cur realm) {
 }
 
 // Error:
-// illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
+// illegal conversion of readonly or externally stored value

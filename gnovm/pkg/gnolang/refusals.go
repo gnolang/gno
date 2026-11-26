@@ -15,19 +15,19 @@ const (
 	// At save: an object a read-only stretch wrote would be stored.
 	refuseStoreUncrossed = "%s: an object written by read-only code would be stored (write it inside a crossing call of %s)"
 	// A plain function is called with cross.
-	refuseNotCrossing = "cannot cross-call a non-crossing function %s.%v from %s (call it without cross)"
+	refuseNotCrossing = "cannot cross-call a non-crossing function %s.%v from %s"
 	// Another realm's crossing function, reached by value, is called with cur.
-	refuseExternalCur = "cannot cur-call to external realm function %s.%v from %s (call it with cross(cur))"
+	refuseExternalCur = "cannot cur-call to external realm function %s.%v from %s"
 	// append, copy or delete writes into a read-only slice or map.
-	refuseAppend = "cannot append to readonly tainted slice (call a crossing function of the owning realm)"
-	refuseCopy   = "cannot copy to readonly tainted slice (call a crossing function of the owning realm)"
-	refuseDelete = "cannot delete from readonly tainted map (call a crossing function of the owning realm)"
+	refuseAppend = "cannot append to readonly tainted slice"
+	refuseCopy   = "cannot copy to readonly tainted slice"
+	refuseDelete = "cannot delete from readonly tainted map"
 	// Another realm's stored value is converted to another mutable type.
-	refuseConvStored = "illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)"
+	refuseConvStored = "illegal conversion of readonly or externally stored value"
 	// A value is converted to a type another realm declares.
-	refuseConvForeign = "illegal conversion to external realm type (call a function of the realm that declares the type to make it)"
+	refuseConvForeign = "illegal conversion to external realm type"
 	// A /p/ package's own state is written after its init.
-	refuseImmutablePkg = "cannot mutate %s: package is immutable post-init (keep state that changes in a realm)"
+	refuseImmutablePkg = "cannot mutate %s: package is immutable post-init"
 )
 
 // refusal is one refusal of the write rule: its text, when it fires and what
@@ -44,14 +44,14 @@ var refusals = []refusal{
 	{refuseUncrossed, "a realm's own code, entered without crossing, writes", "Call its crossing function.", false},
 	{refuseTainted, "any other write to an object stored in another realm", "Call a crossing function of the owning realm.", false},
 	{refuseStoreUncrossed, "at save, an object read-only code wrote would be stored", "Write it inside a crossing call of the realm.", false},
-	{refuseNotCrossing, "a plain function is called with cross", "Call it without cross.", false},
-	{refuseExternalCur, "another realm's crossing function, reached by value, is called with cur", "Call it with cross(cur).", false},
-	{refuseAppend, "append writes into a read-only slice", "Call a crossing function of the owning realm.", false},
-	{refuseCopy, "copy writes into a read-only slice", "Call a crossing function of the owning realm.", false},
-	{refuseDelete, "delete writes into a read-only map", "Call a crossing function of the owning realm.", false},
-	{refuseConvStored, "another realm's stored value is converted to another mutable type", "Convert it inside a crossing function of the realm that stores it.", false},
-	{refuseConvForeign, "a value is converted to a type another realm declares", "Call a function of the realm that declares the type to make it.", false},
-	{refuseImmutablePkg, "a /p/ package's own state is written after its init", "Keep state that changes in a realm.", false},
+	{refuseNotCrossing, "a plain function is called with cross", "Call it without cross.", true},
+	{refuseExternalCur, "another realm's crossing function, reached by value, is called with cur", "Call it with cross(cur).", true},
+	{refuseAppend, "append writes into a read-only slice", "Call a crossing function of the owning realm.", true},
+	{refuseCopy, "copy writes into a read-only slice", "Call a crossing function of the owning realm.", true},
+	{refuseDelete, "delete writes into a read-only map", "Call a crossing function of the owning realm.", true},
+	{refuseConvStored, "another realm's stored value is converted to another mutable type", "Convert it inside a crossing function of the realm that stores it.", true},
+	{refuseConvForeign, "a value is converted to a type another realm declares", "Call a function of the realm that declares the type to make it.", true},
+	{refuseImmutablePkg, "a /p/ package's own state is written after its init", "Keep state that changes in a realm.", true},
 }
 
 // refuseWrite raises the Gno panic that refuses a write to lx, naming why.
