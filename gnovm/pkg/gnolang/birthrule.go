@@ -75,11 +75,9 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 				uses[k] = u
 			}
 			// Every literal entered since the declaring block captures it.
-			for i := len(stack) - 1; i >= 0 && stack[i] != dbn; i-- {
-				if fl, ok := stack[i].(*FuncLitExpr); ok {
-					u.caps = append(u.caps, fl)
-				}
-			}
+			eachLitSince(stack, dbn, func(fl *FuncLitExpr) {
+				u.caps = append(u.caps, fl)
+			})
 			if len(ns) == 0 {
 				u.bad = true
 				break
@@ -144,6 +142,16 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 			for _, cx := range u.calls {
 				cx.SetAttribute(ATTR_LOCAL_HELPER, true)
 			}
+		}
+	}
+}
+
+// eachLitSince calls f on each function literal in stack above the block bn,
+// innermost first: the literals that capture a name bn declares.
+func eachLitSince(stack []BlockNode, bn BlockNode, f func(*FuncLitExpr)) {
+	for i := len(stack) - 1; i >= 0 && stack[i] != bn; i-- {
+		if fl, ok := stack[i].(*FuncLitExpr); ok {
+			f(fl)
 		}
 	}
 }

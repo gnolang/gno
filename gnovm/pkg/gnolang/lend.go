@@ -65,11 +65,11 @@ func markNonEscParams(fn *FileNode) {
 					bad[pi] = true
 					break
 				}
-				for i := len(stack) - 1; i >= 0 && stack[i] != bn; i-- {
-					if fl, ok := stack[i].(*FuncLitExpr); ok && !inPlace[fl] {
+				eachLitSince(stack, bn, func(fl *FuncLitExpr) {
+					if !inPlace[fl] {
 						bad[pi] = true
 					}
-				}
+				})
 			}
 			return n, TRANS_CONTINUE
 		})
