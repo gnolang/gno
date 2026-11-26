@@ -3032,7 +3032,11 @@ main.is-dev-mode .b-toc a {
 		--mermaid-box-stroke: var(--s-color-border-tertiary);
 		--mermaid-ground: var(--s-color-bg-base);
 
+		/* A diagram wider than its container scrolls, like a code block.
+		   The containment keeps its width from stretching a <gno-columns>
+		   column, or the page on a phone. */
 		overflow-x: auto;
+		contain: inline-size;
 		margin-block: var(--g-space-6);
 	}
 
