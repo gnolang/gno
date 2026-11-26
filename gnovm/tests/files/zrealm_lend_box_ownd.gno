@@ -14,4 +14,4 @@ func main(cur realm) {
 // before: 0
 
 // Error:
-// gno.land/r/tests/vm/lendboxvictim: an object written by read-only code would be stored (make the function that wrote it a crossing function of gno.land/r/tests/vm/lendboxvictim and call it with cross)
+// gno.land/r/tests/vm/lendboxvictim: an object written by read-only code would be stored (do the write in a crossing function of gno.land/r/tests/vm/lendboxvictim, called with cross)

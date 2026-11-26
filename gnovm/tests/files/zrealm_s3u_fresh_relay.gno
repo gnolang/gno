@@ -11,4 +11,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/tests/vm/s3uprobe: an object written by read-only code would be stored (make the function that wrote it a crossing function of gno.land/r/tests/vm/s3uprobe and call it with cross)
+// gno.land/r/tests/vm/s3uprobe: an object written by read-only code would be stored (do the write in a crossing function of gno.land/r/tests/vm/s3uprobe, called with cross)

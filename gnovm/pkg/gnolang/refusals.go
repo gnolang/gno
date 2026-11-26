@@ -14,7 +14,7 @@ const (
 	// the realm's own object inside code that runs view-only.
 	refuseTainted = "cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ package's object cannot be written after its init): "
 	// At save: an object a read-only stretch wrote would be stored.
-	refuseStoreUncrossed = "%s: an object written by read-only code would be stored (make the function that wrote it a crossing function of %s and call it with cross)"
+	refuseStoreUncrossed = "%s: an object written by read-only code would be stored (do the write in a crossing function of %s, called with cross)"
 	// A plain function is called with cross.
 	refuseNotCrossing = "cannot cross-call a non-crossing function %s.%v from %s"
 	// Another realm's crossing function, reached by value, is called with cur.
@@ -60,7 +60,7 @@ var refusals = []refusal{
 		false},
 	{refuseStoreUncrossed,
 		"at save, an object that read-only code wrote would be stored",
-		"Give the function that wrote it a cur realm parameter in the realm that stores it, and call it with cross.",
+		"Do the write in a crossing function of the realm that stores it, called with cross. A stored function value that writes: give it a cur realm parameter. A write by a /p/ method value or a package-variable initializer: move it into a crossing function of the realm, such as init(cur realm).",
 		false},
 	{refuseNotCrossing,
 		"a plain function is called with cross",
