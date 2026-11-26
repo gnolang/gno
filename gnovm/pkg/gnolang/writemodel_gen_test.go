@@ -43,11 +43,12 @@ const (
 	shBoxValue                // mv := box.Inc; mv()
 	shBoxer                   // var x interface{ Inc() } = rB.Boxer(); x.Inc()
 	shRelay                   // rB.Relay(arg): the callee hands arg on to Keep, then runs it
+	shToss                    // rB.Toss(arg) panics with arg; the caller recovers it and runs it
 	wgShapes
 )
 
 var wgShapeNames = [...]string{"cross", "cur", "cur-value", "named", "method", "hook", "iface",
-	"lib-iface", "helper", "each", "lib", "keep", "give", "cb", "box", "box-value", "boxer", "relay"}
+	"lib-iface", "helper", "each", "lib", "keep", "give", "cb", "box", "box-value", "boxer", "relay", "toss"}
 
 // wgArgKind is a callback argument.
 type wgArgKind uint8
@@ -242,7 +243,10 @@ func (p *wgProg) genCB(rng *rand.Rand, f *wgFunc, kf []bool, site *int) wgCB {
 }
 
 func (p *wgProg) genArg(rng *rand.Rand, f *wgFunc, kf []bool, site *int) *wgArg {
-	a := &wgArg{kind: wgArgKind(rng.Intn(int(wgArgKinds))), lib: rng.Intn(p.nL), target: -1}
+	a := &wgArg{kind: wgArgKind(rng.Intn(int(wgArgKinds) + 1)), lib: rng.Intn(p.nL), target: -1}
+	if a.kind == wgArgKinds {
+		a.kind = argLit // a literal in place is the only kind that gets a loan: draw it twice as often
+	}
 	a.cb = p.genCB(rng, f, kf, site)
 	a.realm = f.realm + rng.Intn(p.nR+1-f.realm)
 	if a.kind == argWorker {
@@ -284,7 +288,7 @@ func (p *wgProg) genCall(rng *rand.Rand, f *wgFunc, kf []bool, site *int) *wgCal
 			c.target = p.pick(rng, f, kind(wgMethod))
 		case shHelper:
 			c.cb = p.genCB(rng, f, kf, site)
-		case shEach, shLib, shKeep, shRelay:
+		case shEach, shLib, shKeep, shRelay, shToss:
 			c.arg = p.genArg(rng, f, kf, site)
 		}
 		if c.shape == shCb {
@@ -305,6 +309,9 @@ func (p *wgProg) genCall(rng *rand.Rand, f *wgFunc, kf []bool, site *int) *wgCal
 		}
 		if c.shape == shCurValue && c.realm != f.realm {
 			c.guarded = true
+		}
+		if c.shape == shToss {
+			c.deferred, c.guarded = false, true
 		}
 		p.shapes[c.shape]++
 		return c
@@ -432,6 +439,7 @@ func (p *wgProg) realmSrc(r int) string {
 	fmt.Fprintf(&body, "func Cb(cur realm, f func()) {\n%s\tf()\n}\n\n", w("\t", wgHelperSite(r, hCb), "count++"))
 	body.WriteString("func Boxer() interface{ Inc() } { return box }\n\n")
 	fmt.Fprintf(&body, "func Relay(f func()) {\n%s\tKeep(f)\n\tRunKept()\n}\n\n", w("\t", wgHelperSite(r, hRelay), "count++"))
+	body.WriteString("func Toss(f func()) {\n\tpanic(f)\n}\n\n")
 	fmt.Fprintf(&body, "func Give() func() {\n\treturn func() {\n%s\t}\n}\n\n", w("\t\t", wgHelperSite(r, hGive), "count++"))
 	hooks := map[int]bool{}
 	for _, f := range p.workers {
@@ -569,6 +577,9 @@ func (p *wgProg) callSrc(f *wgFunc, c *wgCall) string {
 		last = "h()"
 	case shRelay:
 		last = fmt.Sprintf("%sRelay(%s)", px, p.argSrc(f, c.arg, ind))
+	case shToss:
+		pre = append(pre, "defer func() {\n"+ind+"\tif g, ok := recover().(func()); ok {\n"+ind+"\t\tg()\n"+ind+"\t}\n"+ind+"}()")
+		last = fmt.Sprintf("%sToss(%s)", px, p.argSrc(f, c.arg, ind))
 	case shEach:
 		last = fmt.Sprintf("%sEach(%s)", px, p.argSrc(f, c.arg, ind))
 	case shLib:
