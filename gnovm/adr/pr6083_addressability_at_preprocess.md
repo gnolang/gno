@@ -133,8 +133,8 @@ inherits the transaction's gas meter and bill for it per occurrence.
 
 ### Known gaps left open
 
-- **Identity conversions.** `&T(v)` and `&T(T{1})` are accepted; Go rejects
-  both. An optimization elides a conversion whose source and target `TypeID`
+- **Identity conversions.** `&T(v)`, `T(v).Inc()` and `T(arr)[:]` are
+  accepted, and their writes land in `v`; Go rejects all three. An optimization elides a conversion whose source and target `TypeID`
   match, so by the time the `&` is checked the conversion is gone and the
   operand looks like `&v` or `&T{1}`. Fixing it means changing that
   optimization, not the addressability rule, so it is out of scope here.
