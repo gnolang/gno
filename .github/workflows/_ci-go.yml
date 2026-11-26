@@ -9,6 +9,11 @@
 # request's cache could not be read by other pull requests and would only push
 # the default branch's out of the repository's 10 GB. Modules are not cached;
 # they download in seconds.
+#
+# The prune deletes files not modified in the last 120 minutes, and Go (and
+# golangci-lint) refresh an entry's mtime at most once an hour, so a run longer
+# than about an hour can drop entries it used early on. Keep the timeout-minutes
+# of every job that saves a cache under 60.
 on:
   workflow_call:
     inputs:

@@ -39,7 +39,12 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: List the modules
-        run: echo "MODULES=$(make -s print.misc-modules)" >> "$GITHUB_ENV"
+        # Not `echo "MODULES=$(make ...)"`: echo's status would hide a failing
+        # make, and the loops below would pass on an empty list.
+        run: |
+          modules="$(make -s print.misc-modules)"
+          test -n "$modules"
+          echo "MODULES=$modules" >> "$GITHUB_ENV"
       # See "Go build cache" in _ci-go.yml.
       - name: Restore Go cache
         id: go-cache

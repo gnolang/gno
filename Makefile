@@ -100,7 +100,7 @@ fix: fix.contribs fix.misc
 fix.contribs:
 	@for d in $(wildcard contribs/*/); do \
 		echo "==> go fix $$d"; \
-		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
+		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ) || exit 1; \
 	done
 
 # The Go programs under misc/ that ci-dir-misc.yml lints and tests; it reads
@@ -115,7 +115,7 @@ MISC_MODULES := misc/audit-pattern-harness misc/autocounterd misc/genstd misc/gn
 fix.misc:
 	@for d in $(MISC_MODULES); do \
 		echo "==> go fix $$d"; \
-		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
+		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ) || exit 1; \
 	done
 
 print.misc-modules:
