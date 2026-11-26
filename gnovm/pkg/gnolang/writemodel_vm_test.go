@@ -333,6 +333,7 @@ type WMCounts struct {
 	Deferred                            int // deferred calls, arguments read from their Defer
 	Kinds                               map[wmKind]int
 	Loans, LentHits                     int
+	EndedHandOff, EndedParam            int // loans the model ended by rule 7, by rule 8
 	Samples                             []string
 }
 
@@ -342,6 +343,10 @@ type wmObserver struct {
 	paths  map[PkgID]string
 	file   string
 	WMCounts
+	// Set by the random test: the generator's own marks and trust answers,
+	// in place of the VM's (nil: read them from the VM).
+	nonesc  func(pkg, name string) []bool
+	foreign func(root, caller, callee string, iface bool) bool
 }
 
 // WMObserve runs the model beside every call start until stop; not concurrent.
@@ -442,6 +447,9 @@ func (o *wmObserver) see(m *Machine, f *callFacts, cs callStart) {
 	if f.last != nil {
 		wf.caller = f.last.PkgPath
 	}
+	if o.foreign != nil {
+		wf.foreign = o.foreign(s.mode().realm, wf.caller, f.fv.PkgPath, wf.form == wmIface)
+	}
 	if !wf.cross && !wf.crossing {
 		wf.owner, wf.fresh = o.owner(m, f, callee)
 	}
@@ -473,7 +481,10 @@ func (o *wmObserver) see(m *Machine, f *callFacts, cs callStart) {
 	if callee.IsDefer {
 		o.Deferred++
 	}
-	s.enter(wf.callee, got, wmArgsOf(m, f, callee), callee.IsDefer)
+	e0 := s.ended
+	s.enter(wf.callee, got, wmArgsOf(m, f, callee, o.nonesc), callee.IsDefer)
+	o.EndedHandOff += s.ended[0] - e0[0]
+	o.EndedParam += s.ended[1] - e0[1]
 }
 
 // owner reads the receiver's first object's package ("" if none) and whether
@@ -572,7 +583,7 @@ func wmArgOf(tv TypedValue) wmArg {
 
 // wmArgsOf reads the arguments the callee will receive, with its parameters'
 // marks: from the value stack, or for a deferred call from the Defer just popped.
-func wmArgsOf(m *Machine, f *callFacts, fr *Frame) []wmArg {
+func wmArgsOf(m *Machine, f *callFacts, fr *Frame, nonescOf func(pkg, name string) []bool) []wmArg {
 	var args []wmArg
 	if fr.IsDefer {
 		for _, tv := range wmDeferOf(m).Args {
@@ -605,7 +616,9 @@ func wmArgsOf(m *Machine, f *callFacts, fr *Frame) []wmArg {
 		}
 	}
 	var nonesc []bool
-	if fd, ok := f.fv.GetSource(m.Store).(*FuncDecl); ok {
+	if fd, ok := f.fv.GetSource(m.Store).(*FuncDecl); ok && nonescOf != nil {
+		nonesc = nonescOf(f.fv.PkgPath, string(f.fv.Name))
+	} else if ok {
 		nonesc, _ = fd.GetAttribute(ATTR_NONESC_PARAMS).([]bool)
 	}
 	off, coff := len(args)-len(nonesc), 0

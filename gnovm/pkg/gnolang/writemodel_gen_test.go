@@ -3,7 +3,9 @@ package gnolang
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -44,11 +46,15 @@ const (
 	shBoxer                   // var x interface{ Inc() } = rB.Boxer(); x.Inc()
 	shRelay                   // rB.Relay(arg): the callee hands arg on to Keep, then runs it
 	shToss                    // rB.Toss(arg) panics with arg; the caller recovers it and runs it
+	shOut                     // rB.Out(arg): arg wrapped in a literal handed to the next realm or a library, then run
+	shCapt                    // rB.Capt(arg): arg captured by a literal handed to Keep, then run
+	shSpread                  // rB.Spread(arg): arg handed to a ...func() helper, then run
+	shSlot                    // rB.Slot(arg): arg put in a slice, run from there
 	wgShapes
 )
 
 var wgShapeNames = [...]string{"cross", "cur", "cur-value", "named", "method", "hook", "iface",
-	"lib-iface", "helper", "each", "lib", "keep", "give", "cb", "box", "box-value", "boxer", "relay", "toss"}
+	"lib-iface", "helper", "each", "lib", "keep", "give", "cb", "box", "box-value", "boxer", "relay", "toss", "out", "capt", "spread", "slot"}
 
 // wgArgKind is a callback argument.
 type wgArgKind uint8
@@ -127,9 +133,14 @@ const (
 	hGive
 	hRun
 	hRelay
+	hOut
+	hCapt
+	hSpread
+	hEachV
+	hSlot
 )
 
-func wgHelperSite(r, h int) int { return 10000 + 10*r + h }
+func wgHelperSite(r, h int) int { return 10000 + 20*r + h }
 func wgBoxSite(l int) int       { return 20000 + l }
 
 // boxLib is the library whose Box realm r holds: realms differ when there are two.
@@ -185,7 +196,7 @@ func wgGenerate(seed int64) *wgProg {
 // keepFree reports whether f, and all it reaches, never runs a kept callback.
 func (p *wgProg) keepFree(f *wgFunc, kf []bool) bool {
 	for _, c := range f.calls {
-		if c.shape == shKeep || c.shape == shRelay {
+		if c.shape == shKeep || c.shape == shRelay || c.shape == shCapt {
 			return false
 		}
 		for _, t := range c.refs() {
@@ -288,7 +299,7 @@ func (p *wgProg) genCall(rng *rand.Rand, f *wgFunc, kf []bool, site *int) *wgCal
 			c.target = p.pick(rng, f, kind(wgMethod))
 		case shHelper:
 			c.cb = p.genCB(rng, f, kf, site)
-		case shEach, shLib, shKeep, shRelay, shToss:
+		case shEach, shLib, shKeep, shRelay, shToss, shOut, shCapt, shSpread, shSlot:
 			c.arg = p.genArg(rng, f, kf, site)
 		}
 		if c.shape == shCb {
@@ -302,6 +313,9 @@ func (p *wgProg) genCall(rng *rand.Rand, f *wgFunc, kf []bool, site *int) *wgCal
 			c.realm = p.workers[c.target].realm
 		case shBox, shBoxValue, shHelper, shLib:
 			c.realm = f.realm
+		}
+		if (c.shape == shOut || c.shape == shCapt) && rng.Intn(2) == 0 {
+			c.realm = f.realm // the callee writes, so its loan can end by a hand-off
 		}
 		c.libFn = [...]string{"Call", "Pass", "Catch", "Defer"}[rng.Intn(4)]
 		if c.target >= 0 && p.workers[c.target].panics {
@@ -391,19 +405,69 @@ func (p *wgProg) text() string {
 	return sb.String()
 }
 
-// wgWrite is the write wrapper: it records the try, then the outcome.
-func wgWrite(ind string, site int, owner, stmt string) string {
+// wgWrite is the write wrapper: it records the try, then the outcome; a
+// refused write that still changed probe prints X. owner is a Go expression.
+func wgWrite(ind string, site int, wf wgWriteForm, owner, stmt, probe string) string {
 	return fmt.Sprintf(`%[1]sfunc() {
-%[1]s	println("T", %[2]d, %[3]q)
+%[1]s	println("T", %[2]d, %[3]d, %[4]s)
+%[1]s	p0 := %[6]s
 %[1]s	defer func() {
 %[1]s		if r := recover(); r != nil {
+%[1]s			if %[6]s != p0 {
+%[1]s				println("X", %[2]d)
+%[1]s			}
 %[1]s			println("R", %[2]d, r)
 %[1]s		}
 %[1]s	}()
-%[1]s	%[4]s
+%[1]s	%[5]s
 %[1]s	println("K", %[2]d)
 %[1]s}()
-`, ind, site, owner, stmt)
+`, ind, site, wf, owner, stmt, probe)
+}
+
+// wgWriteForm is how a write site changes its realm's state.
+type wgWriteForm uint8
+
+const (
+	wfVar    wgWriteForm = iota // count++ or kept = f
+	wfField                     // Obj.N++
+	wfPair                      // count, Obj.N = ...: two targets
+	wfMap                       // M[len(M)] = 1: a new key
+	wfAppend                    // S = append(S[:1], k), within capacity
+	wfCopy                      // copy(S, []int{k})
+	wfDelete                    // delete(D, -1)
+	wfPtr                       // setN(Obj): through a pointer parameter
+	wfFresh                     // a new object stored nowhere: goes through
+	wfRecv                      // o.N++ in a method
+	wgWriteForms
+)
+
+var wgWriteFormNames = [...]string{"variable", "field", "two targets", "map index", "append", "copy", "delete",
+	"pointer parameter", "fresh object", "receiver field"}
+
+// wgWriteSrc is the wrapped write at a worker's or callback's site for the realm at path.
+func wgWriteSrc(ind string, site int, path string, method bool) string {
+	wf := wgWriteForm(site % int(wfRecv))
+	if method {
+		wf = wfRecv
+	}
+	sp := map[wgWriteForm][2]string{
+		wfVar:    {"count++", "count"},
+		wfField:  {"Obj.N++", "Obj.N"},
+		wfPair:   {"count, Obj.N = count+1, Obj.N+1", "count + Obj.N"},
+		wfMap:    {"M[len(M)] = 1", "len(M)"},
+		wfAppend: {fmt.Sprintf("S = append(S[:1], %d)", site), "S[1]"},
+		wfCopy:   {fmt.Sprintf("copy(S, []int{%d})", site), "S[0]"},
+		wfDelete: {"delete(D, -1)", "len(D)"},
+		wfPtr:    {"setN(Obj)", "Obj.N"},
+		wfFresh:  {"x := &ObjT{}; x.N = 1", "0"},
+		wfRecv:   {"o.N++", "o.N"},
+	}[wf]
+	owner := strconv.Quote(path)
+	if wf == wfFresh {
+		owner = `""`
+	}
+	return wgWrite(ind, site, wf, owner, sp[0], sp[1])
 }
 
 func (p *wgProg) libSrc(l int) string {
@@ -415,7 +479,7 @@ func (p *wgProg) libSrc(l int) string {
 		pass = fmt.Sprintf("l%d.Call(f)", l+1)
 	}
 	sb.WriteString("type Box struct {\n\tTag string\n\tN   int\n}\n\nfunc (b *Box) Inc() {\n")
-	sb.WriteString(strings.Replace(wgWrite("\t", wgBoxSite(l), "", "b.N++"), `""`, "b.Tag", 1))
+	sb.WriteString(wgWrite("\t", wgBoxSite(l), wfRecv, "b.Tag", "b.N++", "b.N"))
 	sb.WriteString("}\n\n")
 	sb.WriteString("func Call(f func()) { f() }\n\n")
 	fmt.Fprintf(&sb, "func Pass(f func()) { %s }\n\n", pass)
@@ -430,16 +494,27 @@ func (p *wgProg) libSrc(l int) string {
 func (p *wgProg) realmSrc(r int) string {
 	path := wgRealmPath(r)
 	var body strings.Builder
-	w := func(ind string, site int, stmt string) string { return wgWrite(ind, site, path, stmt) }
+	q := strconv.Quote(path)
+	w := func(ind string, site int, stmt string) string { return wgWrite(ind, site, wfVar, q, stmt, "0") }
 	fmt.Fprintf(&body, "type ObjT struct{ N int }\n\nvar count int\nvar Obj = &ObjT{}\nvar kept func()\nvar box = &l%d.Box{Tag: %q}\n\n", p.boxLib(r), path)
-	fmt.Fprintf(&body, "func (o *ObjT) Run() {\n%s}\n\n", w("\t", wgHelperSite(r, hRun), "o.N++"))
+	body.WriteString("var M = map[int]int{}\nvar D = map[int]int{-1: 0}\nvar S = make([]int, 2, 4)\n\nfunc setN(o *ObjT) { o.N = o.N + 1 }\n\n")
+	fmt.Fprintf(&body, "func (o *ObjT) Run() {\n%s}\n\n", wgWrite("\t", wgHelperSite(r, hRun), wfRecv, q, "o.N++", "o.N"))
 	fmt.Fprintf(&body, "func Each(f func()) {\n%s\tf()\n}\n\n", w("\t", wgHelperSite(r, hEach), "count++"))
+	fmt.Fprintf(&body, "func EachV(fs ...func()) {\n%s\tfor _, g := range fs {\n\t\tg()\n\t}\n}\n\n", w("\t", wgHelperSite(r, hEachV), "count++"))
 	fmt.Fprintf(&body, "func Keep(f func()) {\n%s}\n\n", w("\t", wgHelperSite(r, hKeep), "kept = f"))
 	fmt.Fprintf(&body, "func RunKept() {\n%s\tif kept != nil {\n\t\tkept()\n\t}\n}\n\n", w("\t", wgHelperSite(r, hRunKept), "count++"))
 	fmt.Fprintf(&body, "func Cb(cur realm, f func()) {\n%s\tf()\n}\n\n", w("\t", wgHelperSite(r, hCb), "count++"))
 	body.WriteString("func Boxer() interface{ Inc() } { return box }\n\n")
 	fmt.Fprintf(&body, "func Relay(f func()) {\n%s\tKeep(f)\n\tRunKept()\n}\n\n", w("\t", wgHelperSite(r, hRelay), "count++"))
 	body.WriteString("func Toss(f func()) {\n\tpanic(f)\n}\n\n")
+	out := fmt.Sprintf("l%d.Call(func() { f() })", p.boxLib(r))
+	if r < p.nR {
+		out = fmt.Sprintf("%s.Each(func() { f() })\n\t%s", wgRealmName(r+1), out)
+	}
+	fmt.Fprintf(&body, "func Out(f func()) {\n%s\t%s\n\tf()\n}\n\n", w("\t", wgHelperSite(r, hOut), "count++"), out)
+	fmt.Fprintf(&body, "func Capt(f func()) {\n%s\tKeep(func() { f() })\n\tRunKept()\n\tf()\n}\n\n", w("\t", wgHelperSite(r, hCapt), "count++"))
+	fmt.Fprintf(&body, "func Spread(f func()) {\n%s\tEachV(f)\n\tf()\n}\n\n", w("\t", wgHelperSite(r, hSpread), "count++"))
+	fmt.Fprintf(&body, "func Slot(f func()) {\n%s\ts := []func(){f}\n\ts[0]()\n\tf()\n}\n\n", w("\t", wgHelperSite(r, hSlot), "count++"))
 	fmt.Fprintf(&body, "func Give() func() {\n\treturn func() {\n%s\t}\n}\n\n", w("\t\t", wgHelperSite(r, hGive), "count++"))
 	hooks := map[int]bool{}
 	for _, f := range p.workers {
@@ -472,14 +547,7 @@ func (p *wgProg) realmSrc(r int) string {
 		default:
 			fmt.Fprintf(&body, "func %s() {\n", f.name())
 		}
-		stmt := "count++"
-		switch {
-		case f.kind == wgMethod:
-			stmt = "o.N++"
-		case f.site%2 == 0:
-			stmt = "Obj.N++"
-		}
-		body.WriteString(w("\t", f.site, stmt))
+		body.WriteString(wgWriteSrc("\t", f.site, path, f.kind == wgMethod))
 		for _, c := range f.calls {
 			body.WriteString(p.callSrc(f, c))
 		}
@@ -515,7 +583,7 @@ func pfx(a, b int) string {
 }
 
 func (p *wgProg) cbSrc(f *wgFunc, cb wgCB, ind string) string {
-	s := wgWrite(ind+"\t", cb.site, wgRealmPath(f.realm), "count++")
+	s := wgWriteSrc(ind+"\t", cb.site, wgRealmPath(f.realm), false)
 	if cb.target >= 0 {
 		t := p.workers[cb.target]
 		s += fmt.Sprintf("%s\t%s%s()\n", ind, pfx(f.realm, t.realm), t.name())
@@ -580,6 +648,8 @@ func (p *wgProg) callSrc(f *wgFunc, c *wgCall) string {
 	case shToss:
 		pre = append(pre, "defer func() {\n"+ind+"\tif g, ok := recover().(func()); ok {\n"+ind+"\t\tg()\n"+ind+"\t}\n"+ind+"}()")
 		last = fmt.Sprintf("%sToss(%s)", px, p.argSrc(f, c.arg, ind))
+	case shOut, shCapt, shSpread, shSlot:
+		last = fmt.Sprintf("%s%s(%s)", px, [...]string{shOut: "Out", shCapt: "Capt", shSpread: "Spread", shSlot: "Slot"}[c.shape], p.argSrc(f, c.arg, ind))
 	case shEach:
 		last = fmt.Sprintf("%sEach(%s)", px, p.argSrc(f, c.arg, ind))
 	case shLib:
@@ -616,4 +686,68 @@ func (p *wgProg) callSrc(f *wgFunc, c *wgCall) string {
 			sb.String() + "\t}()\n"
 	}
 	return "\t{\n" + strings.ReplaceAll(sb.String(), "\n\t", "\n\t\t") + "\t}\n"
+}
+
+// wgNonEsc is, per helper, which parameters the generator wrote so that they
+// never let a function value escape: only called, or handed on as a plain
+// argument, maybe inside a literal written in place.
+var wgNonEsc = map[string][]bool{
+	"p.Call": {true}, "p.Pass": {true}, "p.Defer": {true}, "p.Catch": {true},
+	"p.Hold": {false}, "p.Wrap": {false}, "p.RunIt": {false},
+	"r.Each": {true}, "r.Relay": {true}, "r.Out": {true}, "r.Capt": {true},
+	"r.Keep": {false}, "r.Toss": {false}, "r.Cb": {false, true}, "r.Spread": {false},
+	"r.EachV": {false}, "r.Slot": {false}, "r.setN": {false},
+}
+
+// nonesc answers wgNonEsc for a function of a generated package.
+func (p *wgProg) nonesc(pkg, name string) []bool {
+	k := "r."
+	if strings.HasPrefix(pkg, "gno.land/p/") {
+		k = "p."
+	}
+	return wgNonEsc[k+name]
+}
+
+var wgImportLine = regexp.MustCompile(`(?m)^\s*(?:import\s+)?"([^"]+)"\s*$`)
+
+// foreignOf returns the generator's own answer to whether code of package callee,
+// called under realm root by package caller, is untrusted: outside root's
+// import tree, or through an interface, imported directly by neither.
+func (p *wgProg) foreignOf() func(root, caller, callee string, iface bool) bool {
+	direct := map[string]map[string]bool{}
+	for _, mp := range p.packages() {
+		direct[mp.Path] = map[string]bool{}
+		for _, f := range mp.Files {
+			for _, m := range wgImportLine.FindAllStringSubmatch(f.Body, -1) {
+				direct[mp.Path][m[1]] = true
+			}
+		}
+	}
+	closure := func(root string) map[string]bool {
+		c := map[string]bool{}
+		var walk func(string)
+		walk = func(q string) {
+			for d := range direct[q] {
+				if !c[d] {
+					c[d] = true
+					walk(d)
+				}
+			}
+		}
+		walk(root)
+		return c
+	}
+	return func(root, caller, callee string, iface bool) bool {
+		switch {
+		case callee == uversePkgPath:
+			return false
+		case !iface:
+			return !closure(root)[callee]
+		case direct[root][callee]:
+			return false
+		case caller != root && direct[caller] != nil:
+			return !direct[caller][callee]
+		}
+		return true
+	}
 }

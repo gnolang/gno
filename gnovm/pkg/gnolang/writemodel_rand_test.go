@@ -27,6 +27,7 @@ type wgWriteRec struct {
 	mode      wmMode
 	want, got bool
 	text      string
+	form      wgWriteForm
 	worker    bool // the site is a worker's or a callback's, not a helper's
 	deepCross bool // under 3 worker calls spanning 2 realms
 }
@@ -72,8 +73,10 @@ func (w *wgOut) Write(b []byte) (int, error) {
 	}
 }
 
-// wgRefusals are the texts a refused write may carry.
+// wgRefusals are the texts a refused write may carry; a builtin refuses by its own.
 var wgRefusals = []string{refuseLibWrite, refuseByValue, refuseUncrossed, refuseTainted}
+
+var wgBuiltinRefusal = map[wgWriteForm]string{wfAppend: refuseAppend, wfCopy: refuseCopy, wfDelete: refuseDelete}
 
 func (w *wgOut) line(s string) {
 	w.r.lines++
@@ -86,9 +89,13 @@ func (w *wgOut) line(s string) {
 	f := strings.SplitN(s, " ", 3)
 	switch f[0] {
 	case "T":
+		f = strings.SplitN(s, " ", 4)
 		site, _ := strconv.Atoi(f[1])
-		w.pending = &wgWriteRec{site: site, owner: f[2], mode: pr.mode, want: pr.mode.mayWrite(f[2]),
-			worker: site < 10000, deepCross: pr.depth >= 3 && pr.cross}
+		form, _ := strconv.Atoi(f[2])
+		w.pending = &wgWriteRec{site: site, owner: f[3], mode: pr.mode, want: pr.mode.mayWrite(f[3]),
+			form: wgWriteForm(form), worker: site < 10000, deepCross: pr.depth >= 3 && pr.cross}
+	case "X":
+		w.r.diffs = append(w.r.diffs, "refused write changed state: "+s)
 	case "K", "R":
 		site, _ := strconv.Atoi(f[1])
 		wr := w.pending
@@ -103,6 +110,9 @@ func (w *wgOut) line(s string) {
 			known := false
 			for _, t := range wgRefusals {
 				known = known || strings.Contains(wr.text, t)
+			}
+			if t, ok := wgBuiltinRefusal[wr.form]; ok {
+				known = strings.Contains(wr.text, t)
 			}
 			if !known {
 				w.r.diffs = append(w.r.diffs, fmt.Sprintf("site %d: refused by an unknown text: %s", site, wr.text))
@@ -145,7 +155,8 @@ func wgRun(p *wgProg, typecheck bool) (res *wgResult) {
 			return res
 		}
 	}
-	o := &wmObserver{states: map[*Machine]*wmState{}, paths: map[PkgID]string{}}
+	o := &wmObserver{states: map[*Machine]*wmState{}, paths: map[PkgID]string{},
+		nonesc: p.nonesc, foreign: p.foreignOf()}
 	out := &wgOut{r: res, p: p}
 	callStartHook = func(m *Machine, f *callFacts, cs callStart) {
 		o.see(m, f, cs)
@@ -260,7 +271,8 @@ func TestWriteModelRandom(t *testing.T) {
 		shapes                                                                       [wgShapes]int
 		deferred, guarded                                                            int
 		args                                                                         [wgArgKinds]int
-		loans, lentHits                                                              int
+		loans, lentHits, endedHandOff, endedParam                                    int
+		wforms                                                                       [wgWriteForms]int
 	)
 	for i := range n {
 		seed := seed0 + i
@@ -296,6 +308,8 @@ func TestWriteModelRandom(t *testing.T) {
 		calls += r.counts.Calls
 		loans += r.counts.Loans
 		lentHits += r.counts.LentHits
+		endedHandOff += r.counts.EndedHandOff
+		endedParam += r.counts.EndedParam
 		for k, v := range r.counts.Kinds {
 			kinds[k] += v
 		}
@@ -305,6 +319,7 @@ func TestWriteModelRandom(t *testing.T) {
 		border += r.borderRecovers
 		for _, w := range r.writes {
 			writes++
+			wforms[w.form]++
 			if w.got {
 				through++
 			} else {
@@ -369,8 +384,13 @@ func TestWriteModelRandom(t *testing.T) {
 		row{"writes 3 worker calls deep across 2 realms", deep, 20},
 		row{"loans made", loans, 20},
 		row{"calls that ran lent", lentHits, 20},
+		row{"loans ended by hand-off", endedHandOff, 20},
+		row{"loans ended by a non-lending parameter", endedParam, 20},
 		row{"programs aborted by a panic", aborted, 0},
 	)
+	for wf := range wgWriteForms {
+		rows = append(rows, row{"write form " + wgWriteFormNames[wf], wforms[wf], 20})
+	}
 	var sb strings.Builder
 	for _, r := range rows {
 		fmt.Fprintf(&sb, "  %-45s %8d\n", r.name, r.n)
