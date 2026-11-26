@@ -120,15 +120,14 @@ func (m *Machine) decideCallStart(f *callFacts) callStart {
 		}
 	}
 	// /p/ or stdlib callee: each rule below sees the mode the ones above left.
-	cs := callStart{kind: startKeep}
-	realm, view := m.Realm, m.viewOnly
+	kind, realm, view := startKeep, m.Realm, m.viewOnly
 	// Rule #2 prelude (see "A method value" above).
 	if f.bindPID.IsRealmPkg() && !f.pOwned {
 		if !f.haveCalledBy {
 			return callStart{kind: startAskCalledBy}
 		}
 		if !f.calledBy {
-			cs.kind, realm, view = startView, nil, true
+			kind, realm, view = startView, nil, true
 		}
 	}
 	// A library closure or handle made under another realm, or with no maker,
@@ -136,14 +135,14 @@ func (m *Machine) decideCallStart(f *callFacts) callStart {
 	// in a library's package variable named by the call counts as named.
 	if !f.recvSet && realm != nil && f.fv.GetObjectInfo().ID.PkgID != realm.ID &&
 		f.cx.GetAttribute(ATTR_NAMED_CALLEE) != true && !m.lendLiveAs(f.fv, realm, view) {
-		cs.kind, realm, view = startView, nil, true
+		kind, realm, view = startView, nil, true
 	}
 	// A /p/ method reached through an interface or a method value runs code the
 	// caller picked; it acts for the realm only if foreignLib trusts its
 	// package. A method value built while view-only (zero stamp) acts for no
 	// realm at all.
 	if f.viaValue && f.bindPID.IsZero() && realm != nil && f.fv.PkgPath != uversePkgPath {
-		cs.kind, realm, view = startView, nil, true
+		kind, realm, view = startView, nil, true
 	}
 	if (f.viaIface || f.viaValue) && !f.pOwned && realm != nil &&
 		f.fv.PkgPath != realm.Path && f.fv.PkgPath != f.last.PkgPath {
@@ -151,18 +150,17 @@ func (m *Machine) decideCallStart(f *callFacts) callStart {
 			return callStart{kind: startAskForeignLib}
 		}
 		if f.foreign {
-			cs.kind, realm, view = startView, nil, true
+			kind, realm, view = startView, nil, true
 		}
 	}
 	if f.pOwned && (realm == nil || f.recvPID != realm.ID) {
 		if !f.haveBorrow {
 			return callStart{kind: startAskBorrow}
 		}
-		cs.borrow, cs.borrowTo = true, f.borrowTo
-		realm, view = f.borrowTo, false
+		return callStart{kind: kind, borrow: true, borrowTo: f.borrowTo,
+			byValue: m.byValueReadOnly(f, f.borrowTo, false)}
 	}
-	cs.byValue = m.byValueReadOnly(f, realm, view)
-	return cs
+	return callStart{kind: kind, byValue: m.byValueReadOnly(f, realm, view)}
 }
 
 // byValueReadOnly reports whether a call that would run as realm (viewOnly as
