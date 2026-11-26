@@ -196,7 +196,9 @@ func (m *Machine) lendArgs(fr *Frame, fs BlockNode, args []TypedValue) {
 	}
 	for i := range args {
 		if sv, ok := args[i].V.(*SliceValue); ok {
-			m.dropSliceLends(sv) // a variadic element escapes like a stored value
+			if sliceMayHoldFunc(args[i].T) {
+				m.dropSliceLends(sv) // a variadic element escapes like a stored value
+			}
 			continue
 		}
 		afv, ok := args[i].V.(*FuncValue)
@@ -322,6 +324,21 @@ func isLitArg(x Expr) bool {
 	}
 	_, ok := x.(*FuncLitExpr)
 	return ok
+}
+
+// sliceMayHoldFunc reports whether a slice of type t may have a *FuncValue
+// element: only a func or interface element type allows one. A type it
+// cannot read answers true, so the walk runs.
+func sliceMayHoldFunc(t Type) bool {
+	st, ok := baseOf(t).(*SliceType)
+	if !ok || st.Elt == nil {
+		return true
+	}
+	switch baseOf(st.Elt).(type) {
+	case PrimitiveType, *PointerType, *ArrayType, *SliceType, *StructType, *MapType, *ChanType:
+		return false
+	}
+	return true
 }
 
 // dropSliceLends ends the loan of every lent value held in sv's elements.
