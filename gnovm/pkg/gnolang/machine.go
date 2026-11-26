@@ -43,7 +43,9 @@ type Machine struct {
 	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
 		root    string
+		caller  string
 		test    bool
+		iface   bool
 		foreign bool
 	}
 	Alloc         *Allocator // memory allocations
@@ -2883,9 +2885,9 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		m.setViewOnly()
 	}
 	// A /p/ method reached through an interface or a method value runs code the
-	// caller picked; it acts for the realm only if the realm's imports, direct or
-	// not, include its package. A method value built while view-only (zero
-	// stamp) acts for no realm at all.
+	// caller picked; it acts for the realm only if foreignLib trusts its
+	// package. A method value built while view-only (zero stamp) acts for no
+	// realm at all.
 	viaIface, viaValue := false, recv.IsDefined()
 	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
 		viaIface = sx.Path.Type == VPInterface || sx.Path.Type == VPDerefInterface
@@ -2896,7 +2898,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	}
 	if (viaIface || viaValue) && !pOwned && m.Realm != nil &&
 		fv.PkgPath != m.Realm.Path && fv.PkgPath != fr.LastPackage.PkgPath &&
-		m.foreignLib(fv) {
+		m.foreignLib(fv, fr.LastPackage.PkgPath, viaIface) {
 		m.setViewOnly()
 	}
 	if pOwned {
@@ -2912,26 +2914,41 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	m.restrictByValueCall(cx, fv, withCross)
 }
 
-// foreignLib reports whether fv is outside the current realm's import tree;
-// .uverse is exempt. Such code reached through an interface or a method value
-// runs view-only. The root is the current realm, never a frame.
-func (m *Machine) foreignLib(fv *FuncValue) bool {
+// foreignLib reports whether fv's package is untrusted; .uverse is exempt.
+// Standard library is trusted anywhere in the current realm's import tree.
+// Through an interface (iface), other code is trusted only when the realm or
+// caller (the package making the call) imports its package directly; a method
+// value keeps the whole tree. The root is the current realm, never a frame.
+func (m *Machine) foreignLib(fv *FuncValue, caller string, iface bool) bool {
 	root, test := m.trustRoot()
-	if m.libMemo.fv == fv && m.libMemo.root == root && m.libMemo.test == test {
-		return m.libMemo.foreign
+	if !iface {
+		caller = ""
+	}
+	mm := &m.libMemo
+	if mm.fv == fv && mm.root == root && mm.caller == caller && mm.test == test && mm.iface == iface {
+		return mm.foreign
 	}
 	foreign := fv.PkgPath != uversePkgPath
 	if foreign {
 		pn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(root)).(*PackageNode)
-		if !ok {
-			foreign = true
-		} else if test {
-			foreign = !pn.testImportClosure(m.Store)[fv.PkgPath]
-		} else {
-			foreign = !pn.importClosure(m.Store)[fv.PkgPath]
+		switch {
+		case !ok:
+		case !iface || IsStdlib(fv.PkgPath):
+			if test {
+				foreign = !pn.testImportClosure(m.Store)[fv.PkgPath]
+			} else {
+				foreign = !pn.importClosure(m.Store)[fv.PkgPath]
+			}
+		default:
+			foreign = !pn.directImports(test)[fv.PkgPath]
+			if foreign && caller != root {
+				if cn, ok := m.Store.GetBlockNodeSafe(PackageNodeLocation(caller)).(*PackageNode); ok {
+					foreign = !cn.directImports(false)[fv.PkgPath]
+				}
+			}
 		}
 	}
-	m.libMemo.fv, m.libMemo.root, m.libMemo.test, m.libMemo.foreign = fv, root, test, foreign
+	mm.fv, mm.root, mm.caller, mm.test, mm.iface, mm.foreign = fv, root, caller, test, iface, foreign
 	return foreign
 }
 

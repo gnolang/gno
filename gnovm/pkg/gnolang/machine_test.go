@@ -236,7 +236,7 @@ func TestForeignLibNoFrameWalkOnChain(t *testing.T) {
 	defer m.Release()
 	start := time.Now()
 	for range decisions {
-		m.foreignLib(fv)
+		m.foreignLib(fv, "", true)
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
 		t.Fatalf("%d foreignLib decisions over %d frames took %v; the chain path must not walk frames", decisions, frames, elapsed)
@@ -248,7 +248,7 @@ func BenchmarkForeignLibDeepStack(b *testing.B) {
 	defer m.Release()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.foreignLib(fv)
+		m.foreignLib(fv, "", true)
 	}
 }
 
