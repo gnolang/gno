@@ -23,6 +23,6 @@ func main(cur realm) {
 }
 
 // Output:
-// caller Touch: cannot modify object owned by another realm from library code (call a function of the owning realm): c<VPBlock(1,0)>.A
+// caller Touch: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): c<VPBlock(1,0)>.A
 // after Touch A= 1
 // caller-side CurrentRealm: gno.land/r/caller

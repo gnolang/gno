@@ -30,6 +30,6 @@ func main(cur realm) {
 // Output:
 // rec: int is not of type string
 // after
-// write: cannot modify object owned by another realm from library code (call a function of the owning realm): (const (ref(gno.land/p/demo/tests/recoverfv) package{})).shared.n
+// write: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): (const (ref(gno.land/p/demo/tests/recoverfv) package{})).shared.n
 // lib state: 0
 // OUTCOME caught

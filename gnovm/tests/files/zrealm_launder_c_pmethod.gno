@@ -26,4 +26,4 @@ func main(cur realm) {
 // before: original-ptr
 
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): o<VPBlock(1,0)>.Field
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): o<VPBlock(1,0)>.Field

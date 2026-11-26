@@ -23,6 +23,6 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// stranger call: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// stranger call: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // view: v0
 // owner wrote: v1

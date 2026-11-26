@@ -16,4 +16,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/zrealm_s3u_rv4_3: an object written by read-only code would be stored (write it inside a crossing call of gno.land/r/zrealm_s3u_rv4_3)
+// gno.land/r/zrealm_s3u_rv4_3: an object written by read-only code would be stored (make the function that wrote it a crossing function of gno.land/r/zrealm_s3u_rv4_3 and call it with cross)

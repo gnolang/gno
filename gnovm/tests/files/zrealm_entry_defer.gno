@@ -18,5 +18,5 @@ func main(cur realm) {
 
 // Output:
 // owner deferred: v1
-// foreign deferred: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// foreign deferred: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // after foreign: v1

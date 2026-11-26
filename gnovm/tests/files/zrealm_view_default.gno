@@ -17,4 +17,4 @@ func main(cur realm) {
 // read: v0
 
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node

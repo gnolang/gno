@@ -31,5 +31,5 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-// recovered: cannot modify object owned by another realm from library code (call a function of the owning realm): i<VPBlock(1,0)>.Field
+// recovered: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i<VPBlock(1,0)>.Field
 // after recover: ptr-orig

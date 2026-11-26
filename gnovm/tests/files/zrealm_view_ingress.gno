@@ -23,7 +23,7 @@ func main(cur realm) {
 }
 
 // Output:
-// ungranted write by holder: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// ungranted write by holder: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // nothing landed: true
-// ungranted fresh tree: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// ungranted fresh tree: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // fresh empty: true

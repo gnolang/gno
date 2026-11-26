@@ -17,4 +17,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (call a crossing function of the owning realm): p<VPBlock(1,1)>.Field
+// cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm): p<VPBlock(1,1)>.Field

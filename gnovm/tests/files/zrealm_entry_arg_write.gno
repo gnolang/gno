@@ -27,8 +27,8 @@ func main(cur realm) {
 }
 
 // Output:
-// copy to victim: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// copy to victim: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // B unchanged: true
-// victim A: cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
+// victim A: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // victim A: B unchanged: true
 // owner wrote B: v1
