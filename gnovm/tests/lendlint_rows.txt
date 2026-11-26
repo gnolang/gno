@@ -3,6 +3,8 @@
 # today: "refuses" when the golden of gnovm/tests/files/zrealm_<fixture>.gno shows the
 # read-only refusal. Sites: line:col in the fixture, or pkgpath/file:line:col in a
 # realm it imports; "-" is none. Text after "#" says why. TestLendLintRows checks it.
+# Known miss: writes through /p/ methods, through pointers, or a local alias of a map or method value.
+# Known miss: _test.gno and filetest files are not checked.
 lend_any_assertstore caught refuses 16:47
 lend_any_after caught refuses 18:38,19:44
 lend_alias caught refuses 14:16
