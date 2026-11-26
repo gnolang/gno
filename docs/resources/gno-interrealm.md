@@ -114,8 +114,6 @@ Known limits of the loan in shape 2:
 - A method value never writes; call the method directly.
 - `lib.Default.Each(func(int){ count++ })` is refused: the method of a
   variable the library owns runs as the library, not as your realm.
-- A library function that runs a closure the library itself stored aborts the
-  transaction instead of letting your `recover()` catch it.
 
 ### R2b Another realm runs your plain function read-only
 
@@ -976,7 +974,6 @@ another realm's method without `cross` also stopped `recover()`:
 - A panic that leaves a `cross` call still aborts.
 - During package initialization, a panic out of a library method working on
   the library's own object still aborts.
-- A library function that runs a closure the library itself stored aborts.
 
 This would be sufficient, but we also want to write our tests to be able
 to detect such aborts and make assertions. For this reason Gno provides

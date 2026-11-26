@@ -224,9 +224,8 @@ ctw.ForEachX(cross(cur), func(cur realm, n int) { sum += n })  // f enters b: wr
 ```
 
 Known limits: a callee not reached by name (a local copy `each := lib.Each`, or a literal kept in a variable)
-lends nothing; a method value never writes; `lib.Default.Each(func(int){ count++ })` is refused, since a
-method of a variable the library owns runs as the library; a library function that runs a closure the library
-stored aborts where master let `recover()` catch it.
+lends nothing; a method value never writes; and `lib.Default.Each(func(int){ count++ })` is refused, since a
+method of a variable the library owns runs as the library.
 
 **The save check (R2a-save).** Read-only code may still fill in an object made during the call, since that is
 how a getter builds its result. The gap: a read-only function value fills in the realm's new object, and the
