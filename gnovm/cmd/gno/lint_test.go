@@ -1,9 +1,24 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/integration"
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
 )
+
+// Runs the lent-callback script (also in Test_Scripts) under `-run Lint`.
+func TestLintLentCallbackScript(t *testing.T) {
+	file, err := filepath.Abs("testdata/lint/realm_lent_callback.txtar")
+	require.NoError(t, err)
+	p := integration.NewTestingParams(t, "")
+	p.Dir, p.Files = "", []string{file}
+	require.NoError(t, integration.SetupGno(&p, t.TempDir(), t.TempDir()))
+	testscript.Run(t, p)
+}
 
 func TestLintApp(t *testing.T) {
 	tc := []testMainCase{

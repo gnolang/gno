@@ -1,0 +1,98 @@
+# gno lint warns (without failing) on a function value that writes the
+# realm's package state but sits where the VM runs it read-only.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- lentcb.gno --
+package lentcb
+
+var (
+	count int
+	saved func()
+	hooks []func()
+	xcb   func(cur realm)
+)
+
+func run(f func())         { f() }
+func chain(f func())       { run(f) }
+func keepIt(f func())      { saved = f }
+func runAll(fs ...func())  { fs[0]() }
+func bump()                { count++ }
+func bumpVia()             { bump() }
+func read() int            { return count }
+func (t *T) Bump()         { count++ }
+
+type T struct{}
+
+// Flagged: each function value writes count but runs read-only where it sits.
+
+func Stored(cur realm) { saved = func() { count++ } }
+
+func Returned() func() { return func() { count++ } }
+
+func Deferred(cur realm) { defer run(func() { count++ }) }
+
+func Variadic(cur realm) { runAll(func() { count++ }) }
+
+func Escaping(cur realm) { keepIt(func() { count++ }) }
+
+func NotNamed(cur realm) {
+	r := run
+	r = chain
+	r(func() { count++ })
+}
+
+func DeclValue(cur realm) { hooks = append(hooks, bumpVia) }
+
+func MethodValue(cur realm) { saved = (&T{}).Bump }
+
+func StoredVia(cur realm) { saved = func() { bumpVia() } }
+
+// Not flagged: each one writes, or writes nothing.
+
+func InPlace(cur realm) { run(func() { count++ }) }
+
+func Alias(cur realm) {
+	r := run
+	r(func() { count++ })
+}
+
+func Helper(cur realm) {
+	h := func() { count++ }
+	h()
+	h()
+}
+
+func Crossing(cur realm) { xcb = func(cur realm) { count++ } }
+
+func CalledWhere(cur realm) { func() { count++ }() }
+
+func Chain(cur realm) { chain(func() { count++ }) }
+
+func StoredReader(cur realm) { saved = func() { _ = read() } }
+
+func Fire(cur realm) {
+	if saved != nil {
+		saved()
+	}
+	xcb(cur)
+}
+
+-- gnomod.toml --
+module = "gno.land/r/demo/lentcb"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+gno.land/r/demo/lentcb/lentcb.gno:23: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:25: this function writes count but it is returned, so it runs read-only (make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:27: this function writes count but it is the argument of a deferred call, so it runs read-only (defer a literal that makes the call, or make it func(cur realm)) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:29: this function writes count but it goes in a variadic list, so it runs read-only (pass it as a plain parameter, or make it func(cur realm)) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:31: this function writes count but the function it is passed to keeps it or hands it on, so it runs read-only (pass it to a function that only calls it, or make it func(cur realm)) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:36: this function writes count but the function it is passed to is not called by name, so it runs read-only (call a declared function by name, or make it func(cur realm)) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:39: bumpVia writes count but it is used as a value, so it runs read-only (call it by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:41: Bump writes count but it is used as a value, so it runs read-only (call it by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:43: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
