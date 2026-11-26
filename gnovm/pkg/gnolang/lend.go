@@ -207,7 +207,7 @@ func (m *Machine) lendArgs(fr *Frame, fs BlockNode, args []TypedValue) {
 		okParam := nonesc != nil && pi >= 0 && pi < len(nonesc) && nonesc[pi]
 		if m.lends[afv] != nil {
 			if !okParam {
-				delete(m.lends, afv)
+				m.dropLend(afv)
 			}
 			continue
 		}
@@ -260,18 +260,33 @@ func (m *Machine) dropFrameLends(from int) {
 	}
 }
 
-// dropCapturedLends ends the loan of every lent value fv captured.
+// dropLend ends fv's own loan and those of everything it reaches by captures.
+func (m *Machine) dropLend(fv *FuncValue) {
+	delete(m.lends, fv)
+	m.dropCapturedLends(fv)
+}
+
+// dropCapturedLends ends the loan of every lent value fv reaches through
+// captures, at any depth: a value that escapes carries all of them with it.
 func (m *Machine) dropCapturedLends(fv *FuncValue) {
 	if len(m.lends) == 0 {
 		return
 	}
-	for i := range fv.Captures {
-		hiv, ok := fv.Captures[i].V.(*HeapItemValue)
-		if !ok {
-			continue
-		}
-		if cfv, ok := hiv.Value.V.(*FuncValue); ok {
-			delete(m.lends, cfv)
+	seen := map[*FuncValue]bool{fv: true}
+	todo := []*FuncValue{fv}
+	for len(todo) > 0 && len(m.lends) > 0 {
+		cur := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		for i := range cur.Captures {
+			hiv, ok := cur.Captures[i].V.(*HeapItemValue)
+			if !ok {
+				continue
+			}
+			if cfv, ok := hiv.Value.V.(*FuncValue); ok && !seen[cfv] {
+				seen[cfv] = true
+				delete(m.lends, cfv)
+				todo = append(todo, cfv)
+			}
 		}
 	}
 }
@@ -308,8 +323,7 @@ func (m *Machine) dropSliceLends(sv *SliceValue) {
 	}
 	for i := sv.Offset; i < sv.Offset+sv.Length && i < len(av.List); i++ {
 		if fv, ok := av.List[i].V.(*FuncValue); ok {
-			delete(m.lends, fv)
-			m.dropCapturedLends(fv)
+			m.dropLend(fv)
 		}
 	}
 }
