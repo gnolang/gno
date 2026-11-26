@@ -877,7 +877,7 @@ above are what `ls` prints, so a reviewer can re-run them.
 | R3 | run time | `cannot copy <T> outside realm <R> (use a pointer)` (`alloc.go:checkCopy`), the only refusal for `err := fvx.Fail()` and `defer p.Val()` |
 | R3 | run time | `cannot allocate <T> in realm <R>` (`alloc.go:panicForeignAlloc`) |
 | R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): expr` |
-| R2a-save | save | `<realm>: an object written by read-only code would be stored (write it inside a crossing call of <realm>)` |
+| R2a-save | save | `<realm>: an object written by read-only code would be stored (do the write in a crossing function of <realm>, called with cross)` |
 
 R2a's marks are decided when the code is prepared: `ATTR_LOCAL_HELPER` on a local helper's calls,
 `ATTR_NAMED_CALLEE` on a call by name, `ATTR_NONESC_PARAMS` on a function whose parameter is only called or

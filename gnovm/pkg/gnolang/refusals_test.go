@@ -4,7 +4,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -130,6 +132,64 @@ func TestRefusalTextsInDocs(t *testing.T) {
 	}
 	if got != want.String() {
 		t.Errorf("gno-interrealm.md's refusal table differs from refusals; generated:\n%s%s", head, want.String())
+	}
+}
+
+var (
+	refusalHoleRe  = regexp.MustCompile(`%[sv]`)
+	refusalSpaceRe = regexp.MustCompile(`\s+`)
+)
+
+// refusalPattern matches s in prose: whitespace may wrap, a hole is any one word.
+func refusalPattern(s string) string {
+	parts := refusalHoleRe.Split(refusalSpaceRe.ReplaceAllString(s, " "), -1)
+	for i, p := range parts {
+		parts[i] = strings.ReplaceAll(regexp.QuoteMeta(p), " ", `\s+`)
+	}
+	return strings.Join(parts, `[^\s|]+?`)
+}
+
+// TestRefusalQuotesCurrent fails when a page under docs/resources or gnovm/adr
+// quotes a refusal's opening words followed by a bracket other than its current one.
+func TestRefusalQuotesCurrent(t *testing.T) {
+	type check struct{ open, bracket *regexp.Regexp }
+	var checks []check
+	for _, r := range refusals {
+		i := strings.Index(r.text, " (")
+		j := strings.Index(r.text, ")")
+		if r.master || i < 0 || j < i {
+			continue
+		}
+		open := strings.TrimPrefix(r.text[:i], "%s")
+		checks = append(checks, check{
+			regexp.MustCompile(refusalPattern(open) + `\s*\(`),
+			regexp.MustCompile(`^` + refusalPattern(r.text[i+1:j+1])),
+		})
+	}
+	for _, dir := range []string{"../../../docs/resources", "../../adr"} {
+		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
+				return err
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			doc := string(raw)
+			for _, c := range checks {
+				for _, loc := range c.open.FindAllStringIndex(doc, -1) {
+					rest := doc[loc[1]-1:]
+					if !c.bracket.MatchString(rest) {
+						line := strings.Count(doc[:loc[0]], "\n") + 1
+						t.Errorf("%s:%d quotes a stale bracket: %.100q", path, line, rest)
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

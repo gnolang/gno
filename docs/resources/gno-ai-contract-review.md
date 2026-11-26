@@ -104,7 +104,7 @@ This is the subtlest case. A `/p/` library type whose fields are all **unexporte
 can still have exported mutation methods. A pointer you return to an instance
 stored in your realm is a view: a `/p/` method runs with the caller's authority,
 so the caller's write to your stored object is refused with
-`cannot modify object owned by another realm from library code (call a function of the owning realm)`.
+`cannot modify object owned by another realm from library code (call a crossing function of the owning realm)`.
 
 ```go
 // avl.Tree fields are all unexported — looks safe.

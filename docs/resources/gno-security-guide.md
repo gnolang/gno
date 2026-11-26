@@ -151,8 +151,8 @@ by `/r/V`, not by a `/p/` package, so
 V's node is a view. When the attacker calls `Apply` with a top-level
 `/p/A.Evil` of signature `func(*somelib.Node)`, `Evil` inherits the
 attacker's realm, and its write to V's node is refused with `cannot
-modify object owned by another realm from library code (call a function
-of the owning realm)`. This family is closed by the view rule; the filetests
+modify object owned by another realm from library code (call a crossing
+function of the owning realm)`. This family is closed by the view rule; the filetests
 `zrealm_launder_rdata_embed_p.gno` and `zrealm_launder_rdata_ptrfield_p.gno`
 pin the refusal.
 
@@ -243,7 +243,7 @@ called on a reference that left your realm runs with the *caller's*
 authority, not yours: a realm-owned receiver is a view, so its write to your
 stored object is refused with
 `cannot modify object owned by another realm from library code
-(call a function of the owning realm)`.
+(call a crossing function of the owning realm)`.
 
 ```go
 var users = avl.NewTree()
