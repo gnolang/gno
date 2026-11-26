@@ -79,7 +79,12 @@ A plain function value (one without a `cur realm` parameter) writes a realm's
 state only as the realm's own code called by name or a local helper, as a
 literal written in place as an argument while that call runs (lent to the
 realm's own function or a `/p/` function called by name, never to another
-realm's function), or as a literal called where it is written. It gains no
+realm's function), or as a literal called where it is written. Called by name
+means a direct call of a `/p/` function or method, including a method called on
+an interface value that holds a `/p/` type from the realm's import tree; a local
+copy of the function or a method value is not. A local helper used inside a
+literal that is lent in place is refused: call it outside the literal, or write
+its body in the literal. It gains no
 authority by changing hands, whether by storage, passing, or a higher-order
 method.
 

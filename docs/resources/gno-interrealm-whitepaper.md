@@ -181,12 +181,13 @@ The idea: R1 makes the gate the only way in by name, but a function value can ca
 gate. So a plain function value (one without a `cur realm` parameter) counts as the realm's own intent only
 where the code that runs it can be read at the call line.
 
-**A plain function value writes the realm's saved state only (1) as the realm's own code called by name, or as
-a local helper; (2) as a literal written in place as a call argument, while that call runs, lent only to the
-realm's own functions or to a `/p/` library function reached by name, never to another realm's function; (3)
-as a literal called in the expression that writes it.** Anything else runs read-only: a stored value, a
-returned one, a declared function passed as a value, a method value, a literal the callee keeps and calls
-later.
+**A plain function value writes the realm's saved state only (1) as the realm's own code called by name, or as a
+local helper; (2) as a literal written in place as a call argument, while that call runs, lent only to the realm's
+own functions or to a `/p/` library function reached by name, never to another realm's function; (3) as a literal
+called in the expression that writes it.** Reached by name means a direct call of a `/p/` function or method,
+including a method called on an interface value that holds a `/p/` type from the realm's import tree; a local copy
+of the function or a method value is not. Anything else runs read-only: a stored value, a returned one, a declared
+function passed as a value, a method value, a literal the callee keeps and calls later.
 
 ```go
 // realm r, inside a crossing call
@@ -224,8 +225,9 @@ ctw.ForEachX(cross(cur), func(cur realm, n int) { sum += n })  // f enters b: wr
 ```
 
 Known limits: a callee not reached by name (a local copy `each := lib.Each`, or a literal kept in a variable)
-lends nothing; a method value never writes; and `lib.Default.Each(func(int){ count++ })` is refused, since a
-method of a variable the library owns runs as the library.
+lends nothing; a method value never writes; `lib.Default.Each(func(int){ count++ })` is refused, since a method of
+a variable the library owns runs as the library; and a local helper used inside a literal lent in place is refused
+(call it outside the literal, or write its body in the literal).
 
 **The save check (R2a-save).** Read-only code may still fill in an object made during the call, since that is
 how a getter builds its result. The gap: a read-only function value fills in the realm's new object, and the
