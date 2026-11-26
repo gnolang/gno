@@ -872,7 +872,7 @@ above are what `ls` prints, so a reviewer can re-run them.
 |---|---|---|
 | R1 | run time | E2 `<path>'s code was entered without crossing and is read-only (call its crossing function): expr` |
 | R1 | run time | E1 `cannot modify object owned by another realm from library code (call a crossing function of the owning realm): expr` |
-| R1 | run time | E3 `cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm): expr` |
+| R1 | run time | E3 `cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ package's object cannot be written after its init): expr` |
 | R3 | type check | `cannot hold a value of <T> outside its realm (use a pointer)` (`realmvalue.go`), e.g. `c := *p` |
 | R3 | run time | `cannot copy <T> outside realm <R> (use a pointer)` (`alloc.go:checkCopy`), the only refusal for `err := fvx.Fail()` and `defer p.Val()` |
 | R3 | run time | `cannot allocate <T> in realm <R>` (`alloc.go:panicForeignAlloc`) |

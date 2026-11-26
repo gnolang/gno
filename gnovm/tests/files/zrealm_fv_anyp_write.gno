@@ -9,4 +9,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm): x<VPBlock(1,1)>.(*(typeval{gno.land/r/tests/vm/fvx.T})).N
+// cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ package's object cannot be written after its init): x<VPBlock(1,1)>.(*(typeval{gno.land/r/tests/vm/fvx.T})).N

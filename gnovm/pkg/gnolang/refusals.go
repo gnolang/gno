@@ -12,7 +12,7 @@ const (
 	refuseUncrossed = "'s code was entered without crossing and is read-only (call its crossing function): "
 	// Any other refused write: another realm's or a /p/ package's object, or
 	// the realm's own object inside code that runs view-only.
-	refuseTainted = "cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm): "
+	refuseTainted = "cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ package's object cannot be written after its init): "
 	// At save: an object a read-only stretch wrote would be stored.
 	refuseStoreUncrossed = "%s: an object written by read-only code would be stored (make the function that wrote it a crossing function of %s and call it with cross)"
 	// A plain function is called with cross.

@@ -33,7 +33,7 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// owner's arg: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm): dst<VPBlock(2,1)>[di<VPBlock(2,3)> + (const (0 int))]
+// owner's arg: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ package's object cannot be written after its init): dst<VPBlock(2,1)>[di<VPBlock(2,3)> + (const (0 int))]
 // secret: secret-bytes
 // own tree, method value: cannot modify object owned by another realm from library code (call a crossing function of the owning realm): tree<VPBlock(1,0)>.node
 // own tree, closure: 2
