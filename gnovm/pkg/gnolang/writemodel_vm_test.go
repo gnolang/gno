@@ -441,8 +441,8 @@ func (o *wmObserver) see(m *Machine, f *callFacts, cs callStart) {
 	if f.last != nil {
 		wf.caller = f.last.PkgPath
 	}
-	if f.pOwned {
-		wf.owner = o.path(f.recvPID)
+	if !wf.cross && !wf.crossing {
+		wf.owner, wf.fresh = o.owner(m, f, callee)
 	}
 	var asks wmAsk
 	if f.haveCalledBy {
@@ -473,6 +473,38 @@ func (o *wmObserver) see(m *Machine, f *callFacts, cs callStart) {
 		o.Deferred++
 	}
 	s.enter(wf.callee, got, wmArgsOf(m, f, callee), callee.IsDefer)
+}
+
+// owner reads the receiver's first object's package ("" if none) and whether
+// the call hands the callee a fresh copy of a struct or array receiver.
+func (o *wmObserver) owner(m *Machine, f *callFacts, fr *Frame) (string, bool) {
+	if !fr.Receiver.IsDefined() {
+		return "", false
+	}
+	var callable Value
+	if fr.IsDefer {
+		callable = wmDeferOf(m).Callable
+	} else {
+		callable = m.Values[fr.NumValues].V
+	}
+	bmv, bound := callable.(*BoundMethodValue)
+	copied := bound && (bmv.IsLazy() || !fr.IsDefer && isDirectValMethodCall(f.cx))
+	if copied && isStructOrArrayValue(fr.Receiver.V) {
+		return "", true
+	}
+	if obj := fr.Receiver.GetFirstObject(m.Store); obj != nil && !obj.GetObjectInfo().ID.IsZero() {
+		return o.path(obj.GetObjectInfo().ID.PkgID), false
+	}
+	return "", false
+}
+
+// wmDeferOf is the Defer just popped for the deferred call starting now.
+func wmDeferOf(m *Machine) Defer {
+	d := m.MustPeekCallFrame(2).Defers
+	if cap(d) == len(d) {
+		panic("model: the deferred call's Defer is not readable")
+	}
+	return d[:len(d)+1][len(d)]
 }
 
 // wmFormOf reads how the call names its callee, as calledByValue does.
@@ -542,12 +574,7 @@ func wmArgOf(tv TypedValue) wmArg {
 func wmArgsOf(m *Machine, f *callFacts, fr *Frame) []wmArg {
 	var args []wmArg
 	if fr.IsDefer {
-		cfr := m.MustPeekCallFrame(2)
-		d := cfr.Defers
-		if cap(d) == len(d) {
-			panic("model: the deferred call's Defer is not readable")
-		}
-		for _, tv := range d[:len(d)+1][len(d)].Args {
+		for _, tv := range wmDeferOf(m).Args {
 			args = append(args, wmArgOf(tv))
 		}
 		return args

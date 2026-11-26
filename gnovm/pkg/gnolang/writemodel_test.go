@@ -62,7 +62,8 @@ type wmFacts struct {
 	callee, caller  string // package paths
 	form            wmForm
 	recv            bool   // a receiver is bound
-	owner           string // the receiver's owning package, "" if none
+	owner           string // the package of the receiver's first object, "" if none
+	fresh           bool   // the callee gets a fresh copy of a struct or array receiver
 	binder          string // the package that bound a method value, "" if none
 	maker           string // the package the function value was made under
 	fn              any    // the function value, to find its loan
@@ -145,7 +146,7 @@ func (s *wmState) start(f wmFacts) wmAnswer {
 		return wmAnswer{mode: wmMode{wmReadOnly, home}}
 	}
 	// 4. Library code acts for the caller's realm unless that power was not handed to it.
-	w, asks, libOwned := cur.writer(), wmAsk(0), wmLibPkg(f.owner)
+	w, asks, libOwned := cur.writer(), wmAsk(0), !f.fresh && wmLibPkg(f.owner)
 	viaValue := f.recv && f.form != wmMethod && f.form != wmIface
 	view := func() { w, cur = "", wmMode{kind: wmView} }
 	// 4a. A method value bound by a realm acts only while that realm's calls lead here.
