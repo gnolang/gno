@@ -301,8 +301,13 @@ func (m *Machine) walkCaptures(fv *FuncValue, seen map[*FuncValue]bool) {
 // lendLive reports whether fv is a lent literal whose loan still holds: the
 // frame it was lent to is live, and its maker's realm is writing, uncrossed.
 func (m *Machine) lendLive(fv *FuncValue) bool {
+	return m.lendLiveAs(fv, m.Realm, m.viewOnly)
+}
+
+// lendLiveAs is lendLive as if the machine ran as realm with viewOnly.
+func (m *Machine) lendLiveAs(fv *FuncValue, realm *Realm, viewOnly bool) bool {
 	l := m.lends[fv]
-	return l != nil && !m.viewOnly && m.Realm != nil && m.Realm == l.realm &&
+	return l != nil && !viewOnly && realm != nil && realm == l.realm &&
 		m.curCrossing == l.crossing && l.depth < len(m.Frames) &&
 		m.Frames[l.depth].lendTok == l.tok
 }

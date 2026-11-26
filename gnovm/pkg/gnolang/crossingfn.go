@@ -25,17 +25,6 @@ func calledByValue(cx *CallExpr) bool {
 	return true
 }
 
-// restrictByValueCall makes a call that would otherwise run writable read-only
-// when its non-crossing callee is reached by value and its loan is not live.
-func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool) {
-	if withCross || fv.IsCrossing() || m.Realm == nil || !calledByValue(cx) || m.lendLive(fv) {
-		return
-	}
-	if !m.testRunnerCall() {
-		m.enterReadOnlyByS3(m.Realm)
-	}
-}
-
 // testRunnerCall reports whether the test runner itself made the call just
 // entered (TestXxx(t), an example): every call frame below it is "testing"
 // code. A value a test hands to a testing helper has the test's frame below.

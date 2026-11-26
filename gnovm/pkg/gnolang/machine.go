@@ -2758,160 +2758,87 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	}
 	m.Package = pv
 
-	// If with cross, always switch to pv.Realm.
-	// If method, this means the object cannot be modified if
-	// stored externally by this method; but other methods can.
-	if withCross {
-		// since gno 0.9 cross type-checking makes this impossible.
-		// XXX move this into if debug { ... }
-		if !fv.IsCrossing() {
-			// panic; notcrossing
-			mrpath := "<no realm>"
-			if m.Realm != nil {
-				mrpath = m.Realm.Path
+	f := callFacts{cx: cx, fv: fv, pv: pv, withCross: withCross,
+		realmPkg: IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath),
+		last:     fr.LastPackage, recvSet: recv.IsDefined(), bindPID: bindPID}
+	if !withCross && !fv.IsCrossing() && f.realmPkg {
+		assertBorrowedRealm(pv.PkgPath, pv.GetRealm())
+	} else if !withCross && !fv.IsCrossing() {
+		// A /p/ or stdlib callee: what the receiver is and how it was reached.
+		var oi *ObjectInfo
+		if recv.IsDefined() && !(recvUncopied && isStructOrArrayValue(recv.V)) {
+			if obj := recv.GetFirstObject(m.Store); obj != nil {
+				oi = obj.GetObjectInfo()
 			}
-			prpath := pv.PkgPath
-			panic(fmt.Sprintf(
-				"cannot cross-call a non-crossing function %s.%v from %s",
-				prpath,
-				fv.String(),
-				mrpath,
-			))
 		}
+		f.pOwned = oi != nil && !oi.ID.IsZero() && !oi.ID.PkgID.IsStdlibPkg() &&
+			oi.ID.PkgID.IsImmutablePkg()
+		if f.pOwned {
+			f.recvPID = oi.ID.PkgID
+		}
+		f.viaValue = recv.IsDefined()
+		if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
+			f.viaIface = sx.Path.Type == VPInterface || sx.Path.Type == VPDerefInterface
+			f.viaValue = false
+		}
+	}
+	cs := m.askCallStart(&f)
+	switch cs.kind {
+	case startNotCrossing:
+		// since gno 0.9 cross type-checking makes this impossible.
+		mrpath := "<no realm>"
+		if m.Realm != nil {
+			mrpath = m.Realm.Path
+		}
+		prpath := pv.PkgPath
+		panic(fmt.Sprintf(
+			"cannot cross-call a non-crossing function %s.%v from %s",
+			prpath,
+			fv.String(),
+			mrpath,
+		))
+	case startExternalCur:
+		// A crossing function reached by value from another realm.
+		mrpath := "<no realm>"
+		if m.Realm != nil {
+			mrpath = m.Realm.Path
+		}
+		prpath := "<no realm>"
+		if pv.Realm != nil {
+			prpath = pv.Realm.Path
+		}
+		panic(fmt.Sprintf(
+			"cannot cur-call to external realm function %s.%v from %s",
+			prpath,
+			fv.String(),
+			mrpath,
+		))
+	case startCross:
 		r := pv.GetRealm()
 		assertBorrowedRealm(pv.PkgPath, r)
 		m.setRealm(r)
 		m.setCrossing(&crossingCall{})
-		return
+	default:
+		m.applyCallStart(cs)
 	}
+}
 
-	// Non-crossing call of a crossing function like Public(cur, ...).
-	if fv.IsCrossing() {
-		// A read-only frame of realm R (a by-value call, or R's code entered without
-		// crossing) is still R's code: let the identity check in doOpCall
-		// report the stale cur instead of calling it an external realm.
-		if m.Realm != pv.Realm && !m.readOnlyOf(pv.Realm) {
-			// Illegal crossing to external realm.
-			// (the function was variable and run-time check was necessary).
-			// panic; not explicit
-			mrpath := "<no realm>"
-			if m.Realm != nil {
-				mrpath = m.Realm.Path
-			}
-			prpath := "<no realm>"
-			if pv.Realm != nil {
-				prpath = pv.Realm.Path
-			}
-			panic(fmt.Sprintf(
-				"cannot cur-call to external realm function %s.%v from %s",
-				prpath,
-				fv.String(),
-				mrpath,
-			))
-		}
-		// OK even if recv.Realm is different.
-		return
-	}
-
-	// Not cross nor crossing. A realm's stored state changes only during a
-	// crossing call into it (pr6495_cross_to_write.md):
-	//
-	//   #1. /r/- or /e/-declared function/method/closure entered from another
-	//       realm (or from read-only code) runs read-only: it constructs its
-	//       realm's objects and writes only objects allocated in the current
-	//       read-only stretch, never stored ones. Its own realm's calls are
-	//       unchanged.
-	//
-	//   #2. Otherwise (/p/-declared) → only a /p/-owned receiver borrows,
-	//       so the post-init immutability gate reports the write. A
-	//       receiver owned by another realm is a view, real or not, and the
-	//       method's writes hit the readonly gate.
-	//
-	//       A method value (x.M bound earlier, then called) writes for its
-	//       binder only while every frame down to the nearest /r/ or /e/
-	//       one runs as the binder; otherwise it runs view-only, so neither
-	//       the binder's nor a caller's stored objects can be written
-	//       through it. A /p/-owned receiver borrows as in a direct call.
-	//
-	//   A /p/- or stdlib-declared closure borrows nothing. Called while the
-	//   realm it was built under is current, it runs as that realm;
-	//   otherwise it runs view-only (it arrived as another realm's value).
-	//
-	// Stdlib-stamped receivers are EXCLUDED from borrow rule #2: stdlib is
-	// a trusted, frozen transform library that owns no mutable state, so
-	// its methods run with the CALLER's authority (m.Realm unchanged), not
-	// stdlib's. This lets a stdlib method write a caller-supplied out-param
-	// buffer (e.g. base64.Encode(dst, src) where dst is caller-owned), while
-	// still blocking writes to a third realm's data (foreign != caller). It
-	// also keeps the nil-realm write hole closed: a tx's entry realm is
-	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
-	// by the readonly gate against the caller's realm.
-	if IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath) {
-		r := pv.GetRealm()
-		assertBorrowedRealm(pv.PkgPath, r)
-		switch {
-		case m.Realm == nil && !m.viewOnly:
-			m.setRealm(r) // no realm context (genesis, tooling)
-		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code; a function value called by value writes
-			// only while lent in place to a live call (restrictByValueCall)
-			m.restrictByValueCall(cx, fv, withCross)
-		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
-			// the same realm's code inside its read-only entry
-		default:
-			// Entered without crossing: a realm's stored state changes only
-			// during a crossing call into it.
-			m.enterReadOnly(r)
-		}
-		return
-	}
-	var oi *ObjectInfo
-	if recv.IsDefined() && !(recvUncopied && isStructOrArrayValue(recv.V)) {
-		if obj := recv.GetFirstObject(m.Store); obj != nil {
-			oi = obj.GetObjectInfo()
-		}
-	}
-	pOwned := oi != nil && !oi.ID.IsZero() && !oi.ID.PkgID.IsStdlibPkg() &&
-		oi.ID.PkgID.IsImmutablePkg()
-	// Rule #2 prelude (see "A method value" above).
-	if bindPID.IsRealmPkg() && !pOwned && !m.calledBy(bindPID) {
+// applyCallStart puts the machine in the mode decideCallStart answered.
+func (m *Machine) applyCallStart(cs callStart) {
+	switch cs.kind {
+	case startWrite:
+		m.setRealm(cs.realm)
+	case startView:
 		m.setViewOnly()
+	case startReadOnly:
+		m.enterReadOnly(cs.realm)
 	}
-	// A library closure or handle made under another realm, or with no maker,
-	// reached through a value acts for no realm: it runs view-only. A value
-	// in a library's package variable named by the call counts as named.
-	if !recv.IsDefined() && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
-		cx.GetAttribute(ATTR_NAMED_CALLEE) != true && !m.lendLive(fv) {
-		m.setViewOnly()
+	if cs.borrow {
+		m.setRealm(cs.borrowTo)
 	}
-	// A /p/ method reached through an interface or a method value runs code the
-	// caller picked; it acts for the realm only if foreignLib trusts its
-	// package. A method value built while view-only (zero stamp) acts for no
-	// realm at all.
-	viaIface, viaValue := false, recv.IsDefined()
-	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
-		viaIface = sx.Path.Type == VPInterface || sx.Path.Type == VPDerefInterface
-		viaValue = false
+	if cs.byValue {
+		m.enterReadOnlyByS3(m.Realm)
 	}
-	if viaValue && bindPID.IsZero() && m.Realm != nil && fv.PkgPath != uversePkgPath {
-		m.setViewOnly()
-	}
-	if (viaIface || viaValue) && !pOwned && m.Realm != nil &&
-		fv.PkgPath != m.Realm.Path && fv.PkgPath != fr.LastPackage.PkgPath &&
-		m.foreignLib(fv, fr.LastPackage.PkgPath, viaIface) {
-		m.setViewOnly()
-	}
-	if pOwned {
-		recvOID := oi.ID
-		if m.Realm == nil || recvOID.PkgID != m.Realm.ID {
-			recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-			objpv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-			r := objpv.GetRealm()
-			assertBorrowedRealm(objpv.PkgPath, r)
-			m.setRealm(r)
-		}
-	}
-	m.restrictByValueCall(cx, fv, withCross)
 }
 
 // foreignLib reports whether fv's package is untrusted; .uverse is exempt.
