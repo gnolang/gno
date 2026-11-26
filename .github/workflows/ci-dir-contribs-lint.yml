@@ -1,0 +1,87 @@
+name: ci / contribs-lint
+
+# golangci-lint and `go fix` report on a module's own code, so a change to
+# gno.land, gnovm or tm2 cannot give them anything new to say about contribs/:
+# on pull requests this runs when contribs/ or the lint setup changes, unlike
+# the tests (ci-dir-contribs.yml), which also run on those. Every push to
+# develop runs it, so a change that does reach contribs/ from outside, such as
+# a core API it uses becoming deprecated, shows up on the merge that caused it;
+# that also keeps this job's cache current.
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    paths:
+      - contribs/**
+      - Makefile # `make fix.contribs`
+      - .github/golangci.yml
+      - .github/workflows/ci-dir-contribs-lint.yml
+      - '!**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # See "Go build cache" in _ci-go.yml. This one also holds golangci-lint's
+      # analysis cache, and the build cache of the toolchain `go fix` uses.
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: go-${{ runner.os }}-lint-contribs-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-lint-contribs-
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          install-only: true
+          version: v2.11.4 # sync with misc/devdeps and the other golangci-lint-action steps
+          skip-cache: true
+      - name: golangci-lint
+        run: |
+          failed=""
+          for mod in contribs/*/go.mod; do
+            m=${mod%/go.mod}
+            echo "::group::$m"
+            (cd "$m" && golangci-lint run --config="$GITHUB_WORKSPACE/.github/golangci.yml") || failed="$failed $m"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::golangci-lint failed in:$failed"
+            exit 1
+          fi
+      - name: Verify 'go fix' has been applied
+        if: ${{ !cancelled() }}
+        run: |
+          make fix.contribs
+          if ! git diff --exit-code -- contribs; then
+            echo "::error::'go fix' would modify files. Run 'make fix' from the repo root and commit the result."
+            exit 1
+          fi
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build ~/.cache/golangci-lint -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}

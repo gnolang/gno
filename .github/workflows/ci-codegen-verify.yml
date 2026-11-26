@@ -28,7 +28,8 @@ permissions:
 
 jobs:
   mod-tidy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,9 +37,11 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
       - run: make tidy VERIFY_MOD_SUMS=true
 
   upstreampb:
+    # Stays on a full runner: it installs protoc with apt.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,6 +50,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
       - run: sudo apt update && sudo apt install -y libprotobuf-dev protobuf-compiler
       - run: make -C misc/devdeps install
       - run: |
@@ -54,7 +58,8 @@ jobs:
           git diff --text --exit-code || (echo "upstream.pb.go is not updated, please run 'make -C tm2/pkg/bft/privval/upstream/upstreampb'." && exit 1)
 
   genproto2:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,12 +67,31 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
+      # See "Go build cache" in _ci-go.yml.
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ runner.os }}-genproto2-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-genproto2-
       - run: |
           make -C misc/genproto2
           git diff --text --exit-code || (echo "Some pb3_gen.go files are not updated, please run 'make -C misc/genproto2'." && exit 1)
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,6 +99,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
       - working-directory: docs/
         run: make generate -B
       - run: |
