@@ -234,6 +234,13 @@ func (m *Machine) lendArgs(fr *Frame, fs BlockNode, args []TypedValue) {
 	}
 }
 
+// truncateFrames pops m.Frames[k:], ending their loans first: every frame
+// pop goes through here so none can keep a loan alive.
+func (m *Machine) truncateFrames(k int) {
+	m.dropFrameLends(k)
+	m.Frames = m.Frames[:k]
+}
+
 // dropFrameLends ends the loans of frames m.Frames[from:], about to be popped
 // (return, panic, goto): m.lends holds only loans of live frames.
 func (m *Machine) dropFrameLends(from int) {

@@ -3009,8 +3009,7 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
-	m.dropFrameLends(numFrames - 1)
-	m.Frames = m.Frames[:numFrames-1]
+	m.truncateFrames(numFrames - 1)
 
 	return f
 }
@@ -3026,8 +3025,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// the last popped frame
 		fr := m.Frames[len(m.Frames)-depthFrames]
 		// pop frames
-		m.dropFrameLends(len(m.Frames) - depthFrames)
-		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
+		m.truncateFrames(len(m.Frames) - depthFrames)
 		// reset
 		m.Ops = m.Ops[:fr.NumOps]
 		m.Values = m.Values[:fr.NumValues]
@@ -3296,8 +3294,7 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
-			m.dropFrameLends(i + 1)
-			m.Frames = m.Frames[:i+1]
+			m.truncateFrames(i + 1)
 			return fr
 		}
 	}
@@ -3309,8 +3306,7 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsRevive {
-			m.dropFrameLends(i + 1)
-			m.Frames = m.Frames[:i+1]
+			m.truncateFrames(i + 1)
 			return fr
 		}
 	}
