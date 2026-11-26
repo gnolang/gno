@@ -3202,6 +3202,16 @@ main.is-dev-mode .b-toc a {
 		stroke: var(--mermaid-c);
 		stroke-width: 1.5;
 	}
+
+	/* Kanban boards: lanes on a surface, cards on the page color. */
+	.gno-mermaid__lane {
+		fill: var(--mermaid-box);
+	}
+
+	.gno-mermaid__ticket {
+		fill: var(--mermaid-ground);
+		stroke: var(--mermaid-box-stroke);
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */

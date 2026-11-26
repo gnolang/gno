@@ -1,0 +1,172 @@
+package mermaid
+
+import (
+	"strconv"
+	"strings"
+)
+
+const (
+	laneWidth  = 220.0
+	laneGap    = 12.0
+	laneHeader = 36.0
+	stripeW    = 4.0
+)
+
+const (
+	classLane   class = "gno-mermaid__lane"
+	classTicket class = "gno-mermaid__ticket"
+)
+
+// priorities maps a card priority to the series color of its stripe.
+var priorities = map[string]int{"very high": 4, "high": 2, "low": 1, "very low": 6}
+
+type kanbanCard struct {
+	label    []string
+	details  string // ticket and assignee
+	priority int    // a series color, or -1
+}
+
+type kanbanColumn struct {
+	label []string
+	cards []kanbanCard
+}
+
+type kanban struct {
+	columns []*kanbanColumn
+}
+
+func parseKanban(args string, lines []line, _ *meta) (diagram, error) {
+	if args != "" {
+		return nil, errorf(0, "unsupported kanban option %q", args)
+	}
+	d := &kanban{}
+	colIndent := -1
+	for _, l := range lines {
+		card, err := parseKanbanNode(l)
+		if err != nil {
+			return nil, err
+		}
+		if colIndent < 0 || l.indent <= colIndent {
+			if card.details != "" || card.priority >= 0 {
+				return nil, errorf(l.n, "metadata on a column")
+			}
+			colIndent = l.indent
+			d.columns = append(d.columns, &kanbanColumn{label: card.label})
+			continue
+		}
+		c := d.columns[len(d.columns)-1]
+		c.cards = append(c.cards, card)
+	}
+	if len(d.columns) == 0 {
+		return nil, errorf(0, "kanban without columns")
+	}
+	return d, nil
+}
+
+// parseKanbanNode parses `id[label]@{ key: value, … }`, where only the id is
+// required. The metadata drawn are label, ticket, assigned and priority;
+// other keys are ignored. The other node shapes, icons and classes are not
+// supported.
+func parseKanbanNode(l line) (kanbanCard, error) {
+	card := kanbanCard{priority: -1}
+	node, metadata, hasMeta := strings.Cut(l.text, "@{")
+	node = strings.TrimSpace(node)
+	if strings.HasPrefix(node, "::") || strings.Contains(node, ":::") {
+		return card, errorf(l.n, "kanban icons and classes are not supported")
+	}
+	text := node
+	if i := strings.Index(node, "["); i >= 0 {
+		if !strings.HasSuffix(node, "]") || strings.HasPrefix(node[i:], "[[") {
+			return card, errorf(l.n, "malformed label")
+		}
+		text = unquote(node[i+1 : len(node)-1])
+	} else if strings.ContainsAny(node, "(){}") {
+		return card, errorf(l.n, "kanban node shapes are not supported")
+	}
+	if hasMeta {
+		body, ok := strings.CutSuffix(strings.TrimSpace(metadata), "}")
+		if !ok {
+			return card, errorf(l.n, "unclosed metadata")
+		}
+		var ticket, assigned string
+		for _, kv := range strings.Split(body, ",") {
+			k, v, ok := strings.Cut(kv, ":")
+			if !ok {
+				return card, errorf(l.n, "malformed metadata")
+			}
+			v = plain(v)
+			switch strings.TrimSpace(k) {
+			case "label":
+				text = v
+			case "ticket":
+				ticket = v
+			case "assigned":
+				assigned = v
+			case "priority":
+				if p, ok := priorities[strings.ToLower(v)]; ok {
+					card.priority = p
+				}
+			}
+		}
+		card.details = strings.Trim(ticket+" · "+assigned, " ·")
+	}
+	if card.label = label(text); card.label == nil {
+		return card, errorf(l.n, "empty label")
+	}
+	return card, nil
+}
+
+func (d *kanban) draw(w *svgWriter) (float64, float64) {
+	inner := laneWidth - 2*laneGap - 2*cardPad
+	type box struct {
+		lines   []string
+		details []string
+		h       float64
+	}
+	lanes := make([][]box, len(d.columns))
+	titles := make([][]string, len(d.columns))
+	header := laneHeader
+	for i, col := range d.columns {
+		titles[i] = wrap(col.label, fontSize, inner-24, true)
+		header = max(header, textBlock(len(titles[i]), fontSize)+20)
+	}
+	var laneH float64
+	for i, col := range d.columns {
+		h := header
+		for _, c := range col.cards {
+			k := box{lines: wrap(c.label, fontSize, inner, false)}
+			if c.details != "" {
+				k.details = wrap([]string{c.details}, smallSize, inner, false)
+			}
+			k.h = cardHeight(k.lines, fontSize)
+			if len(k.details) > 0 {
+				k.h += textBlock(len(k.details), smallSize) + 4
+			}
+			lanes[i] = append(lanes[i], k)
+			h += k.h + laneGap
+		}
+		laneH = max(laneH, h+laneGap/2)
+	}
+	top := pad
+	for i, col := range d.columns {
+		x := pad + float64(i)*(laneWidth+laneGap)
+		w.rect(classLane, x, top, laneWidth, laneH, 6)
+		w.text(classTitle, x+laneGap, baseline(top+10, fontSize), anchorStart, 0, titles[i]...)
+		w.text(classMuted, x+laneWidth-laneGap, baseline(top+11, smallSize), anchorEnd, smallSize, strconv.Itoa(len(col.cards)))
+		y := top + header
+		for j, k := range lanes[i] {
+			cx, cw := x+laneGap, laneWidth-2*laneGap
+			w.rect(classTicket, cx, y, cw, k.h, 4)
+			if p := col.cards[j].priority; p >= 0 {
+				w.rect(classPeriod+" "+color(p), cx, y, stripeW, k.h, 2)
+			}
+			w.text("", cx+cardPad, baseline(y+cardPad, fontSize), anchorStart, 0, k.lines...)
+			if len(k.details) > 0 {
+				ty := y + cardPad + textBlock(len(k.lines), fontSize) + 4
+				w.text(classMuted, cx+cardPad, baseline(ty, smallSize), anchorStart, smallSize, k.details...)
+			}
+			y += k.h + laneGap
+		}
+	}
+	return pad + float64(len(d.columns))*(laneWidth+laneGap) - laneGap + pad, top + laneH + pad
+}
