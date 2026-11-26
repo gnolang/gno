@@ -19,8 +19,9 @@ const (
 
 // callStart is decideCallStart's answer, applied in field order.
 type callStart struct {
-	kind  startKind
-	realm *Realm // startWrite, startReadOnly
+	kind    startKind
+	realm   *Realm // startWrite, startReadOnly
+	byValue bool   // then read-only by value as the realm then current
 }
 
 // callFacts are what decideCallStart reads about one call besides the machine.
@@ -29,6 +30,7 @@ type callFacts struct {
 	fv        *FuncValue
 	pv        *PackageValue // the callee's package
 	withCross bool
+	realmPkg  bool // the callee is /r/- or /e/-declared
 }
 
 // decideCallStart answers whether a call starts writable, read-only or in the
@@ -49,5 +51,29 @@ func (m *Machine) decideCallStart(f *callFacts) callStart {
 		}
 		return callStart{kind: startKeep}
 	}
+	if f.realmPkg {
+		switch {
+		case m.Realm == nil && !m.viewOnly:
+			return callStart{kind: startWrite, realm: f.pv.GetRealm()} // no realm context (genesis, tooling)
+		case m.Realm != nil && m.Realm.Path == f.pv.PkgPath:
+			// the realm's own code; a function value called by value writes
+			// only while lent in place to a live call
+			return callStart{kind: startKeep, byValue: m.byValueReadOnly(f, m.Realm, m.viewOnly)}
+		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == f.pv.PkgPath:
+			return callStart{kind: startKeep} // the same realm's code inside its read-only entry
+		default:
+			// Entered without crossing: a realm's stored state changes only
+			// during a crossing call into it.
+			return callStart{kind: startReadOnly, realm: f.pv.GetRealm()}
+		}
+	}
 	return callStart{kind: startUnrouted}
+}
+
+// byValueReadOnly reports whether a call that would run as realm (viewOnly as
+// given) runs read-only instead: a non-crossing callee reached by value whose
+// loan is not live, unless the test runner itself made the call.
+func (m *Machine) byValueReadOnly(f *callFacts, realm *Realm, viewOnly bool) bool {
+	return !f.withCross && !f.fv.IsCrossing() && realm != nil && calledByValue(f.cx) &&
+		!m.lendLiveAs(f.fv, realm, viewOnly) && !m.testRunnerCall()
 }

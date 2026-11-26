@@ -2758,7 +2758,11 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	}
 	m.Package = pv
 
-	f := callFacts{cx: cx, fv: fv, pv: pv, withCross: withCross}
+	f := callFacts{cx: cx, fv: fv, pv: pv, withCross: withCross,
+		realmPkg: IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath)}
+	if f.realmPkg {
+		assertBorrowedRealm(pv.PkgPath, pv.GetRealm())
+	}
 	cs := m.decideCallStart(&f)
 	switch cs.kind {
 	case startNotCrossing:
@@ -2797,6 +2801,15 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			mrpath,
 		))
 	case startKeep:
+		if cs.byValue {
+			m.enterReadOnlyByS3(m.Realm)
+		}
+		return
+	case startWrite:
+		m.setRealm(cs.realm)
+		return
+	case startReadOnly:
+		m.enterReadOnly(cs.realm)
 		return
 	}
 
@@ -2833,25 +2846,6 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	// also keeps the nil-realm write hole closed: a tx's entry realm is
 	// non-nil, so a stdlib method writing a foreign /r/ object is rejected
 	// by the readonly gate against the caller's realm.
-	if IsRealmPath(pv.PkgPath) || IsEphemeralPath(pv.PkgPath) {
-		r := pv.GetRealm()
-		assertBorrowedRealm(pv.PkgPath, r)
-		switch {
-		case m.Realm == nil && !m.viewOnly:
-			m.setRealm(r) // no realm context (genesis, tooling)
-		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code; a function value called by value writes
-			// only while lent in place to a live call (restrictByValueCall)
-			m.restrictByValueCall(cx, fv, withCross)
-		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
-			// the same realm's code inside its read-only entry
-		default:
-			// Entered without crossing: a realm's stored state changes only
-			// during a crossing call into it.
-			m.enterReadOnly(r)
-		}
-		return
-	}
 	var oi *ObjectInfo
 	if recv.IsDefined() && !(recvUncopied && isStructOrArrayValue(recv.V)) {
 		if obj := recv.GetFirstObject(m.Store); obj != nil {
