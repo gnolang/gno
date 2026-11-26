@@ -193,6 +193,68 @@ func TestRefusalQuotesCurrent(t *testing.T) {
 	}
 }
 
+// refusalMasterTexts are master's texts, verbatim: realm code can recover a
+// refusal and store it, so a master=true entry must keep its text.
+var refusalMasterTexts = map[string]bool{
+	"cannot cross-call a non-crossing function %s.%v from %s":   true,
+	"cannot cur-call to external realm function %s.%v from %s":  true,
+	"cannot cur-call to external realm function %s.%v from %v":  true,
+	"cannot append to readonly tainted slice":                   true,
+	"cannot copy to readonly tainted slice":                     true,
+	"cannot delete from readonly tainted map":                   true,
+	"illegal conversion of readonly or externally stored value": true,
+	"illegal conversion to external realm type":                 true,
+	"cannot mutate %s: package is immutable post-init":          true,
+}
+
+func TestRefusalMasterTexts(t *testing.T) {
+	n := 0
+	for _, r := range refusals {
+		if r.master {
+			n++
+			if !refusalMasterTexts[r.text] {
+				t.Errorf("master=true text %q is not master's", r.text)
+			}
+		}
+	}
+	if n != len(refusalMasterTexts) {
+		t.Errorf("%d master=true entries, want %d", n, len(refusalMasterTexts))
+	}
+}
+
+// refusalLiteralJoin reports whether n joins a string literal to a refusal
+// constant, by + or as call arguments: a site adds only paths or values.
+func refusalLiteralJoin(n ast.Node, names map[string]bool) bool {
+	var ops []ast.Expr
+	switch x := n.(type) {
+	case *ast.BinaryExpr:
+		var flat func(e ast.Expr)
+		flat = func(e ast.Expr) {
+			if b, ok := ast.Unparen(e).(*ast.BinaryExpr); ok && b.Op == token.ADD {
+				flat(b.X)
+				flat(b.Y)
+				return
+			}
+			ops = append(ops, ast.Unparen(e))
+		}
+		flat(x)
+	case *ast.CallExpr:
+		for _, a := range x.Args {
+			ops = append(ops, ast.Unparen(a))
+		}
+	}
+	con, lit := false, false
+	for _, e := range ops {
+		switch e := e.(type) {
+		case *ast.Ident:
+			con = con || names[e.Name]
+		case *ast.BasicLit:
+			lit = lit || e.Kind == token.STRING
+		}
+	}
+	return con && lit
+}
+
 // refusalSites are the functions that raise a refusal of the write rule, keyed
 // file:function (a uverse builtin by its name), with how many refusal constants
 // or refuseWrite calls each names. Swapping one for a raw string drops the count.
@@ -233,6 +295,12 @@ func TestRefusalSites(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if refusalLiteralJoin(n, names) {
+				t.Errorf("%s: a string literal joined to a refusal text", fset.Position(n.Pos()))
+			}
+			return true
+		})
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
 			if !ok || fd.Body == nil {
