@@ -133,45 +133,52 @@ func (s *wmState) start(f wmFacts) wmAnswer {
 			return wmAnswer{mode: wmMode{kind: wmErrExternalCur}}
 		}
 		return wmAnswer{mode: cur}
-	// 3. Realm code writes only for its own realm; from elsewhere it is read-only.
+	// 3. Realm code: who may write here is its own realm, and only that.
 	case wmRealmCode(f.callee):
 		switch {
-		case cur.kind == wmNone:
+		case cur.kind == wmNone: // 3a. first code to run: writes as its realm
 			return wmAnswer{mode: wmWriteAs(home)}
-		case cur.writer() == home:
+		case cur.writer() == home: // 3b. called by its realm: writes, but see rule 5
 			return s.byValue(f, cur, 0)
-		case cur.readOnlyAs(home):
+		case cur.readOnlyAs(home): // 3c. except: its own read-only code stays read-only
 			return wmAnswer{mode: cur}
 		}
-		return wmAnswer{mode: wmMode{wmReadOnly, home}}
+		return wmAnswer{mode: wmMode{wmReadOnly, home}} // 3d. except: anyone else, read-only
 	}
-	// 4. Library code acts for the caller's realm unless that power was not handed to it.
-	w, asks, libOwned := cur.writer(), wmAsk(0), !f.fresh && wmLibPkg(f.owner)
+	// 4. Library code: who may write here.
+	w := cur.writer()
 	viaValue := f.recv && f.form != wmMethod && f.form != wmIface
-	view := func() { w, cur = "", wmMode{kind: wmView} }
-	// 4a. A method value bound by a realm acts only while that realm's calls lead here.
-	if wmRealmPkg(f.binder) && !libOwned {
+	unbound := viaValue && f.binder == "" && f.callee != uversePkgPath // bound while acting for none
+	// 4a. A library's own receiver object: that library, as its realm.
+	if !f.fresh && wmLibPkg(f.owner) {
+		if w == f.owner && !unbound { // the caller already writes as it: nothing to ask
+			return s.byValue(f, cur, 0)
+		}
+		return s.byValue(f, wmWriteAs(wmRealmOf(f.owner)), wmAskOwner)
+	}
+	// 4b. Otherwise the caller's realm, if it writes, with these exceptions.
+	var asks wmAsk
+	view := func() wmAnswer { return wmAnswer{mode: wmMode{kind: wmView}, asks: asks} }
+	// 4c. Except: a method value bound by a realm, while that realm's calls do
+	// not lead here, acts for none, even under a caller that writes nothing.
+	if wmRealmPkg(f.binder) {
 		if asks |= wmAskBinder; !s.ledBy(f.binder) {
-			view()
+			return view()
 		}
 	}
-	// 4b. A function value made under another realm, or none, acts for no realm.
-	if !f.recv && w != "" && f.maker != w && f.form != wmNamed && !s.lent(f.fn, w) {
-		view()
+	if w == "" {
+		return wmAnswer{mode: cur, asks: asks}
 	}
-	// 4c. A method value bound while acting for no realm acts for none.
-	if viaValue && f.binder == "" && w != "" && f.callee != uversePkgPath {
-		view()
+	// 4d. Except: a function value made under another realm, or none, and not lent to w.
+	// 4e. Except: a method value bound while acting for no realm.
+	if (!f.recv && f.form != wmNamed && f.maker != w && !s.lent(f.fn, w)) || unbound {
+		return view()
 	}
-	// 4d. Code the caller picked from an untrusted package acts for no realm.
-	if (viaValue || f.form == wmIface) && !libOwned && w != "" && f.callee != w && f.callee != f.caller {
+	// 4f. Except: code the caller picked from an untrusted package.
+	if (viaValue || f.form == wmIface) && f.callee != w && f.callee != f.caller {
 		if asks |= wmAskForeign; f.foreign {
-			view()
+			return view()
 		}
-	}
-	// 4e. A library's own object is written as that library's realm.
-	if libOwned && w != f.owner {
-		return s.byValue(f, wmWriteAs(wmRealmOf(f.owner)), asks|wmAskOwner)
 	}
 	return s.byValue(f, cur, asks)
 }
