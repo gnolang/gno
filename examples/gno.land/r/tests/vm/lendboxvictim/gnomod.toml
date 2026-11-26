@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/lendboxvictim"
+gno = "0.9"

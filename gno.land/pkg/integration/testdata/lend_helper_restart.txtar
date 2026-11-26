@@ -1,0 +1,55 @@
+# A local helper and a lent literal write, a stored value does not; the same
+# after a restart, when preprocessing reruns and its marks must be remade.
+
+loadpkg gno.land/p/demo/tests/lendholdlib
+loadpkg gno.land/r/test/lendrestart $WORK
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '(1 int)'
+gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '(2 int)'
+! gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Stored -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'read-only here'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '(3 int)'
+gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '(4 int)'
+! gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Stored -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'read-only here'
+gnokey maketx call -pkgpath gno.land/r/test/lendrestart -func Get -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '(4 int)'
+
+-- gnomod.toml --
+module = "gno.land/r/test/lendrestart"
+gno = "0.9"
+
+-- lendrestart.gno --
+package lendrestart
+
+import lib "gno.land/p/demo/tests/lendholdlib"
+
+var count int
+var saved = func() { count++ }
+
+func Helper(cur realm) int {
+	f := func() { count++ }
+	f()
+	return count
+}
+
+func Lend(cur realm) int {
+	lib.Call(func() { count++ })
+	return count
+}
+
+func Stored(cur realm) int {
+	g := saved
+	g()
+	return count
+}
+
+func Get(cur realm) int { return count }

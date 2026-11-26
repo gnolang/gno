@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/lendrun"
+gno = "0.9"

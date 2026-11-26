@@ -70,9 +70,9 @@ realm from library code (call a function of the owning realm)`.
 
 ## Known open
 - A callee not reached by name lends nothing: a local copy (`each := lib.Each; each(xs, f)`) or a function literal kept in a variable (`var Apply = func(f func()) { f() }`) runs `f` read-only (`zrealm_ctw_owncb`).
-- Another realm's function gets no loan, even a plain one (`zrealm_t55_other_plain`): give it a crossing callback.
-- A method value never writes (`zrealm_chald_lend_lib`); call the method directly.
-- `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_chale_plibeach`).
+- Another realm's function gets no loan, even a plain one (`zrealm_lend_other_plain`): give it a crossing callback.
+- A method value never writes (`zrealm_lend_lib_shapes`); call the method directly.
+- `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_lend_reg_plibeach`).
 - Swift and Rust put the same line in the function's type; the guide compares the four limits above (`gno-interrealm.md`, "The same line in Swift and Rust").
 - A library in the import tree is trusted for interface calls; type-assert caller-supplied interface values.
 - A library package variable called in place (`lib.Table[k](x)`) acts for the caller (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).

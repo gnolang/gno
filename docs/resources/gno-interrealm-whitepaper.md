@@ -686,8 +686,8 @@ it instead (`zrealm_maker_ownfunc.gno`: `declared` refused, `literal` writes). A
 for later is a crossing closure (§7.8).
 
 Rule: R2a, R2b. Tests: `zrealm_maker_getdecl.gno`, `zrealm_maker_ownfunc.gno`, `zrealm_home_gate_result.gno`,
-`zrealm_saved_cross_helper.gno`, `zrealm_saved_same_tx.gno`, `zrealm_t51_store.gno`, `zrealm_t51_each.gno`,
-`zrealm_chald_helper.gno`, `zrealm_chald_values.gno`; R2a-save: `zrealm_s3u_rv2_1.gno`.
+`zrealm_saved_cross_helper.gno`, `zrealm_saved_same_tx.gno`, `zrealm_lend_store.gno`, `zrealm_lend_each.gno`,
+`zrealm_lend_helper.gno`, `zrealm_lend_values.gno`; R2a-save: `zrealm_s3u_rv2_1.gno`.
 
 ### 7.10 Accept interfaces and plugins
 
@@ -761,7 +761,7 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 ### 7.14 Known limits
 
 - A fresh function a realm stores and then runs in the same call is read-only; run it first, or make it a
-  crossing function (`zrealm_saved_same_tx`, `zrealm_t38_wrap_ptr`).
+  crossing function (`zrealm_saved_same_tx`, `zrealm_fv_wrap_ptr`).
 - A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm; copied to a local
   first, it runs read-only (`zrealm_ctw_owncb`'s `ViaDispatch`, `zrealm_saved_libtable_copy`).
 - A library in the realm's import tree is trusted for interface and method-value calls (R2c).

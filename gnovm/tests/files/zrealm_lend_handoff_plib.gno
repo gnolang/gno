@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/tests/vm/lendhandoffplib
 package lendhandoffplib
 
-import lib "gno.land/p/demo/tests/chaldlib"
+import lib "gno.land/p/demo/tests/lendholdlib"
 
 var count int
 
