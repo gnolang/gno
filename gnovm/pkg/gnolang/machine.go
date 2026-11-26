@@ -2780,33 +2780,23 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		m.setRealm(r)
 		m.setCrossing(&crossingCall{})
 		return
-	}
-
-	// Non-crossing call of a crossing function like Public(cur, ...).
-	if fv.IsCrossing() {
-		// A read-only frame of realm R (a by-value call, or R's code entered without
-		// crossing) is still R's code: let the identity check in doOpCall
-		// report the stale cur instead of calling it an external realm.
-		if m.Realm != pv.Realm && !m.readOnlyOf(pv.Realm) {
-			// Illegal crossing to external realm.
-			// (the function was variable and run-time check was necessary).
-			// panic; not explicit
-			mrpath := "<no realm>"
-			if m.Realm != nil {
-				mrpath = m.Realm.Path
-			}
-			prpath := "<no realm>"
-			if pv.Realm != nil {
-				prpath = pv.Realm.Path
-			}
-			panic(fmt.Sprintf(
-				"cannot cur-call to external realm function %s.%v from %s",
-				prpath,
-				fv.String(),
-				mrpath,
-			))
+	case startExternalCur:
+		// A crossing function reached by value from another realm.
+		mrpath := "<no realm>"
+		if m.Realm != nil {
+			mrpath = m.Realm.Path
 		}
-		// OK even if recv.Realm is different.
+		prpath := "<no realm>"
+		if pv.Realm != nil {
+			prpath = pv.Realm.Path
+		}
+		panic(fmt.Sprintf(
+			"cannot cur-call to external realm function %s.%v from %s",
+			prpath,
+			fv.String(),
+			mrpath,
+		))
+	case startKeep:
 		return
 	}
 

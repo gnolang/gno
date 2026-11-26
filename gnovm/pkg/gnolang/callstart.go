@@ -41,5 +41,13 @@ func (m *Machine) decideCallStart(f *callFacts) callStart {
 		}
 		return callStart{kind: startCross}
 	}
+	if f.fv.IsCrossing() {
+		// A read-only frame of the callee's realm is still that realm's code:
+		// doOpCall's identity check reports a stale cur.
+		if m.Realm != f.pv.Realm && !m.readOnlyOf(f.pv.Realm) {
+			return callStart{kind: startExternalCur}
+		}
+		return callStart{kind: startKeep}
+	}
 	return callStart{kind: startUnrouted}
 }
