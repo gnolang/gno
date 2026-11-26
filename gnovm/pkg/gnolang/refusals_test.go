@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -81,5 +82,41 @@ func TestRefusalTextsNameFix(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// refusalDocRow is the docs table row for text: run-time parts shown as "…",
+// then the bracketed fix as "what to do".
+func refusalDocRow(text string) string {
+	hole := strings.NewReplacer("%s.%v", "…", "%s", "…", "%v", "…")
+	form := hole.Replace(text)
+	if strings.HasPrefix(form, "'s ") {
+		form = "…" + form
+	}
+	if strings.HasSuffix(form, ": ") {
+		form += "…"
+	}
+	fix := refusalFixRe.FindAllString(form, -1)
+	last := fix[len(fix)-1]
+	return "| `" + form + "` | " + last[1:len(last)-1] + " |"
+}
+
+func TestRefusalTextsInDocs(t *testing.T) {
+	doc, err := os.ReadFile("../../../docs/resources/gno-interrealm.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want strings.Builder
+	missing := false
+	for _, text := range refusalTexts {
+		row := refusalDocRow(text)
+		want.WriteString(row + "\n")
+		if !strings.Contains(string(doc), "\n"+row+"\n") {
+			missing = true
+			t.Errorf("gno-interrealm.md lacks the row: %s", row)
+		}
+	}
+	if missing {
+		t.Logf("the table, generated from refusalTexts:\n| Refusal | What to do |\n|---|---|\n%s", want.String())
 	}
 }

@@ -6,9 +6,31 @@
 > [`gnovm/adr/pr6495_cross_to_write.md`](../../gnovm/adr/pr6495_cross_to_write.md).
 > This page teaches the rules; the mechanism follows them.
 
-A realm's stored state changes only during a crossing call into it. The rules
-below say who may write when code changes hands. Each section is a
-snippet, one sentence, and the exact error a test pins.
+A plain function writes its realm's stored state only when called by name by
+code that may already write, or as a callback lent for that one call. The rest
+follows from that sentence and its base: a realm's stored state changes only
+during a crossing call into it. The rules below say who may write when code
+changes hands. Each section is a snippet, one sentence, and the exact error a
+test pins.
+
+Every refusal says in brackets what to do instead (`…` is filled in at run
+time; `refusals_test.go` checks this table against the code):
+
+| Refusal | What to do |
+|---|---|
+| `cannot modify object owned by another realm from library code (call a function of the owning realm): …` | call a function of the owning realm |
+| `…'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): …` | otherwise give it a cur realm parameter and call it with cross |
+| `…'s code was entered without crossing and is read-only (call its crossing function): …` | call its crossing function |
+| `cannot directly modify readonly tainted object (call a crossing function of the owning realm): …` | call a crossing function of the owning realm |
+| `…: an object written by read-only code would be stored (write it inside a crossing call of …)` | write it inside a crossing call of … |
+| `cannot cross-call a non-crossing function … from … (call it without cross)` | call it without cross |
+| `cannot cur-call to external realm function … from … (call it with cross(cur))` | call it with cross(cur) |
+| `cannot append to readonly tainted slice (call a crossing function of the owning realm)` | call a crossing function of the owning realm |
+| `cannot copy to readonly tainted slice (call a crossing function of the owning realm)` | call a crossing function of the owning realm |
+| `cannot delete from readonly tainted map (call a crossing function of the owning realm)` | call a crossing function of the owning realm |
+| `illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)` | convert it inside a crossing function of the realm that stores it |
+| `illegal conversion to external realm type (call a function of the realm that declares the type to make it)` | call a function of the realm that declares the type to make it |
+| `cannot mutate …: package is immutable post-init (keep state that changes in a realm)` | keep state that changes in a realm |
 
 ## R1 Cross to write: code called by name
 
@@ -222,7 +244,7 @@ a function value (R2a) and never writes, whatever its package.
 
 ```
 // Error:
-// cannot copy to readonly tainted slice
+// cannot copy to readonly tainted slice (call a crossing function of the owning realm)
 ```
 
 ## R3 Types stay home: only pointers cross

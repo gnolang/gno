@@ -835,7 +835,7 @@ for every row is printed under the table.
 | Rule | Enforcing code | Fixture family | Files |
 |---|---|---|---|
 | R1 Cross to write | `gnovm/pkg/gnolang/machine.go:readonlyAccessPanic`, `isReadonly` | `zrealm_ctw_*` (14) + `zrealm_crossrealm*` (56) | 70 |
-| R2a A plain function value writes in three places only | `gnovm/pkg/gnolang/crossingfn.go:calledByValue`, `restrictByValueCall`; `birthrule.go:markLocalHelpers` (local helpers); `lend.go:markNonEscParams`, `lendPlace`, `lendArgs`, `lendLive` (the loan) | `zrealm_lend_*` (125) + `zrealm_saved_*` (16) | 141 |
+| R2a A plain function value writes in three places only | `gnovm/pkg/gnolang/crossingfn.go:calledByValue`, `callstart.go:byValueReadOnly`; `birthrule.go:markLocalHelpers` (local helpers); `lend.go:markNonEscParams`, `lendPlace`, `lendArgs`, `lendLive` (the loan) | `zrealm_lend_*` (125) + `zrealm_saved_*` (16) | 141 |
 | R2b A function value from another realm runs read-only | `lend.go:lendLive` (a loan holds only in its own realm, uncrossed) and R1's read-only entry | `zrealm_maker_*` (15) + `zrealm_saved_*` (16) | 31 |
 | R2c Only imported library code writes | `gnovm/pkg/gnolang/machine.go:foreignLib`, `trustRoot` | `zrealm_entry_iface*` (27, includes `zrealm_entry_iface.gno`) + `zrealm_import_*` (6) | 33 |
 | R2a-save The refusal at save | `gnovm/pkg/gnolang/machine.go:unstoredWrite`, `markViewWrite`; `gnovm/pkg/gnolang/realm.go:assertNoUncrossedWrite` | `zrealm_s3u_*` | 38 |
