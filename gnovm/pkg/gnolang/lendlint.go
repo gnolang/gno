@@ -55,6 +55,13 @@ func LentCallbackWarnings(store Store, pn *PackageNode) (ws []LendWarning) {
 type llBody struct {
 	writes  Name // first package variable written, directly or by a callee
 	callees []BlockNode
+	recv    bool        // a method that writes through its pointer receiver
+	onVars  []llRecvUse // receiver-writing methods called on a package variable
+}
+
+type llRecvUse struct {
+	method *FuncDecl
+	root   Name
 }
 
 type lendLint struct {
@@ -189,12 +196,17 @@ func (c *lendLint) summarize(fn *FileNode, d Decl) {
 				break
 			}
 			if fd, path := c.calleeDecl(last, n); fd != nil && path == c.pn.PkgPath && !fd.isCrossing() {
+				root := c.recvRoot(last, n.Func)
 				for _, b := range encl {
 					c.body(b).callees = append(c.body(b).callees, fd)
+					if root != "" {
+						c.body(b).onVars = append(c.body(b).onVars, llRecvUse{fd, root})
+					}
 				}
 			}
 		}
 		for _, t := range targets {
+			c.markRecvWrite(stack, last, t)
 			if name := c.pkgVarRoot(last, t); name != "" {
 				for _, b := range encl {
 					if bd := c.body(b); bd.writes == "" {
@@ -226,6 +238,53 @@ func (c *lendLint) fixpoint() {
 					break
 				}
 			}
+			for _, u := range bd.onVars {
+				if bd.writes == "" && c.body(u.method).recv {
+					bd.writes, changed = u.root, true
+				}
+			}
+		}
+	}
+}
+
+// recvRoot returns the package variable x.M's receiver is rooted at, for a
+// method value or call (not a method expression).
+func (c *lendLint) recvRoot(last BlockNode, x Expr) Name {
+	sx, ok := x.(*SelectorExpr)
+	if !ok || !sx.Path.IsMethod() || methodExprType(sx) != nil {
+		return ""
+	}
+	return c.pkgVarRoot(last, sx.X)
+}
+
+// markRecvWrite marks the enclosing method when target t is rooted at its
+// pointer receiver.
+func (c *lendLint) markRecvWrite(stack []BlockNode, last BlockNode, t Expr) {
+	var md *FuncDecl
+	for i := len(stack) - 1; i >= 0 && md == nil; i-- {
+		md, _ = stack[i].(*FuncDecl)
+	}
+	if md == nil || !md.IsMethod {
+		return
+	}
+	if _, ptr := md.Recv.Type.(*StarExpr); !ptr {
+		return
+	}
+	for {
+		switch e := t.(type) {
+		case *SelectorExpr:
+			t = e.X
+		case *IndexExpr:
+			t = e.X
+		case *StarExpr:
+			t = e.X
+		case *NameExpr:
+			if k, ok := localKey(last, e); ok && k.bn == md && k.name == md.Recv.Name {
+				c.body(md).recv = true
+			}
+			return
+		default:
+			return
 		}
 	}
 }
@@ -252,6 +311,8 @@ func (c *lendLint) pkgVarRoot(last BlockNode, x Expr) Name {
 		case *IndexExpr:
 			x = e.X
 		case *StarExpr:
+			x = e.X
+		case *RefExpr: // &v, as preprocess writes a pointer-method receiver
 			x = e.X
 		default:
 			return ""
@@ -474,13 +535,17 @@ func (c *lendLint) place(fn *FileNode, d Decl) {
 		case *FuncHandleExpr:
 			// A declared function or method expression used as a value.
 			fd, path := c.declOf(last, n)
-			if fd == nil || path != c.pn.PkgPath || fd.isCrossing() || c.body(fd).writes == "" {
+			if fd == nil || path != c.pn.PkgPath || fd.isCrossing() {
 				break
 			}
-			if c.aliasDef(ns, last, ftype, index) {
+			w := c.body(fd).writes
+			if w == "" && c.body(fd).recv {
+				w = c.recvRoot(last, n)
+			}
+			if w == "" || c.aliasDef(ns, last, ftype, index) {
 				break
 			}
-			c.warn(fn, n, string(fd.Name), c.body(fd).writes, llValue)
+			c.warn(fn, n, string(fd.Name), w, llValue)
 		case *SelectorExpr:
 			// A method value or method expression of this realm's type (not called here).
 			if len(ns) == 0 || !n.Path.IsMethod() || n.Path.Type == VPInterface || n.Path.Type == VPDerefInterface {
@@ -493,13 +558,17 @@ func (c *lendLint) place(fn *FileNode, d Decl) {
 				break
 			}
 			fd, path := c.declOf(last, n)
-			if fd == nil || path != c.pn.PkgPath || fd.isCrossing() || c.body(fd).writes == "" {
+			if fd == nil || path != c.pn.PkgPath || fd.isCrossing() {
 				break
 			}
-			if c.aliasDef(ns, last, ftype, index) {
+			w := c.body(fd).writes
+			if w == "" && c.body(fd).recv {
+				w = c.recvRoot(last, n)
+			}
+			if w == "" || c.aliasDef(ns, last, ftype, index) {
 				break
 			}
-			c.warn(fn, n, string(fd.Name), c.body(fd).writes, llValue)
+			c.warn(fn, n, string(fd.Name), w, llValue)
 		}
 		return n, TRANS_CONTINUE
 	})
