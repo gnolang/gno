@@ -42,8 +42,9 @@ refuses to save a new object it wrote.
 
 ### R2a A plain function value writes in three places only
 
-A function value without a `cur realm` parameter (a plain one) writes the
-realm's saved state only in these three shapes.
+A plain function writes its realm's stored state only when called by name by
+code that may already write, or as a callback lent for that one call. A plain
+function is one without a `cur realm` parameter. In code, that is three shapes.
 
 1. The realm's own code called by name, or a local helper: a closure kept in a
    local variable and called in the same function.
@@ -59,14 +60,34 @@ func Bump(cur realm) {
    lent only to the realm's own functions or to a `/p/` library function called
    by its name, never to another realm's function. Called by its name means a
    direct call of a `/p/` function or method, including a method called on an
-   interface value that holds a `/p/` type from the realm's import tree; a local
-   copy of the function or a method value is not.
+   interface value that holds a `/p/` type the realm trusts (R2c).
 
 ```go
 func Sum(cur realm) {
 	lib.Each([]int{1, 2, 3}, func(x int) { count += x }) // writes: count 6
 }
 ```
+
+   A local set once to a declared function and only ever called is that
+   function by name, so it lends too:
+
+```go
+func Sum2(cur realm) {
+	each := lib.Each
+	each([]int{1, 2, 3}, func(x int) { count += x }) // writes: count 6
+}
+```
+
+   The loan follows the callback down a chain: a function that only calls the
+   callback, or passes it on by name to another such function, keeps the loan,
+   in the realm's own code and in a library alike, recursion included. Passing
+   it on as a converted named func type, inside a lent literal, or to the
+   realm's own interface method keeps it too. The loan ends where a function
+   on the chain stores the callback, returns it, defers a call with it, or
+   hands it to something that keeps it; a copy kept that way is a plain stored
+   function. A callee reached as a value (a reassigned local, a package
+   variable) runs read-only, and so does a new crossing call into the same
+   realm.
 
 3. A literal called in the expression that writes it.
 
@@ -109,9 +130,10 @@ with the realm's code and their own choice of `it`, and a plain function has no
 
 Known limits of the loan in shape 2:
 
-- A callee not reached by its name lends nothing: a local copy
-  (`each := lib.Each; each(xs, f)`) or a function literal kept in a variable
-  (`var Apply = func(f func()) { f() }`) runs `f` read-only.
+- A callee not reached by its name lends nothing: a local that is reassigned,
+  a package variable, a method expression copied to a local, or a function
+  literal kept in a variable (`var Apply = func(f func()) { f() }`) runs `f`
+  read-only.
 - Another realm's function gets no loan, even a plain one; give it a crossing
   callback.
 - A method value never writes; call the method directly.
@@ -126,8 +148,7 @@ Swift and Rust draw the same line: a function handed over for one call may
 touch the caller's state, and one that is kept may not. Both put the mark in
 the function's type, so the compiler checks it. A Gno function type carries no
 such mark, so the VM works it out for each function called by name. That is
-why the local copy, the method value and the library's own variable are
-refused in Gno.
+why the method value and the library's own variable are refused in Gno.
 
 Swift: a closure argument cannot be kept (the docs call it non-escaping)
 unless the callee declares `@escaping`.
@@ -148,13 +169,12 @@ Rust: a closure that borrows a variable cannot outlive the borrow.
 
 | Gno limit | Swift | Rust |
 |---|---|---|
-| local copy of a library function | allowed | allowed |
 | method value | refused for a `mutating` method | allowed, the object passed by hand |
 | a library's own variable, `lib.Default.Each(...)` | allowed | allowed |
 | another realm's function | closest match: another actor, which must hop back with `await` | closest match: another thread; the closure must own what it touches |
 
 The last row is an ownership border in all three languages, and `cross` plays
-the part of Swift's `await` hop. The first three are the safe side of a line
+the part of Swift's `await` hop. The first two are the safe side of a line
 the VM draws without help from the type.
 
 ### R2b Another realm runs your plain function read-only
@@ -189,14 +209,16 @@ closure capture.
 var buf = make([]byte, 4)
 
 func Run(cur realm, r io.Reader) {
-	r.Read(buf) // view-only unless r's package is in app's import tree
+	r.Read(buf) // view-only unless app imports r's package directly
 }
 ```
 
-A method called directly or through an interface is trusted only if its
-package is in the calling realm's import tree (its imports and theirs, the
-standard library included, test files excluded); otherwise it runs view-only.
-A method value is a function value (R2a) and never writes, whatever its package.
+A method called through an interface is trusted only if its package is
+imported directly by the realm, or by the package whose code makes the call;
+otherwise it runs view-only. A standard-library package is trusted anywhere in
+the realm's import tree. A method promoted from an embedded type counts as the
+embedded type's package. Test files do not widen the trust. A method value is
+a function value (R2a) and never writes, whatever its package.
 
 ```
 // Error:
@@ -244,7 +266,9 @@ func Run(cur realm) {
 
 `cur` lives only in the call that received it: it cannot be stored, replaced,
 have its address taken, or be faked, and a banker or a sub-ticket (`cur.Sub`)
-comes only from the live `cur`.
+comes only from the live `cur`. A function literal may not return a realm
+value: one whose result type holds `realm` is refused when the package is
+deployed (`a function literal's result cannot hold a realm value`).
 
 ```
 // Error:
@@ -618,9 +642,10 @@ A function declared in p packages (or in stdlib) when called:
    realm's own function or a library function called by name while that call
    runs, or as a literal called where it is written; anything else runs
    read-only.
- * runs view-only when reached through an interface whose package the current
-   realm does not import, directly or through its imports, the standard library
-   included; a method value never writes, whatever its package.
+ * runs view-only when reached through an interface whose package neither the
+   current realm nor the calling package imports directly (a standard-library
+   package anywhere in the realm's import tree counts); a method value never
+   writes, whatever its package.
 
 A function declared in a realm package (`/r/X`) when called:
 
@@ -829,10 +854,14 @@ must not survive past the transaction:
     the operation at the point of attachment or at transaction finalize
     with: `cannot persist realm value: realm values are ephemeral and
     tied to a call frame`.
-  - A `realm`-typed *parameter* or *return type* in a function signature is
-    a static type reference and is allowed — this rule applies to the
-    *value*, not the *type*. A function `func F(r realm) realm { ... }`
+  - A `realm`-typed *parameter* or *return type* in a declared function's
+    signature is a static type reference and is allowed — this rule applies
+    to the *value*, not the *type*. A function `func F(r realm) realm { ... }`
     is persistable; assigning its result into a persistent slot is not.
+  - A function literal whose result type holds a realm value (`realm`, a type
+    built on it, or a slice, map, struct or pointer holding one) is refused
+    when the package is deployed: `a function literal's result cannot hold a
+    realm value`.
 
 Code that needs to remember a caller realm across transactions should
 store its `Address()` or `PkgPath()` (plain strings) — not the realm value
@@ -986,8 +1015,8 @@ closure (`func(cur realm) {...}`) called with `cross`. A `/p/` or stdlib
 closure called through a value by another realm's code runs view-only. A
 method value of a `/p/` or stdlib method writes no stored object, receiver or
 argument, also when its package is in the calling realm's import tree; a
-method called directly or through an interface from that tree acts for the
-caller (R2c). A `/p/`-owned receiver runs as the caller, and the package's post-init
+method called through an interface acts for the caller only when R2c trusts
+its package. A `/p/`-owned receiver runs as the caller, and the package's post-init
 immutability check reports a write to its own state.
 
 Fresh-object corner: an object a realm function builds and returns carries
