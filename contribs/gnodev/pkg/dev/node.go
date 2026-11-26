@@ -139,7 +139,11 @@ type Node struct {
 	*node.Node
 	muNode sync.RWMutex
 
-	config       *NodeConfig
+	config *NodeConfig
+	// p2pListenAddr is the P2P address as configured, before Start writes
+	// the port it bound into config.TMConfig.
+	p2pListenAddr string
+
 	emitter      emitter.Emitter
 	client       client.Client
 	logger       *slog.Logger
@@ -170,6 +174,7 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 
 	devnode := &Node{
 		config:            cfg,
+		p2pListenAddr:     cfg.TMConfig.P2P.ListenAddress,
 		emitter:           cfg.Emitter,
 		logger:            cfg.Logger,
 		startTime:         startTime,
@@ -583,7 +588,9 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 		return fmt.Errorf("unable to stop the node: %w", err)
 	}
 
-	// Setup node config
+	// Setup node config. Ask for the configured P2P address again, not the
+	// port the previous node bound, which another process may hold by now.
+	n.config.TMConfig.P2P.ListenAddress = n.p2pListenAddr
 	nodeConfig := newNodeConfig(n.config, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).

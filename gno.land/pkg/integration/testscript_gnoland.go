@@ -960,7 +960,8 @@ func loadUserEnv(ts *testscript.TestScript, remote string) error {
 
 	batch := cli.NewBatch()
 	for _, account := range accounts {
-		accountPath := filepath.Join(path, account.GetAddress().String())
+		// An ABCI query path, not a file path: filepath.Join would separate it with `\` on Windows.
+		accountPath := path + "/" + account.GetAddress().String()
 		if err := batch.ABCIQuery(accountPath, []byte{}); err != nil {
 			return fmt.Errorf("unable to create query request: %w", err)
 		}
