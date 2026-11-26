@@ -104,6 +104,16 @@ func StoredDelete(cur realm) { saved = func() { delete(mm, 1) } }
 
 func InPlaceDelete(cur realm) { run(func() { delete(mm, 1) }) }
 
+var runner = run
+
+type Box struct{ fn func(func()) }
+
+var box = Box{fn: run}
+
+func ViaVar(cur realm) { runner(func() { count++ }) }
+
+func ViaField(cur realm) { box.fn(func() { count++ }) }
+
 -- gnomod.toml --
 module = "gno.land/r/demo/lentcb"
 gno = "0.9"
@@ -122,3 +132,5 @@ gno.land/r/demo/lentcb/lentcb.gno:43: this function writes count but it is kept 
 gno.land/r/demo/lentcb/lentcb.gno:88: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
 gno.land/r/demo/lentcb/lentcb.gno:90: this function writes count but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
 gno.land/r/demo/lentcb/lentcb.gno:94: this function writes mm but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:104: this function writes count but the function it is passed to is not called by name, so it runs read-only (call a declared function by name, or make it func(cur realm)) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:106: this function writes count but the function it is passed to is not called by name, so it runs read-only (call a declared function by name, or make it func(cur realm)) (code=gnoLintWarning)

@@ -594,6 +594,9 @@ func (c *lendLint) litPlace(ns []Node, last BlockNode, ftype TransField, index i
 	}
 	fd, cpath := c.calleeDecl(last, cx)
 	if fd == nil {
+		if calledByValue(cx) && c.pkgVarRoot(last, cx.Func) != "" {
+			return llNotNamed // reached through a package variable: runs read-only
+		}
 		return "" // not resolved here: decided at run time
 	}
 	if cpath != c.pn.PkgPath && IsRealmPath(cpath) {
