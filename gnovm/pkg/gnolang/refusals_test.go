@@ -18,7 +18,7 @@ var refusalRuleFiles = []string{
 
 var (
 	// a bracketed "do this instead": at least two words, not a format verb
-	refusalFixRe = regexp.MustCompile(`\([a-z][^()%]*\s[^()]*\)`)
+	refusalFixRe = regexp.MustCompile(`\([a-z](?:[^()%]|\([^()]*\))*\s(?:[^()]|\([^()]*\))*\)`)
 	// words only a refusal of the write rule uses
 	refusalWordRe = regexp.MustCompile(`(?i)read-?only|tainted|cross-call|cur-call|immutable post-init|external realm|another realm`)
 )

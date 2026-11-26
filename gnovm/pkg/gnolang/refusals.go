@@ -15,19 +15,19 @@ const (
 	// At save: an object a read-only stretch wrote would be stored.
 	refuseStoreUncrossed = "%s: an object written by read-only code would be stored (write it inside a crossing call of %s)"
 	// A plain function is called with cross.
-	refuseNotCrossing = "cannot cross-call a non-crossing function %s.%v from %s"
+	refuseNotCrossing = "cannot cross-call a non-crossing function %s.%v from %s (call it without cross)"
 	// Another realm's crossing function, reached by value, is called with cur.
-	refuseExternalCur = "cannot cur-call to external realm function %s.%v from %s"
+	refuseExternalCur = "cannot cur-call to external realm function %s.%v from %s (call it with cross(cur))"
 	// append, copy or delete writes into a read-only slice or map.
-	refuseAppend = "cannot append to readonly tainted slice"
-	refuseCopy   = "cannot copy to readonly tainted slice"
-	refuseDelete = "cannot delete from readonly tainted map"
+	refuseAppend = "cannot append to readonly tainted slice (call a crossing function of the owning realm)"
+	refuseCopy   = "cannot copy to readonly tainted slice (call a crossing function of the owning realm)"
+	refuseDelete = "cannot delete from readonly tainted map (call a crossing function of the owning realm)"
 	// Another realm's stored value is converted to another mutable type.
-	refuseConvStored = "illegal conversion of readonly or externally stored value"
+	refuseConvStored = "illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)"
 	// A value is converted to a type another realm declares.
-	refuseConvForeign = "illegal conversion to external realm type"
+	refuseConvForeign = "illegal conversion to external realm type (call a function of the realm that declares the type to make it)"
 	// A /p/ package's own state is written after its init.
-	refuseImmutablePkg = "cannot mutate %s: package is immutable post-init"
+	refuseImmutablePkg = "cannot mutate %s: package is immutable post-init (keep state that changes in a realm)"
 )
 
 // refusalTexts lists every constant above, for the tests and the docs table.
