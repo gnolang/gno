@@ -2758,26 +2758,23 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	}
 	m.Package = pv
 
-	// If with cross, always switch to pv.Realm.
-	// If method, this means the object cannot be modified if
-	// stored externally by this method; but other methods can.
-	if withCross {
+	f := callFacts{cx: cx, fv: fv, pv: pv, withCross: withCross}
+	cs := m.decideCallStart(&f)
+	switch cs.kind {
+	case startNotCrossing:
 		// since gno 0.9 cross type-checking makes this impossible.
-		// XXX move this into if debug { ... }
-		if !fv.IsCrossing() {
-			// panic; notcrossing
-			mrpath := "<no realm>"
-			if m.Realm != nil {
-				mrpath = m.Realm.Path
-			}
-			prpath := pv.PkgPath
-			panic(fmt.Sprintf(
-				"cannot cross-call a non-crossing function %s.%v from %s",
-				prpath,
-				fv.String(),
-				mrpath,
-			))
+		mrpath := "<no realm>"
+		if m.Realm != nil {
+			mrpath = m.Realm.Path
 		}
+		prpath := pv.PkgPath
+		panic(fmt.Sprintf(
+			"cannot cross-call a non-crossing function %s.%v from %s",
+			prpath,
+			fv.String(),
+			mrpath,
+		))
+	case startCross:
 		r := pv.GetRealm()
 		assertBorrowedRealm(pv.PkgPath, r)
 		m.setRealm(r)
