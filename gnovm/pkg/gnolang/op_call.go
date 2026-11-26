@@ -313,7 +313,7 @@ func (m *Machine) doOpEnterCrossing() {
 		}
 		// Neither fri.WithCross nor fri.DidCrossing, yet
 		// Realm already switched implicitly.
-		// R2a's read-only entry is the one legitimate implicit switch: it
+		// A by-value call's read-only entry is the one legitimate implicit switch: it
 		// clears m.Realm but keeps this frame in its realm's code.
 		if fri.LastRealm != m.Realm && !m.readOnlyOf(fri.LastRealm) {
 			panic("crossing could not find corresponding cross(fn)(...) call")
@@ -682,17 +682,12 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 // realm (cross, or a realm switch), not at a read-only stretch; a switch into an
 // immutable package (/p/, stdlib, main) has none at StageRun, which refuses its writes.
 func (m *Machine) isPanicBoundary(cfr *Frame) bool {
-	if cfr.WithCross {
-		return true
-	}
-	crlm := m.Realm
-	if crlm == nil {
+	if !m.isRealmBoundary(cfr) {
 		return false
 	}
-	if crlm != cfr.LastRealm {
-		return !(crlm.ID.IsImmutablePkg() && m.Stage == StageRun)
-	}
-	return m.NumFrames() == 1 && m.Stage != StageAdd
+	// isRealmBoundary holds without cross only when m.Realm != nil.
+	return cfr.WithCross || m.Realm == cfr.LastRealm ||
+		!(m.Realm.ID.IsImmutablePkg() && m.Stage == StageRun)
 }
 
 // Finalize realm updates if realm boundary.

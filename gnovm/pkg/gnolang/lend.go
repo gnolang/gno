@@ -65,11 +65,11 @@ func markNonEscParams(fn *FileNode) {
 					bad[pi] = true
 					break
 				}
-				for i := len(stack) - 1; i >= 0 && stack[i] != bn; i-- {
-					if fl, ok := stack[i].(*FuncLitExpr); ok && !inPlace[fl] {
+				eachLitSince(stack, bn, func(fl *FuncLitExpr) {
+					if !inPlace[fl] {
 						bad[pi] = true
 					}
-				}
+				})
 			}
 			return n, TRANS_CONTINUE
 		})
@@ -234,6 +234,13 @@ func (m *Machine) lendArgs(fr *Frame, fs BlockNode, args []TypedValue) {
 	}
 }
 
+// truncateFrames pops m.Frames[k:], ending their loans first: every frame
+// pop goes through here so none can keep a loan alive.
+func (m *Machine) truncateFrames(k int) {
+	m.dropFrameLends(k)
+	m.Frames = m.Frames[:k]
+}
+
 // dropFrameLends ends the loans of frames m.Frames[from:], about to be popped
 // (return, panic, goto): m.lends holds only loans of live frames.
 func (m *Machine) dropFrameLends(from int) {
@@ -255,6 +262,9 @@ func (m *Machine) dropFrameLends(from int) {
 
 // dropCapturedLends ends the loan of every lent value fv captured.
 func (m *Machine) dropCapturedLends(fv *FuncValue) {
+	if len(m.lends) == 0 {
+		return
+	}
 	for i := range fv.Captures {
 		hiv, ok := fv.Captures[i].V.(*HeapItemValue)
 		if !ok {

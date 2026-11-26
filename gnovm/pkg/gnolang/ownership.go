@@ -198,7 +198,7 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-	// s3Written: written in an R2a read-only stretch (R2a-save); finalize refuses to
+	// s3Written: written in a by-value read-only stretch; finalize refuses to
 	// store it.
 	s3Written bool
 

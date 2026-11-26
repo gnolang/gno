@@ -496,7 +496,7 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 // transactions
 
 // OpReturn calls this when exiting a realm transaction. s3Written: some object
-// was written in an R2a read-only stretch this transaction; none may be stored.
+// was written in a by-value read-only stretch this transaction; none may be stored.
 func (rlm *Realm) FinalizeRealmTransaction(store Store, s3Written bool) {
 	if bm.Enabled {
 		old := bm.StartStore(bm.RealmFinalizeTx)
@@ -577,7 +577,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store, s3Written bool) {
 }
 
 // assertNoUncrossedWrite panics if rlm is about to store an object that
-// read-only code wrote: R2a-save allows the write, not persisting it.
+// read-only code wrote: a by-value stretch may write it, not persist it.
 func (rlm *Realm) assertNoUncrossedWrite(s3Written bool) {
 	if !s3Written {
 		return

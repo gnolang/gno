@@ -1,8 +1,7 @@
 package gnolang
 
-// Rule R2a (pr6495_cross_to_write.md): a non-crossing function value called BY
-// VALUE runs read-only, unless it is a literal lent in place to a live call.
-// The crossing-call marker lives in memory only: never stored, encoded or hashed.
+// A non-crossing function value called BY VALUE runs read-only, unless it is a
+// literal lent in place to a live call (lend.go; pr6495_cross_to_write.md).
 
 // calledByValue reports whether cx reaches its callee as a value rather than by
 // its declared name. ATTR_NAMED_CALLEE is the static answer: a realm's own
@@ -26,8 +25,8 @@ func calledByValue(cx *CallExpr) bool {
 	return true
 }
 
-// restrictByValueCall applies R2a to a call that would otherwise run writable:
-// a non-crossing callee reached by value runs read-only unless its loan is live.
+// restrictByValueCall makes a call that would otherwise run writable read-only
+// when its non-crossing callee is reached by value and its loan is not live.
 func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool) {
 	if withCross || fv.IsCrossing() || m.Realm == nil || !calledByValue(cx) || m.lendLive(fv) {
 		return
@@ -42,11 +41,11 @@ func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross boo
 // code. A value a test hands to a testing helper has the test's frame below.
 func (m *Machine) testRunnerCall() bool {
 	n := len(m.Frames) - 1
-	if n < 1 || m.Frames[n].LastPackage == nil || m.Frames[n].LastPackage.PkgPath != "testing" {
+	if n < 1 || m.Frames[n].LastPackage == nil || m.Frames[n].LastPackage.PkgPath != TestingBasePkgPath {
 		return false
 	}
 	for i := 0; i < n; i++ {
-		if fv := m.Frames[i].Func; fv != nil && fv.PkgPath != "testing" {
+		if fv := m.Frames[i].Func; fv != nil && fv.PkgPath != TestingBasePkgPath {
 			return false
 		}
 	}

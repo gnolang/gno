@@ -38,8 +38,8 @@ type Machine struct {
 	Realm     *Realm        // active realm
 	viewOnly  bool          // no realm's stored objects may be written; implies Realm == nil
 	viewRealm *Realm        // realm whose code runs read-only (constructs its objects)
-	viewS3    bool          // read-only stretch was entered by R2a (rule R2a-save applies)
-	s3Written bool          // R2a-save: some object was marked s3Written this transaction
+	viewS3    bool          // read-only stretch entered by a by-value call (own unsaved objects stay writable)
+	s3Written bool          // a by-value stretch marked some object s3Written this transaction
 	libMemo   struct {      // last foreignLib answer
 		fv      *FuncValue
 		root    string
@@ -213,7 +213,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	// The message entry into a realm (main(cur realm)) is the tx's first
 	// crossing call: give it a fresh marker.
 	mm.curCrossing = &crossingCall{}
-	mm.s3Written = false // a transaction starts with no R2a-save writes (kept across calls)
+	mm.s3Written = false // a transaction starts with no by-value-stretch writes (kept across calls)
 	alloc.store = store
 	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
@@ -350,8 +350,8 @@ func (m *Machine) setCrossing(c *crossingCall) {
 	m.curCrossing = c
 }
 
-// readOnlyOf reports whether m is running realm r's code read-only: R2a, or r
-// entered without crossing. Such a frame is still r's code for cur purposes.
+// readOnlyOf reports whether m is running realm r's code read-only: called by
+// value, or r entered without crossing. Such a frame is still r's code for cur purposes.
 func (m *Machine) readOnlyOf(r *Realm) bool {
 	return m.viewOnly && m.viewRealm != nil && r != nil && m.viewRealm.Path == r.Path
 }
@@ -364,9 +364,9 @@ func (m *Machine) enterReadOnly(r *Realm) {
 	m.enterReadOnlyMode(r, false)
 }
 
-// enterReadOnlyByS3 is enterReadOnly for a stretch entered by rule R2a (a
-// by-value call). R2a-save: an object the read-only realm made and has not finalized
-// is writable, and recorded; finalize refuses if it is then stored.
+// enterReadOnlyByS3 is enterReadOnly for a stretch entered by a by-value call:
+// an object the read-only realm made and has not finalized is writable, and
+// recorded; finalize refuses if it is then stored.
 func (m *Machine) enterReadOnlyByS3(r *Realm) {
 	m.enterReadOnlyMode(r, true)
 }
@@ -2785,7 +2785,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 
 	// Non-crossing call of a crossing function like Public(cur, ...).
 	if fv.IsCrossing() {
-		// A read-only frame of realm R (R2a, or R's code entered without
+		// A read-only frame of realm R (a by-value call, or R's code entered without
 		// crossing) is still R's code: let the identity check in doOpCall
 		// report the stale cur instead of calling it an external realm.
 		if m.Realm != pv.Realm && !m.readOnlyOf(pv.Realm) {
@@ -2851,7 +2851,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		case m.Realm == nil && !m.viewOnly:
 			m.setRealm(r) // no realm context (genesis, tooling)
 		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code; R2a makes a foreign-made value read-only
+			// the realm's own code; a function value called by value writes
+			// only while lent in place to a live call (restrictByValueCall)
 			m.restrictByValueCall(cx, fv, withCross)
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
@@ -3008,8 +3009,7 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
-	m.dropFrameLends(numFrames - 1)
-	m.Frames = m.Frames[:numFrames-1]
+	m.truncateFrames(numFrames - 1)
 
 	return f
 }
@@ -3025,8 +3025,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// the last popped frame
 		fr := m.Frames[len(m.Frames)-depthFrames]
 		// pop frames
-		m.dropFrameLends(len(m.Frames) - depthFrames)
-		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
+		m.truncateFrames(len(m.Frames) - depthFrames)
 		// reset
 		m.Ops = m.Ops[:fr.NumOps]
 		m.Values = m.Values[:fr.NumValues]
@@ -3295,8 +3294,7 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
-			m.dropFrameLends(i + 1)
-			m.Frames = m.Frames[:i+1]
+			m.truncateFrames(i + 1)
 			return fr
 		}
 	}
@@ -3308,8 +3306,7 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsRevive {
-			m.dropFrameLends(i + 1)
-			m.Frames = m.Frames[:i+1]
+			m.truncateFrames(i + 1)
 			return fr
 		}
 	}
@@ -3389,7 +3386,7 @@ func (m *Machine) readonlyAccessPanic(x Expr) string {
 		return "cannot modify object owned by another realm from library code (call a function of the owning realm): " + x.String()
 	}
 	if m.viewRealm != nil && m.viewS3 {
-		// An R2a stretch: a by-value call made outside its crossing call.
+		// A function value called by value with no live loan.
 		return m.viewRealm.Path + "'s code is read-only here: a function value writes" +
 			" only as a literal called where it is written, or passed in place to a" +
 			" plain function of this realm or a /p/ function called by name, while" +
@@ -3446,7 +3443,7 @@ func (m *Machine) isReadonly(tv *TypedValue, ownPkgID PkgID) bool {
 			return true // external package
 		}
 	}
-	//  - R2a-save: the read-only realm's own object, not finalized yet
+	//  - by-value stretch: the read-only realm's own object, not finalized yet
 	if m.viewOnly && m.viewS3 && m.unstoredWrite(scratchObject(tv)) {
 		m.recordS3Wrapper(tv)
 		return false
@@ -3484,7 +3481,7 @@ func (m *Machine) isExternalRealm(base Value) bool {
 	if oid.IsZero() {
 		return false // transient (local var, unreal block)
 	}
-	// R2a-save: the read-only realm's own object, not finalized yet.
+	// By-value stretch: the read-only realm's own object, not finalized yet.
 	if m.viewOnly && m.viewS3 && m.unstoredWrite(obj) {
 		return false
 	}
