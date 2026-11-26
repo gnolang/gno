@@ -149,8 +149,20 @@ func refusalPattern(s string) string {
 	return strings.Join(parts, `[^\s|]+?`)
 }
 
-// TestRefusalQuotesCurrent fails when a page under docs/resources or gnovm/adr
-// quotes a refusal's opening words followed by a bracket other than its current one.
+// refusalStaleBrackets are brackets refusals no longer print, caught even when
+// quoted without their opening words.
+var refusalStaleBrackets = []string{
+	"call a function of the owning realm",
+	"use a method or crossing function)",
+	"during a crossing call into that realm)",
+	"a /p/ package's object cannot be written after its init)",
+	"write it inside a crossing call of",
+	"make the function that wrote it a crossing function of",
+}
+
+// TestRefusalQuotesCurrent fails when a .md, .txtar or .gno file quotes a
+// refusal's opening words followed by a bracket other than its current one, or
+// a stale bracket. Known limit: opening words quoted with no bracket pass.
 func TestRefusalQuotesCurrent(t *testing.T) {
 	type check struct{ open, bracket *regexp.Regexp }
 	var checks []check
@@ -166,30 +178,49 @@ func TestRefusalQuotesCurrent(t *testing.T) {
 			regexp.MustCompile(`^` + refusalPattern(r.text[i+1:j+1])),
 		})
 	}
-	for _, dir := range []string{"../../../docs/resources", "../../adr"} {
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
-				return err
-			}
-			raw, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			doc := string(raw)
-			for _, c := range checks {
-				for _, loc := range c.open.FindAllStringIndex(doc, -1) {
-					rest := doc[loc[1]-1:]
-					if !c.bracket.MatchString(rest) {
-						line := strings.Count(doc[:loc[0]], "\n") + 1
-						t.Errorf("%s:%d quotes a stale bracket: %.100q", path, line, rest)
-					}
-				}
+	var stale []*regexp.Regexp
+	for _, b := range refusalStaleBrackets {
+		stale = append(stale, regexp.MustCompile(refusalPattern(b)))
+	}
+	err := filepath.WalkDir("../../..", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := d.Name()
+		if strings.HasPrefix(name, ".") && path != "../../.." || name == "node_modules" {
+			if d.IsDir() {
+				return filepath.SkipDir
 			}
 			return nil
-		})
-		if err != nil {
-			t.Fatal(err)
 		}
+		if ext := filepath.Ext(name); d.IsDir() || ext != ".md" && ext != ".txtar" && ext != ".gno" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		doc := string(raw)
+		report := func(at int, what string) {
+			line := strings.Count(doc[:at], "\n") + 1
+			t.Errorf("%s:%d quotes a stale bracket: %.100q", path, line, what)
+		}
+		for _, c := range checks {
+			for _, loc := range c.open.FindAllStringIndex(doc, -1) {
+				if rest := doc[loc[1]-1:]; !c.bracket.MatchString(rest) {
+					report(loc[0], rest)
+				}
+			}
+		}
+		for _, re := range stale {
+			for _, loc := range re.FindAllStringIndex(doc, -1) {
+				report(loc[0], doc[loc[0]:loc[1]])
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

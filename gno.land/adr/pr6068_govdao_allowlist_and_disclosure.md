@@ -558,8 +558,10 @@ allowlist and rewrite it without passing through `UpdateImpl`. The VM already
 makes that impossible, verified in a filetest realm calling into `r/gov/dao`:
 constructing another realm's struct fails with `cannot allocate
 gno.land/r/gov/dao.UpdateRequest in realm ...`, and an element write through a
-retained slice fails with `cannot directly modify readonly tainted object (use
-a method or crossing function): r.AllowedDAOs[0]`. The only reachable
+retained slice fails with `cannot directly modify readonly tainted object
+(write it in a named function of the realm that owns it, during a crossing call
+into that realm; a /p/ or standard-library package's object cannot be written
+after its init): r.AllowedDAOs[0]`. The only reachable
 constructor, `NewUpdateRequest`, already copies — and `r/gov/dao/types.gno:280-286` documents
 why. A second copy would have guarded an unreachable write, and its test could
 only have exercised a same-package write no external caller can perform.
