@@ -146,6 +146,8 @@ const (
 	ATTR_OUTPUT_UNORDERED      GnoAttribute = "ATTR_OUTPUT_UNORDERED" // whether the expected output for an Example test function is unordered.
 	ATTR_REF_ELEM_TYPE         GnoAttribute = "ATTR_REF_ELEM_TYPE"    // static element type of &x, set on the RefExpr node during preprocessing.
 	ATTR_NAMED_CALLEE          GnoAttribute = "ATTR_NAMED_CALLEE"     // call names a top-level func or method expr, not a func value.
+	ATTR_NONESC_PARAMS         GnoAttribute = "ATTR_NONESC_PARAMS"    // params a callee only calls or passes on
+	ATTR_LOCAL_HELPER          GnoAttribute = "ATTR_LOCAL_HELPER"     // call of a local func literal that is only ever called
 	ATTR_FUNC_HANDLE           GnoAttribute = "ATTR_FUNC_HANDLE"      // names a non-crossing declared func or method expr used as a value.
 	// ATTR_ASSIGN_CONVERT marks values going into a variable whose type differs
 	// from theirs only by name, so the VM converts them. On `a, b = f()`,

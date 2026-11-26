@@ -971,7 +971,7 @@ func makeUverseNode() {
 									for i := start; i != end; i += step {
 										oldElem := list[dstStart+i]
 										newElem := arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
-										if sharedOrSaved(arg0Base) || m.viewOnly {
+										if sharedOrSaved(arg0Base) {
 											m.Alloc.shareSlot(&newElem) // R2a
 										}
 										list[dstStart+i] = newElem
@@ -1519,9 +1519,6 @@ func makeUverseNode() {
 		func(m *Machine) {
 			arg0 := m.LastBlock().GetParams1(m.Store)
 			ex := arg0.TV.Copy(m.Alloc, m.Store)
-			if m.viewOnly {
-				m.Alloc.shareSlot(&ex) // R2a: read-only code throws no writer
-			}
 			// m.Panic(ex) also works, but after return will immediately OpPanic2.
 			// This should be the only place .pushPanic() is called
 			// outside of op_*.go doOp*() functions.

@@ -67,6 +67,7 @@ type Machine struct {
 	// curCrossing is the active crossing call. Not stored: a reloaded value
 	// comes back with nil.
 	curCrossing *crossingCall
+	lends       map[*FuncValue]*lendTag // loans of literals written in place
 
 	// Configuration
 	Output   io.Writer
@@ -2688,7 +2689,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, isDefer bool) {
-	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false, nil)
+	m.pushFrameCall(cx, fv, recv, PkgID{}, isDefer, false)
 }
 
 // pushFrameCall is PushFrameCall for a method value: bindPID is the realm
@@ -2696,9 +2697,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, is
 // or a plain x.M(...) call.
 // recvUncopied: recv is a value receiver the caller copies after this call
 // (copyCallRecv); it is looked at as that fresh copy would be.
-// madeIn is the crossing call that made the callee value (nil: none); R2a uses it
-// to decide whether a by-value call still runs writable.
-func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool, madeIn *crossingCall) {
+func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bindPID PkgID, isDefer, recvUncopied bool) {
 	withCross := cx.IsWithCross()
 	numValues := 0
 	if isDefer {
@@ -2858,7 +2857,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			m.setRealm(r) // no realm context (genesis, tooling)
 		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
 			// the realm's own code; R2a makes a foreign-made value read-only
-			m.restrictByValueCall(cx, fv, withCross, madeIn)
+			m.restrictByValueCall(cx, fv, withCross)
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
 		default:
@@ -2884,7 +2883,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 	// reached through a value acts for no realm: it runs view-only. A value
 	// in a library's package variable named by the call counts as named.
 	if !recv.IsDefined() && m.Realm != nil && fv.GetObjectInfo().ID.PkgID != m.Realm.ID &&
-		cx.GetAttribute(ATTR_NAMED_CALLEE) != true {
+		cx.GetAttribute(ATTR_NAMED_CALLEE) != true && !m.lendLive(fv) {
 		m.setViewOnly()
 	}
 	// A /p/ method reached through an interface or a method value runs code the
@@ -2914,7 +2913,7 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 			m.setRealm(r)
 		}
 	}
-	m.restrictByValueCall(cx, fv, withCross, madeIn)
+	m.restrictByValueCall(cx, fv, withCross)
 }
 
 // foreignLib reports whether fv is outside the current realm's import tree;
@@ -3014,6 +3013,7 @@ func (m *Machine) PopFrame() Frame {
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
+	m.dropFrameLends(numFrames - 1)
 	m.Frames = m.Frames[:numFrames-1]
 
 	return f
@@ -3030,6 +3030,7 @@ func (m *Machine) GotoJump(depthFrames, depthBlocks int) {
 		// the last popped frame
 		fr := m.Frames[len(m.Frames)-depthFrames]
 		// pop frames
+		m.dropFrameLends(len(m.Frames) - depthFrames)
 		m.Frames = m.Frames[:len(m.Frames)-depthFrames]
 		// reset
 		m.Ops = m.Ops[:fr.NumOps]
@@ -3309,6 +3310,7 @@ func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsCall() {
+			m.dropFrameLends(i + 1)
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
@@ -3321,6 +3323,7 @@ func (m *Machine) PopUntilLastReviveFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := &m.Frames[i]
 		if fr.IsRevive {
+			m.dropFrameLends(i + 1)
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}

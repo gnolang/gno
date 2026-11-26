@@ -18,8 +18,7 @@ func (m *Machine) doOpPrecall() {
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.incrCPU(OpCPUPrecallFunc)
-		m.pushFrameCall(cx, fv, TypedValue{}, PkgID{}, false, false,
-			m.crossingCallee(m.PeekValue(1+cx.NumArgs)))
+		m.pushFrameCall(cx, fv, TypedValue{}, PkgID{}, false, false)
 		m.PushOp(OpCall)
 		isCrossing := fv.IsCrossing()
 		if isCrossing {
@@ -42,8 +41,7 @@ func (m *Machine) doOpPrecall() {
 		// now, under the callee's realm (see getPointerToForCall). A stored
 		// bound value's receiver is copied there too (see copyBoundReceiver).
 		uncopied := fv.IsLazy() || isDirectValMethodCall(cx)
-		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied,
-			m.crossingCallee(m.PeekValue(1+cx.NumArgs)))
+		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied)
 		if fr := m.LastFrame(); uncopied {
 			fr.Receiver = copyCallRecv(m.Alloc, m.Store, fr.Receiver)
 		} else {
@@ -417,6 +415,7 @@ func (m *Machine) doOpCall() {
 	} else {
 		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
 		m.shareHandedArgs(fr, args)
+		m.lendArgs(fr, fs, args)
 	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
@@ -1021,8 +1020,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
 	bmv, bound := dfr.Callable.(*BoundMethodValue)
 	lazy := bound && bmv.IsLazy()
-	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy,
-		m.crossingCallee(&TypedValue{T: fv.GetType(m.Store), V: dfr.Callable}))
+	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy)
 	if bound { // copied under the callee's realm, as in doOpPrecall
 		if lazy {
 			recv = copyCallRecv(m.Alloc, m.Store, recv)

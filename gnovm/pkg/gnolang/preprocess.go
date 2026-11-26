@@ -766,6 +766,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
+	if fn, ok := n.(*FileNode); ok {
+		markLocalHelpers(fn) // on resolved paths
+		markNonEscParams(fn)
+	}
 
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)

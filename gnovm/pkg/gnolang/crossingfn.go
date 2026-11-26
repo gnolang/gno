@@ -1,26 +1,14 @@
 package gnolang
 
 // Rule R2a (pr6495_cross_to_write.md): a non-crossing function value called BY
-// VALUE writes only during the crossing call that made it. The crossing-call
-// marker lives in memory only: never stored, encoded or hashed.
-
-// crossingCallee reports which crossing call made the callee value; nil for a
-// stored location and for any value a copy or reload did not record.
-func (m *Machine) crossingCallee(tv *TypedValue) *crossingCall {
-	switch cv := tv.V.(type) {
-	case *FuncValue:
-		return cv.madeInCall()
-	case *BoundMethodValue:
-		return cv.madeInCall()
-	}
-	return nil
-}
+// VALUE runs read-only, unless it is a literal lent in place to a live call.
+// The crossing-call marker lives in memory only: never stored, encoded or hashed.
 
 // calledByValue reports whether cx reaches its callee as a value rather than by
 // its declared name. ATTR_NAMED_CALLEE is the static answer: a realm's own
 // variable holding a function is not named, so an alias cannot dodge the rule.
 func calledByValue(cx *CallExpr) bool {
-	if cx.GetAttribute(ATTR_NAMED_CALLEE) == true {
+	if cx.GetAttribute(ATTR_NAMED_CALLEE) == true || cx.GetAttribute(ATTR_LOCAL_HELPER) == true {
 		return false
 	}
 	switch fx := cx.Func.(type) {
@@ -30,21 +18,39 @@ func calledByValue(cx *CallExpr) bool {
 		return !fx.Path.IsMethod()
 	case *IndexExpr, *StarExpr:
 		return true
+	case *FuncLitExpr:
+		// Called where it is written: made here, run once in the mode of the
+		// code around it, never held by anyone else.
+		return false
 	}
 	return true
 }
 
 // restrictByValueCall applies R2a to a call that would otherwise run writable:
-// a non-crossing callee reached by value writes only in the crossing call that
-// made the value.
-func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool, madeIn *crossingCall) {
-	if withCross || fv.IsCrossing() || m.Realm == nil || !calledByValue(cx) {
+// a non-crossing callee reached by value runs read-only unless its loan is live.
+func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool) {
+	if withCross || fv.IsCrossing() || m.Realm == nil || !calledByValue(cx) || m.lendLive(fv) {
 		return
 	}
-	if madeIn != nil && madeIn == m.curCrossing {
-		return // made during the crossing call that is calling it
+	if !m.testRunnerCall() {
+		m.enterReadOnlyByS3(m.Realm)
 	}
-	m.enterReadOnlyByS3(m.Realm)
+}
+
+// testRunnerCall reports whether the test runner itself made the call just
+// entered (TestXxx(t), an example): every call frame below it is "testing"
+// code. A value a test hands to a testing helper has the test's frame below.
+func (m *Machine) testRunnerCall() bool {
+	n := len(m.Frames) - 1
+	if n < 1 || m.Frames[n].LastPackage == nil || m.Frames[n].LastPackage.PkgPath != "testing" {
+		return false
+	}
+	for i := 0; i < n; i++ {
+		if fv := m.Frames[i].Func; fv != nil && fv.PkgPath != "testing" {
+			return false
+		}
+	}
+	return true
 }
 
 // shareHandedArgs shares the arguments of a call that left the caller's realm
@@ -64,10 +70,10 @@ func (m *Machine) shareHandedArgs(fr *Frame, args []TypedValue) {
 }
 
 // unmarked returns v, or a copy with no maker when v is a function value that
-// still has one: what is stored or handed out is a copy; the original, private
-// to its call, keeps writing. A value already kept is wiped in place instead,
-// so no second object shares its ID. A marked value was made outside any
-// read-only stretch, so the fresh ObjectInfo drops no scratch number.
+// still has one, so what is stored or handed out carries no maker. A value
+// already kept is wiped in place instead, so no second object shares its ID;
+// a marked value was made outside any read-only stretch, so the fresh
+// ObjectInfo drops no scratch number.
 func (alloc *Allocator) unmarked(v Value) Value {
 	switch cv := v.(type) {
 	case *FuncValue:

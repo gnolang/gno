@@ -35,6 +35,7 @@ type Frame struct {
 	LastScratch   uint32        // previous frame's Allocator.scratch
 	LastViewHold  PkgID         // previous frame's Allocator.viewHoldID
 	LastCrossing  *crossingCall // previous frame's Machine.curCrossing
+	lendTok       *lendTok      // set when a literal was lent to this frame
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
 	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
