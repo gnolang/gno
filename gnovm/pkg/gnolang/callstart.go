@@ -186,7 +186,14 @@ func (m *Machine) askCallStart(f *callFacts) callStart {
 			f.borrowTo, f.haveBorrow = objpv.GetRealm(), true
 			assertBorrowedRealm(objpv.PkgPath, f.borrowTo)
 		default:
+			if callStartHook != nil { // a copy, so f stays on the stack
+				g := *f
+				callStartHook(m, &g, cs)
+			}
 			return cs
 		}
 	}
 }
+
+// callStartHook, when set by a test, sees each call start as answered.
+var callStartHook func(m *Machine, f *callFacts, cs callStart)
