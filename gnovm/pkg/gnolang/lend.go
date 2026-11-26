@@ -272,7 +272,11 @@ func (m *Machine) dropCapturedLends(fv *FuncValue) {
 	if len(m.lends) == 0 {
 		return
 	}
-	seen := map[*FuncValue]bool{fv: true}
+	m.walkCaptures(fv, map[*FuncValue]bool{fv: true})
+}
+
+// walkCaptures is dropCapturedLends' walk, skipping values already in seen.
+func (m *Machine) walkCaptures(fv *FuncValue, seen map[*FuncValue]bool) {
 	todo := []*FuncValue{fv}
 	for len(todo) > 0 && len(m.lends) > 0 {
 		cur := todo[len(todo)-1]
@@ -316,6 +320,8 @@ func isLitArg(x Expr) bool {
 }
 
 // dropSliceLends ends the loan of every lent value held in sv's elements.
+// While a loan is live each element walked is paid for, and a func element
+// with captures also as a value of the shared walk (seen-set entry, captures).
 func (m *Machine) dropSliceLends(sv *SliceValue) {
 	if len(m.lends) == 0 || sv.Base == nil {
 		return
@@ -324,9 +330,26 @@ func (m *Machine) dropSliceLends(sv *SliceValue) {
 	if !ok {
 		return
 	}
-	for i := sv.Offset; i < sv.Offset+sv.Length && i < len(av.List); i++ {
-		if fv, ok := av.List[i].V.(*FuncValue); ok {
-			m.dropLend(fv)
+	end := min(sv.Offset+sv.Length, len(av.List))
+	if end <= sv.Offset {
+		return
+	}
+	m.incrCPU(OpCPUSlopeArrayLit * int64(end-sv.Offset))
+	var seen map[*FuncValue]bool
+	for i := sv.Offset; i < end && len(m.lends) > 0; i++ {
+		fv, ok := av.List[i].V.(*FuncValue)
+		if !ok || seen[fv] {
+			continue
 		}
+		delete(m.lends, fv)
+		if len(fv.Captures) == 0 {
+			continue // reaches nothing more: no seen entry needed
+		}
+		m.incrCPU(OpCPUSlopeMapLit + OpCPUSlopeCallCapture*int64(len(fv.Captures)))
+		if seen == nil {
+			seen = map[*FuncValue]bool{}
+		}
+		seen[fv] = true
+		m.walkCaptures(fv, seen)
 	}
 }
