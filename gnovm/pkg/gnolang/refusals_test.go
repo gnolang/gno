@@ -10,24 +10,7 @@ import (
 	"testing"
 )
 
-// The write rule's refusal texts; each must say what to do instead.
-var refusalTexts = []string{
-	"cannot modify object owned by another realm from library code (call a function of the owning realm): ",
-	"'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): ",
-	"'s code was entered without crossing and is read-only (call its crossing function): ",
-	"cannot directly modify readonly tainted object (call a crossing function of the owning realm): ",
-	"%s: an object written by read-only code would be stored (write it inside a crossing call of %s)",
-	"cannot cross-call a non-crossing function %s.%v from %s",
-	"cannot cur-call to external realm function %s.%v from %s",
-	"cannot append to readonly tainted slice",
-	"cannot copy to readonly tainted slice",
-	"cannot delete from readonly tainted map",
-	"illegal conversion of readonly or externally stored value",
-	"illegal conversion to external realm type",
-	"cannot mutate %s: package is immutable post-init",
-}
-
-// refusalRuleFiles hold every site that raises a refusal of the write rule.
+// refusalRuleFiles raise the write rule's refusals, with refusals.go's texts only.
 var refusalRuleFiles = []string{
 	"machine.go", "op_assign.go", "realm.go", "callstart.go", "uverse.go",
 	"op_expressions.go", "crossingfn.go", "lend.go", "birthrule.go",
@@ -61,13 +44,42 @@ func TestRefusalTextsNameFix(t *testing.T) {
 			if err != nil || !refusalWordRe.MatchString(s) || strings.HasPrefix(s, "invariant violation:") {
 				return true
 			}
-			for _, text := range refusalTexts {
-				if strings.Contains(text, s) {
-					return true
-				}
-			}
-			t.Errorf("%s: refusal text not in the list: %q", fset.Position(lit.Pos()), s)
+			t.Errorf("%s: refusal text not a constant of refusals.go: %q", fset.Position(lit.Pos()), s)
 			return true
 		})
+	}
+	// Every constant of refusals.go is in refusalTexts.
+	f, err := parser.ParseFile(fset, "refusals.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := map[string]bool{}
+	for _, d := range f.Decls {
+		gd, ok := d.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, sp := range gd.Specs {
+			vs, ok := sp.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			if gd.Tok == token.VAR && vs.Names[0].Name == "refusalTexts" {
+				for _, e := range vs.Values[0].(*ast.CompositeLit).Elts {
+					listed[e.(*ast.Ident).Name] = true
+				}
+			}
+		}
+	}
+	for _, d := range f.Decls {
+		if gd, ok := d.(*ast.GenDecl); ok && gd.Tok == token.CONST {
+			for _, sp := range gd.Specs {
+				for _, n := range sp.(*ast.ValueSpec).Names {
+					if !listed[n.Name] {
+						t.Errorf("refusals.go: %s is not in refusalTexts", n.Name)
+					}
+				}
+			}
+		}
 	}
 }

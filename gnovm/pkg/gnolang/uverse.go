@@ -942,7 +942,7 @@ func makeUverseNode() {
 							// into the backing array of arg0. Ensure we can write
 							// to it.
 							if m.IsReadonly(arg0.TV) {
-								m.Panic(typedString("cannot append to readonly tainted slice"))
+								m.Panic(typedString(refuseAppend))
 							}
 
 							if arg0Base.Data == nil {
@@ -1148,7 +1148,7 @@ func makeUverseNode() {
 				}
 				dstv := dst.TV.V.(*SliceValue)
 				if m.IsReadonly(dst.TV) {
-					m.Panic(typedString("cannot copy to readonly tainted slice"))
+					m.Panic(typedString(refuseCopy))
 				}
 				dstBase := dstv.GetBase(m.Store)
 				// The fast path below writes raw bytes straight into
@@ -1191,7 +1191,7 @@ func makeUverseNode() {
 				}
 				dstv := dst.TV.V.(*SliceValue)
 				if m.IsReadonly(dst.TV) {
-					m.Panic(typedString("cannot copy to readonly tainted slice"))
+					m.Panic(typedString(refuseCopy))
 				}
 				dstBase := dstv.GetBase(m.Store)
 				// Same as above: the Data-backed fast path bypasses Assign2, so
@@ -1257,7 +1257,7 @@ func makeUverseNode() {
 				mv := arg0.TV.V.(*MapValue)
 
 				if m.IsReadonly(arg0.TV) {
-					m.Panic(typedString("cannot delete from readonly tainted map"))
+					m.Panic(typedString(refuseDelete))
 				}
 
 				val, ok := mv.GetValueForKey(m.GasMeter, m.Store, &itv)
