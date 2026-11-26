@@ -43,7 +43,7 @@ lend_varg caught refuses 14:7
 lend_variadic_redecl caught refuses 6:21
 fv_echo_same_call caught refuses gno.land/r/tests/vm/fvecho/x.gno:9:7
 fv_return_ptr caught refuses gno.land/r/tests/vm/cbvictim/v.gno:21:37,gno.land/r/tests/vm/cbvictim/v.gno:26:31,gno.land/r/tests/vm/cbvictim/v.gno:42:9,gno.land/r/tests/vm/cbvictim/v.gno:57:38,gno.land/r/tests/vm/cbvictim/v.gno:59:10,gno.land/r/tests/vm/cbvictim/v.gno:78:64,gno.land/r/tests/vm/cbvictim/v.gno:83:15,gno.land/r/tests/vm/cbvictim/v.gno:88:48,gno.land/r/tests/vm/cbvictim/v.gno:126:26,gno.land/r/tests/vm/cbvictim/v.gno:127:40,gno.land/r/tests/vm/cbvictim/v.gno:128:27,gno.land/r/tests/vm/cbvictim/v.gno:129:17,gno.land/r/tests/vm/cbvictim/v.gno:130:19,gno.land/r/tests/vm/cbvictim/v.gno:131:16,gno.land/r/tests/vm/cbvictim/v.gno:133:11,gno.land/r/tests/vm/cbvictim/v.gno:182:28,gno.land/r/tests/vm/cbvictim/v.gno:183:29,gno.land/r/tests/vm/cbvictim/v.gno:184:19,gno.land/r/tests/vm/cbvictim/v.gno:185:27
-lend_any_battery partly refuses 15:49,18:41,21:57,23:47,25:63,27:51,28:56
+lend_any_battery partly refuses 15:49,18:41,21:57,23:47,24:70,25:63,27:51,28:56
 lend_lib_shapes partly refuses 15:40,24:46,29:16,34:54,37:64,39:66,41:50,41:70,45:64 # 41:70 inc goes to Branch as a value and is not called there; KeepCall, WrapKeepCall missed (a kept param of a lib callee)
 lend_values partly refuses 20:23,27:46,28:52,30:67,31:72,32:52,34:75,35:53,36:50,43:46,45:56,48:57,68:27
 lend_xrealm partly refuses gno.land/r/tests/vm/lendholdvictim/lendholdvictim.gno:23:73

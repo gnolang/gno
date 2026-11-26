@@ -353,6 +353,9 @@ func (c *lendLint) declOf(last BlockNode, x Expr) (*FuncDecl, string) {
 		if p := pkgRefPath(e.X); p != "" {
 			return c.topFuncDecl(p, e.Sel), p
 		}
+		if dt := methodExprType(e); dt != nil {
+			return c.methodDecl(dt, e.Sel)
+		}
 		if !e.Path.IsMethod() || e.Path.Type == VPInterface || e.Path.Type == VPDerefInterface || e.Path.Depth > 1 {
 			return nil, ""
 		}
@@ -360,18 +363,31 @@ func (c *lendLint) declOf(last BlockNode, x Expr) (*FuncDecl, string) {
 		if pt, ok := t.(*PointerType); ok {
 			t = pt.Elt
 		}
-		dt, ok := t.(*DeclaredType)
-		if !ok {
-			return nil, ""
-		}
-		for _, mv := range dt.Methods {
-			if fv, ok := mv.V.(*FuncValue); ok && fv.Name == e.Sel {
-				fd, _ := fv.GetSource(c.store).(*FuncDecl)
-				return fd, dt.PkgPath
-			}
+		if dt, ok := t.(*DeclaredType); ok {
+			return c.methodDecl(dt, e.Sel)
 		}
 	}
 	return nil, ""
+}
+
+func (c *lendLint) methodDecl(dt *DeclaredType, sel Name) (*FuncDecl, string) {
+	for _, mv := range dt.Methods {
+		if fv, ok := mv.V.(*FuncValue); ok && fv.Name == sel {
+			fd, _ := fv.GetSource(c.store).(*FuncDecl)
+			return fd, dt.PkgPath
+		}
+	}
+	return nil, ""
+}
+
+// methodExprType returns T for a method expression T.M or (*T).M.
+func methodExprType(sx *SelectorExpr) *DeclaredType {
+	x := sx.X
+	if st, ok := x.(*StarExpr); ok {
+		x = st.X
+	}
+	dt, _ := convType(x).(*DeclaredType)
+	return dt
 }
 
 // uverseName names the builtin x refers to; preprocess makes most a constant.
@@ -466,7 +482,7 @@ func (c *lendLint) place(fn *FileNode, d Decl) {
 			}
 			c.warn(fn, n, string(fd.Name), c.body(fd).writes, llValue)
 		case *SelectorExpr:
-			// A method value of this realm's type (not called here).
+			// A method value or method expression of this realm's type (not called here).
 			if len(ns) == 0 || !n.Path.IsMethod() || n.Path.Type == VPInterface || n.Path.Type == VPDerefInterface {
 				break
 			}
@@ -476,11 +492,11 @@ func (c *lendLint) place(fn *FileNode, d Decl) {
 			if _, ok := ns[len(ns)-1].(*FuncHandleExpr); ok {
 				break
 			}
-			if _, isType := c.staticType(last, n.X).(*TypeType); isType || convType(n.X) != nil {
-				break
-			}
 			fd, path := c.declOf(last, n)
 			if fd == nil || path != c.pn.PkgPath || fd.isCrossing() || c.body(fd).writes == "" {
+				break
+			}
+			if c.aliasDef(ns, last, ftype, index) {
 				break
 			}
 			c.warn(fn, n, string(fd.Name), c.body(fd).writes, llValue)
@@ -610,8 +626,9 @@ func (c *lendLint) litPlace(ns []Node, last BlockNode, ftype TransField, index i
 		}
 	}
 	pi := index
-	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
-		if _, isType := c.staticType(last, sx.X).(*TypeType); isType || convType(sx.X) != nil {
+	if sx, ok := cx.Func.(*SelectorExpr); ok {
+		_, isType := c.staticType(last, sx.X).(*TypeType)
+		if methodExprType(sx) != nil || sx.Path.IsMethod() && (isType || convType(sx.X) != nil) {
 			pi = index - 1 // method expression: the receiver is an argument
 		}
 	}

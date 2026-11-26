@@ -114,6 +114,17 @@ func ViaVar(cur realm) { runner(func() { count++ }) }
 
 func ViaField(cur realm) { box.fn(func() { count++ }) }
 
+var mexpr func(*T)
+
+func StoredMExpr(cur realm) { mexpr = (*T).Bump }
+
+func LocalMExpr(cur realm) {
+	f := (*T).Bump
+	f(&T{})
+}
+
+func CallMExpr(cur realm) { (*T).Bump(&T{}) }
+
 -- gnomod.toml --
 module = "gno.land/r/demo/lentcb"
 gno = "0.9"
@@ -134,3 +145,5 @@ gno.land/r/demo/lentcb/lentcb.gno:90: this function writes count but it is kept 
 gno.land/r/demo/lentcb/lentcb.gno:94: this function writes mm but it is kept to be called later, so it runs read-only (call it where it is written, pass it in place to a function called by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
 gno.land/r/demo/lentcb/lentcb.gno:104: this function writes count but the function it is passed to is not called by name, so it runs read-only (call a declared function by name, or make it func(cur realm)) (code=gnoLintWarning)
 gno.land/r/demo/lentcb/lentcb.gno:106: this function writes count but the function it is passed to is not called by name, so it runs read-only (call a declared function by name, or make it func(cur realm)) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:110: Bump writes count but it is used as a value, so it runs read-only (call it by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
+gno.land/r/demo/lentcb/lentcb.gno:113: Bump writes count but it is used as a value, so it runs read-only (call it by name, or make it func(cur realm) and call it with cross) (code=gnoLintWarning)
