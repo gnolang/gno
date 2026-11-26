@@ -1346,6 +1346,8 @@ type PackageNode struct {
 	importTree unsafe.Pointer
 	// importTreeTest caches testImportClosure (*map[string]bool).
 	importTreeTest unsafe.Pointer
+	// directTree and directTreeTest cache directImports.
+	directTree, directTreeTest unsafe.Pointer
 }
 
 // importClosure returns every package pn imports, directly or through another
@@ -1359,6 +1361,31 @@ func (pn *PackageNode) importClosure(store Store) map[string]bool {
 // import; a call made from a test file trusts only that much extra.
 func (pn *PackageNode) testImportClosure(store Store) map[string]bool {
 	return pn.importsOf(store, true)
+}
+
+// directImports returns the packages pn's own files import; its test files
+// count only withTests.
+func (pn *PackageNode) directImports(withTests bool) map[string]bool {
+	cache := &pn.directTree
+	if withTests {
+		cache = &pn.directTreeTest
+	}
+	if c := (*map[string]bool)(atomic.LoadPointer(cache)); c != nil {
+		return *c
+	}
+	c := map[string]bool{}
+	for _, fn := range pn.Files {
+		if IsTestFile(fn.FileName) && !withTests {
+			continue
+		}
+		for _, d := range fn.Decls {
+			if id, ok := d.(*ImportDecl); ok {
+				c[id.PkgPath] = true
+			}
+		}
+	}
+	atomic.StorePointer(cache, unsafe.Pointer(&c))
+	return c
 }
 
 func (pn *PackageNode) importsOf(store Store, withTests bool) map[string]bool {

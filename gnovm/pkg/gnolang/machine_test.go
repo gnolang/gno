@@ -235,8 +235,8 @@ func TestForeignLibNoFrameWalkOnChain(t *testing.T) {
 	m, fv := deepForeignStack(frames)
 	defer m.Release()
 	start := time.Now()
-	for range decisions {
-		m.foreignLib(fv)
+	for i := range decisions {
+		foreignLibShape(m, fv, i)
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
 		t.Fatalf("%d foreignLib decisions over %d frames took %v; the chain path must not walk frames", decisions, frames, elapsed)
@@ -248,8 +248,17 @@ func BenchmarkForeignLibDeepStack(b *testing.B) {
 	defer m.Release()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.foreignLib(fv)
+		foreignLibShape(m, fv, i)
 	}
+}
+
+// foreignLibShape alternates the two shapes real calls use: a method value
+// (no caller, not iface) and an interface call made by a /p/ package.
+func foreignLibShape(m *Machine, fv *FuncValue, i int) bool {
+	if i%2 == 0 {
+		return m.foreignLib(fv, "", false)
+	}
+	return m.foreignLib(fv, "gno.land/p/caller", true)
 }
 
 func TestDeferGas(t *testing.T) {

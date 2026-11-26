@@ -9,6 +9,10 @@ import (
 	"gno.land/p/demo/gnorkle/gnorkle/v0"
 	"gno.land/p/demo/gnorkle/message/v0"
 	"gno.land/p/nt/bptree/v0"
+
+	// Imported directly: the feed reaches this storage's Put through an
+	// interface, and only a direct import's methods may write this realm.
+	_ "gno.land/p/demo/gnorkle/storage/simple/v0"
 )
 
 const (

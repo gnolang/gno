@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/t72stdout"
+gno = "0.9"
