@@ -19,6 +19,8 @@ const (
 	refuseNotCrossing = "cannot cross-call a non-crossing function %s.%v from %s"
 	// Another realm's crossing function, reached by value, is called with cur.
 	refuseExternalCur = "cannot cur-call to external realm function %s.%v from %s"
+	// The same, found when the package is deployed.
+	refuseExternalCurDeploy = "cannot cur-call to external realm function %s.%v from %v"
 	// append, copy or delete writes into a read-only slice or map.
 	refuseAppend = "cannot append to readonly tainted slice"
 	refuseCopy   = "cannot copy to readonly tainted slice"
@@ -67,6 +69,10 @@ var refusals = []refusal{
 	{refuseExternalCur,
 		"another realm's crossing function, reached through a function value, is called with cur",
 		"The author of the code named after \"from\" changes the call to cross(cur); the sender of the transaction cannot. If that code is another realm's, use a function of it that crosses.",
+		true},
+	{refuseExternalCurDeploy,
+		"another realm's crossing function, named in the call, is called with cur instead of cross(cur), when the package is deployed",
+		"Change the call to cross(cur).",
 		true},
 	{refuseAppend,
 		"append writes into a slice the running code may not write",

@@ -14,7 +14,13 @@ import (
 // refusalRuleFiles raise the write rule's refusals, with refusals.go's texts only.
 var refusalRuleFiles = []string{
 	"machine.go", "op_assign.go", "realm.go", "callstart.go", "uverse.go",
-	"op_expressions.go", "crossingfn.go", "lend.go", "birthrule.go",
+	"op_expressions.go", "crossingfn.go", "lend.go", "birthrule.go", "preprocess.go",
+}
+
+// refusalOtherRules are texts of the scanned files that the word check would
+// match but that belong to the rule on passing cur, not the write rule.
+var refusalOtherRules = map[string]bool{
+	"only the `cur` argument of a containing crossing function maybe passed by cross-call": true,
 }
 
 var (
@@ -45,7 +51,7 @@ func TestRefusalTextsNameFix(t *testing.T) {
 				return true
 			}
 			s, err := strconv.Unquote(lit.Value)
-			if err != nil || !refusalWordRe.MatchString(s) || strings.HasPrefix(s, "invariant violation:") {
+			if err != nil || !refusalWordRe.MatchString(s) || strings.HasPrefix(s, "invariant violation:") || refusalOtherRules[s] {
 				return true
 			}
 			t.Errorf("%s: refusal text not a constant of refusals.go: %q", fset.Position(lit.Pos()), s)
