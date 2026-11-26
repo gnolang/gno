@@ -41,11 +41,11 @@ func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross boo
 // code. A value a test hands to a testing helper has the test's frame below.
 func (m *Machine) testRunnerCall() bool {
 	n := len(m.Frames) - 1
-	if n < 1 || m.Frames[n].LastPackage == nil || m.Frames[n].LastPackage.PkgPath != "testing" {
+	if n < 1 || m.Frames[n].LastPackage == nil || m.Frames[n].LastPackage.PkgPath != TestingBasePkgPath {
 		return false
 	}
 	for i := 0; i < n; i++ {
-		if fv := m.Frames[i].Func; fv != nil && fv.PkgPath != "testing" {
+		if fv := m.Frames[i].Func; fv != nil && fv.PkgPath != TestingBasePkgPath {
 			return false
 		}
 	}
