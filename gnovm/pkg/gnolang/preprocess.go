@@ -996,6 +996,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *FuncLitExpr:
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
+				// By type: a literal's result type may not name the realm type.
+				// This catches the plain mistake only; `any`, a method or a
+				// captured variable are covered at run time, not here.
+				for _, rf := range ft.Results {
+					if typeHoldsRealm(rf.Type, nil) {
+						panic(fmt.Sprintf("a function literal's result cannot hold a realm value: %v", rf.Type))
+					}
+				}
 				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
 					// This preprocessing was initiated by predefineRecursively().
 					// When predefined from a package/file, the dependant names may
@@ -4827,6 +4835,58 @@ func setPreprocessed(x Node) Node {
 		x.SetAttribute(ATTR_PREPROCESSED, true)
 	}
 	return x
+}
+
+// typeHoldsRealm reports whether t is the realm type under any name (it has
+// the realm's `.seal` method) or is made of it through declared types,
+// pointers, arrays, slices, maps, struct fields or func results.
+func typeHoldsRealm(t Type, seen map[Type]bool) bool {
+	if t == nil {
+		return false
+	}
+	if t == gRealmType {
+		return true
+	}
+	if seen[t] {
+		return false
+	}
+	if seen == nil {
+		seen = map[Type]bool{}
+	}
+	seen[t] = true
+	switch ct := t.(type) {
+	case *DeclaredType:
+		return typeHoldsRealm(ct.Base, seen)
+	case *InterfaceType:
+		// embedded interfaces are flattened, so an embedded realm shows
+		// up as its seal method
+		for _, m := range ct.Methods {
+			if m.Name == ".seal" {
+				return true
+			}
+		}
+	case *PointerType:
+		return typeHoldsRealm(ct.Elt, seen)
+	case *ArrayType:
+		return typeHoldsRealm(ct.Elt, seen)
+	case *SliceType:
+		return typeHoldsRealm(ct.Elt, seen)
+	case *MapType:
+		return typeHoldsRealm(ct.Key, seen) || typeHoldsRealm(ct.Value, seen)
+	case *StructType:
+		for _, f := range ct.Fields {
+			if typeHoldsRealm(f.Type, seen) {
+				return true
+			}
+		}
+	case *FuncType:
+		for _, r := range ct.Results {
+			if typeHoldsRealm(r.Type, seen) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isRealm(ctx BlockNode) bool {
