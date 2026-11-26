@@ -179,8 +179,8 @@ func (c *lendLint) summarize(fn *FileNode, d Decl) {
 		case *IncDecStmt:
 			targets = []Expr{n.X}
 		case *CallExpr:
-			if nx, ok := n.Func.(*NameExpr); ok && nx.Path.Type == VPUverse && len(n.Args) > 0 {
-				switch nx.Name {
+			if len(n.Args) > 0 {
+				switch uverseName(n.Func) {
 				case "delete", "clear", "copy":
 					targets = []Expr{n.Args[0]}
 				}
