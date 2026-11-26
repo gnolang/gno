@@ -35,8 +35,10 @@ case 1:
 When the shadowing declaration happened to have the *same* type there was no
 panic — just a silently clobbered outer binding. `case 1: v := 99` left the
 switch's own `v` reading `99`, observable from a later clause reached by
-`fallthrough`. The same applies to `if v := ...` branches, and to both `:=` and
-`var`/`const` declarations.
+`fallthrough`. The same applies to `if v := ...` branches, to `:=` and
+`var`/`const` declarations, and, since #6060 allowed type declarations in case
+bodies, to `type` declarations (which crash preprocessing on master with
+`interface conversion: gnolang.Value is nil, not gnolang.TypeValue`).
 
 Go accepts all of these: a case body is a nested scope, and the spec's
 "innermost declaration wins" applies. The gno type-checker (`go/types`) already
@@ -121,8 +123,9 @@ at different points in the same case.
 
 - **Consensus-breaking.** Preprocess re-runs every stored package at node
   start, so the new rules apply to code already on chain from the upgrade on:
-  - A case-body shadow whose type differs from the init name's, or a `const`
-    shadow, failed to deploy (preprocess panic) and now deploys.
+  - A case-body shadow whose type differs from the init name's, a `const`
+    shadow, or a `type` shadow failed to deploy (preprocess panic) and now
+    deploys.
   - A same-type shadow (`case 1: v := 99`) deployed before, writing over the
     copy. It now gets its own slot, so each run of that branch allocates one
     more block item (40 bytes of allocation, and the gas for them), and the
@@ -213,6 +216,9 @@ at different points in the same case.
 - `tests/files/if9.gno` — if-init shadowing in both branches.
 - `tests/files/typeswitch11.gno` — a type switch clause shadowing an init name,
   and the type switch variable itself shadowing one.
+- `tests/files/switch54.gno` — `type` shadows in a switch case, an `else`
+  branch and a type switch clause, use before the shadow, and a `type` shadow
+  followed by `fallthrough`.
 
 Each was run under real `go run` first; the `// Output:` blocks are Go's actual
 output.
