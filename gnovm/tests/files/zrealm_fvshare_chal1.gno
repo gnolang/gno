@@ -1,4 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_fvshare_chal1
+// A writer thrown into a stranger's deferred catcher never writes, however
+// the stranger keeps it; Private, a value called from a local slice, neither.
 package zrealm_fvshare_chal1
 
 import "gno.land/r/tests/vm/fvshare"
@@ -45,4 +47,4 @@ func main(cur realm) {
 // stranger got: true
 // catch calls refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code was entered without crossing and is read-only (call its crossing function): v<VPBlock(1,0)>.N
 // slot refused: true count: 0 why: gno.land/r/zrealm_fvshare_chal1's code was entered without crossing and is read-only (call its crossing function): k<VPBlock(1,0)>.c
-// private refused: false count: 1 why: undefined
+// private refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N

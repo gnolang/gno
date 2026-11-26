@@ -1,5 +1,5 @@
-// Package fvshare is a test fixture for R2a: each entry makes its own writer
-// (vault.Bump) and then calls a function value a caller's handler chose.
+// Package fvshare is a test fixture for the function-value write rule: each
+// entry holds vault.Bump as a value, which never writes, and calls another.
 package fvshare
 
 type Vault struct{ N int }
@@ -16,7 +16,7 @@ var hooks = &Hooks{}
 
 func HooksPtr() *Hooks { return hooks }
 
-// Private makes a writer and uses it itself: it writes.
+// Private calls vault.Bump from a local slice: a value, so it is refused.
 func Private(cur realm) {
 	f := vault.Bump
 	fs := []func(){f}
@@ -299,7 +299,7 @@ var nestedSaved func()
 func SaveClose(cur realm) { nestedSaved = vault.Bump }
 
 // NestedSave saves a writer, crosses into the stranger, then calls the saved
-// copy in the same crossing call.
+// value in the same crossing call.
 func NestedSave(cur realm, cb func(cur realm)) {
 	w := vault.Bump
 	nestedSaved = w
@@ -474,7 +474,7 @@ func ThrowBack(cur realm, h Catcher, shape string) {
 }
 
 // NestedPrivate makes a writer, makes a nested crossing call, then runs the
-// writer it never handed anywhere: that one writes.
+// writer it never handed anywhere: still a value, so it is refused.
 func NestedPrivate(cur realm, cb func(cur realm)) {
 	w := vault.Bump
 	cb(cross(cur))

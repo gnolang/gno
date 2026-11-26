@@ -31,8 +31,8 @@ type Rethrow struct{}
 
 func (Rethrow) Catch() { panic(recover()) }
 
-// Keeper keeps a recovered value behind a getter closure, whose captures are
-// never copied, and hands it back from Pick.
+// Keeper keeps a recovered value behind a getter closure and hands it back
+// from Pick.
 type Keeper struct {
 	put func(g func() any)
 	get func() any

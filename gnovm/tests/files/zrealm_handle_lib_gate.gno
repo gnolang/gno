@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/zrealm_handle_lib_gate
 package zrealm_handle_lib_gate
 
-// A library function taken as a value in the victim's gate acts like the
-// same function called by name there: it writes the victim's object.
+// A library function taken as a local value in the victim's gate is a local
+// copy, not a call by name: it runs read-only and cannot write the victim's object.
 
 import "gno.land/r/tests/vm/cbvictim"
 
@@ -11,5 +11,5 @@ func main(cur realm) {
 	println("lib:", cbvictim.Lib.Field)
 }
 
-// Output:
-// lib: pwnd-same-pkg
+// Error:
+// cannot modify object owned by another realm from library code (call a function of the owning realm): x<VPBlock(1,0)>.Field

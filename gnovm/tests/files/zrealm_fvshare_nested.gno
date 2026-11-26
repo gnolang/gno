@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_fvshare_nested
-// R2a: a writer saved or shown before a nested crossing call never writes;
-// the private original, never handed anywhere, still writes after it.
+// A writer saved or shown before a nested crossing call never writes; nor
+// does one never handed anywhere, as it is called as a value, not by name.
 package zrealm_fvshare_nested
 
 import "gno.land/r/tests/vm/fvshare"
@@ -44,6 +44,6 @@ func main(cur realm) {
 // shown, other realm calls refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code was entered without crossing and is read-only (call its crossing function): v<VPBlock(1,0)>.N
 // shown, called back refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
 // shown, run after nested refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
-// private after nested refused: false count: 1 why: undefined
-// private after nested back refused: false count: 2 why: undefined
-// private refused: false count: 3 why: undefined
+// private after nested refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
+// private after nested back refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
+// private refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N

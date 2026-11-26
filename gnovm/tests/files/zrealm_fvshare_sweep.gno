@@ -1,6 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_fvshare_sweep
 // A writer put in saved state by each construct, then called
 // back from that slot in the same crossing call, must be refused.
+// The control is a literal lent in place to this realm's own try.
 package zrealm_fvshare_sweep
 
 type S struct{ f func() }
@@ -41,7 +42,7 @@ func main(cur realm) {
 	M = map[string]func(){}
 	PS = &S{}
 
-	try("control local", mk())
+	try("control local", func() { count++ })
 	w := mk()
 	G = w
 	try("assign", func() { G() })

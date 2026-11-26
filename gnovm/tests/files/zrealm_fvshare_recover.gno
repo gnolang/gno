@@ -1,7 +1,7 @@
 // PKGPATH: gno.land/r/zrealm_fvshare_recover
-// R2a: a writer that left by a panic — thrown by read-only or by writable
-// code, called by a stranger's library or recovered by the caller's realm — is
-// a copy.
+// A writer that left by a panic — thrown by read-only or by writable code,
+// called by a stranger's library or recovered by the caller's realm — never
+// writes; Private, a value called from a local slice, neither.
 package zrealm_fvshare_recover
 
 import (
@@ -14,7 +14,7 @@ type R struct{}
 func (r *R) Run(f func()) { f() }
 
 // K is a stranger's catcher: it keeps what it recovered behind a getter
-// closure, whose captures are never copied, and hands it back from Pick.
+// closure and hands it back from Pick.
 type K struct {
 	put func(g func() any)
 	get func() any
@@ -100,4 +100,4 @@ func main(cur realm) {
 // thrown writable, lib rethrows getter refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
 // thrown writable, realm recovers refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code was entered without crossing and is read-only (call its crossing function): v<VPBlock(1,0)>.N
 // thrown writable, realm keeps refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code was entered without crossing and is read-only (call its crossing function): v<VPBlock(1,0)>.N
-// private refused: false count: 1 why: undefined
+// private refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N

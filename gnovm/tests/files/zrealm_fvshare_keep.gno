@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_fvshare_keep
-// R2a: a writer already saved is not copied when stored again, so dropping
-// one holder leaves the other's object in place.
+// A writer already saved and stored again keeps one object, so dropping one
+// holder leaves the other's object in place.
 package zrealm_fvshare_keep
 
 import "gno.land/r/tests/vm/fvshare"

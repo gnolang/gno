@@ -1,5 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_fvshare_defer
-// R2a: a writer handed over by a deferred call comes back read-only.
+// A writer handed over by a deferred call never writes; Private, a value
+// called from a local slice, neither.
 package zrealm_fvshare_defer
 
 import "gno.land/r/tests/vm/fvshare"
@@ -8,8 +9,8 @@ type D struct{}
 
 func (d *D) Use(v any, set func(any)) { set(v) }
 
-// GK keeps a deferred call's argument behind a getter closure, whose
-// captures are never copied, and hands it back by a return or a panic.
+// GK keeps a deferred call's argument behind a getter closure and hands it
+// back by a return or a panic.
 type GK struct {
 	put func(g func() func())
 	get func() func() func()
@@ -70,4 +71,4 @@ func main(cur realm) {
 // crossing kept refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
 // deferred keep, picked refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
 // deferred throw, getter refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N
-// private refused: false count: 1 why: undefined
+// private refused: true count: 0 why: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N

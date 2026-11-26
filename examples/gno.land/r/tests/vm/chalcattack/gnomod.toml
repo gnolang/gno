@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/chalcattack"
+gno = "0.9"

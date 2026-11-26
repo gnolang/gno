@@ -2,7 +2,7 @@
 package zrealm_entry_pfunc_sortown
 
 // A realm calling a stdlib function through a local variable it made in its
-// gate acts like calling it by name: sort.Ints writes the realm's own data.
+// gate holds a local copy, not a call by name: sort.Ints runs read-only.
 
 import "gno.land/r/tests/vm/pfuncvictim"
 
@@ -11,5 +11,5 @@ func main(cur realm) {
 	println(pfuncvictim.Ints())
 }
 
-// Output:
-// slice[(1 int),(2 int),(3 int)]
+// Error:
+// gno.land/r/tests/vm/pfuncvictim's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): x<VPBlock(1,0)>[i<VPBlock(1,1)>]

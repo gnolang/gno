@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/chalclib"
+gno = "0.9"

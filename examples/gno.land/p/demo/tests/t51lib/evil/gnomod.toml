@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/t51lib/evil"
+gno = "0.9"

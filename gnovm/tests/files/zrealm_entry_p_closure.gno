@@ -4,9 +4,8 @@ package entrypclosure
 import "gno.land/r/tests/vm/entryclosure"
 
 // A closure built by library code acts for no realm: called by a stranger it
-// cannot write the owner's objects. A closure written in the owner's source,
-// called without crossing, is read-only too; only the owner's crossing entry
-// writes, through either kind.
+// cannot write the owner's objects, nor can the owner's literal it returns.
+// A returned or stored closure never writes, so the owner's own entry is refused too.
 
 func call(cur realm, f func()) { f() }
 
@@ -27,5 +26,11 @@ func try(fn func()) (r any) {
 	return nil
 }
 
+// Output:
+// p closure: cannot modify object owned by another realm from library code (call a function of the owning realm): b<~VPBlock(1,0)>.N
+// p counter: cannot modify object owned by another realm from library code (call a function of the owning realm): c<~VPBlock(1,1)>
+// n: 0 count: 0
+// owner literal: gno.land/r/tests/vm/entryclosure's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/tests/vm/entryclosure) package{})).box.N
+
 // Error:
-// cannot modify object owned by another realm from library code (call a function of the owning realm): c<~VPBlock(1,1)>
+// cannot modify object owned by another realm from library code (call a function of the owning realm): b<~VPBlock(1,0)>.N

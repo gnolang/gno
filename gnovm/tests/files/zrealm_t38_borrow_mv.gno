@@ -1,6 +1,6 @@
 // PKGPATH: gno.land/r/zrealm_t38_borrow_mv
 // T38: a method value of this realm's own type bound in a borrowed /p/ frame
-// writes in the making crossing call and is refused in a later one.
+// never writes: refused in the making crossing call and in a later one.
 
 package zrealm_t38_borrow_mv
 
@@ -23,16 +23,21 @@ func (*picker) Pick() func() { return func() { kept("k", "later") } }
 
 func main(cur realm) {
 	f := ifaceattack.MakeSet(Box)
-	f("k", "same")
-	println("same:", Box.Name)
+	println("same:", try(func() { f("k", "same") }), Box.Name)
 	kept = f
 	victim.Keep(cross(cur), &picker{})
 	victim.RunKept(cross(cur))
 	println("later:", Box.Name)
 }
 
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
+}
+
 // Output:
-// same: same
+// same: gno.land/r/zrealm_t38_borrow_mv's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): t<VPBlock(1,0)>.Name orig
 
 // Error:
 // gno.land/r/zrealm_t38_borrow_mv's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Name

@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/chaldlib"
+gno = "0.9"

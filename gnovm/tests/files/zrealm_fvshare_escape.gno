@@ -35,14 +35,14 @@ func main(cur realm) {
 	w := func() { count++ }
 	G = func() { panic(w) }
 	GR = func() func() { return w }
-	try("stored copy called", func() { G() })
+	try("stored closure called", func() { G() })
 	try("returned from stored", func() { GR()() })
 	r := catch(G)
 	try("panicked from stored", r.(func()))
 
 	var out func()
 	G = func() { out = w }
-	try("stored copy writes capture", func() { G() })
+	try("stored closure writes capture", func() { G() })
 	try("out after stored write", func() {
 		if out == nil {
 			panic("out not set")
@@ -61,10 +61,10 @@ func main(cur realm) {
 }
 
 // Output:
-// stored copy called refused: true count: 0
+// stored closure called refused: true count: 0
 // returned from stored refused: true count: 0
 // panicked from stored refused: true count: 0
-// stored copy writes capture refused: false count: 0
+// stored closure writes capture refused: false count: 0
 // out after stored write refused: true count: 0
 // bound get refused: true count: 0
 // bound throw refused: true count: 0
