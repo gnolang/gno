@@ -8,93 +8,77 @@ A realm never chose all the code that ran against its stored objects: library
 methods borrowed its authority, caller-supplied functions ran as the realm, and
 exported non-crossing functions wrote. Only a crossing call into the realm writes.
 
-## The rules
-**R1 Cross to write (code called by name).** A realm's stored state changes only during a crossing
+## Decision
+**R1 Cross to write.** A realm's stored state changes only during a crossing
 call into it: `func F(cur realm, …)` called `F(cross(cur), …)`. Any other entry
 runs read-only. Library (`/p/`) code never writes another realm's objects.
 
-**R2 Code that arrives as a value** (function value or interface): R2a–R2c.
-**R2a A function value writes only in the crossing call that made it, while
-private to it.** A non-crossing function value (closure, bound method value,
-declared function used as a value) called by value writes only during the
-crossing call that made it. What is stored in saved state, or handed to another
-realm or read-only code (a library outside the import tree, any function called
-through a value: `Decorate` in `fvshare`), is a copy with no maker; the local
-keeps writing unless its own slot was shown (`shareDeep`: swaps in the copy
-per slot through unsaved objects, flags them `shared`, wipes a saved value in
-place; run on attach, on calls that change realm or view-only state, and on
-writes into a shared object). Cost: one allocation per copy. So a stored function
-gives one answer in every call, and other code never picks a realm's writer. Every crossing call (the tx entry included) gets a fresh marker
-object (`crossingCall`) and each value points to it; equal pointers mean the
-same call, with no counter to wrap. Made in read-only code, at init, or loaded
-from the store: nil, which never matches, and the call runs `enterReadOnly`. "By value" is
-`ATTR_NAMED_CALLEE != true`; a named declared function or `/p` package
-variable is exempt, a realm's own variable holding a function is not. The
-marker is memory-only, never stored: a saved value comes back nil. It sits in
-`ObjectInfo` padding (unexported fields regrouped; amino numbers only exported
-ones) and a copy gets nil, so sizes, encoding and gas are unchanged. Rejected: S (a fresh value writes anywhere) accepts an escaped
-container re-entered from a crossing callback; S2 (write while its maker is
-current) accepts a value made in crossing call N run in M≠N; M' (a crossing
-closure crosses only from its maker realm) refuses the sanctioned hand-off to
-another realm's executor (`r/gov/dao` into `r/sys/validators`).
+**R2 A function value that is not crossing writes only when it is:**
+1. the realm's own code called by name, or a local helper (`f := func(){ n++ }; f()`);
+2. a literal written in place as a call argument, while that call runs, lent
+   only to the realm's own functions or to a `/p/` library function reached by
+   name (`lib.Each(xs, func(x int){ sum += x })`), never to another realm's function;
+3. a literal called in the expression that writes it (`func(){ n++ }()`).
 
-**R2a-save: the write is allowed, the save is not.** Inside a read-only stretch
-entered by R2a, a write to the read-only realm's own object whose ObjectID is
-not finalized is allowed and recorded (`ObjectInfo.s3Written`, memory only);
-finalize panics if a marked object lands in created/updated. Any read-only
-entry that writes a heap item it did not make marks it the same way; the mark
-is per object, so a by-value copy of a marked struct stored by the realm's own
-crossing code is not refused (`zrealm_s3u_rv3_2`). Stored objects stay refused
-at write time. Cost: one flag per R2a write, a finalize scan only when a flag
-was set; no amino, hash, state byte or gas constant changes.
+Anything else runs read-only and a write is refused with `<realm>'s code is
+read-only here: a function value writes only in the crossing call that made it`.
+The legal form for every other case is a crossing closure, `func(cur realm, …)`
+called with `cross`; it is the default for callbacks. The loan (clause 2) ends
+when the call returns, when the callee stores or returns the value, and for a
+deferred or variadic argument; a callee parameter that is only called or passed
+on keeps it. Marks live in the preprocessed code (`ATTR_LOCAL_HELPER`,
+`ATTR_NONESC_PARAMS`, `ATTR_NAMED_CALLEE`); nothing is stored, so amino, hashes
+and gas constants do not change.
 
-**R2b A function value copied out of its realm loses its maker.** When another
-realm's code hands a function value over (argument, receiver, result) or copies
-it, what arrives has no maker. Publishing a function is never a grant of write
-power.
+**R2-save.** Inside a read-only stretch, a write to the realm's own object that
+is not yet saved is allowed and flagged; finalize refuses to save a flagged
+object (`an object written by read-only code would be stored`).
 
-**R2c Only imported library code writes.** Code reached through an interface or a method value is
-trusted only if its package is in the calling realm's import tree (its imports
-and theirs, standard library included, test files excluded); otherwise it runs
-view-only.
+**R2c Only imported library code writes.** Code reached through an interface or
+a method value is trusted only if its package is in the calling realm's import
+tree (imports and theirs, standard library included, tests excluded).
 
-**R3 Types stay home: only pointers cross.** A struct or array value of a type a realm declares
-is created and copied only by that realm's code; others may hold a pointer,
-read fields and call methods. Exceptions: the receiver copy of a direct call to
-a value-receiver method, and an unnamed struct whose fields are all exported
-and which holds no realm's struct or array: it may be passed by value, and the
-copy belongs to whoever made it. An error type a realm hands out is a pointer;
-`defer x.M()` on another realm's value needs `defer func() { x.M() }()`. A
-by-value copy copies every level.
+**R3 Types stay home: only pointers cross.** A struct or array value of a type a
+realm declares is created and copied only by that realm's code. Exceptions: the
+receiver copy of a direct value-receiver call, and an unnamed struct of exported
+fields holding no realm's struct or array. Errors handed out are pointers;
+`defer x.M()` on another realm's value needs `defer func() { x.M() }()`.
 
 **R4 The ticket stays in its call.** `cur` is never stored, reassigned,
 addressed or forged; banker and `cur.Sub` need the live `cur`.
 
+**Panics.** `recover()` catches a panic unless it leaves a `cross` call; a
+library borrow (a call into `/p/` or the standard library at run time) no
+longer stops it. Tests expect a panic that leaves a `cross` call with
+`revive(func(){ … })`.
+
 Lint (`gno lint`, warnings): an exported function passing or returning its
-realm's struct by value, also inside an interface; a crossing function that
-calls a function reached through a non-function parameter. Known gaps: values
-passed through two or more locals, another function of the realm, a closure
-capture. Refusals: `<realm>'s code was entered without crossing and is
+realm's struct by value; a crossing function calling through a non-function
+parameter. Other refusals: `<realm>'s code was entered without crossing and is
 read-only (call its crossing function)`; `cannot modify object owned by another
-realm from library code (call a function of the owning realm)`; a refused copy
-or allocation of another realm's type. An R2a-entered stretch says instead:
-`<realm>'s code is read-only here: a function value writes only in the crossing
-call that made it`. `runtime.FuncPkgPath(fn)` names a func value's package.
+realm from library code (call a function of the owning realm)`.
 
 ## Alternatives rejected
-- **Owner grant (`mutable`, #6207)**: one grant hands out every method. **Stamping function values with their sender.** Lost in containers and variadics; a taint bit or side table was rejected for garbage and gas.
-- **Receiver ownership for interface calls** (cannot tell who picked the code); **unsaved objects stay writable** (saving depends on finalization); **implicit crossing on every call** (shifts the caller identity silently).
+- **Copy on hand-out** (a function value writes only in the crossing call that made it, while private to it; a stored or handed-out value becomes a copy without write power): it needed a per-call marker and a deep swap on every attach and realm change, and its edge cases were hard to state to authors.
+- **Owner grant (`mutable`, #6207)**: one grant hands out every method. **Stamping function values with their sender**: lost in containers and variadics.
+- **Receiver ownership for interface calls** (cannot tell who picked the code); **implicit crossing on every call** (shifts the caller identity silently).
 
 ## Consequences
-- Writers are crossing functions or methods, authenticated by `cur.Previous()`; a crossing method runs as its realm for anyone holding the object, so it must check the caller. Constructors work without crossing; their objects are read-only to callers, and a pointer handed out is a view.
-- A callback that writes its own realm is a crossing closure. A realm's iterator or builder needs crossing; hand out a library type value and keep the realm's data in its own or library types.
+- Writers are crossing functions or methods, authenticated by `cur.Previous()`; a crossing method runs as its realm for anyone holding the object, so it must check the caller.
+- A callback that writes its own realm is a crossing closure unless it is a literal lent in place to a library or to the realm's own function.
+- Recovered panics: a panic out of a library call is now caught by the caller's `recover()` (`recover_fv_borrow`, `recover_fv_libmade`); one leaving a `cross` call still aborts (`recover_fv_cross`).
 
 ## Known open
-- A library in the realm's import tree is trusted for interface calls; type-assert caller-supplied interface values to the types you expect.
-- Store-then-run in one call is read-only (`zrealm_saved_same_tx`, `zrealm_t38_wrap_ptr`, `zrealm_fvshare_*`): run the function before storing it, or make it crossing. Rejected: wiping only on store (a library outside the import tree could still hand a realm its own fresh writer).
-- A function value a library stores in a package variable acts for the caller when called in place (`lib.Table[k](x)`); copied to a local first, it has no maker and runs view-only (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
+- A callee not reached by name lends nothing: a local copy (`each := lib.Each; each(xs, f)`) or a function literal kept in a variable (`var Apply = func(f func()) { f() }`) runs `f` read-only (`zrealm_ctw_owncb`).
+- Another realm's function gets no loan, even a plain one (`zrealm_t55_other_plain`): give it a crossing callback.
+- A method value never writes (`zrealm_chald_lend_lib`); call the method directly.
+- `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_chale_plibeach`).
+- Swift and Rust put the same line in the function's type; the guide compares the four limits above (`gno-interrealm.md`, "The same line in Swift and Rust").
+- A library in the import tree is trusted for interface calls; type-assert caller-supplied interface values.
+- A library package variable called in place (`lib.Table[k](x)`) acts for the caller (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
 
 ## Upgrade notes
-- Struct errors returned to other realms become pointer errors (`sys/users`); library containers receive realm structs as pointers (`commondao`).
-- A constructor whose closures the realm's crossing functions later run must itself be crossing (`gov/dao NewGovDAO`).
-- State saved before the change keeps its old function-value references: the rules hold chain-wide only from a fresh genesis or a migration. Gas and storage deposits shift where a saved handle becomes its own object.
+- These stop writing: a stored callback (store a crossing closure instead); a declared function passed as a value (pass a literal in place, or make it crossing); a method value (call the method, or wrap it in a literal argument); a callback handed to another realm (make it `func(cur realm, …)`, called with `cross`).
+- `commondao` v0 `Option` and boards `permissions` v0 `Option` became interfaces (`commondao.WithID(…)` etc. keep their names): a closure made in init runs read-only when `New` calls it.
+- Struct errors returned to other realms become pointer errors (`sys/users`); library containers receive realm structs as pointers (`commondao`); `gov/dao NewGovDAO` is crossing.
+- Replay: see PR description

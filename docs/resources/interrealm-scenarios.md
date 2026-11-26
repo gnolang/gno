@@ -18,8 +18,9 @@ R2b are marked **fn-rule** and are re-checked when either changes.
 Legend
 
 - Rule: R1 cross to write (code called by name); R2 code that arrives as a
-  value: R2a it writes only in the crossing call that made it, and what is stored or shared is a copy that does not, R2b copied out of
-  its realm it loses its maker, R2c library code writes only if imported (R2a-save: a
+  value: R2a a plain one writes only as a local helper, a literal lent in place
+  to the realm's own or a library function called by name, or a literal called
+  where it is written, R2b one from another realm runs read-only, R2c library code writes only if imported (R2a-save: a
   new object it wrote is not saved); R3 types stay home (only pointers cross);
   R4 the ticket `cur` stays in its call.
 - Pattern: the old letters `a`–`m`; the whitepaper now numbers them by section:

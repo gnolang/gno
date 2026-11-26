@@ -60,7 +60,7 @@ func ApplyHook(fn func()) { fn() }
 func ApplyHook(fn func(*MyState)) { fn(gState) }
 ```
 
-A callback supplied by another realm arrives with no maker. If the callback
+A plain callback supplied by another realm runs read-only. If the callback
 must write its own realm, it is a crossing function the other realm calls with
 `cross`; a registry of crossing functions stores `func(cur realm, ...)` values,
 not plain functions.

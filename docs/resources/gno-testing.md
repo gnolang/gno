@@ -153,6 +153,21 @@ gno test --update-golden-tests .
 | `Storage`        | Realm storage size diff.                      |
 | `TypeCheckError` | Go type-checker error.                        |
 
+### Expecting a panic that aborts
+
+`recover()` catches a panic unless it leaves a `cross` call; such a panic
+aborts the transaction. To check one in a test, wrap the call in
+`revive(func(){ ... })`, which returns the panic value instead of aborting
+(tests only):
+
+```go
+func main(cur realm) {
+	println(revive(func() { other.Fail(cross(cur)) })) // prints the panic value
+}
+```
+
+A panic that `recover()` can catch is tested with `recover()` as in Go.
+
 :::info Pure package imports
 Imports of pure packages are processed separately. If a pure package contains a
 line like `println(1)`, its output cannot be checked by an `// Output:` directive.

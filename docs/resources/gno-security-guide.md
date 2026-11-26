@@ -73,19 +73,20 @@ Consequence: library methods (`avl.Tree.Set`, `grc20` methods) write the
 caller's own objects under the caller's authority. A realm's stored object is
 not writable this way; the owner exposes a crossing function.
 
-### 2.3 Function Values Follow Their Maker
+### 2.3 Function Values Write Only Where the Call Line Shows It
 
-A `/p/` or stdlib function value belongs to the realm whose writable code made
-it, and none when made in read-only code. Called through a variable, it writes
-that realm's state only if its maker is the calling realm, so it gains no
+A plain function value (one without a `cur realm` parameter) writes a realm's
+state only as the realm's own code called by name or a local helper, as a
+literal written in place as an argument while that call runs (lent to the
+realm's own function or a `/p/` function called by name, never to another
+realm's function), or as a literal called where it is written. It gains no
 authority by changing hands, whether by storage, passing, or a higher-order
 method.
 
-Consequence: a library function value that arrives with another realm's values
-can write no stored object. The same holds for a closure, method value or
-method expression called through a value. An `/r/`-declared closure called
-from another realm runs read-only (§2.1); a callback that must write its own
-realm is a crossing closure (`func(cur realm) {...}`) called with `cross`.
+Consequence: a stored, returned or handed-over function value can write no
+stored object; the same holds for a method value. An `/r/`-declared closure
+called from another realm runs read-only (§2.1); a callback that must write its
+own realm is a crossing closure (`func(cur realm) {...}`) called with `cross`.
 
 ### 2.4 Readonly Taint
 
@@ -482,15 +483,15 @@ local copy is refused before the copy exists.
 ### 7.1 Bound method values follow their package
 
 `mv := victim.Apply` (bound method value) is a function value that remembers
-its receiver and its maker. A `/p/` or stdlib method value is trusted only when
+its receiver; called by value, it never writes. A `/p/` or stdlib method value is trusted only when
 its package is in the calling realm's import tree; otherwise it runs view-only:
 it can write no realm's stored objects, neither the receiver nor an argument.
-A method value an attacker binds on your view is refused wherever it runs, and
-one your realm binds in read-only code has no maker. A realm that stores a
-function value it did not make gets no write authority from it: R2a gives it
-id 0, so it runs read-only. A function the realm made itself is read-only too
-once it is stored or another realm's code could reach it; to keep a writer,
-store a crossing function and call it with `cross`.
+A method value an attacker binds on your view is refused wherever it runs. A
+plain function value writes only as a local helper, as a literal lent in place
+to the realm's own function or a library function called by name, or as a
+literal called where it is written; stored, returned or handed to another
+realm, it runs read-only. To keep a writer, store a crossing function and call
+it with `cross`.
 
 Method *expressions* (unbound: `(*T).Apply`) do not carry the
 receiver stamp. Calling `me(recv, args)` and `recv.Apply(args)`

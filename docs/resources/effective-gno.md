@@ -146,7 +146,7 @@ func init(cur realm) {
 func myCallback(cur realm, a, b string) { /* ... */ }
 ```
 
-A function handed to another realm arrives with no maker, so writing your
+A plain function handed to another realm runs read-only there, so writing your
 realm's state from it needs a crossing function (`func(cur realm, ...)`) that
 the registry calls with `cross`; a plain function value can only read. A
 registry of crossing functions stores `func(cur realm, ...)` values.

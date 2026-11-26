@@ -40,90 +40,137 @@ closure, a method value, a declared function used as a value) or an interface
 value. R2a–R2c say when such code may write; R2a's save check (in the whitepaper)
 refuses to save a new object it wrote.
 
-### R2a A function value writes only in the crossing call that made it
+### R2a A plain function value writes in three places only
+
+A function value without a `cur realm` parameter (a plain one) writes the
+realm's saved state only in these three shapes.
+
+1. The realm's own code called by name, or a local helper: a closure kept in a
+   local variable and called in the same function.
 
 ```go
-// /r/app/app
-var total int
-
-func Run(cur realm) {
-	f := func() { total++ }
-	f()                       // same crossing call, still private: writes
-	other.Keep(cross(cur), f) // other gets a copy without write power
-	f()                       // the local still writes
-	saved = f                 // so does a stored one: saved() is read-only
+func Bump(cur realm) {
+	f := func() { count++ }
+	f() // writes: a local helper
 }
 ```
 
-A non-crossing function value (a closure, a bound method value, a declared
-function used as a value) writes only during the crossing call that made it,
-and only while it has stayed private to that call. What is stored in saved
-state, or handed to another realm or to code that runs read-only, is a copy
-without write power: a library outside the realm's import tree, or any function
-called through a value, the realm's own stored helper included (directly, or
-inside a struct, slice, map or pointer). The local variable keeps writing,
-unless the variable itself was shown by pointer, or captured by a closure that
-was. To decorate a writer, call the helper by its declared name. Made in read-only code,
-at init, or loaded from the store, its id is 0 and the
-call runs read-only. There is then no crossing function to call: make the
-callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or rebuild
-the value inside the call that runs it.
+2. A literal written in place as a call argument, while that call runs. It is
+   lent only to the realm's own functions or to a `/p/` library function called
+   by its name, never to another realm's function.
+
+```go
+func Sum(cur realm) {
+	lib.Each([]int{1, 2, 3}, func(x int) { count += x }) // writes: count 6
+}
+```
+
+3. A literal called in the expression that writes it.
+
+```go
+func Bump(cur realm) {
+	func() { count++ }()        // writes
+	defer func() { count++ }() // writes, before Bump returns
+}
+```
+
+Anything else runs read-only: a stored function, a returned one, a declared
+function passed as a value, a method value, a literal kept by the callee and
+called later. A write is then refused:
 
 ```
 // Error:
-// gno.land/r/tests/vm/cbsaved's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/cbsaved) package{})).Owner
+// gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): Owner<~VPBlock(3,0)>
 ```
 
-A package variable that holds a function is a box: the call line `onSale()`
-cannot tell who filled it, or with what. So a kept function writes only when
-its type says so:
+For every other case, and as the default for any callback, write a crossing
+closure: `func(cur realm, …)`, called with `cross`. It writes wherever it is
+kept, and `cur.Previous()` names who called it.
 
 ```go
 var onSale  func()                 // plain: never writes once stored
-var onSale2 func(cur realm, n int) // crossing: writes in any call, with cross
+var onSale2 func(cur realm, n int) // crossing: writes, called with cross
 
 func Setup(cur realm) {
-	reset := func() { total = 0 }
-	reset()  // writes: made here, not stored yet
-	onSale = reset
+	onSale = func() { total = 0 }
 	onSale() // read-only: stored
-	reset()  // read-only: the same function
 	onSale2 = func(cur realm, n int) { total = n }
-	onSale2(cross(cur), 5) // writes
-}
-
-func Later(cur realm) {
-	onSale()               // read-only, the same answer as in Setup
 	onSale2(cross(cur), 5) // writes
 }
 ```
 
-The plain kind must not write once stored because anyone may call an exported
-helper such as `func MakeHook(it *Item) func()` to get a function with the
-realm's code and their own choice of `it`, and a plain function has no `cur`
-to check who is calling. A crossing function has both: `cur.Previous()` names
-the caller, and the `cross` at the call line shows the write.
+A plain function must not write once stored because anyone may call an
+exported helper such as `func MakeHook(it *Item) func()` to get a function
+with the realm's code and their own choice of `it`, and a plain function has no
+`cur` to check who is calling.
 
-### R2b A function value copied out of its realm loses its maker
+Known limits of the loan in shape 2:
+
+- A callee not reached by its name lends nothing: a local copy
+  (`each := lib.Each; each(xs, f)`) or a function literal kept in a variable
+  (`var Apply = func(f func()) { f() }`) runs `f` read-only.
+- Another realm's function gets no loan, even a plain one; give it a crossing
+  callback.
+- A method value never writes; call the method directly.
+- `lib.Default.Each(func(int){ count++ })` is refused: the method of a
+  variable the library owns runs as the library, not as your realm.
+
+#### The same line in Swift and Rust
+
+Swift and Rust draw the same line: a function handed over for one call may
+touch the caller's state, and one that is kept may not. Both put the mark in
+the function's type, so the compiler checks it. A Gno function type carries no
+such mark, so the VM works it out for each function called by name. That is
+why the local copy, the method value and the library's own variable are
+refused in Gno.
+
+Swift: a closure argument cannot be kept (the docs call it non-escaping)
+unless the callee declares `@escaping`.
+
+- `each(xs) { sum += $0 }` compiles, and so does `let e = each; e(xs) { sum += $0 }`:
+  the copy keeps the type.
+- Storing the parameter inside `each` is a compile error.
+- `let g = v.bump` for a `mutating` method is a compile error ("cannot
+  reference 'mutating' method as function value").
+
+Rust: a closure that borrows a variable cannot outlive the borrow.
+
+- `each(&xs, |x| sum += x)` and `let e = each; e(&xs, |x| sum += x)` are fine.
+- Handing `|| n += 1` to something that keeps it (`Box<dyn FnMut() + 'static>`)
+  is a compile error.
+- `let g = Counter::bump; g(&mut v)` is fine: the object is passed by hand
+  each time.
+
+| Gno limit | Swift | Rust |
+|---|---|---|
+| local copy of a library function | allowed | allowed |
+| method value | refused for a `mutating` method | allowed, the object passed by hand |
+| a library's own variable, `lib.Default.Each(...)` | allowed | allowed |
+| another realm's function | closest match: another actor, which must hop back with `await` | closest match: another thread; the closure must own what it touches |
+
+The last row is an ownership border in all three languages, and `cross` plays
+the part of Swift's `await` hop. The first three are the safe side of a line
+the VM draws without help from the type.
+
+### R2b Another realm runs your plain function read-only
 
 ```go
 // /r/app/app
 var sum int
 
 func Run(cur realm) {
-	other.ForEach(cross(cur), func(n int) { sum += n }) // handed to another realm: no maker
+	other.ForEach(cross(cur), func(n int) { sum += n })            // refused
+	other.ForEachX(cross(cur), func(cur realm, n int) { sum += n }) // writes
 }
 ```
 
-When another realm's code hands a function value over (argument, receiver,
-result) or copies it, what arrives has no maker, so publishing a function is
-never a grant of write power; a function value handed to another realm runs
-read-only there. Not covered: a caller hands a realm's crossing function a
-reference to that realm's own stored functions; your crossing function must not
-call function values found in caller-supplied containers. `gno lint` warns when
-a crossing function calls a function reached through a parameter that is not a
-function; it does not yet follow values through two or more locals, another
-function of the realm, or a closure capture.
+A plain function value handed to another realm, as argument, receiver or
+result, runs read-only there, so publishing a function never grants write
+power. Your crossing function must not call function values found in
+caller-supplied containers; `gno lint` warns when a crossing function calls a
+function reached through a parameter that is not a function, but does not yet
+follow values through two or more locals, another function of the realm, or a
+closure capture.
 
 ```
 // Error:
@@ -200,17 +247,33 @@ comes only from the live `cur`.
 
 ## Upgrade notes
 
-Existing code must change in three ways; one more thing shifts:
+These shapes stop writing; rewrite each as shown:
 
+- A stored callback (`hooks = append(hooks, f)`, later `f()`): store a crossing
+  closure `func(cur realm, …)` and call it with `cross`.
+- A declared function passed as a value (`lib.Each(xs, bump)`): pass a literal
+  in place, `lib.Each(xs, func(x int) { bump(x) })`, or make it crossing.
+- A method value (`f := obj.Inc; f()`): call `obj.Inc()`, or wrap it in a
+  literal argument.
+- A callback handed to another realm: make it `func(cur realm, …)`; the other
+  realm calls it with `cross`.
+
+Other changes:
+
+- `commondao` v0 and boards `permissions` v0 options are now interfaces: the
+  helpers (`WithID`, `WithName`, …) keep their names, but you cannot write your
+  own `func(*CommonDAO)` option, since a closure made in init runs read-only
+  when `New` calls it.
 - A struct error returned to another realm becomes a pointer error; `r/sys/users`
   is the worked example.
 - A library container that stores a realm's struct receives a pointer instead
   (`commondao`).
 - A constructor whose closures the realm's crossing functions later run must
   itself be crossing (`gov/dao NewGovDAO`).
+- A panic out of a library call is now caught by your `recover()`; one that
+  leaves a `cross` call still aborts (see `panic()` and `revive(fn)` below).
 - State saved before this change keeps its old function-value references: the
-  rules hold chain-wide only from a fresh genesis or a migration, and gas and
-  storage deposits shift where declared functions are passed as values.
+  rules hold chain-wide only from a fresh genesis or a migration.
 
 ## Introduction
 ### Design Goals
@@ -545,9 +608,10 @@ A function declared in p packages (or in stdlib) when called:
  * a method on a realm-owned receiver is a view: its writes to the owner's
    object are refused.
  * a closure, bound method value or declared function used as a value follows
-   R2a: it acts for the realm whose writable code made it, only in the crossing
-   call that made it and while private to it, and view-only when stored, shared
-   or made in read-only code.
+   R2a: it writes only as a local helper, as a literal lent in place to the
+   realm's own function or a library function called by name while that call
+   runs, or as a literal called where it is written; anything else runs
+   read-only.
  * runs view-only when reached through an interface or method value whose
    package the current realm does not import, directly or through its imports,
    the standard library included.
@@ -926,11 +990,27 @@ exactly like a stored object.
 
 ## `panic()` and `revive(fn)`
 
-`panic()` behaves the same within the same realm boundary, but when a panic
-crosses a realm boundary (as defined in [Realm Boundaries](#realm-boundaries))
-the Machine aborts the program. This is because in a multi-user environment it
-isn't safe to let the caller recover from realm panics that often leave the
-state in an invalid state.
+`recover()` catches a panic unless the panic leaves a `cross` call. A panic
+that leaves a crossing call aborts the whole transaction, because the realm it
+leaves may hold half-written state that its caller must not keep using.
+
+```go
+func Run(cur realm) {
+	defer func() { recover() }() // catches the library's panic
+	lib.MustPositive(-1)         // a /p/ call: no cross, caught
+	other.Fail(cross(cur))       // leaves a cross call: aborts, not caught
+}
+```
+
+Differences from earlier versions, where a call into a library or into
+another realm's method without `cross` also stopped `recover()`:
+
+- A panic out of code reached without `cross` at run time is now caught: a
+  library (`/p/` or standard library) call, a method on another realm's object,
+  a closure or method value run by a library.
+- A panic that leaves a `cross` call still aborts.
+- During package initialization, a panic out of a library method working on
+  the library's own object still aborts.
 
 This would be sufficient, but we also want to write our tests to be able
 to detect such aborts and make assertions. For this reason Gno provides
@@ -946,8 +1026,9 @@ abort := revive(func() {
 abort == "cross-realm panic"
 ```
 
-`revive(fn)` will execute 'fn' and return the exception that crossed a realm
-boundary during finalization.
+`revive(fn)` will execute 'fn' and return the exception that left a `cross`
+call. A test that expects such a panic wraps the call in `revive`; a panic
+that `recover()` can catch is tested with `recover()` as in Go.
 
 This is only enabled in testing mode (for now), behavior is only partially
 implemented. In the future `revive(fn)` will be available for non-testing code,
