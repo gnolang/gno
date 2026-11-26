@@ -47,8 +47,8 @@ func New(options ...Option) *Permissions {
 		group:      groups.NewGroup(),
 	}
 
-	for _, apply := range options {
-		apply(ps)
+	for _, opt := range options {
+		opt.apply(ps)
 	}
 	return ps
 }

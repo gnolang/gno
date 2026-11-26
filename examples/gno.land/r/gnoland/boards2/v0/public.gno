@@ -383,30 +383,31 @@ func DeleteThread(cur realm, boardID, threadID boards.ID) {
 	}
 
 	thread := mustGetThread(board, threadID)
-	deleteThread := func() {
-		board.Threads.Remove(thread.ID)
-
-		chain.Emit(
-			"ThreadDeleted",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"threadID", thread.ID.String(),
-		)
-	}
-
 	// Thread can be directly deleted by user that created it.
 	// It can also be deleted by realm owners, to be able to delete inappropriate content.
 	// TODO: Discuss and decide if realm owners should be able to delete threads.
 	if isRealmOwner || caller == thread.Creator {
-		deleteThread()
+		deleteThread(caller, board, thread)
 		return
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID}
 	board.Permissions.WithPermission(caller, PermissionThreadDelete, args, func() {
 		assertRealmIsNotLocked()
-		deleteThread()
+		deleteThread(caller, board, thread)
 	})
+}
+
+// deleteThread runs by name, so it writes in both the direct and the permission path.
+func deleteThread(caller address, board *boards.Board, thread *boards.Post) {
+	board.Threads.Remove(thread.ID)
+
+	chain.Emit(
+		"ThreadDeleted",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
+	)
 }
 
 // DeleteReply deletes a reply from a thread.
@@ -430,54 +431,55 @@ func DeleteReply(cur realm, boardID, threadID, replyID boards.ID) {
 		assertReplyIsVisible(reply)
 	}
 
-	deleteReply := func() {
-		// Soft delete comment/reply by changing its body when
-		// it contains replies, otherwise hard delete it.
-		if reply.Replies.Size() > 0 {
-			reply.Body = "⚠ This comment has been deleted"
-			reply.UpdatedAt = time.Now()
-		} else {
-			// Remove reply from the flat thread index.
-			meta := thread.Meta.(*ThreadMeta)
-			reply, removed := meta.AllReplies.Remove(replyID)
-			if !removed {
-				panic("reply not found")
-			}
-
-			// Remove reply from its parent's direct-children list too. A
-			// direct thread reply's parent is the thread itself; a nested
-			// reply's parent is another reply (resolved via the flat index).
-			// Missing the thread-parent case left a ghost in thread.Replies
-			// (rendered in the threaded view, with a stale reply count).
-			if reply.ParentID == thread.ID {
-				thread.Replies.Remove(replyID)
-			} else if parent, found := meta.AllReplies.Get(reply.ParentID); found {
-				parent.Replies.Remove(replyID)
-			}
-		}
-
-		chain.Emit(
-			"ReplyDeleted",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"threadID", thread.ID.String(),
-			"replyID", reply.ID.String(),
-		)
-	}
-
 	// Reply can be directly deleted by user that created it.
 	// It can also be deleted by realm owners, to be able to delete inappropriate content.
 	// TODO: Discuss and decide if realm owners should be able to delete replies.
 	if isRealmOwner || caller == reply.Creator {
-		deleteReply()
+		deleteReply(caller, board, thread, reply, replyID)
 		return
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID}
 	board.Permissions.WithPermission(caller, PermissionReplyDelete, args, func() {
 		assertRealmIsNotLocked()
-		deleteReply()
+		deleteReply(caller, board, thread, reply, replyID)
 	})
+}
+
+// deleteReply runs by name, so it writes in both the direct and the permission path.
+func deleteReply(caller address, board *boards.Board, thread, reply *boards.Post, replyID boards.ID) {
+	// Soft delete comment/reply by changing its body when
+	// it contains replies, otherwise hard delete it.
+	if reply.Replies.Size() > 0 {
+		reply.Body = "⚠ This comment has been deleted"
+		reply.UpdatedAt = time.Now()
+	} else {
+		// Remove reply from the flat thread index.
+		meta := thread.Meta.(*ThreadMeta)
+		reply, removed := meta.AllReplies.Remove(replyID)
+		if !removed {
+			panic("reply not found")
+		}
+
+		// Remove reply from its parent's direct-children list too. A
+		// direct thread reply's parent is the thread itself; a nested
+		// reply's parent is another reply (resolved via the flat index).
+		// Missing the thread-parent case left a ghost in thread.Replies
+		// (rendered in the threaded view, with a stale reply count).
+		if reply.ParentID == thread.ID {
+			thread.Replies.Remove(replyID)
+		} else if parent, found := meta.AllReplies.Get(reply.ParentID); found {
+			parent.Replies.Remove(replyID)
+		}
+	}
+
+	chain.Emit(
+		"ReplyDeleted",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
+		"replyID", reply.ID.String(),
+	)
 }
 
 // EditThread updates the title and body of a thread.
@@ -504,30 +506,31 @@ func EditThread(cur realm, boardID, threadID boards.ID, title, body string) {
 		assertBodyIsNotEmpty(body)
 	}
 
-	editThread := func() {
-		thread.Title = title
-		thread.Body = body
-		thread.UpdatedAt = time.Now()
-
-		chain.Emit(
-			"ThreadEdited",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"threadID", thread.ID.String(),
-			"title", title,
-		)
-	}
-
 	if caller == thread.Creator {
-		editThread()
+		editThread(caller, board, thread, title, body)
 		return
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, title, body}
 	board.Permissions.WithPermission(caller, PermissionThreadEdit, args, func() {
 		assertRealmIsNotLocked()
-		editThread()
+		editThread(caller, board, thread, title, body)
 	})
+}
+
+// editThread runs by name, so it writes in both the direct and the permission path.
+func editThread(caller address, board *boards.Board, thread *boards.Post, title, body string) {
+	thread.Title = title
+	thread.Body = body
+	thread.UpdatedAt = time.Now()
+
+	chain.Emit(
+		"ThreadEdited",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
+		"title", title,
+	)
 }
 
 // EditReply updates the body of a comment or reply.
@@ -578,31 +581,32 @@ func RemoveMember(cur realm, boardID boards.ID, member address) {
 	perms := mustGetPermissions(boardID)
 	origin := unsafe.OriginCaller()
 	caller := cur.Previous().Address()
-	removeMember := func() {
-		if !perms.RemoveUser(member) {
-			panic("member not found")
-		}
-
-		chain.Emit(
-			"MemberRemoved",
-			"caller", caller.String(),
-			"origin", origin.String(), // When origin and caller match it means self removal
-			"boardID", boardID.String(),
-			"member", member.String(),
-		)
-	}
-
 	// Members can remove themselves without permission
 	if origin == member {
-		removeMember()
+		removeMember(caller, origin, member, boardID, perms)
 		return
 	}
 
 	args := boards.Args{boardID, member}
 	perms.WithPermission(caller, PermissionMemberRemove, args, func() {
 		assertMembersUpdateIsEnabled(boardID)
-		removeMember()
+		removeMember(caller, origin, member, boardID, perms)
 	})
+}
+
+// removeMember runs by name, so it writes in both the direct and the permission path.
+func removeMember(caller, origin, member address, boardID boards.ID, perms boards.Permissions) {
+	if !perms.RemoveUser(member) {
+		panic("member not found")
+	}
+
+	chain.Emit(
+		"MemberRemoved",
+		"caller", caller.String(),
+		"origin", origin.String(), // When origin and caller match it means self removal
+		"boardID", boardID.String(),
+		"member", member.String(),
+	)
 }
 
 // IsMember checks if a user is a member of the realm or a board.
