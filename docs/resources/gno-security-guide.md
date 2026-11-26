@@ -181,10 +181,11 @@ variable (`lib.Handlers[k] (internalState)`, fixed after init), acts for
 `/r/V`; `/r/V`'s own callback reached through such a call keeps `/r/V`'s
 authority.
 
-An interface or a method value works the same way: `r.Run(internalState)`
-or `f := r.Run; f(internalState)` with a caller's `r` runs view-only unless
-`/r/V` imports `r`'s package, directly or through its imports. A library in
-`/r/V`'s import tree is trusted, so a caller may still pick any of its types.
+An interface works the same way: `r.Run(internalState)` with a caller's `r`
+runs view-only unless `/r/V` imports `r`'s package, directly or through its
+imports. A library in `/r/V`'s import tree is trusted, so a caller may still
+pick any of its types. A method value, `f := r.Run; f(internalState)`, never
+writes, also when its package is in `/r/V`'s import tree.
 
 Empirically verified across 60+ probe filetests:
 `gnovm/tests/files/zrealm_launder_rdata_*.gno`.
@@ -252,7 +253,7 @@ realm write, expose a crossing function that names your own variable
 (`SetUser` above); the caller calls that, and only your code performs
 the write. A closure declared in your realm runs read-only when
 another realm calls it; a crossing closure you hand out is a writer
-anyone holding it can call with `cross`. A method value of a `/p/` method (`view.Set`) runs view-only when code from a realm whose import tree lacks that package calls it (§7.1). Fresh-object corner: a `/p/` object your
+anyone holding it can call with `cross`. A method value (`view.Set`) never writes, wherever it runs (§7.1). Fresh-object corner: a `/p/` object your
 function builds and returns carries your realm's stamp from allocation,
 so the caller cannot write it either.
 
@@ -485,12 +486,13 @@ local copy is refused before the copy exists.
 
 ## 7. Properties That Surprised Us (Worth Knowing)
 
-### 7.1 Bound method values follow their package
+### 7.1 Bound method values never write
 
 `mv := victim.Apply` (bound method value) is a function value that remembers
-its receiver; called by value, it never writes. A `/p/` or stdlib method value is trusted only when
-its package is in the calling realm's import tree; otherwise it runs view-only:
-it can write no realm's stored objects, neither the receiver nor an argument.
+its receiver; called by value, it never writes, also when its package is in
+the calling realm's import tree: it can write no realm's stored objects,
+neither the receiver nor an argument. Only a method called directly or
+through an interface is trusted by its package (R2c).
 A method value an attacker binds on your view is refused wherever it runs. A
 plain function value writes only as a local helper, as a literal lent in place
 to the realm's own function or a library function called by name, or as a
@@ -593,8 +595,8 @@ Before deploying a realm:
 - [ ] My crossing functions never call a function value found in a slice, map,
   pointer or object a caller passed in.
 
-- [ ] A method value of a `/p/` type bound on my object writes nothing when
-  another realm calls it (see [the four rules (R2c)](./gno-interrealm.md)); my
+- [ ] A method value of a `/p/` type bound on my object writes nothing,
+  wherever it runs (see [the four rules (R2a)](./gno-interrealm.md)); my
   crossing function performs the write.
 
 - [ ] Errors I return to other realms are pointer errors (`*MyError`), never

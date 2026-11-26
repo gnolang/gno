@@ -193,9 +193,10 @@ func Run(cur realm, r io.Reader) {
 }
 ```
 
-Code reached through an interface or a method value is trusted only if its
+A method called directly or through an interface is trusted only if its
 package is in the calling realm's import tree (its imports and theirs, the
 standard library included, test files excluded); otherwise it runs view-only.
+A method value is a function value (R2a) and never writes, whatever its package.
 
 ```
 // Error:
@@ -617,9 +618,9 @@ A function declared in p packages (or in stdlib) when called:
    realm's own function or a library function called by name while that call
    runs, or as a literal called where it is written; anything else runs
    read-only.
- * runs view-only when reached through an interface or method value whose
-   package the current realm does not import, directly or through its imports,
-   the standard library included.
+ * runs view-only when reached through an interface whose package the current
+   realm does not import, directly or through its imports, the standard library
+   included; a method value never writes, whatever its package.
 
 A function declared in a realm package (`/r/X`) when called:
 
@@ -984,9 +985,9 @@ another realm calls it; to let a callback write its realm, make it a crossing
 closure (`func(cur realm) {...}`) called with `cross`. A `/p/` or stdlib
 closure called through a value by another realm's code runs view-only. A
 method value of a `/p/` or stdlib method writes no stored object, receiver or
-argument when reached from code whose realm does not import its package; when
-that package is in the calling realm's import tree it acts for the caller
-(R2c). A `/p/`-owned receiver runs as the caller, and the package's post-init
+argument, also when its package is in the calling realm's import tree; a
+method called directly or through an interface from that tree acts for the
+caller (R2c). A `/p/`-owned receiver runs as the caller, and the package's post-init
 immutability check reports a write to its own state.
 
 Fresh-object corner: an object a realm function builds and returns carries
