@@ -239,9 +239,10 @@ func Execute(cur realm, daoID, proposalID uint64) {
 	// Mint the sub-identity that funds the executor and pass it in. The
 	// operative DAO is the host by default; a fund-moving definition
 	// (Funded) may name a different DAO by ID (e.g. clawback sweeps the
-	// target, sub-DAO dissolution sweeps the dissolved descendant). Non-fund
-	// executors ignore the sub. The sub is terminal and RealmSend-only, so
-	// the executor can move value only from this one DAO address.
+	// target, sub-DAO dissolution sweeps the dissolved descendant). Other
+	// executors cross with the sub only to write (see assertExecutor). The sub is
+	// terminal and RealmSend-only, so the executor can move value only
+	// from this one DAO address.
 	op := daoID
 	if f, ok := p.Definition().(Funded); ok {
 		op = f.FundingDAOID()

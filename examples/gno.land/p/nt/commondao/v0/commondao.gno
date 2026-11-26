@@ -80,8 +80,8 @@ func New(options ...Option) *CommonDAO {
 		finishedProposals:  newProposalStorage(),
 		maxActiveProposals: DefaultMaxActiveProposals,
 	}
-	for _, apply := range options {
-		apply(dao)
+	for _, opt := range options {
+		opt.apply(dao)
 	}
 	return dao
 }
@@ -364,11 +364,16 @@ func (dao *CommonDAO) Propose(creator address, kind string, args any) (*Proposal
 		return nil, err
 	}
 
-	// Snapshot the current council as the proposal's electorate
+	// Snapshot the current council as the proposal's electorate. The
+	// callback only collects: addrset wraps it, so it runs without write power.
+	var members []address
 	dao.council.IterateByOffset(0, dao.council.Size(), func(member address) bool {
-		p.electorate.Add(member)
+		members = append(members, member)
 		return false
 	})
+	for _, member := range members {
+		p.electorate.Add(member)
+	}
 
 	dao.activeProposals.Add(p)
 	return p, nil

@@ -24,10 +24,13 @@ func (testPropDef) Threshold() commondao.Threshold { return commondao.ThresholdS
 
 func (testPropDef) Executor() commondao.ExecFunc {
 	return func(_ int, sub realm) error {
-		executed = true
+		markExecuted(cross(sub))
 		return nil
 	}
 }
+
+// markExecuted writes for the read-only executor; it crosses in with the sub.
+func markExecuted(cur realm) { executed = true }
 
 type testPropKind struct{}
 

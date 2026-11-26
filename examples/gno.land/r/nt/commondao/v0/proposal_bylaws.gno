@@ -185,7 +185,14 @@ func (p amendBylawsProposal) Executor() commondao.ExecFunc {
 // execute applies the patch, returning any bylaws error unchanged so a
 // race between two passed amendments fails the later one cleanly
 // (StatusFailed) instead of panicking the transaction. It moves no
-// funds, so the definition is not Funded and ignores sub.
-func (p amendBylawsProposal) execute(_ int, _ realm) error {
-	return p.set.Apply(p.patch)
+// funds, so the definition is not Funded; it crosses
+// with sub only to write (see assertExecutor).
+func (p amendBylawsProposal) execute(_ int, sub realm) error {
+	assertSub(0, sub)
+	return applyBylaws(cross(sub), p.daoID, p.set, p.patch)
+}
+
+func applyBylaws(cur realm, daoID uint64, set *bylaws.Bylaws, patch bylaws.Patch) error {
+	assertExecutor(cur.Previous().Address(), daoID)
+	return set.Apply(patch)
 }

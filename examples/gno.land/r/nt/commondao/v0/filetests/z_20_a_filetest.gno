@@ -43,8 +43,8 @@ func main(cur realm) {
 	// The closure is authored in this persistent realm, so it survives
 	// Propose->Execute. Called back without crossing it is read-only, so it
 	// crosses back into this realm to record that it ran.
-	pID := commondao.CreateExecutionProposal(cross(cur), daoID, "Run it", "Body", func(_ int, rlm realm) error {
-		markRan(cross(rlm))
+	pID := commondao.CreateExecutionProposal(cross(cur), daoID, "Run it", "Body", func(_ int, sub realm) error {
+		markRan(cross(sub))
 		return nil
 	})
 	println("created:", pID)

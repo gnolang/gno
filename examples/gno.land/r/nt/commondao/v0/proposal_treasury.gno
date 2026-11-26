@@ -288,7 +288,14 @@ func (p treasuryFreezePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p treasuryFreezePropDefinition) execute(_ int, sub realm) error {
-	p.target.SetTreasuryFrozen(p.frozen)
+	assertSub(0, sub)
+	return setFrozen(cross(sub), p.dao, p.target, p.frozen)
+}
+
+// setFrozen freezes or unfreezes target's treasury for the executor of host.
+func setFrozen(cur realm, host, target *commondao.CommonDAO, frozen bool) error {
+	assertExecutor(cur.Previous().Address(), host.ID())
+	target.SetTreasuryFrozen(frozen)
 	return nil
 }
 

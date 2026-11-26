@@ -91,7 +91,14 @@ func (p councilUpdatePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p councilUpdatePropDefinition) execute(_ int, sub realm) error {
-	return p.dao.UpdateCouncil(p.toAdd, p.toRemove)
+	assertSub(0, sub)
+	return updateCouncil(cross(sub), p.dao, p.dao, p.toAdd, p.toRemove)
+}
+
+// updateCouncil changes target's council for the executor of host.
+func updateCouncil(cur realm, host, target *commondao.CommonDAO, add, remove []address) error {
+	assertExecutor(cur.Previous().Address(), host.ID())
+	return target.UpdateCouncil(add, remove)
 }
 
 // newAncestorCouncilUpdatePropDefinition creates a proposal definition for
@@ -183,7 +190,8 @@ func (p ancestorCouncilUpdatePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p ancestorCouncilUpdatePropDefinition) execute(_ int, sub realm) error {
-	return p.target.UpdateCouncil(p.toAdd, p.toRemove)
+	assertSub(0, sub)
+	return updateCouncil(cross(sub), p.dao, p.target, p.toAdd, p.toRemove)
 }
 
 // addrStrings converts addresses for markdown list rendering.
