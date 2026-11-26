@@ -75,14 +75,18 @@ not writable this way; the owner exposes a crossing function.
 
 ### 2.3 Function Values Write Only Where the Call Line Shows It
 
-A plain function value (one without a `cur realm` parameter) writes a realm's
-state only as the realm's own code called by name or a local helper, as a
-literal written in place as an argument while that call runs (lent to the
-realm's own function or a `/p/` function called by name, never to another
-realm's function), or as a literal called where it is written. Called by name
-means a direct call of a `/p/` function or method, including a method called on
-an interface value that holds a `/p/` type from the realm's import tree; a local
-copy of the function or a method value is not. A local helper used inside a
+A plain function writes its realm's stored state only when called by name by
+code that may already write, or as a callback lent for that one call. A plain
+function is one without a `cur realm` parameter. So it writes only as the
+realm's own code called by name or a local helper, as a literal written in
+place as an argument while that call runs (lent to the realm's own function or
+a `/p/` function called by name, never to another realm's function), or as a
+literal called where it is written. Called by name means a direct call of a
+`/p/` function or method, including a method called on an interface value that
+holds a `/p/` type the realm trusts (§3 C), or a call through a local set once
+to a declared function and only ever called; a method value is not. A
+callback passed on down a chain of functions that only call it keeps its loan;
+a function that stores it or hands it to something that keeps it ends it. A local helper used inside a
 literal that is lent in place is refused: call it outside the literal, or write
 its body in the literal. It gains no
 authority by changing hands, whether by storage, passing, or a higher-order
@@ -182,9 +186,10 @@ variable (`lib.Handlers[k] (internalState)`, fixed after init), acts for
 authority.
 
 An interface works the same way: `r.Run(internalState)` with a caller's `r`
-runs view-only unless `/r/V` imports `r`'s package, directly or through its
-imports. A library in `/r/V`'s import tree is trusted, so a caller may still
-pick any of its types. A method value, `f := r.Run; f(internalState)`, never
+runs view-only unless `/r/V`, or the package whose code makes the call,
+imports `r`'s package directly; a standard-library package counts anywhere in
+`/r/V`'s import tree. A trusted library's types may still be picked by a
+caller. A method value, `f := r.Run; f(internalState)`, never
 writes, also when its package is in `/r/V`'s import tree.
 
 Empirically verified across 60+ probe filetests:
@@ -414,6 +419,9 @@ struct field, map value, package-level variable, or closure capture
 panics at attachment time or transaction finalize:
 `cannot persist realm value: realm values are ephemeral and tied to
 a call frame`.
+A function literal whose result type holds a realm value is refused when
+the package is deployed: `a function literal's result cannot hold a realm
+value`.
 
 **Rule**: if you need to remember a caller across transactions, store
 the `Address()` or `PkgPath()` (plain strings), not the realm value.
@@ -492,7 +500,8 @@ local copy is refused before the copy exists.
 its receiver; called by value, it never writes, also when its package is in
 the calling realm's import tree: it can write no realm's stored objects,
 neither the receiver nor an argument. Only a method called directly or
-through an interface is trusted by its package (R2c).
+through an interface is trusted by its package (R2c, which for an interface
+call asks for a direct import).
 A method value an attacker binds on your view is refused wherever it runs. A
 plain function value writes only as a local helper, as a literal lent in place
 to the realm's own function or a library function called by name, or as a
