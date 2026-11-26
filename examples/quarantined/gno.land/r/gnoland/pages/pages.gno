@@ -1,7 +1,7 @@
 package pages
 
 import (
-	"gno.land/p/demo/blog"
+	"gno.land/p/gnoland/blog/v0"
 )
 
 // TODO: switch from p/blog to p/pages

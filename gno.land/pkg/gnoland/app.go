@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/db/pebbledb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -46,6 +48,9 @@ type AppOptions struct {
 	InitChainerConfig                             // options related to InitChainer
 	MinGasPrices               string             // optional
 	PruneStrategy              types.PruneStrategy
+	QueryMaxGas                int64         // optional, 0 keeps vm.DefaultQueryMaxGas
+	QueryMaxAlloc              int64         // optional, 0 keeps vm.DefaultQueryMaxAlloc
+	QueryTimeout               time.Duration // optional, 0 derives it from the query gas budget
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -102,6 +107,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	appOpts = append(appOpts, sdk.SetPruningOptions(cfg.PruneStrategy.Options()))
 
+	// Block sync may hold the app's commits in memory between flush points:
+	// gno.land's stores, the bptree and the plain store, never iterate their
+	// database inside a block. nodeParamsKeeper below asks for a flush point
+	// when a block writes a halt param.
+	appOpts = append(appOpts, sdk.AllowDeferredCommits())
+
 	// Create BaseApp.
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey, appOpts...)
 	baseApp.SetAppVersion("dev")
@@ -136,11 +147,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
 	vmk.Output = cfg.VMOutput
+	if cfg.QueryMaxGas > 0 {
+		vmk.QueryMaxGas = cfg.QueryMaxGas
+	}
+	if cfg.QueryMaxAlloc > 0 {
+		vmk.QueryMaxAlloc = cfg.QueryMaxAlloc
+	}
 
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
-	prmk.Register("node", nodeParamsKeeper{})
+	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint, prmk: prmk})
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -175,14 +192,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acck.GetParams(ctx))
 			// Apply VM gas config so all store operations (account
 			// reads/writes in ante, message handlers, etc.) use the
-			// governed depth parameters. vmk.GetParams DOES meter (vm
-			// params are user-tunable consensus state and we want a
-			// real gas signal on changes), so this read uses the ctx's
-			// current (default) gasCfg until it's replaced below.
-			// "Meters" means it does not nil the meter the way
-			// acck.GetParams does; the read still costs nothing here,
-			// because the ctx is on the infinite meter until
-			// auth.SetGasMeter runs. See checkCodePolicy.
+			// governed depth parameters.
+			//
+			// The read bypasses the gas meter, like acck.GetParams above
+			// and gpk.LastGasPrice. It runs before authAnteHandler calls
+			// auth.SetGasMeter, so on DeliverTx the ctx carries runTx's
+			// passthrough meter, not an infinite one: a charge here is
+			// dropped when SetGasMeter replaces the meter and runTx does
+			// ctx = newCtx, so it reaches neither the fee payer's
+			// GasWanted nor the block gas meter -- but it can still
+			// exhaust the passthrough's head limit (the gas remaining in
+			// the block) and burn the whole block tail. Bypassing only
+			// suppresses charging; the value read is identical.
 			// Kept, not discarded: checkCodePolicy below needs the same
 			// struct, and re-reading it there would repeat the decode --
 			// GetParams amino-unmarshals every field, and the three
@@ -192,7 +213,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			// code-bearing transaction. Nothing writes vm params between
 			// here and there, so the value is identical.
 			gasCfg := store.DefaultGasConfig()
-			vmParams := vmk.GetParams(ctx)
+			vmParams := vmk.GetParams(ctx.WithGasMeter(nil))
 			vmParams.ApplyToGasConfig(&gasCfg)
 			ctx = ctx.WithGasConfig(gasCfg)
 
@@ -270,6 +291,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.Router().AddRoute("params", params.NewHandler(prmk))
 	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
+	baseApp.SetQueryTimeout(queryTimeout(cfg.QueryTimeout, vmk.QueryMaxGas))
+
 	// Load latest version.
 	if err := baseApp.LoadLatestVersion(); err != nil {
 		return nil, err
@@ -325,6 +348,9 @@ func NewApp(
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,
 		SkipUpgradeHeight:          skipUpgradeHeight,
 		PruneStrategy:              appCfg.PruneStrategy,
+		QueryMaxGas:                appCfg.QueryMaxGas,
+		QueryMaxAlloc:              appCfg.QueryMaxAlloc,
+		QueryTimeout:               appCfg.QueryTimeout,
 	}
 	if genesisCfg.SkipFailingTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
@@ -465,7 +491,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		"elapsed", time.Since(start))
 
 	// Hardfork-mode invariant: every signing addr in valset:current must
-	// have a corresponding valoper profile in r/sys/validators/v3's
+	// have a corresponding valoper profile in r/sys/validators/v0's
 	// valoperCache. valoper-seed migration .jsonls produce these profiles;
 	// the chain refuses to boot if any genesis validator is uncovered.
 	//
@@ -510,12 +536,12 @@ func (cfg InitChainerConfig) shouldRunValoperCoverageAssertion(req abci.RequestI
 	return !cfg.SkipValoperCoverageAssertion && shouldAssertValoperCoverage(req)
 }
 
-// shouldAssertValoperCoverage gates the hardfork-mode v3 invariant
+// shouldAssertValoperCoverage gates the hardfork-mode v0 invariant
 // check. Requires (1) non-empty PastChainIDs (authoritative hardfork
 // signal — InitialHeight alone isn't, since dev/testnets use
 // InitialHeight > 1 for non-hardfork scenarios) and (2) non-empty
 // req.Validators (otherwise the check is trivial and would needlessly
-// require v3 to be loaded).
+// require v0 to be loaded).
 func shouldAssertValoperCoverage(req abci.RequestInitChain) bool {
 	if len(req.Validators) == 0 {
 		return false
@@ -602,6 +628,7 @@ func (cfg InitChainerConfig) applyInMemoryAppState(ctx sdk.Context, state GnoGen
 	cfg.seedSupply(ctx)
 	// The account keeper's initial genesis state must be set after genesis
 	// accounts are created in account keeeper with genesis balances
+	assertAuthGenesis(state.Auth)
 	cfg.acck.InitGenesis(ctx, state.Auth)
 	cfg.applyUnrestrictedAddrs(ctx, state.Auth.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, state.VM)
@@ -686,6 +713,7 @@ func (cfg InitChainerConfig) applyStreamingAppState(ctx sdk.Context, ref *Genesi
 		cfg.applyBalance(ctx, bal)
 	}
 	cfg.seedSupply(ctx)
+	assertAuthGenesis(authState)
 	cfg.acck.InitGenesis(ctx, authState)
 	cfg.applyUnrestrictedAddrs(ctx, authState.Params.UnrestrictedAddrs)
 	cfg.vmk.InitGenesis(ctx, vmState)
@@ -774,6 +802,20 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 	// only by the schedule set on it. Built through NewAccountWithAddress like
 	// every other account, which is what keeps it a *GnoAccount and so keeps the
 	// attributes -- the token-lock whitelist bit among them -- available on it.
+	// Probe before creating the account, to learn whether this address is a repeat
+	// (see the note above on repeated entries). A first sighting cannot hold a
+	// split-tier balance yet -- the bank store is empty when InitChainer starts,
+	// bank.InitGenesis writes params only, and this loop is its sole writer -- so
+	// there are no stale keys for SetCoins to drain, and InitCoins skips the
+	// enumeration that finds them. That enumeration is a store range iteration
+	// whose cost is O(all dirty keys), not O(denoms held), which made loading a
+	// large balance sheet quadratic. A repeat takes the SetCoins path unchanged.
+	firstSighting := cfg.acck.GetAccount(ctx, bal.Address) == nil
+
+	// One account type either way, so a vesting balance differs from any other
+	// only by the schedule set on it. Built through NewAccountWithAddress like
+	// every other account, which is what keeps it a *GnoAccount and so keeps the
+	// attributes -- the token-lock whitelist bit among them -- available on it.
 	acc := cfg.acck.NewAccountWithAddress(ctx, bal.Address)
 	if bal.IsVesting() {
 		if err := bal.Vesting.Validate(); err != nil {
@@ -786,7 +828,12 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 		acc.SetVesting(*bal.Vesting)
 	}
 	cfg.acck.SetAccount(ctx, acc)
-	if err := cfg.bankk.SetCoins(ctx, bal.Address, bal.Amount); err != nil {
+
+	setCoins := cfg.bankk.SetCoins
+	if firstSighting {
+		setCoins = cfg.bankk.InitCoins
+	}
+	if err := setCoins(ctx, bal.Address, bal.Amount); err != nil {
 		// Name the address and the amount. This aborts genesis, and the causes
 		// include a denom that is too long or malformed — so an operator forking a
 		// chain needs to know which entry to fix. std.ErrInvalidCoins carries the
@@ -800,6 +847,33 @@ func (cfg InitChainerConfig) applyBalance(ctx sdk.Context, bal Balance) {
 // unrestricted address. Each address must already exist as a genesis
 // account (i.e. must have appeared in balances), otherwise the verifier
 // can't verify the chain's unrestricted set.
+// assertAuthGenesis checks the chain-specific parts of the auth genesis state
+// that tm2 cannot judge for itself.
+//
+// auth.Params.Validate only checks that the initial gas price's denomination is
+// well formed, because tm2 hosts whichever chain is built on it and does not
+// know which denom that chain collects fees in. gno.land does: fees are paid in
+// ugnot, and std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+// genesis quoting the gas price in anything else makes the ante handler reject
+// every transaction the chain will ever see.
+//
+// Panics to abort boot, like the genesis validator pubkey-type gate and
+// auth.InitGenesis itself. A chain that cannot accept a transaction should fail
+// to start rather than come up and look healthy: InitChainer's error return
+// lands in ResponseInitChain.Error, which tendermint's handshake does not
+// surface.
+func assertAuthGenesis(state auth.GenesisState) {
+	gp := state.Params.InitialGasPrice
+	// The unset price leaves pricing disabled and carries no denom to check.
+	if gp.Gas == 0 && gp.Price.Amount == 0 {
+		return
+	}
+	if gp.Price.Denom != ugnot.Denom {
+		panic(fmt.Errorf("genesis auth initial_gasprice must be denominated in %s, got %q",
+			ugnot.Denom, gp.Price.Denom))
+	}
+}
+
 func (cfg InitChainerConfig) applyUnrestrictedAddrs(ctx sdk.Context, addrs []crypto.Address) {
 	for _, addr := range addrs {
 		acc := cfg.acck.GetAccount(ctx, addr)
@@ -964,31 +1038,31 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 	}, false
 }
 
-// validatorsV3PkgPath is the realm whose AssertGenesisValopersConsistent
+// validatorsPkgPath is the realm whose AssertGenesisValopersConsistent
 // invariant gates hardfork-mode boot.
 const (
-	validatorsV3PkgPath       = "gno.land/r/sys/validators/v3"
-	assertGenesisValopersFunc = "AssertGenesisValopersConsistent"
-	missingV3PkgPanicSubstr   = "unexpected node with location " + validatorsV3PkgPath
+	validatorsPkgPath           = "gno.land/r/sys/validators/v0"
+	assertGenesisValopersFunc   = "AssertGenesisValopersConsistent"
+	missingValsetPkgPanicSubstr = "unexpected node with location " + validatorsPkgPath
 )
 
-// assertGenesisValopersConsistent invokes the v3 assertion via the VM
+// assertGenesisValopersConsistent invokes the v0 assertion via the VM
 // keeper directly (no tx pipeline, no AnteHandler, no fee accounting).
 //
 // Caller is the first genesis validator's address; the call sends zero
 // coins so no account need exist for it.
 //
-// If v3 isn't deployed, the underlying gnostore lookup panics outside
+// If v0 isn't deployed, the underlying gnostore lookup panics outside
 // vmk.Call's recover. The defer below catches that case and skips with
-// a warning — production hardforks always deploy v3, and if they
+// a warning — production hardforks always deploy v0, and if they
 // don't, the valoper-seed Register migration txs panic loudly anyway.
 func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci.RequestInitChain) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			msg := fmt.Sprint(r)
-			if strings.Contains(msg, missingV3PkgPanicSubstr) {
+			if strings.Contains(msg, missingValsetPkgPanicSubstr) {
 				ctx.Logger().Warn(
-					"valoper coverage assertion skipped: v3 not deployed in genesis",
+					"valoper coverage assertion skipped: v0 not deployed in genesis",
 					"detail", msg,
 				)
 				err = nil
@@ -999,7 +1073,7 @@ func assertGenesisValopersConsistent(ctx sdk.Context, vmk vm.VMKeeperI, req abci
 	}()
 	msg := vm.MsgCall{
 		Caller:  req.Validators[0].Address,
-		PkgPath: validatorsV3PkgPath,
+		PkgPath: validatorsPkgPath,
 		Func:    assertGenesisValopersFunc,
 	}
 	vmCtx := vmk.MakeGnoTransactionStore(ctx)
@@ -1116,8 +1190,7 @@ func EndBlocker(
 			return abci.ResponseEndBlock{}
 		}
 
-		var currentEntries, proposedEntries []string
-		prmk.GetStrings(ctx, valsetCurrentPath, &currentEntries)
+		var proposedEntries []string
 		prmk.GetStrings(ctx, valsetProposedPath, &proposedEntries)
 
 		// Parse proposed first; on parse failure, drop the proposal by
@@ -1157,18 +1230,15 @@ func EndBlocker(
 		// store damage, partial commit, or a chain-code bug that wrote
 		// past WillSetParam are the only ways to get here. Panic is
 		// the right "this shouldn't happen, investigate" signal.
-		currentSet, err := abci.ParseValidatorUpdates(currentEntries)
-		if err != nil {
-			panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
-		}
+		currentSet := loadValsetCurrent(ctx, prmk)
 
 		// Min-validator floor: refuse to empty consensus.
 		// proposed is the full target set, so the post-apply set has
-		// exactly the entries with Power > 0. v3's normal flow emits
+		// exactly the entries with Power > 0. v0's normal flow emits
 		// the effective set as positive-power entries — but the
 		// callback also accepts an all-removes proposal that
 		// publishes entries=[]string{}, so all-Power=0 is reachable
-		// at the v3 boundary; this floor is the consensus-safety
+		// at the v0 boundary; this floor is the consensus-safety
 		// backstop.
 		liveCount := 0
 		for _, u := range proposedSet {
@@ -1210,6 +1280,17 @@ func EndBlocker(
 			}
 		}
 
+		// ApplyBlock enforces the same bounds after this block is stored, so
+		// running the apply call here whole-rejects what consensus would refuse.
+		if err := dryRunValsetDiff(currentSet, diff); err != nil {
+			app.Logger().Error(
+				"valset proposal would fail consensus apply; rejecting whole proposal",
+				"err", err,
+			)
+			prmk.SetBool(ctx, valsetDirtyPath, false)
+			return abci.ResponseEndBlock{}
+		}
+
 		app.Logger().Info("valset changes to be applied", "count", len(diff))
 
 		// Whole-apply: advance valset:current = proposed (no filter losses
@@ -1229,6 +1310,57 @@ func EndBlocker(
 			ValidatorUpdates: diff,
 		}
 	}
+}
+
+// loadValsetCurrent reads and parses valset:current, panicking on a parse
+// error: only chain code writes it.
+func loadValsetCurrent(ctx sdk.Context, prmk params.ParamsKeeperI) abci.ValidatorUpdates {
+	var entries []string
+	prmk.GetStrings(ctx, valsetCurrentPath, &entries)
+	current, err := abci.ParseValidatorUpdates(entries)
+	if err != nil {
+		panic(fmt.Sprintf("valset:current corrupted (chain-internal): %v", err))
+	}
+	return current
+}
+
+// dryRunValsetDiff returns the error ApplyBlock's apply call gives diff on the
+// set current holds, or nil when liveValset cannot rebuild that set.
+func dryRunValsetDiff(current, diff abci.ValidatorUpdates) error {
+	liveSet, ok := liveValset(current)
+	if !ok {
+		return nil
+	}
+	return bft.NewValidatorSetFromABCIValidatorUpdates(liveSet).UpdateWithABCIValidatorUpdates(diff)
+}
+
+// liveValset returns the validators valset:current holds, and false when an
+// address repeats: storing sorts the entries, so which one applied is lost.
+func liveValset(current abci.ValidatorUpdates) (abci.ValidatorUpdates, bool) {
+	seen := make(map[string]bool, len(current))
+	live := make(abci.ValidatorUpdates, 0, len(current))
+	var total int64
+	for _, u := range current {
+		addr := u.Address.String()
+		if seen[addr] {
+			return nil, false
+		}
+		seen[addr] = true
+		if u.Power == 0 {
+			continue
+		}
+		// The set constructor panics on a power or total above the cap; report
+		// that as corruption.
+		if u.Power > bft.MaxTotalVotingPower {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): power %d for %s exceeds %d", u.Power, u.Address, bft.MaxTotalVotingPower))
+		}
+		total += u.Power
+		if total > bft.MaxTotalVotingPower {
+			panic(fmt.Sprintf("valset:current corrupted (chain-internal): total voting power exceeds %d", bft.MaxTotalVotingPower))
+		}
+		live = append(live, u)
+	}
+	return live, true
 }
 
 // txCodeMsgSigners collects the signers of tx's code-bearing messages, split by
@@ -1255,6 +1387,21 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 	return addPkgSigners, runSigners
 }
 
+// queryTimeout is the wall-clock limit of one query: override when set, else
+// twice what maxGas takes on reference hardware, where gas is calibrated at
+// 1 gas per ns (see the CPU gas costs in gnovm/pkg/gnolang/machine.go). Derived,
+// it follows query_max_gas, so raising the gas budget also gives the time to
+// spend it.
+func queryTimeout(override time.Duration, maxGas int64) time.Duration {
+	if override > 0 {
+		return override
+	}
+	if d, ok := overflow.Mul(2, time.Duration(maxGas)); ok {
+		return d
+	}
+	return math.MaxInt64
+}
+
 // txCarriesCode reports whether tx carries any message that hands the chain Gno
 // source to compile.
 //
@@ -1274,18 +1421,18 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 // The cost: keyless gas estimation no longer works for either message. gnokey
 // signs a second transaction for simulation and is unaffected; other clients
 // that estimate before signing must supply a real signature.
-// MsgEnablePackage and MsgDisablePackage are covered too, and are NOT part of
-// txCodeMsgSigners: that function feeds the code_submitters/run_submitters
-// allowlists, which have no authority over enabling. Their gate is
-// params.PkgApprovers, checked in the keeper against msg.Approver -- a
-// caller-supplied field, exactly like the signers above. So the same reasoning
-// applies: on an unverified simulate, anyone may name the real approver, attach
-// arbitrary bytes as a signature, and have the chain type-check and init() an
-// already-parked package for free. That the bytes are already stored makes it
-// worse rather than better, since under "inert" anyone may park them.
+// MsgEnablePackage is covered too, and is NOT part of txCodeMsgSigners: that
+// function feeds the code_submitters/run_submitters allowlists, which have no
+// authority over enabling. Its gate is params.PkgApprovers, checked in the
+// keeper against msg.Approver -- a caller-supplied field, exactly like the
+// signers above. So the same reasoning applies: on an unverified simulate,
+// anyone may name the real approver, attach arbitrary bytes as a signature, and
+// have the chain type-check and init() an already-parked package for free. That
+// the bytes are already stored makes it worse rather than better, since under
+// "inert" anyone may park them.
 //
 // MsgRejectPackage is deliberately NOT covered. It is authorized from its own
-// payload like the two above, but it executes nothing: it reads the parked
+// payload like the ones above, but it executes nothing: it reads the parked
 // blob, parses its gnomod.toml and deletes it. The harm the others invite --
 // driving a free type-check and init() per query -- has no analogue, and the
 // blob decode it does do is already reachable anonymously through
@@ -1298,7 +1445,7 @@ func txCodeMsgSigners(tx std.Tx) (addPkgSigners, runSigners []crypto.Address) {
 func txCarriesCode(tx std.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		switch msg.(type) {
-		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage, vm.MsgDisablePackage:
+		case vm.MsgAddPackage, vm.MsgRun, vm.MsgEnablePackage:
 			return true
 		}
 	}
@@ -1548,7 +1695,7 @@ func sessionAlwaysDenied(msg std.Msg) bool {
 		switch msg.Type() {
 		case "add_package":
 			return true
-		case "enable_package", "disable_package", "reject_package":
+		case "enable_package", "reject_package":
 			// Approver authority, and it cannot be scoped down. A session's
 			// AllowPaths are matched via GetPkgPath(), which only MsgCall
 			// implements -- so no path-scoped entry can ever match these, and

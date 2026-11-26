@@ -6,7 +6,7 @@ means "to know" or "to recognize." It is often associated with terms related to
 knowledge, such as "gnosis", which signifies knowledge or insight, particularly
 in a spiritual context._
 
-To jump to the technical portions see [Gno Language](#gno-language) and [Gno.land Blockchain](#gno-land-blockchain).
+To jump to the technical portions see [Gno Language](#gno-language) and [Gno.land Blockchain](#gnoland-blockchain).
 
 ## Table of Contents
 
@@ -707,7 +707,7 @@ permissionless innovation of information-based applications such as social
 communication and coordination systems, or the next Wikipedia or programmable
 knowledge-base systems. The latter will be explored here.
 
-Each of the thought statements in the [introduction](#gno-land-for-mass-awakening) can be represented as a
+Each of the thought statements in the [introduction](#gnoland-for-mass-awakening) can be represented as a
 simple Go string, but as in Tractatus we want to allow each of these thought-
 statements to be supported by any number of supporting thought statements, so
 we need a struct declaration.
@@ -1463,7 +1463,7 @@ and using its exposed functions just as if it were any other dependency
 library.
 
 To illustrate a concrete example consider the management of discussion boards
-on Gno.land ([example](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions)):
+on Gno.land ([example](https://gno.land/r/gnoland/boards2/v0:OpenDiscussions)):
 
 > Realm Package \> Board Object \> Post Object \> Comment Object
 

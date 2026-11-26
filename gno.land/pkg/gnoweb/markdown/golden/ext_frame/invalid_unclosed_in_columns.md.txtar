@@ -1,0 +1,22 @@
+-- input.md --
+<gno-columns>
+<gno-frame>
+first, unclosed
+<gno-columns-sep>
+second column
+</gno-columns>
+outside
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-frame">
+<p>first, unclosed</p>
+</section>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>second column</p>
+</div>
+</div> <!-- </gno-columns> -->
+<p>outside</p>

@@ -173,7 +173,7 @@ Empirically verified across 60+ probe filetests:
 
 ## 4. The Encapsulation Pattern (GRC20 Reference)
 
-`gno.land/p/demo/tokens/grc20` is the canonical example of *safe*
+`gno.land/p/nt/grc20/v0` is the canonical example of *safe*
 `/p/`-declared data. It violates (A) — `Token`, `PrivateLedger`, and
 `fnTeller` are all `/p/`-declared — but compensates with airtight
 encapsulation:
@@ -335,7 +335,7 @@ not as an enforced boundary.
 
 ### 5.5 `IsUser()` for payment guards
 
-When accepting native coin payment via `banker.OriginSend()`, the
+When accepting native coin payment via `unsafe.OriginSend()`, the
 caller guard must be `cur.Previous().IsUserCall()`, **not**
 `IsUser()`. `IsUser()` accepts `MsgRun` ephemeral realms, which can
 consume the origin-send envelope before calling your function,
@@ -466,26 +466,36 @@ invoke it later — borrow rule #2 will still borrow to your realm. Don't
 return bound method values of `/p/`-types unless you know the
 method body is safe under attacker invocation.
 
-### 7.2 Conversion-time panic is not Gno-recoverable
+### 7.2 Conversion-time panic is recoverable inside a call
 
-`doOpConvert` Case 1 (foreign-readonly source conversion refused)
-panics with raw Go `panic(...)`, which is **not** caught by Gno
-`defer { recover() }`. The write-time readonly check at
-`machine.go:2555` uses `m.Panic(typedString(...))` and **is**
-catchable. This is an implementation inconsistency, not a bug — but
-attacker code cannot rely on `recover()` to differentiate failure
-modes. (Likely worth normalizing to `m.PanicString` for consistency;
-tracked.)
+A refused conversion, Case 1 (foreign-readonly source) or Case 2
+(foreign `/r/`-declared target), explicit `T(x)` or implicit, panics
+with `m.PanicString`, like the write-time readonly check. A
+`defer { recover() }` in the converting realm catches it, and the
+refused conversion has written nothing. Only a refusal in a
+package-level `var` initializer, with no call on the stack, is one
+nothing recovers, and the transaction aborts.
 
 ### 7.3 Storage-construction-time check (Phase 2)
 
 Allocating a foreign `/r/`-declared type with a composite literal,
 `new()`, or `make()` panics:
 `cannot allocate <type> in realm <m.Realm>`. Attackers cannot
-fabricate impostor `*v.User` instances and pass them to victim
+populate impostor `*v.User` instances and pass them to victim
 APIs that expect a user pointer. Construction must go through
 constructors declared in the type's home realm (which trigger
-borrow rule #1 declaring-borrow on call).
+borrow rule #1 declaring-borrow on call). Converting to such a type,
+directly or through one pointer level like `(*v.User)(&Fake{...})`,
+panics with `illegal conversion to external realm type` (nil
+pointers excepted, as are types whose underlying type is a
+primitive, func, or chan type).
+
+**Implication**: holding a realm-typed value, or a pointer to one, is
+not authority. Another realm can still write `var u v.User` (zero
+value, stamped with `v`'s PkgID) and pass `&u` to a victim API. A check
+like `if u == nil { deny }` authorizes that caller. Authenticate the
+caller through `cur.Previous()`. A pointer that matches one in state
+you own proves only where it came from, not who is calling.
 
 ---
 
@@ -517,6 +527,9 @@ Before deploying a realm:
 - [ ] No exported field is a `/p/`-pointer or embedded `/p/`-type
   whose type has `Iterate(cb func(*T))` / `Apply(fn func(*T))` /
   similar concretely-typed callback methods.
+
+- [ ] No function treats a non-nil pointer to one of my types as
+  proof of authorization (see §7.3).
 
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.

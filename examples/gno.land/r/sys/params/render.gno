@@ -1,8 +1,8 @@
 package params
 
 import (
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/mdtable"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 

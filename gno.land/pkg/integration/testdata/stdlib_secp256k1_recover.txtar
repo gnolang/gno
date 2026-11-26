@@ -17,8 +17,8 @@
 # recoverPubkey row in gnovm/stdlibs/native_gas.go; re-derive it then.
 
 env CALL_GAS=10_000_000
-env EXACT_GAS=3688995
-env SHORT_GAS=3388995
+env EXACT_GAS=3692706
+env SHORT_GAS=3392706
 
 adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
 stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'

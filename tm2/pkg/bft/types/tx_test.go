@@ -144,3 +144,15 @@ func assertBadProof(t *testing.T, root []byte, bad []byte, good TxProof) {
 		}
 	}
 }
+
+var txsHashSink []byte
+
+// Txs.Hash allocates the hash array, its slice headers and the root, and
+// nothing per tx.
+func TestTxsHashAllocations(t *testing.T) {
+	for _, n := range []int{1, 1000, 100000} {
+		txs := make(Txs, n)
+		got := testing.AllocsPerRun(5, func() { txsHashSink = txs.Hash() })
+		assert.LessOrEqual(t, got, 3.0, "n=%d", n)
+	}
+}

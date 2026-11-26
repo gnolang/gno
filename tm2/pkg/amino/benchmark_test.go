@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	fuzz "github.com/google/gofuzz"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
@@ -16,9 +15,8 @@ import (
 const benchN = 100
 
 type benchData struct {
-	ptrs []any           // random struct pointers
-	bzs  [][]byte        // amino-encoded bytes
-	pbos []proto.Message // pbbindings proto messages (nil if not PBMessager)
+	ptrs []any    // random struct pointers
+	bzs  [][]byte // amino-encoded bytes
 }
 
 func makeBenchData(cdc *amino.Codec, rt reflect.Type) benchData {
@@ -30,7 +28,6 @@ func makeBenchData(cdc *amino.Codec, rt reflect.Type) benchData {
 	bd := benchData{
 		ptrs: make([]any, benchN),
 		bzs:  make([][]byte, benchN),
-		pbos: make([]proto.Message, benchN),
 	}
 	for i := range benchN {
 		rv := reflect.New(rt)
@@ -42,22 +39,14 @@ func makeBenchData(cdc *amino.Codec, rt reflect.Type) benchData {
 			panic(err)
 		}
 		bd.bzs[i] = bz
-		if pbm, ok := ptr.(amino.PBMessager); ok {
-			pbo, err := pbm.ToPBMessage(cdc)
-			if err != nil {
-				panic(err)
-			}
-			bd.pbos[i] = pbo
-		}
 	}
 	return bd
 }
 
-// BenchmarkEncode compares encode performance: genproto2 vs reflect vs pbbindings.
+// BenchmarkEncode compares encode performance: genproto2 vs reflect.
 func BenchmarkEncode(b *testing.B) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(tests.Package)
-	pbcdc := cdc.WithPBBindings()
 
 	for _, ptr := range tests.StructTypes {
 		rt := getTypeFromPointer(ptr)
@@ -81,24 +70,13 @@ func BenchmarkEncode(b *testing.B) {
 				cdc.MarshalReflect(bd.ptrs[i%benchN])
 			}
 		})
-
-		b.Run(name+"/pbbindings", func(b *testing.B) {
-			bd := makeBenchData(cdc, rt)
-			if _, ok := bd.ptrs[0].(amino.PBMessager); !ok {
-				b.Skip("not PBMessager")
-			}
-			for i := 0; i < b.N; i++ {
-				pbcdc.MarshalPBBindings(bd.ptrs[i%benchN].(amino.PBMessager))
-			}
-		})
 	}
 }
 
-// BenchmarkDecode compares decode performance: genproto2 vs reflect vs pbbindings.
+// BenchmarkDecode compares decode performance: genproto2 vs reflect.
 func BenchmarkDecode(b *testing.B) {
 	cdc := amino.NewCodec()
 	cdc.RegisterPackage(tests.Package)
-	pbcdc := cdc.WithPBBindings()
 
 	for _, ptr := range tests.StructTypes {
 		rt := getTypeFromPointer(ptr)
@@ -122,20 +100,6 @@ func BenchmarkDecode(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				rv := reflect.New(rt)
 				cdc.UnmarshalReflect(bd.bzs[i%benchN], rv.Interface())
-			}
-		})
-
-		b.Run(name+"/pbbindings", func(b *testing.B) {
-			bd := makeBenchData(cdc, rt)
-			if _, ok := bd.ptrs[0].(amino.PBMessager); !ok {
-				b.Skip("not PBMessager")
-			}
-			for i := 0; i < b.N; i++ {
-				rv := reflect.New(rt)
-				pbm := rv.Interface().(amino.PBMessager)
-				pbo := pbm.EmptyPBMessage(pbcdc)
-				proto.Unmarshal(bd.bzs[i%benchN], pbo)
-				pbm.FromPBMessage(pbcdc, pbo)
 			}
 		})
 	}

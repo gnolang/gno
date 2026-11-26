@@ -476,11 +476,11 @@ func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxC
 // for the transaction to go through on the chain (minimum gas wanted).
 // The estimation process assumes the transaction signature has the proper public key
 //
-// A code-bearing message -- MsgAddPackage, MsgRun, MsgEnablePackage,
-// MsgDisablePackage -- must carry a REAL signature, not a pubkey-only
-// placeholder. Simulation executes the messages, and those are authorized from
-// their own payload, so the node verifies the signature even when simulating
-// (see auth.AnteOptions.RequireSigForSimulate). Estimating one of these before
+// A code-bearing message -- MsgAddPackage, MsgRun, MsgEnablePackage -- must
+// carry a REAL signature, not a pubkey-only placeholder. Simulation executes
+// the messages, and those are authorized from their own payload, so the node
+// verifies the signature even when simulating (see
+// auth.AnteOptions.RequireSigForSimulate). Estimating one of these before
 // signing fails; sign first, then estimate.
 func (c *Client) EstimateGas(tx *std.Tx) (int64, error) {
 	deliverTx, err := c.Simulate(tx)

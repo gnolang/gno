@@ -1,6 +1,8 @@
 package params
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -17,8 +19,8 @@ func encodeStructFields(prm any) (res []std.KVPair) {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
 	fields := tinfo.Fields
-	for i, field := range fields {
-		rv := rvPrm.Field(i)
+	for _, field := range fields {
+		rv := rvPrm.Field(field.Index)
 		name := field.JSONName
 		value := amino.MustMarshalJSON(rv.Interface())
 		res = append(res, std.KVPair{Key: []byte(name), Value: value})
@@ -46,15 +48,36 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
 	fields := tinfo.Fields
-	for i, field := range fields {
-		rv := rvPrm.Field(i)
+	for _, field := range fields {
+		rv := rvPrm.Field(field.Index)
 		name := field.JSONName
 		kv, ok := findKV(kvz, name)
 		if !ok {
 			continue
 		}
-		amino.MustUnmarshalJSON(kv.Value, rv.Addr().Interface())
+		if err := decodeField(rv, kv.Value); err != nil {
+			panic(fmt.Errorf("failed to decode param field %q: %w", name, err))
+		}
 	}
+}
+
+func decodeField(rv reflect.Value, value []byte) error {
+	tmp := reflect.New(rv.Type())
+	err := amino.UnmarshalJSON(value, tmp.Interface())
+	if err == nil {
+		rv.Set(tmp.Elem())
+		return nil
+	}
+	if _, ok := rv.Addr().Interface().(json.Unmarshaler); !ok {
+		return err
+	}
+
+	tmp = reflect.New(rv.Type())
+	if err := json.Unmarshal(value, tmp.Interface()); err != nil {
+		return err
+	}
+	rv.Set(tmp.Elem())
+	return nil
 }
 
 // Gets list of kvpairs associated with param struct from store.

@@ -182,7 +182,7 @@ func (c *testCmd) RegisterFlags(fs *flag.FlagSet) {
 		&c.parallel,
 		"p",
 		0,
-		fmt.Sprintf("number of packages to test in parallel; n <= 0 means GOMAXPROCS (%d). "+
+		fmt.Sprintf("number of packages to test in parallel, at most GOMAXPROCS (%d); n <= 0 means GOMAXPROCS. "+
 			"When above 1, the output of each package is buffered and printed once the package's tests complete. "+
 			"-debug enforces -p 1.",
 			runtime.GOMAXPROCS(0)),
@@ -256,6 +256,11 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 			return errors.New("the interactive debugger can only be used with -p 1")
 		}
 	}
+	// n <= 0 means GOMAXPROCS, and no more than that either: workers past it
+	// cannot run at once, yet each still holds a store.
+	if cmd.parallel <= 0 || cmd.parallel > runtime.GOMAXPROCS(0) {
+		cmd.parallel = runtime.GOMAXPROCS(0)
+	}
 
 	if cmd.parallel == 1 {
 		// Sequential run: all packages share a single store, and print
@@ -279,11 +284,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		// Parallel run: cmd.parallel workers, each with its own store. The
 		// output of each package is buffered, and printed in completion order
 		// as results come in.
-		jobs := cmd.parallel
-		if jobs <= 0 {
-			jobs = runtime.GOMAXPROCS(0)
-		}
-		jobs = min(jobs, len(pkgs))
+		jobs := min(cmd.parallel, len(pkgs))
 
 		type pkgResult struct {
 			out, errOut bytes.Buffer

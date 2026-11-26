@@ -113,6 +113,22 @@ func Incr(cur realm) {
 		}
 	})
 
+	t.Run("valid_vm_query_doc", func(t *testing.T) {
+		cli, err := client.NewHTTPClient(interceptor.TargetAddress())
+		require.NoError(t, err)
+
+		res, err := cli.ABCIQuery(context.Background(), "vm/qdoc", []byte(targetPath))
+		require.NoError(t, err)
+		assert.Nil(t, res.Response.Error)
+
+		select {
+		case paths := <-pathChan:
+			assert.Equal(t, []string{targetPath}, paths)
+		default:
+			t.Fatal("paths not captured")
+		}
+	})
+
 	t.Run("simulate_tx_paths", func(t *testing.T) {
 		// Build transaction with multiple messages
 		var tx std.Tx
@@ -310,7 +326,12 @@ func Render(_ string) string { return "foo" }
 		// Stop the current node — this kills the RPC server
 		require.NoError(t, node.Stop())
 
-		// Start a fresh node on the same address (same cfg)
+		// Start() rewrote this with the port the stopped node got, so ask for a
+		// free one again. The RPC address is the one the restart has to keep,
+		// since the proxy forwards there.
+		cfg.TMConfig.P2P.ListenAddress = "tcp://127.0.0.1:0"
+
+		// Start a fresh node on the same RPC address
 		newNode, err := gnoland.NewInMemoryNode(logger, cfg)
 		require.NoError(t, err)
 		require.NoError(t, newNode.Start())

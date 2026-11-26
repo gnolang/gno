@@ -11,6 +11,7 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -82,9 +83,12 @@ func TestEstimateEnableAgainstARealChain(t *testing.T) {
 	require.True(t, addRes.CheckTx.IsOK(), "submit checkTx: %v", addRes.CheckTx.Error)
 	require.True(t, addRes.DeliverTx.IsOK(), "submit deliverTx: %v", addRes.DeliverTx.Error)
 
-	// The ceiling gpao would use, read the way gpao reads it.
-	o := &oracle{client: client}
-	maxGas := o.queryBlockMaxGas(t.Context())
+	// The ceiling gpao would use, read the way gpao reads it. The io is what
+	// every log in the daemon goes through, and queryBlockMaxGas reports what
+	// the chain answered, so leaving it out would nil-deref here.
+	o := &oracle{client: client, io: commands.NewTestIO()}
+	maxGas, answered := o.queryBlockMaxGas(t.Context())
+	require.True(t, answered)
 	require.Positive(t, maxGas)
 
 	simulateEnable := func(t *testing.T, hash string) (*abci.ResponseDeliverTx, error) {
@@ -97,8 +101,11 @@ func TestEstimateEnableAgainstARealChain(t *testing.T) {
 		return client.SimulateResult(probe)
 	}
 
+	pkgHash, err := vm.PackageContentHash(mpkg)
+	require.NoError(t, err)
+
 	t.Run("an enable that would succeed estimates", func(t *testing.T) {
-		res, simErr := simulateEnable(t, vm.PackageContentHash(mpkg))
+		res, simErr := simulateEnable(t, pkgHash)
 		require.Equal(t, verdictReady, classifySimulate(res, simErr),
 			"a probe signed at the chain's own Block.MaxGas must be accepted and run")
 		assert.Positive(t, res.GasUsed, "and report what the enable actually costs")

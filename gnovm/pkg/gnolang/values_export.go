@@ -11,7 +11,7 @@ import (
 // estimated serialized size of the value tree exceeds the caller's budget.
 // The chain's value-returning query endpoints surface this to the client
 // instead of walking and then serializing a multi-gigabyte structure; see
-// gno.land/adr/query_export_size_guard.md.
+// gno.land/adr/acd01fa29_query_export_size_guard.md.
 var ErrExportSizeExceeded = errors.New("export size limit exceeded")
 
 // ErrExportDepthExceeded is returned by ExportValues / ExportObject when the
@@ -19,7 +19,7 @@ var ErrExportSizeExceeded = errors.New("export size limit exceeded")
 // thin, deeply nested graph stays cheap per node, so tens of thousands of levels
 // fit under the byte budget while the walk recurses toward a fatal stack
 // overflow and amino.MarshalJSON runs superlinearly. See maxExportDepth and
-// gno.land/adr/query_export_size_guard.md.
+// gno.land/adr/acd01fa29_query_export_size_guard.md.
 var ErrExportDepthExceeded = errors.New("export depth limit exceeded")
 
 // exportNodeEst is charged once per exported value/type node to account for

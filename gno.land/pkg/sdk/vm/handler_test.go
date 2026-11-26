@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 	"testing"
 
@@ -360,6 +361,297 @@ func TestVmHandlerQuery_File(t *testing.T) {
 	}
 }
 
+func TestVmHandlerQuery_OutputLimit(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins("1000000000ugnot"))
+
+	// Render answers the limit plus the length of its path. A 1 MiB function
+	// name makes big.gno, its qfuncs and its qdoc exceed the limit.
+	const pkgPath = "gno.land/r/big"
+	files := []*std.MemFile{
+		{Name: "README.md", Body: strings.Repeat("r", int(maxQueryOutputBytes))},
+		{Name: "big.gno", Body: `package big
+
+import "strings"
+
+func Render(path string) string {
+	return strings.Repeat("a", ` + fmt.Sprint(maxQueryOutputBytes) + `+len(path))
+}
+
+func F` + strings.Repeat("f", int(maxQueryOutputBytes)) + `() {}
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	}
+	msg := NewMsgAddPackage(addr, pkgPath, files)
+	msg.MaxDeposit = std.MustParseCoins("1000000000ugnot")
+	require.NoError(t, env.vmk.AddPackage(ctx, msg))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	tt := []struct {
+		path, data string
+		refused    bool
+	}{
+		{"vm/qrender", pkgPath + ":", false},
+		{"vm/qrender", pkgPath + ":over", true},
+		{"vm/qfile", pkgPath + "/README.md", false},
+		{"vm/qfile", pkgPath + "/big.gno", true},
+		{"vm/qfuncs", pkgPath, true},
+		{"vm/qdoc", pkgPath, true},
+		// The value is 1,000,000 bytes and renders as 4,000,011.
+		{"vm/qeval", pkgPath + ".string(make([]byte, 1000000))", true},
+		// The same value answers 6,000,107 bytes of JSON.
+		{"vm/qeval_json", pkgPath + ".string(make([]byte, 1000000))", true},
+	}
+	for _, tc := range tt {
+		t.Run(tc.path+" "+tc.data[len(pkgPath):], func(t *testing.T) {
+			res := env.vmh.Query(env.ctx, abci.RequestQuery{Path: tc.path, Data: []byte(tc.data)})
+			if !tc.refused {
+				require.True(t, res.IsOK(), "should not have error: %v", res.Error)
+				assert.Len(t, res.Data, int(maxQueryOutputBytes))
+				return
+			}
+			require.False(t, res.IsOK(), "should have an error")
+			assert.ErrorIs(t, res.Error, ExportSizeExceededError{})
+			assert.Contains(t, res.Log, fmt.Sprintf("exceeds %d bytes", maxQueryOutputBytes))
+			assert.Empty(t, res.Data)
+		})
+	}
+}
+
+// capAllRealm answers every vm query endpoint with something non-empty. Its
+// type with a long name makes qtype_json's envelope, which repeats the TypeID,
+// much longer than the type JSON the streaming cap bounds.
+var capAllRealm = `package capall
+
+type T struct{ N int }
+
+type ` + capAllLongName + ` struct{ N int }
+
+var List = []*T{&T{1}, &T{2}}
+
+var X = 7
+
+func GetList() []*T { return List }
+
+func Render(path string) string { return "render:" + path }
+
+// Hello greets.
+func Hello(name string) string { return "hi " + name }
+`
+
+var capAllLongName = "L" + strings.Repeat("o", 130) + "ng"
+
+// TestVmHandlerQuery_OutputCapAllEndpoints checks that vmHandler.Query caps the
+// final answer of every endpoint but the path listings: at a cap equal to the
+// answer's length the answer is unchanged, one byte under it is refused. The cap
+// is the one the streaming writers use too, so either may refuse; the qtype_json
+// envelope row shows a case only the handler catches.
+func TestVmHandlerQuery_OutputCapAllEndpoints(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("capall"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/capall"
+	deployJSONTestPkg(t, env, ctx, addr, pkgPath, capAllRealm)
+
+	listJSON, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetList()")
+	require.NoError(t, err)
+	oid := extractNestedRefValueObjectID(t, listJSON)
+	require.NotEmpty(t, oid)
+	longType := pkgPath + "." + capAllLongName
+
+	rows := []struct{ path, data string }{
+		{"vm/qrender", pkgPath + ":abc"},
+		{"vm/qfuncs", pkgPath},
+		{"vm/qeval", pkgPath + ".X"},
+		{"vm/qeval_json", pkgPath + ".GetList()"},
+		{"vm/qobject_json", oid},
+		{"vm/qobject_binary", oid},
+		{"vm/qfile", pkgPath},
+		{"vm/qfile", pkgPath + "/a.gno"},
+		{"vm/qdoc", pkgPath},
+		{"vm/qstorage", pkgPath},
+		{"vm/qpkg_json", pkgPath},
+		{"vm/qpkgmeta_json", pkgPath},
+		{"vm/qtype_json", pkgPath + ".T"},
+		{"vm/qtype_json", longType},
+	}
+	query := func(path, data string) abci.ResponseQuery {
+		return env.vmh.Query(env.ctx, abci.RequestQuery{Path: path, Data: []byte(data)})
+	}
+	for _, row := range rows {
+		t.Run(row.path+" "+row.data, func(t *testing.T) {
+			full := query(row.path, row.data)
+			require.True(t, full.IsOK(), "%v", full.Error)
+			require.NotEmpty(t, full.Data)
+
+			lowerOutputBudget(t, int64(len(full.Data)))
+			res := query(row.path, row.data)
+			require.True(t, res.IsOK(), "at the cap: %v", res.Error)
+			assert.Equal(t, full.Data, res.Data)
+
+			lowerOutputBudget(t, int64(len(full.Data))-1)
+			res = query(row.path, row.data)
+			require.False(t, res.IsOK(), "one byte over the cap")
+			assert.ErrorIs(t, res.Error, ExportSizeExceededError{})
+			assert.Empty(t, res.Data)
+		})
+	}
+
+	// The envelope repeats the TypeID, so the type JSON alone fits a cap one
+	// byte under the answer: the keeper answers, and only the handler refuses.
+	full := query("vm/qtype_json", longType)
+	lowerOutputBudget(t, int64(len(full.Data))-1)
+	_, err = env.vmk.QueryType(env.ctx, longType)
+	require.NoError(t, err)
+}
+
+// TestVmHandlerQuery_PathsCutAtCap checks that qpaths and qinertpaths answer the
+// longest run of leading whole paths that fits the cap, at every cap.
+func TestVmHandlerQuery_PathsCutAtCap(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("pathscut"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	live := []string{
+		"gno.land/p/pathscut/lib",
+		"gno.land/r/pathscut/aa",
+		"gno.land/r/pathscut/bbbbbbbb",
+		"gno.land/r/pathscut/cc",
+	}
+	for _, p := range live {
+		deployJSONTestPkg(t, env, ctx, addr, p, "package "+path.Base(p)+"\n")
+	}
+
+	params := DefaultParams()
+	params.CodeSubmissionPolicy = CodeSubmissionPolicyInert
+	params.PkgApprovers = []crypto.Address{addr}
+	require.NoError(t, env.vmk.SetParams(ctx, params))
+	parked := []string{
+		"gno.land/r/pathscut/parked/xx",
+		"gno.land/r/pathscut/parked/yyyyyy",
+		"gno.land/r/pathscut/parked/zz",
+	}
+	for _, p := range parked {
+		require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, p, []*std.MemFile{
+			{Name: "a.gno", Body: "package " + path.Base(p) + "\n"},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(p)},
+		})))
+	}
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	rows := []struct {
+		path, data string
+		want       []string
+	}{
+		{"vm/qpaths", "gno.land/r/pathscut/", live[1:]},
+		// p/ then r/, so some caps cut inside the r/ half.
+		{"vm/qpaths", "@pathscut", live},
+		{"vm/qinertpaths", "", parked},
+	}
+	for _, row := range rows {
+		t.Run(row.path+" "+row.data, func(t *testing.T) {
+			query := func(n int64) string {
+				lowerOutputBudget(t, n)
+				res := env.vmh.Query(env.ctx, abci.RequestQuery{Path: row.path, Data: []byte(row.data)})
+				require.True(t, res.IsOK(), "cap %d: %v", n, res.Error)
+				return string(res.Data)
+			}
+			full := strings.Join(row.want, "\n")
+			require.Equal(t, full, query(0))
+			for n := int64(len(full)); n > 0; n-- {
+				want := ""
+				for k := range row.want {
+					if s := strings.Join(row.want[:k+1], "\n"); int64(len(s)) <= n {
+						want = s
+					}
+				}
+				require.Equal(t, want, query(n), "cap %d", n)
+			}
+		})
+	}
+}
+
+// TestVmHandlerQuery_EstimateShapesPass pins answers under the response cap
+// whose export estimate is many times their size: a nil in []any is estimated
+// at about 21x its JSON. A single limit on both refused them; the 10MB export
+// budget lets them through and the 1 MiB cap still refuses the largest.
+func TestVmHandlerQuery_EstimateShapesPass(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("estshapes"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+	env.bankk.SetCoins(ctx, addr, std.MustParseCoins("100000000000000ugnot"))
+
+	const pkgPath = "gno.land/r/estshapes"
+	msg := NewMsgAddPackage(addr, pkgPath, []*std.MemFile{
+		{Name: "a.gno", Body: `package estshapes
+
+func Nils(n int) []any { return make([]any, n) }
+
+func Ints(n int) []int {
+	s := make([]int, n)
+	for i := range s {
+		s[i] = 1000000 + i
+	}
+	return s
+}
+
+func Strs(n int) []string {
+	s := make([]string, n)
+	for i := range s {
+		s[i] = "abcdefghij"
+	}
+	return s
+}
+
+var Nils20k = make([]any, 20000)
+`},
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+	})
+	msg.MaxDeposit = std.MustParseCoins("100000000000000ugnot")
+	require.NoError(t, env.vmk.AddPackage(ctx, msg))
+	env.vmk.CommitGnoTransactionStore(ctx)
+
+	query := func(path, data string) abci.ResponseQuery {
+		return env.vmh.Query(env.ctx, abci.RequestQuery{Path: path, Data: []byte(data)})
+	}
+	nils := query("vm/qeval_json", pkgPath+".Nils20k")
+	require.True(t, nils.IsOK(), "%v", nils.Error)
+	oid := extractNestedRefValueObjectID(t, string(nils.Data))
+	require.NotEmpty(t, oid)
+
+	for _, tc := range []struct {
+		path, data string
+		ok         bool
+	}{
+		{"vm/qeval_json", pkgPath + ".Nils(20000)", true},
+		{"vm/qeval_json", pkgPath + ".Ints(15000)", true}, // 1,035,358 bytes
+		{"vm/qeval_json", pkgPath + ".Strs(10000)", true}, // 1,040,358 bytes
+		{"vm/qeval_json", pkgPath + ".Strs(15000)", false},
+		{"vm/qobject_json", oid, true},
+		{"vm/qobject_binary", oid, true},
+	} {
+		res := query(tc.path, tc.data)
+		name := tc.path + " " + tc.data[:min(len(tc.data), 60)]
+		if tc.ok {
+			require.True(t, res.IsOK(), "%s: %v", name, res.Error)
+			continue
+		}
+		require.False(t, res.IsOK(), name)
+		assert.ErrorIs(t, res.Error, ExportSizeExceededError{}, name)
+	}
+}
+
 func TestVmHandlerQuery_EvalJSON(t *testing.T) {
 	tt := []struct {
 		input              []byte
@@ -582,6 +874,38 @@ var myStructInst = myStruct{a: 1000}
 	res := vmHandler.Query(env.ctx, req)
 	assert.True(t, res.IsOK(), "qobject_binary should succeed, got error: %v", res.Error)
 	assert.NotEmpty(t, res.Data, "binary response should not be empty")
+}
+
+func TestVmHandlerQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	runsCode := []string{
+		"vm/qrender",
+		"vm/qrender?x",
+		"vm/qeval",
+		"vm/qeval?x=1",
+		"vm/qeval/x",
+		"vm/qeval?x/y",
+		"vm/qeval_json",
+		"vm/qeval_json?x=1",
+	}
+	runsNoCode := []string{
+		"vm",
+		"vm/",
+		"vm/qfile",
+		"vm/qfuncs",
+		"vm/qevalx",
+		"vm/qeva",
+		"/vm/qeval", // Query panics on it before serving anything
+		"vmx/qeval",
+	}
+	vh := NewHandler(nil)
+	for _, path := range runsCode {
+		assert.True(t, vh.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, vh.QueryRunsCode(path), "path %q", path)
+	}
 }
 
 func TestVmHandlerQuery_UnknownEndpoint(t *testing.T) {
@@ -847,22 +1171,21 @@ func TestVmHandlerProcessRoutesReject(t *testing.T) {
 		"and fail in the keeper body, not as an unrecognised message type")
 }
 
-// TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the two
-// inert-policy messages to their keeper methods.
+// TestVmHandlerProcessRoutesInertMsgs pins that Process dispatches the
+// inert-policy enable message to its keeper method.
 //
-// The keeper methods are covered in depth elsewhere; what has no other test is
-// the wiring. handleMsgDisablePackage had zero coverage anywhere in the tree,
-// and handleMsgEnablePackage only reached through one end-to-end test in
-// another package — so deleting either case from the switch left a message that
-// ValidateBasic accepts, the ante admits, and the VM then silently rejects as
-// "unrecognized vm message type". That is a routing failure reported as a
-// message-type failure, at the point a chain has already committed to the
+// The keeper method is covered in depth elsewhere; what has no other test is
+// the wiring. handleMsgEnablePackage was only reached through one end-to-end
+// test in another package — so deleting its case from the switch left a
+// message that ValidateBasic accepts, the ante admits, and the VM then silently
+// rejects as "unrecognized vm message type". That is a routing failure reported
+// as a message-type failure, at the point a chain has already committed to the
 // policy.
 //
 // Asserted through the errors the keeper alone produces: "not a pkg approver"
-// can only come from EnablePackage/DisablePackage, and "not yet implemented"
-// only from the DisablePackage stub. An unrouted message would instead say
-// "unrecognized", which is what the negative case at the bottom pins.
+// and "no inert package at path" can only come from EnablePackage. An unrouted
+// message would instead say "unrecognized", which is what the negative case at
+// the bottom pins.
 func TestVmHandlerProcessRoutesInertMsgs(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -889,19 +1212,6 @@ func TestVmHandlerProcessRoutesInertMsgs(t *testing.T) {
 		res := vh.Process(ctx, MsgEnablePackage{Approver: approver, PkgPath: "gno.land/r/test/nothinghere"})
 		require.False(t, res.IsOK())
 		assert.Contains(t, res.Log, "no inert package at path")
-	})
-
-	t.Run("disable reaches the keeper's approver gate", func(t *testing.T) {
-		res := vh.Process(ctx, MsgDisablePackage{Approver: stranger, PkgPath: "gno.land/r/test/x"})
-		require.False(t, res.IsOK())
-		assert.Contains(t, res.Log, "not a pkg approver")
-		assert.NotContains(t, res.Log, "unrecognized")
-	})
-
-	t.Run("disable reaches the stub", func(t *testing.T) {
-		res := vh.Process(ctx, MsgDisablePackage{Approver: approver, PkgPath: "gno.land/r/test/x"})
-		require.False(t, res.IsOK())
-		assert.Contains(t, res.Log, "not yet implemented")
 	})
 
 	t.Run("an unrouted message is distinguishable", func(t *testing.T) {

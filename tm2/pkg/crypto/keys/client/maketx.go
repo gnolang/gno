@@ -335,16 +335,26 @@ func ExecSignAndBroadcast(
 	// query account
 	nameOrBech32 := args[0]
 
-	var err error
-	var pass string
-	if baseopts.Quiet {
-		pass, err = io.GetPassword("", baseopts.InsecurePasswordStdin)
-	} else {
-		pass, err = io.GetPassword("Enter password.", baseopts.InsecurePasswordStdin)
-	}
-
+	kb, err := keys.NewKeyBaseFromDir(baseopts.Home)
 	if err != nil {
 		return err
+	}
+	info, err := kb.GetByNameOrAddress(nameOrBech32)
+	if err != nil {
+		return err
+	}
+
+	// Only local keys are encrypted; a Ledger key signs on the device.
+	var pass string
+	if info.GetType() == keys.TypeLocal {
+		prompt := "Enter password."
+		if baseopts.Quiet {
+			prompt = ""
+		}
+		pass, err = io.GetPassword(prompt, baseopts.InsecurePasswordStdin)
+		if err != nil {
+			return err
+		}
 	}
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass, io)
@@ -409,7 +419,7 @@ func txNeedsSimulationSignature(tx std.Tx) bool {
 			continue
 		}
 		switch msg.Type() {
-		case "add_package", "run", "enable_package", "disable_package":
+		case "add_package", "run", "enable_package":
 			return true
 		}
 	}

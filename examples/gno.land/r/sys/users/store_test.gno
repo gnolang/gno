@@ -80,7 +80,7 @@ func TestRegister(cur realm, t *testing.T) {
 	t.Run("valid_edge_cases", func(t *testing.T) {
 		// Names valid under the mempackage-aligned reName: starts with a
 		// letter, may contain hyphens or underscores in the middle, ends
-		// in [a-z0-9]. The hyphen support is what enables the namereg/v1
+		// in [a-z0-9]. The hyphen support is what enables the namereg/v0
 		// `nym-...` prefix shape.
 		cleanStore(t)
 		urequire.NoError(t, RegisterUser(cross(cur),

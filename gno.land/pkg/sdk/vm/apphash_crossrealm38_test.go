@@ -150,7 +150,7 @@ import (
 // CEILING on a storage deposit when a message declares no MaxDeposit, so a
 // single message may now add at most 1 MB of realm state rather than 6 MB
 // before it is refused. Measured against all 321 genesis packages the largest
-// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// deploy is r/gnoland/boards2/v0 at 276,098 bytes (27,609,800ugnot), so the
 // new ceiling clears the worst real case by 3.6x.
 // Bumped again by the two inert-charge vm params, for the same reason as
 // run_submitters above: two more keys, written unconditionally. Behavior at
@@ -204,6 +204,50 @@ import (
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
 //
+// Bumped 2026-09-10 by data-backing byte slices: doOpSliceLit now allocates a
+// flat Data-backed ArrayValue for []byte composite literals instead of one
+// TypedValue per element, so those arrays persist under a different amino
+// encoding and the iavl root moves. Attributed by bisection: reverting
+// op_expressions.go alone restores 1d05023c, while reverting gonative.go's
+// Go2GnoValue byte arm or doOpSliceLit2's indexed-literal path leaves the
+// value below unchanged, so doOpSliceLit's byte path is the whole cause.
+// Narrowed once more to the two 136-byte HMAC pads in crypto/cometblszk, the
+// only package-scope []byte literals in the stdlibs that setupTestEnv commits
+// wholesale: excluding len-136 literals from the Data path also restores
+// 1d05023c. The scenario's own realms hold no byte slices (crossrealm_f keeps
+// []*Entry), so behavior is unchanged and the zrealm_crossrealm38.gno filetest
+// still passes.
+//
+// Bumped by the crypto/modexp operand cap and gas rework: modexp.gno gained a
+// MaxOperandLen const, a length guard in ModExp, and doc text for the new
+// rejection behavior. stdlib .gno source bytes are committed into genesis
+// state, so the root moves. Note this branch also adds modexp_test.gno, and
+// loadStdlibPackage reads stdlibs with MPStdlibAll, which keeps _test.gno
+// files — so that file is inside the Merkle root too, not just modexp.gno.
+// crossrealm38 calls neither, so the shift is those source bytes alone. The
+// gas-row change moves nothing here: gas is not committed state. Re-derived
+// after merging develop, whose own changes moved the root too, so neither
+// side's value survives.
+//
+// Bumped by the small-order ed25519 fix: crypto/ed25519/ed25519_test.gno gained
+// TestVerifyRejectsSmallOrderKey, and _test.gno files are inside the stdlib
+// MemPackage committed into genesis (same class as the modexp_test.gno bump
+// above). The native change is not in the Merkle root, and crossrealm38 does
+// not use ed25519. Attributed by bisection: reverting only that test file
+// restores the previous value.
+//
+// Bumped by the CodeFence minCount cap. The cap itself lives in the injected
+// Go implementation; markdown.gno only documents it, so the shift is that
+// comment alone, as with PercentEncodeURL above. With markdown.gno restored to
+// develop's bytes and the Go cap kept, the previous value still holds.
+//
+// Re-derived on the merge of the two, whose stdlib source changes both sit
+// inside the same MemPackage root.
+//
+// Re-derived for the mainnet release line, which keeps markdown.gno identical
+// to the source gnoland-1 holds in state, so the CodeFence comment is not in
+// it. With develop's markdown.gno, develop's value above still holds.
+//
 // Hash bumped by the crypto/secp256k1 PR: adding the crypto/secp256k1 stdlib
 // (with native Verify) introduces a new stdlib MemPackage into the genesis
 // stdlib set, shifting the iavlStore Merkle root. This is the intended
@@ -213,7 +257,11 @@ import (
 // Bumped again by crypto/secp256k1.RecoverPubkey: recover.gno, its
 // recover_test.gno and the package doc line are stdlib source, which genesis
 // state holds. crossrealm38 does not import the package.
-const expectedCrossrealm38Hash = "01fdaa912704c69bd6f6b8c596173c086929fa0f29970133946684d527edc35c"
+//
+// Re-derived on the merge of master into this branch: master's stdlib
+// changes and this branch's new package sit in the same root, so neither
+// side's value survives.
+const expectedCrossrealm38Hash = "ffed4bd3f1e33daf62710f25709e61e64547b75186f2b51418ad2fc7e1a824d9"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

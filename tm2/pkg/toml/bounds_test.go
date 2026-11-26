@@ -1,11 +1,12 @@
 // This file is not from upstream go-toml: it is the regression suite for the
-// resource bounds this fork adds (maxNestingDepth, maxKeyDepth, and the O(1)
-// duplicate-table check). See README.md.
+// resource bounds this fork adds (maxNestingDepth, maxKeyDepth, the O(1)
+// duplicate-table check, and the type-mismatch text). See README.md.
 
 package toml
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -128,6 +129,52 @@ func TestBoundsTableCountIsLinear(t *testing.T) {
 	}
 }
 
+// A type mismatch names a table or an array by its Go type. Each inline-table
+// level adds up to maxKeyDepth tree levels, so these bodies fit in 4KB and
+// rendering the deep value into the message allocated about 60MB. Not parallel:
+// the test reads the process-wide allocation counter.
+func TestBoundsMismatchErrorOmitsValue(t *testing.T) {
+	type doc struct {
+		Scalar string `toml:"scalar"`
+	}
+
+	const (
+		levels   = 120
+		maxAlloc = 16 << 20
+	)
+	deep := strings.Repeat("{"+strings.Repeat("k.", maxKeyDepth-1)+"k=", levels) +
+		"1" + strings.Repeat("}", levels)
+
+	for _, tc := range []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{"table into a scalar", "scalar = " + deep, "Can't convert *toml.Tree to string"},
+		{"table array into a scalar", "scalar = [" + deep + "]", "Can't convert []*toml.Tree to string"},
+		{"mixed array into a scalar", "scalar = [1," + deep + "]", "Can't convert []interface {} to string"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			err := Unmarshal([]byte(tc.body), &doc{})
+			runtime.ReadMemStats(&after)
+
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("got %.200v, want error containing %q", err, tc.wantErr)
+			}
+			if got := after.TotalAlloc - before.TotalAlloc; got > maxAlloc {
+				t.Fatalf("decode allocated %d bytes, want at most %d", got, maxAlloc)
+			}
+		})
+	}
+
+	// The same tree under a key no field reads decodes.
+	if err := Unmarshal([]byte("other = "+deep), &doc{}); err != nil {
+		t.Fatalf("a deep table under an unread key: %.200v", err)
+	}
+}
+
 // Ordinary documents are unaffected by any of the bounds.
 func TestBoundsAcceptOrdinaryDocuments(t *testing.T) {
 	t.Parallel()
@@ -143,4 +190,59 @@ func TestBoundsAcceptOrdinaryDocuments(t *testing.T) {
 			t.Errorf("rejected an ordinary document: %v\n%s", err, body)
 		}
 	}
+}
+
+// Marshal's output must decode back to the value it was given, for every rune.
+//
+// PackageContentHash (gno.land/pkg/sdk/vm) hashes gnomod.toml after a
+// parse-and-re-encode, against a stored copy the keeper had already parsed and
+// re-encoded once. The two agree only if encoding is a fixpoint, so a rune that
+// survives one round trip but not two is an approval nobody can match.
+//
+// Upstream's control-character escape got this wrong in both directions:
+// `uint16(rr) < 0x001F` excluded U+001F, which was then written raw into a
+// basic string the lexer refuses; and the conversion truncated, so a rune whose
+// low 16 bits fall under 0x1F was emitted as the escape for those bits alone.
+func TestBoundsMarshalRoundTripsEveryRune(t *testing.T) {
+	t.Parallel()
+
+	type doc struct {
+		V string `toml:"v"`
+	}
+
+	check := func(t *testing.T, in string) {
+		t.Helper()
+		first, err := Marshal(doc{V: in})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		var back doc
+		if err := Unmarshal(first, &back); err != nil {
+			t.Fatalf("the encoder produced a document the decoder refuses: %v\n%q", err, first)
+		}
+		if back.V != in {
+			t.Fatalf("value changed across a round trip: %q -> %q", in, back.V)
+		}
+		second, err := Marshal(back)
+		if err != nil {
+			t.Fatalf("re-marshal: %v", err)
+		}
+		if string(first) != string(second) {
+			t.Fatalf("encoding is not a fixpoint:\n first: %q\nsecond: %q", first, second)
+		}
+	}
+
+	t.Run("every control character", func(t *testing.T) {
+		t.Parallel()
+		for r := rune(0); r <= 0x1F; r++ {
+			check(t, "x"+string(r)+"y")
+		}
+	})
+
+	t.Run("astral runes with low bits under 0x1F", func(t *testing.T) {
+		t.Parallel()
+		for _, r := range []rune{0x1000A, 0x10000, 0x1001E, 0x2000D, 0x10FFFF} {
+			check(t, "x"+string(r)+"y")
+		}
+	})
 }
