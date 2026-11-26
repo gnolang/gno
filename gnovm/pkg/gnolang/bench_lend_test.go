@@ -32,6 +32,8 @@ func Noop(x int) int { return x + 1 }
 
 func Run(f func()) { f() }
 
+func First(xs []int) int { return xs[0] }
+
 func Run4(a, b, c, d func()) {
 	a()
 	b()
@@ -139,6 +141,16 @@ func Drop(n int, how string) {
 			lendlib.InSlice(func() { _ = count })
 		}
 	}
+}
+
+// SliceArg passes an l-element slice n times while a loan is live.
+func SliceArg(n, l int) {
+	xs := make([]int, l)
+	lendlib.Run(func() {
+		for i := 0; i < n; i++ {
+			_ = lendlib.First(xs)
+		}
+	})
 }
 
 func IterRead(cur realm) int {
@@ -268,6 +280,15 @@ func BenchmarkLendDrop(b *testing.B) {
 	for _, how := range []string{"handon", "lit", "slice"} {
 		b.Run(how, func(b *testing.B) {
 			lendBenchEval(b, lendBenchRealmPath, lendBenchN, func() Expr { return Call(X("Drop"), lendBenchN, Str(how)) })
+		})
+	}
+}
+
+// A slice argument passed while a loan is live, by slice length.
+func BenchmarkLendSliceArg(b *testing.B) {
+	for _, l := range []int{10, 1000, 100000} {
+		b.Run(fmt.Sprintf("len=%d", l), func(b *testing.B) {
+			lendBenchEval(b, lendBenchRealmPath, lendBenchN, func() Expr { return Call(X("SliceArg"), lendBenchN, l) })
 		})
 	}
 }
