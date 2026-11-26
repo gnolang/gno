@@ -129,6 +129,7 @@ ctw.Kept.Reset(cross(cur))    // a value receiver: Count = 0 writes, l.N = 0 cha
 The call is decided by the method, not by the variable: a pointer receiver writes the variable whether it
 holds a pointer or a value; a value receiver gets a copy, so writing it changes nothing saved, while the
 method can still write the realm's other state and whatever the receiver points to.
+`zrealm_wp_2.gno` shows `Kept.Set` and `Kept.Reset` on a value variable.
 
 A plain call on master (its "declaring-realm borrow",
 [gno-interrealm.md](https://github.com/gnolang/gno/blob/d25b308c1/docs/resources/gno-interrealm.md)):
@@ -199,7 +200,9 @@ Reg = append(Reg, func() { n++ }); Reg[0]()     // stored: refused, here and in 
 
 The loan in (2) ends when the callee returns, stores the value or returns it, and it is never given to a
 deferred or variadic argument. A callee parameter that is only called or passed on keeps it. The marks are
-decided when the code is prepared, so nothing about them is stored.
+decided when the code is prepared, so nothing about them is stored. Tests: `zrealm_lend_each.gno`,
+`zrealm_lend_helper.gno`, `zrealm_lend_store.gno`, `zrealm_lend_values.gno`; `zrealm_wp_1.gno` (a method called
+on an interface, a deferred call, a variadic slot).
 
 ```go
 // realm cbvictim
@@ -227,7 +230,8 @@ ctw.ForEachX(cross(cur), func(cur realm, n int) { sum += n })  // f enters b: wr
 Known limits: a callee not reached by name (a local copy `each := lib.Each`, or a literal kept in a variable)
 lends nothing; a method value never writes; `lib.Default.Each(func(int){ count++ })` is refused, since a method of
 a variable the library owns runs as the library; and a local helper used inside a literal lent in place is refused
-(call it outside the literal, or write its body in the literal).
+(call it outside the literal, or write its body in the literal). Tests: `zrealm_ctw_owncb.gno`,
+`zrealm_lend_lib_shapes.gno`, `zrealm_lend_reg_plibeach.gno`, `zrealm_wp_1.gno`.
 
 **The save check (R2a-save).** Read-only code may still fill in an object made during the call, since that is
 how a getter builds its result. The gap: a read-only function value fills in the realm's new object, and the
@@ -314,7 +318,7 @@ realms hold a pointer to it.
 R1 and R2 decide which code may write a realm's state. R3 is a separate question: which values of a realm's
 types may exist. A value of `T` made or copied outside `T`'s realm is a forgery: it looks like the realm's
 own and has the same fields, but the realm never made it and does not know it exists. A realm's code often
-trusts a `*T` it receives because it is the only maker of `T`; R3 keeps that trust true, since every `T`
+trusts a `*T` it receives because only its own code makes a `T`; R3 keeps that trust true, since every `T`
 outside its realm is reached through a pointer the realm handed out.
 
 What another realm may still do is hold the pointer and use it:
@@ -624,13 +628,16 @@ closures, walks `a`'s objects or uses its own tables writes `a`'s state:
 
 ```go
 // realm a: ctw
-func ViaApply(cur realm)    { libtable.Apply(func() { Count++ }) }
+func ViaTable(cur realm)    { libtable.Table["run"](func() { Count++ }) }
 func ViaDispatch(cur realm) { libtable.Dispatch("inc", Boxes[0]) }
 
 // realm b
-ctw.ViaApply(cross(cur))       // Count +1
+ctw.ViaTable(cross(cur))       // Count +1
 ctw.ViaDispatch(cross(cur))    // Boxes[0].N +1
 ```
+
+`ViaApply`, which passes its literal to `libtable.Apply`, a literal kept in a library variable, is refused: a
+callee kept in a variable lends nothing (§7.14).
 
 The same library code, called by realm `b` on `a`'s objects, is refused (§7.3). Library code that a caller
 passes in through an interface is decided by R2c (§7.10).
@@ -765,19 +772,21 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 - A fresh function a realm stores and then runs in the same call is read-only; run it first, or make it a
   crossing function (`zrealm_saved_same_tx`, `zrealm_fv_wrap_ptr`).
 - A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm; copied to a local
-  first, it runs read-only (`zrealm_ctw_owncb`'s `ViaDispatch`, `zrealm_saved_libtable_copy`).
-- A library in the realm's import tree is trusted for interface and method-value calls (R2c).
+  first, it runs read-only (`zrealm_ctw_owncb`'s `ViaTable`, `zrealm_saved_libtable_copy`).
+- A library in the realm's import tree is trusted for interface calls (R2c); a method value still never writes
+  (R2a, `zrealm_wp_3`).
 - A literal is lent only to a callee reached by name: through a local copy (`each := lib.Each`) or a function
   kept in a variable it runs read-only (`zrealm_ctw_owncb`); another realm's function gets no loan
   (`zrealm_lend_other_plain`); a method value never writes (`zrealm_lend_lib_shapes`).
 - A literal passed to a method of a variable a library owns, `lib.Default.Each(func(int) { n++ })`, is refused:
   the method runs as the library (`zrealm_lend_reg_plibeach`). Call a library function by name, or pass a
   crossing closure.
-- A local helper used inside a lent literal is refused; call it outside the literal or write its body there.
+- A local helper used inside a lent literal is refused; call it outside the literal or write its body there
+  (`zrealm_wp_1`).
 - A lent literal captured, at any depth, by a function value that is stored, returned or kept loses its loan at
   once, also when that wrapper was itself lent (`zrealm_lend_nested_two`, `zrealm_lend_captures`).
-- State saved before this change keeps its old function-value references; the rules hold chain-wide from a
-  fresh genesis or a migration.
+- Replaying past blocks with this binary computes other results (a function value read back from saved state
+  no longer writes; gas differs), so it ships on a new chain or behind a gated upgrade (ADR, "Upgrade notes").
 
 Tests: `zrealm_home_known_relay_table.gno`, `zrealm_home_known_ro_relay.gno`, `zrealm_home_ro_relay.gno`,
 `zrealm_s3u_rv3_2.gno`, `zrealm_s3u_rv4_1.gno`.
@@ -805,31 +814,32 @@ for every row is printed under the table.
 | Rule | Enforcing code | Fixture family | Files |
 |---|---|---|---|
 | R1 Cross to write | `gnovm/pkg/gnolang/machine.go:readonlyAccessPanic`, `isReadonly` | `zrealm_ctw_*` (14) + `zrealm_crossrealm*` (56) | 70 |
-| R2a A plain function value writes in three places only | `gnovm/pkg/gnolang/crossingfn.go:calledByValue`, `restrictByValueCall`; `birthrule.go:markLocalHelpers` (local helpers); `lend.go:markNonEscParams`, `lendPlace`, `lendArgs`, `lendLive` (the loan) | `zrealm_saved_*` | 16 |
-| R2b A function value from another realm runs read-only | `lend.go:lendPlace` (no loan to another realm's function) and R1's read-only entry | `zrealm_maker_*` (15) + `zrealm_saved_*` (16) | 31 |
+| R2a A plain function value writes in three places only | `gnovm/pkg/gnolang/crossingfn.go:calledByValue`, `restrictByValueCall`; `birthrule.go:markLocalHelpers` (local helpers); `lend.go:markNonEscParams`, `lendPlace`, `lendArgs`, `lendLive` (the loan) | `zrealm_lend_*` (125) + `zrealm_saved_*` (16) | 141 |
+| R2b A function value from another realm runs read-only | `lend.go:lendLive` (a loan holds only in its own realm, uncrossed) and R1's read-only entry | `zrealm_maker_*` (15) + `zrealm_saved_*` (16) | 31 |
 | R2c Only imported library code writes | `gnovm/pkg/gnolang/machine.go:foreignLib`, `trustRoot` | `zrealm_entry_iface*` (27, includes `zrealm_entry_iface.gno`) + `zrealm_import_*` (6) | 33 |
-| R2a-save The refusal at save | `gnovm/pkg/gnolang/machine.go:unstoredWrite` (3838), `markViewWrite` (3855); `gnovm/pkg/gnolang/realm.go:assertNoUncrossedWrite` (581) | `zrealm_s3u_*` | 38 |
-| R3 Types stay home: only pointers cross | `gnovm/pkg/gnolang/alloc.go:checkCopy` (784), `panicForeignAlloc` (799-810); `gnovm/pkg/gnolang/realmvalue.go:checkRealmValues` (25) | `zrealm_fv_*` (53) + `zrealm_value_ban*` (2) | 55 |
-| R4 The ticket stays in its call | `gnovm/pkg/gnolang/uverse.go:refusePersistRealmHIV`; `preprocess.go` (address of `cur` 2614, reassign 2920); `gnovm/stdlibs/chain/banker/banker.gno:130` | `zrealm_cur_*` (28) + `zrealm_seal*` (6) + `zrealm_sub*` (12) | 46 |
-| Laundering attempts | the same checks, from the offender side | `zrealm_launder_*` | 71 |
+| R2a-save The refusal at save | `gnovm/pkg/gnolang/machine.go:unstoredWrite`, `markViewWrite`; `gnovm/pkg/gnolang/realm.go:assertNoUncrossedWrite` | `zrealm_s3u_*` | 38 |
+| R3 Types stay home: only pointers cross | `gnovm/pkg/gnolang/alloc.go:checkCopy`, `panicForeignAlloc`; `gnovm/pkg/gnolang/realmvalue.go:checkRealmValues` | `zrealm_fv_*` (71) + `zrealm_value_ban*` (2) | 73 |
+| R4 The ticket stays in its call | `gnovm/pkg/gnolang/uverse.go:refusePersistRealmHIV`; `preprocess.go` (address of `cur`, reassign); `gnovm/stdlibs/chain/banker/banker.gno` | `zrealm_cur_*` (47) + `zrealm_seal*` (6) + `zrealm_sub*` (12) | 65 |
+| Laundering attempts | the same checks, from the offender side | `zrealm_launder_*` | 83 |
 
 ```
 ls gnovm/tests/files/zrealm_ctw_* | wc -l          # 14
 ls gnovm/tests/files/zrealm_crossrealm* | wc -l    # 56
-ls gnovm/tests/files/zrealm_fv_* | wc -l           # 53
+ls gnovm/tests/files/zrealm_fv_* | wc -l           # 71
 ls gnovm/tests/files/zrealm_value_ban* | wc -l     # 2
 ls gnovm/tests/files/zrealm_maker_* | wc -l        # 15
 ls gnovm/tests/files/zrealm_home_* | wc -l         # 27
 ls gnovm/tests/files/zrealm_entry_pfunc_* | wc -l  # 14
 ls gnovm/tests/files/zrealm_entry_iface* | wc -l   # 27 (includes zrealm_entry_iface.gno)
 ls gnovm/tests/files/zrealm_import_* | wc -l       # 6
-ls gnovm/tests/files/zrealm_cur_* | wc -l          # 28
+ls gnovm/tests/files/zrealm_cur_* | wc -l          # 47
 ls gnovm/tests/files/zrealm_seal* | wc -l          # 6
 ls gnovm/tests/files/zrealm_sub* | wc -l           # 12
-ls gnovm/tests/files/zrealm_launder_* | wc -l      # 71
+ls gnovm/tests/files/zrealm_launder_* | wc -l      # 83
 ls gnovm/tests/files/zrealm_saved_* | wc -l        # 16
 ls gnovm/tests/files/zrealm_s3u_* | wc -l          # 38
-ls gnovm/tests/files/zrealm_* | wc -l              # 514
+ls gnovm/tests/files/zrealm_lend_* | wc -l         # 125
+ls gnovm/tests/files/zrealm_* | wc -l              # 713
 ```
 
 R2a's check and its save check are both enforced here. The counts
@@ -851,79 +861,81 @@ above are what `ls` prints, so a reviewer can re-run them.
 R2a's marks are decided when the code is prepared: `ATTR_LOCAL_HELPER` on a local helper's calls,
 `ATTR_NAMED_CALLEE` on a call by name, `ATTR_NONESC_PARAMS` on a function whose parameter is only called or
 passed on. The loan is held in memory for the length of the call (`Machine.lends`, a token per frame) and ends
-on return, on escape, and in a variadic slice; nothing is stored, so sizes, encoding and gas are unchanged.
+on return, on escape, and in a variadic slice; nothing is stored, so sizes and encoding are unchanged. Following
+captures below the first level, and walking a variadic slice while a loan is live, is charged CPU gas
+(`walkCaptures`, `dropSliceLends`).
 R2a-save's mark is `ObjectInfo.s3Written`; `markViewWrite` marks a written unreal heap item the same way.
 
 ### The write check, step by step
 
 A write is an assignment, or a builtin that mutates a slice or map. The guard is `isReadonly`
-(`gnovm/pkg/gnolang/machine.go:3405`), called by every mutation site: assignments through `PopAsPointer2`,
-and the builtins `append` (`uverse.go:929`), `copy` (`1140`, `1183`) and `delete` (`1249`).
+(`gnovm/pkg/gnolang/machine.go`), called by every mutation site: assignments through `PopAsPointer2`,
+and the builtins `append` (`uverse.go`), `copy` and `delete`.
 
 `isReadonly` decides each write, in this order:
 
 1. **R2a first.** A non-crossing function value reached by value, neither a local helper nor holding a live
-   loan, enters read-only (`enterReadOnlyByS3`, `crossingfn.go:47`): `viewOnly` and `viewS3` set, `viewRealm` is the
+   loan, enters read-only (`enterReadOnlyByS3`, `machine.go`): `viewOnly` and `viewS3` set, `viewRealm` is the
    realm current at the call, `m.Realm` cleared.
-2. **Allowed**, first match wins: single-user mode, `m.Realm == nil` and not view-only (`3408-3412`); scratch
-   of this entry (`3415`); a `RefValue` naming the writing package (`3419-3424`); R2a-save, the read-only realm's
-   own unsaved object, only when `viewS3` (`3427`); then `IsReadonlyBy` (`3440`): the current realm's objects
-   and the executing stdlib package's own stamp. An unreal heap item is marked first (`3431-3437`).
+2. **Allowed**, first match wins: single-user mode, `m.Realm == nil` and not view-only; scratch
+   of this entry; a `RefValue` naming the writing package; R2a-save, the read-only realm's
+   own unsaved object, only when `viewS3`; then `IsReadonlyBy`: the current realm's objects
+   and the executing stdlib package's own stamp. An unreal heap item is marked first.
 3. **Refused**, text chosen by the writing code: a builtin gives `cannot append to / copy to / delete from
-   readonly tainted …` (`uverse.go:929, 1140, 1183, 1249`); `/p/` code gives E1 (`3359`); an R2a stretch gives
-   E4 (`3364`); a realm entered read-only gives E2 (`3369`); anything else gives E3 (`3374`).
+   readonly tainted …` (`uverse.go`); `/p/` code gives E1; an R2a stretch gives
+   E4; a realm entered read-only gives E2; anything else gives E3.
 4. **Marked, refused at save**: an R2a-save write, or after any read-only entry a write to an unreal heap item it did
-   not make (`markViewWrite`, `3855`); `assertNoUncrossedWrite` (`realm.go:581`) refuses the save.
+   not make (`markViewWrite`); `assertNoUncrossedWrite` (`realm.go`) refuses the save.
 
-A name is resolved first by `isExternalRealm` (`3446`), which exempts scratch (`3454`), a transient with a zero
-object ID (`3457-3462`), the R2a-save own unsaved object (`3465`), an unreal heap item (`3471-3472`) and the stdlib
-own stamp (`3480-3482`).
+A name is resolved first by `isExternalRealm`, which exempts scratch, a transient with a zero
+object ID, the R2a-save own unsaved object, an unreal heap item and the stdlib
+own stamp.
 
 R2a sits above the ownership check because it decides whether the call runs with write rights at all: a
 non-crossing value reached by value is writable only as a local helper or while lent, and otherwise the
-callee enters read-only mode with `viewOnly` and `viewS3` set (`enterReadOnlyByS3`, `crossingfn.go:47`), so
+callee enters read-only mode with `viewOnly` and `viewS3` set (`enterReadOnlyByS3`), so
 every write goes through `isReadonly` in the order shown. For the realm's own code the first write gets the
-R2a text (E4, `machine.go:3364-3368`); a `/p/` value reached by value gets the library text
-(E1, `readonlyAccessPanic`, `machine.go:3359`), as `zrealm_saved_libtable_copy` shows. R2a-save sits under both: the
+R2a text (E4, `machine.go`); a `/p/` value reached by value gets the library text
+(E1, `readonlyAccessPanic`, `machine.go`), as `zrealm_saved_libtable_copy` shows. R2a-save sits under both: the
 write goes through, the object is marked, and the refusal arrives at save (`assertNoUncrossedWrite`,
-`realm.go:581`).
+`realm.go`).
 
 `isReadonly` compares the target's package ID with `m.Realm.ID` and the executing package's own stamp
-(`ownership.go:467`, the package ID an object carries). When they differ and nothing exempts the target, the
-write is refused and `readonlyAccessPanic` (`machine.go:3358`) picks the text from the **writing code**, not
+(`ownership.go`, the package ID an object carries). When they differ and nothing exempts the target, the
+write is refused and `readonlyAccessPanic` (`machine.go`) picks the text from the **writing code**, not
 from the call stack:
 
 - `/p/` code (an immutable, non-stdlib package): the library text, E1 (`readonlyAccessPanic`,
-  `machine.go:3359-3363`).
+  `machine.go`).
   `zrealm_model_token.gno` shows it: the token's ledger is written by library code (`modelledger.Move`) and no
   crossing into the token realm is on the stack.
 - A realm's code entered read-only (`m.viewRealm != nil`): the "entered without crossing" text, E2
-  (`machine.go:3369-3373`). It names the realm whose code runs read-only, not the owner of the target.
+  (`machine.go`). It names the realm whose code runs read-only, not the owner of the target.
   `zrealm_ctw_callback.gno` shows it while a crossing call into `ctw` is on the stack, because the refused
   write is by the callback's home realm, `ctw_callback`. `zrealm_launder_rdata_pdr_panic_defer.gno` shows it
   naming the attacker realm that writes the victim's object during panic unwinding.
-- An R2a-entered stretch (`m.viewRealm != nil && m.viewS3`): the R2a text, E4 (`machine.go:3364-3368`):
-  `<path>`'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs. The
+- An R2a-entered stretch (`m.viewRealm != nil && m.viewS3`): the R2a text, E4 (`machine.go`):
+  `<path>'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross)`. The
   callee is a function value outside R2a's three places, so there is no crossing function to call; make the
   callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or pass a literal in place. `zrealm_maker_getdecl.gno` and `zrealm_saved_getter.gno` show it.
-- Anything else: the fallback text, E3 (`machine.go:3380`), when the writing code is not `/p/` and `viewRealm`
+- Anything else: the fallback text, E3 (`machine.go`), when the writing code is not `/p/` and `viewRealm`
   is nil. `zrealm_crossrealm25a.gno` shows it: a crossing call into `crossrealm_b` gives that realm full
   rights, and its code writes an object owned by `crossrealm`.
 
 The exemptions, each with the check that grants it:
 
-- Single-user mode: `m.Realm == nil` and not view-only, so nothing is read-only (`machine.go:3408-3412`). This
-  is the only nil-realm exemption: `setViewOnly` (`machine.go:337`) sets `m.Realm` nil *and* `viewOnly`
+- Single-user mode: `m.Realm == nil` and not view-only, so nothing is read-only (`machine.go`). This
+  is the only nil-realm exemption: `setViewOnly` (`machine.go`) sets `m.Realm` nil *and* `viewOnly`
   true, so with `rid` left zero every stored object is refused.
-- An object allocated since the read-only stretch began is scratch, not stored state (`scratchOwn` at
-  `machine.go:3827`; `isReadonly` at `3415`).
-- The read-only realm's own object that is not saved yet: R2a-save allows the write and marks it (`3427`).
+- An object allocated since the read-only stretch began is scratch, not stored state (`scratchOwn` in
+  `isReadonly`, `machine.go`).
+- The read-only realm's own object that is not saved yet: R2a-save allows the write and marks it.
 - A `RefValue` (a stored reference to a package, named by its path) whose package path is the writing package's own is writable; a foreign package path is not
-  (`machine.go:3419-3424`).
-- For a name, `isExternalRealm` (`machine.go:3446`) exempts scratch (`3454`), an object with a zero object
-  ID, an unsaved transient (`3457-3459` marks the heap item, `3461-3462` returns on the zero ID), and an
-  unreal `HeapItemValue`, a heap wrapper for an escaping local (`3471-3472`).
+  (`machine.go`).
+- For a name, `isExternalRealm` (`machine.go`) exempts scratch, an object with a zero object
+  ID, an unsaved transient (an unreal heap item is marked first when read-only, then the zero ID returns), and an
+  unreal `HeapItemValue`, a heap wrapper for an escaping local.
 - Stdlib code may write its own stdlib-stamped package global. `IsReadonly` grants the own stamp only to
-  stdlib (`machine.go:3397-3402`), and `isExternalRealm` mirrors it (`3480-3482`).
+  stdlib (`machine.go`), and `isExternalRealm` mirrors it.
   `zrealm_stdlib_global_write.gno` shows it: a stdlib function's `counter++` on its own package global, run
   from a realm, prints `1` then `2`.
