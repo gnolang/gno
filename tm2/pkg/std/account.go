@@ -63,7 +63,9 @@ type AccountUnrestricter interface {
 }
 
 // AccountFreezer is an account governance can freeze. The ante handler rejects
-// every transaction a frozen account signs, so nothing it holds can move.
+// every transaction a frozen address signs, as itself or as a session key, and
+// that is all a freeze stops: an address that never signs, such as a package's,
+// moves its coins through its own code.
 type AccountFreezer interface {
 	IsFrozen() bool
 	SetFrozen(bool)

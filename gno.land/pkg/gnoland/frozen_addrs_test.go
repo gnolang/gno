@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -20,15 +19,11 @@ import (
 // keeper rather than WillSetParam, so the old list is read back from the store
 // before the new one replaces it, as on chain.
 func (env testEnv) setFrozenAddrs(addrs ...crypto.Address) {
-	env.prmk.SetStrings(env.ctx, "auth:p:frozen_addrs", addrStrs(addrs))
-}
-
-func addrStrs(addrs []crypto.Address) []string {
 	strs := make([]string, len(addrs))
 	for i, addr := range addrs {
 		strs[i] = addr.String()
 	}
-	return strs
+	env.prmk.SetStrings(env.ctx, "auth:p:frozen_addrs", strs)
 }
 
 func TestFrozenAddrsParamFreezesAndUnfreezes(t *testing.T) {
@@ -58,36 +53,6 @@ func TestFrozenAddrsParamFreezesAndUnfreezes(t *testing.T) {
 	assert.Panics(t, func() {
 		env.prmk.SetStrings(env.ctx, "auth:p:frozen_addrs", []string{"not-an-address"})
 	})
-}
-
-// The veto sees only the addresses a write adds, in list order, and refuses
-// before any of them is frozen or given an account. Removals never reach it.
-func TestFrozenAddrsVeto(t *testing.T) {
-	t.Parallel()
-	env := setupTestEnv()
-
-	listed := crypto.AddressFromPreimage([]byte("listed"))
-	a := crypto.AddressFromPreimage([]byte("a"))
-	b := crypto.AddressFromPreimage([]byte("b"))
-	env.setFrozenAddrs(listed)
-
-	var vetoed [][]crypto.Address
-	acck := env.acck.WithFreezeVeto(func(_ sdk.Context, addrs []crypto.Address) {
-		vetoed = append(vetoed, addrs)
-		panic("refused")
-	})
-	write := func(addrs ...crypto.Address) {
-		acck.WillSetParam(env.ctx, "p:frozen_addrs", addrStrs(addrs))
-	}
-
-	assert.PanicsWithValue(t, "refused", func() { write(b, listed, a) })
-	assert.Equal(t, [][]crypto.Address{{b, a}}, vetoed)
-	assert.Nil(t, env.acck.GetAccount(env.ctx, a), "a refused write must not create accounts")
-	assert.Nil(t, env.acck.GetAccount(env.ctx, b))
-
-	assert.NotPanics(t, func() { write() }, "an unfreeze must not reach the veto")
-	assert.Len(t, vetoed, 1)
-	assert.False(t, env.acck.GetAccount(env.ctx, listed).(std.AccountFreezer).IsFrozen())
 }
 
 // A frozen account can sign nothing, whether with its own key or through a

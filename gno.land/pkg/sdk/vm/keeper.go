@@ -1863,29 +1863,6 @@ func collectWithLimit[T any](seq iter.Seq[T], limit int) []T {
 	return s
 }
 
-// PackageAtAddr returns the first stored package, in package-index order, whose
-// address is one of addrs. Nothing indexes packages by address, so it ranges
-// over the whole package index, which charges each entry's path bytes; walking
-// the package keys instead would charge every package's source.
-func (vm *VMKeeper) PackageAtAddr(ctx sdk.Context, addrs []crypto.Address) (addr crypto.Address, path string, ok bool) {
-	want := make(map[crypto.Address]struct{}, len(addrs))
-	for _, addr := range addrs {
-		want[addr] = struct{}{}
-	}
-	for path := range vm.newGnoTransactionStore(ctx).IterPackageIndex() {
-		// Defence only: run paths are never indexed, and one would derive its
-		// signer's own address.
-		if _, run := gno.IsGnoRunPath(path); run {
-			continue
-		}
-		addr := gno.DerivePkgCryptoAddr(path)
-		if _, ok := want[addr]; ok {
-			return addr, path, true
-		}
-	}
-	return crypto.Address{}, "", false
-}
-
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
 	defer doRecoverQueryNoMachine(&err)

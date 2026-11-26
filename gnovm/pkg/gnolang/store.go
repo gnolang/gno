@@ -102,9 +102,6 @@ type Store interface {
 	// is skipped. Each path is yielded once, at its highest index, which is
 	// where its current content was stored.
 	IterMemPackage() <-chan *std.MemPackage
-	// Yields the path of each package index entry, in index order: one per
-	// AddMemPackage, so a re-added path repeats. Never reads a package.
-	IterPackageIndex() iter.Seq[string]
 	ClearObjectCache() // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                              // for native functions
@@ -1022,23 +1019,6 @@ func (ds *defaultStore) NumMemPackages() int64 {
 			panic(err)
 		}
 		return int64(ctr)
-	}
-}
-
-// IterPackageIndex ranges over the index keys rather than reading each entry,
-// so an entry costs one iteration step and its path's bytes, not a random read.
-func (ds *defaultStore) IterPackageIndex() iter.Seq[string] {
-	// Entry keys are "pkgidx:" and twenty digits, all below "pkgidx::";
-	// the counter key, "pkgidx:counter", sorts above it.
-	start, end := []byte(backendPackageIndexKey(0)), []byte("pkgidx::")
-	return func(yield func(string) bool) {
-		it := ds.baseStore.Iterator(ds.gctx, start, end)
-		defer it.Close()
-		for ; it.Valid(); it.Next() {
-			if !yield(string(it.Value())) {
-				return
-			}
-		}
 	}
 }
 
