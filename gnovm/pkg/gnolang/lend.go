@@ -277,6 +277,9 @@ func (m *Machine) dropCapturedLends(fv *FuncValue) {
 	for len(todo) > 0 && len(m.lends) > 0 {
 		cur := todo[len(todo)-1]
 		todo = todo[:len(todo)-1]
+		if cur != fv { // below the first level: paid per value (its seen-set entry) and capture
+			m.incrCPU(OpCPUSlopeMapLit + OpCPUSlopeCallCapture*int64(len(cur.Captures)))
+		}
 		for i := range cur.Captures {
 			hiv, ok := cur.Captures[i].V.(*HeapItemValue)
 			if !ok {
