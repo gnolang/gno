@@ -1,0 +1,76 @@
+# gno lint: Render building its output with + or += in a loop is a hint, not an error.
+
+gno lint ./pos ./neg ./near
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- gnowork.toml --
+
+-- pos/gnomod.toml --
+module = "gno.land/r/demo/pos"
+gno = "0.9"
+
+-- pos/render.gno --
+package pos
+
+var items = []string{"a", "b"}
+
+func Render(path string) string {
+	out := "# Items\n"
+	for _, it := range items {
+		out += "- " + it + "\n"
+	}
+	return out
+}
+
+-- neg/gnomod.toml --
+module = "gno.land/r/demo/neg"
+gno = "0.9"
+
+-- neg/render.gno --
+package neg
+
+import "strings"
+
+var items = []string{"a", "b"}
+
+func Render(path string) string {
+	var sb strings.Builder
+	sb.WriteString("# Items\n")
+	for _, it := range items {
+		sb.WriteString("- " + it + "\n")
+	}
+	return sb.String()
+}
+
+-- near/gnomod.toml --
+module = "gno.land/r/demo/near"
+gno = "0.9"
+
+-- near/render.gno --
+package near
+
+var items = []string{"a", "b"}
+
+// Concatenation outside a loop, an integer += inside one, and a loop in a
+// helper that is not Render: all silent.
+func Render(path string) string {
+	n := 0
+	for range items {
+		n += 1
+	}
+	return "# Items: " + path + " " + list()
+}
+
+func list() string {
+	s := ""
+	for _, it := range items {
+		s += it
+	}
+	return s
+}
+
+-- stdout.golden --
+-- stderr.golden --
+pos/render.gno:8:3: Render concatenates strings inside a loop; use strings.Builder, and paginate if the loop ranges over a collection that can grow (code=gnoRenderLoopConcatHint)

@@ -1,0 +1,95 @@
+# gno lint: bulk copies sized by a caller argument are a hint, not an error.
+
+gno lint ./pos ./neg ./near
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- gnowork.toml --
+
+-- pos/gnomod.toml --
+module = "gno.land/r/demo/pos"
+gno = "0.9"
+
+-- pos/pos.gno --
+package pos
+
+import "strings"
+
+var log []byte
+
+func Banner(cur realm, n int) string {
+	return strings.Repeat("=", n)
+}
+
+func Append(cur realm, data []byte) {
+	log = append(log, data...)
+}
+
+-- neg/gnomod.toml --
+module = "gno.land/r/demo/neg"
+gno = "0.9"
+
+-- neg/neg.gno --
+package neg
+
+import "strings"
+
+const maxLen = 64
+
+var log []byte
+
+func Banner(cur realm, n int) string {
+	if n > maxLen {
+		panic("too long")
+	}
+	return strings.Repeat("=", n)
+}
+
+func Append(cur realm, data []byte) {
+	if len(log)+len(data) > maxLen {
+		panic("log is full")
+	}
+	log = append(log, data...)
+}
+
+-- near/gnomod.toml --
+module = "gno.land/r/demo/near"
+gno = "0.9"
+
+-- near/near.gno --
+package near
+
+import "strings"
+
+var log []byte
+
+// A constant count, a count bounded by a loop condition, a local destination
+// and an unexported function: all silent.
+func Banner(cur realm, n int) string {
+	s := strings.Repeat("=", 8)
+	for i := 0; i < n && i < 8; i++ {
+		s += strings.Repeat("-", n)
+	}
+	return s
+}
+
+func Echo(cur realm, data []byte) []byte {
+	var out []byte
+	out = append(out, data...)
+	return out
+}
+
+func appendLog(data []byte) {
+	log = append(log, data...)
+}
+
+// copy never writes more than its destination already holds.
+func Overwrite(cur realm, data []byte) {
+	copy(log, data)
+}
+
+-- stdout.golden --
+-- stderr.golden --
+pos/pos.gno:8:9: strings.Repeat count comes from parameter "n" with no bound checked in Banner; limit it so the size of the result stays predictable (code=gnoUnboundedBulkCopyHint)
+pos/pos.gno:12:8: append copies all of parameter "data" into package state "log" with no length checked in Append; limit its length so the state and the cost of reading it stay bounded (code=gnoUnboundedBulkCopyHint)
