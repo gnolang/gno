@@ -156,7 +156,7 @@ func (d *kanban) draw(w *svgWriter) (float64, float64) {
 		y := top + header
 		for j, k := range lanes[i] {
 			cx, cw := x+laneGap, laneWidth-2*laneGap
-			w.rect(classTicket, cx, y, cw, k.h, 4)
+			w.rect(classTicket, cx, y, cw, k.h, boxRadius)
 			if p := col.cards[j].priority; p >= 0 {
 				w.rect(classPeriod+" "+color(p), cx, y, stripeW, k.h, 2)
 			}

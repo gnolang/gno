@@ -244,8 +244,9 @@ func (d *xychart) draw(w *svgWriter) (float64, float64) {
 	// The x-axis title is centered under the plot, which moves right when
 	// the title is wider.
 	xTitleW := textWidth(d.xTitle, smallSize, true)
-	x0 := max(pad+labelW+tickLen+6, pad+(xTitleW-plotW)/2)
-	width := max(x0+max(plotW, (plotW+xTitleW)/2)+pad, pad+textWidth(d.yTitle, smallSize, true)+pad)
+	left := max(pad, pad+(xTitleW-plotW)/2-labelW-tickLen-6) // of the tick labels and the y-axis title
+	x0 := left + labelW + tickLen + 6
+	width := max(x0+max(plotW, (plotW+xTitleW)/2), left+textWidth(d.yTitle, smallSize, true)) + pad
 	bottom := top + plotHeight
 	height := bottom + tickLen + 20 + pad
 	if d.xTitle != "" {
@@ -256,7 +257,7 @@ func (d *xychart) draw(w *svgWriter) (float64, float64) {
 		return bottom - (v-d.yMin)/(d.yMax-d.yMin)*plotHeight
 	}
 
-	w.text(classTitle, pad, top-14, anchorStart, smallSize, d.yTitle)
+	w.text(classTitle, left, top-14, anchorStart, smallSize, d.yTitle)
 	for i, v := range vals {
 		w.line(classGrid, x0, y(v), x0+plotW, y(v))
 		w.text(classMuted, x0-tickLen-4, y(v)+4, anchorEnd, smallSize, labels[i])

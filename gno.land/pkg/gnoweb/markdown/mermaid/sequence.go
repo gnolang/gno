@@ -28,7 +28,6 @@ const (
 	selfLoopH     = 18.0
 	frameInset    = 10.0 // frame side to what it holds
 	tabHeight     = 20.0
-	condSize      = 13.0 // block conditions
 	badgeH        = 18.0 // an autonumber
 	badgeSize     = 11.0
 )
@@ -450,7 +449,7 @@ func (d *sequence) layout() (width, height, footTop float64) {
 	// Rows, top to bottom, and the horizontal extent of each event.
 	y := pad + headH + 16
 	top := y
-	condLine := condSize * leading
+	condLine := smallSize * leading
 	var stack []*seqBlock
 	extend := func(b *seqBlock, l, r float64) { b.l, b.r = min(b.l, l), max(b.r, r) }
 	for _, e := range d.events {
@@ -550,9 +549,9 @@ func (d *sequence) layout() (width, height, footTop float64) {
 }
 
 func (b *seqBlock) labelWidth() float64 {
-	w := tabWidth(b.open.keyword) + 8 + linesWidth(bracket(b.open.text), condSize, false) + frameInset
+	w := tabWidth(b.open.keyword) + 8 + linesWidth(bracket(b.open.text), smallSize, false) + frameInset
 	for _, s := range b.sections {
-		w = max(w, 8+linesWidth(bracket(s.text), condSize, false)+frameInset)
+		w = max(w, 8+linesWidth(bracket(s.text), smallSize, false)+frameInset)
 	}
 	return w
 }
@@ -582,7 +581,7 @@ func (d *sequence) draw(w *svgWriter) (float64, float64) {
 		switch e.kind {
 		case seqNote:
 			tb := textBlock(len(e.text), fontSize)
-			w.rect(classNote, e.l, e.y, e.r-e.l, tb+2*notePad, 2)
+			w.rect(classNote, e.l, e.y, e.r-e.l, tb+2*notePad, boxRadius)
 			w.text("", (e.l+e.r)/2, baseline(e.y+notePad, fontSize), anchorMiddle, 0, e.text...)
 		case seqMessage:
 			d.drawMessage(w, e)
@@ -602,10 +601,10 @@ func drawFrame(w *svgWriter, b *seqBlock) {
 		cmd('M', b.l, b.top).cmd('H', b.l+tw).cmd('V', b.top+tabHeight-6).
 		cmd('L', b.l+tw-6, b.top+tabHeight).cmd('H', b.l).cmd('Z'))
 	w.text(classTitle, b.l+8, b.top+14, anchorStart, smallSize, b.open.keyword)
-	w.text(classMuted, b.l+tw+8, b.top+14, anchorStart, condSize, bracket(b.open.text)...)
+	w.text(classMuted, b.l+tw+8, b.top+14, anchorStart, smallSize, bracket(b.open.text)...)
 	for _, s := range b.sections {
 		w.line(classFrameLine, b.l, s.y, b.r, s.y)
-		w.text(classMuted, b.l+8, s.y+15, anchorStart, condSize, bracket(s.text)...)
+		w.text(classMuted, b.l+8, s.y+15, anchorStart, smallSize, bracket(s.text)...)
 	}
 }
 
@@ -659,7 +658,7 @@ func drawHead(w *svgWriter, head byte, x, y, dir float64) {
 
 func drawParticipant(w *svgWriter, p *seqParticipant, top float64) {
 	if !p.actor {
-		w.rect(classBox, p.x-p.w/2, top, p.w, p.h, 3)
+		w.rect(classBox, p.x-p.w/2, top, p.w, p.h, boxRadius)
 		tb := textBlock(len(p.label), fontSize)
 		w.text("", p.x, baseline(top+(p.h-tb)/2, fontSize), anchorMiddle, 0, p.label...)
 		return

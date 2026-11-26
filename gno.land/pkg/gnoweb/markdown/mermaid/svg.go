@@ -9,7 +9,7 @@ import (
 
 // Text sizes and spacing, in px: leading spaces the lines of a text, in
 // ems; pad is the margin around a diagram, cardPad the padding inside a box
-// of text.
+// of text and boxRadius its corner radius, the same in every diagram type.
 const (
 	fontSize   = 14.0
 	smallSize  = 12.0
@@ -18,6 +18,7 @@ const (
 	lineHeight = leading * fontSize
 	pad        = 16.0
 	cardPad    = 8.0
+	boxRadius  = 4.0
 )
 
 // class is a class attribute value. Its values are the Go constants below

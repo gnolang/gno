@@ -151,7 +151,7 @@ func (d *timeline) draw(w *svgWriter) (float64, float64) {
 			continue // a section without periods
 		}
 		l, r := s.l, s.r
-		w.rect(classPeriod+" "+color(i), l, top, r-l, sectionH-cardGap, 4)
+		w.rect(classPeriod+" "+color(i), l, top, r-l, sectionH-cardGap, boxRadius)
 		w.text(classOnColor+" "+classTitle, (l+r)/2, baseline(top+cardPad, fontSize), anchorMiddle, 0, s.label...)
 	}
 
@@ -165,12 +165,12 @@ func (d *timeline) draw(w *svgWriter) (float64, float64) {
 			w.line(classDashed, mid, periodTop+periodH, mid, bottom-cardGap)
 		}
 		col := colorOf(i)
-		w.rect(classPeriod+" "+col, cx, periodTop, c.w, periodH, 4)
+		w.rect(classPeriod+" "+col, cx, periodTop, c.w, periodH, boxRadius)
 		w.text(classOnColor+" "+classTitle, mid, baseline(periodTop+(periodH-textBlock(len(c.label), fontSize))/2, fontSize), anchorMiddle, 0, c.label...)
 		y := cardsTop
 		for _, card := range c.cards {
 			h := cardHeight(card, fontSize)
-			w.rect(classCard+" "+col, cx, y, c.w, h, 4)
+			w.rect(classCard+" "+col, cx, y, c.w, h, boxRadius)
 			w.text("", mid, baseline(y+cardPad, fontSize), anchorMiddle, 0, card...)
 			y += h + cardGap
 		}
