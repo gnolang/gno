@@ -1,7 +1,7 @@
 # A realm's copy of cbvictim's Pair (an all-exported unnamed struct) is its
-# own: it changes a field in its own state. R2a makes the function read-only
-# once it is stored, so Change runs it first and Rerun writes nothing; the
-# copied function still writes nothing in cbvictim.
+# own: it changes a field in its own state. A stored function value never
+# writes, so Change writes with a literal called in place and Rerun, calling
+# the stored one, writes nothing; cbvictim's function still writes nothing there.
 
 loadpkg gno.land/r/tests/vm/cbvictim
 loadpkg gno.land/r/test/fvown $WORK/fvown
@@ -53,11 +53,11 @@ func Take(cur realm) {
 	orig = cbvictim.P.Inner
 }
 
-// Change writes this realm's own copy of the struct.
+// Change writes Local with a literal called in place, then stores another
+// literal in this realm's own copy of the struct.
 func Change(cur realm, s string) {
-	f := func(s string) { Local = s }
-	f(s)
-	kept.F = f
+	func(s string) { Local = s }(s)
+	kept.F = func(s string) { Local = s }
 }
 
 // Rerun calls the stored function without setting it again.
