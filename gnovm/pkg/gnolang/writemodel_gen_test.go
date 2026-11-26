@@ -42,11 +42,12 @@ const (
 	shBox                     // box.Inc() on a library type the realm owns
 	shBoxValue                // mv := box.Inc; mv()
 	shBoxer                   // var x interface{ Inc() } = rB.Boxer(); x.Inc()
+	shRelay                   // rB.Relay(arg): the callee hands arg on to Keep, then runs it
 	wgShapes
 )
 
 var wgShapeNames = [...]string{"cross", "cur", "cur-value", "named", "method", "hook", "iface",
-	"lib-iface", "helper", "each", "lib", "keep", "give", "cb", "box", "box-value", "boxer"}
+	"lib-iface", "helper", "each", "lib", "keep", "give", "cb", "box", "box-value", "boxer", "relay"}
 
 // wgArgKind is a callback argument.
 type wgArgKind uint8
@@ -124,6 +125,7 @@ const (
 	hCb
 	hGive
 	hRun
+	hRelay
 )
 
 func wgHelperSite(r, h int) int { return 10000 + 10*r + h }
@@ -182,7 +184,7 @@ func wgGenerate(seed int64) *wgProg {
 // keepFree reports whether f, and all it reaches, never runs a kept callback.
 func (p *wgProg) keepFree(f *wgFunc, kf []bool) bool {
 	for _, c := range f.calls {
-		if c.shape == shKeep {
+		if c.shape == shKeep || c.shape == shRelay {
 			return false
 		}
 		for _, t := range c.refs() {
@@ -282,7 +284,7 @@ func (p *wgProg) genCall(rng *rand.Rand, f *wgFunc, kf []bool, site *int) *wgCal
 			c.target = p.pick(rng, f, kind(wgMethod))
 		case shHelper:
 			c.cb = p.genCB(rng, f, kf, site)
-		case shEach, shLib, shKeep:
+		case shEach, shLib, shKeep, shRelay:
 			c.arg = p.genArg(rng, f, kf, site)
 		}
 		if c.shape == shCb {
@@ -429,6 +431,7 @@ func (p *wgProg) realmSrc(r int) string {
 	fmt.Fprintf(&body, "func RunKept() {\n%s\tif kept != nil {\n\t\tkept()\n\t}\n}\n\n", w("\t", wgHelperSite(r, hRunKept), "count++"))
 	fmt.Fprintf(&body, "func Cb(cur realm, f func()) {\n%s\tf()\n}\n\n", w("\t", wgHelperSite(r, hCb), "count++"))
 	body.WriteString("func Boxer() interface{ Inc() } { return box }\n\n")
+	fmt.Fprintf(&body, "func Relay(f func()) {\n%s\tKeep(f)\n\tRunKept()\n}\n\n", w("\t", wgHelperSite(r, hRelay), "count++"))
 	fmt.Fprintf(&body, "func Give() func() {\n\treturn func() {\n%s\t}\n}\n\n", w("\t\t", wgHelperSite(r, hGive), "count++"))
 	hooks := map[int]bool{}
 	for _, f := range p.workers {
@@ -564,6 +567,8 @@ func (p *wgProg) callSrc(f *wgFunc, c *wgCall) string {
 	case shHelper:
 		pre = append(pre, "h := "+p.cbSrc(f, c.cb, ind))
 		last = "h()"
+	case shRelay:
+		last = fmt.Sprintf("%sRelay(%s)", px, p.argSrc(f, c.arg, ind))
 	case shEach:
 		last = fmt.Sprintf("%sEach(%s)", px, p.argSrc(f, c.arg, ind))
 	case shLib:
