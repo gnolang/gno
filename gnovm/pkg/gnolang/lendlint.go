@@ -22,7 +22,8 @@ func LentCallbackWarnings(store Store, pn *PackageNode) (ws []LendWarning) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			ws = nil // a lint aid never fails lint
+			// A lint aid never fails lint, but says it stopped short.
+			ws = []LendWarning{{Msg: "the lent-callback check could not finish for this package"}}
 		}
 	}()
 	c := &lendLint{store: store, pn: pn, bodies: map[BlockNode]*llBody{}}

@@ -135,6 +135,16 @@ func Keep(cur realm) { saved = func() { f() } }
 	}
 }
 
+// An internal failure leaves one warning saying the check did not finish.
+func TestLendLintUnfinished(t *testing.T) {
+	pn := gno.NewPackageNode("ll", "gno.land/r/x/ll", &gno.FileSet{})
+	pn.FileSet.Files = []*gno.FileNode{nil} // makes the check panic
+	ws := gno.LentCallbackWarnings(nil, pn)
+	if len(ws) != 1 || ws[0].Line != 0 || ws[0].Msg != "the lent-callback check could not finish for this package" {
+		t.Fatalf("got %+v", ws)
+	}
+}
+
 type lendRow struct {
 	name, cat, today, sites, note string
 }
