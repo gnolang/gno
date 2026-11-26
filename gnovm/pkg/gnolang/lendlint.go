@@ -88,7 +88,19 @@ func localKey(last BlockNode, nx *NameExpr) (helperKey, bool) {
 	if int(nx.Path.Index) >= len(names) {
 		return helperKey{}, false
 	}
-	return helperKey{dbn, names[nx.Path.Index]}, true
+	name := names[nx.Path.Index]
+	// A capture ("~x") keys as the variable it captures, as preprocess marks it.
+	if fle, ok := dbn.(*FuncLitExpr); ok && len(name) > 1 && name[0] == '~' {
+		for i := range fle.HeapCaptures {
+			if cx := &fle.HeapCaptures[i]; cx.Name == name[1:] {
+				if parent, ok := fle.GetParentNode(nil).(BlockNode); ok {
+					return localKey(parent, &NameExpr{Name: cx.Name, Path: cx.Path})
+				}
+			}
+		}
+		return helperKey{}, false
+	}
+	return helperKey{dbn, name}, true
 }
 
 func (c *lendLint) collectLocals(fn *FileNode) {

@@ -74,6 +74,17 @@ func Chain(cur realm) { chain(func() { count++ }) }
 
 func StoredReader(cur realm) { saved = func() { _ = read() } }
 
+func HelperInLit(cur realm) {
+	h1 := func() { count++ }
+	h2 := func() { h1() }
+	h2()
+}
+
+func AliasInLit(cur realm) {
+	f := bump
+	func() { f() }()
+}
+
 func Fire(cur realm) {
 	if saved != nil {
 		saved()
