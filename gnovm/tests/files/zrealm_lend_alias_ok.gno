@@ -1,7 +1,11 @@
 // PKGPATH: gno.land/r/tests/vm/lendaliasok
 package lendaliasok
 
-import lib "gno.land/p/demo/tests/t76lib"
+import (
+	"sort"
+
+	lib "gno.land/p/demo/tests/t76lib"
+)
 
 // A local declared once from a declared function and only ever called is that
 // function by name: each "alias" line must equal its "name" twin.
@@ -9,6 +13,7 @@ import lib "gno.land/p/demo/tests/t76lib"
 var (
 	n  int
 	xs = []int{1, 2, 3}
+	ys []int
 )
 
 func own(xs []int, f func(int)) {
@@ -84,6 +89,9 @@ func main(cur realm) {
 		h := func() { each(xs, func(x int) { n += x }) }
 		h()
 	}))
+
+	show("09 stdlib on own slice, name ", try(func() { ys = []int{3, 1, 2}; sort.Ints(ys); n = ys[0] }))
+	show("09 stdlib on own slice, alias", try(func() { ys = []int{3, 1, 2}; f := sort.Ints; f(ys); n = ys[0] }))
 }
 
 func try(fn func()) (r any) {
@@ -109,3 +117,5 @@ func try(fn func()) (r any) {
 // 07 loop, alias 18 undefined
 // 08 inside a local helper, name  6 undefined
 // 08 inside a local helper, alias 6 undefined
+// 09 stdlib on own slice, name  1 undefined
+// 09 stdlib on own slice, alias 1 undefined

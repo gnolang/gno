@@ -97,9 +97,11 @@ func RunM(cur realm, f func(*T, string)) { f(Box, "picked") }
 // Lib is an object of a library type this realm owns.
 var Lib = &launderpkg.Immutable{Field: "orig"}
 
-// LibGate calls a library writer through a value made in this gate.
+// LibGate calls a library writer through a value made in this gate; the
+// reassignment makes it a value, not the function by name.
 func LibGate(cur realm) {
 	f := pfuncbind.Clobber
+	f = pfuncbind.Clobber
 	f(Lib)
 }
 
@@ -115,6 +117,7 @@ func RunLib(cur realm, f func(*launderpkg.Immutable)) { f(Lib) }
 // LibGateless calls a library writer through a value, without a gate.
 func LibGateless() {
 	f := pfuncbind.Clobber
+	f = pfuncbind.Clobber
 	f(Lib)
 }
 
