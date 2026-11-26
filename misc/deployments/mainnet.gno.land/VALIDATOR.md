@@ -150,3 +150,9 @@ gnokey maketx call \
 Registering only lists you as a **candidate**. A GovDAO member must then create and pass a proposal to add you to the active validator set (via `r/sys/validators/v0`). Once that proposal executes, your node joins the valset.
 
 You can review registered valopers and the current set at <https://gno.land/r/gnops/valopers> and <https://gno.land/r/sys/validators/v0>.
+
+## 6. Coordinated upgrades
+
+A coordinated upgrade starts with a GovDAO proposal that sets a halt height and a minimum version (`halt_min_version`); follow the proposals at <https://gno.land/r/gov/dao>. [`UPGRADES.md`](./UPGRADES.md) lists the release only after the halt. Before the halt height, install the new version next to the one you run, checked against its `CHECKSUMS.txt` and with a `GNOROOT` checkout of the same tag, and keep `halt_height = 0` in `config.toml`.
+
+At the halt height your node commits the block and stops producing blocks, but the process does not exit: the RPC stays up and the node idles, so a supervisor that restarts on exit (systemd `Restart=on-failure`, a container restart policy) does not fire. Stop the process yourself, then start the new version; it must satisfy `halt_min_version`. The chain resumes once validators holding more than two thirds of the voting power run the new version. Details: [what a halt actually looks like](../../../gno.land/cmd/gnoland/UPGRADES.md#what-a-halt-actually-looks-like).
